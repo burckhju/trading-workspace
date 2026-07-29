@@ -1,0 +1,49 @@
+# Operating systems
+.DS_Store
+Thumbs.db
+
+# Editors and IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+.venv/
+venv/
+dist/
+build/
+*.egg-info/
+
+# Node.js
+node_modules/
+frontend/dist/
+frontend/coverage/
+*.tsbuildinfo
+
+# Logs and runtime files
+*.log
+*.pid
+
+# Test artifacts
+test-results/
+playwright-report/
+
+# Database and local volumes
+*.sqlite
+*.sqlite3
+postgres-data/
