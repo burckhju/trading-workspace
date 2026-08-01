@@ -1,7 +1,7 @@
 """Unit tests for database infrastructure."""
 
 from app.core.config import Environment, Settings
-from app.database import Base, DatabaseManager, NAMING_CONVENTION
+from app.database import NAMING_CONVENTION, Base, DatabaseManager
 
 
 def make_settings() -> Settings:

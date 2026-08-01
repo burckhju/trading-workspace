@@ -3,7 +3,7 @@
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import TypedDict
+from typing import Annotated, TypedDict
 
 from fastapi import Depends, FastAPI, HTTPException, status
 
@@ -71,7 +71,10 @@ def create_application(settings: Settings | None = None) -> FastAPI:
         tags=["technical"],
     )
     async def readiness(
-        database: DatabaseManager = Depends(get_database_manager),
+        database: Annotated[
+            DatabaseManager,
+            Depends(get_database_manager),
+        ],
     ) -> HealthResponse:
         try:
             await database.ping()

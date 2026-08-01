@@ -53,7 +53,11 @@ def configure_logging(log_level: str) -> None:
         },
         "root": {"handlers": ["console"], "level": log_level},
         "loggers": {
-            "uvicorn": {"handlers": ["console"], "level": log_level, "propagate": False},
+            "uvicorn": {
+                "handlers": ["console"],
+                "level": log_level,
+                "propagate": False,
+            },
             "uvicorn.error": {
                 "handlers": ["console"],
                 "level": log_level,
