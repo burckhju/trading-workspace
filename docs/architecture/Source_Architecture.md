@@ -1,54 +1,62 @@
 # Source Architecture
 
-> Verbindliche Struktur des Quellcodes des Trading Workspace
+## Dokumentinformationen
 
----
-
-# Dokumentinformationen
-
-| Feld | Wert |
-|------|------|
+| Eigenschaft | Wert |
+|---|---|
 | Dokument | SOURCE_ARCHITECTURE.md |
 | Dokumenttyp | Technical Architecture |
-| Version | 1.0 |
-| Status | 🔵 Review |
+| Version | 1.1 |
+| Status | 🟢 Approved |
+| Letzte Änderung | 2026-08-01 |
+| Freigegeben durch | Projektverantwortlicher |
+| Freigabedatum | 2026-08-01 |
 
 ---
 
 # Zweck
 
-Dieses Dokument definiert den vollständigen Aufbau des Source Codes.
+Dieses Dokument definiert die verbindliche Struktur des Quellcodes und der Projektdateien des **Trading Workspace**.
 
-Es beschreibt
+Ziele sind:
 
-- Repositorystruktur
-- Module
-- Pakete
-- Abhängigkeiten
-- Build-Struktur
+- eindeutige Verantwortlichkeiten
+- geringe Kopplung
+- hohe Wartbarkeit
+- nachvollziehbare Erweiterbarkeit
+- keine doppelte Implementierung
 
-Es beschreibt keine Geschäftslogik.
+Die Struktur ist für alle zukünftigen Entwicklungen verbindlich.
 
 ---
 
-# Repository
+# Architekturprinzipien
+
+- Feature-orientierte Struktur
+- Trennung von Fachlichkeit und Technik
+- geringe Abhängigkeiten
+- hohe Testbarkeit
+- klare Verantwortlichkeiten
+
+Jedes Artefakt besitzt genau einen fachlichen Eigentümer.
+
+---
+
+# Repositorystruktur
 
 ```text
 trading-workspace/
-
-backend/
-
-frontend/
-
-docs/
-
-tests/
-
-scripts/
-
-docker/
-
-.github/
+├── backend/
+├── frontend/
+├── docs/
+├── tests/
+├── scripts/
+├── docker/
+├── .github/
+├── README.md
+├── .gitignore
+├── .editorconfig
+└── .dockerignore
 ```
 
 ---
@@ -57,124 +65,38 @@ docker/
 
 ```text
 backend/
-
-app/
-
-core/
-
-shared/
-
-features/
-
-providers/
-
-database/
-
-events/
-
-main.py
+├── app/
+│   ├── core/
+│   ├── shared/
+│   ├── features/
+│   ├── providers/
+│   ├── database/
+│   ├── events/
+│   └── main.py
+├── migrations/
+├── alembic.ini
+├── pyproject.toml
+├── requirements.txt
+├── requirements-dev.txt
+├── Dockerfile
+├── .env.example
+└── .python-version
 ```
 
 ---
 
-# Core
-
-```text
-core/
-
-config/
-
-logging/
-
-security/
-
-exceptions/
-
-middleware/
-
-di/
-```
-
-Nur technische Infrastruktur.
-
----
-
-# Shared
-
-```text
-shared/
-
-types/
-
-enums/
-
-value_objects/
-
-utils/
-
-contracts/
-
-validators/
-```
-
-Keine Fachlogik.
-
----
-
-# Features
-
-```text
-features/
-
-market/
-
-candidate/
-
-trade_plan/
-
-product/
-
-trade/
-
-observation/
-
-journal/
-
-performance/
-
-model/
-
-provider/
-
-notification/
-
-administration/
-```
-
----
-
-# Aufbau eines Features
+# Backend-Feature
 
 ```text
 feature/
-
-api/
-
-services/
-
-domain/
-
-repositories/
-
-schemas/
-
-validators/
-
-events/
-
-mappers/
-
-tests/
+├── api/
+├── services/
+├── domain/
+├── repositories/
+├── schemas/
+├── validators/
+├── events/
+└── mappers/
 ```
 
 ---
@@ -183,48 +105,29 @@ tests/
 
 ```text
 frontend/
-
-src/
-
-app/
-
-features/
-
-shared/
-
-components/
-
-layouts/
-
-services/
-
-types/
-
-hooks/
-
-styles/
-```
-
----
-
-# Feature Frontend
-
-```text
-feature/
-
-pages/
-
-components/
-
-dialogs/
-
-hooks/
-
-services/
-
-types/
-
-tests/
+├── src/
+│   ├── app/
+│   ├── features/
+│   ├── shared/
+│   ├── components/
+│   ├── layouts/
+│   ├── pages/
+│   ├── services/
+│   ├── types/
+│   ├── hooks/
+│   ├── styles/
+│   ├── assets/
+│   ├── utils/
+│   └── main.tsx
+├── package.json
+├── tsconfig.json
+├── vite.config.ts
+├── vitest.config.ts
+├── playwright.config.ts
+├── eslint.config.js
+├── Dockerfile
+├── .env.example
+└── .nvmrc
 ```
 
 ---
@@ -233,18 +136,13 @@ tests/
 
 ```text
 tests/
-
-unit/
-
-integration/
-
-contract/
-
-workflow/
-
-performance/
-
-e2e/
+├── unit/
+├── integration/
+├── contract/
+├── workflow/
+├── performance/
+├── e2e/
+└── fixtures/
 ```
 
 ---
@@ -253,102 +151,47 @@ e2e/
 
 ```text
 docs/
-
-foundation/
-
-features/
-
-reference/
-
-architecture/
-
-technical/
-
-implementation/
-```
-
----
-
-# Verbotene Abhängigkeiten
-
-Nicht zulässig
-
-```text
-Feature
-
-↓
-
-Repository eines anderen Features
-```
-
-Nicht zulässig
-
-```text
-Frontend
-
-↓
-
-Database
-```
-
-Nicht zulässig
-
-```text
-Controller
-
-↓
-
-SQL
+├── foundation/
+├── architecture/
+├── technical/
+├── implementation/
+├── features/
+└── reference/
 ```
 
 ---
 
 # Zulässige Abhängigkeiten
 
-```text
-Frontend
+Frontend → API → Application Service → Domain → Repository → Database
 
-↓
+---
 
-API
+# Verbotene Abhängigkeiten
 
-↓
-
-Service
-
-↓
-
-Domain
-
-↓
-
-Repository
-
-↓
-
-Database
-```
+- Frontend → Database
+- API → SQL
+- Domain → Framework
+- Direkte Zugriffe auf interne Bestandteile anderer Features
 
 ---
 
 # Erweiterungen
 
-Neue Features werden ausschließlich
-
-unter
+Neue Features werden ausschließlich angelegt unter:
 
 ```text
-features/
+backend/app/features/<feature>/
+frontend/src/features/<feature>/
+docs/features/<feature>/
+tests/<testart>/<feature>/
 ```
-
-angelegt.
 
 ---
 
-# Zusammenfassung
+# Änderungshistorie
 
-Die Source Architecture bildet die technische Grundlage der gesamten Codebasis.
-
-Alle Features folgen derselben Struktur.
-
-Dadurch bleibt das Repository unabhängig von der Projektgröße konsistent und wartbar.
+| Version | Datum | Änderung |
+|---|---|---|
+| 1.0 | 2026-07-22 | Erstversion |
+| 1.1 | 2026-08-01 | Struktur überarbeitet und Repository abgeglichen |

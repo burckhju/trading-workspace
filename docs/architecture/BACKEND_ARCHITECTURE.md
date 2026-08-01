@@ -4,88 +4,143 @@
 
 ---
 
-# Änderungshistorie
-
-| Version | Datum | Änderungen |
-|----------|------------|----------------|
-| 1.0 | 2026-07-22 | Erstversion |
-
----
-
 # Dokumentinformationen
 
 | Feld | Wert |
-|------|------|
+|---|---|
 | Dokument-ID | DOC-018 |
 | Dokument | BACKEND_ARCHITECTURE.md |
 | Dokumenttyp | Technical Architecture |
-| Version | 1.0 |
-| Status | 🔵 Review |
-| Letzte Änderung | 2026-07-22 |
+| Version | 1.1 |
+| Status | 🟢 Approved |
+| Letzte Änderung | 2026-08-01 |
+| Freigegeben durch | Projektverantwortlicher |
+| Freigabedatum | 2026-08-01 |
 
 ---
 
 # Zweck
 
-Dieses Dokument beschreibt die technische Architektur des Backends.
+Dieses Dokument beschreibt die verbindliche technische Architektur des Backends des **Trading Workspace**.
 
-Es definiert
+Es definiert:
 
-- Aufbau
-- Verantwortlichkeiten
-- Schichten
-- Kommunikationswege
-- Designprinzipien
+- Systemgrenzen,
+- Schichten,
+- Verantwortlichkeiten,
+- zulässige Abhängigkeiten,
+- Featurestruktur,
+- Kommunikation,
+- Persistenz,
+- Providerintegration,
+- Fehlerbehandlung,
+- Transaktionen,
+- Logging,
+- Auditierbarkeit,
+- Testbarkeit.
 
-Es beschreibt keine Geschäftslogik.
+Fachliche Regeln, Modelle und konkrete Anwendungsfälle werden in den jeweiligen Feature- und Referenzdokumenten beschrieben.
 
-Diese befindet sich ausschließlich in den Feature Books.
+---
+
+# Architekturreferenzen
+
+Dieses Dokument konkretisiert die übergreifende Architektur aus:
+
+```text
+docs/foundation/ARCHITECTURE.md
+docs/architecture/Source_Architecture.md
+```
+
+Bei Widersprüchen gilt:
+
+1. freigegebene Projektentscheidung,
+2. `docs/foundation/ARCHITECTURE.md`,
+3. `docs/architecture/Source_Architecture.md`,
+4. dieses Dokument,
+5. Featuredokumentation.
+
+Ein Widerspruch muss vor einer Freigabe dokumentiert und behoben werden.
 
 ---
 
 # Architekturprinzipien
 
-Das Backend basiert auf folgenden Prinzipien:
+Das Backend folgt diesen Grundsätzen:
 
-- Feature First
-- Clean Architecture
-- Domain Driven Design
-- Dependency Injection
-- Testbarkeit
-- Erweiterbarkeit
-- geringe Kopplung
+- Feature-orientierte Struktur,
+- Clean Architecture,
+- Domain-orientierte Modellierung,
+- Dependency Inversion,
+- geringe Kopplung,
+- hohe Kohäsion,
+- explizite Schnittstellen,
+- zentrale technische Infrastruktur,
+- vollständige Testbarkeit,
+- nachvollziehbare Berechnungen,
+- versionierte fachliche Modelle,
+- keine autonome Handelsentscheidung.
+
+Die Software unterstützt den Benutzer, trifft jedoch keine Kauf-, Verkaufs-, Halte- oder Positionsgrößenentscheidung.
+
+---
+
+# Systemkontext
+
+Das Backend stellt die fachlichen und technischen Dienste des Trading Workspace bereit.
+
+Es kommuniziert mit:
+
+- dem Frontend über eine versionierte REST-API,
+- PostgreSQL über die Persistenzschicht,
+- externen Marktdaten- und Produktprovidern über Provideradapter,
+- Benachrichtigungsdiensten über Provideradapter,
+- technischen Betriebsdiensten über definierte Infrastrukturkomponenten.
+
+Das Frontend greift niemals direkt auf Datenbank oder externe Provider zu.
 
 ---
 
 # Zielarchitektur
 
 ```text
+Frontend
+   │
+   ▼
 REST API
-
-↓
-
-Application Layer
-
-↓
-
-Feature Layer
-
-↓
-
-Domain Models
-
-↓
-
-Repositories
-
-↓
-
+   │
+   ▼
+Application Service
+   │
+   ▼
+Domain
+   │
+   ▼
+Repository-Abstraktion
+   │
+   ▼
+Persistenzadapter
+   │
+   ▼
 Database
-
-↓
-
-External Provider
 ```
+
+Externe Systeme werden parallel über Infrastrukturadapter angebunden:
+
+```text
+Application Service oder Domain Contract
+   │
+   ▼
+Provider-Abstraktion
+   │
+   ▼
+Provideradapter
+   │
+   ▼
+Externes System
+```
+
+Provider liegen nicht hinter der Datenbank und sind keine Persistenzschicht.
 
 ---
 
@@ -93,418 +148,699 @@ External Provider
 
 ```text
 backend/
-
-app/
-
-core/
-
-features/
-
-shared/
-
-api/
-
-database/
-
-providers/
-
-events/
-
-tests/
+├── app/
+│   ├── core/
+│   ├── shared/
+│   ├── features/
+│   ├── providers/
+│   ├── database/
+│   ├── events/
+│   └── main.py
+├── migrations/
+│   └── versions/
+├── alembic.ini
+├── pyproject.toml
+├── requirements.txt
+├── requirements-dev.txt
+├── Dockerfile
+├── .env.example
+└── .python-version
 ```
 
----
-
-# Core
-
-Der Core enthält ausschließlich technische Infrastruktur.
-
-Beispiele
-
-- Konfiguration
-- Logging
-- Authentifizierung
-- Dependency Injection
-- Fehlerbehandlung
-
-Der Core enthält keine Geschäftslogik.
+Die vollständige Repositorystruktur wird in `Source_Architecture.md` festgelegt.
 
 ---
 
-# Features
+# Verantwortungsbereiche
 
-Jedes Feature besitzt einen eigenen Bereich.
+## `app/core/`
+
+Enthält zentrale technische Infrastruktur.
+
+Beispiele:
+
+- Konfiguration,
+- Dependency Injection,
+- Authentifizierung,
+- Autorisierung,
+- Middleware,
+- zentrale Fehlerbehandlung,
+- technisches Logging,
+- Sicherheitskomponenten.
+
+`core` enthält keine fachliche Geschäftslogik.
+
+---
+
+## `app/shared/`
+
+Enthält fachlich neutrale und featureübergreifend wiederverwendbare Bausteine.
+
+Beispiele:
+
+- Identifier,
+- Value Objects,
+- Basistypen,
+- generische Validatoren,
+- technische Contracts,
+- gemeinsame Enumerationen,
+- allgemeine Hilfsfunktionen.
+
+`shared` ist kein Sammelverzeichnis.
+
+Ein Baustein darf nur nach `shared` verschoben werden, wenn:
+
+- mehrere Features ihn benötigen,
+- er keine interne Verantwortung eines Features enthält,
+- seine Schnittstelle stabil und ausdrücklich freigegeben ist.
+
+---
+
+## `app/features/`
+
+Enthält alle fachlichen Funktionen.
+
+Aktuell vorgesehene Features:
 
 ```text
-features/
-
-market/
-
-candidate/
-
-trade_plan/
-
-product/
-
-trade/
-
-observation/
-
-journal/
-
-performance/
-
-model/
-
-provider/
-
-notification/
-
-administration/
+administration
+candidate
+journal
+market
+model
+notification
+observation
+performance
+product
+provider
+trade
+trade_plan
 ```
 
-Features dürfen keine Implementierungsdetails anderer Features kennen.
+Jedes Feature besitzt eine klar abgegrenzte fachliche Verantwortung.
+
+Ein Feature darf keine internen Implementierungsdetails eines anderen Features direkt verwenden.
 
 ---
 
-# Aufbau eines Features
+## `app/providers/`
+
+Enthält technische Adapter zu externen Diensten.
+
+Beispiele:
+
+- Marktdatenanbieter,
+- Produktdatenanbieter,
+- historische Kursquellen,
+- Benachrichtigungsdienste,
+- spätere Broker- oder Importadapter.
+
+Provideradapter implementieren Contracts, die von Application Services oder der Domain benötigt werden.
+
+Fachliche Providerverwaltung als Benutzerfunktion gehört weiterhin zum Feature `app/features/provider/`.
+
+---
+
+## `app/database/`
+
+Enthält zentrale technische Datenbankinfrastruktur.
+
+Beispiele:
+
+- Engine- und Sessionverwaltung,
+- Basisklassen,
+- Transaktionsunterstützung,
+- gemeinsame Datenbankabhängigkeiten.
+
+Fachspezifische Repositoryinterfaces und Persistenzadapter verbleiben beim zuständigen Feature.
+
+---
+
+## `app/events/`
+
+Enthält ausschließlich gemeinsam verwendete technische Eventinfrastruktur oder ausdrücklich freigegebene featureübergreifende Eventcontracts.
+
+Featureinterne Events verbleiben im jeweiligen Feature.
+
+---
+
+## `migrations/`
+
+Enthält versionierte Alembic-Migrationen.
+
+Datenbankschemaänderungen erfolgen ausschließlich über Migrationen.
+
+Manuelle, nicht dokumentierte Schemaänderungen sind nicht zulässig.
+
+---
+
+# Aufbau eines Backend-Features
+
+Ein Backend-Feature kann folgende Struktur besitzen:
 
 ```text
 feature/
+├── api/
+├── services/
+├── domain/
+├── repositories/
+├── schemas/
+├── validators/
+├── events/
+└── mappers/
+```
 
-api/
+Nicht jedes Unterverzeichnis muss von Beginn an existieren.
 
-services/
+Ein Verzeichnis wird erst angelegt, wenn das Feature die entsprechende Verantwortung tatsächlich benötigt.
 
-domain/
+Tests liegen nicht innerhalb des Features, sondern zentral unter:
 
-repositories/
-
-schemas/
-
-validators/
-
-events/
-
+```text
 tests/
 ```
 
-Jedes Feature ist technisch möglichst unabhängig.
+---
+
+# API-Schicht
+
+## Verantwortung
+
+Die API-Schicht:
+
+- definiert Routen,
+- validiert Transportdaten,
+- authentifiziert und autorisiert,
+- ruft Application Services auf,
+- übersetzt Ergebnisse in API-Antworten,
+- verwendet stabile Fehlercodes.
+
+## Nicht zulässig
+
+- fachliche Berechnungen,
+- direkte SQL-Abfragen,
+- direkte Datenbankzugriffe,
+- direkte Aufrufe externer APIs,
+- Transaktionssteuerung,
+- interne Logik anderer Features.
+
+API-Schemas sind Transportmodelle und nicht automatisch Domain- oder Persistenzmodelle.
 
 ---
 
-# API Layer
+# Application Services
 
-Verantwortung
+Application Services koordinieren fachliche Anwendungsfälle.
 
-- Routing
-- Request Validation
-- Authorization
-- Response Mapping
+Sie:
 
-Nicht zulässig
+- steuern Workflows,
+- koordinieren Domainobjekte,
+- verwenden Repository- und Providercontracts,
+- steuern fachliche Transaktionsgrenzen,
+- erzeugen fachliche oder Integrationsevents,
+- stellen Nachvollziehbarkeitsinformationen zusammen.
 
-- Berechnungen
-- Datenbankzugriffe
-- Geschäftsregeln
+Ein Service besitzt eine klar benannte Verantwortung.
 
----
-
-# Service Layer
-
-Verantwortung
-
-- Geschäftslogik
-- Workflowsteuerung
-- Koordination mehrerer Modelle
-
-Ein Service besitzt genau eine fachliche Verantwortung.
+Große Sammelservices sind nicht zulässig.
 
 ---
 
-# Domain Models
+# Domain
 
-Domain Models enthalten
+Die Domain enthält die fachlichen Regeln des zuständigen Features.
 
-- Berechnungen
-- Bewertungen
-- Entscheidungslogik
+Sie kann enthalten:
 
-Sie sind unabhängig von
+- Entities,
+- Value Objects,
+- fachliche Services,
+- Invarianten,
+- Berechnungen,
+- Bewertungen,
+- fachliche Ereignisse.
 
-- HTTP
-- Datenbank
-- Framework
+Die Domain ist unabhängig von:
 
----
+- HTTP,
+- FastAPI,
+- SQLAlchemy,
+- konkreten Datenbanken,
+- konkreten Providern,
+- Dateisystemen,
+- Benutzeroberflächen.
 
-# Repository Layer
+## Keine autonome Handelsentscheidung
 
-Repositories kapseln ausschließlich den Datenzugriff.
+Domainlogik darf Regeln auswerten, Kennzahlen berechnen und Warnungen erzeugen.
 
-Erlaubt
+Sie darf keine autonome Handelsentscheidung treffen oder ausführen.
 
-- Create
-- Read
-- Update
-- Delete
-
-Nicht erlaubt
-
-- Geschäftslogik
-- Berechnungen
-
----
-
-# Database Layer
-
-Die Datenbank ist ausschließlich Persistenz.
-
-Sie kennt keine Fachlogik.
+Die endgültige Entscheidung verbleibt beim Benutzer.
 
 ---
 
-# Provider Layer
+# Repositories
 
-Der Provider Layer kapselt externe Systeme.
+## Repository-Abstraktionen
 
-Beispiele
+Repositoryinterfaces gehören zum verantwortlichen Feature.
 
-- Börsendaten
-- Produktdaten
-- Historische Kurse
-- Benachrichtigungsdienste
+Sie definieren fachlich benötigte Persistenzoperationen.
 
-Features kommunizieren niemals direkt mit externen APIs.
+## Persistenzadapter
 
----
+Konkrete Implementierungen verwenden die zentrale Datenbankinfrastruktur.
 
-# Shared Layer
+## Erlaubt
 
-Gemeinsam genutzte Komponenten.
+- Laden,
+- Speichern,
+- Aktualisieren,
+- Löschen,
+- fachlich neutrale Abfragen,
+- Mapping zwischen Persistenz- und Domainmodell.
 
-Beispiele
+## Nicht erlaubt
 
-- Value Objects
-- Datumsfunktionen
-- Geldbeträge
-- Identifier
-- Enumerationen
-
-Nur fachlich neutrale Komponenten gehören in diesen Bereich.
-
----
-
-# Event Layer
-
-Features kommunizieren bevorzugt über Events.
-
-Beispiele
-
-```text
-TRADE_OPENED
-
-STOP_UPDATED
-
-PRODUCT_SWITCHED
-
-TRADE_CLOSED
-
-OBSERVATION_COMPLETED
-
-JOURNAL_FINALIZED
-```
-
-Events reduzieren direkte Abhängigkeiten zwischen Features.
+- fachliche Entscheidungen,
+- Bewertungslogik,
+- Workflowsteuerung,
+- Providerzugriffe,
+- eigenständige Transaktionsgrenzen.
 
 ---
 
-# Abhängigkeitsregeln
+# Provider
 
-Erlaubt
+## Providercontracts
 
-```text
-API
+Ein Providercontract beschreibt, welche externe Fähigkeit ein Feature benötigt.
 
-↓
+Beispiele:
 
-Service
+- aktuelle Marktdaten laden,
+- historische Kurse laden,
+- Produktdaten suchen,
+- Benachrichtigung versenden.
 
-↓
+## Provideradapter
 
-Model
+Ein Adapter kapselt:
 
-↓
+- Authentifizierung beim Anbieter,
+- HTTP- oder Protokollzugriff,
+- Fehlerübersetzung,
+- Rate Limits,
+- Retryregeln,
+- Datenmapping,
+- technische Telemetrie.
 
-Repository
-```
+## Datenqualität
 
-Nicht erlaubt
+Providerdaten gelten als externe, nicht vertrauenswürdige Eingaben.
 
-```text
-Repository
+Sie müssen validiert werden auf:
 
-↓
+- Vollständigkeit,
+- Aktualität,
+- Einheit,
+- Zeitstempel,
+- Plausibilität,
+- Providerstatus.
 
-Service
-
-↓
-
-API
-```
-
-oder
-
-```text
-Frontend
-
-↓
-
-Repository
-```
+Fehlende oder unsichere Daten dürfen nicht stillschweigend ersetzt werden.
 
 ---
 
-# Fehlerbehandlung
+# Mappings
 
-Alle Fehler werden zentral behandelt.
+Mapper übersetzen zwischen:
 
-Jede Ausnahme besitzt
+- API-Schema,
+- Domainmodell,
+- Persistenzmodell,
+- Providerdarstellung.
 
-- Fehlercode
-- Nachricht
-- Kontext
-- Zeitstempel
+Mappinglogik ist von Geschäftslogik zu trennen.
 
----
-
-# Konfiguration
-
-Konfiguration erfolgt ausschließlich zentral.
-
-Beispiele
-
-- Datenbank
-- Provider
-- API Keys
-- Feature Flags
-- Logging
-
-Keine Konfiguration im Quellcode.
-
----
-
-# Transaktionen
-
-Geschäftliche Transaktionen werden ausschließlich im Service Layer gesteuert.
-
-Repositories öffnen keine eigenen Transaktionen.
+`mappers/` ist optional und wird nur angelegt, wenn eigenständige Mappingverantwortung vorhanden ist.
 
 ---
 
 # Validierung
 
-Mehrstufige Validierung
+Validierung erfolgt auf mehreren Ebenen:
 
-1. API
-2. Schema
-3. Service
-4. Domain Model
+1. API: Format und Transportstruktur,
+2. Schema: Typen und Feldgrenzen,
+3. Application Service: Anwendungsfall und Berechtigung,
+4. Domain: fachliche Invarianten,
+5. Provideradapter: externe Datenqualität.
 
-Jede Ebene prüft ausschließlich ihre eigene Verantwortung.
+Jede Ebene prüft ausschließlich ihre Verantwortung.
+
+Fachliche Fehler erhalten stabile, maschinenlesbare Fehlercodes.
+
+---
+
+# Abhängigkeitsregeln
+
+## Zulässig
+
+```text
+API
+→ Application Service
+→ Domain
+→ Repository- oder Providercontract
+→ Infrastrukturadapter
+```
+
+## Nicht zulässig
+
+```text
+Domain
+→ FastAPI
+```
+
+```text
+Domain
+→ SQLAlchemy
+```
+
+```text
+API
+→ konkrete Datenbankimplementierung
+```
+
+```text
+Feature A
+→ interne Implementierung von Feature B
+```
+
+```text
+Frontend
+→ Repository oder Database
+```
+
+Featureübergreifende Kommunikation erfolgt ausschließlich über:
+
+- freigegebene Contracts,
+- Application Services,
+- Domain- oder Integrationsevents.
+
+---
+
+# Dependency Injection
+
+Konkrete Infrastrukturimplementierungen werden an der Anwendungsgrenze verdrahtet.
+
+Domain und Application Services hängen von Abstraktionen ab.
+
+Nicht zulässig sind:
+
+- globale versteckte Serviceinstanzen,
+- direkte Erzeugung konkreter Provider in Domaincode,
+- direkte Erzeugung konkreter Repositories in API-Endpunkten.
+
+---
+
+# Transaktionen
+
+Application Services definieren fachliche Transaktionsgrenzen.
+
+Repositories:
+
+- nehmen an einer bestehenden Transaktion teil,
+- öffnen keine unabhängigen fachlichen Transaktionen,
+- führen keine versteckten Commits durch.
+
+Externe Provideraufrufe und Datenbanktransaktionen müssen so koordiniert werden, dass inkonsistente Zwischenzustände vermieden oder nachvollziehbar behandelt werden.
+
+---
+
+# Events
+
+## Fachliche Events
+
+Events werden als eingetretene Tatsachen in der Vergangenheitsform benannt.
+
+Beispiele:
+
+```text
+TRADE_OPENED
+STOP_CHANGED
+PRODUCT_CHANGED
+PARTIAL_SALE_RECORDED
+TRADE_CLOSED
+OBSERVATION_COMPLETED
+JOURNAL_FINALIZED
+MODEL_VERSION_APPROVED
+```
+
+## Regeln
+
+Events:
+
+- besitzen ein eindeutiges Schema,
+- sind versionierbar,
+- enthalten einen Zeitstempel,
+- enthalten eine Korrelations-ID,
+- enthalten nur erforderliche Daten,
+- ersetzen keine beliebigen direkten Funktionsaufrufe.
+
+Events dürfen nicht verwendet werden, um unklare Verantwortlichkeiten zu verdecken.
+
+---
+
+# Fehlerbehandlung
+
+Fehler werden an der zuständigen Schicht erzeugt und an Systemgrenzen kontrolliert übersetzt.
+
+Eine API-Fehlerantwort enthält mindestens:
+
+```json
+{
+  "code": "TRADE_PLAN_INVALID",
+  "message": "Der Trade-Plan ist fachlich ungültig.",
+  "details": []
+}
+```
+
+Interne Stacktraces oder vertrauliche Daten dürfen nicht an das Frontend übertragen werden.
+
+Exceptions dürfen nicht stillschweigend verschluckt werden.
+
+---
+
+# Konfiguration
+
+Konfiguration wird zentral, typisiert und umgebungsabhängig verwaltet.
+
+Zulässige Quellen:
+
+- Umgebungsvariablen,
+- sichere Konfigurationsdateien ohne Geheimnisse,
+- Secret-Stores in Zielumgebungen.
+
+Nicht zulässig:
+
+- fachlich wirksame versteckte Defaults,
+- API-Schlüssel im Quellcode,
+- produktive Zugangsdaten in `.env.example`,
+- verstreute Konfigurationslogik.
 
 ---
 
 # Sicherheit
 
-Sicherheitsprüfungen erfolgen zentral.
+Sicherheitsverantwortung umfasst:
 
-Beispiele
+- Authentifizierung,
+- Autorisierung,
+- Rollen und Rechte,
+- Eingabevalidierung,
+- Geheimnisverwaltung,
+- Audit Logging,
+- Schutz vertraulicher Daten.
 
-- Authentifizierung
-- Autorisierung
-- Rollen
-- Rechte
-- Audit Logging
-
----
-
-# Logging
-
-Alle fachlichen Aktionen werden protokolliert.
-
-Mindestens
-
-- Benutzer
-- Feature
-- Aktion
-- Ergebnis
-- Dauer
+Berechtigungsprüfungen erfolgen an den zuständigen Anwendungsgrenzen und dürfen nicht allein dem Frontend überlassen werden.
 
 ---
 
-# Testbarkeit
+# Logging und Audit
 
-Jede Schicht muss unabhängig testbar sein.
+## Technisches Logging
 
-Abhängigkeiten werden injiziert.
+Technische Logs enthalten nach Möglichkeit:
 
-Externe Provider werden gemockt.
+- Zeitstempel,
+- Log-Level,
+- Korrelations-ID,
+- Feature,
+- Operation,
+- Dauer,
+- Ergebnis,
+- Fehlerkennung.
+
+## Fachliches Audit
+
+Fachlich relevante Zustandsänderungen werden als Auditereignis dokumentiert.
+
+Mindestens nachvollziehbar:
+
+- Akteur,
+- Zeitpunkt,
+- Feature,
+- Aktion,
+- betroffene fachliche ID,
+- vorheriger und neuer Zustand oder Referenz,
+- verwendete Modellversion,
+- Ergebnis.
+
+Nicht protokolliert werden:
+
+- Passwörter,
+- Tokens,
+- API-Schlüssel,
+- vollständige Sessiondaten,
+- unnötige personenbezogene Daten.
+
+---
+
+# Nachvollziehbarkeit von Berechnungen
+
+Für jede fachlich relevante Berechnung oder Empfehlung müssen referenzierbar sein:
+
+- Datenquelle,
+- Datenstand,
+- Modell oder Regelwerk,
+- Version,
+- Eingaben,
+- Konfiguration,
+- Ergebnis,
+- Warnungen,
+- Einschränkungen.
+
+Historische Trades bleiben mit der ursprünglich verwendeten Modellversion verknüpft.
+
+Neue Modellversionen überschreiben keine historischen Ergebnisse.
+
+---
+
+# Teststrategie
+
+Alle systematisch ausgeführten Tests liegen zentral unter:
+
+```text
+tests/
+├── unit/
+├── integration/
+├── contract/
+├── workflow/
+├── performance/
+├── e2e/
+└── fixtures/
+```
+
+## Zuordnung
+
+- Unit-Tests prüfen Domain, Services und Mapper isoliert.
+- Integrationstests prüfen Datenbank- und Infrastrukturzusammenspiel.
+- Contract-Tests prüfen API- und Providerverträge.
+- Workflow-Tests prüfen fachliche Abläufe über mehrere Komponenten.
+- Performance-Tests prüfen definierte Laufzeit- und Lastanforderungen.
+- E2E-Tests prüfen vollständige Benutzerabläufe.
+
+Externe Provider werden in Unit- und regulären Integrationstests kontrolliert ersetzt.
+
+Echte externe Systeme werden nur in ausdrücklich gekennzeichneten, kontrollierten Tests verwendet.
 
 ---
 
 # Erweiterbarkeit
 
-Neue Features werden hinzugefügt, ohne bestehende Features verändern zu müssen.
+## Neue Features
 
-Neue Provider werden ergänzt, ohne bestehende Services anzupassen.
+Neue fachliche Funktionen werden angelegt unter:
 
-Neue Modelle werden registriert, ohne vorhandene Modelle zu ändern.
+```text
+backend/app/features/<feature>/
+```
+
+## Neue Provider
+
+Neue technische Provideradapter werden angelegt unter:
+
+```text
+backend/app/providers/<provider>/
+```
+
+oder in einer später ausdrücklich freigegebenen providerspezifischen Struktur.
+
+## Neue Modelle
+
+Neue Modellversionen werden registriert und versioniert.
+
+Bestehende Modellversionen werden nicht überschrieben.
+
+## Architekturänderungen
+
+Eine Änderung an Schichten, Abhängigkeitsrichtung oder Datenverantwortung erfordert eine dokumentierte Architekturentscheidung.
 
 ---
 
 # Nicht Bestandteil dieses Dokuments
 
-Dieses Dokument beschreibt nicht
+Dieses Dokument definiert nicht:
 
-- Datenmodelle
-- REST-Endpunkte
-- Geschäftsregeln
-- SQL
-- Framework-spezifische Implementierungen
+- konkrete REST-Endpunkte,
+- konkrete Datenbanktabellen,
+- einzelne Geschäftsregeln,
+- konkrete Modellparameter,
+- konkrete Providerverträge,
+- Bedienoberflächen.
 
-Diese Inhalte befinden sich in den entsprechenden Referenzdokumenten.
+Diese Inhalte befinden sich in den jeweiligen Feature-, API-, Datenbank-, Modell- und Referenzdokumenten.
 
 ---
 
-# Zusammenfassung
+# Freigabekriterien
 
-Das Backend des Trading Workspace folgt einer konsequent featureorientierten Clean Architecture.
+Dieses Dokument kann auf `🟢 Approved` gesetzt werden, wenn:
 
-Geschäftslogik, Datenzugriff, Kommunikation und Infrastruktur sind klar voneinander getrennt.
+- die Struktur mit dem Repository übereinstimmt,
+- `Source_Architecture.md` als Referenz bestätigt ist,
+- Feature- und Teststruktur vereinheitlicht sind,
+- Provider- und Persistenzverantwortung bestätigt sind,
+- die Abhängigkeitsregeln akzeptiert sind,
+- Freigabeverantwortung und Freigabedatum eingetragen wurden.
 
-Dadurch bleibt das System modular, testbar, wartbar und für eine parallele Entwicklung durch mehrere Entwickler oder ChatGPT-Sitzungen geeignet.
+Bis dahin bleibt der Status `🔵 Review`.
 
 ---
 
 # Siehe auch
 
-## Foundation
+- `docs/foundation/ARCHITECTURE.md`
+- `docs/architecture/Source_Architecture.md`
+- `docs/architecture/FRONTEND_ARCHITECTURE.md`
+- `docs/architecture/Feature_Architecture.md`
+- `docs/technical/CODING_STANDARDS.md`
+- `docs/technical/DEVELOPMENT_GUIDE.md`
+- `docs/technical/FEATURE_LIFECYCLE.md`
+- `docs/reference/API.md`
+- `docs/reference/DATABASE.md`
+- `docs/reference/TEST_STRATEGY.md`
+- `docs/foundation/MODEL_BOOK.md`
+- `docs/foundation/TRACEABILITY.md`
 
-- PROJECT
-- ARCHITECTURE
+---
 
-## Feature Books
+# Änderungshistorie
 
-- FT-001 bis FT-013
-
-## Reference
-
-- DEVELOPMENT_GUIDE
-- CODING_STANDARDS
-- REQUIREMENTS
-- MODEL_BOOK
-- DATABASE
-- API
-- TEST_STRATEGY
-- TRACEABILITY
+| Version | Datum | Änderungen |
+|---|---|---|
+| 1.0 | 2026-07-22 | Erstversion |
+| 1.1 | 2026-08-01 | Abgleich mit Repository und Source Architecture; Korrektur von Schichtenmodell, Providerrolle, Featurestruktur, Testablage, Nachvollziehbarkeit und Freigabekriterien |

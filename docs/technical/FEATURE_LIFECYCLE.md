@@ -1,721 +1,835 @@
 # Feature Lifecycle
 
-> Verbindlicher Entwicklungsprozess eines Features im Trading Workspace
-
----
-
-# Änderungshistorie
-
-| Version | Datum | Änderungen |
-|----------|------------|----------------|
-| 1.0 | 2026-07-22 | Erstversion |
+> Verbindlicher Lebenszyklus für Features, Fehlerkorrekturen und fachliche Modelländerungen im Trading Workspace
 
 ---
 
 # Dokumentinformationen
 
 | Feld | Wert |
-|------|------|
-| Dokument-ID | DOC-030 |
+|---|---|
+| Dokument-ID | DOC-017 |
 | Dokument | FEATURE_LIFECYCLE.md |
 | Dokumenttyp | Development Standard |
-| Version | 1.0 |
+| Version | 1.1 |
 | Status | 🔵 Review |
-| Letzte Änderung | 2026-07-22 |
+| Letzte Änderung | 2026-08-01 |
+| Freigegeben durch | noch offen |
+| Freigabedatum | noch offen |
 
 ---
 
 # Zweck
 
-Dieses Dokument beschreibt den vollständigen Lebenszyklus eines Features.
+Dieses Dokument definiert den verbindlichen Lebenszyklus für
 
-Es definiert den verbindlichen Entwicklungsprozess von der ersten Idee bis zur produktiven Nutzung und der späteren Verbesserung.
+- neue Features,
+- Erweiterungen bestehender Features,
+- Fehlerkorrekturen,
+- technische Verbesserungen,
+- Änderungen an fachlichen Regeln,
+- Änderungen an Handels- und Bewertungsmodellen.
 
-Es gilt für
+Es stellt sicher, dass jede Änderung
 
-- neue Features
-- Erweiterungen bestehender Features
-- Refactorings
-- zukünftige Module
+- nachvollziehbar,
+- reproduzierbar,
+- überprüfbar,
+- testbar,
+- versioniert und
+- kontrolliert freigegeben
 
----
+wird.
 
-# Ziel
-
-Jedes Feature durchläuft denselben Entwicklungsprozess.
-
-Dadurch entstehen
-
-- konsistente Dokumentation
-- reproduzierbare Entwicklung
-- vollständige Rückverfolgbarkeit
-- hohe Softwarequalität
+Eine Implementierung allein bedeutet nicht, dass eine Änderung abgeschlossen ist.
 
 ---
 
-# Gesamtprozess
+# Grundsatz
+
+Jede Änderung durchläuft einen kontrollierten Prozess von der Idee bis zur Beobachtung im Betrieb.
+
+Trading Workspace trifft keine Handelsentscheidungen.
+
+Auch ein Feature darf daher keine autonome Kauf-, Verkaufs-, Halte- oder Positionsgrößenentscheidung einführen.
+
+---
+
+# Geltungsbereich
+
+Der Lebenszyklus gilt für Änderungen in:
 
 ```text
-Idee
-
-↓
-
-Roadmap
-
-↓
-
-Feature Book
-
-↓
-
-Review
-
-↓
-
-Requirements
-
-↓
-
-Rules
-
-↓
-
-Models
-
-↓
-
-Logical Database
-
-↓
-
-API Reference
-
-↓
-
-Technical Architecture
-
-↓
-
-Feature Specification
-
-↓
-
-Backend
-
-↓
-
-Frontend
-
-↓
-
-Tests
-
-↓
-
-Review
-
-↓
-
-Release
-
-↓
-
-Post Release
-
-↓
-
-Lessons Learned
-
-↓
-
-Model Improvement
+backend/
+frontend/
+docs/
+tests/
+scripts/
+docker/
+.github/
 ```
 
----
+Er gilt außerdem für:
 
-# Phase 1
-
-# Idee
-
-## Zweck
-
-Ein neues Feature entsteht.
-
-Beispiele
-
-- neue Funktion
-- Verbesserung
-- Fehlerbehebung
-- neue Datenquelle
-- neue Analyse
+- Datenmodelle,
+- APIs,
+- Provider-Integrationen,
+- Berechnungslogik,
+- Regelwerke,
+- Modellversionen,
+- Benutzeroberflächen,
+- Workflows,
+- Betriebs- und Qualitätssicherung.
 
 ---
+
+# Änderungskategorien
+
+## Feature
+
+Neue fachliche Funktion oder wesentliche Erweiterung.
+
+Beispiele:
+
+- neue Kandidatenbewertung,
+- neue Trade-Plan-Funktion,
+- neues Journalmodul,
+- neue Performanceauswertung.
+
+## Fehlerkorrektur
+
+Korrektur eines nachweisbaren Fehlverhaltens.
+
+## Technische Verbesserung
+
+Änderung ohne beabsichtigte fachliche Verhaltensänderung.
+
+Beispiele:
+
+- Refactoring,
+- Performanceverbesserung,
+- Dependency-Update,
+- CI-Anpassung.
+
+## Fachliche Regeländerung
+
+Änderung einer validierenden, bewertenden oder steuernden Fachregel.
+
+## Modelländerung
+
+Änderung an einem Handels-, Bewertungs-, Ranking- oder Analysemodell.
+
+Eine Modelländerung erzeugt grundsätzlich eine neue Modellversion.
+
+---
+
+# Rollen
+
+## Benutzer beziehungsweise Product Owner
+
+Verantwortlich für:
+
+- fachliche Zielsetzung,
+- Priorisierung,
+- fachliche Entscheidungen,
+- Abnahme,
+- Freigabe fachlicher Regeln und Modellversionen.
+
+## Entwickler
+
+Verantwortlich für:
+
+- technische Analyse,
+- Implementierung,
+- Tests,
+- technische Dokumentation,
+- transparente Darstellung offener Punkte.
+
+## Reviewer
+
+Verantwortlich für:
+
+- Prüfung von Architektur,
+- Qualität,
+- Nachvollziehbarkeit,
+- Tests,
+- Risiken und Abweichungen.
+
+## Modellverantwortlicher
+
+Verantwortlich für:
+
+- fachliche Definition des Modells,
+- Versionsentscheidung,
+- Dokumentation von Eingaben, Annahmen und Ergebnissen,
+- Freigabe neuer Modellversionen.
+
+In einem kleinen Projekt können mehrere Rollen von derselben Person wahrgenommen werden. Die Verantwortlichkeiten bleiben dennoch getrennt zu betrachten.
+
+---
+
+# Lebenszyklus
+
+Der verbindliche Ablauf besteht aus zwölf Phasen:
+
+```text
+1. Idee
+2. Analyse
+3. Spezifikation
+4. Architekturprüfung
+5. Freigabe zur Umsetzung
+6. Implementierung
+7. technische Prüfung
+8. fachliche Prüfung
+9. Abnahme
+10. Veröffentlichung
+11. Beobachtung
+12. Verbesserungsvorschlag
+```
+
+Keine Phase darf stillschweigend übersprungen werden.
+
+Bei kleinen Änderungen dürfen Phasen in einem Dokument zusammengefasst werden, ihre Kriterien müssen jedoch weiterhin erfüllt sein.
+
+---
+
+# Phase 1 – Idee
+
+## Ziel
+
+Eine mögliche Änderung wird als nachvollziehbarer Vorschlag erfasst.
+
+## Erforderliche Angaben
+
+- Titel,
+- Problem oder Anlass,
+- erwarteter Nutzen,
+- betroffener Benutzerprozess,
+- betroffene Features,
+- grobe Priorität,
+- bekannte Risiken.
+
+## Eintrittskriterium
+
+Ein konkreter Bedarf, Fehler oder Verbesserungsvorschlag liegt vor.
+
+## Austrittskriterium
+
+Die Idee ist dokumentiert und einer verantwortlichen Person zugeordnet.
+
+## Nicht zulässig
+
+- direkte Implementierung ohne erfassten Anlass,
+- Lösungsvorgabe ohne beschriebenes Problem,
+- Vermischung mehrerer unabhängiger Ziele.
+
+---
+
+# Phase 2 – Analyse
+
+## Ziel
+
+Problem, Ausgangszustand und Auswirkungen werden verstanden.
+
+## Zu prüfen
+
+- aktuelles Verhalten,
+- fachliche Ursache,
+- technische Ursache,
+- betroffene Daten,
+- betroffene Schnittstellen,
+- betroffene Dokumente,
+- Auswirkungen auf bestehende Trades,
+- Auswirkungen auf historische Auswertungen,
+- Sicherheits- und Datenschutzfolgen,
+- Migrationsbedarf,
+- Rückwärtskompatibilität.
 
 ## Ergebnis
 
-Feature-Idee vorhanden.
+Eine dokumentierte Analyse mit klarer Abgrenzung.
+
+## Austrittskriterium
+
+Es ist bekannt,
+
+- was geändert werden soll,
+- was ausdrücklich nicht geändert wird,
+- welche Artefakte betroffen sind,
+- welche Risiken bestehen.
 
 ---
 
-# Phase 2
+# Phase 3 – Spezifikation
 
-# Roadmap
+## Ziel
 
-## Zweck
+Die erwartete Änderung wird prüfbar beschrieben.
 
-Das Feature wird priorisiert.
+## Mindestinhalt
 
-Fragen
+- fachliches Ziel,
+- Benutzerablauf,
+- Eingaben,
+- Ausgaben,
+- Regeln,
+- Validierungen,
+- Fehlerfälle,
+- Akzeptanzkriterien,
+- Datenquellen,
+- Modell- oder Regelversion,
+- Nachvollziehbarkeitsanforderungen,
+- Testfälle.
 
-- notwendig?
-- Mehrwert?
-- Abhängigkeiten?
-- Reihenfolge?
+## Akzeptanzkriterien
 
----
+Akzeptanzkriterien müssen beobachtbar und überprüfbar sein.
 
-## Ergebnis
-
-Feature besitzt Priorität.
-
----
-
-# Phase 3
-
-# Feature Book
-
-Das Feature Book wird erstellt.
-
-Es beschreibt ausschließlich die Fachlichkeit.
-
-Mindestens
-
-- Ziel
-- Workflow
-- Regeln
-- Daten
-- Modelle
-- UI
-- Fehler
-- Akzeptanz
-
----
-
-## Ergebnis
-
-Feature fachlich vollständig beschrieben.
-
----
-
-# Phase 4
-
-# Architekturreview
-
-Prüfen
-
-- passt zur Gesamtarchitektur?
-- verletzt keine Regeln?
-- neue Modelle notwendig?
-- neue Datenobjekte notwendig?
-- neue APIs notwendig?
-
----
-
-## Ergebnis
-
-Feature freigegeben.
-
----
-
-# Phase 5
-
-# Reference Library
-
-Jetzt werden
-
-falls notwendig
-
-ergänzt
-
-- REQUIREMENTS
-- RULEBOOK
-- MODEL_BOOK
-- DATABASE_LOGICAL
-- API_REFERENCE
-- TRACEABILITY
-
----
-
-## Regel
-
-Nur tatsächlich betroffene Dokumente werden geändert.
-
----
-
-# Phase 6
-
-# Technical Architecture
-
-Prüfen
-
-- Backend
-- Frontend
-- Featuregrenzen
-- Source Architecture
-
-Falls notwendig anpassen.
-
----
-
-# Phase 7
-
-# Feature Specification
-
-Jetzt entsteht
-
-die vollständige Implementierungsspezifikation.
-
----
-
-## Reihenfolge
+Nicht ausreichend:
 
 ```text
-API Contract
-
-↓
-
-Domain Model Mapping
-
-↓
-
-Repository Contract
-
-↓
-
-Validation Rules
-
-↓
-
-State Machine
-
-↓
-
-Sequence Diagrams
-
-↓
-
-Test Cases
-
-↓
-
-Implementation Checklist
+Die Funktion soll gut funktionieren.
 ```
 
----
-
-## Ergebnis
-
-Feature vollständig implementierbar.
-
----
-
-# Phase 8
-
-# Backend
-
-Implementierung
+Ausreichend:
 
 ```text
-Domain
-
-↓
-
-Repositories
-
-↓
-
-Services
-
-↓
-
-API
-
-↓
-
-Events
+Wenn Marktdaten älter als der konfigurierte Grenzwert sind,
+zeigt das System eine Warnung und kennzeichnet das Ergebnis als veraltet.
 ```
+
+## Austrittskriterium
+
+Die Spezifikation ist vollständig genug, um Implementierung und Tests eindeutig abzuleiten.
 
 ---
 
-# Phase 9
+# Phase 4 – Architekturprüfung
 
-# Frontend
+## Ziel
 
-Implementierung
+Die Änderung wird gegen die verbindliche Architektur geprüft.
+
+## Zu prüfen
+
+- zuständiges Feature,
+- Abhängigkeitsrichtung,
+- Datenmodell,
+- API-Vertrag,
+- Provider-Abhängigkeiten,
+- Ereignisse und Contracts,
+- Teststrategie,
+- Migrationen,
+- Logging und Audit,
+- Sicherheitsfolgen,
+- Deploymentfolgen.
+
+## Architekturentscheidung
+
+Eine dokumentierte Architekturentscheidung ist erforderlich, wenn
+
+- neue Hauptkomponenten entstehen,
+- bestehende Abhängigkeitsregeln geändert werden,
+- neue externe Systeme angebunden werden,
+- Datenverantwortung verschoben wird,
+- ein bestehender Contract gebrochen wird.
+
+## Austrittskriterium
+
+Die technische Lösung ist freigegeben oder offene Architekturfragen sind ausdrücklich als Blocker dokumentiert.
+
+---
+
+# Phase 5 – Freigabe zur Umsetzung
+
+## Ziel
+
+Die Änderung wird bewusst für die Implementierung freigegeben.
+
+## Erforderliche Voraussetzungen
+
+- Analyse abgeschlossen,
+- Spezifikation vorhanden,
+- Architektur geprüft,
+- Akzeptanzkriterien definiert,
+- Risiken dokumentiert,
+- Priorität bestätigt,
+- Verantwortlichkeit festgelegt.
+
+## Freigabeentscheidung
+
+Die Freigabe beantwortet:
 
 ```text
-Pages
-
-↓
-
-Components
-
-↓
-
-Dialogs
-
-↓
-
-Services
-
-↓
-
-Routing
+Darf diese Änderung jetzt umgesetzt werden?
 ```
 
----
+Sie ist keine fachliche Endabnahme.
 
-# Phase 10
+## Austrittskriterium
 
-# Tests
-
-Mindestens
-
-- Unit
-- Integration
-- API
-- Workflow
-- Performance
-- Security
+Eine eindeutige Freigabe oder Ablehnung ist dokumentiert.
 
 ---
 
-# Phase 11
+# Phase 6 – Implementierung
 
-# Code Review
+## Ziel
 
-Prüfen
+Die freigegebene Änderung wird umgesetzt.
 
-- Architektur
-- Coding Standards
-- Tests
-- Dokumentation
-- Performance
-- Sicherheit
+## Regeln
 
----
+- nur freigegebener Umfang,
+- Coding Standards einhalten,
+- bestehende Architektur einhalten,
+- keine versteckten fachlichen Defaultwerte,
+- keine unversionierte Modelländerung,
+- Tests parallel erstellen,
+- Dokumentation parallel aktualisieren,
+- Migrationen prüfen,
+- keine Zugangsdaten einchecken.
 
-# Phase 12
+## Modelländerungen
 
-# Release
+Bei einer Modelländerung müssen mindestens dokumentiert werden:
 
-Vor Release prüfen
+- Modellname,
+- bisherige Version,
+- neue Version,
+- Änderungsgrund,
+- geänderte Regeln oder Parameter,
+- erwartete Auswirkungen,
+- bekannte Einschränkungen,
+- Vergleich zur Vorgängerversion.
 
-- Migrationen
-- API
-- Dokumentation
-- Tests
-- Version
+## Austrittskriterium
 
----
-
-# Phase 13
-
-# Post Release
-
-Feature beobachten.
-
-Prüfen
-
-- Fehler
-- Performance
-- Benutzung
-- Datenqualität
+Implementierung, Tests, Migrationen und Dokumentation sind vollständig im Arbeitsstand enthalten.
 
 ---
 
-# Phase 14
+# Phase 7 – Technische Prüfung
 
-# Lessons Learned
+## Ziel
 
-Erkenntnisse dokumentieren.
+Die technische Qualität und Reproduzierbarkeit werden geprüft.
 
-Mögliche Änderungen
+## Verbindliche Prüfungen
 
-- Rules
-- Modelle
-- UI
-- APIs
+Je nach betroffenem Bereich:
+
+```bash
+bash scripts/check-backend.sh
+bash scripts/check-frontend.sh
+bash scripts/run-e2e.sh
+bash scripts/verify-release-readiness.sh
+```
+
+Zusätzlich:
+
+```bash
+git diff --check
+git diff
+```
+
+## Zu prüfen
+
+- Typprüfung,
+- Linting,
+- Formatierung,
+- Unit-Tests,
+- Integrationstests,
+- Contract-Tests,
+- Workflow-Tests,
+- E2E-Tests,
+- Build,
+- Migrationen,
+- Docker-Konfiguration,
+- Sicherheitsrisiken,
+- Geheimnisse,
+- Abhängigkeiten.
+
+## Austrittskriterium
+
+Alle erforderlichen technischen Prüfungen sind erfolgreich oder verbleibende Blocker sind ausdrücklich dokumentiert und verhindern die Freigabe.
 
 ---
 
-# Phase 15
+# Phase 8 – Fachliche Prüfung
 
-# Model Improvement
+## Ziel
 
-Falls erforderlich
+Es wird geprüft, ob die Implementierung die fachliche Spezifikation erfüllt.
 
-werden Modelle verbessert.
+## Zu prüfen
 
-Dabei entsteht
+- Akzeptanzkriterien,
+- Benutzerablauf,
+- Eingaben und Ausgaben,
+- fachliche Validierungen,
+- Warnungen,
+- Nachvollziehbarkeit,
+- Modellversion,
+- historische Zuordnung,
+- keine autonome Handelsentscheidung,
+- verständliche Darstellung.
+
+## Für Berechnungen und Empfehlungen
+
+Mindestens sichtbar beziehungsweise referenzierbar:
+
+- Datenquelle,
+- Datenstand,
+- Modell,
+- Version,
+- Eingaben,
+- Konfiguration,
+- Ergebnis,
+- Warnungen,
+- Einschränkungen.
+
+## Austrittskriterium
+
+Die fachliche Prüfung ist bestanden oder konkrete Abweichungen sind dokumentiert und zur Korrektur zurückgegeben.
+
+---
+
+# Phase 9 – Abnahme
+
+## Ziel
+
+Der fachlich Verantwortliche entscheidet über die Annahme der Änderung.
+
+## Mögliche Ergebnisse
 
 ```text
-neue Modellversion
+angenommen
+angenommen mit dokumentierten Restpunkten
+abgelehnt
+zur Überarbeitung zurückgegeben
 ```
 
-nicht
+## Mindestvoraussetzungen
 
-Änderung bestehender Modelle.
+- Akzeptanzkriterien erfüllt,
+- technische Prüfung erfolgreich,
+- fachliche Prüfung erfolgreich,
+- Dokumentation vollständig,
+- Risiken bekannt,
+- Modellversion freigegeben, falls betroffen,
+- keine kritischen offenen Fehler.
 
----
+## Austrittskriterium
 
-# Phase 16
-
-# Feature abgeschlossen
-
-Ein Feature gilt als abgeschlossen wenn
-
-- Feature Book aktuell
-- Reference Library aktuell
-- Architektur aktuell
-- Spezifikation vollständig
-- Backend implementiert
-- Frontend implementiert
-- Tests erfolgreich
-- Review erfolgreich
-- Release erfolgt
-- Lessons Learned dokumentiert
+Eine datierte und verantwortete Abnahmeentscheidung ist dokumentiert.
 
 ---
 
-# Änderungsprozess
+# Phase 10 – Veröffentlichung
 
-Ein bestehendes Feature beginnt niemals direkt mit Code.
+## Ziel
 
-Sondern immer
+Die abgenommene Änderung wird kontrolliert in die Zielumgebung übernommen.
+
+## Zu dokumentieren
+
+- Release oder Commit,
+- Datum,
+- enthaltene Änderungen,
+- Migrationen,
+- Konfigurationsänderungen,
+- Rollback-Möglichkeit,
+- bekannte Einschränkungen,
+- verantwortliche Person.
+
+## Vor Veröffentlichung
+
+- erforderliche CI-Prüfungen erfolgreich,
+- Branch Protection erfüllt,
+- Zielkonfiguration geprüft,
+- Backups und Migrationen bewertet,
+- Release Notes vorhanden.
+
+## Austrittskriterium
+
+Die Änderung ist in der Zielumgebung verfügbar und technisch überprüft.
+
+---
+
+# Phase 11 – Beobachtung
+
+## Ziel
+
+Das Verhalten der Änderung wird nach Veröffentlichung kontrolliert.
+
+## Zu beobachten
+
+- technische Fehler,
+- Datenqualität,
+- Providerprobleme,
+- Benutzerprobleme,
+- Performance,
+- unerwartete fachliche Ergebnisse,
+- Abweichungen zwischen Erwartung und Realität.
+
+## Trading-spezifisch
+
+Abgeschlossene Trades und Berechnungsergebnisse werden weiterhin der verwendeten Modellversion zugeordnet.
+
+Eine spätere Modelländerung verändert historische Zuordnungen nicht.
+
+## Austrittskriterium
+
+Die definierte Beobachtungsperiode ist beendet oder es wurde ein neuer Fehler- beziehungsweise Verbesserungsvorschlag erzeugt.
+
+---
+
+# Phase 12 – Verbesserungsvorschlag
+
+## Ziel
+
+Erkenntnisse werden kontrolliert in einen neuen Lebenszyklus überführt.
+
+## Quellen
+
+- abgeschlossene Trades,
+- Journalinformationen,
+- Performanceanalysen,
+- Fehlerberichte,
+- Benutzerfeedback,
+- Provideränderungen,
+- technische Messwerte.
+
+## Grundregel
+
+Erkenntnisse dürfen ein Modell oder Regelwerk nicht automatisch verändern.
+
+Sie erzeugen ausschließlich einen neuen Vorschlag für
+
+- Analyse,
+- Regeländerung,
+- Modelländerung,
+- neues Feature oder
+- Fehlerkorrektur.
+
+Der neue Vorschlag beginnt wieder in Phase 1.
+
+---
+
+# Modellversionierung
+
+## Wann ist eine neue Version erforderlich?
+
+Eine neue Modellversion ist erforderlich bei Änderungen an:
+
+- Regeln,
+- Formeln,
+- Gewichtungen,
+- Schwellenwerten,
+- Eingabefeldern,
+- Datenquellen,
+- Datenaufbereitung,
+- Rankinglogik,
+- Risikoermittlung,
+- Produktauswahl,
+- Ausstiegskriterien.
+
+## Historische Stabilität
+
+Bereits geplante, eröffnete oder abgeschlossene Trades bleiben mit der damals verwendeten Modellversion verknüpft.
+
+Nicht zulässig:
+
+- stillschweigendes Überschreiben alter Modellversionen,
+- rückwirkende Neuberechnung ohne Kennzeichnung,
+- Vermischung von Ergebnissen verschiedener Versionen.
+
+## Vergleich neuer Versionen
+
+Eine neue Modellversion soll vor Freigabe gegen die Vorgängerversion verglichen werden.
+
+Zu dokumentieren:
+
+- Testdatensatz,
+- Eingaben,
+- Ergebnisse beider Versionen,
+- Abweichungen,
+- fachliche Bewertung,
+- Freigabeentscheidung.
+
+---
+
+# Fehlerkorrekturen
+
+Fehlerkorrekturen durchlaufen denselben Lebenszyklus, dürfen aber kompakter dokumentiert werden.
+
+Mindestanforderungen:
+
+- Fehlerbeschreibung,
+- Reproduktionsschritte,
+- Ursache,
+- Korrektur,
+- Regressionstest,
+- Auswirkungen,
+- Review,
+- Abnahme.
+
+Ein Bugfix soll einen Test enthalten, der den Fehler vor der Korrektur nachweist.
+
+---
+
+# Technische Änderungen
+
+Technische Änderungen ohne beabsichtigte Fachänderung müssen nachweisen, dass das fachliche Verhalten unverändert bleibt.
+
+Beispiele:
+
+- Refactoring,
+- Bibliotheksupdate,
+- Buildänderung,
+- CI-Anpassung,
+- Performanceoptimierung.
+
+Erforderlich sind mindestens:
+
+- technische Begründung,
+- Risikoanalyse,
+- passende Tests,
+- Review,
+- dokumentiertes Ergebnis.
+
+---
+
+# Dokumentationsartefakte
+
+Je nach Änderung sind mindestens zu aktualisieren:
 
 ```text
-Anforderung
-
-↓
-
-Feature Book
-
-↓
-
-Review
-
-↓
-
-Spezifikation
-
-↓
-
-Code
+docs/foundation/
+docs/features/
+docs/reference/
+docs/architecture/
+docs/technical/
+docs/implementation/
 ```
 
----
+Außerdem gegebenenfalls:
 
-# Fehlerbehebung
+- API-Spezifikation,
+- Datenmodell,
+- Modellbuch,
+- Traceability,
+- Entscheidungsprotokoll,
+- Release Notes,
+- Betriebsanleitung.
 
-Auch Bugfixes folgen demselben Prozess.
-
-Je nach Umfang können einzelne Schritte verkürzt werden.
-
-Mindestens erforderlich
-
-- Analyse
-- Spezifikation
-- Test
-- Review
-
----
-
-# Dokumentationsregeln
-
-Ein Feature verändert niemals Dokumente ohne Grund.
-
-Nur betroffene Dokumente werden aktualisiert.
-
-Keine unnötigen Versionsänderungen.
-
----
-
-# Parallelentwicklung
-
-Mehrere Features dürfen gleichzeitig entwickelt werden.
-
-Voraussetzungen
-
-- keine gemeinsamen Änderungen
-- keine Konflikte
-- dokumentierte Abhängigkeiten
-
----
-
-# Feature-Abhängigkeiten
-
-Abhängigkeiten werden dokumentiert.
-
-Beispiel
-
-```text
-FT-005
-
-benötigt
-
-FT-003
-```
-
-Abhängigkeiten dürfen niemals implizit entstehen.
-
----
-
-# Rückverfolgbarkeit
-
-Jede Implementierung muss nachvollziehbar sein.
-
-```text
-Feature
-
-↓
-
-Requirement
-
-↓
-
-Rule
-
-↓
-
-Model
-
-↓
-
-Database
-
-↓
-
-API
-
-↓
-
-Service
-
-↓
-
-Code
-
-↓
-
-Tests
-```
-
----
-
-# Qualitätsregeln
-
-Jede Phase besitzt einen Abschluss.
-
-Eine Phase beginnt erst,
-
-wenn die vorherige abgeschlossen ist.
+Dokumentation wird im selben Pull Request wie die Änderung aktualisiert.
 
 ---
 
 # Definition of Ready
 
-Ein Feature ist bereit zur Implementierung wenn
+Eine Änderung ist bereit zur Umsetzung, wenn:
 
-- Feature Book vollständig
-- Architekturreview abgeschlossen
-- Referenzen aktuell
-- Spezifikation vollständig
+```markdown
+- [ ] Problem oder Ziel ist dokumentiert.
+- [ ] Umfang und Nicht-Umfang sind definiert.
+- [ ] Akzeptanzkriterien sind prüfbar.
+- [ ] Betroffene Features und Dateien sind bekannt.
+- [ ] Datenquellen und Modelle sind benannt.
+- [ ] Architektur wurde geprüft.
+- [ ] Risiken und Migrationen wurden bewertet.
+- [ ] Verantwortlichkeit ist festgelegt.
+- [ ] Umsetzung wurde freigegeben.
+```
 
 ---
 
 # Definition of Done
 
-Ein Feature ist abgeschlossen wenn
+Eine Änderung ist abgeschlossen, wenn:
 
-- Backend vollständig
-- Frontend vollständig
-- Tests erfolgreich
-- Dokumentation aktuell
-- Review abgeschlossen
-- Release erfolgt
-
----
-
-# Kontinuierliche Verbesserung
-
-Nach jedem abgeschlossenen Feature wird geprüft
-
-- Welche Dokumente waren hilfreich?
-- Welche Dokumente waren redundant?
-- Welche Regeln fehlen?
-- Welche Templates müssen verbessert werden?
-
-Verbesserungen fließen in
-
-- DEVELOPMENT_GUIDE
-- FEATURE_IMPLEMENTATION_TEMPLATE
-- CODING_STANDARDS
-
-ein.
-
-Dadurch verbessert sich der Entwicklungsprozess kontinuierlich.
+```markdown
+- [ ] Implementierung entspricht der freigegebenen Spezifikation.
+- [ ] Coding Standards sind eingehalten.
+- [ ] Erforderliche Tests sind vorhanden und erfolgreich.
+- [ ] Typprüfung, Linting und Formatprüfung sind erfolgreich.
+- [ ] Build und gegebenenfalls Docker-Prüfung sind erfolgreich.
+- [ ] Migrationen sind geprüft.
+- [ ] Dokumentation ist aktualisiert.
+- [ ] Datenquelle, Modellversion, Eingaben und Ergebnisse sind nachvollziehbar.
+- [ ] Keine autonome Handelsentscheidung wurde eingeführt.
+- [ ] Technisches Review ist abgeschlossen.
+- [ ] Fachliche Prüfung ist abgeschlossen.
+- [ ] Abnahme ist dokumentiert.
+- [ ] Offene Restpunkte und Risiken sind dokumentiert.
+- [ ] Veröffentlichung und Beobachtung sind vorbereitet.
+```
 
 ---
 
-# Zusammenfassung
+# Rücksprungregeln
 
-Der Feature Lifecycle definiert den vollständigen Entwicklungsprozess des Trading Workspace.
+Eine Änderung geht in eine frühere Phase zurück, wenn
 
-Ein Feature entsteht nicht mit Code.
+- Anforderungen unklar werden,
+- neue Risiken auftreten,
+- Architektur geändert werden muss,
+- Akzeptanzkriterien nicht erfüllt sind,
+- Tests fehlschlagen,
+- fachliche Prüfung Abweichungen feststellt,
+- Abnahme verweigert wird.
 
-Es entsteht über einen reproduzierbaren Prozess aus
+Rücksprünge sind normal und werden dokumentiert.
 
-- Idee,
-- Fachlichkeit,
-- Architektur,
-- Spezifikation,
-- Implementierung,
-- Tests,
-- Review,
-- Release,
-- Lernen.
+---
 
-Dadurch bleibt das Projekt langfristig konsistent, nachvollziehbar und unabhängig von einzelnen Entwicklern oder ChatGPT-Sitzungen.
+# Nicht zulässig
+
+Nicht zulässig sind:
+
+- Implementierung ohne dokumentierten Anlass,
+- Freigabe ohne prüfbare Akzeptanzkriterien,
+- Modelländerung ohne neue Version,
+- automatische Modelländerung aus Performanceergebnissen,
+- rückwirkendes Überschreiben historischer Ergebnisse,
+- autonome Handelsentscheidungen,
+- Überspringen von Tests und Review,
+- Freigabe trotz kritischer offener Fehler,
+- undokumentierte Architekturabweichung,
+- Veröffentlichung ohne nachvollziehbare Abnahme.
+
+---
+
+# Freigabe dieses Dokuments
+
+Dieses Dokument kann auf `🟢 Approved` gesetzt werden, wenn
+
+- Rollen und Verantwortlichkeiten bestätigt sind,
+- die Lebenszyklusphasen mit dem tatsächlichen Entwicklungsprozess übereinstimmen,
+- Definition of Ready und Definition of Done akzeptiert sind,
+- Modellversionierung und historische Zuordnung fachlich bestätigt sind,
+- Freigabeverantwortung und Freigabedatum eingetragen wurden.
+
+Bis dahin bleibt der Status `🔵 Review`.
 
 ---
 
 # Siehe auch
 
-## Foundation
+- `docs/architecture/Source_Architecture.md`
+- `docs/technical/CODING_STANDARDS.md`
+- `docs/technical/DEVELOPMENT_GUIDE.md`
+- `docs/foundation/MODEL_BOOK.md`
+- `docs/foundation/TRACEABILITY.md`
+- `docs/technical/FEATURE_IMPLEMENTATION_TEMPLATE.md`
 
-- PROJECT.md
-- ROADMAP.md
-- ARCHITECTURE.md
+---
 
-## Development
+# Änderungshistorie
 
-- DEVELOPMENT_GUIDE.md
-- CODING_STANDARDS.md
-- FEATURE_IMPLEMENTATION_TEMPLATE.md
-
-## Architecture
-
-- FEATURE_ARCHITECTURE.md
-- SOURCE_ARCHITECTURE.md
-
-## Feature Library
-
-- FT-001 bis FT-013
-
-## Reference Library
-
-- REQUIREMENTS.md
-- RULEBOOK.md
-- MODEL_BOOK.md
-- TRACEABILITY.md
+| Version | Datum | Änderungen |
+|---|---|---|
+| 1.0 | 2026-07-22 | Erstversion |
+| 1.1 | 2026-08-01 | Vollständige Definition der Lebenszyklusphasen, Rollen, Freigaben, Modellversionierung, Definition of Ready und Definition of Done |
