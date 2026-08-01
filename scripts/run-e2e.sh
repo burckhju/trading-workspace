@@ -11,5 +11,6 @@ trap cleanup EXIT
 
 cd "${repository_root}"
 docker compose -f "${compose_file}" up --build --wait --wait-timeout 180
-cd frontend
-npm run e2e
+
+NODE_PATH="${repository_root}/frontend/node_modules" \
+  npm --prefix "${repository_root}/frontend" run e2e

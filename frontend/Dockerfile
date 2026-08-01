@@ -5,8 +5,8 @@ WORKDIR /app
 ARG VITE_API_BASE_URL
 ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
 
-COPY frontend/package.json ./
-RUN npm install --no-audit --no-fund
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci --no-audit --no-fund
 
 COPY frontend/index.html ./
 COPY frontend/tsconfig.json frontend/tsconfig.app.json frontend/tsconfig.node.json ./
