@@ -1,7 +1,10 @@
+import { useMemo } from 'react';
 import { RouterProvider } from 'react-router-dom';
 
-import { applicationRouter } from './router';
+import { createApplicationRouter } from './router';
 
 export function Application() {
-  return <RouterProvider router={applicationRouter} />;
+  const router = useMemo(() => createApplicationRouter(), []);
+
+  return <RouterProvider router={router} />;
 }

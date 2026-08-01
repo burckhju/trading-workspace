@@ -19,7 +19,9 @@ describe('Application', () => {
 
     render(<Application />);
 
-    expect(await screen.findByRole('heading', { name: 'Seite nicht gefunden' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: 'Seite nicht gefunden' }),
+    ).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Zur Startseite' })).toHaveAttribute('href', '/');
   });
 });
