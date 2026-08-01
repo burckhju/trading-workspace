@@ -8,7 +8,7 @@ test('serves the technical workspace foundation and backend health endpoint', as
 
   const healthResponse = await request.get('/api/health');
   expect(healthResponse.ok()).toBeTruthy();
-  await expect(healthResponse.json()).resolves.toMatchObject({ status: 'healthy' });
+  await expect(healthResponse.json()).resolves.toMatchObject({ status: 'ok' });
 });
 
 test('keeps browser routing available through the reverse proxy', async ({ page }) => {
