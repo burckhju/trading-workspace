@@ -53,6 +53,8 @@ jobs:
         run: docker compose -f docker/compose.yml up --build --wait --wait-timeout 180
       - name: Run Playwright smoke tests
         working-directory: frontend
+        env:
+        NODE_PATH: ${{ github.workspace }}/frontend/node_modules
         run: npm run e2e
       - name: Upload Playwright report
         if: always()
