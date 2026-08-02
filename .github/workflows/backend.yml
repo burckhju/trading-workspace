@@ -1,6 +1,7 @@
 name: Backend
 
 on:
+  workflow_dispatch:
   pull_request:
     paths:
       - 'backend/**'
@@ -24,6 +25,7 @@ concurrency:
 
 jobs:
   quality:
+    name: Backend / quality
     runs-on: ubuntu-latest
     defaults:
       run:
