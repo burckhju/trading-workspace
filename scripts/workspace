@@ -1,0 +1,429 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+REPOSITORY_ROOT="$(
+  cd "$(dirname "${BASH_SOURCE[0]}")/.."
+  pwd
+)"
+
+COMPOSE_FILE="${REPOSITORY_ROOT}/docker/compose.yml"
+ENV_FILE="${REPOSITORY_ROOT}/docker/.env"
+FRONTEND_URL="${TRADING_WORKSPACE_FRONTEND_URL:-http://localhost:8080}"
+BACKEND_URL="${TRADING_WORKSPACE_BACKEND_URL:-http://localhost:8000}"
+SWAGGER_URL="${TRADING_WORKSPACE_SWAGGER_URL:-http://localhost:8000/docs}"
+
+if [[ -t 1 ]]; then
+  GREEN=$'\033[0;32m'
+  RED=$'\033[0;31m'
+  YELLOW=$'\033[0;33m'
+  BLUE=$'\033[0;34m'
+  RESET=$'\033[0m'
+else
+  GREEN=""
+  RED=""
+  YELLOW=""
+  BLUE=""
+  RESET=""
+fi
+
+ok() {
+  printf '%s✓%s %s\n' "${GREEN}" "${RESET}" "$*"
+}
+
+warn() {
+  printf '%s!%s %s\n' "${YELLOW}" "${RESET}" "$*"
+}
+
+fail() {
+  printf '%s✗%s %s\n' "${RED}" "${RESET}" "$*" >&2
+}
+
+info() {
+  printf '%s→%s %s\n' "${BLUE}" "${RESET}" "$*"
+}
+
+usage() {
+  cat <<'EOF'
+Trading Workspace
+
+Verwendung:
+  ./scripts/workspace <Befehl>
+
+Befehle:
+  start       Software bauen und im Hintergrund starten
+  stop        Software stoppen
+  restart     Software neu starten
+  status      Containerstatus anzeigen
+  logs        Logs aller Dienste verfolgen
+  open        Frontend im Browser öffnen
+  health      Health- und Readiness-Endpunkte prüfen
+  doctor      Docker, Konfiguration, Ports und Dienste diagnostizieren
+  test        Lokale Qualitäts- und E2E-Prüfungen ausführen
+  update      Images aktualisieren und Software neu bauen
+  clean       Container und lokale Docker-Volumes entfernen
+  help        Diese Hilfe anzeigen
+EOF
+}
+
+require_command() {
+  local command_name="$1"
+
+  if ! command -v "${command_name}" >/dev/null 2>&1; then
+    fail "'${command_name}' wurde nicht gefunden."
+    exit 1
+  fi
+}
+
+ensure_environment() {
+  if [[ ! -f "${ENV_FILE}" ]]; then
+    if [[ -f "${REPOSITORY_ROOT}/docker/.env.example" ]]; then
+      cp --update=none \
+        "${REPOSITORY_ROOT}/docker/.env.example" \
+        "${ENV_FILE}"
+      warn "Lokale Konfiguration wurde aus docker/.env.example erzeugt."
+      warn "Bitte prüfe insbesondere POSTGRES_PASSWORD in docker/.env."
+    else
+      fail "${ENV_FILE} und docker/.env.example fehlen."
+      exit 1
+    fi
+  fi
+}
+
+compose() {
+  docker compose \
+    --env-file "${ENV_FILE}" \
+    -f "${COMPOSE_FILE}" \
+    "$@"
+}
+
+check_url() {
+  local url="$1"
+  curl --silent --fail --show-error --max-time 5 "${url}" >/dev/null
+}
+
+print_health_snapshot() {
+  echo
+  info "Health-Snapshot"
+
+  printf '  Backend-Liveness : '
+  if check_url "${BACKEND_URL}/health"; then
+    printf '%sOK%s\n' "${GREEN}" "${RESET}"
+  else
+    printf '%sFEHLER%s\n' "${RED}" "${RESET}"
+  fi
+
+  printf '  Backend-Readiness: '
+  if check_url "${BACKEND_URL}/health/ready"; then
+    printf '%sOK%s\n' "${GREEN}" "${RESET}"
+  else
+    printf '%sFEHLER%s\n' "${RED}" "${RESET}"
+  fi
+
+  printf '  Frontend          : '
+  if check_url "${FRONTEND_URL}/"; then
+    printf '%sOK%s\n' "${GREEN}" "${RESET}"
+  else
+    printf '%sFEHLER%s\n' "${RED}" "${RESET}"
+  fi
+
+  printf '  Frontend-Proxy    : '
+  if check_url "${FRONTEND_URL}/api/health"; then
+    printf '%sOK%s\n' "${GREEN}" "${RESET}"
+  else
+    printf '%sFEHLER%s\n' "${RED}" "${RESET}"
+  fi
+}
+
+print_timeout_diagnostics() {
+  echo
+  fail "Die Dienste wurden nicht rechtzeitig vollständig bereit."
+
+  info "Containerstatus"
+  compose ps || true
+
+  print_health_snapshot
+
+  echo
+  info "Letzte Backend-Logs"
+  compose logs --no-color --tail=80 backend || true
+
+  echo
+  info "Letzte Datenbank-Logs"
+  compose logs --no-color --tail=50 database || true
+}
+
+wait_for_health() {
+  local attempts="${TRADING_WORKSPACE_HEALTH_ATTEMPTS:-60}"
+  local delay="${TRADING_WORKSPACE_HEALTH_DELAY_SECONDS:-2}"
+  local attempt
+
+  for ((attempt = 1; attempt <= attempts; attempt++)); do
+    printf '\rWarte auf Health-Checks ... Versuch %d/%d' "${attempt}" "${attempts}"
+
+    if check_url "${BACKEND_URL}/health" \
+      && check_url "${BACKEND_URL}/health/ready" \
+      && check_url "${FRONTEND_URL}/" \
+      && check_url "${FRONTEND_URL}/api/health"; then
+      printf '\n'
+      ok "Alle Health-Checks erfolgreich."
+      return 0
+    fi
+
+    sleep "${delay}"
+  done
+
+  printf '\n'
+  print_timeout_diagnostics
+  return 1
+}
+
+start_workspace() {
+  require_command docker
+  require_command curl
+  ensure_environment
+
+  info "Trading Workspace wird gebaut und gestartet ..."
+  compose up --build -d
+
+  wait_for_health
+
+  echo
+  ok "Trading Workspace läuft."
+  echo "Frontend : ${FRONTEND_URL}"
+  echo "Backend  : ${BACKEND_URL}"
+  echo "Swagger  : ${SWAGGER_URL}"
+  echo
+  compose ps
+}
+
+stop_workspace() {
+  require_command docker
+  ensure_environment
+
+  info "Trading Workspace wird gestoppt ..."
+  compose down
+  ok "Trading Workspace wurde gestoppt."
+}
+
+restart_workspace() {
+  stop_workspace
+  start_workspace
+}
+
+status_workspace() {
+  require_command docker
+  ensure_environment
+  compose ps
+}
+
+logs_workspace() {
+  require_command docker
+  ensure_environment
+  compose logs --follow --tail=200
+}
+
+open_workspace() {
+  if command -v xdg-open >/dev/null 2>&1; then
+    xdg-open "${FRONTEND_URL}" >/dev/null 2>&1 &
+  elif command -v sensible-browser >/dev/null 2>&1; then
+    sensible-browser "${FRONTEND_URL}" >/dev/null 2>&1 &
+  else
+    warn "Browser konnte nicht automatisch geöffnet werden."
+    echo "Öffne manuell: ${FRONTEND_URL}"
+    return 0
+  fi
+
+  ok "Browser wird geöffnet: ${FRONTEND_URL}"
+}
+
+health_workspace() {
+  require_command curl
+
+  print_health_snapshot
+
+  echo
+  info "Antworten"
+
+  echo "Backend-Liveness:"
+  curl --fail --show-error "${BACKEND_URL}/health"
+  echo
+
+  echo "Backend-Readiness:"
+  curl --fail --show-error "${BACKEND_URL}/health/ready"
+  echo
+
+  echo "Frontend-Proxy:"
+  curl --fail --show-error "${FRONTEND_URL}/api/health"
+  echo
+}
+
+doctor_workspace() {
+  local errors=0
+
+  echo "Trading Workspace Doctor"
+  echo
+
+  for command_name in docker curl git; do
+    if command -v "${command_name}" >/dev/null 2>&1; then
+      ok "${command_name} gefunden: $(command -v "${command_name}")"
+    else
+      fail "${command_name} fehlt."
+      errors=$((errors + 1))
+    fi
+  done
+
+  if docker compose version >/dev/null 2>&1; then
+    ok "Docker Compose verfügbar: $(docker compose version --short)"
+  else
+    fail "Docker Compose ist nicht verfügbar."
+    errors=$((errors + 1))
+  fi
+
+  if [[ -f "${COMPOSE_FILE}" ]]; then
+    ok "Compose-Datei vorhanden: docker/compose.yml"
+  else
+    fail "Compose-Datei fehlt: docker/compose.yml"
+    errors=$((errors + 1))
+  fi
+
+  if [[ -f "${ENV_FILE}" ]]; then
+    ok "Umgebungsdatei vorhanden: docker/.env"
+  else
+    warn "Umgebungsdatei fehlt: docker/.env"
+  fi
+
+  if [[ -f "${REPOSITORY_ROOT}/frontend/package-lock.json" ]]; then
+    ok "Frontend-Lockdatei vorhanden."
+  else
+    fail "frontend/package-lock.json fehlt."
+    errors=$((errors + 1))
+  fi
+
+  echo
+  info "Portprüfung"
+
+  for port in 5432 8000 8080; do
+    if command -v ss >/dev/null 2>&1 && ss -ltn "( sport = :${port} )" | grep -q LISTEN; then
+      warn "Port ${port} ist bereits belegt."
+    else
+      ok "Port ${port} ist frei oder wird vom laufenden Workspace verwendet."
+    fi
+  done
+
+  echo
+  info "Compose-Konfiguration"
+
+  if ensure_environment && compose config >/dev/null; then
+    ok "Compose-Konfiguration ist gültig."
+  else
+    fail "Compose-Konfiguration ist ungültig."
+    errors=$((errors + 1))
+  fi
+
+  echo
+  info "Containerstatus"
+  compose ps || true
+
+  if command -v curl >/dev/null 2>&1; then
+    print_health_snapshot
+  fi
+
+  echo
+  if [[ "${errors}" -eq 0 ]]; then
+    ok "Doctor-Prüfung abgeschlossen: keine kritischen lokalen Fehler."
+  else
+    fail "Doctor-Prüfung abgeschlossen: ${errors} kritische(r) Fehler."
+    return 1
+  fi
+}
+
+test_workspace() {
+  cd "${REPOSITORY_ROOT}"
+
+  info "Release-Readiness ..."
+  bash scripts/verify-release-readiness.sh
+
+  info "Backend ..."
+  bash scripts/check-backend.sh
+
+  info "Frontend ..."
+  bash scripts/check-frontend.sh
+
+  info "End-to-End ..."
+  bash scripts/run-e2e.sh
+
+  ok "Alle Prüfungen erfolgreich."
+}
+
+update_workspace() {
+  require_command docker
+  ensure_environment
+
+  info "Basis-Images werden aktualisiert ..."
+  compose pull
+
+  info "Trading Workspace wird neu gebaut ..."
+  compose build --pull
+
+  start_workspace
+}
+
+clean_workspace() {
+  require_command docker
+  ensure_environment
+
+  warn "Container, Netzwerke und lokale Daten-Volumes werden entfernt."
+  compose down --volumes --remove-orphans
+  ok "Lokale Docker-Ressourcen wurden entfernt."
+}
+
+main() {
+  local command_name="${1:-help}"
+
+  case "${command_name}" in
+    start)
+      start_workspace
+      ;;
+    stop)
+      stop_workspace
+      ;;
+    restart)
+      restart_workspace
+      ;;
+    status)
+      status_workspace
+      ;;
+    logs)
+      logs_workspace
+      ;;
+    open)
+      open_workspace
+      ;;
+    health)
+      health_workspace
+      ;;
+    doctor)
+      doctor_workspace
+      ;;
+    test)
+      test_workspace
+      ;;
+    update)
+      update_workspace
+      ;;
+    clean)
+      clean_workspace
+      ;;
+    help|-h|--help)
+      usage
+      ;;
+    *)
+      fail "Unbekannter Befehl: ${command_name}"
+      echo
+      usage
+      exit 2
+      ;;
+  esac
+}
+
+main "$@"
