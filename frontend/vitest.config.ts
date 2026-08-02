@@ -11,6 +11,17 @@ export default defineConfig({
     clearMocks: true,
     coverage: {
       reporter: ['text', 'html'],
+      include: ['src/**/*.{ts,tsx}'],
+      exclude: [
+        'src/main.tsx',
+        'src/vite-env.d.ts',
+        'src/test/**',
+        '**/*.test.{ts,tsx}',
+        '**/*.spec.{ts,tsx}',
+        'playwright.config.ts',
+        'vite.config.ts',
+        'vitest.config.ts',
+      ],
     },
   },
 });
