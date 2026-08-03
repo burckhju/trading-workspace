@@ -3,11 +3,8 @@ name: Backend
 on:
   workflow_dispatch:
   pull_request:
-    paths:
-      - 'backend/**'
-      - 'tests/unit/backend/**'
-      - 'tests/integration/backend/**'
-      - '.github/workflows/backend.yml'
+    branches: [main]
+
   push:
     branches: [main]
     paths:
