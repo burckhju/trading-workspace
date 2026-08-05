@@ -94,7 +94,11 @@ async def validation_error_handler(
         {
             "field": ".".join(str(part) for part in error["loc"]),
             "message": error["msg"],
-            "context": error.get("ctx"),
+            "context": (
+                {key: str(value) for key, value in error.get("ctx", {}).items()}
+                if error.get("ctx")
+                else None
+            ),
         }
         for error in exception.errors()
     ]

@@ -420,7 +420,7 @@ Beispiele
 - Produktdaten
 - Historische Kurse
 
-Die konkrete Auswahl ist im Feature **FT-010 Data Providers** definiert.
+Die konkrete Auswahl wird in der jeweiligen Provider- und Marktdaten-Spezifikation definiert. FT-010 bleibt gemäß Feature-Katalog dem Trade Management zugeordnet.
 
 ---
 

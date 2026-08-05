@@ -25,6 +25,7 @@ class DataOrigin(StrEnum):
 class AggregateType(StrEnum):
     UNDERLYING = "UNDERLYING"
     LISTING = "LISTING"
+    PROVIDER_MAPPING = "PROVIDER_MAPPING"
 
 
 class ActorType(StrEnum):

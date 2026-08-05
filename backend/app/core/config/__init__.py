@@ -1,5 +1,17 @@
-"""Application configuration."""
+"""Application configuration exports."""
 
-from app.core.config.settings import Environment, Settings, get_settings
+from app.core.config.settings import (
+    Environment,
+    EodhdSettings,
+    MarketDataSettings,
+    Settings,
+    get_settings,
+)
 
-__all__ = ["Environment", "Settings", "get_settings"]
+__all__ = [
+    "Environment",
+    "EodhdSettings",
+    "MarketDataSettings",
+    "Settings",
+    "get_settings",
+]
