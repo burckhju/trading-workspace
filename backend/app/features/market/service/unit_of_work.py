@@ -59,6 +59,13 @@ class MarketUnitOfWork(Protocol):
 
 
 class SqlAlchemyMarketUnitOfWork:
+    workspaces: WorkspaceRepository
+    reference_data: ReferenceDataRepository
+    underlyings: UnderlyingRepository
+    listings: ListingRepository
+    audit_events: AuditEventRepository
+    usages: UsageRepository
+
     def __init__(
         self, session: AsyncSession, usages: UsageRepository | None = None
     ) -> None:

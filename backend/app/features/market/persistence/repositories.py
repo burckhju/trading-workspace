@@ -160,17 +160,18 @@ class SqlAlchemyUnderlyingRepository:
     async def get(
         self, workspace_id: UUID, underlying_id: UUID
     ) -> UnderlyingModel | None:
-        return await self._session.scalar(
+        result = await self._session.scalar(
             select(UnderlyingModel).where(
                 UnderlyingModel.workspace_id == workspace_id,
                 UnderlyingModel.id == underlying_id,
             )
         )
+        return result
 
     async def get_with_listings(
         self, workspace_id: UUID, underlying_id: UUID
     ) -> UnderlyingModel | None:
-        return await self._session.scalar(
+        result = await self._session.scalar(
             select(UnderlyingModel)
             .options(
                 selectinload(UnderlyingModel.listings).selectinload(
@@ -185,24 +186,27 @@ class SqlAlchemyUnderlyingRepository:
                 UnderlyingModel.id == underlying_id,
             )
         )
+        return result
 
     async def find_by_isin(
         self, workspace_id: UUID, isin: str
     ) -> UnderlyingModel | None:
-        return await self._session.scalar(
+        result = await self._session.scalar(
             select(UnderlyingModel).where(
                 UnderlyingModel.workspace_id == workspace_id,
                 UnderlyingModel.isin == isin,
             )
         )
+        return result
 
     async def find_by_wkn(self, workspace_id: UUID, wkn: str) -> UnderlyingModel | None:
-        return await self._session.scalar(
+        result = await self._session.scalar(
             select(UnderlyingModel).where(
                 UnderlyingModel.workspace_id == workspace_id,
                 UnderlyingModel.wkn == wkn,
             )
         )
+        return result
 
     @staticmethod
     def _search_statement(
@@ -311,23 +315,25 @@ class SqlAlchemyListingRepository:
         self._session.add(listing)
 
     async def get(self, workspace_id: UUID, listing_id: UUID) -> ListingModel | None:
-        return await self._session.scalar(
+        result = await self._session.scalar(
             select(ListingModel).where(
                 ListingModel.workspace_id == workspace_id,
                 ListingModel.id == listing_id,
             )
         )
+        return result
 
     async def find_by_venue_ticker(
         self, workspace_id: UUID, venue_id: UUID, ticker: str
     ) -> ListingModel | None:
-        return await self._session.scalar(
+        result = await self._session.scalar(
             select(ListingModel).where(
                 ListingModel.workspace_id == workspace_id,
                 ListingModel.trading_venue_id == venue_id,
                 ListingModel.ticker == ticker,
             )
         )
+        return result
 
     async def list_for_underlying(
         self, workspace_id: UUID, underlying_id: UUID

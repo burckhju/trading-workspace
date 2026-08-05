@@ -7,7 +7,7 @@ SQLAlchemy-independent domain layer implemented in a later sprint step.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, ClassVar
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import (
@@ -38,7 +38,7 @@ from app.features.market.persistence.enums import (
 )
 
 
-def _enum(enum_type: type[Any], *, length: int) -> Enum[Any]:
+def _enum(enum_type: type[Any], *, length: int) -> Enum:
     return Enum(
         enum_type,
         native_enum=False,
@@ -173,7 +173,7 @@ class UnderlyingModel(Base):
         passive_deletes=True,
     )
 
-    __mapper_args__: ClassVar[dict[str, object]] = {
+    __mapper_args__: dict[str, Any] = {  # noqa: RUF012
         "version_id_col": version,
         "version_id_generator": False,
     }
@@ -236,7 +236,7 @@ class ListingModel(Base):
     trading_venue: Mapped[TradingVenueModel] = relationship(back_populates="listings")
     currency: Mapped[CurrencyModel] = relationship(back_populates="listings")
 
-    __mapper_args__: ClassVar[dict[str, object]] = {
+    __mapper_args__: dict[str, Any] = {  # noqa: RUF012
         "version_id_col": version,
         "version_id_generator": False,
     }

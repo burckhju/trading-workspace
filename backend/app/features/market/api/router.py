@@ -194,17 +194,15 @@ async def update_underlying(
 ) -> UnderlyingSummaryResponse:
     try:
         fields = payload.model_fields_set
-        kwargs: dict[str, object] = {}
-        for field in ("name", "isin", "wkn"):
-            if field in fields:
-                kwargs[field] = getattr(payload, field)
         result = await service.update(
             UpdateUnderlying(
                 workspace_id=WORKSPACE_ID,
                 underlying_id=underlying_id,
                 expected_version=payload.version,
                 actor=_actor(x_actor_id, x_actor_name),
-                **kwargs,
+                name=payload.name if "name" in fields else None,
+                isin=payload.isin if "isin" in fields else ...,
+                wkn=payload.wkn if "wkn" in fields else ...,
             )
         )
         return UnderlyingSummaryResponse.model_validate(result)

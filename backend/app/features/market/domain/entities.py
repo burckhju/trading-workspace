@@ -53,8 +53,32 @@ class Listing:
     def is_active_primary(self) -> bool:
         return self.lifecycle_status is LifecycleStatus.ACTIVE and self.is_primary
 
-    def with_changes(self, *, now: datetime, **changes: object) -> Listing:
-        return replace(self, updated_at=now, version=self.version + 1, **changes)
+    def with_changes(
+        self,
+        *,
+        now: datetime,
+        trading_venue_id: UUID | None = None,
+        ticker: str | None = None,
+        currency_code: str | None = None,
+        lifecycle_status: LifecycleStatus | None = None,
+        is_primary: bool | None = None,
+    ) -> Listing:
+        return replace(
+            self,
+            trading_venue_id=(
+                self.trading_venue_id if trading_venue_id is None else trading_venue_id
+            ),
+            ticker=self.ticker if ticker is None else ticker,
+            currency_code=(
+                self.currency_code if currency_code is None else currency_code
+            ),
+            lifecycle_status=(
+                self.lifecycle_status if lifecycle_status is None else lifecycle_status
+            ),
+            is_primary=self.is_primary if is_primary is None else is_primary,
+            updated_at=now,
+            version=self.version + 1,
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -89,26 +113,30 @@ class Underlying:
         isin: str | None | object = ...,
         wkn: str | None | object = ...,
     ) -> Underlying:
-        changes: dict[str, object] = {}
-        if name is not None:
-            changes["name"] = normalize_name(name)
+        next_name = self.name if name is None else normalize_name(name)
+
+        next_isin = self.isin
         if isin is not ...:
-            changes["isin"] = normalize_isin(isin if isinstance(isin, str) else None)
+            next_isin = normalize_isin(isin if isinstance(isin, str) else None)
+
+        next_wkn = self.wkn
         if wkn is not ...:
-            changes["wkn"] = normalize_wkn(wkn if isinstance(wkn, str) else None)
-        if not changes or all(
-            getattr(self, key) == value for key, value in changes.items()
-        ):
+            next_wkn = normalize_wkn(wkn if isinstance(wkn, str) else None)
+
+        if next_name == self.name and next_isin == self.isin and next_wkn == self.wkn:
             return self
-        quality = (
+
+        next_quality_status = (
             QualityStatus.COMPLETE
             if self.quality_status is QualityStatus.VERIFIED
             else self.quality_status
         )
         return replace(
             self,
-            **changes,
-            quality_status=quality,
+            name=next_name,
+            isin=next_isin,
+            wkn=next_wkn,
+            quality_status=next_quality_status,
             updated_at=now,
             version=self.version + 1,
         )
