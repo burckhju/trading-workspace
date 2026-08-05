@@ -6,7 +6,11 @@ from fastapi.testclient import TestClient
 
 from app.core.config import Environment, Settings
 from app.features.market_data.api.dependencies import get_daily_price_import_service
-from app.features.market_data.domain.enums import CacheStatus, MarketDataProvider, QualityStatus
+from app.features.market_data.domain.enums import (
+    CacheStatus,
+    MarketDataProvider,
+    QualityStatus,
+)
 from app.features.market_data.service.application import DailyPriceImportResult
 from app.features.market_data.service.errors import MarketDataRateLimitError
 from app.main import create_application
@@ -18,7 +22,12 @@ REQUEST_ID = UUID("30000000-0000-4000-8000-000000000001")
 
 
 def settings() -> Settings:
-    return Settings(_env_file=None, environment=Environment.TEST, documentation_enabled=True, log_level="CRITICAL")
+    return Settings(
+        _env_file=None,
+        environment=Environment.TEST,
+        documentation_enabled=True,
+        log_level="CRITICAL",
+    )
 
 
 def result() -> DailyPriceImportResult:

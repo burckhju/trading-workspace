@@ -8,4 +8,10 @@ from app.core.config.settings import (
     get_settings,
 )
 
-__all__ = ["Environment", "EodhdSettings", "MarketDataSettings", "Settings", "get_settings"]
+__all__ = [
+    "Environment",
+    "EodhdSettings",
+    "MarketDataSettings",
+    "Settings",
+    "get_settings",
+]

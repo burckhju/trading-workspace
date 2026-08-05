@@ -6,7 +6,10 @@ import asyncio
 from dataclasses import dataclass, field
 from datetime import date
 
-from app.features.market_data.domain.enums import MarketDataCapability, MarketDataProvider
+from app.features.market_data.domain.enums import (
+    MarketDataCapability,
+    MarketDataProvider,
+)
 from app.features.market_data.service.errors import MarketDataBudgetExhaustedError
 from app.providers.shared.clock import Clock
 

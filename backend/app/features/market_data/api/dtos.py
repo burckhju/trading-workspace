@@ -5,7 +5,11 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from app.features.market_data.domain.enums import CacheStatus, MarketDataProvider, QualityStatus
+from app.features.market_data.domain.enums import (
+    CacheStatus,
+    MarketDataProvider,
+    QualityStatus,
+)
 from app.features.market_data.service.application import DailyPriceImportResult
 
 
@@ -70,6 +74,7 @@ class ImportDailyPricesResponse(BaseModel):
             provider_call_cost=result.provider_call_cost,
             retrieved_at=result.retrieved_at,
         )
+
 
 class ProviderMappingUpsertRequest(BaseModel):
     """Create or update an administrative provider-symbol assignment."""

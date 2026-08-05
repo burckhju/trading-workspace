@@ -24,7 +24,9 @@ def translate_market_data_error(error: MarketDataError) -> ApplicationError:
     status_code = status.HTTP_502_BAD_GATEWAY
     if isinstance(error, MarketDataNotFoundError):
         status_code = status.HTTP_404_NOT_FOUND
-    elif isinstance(error, (MarketDataConfigurationError, MarketDataAuthenticationError)):
+    elif isinstance(
+        error, (MarketDataConfigurationError, MarketDataAuthenticationError)
+    ):
         status_code = status.HTTP_503_SERVICE_UNAVAILABLE
     elif isinstance(error, MarketDataAuthorizationError):
         status_code = status.HTTP_403_FORBIDDEN
@@ -32,7 +34,14 @@ def translate_market_data_error(error: MarketDataError) -> ApplicationError:
         status_code = status.HTTP_429_TOO_MANY_REQUESTS
     elif isinstance(error, (MarketDataTimeoutError, MarketDataUnavailableError)):
         status_code = status.HTTP_503_SERVICE_UNAVAILABLE
-    elif isinstance(error, (MarketDataMappingError, MarketDataCurrencyConflictError, MarketDataInvalidResponseError)):
+    elif isinstance(
+        error,
+        (
+            MarketDataMappingError,
+            MarketDataCurrencyConflictError,
+            MarketDataInvalidResponseError,
+        ),
+    ):
         status_code = status.HTTP_502_BAD_GATEWAY
 
     details: tuple[ErrorDetail, ...] = ()

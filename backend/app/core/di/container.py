@@ -9,15 +9,23 @@ from datetime import timedelta
 from random import Random
 
 import httpx
+from pydantic import ValidationError
 
 from app.core.config import Settings
 from app.database import DatabaseManager
+from app.features.market_data.domain.enums import (
+    MarketDataCapability,
+    MarketDataProvider,
+)
+from app.features.market_data.service.administration import (
+    ProviderMappingAdministrationService,
+)
 from app.features.market_data.service.application import DailyPriceImportService
-from app.features.market_data.service.administration import ProviderMappingAdministrationService
 from app.features.market_data.service.errors import MarketDataConfigurationError
 from app.features.market_data.service.unit_of_work import SqlAlchemyMarketDataUnitOfWork
 from app.providers.eodhd.adapter import EodhdAdapterSettings, EodhdMarketDataAdapter
 from app.providers.eodhd.client import EodhdClient, create_http_client
+from app.providers.eodhd.dto import EodhdUserDto
 from app.providers.eodhd.persistence import (
     SqlAlchemyListingCurrencyReader,
     SqlAlchemyMappingReader,
@@ -25,12 +33,9 @@ from app.providers.eodhd.persistence import (
 from app.providers.shared.budget import DailyCallBudget
 from app.providers.shared.cache import InMemoryTtlCache
 from app.providers.shared.clock import AsyncioSleeper, SystemClock
+from app.providers.shared.metrics import ProviderMetrics
 from app.providers.shared.rate_limit import TokenBucketRateLimiter
 from app.providers.shared.retry import RetryPolicy
-from app.providers.shared.metrics import ProviderMetrics
-from app.providers.eodhd.dto import EodhdUserDto
-from pydantic import ValidationError
-from app.features.market_data.domain.enums import MarketDataCapability, MarketDataProvider
 
 
 @dataclass(frozen=True, slots=True)
@@ -57,7 +62,7 @@ class ApplicationContainer:
     eodhd: EodhdRuntime | None = None
 
     @classmethod
-    def build(cls, settings: Settings) -> "ApplicationContainer":
+    def build(cls, settings: Settings) -> ApplicationContainer:
         """Build the technical dependency graph for one application instance."""
         database = DatabaseManager(settings)
         runtime = cls._build_eodhd(settings, database)
@@ -124,7 +129,13 @@ class ApplicationContainer:
                 provider_call_cost=provider_settings.historical_eod_call_cost,
             ),
         )
-        return EodhdRuntime(http_client=http_client, adapter=adapter, call_budget=call_budget, client=client, metrics=ProviderMetrics())
+        return EodhdRuntime(
+            http_client=http_client,
+            adapter=adapter,
+            call_budget=call_budget,
+            client=client,
+            metrics=ProviderMetrics(),
+        )
 
     def require_eodhd_adapter(self) -> EodhdMarketDataAdapter:
         """Return the configured adapter or a stable configuration error."""
@@ -160,24 +171,38 @@ class ApplicationContainer:
     async def synchronize_eodhd_account_usage(self) -> dict[str, int]:
         """Synchronize local usage with the non-secret EODHD User API counters."""
         if self.eodhd is None:
-            raise MarketDataConfigurationError("EODHD provider is disabled", provider=MarketDataProvider.EODHD)
+            raise MarketDataConfigurationError(
+                "EODHD provider is disabled", provider=MarketDataProvider.EODHD
+            )
         payload = await self.eodhd.client.get_json(
-            "/user/", capability=MarketDataCapability.INSTRUMENT_MAPPING_VALIDATION,
+            "/user/",
+            capability=MarketDataCapability.INSTRUMENT_MAPPING_VALIDATION,
             params={"fmt": "json"},
         )
         try:
             user = EodhdUserDto.model_validate(payload)
         except ValidationError as exc:
-            raise MarketDataConfigurationError("EODHD User API returned invalid account data", provider=MarketDataProvider.EODHD) from exc
-        used = await self.eodhd.call_budget.synchronize_usage(user.apiRequests, usage_day=user.apiRequestsDate)
+            raise MarketDataConfigurationError(
+                "EODHD User API returned invalid account data",
+                provider=MarketDataProvider.EODHD,
+            ) from exc
+        used = await self.eodhd.call_budget.synchronize_usage(
+            user.apiRequests, usage_day=user.apiRequestsDate
+        )
         await self.eodhd.metrics.increment("user_api_syncs")
-        return {"api_requests": used, "daily_rate_limit": user.dailyRateLimit, "extra_limit": user.extraLimit}
+        return {
+            "api_requests": used,
+            "daily_rate_limit": user.dailyRateLimit,
+            "extra_limit": user.extraLimit,
+        }
 
     async def provider_status(self) -> dict[str, int | bool | str]:
         """Return non-secret EODHD runtime and budget status."""
         settings = self.settings.market_data.eodhd
         used = await self.eodhd.call_budget.usage() if self.eodhd else 0
-        effective = max(settings.daily_call_limit - settings.daily_call_safety_reserve, 0)
+        effective = max(
+            settings.daily_call_limit - settings.daily_call_safety_reserve, 0
+        )
         metrics = await self.eodhd.metrics.snapshot() if self.eodhd else {}
         return {
             "provider": MarketDataProvider.EODHD,

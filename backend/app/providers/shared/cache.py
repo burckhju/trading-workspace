@@ -3,18 +3,15 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Hashable
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import Generic, Hashable, TypeVar
 
 from app.providers.shared.clock import Clock
 
-K = TypeVar("K", bound=Hashable)
-V = TypeVar("V")
-
 
 @dataclass(frozen=True, slots=True)
-class CacheLookup(Generic[V]):
+class CacheLookup[V]:
     """Describe whether a cache lookup returned fresh or stale data."""
 
     value: V | None
@@ -23,12 +20,12 @@ class CacheLookup(Generic[V]):
 
 
 @dataclass(slots=True)
-class _Entry(Generic[V]):
+class _Entry[V]:
     value: V
     expires_at: float
 
 
-class InMemoryTtlCache(Generic[K, V]):
+class InMemoryTtlCache[K: Hashable, V]:
     """Single-process TTL cache with atomic access and explicit stale rejection."""
 
     def __init__(self, *, clock: Clock) -> None:

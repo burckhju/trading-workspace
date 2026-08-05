@@ -4,7 +4,10 @@ from datetime import UTC, datetime
 
 import pytest
 
-from app.features.market_data.domain.enums import MarketDataCapability, MarketDataProvider
+from app.features.market_data.domain.enums import (
+    MarketDataCapability,
+    MarketDataProvider,
+)
 from app.features.market_data.service.errors import MarketDataBudgetExhaustedError
 from app.providers.shared.budget import DailyCallBudget
 from tests.unit.backend.providers.shared.fakes import ManualClock
@@ -51,7 +54,9 @@ async def test_budget_resets_at_utc_day_boundary() -> None:
     ("configured_budget", "reserve"),
     [(0, 10), (10, -1), (10, 100)],
 )
-def test_budget_rejects_invalid_configuration(configured_budget: int, reserve: int) -> None:
+def test_budget_rejects_invalid_configuration(
+    configured_budget: int, reserve: int
+) -> None:
     clock = ManualClock(datetime(2026, 8, 5, 10, tzinfo=UTC))
     with pytest.raises(ValueError):
         DailyCallBudget(
@@ -61,10 +66,16 @@ def test_budget_rejects_invalid_configuration(configured_budget: int, reserve: i
             provider=MarketDataProvider.EODHD,
         )
 
+
 @pytest.mark.asyncio
 async def test_external_usage_synchronization_never_reduces_local_usage() -> None:
     clock = ManualClock(datetime(2026, 8, 5, 10, tzinfo=UTC))
-    budget = DailyCallBudget(configured_budget=20, safety_reserve_percent=0, clock=clock, provider=MarketDataProvider.EODHD)
+    budget = DailyCallBudget(
+        configured_budget=20,
+        safety_reserve_percent=0,
+        clock=clock,
+        provider=MarketDataProvider.EODHD,
+    )
     await budget.consume(5, capability=MarketDataCapability.HISTORICAL_DAILY_PRICES)
     current = await budget.synchronize_usage(3, usage_day=budget.clock.utcnow().date())
     assert current == 5

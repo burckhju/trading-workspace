@@ -6,6 +6,9 @@ from typing import Annotated
 from fastapi import Depends
 
 from app.core.di import ApplicationContainer, get_container
+from app.features.market_data.service.administration import (
+    ProviderMappingAdministrationService,
+)
 from app.features.market_data.service.application import DailyPriceImportService
 
 
@@ -15,8 +18,6 @@ async def get_daily_price_import_service(
     """Yield one session-scoped import service and close its DB session afterwards."""
     async with container.daily_price_import_service() as service:
         yield service
-
-from app.features.market_data.service.administration import ProviderMappingAdministrationService
 
 
 async def get_provider_mapping_service(

@@ -9,7 +9,10 @@ import httpx
 from pydantic import SecretStr
 
 from app.core.config.settings import EodhdSettings
-from app.features.market_data.domain.enums import MarketDataCapability, MarketDataProvider
+from app.features.market_data.domain.enums import (
+    MarketDataCapability,
+    MarketDataProvider,
+)
 from app.features.market_data.service.errors import (
     MarketDataAuthenticationError,
     MarketDataAuthorizationError,
@@ -101,7 +104,9 @@ class EodhdClient:
         if status == 401:
             raise MarketDataAuthenticationError("EODHD rejected credentials", **common)
         if status == 403:
-            raise MarketDataAuthorizationError("EODHD access is not permitted", **common)
+            raise MarketDataAuthorizationError(
+                "EODHD access is not permitted", **common
+            )
         if status == 404:
             raise MarketDataNotFoundError("EODHD resource was not found", **common)
         if status == 429:

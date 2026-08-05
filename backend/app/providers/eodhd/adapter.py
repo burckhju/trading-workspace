@@ -25,8 +25,8 @@ from app.features.market_data.service.errors import (
 from app.features.market_data.service.types import (
     DailyPriceRequest,
     LatestDailyPriceRequest,
-    MarketDataResult,
     MappingValidationResult,
+    MarketDataResult,
 )
 from app.providers.eodhd.client import EodhdClient
 from app.providers.eodhd.dto import EodhdDailyPriceDto, EodhdSearchResultDto
@@ -65,7 +65,10 @@ class EodhdAdapterSettings:
     provider_call_cost: int = 1
 
     def __post_init__(self) -> None:
-        if self.historical_ttl.total_seconds() <= 0 or self.latest_ttl.total_seconds() <= 0:
+        if (
+            self.historical_ttl.total_seconds() <= 0
+            or self.latest_ttl.total_seconds() <= 0
+        ):
             raise ValueError("cache TTLs must be positive")
         if self.provider_call_cost < 1:
             raise ValueError("provider_call_cost must be positive")
@@ -113,7 +116,9 @@ class EodhdMarketDataAdapter:
         capability = MarketDataCapability.INSTRUMENT_MAPPING_VALIDATION
 
         async def operation() -> tuple[EodhdSearchResultDto, ...]:
-            await self._budget.consume(self._settings.provider_call_cost, capability=capability)
+            await self._budget.consume(
+                self._settings.provider_call_cost, capability=capability
+            )
             await self._rate_limiter.acquire()
             payload = await self._client.get_json(
                 f"/search/{mapping.provider_symbol}",
@@ -121,29 +126,46 @@ class EodhdMarketDataAdapter:
                 params={"exchange": mapping.provider_exchange_code, "limit": 20},
             )
             try:
-                return tuple(TypeAdapter(list[EodhdSearchResultDto]).validate_python(payload))
+                return tuple(
+                    TypeAdapter(list[EodhdSearchResultDto]).validate_python(payload)
+                )
             except ValidationError as exc:
                 raise MarketDataInvalidResponseError(
                     "EODHD search response has an invalid structure",
-                    provider=MarketDataProvider.EODHD, capability=capability, retryable=False,
+                    provider=MarketDataProvider.EODHD,
+                    capability=capability,
+                    retryable=False,
                 ) from exc
 
         outcome = await self._retry.execute(operation)
         expected_symbol = mapping.provider_symbol.upper()
         expected_exchange = mapping.provider_exchange_code.upper()
-        match = next((row for row in outcome.value if row.code.upper() == expected_symbol and row.exchange.upper() == expected_exchange), None)
+        match = next(
+            (
+                row
+                for row in outcome.value
+                if row.code.upper() == expected_symbol
+                and row.exchange.upper() == expected_exchange
+            ),
+            None,
+        )
         now = self._clock.utcnow()
         if match is None:
             return MappingValidationResult(
-                mapping_id=mapping.id, provider=MarketDataProvider.EODHD,
-                status=MappingStatus.INVALID, validated_at=now,
+                mapping_id=mapping.id,
+                provider=MarketDataProvider.EODHD,
+                status=MappingStatus.INVALID,
+                validated_at=now,
                 message="EODHD did not return an exact symbol and exchange match",
             )
         return MappingValidationResult(
-            mapping_id=mapping.id, provider=MarketDataProvider.EODHD,
-            status=MappingStatus.ACTIVE, validated_at=now,
+            mapping_id=mapping.id,
+            provider=MarketDataProvider.EODHD,
+            status=MappingStatus.ACTIVE,
+            validated_at=now,
             message="Technically validated against EODHD Search API",
-            provider_symbol=match.code, provider_exchange_code=match.exchange,
+            provider_symbol=match.code,
+            provider_exchange_code=match.exchange,
             currency=match.currency,
         )
 
@@ -237,7 +259,11 @@ class EodhdMarketDataAdapter:
                 cached.prices,
                 capability=capability,
                 correlation_id=correlation_id,
-                retrieved_at=cached.prices[0].retrieved_at if cached.prices else self._clock.utcnow(),
+                retrieved_at=(
+                    cached.prices[0].retrieved_at
+                    if cached.prices
+                    else self._clock.utcnow()
+                ),
                 cache_status=CacheStatus.HIT,
                 retry_count=0,
                 provider_call_cost=0,
@@ -276,10 +302,10 @@ class EodhdMarketDataAdapter:
             return prices
 
         outcome = await self._retry.execute(operation)
-        retrieved_at = outcome.value[0].retrieved_at if outcome.value else self._clock.utcnow()
-        await self._cache.set(
-            key, _CachedPrices(outcome.value, retrieved_at), ttl=ttl
+        retrieved_at = (
+            outcome.value[0].retrieved_at if outcome.value else self._clock.utcnow()
         )
+        await self._cache.set(key, _CachedPrices(outcome.value, retrieved_at), ttl=ttl)
         return self._result(
             outcome.value,
             capability=capability,
@@ -289,7 +315,8 @@ class EodhdMarketDataAdapter:
                 CacheStatus.STALE_REJECTED if lookup.stale else CacheStatus.MISS
             ),
             retry_count=outcome.retry_count,
-            provider_call_cost=(outcome.retry_count + 1) * self._settings.provider_call_cost,
+            provider_call_cost=(outcome.retry_count + 1)
+            * self._settings.provider_call_cost,
         )
 
     async def _context(
@@ -306,7 +333,10 @@ class EodhdMarketDataAdapter:
                 provider=MarketDataProvider.EODHD,
                 capability=capability,
             )
-        if mapping.provider is not MarketDataProvider.EODHD or mapping.status is not MappingStatus.ACTIVE:
+        if (
+            mapping.provider is not MarketDataProvider.EODHD
+            or mapping.status is not MappingStatus.ACTIVE
+        ):
             raise MarketDataMappingError(
                 "Provider mapping is not active for EODHD",
                 provider=MarketDataProvider.EODHD,

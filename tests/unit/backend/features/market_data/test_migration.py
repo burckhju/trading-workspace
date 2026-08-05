@@ -1,7 +1,10 @@
 import ast
 from pathlib import Path
 
-PATH = Path(__file__).resolve().parents[5] / "backend/migrations/versions/20260805_0002_market_data_persistence.py"
+PATH = (
+    Path(__file__).resolve().parents[5]
+    / "backend/migrations/versions/20260805_0002_market_data_persistence.py"
+)
 
 
 def test_market_data_migration_has_expected_revision_chain_and_tables() -> None:
@@ -10,7 +13,10 @@ def test_market_data_migration_has_expected_revision_chain_and_tables() -> None:
     assignments: dict[str, str | None] = {}
     for node in tree.body:
         if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
-            if node.target.id in {"revision", "down_revision"} and node.value is not None:
+            if (
+                node.target.id in {"revision", "down_revision"}
+                and node.value is not None
+            ):
                 assignments[node.target.id] = ast.literal_eval(node.value)
     assert assignments == {
         "revision": "20260805_0002",

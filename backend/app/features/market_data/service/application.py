@@ -7,10 +7,20 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from uuid import UUID, uuid4
 
-from app.features.market_data.domain.enums import CacheStatus, MarketDataProvider, QualityStatus
-from app.features.market_data.persistence.mapping import apply_daily_price, daily_price_to_model
+from app.features.market_data.domain.enums import (
+    CacheStatus,
+    MarketDataProvider,
+    QualityStatus,
+)
+from app.features.market_data.persistence.mapping import (
+    apply_daily_price,
+    daily_price_to_model,
+)
 from app.features.market_data.service.contracts import HistoricalDailyPriceProvider
-from app.features.market_data.service.errors import MarketDataMappingError, MarketDataNotFoundError
+from app.features.market_data.service.errors import (
+    MarketDataMappingError,
+    MarketDataNotFoundError,
+)
 from app.features.market_data.service.types import DailyPriceRequest
 from app.features.market_data.service.unit_of_work import MarketDataUnitOfWork
 
@@ -65,7 +75,9 @@ class DailyPriceImportService:
     ) -> DailyPriceImportResult:
         """Load one approved mapping, fetch its range and idempotently upsert prices."""
         async with self._uow:
-            mapping = await self._uow.mappings.get(request.workspace_id, request.mapping_id)
+            mapping = await self._uow.mappings.get(
+                request.workspace_id, request.mapping_id
+            )
             if mapping is None or mapping.listing_id != request.listing_id:
                 raise MarketDataNotFoundError(
                     "Provider mapping was not found",
