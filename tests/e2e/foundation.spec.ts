@@ -1,10 +1,10 @@
 import { expect, test } from '@playwright/test';
 
-test('serves the technical workspace foundation and backend health endpoint', async ({ page, request }) => {
+test('serves the FT-001 start page and backend health endpoint', async ({ page, request }) => {
   await page.goto('/');
 
-  await expect(page.getByRole('heading', { name: 'Technisches Frontend-Grundgerüst' })).toBeVisible();
-  await expect(page.getByText('Trading Workspace')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Basiswerte' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Basiswert anlegen' })).toBeVisible();
 
   const healthResponse = await request.get('/api/health');
   expect(healthResponse.ok()).toBeTruthy();

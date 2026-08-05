@@ -1,109 +1,87 @@
 # Trading Workspace
 
-Technisches Repository des Trading Workspace.
+Produktionsnahes Referenzrepository für den **Trading Workspace**.
 
 ## Status
 
-Sprint 0 – technisches Grundgerüst.
+- Sprint 0 – technische Basis: abgeschlossen
+- Sprint 1 – fachliche Architektur: abgeschlossen und freigegeben
+- Sprint 2 – FT-001 Basiswertverwaltung: implementiert, getestet und dokumentiert
 
-Dieses Repository enthält die verbindliche Repositorystruktur, den Backend-Bootstrap,
-die Datenbankinfrastruktur, den technischen Core, die fachlich neutrale Shared-Schicht
-den Frontend-Bootstrap, die Docker-Umgebung sowie CI- und Testautomatisierung.
-Fachlogik und Implementierungen der Features FT-001 bis FT-013 sind nicht Bestandteil
-dieses Stands.
+FT-001 ist das einzige in Sprint 2 implementierte Fachfeature. Die akzeptierten ADRs und das Feature Book bilden weiterhin die verbindliche Architektur-Baseline.
+
+## Implementierter Umfang FT-001
+
+- Basiswerte mit primärer Notierung anlegen
+- Basiswerte suchen und nach Lifecycle, Handelsplatz und Währung filtern
+- Details, Notierungen, Verwendungen und Änderungshistorie anzeigen
+- Stammdaten und Listings ändern
+- Primärnotierung atomar wechseln
+- Basiswerte verifizieren, deaktivieren und reaktivieren
+- unreferenzierte Fehleinträge physisch löschen
+- kontrollierte Handelsplätze und Währungen verwenden
+- Optimistic Locking und append-only Audit-Historie
 
 ## Struktur
 
-- `backend/` – Python-/FastAPI-Backend
-- `frontend/` – React-/TypeScript-Frontend
-- `docs/` – verbindliche Projekt-, Architektur- und Entwicklungsdokumentation
-- `tests/` – übergreifende Testbereiche
-- `scripts/` – projektweite Automatisierungsskripte
-- `docker/` – Container- und Deployment-Artefakte
-- `.github/` – GitHub-spezifische Konfiguration
+- `backend/` – FastAPI, SQLAlchemy Async, Alembic und FT-001-Backend
+- `frontend/` – React-/TypeScript-Anwendung und FT-001-Oberflächen
+- `docs/` – verbindliche Projekt-, Architektur-, Feature- und Betriebsdokumentation
+- `tests/` – projektweite Integrations- und E2E-Tests
+- `scripts/` – lokale Qualitäts- und Ausführungsskripte
+- `docker/` – PostgreSQL-, Backend- und Frontend-Stack
 
-Die verbindlichen Architektur- und Entwicklungsregeln befinden sich unter `docs/`.
-
-## Verbindliche Backend-Konventionen
-
-- Feature-Domain-Schicht: `domain/`
-- Backend-Einstiegspunkt: `backend/app/main.py`
-
-## Backend starten
-
-Aus `backend/`:
+## Lokale Qualitätsprüfung
 
 ```bash
-python -m pip install --requirement requirements.txt
-python -m uvicorn app.main:app
+./scripts/check-backend.sh
+./scripts/check-frontend.sh
+./scripts/run-e2e.sh
 ```
 
-Der technische Liveness-Endpunkt ist unter `GET /health` verfügbar. Der
-Datenbank-Readiness-Endpunkt ist unter `GET /health/ready` verfügbar.
+`check-backend.sh` verwendet eine vorhandene Python-Umgebung oder richtet bei fehlenden Entwicklungswerkzeugen eine lokale `backend/.venv` aus `requirements-dev.txt` ein.
 
-## Datenbank
-
-Die technische Persistenzschicht verwendet PostgreSQL, SQLAlchemy Async und Alembic.
-SP-003 enthält noch keine fachlichen Tabellen oder Feature-Repositorys. Details stehen
-unter `docs/implementation/SP-003_DATABASE.md`.
-
-## Technischer Core
-
-Der Backend-Core umfasst zentrale Konfiguration, strukturiertes Logging,
-Fehlerbehandlung, Request-Kontext, Application Dependency Injection und kontrolliertes
-Lifecycle-Management. Authentifizierung und Autorisierung sind mangels verbindlicher
-Detailvorgaben noch nicht implementiert.
-
-## Shared
-
-Die Shared-Schicht enthält ausschließlich fachlich neutrale Typen, Value Objects,
-Zeitfunktionen, Verträge und Validatoren. Details stehen unter
-`docs/implementation/SP-005_SHARED.md`.
-
-## Frontend starten
-
-Aus `frontend/`:
-
-```bash
-npm install
-npm run dev
-```
-
-Der technische Frontend-Bootstrap verwendet React, TypeScript, Vite, React Router und
-Tailwind CSS. Er enthält ausschließlich eine neutrale Sprint-0-Startseite und eine
-404-Seite. Fachliche Routen und Feature-Oberflächen sind nicht enthalten. Details stehen
-unter `docs/implementation/SP-006_FRONTEND_BOOTSTRAP.md`.
-
-## Docker starten
-
-Aus dem Repository-Stamm:
+## Anwendung mit Docker starten
 
 ```bash
 cp docker/.env.example docker/.env
 docker compose --env-file docker/.env -f docker/compose.yml up --build
 ```
 
-Der Stack stellt PostgreSQL, das FastAPI-Backend und das über Nginx ausgelieferte
-Frontend bereit. Das Frontend ist standardmäßig unter `http://localhost:8080`
-erreichbar. Technische Backend-Endpunkte können direkt über Port `8000` oder über den
-Nginx-Präfix `/api` aufgerufen werden. Details stehen unter
-`docs/implementation/SP-007_DOCKER.md`.
+- Frontend: `http://localhost:8080`
+- Backend direkt: `http://localhost:8000`
+- Backend über Nginx: `http://localhost:8080/api`
+- Liveness: `GET /health`
+- Readiness: `GET /health/ready`
+- FT-001 REST API: `/api/v1`
 
-## Qualitätssicherung
+## Backend lokal starten
 
-GitHub Actions führt getrennte Backend-, Frontend- und End-to-End-Quality-Gates aus.
-Die entsprechenden lokalen Prüfläufe stehen unter `scripts/` bereit. Details und bekannte
-Einschränkungen stehen unter `docs/implementation/SP-008_CI_AND_TESTS.md`. Der konsolidierte
-Status der verbliebenen externen Punkte steht unter
-`docs/implementation/SPRINT_0_OPEN_POINTS.md`.
+```bash
+cd backend
+python3 -m venv .venv
+. .venv/bin/activate
+python -m pip install --requirement requirements-dev.txt
+python -m alembic upgrade head
+python -m uvicorn app.main:app --reload
+```
 
-## Implementierungsstand
+## Frontend lokal starten
 
-- SP-001 Repositorystruktur: abgeschlossen
-- SP-002 Backend Bootstrap: abgeschlossen
-- SP-003 Datenbank: abgeschlossen
-- SP-004 Core: abgeschlossen
-- SP-005 Shared: abgeschlossen
-- SP-006 Frontend Bootstrap: abgeschlossen
-- SP-007 Docker: abgeschlossen
-- SP-008 CI & Tests: abgeschlossen
+```bash
+cd frontend
+npm ci
+npm run dev
+```
+
+Erforderlich sind die in `.nvmrc` und `package.json` festgelegten Node-/npm-Versionen.
+
+## Verbindliche Dokumentation
+
+- Feature Book: `docs/features/underlying/FEATURE.md`
+- Architekturentscheidungen: `docs/decisions/`
+- physisches Datenmodell: `docs/features/underlying/PHYSICAL_DATA_MODEL.md`
+- REST API: `docs/features/underlying/REST_API.md`
+- Betriebs- und Entwicklungsanleitung: `docs/technical/DEVELOPMENT_GUIDE.md`
+- Sprint-2-Abschluss: `docs/planning/SPRINT_2_CLOSEOUT.md`
+- vollständige Traceability: `docs/foundation/TRACEABILITY.md`

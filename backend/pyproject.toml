@@ -33,6 +33,7 @@ packages = ["app"]
 addopts = "--strict-config --strict-markers"
 pythonpath = ["."]
 testpaths = ["../tests/unit/backend", "../tests/integration/backend"]
+asyncio_mode = "auto"
 
 [tool.black]
 line-length = 100
