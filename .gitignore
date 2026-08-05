@@ -47,3 +47,12 @@ playwright-report/
 *.sqlite
 *.sqlite3
 postgres-data/
+
+# Coverage
+.coverage
+coverage.xml
+coverage/
+
+# Local environment
+.env
+docker/.env
