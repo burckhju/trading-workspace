@@ -68,9 +68,9 @@ async def test_client_translates_statuses(
             await EodhdClient(settings=settings(), client=http).get_json(
                 "https://eodhd.test/api/eod/SAP", capability=CAPABILITY
             )
-    assert getattr(exc_info.value, "retryable") is retryable
+    assert exc_info.value.retryable is retryable
     if status in {429, 503}:
-        assert getattr(exc_info.value, "retry_after") == timedelta(seconds=7)
+        assert exc_info.value.retry_after == timedelta(seconds=7)
 
 
 @pytest.mark.asyncio

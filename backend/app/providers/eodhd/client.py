@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from datetime import timedelta
 from typing import Any
 
@@ -24,6 +25,10 @@ from app.features.market_data.service.errors import (
     MarketDataUnavailableError,
 )
 
+type QueryValue = str | int | float | bool | None | Sequence[
+    str | int | float | bool | None
+]
+
 
 class EodhdClient:
     """Execute authenticated EODHD GET requests and translate transport failures."""
@@ -37,11 +42,11 @@ class EodhdClient:
         path: str,
         *,
         capability: MarketDataCapability,
-        params: dict[str, object] | None = None,
+        params: Mapping[str, QueryValue] | None = None,
     ) -> Any:
         """Return decoded JSON or raise a provider-independent market-data error."""
         api_key = self._required_api_key()
-        query: dict[str, object] = dict(params or {})
+        query: dict[str, QueryValue] = dict(params or {})
         query["api_token"] = api_key.get_secret_value()
         query.setdefault("fmt", "json")
         try:
@@ -97,34 +102,48 @@ class EodhdClient:
     def _raise_for_status(
         cls, response: httpx.Response, *, capability: MarketDataCapability
     ) -> None:
-        common = {"provider": MarketDataProvider.EODHD, "capability": capability}
         status = response.status_code
         if 200 <= status < 300:
             return
         if status == 401:
-            raise MarketDataAuthenticationError("EODHD rejected credentials", **common)
+            raise MarketDataAuthenticationError(
+                "EODHD rejected credentials",
+                provider=MarketDataProvider.EODHD,
+                capability=capability,
+            )
         if status == 403:
             raise MarketDataAuthorizationError(
-                "EODHD access is not permitted", **common
+                "EODHD access is not permitted",
+                provider=MarketDataProvider.EODHD,
+                capability=capability,
             )
         if status == 404:
-            raise MarketDataNotFoundError("EODHD resource was not found", **common)
+            raise MarketDataNotFoundError(
+                "EODHD resource was not found",
+                provider=MarketDataProvider.EODHD,
+                capability=capability,
+            )
         if status == 429:
             raise MarketDataRateLimitError(
                 "EODHD rate limit exceeded",
+                provider=MarketDataProvider.EODHD,
+                capability=capability,
                 retryable=True,
                 retry_after=cls._retry_after(response),
-                **common,
             )
         if status in {408, 425, 500, 502, 503, 504}:
             raise MarketDataUnavailableError(
                 "EODHD is temporarily unavailable",
+                provider=MarketDataProvider.EODHD,
+                capability=capability,
                 retryable=True,
                 retry_after=cls._retry_after(response),
-                **common,
             )
         raise MarketDataInvalidResponseError(
-            f"EODHD returned unexpected HTTP status {status}", retryable=False, **common
+            f"EODHD returned unexpected HTTP status {status}",
+            provider=MarketDataProvider.EODHD,
+            capability=capability,
+            retryable=False,
         )
 
 

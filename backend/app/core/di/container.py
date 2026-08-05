@@ -196,7 +196,9 @@ class ApplicationContainer:
             "extra_limit": user.extraLimit,
         }
 
-    async def provider_status(self) -> dict[str, int | bool | str]:
+    async def provider_status(
+        self,
+    ) -> dict[str, int | bool | str | dict[str, int]]:
         """Return non-secret EODHD runtime and budget status."""
         settings = self.settings.market_data.eodhd
         used = await self.eodhd.call_budget.usage() if self.eodhd else 0

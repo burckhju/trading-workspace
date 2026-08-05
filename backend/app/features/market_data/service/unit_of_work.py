@@ -42,9 +42,15 @@ class SqlAlchemyMarketDataUnitOfWork:
 
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
-        self.mappings = SqlAlchemyProviderInstrumentMappingRepository(session)
-        self.daily_prices = SqlAlchemyDailyPriceRepository(session)
-        self.audit_events = SqlAlchemyAuditEventRepository(session)
+        self.mappings: ProviderInstrumentMappingRepository = (
+            SqlAlchemyProviderInstrumentMappingRepository(session)
+        )
+        self.daily_prices: DailyPriceRepository = SqlAlchemyDailyPriceRepository(
+            session
+        )
+        self.audit_events: AuditEventRepository = SqlAlchemyAuditEventRepository(
+            session
+        )
 
     async def __aenter__(self) -> Self:
         return self

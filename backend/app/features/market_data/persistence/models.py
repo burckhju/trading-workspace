@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Any, ClassVar
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import (
@@ -94,7 +94,7 @@ class ProviderInstrumentMappingModel(Base):
     )
     version: Mapped[int] = mapped_column(Integer, nullable=False)
 
-    __mapper_args__: ClassVar[dict[str, Any]] = {
+    __mapper_args__ = {  # noqa: RUF012
         "version_id_col": version,
         "version_id_generator": False,
     }

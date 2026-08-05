@@ -249,7 +249,7 @@ class ProviderMappingAdministrationService:
         change: ChangeType,
         before: int | None,
         after: int,
-        fields: dict,
+        fields: dict[str, dict[str, str | None]],
     ) -> None:
         await self._uow.audit_events.append(
             AuditEventModel(
@@ -272,9 +272,9 @@ class ProviderMappingAdministrationService:
     @staticmethod
     def _diff(
         before: ProviderInstrumentMapping, after: ProviderInstrumentMapping
-    ) -> dict:
+    ) -> dict[str, dict[str, str | None]]:
         ignored = {"created_at", "updated_at", "version"}
-        result = {}
+        result: dict[str, dict[str, str | None]] = {}
         for key, old in asdict(before).items():
             if key in ignored:
                 continue
