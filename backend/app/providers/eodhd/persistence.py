@@ -42,9 +42,10 @@ class SqlAlchemyListingCurrencyReader:
     async def get_currency(self, workspace_id: UUID, listing_id: UUID) -> str | None:
         """Return the ISO currency code of one workspace-scoped listing."""
         async with self._database.session_context() as session:
-            return await session.scalar(
+            result = await session.scalar(
                 select(ListingModel.currency_code).where(
                     ListingModel.workspace_id == workspace_id,
                     ListingModel.id == listing_id,
                 )
             )
+        return result

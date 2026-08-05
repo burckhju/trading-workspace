@@ -12,12 +12,13 @@ def test_market_data_migration_has_expected_revision_chain_and_tables() -> None:
     tree = ast.parse(text)
     assignments: dict[str, str | None] = {}
     for node in tree.body:
-        if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
-            if (
-                node.target.id in {"revision", "down_revision"}
-                and node.value is not None
-            ):
-                assignments[node.target.id] = ast.literal_eval(node.value)
+        if (
+            isinstance(node, ast.AnnAssign)
+            and isinstance(node.target, ast.Name)
+            and node.target.id in {"revision", "down_revision"}
+            and node.value is not None
+        ):
+            assignments[node.target.id] = ast.literal_eval(node.value)
     assert assignments == {
         "revision": "20260805_0002",
         "down_revision": "20260803_0001",
