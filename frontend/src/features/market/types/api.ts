@@ -146,7 +146,6 @@ export interface AuditActorHeaders {
   actorName?: string;
 }
 
-
 export interface AuditEventResponse {
   id: Uuid;
   aggregate_type: string;

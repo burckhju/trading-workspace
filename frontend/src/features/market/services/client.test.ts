@@ -5,7 +5,6 @@ const UNDERLYING_ID = '11111111-1111-4111-8111-111111111111';
 const LISTING_ID = '22222222-2222-4222-8222-222222222222';
 const VENUE_ID = '00000000-0000-4000-8001-000000000001';
 
-
 function requestInputUrl(input: RequestInfo | URL): string {
   if (typeof input === 'string') return input;
   if (input instanceof URL) return input.href;
@@ -170,9 +169,7 @@ describe('marketApiClient', () => {
   it('distinguishes network failures from API failures', async () => {
     vi.spyOn(globalThis, 'fetch').mockRejectedValue(new TypeError('offline'));
 
-    await expect(marketApiClient.listCurrencies()).rejects.toBeInstanceOf(
-      MarketTransportError,
-    );
+    await expect(marketApiClient.listCurrencies()).rejects.toBeInstanceOf(MarketTransportError);
   });
 
   it('loads controlled reference data from the shared read endpoints', async () => {

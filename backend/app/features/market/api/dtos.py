@@ -2,7 +2,8 @@
 
 The DTO layer owns HTTP serialization and structural request parsing only.
 Business normalization and business-rule validation remain in the domain and
-service layers. Field-level and request-level transport constraints are implemented in Sprint-2 step 9.
+service layers. Field-level and request-level transport constraints are
+implemented in Sprint-2 step 9.
 """
 
 from __future__ import annotations
@@ -14,9 +15,12 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
 from pydantic_core import PydanticCustomError
 
-from app.features.market.domain.enums import LifecycleStatus, QualityStatus, UnderlyingType
+from app.features.market.domain.enums import (
+    LifecycleStatus,
+    QualityStatus,
+    UnderlyingType,
+)
 from app.features.market.persistence.models import ListingModel, UnderlyingModel
-
 
 Name = Annotated[
     str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)
@@ -31,13 +35,18 @@ CurrencyCode = Annotated[
     ),
 ]
 OptionalIsin = (
-    Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=32)]
+    Annotated[
+        str, StringConstraints(strip_whitespace=True, min_length=1, max_length=32)
+    ]
     | None
 )
 OptionalWkn = (
-    Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=16)]
+    Annotated[
+        str, StringConstraints(strip_whitespace=True, min_length=1, max_length=16)
+    ]
     | None
 )
+
 
 class RequestDto(BaseModel):
     """Base configuration for request bodies."""
@@ -75,7 +84,10 @@ class UpdateUnderlyingRequest(RequestDto):
     @model_validator(mode="after")
     def require_change(self) -> Self:
         if not ({"name", "isin", "wkn"} & self.model_fields_set):
-            raise PydanticCustomError("missing_change", "At least one mutable field must be supplied")
+            raise PydanticCustomError(
+                "missing_change",
+                "At least one mutable field must be supplied",
+            )
         return self
 
 
@@ -103,7 +115,10 @@ class UpdateListingRequest(RequestDto):
             {"trading_venue_id", "ticker", "currency_code", "lifecycle_status"}
             & self.model_fields_set
         ):
-            raise PydanticCustomError("missing_change", "At least one mutable field must be supplied")
+            raise PydanticCustomError(
+                "missing_change",
+                "At least one mutable field must be supplied",
+            )
         return self
 
 
@@ -211,27 +226,59 @@ class UnderlyingUsageListResponse(BaseModel):
 
 def listing_response(model: ListingModel) -> ListingResponse:
     return ListingResponse(
-        id=model.id, underlying_id=model.underlying_id, trading_venue_id=model.trading_venue_id,
-        trading_venue_mic=model.trading_venue.mic, trading_venue_name=model.trading_venue.name,
-        ticker=model.ticker, currency_code=model.currency_code, lifecycle_status=model.lifecycle_status,
-        is_primary=model.is_primary, version=model.version, created_at=model.created_at, updated_at=model.updated_at
+        id=model.id,
+        underlying_id=model.underlying_id,
+        trading_venue_id=model.trading_venue_id,
+        trading_venue_mic=model.trading_venue.mic,
+        trading_venue_name=model.trading_venue.name,
+        ticker=model.ticker,
+        currency_code=model.currency_code,
+        lifecycle_status=model.lifecycle_status,
+        is_primary=model.is_primary,
+        version=model.version,
+        created_at=model.created_at,
+        updated_at=model.updated_at,
     )
 
 
 def underlying_summary_response(model: UnderlyingModel) -> UnderlyingSummaryResponse:
-    primary = next((item for item in getattr(model, "listings", ()) if item.is_primary and item.lifecycle_status == LifecycleStatus.ACTIVE), None)
+    primary = next(
+        (
+            item
+            for item in getattr(model, "listings", ())
+            if item.is_primary and item.lifecycle_status == LifecycleStatus.ACTIVE
+        ),
+        None,
+    )
     return UnderlyingSummaryResponse(
-        id=model.id, type=model.type, name=model.name, isin=model.isin, wkn=model.wkn,
-        lifecycle_status=model.lifecycle_status, quality_status=model.quality_status, version=model.version,
-        created_at=model.created_at, updated_at=model.updated_at,
-        primary_listing=(PrimaryListingSummaryResponse(
-            id=primary.id, ticker=primary.ticker, trading_venue_id=primary.trading_venue_id,
-            trading_venue_mic=primary.trading_venue.mic, trading_venue_name=primary.trading_venue.name,
-            currency_code=primary.currency_code
-        ) if primary is not None else None)
+        id=model.id,
+        type=model.type,
+        name=model.name,
+        isin=model.isin,
+        wkn=model.wkn,
+        lifecycle_status=model.lifecycle_status,
+        quality_status=model.quality_status,
+        version=model.version,
+        created_at=model.created_at,
+        updated_at=model.updated_at,
+        primary_listing=(
+            PrimaryListingSummaryResponse(
+                id=primary.id,
+                ticker=primary.ticker,
+                trading_venue_id=primary.trading_venue_id,
+                trading_venue_mic=primary.trading_venue.mic,
+                trading_venue_name=primary.trading_venue.name,
+                currency_code=primary.currency_code,
+            )
+            if primary is not None
+            else None
+        ),
     )
 
 
 def underlying_detail_response(model: UnderlyingModel) -> UnderlyingDetailResponse:
     summary = underlying_summary_response(model)
-    return UnderlyingDetailResponse(**summary.model_dump(), listings=[listing_response(item) for item in model.listings])
+    return UnderlyingDetailResponse(
+        **summary.model_dump(),
+        listings=[listing_response(item) for item in model.listings],
+    )

@@ -30,10 +30,7 @@ function underlyingsUrl(path = ''): string {
   return apiUrl(`/underlyings${path}`);
 }
 
-function appendSearchParameters(
-  url: URL,
-  parameters: SearchUnderlyingsParameters,
-): void {
+function appendSearchParameters(url: URL, parameters: SearchUnderlyingsParameters): void {
   if (parameters.query !== undefined) {
     url.searchParams.set('q', parameters.query);
   }
@@ -181,16 +178,18 @@ export const marketApiClient: MarketApiClient = {
     }),
 
   updateListing: (underlyingId, listingId, request, actor) =>
-    requestJson<ListingResponse>(
-      underlyingsUrl(`/${underlyingId}/listings/${listingId}`),
-      { method: 'PATCH', body: request, actor },
-    ),
+    requestJson<ListingResponse>(underlyingsUrl(`/${underlyingId}/listings/${listingId}`), {
+      method: 'PATCH',
+      body: request,
+      actor,
+    }),
 
   setPrimaryListing: (underlyingId, listingId, request, actor) =>
-    requestJson<ListingResponse>(
-      underlyingsUrl(`/${underlyingId}/primary-listing/${listingId}`),
-      { method: 'PUT', body: request, actor },
-    ),
+    requestJson<ListingResponse>(underlyingsUrl(`/${underlyingId}/primary-listing/${listingId}`), {
+      method: 'PUT',
+      body: request,
+      actor,
+    }),
 
   listTradingVenues: (signal) =>
     requestJson<TradingVenueListResponse>(apiUrl('/market-reference-data/trading-venues'), {

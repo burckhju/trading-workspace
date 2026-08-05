@@ -6,6 +6,12 @@ from dataclasses import dataclass, replace
 from datetime import datetime
 from uuid import UUID
 
+from app.features.market.domain.enums import (
+    DataOrigin,
+    LifecycleStatus,
+    QualityStatus,
+    UnderlyingType,
+)
 from app.features.market.domain.errors import (
     ConcurrentModification,
     MultiplePrimaryListings,
@@ -19,12 +25,6 @@ from app.features.market.domain.normalization import (
     normalize_name,
     normalize_ticker,
     normalize_wkn,
-)
-from app.features.market.domain.enums import (
-    DataOrigin,
-    LifecycleStatus,
-    QualityStatus,
-    UnderlyingType,
 )
 
 
@@ -96,7 +96,9 @@ class Underlying:
             changes["isin"] = normalize_isin(isin if isinstance(isin, str) else None)
         if wkn is not ...:
             changes["wkn"] = normalize_wkn(wkn if isinstance(wkn, str) else None)
-        if not changes or all(getattr(self, key) == value for key, value in changes.items()):
+        if not changes or all(
+            getattr(self, key) == value for key, value in changes.items()
+        ):
             return self
         quality = (
             QualityStatus.COMPLETE
@@ -151,7 +153,8 @@ class Underlying:
 def ensure_expected_version(expected: int, actual: int) -> None:
     if expected != actual:
         raise ConcurrentModification(
-            f"Expected version {expected}, but current version is {actual}", field="version"
+            f"Expected version {expected}, but current version is {actual}",
+            field="version",
         )
 
 
@@ -160,10 +163,14 @@ def ensure_operational_listing_invariant(listings: tuple[Listing, ...]) -> None:
     if active_primary_count == 0:
         raise PrimaryListingRequired("Exactly one active primary listing is required")
     if active_primary_count > 1:
-        raise MultiplePrimaryListings("Multiple active primary listings are not allowed")
+        raise MultiplePrimaryListings(
+            "Multiple active primary listings are not allowed"
+        )
 
 
-def determine_quality_status(*, name: str, listings: tuple[Listing, ...]) -> QualityStatus:
+def determine_quality_status(
+    *, name: str, listings: tuple[Listing, ...]
+) -> QualityStatus:
     normalize_name(name)
     try:
         ensure_operational_listing_invariant(listings)

@@ -12,7 +12,12 @@ from app.features.market.api.dependencies import (
     get_reference_data_service,
     get_underlying_service,
 )
-from app.features.market.domain.enums import DataOrigin, LifecycleStatus, QualityStatus, UnderlyingType
+from app.features.market.domain.enums import (
+    DataOrigin,
+    LifecycleStatus,
+    QualityStatus,
+    UnderlyingType,
+)
 from app.features.market.persistence.models import (
     CurrencyModel,
     ListingModel,
@@ -24,7 +29,7 @@ from app.features.market.service.errors import (
     UnderlyingDeleteReferenced,
     UnderlyingNotFound,
 )
-from app.features.market.service.types import UsageReference
+from app.features.market.service.types import UsageReference, UsageSummary
 from app.main import create_application
 
 NOW = datetime(2026, 8, 4, 16, 0, tzinfo=UTC)
@@ -33,7 +38,12 @@ VENUE_ID = UUID("00000000-0000-4000-8001-000000000001")
 
 
 def settings() -> Settings:
-    return Settings(_env_file=None, environment=Environment.TEST, documentation_enabled=True, log_level="CRITICAL")
+    return Settings(
+        _env_file=None,
+        environment=Environment.TEST,
+        documentation_enabled=True,
+        log_level="CRITICAL",
+    )
 
 
 def model() -> UnderlyingModel:
@@ -268,11 +278,25 @@ def test_create_rejects_blank_and_oversized_transport_values() -> None:
     with TestClient(application) as client:
         blank = client.post(
             "/api/v1/underlyings",
-            json={"name": "   ", "primary_listing": {"trading_venue_id": str(VENUE_ID), "ticker": "SIE", "currency_code": "EUR"}},
+            json={
+                "name": "   ",
+                "primary_listing": {
+                    "trading_venue_id": str(VENUE_ID),
+                    "ticker": "SIE",
+                    "currency_code": "EUR",
+                },
+            },
         )
         long_ticker = client.post(
             "/api/v1/underlyings",
-            json={"name": "Siemens AG", "primary_listing": {"trading_venue_id": str(VENUE_ID), "ticker": "X" * 33, "currency_code": "EUR"}},
+            json={
+                "name": "Siemens AG",
+                "primary_listing": {
+                    "trading_venue_id": str(VENUE_ID),
+                    "ticker": "X" * 33,
+                    "currency_code": "EUR",
+                },
+            },
         )
     assert blank.status_code == 422
     assert long_ticker.status_code == 422
@@ -284,7 +308,9 @@ def test_update_requires_at_least_one_mutable_field() -> None:
     application = create_application(settings())
     application.dependency_overrides[get_underlying_service] = lambda: service
     with TestClient(application) as client:
-        response = client.patch(f"/api/v1/underlyings/{UNDERLYING_ID}", json={"version": 1})
+        response = client.patch(
+            f"/api/v1/underlyings/{UNDERLYING_ID}", json={"version": 1}
+        )
     assert response.status_code == 422
     service.update.assert_not_awaited()
 
@@ -295,7 +321,8 @@ def test_versions_and_pagination_have_safe_ranges() -> None:
     application.dependency_overrides[get_underlying_service] = lambda: service
     with TestClient(application) as client:
         invalid_version = client.patch(
-            f"/api/v1/underlyings/{UNDERLYING_ID}", json={"version": 0, "name": "New Name"}
+            f"/api/v1/underlyings/{UNDERLYING_ID}",
+            json={"version": 0, "name": "New Name"},
         )
         invalid_offset = client.get("/api/v1/underlyings?offset=-1")
         invalid_limit = client.get("/api/v1/underlyings?limit=101")
@@ -311,13 +338,22 @@ def test_currency_code_requires_three_letters() -> None:
     with TestClient(application) as client:
         response = client.post(
             "/api/v1/underlyings",
-            json={"name": "Siemens AG", "primary_listing": {"trading_venue_id": str(VENUE_ID), "ticker": "SIE", "currency_code": "EU1"}},
+            json={
+                "name": "Siemens AG",
+                "primary_listing": {
+                    "trading_venue_id": str(VENUE_ID),
+                    "ticker": "SIE",
+                    "currency_code": "EU1",
+                },
+            },
         )
     assert response.status_code == 422
     service.create.assert_not_awaited()
 
 
-def listing_model(*, listing_id: UUID | None = None, primary: bool = False) -> ListingModel:
+def listing_model(
+    *, listing_id: UUID | None = None, primary: bool = False
+) -> ListingModel:
     return ListingModel(
         id=listing_id or UUID("20000000-0000-4000-8000-000000000001"),
         workspace_id=UUID("00000000-0000-4000-8000-000000000001"),
@@ -341,7 +377,9 @@ def test_search_delegates_filters_and_returns_pagination_contract() -> None:
     application.dependency_overrides[get_underlying_service] = lambda: service
 
     with TestClient(application) as client:
-        response = client.get("/api/v1/underlyings?q=Siemens&lifecycle_status=ACTIVE&offset=5&limit=10")
+        response = client.get(
+            "/api/v1/underlyings?q=Siemens&lifecycle_status=ACTIVE&offset=5&limit=10"
+        )
 
     assert response.status_code == 200
     assert response.json()["total"] == 1
@@ -445,7 +483,9 @@ def test_reference_data_routes_return_controlled_lists() -> None:
         )
     ]
     application = create_application(settings())
-    application.dependency_overrides[get_reference_data_service] = lambda: reference_service
+    application.dependency_overrides[get_reference_data_service] = (
+        lambda: reference_service
+    )
 
     with TestClient(application) as client:
         venues = client.get("/api/v1/market-reference-data/trading-venues")
@@ -461,7 +501,9 @@ def test_delete_conflict_exposes_usage_references() -> None:
     service = AsyncMock()
     service.delete.side_effect = UnderlyingDeleteReferenced(
         "Referenced underlying cannot be deleted",
-        references=(UsageReference("WARRANT", UUID("40000000-0000-4000-8000-000000000001")),),
+        references=(
+            UsageReference("WARRANT", UUID("40000000-0000-4000-8000-000000000001")),
+        ),
     )
     application = create_application(settings())
     application.dependency_overrides[get_underlying_service] = lambda: service
@@ -534,8 +576,6 @@ def test_audit_history_endpoint_is_paginated() -> None:
 
 
 def test_usage_endpoint_uses_service_read_model() -> None:
-    from app.features.market.service.types import UsageSummary
-
     object_id = UUID("30000000-0000-4000-8000-000000000001")
     service = AsyncMock()
     service.usages.return_value = (UsageSummary("trade", 1, (object_id,)),)

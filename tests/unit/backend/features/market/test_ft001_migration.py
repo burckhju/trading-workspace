@@ -18,7 +18,9 @@ MIGRATION_PATH = (
 
 
 def _load_migration() -> ModuleType:
-    spec = importlib.util.spec_from_file_location("ft001_initial_migration", MIGRATION_PATH)
+    spec = importlib.util.spec_from_file_location(
+        "ft001_initial_migration", MIGRATION_PATH
+    )
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -35,9 +37,9 @@ def test_revision_is_initial_linear_revision() -> None:
 def test_seed_values_are_fixed_and_documented() -> None:
     migration = _load_migration()
 
-    assert migration.WORKSPACE_ID == UUID("00000000-0000-4000-8000-000000000001")
+    assert UUID("00000000-0000-4000-8000-000000000001") == migration.WORKSPACE_ID
     assert migration.WORKSPACE_NAME == "Trading Workspace V1"
-    assert migration.XETRA_ID == UUID("00000000-0000-4000-8001-000000000001")
+    assert UUID("00000000-0000-4000-8001-000000000001") == migration.XETRA_ID
     assert migration.REFERENCE_VERSION == "FT-001-V1"
 
 

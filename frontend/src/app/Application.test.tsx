@@ -14,7 +14,12 @@ vi.mock('../features/market/services/client', () => ({
 
 describe('Application', () => {
   beforeEach(() => {
-    vi.mocked(marketApiClient.searchUnderlyings).mockResolvedValue({ items: [], total: 0, offset: 0, limit: 25 });
+    vi.mocked(marketApiClient.searchUnderlyings).mockResolvedValue({
+      items: [],
+      total: 0,
+      offset: 0,
+      limit: 25,
+    });
     vi.mocked(marketApiClient.listTradingVenues).mockResolvedValue({ items: [] });
     vi.mocked(marketApiClient.listCurrencies).mockResolvedValue({ items: [] });
   });
@@ -23,13 +28,18 @@ describe('Application', () => {
     window.history.pushState({}, '', '/');
     render(<Application />);
     expect(await screen.findByRole('heading', { name: 'Basiswerte' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Basiswert anlegen' })).toHaveAttribute('href', '/underlyings/new');
+    expect(screen.getByRole('link', { name: 'Basiswert anlegen' })).toHaveAttribute(
+      'href',
+      '/underlyings/new',
+    );
     expect(marketApiClient.searchUnderlyings).toHaveBeenCalled();
   });
 
   it('renders the not-found page for unknown routes', async () => {
     window.history.pushState({}, '', '/unknown');
     render(<Application />);
-    expect(await screen.findByRole('heading', { name: 'Seite nicht gefunden' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: 'Seite nicht gefunden' }),
+    ).toBeInTheDocument();
   });
 });

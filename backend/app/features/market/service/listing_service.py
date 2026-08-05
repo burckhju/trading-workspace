@@ -8,8 +8,18 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID, uuid4
 
-from app.features.market.domain.entities import Listing, ensure_expected_version, ensure_operational_listing_invariant
-from app.features.market.domain.enums import ActorType, AggregateType, ChangeType, DataOrigin, LifecycleStatus
+from app.features.market.domain.entities import (
+    Listing,
+    ensure_expected_version,
+    ensure_operational_listing_invariant,
+)
+from app.features.market.domain.enums import (
+    ActorType,
+    AggregateType,
+    ChangeType,
+    DataOrigin,
+    LifecycleStatus,
+)
 from app.features.market.domain.normalization import normalize_ticker
 from app.features.market.persistence.models import AuditEventModel, ListingModel
 from app.features.market.service.errors import (
@@ -21,7 +31,11 @@ from app.features.market.service.errors import (
     UnderlyingNotFound,
 )
 from app.features.market.service.mapping import apply_listing, listing_to_domain
-from app.features.market.service.types import AddListing, SetPrimaryListing, UpdateListing
+from app.features.market.service.types import (
+    AddListing,
+    SetPrimaryListing,
+    UpdateListing,
+)
 from app.features.market.service.unit_of_work import MarketUnitOfWork
 
 Clock = Callable[[], datetime]
@@ -43,11 +57,21 @@ class ListingService:
     async def add(self, command: AddListing) -> ListingModel:
         now = self._clock()
         async with self._uow:
-            underlying = await self._uow.underlyings.get(command.workspace_id, command.underlying_id)
+            underlying = await self._uow.underlyings.get(
+                command.workspace_id,
+                command.underlying_id,
+            )
             if underlying is None:
                 raise UnderlyingNotFound("Underlying does not exist")
-            await self._ensure_reference_data(command.trading_venue_id, command.currency_code)
-            await self._ensure_unique(command.workspace_id, command.trading_venue_id, command.ticker)
+            await self._ensure_reference_data(
+                command.trading_venue_id,
+                command.currency_code,
+            )
+            await self._ensure_unique(
+                command.workspace_id,
+                command.trading_venue_id,
+                command.ticker,
+            )
             existing = tuple(
                 listing_to_domain(item)
                 for item in await self._uow.listings.list_for_underlying(
@@ -68,10 +92,16 @@ class ListingService:
                 updated_at=now,
             )
             if listing.is_primary:
-                ensure_operational_listing_invariant(existing + (listing,))
+                ensure_operational_listing_invariant((*existing, listing))
             model = ListingModel(**asdict(listing))
             await self._uow.listings.add(model)
-            await self._audit(listing, command.actor.id, command.actor.display_name, ChangeType.CREATED, None)
+            await self._audit(
+                listing,
+                command.actor.id,
+                command.actor.display_name,
+                ChangeType.CREATED,
+                None,
+            )
             await self._uow.listings.flush()
             await self._uow.audit_events.flush()
             await self._uow.commit()
@@ -110,7 +140,13 @@ class ListingService:
             )
             ensure_operational_listing_invariant(siblings)
             apply_listing(model, updated)
-            await self._audit(updated, command.actor.id, command.actor.display_name, ChangeType.UPDATED, current)
+            await self._audit(
+                updated,
+                command.actor.id,
+                command.actor.display_name,
+                ChangeType.UPDATED,
+                current,
+            )
             await self._uow.listings.flush()
             await self._uow.audit_events.flush()
             await self._uow.commit()
@@ -123,7 +159,9 @@ class ListingService:
                     command.workspace_id, command.underlying_id
                 )
             )
-            target_model = next((item for item in models if item.id == command.listing_id), None)
+            target_model = next(
+                (item for item in models if item.id == command.listing_id), None
+            )
             if target_model is None:
                 raise ListingNotFound("Listing does not exist")
             target = listing_to_domain(target_model)
@@ -140,9 +178,17 @@ class ListingService:
                 after = before.with_changes(now=now, is_primary=desired)
                 apply_listing(model, after)
                 changed.append((model, before, after))
-            ensure_operational_listing_invariant(tuple(listing_to_domain(item) for item in models))
+            ensure_operational_listing_invariant(
+                tuple(listing_to_domain(item) for item in models)
+            )
             for _, before, after in changed:
-                await self._audit(after, command.actor.id, command.actor.display_name, ChangeType.PRIMARY_CHANGED, before)
+                await self._audit(
+                    after,
+                    command.actor.id,
+                    command.actor.display_name,
+                    ChangeType.PRIMARY_CHANGED,
+                    before,
+                )
             if changed:
                 await self._uow.listings.flush()
                 await self._uow.audit_events.flush()
@@ -158,7 +204,9 @@ class ListingService:
     async def _ensure_reference_data(self, venue_id: UUID, currency_code: str) -> None:
         venue = await self._uow.reference_data.get_trading_venue(venue_id)
         if venue is None:
-            raise TradingVenueNotFound("Trading venue does not exist", field="trading_venue_id")
+            raise TradingVenueNotFound(
+                "Trading venue does not exist", field="trading_venue_id"
+            )
         currency = await self._uow.reference_data.get_currency(currency_code.upper())
         if currency is None:
             raise CurrencyNotFound("Currency does not exist", field="currency_code")
@@ -177,7 +225,9 @@ class ListingService:
             workspace_id, venue_id, normalize_ticker(ticker)
         )
         if duplicate is not None and duplicate.id != exclude_id:
-            raise DuplicateMarketTicker("Ticker already exists at trading venue", field="ticker")
+            raise DuplicateMarketTicker(
+                "Ticker already exists at trading venue", field="ticker"
+            )
 
     async def _audit(
         self,
@@ -224,5 +274,11 @@ class ListingService:
     def _same(before: Listing, after: Listing) -> bool:
         return all(
             getattr(before, field) == getattr(after, field)
-            for field in ("trading_venue_id", "ticker", "currency_code", "lifecycle_status", "is_primary")
+            for field in (
+                "trading_venue_id",
+                "ticker",
+                "currency_code",
+                "lifecycle_status",
+                "is_primary",
+            )
         )

@@ -20,10 +20,17 @@ from app.features.market.domain.enums import (
     ChangeType,
     DataOrigin,
     LifecycleStatus,
-    QualityStatus,
 )
-from app.features.market.domain.normalization import normalize_isin, normalize_ticker, normalize_wkn
-from app.features.market.persistence.models import AuditEventModel, ListingModel, UnderlyingModel
+from app.features.market.domain.normalization import (
+    normalize_isin,
+    normalize_ticker,
+    normalize_wkn,
+)
+from app.features.market.persistence.models import (
+    AuditEventModel,
+    ListingModel,
+    UnderlyingModel,
+)
 from app.features.market.service.errors import (
     CurrencyNotFound,
     DuplicateIsin,
@@ -35,15 +42,19 @@ from app.features.market.service.errors import (
     UnderlyingNotFound,
     WorkspaceNotFound,
 )
-from app.features.market.service.mapping import apply_underlying, listing_to_domain, underlying_to_domain
+from app.features.market.service.mapping import (
+    apply_underlying,
+    listing_to_domain,
+    underlying_to_domain,
+)
 from app.features.market.service.types import (
+    AuditEventView,
     ChangeUnderlyingStatus,
     CreateUnderlying,
     DeleteUnderlying,
     SearchUnderlyings,
-    AuditEventView,
-    UsageSummary,
     UpdateUnderlying,
+    UsageSummary,
 )
 from app.features.market.service.unit_of_work import MarketUnitOfWork
 
@@ -96,8 +107,14 @@ class UnderlyingService:
         )
         async with self._uow:
             await self._ensure_workspace(command.workspace_id)
-            await self._ensure_reference_data(listing.trading_venue_id, listing.currency_code)
-            await self._ensure_unique_underlying(command.workspace_id, underlying.isin, underlying.wkn)
+            await self._ensure_reference_data(
+                listing.trading_venue_id, listing.currency_code
+            )
+            await self._ensure_unique_underlying(
+                command.workspace_id,
+                underlying.isin,
+                underlying.wkn,
+            )
             await self._ensure_unique_listing(
                 command.workspace_id, listing.trading_venue_id, listing.ticker
             )
@@ -137,7 +154,9 @@ class UnderlyingService:
 
     async def update(self, command: UpdateUnderlying) -> UnderlyingModel:
         async with self._uow:
-            model = await self._require_underlying(command.workspace_id, command.underlying_id)
+            model = await self._require_underlying(
+                command.workspace_id, command.underlying_id
+            )
             current = underlying_to_domain(model)
             ensure_expected_version(command.expected_version, current.version)
             updated = current.with_master_data(
@@ -178,7 +197,9 @@ class UnderlyingService:
 
     async def verify(self, command: ChangeUnderlyingStatus) -> UnderlyingModel:
         async with self._uow:
-            model = await self._require_underlying(command.workspace_id, command.underlying_id)
+            model = await self._require_underlying(
+                command.workspace_id, command.underlying_id
+            )
             current = underlying_to_domain(model)
             ensure_expected_version(command.expected_version, current.version)
             listings = tuple(
@@ -191,7 +212,12 @@ class UnderlyingService:
             if updated is current:
                 return model
             apply_underlying(model, updated)
-            await self._append_change(current, updated, command.actor.id, command.actor.display_name)
+            await self._append_change(
+                current,
+                updated,
+                command.actor.id,
+                command.actor.display_name,
+            )
             await self._uow.underlyings.flush()
             await self._uow.audit_events.flush()
             await self._uow.commit()
@@ -199,7 +225,9 @@ class UnderlyingService:
 
     async def delete(self, command: DeleteUnderlying) -> None:
         async with self._uow:
-            model = await self._require_underlying(command.workspace_id, command.underlying_id)
+            model = await self._require_underlying(
+                command.workspace_id, command.underlying_id
+            )
             current = underlying_to_domain(model)
             ensure_expected_version(command.expected_version, current.version)
             references = tuple(
@@ -248,9 +276,13 @@ class UnderlyingService:
 
     async def get(self, workspace_id: UUID, underlying_id: UUID) -> UnderlyingModel:
         async with self._uow:
-            return await self._require_underlying(workspace_id, underlying_id, with_listings=True)
+            return await self._require_underlying(
+                workspace_id, underlying_id, with_listings=True
+            )
 
-    async def search(self, query: SearchUnderlyings) -> tuple[Sequence[UnderlyingModel], int]:
+    async def search(
+        self, query: SearchUnderlyings
+    ) -> tuple[Sequence[UnderlyingModel], int]:
         if query.offset < 0 or query.limit < 1 or query.limit > 200:
             raise ValueError("Pagination must use offset >= 0 and 1 <= limit <= 200")
         async with self._uow:
@@ -264,17 +296,22 @@ class UnderlyingService:
                 limit=query.limit,
             )
             total = await self._uow.underlyings.count_search(
-                query.workspace_id, query.query, query.lifecycle_status, query.trading_venue_id, query.currency_code
+                query.workspace_id,
+                query.query,
+                query.lifecycle_status,
+                query.trading_venue_id,
+                query.currency_code,
             )
             return items, total
-
 
     async def audit_history(
         self, workspace_id: UUID, underlying_id: UUID, *, offset: int, limit: int
     ) -> tuple[tuple[AuditEventView, ...], int]:
         async with self._uow:
             await self._require_underlying(workspace_id, underlying_id)
-            listings = await self._uow.listings.list_for_underlying(workspace_id, underlying_id)
+            listings = await self._uow.listings.list_for_underlying(
+                workspace_id, underlying_id
+            )
             listing_ids = tuple(item.id for item in listings)
             events = await self._uow.audit_events.list_for_underlying_history(
                 workspace_id, underlying_id, listing_ids, offset=offset, limit=limit
@@ -282,27 +319,49 @@ class UnderlyingService:
             total = await self._uow.audit_events.count_for_underlying_history(
                 workspace_id, underlying_id, listing_ids
             )
-            return tuple(AuditEventView(
-                id=e.id, aggregate_type=e.aggregate_type.value, aggregate_id=e.aggregate_id,
-                occurred_at=e.occurred_at, actor_display_name=e.actor_display_name,
-                change_type=e.change_type.value, version_before=e.version_before,
-                version_after=e.version_after, field_changes=e.field_changes
-            ) for e in events), total
+            return (
+                tuple(
+                    AuditEventView(
+                        id=e.id,
+                        aggregate_type=e.aggregate_type.value,
+                        aggregate_id=e.aggregate_id,
+                        occurred_at=e.occurred_at,
+                        actor_display_name=e.actor_display_name,
+                        change_type=e.change_type.value,
+                        version_before=e.version_before,
+                        version_after=e.version_after,
+                        field_changes=e.field_changes,
+                    )
+                    for e in events
+                ),
+                total,
+            )
 
-    async def usages(self, workspace_id: UUID, underlying_id: UUID) -> tuple[UsageSummary, ...]:
+    async def usages(
+        self, workspace_id: UUID, underlying_id: UUID
+    ) -> tuple[UsageSummary, ...]:
         async with self._uow:
             await self._require_underlying(workspace_id, underlying_id)
-            references = await self._uow.usages.list_for_underlying(workspace_id, underlying_id)
+            references = await self._uow.usages.list_for_underlying(
+                workspace_id, underlying_id
+            )
             grouped: dict[str, list[UUID]] = {}
             for reference in references:
-                grouped.setdefault(reference.reference_type, []).append(reference.object_id)
-            return tuple(UsageSummary(kind, len(ids), tuple(ids)) for kind, ids in sorted(grouped.items()))
+                grouped.setdefault(reference.reference_type, []).append(
+                    reference.object_id
+                )
+            return tuple(
+                UsageSummary(kind, len(ids), tuple(ids))
+                for kind, ids in sorted(grouped.items())
+            )
 
     async def _change_status(
         self, command: ChangeUnderlyingStatus, *, activate: bool
     ) -> UnderlyingModel:
         async with self._uow:
-            model = await self._require_underlying(command.workspace_id, command.underlying_id)
+            model = await self._require_underlying(
+                command.workspace_id, command.underlying_id
+            )
             current = underlying_to_domain(model)
             ensure_expected_version(command.expected_version, current.version)
             if activate:
@@ -344,7 +403,9 @@ class UnderlyingService:
     async def _ensure_reference_data(self, venue_id: UUID, currency_code: str) -> None:
         venue = await self._uow.reference_data.get_trading_venue(venue_id)
         if venue is None:
-            raise TradingVenueNotFound("Trading venue does not exist", field="trading_venue_id")
+            raise TradingVenueNotFound(
+                "Trading venue does not exist", field="trading_venue_id"
+            )
         currency = await self._uow.reference_data.get_currency(currency_code)
         if currency is None:
             raise CurrencyNotFound("Currency does not exist", field="currency_code")
@@ -360,22 +421,35 @@ class UnderlyingService:
         exclude_id: UUID | None = None,
     ) -> None:
         if isin:
-            duplicate = await self._uow.underlyings.find_by_isin(workspace_id, normalize_isin(isin) or "")
+            duplicate = await self._uow.underlyings.find_by_isin(
+                workspace_id,
+                normalize_isin(isin) or "",
+            )
             if duplicate is not None and duplicate.id != exclude_id:
                 raise DuplicateIsin("ISIN already exists", field="isin")
         if wkn:
-            duplicate = await self._uow.underlyings.find_by_wkn(workspace_id, normalize_wkn(wkn) or "")
+            duplicate = await self._uow.underlyings.find_by_wkn(
+                workspace_id,
+                normalize_wkn(wkn) or "",
+            )
             if duplicate is not None and duplicate.id != exclude_id:
                 raise DuplicateWkn("WKN already exists", field="wkn")
 
     async def _ensure_unique_listing(
-        self, workspace_id: UUID, venue_id: UUID, ticker: str, *, exclude_id: UUID | None = None
+        self,
+        workspace_id: UUID,
+        venue_id: UUID,
+        ticker: str,
+        *,
+        exclude_id: UUID | None = None,
     ) -> None:
         duplicate = await self._uow.listings.find_by_venue_ticker(
             workspace_id, venue_id, normalize_ticker(ticker)
         )
         if duplicate is not None and duplicate.id != exclude_id:
-            raise DuplicateMarketTicker("Ticker already exists at trading venue", field="ticker")
+            raise DuplicateMarketTicker(
+                "Ticker already exists at trading venue", field="ticker"
+            )
 
     async def _require_underlying(
         self, workspace_id: UUID, underlying_id: UUID, *, with_listings: bool = False
@@ -390,7 +464,11 @@ class UnderlyingService:
         return model
 
     async def _append_change(
-        self, before: Underlying, after: Underlying, actor_id: str | None, actor_name: str
+        self,
+        before: Underlying,
+        after: Underlying,
+        actor_id: str | None,
+        actor_name: str,
     ) -> None:
         await self._append_audit(
             workspace_id=before.workspace_id,
@@ -454,7 +532,10 @@ class UnderlyingService:
                 continue
             new = getattr(after, field)
             if old != new:
-                result[field] = {"old": cls._json_value(old), "new": cls._json_value(new)}
+                result[field] = {
+                    "old": cls._json_value(old),
+                    "new": cls._json_value(new),
+                }
         return result
 
     @classmethod

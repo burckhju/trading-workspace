@@ -50,7 +50,7 @@ class DuplicateMarketTicker(ServiceError):
 class UnderlyingDeleteReferenced(ServiceError):
     code = "UNDERLYING_DELETE_REFERENCED"
 
-    def __init__(self, message: str, *, references: tuple["UsageReference", ...]) -> None:
+    def __init__(self, message: str, *, references: tuple[UsageReference, ...]) -> None:
         super().__init__(message)
         self.references = references
 

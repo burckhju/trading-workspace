@@ -19,5 +19,9 @@ export function StatusBadge({ status }: { status: Status }) {
         : status === 'COMPLETE'
           ? 'border-sky-700 bg-sky-950 text-sky-300'
           : 'border-amber-700 bg-amber-950 text-amber-300';
-  return <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-medium ${tone}`}>{labels[status]}</span>;
+  return (
+    <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-medium ${tone}`}>
+      {labels[status]}
+    </span>
+  );
 }

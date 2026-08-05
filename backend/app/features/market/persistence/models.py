@@ -7,7 +7,7 @@ SQLAlchemy-independent domain layer implemented in a later sprint step.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
+from typing import Any, ClassVar
 from uuid import UUID
 
 from sqlalchemy import (
@@ -53,11 +53,17 @@ class WorkspaceModel(Base):
 
     id: Mapped[UUID] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
 
-    underlyings: Mapped[list[UnderlyingModel]] = relationship(back_populates="workspace")
+    underlyings: Mapped[list[UnderlyingModel]] = relationship(
+        back_populates="workspace"
+    )
     listings: Mapped[list[ListingModel]] = relationship(back_populates="workspace")
-    audit_events: Mapped[list[AuditEventModel]] = relationship(back_populates="workspace")
+    audit_events: Mapped[list[AuditEventModel]] = relationship(
+        back_populates="workspace"
+    )
 
 
 class TradingVenueModel(Base):
@@ -74,8 +80,12 @@ class TradingVenueModel(Base):
     timezone: Mapped[str] = mapped_column(String(64), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False)
     reference_version: Mapped[str] = mapped_column(String(50), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
 
     listings: Mapped[list[ListingModel]] = relationship(back_populates="trading_venue")
 
@@ -92,8 +102,12 @@ class CurrencyModel(Base):
     minor_unit: Mapped[int] = mapped_column(SmallInteger, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False)
     reference_version: Mapped[str] = mapped_column(String(50), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
 
     listings: Mapped[list[ListingModel]] = relationship(back_populates="currency")
 
@@ -142,8 +156,12 @@ class UnderlyingModel(Base):
         _enum(QualityStatus, length=20), nullable=False
     )
     version: Mapped[int] = mapped_column(Integer, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
     data_origin: Mapped[DataOrigin] = mapped_column(
         _enum(DataOrigin, length=20), nullable=False
     )
@@ -155,7 +173,7 @@ class UnderlyingModel(Base):
         passive_deletes=True,
     )
 
-    __mapper_args__ = {
+    __mapper_args__: ClassVar[dict[str, object]] = {
         "version_id_col": version,
         "version_id_generator": False,
     }
@@ -203,8 +221,12 @@ class ListingModel(Base):
     )
     is_primary: Mapped[bool] = mapped_column(Boolean, nullable=False)
     version: Mapped[int] = mapped_column(Integer, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
     data_origin: Mapped[DataOrigin] = mapped_column(
         _enum(DataOrigin, length=20), nullable=False
     )
@@ -214,7 +236,7 @@ class ListingModel(Base):
     trading_venue: Mapped[TradingVenueModel] = relationship(back_populates="listings")
     currency: Mapped[CurrencyModel] = relationship(back_populates="listings")
 
-    __mapper_args__ = {
+    __mapper_args__: ClassVar[dict[str, object]] = {
         "version_id_col": version,
         "version_id_generator": False,
     }
@@ -245,7 +267,9 @@ class AuditEventModel(Base):
         _enum(AggregateType, length=30), nullable=False
     )
     aggregate_id: Mapped[UUID] = mapped_column(nullable=False)
-    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    occurred_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
     actor_type: Mapped[ActorType] = mapped_column(
         _enum(ActorType, length=20), nullable=False
     )
@@ -259,6 +283,8 @@ class AuditEventModel(Base):
     )
     version_before: Mapped[int | None] = mapped_column(Integer)
     version_after: Mapped[int | None] = mapped_column(Integer)
-    field_changes: Mapped[dict[str, dict[str, Any]]] = mapped_column(JSONB, nullable=False)
+    field_changes: Mapped[dict[str, dict[str, Any]]] = mapped_column(
+        JSONB, nullable=False
+    )
 
     workspace: Mapped[WorkspaceModel] = relationship(back_populates="audit_events")

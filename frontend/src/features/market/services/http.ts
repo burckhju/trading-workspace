@@ -71,10 +71,7 @@ async function readJson(response: Response): Promise<unknown> {
   }
 }
 
-export async function requestJson<T>(
-  url: string,
-  options: HttpRequestOptions = {},
-): Promise<T> {
+export async function requestJson<T>(url: string, options: HttpRequestOptions = {}): Promise<T> {
   const headers = new Headers(actorHeaders(options.actor));
   if (options.body !== undefined) {
     headers.set('Content-Type', JSON_CONTENT_TYPE);

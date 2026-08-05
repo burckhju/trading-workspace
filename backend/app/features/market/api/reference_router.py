@@ -13,7 +13,9 @@ from app.features.market.api.dtos import (
 )
 from app.features.market.service.reference_data_service import ReferenceDataService
 
-router = APIRouter(prefix="/api/v1/market-reference-data", tags=["market-reference-data"])
+router = APIRouter(
+    prefix="/api/v1/market-reference-data", tags=["market-reference-data"]
+)
 
 
 @router.get("/trading-venues", response_model=TradingVenueListResponse)

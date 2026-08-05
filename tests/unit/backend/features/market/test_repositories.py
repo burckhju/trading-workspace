@@ -13,7 +13,11 @@ from app.features.market.persistence.repositories import (
 
 
 def _sql(statement: object) -> str:
-    return str(statement.compile(dialect=postgresql.dialect(), compile_kwargs={"literal_binds": True}))
+    return str(
+        statement.compile(
+            dialect=postgresql.dialect(), compile_kwargs={"literal_binds": True}
+        )
+    )
 
 
 def test_underlying_search_is_workspace_scoped_and_supports_all_search_fields() -> None:

@@ -11,7 +11,7 @@ from collections.abc import Sequence
 from typing import Protocol
 from uuid import UUID
 
-from sqlalchemy import Select, delete, func, or_, select
+from sqlalchemy import Select, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -39,12 +39,18 @@ class ReferenceDataRepository(Protocol):
 
 class UnderlyingRepository(Protocol):
     async def add(self, underlying: UnderlyingModel) -> None: ...
-    async def get(self, workspace_id: UUID, underlying_id: UUID) -> UnderlyingModel | None: ...
+    async def get(
+        self, workspace_id: UUID, underlying_id: UUID
+    ) -> UnderlyingModel | None: ...
     async def get_with_listings(
         self, workspace_id: UUID, underlying_id: UUID
     ) -> UnderlyingModel | None: ...
-    async def find_by_isin(self, workspace_id: UUID, isin: str) -> UnderlyingModel | None: ...
-    async def find_by_wkn(self, workspace_id: UUID, wkn: str) -> UnderlyingModel | None: ...
+    async def find_by_isin(
+        self, workspace_id: UUID, isin: str
+    ) -> UnderlyingModel | None: ...
+    async def find_by_wkn(
+        self, workspace_id: UUID, wkn: str
+    ) -> UnderlyingModel | None: ...
     async def search(
         self,
         workspace_id: UUID,
@@ -70,7 +76,9 @@ class UnderlyingRepository(Protocol):
 
 class ListingRepository(Protocol):
     async def add(self, listing: ListingModel) -> None: ...
-    async def get(self, workspace_id: UUID, listing_id: UUID) -> ListingModel | None: ...
+    async def get(
+        self, workspace_id: UUID, listing_id: UUID
+    ) -> ListingModel | None: ...
     async def find_by_venue_ticker(
         self, workspace_id: UUID, venue_id: UUID, ticker: str
     ) -> ListingModel | None: ...
@@ -93,7 +101,13 @@ class AuditEventRepository(Protocol):
         limit: int,
     ) -> Sequence[AuditEventModel]: ...
     async def list_for_underlying_history(
-        self, workspace_id: UUID, underlying_id: UUID, listing_ids: Sequence[UUID], *, offset: int, limit: int
+        self,
+        workspace_id: UUID,
+        underlying_id: UUID,
+        listing_ids: Sequence[UUID],
+        *,
+        offset: int,
+        limit: int,
     ) -> Sequence[AuditEventModel]: ...
     async def count_for_underlying_history(
         self, workspace_id: UUID, underlying_id: UUID, listing_ids: Sequence[UUID]
@@ -143,7 +157,9 @@ class SqlAlchemyUnderlyingRepository:
     async def add(self, underlying: UnderlyingModel) -> None:
         self._session.add(underlying)
 
-    async def get(self, workspace_id: UUID, underlying_id: UUID) -> UnderlyingModel | None:
+    async def get(
+        self, workspace_id: UUID, underlying_id: UUID
+    ) -> UnderlyingModel | None:
         return await self._session.scalar(
             select(UnderlyingModel).where(
                 UnderlyingModel.workspace_id == workspace_id,
@@ -157,8 +173,12 @@ class SqlAlchemyUnderlyingRepository:
         return await self._session.scalar(
             select(UnderlyingModel)
             .options(
-                selectinload(UnderlyingModel.listings).selectinload(ListingModel.trading_venue),
-                selectinload(UnderlyingModel.listings).selectinload(ListingModel.currency),
+                selectinload(UnderlyingModel.listings).selectinload(
+                    ListingModel.trading_venue
+                ),
+                selectinload(UnderlyingModel.listings).selectinload(
+                    ListingModel.currency
+                ),
             )
             .where(
                 UnderlyingModel.workspace_id == workspace_id,
@@ -166,7 +186,9 @@ class SqlAlchemyUnderlyingRepository:
             )
         )
 
-    async def find_by_isin(self, workspace_id: UUID, isin: str) -> UnderlyingModel | None:
+    async def find_by_isin(
+        self, workspace_id: UUID, isin: str
+    ) -> UnderlyingModel | None:
         return await self._session.scalar(
             select(UnderlyingModel).where(
                 UnderlyingModel.workspace_id == workspace_id,
@@ -190,19 +212,27 @@ class SqlAlchemyUnderlyingRepository:
         trading_venue_id: UUID | None = None,
         currency_code: str | None = None,
     ) -> Select[tuple[UnderlyingModel]]:
-        statement = select(UnderlyingModel).where(UnderlyingModel.workspace_id == workspace_id)
+        statement = select(UnderlyingModel).where(
+            UnderlyingModel.workspace_id == workspace_id
+        )
         if lifecycle_status is not None:
-            statement = statement.where(UnderlyingModel.lifecycle_status == lifecycle_status)
+            statement = statement.where(
+                UnderlyingModel.lifecycle_status == lifecycle_status
+            )
         if trading_venue_id is not None:
-            statement = statement.where(UnderlyingModel.listings.any(
-                (ListingModel.trading_venue_id == trading_venue_id) &
-                (ListingModel.lifecycle_status == LifecycleStatus.ACTIVE)
-            ))
+            statement = statement.where(
+                UnderlyingModel.listings.any(
+                    (ListingModel.trading_venue_id == trading_venue_id)
+                    & (ListingModel.lifecycle_status == LifecycleStatus.ACTIVE)
+                )
+            )
         if currency_code is not None:
-            statement = statement.where(UnderlyingModel.listings.any(
-                (ListingModel.currency_code == currency_code) &
-                (ListingModel.lifecycle_status == LifecycleStatus.ACTIVE)
-            ))
+            statement = statement.where(
+                UnderlyingModel.listings.any(
+                    (ListingModel.currency_code == currency_code)
+                    & (ListingModel.lifecycle_status == LifecycleStatus.ACTIVE)
+                )
+            )
         if query:
             pattern = f"%{query}%"
             statement = statement.where(
@@ -226,13 +256,23 @@ class SqlAlchemyUnderlyingRepository:
         offset: int,
         limit: int,
     ) -> Sequence[UnderlyingModel]:
-        statement = self._search_statement(workspace_id, query, lifecycle_status, trading_venue_id, currency_code)
+        statement = self._search_statement(
+            workspace_id,
+            query,
+            lifecycle_status,
+            trading_venue_id,
+            currency_code,
+        )
         statement = statement.options(
-            selectinload(UnderlyingModel.listings).selectinload(ListingModel.trading_venue),
+            selectinload(UnderlyingModel.listings).selectinload(
+                ListingModel.trading_venue
+            ),
             selectinload(UnderlyingModel.listings).selectinload(ListingModel.currency),
         )
         result = await self._session.scalars(
-            statement.order_by(UnderlyingModel.name, UnderlyingModel.id).offset(offset).limit(limit)
+            statement.order_by(UnderlyingModel.name, UnderlyingModel.id)
+            .offset(offset)
+            .limit(limit)
         )
         return result.all()
 
@@ -244,8 +284,16 @@ class SqlAlchemyUnderlyingRepository:
         trading_venue_id: UUID | None,
         currency_code: str | None,
     ) -> int:
-        statement = self._search_statement(workspace_id, query, lifecycle_status, trading_venue_id, currency_code)
-        count = await self._session.scalar(select(func.count()).select_from(statement.subquery()))
+        statement = self._search_statement(
+            workspace_id,
+            query,
+            lifecycle_status,
+            trading_venue_id,
+            currency_code,
+        )
+        count = await self._session.scalar(
+            select(func.count()).select_from(statement.subquery())
+        )
         return int(count or 0)
 
     async def delete(self, underlying: UnderlyingModel) -> None:
@@ -290,7 +338,9 @@ class SqlAlchemyListingRepository:
                 ListingModel.workspace_id == workspace_id,
                 ListingModel.underlying_id == underlying_id,
             )
-            .order_by(ListingModel.is_primary.desc(), ListingModel.ticker, ListingModel.id)
+            .order_by(
+                ListingModel.is_primary.desc(), ListingModel.ticker, ListingModel.id
+            )
         )
         return result.all()
 
@@ -333,16 +383,30 @@ class SqlAlchemyAuditEventRepository:
         return result.all()
 
     async def list_for_underlying_history(
-        self, workspace_id: UUID, underlying_id: UUID, listing_ids: Sequence[UUID], *, offset: int, limit: int
+        self,
+        workspace_id: UUID,
+        underlying_id: UUID,
+        listing_ids: Sequence[UUID],
+        *,
+        offset: int,
+        limit: int,
     ) -> Sequence[AuditEventModel]:
         aggregate_filter = (
-            ((AuditEventModel.aggregate_type == AggregateType.UNDERLYING) & (AuditEventModel.aggregate_id == underlying_id))
-            | ((AuditEventModel.aggregate_type == AggregateType.LISTING) & AuditEventModel.aggregate_id.in_(listing_ids))
+            (AuditEventModel.aggregate_type == AggregateType.UNDERLYING)
+            & (AuditEventModel.aggregate_id == underlying_id)
+        ) | (
+            (AuditEventModel.aggregate_type == AggregateType.LISTING)
+            & AuditEventModel.aggregate_id.in_(listing_ids)
         )
         result = await self._session.scalars(
-            select(AuditEventModel).where(AuditEventModel.workspace_id == workspace_id, aggregate_filter)
+            select(AuditEventModel)
+            .where(
+                AuditEventModel.workspace_id == workspace_id,
+                aggregate_filter,
+            )
             .order_by(AuditEventModel.occurred_at.desc(), AuditEventModel.id.desc())
-            .offset(offset).limit(limit)
+            .offset(offset)
+            .limit(limit)
         )
         return result.all()
 
@@ -350,13 +414,16 @@ class SqlAlchemyAuditEventRepository:
         self, workspace_id: UUID, underlying_id: UUID, listing_ids: Sequence[UUID]
     ) -> int:
         aggregate_filter = (
-            ((AuditEventModel.aggregate_type == AggregateType.UNDERLYING) & (AuditEventModel.aggregate_id == underlying_id))
-            | ((AuditEventModel.aggregate_type == AggregateType.LISTING) & AuditEventModel.aggregate_id.in_(listing_ids))
+            (AuditEventModel.aggregate_type == AggregateType.UNDERLYING)
+            & (AuditEventModel.aggregate_id == underlying_id)
+        ) | (
+            (AuditEventModel.aggregate_type == AggregateType.LISTING)
+            & AuditEventModel.aggregate_id.in_(listing_ids)
         )
         count = await self._session.scalar(
-            select(func.count()).select_from(AuditEventModel).where(
-                AuditEventModel.workspace_id == workspace_id, aggregate_filter
-            )
+            select(func.count())
+            .select_from(AuditEventModel)
+            .where(AuditEventModel.workspace_id == workspace_id, aggregate_filter)
         )
         return int(count or 0)
 

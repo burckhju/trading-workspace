@@ -10,6 +10,11 @@ from app.features.market.domain.entities import (
     ensure_expected_version,
     ensure_operational_listing_invariant,
 )
+from app.features.market.domain.enums import (
+    LifecycleStatus,
+    QualityStatus,
+    UnderlyingType,
+)
 from app.features.market.domain.errors import (
     ConcurrentModification,
     InvalidIsin,
@@ -24,11 +29,6 @@ from app.features.market.domain.normalization import (
     normalize_ticker,
     normalize_wkn,
 )
-from app.features.market.domain.enums import (
-    LifecycleStatus,
-    QualityStatus,
-    UnderlyingType,
-)
 
 NOW = datetime(2026, 8, 3, tzinfo=UTC)
 LATER = datetime(2026, 8, 4, tzinfo=UTC)
@@ -37,20 +37,37 @@ LATER = datetime(2026, 8, 4, tzinfo=UTC)
 def listing(*, primary: bool = True, active: bool = True) -> Listing:
     workspace_id = uuid4()
     return Listing(
-        id=uuid4(), workspace_id=workspace_id, underlying_id=uuid4(),
-        trading_venue_id=uuid4(), ticker=" sie ", currency_code=" eur ",
+        id=uuid4(),
+        workspace_id=workspace_id,
+        underlying_id=uuid4(),
+        trading_venue_id=uuid4(),
+        ticker=" sie ",
+        currency_code=" eur ",
         lifecycle_status=LifecycleStatus.ACTIVE if active else LifecycleStatus.INACTIVE,
-        is_primary=primary, version=1, created_at=NOW, updated_at=NOW,
+        is_primary=primary,
+        version=1,
+        created_at=NOW,
+        updated_at=NOW,
     )
 
 
-def underlying(*, quality: QualityStatus = QualityStatus.COMPLETE,
-               lifecycle: LifecycleStatus = LifecycleStatus.ACTIVE) -> Underlying:
+def underlying(
+    *,
+    quality: QualityStatus = QualityStatus.COMPLETE,
+    lifecycle: LifecycleStatus = LifecycleStatus.ACTIVE,
+) -> Underlying:
     return Underlying(
-        id=uuid4(), workspace_id=uuid4(), type=UnderlyingType.STOCK,
-        name=" Siemens AG ", isin="DE0007236101", wkn="723610",
-        lifecycle_status=lifecycle, quality_status=quality, version=1,
-        created_at=NOW, updated_at=NOW,
+        id=uuid4(),
+        workspace_id=uuid4(),
+        type=UnderlyingType.STOCK,
+        name=" Siemens AG ",
+        isin="DE0007236101",
+        wkn="723610",
+        lifecycle_status=lifecycle,
+        quality_status=quality,
+        version=1,
+        created_at=NOW,
+        updated_at=NOW,
     )
 
 
@@ -90,12 +107,17 @@ def test_exactly_one_active_primary_listing_is_required() -> None:
 
 
 def test_quality_is_derived_from_operational_completeness() -> None:
-    assert determine_quality_status(name="Siemens", listings=(listing(),)) is QualityStatus.COMPLETE
+    assert (
+        determine_quality_status(name="Siemens", listings=(listing(),))
+        is QualityStatus.COMPLETE
+    )
     assert determine_quality_status(name="Siemens", listings=()) is QualityStatus.DRAFT
 
 
 def test_verified_master_data_change_resets_quality_and_increments_version() -> None:
-    changed = underlying(quality=QualityStatus.VERIFIED).with_master_data(now=LATER, name="Siemens")
+    changed = underlying(quality=QualityStatus.VERIFIED).with_master_data(
+        now=LATER, name="Siemens"
+    )
     assert changed.name == "Siemens"
     assert changed.quality_status is QualityStatus.COMPLETE
     assert changed.version == 2

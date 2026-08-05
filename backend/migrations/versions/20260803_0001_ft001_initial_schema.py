@@ -6,11 +6,11 @@ Create Date: 2026-08-03 20:10:36 UTC
 """
 
 from collections.abc import Sequence
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import UUID
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy.dialects import postgresql
 
 revision: str = "20260803_0001"
@@ -22,7 +22,7 @@ WORKSPACE_ID = UUID("00000000-0000-4000-8000-000000000001")
 WORKSPACE_NAME = "Trading Workspace V1"
 XETRA_ID = UUID("00000000-0000-4000-8001-000000000001")
 REFERENCE_VERSION = "FT-001-V1"
-SEED_TIMESTAMP = datetime(2026, 8, 3, 20, 10, 36, tzinfo=timezone.utc)
+SEED_TIMESTAMP = datetime(2026, 8, 3, 20, 10, 36, tzinfo=UTC)
 
 
 def upgrade() -> None:
@@ -59,7 +59,10 @@ def upgrade() -> None:
         sa.Column("reference_version", sa.String(length=50), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
-        sa.CheckConstraint("minor_unit BETWEEN 0 AND 6", name=op.f("ck_currencies_minor_unit_range")),
+        sa.CheckConstraint(
+            "minor_unit BETWEEN 0 AND 6",
+            name=op.f("ck_currencies_minor_unit_range"),
+        ),
         sa.CheckConstraint("length(trim(name)) > 0", name=op.f("ck_currencies_name_not_blank")),
         sa.PrimaryKeyConstraint("code", name=op.f("pk_currencies")),
     )
@@ -81,8 +84,10 @@ def upgrade() -> None:
         sa.CheckConstraint("version >= 1", name=op.f("ck_underlyings_version_positive")),
         sa.CheckConstraint("length(trim(name)) > 0", name=op.f("ck_underlyings_name_not_blank")),
         sa.ForeignKeyConstraint(
-            ["workspace_id"], ["workspaces.id"],
-            name=op.f("fk_underlyings_workspace_id_workspaces"), ondelete="RESTRICT"
+            ["workspace_id"],
+            ["workspaces.id"],
+            name=op.f("fk_underlyings_workspace_id_workspaces"),
+            ondelete="RESTRICT",
         ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_underlyings")),
     )
@@ -124,25 +129,32 @@ def upgrade() -> None:
         sa.CheckConstraint("version >= 1", name=op.f("ck_listings_version_positive")),
         sa.CheckConstraint("length(trim(ticker)) > 0", name=op.f("ck_listings_ticker_not_blank")),
         sa.ForeignKeyConstraint(
-            ["currency_code"], ["currencies.code"],
-            name=op.f("fk_listings_currency_code_currencies"), ondelete="RESTRICT"
+            ["currency_code"],
+            ["currencies.code"],
+            name=op.f("fk_listings_currency_code_currencies"),
+            ondelete="RESTRICT",
         ),
         sa.ForeignKeyConstraint(
-            ["trading_venue_id"], ["trading_venues.id"],
-            name=op.f("fk_listings_trading_venue_id_trading_venues"), ondelete="RESTRICT"
+            ["trading_venue_id"],
+            ["trading_venues.id"],
+            name=op.f("fk_listings_trading_venue_id_trading_venues"),
+            ondelete="RESTRICT",
         ),
         sa.ForeignKeyConstraint(
-            ["underlying_id"], ["underlyings.id"],
-            name=op.f("fk_listings_underlying_id_underlyings"), ondelete="CASCADE"
+            ["underlying_id"],
+            ["underlyings.id"],
+            name=op.f("fk_listings_underlying_id_underlyings"),
+            ondelete="CASCADE",
         ),
         sa.ForeignKeyConstraint(
-            ["workspace_id"], ["workspaces.id"],
-            name=op.f("fk_listings_workspace_id_workspaces"), ondelete="RESTRICT"
+            ["workspace_id"],
+            ["workspaces.id"],
+            name=op.f("fk_listings_workspace_id_workspaces"),
+            ondelete="RESTRICT",
         ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_listings")),
         sa.UniqueConstraint(
-            "workspace_id", "trading_venue_id", "ticker",
-            name="uq_listings_workspace_venue_ticker"
+            "workspace_id", "trading_venue_id", "ticker", name="uq_listings_workspace_venue_ticker"
         ),
     )
     op.create_index(
@@ -181,8 +193,10 @@ def upgrade() -> None:
         sa.Column("version_after", sa.Integer(), nullable=True),
         sa.Column("field_changes", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
         sa.ForeignKeyConstraint(
-            ["workspace_id"], ["workspaces.id"],
-            name=op.f("fk_audit_events_workspace_id_workspaces"), ondelete="RESTRICT"
+            ["workspace_id"],
+            ["workspaces.id"],
+            name=op.f("fk_audit_events_workspace_id_workspaces"),
+            ondelete="RESTRICT",
         ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_audit_events")),
     )
@@ -234,29 +248,33 @@ def upgrade() -> None:
     )
     op.bulk_insert(
         trading_venue_table,
-        [{
-            "id": XETRA_ID,
-            "mic": "XETR",
-            "name": "Xetra",
-            "country_code": "DE",
-            "timezone": "Europe/Berlin",
-            "is_active": True,
-            "reference_version": REFERENCE_VERSION,
-            "created_at": SEED_TIMESTAMP,
-            "updated_at": SEED_TIMESTAMP,
-        }],
+        [
+            {
+                "id": XETRA_ID,
+                "mic": "XETR",
+                "name": "Xetra",
+                "country_code": "DE",
+                "timezone": "Europe/Berlin",
+                "is_active": True,
+                "reference_version": REFERENCE_VERSION,
+                "created_at": SEED_TIMESTAMP,
+                "updated_at": SEED_TIMESTAMP,
+            }
+        ],
     )
     op.bulk_insert(
         currency_table,
-        [{
-            "code": "EUR",
-            "name": "Euro",
-            "minor_unit": 2,
-            "is_active": True,
-            "reference_version": REFERENCE_VERSION,
-            "created_at": SEED_TIMESTAMP,
-            "updated_at": SEED_TIMESTAMP,
-        }],
+        [
+            {
+                "code": "EUR",
+                "name": "Euro",
+                "minor_unit": 2,
+                "is_active": True,
+                "reference_version": REFERENCE_VERSION,
+                "created_at": SEED_TIMESTAMP,
+                "updated_at": SEED_TIMESTAMP,
+            }
+        ],
     )
 
 

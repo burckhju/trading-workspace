@@ -1,7 +1,11 @@
 import { createBrowserRouter } from 'react-router-dom';
 
 import { ApplicationLayout } from '../layouts/ApplicationLayout';
-import { UnderlyingDetailPage, UnderlyingFormPage, UnderlyingListPage } from '../features/market/pages';
+import {
+  UnderlyingDetailPage,
+  UnderlyingFormPage,
+  UnderlyingListPage,
+} from '../features/market/pages';
 import { NotFoundPage } from '../pages/NotFoundPage';
 
 export function createApplicationRouter() {

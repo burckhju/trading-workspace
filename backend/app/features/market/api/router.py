@@ -7,7 +7,10 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, Query, Response, status
 
-from app.features.market.api.dependencies import get_listing_service, get_underlying_service
+from app.features.market.api.dependencies import (
+    get_listing_service,
+    get_underlying_service,
+)
 from app.features.market.api.dtos import (
     AddListingRequest,
     AuditEventListResponse,
@@ -56,13 +59,26 @@ async def search_underlyings(
     query: str | None = Query(default=None, alias="q", min_length=1, max_length=200),
     lifecycle_status: LifecycleStatus | None = None,
     trading_venue_id: UUID | None = None,
-    currency_code: str | None = Query(default=None, min_length=3, max_length=3, pattern=r"^[A-Za-z]{3}$"),
+    currency_code: str | None = Query(
+        default=None,
+        min_length=3,
+        max_length=3,
+        pattern=r"^[A-Za-z]{3}$",
+    ),
     offset: int = Query(default=0, ge=0),
     limit: int = Query(default=50, ge=1, le=100),
 ) -> UnderlyingSearchResponse:
     try:
         items, total = await service.search(
-            SearchUnderlyings(WORKSPACE_ID, query, lifecycle_status, trading_venue_id, currency_code.upper() if currency_code else None, offset, limit)
+            SearchUnderlyings(
+                WORKSPACE_ID,
+                query,
+                lifecycle_status,
+                trading_venue_id,
+                currency_code.upper() if currency_code else None,
+                offset,
+                limit,
+            )
         )
         return UnderlyingSearchResponse(
             items=[underlying_summary_response(item) for item in items],
@@ -113,7 +129,9 @@ async def get_underlying(
     service: Annotated[UnderlyingService, Depends(get_underlying_service)],
 ) -> UnderlyingDetailResponse:
     try:
-        return underlying_detail_response(await service.get(WORKSPACE_ID, underlying_id))
+        return underlying_detail_response(
+            await service.get(WORKSPACE_ID, underlying_id)
+        )
     except Exception as error:
         raise translate_market_error(error) from error
 
@@ -126,10 +144,20 @@ async def get_underlying_audit_events(
     limit: int = Query(default=50, ge=1, le=100),
 ) -> AuditEventListResponse:
     try:
-        items, total = await service.audit_history(WORKSPACE_ID, underlying_id, offset=offset, limit=limit)
+        items, total = await service.audit_history(
+            WORKSPACE_ID,
+            underlying_id,
+            offset=offset,
+            limit=limit,
+        )
         return AuditEventListResponse(
-            items=[AuditEventResponse.model_validate(item, from_attributes=True) for item in items],
-            total=total, offset=offset, limit=limit
+            items=[
+                AuditEventResponse.model_validate(item, from_attributes=True)
+                for item in items
+            ],
+            total=total,
+            offset=offset,
+            limit=limit,
         )
     except Exception as error:
         raise translate_market_error(error) from error
@@ -142,10 +170,16 @@ async def get_underlying_usages(
 ) -> UnderlyingUsageListResponse:
     try:
         items = await service.usages(WORKSPACE_ID, underlying_id)
-        return UnderlyingUsageListResponse(items=[
-            UnderlyingUsageResponse(usage_type=item.usage_type, count=item.count, object_ids=list(item.object_ids))
-            for item in items
-        ])
+        return UnderlyingUsageListResponse(
+            items=[
+                UnderlyingUsageResponse(
+                    usage_type=item.usage_type,
+                    count=item.count,
+                    object_ids=list(item.object_ids),
+                )
+                for item in items
+            ]
+        )
     except Exception as error:
         raise translate_market_error(error) from error
 
@@ -295,9 +329,7 @@ async def add_listing(
         raise translate_market_error(error) from error
 
 
-@router.patch(
-    "/{underlying_id}/listings/{listing_id}", response_model=ListingResponse
-)
+@router.patch("/{underlying_id}/listings/{listing_id}", response_model=ListingResponse)
 async def update_listing(
     underlying_id: UUID,
     listing_id: UUID,
