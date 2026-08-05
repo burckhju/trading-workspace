@@ -29,7 +29,14 @@ require_file backend/.python-version
 require_command docker
 require_command node
 require_command npm
-require_command python
+if command -v python3 >/dev/null 2>&1; then
+  :
+elif command -v python >/dev/null 2>&1; then
+  :
+else
+  printf 'FEHLT IM PATH: python3 oder python\n' >&2
+  failed=1
+fi
 
 if [[ "${failed}" -ne 0 ]]; then
   printf '\nRelease-Bereitschaft ist nicht erfüllt.\n' >&2
