@@ -6,9 +6,9 @@
 |---|---|
 | Dokument | MODULE_AND_FEATURE_CATALOG.md |
 | Dokumenttyp | Product Architecture |
-| Version | 1.1 |
+| Version | 1.2 |
 | Status | 🟢 Approved |
-| Letzte Änderung | 2026-08-03 |
+| Letzte Änderung | 2026-08-05 |
 
 ## Zweck
 
@@ -38,6 +38,14 @@ Dieses Dokument ist die zentrale Zuordnung zwischen Roadmap-Meilensteinen, fachl
 | FT-011 | Nachbeobachtung und Exit Review | Post Trade Learning | M6 | geschlossene Trades virtuell weiterverfolgen und Ausstieg bewerten | FT-009, FT-010 |
 | FT-012 | Journal, Lessons Learned und Performance | Evaluation | M7/M8 | Entscheidungen, Regelabweichungen und Ergebnisse auswerten | FT-009–FT-011 |
 | FT-013 | Modellkatalog und Modellbewertung | Model Governance | M9 | Modelle versionieren, vergleichen, freigeben und historischen Ergebnissen zuordnen | MODEL_BOOK, TRACEABILITY |
+
+## Technische Querschnittsfähigkeiten
+
+| Kennung | Fähigkeit | Verantwortung | Konsumierende Features |
+|---|---|---|---|
+| TC-001 | Marktdaten-Infrastruktur (`market_data`) | Providerunabhängiger Abruf, Qualitätsprüfung, Herkunft, Cache und Persistenz von Marktdaten; keine Handelsentscheidung | FT-004, FT-006, FT-008, FT-013 sowie spätere Analysefähigkeiten |
+
+TC-001 verändert die fachliche Feature-Nummerierung nicht. Eine benutzerverwaltete Providerkonfiguration bleibt ein separates, später zu spezifizierendes Feature.
 
 ## Ownership der Kernobjekte
 

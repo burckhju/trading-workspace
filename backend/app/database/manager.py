@@ -1,6 +1,7 @@
 """SQLAlchemy engine and session lifecycle management."""
 
 from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 
 from sqlalchemy import text
 from sqlalchemy.engine import URL, make_url
@@ -63,6 +64,14 @@ class DatabaseManager:
             except Exception:
                 await session.rollback()
                 raise
+
+    @asynccontextmanager
+    async def session_context(self) -> AsyncIterator[AsyncSession]:
+        """Expose a reusable async context manager around one managed session."""
+
+        async for session in self.session():
+            yield session
+            return
 
     async def ping(self) -> None:
         """Verify that the database accepts a simple statement."""

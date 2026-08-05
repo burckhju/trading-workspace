@@ -48,3 +48,43 @@ def test_fastapi_dependencies_resolve_from_application_state() -> None:
     assert get_container(request) is container
     assert get_application_settings(request) is container.settings
     assert get_database_manager(request) is container.database
+
+
+def test_disabled_eodhd_does_not_require_api_key() -> None:
+    container = ApplicationContainer.build(_settings())
+
+    assert container.eodhd is None
+
+
+def test_enabled_eodhd_requires_api_key() -> None:
+    import pytest
+
+    from app.features.market_data.service.errors import MarketDataConfigurationError
+
+    settings = Settings(
+        _env_file=None,
+        environment=Environment.TEST,
+        database_url="postgresql+asyncpg://localhost/trading_workspace_test",
+        market_data={"eodhd": {"enabled": True}},
+    )
+
+    with pytest.raises(MarketDataConfigurationError):
+        ApplicationContainer.build(settings)
+
+
+def test_enabled_eodhd_builds_and_closes_shared_runtime() -> None:
+    settings = Settings(
+        _env_file=None,
+        environment=Environment.TEST,
+        database_url="postgresql+asyncpg://localhost/trading_workspace_test",
+        market_data={"eodhd": {"enabled": True, "api_key": "paid-secret"}},
+    )
+    container = ApplicationContainer.build(settings)
+    assert container.eodhd is not None
+    container.eodhd.http_client.aclose = AsyncMock()  # type: ignore[method-assign]
+    container.database.dispose = AsyncMock()  # type: ignore[method-assign]
+
+    asyncio.run(container.close())
+
+    container.eodhd.http_client.aclose.assert_awaited_once_with()
+    container.database.dispose.assert_awaited_once_with()

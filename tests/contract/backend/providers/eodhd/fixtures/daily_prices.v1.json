@@ -1,0 +1,21 @@
+[
+  {
+    "date": "2026-08-01",
+    "open": "100.10",
+    "high": "105.20",
+    "low": "99.80",
+    "close": "104.00",
+    "adjusted_close": "103.50",
+    "volume": "123456"
+  },
+  {
+    "date": "2026-08-04",
+    "open": "104.00",
+    "high": "106.00",
+    "low": "102.50",
+    "close": "105.25",
+    "adjusted_close": null,
+    "volume": null,
+    "future_provider_field": "ignored"
+  }
+]
