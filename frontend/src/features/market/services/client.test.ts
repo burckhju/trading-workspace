@@ -191,4 +191,49 @@ describe('marketApiClient', () => {
       ),
     ).toBe(true);
   });
+
+  it('calls the remaining underlying, history, usage, status and listing endpoints', async () => {
+    const listing = {
+      id: LISTING_ID,
+      underlying_id: UNDERLYING_ID,
+      trading_venue_id: VENUE_ID,
+      ticker: 'SIE',
+      currency_code: 'EUR',
+      lifecycle_status: 'ACTIVE',
+      is_primary: false,
+      version: 1,
+      created_at: '2026-08-04T00:00:00Z',
+      updated_at: '2026-08-04T00:00:00Z',
+    };
+    vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(jsonResponse({ ...summary(), primary_listing: null, listings: [] }))
+      .mockResolvedValueOnce(jsonResponse({ items: [], total: 0, offset: 5, limit: 10 }))
+      .mockResolvedValueOnce(jsonResponse({ items: [] }))
+      .mockResolvedValueOnce(jsonResponse(summary()))
+      .mockResolvedValueOnce(jsonResponse(summary()))
+      .mockResolvedValueOnce(jsonResponse(listing, 201));
+
+    await marketApiClient.getUnderlying(UNDERLYING_ID);
+    await marketApiClient.getUnderlyingAuditEvents(UNDERLYING_ID, { offset: 5, limit: 10 });
+    await marketApiClient.getUnderlyingUsages(UNDERLYING_ID);
+    await marketApiClient.deactivateUnderlying(UNDERLYING_ID, { version: 2 });
+    await marketApiClient.reactivateUnderlying(UNDERLYING_ID, { version: 3 });
+    await marketApiClient.addListing(UNDERLYING_ID, {
+      trading_venue_id: VENUE_ID,
+      ticker: 'SIE2',
+      currency_code: 'EUR',
+      is_primary: false,
+    });
+
+    const urls = vi.mocked(fetch).mock.calls.map(([input]) => requestInputUrl(input));
+    expect(urls[0]).toContain(`/underlyings/${UNDERLYING_ID}`);
+    expect(urls[1]).toContain(`/underlyings/${UNDERLYING_ID}/audit-events`);
+    expect(urls[1]).toContain('offset=5');
+    expect(urls[1]).toContain('limit=10');
+    expect(urls[2]).toContain(`/underlyings/${UNDERLYING_ID}/usages`);
+    expect(urls[3]).toContain(`/underlyings/${UNDERLYING_ID}/deactivate`);
+    expect(urls[4]).toContain(`/underlyings/${UNDERLYING_ID}/reactivate`);
+    expect(urls[5]).toContain(`/underlyings/${UNDERLYING_ID}/listings`);
+    expect(vi.mocked(fetch).mock.calls[5][1]?.method).toBe('POST');
+  });
 });
