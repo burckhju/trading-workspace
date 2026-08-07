@@ -41,7 +41,7 @@ jobs:
       - name: Ruff
         run: ruff check app ../tests/unit/backend ../tests/integration/backend
       - name: Black
-        run: black --check app ../tests/unit/backend ../tests/integration/backend
+        run: black --check --config pyproject.toml app ../tests/unit/backend ../tests/integration/backend
       - name: mypy
         run: mypy app
       - name: Tests with coverage
