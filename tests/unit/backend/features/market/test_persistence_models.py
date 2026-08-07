@@ -104,9 +104,7 @@ def test_postgresql_ddl_contains_partial_unique_indexes_and_jsonb() -> None:
     }
 
     assert "JSONB" in audit_ddl
-    assert (
-        "WHERE isin IS NOT NULL" in underlying_indexes["uq_underlyings_workspace_isin"]
-    )
+    assert "WHERE isin IS NOT NULL" in underlying_indexes["uq_underlyings_workspace_isin"]
     assert "WHERE wkn IS NOT NULL" in underlying_indexes["uq_underlyings_workspace_wkn"]
     assert (
         "WHERE is_primary = true AND lifecycle_status = 'ACTIVE'"

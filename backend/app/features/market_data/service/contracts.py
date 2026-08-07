@@ -36,8 +36,6 @@ class LatestCompletedDailyPriceProvider(Protocol):
 class ProviderInstrumentResolver(Protocol):
     """Validate an approved internal-to-provider instrument association."""
 
-    async def validate_mapping(
-        self, mapping: ProviderInstrumentMapping
-    ) -> MappingValidationResult:
+    async def validate_mapping(self, mapping: ProviderInstrumentMapping) -> MappingValidationResult:
         """Validate the provider symbol without mutating FT-001 master data."""
         ...

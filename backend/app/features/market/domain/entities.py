@@ -69,9 +69,7 @@ class Listing:
                 self.trading_venue_id if trading_venue_id is None else trading_venue_id
             ),
             ticker=self.ticker if ticker is None else ticker,
-            currency_code=(
-                self.currency_code if currency_code is None else currency_code
-            ),
+            currency_code=(self.currency_code if currency_code is None else currency_code),
             lifecycle_status=(
                 self.lifecycle_status if lifecycle_status is None else lifecycle_status
             ),
@@ -191,14 +189,10 @@ def ensure_operational_listing_invariant(listings: tuple[Listing, ...]) -> None:
     if active_primary_count == 0:
         raise PrimaryListingRequired("Exactly one active primary listing is required")
     if active_primary_count > 1:
-        raise MultiplePrimaryListings(
-            "Multiple active primary listings are not allowed"
-        )
+        raise MultiplePrimaryListings("Multiple active primary listings are not allowed")
 
 
-def determine_quality_status(
-    *, name: str, listings: tuple[Listing, ...]
-) -> QualityStatus:
+def determine_quality_status(*, name: str, listings: tuple[Listing, ...]) -> QualityStatus:
     normalize_name(name)
     try:
         ensure_operational_listing_invariant(listings)

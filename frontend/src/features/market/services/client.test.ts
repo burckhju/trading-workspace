@@ -237,3 +237,26 @@ describe('marketApiClient', () => {
     expect(vi.mocked(fetch).mock.calls[5][1]?.method).toBe('POST');
   });
 });
+
+it('adds the centrally resolved request identity when no feature actor is provided', async () => {
+  const { configureRequestIdentityProvider, resetRequestIdentityProvider } = await import(
+    '../../../services/identity/requestIdentity'
+  );
+  configureRequestIdentityProvider(() => ({ actorId: 'central-user', actorName: 'Central User' }));
+  vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+    new Response(JSON.stringify({ items: [], total: 0, offset: 0, limit: 25 }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    }),
+  );
+
+  try {
+    await marketApiClient.searchUnderlyings({ offset: 0, limit: 25 });
+    const request = vi.mocked(fetch).mock.calls.at(-1);
+    const headers = new Headers(request?.[1]?.headers);
+    expect(headers.get('X-Actor-ID')).toBe('central-user');
+    expect(headers.get('X-Actor-Name')).toBe('Central User');
+  } finally {
+    resetRequestIdentityProvider();
+  }
+});

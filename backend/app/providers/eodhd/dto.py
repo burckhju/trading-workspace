@@ -21,9 +21,7 @@ class EodhdDailyPriceDto(BaseModel):
     adjusted_close: Decimal | None = Field(default=None, alias="adjusted_close")
     volume: Decimal | None = None
 
-    @field_validator(
-        "open", "high", "low", "close", "adjusted_close", "volume", mode="before"
-    )
+    @field_validator("open", "high", "low", "close", "adjusted_close", "volume", mode="before")
     @classmethod
     def reject_binary_float(cls, value: object) -> object:
         """Reject binary floats before Decimal conversion."""

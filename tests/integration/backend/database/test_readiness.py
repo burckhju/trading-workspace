@@ -29,9 +29,7 @@ def test_readiness_returns_ready_when_database_ping_succeeds() -> None:
 
 def test_readiness_returns_service_unavailable_when_database_ping_fails() -> None:
     application = make_application()
-    application.state.container.database.ping = AsyncMock(
-        side_effect=RuntimeError("offline")
-    )
+    application.state.container.database.ping = AsyncMock(side_effect=RuntimeError("offline"))
 
     with TestClient(application) as client:
         response = client.get("/health/ready")

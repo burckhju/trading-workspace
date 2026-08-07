@@ -30,18 +30,10 @@ def test_settings_load_nested_eodhd_configuration(monkeypatch) -> None:
 
 
 def test_paid_account_operational_limits_are_configurable(monkeypatch) -> None:
-    monkeypatch.setenv(
-        "TRADING_WORKSPACE_MARKET_DATA__EODHD__DAILY_CALL_LIMIT", "250000"
-    )
-    monkeypatch.setenv(
-        "TRADING_WORKSPACE_MARKET_DATA__EODHD__DAILY_CALL_SAFETY_RESERVE", "5000"
-    )
-    monkeypatch.setenv(
-        "TRADING_WORKSPACE_MARKET_DATA__EODHD__REQUESTS_PER_MINUTE", "1500"
-    )
-    monkeypatch.setenv(
-        "TRADING_WORKSPACE_MARKET_DATA__EODHD__RATE_LIMIT_BURST_CAPACITY", "25"
-    )
+    monkeypatch.setenv("TRADING_WORKSPACE_MARKET_DATA__EODHD__DAILY_CALL_LIMIT", "250000")
+    monkeypatch.setenv("TRADING_WORKSPACE_MARKET_DATA__EODHD__DAILY_CALL_SAFETY_RESERVE", "5000")
+    monkeypatch.setenv("TRADING_WORKSPACE_MARKET_DATA__EODHD__REQUESTS_PER_MINUTE", "1500")
+    monkeypatch.setenv("TRADING_WORKSPACE_MARKET_DATA__EODHD__RATE_LIMIT_BURST_CAPACITY", "25")
 
     settings = Settings(_env_file=None)
     eodhd = settings.market_data.eodhd

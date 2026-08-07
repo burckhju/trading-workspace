@@ -54,17 +54,13 @@ class ProviderMappingAdministrationService:
         self._id_factory = id_factory
         self._resolver = resolver
 
-    async def list_mappings(
-        self, workspace_id: UUID
-    ) -> tuple[ProviderInstrumentMapping, ...]:
+    async def list_mappings(self, workspace_id: UUID) -> tuple[ProviderInstrumentMapping, ...]:
         """Return all mappings for one workspace."""
         async with self._uow:
             rows = await self._uow.mappings.list_all(workspace_id)
             return tuple(mapping_to_domain(row) for row in rows)
 
-    async def create_or_update(
-        self, command: MappingCommand
-    ) -> ProviderInstrumentMapping:
+    async def create_or_update(self, command: MappingCommand) -> ProviderInstrumentMapping:
         """Create a disabled mapping or update its symbol data idempotently."""
         async with self._uow:
             existing = await self._uow.mappings.find_for_listing(
@@ -92,9 +88,7 @@ class ProviderMappingAdministrationService:
             else:
                 before = mapping_to_domain(existing)
                 existing.provider_symbol = command.provider_symbol.strip().upper()
-                existing.provider_exchange_code = (
-                    command.provider_exchange_code.strip().upper()
-                )
+                existing.provider_exchange_code = command.provider_exchange_code.strip().upper()
                 existing.status = MappingStatus.DISABLED
                 existing.validated_at = None
                 existing.validation_message = "Awaiting explicit validation"
@@ -127,18 +121,12 @@ class ProviderMappingAdministrationService:
             if model is None:
                 raise MarketDataNotFoundError("Provider mapping not found")
             before = mapping_to_domain(model)
-            validation = (
-                await self._resolver.validate_mapping(before)
-                if self._resolver
-                else None
-            )
+            validation = await self._resolver.validate_mapping(before) if self._resolver else None
             now = validation.validated_at if validation is not None else self._now()
             if validation is not None and validation.status is not MappingStatus.ACTIVE:
                 model.status = MappingStatus.INVALID
                 model.validated_at = now
-                model.validation_message = (
-                    validation.message or "Technical validation failed"
-                )
+                model.validation_message = validation.message or "Technical validation failed"
                 model.updated_at = now
                 model.version += 1
                 value = mapping_to_domain(model)

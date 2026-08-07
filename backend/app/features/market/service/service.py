@@ -107,9 +107,7 @@ class UnderlyingService:
         )
         async with self._uow:
             await self._ensure_workspace(command.workspace_id)
-            await self._ensure_reference_data(
-                listing.trading_venue_id, listing.currency_code
-            )
+            await self._ensure_reference_data(listing.trading_venue_id, listing.currency_code)
             await self._ensure_unique_underlying(
                 command.workspace_id,
                 underlying.isin,
@@ -154,9 +152,7 @@ class UnderlyingService:
 
     async def update(self, command: UpdateUnderlying) -> UnderlyingModel:
         async with self._uow:
-            model = await self._require_underlying(
-                command.workspace_id, command.underlying_id
-            )
+            model = await self._require_underlying(command.workspace_id, command.underlying_id)
             current = underlying_to_domain(model)
             ensure_expected_version(command.expected_version, current.version)
             updated = current.with_master_data(
@@ -197,9 +193,7 @@ class UnderlyingService:
 
     async def verify(self, command: ChangeUnderlyingStatus) -> UnderlyingModel:
         async with self._uow:
-            model = await self._require_underlying(
-                command.workspace_id, command.underlying_id
-            )
+            model = await self._require_underlying(command.workspace_id, command.underlying_id)
             current = underlying_to_domain(model)
             ensure_expected_version(command.expected_version, current.version)
             listings = tuple(
@@ -225,9 +219,7 @@ class UnderlyingService:
 
     async def delete(self, command: DeleteUnderlying) -> None:
         async with self._uow:
-            model = await self._require_underlying(
-                command.workspace_id, command.underlying_id
-            )
+            model = await self._require_underlying(command.workspace_id, command.underlying_id)
             current = underlying_to_domain(model)
             ensure_expected_version(command.expected_version, current.version)
             references = tuple(
@@ -276,13 +268,9 @@ class UnderlyingService:
 
     async def get(self, workspace_id: UUID, underlying_id: UUID) -> UnderlyingModel:
         async with self._uow:
-            return await self._require_underlying(
-                workspace_id, underlying_id, with_listings=True
-            )
+            return await self._require_underlying(workspace_id, underlying_id, with_listings=True)
 
-    async def search(
-        self, query: SearchUnderlyings
-    ) -> tuple[Sequence[UnderlyingModel], int]:
+    async def search(self, query: SearchUnderlyings) -> tuple[Sequence[UnderlyingModel], int]:
         if query.offset < 0 or query.limit < 1 or query.limit > 200:
             raise ValueError("Pagination must use offset >= 0 and 1 <= limit <= 200")
         async with self._uow:
@@ -309,9 +297,7 @@ class UnderlyingService:
     ) -> tuple[tuple[AuditEventView, ...], int]:
         async with self._uow:
             await self._require_underlying(workspace_id, underlying_id)
-            listings = await self._uow.listings.list_for_underlying(
-                workspace_id, underlying_id
-            )
+            listings = await self._uow.listings.list_for_underlying(workspace_id, underlying_id)
             listing_ids = tuple(item.id for item in listings)
             events = await self._uow.audit_events.list_for_underlying_history(
                 workspace_id, underlying_id, listing_ids, offset=offset, limit=limit
@@ -337,31 +323,22 @@ class UnderlyingService:
                 total,
             )
 
-    async def usages(
-        self, workspace_id: UUID, underlying_id: UUID
-    ) -> tuple[UsageSummary, ...]:
+    async def usages(self, workspace_id: UUID, underlying_id: UUID) -> tuple[UsageSummary, ...]:
         async with self._uow:
             await self._require_underlying(workspace_id, underlying_id)
-            references = await self._uow.usages.list_for_underlying(
-                workspace_id, underlying_id
-            )
+            references = await self._uow.usages.list_for_underlying(workspace_id, underlying_id)
             grouped: dict[str, list[UUID]] = {}
             for reference in references:
-                grouped.setdefault(reference.reference_type, []).append(
-                    reference.object_id
-                )
+                grouped.setdefault(reference.reference_type, []).append(reference.object_id)
             return tuple(
-                UsageSummary(kind, len(ids), tuple(ids))
-                for kind, ids in sorted(grouped.items())
+                UsageSummary(kind, len(ids), tuple(ids)) for kind, ids in sorted(grouped.items())
             )
 
     async def _change_status(
         self, command: ChangeUnderlyingStatus, *, activate: bool
     ) -> UnderlyingModel:
         async with self._uow:
-            model = await self._require_underlying(
-                command.workspace_id, command.underlying_id
-            )
+            model = await self._require_underlying(command.workspace_id, command.underlying_id)
             current = underlying_to_domain(model)
             ensure_expected_version(command.expected_version, current.version)
             if activate:
@@ -403,9 +380,7 @@ class UnderlyingService:
     async def _ensure_reference_data(self, venue_id: UUID, currency_code: str) -> None:
         venue = await self._uow.reference_data.get_trading_venue(venue_id)
         if venue is None:
-            raise TradingVenueNotFound(
-                "Trading venue does not exist", field="trading_venue_id"
-            )
+            raise TradingVenueNotFound("Trading venue does not exist", field="trading_venue_id")
         currency = await self._uow.reference_data.get_currency(currency_code)
         if currency is None:
             raise CurrencyNotFound("Currency does not exist", field="currency_code")
@@ -447,9 +422,7 @@ class UnderlyingService:
             workspace_id, venue_id, normalize_ticker(ticker)
         )
         if duplicate is not None and duplicate.id != exclude_id:
-            raise DuplicateMarketTicker(
-                "Ticker already exists at trading venue", field="ticker"
-            )
+            raise DuplicateMarketTicker("Ticker already exists at trading venue", field="ticker")
 
     async def _require_underlying(
         self, workspace_id: UUID, underlying_id: UUID, *, with_listings: bool = False

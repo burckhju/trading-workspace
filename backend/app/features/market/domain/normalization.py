@@ -29,9 +29,7 @@ def normalize_isin(value: str | None) -> str | None:
     if normalized is None:
         return None
     normalized = normalized.replace(" ", "").replace("-", "").upper()
-    if not _ISIN_PATTERN.fullmatch(normalized) or not _has_valid_isin_checksum(
-        normalized
-    ):
+    if not _ISIN_PATTERN.fullmatch(normalized) or not _has_valid_isin_checksum(normalized):
         raise InvalidIsin("ISIN must be a valid ISO-6166 identifier", field="isin")
     return normalized
 
@@ -42,9 +40,7 @@ def normalize_wkn(value: str | None) -> str | None:
         return None
     normalized = normalized.replace(" ", "").upper()
     if not _WKN_PATTERN.fullmatch(normalized):
-        raise InvalidWkn(
-            "WKN must contain exactly six alphanumeric characters", field="wkn"
-        )
+        raise InvalidWkn("WKN must contain exactly six alphanumeric characters", field="wkn")
     return normalized
 
 

@@ -70,14 +70,10 @@ class DailyPriceImportService:
         self._clock = clock
         self._id_factory = id_factory
 
-    async def import_daily_prices(
-        self, request: DailyPriceRequest
-    ) -> DailyPriceImportResult:
+    async def import_daily_prices(self, request: DailyPriceRequest) -> DailyPriceImportResult:
         """Load one approved mapping, fetch its range and idempotently upsert prices."""
         async with self._uow:
-            mapping = await self._uow.mappings.get(
-                request.workspace_id, request.mapping_id
-            )
+            mapping = await self._uow.mappings.get(request.workspace_id, request.mapping_id)
             if mapping is None or mapping.listing_id != request.listing_id:
                 raise MarketDataNotFoundError(
                     "Provider mapping was not found",

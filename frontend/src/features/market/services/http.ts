@@ -1,3 +1,4 @@
+import { getRequestIdentity } from '../../../services/identity/requestIdentity';
 import type { ApiErrorResponse, AuditActorHeaders } from '../types/api';
 
 const JSON_CONTENT_TYPE = 'application/json';
@@ -72,7 +73,7 @@ async function readJson(response: Response): Promise<unknown> {
 }
 
 export async function requestJson<T>(url: string, options: HttpRequestOptions = {}): Promise<T> {
-  const headers = new Headers(actorHeaders(options.actor));
+  const headers = new Headers(actorHeaders(options.actor ?? getRequestIdentity()));
   if (options.body !== undefined) {
     headers.set('Content-Type', JSON_CONTENT_TYPE);
   }
