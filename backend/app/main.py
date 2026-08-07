@@ -13,8 +13,10 @@ from app.core.exceptions import register_exception_handlers
 from app.core.logging import configure_logging
 from app.core.middleware import RequestContextMiddleware
 from app.database import DatabaseManager
+from app.features.analysis.api import router as analysis_router
 from app.features.market.api import reference_data_router, underlying_router
 from app.features.market_data.api import router as market_data_router
+from app.features.user_preferences.api.router import router as user_preferences_router
 
 logger = logging.getLogger(__name__)
 
@@ -59,6 +61,8 @@ def create_application(settings: Settings | None = None) -> FastAPI:
     application.include_router(underlying_router)
     application.include_router(reference_data_router)
     application.include_router(market_data_router)
+    application.include_router(analysis_router)
+    application.include_router(user_preferences_router)
 
     @application.get(
         "/health",

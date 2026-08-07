@@ -14,7 +14,7 @@
     "format:write": "prettier --write .",
     "typecheck": "tsc -b --pretty false",
     "test:coverage": "vitest run --coverage",
-    "e2e": "playwright test"
+    "e2e": "NODE_PATH=./node_modules playwright test"
   },
   "dependencies": {
     "react": "19.1.0",
