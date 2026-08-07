@@ -236,4 +236,60 @@ describe('MarketAnalysisPage', () => {
       sortDirection: 'desc',
     });
   });
+
+  it('applies and deletes a persisted saved view', async () => {
+    const user = userEvent.setup();
+    const preferenceClient = vi.mocked(analysisPreferenceClient);
+
+    preferenceClient.list.mockResolvedValue([
+      {
+        id: 'saved-view-existing',
+        name: 'Gespeicherte Siemens-Ansicht',
+        underlyingId,
+        underlyingLabel: 'Siemens AG',
+        status: 'COMPLETED',
+        qualityStatus: 'GOOD',
+        analysisTimeFrom: '2026-08-01T08:00',
+        analysisTimeTo: '2026-08-06T18:00',
+        sortBy: 'latest_analysis_time',
+        sortDirection: 'asc',
+      },
+    ]);
+    preferenceClient.delete.mockResolvedValue(undefined);
+
+    render(
+      <MemoryRouter>
+        <MarketAnalysisPage />
+      </MemoryRouter>,
+    );
+
+    const savedView = await screen.findByRole('combobox', {
+      name: 'Gespeicherte Ansicht',
+    });
+
+    await screen.findByRole('option', {
+      name: 'Gespeicherte Siemens-Ansicht',
+    });
+
+    await user.selectOptions(savedView, 'saved-view-existing');
+
+    expect(screen.getByRole('combobox', { name: 'Status filtern' })).toHaveValue('COMPLETED');
+    expect(screen.getByRole('combobox', { name: 'Qualität filtern' })).toHaveValue('GOOD');
+    expect(screen.getByLabelText('Analysezeit ab')).toHaveValue('2026-08-01T08:00');
+    expect(screen.getByLabelText('Analysezeit bis')).toHaveValue('2026-08-06T18:00');
+    expect(screen.getByRole('combobox', { name: 'Sortieren nach' })).toHaveValue(
+      'latest_analysis_time',
+    );
+    expect(screen.getByRole('combobox', { name: 'Sortierrichtung' })).toHaveValue('asc');
+
+    await user.click(screen.getByRole('button', { name: 'Ansicht löschen' }));
+
+    await waitFor(() =>
+      expect(preferenceClient.delete.mock.calls.at(-1)?.[0]).toBe('saved-view-existing'),
+    );
+
+    expect(
+      screen.queryByRole('option', { name: 'Gespeicherte Siemens-Ansicht' }),
+    ).not.toBeInTheDocument();
+  });
 });

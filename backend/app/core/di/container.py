@@ -69,9 +69,7 @@ class ApplicationContainer:
         return cls(settings=settings, database=database, eodhd=runtime)
 
     @staticmethod
-    def _build_eodhd(
-        settings: Settings, database: DatabaseManager
-    ) -> EodhdRuntime | None:
+    def _build_eodhd(settings: Settings, database: DatabaseManager) -> EodhdRuntime | None:
         provider_settings = settings.market_data.eodhd
         if not provider_settings.enabled:
             return None
@@ -86,8 +84,7 @@ class ApplicationContainer:
         http_client = create_http_client(provider_settings)
         client = EodhdClient(settings=provider_settings, client=http_client)
         effective_budget = (
-            provider_settings.daily_call_limit
-            - provider_settings.daily_call_safety_reserve
+            provider_settings.daily_call_limit - provider_settings.daily_call_safety_reserve
         )
         call_budget = DailyCallBudget(
             configured_budget=effective_budget,
@@ -106,9 +103,7 @@ class ApplicationContainer:
                 random=Random(),
                 max_attempts=provider_settings.retry_max_attempts,
                 base_delay_seconds=provider_settings.retry_base_delay_seconds,
-                max_retry_after_seconds=(
-                    provider_settings.retry_max_retry_after_seconds
-                ),
+                max_retry_after_seconds=(provider_settings.retry_max_retry_after_seconds),
                 total_timeout_seconds=provider_settings.retry_total_timeout_seconds,
             ),
             rate_limiter=TokenBucketRateLimiter(
@@ -120,12 +115,8 @@ class ApplicationContainer:
             call_budget=call_budget,
             clock=clock,
             settings=EodhdAdapterSettings(
-                historical_ttl=timedelta(
-                    seconds=provider_settings.historical_cache_ttl_seconds
-                ),
-                latest_ttl=timedelta(
-                    seconds=provider_settings.latest_cache_ttl_seconds
-                ),
+                historical_ttl=timedelta(seconds=provider_settings.historical_cache_ttl_seconds),
+                latest_ttl=timedelta(seconds=provider_settings.latest_cache_ttl_seconds),
                 provider_call_cost=provider_settings.historical_eod_call_cost,
             ),
         )
@@ -202,9 +193,7 @@ class ApplicationContainer:
         """Return non-secret EODHD runtime and budget status."""
         settings = self.settings.market_data.eodhd
         used = await self.eodhd.call_budget.usage() if self.eodhd else 0
-        effective = max(
-            settings.daily_call_limit - settings.daily_call_safety_reserve, 0
-        )
+        effective = max(settings.daily_call_limit - settings.daily_call_safety_reserve, 0)
         metrics = await self.eodhd.metrics.snapshot() if self.eodhd else {}
         return {
             "provider": MarketDataProvider.EODHD,

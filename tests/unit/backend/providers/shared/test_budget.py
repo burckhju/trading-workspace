@@ -54,9 +54,7 @@ async def test_budget_resets_at_utc_day_boundary() -> None:
     ("configured_budget", "reserve"),
     [(0, 10), (10, -1), (10, 100)],
 )
-def test_budget_rejects_invalid_configuration(
-    configured_budget: int, reserve: int
-) -> None:
+def test_budget_rejects_invalid_configuration(configured_budget: int, reserve: int) -> None:
     clock = ManualClock(datetime(2026, 8, 5, 10, tzinfo=UTC))
     with pytest.raises(ValueError):
         DailyCallBudget(

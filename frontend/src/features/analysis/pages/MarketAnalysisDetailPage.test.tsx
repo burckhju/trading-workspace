@@ -178,4 +178,51 @@ describe('MarketAnalysisDetailPage', () => {
     await user.click(screen.getByRole('button', { name: 'Snapshot anzeigen (250)' }));
     expect(await screen.findByText('EODHD · SIE.XETRA')).toBeInTheDocument();
   });
+
+  it('retries an eligible historical version with a reason', async () => {
+    const user = userEvent.setup();
+
+    vi.mocked(analysisApiClient.events).mockResolvedValue([]);
+
+    renderPage();
+    await screen.findByText('TREND_ALIGNMENT');
+
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Analyseversion' }), '1');
+    await screen.findByText('Zu wenig Beobachtungen');
+
+    await user.type(screen.getByRole('textbox', { name: 'Begründung' }), 'Neue Datenlage');
+
+    await user.click(screen.getByRole('button', { name: 'Retry aus Snapshot' }));
+
+    await waitFor(() =>
+      expect(analysisApiClient.retry).toHaveBeenCalledWith(analysisId, 1, 'Neue Datenlage'),
+    );
+  });
+
+  it('supersedes an eligible historical version explicitly', async () => {
+    const user = userEvent.setup();
+
+    vi.mocked(analysisApiClient.events).mockResolvedValue([]);
+
+    renderPage();
+    await screen.findByText('TREND_ALIGNMENT');
+
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Analyseversion' }), '1');
+    await screen.findByText('Zu wenig Beobachtungen');
+
+    await user.type(screen.getByRole('textbox', { name: 'Begründung' }), 'Durch Version 2 ersetzt');
+
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Ersatzversion' }), '2');
+
+    await user.click(screen.getByRole('button', { name: 'Als ersetzt markieren' }));
+
+    await waitFor(() =>
+      expect(analysisApiClient.supersede).toHaveBeenCalledWith(
+        analysisId,
+        1,
+        2,
+        'Durch Version 2 ersetzt',
+      ),
+    );
+  });
 });

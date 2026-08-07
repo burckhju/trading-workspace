@@ -109,9 +109,7 @@ def test_rate_limit_error_exposes_stable_metadata() -> None:
 
 def test_historical_provider_protocol_is_structural() -> None:
     class Adapter:
-        async def get_daily_prices(
-            self, request: DailyPriceRequest
-        ) -> MarketDataResult[tuple]:
+        async def get_daily_prices(self, request: DailyPriceRequest) -> MarketDataResult[tuple]:
             raise NotImplementedError
 
     adapter: HistoricalDailyPriceProvider = Adapter()

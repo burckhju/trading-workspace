@@ -45,12 +45,8 @@ class SqlAlchemyMarketDataUnitOfWork:
         self.mappings: ProviderInstrumentMappingRepository = (
             SqlAlchemyProviderInstrumentMappingRepository(session)
         )
-        self.daily_prices: DailyPriceRepository = SqlAlchemyDailyPriceRepository(
-            session
-        )
-        self.audit_events: AuditEventRepository = SqlAlchemyAuditEventRepository(
-            session
-        )
+        self.daily_prices: DailyPriceRepository = SqlAlchemyDailyPriceRepository(session)
+        self.audit_events: AuditEventRepository = SqlAlchemyAuditEventRepository(session)
 
     async def __aenter__(self) -> Self:
         return self

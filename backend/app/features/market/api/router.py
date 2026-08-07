@@ -129,9 +129,7 @@ async def get_underlying(
     service: Annotated[UnderlyingService, Depends(get_underlying_service)],
 ) -> UnderlyingDetailResponse:
     try:
-        return underlying_detail_response(
-            await service.get(WORKSPACE_ID, underlying_id)
-        )
+        return underlying_detail_response(await service.get(WORKSPACE_ID, underlying_id))
     except Exception as error:
         raise translate_market_error(error) from error
 
@@ -151,10 +149,7 @@ async def get_underlying_audit_events(
             limit=limit,
         )
         return AuditEventListResponse(
-            items=[
-                AuditEventResponse.model_validate(item, from_attributes=True)
-                for item in items
-            ],
+            items=[AuditEventResponse.model_validate(item, from_attributes=True) for item in items],
             total=total,
             offset=offset,
             limit=limit,
@@ -349,9 +344,7 @@ async def update_listing(
                     payload.trading_venue_id if "trading_venue_id" in fields else None
                 ),
                 ticker=payload.ticker if "ticker" in fields else None,
-                currency_code=(
-                    payload.currency_code if "currency_code" in fields else None
-                ),
+                currency_code=(payload.currency_code if "currency_code" in fields else None),
                 lifecycle_status=(
                     payload.lifecycle_status if "lifecycle_status" in fields else None
                 ),
@@ -362,9 +355,7 @@ async def update_listing(
         raise translate_market_error(error) from error
 
 
-@router.put(
-    "/{underlying_id}/primary-listing/{listing_id}", response_model=ListingResponse
-)
+@router.put("/{underlying_id}/primary-listing/{listing_id}", response_model=ListingResponse)
 async def set_primary_listing(
     underlying_id: UUID,
     listing_id: UUID,

@@ -104,9 +104,7 @@ def daily_price_to_model(
     )
 
 
-def apply_daily_price(
-    model: DailyPriceModel, value: DailyPrice, *, now: datetime
-) -> bool:
+def apply_daily_price(model: DailyPriceModel, value: DailyPrice, *, now: datetime) -> bool:
     """Apply changed provider fields and report whether persistence state changed."""
     fields = (
         "open",

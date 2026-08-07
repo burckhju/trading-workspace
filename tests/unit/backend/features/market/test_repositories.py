@@ -14,9 +14,7 @@ from app.features.market.persistence.repositories import (
 
 def _sql(statement: object) -> str:
     return str(
-        statement.compile(
-            dialect=postgresql.dialect(), compile_kwargs={"literal_binds": True}
-        )
+        statement.compile(dialect=postgresql.dialect(), compile_kwargs={"literal_binds": True})
     )
 
 
