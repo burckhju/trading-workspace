@@ -6,9 +6,9 @@
 |---|---|
 | Dokument | MODULE_AND_FEATURE_CATALOG.md |
 | Dokumenttyp | Product Architecture |
-| Version | 1.2 |
+| Version | 1.3 |
 | Status | 🟢 Approved |
-| Letzte Änderung | 2026-08-05 |
+| Letzte Änderung | 2026-08-10 |
 
 ## Zweck
 
@@ -29,7 +29,7 @@ Dieses Dokument ist die zentrale Zuordnung zwischen Roadmap-Meilensteinen, fachl
 | FT-002 | Börsen und Handelsplätze | Reference Data | M1 | Handelsplätze und relevante Kennungen verwalten | FT-001 optional |
 | FT-003 | Emittenten | Reference Data | M1 | Emittenten als eigenständige Referenzobjekte verwalten | Fundament |
 | FT-004 | Optionsscheinverwaltung | Reference Data | M1/M4 | Optionsscheine eindeutig einem Basiswert und Emittenten zuordnen | FT-001–FT-003 |
-| FT-005 | Watchlisten und Kandidaten | Market Discovery | M2 | Beobachtungslisten führen und Kandidatenstatus verwalten | FT-001 |
+| FT-005 | Watchlisten und Kandidaten | Market Discovery | M2 | Top-down-Kandidaten qualifizieren, nachvollziehbar bewerten und Benutzerstatus verwalten; Watchlist-Vollausbau bleibt eigener Restscope | FT-001, FT-006 |
 | FT-006 | Marktanalyse | Market Discovery | M2 | Markt- und Basiswertanalysen nachvollziehbar dokumentieren | FT-001, FT-003, Governance |
 | FT-007 | TradePlan | Trade Preparation | M3 | Handelsidee, Einstieg, Stop, Ziele, Risiko und Annahmen planen | FT-001, FT-005/FT-006 |
 | FT-008 | Produktauswahl | Product Selection | M4 | Optionsscheine vergleichen und Benutzerwahl dokumentieren | FT-004, FT-007, Governance |
@@ -56,8 +56,8 @@ TC-001 verändert die fachliche Feature-Nummerierung nicht. Eine benutzerverwalt
 | Emittent | FT-003 | FT-004, FT-008 |
 | Datenprovider/Datenquelle | separates Providerfeature | FT-004, FT-006, FT-008, FT-013 |
 | Instrument/Optionsschein | FT-004 | FT-008–FT-010, FT-012 |
-| Watchlist/Kandidat | FT-005 | FT-006, FT-007 |
-| Analyse | FT-006 | FT-007, FT-012, FT-013 |
+| Watchlist/Kandidat | FT-005 | FT-007 |
+| Analyse | FT-006 | FT-005, FT-007, FT-012, FT-013 |
 | TradePlan | FT-007 | FT-008–FT-012 |
 | Produktauswahl | FT-008 | FT-009, FT-012 |
 | Trade/Position | FT-009 | FT-010–FT-012 |

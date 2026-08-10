@@ -19,7 +19,8 @@ Architektur-Dokumentation des Projekts **Trading Workspace**.
 
 ### Architecture Decision Records
 
--   `adr/` -- Alle akzeptierten ADRs
+-   `decisions/` -- Verbindliche Architecture Decision Records
+-   `adr/` -- Legacy-Ablage; neue ADRs werden nicht mehr hier angelegt
 
 ### Reviews
 
@@ -64,3 +65,18 @@ ADRs und müssen mit den betroffenen Feature Books synchronisiert werden.
 - `features/underlying/SQLALCHEMY_MODEL.md`
 - `features/underlying/ALEMBIC_MIGRATION.md`
 - `features/underlying/REST_API.md`
+
+
+## Sprint-5-Entscheidungen
+
+- `decisions/ADR-S5-001-TOP-DOWN-MARKET-DISCOVERY.md`
+- `decisions/ADR-S5-002-RELATIVE-STRENGTH-V1.md`
+- `decisions/ADR-S5-003-CANDIDATE-EVALUATION-AND-LIFECYCLE.md`
+- `decisions/ADR-S5-007-SEMANTIC-TOP-DOWN-SOURCE-RESOLUTION.md`
+- `decisions/ADR-S5-008-TOP-DOWN-REFERENCE-ADMINISTRATION.md`
+- `decisions/ADR-S5-009-TOP-DOWN-LIVE-READINESS-AND-EODHD-REFERENCE-HINTS.md`
+- `decisions/ADR-S5-010-DETERMINISTIC-TOP-DOWN-E2E-FIXTURE.md`
+- `decisions/ADR-S5-011-GUIDED-LIVE-CONFIGURATION-WORKFLOW.md`
+- `decisions/ADR-S5-012-ACTIONABLE-LIVE-WORKFLOW.md`
+- `features/FT-005_CANDIDATE_QUALIFICATION.md`
+- `implementation/SPRINT_5_ARCHITECTURE_REVIEW_AND_GAP_CLOSURE.md`
