@@ -103,7 +103,13 @@ export function CandidatePage() {
       .list(controller.signal)
       .then((items) => {
         setCandidates(items);
-        setSelectedId((current) => current || (requestedCandidateId && items.some((item) => item.id === requestedCandidateId) ? requestedCandidateId : items[0]?.id || ''));
+        setSelectedId(
+          (current) =>
+            current ||
+            (requestedCandidateId && items.some((item) => item.id === requestedCandidateId)
+              ? requestedCandidateId
+              : items[0]?.id || ''),
+        );
       })
       .catch((error: unknown) => {
         if (!(error instanceof DOMException && error.name === 'AbortError')) {
@@ -133,13 +139,14 @@ export function CandidatePage() {
       .catch((error: unknown) => {
         if (!(error instanceof DOMException && error.name === 'AbortError')) {
           setMessage(
-            error instanceof Error ? error.message : 'Candidate-Daten konnten nicht geladen werden.',
+            error instanceof Error
+              ? error.message
+              : 'Candidate-Daten konnten nicht geladen werden.',
           );
         }
       });
     return () => controller.abort();
   }, [selectedId]);
-
 
   async function evaluateSelected() {
     if (!selectedId || evaluating) return;
@@ -223,8 +230,14 @@ export function CandidatePage() {
               <section className="mb-6 rounded-xl border border-slate-800 p-5">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
-                    <p className="text-xs uppercase tracking-wide text-slate-500">Live-Konfiguration</p>
-                    <h3 className="mt-1 font-semibold">{workflow.ready ? 'Bereit für automatische Bewertung' : 'Konfiguration unvollständig'}</h3>
+                    <p className="text-xs uppercase tracking-wide text-slate-500">
+                      Live-Konfiguration
+                    </p>
+                    <h3 className="mt-1 font-semibold">
+                      {workflow.ready
+                        ? 'Bereit für automatische Bewertung'
+                        : 'Konfiguration unvollständig'}
+                    </h3>
                   </div>
                   {workflow.next_action && (
                     <span className="rounded-full border border-amber-700 px-3 py-1 text-xs">
@@ -237,7 +250,11 @@ export function CandidatePage() {
                     <li key={step.code} className="rounded-lg border border-slate-800 p-3 text-sm">
                       <div className="flex flex-wrap justify-between gap-2">
                         <span className="font-medium">{step.label}</span>
-                        <span className={step.status === 'COMPLETE' ? 'text-emerald-400' : 'text-amber-400'}>
+                        <span
+                          className={
+                            step.status === 'COMPLETE' ? 'text-emerald-400' : 'text-amber-400'
+                          }
+                        >
                           {step.status}
                         </span>
                       </div>

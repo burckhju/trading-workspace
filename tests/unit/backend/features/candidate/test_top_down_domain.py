@@ -3,7 +3,10 @@ from decimal import Decimal
 
 import pytest
 
-from app.features.analysis.domain.enums import AnalysisQualityStatus, CriterionClassification
+from app.features.analysis.domain.enums import (
+    AnalysisQualityStatus,
+    CriterionClassification,
+)
 from app.features.analysis.domain.top_down import (
     ContextClassification,
     RelativeStrengthParameters,

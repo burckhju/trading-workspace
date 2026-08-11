@@ -4,7 +4,11 @@ from app.features.candidate.domain.enums import CandidateStatus
 
 _ALLOWED: dict[CandidateStatus, frozenset[CandidateStatus]] = {
     CandidateStatus.IDENTIFIED: frozenset(
-        {CandidateStatus.UNDER_REVIEW, CandidateStatus.WATCHING, CandidateStatus.REJECTED}
+        {
+            CandidateStatus.UNDER_REVIEW,
+            CandidateStatus.WATCHING,
+            CandidateStatus.REJECTED,
+        }
     ),
     CandidateStatus.UNDER_REVIEW: frozenset(
         {

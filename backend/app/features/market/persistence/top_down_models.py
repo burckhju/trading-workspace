@@ -5,7 +5,15 @@ from __future__ import annotations
 from datetime import date, datetime
 from uuid import UUID
 
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Index, String, UniqueConstraint
+from sqlalchemy import (
+    Boolean,
+    Date,
+    DateTime,
+    ForeignKey,
+    Index,
+    String,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database.base import Base
@@ -48,7 +56,11 @@ class SectorModel(Base):
 class UnderlyingSectorAssignmentModel(Base):
     __tablename__ = "underlying_sector_assignments"
     __table_args__ = (
-        Index("ix_underlying_sector_assignments_underlying_valid", "underlying_id", "valid_from"),
+        Index(
+            "ix_underlying_sector_assignments_underlying_valid",
+            "underlying_id",
+            "valid_from",
+        ),
     )
     id: Mapped[UUID] = mapped_column(primary_key=True)
     workspace_id: Mapped[UUID] = mapped_column(

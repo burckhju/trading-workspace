@@ -7,8 +7,14 @@ from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
-from app.features.analysis.domain.enums import AnalysisQualityStatus, CriterionClassification
-from app.features.analysis.domain.top_down import ContextClassification, TradingDirection
+from app.features.analysis.domain.enums import (
+    AnalysisQualityStatus,
+    CriterionClassification,
+)
+from app.features.analysis.domain.top_down import (
+    ContextClassification,
+    TradingDirection,
+)
 from app.features.candidate.domain.enums import (
     CandidateCriterionEvaluation,
     CandidateQualification,

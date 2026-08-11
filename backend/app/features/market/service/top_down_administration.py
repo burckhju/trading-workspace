@@ -4,17 +4,19 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
+from typing import Any
 from uuid import UUID, uuid4
 
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.features.analysis.domain.enums import AnalysisStatus
+from app.features.analysis.persistence.models import (
+    MarketAnalysisModel,
+    MarketAnalysisRunModel,
+)
 from app.features.market.domain.top_down import BenchmarkRole, MarketReferenceType
 from app.features.market.persistence.models import ListingModel, UnderlyingModel
-from app.features.market_data.domain.enums import MappingStatus, MarketDataProvider
-from app.features.market_data.persistence.models import DailyPriceModel, ProviderInstrumentMappingModel
-from app.features.analysis.domain.enums import AnalysisStatus
-from app.features.analysis.persistence.models import MarketAnalysisModel, MarketAnalysisRunModel
 from app.features.market.persistence.top_down_models import (
     MarketReferenceListingAssignmentModel,
     MarketReferenceModel,
@@ -22,6 +24,11 @@ from app.features.market.persistence.top_down_models import (
     SectorReferenceAssignmentModel,
     UnderlyingBenchmarkAssignmentModel,
     UnderlyingSectorAssignmentModel,
+)
+from app.features.market_data.domain.enums import MappingStatus, MarketDataProvider
+from app.features.market_data.persistence.models import (
+    DailyPriceModel,
+    ProviderInstrumentMappingModel,
 )
 
 
@@ -106,7 +113,10 @@ class TopDownReferenceAdministrationService:
             if listing_id is not None:
                 price_count, latest_price_date = (
                     await self._session.execute(
-                        select(func.count(DailyPriceModel.id), func.max(DailyPriceModel.trading_date)).where(
+                        select(
+                            func.count(DailyPriceModel.id),
+                            func.max(DailyPriceModel.trading_date),
+                        ).where(
                             DailyPriceModel.workspace_id == workspace_id,
                             DailyPriceModel.listing_id == listing_id,
                         )
@@ -122,13 +132,19 @@ class TopDownReferenceAdministrationService:
                 row = (
                     await self._session.execute(
                         select(MarketAnalysisModel.id, MarketAnalysisRunModel.version)
-                        .join(MarketAnalysisRunModel, MarketAnalysisRunModel.analysis_id == MarketAnalysisModel.id)
+                        .join(
+                            MarketAnalysisRunModel,
+                            MarketAnalysisRunModel.analysis_id == MarketAnalysisModel.id,
+                        )
                         .where(
                             MarketAnalysisModel.workspace_id == workspace_id,
                             MarketAnalysisModel.listing_id == listing_id,
                             MarketAnalysisRunModel.status == AnalysisStatus.COMPLETED.value,
                         )
-                        .order_by(MarketAnalysisRunModel.analysis_time.desc(), MarketAnalysisRunModel.version.desc())
+                        .order_by(
+                            MarketAnalysisRunModel.analysis_time.desc(),
+                            MarketAnalysisRunModel.version.desc(),
+                        )
                         .limit(1)
                     )
                 ).first()
@@ -291,36 +307,59 @@ class TopDownReferenceAdministrationService:
             valid_from,
             valid_to,
             MarketReferenceListingAssignmentModel.market_reference_id == market_reference_id,
-            "market-reference listing assignment",
+            label="market-reference listing assignment",
         )
         value = MarketReferenceListingAssignmentModel(
-            id=uuid4(), workspace_id=workspace_id, market_reference_id=market_reference_id,
-            listing_id=listing_id, valid_from=valid_from, valid_to=valid_to,
-            source=source.strip(), source_reference=self._clean(source_reference),
-            quality_status=quality_status, created_at=datetime.now(UTC),
+            id=uuid4(),
+            workspace_id=workspace_id,
+            market_reference_id=market_reference_id,
+            listing_id=listing_id,
+            valid_from=valid_from,
+            valid_to=valid_to,
+            source=source.strip(),
+            source_reference=self._clean(source_reference),
+            quality_status=quality_status,
+            created_at=datetime.now(UTC),
         )
         self._session.add(value)
         await self._session.commit()
         return value
 
     async def assign_underlying_benchmark(
-        self, *, workspace_id: UUID, underlying_id: UUID, market_reference_id: UUID,
-        role: BenchmarkRole, valid_from: date, valid_to: date | None,
-        source: str, source_reference: str | None, quality_status: str,
+        self,
+        *,
+        workspace_id: UUID,
+        underlying_id: UUID,
+        market_reference_id: UUID,
+        role: BenchmarkRole,
+        valid_from: date,
+        valid_to: date | None,
+        source: str,
+        source_reference: str | None,
+        quality_status: str,
     ) -> UnderlyingBenchmarkAssignmentModel:
         await self._require_underlying(workspace_id, underlying_id)
         await self._require_reference(workspace_id, market_reference_id)
         await self._ensure_no_overlap(
-            UnderlyingBenchmarkAssignmentModel, workspace_id, valid_from, valid_to,
+            UnderlyingBenchmarkAssignmentModel,
+            workspace_id,
+            valid_from,
+            valid_to,
             UnderlyingBenchmarkAssignmentModel.underlying_id == underlying_id,
             UnderlyingBenchmarkAssignmentModel.role == role.value,
             label="underlying benchmark assignment",
         )
         value = UnderlyingBenchmarkAssignmentModel(
-            id=uuid4(), workspace_id=workspace_id, underlying_id=underlying_id,
-            market_reference_id=market_reference_id, role=role.value,
-            valid_from=valid_from, valid_to=valid_to, source=source.strip(),
-            source_reference=self._clean(source_reference), quality_status=quality_status,
+            id=uuid4(),
+            workspace_id=workspace_id,
+            underlying_id=underlying_id,
+            market_reference_id=market_reference_id,
+            role=role.value,
+            valid_from=valid_from,
+            valid_to=valid_to,
+            source=source.strip(),
+            source_reference=self._clean(source_reference),
+            quality_status=quality_status,
             created_at=datetime.now(UTC),
         )
         self._session.add(value)
@@ -328,44 +367,75 @@ class TopDownReferenceAdministrationService:
         return value
 
     async def assign_underlying_sector(
-        self, *, workspace_id: UUID, underlying_id: UUID, sector_id: UUID,
-        valid_from: date, valid_to: date | None, source: str,
-        source_reference: str | None, quality_status: str,
+        self,
+        *,
+        workspace_id: UUID,
+        underlying_id: UUID,
+        sector_id: UUID,
+        valid_from: date,
+        valid_to: date | None,
+        source: str,
+        source_reference: str | None,
+        quality_status: str,
     ) -> UnderlyingSectorAssignmentModel:
         await self._require_underlying(workspace_id, underlying_id)
         await self._require_sector(workspace_id, sector_id)
         await self._ensure_no_overlap(
-            UnderlyingSectorAssignmentModel, workspace_id, valid_from, valid_to,
+            UnderlyingSectorAssignmentModel,
+            workspace_id,
+            valid_from,
+            valid_to,
             UnderlyingSectorAssignmentModel.underlying_id == underlying_id,
             label="underlying sector assignment",
         )
         value = UnderlyingSectorAssignmentModel(
-            id=uuid4(), workspace_id=workspace_id, underlying_id=underlying_id,
-            sector_id=sector_id, valid_from=valid_from, valid_to=valid_to,
-            source=source.strip(), source_reference=self._clean(source_reference),
-            quality_status=quality_status, created_at=datetime.now(UTC),
+            id=uuid4(),
+            workspace_id=workspace_id,
+            underlying_id=underlying_id,
+            sector_id=sector_id,
+            valid_from=valid_from,
+            valid_to=valid_to,
+            source=source.strip(),
+            source_reference=self._clean(source_reference),
+            quality_status=quality_status,
+            created_at=datetime.now(UTC),
         )
         self._session.add(value)
         await self._session.commit()
         return value
 
     async def assign_sector_reference(
-        self, *, workspace_id: UUID, sector_id: UUID, market_reference_id: UUID,
-        valid_from: date, valid_to: date | None, source: str, quality_status: str,
+        self,
+        *,
+        workspace_id: UUID,
+        sector_id: UUID,
+        market_reference_id: UUID,
+        valid_from: date,
+        valid_to: date | None,
+        source: str,
+        quality_status: str,
     ) -> SectorReferenceAssignmentModel:
         await self._require_sector(workspace_id, sector_id)
         reference = await self._require_reference(workspace_id, market_reference_id)
         if reference.reference_type != MarketReferenceType.SECTOR_INDEX.value:
             raise ValueError("sector reference must have reference_type SECTOR_INDEX")
         await self._ensure_no_overlap(
-            SectorReferenceAssignmentModel, workspace_id, valid_from, valid_to,
+            SectorReferenceAssignmentModel,
+            workspace_id,
+            valid_from,
+            valid_to,
             SectorReferenceAssignmentModel.sector_id == sector_id,
             label="sector reference assignment",
         )
         value = SectorReferenceAssignmentModel(
-            id=uuid4(), workspace_id=workspace_id, sector_id=sector_id,
-            market_reference_id=market_reference_id, valid_from=valid_from,
-            valid_to=valid_to, source=source.strip(), quality_status=quality_status,
+            id=uuid4(),
+            workspace_id=workspace_id,
+            sector_id=sector_id,
+            market_reference_id=market_reference_id,
+            valid_from=valid_from,
+            valid_to=valid_to,
+            source=source.strip(),
+            quality_status=quality_status,
             created_at=datetime.now(UTC),
         )
         self._session.add(value)
@@ -373,7 +443,12 @@ class TopDownReferenceAdministrationService:
         return value
 
     async def create_sector_reference(
-        self, *, workspace_id: UUID, code: str, name: str, region: str,
+        self,
+        *,
+        workspace_id: UUID,
+        code: str,
+        name: str,
+        region: str,
         reference_version: str,
     ) -> MarketReferenceModel:
         normalized = code.strip().upper()
@@ -386,58 +461,79 @@ class TopDownReferenceAdministrationService:
         if existing is not None:
             raise ValueError("market reference code already exists")
         value = MarketReferenceModel(
-            id=uuid4(), workspace_id=workspace_id, code=normalized, name=name.strip(),
-            reference_type=MarketReferenceType.SECTOR_INDEX.value, region=region.strip().upper(),
-            role=BenchmarkRole.SECTOR_REFERENCE.value, reference_version=reference_version.strip(),
-            active=True, created_at=datetime.now(UTC),
+            id=uuid4(),
+            workspace_id=workspace_id,
+            code=normalized,
+            name=name.strip(),
+            reference_type=MarketReferenceType.SECTOR_INDEX.value,
+            region=region.strip().upper(),
+            role=BenchmarkRole.SECTOR_REFERENCE.value,
+            reference_version=reference_version.strip(),
+            active=True,
+            created_at=datetime.now(UTC),
         )
         self._session.add(value)
         await self._session.commit()
         return value
 
-    async def _require_reference(self, workspace_id: UUID, reference_id: UUID) -> MarketReferenceModel:
-        value = await self._session.scalar(select(MarketReferenceModel).where(
-            MarketReferenceModel.workspace_id == workspace_id,
-            MarketReferenceModel.id == reference_id,
-            MarketReferenceModel.active.is_(True),
-        ))
+    async def _require_reference(
+        self, workspace_id: UUID, reference_id: UUID
+    ) -> MarketReferenceModel:
+        value = await self._session.scalar(
+            select(MarketReferenceModel).where(
+                MarketReferenceModel.workspace_id == workspace_id,
+                MarketReferenceModel.id == reference_id,
+                MarketReferenceModel.active.is_(True),
+            )
+        )
         if value is None:
             raise ValueError("market reference not found or inactive")
         return value
 
     async def _require_sector(self, workspace_id: UUID, sector_id: UUID) -> SectorModel:
-        value = await self._session.scalar(select(SectorModel).where(
-            SectorModel.workspace_id == workspace_id,
-            SectorModel.id == sector_id,
-            SectorModel.active.is_(True),
-        ))
+        value = await self._session.scalar(
+            select(SectorModel).where(
+                SectorModel.workspace_id == workspace_id,
+                SectorModel.id == sector_id,
+                SectorModel.active.is_(True),
+            )
+        )
         if value is None:
             raise ValueError("sector not found or inactive")
         return value
 
     async def _require_underlying(self, workspace_id: UUID, underlying_id: UUID) -> UnderlyingModel:
-        value = await self._session.scalar(select(UnderlyingModel).where(
-            UnderlyingModel.workspace_id == workspace_id,
-            UnderlyingModel.id == underlying_id,
-        ))
+        value = await self._session.scalar(
+            select(UnderlyingModel).where(
+                UnderlyingModel.workspace_id == workspace_id,
+                UnderlyingModel.id == underlying_id,
+            )
+        )
         if value is None:
             raise ValueError("underlying not found in workspace")
         return value
 
     async def _ensure_no_overlap(
-        self, model: type, workspace_id: UUID, valid_from: date, valid_to: date | None,
-        *predicates, label: str,
+        self,
+        model: Any,
+        workspace_id: UUID,
+        valid_from: date,
+        valid_to: date | None,
+        *predicates: Any,
+        label: str,
     ) -> None:
         if valid_to is not None and valid_to < valid_from:
             raise ValueError("valid_to must not precede valid_from")
         new_end = valid_to or date.max
         overlap = await self._session.scalar(
-            select(model.id).where(
+            select(model.id)
+            .where(
                 model.workspace_id == workspace_id,
                 *predicates,
                 model.valid_from <= new_end,
                 or_(model.valid_to.is_(None), model.valid_to >= valid_from),
-            ).limit(1)
+            )
+            .limit(1)
         )
         if overlap is not None:
             raise ValueError(f"overlapping {label} already exists")

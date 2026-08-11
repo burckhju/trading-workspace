@@ -29,8 +29,12 @@ def upgrade() -> None:
         sa.Column("source_reference", sa.String(200), nullable=True),
         sa.Column("quality_status", sa.String(30), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
-        sa.ForeignKeyConstraint(["workspace_id"], ["workspaces.id"], ondelete="RESTRICT"),
-        sa.ForeignKeyConstraint(["underlying_id"], ["underlyings.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(
+            ["workspace_id"], ["workspaces.id"], ondelete="RESTRICT"
+        ),
+        sa.ForeignKeyConstraint(
+            ["underlying_id"], ["underlyings.id"], ondelete="CASCADE"
+        ),
         sa.ForeignKeyConstraint(
             ["market_reference_id"], ["market_references.id"], ondelete="RESTRICT"
         ),
@@ -53,7 +57,9 @@ def upgrade() -> None:
         sa.Column("source_reference", sa.String(200), nullable=True),
         sa.Column("quality_status", sa.String(30), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
-        sa.ForeignKeyConstraint(["workspace_id"], ["workspaces.id"], ondelete="RESTRICT"),
+        sa.ForeignKeyConstraint(
+            ["workspace_id"], ["workspaces.id"], ondelete="RESTRICT"
+        ),
         sa.ForeignKeyConstraint(
             ["market_reference_id"], ["market_references.id"], ondelete="CASCADE"
         ),

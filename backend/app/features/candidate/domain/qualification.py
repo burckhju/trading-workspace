@@ -2,8 +2,14 @@
 
 from __future__ import annotations
 
-from app.features.analysis.domain.enums import AnalysisQualityStatus, CriterionClassification
-from app.features.analysis.domain.top_down import ContextClassification, TradingDirection
+from app.features.analysis.domain.enums import (
+    AnalysisQualityStatus,
+    CriterionClassification,
+)
+from app.features.analysis.domain.top_down import (
+    ContextClassification,
+    TradingDirection,
+)
 from app.features.candidate.domain.enums import (
     CandidateCriterionEvaluation,
     CandidateQualification,
@@ -126,9 +132,11 @@ def evaluate_candidate(value: CandidateEvaluationInput) -> CandidateEvaluationRe
             "SECTOR",
             "SectorAnalysis.LONG_TREND",
             value.sector_trend.value,
-            None
-            if value.sector_quality is AnalysisQualityStatus.INSUFFICIENT
-            else _matches_direction(value.sector_trend, value.direction),
+            (
+                None
+                if value.sector_quality is AnalysisQualityStatus.INSUFFICIENT
+                else _matches_direction(value.sector_trend, value.direction)
+            ),
             direction_expected,
             "Sector trend must align with the requested direction",
         ),
@@ -137,9 +145,11 @@ def evaluate_candidate(value: CandidateEvaluationInput) -> CandidateEvaluationRe
             "SECTOR",
             "RelativeStrength(Sector, Market)",
             value.sector_relative_strength.value,
-            None
-            if value.sector_quality is AnalysisQualityStatus.INSUFFICIENT
-            else _matches_direction(value.sector_relative_strength, value.direction),
+            (
+                None
+                if value.sector_quality is AnalysisQualityStatus.INSUFFICIENT
+                else _matches_direction(value.sector_relative_strength, value.direction)
+            ),
             direction_expected,
             "Sector must outperform the primary market in the requested direction",
         ),
@@ -148,9 +158,11 @@ def evaluate_candidate(value: CandidateEvaluationInput) -> CandidateEvaluationRe
             "UNDERLYING",
             "UnderlyingAnalysis.LONG_TREND",
             value.underlying_long_trend.value,
-            None
-            if value.underlying_quality is AnalysisQualityStatus.INSUFFICIENT
-            else _matches_direction(value.underlying_long_trend, value.direction),
+            (
+                None
+                if value.underlying_quality is AnalysisQualityStatus.INSUFFICIENT
+                else _matches_direction(value.underlying_long_trend, value.direction)
+            ),
             direction_expected,
             "Underlying long trend must align with the requested direction",
         ),
@@ -159,9 +171,11 @@ def evaluate_candidate(value: CandidateEvaluationInput) -> CandidateEvaluationRe
             "UNDERLYING",
             "UnderlyingAnalysis.MEDIUM_TREND",
             value.underlying_medium_trend.value,
-            None
-            if value.underlying_quality is AnalysisQualityStatus.INSUFFICIENT
-            else _matches_direction(value.underlying_medium_trend, value.direction),
+            (
+                None
+                if value.underlying_quality is AnalysisQualityStatus.INSUFFICIENT
+                else _matches_direction(value.underlying_medium_trend, value.direction)
+            ),
             direction_expected,
             "Underlying medium trend must align with the requested direction",
         ),
@@ -170,9 +184,11 @@ def evaluate_candidate(value: CandidateEvaluationInput) -> CandidateEvaluationRe
             "UNDERLYING",
             "RelativeStrength(Underlying, Sector)",
             value.underlying_relative_strength.value,
-            None
-            if value.underlying_quality is AnalysisQualityStatus.INSUFFICIENT
-            else _matches_direction(value.underlying_relative_strength, value.direction),
+            (
+                None
+                if value.underlying_quality is AnalysisQualityStatus.INSUFFICIENT
+                else _matches_direction(value.underlying_relative_strength, value.direction)
+            ),
             direction_expected,
             "Underlying must outperform its sector in the requested direction",
         ),
@@ -181,9 +197,11 @@ def evaluate_candidate(value: CandidateEvaluationInput) -> CandidateEvaluationRe
             "UNDERLYING",
             "UnderlyingAnalysis.SHORT_TREND",
             value.underlying_short_trend.value,
-            None
-            if value.underlying_quality is AnalysisQualityStatus.INSUFFICIENT
-            else _matches_direction(value.underlying_short_trend, value.direction),
+            (
+                None
+                if value.underlying_quality is AnalysisQualityStatus.INSUFFICIENT
+                else _matches_direction(value.underlying_short_trend, value.direction)
+            ),
             direction_expected,
             "Short-term trend is timing context and does not block qualification",
         ),
@@ -195,9 +213,11 @@ def evaluate_candidate(value: CandidateEvaluationInput) -> CandidateEvaluationRe
                 "UNDERLYING",
                 "UnderlyingAnalysis.MOMENTUM",
                 value.momentum.value,
-                None
-                if value.underlying_quality is AnalysisQualityStatus.INSUFFICIENT
-                else _matches_direction(value.momentum, value.direction),
+                (
+                    None
+                    if value.underlying_quality is AnalysisQualityStatus.INSUFFICIENT
+                    else _matches_direction(value.momentum, value.direction)
+                ),
                 direction_expected,
                 "Momentum is warning-only in Candidate Model V1",
             )

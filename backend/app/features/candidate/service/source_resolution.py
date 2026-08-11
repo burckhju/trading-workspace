@@ -10,13 +10,17 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
+from typing import Any, cast
 from uuid import UUID
 
-from sqlalchemy import and_, or_, select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.features.analysis.domain.enums import AnalysisStatus
-from app.features.analysis.persistence.models import MarketAnalysisModel, MarketAnalysisRunModel
+from app.features.analysis.persistence.models import (
+    MarketAnalysisModel,
+    MarketAnalysisRunModel,
+)
 from app.features.candidate.service.orchestration import StoredAnalysisReference
 from app.features.market.domain.top_down import BenchmarkRole
 from app.features.market.persistence.top_down_models import (
@@ -132,11 +136,17 @@ class SemanticTopDownSourceResolver:
             extra=(MarketReferenceListingAssignmentModel.market_reference_id == reference_id,),
             label=f"{label} listing assignment",
         )
-        return assignment.listing_id
+        return cast(UUID, assignment.listing_id)
 
     async def _one_valid(
-        self, model: type, *, workspace_id: UUID, valid_on: date, extra: tuple, label: str
-    ):
+        self,
+        model: Any,
+        *,
+        workspace_id: UUID,
+        valid_on: date,
+        extra: tuple[Any, ...],
+        label: str,
+    ) -> Any:
         rows = (
             await self._session.scalars(
                 select(model)
@@ -184,7 +194,9 @@ class SemanticTopDownSourceResolver:
         analysis, run = row
         return StoredAnalysisReference(analysis.id, run.version)
 
-    async def _latest_completed(self, *, workspace_id: UUID, cutoff: datetime, predicate):
+    async def _latest_completed(
+        self, *, workspace_id: UUID, cutoff: datetime, predicate: Any
+    ) -> tuple[MarketAnalysisModel, MarketAnalysisRunModel] | None:
         allowed = (
             AnalysisStatus.COMPLETED.value,
             AnalysisStatus.COMPLETED_WITH_WARNINGS.value,
@@ -208,4 +220,7 @@ class SemanticTopDownSourceResolver:
             )
             .limit(1)
         )
-        return result.first()
+        row = result.first()
+        if row is None:
+            return None
+        return row[0], row[1]

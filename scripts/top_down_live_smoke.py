@@ -14,12 +14,16 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 
-def request_json(url: str, *, method: str = "GET", body: dict[str, object] | None = None):
+def request_json(
+    url: str, *, method: str = "GET", body: dict[str, object] | None = None
+):
     payload = None if body is None else json.dumps(body).encode("utf-8")
     request = Request(url, data=payload, method=method)
     if payload is not None:
         request.add_header("Content-Type", "application/json")
-    with urlopen(request, timeout=30) as response:  # noqa: S310 - explicit operator-supplied URL
+    with urlopen(
+        request, timeout=30
+    ) as response:  # noqa: S310 - explicit operator-supplied URL
         return json.loads(response.read().decode("utf-8"))
 
 
@@ -35,10 +39,14 @@ def main() -> int:
         not_ready = [item for item in readiness if not item["ready"]]
         print(json.dumps({"references": readiness}, indent=2))
         if not_ready:
-            print("Top-down reference configuration is not ready; no candidate evaluation started.")
+            print(
+                "Top-down reference configuration is not ready; no candidate evaluation started."
+            )
             return 2
         if not args.candidate_id:
-            print("References are ready. Supply --candidate-id to execute the automatic E2E evaluation.")
+            print(
+                "References are ready. Supply --candidate-id to execute the automatic E2E evaluation."
+            )
             return 0
         evaluation = request_json(
             f"{base}/api/v1/candidates/{args.candidate_id}/evaluations/auto",

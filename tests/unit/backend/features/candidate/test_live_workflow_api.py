@@ -16,7 +16,12 @@ NOW = datetime(2026, 8, 10, 18, 0, tzinfo=UTC)
 
 
 def settings() -> Settings:
-    return Settings(_env_file=None, environment=Environment.TEST, documentation_enabled=True, log_level="CRITICAL")
+    return Settings(
+        _env_file=None,
+        environment=Environment.TEST,
+        documentation_enabled=True,
+        log_level="CRITICAL",
+    )
 
 
 def test_live_workflow_returns_next_operator_action() -> None:

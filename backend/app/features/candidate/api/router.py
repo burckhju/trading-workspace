@@ -16,9 +16,9 @@ from app.features.candidate.api.dtos import (
     CandidateCriterionResponse,
     CandidateEvaluationDetailResponse,
     CandidateEvaluationResponse,
-    CandidateResponse,
     CandidateLiveWorkflowResponse,
     CandidateLiveWorkflowStepResponse,
+    CandidateResponse,
     ChangeCandidateStatusRequest,
     CreateCandidateRequest,
     EvaluateCandidateRequest,
@@ -98,11 +98,20 @@ async def candidate_live_workflow(
         ready=value.ready,
         can_evaluate=value.can_evaluate,
         next_action=value.next_action,
-        steps=[CandidateLiveWorkflowStepResponse(**{
-            "code": step.code, "label": step.label, "status": step.status,
-            "detail": step.detail, "action": step.action, "resource_id": step.resource_id,
-            "action_params": getattr(step, "action_params", None)
-        }) for step in value.steps],
+        steps=[
+            CandidateLiveWorkflowStepResponse(
+                **{
+                    "code": step.code,
+                    "label": step.label,
+                    "status": step.status,
+                    "detail": step.detail,
+                    "action": step.action,
+                    "resource_id": step.resource_id,
+                    "action_params": getattr(step, "action_params", None),
+                }
+            )
+            for step in value.steps
+        ],
     )
 
 
@@ -118,9 +127,7 @@ async def evaluate_candidate_auto(
 ) -> CandidateEvaluationResponse:
     """Evaluate using only server-resolved semantic top-down sources."""
     try:
-        return _evaluation(
-            await service.evaluate_auto(WORKSPACE_ID, candidate_id, request.as_of)
-        )
+        return _evaluation(await service.evaluate_auto(WORKSPACE_ID, candidate_id, request.as_of))
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -154,7 +161,10 @@ async def evaluate_candidate(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
-@router.get("/{candidate_id}/evaluations", response_model=list[CandidateEvaluationDetailResponse])
+@router.get(
+    "/{candidate_id}/evaluations",
+    response_model=list[CandidateEvaluationDetailResponse],
+)
 async def list_candidate_evaluations(
     candidate_id: UUID,
     service: Annotated[CandidateService, Depends(get_candidate_service)],
@@ -175,9 +185,9 @@ async def list_candidate_evaluations(
                         source=item.source,
                         actual_value=item.actual_value,
                         expected_value=item.expected_value,
-                        numeric_value=None
-                        if item.numeric_value is None
-                        else str(item.numeric_value),
+                        numeric_value=(
+                            None if item.numeric_value is None else str(item.numeric_value)
+                        ),
                         explanation=item.explanation,
                     )
                     for item in criteria

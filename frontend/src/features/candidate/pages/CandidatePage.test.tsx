@@ -76,7 +76,11 @@ describe('CandidatePage', () => {
   });
 
   it('shows qualification separately from user status and explains market gate', async () => {
-    render(<MemoryRouter><CandidatePage /></MemoryRouter>);
+    render(
+      <MemoryRouter>
+        <CandidatePage />
+      </MemoryRouter>,
+    );
 
     expect(await screen.findByText('QUALIFIED')).toBeInTheDocument();
     expect(screen.getByText('Benutzerstatus: UNDER_REVIEW')).toBeInTheDocument();

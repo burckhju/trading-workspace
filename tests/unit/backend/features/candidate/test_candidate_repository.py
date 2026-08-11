@@ -3,7 +3,9 @@ from uuid import uuid4
 
 import pytest
 
-from app.features.candidate.persistence.repositories import SqlAlchemyCandidateRepository
+from app.features.candidate.persistence.repositories import (
+    SqlAlchemyCandidateRepository,
+)
 
 
 def _session():
@@ -29,7 +31,8 @@ async def test_candidate_repository_crud_query_helpers():
     assert await repo.get_by_underlying(workspace, underlying) is marker
     assert await repo.get(workspace, candidate) is marker
 
-    rows = Mock(); rows.all.return_value = [marker]
+    rows = Mock()
+    rows.all.return_value = [marker]
     session.scalars.return_value = rows
     assert await repo.list(workspace) == (marker,)
     assert await repo.list_evaluations(candidate) == (marker,)

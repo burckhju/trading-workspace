@@ -6,7 +6,10 @@ from dataclasses import dataclass
 from decimal import ROUND_HALF_EVEN, Decimal
 from enum import StrEnum
 
-from app.features.analysis.domain.enums import AnalysisQualityStatus, CriterionClassification
+from app.features.analysis.domain.enums import (
+    AnalysisQualityStatus,
+    CriterionClassification,
+)
 
 RELATIVE_STRENGTH_MODEL_ID = "RELATIVE_STRENGTH"
 RELATIVE_STRENGTH_MODEL_VERSION = "1.0.0"

@@ -26,7 +26,9 @@ def main() -> int:
     ]
     env = os.environ.copy()
     backend = str(root / "backend")
-    env["PYTHONPATH"] = backend + (os.pathsep + env["PYTHONPATH"] if env.get("PYTHONPATH") else "")
+    env["PYTHONPATH"] = backend + (
+        os.pathsep + env["PYTHONPATH"] if env.get("PYTHONPATH") else ""
+    )
     return subprocess.call(command, cwd=root, env=env)
 
 

@@ -28,9 +28,13 @@ def upgrade() -> None:
         sa.Column("reference_version", sa.String(50), nullable=False),
         sa.Column("active", sa.Boolean(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
-        sa.ForeignKeyConstraint(["workspace_id"], ["workspaces.id"], ondelete="RESTRICT"),
+        sa.ForeignKeyConstraint(
+            ["workspace_id"], ["workspaces.id"], ondelete="RESTRICT"
+        ),
         sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint("workspace_id", "code", name="uq_market_references_workspace_code"),
+        sa.UniqueConstraint(
+            "workspace_id", "code", name="uq_market_references_workspace_code"
+        ),
     )
     op.create_table(
         "sectors",
@@ -42,7 +46,9 @@ def upgrade() -> None:
         sa.Column("classification_version", sa.String(50), nullable=False),
         sa.Column("active", sa.Boolean(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
-        sa.ForeignKeyConstraint(["workspace_id"], ["workspaces.id"], ondelete="RESTRICT"),
+        sa.ForeignKeyConstraint(
+            ["workspace_id"], ["workspaces.id"], ondelete="RESTRICT"
+        ),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("workspace_id", "code", name="uq_sectors_workspace_code"),
     )
@@ -58,8 +64,12 @@ def upgrade() -> None:
         sa.Column("source_reference", sa.String(200), nullable=True),
         sa.Column("quality_status", sa.String(30), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
-        sa.ForeignKeyConstraint(["workspace_id"], ["workspaces.id"], ondelete="RESTRICT"),
-        sa.ForeignKeyConstraint(["underlying_id"], ["underlyings.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(
+            ["workspace_id"], ["workspaces.id"], ondelete="RESTRICT"
+        ),
+        sa.ForeignKeyConstraint(
+            ["underlying_id"], ["underlyings.id"], ondelete="CASCADE"
+        ),
         sa.ForeignKeyConstraint(["sector_id"], ["sectors.id"], ondelete="RESTRICT"),
         sa.PrimaryKeyConstraint("id"),
     )
@@ -79,7 +89,9 @@ def upgrade() -> None:
         sa.Column("source", sa.String(100), nullable=False),
         sa.Column("quality_status", sa.String(30), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
-        sa.ForeignKeyConstraint(["workspace_id"], ["workspaces.id"], ondelete="RESTRICT"),
+        sa.ForeignKeyConstraint(
+            ["workspace_id"], ["workspaces.id"], ondelete="RESTRICT"
+        ),
         sa.ForeignKeyConstraint(["sector_id"], ["sectors.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(
             ["market_reference_id"], ["market_references.id"], ondelete="RESTRICT"
@@ -99,14 +111,20 @@ def upgrade() -> None:
         sa.Column("status", sa.String(40), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("created_by", sa.String(200), nullable=False),
-        sa.ForeignKeyConstraint(["workspace_id"], ["workspaces.id"], ondelete="RESTRICT"),
-        sa.ForeignKeyConstraint(["underlying_id"], ["underlyings.id"], ondelete="RESTRICT"),
+        sa.ForeignKeyConstraint(
+            ["workspace_id"], ["workspaces.id"], ondelete="RESTRICT"
+        ),
+        sa.ForeignKeyConstraint(
+            ["underlying_id"], ["underlyings.id"], ondelete="RESTRICT"
+        ),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint(
             "workspace_id", "underlying_id", name="uq_candidates_workspace_underlying"
         ),
     )
-    op.create_index("ix_candidates_workspace_status", "candidates", ["workspace_id", "status"])
+    op.create_index(
+        "ix_candidates_workspace_status", "candidates", ["workspace_id", "status"]
+    )
     op.create_table(
         "candidate_evaluations",
         sa.Column("id", sa.Uuid(), nullable=False),
@@ -119,7 +137,9 @@ def upgrade() -> None:
         sa.Column("quality_status", sa.String(30), nullable=False),
         sa.Column("warnings", sa.JSON(), nullable=False),
         sa.Column("evaluated_at", sa.DateTime(timezone=True), nullable=False),
-        sa.ForeignKeyConstraint(["candidate_id"], ["candidates.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(
+            ["candidate_id"], ["candidates.id"], ondelete="CASCADE"
+        ),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint(
             "candidate_id", "version", name="uq_candidate_evaluations_candidate_version"
@@ -144,7 +164,9 @@ def upgrade() -> None:
             ["evaluation_id"], ["candidate_evaluations.id"], ondelete="CASCADE"
         ),
         sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint("evaluation_id", "role", name="uq_candidate_evaluation_sources_role"),
+        sa.UniqueConstraint(
+            "evaluation_id", "role", name="uq_candidate_evaluation_sources_role"
+        ),
     )
     op.create_table(
         "candidate_criterion_results",
@@ -174,11 +196,15 @@ def upgrade() -> None:
         sa.Column("reason", sa.Text(), nullable=True),
         sa.Column("actor", sa.String(200), nullable=False),
         sa.Column("occurred_at", sa.DateTime(timezone=True), nullable=False),
-        sa.ForeignKeyConstraint(["candidate_id"], ["candidates.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(
+            ["candidate_id"], ["candidates.id"], ondelete="CASCADE"
+        ),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(
-        "ix_candidate_events_candidate_time", "candidate_events", ["candidate_id", "occurred_at"]
+        "ix_candidate_events_candidate_time",
+        "candidate_events",
+        ["candidate_id", "occurred_at"],
     )
 
 
@@ -187,7 +213,9 @@ def downgrade() -> None:
     op.drop_table("candidate_events")
     op.drop_table("candidate_criterion_results")
     op.drop_table("candidate_evaluation_sources")
-    op.drop_index("ix_candidate_evaluations_candidate_time", table_name="candidate_evaluations")
+    op.drop_index(
+        "ix_candidate_evaluations_candidate_time", table_name="candidate_evaluations"
+    )
     op.drop_table("candidate_evaluations")
     op.drop_index("ix_candidates_workspace_status", table_name="candidates")
     op.drop_table("candidates")

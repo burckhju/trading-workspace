@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from uuid import UUID
 
 from sqlalchemy import func, select
@@ -10,7 +11,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.features.candidate.persistence.models import (
     CandidateCriterionModel,
     CandidateEvaluationModel,
-    CandidateEventModel,
     CandidateModel,
 )
 from app.features.market.persistence.models import UnderlyingModel
@@ -34,20 +34,22 @@ class SqlAlchemyCandidateRepository:
     async def get_by_underlying(
         self, workspace_id: UUID, underlying_id: UUID
     ) -> CandidateModel | None:
-        return await self._session.scalar(
+        value = await self._session.scalar(
             select(CandidateModel).where(
                 CandidateModel.workspace_id == workspace_id,
                 CandidateModel.underlying_id == underlying_id,
             )
         )
+        return value
 
     async def get(self, workspace_id: UUID, candidate_id: UUID) -> CandidateModel | None:
-        return await self._session.scalar(
+        value = await self._session.scalar(
             select(CandidateModel).where(
                 CandidateModel.workspace_id == workspace_id,
                 CandidateModel.id == candidate_id,
             )
         )
+        return value
 
     async def list(self, workspace_id: UUID) -> tuple[CandidateModel, ...]:
         return tuple(
@@ -68,9 +70,7 @@ class SqlAlchemyCandidateRepository:
         )
         return int(latest or 0) + 1
 
-    async def list_evaluations(
-        self, candidate_id: UUID
-    ) -> tuple[CandidateEvaluationModel, ...]:
+    async def list_evaluations(self, candidate_id: UUID) -> tuple[CandidateEvaluationModel, ...]:
         return tuple(
             (
                 await self._session.scalars(
@@ -81,9 +81,7 @@ class SqlAlchemyCandidateRepository:
             ).all()
         )
 
-    async def list_criteria(
-        self, evaluation_id: UUID
-    ) -> tuple[CandidateCriterionModel, ...]:
+    async def list_criteria(self, evaluation_id: UUID) -> tuple[CandidateCriterionModel, ...]:
         return tuple(
             (
                 await self._session.scalars(
@@ -100,8 +98,8 @@ class SqlAlchemyCandidateRepository:
     def add(self, model: object) -> None:
         self._session.add(model)
 
-    def add_all(self, models: list[object]) -> None:
-        self._session.add_all(models)
+    def add_all(self, models: Iterable[object]) -> None:
+        self._session.add_all(list(models))
 
     async def commit(self) -> None:
         await self._session.commit()

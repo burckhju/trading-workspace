@@ -6,7 +6,9 @@ from uuid import UUID
 from fastapi.testclient import TestClient
 
 from app.core.config import Environment, Settings
-from app.features.market.api.dependencies import get_top_down_reference_administration_service
+from app.features.market.api.dependencies import (
+    get_top_down_reference_administration_service,
+)
 from app.features.market.service.top_down_administration import TopDownV1BootstrapResult
 from app.main import create_application
 
@@ -16,7 +18,12 @@ NOW = datetime(2026, 8, 10, 15, 0, tzinfo=UTC)
 
 
 def settings() -> Settings:
-    return Settings(_env_file=None, environment=Environment.TEST, documentation_enabled=True, log_level="CRITICAL")
+    return Settings(
+        _env_file=None,
+        environment=Environment.TEST,
+        documentation_enabled=True,
+        log_level="CRITICAL",
+    )
 
 
 def reference(code: str = "SP500") -> SimpleNamespace:
@@ -38,8 +45,13 @@ def test_openapi_contains_top_down_reference_admin_routes() -> None:
     with TestClient(create_application(settings())) as client:
         paths = client.get("/openapi.json").json()["paths"]
     assert "/api/v1/top-down-reference-data/bootstrap-v1" in paths
-    assert "/api/v1/top-down-reference-data/market-references/{reference_id}/listing-assignments" in paths
-    assert "/api/v1/top-down-reference-data/underlyings/{underlying_id}/benchmark-assignments" in paths
+    assert (
+        "/api/v1/top-down-reference-data/market-references/{reference_id}/listing-assignments"
+        in paths
+    )
+    assert (
+        "/api/v1/top-down-reference-data/underlyings/{underlying_id}/benchmark-assignments" in paths
+    )
     assert "/api/v1/top-down-reference-data/underlyings/{underlying_id}/sector-assignments" in paths
 
 
@@ -47,7 +59,9 @@ def test_bootstrap_v1_delegates_and_returns_semantic_references() -> None:
     service = AsyncMock()
     service.bootstrap_v1.return_value = TopDownV1BootstrapResult((reference(),))
     application = create_application(settings())
-    application.dependency_overrides[get_top_down_reference_administration_service] = lambda: service
+    application.dependency_overrides[get_top_down_reference_administration_service] = (
+        lambda: service
+    )
 
     with TestClient(application) as client:
         response = client.post("/api/v1/top-down-reference-data/bootstrap-v1")
@@ -89,7 +103,9 @@ def test_readiness_endpoint_returns_configuration_blockers() -> None:
         ),
     )
     application = create_application(settings())
-    application.dependency_overrides[get_top_down_reference_administration_service] = lambda: service
+    application.dependency_overrides[get_top_down_reference_administration_service] = (
+        lambda: service
+    )
 
     with TestClient(application) as client:
         response = client.get("/api/v1/top-down-reference-data/readiness")

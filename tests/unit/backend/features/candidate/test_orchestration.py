@@ -11,13 +11,13 @@ from app.features.analysis.persistence.models import (
     MarketAnalysisRunModel,
     MarketAnalysisSnapshotRowModel,
 )
+from app.features.candidate.domain.enums import CandidateQualification
+from app.features.candidate.domain.qualification import evaluate_candidate
 from app.features.candidate.service.orchestration import (
     StoredAnalysisReference,
     TopDownEvaluationOrchestrator,
     _ResolvedAnalysis,
 )
-from app.features.candidate.domain.enums import CandidateQualification
-from app.features.candidate.domain.qualification import evaluate_candidate
 
 
 def _resolved(*, underlying_id=None, end=Decimal("110"), status=AnalysisStatus.COMPLETED.value):

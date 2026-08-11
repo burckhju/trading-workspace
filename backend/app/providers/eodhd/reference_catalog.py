@@ -27,7 +27,10 @@ TOP_DOWN_V1_EODHD_SUGGESTIONS: tuple[EodhdReferenceSuggestion, ...] = (
         provider_exchange_code="INDX",
         verification_status="DOCUMENTED",
         verification_source="EODHD available-index list",
-        note="DAX index is publicly listed by EODHD as GDAXI.INDX; validate mapping before activation.",
+        note=(
+            "DAX index is publicly listed by EODHD as GDAXI.INDX; "
+            "validate mapping before activation."
+        ),
     ),
     EodhdReferenceSuggestion(
         reference_code="SP500",
@@ -35,7 +38,10 @@ TOP_DOWN_V1_EODHD_SUGGESTIONS: tuple[EodhdReferenceSuggestion, ...] = (
         provider_exchange_code="INDX",
         verification_status="DOCUMENTED",
         verification_source="EODHD Fundamentals / index documentation",
-        note="S&P 500 is publicly documented by EODHD as GSPC.INDX; validate mapping before activation.",
+        note=(
+            "S&P 500 is publicly documented by EODHD as GSPC.INDX; "
+            "validate mapping before activation."
+        ),
     ),
     EodhdReferenceSuggestion(
         reference_code="NASDAQ100",

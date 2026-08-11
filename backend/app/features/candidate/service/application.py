@@ -9,8 +9,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.features.candidate.domain.enums import CandidateStatus
 from app.features.candidate.domain.lifecycle import ensure_transition
+from app.features.candidate.domain.models import (
+    AnalysisReference,
+    CandidateEvaluationInput,
+)
 from app.features.candidate.domain.qualification import evaluate_candidate
-from app.features.candidate.domain.models import AnalysisReference, CandidateEvaluationInput
 from app.features.candidate.persistence.models import (
     CandidateCriterionModel,
     CandidateEvaluationModel,
@@ -18,12 +21,16 @@ from app.features.candidate.persistence.models import (
     CandidateEventModel,
     CandidateModel,
 )
-from app.features.candidate.persistence.repositories import SqlAlchemyCandidateRepository
+from app.features.candidate.persistence.repositories import (
+    SqlAlchemyCandidateRepository,
+)
 from app.features.candidate.service.orchestration import (
     StoredAnalysisReference,
     TopDownEvaluationOrchestrator,
 )
-from app.features.candidate.service.source_resolution import SemanticTopDownSourceResolver
+from app.features.candidate.service.source_resolution import (
+    SemanticTopDownSourceResolver,
+)
 
 
 class CandidateService:
@@ -107,9 +114,7 @@ class CandidateService:
             sector=sector,
             underlying=underlying,
         )
-        return await self.evaluate(
-            workspace_id, candidate_id, resolved.value, resolved.sources
-        )
+        return await self.evaluate(workspace_id, candidate_id, resolved.value, resolved.sources)
 
     async def evaluate(
         self,
@@ -205,12 +210,8 @@ class CandidateService:
         await self._repo.commit()
         return candidate
 
-    async def list_evaluations(
-        self, candidate_id: UUID
-    ) -> tuple[CandidateEvaluationModel, ...]:
+    async def list_evaluations(self, candidate_id: UUID) -> tuple[CandidateEvaluationModel, ...]:
         return await self._repo.list_evaluations(candidate_id)
 
-    async def list_criteria(
-        self, evaluation_id: UUID
-    ) -> tuple[CandidateCriterionModel, ...]:
+    async def list_criteria(self, evaluation_id: UUID) -> tuple[CandidateCriterionModel, ...]:
         return await self._repo.list_criteria(evaluation_id)

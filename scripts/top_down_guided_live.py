@@ -4,6 +4,7 @@
 This script never configures mappings or imports data automatically. It reports
 one explicit next action at a time so operator decisions remain auditable.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -13,9 +14,13 @@ from urllib.request import Request, urlopen
 
 
 def request_json(url: str, *, method: str = "GET", body: bytes | None = None):
-    req = Request(url, data=body, method=method, headers={"Content-Type": "application/json"})
+    req = Request(
+        url, data=body, method=method, headers={"Content-Type": "application/json"}
+    )
     try:
-        with urlopen(req) as response:  # noqa: S310 - operator-provided local service URL
+        with urlopen(
+            req
+        ) as response:  # noqa: S310 - operator-provided local service URL
             return json.loads(response.read().decode("utf-8"))
     except HTTPError as exc:
         detail = exc.read().decode("utf-8")
@@ -26,11 +31,17 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("candidate_id")
     parser.add_argument("--base-url", default="http://127.0.0.1:8000")
-    parser.add_argument("--evaluate", action="store_true", help="Run automatic evaluation only when readiness is complete")
+    parser.add_argument(
+        "--evaluate",
+        action="store_true",
+        help="Run automatic evaluation only when readiness is complete",
+    )
     args = parser.parse_args()
 
     base = args.base_url.rstrip("/")
-    workflow = request_json(f"{base}/api/v1/candidates/{args.candidate_id}/live-workflow")
+    workflow = request_json(
+        f"{base}/api/v1/candidates/{args.candidate_id}/live-workflow"
+    )
     print(json.dumps(workflow, indent=2))
     if not workflow["ready"]:
         print(f"NEXT_ACTION={workflow.get('next_action') or 'NONE'}")

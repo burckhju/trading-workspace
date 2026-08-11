@@ -16,8 +16,8 @@ from app.features.analysis.domain.top_down import (
     calculate_market_context,
     calculate_relative_strength,
 )
-from app.features.candidate.domain.models import CandidateEvaluationInput
 from app.features.candidate.domain.enums import CandidateQualification
+from app.features.candidate.domain.models import CandidateEvaluationInput
 from app.features.candidate.domain.qualification import evaluate_candidate
 from app.features.market_data.domain.enums import (
     CacheStatus,
@@ -50,7 +50,9 @@ class PriceRepo:
         return self.rows.get((workspace_id, listing_id, trading_date, price_type))
 
     async def add(self, value) -> None:
-        self.rows[(value.workspace_id, value.listing_id, value.trading_date, value.price_type)] = value
+        self.rows[(value.workspace_id, value.listing_id, value.trading_date, value.price_type)] = (
+            value
+        )
 
     async def flush(self) -> None:
         return None
@@ -94,7 +96,9 @@ class FixtureProvider:
         )
 
 
-def _series(listing_id: UUID, symbol: str, *, start: Decimal, daily_step: Decimal) -> tuple[DailyPrice, ...]:
+def _series(
+    listing_id: UUID, symbol: str, *, start: Decimal, daily_step: Decimal
+) -> tuple[DailyPrice, ...]:
     values: list[DailyPrice] = []
     current = date(2025, 10, 1)
     price = start
@@ -126,7 +130,12 @@ def _series(listing_id: UUID, symbol: str, *, start: Decimal, daily_step: Decima
 
 
 async def _import_and_analyze(
-    *, listing_id: UUID, mapping_id: UUID, symbol: str, start: Decimal, daily_step: Decimal
+    *,
+    listing_id: UUID,
+    mapping_id: UUID,
+    symbol: str,
+    start: Decimal,
+    daily_step: Decimal,
 ):
     provider_prices = _series(listing_id, symbol, start=start, daily_step=daily_step)
     uow = FixtureUow(listing_id)
@@ -169,7 +178,9 @@ async def _import_and_analyze(
         rows,
     )
     criteria = {item.code: item.classification for item in computation.criteria}
-    prices = tuple(item.adjusted_close for item in provider_prices if item.adjusted_close is not None)
+    prices = tuple(
+        item.adjusted_close for item in provider_prices if item.adjusted_close is not None
+    )
     return computation, criteria, prices
 
 
@@ -224,7 +235,9 @@ async def test_fixture_provider_to_ft006_to_top_down_candidate_e2e() -> None:
             underlying_quality=stock.quality_status,
             momentum=stock_criteria["MOMENTUM_120"],
             volatility=next(item.value for item in stock.criteria if item.code == "VOLATILITY"),
-            range_position=next(item.value for item in stock.criteria if item.code == "RANGE_POSITION"),
+            range_position=next(
+                item.value for item in stock.criteria if item.code == "RANGE_POSITION"
+            ),
         )
     )
 

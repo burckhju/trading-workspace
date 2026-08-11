@@ -9,8 +9,10 @@ from app.database.dependencies import get_database_session
 from app.features.market.service.listing_service import ListingService
 from app.features.market.service.reference_data_service import ReferenceDataService
 from app.features.market.service.service import UnderlyingService
+from app.features.market.service.top_down_administration import (
+    TopDownReferenceAdministrationService,
+)
 from app.features.market.service.unit_of_work import SqlAlchemyMarketUnitOfWork
-from app.features.market.service.top_down_administration import TopDownReferenceAdministrationService
 
 
 async def get_underlying_service(

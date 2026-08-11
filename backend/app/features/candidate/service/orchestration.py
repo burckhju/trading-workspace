@@ -32,7 +32,10 @@ from app.features.analysis.persistence.models import (
     MarketAnalysisSnapshotRowModel,
 )
 from app.features.analysis.persistence.repositories import SqlAlchemyAnalysisRepository
-from app.features.candidate.domain.models import AnalysisReference, CandidateEvaluationInput
+from app.features.candidate.domain.models import (
+    AnalysisReference,
+    CandidateEvaluationInput,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -110,9 +113,7 @@ class TopDownEvaluationOrchestrator:
                 self._quality(sector_analysis.run), sector_rs.quality_status
             ),
             underlying_long_trend=self._classification(underlying_analysis, "LONG_TREND"),
-            underlying_medium_trend=self._classification(
-                underlying_analysis, "MEDIUM_TREND"
-            ),
+            underlying_medium_trend=self._classification(underlying_analysis, "MEDIUM_TREND"),
             underlying_short_trend=self._classification(underlying_analysis, "SHORT_TREND"),
             underlying_relative_strength=underlying_rs.classification,
             underlying_quality=self._worst_quality(
@@ -149,9 +150,7 @@ class TopDownEvaluationOrchestrator:
         return _ResolvedAnalysis(analysis, run, criteria, snapshot)
 
     @staticmethod
-    def _classification(
-        source: _ResolvedAnalysis, code: str
-    ) -> CriterionClassification:
+    def _classification(source: _ResolvedAnalysis, code: str) -> CriterionClassification:
         criterion = source.criteria.get(code)
         if criterion is None:
             return CriterionClassification.NOT_EVALUABLE
