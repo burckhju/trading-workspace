@@ -6,13 +6,13 @@
 |---|---|
 | Dokument | TRACEABILITY.md |
 | Dokumenttyp | Foundation |
-| Version | 1.0 |
+| Version | 1.1 |
 | Status | 🟢 Approved |
-| Letzte Änderung | 2026-08-04 |
+| Letzte Änderung | 2026-08-10 |
 
 ## Zweck
 
-Dieses Dokument verbindet Anforderungen, Architekturentscheidungen, Implementierung, Tests und Abnahme von FT-001.
+Dieses Dokument verbindet Anforderungen, Architekturentscheidungen, Implementierung, Tests und Abnahme. FT-001 bildet die ursprüngliche Baseline; Sprint 5 ergänzt die Traceability für FT-005/FT-006 Top-down Candidate Qualification.
 
 ## Verbindliche Kette
 
@@ -74,3 +74,34 @@ Anforderung → Entscheidung → Implementierung → Test → Abnahme
 | 0.2 | 2026-08-03 | FT-001- und Sprint-1-Traceability ergänzt |
 | 0.3–0.4 | 2026-08-03 | Sprint-2-Datenmodell und SQLAlchemy-Mapping ergänzt |
 | 1.0 | 2026-08-04 | Vollständige FT-001-Implementierungs- und Testtraceability abgeschlossen |
+
+
+## FT-005 / Sprint-5 Candidate Qualification Traceability
+
+| Ebene | Verbindliche Quellen |
+|---|---|
+| Fachlicher Scope | `docs/features/FT-005_CANDIDATE_QUALIFICATION.md`, `docs/domain/DOMAIN_MAP.md`, `docs/domain/TRADING_PROCESS_MODEL.md` |
+| Analysegrundlage | `docs/features/FT-006_MARKET_ANALYSIS.md`, ADR-S4-001/002/005 |
+| Top-down-Entscheidungen | ADR-S5-001, ADR-S5-002, ADR-S5-003 |
+| Source Resolution / Referenzen | ADR-S5-007, ADR-S5-008 |
+| Live-/E2E-Workflow | ADR-S5-009 bis ADR-S5-012 |
+| Domain | `backend/app/features/analysis/domain/top_down.py`, `backend/app/features/candidate/domain/` |
+| Application | `backend/app/features/candidate/service/` |
+| Persistence | `backend/app/features/candidate/persistence/models.py`, Migrationen `0006`/`0007` |
+| API | `backend/app/features/candidate/api/`, Top-down-Reference-Administration |
+| Frontend | `frontend/src/features/candidate/` |
+| Tests | `tests/unit/backend/features/candidate/`, `tests/unit/backend/features/market/test_top_down_*`, `tests/integration/backend/test_top_down_fixture_e2e.py` |
+| Review | `docs/implementation/SPRINT_5_ARCHITECTURE_REVIEW_AND_GAP_CLOSURE.md` |
+
+### Kritische Sprint-5-Regeltraceability
+
+| Regel | Entscheidung | Implementierung | Nachweis |
+|---|---|---|---|
+| Market → Sector → Underlying → Candidate | ADR-S5-001 | Analysis Top-down + Candidate Orchestration | Domain-, Orchestration- und E2E-Fixture-Tests |
+| Relative Strength 60 Tage / ±2 pp | ADR-S5-002 | `analysis/domain/top_down.py` | Grenz- und E2E-Tests |
+| Kein Candidate Score | ADR-S5-003 | `candidate/domain/qualification.py` | Candidate-Domain-Tests |
+| LONG-only Candidate Model 1.0 | ADR-S5-003 | `evaluate_candidate` | Domain-Tests |
+| `INSUFFICIENT` Required-Quelle nicht qualifizierbar | ADR-S5-003 | Candidate Qualification | Quality-Grenztests |
+| Immutable Evaluation + konkrete Analyseversionen | ADR-S5-003, ADR-S5-007 | Candidate Persistence/Orchestration | Migration-, Service- und Orchestrator-Tests |
+| Providerneutrale semantische Referenzen | ADR-S5-007/008 | Market Reference Assignments | Referenzdomain-/Admin-API-Tests |
+| Keine stillen Live-Writes | ADR-S5-011/012 | Live Workflow + Action Metadata | Workflow-/API-Tests |

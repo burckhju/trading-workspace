@@ -1,6 +1,8 @@
 import { createBrowserRouter } from 'react-router-dom';
 
 import { ApplicationLayout } from '../layouts/ApplicationLayout';
+import { CandidatePage } from '../features/candidate/pages';
+import { TopDownWorkflowActionPage } from '../features/administration/pages';
 import { MarketAnalysisDetailPage, MarketAnalysisPage } from '../features/analysis/pages';
 import {
   UnderlyingDetailPage,
@@ -18,6 +20,8 @@ export function createApplicationRouter() {
         { index: true, element: <UnderlyingListPage /> },
         { path: 'underlyings', element: <UnderlyingListPage /> },
         { path: 'market-analyses', element: <MarketAnalysisPage /> },
+        { path: 'candidates', element: <CandidatePage /> },
+        { path: 'top-down-admin', element: <TopDownWorkflowActionPage /> },
         { path: 'market-analyses/:analysisId', element: <MarketAnalysisDetailPage /> },
         { path: 'underlyings/new', element: <UnderlyingFormPage /> },
         { path: 'underlyings/:underlyingId', element: <UnderlyingDetailPage /> },

@@ -148,7 +148,11 @@ Beschreibt einen Markt oder Handelsplatz. FT-001 referenziert einen Markt, besit
 
 ### Candidate
 
-Ein Candidate ist ein vom Benutzer beobachteter oder qualifizierter Basiswert im Marktprozess. Er referenziert ein Underlying, dupliziert dessen Stammdaten aber nicht.
+Ein Candidate ist ein langlebiger, vom Benutzer beobachteter oder qualifizierter Basiswert im Marktprozess. Er referenziert ein Underlying, dupliziert dessen Stammdaten aber nicht. Systemqualifikation und Benutzer-Lifecycle sind getrennt. Jede erneute fachliche Bewertung erzeugt eine unveränderliche, versionierte CandidateEvaluation mit konkreter Analyse-Provenance.
+
+### Market Reference und Sector
+
+Market References repräsentieren providerneutrale Benchmark- oder Sektorreferenzen für Market Discovery. Sektoren und zeitlich gültige Underlying-/Reference-Zuordnungen sind kontrollierte Referenzdaten. Provider-Symbole sind keine Domainattribute dieser Objekte.
 
 ### Trade Plan
 
@@ -174,6 +178,9 @@ Workspace 1 ── n Underlying
 Underlying 1 ── n Listing
 Underlying 1 ── n Warrant
 Underlying 1 ── n Candidate
+Candidate  1 ── n CandidateEvaluation
+Underlying 1 ── n UnderlyingSectorAssignment
+Underlying 1 ── n UnderlyingBenchmarkAssignment
 Underlying 1 ── n TradePlan
 Warrant    1 ── n ProductSelection
 TradePlan  1 ── 0..1 UserProductSelection
@@ -194,7 +201,8 @@ ModelVersion 1 ── n CalculationRecord
 | Issuer | separates Emittentenfeature |
 | Data Provider, Data Source | separates Providerfeature |
 | Warrant | FT-004 Produkt-/Optionsscheinverwaltung |
-| Candidate | FT-005 |
+| Candidate, CandidateEvaluation | FT-005 |
+| Market Reference, Sector und Top-down-Zuordnungen | Reference Data / Market Discovery; konsumiert von FT-006 und FT-005 |
 | Trade Plan | FT-007 |
 | Product Selection | FT-008 |
 | Trade, Position | FT-009 |
@@ -209,3 +217,19 @@ ModelVersion 1 ── n CalculationRecord
 - Fachliche Historisierung einzelner Stammdatenfelder.
 - Vollständiges Identitätsmodell des Warrants.
 - Provider-Feldownership und Konfliktregeln.
+
+## Verbindliche Übergaberegeln ab Sprint 5
+
+Die in Sprint 5 eingeführten Top-down-Referenzen erweitern **nicht** den fachlichen `Underlying`-Typ aus FT-001. Für Version 1 bleibt `UnderlyingType = STOCK`. Benchmarks und Sektorreferenzen werden ausschließlich über `MarketReference` (`INDEX`, `SECTOR_INDEX`) modelliert und über historisierte Zuordnungen auf analysierbare Listings abgebildet. Damit bleibt die in Sprint 2 freigegebene Underlying-Grenze unverändert.
+
+Für nachfolgende Features gelten folgende Übergaben:
+
+- FT-007 darf einen Candidate als Ursprung referenzieren, muss bei Übernahme die konkrete `CandidateEvaluation` festhalten. Eine spätere Re-Evaluation verändert einen bestehenden TradePlan nicht.
+- `READY_FOR_PLANNING` ist ausschließlich eine Benutzerentscheidung zur Prozessfortsetzung und keine TradePlan-Freigabe.
+- FT-007 darf Markt-, Sektor-, Trend-, Momentum- oder Relative-Strength-Logik nicht duplizieren. Benötigter Analysekontext wird über versionierte FT-006-/FT-005-Ergebnisse referenziert.
+- Candidate Model 1.0 ist LONG-only. Nachfolgende Features dürfen daraus keine SHORT-Qualifikation ableiten. Ein SHORT-Candidate-Modell benötigt eine eigene fachliche Freigabe und Modellversion.
+- FT-007 bleibt produktneutral. Warrant-spezifische Kennzahlen und Produktauswahl gehören zu FT-008/FT-004. Ein Produktwechsel darf den TradePlan nicht rückwirkend verändern.
+- Risiko im TradePlan ist eine vom Benutzer festgelegte Planannahme. Automatische Positionsgrößen- oder Orderentscheidungen bleiben außerhalb FT-007, solange dafür kein separates freigegebenes Modell existiert.
+- FT-008 darf Candidate Qualification oder MarketContext als Kontext anzeigen/referenzieren, aber nicht als implizite Produktentscheidung verwenden. Die Produktauswahl bleibt eine explizite Benutzeraktion.
+- FT-009/FT-010 übernehmen ausschließlich freigegebene Plan-/Produktauswahl-Referenzen und erzeugen keine rückwirkenden Änderungen an CandidateEvaluation oder TradePlan.
+- Alle späteren berechnenden Features übernehmen das in Sprint 4/5 etablierte Muster aus Modell-ID, Modellversion, Inputs, Quelle, Ergebnis, Zeitpunkt und Qualitätsstatus.

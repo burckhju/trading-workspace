@@ -11,8 +11,15 @@ from app.core.config import get_settings
 from app.database import Base
 from app.features.analysis.persistence import models as analysis_models  # noqa: F401
 from app.features.market.persistence import models as market_models  # noqa: F401
-from app.features.market_data.persistence import models as market_data_models  # noqa: F401
-from app.features.user_preferences.persistence import models as user_preference_models  # noqa: F401
+from app.features.market.persistence import (
+    top_down_models as market_top_down_models,
+)  # noqa: F401
+from app.features.market_data.persistence import (
+    models as market_data_models,
+)  # noqa: F401
+from app.features.user_preferences.persistence import (
+    models as user_preference_models,
+)  # noqa: F401
 
 config = context.config
 if config.config_file_name is not None:
