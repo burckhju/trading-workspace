@@ -9,6 +9,7 @@ from uuid import UUID, uuid4
 
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql.elements import ColumnElement
 
 from app.features.analysis.domain.enums import AnalysisStatus
 from app.features.analysis.persistence.models import (
@@ -515,11 +516,11 @@ class TopDownReferenceAdministrationService:
 
     async def _ensure_no_overlap(
         self,
-        model: Any,
+        model: type[Any],
         workspace_id: UUID,
         valid_from: date,
         valid_to: date | None,
-        *predicates: Any,
+        *predicates: ColumnElement[bool],
         label: str,
     ) -> None:
         if valid_to is not None and valid_to < valid_from:

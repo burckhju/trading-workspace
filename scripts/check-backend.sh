@@ -25,8 +25,9 @@ if ! "${python_bin}" -c 'import ruff, black, mypy, pytest' >/dev/null 2>&1; then
 fi
 
 "${python_bin}" -m ruff check app ../tests/unit/backend ../tests/integration/backend
-"${python_bin}" -m black --check app ../tests/unit/backend ../tests/integration/backend
+"${python_bin}" -m black --check --config pyproject.toml app ../tests/unit/backend ../tests/integration/backend
 "${python_bin}" -m mypy app
+PYTHONPATH="${repository_root}/backend:${repository_root}" \
 "${python_bin}" -m pytest ../tests/unit/backend ../tests/integration/backend \
   --cov=app \
   --cov-report=term-missing \

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Sequence
 from uuid import UUID
 
 from sqlalchemy import func, select
@@ -98,8 +98,8 @@ class SqlAlchemyCandidateRepository:
     def add(self, model: object) -> None:
         self._session.add(model)
 
-    def add_all(self, models: Iterable[object]) -> None:
-        self._session.add_all(list(models))
+    def add_all(self, models: Sequence[object]) -> None:
+        self._session.add_all(models)
 
     async def commit(self) -> None:
         await self._session.commit()

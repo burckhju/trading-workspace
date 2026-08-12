@@ -49,7 +49,9 @@ class AnalysisParametersRequest(BaseModel):
 class RunAnalysisRequest(BaseModel):
     start_date: date
     end_date: date
-    parameters: AnalysisParametersRequest = Field(default_factory=AnalysisParametersRequest)
+    parameters: AnalysisParametersRequest = Field(
+        default_factory=lambda: AnalysisParametersRequest()
+    )
 
 
 class AnalysisSummaryResponse(BaseModel):

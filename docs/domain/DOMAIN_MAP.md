@@ -156,7 +156,7 @@ Market References repräsentieren providerneutrale Benchmark- oder Sektorreferen
 
 ### Trade Plan
 
-Dokumentiert Handelsidee, Annahmen, Einstieg, Stop, Ziele und Risiko. Er kann einen Basiswert und später einen ausgewählten Warrant referenzieren. Die Freigabe ist eine explizite Benutzeraktion.
+Dokumentiert produktneutral Handelsidee, Annahmen, Einstieg, Stop/Invalidation, Ziele und Plan-Risiko. `TradePlan` ist die langlebige Identität; fachliche Änderungen werden als immutable `TradePlanVersion`-Snapshots historisiert. Ein TradePlan referenziert ein Underlying und optional als Ursprung Candidate plus konkrete CandidateEvaluation. Warrant-/Produktattribute gehören nicht zu FT-007. Eine spätere Product Selection referenziert die konkrete freigegebene TradePlanVersion und verändert sie nicht. Die Freigabe ist eine separate explizite Benutzeraktion.
 
 ### Calculation Record
 
@@ -182,8 +182,10 @@ Candidate  1 ── n CandidateEvaluation
 Underlying 1 ── n UnderlyingSectorAssignment
 Underlying 1 ── n UnderlyingBenchmarkAssignment
 Underlying 1 ── n TradePlan
+CandidateEvaluation 1 ── n TradePlan [optional origin]
+TradePlan  1 ── n TradePlanVersion
 Warrant    1 ── n ProductSelection
-TradePlan  1 ── 0..1 UserProductSelection
+TradePlanVersion 1 ── 0..n UserProductSelection
 Trade      1 ── n TradeEvent
 Trade      1 ── 0..1 PostTradeObservation
 Trade      1 ── 0..1 ExitReview

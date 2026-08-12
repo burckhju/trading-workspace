@@ -10,11 +10,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
-from typing import Any, cast
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql.elements import ColumnElement
 
 from app.features.analysis.domain.enums import AnalysisStatus
 from app.features.analysis.persistence.models import (
@@ -136,15 +137,15 @@ class SemanticTopDownSourceResolver:
             extra=(MarketReferenceListingAssignmentModel.market_reference_id == reference_id,),
             label=f"{label} listing assignment",
         )
-        return cast(UUID, assignment.listing_id)
+        return UUID(str(assignment.listing_id))
 
     async def _one_valid(
         self,
-        model: Any,
+        model: type[Any],
         *,
         workspace_id: UUID,
         valid_on: date,
-        extra: tuple[Any, ...],
+        extra: tuple[ColumnElement[bool], ...],
         label: str,
     ) -> Any:
         rows = (
@@ -195,7 +196,11 @@ class SemanticTopDownSourceResolver:
         return StoredAnalysisReference(analysis.id, run.version)
 
     async def _latest_completed(
-        self, *, workspace_id: UUID, cutoff: datetime, predicate: Any
+        self,
+        *,
+        workspace_id: UUID,
+        cutoff: datetime,
+        predicate: ColumnElement[bool],
     ) -> tuple[MarketAnalysisModel, MarketAnalysisRunModel] | None:
         allowed = (
             AnalysisStatus.COMPLETED.value,

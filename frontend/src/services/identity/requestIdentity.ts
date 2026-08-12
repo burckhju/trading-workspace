@@ -4,7 +4,7 @@ export type RequestIdentity = Readonly<{
 }>;
 
 const LOCAL_IDENTITY: RequestIdentity = Object.freeze({
-  actorId: 'local-user',
+  actorId: '00000000-0000-4000-8000-000000000002',
   actorName: 'Trading Workspace User',
 });
 

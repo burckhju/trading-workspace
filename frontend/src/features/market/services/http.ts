@@ -30,6 +30,7 @@ export interface HttpRequestOptions {
   body?: unknown;
   actor?: AuditActorHeaders;
   signal?: AbortSignal;
+  correlationId?: string;
 }
 
 function actorHeaders(actor: AuditActorHeaders | undefined): HeadersInit {
@@ -78,6 +79,9 @@ export async function requestJson<T>(url: string, options: HttpRequestOptions = 
     headers.set('Content-Type', JSON_CONTENT_TYPE);
   }
   headers.set('Accept', JSON_CONTENT_TYPE);
+  if (options.correlationId !== undefined) {
+    headers.set('X-Correlation-ID', options.correlationId);
+  }
 
   let response: Response;
   try {

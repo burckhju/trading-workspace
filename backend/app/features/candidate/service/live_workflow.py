@@ -13,6 +13,7 @@ from uuid import UUID
 
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql.elements import ColumnElement
 
 from app.features.analysis.domain.enums import AnalysisStatus
 from app.features.analysis.persistence.models import (
@@ -478,10 +479,10 @@ class CandidateLiveWorkflowService:
 
     async def _one_active(
         self,
-        model: Any,
+        model: type[Any],
         workspace_id: UUID,
         valid_on: date,
-        *predicates: Any,
+        *predicates: ColumnElement[bool],
     ) -> Any | None:
         rows = (
             await self._session.scalars(

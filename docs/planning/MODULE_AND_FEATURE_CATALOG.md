@@ -31,7 +31,7 @@ Dieses Dokument ist die zentrale Zuordnung zwischen Roadmap-Meilensteinen, fachl
 | FT-004 | Optionsscheinverwaltung | Reference Data | M1/M4 | Optionsscheine eindeutig einem Basiswert und Emittenten zuordnen | FT-001–FT-003 |
 | FT-005 | Watchlisten und Kandidaten | Market Discovery | M2 | Top-down-Kandidaten qualifizieren, nachvollziehbar bewerten und Benutzerstatus verwalten; Watchlist-Vollausbau bleibt eigener Restscope | FT-001, FT-006 |
 | FT-006 | Marktanalyse | Market Discovery | M2 | Markt- und Basiswertanalysen nachvollziehbar dokumentieren | FT-001, FT-003, Governance |
-| FT-007 | TradePlan | Trade Preparation | M3 | Handelsidee, Einstieg, Stop, Ziele, Risiko und Annahmen planen | FT-001, FT-005/FT-006 |
+| FT-007 | TradePlan | Trade Preparation | M3 | produktneutralen LONG-TradePlan versioniert planen und konkrete Version explizit freigeben | FT-001; FT-005/FT-006 optional als Candidate-Ursprung |
 | FT-008 | Produktauswahl | Product Selection | M4 | Optionsscheine vergleichen und Benutzerwahl dokumentieren | FT-004, FT-007, Governance |
 | FT-009 | Trade und Position | Execution Record | M5 | Kauf, Position, Verkauf und Trade-Lebenszyklus erfassen | FT-007, FT-008 |
 | FT-010 | Trade Management | Trade Management | M5 | Stops, Teilverkäufe, Produktwechsel und Events dokumentieren | FT-009 |
@@ -58,7 +58,7 @@ TC-001 verändert die fachliche Feature-Nummerierung nicht. Eine benutzerverwalt
 | Instrument/Optionsschein | FT-004 | FT-008–FT-010, FT-012 |
 | Watchlist/Kandidat | FT-005 | FT-007 |
 | Analyse | FT-006 | FT-005, FT-007, FT-012, FT-013 |
-| TradePlan | FT-007 | FT-008–FT-012 |
+| TradePlan / TradePlanVersion | FT-007 | FT-008–FT-012 |
 | Produktauswahl | FT-008 | FT-009, FT-012 |
 | Trade/Position | FT-009 | FT-010–FT-012 |
 | Trade Event | FT-010 | FT-011, FT-012 |
@@ -106,3 +106,8 @@ Der Status wird im Product Backlog gepflegt. Ein Feature darf nicht den Status `
 - Version 1 ist Single-User/Single-Workspace.
 - Referenzierte Basiswerte werden deaktiviert, nicht gelöscht.
 - UUID ist die interne Identität; ISIN/WKN sind optional und bei Angabe eindeutig; Ticker ist nur mit Markt eindeutig.
+
+
+## Sprint-6 Implementierungsstatus
+
+FT-007 ist funktional umgesetzt: Domain, Persistence/Migration, Repository/UoW, Application Services, versionsgenaue CandidateEvaluation-Provenance, Lifecycle/Approval, Amendment-Lineage, REST API, Frontend und E2E. Status vor Closeout: **Implemented – Architecture Review Pending**.

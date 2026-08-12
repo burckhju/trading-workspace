@@ -80,3 +80,21 @@ ADRs und müssen mit den betroffenen Feature Books synchronisiert werden.
 - `decisions/ADR-S5-012-ACTIONABLE-LIVE-WORKFLOW.md`
 - `features/FT-005_CANDIDATE_QUALIFICATION.md`
 - `implementation/SPRINT_5_ARCHITECTURE_REVIEW_AND_GAP_CLOSURE.md`
+
+## Sprint-6-Entscheidungen – FT-007 TradePlan
+
+- `../planning/SPRINT_6_TRANSITION_BASELINE.md`
+- `../features/FT-007_TRADEPLAN.md`
+- `../decisions/ADR-S6-001-TRADEPLAN-IDENTITY-AND-VERSIONING.md`
+- `../decisions/ADR-S6-002-TRADEPLAN-ORIGIN-AND-CANDIDATE-EVALUATION-HANDOFF.md`
+- `../decisions/ADR-S6-003-TRADEPLAN-LIFECYCLE-AND-APPROVAL.md`
+- `../decisions/ADR-S6-004-AMENDMENT-AFTER-APPROVAL.md`
+- `../decisions/ADR-S6-005-RISK-POSITION-SIZING-BOUNDARY.md`
+- `../decisions/ADR-S6-006-PRODUCT-NEUTRALITY.md`
+- `../decisions/ADR-S6-007-PROVENANCE-AND-SNAPSHOT-POLICY.md`
+- `../decisions/ADR-S6-008-LONG-ONLY-SCOPE.md`
+- `../implementation/SPRINT_6_FT007_SPECIFICATION_AND_DOR_REVIEW.md`
+
+- `../implementation/SPRINT_6_FT007_IMPLEMENTATION_TRACEABILITY.md`
+- `../implementation/SPRINT_6_ARCHITECTURE_REVIEW.md`
+- `../implementation/SPRINT_6_TECHNICAL_CLOSEOUT.md`
