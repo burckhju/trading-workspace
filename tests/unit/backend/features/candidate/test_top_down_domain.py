@@ -37,7 +37,9 @@ def test_relative_strength_v1_uses_neutral_zone() -> None:
 
 
 def test_relative_strength_requires_61_aligned_observations() -> None:
-    result = calculate_relative_strength(tuple([Decimal("100")] * 60), tuple([Decimal("100")] * 60))
+    result = calculate_relative_strength(
+        tuple([Decimal("100")] * 60), tuple([Decimal("100")] * 60)
+    )
     assert result.classification is CriterionClassification.NOT_EVALUABLE
     assert result.quality_status is AnalysisQualityStatus.INSUFFICIENT
 
@@ -108,7 +110,9 @@ def test_candidate_v1_sector_relative_strength_is_required() -> None:
 
 def test_candidate_v1_missing_required_input_is_not_evaluable() -> None:
     value = _qualified_input()
-    changed = replace(value, underlying_relative_strength=CriterionClassification.NOT_EVALUABLE)
+    changed = replace(
+        value, underlying_relative_strength=CriterionClassification.NOT_EVALUABLE
+    )
     result = evaluate_candidate(changed)
     assert result.qualification is CandidateQualification.NOT_EVALUABLE
 

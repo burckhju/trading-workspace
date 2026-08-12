@@ -66,7 +66,9 @@ class SqlAlchemyMarketUnitOfWork:
     audit_events: AuditEventRepository
     usages: UsageRepository
 
-    def __init__(self, session: AsyncSession, usages: UsageRepository | None = None) -> None:
+    def __init__(
+        self, session: AsyncSession, usages: UsageRepository | None = None
+    ) -> None:
         self._session = session
         self.workspaces = SqlAlchemyWorkspaceRepository(session)
         self.reference_data = SqlAlchemyReferenceDataRepository(session)

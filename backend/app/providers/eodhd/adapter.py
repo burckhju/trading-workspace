@@ -65,7 +65,10 @@ class EodhdAdapterSettings:
     provider_call_cost: int = 1
 
     def __post_init__(self) -> None:
-        if self.historical_ttl.total_seconds() <= 0 or self.latest_ttl.total_seconds() <= 0:
+        if (
+            self.historical_ttl.total_seconds() <= 0
+            or self.latest_ttl.total_seconds() <= 0
+        ):
             raise ValueError("cache TTLs must be positive")
         if self.provider_call_cost < 1:
             raise ValueError("provider_call_cost must be positive")
@@ -106,12 +109,16 @@ class EodhdMarketDataAdapter:
         self._clock = clock
         self._settings = settings or EodhdAdapterSettings()
 
-    async def validate_mapping(self, mapping: ProviderInstrumentMapping) -> MappingValidationResult:
+    async def validate_mapping(
+        self, mapping: ProviderInstrumentMapping
+    ) -> MappingValidationResult:
         """Validate a mapping technically through EODHD Search API without mutation."""
         capability = MarketDataCapability.INSTRUMENT_MAPPING_VALIDATION
 
         async def operation() -> tuple[EodhdSearchResultDto, ...]:
-            await self._budget.consume(self._settings.provider_call_cost, capability=capability)
+            await self._budget.consume(
+                self._settings.provider_call_cost, capability=capability
+            )
             await self._rate_limiter.acquire()
             payload = await self._client.get_json(
                 f"/search/{mapping.provider_symbol}",
@@ -119,7 +126,9 @@ class EodhdMarketDataAdapter:
                 params={"exchange": mapping.provider_exchange_code, "limit": 20},
             )
             try:
-                return tuple(TypeAdapter(list[EodhdSearchResultDto]).validate_python(payload))
+                return tuple(
+                    TypeAdapter(list[EodhdSearchResultDto]).validate_python(payload)
+                )
             except ValidationError as exc:
                 raise MarketDataInvalidResponseError(
                     "EODHD search response has an invalid structure",
@@ -135,7 +144,8 @@ class EodhdMarketDataAdapter:
             (
                 row
                 for row in outcome.value
-                if row.code.upper() == expected_symbol and row.exchange.upper() == expected_exchange
+                if row.code.upper() == expected_symbol
+                and row.exchange.upper() == expected_exchange
             ),
             None,
         )
@@ -250,7 +260,9 @@ class EodhdMarketDataAdapter:
                 capability=capability,
                 correlation_id=correlation_id,
                 retrieved_at=(
-                    cached.prices[0].retrieved_at if cached.prices else self._clock.utcnow()
+                    cached.prices[0].retrieved_at
+                    if cached.prices
+                    else self._clock.utcnow()
                 ),
                 cache_status=CacheStatus.HIT,
                 retry_count=0,
@@ -258,7 +270,9 @@ class EodhdMarketDataAdapter:
             )
 
         async def operation() -> tuple[DailyPrice, ...]:
-            await self._budget.consume(self._settings.provider_call_cost, capability=capability)
+            await self._budget.consume(
+                self._settings.provider_call_cost, capability=capability
+            )
             await self._rate_limiter.acquire()
             payload = await self._client.get_json(
                 f"/eod/{mapping.provider_symbol}.{mapping.provider_exchange_code}",
@@ -288,16 +302,21 @@ class EodhdMarketDataAdapter:
             return prices
 
         outcome = await self._retry.execute(operation)
-        retrieved_at = outcome.value[0].retrieved_at if outcome.value else self._clock.utcnow()
+        retrieved_at = (
+            outcome.value[0].retrieved_at if outcome.value else self._clock.utcnow()
+        )
         await self._cache.set(key, _CachedPrices(outcome.value, retrieved_at), ttl=ttl)
         return self._result(
             outcome.value,
             capability=capability,
             correlation_id=correlation_id,
             retrieved_at=retrieved_at,
-            cache_status=(CacheStatus.STALE_REJECTED if lookup.stale else CacheStatus.MISS),
+            cache_status=(
+                CacheStatus.STALE_REJECTED if lookup.stale else CacheStatus.MISS
+            ),
             retry_count=outcome.retry_count,
-            provider_call_cost=(outcome.retry_count + 1) * self._settings.provider_call_cost,
+            provider_call_cost=(outcome.retry_count + 1)
+            * self._settings.provider_call_cost,
         )
 
     async def _context(

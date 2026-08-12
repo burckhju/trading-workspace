@@ -22,7 +22,9 @@ from app.database.base import Base
 class MarketReferenceModel(Base):
     __tablename__ = "market_references"
     __table_args__ = (
-        UniqueConstraint("workspace_id", "code", name="uq_market_references_workspace_code"),
+        UniqueConstraint(
+            "workspace_id", "code", name="uq_market_references_workspace_code"
+        ),
     )
     id: Mapped[UUID] = mapped_column(primary_key=True)
     workspace_id: Mapped[UUID] = mapped_column(
@@ -35,12 +37,16 @@ class MarketReferenceModel(Base):
     role: Mapped[str] = mapped_column(String(40), nullable=False)
     reference_version: Mapped[str] = mapped_column(String(50), nullable=False)
     active: Mapped[bool] = mapped_column(Boolean, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
 
 
 class SectorModel(Base):
     __tablename__ = "sectors"
-    __table_args__ = (UniqueConstraint("workspace_id", "code", name="uq_sectors_workspace_code"),)
+    __table_args__ = (
+        UniqueConstraint("workspace_id", "code", name="uq_sectors_workspace_code"),
+    )
     id: Mapped[UUID] = mapped_column(primary_key=True)
     workspace_id: Mapped[UUID] = mapped_column(
         ForeignKey("workspaces.id", ondelete="RESTRICT"), nullable=False
@@ -50,7 +56,9 @@ class SectorModel(Base):
     classification_system: Mapped[str] = mapped_column(String(100), nullable=False)
     classification_version: Mapped[str] = mapped_column(String(50), nullable=False)
     active: Mapped[bool] = mapped_column(Boolean, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
 
 
 class UnderlyingSectorAssignmentModel(Base):
@@ -77,13 +85,17 @@ class UnderlyingSectorAssignmentModel(Base):
     source: Mapped[str] = mapped_column(String(100), nullable=False)
     source_reference: Mapped[str | None] = mapped_column(String(200))
     quality_status: Mapped[str] = mapped_column(String(30), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
 
 
 class SectorReferenceAssignmentModel(Base):
     __tablename__ = "sector_reference_assignments"
     __table_args__ = (
-        Index("ix_sector_reference_assignments_sector_valid", "sector_id", "valid_from"),
+        Index(
+            "ix_sector_reference_assignments_sector_valid", "sector_id", "valid_from"
+        ),
     )
     id: Mapped[UUID] = mapped_column(primary_key=True)
     workspace_id: Mapped[UUID] = mapped_column(
@@ -99,7 +111,9 @@ class SectorReferenceAssignmentModel(Base):
     valid_to: Mapped[date | None] = mapped_column(Date)
     source: Mapped[str] = mapped_column(String(100), nullable=False)
     quality_status: Mapped[str] = mapped_column(String(30), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
 
 
 class UnderlyingBenchmarkAssignmentModel(Base):
@@ -130,7 +144,9 @@ class UnderlyingBenchmarkAssignmentModel(Base):
     source: Mapped[str] = mapped_column(String(100), nullable=False)
     source_reference: Mapped[str | None] = mapped_column(String(200))
     quality_status: Mapped[str] = mapped_column(String(30), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
 
 
 class MarketReferenceListingAssignmentModel(Base):
@@ -159,4 +175,6 @@ class MarketReferenceListingAssignmentModel(Base):
     source: Mapped[str] = mapped_column(String(100), nullable=False)
     source_reference: Mapped[str | None] = mapped_column(String(200))
     quality_status: Mapped[str] = mapped_column(String(30), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )

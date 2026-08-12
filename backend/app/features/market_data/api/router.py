@@ -39,7 +39,9 @@ WORKSPACE_ID = UUID("00000000-0000-4000-8000-000000000001")
 async def import_daily_prices(
     body: ImportDailyPricesRequest,
     request: Request,
-    service: Annotated[DailyPriceImportService, Depends(get_daily_price_import_service)],
+    service: Annotated[
+        DailyPriceImportService, Depends(get_daily_price_import_service)
+    ],
 ) -> ImportDailyPricesResponse:
     """Import one listing's completed daily prices idempotently."""
     correlation_id = UUID(request.state.request_id)
@@ -61,7 +63,9 @@ async def import_daily_prices(
 
 @router.get("/provider-mappings", response_model=list[ProviderMappingResponse])
 async def list_provider_mappings(
-    service: Annotated[ProviderMappingAdministrationService, Depends(get_provider_mapping_service)],
+    service: Annotated[
+        ProviderMappingAdministrationService, Depends(get_provider_mapping_service)
+    ],
 ) -> list[ProviderMappingResponse]:
     """List administrative provider mappings for the current workspace."""
     values = await service.list_mappings(WORKSPACE_ID)
@@ -71,7 +75,9 @@ async def list_provider_mappings(
 @router.put("/provider-mappings", response_model=ProviderMappingResponse)
 async def upsert_provider_mapping(
     body: ProviderMappingUpsertRequest,
-    service: Annotated[ProviderMappingAdministrationService, Depends(get_provider_mapping_service)],
+    service: Annotated[
+        ProviderMappingAdministrationService, Depends(get_provider_mapping_service)
+    ],
 ) -> ProviderMappingResponse:
     """Create or update a disabled mapping without modifying listing master data."""
     try:
@@ -91,11 +97,15 @@ async def upsert_provider_mapping(
     return ProviderMappingResponse.from_domain(value)
 
 
-@router.post("/provider-mappings/{mapping_id}/validate", response_model=ProviderMappingResponse)
+@router.post(
+    "/provider-mappings/{mapping_id}/validate", response_model=ProviderMappingResponse
+)
 async def validate_provider_mapping(
     mapping_id: UUID,
     body: ProviderMappingStateRequest,
-    service: Annotated[ProviderMappingAdministrationService, Depends(get_provider_mapping_service)],
+    service: Annotated[
+        ProviderMappingAdministrationService, Depends(get_provider_mapping_service)
+    ],
 ) -> ProviderMappingResponse:
     """Validate and activate one mapping through an explicit administrative action."""
     try:
@@ -107,11 +117,15 @@ async def validate_provider_mapping(
     return ProviderMappingResponse.from_domain(value)
 
 
-@router.patch("/provider-mappings/{mapping_id}/state", response_model=ProviderMappingResponse)
+@router.patch(
+    "/provider-mappings/{mapping_id}/state", response_model=ProviderMappingResponse
+)
 async def set_provider_mapping_state(
     mapping_id: UUID,
     body: ProviderMappingStateRequest,
-    service: Annotated[ProviderMappingAdministrationService, Depends(get_provider_mapping_service)],
+    service: Annotated[
+        ProviderMappingAdministrationService, Depends(get_provider_mapping_service)
+    ],
 ) -> ProviderMappingResponse:
     """Enable or disable one mapping without deleting its history."""
     try:

@@ -38,7 +38,7 @@ Das Product Backlog übersetzt Roadmap und Feature-Katalog in priorisierte, übe
 | 11 | PB-011 | FT-004 Optionsscheine | P2 | Not Started | Optionsscheine sind eindeutig, historisierbar und Basiswert/Emittent zugeordnet | PB-009/010 |
 | 12 | PB-012 | FT-005 Watchlisten/Kandidaten | P2 | Technical Review | Kandidatenqualifikation, Lifecycle und Top-down-Nachvollziehbarkeit sind ohne Handelsentscheidung nutzbar; Watchlist-Vollausbau bleibt offen | PB-008, PB-013 |
 | 13 | PB-013 | FT-006 Marktanalyse | P2 | Technical Review | Analysen speichern Quellen, Eingaben, Modellversion und Ergebnis; Sprint-4-RC ist fachlich abgenommen, externe Release-Gates bleiben offen | PB-004, PB-008 |
-| 14 | PB-014 | FT-007 TradePlan | P2 | Not Started | Benutzer kann einen produktneutralen TradePlan erstellen und explizit freigeben; Candidate-Ursprung referenziert die konkrete CandidateEvaluation | PB-013; FT-005-Integration optional, aber bei Candidate-Ursprung versioniert |
+| 14 | PB-014 | FT-007 TradePlan | P2 | Implemented – Final Release Gate Pending | Benutzer kann einen produktneutralen, versionierten LONG-TradePlan erstellen und eine konkrete Version explizit freigeben; Candidate-Ursprung referenziert die konkrete CandidateEvaluation | PB-013; FT-005-Integration optional, aber bei Candidate-Ursprung versioniert |
 | 15 | PB-015 | FT-008 Produktauswahl | P2 | Not Started | Produkte werden nachvollziehbar gegen den freigegebenen TradePlan verglichen; Auswahl bleibt Benutzerentscheidung und verändert den TradePlan nicht | PB-011, PB-014 |
 | 16 | PB-016 | FT-009 Trade/Position | P2 | Not Started | Trades und Positionen werden manuell und vollständig erfasst | PB-014/015 |
 | 17 | PB-017 | FT-010 Trade Management | P2 | Not Started | alle Änderungen am aktiven Trade erscheinen in unveränderbarer Event-Historie | PB-016 |
@@ -48,7 +48,7 @@ Das Product Backlog übersetzt Roadmap und Feature-Katalog in priorisierte, übe
 
 ## Nächster Umsetzungsschnitt
 
-Der aktuelle Umsetzungsschnitt umfasst PB-012 auf Basis des bereits implementierten PB-013/FT-006. Die nächsten fachlichen Features beginnen erst nach Sprint-5-Abnahme.
+PB-014 / FT-007 TradePlan ist funktional implementiert und durch Backend-, Frontend- und E2E-Gates abgesichert. Vor Sprint-Closeout steht noch der Sprint-6 Architecture Review aus. Der generische Watchlist-Restscope aus PB-012 blockiert FT-007 nicht.
 
 ### Lieferobjekte
 

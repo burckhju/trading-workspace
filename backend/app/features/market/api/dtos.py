@@ -22,17 +22,29 @@ from app.features.market.domain.enums import (
 )
 from app.features.market.persistence.models import ListingModel, UnderlyingModel
 
-Name = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)]
-Ticker = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=32)]
+Name = Annotated[
+    str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)
+]
+Ticker = Annotated[
+    str, StringConstraints(strip_whitespace=True, min_length=1, max_length=32)
+]
 CurrencyCode = Annotated[
     str,
-    StringConstraints(strip_whitespace=True, min_length=3, max_length=3, pattern=r"^[A-Za-z]{3}$"),
+    StringConstraints(
+        strip_whitespace=True, min_length=3, max_length=3, pattern=r"^[A-Za-z]{3}$"
+    ),
 ]
 OptionalIsin = (
-    Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=32)] | None
+    Annotated[
+        str, StringConstraints(strip_whitespace=True, min_length=1, max_length=32)
+    ]
+    | None
 )
 OptionalWkn = (
-    Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=16)] | None
+    Annotated[
+        str, StringConstraints(strip_whitespace=True, min_length=1, max_length=16)
+    ]
+    | None
 )
 
 

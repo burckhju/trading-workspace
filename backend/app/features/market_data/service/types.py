@@ -36,7 +36,9 @@ class DailyPriceRequest:
 
     def __post_init__(self) -> None:
         if self.end_date < self.start_date:
-            raise InvalidMarketDataValue("end_date must not be before start_date", field="end_date")
+            raise InvalidMarketDataValue(
+                "end_date must not be before start_date", field="end_date"
+            )
 
 
 @dataclass(frozen=True, slots=True)
@@ -68,7 +70,9 @@ class MarketDataResult[T]:
     def __post_init__(self) -> None:
         _require_utc(self.retrieved_at, field="retrieved_at")
         if self.retry_count < 0:
-            raise InvalidMarketDataValue("retry_count must not be negative", field="retry_count")
+            raise InvalidMarketDataValue(
+                "retry_count must not be negative", field="retry_count"
+            )
         if self.provider_call_cost is not None and self.provider_call_cost < 0:
             raise InvalidMarketDataValue(
                 "provider_call_cost must not be negative", field="provider_call_cost"

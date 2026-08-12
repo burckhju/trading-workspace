@@ -61,7 +61,9 @@ class MarketAnalysisService:
         listing_id: UUID,
         actor: str,
     ) -> MarketAnalysisModel:
-        if not await self._references.validate_reference(workspace_id, underlying_id, listing_id):
+        if not await self._references.validate_reference(
+            workspace_id, underlying_id, listing_id
+        ):
             raise AnalysisDataUnavailable("underlying/listing reference is invalid")
         now = datetime.now(UTC)
         model = MarketAnalysisModel(
@@ -186,7 +188,9 @@ class MarketAnalysisService:
     ) -> MarketAnalysisEventModel:
         await self._require_analysis(workspace_id, analysis_id)
         if replacement_version <= version:
-            raise AnalysisConflict("replacement version must be newer than source version")
+            raise AnalysisConflict(
+                "replacement version must be newer than source version"
+            )
         source = await self._require_run(analysis_id, version)
         replacement = await self._require_run(analysis_id, replacement_version)
         replacement_status = AnalysisStatus(replacement.status)
@@ -222,7 +226,9 @@ class MarketAnalysisService:
             )
         rows = tuple(self._snapshot_to_domain(item) for item in snapshot)
         parameters = self._parameters_from_dict(run.parameters)
-        model_available = run.model_id == MODEL_ID and run.model_version == MODEL_VERSION
+        model_available = (
+            run.model_id == MODEL_ID and run.model_version == MODEL_VERSION
+        )
         hash_matches = (
             calculate_input_hash(run.model_id, run.model_version, parameters, rows)
             == run.input_hash
@@ -289,7 +295,9 @@ class MarketAnalysisService:
         filters: AnalysisOverviewFilter,
     ) -> tuple[tuple[AnalysisOverviewRow, ...], int]:
         return (
-            await self._repo.list_analysis_overview(workspace_id, offset, limit, filters),
+            await self._repo.list_analysis_overview(
+                workspace_id, offset, limit, filters
+            ),
             await self._repo.count_analysis_overview(workspace_id, filters),
         )
 
@@ -336,7 +344,10 @@ class MarketAnalysisService:
         model_version: str = MODEL_VERSION,
     ) -> MarketAnalysisRunModel:
         latest = await self._repo.get_latest_run(analysis_id)
-        if latest is not None and AnalysisStatus(latest.status) is AnalysisStatus.RUNNING:
+        if (
+            latest is not None
+            and AnalysisStatus(latest.status) is AnalysisStatus.RUNNING
+        ):
             raise AnalysisConflict("another analysis execution is already running")
         version = await self._repo.next_version(analysis_id)
         now = datetime.now(UTC)
@@ -496,13 +507,17 @@ class MarketAnalysisService:
         await self._repo.add_event(event)
         return event
 
-    async def _require_analysis(self, workspace_id: UUID, analysis_id: UUID) -> MarketAnalysisModel:
+    async def _require_analysis(
+        self, workspace_id: UUID, analysis_id: UUID
+    ) -> MarketAnalysisModel:
         analysis = await self._repo.get_analysis(workspace_id, analysis_id)
         if analysis is None:
             raise AnalysisNotFound("analysis not found")
         return analysis
 
-    async def _require_run(self, analysis_id: UUID, version: int) -> MarketAnalysisRunModel:
+    async def _require_run(
+        self, analysis_id: UUID, version: int
+    ) -> MarketAnalysisRunModel:
         run = await self._repo.get_run(analysis_id, version)
         if run is None:
             raise AnalysisNotFound("analysis version not found")

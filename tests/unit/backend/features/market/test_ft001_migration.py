@@ -18,7 +18,9 @@ MIGRATION_PATH = (
 
 
 def _load_migration() -> ModuleType:
-    spec = importlib.util.spec_from_file_location("ft001_initial_migration", MIGRATION_PATH)
+    spec = importlib.util.spec_from_file_location(
+        "ft001_initial_migration", MIGRATION_PATH
+    )
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)

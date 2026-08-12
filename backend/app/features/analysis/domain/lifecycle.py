@@ -43,9 +43,13 @@ def validate_transition(from_status: AnalysisStatus, to_status: AnalysisStatus) 
 
 def ensure_retryable(status: AnalysisStatus) -> None:
     if status not in RETRYABLE_STATUSES:
-        raise AnalysisConflict(f"analysis run with status {status.value} cannot be retried")
+        raise AnalysisConflict(
+            f"analysis run with status {status.value} cannot be retried"
+        )
 
 
 def ensure_supersedeable(status: AnalysisStatus) -> None:
     if status not in SUPERSEDEABLE_STATUSES:
-        raise AnalysisConflict(f"analysis run with status {status.value} cannot be superseded")
+        raise AnalysisConflict(
+            f"analysis run with status {status.value} cannot be superseded"
+        )

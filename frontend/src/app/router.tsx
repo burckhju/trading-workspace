@@ -9,6 +9,7 @@ import {
   UnderlyingFormPage,
   UnderlyingListPage,
 } from '../features/market/pages';
+import { TradePlanPage } from '../features/trade_plan/pages';
 import { NotFoundPage } from '../pages/NotFoundPage';
 
 export function createApplicationRouter() {
@@ -21,6 +22,7 @@ export function createApplicationRouter() {
         { path: 'underlyings', element: <UnderlyingListPage /> },
         { path: 'market-analyses', element: <MarketAnalysisPage /> },
         { path: 'candidates', element: <CandidatePage /> },
+        { path: 'trade-plans', element: <TradePlanPage /> },
         { path: 'top-down-admin', element: <TopDownWorkflowActionPage /> },
         { path: 'market-analyses/:analysisId', element: <MarketAnalysisDetailPage /> },
         { path: 'underlyings/new', element: <UnderlyingFormPage /> },

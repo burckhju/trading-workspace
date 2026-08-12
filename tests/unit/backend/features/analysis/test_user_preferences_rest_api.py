@@ -46,7 +46,9 @@ def test_preferences_are_scoped_by_actor_header() -> None:
         )
     assert response.status_code == 200
     assert response.json()[0]["name"] == "Meine Ansicht"
-    service.list.assert_awaited_once_with(WORKSPACE_ID, "user-42", "analysis-overview-view")
+    service.list.assert_awaited_once_with(
+        WORKSPACE_ID, "user-42", "analysis-overview-view"
+    )
 
 
 def test_create_preference_uses_local_actor_fallback() -> None:

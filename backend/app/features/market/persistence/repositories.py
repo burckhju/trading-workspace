@@ -39,12 +39,18 @@ class ReferenceDataRepository(Protocol):
 
 class UnderlyingRepository(Protocol):
     async def add(self, underlying: UnderlyingModel) -> None: ...
-    async def get(self, workspace_id: UUID, underlying_id: UUID) -> UnderlyingModel | None: ...
+    async def get(
+        self, workspace_id: UUID, underlying_id: UUID
+    ) -> UnderlyingModel | None: ...
     async def get_with_listings(
         self, workspace_id: UUID, underlying_id: UUID
     ) -> UnderlyingModel | None: ...
-    async def find_by_isin(self, workspace_id: UUID, isin: str) -> UnderlyingModel | None: ...
-    async def find_by_wkn(self, workspace_id: UUID, wkn: str) -> UnderlyingModel | None: ...
+    async def find_by_isin(
+        self, workspace_id: UUID, isin: str
+    ) -> UnderlyingModel | None: ...
+    async def find_by_wkn(
+        self, workspace_id: UUID, wkn: str
+    ) -> UnderlyingModel | None: ...
     async def search(
         self,
         workspace_id: UUID,
@@ -70,7 +76,9 @@ class UnderlyingRepository(Protocol):
 
 class ListingRepository(Protocol):
     async def add(self, listing: ListingModel) -> None: ...
-    async def get(self, workspace_id: UUID, listing_id: UUID) -> ListingModel | None: ...
+    async def get(
+        self, workspace_id: UUID, listing_id: UUID
+    ) -> ListingModel | None: ...
     async def find_by_venue_ticker(
         self, workspace_id: UUID, venue_id: UUID, ticker: str
     ) -> ListingModel | None: ...
@@ -149,7 +157,9 @@ class SqlAlchemyUnderlyingRepository:
     async def add(self, underlying: UnderlyingModel) -> None:
         self._session.add(underlying)
 
-    async def get(self, workspace_id: UUID, underlying_id: UUID) -> UnderlyingModel | None:
+    async def get(
+        self, workspace_id: UUID, underlying_id: UUID
+    ) -> UnderlyingModel | None:
         result = await self._session.scalar(
             select(UnderlyingModel).where(
                 UnderlyingModel.workspace_id == workspace_id,
@@ -164,8 +174,12 @@ class SqlAlchemyUnderlyingRepository:
         result = await self._session.scalar(
             select(UnderlyingModel)
             .options(
-                selectinload(UnderlyingModel.listings).selectinload(ListingModel.trading_venue),
-                selectinload(UnderlyingModel.listings).selectinload(ListingModel.currency),
+                selectinload(UnderlyingModel.listings).selectinload(
+                    ListingModel.trading_venue
+                ),
+                selectinload(UnderlyingModel.listings).selectinload(
+                    ListingModel.currency
+                ),
             )
             .where(
                 UnderlyingModel.workspace_id == workspace_id,
@@ -174,7 +188,9 @@ class SqlAlchemyUnderlyingRepository:
         )
         return result
 
-    async def find_by_isin(self, workspace_id: UUID, isin: str) -> UnderlyingModel | None:
+    async def find_by_isin(
+        self, workspace_id: UUID, isin: str
+    ) -> UnderlyingModel | None:
         result = await self._session.scalar(
             select(UnderlyingModel).where(
                 UnderlyingModel.workspace_id == workspace_id,
@@ -200,9 +216,13 @@ class SqlAlchemyUnderlyingRepository:
         trading_venue_id: UUID | None = None,
         currency_code: str | None = None,
     ) -> Select[tuple[UnderlyingModel]]:
-        statement = select(UnderlyingModel).where(UnderlyingModel.workspace_id == workspace_id)
+        statement = select(UnderlyingModel).where(
+            UnderlyingModel.workspace_id == workspace_id
+        )
         if lifecycle_status is not None:
-            statement = statement.where(UnderlyingModel.lifecycle_status == lifecycle_status)
+            statement = statement.where(
+                UnderlyingModel.lifecycle_status == lifecycle_status
+            )
         if trading_venue_id is not None:
             statement = statement.where(
                 UnderlyingModel.listings.any(
@@ -248,11 +268,15 @@ class SqlAlchemyUnderlyingRepository:
             currency_code,
         )
         statement = statement.options(
-            selectinload(UnderlyingModel.listings).selectinload(ListingModel.trading_venue),
+            selectinload(UnderlyingModel.listings).selectinload(
+                ListingModel.trading_venue
+            ),
             selectinload(UnderlyingModel.listings).selectinload(ListingModel.currency),
         )
         result = await self._session.scalars(
-            statement.order_by(UnderlyingModel.name, UnderlyingModel.id).offset(offset).limit(limit)
+            statement.order_by(UnderlyingModel.name, UnderlyingModel.id)
+            .offset(offset)
+            .limit(limit)
         )
         return result.all()
 
@@ -271,7 +295,9 @@ class SqlAlchemyUnderlyingRepository:
             trading_venue_id,
             currency_code,
         )
-        count = await self._session.scalar(select(func.count()).select_from(statement.subquery()))
+        count = await self._session.scalar(
+            select(func.count()).select_from(statement.subquery())
+        )
         return int(count or 0)
 
     async def delete(self, underlying: UnderlyingModel) -> None:
@@ -318,7 +344,9 @@ class SqlAlchemyListingRepository:
                 ListingModel.workspace_id == workspace_id,
                 ListingModel.underlying_id == underlying_id,
             )
-            .order_by(ListingModel.is_primary.desc(), ListingModel.ticker, ListingModel.id)
+            .order_by(
+                ListingModel.is_primary.desc(), ListingModel.ticker, ListingModel.id
+            )
         )
         return result.all()
 

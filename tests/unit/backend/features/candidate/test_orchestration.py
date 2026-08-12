@@ -20,7 +20,9 @@ from app.features.candidate.service.orchestration import (
 )
 
 
-def _resolved(*, underlying_id=None, end=Decimal("110"), status=AnalysisStatus.COMPLETED.value):
+def _resolved(
+    *, underlying_id=None, end=Decimal("110"), status=AnalysisStatus.COMPLETED.value
+):
     underlying_id = underlying_id or uuid4()
     analysis_id = uuid4()
     run_id = uuid4()
@@ -96,7 +98,9 @@ def _resolved(*, underlying_id=None, end=Decimal("110"), status=AnalysisStatus.C
 
 
 @pytest.mark.asyncio
-async def test_orchestrator_derives_inputs_and_provenance_from_stored_analyses() -> None:
+async def test_orchestrator_derives_inputs_and_provenance_from_stored_analyses() -> (
+    None
+):
     workspace_id = uuid4()
     candidate_underlying_id = uuid4()
     market = _resolved(end=Decimal("105"))

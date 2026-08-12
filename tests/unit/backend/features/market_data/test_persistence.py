@@ -35,7 +35,9 @@ NOW = datetime(2026, 8, 5, 10, tzinfo=UTC)
 
 def _sql(statement: object) -> str:
     return str(
-        statement.compile(dialect=postgresql.dialect(), compile_kwargs={"literal_binds": True})
+        statement.compile(
+            dialect=postgresql.dialect(), compile_kwargs={"literal_binds": True}
+        )
     )
 
 

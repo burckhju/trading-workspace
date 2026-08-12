@@ -13,7 +13,9 @@ from app.features.market.api.dtos import (
 )
 from app.features.market.service.reference_data_service import ReferenceDataService
 
-router = APIRouter(prefix="/api/v1/market-reference-data", tags=["market-reference-data"])
+router = APIRouter(
+    prefix="/api/v1/market-reference-data", tags=["market-reference-data"]
+)
 
 
 @router.get("/trading-venues", response_model=TradingVenueListResponse)
@@ -31,4 +33,6 @@ async def list_currencies(
     service: Annotated[ReferenceDataService, Depends(get_reference_data_service)],
 ) -> CurrencyListResponse:
     items = await service.list_active_currencies()
-    return CurrencyListResponse(items=[CurrencyResponse.model_validate(item) for item in items])
+    return CurrencyListResponse(
+        items=[CurrencyResponse.model_validate(item) for item in items]
+    )

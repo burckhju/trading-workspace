@@ -27,6 +27,7 @@ fi
 "${python_bin}" -m ruff check app ../tests/unit/backend ../tests/integration/backend
 "${python_bin}" -m black --check app ../tests/unit/backend ../tests/integration/backend
 "${python_bin}" -m mypy app
+PYTHONPATH="${repository_root}/backend:${repository_root}" \
 "${python_bin}" -m pytest ../tests/unit/backend ../tests/integration/backend \
   --cov=app \
   --cov-report=term-missing \

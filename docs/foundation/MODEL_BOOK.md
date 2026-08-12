@@ -6,9 +6,9 @@
 |---|---|
 | Dokument | MODEL_BOOK.md |
 | Dokumenttyp | Foundation |
-| Version | 0.1 |
+| Version | 0.2 |
 | Status | 🔵 Review |
-| Letzte Änderung | 2026-08-01 |
+| Letzte Änderung | 2026-08-11 |
 
 ---
 
@@ -38,3 +38,13 @@ Modelländerungen erzeugen eine neue Version. Historische Zuordnungen werden nic
 | Version | Datum | Änderung |
 |---|---|---|
 | 0.1 | 2026-08-01 | Sprint-0-Baseline angelegt |
+| 0.2 | 2026-08-11 | FT-007 Modellgrenze und Nicht-Modell-Charakter dokumentiert |
+
+
+## FT-007 TradePlan
+
+FT-007 ist **kein automatisches Handels-, Scoring- oder Positionsgrößenmodell**. Es persistiert eine vom Benutzer formulierte, produktneutrale Planentscheidung als versionierten Snapshot. Die fachlich relevante Modellgrenze lautet:
+
+`CandidateEvaluation → TradePlanVersion → spätere Risk/Product/Execution-Entscheidungen`
+
+V1 ist LONG-only. Entry, Invalidation, Targets und Risk Assumptions sind Planparameter; sie erzeugen keine Order- oder Execution-Entscheidung. Eine spätere Candidate-Re-Evaluation verändert keine bestehende TradePlanVersion.

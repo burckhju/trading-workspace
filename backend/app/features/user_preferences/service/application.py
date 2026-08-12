@@ -53,7 +53,9 @@ class UserPreferenceService:
         await self._session.refresh(model)
         return model
 
-    async def delete(self, workspace_id: UUID, actor_id: str, preference_id: UUID) -> bool:
+    async def delete(
+        self, workspace_id: UUID, actor_id: str, preference_id: UUID
+    ) -> bool:
         statement = (
             delete(UserPreferenceModel)
             .where(

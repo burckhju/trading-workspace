@@ -260,3 +260,10 @@ it('adds the centrally resolved request identity when no feature actor is provid
     resetRequestIdentityProvider();
   }
 });
+
+describe('shared request identity compatibility for FT-007', () => {
+  it('uses a UUID-shaped local actor identity', async () => {
+    const { getRequestIdentity } = await import('../../../services/identity/requestIdentity');
+    expect(getRequestIdentity()?.actorId).toBe('00000000-0000-4000-8000-000000000002');
+  });
+});

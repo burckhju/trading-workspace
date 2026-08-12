@@ -117,7 +117,9 @@ class ListingService:
             currency = command.currency_code or current.currency_code
             lifecycle = command.lifecycle_status or current.lifecycle_status
             await self._ensure_reference_data(venue_id, currency)
-            await self._ensure_unique(command.workspace_id, venue_id, ticker, exclude_id=current.id)
+            await self._ensure_unique(
+                command.workspace_id, venue_id, ticker, exclude_id=current.id
+            )
             updated = current.with_changes(
                 now=self._clock(),
                 trading_venue_id=venue_id,
@@ -157,7 +159,9 @@ class ListingService:
                     command.workspace_id, command.underlying_id
                 )
             )
-            target_model = next((item for item in models if item.id == command.listing_id), None)
+            target_model = next(
+                (item for item in models if item.id == command.listing_id), None
+            )
             if target_model is None:
                 raise ListingNotFound("Listing does not exist")
             target = listing_to_domain(target_model)
@@ -174,7 +178,9 @@ class ListingService:
                 after = before.with_changes(now=now, is_primary=desired)
                 apply_listing(model, after)
                 changed.append((model, before, after))
-            ensure_operational_listing_invariant(tuple(listing_to_domain(item) for item in models))
+            ensure_operational_listing_invariant(
+                tuple(listing_to_domain(item) for item in models)
+            )
             for _, before, after in changed:
                 await self._audit(
                     after,
@@ -198,7 +204,9 @@ class ListingService:
     async def _ensure_reference_data(self, venue_id: UUID, currency_code: str) -> None:
         venue = await self._uow.reference_data.get_trading_venue(venue_id)
         if venue is None:
-            raise TradingVenueNotFound("Trading venue does not exist", field="trading_venue_id")
+            raise TradingVenueNotFound(
+                "Trading venue does not exist", field="trading_venue_id"
+            )
         currency = await self._uow.reference_data.get_currency(currency_code.upper())
         if currency is None:
             raise CurrencyNotFound("Currency does not exist", field="currency_code")
@@ -217,7 +225,9 @@ class ListingService:
             workspace_id, venue_id, normalize_ticker(ticker)
         )
         if duplicate is not None and duplicate.id != exclude_id:
-            raise DuplicateMarketTicker("Ticker already exists at trading venue", field="ticker")
+            raise DuplicateMarketTicker(
+                "Ticker already exists at trading venue", field="ticker"
+            )
 
     async def _audit(
         self,

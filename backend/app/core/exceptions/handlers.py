@@ -14,7 +14,9 @@ from app.core.exceptions.types import ApplicationError
 logger = logging.getLogger(__name__)
 
 
-def _error_payload(*, code: str, message: str, details: list[dict[str, Any]]) -> dict[str, Any]:
+def _error_payload(
+    *, code: str, message: str, details: list[dict[str, Any]]
+) -> dict[str, Any]:
     return {
         "code": code,
         "message": message,
@@ -23,7 +25,9 @@ def _error_payload(*, code: str, message: str, details: list[dict[str, Any]]) ->
     }
 
 
-async def application_error_handler(request: Request, exception: ApplicationError) -> JSONResponse:
+async def application_error_handler(
+    request: Request, exception: ApplicationError
+) -> JSONResponse:
     logger.warning(
         "application_error",
         extra={
@@ -49,7 +53,9 @@ async def application_error_handler(request: Request, exception: ApplicationErro
     )
 
 
-async def http_error_handler(request: Request, exception: StarletteHTTPException) -> JSONResponse:
+async def http_error_handler(
+    request: Request, exception: StarletteHTTPException
+) -> JSONResponse:
     logger.info(
         "http_error",
         extra={
@@ -58,7 +64,11 @@ async def http_error_handler(request: Request, exception: StarletteHTTPException
             "request_id": getattr(request.state, "request_id", None),
         },
     )
-    message = exception.detail if isinstance(exception.detail, str) else "HTTP request failed."
+    message = (
+        exception.detail
+        if isinstance(exception.detail, str)
+        else "HTTP request failed."
+    )
     return JSONResponse(
         status_code=exception.status_code,
         headers=exception.headers,
@@ -102,7 +112,9 @@ async def validation_error_handler(
     )
 
 
-async def unexpected_error_handler(request: Request, exception: Exception) -> JSONResponse:
+async def unexpected_error_handler(
+    request: Request, exception: Exception
+) -> JSONResponse:
     logger.exception(
         "unexpected_error",
         extra={

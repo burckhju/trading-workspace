@@ -42,7 +42,8 @@ def test_calculation_is_deterministic_and_transparent() -> None:
     assert first.quality_status is AnalysisQualityStatus.GOOD
     assert first.metrics["sma_20"] is not None
     assert any(
-        item.code == "LONG_TREND" and item.classification is CriterionClassification.POSITIVE
+        item.code == "LONG_TREND"
+        and item.classification is CriterionClassification.POSITIVE
         for item in first.criteria
     )
 

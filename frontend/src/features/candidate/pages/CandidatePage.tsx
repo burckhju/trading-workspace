@@ -282,7 +282,23 @@ export function CandidatePage() {
             )}
 
             {latest ? (
-              <EvaluationDetail evaluation={latest} />
+              <>
+                <div className="mb-5 flex justify-end">
+                  <Link
+                    to={{
+                      pathname: '/trade-plans',
+                      search: new URLSearchParams({
+                        candidate_id: selected.id,
+                        candidate_evaluation_id: latest.id,
+                      }).toString(),
+                    }}
+                    className="rounded-lg border border-sky-700 px-3 py-2 text-sm"
+                  >
+                    TradePlan aus dieser Evaluation erstellen
+                  </Link>
+                </div>
+                <EvaluationDetail evaluation={latest} />
+              </>
             ) : (
               <p className="rounded-xl border border-slate-800 p-5 text-slate-400">
                 Für diesen Kandidaten liegt noch keine Evaluation vor.

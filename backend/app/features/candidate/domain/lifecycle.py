@@ -27,7 +27,9 @@ _ALLOWED: dict[CandidateStatus, frozenset[CandidateStatus]] = {
     CandidateStatus.READY_FOR_PLANNING: frozenset(
         {CandidateStatus.WATCHING, CandidateStatus.REJECTED}
     ),
-    CandidateStatus.REJECTED: frozenset({CandidateStatus.WATCHING, CandidateStatus.UNDER_REVIEW}),
+    CandidateStatus.REJECTED: frozenset(
+        {CandidateStatus.WATCHING, CandidateStatus.UNDER_REVIEW}
+    ),
 }
 
 
@@ -35,4 +37,6 @@ def ensure_transition(current: CandidateStatus, target: CandidateStatus) -> None
     if current == target:
         return
     if target not in _ALLOWED[current]:
-        raise ValueError(f"invalid candidate transition: {current.value} -> {target.value}")
+        raise ValueError(
+            f"invalid candidate transition: {current.value} -> {target.value}"
+        )

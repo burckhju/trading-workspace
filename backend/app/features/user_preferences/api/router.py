@@ -35,10 +35,15 @@ async def list_preferences(
     service: Annotated[UserPreferenceService, Depends(get_user_preference_service)],
     identity: Annotated[RequestIdentity, Depends(get_request_identity)],
 ) -> list[PreferenceResponse]:
-    return [_response(item) for item in await service.list(WORKSPACE_ID, identity.actor_id, kind)]
+    return [
+        _response(item)
+        for item in await service.list(WORKSPACE_ID, identity.actor_id, kind)
+    ]
 
 
-@router.post("/{kind}", response_model=PreferenceResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{kind}", response_model=PreferenceResponse, status_code=status.HTTP_201_CREATED
+)
 async def create_preference(
     kind: str,
     request: CreatePreferenceRequest,
@@ -46,7 +51,9 @@ async def create_preference(
     identity: Annotated[RequestIdentity, Depends(get_request_identity)],
 ) -> PreferenceResponse:
     return _response(
-        await service.create(WORKSPACE_ID, identity.actor_id, kind, request.name, request.value)
+        await service.create(
+            WORKSPACE_ID, identity.actor_id, kind, request.name, request.value
+        )
     )
 
 

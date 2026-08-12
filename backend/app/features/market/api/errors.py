@@ -52,14 +52,22 @@ def translate_market_error(error: Exception) -> ApplicationError:
             code=error.code,
             message=str(error),
             status_code=status.HTTP_409_CONFLICT,
-            details=((ErrorDetail(field=error.field, message=str(error)),) if error.field else ()),
+            details=(
+                (ErrorDetail(field=error.field, message=str(error)),)
+                if error.field
+                else ()
+            ),
         )
     if isinstance(error, DomainRuleViolation):
         return ApplicationError(
             code=error.code,
             message=str(error),
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            details=((ErrorDetail(field=error.field, message=str(error)),) if error.field else ()),
+            details=(
+                (ErrorDetail(field=error.field, message=str(error)),)
+                if error.field
+                else ()
+            ),
         )
     if isinstance(error, ValueError):
         return ApplicationError(

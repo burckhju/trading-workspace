@@ -44,11 +44,15 @@ def _normalize_message(value: str | None) -> str | None:
 
 def _decimal(value: Decimal | str | int, *, field: str) -> Decimal:
     if isinstance(value, float):
-        raise InvalidMarketDataValue(f"{field} must not use binary floating-point", field=field)
+        raise InvalidMarketDataValue(
+            f"{field} must not use binary floating-point", field=field
+        )
     try:
         normalized = value if isinstance(value, Decimal) else Decimal(str(value))
     except (InvalidOperation, ValueError) as exc:
-        raise InvalidMarketDataValue(f"{field} must be a decimal value", field=field) from exc
+        raise InvalidMarketDataValue(
+            f"{field} must be a decimal value", field=field
+        ) from exc
     if not normalized.is_finite():
         raise InvalidMarketDataValue(f"{field} must be finite", field=field)
     return normalized
@@ -80,15 +84,21 @@ class ProviderInstrumentMapping:
         object.__setattr__(
             self,
             "provider_exchange_code",
-            _normalize_code(self.provider_exchange_code, field="provider_exchange_code"),
+            _normalize_code(
+                self.provider_exchange_code, field="provider_exchange_code"
+            ),
         )
-        object.__setattr__(self, "validation_message", _normalize_message(self.validation_message))
+        object.__setattr__(
+            self, "validation_message", _normalize_message(self.validation_message)
+        )
         _require_utc(self.created_at, field="created_at")
         _require_utc(self.updated_at, field="updated_at")
         if self.validated_at is not None:
             _require_utc(self.validated_at, field="validated_at")
         if self.version < 1:
-            raise InvalidProviderInstrumentMapping("version must be at least 1", field="version")
+            raise InvalidProviderInstrumentMapping(
+                "version must be at least 1", field="version"
+            )
         if self.updated_at < self.created_at:
             raise InvalidProviderInstrumentMapping(
                 "updated_at must not be before created_at", field="updated_at"
@@ -135,7 +145,9 @@ class DailyPrice:
             )
         if self.volume is not None:
             object.__setattr__(self, "volume", _decimal(self.volume, field="volume"))
-        object.__setattr__(self, "currency", _normalize_code(self.currency, field="currency"))
+        object.__setattr__(
+            self, "currency", _normalize_code(self.currency, field="currency")
+        )
         object.__setattr__(
             self,
             "provider_symbol",
@@ -156,7 +168,9 @@ class DailyPrice:
             if getattr(self, field) <= 0:
                 raise InvalidDailyPrice(f"{field} must be positive", field=field)
         if self.adjusted_close is not None and self.adjusted_close <= 0:
-            raise InvalidDailyPrice("adjusted_close must be positive", field="adjusted_close")
+            raise InvalidDailyPrice(
+                "adjusted_close must be positive", field="adjusted_close"
+            )
         if self.volume is not None and self.volume < 0:
             raise InvalidDailyPrice("volume must not be negative", field="volume")
         if self.low > self.high:

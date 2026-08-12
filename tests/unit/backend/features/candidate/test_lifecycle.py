@@ -10,4 +10,6 @@ def test_candidate_lifecycle_allows_review_to_ready_for_planning() -> None:
 
 def test_candidate_lifecycle_rejects_identified_to_ready_for_planning() -> None:
     with pytest.raises(ValueError):
-        ensure_transition(CandidateStatus.IDENTIFIED, CandidateStatus.READY_FOR_PLANNING)
+        ensure_transition(
+            CandidateStatus.IDENTIFIED, CandidateStatus.READY_FOR_PLANNING
+        )

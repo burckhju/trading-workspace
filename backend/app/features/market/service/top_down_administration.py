@@ -9,6 +9,7 @@ from uuid import UUID, uuid4
 
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql.elements import ColumnElement
 
 from app.features.analysis.domain.enums import AnalysisStatus
 from app.features.analysis.persistence.models import (
@@ -59,7 +60,9 @@ class TopDownReferenceAdministrationService:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def list_market_references(self, workspace_id: UUID) -> tuple[MarketReferenceModel, ...]:
+    async def list_market_references(
+        self, workspace_id: UUID
+    ) -> tuple[MarketReferenceModel, ...]:
         rows = await self._session.scalars(
             select(MarketReferenceModel)
             .where(MarketReferenceModel.workspace_id == workspace_id)
@@ -80,7 +83,8 @@ class TopDownReferenceAdministrationService:
                 select(MarketReferenceListingAssignmentModel)
                 .where(
                     MarketReferenceListingAssignmentModel.workspace_id == workspace_id,
-                    MarketReferenceListingAssignmentModel.market_reference_id == reference.id,
+                    MarketReferenceListingAssignmentModel.market_reference_id
+                    == reference.id,
                     MarketReferenceListingAssignmentModel.valid_from <= today,
                     or_(
                         MarketReferenceListingAssignmentModel.valid_to.is_(None),
@@ -99,10 +103,13 @@ class TopDownReferenceAdministrationService:
                     select(ProviderInstrumentMappingModel).where(
                         ProviderInstrumentMappingModel.workspace_id == workspace_id,
                         ProviderInstrumentMappingModel.listing_id == listing_id,
-                        ProviderInstrumentMappingModel.provider == MarketDataProvider.EODHD,
+                        ProviderInstrumentMappingModel.provider
+                        == MarketDataProvider.EODHD,
                     )
                 )
-            mapping_active = mapping is not None and mapping.status is MappingStatus.ACTIVE
+            mapping_active = (
+                mapping is not None and mapping.status is MappingStatus.ACTIVE
+            )
             if mapping is None:
                 blockers.append("NO_EODHD_PROVIDER_MAPPING")
             elif not mapping_active:
@@ -134,12 +141,14 @@ class TopDownReferenceAdministrationService:
                         select(MarketAnalysisModel.id, MarketAnalysisRunModel.version)
                         .join(
                             MarketAnalysisRunModel,
-                            MarketAnalysisRunModel.analysis_id == MarketAnalysisModel.id,
+                            MarketAnalysisRunModel.analysis_id
+                            == MarketAnalysisModel.id,
                         )
                         .where(
                             MarketAnalysisModel.workspace_id == workspace_id,
                             MarketAnalysisModel.listing_id == listing_id,
-                            MarketAnalysisRunModel.status == AnalysisStatus.COMPLETED.value,
+                            MarketAnalysisRunModel.status
+                            == AnalysisStatus.COMPLETED.value,
                         )
                         .order_by(
                             MarketAnalysisRunModel.analysis_time.desc(),
@@ -306,7 +315,8 @@ class TopDownReferenceAdministrationService:
             workspace_id,
             valid_from,
             valid_to,
-            MarketReferenceListingAssignmentModel.market_reference_id == market_reference_id,
+            MarketReferenceListingAssignmentModel.market_reference_id
+            == market_reference_id,
             label="market-reference listing assignment",
         )
         value = MarketReferenceListingAssignmentModel(
@@ -502,7 +512,9 @@ class TopDownReferenceAdministrationService:
             raise ValueError("sector not found or inactive")
         return value
 
-    async def _require_underlying(self, workspace_id: UUID, underlying_id: UUID) -> UnderlyingModel:
+    async def _require_underlying(
+        self, workspace_id: UUID, underlying_id: UUID
+    ) -> UnderlyingModel:
         value = await self._session.scalar(
             select(UnderlyingModel).where(
                 UnderlyingModel.workspace_id == workspace_id,
@@ -515,11 +527,11 @@ class TopDownReferenceAdministrationService:
 
     async def _ensure_no_overlap(
         self,
-        model: Any,
+        model: type[Any],
         workspace_id: UUID,
         valid_from: date,
         valid_to: date | None,
-        *predicates: Any,
+        *predicates: ColumnElement[bool],
         label: str,
     ) -> None:
         if valid_to is not None and valid_to < valid_from:

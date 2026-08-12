@@ -8,7 +8,9 @@ from typing import Any
 
 from app.core.logging.context import get_request_id
 
-_STANDARD_LOG_RECORD_ATTRIBUTES = frozenset(logging.LogRecord("", 0, "", 0, "", (), None).__dict__)
+_STANDARD_LOG_RECORD_ATTRIBUTES = frozenset(
+    logging.LogRecord("", 0, "", 0, "", (), None).__dict__
+)
 
 
 class JsonFormatter(logging.Formatter):

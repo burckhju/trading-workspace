@@ -25,7 +25,9 @@ from app.database.base import Base
 
 class MarketAnalysisModel(Base):
     __tablename__ = "market_analyses"
-    __table_args__ = (Index("ix_market_analyses_workspace_created", "workspace_id", "created_at"),)
+    __table_args__ = (
+        Index("ix_market_analyses_workspace_created", "workspace_id", "created_at"),
+    )
     id: Mapped[UUID] = mapped_column(primary_key=True)
     workspace_id: Mapped[UUID] = mapped_column(
         ForeignKey("workspaces.id", ondelete="RESTRICT"), nullable=False
@@ -36,14 +38,18 @@ class MarketAnalysisModel(Base):
     listing_id: Mapped[UUID] = mapped_column(
         ForeignKey("listings.id", ondelete="RESTRICT"), nullable=False
     )
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
     created_by: Mapped[str] = mapped_column(String(200), nullable=False)
 
 
 class MarketAnalysisRunModel(Base):
     __tablename__ = "market_analysis_runs"
     __table_args__ = (
-        UniqueConstraint("analysis_id", "version", name="uq_market_analysis_runs_analysis_version"),
+        UniqueConstraint(
+            "analysis_id", "version", name="uq_market_analysis_runs_analysis_version"
+        ),
     )
     id: Mapped[UUID] = mapped_column(primary_key=True)
     analysis_id: Mapped[UUID] = mapped_column(
@@ -60,7 +66,9 @@ class MarketAnalysisRunModel(Base):
     data_sources: Mapped[list[str]] = mapped_column(JSON, nullable=False)
     input_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     observation_count: Mapped[int] = mapped_column(Integer, nullable=False)
-    analysis_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    analysis_time: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
     correlation_id: Mapped[str | None] = mapped_column(String(100))
     error_message: Mapped[str | None] = mapped_column(Text)
 
@@ -68,7 +76,9 @@ class MarketAnalysisRunModel(Base):
 class MarketAnalysisSnapshotRowModel(Base):
     __tablename__ = "market_analysis_snapshot_rows"
     __table_args__ = (
-        UniqueConstraint("run_id", "trading_date", name="uq_market_analysis_snapshot_run_date"),
+        UniqueConstraint(
+            "run_id", "trading_date", name="uq_market_analysis_snapshot_run_date"
+        ),
     )
     id: Mapped[UUID] = mapped_column(primary_key=True)
     run_id: Mapped[UUID] = mapped_column(
@@ -105,7 +115,9 @@ class MarketAnalysisEventModel(Base):
 
     __tablename__ = "market_analysis_events"
     __table_args__ = (
-        Index("ix_market_analysis_events_analysis_occurred", "analysis_id", "occurred_at"),
+        Index(
+            "ix_market_analysis_events_analysis_occurred", "analysis_id", "occurred_at"
+        ),
         UniqueConstraint(
             "analysis_id",
             "version",
@@ -128,4 +140,6 @@ class MarketAnalysisEventModel(Base):
     replacement_version: Mapped[int | None] = mapped_column(Integer)
     reason: Mapped[str | None] = mapped_column(Text)
     correlation_id: Mapped[str | None] = mapped_column(String(100))
-    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    occurred_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )

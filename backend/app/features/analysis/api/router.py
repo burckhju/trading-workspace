@@ -100,7 +100,9 @@ def _overview_filters(
     )
 
 
-@router.post("", response_model=AnalysisSummaryResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "", response_model=AnalysisSummaryResponse, status_code=status.HTTP_201_CREATED
+)
 async def create_analysis(
     request: CreateAnalysisRequest,
     service: Annotated[MarketAnalysisService, Depends(get_market_analysis_service)],
@@ -234,7 +236,11 @@ async def export_analysis_overview_csv(
                 row.latest_version or "",
                 row.latest_status or "",
                 row.latest_quality_status or "",
-                (row.latest_analysis_time.isoformat() if row.latest_analysis_time else ""),
+                (
+                    row.latest_analysis_time.isoformat()
+                    if row.latest_analysis_time
+                    else ""
+                ),
                 row.analysis.created_at.isoformat(),
             ]
         )
@@ -328,7 +334,9 @@ async def get_run(
                     low=str(item.low),
                     close=str(item.close),
                     adjusted_close=(
-                        None if item.adjusted_close is None else str(item.adjusted_close)
+                        None
+                        if item.adjusted_close is None
+                        else str(item.adjusted_close)
                     ),
                     volume=None if item.volume is None else str(item.volume),
                     currency=item.currency,
@@ -345,7 +353,9 @@ async def get_run(
         raise AssertionError("unreachable") from exc
 
 
-@router.get("/{analysis_id}/runs/{version}/snapshot", response_model=SnapshotPageResponse)
+@router.get(
+    "/{analysis_id}/runs/{version}/snapshot", response_model=SnapshotPageResponse
+)
 async def get_snapshot(
     analysis_id: UUID,
     version: int,
@@ -354,7 +364,9 @@ async def get_snapshot(
     limit: int = Query(default=50, ge=1, le=200),
 ) -> SnapshotPageResponse:
     try:
-        rows, total = await service.snapshot(WORKSPACE_ID, analysis_id, version, offset, limit)
+        rows, total = await service.snapshot(
+            WORKSPACE_ID, analysis_id, version, offset, limit
+        )
         return SnapshotPageResponse(
             items=[
                 SnapshotRowResponse(
@@ -364,7 +376,9 @@ async def get_snapshot(
                     low=str(item.low),
                     close=str(item.close),
                     adjusted_close=(
-                        None if item.adjusted_close is None else str(item.adjusted_close)
+                        None
+                        if item.adjusted_close is None
+                        else str(item.adjusted_close)
                     ),
                     volume=None if item.volume is None else str(item.volume),
                     currency=item.currency,
@@ -398,7 +412,9 @@ async def retry_analysis(
 ) -> RunSummaryResponse:
     try:
         return _run(
-            await service.retry(WORKSPACE_ID, analysis_id, version, correlation_id, request.reason)
+            await service.retry(
+                WORKSPACE_ID, analysis_id, version, correlation_id, request.reason
+            )
         )
     except AnalysisError as exc:
         _raise(exc)
@@ -439,13 +455,17 @@ async def list_analysis_events(
     service: Annotated[MarketAnalysisService, Depends(get_market_analysis_service)],
 ) -> list[AnalysisEventResponse]:
     try:
-        return [_event(item) for item in await service.events(WORKSPACE_ID, analysis_id)]
+        return [
+            _event(item) for item in await service.events(WORKSPACE_ID, analysis_id)
+        ]
     except AnalysisError as exc:
         _raise(exc)
         raise AssertionError("unreachable") from exc
 
 
-@router.post("/{analysis_id}/runs/{version}/verify", response_model=AnalysisVerificationResponse)
+@router.post(
+    "/{analysis_id}/runs/{version}/verify", response_model=AnalysisVerificationResponse
+)
 async def verify_analysis_reproducibility(
     analysis_id: UUID,
     version: int,

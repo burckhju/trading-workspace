@@ -57,12 +57,16 @@ class ProviderInstrumentMappingModel(Base):
             name="uq_provider_instrument_mappings_provider_symbol",
         ),
         CheckConstraint("version >= 1", name="version_positive"),
-        CheckConstraint("length(trim(provider_symbol)) > 0", name="provider_symbol_not_blank"),
+        CheckConstraint(
+            "length(trim(provider_symbol)) > 0", name="provider_symbol_not_blank"
+        ),
         CheckConstraint(
             "length(trim(provider_exchange_code)) > 0",
             name="provider_exchange_code_not_blank",
         ),
-        Index("ix_provider_instrument_mappings_workspace_status", "workspace_id", "status"),
+        Index(
+            "ix_provider_instrument_mappings_workspace_status", "workspace_id", "status"
+        ),
     )
 
     id: Mapped[UUID] = mapped_column(primary_key=True)
@@ -77,11 +81,17 @@ class ProviderInstrumentMappingModel(Base):
     )
     provider_symbol: Mapped[str] = mapped_column(String(64), nullable=False)
     provider_exchange_code: Mapped[str] = mapped_column(String(32), nullable=False)
-    status: Mapped[MappingStatus] = mapped_column(_enum(MappingStatus, length=20), nullable=False)
+    status: Mapped[MappingStatus] = mapped_column(
+        _enum(MappingStatus, length=20), nullable=False
+    )
     validated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     validation_message: Mapped[str | None] = mapped_column(String(500))
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
     version: Mapped[int] = mapped_column(Integer, nullable=False)
 
     __mapper_args__ = {  # noqa: RUF012
@@ -138,12 +148,20 @@ class DailyPriceModel(Base):
         _enum(MarketDataProvider, length=30), nullable=False
     )
     provider_symbol: Mapped[str] = mapped_column(String(64), nullable=False)
-    retrieved_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    retrieved_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
     source_updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     quality_status: Mapped[QualityStatus] = mapped_column(
         _enum(QualityStatus, length=20), nullable=False
     )
     warnings: Mapped[str] = mapped_column(String(2000), nullable=False, default="")
-    price_type: Mapped[PriceType] = mapped_column(_enum(PriceType, length=20), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    price_type: Mapped[PriceType] = mapped_column(
+        _enum(PriceType, length=20), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )

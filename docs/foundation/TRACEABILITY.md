@@ -6,9 +6,9 @@
 |---|---|
 | Dokument | TRACEABILITY.md |
 | Dokumenttyp | Foundation |
-| Version | 1.1 |
+| Version | 1.2 |
 | Status | 🟢 Approved |
-| Letzte Änderung | 2026-08-10 |
+| Letzte Änderung | 2026-08-11 |
 
 ## Zweck
 
@@ -105,3 +105,44 @@ Anforderung → Entscheidung → Implementierung → Test → Abnahme
 | Immutable Evaluation + konkrete Analyseversionen | ADR-S5-003, ADR-S5-007 | Candidate Persistence/Orchestration | Migration-, Service- und Orchestrator-Tests |
 | Providerneutrale semantische Referenzen | ADR-S5-007/008 | Market Reference Assignments | Referenzdomain-/Admin-API-Tests |
 | Keine stillen Live-Writes | ADR-S5-011/012 | Live Workflow + Action Metadata | Workflow-/API-Tests |
+
+## FT-007 / Sprint-6 TradePlan Specification Traceability
+
+| Ebene | Verbindliche Quellen |
+|---|---|
+| Transition Baseline | `docs/planning/SPRINT_6_TRANSITION_BASELINE.md` |
+| Feature Specification | `docs/features/FT-007_TRADEPLAN.md` |
+| Domain Boundary | `docs/domain/DOMAIN_MAP.md`, `docs/domain/TRADING_PROCESS_MODEL.md` |
+| Identity / Versioning | ADR-S6-001 |
+| Origin / CandidateEvaluation | ADR-S6-002 |
+| Lifecycle / Approval | ADR-S6-003 |
+| Amendment | ADR-S6-004 |
+| Risk Boundary | ADR-S6-005 |
+| Product Neutrality | ADR-S6-006 |
+| Provenance | ADR-S6-007 |
+| LONG-only | ADR-S6-008 |
+| DoR Review | `docs/implementation/SPRINT_6_FT007_SPECIFICATION_AND_DOR_REVIEW.md` |
+
+### Kritische Sprint-6-Regeltraceability – Implementierungsnachweis
+
+| Regel | Entscheidung | Implementierungsnachweis |
+|---|---|---|
+| langlebige TradePlan-ID + immutable Versionen | ADR-S6-001 | Domain-, Persistence-, Amendment-Tests |
+| konkrete CandidateEvaluation statt latest | ADR-S6-002 | Domain-/Service-/Repositorytests |
+| explizites versionsgenaues Approval | ADR-S6-003 | Lifecycle-, Service-, API- und Audit-Tests |
+| Approved nicht in-place ändern | ADR-S6-004 | Domain-/Concurrency-/Persistence-Tests |
+| keine Position Size / Order Quantity | ADR-S6-005 | Domain-/DTO-/API-Vertragstests |
+| keine Warrant-/Produktattribute | ADR-S6-006 | Model-/DTO-/Schema-Tests |
+| keine FT-005/006-Neuberechnung | ADR-S6-007 | Service-/Integrationstests |
+| V1 vollständig LONG-only | ADR-S6-008 | Domain-/DTO-Validierungstests |
+
+
+### S6-13 Quality-Gate-Nachweis
+
+- Backend: vollständiger Unit-Regressionslauf zuletzt 274/274 in S6-09; nachfolgende FT-007-Units änderten keinen Backend-Produktionscode.
+- Frontend: Typecheck, ESLint und Prettier grün; 59/59 Unit-/Component-Tests grün.
+- Frontend Coverage: Statements 91.42 %, Branches 77.60 %, Functions 83.47 %, Lines 91.42 %; alle konfigurierten Thresholds erfüllt.
+- Production Build: `tsc -b && vite build` grün.
+- E2E: 8/8 Playwright-Szenarien grün, einschließlich Manual → Review → Approval, CandidateEvaluation-Provenance und Amendment-Lineage.
+
+| Architecture Review | `docs/implementation/SPRINT_6_ARCHITECTURE_REVIEW.md` – Accepted |

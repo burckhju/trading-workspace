@@ -103,7 +103,9 @@ class SqlAlchemyAnalysisRepository:
     async def add_run(self, model: MarketAnalysisRunModel) -> None:
         self._session.add(model)
 
-    async def add_snapshot_rows(self, models: list[MarketAnalysisSnapshotRowModel]) -> None:
+    async def add_snapshot_rows(
+        self, models: list[MarketAnalysisSnapshotRowModel]
+    ) -> None:
         self._session.add_all(models)
 
     async def add_criteria(self, models: list[MarketAnalysisCriterionModel]) -> None:
@@ -131,7 +133,9 @@ class SqlAlchemyAnalysisRepository:
         )
         return int(value or 0) + 1
 
-    async def get_run(self, analysis_id: UUID, version: int) -> MarketAnalysisRunModel | None:
+    async def get_run(
+        self, analysis_id: UUID, version: int
+    ) -> MarketAnalysisRunModel | None:
         result = await self._session.scalars(
             select(MarketAnalysisRunModel).where(
                 MarketAnalysisRunModel.analysis_id == analysis_id,
@@ -149,7 +153,9 @@ class SqlAlchemyAnalysisRepository:
         )
         return result.first()
 
-    async def list_events(self, analysis_id: UUID) -> tuple[MarketAnalysisEventModel, ...]:
+    async def list_events(
+        self, analysis_id: UUID
+    ) -> tuple[MarketAnalysisEventModel, ...]:
         return tuple(
             (
                 await self._session.scalars(
@@ -175,7 +181,9 @@ class SqlAlchemyAnalysisRepository:
         )
         return result.first()
 
-    async def list_analyses(self, workspace_id: UUID) -> tuple[MarketAnalysisModel, ...]:
+    async def list_analyses(
+        self, workspace_id: UUID
+    ) -> tuple[MarketAnalysisModel, ...]:
         return tuple(
             (
                 await self._session.scalars(
@@ -203,8 +211,12 @@ class SqlAlchemyAnalysisRepository:
                 UnderlyingModel, UnderlyingModel.id == MarketAnalysisModel.underlying_id
             )
             .join(ListingModel, ListingModel.id == MarketAnalysisModel.listing_id)
-            .join(TradingVenueModel, TradingVenueModel.id == ListingModel.trading_venue_id)
-            .outerjoin(latest_versions, latest_versions.c.analysis_id == MarketAnalysisModel.id)
+            .join(
+                TradingVenueModel, TradingVenueModel.id == ListingModel.trading_venue_id
+            )
+            .outerjoin(
+                latest_versions, latest_versions.c.analysis_id == MarketAnalysisModel.id
+            )
             .outerjoin(
                 latest_run,
                 and_(
@@ -215,7 +227,9 @@ class SqlAlchemyAnalysisRepository:
         )
         predicates = [MarketAnalysisModel.workspace_id == workspace_id]
         if filters.underlying_id is not None:
-            predicates.append(MarketAnalysisModel.underlying_id == filters.underlying_id)
+            predicates.append(
+                MarketAnalysisModel.underlying_id == filters.underlying_id
+            )
         if filters.status is not None:
             predicates.append(latest_run.status == filters.status)
         if filters.quality_status is not None:
@@ -233,7 +247,9 @@ class SqlAlchemyAnalysisRepository:
             "latest_quality_status": latest_run.quality_status,
         }
         sort_column = sort_columns[filters.sort_by]
-        ordering = asc(sort_column) if filters.sort_direction == "asc" else desc(sort_column)
+        ordering = (
+            asc(sort_column) if filters.sort_direction == "asc" else desc(sort_column)
+        )
 
         statement = (
             select(
@@ -263,7 +279,9 @@ class SqlAlchemyAnalysisRepository:
         filters: AnalysisOverviewFilter,
     ) -> tuple[AnalysisOverviewRow, ...]:
         statement, _ = self._overview_statement(workspace_id, filters)
-        rows = (await self._session.execute(statement.offset(offset).limit(limit))).all()
+        rows = (
+            await self._session.execute(statement.offset(offset).limit(limit))
+        ).all()
         return tuple(AnalysisOverviewRow(*row) for row in rows)
 
     async def count_analysis_overview(
@@ -305,7 +323,9 @@ class SqlAlchemyAnalysisRepository:
         )
         return int(value or 0)
 
-    async def list_criteria(self, run_id: UUID) -> tuple[MarketAnalysisCriterionModel, ...]:
+    async def list_criteria(
+        self, run_id: UUID
+    ) -> tuple[MarketAnalysisCriterionModel, ...]:
         return tuple(
             (
                 await self._session.scalars(

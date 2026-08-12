@@ -92,7 +92,9 @@ class Settings(BaseSettings):
     application_name: str = "Trading Workspace API"
     environment: Environment = Environment.PRODUCTION
     debug: bool = False
-    log_level: Annotated[str, Field(pattern=r"^(DEBUG|INFO|WARNING|ERROR|CRITICAL)$")] = "INFO"
+    log_level: Annotated[
+        str, Field(pattern=r"^(DEBUG|INFO|WARNING|ERROR|CRITICAL)$")
+    ] = "INFO"
     documentation_enabled: bool = False
     database_url: str = "postgresql+asyncpg://localhost/trading_workspace"
     database_echo: bool = False

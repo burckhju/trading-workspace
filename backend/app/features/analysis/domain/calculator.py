@@ -33,11 +33,17 @@ def _classification(
     return CriterionClassification.NEUTRAL
 
 
-def calculate(parameters: AnalysisParameters, rows: tuple[SnapshotRow, ...]) -> AnalysisComputation:
+def calculate(
+    parameters: AnalysisParameters, rows: tuple[SnapshotRow, ...]
+) -> AnalysisComputation:
     notes: list[str] = []
     selected: list[Decimal] = []
     for row in rows:
-        value = row.close if parameters.price_field is PriceField.CLOSE else row.adjusted_close
+        value = (
+            row.close
+            if parameters.price_field is PriceField.CLOSE
+            else row.adjusted_close
+        )
         if value is None:
             notes.append(f"{row.trading_date.isoformat()}: adjusted close missing")
             continue
@@ -91,8 +97,14 @@ def calculate(parameters: AnalysisParameters, rows: tuple[SnapshotRow, ...]) -> 
             )
         )
     for window in parameters.momentum_windows:
-        momentum = latest / selected[-window - 1] - Decimal(1) if len(selected) > window else None
-        metrics[f"momentum_{window}"] = None if momentum is None else str(rounded(momentum))
+        momentum = (
+            latest / selected[-window - 1] - Decimal(1)
+            if len(selected) > window
+            else None
+        )
+        metrics[f"momentum_{window}"] = (
+            None if momentum is None else str(rounded(momentum))
+        )
         criteria.append(
             CriterionResult(
                 f"MOMENTUM_{window}",
@@ -109,7 +121,9 @@ def calculate(parameters: AnalysisParameters, rows: tuple[SnapshotRow, ...]) -> 
     variance = sum((value - mean) ** 2 for value in returns) / max(len(returns) - 1, 1)
     with localcontext() as ctx:
         ctx.prec = 28
-        volatility = Decimal(str(sqrt(variance))) * parameters.annualization_factor.sqrt()
+        volatility = (
+            Decimal(str(sqrt(variance))) * parameters.annualization_factor.sqrt()
+        )
     metrics["annualized_volatility"] = str(rounded(volatility))
     criteria.append(
         CriterionResult(

@@ -66,7 +66,9 @@ class PriceRepo:
 
 
 class Uow:
-    def __init__(self, mapping: object, existing: DailyPriceModel | None = None) -> None:
+    def __init__(
+        self, mapping: object, existing: DailyPriceModel | None = None
+    ) -> None:
         self.mappings = MappingRepo(mapping)
         self.daily_prices = PriceRepo(existing)
         self.committed = False
@@ -99,7 +101,9 @@ class Provider:
         return self.result
 
 
-def request(workspace_id: UUID, listing_id: UUID, mapping_id: UUID) -> DailyPriceRequest:
+def request(
+    workspace_id: UUID, listing_id: UUID, mapping_id: UUID
+) -> DailyPriceRequest:
     return DailyPriceRequest(
         workspace_id,
         listing_id,
@@ -136,7 +140,9 @@ async def test_import_inserts_and_commits() -> None:
         clock=lambda: NOW,
         id_factory=uuid4,
     )
-    imported = await service.import_daily_prices(request(workspace_id, listing_id, mapping_id))
+    imported = await service.import_daily_prices(
+        request(workspace_id, listing_id, mapping_id)
+    )
     assert (imported.inserted, imported.updated, imported.unchanged) == (1, 0, 0)
     assert uow.committed and uow.daily_prices.flushed
 
@@ -147,11 +153,17 @@ async def test_import_unchanged_does_not_commit() -> None:
     value = price(listing_id)
     from app.features.market_data.persistence.mapping import daily_price_to_model
 
-    existing = daily_price_to_model(value, workspace_id=workspace_id, price_id=uuid4(), now=NOW)
+    existing = daily_price_to_model(
+        value, workspace_id=workspace_id, price_id=uuid4(), now=NOW
+    )
     mapping = type("Mapping", (), {"listing_id": listing_id})()
     uow = Uow(mapping, existing)
-    service = DailyPriceImportService(uow=uow, provider=Provider(result(value)), clock=lambda: NOW)
-    imported = await service.import_daily_prices(request(workspace_id, listing_id, mapping_id))
+    service = DailyPriceImportService(
+        uow=uow, provider=Provider(result(value)), clock=lambda: NOW
+    )
+    imported = await service.import_daily_prices(
+        request(workspace_id, listing_id, mapping_id)
+    )
     assert imported.unchanged == 1
     assert not uow.committed and not uow.daily_prices.flushed
 

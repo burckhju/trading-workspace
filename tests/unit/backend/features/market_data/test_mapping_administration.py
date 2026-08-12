@@ -81,7 +81,9 @@ def command(workspace_id: UUID, listing_id: UUID) -> MappingCommand:
 @pytest.mark.asyncio
 async def test_create_mapping_is_disabled_and_audited() -> None:
     uow = Uow()
-    service = ProviderMappingAdministrationService(uow, now=lambda: NOW, id_factory=uuid4)
+    service = ProviderMappingAdministrationService(
+        uow, now=lambda: NOW, id_factory=uuid4
+    )
     value = await service.create_or_update(command(uuid4(), uuid4()))
     assert value.status is MappingStatus.DISABLED
     assert value.provider_symbol == "SAP"
@@ -92,7 +94,9 @@ async def test_create_mapping_is_disabled_and_audited() -> None:
 @pytest.mark.asyncio
 async def test_validate_activates_mapping_and_records_validation_time() -> None:
     uow = Uow()
-    service = ProviderMappingAdministrationService(uow, now=lambda: NOW, id_factory=uuid4)
+    service = ProviderMappingAdministrationService(
+        uow, now=lambda: NOW, id_factory=uuid4
+    )
     created = await service.create_or_update(command(uuid4(), uuid4()))
     uow.committed = False
     validated = await service.validate(
@@ -107,7 +111,9 @@ async def test_validate_activates_mapping_and_records_validation_time() -> None:
 @pytest.mark.asyncio
 async def test_disable_keeps_mapping_history() -> None:
     uow = Uow()
-    service = ProviderMappingAdministrationService(uow, now=lambda: NOW, id_factory=uuid4)
+    service = ProviderMappingAdministrationService(
+        uow, now=lambda: NOW, id_factory=uuid4
+    )
     created = await service.create_or_update(command(uuid4(), uuid4()))
     await service.validate(
         created.workspace_id, created.id, actor_id=None, actor_name="Administrator"

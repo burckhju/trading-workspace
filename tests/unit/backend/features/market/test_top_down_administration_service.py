@@ -79,7 +79,9 @@ async def test_create_and_activate_sector_and_reference():
     sector_obj = SimpleNamespace(active=True)
     session.scalar.return_value = sector_obj
     assert not (
-        await service.set_sector_active(workspace_id=workspace, sector_id=uuid4(), active=False)
+        await service.set_sector_active(
+            workspace_id=workspace, sector_id=uuid4(), active=False
+        )
     ).active
 
     session.scalar.return_value = None
@@ -88,7 +90,9 @@ async def test_create_and_activate_sector_and_reference():
             workspace_id=workspace, market_reference_id=uuid4(), active=True
         )
     with pytest.raises(ValueError, match="sector not found"):
-        await service.set_sector_active(workspace_id=workspace, sector_id=uuid4(), active=True)
+        await service.set_sector_active(
+            workspace_id=workspace, sector_id=uuid4(), active=True
+        )
 
 
 @pytest.mark.asyncio
@@ -126,7 +130,9 @@ async def test_assignment_creation_paths_and_validation():
     service = TopDownReferenceAdministrationService(session)
     workspace, underlying, sector_id, ref_id, listing_id = (uuid4() for _ in range(5))
     service._require_reference = AsyncMock(
-        return_value=SimpleNamespace(reference_type=MarketReferenceType.SECTOR_INDEX.value)
+        return_value=SimpleNamespace(
+            reference_type=MarketReferenceType.SECTOR_INDEX.value
+        )
     )
     service._require_underlying = AsyncMock(return_value=object())
     service._require_sector = AsyncMock(return_value=object())

@@ -10,11 +10,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
-from typing import Any, cast
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql.elements import ColumnElement
 
 from app.features.analysis.domain.enums import AnalysisStatus
 from app.features.analysis.persistence.models import (
@@ -65,7 +66,8 @@ class SemanticTopDownSourceResolver:
             valid_on=valid_on,
             extra=(
                 UnderlyingBenchmarkAssignmentModel.underlying_id == underlying_id,
-                UnderlyingBenchmarkAssignmentModel.role == BenchmarkRole.BROAD_MARKET.value,
+                UnderlyingBenchmarkAssignmentModel.role
+                == BenchmarkRole.BROAD_MARKET.value,
             ),
             label="BROAD_MARKET benchmark assignment",
         )
@@ -90,12 +92,15 @@ class SemanticTopDownSourceResolver:
             SectorReferenceAssignmentModel,
             workspace_id=workspace_id,
             valid_on=valid_on,
-            extra=(SectorReferenceAssignmentModel.sector_id == sector_assignment.sector_id,),
+            extra=(
+                SectorReferenceAssignmentModel.sector_id == sector_assignment.sector_id,
+            ),
             label="sector reference assignment",
         )
         sector_reference = await self._session.scalar(
             select(MarketReferenceModel).where(
-                MarketReferenceModel.id == sector_reference_assignment.market_reference_id,
+                MarketReferenceModel.id
+                == sector_reference_assignment.market_reference_id,
                 MarketReferenceModel.workspace_id == workspace_id,
                 MarketReferenceModel.active.is_(True),
             )
@@ -133,18 +138,21 @@ class SemanticTopDownSourceResolver:
             MarketReferenceListingAssignmentModel,
             workspace_id=workspace_id,
             valid_on=valid_on,
-            extra=(MarketReferenceListingAssignmentModel.market_reference_id == reference_id,),
+            extra=(
+                MarketReferenceListingAssignmentModel.market_reference_id
+                == reference_id,
+            ),
             label=f"{label} listing assignment",
         )
-        return cast(UUID, assignment.listing_id)
+        return UUID(str(assignment.listing_id))
 
     async def _one_valid(
         self,
-        model: Any,
+        model: type[Any],
         *,
         workspace_id: UUID,
         valid_on: date,
-        extra: tuple[Any, ...],
+        extra: tuple[ColumnElement[bool], ...],
         label: str,
     ) -> Any:
         rows = (
@@ -177,7 +185,9 @@ class SemanticTopDownSourceResolver:
             predicate=MarketAnalysisModel.listing_id == listing_id,
         )
         if row is None:
-            raise ValueError(f"no completed {label} analysis available as of evaluation time")
+            raise ValueError(
+                f"no completed {label} analysis available as of evaluation time"
+            )
         analysis, run = row
         return StoredAnalysisReference(analysis.id, run.version)
 
@@ -190,12 +200,18 @@ class SemanticTopDownSourceResolver:
             predicate=MarketAnalysisModel.underlying_id == underlying_id,
         )
         if row is None:
-            raise ValueError("no completed underlying analysis available as of evaluation time")
+            raise ValueError(
+                "no completed underlying analysis available as of evaluation time"
+            )
         analysis, run = row
         return StoredAnalysisReference(analysis.id, run.version)
 
     async def _latest_completed(
-        self, *, workspace_id: UUID, cutoff: datetime, predicate: Any
+        self,
+        *,
+        workspace_id: UUID,
+        cutoff: datetime,
+        predicate: ColumnElement[bool],
     ) -> tuple[MarketAnalysisModel, MarketAnalysisRunModel] | None:
         allowed = (
             AnalysisStatus.COMPLETED.value,
