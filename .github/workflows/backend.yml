@@ -46,7 +46,7 @@ jobs:
         run: mypy app
       - name: Tests with coverage
         env:
-          PYTHONPATH: ${{ github.workspace }}/backend
+          PYTHONPATH: ${{ github.workspace }}/backend:${{ github.workspace }}
         run: >-
           pytest ../tests/unit/backend ../tests/integration/backend
           --cov=app
