@@ -56,10 +56,7 @@ def test_live_workflow_returns_next_operator_action() -> None:
     assert body["ready"] is False
     assert body["next_action"] == "CREATE_EODHD_MAPPING"
     assert body["steps"][0]["status"] == "BLOCKED"
-    assert (
-        body["steps"][0]["action_params"]["listing_id"]
-        == "40000000-0000-4000-8000-000000000001"
-    )
+    assert body["steps"][0]["action_params"]["listing_id"] == "40000000-0000-4000-8000-000000000001"
     service.inspect.assert_awaited_once_with(
         workspace_id=WORKSPACE_ID,
         candidate_id=CANDIDATE_ID,

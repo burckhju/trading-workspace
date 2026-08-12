@@ -38,9 +38,7 @@ class CandidateService:
         self._session = session
         self._repo = SqlAlchemyCandidateRepository(session)
 
-    async def create(
-        self, workspace_id: UUID, underlying_id: UUID, actor: str
-    ) -> CandidateModel:
+    async def create(self, workspace_id: UUID, underlying_id: UUID, actor: str) -> CandidateModel:
         if not await self._repo.underlying_exists(workspace_id, underlying_id):
             raise ValueError("underlying does not exist in workspace")
         current = await self._repo.get_by_underlying(workspace_id, underlying_id)
@@ -116,9 +114,7 @@ class CandidateService:
             sector=sector,
             underlying=underlying,
         )
-        return await self.evaluate(
-            workspace_id, candidate_id, resolved.value, resolved.sources
-        )
+        return await self.evaluate(workspace_id, candidate_id, resolved.value, resolved.sources)
 
     async def evaluate(
         self,
@@ -130,9 +126,7 @@ class CandidateService:
         await self.get(workspace_id, candidate_id)
         required_roles = {"MARKET", "SECTOR", "UNDERLYING"}
         if set(sources) != required_roles:
-            raise ValueError(
-                "MARKET, SECTOR and UNDERLYING provenance sources are required"
-            )
+            raise ValueError("MARKET, SECTOR and UNDERLYING provenance sources are required")
         result = evaluate_candidate(value)
         version = await self._repo.next_evaluation_version(candidate_id)
         now = datetime.now(UTC)
@@ -216,12 +210,8 @@ class CandidateService:
         await self._repo.commit()
         return candidate
 
-    async def list_evaluations(
-        self, candidate_id: UUID
-    ) -> tuple[CandidateEvaluationModel, ...]:
+    async def list_evaluations(self, candidate_id: UUID) -> tuple[CandidateEvaluationModel, ...]:
         return await self._repo.list_evaluations(candidate_id)
 
-    async def list_criteria(
-        self, evaluation_id: UUID
-    ) -> tuple[CandidateCriterionModel, ...]:
+    async def list_criteria(self, evaluation_id: UUID) -> tuple[CandidateCriterionModel, ...]:
         return await self._repo.list_criteria(evaluation_id)

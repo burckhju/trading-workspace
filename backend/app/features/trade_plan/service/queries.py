@@ -87,9 +87,7 @@ class TradePlanVersionView:
 
 
 class TradePlanProvenanceGateway:
-    async def candidate_evaluation(
-        self, plan: TradePlan
-    ) -> CandidateEvaluationProvenance | None:
+    async def candidate_evaluation(self, plan: TradePlan) -> CandidateEvaluationProvenance | None:
         raise NotImplementedError
 
 
@@ -97,15 +95,11 @@ class SqlAlchemyTradePlanProvenanceGateway(TradePlanProvenanceGateway):
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def candidate_evaluation(
-        self, plan: TradePlan
-    ) -> CandidateEvaluationProvenance | None:
+    async def candidate_evaluation(self, plan: TradePlan) -> CandidateEvaluationProvenance | None:
         if plan.origin_type is TradePlanOriginType.MANUAL:
             return None
         if plan.candidate_id is None or plan.candidate_evaluation_id is None:
-            raise ValueError(
-                "candidate-originated trade plan has incomplete provenance"
-            )
+            raise ValueError("candidate-originated trade plan has incomplete provenance")
 
         row = (
             await self._session.execute(
@@ -123,9 +117,7 @@ class SqlAlchemyTradePlanProvenanceGateway(TradePlanProvenanceGateway):
             )
         ).one_or_none()
         if row is None:
-            raise ValueError(
-                "persisted CandidateEvaluation provenance cannot be resolved"
-            )
+            raise ValueError("persisted CandidateEvaluation provenance cannot be resolved")
         _, evaluation = row
 
         source_rows = (
@@ -175,15 +167,11 @@ class TradePlanQueryService:
     ) -> None:
         if uow is None:
             if session is None:
-                raise ValueError(
-                    "session or explicit uow/provenance dependencies are required"
-                )
+                raise ValueError("session or explicit uow/provenance dependencies are required")
             uow = SqlAlchemyTradePlanUnitOfWork(session)
         if provenance is None:
             if session is None:
-                raise ValueError(
-                    "session or explicit uow/provenance dependencies are required"
-                )
+                raise ValueError("session or explicit uow/provenance dependencies are required")
             provenance = SqlAlchemyTradePlanProvenanceGateway(session)
         self._uow = uow
         self._provenance = provenance

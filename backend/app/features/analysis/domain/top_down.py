@@ -173,9 +173,7 @@ def calculate_market_context(
         elif long_trend is expected and medium_trend is expected:
             if short_trend is opposite:
                 classification = ContextClassification.CAUTIOUS
-                warnings = (
-                    "Short-term benchmark trend opposes the requested direction",
-                )
+                warnings = ("Short-term benchmark trend opposes the requested direction",)
             else:
                 classification = ContextClassification.FAVORABLE
                 warnings = ()

@@ -32,9 +32,7 @@ class TradePlan:
     candidate_evaluation_id: UUID | None = None
 
     def __post_init__(self) -> None:
-        has_candidate = (
-            self.candidate_id is not None or self.candidate_evaluation_id is not None
-        )
+        has_candidate = self.candidate_id is not None or self.candidate_evaluation_id is not None
         if self.origin_type is TradePlanOriginType.MANUAL and has_candidate:
             raise ValueError("manual trade plan cannot reference candidate provenance")
         if self.origin_type is TradePlanOriginType.CANDIDATE_EVALUATION and (
@@ -79,9 +77,7 @@ class EntryPlan:
                 or self.price is not None
                 or self.trigger is not None
             ):
-                raise ValueError(
-                    "PRICE_RANGE entry requires only price_from and price_to"
-                )
+                raise ValueError("PRICE_RANGE entry requires only price_from and price_to")
             if self.price_from > self.price_to:
                 raise ValueError("entry range start must not exceed end")
         elif self.type is EntryType.TRIGGER and (
@@ -170,32 +166,22 @@ class TradePlanVersion:
         actual = tuple(t.sequence for t in self.targets)
         if actual != expected:
             raise ValueError("target sequence must start at 1 and contain no gaps")
-        if any(
-            a.price >= b.price
-            for a, b in zip(self.targets, self.targets[1:], strict=False)
-        ):
+        if any(a.price >= b.price for a, b in zip(self.targets, self.targets[1:], strict=False)):
             raise ValueError("LONG targets must be strictly increasing")
         anchor = self.entry.validation_price
         if anchor is not None:
-            if (
-                self.invalidation.stop_price is not None
-                and self.invalidation.stop_price >= anchor
-            ):
+            if self.invalidation.stop_price is not None and self.invalidation.stop_price >= anchor:
                 raise ValueError("LONG stop price must be below entry validation price")
             if any(t.price <= anchor for t in self.targets):
                 raise ValueError("LONG targets must be above entry validation price")
         if self.version == 1:
             if self.previous_version_id is not None or self.change_reason is not None:
-                raise ValueError(
-                    "initial trade plan version cannot reference a previous version"
-                )
+                raise ValueError("initial trade plan version cannot reference a previous version")
         else:
             if self.previous_version_id is None:
                 raise ValueError("amendment version requires a previous version")
             if self.previous_version_id == self.id:
-                raise ValueError(
-                    "trade plan version cannot reference itself as previous version"
-                )
+                raise ValueError("trade plan version cannot reference itself as previous version")
             if not self.change_reason or not self.change_reason.strip():
                 raise ValueError("amendment version requires a change reason")
 

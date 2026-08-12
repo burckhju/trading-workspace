@@ -41,9 +41,7 @@ from app.features.trade_plan.service.unit_of_work import (
 
 
 class TradePlanOriginGateway(Protocol):
-    async def manual_underlying(
-        self, workspace_id: UUID, underlying_id: UUID
-    ) -> UUID: ...
+    async def manual_underlying(self, workspace_id: UUID, underlying_id: UUID) -> UUID: ...
     async def candidate_origin(
         self, workspace_id: UUID, candidate_id: UUID, evaluation_id: UUID
     ) -> UUID: ...
@@ -86,9 +84,7 @@ class SqlAlchemyTradePlanOriginGateway:
             )
         ).one_or_none()
         if row is None:
-            raise ValueError(
-                "candidate evaluation does not belong to candidate/workspace"
-            )
+            raise ValueError("candidate evaluation does not belong to candidate/workspace")
         candidate, evaluation = row
         if evaluation.direction != TradeDirection.LONG.value:
             raise ValueError("TradePlan V1 requires a LONG candidate evaluation")
@@ -107,15 +103,11 @@ class TradePlanService:
     ) -> None:
         if uow is None:
             if session is None:
-                raise ValueError(
-                    "session or explicit uow/origins dependencies are required"
-                )
+                raise ValueError("session or explicit uow/origins dependencies are required")
             uow = SqlAlchemyTradePlanUnitOfWork(session)
         if origins is None:
             if session is None:
-                raise ValueError(
-                    "session or explicit uow/origins dependencies are required"
-                )
+                raise ValueError("session or explicit uow/origins dependencies are required")
             origins = SqlAlchemyTradePlanOriginGateway(session)
         self._uow = uow
         self._origins = origins
@@ -278,9 +270,7 @@ class TradePlanService:
                 raise ValueError("amendment requires an APPROVED base version")
             number = await uow.versions.next_version_number(workspace_id, trade_plan_id)
             if number <= base.version:
-                raise ValueError(
-                    "amendment version number must be newer than its base version"
-                )
+                raise ValueError("amendment version number must be newer than its base version")
             version = TradePlanVersion(
                 id=uuid4(),
                 trade_plan_id=trade_plan_id,
@@ -382,34 +372,22 @@ class TradePlanService:
         async with self._uow as uow:
             if not await uow.plans.lock(workspace_id, trade_plan_id):
                 raise ValueError("trade plan not found")
-            plan, version = await self._load(
-                uow, workspace_id, trade_plan_id, version_id
-            )
+            plan, version = await self._load(uow, workspace_id, trade_plan_id, version_id)
             approval = await uow.approvals.get_for_version(version.id)
             if version.status is TradePlanStatus.APPROVED:
                 if approval is None:
-                    raise ValueError(
-                        "approved trade plan version has no approval record"
-                    )
+                    raise ValueError("approved trade plan version has no approval record")
                 return version
             if approval is not None:
-                raise ValueError(
-                    "trade plan version has approval record before APPROVED status"
-                )
+                raise ValueError("trade plan version has approval record before APPROVED status")
             version.ensure_approvable()
             versions = tuple(await uow.versions.list(trade_plan_id))
-            latest_number = max(
-                (item.version for item in versions), default=version.version
-            )
+            latest_number = max((item.version for item in versions), default=version.version)
             if version.version != latest_number:
                 raise ValueError("only the latest trade plan version can be approved")
-            previous_approved = self._single_previous_approved(
-                versions, exclude=version.id
-            )
+            previous_approved = self._single_previous_approved(versions, exclude=version.id)
             now = datetime.now(UTC)
-            await uow.versions.set_status(
-                trade_plan_id, version.id, TradePlanStatus.APPROVED.value
-            )
+            await uow.versions.set_status(trade_plan_id, version.id, TradePlanStatus.APPROVED.value)
             approved = replace(version, status=TradePlanStatus.APPROVED)
             await uow.approvals.add(
                 TradePlanApprovalModel(
@@ -442,9 +420,7 @@ class TradePlanService:
                 await self._add_event(
                     uow,
                     plan=plan,
-                    version=replace(
-                        previous_approved, status=TradePlanStatus.SUPERSEDED
-                    ),
+                    version=replace(previous_approved, status=TradePlanStatus.SUPERSEDED),
                     event_type="TRADE_PLAN_SUPERSEDED",
                     from_status=TradePlanStatus.APPROVED,
                     to_status=TradePlanStatus.SUPERSEDED,
@@ -469,9 +445,7 @@ class TradePlanService:
         async with self._uow as uow:
             if not await uow.plans.lock(workspace_id, trade_plan_id):
                 raise ValueError("trade plan not found")
-            plan, version = await self._load(
-                uow, workspace_id, trade_plan_id, version_id
-            )
+            plan, version = await self._load(uow, workspace_id, trade_plan_id, version_id)
             ensure_transition(version.status, target)
             if version.status is target:
                 return version

@@ -117,9 +117,9 @@ async def test_query_by_number_does_not_fall_back_to_latest():
     uow.plans.get.return_value = plan
     uow.versions.get_by_number.return_value = v1
 
-    view = await TradePlanQueryService(
-        uow=uow, provenance=FakeProvenance()
-    ).get_version_by_number(workspace_id, plan_id, 1)
+    view = await TradePlanQueryService(uow=uow, provenance=FakeProvenance()).get_version_by_number(
+        workspace_id, plan_id, 1
+    )
 
     assert view.version.version == 1
     uow.versions.get_by_number.assert_awaited_once_with(plan_id, 1)
@@ -143,9 +143,7 @@ async def test_manual_plan_has_no_candidate_provenance():
 
 @pytest.mark.asyncio
 async def test_candidate_provenance_resolves_only_persisted_exact_evaluation():
-    candidate_id, evaluation_id, workspace_id, underlying_id = (
-        uuid4() for _ in range(4)
-    )
+    candidate_id, evaluation_id, workspace_id, underlying_id = (uuid4() for _ in range(4))
     plan = TradePlan(
         id=uuid4(),
         workspace_id=workspace_id,
@@ -176,9 +174,7 @@ async def test_candidate_provenance_resolves_only_persisted_exact_evaluation():
     scalar_result.all.return_value = []
     session.scalars.return_value = scalar_result
 
-    provenance = await SqlAlchemyTradePlanProvenanceGateway(
-        session
-    ).candidate_evaluation(plan)
+    provenance = await SqlAlchemyTradePlanProvenanceGateway(session).candidate_evaluation(plan)
 
     assert provenance.evaluation_id == evaluation_id
     assert provenance.evaluation_version == 4

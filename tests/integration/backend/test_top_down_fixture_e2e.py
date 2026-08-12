@@ -50,9 +50,9 @@ class PriceRepo:
         return self.rows.get((workspace_id, listing_id, trading_date, price_type))
 
     async def add(self, value) -> None:
-        self.rows[
-            (value.workspace_id, value.listing_id, value.trading_date, value.price_type)
-        ] = value
+        self.rows[(value.workspace_id, value.listing_id, value.trading_date, value.price_type)] = (
+            value
+        )
 
     async def flush(self) -> None:
         return None
@@ -179,9 +179,7 @@ async def _import_and_analyze(
     )
     criteria = {item.code: item.classification for item in computation.criteria}
     prices = tuple(
-        item.adjusted_close
-        for item in provider_prices
-        if item.adjusted_close is not None
+        item.adjusted_close for item in provider_prices if item.adjusted_close is not None
     )
     return computation, criteria, prices
 
@@ -236,9 +234,7 @@ async def test_fixture_provider_to_ft006_to_top_down_candidate_e2e() -> None:
             underlying_relative_strength=stock_rs.classification,
             underlying_quality=stock.quality_status,
             momentum=stock_criteria["MOMENTUM_120"],
-            volatility=next(
-                item.value for item in stock.criteria if item.code == "VOLATILITY"
-            ),
+            volatility=next(item.value for item in stock.criteria if item.code == "VOLATILITY"),
             range_position=next(
                 item.value for item in stock.criteria if item.code == "RANGE_POSITION"
             ),

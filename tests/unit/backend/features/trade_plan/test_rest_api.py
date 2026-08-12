@@ -54,13 +54,9 @@ def plan(origin=TradePlanOriginType.MANUAL) -> TradePlan:
         origin_type=origin,
         created_at=NOW,
         created_by=ACTOR_ID,
-        candidate_id=(
-            CANDIDATE_ID if origin is TradePlanOriginType.CANDIDATE_EVALUATION else None
-        ),
+        candidate_id=(CANDIDATE_ID if origin is TradePlanOriginType.CANDIDATE_EVALUATION else None),
         candidate_evaluation_id=(
-            EVALUATION_ID
-            if origin is TradePlanOriginType.CANDIDATE_EVALUATION
-            else None
+            EVALUATION_ID if origin is TradePlanOriginType.CANDIDATE_EVALUATION else None
         ),
     )
 
@@ -115,10 +111,7 @@ def test_openapi_exposes_ft007_contracts():
     with TestClient(create_application(settings())) as client:
         document = client.get("/openapi.json").json()
     assert "/api/v1/trade-plans" in document["paths"]
-    assert (
-        "/api/v1/trade-plans/{trade_plan_id}/versions/{version_id}/approve"
-        in document["paths"]
-    )
+    assert "/api/v1/trade-plans/{trade_plan_id}/versions/{version_id}/approve" in document["paths"]
     assert "CreateTradePlanRequest" in document["components"]["schemas"]
     assert "TradePlanVersionResponse" in document["components"]["schemas"]
 

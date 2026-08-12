@@ -87,9 +87,7 @@ def _version(version: TradePlanVersion) -> TradePlanVersionResponse:
         entry=EntryPlanResponse(**vars_from_slots(version.entry)),
         invalidation=InvalidationPlanResponse(**vars_from_slots(version.invalidation)),
         targets=[TargetResponse(**vars_from_slots(item)) for item in version.targets],
-        risk_assumptions=RiskAssumptionsResponse(
-            **vars_from_slots(version.risk_assumptions)
-        ),
+        risk_assumptions=RiskAssumptionsResponse(**vars_from_slots(version.risk_assumptions)),
         status=version.status,
         created_at=version.created_at,
         created_by=version.created_by,
@@ -128,13 +126,9 @@ def _view(view: TradePlanVersionView) -> TradePlanVersionResponse:
                 )
             ),
             "approval": (
-                None
-                if approval is None
-                else ApprovalResponse(**vars_from_slots(approval))
+                None if approval is None else ApprovalResponse(**vars_from_slots(approval))
             ),
-            "events": [
-                LifecycleEventResponse(**vars_from_slots(item)) for item in view.events
-            ],
+            "events": [LifecycleEventResponse(**vars_from_slots(item)) for item in view.events],
         }
     )
 
@@ -143,9 +137,7 @@ def _raise(error: ValueError) -> NoReturn:
     raise translate_trade_plan_error(error) from error
 
 
-@router.post(
-    "", response_model=TradePlanDetailResponse, status_code=status.HTTP_201_CREATED
-)
+@router.post("", response_model=TradePlanDetailResponse, status_code=status.HTTP_201_CREATED)
 async def create_trade_plan(
     request: CreateTradePlanRequest,
     service: Annotated[TradePlanService, Depends(get_trade_plan_service)],
@@ -171,9 +163,7 @@ async def create_trade_plan(
             )
         else:
             if request.candidate_id is None or request.candidate_evaluation_id is None:
-                raise ValueError(
-                    "candidate-originated trade plan requires candidate provenance"
-                )
+                raise ValueError("candidate-originated trade plan requires candidate provenance")
             plan, version = await service.create_from_candidate(
                 workspace_id=WORKSPACE_ID,
                 candidate_id=request.candidate_id,
@@ -202,9 +192,7 @@ async def get_trade_plan(
         if not versions:
             raise ValueError("trade plan has no versions")
         latest = max(versions, key=lambda item: item.version.version)
-        return TradePlanDetailResponse(
-            plan=_plan(latest.plan), latest_version=_view(latest)
-        )
+        return TradePlanDetailResponse(plan=_plan(latest.plan), latest_version=_view(latest))
     except ValueError as exc:
         _raise(exc)
 
@@ -215,17 +203,12 @@ async def list_trade_plan_versions(
     query: Annotated[TradePlanQueryService, Depends(get_trade_plan_query_service)],
 ) -> list[TradePlanVersionResponse]:
     try:
-        return [
-            _view(item)
-            for item in await query.list_versions(WORKSPACE_ID, trade_plan_id)
-        ]
+        return [_view(item) for item in await query.list_versions(WORKSPACE_ID, trade_plan_id)]
     except ValueError as exc:
         _raise(exc)
 
 
-@router.get(
-    "/{trade_plan_id}/versions/{version_id}", response_model=TradePlanVersionResponse
-)
+@router.get("/{trade_plan_id}/versions/{version_id}", response_model=TradePlanVersionResponse)
 async def get_trade_plan_version(
     trade_plan_id: UUID,
     version_id: UUID,

@@ -86,9 +86,7 @@ class TopDownEvaluationOrchestrator:
         underlying_analysis = await self._load(workspace_id, underlying)
 
         if underlying_analysis.analysis.underlying_id != candidate_underlying_id:
-            raise ValueError(
-                "underlying analysis does not belong to candidate underlying"
-            )
+            raise ValueError("underlying analysis does not belong to candidate underlying")
 
         market_context = calculate_market_context(
             direction=direction,
@@ -114,15 +112,9 @@ class TopDownEvaluationOrchestrator:
             sector_quality=self._worst_quality(
                 self._quality(sector_analysis.run), sector_rs.quality_status
             ),
-            underlying_long_trend=self._classification(
-                underlying_analysis, "LONG_TREND"
-            ),
-            underlying_medium_trend=self._classification(
-                underlying_analysis, "MEDIUM_TREND"
-            ),
-            underlying_short_trend=self._classification(
-                underlying_analysis, "SHORT_TREND"
-            ),
+            underlying_long_trend=self._classification(underlying_analysis, "LONG_TREND"),
+            underlying_medium_trend=self._classification(underlying_analysis, "MEDIUM_TREND"),
+            underlying_short_trend=self._classification(underlying_analysis, "SHORT_TREND"),
             underlying_relative_strength=underlying_rs.classification,
             underlying_quality=self._worst_quality(
                 self._quality(underlying_analysis.run), underlying_rs.quality_status
@@ -141,9 +133,7 @@ class TopDownEvaluationOrchestrator:
     async def _load(
         self, workspace_id: UUID, reference: StoredAnalysisReference
     ) -> _ResolvedAnalysis:
-        analysis = await self._repository.get_analysis(
-            workspace_id, reference.analysis_id
-        )
+        analysis = await self._repository.get_analysis(workspace_id, reference.analysis_id)
         if analysis is None:
             raise ValueError("analysis source not found in workspace")
         run = await self._repository.get_run(reference.analysis_id, reference.version)
@@ -155,16 +145,12 @@ class TopDownEvaluationOrchestrator:
         }
         if run.status not in allowed:
             raise ValueError("analysis source must be completed")
-        criteria = {
-            item.code: item for item in await self._repository.list_criteria(run.id)
-        }
+        criteria = {item.code: item for item in await self._repository.list_criteria(run.id)}
         snapshot = await self._repository.list_snapshot(run.id)
         return _ResolvedAnalysis(analysis, run, criteria, snapshot)
 
     @staticmethod
-    def _classification(
-        source: _ResolvedAnalysis, code: str
-    ) -> CriterionClassification:
+    def _classification(source: _ResolvedAnalysis, code: str) -> CriterionClassification:
         criterion = source.criteria.get(code)
         if criterion is None:
             return CriterionClassification.NOT_EVALUABLE

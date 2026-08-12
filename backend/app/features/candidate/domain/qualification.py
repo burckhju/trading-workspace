@@ -84,9 +84,7 @@ def _warning(
     )
 
 
-def _matches_direction(
-    value: CriterionClassification, direction: TradingDirection
-) -> bool | None:
+def _matches_direction(value: CriterionClassification, direction: TradingDirection) -> bool | None:
     if value is CriterionClassification.NOT_EVALUABLE:
         return None
     expected = (
@@ -189,9 +187,7 @@ def evaluate_candidate(value: CandidateEvaluationInput) -> CandidateEvaluationRe
             (
                 None
                 if value.underlying_quality is AnalysisQualityStatus.INSUFFICIENT
-                else _matches_direction(
-                    value.underlying_relative_strength, value.direction
-                )
+                else _matches_direction(value.underlying_relative_strength, value.direction)
             ),
             direction_expected,
             "Underlying must outperform its sector in the requested direction",
@@ -255,18 +251,10 @@ def evaluate_candidate(value: CandidateEvaluationInput) -> CandidateEvaluationRe
             )
         )
 
-    required = [
-        item for item in criteria if item.severity is CandidateRuleSeverity.REQUIRED
-    ]
-    if any(
-        item.evaluation is CandidateCriterionEvaluation.NOT_FULFILLED
-        for item in required
-    ):
+    required = [item for item in criteria if item.severity is CandidateRuleSeverity.REQUIRED]
+    if any(item.evaluation is CandidateCriterionEvaluation.NOT_FULFILLED for item in required):
         qualification = CandidateQualification.NOT_QUALIFIED
-    elif any(
-        item.evaluation is CandidateCriterionEvaluation.NOT_EVALUABLE
-        for item in required
-    ):
+    elif any(item.evaluation is CandidateCriterionEvaluation.NOT_EVALUABLE for item in required):
         qualification = CandidateQualification.NOT_EVALUABLE
     else:
         qualification = CandidateQualification.QUALIFIED

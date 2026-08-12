@@ -417,6 +417,4 @@ def test_reproducibility_verification_exposes_explicit_checks() -> None:
     assert response.status_code == 200
     assert response.json()["verified"] is True
     assert response.json()["input_hash_matches"] is True
-    service.verify_reproducibility.assert_awaited_once_with(
-        WORKSPACE_ID, ANALYSIS_ID, 1
-    )
+    service.verify_reproducibility.assert_awaited_once_with(WORKSPACE_ID, ANALYSIS_ID, 1)

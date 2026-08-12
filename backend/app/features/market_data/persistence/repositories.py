@@ -92,9 +92,7 @@ class SqlAlchemyProviderInstrumentMappingRepository:
             ProviderInstrumentMappingModel.workspace_id == workspace_id
         )
         if provider is not None:
-            statement = statement.where(
-                ProviderInstrumentMappingModel.provider == provider
-            )
+            statement = statement.where(ProviderInstrumentMappingModel.provider == provider)
         result = await self._session.scalars(
             statement.order_by(
                 ProviderInstrumentMappingModel.provider,

@@ -99,9 +99,7 @@ class FakeUnderlyings:
     async def add(self, underlying: UnderlyingModel) -> None:
         self.items[underlying.id] = underlying
 
-    async def get(
-        self, workspace_id: UUID, underlying_id: UUID
-    ) -> UnderlyingModel | None:
+    async def get(self, workspace_id: UUID, underlying_id: UUID) -> UnderlyingModel | None:
         item = self.items.get(underlying_id)
         return item if item and item.workspace_id == workspace_id else None
 
@@ -110,25 +108,15 @@ class FakeUnderlyings:
     ) -> UnderlyingModel | None:
         return await self.get(workspace_id, underlying_id)
 
-    async def find_by_isin(
-        self, workspace_id: UUID, isin: str
-    ) -> UnderlyingModel | None:
+    async def find_by_isin(self, workspace_id: UUID, isin: str) -> UnderlyingModel | None:
         return next(
-            (
-                x
-                for x in self.items.values()
-                if x.workspace_id == workspace_id and x.isin == isin
-            ),
+            (x for x in self.items.values() if x.workspace_id == workspace_id and x.isin == isin),
             None,
         )
 
     async def find_by_wkn(self, workspace_id: UUID, wkn: str) -> UnderlyingModel | None:
         return next(
-            (
-                x
-                for x in self.items.values()
-                if x.workspace_id == workspace_id and x.wkn == wkn
-            ),
+            (x for x in self.items.values() if x.workspace_id == workspace_id and x.wkn == wkn),
             None,
         )
 
@@ -267,9 +255,7 @@ async def test_create_is_atomic_and_writes_two_audit_events() -> None:
     assert uow.listings.items[LISTING_ID].ticker == "SIE"
     assert len(uow.audit_events.events) == 2
     assert uow.commits == 1
-    assert (
-        uow.underlyings.flushes == uow.listings.flushes == uow.audit_events.flushes == 1
-    )
+    assert uow.underlyings.flushes == uow.listings.flushes == uow.audit_events.flushes == 1
 
 
 @pytest.mark.asyncio
@@ -302,9 +288,7 @@ async def test_duplicate_isin_aborts_before_commit() -> None:
 @pytest.mark.asyncio
 async def test_noop_update_does_not_commit_or_audit() -> None:
     uow = FakeUow()
-    await service(uow, UNDERLYING_ID, LISTING_ID, AUDIT_1, AUDIT_2).create(
-        create_command()
-    )
+    await service(uow, UNDERLYING_ID, LISTING_ID, AUDIT_1, AUDIT_2).create(create_command())
     uow.commits = 0
     uow.audit_events.events.clear()
 
@@ -328,9 +312,7 @@ async def test_noop_update_does_not_commit_or_audit() -> None:
 @pytest.mark.asyncio
 async def test_stale_update_raises_domain_conflict() -> None:
     uow = FakeUow()
-    await service(uow, UNDERLYING_ID, LISTING_ID, AUDIT_1, AUDIT_2).create(
-        create_command()
-    )
+    await service(uow, UNDERLYING_ID, LISTING_ID, AUDIT_1, AUDIT_2).create(create_command())
 
     with pytest.raises(ConcurrentModification):
         await service(uow).deactivate(
@@ -346,15 +328,11 @@ async def test_stale_update_raises_domain_conflict() -> None:
 @pytest.mark.asyncio
 async def test_deactivate_updates_version_and_audits() -> None:
     uow = FakeUow()
-    await service(uow, UNDERLYING_ID, LISTING_ID, AUDIT_1, AUDIT_2).create(
-        create_command()
-    )
+    await service(uow, UNDERLYING_ID, LISTING_ID, AUDIT_1, AUDIT_2).create(create_command())
     uow.audit_events.events.clear()
     uow.commits = 0
 
-    result = await service(
-        uow, UUID("30000000-0000-4000-8000-000000000003")
-    ).deactivate(
+    result = await service(uow, UUID("30000000-0000-4000-8000-000000000003")).deactivate(
         ChangeUnderlyingStatus(
             workspace_id=WORKSPACE_ID,
             underlying_id=UNDERLYING_ID,
@@ -372,9 +350,7 @@ async def test_deactivate_updates_version_and_audits() -> None:
 @pytest.mark.asyncio
 async def test_delete_referenced_underlying_is_rejected_with_usage_details() -> None:
     uow = FakeUow()
-    await service(uow, UNDERLYING_ID, LISTING_ID, AUDIT_1, AUDIT_2).create(
-        create_command()
-    )
+    await service(uow, UNDERLYING_ID, LISTING_ID, AUDIT_1, AUDIT_2).create(create_command())
     reference = UsageReference("WARRANT", UUID("40000000-0000-4000-8000-000000000001"))
     uow.usages.references = (reference,)
 
@@ -395,9 +371,7 @@ async def test_delete_referenced_underlying_is_rejected_with_usage_details() -> 
 @pytest.mark.asyncio
 async def test_add_secondary_listing_commits_and_audits() -> None:
     uow = FakeUow()
-    await service(uow, UNDERLYING_ID, LISTING_ID, AUDIT_1, AUDIT_2).create(
-        create_command()
-    )
+    await service(uow, UNDERLYING_ID, LISTING_ID, AUDIT_1, AUDIT_2).create(create_command())
     uow.commits = 0
     uow.audit_events.events.clear()
     secondary_id = UUID("20000000-0000-4000-8000-000000000002")
@@ -426,9 +400,7 @@ async def test_add_secondary_listing_commits_and_audits() -> None:
 @pytest.mark.asyncio
 async def test_search_and_get_return_workspace_scoped_results() -> None:
     uow = FakeUow()
-    await service(uow, UNDERLYING_ID, LISTING_ID, AUDIT_1, AUDIT_2).create(
-        create_command()
-    )
+    await service(uow, UNDERLYING_ID, LISTING_ID, AUDIT_1, AUDIT_2).create(create_command())
 
     items, total = await service(uow).search(
         SearchUnderlyings(
@@ -475,15 +447,11 @@ async def test_verify_then_master_data_change_resets_quality_status() -> None:
 @pytest.mark.asyncio
 async def test_reactivate_inactive_underlying_with_primary_listing() -> None:
     uow = FakeUow()
-    await service(uow, UNDERLYING_ID, LISTING_ID, AUDIT_1, AUDIT_2).create(
-        create_command()
+    await service(uow, UNDERLYING_ID, LISTING_ID, AUDIT_1, AUDIT_2).create(create_command())
+    deactivated = await service(uow, UUID("30000000-0000-4000-8000-000000000003")).deactivate(
+        ChangeUnderlyingStatus(WORKSPACE_ID, UNDERLYING_ID, 1, ACTOR)
     )
-    deactivated = await service(
-        uow, UUID("30000000-0000-4000-8000-000000000003")
-    ).deactivate(ChangeUnderlyingStatus(WORKSPACE_ID, UNDERLYING_ID, 1, ACTOR))
-    reactivated = await service(
-        uow, UUID("30000000-0000-4000-8000-000000000004")
-    ).reactivate(
+    reactivated = await service(uow, UUID("30000000-0000-4000-8000-000000000004")).reactivate(
         ChangeUnderlyingStatus(WORKSPACE_ID, UNDERLYING_ID, deactivated.version, ACTOR)
     )
 
@@ -492,13 +460,9 @@ async def test_reactivate_inactive_underlying_with_primary_listing() -> None:
 
 
 @pytest.mark.asyncio
-async def test_delete_unreferenced_underlying_writes_listing_and_underlying_audits() -> (
-    None
-):
+async def test_delete_unreferenced_underlying_writes_listing_and_underlying_audits() -> None:
     uow = FakeUow()
-    await service(uow, UNDERLYING_ID, LISTING_ID, AUDIT_1, AUDIT_2).create(
-        create_command()
-    )
+    await service(uow, UNDERLYING_ID, LISTING_ID, AUDIT_1, AUDIT_2).create(create_command())
     uow.audit_events.events.clear()
     uow.commits = 0
 
@@ -513,18 +477,14 @@ async def test_delete_unreferenced_underlying_writes_listing_and_underlying_audi
         "LISTING",
         "UNDERLYING",
     ]
-    assert all(
-        event.change_type.value == "DELETED" for event in uow.audit_events.events
-    )
+    assert all(event.change_type.value == "DELETED" for event in uow.audit_events.events)
     assert uow.commits == 1
 
 
 @pytest.mark.asyncio
 async def test_listing_update_normalizes_and_audits_actual_change() -> None:
     uow = FakeUow()
-    await service(uow, UNDERLYING_ID, LISTING_ID, AUDIT_1, AUDIT_2).create(
-        create_command()
-    )
+    await service(uow, UNDERLYING_ID, LISTING_ID, AUDIT_1, AUDIT_2).create(create_command())
     uow.audit_events.events.clear()
     uow.commits = 0
 
@@ -554,9 +514,7 @@ async def test_listing_update_normalizes_and_audits_actual_change() -> None:
 @pytest.mark.asyncio
 async def test_listing_noop_update_does_not_commit_or_audit() -> None:
     uow = FakeUow()
-    await service(uow, UNDERLYING_ID, LISTING_ID, AUDIT_1, AUDIT_2).create(
-        create_command()
-    )
+    await service(uow, UNDERLYING_ID, LISTING_ID, AUDIT_1, AUDIT_2).create(create_command())
     uow.audit_events.events.clear()
     uow.commits = 0
 
@@ -578,9 +536,7 @@ async def test_listing_noop_update_does_not_commit_or_audit() -> None:
 @pytest.mark.asyncio
 async def test_primary_listing_switch_updates_both_listings_atomically() -> None:
     uow = FakeUow()
-    await service(uow, UNDERLYING_ID, LISTING_ID, AUDIT_1, AUDIT_2).create(
-        create_command()
-    )
+    await service(uow, UNDERLYING_ID, LISTING_ID, AUDIT_1, AUDIT_2).create(create_command())
     secondary_id = UUID("20000000-0000-4000-8000-000000000002")
     await ListingService(
         uow,
@@ -623,8 +579,5 @@ async def test_primary_listing_switch_updates_both_listings_atomically() -> None
     assert result.is_primary is True
     assert uow.listings.items[LISTING_ID].is_primary is False
     assert len(uow.audit_events.events) == 2
-    assert all(
-        event.change_type.value == "PRIMARY_CHANGED"
-        for event in uow.audit_events.events
-    )
+    assert all(event.change_type.value == "PRIMARY_CHANGED" for event in uow.audit_events.events)
     assert uow.commits == 1

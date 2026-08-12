@@ -107,11 +107,7 @@ class CandidateLiveWorkflowService:
             benchmark = await self._session.get(
                 MarketReferenceModel, benchmark_assignment.market_reference_id
             )
-            if (
-                benchmark is None
-                or benchmark.workspace_id != workspace_id
-                or not benchmark.active
-            ):
+            if benchmark is None or benchmark.workspace_id != workspace_id or not benchmark.active:
                 steps.append(
                     WorkflowStep(
                         "BENCHMARK_ASSIGNMENT",
@@ -120,11 +116,7 @@ class CandidateLiveWorkflowService:
                         "Assigned benchmark is missing or inactive.",
                         "ACTIVATE_OR_REASSIGN_BENCHMARK",
                         benchmark_assignment.market_reference_id,
-                        {
-                            "market_reference_id": str(
-                                benchmark_assignment.market_reference_id
-                            )
-                        },
+                        {"market_reference_id": str(benchmark_assignment.market_reference_id)},
                     )
                 )
                 benchmark = None
@@ -160,11 +152,7 @@ class CandidateLiveWorkflowService:
             )
         else:
             sector = await self._session.get(SectorModel, sector_assignment.sector_id)
-            if (
-                sector is None
-                or sector.workspace_id != workspace_id
-                or not sector.active
-            ):
+            if sector is None or sector.workspace_id != workspace_id or not sector.active:
                 steps.append(
                     WorkflowStep(
                         "SECTOR_ASSIGNMENT",
@@ -248,9 +236,7 @@ class CandidateLiveWorkflowService:
         await self._append_reference_pipeline(
             steps, workspace_id, valid_on, cutoff, sector_reference, "SECTOR"
         )
-        await self._append_underlying_pipeline(
-            steps, workspace_id, cutoff, candidate.underlying_id
-        )
+        await self._append_underlying_pipeline(steps, workspace_id, cutoff, candidate.underlying_id)
 
         blocking = [step for step in steps if step.status == "BLOCKED"]
         next_action = next(
@@ -350,9 +336,7 @@ class CandidateLiveWorkflowService:
                 resource_id=listing_id,
             )
         )
-        await self._append_listing_pipeline(
-            steps, workspace_id, cutoff, listing_id, "UNDERLYING"
-        )
+        await self._append_listing_pipeline(steps, workspace_id, cutoff, listing_id, "UNDERLYING")
 
     async def _append_listing_pipeline(
         self,

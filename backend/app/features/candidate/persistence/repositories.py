@@ -42,9 +42,7 @@ class SqlAlchemyCandidateRepository:
         )
         return value
 
-    async def get(
-        self, workspace_id: UUID, candidate_id: UUID
-    ) -> CandidateModel | None:
+    async def get(self, workspace_id: UUID, candidate_id: UUID) -> CandidateModel | None:
         value = await self._session.scalar(
             select(CandidateModel).where(
                 CandidateModel.workspace_id == workspace_id,
@@ -72,9 +70,7 @@ class SqlAlchemyCandidateRepository:
         )
         return int(latest or 0) + 1
 
-    async def list_evaluations(
-        self, candidate_id: UUID
-    ) -> tuple[CandidateEvaluationModel, ...]:
+    async def list_evaluations(self, candidate_id: UUID) -> tuple[CandidateEvaluationModel, ...]:
         return tuple(
             (
                 await self._session.scalars(
@@ -85,9 +81,7 @@ class SqlAlchemyCandidateRepository:
             ).all()
         )
 
-    async def list_criteria(
-        self, evaluation_id: UUID
-    ) -> tuple[CandidateCriterionModel, ...]:
+    async def list_criteria(self, evaluation_id: UUID) -> tuple[CandidateCriterionModel, ...]:
         return tuple(
             (
                 await self._session.scalars(

@@ -308,9 +308,7 @@ def test_update_requires_at_least_one_mutable_field() -> None:
     application = create_application(settings())
     application.dependency_overrides[get_underlying_service] = lambda: service
     with TestClient(application) as client:
-        response = client.patch(
-            f"/api/v1/underlyings/{UNDERLYING_ID}", json={"version": 1}
-        )
+        response = client.patch(f"/api/v1/underlyings/{UNDERLYING_ID}", json={"version": 1})
     assert response.status_code == 422
     service.update.assert_not_awaited()
 
@@ -351,9 +349,7 @@ def test_currency_code_requires_three_letters() -> None:
     service.create.assert_not_awaited()
 
 
-def listing_model(
-    *, listing_id: UUID | None = None, primary: bool = False
-) -> ListingModel:
+def listing_model(*, listing_id: UUID | None = None, primary: bool = False) -> ListingModel:
     return ListingModel(
         id=listing_id or UUID("20000000-0000-4000-8000-000000000001"),
         workspace_id=UUID("00000000-0000-4000-8000-000000000001"),
@@ -483,9 +479,7 @@ def test_reference_data_routes_return_controlled_lists() -> None:
         )
     ]
     application = create_application(settings())
-    application.dependency_overrides[get_reference_data_service] = (
-        lambda: reference_service
-    )
+    application.dependency_overrides[get_reference_data_service] = lambda: reference_service
 
     with TestClient(application) as client:
         venues = client.get("/api/v1/market-reference-data/trading-venues")
@@ -501,9 +495,7 @@ def test_delete_conflict_exposes_usage_references() -> None:
     service = AsyncMock()
     service.delete.side_effect = UnderlyingDeleteReferenced(
         "Referenced underlying cannot be deleted",
-        references=(
-            UsageReference("WARRANT", UUID("40000000-0000-4000-8000-000000000001")),
-        ),
+        references=(UsageReference("WARRANT", UUID("40000000-0000-4000-8000-000000000001")),),
     )
     application = create_application(settings())
     application.dependency_overrides[get_underlying_service] = lambda: service
@@ -544,9 +536,7 @@ def test_search_forwards_market_and_currency_filters() -> None:
     application.dependency_overrides[get_underlying_service] = lambda: service
 
     with TestClient(application) as client:
-        response = client.get(
-            f"/api/v1/underlyings?trading_venue_id={VENUE_ID}&currency_code=eur"
-        )
+        response = client.get(f"/api/v1/underlyings?trading_venue_id={VENUE_ID}&currency_code=eur")
 
     assert response.status_code == 200
     query = service.search.await_args.args[0]
@@ -561,9 +551,7 @@ def test_audit_history_endpoint_is_paginated() -> None:
     application.dependency_overrides[get_underlying_service] = lambda: service
 
     with TestClient(application) as client:
-        response = client.get(
-            f"/api/v1/underlyings/{UNDERLYING_ID}/audit-events?offset=5&limit=10"
-        )
+        response = client.get(f"/api/v1/underlyings/{UNDERLYING_ID}/audit-events?offset=5&limit=10")
 
     assert response.status_code == 200
     assert response.json() == {"items": [], "total": 0, "offset": 5, "limit": 10}

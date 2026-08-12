@@ -27,9 +27,7 @@ from app.features.trade_plan.persistence.models import (
 
 class TradePlanRepository(Protocol):
     async def add(self, plan: TradePlan) -> None: ...
-    async def get(
-        self, workspace_id: UUID, trade_plan_id: UUID
-    ) -> TradePlan | None: ...
+    async def get(self, workspace_id: UUID, trade_plan_id: UUID) -> TradePlan | None: ...
     async def list_for_underlying(
         self, workspace_id: UUID, underlying_id: UUID
     ) -> Sequence[TradePlan]: ...
@@ -38,34 +36,22 @@ class TradePlanRepository(Protocol):
 
 class TradePlanVersionRepository(Protocol):
     async def add(self, version: TradePlanVersion) -> None: ...
-    async def get(
-        self, trade_plan_id: UUID, version_id: UUID
-    ) -> TradePlanVersion | None: ...
-    async def get_by_number(
-        self, trade_plan_id: UUID, version: int
-    ) -> TradePlanVersion | None: ...
+    async def get(self, trade_plan_id: UUID, version_id: UUID) -> TradePlanVersion | None: ...
+    async def get_by_number(self, trade_plan_id: UUID, version: int) -> TradePlanVersion | None: ...
     async def latest(self, trade_plan_id: UUID) -> TradePlanVersion | None: ...
     async def list(self, trade_plan_id: UUID) -> Sequence[TradePlanVersion]: ...
-    async def next_version_number(
-        self, workspace_id: UUID, trade_plan_id: UUID
-    ) -> int: ...
-    async def set_status(
-        self, trade_plan_id: UUID, version_id: UUID, status: str
-    ) -> None: ...
+    async def next_version_number(self, workspace_id: UUID, trade_plan_id: UUID) -> int: ...
+    async def set_status(self, trade_plan_id: UUID, version_id: UUID, status: str) -> None: ...
 
 
 class TradePlanEventRepository(Protocol):
     async def add(self, event: TradePlanEventModel) -> None: ...
-    async def list_for_version(
-        self, version_id: UUID
-    ) -> Sequence[TradePlanEventModel]: ...
+    async def list_for_version(self, version_id: UUID) -> Sequence[TradePlanEventModel]: ...
 
 
 class TradePlanApprovalRepository(Protocol):
     async def add(self, approval: TradePlanApprovalModel) -> None: ...
-    async def get_for_version(
-        self, version_id: UUID
-    ) -> TradePlanApprovalModel | None: ...
+    async def get_for_version(self, version_id: UUID) -> TradePlanApprovalModel | None: ...
 
 
 class SqlAlchemyTradePlanRepository:
@@ -133,9 +119,7 @@ class SqlAlchemyTradePlanVersionRepository:
         )
         return trade_plan_version_from_models(model, targets)
 
-    async def get(
-        self, trade_plan_id: UUID, version_id: UUID
-    ) -> TradePlanVersion | None:
+    async def get(self, trade_plan_id: UUID, version_id: UUID) -> TradePlanVersion | None:
         model = await self._session.scalar(
             select(TradePlanVersionModel).where(
                 TradePlanVersionModel.trade_plan_id == trade_plan_id,
@@ -144,9 +128,7 @@ class SqlAlchemyTradePlanVersionRepository:
         )
         return await self._hydrate(model) if model is not None else None
 
-    async def get_by_number(
-        self, trade_plan_id: UUID, version: int
-    ) -> TradePlanVersion | None:
+    async def get_by_number(self, trade_plan_id: UUID, version: int) -> TradePlanVersion | None:
         model = await self._session.scalar(
             select(TradePlanVersionModel).where(
                 TradePlanVersionModel.trade_plan_id == trade_plan_id,
@@ -186,9 +168,7 @@ class SqlAlchemyTradePlanVersionRepository:
         )
         return int(latest or 0) + 1
 
-    async def set_status(
-        self, trade_plan_id: UUID, version_id: UUID, status: str
-    ) -> None:
+    async def set_status(self, trade_plan_id: UUID, version_id: UUID, status: str) -> None:
         model = await self._session.scalar(
             select(TradePlanVersionModel).where(
                 TradePlanVersionModel.trade_plan_id == trade_plan_id,

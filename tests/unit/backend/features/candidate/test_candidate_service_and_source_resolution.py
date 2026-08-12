@@ -67,9 +67,7 @@ async def test_candidate_service_create_get_list_status_and_history_paths():
 
     with pytest.raises(ValueError, match="rejection reason"):
         created.status = CandidateStatus.UNDER_REVIEW.value
-        await service.change_status(
-            workspace, created.id, CandidateStatus.REJECTED, "tester", None
-        )
+        await service.change_status(workspace, created.id, CandidateStatus.REJECTED, "tester", None)
 
     created.status = CandidateStatus.WATCHING.value
     same = await service.change_status(
@@ -141,9 +139,7 @@ async def test_source_resolver_validation_and_latest_helpers():
             workspace, uuid4(), datetime.now(UTC), "broad-market"
         )
     with pytest.raises(ValueError, match="no completed underlying"):
-        await resolver._latest_completed_for_underlying(
-            workspace, uuid4(), datetime.now(UTC)
-        )
+        await resolver._latest_completed_for_underlying(workspace, uuid4(), datetime.now(UTC))
 
     analysis_id = uuid4()
     resolver._latest_completed.return_value = (
@@ -156,9 +152,7 @@ async def test_source_resolver_validation_and_latest_helpers():
         )
     ).version == 3
     assert (
-        await resolver._latest_completed_for_underlying(
-            workspace, uuid4(), datetime.now(UTC)
-        )
+        await resolver._latest_completed_for_underlying(workspace, uuid4(), datetime.now(UTC))
     ).analysis_id == analysis_id
 
 
@@ -168,8 +162,6 @@ async def test_source_resolver_listing_helper():
     listing_id = uuid4()
     resolver._one_valid = AsyncMock(return_value=SimpleNamespace(listing_id=listing_id))
     assert (
-        await resolver._listing_for_reference(
-            uuid4(), uuid4(), date(2026, 8, 10), "sector"
-        )
+        await resolver._listing_for_reference(uuid4(), uuid4(), date(2026, 8, 10), "sector")
         == listing_id
     )

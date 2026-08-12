@@ -28,9 +28,7 @@ from app.features.market.service.top_down_administration import (
 )
 from app.providers.eodhd.reference_catalog import TOP_DOWN_V1_EODHD_SUGGESTIONS
 
-router = APIRouter(
-    prefix="/api/v1/top-down-reference-data", tags=["top-down-reference-data"]
-)
+router = APIRouter(prefix="/api/v1/top-down-reference-data", tags=["top-down-reference-data"])
 WORKSPACE_ID = UUID("00000000-0000-4000-8000-000000000001")
 
 
@@ -91,10 +89,7 @@ async def bootstrap_v1(
     ],
 ) -> list[MarketReferenceResponse]:
     result = await service.bootstrap_v1(WORKSPACE_ID)
-    return [
-        MarketReferenceResponse.model_validate(item)
-        for item in result.market_references
-    ]
+    return [MarketReferenceResponse.model_validate(item) for item in result.market_references]
 
 
 @router.get("/sectors", response_model=list[SectorResponse])
@@ -105,14 +100,11 @@ async def list_sectors(
     ],
 ) -> list[SectorResponse]:
     return [
-        SectorResponse.model_validate(item)
-        for item in await service.list_sectors(WORKSPACE_ID)
+        SectorResponse.model_validate(item) for item in await service.list_sectors(WORKSPACE_ID)
     ]
 
 
-@router.patch(
-    "/market-references/{reference_id}/active", response_model=MarketReferenceResponse
-)
+@router.patch("/market-references/{reference_id}/active", response_model=MarketReferenceResponse)
 async def set_market_reference_active(
     reference_id: UUID,
     body: ActiveStateRequest,
@@ -150,9 +142,7 @@ async def set_sector_active(
     return SectorResponse.model_validate(value)
 
 
-@router.post(
-    "/sectors", response_model=SectorResponse, status_code=status.HTTP_201_CREATED
-)
+@router.post("/sectors", response_model=SectorResponse, status_code=status.HTTP_201_CREATED)
 async def create_sector(
     body: CreateSectorRequest,
     service: Annotated[
@@ -161,9 +151,7 @@ async def create_sector(
     ],
 ) -> SectorResponse:
     try:
-        value = await service.create_sector(
-            workspace_id=WORKSPACE_ID, **body.model_dump()
-        )
+        value = await service.create_sector(workspace_id=WORKSPACE_ID, **body.model_dump())
     except ValueError as error:
         raise _http_error(error) from error
     return SectorResponse.model_validate(value)
@@ -205,9 +193,7 @@ async def assign_reference_listing(
 ) -> AssignmentResponse:
     try:
         value = await service.assign_reference_listing(
-            workspace_id=WORKSPACE_ID,
-            market_reference_id=reference_id,
-            **body.model_dump()
+            workspace_id=WORKSPACE_ID, market_reference_id=reference_id, **body.model_dump()
         )
     except ValueError as error:
         raise _http_error(error) from error

@@ -50,13 +50,9 @@ def test_openapi_contains_top_down_reference_admin_routes() -> None:
         in paths
     )
     assert (
-        "/api/v1/top-down-reference-data/underlyings/{underlying_id}/benchmark-assignments"
-        in paths
+        "/api/v1/top-down-reference-data/underlyings/{underlying_id}/benchmark-assignments" in paths
     )
-    assert (
-        "/api/v1/top-down-reference-data/underlyings/{underlying_id}/sector-assignments"
-        in paths
-    )
+    assert "/api/v1/top-down-reference-data/underlyings/{underlying_id}/sector-assignments" in paths
 
 
 def test_bootstrap_v1_delegates_and_returns_semantic_references() -> None:
@@ -77,9 +73,7 @@ def test_bootstrap_v1_delegates_and_returns_semantic_references() -> None:
 
 def test_eodhd_reference_suggestions_are_provider_boundary_hints() -> None:
     with TestClient(create_application(settings())) as client:
-        response = client.get(
-            "/api/v1/top-down-reference-data/provider-suggestions/eodhd"
-        )
+        response = client.get("/api/v1/top-down-reference-data/provider-suggestions/eodhd")
 
     assert response.status_code == 200
     values = {item["reference_code"]: item for item in response.json()}

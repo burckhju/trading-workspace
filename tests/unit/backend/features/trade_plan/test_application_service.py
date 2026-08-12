@@ -119,9 +119,7 @@ async def test_create_from_candidate_keeps_exact_evaluation_provenance():
     assert plan.candidate_id == candidate_id
     assert plan.candidate_evaluation_id == evaluation_id
     assert plan.underlying_id == origins.underlying_id
-    origins.candidate_origin.assert_awaited_once_with(
-        workspace_id, candidate_id, evaluation_id
-    )
+    origins.candidate_origin.assert_awaited_once_with(workspace_id, candidate_id, evaluation_id)
 
 
 @pytest.mark.asyncio
@@ -143,14 +141,10 @@ async def test_submit_and_return_to_draft_are_explicit_audited_transitions():
 
     ready = await service.submit_for_review(workspace_id, plan_id, draft.id, actor)
     assert ready.status is TradePlanStatus.READY_FOR_REVIEW
-    uow.versions.set_status.assert_awaited_once_with(
-        plan_id, draft.id, "READY_FOR_REVIEW"
-    )
+    uow.versions.set_status.assert_awaited_once_with(plan_id, draft.id, "READY_FOR_REVIEW")
 
     uow.versions.get.return_value = ready
-    returned = await service.return_to_draft(
-        workspace_id, plan_id, ready.id, actor, "needs work"
-    )
+    returned = await service.return_to_draft(workspace_id, plan_id, ready.id, actor, "needs work")
     assert returned.status is TradePlanStatus.DRAFT
     assert uow.commit.await_count == 2
 
@@ -169,9 +163,7 @@ async def test_approve_records_exact_version_and_supersedes_previous_approval():
         actor,
     )
     old = version(plan_id, actor, TradePlanStatus.APPROVED, number=1)
-    ready = version(
-        plan_id, actor, TradePlanStatus.READY_FOR_REVIEW, number=2, previous=old.id
-    )
+    ready = version(plan_id, actor, TradePlanStatus.READY_FOR_REVIEW, number=2, previous=old.id)
     uow.plans.get.return_value = plan
     uow.versions.get.return_value = ready
     uow.versions.list.return_value = (ready, old)
@@ -350,9 +342,7 @@ async def test_approve_fails_closed_on_multiple_active_approved_versions():
     )
     old1 = version(plan_id, actor, TradePlanStatus.APPROVED, number=1)
     old2 = version(plan_id, actor, TradePlanStatus.APPROVED, number=2, previous=old1.id)
-    ready = version(
-        plan_id, actor, TradePlanStatus.READY_FOR_REVIEW, number=3, previous=old2.id
-    )
+    ready = version(plan_id, actor, TradePlanStatus.READY_FOR_REVIEW, number=3, previous=old2.id)
     uow.plans.get.return_value = plan
     uow.versions.get.return_value = ready
     uow.versions.list.return_value = (ready, old2, old1)
@@ -404,9 +394,7 @@ async def test_amendment_rejects_non_monotonic_version_number_against_base():
         datetime.now(UTC),
         actor,
     )
-    approved = version(
-        plan_id, actor, TradePlanStatus.APPROVED, number=2, previous=uuid4()
-    )
+    approved = version(plan_id, actor, TradePlanStatus.APPROVED, number=2, previous=uuid4())
     uow.plans.get.return_value = plan
     uow.versions.get.return_value = approved
     uow.versions.next_version_number.return_value = 2

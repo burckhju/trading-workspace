@@ -84,15 +84,11 @@ async def list_candidates(
 )
 async def candidate_live_workflow(
     candidate_id: UUID,
-    service: Annotated[
-        CandidateLiveWorkflowService, Depends(get_candidate_live_workflow_service)
-    ],
+    service: Annotated[CandidateLiveWorkflowService, Depends(get_candidate_live_workflow_service)],
 ) -> CandidateLiveWorkflowResponse:
     """Return the exact next operator action for the live top-down path."""
     try:
-        value = await service.inspect(
-            workspace_id=WORKSPACE_ID, candidate_id=candidate_id
-        )
+        value = await service.inspect(workspace_id=WORKSPACE_ID, candidate_id=candidate_id)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     return CandidateLiveWorkflowResponse(
@@ -131,9 +127,7 @@ async def evaluate_candidate_auto(
 ) -> CandidateEvaluationResponse:
     """Evaluate using only server-resolved semantic top-down sources."""
     try:
-        return _evaluation(
-            await service.evaluate_auto(WORKSPACE_ID, candidate_id, request.as_of)
-        )
+        return _evaluation(await service.evaluate_auto(WORKSPACE_ID, candidate_id, request.as_of))
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -192,9 +186,7 @@ async def list_candidate_evaluations(
                         actual_value=item.actual_value,
                         expected_value=item.expected_value,
                         numeric_value=(
-                            None
-                            if item.numeric_value is None
-                            else str(item.numeric_value)
+                            None if item.numeric_value is None else str(item.numeric_value)
                         ),
                         explanation=item.explanation,
                     )

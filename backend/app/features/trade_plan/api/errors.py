@@ -8,11 +8,7 @@ from app.core.exceptions import ApplicationError
 def translate_trade_plan_error(error: ValueError) -> ApplicationError:
     message = str(error)
     lowered = message.lower()
-    if (
-        "not found" in lowered
-        or "does not exist" in lowered
-        or "cannot be resolved" in lowered
-    ):
+    if "not found" in lowered or "does not exist" in lowered or "cannot be resolved" in lowered:
         code = "TRADE_PLAN_NOT_FOUND"
         status_code = status.HTTP_404_NOT_FOUND
     elif any(

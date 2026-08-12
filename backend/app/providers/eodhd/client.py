@@ -25,9 +25,7 @@ from app.features.market_data.service.errors import (
     MarketDataUnavailableError,
 )
 
-type QueryValue = str | int | float | bool | None | Sequence[
-    str | int | float | bool | None
-]
+type QueryValue = str | int | float | bool | None | Sequence[str | int | float | bool | None]
 
 
 class EodhdClient:

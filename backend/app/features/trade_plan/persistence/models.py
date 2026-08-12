@@ -48,9 +48,7 @@ class TradePlanModel(Base):
     candidate_evaluation_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("candidate_evaluations.id", ondelete="RESTRICT")
     )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     created_by: Mapped[str] = mapped_column(String(200), nullable=False)
 
 
@@ -59,9 +57,7 @@ class TradePlanVersionModel(Base):
 
     __tablename__ = "trade_plan_versions"
     __table_args__ = (
-        UniqueConstraint(
-            "trade_plan_id", "version", name="uq_trade_plan_versions_plan_version"
-        ),
+        UniqueConstraint("trade_plan_id", "version", name="uq_trade_plan_versions_plan_version"),
         CheckConstraint("version > 0", name="trade_plan_version_positive"),
         CheckConstraint("direction = 'LONG'", name="trade_plan_version_long_only"),
         Index("ix_trade_plan_versions_plan_status", "trade_plan_id", "status"),
@@ -95,9 +91,7 @@ class TradePlanVersionModel(Base):
     risk_notes: Mapped[str | None] = mapped_column(Text)
 
     status: Mapped[str] = mapped_column(String(40), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     created_by: Mapped[str] = mapped_column(String(200), nullable=False)
     previous_version_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("trade_plan_versions.id", ondelete="RESTRICT")
@@ -152,9 +146,7 @@ class TradePlanEventModel(Base):
     reason: Mapped[str | None] = mapped_column(Text)
     actor: Mapped[str] = mapped_column(String(200), nullable=False)
     correlation_id: Mapped[str | None] = mapped_column(String(100))
-    occurred_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
+    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
 class TradePlanApprovalModel(Base):
@@ -162,9 +154,7 @@ class TradePlanApprovalModel(Base):
 
     __tablename__ = "trade_plan_approvals"
     __table_args__ = (
-        UniqueConstraint(
-            "trade_plan_version_id", name="uq_trade_plan_approvals_version"
-        ),
+        UniqueConstraint("trade_plan_version_id", name="uq_trade_plan_approvals_version"),
         Index("ix_trade_plan_approvals_plan_time", "trade_plan_id", "approved_at"),
     )
 
@@ -177,7 +167,5 @@ class TradePlanApprovalModel(Base):
     )
     version: Mapped[int] = mapped_column(Integer, nullable=False)
     actor: Mapped[str] = mapped_column(String(200), nullable=False)
-    approved_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
+    approved_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     correlation_id: Mapped[str | None] = mapped_column(String(100))

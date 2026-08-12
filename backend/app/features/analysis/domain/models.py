@@ -48,14 +48,8 @@ class AnalysisParameters:
                 "short_window < medium_window < long_window is required"
             )
         if tuple(sorted(set(self.momentum_windows))) != self.momentum_windows:
-            raise InvalidAnalysisParameters(
-                "momentum_windows must be unique and sorted"
-            )
-        if (
-            self.maximum_data_age_days < 0
-            or self.rounding_scale < 0
-            or self.rounding_scale > 12
-        ):
+            raise InvalidAnalysisParameters("momentum_windows must be unique and sorted")
+        if self.maximum_data_age_days < 0 or self.rounding_scale < 0 or self.rounding_scale > 12:
             raise InvalidAnalysisParameters("invalid age or rounding scale")
         if self.annualization_factor <= 0:
             raise InvalidAnalysisParameters("annualization_factor must be positive")
@@ -98,9 +92,7 @@ class SnapshotRow:
             "high": str(self.high),
             "low": str(self.low),
             "close": str(self.close),
-            "adjusted_close": (
-                None if self.adjusted_close is None else str(self.adjusted_close)
-            ),
+            "adjusted_close": (None if self.adjusted_close is None else str(self.adjusted_close)),
             "volume": None if self.volume is None else str(self.volume),
             "currency": self.currency,
             "provider": self.provider,
@@ -138,7 +130,5 @@ def calculate_input_hash(
         "parameters": parameters.as_dict(),
         "rows": [row.canonical() for row in rows],
     }
-    encoded = json.dumps(
-        payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True
-    ).encode()
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode()
     return sha256(encoded).hexdigest()

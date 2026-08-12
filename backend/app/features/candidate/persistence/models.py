@@ -38,9 +38,7 @@ class CandidateModel(Base):
         ForeignKey("underlyings.id", ondelete="RESTRICT"), nullable=False
     )
     status: Mapped[str] = mapped_column(String(40), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     created_by: Mapped[str] = mapped_column(String(200), nullable=False)
 
 
@@ -50,9 +48,7 @@ class CandidateEvaluationModel(Base):
         UniqueConstraint(
             "candidate_id", "version", name="uq_candidate_evaluations_candidate_version"
         ),
-        Index(
-            "ix_candidate_evaluations_candidate_time", "candidate_id", "evaluated_at"
-        ),
+        Index("ix_candidate_evaluations_candidate_time", "candidate_id", "evaluated_at"),
     )
     id: Mapped[UUID] = mapped_column(primary_key=True)
     candidate_id: Mapped[UUID] = mapped_column(
@@ -65,17 +61,13 @@ class CandidateEvaluationModel(Base):
     qualification: Mapped[str] = mapped_column(String(30), nullable=False)
     quality_status: Mapped[str] = mapped_column(String(30), nullable=False)
     warnings: Mapped[list[str]] = mapped_column(JSON, nullable=False)
-    evaluated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
+    evaluated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
 class CandidateEvaluationSourceModel(Base):
     __tablename__ = "candidate_evaluation_sources"
     __table_args__ = (
-        UniqueConstraint(
-            "evaluation_id", "role", name="uq_candidate_evaluation_sources_role"
-        ),
+        UniqueConstraint("evaluation_id", "role", name="uq_candidate_evaluation_sources_role"),
     )
     id: Mapped[UUID] = mapped_column(primary_key=True)
     evaluation_id: Mapped[UUID] = mapped_column(
@@ -108,9 +100,7 @@ class CandidateCriterionModel(Base):
 
 class CandidateEventModel(Base):
     __tablename__ = "candidate_events"
-    __table_args__ = (
-        Index("ix_candidate_events_candidate_time", "candidate_id", "occurred_at"),
-    )
+    __table_args__ = (Index("ix_candidate_events_candidate_time", "candidate_id", "occurred_at"),)
     id: Mapped[UUID] = mapped_column(primary_key=True)
     candidate_id: Mapped[UUID] = mapped_column(
         ForeignKey("candidates.id", ondelete="CASCADE"), nullable=False
@@ -120,6 +110,4 @@ class CandidateEventModel(Base):
     to_status: Mapped[str] = mapped_column(String(40), nullable=False)
     reason: Mapped[str | None] = mapped_column(Text)
     actor: Mapped[str] = mapped_column(String(200), nullable=False)
-    occurred_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
+    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

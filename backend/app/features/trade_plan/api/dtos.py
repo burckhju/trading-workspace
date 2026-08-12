@@ -64,13 +64,8 @@ class CreateTradePlanRequest(TradePlanContentRequest):
         if self.origin_type is TradePlanOriginType.MANUAL:
             if self.underlying_id is None:
                 raise ValueError("manual trade plan requires underlying_id")
-            if (
-                self.candidate_id is not None
-                or self.candidate_evaluation_id is not None
-            ):
-                raise ValueError(
-                    "manual trade plan cannot contain candidate provenance"
-                )
+            if self.candidate_id is not None or self.candidate_evaluation_id is not None:
+                raise ValueError("manual trade plan cannot contain candidate provenance")
         else:
             if self.candidate_id is None or self.candidate_evaluation_id is None:
                 raise ValueError(

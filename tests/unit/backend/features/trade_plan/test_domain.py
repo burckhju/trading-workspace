@@ -48,9 +48,7 @@ def test_origin_invariants():
 
 def test_entry_variants_validate():
     EntryPlan(EntryType.PRICE, "EUR", price=Decimal("100"))
-    EntryPlan(
-        EntryType.PRICE_RANGE, "EUR", price_from=Decimal("99"), price_to=Decimal("101")
-    )
+    EntryPlan(EntryType.PRICE_RANGE, "EUR", price_from=Decimal("99"), price_to=Decimal("101"))
     EntryPlan(
         EntryType.TRIGGER,
         "EUR",

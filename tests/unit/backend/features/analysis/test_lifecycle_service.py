@@ -81,9 +81,7 @@ async def test_retry_reuses_persisted_snapshot_and_does_not_read_market_data() -
     service._execute_snapshot = AsyncMock(return_value=replacement)
     service._append_superseded_event = AsyncMock()
 
-    result = await service.retry(
-        WORKSPACE_ID, ANALYSIS_ID, 1, "corr-2", "retry exact snapshot"
-    )
+    result = await service.retry(WORKSPACE_ID, ANALYSIS_ID, 1, "corr-2", "retry exact snapshot")
 
     assert result.version == 2
     service._market_data.list_daily_prices.assert_not_awaited()
@@ -108,9 +106,7 @@ async def test_retry_rejects_already_superseded_source() -> None:
 
 
 @pytest.mark.asyncio
-async def test_reproducibility_verification_recalculates_exact_persisted_inputs() -> (
-    None
-):
+async def test_reproducibility_verification_recalculates_exact_persisted_inputs() -> None:
     from datetime import timedelta
 
     from app.features.analysis.domain.calculator import (
@@ -158,9 +154,7 @@ async def test_reproducibility_verification_recalculates_exact_persisted_inputs(
         data_sources=["EODHD"],
         input_hash=calculate_input_hash(MODEL_ID, MODEL_VERSION, params, domain_rows),
         observation_count=len(domain_rows),
-        analysis_time=datetime(
-            last_date.year, last_date.month, last_date.day, 12, tzinfo=UTC
-        ),
+        analysis_time=datetime(last_date.year, last_date.month, last_date.day, 12, tzinfo=UTC),
         correlation_id=None,
         error_message=None,
     )

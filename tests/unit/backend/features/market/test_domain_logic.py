@@ -107,17 +107,12 @@ def test_exactly_one_active_primary_listing_is_required() -> None:
 
 
 def test_quality_is_derived_from_operational_completeness() -> None:
-    assert (
-        determine_quality_status(name="Siemens", listings=(listing(),))
-        is QualityStatus.COMPLETE
-    )
+    assert determine_quality_status(name="Siemens", listings=(listing(),)) is QualityStatus.COMPLETE
     assert determine_quality_status(name="Siemens", listings=()) is QualityStatus.DRAFT
 
 
 def test_verified_master_data_change_resets_quality_and_increments_version() -> None:
-    changed = underlying(quality=QualityStatus.VERIFIED).with_master_data(
-        now=LATER, name="Siemens"
-    )
+    changed = underlying(quality=QualityStatus.VERIFIED).with_master_data(now=LATER, name="Siemens")
     assert changed.name == "Siemens"
     assert changed.quality_status is QualityStatus.COMPLETE
     assert changed.version == 2
