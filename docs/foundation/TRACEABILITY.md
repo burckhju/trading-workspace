@@ -146,3 +146,17 @@ Anforderung → Entscheidung → Implementierung → Test → Abnahme
 - E2E: 8/8 Playwright-Szenarien grün, einschließlich Manual → Review → Approval, CandidateEvaluation-Provenance und Amendment-Lineage.
 
 | Architecture Review | `docs/implementation/SPRINT_6_ARCHITECTURE_REVIEW.md` – Accepted |
+
+
+## FT-002 / Sprint-7A Trading Venue Traceability
+
+| Regel | Entscheidung / Spezifikation | Implementierungsnachweis |
+|---|---|---|
+| stabile provider-neutrale Venue-Identität | ADR-S7-001, FT-002 Feature | bestehendes `TradingVenueModel`, Listing-FK |
+| MIC ≠ interne ID ≠ Provider Exchange Code | ADR-S7-001 | Venue-Persistence, ProviderInstrumentMapping, Reconciliation-Tests |
+| globale Venue-Identität | ADR-S7-001 | globale Venue-Tabelle; workspace-scoped Provider-Mappings |
+| keine stille Provider-Stammdatenmutation | ADR-S7-001 | `VenueReconciliationService`, Mapping-Administration |
+| Low-input Venue-Nutzung | FT-002 Feature | `UnderlyingFormPage` Tests und FT-002 E2E Contract |
+| Deaktivierung erhält historische Referenzen | FT-002 Feature | Status-Service, Listing-FK `RESTRICT` |
+| FT-004 konsumiert stabile Venue-ID | Sprint-7A Architecture Review | Consumer Contract, keine Warrant-Implementierung |
+| TradePlan bleibt produktneutral | ADR-S6-006, ADR-S7-001 | keine Venue-Felder in FT-007 |

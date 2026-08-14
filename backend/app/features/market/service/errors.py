@@ -27,6 +27,14 @@ class TradingVenueNotFound(ServiceError):
     code = "TRADING_VENUE_NOT_FOUND"
 
 
+class DuplicateTradingVenueMic(ServiceError):
+    code = "TRADING_VENUE_DUPLICATE_MIC"
+
+
+class TradingVenueConcurrentModification(ServiceError):
+    code = "TRADING_VENUE_CONCURRENT_MODIFICATION"
+
+
 class CurrencyNotFound(ServiceError):
     code = "CURRENCY_NOT_FOUND"
 

@@ -98,3 +98,11 @@ ADRs und müssen mit den betroffenen Feature Books synchronisiert werden.
 - `../implementation/SPRINT_6_FT007_IMPLEMENTATION_TRACEABILITY.md`
 - `../implementation/SPRINT_6_ARCHITECTURE_REVIEW.md`
 - `../implementation/SPRINT_6_TECHNICAL_CLOSEOUT.md`
+
+
+## Sprint-7A-Entscheidungen – FT-002 Trading Venues
+
+- `../features/FT-002_TRADING_VENUES.md`
+- `../decisions/ADR-S7-001-TRADING-VENUE-IDENTITY-SOURCE-OF-TRUTH-AND-RECONCILIATION.md`
+- `../implementation/SPRINT_7A_FT002_ARCHITECTURE_REVIEW_AND_GAP_CLOSURE.md`
+- `../implementation/SPRINT_7A_TECHNICAL_CLOSEOUT.md`

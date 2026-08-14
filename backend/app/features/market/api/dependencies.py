@@ -12,6 +12,9 @@ from app.features.market.service.service import UnderlyingService
 from app.features.market.service.top_down_administration import (
     TopDownReferenceAdministrationService,
 )
+from app.features.market.service.trading_venue_administration import (
+    TradingVenueAdministrationService,
+)
 from app.features.market.service.unit_of_work import SqlAlchemyMarketUnitOfWork
 
 
@@ -31,6 +34,12 @@ async def get_reference_data_service(
     session: Annotated[AsyncSession, Depends(get_database_session)],
 ) -> ReferenceDataService:
     return ReferenceDataService(SqlAlchemyMarketUnitOfWork(session))
+
+
+async def get_trading_venue_administration_service(
+    session: Annotated[AsyncSession, Depends(get_database_session)],
+) -> TradingVenueAdministrationService:
+    return TradingVenueAdministrationService(SqlAlchemyMarketUnitOfWork(session))
 
 
 async def get_top_down_reference_administration_service(

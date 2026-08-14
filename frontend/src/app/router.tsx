@@ -8,6 +8,7 @@ import {
   UnderlyingDetailPage,
   UnderlyingFormPage,
   UnderlyingListPage,
+  TradingVenueAdminPage,
 } from '../features/market/pages';
 import { TradePlanPage } from '../features/trade_plan/pages';
 import { NotFoundPage } from '../pages/NotFoundPage';
@@ -24,6 +25,7 @@ export function createApplicationRouter() {
         { path: 'candidates', element: <CandidatePage /> },
         { path: 'trade-plans', element: <TradePlanPage /> },
         { path: 'top-down-admin', element: <TopDownWorkflowActionPage /> },
+        { path: 'trading-venues-admin', element: <TradingVenueAdminPage /> },
         { path: 'market-analyses/:analysisId', element: <MarketAnalysisDetailPage /> },
         { path: 'underlyings/new', element: <UnderlyingFormPage /> },
         { path: 'underlyings/:underlyingId', element: <UnderlyingDetailPage /> },

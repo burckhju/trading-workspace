@@ -6,6 +6,7 @@ import {
   type MarketReference,
   type ProviderMapping,
   type Sector,
+  type VenueReconciliation,
 } from '../services/topDownAdminClient';
 
 function dateOffset(days: number) {
@@ -36,6 +37,7 @@ export function TopDownWorkflowActionPage() {
   const [endDate, setEndDate] = useState(dateOffset(0));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [venueReconciliation, setVenueReconciliation] = useState<VenueReconciliation | null>(null);
 
   useEffect(() => {
     Promise.all([
@@ -66,6 +68,7 @@ export function TopDownWorkflowActionPage() {
     event.preventDefault();
     setBusy(true);
     setError(null);
+    setVenueReconciliation(null);
     try {
       switch (action) {
         case 'ASSIGN_BROAD_MARKET_BENCHMARK':
@@ -83,9 +86,13 @@ export function TopDownWorkflowActionPage() {
         case 'CREATE_EODHD_MAPPING':
           await topDownAdminClient.createMapping(listingId, symbol, exchange);
           break;
-        case 'VALIDATE_EODHD_MAPPING':
+        case 'VALIDATE_EODHD_MAPPING': {
           await topDownAdminClient.validateMapping(mappingId);
+          const reconciliation = await topDownAdminClient.venueReconciliation(mappingId);
+          setVenueReconciliation(reconciliation);
+          if (reconciliation.status !== 'MATCHED') return;
           break;
+        }
         case 'ACTIVATE_OR_REASSIGN_BENCHMARK':
           await topDownAdminClient.activateReference(
             params.get('market_reference_id') ?? resourceId,
@@ -135,6 +142,18 @@ export function TopDownWorkflowActionPage() {
       <h1 className="mt-1 text-2xl font-semibold">Workflow-Schritt ausführen</h1>
       <p className="mt-2 text-sm text-slate-400">{action}</p>
       {error && <p className="mt-5 rounded-lg border border-rose-800 p-3 text-sm">{error}</p>}
+      {venueReconciliation && (
+        <div className="mt-5 rounded-lg border border-amber-800 p-3 text-sm">
+          <p className="font-medium">Venue-Reconciliation: {venueReconciliation.status}</p>
+          <p className="mt-1 text-slate-300">{venueReconciliation.explanation}</p>
+          {venueReconciliation.status !== 'MATCHED' && (
+            <p className="mt-2 text-xs text-slate-400">
+              Keine automatische Stammdatenänderung. Bitte nur den administrativen Sonderfall
+              prüfen; der normale Trading-Workflow bleibt unverändert.
+            </p>
+          )}
+        </div>
+      )}
       {action === 'CREATE_OR_SELECT_PRIMARY_LISTING' ? (
         <div className="mt-6 rounded-xl border border-slate-800 p-5">
           <p className="text-sm text-slate-300">

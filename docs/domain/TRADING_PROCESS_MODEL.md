@@ -118,3 +118,10 @@ Referenzdaten pflegen
 - Jeder fachliche Statuswechsel besitzt Zeitpunkt und Auslöser.
 - Historische Entscheidungen werden nicht durch spätere Stammdaten- oder Modelländerungen unkenntlich gemacht.
 - Rücksprünge erzeugen keine parallelen Objekte, wenn dasselbe Fachobjekt weiterbearbeitet wird.
+
+
+## Sprint 7A Low-input Venue Rule
+
+TradingVenue is reference context rather than a recurring trader input. If exactly one valid venue is available for the current consumer context, the system uses or preselects it. A user choice is requested only when multiple valid venues make the choice materially relevant. Provider ambiguity is resolved through reference-data reconciliation/admin workflows rather than free-form MIC or exchange-code entry by the trader.
+
+This rule does not add Venue fields to TradePlan and does not implement FT-004 Warrant or FT-008 Product Selection.

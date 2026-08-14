@@ -16,6 +16,7 @@ vi.mock('../services/topDownAdminClient', () => ({
     assignReferenceListing: vi.fn(),
     createMapping: vi.fn(),
     validateMapping: vi.fn(),
+    venueReconciliation: vi.fn(),
     activateReference: vi.fn(),
     activateSector: vi.fn(),
     importHistory: vi.fn(),
@@ -49,6 +50,12 @@ describe('TopDownWorkflowActionPage', () => {
     client.mappings.mockResolvedValue([]);
     client.assignBenchmark.mockResolvedValue({} as never);
     client.createMapping.mockResolvedValue({} as never);
+    client.venueReconciliation.mockResolvedValue({
+      status: 'MATCHED',
+      listing_venue_id: 'v1',
+      evidence_venue_ids: ['v1'],
+      explanation: 'Provider evidence confirms the listing trading venue.',
+    });
     client.createAnalysis.mockResolvedValue({ id: 'a1', underlying_id: 'u1', listing_id: 'l1' });
     client.runAnalysis.mockResolvedValue({} as never);
   });

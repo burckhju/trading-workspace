@@ -23,6 +23,10 @@ from app.features.market_data.persistence.mapping import (
 from app.features.market_data.service.contracts import ProviderInstrumentResolver
 from app.features.market_data.service.errors import MarketDataNotFoundError
 from app.features.market_data.service.unit_of_work import MarketDataUnitOfWork
+from app.features.market_data.service.venue_reconciliation import (
+    ProviderVenueReconciliationService,
+    VenueReconciliationStatus,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -48,11 +52,13 @@ class ProviderMappingAdministrationService:
         now: Callable[[], datetime] = lambda: datetime.now(UTC),
         id_factory: Callable[[], UUID] = uuid4,
         resolver: ProviderInstrumentResolver | None = None,
+        venue_reconciliation: ProviderVenueReconciliationService | None = None,
     ) -> None:
         self._uow = uow
         self._now = now
         self._id_factory = id_factory
         self._resolver = resolver
+        self._venue_reconciliation = venue_reconciliation
 
     async def list_mappings(self, workspace_id: UUID) -> tuple[ProviderInstrumentMapping, ...]:
         """Return all mappings for one workspace."""
@@ -150,6 +156,44 @@ class ProviderMappingAdministrationService:
                 await self._uow.mappings.flush()
                 await self._uow.commit()
                 return value
+
+            if self._venue_reconciliation is not None:
+                reconciliation = await self._venue_reconciliation.reconcile(
+                    workspace_id,
+                    model.listing_id,
+                    model.provider,
+                    model.provider_exchange_code,
+                )
+                if reconciliation.status is VenueReconciliationStatus.CONFLICT:
+                    model.status = MappingStatus.INVALID
+                    model.validated_at = now
+                    model.validation_message = (
+                        "Provider exchange code conflicts with the listing trading venue"
+                    )
+                    model.updated_at = now
+                    model.version += 1
+                    value = mapping_to_domain(model)
+                    command = MappingCommand(
+                        workspace_id,
+                        model.listing_id,
+                        model.provider,
+                        model.provider_symbol,
+                        model.provider_exchange_code,
+                        actor_id,
+                        actor_name,
+                    )
+                    await self._audit(
+                        value,
+                        command,
+                        ChangeType.UPDATED,
+                        before.version,
+                        value.version,
+                        self._diff(before, value),
+                    )
+                    await self._uow.mappings.flush()
+                    await self._uow.commit()
+                    return value
+
             model.status = MappingStatus.ACTIVE
             model.validated_at = now
             model.validation_message = (

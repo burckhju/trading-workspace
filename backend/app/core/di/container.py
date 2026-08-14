@@ -23,6 +23,9 @@ from app.features.market_data.service.administration import (
 from app.features.market_data.service.application import DailyPriceImportService
 from app.features.market_data.service.errors import MarketDataConfigurationError
 from app.features.market_data.service.unit_of_work import SqlAlchemyMarketDataUnitOfWork
+from app.features.market_data.service.venue_reconciliation import (
+    ProviderVenueReconciliationService,
+)
 from app.providers.eodhd.adapter import EodhdAdapterSettings, EodhdMarketDataAdapter
 from app.providers.eodhd.client import EodhdClient, create_http_client
 from app.providers.eodhd.dto import EodhdUserDto
@@ -154,10 +157,20 @@ class ApplicationContainer:
     ) -> AsyncIterator[ProviderMappingAdministrationService]:
         """Create a session-scoped administrative mapping service."""
         async with self.database.session_context() as session:
+            uow = SqlAlchemyMarketDataUnitOfWork(session)
             yield ProviderMappingAdministrationService(
-                uow=SqlAlchemyMarketDataUnitOfWork(session),
+                uow=uow,
                 resolver=self.require_eodhd_adapter(),
+                venue_reconciliation=ProviderVenueReconciliationService(uow),
             )
+
+    @asynccontextmanager
+    async def provider_venue_reconciliation_service(
+        self,
+    ) -> AsyncIterator[ProviderVenueReconciliationService]:
+        """Create a read-only venue-reconciliation service for administrative inspection."""
+        async with self.database.session_context() as session:
+            yield ProviderVenueReconciliationService(SqlAlchemyMarketDataUnitOfWork(session))
 
     async def synchronize_eodhd_account_usage(self) -> dict[str, int]:
         """Synchronize local usage with the non-secret EODHD User API counters."""

@@ -129,3 +129,29 @@ class UsageSummary:
     usage_type: str
     count: int
     object_ids: tuple[UUID, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class CreateTradingVenue:
+    actor: Actor
+    mic: str
+    name: str
+    country_code: str
+    timezone: str
+
+
+@dataclass(frozen=True, slots=True)
+class UpdateTradingVenue:
+    venue_id: UUID
+    expected_version: int
+    actor: Actor
+    name: str | None = None
+    country_code: str | None = None
+    timezone: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ChangeTradingVenueStatus:
+    venue_id: UUID
+    expected_version: int
+    actor: Actor

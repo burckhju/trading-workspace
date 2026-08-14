@@ -8,7 +8,7 @@ later service/domain steps.
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Protocol
+from typing import Protocol, cast
 from uuid import UUID
 
 from sqlalchemy import Select, func, or_, select
@@ -31,7 +31,11 @@ class WorkspaceRepository(Protocol):
 
 
 class ReferenceDataRepository(Protocol):
+    async def add_trading_venue(self, venue: TradingVenueModel) -> None: ...
+    async def find_trading_venue_by_mic(self, mic: str) -> TradingVenueModel | None: ...
+    async def flush(self) -> None: ...
     async def list_active_trading_venues(self) -> Sequence[TradingVenueModel]: ...
+    async def list_trading_venues(self) -> Sequence[TradingVenueModel]: ...
     async def get_trading_venue(self, venue_id: UUID) -> TradingVenueModel | None: ...
     async def list_active_currencies(self) -> Sequence[CurrencyModel]: ...
     async def get_currency(self, code: str) -> CurrencyModel | None: ...
@@ -119,11 +123,31 @@ class SqlAlchemyReferenceDataRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
+    async def add_trading_venue(self, venue: TradingVenueModel) -> None:
+        self._session.add(venue)
+
+    async def find_trading_venue_by_mic(self, mic: str) -> TradingVenueModel | None:
+        return cast(
+            TradingVenueModel | None,
+            await self._session.scalar(
+                select(TradingVenueModel).where(TradingVenueModel.mic == mic.strip().upper())
+            ),
+        )
+
+    async def flush(self) -> None:
+        await self._session.flush()
+
     async def list_active_trading_venues(self) -> Sequence[TradingVenueModel]:
         result = await self._session.scalars(
             select(TradingVenueModel)
             .where(TradingVenueModel.is_active.is_(True))
             .order_by(TradingVenueModel.name, TradingVenueModel.mic)
+        )
+        return result.all()
+
+    async def list_trading_venues(self) -> Sequence[TradingVenueModel]:
+        result = await self._session.scalars(
+            select(TradingVenueModel).order_by(TradingVenueModel.name, TradingVenueModel.mic)
         )
         return result.all()
 

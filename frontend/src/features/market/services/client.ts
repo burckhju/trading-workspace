@@ -4,17 +4,21 @@ import type {
   AddListingRequest,
   AuditEventListResponse,
   AuditActorHeaders,
+  CreateTradingVenueRequest,
   CreateUnderlyingRequest,
   CurrencyListResponse,
   ListingResponse,
   PageParameters,
   SearchUnderlyingsParameters,
+  TradingVenueAdminListResponse,
+  TradingVenueAdminResponse,
   TradingVenueListResponse,
   UnderlyingDetailResponse,
   UnderlyingSearchResponse,
   UnderlyingSummaryResponse,
   UnderlyingUsageListResponse,
   UpdateListingRequest,
+  UpdateTradingVenueRequest,
   UpdateUnderlyingRequest,
   Uuid,
   VersionRequest,
@@ -106,6 +110,26 @@ export interface MarketApiClient {
     actor?: AuditActorHeaders,
   ) => Promise<ListingResponse>;
   listTradingVenues: (signal?: AbortSignal) => Promise<TradingVenueListResponse>;
+  listTradingVenuesForAdmin: (signal?: AbortSignal) => Promise<TradingVenueAdminListResponse>;
+  createTradingVenue: (
+    request: CreateTradingVenueRequest,
+    actor?: AuditActorHeaders,
+  ) => Promise<TradingVenueAdminResponse>;
+  updateTradingVenue: (
+    id: Uuid,
+    request: UpdateTradingVenueRequest,
+    actor?: AuditActorHeaders,
+  ) => Promise<TradingVenueAdminResponse>;
+  deactivateTradingVenue: (
+    id: Uuid,
+    expectedVersion: number,
+    actor?: AuditActorHeaders,
+  ) => Promise<TradingVenueAdminResponse>;
+  reactivateTradingVenue: (
+    id: Uuid,
+    expectedVersion: number,
+    actor?: AuditActorHeaders,
+  ) => Promise<TradingVenueAdminResponse>;
   listCurrencies: (signal?: AbortSignal) => Promise<CurrencyListResponse>;
 }
 
@@ -195,6 +219,38 @@ export const marketApiClient: MarketApiClient = {
     requestJson<TradingVenueListResponse>(apiUrl('/market-reference-data/trading-venues'), {
       signal,
     }),
+
+  listTradingVenuesForAdmin: (signal) =>
+    requestJson<TradingVenueAdminListResponse>(
+      apiUrl('/market-reference-data/trading-venues/admin'),
+      { signal },
+    ),
+
+  createTradingVenue: (request, actor) =>
+    requestJson<TradingVenueAdminResponse>(apiUrl('/market-reference-data/trading-venues'), {
+      method: 'POST',
+      body: request,
+      actor,
+    }),
+
+  updateTradingVenue: (id, request, actor) =>
+    requestJson<TradingVenueAdminResponse>(apiUrl(`/market-reference-data/trading-venues/${id}`), {
+      method: 'PATCH',
+      body: request,
+      actor,
+    }),
+
+  deactivateTradingVenue: (id, expectedVersion, actor) =>
+    requestJson<TradingVenueAdminResponse>(
+      apiUrl(`/market-reference-data/trading-venues/${id}/deactivate`),
+      { method: 'POST', body: { expected_version: expectedVersion }, actor },
+    ),
+
+  reactivateTradingVenue: (id, expectedVersion, actor) =>
+    requestJson<TradingVenueAdminResponse>(
+      apiUrl(`/market-reference-data/trading-venues/${id}/reactivate`),
+      { method: 'POST', body: { expected_version: expectedVersion }, actor },
+    ),
 
   listCurrencies: (signal) =>
     requestJson<CurrencyListResponse>(apiUrl('/market-reference-data/currencies'), { signal }),

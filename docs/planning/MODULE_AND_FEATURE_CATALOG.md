@@ -26,7 +26,7 @@ Dieses Dokument ist die zentrale Zuordnung zwischen Roadmap-Meilensteinen, fachl
 | ID | Feature | Primäres Modul | Roadmap | Fachliches Ergebnis | Abhängigkeiten |
 |---|---|---|---|---|---|
 | FT-001 | Basiswertverwaltung (`underlying`) | Reference Data | M1 | Aktien als Basiswerte inklusive Notierungen zentral erfassen, ändern, deaktivieren und suchen | Fundament |
-| FT-002 | Börsen und Handelsplätze | Reference Data | M1 | Handelsplätze und relevante Kennungen verwalten | FT-001 optional |
+| FT-002 | Börsen und Handelsplätze | Reference Data | M1 | Provider-neutrale Handelsplätze zentral verwalten und mit möglichst wenig Nutzereingabe konsumieren | FT-001 |
 | FT-003 | Emittenten | Reference Data | M1 | Emittenten als eigenständige Referenzobjekte verwalten | Fundament |
 | FT-004 | Optionsscheinverwaltung | Reference Data | M1/M4 | Optionsscheine eindeutig einem Basiswert und Emittenten zuordnen | FT-001–FT-003 |
 | FT-005 | Watchlisten und Kandidaten | Market Discovery | M2 | Top-down-Kandidaten qualifizieren, nachvollziehbar bewerten und Benutzerstatus verwalten; Watchlist-Vollausbau bleibt eigener Restscope | FT-001, FT-006 |

@@ -26,9 +26,10 @@ describe('topDownAdminClient', () => {
     await topDownAdminClient.assignReferenceListing('r2', 'l1');
     await topDownAdminClient.createMapping('l1', 'SAP', 'XETRA');
     await topDownAdminClient.validateMapping('m1');
+    await topDownAdminClient.venueReconciliation('m1');
     await topDownAdminClient.activateReference('r1');
     await topDownAdminClient.activateSector('s1');
-    expect(mockedRequestJson).toHaveBeenCalledTimes(8);
+    expect(mockedRequestJson).toHaveBeenCalledTimes(9);
   });
 
   it('covers import and analysis methods', async () => {

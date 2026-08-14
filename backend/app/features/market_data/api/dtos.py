@@ -11,6 +11,10 @@ from app.features.market_data.domain.enums import (
     QualityStatus,
 )
 from app.features.market_data.service.application import DailyPriceImportResult
+from app.features.market_data.service.venue_reconciliation import (
+    VenueReconciliationResult,
+    VenueReconciliationStatus,
+)
 
 
 class ImportDailyPricesRequest(BaseModel):
@@ -132,3 +136,35 @@ class ProviderStatusResponse(BaseModel):
     requests_per_minute: int
     burst_capacity: int
     single_instance_only: bool = True
+
+
+class VenueReconciliationResponse(BaseModel):
+    """Read-only explanation of provider-exchange evidence for one mapping."""
+
+    status: VenueReconciliationStatus
+    listing_venue_id: UUID | None
+    evidence_venue_ids: list[UUID]
+    explanation: str
+
+    @classmethod
+    def from_result(cls, result: VenueReconciliationResult) -> "VenueReconciliationResponse":
+        explanations = {
+            VenueReconciliationStatus.MATCHED: (
+                "Provider evidence confirms the listing trading venue."
+            ),
+            VenueReconciliationStatus.CONFLICT: (
+                "Provider evidence points to a different trading venue."
+            ),
+            VenueReconciliationStatus.AMBIGUOUS: (
+                "Provider evidence maps to multiple trading venues; " "no automatic choice is made."
+            ),
+            VenueReconciliationStatus.UNRESOLVED: (
+                "No reliable existing venue evidence is available; " "no automatic choice is made."
+            ),
+        }
+        return cls(
+            status=result.status,
+            listing_venue_id=result.listing_venue_id,
+            evidence_venue_ids=list(result.evidence_venue_ids),
+            explanation=explanations[result.status],
+        )

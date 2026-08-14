@@ -20,6 +20,12 @@ export type ProviderMapping = {
   provider_symbol: string;
   provider_exchange_code: string;
 };
+export type VenueReconciliation = {
+  status: 'MATCHED' | 'CONFLICT' | 'AMBIGUOUS' | 'UNRESOLVED';
+  listing_venue_id: string | null;
+  evidence_venue_ids: string[];
+  explanation: string;
+};
 export type AnalysisSummary = { id: string; underlying_id: string; listing_id: string };
 
 const assignmentDefaults = () => ({
@@ -73,6 +79,10 @@ export const topDownAdminClient = {
       method: 'POST',
       body: { enabled: true, actor_name: 'Trading Workspace User' },
     }),
+  venueReconciliation: (mappingId: string) =>
+    requestJson<VenueReconciliation>(
+      `${marketDataUrl}/provider-mappings/${mappingId}/venue-reconciliation`,
+    ),
   activateReference: (referenceId: string) =>
     requestJson<MarketReference>(`${referenceUrl}/market-references/${referenceId}/active`, {
       method: 'PATCH',
