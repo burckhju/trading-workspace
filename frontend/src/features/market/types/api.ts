@@ -117,6 +117,27 @@ export interface TradingVenueResponse {
   reference_version: string;
 }
 
+export interface TradingVenueAdminResponse extends TradingVenueResponse {
+  is_active: boolean;
+  version: number;
+  created_at: IsoDateTime;
+  updated_at: IsoDateTime;
+}
+
+export interface CreateTradingVenueRequest {
+  mic: string;
+  name: string;
+  country_code: string;
+  timezone: string;
+}
+
+export interface UpdateTradingVenueRequest {
+  expected_version: number;
+  name?: string;
+  country_code?: string;
+  timezone?: string;
+}
+
 export interface CurrencyResponse {
   code: string;
   name: string;
@@ -126,6 +147,10 @@ export interface CurrencyResponse {
 
 export interface TradingVenueListResponse {
   items: TradingVenueResponse[];
+}
+
+export interface TradingVenueAdminListResponse {
+  items: TradingVenueAdminResponse[];
 }
 
 export interface CurrencyListResponse {

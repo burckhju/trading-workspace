@@ -5,14 +5,24 @@ from uuid import UUID
 from fastapi.testclient import TestClient
 
 from app.core.config import Environment, Settings
-from app.features.market_data.api.dependencies import get_daily_price_import_service
+from app.features.market_data.api.dependencies import (
+    get_daily_price_import_service,
+    get_provider_venue_reconciliation_service,
+)
 from app.features.market_data.domain.enums import (
     CacheStatus,
     MarketDataProvider,
     QualityStatus,
 )
 from app.features.market_data.service.application import DailyPriceImportResult
-from app.features.market_data.service.errors import MarketDataRateLimitError
+from app.features.market_data.service.errors import (
+    MarketDataNotFoundError,
+    MarketDataRateLimitError,
+)
+from app.features.market_data.service.venue_reconciliation import (
+    VenueReconciliationResult,
+    VenueReconciliationStatus,
+)
 from app.main import create_application
 
 LISTING_ID = UUID("10000000-0000-4000-8000-000000000001")
@@ -125,3 +135,50 @@ def test_rate_limit_uses_stable_error_contract_and_retry_metadata() -> None:
     assert response.status_code == 429
     assert response.json()["code"] == "MARKET_DATA_RATE_LIMIT_ERROR"
     assert response.json()["details"][0]["context"]["retry_after_seconds"] == 12.0
+
+
+def test_venue_reconciliation_endpoint_exposes_read_only_evidence() -> None:
+    service = AsyncMock()
+    venue_id = UUID("40000000-0000-4000-8000-000000000001")
+    service.reconcile_mapping.return_value = VenueReconciliationResult(
+        status=VenueReconciliationStatus.MATCHED,
+        listing_venue_id=venue_id,
+        evidence_venue_ids=(venue_id,),
+    )
+    application = create_application(settings())
+    application.dependency_overrides[get_provider_venue_reconciliation_service] = (
+        lambda: service
+    )
+
+    with TestClient(application) as client:
+        response = client.get(
+            f"/api/v1/market-data/provider-mappings/{MAPPING_ID}/venue-reconciliation"
+        )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "status": "MATCHED",
+        "listing_venue_id": str(venue_id),
+        "evidence_venue_ids": [str(venue_id)],
+        "explanation": "Provider evidence confirms the listing trading venue.",
+    }
+    service.reconcile_mapping.assert_awaited_once_with(WORKSPACE_ID, MAPPING_ID)
+
+
+def test_venue_reconciliation_endpoint_maps_missing_mapping_to_404() -> None:
+    service = AsyncMock()
+    service.reconcile_mapping.side_effect = MarketDataNotFoundError(
+        "Provider mapping not found"
+    )
+    application = create_application(settings())
+    application.dependency_overrides[get_provider_venue_reconciliation_service] = (
+        lambda: service
+    )
+
+    with TestClient(application) as client:
+        response = client.get(
+            f"/api/v1/market-data/provider-mappings/{MAPPING_ID}/venue-reconciliation"
+        )
+
+    assert response.status_code == 404
+    assert response.json()["code"] == "MARKET_DATA_NOT_FOUND"

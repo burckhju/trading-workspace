@@ -160,21 +160,40 @@ export function UnderlyingFormPage() {
           <fieldset className="rounded-xl border border-slate-800 bg-slate-900/50 p-5">
             <legend className="px-2 font-semibold">2. Primäre Notierung</legend>
             <div className="grid gap-4 md:grid-cols-3">
-              <label>
-                <span className="mb-1 block text-sm">Markt *</span>
-                <select
-                  required
-                  value={venueId}
-                  onChange={(e) => setVenueId(e.target.value)}
-                  className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2"
-                >
-                  {venues.map((v) => (
-                    <option key={v.id} value={v.id}>
-                      {v.name} · {v.mic}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              {venues.length === 1 ? (
+                <div>
+                  <span className="mb-1 block text-sm">Markt</span>
+                  <div
+                    aria-label="Automatisch gewählter Markt"
+                    className="rounded-lg border border-slate-800 bg-slate-950/70 px-3 py-2 text-slate-300"
+                  >
+                    {venues[0].name} · {venues[0].mic}
+                  </div>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Automatisch übernommen, weil genau ein aktiver Handelsplatz verfügbar ist.
+                  </p>
+                </div>
+              ) : (
+                <label>
+                  <span className="mb-1 block text-sm">Markt *</span>
+                  <select
+                    aria-label="Markt *"
+                    required
+                    value={venueId}
+                    onChange={(e) => setVenueId(e.target.value)}
+                    className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2"
+                  >
+                    {venues.map((v) => (
+                      <option key={v.id} value={v.id}>
+                        {v.name} · {v.mic}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Auswahl nur erforderlich, weil mehrere aktive Handelsplätze verfügbar sind.
+                  </p>
+                </label>
+              )}
               <label>
                 <span className="mb-1 block text-sm">Ticker *</span>
                 <input

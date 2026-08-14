@@ -65,6 +65,8 @@ class TradingVenueModel(Base):
     __table_args__ = (
         UniqueConstraint("mic", name="uq_trading_venues_mic"),
         CheckConstraint("length(trim(name)) > 0", name="name_not_blank"),
+        CheckConstraint("mic = upper(mic)", name="mic_uppercase"),
+        CheckConstraint("version >= 1", name="version_positive"),
     )
 
     id: Mapped[UUID] = mapped_column(primary_key=True)
@@ -74,10 +76,16 @@ class TradingVenueModel(Base):
     timezone: Mapped[str] = mapped_column(String(64), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False)
     reference_version: Mapped[str] = mapped_column(String(50), nullable=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     listings: Mapped[list[ListingModel]] = relationship(back_populates="trading_venue")
+
+    __mapper_args__: dict[str, Any] = {  # noqa: RUF012
+        "version_id_col": version,
+        "version_id_generator": False,
+    }
 
 
 class CurrencyModel(Base):
@@ -232,8 +240,8 @@ class AuditEventModel(Base):
     )
 
     id: Mapped[UUID] = mapped_column(primary_key=True)
-    workspace_id: Mapped[UUID] = mapped_column(
-        ForeignKey("workspaces.id", ondelete="RESTRICT"), nullable=False
+    workspace_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("workspaces.id", ondelete="RESTRICT"), nullable=True
     )
     aggregate_type: Mapped[AggregateType] = mapped_column(
         _enum(AggregateType, length=30), nullable=False
@@ -249,4 +257,4 @@ class AuditEventModel(Base):
     version_after: Mapped[int | None] = mapped_column(Integer)
     field_changes: Mapped[dict[str, dict[str, Any]]] = mapped_column(JSONB, nullable=False)
 
-    workspace: Mapped[WorkspaceModel] = relationship(back_populates="audit_events")
+    workspace: Mapped[WorkspaceModel | None] = relationship(back_populates="audit_events")

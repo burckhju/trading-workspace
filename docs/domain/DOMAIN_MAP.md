@@ -235,3 +235,8 @@ Für nachfolgende Features gelten folgende Übergaben:
 - FT-008 darf Candidate Qualification oder MarketContext als Kontext anzeigen/referenzieren, aber nicht als implizite Produktentscheidung verwenden. Die Produktauswahl bleibt eine explizite Benutzeraktion.
 - FT-009/FT-010 übernehmen ausschließlich freigegebene Plan-/Produktauswahl-Referenzen und erzeugen keine rückwirkenden Änderungen an CandidateEvaluation oder TradePlan.
 - Alle späteren berechnenden Features übernehmen das in Sprint 4/5 etablierte Muster aus Modell-ID, Modellversion, Inputs, Quelle, Ergebnis, Zeitpunkt und Qualitätsstatus.
+
+
+## Sprint 7A TradingVenue boundary
+
+`TradingVenue` is global provider-neutral reference identity. `Listing` references `TradingVenue.id`; provider exchange codes remain in provider mappings. Venue deactivation preserves existing references. Currency remains owned by `Listing`/later product context rather than becoming a Venue default. `Issuer` remains a separate FT-003 identity and is not inferred from Underlying company data.

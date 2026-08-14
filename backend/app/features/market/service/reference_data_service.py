@@ -14,6 +14,10 @@ class ReferenceDataService:
         async with self._uow:
             return await self._uow.reference_data.list_active_trading_venues()
 
+    async def list_trading_venues(self) -> Sequence[TradingVenueModel]:
+        async with self._uow:
+            return await self._uow.reference_data.list_trading_venues()
+
     async def list_active_currencies(self) -> Sequence[CurrencyModel]:
         async with self._uow:
             return await self._uow.reference_data.list_active_currencies()

@@ -10,7 +10,8 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.features.market_data.domain.enums import MarketDataProvider, PriceType
+from app.features.market.persistence.models import ListingModel
+from app.features.market_data.domain.enums import MappingStatus, MarketDataProvider, PriceType
 from app.features.market_data.persistence.models import (
     DailyPriceModel,
     ProviderInstrumentMappingModel,
@@ -30,6 +31,13 @@ class ProviderInstrumentMappingRepository(Protocol):
     async def list_all(
         self, workspace_id: UUID, provider: MarketDataProvider | None = None
     ) -> Sequence[ProviderInstrumentMappingModel]: ...
+    async def get_listing_venue_id(self, workspace_id: UUID, listing_id: UUID) -> UUID | None: ...
+    async def list_active_venue_ids_for_exchange(
+        self,
+        workspace_id: UUID,
+        provider: MarketDataProvider,
+        provider_exchange_code: str,
+    ) -> Sequence[UUID]: ...
     async def flush(self) -> None: ...
 
 
@@ -98,6 +106,38 @@ class SqlAlchemyProviderInstrumentMappingRepository:
                 ProviderInstrumentMappingModel.provider,
                 ProviderInstrumentMappingModel.provider_symbol,
             )
+        )
+        return result.all()
+
+    async def get_listing_venue_id(self, workspace_id: UUID, listing_id: UUID) -> UUID | None:
+        return await self._session.scalar(
+            select(ListingModel.trading_venue_id).where(
+                ListingModel.workspace_id == workspace_id,
+                ListingModel.id == listing_id,
+            )
+        )
+
+    async def list_active_venue_ids_for_exchange(
+        self,
+        workspace_id: UUID,
+        provider: MarketDataProvider,
+        provider_exchange_code: str,
+    ) -> Sequence[UUID]:
+        result = await self._session.scalars(
+            select(ListingModel.trading_venue_id)
+            .join(
+                ProviderInstrumentMappingModel,
+                ProviderInstrumentMappingModel.listing_id == ListingModel.id,
+            )
+            .where(
+                ProviderInstrumentMappingModel.workspace_id == workspace_id,
+                ProviderInstrumentMappingModel.provider == provider,
+                ProviderInstrumentMappingModel.provider_exchange_code
+                == provider_exchange_code.strip().upper(),
+                ProviderInstrumentMappingModel.status == MappingStatus.ACTIVE,
+                ListingModel.workspace_id == workspace_id,
+            )
+            .distinct()
         )
         return result.all()
 

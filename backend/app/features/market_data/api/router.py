@@ -9,6 +9,7 @@ from app.core.di import ApplicationContainer, get_container
 from app.features.market_data.api.dependencies import (
     get_daily_price_import_service,
     get_provider_mapping_service,
+    get_provider_venue_reconciliation_service,
 )
 from app.features.market_data.api.dtos import (
     ImportDailyPricesRequest,
@@ -17,6 +18,7 @@ from app.features.market_data.api.dtos import (
     ProviderMappingStateRequest,
     ProviderMappingUpsertRequest,
     ProviderStatusResponse,
+    VenueReconciliationResponse,
 )
 from app.features.market_data.api.errors import translate_market_data_error
 from app.features.market_data.service.administration import (
@@ -26,6 +28,9 @@ from app.features.market_data.service.administration import (
 from app.features.market_data.service.application import DailyPriceImportService
 from app.features.market_data.service.errors import MarketDataError
 from app.features.market_data.service.types import DailyPriceRequest
+from app.features.market_data.service.venue_reconciliation import (
+    ProviderVenueReconciliationService,
+)
 
 router = APIRouter(prefix="/api/v1/market-data", tags=["market-data"])
 WORKSPACE_ID = UUID("00000000-0000-4000-8000-000000000001")
@@ -125,6 +130,25 @@ async def set_provider_mapping_state(
     except MarketDataError as error:
         raise translate_market_data_error(error) from error
     return ProviderMappingResponse.from_domain(value)
+
+
+@router.get(
+    "/provider-mappings/{mapping_id}/venue-reconciliation",
+    response_model=VenueReconciliationResponse,
+)
+async def provider_mapping_venue_reconciliation(
+    mapping_id: UUID,
+    service: Annotated[
+        ProviderVenueReconciliationService,
+        Depends(get_provider_venue_reconciliation_service),
+    ],
+) -> VenueReconciliationResponse:
+    """Explain venue evidence for one mapping without mutating reference data."""
+    try:
+        result = await service.reconcile_mapping(WORKSPACE_ID, mapping_id)
+    except MarketDataError as error:
+        raise translate_market_data_error(error) from error
+    return VenueReconciliationResponse.from_result(result)
 
 
 @router.get("/providers/status", response_model=ProviderStatusResponse)

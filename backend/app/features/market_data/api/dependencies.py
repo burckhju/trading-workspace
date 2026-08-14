@@ -10,6 +10,9 @@ from app.features.market_data.service.administration import (
     ProviderMappingAdministrationService,
 )
 from app.features.market_data.service.application import DailyPriceImportService
+from app.features.market_data.service.venue_reconciliation import (
+    ProviderVenueReconciliationService,
+)
 
 
 async def get_daily_price_import_service(
@@ -25,4 +28,12 @@ async def get_provider_mapping_service(
 ) -> AsyncIterator[ProviderMappingAdministrationService]:
     """Yield one session-scoped administrative mapping service."""
     async with container.provider_mapping_service() as service:
+        yield service
+
+
+async def get_provider_venue_reconciliation_service(
+    container: Annotated[ApplicationContainer, Depends(get_container)],
+) -> AsyncIterator[ProviderVenueReconciliationService]:
+    """Yield one session-scoped read-only venue-reconciliation service."""
+    async with container.provider_venue_reconciliation_service() as service:
         yield service

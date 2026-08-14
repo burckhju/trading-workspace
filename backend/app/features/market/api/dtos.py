@@ -110,6 +110,64 @@ class UpdateListingRequest(RequestDto):
         return self
 
 
+
+
+class CreateTradingVenueRequest(RequestDto):
+    mic: Annotated[
+        str,
+        StringConstraints(
+            strip_whitespace=True,
+            min_length=4,
+            max_length=4,
+            pattern=r"^[A-Za-z0-9]{4}$",
+        ),
+    ]
+    name: Name
+    country_code: Annotated[
+        str,
+        StringConstraints(
+            strip_whitespace=True,
+            min_length=2,
+            max_length=2,
+            pattern=r"^[A-Za-z]{2}$",
+        ),
+    ]
+    timezone: Annotated[
+        str, StringConstraints(strip_whitespace=True, min_length=1, max_length=64)
+    ]
+
+
+class UpdateTradingVenueRequest(RequestDto):
+    expected_version: int = Field(ge=1)
+    name: Name | None = None
+    country_code: Annotated[
+        str,
+        StringConstraints(
+            strip_whitespace=True,
+            min_length=2,
+            max_length=2,
+            pattern=r"^[A-Za-z]{2}$",
+        ),
+    ] | None = None
+    timezone: (
+        Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=64)]
+        | None
+    ) = None
+
+    @model_validator(mode="after")
+    def require_change(self) -> Self:
+        if not ({"name", "country_code", "timezone"} & self.model_fields_set):
+            raise PydanticCustomError(
+                "missing_change",
+                "At least one mutable field must be supplied",
+            )
+        return self
+
+
+class TradingVenueVersionRequest(RequestDto):
+    expected_version: int = Field(ge=1)
+
+
 class PrimaryListingSummaryResponse(ResponseDto):
     id: UUID
     ticker: str
@@ -168,6 +226,15 @@ class TradingVenueResponse(ResponseDto):
     reference_version: str
 
 
+
+
+class TradingVenueAdminResponse(TradingVenueResponse):
+    is_active: bool
+    version: int
+    created_at: datetime
+    updated_at: datetime
+
+
 class CurrencyResponse(ResponseDto):
     code: str
     name: str
@@ -177,6 +244,10 @@ class CurrencyResponse(ResponseDto):
 
 class TradingVenueListResponse(BaseModel):
     items: list[TradingVenueResponse]
+
+
+class TradingVenueAdminListResponse(BaseModel):
+    items: list[TradingVenueAdminResponse]
 
 
 class CurrencyListResponse(BaseModel):

@@ -108,6 +108,65 @@ describe('UnderlyingFormPage', () => {
     expect(await screen.findByRole('heading', { name: 'Detail' })).toBeInTheDocument();
   });
 
+  it('uses the only active venue automatically without showing a market selector', async () => {
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={['/underlyings/new']}>
+        <Routes>
+          <Route path="/underlyings/new" element={<UnderlyingFormPage />} />
+          <Route path="/underlyings/:underlyingId" element={<h1>Detail</h1>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByLabelText('Automatisch gewählter Markt')).toHaveTextContent(
+      'Xetra · XETR',
+    );
+    expect(screen.queryByRole('combobox', { name: 'Markt *' })).not.toBeInTheDocument();
+
+    await user.type(screen.getByRole('textbox', { name: 'Name *' }), 'Siemens AG');
+    await user.type(screen.getByRole('textbox', { name: 'Ticker *' }), 'SIE');
+    await user.click(screen.getByRole('button', { name: 'Speichern' }));
+
+    const request = vi.mocked(marketApiClient.createUnderlying).mock.calls[0]?.[0];
+    expect(request?.primary_listing.trading_venue_id).toBe('00000000-0000-4000-8001-000000000001');
+  });
+
+  it('shows a market selector only when multiple active venues are available', async () => {
+    vi.mocked(marketApiClient.listTradingVenues).mockResolvedValue({
+      items: [
+        {
+          id: '00000000-0000-4000-8001-000000000001',
+          mic: 'XETR',
+          name: 'Xetra',
+          country_code: 'DE',
+          timezone: 'Europe/Berlin',
+          reference_version: 'FT-001-V1',
+        },
+        {
+          id: '00000000-0000-4000-8001-000000000002',
+          mic: 'XFRA',
+          name: 'Frankfurt',
+          country_code: 'DE',
+          timezone: 'Europe/Berlin',
+          reference_version: 'FT-001-V1',
+        },
+      ],
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/underlyings/new']}>
+        <Routes>
+          <Route path="/underlyings/new" element={<UnderlyingFormPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    const market = await screen.findByRole('combobox', { name: 'Markt *' });
+    expect(market).toBeInTheDocument();
+    expect(screen.getByText(/Auswahl nur erforderlich/)).toBeInTheDocument();
+  });
+
   it('updates only underlying master data with the loaded version', async () => {
     const user = userEvent.setup();
     render(
