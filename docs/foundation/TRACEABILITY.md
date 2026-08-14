@@ -160,3 +160,15 @@ Anforderung → Entscheidung → Implementierung → Test → Abnahme
 | Deaktivierung erhält historische Referenzen | FT-002 Feature | Status-Service, Listing-FK `RESTRICT` |
 | FT-004 konsumiert stabile Venue-ID | Sprint-7A Architecture Review | Consumer Contract, keine Warrant-Implementierung |
 | TradePlan bleibt produktneutral | ADR-S6-006, ADR-S7-001 | keine Venue-Felder in FT-007 |
+
+
+### Sprint-7A Release Evidence
+
+| Nachweis | Ergebnis |
+|---|---|
+| Pull Request | #8 |
+| Merge Commit | `7f39bc0` |
+| Backend CI | PASS |
+| Frontend CI | PASS |
+| End-to-End CI | PASS |
+| Release Status | FT-002 Released |

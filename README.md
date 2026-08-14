@@ -11,7 +11,7 @@ Produktionsnahes Referenzrepository für den **Trading Workspace**.
 - Sprint 4 – FT-006 Market Analysis: released
 - Sprint 5 – FT-005 Candidate Qualification V1: released
 - Sprint 6 – FT-007 TradePlan: released als `v0.6.0-trade-plan`
-- Sprint 7A – FT-002 Trading Venues: Technical Review, Release-Gates ausstehend
+- Sprint 7A – FT-002 Trading Venues: released
 - Sprint 7B – FT-003 Issuers: noch nicht begonnen
 
 Die Repository-Implementierung und die akzeptierten ADRs/Feature Books bilden die verbindliche Architektur-Baseline. Sprint-7A erweitert die bestehende TradingVenue-Identität und führt keine parallele Venue-Stammdatenwelt ein.

@@ -2,9 +2,9 @@
 
 ## Status
 
-**TECHNICAL REVIEW COMPLETE – RELEASE GATES PARTIALLY PENDING**
+**RELEASED – SPRINT 7A CLOSED**
 
-FT-002 feature implementation and architecture gap closure are complete. The feature must not be marked Released until the repository-defined Backend, Frontend and End-to-End CI gates all pass on the branch/PR.
+FT-002 feature implementation and architecture gap closure are complete. All repository-defined Backend, Frontend and End-to-End CI gates passed on Pull Request #8 before merge into `main`.
 
 ## Delivered capability
 
@@ -30,11 +30,13 @@ TradingVenue is deliberately not a recurring trader input. If one valid venue ex
 ### Backend functional gate
 
 - 299 unit/integration tests passed.
+- Ruff passed.
+- Black check passed.
 - Coverage: 85.60%, threshold 85%.
 - FT-002 migration contract test passed.
 - Migration chain is explicitly `20260811_0008` → `20260813_0009`.
 
-The repository `check-backend.sh` wrapper could not complete in the reconstructed local environment because the archived Python 3.12 virtual environment cannot resolve its Python 3.12 standard library and the system Python lacks Ruff/Black/mypy. Therefore Ruff/Black/mypy remain CI release evidence, not locally claimed green gates.
+The reconstructed local environment could not reproduce the complete Python 3.12 wrapper reliably. The authoritative protected-branch Backend CI on PR #8 subsequently passed, including Ruff, Black, mypy and tests with coverage.
 
 ### Frontend gate
 
@@ -44,6 +46,7 @@ Using the installed packages directly because archived executable wrappers lost 
 - ESLint passed.
 - Prettier passed.
 - 64 frontend tests passed.
+- Overall frontend statement/line coverage: 90.13%; branch coverage: 77.13%; function coverage: 81.20%.
 - Coverage command passed the repository thresholds (lines/functions/statements 80%, branches 70%).
 - Vite production build passed.
 
@@ -64,17 +67,21 @@ Migration `20260813_0009_ft002_trading_venue_persistence.py`:
 - enables global reference audit events by making `audit_events.workspace_id` nullable;
 - does not introduce provider exchange code, Issuer, Warrant or Currency ownership into TradingVenue.
 
-A real PostgreSQL `0008 → 0009` execution remains part of the CI/E2E release gate.
+The migration contract `0008 → 0009` is covered by automated tests; PR #8 passed the repository End-to-End CI gate.
 
-## Release blockers
+## Final release evidence
 
-Before FT-002 can be marked Released:
+FT-002 passed all protected-branch CI gates on Pull Request #8:
 
-1. repository Backend CI must pass including Ruff, Black and mypy on the configured Python version;
-2. PostgreSQL migration `0008 → 0009` must pass in the CI stack;
-3. Frontend CI must pass using the repository scripts;
-4. Chromium End-to-End CI must pass;
-5. protected-branch PR checks must all be green.
+- Backend: PASS
+- Frontend: PASS
+- End-to-End: PASS
+
+Pull Request #8 was merged into `main`.
+
+Merge commit: `7f39bc0`.
+
+Sprint 7A / FT-002 is released and technically closed.
 
 ## Decision
 
