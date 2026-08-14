@@ -2,7 +2,11 @@
 
 ## Status
 
-Implemented – Technical Review / Release Gates Pending – Sprint 7A.
+Released – Sprint 7A.
+
+Merged via PR #8 into `main`.
+
+Release merge commit: `7f39bc0`.
 
 ## User outcome
 
@@ -63,4 +67,10 @@ This is an architecture compatibility contract only and does not implement Warra
 
 ## Release status
 
-Technical implementation is not a release until repository-defined Backend, Frontend and End-to-End CI gates are all green on the branch/PR.
+Released after successful protected-branch CI on PR #8.
+
+- Backend: PASS
+- Frontend: PASS
+- End-to-End: PASS
+- Pull Request: #8
+- Merge commit: `7f39bc0`
