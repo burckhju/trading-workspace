@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from datetime import date
-from typing import Protocol
+from typing import Protocol, cast
 from uuid import UUID
 
 from sqlalchemy import select
@@ -110,11 +110,14 @@ class SqlAlchemyProviderInstrumentMappingRepository:
         return result.all()
 
     async def get_listing_venue_id(self, workspace_id: UUID, listing_id: UUID) -> UUID | None:
-        return await self._session.scalar(
-            select(ListingModel.trading_venue_id).where(
-                ListingModel.workspace_id == workspace_id,
-                ListingModel.id == listing_id,
-            )
+        return cast(
+            UUID | None,
+            await self._session.scalar(
+                select(ListingModel.trading_venue_id).where(
+                    ListingModel.workspace_id == workspace_id,
+                    ListingModel.id == listing_id,
+                )
+            ),
         )
 
     async def list_active_venue_ids_for_exchange(

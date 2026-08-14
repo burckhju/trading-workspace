@@ -23,6 +23,10 @@ NOW = datetime(2026, 8, 13, 12, 0, tzinfo=UTC)
 VENUE_ID = UUID("30000000-0000-4000-8000-000000000001")
 
 
+def _override(value: object):
+    return lambda: value
+
+
 def settings() -> Settings:
     return Settings(
         _env_file=None,
@@ -51,7 +55,7 @@ def test_create_trading_venue_delegates_minimal_admin_input() -> None:
     service = AsyncMock()
     service.create.return_value = venue()
     application = create_application(settings())
-    application.dependency_overrides[get_trading_venue_administration_service] = lambda: service
+    application.dependency_overrides[get_trading_venue_administration_service] = _override(service)
 
     with TestClient(application) as client:
         response = client.post(
@@ -76,7 +80,7 @@ def test_create_trading_venue_delegates_minimal_admin_input() -> None:
 def test_update_does_not_allow_mic_or_reference_version() -> None:
     service = AsyncMock()
     application = create_application(settings())
-    application.dependency_overrides[get_trading_venue_administration_service] = lambda: service
+    application.dependency_overrides[get_trading_venue_administration_service] = _override(service)
 
     with TestClient(application) as client:
         response = client.patch(
@@ -92,7 +96,7 @@ def test_update_uses_expected_version_and_returns_admin_state() -> None:
     service = AsyncMock()
     service.update.return_value = venue(version=2)
     application = create_application(settings())
-    application.dependency_overrides[get_trading_venue_administration_service] = lambda: service
+    application.dependency_overrides[get_trading_venue_administration_service] = _override(service)
 
     with TestClient(application) as client:
         response = client.patch(
@@ -112,7 +116,7 @@ def test_deactivate_and_reactivate_are_explicit_status_mutations() -> None:
     service.deactivate.return_value = venue(active=False, version=2)
     service.reactivate.return_value = venue(active=True, version=3)
     application = create_application(settings())
-    application.dependency_overrides[get_trading_venue_administration_service] = lambda: service
+    application.dependency_overrides[get_trading_venue_administration_service] = _override(service)
 
     with TestClient(application) as client:
         deactivated = client.post(
@@ -145,7 +149,9 @@ def test_trading_venue_errors_map_to_stable_http_contract() -> None:
         service = AsyncMock()
         service.create.side_effect = error
         application = create_application(settings())
-        application.dependency_overrides[get_trading_venue_administration_service] = lambda: service
+        application.dependency_overrides[get_trading_venue_administration_service] = _override(
+            service
+        )
         with TestClient(application) as client:
             response = client.post(
                 "/api/v1/market-reference-data/trading-venues",
@@ -164,7 +170,7 @@ def test_consumer_read_contract_still_delegates_to_active_only_service() -> None
     service = AsyncMock()
     service.list_active_trading_venues.return_value = [venue()]
     application = create_application(settings())
-    application.dependency_overrides[get_reference_data_service] = lambda: service
+    application.dependency_overrides[get_reference_data_service] = _override(service)
 
     with TestClient(application) as client:
         response = client.get("/api/v1/market-reference-data/trading-venues")
@@ -178,7 +184,7 @@ def test_admin_read_contract_includes_inactive_and_concurrency_metadata() -> Non
     service = AsyncMock()
     service.list_trading_venues.return_value = [venue(active=False, version=3)]
     application = create_application(settings())
-    application.dependency_overrides[get_reference_data_service] = lambda: service
+    application.dependency_overrides[get_reference_data_service] = _override(service)
 
     with TestClient(application) as client:
         response = client.get("/api/v1/market-reference-data/trading-venues/admin")

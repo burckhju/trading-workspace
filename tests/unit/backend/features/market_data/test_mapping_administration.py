@@ -164,6 +164,7 @@ async def test_technical_validation_failure_keeps_mapping_inactive() -> None:
     assert validated.status is MappingStatus.INVALID
     assert validated.validation_message == "No exact provider match"
 
+
 @pytest.mark.asyncio
 async def test_venue_reconciliation_matches_existing_active_mapping_evidence() -> None:
     uow = Uow()
@@ -242,9 +243,7 @@ async def test_reconcile_mapping_uses_persisted_mapping_context() -> None:
     workspace_id = uuid4()
     listing_id = uuid4()
     venue_id = uuid4()
-    mapping_service = ProviderMappingAdministrationService(
-        uow, now=lambda: NOW, id_factory=uuid4
-    )
+    mapping_service = ProviderMappingAdministrationService(uow, now=lambda: NOW, id_factory=uuid4)
     created = await mapping_service.create_or_update(command(workspace_id, listing_id))
     uow.mappings.listing_venues = {listing_id: venue_id}
     uow.mappings.exchange_venues = {"XETRA": [venue_id]}

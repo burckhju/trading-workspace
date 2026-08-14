@@ -146,9 +146,7 @@ def test_venue_reconciliation_endpoint_exposes_read_only_evidence() -> None:
         evidence_venue_ids=(venue_id,),
     )
     application = create_application(settings())
-    application.dependency_overrides[get_provider_venue_reconciliation_service] = (
-        lambda: service
-    )
+    application.dependency_overrides[get_provider_venue_reconciliation_service] = lambda: service
 
     with TestClient(application) as client:
         response = client.get(
@@ -167,13 +165,9 @@ def test_venue_reconciliation_endpoint_exposes_read_only_evidence() -> None:
 
 def test_venue_reconciliation_endpoint_maps_missing_mapping_to_404() -> None:
     service = AsyncMock()
-    service.reconcile_mapping.side_effect = MarketDataNotFoundError(
-        "Provider mapping not found"
-    )
+    service.reconcile_mapping.side_effect = MarketDataNotFoundError("Provider mapping not found")
     application = create_application(settings())
-    application.dependency_overrides[get_provider_venue_reconciliation_service] = (
-        lambda: service
-    )
+    application.dependency_overrides[get_provider_venue_reconciliation_service] = lambda: service
 
     with TestClient(application) as client:
         response = client.get(

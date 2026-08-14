@@ -156,12 +156,10 @@ class VenueReconciliationResponse(BaseModel):
                 "Provider evidence points to a different trading venue."
             ),
             VenueReconciliationStatus.AMBIGUOUS: (
-                "Provider evidence maps to multiple trading venues; "
-                "no automatic choice is made."
+                "Provider evidence maps to multiple trading venues; " "no automatic choice is made."
             ),
             VenueReconciliationStatus.UNRESOLVED: (
-                "No reliable existing venue evidence is available; "
-                "no automatic choice is made."
+                "No reliable existing venue evidence is available; " "no automatic choice is made."
             ),
         }
         return cls(

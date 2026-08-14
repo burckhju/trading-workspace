@@ -90,9 +90,7 @@ def service(uow: FakeUow) -> TradingVenueAdministrationService:
             UUID("30000000-0000-4000-8000-000000000003"),
         )
     )
-    return TradingVenueAdministrationService(
-        uow, clock=lambda: NOW, id_factory=lambda: next(ids)
-    )
+    return TradingVenueAdministrationService(uow, clock=lambda: NOW, id_factory=lambda: next(ids))
 
 
 @pytest.mark.asyncio
@@ -117,21 +115,15 @@ async def test_create_rejects_case_insensitive_duplicate_mic() -> None:
     svc = service(uow)
     await svc.create(CreateTradingVenue(ACTOR, "XETR", "Xetra", "DE", "Europe/Berlin"))
     with pytest.raises(DuplicateTradingVenueMic):
-        await svc.create(
-            CreateTradingVenue(ACTOR, "xetr", "Duplicate", "DE", "Europe/Berlin")
-        )
+        await svc.create(CreateTradingVenue(ACTOR, "xetr", "Duplicate", "DE", "Europe/Berlin"))
 
 
 @pytest.mark.asyncio
 async def test_update_uses_expected_version_and_increments_version() -> None:
     uow = FakeUow()
     svc = service(uow)
-    model = await svc.create(
-        CreateTradingVenue(ACTOR, "XETR", "Xetra", "DE", "Europe/Berlin")
-    )
-    updated = await svc.update(
-        UpdateTradingVenue(model.id, 1, ACTOR, name="Deutsche Börse Xetra")
-    )
+    model = await svc.create(CreateTradingVenue(ACTOR, "XETR", "Xetra", "DE", "Europe/Berlin"))
+    updated = await svc.update(UpdateTradingVenue(model.id, 1, ACTOR, name="Deutsche Börse Xetra"))
     assert updated.name == "Deutsche Börse Xetra" and updated.version == 2
     with pytest.raises(TradingVenueConcurrentModification):
         await svc.update(UpdateTradingVenue(model.id, 1, ACTOR, name="Old edit"))
@@ -141,14 +133,10 @@ async def test_update_uses_expected_version_and_increments_version() -> None:
 async def test_deactivate_and_reactivate_preserve_identity() -> None:
     uow = FakeUow()
     svc = service(uow)
-    model = await svc.create(
-        CreateTradingVenue(ACTOR, "XETR", "Xetra", "DE", "Europe/Berlin")
-    )
+    model = await svc.create(CreateTradingVenue(ACTOR, "XETR", "Xetra", "DE", "Europe/Berlin"))
     deactivated = await svc.deactivate(ChangeTradingVenueStatus(model.id, 1, ACTOR))
     assert (
-        deactivated.id == VENUE_ID
-        and deactivated.is_active is False
-        and deactivated.version == 2
+        deactivated.id == VENUE_ID and deactivated.is_active is False and deactivated.version == 2
     )
     reactivated = await svc.reactivate(ChangeTradingVenueStatus(model.id, 2, ACTOR))
     assert reactivated.is_active is True and reactivated.version == 3

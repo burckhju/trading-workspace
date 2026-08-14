@@ -110,8 +110,6 @@ class UpdateListingRequest(RequestDto):
         return self
 
 
-
-
 class CreateTradingVenueRequest(RequestDto):
     mic: Annotated[
         str,
@@ -132,26 +130,26 @@ class CreateTradingVenueRequest(RequestDto):
             pattern=r"^[A-Za-z]{2}$",
         ),
     ]
-    timezone: Annotated[
-        str, StringConstraints(strip_whitespace=True, min_length=1, max_length=64)
-    ]
+    timezone: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=64)]
 
 
 class UpdateTradingVenueRequest(RequestDto):
     expected_version: int = Field(ge=1)
     name: Name | None = None
-    country_code: Annotated[
-        str,
-        StringConstraints(
-            strip_whitespace=True,
-            min_length=2,
-            max_length=2,
-            pattern=r"^[A-Za-z]{2}$",
-        ),
-    ] | None = None
-    timezone: (
-        Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=64)]
+    country_code: (
+        Annotated[
+            str,
+            StringConstraints(
+                strip_whitespace=True,
+                min_length=2,
+                max_length=2,
+                pattern=r"^[A-Za-z]{2}$",
+            ),
+        ]
         | None
+    ) = None
+    timezone: (
+        Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=64)] | None
     ) = None
 
     @model_validator(mode="after")
@@ -224,8 +222,6 @@ class TradingVenueResponse(ResponseDto):
     country_code: str
     timezone: str
     reference_version: str
-
-
 
 
 class TradingVenueAdminResponse(TradingVenueResponse):

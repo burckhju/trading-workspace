@@ -8,7 +8,7 @@ later service/domain steps.
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Protocol
+from typing import Protocol, cast
 from uuid import UUID
 
 from sqlalchemy import Select, func, or_, select
@@ -127,8 +127,11 @@ class SqlAlchemyReferenceDataRepository:
         self._session.add(venue)
 
     async def find_trading_venue_by_mic(self, mic: str) -> TradingVenueModel | None:
-        return await self._session.scalar(
-            select(TradingVenueModel).where(TradingVenueModel.mic == mic.strip().upper())
+        return cast(
+            TradingVenueModel | None,
+            await self._session.scalar(
+                select(TradingVenueModel).where(TradingVenueModel.mic == mic.strip().upper())
+            ),
         )
 
     async def flush(self) -> None:

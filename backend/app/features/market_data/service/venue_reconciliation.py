@@ -35,7 +35,6 @@ class ProviderVenueReconciliationService:
     def __init__(self, uow: MarketDataUnitOfWork) -> None:
         self._uow = uow
 
-
     async def reconcile_mapping(
         self, workspace_id: UUID, mapping_id: UUID
     ) -> VenueReconciliationResult:
@@ -59,9 +58,7 @@ class ProviderVenueReconciliationService:
         provider_exchange_code: str,
     ) -> VenueReconciliationResult:
         """Return evidence; never create or mutate a trading venue."""
-        listing_venue_id = await self._uow.mappings.get_listing_venue_id(
-            workspace_id, listing_id
-        )
+        listing_venue_id = await self._uow.mappings.get_listing_venue_id(workspace_id, listing_id)
         if listing_venue_id is None:
             return VenueReconciliationResult(
                 status=VenueReconciliationStatus.UNRESOLVED,
