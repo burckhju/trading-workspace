@@ -69,4 +69,39 @@ describe('IssuerAdminPage', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Deaktivieren' }));
     await waitFor(() => expect(client.deactivateIssuer).toHaveBeenCalledWith(issuer.id, 3));
   });
+  it('updates issuer master data without exposing technical identifiers', async () => {
+    render(<IssuerAdminPage />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Bearbeiten' }));
+
+    fireEvent.change(screen.getByLabelText('Anzeigename'), {
+      target: { value: 'Société Générale Markets' },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Änderungen speichern' }));
+
+    await waitFor(() =>
+      expect(client.updateIssuer).toHaveBeenCalledWith(issuer.id, {
+        legal_name: issuer.legal_name,
+        display_name: 'Société Générale Markets',
+        country_code: issuer.country_code,
+        lei: issuer.lei,
+        expected_version: 3,
+      }),
+    );
+  });
+
+
+  it('reactivates an inactive issuer using the stored version', async () => {
+    const inactiveIssuer = { ...issuer, is_active: false };
+    client.listIssuersForAdmin.mockResolvedValue({ items: [inactiveIssuer] });
+    render(<IssuerAdminPage />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Reaktivieren' }));
+
+    await waitFor(() =>
+      expect(client.reactivateIssuer).toHaveBeenCalledWith(inactiveIssuer.id, 3),
+    );
+  });
+
 });
