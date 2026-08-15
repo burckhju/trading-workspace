@@ -14,6 +14,7 @@ from app.features.candidate.persistence import models as candidate_models  # noq
 from app.features.market.persistence import models as market_models  # noqa: F401
 from app.features.market.persistence import top_down_models as market_top_down_models  # noqa: F401
 from app.features.market_data.persistence import models as market_data_models  # noqa: F401
+from app.features.product.persistence import models as product_models  # noqa: F401
 from app.features.trade_plan.persistence import models as trade_plan_models  # noqa: F401
 from app.features.user_preferences.persistence import models as user_preference_models  # noqa: F401
 
