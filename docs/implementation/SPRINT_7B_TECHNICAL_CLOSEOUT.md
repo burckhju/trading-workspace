@@ -2,9 +2,9 @@
 
 ## Status
 
-**IMPLEMENTATION COMPLETE – RELEASE/PROTECTED-BRANCH CI PENDING**
+**MERGED – RELEASE TAG / FINAL GOVERNANCE CLOSEOUT PENDING**
 
-FT-003 implementation and local architecture gap closure are complete on `feature/s7b-ft003-issuers`. This document does not claim merge, release or protected-branch CI success before those events actually occur.
+FT-003 implementation is merged to `main` through PR #10. Protected pull-request Backend, Frontend and End-to-End CI have all passed. The observed merge commit is `346f246`. This document does not yet claim final release tagging or completed Sprint 7B governance closeout.
 
 ## Delivered capability
 
@@ -71,38 +71,49 @@ No. FT-003 adds reference-data capability and exceptional administration, not a 
 
 Only when reference data must be created, corrected, deactivated/reactivated or later reconciled. The admin UI intentionally limits editable master data to the minimum V1 fields.
 
-## Local verification policy
+## Verification and merge evidence
 
-Local verification is evidence for implementation readiness only. Protected-branch Backend, Frontend and End-to-End CI remain authoritative for release closeout.
+- PR #10: `FT-003: Add issuer reference data`.
+- PR state: merged into `main`.
+- Observed merge commit: `346f246`.
+- Backend protected PR CI: PASS.
+- Frontend protected PR CI: PASS.
+- End-to-End protected PR CI: PASS.
+- Final release tag / Sprint 7B governance closeout: still pending.
 
-A merge commit, pull-request number, CI PASS or release tag must be added only after actually observed.
+No release tag is claimed until it is actually created and verified.
 
 ## Decision
 
-FT-003 is ready for final repository quality gates and release-candidate preparation. Any failing gate should be fixed narrowly; it is not justification to expand FT-003 into Warrant/Product Selection or speculative provider reconciliation.
+FT-003 has passed implementation, review, protected PR quality gates and merge to `main`. The remaining work is governance closeout and release tagging only. No remaining FT-003 work justifies expansion into Warrant/Product Selection or speculative provider reconciliation.
 
-## Verified evidence in the available environment
+## Verified evidence
 
 ### Backend
 
-- Market feature unit suite: 111/111 passed.
-- Full repository pytest run with the CI-style `PYTHONPATH=backend`: 319/319 passed.
-- Ruff, Black and mypy are not installed in the available system Python, so no local PASS is claimed
-  for those protected-CI gates; protected-branch Backend CI remains authoritative for them.
+- Full backend unit/integration suite: 318/318 passed locally with CI-style `PYTHONPATH`.
+- Ruff: PASS.
+- Black: PASS.
+- mypy: PASS across 167 source files.
+- Protected PR Backend quality CI: PASS.
 
 ### Frontend
 
-Because archived `.bin` wrappers are not reliable in this workspace, installed package entrypoints
-were invoked directly.
+- 70/70 frontend tests passed.
+- Global coverage: 90.29% statements, 82.15% functions, 90.29% lines.
+- TypeScript typecheck: PASS.
+- ESLint: PASS with zero warnings.
+- Prettier: PASS.
+- Vite production build: PASS.
+- Protected PR Frontend quality CI: PASS.
 
-- 67/67 frontend tests passed.
-- TypeScript typecheck passed.
-- ESLint passed with zero warnings.
-- Vite production build passed.
+### End-to-End
+
+- Protected PR End-to-End smoke CI: PASS.
 
 ### Boundary verification
 
-- `git diff main --` shows no FT-003 modification under the TradePlan feature boundary.
-- No Warrant/Product implementation is introduced.
-- Current EODHD provider source has no issuer/LEI identity contract; provider reconciliation stays
-  explicitly deferred.
+- No FT-003 modification to the TradePlan product-neutral boundary.
+- No Warrant/Product implementation introduced.
+- Current EODHD provider boundary has no structured issuer/LEI identity contract;
+  provider reconciliation remains explicitly deferred.
