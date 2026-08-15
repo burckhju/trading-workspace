@@ -34,7 +34,7 @@ Das Product Backlog übersetzt Roadmap und Feature-Katalog in priorisierte, übe
 | 7 | PB-007 | FT-001 Frontend | P1 | Done | Basiswerte können gesucht, angelegt, bearbeitet und deaktiviert werden | PB-006 |
 | 8 | PB-008 | FT-001 Integration und Abnahme | P1 | Done | E2E, Traceability, Dokumentation und fachliche Abnahme abgeschlossen | PB-006/007 |
 | 9 | PB-009 | FT-002 Börsen/Handelsplätze | P1 | Released | Provider-neutrale Handelsplätze sind zentral administrierbar, providerseitig reconciliert und in normalen Nutzerflüssen low-input konsumierbar; Backend-, Frontend- und End-to-End-Release-Gates sind erfolgreich | PB-008 |
-| 10 | PB-010 | FT-003 Emittenten | P1 | Not Started | Emittenten sind als eigenständige Referenzobjekte verwaltet | PB-008 |
+| 10 | PB-010 | FT-003 Emittenten | P1 | Released | Emittenten sind als globale, provider-neutrale Referenzobjekte mit stabiler interner Identität, Lifecycle, Audit und Low-Input-Administration verfügbar; Backend-, Frontend- und End-to-End-Gates sind erfolgreich | PB-008 |
 | 11 | PB-011 | FT-004 Optionsscheine | P2 | Not Started | Optionsscheine sind eindeutig, historisierbar und Basiswert/Emittent zugeordnet | PB-009/010 |
 | 12 | PB-012 | FT-005 Watchlisten/Kandidaten | P2 | Technical Review | Kandidatenqualifikation, Lifecycle und Top-down-Nachvollziehbarkeit sind ohne Handelsentscheidung nutzbar; Watchlist-Vollausbau bleibt offen | PB-008, PB-013 |
 | 13 | PB-013 | FT-006 Marktanalyse | P2 | Technical Review | Analysen speichern Quellen, Eingaben, Modellversion und Ergebnis; Sprint-4-RC ist fachlich abgenommen, externe Release-Gates bleiben offen | PB-004, PB-008 |
