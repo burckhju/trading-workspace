@@ -199,3 +199,40 @@ Anforderung → Entscheidung → Implementierung → Test → Abnahme
 | Provider Issuer Source | kein belastbarer strukturierter Contract im aktuellen Repository |
 | FT-004 Consumer Contract | dokumentiert; keine Warrant-Implementierung |
 | Release Status | Implemented – Release Candidate; CI/Merge noch ausstehend |
+
+
+## FT-004 / Sprint-7C Warrant Traceability
+
+| Regel | Entscheidung / Spezifikation | Implementierungsnachweis |
+|---|---|---|
+| klassische Call-/Put-Optionsscheine als V1-Scope | ADR-S7-003 | `ProductFamily.WARRANT`, `OptionDirection`, Domain-/API-Tests |
+| stabile interne Warrant-Identität | ADR-S7-003 | `WarrantModel.id` als UUID; externe Identifier bleiben Attribute |
+| Warrant ≠ Issuer ≠ Underlying ≠ Listing ≠ ProviderInstrument | ADR-S7-003/004/006 | getrennte FKs/Aggregate; keine Provider-ID als Warrant-ID |
+| FT-003 Issuer-Contract wird konsumiert | ADR-S7-003 | `issuer_id` FK auf released `issuers`; aktive Referenzprüfung |
+| FT-001 Underlying-Contract wird konsumiert | ADR-S7-003 | `underlying_id` FK auf bestehende `underlyings`; keine neue Underlying-Welt |
+| Warrant ≠ handelbare Notierung | ADR-S7-004 | separates `WarrantListingModel` |
+| TradingVenue gehört zur Notierung | ADR-S7-004 | `WarrantListing.trading_venue_id`; kein Venue-Feld am Warrant |
+| Product Terms sind historisch reproduzierbar | ADR-S7-005 | immutable/effective-dated `WarrantTermsVersionModel` |
+| Ratio-Semantik ist eindeutig | ADR-S7-005, S7C Architecture Review | Underlying-Einheiten pro Warrant; positive Decimal-Validierung |
+| Maturity ≠ administrativer Lifecycle | ADR-S7-003/005 | `maturity_date` in Terms; `ACTIVE/INACTIVE` separat |
+| Reference Data ≠ Market Data | ADR-S7-006 | keine Bid/Ask/Spread/Greeks/IV-Felder im Warrant-Aggregat |
+| Provider Discovery ≠ stabile Product Identity | ADR-S7-006 | kein spekulatives EODHD-Warrant-Mapping; Capability-Gap dokumentiert |
+| konkurrierende Änderungen überschreiben nicht still | FT-004 Service/API | expected-version Contract, `WARRANT_CONCURRENT_MODIFICATION` |
+| Duplicate-Identifiers/Listing werden fachlich behandelt | FT-004 Service/API | stabile 409-Fehlercodes + DB-Constraints/Race-Tests |
+| FT-008 bleibt außerhalb FT-004 | ADR-S7-003/006 | keine Ranking-, Scoring-, Selection- oder TradePlan-Änderung |
+
+### Sprint-7C Local Release-Candidate Evidence
+
+| Nachweis | Ergebnis |
+|---|---|
+| Working Branch | `feature/s7c-ft004-warrants` |
+| Baseline | `4ad4e044` / `v0.8.0-issuers` |
+| Backend full unit/integration suite | 333/333 PASS |
+| Backend coverage | 85.04% PASS |
+| Backend Ruff | PASS |
+| Frontend unit suite | 77/77 PASS |
+| Frontend coverage | 90.87% statements/lines, 83.65% functions, 77.62% branches PASS |
+| Frontend TypeScript / ESLint / Prettier | PASS |
+| Frontend production build | PASS |
+| Provider Warrant Source | kein vollständiger belastbarer Contract im aktuellen Repository |
+| Release Status | Implemented – Local Release Candidate; protected CI/merge/release pending |
