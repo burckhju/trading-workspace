@@ -81,3 +81,20 @@ FT-008 must not reinterpret ratio semantics or use current mutable reference dat
 ## Decision
 
 FT-004 is **locally implementation-complete and release-candidate ready**, but it is not yet truthfully `Released`. Remaining work is release evidence and governance, not expansion into FT-008, execution or speculative provider integration.
+
+
+## Observed Merge and Release Evidence
+
+- FT-004 implementation PR: `#13`
+- implementation commit: `ee205fa`
+- merged `main` commit: `2978f8a`
+- protected Backend CI: PASS
+- protected Frontend CI: PASS
+- protected End-to-End CI: PASS
+- PostgreSQL migration roundtrip:
+  `20260815_0010 -> 20260815_0011 -> 20260815_0010 -> 20260815_0011`: PASS
+- planned release tag after governance merge: `v0.9.0-warrants`
+
+FT-004 implementation is merged and all required protected quality gates have
+passed. The remaining action is governance-closeout merge followed by tagging
+the observed resulting `main` commit.
