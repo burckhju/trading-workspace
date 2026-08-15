@@ -168,9 +168,7 @@ class TradingVenueVersionRequest(RequestDto):
 
 CountryCode = Annotated[
     str,
-    StringConstraints(
-        strip_whitespace=True, min_length=2, max_length=2, pattern=r"^[A-Za-z]{2}$"
-    ),
+    StringConstraints(strip_whitespace=True, min_length=2, max_length=2, pattern=r"^[A-Za-z]{2}$"),
 ]
 Lei = Annotated[
     str,

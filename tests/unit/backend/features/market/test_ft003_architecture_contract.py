@@ -7,7 +7,6 @@ from app.features.trade_plan.domain.models import TradePlan, TradePlanVersion
 from app.features.trade_plan.persistence.models import TradePlanModel, TradePlanVersionModel
 from app.providers.eodhd.dto import EodhdSearchResultDto
 
-
 FORBIDDEN_TRADE_PLAN_PRODUCT_FIELDS = {
     "issuer_id",
     "warrant_id",

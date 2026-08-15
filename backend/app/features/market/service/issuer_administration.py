@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
 from uuid import UUID, uuid4
 
 from app.features.market.domain.enums import ActorType, AggregateType, ChangeType, DataOrigin
@@ -82,9 +82,13 @@ class IssuerAdministrationService:
             country_code = (
                 model.country_code
                 if command.country_code is ...
-                else self._optional_upper(command.country_code)
+                else self._optional_upper(cast(str | None, command.country_code))
             )
-            lei = model.lei if command.lei is ... else self._optional_upper(command.lei)
+            lei = (
+                model.lei
+                if command.lei is ...
+                else self._optional_upper(cast(str | None, command.lei))
+            )
             if lei != model.lei:
                 await self._ensure_lei_available(lei, excluding=model.id)
 
