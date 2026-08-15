@@ -283,7 +283,6 @@ describe('marketApiClient', () => {
     expect(requestInputUrl(calls[5][0])).toContain(`/issuers/${issuer.id}/reactivate`);
     expect(JSON.parse(requestBodyText(calls[5][1]?.body))).toEqual({ expected_version: 4 });
   });
-
 });
 
 it('adds the centrally resolved request identity when no feature actor is provided', async () => {

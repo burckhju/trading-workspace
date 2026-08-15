@@ -91,7 +91,6 @@ describe('IssuerAdminPage', () => {
     );
   });
 
-
   it('reactivates an inactive issuer using the stored version', async () => {
     const inactiveIssuer = { ...issuer, is_active: false };
     client.listIssuersForAdmin.mockResolvedValue({ items: [inactiveIssuer] });
@@ -99,9 +98,6 @@ describe('IssuerAdminPage', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Reaktivieren' }));
 
-    await waitFor(() =>
-      expect(client.reactivateIssuer).toHaveBeenCalledWith(inactiveIssuer.id, 3),
-    );
+    await waitFor(() => expect(client.reactivateIssuer).toHaveBeenCalledWith(inactiveIssuer.id, 3));
   });
-
 });
