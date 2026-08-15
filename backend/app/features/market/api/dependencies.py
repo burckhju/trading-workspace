@@ -6,6 +6,7 @@ from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.dependencies import get_database_session
+from app.features.market.service.issuer_administration import IssuerAdministrationService
 from app.features.market.service.listing_service import ListingService
 from app.features.market.service.reference_data_service import ReferenceDataService
 from app.features.market.service.service import UnderlyingService
@@ -34,6 +35,12 @@ async def get_reference_data_service(
     session: Annotated[AsyncSession, Depends(get_database_session)],
 ) -> ReferenceDataService:
     return ReferenceDataService(SqlAlchemyMarketUnitOfWork(session))
+
+
+async def get_issuer_administration_service(
+    session: Annotated[AsyncSession, Depends(get_database_session)],
+) -> IssuerAdministrationService:
+    return IssuerAdministrationService(SqlAlchemyMarketUnitOfWork(session))
 
 
 async def get_trading_venue_administration_service(

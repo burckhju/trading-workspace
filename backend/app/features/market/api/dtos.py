@@ -166,6 +166,68 @@ class TradingVenueVersionRequest(RequestDto):
     expected_version: int = Field(ge=1)
 
 
+CountryCode = Annotated[
+    str,
+    StringConstraints(strip_whitespace=True, min_length=2, max_length=2, pattern=r"^[A-Za-z]{2}$"),
+]
+Lei = Annotated[
+    str,
+    StringConstraints(
+        strip_whitespace=True, min_length=20, max_length=20, pattern=r"^[A-Za-z0-9]{20}$"
+    ),
+]
+
+
+class CreateIssuerRequest(RequestDto):
+    legal_name: Name
+    display_name: Name
+    country_code: CountryCode | None = None
+    lei: Lei | None = None
+
+
+class UpdateIssuerRequest(RequestDto):
+    expected_version: int = Field(ge=1)
+    legal_name: Name | None = None
+    display_name: Name | None = None
+    country_code: CountryCode | None = None
+    lei: Lei | None = None
+
+    @model_validator(mode="after")
+    def require_change(self) -> Self:
+        if not ({"legal_name", "display_name", "country_code", "lei"} & self.model_fields_set):
+            raise PydanticCustomError(
+                "missing_change", "At least one mutable field must be supplied"
+            )
+        return self
+
+
+class IssuerVersionRequest(RequestDto):
+    expected_version: int = Field(ge=1)
+
+
+class IssuerResponse(ResponseDto):
+    id: UUID
+    legal_name: str
+    display_name: str
+    country_code: str | None
+    lei: str | None
+
+
+class IssuerAdminResponse(IssuerResponse):
+    is_active: bool
+    version: int
+    created_at: datetime
+    updated_at: datetime
+
+
+class IssuerListResponse(BaseModel):
+    items: list[IssuerResponse]
+
+
+class IssuerAdminListResponse(BaseModel):
+    items: list[IssuerAdminResponse]
+
+
 class PrimaryListingSummaryResponse(ResponseDto):
     id: UUID
     ticker: str

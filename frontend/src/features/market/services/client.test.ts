@@ -236,6 +236,53 @@ describe('marketApiClient', () => {
     expect(urls[5]).toContain(`/underlyings/${UNDERLYING_ID}/listings`);
     expect(vi.mocked(fetch).mock.calls[5][1]?.method).toBe('POST');
   });
+
+  it('calls issuer read, administration and lifecycle endpoints', async () => {
+    const issuer = {
+      id: '00000000-0000-4000-8001-000000000101',
+      legal_name: 'Société Générale S.A.',
+      display_name: 'Société Générale',
+      country_code: 'FR',
+      lei: 'O2RNE8IBXP4R0TD8PU41',
+      is_active: true,
+      version: 3,
+      created_at: '2026-08-15T04:00:00Z',
+      updated_at: '2026-08-15T04:00:00Z',
+    };
+
+    vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(jsonResponse({ items: [] }))
+      .mockResolvedValueOnce(jsonResponse({ items: [issuer] }))
+      .mockResolvedValueOnce(jsonResponse(issuer, 201))
+      .mockResolvedValueOnce(jsonResponse({ ...issuer, version: 4 }))
+      .mockResolvedValueOnce(jsonResponse({ ...issuer, is_active: false, version: 4 }))
+      .mockResolvedValueOnce(jsonResponse({ ...issuer, version: 5 }));
+
+    await marketApiClient.listIssuers();
+    await marketApiClient.listIssuersForAdmin();
+    await marketApiClient.createIssuer({
+      legal_name: issuer.legal_name,
+      display_name: issuer.display_name,
+      country_code: issuer.country_code,
+      lei: issuer.lei,
+    });
+    await marketApiClient.updateIssuer(issuer.id, {
+      display_name: 'SG',
+      expected_version: 3,
+    });
+    await marketApiClient.deactivateIssuer(issuer.id, 4);
+    await marketApiClient.reactivateIssuer(issuer.id, 4);
+
+    const calls = vi.mocked(fetch).mock.calls;
+    expect(requestInputUrl(calls[0][0])).toContain('/market-reference-data/issuers');
+    expect(requestInputUrl(calls[1][0])).toContain('/market-reference-data/issuers/admin');
+    expect(calls[2][1]?.method).toBe('POST');
+    expect(calls[3][1]?.method).toBe('PATCH');
+    expect(requestInputUrl(calls[4][0])).toContain(`/issuers/${issuer.id}/deactivate`);
+    expect(JSON.parse(requestBodyText(calls[4][1]?.body))).toEqual({ expected_version: 4 });
+    expect(requestInputUrl(calls[5][0])).toContain(`/issuers/${issuer.id}/reactivate`);
+    expect(JSON.parse(requestBodyText(calls[5][1]?.body))).toEqual({ expected_version: 4 });
+  });
 });
 
 it('adds the centrally resolved request identity when no feature actor is provided', async () => {

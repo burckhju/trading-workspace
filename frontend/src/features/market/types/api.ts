@@ -138,6 +138,48 @@ export interface UpdateTradingVenueRequest {
   timezone?: string;
 }
 
+export interface IssuerResponse {
+  id: Uuid;
+  legal_name: string;
+  display_name: string;
+  country_code: string | null;
+  lei: string | null;
+}
+
+export interface IssuerAdminResponse extends IssuerResponse {
+  is_active: boolean;
+  version: number;
+  created_at: IsoDateTime;
+  updated_at: IsoDateTime;
+}
+
+export interface CreateIssuerRequest {
+  legal_name: string;
+  display_name: string;
+  country_code?: string | null;
+  lei?: string | null;
+}
+
+export interface UpdateIssuerRequest {
+  expected_version: number;
+  legal_name?: string;
+  display_name?: string;
+  country_code?: string | null;
+  lei?: string | null;
+}
+
+export interface IssuerVersionRequest {
+  expected_version: number;
+}
+
+export interface IssuerListResponse {
+  items: IssuerResponse[];
+}
+
+export interface IssuerAdminListResponse {
+  items: IssuerAdminResponse[];
+}
+
 export interface CurrencyResponse {
   code: string;
   name: string;

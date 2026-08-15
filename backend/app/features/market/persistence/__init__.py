@@ -3,6 +3,7 @@
 from app.features.market.persistence.models import (
     AuditEventModel,
     CurrencyModel,
+    IssuerModel,
     ListingModel,
     TradingVenueModel,
     UnderlyingModel,
@@ -25,6 +26,7 @@ __all__ = [
     "AuditEventModel",
     "AuditEventRepository",
     "CurrencyModel",
+    "IssuerModel",
     "ListingModel",
     "ListingRepository",
     "ReferenceDataRepository",

@@ -27,6 +27,7 @@ class AggregateType(StrEnum):
     LISTING = "LISTING"
     PROVIDER_MAPPING = "PROVIDER_MAPPING"
     TRADING_VENUE = "TRADING_VENUE"
+    ISSUER = "ISSUER"
 
 
 class ActorType(StrEnum):

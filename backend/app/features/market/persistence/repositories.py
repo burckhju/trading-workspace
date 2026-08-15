@@ -19,6 +19,7 @@ from app.features.market.persistence.enums import AggregateType, LifecycleStatus
 from app.features.market.persistence.models import (
     AuditEventModel,
     CurrencyModel,
+    IssuerModel,
     ListingModel,
     TradingVenueModel,
     UnderlyingModel,
@@ -31,6 +32,11 @@ class WorkspaceRepository(Protocol):
 
 
 class ReferenceDataRepository(Protocol):
+    async def add_issuer(self, issuer: IssuerModel) -> None: ...
+    async def find_issuer_by_lei(self, lei: str) -> IssuerModel | None: ...
+    async def get_issuer(self, issuer_id: UUID) -> IssuerModel | None: ...
+    async def list_active_issuers(self) -> Sequence[IssuerModel]: ...
+    async def list_issuers(self) -> Sequence[IssuerModel]: ...
     async def add_trading_venue(self, venue: TradingVenueModel) -> None: ...
     async def find_trading_venue_by_mic(self, mic: str) -> TradingVenueModel | None: ...
     async def flush(self) -> None: ...
@@ -122,6 +128,33 @@ class SqlAlchemyWorkspaceRepository:
 class SqlAlchemyReferenceDataRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
+
+    async def add_issuer(self, issuer: IssuerModel) -> None:
+        self._session.add(issuer)
+
+    async def find_issuer_by_lei(self, lei: str) -> IssuerModel | None:
+        canonical = lei.strip().upper()
+        return cast(
+            IssuerModel | None,
+            await self._session.scalar(select(IssuerModel).where(IssuerModel.lei == canonical)),
+        )
+
+    async def get_issuer(self, issuer_id: UUID) -> IssuerModel | None:
+        return await self._session.get(IssuerModel, issuer_id)
+
+    async def list_active_issuers(self) -> Sequence[IssuerModel]:
+        result = await self._session.scalars(
+            select(IssuerModel)
+            .where(IssuerModel.is_active.is_(True))
+            .order_by(IssuerModel.display_name, IssuerModel.legal_name)
+        )
+        return result.all()
+
+    async def list_issuers(self) -> Sequence[IssuerModel]:
+        result = await self._session.scalars(
+            select(IssuerModel).order_by(IssuerModel.display_name, IssuerModel.legal_name)
+        )
+        return result.all()
 
     async def add_trading_venue(self, venue: TradingVenueModel) -> None:
         self._session.add(venue)

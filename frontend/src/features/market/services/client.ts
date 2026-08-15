@@ -7,6 +7,10 @@ import type {
   CreateTradingVenueRequest,
   CreateUnderlyingRequest,
   CurrencyListResponse,
+  CreateIssuerRequest,
+  IssuerAdminListResponse,
+  IssuerAdminResponse,
+  IssuerListResponse,
   ListingResponse,
   PageParameters,
   SearchUnderlyingsParameters,
@@ -17,6 +21,7 @@ import type {
   UnderlyingSearchResponse,
   UnderlyingSummaryResponse,
   UnderlyingUsageListResponse,
+  UpdateIssuerRequest,
   UpdateListingRequest,
   UpdateTradingVenueRequest,
   UpdateUnderlyingRequest,
@@ -109,6 +114,27 @@ export interface MarketApiClient {
     request: VersionRequest,
     actor?: AuditActorHeaders,
   ) => Promise<ListingResponse>;
+  listIssuers: (signal?: AbortSignal) => Promise<IssuerListResponse>;
+  listIssuersForAdmin: (signal?: AbortSignal) => Promise<IssuerAdminListResponse>;
+  createIssuer: (
+    request: CreateIssuerRequest,
+    actor?: AuditActorHeaders,
+  ) => Promise<IssuerAdminResponse>;
+  updateIssuer: (
+    id: Uuid,
+    request: UpdateIssuerRequest,
+    actor?: AuditActorHeaders,
+  ) => Promise<IssuerAdminResponse>;
+  deactivateIssuer: (
+    id: Uuid,
+    expectedVersion: number,
+    actor?: AuditActorHeaders,
+  ) => Promise<IssuerAdminResponse>;
+  reactivateIssuer: (
+    id: Uuid,
+    expectedVersion: number,
+    actor?: AuditActorHeaders,
+  ) => Promise<IssuerAdminResponse>;
   listTradingVenues: (signal?: AbortSignal) => Promise<TradingVenueListResponse>;
   listTradingVenuesForAdmin: (signal?: AbortSignal) => Promise<TradingVenueAdminListResponse>;
   createTradingVenue: (
@@ -212,6 +238,42 @@ export const marketApiClient: MarketApiClient = {
     requestJson<ListingResponse>(underlyingsUrl(`/${underlyingId}/primary-listing/${listingId}`), {
       method: 'PUT',
       body: request,
+      actor,
+    }),
+
+  listIssuers: (signal) =>
+    requestJson<IssuerListResponse>(apiUrl('/market-reference-data/issuers'), { signal }),
+
+  listIssuersForAdmin: (signal) =>
+    requestJson<IssuerAdminListResponse>(apiUrl('/market-reference-data/issuers/admin'), {
+      signal,
+    }),
+
+  createIssuer: (request, actor) =>
+    requestJson<IssuerAdminResponse>(apiUrl('/market-reference-data/issuers'), {
+      method: 'POST',
+      body: request,
+      actor,
+    }),
+
+  updateIssuer: (id, request, actor) =>
+    requestJson<IssuerAdminResponse>(apiUrl(`/market-reference-data/issuers/${id}`), {
+      method: 'PATCH',
+      body: request,
+      actor,
+    }),
+
+  deactivateIssuer: (id, expectedVersion, actor) =>
+    requestJson<IssuerAdminResponse>(apiUrl(`/market-reference-data/issuers/${id}/deactivate`), {
+      method: 'POST',
+      body: { expected_version: expectedVersion },
+      actor,
+    }),
+
+  reactivateIssuer: (id, expectedVersion, actor) =>
+    requestJson<IssuerAdminResponse>(apiUrl(`/market-reference-data/issuers/${id}/reactivate`), {
+      method: 'POST',
+      body: { expected_version: expectedVersion },
       actor,
     }),
 

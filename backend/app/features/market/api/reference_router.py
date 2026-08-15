@@ -6,29 +6,41 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Header, status
 
 from app.features.market.api.dependencies import (
+    get_issuer_administration_service,
     get_reference_data_service,
     get_trading_venue_administration_service,
 )
 from app.features.market.api.dtos import (
+    CreateIssuerRequest,
     CreateTradingVenueRequest,
     CurrencyListResponse,
     CurrencyResponse,
+    IssuerAdminListResponse,
+    IssuerAdminResponse,
+    IssuerListResponse,
+    IssuerResponse,
+    IssuerVersionRequest,
     TradingVenueAdminListResponse,
     TradingVenueAdminResponse,
     TradingVenueListResponse,
     TradingVenueResponse,
     TradingVenueVersionRequest,
+    UpdateIssuerRequest,
     UpdateTradingVenueRequest,
 )
 from app.features.market.api.errors import translate_market_error
+from app.features.market.service.issuer_administration import IssuerAdministrationService
 from app.features.market.service.reference_data_service import ReferenceDataService
 from app.features.market.service.trading_venue_administration import (
     TradingVenueAdministrationService,
 )
 from app.features.market.service.types import (
     Actor,
+    ChangeIssuerStatus,
     ChangeTradingVenueStatus,
+    CreateIssuer,
     CreateTradingVenue,
+    UpdateIssuer,
     UpdateTradingVenue,
 )
 
@@ -37,6 +49,136 @@ router = APIRouter(prefix="/api/v1/market-reference-data", tags=["market-referen
 
 def _actor(actor_id: str | None, actor_name: str | None) -> Actor:
     return Actor(id=actor_id, display_name=actor_name or "Trading Workspace User")
+
+
+@router.get("/issuers", response_model=IssuerListResponse)
+async def list_issuers(
+    service: Annotated[ReferenceDataService, Depends(get_reference_data_service)],
+) -> IssuerListResponse:
+    """Consumer contract: normal workflows see active issuer reference data only."""
+    items = await service.list_active_issuers()
+    return IssuerListResponse(items=[IssuerResponse.model_validate(item) for item in items])
+
+
+@router.get("/issuers/admin", response_model=IssuerAdminListResponse)
+async def list_issuers_for_admin(
+    service: Annotated[ReferenceDataService, Depends(get_reference_data_service)],
+) -> IssuerAdminListResponse:
+    items = await service.list_issuers()
+    return IssuerAdminListResponse(
+        items=[IssuerAdminResponse.model_validate(item) for item in items]
+    )
+
+
+@router.get("/issuers/{issuer_id}", response_model=IssuerResponse)
+async def get_issuer(
+    issuer_id: UUID,
+    service: Annotated[ReferenceDataService, Depends(get_reference_data_service)],
+) -> IssuerResponse:
+    item = await service.get_issuer(issuer_id)
+    if item is None or not item.is_active:
+        from app.features.market.service.errors import IssuerNotFound
+
+        raise translate_market_error(IssuerNotFound("Issuer does not exist"))
+    return IssuerResponse.model_validate(item)
+
+
+@router.post("/issuers", response_model=IssuerAdminResponse, status_code=status.HTTP_201_CREATED)
+async def create_issuer(
+    payload: CreateIssuerRequest,
+    service: Annotated[IssuerAdministrationService, Depends(get_issuer_administration_service)],
+    x_actor_id: Annotated[str | None, Header()] = None,
+    x_actor_name: Annotated[str | None, Header()] = None,
+) -> IssuerAdminResponse:
+    try:
+        result = await service.create(
+            CreateIssuer(
+                actor=_actor(x_actor_id, x_actor_name),
+                legal_name=payload.legal_name,
+                display_name=payload.display_name,
+                country_code=payload.country_code,
+                lei=payload.lei,
+            )
+        )
+        return IssuerAdminResponse.model_validate(result)
+    except Exception as error:
+        raise translate_market_error(error) from error
+
+
+@router.patch("/issuers/{issuer_id}", response_model=IssuerAdminResponse)
+async def update_issuer(
+    issuer_id: UUID,
+    payload: UpdateIssuerRequest,
+    service: Annotated[IssuerAdministrationService, Depends(get_issuer_administration_service)],
+    x_actor_id: Annotated[str | None, Header()] = None,
+    x_actor_name: Annotated[str | None, Header()] = None,
+) -> IssuerAdminResponse:
+    try:
+        country_code = payload.country_code if "country_code" in payload.model_fields_set else ...
+        lei = payload.lei if "lei" in payload.model_fields_set else ...
+        result = await service.update(
+            UpdateIssuer(
+                issuer_id=issuer_id,
+                expected_version=payload.expected_version,
+                actor=_actor(x_actor_id, x_actor_name),
+                legal_name=payload.legal_name,
+                display_name=payload.display_name,
+                country_code=country_code,
+                lei=lei,
+            )
+        )
+        return IssuerAdminResponse.model_validate(result)
+    except Exception as error:
+        raise translate_market_error(error) from error
+
+
+async def _change_issuer_status(
+    issuer_id: UUID,
+    payload: IssuerVersionRequest,
+    service: IssuerAdministrationService,
+    actor_id: str | None,
+    actor_name: str | None,
+    operation: str,
+) -> IssuerAdminResponse:
+    command = ChangeIssuerStatus(
+        issuer_id=issuer_id,
+        expected_version=payload.expected_version,
+        actor=_actor(actor_id, actor_name),
+    )
+    result = await getattr(service, operation)(command)
+    return IssuerAdminResponse.model_validate(result)
+
+
+@router.post("/issuers/{issuer_id}/deactivate", response_model=IssuerAdminResponse)
+async def deactivate_issuer(
+    issuer_id: UUID,
+    payload: IssuerVersionRequest,
+    service: Annotated[IssuerAdministrationService, Depends(get_issuer_administration_service)],
+    x_actor_id: Annotated[str | None, Header()] = None,
+    x_actor_name: Annotated[str | None, Header()] = None,
+) -> IssuerAdminResponse:
+    try:
+        return await _change_issuer_status(
+            issuer_id, payload, service, x_actor_id, x_actor_name, "deactivate"
+        )
+    except Exception as error:
+        raise translate_market_error(error) from error
+
+
+@router.post("/issuers/{issuer_id}/reactivate", response_model=IssuerAdminResponse)
+async def reactivate_issuer(
+    issuer_id: UUID,
+    payload: IssuerVersionRequest,
+    service: Annotated[IssuerAdministrationService, Depends(get_issuer_administration_service)],
+    x_actor_id: Annotated[str | None, Header()] = None,
+    x_actor_name: Annotated[str | None, Header()] = None,
+) -> IssuerAdminResponse:
+    try:
+        return await _change_issuer_status(
+            issuer_id, payload, service, x_actor_id, x_actor_name, "reactivate"
+        )
+    except Exception as error:
+        raise translate_market_error(error) from error
 
 
 @router.get("/trading-venues", response_model=TradingVenueListResponse)

@@ -5,6 +5,7 @@ import { CandidatePage } from '../features/candidate/pages';
 import { TopDownWorkflowActionPage } from '../features/administration/pages';
 import { MarketAnalysisDetailPage, MarketAnalysisPage } from '../features/analysis/pages';
 import {
+  IssuerAdminPage,
   UnderlyingDetailPage,
   UnderlyingFormPage,
   UnderlyingListPage,
@@ -26,6 +27,7 @@ export function createApplicationRouter() {
         { path: 'trade-plans', element: <TradePlanPage /> },
         { path: 'top-down-admin', element: <TopDownWorkflowActionPage /> },
         { path: 'trading-venues-admin', element: <TradingVenueAdminPage /> },
+        { path: 'issuers-admin', element: <IssuerAdminPage /> },
         { path: 'market-analyses/:analysisId', element: <MarketAnalysisDetailPage /> },
         { path: 'underlyings/new', element: <UnderlyingFormPage /> },
         { path: 'underlyings/:underlyingId', element: <UnderlyingDetailPage /> },

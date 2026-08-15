@@ -172,3 +172,30 @@ Anforderung → Entscheidung → Implementierung → Test → Abnahme
 | Frontend CI | PASS |
 | End-to-End CI | PASS |
 | Release Status | FT-002 Released |
+
+
+## FT-003 / Sprint-7B Issuer Traceability
+
+| Regel | Entscheidung / Spezifikation | Implementierungsnachweis |
+|---|---|---|
+| stabile provider-neutrale Issuer-Identität | ADR-S7-002, FT-003 Feature | `IssuerModel`, Repository-/Service-/API-Tests |
+| `issuer_id` ≠ Name ≠ LEI ≠ Provider-ID | ADR-S7-002 | UUID-Persistenz, mutable Stammdaten, LEI-Kontrakte |
+| Issuer ≠ Underlying/Underlying-Unternehmen | ADR-S7-002 | keine Underlying→Issuer-Beziehung in FT-003 |
+| globale Issuer-Identität | ADR-S7-002 | globale `issuers`-Tabelle ohne `workspace_id` |
+| Duplicate Detection ≠ Automatic Merge | ADR-S7-002 | LEI-Konfliktschutz; kein fuzzy-name Merge |
+| keine stille Provider-Stammdatenmutation | ADR-S7-002, S7B Gap Review | keine Provider-Issuer-Erzeugung/Reconciliation in FT-003 |
+| Lifecycle erhält historische Referenzen | FT-003 Feature | deactivate/reactivate mit stabiler UUID |
+| Low-input Issuer-Nutzung | FT-003 Feature | Consumer-Read + separate Admin-UI/API |
+| FT-004 konsumiert stabile Issuer-ID | FT-003 Feature, S7B Closeout | expliziter Consumer Contract, keine Warrant-Implementierung |
+| TradePlan bleibt produktneutral | ADR-S6-006, ADR-S7-002 | keine Issuer-Felder in FT-007 |
+
+
+### Sprint-7B Release-Candidate Evidence
+
+| Nachweis | Ergebnis |
+|---|---|
+| Working Branch | `feature/s7b-ft003-issuers` |
+| Baseline | `a3a60cb` / `v0.7.0-trading-venues` |
+| Provider Issuer Source | kein belastbarer strukturierter Contract im aktuellen Repository |
+| FT-004 Consumer Contract | dokumentiert; keine Warrant-Implementierung |
+| Release Status | Implemented – Release Candidate; CI/Merge noch ausstehend |
