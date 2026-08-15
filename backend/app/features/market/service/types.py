@@ -155,3 +155,30 @@ class ChangeTradingVenueStatus:
     venue_id: UUID
     expected_version: int
     actor: Actor
+
+
+@dataclass(frozen=True, slots=True)
+class CreateIssuer:
+    actor: Actor
+    legal_name: str
+    display_name: str
+    country_code: str | None = None
+    lei: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class UpdateIssuer:
+    issuer_id: UUID
+    expected_version: int
+    actor: Actor
+    legal_name: str | None = None
+    display_name: str | None = None
+    country_code: str | None | object = ...
+    lei: str | None | object = ...
+
+
+@dataclass(frozen=True, slots=True)
+class ChangeIssuerStatus:
+    issuer_id: UUID
+    expected_version: int
+    actor: Actor

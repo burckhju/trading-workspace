@@ -8,6 +8,7 @@ from app.features.market.domain.errors import (
     DomainRuleViolation,
 )
 from app.features.market.service.errors import (
+    IssuerNotFound,
     ListingNotFound,
     ServiceError,
     TradingVenueNotFound,
@@ -35,7 +36,9 @@ def translate_market_error(error: Exception) -> ApplicationError:
             status_code=status.HTTP_409_CONFLICT,
             details=details,
         )
-    if isinstance(error, (UnderlyingNotFound, ListingNotFound, TradingVenueNotFound)):
+    if isinstance(
+        error, (UnderlyingNotFound, ListingNotFound, TradingVenueNotFound, IssuerNotFound)
+    ):
         return ApplicationError(
             code=error.code,
             message=str(error),

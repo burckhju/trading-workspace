@@ -35,6 +35,18 @@ class TradingVenueConcurrentModification(ServiceError):
     code = "TRADING_VENUE_CONCURRENT_MODIFICATION"
 
 
+class IssuerNotFound(ServiceError):
+    code = "ISSUER_NOT_FOUND"
+
+
+class DuplicateIssuerLei(ServiceError):
+    code = "ISSUER_DUPLICATE_LEI"
+
+
+class IssuerConcurrentModification(ServiceError):
+    code = "ISSUER_CONCURRENT_MODIFICATION"
+
+
 class CurrencyNotFound(ServiceError):
     code = "CURRENCY_NOT_FOUND"
 

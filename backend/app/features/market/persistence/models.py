@@ -88,6 +88,40 @@ class TradingVenueModel(Base):
     }
 
 
+class IssuerModel(Base):
+    __tablename__ = "issuers"
+    __table_args__ = (
+        UniqueConstraint("lei", name="uq_issuers_lei"),
+        CheckConstraint("length(trim(legal_name)) > 0", name="legal_name_not_blank"),
+        CheckConstraint("length(trim(display_name)) > 0", name="display_name_not_blank"),
+        CheckConstraint(
+            "country_code IS NULL OR "
+            "(length(country_code) = 2 AND country_code = upper(country_code))",
+            name="country_code_iso_shape",
+        ),
+        CheckConstraint(
+            "lei IS NULL OR (length(lei) = 20 AND lei = upper(lei))",
+            name="lei_canonical_shape",
+        ),
+        CheckConstraint("version >= 1", name="version_positive"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    legal_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    display_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    country_code: Mapped[str | None] = mapped_column(String(2), nullable=True)
+    lei: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    __mapper_args__: dict[str, Any] = {  # noqa: RUF012
+        "version_id_col": version,
+        "version_id_generator": False,
+    }
+
+
 class CurrencyModel(Base):
     __tablename__ = "currencies"
     __table_args__ = (
