@@ -42,6 +42,14 @@ export function ApplicationLayout() {
               TradePlans
             </NavLink>
             <NavLink
+              to="/product-selection"
+              className={({ isActive }) =>
+                `rounded-lg px-3 py-2 text-sm ${isActive ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-white'}`
+              }
+            >
+              Produktauswahl
+            </NavLink>
+            <NavLink
               to="/market-analyses"
               className={({ isActive }) =>
                 `rounded-lg px-3 py-2 text-sm ${isActive ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-white'}`

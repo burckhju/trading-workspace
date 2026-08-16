@@ -16,7 +16,11 @@ from app.features.market_data.domain.errors import (
     InvalidMarketDataValue,
     InvalidProviderInstrumentMapping,
 )
-from app.features.market_data.domain.models import DailyPrice, ProviderInstrumentMapping
+from app.features.market_data.domain.models import (
+    DailyPrice,
+    ProviderInstrumentMapping,
+    WarrantQuoteSnapshot,
+)
 
 UTC_NOW = datetime(2026, 8, 5, 10, 0, tzinfo=UTC)
 
@@ -125,3 +129,36 @@ def test_mapping_normalizes_provider_identity() -> None:
     assert mapping.provider_symbol == "SAP"
     assert mapping.provider_exchange_code == "XETR"
     assert mapping.validation_message == "valid"
+
+
+def test_warrant_quote_snapshot_is_listing_specific_and_normalized() -> None:
+    listing_id = uuid4()
+    quote = WarrantQuoteSnapshot(
+        warrant_listing_id=listing_id,
+        bid="1.00",
+        ask="1.04",
+        currency=" eur ",
+        provider_symbol=" test ",
+        provider_exchange_code=" xetr ",
+        observed_at=UTC_NOW,
+    )
+
+    assert quote.warrant_listing_id == listing_id
+    assert quote.bid == Decimal("1.00")
+    assert quote.ask == Decimal("1.04")
+    assert quote.currency == "EUR"
+    assert quote.provider_symbol == "TEST"
+    assert quote.provider_exchange_code == "XETR"
+
+
+def test_warrant_quote_snapshot_rejects_crossed_quote() -> None:
+    with pytest.raises(InvalidMarketDataValue, match="ask must not be below bid"):
+        WarrantQuoteSnapshot(
+            warrant_listing_id=uuid4(),
+            bid="1.05",
+            ask="1.04",
+            currency="EUR",
+            provider_symbol="TEST",
+            provider_exchange_code="XETR",
+            observed_at=UTC_NOW,
+        )

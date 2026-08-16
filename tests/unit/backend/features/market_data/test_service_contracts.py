@@ -13,12 +13,16 @@ from app.features.market_data.domain.enums import (
     QualityStatus,
 )
 from app.features.market_data.domain.errors import InvalidMarketDataValue
-from app.features.market_data.service.contracts import HistoricalDailyPriceProvider
+from app.features.market_data.service.contracts import (
+    HistoricalDailyPriceProvider,
+    WarrantListingQuoteProvider,
+)
 from app.features.market_data.service.errors import MarketDataRateLimitError
 from app.features.market_data.service.types import (
     DailyPriceRequest,
     MappingValidationResult,
     MarketDataResult,
+    WarrantQuoteRequest,
 )
 
 UTC_NOW = datetime(2026, 8, 5, 10, 0, tzinfo=UTC)
@@ -113,4 +117,25 @@ def test_historical_provider_protocol_is_structural() -> None:
             raise NotImplementedError
 
     adapter: HistoricalDailyPriceProvider = Adapter()
+    assert adapter is not None
+
+
+def test_warrant_quote_request_requires_utc_as_of() -> None:
+    with pytest.raises(InvalidMarketDataValue, match="must be timezone-aware"):
+        WarrantQuoteRequest(
+            workspace_id=uuid4(),
+            warrant_listing_id=uuid4(),
+            correlation_id=uuid4(),
+            as_of=datetime(2026, 8, 16, 10, 0),
+        )
+
+
+def test_warrant_quote_provider_protocol_is_structural() -> None:
+    class Adapter:
+        async def get_warrant_listing_quote(
+            self, request: WarrantQuoteRequest
+        ) -> MarketDataResult[object]:
+            raise NotImplementedError
+
+    adapter: WarrantListingQuoteProvider = Adapter()  # type: ignore[assignment]
     assert adapter is not None

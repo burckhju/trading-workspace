@@ -1,5 +1,5 @@
 import { FormEvent, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 
 import { tradePlanApiClient } from '../services/client';
 import type {
@@ -666,6 +666,20 @@ export function TradePlanPage() {
                   >
                     Aufgeben
                   </button>
+                  {current.status === 'APPROVED' && (
+                    <Link
+                      to={{
+                        pathname: '/product-selection',
+                        search: new URLSearchParams({
+                          trade_plan_id: detail.plan.id,
+                          trade_plan_version_id: current.id,
+                        }).toString(),
+                      }}
+                      className="rounded-lg border border-violet-700 px-3 py-2 text-sm"
+                    >
+                      Produktauswahl starten
+                    </Link>
+                  )}
                 </div>
               </section>
               <section>

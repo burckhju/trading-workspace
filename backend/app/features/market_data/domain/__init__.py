@@ -14,7 +14,11 @@ from app.features.market_data.domain.errors import (
     InvalidProviderInstrumentMapping,
     MarketDataDomainError,
 )
-from app.features.market_data.domain.models import DailyPrice, ProviderInstrumentMapping
+from app.features.market_data.domain.models import (
+    DailyPrice,
+    ProviderInstrumentMapping,
+    WarrantQuoteSnapshot,
+)
 
 __all__ = [
     "CacheStatus",
@@ -29,4 +33,5 @@ __all__ = [
     "PriceType",
     "ProviderInstrumentMapping",
     "QualityStatus",
+    "WarrantQuoteSnapshot",
 ]

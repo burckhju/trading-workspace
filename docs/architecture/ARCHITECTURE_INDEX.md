@@ -106,3 +106,17 @@ ADRs und müssen mit den betroffenen Feature Books synchronisiert werden.
 - `../decisions/ADR-S7-001-TRADING-VENUE-IDENTITY-SOURCE-OF-TRUTH-AND-RECONCILIATION.md`
 - `../implementation/SPRINT_7A_FT002_ARCHITECTURE_REVIEW_AND_GAP_CLOSURE.md`
 - `../implementation/SPRINT_7A_TECHNICAL_CLOSEOUT.md`
+
+## Sprint 8 / FT-008 Product Selection
+
+- `docs/decisions/ADR-S8-001-PRODUCT-SELECTION-RUN-AND-DECISION-BOUNDARY.md`
+- `docs/decisions/ADR-S8-002-HISTORICAL-PRODUCT-REFERENCE.md`
+- `docs/decisions/ADR-S8-003-UNIVERSE-AND-ELIGIBILITY.md`
+- `docs/decisions/ADR-S8-004-TRADEPLAN-HANDOFF.md`
+- `docs/decisions/ADR-S8-005-WARRANT-MARKET-DATA-BOUNDARY.md`
+- `docs/decisions/ADR-S8-006-EVALUATION-AND-COMPARISON.md`
+- `docs/decisions/ADR-S8-007-PROVIDER-CAPABILITY-AND-SELECTION-POLICY.md`
+- `docs/implementation/SPRINT_8_FT008_RULE_CATALOG.md`
+
+- S8-12 E2E and release-readiness evidence: `S8_12_IMPLEMENTATION_REPORT.md`
+- FT-008 release-readiness gate: `docs/implementation/SPRINT_8_FT008_RELEASE_READINESS.md`

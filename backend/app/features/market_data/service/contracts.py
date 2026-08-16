@@ -4,12 +4,17 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from app.features.market_data.domain.models import DailyPrice, ProviderInstrumentMapping
+from app.features.market_data.domain.models import (
+    DailyPrice,
+    ProviderInstrumentMapping,
+    WarrantQuoteSnapshot,
+)
 from app.features.market_data.service.types import (
     DailyPriceRequest,
     LatestDailyPriceRequest,
     MappingValidationResult,
     MarketDataResult,
+    WarrantQuoteRequest,
 )
 
 
@@ -38,4 +43,14 @@ class ProviderInstrumentResolver(Protocol):
 
     async def validate_mapping(self, mapping: ProviderInstrumentMapping) -> MappingValidationResult:
         """Validate the provider symbol without mutating FT-001 master data."""
+        ...
+
+
+class WarrantListingQuoteProvider(Protocol):
+    """Supply provider-neutral quote snapshots for concrete FT-004 WarrantListings."""
+
+    async def get_warrant_listing_quote(
+        self, request: WarrantQuoteRequest
+    ) -> MarketDataResult[WarrantQuoteSnapshot | None]:
+        """Return the best snapshot at/as-of the requested evaluation timestamp."""
         ...
