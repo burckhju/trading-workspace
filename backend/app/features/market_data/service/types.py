@@ -40,6 +40,19 @@ class DailyPriceRequest:
 
 
 @dataclass(frozen=True, slots=True)
+class WarrantQuoteRequest:
+    """Request the best available quote snapshot for one FT-004 WarrantListing."""
+
+    workspace_id: UUID
+    warrant_listing_id: UUID
+    correlation_id: UUID
+    as_of: datetime
+
+    def __post_init__(self) -> None:
+        _require_utc(self.as_of, field="as_of")
+
+
+@dataclass(frozen=True, slots=True)
 class LatestDailyPriceRequest:
     """Request the most recent completed EOD price for one provider mapping."""
 

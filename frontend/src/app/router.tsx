@@ -13,6 +13,7 @@ import {
 } from '../features/market/pages';
 import { TradePlanPage } from '../features/trade_plan/pages';
 import { WarrantAdminPage } from '../features/product/pages';
+import { ProductSelectionPage } from '../features/product_selection/pages';
 import { NotFoundPage } from '../pages/NotFoundPage';
 
 export function createApplicationRouter() {
@@ -26,6 +27,7 @@ export function createApplicationRouter() {
         { path: 'market-analyses', element: <MarketAnalysisPage /> },
         { path: 'candidates', element: <CandidatePage /> },
         { path: 'trade-plans', element: <TradePlanPage /> },
+        { path: 'product-selection', element: <ProductSelectionPage /> },
         { path: 'top-down-admin', element: <TopDownWorkflowActionPage /> },
         { path: 'trading-venues-admin', element: <TradingVenueAdminPage /> },
         { path: 'issuers-admin', element: <IssuerAdminPage /> },

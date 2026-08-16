@@ -15,6 +15,7 @@ from app.features.market_data.domain.enums import MappingStatus, MarketDataProvi
 from app.features.market_data.persistence.models import (
     DailyPriceModel,
     ProviderInstrumentMappingModel,
+    WarrantProviderMappingModel,
 )
 
 
@@ -39,6 +40,55 @@ class ProviderInstrumentMappingRepository(Protocol):
         provider_exchange_code: str,
     ) -> Sequence[UUID]: ...
     async def flush(self) -> None: ...
+
+
+class WarrantProviderMappingRepository(Protocol):
+    async def add(self, mapping: WarrantProviderMappingModel) -> None: ...
+    async def get(
+        self, workspace_id: UUID, mapping_id: UUID
+    ) -> WarrantProviderMappingModel | None: ...
+    async def find_for_warrant_listing(
+        self, workspace_id: UUID, warrant_listing_id: UUID, provider: MarketDataProvider
+    ) -> WarrantProviderMappingModel | None: ...
+    async def flush(self) -> None: ...
+
+
+class SqlAlchemyWarrantProviderMappingRepository:
+    """SQLAlchemy adapter for the separate FT-004 WarrantListing provider mapping."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def add(self, mapping: WarrantProviderMappingModel) -> None:
+        self._session.add(mapping)
+
+    async def get(self, workspace_id: UUID, mapping_id: UUID) -> WarrantProviderMappingModel | None:
+        return cast(
+            WarrantProviderMappingModel | None,
+            await self._session.scalar(
+                select(WarrantProviderMappingModel).where(
+                    WarrantProviderMappingModel.workspace_id == workspace_id,
+                    WarrantProviderMappingModel.id == mapping_id,
+                )
+            ),
+        )
+
+    async def find_for_warrant_listing(
+        self, workspace_id: UUID, warrant_listing_id: UUID, provider: MarketDataProvider
+    ) -> WarrantProviderMappingModel | None:
+        return cast(
+            WarrantProviderMappingModel | None,
+            await self._session.scalar(
+                select(WarrantProviderMappingModel).where(
+                    WarrantProviderMappingModel.workspace_id == workspace_id,
+                    WarrantProviderMappingModel.warrant_listing_id == warrant_listing_id,
+                    WarrantProviderMappingModel.provider == provider,
+                )
+            ),
+        )
+
+    async def flush(self) -> None:
+        await self._session.flush()
 
 
 class DailyPriceRepository(Protocol):

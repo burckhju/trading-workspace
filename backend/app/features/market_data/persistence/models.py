@@ -90,6 +90,53 @@ class ProviderInstrumentMappingModel(Base):
     }
 
 
+class WarrantProviderMappingModel(Base):
+    """Provider symbol assigned to one FT-004 WarrantListing."""
+
+    __tablename__ = "warrant_provider_mappings"
+    __table_args__ = (
+        UniqueConstraint(
+            "provider", "warrant_listing_id", name="uq_warrant_provider_mappings_provider_listing"
+        ),
+        UniqueConstraint(
+            "provider",
+            "provider_exchange_code",
+            "provider_symbol",
+            name="uq_warrant_provider_mappings_provider_symbol",
+        ),
+        CheckConstraint("version >= 1", name="version_positive"),
+        CheckConstraint("length(trim(provider_symbol)) > 0", name="provider_symbol_not_blank"),
+        CheckConstraint(
+            "length(trim(provider_exchange_code)) > 0", name="provider_exchange_code_not_blank"
+        ),
+        Index("ix_warrant_provider_mappings_workspace_status", "workspace_id", "status"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    workspace_id: Mapped[UUID] = mapped_column(
+        ForeignKey("workspaces.id", ondelete="RESTRICT"), nullable=False
+    )
+    warrant_listing_id: Mapped[UUID] = mapped_column(
+        ForeignKey("warrant_listings.id", ondelete="CASCADE"), nullable=False
+    )
+    provider: Mapped[MarketDataProvider] = mapped_column(
+        _enum(MarketDataProvider, length=30), nullable=False
+    )
+    provider_symbol: Mapped[str] = mapped_column(String(64), nullable=False)
+    provider_exchange_code: Mapped[str] = mapped_column(String(32), nullable=False)
+    status: Mapped[MappingStatus] = mapped_column(_enum(MappingStatus, length=20), nullable=False)
+    validated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    validation_message: Mapped[str | None] = mapped_column(String(500))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+
+    __mapper_args__ = {  # noqa: RUF012
+        "version_id_col": version,
+        "version_id_generator": False,
+    }
+
+
 class DailyPriceModel(Base):
     """Persisted provider-independent completed end-of-day price."""
 

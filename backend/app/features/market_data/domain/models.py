@@ -104,6 +104,53 @@ class ProviderInstrumentMapping:
 
 
 @dataclass(frozen=True, slots=True)
+class WarrantProviderMapping:
+    """Approved provider association for one FT-004 WarrantListing.
+
+    This is intentionally separate from ProviderInstrumentMapping, whose listing_id
+    belongs to the released FT-001 Listing aggregate.
+    """
+
+    id: UUID
+    workspace_id: UUID
+    warrant_listing_id: UUID
+    provider: MarketDataProvider
+    provider_symbol: str
+    provider_exchange_code: str
+    status: MappingStatus
+    validated_at: datetime | None
+    validation_message: str | None
+    created_at: datetime
+    updated_at: datetime
+    version: int
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self, "provider_symbol", _normalize_code(self.provider_symbol, field="provider_symbol")
+        )
+        object.__setattr__(
+            self,
+            "provider_exchange_code",
+            _normalize_code(self.provider_exchange_code, field="provider_exchange_code"),
+        )
+        object.__setattr__(self, "validation_message", _normalize_message(self.validation_message))
+        _require_utc(self.created_at, field="created_at")
+        _require_utc(self.updated_at, field="updated_at")
+        if self.validated_at is not None:
+            _require_utc(self.validated_at, field="validated_at")
+        if self.version < 1:
+            raise InvalidProviderInstrumentMapping("version must be at least 1", field="version")
+        if self.updated_at < self.created_at:
+            raise InvalidProviderInstrumentMapping(
+                "updated_at must not be before created_at", field="updated_at"
+            )
+        if self.status is MappingStatus.ACTIVE and self.validated_at is None:
+            raise InvalidProviderInstrumentMapping(
+                "active mappings require validated_at", field="validated_at"
+            )
+
+
+@dataclass(frozen=True, slots=True)
 class DailyPrice:
     """Validated provider-independent end-of-day price for one listing."""
 
@@ -165,3 +212,43 @@ class DailyPrice:
             raise InvalidDailyPrice("open must be between low and high", field="open")
         if not self.low <= self.close <= self.high:
             raise InvalidDailyPrice("close must be between low and high", field="close")
+
+
+@dataclass(frozen=True, slots=True)
+class WarrantQuoteSnapshot:
+    """Provider-neutral bid/ask observation for one concrete FT-004 WarrantListing.
+
+    Provider identity remains provenance only; it never becomes Warrant/WarrantListing
+    master data.  Partial quotes are allowed and carry explicit quality through the
+    surrounding MarketDataResult.
+    """
+
+    warrant_listing_id: UUID
+    bid: Decimal | None
+    ask: Decimal | None
+    currency: str
+    provider_symbol: str
+    provider_exchange_code: str
+    observed_at: datetime
+
+    def __post_init__(self) -> None:
+        if self.bid is not None:
+            object.__setattr__(self, "bid", _decimal(self.bid, field="bid"))
+            if self.bid <= 0:
+                raise InvalidMarketDataValue("bid must be positive", field="bid")
+        if self.ask is not None:
+            object.__setattr__(self, "ask", _decimal(self.ask, field="ask"))
+            if self.ask <= 0:
+                raise InvalidMarketDataValue("ask must be positive", field="ask")
+        if self.bid is not None and self.ask is not None and self.ask < self.bid:
+            raise InvalidMarketDataValue("ask must not be below bid", field="ask")
+        object.__setattr__(self, "currency", _normalize_code(self.currency, field="currency"))
+        object.__setattr__(
+            self, "provider_symbol", _normalize_code(self.provider_symbol, field="provider_symbol")
+        )
+        object.__setattr__(
+            self,
+            "provider_exchange_code",
+            _normalize_code(self.provider_exchange_code, field="provider_exchange_code"),
+        )
+        _require_utc(self.observed_at, field="observed_at")

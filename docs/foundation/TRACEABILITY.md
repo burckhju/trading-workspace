@@ -236,3 +236,20 @@ Anforderung → Entscheidung → Implementierung → Test → Abnahme
 | Frontend production build | PASS |
 | Provider Warrant Source | kein vollständiger belastbarer Contract im aktuellen Repository |
 | Release Status | Implemented – Local Release Candidate; protected CI/merge/release pending |
+
+## FT-008 / Sprint-8 Product Selection Architecture Traceability
+
+| Requirement / decision | Architecture evidence | Implementation consequence |
+|---|---|---|
+| ProductEvaluation ≠ ProductSelection | ADR-S8-001 | no automatic user choice from evaluation/ranking |
+| Approved TradePlanVersion handoff | ADR-S8-004 | runs reject non-approved plan versions |
+| Historical product context | ADR-S8-002 | evaluation references Warrant + exact TermsVersion + Listing |
+| Universe ≠ Eligibility | ADR-S8-003 | exclusions remain explicit and auditable |
+| Warrant market data via TC-001 | ADR-S8-005 | no reuse of FT-001 provider mapping as WarrantListing mapping |
+| Explainable/versioned evaluation | ADR-S8-006 | model ID/version, inputs, rules, outcomes and provenance persisted |
+| No invented V1 thresholds | S8 FT-008 Rule Catalog | numeric filters/scoring wait for explicit model approval |
+| Browser-level fail-closed market-data behavior | S8-12 E2E | unverified/missing WarrantListing quote remains NOT_EVALUABLE and selection disabled |
+| Evaluation remains separate from user decision | S8-10/S8-12 | eligible fixture still requires explicit confirmation before persisted ProductSelection |
+| Live-provider claim boundary | ADR-S8-007/S8-12 | fixture-backed E2E does not imply verified live warrant Bid/Ask capability |
+
+| Provider capability + V1 selection policy | ADR-S8-007 | unverified provider capability fails closed; normal selection requires ELIGIBLE evaluation |
