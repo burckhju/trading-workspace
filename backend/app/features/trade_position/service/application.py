@@ -7,8 +7,9 @@ from decimal import Decimal
 from typing import Protocol
 from uuid import UUID, uuid4
 
-from app.features.trade_position.domain.enums import TradeOrigin
+from app.features.trade_position.domain.enums import ExecutionSide, TradeOrigin
 from app.features.trade_position.domain.models import ExecutionRecord, Position, Trade
+from app.features.trade_position.domain.projector import PositionProjector
 from app.features.trade_position.persistence.unit_of_work import TradePositionUnitOfWork
 from app.features.trade_position.service.resolvers import (
     ResolvedProduct,
@@ -195,7 +196,69 @@ class TradePositionService:
                 recorded_by=actor,
             )
 
-            updated = position.apply_purchase(execution)
+            effective_history = await uow.executions.list_effective_for_trade(trade.id)
+            if not effective_history:
+                raise ValueError("effective execution history not found")
+            updated = PositionProjector.project(
+                id=position.id,
+                trade=trade,
+                executions=[*effective_history, execution],
+            )
+
+            await uow.executions.add(execution)
+            await uow.positions.replace(updated)
+            await uow.commit()
+
+        return execution, updated
+
+    async def record_sale(
+        self,
+        *,
+        workspace_id: UUID,
+        trade_id: UUID,
+        quantity: int,
+        price_per_unit: Decimal,
+        executed_at: datetime,
+        actor: UUID,
+    ) -> tuple[ExecutionRecord, Position]:
+        async with self._uow as uow:
+            trade = await uow.trades.get(
+                workspace_id,
+                trade_id,
+            )
+            if trade is None:
+                raise ValueError("trade not found")
+
+            position = await uow.positions.get_for_trade(
+                workspace_id,
+                trade_id,
+            )
+            if position is None:
+                raise ValueError("position not found")
+            if position.is_closed:
+                raise ValueError("trade is already closed")
+
+            now = datetime.now(UTC)
+            execution = ExecutionRecord(
+                id=uuid4(),
+                trade_id=trade.id,
+                product_id=trade.product_id,
+                side=ExecutionSide.SELL,
+                quantity=quantity,
+                price_per_unit=price_per_unit,
+                executed_at=executed_at,
+                recorded_at=max(now, executed_at),
+                recorded_by=actor,
+            )
+
+            effective_history = await uow.executions.list_effective_for_trade(trade.id)
+            if not effective_history:
+                raise ValueError("effective execution history not found")
+            updated = PositionProjector.project(
+                id=position.id,
+                trade=trade,
+                executions=[*effective_history, execution],
+            )
 
             await uow.executions.add(execution)
             await uow.positions.replace(updated)
