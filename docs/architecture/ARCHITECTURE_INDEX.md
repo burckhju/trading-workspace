@@ -120,3 +120,15 @@ ADRs und müssen mit den betroffenen Feature Books synchronisiert werden.
 
 - S8-12 E2E and release-readiness evidence: `S8_12_IMPLEMENTATION_REPORT.md`
 - FT-008 release-readiness gate: `docs/implementation/SPRINT_8_FT008_RELEASE_READINESS.md`
+
+## Sprint 9 / FT-009
+
+- `docs/features/FT-009_TRADE_POSITION.md`
+- `docs/implementation/SPRINT_9_FT009_RULE_CATALOG.md`
+- `docs/reviews/SPRINT_9_DEFINITION_OF_READY.md`
+- `docs/decisions/ADR-S9-001-TRADE-EXECUTION-POSITION-BOUNDARY.md`
+- `docs/decisions/ADR-S9-002-TRADE-ORIGIN-AND-CONSUMER-HANDOFF.md`
+- `docs/decisions/ADR-S9-003-AGGREGATED-PURCHASE-EXECUTION-CAPTURE-V1.md`
+- `docs/decisions/ADR-S9-004-POSITION-DERIVATION-AND-ADDITIONAL-PURCHASES.md`
+- `docs/decisions/ADR-S9-005-IMMUTABLE-EXECUTION-HISTORY-AND-CORRECTIONS.md`
+- `docs/decisions/ADR-S9-006-PRE-EXECUTION-DECISION-SUPPORT-BOUNDARY.md`

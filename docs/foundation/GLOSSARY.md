@@ -337,9 +337,21 @@ Ein TradePlan kann mehrere Targets besitzen.
 
 ## Trade
 
-Tatsächlich eröffnete Position.
+Stabile fachliche Identität eines real eingegangenen Handelsfalls. Ein Trade ist weder ExecutionRecord noch Position.
 
-Ein Trade entsteht erst nach Ausführung eines TradePlans.
+Ein Workspace-Trade kann auf eine ProductSelection referenzieren; ein externer Trade darf ohne künstliche TradePlan-/ProductSelection-Historie entstehen.
+
+---
+
+## Execution Record
+
+Unveränderliche historische Aufzeichnung einer tatsächlich erfolgten und vom Benutzer bestätigten Ausführung. Sprint 9 V1 erfasst aggregierte PURCHASE-Ausführungen mit Anzahl, tatsächlichem Durchschnittskaufpreis, Ausführungszeit und Recording-Zeit.
+
+---
+
+## Position
+
+Aus der wirksamen Execution-Historie abgeleiteter aktueller Bestand eines Trades. Sprint 9 V1 verwendet genau eine Position pro Trade und unterstützt mehrere Kauf-ExecutionRecords für Erst- und Nachkäufe.
 
 ---
 
