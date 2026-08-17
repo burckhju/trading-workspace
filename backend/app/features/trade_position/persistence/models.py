@@ -129,6 +129,16 @@ class ExecutionRecordModel(Base):
             ondelete="RESTRICT",
             name="fk_execution_records_product",
         ),
+        ForeignKeyConstraint(
+            ["supersedes_execution_id"],
+            ["execution_records.id"],
+            ondelete="RESTRICT",
+            name="fk_execution_records_supersedes",
+        ),
+        UniqueConstraint(
+            "supersedes_execution_id",
+            name="uq_execution_records_supersedes",
+        ),
     )
 
     id: Mapped[UUID] = mapped_column(Uuid(), primary_key=True)
@@ -136,6 +146,7 @@ class ExecutionRecordModel(Base):
     product_id: Mapped[UUID] = mapped_column(Uuid(), nullable=False)
 
     side: Mapped[str] = mapped_column(String(16), nullable=False)
+    supersedes_execution_id: Mapped[UUID | None] = mapped_column(Uuid(), nullable=True)
     quantity: Mapped[int] = mapped_column(Integer(), nullable=False)
     price_per_unit: Mapped[Decimal] = mapped_column(
         Numeric(24, 10),

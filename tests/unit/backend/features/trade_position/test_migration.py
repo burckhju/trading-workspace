@@ -87,3 +87,25 @@ def test_ft010_execution_side_migration_backfills_historical_rows_as_buy() -> No
     assert 'server_default="BUY"' in text
     assert "side IN ('BUY', 'SELL')" in text
     assert 'server_default=None' in text
+
+
+FT010_SUPERSESSION_MIGRATION = (
+    Path(__file__).parents[5]
+    / "backend/migrations/versions/20260817_0016_ft010_execution_supersession.py"
+)
+
+
+def test_ft010_supersession_migration_follows_execution_side() -> None:
+    text = FT010_SUPERSESSION_MIGRATION.read_text()
+
+    assert 'revision: str = "20260817_0016"' in text
+    assert 'down_revision: str | None = "20260817_0015"' in text
+
+
+def test_ft010_supersession_migration_preserves_original_execution() -> None:
+    text = FT010_SUPERSESSION_MIGRATION.read_text()
+
+    assert '"supersedes_execution_id"' in text
+    assert '"fk_execution_records_supersedes"' in text
+    assert '"uq_execution_records_supersedes"' in text
+    assert 'ondelete="RESTRICT"' in text

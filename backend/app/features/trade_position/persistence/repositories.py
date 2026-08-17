@@ -5,10 +5,10 @@ from __future__ import annotations
 from typing import Protocol
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import exists, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.features.trade_position.domain.enums import TradeOrigin
+from app.features.trade_position.domain.enums import ExecutionSide, TradeOrigin
 from app.features.trade_position.domain.models import ExecutionRecord, Position, Trade
 from app.features.trade_position.persistence.models import (
     ExecutionRecordModel,
@@ -29,6 +29,16 @@ class TradeRepository(Protocol):
 
 class ExecutionRecordRepository(Protocol):
     async def add(self, execution: ExecutionRecord) -> None: ...
+
+    async def list_for_trade(
+        self,
+        trade_id: UUID,
+    ) -> list[ExecutionRecord]: ...
+
+    async def list_effective_for_trade(
+        self,
+        trade_id: UUID,
+    ) -> list[ExecutionRecord]: ...
 
 
 class PositionRepository(Protocol):
@@ -102,12 +112,74 @@ class SqlAlchemyExecutionRecordRepository:
                 trade_id=execution.trade_id,
                 product_id=execution.product_id,
                 side=execution.side.value,
+                supersedes_execution_id=execution.supersedes_execution_id,
                 quantity=execution.quantity,
                 price_per_unit=execution.price_per_unit,
                 executed_at=execution.executed_at,
                 recorded_at=execution.recorded_at,
                 recorded_by=execution.recorded_by,
             )
+        )
+
+
+    async def list_for_trade(
+        self,
+        trade_id: UUID,
+    ) -> list[ExecutionRecord]:
+        models = (
+            await self._session.scalars(
+                select(ExecutionRecordModel)
+                .where(ExecutionRecordModel.trade_id == trade_id)
+                .order_by(
+                    ExecutionRecordModel.executed_at,
+                    ExecutionRecordModel.recorded_at,
+                    ExecutionRecordModel.id,
+                )
+            )
+        ).all()
+        return [self._to_domain(model) for model in models]
+
+    async def list_effective_for_trade(
+        self,
+        trade_id: UUID,
+    ) -> list[ExecutionRecord]:
+        replacement = ExecutionRecordModel.__table__.alias("replacement")
+        models = (
+            await self._session.scalars(
+                select(ExecutionRecordModel)
+                .where(
+                    ExecutionRecordModel.trade_id == trade_id,
+                    ~exists(
+                        select(1)
+                        .select_from(replacement)
+                        .where(
+                            replacement.c.supersedes_execution_id
+                            == ExecutionRecordModel.id
+                        )
+                    ),
+                )
+                .order_by(
+                    ExecutionRecordModel.executed_at,
+                    ExecutionRecordModel.recorded_at,
+                    ExecutionRecordModel.id,
+                )
+            )
+        ).all()
+        return [self._to_domain(model) for model in models]
+
+    @staticmethod
+    def _to_domain(model: ExecutionRecordModel) -> ExecutionRecord:
+        return ExecutionRecord(
+            id=model.id,
+            trade_id=model.trade_id,
+            product_id=model.product_id,
+            side=ExecutionSide(model.side),
+            quantity=model.quantity,
+            price_per_unit=model.price_per_unit,
+            executed_at=model.executed_at,
+            recorded_at=model.recorded_at,
+            recorded_by=model.recorded_by,
+            supersedes_execution_id=model.supersedes_execution_id,
         )
 
 

@@ -51,6 +51,7 @@ class ExecutionRecord:
     recorded_at: datetime
     recorded_by: UUID
     side: ExecutionSide = ExecutionSide.BUY
+    supersedes_execution_id: UUID | None = None
 
     def __post_init__(self) -> None:
         if self.quantity <= 0:
@@ -59,6 +60,8 @@ class ExecutionRecord:
             raise ValueError("price_per_unit must be positive")
         if self.recorded_at < self.executed_at:
             raise ValueError("recorded_at must not precede executed_at")
+        if self.supersedes_execution_id == self.id:
+            raise ValueError("execution must not supersede itself")
 
     @property
     def gross_amount(self) -> Decimal:

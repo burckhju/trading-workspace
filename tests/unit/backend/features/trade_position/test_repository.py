@@ -126,6 +126,7 @@ async def test_execution_repository_add_maps_domain_to_model() -> None:
     assert model.side == ExecutionSide.BUY.value
     assert model.quantity == execution.quantity
     assert model.price_per_unit == execution.price_per_unit
+    assert model.supersedes_execution_id is None
 
 
 @pytest.mark.asyncio
@@ -197,3 +198,99 @@ async def test_position_replace_updates_persisted_snapshot() -> None:
     assert persisted.cost_basis == position.cost_basis
     assert persisted.average_entry_price == position.average_entry_price
     assert persisted.last_execution_at == position.last_execution_at
+
+
+@pytest.mark.asyncio
+async def test_execution_repository_add_maps_supersession_relation() -> None:
+    session = _session()
+    repo = SqlAlchemyExecutionRecordRepository(session)
+    trade = _trade()
+    original = _execution(trade)
+    replacement = ExecutionRecord(
+        id=uuid4(),
+        trade_id=trade.id,
+        product_id=trade.product_id,
+        quantity=8,
+        price_per_unit=Decimal("2.60"),
+        executed_at=NOW,
+        recorded_at=NOW,
+        recorded_by=uuid4(),
+        supersedes_execution_id=original.id,
+    )
+
+    await repo.add(replacement)
+
+    model = session.add.call_args.args[0]
+    assert model.supersedes_execution_id == original.id
+
+
+@pytest.mark.asyncio
+async def test_execution_repository_lists_full_audit_history() -> None:
+    session = _session()
+    repo = SqlAlchemyExecutionRecordRepository(session)
+    trade = _trade()
+    original = _execution(trade)
+    replacement = ExecutionRecord(
+        id=uuid4(),
+        trade_id=trade.id,
+        product_id=trade.product_id,
+        quantity=8,
+        price_per_unit=Decimal("2.60"),
+        executed_at=NOW,
+        recorded_at=NOW,
+        recorded_by=uuid4(),
+        supersedes_execution_id=original.id,
+    )
+    models = [
+        ExecutionRecordModel(
+            id=execution.id,
+            trade_id=execution.trade_id,
+            product_id=execution.product_id,
+            side=execution.side.value,
+            quantity=execution.quantity,
+            price_per_unit=execution.price_per_unit,
+            executed_at=execution.executed_at,
+            recorded_at=execution.recorded_at,
+            recorded_by=execution.recorded_by,
+            supersedes_execution_id=execution.supersedes_execution_id,
+        )
+        for execution in (original, replacement)
+    ]
+    result = Mock()
+    result.all.return_value = models
+    session.scalars.return_value = result
+
+    executions = await repo.list_for_trade(trade.id)
+
+    assert executions == [original, replacement]
+
+
+@pytest.mark.asyncio
+async def test_execution_repository_effective_query_excludes_superseded_ids() -> None:
+    session = _session()
+    repo = SqlAlchemyExecutionRecordRepository(session)
+    trade = _trade()
+    effective = _execution(trade)
+    model = ExecutionRecordModel(
+        id=effective.id,
+        trade_id=effective.trade_id,
+        product_id=effective.product_id,
+        side=effective.side.value,
+        quantity=effective.quantity,
+        price_per_unit=effective.price_per_unit,
+        executed_at=effective.executed_at,
+        recorded_at=effective.recorded_at,
+        recorded_by=effective.recorded_by,
+        supersedes_execution_id=None,
+    )
+    result = Mock()
+    result.all.return_value = [model]
+    session.scalars.return_value = result
+
+    executions = await repo.list_effective_for_trade(trade.id)
+
+    assert executions == [effective]
+    statement = session.scalars.await_args.args[0]
+    sql = str(statement)
+    assert "supersedes_execution_id" in sql
+    assert "NOT (EXISTS" in sql

@@ -331,3 +331,37 @@ def test_position_last_execution_must_not_precede_opening() -> None:
             opened_at=datetime(2026, 8, 17, 10, 0, tzinfo=UTC),
             last_execution_at=datetime(2026, 8, 17, 9, 0, tzinfo=UTC),
         )
+
+
+def test_execution_cannot_supersede_itself() -> None:
+    execution_id = uuid4()
+
+    with pytest.raises(ValueError, match="must not supersede itself"):
+        ExecutionRecord(
+            id=execution_id,
+            trade_id=uuid4(),
+            product_id=uuid4(),
+            quantity=1,
+            price_per_unit=Decimal("1.00"),
+            executed_at=EXECUTED_AT,
+            recorded_at=RECORDED_AT,
+            recorded_by=uuid4(),
+            supersedes_execution_id=execution_id,
+        )
+
+
+def test_execution_can_reference_superseded_execution() -> None:
+    original_id = uuid4()
+    replacement = ExecutionRecord(
+        id=uuid4(),
+        trade_id=uuid4(),
+        product_id=uuid4(),
+        quantity=2,
+        price_per_unit=Decimal("1.10"),
+        executed_at=EXECUTED_AT,
+        recorded_at=RECORDED_AT,
+        recorded_by=uuid4(),
+        supersedes_execution_id=original_id,
+    )
+
+    assert replacement.supersedes_execution_id == original_id
