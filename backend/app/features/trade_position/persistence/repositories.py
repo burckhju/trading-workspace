@@ -58,6 +58,11 @@ class TradeManagementEventRepository(Protocol):
 
     async def list_for_trade(self, trade_id: UUID) -> list[TradeManagementEvent]: ...
 
+    async def list_effective_for_trade(
+        self,
+        trade_id: UUID,
+    ) -> list[TradeManagementEvent]: ...
+
 
 class PositionRepository(Protocol):
     async def add(self, position: Position) -> None: ...
@@ -225,6 +230,47 @@ class SqlAlchemyTradeManagementEventRepository:
             await self._session.scalars(
                 select(TradeManagementEventModel)
                 .where(TradeManagementEventModel.trade_id == trade_id)
+                .order_by(
+                    TradeManagementEventModel.effective_at,
+                    TradeManagementEventModel.recorded_at,
+                    TradeManagementEventModel.id,
+                )
+            )
+        ).all()
+        return [
+            TradeManagementEvent(
+                id=model.id,
+                trade_id=model.trade_id,
+                event_type=TradeManagementEventType(model.event_type),
+                effective_at=model.effective_at,
+                recorded_at=model.recorded_at,
+                recorded_by=model.recorded_by,
+                numeric_value=model.numeric_value,
+                text_value=model.text_value,
+                supersedes_event_id=model.supersedes_event_id,
+            )
+            for model in models
+        ]
+
+    async def list_effective_for_trade(
+        self,
+        trade_id: UUID,
+    ) -> list[TradeManagementEvent]:
+        replacement = TradeManagementEventModel.__table__.alias("replacement")
+        models = (
+            await self._session.scalars(
+                select(TradeManagementEventModel)
+                .where(
+                    TradeManagementEventModel.trade_id == trade_id,
+                    ~exists(
+                        select(1)
+                        .select_from(replacement)
+                        .where(
+                            replacement.c.supersedes_event_id
+                            == TradeManagementEventModel.id
+                        )
+                    ),
+                )
                 .order_by(
                     TradeManagementEventModel.effective_at,
                     TradeManagementEventModel.recorded_at,

@@ -12,6 +12,10 @@ from app.features.trade_position.domain.enums import (
     TradeManagementEventType,
     TradeOrigin,
 )
+from app.features.trade_position.domain.management import (
+    TradeManagementState,
+    TradeManagementStateProjector,
+)
 from app.features.trade_position.domain.models import (
     ExecutionRecord,
     Position,
@@ -309,3 +313,92 @@ class TradePositionService:
             await uow.commit()
 
         return event
+
+    async def change_stop(
+        self,
+        *,
+        workspace_id: UUID,
+        trade_id: UUID,
+        stop_price: Decimal,
+        effective_at: datetime,
+        actor: UUID,
+    ) -> TradeManagementEvent:
+        return await self.record_management_event(
+            workspace_id=workspace_id,
+            trade_id=trade_id,
+            event_type=TradeManagementEventType.STOP_CHANGED,
+            effective_at=effective_at,
+            actor=actor,
+            numeric_value=stop_price,
+        )
+
+    async def change_target(
+        self,
+        *,
+        workspace_id: UUID,
+        trade_id: UUID,
+        target_price: Decimal,
+        effective_at: datetime,
+        actor: UUID,
+    ) -> TradeManagementEvent:
+        return await self.record_management_event(
+            workspace_id=workspace_id,
+            trade_id=trade_id,
+            event_type=TradeManagementEventType.TARGET_CHANGED,
+            effective_at=effective_at,
+            actor=actor,
+            numeric_value=target_price,
+        )
+
+    async def update_thesis(
+        self,
+        *,
+        workspace_id: UUID,
+        trade_id: UUID,
+        thesis: str,
+        effective_at: datetime,
+        actor: UUID,
+    ) -> TradeManagementEvent:
+        return await self.record_management_event(
+            workspace_id=workspace_id,
+            trade_id=trade_id,
+            event_type=TradeManagementEventType.THESIS_UPDATED,
+            effective_at=effective_at,
+            actor=actor,
+            text_value=thesis,
+        )
+
+    async def add_management_note(
+        self,
+        *,
+        workspace_id: UUID,
+        trade_id: UUID,
+        note: str,
+        effective_at: datetime,
+        actor: UUID,
+    ) -> TradeManagementEvent:
+        return await self.record_management_event(
+            workspace_id=workspace_id,
+            trade_id=trade_id,
+            event_type=TradeManagementEventType.MANAGEMENT_NOTE,
+            effective_at=effective_at,
+            actor=actor,
+            text_value=note,
+        )
+
+    async def get_management_state(
+        self,
+        *,
+        workspace_id: UUID,
+        trade_id: UUID,
+    ) -> TradeManagementState:
+        async with self._uow as uow:
+            trade = await uow.trades.get(workspace_id, trade_id)
+            if trade is None:
+                raise ValueError("trade not found")
+            events = await uow.management_events.list_effective_for_trade(trade.id)
+
+        return TradeManagementStateProjector.project(
+            trade_id=trade.id,
+            events=events,
+        )
