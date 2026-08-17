@@ -13,8 +13,18 @@ from app.features.trade_position.api.router import (
     WORKSPACE_ID,
     router,
 )
-from app.features.trade_position.domain.enums import TradeOrigin
-from app.features.trade_position.domain.models import ExecutionRecord, Position, Trade
+from app.features.trade_position.domain.enums import (
+    ExecutionSide,
+    TradeManagementEventType,
+    TradeOrigin,
+)
+from app.features.trade_position.domain.management import TradeManagementState
+from app.features.trade_position.domain.models import (
+    ExecutionRecord,
+    Position,
+    Trade,
+    TradeManagementEvent,
+)
 
 NOW = datetime(2026, 8, 17, 8, 0, tzinfo=UTC)
 
@@ -24,6 +34,13 @@ class FakeService:
         self.record_initial_purchase = AsyncMock()
         self.record_external_purchase = AsyncMock()
         self.record_additional_purchase = AsyncMock()
+        self.record_sale = AsyncMock()
+        self.change_stop = AsyncMock()
+        self.change_target = AsyncMock()
+        self.update_thesis = AsyncMock()
+        self.add_management_note = AsyncMock()
+        self.get_management_state = AsyncMock()
+        self.get_position = AsyncMock()
 
 
 def _initial_result(
@@ -291,3 +308,217 @@ def test_unknown_product_selection_is_translated_to_404() -> None:
 
     assert response.status_code == 404
     assert response.json()["detail"] == "product selection not found"
+
+
+def test_sale_returns_sell_execution_and_partial_position() -> None:
+    service = FakeService()
+    trade, _buy, position = _initial_result(origin=TradeOrigin.EXTERNAL)
+    sale = ExecutionRecord(
+        id=uuid4(),
+        trade_id=trade.id,
+        product_id=trade.product_id,
+        side=ExecutionSide.SELL,
+        quantity=100,
+        price_per_unit=Decimal("2.80"),
+        executed_at=NOW,
+        recorded_at=NOW,
+        recorded_by=uuid4(),
+    )
+    updated = Position(
+        id=position.id,
+        trade_id=position.trade_id,
+        product_id=position.product_id,
+        open_quantity=300,
+        cost_basis=Decimal("744.00"),
+        average_entry_price=Decimal("2.48"),
+        realized_gross_pnl=Decimal("32.00"),
+        opened_at=position.opened_at,
+        last_execution_at=NOW,
+    )
+    service.record_sale.return_value = sale, updated
+    client = TestClient(_app(service))
+
+    response = client.post(
+        f"/api/v1/trade-position/trades/{trade.id}/sales",
+        json={
+            "quantity": 100,
+            "price_per_unit": "2.80",
+            "executed_at": NOW.isoformat(),
+        },
+    )
+
+    assert response.status_code == 201
+    body = response.json()
+    assert body["execution"]["side"] == "SELL"
+    assert body["position"]["open_quantity"] == 300
+    assert Decimal(body["position"]["realized_gross_pnl"]) == Decimal("32.00")
+    assert body["position"]["is_closed"] is False
+
+
+def test_sale_full_exit_exposes_closed_position() -> None:
+    service = FakeService()
+    trade, _buy, position = _initial_result(origin=TradeOrigin.EXTERNAL)
+    sale = ExecutionRecord(
+        id=uuid4(),
+        trade_id=trade.id,
+        product_id=trade.product_id,
+        side=ExecutionSide.SELL,
+        quantity=400,
+        price_per_unit=Decimal("2.60"),
+        executed_at=NOW,
+        recorded_at=NOW,
+        recorded_by=uuid4(),
+    )
+    updated = Position(
+        id=position.id,
+        trade_id=position.trade_id,
+        product_id=position.product_id,
+        open_quantity=0,
+        cost_basis=Decimal("0"),
+        average_entry_price=Decimal("2.48"),
+        realized_gross_pnl=Decimal("48.00"),
+        opened_at=position.opened_at,
+        last_execution_at=NOW,
+        closed_at=NOW,
+    )
+    service.record_sale.return_value = sale, updated
+    client = TestClient(_app(service))
+
+    response = client.post(
+        f"/api/v1/trade-position/trades/{trade.id}/sales",
+        json={"quantity": 400, "price_per_unit": "2.60"},
+    )
+
+    assert response.status_code == 201
+    assert response.json()["position"]["is_closed"] is True
+    assert response.json()["position"]["closed_at"] == NOW.isoformat().replace("+00:00", "Z")
+
+
+def test_sale_domain_validation_translates_to_422() -> None:
+    service = FakeService()
+    trade_id = uuid4()
+    service.record_sale.side_effect = ValueError("SELL quantity exceeds current open quantity")
+    client = TestClient(_app(service))
+
+    response = client.post(
+        f"/api/v1/trade-position/trades/{trade_id}/sales",
+        json={"quantity": 999, "price_per_unit": "2.60"},
+    )
+
+    assert response.status_code == 422
+    assert response.json()["detail"] == "SELL quantity exceeds current open quantity"
+
+
+@pytest.mark.parametrize(
+    ("path", "method_name", "payload", "event_type", "value"),
+    [
+        ("stop", "change_stop", {"price": "1.10"}, TradeManagementEventType.STOP_CHANGED, Decimal("1.10")),
+        ("target", "change_target", {"price": "2.50"}, TradeManagementEventType.TARGET_CHANGED, Decimal("2.50")),
+    ],
+)
+def test_price_management_commands_are_exposed(
+    path: str,
+    method_name: str,
+    payload: dict[str, str],
+    event_type: TradeManagementEventType,
+    value: Decimal,
+) -> None:
+    service = FakeService()
+    trade_id = uuid4()
+    event = TradeManagementEvent(
+        id=uuid4(),
+        trade_id=trade_id,
+        event_type=event_type,
+        effective_at=NOW,
+        recorded_at=NOW,
+        recorded_by=LOCAL_ACTOR_ID,
+        numeric_value=value,
+    )
+    getattr(service, method_name).return_value = event
+    client = TestClient(_app(service))
+
+    response = client.post(
+        f"/api/v1/trade-position/trades/{trade_id}/management/{path}",
+        json={"price": str(value), "effective_at": NOW.isoformat()},
+    )
+
+    assert response.status_code == 201
+    assert response.json()["event_type"] == event_type.value
+    assert Decimal(response.json()["numeric_value"]) == value
+
+
+@pytest.mark.parametrize(
+    ("path", "method_name", "event_type"),
+    [
+        ("thesis", "update_thesis", TradeManagementEventType.THESIS_UPDATED),
+        ("notes", "add_management_note", TradeManagementEventType.MANAGEMENT_NOTE),
+    ],
+)
+def test_text_management_commands_are_exposed(
+    path: str,
+    method_name: str,
+    event_type: TradeManagementEventType,
+) -> None:
+    service = FakeService()
+    trade_id = uuid4()
+    event = TradeManagementEvent(
+        id=uuid4(),
+        trade_id=trade_id,
+        event_type=event_type,
+        effective_at=NOW,
+        recorded_at=NOW,
+        recorded_by=LOCAL_ACTOR_ID,
+        text_value="updated context",
+    )
+    getattr(service, method_name).return_value = event
+    client = TestClient(_app(service))
+
+    response = client.post(
+        f"/api/v1/trade-position/trades/{trade_id}/management/{path}",
+        json={"text": "updated context", "effective_at": NOW.isoformat()},
+    )
+
+    assert response.status_code == 201
+    assert response.json()["text_value"] == "updated context"
+
+
+def test_management_state_is_readable() -> None:
+    service = FakeService()
+    trade_id = uuid4()
+    service.get_management_state.return_value = TradeManagementState(
+        trade_id=trade_id,
+        stop_price=Decimal("1.10"),
+        target_price=Decimal("2.50"),
+        thesis="trend intact",
+        notes=("note 1",),
+        last_event_at=NOW,
+    )
+    client = TestClient(_app(service))
+
+    response = client.get(
+        f"/api/v1/trade-position/trades/{trade_id}/management",
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert Decimal(body["stop_price"]) == Decimal("1.10")
+    assert body["notes"] == ["note 1"]
+
+
+def test_position_state_is_readable() -> None:
+    service = FakeService()
+    trade, _buy, position = _initial_result(origin=TradeOrigin.EXTERNAL)
+    service.get_position.return_value = position
+    client = TestClient(_app(service))
+
+    response = client.get(
+        f"/api/v1/trade-position/trades/{trade.id}/position",
+    )
+
+    assert response.status_code == 200
+    assert response.json()["open_quantity"] == 400
+    assert response.json()["is_closed"] is False
+    service.get_position.assert_awaited_once_with(
+        workspace_id=WORKSPACE_ID,
+        trade_id=trade.id,
+    )

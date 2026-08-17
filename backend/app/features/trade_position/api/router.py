@@ -14,10 +14,21 @@ from app.features.trade_position.api.dtos import (
     ExternalPurchaseRequest,
     InitialPurchaseResponse,
     PositionResponse,
+    PriceManagementRequest,
+    SaleRequest,
+    TextManagementRequest,
+    TradeManagementEventResponse,
+    TradeManagementStateResponse,
     TradeResponse,
     WorkspacePurchaseRequest,
 )
-from app.features.trade_position.domain.models import ExecutionRecord, Position, Trade
+from app.features.trade_position.domain.management import TradeManagementState
+from app.features.trade_position.domain.models import (
+    ExecutionRecord,
+    Position,
+    Trade,
+    TradeManagementEvent,
+)
 from app.features.trade_position.service.application import TradePositionService
 
 router = APIRouter(
@@ -47,6 +58,7 @@ def _execution(value: ExecutionRecord) -> ExecutionResponse:
         id=value.id,
         trade_id=value.trade_id,
         product_id=value.product_id,
+        side=value.side,
         quantity=value.quantity,
         price_per_unit=value.price_per_unit,
         gross_amount=value.gross_amount,
@@ -63,12 +75,44 @@ def _position(value: Position) -> PositionResponse:
         open_quantity=value.open_quantity,
         cost_basis=value.cost_basis,
         average_entry_price=value.average_entry_price,
+        realized_gross_pnl=value.realized_gross_pnl,
         opened_at=value.opened_at,
         last_execution_at=value.last_execution_at,
+        closed_at=value.closed_at,
+        is_closed=value.is_closed,
+    )
+
+
+
+def _management_event(value: TradeManagementEvent) -> TradeManagementEventResponse:
+    return TradeManagementEventResponse(
+        id=value.id,
+        trade_id=value.trade_id,
+        event_type=value.event_type,
+        effective_at=value.effective_at,
+        recorded_at=value.recorded_at,
+        numeric_value=value.numeric_value,
+        text_value=value.text_value,
+        supersedes_event_id=value.supersedes_event_id,
+    )
+
+
+def _management_state(value: TradeManagementState) -> TradeManagementStateResponse:
+    return TradeManagementStateResponse(
+        trade_id=value.trade_id,
+        stop_price=value.stop_price,
+        target_price=value.target_price,
+        thesis=value.thesis,
+        notes=value.notes,
+        last_event_at=value.last_event_at,
     )
 
 
 def _executed_at(value: datetime | None) -> datetime:
+    return value or datetime.now(UTC)
+
+
+def _effective_at(value: datetime | None) -> datetime:
     return value or datetime.now(UTC)
 
 
@@ -82,7 +126,7 @@ def _translate(error: ValueError) -> HTTPException:
         )
 
     return HTTPException(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
         detail=message,
     )
 
@@ -172,3 +216,163 @@ async def record_additional_purchase(
         execution=_execution(execution),
         position=_position(position),
     )
+
+@router.post(
+    "/trades/{trade_id}/sales",
+    response_model=AdditionalPurchaseResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def record_sale(
+    trade_id: UUID,
+    request: SaleRequest,
+    service: Annotated[TradePositionService, Depends(get_trade_position_service)],
+    actor_id: Annotated[UUID | None, Header(alias="X-Actor-ID")] = None,
+) -> AdditionalPurchaseResponse:
+    try:
+        execution, position = await service.record_sale(
+            workspace_id=WORKSPACE_ID,
+            trade_id=trade_id,
+            quantity=request.quantity,
+            price_per_unit=request.price_per_unit,
+            executed_at=_executed_at(request.executed_at),
+            actor=actor_id or LOCAL_ACTOR_ID,
+        )
+    except ValueError as error:
+        raise _translate(error) from error
+
+    return AdditionalPurchaseResponse(
+        execution=_execution(execution),
+        position=_position(position),
+    )
+
+
+@router.post(
+    "/trades/{trade_id}/management/stop",
+    response_model=TradeManagementEventResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def change_stop(
+    trade_id: UUID,
+    request: PriceManagementRequest,
+    service: Annotated[TradePositionService, Depends(get_trade_position_service)],
+    actor_id: Annotated[UUID | None, Header(alias="X-Actor-ID")] = None,
+) -> TradeManagementEventResponse:
+    try:
+        event = await service.change_stop(
+            workspace_id=WORKSPACE_ID,
+            trade_id=trade_id,
+            stop_price=request.price,
+            effective_at=_effective_at(request.effective_at),
+            actor=actor_id or LOCAL_ACTOR_ID,
+        )
+    except ValueError as error:
+        raise _translate(error) from error
+    return _management_event(event)
+
+
+@router.post(
+    "/trades/{trade_id}/management/target",
+    response_model=TradeManagementEventResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def change_target(
+    trade_id: UUID,
+    request: PriceManagementRequest,
+    service: Annotated[TradePositionService, Depends(get_trade_position_service)],
+    actor_id: Annotated[UUID | None, Header(alias="X-Actor-ID")] = None,
+) -> TradeManagementEventResponse:
+    try:
+        event = await service.change_target(
+            workspace_id=WORKSPACE_ID,
+            trade_id=trade_id,
+            target_price=request.price,
+            effective_at=_effective_at(request.effective_at),
+            actor=actor_id or LOCAL_ACTOR_ID,
+        )
+    except ValueError as error:
+        raise _translate(error) from error
+    return _management_event(event)
+
+
+@router.post(
+    "/trades/{trade_id}/management/thesis",
+    response_model=TradeManagementEventResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def update_thesis(
+    trade_id: UUID,
+    request: TextManagementRequest,
+    service: Annotated[TradePositionService, Depends(get_trade_position_service)],
+    actor_id: Annotated[UUID | None, Header(alias="X-Actor-ID")] = None,
+) -> TradeManagementEventResponse:
+    try:
+        event = await service.update_thesis(
+            workspace_id=WORKSPACE_ID,
+            trade_id=trade_id,
+            thesis=request.text,
+            effective_at=_effective_at(request.effective_at),
+            actor=actor_id or LOCAL_ACTOR_ID,
+        )
+    except ValueError as error:
+        raise _translate(error) from error
+    return _management_event(event)
+
+
+@router.post(
+    "/trades/{trade_id}/management/notes",
+    response_model=TradeManagementEventResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def add_management_note(
+    trade_id: UUID,
+    request: TextManagementRequest,
+    service: Annotated[TradePositionService, Depends(get_trade_position_service)],
+    actor_id: Annotated[UUID | None, Header(alias="X-Actor-ID")] = None,
+) -> TradeManagementEventResponse:
+    try:
+        event = await service.add_management_note(
+            workspace_id=WORKSPACE_ID,
+            trade_id=trade_id,
+            note=request.text,
+            effective_at=_effective_at(request.effective_at),
+            actor=actor_id or LOCAL_ACTOR_ID,
+        )
+    except ValueError as error:
+        raise _translate(error) from error
+    return _management_event(event)
+
+
+@router.get(
+    "/trades/{trade_id}/management",
+    response_model=TradeManagementStateResponse,
+)
+async def get_management_state(
+    trade_id: UUID,
+    service: Annotated[TradePositionService, Depends(get_trade_position_service)],
+) -> TradeManagementStateResponse:
+    try:
+        state = await service.get_management_state(
+            workspace_id=WORKSPACE_ID,
+            trade_id=trade_id,
+        )
+    except ValueError as error:
+        raise _translate(error) from error
+    return _management_state(state)
+
+
+@router.get(
+    "/trades/{trade_id}/position",
+    response_model=PositionResponse,
+)
+async def get_position(
+    trade_id: UUID,
+    service: Annotated[TradePositionService, Depends(get_trade_position_service)],
+) -> PositionResponse:
+    try:
+        position = await service.get_position(
+            workspace_id=WORKSPACE_ID,
+            trade_id=trade_id,
+        )
+    except ValueError as error:
+        raise _translate(error) from error
+    return _position(position)

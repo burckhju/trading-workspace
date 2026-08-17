@@ -402,3 +402,19 @@ class TradePositionService:
             trade_id=trade.id,
             events=events,
         )
+
+    async def get_position(
+        self,
+        *,
+        workspace_id: UUID,
+        trade_id: UUID,
+    ) -> Position:
+        async with self._uow as uow:
+            trade = await uow.trades.get(workspace_id, trade_id)
+            if trade is None:
+                raise ValueError("trade not found")
+            position = await uow.positions.get_for_trade(workspace_id, trade.id)
+            if position is None:
+                raise ValueError("position not found")
+
+        return position
