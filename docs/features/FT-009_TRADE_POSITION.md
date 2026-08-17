@@ -1,7 +1,7 @@
 # FT-009 – Trade & Position / Purchase Execution Capture
 
 ## Status
-Implemented in Sprint 9 and technically release-ready after PR #18; see `docs/implementation/SPRINT_9_TECHNICAL_CLOSEOUT.md` and `docs/implementation/SPRINT_9_FT009_RELEASE_READINESS.md`.
+Released as `v1.1.0-trade-position` after Sprint 9 implementation, technical closeout and release-readiness qualification; see `docs/implementation/SPRINT_9_TECHNICAL_CLOSEOUT.md` and `docs/implementation/SPRINT_9_FT009_RELEASE_READINESS.md`.
 
 ## Purpose
 FT-009 records purchases that actually occurred and derives the open position from the effective purchase-execution history. The system documents user-confirmed facts; it does not decide whether, what, or how much the user should buy.
