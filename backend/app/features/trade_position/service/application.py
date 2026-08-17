@@ -53,6 +53,8 @@ class TradePositionService:
             workspace_id,
             product_selection_id,
         )
+        if selection is None:
+            raise ValueError("product selection not found")
 
         now = datetime.now(UTC)
 

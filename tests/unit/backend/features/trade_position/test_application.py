@@ -341,3 +341,30 @@ async def test_external_purchase_rejects_unknown_product_before_persistence() ->
     uow.executions.add.assert_not_awaited()
     uow.positions.add.assert_not_awaited()
     uow.commit.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_initial_purchase_rejects_unknown_product_selection() -> None:
+    uow = FakeUow()
+    selections = FakeWorkspaceSelections()
+    selections.resolve.return_value = None
+
+    service = TradePositionService(
+        uow=uow,
+        workspace_selections=selections,
+    )
+
+    with pytest.raises(ValueError, match="product selection not found"):
+        await service.record_initial_purchase(
+            workspace_id=selections.workspace_id,
+            product_selection_id=selections.product_selection_id,
+            quantity=1,
+            price_per_unit=Decimal("1.00"),
+            executed_at=NOW,
+            actor=uuid4(),
+        )
+
+    uow.trades.add.assert_not_awaited()
+    uow.executions.add.assert_not_awaited()
+    uow.positions.add.assert_not_awaited()
+    uow.commit.assert_not_awaited()
