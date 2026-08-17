@@ -49,6 +49,19 @@ class TextManagementRequest(BaseModel):
     effective_at: datetime | None = None
 
 
+class ExecutionCorrectionRequest(BaseModel):
+    side: ExecutionSide
+    quantity: int = Field(gt=0)
+    price_per_unit: Decimal = Field(gt=0)
+    executed_at: datetime
+
+
+class ManagementEventCorrectionRequest(BaseModel):
+    effective_at: datetime
+    numeric_value: Decimal | None = Field(default=None, gt=0)
+    text_value: str | None = Field(default=None, min_length=1, max_length=4000)
+
+
 class TradeResponse(BaseModel):
     id: UUID
     product_id: UUID
@@ -115,3 +128,24 @@ class TradeManagementStateResponse(BaseModel):
     thesis: str | None
     notes: tuple[str, ...]
     last_event_at: datetime | None
+
+
+class TradeTimelineEntryResponse(BaseModel):
+    id: UUID
+    trade_id: UUID
+    occurred_at: datetime
+    recorded_at: datetime
+    kind: str
+    execution_side: ExecutionSide | None
+    management_event_type: TradeManagementEventType | None
+    quantity: int | None
+    price_per_unit: Decimal | None
+    numeric_value: Decimal | None
+    text_value: str | None
+    supersedes_id: UUID | None
+
+
+class Ft011EligibilityResponse(BaseModel):
+    trade_id: UUID
+    eligible: bool
+    reason: str

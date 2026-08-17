@@ -23,6 +23,12 @@ from app.features.trade_position.domain.models import (
     TradeManagementEvent,
 )
 from app.features.trade_position.domain.projector import PositionProjector
+from app.features.trade_position.domain.timeline import (
+    Ft011Eligibility,
+    TradeTimelineEntry,
+    compose_trade_timeline,
+    ft011_eligibility,
+)
 from app.features.trade_position.persistence.unit_of_work import TradePositionUnitOfWork
 from app.features.trade_position.service.resolvers import (
     ResolvedProduct,
@@ -418,3 +424,137 @@ class TradePositionService:
                 raise ValueError("position not found")
 
         return position
+
+    async def correct_execution(
+        self,
+        *,
+        workspace_id: UUID,
+        trade_id: UUID,
+        execution_id: UUID,
+        side: ExecutionSide,
+        quantity: int,
+        price_per_unit: Decimal,
+        executed_at: datetime,
+        actor: UUID,
+    ) -> tuple[ExecutionRecord, Position]:
+        async with self._uow as uow:
+            trade = await uow.trades.get(workspace_id, trade_id)
+            if trade is None:
+                raise ValueError("trade not found")
+
+            position = await uow.positions.get_for_trade(workspace_id, trade_id)
+            if position is None:
+                raise ValueError("position not found")
+
+            history = await uow.executions.list_for_trade(trade.id)
+            target = next((item for item in history if item.id == execution_id), None)
+            if target is None:
+                raise ValueError("execution not found")
+            if any(item.supersedes_execution_id == execution_id for item in history):
+                raise ValueError("execution is already superseded")
+
+            now = datetime.now(UTC)
+            replacement = ExecutionRecord(
+                id=uuid4(),
+                trade_id=trade.id,
+                product_id=trade.product_id,
+                side=side,
+                quantity=quantity,
+                price_per_unit=price_per_unit,
+                executed_at=executed_at,
+                recorded_at=max(now, executed_at),
+                recorded_by=actor,
+                supersedes_execution_id=target.id,
+            )
+
+            effective_history = [
+                item
+                for item in history
+                if item.id != target.id
+                and not any(
+                    candidate.supersedes_execution_id == item.id
+                    for candidate in history
+                )
+            ]
+            updated = PositionProjector.project(
+                id=position.id,
+                trade=trade,
+                executions=[*effective_history, replacement],
+            )
+
+            await uow.executions.add(replacement)
+            await uow.positions.replace(updated)
+            await uow.commit()
+
+        return replacement, updated
+
+    async def correct_management_event(
+        self,
+        *,
+        workspace_id: UUID,
+        trade_id: UUID,
+        event_id: UUID,
+        effective_at: datetime,
+        actor: UUID,
+        numeric_value: Decimal | None = None,
+        text_value: str | None = None,
+    ) -> TradeManagementEvent:
+        async with self._uow as uow:
+            trade = await uow.trades.get(workspace_id, trade_id)
+            if trade is None:
+                raise ValueError("trade not found")
+
+            history = await uow.management_events.list_for_trade(trade.id)
+            target = next((item for item in history if item.id == event_id), None)
+            if target is None:
+                raise ValueError("management event not found")
+            if any(item.supersedes_event_id == event_id for item in history):
+                raise ValueError("management event is already superseded")
+
+            now = datetime.now(UTC)
+            replacement = TradeManagementEvent(
+                id=uuid4(),
+                trade_id=trade.id,
+                event_type=target.event_type,
+                effective_at=effective_at,
+                recorded_at=max(now, effective_at),
+                recorded_by=actor,
+                numeric_value=numeric_value,
+                text_value=text_value,
+                supersedes_event_id=target.id,
+            )
+            await uow.management_events.add(replacement)
+            await uow.commit()
+
+        return replacement
+
+    async def get_trade_timeline(
+        self,
+        *,
+        workspace_id: UUID,
+        trade_id: UUID,
+    ) -> list[TradeTimelineEntry]:
+        async with self._uow as uow:
+            trade = await uow.trades.get(workspace_id, trade_id)
+            if trade is None:
+                raise ValueError("trade not found")
+            executions = await uow.executions.list_for_trade(trade.id)
+            management_events = await uow.management_events.list_for_trade(trade.id)
+
+        return compose_trade_timeline(
+            trade_id=trade.id,
+            executions=executions,
+            management_events=management_events,
+        )
+
+    async def get_ft011_eligibility(
+        self,
+        *,
+        workspace_id: UUID,
+        trade_id: UUID,
+    ) -> Ft011Eligibility:
+        position = await self.get_position(
+            workspace_id=workspace_id,
+            trade_id=trade_id,
+        )
+        return ft011_eligibility(position)

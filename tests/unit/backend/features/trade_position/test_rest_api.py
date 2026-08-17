@@ -19,6 +19,11 @@ from app.features.trade_position.domain.enums import (
     TradeOrigin,
 )
 from app.features.trade_position.domain.management import TradeManagementState
+from app.features.trade_position.domain.timeline import (
+    Ft011Eligibility,
+    TradeTimelineEntry,
+    TradeTimelineEntryKind,
+)
 from app.features.trade_position.domain.models import (
     ExecutionRecord,
     Position,
@@ -41,6 +46,10 @@ class FakeService:
         self.add_management_note = AsyncMock()
         self.get_management_state = AsyncMock()
         self.get_position = AsyncMock()
+        self.correct_execution = AsyncMock()
+        self.correct_management_event = AsyncMock()
+        self.get_trade_timeline = AsyncMock()
+        self.get_ft011_eligibility = AsyncMock()
 
 
 def _initial_result(
@@ -522,3 +531,142 @@ def test_position_state_is_readable() -> None:
         workspace_id=WORKSPACE_ID,
         trade_id=trade.id,
     )
+
+
+def test_execution_correction_endpoint_returns_reprojected_position() -> None:
+    service = FakeService()
+    trade, original, position = _initial_result(origin=TradeOrigin.EXTERNAL)
+    replacement = ExecutionRecord(
+        id=uuid4(),
+        trade_id=trade.id,
+        product_id=trade.product_id,
+        side=ExecutionSide.BUY,
+        quantity=300,
+        price_per_unit=Decimal("2.40"),
+        executed_at=NOW,
+        recorded_at=NOW,
+        recorded_by=LOCAL_ACTOR_ID,
+        supersedes_execution_id=original.id,
+    )
+    corrected = Position(
+        id=position.id,
+        trade_id=position.trade_id,
+        product_id=position.product_id,
+        open_quantity=300,
+        cost_basis=Decimal("720.00"),
+        average_entry_price=Decimal("2.40"),
+        opened_at=NOW,
+        last_execution_at=NOW,
+    )
+    service.correct_execution.return_value = replacement, corrected
+    client = TestClient(_app(service))
+
+    response = client.post(
+        f"/api/v1/trade-position/trades/{trade.id}/executions/{original.id}/corrections",
+        json={
+            "side": "BUY",
+            "quantity": 300,
+            "price_per_unit": "2.40",
+            "executed_at": NOW.isoformat(),
+        },
+    )
+
+    assert response.status_code == 201
+    assert response.json()["execution"]["side"] == "BUY"
+    assert response.json()["position"]["open_quantity"] == 300
+    service.correct_execution.assert_awaited_once()
+
+
+def test_management_correction_endpoint_preserves_event_type_server_side() -> None:
+    service = FakeService()
+    trade_id = uuid4()
+    event_id = uuid4()
+    replacement = TradeManagementEvent(
+        id=uuid4(),
+        trade_id=trade_id,
+        event_type=TradeManagementEventType.STOP_CHANGED,
+        effective_at=NOW,
+        recorded_at=NOW,
+        recorded_by=LOCAL_ACTOR_ID,
+        numeric_value=Decimal("1.70"),
+        supersedes_event_id=event_id,
+    )
+    service.correct_management_event.return_value = replacement
+    client = TestClient(_app(service))
+
+    response = client.post(
+        f"/api/v1/trade-position/trades/{trade_id}/management/{event_id}/corrections",
+        json={"effective_at": NOW.isoformat(), "numeric_value": "1.70"},
+    )
+
+    assert response.status_code == 201
+    assert response.json()["event_type"] == "STOP_CHANGED"
+    assert response.json()["supersedes_event_id"] == str(event_id)
+
+
+def test_trade_timeline_keeps_sale_as_execution_only() -> None:
+    service = FakeService()
+    trade_id = uuid4()
+    sale_id = uuid4()
+    service.get_trade_timeline.return_value = [
+        TradeTimelineEntry(
+            id=sale_id,
+            trade_id=trade_id,
+            occurred_at=NOW,
+            recorded_at=NOW,
+            kind=TradeTimelineEntryKind.EXECUTION,
+            execution_side=ExecutionSide.SELL,
+            quantity=5,
+            price_per_unit=Decimal("2.50"),
+        )
+    ]
+    client = TestClient(_app(service))
+
+    response = client.get(f"/api/v1/trade-position/trades/{trade_id}/timeline")
+
+    assert response.status_code == 200
+    assert response.json() == [
+        {
+            "id": str(sale_id),
+            "trade_id": str(trade_id),
+            "occurred_at": NOW.isoformat().replace("+00:00", "Z"),
+            "recorded_at": NOW.isoformat().replace("+00:00", "Z"),
+            "kind": "EXECUTION",
+            "execution_side": "SELL",
+            "management_event_type": None,
+            "quantity": 5,
+            "price_per_unit": "2.50",
+            "numeric_value": None,
+            "text_value": None,
+            "supersedes_id": None,
+        }
+    ]
+
+
+@pytest.mark.parametrize(
+    ("eligible", "reason"),
+    [
+        (False, "trade position still has open quantity"),
+        (True, "trade position is fully closed"),
+    ],
+)
+def test_ft011_eligibility_endpoint(eligible: bool, reason: str) -> None:
+    service = FakeService()
+    trade_id = uuid4()
+    service.get_ft011_eligibility.return_value = Ft011Eligibility(
+        trade_id=trade_id,
+        eligible=eligible,
+        reason=reason,
+    )
+    client = TestClient(_app(service))
+
+    response = client.get(
+        f"/api/v1/trade-position/trades/{trade_id}/ft011-eligibility",
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "trade_id": str(trade_id),
+        "eligible": eligible,
+        "reason": reason,
+    }

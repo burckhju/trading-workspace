@@ -10,9 +10,12 @@ from app.features.trade_position.api.dependencies import get_trade_position_serv
 from app.features.trade_position.api.dtos import (
     AdditionalPurchaseRequest,
     AdditionalPurchaseResponse,
+    ExecutionCorrectionRequest,
     ExecutionResponse,
     ExternalPurchaseRequest,
+    Ft011EligibilityResponse,
     InitialPurchaseResponse,
+    ManagementEventCorrectionRequest,
     PositionResponse,
     PriceManagementRequest,
     SaleRequest,
@@ -20,6 +23,7 @@ from app.features.trade_position.api.dtos import (
     TradeManagementEventResponse,
     TradeManagementStateResponse,
     TradeResponse,
+    TradeTimelineEntryResponse,
     WorkspacePurchaseRequest,
 )
 from app.features.trade_position.domain.management import TradeManagementState
@@ -29,6 +33,7 @@ from app.features.trade_position.domain.models import (
     Trade,
     TradeManagementEvent,
 )
+from app.features.trade_position.domain.timeline import Ft011Eligibility, TradeTimelineEntry
 from app.features.trade_position.service.application import TradePositionService
 
 router = APIRouter(
@@ -105,6 +110,32 @@ def _management_state(value: TradeManagementState) -> TradeManagementStateRespon
         thesis=value.thesis,
         notes=value.notes,
         last_event_at=value.last_event_at,
+    )
+
+
+
+def _timeline_entry(value: TradeTimelineEntry) -> TradeTimelineEntryResponse:
+    return TradeTimelineEntryResponse(
+        id=value.id,
+        trade_id=value.trade_id,
+        occurred_at=value.occurred_at,
+        recorded_at=value.recorded_at,
+        kind=value.kind.value,
+        execution_side=value.execution_side,
+        management_event_type=value.management_event_type,
+        quantity=value.quantity,
+        price_per_unit=value.price_per_unit,
+        numeric_value=value.numeric_value,
+        text_value=value.text_value,
+        supersedes_id=value.supersedes_id,
+    )
+
+
+def _ft011(value: Ft011Eligibility) -> Ft011EligibilityResponse:
+    return Ft011EligibilityResponse(
+        trade_id=value.trade_id,
+        eligible=value.eligible,
+        reason=value.reason,
     )
 
 
@@ -376,3 +407,96 @@ async def get_position(
     except ValueError as error:
         raise _translate(error) from error
     return _position(position)
+
+@router.post(
+    "/trades/{trade_id}/executions/{execution_id}/corrections",
+    response_model=AdditionalPurchaseResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def correct_execution(
+    trade_id: UUID,
+    execution_id: UUID,
+    request: ExecutionCorrectionRequest,
+    service: Annotated[TradePositionService, Depends(get_trade_position_service)],
+    actor_id: Annotated[UUID | None, Header(alias="X-Actor-ID")] = None,
+) -> AdditionalPurchaseResponse:
+    try:
+        execution, position = await service.correct_execution(
+            workspace_id=WORKSPACE_ID,
+            trade_id=trade_id,
+            execution_id=execution_id,
+            side=request.side,
+            quantity=request.quantity,
+            price_per_unit=request.price_per_unit,
+            executed_at=request.executed_at,
+            actor=actor_id or LOCAL_ACTOR_ID,
+        )
+    except ValueError as error:
+        raise _translate(error) from error
+    return AdditionalPurchaseResponse(
+        execution=_execution(execution),
+        position=_position(position),
+    )
+
+
+@router.post(
+    "/trades/{trade_id}/management/{event_id}/corrections",
+    response_model=TradeManagementEventResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def correct_management_event(
+    trade_id: UUID,
+    event_id: UUID,
+    request: ManagementEventCorrectionRequest,
+    service: Annotated[TradePositionService, Depends(get_trade_position_service)],
+    actor_id: Annotated[UUID | None, Header(alias="X-Actor-ID")] = None,
+) -> TradeManagementEventResponse:
+    try:
+        event = await service.correct_management_event(
+            workspace_id=WORKSPACE_ID,
+            trade_id=trade_id,
+            event_id=event_id,
+            effective_at=request.effective_at,
+            actor=actor_id or LOCAL_ACTOR_ID,
+            numeric_value=request.numeric_value,
+            text_value=request.text_value,
+        )
+    except ValueError as error:
+        raise _translate(error) from error
+    return _management_event(event)
+
+
+@router.get(
+    "/trades/{trade_id}/timeline",
+    response_model=list[TradeTimelineEntryResponse],
+)
+async def get_trade_timeline(
+    trade_id: UUID,
+    service: Annotated[TradePositionService, Depends(get_trade_position_service)],
+) -> list[TradeTimelineEntryResponse]:
+    try:
+        items = await service.get_trade_timeline(
+            workspace_id=WORKSPACE_ID,
+            trade_id=trade_id,
+        )
+    except ValueError as error:
+        raise _translate(error) from error
+    return [_timeline_entry(item) for item in items]
+
+
+@router.get(
+    "/trades/{trade_id}/ft011-eligibility",
+    response_model=Ft011EligibilityResponse,
+)
+async def get_ft011_eligibility(
+    trade_id: UUID,
+    service: Annotated[TradePositionService, Depends(get_trade_position_service)],
+) -> Ft011EligibilityResponse:
+    try:
+        eligibility = await service.get_ft011_eligibility(
+            workspace_id=WORKSPACE_ID,
+            trade_id=trade_id,
+        )
+    except ValueError as error:
+        raise _translate(error) from error
+    return _ft011(eligibility)
