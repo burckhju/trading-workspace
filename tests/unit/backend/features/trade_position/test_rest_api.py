@@ -19,16 +19,16 @@ from app.features.trade_position.domain.enums import (
     TradeOrigin,
 )
 from app.features.trade_position.domain.management import TradeManagementState
-from app.features.trade_position.domain.timeline import (
-    Ft011Eligibility,
-    TradeTimelineEntry,
-    TradeTimelineEntryKind,
-)
 from app.features.trade_position.domain.models import (
     ExecutionRecord,
     Position,
     Trade,
     TradeManagementEvent,
+)
+from app.features.trade_position.domain.timeline import (
+    Ft011Eligibility,
+    TradeTimelineEntry,
+    TradeTimelineEntryKind,
 )
 
 NOW = datetime(2026, 8, 17, 8, 0, tzinfo=UTC)

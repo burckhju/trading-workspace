@@ -45,6 +45,7 @@ class SqlAlchemyTradePositionUnitOfWork:
     trades: TradeRepository
     executions: ExecutionRecordRepository
     positions: PositionRepository
+    management_events: TradeManagementEventRepository
 
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
