@@ -5,7 +5,7 @@ from uuid import uuid4
 
 import pytest
 
-from app.features.trade_position.domain.enums import TradeOrigin
+from app.features.trade_position.domain.enums import ExecutionSide, TradeOrigin
 from app.features.trade_position.domain.models import ExecutionRecord, Position, Trade
 from app.features.trade_position.persistence.models import (
     ExecutionRecordModel,
@@ -123,6 +123,7 @@ async def test_execution_repository_add_maps_domain_to_model() -> None:
     assert isinstance(model, ExecutionRecordModel)
     assert model.id == execution.id
     assert model.trade_id == execution.trade_id
+    assert model.side == ExecutionSide.BUY.value
     assert model.quantity == execution.quantity
     assert model.price_per_unit == execution.price_per_unit
 

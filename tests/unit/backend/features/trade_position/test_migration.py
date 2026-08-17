@@ -65,3 +65,25 @@ def test_ft009_migration_does_not_add_out_of_scope_order_fields() -> None:
         "tax",
     ):
         assert forbidden not in text
+
+
+FT010_MIGRATION = (
+    Path(__file__).parents[5]
+    / "backend/migrations/versions/20260817_0015_ft010_execution_side.py"
+)
+
+
+def test_ft010_execution_side_migration_follows_ft009_head() -> None:
+    text = FT010_MIGRATION.read_text()
+
+    assert 'revision: str = "20260817_0015"' in text
+    assert 'down_revision: str | None = "20260817_0014"' in text
+
+
+def test_ft010_execution_side_migration_backfills_historical_rows_as_buy() -> None:
+    text = FT010_MIGRATION.read_text()
+
+    assert '"side"' in text
+    assert 'server_default="BUY"' in text
+    assert "side IN ('BUY', 'SELL')" in text
+    assert 'server_default=None' in text

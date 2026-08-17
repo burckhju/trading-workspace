@@ -4,7 +4,7 @@ from uuid import uuid4
 
 import pytest
 
-from app.features.trade_position.domain.enums import TradeOrigin
+from app.features.trade_position.domain.enums import ExecutionSide, TradeOrigin
 from app.features.trade_position.domain.models import ExecutionRecord, Position, Trade
 
 EXECUTED_AT = datetime(2026, 8, 17, 8, 0, tzinfo=UTC)
@@ -96,6 +96,34 @@ def test_execution_requires_positive_quantity(quantity: int) -> None:
 
     with pytest.raises(ValueError, match="quantity must be positive"):
         execution(trade, quantity=quantity)
+
+
+def test_execution_defaults_to_buy_for_ft009_compatibility() -> None:
+    trade = workspace_trade()
+
+    record = execution(trade)
+
+    assert record.side is ExecutionSide.BUY
+
+
+def test_execution_supports_sell_side_without_enabling_purchase_projection() -> None:
+    trade = workspace_trade()
+    sell = ExecutionRecord(
+        id=uuid4(),
+        trade_id=trade.id,
+        product_id=trade.product_id,
+        quantity=1,
+        price_per_unit=Decimal("5.00"),
+        executed_at=EXECUTED_AT,
+        recorded_at=RECORDED_AT,
+        recorded_by=uuid4(),
+        side=ExecutionSide.SELL,
+    )
+
+    assert sell.side is ExecutionSide.SELL
+
+    with pytest.raises(ValueError, match="initial position requires BUY execution"):
+        Position.from_execution(id=uuid4(), trade=trade, execution=sell)
 
 
 def test_execution_requires_positive_price() -> None:

@@ -7,7 +7,7 @@ from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
-from app.features.trade_position.domain.enums import TradeOrigin
+from app.features.trade_position.domain.enums import ExecutionSide, TradeOrigin
 
 
 @dataclass(frozen=True, slots=True)
@@ -50,6 +50,7 @@ class ExecutionRecord:
     executed_at: datetime
     recorded_at: datetime
     recorded_by: UUID
+    side: ExecutionSide = ExecutionSide.BUY
 
     def __post_init__(self) -> None:
         if self.quantity <= 0:
@@ -93,6 +94,8 @@ class Position:
         trade: Trade,
         execution: ExecutionRecord,
     ) -> Position:
+        if execution.side is not ExecutionSide.BUY:
+            raise ValueError("initial position requires BUY execution")
         if execution.trade_id != trade.id:
             raise ValueError("execution does not belong to trade")
         if execution.product_id != trade.product_id:
@@ -110,6 +113,8 @@ class Position:
         )
 
     def apply_purchase(self, execution: ExecutionRecord) -> Position:
+        if execution.side is not ExecutionSide.BUY:
+            raise ValueError("additional purchase requires BUY execution")
         if execution.trade_id != self.trade_id:
             raise ValueError("execution does not belong to position trade")
         if execution.product_id != self.product_id:

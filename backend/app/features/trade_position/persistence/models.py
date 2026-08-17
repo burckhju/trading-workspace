@@ -102,6 +102,10 @@ class ExecutionRecordModel(Base):
     __tablename__ = "execution_records"
     __table_args__ = (
         CheckConstraint(
+            "side IN ('BUY', 'SELL')",
+            name="side_valid",
+        ),
+        CheckConstraint(
             "quantity > 0",
             name="quantity_positive",
         ),
@@ -131,6 +135,7 @@ class ExecutionRecordModel(Base):
     trade_id: Mapped[UUID] = mapped_column(Uuid(), nullable=False)
     product_id: Mapped[UUID] = mapped_column(Uuid(), nullable=False)
 
+    side: Mapped[str] = mapped_column(String(16), nullable=False)
     quantity: Mapped[int] = mapped_column(Integer(), nullable=False)
     price_per_unit: Mapped[Decimal] = mapped_column(
         Numeric(24, 10),

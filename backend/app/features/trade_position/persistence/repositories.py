@@ -101,6 +101,7 @@ class SqlAlchemyExecutionRecordRepository:
                 id=execution.id,
                 trade_id=execution.trade_id,
                 product_id=execution.product_id,
+                side=execution.side.value,
                 quantity=execution.quantity,
                 price_per_unit=execution.price_per_unit,
                 executed_at=execution.executed_at,

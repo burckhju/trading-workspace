@@ -31,6 +31,7 @@ def test_trade_origin_provenance_is_protected_at_database_boundary() -> None:
 def test_execution_values_are_positive_at_database_boundary() -> None:
     names = _names(ExecutionRecordModel, CheckConstraint)
 
+    assert "ck_execution_records_side_valid" in names
     assert "ck_execution_records_quantity_positive" in names
     assert "ck_execution_records_price_positive" in names
     assert "ck_execution_records_recorded_not_before_executed" in names
