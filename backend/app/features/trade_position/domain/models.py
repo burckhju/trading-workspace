@@ -7,7 +7,11 @@ from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
-from app.features.trade_position.domain.enums import TradeOrigin
+from app.features.trade_position.domain.enums import (
+    ExecutionSide,
+    TradeManagementEventType,
+    TradeOrigin,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -50,6 +54,8 @@ class ExecutionRecord:
     executed_at: datetime
     recorded_at: datetime
     recorded_by: UUID
+    side: ExecutionSide = ExecutionSide.BUY
+    supersedes_execution_id: UUID | None = None
 
     def __post_init__(self) -> None:
         if self.quantity <= 0:
@@ -58,6 +64,8 @@ class ExecutionRecord:
             raise ValueError("price_per_unit must be positive")
         if self.recorded_at < self.executed_at:
             raise ValueError("recorded_at must not precede executed_at")
+        if self.supersedes_execution_id == self.id:
+            raise ValueError("execution must not supersede itself")
 
     @property
     def gross_amount(self) -> Decimal:
@@ -74,16 +82,31 @@ class Position:
     average_entry_price: Decimal
     opened_at: datetime
     last_execution_at: datetime
+    realized_gross_pnl: Decimal = Decimal("0")
+    closed_at: datetime | None = None
 
     def __post_init__(self) -> None:
-        if self.open_quantity <= 0:
-            raise ValueError("open_quantity must be positive")
-        if self.cost_basis <= 0:
-            raise ValueError("cost_basis must be positive")
+        if self.open_quantity < 0:
+            raise ValueError("open_quantity must not be negative")
+        if self.cost_basis < 0:
+            raise ValueError("cost_basis must not be negative")
         if self.average_entry_price <= 0:
             raise ValueError("average_entry_price must be positive")
         if self.last_execution_at < self.opened_at:
             raise ValueError("last_execution_at must not precede opened_at")
+        if self.open_quantity == 0 and self.cost_basis != 0:
+            raise ValueError("closed position must have zero cost_basis")
+        if self.open_quantity > 0 and self.cost_basis <= 0:
+            raise ValueError("open position requires positive cost_basis")
+        if self.closed_at is not None:
+            if self.open_quantity != 0:
+                raise ValueError("closed_at requires zero open_quantity")
+            if self.closed_at < self.opened_at:
+                raise ValueError("closed_at must not precede opened_at")
+
+    @property
+    def is_closed(self) -> bool:
+        return self.open_quantity == 0
 
     @classmethod
     def from_execution(
@@ -93,6 +116,8 @@ class Position:
         trade: Trade,
         execution: ExecutionRecord,
     ) -> Position:
+        if execution.side is not ExecutionSide.BUY:
+            raise ValueError("initial position requires BUY execution")
         if execution.trade_id != trade.id:
             raise ValueError("execution does not belong to trade")
         if execution.product_id != trade.product_id:
@@ -110,6 +135,8 @@ class Position:
         )
 
     def apply_purchase(self, execution: ExecutionRecord) -> Position:
+        if execution.side is not ExecutionSide.BUY:
+            raise ValueError("additional purchase requires BUY execution")
         if execution.trade_id != self.trade_id:
             raise ValueError("execution does not belong to position trade")
         if execution.product_id != self.product_id:
@@ -128,3 +155,36 @@ class Position:
             average_entry_price=new_average_entry_price,
             last_execution_at=execution.executed_at,
         )
+
+
+@dataclass(frozen=True, slots=True)
+class TradeManagementEvent:
+    id: UUID
+    trade_id: UUID
+    event_type: TradeManagementEventType
+    effective_at: datetime
+    recorded_at: datetime
+    recorded_by: UUID
+    numeric_value: Decimal | None = None
+    text_value: str | None = None
+    supersedes_event_id: UUID | None = None
+
+    def __post_init__(self) -> None:
+        if self.recorded_at < self.effective_at:
+            raise ValueError("recorded_at must not precede effective_at")
+        if self.supersedes_event_id == self.id:
+            raise ValueError("management event must not supersede itself")
+
+        if self.event_type in {
+            TradeManagementEventType.STOP_CHANGED,
+            TradeManagementEventType.TARGET_CHANGED,
+        }:
+            if self.numeric_value is None or self.numeric_value <= 0:
+                raise ValueError("price management event requires positive numeric_value")
+            if self.text_value is not None:
+                raise ValueError("price management event must not carry text_value")
+        else:
+            if self.text_value is None or not self.text_value.strip():
+                raise ValueError("text management event requires non-empty text_value")
+            if self.numeric_value is not None:
+                raise ValueError("text management event must not carry numeric_value")

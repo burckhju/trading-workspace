@@ -65,3 +65,91 @@ def test_ft009_migration_does_not_add_out_of_scope_order_fields() -> None:
         "tax",
     ):
         assert forbidden not in text
+
+
+FT010_MIGRATION = (
+    Path(__file__).parents[5] / "backend/migrations/versions/20260817_0015_ft010_execution_side.py"
+)
+
+
+def test_ft010_execution_side_migration_follows_ft009_head() -> None:
+    text = FT010_MIGRATION.read_text()
+
+    assert 'revision: str = "20260817_0015"' in text
+    assert 'down_revision: str | None = "20260817_0014"' in text
+
+
+def test_ft010_execution_side_migration_backfills_historical_rows_as_buy() -> None:
+    text = FT010_MIGRATION.read_text()
+
+    assert '"side"' in text
+    assert 'server_default="BUY"' in text
+    assert "side IN ('BUY', 'SELL')" in text
+    assert "server_default=None" in text
+
+
+FT010_SUPERSESSION_MIGRATION = (
+    Path(__file__).parents[5]
+    / "backend/migrations/versions/20260817_0016_ft010_execution_supersession.py"
+)
+
+
+def test_ft010_supersession_migration_follows_execution_side() -> None:
+    text = FT010_SUPERSESSION_MIGRATION.read_text()
+
+    assert 'revision: str = "20260817_0016"' in text
+    assert 'down_revision: str | None = "20260817_0015"' in text
+
+
+def test_ft010_supersession_migration_preserves_original_execution() -> None:
+    text = FT010_SUPERSESSION_MIGRATION.read_text()
+
+    assert '"supersedes_execution_id"' in text
+    assert '"fk_execution_records_supersedes"' in text
+    assert '"uq_execution_records_supersedes"' in text
+    assert 'ondelete="RESTRICT"' in text
+
+
+FT010_POSITION_PROJECTION_MIGRATION = (
+    Path(__file__).parents[5]
+    / "backend/migrations/versions/20260817_0017_ft010_position_projection.py"
+)
+
+
+def test_ft010_position_projection_migration_follows_supersession() -> None:
+    text = FT010_POSITION_PROJECTION_MIGRATION.read_text()
+
+    assert 'revision: str = "20260817_0017"' in text
+    assert 'down_revision: str | None = "20260817_0016"' in text
+
+
+def test_ft010_position_projection_migration_supports_closed_positions() -> None:
+    text = FT010_POSITION_PROJECTION_MIGRATION.read_text()
+
+    assert '"realized_gross_pnl"' in text
+    assert '"closed_at"' in text
+    assert '"open_quantity >= 0"' in text
+    assert '"cost_basis >= 0"' in text
+    assert "open_quantity = 0 AND cost_basis = 0" in text
+
+
+FT010_MANAGEMENT_EVENTS_MIGRATION = (
+    Path(__file__).parents[5]
+    / "backend/migrations/versions/20260817_0018_ft010_trade_management_events.py"
+)
+
+
+def test_ft010_management_events_migration_follows_position_projection() -> None:
+    text = FT010_MANAGEMENT_EVENTS_MIGRATION.read_text()
+    assert 'revision: str = "20260817_0018"' in text
+    assert 'down_revision: str | None = "20260817_0017"' in text
+
+
+def test_ft010_management_events_migration_keeps_execution_boundary_separate() -> None:
+    text = FT010_MANAGEMENT_EVENTS_MIGRATION.read_text()
+    assert '"trade_management_events"' in text
+    assert "STOP_CHANGED" in text
+    assert "TARGET_CHANGED" in text
+    assert "THESIS_UPDATED" in text
+    assert "MANAGEMENT_NOTE" in text
+    assert "SELL" not in text

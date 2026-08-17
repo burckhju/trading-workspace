@@ -31,16 +31,18 @@ def test_trade_origin_provenance_is_protected_at_database_boundary() -> None:
 def test_execution_values_are_positive_at_database_boundary() -> None:
     names = _names(ExecutionRecordModel, CheckConstraint)
 
+    assert "ck_execution_records_side_valid" in names
     assert "ck_execution_records_quantity_positive" in names
     assert "ck_execution_records_price_positive" in names
     assert "ck_execution_records_recorded_not_before_executed" in names
 
 
-def test_position_aggregates_are_positive_at_database_boundary() -> None:
+def test_position_projection_constraints_allow_closed_state() -> None:
     names = _names(PositionModel, CheckConstraint)
 
-    assert "ck_positions_open_quantity_positive" in names
-    assert "ck_positions_cost_basis_positive" in names
+    assert "ck_positions_open_quantity_non_negative" in names
+    assert "ck_positions_cost_basis_non_negative" in names
+    assert "ck_positions_position_state_consistent" in names
     assert "ck_positions_average_entry_price_positive" in names
     assert "ck_positions_last_execution_not_before_opened" in names
 
@@ -69,3 +71,16 @@ def test_historical_trade_references_use_foreign_keys() -> None:
     assert "fk_trades_trade_plan_version" in names
     assert "fk_trades_product_selection" in names
     assert "fk_trades_product_evaluation" in names
+
+
+def test_execution_supersession_relation_is_persisted() -> None:
+    assert "supersedes_execution_id" in ExecutionRecordModel.__table__.columns
+    foreign_keys = {fk.constraint.name for fk in ExecutionRecordModel.__table__.foreign_keys}
+    assert "fk_execution_records_supersedes" in foreign_keys
+    names = _names(ExecutionRecordModel, UniqueConstraint)
+    assert "uq_execution_records_supersedes" in names
+
+
+def test_position_projection_fields_are_persisted() -> None:
+    assert "realized_gross_pnl" in PositionModel.__table__.columns
+    assert "closed_at" in PositionModel.__table__.columns

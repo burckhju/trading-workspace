@@ -11,6 +11,7 @@ import {
   UnderlyingListPage,
   TradingVenueAdminPage,
 } from '../features/market/pages';
+import { TradeManagementPage } from '../features/trade/pages';
 import { TradePlanPage } from '../features/trade_plan/pages';
 import { WarrantAdminPage } from '../features/product/pages';
 import { ProductSelectionPage } from '../features/product_selection/pages';
@@ -27,6 +28,7 @@ export function createApplicationRouter() {
         { path: 'market-analyses', element: <MarketAnalysisPage /> },
         { path: 'candidates', element: <CandidatePage /> },
         { path: 'trade-plans', element: <TradePlanPage /> },
+        { path: 'trade-management', element: <TradeManagementPage /> },
         { path: 'product-selection', element: <ProductSelectionPage /> },
         { path: 'top-down-admin', element: <TopDownWorkflowActionPage /> },
         { path: 'trading-venues-admin', element: <TradingVenueAdminPage /> },

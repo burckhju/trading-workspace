@@ -6,7 +6,7 @@ from uuid import uuid4
 
 import pytest
 
-from app.features.trade_position.domain.enums import TradeOrigin
+from app.features.trade_position.domain.enums import ExecutionSide, TradeOrigin
 from app.features.trade_position.domain.models import ExecutionRecord, Position, Trade
 from app.features.trade_position.service.application import TradePositionService
 
@@ -21,11 +21,16 @@ class FakeUow:
         )
         self.executions = SimpleNamespace(
             add=AsyncMock(),
+            list_effective_for_trade=AsyncMock(return_value=[]),
         )
         self.positions = SimpleNamespace(
             add=AsyncMock(),
             get_for_trade=AsyncMock(),
             replace=AsyncMock(),
+        )
+        self.management_events = SimpleNamespace(
+            add=AsyncMock(),
+            list_for_trade=AsyncMock(return_value=[]),
         )
         self.commit = AsyncMock()
         self.rollback = AsyncMock()
@@ -148,6 +153,7 @@ async def test_record_additional_purchase_updates_existing_position() -> None:
 
     uow.trades.get.return_value = trade
     uow.positions.get_for_trade.return_value = position
+    uow.executions.list_effective_for_trade.return_value = [first]
 
     execution, updated = await service.record_additional_purchase(
         workspace_id=trade.workspace_id,
@@ -166,6 +172,7 @@ async def test_record_additional_purchase_updates_existing_position() -> None:
         trade.workspace_id,
         trade.id,
     )
+    uow.executions.list_effective_for_trade.assert_awaited_once_with(trade.id)
 
     assert execution.trade_id == trade.id
     assert execution.quantity == 200
@@ -364,4 +371,275 @@ async def test_initial_purchase_rejects_unknown_product_selection() -> None:
     uow.trades.add.assert_not_awaited()
     uow.executions.add.assert_not_awaited()
     uow.positions.add.assert_not_awaited()
+    uow.commit.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_record_sale_partial_exit_reprojects_position() -> None:
+    uow = FakeUow()
+    selections = FakeWorkspaceSelections()
+    service = TradePositionService(
+        uow=uow,
+        workspace_selections=selections,
+    )
+    actor = uuid4()
+    trade = Trade(
+        id=uuid4(),
+        workspace_id=selections.workspace_id,
+        product_id=selections.product_id,
+        origin=TradeOrigin.EXTERNAL,
+        created_at=NOW - timedelta(hours=1),
+        created_by=actor,
+    )
+    buy = ExecutionRecord(
+        id=uuid4(),
+        trade_id=trade.id,
+        product_id=trade.product_id,
+        quantity=100,
+        price_per_unit=Decimal("1.10"),
+        executed_at=NOW - timedelta(minutes=30),
+        recorded_at=NOW - timedelta(minutes=29),
+        recorded_by=actor,
+    )
+    position = Position.from_execution(id=uuid4(), trade=trade, execution=buy)
+    uow.trades.get.return_value = trade
+    uow.positions.get_for_trade.return_value = position
+    uow.executions.list_effective_for_trade.return_value = [buy]
+
+    execution, updated = await service.record_sale(
+        workspace_id=trade.workspace_id,
+        trade_id=trade.id,
+        quantity=40,
+        price_per_unit=Decimal("1.30"),
+        executed_at=NOW,
+        actor=actor,
+    )
+
+    assert execution.side is ExecutionSide.SELL
+    assert execution.quantity == 40
+    assert updated.open_quantity == 60
+    assert updated.cost_basis == Decimal("66.00")
+    assert updated.average_entry_price == Decimal("1.10")
+    assert updated.realized_gross_pnl == Decimal("8.00")
+    assert not updated.is_closed
+    uow.executions.add.assert_awaited_once_with(execution)
+    uow.positions.replace.assert_awaited_once_with(updated)
+    uow.commit.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_record_sale_full_exit_closes_position() -> None:
+    uow = FakeUow()
+    selections = FakeWorkspaceSelections()
+    service = TradePositionService(
+        uow=uow,
+        workspace_selections=selections,
+    )
+    actor = uuid4()
+    trade = Trade(
+        id=uuid4(),
+        workspace_id=selections.workspace_id,
+        product_id=selections.product_id,
+        origin=TradeOrigin.EXTERNAL,
+        created_at=NOW - timedelta(hours=1),
+        created_by=actor,
+    )
+    buy = ExecutionRecord(
+        id=uuid4(),
+        trade_id=trade.id,
+        product_id=trade.product_id,
+        quantity=100,
+        price_per_unit=Decimal("1.10"),
+        executed_at=NOW - timedelta(minutes=30),
+        recorded_at=NOW - timedelta(minutes=29),
+        recorded_by=actor,
+    )
+    position = Position.from_execution(id=uuid4(), trade=trade, execution=buy)
+    uow.trades.get.return_value = trade
+    uow.positions.get_for_trade.return_value = position
+    uow.executions.list_effective_for_trade.return_value = [buy]
+
+    execution, updated = await service.record_sale(
+        workspace_id=trade.workspace_id,
+        trade_id=trade.id,
+        quantity=100,
+        price_per_unit=Decimal("1.30"),
+        executed_at=NOW,
+        actor=actor,
+    )
+
+    assert execution.side is ExecutionSide.SELL
+    assert updated.open_quantity == 0
+    assert updated.cost_basis == Decimal("0")
+    assert updated.realized_gross_pnl == Decimal("20.00")
+    assert updated.is_closed
+    assert updated.closed_at == NOW
+
+
+@pytest.mark.asyncio
+async def test_record_sale_rejects_over_sell_without_persistence() -> None:
+    uow = FakeUow()
+    selections = FakeWorkspaceSelections()
+    service = TradePositionService(
+        uow=uow,
+        workspace_selections=selections,
+    )
+    actor = uuid4()
+    trade = Trade(
+        id=uuid4(),
+        workspace_id=selections.workspace_id,
+        product_id=selections.product_id,
+        origin=TradeOrigin.EXTERNAL,
+        created_at=NOW - timedelta(hours=1),
+        created_by=actor,
+    )
+    buy = ExecutionRecord(
+        id=uuid4(),
+        trade_id=trade.id,
+        product_id=trade.product_id,
+        quantity=10,
+        price_per_unit=Decimal("1.00"),
+        executed_at=NOW - timedelta(minutes=30),
+        recorded_at=NOW - timedelta(minutes=29),
+        recorded_by=actor,
+    )
+    position = Position.from_execution(id=uuid4(), trade=trade, execution=buy)
+    uow.trades.get.return_value = trade
+    uow.positions.get_for_trade.return_value = position
+    uow.executions.list_effective_for_trade.return_value = [buy]
+
+    with pytest.raises(ValueError, match="exceeds current open quantity"):
+        await service.record_sale(
+            workspace_id=trade.workspace_id,
+            trade_id=trade.id,
+            quantity=11,
+            price_per_unit=Decimal("1.20"),
+            executed_at=NOW,
+            actor=actor,
+        )
+
+    uow.executions.add.assert_not_awaited()
+    uow.positions.replace.assert_not_awaited()
+    uow.commit.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_record_sale_rejects_already_closed_trade() -> None:
+    uow = FakeUow()
+    selections = FakeWorkspaceSelections()
+    service = TradePositionService(
+        uow=uow,
+        workspace_selections=selections,
+    )
+    actor = uuid4()
+    trade = Trade(
+        id=uuid4(),
+        workspace_id=selections.workspace_id,
+        product_id=selections.product_id,
+        origin=TradeOrigin.EXTERNAL,
+        created_at=NOW - timedelta(hours=1),
+        created_by=actor,
+    )
+    position = Position(
+        id=uuid4(),
+        trade_id=trade.id,
+        product_id=trade.product_id,
+        open_quantity=0,
+        cost_basis=Decimal("0"),
+        average_entry_price=Decimal("1.00"),
+        opened_at=NOW - timedelta(hours=1),
+        last_execution_at=NOW - timedelta(minutes=1),
+        closed_at=NOW - timedelta(minutes=1),
+    )
+    uow.trades.get.return_value = trade
+    uow.positions.get_for_trade.return_value = position
+
+    with pytest.raises(ValueError, match="already closed"):
+        await service.record_sale(
+            workspace_id=trade.workspace_id,
+            trade_id=trade.id,
+            quantity=1,
+            price_per_unit=Decimal("1.20"),
+            executed_at=NOW,
+            actor=actor,
+        )
+
+    uow.executions.list_effective_for_trade.assert_not_awaited()
+    uow.executions.add.assert_not_awaited()
+    uow.positions.replace.assert_not_awaited()
+    uow.commit.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_record_sale_rejects_unknown_trade() -> None:
+    uow = FakeUow()
+    selections = FakeWorkspaceSelections()
+    service = TradePositionService(
+        uow=uow,
+        workspace_selections=selections,
+    )
+    uow.trades.get.return_value = None
+
+    with pytest.raises(ValueError, match="trade not found"):
+        await service.record_sale(
+            workspace_id=selections.workspace_id,
+            trade_id=uuid4(),
+            quantity=1,
+            price_per_unit=Decimal("1.20"),
+            executed_at=NOW,
+            actor=uuid4(),
+        )
+
+    uow.positions.get_for_trade.assert_not_awaited()
+    uow.executions.add.assert_not_awaited()
+    uow.commit.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_record_sale_fails_closed_without_effective_history() -> None:
+    uow = FakeUow()
+    selections = FakeWorkspaceSelections()
+    service = TradePositionService(
+        uow=uow,
+        workspace_selections=selections,
+    )
+    actor = uuid4()
+    trade = Trade(
+        id=uuid4(),
+        workspace_id=selections.workspace_id,
+        product_id=selections.product_id,
+        origin=TradeOrigin.EXTERNAL,
+        created_at=NOW - timedelta(hours=1),
+        created_by=actor,
+    )
+    buy = ExecutionRecord(
+        id=uuid4(),
+        trade_id=trade.id,
+        product_id=trade.product_id,
+        quantity=10,
+        price_per_unit=Decimal("1.00"),
+        executed_at=NOW - timedelta(minutes=30),
+        recorded_at=NOW - timedelta(minutes=29),
+        recorded_by=actor,
+    )
+    uow.trades.get.return_value = trade
+    uow.positions.get_for_trade.return_value = Position.from_execution(
+        id=uuid4(),
+        trade=trade,
+        execution=buy,
+    )
+    uow.executions.list_effective_for_trade.return_value = []
+
+    with pytest.raises(ValueError, match="effective execution history not found"):
+        await service.record_sale(
+            workspace_id=trade.workspace_id,
+            trade_id=trade.id,
+            quantity=1,
+            price_per_unit=Decimal("1.20"),
+            executed_at=NOW,
+            actor=actor,
+        )
+
+    uow.executions.add.assert_not_awaited()
+    uow.positions.replace.assert_not_awaited()
     uow.commit.assert_not_awaited()

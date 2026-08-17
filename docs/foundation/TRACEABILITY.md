@@ -295,3 +295,26 @@ Anforderung → Entscheidung → Implementierung → Test → Abnahme
 | Release document | `docs/releases/V1.1.0-TRADE-POSITION.md` |
 | Implementation merge | `1f98a4a2f4568dbe3e1352c0ae5e5e0c93034c2a` |
 | Sprint 9 closeout merge | `3d78e60f3cf89354c195b400c9ecf70f8c126f5f` |
+
+## FT-010 / Sprint 10 Trade Management Traceability
+
+| Requirement / decision | Implementation evidence | Verification |
+|---|---|---|
+| BUY/SELL execution evolution | `trade_position/domain/enums.py`, models, migration `20260817_0015` | domain/migration tests |
+| Effective immutable execution history | execution supersession + effective repository query, migration `20260817_0016` | repository/correction tests |
+| Deterministic Position / Average Cost / gross P&L | `domain/projector.py`, migration `20260817_0017` | projector/application tests |
+| Partial/full LONG exit | `TradePositionService.record_sale()` | unit, REST, integration, browser E2E |
+| Immutable management decisions | `TradeManagementEvent`, migration `20260817_0018` | management/migration tests |
+| Corrections preserve audit history | execution and management correction commands | correction/integration tests |
+| No duplicate sale truth | `domain/timeline.py` | timeline/REST/integration tests |
+| FT-011 only after full exit | `ft011_eligibility()` | unit/REST/integration tests |
+| Provider-independent historical sale capture | sale application boundary has no provider/broker dependency | integration + Playwright request contract |
+| Frontend active-trade workflow | `frontend/src/features/trade/` | Vitest + Playwright |
+
+Detailed mapping: `docs/implementation/SPRINT_10_FT010_IMPLEMENTATION_TRACEABILITY.md`.
+
+Architecture review: `docs/implementation/SPRINT_10_ARCHITECTURE_REVIEW.md`.
+
+Technical closeout: `docs/implementation/SPRINT_10_TECHNICAL_CLOSEOUT.md`.
+
+Release readiness: `docs/implementation/SPRINT_10_FT010_RELEASE_READINESS.md`.
