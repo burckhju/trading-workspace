@@ -16,7 +16,6 @@ from app.features.trade_position.api.router import (
 from app.features.trade_position.domain.enums import TradeOrigin
 from app.features.trade_position.domain.models import ExecutionRecord, Position, Trade
 
-
 NOW = datetime(2026, 8, 17, 8, 0, tzinfo=UTC)
 
 
@@ -44,15 +43,11 @@ def _initial_result(
         created_at=NOW,
         created_by=actor,
         trade_plan_id=uuid4() if origin is TradeOrigin.WORKSPACE_SELECTION else None,
-        trade_plan_version_id=uuid4()
-        if origin is TradeOrigin.WORKSPACE_SELECTION
-        else None,
-        product_selection_id=product_selection_id
-        if origin is TradeOrigin.WORKSPACE_SELECTION
-        else None,
-        product_evaluation_id=uuid4()
-        if origin is TradeOrigin.WORKSPACE_SELECTION
-        else None,
+        trade_plan_version_id=(uuid4() if origin is TradeOrigin.WORKSPACE_SELECTION else None),
+        product_selection_id=(
+            product_selection_id if origin is TradeOrigin.WORKSPACE_SELECTION else None
+        ),
+        product_evaluation_id=(uuid4() if origin is TradeOrigin.WORKSPACE_SELECTION else None),
     )
 
     execution = ExecutionRecord(
@@ -174,7 +169,7 @@ def test_external_purchase_returns_created_trade_execution_and_position() -> Non
 def test_additional_purchase_uses_trade_identity_from_path() -> None:
     service = FakeService()
 
-    trade, first, position = _initial_result(
+    trade, _first, position = _initial_result(
         origin=TradeOrigin.EXTERNAL,
     )
     second = ExecutionRecord(
@@ -281,9 +276,7 @@ def test_executed_at_is_optional_and_defaults_to_current_time() -> None:
 
 def test_unknown_product_selection_is_translated_to_404() -> None:
     service = FakeService()
-    service.record_initial_purchase.side_effect = ValueError(
-        "product selection not found"
-    )
+    service.record_initial_purchase.side_effect = ValueError("product selection not found")
 
     client = TestClient(_app(service))
 

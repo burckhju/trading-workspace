@@ -9,6 +9,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.features.product.persistence.models import WarrantModel
 from app.features.product.service.errors import WarrantNotFound
 from app.features.product_selection.persistence.models import (
     ProductEvaluationModel,
@@ -38,7 +39,7 @@ class WarrantReader(Protocol):
         self,
         workspace_id: UUID,
         warrant_id: UUID,
-    ): ...
+    ) -> WarrantModel: ...
 
 
 class SqlAlchemyWorkspaceSelectionResolver:

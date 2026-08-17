@@ -18,7 +18,6 @@ from app.features.trade_position.persistence.repositories import (
     SqlAlchemyTradeRepository,
 )
 
-
 NOW = datetime(2026, 8, 17, 8, 0, tzinfo=UTC)
 
 

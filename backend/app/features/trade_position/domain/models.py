@@ -34,16 +34,10 @@ class Trade:
         if self.origin is TradeOrigin.WORKSPACE_SELECTION and any(
             value is None for value in provenance
         ):
-            raise ValueError(
-                "workspace trade requires product selection provenance"
-            )
+            raise ValueError("workspace trade requires product selection provenance")
 
-        if self.origin is TradeOrigin.EXTERNAL and any(
-            value is not None for value in provenance
-        ):
-            raise ValueError(
-                "external trade must not carry product selection provenance"
-            )
+        if self.origin is TradeOrigin.EXTERNAL and any(value is not None for value in provenance):
+            raise ValueError("external trade must not carry product selection provenance")
 
 
 @dataclass(frozen=True, slots=True)
@@ -121,9 +115,7 @@ class Position:
         if execution.product_id != self.product_id:
             raise ValueError("execution product does not match position")
         if execution.executed_at < self.last_execution_at:
-            raise ValueError(
-                "execution time must not precede position execution history"
-            )
+            raise ValueError("execution time must not precede position execution history")
 
         new_quantity = self.open_quantity + execution.quantity
         new_cost_basis = self.cost_basis + execution.gross_amount

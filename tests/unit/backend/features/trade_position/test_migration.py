@@ -1,6 +1,5 @@
 from pathlib import Path
 
-
 MIGRATION = (
     Path(__file__).parents[5]
     / "backend/migrations/versions/20260817_0014_ft009_trade_position_persistence.py"

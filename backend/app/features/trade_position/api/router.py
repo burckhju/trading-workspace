@@ -20,7 +20,6 @@ from app.features.trade_position.api.dtos import (
 from app.features.trade_position.domain.models import ExecutionRecord, Position, Trade
 from app.features.trade_position.service.application import TradePositionService
 
-
 router = APIRouter(
     prefix="/api/v1/trade-position",
     tags=["trade-position"],

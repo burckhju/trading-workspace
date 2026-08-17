@@ -1,12 +1,11 @@
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 import pytest
 
 from app.features.trade_position.domain.enums import TradeOrigin
 from app.features.trade_position.domain.models import ExecutionRecord, Position, Trade
-
 
 EXECUTED_AT = datetime(2026, 8, 17, 8, 0, tzinfo=UTC)
 RECORDED_AT = datetime(2026, 8, 17, 8, 1, tzinfo=UTC)

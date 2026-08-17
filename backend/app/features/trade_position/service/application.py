@@ -9,6 +9,11 @@ from uuid import UUID, uuid4
 
 from app.features.trade_position.domain.enums import TradeOrigin
 from app.features.trade_position.domain.models import ExecutionRecord, Position, Trade
+from app.features.trade_position.persistence.unit_of_work import TradePositionUnitOfWork
+from app.features.trade_position.service.resolvers import (
+    ResolvedProduct,
+    ResolvedWorkspaceSelection,
+)
 
 
 class WorkspaceSelectionResolver(Protocol):
@@ -16,7 +21,7 @@ class WorkspaceSelectionResolver(Protocol):
         self,
         workspace_id: UUID,
         product_selection_id: UUID,
-    ): ...
+    ) -> ResolvedWorkspaceSelection | None: ...
 
 
 class ProductResolver(Protocol):
@@ -24,14 +29,14 @@ class ProductResolver(Protocol):
         self,
         workspace_id: UUID,
         product_id: UUID,
-    ): ...
+    ) -> ResolvedProduct | None: ...
 
 
 class TradePositionService:
     def __init__(
         self,
         *,
-        uow,
+        uow: TradePositionUnitOfWork,
         workspace_selections: WorkspaceSelectionResolver,
         products: ProductResolver | None = None,
     ) -> None:

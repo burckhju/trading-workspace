@@ -10,7 +10,6 @@ from app.features.trade_position.domain.enums import TradeOrigin
 from app.features.trade_position.domain.models import ExecutionRecord, Position, Trade
 from app.features.trade_position.service.application import TradePositionService
 
-
 NOW = datetime(2026, 8, 17, 8, 0, tzinfo=UTC)
 
 
@@ -175,9 +174,7 @@ async def test_record_additional_purchase_updates_existing_position() -> None:
     assert updated.id == position.id
     assert updated.open_quantity == 600
     assert updated.cost_basis == Decimal("1532.00")
-    assert updated.average_entry_price == Decimal(
-        "2.553333333333333333333333333"
-    )
+    assert updated.average_entry_price == Decimal("2.553333333333333333333333333")
 
     uow.executions.add.assert_awaited_once_with(execution)
     uow.positions.replace.assert_awaited_once_with(updated)
