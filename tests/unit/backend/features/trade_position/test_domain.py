@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from uuid import UUID, uuid4
 
@@ -44,8 +44,10 @@ def execution(
     quantity: int = 10,
     price: str = "5.00",
     executed_at: datetime = EXECUTED_AT,
-    recorded_at: datetime = RECORDED_AT,
+    recorded_at: datetime | None = None,
 ) -> ExecutionRecord:
+    effective_recorded_at = recorded_at or executed_at + timedelta(minutes=1)
+
     return ExecutionRecord(
         id=uuid4(),
         trade_id=trade.id,
@@ -53,7 +55,7 @@ def execution(
         quantity=quantity,
         price_per_unit=Decimal(price),
         executed_at=executed_at,
-        recorded_at=recorded_at,
+        recorded_at=effective_recorded_at,
         recorded_by=uuid4(),
     )
 
@@ -245,3 +247,60 @@ def test_additional_purchase_cannot_precede_position_history() -> None:
 
     with pytest.raises(ValueError, match="execution time must not precede"):
         position.apply_purchase(earlier)
+
+
+def test_execution_cannot_be_recorded_before_execution() -> None:
+    trade = workspace_trade()
+
+    with pytest.raises(ValueError, match="recorded_at must not precede executed_at"):
+        execution(
+            trade,
+            executed_at=datetime(2026, 8, 17, 10, 0, tzinfo=UTC),
+            recorded_at=datetime(2026, 8, 17, 9, 59, tzinfo=UTC),
+        )
+
+
+@pytest.mark.parametrize(
+    ("open_quantity", "cost_basis", "average_entry_price"),
+    [
+        (0, Decimal("1.00"), Decimal("1.00")),
+        (-1, Decimal("1.00"), Decimal("1.00")),
+        (1, Decimal("0"), Decimal("1.00")),
+        (1, Decimal("-1.00"), Decimal("1.00")),
+        (1, Decimal("1.00"), Decimal("0")),
+        (1, Decimal("1.00"), Decimal("-1.00")),
+    ],
+)
+def test_position_requires_positive_aggregates(
+    open_quantity: int,
+    cost_basis: Decimal,
+    average_entry_price: Decimal,
+) -> None:
+    with pytest.raises(ValueError):
+        Position(
+            id=uuid4(),
+            trade_id=uuid4(),
+            product_id=uuid4(),
+            open_quantity=open_quantity,
+            cost_basis=cost_basis,
+            average_entry_price=average_entry_price,
+            opened_at=EXECUTED_AT,
+            last_execution_at=EXECUTED_AT,
+        )
+
+
+def test_position_last_execution_must_not_precede_opening() -> None:
+    with pytest.raises(
+        ValueError,
+        match="last_execution_at must not precede opened_at",
+    ):
+        Position(
+            id=uuid4(),
+            trade_id=uuid4(),
+            product_id=uuid4(),
+            open_quantity=1,
+            cost_basis=Decimal("1.00"),
+            average_entry_price=Decimal("1.00"),
+            opened_at=datetime(2026, 8, 17, 10, 0, tzinfo=UTC),
+            last_execution_at=datetime(2026, 8, 17, 9, 0, tzinfo=UTC),
+        )

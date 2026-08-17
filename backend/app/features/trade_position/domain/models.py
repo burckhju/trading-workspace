@@ -62,6 +62,8 @@ class ExecutionRecord:
             raise ValueError("quantity must be positive")
         if self.price_per_unit <= 0:
             raise ValueError("price_per_unit must be positive")
+        if self.recorded_at < self.executed_at:
+            raise ValueError("recorded_at must not precede executed_at")
 
     @property
     def gross_amount(self) -> Decimal:
@@ -78,6 +80,16 @@ class Position:
     average_entry_price: Decimal
     opened_at: datetime
     last_execution_at: datetime
+
+    def __post_init__(self) -> None:
+        if self.open_quantity <= 0:
+            raise ValueError("open_quantity must be positive")
+        if self.cost_basis <= 0:
+            raise ValueError("cost_basis must be positive")
+        if self.average_entry_price <= 0:
+            raise ValueError("average_entry_price must be positive")
+        if self.last_execution_at < self.opened_at:
+            raise ValueError("last_execution_at must not precede opened_at")
 
     @classmethod
     def from_execution(
