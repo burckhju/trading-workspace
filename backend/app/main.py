@@ -21,6 +21,7 @@ from app.features.market_data.api import router as market_data_router
 from app.features.product.api import router as product_router
 from app.features.product_selection.api import router as product_selection_router
 from app.features.trade_plan.api import router as trade_plan_router
+from app.features.trade_position.api import router as trade_position_router
 from app.features.user_preferences.api.router import router as user_preferences_router
 
 logger = logging.getLogger(__name__)
@@ -72,6 +73,7 @@ def create_application(settings: Settings | None = None) -> FastAPI:
     application.include_router(analysis_router)
     application.include_router(candidate_router)
     application.include_router(trade_plan_router)
+    application.include_router(trade_position_router)
     application.include_router(user_preferences_router)
 
     @application.get(
