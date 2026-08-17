@@ -51,8 +51,6 @@ class ExecutionRecordRepository(Protocol):
     ) -> list[ExecutionRecord]: ...
 
 
-
-
 class TradeManagementEventRepository(Protocol):
     async def add(self, event: TradeManagementEvent) -> None: ...
 
@@ -144,7 +142,6 @@ class SqlAlchemyExecutionRecordRepository:
             )
         )
 
-
     async def list_for_trade(
         self,
         trade_id: UUID,
@@ -175,10 +172,7 @@ class SqlAlchemyExecutionRecordRepository:
                     ~exists(
                         select(1)
                         .select_from(replacement)
-                        .where(
-                            replacement.c.supersedes_execution_id
-                            == ExecutionRecordModel.id
-                        )
+                        .where(replacement.c.supersedes_execution_id == ExecutionRecordModel.id)
                     ),
                 )
                 .order_by(
@@ -265,10 +259,7 @@ class SqlAlchemyTradeManagementEventRepository:
                     ~exists(
                         select(1)
                         .select_from(replacement)
-                        .where(
-                            replacement.c.supersedes_event_id
-                            == TradeManagementEventModel.id
-                        )
+                        .where(replacement.c.supersedes_event_id == TradeManagementEventModel.id)
                     ),
                 )
                 .order_by(

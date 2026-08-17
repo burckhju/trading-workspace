@@ -285,7 +285,6 @@ class TradePositionService:
 
         return execution, updated
 
-
     async def record_management_event(
         self,
         *,
@@ -471,10 +470,7 @@ class TradePositionService:
                 item
                 for item in history
                 if item.id != target.id
-                and not any(
-                    candidate.supersedes_execution_id == item.id
-                    for candidate in history
-                )
+                and not any(candidate.supersedes_execution_id == item.id for candidate in history)
             ]
             updated = PositionProjector.project(
                 id=position.id,

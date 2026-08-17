@@ -176,8 +176,7 @@ class PositionModel(Base):
             name="cost_basis_non_negative",
         ),
         CheckConstraint(
-            "(open_quantity = 0 AND cost_basis = 0) OR "
-            "(open_quantity > 0 AND cost_basis > 0)",
+            "(open_quantity = 0 AND cost_basis = 0) OR " "(open_quantity > 0 AND cost_basis > 0)",
             name="position_state_consistent",
         ),
         CheckConstraint(

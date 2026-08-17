@@ -75,10 +75,7 @@ def test_historical_trade_references_use_foreign_keys() -> None:
 
 def test_execution_supersession_relation_is_persisted() -> None:
     assert "supersedes_execution_id" in ExecutionRecordModel.__table__.columns
-    foreign_keys = {
-        fk.constraint.name
-        for fk in ExecutionRecordModel.__table__.foreign_keys
-    }
+    foreign_keys = {fk.constraint.name for fk in ExecutionRecordModel.__table__.foreign_keys}
     assert "fk_execution_records_supersedes" in foreign_keys
     names = _names(ExecutionRecordModel, UniqueConstraint)
     assert "uq_execution_records_supersedes" in names

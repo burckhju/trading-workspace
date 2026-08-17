@@ -88,7 +88,6 @@ def _position(value: Position) -> PositionResponse:
     )
 
 
-
 def _management_event(value: TradeManagementEvent) -> TradeManagementEventResponse:
     return TradeManagementEventResponse(
         id=value.id,
@@ -111,7 +110,6 @@ def _management_state(value: TradeManagementState) -> TradeManagementStateRespon
         notes=value.notes,
         last_event_at=value.last_event_at,
     )
-
 
 
 def _timeline_entry(value: TradeTimelineEntry) -> TradeTimelineEntryResponse:
@@ -247,6 +245,7 @@ async def record_additional_purchase(
         execution=_execution(execution),
         position=_position(position),
     )
+
 
 @router.post(
     "/trades/{trade_id}/sales",
@@ -407,6 +406,7 @@ async def get_position(
     except ValueError as error:
         raise _translate(error) from error
     return _position(position)
+
 
 @router.post(
     "/trades/{trade_id}/executions/{execution_id}/corrections",

@@ -69,15 +69,11 @@ def _initial_result(
         created_at=NOW,
         created_by=actor,
         trade_plan_id=uuid4() if origin is TradeOrigin.WORKSPACE_SELECTION else None,
-        trade_plan_version_id=(
-            uuid4() if origin is TradeOrigin.WORKSPACE_SELECTION else None
-        ),
+        trade_plan_version_id=(uuid4() if origin is TradeOrigin.WORKSPACE_SELECTION else None),
         product_selection_id=(
             product_selection_id if origin is TradeOrigin.WORKSPACE_SELECTION else None
         ),
-        product_evaluation_id=(
-            uuid4() if origin is TradeOrigin.WORKSPACE_SELECTION else None
-        ),
+        product_evaluation_id=(uuid4() if origin is TradeOrigin.WORKSPACE_SELECTION else None),
     )
 
     execution = ExecutionRecord(
@@ -306,9 +302,7 @@ def test_executed_at_is_optional_and_defaults_to_current_time() -> None:
 
 def test_unknown_product_selection_is_translated_to_404() -> None:
     service = FakeService()
-    service.record_initial_purchase.side_effect = ValueError(
-        "product selection not found"
-    )
+    service.record_initial_purchase.side_effect = ValueError("product selection not found")
 
     client = TestClient(_app(service))
 
@@ -406,17 +400,13 @@ def test_sale_full_exit_exposes_closed_position() -> None:
 
     assert response.status_code == 201
     assert response.json()["position"]["is_closed"] is True
-    assert response.json()["position"]["closed_at"] == NOW.isoformat().replace(
-        "+00:00", "Z"
-    )
+    assert response.json()["position"]["closed_at"] == NOW.isoformat().replace("+00:00", "Z")
 
 
 def test_sale_domain_validation_translates_to_422() -> None:
     service = FakeService()
     trade_id = uuid4()
-    service.record_sale.side_effect = ValueError(
-        "SELL quantity exceeds current open quantity"
-    )
+    service.record_sale.side_effect = ValueError("SELL quantity exceeds current open quantity")
     client = TestClient(_app(service))
 
     response = client.post(

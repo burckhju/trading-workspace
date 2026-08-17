@@ -68,8 +68,7 @@ def test_ft009_migration_does_not_add_out_of_scope_order_fields() -> None:
 
 
 FT010_MIGRATION = (
-    Path(__file__).parents[5]
-    / "backend/migrations/versions/20260817_0015_ft010_execution_side.py"
+    Path(__file__).parents[5] / "backend/migrations/versions/20260817_0015_ft010_execution_side.py"
 )
 
 
@@ -86,7 +85,7 @@ def test_ft010_execution_side_migration_backfills_historical_rows_as_buy() -> No
     assert '"side"' in text
     assert 'server_default="BUY"' in text
     assert "side IN ('BUY', 'SELL')" in text
-    assert 'server_default=None' in text
+    assert "server_default=None" in text
 
 
 FT010_SUPERSESSION_MIGRATION = (

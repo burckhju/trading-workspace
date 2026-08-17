@@ -73,9 +73,7 @@ def _execution(
     )
 
 
-def _uow(
-    trade: Trade, position: Position, history: list[ExecutionRecord]
-) -> SimpleNamespace:
+def _uow(trade: Trade, position: Position, history: list[ExecutionRecord]) -> SimpleNamespace:
     return SimpleNamespace(
         trades=SimpleNamespace(get=AsyncMock(return_value=trade)),
         positions=SimpleNamespace(
@@ -127,9 +125,7 @@ async def test_execution_correction_replaces_fact_and_reprojects_position() -> N
 
 
 @pytest.mark.asyncio
-async def test_execution_correction_rebuilds_realized_pnl_from_effective_history() -> (
-    None
-):
+async def test_execution_correction_rebuilds_realized_pnl_from_effective_history() -> None:
     trade = _trade()
     buy = _execution(trade, quantity=100, price="1.00")
     sale = _execution(
@@ -241,9 +237,7 @@ async def test_management_event_correction_preserves_original_event_type() -> No
 
 
 @pytest.mark.asyncio
-async def test_timeline_composes_execution_and_management_facts_without_sale_duplication() -> (
-    None
-):
+async def test_timeline_composes_execution_and_management_facts_without_sale_duplication() -> None:
     trade = _trade()
     buy = _execution(trade)
     sale = _execution(
