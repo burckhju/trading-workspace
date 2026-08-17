@@ -71,7 +71,11 @@ class MemoryUow:
 
     async def _list_effective_executions(self, trade_id):
         rows = await self._list_executions(trade_id)
-        superseded = {item.supersedes_execution_id for item in rows if item.supersedes_execution_id}
+        superseded = {
+            item.supersedes_execution_id
+            for item in rows
+            if item.supersedes_execution_id
+        }
         return [item for item in rows if item.id not in superseded]
 
     async def _add_management_event(self, event) -> None:
@@ -82,12 +86,16 @@ class MemoryUow:
 
     async def _list_effective_management_events(self, trade_id):
         rows = await self._list_management_events(trade_id)
-        superseded = {item.supersedes_event_id for item in rows if item.supersedes_event_id}
+        superseded = {
+            item.supersedes_event_id for item in rows if item.supersedes_event_id
+        }
         return [item for item in rows if item.id not in superseded]
 
 
 @pytest.mark.asyncio
-async def test_ft010_historical_sale_correction_timeline_and_ft011_handoff_without_provider() -> None:
+async def test_ft010_historical_sale_correction_timeline_and_ft011_handoff_without_provider() -> (
+    None
+):
     trade = Trade(
         id=uuid4(),
         workspace_id=uuid4(),
@@ -138,10 +146,12 @@ async def test_ft010_historical_sale_correction_timeline_and_ft011_handoff_witho
     )
     assert partial_position.open_quantity == 60
     assert partial_position.realized_gross_pnl == Decimal("20.00")
-    assert (await service.get_ft011_eligibility(
-        workspace_id=trade.workspace_id,
-        trade_id=trade.id,
-    )).eligible is False
+    assert (
+        await service.get_ft011_eligibility(
+            workspace_id=trade.workspace_id,
+            trade_id=trade.id,
+        )
+    ).eligible is False
 
     corrected_sale, corrected_position = await service.correct_execution(
         workspace_id=trade.workspace_id,
@@ -168,7 +178,9 @@ async def test_ft010_historical_sale_correction_timeline_and_ft011_handoff_witho
         workspace_id=trade.workspace_id,
         trade_id=trade.id,
     )
-    sell_entries = [item for item in timeline if item.execution_side is ExecutionSide.SELL]
+    sell_entries = [
+        item for item in timeline if item.execution_side is ExecutionSide.SELL
+    ]
     assert len(sell_entries) == 2  # original audit fact + immutable correction
     assert all(item.management_event_type is None for item in sell_entries)
 
@@ -182,7 +194,9 @@ async def test_ft010_historical_sale_correction_timeline_and_ft011_handoff_witho
     )
     assert closed.is_closed
     assert closed.open_quantity == 0
-    assert (await service.get_ft011_eligibility(
-        workspace_id=trade.workspace_id,
-        trade_id=trade.id,
-    )).eligible is True
+    assert (
+        await service.get_ft011_eligibility(
+            workspace_id=trade.workspace_id,
+            trade_id=trade.id,
+        )
+    ).eligible is True
