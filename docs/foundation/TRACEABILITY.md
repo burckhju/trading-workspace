@@ -266,3 +266,23 @@ Anforderung → Entscheidung → Implementierung → Test → Abnahme
 | Optional pre-execution support | ADR-S9-006 |
 | V1 rules and non-scope | `docs/implementation/SPRINT_9_FT009_RULE_CATALOG.md` |
 | Definition of Ready | `docs/reviews/SPRINT_9_DEFINITION_OF_READY.md` |
+
+### Sprint 9 / FT-009 implementation evidence
+
+| Capability / decision | Implementation evidence |
+|---|---|
+| Trade / ExecutionRecord / Position separation | `backend/app/features/trade_position/domain/models.py` |
+| Workspace-guided purchase origin | `backend/app/features/trade_position/service/application.py`, `service/resolvers.py` |
+| External purchase origin | `backend/app/features/trade_position/service/application.py`, FT-004 Warrant consumer resolver |
+| Initial purchase capture | `TradePositionService.record_initial_purchase()` |
+| Additional purchase / Nachkauf | `TradePositionService.record_additional_purchase()` |
+| Immutable execution history | `ExecutionRecord`, append-only execution repository path |
+| Derived open position | `Position.from_execution()`, `Position.apply_purchase()` |
+| Persistence boundary | Alembic `20260817_0014`, `trades`, `execution_records`, `positions` |
+| Transaction boundary | `SqlAlchemyTradePositionUnitOfWork` |
+| REST command API | `/api/v1/trade-position/...` |
+| Local FT-009 verification | 64 tests passed |
+| CI verification | PR #18: Backend quality, End-to-End smoke and Frontend quality passed |
+| Delivery | Merge commit `1f98a4a2f4568dbe3e1352c0ae5e5e0c93034c2a` |
+| Technical closeout | `docs/implementation/SPRINT_9_TECHNICAL_CLOSEOUT.md` |
+| Release readiness | `docs/implementation/SPRINT_9_FT009_RELEASE_READINESS.md` |
