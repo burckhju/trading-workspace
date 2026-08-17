@@ -1,0 +1,1 @@
+export { TradeManagementPage } from './TradeManagementPage';
