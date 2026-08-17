@@ -6,7 +6,7 @@ FT-010 – Trade Management
 
 ## Readiness assessment
 
-**READY FOR IMPLEMENTATION PR**
+**READY FOR RELEASE TAG**
 
 FT-010 satisfies the approved local implementation, architecture and verification gates for Sprint 10 V1.
 
@@ -97,6 +97,8 @@ Before calling FT-010 released:
 
 ## Decision
 
-FT-010 is **READY FOR IMPLEMENTATION PR**.
+FT-010 is **READY FOR RELEASE TAG**.
 
-It is not yet marked released.
+Implementation PR #22 has been merged to `main` at `18fe1df90e4f63529867fc32b5b6441d90738ff4`, and the protected Backend, Frontend and End-to-End checks passed.
+
+FT-010 is not yet marked released because the post-merge closeout and annotated tag `v1.2.0-trade-management` are still pending.
