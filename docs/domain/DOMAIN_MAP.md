@@ -52,10 +52,12 @@ Verantwortet stabile fachliche Referenzobjekte.
 
 ### Execution and Position
 
-- Trade
-- Position
-- Execution Record
-- Trade Event
+- Trade – stabile Identität des realen Handelsfalls
+- Execution Record – immutable tatsächliche Ausführung; Sprint 9 V1: PURCHASE
+- Position – aus wirksamen ExecutionRecords abgeleiteter Bestand
+- Trade Event – spätere Trade-Management-Historie
+
+Für Sprint 9 V1 gilt: `1 Trade -> 1 Position -> 1..n PURCHASE ExecutionRecords`. Verkauf und Trade Management bleiben FT-010-Scope.
 
 ### Post Trade Learning
 

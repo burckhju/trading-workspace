@@ -33,7 +33,7 @@ Dieses Dokument ist die zentrale Zuordnung zwischen Roadmap-Meilensteinen, fachl
 | FT-006 | Marktanalyse | Market Discovery | M2 | Markt- und Basiswertanalysen nachvollziehbar dokumentieren | FT-001, FT-003, Governance |
 | FT-007 | TradePlan | Trade Preparation | M3 | produktneutralen LONG-TradePlan versioniert planen und konkrete Version explizit freigeben | FT-001; FT-005/FT-006 optional als Candidate-Ursprung |
 | FT-008 | Produktauswahl | Product Selection | M4 | Optionsscheine vergleichen und Benutzerwahl dokumentieren | FT-004, FT-007, Governance |
-| FT-009 | Trade und Position | Execution Record | M5 | Kauf, Position, Verkauf und Trade-Lebenszyklus erfassen | FT-007, FT-008 |
+| FT-009 | Trade und Position / Purchase Execution Capture | Execution Record | M5 | Tatsächliche Erst- und Nachkäufe low-input erfassen und daraus die offene Position ableiten; kein Verkauf/Trade-Management in V1 | FT-004, FT-007, FT-008 |
 | FT-010 | Trade Management | Trade Management | M5 | Stops, Teilverkäufe, Produktwechsel und Events dokumentieren | FT-009 |
 | FT-011 | Nachbeobachtung und Exit Review | Post Trade Learning | M6 | geschlossene Trades virtuell weiterverfolgen und Ausstieg bewerten | FT-009, FT-010 |
 | FT-012 | Journal, Lessons Learned und Performance | Evaluation | M7/M8 | Entscheidungen, Regelabweichungen und Ergebnisse auswerten | FT-009–FT-011 |
@@ -60,7 +60,7 @@ TC-001 verändert die fachliche Feature-Nummerierung nicht. Eine benutzerverwalt
 | Analyse | FT-006 | FT-005, FT-007, FT-012, FT-013 |
 | TradePlan / TradePlanVersion | FT-007 | FT-008–FT-012 |
 | Produktauswahl | FT-008 | FT-009, FT-012 |
-| Trade/Position | FT-009 | FT-010–FT-012 |
+| Trade / Execution Record / Position | FT-009 | FT-010–FT-012 |
 | Trade Event | FT-010 | FT-011, FT-012 |
 | Nachbeobachtung/Exit Review | FT-011 | FT-012, FT-013 |
 | Journal/Performance Record | FT-012 | FT-013 |

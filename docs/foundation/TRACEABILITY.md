@@ -253,3 +253,16 @@ Anforderung → Entscheidung → Implementierung → Test → Abnahme
 | Live-provider claim boundary | ADR-S8-007/S8-12 | fixture-backed E2E does not imply verified live warrant Bid/Ask capability |
 
 | Provider capability + V1 selection policy | ADR-S8-007 | unverified provider capability fails closed; normal selection requires ELIGIBLE evaluation |
+
+## Sprint 9 / FT-009 specification traceability
+
+| Requirement / decision | Specification evidence |
+|---|---|
+| Actual purchase capture, no quantity recommendation | `docs/features/FT-009_TRADE_POSITION.md`, ADR-S9-003 |
+| Trade / ExecutionRecord / Position separation | ADR-S9-001 |
+| Workspace and external origins | ADR-S9-002 |
+| Initial and additional purchases | ADR-S9-004 |
+| Immutable history and corrections | ADR-S9-005 |
+| Optional pre-execution support | ADR-S9-006 |
+| V1 rules and non-scope | `docs/implementation/SPRINT_9_FT009_RULE_CATALOG.md` |
+| Definition of Ready | `docs/reviews/SPRINT_9_DEFINITION_OF_READY.md` |
