@@ -28,6 +28,10 @@ class FakeUow:
             get_for_trade=AsyncMock(),
             replace=AsyncMock(),
         )
+        self.management_events = SimpleNamespace(
+            add=AsyncMock(),
+            list_for_trade=AsyncMock(return_value=[]),
+        )
         self.commit = AsyncMock()
         self.rollback = AsyncMock()
         self.flush = AsyncMock()

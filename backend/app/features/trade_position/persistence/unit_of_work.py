@@ -12,7 +12,9 @@ from app.features.trade_position.persistence.repositories import (
     PositionRepository,
     SqlAlchemyExecutionRecordRepository,
     SqlAlchemyPositionRepository,
+    SqlAlchemyTradeManagementEventRepository,
     SqlAlchemyTradeRepository,
+    TradeManagementEventRepository,
     TradeRepository,
 )
 
@@ -21,6 +23,7 @@ class TradePositionUnitOfWork(Protocol):
     trades: TradeRepository
     executions: ExecutionRecordRepository
     positions: PositionRepository
+    management_events: TradeManagementEventRepository
 
     async def __aenter__(self) -> Self: ...
 
@@ -48,6 +51,7 @@ class SqlAlchemyTradePositionUnitOfWork:
         self.trades = SqlAlchemyTradeRepository(session)
         self.executions = SqlAlchemyExecutionRecordRepository(session)
         self.positions = SqlAlchemyPositionRepository(session)
+        self.management_events = SqlAlchemyTradeManagementEventRepository(session)
 
     async def __aenter__(self) -> Self:
         return self

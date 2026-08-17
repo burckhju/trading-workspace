@@ -132,3 +132,25 @@ def test_ft010_position_projection_migration_supports_closed_positions() -> None
     assert '"open_quantity >= 0"' in text
     assert '"cost_basis >= 0"' in text
     assert "open_quantity = 0 AND cost_basis = 0" in text
+
+
+FT010_MANAGEMENT_EVENTS_MIGRATION = (
+    Path(__file__).parents[5]
+    / "backend/migrations/versions/20260817_0018_ft010_trade_management_events.py"
+)
+
+
+def test_ft010_management_events_migration_follows_position_projection() -> None:
+    text = FT010_MANAGEMENT_EVENTS_MIGRATION.read_text()
+    assert 'revision: str = "20260817_0018"' in text
+    assert 'down_revision: str | None = "20260817_0017"' in text
+
+
+def test_ft010_management_events_migration_keeps_execution_boundary_separate() -> None:
+    text = FT010_MANAGEMENT_EVENTS_MIGRATION.read_text()
+    assert '"trade_management_events"' in text
+    assert "STOP_CHANGED" in text
+    assert "TARGET_CHANGED" in text
+    assert "THESIS_UPDATED" in text
+    assert "MANAGEMENT_NOTE" in text
+    assert "SELL" not in text

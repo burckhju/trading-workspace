@@ -8,11 +8,21 @@ from uuid import UUID
 from sqlalchemy import exists, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.features.trade_position.domain.enums import ExecutionSide, TradeOrigin
-from app.features.trade_position.domain.models import ExecutionRecord, Position, Trade
+from app.features.trade_position.domain.enums import (
+    ExecutionSide,
+    TradeManagementEventType,
+    TradeOrigin,
+)
+from app.features.trade_position.domain.models import (
+    ExecutionRecord,
+    Position,
+    Trade,
+    TradeManagementEvent,
+)
 from app.features.trade_position.persistence.models import (
     ExecutionRecordModel,
     PositionModel,
+    TradeManagementEventModel,
     TradeModel,
 )
 
@@ -39,6 +49,14 @@ class ExecutionRecordRepository(Protocol):
         self,
         trade_id: UUID,
     ) -> list[ExecutionRecord]: ...
+
+
+
+
+class TradeManagementEventRepository(Protocol):
+    async def add(self, event: TradeManagementEvent) -> None: ...
+
+    async def list_for_trade(self, trade_id: UUID) -> list[TradeManagementEvent]: ...
 
 
 class PositionRepository(Protocol):
@@ -181,6 +199,53 @@ class SqlAlchemyExecutionRecordRepository:
             recorded_by=model.recorded_by,
             supersedes_execution_id=model.supersedes_execution_id,
         )
+
+
+class SqlAlchemyTradeManagementEventRepository:
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def add(self, event: TradeManagementEvent) -> None:
+        self._session.add(
+            TradeManagementEventModel(
+                id=event.id,
+                trade_id=event.trade_id,
+                event_type=event.event_type.value,
+                effective_at=event.effective_at,
+                recorded_at=event.recorded_at,
+                recorded_by=event.recorded_by,
+                numeric_value=event.numeric_value,
+                text_value=event.text_value,
+                supersedes_event_id=event.supersedes_event_id,
+            )
+        )
+
+    async def list_for_trade(self, trade_id: UUID) -> list[TradeManagementEvent]:
+        models = (
+            await self._session.scalars(
+                select(TradeManagementEventModel)
+                .where(TradeManagementEventModel.trade_id == trade_id)
+                .order_by(
+                    TradeManagementEventModel.effective_at,
+                    TradeManagementEventModel.recorded_at,
+                    TradeManagementEventModel.id,
+                )
+            )
+        ).all()
+        return [
+            TradeManagementEvent(
+                id=model.id,
+                trade_id=model.trade_id,
+                event_type=TradeManagementEventType(model.event_type),
+                effective_at=model.effective_at,
+                recorded_at=model.recorded_at,
+                recorded_by=model.recorded_by,
+                numeric_value=model.numeric_value,
+                text_value=model.text_value,
+                supersedes_event_id=model.supersedes_event_id,
+            )
+            for model in models
+        ]
 
 
 class SqlAlchemyPositionRepository:

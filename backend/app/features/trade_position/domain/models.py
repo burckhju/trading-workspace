@@ -7,7 +7,11 @@ from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
-from app.features.trade_position.domain.enums import ExecutionSide, TradeOrigin
+from app.features.trade_position.domain.enums import (
+    ExecutionSide,
+    TradeManagementEventType,
+    TradeOrigin,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -151,3 +155,36 @@ class Position:
             average_entry_price=new_average_entry_price,
             last_execution_at=execution.executed_at,
         )
+
+
+@dataclass(frozen=True, slots=True)
+class TradeManagementEvent:
+    id: UUID
+    trade_id: UUID
+    event_type: TradeManagementEventType
+    effective_at: datetime
+    recorded_at: datetime
+    recorded_by: UUID
+    numeric_value: Decimal | None = None
+    text_value: str | None = None
+    supersedes_event_id: UUID | None = None
+
+    def __post_init__(self) -> None:
+        if self.recorded_at < self.effective_at:
+            raise ValueError("recorded_at must not precede effective_at")
+        if self.supersedes_event_id == self.id:
+            raise ValueError("management event must not supersede itself")
+
+        if self.event_type in {
+            TradeManagementEventType.STOP_CHANGED,
+            TradeManagementEventType.TARGET_CHANGED,
+        }:
+            if self.numeric_value is None or self.numeric_value <= 0:
+                raise ValueError("price management event requires positive numeric_value")
+            if self.text_value is not None:
+                raise ValueError("price management event must not carry text_value")
+        else:
+            if self.text_value is None or not self.text_value.strip():
+                raise ValueError("text management event requires non-empty text_value")
+            if self.numeric_value is not None:
+                raise ValueError("text management event must not carry numeric_value")

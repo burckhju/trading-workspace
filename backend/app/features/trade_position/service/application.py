@@ -7,8 +7,17 @@ from decimal import Decimal
 from typing import Protocol
 from uuid import UUID, uuid4
 
-from app.features.trade_position.domain.enums import ExecutionSide, TradeOrigin
-from app.features.trade_position.domain.models import ExecutionRecord, Position, Trade
+from app.features.trade_position.domain.enums import (
+    ExecutionSide,
+    TradeManagementEventType,
+    TradeOrigin,
+)
+from app.features.trade_position.domain.models import (
+    ExecutionRecord,
+    Position,
+    Trade,
+    TradeManagementEvent,
+)
 from app.features.trade_position.domain.projector import PositionProjector
 from app.features.trade_position.persistence.unit_of_work import TradePositionUnitOfWork
 from app.features.trade_position.service.resolvers import (
@@ -265,3 +274,38 @@ class TradePositionService:
             await uow.commit()
 
         return execution, updated
+
+
+    async def record_management_event(
+        self,
+        *,
+        workspace_id: UUID,
+        trade_id: UUID,
+        event_type: TradeManagementEventType,
+        effective_at: datetime,
+        actor: UUID,
+        numeric_value: Decimal | None = None,
+        text_value: str | None = None,
+        supersedes_event_id: UUID | None = None,
+    ) -> TradeManagementEvent:
+        async with self._uow as uow:
+            trade = await uow.trades.get(workspace_id, trade_id)
+            if trade is None:
+                raise ValueError("trade not found")
+
+            now = datetime.now(UTC)
+            event = TradeManagementEvent(
+                id=uuid4(),
+                trade_id=trade.id,
+                event_type=event_type,
+                effective_at=effective_at,
+                recorded_at=max(now, effective_at),
+                recorded_by=actor,
+                numeric_value=numeric_value,
+                text_value=text_value,
+                supersedes_event_id=supersedes_event_id,
+            )
+            await uow.management_events.add(event)
+            await uow.commit()
+
+        return event
