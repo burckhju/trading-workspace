@@ -168,12 +168,17 @@ class PositionModel(Base):
     __tablename__ = "positions"
     __table_args__ = (
         CheckConstraint(
-            "open_quantity > 0",
-            name="open_quantity_positive",
+            "open_quantity >= 0",
+            name="open_quantity_non_negative",
         ),
         CheckConstraint(
-            "cost_basis > 0",
-            name="cost_basis_positive",
+            "cost_basis >= 0",
+            name="cost_basis_non_negative",
+        ),
+        CheckConstraint(
+            "(open_quantity = 0 AND cost_basis = 0) OR "
+            "(open_quantity > 0 AND cost_basis > 0)",
+            name="position_state_consistent",
         ),
         CheckConstraint(
             "average_entry_price > 0",
@@ -222,4 +227,13 @@ class PositionModel(Base):
     last_execution_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
+    )
+    realized_gross_pnl: Mapped[Decimal] = mapped_column(
+        Numeric(30, 10),
+        nullable=False,
+        default=Decimal("0"),
+    )
+    closed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
     )

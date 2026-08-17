@@ -109,3 +109,26 @@ def test_ft010_supersession_migration_preserves_original_execution() -> None:
     assert '"fk_execution_records_supersedes"' in text
     assert '"uq_execution_records_supersedes"' in text
     assert 'ondelete="RESTRICT"' in text
+
+
+FT010_POSITION_PROJECTION_MIGRATION = (
+    Path(__file__).parents[5]
+    / "backend/migrations/versions/20260817_0017_ft010_position_projection.py"
+)
+
+
+def test_ft010_position_projection_migration_follows_supersession() -> None:
+    text = FT010_POSITION_PROJECTION_MIGRATION.read_text()
+
+    assert 'revision: str = "20260817_0017"' in text
+    assert 'down_revision: str | None = "20260817_0016"' in text
+
+
+def test_ft010_position_projection_migration_supports_closed_positions() -> None:
+    text = FT010_POSITION_PROJECTION_MIGRATION.read_text()
+
+    assert '"realized_gross_pnl"' in text
+    assert '"closed_at"' in text
+    assert '"open_quantity >= 0"' in text
+    assert '"cost_basis >= 0"' in text
+    assert "open_quantity = 0 AND cost_basis = 0" in text

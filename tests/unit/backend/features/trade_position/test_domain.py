@@ -365,3 +365,35 @@ def test_execution_can_reference_superseded_execution() -> None:
     )
 
     assert replacement.supersedes_execution_id == original_id
+
+
+def test_position_allows_closed_projection_with_zero_remaining_cost() -> None:
+    position = Position(
+        id=uuid4(),
+        trade_id=uuid4(),
+        product_id=uuid4(),
+        open_quantity=0,
+        cost_basis=Decimal("0"),
+        average_entry_price=Decimal("1.10"),
+        opened_at=EXECUTED_AT,
+        last_execution_at=RECORDED_AT,
+        realized_gross_pnl=Decimal("12.50"),
+        closed_at=RECORDED_AT,
+    )
+
+    assert position.is_closed
+
+
+def test_closed_position_rejects_remaining_cost_basis() -> None:
+    with pytest.raises(ValueError, match="zero cost_basis"):
+        Position(
+            id=uuid4(),
+            trade_id=uuid4(),
+            product_id=uuid4(),
+            open_quantity=0,
+            cost_basis=Decimal("1"),
+            average_entry_price=Decimal("1.10"),
+            opened_at=EXECUTED_AT,
+            last_execution_at=RECORDED_AT,
+            closed_at=RECORDED_AT,
+        )

@@ -144,6 +144,8 @@ async def test_position_repository_add_maps_domain_to_model() -> None:
     assert model.id == position.id
     assert model.trade_id == position.trade_id
     assert model.open_quantity == position.open_quantity
+    assert model.realized_gross_pnl == Decimal("0")
+    assert model.closed_at is None
 
 
 @pytest.mark.asyncio
@@ -164,6 +166,8 @@ async def test_position_repository_get_for_trade_returns_domain_position() -> No
         average_entry_price=position.average_entry_price,
         opened_at=position.opened_at,
         last_execution_at=position.last_execution_at,
+        realized_gross_pnl=position.realized_gross_pnl,
+        closed_at=position.closed_at,
     )
 
     result = await repo.get_for_trade(trade.workspace_id, trade.id)

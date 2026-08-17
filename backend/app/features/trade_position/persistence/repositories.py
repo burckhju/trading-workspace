@@ -198,6 +198,8 @@ class SqlAlchemyPositionRepository:
                 average_entry_price=position.average_entry_price,
                 opened_at=position.opened_at,
                 last_execution_at=position.last_execution_at,
+                realized_gross_pnl=position.realized_gross_pnl,
+                closed_at=position.closed_at,
             )
         )
 
@@ -229,6 +231,8 @@ class SqlAlchemyPositionRepository:
             average_entry_price=model.average_entry_price,
             opened_at=model.opened_at,
             last_execution_at=model.last_execution_at,
+            realized_gross_pnl=model.realized_gross_pnl,
+            closed_at=model.closed_at,
         )
 
     async def replace(self, position: Position) -> None:
@@ -246,3 +250,5 @@ class SqlAlchemyPositionRepository:
         model.average_entry_price = position.average_entry_price
         model.opened_at = position.opened_at
         model.last_execution_at = position.last_execution_at
+        model.realized_gross_pnl = position.realized_gross_pnl
+        model.closed_at = position.closed_at

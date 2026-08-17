@@ -78,16 +78,31 @@ class Position:
     average_entry_price: Decimal
     opened_at: datetime
     last_execution_at: datetime
+    realized_gross_pnl: Decimal = Decimal("0")
+    closed_at: datetime | None = None
 
     def __post_init__(self) -> None:
-        if self.open_quantity <= 0:
-            raise ValueError("open_quantity must be positive")
-        if self.cost_basis <= 0:
-            raise ValueError("cost_basis must be positive")
+        if self.open_quantity < 0:
+            raise ValueError("open_quantity must not be negative")
+        if self.cost_basis < 0:
+            raise ValueError("cost_basis must not be negative")
         if self.average_entry_price <= 0:
             raise ValueError("average_entry_price must be positive")
         if self.last_execution_at < self.opened_at:
             raise ValueError("last_execution_at must not precede opened_at")
+        if self.open_quantity == 0 and self.cost_basis != 0:
+            raise ValueError("closed position must have zero cost_basis")
+        if self.open_quantity > 0 and self.cost_basis <= 0:
+            raise ValueError("open position requires positive cost_basis")
+        if self.closed_at is not None:
+            if self.open_quantity != 0:
+                raise ValueError("closed_at requires zero open_quantity")
+            if self.closed_at < self.opened_at:
+                raise ValueError("closed_at must not precede opened_at")
+
+    @property
+    def is_closed(self) -> bool:
+        return self.open_quantity == 0
 
     @classmethod
     def from_execution(
