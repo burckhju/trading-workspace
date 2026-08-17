@@ -286,3 +286,12 @@ Anforderung → Entscheidung → Implementierung → Test → Abnahme
 | Delivery | Merge commit `1f98a4a2f4568dbe3e1352c0ae5e5e0c93034c2a` |
 | Technical closeout | `docs/implementation/SPRINT_9_TECHNICAL_CLOSEOUT.md` |
 | Release readiness | `docs/implementation/SPRINT_9_FT009_RELEASE_READINESS.md` |
+
+### FT-009 release
+
+| Release evidence | Reference |
+|---|---|
+| Release version | `v1.1.0-trade-position` |
+| Release document | `docs/releases/V1.1.0-TRADE-POSITION.md` |
+| Implementation merge | `1f98a4a2f4568dbe3e1352c0ae5e5e0c93034c2a` |
+| Sprint 9 closeout merge | `3d78e60f3cf89354c195b400c9ecf70f8c126f5f` |
