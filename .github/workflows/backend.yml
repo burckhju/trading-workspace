@@ -24,6 +24,26 @@ jobs:
   quality:
     name: Backend / quality
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: trading_workspace
+          POSTGRES_PASSWORD: trading_workspace_ci
+          POSTGRES_DB: trading_workspace_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U trading_workspace -d trading_workspace_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      TRADING_WORKSPACE_DATABASE_URL: postgresql+asyncpg://trading_workspace:trading_workspace_ci@localhost:5432/trading_workspace_test
+      TRADING_WORKSPACE_TEST_DATABASE_URL: postgresql+asyncpg://trading_workspace:trading_workspace_ci@localhost:5432/trading_workspace_test
+
     defaults:
       run:
         working-directory: backend
@@ -44,6 +64,11 @@ jobs:
         run: black --check --config pyproject.toml app ../tests/unit/backend ../tests/integration/backend
       - name: mypy
         run: mypy app
+      - name: Migrate PostgreSQL test database
+        env:
+          PYTHONPATH: ${{ github.workspace }}/backend:${{ github.workspace }}
+        run: alembic upgrade head
+
       - name: Tests with coverage
         env:
           PYTHONPATH: ${{ github.workspace }}/backend:${{ github.workspace }}
