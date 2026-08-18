@@ -15,6 +15,7 @@ import { TradeManagementPage } from '../features/trade/pages';
 import { TradePlanPage } from '../features/trade_plan/pages';
 import { WarrantAdminPage } from '../features/product/pages';
 import { ProductSelectionPage } from '../features/product_selection/pages';
+import { PostTradeReviewPage } from '../features/post_trade/pages';
 import { NotFoundPage } from '../pages/NotFoundPage';
 
 export function createApplicationRouter() {
@@ -29,6 +30,7 @@ export function createApplicationRouter() {
         { path: 'candidates', element: <CandidatePage /> },
         { path: 'trade-plans', element: <TradePlanPage /> },
         { path: 'trade-management', element: <TradeManagementPage /> },
+        { path: 'post-trade', element: <PostTradeReviewPage /> },
         { path: 'product-selection', element: <ProductSelectionPage /> },
         { path: 'top-down-admin', element: <TopDownWorkflowActionPage /> },
         { path: 'trading-venues-admin', element: <TradingVenueAdminPage /> },

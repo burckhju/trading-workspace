@@ -1,6 +1,8 @@
 import { FormEvent, useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
+import { postTradeApiClient } from '../../post_trade/services/client';
+import { postTradeErrorMessage } from '../../post_trade/services/errors';
 import { tradeManagementApiClient } from '../services/client';
 import type { PositionResponse, TradeManagementStateResponse } from '../types/api';
 
@@ -15,6 +17,7 @@ function formatDateTime(value: string | null): string {
 }
 
 export function TradeManagementPage() {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [lookupId, setLookupId] = useState(searchParams.get('trade_id') ?? '');
   const [tradeId, setTradeId] = useState(searchParams.get('trade_id') ?? '');
@@ -78,6 +81,22 @@ export function TradeManagementPage() {
       setMessage(
         error instanceof Error ? error.message : 'Änderung konnte nicht gespeichert werden.',
       );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function startPostTradeObservation() {
+    if (!tradeId || !position?.is_closed) return;
+
+    setBusy(true);
+    setMessage(null);
+
+    try {
+      await postTradeApiClient.startObservation(tradeId);
+      void navigate(`/post-trade?trade_id=${encodeURIComponent(tradeId)}`);
+    } catch (error: unknown) {
+      setMessage(postTradeErrorMessage(error));
     } finally {
       setBusy(false);
     }
@@ -183,9 +202,20 @@ export function TradeManagementPage() {
               abgeleitet.
             </p>
             {position.is_closed ? (
-              <p className="mt-4 text-sm text-slate-400">
-                Die Position ist geschlossen. Weitere SELL-Executions sind nicht verfügbar.
-              </p>
+              <div className="mt-4 space-y-3">
+                <p className="text-sm text-slate-400">
+                  Die Position ist geschlossen. Weitere SELL-Executions sind nicht verfügbar.
+                </p>
+
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void startPostTradeObservation()}
+                  className="rounded-lg border border-emerald-700 px-4 py-2 disabled:opacity-50"
+                >
+                  Nachbeobachtung starten
+                </button>
+              </div>
             ) : (
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
                 <label className="text-sm">
