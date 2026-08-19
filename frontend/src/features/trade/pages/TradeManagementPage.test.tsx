@@ -2,8 +2,15 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { postTradeApiClient } from '../../post_trade/services/client';
 import { tradeManagementApiClient } from '../services/client';
 import { TradeManagementPage } from './TradeManagementPage';
+
+vi.mock('../../post_trade/services/client', () => ({
+  postTradeApiClient: {
+    startObservation: vi.fn(),
+  },
+}));
 
 vi.mock('../services/client', () => ({
   tradeManagementApiClient: {
@@ -18,6 +25,7 @@ vi.mock('../services/client', () => ({
 }));
 
 const api = vi.mocked(tradeManagementApiClient);
+const postTradeApi = vi.mocked(postTradeApiClient);
 
 const position = {
   id: 'position-1',
@@ -52,6 +60,7 @@ describe('TradeManagementPage', () => {
     api.changeTarget.mockResolvedValue({} as never);
     api.updateThesis.mockResolvedValue({} as never);
     api.addNote.mockResolvedValue({} as never);
+    postTradeApi.startObservation.mockResolvedValue({} as never);
   });
 
   it('loads position and current management state from a trade_id query parameter', async () => {
@@ -118,5 +127,44 @@ describe('TradeManagementPage', () => {
       ),
     ).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'SELL speichern' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Nachbeobachtung starten' })).toBeInTheDocument();
+  });
+
+  it('does not show the post-trade start action for an open position', async () => {
+    render(
+      <MemoryRouter initialEntries={['/trade-management?trade_id=trade-1']}>
+        <TradeManagementPage />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole('heading', { name: 'OPEN' });
+
+    expect(
+      screen.queryByRole('button', { name: 'Nachbeobachtung starten' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('starts post-trade observation for a closed trade', async () => {
+    api.position.mockResolvedValue({
+      ...position,
+      open_quantity: 0,
+      cost_basis: '0',
+      closed_at: '2026-08-17T10:00:00Z',
+      is_closed: true,
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/trade-management?trade_id=trade-1']}>
+        <TradeManagementPage />
+      </MemoryRouter>,
+    );
+
+    const button = await screen.findByRole('button', {
+      name: 'Nachbeobachtung starten',
+    });
+
+    fireEvent.click(button);
+
+    await waitFor(() => expect(postTradeApi.startObservation).toHaveBeenCalledWith('trade-1'));
   });
 });
