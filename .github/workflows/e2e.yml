@@ -25,7 +25,7 @@ jobs:
   smoke:
     name: End-to-End / smoke
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     env:
       POSTGRES_DB: trading_workspace
       POSTGRES_USER: trading_workspace
@@ -46,6 +46,11 @@ jobs:
       - name: Install frontend dependencies
         working-directory: frontend
         run: npm ci
+      - name: Use reliable Ubuntu apt mirror
+        run: |
+          sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' /etc/apt/sources.list.d/ubuntu.sources
+          sudo apt-get update
+
       - name: Install Chromium
         working-directory: frontend
         run: npx playwright install --with-deps chromium
