@@ -176,3 +176,22 @@ def test_venue_reconciliation_endpoint_maps_missing_mapping_to_404() -> None:
 
     assert response.status_code == 404
     assert response.json()["code"] == "MARKET_DATA_NOT_FOUND"
+
+
+def test_import_maps_disabled_provider_configuration_to_503() -> None:
+    application = create_application(settings())
+
+    with TestClient(application, raise_server_exceptions=False) as client:
+        response = client.post(
+            "/api/v1/market-data/daily-prices/import",
+            json={
+                "listing_id": str(LISTING_ID),
+                "mapping_id": str(MAPPING_ID),
+                "start_date": "2026-07-01",
+                "end_date": "2026-07-31",
+            },
+        )
+
+    assert response.status_code == 503
+    assert response.json()["code"] == "MARKET_DATA_CONFIGURATION_ERROR"
+    assert response.json()["message"] == "EODHD provider is disabled"

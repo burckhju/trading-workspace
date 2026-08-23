@@ -88,3 +88,28 @@ def test_enabled_eodhd_builds_and_closes_shared_runtime() -> None:
 
     container.eodhd.http_client.aclose.assert_awaited_once_with()
     container.database.dispose.assert_awaited_once_with()
+
+
+def test_provider_mapping_service_is_available_when_eodhd_is_disabled() -> None:
+    container = ApplicationContainer.build(_settings())
+
+    async def exercise() -> None:
+        async with container.provider_mapping_service() as service:
+            assert service._resolver is None
+
+    asyncio.run(exercise())
+
+
+def test_daily_price_import_service_stays_fail_closed_when_eodhd_is_disabled() -> None:
+    import pytest
+
+    from app.features.market_data.service.errors import MarketDataConfigurationError
+
+    container = ApplicationContainer.build(_settings())
+
+    async def exercise() -> None:
+        async with container.daily_price_import_service():
+            pass
+
+    with pytest.raises(MarketDataConfigurationError, match="EODHD provider is disabled"):
+        asyncio.run(exercise())

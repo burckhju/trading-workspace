@@ -160,7 +160,7 @@ class ApplicationContainer:
             uow = SqlAlchemyMarketDataUnitOfWork(session)
             yield ProviderMappingAdministrationService(
                 uow=uow,
-                resolver=self.require_eodhd_adapter(),
+                resolver=self.eodhd.adapter if self.eodhd is not None else None,
                 venue_reconciliation=ProviderVenueReconciliationService(uow),
             )
 
