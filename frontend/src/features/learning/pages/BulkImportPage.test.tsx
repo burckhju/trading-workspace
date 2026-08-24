@@ -120,6 +120,8 @@ describe('BulkImportPage', () => {
     fireEvent.change(selects[1], { target: { value: 'w1' } });
     fireEvent.click(screen.getByRole('button', { name: 'Zuordnen' }));
 
-    await waitFor(() => expect(importClient.resolve).toHaveBeenCalledWith('job-1', 'row-1', 'u1', 'w1'));
+    await waitFor(() =>
+      expect(importClient.resolve).toHaveBeenCalledWith('job-1', 'row-1', 'u1', 'w1'),
+    );
   });
 });
