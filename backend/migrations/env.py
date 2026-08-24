@@ -11,6 +11,8 @@ from app.core.config import get_settings
 from app.database import Base
 from app.features.analysis.persistence import models as analysis_models  # noqa: F401
 from app.features.candidate.persistence import models as candidate_models  # noqa: F401
+from app.features.learning.persistence import bulk_import_models as learning_bulk_import_models  # noqa: F401
+from app.features.learning.persistence import models as learning_models  # noqa: F401
 from app.features.market.persistence import models as market_models  # noqa: F401
 from app.features.market.persistence import top_down_models as market_top_down_models  # noqa: F401
 from app.features.market_data.persistence import models as market_data_models  # noqa: F401
