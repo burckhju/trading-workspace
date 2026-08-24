@@ -2,10 +2,10 @@ from types import SimpleNamespace
 from uuid import uuid4
 
 from fastapi.testclient import TestClient
+from test_trade_link_api import _make_app
 
 from app.features.learning.api.bulk_import_dependencies import get_bulk_import_service
 from app.features.learning.application.bulk_import_service import BulkImportError
-from test_trade_link_api import _make_app
 
 
 class FakeBulkImportService:
