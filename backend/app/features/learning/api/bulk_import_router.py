@@ -75,7 +75,65 @@ def _review_response(row: Any) -> ReviewRowResponse:
     )
 
 
-@router.post("/hebeltrader", response_model=BulkImportResponse, status_code=status.HTTP_201_CREATED)
+def _file_response(model: Any) -> BulkImportFileResponse:
+    return BulkImportFileResponse(
+        id=model.id,
+        filename=model.original_filename,
+        status=model.status,
+        duplicate_of_file_id=model.duplicate_of_file_id,
+        failure_code=model.failure_code,
+        failure_detail=model.failure_detail,
+    )
+
+
+async def _ingest_uploads(
+    *,
+    job_id: UUID,
+    files: list[UploadFile],
+    service: ExternalObservationBulkImportService,
+) -> list[BulkImportFileResponse]:
+    results: list[BulkImportFileResponse] = []
+    try:
+        for upload in files:
+            content = await upload.read()
+            model = await service.ingest_pdf(
+                job_id=job_id,
+                workspace_id=WORKSPACE_ID,
+                actor_id=LOCAL_ACTOR_ID,
+                filename=upload.filename or "unnamed.pdf",
+                content_type=upload.content_type,
+                content=content,
+            )
+            results.append(_file_response(model))
+    finally:
+        for upload in files:
+            await upload.close()
+    return results
+
+
+async def _job_response(
+    *,
+    job_id: UUID,
+    service: ExternalObservationBulkImportService,
+) -> BulkImportResponse:
+    job = await service.get_job(WORKSPACE_ID, job_id)
+    files = await service.list_files(WORKSPACE_ID, job_id)
+    responses = [_file_response(item) for item in files]
+    counts = Counter(item.status for item in responses)
+    return BulkImportResponse(
+        job_id=job.id,
+        status=job.status,
+        files_total=len(responses),
+        files_by_status=dict(counts),
+        files=responses,
+    )
+
+
+@router.post(
+    "/hebeltrader",
+    response_model=BulkImportResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 async def upload_hebeltrader_files(
     files: Annotated[list[UploadFile], File(description="Hebeltrader PDF issues")],
     service: Annotated[ExternalObservationBulkImportService, Depends(get_bulk_import_service)],
@@ -84,43 +142,26 @@ async def upload_hebeltrader_files(
         raise HTTPException(status_code=400, detail="at least one PDF is required")
 
     job = await service.create_job(WORKSPACE_ID, LOCAL_ACTOR_ID)
-    results: list[BulkImportFileResponse] = []
     try:
-        for upload in files:
-            content = await upload.read()
-            model = await service.ingest_pdf(
-                job_id=job.id,
-                workspace_id=WORKSPACE_ID,
-                actor_id=LOCAL_ACTOR_ID,
-                filename=upload.filename or "unnamed.pdf",
-                content_type=upload.content_type,
-                content=content,
-            )
-            results.append(
-                BulkImportFileResponse(
-                    id=model.id,
-                    filename=model.original_filename,
-                    status=model.status,
-                    duplicate_of_file_id=model.duplicate_of_file_id,
-                    failure_code=model.failure_code,
-                    failure_detail=model.failure_detail,
-                )
-            )
+        await _ingest_uploads(job_id=job.id, files=files, service=service)
+        return await _job_response(job_id=job.id, service=service)
     except BulkImportError as error:
         raise _bad_request(error) from error
-    finally:
-        for upload in files:
-            await upload.close()
 
-    current_job = await service.get_job(WORKSPACE_ID, job.id)
-    counts = Counter(item.status for item in results)
-    return BulkImportResponse(
-        job_id=job.id,
-        status=current_job.status,
-        files_total=len(results),
-        files_by_status=dict(counts),
-        files=results,
-    )
+
+@router.post("/{job_id}/files", response_model=BulkImportResponse)
+async def add_or_retry_hebeltrader_files(
+    job_id: UUID,
+    files: Annotated[list[UploadFile], File(description="Hebeltrader PDF issues")],
+    service: Annotated[ExternalObservationBulkImportService, Depends(get_bulk_import_service)],
+) -> BulkImportResponse:
+    if not files:
+        raise HTTPException(status_code=400, detail="at least one PDF is required")
+    try:
+        await _ingest_uploads(job_id=job_id, files=files, service=service)
+        return await _job_response(job_id=job_id, service=service)
+    except BulkImportError as error:
+        raise _bad_request(error) from error
 
 
 @router.get("/{job_id}", response_model=BulkImportResponse)
@@ -129,29 +170,9 @@ async def get_bulk_import(
     service: Annotated[ExternalObservationBulkImportService, Depends(get_bulk_import_service)],
 ) -> BulkImportResponse:
     try:
-        job = await service.get_job(WORKSPACE_ID, job_id)
-        files = await service.list_files(WORKSPACE_ID, job_id)
+        return await _job_response(job_id=job_id, service=service)
     except BulkImportError as error:
         raise HTTPException(status_code=404, detail=str(error)) from error
-
-    counts = Counter(item.status for item in files)
-    return BulkImportResponse(
-        job_id=job.id,
-        status=job.status,
-        files_total=len(files),
-        files_by_status=dict(counts),
-        files=[
-            BulkImportFileResponse(
-                id=item.id,
-                filename=item.original_filename,
-                status=item.status,
-                duplicate_of_file_id=item.duplicate_of_file_id,
-                failure_code=item.failure_code,
-                failure_detail=item.failure_detail,
-            )
-            for item in files
-        ],
-    )
 
 
 @router.get("/{job_id}/review", response_model=list[ReviewRowResponse])
