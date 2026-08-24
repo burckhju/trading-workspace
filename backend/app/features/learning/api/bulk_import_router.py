@@ -42,13 +42,37 @@ class ReviewRowResponse(BaseModel):
     id: UUID
     batch_id: UUID
     validation_status: str
+    disposition: str
     underlying_id: UUID | None
     product_id: UUID | None
     payload: dict[str, Any]
 
 
+class ReviewResolveRequest(BaseModel):
+    underlying_id: UUID
+    product_id: UUID
+
+
+class BulkImportConfirmResponse(BaseModel):
+    job_id: UUID
+    status: str
+    accepted_observation_version_ids: list[UUID]
+
+
 def _bad_request(error: BulkImportError) -> HTTPException:
     return HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error))
+
+
+def _review_response(row: Any) -> ReviewRowResponse:
+    return ReviewRowResponse(
+        id=row.id,
+        batch_id=row.batch_id,
+        validation_status=row.validation_status,
+        disposition=row.disposition,
+        underlying_id=row.resolved_underlying_id,
+        product_id=row.resolved_product_id,
+        payload=row.raw_payload,
+    )
 
 
 @router.post("/hebeltrader", response_model=BulkImportResponse, status_code=status.HTTP_201_CREATED)
@@ -139,15 +163,64 @@ async def list_bulk_import_review_rows(
         rows = await service.list_review_rows(WORKSPACE_ID, job_id)
     except BulkImportError as error:
         raise HTTPException(status_code=404, detail=str(error)) from error
+    return [_review_response(row) for row in rows]
 
-    return [
-        ReviewRowResponse(
-            id=row.id,
-            batch_id=row.batch_id,
-            validation_status=row.validation_status,
-            underlying_id=row.resolved_underlying_id,
-            product_id=row.resolved_product_id,
-            payload=row.raw_payload,
+
+@router.post("/{job_id}/review/{row_id}/resolve", response_model=ReviewRowResponse)
+async def resolve_bulk_import_review_row(
+    job_id: UUID,
+    row_id: UUID,
+    request: ReviewResolveRequest,
+    service: Annotated[ExternalObservationBulkImportService, Depends(get_bulk_import_service)],
+) -> ReviewRowResponse:
+    try:
+        row = await service.resolve_review_row(
+            workspace_id=WORKSPACE_ID,
+            job_id=job_id,
+            row_id=row_id,
+            underlying_id=request.underlying_id,
+            product_id=request.product_id,
+            actor_id=LOCAL_ACTOR_ID,
         )
-        for row in rows
-    ]
+    except BulkImportError as error:
+        raise _bad_request(error) from error
+    return _review_response(row)
+
+
+@router.post("/{job_id}/review/{row_id}/discard", response_model=ReviewRowResponse)
+async def discard_bulk_import_review_row(
+    job_id: UUID,
+    row_id: UUID,
+    service: Annotated[ExternalObservationBulkImportService, Depends(get_bulk_import_service)],
+) -> ReviewRowResponse:
+    try:
+        row = await service.discard_review_row(
+            workspace_id=WORKSPACE_ID,
+            job_id=job_id,
+            row_id=row_id,
+            actor_id=LOCAL_ACTOR_ID,
+        )
+    except BulkImportError as error:
+        raise _bad_request(error) from error
+    return _review_response(row)
+
+
+@router.post("/{job_id}/confirm", response_model=BulkImportConfirmResponse)
+async def confirm_bulk_import(
+    job_id: UUID,
+    service: Annotated[ExternalObservationBulkImportService, Depends(get_bulk_import_service)],
+) -> BulkImportConfirmResponse:
+    try:
+        version_ids = await service.confirm_job(
+            workspace_id=WORKSPACE_ID,
+            job_id=job_id,
+            actor_id=LOCAL_ACTOR_ID,
+        )
+        job = await service.get_job(WORKSPACE_ID, job_id)
+    except BulkImportError as error:
+        raise _bad_request(error) from error
+    return BulkImportConfirmResponse(
+        job_id=job.id,
+        status=job.status,
+        accepted_observation_version_ids=version_ids,
+    )
