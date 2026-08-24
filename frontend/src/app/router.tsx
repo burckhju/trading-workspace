@@ -4,6 +4,7 @@ import { ApplicationLayout } from '../layouts/ApplicationLayout';
 import { CandidatePage } from '../features/candidate/pages';
 import { TopDownWorkflowActionPage } from '../features/administration/pages';
 import { MarketAnalysisDetailPage, MarketAnalysisPage } from '../features/analysis/pages';
+import { BulkImportPage } from '../features/learning/pages';
 import {
   IssuerAdminPage,
   UnderlyingDetailPage,
@@ -32,6 +33,7 @@ export function createApplicationRouter() {
         { path: 'trade-management', element: <TradeManagementPage /> },
         { path: 'post-trade', element: <PostTradeReviewPage /> },
         { path: 'product-selection', element: <ProductSelectionPage /> },
+        { path: 'learning-imports', element: <BulkImportPage /> },
         { path: 'top-down-admin', element: <TopDownWorkflowActionPage /> },
         { path: 'trading-venues-admin', element: <TradingVenueAdminPage /> },
         { path: 'issuers-admin', element: <IssuerAdminPage /> },
