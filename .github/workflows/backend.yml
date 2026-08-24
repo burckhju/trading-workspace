@@ -73,7 +73,7 @@ jobs:
         env:
           PYTHONPATH: ${{ github.workspace }}/backend:${{ github.workspace }}
         run: >-
-          pytest ../tests/unit/backend ../tests/integration/backend
+          pytest -c pyproject.toml ../tests/unit/backend ../tests/integration/backend
           --cov=app
           --cov-report=term-missing
           --cov-report=xml:coverage.xml

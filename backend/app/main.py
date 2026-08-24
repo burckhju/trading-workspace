@@ -15,6 +15,7 @@ from app.core.middleware import RequestContextMiddleware
 from app.database import DatabaseManager
 from app.features.analysis.api import router as analysis_router
 from app.features.candidate.api import router as candidate_router
+from app.features.learning.api import router as learning_router
 from app.features.market.api import reference_data_router, underlying_router
 from app.features.market.api.top_down_router import router as top_down_reference_router
 from app.features.market_data.api import router as market_data_router
@@ -76,6 +77,7 @@ def create_application(settings: Settings | None = None) -> FastAPI:
     application.include_router(trade_plan_router)
     application.include_router(trade_position_router)
     application.include_router(post_trade_router)
+    application.include_router(learning_router)
     application.include_router(user_preferences_router)
 
     @application.get(

@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import asyncio
 import os
 from pathlib import Path
 from urllib.parse import quote
 
 import pytest_asyncio
+from alembic import command
+from alembic.config import Config
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (
     AsyncConnection,
@@ -17,6 +20,7 @@ from sqlalchemy.ext.asyncio import (
 
 EXPECTED_DATABASE = "trading_workspace_test"
 EXPECTED_ALEMBIC_HEAD = "20260824_0021"
+REBUILD_BASE_ALEMBIC_HEAD = "20260820_0020"
 
 
 def _test_database_url() -> str:
@@ -28,7 +32,7 @@ def _test_database_url() -> str:
     env_path = repository_root / "docker" / ".env"
     if not env_path.exists():
         raise RuntimeError(
-            "TRADING_WORKSPACE_TEST_DATABASE_URL fehlt " "und docker/.env ist nicht vorhanden"
+            "TRADING_WORKSPACE_TEST_DATABASE_URL fehlt und docker/.env ist nicht vorhanden"
         )
 
     values: dict[str, str] = {}
@@ -59,7 +63,7 @@ def _test_database_url() -> str:
 
 
 @pytest_asyncio.fixture
-async def post_trade_test_engine() -> AsyncEngine:
+async def learning_test_engine() -> AsyncEngine:
     engine = create_async_engine(
         _test_database_url(),
         pool_pre_ping=True,
@@ -78,12 +82,47 @@ async def post_trade_test_engine() -> AsyncEngine:
 
             revision = await connection.scalar(text("select version_num from alembic_version"))
 
+        repository_root = Path(__file__).resolve().parents[4]
+        config = Config(str(repository_root / "backend" / "alembic.ini"))
+        test_database_url = _test_database_url()
+
+        def run_alembic(action: str, revision_target: str) -> None:
+            previous = os.environ.get("TRADING_WORKSPACE_DATABASE_URL")
+            os.environ["TRADING_WORKSPACE_DATABASE_URL"] = test_database_url
+            try:
+                if action == "upgrade":
+                    command.upgrade(config, revision_target)
+                elif action == "downgrade":
+                    command.downgrade(config, revision_target)
+                else:
+                    raise ValueError(action)
+            finally:
+                if previous is None:
+                    os.environ.pop("TRADING_WORKSPACE_DATABASE_URL", None)
+                else:
+                    os.environ["TRADING_WORKSPACE_DATABASE_URL"] = previous
+
+        if revision == EXPECTED_ALEMBIC_HEAD:
+            await asyncio.to_thread(
+                run_alembic,
+                "downgrade",
+                REBUILD_BASE_ALEMBIC_HEAD,
+            )
+            revision = REBUILD_BASE_ALEMBIC_HEAD
+
+        if revision != EXPECTED_ALEMBIC_HEAD:
+            await asyncio.to_thread(
+                run_alembic,
+                "upgrade",
+                EXPECTED_ALEMBIC_HEAD,
+            )
+
+            async with engine.connect() as connection:
+                revision = await connection.scalar(text("select version_num from alembic_version"))
             if revision != EXPECTED_ALEMBIC_HEAD:
                 raise RuntimeError(
-                    "Test-DB ist nicht auf erwartetem "
-                    "Alembic Head: "
-                    f"{revision!r} != "
-                    f"{EXPECTED_ALEMBIC_HEAD!r}"
+                    "Test-DB konnte nicht auf erwarteten Alembic Head migriert werden: "
+                    f"{revision!r} != {EXPECTED_ALEMBIC_HEAD!r}"
                 )
 
         yield engine
@@ -92,10 +131,10 @@ async def post_trade_test_engine() -> AsyncEngine:
 
 
 @pytest_asyncio.fixture
-async def post_trade_connection(
-    post_trade_test_engine: AsyncEngine,
+async def learning_connection(
+    learning_test_engine: AsyncEngine,
 ) -> AsyncConnection:
-    async with post_trade_test_engine.connect() as connection:
+    async with learning_test_engine.connect() as connection:
         transaction = await connection.begin()
 
         try:
@@ -106,11 +145,11 @@ async def post_trade_connection(
 
 
 @pytest_asyncio.fixture
-async def post_trade_session(
-    post_trade_connection: AsyncConnection,
+async def learning_session(
+    learning_connection: AsyncConnection,
 ) -> AsyncSession:
     session = AsyncSession(
-        bind=post_trade_connection,
+        bind=learning_connection,
         expire_on_commit=False,
         join_transaction_mode="create_savepoint",
     )
