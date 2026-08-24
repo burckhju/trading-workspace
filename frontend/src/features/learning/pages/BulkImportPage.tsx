@@ -14,7 +14,11 @@ type ReviewSelection = { underlyingId: string; productId: string };
 
 function payloadText(row: BulkImportReviewRow, key: string): string {
   const value = row.payload[key];
-  return value === undefined || value === null ? '–' : String(value);
+  if (value === undefined || value === null) return '–';
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+    return String(value);
+  }
+  return '–';
 }
 
 export function BulkImportPage() {
