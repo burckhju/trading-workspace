@@ -1,6 +1,8 @@
 from decimal import Decimal
 
-from app.features.learning.application.hebeltrader_parser import parse_hebeltrader_text
+from app.features.learning.application.hebeltrader_parser import (
+    parse_hebeltrader_text,
+)
 
 
 BASE = """
