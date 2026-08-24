@@ -190,9 +190,7 @@ def parse_hebeltrader_text(text: str) -> HebeltraderRecommendation:
         raise HebeltraderParseError("inconsistent derivative currencies")
 
     strike, strike_currency = _money("Basispreis", page1)
-    omega_match = _search(
-        r"Omega/Hebel\s*([0-9]+(?:[.,][0-9]+)?)", page1, field="Omega/Hebel"
-    )
+    omega_match = _search(r"Omega/Hebel\s*([0-9]+(?:[.,][0-9]+)?)", page1, field="Omega/Hebel")
     maturity_match = _search(r"Laufzeit\s*(\d{2}\.\d{2}\.\d{2})", page1, field="Laufzeit")
 
     underlying_price, underlying_currency = _money("Akt. Kurs", page3)
