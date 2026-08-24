@@ -1,3 +1,5 @@
+# ruff: noqa: I001
+
 from app.features.learning.application.hebeltrader_parser import parse_hebeltrader_text
 
 
