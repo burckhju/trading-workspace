@@ -2,7 +2,6 @@
 
 from app.features.learning.application.hebeltrader_parser import parse_hebeltrader_text
 
-
 BASE = """
 10.07.2026 · # 122/2026
 Kinder Morgan:
@@ -58,9 +57,7 @@ def test_preserves_mismatching_source_timestamp_as_issue() -> None:
 
     assert result.price_indication_at is not None
     assert result.price_indication_at.year == 2025
-    assert [issue.code for issue in result.validation_issues] == [
-        "PRICE_INDICATION_DATE_MISMATCH"
-    ]
+    assert [issue.code for issue in result.validation_issues] == ["PRICE_INDICATION_DATE_MISMATCH"]
 
 
 def test_marks_source_placeholder_without_correcting_it() -> None:
