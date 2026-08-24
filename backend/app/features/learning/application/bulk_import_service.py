@@ -111,9 +111,7 @@ class ExternalObservationBulkImportService:
                 ExternalObservationImportFileModel.job_id == job_id,
                 ExternalObservationImportRowModel.workspace_id == workspace_id,
                 ExternalObservationImportRowModel.disposition == "PENDING",
-                ExternalObservationImportRowModel.validation_status.in_(
-                    ("UNRESOLVED", "INVALID")
-                ),
+                ExternalObservationImportRowModel.validation_status.in_(("UNRESOLVED", "INVALID")),
             )
             .order_by(
                 ExternalObservationImportRowModel.created_at,
@@ -273,9 +271,7 @@ class ExternalObservationBulkImportService:
         if warrant is None:
             raise BulkImportError("selected warrant does not exist in workspace")
         if warrant.underlying_id != underlying.id:
-            raise BulkImportError(
-                "selected warrant does not belong to selected underlying"
-            )
+            raise BulkImportError("selected warrant does not belong to selected underlying")
 
         now = datetime.now(UTC)
         row.resolved_underlying_id = underlying.id
@@ -340,9 +336,7 @@ class ExternalObservationBulkImportService:
 
         files = await self.list_files(workspace_id, job_id)
         if any(file.status == "FAILED" for file in files):
-            raise BulkImportError(
-                "failed files must be retried before confirmation"
-            )
+            raise BulkImportError("failed files must be retried before confirmation")
 
         review_rows = await self.list_review_rows(workspace_id, job_id)
         if review_rows:
@@ -435,9 +429,7 @@ class ExternalObservationBulkImportService:
             )
 
         validation_status = "VALID" if not issues else "UNRESOLVED"
-        mismatch = any(
-            issue["code"] == "WARRANT_UNDERLYING_MISMATCH" for issue in issues
-        )
+        mismatch = any(issue["code"] == "WARRANT_UNDERLYING_MISMATCH" for issue in issues)
         if mismatch:
             validation_status = "INVALID"
 
@@ -629,9 +621,7 @@ class ExternalObservationBulkImportService:
             learning_evidence_id=evidence_id,
             external_observation_version_id=version_id,
         )
-        self._session.add_all(
-            [observation, version, evidence, evidence_source]
-        )
+        self._session.add_all([observation, version, evidence, evidence_source])
 
         row.disposition = "ACCEPTED"
         row.accepted_external_observation_version_id = version_id
@@ -704,10 +694,7 @@ class ExternalObservationBulkImportService:
             job.status = "OPEN"
         elif any(file_status == "QUEUED" for file_status in statuses):
             job.status = "PROCESSING"
-        elif any(
-            file_status in {"REVIEW_REQUIRED", "FAILED"}
-            for file_status in statuses
-        ):
+        elif any(file_status in {"REVIEW_REQUIRED", "FAILED"} for file_status in statuses):
             job.status = "REVIEW_REQUIRED"
         else:
             job.status = "READY"
