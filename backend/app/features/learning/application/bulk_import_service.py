@@ -22,8 +22,13 @@ from app.features.learning.persistence.bulk_import_models import (
     ExternalObservationImportJobModel,
 )
 from app.features.learning.persistence.models import (
+    ExternalObservationEvidenceModel,
     ExternalObservationImportBatchModel,
+    ExternalObservationImportRowIssueModel,
     ExternalObservationImportRowModel,
+    ExternalObservationModel,
+    ExternalObservationVersionModel,
+    LearningEvidenceModel,
 )
 from app.features.market.persistence.models import UnderlyingModel
 from app.features.product.persistence.models import WarrantModel
@@ -37,7 +42,9 @@ class ExternalObservationBulkImportService:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def create_job(self, workspace_id: UUID, actor_id: UUID) -> ExternalObservationImportJobModel:
+    async def create_job(
+        self, workspace_id: UUID, actor_id: UUID
+    ) -> ExternalObservationImportJobModel:
         now = datetime.now(UTC)
         job = ExternalObservationImportJobModel(
             id=uuid4(),
@@ -51,7 +58,9 @@ class ExternalObservationBulkImportService:
         await self._session.commit()
         return job
 
-    async def get_job(self, workspace_id: UUID, job_id: UUID) -> ExternalObservationImportJobModel:
+    async def get_job(
+        self, workspace_id: UUID, job_id: UUID
+    ) -> ExternalObservationImportJobModel:
         job = await self._session.scalar(
             select(ExternalObservationImportJobModel).where(
                 ExternalObservationImportJobModel.id == job_id,
@@ -72,7 +81,10 @@ class ExternalObservationBulkImportService:
                 ExternalObservationImportFileModel.job_id == job_id,
                 ExternalObservationImportFileModel.workspace_id == workspace_id,
             )
-            .order_by(ExternalObservationImportFileModel.created_at, ExternalObservationImportFileModel.id)
+            .order_by(
+                ExternalObservationImportFileModel.created_at,
+                ExternalObservationImportFileModel.id,
+            )
         )
         return list(rows)
 
@@ -93,7 +105,10 @@ class ExternalObservationBulkImportService:
                 ExternalObservationImportRowModel.disposition == "PENDING",
                 ExternalObservationImportRowModel.validation_status.in_(("UNRESOLVED", "INVALID")),
             )
-            .order_by(ExternalObservationImportRowModel.created_at, ExternalObservationImportRowModel.id)
+            .order_by(
+                ExternalObservationImportRowModel.created_at,
+                ExternalObservationImportRowModel.id,
+            )
         )
         return list(rows)
 
@@ -207,6 +222,210 @@ class ExternalObservationBulkImportService:
         await self._session.commit()
         return file_model
 
+    async def resolve_review_row(
+        self,
+        *,
+        workspace_id: UUID,
+        job_id: UUID,
+        row_id: UUID,
+        underlying_id: UUID,
+        product_id: UUID,
+        actor_id: UUID,
+    ) -> ExternalObservationImportRowModel:
+        job = await self.get_job(workspace_id, job_id)
+        if job.status == "COMPLETED":
+            raise BulkImportError("completed import job cannot be reviewed")
+
+        row, file_model = await self._get_row_and_file(workspace_id, job_id, row_id)
+        if row.disposition != "PENDING":
+            raise BulkImportError("only pending import rows can be resolved")
+
+        underlying = await self._session.scalar(
+            select(UnderlyingModel).where(
+                UnderlyingModel.id == underlying_id,
+                UnderlyingModel.workspace_id == workspace_id,
+            )
+        )
+        if underlying is None:
+            raise BulkImportError("selected underlying does not exist in workspace")
+
+        warrant = await self._session.scalar(
+            select(WarrantModel).where(
+                WarrantModel.id == product_id,
+                WarrantModel.workspace_id == workspace_id,
+            )
+        )
+        if warrant is None:
+            raise BulkImportError("selected warrant does not exist in workspace")
+        if warrant.underlying_id != underlying.id:
+            raise BulkImportError("selected warrant does not belong to selected underlying")
+
+        now = datetime.now(UTC)
+        row.resolved_underlying_id = underlying.id
+        row.resolved_product_id = warrant.id
+        row.validation_status = "VALID"
+        row.updated_at = now
+        payload = dict(row.raw_payload)
+        payload["review_resolution"] = {
+            "resolved_underlying_id": str(underlying.id),
+            "resolved_product_id": str(warrant.id),
+            "resolved_at": now.isoformat(),
+            "resolved_by": str(actor_id),
+        }
+        row.raw_payload = payload
+        file_model.status = "PARSED"
+        file_model.updated_at = now
+        await self._refresh_job_status(job)
+        await self._session.commit()
+        return row
+
+    async def discard_review_row(
+        self,
+        *,
+        workspace_id: UUID,
+        job_id: UUID,
+        row_id: UUID,
+        actor_id: UUID,
+    ) -> ExternalObservationImportRowModel:
+        job = await self.get_job(workspace_id, job_id)
+        if job.status == "COMPLETED":
+            raise BulkImportError("completed import job cannot be reviewed")
+
+        row, file_model = await self._get_row_and_file(workspace_id, job_id, row_id)
+        if row.disposition != "PENDING":
+            raise BulkImportError("only pending import rows can be discarded")
+
+        now = datetime.now(UTC)
+        row.disposition = "DISCARDED"
+        row.disposed_at = now
+        row.disposed_by = actor_id
+        row.updated_at = now
+        file_model.status = "COMPLETED"
+        file_model.updated_at = now
+        await self._refresh_job_status(job)
+        await self._session.commit()
+        return row
+
+    async def confirm_job(
+        self,
+        *,
+        workspace_id: UUID,
+        job_id: UUID,
+        actor_id: UUID,
+    ) -> list[UUID]:
+        job = await self.get_job(workspace_id, job_id)
+        if job.status == "COMPLETED":
+            raise BulkImportError("import job is already completed")
+
+        files = await self.list_files(workspace_id, job_id)
+        if any(file.status == "FAILED" for file in files):
+            raise BulkImportError("failed files must be retried or removed before confirmation")
+
+        review_rows = await self.list_review_rows(workspace_id, job_id)
+        if review_rows:
+            raise BulkImportError("all review rows must be resolved or discarded before confirmation")
+
+        pending_rows = list(
+            await self._session.scalars(
+                select(ExternalObservationImportRowModel)
+                .join(
+                    ExternalObservationImportFileModel,
+                    ExternalObservationImportFileModel.import_batch_id
+                    == ExternalObservationImportRowModel.batch_id,
+                )
+                .where(
+                    ExternalObservationImportFileModel.job_id == job_id,
+                    ExternalObservationImportRowModel.workspace_id == workspace_id,
+                    ExternalObservationImportRowModel.validation_status == "VALID",
+                    ExternalObservationImportRowModel.disposition == "PENDING",
+                )
+                .order_by(ExternalObservationImportRowModel.created_at)
+            )
+        )
+
+        now = datetime.now(UTC)
+        version_ids: list[UUID] = []
+        for row in pending_rows:
+            if row.resolved_underlying_id is None or row.resolved_product_id is None:
+                raise BulkImportError("valid Hebeltrader row requires resolved underlying and warrant")
+
+            file_model = await self._session.scalar(
+                select(ExternalObservationImportFileModel).where(
+                    ExternalObservationImportFileModel.job_id == job_id,
+                    ExternalObservationImportFileModel.import_batch_id == row.batch_id,
+                )
+            )
+            if file_model is None:
+                raise BulkImportError("import row has no file provenance")
+
+            observation_id = uuid4()
+            version_id = uuid4()
+            evidence_id = uuid4()
+            observed_at = _observed_at(row.raw_payload)
+            issue_number = row.raw_payload.get("issue_number")
+            issue_date = str(row.raw_payload.get("issue_date", ""))
+            issue_year = issue_date[:4] if len(issue_date) >= 4 else "unknown"
+
+            observation = ExternalObservationModel(
+                id=observation_id,
+                workspace_id=workspace_id,
+                current_version_id=version_id,
+                created_at=now,
+                created_by=actor_id,
+            )
+            version = ExternalObservationVersionModel(
+                id=version_id,
+                external_observation_id=observation_id,
+                version=1,
+                underlying_id=row.resolved_underlying_id,
+                product_id=row.resolved_product_id,
+                source_type="NEWSLETTER_RECOMMENDATION",
+                source_name="HEBELTRADER",
+                external_reference=f"{issue_number}/{issue_year}",
+                observed_at=observed_at,
+                recorded_at=now,
+                imported_at=now,
+                recording_method="FILE_IMPORT",
+                import_row_id=row.id,
+                source_metadata={
+                    **row.raw_payload,
+                    "source_file": {
+                        "file_id": str(file_model.id),
+                        "filename": file_model.original_filename,
+                        "content_hash": file_model.content_hash,
+                        "batch_id": str(row.batch_id),
+                    },
+                },
+                supersedes_version_id=None,
+                created_at=now,
+                created_by=actor_id,
+            )
+            evidence = LearningEvidenceModel(
+                id=evidence_id,
+                workspace_id=workspace_id,
+                evidence_type="EXTERNAL_OBSERVATION",
+                created_at=now,
+            )
+            evidence_source = ExternalObservationEvidenceModel(
+                learning_evidence_id=evidence_id,
+                external_observation_version_id=version_id,
+            )
+            self._session.add_all([observation, version, evidence, evidence_source])
+
+            row.disposition = "ACCEPTED"
+            row.accepted_external_observation_version_id = version_id
+            row.disposed_at = now
+            row.disposed_by = actor_id
+            row.updated_at = now
+            file_model.status = "COMPLETED"
+            file_model.updated_at = now
+            version_ids.append(version_id)
+
+        job.status = "COMPLETED"
+        job.updated_at = now
+        await self._session.commit()
+        return version_ids
+
     async def _stage_recommendation(
         self,
         *,
@@ -215,8 +434,13 @@ class ExternalObservationBulkImportService:
         recommendation: HebeltraderRecommendation,
     ) -> ExternalObservationImportRowModel:
         now = datetime.now(UTC)
-        issues = [
-            {"code": issue.code, "field": issue.field, "message": issue.message}
+        issues: list[dict[str, str | None]] = [
+            {
+                "code": issue.code,
+                "field": issue.field,
+                "message": issue.message,
+                "severity": "WARNING",
+            }
             for issue in recommendation.validation_issues
         ]
 
@@ -232,6 +456,7 @@ class ExternalObservationBulkImportService:
                     "code": "UNDERLYING_WKN_NOT_FOUND",
                     "field": "underlying_wkn",
                     "message": "No workspace underlying matches the source WKN",
+                    "severity": "ERROR",
                 }
             )
 
@@ -247,6 +472,7 @@ class ExternalObservationBulkImportService:
                     "code": "WARRANT_WKN_NOT_FOUND",
                     "field": "derivative_wkn",
                     "message": "No workspace warrant matches the source WKN",
+                    "severity": "ERROR",
                 }
             )
         elif underlying is not None and warrant.underlying_id != underlying.id:
@@ -255,6 +481,7 @@ class ExternalObservationBulkImportService:
                     "code": "WARRANT_UNDERLYING_MISMATCH",
                     "field": "derivative_wkn",
                     "message": "Resolved warrant belongs to a different underlying",
+                    "severity": "ERROR",
                 }
             )
 
@@ -284,7 +511,42 @@ class ExternalObservationBulkImportService:
         )
         self._session.add(row)
         await self._session.flush()
+
+        for issue in issues:
+            self._session.add(
+                ExternalObservationImportRowIssueModel(
+                    id=uuid4(),
+                    import_row_id=row.id,
+                    code=str(issue["code"]),
+                    severity=str(issue["severity"]),
+                    field=issue["field"],
+                    message=str(issue["message"]),
+                    created_at=now,
+                )
+            )
+        await self._session.flush()
         return row
+
+    async def _get_row_and_file(
+        self, workspace_id: UUID, job_id: UUID, row_id: UUID
+    ) -> tuple[ExternalObservationImportRowModel, ExternalObservationImportFileModel]:
+        result = await self._session.execute(
+            select(ExternalObservationImportRowModel, ExternalObservationImportFileModel)
+            .join(
+                ExternalObservationImportFileModel,
+                ExternalObservationImportFileModel.import_batch_id
+                == ExternalObservationImportRowModel.batch_id,
+            )
+            .where(
+                ExternalObservationImportRowModel.id == row_id,
+                ExternalObservationImportRowModel.workspace_id == workspace_id,
+                ExternalObservationImportFileModel.job_id == job_id,
+            )
+        )
+        pair = result.one_or_none()
+        if pair is None:
+            raise BulkImportError("import row does not exist in job")
+        return pair[0], pair[1]
 
     async def _refresh_job_status(self, job: ExternalObservationImportJobModel) -> None:
         await self._session.flush()
@@ -304,6 +566,17 @@ class ExternalObservationBulkImportService:
         else:
             job.status = "READY"
         job.updated_at = datetime.now(UTC)
+
+
+def _observed_at(payload: dict[str, Any]) -> datetime:
+    issue_date = payload.get("issue_date")
+    if not isinstance(issue_date, str):
+        raise BulkImportError("import row has no valid issue_date")
+    try:
+        parsed = datetime.fromisoformat(issue_date)
+    except ValueError as error:
+        raise BulkImportError("import row has invalid issue_date") from error
+    return datetime(parsed.year, parsed.month, parsed.day, tzinfo=UTC)
 
 
 def _json_payload(value: HebeltraderRecommendation) -> dict[str, Any]:
