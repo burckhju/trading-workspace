@@ -51,6 +51,52 @@ class ExternalObservationBulkImportService:
         await self._session.commit()
         return job
 
+    async def get_job(self, workspace_id: UUID, job_id: UUID) -> ExternalObservationImportJobModel:
+        job = await self._session.scalar(
+            select(ExternalObservationImportJobModel).where(
+                ExternalObservationImportJobModel.id == job_id,
+                ExternalObservationImportJobModel.workspace_id == workspace_id,
+            )
+        )
+        if job is None:
+            raise BulkImportError("import job does not exist in workspace")
+        return job
+
+    async def list_files(
+        self, workspace_id: UUID, job_id: UUID
+    ) -> list[ExternalObservationImportFileModel]:
+        await self.get_job(workspace_id, job_id)
+        rows = await self._session.scalars(
+            select(ExternalObservationImportFileModel)
+            .where(
+                ExternalObservationImportFileModel.job_id == job_id,
+                ExternalObservationImportFileModel.workspace_id == workspace_id,
+            )
+            .order_by(ExternalObservationImportFileModel.created_at, ExternalObservationImportFileModel.id)
+        )
+        return list(rows)
+
+    async def list_review_rows(
+        self, workspace_id: UUID, job_id: UUID
+    ) -> list[ExternalObservationImportRowModel]:
+        await self.get_job(workspace_id, job_id)
+        rows = await self._session.scalars(
+            select(ExternalObservationImportRowModel)
+            .join(
+                ExternalObservationImportFileModel,
+                ExternalObservationImportFileModel.import_batch_id
+                == ExternalObservationImportRowModel.batch_id,
+            )
+            .where(
+                ExternalObservationImportFileModel.job_id == job_id,
+                ExternalObservationImportRowModel.workspace_id == workspace_id,
+                ExternalObservationImportRowModel.disposition == "PENDING",
+                ExternalObservationImportRowModel.validation_status.in_(("UNRESOLVED", "INVALID")),
+            )
+            .order_by(ExternalObservationImportRowModel.created_at, ExternalObservationImportRowModel.id)
+        )
+        return list(rows)
+
     async def ingest_pdf(
         self,
         *,
@@ -66,14 +112,7 @@ class ExternalObservationBulkImportService:
         if not content:
             raise BulkImportError("file must not be empty")
 
-        job = await self._session.scalar(
-            select(ExternalObservationImportJobModel).where(
-                ExternalObservationImportJobModel.id == job_id,
-                ExternalObservationImportJobModel.workspace_id == workspace_id,
-            )
-        )
-        if job is None:
-            raise BulkImportError("import job does not exist in workspace")
+        job = await self.get_job(workspace_id, job_id)
         if job.status == "COMPLETED":
             raise BulkImportError("completed import job cannot accept more files")
 
@@ -258,7 +297,7 @@ class ExternalObservationBulkImportService:
         )
         if not statuses:
             job.status = "OPEN"
-        elif any(status in {"QUEUED"} for status in statuses):
+        elif any(status == "QUEUED" for status in statuses):
             job.status = "PROCESSING"
         elif any(status in {"REVIEW_REQUIRED", "FAILED"} for status in statuses):
             job.status = "REVIEW_REQUIRED"
