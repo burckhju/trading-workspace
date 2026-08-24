@@ -7,16 +7,14 @@ async def _constraints(
     table: str,
 ) -> dict[str, str]:
     rows = await session.execute(
-        text(
-            """
+        text("""
             select
                 c.conname,
                 pg_get_constraintdef(c.oid, true)
             from pg_constraint c
             join pg_class t on t.oid = c.conrelid
             where t.relname = :table
-            """
-        ),
+            """),
         {"table": table},
     )
     return {row[0]: row[1] for row in rows}
@@ -27,13 +25,11 @@ async def _index_names(
     table: str,
 ) -> set[str]:
     rows = await session.execute(
-        text(
-            """
+        text("""
             select indexname
             from pg_indexes
             where tablename = :table
-            """
-        ),
+            """),
         {"table": table},
     )
     return {row[0] for row in rows}

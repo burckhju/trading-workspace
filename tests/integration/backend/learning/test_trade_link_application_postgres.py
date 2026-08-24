@@ -44,12 +44,10 @@ async def _seed_parents(
     product_id = uuid4()
 
     await session.execute(
-        text(
-            """
+        text("""
             insert into workspaces (id, name, created_at)
             values (:id, :name, :created_at)
-            """
-        ),
+            """),
         {
             "id": workspace_id,
             "name": f"ws-{workspace_id}",
@@ -57,8 +55,7 @@ async def _seed_parents(
         },
     )
     await session.execute(
-        text(
-            """
+        text("""
             insert into issuers (
                 id, legal_name, display_name, country_code, lei,
                 is_active, version, created_at, updated_at
@@ -67,8 +64,7 @@ async def _seed_parents(
                 :id, :legal_name, :display_name, null, null,
                 true, 1, :created_at, :updated_at
             )
-            """
-        ),
+            """),
         {
             "id": issuer_id,
             "legal_name": f"Issuer {issuer_id}",
@@ -78,8 +74,7 @@ async def _seed_parents(
         },
     )
     await session.execute(
-        text(
-            """
+        text("""
             insert into underlyings (
                 id, workspace_id, type, name, isin, wkn,
                 lifecycle_status, quality_status, version,
@@ -90,8 +85,7 @@ async def _seed_parents(
                 'ACTIVE', 'VERIFIED', 1,
                 :created_at, :updated_at, 'MANUAL'
             )
-            """
-        ),
+            """),
         {
             "id": underlying_id,
             "workspace_id": workspace_id,
@@ -101,8 +95,7 @@ async def _seed_parents(
         },
     )
     await session.execute(
-        text(
-            """
+        text("""
             insert into warrants (
                 id, workspace_id, issuer_id, underlying_id,
                 product_family, display_name, isin, wkn,
@@ -113,8 +106,7 @@ async def _seed_parents(
                 'WARRANT', :display_name, null, null,
                 'ACTIVE', 1, :created_at, :updated_at
             )
-            """
-        ),
+            """),
         {
             "id": product_id,
             "workspace_id": workspace_id,
@@ -136,8 +128,7 @@ async def _seed_external_trade(
 ) -> UUID:
     trade_id = uuid4()
     await session.execute(
-        text(
-            """
+        text("""
             insert into trades (
                 id, workspace_id, product_id, origin,
                 created_at, created_by,
@@ -149,8 +140,7 @@ async def _seed_external_trade(
                 :created_at, :created_by,
                 null, null, null, null
             )
-            """
-        ),
+            """),
         {
             "id": trade_id,
             "workspace_id": workspace_id,
@@ -173,8 +163,7 @@ async def _seed_observation(
     version_id = uuid4()
 
     await session.execute(
-        text(
-            """
+        text("""
             insert into external_observations (
                 id, workspace_id, current_version_id,
                 created_at, created_by
@@ -183,8 +172,7 @@ async def _seed_observation(
                 :id, :workspace_id, :version_id,
                 :created_at, :created_by
             )
-            """
-        ),
+            """),
         {
             "id": observation_id,
             "workspace_id": workspace_id,
@@ -194,8 +182,7 @@ async def _seed_observation(
         },
     )
     await session.execute(
-        text(
-            """
+        text("""
             insert into external_observation_versions (
                 id, external_observation_id, version,
                 underlying_id, product_id,
@@ -212,8 +199,7 @@ async def _seed_observation(
                 'MANUAL', null, null,
                 null, :created_at, :created_by
             )
-            """
-        ),
+            """),
         {
             "id": version_id,
             "observation_id": observation_id,
@@ -293,8 +279,7 @@ async def test_create_trade_link_persists_root_and_v1_atomically(
 
     row = (
         await learning_session.execute(
-            text(
-                """
+            text("""
                 select l.current_version_id,
                        v.external_observation_version_id,
                        v.trade_id,
@@ -304,8 +289,7 @@ async def test_create_trade_link_persists_root_and_v1_atomically(
                 join external_observation_trade_link_versions v
                   on v.id = l.current_version_id
                 where l.id = :link_id
-                """
-            ),
+                """),
             {"link_id": link_id},
         )
     ).one()

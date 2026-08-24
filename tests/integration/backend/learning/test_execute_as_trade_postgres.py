@@ -92,26 +92,22 @@ async def test_execute_as_trade_creates_trade_link_and_idempotency(
         {"id": first.trade_id},
     )
     link_count = await learning_session.scalar(
-        text(
-            """
+        text("""
             select count(*)
             from external_observation_trade_links
             where id = :id
-            """
-        ),
+            """),
         {"id": first.trade_link_id},
     )
     idem = (
         await learning_session.execute(
-            text(
-                """
+            text("""
                 select status, result_type, result_id
                 from ft012_idempotency_records
                 where workspace_id = :workspace_id
                   and command_type = 'EXECUTE_AS_TRADE'
                   and idempotency_key = 'exec-1'
-                """
-            ),
+                """),
             {"workspace_id": workspace_id},
         )
     ).one()

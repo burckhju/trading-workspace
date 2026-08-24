@@ -4,14 +4,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 async def _constraints(session: AsyncSession, table: str) -> dict[str, str]:
     rows = await session.execute(
-        text(
-            """
+        text("""
             select c.conname, pg_get_constraintdef(c.oid, true)
             from pg_constraint c
             join pg_class t on t.oid = c.conrelid
             where t.relname = :table
-            """
-        ),
+            """),
         {"table": table},
     )
     return {row[0]: row[1] for row in rows}
@@ -32,19 +30,13 @@ async def test_lesson_state_vocabulary_is_authoritative(learning_session: AsyncS
 async def test_lesson_current_version_fk_is_deferred_same_aggregate(
     learning_session: AsyncSession,
 ) -> None:
-    row = (
-        await learning_session.execute(
-            text(
-                """
+    row = (await learning_session.execute(text("""
                 select c.condeferrable, c.condeferred, pg_get_constraintdef(c.oid, true)
                 from pg_constraint c
                 join pg_class t on t.oid = c.conrelid
                 where t.relname = 'lessons'
                   and c.conname = 'fk_lessons_current_version_same_lesson'
-                """
-            )
-        )
-    ).one()
+                """))).one()
     assert row[0] is True
     assert row[1] is True
     assert "FOREIGN KEY (id, current_version_id)" in row[2]

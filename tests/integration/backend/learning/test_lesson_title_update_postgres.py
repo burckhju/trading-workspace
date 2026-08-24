@@ -40,17 +40,12 @@ async def test_title_update_keeps_current_version(
 
     # Lesson <-> current LessonVersion is a deferred FK cycle.
     # Seed both rows with their final identities inside the same transaction.
-    await learning_session.execute(
-        text(
-            """
+    await learning_session.execute(text("""
             set constraints all deferred
-            """
-        )
-    )
+            """))
 
     await learning_session.execute(
-        text(
-            """
+        text("""
             insert into lessons (
                 id, workspace_id, title,
                 current_version_id, current_state,
@@ -61,8 +56,7 @@ async def test_title_update_keeps_current_version(
                 :version_id, 'CURRENT',
                 :now, :actor_id, :now, :actor_id
             )
-            """
-        ),
+            """),
         {
             "id": lesson_id,
             "workspace_id": workspace_id,
@@ -73,8 +67,7 @@ async def test_title_update_keeps_current_version(
     )
 
     await learning_session.execute(
-        text(
-            """
+        text("""
             insert into lesson_versions (
                 id, lesson_id, version,
                 main_category, content,
@@ -87,8 +80,7 @@ async def test_title_update_keeps_current_version(
                 :now, :actor_id,
                 null
             )
-            """
-        ),
+            """),
         {
             "id": version_id,
             "lesson_id": lesson_id,
@@ -114,25 +106,21 @@ async def test_title_update_keeps_current_version(
 
     row = (
         await learning_session.execute(
-            text(
-                """
+            text("""
                 select title, current_version_id
                 from lessons
                 where id = :lesson_id
-                """
-            ),
+                """),
             {"lesson_id": lesson_id},
         )
     ).one()
 
     version_count = await learning_session.scalar(
-        text(
-            """
+        text("""
             select count(*)
             from lesson_versions
             where lesson_id = :lesson_id
-            """
-        ),
+            """),
         {"lesson_id": lesson_id},
     )
 

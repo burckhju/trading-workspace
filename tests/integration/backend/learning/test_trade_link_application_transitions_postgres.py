@@ -113,13 +113,11 @@ async def test_correct_target_creates_active_next_version(
 
     row = (
         await learning_session.execute(
-            text(
-                """
+            text("""
                 select current_version_id
                 from external_observation_trade_links
                 where id = :link_id
-                """
-            ),
+                """),
             {"link_id": link_id},
         )
     ).one()
@@ -197,8 +195,7 @@ async def test_reactivate_same_target_uses_current_source(
 
     current_source_id = uuid4()
     await learning_session.execute(
-        text(
-            """
+        text("""
             insert into external_observation_versions (
                 id, external_observation_id, version,
                 underlying_id, product_id,
@@ -215,8 +212,7 @@ async def test_reactivate_same_target_uses_current_source(
                 'MANUAL', null, null,
                 :supersedes, :created_at, :created_by
             )
-            """
-        ),
+            """),
         {
             "id": current_source_id,
             "observation_id": observation_id,
@@ -230,13 +226,11 @@ async def test_reactivate_same_target_uses_current_source(
         },
     )
     await learning_session.execute(
-        text(
-            """
+        text("""
             update external_observations
             set current_version_id = :current_source_id
             where id = :observation_id
-            """
-        ),
+            """),
         {
             "current_source_id": current_source_id,
             "observation_id": observation_id,
@@ -330,8 +324,7 @@ async def test_revalidate_source_moves_active_link_to_current_source(
 
     current_source_id = uuid4()
     await learning_session.execute(
-        text(
-            """
+        text("""
             insert into external_observation_versions (
                 id, external_observation_id, version,
                 underlying_id, product_id,
@@ -348,8 +341,7 @@ async def test_revalidate_source_moves_active_link_to_current_source(
                 'MANUAL', null, null,
                 :supersedes, :created_at, :created_by
             )
-            """
-        ),
+            """),
         {
             "id": current_source_id,
             "observation_id": observation_id,
@@ -363,13 +355,11 @@ async def test_revalidate_source_moves_active_link_to_current_source(
         },
     )
     await learning_session.execute(
-        text(
-            """
+        text("""
             update external_observations
             set current_version_id = :current_source_id
             where id = :observation_id
-            """
-        ),
+            """),
         {
             "current_source_id": current_source_id,
             "observation_id": observation_id,
@@ -419,8 +409,7 @@ async def test_revalidate_source_rejects_incompatible_current_source(
 
     incompatible_underlying_id = uuid4()
     await learning_session.execute(
-        text(
-            """
+        text("""
             insert into underlyings (
                 id,
                 workspace_id,
@@ -449,8 +438,7 @@ async def test_revalidate_source_rejects_incompatible_current_source(
                 :updated_at,
                 'MANUAL'
             )
-            """
-        ),
+            """),
         {
             "id": incompatible_underlying_id,
             "workspace_id": workspace_id,
@@ -462,8 +450,7 @@ async def test_revalidate_source_rejects_incompatible_current_source(
 
     current_source_id = uuid4()
     await learning_session.execute(
-        text(
-            """
+        text("""
             insert into external_observation_versions (
                 id, external_observation_id, version,
                 underlying_id, product_id,
@@ -480,8 +467,7 @@ async def test_revalidate_source_rejects_incompatible_current_source(
                 'MANUAL', null, null,
                 :supersedes, :created_at, :created_by
             )
-            """
-        ),
+            """),
         {
             "id": current_source_id,
             "observation_id": observation_id,
@@ -495,13 +481,11 @@ async def test_revalidate_source_rejects_incompatible_current_source(
         },
     )
     await learning_session.execute(
-        text(
-            """
+        text("""
             update external_observations
             set current_version_id = :current_source_id
             where id = :observation_id
-            """
-        ),
+            """),
         {
             "current_source_id": current_source_id,
             "observation_id": observation_id,

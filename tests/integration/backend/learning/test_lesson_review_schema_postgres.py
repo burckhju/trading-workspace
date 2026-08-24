@@ -4,32 +4,24 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 async def _constraints(session: AsyncSession, table: str) -> dict[str, str]:
     rows = await session.execute(
-        text(
-            """
+        text("""
             select c.conname, pg_get_constraintdef(c.oid, true)
             from pg_constraint c
             join pg_class t on t.oid = c.conrelid
             where t.relname = :table
-            """
-        ),
+            """),
         {"table": table},
     )
     return {row[0]: row[1] for row in rows}
 
 
 async def test_review_signal_open_partial_unique_exists(learning_session: AsyncSession) -> None:
-    row = (
-        await learning_session.execute(
-            text(
-                """
+    row = (await learning_session.execute(text("""
                 select indexdef
                 from pg_indexes
                 where tablename = 'lesson_review_signals'
                   and indexname = 'uq_lesson_review_signals_open'
-                """
-            )
-        )
-    ).one()
+                """))).one()
     assert "UNIQUE INDEX" in row[0]
     assert "WHERE" in row[0]
     assert "OPEN" in row[0]

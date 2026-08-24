@@ -49,8 +49,7 @@ async def test_create_lesson_v1_with_supporting_evidence(
 
     evidence_id = uuid4()
     await learning_session.execute(
-        text(
-            """
+        text("""
             insert into learning_evidence (
                 id, workspace_id, evidence_type, created_at
             )
@@ -60,8 +59,7 @@ async def test_create_lesson_v1_with_supporting_evidence(
                 'EXTERNAL_OBSERVATION',
                 :created_at
             )
-            """
-        ),
+            """),
         {
             "id": evidence_id,
             "workspace_id": workspace_id,
@@ -70,15 +68,13 @@ async def test_create_lesson_v1_with_supporting_evidence(
     )
 
     await learning_session.execute(
-        text(
-            """
+        text("""
             insert into external_observation_evidence (
                 learning_evidence_id,
                 external_observation_version_id
             )
             values (:evidence_id, :source_id)
-            """
-        ),
+            """),
         {
             "evidence_id": evidence_id,
             "source_id": observation_version_id,
@@ -109,37 +105,31 @@ async def test_create_lesson_v1_with_supporting_evidence(
 
     lesson = (
         await learning_session.execute(
-            text(
-                """
+            text("""
                 select current_version_id, current_state
                 from lessons
                 where id = :id
-                """
-            ),
+                """),
             {"id": result.lesson.id},
         )
     ).one()
     version = (
         await learning_session.execute(
-            text(
-                """
+            text("""
                 select version, supersedes_version_id
                 from lesson_versions
                 where id = :id
-                """
-            ),
+                """),
             {"id": result.version.id},
         )
     ).one()
     link_count = await learning_session.scalar(
-        text(
-            """
+        text("""
             select count(*)
             from lesson_evidence_links
             where lesson_version_id = :version_id
               and relation = 'SUPPORTS'
-            """
-        ),
+            """),
         {"version_id": result.version.id},
     )
 

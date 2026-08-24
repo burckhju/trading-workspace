@@ -44,12 +44,10 @@ async def _seed_trade_link_graph(
     product_id = uuid4()
 
     await session.execute(
-        text(
-            """
+        text("""
             insert into workspaces (id, name, created_at)
             values (:id, :name, :created_at)
-            """
-        ),
+            """),
         {
             "id": workspace_id,
             "name": f"ws-{workspace_id}",
@@ -58,8 +56,7 @@ async def _seed_trade_link_graph(
     )
 
     await session.execute(
-        text(
-            """
+        text("""
             insert into issuers (
                 id,
                 legal_name,
@@ -82,8 +79,7 @@ async def _seed_trade_link_graph(
                 :created_at,
                 :updated_at
             )
-            """
-        ),
+            """),
         {
             "id": issuer_id,
             "legal_name": f"Issuer {issuer_id}",
@@ -94,8 +90,7 @@ async def _seed_trade_link_graph(
     )
 
     await session.execute(
-        text(
-            """
+        text("""
             insert into underlyings (
                 id,
                 workspace_id,
@@ -124,8 +119,7 @@ async def _seed_trade_link_graph(
                 :updated_at,
                 'MANUAL'
             )
-            """
-        ),
+            """),
         {
             "id": underlying_id,
             "workspace_id": workspace_id,
@@ -136,8 +130,7 @@ async def _seed_trade_link_graph(
     )
 
     await session.execute(
-        text(
-            """
+        text("""
             insert into warrants (
                 id,
                 workspace_id,
@@ -166,8 +159,7 @@ async def _seed_trade_link_graph(
                 :created_at,
                 :updated_at
             )
-            """
-        ),
+            """),
         {
             "id": product_id,
             "workspace_id": workspace_id,
@@ -180,8 +172,7 @@ async def _seed_trade_link_graph(
     )
 
     await session.execute(
-        text(
-            """
+        text("""
             insert into trades (
                 id,
                 workspace_id,
@@ -206,8 +197,7 @@ async def _seed_trade_link_graph(
                 null,
                 null
             )
-            """
-        ),
+            """),
         {
             "id": trade_id,
             "workspace_id": workspace_id,
@@ -218,8 +208,7 @@ async def _seed_trade_link_graph(
     )
 
     await session.execute(
-        text(
-            """
+        text("""
             insert into external_observations (
                 id, workspace_id, current_version_id,
                 created_at, created_by
@@ -228,8 +217,7 @@ async def _seed_trade_link_graph(
                 :id, :workspace_id, :current_version_id,
                 :created_at, :created_by
             )
-            """
-        ),
+            """),
         {
             "id": observation_id,
             "workspace_id": workspace_id,
@@ -240,8 +228,7 @@ async def _seed_trade_link_graph(
     )
 
     await session.execute(
-        text(
-            """
+        text("""
             insert into external_observation_versions (
                 id, external_observation_id, version,
                 underlying_id, product_id,
@@ -258,8 +245,7 @@ async def _seed_trade_link_graph(
                 'MANUAL', null, null,
                 null, :created_at, :created_by
             )
-            """
-        ),
+            """),
         {
             "id": observation_version_id,
             "observation_id": observation_id,
@@ -273,8 +259,7 @@ async def _seed_trade_link_graph(
     )
 
     await session.execute(
-        text(
-            """
+        text("""
             insert into external_observation_trade_links (
                 id, workspace_id, external_observation_id,
                 current_version_id, created_at, created_by
@@ -283,8 +268,7 @@ async def _seed_trade_link_graph(
                 :id, :workspace_id, :observation_id,
                 :current_version_id, :created_at, :created_by
             )
-            """
-        ),
+            """),
         {
             "id": link_id,
             "workspace_id": workspace_id,
@@ -296,8 +280,7 @@ async def _seed_trade_link_graph(
     )
 
     await session.execute(
-        text(
-            """
+        text("""
             insert into external_observation_trade_link_versions (
                 id, external_observation_trade_link_id, version,
                 external_observation_version_id, trade_id,
@@ -310,8 +293,7 @@ async def _seed_trade_link_graph(
                 'ACTIVE', null, 'INITIAL_LINK',
                 null, :created_at, :created_by
             )
-            """
-        ),
+            """),
         {
             "id": link_version_id,
             "link_id": link_id,
