@@ -220,7 +220,7 @@ async def test_ingest_pdf_records_parse_failure(monkeypatch: pytest.MonkeyPatch)
     assert job.status == "REVIEW_REQUIRED"
 
 
-async def test_ingest_pdf_records_duplicate_without_parsing(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_duplicate_skips_parsing(monkeypatch: pytest.MonkeyPatch) -> None:
     session = _session()
     job = _job()
     duplicate = _file(uuid4(), status="COMPLETED")
