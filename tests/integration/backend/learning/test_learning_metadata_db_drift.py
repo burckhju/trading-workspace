@@ -62,5 +62,5 @@ async def test_learning_orm_tables_3_to_9_match_database_columns(
         )
 
 
-async def test_learning_tables_3_to_9_are_registered_in_metadata() -> None:
+def test_learning_tables_3_to_9_are_registered_in_metadata() -> None:
     assert set(Base.metadata.tables) >= TABLES
