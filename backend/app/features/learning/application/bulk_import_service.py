@@ -6,7 +6,7 @@ import hashlib
 from dataclasses import asdict
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Any
+from typing import Any, cast
 from uuid import UUID, uuid4
 
 from sqlalchemy import select
@@ -465,16 +465,19 @@ class ExternalObservationBulkImportService:
         job_id: UUID,
         content_hash: str,
     ) -> ExternalObservationImportFileModel | None:
-        return await self._session.scalar(
-            select(ExternalObservationImportFileModel)
-            .where(
-                ExternalObservationImportFileModel.workspace_id == workspace_id,
-                ExternalObservationImportFileModel.job_id == job_id,
-                ExternalObservationImportFileModel.content_hash == content_hash,
-                ExternalObservationImportFileModel.status == "FAILED",
-            )
-            .order_by(ExternalObservationImportFileModel.created_at)
-            .limit(1)
+        return cast(
+            ExternalObservationImportFileModel | None,
+            await self._session.scalar(
+                select(ExternalObservationImportFileModel)
+                .where(
+                    ExternalObservationImportFileModel.workspace_id == workspace_id,
+                    ExternalObservationImportFileModel.job_id == job_id,
+                    ExternalObservationImportFileModel.content_hash == content_hash,
+                    ExternalObservationImportFileModel.status == "FAILED",
+                )
+                .order_by(ExternalObservationImportFileModel.created_at)
+                .limit(1)
+            ),
         )
 
     async def _find_duplicate(
@@ -483,15 +486,18 @@ class ExternalObservationBulkImportService:
         workspace_id: UUID,
         content_hash: str,
     ) -> ExternalObservationImportFileModel | None:
-        return await self._session.scalar(
-            select(ExternalObservationImportFileModel)
-            .where(
-                ExternalObservationImportFileModel.workspace_id == workspace_id,
-                ExternalObservationImportFileModel.content_hash == content_hash,
-                ExternalObservationImportFileModel.status != "FAILED",
-            )
-            .order_by(ExternalObservationImportFileModel.created_at)
-            .limit(1)
+        return cast(
+            ExternalObservationImportFileModel | None,
+            await self._session.scalar(
+                select(ExternalObservationImportFileModel)
+                .where(
+                    ExternalObservationImportFileModel.workspace_id == workspace_id,
+                    ExternalObservationImportFileModel.content_hash == content_hash,
+                    ExternalObservationImportFileModel.status != "FAILED",
+                )
+                .order_by(ExternalObservationImportFileModel.created_at)
+                .limit(1)
+            ),
         )
 
     async def _record_duplicate(
