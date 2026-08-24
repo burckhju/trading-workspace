@@ -1,5 +1,3 @@
-from decimal import Decimal
-
 from app.features.learning.application.hebeltrader_parser import parse_hebeltrader_text
 
 
@@ -43,13 +41,13 @@ def test_extracts_core_recommendation_fields() -> None:
     assert result.underlying_wkn == "A1H6GK"
     assert result.derivative_wkn == "JE85E1"
     assert result.derivative_type == "OPTIONSSCHEIN_CALL"
-    assert result.derivative_indicated_price == Decimal("0.046")
-    assert result.strike == Decimal("38.00")
+    assert str(result.derivative_indicated_price) == "0.046"
+    assert str(result.strike) == "38.00"
     assert result.strike_currency == "USD"
-    assert result.omega_or_leverage == Decimal("11.2")
-    assert result.underlying_price == Decimal("32.40")
-    assert result.stock_upside_pct == Decimal("20")
-    assert result.derivative_risk_pct == Decimal("-67")
+    assert str(result.omega_or_leverage) == "11.2"
+    assert str(result.underlying_price) == "32.40"
+    assert str(result.stock_upside_pct) == "20"
+    assert str(result.derivative_risk_pct) == "-67"
     assert result.validation_issues == ()
 
 
