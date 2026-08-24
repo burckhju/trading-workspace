@@ -42,7 +42,9 @@ export function BulkImportPage() {
         setWarrants(warrantResponse.filter((item) => item.lifecycle_status === 'ACTIVE'));
       })
       .catch((value: unknown) =>
-        setError(value instanceof Error ? value.message : 'Stammdaten konnten nicht geladen werden.'),
+        setError(
+          value instanceof Error ? value.message : 'Stammdaten konnten nicht geladen werden.',
+        ),
       );
   }, []);
 
@@ -104,10 +106,17 @@ export function BulkImportPage() {
     setBusy(true);
     setError(null);
     try {
-      await bulkImportClient.resolve(job.job_id, row.id, selection.underlyingId, selection.productId);
+      await bulkImportClient.resolve(
+        job.job_id,
+        row.id,
+        selection.underlyingId,
+        selection.productId,
+      );
       await refresh(job.job_id);
     } catch (value: unknown) {
-      setError(value instanceof Error ? value.message : 'Review-Fall konnte nicht zugeordnet werden.');
+      setError(
+        value instanceof Error ? value.message : 'Review-Fall konnte nicht zugeordnet werden.',
+      );
     } finally {
       setBusy(false);
     }
@@ -121,7 +130,9 @@ export function BulkImportPage() {
       await bulkImportClient.discard(job.job_id, row.id);
       await refresh(job.job_id);
     } catch (value: unknown) {
-      setError(value instanceof Error ? value.message : 'Review-Fall konnte nicht verworfen werden.');
+      setError(
+        value instanceof Error ? value.message : 'Review-Fall konnte nicht verworfen werden.',
+      );
     } finally {
       setBusy(false);
     }
@@ -145,7 +156,9 @@ export function BulkImportPage() {
   return (
     <div className="w-full space-y-8">
       <header>
-        <p className="text-xs uppercase tracking-wide text-slate-500">Learning · Historical Evidence</p>
+        <p className="text-xs uppercase tracking-wide text-slate-500">
+          Learning · Historical Evidence
+        </p>
         <h1 className="mt-1 text-2xl font-semibold">Hebeltrader PDF-Import</h1>
         <p className="mt-2 max-w-4xl text-sm text-slate-400">
           Viele historische Ausgaben in einem Job hochladen, automatisch per WKN zuordnen und nur
@@ -183,7 +196,9 @@ export function BulkImportPage() {
             onClick={() => void upload()}
             className="rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-950 disabled:opacity-50"
           >
-            {busy ? 'Verarbeite …' : `${files.length || 0} PDF${files.length === 1 ? '' : 's'} importieren`}
+            {busy
+              ? 'Verarbeite …'
+              : `${files.length || 0} PDF${files.length === 1 ? '' : 's'} importieren`}
           </button>
         </div>
       </section>
