@@ -62,7 +62,9 @@ class HebeltraderRecommendation:
     validation_issues: tuple[HebeltraderValidationIssue, ...]
 
 
-_ISSUE_RE = re.compile(r"(?P<date>\d{2}\.\d{2}\.\d{4})\s*[·•]\s*#\s*(?P<number>\d+)/(?P<year>\d{4})")
+_ISSUE_RE = re.compile(
+    r"(?P<date>\d{2}\.\d{2}\.\d{4})\s*[·•]\s*#\s*(?P<number>\d+)/(?P<year>\d{4})"
+)
 _MONEY_RE = r"(?P<value>-?\d+(?:[.,]\d+)?)\s*(?P<currency>€|\$)"
 _WKN_RE = re.compile(r"\bWKN\s+([A-Z0-9]{6})\b")
 
@@ -177,11 +179,20 @@ def parse_hebeltrader_text(text: str) -> HebeltraderRecommendation:
     derivative_target_2, target_currency_2 = _money("Ziel 2", page1)
     derivative_stop_1, stop_currency_1 = _money("Stopp 1", page1)
     derivative_stop_2, stop_currency_2 = _money("Stopp 2", page1)
-    if len({derivative_currency, target_currency_1, target_currency_2, stop_currency_1, stop_currency_2}) != 1:
+    derivative_currencies = {
+        derivative_currency,
+        target_currency_1,
+        target_currency_2,
+        stop_currency_1,
+        stop_currency_2,
+    }
+    if len(derivative_currencies) != 1:
         raise HebeltraderParseError("inconsistent derivative currencies")
 
     strike, strike_currency = _money("Basispreis", page1)
-    omega_match = _search(r"Omega/Hebel\s*([0-9]+(?:[.,][0-9]+)?)", page1, field="Omega/Hebel")
+    omega_match = _search(
+        r"Omega/Hebel\s*([0-9]+(?:[.,][0-9]+)?)", page1, field="Omega/Hebel"
+    )
     maturity_match = _search(r"Laufzeit\s*(\d{2}\.\d{2}\.\d{2})", page1, field="Laufzeit")
 
     underlying_price, underlying_currency = _money("Akt. Kurs", page3)
@@ -191,7 +202,16 @@ def parse_hebeltrader_text(text: str) -> HebeltraderRecommendation:
     underlying_stop_2, u_s2_cur = _money("Stopp 2", page3)
     gd50, gd50_cur = _money("GD50", page3)
     gd200, gd200_cur = _money("GD200", page3)
-    if len({underlying_currency, u_t1_cur, u_t2_cur, u_s1_cur, u_s2_cur, gd50_cur, gd200_cur}) != 1:
+    underlying_currencies = {
+        underlying_currency,
+        u_t1_cur,
+        u_t2_cur,
+        u_s1_cur,
+        u_s2_cur,
+        gd50_cur,
+        gd200_cur,
+    }
+    if len(underlying_currencies) != 1:
         raise HebeltraderParseError("inconsistent underlying currencies")
 
     issues: list[HebeltraderValidationIssue] = []
