@@ -39,14 +39,7 @@ jobs:
       - name: ESLint
         run: npm run lint
       - name: Prettier
-        run: >-
-          npx prettier --write
-          src/features/learning/pages/BulkImportPage.tsx
-          src/features/learning/pages/BulkImportPage.test.tsx
-          && git diff --
-          src/features/learning/pages/BulkImportPage.tsx
-          src/features/learning/pages/BulkImportPage.test.tsx
-          && exit 1
+        run: npm run format
       - name: Unit tests with coverage
         run: >-
           npm run test:coverage --
