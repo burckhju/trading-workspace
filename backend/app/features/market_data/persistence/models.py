@@ -41,10 +41,15 @@ def _enum(enum_type: type[Any], *, length: int) -> Enum:
 
 
 class ProviderInstrumentMappingModel(Base):
-    """Persisted provider symbol assigned to one neutral market-data instrument."""
+    """Persisted provider symbol assigned to one internal market-data identity."""
 
     __tablename__ = "provider_instrument_mappings"
     __table_args__ = (
+        UniqueConstraint(
+            "provider",
+            "listing_id",
+            name="uq_provider_instrument_mappings_provider_listing",
+        ),
         UniqueConstraint(
             "provider",
             "market_data_instrument_id",
@@ -62,6 +67,10 @@ class ProviderInstrumentMappingModel(Base):
             "length(trim(provider_exchange_code)) > 0",
             name="provider_exchange_code_not_blank",
         ),
+        CheckConstraint(
+            "listing_id IS NOT NULL OR market_data_instrument_id IS NOT NULL",
+            name="ck_provider_instrument_mappings_internal_owner",
+        ),
         Index("ix_provider_instrument_mappings_workspace_status", "workspace_id", "status"),
     )
 
@@ -69,10 +78,9 @@ class ProviderInstrumentMappingModel(Base):
     workspace_id: Mapped[UUID] = mapped_column(
         ForeignKey("workspaces.id", ondelete="RESTRICT"), nullable=False
     )
-    market_data_instrument_id: Mapped[UUID] = mapped_column(
-        ForeignKey("market_data_instruments.id", ondelete="CASCADE"), nullable=False
+    market_data_instrument_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("market_data_instruments.id", ondelete="CASCADE"), nullable=True
     )
-    # Transitional compatibility/provenance for released FT-001 listing mappings.
     listing_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("listings.id", ondelete="CASCADE"), nullable=True
     )
@@ -147,6 +155,12 @@ class DailyPriceModel(Base):
     __tablename__ = "daily_prices"
     __table_args__ = (
         UniqueConstraint(
+            "listing_id",
+            "trading_date",
+            "price_type",
+            name="uq_daily_prices_listing_date_type",
+        ),
+        UniqueConstraint(
             "market_data_instrument_id",
             "trading_date",
             "price_type",
@@ -164,8 +178,12 @@ class DailyPriceModel(Base):
         CheckConstraint("low <= high", name="low_not_above_high"),
         CheckConstraint("open BETWEEN low AND high", name="open_in_range"),
         CheckConstraint("close BETWEEN low AND high", name="close_in_range"),
-        Index("ix_daily_prices_instrument_date", "market_data_instrument_id", "trading_date"),
+        CheckConstraint(
+            "listing_id IS NOT NULL OR market_data_instrument_id IS NOT NULL",
+            name="ck_daily_prices_internal_owner",
+        ),
         Index("ix_daily_prices_listing_date", "listing_id", "trading_date"),
+        Index("ix_daily_prices_instrument_date", "market_data_instrument_id", "trading_date"),
         Index("ix_daily_prices_workspace_date", "workspace_id", "trading_date"),
     )
 
@@ -173,10 +191,9 @@ class DailyPriceModel(Base):
     workspace_id: Mapped[UUID] = mapped_column(
         ForeignKey("workspaces.id", ondelete="RESTRICT"), nullable=False
     )
-    market_data_instrument_id: Mapped[UUID] = mapped_column(
-        ForeignKey("market_data_instruments.id", ondelete="CASCADE"), nullable=False
+    market_data_instrument_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("market_data_instruments.id", ondelete="CASCADE"), nullable=True
     )
-    # Transitional provenance for stock-listing sourced data; references use NULL.
     listing_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("listings.id", ondelete="CASCADE"), nullable=True
     )
