@@ -6,8 +6,10 @@ avoids manufacturing an FT-001 Underlying or Listing for an index.
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
+from typing import TypeVar
 from uuid import UUID, uuid4
 
 from pydantic import TypeAdapter, ValidationError
@@ -29,9 +31,12 @@ from app.features.market_data.service.instrument_identity import MarketDataInstr
 from app.providers.eodhd.client import EodhdClient
 from app.providers.eodhd.dto import EodhdDailyPriceDto, EodhdSearchResultDto
 from app.providers.shared.budget import DailyCallBudget
+from app.providers.shared.rate_limit import TokenBucketRateLimiter
+from app.providers.shared.retry import RetryPolicy
 
 _SEARCH_RESULTS = TypeAdapter(list[EodhdSearchResultDto])
 _DAILY_PRICES = TypeAdapter(list[EodhdDailyPriceDto])
+T = TypeVar("T")
 
 
 @dataclass(frozen=True, slots=True)
@@ -56,11 +61,15 @@ class ReferenceMarketDataService:
         *,
         client: EodhdClient,
         call_budget: DailyCallBudget,
+        retry_policy: RetryPolicy,
+        rate_limiter: TokenBucketRateLimiter,
         provider_call_cost: int = 1,
     ) -> None:
         self._session = session
         self._client = client
         self._budget = call_budget
+        self._retry = retry_policy
+        self._rate_limiter = rate_limiter
         self._provider_call_cost = provider_call_cost
         self._identity = MarketDataInstrumentIdentityService(session)
 
@@ -163,20 +172,22 @@ class ReferenceMarketDataService:
             raise ValueError("provider currency could not be resolved from the validated mapping")
         currency = match.currency.strip().upper()
 
-        await self._budget.consume(
-            self._provider_call_cost,
-            capability=MarketDataCapability.HISTORICAL_DAILY_PRICES,
-        )
-        payload = await self._client.get_json(
-            f"/eod/{mapping.provider_symbol}.{mapping.provider_exchange_code}",
-            capability=MarketDataCapability.HISTORICAL_DAILY_PRICES,
-            params={
-                "from": start_date.isoformat(),
-                "to": end_date.isoformat(),
-                "period": "d",
-                "order": "a",
-            },
-        )
+        async def load_prices() -> object:
+            return await self._provider_call(
+                capability=MarketDataCapability.HISTORICAL_DAILY_PRICES,
+                operation=lambda: self._client.get_json(
+                    f"/eod/{mapping.provider_symbol}.{mapping.provider_exchange_code}",
+                    capability=MarketDataCapability.HISTORICAL_DAILY_PRICES,
+                    params={
+                        "from": start_date.isoformat(),
+                        "to": end_date.isoformat(),
+                        "period": "d",
+                        "order": "a",
+                    },
+                ),
+            )
+
+        payload = await load_prices()
         try:
             rows = _DAILY_PRICES.validate_python(payload)
         except ValidationError as exc:
@@ -271,14 +282,13 @@ class ReferenceMarketDataService:
     async def _exact_search_match(
         self, mapping: ProviderInstrumentMappingModel
     ) -> EodhdSearchResultDto | None:
-        await self._budget.consume(
-            self._provider_call_cost,
+        payload = await self._provider_call(
             capability=MarketDataCapability.INSTRUMENT_MAPPING_VALIDATION,
-        )
-        payload = await self._client.get_json(
-            f"/search/{mapping.provider_symbol}",
-            capability=MarketDataCapability.INSTRUMENT_MAPPING_VALIDATION,
-            params={"exchange": mapping.provider_exchange_code, "limit": 20},
+            operation=lambda: self._client.get_json(
+                f"/search/{mapping.provider_symbol}",
+                capability=MarketDataCapability.INSTRUMENT_MAPPING_VALIDATION,
+                params={"exchange": mapping.provider_exchange_code, "limit": 20},
+            ),
         )
         try:
             rows = _SEARCH_RESULTS.validate_python(payload)
@@ -294,6 +304,19 @@ class ReferenceMarketDataService:
             ),
             None,
         )
+
+    async def _provider_call(
+        self,
+        *,
+        capability: MarketDataCapability,
+        operation: Callable[[], Awaitable[T]],
+    ) -> T:
+        async def guarded() -> T:
+            await self._budget.consume(self._provider_call_cost, capability=capability)
+            await self._rate_limiter.acquire()
+            return await operation()
+
+        return (await self._retry.execute(guarded)).value
 
     @staticmethod
     def _validate_ohlc(row: EodhdDailyPriceDto) -> None:
