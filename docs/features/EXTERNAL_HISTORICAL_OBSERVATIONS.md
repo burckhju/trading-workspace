@@ -19,8 +19,8 @@ Import historical third-party trade proposals as `ExternalObservation` evidence 
 
 ## Bulk-processing requirements
 - one user action supports at least 100 PDFs without sequential file-by-file confirmation;
-- processing is isolated per file so one malformed PDF does not invalidate already processed files;
-- the UI exposes aggregate job status and file-level results;
+- files are processed within the upload request, but each file is persisted independently so a later malformed PDF does not invalidate already processed files;
+- the UI exposes aggregate job status and file-level results after processing;
 - successful file results are committed incrementally, so later failures do not remove earlier work;
 - duplicate detection operates per file content hash and surfaces duplicates in the summary;
 - failed files can be added again to the same job for retry;
@@ -74,7 +74,8 @@ The implemented parser targets fields useful for identity, provenance and later 
 - implicit creation of reference-data objects to satisfy an ambiguous import;
 - interpreting newsletter prose as a trading rule or model parameter;
 - guessing unsupported layouts;
-- OCR for image-only PDFs in this slice.
+- OCR for image-only PDFs in this slice;
+- background-worker/job-queue processing in this slice.
 
 ## User impact
 The user uploads a large archive once, receives one job summary and only handles exceptions. Clean files require no individual confirmation. Duplicate and failed files remain visible and auditable.
