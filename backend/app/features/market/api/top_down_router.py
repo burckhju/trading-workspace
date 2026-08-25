@@ -6,8 +6,12 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
+from app.features.analysis.service.reference_application import MarketReferenceAnalysisService
 from app.features.market.api.dependencies import (
+    get_market_reference_analysis_service,
+    get_reference_market_data_service,
     get_top_down_reference_administration_service,
+    get_top_down_reference_readiness_service,
 )
 from app.features.market.api.top_down_dtos import (
     ActiveStateRequest,
@@ -23,9 +27,21 @@ from app.features.market.api.top_down_dtos import (
     UnderlyingBenchmarkAssignmentRequest,
     UnderlyingSectorAssignmentRequest,
 )
+from app.features.market.api.top_down_market_data_dtos import (
+    ReferenceAnalysisCreateRequest,
+    ReferenceAnalysisResponse,
+    ReferenceAnalysisRunRequest,
+    ReferenceAnalysisRunResponse,
+    ReferenceDailyPriceImportRequest,
+    ReferenceDailyPriceImportResponse,
+    ReferenceProviderMappingRequest,
+    ReferenceProviderMappingResponse,
+)
 from app.features.market.service.top_down_administration import (
     TopDownReferenceAdministrationService,
 )
+from app.features.market.service.top_down_readiness import TopDownReferenceReadinessService
+from app.features.market_data.service.reference_market_data import ReferenceMarketDataService
 from app.providers.eodhd.reference_catalog import TOP_DOWN_V1_EODHD_SUGGESTIONS
 
 router = APIRouter(prefix="/api/v1/top-down-reference-data", tags=["top-down-reference-data"])
@@ -57,11 +73,11 @@ async def eodhd_reference_suggestions() -> list[ProviderReferenceSuggestionRespo
 @router.get("/readiness", response_model=list[TopDownReferenceReadinessResponse])
 async def reference_readiness(
     service: Annotated[
-        TopDownReferenceAdministrationService,
-        Depends(get_top_down_reference_administration_service),
+        TopDownReferenceReadinessService,
+        Depends(get_top_down_reference_readiness_service),
     ],
 ) -> list[TopDownReferenceReadinessResponse]:
-    values = await service.reference_readiness(WORKSPACE_ID)
+    values = await service.evaluate(WORKSPACE_ID)
     return [
         TopDownReferenceReadinessResponse.model_validate(item, from_attributes=True)
         for item in values
@@ -265,3 +281,113 @@ async def assign_sector_reference(
     except ValueError as error:
         raise _http_error(error) from error
     return AssignmentResponse.model_validate(value)
+
+
+@router.put(
+    "/market-references/{reference_id}/provider-mapping/eodhd",
+    response_model=ReferenceProviderMappingResponse,
+)
+async def upsert_reference_provider_mapping(
+    reference_id: UUID,
+    body: ReferenceProviderMappingRequest,
+    service: Annotated[ReferenceMarketDataService, Depends(get_reference_market_data_service)],
+) -> ReferenceProviderMappingResponse:
+    try:
+        value = await service.upsert_mapping(
+            workspace_id=WORKSPACE_ID,
+            market_reference_id=reference_id,
+            **body.model_dump(),
+        )
+    except ValueError as error:
+        raise _http_error(error) from error
+    return ReferenceProviderMappingResponse.model_validate(value)
+
+
+@router.post(
+    "/market-references/{reference_id}/provider-mapping/eodhd/validate",
+    response_model=ReferenceProviderMappingResponse,
+)
+async def validate_reference_provider_mapping(
+    reference_id: UUID,
+    service: Annotated[ReferenceMarketDataService, Depends(get_reference_market_data_service)],
+) -> ReferenceProviderMappingResponse:
+    try:
+        value = await service.validate_mapping(
+            workspace_id=WORKSPACE_ID,
+            market_reference_id=reference_id,
+        )
+    except ValueError as error:
+        raise _http_error(error) from error
+    return ReferenceProviderMappingResponse.model_validate(value)
+
+
+@router.post(
+    "/market-references/{reference_id}/daily-prices/import",
+    response_model=ReferenceDailyPriceImportResponse,
+)
+async def import_reference_daily_prices(
+    reference_id: UUID,
+    body: ReferenceDailyPriceImportRequest,
+    service: Annotated[ReferenceMarketDataService, Depends(get_reference_market_data_service)],
+) -> ReferenceDailyPriceImportResponse:
+    try:
+        value = await service.import_daily_prices(
+            workspace_id=WORKSPACE_ID,
+            market_reference_id=reference_id,
+            **body.model_dump(),
+        )
+    except ValueError as error:
+        raise _http_error(error) from error
+    return ReferenceDailyPriceImportResponse.from_result(value)
+
+
+@router.post(
+    "/market-references/{reference_id}/analyses",
+    response_model=ReferenceAnalysisResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_reference_analysis(
+    reference_id: UUID,
+    body: ReferenceAnalysisCreateRequest,
+    service: Annotated[
+        MarketReferenceAnalysisService,
+        Depends(get_market_reference_analysis_service),
+    ],
+) -> ReferenceAnalysisResponse:
+    try:
+        value = await service.create_for_market_reference(
+            workspace_id=WORKSPACE_ID,
+            market_reference_id=reference_id,
+            actor=body.actor,
+        )
+    except ValueError as error:
+        raise _http_error(error) from error
+    return ReferenceAnalysisResponse.model_validate(value)
+
+
+@router.post(
+    "/market-references/{reference_id}/analyses/{analysis_id}/run",
+    response_model=ReferenceAnalysisRunResponse,
+)
+async def run_reference_analysis(
+    reference_id: UUID,
+    analysis_id: UUID,
+    body: ReferenceAnalysisRunRequest,
+    service: Annotated[
+        MarketReferenceAnalysisService,
+        Depends(get_market_reference_analysis_service),
+    ],
+) -> ReferenceAnalysisRunResponse:
+    del reference_id  # identity ownership is validated through analysis.market_data_instrument_id
+    try:
+        value = await service.run_market_reference(
+            workspace_id=WORKSPACE_ID,
+            analysis_id=analysis_id,
+            start_date=body.start_date,
+            end_date=body.end_date,
+            parameters=body.to_parameters(),
+            correlation_id=body.correlation_id,
+        )
+    except ValueError as error:
+        raise _http_error(error) from error
+    return ReferenceAnalysisRunResponse.model_validate(value)
