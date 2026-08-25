@@ -141,8 +141,8 @@ async def upload_hebeltrader_files(
     if not files:
         raise HTTPException(status_code=400, detail="at least one PDF is required")
 
-    job = await service.create_job(WORKSPACE_ID, LOCAL_ACTOR_ID)
     try:
+        job = await service.create_job(WORKSPACE_ID, LOCAL_ACTOR_ID)
         await _ingest_uploads(job_id=job.id, files=files, service=service)
         return await _job_response(job_id=job.id, service=service)
     except BulkImportError as error:
