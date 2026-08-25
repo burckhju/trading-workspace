@@ -86,9 +86,7 @@ def test_market_analysis_run_has_nullable_governed_version_fk() -> None:
     column = MarketAnalysisRunModel.__table__.c.governed_model_version_id
 
     assert column.nullable is True
-    assert {fk.target_fullname for fk in column.foreign_keys} == {
-        "governed_model_versions.id"
-    }
+    assert {fk.target_fullname for fk in column.foreign_keys} == {"governed_model_versions.id"}
 
 
 def test_resolver_attaches_exactly_one_matching_approved_baseline() -> None:
