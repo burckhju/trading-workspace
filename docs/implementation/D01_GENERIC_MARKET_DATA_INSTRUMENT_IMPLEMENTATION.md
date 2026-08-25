@@ -16,6 +16,7 @@ Base: `main@0e2bec6153be7c1d3ac2d18ec371beef973719b3`
 - Reference DailyPrice import persists EOD history with `listing_id=NULL` and the reference instrument identity.
 - FT-006 reference analysis creates analyses with `underlying_id=NULL`, `listing_id=NULL`, and a MARKET_REFERENCE instrument, then runs the released calculator/lifecycle from instrument-owned DailyPrice rows.
 - HTTP routes expose mapping upsert/validation, price import, analysis create/run and instrument-aware readiness.
+- Stock and reference EODHD paths share the same process-wide `DailyCallBudget`, `RetryPolicy`, and `TokenBucketRateLimiter`; retry and throttling behavior is therefore no longer split by semantic owner.
 - Regression tests assert FT-001 remains STOCK-only and reference-owned consumer schemas/routes are present.
 
 ## Safety boundaries retained
@@ -50,6 +51,6 @@ Then execute a database-backed DAX/SP500/NASDAQ100 smoke path:
 5. confirm `/api/v1/top-down-reference-data/readiness` reports no blockers;
 6. verify no Underlying/Listing was created for the reference.
 
-## Known transition note
+## Remaining transition note
 
-The dedicated reference provider path currently shares the process-wide EODHD call budget but does not yet reuse the released adapter's retry and token-bucket rate-limiter wrapper. Keep the PR in draft until executable validation is complete and decide whether to fold that provider-resilience behavior into a shared provider gateway before merge.
+Provider resilience is now shared with the released EODHD path. The remaining merge gate is executable qualification: migrations, tests, static checks and database/live smoke evidence. A later contract migration may tighten or remove legacy listing ownership only after all writers/readers have been validated on the neutral identity.
