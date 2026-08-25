@@ -33,14 +33,21 @@ describe('bulkImportClient.upload', () => {
     expect((init.body as FormData).getAll('files')).toHaveLength(1);
   });
 
-  it('surfaces FastAPI detail errors', async () => {
+  it('surfaces the project API message contract', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue(
-        new Response(JSON.stringify({ detail: 'at least one PDF is required' }), {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' },
-        }),
+        new Response(
+          JSON.stringify({
+            code: 'HTTP_400',
+            message: 'at least one PDF is required',
+            details: [],
+          }),
+          {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' },
+          },
+        ),
       ),
     );
 
