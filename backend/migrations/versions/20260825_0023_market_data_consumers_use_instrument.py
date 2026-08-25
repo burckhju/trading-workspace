@@ -2,6 +2,11 @@
 
 Revision ID: 20260825_0023
 Revises: 20260825_0022
+
+This is the expand phase of the D-01 migration. Existing stock consumers may keep
+writing released listing/underlying ownership while runtime paths move to the neutral
+market_data_instrument_id. A later contract migration may tighten nullability only after
+all writers have been cut over and validated.
 """
 
 from collections.abc import Sequence
