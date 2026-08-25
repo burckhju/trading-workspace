@@ -86,5 +86,7 @@ async def get_reference_market_data_service(
         session,
         client=runtime.client,
         call_budget=runtime.call_budget,
+        retry_policy=runtime.retry_policy,
+        rate_limiter=runtime.rate_limiter,
         provider_call_cost=settings.historical_eod_call_cost,
     )
