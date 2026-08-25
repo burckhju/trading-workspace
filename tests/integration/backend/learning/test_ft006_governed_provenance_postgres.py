@@ -5,7 +5,10 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.features.analysis.domain.governed_provenance import governed_baseline_definition
-from app.features.analysis.persistence.models import MarketAnalysisModel, MarketAnalysisRunModel
+from app.features.analysis.persistence.models import (
+    MarketAnalysisModel,
+    MarketAnalysisRunModel,
+)
 from app.features.model.service.application import ModelGovernanceService
 
 
@@ -21,7 +24,10 @@ async def test_approved_ft006_baseline_is_persisted_as_run_provenance(
     now = datetime.now(UTC)
 
     await learning_session.execute(
-        text("insert into workspaces (id, name, created_at) values (:id, :name, :created_at)"),
+        text(
+            "insert into workspaces (id, name, created_at) "
+            "values (:id, :name, :created_at)"
+        ),
         {"id": workspace_id, "name": "FT-006 provenance test", "created_at": now},
     )
     await learning_session.execute(
