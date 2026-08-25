@@ -24,15 +24,11 @@ async def test_approved_ft006_baseline_is_persisted_as_run_provenance(
     now = datetime.now(UTC)
 
     await learning_session.execute(
-        text(
-            "insert into workspaces (id, name, created_at) "
-            "values (:id, :name, :created_at)"
-        ),
+        text("insert into workspaces (id, name, created_at) " "values (:id, :name, :created_at)"),
         {"id": workspace_id, "name": "FT-006 provenance test", "created_at": now},
     )
     await learning_session.execute(
-        text(
-            """
+        text("""
             insert into trading_venues (
                 id, mic, name, country_code, timezone, is_active,
                 reference_version, version, created_at, updated_at
@@ -40,24 +36,20 @@ async def test_approved_ft006_baseline_is_persisted_as_run_provenance(
                 :id, 'XETR', 'Xetra', 'DE', 'Europe/Berlin', true,
                 'test', 1, :created_at, :updated_at
             )
-            """
-        ),
+            """),
         {"id": venue_id, "created_at": now, "updated_at": now},
     )
     await learning_session.execute(
-        text(
-            """
+        text("""
             insert into currencies (
                 code, name, minor_unit, is_active, reference_version, created_at, updated_at
             ) values ('EUR', 'Euro', 2, true, 'test', :created_at, :updated_at)
             on conflict (code) do nothing
-            """
-        ),
+            """),
         {"created_at": now, "updated_at": now},
     )
     await learning_session.execute(
-        text(
-            """
+        text("""
             insert into underlyings (
                 id, workspace_id, type, name, isin, wkn, lifecycle_status,
                 quality_status, version, created_at, updated_at, data_origin
@@ -65,8 +57,7 @@ async def test_approved_ft006_baseline_is_persisted_as_run_provenance(
                 :id, :workspace_id, 'STOCK', 'FT006 Test Underlying', null, null, 'ACTIVE',
                 'VERIFIED', 1, :created_at, :updated_at, 'MANUAL'
             )
-            """
-        ),
+            """),
         {
             "id": underlying_id,
             "workspace_id": workspace_id,
@@ -75,8 +66,7 @@ async def test_approved_ft006_baseline_is_persisted_as_run_provenance(
         },
     )
     await learning_session.execute(
-        text(
-            """
+        text("""
             insert into listings (
                 id, workspace_id, underlying_id, trading_venue_id, ticker, currency_code,
                 lifecycle_status, is_primary, version, created_at, updated_at, data_origin
@@ -84,8 +74,7 @@ async def test_approved_ft006_baseline_is_persisted_as_run_provenance(
                 :id, :workspace_id, :underlying_id, :venue_id, 'FT06', 'EUR',
                 'ACTIVE', true, 1, :created_at, :updated_at, 'MANUAL'
             )
-            """
-        ),
+            """),
         {
             "id": listing_id,
             "workspace_id": workspace_id,
