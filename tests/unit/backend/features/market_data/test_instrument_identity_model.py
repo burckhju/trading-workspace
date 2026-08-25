@@ -35,12 +35,12 @@ def test_expand_phase_consumers_accept_reference_owned_identity() -> None:
     assert analyses.c.underlying_id.nullable is True
     assert analyses.c.listing_id.nullable is True
 
-    assert "ck_provider_instrument_mappings_internal_owner" in {
-        constraint.name for constraint in mapping.constraints
-    }
-    assert "ck_daily_prices_internal_owner" in {
-        constraint.name for constraint in prices.constraints
-    }
-    assert "ck_market_analyses_internal_owner" in {
-        constraint.name for constraint in analyses.constraints
-    }
+    mapping_constraints = {constraint.name for constraint in mapping.constraints}
+    price_constraints = {constraint.name for constraint in prices.constraints}
+    analysis_constraints = {constraint.name for constraint in analyses.constraints}
+
+    assert "ck_provider_instrument_mappings_internal_owner" in mapping_constraints
+    assert "uq_provider_instrument_mappings_provider_instrument" in mapping_constraints
+    assert "ck_daily_prices_internal_owner" in price_constraints
+    assert "uq_daily_prices_instrument_date_type" in price_constraints
+    assert "ck_market_analyses_internal_owner" in analysis_constraints
