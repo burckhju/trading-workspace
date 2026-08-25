@@ -6,6 +6,8 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
+from app.features.analysis.api.errors import translate_analysis_error
+from app.features.analysis.domain.errors import AnalysisError
 from app.features.analysis.service.reference_application import MarketReferenceAnalysisService
 from app.features.market.api.dependencies import (
     get_market_reference_analysis_service,
@@ -360,8 +362,8 @@ async def create_reference_analysis(
             market_reference_id=reference_id,
             actor=body.actor,
         )
-    except ValueError as error:
-        raise _http_error(error) from error
+    except AnalysisError as error:
+        raise translate_analysis_error(error) from error
     return ReferenceAnalysisResponse.model_validate(value)
 
 
@@ -388,6 +390,6 @@ async def run_reference_analysis(
             parameters=body.to_parameters(),
             correlation_id=body.correlation_id,
         )
-    except ValueError as error:
-        raise _http_error(error) from error
+    except AnalysisError as error:
+        raise translate_analysis_error(error) from error
     return ReferenceAnalysisRunResponse.model_validate(value)
