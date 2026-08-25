@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date
 from uuid import UUID
 
 from sqlalchemy import func, select
@@ -12,27 +11,20 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.features.analysis.domain.enums import AnalysisStatus
 from app.features.analysis.persistence.models import MarketAnalysisModel, MarketAnalysisRunModel
 from app.features.market.persistence.top_down_models import MarketReferenceModel
-from app.features.market.service.top_down_administration import TopDownReferenceAdministrationService
+from app.features.market.service.top_down_administration import (
+    TopDownReferenceAdministrationService,
+    TopDownReferenceReadiness,
+)
 from app.features.market_data.domain.enums import MappingStatus, MarketDataProvider
 from app.features.market_data.persistence.instruments import MarketDataInstrumentModel
 from app.features.market_data.persistence.models import DailyPriceModel, ProviderInstrumentMappingModel
 
 
 @dataclass(frozen=True, slots=True)
-class TopDownReferenceInstrumentReadiness:
-    reference_id: UUID
-    reference_code: str
-    reference_type: str
-    market_data_instrument_id: UUID | None
-    listing_id: UUID | None
-    provider_mapping_id: UUID | None
-    provider_mapping_active: bool
-    daily_price_count: int
-    latest_price_date: date | None
-    completed_analysis_id: UUID | None
-    completed_analysis_version: int | None
-    ready: bool
-    blockers: tuple[str, ...]
+class TopDownReferenceInstrumentReadiness(TopDownReferenceReadiness):
+    """Backward-compatible readiness row enriched with the neutral instrument identity."""
+
+    market_data_instrument_id: UUID | None = None
 
 
 class TopDownReferenceReadinessService:
@@ -87,7 +79,10 @@ class TopDownReferenceReadinessService:
             if instrument is not None:
                 row = (
                     await self._session.execute(
-                        select(func.count(DailyPriceModel.id), func.max(DailyPriceModel.trading_date)).where(
+                        select(
+                            func.count(DailyPriceModel.id),
+                            func.max(DailyPriceModel.trading_date),
+                        ).where(
                             DailyPriceModel.workspace_id == workspace_id,
                             DailyPriceModel.market_data_instrument_id == instrument.id,
                         )
@@ -135,7 +130,6 @@ class TopDownReferenceReadinessService:
                     reference_id=reference.id,
                     reference_code=reference.code,
                     reference_type=reference.reference_type,
-                    market_data_instrument_id=instrument.id if instrument is not None else None,
                     listing_id=None,
                     provider_mapping_id=mapping.id if mapping is not None else None,
                     provider_mapping_active=mapping_active,
@@ -145,13 +139,14 @@ class TopDownReferenceReadinessService:
                     completed_analysis_version=analysis_version,
                     ready=not blockers,
                     blockers=tuple(blockers),
+                    market_data_instrument_id=instrument.id if instrument is not None else None,
                 )
             )
         return tuple(values)
 
 
 class InstrumentAwareTopDownReferenceAdministrationService(TopDownReferenceAdministrationService):
-    """Keep all released admin commands while replacing only the readiness read model."""
+    """Keep released admin commands while replacing only the readiness read model."""
 
     def __init__(self, session: AsyncSession) -> None:
         super().__init__(session)
