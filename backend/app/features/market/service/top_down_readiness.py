@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.features.analysis.domain.enums import AnalysisStatus
 from app.features.analysis.persistence.models import MarketAnalysisModel, MarketAnalysisRunModel
 from app.features.market.persistence.top_down_models import MarketReferenceModel
+from app.features.market.service.top_down_administration import TopDownReferenceAdministrationService
 from app.features.market_data.domain.enums import MappingStatus, MarketDataProvider
 from app.features.market_data.persistence.instruments import MarketDataInstrumentModel
 from app.features.market_data.persistence.models import DailyPriceModel, ProviderInstrumentMappingModel
@@ -147,3 +148,16 @@ class TopDownReferenceReadinessService:
                 )
             )
         return tuple(values)
+
+
+class InstrumentAwareTopDownReferenceAdministrationService(TopDownReferenceAdministrationService):
+    """Keep all released admin commands while replacing only the readiness read model."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        super().__init__(session)
+        self._instrument_readiness = TopDownReferenceReadinessService(session)
+
+    async def reference_readiness(
+        self, workspace_id: UUID
+    ) -> tuple[TopDownReferenceInstrumentReadiness, ...]:
+        return await self._instrument_readiness.evaluate(workspace_id)
