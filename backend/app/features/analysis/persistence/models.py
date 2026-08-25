@@ -8,6 +8,7 @@ from uuid import UUID
 
 from sqlalchemy import (
     JSON,
+    CheckConstraint,
     Date,
     DateTime,
     ForeignKey,
@@ -26,6 +27,10 @@ from app.database.base import Base
 class MarketAnalysisModel(Base):
     __tablename__ = "market_analyses"
     __table_args__ = (
+        CheckConstraint(
+            "listing_id IS NOT NULL OR market_data_instrument_id IS NOT NULL",
+            name="ck_market_analyses_internal_owner",
+        ),
         Index("ix_market_analyses_workspace_created", "workspace_id", "created_at"),
         Index(
             "ix_market_analyses_workspace_instrument_created",
@@ -38,10 +43,9 @@ class MarketAnalysisModel(Base):
     workspace_id: Mapped[UUID] = mapped_column(
         ForeignKey("workspaces.id", ondelete="RESTRICT"), nullable=False
     )
-    market_data_instrument_id: Mapped[UUID] = mapped_column(
-        ForeignKey("market_data_instruments.id", ondelete="RESTRICT"), nullable=False
+    market_data_instrument_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("market_data_instruments.id", ondelete="RESTRICT"), nullable=True
     )
-    # Legacy stock-analysis provenance. Market-reference analyses keep both NULL.
     underlying_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("underlyings.id", ondelete="RESTRICT"), nullable=True
     )
