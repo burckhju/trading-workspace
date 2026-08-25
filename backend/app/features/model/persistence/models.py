@@ -29,7 +29,9 @@ class GovernedModelRecord(Base):
         CheckConstraint("length(trim(name)) > 0", name="ck_governed_models_name_nonblank"),
         CheckConstraint("length(trim(purpose)) > 0", name="ck_governed_models_purpose_nonblank"),
         ForeignKeyConstraint(
-            ["workspace_id"], ["workspaces.id"], ondelete="RESTRICT",
+            ["workspace_id"],
+            ["workspaces.id"],
+            ondelete="RESTRICT",
             name="fk_governed_models_workspace",
         ),
         UniqueConstraint("workspace_id", "model_key", name="uq_governed_models_workspace_key"),
@@ -56,11 +58,15 @@ class ModelVersionRecord(Base):
             name="ck_governed_model_versions_not_self_previous",
         ),
         ForeignKeyConstraint(
-            ["model_id"], ["governed_models.id"], ondelete="RESTRICT",
+            ["model_id"],
+            ["governed_models.id"],
+            ondelete="RESTRICT",
             name="fk_governed_model_versions_model",
         ),
         ForeignKeyConstraint(
-            ["previous_version_id"], ["governed_model_versions.id"], ondelete="RESTRICT",
+            ["previous_version_id"],
+            ["governed_model_versions.id"],
+            ondelete="RESTRICT",
             name="fk_governed_model_versions_previous",
         ),
         UniqueConstraint("model_id", "version", name="uq_governed_model_versions_model_version"),
@@ -90,11 +96,15 @@ class HypothesisRecord(Base):
             name="ck_model_hypotheses_status_valid",
         ),
         ForeignKeyConstraint(
-            ["workspace_id"], ["workspaces.id"], ondelete="RESTRICT",
+            ["workspace_id"],
+            ["workspaces.id"],
+            ondelete="RESTRICT",
             name="fk_model_hypotheses_workspace",
         ),
         ForeignKeyConstraint(
-            ["source_lesson_version_id"], ["lesson_versions.id"], ondelete="RESTRICT",
+            ["source_lesson_version_id"],
+            ["lesson_versions.id"],
+            ondelete="RESTRICT",
             name="fk_model_hypotheses_lesson_version",
         ),
         Index("ix_model_hypotheses_workspace_status", "workspace_id", "status"),
@@ -113,11 +123,15 @@ class HypothesisEvidenceRecord(Base):
     __tablename__ = "model_hypothesis_evidence"
     __table_args__ = (
         ForeignKeyConstraint(
-            ["hypothesis_id"], ["model_hypotheses.id"], ondelete="RESTRICT",
+            ["hypothesis_id"],
+            ["model_hypotheses.id"],
+            ondelete="RESTRICT",
             name="fk_model_hypothesis_evidence_hypothesis",
         ),
         ForeignKeyConstraint(
-            ["learning_evidence_id"], ["learning_evidence.id"], ondelete="RESTRICT",
+            ["learning_evidence_id"],
+            ["learning_evidence.id"],
+            ondelete="RESTRICT",
             name="fk_model_hypothesis_evidence_evidence",
         ),
     )
@@ -136,19 +150,27 @@ class ModelChangeProposalRecord(Base):
             "length(trim(rationale)) > 0", name="ck_model_change_proposals_rationale_nonblank"
         ),
         ForeignKeyConstraint(
-            ["workspace_id"], ["workspaces.id"], ondelete="RESTRICT",
+            ["workspace_id"],
+            ["workspaces.id"],
+            ondelete="RESTRICT",
             name="fk_model_change_proposals_workspace",
         ),
         ForeignKeyConstraint(
-            ["model_id"], ["governed_models.id"], ondelete="RESTRICT",
+            ["model_id"],
+            ["governed_models.id"],
+            ondelete="RESTRICT",
             name="fk_model_change_proposals_model",
         ),
         ForeignKeyConstraint(
-            ["base_model_version_id"], ["governed_model_versions.id"], ondelete="RESTRICT",
+            ["base_model_version_id"],
+            ["governed_model_versions.id"],
+            ondelete="RESTRICT",
             name="fk_model_change_proposals_base_version",
         ),
         ForeignKeyConstraint(
-            ["hypothesis_id"], ["model_hypotheses.id"], ondelete="RESTRICT",
+            ["hypothesis_id"],
+            ["model_hypotheses.id"],
+            ondelete="RESTRICT",
             name="fk_model_change_proposals_hypothesis",
         ),
         Index("ix_model_change_proposals_workspace_status", "workspace_id", "status"),
@@ -181,7 +203,9 @@ class ModelValidationRecord(Base):
             name="ck_model_validations_cutoff_not_after_created",
         ),
         ForeignKeyConstraint(
-            ["proposal_id"], ["model_change_proposals.id"], ondelete="RESTRICT",
+            ["proposal_id"],
+            ["model_change_proposals.id"],
+            ondelete="RESTRICT",
             name="fk_model_validations_proposal",
         ),
         Index("ix_model_validations_proposal_created", "proposal_id", "created_at"),
@@ -201,11 +225,15 @@ class ModelValidationEvidenceRecord(Base):
     __tablename__ = "model_validation_evidence"
     __table_args__ = (
         ForeignKeyConstraint(
-            ["validation_id"], ["model_validations.id"], ondelete="RESTRICT",
+            ["validation_id"],
+            ["model_validations.id"],
+            ondelete="RESTRICT",
             name="fk_model_validation_evidence_validation",
         ),
         ForeignKeyConstraint(
-            ["learning_evidence_id"], ["learning_evidence.id"], ondelete="RESTRICT",
+            ["learning_evidence_id"],
+            ["learning_evidence.id"],
+            ondelete="RESTRICT",
             name="fk_model_validation_evidence_evidence",
         ),
     )
@@ -217,11 +245,15 @@ class ModelApprovalRecord(Base):
     __tablename__ = "model_approvals"
     __table_args__ = (
         ForeignKeyConstraint(
-            ["proposal_id"], ["model_change_proposals.id"], ondelete="RESTRICT",
+            ["proposal_id"],
+            ["model_change_proposals.id"],
+            ondelete="RESTRICT",
             name="fk_model_approvals_proposal",
         ),
         ForeignKeyConstraint(
-            ["model_version_id"], ["governed_model_versions.id"], ondelete="RESTRICT",
+            ["model_version_id"],
+            ["governed_model_versions.id"],
+            ondelete="RESTRICT",
             name="fk_model_approvals_version",
         ),
         UniqueConstraint("proposal_id", name="uq_model_approvals_proposal"),
