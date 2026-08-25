@@ -16,7 +16,6 @@ from app.features.model.domain.models import (
     ModelVersion,
 )
 
-
 NOW = datetime(2026, 8, 25, 10, 0, tzinfo=UTC)
 
 
