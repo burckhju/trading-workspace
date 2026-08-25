@@ -17,10 +17,15 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    event,
+    select,
 )
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.engine import Connection
+from sqlalchemy.orm import Mapped, Mapper, mapped_column
 
 from app.database.base import Base
+from app.features.analysis.domain.governed_provenance import governed_baseline_definition
+from app.features.model.persistence.models import GovernedModelRecord, ModelVersionRecord
 
 
 class MarketAnalysisModel(Base):
@@ -44,6 +49,7 @@ class MarketAnalysisRunModel(Base):
     __tablename__ = "market_analysis_runs"
     __table_args__ = (
         UniqueConstraint("analysis_id", "version", name="uq_market_analysis_runs_analysis_version"),
+        Index("ix_market_analysis_runs_governed_model_version", "governed_model_version_id"),
     )
     id: Mapped[UUID] = mapped_column(primary_key=True)
     analysis_id: Mapped[UUID] = mapped_column(
@@ -54,6 +60,9 @@ class MarketAnalysisRunModel(Base):
     quality_status: Mapped[str] = mapped_column(String(30), nullable=False)
     model_id: Mapped[str] = mapped_column(String(100), nullable=False)
     model_version: Mapped[str] = mapped_column(String(30), nullable=False)
+    governed_model_version_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("governed_model_versions.id", ondelete="RESTRICT"), nullable=True
+    )
     parameters: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
     metrics: Mapped[dict[str, str | None]] = mapped_column(JSON, nullable=False)
     notes: Mapped[list[str]] = mapped_column(JSON, nullable=False)
@@ -129,3 +138,48 @@ class MarketAnalysisEventModel(Base):
     reason: Mapped[str | None] = mapped_column(Text)
     correlation_id: Mapped[str | None] = mapped_column(String(100))
     occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+@event.listens_for(MarketAnalysisRunModel, "before_insert")
+def attach_governed_model_provenance(
+    _mapper: Mapper[MarketAnalysisRunModel],
+    connection: Connection,
+    target: MarketAnalysisRunModel,
+) -> None:
+    """Attach an exact approved legacy baseline when one exists.
+
+    This is intentionally not activation.  Runtime behavior still comes from
+    the released code identified by ``model_id``/``model_version``.  The
+    governed reference is written only when exactly one APPROVED ModelVersion
+    declares the matching immutable runtime contract.  Missing or ambiguous
+    governance therefore results in NULL provenance rather than a false link.
+    """
+    if target.governed_model_version_id is not None or connection.dialect.name != "postgresql":
+        return
+
+    workspace_id = connection.execute(
+        select(MarketAnalysisModel.workspace_id).where(MarketAnalysisModel.id == target.analysis_id)
+    ).scalar_one_or_none()
+    if workspace_id is None:
+        return
+
+    expected = governed_baseline_definition()
+    definition = ModelVersionRecord.definition
+    candidates = tuple(
+        connection.execute(
+            select(ModelVersionRecord.id)
+            .join(GovernedModelRecord, GovernedModelRecord.id == ModelVersionRecord.model_id)
+            .where(
+                GovernedModelRecord.workspace_id == workspace_id,
+                GovernedModelRecord.model_key == target.model_id,
+                ModelVersionRecord.status == "APPROVED",
+                definition["runtime_contract"].astext == expected["runtime_contract"],
+                definition["runtime_model_id"].astext == target.model_id,
+                definition["runtime_model_version"].astext == target.model_version,
+                definition["implementation_ref"].astext == expected["implementation_ref"],
+                definition["rule_representation"].astext == expected["rule_representation"],
+            )
+        ).scalars()
+    )
+    if len(candidates) == 1:
+        target.governed_model_version_id = candidates[0]
