@@ -20,6 +20,8 @@ Ein `MarketDataInstrument` hat genau einen fachlichen Owner:
 
 Die Owner-Beziehung ist exklusiv. Provider-Symbole und Provider-Exchange-Codes bleiben Adapterdaten und werden nicht Teil der fachlichen Identität.
 
+Der Runtime-Pfad für `MARKET_REFERENCE` löst Provider-Mappings direkt gegen diese neutrale Identität auf, persistiert Daily Prices mit `market_data_instrument_id` und führt FT-006 mit derselben Identität aus. Dafür werden weder synthetische `Underlying`- noch `Listing`-Datensätze erzeugt.
+
 ## Unveränderte Invarianten
 
 - ADR-S1-001 bleibt gültig: `UnderlyingType` bleibt V1 `STOCK`.
@@ -29,13 +31,14 @@ Die Owner-Beziehung ist exklusiv. Provider-Symbole und Provider-Exchange-Codes b
 
 ## Evolution
 
-Die Einführung erfolgt additiv:
+Die Einführung erfolgt als Expand-and-Contract:
 
 1. `market_data_instruments` wird angelegt und bestehende Listings sowie MarketReferences werden backfilled.
-2. Provider-Mapping, DailyPrice und MarketAnalysis erhalten anschließend die neutrale Instrument-Identität; bestehende `listing_id`-Contracts bleiben während der Übergangsphase kompatibel.
-3. Top-down Source Resolution wird von `MarketReference -> Listing` auf `MarketReference -> MarketDataInstrument` umgestellt.
-4. Nach vollständiger Consumer-Migration können rein technische Legacy-Bridges in einer separaten Entscheidung entfernt werden.
+2. Provider-Mapping, DailyPrice und MarketAnalysis erhalten die neutrale Instrument-Identität; bestehende `listing_id`-Contracts bleiben während der Übergangsphase kompatibel.
+3. Top-down Readiness, Provider-Mapping, Price-Ingestion und FT-006-Reference-Analyse verwenden `MarketReference -> MarketDataInstrument` statt der FT-001-Listing-Bridge.
+4. Released Stock-Writer bleiben im Expand-Schritt kompatibel und werden separat auf die neutrale Identität migriert.
+5. Erst nach vollständiger Consumer- und Writer-Validierung darf eine spätere Contract-Migration Legacy-Ownership verschärfen oder entfernen.
 
 ## Konsequenzen
 
-DAX und andere Indizes benötigen kein synthetisches STOCK-Underlying. Neue analysierbare Asset-/Referenztypen können dieselbe Market-Data-Infrastruktur nutzen, ohne FT-001 fachlich zu erweitern.
+DAX und andere Indizes benötigen kein synthetisches STOCK-Underlying. Neue analysierbare Asset-/Referenztypen können dieselbe Market-Data-Infrastruktur nutzen, ohne FT-001 fachlich zu erweitern. `MarketReferenceListingAssignment` kann für Historie und Kompatibilität bestehen bleiben, ist aber keine notwendige Readiness-Identität mehr.
