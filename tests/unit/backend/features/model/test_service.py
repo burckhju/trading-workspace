@@ -8,7 +8,6 @@ import pytest
 from app.features.model.domain.enums import ValidationConclusion
 from app.features.model.service.application import ModelGovernanceService
 
-
 NOW = datetime(2026, 8, 25, 10, 0, tzinfo=UTC)
 
 
