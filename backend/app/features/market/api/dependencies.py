@@ -13,7 +13,10 @@ from app.features.market.service.service import UnderlyingService
 from app.features.market.service.top_down_administration import (
     TopDownReferenceAdministrationService,
 )
-from app.features.market.service.top_down_readiness import TopDownReferenceReadinessService
+from app.features.market.service.top_down_readiness import (
+    InstrumentAwareTopDownReferenceAdministrationService,
+    TopDownReferenceReadinessService,
+)
 from app.features.market.service.trading_venue_administration import (
     TradingVenueAdministrationService,
 )
@@ -53,7 +56,7 @@ async def get_trading_venue_administration_service(
 async def get_top_down_reference_administration_service(
     session: Annotated[AsyncSession, Depends(get_database_session)],
 ) -> TopDownReferenceAdministrationService:
-    return TopDownReferenceAdministrationService(session)
+    return InstrumentAwareTopDownReferenceAdministrationService(session)
 
 
 async def get_top_down_reference_readiness_service(
