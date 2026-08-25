@@ -154,10 +154,7 @@ def attach_governed_model_provenance(
     declares the matching immutable runtime contract.  Missing or ambiguous
     governance therefore results in NULL provenance rather than a false link.
     """
-    if (
-        target.governed_model_version_id is not None
-        or connection.dialect.name != "postgresql"
-    ):
+    if target.governed_model_version_id is not None or connection.dialect.name != "postgresql":
         return
 
     workspace_id = connection.execute(
