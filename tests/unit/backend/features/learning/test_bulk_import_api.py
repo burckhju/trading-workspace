@@ -170,7 +170,8 @@ def test_bulk_import_routes_map_service_errors() -> None:
         files=[("files", ("a.pdf", b"%PDF", "application/pdf"))],
     )
     assert upload.status_code == 400
-    assert upload.json()["detail"] == "bad import"
+    assert upload.json()["code"] == "HTTP_400"
+    assert upload.json()["message"] == "bad import"
 
     status = client.get(f"/api/v1/learning/bulk-imports/{service.job_id}")
     assert status.status_code == 404
