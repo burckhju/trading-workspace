@@ -1,4 +1,4 @@
-"""Migrate provider mappings, daily prices and analyses to market-data instruments.
+"""Add market-data instrument ownership to provider mappings, prices and analyses.
 
 Revision ID: 20260825_0023
 Revises: 20260825_0022
@@ -29,6 +29,8 @@ def _backfill(table: str) -> None:
 
 
 def upgrade() -> None:
+    # Additive transition: legacy listing writes remain valid while new reference-owned
+    # rows can use market_data_instrument_id without inventing an FT-001 stock listing.
     op.add_column(
         "provider_instrument_mappings",
         sa.Column("market_data_instrument_id", sa.Uuid(), nullable=True),
@@ -42,12 +44,11 @@ def upgrade() -> None:
         ondelete="CASCADE",
     )
     _backfill("provider_instrument_mappings")
-    op.alter_column("provider_instrument_mappings", "market_data_instrument_id", nullable=False)
     op.alter_column("provider_instrument_mappings", "listing_id", nullable=True)
-    op.drop_constraint(
-        "uq_provider_instrument_mappings_provider_listing",
+    op.create_check_constraint(
+        "ck_provider_instrument_mappings_internal_owner",
         "provider_instrument_mappings",
-        type_="unique",
+        "listing_id IS NOT NULL OR market_data_instrument_id IS NOT NULL",
     )
     op.create_unique_constraint(
         "uq_provider_instrument_mappings_provider_instrument",
@@ -65,9 +66,12 @@ def upgrade() -> None:
         ondelete="CASCADE",
     )
     _backfill("daily_prices")
-    op.alter_column("daily_prices", "market_data_instrument_id", nullable=False)
     op.alter_column("daily_prices", "listing_id", nullable=True)
-    op.drop_constraint("uq_daily_prices_listing_date_type", "daily_prices", type_="unique")
+    op.create_check_constraint(
+        "ck_daily_prices_internal_owner",
+        "daily_prices",
+        "listing_id IS NOT NULL OR market_data_instrument_id IS NOT NULL",
+    )
     op.create_unique_constraint(
         "uq_daily_prices_instrument_date_type",
         "daily_prices",
@@ -89,9 +93,13 @@ def upgrade() -> None:
         ondelete="RESTRICT",
     )
     _backfill("market_analyses")
-    op.alter_column("market_analyses", "market_data_instrument_id", nullable=False)
     op.alter_column("market_analyses", "underlying_id", nullable=True)
     op.alter_column("market_analyses", "listing_id", nullable=True)
+    op.create_check_constraint(
+        "ck_market_analyses_internal_owner",
+        "market_analyses",
+        "listing_id IS NOT NULL OR market_data_instrument_id IS NOT NULL",
+    )
     op.create_index(
         "ix_market_analyses_workspace_instrument_created",
         "market_analyses",
@@ -100,16 +108,13 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    # Downgrade is only safe while all rows still have legacy listing ownership.
-    op.execute(
-        sa.text(
-            "DELETE FROM market_analyses WHERE listing_id IS NULL OR underlying_id IS NULL"
-        )
-    )
+    # Reference-owned rows cannot be represented by the legacy schema.
+    op.execute(sa.text("DELETE FROM market_analyses WHERE listing_id IS NULL"))
     op.execute(sa.text("DELETE FROM daily_prices WHERE listing_id IS NULL"))
     op.execute(sa.text("DELETE FROM provider_instrument_mappings WHERE listing_id IS NULL"))
 
     op.drop_index("ix_market_analyses_workspace_instrument_created", table_name="market_analyses")
+    op.drop_constraint("ck_market_analyses_internal_owner", "market_analyses", type_="check")
     op.alter_column("market_analyses", "listing_id", nullable=False)
     op.alter_column("market_analyses", "underlying_id", nullable=False)
     op.drop_constraint(
@@ -119,11 +124,7 @@ def downgrade() -> None:
 
     op.drop_index("ix_daily_prices_instrument_date", table_name="daily_prices")
     op.drop_constraint("uq_daily_prices_instrument_date_type", "daily_prices", type_="unique")
-    op.create_unique_constraint(
-        "uq_daily_prices_listing_date_type",
-        "daily_prices",
-        ["listing_id", "trading_date", "price_type"],
-    )
+    op.drop_constraint("ck_daily_prices_internal_owner", "daily_prices", type_="check")
     op.alter_column("daily_prices", "listing_id", nullable=False)
     op.drop_constraint(
         "fk_daily_prices_market_data_instrument", "daily_prices", type_="foreignkey"
@@ -135,10 +136,10 @@ def downgrade() -> None:
         "provider_instrument_mappings",
         type_="unique",
     )
-    op.create_unique_constraint(
-        "uq_provider_instrument_mappings_provider_listing",
+    op.drop_constraint(
+        "ck_provider_instrument_mappings_internal_owner",
         "provider_instrument_mappings",
-        ["provider", "listing_id"],
+        type_="check",
     )
     op.alter_column("provider_instrument_mappings", "listing_id", nullable=False)
     op.drop_constraint(
