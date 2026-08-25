@@ -21,7 +21,10 @@ from app.features.market_data.domain.enums import (
     PriceType,
     QualityStatus,
 )
-from app.features.market_data.persistence.models import DailyPriceModel, ProviderInstrumentMappingModel
+from app.features.market_data.persistence.models import (
+    DailyPriceModel,
+    ProviderInstrumentMappingModel,
+)
 from app.features.market_data.service.instrument_identity import MarketDataInstrumentIdentityService
 from app.providers.eodhd.client import EodhdClient
 from app.providers.eodhd.dto import EodhdDailyPriceDto, EodhdSearchResultDto
@@ -152,6 +155,9 @@ class ReferenceMarketDataService:
         mapping = await self._require_mapping(workspace_id, market_reference_id)
         if mapping.status is not MappingStatus.ACTIVE:
             raise ValueError("EODHD provider mapping is not active")
+        instrument_id = mapping.market_data_instrument_id
+        if instrument_id is None:
+            raise ValueError("provider mapping has no market-data instrument identity")
         match = await self._exact_search_match(mapping)
         if match is None or not (match.currency or "").strip():
             raise ValueError("provider currency could not be resolved from the validated mapping")
@@ -185,7 +191,7 @@ class ReferenceMarketDataService:
             existing = await self._session.scalar(
                 select(DailyPriceModel).where(
                     DailyPriceModel.workspace_id == workspace_id,
-                    DailyPriceModel.market_data_instrument_id == mapping.market_data_instrument_id,
+                    DailyPriceModel.market_data_instrument_id == instrument_id,
                     DailyPriceModel.trading_date == row.date,
                     DailyPriceModel.price_type == PriceType.EOD,
                 )
@@ -212,7 +218,7 @@ class ReferenceMarketDataService:
                         id=uuid4(),
                         workspace_id=workspace_id,
                         listing_id=None,
-                        market_data_instrument_id=mapping.market_data_instrument_id,
+                        market_data_instrument_id=instrument_id,
                         trading_date=row.date,
                         created_at=now,
                         updated_at=now,
@@ -234,7 +240,7 @@ class ReferenceMarketDataService:
         await self._session.commit()
         return ReferencePriceImportResult(
             market_reference_id=market_reference_id,
-            market_data_instrument_id=mapping.market_data_instrument_id,
+            market_data_instrument_id=instrument_id,
             mapping_id=mapping.id,
             currency=currency,
             start_date=start_date,
@@ -293,7 +299,11 @@ class ReferenceMarketDataService:
     def _validate_ohlc(row: EodhdDailyPriceDto) -> None:
         if min(row.open, row.high, row.low, row.close) <= 0:
             raise ValueError("provider returned non-positive OHLC data")
-        if row.low > row.high or not row.low <= row.open <= row.high or not row.low <= row.close <= row.high:
+        if (
+            row.low > row.high
+            or not row.low <= row.open <= row.high
+            or not row.low <= row.close <= row.high
+        ):
             raise ValueError("provider returned inconsistent OHLC data")
         if row.adjusted_close is not None and row.adjusted_close <= 0:
             raise ValueError("provider returned non-positive adjusted close")
