@@ -17,7 +17,7 @@ async def test_fixture_uses_isolated_database(
         revision = await connection.scalar(text("select version_num from alembic_version"))
 
     assert database == "trading_workspace_test"
-    assert revision == "20260825_0023"
+    assert revision == "20260825_0024"
 
 
 async def test_session_commit_is_contained_by_outer_transaction(
