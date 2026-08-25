@@ -34,6 +34,28 @@ FT-013 baseline. If calculator behavior changes, the runtime model version and
 this implementation reference must be reviewed together; silently retaining the
 legacy contract would make provenance false.
 
+## Baseline registration runbook
+
+Baseline registration deliberately uses the existing FT-013 two-step governance
+flow. It is an operator action, not a migration seed and not runtime activation.
+
+1. Call `POST /api/v1/model-governance/models` with model key
+   `EOD_TREND_MOMENTUM`, a descriptive name/purpose and the exact definition
+   above. The response creates ModelVersion 1 in `DRAFT` state.
+2. Review the returned model/version IDs and definition. Only after that review,
+   call `POST /api/v1/model-governance/models/{model_id}/versions/{version_id}/approve`.
+3. Confirm the version is `APPROVED`. No assignment or activation follows from
+   this approval; FT-006 continues to execute the released code-based model.
+4. Start a new FT-006 analysis and verify that its
+   `market_analysis_runs.governed_model_version_id` equals the approved baseline
+   version ID while the legacy `model_id`, `model_version`, input hash and
+   calculation behavior remain unchanged.
+
+The PostgreSQL integration test
+`test_ft006_governed_provenance_postgres.py` exercises the same create → approve
+→ persist-run sequence through `ModelGovernanceService` and verifies the stored
+foreign key.
+
 ## Runtime resolution
 
 Before a new `market_analysis_runs` row is inserted on PostgreSQL, persistence
