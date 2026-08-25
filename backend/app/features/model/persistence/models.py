@@ -82,7 +82,10 @@ class HypothesisRecord(Base):
     __tablename__ = "model_hypotheses"
     __table_args__ = (
         CheckConstraint("length(trim(title)) > 0", name="ck_model_hypotheses_title_nonblank"),
-        CheckConstraint("length(trim(statement)) > 0", name="ck_model_hypotheses_statement_nonblank"),
+        CheckConstraint(
+            "length(trim(statement)) > 0",
+            name="ck_model_hypotheses_statement_nonblank",
+        ),
         CheckConstraint(
             "status IN ('OPEN','PROPOSED','CLOSED')",
             name="ck_model_hypotheses_status_valid",
@@ -130,7 +133,10 @@ class ModelChangeProposalRecord(Base):
             "status IN ('DRAFT','VALIDATED','APPROVED')",
             name="ck_model_change_proposals_status_valid",
         ),
-        CheckConstraint("length(trim(rationale)) > 0", name="ck_model_change_proposals_rationale_nonblank"),
+        CheckConstraint(
+            "length(trim(rationale)) > 0",
+            name="ck_model_change_proposals_rationale_nonblank",
+        ),
         ForeignKeyConstraint(
             ["workspace_id"], ["workspaces.id"], ondelete="RESTRICT",
             name="fk_model_change_proposals_workspace",
