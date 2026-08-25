@@ -145,7 +145,9 @@ class ModelGovernanceService:
             raise ValueError("hypothesis requires evidence or a lesson version")
         if source_lesson_version_id is not None:
             lesson_exists = await self._session.scalar(
-                select(LessonVersionModel.id).where(LessonVersionModel.id == source_lesson_version_id)
+                select(LessonVersionModel.id).where(
+                    LessonVersionModel.id == source_lesson_version_id
+                )
             )
             if lesson_exists is None:
                 raise ValueError("source lesson version not found")
