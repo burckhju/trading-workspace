@@ -16,6 +16,7 @@ from app.features.learning.persistence import models as learning_models  # noqa:
 from app.features.market.persistence import models as market_models  # noqa: F401
 from app.features.market.persistence import top_down_models as market_top_down_models  # noqa: F401
 from app.features.market_data.persistence import models as market_data_models  # noqa: F401
+from app.features.model.persistence import models as model_governance_models  # noqa: F401
 from app.features.product.persistence import models as product_models  # noqa: F401
 from app.features.product_selection.persistence import models as product_selection_models  # noqa: F401
 from app.features.trade_plan.persistence import models as trade_plan_models  # noqa: F401
