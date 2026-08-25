@@ -16,7 +16,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.features.analysis.domain.enums import AnalysisStatus
 from app.features.analysis.domain.errors import AnalysisDataUnavailable
 from app.features.analysis.domain.models import AnalysisParameters, SnapshotRow
-from app.features.analysis.persistence.models import MarketAnalysisEventModel, MarketAnalysisModel
+from app.features.analysis.persistence.models import (
+    MarketAnalysisEventModel,
+    MarketAnalysisModel,
+    MarketAnalysisRunModel,
+)
 from app.features.analysis.service.application import MarketAnalysisService
 from app.features.market_data.persistence.instruments import MarketDataInstrumentModel
 from app.features.market_data.persistence.models import DailyPriceModel
@@ -82,7 +86,7 @@ class MarketReferenceAnalysisService(MarketAnalysisService):
         end_date: date,
         parameters: AnalysisParameters,
         correlation_id: str | None,
-    ):
+    ) -> MarketAnalysisRunModel:
         analysis = await self._require_analysis(workspace_id, analysis_id)
         instrument_id = analysis.market_data_instrument_id
         if instrument_id is None:
