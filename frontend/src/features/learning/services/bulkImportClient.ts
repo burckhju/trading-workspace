@@ -36,6 +36,14 @@ export type BulkImportConfirmResult = {
   accepted_observation_version_ids: string[];
 };
 
+function errorMessage(payload: unknown, status: number): string {
+  if (typeof payload === 'object' && payload !== null) {
+    if ('message' in payload && typeof payload.message === 'string') return payload.message;
+    if ('detail' in payload && typeof payload.detail === 'string') return payload.detail;
+  }
+  return `Upload fehlgeschlagen (HTTP ${status}).`;
+}
+
 async function uploadFiles(files: File[]): Promise<BulkImportJob> {
   const formData = new FormData();
   for (const file of files) {
@@ -49,11 +57,7 @@ async function uploadFiles(files: File[]): Promise<BulkImportJob> {
   });
   const payload = (await response.json()) as unknown;
   if (!response.ok) {
-    const detail =
-      typeof payload === 'object' && payload !== null && 'detail' in payload
-        ? String((payload as { detail: unknown }).detail)
-        : `Upload fehlgeschlagen (HTTP ${response.status}).`;
-    throw new Error(detail);
+    throw new Error(errorMessage(payload, response.status));
   }
   return payload as BulkImportJob;
 }
