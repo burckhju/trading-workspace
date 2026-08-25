@@ -18,7 +18,7 @@ class FakeBulkImportService:
         self.error: BulkImportError | None = None
         self.ingested: list[str] = []
         self.review_rows = [self._row()]
-        self.files = [self._file()]
+        self.files: list[SimpleNamespace] = []
 
     def _raise(self) -> None:
         if self.error is not None:
@@ -27,10 +27,15 @@ class FakeBulkImportService:
     def _job(self, status: str = "REVIEW_REQUIRED") -> SimpleNamespace:
         return SimpleNamespace(id=self.job_id, status=status)
 
-    def _file(self, status: str = "REVIEW_REQUIRED") -> SimpleNamespace:
+    def _file(
+        self,
+        status: str = "REVIEW_REQUIRED",
+        *,
+        filename: str = "issue.pdf",
+    ) -> SimpleNamespace:
         return SimpleNamespace(
-            id=self.file_id,
-            original_filename="issue.pdf",
+            id=uuid4(),
+            original_filename=filename,
             status=status,
             duplicate_of_file_id=None,
             failure_code=None,
@@ -55,8 +60,11 @@ class FakeBulkImportService:
 
     async def ingest_pdf(self, **kwargs):
         self._raise()
-        self.ingested.append(kwargs["filename"])
-        return self._file()
+        filename = kwargs["filename"]
+        self.ingested.append(filename)
+        model = self._file(filename=filename)
+        self.files.append(model)
+        return model
 
     async def get_job(self, workspace_id, job_id):
         del workspace_id, job_id
@@ -119,7 +127,7 @@ def test_bulk_upload_and_job_status_routes() -> None:
 
     status = client.get(f"/api/v1/learning/bulk-imports/{service.job_id}")
     assert status.status_code == 200
-    assert status.json()["files"][0]["filename"] == "issue.pdf"
+    assert status.json()["files"][0]["filename"] == "a.pdf"
 
 
 def test_review_resolve_discard_and_confirm_routes() -> None:
