@@ -14,7 +14,7 @@ from app.features.analysis.domain.calculator import MODEL_ID, MODEL_VERSION
 RUNTIME_CONTRACT: Final = "FT-006:EOD_TREND_MOMENTUM:1.0.0"
 IMPLEMENTATION_REF: Final = (
     "backend/app/features/analysis/domain/calculator.py@"
-    "8dcead013709d1ba2ad40e180fcc65ebe1c6589e"
+    + "8dcead013709d1ba2ad40e180fcc65ebe1c6589e"
 )
 RULE_REPRESENTATION: Final = "CODE_PLUS_PARAMETERS"
 
