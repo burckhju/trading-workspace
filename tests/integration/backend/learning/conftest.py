@@ -1,4 +1,4 @@
-"""PostgreSQL integration fixtures for FT-011."""
+"""PostgreSQL integration fixtures for FT-012 and follow-on learning slices."""
 
 from __future__ import annotations
 
@@ -19,8 +19,8 @@ from sqlalchemy.ext.asyncio import (
 )
 
 EXPECTED_DATABASE = "trading_workspace_test"
-EXPECTED_ALEMBIC_HEAD = "20260824_0021"
-REBUILD_BASE_ALEMBIC_HEAD = "20260820_0020"
+EXPECTED_ALEMBIC_HEAD = "20260824_0022"
+REBUILD_BASE_ALEMBIC_HEAD = "20260824_0021"
 
 
 def _test_database_url() -> str:
