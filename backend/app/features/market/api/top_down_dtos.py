@@ -104,6 +104,8 @@ class TopDownReferenceReadinessResponse(BaseModel):
     reference_id: UUID
     reference_code: str
     reference_type: str
+    market_data_instrument_id: UUID | None = None
+    # Deprecated compatibility field. Index/reference readiness no longer requires a stock Listing.
     listing_id: UUID | None
     provider_mapping_id: UUID | None
     provider_mapping_active: bool
