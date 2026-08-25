@@ -25,16 +25,28 @@ from app.database.base import Base
 
 class MarketAnalysisModel(Base):
     __tablename__ = "market_analyses"
-    __table_args__ = (Index("ix_market_analyses_workspace_created", "workspace_id", "created_at"),)
+    __table_args__ = (
+        Index("ix_market_analyses_workspace_created", "workspace_id", "created_at"),
+        Index(
+            "ix_market_analyses_workspace_instrument_created",
+            "workspace_id",
+            "market_data_instrument_id",
+            "created_at",
+        ),
+    )
     id: Mapped[UUID] = mapped_column(primary_key=True)
     workspace_id: Mapped[UUID] = mapped_column(
         ForeignKey("workspaces.id", ondelete="RESTRICT"), nullable=False
     )
-    underlying_id: Mapped[UUID] = mapped_column(
-        ForeignKey("underlyings.id", ondelete="RESTRICT"), nullable=False
+    market_data_instrument_id: Mapped[UUID] = mapped_column(
+        ForeignKey("market_data_instruments.id", ondelete="RESTRICT"), nullable=False
     )
-    listing_id: Mapped[UUID] = mapped_column(
-        ForeignKey("listings.id", ondelete="RESTRICT"), nullable=False
+    # Legacy stock-analysis provenance. Market-reference analyses keep both NULL.
+    underlying_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("underlyings.id", ondelete="RESTRICT"), nullable=True
+    )
+    listing_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("listings.id", ondelete="RESTRICT"), nullable=True
     )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     created_by: Mapped[str] = mapped_column(String(200), nullable=False)
