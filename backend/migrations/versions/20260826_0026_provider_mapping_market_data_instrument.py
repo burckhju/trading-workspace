@@ -130,8 +130,19 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    # Rows owned only by MarketDataInstrument cannot be represented by the legacy schema.
-    op.execute(sa.text("DELETE FROM provider_instrument_mappings WHERE listing_id IS NULL"))
+    bind = op.get_bind()
+    instrument_only_count = bind.execute(
+        sa.text(
+            "SELECT count(*) FROM provider_instrument_mappings "
+            "WHERE listing_id IS NULL AND market_data_instrument_id IS NOT NULL"
+        )
+    ).scalar_one()
+    if instrument_only_count:
+        raise RuntimeError(
+            "D01-B downgrade refused: instrument-only provider mappings cannot be "
+            "represented by revision 20260826_0025"
+        )
+
     op.execute(
         "DROP TRIGGER IF EXISTS trg_provider_mapping_instrument_consistency "
         "ON provider_instrument_mappings"
