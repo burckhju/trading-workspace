@@ -18,7 +18,8 @@ class MarketDataInstrumentModel(Base):
     __table_args__ = (
         CheckConstraint(
             "(kind = 'LISTING' AND listing_id IS NOT NULL AND market_reference_id IS NULL) OR "
-            "(kind = 'MARKET_REFERENCE' AND listing_id IS NULL AND market_reference_id IS NOT NULL)",
+            "(kind = 'MARKET_REFERENCE' AND listing_id IS NULL "
+            "AND market_reference_id IS NOT NULL)",
             name="ck_market_data_instruments_owner_matches_kind",
         ),
         UniqueConstraint("listing_id", name="uq_market_data_instruments_listing"),
