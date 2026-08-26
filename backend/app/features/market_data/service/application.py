@@ -106,13 +106,23 @@ class DailyPriceImportService:
                             workspace_id=request.workspace_id,
                             price_id=self._id_factory(),
                             now=now,
+                            market_data_instrument_id=mapping.market_data_instrument_id,
                         )
                     )
                     inserted += 1
-                elif apply_daily_price(existing, price, now=now):
-                    updated += 1
                 else:
-                    unchanged += 1
+                    identity_changed = False
+                    if (
+                        existing.market_data_instrument_id is None
+                        and mapping.market_data_instrument_id is not None
+                    ):
+                        existing.market_data_instrument_id = mapping.market_data_instrument_id
+                        existing.updated_at = now
+                        identity_changed = True
+                    if apply_daily_price(existing, price, now=now) or identity_changed:
+                        updated += 1
+                    else:
+                        unchanged += 1
 
             if inserted or updated:
                 await self._uow.daily_prices.flush()
