@@ -186,23 +186,18 @@ async def test_d01c_upgrade_backfills_price_and_missing_listing_identity() -> No
         assert await _revision(engine) == D01C_REVISION
 
         async with engine.connect() as connection:
-            row = (
-                (
-                    await connection.execute(
-                        text(
-                            "SELECT price.listing_id, price.market_data_instrument_id, "
-                            "instrument.kind, instrument.listing_id AS instrument_listing_id "
-                            "FROM daily_prices AS price "
-                            "JOIN market_data_instruments AS instrument "
-                            "ON instrument.id = price.market_data_instrument_id "
-                            "WHERE price.id = :price_id"
-                        ),
-                        {"price_id": price_id},
-                    )
-                )
-                .mappings()
-                .one()
+            result = await connection.execute(
+                text(
+                    "SELECT price.listing_id, price.market_data_instrument_id, "
+                    "instrument.kind, instrument.listing_id AS instrument_listing_id "
+                    "FROM daily_prices AS price "
+                    "JOIN market_data_instruments AS instrument "
+                    "ON instrument.id = price.market_data_instrument_id "
+                    "WHERE price.id = :price_id"
+                ),
+                {"price_id": price_id},
             )
+            row = result.mappings().one()
         assert row["listing_id"] == listing_id
         assert row["market_data_instrument_id"] is not None
         assert row["kind"] == "LISTING"
