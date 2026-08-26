@@ -146,16 +146,15 @@ async def _assert_backfill(
     engine: AsyncEngine, *, listing_id: UUID, reference_id: UUID, workspace_id: UUID
 ) -> None:
     async with engine.connect() as connection:
-        rows = (
-            await connection.execute(
-                text(
-                    "SELECT workspace_id, kind, listing_id, market_reference_id "
-                    "FROM market_data_instruments "
-                    "WHERE listing_id = :listing_id OR market_reference_id = :reference_id"
-                ),
-                {"listing_id": listing_id, "reference_id": reference_id},
-            )
-        ).mappings().all()
+        result = await connection.execute(
+            text(
+                "SELECT workspace_id, kind, listing_id, market_reference_id "
+                "FROM market_data_instruments "
+                "WHERE listing_id = :listing_id OR market_reference_id = :reference_id"
+            ),
+            {"listing_id": listing_id, "reference_id": reference_id},
+        )
+        rows = result.mappings().all()
     assert len(rows) == 2
     assert {
         (row["workspace_id"], row["kind"], row["listing_id"], row["market_reference_id"])
@@ -206,13 +205,15 @@ async def test_d01a_upgrade_downgrade_upgrade_preserves_owners_and_backfills() -
         await asyncio.to_thread(_run_alembic, "downgrade", BASE_REVISION, database_url)
         assert await _revision(engine) == BASE_REVISION
         async with engine.connect() as connection:
-            assert await connection.scalar(
+            listing_count = await connection.scalar(
                 text("SELECT count(*) FROM listings WHERE id = :id"), {"id": listing_id}
-            ) == 1
-            assert await connection.scalar(
+            )
+            reference_count = await connection.scalar(
                 text("SELECT count(*) FROM market_references WHERE id = :id"),
                 {"id": reference_id},
-            ) == 1
+            )
+        assert listing_count == 1
+        assert reference_count == 1
 
         await asyncio.to_thread(_run_alembic, "upgrade", D01A_REVISION, database_url)
         assert await _revision(engine) == D01A_REVISION
