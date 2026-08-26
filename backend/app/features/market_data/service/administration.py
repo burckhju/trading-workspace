@@ -43,7 +43,7 @@ class MappingCommand:
 
 
 class ProviderMappingAdministrationService:
-    """Manage provider mappings without changing listing master data."""
+    """Manage listing-owned provider mappings without changing listing master data."""
 
     def __init__(
         self,
@@ -121,11 +121,12 @@ class ProviderMappingAdministrationService:
         actor_id: str | None,
         actor_name: str,
     ) -> ProviderInstrumentMapping:
-        """Validate mapping syntax and activate it explicitly."""
+        """Validate one listing-owned mapping and activate it explicitly."""
         async with self._uow:
             model = await self._uow.mappings.get(workspace_id, mapping_id)
             if model is None:
                 raise MarketDataNotFoundError("Provider mapping not found")
+            listing_id = self._require_listing_owner(model.listing_id)
             before = mapping_to_domain(model)
             validation = await self._resolver.validate_mapping(before) if self._resolver else None
             now = validation.validated_at if validation is not None else self._now()
@@ -138,7 +139,7 @@ class ProviderMappingAdministrationService:
                 value = mapping_to_domain(model)
                 command = MappingCommand(
                     workspace_id,
-                    model.listing_id,
+                    listing_id,
                     model.provider,
                     model.provider_symbol,
                     model.provider_exchange_code,
@@ -160,7 +161,7 @@ class ProviderMappingAdministrationService:
             if self._venue_reconciliation is not None:
                 reconciliation = await self._venue_reconciliation.reconcile(
                     workspace_id,
-                    model.listing_id,
+                    listing_id,
                     model.provider,
                     model.provider_exchange_code,
                 )
@@ -175,7 +176,7 @@ class ProviderMappingAdministrationService:
                     value = mapping_to_domain(model)
                     command = MappingCommand(
                         workspace_id,
-                        model.listing_id,
+                        listing_id,
                         model.provider,
                         model.provider_symbol,
                         model.provider_exchange_code,
@@ -206,7 +207,7 @@ class ProviderMappingAdministrationService:
             value = mapping_to_domain(model)
             command = MappingCommand(
                 workspace_id,
-                model.listing_id,
+                listing_id,
                 model.provider,
                 model.provider_symbol,
                 model.provider_exchange_code,
@@ -234,11 +235,12 @@ class ProviderMappingAdministrationService:
         actor_id: str | None,
         actor_name: str,
     ) -> ProviderInstrumentMapping:
-        """Activate a validated mapping or disable it without deleting history."""
+        """Activate or disable a listing-owned mapping without deleting history."""
         async with self._uow:
             model = await self._uow.mappings.get(workspace_id, mapping_id)
             if model is None:
                 raise MarketDataNotFoundError("Provider mapping not found")
+            listing_id = self._require_listing_owner(model.listing_id)
             before = mapping_to_domain(model)
             now = self._now()
             if enabled:
@@ -255,7 +257,7 @@ class ProviderMappingAdministrationService:
             value = mapping_to_domain(model)
             command = MappingCommand(
                 workspace_id,
-                model.listing_id,
+                listing_id,
                 model.provider,
                 model.provider_symbol,
                 model.provider_exchange_code,
@@ -273,6 +275,14 @@ class ProviderMappingAdministrationService:
             await self._uow.mappings.flush()
             await self._uow.commit()
             return value
+
+    @staticmethod
+    def _require_listing_owner(listing_id: UUID | None) -> UUID:
+        if listing_id is None:
+            raise MarketDataNotFoundError(
+                "Provider mapping is not managed by the listing administration path"
+            )
+        return listing_id
 
     async def _audit(
         self,
