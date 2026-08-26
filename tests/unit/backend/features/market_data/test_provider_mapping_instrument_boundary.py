@@ -1,5 +1,6 @@
 from datetime import UTC, datetime
-from uuid import uuid4
+from types import SimpleNamespace
+from uuid import UUID, uuid4
 
 import pytest
 
@@ -8,9 +9,17 @@ from app.features.market_data.domain.errors import InvalidProviderInstrumentMapp
 from app.features.market_data.domain.models import ProviderInstrumentMapping
 from app.features.market_data.persistence.mapping import mapping_to_domain, mapping_to_model
 from app.features.market_data.persistence.models import ProviderInstrumentMappingModel
+from app.features.market_data.service.administration import (
+    MappingCommand,
+    ProviderMappingAdministrationService,
+)
 
 
-def _mapping(*, listing_id=None, market_data_instrument_id=None) -> ProviderInstrumentMapping:
+def _mapping(
+    *,
+    listing_id: UUID | None = None,
+    market_data_instrument_id: UUID | None = None,
+) -> ProviderInstrumentMapping:
     now = datetime.now(UTC)
     return ProviderInstrumentMapping(
         id=uuid4(),
@@ -64,3 +73,76 @@ def test_provider_mapping_conversion_preserves_neutral_identity() -> None:
 
     assert restored.listing_id == listing_id
     assert restored.market_data_instrument_id == instrument_id
+
+
+class _Mappings:
+    def __init__(self) -> None:
+        self.value = None
+
+    async def find_for_listing(self, *args):
+        return self.value
+
+    async def add(self, value):
+        self.value = value
+
+    async def flush(self) -> None:
+        return None
+
+
+class _AuditEvents:
+    async def append(self, value) -> None:
+        return None
+
+
+class _Uow:
+    def __init__(self) -> None:
+        self.mappings = _Mappings()
+        self.audit_events = _AuditEvents()
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc, traceback) -> None:
+        return None
+
+    async def commit(self) -> None:
+        return None
+
+    async def rollback(self) -> None:
+        return None
+
+
+class _Identity:
+    def __init__(self, instrument_id: UUID) -> None:
+        self.instrument_id = instrument_id
+
+    async def for_listing(self, *, workspace_id: UUID, listing_id: UUID):
+        return SimpleNamespace(id=self.instrument_id)
+
+
+@pytest.mark.asyncio
+async def test_listing_mapping_dual_writes_market_data_instrument_id() -> None:
+    workspace_id = uuid4()
+    listing_id = uuid4()
+    instrument_id = uuid4()
+    uow = _Uow()
+    service = ProviderMappingAdministrationService(
+        uow,
+        instrument_identity=_Identity(instrument_id),
+    )
+
+    result = await service.create_or_update(
+        MappingCommand(
+            workspace_id=workspace_id,
+            listing_id=listing_id,
+            provider=MarketDataProvider.EODHD,
+            provider_symbol="sap",
+            provider_exchange_code="xetra",
+            actor_id=None,
+            actor_name="Administrator",
+        )
+    )
+
+    assert result.listing_id == listing_id
+    assert result.market_data_instrument_id == instrument_id
+    assert uow.mappings.value.market_data_instrument_id == instrument_id
