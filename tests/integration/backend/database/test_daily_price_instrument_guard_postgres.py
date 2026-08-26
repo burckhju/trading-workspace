@@ -44,8 +44,10 @@ async def test_daily_price_rejects_cross_workspace_instrument() -> None:
             await connection.execute(
                 text(
                     "INSERT INTO currencies "
-                    "(code, name, minor_unit, is_active, reference_version, created_at, updated_at) "
-                    "VALUES (:code, 'D01-C Guard Currency', 2, true, 'd01c-guard', :now, :now)"
+                    "(code, name, minor_unit, is_active, reference_version, "
+                    "created_at, updated_at) "
+                    "VALUES (:code, 'D01-C Guard Currency', 2, true, "
+                    "'d01c-guard', :now, :now)"
                 ),
                 {"code": currency_code, "now": now},
             )
