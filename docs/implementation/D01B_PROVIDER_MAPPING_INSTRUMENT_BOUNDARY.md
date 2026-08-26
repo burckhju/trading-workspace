@@ -17,13 +17,15 @@ The legacy `listing_id` remains supported and becomes nullable only so a later M
 
 At least one internal owner is required. The existing provider+listing uniqueness remains, and provider+MarketDataInstrument uniqueness is added.
 
-## Backfill
+## Backfill and dual-write
 
 Revision `20260826_0026` follows D01-A revision `20260826_0025`.
 
 Before mapping rows are backfilled, the migration creates missing LISTING-owned `MarketDataInstrument` identities for Listings that may have been created after the D01-A migration. Existing identities are reused. Existing provider mappings are then linked to the matching LISTING instrument in the same workspace.
 
-The migration never derives identity from provider symbols, exchange codes, names, or ticker text.
+After migration, the production listing-mapping administration service uses the D01-A identity service in the same database session. New listing mappings therefore write both `listing_id` and `market_data_instrument_id`; updating an older listing mapping also fills a missing neutral identity. This prevents drift between migration time and later consumer cutover.
+
+Identity is never derived from provider symbols, exchange codes, names, or ticker text.
 
 ## Workspace and owner consistency
 
@@ -33,9 +35,9 @@ The new MarketDataInstrument foreign key uses restrictive delete semantics so ma
 
 ## Application compatibility
 
-The immutable provider-mapping domain model and persistence conversion can carry either a Listing owner or a MarketDataInstrument owner. The existing listing administration path remains explicitly listing-scoped and refuses instrument-only rows rather than applying listing-specific venue validation to them.
+The immutable provider-mapping domain model and persistence conversion can carry either a Listing owner or a MarketDataInstrument owner. The existing listing administration, venue reconciliation, and DailyPrice paths remain explicitly listing-scoped and refuse instrument-only rows instead of treating a MarketReference as a stock Listing.
 
-The repository adds `find_for_instrument(...)` as the handoff contract for the next D01 slice.
+The public mapping response can expose `market_data_instrument_id` and makes `listing_id` nullable for expand compatibility, while the existing mapping upsert remains listing-only. The repository adds `find_for_instrument(...)` as the handoff contract for the next D01 slice.
 
 ## Downgrade
 
