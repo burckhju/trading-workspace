@@ -8,7 +8,7 @@ This slice is deliberately additive. Existing listing-based import, API, provide
 
 ## Persistence contract
 
-`daily_prices` gains nullable `market_data_instrument_id` with a RESTRICT foreign key to `market_data_instruments`. Existing `listing_id` remains available for compatibility and becomes nullable so future MARKET_REFERENCE-owned daily prices can be represented without inventing an FT-001 Listing.
+`daily_prices` gains nullable `market_data_instrument_id` with a RESTRICT foreign key to `market_data_instruments`. Existing `listing_id` remains available for compatibility and becomes nullable in storage so future MARKET_REFERENCE-owned daily prices can be represented without inventing an FT-001 Listing.
 
 The expand-phase invariants are:
 
@@ -29,7 +29,9 @@ Downgrade preserves all listing-owned prices and D01-A identities. If instrument
 
 ## Runtime compatibility
 
-The existing listing-based daily-price import remains the public/runtime entry point in D01-C. When the selected D01-B provider mapping carries `market_data_instrument_id`, newly inserted DailyPrice rows dual-write both identifiers. Existing rows missing the neutral identity are repaired during a subsequent import update.
+The immutable `DailyPrice` domain contract and the existing daily-price import remain listing-scoped in D01-C. Storage is prepared for instrument-only rows, but those rows are deliberately not exposed through the listing-scoped domain conversion until a later consumer slice defines the corresponding runtime contract.
+
+When the selected D01-B provider mapping carries `market_data_instrument_id`, newly inserted DailyPrice rows dual-write both identifiers. Existing rows missing the neutral identity are repaired during a subsequent import update.
 
 The repository adds instrument-aware `get`, range, and latest lookup contracts for later consumers while retaining all listing-based methods.
 
