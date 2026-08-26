@@ -66,7 +66,7 @@ def daily_price_to_domain(model: DailyPriceModel) -> DailyPrice:
         )
     return DailyPrice(
         listing_id=model.listing_id,
-        market_data_instrument_id=model.market_data_instrument_id,
+        market_data_instrument_id=getattr(model, "market_data_instrument_id", None),
         trading_date=model.trading_date,
         open=model.open,
         high=model.high,
