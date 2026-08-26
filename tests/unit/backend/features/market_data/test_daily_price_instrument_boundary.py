@@ -1,19 +1,19 @@
 from datetime import UTC, date, datetime
 from decimal import Decimal
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 
 from app.features.market_data.domain.enums import MarketDataProvider, PriceType, QualityStatus
 from app.features.market_data.domain.errors import InvalidDailyPrice
 from app.features.market_data.domain.models import DailyPrice
-from app.features.market_data.persistence.mapping import daily_price_to_model
+from app.features.market_data.persistence.mapping import daily_price_to_domain, daily_price_to_model
 from app.features.market_data.persistence.models import DailyPriceModel
 
 NOW = datetime(2026, 8, 26, 18, tzinfo=UTC)
 
 
-def _price(*, listing_id=None, market_data_instrument_id=None) -> DailyPrice:
+def _price(*, listing_id: UUID, market_data_instrument_id: UUID | None = None) -> DailyPrice:
     return DailyPrice(
         listing_id=listing_id,
         market_data_instrument_id=market_data_instrument_id,
@@ -46,16 +46,40 @@ def test_daily_price_model_has_expand_identity_contract() -> None:
     assert fks["market_data_instrument_id"].ondelete == "RESTRICT"
 
 
-def test_daily_price_domain_accepts_instrument_only_owner() -> None:
+def test_daily_price_domain_remains_listing_scoped_with_optional_instrument_identity() -> None:
+    listing_id = uuid4()
     instrument_id = uuid4()
-    value = _price(market_data_instrument_id=instrument_id)
-    assert value.listing_id is None
+    value = _price(listing_id=listing_id, market_data_instrument_id=instrument_id)
+    assert value.listing_id == listing_id
     assert value.market_data_instrument_id == instrument_id
 
 
-def test_daily_price_domain_rejects_missing_owner() -> None:
+def test_instrument_only_persistence_row_is_not_exposed_through_d01c_domain() -> None:
+    model = DailyPriceModel(
+        id=uuid4(),
+        workspace_id=uuid4(),
+        listing_id=None,
+        market_data_instrument_id=uuid4(),
+        trading_date=date(2026, 8, 25),
+        open=Decimal("100"),
+        high=Decimal("102"),
+        low=Decimal("99"),
+        close=Decimal("101"),
+        adjusted_close=None,
+        volume=Decimal("1000"),
+        currency="EUR",
+        provider=MarketDataProvider.EODHD,
+        provider_symbol="TEST.XETRA",
+        retrieved_at=NOW,
+        source_updated_at=None,
+        quality_status=QualityStatus.VALID,
+        warnings="",
+        price_type=PriceType.EOD,
+        created_at=NOW,
+        updated_at=NOW,
+    )
     with pytest.raises(InvalidDailyPrice):
-        _price()
+        daily_price_to_domain(model)
 
 
 def test_daily_price_mapping_can_dual_write_instrument_identity() -> None:
