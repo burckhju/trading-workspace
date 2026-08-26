@@ -158,9 +158,9 @@ class WarrantProviderMapping:
 
 @dataclass(frozen=True, slots=True)
 class DailyPrice:
-    """Validated provider-independent end-of-day price for one market-data owner."""
+    """Validated provider-independent EOD price for one FT-001 Listing."""
 
-    listing_id: UUID | None
+    listing_id: UUID
     trading_date: date
     open: Decimal
     high: Decimal
@@ -179,11 +179,6 @@ class DailyPrice:
     market_data_instrument_id: UUID | None = None
 
     def __post_init__(self) -> None:
-        if self.listing_id is None and self.market_data_instrument_id is None:
-            raise InvalidDailyPrice(
-                "daily price requires a listing or market-data instrument owner",
-                field="listing_id",
-            )
         for field in ("open", "high", "low", "close"):
             object.__setattr__(self, field, _decimal(getattr(self, field), field=field))
         if self.adjusted_close is not None:
