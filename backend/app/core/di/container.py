@@ -22,6 +22,7 @@ from app.features.market_data.service.administration import (
 )
 from app.features.market_data.service.application import DailyPriceImportService
 from app.features.market_data.service.errors import MarketDataConfigurationError
+from app.features.market_data.service.instrument_identity import MarketDataInstrumentIdentityService
 from app.features.market_data.service.unit_of_work import SqlAlchemyMarketDataUnitOfWork
 from app.features.market_data.service.venue_reconciliation import (
     ProviderVenueReconciliationService,
@@ -162,6 +163,7 @@ class ApplicationContainer:
                 uow=uow,
                 resolver=self.eodhd.adapter if self.eodhd is not None else None,
                 venue_reconciliation=ProviderVenueReconciliationService(uow),
+                instrument_identity=MarketDataInstrumentIdentityService(session),
             )
 
     @asynccontextmanager

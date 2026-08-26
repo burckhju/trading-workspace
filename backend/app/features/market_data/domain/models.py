@@ -56,11 +56,11 @@ def _decimal(value: Decimal | str | int, *, field: str) -> Decimal:
 
 @dataclass(frozen=True, slots=True)
 class ProviderInstrumentMapping:
-    """Approved association between one internal listing and one provider symbol."""
+    """Approved association between one internal market-data owner and a provider symbol."""
 
     id: UUID
     workspace_id: UUID
-    listing_id: UUID
+    listing_id: UUID | None
     provider: MarketDataProvider
     provider_symbol: str
     provider_exchange_code: str
@@ -70,8 +70,14 @@ class ProviderInstrumentMapping:
     created_at: datetime
     updated_at: datetime
     version: int
+    market_data_instrument_id: UUID | None = None
 
     def __post_init__(self) -> None:
+        if self.listing_id is None and self.market_data_instrument_id is None:
+            raise InvalidProviderInstrumentMapping(
+                "mapping requires a listing or market-data instrument owner",
+                field="listing_id",
+            )
         object.__setattr__(
             self,
             "provider_symbol",

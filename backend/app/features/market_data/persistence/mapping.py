@@ -31,6 +31,7 @@ def mapping_to_domain(
         created_at=model.created_at,
         updated_at=model.updated_at,
         version=model.version,
+        market_data_instrument_id=model.market_data_instrument_id,
     )
 
 
@@ -42,6 +43,7 @@ def mapping_to_model(
         id=value.id,
         workspace_id=value.workspace_id,
         listing_id=value.listing_id,
+        market_data_instrument_id=value.market_data_instrument_id,
         provider=value.provider,
         provider_symbol=value.provider_symbol,
         provider_exchange_code=value.provider_exchange_code,

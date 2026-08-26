@@ -21,8 +21,8 @@ from sqlalchemy.ext.asyncio import (
 from app.core.config import get_settings
 
 EXPECTED_DATABASE = "trading_workspace_test"
-EXPECTED_ALEMBIC_HEAD = "20260826_0025"
-REBUILD_BASE_ALEMBIC_HEAD = "20260825_0024"
+EXPECTED_ALEMBIC_HEAD = "20260826_0026"
+REBUILD_BASE_ALEMBIC_HEAD = "20260826_0025"
 
 
 def _test_database_url() -> str:

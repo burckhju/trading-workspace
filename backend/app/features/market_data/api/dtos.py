@@ -106,7 +106,8 @@ class ProviderMappingResponse(BaseModel):
 
     id: UUID
     workspace_id: UUID
-    listing_id: UUID
+    listing_id: UUID | None
+    market_data_instrument_id: UUID | None = None
     provider: MarketDataProvider
     provider_symbol: str
     provider_exchange_code: str
