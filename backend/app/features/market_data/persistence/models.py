@@ -41,7 +41,7 @@ def _enum(enum_type: type[Any], *, length: int) -> Enum:
 
 
 class ProviderInstrumentMappingModel(Base):
-    """Persisted provider symbol assigned to exactly one internal listing."""
+    """Persisted provider symbol assigned to one internal market-data identity."""
 
     __tablename__ = "provider_instrument_mappings"
     __table_args__ = (
@@ -49,6 +49,11 @@ class ProviderInstrumentMappingModel(Base):
             "provider",
             "listing_id",
             name="uq_provider_instrument_mappings_provider_listing",
+        ),
+        UniqueConstraint(
+            "provider",
+            "market_data_instrument_id",
+            name="uq_provider_instrument_mappings_provider_instrument",
         ),
         UniqueConstraint(
             "provider",
@@ -62,15 +67,27 @@ class ProviderInstrumentMappingModel(Base):
             "length(trim(provider_exchange_code)) > 0",
             name="provider_exchange_code_not_blank",
         ),
+        CheckConstraint(
+            "listing_id IS NOT NULL OR market_data_instrument_id IS NOT NULL",
+            name="internal_owner",
+        ),
         Index("ix_provider_instrument_mappings_workspace_status", "workspace_id", "status"),
+        Index(
+            "ix_provider_instrument_mappings_workspace_instrument",
+            "workspace_id",
+            "market_data_instrument_id",
+        ),
     )
 
     id: Mapped[UUID] = mapped_column(primary_key=True)
     workspace_id: Mapped[UUID] = mapped_column(
         ForeignKey("workspaces.id", ondelete="RESTRICT"), nullable=False
     )
-    listing_id: Mapped[UUID] = mapped_column(
-        ForeignKey("listings.id", ondelete="CASCADE"), nullable=False
+    listing_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("listings.id", ondelete="CASCADE"), nullable=True
+    )
+    market_data_instrument_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("market_data_instruments.id", ondelete="RESTRICT"), nullable=True
     )
     provider: Mapped[MarketDataProvider] = mapped_column(
         _enum(MarketDataProvider, length=30), nullable=False
