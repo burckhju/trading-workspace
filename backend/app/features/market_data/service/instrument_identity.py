@@ -20,10 +20,7 @@ class MarketDataInstrumentIdentityService:
         self._session = session
 
     async def for_listing(
-        self,
-        *,
-        workspace_id: UUID,
-        listing_id: UUID,
+        self, *, workspace_id: UUID, listing_id: UUID
     ) -> MarketDataInstrumentModel:
         existing = await self._session.scalar(
             select(MarketDataInstrumentModel).where(
@@ -56,10 +53,7 @@ class MarketDataInstrumentIdentityService:
         return instrument
 
     async def for_market_reference(
-        self,
-        *,
-        workspace_id: UUID,
-        market_reference_id: UUID,
+        self, *, workspace_id: UUID, market_reference_id: UUID
     ) -> MarketDataInstrumentModel:
         existing = await self._session.scalar(
             select(MarketDataInstrumentModel).where(
@@ -91,9 +85,7 @@ class MarketDataInstrumentIdentityService:
         await self._session.flush()
         return instrument
 
-    async def get(
-        self, *, workspace_id: UUID, instrument_id: UUID
-    ) -> MarketDataInstrumentModel:
+    async def get(self, *, workspace_id: UUID, instrument_id: UUID) -> MarketDataInstrumentModel:
         instrument = await self._session.scalar(
             select(MarketDataInstrumentModel).where(
                 MarketDataInstrumentModel.id == instrument_id,
