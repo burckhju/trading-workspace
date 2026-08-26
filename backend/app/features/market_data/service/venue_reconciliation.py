@@ -30,7 +30,7 @@ class VenueReconciliationResult:
 
 
 class ProviderVenueReconciliationService:
-    """Reconcile provider codes using existing active mappings as evidence only."""
+    """Reconcile provider codes using existing active listing mappings as evidence only."""
 
     def __init__(self, uow: MarketDataUnitOfWork) -> None:
         self._uow = uow
@@ -38,11 +38,15 @@ class ProviderVenueReconciliationService:
     async def reconcile_mapping(
         self, workspace_id: UUID, mapping_id: UUID
     ) -> VenueReconciliationResult:
-        """Explain one persisted mapping without mutating mapping or reference data."""
+        """Explain one persisted listing mapping without mutating reference data."""
         async with self._uow:
             mapping = await self._uow.mappings.get(workspace_id, mapping_id)
             if mapping is None:
                 raise MarketDataNotFoundError("Provider mapping not found")
+            if mapping.listing_id is None:
+                raise MarketDataNotFoundError(
+                    "Provider mapping is not managed by the listing reconciliation path"
+                )
             return await self.reconcile(
                 workspace_id,
                 mapping.listing_id,
