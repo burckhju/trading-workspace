@@ -236,7 +236,9 @@ async def test_d01a_upgrade_downgrade_upgrade_preserves_owners_and_backfills() -
             await connection.execute(
                 text("DELETE FROM market_references WHERE id = :id"), {"id": reference_id}
             )
-            await connection.execute(text("DELETE FROM listings WHERE id = :id"), {"id": listing_id})
+            await connection.execute(
+                text("DELETE FROM listings WHERE id = :id"), {"id": listing_id}
+            )
             await connection.execute(
                 text("DELETE FROM underlyings WHERE id = :id"), {"id": underlying_id}
             )
