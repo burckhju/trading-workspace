@@ -73,6 +73,7 @@ class MarketAnalysisService:
             created_by=actor,
         )
         await self._repo.add_analysis(model)
+        await self._session.flush()
         await self._repo.add_event(
             MarketAnalysisEventModel(
                 id=uuid4(),
@@ -360,6 +361,7 @@ class MarketAnalysisService:
             error_message=None,
         )
         await self._repo.add_run(run)
+        await self._session.flush()
         await self._repo.add_snapshot_rows(
             [
                 MarketAnalysisSnapshotRowModel(
