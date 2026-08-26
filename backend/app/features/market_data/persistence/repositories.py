@@ -129,22 +129,28 @@ class SqlAlchemyProviderInstrumentMappingRepository:
     async def get(
         self, workspace_id: UUID, mapping_id: UUID
     ) -> ProviderInstrumentMappingModel | None:
-        return await self._session.scalar(
-            select(ProviderInstrumentMappingModel).where(
-                ProviderInstrumentMappingModel.workspace_id == workspace_id,
-                ProviderInstrumentMappingModel.id == mapping_id,
-            )
+        return cast(
+            ProviderInstrumentMappingModel | None,
+            await self._session.scalar(
+                select(ProviderInstrumentMappingModel).where(
+                    ProviderInstrumentMappingModel.workspace_id == workspace_id,
+                    ProviderInstrumentMappingModel.id == mapping_id,
+                )
+            ),
         )
 
     async def find_for_listing(
         self, workspace_id: UUID, listing_id: UUID, provider: MarketDataProvider
     ) -> ProviderInstrumentMappingModel | None:
-        return await self._session.scalar(
-            select(ProviderInstrumentMappingModel).where(
-                ProviderInstrumentMappingModel.workspace_id == workspace_id,
-                ProviderInstrumentMappingModel.listing_id == listing_id,
-                ProviderInstrumentMappingModel.provider == provider,
-            )
+        return cast(
+            ProviderInstrumentMappingModel | None,
+            await self._session.scalar(
+                select(ProviderInstrumentMappingModel).where(
+                    ProviderInstrumentMappingModel.workspace_id == workspace_id,
+                    ProviderInstrumentMappingModel.listing_id == listing_id,
+                    ProviderInstrumentMappingModel.provider == provider,
+                )
+            ),
         )
 
     async def find_for_instrument(
@@ -153,13 +159,16 @@ class SqlAlchemyProviderInstrumentMappingRepository:
         market_data_instrument_id: UUID,
         provider: MarketDataProvider,
     ) -> ProviderInstrumentMappingModel | None:
-        return await self._session.scalar(
-            select(ProviderInstrumentMappingModel).where(
-                ProviderInstrumentMappingModel.workspace_id == workspace_id,
-                ProviderInstrumentMappingModel.market_data_instrument_id
-                == market_data_instrument_id,
-                ProviderInstrumentMappingModel.provider == provider,
-            )
+        return cast(
+            ProviderInstrumentMappingModel | None,
+            await self._session.scalar(
+                select(ProviderInstrumentMappingModel).where(
+                    ProviderInstrumentMappingModel.workspace_id == workspace_id,
+                    ProviderInstrumentMappingModel.market_data_instrument_id
+                    == market_data_instrument_id,
+                    ProviderInstrumentMappingModel.provider == provider,
+                )
+            ),
         )
 
     async def list_all(
@@ -233,13 +242,16 @@ class SqlAlchemyDailyPriceRepository:
         trading_date: date,
         price_type: PriceType = PriceType.EOD,
     ) -> DailyPriceModel | None:
-        return await self._session.scalar(
-            select(DailyPriceModel).where(
-                DailyPriceModel.workspace_id == workspace_id,
-                DailyPriceModel.listing_id == listing_id,
-                DailyPriceModel.trading_date == trading_date,
-                DailyPriceModel.price_type == price_type,
-            )
+        return cast(
+            DailyPriceModel | None,
+            await self._session.scalar(
+                select(DailyPriceModel).where(
+                    DailyPriceModel.workspace_id == workspace_id,
+                    DailyPriceModel.listing_id == listing_id,
+                    DailyPriceModel.trading_date == trading_date,
+                    DailyPriceModel.price_type == price_type,
+                )
+            ),
         )
 
     async def list_range(
@@ -265,8 +277,11 @@ class SqlAlchemyDailyPriceRepository:
         )
         if on_or_before is not None:
             statement = statement.where(DailyPriceModel.trading_date <= on_or_before)
-        return await self._session.scalar(
-            statement.order_by(DailyPriceModel.trading_date.desc()).limit(1)
+        return cast(
+            DailyPriceModel | None,
+            await self._session.scalar(
+                statement.order_by(DailyPriceModel.trading_date.desc()).limit(1)
+            ),
         )
 
     async def flush(self) -> None:
