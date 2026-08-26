@@ -7,7 +7,7 @@ async def test_learning_fixture_is_on_current_head(
 ) -> None:
     async with learning_test_engine.connect() as connection:
         revision = await connection.scalar(text("select version_num from alembic_version"))
-    assert revision == "20260825_0024"
+    assert revision == "20260826_0025"
 
 
 async def test_learning_session_is_live(
