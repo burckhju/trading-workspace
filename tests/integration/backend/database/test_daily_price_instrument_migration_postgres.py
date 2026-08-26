@@ -207,8 +207,7 @@ async def test_d01c_upgrade_backfills_price_and_missing_listing_identity() -> No
         assert await _revision(engine) == BASE_REVISION
         async with engine.connect() as connection:
             price_count = await connection.scalar(
-                text("SELECT count(*) FROM daily_prices WHERE id = :id"),
-                {"id": price_id},
+                text("SELECT count(*) FROM daily_prices WHERE id = :id"), {"id": price_id}
             )
             identity_count = await connection.scalar(
                 text("SELECT count(*) FROM market_data_instruments WHERE listing_id = :id"),
@@ -233,31 +232,25 @@ async def test_d01c_upgrade_backfills_price_and_missing_listing_identity() -> No
             await asyncio.to_thread(_run_alembic, "upgrade", D01C_REVISION, database_url)
         async with engine.begin() as connection:
             await connection.execute(
-                text("DELETE FROM daily_prices WHERE id = :id"),
-                {"id": price_id},
+                text("DELETE FROM daily_prices WHERE id = :id"), {"id": price_id}
             )
             await connection.execute(
                 text("DELETE FROM market_data_instruments WHERE listing_id = :id"),
                 {"id": listing_id},
             )
             await connection.execute(
-                text("DELETE FROM listings WHERE id = :id"),
-                {"id": listing_id},
+                text("DELETE FROM listings WHERE id = :id"), {"id": listing_id}
             )
             await connection.execute(
-                text("DELETE FROM underlyings WHERE id = :id"),
-                {"id": underlying_id},
+                text("DELETE FROM underlyings WHERE id = :id"), {"id": underlying_id}
             )
             await connection.execute(
-                text("DELETE FROM trading_venues WHERE id = :id"),
-                {"id": venue_id},
+                text("DELETE FROM trading_venues WHERE id = :id"), {"id": venue_id}
             )
             await connection.execute(
-                text("DELETE FROM currencies WHERE code = :code"),
-                {"code": currency_code},
+                text("DELETE FROM currencies WHERE code = :code"), {"code": currency_code}
             )
             await connection.execute(
-                text("DELETE FROM workspaces WHERE id = :id"),
-                {"id": workspace_id},
+                text("DELETE FROM workspaces WHERE id = :id"), {"id": workspace_id}
             )
         await engine.dispose()
