@@ -18,6 +18,7 @@ from app.core.config import get_settings
 
 BASE_REVISION = "20260825_0024"
 D01A_REVISION = "20260826_0025"
+CURRENT_HEAD = "20260826_0026"
 EXPECTED_DATABASE = "trading_workspace_test"
 
 
@@ -178,6 +179,9 @@ async def test_d01a_upgrade_downgrade_upgrade_preserves_owners_and_backfills() -
 
     try:
         current = await _revision(engine)
+        if current == CURRENT_HEAD:
+            await asyncio.to_thread(_run_alembic, "downgrade", D01A_REVISION, database_url)
+            current = D01A_REVISION
         if current == D01A_REVISION:
             await asyncio.to_thread(_run_alembic, "downgrade", BASE_REVISION, database_url)
         elif current != BASE_REVISION:
@@ -224,7 +228,8 @@ async def test_d01a_upgrade_downgrade_upgrade_preserves_owners_and_backfills() -
             workspace_id=workspace_id,
         )
     finally:
-        if await _revision(engine) == BASE_REVISION:
+        revision = await _revision(engine)
+        if revision == BASE_REVISION:
             await asyncio.to_thread(_run_alembic, "upgrade", D01A_REVISION, database_url)
         async with engine.begin() as connection:
             await connection.execute(
@@ -237,10 +242,7 @@ async def test_d01a_upgrade_downgrade_upgrade_preserves_owners_and_backfills() -
             await connection.execute(
                 text("DELETE FROM market_references WHERE id = :id"), {"id": reference_id}
             )
-            await connection.execute(
-                text("DELETE FROM listings WHERE id = :id"),
-                {"id": listing_id},
-            )
+            await connection.execute(text("DELETE FROM listings WHERE id = :id"), {"id": listing_id})
             await connection.execute(
                 text("DELETE FROM underlyings WHERE id = :id"), {"id": underlying_id}
             )
@@ -253,4 +255,6 @@ async def test_d01a_upgrade_downgrade_upgrade_preserves_owners_and_backfills() -
             await connection.execute(
                 text("DELETE FROM workspaces WHERE id = :id"), {"id": workspace_id}
             )
+        if await _revision(engine) != CURRENT_HEAD:
+            await asyncio.to_thread(_run_alembic, "upgrade", CURRENT_HEAD, database_url)
         await engine.dispose()
