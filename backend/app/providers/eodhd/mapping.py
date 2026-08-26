@@ -17,7 +17,13 @@ def map_daily_price(
     currency: str,
     retrieved_at: datetime,
 ) -> DailyPrice:
-    """Convert one EODHD row while preserving internal listing identity."""
+    """Convert one EODHD row while preserving the legacy listing price contract."""
+    if mapping.listing_id is None:
+        raise MarketDataMappingError(
+            "Daily-price mapping requires a listing-owned provider mapping",
+            provider=MarketDataProvider.EODHD,
+            retryable=False,
+        )
     try:
         return DailyPrice(
             listing_id=mapping.listing_id,
