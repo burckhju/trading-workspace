@@ -5,10 +5,12 @@ from uuid import UUID, uuid4
 import pytest
 
 from app.features.market_data.domain.enums import MappingStatus, MarketDataProvider
+from app.features.market_data.persistence.models import ProviderInstrumentMappingModel
 from app.features.market_data.service.administration import (
     MappingCommand,
     ProviderMappingAdministrationService,
 )
+from app.features.market_data.service.errors import MarketDataNotFoundError
 from app.features.market_data.service.venue_reconciliation import (
     ProviderVenueReconciliationService,
     VenueReconciliationStatus,
@@ -25,6 +27,9 @@ class MappingRepo:
         self.exchange_venues = {}
 
     async def find_for_listing(self, *args):
+        return self.value
+
+    async def find_for_instrument(self, *args):
         return self.value
 
     async def get(self, workspace_id: UUID, mapping_id: UUID):
@@ -136,6 +141,37 @@ async def test_disable_keeps_mapping_history() -> None:
     assert disabled.status is MappingStatus.DISABLED
     assert disabled.id == created.id
     assert len(uow.audit_events.events) == 3
+
+
+@pytest.mark.asyncio
+async def test_listing_admin_rejects_instrument_only_mapping() -> None:
+    uow = Uow()
+    workspace_id = uuid4()
+    mapping_id = uuid4()
+    uow.mappings.value = ProviderInstrumentMappingModel(
+        id=mapping_id,
+        workspace_id=workspace_id,
+        listing_id=None,
+        market_data_instrument_id=uuid4(),
+        provider=MarketDataProvider.EODHD,
+        provider_symbol="DAX",
+        provider_exchange_code="INDX",
+        status=MappingStatus.DISABLED,
+        validated_at=None,
+        validation_message=None,
+        created_at=NOW,
+        updated_at=NOW,
+        version=1,
+    )
+    service = ProviderMappingAdministrationService(uow, now=lambda: NOW, id_factory=uuid4)
+
+    with pytest.raises(MarketDataNotFoundError, match="listing administration path"):
+        await service.validate(
+            workspace_id,
+            mapping_id,
+            actor_id="admin",
+            actor_name="Administrator",
+        )
 
 
 class InvalidResolver:
