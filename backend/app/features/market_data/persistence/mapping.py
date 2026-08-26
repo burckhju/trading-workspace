@@ -60,6 +60,7 @@ def daily_price_to_domain(model: DailyPriceModel) -> DailyPrice:
     """Convert a persisted EOD price to its domain representation."""
     return DailyPrice(
         listing_id=model.listing_id,
+        market_data_instrument_id=model.market_data_instrument_id,
         trading_date=model.trading_date,
         open=model.open,
         high=model.high,
@@ -79,13 +80,23 @@ def daily_price_to_domain(model: DailyPriceModel) -> DailyPrice:
 
 
 def daily_price_to_model(
-    value: DailyPrice, *, workspace_id: UUID, price_id: UUID, now: datetime
+    value: DailyPrice,
+    *,
+    workspace_id: UUID,
+    price_id: UUID,
+    now: datetime,
+    market_data_instrument_id: UUID | None = None,
 ) -> DailyPriceModel:
     """Convert an EOD domain value to a new persistence record."""
     return DailyPriceModel(
         id=price_id,
         workspace_id=workspace_id,
         listing_id=value.listing_id,
+        market_data_instrument_id=(
+            market_data_instrument_id
+            if market_data_instrument_id is not None
+            else value.market_data_instrument_id
+        ),
         trading_date=value.trading_date,
         open=value.open,
         high=value.high,
