@@ -41,7 +41,7 @@ The public mapping response can expose `market_data_instrument_id` and makes `li
 
 ## Downgrade
 
-Instrument-only provider mappings cannot be represented by the legacy schema and are removed during downgrade. Listing-owned mappings are preserved. MarketDataInstrument identities are D01-A foundation data and are not removed by the D01-B downgrade.
+Listing-owned mappings are preserved when downgrading to `20260826_0025`, and D01-A MarketDataInstrument identities are not removed. If instrument-only provider mappings exist, downgrade refuses to proceed because the legacy schema cannot represent them. This avoids silent data loss.
 
 ## Explicit non-goals
 
