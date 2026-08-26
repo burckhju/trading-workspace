@@ -184,18 +184,22 @@ async def test_d01b_upgrade_backfills_mapping_and_missing_listing_identity() -> 
 
         async with engine.connect() as connection:
             row = (
-                await connection.execute(
-                    text(
-                        "SELECT mapping.listing_id, mapping.market_data_instrument_id, "
-                        "instrument.kind, instrument.listing_id AS instrument_listing_id "
-                        "FROM provider_instrument_mappings AS mapping "
-                        "JOIN market_data_instruments AS instrument "
-                        "ON instrument.id = mapping.market_data_instrument_id "
-                        "WHERE mapping.id = :mapping_id"
-                    ),
-                    {"mapping_id": mapping_id},
+                (
+                    await connection.execute(
+                        text(
+                            "SELECT mapping.listing_id, mapping.market_data_instrument_id, "
+                            "instrument.kind, instrument.listing_id AS instrument_listing_id "
+                            "FROM provider_instrument_mappings AS mapping "
+                            "JOIN market_data_instruments AS instrument "
+                            "ON instrument.id = mapping.market_data_instrument_id "
+                            "WHERE mapping.id = :mapping_id"
+                        ),
+                        {"mapping_id": mapping_id},
+                    )
                 )
-            ).mappings().one()
+                .mappings()
+                .one()
+            )
 
         assert row["listing_id"] == listing_id
         assert row["market_data_instrument_id"] is not None
