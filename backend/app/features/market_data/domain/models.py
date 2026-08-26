@@ -194,18 +194,67 @@ class DailyPrice:
             "provider_symbol",
             _normalize_code(self.provider_symbol, field="provider_symbol"),
         )
+        object.__setattr__(
+            self,
+            "warnings",
+            tuple(message for warning in self.warnings if (message := warning.strip())),
+        )
         _require_utc(self.retrieved_at, field="retrieved_at")
         if self.source_updated_at is not None:
             _require_utc(self.source_updated_at, field="source_updated_at")
-        if self.open <= 0 or self.high <= 0 or self.low <= 0 or self.close <= 0:
-            raise InvalidDailyPrice("OHLC values must be positive")
+        self._validate_values()
+
+    def _validate_values(self) -> None:
+        for field in ("open", "high", "low", "close"):
+            if getattr(self, field) <= 0:
+                raise InvalidDailyPrice(f"{field} must be positive", field=field)
         if self.adjusted_close is not None and self.adjusted_close <= 0:
             raise InvalidDailyPrice("adjusted_close must be positive", field="adjusted_close")
         if self.volume is not None and self.volume < 0:
             raise InvalidDailyPrice("volume must not be negative", field="volume")
         if self.low > self.high:
-            raise InvalidDailyPrice("low must not exceed high")
+            raise InvalidDailyPrice("low must not exceed high", field="low")
         if not self.low <= self.open <= self.high:
-            raise InvalidDailyPrice("open must be within low/high range", field="open")
+            raise InvalidDailyPrice("open must be between low and high", field="open")
         if not self.low <= self.close <= self.high:
-            raise InvalidDailyPrice("close must be within low/high range", field="close")
+            raise InvalidDailyPrice("close must be between low and high", field="close")
+
+
+@dataclass(frozen=True, slots=True)
+class WarrantQuoteSnapshot:
+    """Provider-neutral bid/ask observation for one concrete FT-004 WarrantListing.
+
+    Provider identity remains provenance only; it never becomes Warrant/WarrantListing
+    master data.  Partial quotes are allowed and carry explicit quality through the
+    surrounding MarketDataResult.
+    """
+
+    warrant_listing_id: UUID
+    bid: Decimal | None
+    ask: Decimal | None
+    currency: str
+    provider_symbol: str
+    provider_exchange_code: str
+    observed_at: datetime
+
+    def __post_init__(self) -> None:
+        if self.bid is not None:
+            object.__setattr__(self, "bid", _decimal(self.bid, field="bid"))
+            if self.bid <= 0:
+                raise InvalidMarketDataValue("bid must be positive", field="bid")
+        if self.ask is not None:
+            object.__setattr__(self, "ask", _decimal(self.ask, field="ask"))
+            if self.ask <= 0:
+                raise InvalidMarketDataValue("ask must be positive", field="ask")
+        if self.bid is not None and self.ask is not None and self.ask < self.bid:
+            raise InvalidMarketDataValue("ask must not be below bid", field="ask")
+        object.__setattr__(self, "currency", _normalize_code(self.currency, field="currency"))
+        object.__setattr__(
+            self, "provider_symbol", _normalize_code(self.provider_symbol, field="provider_symbol")
+        )
+        object.__setattr__(
+            self,
+            "provider_exchange_code",
+            _normalize_code(self.provider_exchange_code, field="provider_exchange_code"),
+        )
+        _require_utc(self.observed_at, field="observed_at")
