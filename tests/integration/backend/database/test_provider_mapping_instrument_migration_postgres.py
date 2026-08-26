@@ -230,7 +230,10 @@ async def test_d01b_upgrade_backfills_mapping_and_missing_listing_identity() -> 
                 text("DELETE FROM market_data_instruments WHERE listing_id = :id"),
                 {"id": listing_id},
             )
-            await connection.execute(text("DELETE FROM listings WHERE id = :id"), {"id": listing_id})
+            await connection.execute(
+                text("DELETE FROM listings WHERE id = :id"),
+                {"id": listing_id},
+            )
             await connection.execute(
                 text("DELETE FROM underlyings WHERE id = :id"), {"id": underlying_id}
             )
