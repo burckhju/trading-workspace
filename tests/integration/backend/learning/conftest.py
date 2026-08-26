@@ -18,6 +18,8 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
+from app.core.config import get_settings
+
 EXPECTED_DATABASE = "trading_workspace_test"
 EXPECTED_ALEMBIC_HEAD = "20260825_0024"
 REBUILD_BASE_ALEMBIC_HEAD = "20260825_0023"
@@ -89,6 +91,7 @@ async def learning_test_engine() -> AsyncEngine:
         def run_alembic(action: str, revision_target: str) -> None:
             previous = os.environ.get("TRADING_WORKSPACE_DATABASE_URL")
             os.environ["TRADING_WORKSPACE_DATABASE_URL"] = test_database_url
+            get_settings.cache_clear()
             try:
                 if action == "upgrade":
                     command.upgrade(config, revision_target)
@@ -101,6 +104,7 @@ async def learning_test_engine() -> AsyncEngine:
                     os.environ.pop("TRADING_WORKSPACE_DATABASE_URL", None)
                 else:
                     os.environ["TRADING_WORKSPACE_DATABASE_URL"] = previous
+                get_settings.cache_clear()
 
         if revision == EXPECTED_ALEMBIC_HEAD:
             await asyncio.to_thread(

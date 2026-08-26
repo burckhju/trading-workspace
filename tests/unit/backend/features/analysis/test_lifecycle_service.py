@@ -203,3 +203,76 @@ async def test_reproducibility_verification_recalculates_exact_persisted_inputs(
         "quality_status_match": True,
         "notes_match": True,
     }
+
+
+@pytest.mark.asyncio
+async def test_create_flushes_analysis_before_created_event() -> None:
+    order: list[str] = []
+
+    session = AsyncMock()
+    session.flush.side_effect = lambda: order.append("flush")
+
+    service = MarketAnalysisService(session)
+    service._repo = AsyncMock()
+    service._references = AsyncMock()
+    service._references.validate_reference.return_value = True
+
+    service._repo.add_analysis.side_effect = lambda _: order.append("analysis")
+    service._repo.add_event.side_effect = lambda _: order.append("event")
+
+    await service.create(
+        WORKSPACE_ID,
+        UUID("20000000-0000-4000-8000-000000000001"),
+        UUID("30000000-0000-4000-8000-000000000001"),
+        "integration-regression",
+    )
+
+    assert order == ["analysis", "flush", "event"]
+
+
+@pytest.mark.asyncio
+async def test_execute_snapshot_flushes_run_before_snapshot_and_started_event() -> None:
+    from app.features.analysis.domain.models import AnalysisParameters, SnapshotRow
+
+    order: list[str] = []
+
+    session = AsyncMock()
+    session.flush.side_effect = lambda: order.append("flush")
+    session.commit.side_effect = RuntimeError("stop-after-running-persist")
+
+    service = MarketAnalysisService(session)
+    service._repo = AsyncMock()
+    service._repo.get_latest_run.return_value = None
+    service._repo.next_version.return_value = 1
+
+    service._repo.add_run.side_effect = lambda _: order.append("run")
+    service._repo.add_snapshot_rows.side_effect = lambda _: order.append("snapshot")
+    service._repo.add_event.side_effect = lambda _: order.append("event")
+
+    rows = (
+        SnapshotRow(
+            trading_date=date(2026, 8, 1),
+            open=Decimal("100"),
+            high=Decimal("102"),
+            low=Decimal("99"),
+            close=Decimal("101"),
+            adjusted_close=Decimal("101"),
+            volume=Decimal("1000"),
+            currency="EUR",
+            provider="EODHD",
+            provider_symbol="FT06.XETR",
+            quality_status="VALID",
+            warnings=(),
+        ),
+    )
+
+    with pytest.raises(RuntimeError, match="stop-after-running-persist"):
+        await service._execute_snapshot(
+            analysis_id=ANALYSIS_ID,
+            parameters=AnalysisParameters(),
+            rows=rows,
+            correlation_id=None,
+            source_version=None,
+        )
+
+    assert order == ["run", "flush", "snapshot", "event"]
