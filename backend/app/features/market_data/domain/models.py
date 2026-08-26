@@ -158,7 +158,7 @@ class WarrantProviderMapping:
 
 @dataclass(frozen=True, slots=True)
 class DailyPrice:
-    """Validated provider-independent end-of-day price for one listing."""
+    """Validated provider-independent EOD price for one FT-001 Listing."""
 
     listing_id: UUID
     trading_date: date
@@ -176,6 +176,7 @@ class DailyPrice:
     quality_status: QualityStatus
     warnings: tuple[str, ...] = ()
     price_type: PriceType = PriceType.EOD
+    market_data_instrument_id: UUID | None = None
 
     def __post_init__(self) -> None:
         for field in ("open", "high", "low", "close"):

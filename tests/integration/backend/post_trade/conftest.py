@@ -16,7 +16,7 @@ from sqlalchemy.ext.asyncio import (
 )
 
 EXPECTED_DATABASE = "trading_workspace_test"
-EXPECTED_ALEMBIC_HEAD = "20260826_0026"
+EXPECTED_ALEMBIC_HEAD = "20260826_0027"
 
 
 def _test_database_url() -> str:

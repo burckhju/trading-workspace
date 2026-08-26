@@ -165,6 +165,16 @@ class DailyPriceModel(Base):
             "price_type",
             name="uq_daily_prices_listing_date_type",
         ),
+        UniqueConstraint(
+            "market_data_instrument_id",
+            "trading_date",
+            "price_type",
+            name="uq_daily_prices_instrument_date_type",
+        ),
+        CheckConstraint(
+            "listing_id IS NOT NULL OR market_data_instrument_id IS NOT NULL",
+            name="internal_owner",
+        ),
         CheckConstraint("open > 0", name="open_positive"),
         CheckConstraint("high > 0", name="high_positive"),
         CheckConstraint("low > 0", name="low_positive"),
@@ -178,6 +188,11 @@ class DailyPriceModel(Base):
         CheckConstraint("open BETWEEN low AND high", name="open_in_range"),
         CheckConstraint("close BETWEEN low AND high", name="close_in_range"),
         Index("ix_daily_prices_listing_date", "listing_id", "trading_date"),
+        Index(
+            "ix_daily_prices_instrument_date",
+            "market_data_instrument_id",
+            "trading_date",
+        ),
         Index("ix_daily_prices_workspace_date", "workspace_id", "trading_date"),
     )
 
@@ -185,8 +200,11 @@ class DailyPriceModel(Base):
     workspace_id: Mapped[UUID] = mapped_column(
         ForeignKey("workspaces.id", ondelete="RESTRICT"), nullable=False
     )
-    listing_id: Mapped[UUID] = mapped_column(
-        ForeignKey("listings.id", ondelete="CASCADE"), nullable=False
+    listing_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("listings.id", ondelete="CASCADE"), nullable=True
+    )
+    market_data_instrument_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("market_data_instruments.id", ondelete="RESTRICT"), nullable=True
     )
     trading_date: Mapped[date] = mapped_column(Date, nullable=False)
     open: Mapped[Decimal] = mapped_column(Numeric(24, 10), nullable=False)

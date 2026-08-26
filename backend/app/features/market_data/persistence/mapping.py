@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID
 
+from app.features.market_data.domain.errors import InvalidDailyPrice
 from app.features.market_data.domain.models import DailyPrice, ProviderInstrumentMapping
 from app.features.market_data.persistence.models import (
     DailyPriceModel,
@@ -57,9 +58,15 @@ def mapping_to_model(
 
 
 def daily_price_to_domain(model: DailyPriceModel) -> DailyPrice:
-    """Convert a persisted EOD price to its domain representation."""
+    """Convert one listing-owned persisted EOD price to its domain representation."""
+    if model.listing_id is None:
+        raise InvalidDailyPrice(
+            "instrument-only daily price is outside the D01-C listing-scoped domain contract",
+            field="listing_id",
+        )
     return DailyPrice(
         listing_id=model.listing_id,
+        market_data_instrument_id=getattr(model, "market_data_instrument_id", None),
         trading_date=model.trading_date,
         open=model.open,
         high=model.high,
@@ -79,13 +86,23 @@ def daily_price_to_domain(model: DailyPriceModel) -> DailyPrice:
 
 
 def daily_price_to_model(
-    value: DailyPrice, *, workspace_id: UUID, price_id: UUID, now: datetime
+    value: DailyPrice,
+    *,
+    workspace_id: UUID,
+    price_id: UUID,
+    now: datetime,
+    market_data_instrument_id: UUID | None = None,
 ) -> DailyPriceModel:
     """Convert an EOD domain value to a new persistence record."""
     return DailyPriceModel(
         id=price_id,
         workspace_id=workspace_id,
         listing_id=value.listing_id,
+        market_data_instrument_id=(
+            market_data_instrument_id
+            if market_data_instrument_id is not None
+            else value.market_data_instrument_id
+        ),
         trading_date=value.trading_date,
         open=value.open,
         high=value.high,
