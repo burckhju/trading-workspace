@@ -79,6 +79,7 @@ class DailyPriceImportService:
                     "Provider mapping was not found",
                     capability=None,
                 )
+            market_data_instrument_id = getattr(mapping, "market_data_instrument_id", None)
 
             result = await self._provider.get_daily_prices(request)
             now = self._clock()
@@ -106,7 +107,7 @@ class DailyPriceImportService:
                             workspace_id=request.workspace_id,
                             price_id=self._id_factory(),
                             now=now,
-                            market_data_instrument_id=mapping.market_data_instrument_id,
+                            market_data_instrument_id=market_data_instrument_id,
                         )
                     )
                     inserted += 1
@@ -114,9 +115,9 @@ class DailyPriceImportService:
                     identity_changed = False
                     if (
                         existing.market_data_instrument_id is None
-                        and mapping.market_data_instrument_id is not None
+                        and market_data_instrument_id is not None
                     ):
-                        existing.market_data_instrument_id = mapping.market_data_instrument_id
+                        existing.market_data_instrument_id = market_data_instrument_id
                         existing.updated_at = now
                         identity_changed = True
                     if apply_daily_price(existing, price, now=now) or identity_changed:
