@@ -220,10 +220,7 @@ async def test_d01c_upgrade_backfills_price_and_missing_listing_identity() -> No
         assert await _revision(engine) == D01C_REVISION
         async with engine.connect() as connection:
             instrument_id = await connection.scalar(
-                text(
-                    "SELECT market_data_instrument_id FROM daily_prices "
-                    "WHERE id = :price_id"
-                ),
+                text("SELECT market_data_instrument_id FROM daily_prices " "WHERE id = :price_id"),
                 {"price_id": price_id},
             )
         assert instrument_id is not None
