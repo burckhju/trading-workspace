@@ -5,6 +5,7 @@ Revises: 20260826_0025
 """
 
 from collections.abc import Sequence
+from uuid import uuid4
 
 import sqlalchemy as sa
 from alembic import op
@@ -48,6 +49,33 @@ $$ LANGUAGE plpgsql;
 """
 
 
+def _ensure_listing_identities() -> None:
+    bind = op.get_bind()
+    missing = bind.execute(
+        sa.text(
+            "SELECT listing.id, listing.workspace_id, listing.created_at "
+            "FROM listings AS listing "
+            "LEFT JOIN market_data_instruments AS instrument "
+            "ON instrument.listing_id = listing.id "
+            "WHERE instrument.id IS NULL"
+        )
+    ).mappings()
+    for row in missing:
+        bind.execute(
+            sa.text(
+                "INSERT INTO market_data_instruments "
+                "(id, workspace_id, kind, listing_id, market_reference_id, created_at) "
+                "VALUES (:id, :workspace_id, 'LISTING', :listing_id, NULL, :created_at)"
+            ),
+            {
+                "id": uuid4(),
+                "workspace_id": row["workspace_id"],
+                "listing_id": row["id"],
+                "created_at": row["created_at"],
+            },
+        )
+
+
 def upgrade() -> None:
     op.add_column(
         "provider_instrument_mappings",
@@ -62,6 +90,7 @@ def upgrade() -> None:
         ondelete="RESTRICT",
     )
 
+    _ensure_listing_identities()
     op.execute(
         sa.text(
             "UPDATE provider_instrument_mappings AS mapping "
@@ -102,12 +131,7 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     # Rows owned only by MarketDataInstrument cannot be represented by the legacy schema.
-    op.execute(
-        sa.text(
-            "DELETE FROM provider_instrument_mappings "
-            "WHERE listing_id IS NULL"
-        )
-    )
+    op.execute(sa.text("DELETE FROM provider_instrument_mappings WHERE listing_id IS NULL"))
     op.execute(
         "DROP TRIGGER IF EXISTS trg_provider_mapping_instrument_consistency "
         "ON provider_instrument_mappings"
