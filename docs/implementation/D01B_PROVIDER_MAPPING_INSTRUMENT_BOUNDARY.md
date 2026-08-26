@@ -1,0 +1,46 @@
+# D01-B Provider Mapping → MarketDataInstrument Boundary
+
+## Scope
+
+D01-B is the expand-phase consumer migration immediately after D01-A. It moves only `ProviderInstrumentMapping` toward the provider-neutral `MarketDataInstrument` identity.
+
+It does **not** migrate `DailyPrice`, `MarketAnalysis`, readiness, provider imports, or FT-006 behavior. Those remain later D01 slices.
+
+## Persistence contract
+
+`provider_instrument_mappings` gains nullable `market_data_instrument_id` referencing `market_data_instruments`.
+
+The legacy `listing_id` remains supported and becomes nullable only so a later MarketReference mapping can be represented without inventing an FT-001 stock Listing. During the expand phase a stock mapping may carry both fields:
+
+- `listing_id` keeps released stock paths compatible;
+- `market_data_instrument_id` establishes the new neutral ownership boundary.
+
+At least one internal owner is required. The existing provider+listing uniqueness remains, and provider+MarketDataInstrument uniqueness is added.
+
+## Backfill
+
+Revision `20260826_0026` follows D01-A revision `20260826_0025`.
+
+Before mapping rows are backfilled, the migration creates missing LISTING-owned `MarketDataInstrument` identities for Listings that may have been created after the D01-A migration. Existing identities are reused. Existing provider mappings are then linked to the matching LISTING instrument in the same workspace.
+
+The migration never derives identity from provider symbols, exchange codes, names, or ticker text.
+
+## Workspace and owner consistency
+
+PostgreSQL rejects a mapping whose `market_data_instrument_id` belongs to another workspace. If a row contains both `listing_id` and `market_data_instrument_id`, the instrument must be a LISTING identity owned by that exact Listing.
+
+The new MarketDataInstrument foreign key uses restrictive delete semantics so mapping provenance is not silently removed when an identity is deleted.
+
+## Application compatibility
+
+The immutable provider-mapping domain model and persistence conversion can carry either a Listing owner or a MarketDataInstrument owner. The existing listing administration path remains explicitly listing-scoped and refuses instrument-only rows rather than applying listing-specific venue validation to them.
+
+The repository adds `find_for_instrument(...)` as the handoff contract for the next D01 slice.
+
+## Downgrade
+
+Instrument-only provider mappings cannot be represented by the legacy schema and are removed during downgrade. Listing-owned mappings are preserved. MarketDataInstrument identities are D01-A foundation data and are not removed by the D01-B downgrade.
+
+## Explicit non-goals
+
+D01-B does not yet create or validate MarketReference provider mappings through public routes, does not import reference prices, and does not change readiness or analysis semantics.
