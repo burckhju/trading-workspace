@@ -18,6 +18,7 @@ from app.core.config import get_settings
 
 BASE_REVISION = "20260826_0025"
 D01B_REVISION = "20260826_0026"
+CURRENT_HEAD = "20260826_0027"
 EXPECTED_DATABASE = "trading_workspace_test"
 
 
@@ -163,11 +164,12 @@ async def test_d01b_upgrade_backfills_mapping_and_missing_listing_identity() -> 
 
     try:
         current = await _revision(engine)
-        if current == D01B_REVISION:
-            await asyncio.to_thread(_run_alembic, "downgrade", BASE_REVISION, database_url)
-        elif current != BASE_REVISION:
+        if current == CURRENT_HEAD:
+            await asyncio.to_thread(_run_alembic, "downgrade", D01B_REVISION, database_url)
+        elif current != D01B_REVISION:
             pytest.fail(f"unexpected Alembic revision for D01-B qualification: {current}")
 
+        await asyncio.to_thread(_run_alembic, "downgrade", BASE_REVISION, database_url)
         await _insert_listing_and_mapping(
             engine,
             workspace_id=workspace_id,
@@ -223,7 +225,8 @@ async def test_d01b_upgrade_backfills_mapping_and_missing_listing_identity() -> 
         await asyncio.to_thread(_run_alembic, "upgrade", D01B_REVISION, database_url)
         assert await _revision(engine) == D01B_REVISION
     finally:
-        if await _revision(engine) == BASE_REVISION:
+        revision = await _revision(engine)
+        if revision == BASE_REVISION:
             await asyncio.to_thread(_run_alembic, "upgrade", D01B_REVISION, database_url)
         async with engine.begin() as connection:
             await connection.execute(
@@ -250,4 +253,6 @@ async def test_d01b_upgrade_backfills_mapping_and_missing_listing_identity() -> 
             await connection.execute(
                 text("DELETE FROM workspaces WHERE id = :id"), {"id": workspace_id}
             )
+        if await _revision(engine) != CURRENT_HEAD:
+            await asyncio.to_thread(_run_alembic, "upgrade", CURRENT_HEAD, database_url)
         await engine.dispose()
