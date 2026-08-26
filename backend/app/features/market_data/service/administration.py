@@ -22,6 +22,7 @@ from app.features.market_data.persistence.mapping import (
 )
 from app.features.market_data.service.contracts import ProviderInstrumentResolver
 from app.features.market_data.service.errors import MarketDataNotFoundError
+from app.features.market_data.service.instrument_identity import MarketDataInstrumentIdentityService
 from app.features.market_data.service.unit_of_work import MarketDataUnitOfWork
 from app.features.market_data.service.venue_reconciliation import (
     ProviderVenueReconciliationService,
@@ -53,12 +54,14 @@ class ProviderMappingAdministrationService:
         id_factory: Callable[[], UUID] = uuid4,
         resolver: ProviderInstrumentResolver | None = None,
         venue_reconciliation: ProviderVenueReconciliationService | None = None,
+        instrument_identity: MarketDataInstrumentIdentityService | None = None,
     ) -> None:
         self._uow = uow
         self._now = now
         self._id_factory = id_factory
         self._resolver = resolver
         self._venue_reconciliation = venue_reconciliation
+        self._instrument_identity = instrument_identity
 
     async def list_mappings(self, workspace_id: UUID) -> tuple[ProviderInstrumentMapping, ...]:
         """Return all mappings for one workspace."""
@@ -67,8 +70,16 @@ class ProviderMappingAdministrationService:
             return tuple(mapping_to_domain(row) for row in rows)
 
     async def create_or_update(self, command: MappingCommand) -> ProviderInstrumentMapping:
-        """Create a disabled mapping or update its symbol data idempotently."""
+        """Create or update one listing mapping while dual-writing its neutral identity."""
         async with self._uow:
+            instrument_id: UUID | None = None
+            if self._instrument_identity is not None:
+                instrument = await self._instrument_identity.for_listing(
+                    workspace_id=command.workspace_id,
+                    listing_id=command.listing_id,
+                )
+                instrument_id = instrument.id
+
             existing = await self._uow.mappings.find_for_listing(
                 command.workspace_id, command.listing_id, command.provider
             )
@@ -87,6 +98,7 @@ class ProviderMappingAdministrationService:
                     created_at=now,
                     updated_at=now,
                     version=1,
+                    market_data_instrument_id=instrument_id,
                 )
                 model = mapping_to_model(value)
                 await self._uow.mappings.add(model)
@@ -95,6 +107,8 @@ class ProviderMappingAdministrationService:
                 before = mapping_to_domain(existing)
                 existing.provider_symbol = command.provider_symbol.strip().upper()
                 existing.provider_exchange_code = command.provider_exchange_code.strip().upper()
+                if existing.market_data_instrument_id is None and instrument_id is not None:
+                    existing.market_data_instrument_id = instrument_id
                 existing.status = MappingStatus.DISABLED
                 existing.validated_at = None
                 existing.validation_message = "Awaiting explicit validation"
