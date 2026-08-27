@@ -1,10 +1,13 @@
+from datetime import date
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 from uuid import uuid4
 
 import pytest
 
+from app.features.analysis.domain.enums import PriceField
 from app.features.analysis.domain.errors import AnalysisDataUnavailable
+from app.features.analysis.domain.models import AnalysisParameters
 from app.features.analysis.service.reference_application import MarketReferenceAnalysisService
 
 
@@ -59,3 +62,56 @@ async def test_create_market_reference_analysis_requires_active_reference() -> N
 
     session.flush.assert_not_awaited()
     session.commit.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_run_market_reference_requires_instrument_only_analysis_owner() -> None:
+    session = AsyncMock()
+    service = MarketReferenceAnalysisService(session)
+    service._require_analysis = AsyncMock(
+        return_value=SimpleNamespace(market_data_instrument_id=None, listing_id=None)
+    )
+
+    with pytest.raises(AnalysisDataUnavailable, match="analysis is not market-reference owned"):
+        await service.run_market_reference(
+            workspace_id=uuid4(),
+            analysis_id=uuid4(),
+            start_date=date(2026, 1, 1),
+            end_date=date(2026, 1, 31),
+            parameters=AnalysisParameters(price_field=PriceField.ADJUSTED_CLOSE),
+            correlation_id=None,
+        )
+
+
+@pytest.mark.asyncio
+async def test_run_market_reference_requires_market_reference_instrument_kind() -> None:
+    workspace_id = uuid4()
+    instrument_id = uuid4()
+    session = AsyncMock()
+    service = MarketReferenceAnalysisService(session)
+    service._require_analysis = AsyncMock(
+        return_value=SimpleNamespace(
+            market_data_instrument_id=instrument_id,
+            listing_id=None,
+        )
+    )
+    service._identity = SimpleNamespace(
+        get=AsyncMock(
+            return_value=SimpleNamespace(kind="LISTING", market_reference_id=None)
+        )
+    )
+
+    with pytest.raises(AnalysisDataUnavailable, match="analysis is not market-reference owned"):
+        await service.run_market_reference(
+            workspace_id=workspace_id,
+            analysis_id=uuid4(),
+            start_date=date(2026, 1, 1),
+            end_date=date(2026, 1, 31),
+            parameters=AnalysisParameters(price_field=PriceField.ADJUSTED_CLOSE),
+            correlation_id="coverage-hardening",
+        )
+
+    service._identity.get.assert_awaited_once_with(
+        workspace_id=workspace_id,
+        instrument_id=instrument_id,
+    )
