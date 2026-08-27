@@ -1,6 +1,8 @@
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
+import { ft011MaterializationClient } from '../../learning/services/materializationClient';
+import type { Ft011MaterializationStatus } from '../../learning/types/materialization';
 import { ErrorNotice, LoadingNotice } from '../../market/components/ApiFeedback';
 import { postTradeApiClient } from '../services/client';
 import { postTradeErrorMessage } from '../services/errors';
@@ -35,6 +37,8 @@ export function PostTradeReviewPage() {
   const [observation, setObservation] = useState<ObservationResponse | null>(null);
   const [evidence, setEvidence] = useState<ObservationEvidenceResponse | null>(null);
   const [handoff, setHandoff] = useState<HandoffResponse | null>(null);
+  const [materializationStatus, setMaterializationStatus] =
+    useState<Ft011MaterializationStatus | null>(null);
 
   const [review, setReview] = useState<ExitReviewResponse | null>(null);
   const [history, setHistory] = useState<ExitReviewResponse[]>([]);
@@ -64,15 +68,17 @@ export function PostTradeReviewPage() {
 
     setObservation(nextObservation);
 
-    const [nextEvidence, nextHandoff, nextHistory] = await Promise.all([
+    const [nextEvidence, nextHandoff, nextHistory, nextMaterializationStatus] = await Promise.all([
       postTradeApiClient.evidence(id, signal),
       postTradeApiClient.handoff(id, signal),
       postTradeApiClient.reviewHistory(id, signal),
+      ft011MaterializationClient.status(id, signal),
     ]);
 
     setEvidence(nextEvidence);
     setHandoff(nextHandoff);
     setHistory(nextHistory);
+    setMaterializationStatus(nextMaterializationStatus);
 
     try {
       const nextReview = await postTradeApiClient.review(id, signal);
@@ -215,6 +221,24 @@ export function PostTradeReviewPage() {
       hydrateReviewForm(nextReview);
       await refresh(tradeId);
       setMessage('Review wurde erneut geprüft.');
+    } catch (nextError: unknown) {
+      setError(new Error(postTradeErrorMessage(nextError)));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function materializeLearningEvidence() {
+    if (!tradeId || !handoff?.ready || materializationStatus?.materialized) return;
+
+    setLoading(true);
+    setError(null);
+    setMessage(null);
+
+    try {
+      await ft011MaterializationClient.materialize(tradeId, `post-trade-${tradeId}-${Date.now()}`);
+      await refresh(tradeId);
+      setMessage('FT-011 LearningEvidence wurde in FT-012 materialisiert.');
     } catch (nextError: unknown) {
       setError(new Error(postTradeErrorMessage(nextError)));
     } finally {
@@ -584,10 +608,46 @@ export function PostTradeReviewPage() {
 
       {handoff && (
         <section className="rounded-xl border border-slate-800 p-5">
-          <h2 className="text-lg font-semibold">FT-012 Handoff</h2>
-          <p className="mt-2 text-sm">
-            {handoff.ready ? 'Bereit für FT-012.' : `Noch nicht bereit: ${handoff.reason}`}
-          </p>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold">FT-012 Handoff</h2>
+              <p className="mt-2 text-sm">
+                {handoff.ready ? 'Bereit für FT-012.' : `Noch nicht bereit: ${handoff.reason}`}
+              </p>
+            </div>
+
+            {materializationStatus?.materialized && (
+              <span className="rounded-full border border-emerald-700 px-3 py-1 text-xs text-emerald-300">
+                MATERIALIZED
+              </span>
+            )}
+          </div>
+
+          {materializationStatus?.materialized ? (
+            <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+              <div>
+                <dt className="text-slate-500">LearningEvidence</dt>
+                <dd className="mt-1 break-all font-medium">
+                  {materializationStatus.learning_evidence_id}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-slate-500">ExitReviewVersion</dt>
+                <dd className="mt-1 break-all font-medium">
+                  {materializationStatus.exit_review_version_id}
+                </dd>
+              </div>
+            </dl>
+          ) : (
+            <button
+              type="button"
+              onClick={() => void materializeLearningEvidence()}
+              disabled={loading || !handoff.ready || materializationStatus?.ready !== true}
+              className="mt-4 rounded-lg border border-emerald-700 px-4 py-2 disabled:opacity-50"
+            >
+              Als LearningEvidence materialisieren
+            </button>
+          )}
         </section>
       )}
     </main>

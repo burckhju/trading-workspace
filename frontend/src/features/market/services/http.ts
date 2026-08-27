@@ -31,6 +31,7 @@ export interface HttpRequestOptions {
   actor?: AuditActorHeaders;
   signal?: AbortSignal;
   correlationId?: string;
+  headers?: HeadersInit;
 }
 
 function actorHeaders(actor: AuditActorHeaders | undefined): HeadersInit {
@@ -74,7 +75,9 @@ async function readJson(response: Response): Promise<unknown> {
 }
 
 export async function requestJson<T>(url: string, options: HttpRequestOptions = {}): Promise<T> {
-  const headers = new Headers(actorHeaders(options.actor ?? getRequestIdentity()));
+  const headers = new Headers(options.headers);
+  const identityHeaders = new Headers(actorHeaders(options.actor ?? getRequestIdentity()));
+  identityHeaders.forEach((value, key) => headers.set(key, value));
   if (options.body !== undefined) {
     headers.set('Content-Type', JSON_CONTENT_TYPE);
   }

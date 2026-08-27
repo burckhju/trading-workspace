@@ -9,10 +9,14 @@ from pydantic import BaseModel
 from app.core.exceptions import ApplicationError
 from app.features.learning.api.materialization_dependencies import (
     get_ft011_materialization_service,
+    get_ft011_materialization_status_service,
 )
 from app.features.learning.application.ft011_materialization_service import (
     Ft011MaterializationError,
     MaterializeFt011LearningEvidenceService,
+)
+from app.features.learning.application.ft011_materialization_status_service import (
+    Ft011MaterializationStatusService,
 )
 
 router = APIRouter(prefix="/api/v1/learning", tags=["learning"])
@@ -24,6 +28,38 @@ class MaterializeFt011LearningEvidenceResponse(BaseModel):
     exit_review_version_id: UUID
     created: bool
     replayed: bool
+
+
+class Ft011MaterializationStatusResponse(BaseModel):
+    ready: bool
+    reason: str
+    materialized: bool
+    learning_evidence_id: UUID | None
+    exit_review_version_id: UUID | None
+
+
+@router.get(
+    "/trades/{trade_id}/ft011-evidence/materialization-status",
+    response_model=Ft011MaterializationStatusResponse,
+)
+async def get_ft011_materialization_status(
+    trade_id: UUID,
+    service: Annotated[
+        Ft011MaterializationStatusService,
+        Depends(get_ft011_materialization_status_service),
+    ],
+) -> Ft011MaterializationStatusResponse:
+    result = await service.get(
+        workspace_id=WORKSPACE_ID,
+        trade_id=trade_id,
+    )
+    return Ft011MaterializationStatusResponse(
+        ready=result.ready,
+        reason=result.reason,
+        materialized=result.materialized,
+        learning_evidence_id=result.learning_evidence_id,
+        exit_review_version_id=result.exit_review_version_id,
+    )
 
 
 @router.post(

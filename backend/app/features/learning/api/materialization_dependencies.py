@@ -10,6 +10,9 @@ from app.features.learning.api.dependencies import UtcClock, UuidFactory
 from app.features.learning.application.ft011_materialization_service import (
     MaterializeFt011LearningEvidenceService,
 )
+from app.features.learning.application.ft011_materialization_status_service import (
+    Ft011MaterializationStatusService,
+)
 from app.features.learning.persistence.ft011_materialization_repository import (
     SqlAlchemyFt011MaterializationRepository,
 )
@@ -24,6 +27,14 @@ from app.features.post_trade.persistence.unit_of_work import (
 )
 
 
+def _handoff_reader(session: AsyncSession) -> Ft012HandoffService:
+    post_trade_uow = cast(
+        PostTradeLearningUnitOfWork,
+        SqlAlchemyPostTradeLearningUnitOfWork(session),
+    )
+    return Ft012HandoffService(uow=post_trade_uow)
+
+
 def get_ft011_materialization_service(
     session: Annotated[AsyncSession, Depends(get_database_session)],
 ) -> MaterializeFt011LearningEvidenceService:
@@ -31,14 +42,19 @@ def get_ft011_materialization_service(
         LearningTradeLinkUnitOfWork,
         SqlAlchemyLearningTradeLinkUnitOfWork(session),
     )
-    post_trade_uow = cast(
-        PostTradeLearningUnitOfWork,
-        SqlAlchemyPostTradeLearningUnitOfWork(session),
-    )
     return MaterializeFt011LearningEvidenceService(
         uow=learning_uow,
         repository=SqlAlchemyFt011MaterializationRepository(session),
-        handoff_reader=Ft012HandoffService(uow=post_trade_uow),
+        handoff_reader=_handoff_reader(session),
         clock=UtcClock(),
         id_factory=UuidFactory(),
+    )
+
+
+def get_ft011_materialization_status_service(
+    session: Annotated[AsyncSession, Depends(get_database_session)],
+) -> Ft011MaterializationStatusService:
+    return Ft011MaterializationStatusService(
+        repository=SqlAlchemyFt011MaterializationRepository(session),
+        handoff_reader=_handoff_reader(session),
     )

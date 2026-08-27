@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { ft011MaterializationClient } from '../../learning/services/materializationClient';
 import { postTradeApiClient } from '../services/client';
 import type {
   ExitReviewResponse,
@@ -10,6 +11,13 @@ import type {
   ObservationResponse,
 } from '../types/api';
 import { PostTradeReviewPage } from './PostTradeReviewPage';
+
+vi.mock('../../learning/services/materializationClient', () => ({
+  ft011MaterializationClient: {
+    status: vi.fn(),
+    materialize: vi.fn(),
+  },
+}));
 
 vi.mock('../services/client', () => ({
   postTradeApiClient: {
@@ -27,6 +35,7 @@ vi.mock('../services/client', () => ({
 }));
 
 const api = vi.mocked(postTradeApiClient);
+const materializationApi = vi.mocked(ft011MaterializationClient);
 
 const observation: ObservationResponse = {
   id: 'observation-1',
@@ -146,6 +155,20 @@ describe('PostTradeReviewPage', () => {
     api.handoff.mockResolvedValue(handoff);
     api.reviewHistory.mockResolvedValue([]);
     api.review.mockRejectedValue(new Error('not found'));
+
+    materializationApi.status.mockResolvedValue({
+      ready: false,
+      reason: 'OBSERVATION_NOT_COMPLETE',
+      materialized: false,
+      learning_evidence_id: null,
+      exit_review_version_id: null,
+    });
+    materializationApi.materialize.mockResolvedValue({
+      learning_evidence_id: 'learning-evidence-1',
+      exit_review_version_id: 'version-1',
+      created: true,
+      replayed: false,
+    });
 
     api.startObservation.mockResolvedValue(observation);
     api.createReviewDraft.mockResolvedValue(draft);
@@ -340,5 +363,58 @@ describe('PostTradeReviewPage', () => {
     expect(await screen.findByText('Review-Historie')).toBeInTheDocument();
     expect(screen.getByText('Historical rationale')).toBeInTheDocument();
     expect(screen.getByText('Current rationale')).toBeInTheDocument();
+  });
+
+  it('keeps materialization disabled until the FT-011 handoff is ready', async () => {
+    renderPage();
+
+    const button = await screen.findByRole('button', {
+      name: 'Als LearningEvidence materialisieren',
+    });
+
+    expect(button).toBeDisabled();
+    expect(materializationApi.materialize).not.toHaveBeenCalled();
+  });
+
+  it('materializes READY FT-011 evidence and refreshes the status', async () => {
+    api.handoff.mockResolvedValue({
+      ready: true,
+      reason: 'READY',
+      post_trade_observation_id: 'observation-1',
+      exit_review_id: 'review-1',
+      exit_review_version_id: 'version-1',
+    });
+    materializationApi.status
+      .mockResolvedValueOnce({
+        ready: true,
+        reason: 'READY',
+        materialized: false,
+        learning_evidence_id: null,
+        exit_review_version_id: 'version-1',
+      })
+      .mockResolvedValue({
+        ready: true,
+        reason: 'READY',
+        materialized: true,
+        learning_evidence_id: 'learning-evidence-1',
+        exit_review_version_id: 'version-1',
+      });
+
+    renderPage();
+
+    const button = await screen.findByRole('button', {
+      name: 'Als LearningEvidence materialisieren',
+    });
+    expect(button).toBeEnabled();
+
+    fireEvent.click(button);
+
+    await waitFor(() => expect(materializationApi.materialize).toHaveBeenCalledTimes(1));
+    expect(materializationApi.materialize).toHaveBeenCalledWith(
+      'trade-1',
+      expect.stringMatching(/^post-trade-trade-1-/),
+    );
+    expect(await screen.findByText('MATERIALIZED')).toBeInTheDocument();
+    expect(screen.getByText('learning-evidence-1')).toBeInTheDocument();
   });
 });
