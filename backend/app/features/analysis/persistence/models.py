@@ -4,10 +4,11 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from decimal import Decimal
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from sqlalchemy import (
     JSON,
+    CheckConstraint,
     Date,
     DateTime,
     ForeignKey,
@@ -25,21 +26,39 @@ from sqlalchemy.orm import Mapped, Mapper, mapped_column
 
 from app.database.base import Base
 from app.features.analysis.domain.governed_provenance import governed_baseline_definition
+from app.features.market_data.persistence.instruments import MarketDataInstrumentModel
 from app.features.model.persistence.models import GovernedModelRecord, ModelVersionRecord
 
 
 class MarketAnalysisModel(Base):
     __tablename__ = "market_analyses"
-    __table_args__ = (Index("ix_market_analyses_workspace_created", "workspace_id", "created_at"),)
+    __table_args__ = (
+        CheckConstraint(
+            "((listing_id IS NOT NULL AND underlying_id IS NOT NULL) OR "
+            "(listing_id IS NULL AND underlying_id IS NULL AND "
+            "market_data_instrument_id IS NOT NULL))",
+            name="owner_shape",
+        ),
+        Index("ix_market_analyses_workspace_created", "workspace_id", "created_at"),
+        Index(
+            "ix_market_analyses_workspace_instrument_created",
+            "workspace_id",
+            "market_data_instrument_id",
+            "created_at",
+        ),
+    )
     id: Mapped[UUID] = mapped_column(primary_key=True)
     workspace_id: Mapped[UUID] = mapped_column(
         ForeignKey("workspaces.id", ondelete="RESTRICT"), nullable=False
     )
-    underlying_id: Mapped[UUID] = mapped_column(
-        ForeignKey("underlyings.id", ondelete="RESTRICT"), nullable=False
+    market_data_instrument_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("market_data_instruments.id", ondelete="RESTRICT"), nullable=True
     )
-    listing_id: Mapped[UUID] = mapped_column(
-        ForeignKey("listings.id", ondelete="RESTRICT"), nullable=False
+    underlying_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("underlyings.id", ondelete="RESTRICT"), nullable=True
+    )
+    listing_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("listings.id", ondelete="RESTRICT"), nullable=True
     )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     created_by: Mapped[str] = mapped_column(String(200), nullable=False)
@@ -140,6 +159,38 @@ class MarketAnalysisEventModel(Base):
     occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
+@event.listens_for(MarketAnalysisModel, "before_insert")
+def attach_listing_market_data_instrument(
+    _mapper: Mapper[MarketAnalysisModel],
+    connection: Connection,
+    target: MarketAnalysisModel,
+) -> None:
+    """Dual-write the neutral identity for legacy listing-owned analyses."""
+    if target.market_data_instrument_id is not None or target.listing_id is None:
+        return
+
+    instrument_id = connection.execute(
+        select(MarketDataInstrumentModel.id).where(
+            MarketDataInstrumentModel.workspace_id == target.workspace_id,
+            MarketDataInstrumentModel.kind == "LISTING",
+            MarketDataInstrumentModel.listing_id == target.listing_id,
+        )
+    ).scalar_one_or_none()
+    if instrument_id is None:
+        instrument_id = uuid4()
+        connection.execute(
+            MarketDataInstrumentModel.__table__.insert().values(
+                id=instrument_id,
+                workspace_id=target.workspace_id,
+                kind="LISTING",
+                listing_id=target.listing_id,
+                market_reference_id=None,
+                created_at=target.created_at,
+            )
+        )
+    target.market_data_instrument_id = instrument_id
+
+
 @event.listens_for(MarketAnalysisRunModel, "before_insert")
 def attach_governed_model_provenance(
     _mapper: Mapper[MarketAnalysisRunModel],
@@ -148,10 +199,10 @@ def attach_governed_model_provenance(
 ) -> None:
     """Attach an exact approved legacy baseline when one exists.
 
-    This is intentionally not activation.  Runtime behavior still comes from
-    the released code identified by ``model_id``/``model_version``.  The
+    This is intentionally not activation. Runtime behavior still comes from
+    the released code identified by ``model_id``/``model_version``. The
     governed reference is written only when exactly one APPROVED ModelVersion
-    declares the matching immutable runtime contract.  Missing or ambiguous
+    declares the matching immutable runtime contract. Missing or ambiguous
     governance therefore results in NULL provenance rather than a false link.
     """
     if target.governed_model_version_id is not None or connection.dialect.name != "postgresql":
