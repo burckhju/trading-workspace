@@ -41,13 +41,7 @@ class MarketReferenceAnalysisService(MarketAnalysisService):
         market_reference_id: UUID,
         actor: str,
     ) -> MarketAnalysisModel:
-        reference = await self._session.scalar(
-            select(MarketReferenceModel).where(
-                MarketReferenceModel.id == market_reference_id,
-                MarketReferenceModel.workspace_id == workspace_id,
-                MarketReferenceModel.active.is_(True),
-            )
-        )
+        reference = await self._active_reference(workspace_id, market_reference_id)
         if reference is None:
             raise AnalysisDataUnavailable("active market reference was not found")
 
@@ -101,6 +95,15 @@ class MarketReferenceAnalysisService(MarketAnalysisService):
         if instrument_id is None or analysis.listing_id is not None:
             raise AnalysisDataUnavailable("analysis is not market-reference owned")
 
+        instrument = await self._identity.get(
+            workspace_id=workspace_id,
+            instrument_id=instrument_id,
+        )
+        if instrument.kind != "MARKET_REFERENCE" or instrument.market_reference_id is None:
+            raise AnalysisDataUnavailable("analysis is not market-reference owned")
+        if await self._active_reference(workspace_id, instrument.market_reference_id) is None:
+            raise AnalysisDataUnavailable("active market reference was not found")
+
         prices = tuple(
             (
                 await self._session.scalars(
@@ -141,4 +144,17 @@ class MarketReferenceAnalysisService(MarketAnalysisService):
             rows=rows,
             correlation_id=correlation_id,
             source_version=None,
+        )
+
+    async def _active_reference(
+        self,
+        workspace_id: UUID,
+        market_reference_id: UUID,
+    ) -> MarketReferenceModel | None:
+        return await self._session.scalar(
+            select(MarketReferenceModel).where(
+                MarketReferenceModel.id == market_reference_id,
+                MarketReferenceModel.workspace_id == workspace_id,
+                MarketReferenceModel.active.is_(True),
+            )
         )
