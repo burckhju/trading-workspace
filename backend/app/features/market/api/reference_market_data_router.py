@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
@@ -38,16 +38,16 @@ def _http_error(error: ValueError) -> HTTPException:
     return HTTPException(status_code=code, detail=message)
 
 
-def _run_summary(model: object) -> RunSummaryResponse:
+def _run_summary(model: Any) -> RunSummaryResponse:
     return RunSummaryResponse(
-        version=model.version,  # type: ignore[attr-defined]
-        status=model.status,  # type: ignore[attr-defined]
-        quality_status=model.quality_status,  # type: ignore[attr-defined]
-        model_id=model.model_id,  # type: ignore[attr-defined]
-        model_version=model.model_version,  # type: ignore[attr-defined]
-        observation_count=model.observation_count,  # type: ignore[attr-defined]
-        analysis_time=model.analysis_time,  # type: ignore[attr-defined]
-        input_hash=model.input_hash,  # type: ignore[attr-defined]
+        version=model.version,
+        status=model.status,
+        quality_status=model.quality_status,
+        model_id=model.model_id,
+        model_version=model.model_version,
+        observation_count=model.observation_count,
+        analysis_time=model.analysis_time,
+        input_hash=model.input_hash,
     )
 
 
