@@ -236,10 +236,7 @@ export function PostTradeReviewPage() {
     setMessage(null);
 
     try {
-      await ft011MaterializationClient.materialize(
-        tradeId,
-        `post-trade-${tradeId}-${Date.now()}`,
-      );
+      await ft011MaterializationClient.materialize(tradeId, `post-trade-${tradeId}-${Date.now()}`);
       await refresh(tradeId);
       setMessage('FT-011 LearningEvidence wurde in FT-012 materialisiert.');
     } catch (nextError: unknown) {
