@@ -1,10 +1,10 @@
-"""PostgreSQL migration qualification for the D01-C DailyPrice boundary."""
+"""PostgreSQL migration qualification for the D01-D MarketAnalysis boundary."""
 
 from __future__ import annotations
 
 import asyncio
 import os
-from datetime import UTC, date, datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from uuid import UUID, uuid4
 
@@ -16,9 +16,8 @@ from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
 from app.core.config import get_settings
 
-BASE_REVISION = "20260826_0026"
-D01C_REVISION = "20260826_0027"
-CURRENT_HEAD = "20260827_0028"
+BASE_REVISION = "20260826_0027"
+D01D_REVISION = "20260827_0028"
 EXPECTED_DATABASE = "trading_workspace_test"
 
 
@@ -27,7 +26,7 @@ def _test_database_url() -> str:
     if not url:
         pytest.skip("TRADING_WORKSPACE_TEST_DATABASE_URL is not configured")
     if url.split("?", 1)[0].rsplit("/", 1)[-1] != EXPECTED_DATABASE:
-        pytest.fail(f"D01-C migration test may run only against {EXPECTED_DATABASE}")
+        pytest.fail(f"D01-D migration test may run only against {EXPECTED_DATABASE}")
     return url
 
 
@@ -63,14 +62,14 @@ async def _revision(engine: AsyncEngine) -> str:
     return value
 
 
-async def _insert_listing_and_price(
+async def _insert_listing_and_analysis(
     engine: AsyncEngine,
     *,
     workspace_id: UUID,
     venue_id: UUID,
     underlying_id: UUID,
     listing_id: UUID,
-    price_id: UUID,
+    analysis_id: UUID,
     currency_code: str,
     mic: str,
 ) -> None:
@@ -78,13 +77,13 @@ async def _insert_listing_and_price(
     async with engine.begin() as connection:
         await connection.execute(
             text("INSERT INTO workspaces (id, name, created_at) VALUES (:id, :name, :now)"),
-            {"id": workspace_id, "name": f"D01-C {workspace_id}", "now": now},
+            {"id": workspace_id, "name": f"D01-D {workspace_id}", "now": now},
         )
         await connection.execute(
             text(
                 "INSERT INTO currencies "
                 "(code, name, minor_unit, is_active, reference_version, created_at, updated_at) "
-                "VALUES (:code, 'D01-C Currency', 2, true, 'd01c-test', :now, :now)"
+                "VALUES (:code, 'D01-D Currency', 2, true, 'd01d-test', :now, :now)"
             ),
             {"code": currency_code, "now": now},
         )
@@ -93,8 +92,8 @@ async def _insert_listing_and_price(
                 "INSERT INTO trading_venues "
                 "(id, mic, name, country_code, timezone, is_active, reference_version, "
                 "version, created_at, updated_at) "
-                "VALUES (:id, :mic, 'D01-C Venue', 'DE', 'Europe/Berlin', true, "
-                "'d01c-test', 1, :now, :now)"
+                "VALUES (:id, :mic, 'D01-D Venue', 'DE', 'Europe/Berlin', true, "
+                "'d01d-test', 1, :now, :now)"
             ),
             {"id": venue_id, "mic": mic, "now": now},
         )
@@ -103,7 +102,7 @@ async def _insert_listing_and_price(
                 "INSERT INTO underlyings "
                 "(id, workspace_id, type, name, isin, wkn, lifecycle_status, quality_status, "
                 "version, created_at, updated_at, data_origin) "
-                "VALUES (:id, :workspace_id, 'STOCK', 'D01-C Underlying', NULL, NULL, "
+                "VALUES (:id, :workspace_id, 'STOCK', 'D01-D Underlying', NULL, NULL, "
                 "'ACTIVE', 'COMPLETE', 1, :now, :now, 'MANUAL')"
             ),
             {"id": underlying_id, "workspace_id": workspace_id, "now": now},
@@ -121,8 +120,22 @@ async def _insert_listing_and_price(
                 "workspace_id": workspace_id,
                 "underlying_id": underlying_id,
                 "venue_id": venue_id,
-                "ticker": f"C{str(listing_id.int)[-7:]}",
+                "ticker": f"D{str(listing_id.int)[-7:]}",
                 "currency": currency_code,
+                "now": now,
+            },
+        )
+        await connection.execute(
+            text(
+                "INSERT INTO market_analyses "
+                "(id, workspace_id, underlying_id, listing_id, created_at, created_by) "
+                "VALUES (:id, :workspace_id, :underlying_id, :listing_id, :now, 'd01d-test')"
+            ),
+            {
+                "id": analysis_id,
+                "workspace_id": workspace_id,
+                "underlying_id": underlying_id,
+                "listing_id": listing_id,
                 "now": now,
             },
         )
@@ -131,75 +144,51 @@ async def _insert_listing_and_price(
             {"id": listing_id},
         )
         assert identity_count == 0
-        await connection.execute(
-            text(
-                "INSERT INTO daily_prices "
-                "(id, workspace_id, listing_id, trading_date, open, high, low, close, "
-                "adjusted_close, volume, currency, provider, provider_symbol, retrieved_at, "
-                "source_updated_at, quality_status, warnings, price_type, created_at, updated_at) "
-                "VALUES (:id, :workspace_id, :listing_id, :trading_date, 100, 102, 99, 101, "
-                "NULL, 1000, :currency, 'EODHD', :symbol, :now, NULL, 'VALID', '', 'EOD', "
-                ":now, :now)"
-            ),
-            {
-                "id": price_id,
-                "workspace_id": workspace_id,
-                "listing_id": listing_id,
-                "trading_date": date(2026, 8, 25),
-                "currency": currency_code,
-                "symbol": f"D01C{str(price_id.int)[-8:]}",
-                "now": now,
-            },
-        )
 
 
 @pytest.mark.asyncio
-async def test_d01c_upgrade_backfills_price_and_missing_listing_identity() -> None:
+async def test_d01d_upgrade_backfills_analysis_and_missing_listing_identity() -> None:
     database_url = _test_database_url()
     engine = create_async_engine(database_url, pool_pre_ping=True)
     workspace_id = uuid4()
     venue_id = uuid4()
     underlying_id = uuid4()
     listing_id = uuid4()
-    price_id = uuid4()
-    currency_code = "C" + workspace_id.hex[-2:].upper()
-    mic = f"C{venue_id.int % 1000:03d}"
+    analysis_id = uuid4()
+    currency_code = "D" + workspace_id.hex[-2:].upper()
+    mic = f"D{venue_id.int % 1000:03d}"
 
     try:
         current = await _revision(engine)
-        if current == CURRENT_HEAD:
-            await asyncio.to_thread(_run_alembic, "downgrade", D01C_REVISION, database_url)
-            current = D01C_REVISION
-        if current == D01C_REVISION:
+        if current == D01D_REVISION:
             await asyncio.to_thread(_run_alembic, "downgrade", BASE_REVISION, database_url)
         elif current != BASE_REVISION:
-            pytest.fail(f"unexpected Alembic revision for D01-C qualification: {current}")
+            pytest.fail(f"unexpected Alembic revision for D01-D qualification: {current}")
 
-        await _insert_listing_and_price(
+        await _insert_listing_and_analysis(
             engine,
             workspace_id=workspace_id,
             venue_id=venue_id,
             underlying_id=underlying_id,
             listing_id=listing_id,
-            price_id=price_id,
+            analysis_id=analysis_id,
             currency_code=currency_code,
             mic=mic,
         )
 
-        await asyncio.to_thread(_run_alembic, "upgrade", D01C_REVISION, database_url)
-        assert await _revision(engine) == D01C_REVISION
-
+        await asyncio.to_thread(_run_alembic, "upgrade", D01D_REVISION, database_url)
+        assert await _revision(engine) == D01D_REVISION
         async with engine.connect() as connection:
             result = await connection.execute(
                 text(
-                    "SELECT price.listing_id, price.market_data_instrument_id, "
+                    "SELECT analysis.listing_id, analysis.market_data_instrument_id, "
                     "instrument.kind, instrument.listing_id AS instrument_listing_id "
-                    "FROM daily_prices AS price "
+                    "FROM market_analyses AS analysis "
                     "JOIN market_data_instruments AS instrument "
-                    "ON instrument.id = price.market_data_instrument_id "
-                    "WHERE price.id = :price_id"
+                    "ON instrument.id = analysis.market_data_instrument_id "
+                    "WHERE analysis.id = :analysis_id"
                 ),
-                {"price_id": price_id},
+                {"analysis_id": analysis_id},
             )
             row = result.mappings().one()
         assert row["listing_id"] == listing_id
@@ -210,31 +199,25 @@ async def test_d01c_upgrade_backfills_price_and_missing_listing_identity() -> No
         await asyncio.to_thread(_run_alembic, "downgrade", BASE_REVISION, database_url)
         assert await _revision(engine) == BASE_REVISION
         async with engine.connect() as connection:
-            price_count = await connection.scalar(
-                text("SELECT count(*) FROM daily_prices WHERE id = :id"), {"id": price_id}
+            analysis_count = await connection.scalar(
+                text("SELECT count(*) FROM market_analyses WHERE id = :id"),
+                {"id": analysis_id},
             )
             identity_count = await connection.scalar(
                 text("SELECT count(*) FROM market_data_instruments WHERE listing_id = :id"),
                 {"id": listing_id},
             )
-        assert price_count == 1
+        assert analysis_count == 1
         assert identity_count == 1
 
-        await asyncio.to_thread(_run_alembic, "upgrade", D01C_REVISION, database_url)
-        assert await _revision(engine) == D01C_REVISION
-        async with engine.connect() as connection:
-            instrument_id = await connection.scalar(
-                text("SELECT market_data_instrument_id FROM daily_prices WHERE id = :price_id"),
-                {"price_id": price_id},
-            )
-        assert instrument_id is not None
+        await asyncio.to_thread(_run_alembic, "upgrade", D01D_REVISION, database_url)
+        assert await _revision(engine) == D01D_REVISION
     finally:
-        revision = await _revision(engine)
-        if revision == BASE_REVISION:
-            await asyncio.to_thread(_run_alembic, "upgrade", D01C_REVISION, database_url)
+        if await _revision(engine) == BASE_REVISION:
+            await asyncio.to_thread(_run_alembic, "upgrade", D01D_REVISION, database_url)
         async with engine.begin() as connection:
             await connection.execute(
-                text("DELETE FROM daily_prices WHERE id = :id"), {"id": price_id}
+                text("DELETE FROM market_analyses WHERE id = :id"), {"id": analysis_id}
             )
             await connection.execute(
                 text("DELETE FROM market_data_instruments WHERE listing_id = :id"),
@@ -255,6 +238,4 @@ async def test_d01c_upgrade_backfills_price_and_missing_listing_identity() -> No
             await connection.execute(
                 text("DELETE FROM workspaces WHERE id = :id"), {"id": workspace_id}
             )
-        if await _revision(engine) != CURRENT_HEAD:
-            await asyncio.to_thread(_run_alembic, "upgrade", CURRENT_HEAD, database_url)
         await engine.dispose()

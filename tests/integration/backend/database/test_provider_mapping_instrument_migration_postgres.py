@@ -18,7 +18,7 @@ from app.core.config import get_settings
 
 BASE_REVISION = "20260826_0025"
 D01B_REVISION = "20260826_0026"
-CURRENT_HEAD = "20260826_0027"
+CURRENT_HEAD = "20260827_0028"
 EXPECTED_DATABASE = "trading_workspace_test"
 
 
