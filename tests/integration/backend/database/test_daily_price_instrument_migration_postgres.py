@@ -18,6 +18,7 @@ from app.core.config import get_settings
 
 BASE_REVISION = "20260826_0026"
 D01C_REVISION = "20260826_0027"
+CURRENT_HEAD = "20260827_0028"
 EXPECTED_DATABASE = "trading_workspace_test"
 
 
@@ -166,6 +167,9 @@ async def test_d01c_upgrade_backfills_price_and_missing_listing_identity() -> No
 
     try:
         current = await _revision(engine)
+        if current == CURRENT_HEAD:
+            await asyncio.to_thread(_run_alembic, "downgrade", D01C_REVISION, database_url)
+            current = D01C_REVISION
         if current == D01C_REVISION:
             await asyncio.to_thread(_run_alembic, "downgrade", BASE_REVISION, database_url)
         elif current != BASE_REVISION:
@@ -220,12 +224,13 @@ async def test_d01c_upgrade_backfills_price_and_missing_listing_identity() -> No
         assert await _revision(engine) == D01C_REVISION
         async with engine.connect() as connection:
             instrument_id = await connection.scalar(
-                text("SELECT market_data_instrument_id FROM daily_prices " "WHERE id = :price_id"),
+                text("SELECT market_data_instrument_id FROM daily_prices WHERE id = :price_id"),
                 {"price_id": price_id},
             )
         assert instrument_id is not None
     finally:
-        if await _revision(engine) == BASE_REVISION:
+        revision = await _revision(engine)
+        if revision == BASE_REVISION:
             await asyncio.to_thread(_run_alembic, "upgrade", D01C_REVISION, database_url)
         async with engine.begin() as connection:
             await connection.execute(
@@ -250,4 +255,6 @@ async def test_d01c_upgrade_backfills_price_and_missing_listing_identity() -> No
             await connection.execute(
                 text("DELETE FROM workspaces WHERE id = :id"), {"id": workspace_id}
             )
+        if await _revision(engine) != CURRENT_HEAD:
+            await asyncio.to_thread(_run_alembic, "upgrade", CURRENT_HEAD, database_url)
         await engine.dispose()
