@@ -28,10 +28,16 @@ Close the downstream Golden Path with the released FT-013 controlled-governance 
 - runtime model activation or active-version switching
 - order/execution decisions
 - general backtesting or shadow trading
-- production logic or schema changes
+- schema changes
 
 ## Implementation
 
 Added `tests/integration/backend/learning/test_ft013_governance_handoff.py` using the released FT-012 PostgreSQL integration fixture and the released `ModelGovernanceService`.
 
-No production code or migration is changed by this slice.
+During PostgreSQL qualification, the new handoff test exposed three existing SQLAlchemy parent/child persistence-ordering defects in `ModelGovernanceService`. The slice therefore also added minimal explicit `flush()` boundaries so that:
+
+- `HypothesisRecord` is persisted before `HypothesisEvidenceRecord` links;
+- `ModelValidationRecord` is persisted before `ModelValidationEvidenceRecord` links;
+- a newly created `ModelVersionRecord` is persisted before its `ModelApprovalRecord`.
+
+These fixes do not change the FT-013 governance contract or introduce new model behavior. They make the existing foreign-key ordering deterministic under PostgreSQL. No migration or schema change is included.
