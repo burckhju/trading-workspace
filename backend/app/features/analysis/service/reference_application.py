@@ -8,6 +8,7 @@ or Listing is created for a MarketReference.
 from __future__ import annotations
 
 from datetime import UTC, date, datetime
+from typing import cast
 from uuid import UUID, uuid4
 
 from sqlalchemy import select
@@ -151,10 +152,13 @@ class MarketReferenceAnalysisService(MarketAnalysisService):
         workspace_id: UUID,
         market_reference_id: UUID,
     ) -> MarketReferenceModel | None:
-        return await self._session.scalar(
-            select(MarketReferenceModel).where(
-                MarketReferenceModel.id == market_reference_id,
-                MarketReferenceModel.workspace_id == workspace_id,
-                MarketReferenceModel.active.is_(True),
-            )
+        return cast(
+            MarketReferenceModel | None,
+            await self._session.scalar(
+                select(MarketReferenceModel).where(
+                    MarketReferenceModel.id == market_reference_id,
+                    MarketReferenceModel.workspace_id == workspace_id,
+                    MarketReferenceModel.active.is_(True),
+                )
+            ),
         )
