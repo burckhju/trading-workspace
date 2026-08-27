@@ -50,6 +50,8 @@ class EodhdRuntime:
     adapter: EodhdMarketDataAdapter
     call_budget: DailyCallBudget
     client: EodhdClient
+    retry_policy: RetryPolicy
+    rate_limiter: TokenBucketRateLimiter
     metrics: ProviderMetrics
 
     async def close(self) -> None:
@@ -96,26 +98,28 @@ class ApplicationContainer:
             clock=clock,
             provider=MarketDataProvider.EODHD,
         )
+        retry_policy = RetryPolicy(
+            clock=clock,
+            sleeper=sleeper,
+            random=Random(),
+            max_attempts=provider_settings.retry_max_attempts,
+            base_delay_seconds=provider_settings.retry_base_delay_seconds,
+            max_retry_after_seconds=provider_settings.retry_max_retry_after_seconds,
+            total_timeout_seconds=provider_settings.retry_total_timeout_seconds,
+        )
+        rate_limiter = TokenBucketRateLimiter(
+            requests_per_second=provider_settings.requests_per_minute / 60,
+            burst_capacity=provider_settings.rate_limit_burst_capacity,
+            clock=clock,
+            sleeper=sleeper,
+        )
         adapter = EodhdMarketDataAdapter(
             client=client,
             mappings=SqlAlchemyMappingReader(database),
             currencies=SqlAlchemyListingCurrencyReader(database),
             cache=InMemoryTtlCache(clock=clock),
-            retry_policy=RetryPolicy(
-                clock=clock,
-                sleeper=sleeper,
-                random=Random(),
-                max_attempts=provider_settings.retry_max_attempts,
-                base_delay_seconds=provider_settings.retry_base_delay_seconds,
-                max_retry_after_seconds=(provider_settings.retry_max_retry_after_seconds),
-                total_timeout_seconds=provider_settings.retry_total_timeout_seconds,
-            ),
-            rate_limiter=TokenBucketRateLimiter(
-                requests_per_second=provider_settings.requests_per_minute / 60,
-                burst_capacity=provider_settings.rate_limit_burst_capacity,
-                clock=clock,
-                sleeper=sleeper,
-            ),
+            retry_policy=retry_policy,
+            rate_limiter=rate_limiter,
             call_budget=call_budget,
             clock=clock,
             settings=EodhdAdapterSettings(
@@ -129,6 +133,8 @@ class ApplicationContainer:
             adapter=adapter,
             call_budget=call_budget,
             client=client,
+            retry_policy=retry_policy,
+            rate_limiter=rate_limiter,
             metrics=ProviderMetrics(),
         )
 
@@ -178,7 +184,7 @@ class ApplicationContainer:
         """Synchronize local usage with the non-secret EODHD User API counters."""
         if self.eodhd is None:
             raise MarketDataConfigurationError(
-                "EODHD provider is disabled", provider=MarketDataProvider.EODHD
+                "EODHD is disabled", provider=MarketDataProvider.EODHD
             )
         payload = await self.eodhd.client.get_json(
             "/user/",
