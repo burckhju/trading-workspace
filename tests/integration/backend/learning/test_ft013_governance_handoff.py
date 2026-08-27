@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from uuid import uuid4
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -91,7 +91,7 @@ async def test_learning_evidence_drives_controlled_model_governance(
         workspace_id=workspace_id,
         proposal_id=proposal.id,
         evidence_ids=(evidence_id,),
-        evidence_cutoff_at=NOW + timedelta(hours=1),
+        evidence_cutoff_at=NOW,
         conclusion=ValidationConclusion.SUPPORTS,
         metrics={"evidence_count": 1},
         notes="Golden-path retrospective validation.",
