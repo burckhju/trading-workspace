@@ -106,8 +106,7 @@ class SqlAlchemyFt011MaterializationRepository:
                 FT011EvidenceModel.learning_evidence_id == LearningEvidenceModel.id,
             )
             .where(
-                LearningEvidenceModel.evidence_type
-                == LearningEvidenceType.FT011.value
+                LearningEvidenceModel.evidence_type == LearningEvidenceType.FT011.value
             )
         )
 
