@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from uuid import UUID
 
 from sqlalchemy import func, or_, select
 
@@ -21,7 +22,9 @@ from app.features.market_data.persistence.models import DailyPriceModel, Provide
 class MarketDataTopDownReferenceAdministrationService(TopDownReferenceAdministrationService):
     """Use MarketReference -> MarketDataInstrument as the readiness owner chain."""
 
-    async def reference_readiness(self, workspace_id):  # type: ignore[no-untyped-def]
+    async def reference_readiness(
+        self, workspace_id: UUID
+    ) -> tuple[TopDownReferenceReadiness, ...]:
         references = await self.list_market_references(workspace_id)
         results: list[TopDownReferenceReadiness] = []
         today = datetime.now(UTC).date()
