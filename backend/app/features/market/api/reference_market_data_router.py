@@ -22,7 +22,11 @@ WORKSPACE_ID = UUID("00000000-0000-4000-8000-000000000001")
 
 def _http_error(error: ValueError) -> HTTPException:
     message = str(error)
-    code = status.HTTP_404_NOT_FOUND if "not found" in message else status.HTTP_422_UNPROCESSABLE_ENTITY
+    code = (
+        status.HTTP_404_NOT_FOUND
+        if "not found" in message
+        else status.HTTP_422_UNPROCESSABLE_ENTITY
+    )
     return HTTPException(status_code=code, detail=message)
 
 
