@@ -7,12 +7,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.di import ApplicationContainer, get_container
 from app.database.dependencies import get_database_session
+from app.features.analysis.service.reference_application import (
+    MarketReferenceAnalysisService,
+)
 from app.features.market.service.issuer_administration import IssuerAdministrationService
 from app.features.market.service.listing_service import ListingService
 from app.features.market.service.reference_data_service import ReferenceDataService
 from app.features.market.service.service import UnderlyingService
 from app.features.market.service.top_down_administration import (
     TopDownReferenceAdministrationService,
+)
+from app.features.market.service.top_down_readiness import (
+    MarketDataTopDownReferenceAdministrationService,
 )
 from app.features.market.service.trading_venue_administration import (
     TradingVenueAdministrationService,
@@ -54,7 +60,13 @@ async def get_trading_venue_administration_service(
 async def get_top_down_reference_administration_service(
     session: Annotated[AsyncSession, Depends(get_database_session)],
 ) -> TopDownReferenceAdministrationService:
-    return TopDownReferenceAdministrationService(session)
+    return MarketDataTopDownReferenceAdministrationService(session)
+
+
+async def get_market_reference_analysis_service(
+    session: Annotated[AsyncSession, Depends(get_database_session)],
+) -> MarketReferenceAnalysisService:
+    return MarketReferenceAnalysisService(session)
 
 
 async def get_reference_market_data_service(
