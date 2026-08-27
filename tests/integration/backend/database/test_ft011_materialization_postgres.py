@@ -76,7 +76,7 @@ async def test_materialization_tables_and_request_idempotency_are_database_enfor
 
             constraint = await connection.execute(
                 text(
-                    "SELECT contype FROM pg_constraint "
+                    "SELECT contype::text FROM pg_constraint "
                     "WHERE conname = 'uq_ft011_evidence_exit_review_version' "
                     "AND conrelid = 'ft011_evidence'::regclass"
                 )
