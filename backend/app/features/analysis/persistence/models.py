@@ -19,6 +19,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     event,
+    insert,
     select,
 )
 from sqlalchemy.engine import Connection
@@ -54,10 +55,10 @@ class MarketAnalysisModel(Base):
     market_data_instrument_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("market_data_instruments.id", ondelete="RESTRICT"), nullable=True
     )
-    underlying_id: Mapped[UUID | None] = mapped_column(
+    underlying_id: Mapped[UUID] = mapped_column(
         ForeignKey("underlyings.id", ondelete="RESTRICT"), nullable=True
     )
-    listing_id: Mapped[UUID | None] = mapped_column(
+    listing_id: Mapped[UUID] = mapped_column(
         ForeignKey("listings.id", ondelete="RESTRICT"), nullable=True
     )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
@@ -179,7 +180,7 @@ def attach_listing_market_data_instrument(
     if instrument_id is None:
         instrument_id = uuid4()
         connection.execute(
-            MarketDataInstrumentModel.__table__.insert().values(
+            insert(MarketDataInstrumentModel).values(
                 id=instrument_id,
                 workspace_id=target.workspace_id,
                 kind="LISTING",
