@@ -1,0 +1,27 @@
+name: D01-F Black Probe
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  black-probe:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Black
+        run: python -m pip install black==26.1.0
+      - name: Format target files and print diff
+        run: |
+          black --config backend/pyproject.toml \
+            backend/app/features/market/api/dependencies.py \
+            backend/app/features/market/api/reference_market_data_router.py
+          git diff -- \
+            backend/app/features/market/api/dependencies.py \
+            backend/app/features/market/api/reference_market_data_router.py
