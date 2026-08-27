@@ -174,6 +174,7 @@ class ModelGovernanceService:
                 created_by=hypothesis.created_by,
             )
         )
+        await self._session.flush()
         for evidence_id in dict.fromkeys(evidence_ids):
             self._session.add(
                 HypothesisEvidenceRecord(
@@ -283,6 +284,7 @@ class ModelGovernanceService:
                 created_by=validation.created_by,
             )
         )
+        await self._session.flush()
         for evidence_id in dict.fromkeys(evidence_ids):
             self._session.add(
                 ModelValidationEvidenceRecord(
