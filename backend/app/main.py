@@ -17,6 +17,9 @@ from app.features.analysis.api import router as analysis_router
 from app.features.candidate.api import router as candidate_router
 from app.features.learning.api import router as learning_router
 from app.features.market.api import reference_data_router, underlying_router
+from app.features.market.api.reference_market_data_router import (
+    router as reference_market_data_router,
+)
 from app.features.market.api.top_down_router import router as top_down_reference_router
 from app.features.market_data.api import router as market_data_router
 from app.features.model.api import router as model_governance_router
@@ -70,6 +73,7 @@ def create_application(settings: Settings | None = None) -> FastAPI:
     application.include_router(underlying_router)
     application.include_router(reference_data_router)
     application.include_router(top_down_reference_router)
+    application.include_router(reference_market_data_router)
     application.include_router(market_data_router)
     application.include_router(product_router)
     application.include_router(product_selection_router)
