@@ -27,8 +27,7 @@ export function LessonDraftFromEvidence({
     mainCategory.trim() !== '' &&
     content.trim() !== '';
 
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function submit() {
     if (!canSubmit) return;
 
     setSubmitting(true);
@@ -50,6 +49,11 @@ export function LessonDraftFromEvidence({
     }
   }
 
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    void submit();
+  }
+
   return (
     <section className="mt-5 rounded-lg border border-slate-700 p-4">
       <p className="text-xs uppercase tracking-wide text-slate-500">Interpretation</p>
@@ -64,7 +68,7 @@ export function LessonDraftFromEvidence({
           Lesson angelegt: <span className="break-all">{createdLessonId}</span>
         </p>
       ) : (
-        <form onSubmit={submit} className="mt-4 space-y-3">
+        <form onSubmit={handleSubmit} className="mt-4 space-y-3">
           <label className="block text-sm">
             <span className="text-slate-400">Titel</span>
             <input
