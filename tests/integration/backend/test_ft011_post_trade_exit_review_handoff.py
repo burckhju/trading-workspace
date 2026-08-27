@@ -63,12 +63,19 @@ class MemoryUow:
     async def _get_observation_for_trade(self, workspace_id, trade_id):
         if self.observation is None:
             return None
-        if self.observation.workspace_id == workspace_id and self.observation.trade_id == trade_id:
+        if (
+            self.observation.workspace_id == workspace_id
+            and self.observation.trade_id == trade_id
+        ):
             return self.observation
         return None
 
     async def _get_observation(self, workspace_id, observation_id):
-        if self.observation is not None and self.observation.workspace_id == workspace_id and self.observation.id == observation_id:
+        if (
+            self.observation is not None
+            and self.observation.workspace_id == workspace_id
+            and self.observation.id == observation_id
+        ):
             return self.observation
         return None
 
@@ -79,12 +86,20 @@ class MemoryUow:
         self.observation = observation
 
     async def _get_review_for_observation(self, workspace_id, observation_id):
-        if self.review is not None and self.review.workspace_id == workspace_id and self.review.post_trade_observation_id == observation_id:
+        if (
+            self.review is not None
+            and self.review.workspace_id == workspace_id
+            and self.review.post_trade_observation_id == observation_id
+        ):
             return self.review
         return None
 
     async def _get_review(self, workspace_id, review_id):
-        if self.review is not None and self.review.workspace_id == workspace_id and self.review.id == review_id:
+        if (
+            self.review is not None
+            and self.review.workspace_id == workspace_id
+            and self.review.id == review_id
+        ):
             return self.review
         return None
 
@@ -92,10 +107,25 @@ class MemoryUow:
         self.review = review
 
     async def _get_open_draft(self, review_id):
-        return next((v for v in self.versions if v.exit_review_id == review_id and v.status is ExitReviewStatus.DRAFT), None)
+        return next(
+            (
+                version
+                for version in self.versions
+                if version.exit_review_id == review_id
+                and version.status is ExitReviewStatus.DRAFT
+            ),
+            None,
+        )
 
     async def _next_version_number(self, workspace_id, review_id):
-        return 1 + max((v.version for v in self.versions if v.exit_review_id == review_id), default=0)
+        return 1 + max(
+            (
+                version.version
+                for version in self.versions
+                if version.exit_review_id == review_id
+            ),
+            default=0,
+        )
 
     async def _get_latest(self, review_id):
         matches = [v for v in self.versions if v.exit_review_id == review_id]
@@ -108,7 +138,9 @@ class MemoryUow:
         self.versions.append(version)
 
     async def _replace_version(self, version):
-        self.versions = [version if item.id == version.id else item for item in self.versions]
+        self.versions = [
+            version if item.id == version.id else item for item in self.versions
+        ]
 
 
 @pytest.mark.asyncio
@@ -193,7 +225,10 @@ async def test_closed_workspace_trade_reaches_finalized_current_ft011_review() -
     assert evidence.available_observation_count == 20
 
     handoff_service = Ft012HandoffService(uow=uow)
-    before_review = await handoff_service.get(workspace_id=workspace_id, trade_id=trade_id)
+    before_review = await handoff_service.get(
+        workspace_id=workspace_id,
+        trade_id=trade_id,
+    )
     assert before_review.ready is False
     assert before_review.reason == "EXIT_REVIEW_MISSING"
 
@@ -226,7 +261,10 @@ async def test_closed_workspace_trade_reaches_finalized_current_ft011_review() -
     assert finalized.status is ExitReviewStatus.FINALIZED
     assert finalized.input_fingerprint is not None
 
-    handoff = await handoff_service.get(workspace_id=workspace_id, trade_id=trade_id)
+    handoff = await handoff_service.get(
+        workspace_id=workspace_id,
+        trade_id=trade_id,
+    )
     assert handoff.ready is True
     assert handoff.reason == "READY"
     assert handoff.post_trade_observation_id == observation.id
