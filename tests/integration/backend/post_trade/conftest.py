@@ -35,13 +35,17 @@ def _test_database_url() -> str:
 
     for raw in env_path.read_text(encoding="utf-8").splitlines():
         raw = raw.strip()
+
         if not raw or raw.startswith("#") or "=" not in raw:
             continue
+
         key, value = raw.split("=", 1)
+
         values[key.strip()] = value.strip().strip('"').strip("'")
 
     user = values.get("POSTGRES_USER")
     password = values.get("POSTGRES_PASSWORD")
+
     if not user or password is None:
         raise RuntimeError("POSTGRES_USER / POSTGRES_PASSWORD fehlen in docker/.env")
 
@@ -56,21 +60,32 @@ def _test_database_url() -> str:
 
 @pytest_asyncio.fixture
 async def post_trade_test_engine() -> AsyncEngine:
-    engine = create_async_engine(_test_database_url(), pool_pre_ping=True)
+    engine = create_async_engine(
+        _test_database_url(),
+        pool_pre_ping=True,
+    )
+
     try:
         async with engine.connect() as connection:
             database = await connection.scalar(text("select current_database()"))
+
             if database != EXPECTED_DATABASE:
                 raise RuntimeError(
                     "Integrationstests dürfen nur gegen "
-                    f"{EXPECTED_DATABASE!r} laufen; aktuell: {database!r}"
+                    f"{EXPECTED_DATABASE!r} laufen; "
+                    f"aktuell: {database!r}"
                 )
+
             revision = await connection.scalar(text("select version_num from alembic_version"))
+
             if revision != EXPECTED_ALEMBIC_HEAD:
                 raise RuntimeError(
-                    "Test-DB ist nicht auf erwartetem Alembic Head: "
-                    f"{revision!r} != {EXPECTED_ALEMBIC_HEAD!r}"
+                    "Test-DB ist nicht auf erwartetem "
+                    "Alembic Head: "
+                    f"{revision!r} != "
+                    f"{EXPECTED_ALEMBIC_HEAD!r}"
                 )
+
         yield engine
     finally:
         await engine.dispose()
@@ -82,6 +97,7 @@ async def post_trade_connection(
 ) -> AsyncConnection:
     async with post_trade_test_engine.connect() as connection:
         transaction = await connection.begin()
+
         try:
             yield connection
         finally:
@@ -98,6 +114,7 @@ async def post_trade_session(
         expire_on_commit=False,
         join_transaction_mode="create_savepoint",
     )
+
     try:
         yield session
     finally:
