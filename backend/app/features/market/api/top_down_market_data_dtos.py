@@ -1,4 +1,4 @@
-"""HTTP contracts for MarketReference provider mapping and EOD import."""
+"""HTTP contracts for MarketReference provider mapping, EOD import, and analysis."""
 
 from __future__ import annotations
 
@@ -69,3 +69,11 @@ class ReferenceDailyPriceImportResponse(BaseModel):
             updated=value.updated,
             unchanged=value.unchanged,
         )
+
+
+class ReferenceAnalysisResponse(BaseModel):
+    market_reference_id: UUID
+    analysis_id: UUID
+    market_data_instrument_id: UUID
+    created_at: datetime
+    created_by: str
