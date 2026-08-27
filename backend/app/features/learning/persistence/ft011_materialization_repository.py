@@ -5,7 +5,8 @@ from __future__ import annotations
 from typing import Protocol
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import Select, select
+from sqlalchemy.engine import Row
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.features.learning.domain import (
@@ -98,7 +99,7 @@ class SqlAlchemyFt011MaterializationRepository:
         )
 
     @staticmethod
-    def _base_query():
+    def _base_query() -> Select[tuple[LearningEvidenceModel, FT011EvidenceModel]]:
         return (
             select(LearningEvidenceModel, FT011EvidenceModel)
             .join(
@@ -110,7 +111,7 @@ class SqlAlchemyFt011MaterializationRepository:
 
     @staticmethod
     def _projection(
-        row: tuple[LearningEvidenceModel, FT011EvidenceModel],
+        row: Row[tuple[LearningEvidenceModel, FT011EvidenceModel]],
     ) -> LearningEvidenceProjection:
         evidence_model, source_model = row
         return LearningEvidenceProjection(
