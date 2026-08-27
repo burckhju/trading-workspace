@@ -16,7 +16,10 @@ from app.features.market.service.top_down_administration import (
 )
 from app.features.market_data.domain.enums import MappingStatus, MarketDataProvider
 from app.features.market_data.persistence.instruments import MarketDataInstrumentModel
-from app.features.market_data.persistence.models import DailyPriceModel, ProviderInstrumentMappingModel
+from app.features.market_data.persistence.models import (
+    DailyPriceModel,
+    ProviderInstrumentMappingModel,
+)
 
 
 class MarketDataTopDownReferenceAdministrationService(TopDownReferenceAdministrationService):
