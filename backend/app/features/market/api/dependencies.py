@@ -7,7 +7,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.di import ApplicationContainer, get_container
 from app.database.dependencies import get_database_session
-from app.features.analysis.service.reference_application import MarketReferenceAnalysisService
+from app.features.analysis.service.reference_application import (
+    MarketReferenceAnalysisService,
+)
 from app.features.market.service.issuer_administration import IssuerAdministrationService
 from app.features.market.service.listing_service import ListingService
 from app.features.market.service.reference_data_service import ReferenceDataService
