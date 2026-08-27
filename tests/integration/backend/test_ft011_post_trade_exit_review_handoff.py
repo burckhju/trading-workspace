@@ -10,7 +10,9 @@ import pytest
 
 from app.features.post_trade.application.exit_review_service import ExitReviewService
 from app.features.post_trade.application.handoff_service import Ft012HandoffService
-from app.features.post_trade.application.observation_service import PostTradeObservationService
+from app.features.post_trade.application.observation_service import (
+    PostTradeObservationService,
+)
 from app.features.post_trade.application.ports import (
     DailyObservation,
     PlanningContext,
