@@ -10,7 +10,9 @@ from fastapi import APIRouter, Depends, Header, HTTPException, status
 from app.features.analysis.api.dtos import RunAnalysisRequest, RunSummaryResponse
 from app.features.analysis.api.errors import translate_analysis_error
 from app.features.analysis.domain.errors import AnalysisError
-from app.features.analysis.service.reference_application import MarketReferenceAnalysisService
+from app.features.analysis.service.reference_application import (
+    MarketReferenceAnalysisService,
+)
 from app.features.market.api.dependencies import (
     get_market_reference_analysis_service,
     get_reference_market_data_service,
