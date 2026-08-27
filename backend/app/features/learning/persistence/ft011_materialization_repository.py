@@ -109,7 +109,9 @@ class SqlAlchemyFt011MaterializationRepository:
         )
 
     @staticmethod
-    def _projection(row: tuple[LearningEvidenceModel, FT011EvidenceModel]) -> LearningEvidenceProjection:
+    def _projection(
+        row: tuple[LearningEvidenceModel, FT011EvidenceModel],
+    ) -> LearningEvidenceProjection:
         evidence_model, source_model = row
         return LearningEvidenceProjection(
             evidence=LearningEvidence(
