@@ -163,17 +163,16 @@ class MaterializeFt011LearningEvidenceService:
 
                 if existing_source is not None:
                     await self._mark_succeeded(record.id, existing_source.evidence.id)
+                    await self._uow.commit()
                     return self._result(existing_source, created=False, replayed=False)
 
-                created_at = self._clock.now()
                 evidence = LearningEvidence(
                     id=self._id_factory.new_uuid(),
                     workspace_id=workspace_id,
                     evidence_type=LearningEvidenceType.FT011,
-                    created_at=created_at,
+                    created_at=self._clock.now(),
                 )
                 await self._repository.add_evidence(evidence)
-                # Parent must exist before the provenance child is flushed on PostgreSQL.
                 await self._uow.flush()
 
                 source = FT011Evidence(
@@ -184,10 +183,10 @@ class MaterializeFt011LearningEvidenceService:
                     exit_review_version_id=handoff.exit_review_version_id,
                 )
                 await self._repository.add_source(source)
-                # Force the semantic uniqueness constraint before recording SUCCESS.
                 await self._uow.flush()
 
                 await self._mark_succeeded(record.id, evidence.id)
+                await self._uow.commit()
                 return MaterializeFt011LearningEvidenceResult(
                     learning_evidence_id=evidence.id,
                     exit_review_version_id=source.exit_review_version_id,
