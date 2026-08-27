@@ -184,7 +184,7 @@ class ApplicationContainer:
         """Synchronize local usage with the non-secret EODHD User API counters."""
         if self.eodhd is None:
             raise MarketDataConfigurationError(
-                "EODHD is disabled", provider=MarketDataProvider.EODHD
+                "EODHD provider is disabled", provider=MarketDataProvider.EODHD
             )
         payload = await self.eodhd.client.get_json(
             "/user/",
