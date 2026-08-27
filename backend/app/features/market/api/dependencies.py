@@ -2,9 +2,10 @@
 
 from typing import Annotated
 
-from fastapi import Depends
+from fastapi import Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.di import ApplicationContainer, get_container
 from app.database.dependencies import get_database_session
 from app.features.market.service.issuer_administration import IssuerAdministrationService
 from app.features.market.service.listing_service import ListingService
@@ -17,6 +18,7 @@ from app.features.market.service.trading_venue_administration import (
     TradingVenueAdministrationService,
 )
 from app.features.market.service.unit_of_work import SqlAlchemyMarketUnitOfWork
+from app.features.market_data.service.reference_market_data import ReferenceMarketDataService
 
 
 async def get_underlying_service(
@@ -53,3 +55,24 @@ async def get_top_down_reference_administration_service(
     session: Annotated[AsyncSession, Depends(get_database_session)],
 ) -> TopDownReferenceAdministrationService:
     return TopDownReferenceAdministrationService(session)
+
+
+async def get_reference_market_data_service(
+    session: Annotated[AsyncSession, Depends(get_database_session)],
+    container: Annotated[ApplicationContainer, Depends(get_container)],
+) -> ReferenceMarketDataService:
+    runtime = container.eodhd
+    if runtime is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="EODHD provider is disabled",
+        )
+    settings = container.settings.market_data.eodhd
+    return ReferenceMarketDataService(
+        session,
+        client=runtime.client,
+        call_budget=runtime.call_budget,
+        retry_policy=runtime.retry_policy,
+        rate_limiter=runtime.rate_limiter,
+        provider_call_cost=settings.historical_eod_call_cost,
+    )
