@@ -338,6 +338,7 @@ class ModelGovernanceService:
             previous_version_id=latest_version.id,
         )
         self._session.add(self._version_record(version))
+        await self._session.flush()
         approval = ModelApproval(
             id=uuid4(),
             proposal_id=proposal_id,
