@@ -77,7 +77,7 @@ class ExactSelectionResolver:
 
 
 @pytest.mark.asyncio
-async def test_product_selection_handoff_creates_trade_execution_and_position_with_pinned_provenance() -> None:
+async def test_product_selection_handoff_pins_trade_and_position_provenance() -> None:
     selected_at = datetime(2026, 8, 27, 10, 30, tzinfo=UTC)
     executed_at = selected_at + timedelta(minutes=5)
     workspace_id = uuid4()
