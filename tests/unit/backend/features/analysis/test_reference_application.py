@@ -96,9 +96,7 @@ async def test_run_market_reference_requires_market_reference_instrument_kind() 
         )
     )
     service._identity = SimpleNamespace(
-        get=AsyncMock(
-            return_value=SimpleNamespace(kind="LISTING", market_reference_id=None)
-        )
+        get=AsyncMock(return_value=SimpleNamespace(kind="LISTING", market_reference_id=None))
     )
 
     with pytest.raises(AnalysisDataUnavailable, match="analysis is not market-reference owned"):
