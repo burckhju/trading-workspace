@@ -32,6 +32,8 @@ async def test_learning_evidence_drives_controlled_model_governance(
             created_at=NOW,
         )
     )
+    await learning_session.flush()
+
     learning_session.add(
         LearningEvidenceModel(
             id=evidence_id,
