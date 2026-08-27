@@ -99,7 +99,12 @@ def test_readiness_endpoint_returns_configuration_blockers() -> None:
             completed_analysis_id=None,
             completed_analysis_version=None,
             ready=False,
-            blockers=("NO_ACTIVE_LISTING_ASSIGNMENT", "NO_EODHD_PROVIDER_MAPPING"),
+            blockers=(
+                "NO_MARKET_DATA_INSTRUMENT",
+                "NO_ACTIVE_PROVIDER_MAPPING",
+                "INSUFFICIENT_DAILY_PRICE_HISTORY",
+                "NO_COMPLETED_ANALYSIS",
+            ),
         ),
     )
     application = create_application(settings())
@@ -112,5 +117,6 @@ def test_readiness_endpoint_returns_configuration_blockers() -> None:
 
     assert response.status_code == 200
     assert response.json()[0]["ready"] is False
-    assert "NO_ACTIVE_LISTING_ASSIGNMENT" in response.json()[0]["blockers"]
+    assert "NO_ACTIVE_LISTING_ASSIGNMENT" not in response.json()[0]["blockers"]
+    assert "NO_MARKET_DATA_INSTRUMENT" in response.json()[0]["blockers"]
     service.reference_readiness.assert_awaited_once_with(WORKSPACE_ID)
