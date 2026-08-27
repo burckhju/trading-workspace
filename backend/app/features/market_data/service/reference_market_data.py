@@ -134,6 +134,7 @@ class ReferenceMarketDataService:
         await self._require_active_reference(workspace_id, market_reference_id)
         mapping = await self._require_mapping(workspace_id, market_reference_id)
         match = await self._exact_search_match(mapping)
+        currency = (match.currency or "").strip().upper() if match is not None else ""
         now = datetime.now(UTC)
         mapping.validated_at = now
         mapping.updated_at = now
@@ -141,14 +142,13 @@ class ReferenceMarketDataService:
         if match is None:
             mapping.status = MappingStatus.INVALID
             mapping.validation_message = "EODHD did not return an exact symbol and exchange match"
-        elif not (match.currency or "").strip():
+        elif not currency:
             mapping.status = MappingStatus.INVALID
             mapping.validation_message = "EODHD exact match did not provide a currency"
         else:
             mapping.status = MappingStatus.ACTIVE
             mapping.validation_message = (
-                "Technically validated against EODHD Search API; "
-                f"currency={match.currency.strip().upper()}"
+                "Technically validated against EODHD Search API; " f"currency={currency}"
             )
         await self._session.commit()
         return mapping
@@ -172,9 +172,9 @@ class ReferenceMarketDataService:
             raise ValueError("provider mapping is not MarketReference-owned")
 
         match = await self._exact_search_match(mapping)
-        if match is None or not (match.currency or "").strip():
+        currency = (match.currency or "").strip().upper() if match is not None else ""
+        if not currency:
             raise ValueError("provider currency could not be resolved from the validated mapping")
-        currency = match.currency.strip().upper()
 
         payload = await self._provider_call(
             capability=MarketDataCapability.HISTORICAL_DAILY_PRICES,
