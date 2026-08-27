@@ -63,10 +63,7 @@ class MemoryUow:
     async def _get_observation_for_trade(self, workspace_id, trade_id):
         if self.observation is None:
             return None
-        if (
-            self.observation.workspace_id == workspace_id
-            and self.observation.trade_id == trade_id
-        ):
+        if self.observation.workspace_id == workspace_id and self.observation.trade_id == trade_id:
             return self.observation
         return None
 
@@ -111,19 +108,14 @@ class MemoryUow:
             (
                 version
                 for version in self.versions
-                if version.exit_review_id == review_id
-                and version.status is ExitReviewStatus.DRAFT
+                if version.exit_review_id == review_id and version.status is ExitReviewStatus.DRAFT
             ),
             None,
         )
 
     async def _next_version_number(self, workspace_id, review_id):
         return 1 + max(
-            (
-                version.version
-                for version in self.versions
-                if version.exit_review_id == review_id
-            ),
+            (version.version for version in self.versions if version.exit_review_id == review_id),
             default=0,
         )
 
@@ -138,9 +130,7 @@ class MemoryUow:
         self.versions.append(version)
 
     async def _replace_version(self, version):
-        self.versions = [
-            version if item.id == version.id else item for item in self.versions
-        ]
+        self.versions = [version if item.id == version.id else item for item in self.versions]
 
 
 @pytest.mark.asyncio
