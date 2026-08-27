@@ -43,7 +43,9 @@ export function LessonDraftFromEvidence({
       setCreatedLessonId(result.lesson_id);
       onCreated?.(result.lesson_id);
     } catch (nextError: unknown) {
-      setError(nextError instanceof Error ? nextError.message : 'Lesson konnte nicht angelegt werden.');
+      setError(
+        nextError instanceof Error ? nextError.message : 'Lesson konnte nicht angelegt werden.',
+      );
     } finally {
       setSubmitting(false);
     }
