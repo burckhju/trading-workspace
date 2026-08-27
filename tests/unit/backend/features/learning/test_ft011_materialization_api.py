@@ -35,13 +35,15 @@ class FakeMaterializationService:
 
 
 def test_materialize_ft011_learning_evidence_requires_idempotency_key() -> None:
+    service = FakeMaterializationService()
     app = _make_app()
-    app.dependency_overrides[get_ft011_materialization_service] = FakeMaterializationService
+    app.dependency_overrides[get_ft011_materialization_service] = lambda: service
     client = TestClient(app)
 
     response = client.post(f"/api/v1/learning/trades/{uuid4()}/ft011-evidence/materialize")
 
     assert response.status_code == 422
+    assert service.calls == []
 
 
 def test_materialize_ft011_learning_evidence_invokes_application_command() -> None:
