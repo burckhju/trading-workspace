@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 
 import { ErrorNotice, LoadingNotice } from '../../market/components/ApiFeedback';
+import { ProposalApprovalPanel } from './ProposalApprovalPanel';
 import { proposalValidationClient } from '../services/proposalValidationClient';
 import type { ModelValidationSummary, ValidationConclusion } from '../types/proposalValidation';
 
@@ -89,14 +90,17 @@ export function ProposalValidationPanel({
             {validation.notes && <p className="mt-2 whitespace-pre-wrap">{validation.notes}</p>}
           </div>
         ))}
-        <p className="mt-3 text-xs text-slate-500">
-          Approval und ModelVersion-Erzeugung erfolgen weiterhin separat.
-        </p>
+        <ProposalApprovalPanel
+          proposalId={proposalId}
+          proposalStatus={proposalStatus === 'APPROVED' ? 'APPROVED' : 'VALIDATED'}
+        />
       </div>
     );
   }
 
-  if (proposalStatus !== 'DRAFT') return null;
+  if (proposalStatus !== 'DRAFT') {
+    return <ProposalApprovalPanel proposalId={proposalId} proposalStatus={proposalStatus} />;
+  }
 
   return (
     <div className="mt-4 rounded-lg border border-slate-800 p-4">
