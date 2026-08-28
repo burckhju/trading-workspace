@@ -15,19 +15,24 @@ vi.mock('../../learning/components/LessonDraftFromEvidence', () => ({
 }));
 
 const status = vi.fn(
-  async (_tradeId: string, _signal?: AbortSignal): Promise<Ft011MaterializationStatus> => ({
-    ready: true,
-    reason: 'READY',
-    materialized: true,
-    learning_evidence_id: 'evidence-1',
-    exit_review_version_id: 'version-1',
-  }),
+  (tradeId: string, signal?: AbortSignal): Promise<Ft011MaterializationStatus> => {
+    void tradeId;
+    void signal;
+    return Promise.resolve({
+      ready: true,
+      reason: 'READY',
+      materialized: true,
+      learning_evidence_id: 'evidence-1',
+      exit_review_version_id: 'version-1',
+    });
+  },
 );
 const listForEvidence = vi.fn(
-  async (
-    _learningEvidenceId: string,
-    _signal?: AbortSignal,
-  ): Promise<LessonEvidenceReference[]> => [],
+  (learningEvidenceId: string, signal?: AbortSignal): Promise<LessonEvidenceReference[]> => {
+    void learningEvidenceId;
+    void signal;
+    return Promise.resolve([]);
+  },
 );
 
 vi.mock('../../learning/services/materializationClient', () => ({
