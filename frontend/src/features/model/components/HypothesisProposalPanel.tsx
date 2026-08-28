@@ -172,7 +172,9 @@ export function HypothesisProposalPanel({ hypothesisId }: HypothesisProposalPane
             required
             disabled={!modelId || loadingVersions}
           >
-            <option value="">{loadingVersions ? 'Versionen werden geladen …' : 'Version auswählen'}</option>
+            <option value="">
+              {loadingVersions ? 'Versionen werden geladen …' : 'Version auswählen'}
+            </option>
             {versions.map((version) => (
               <option key={version.id} value={version.id}>
                 Version {version.version}
