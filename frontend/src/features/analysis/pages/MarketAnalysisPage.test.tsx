@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -210,7 +210,7 @@ describe('MarketAnalysisPage', () => {
     );
 
     const underlyingFilter = await screen.findByRole('combobox', { name: 'Basiswert filtern' });
-    await screen.findByRole('option', { name: 'Siemens AG' });
+    await within(underlyingFilter).findByRole('option', { name: /Siemens AG/ });
     await user.selectOptions(underlyingFilter, underlyingId);
     await waitFor(() =>
       expect(analysisApiClient.listPage).toHaveBeenLastCalledWith(
