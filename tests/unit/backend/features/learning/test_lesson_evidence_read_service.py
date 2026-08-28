@@ -4,9 +4,13 @@ from uuid import uuid4
 
 import pytest
 
-from app.features.learning.application.lesson_evidence_read_service import LessonEvidenceReadService
+from app.features.learning.application.lesson_evidence_read_service import (
+    LessonEvidenceReadService,
+)
 from app.features.learning.domain import LessonState
-from app.features.learning.persistence.lesson_evidence_read_repository import LessonEvidenceReference
+from app.features.learning.persistence.lesson_evidence_read_repository import (
+    LessonEvidenceReference,
+)
 
 
 class Repository:
