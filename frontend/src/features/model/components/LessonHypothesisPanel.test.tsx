@@ -12,6 +12,12 @@ vi.mock('../services/lessonHypothesisClient', () => ({
   lessonHypothesisClient: mocks,
 }));
 
+vi.mock('./HypothesisProposalPanel', () => ({
+  HypothesisProposalPanel: ({ hypothesisId }: { hypothesisId: string }) => (
+    <div>Proposal workflow {hypothesisId}</div>
+  ),
+}));
+
 describe('LessonHypothesisPanel', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -35,6 +41,7 @@ describe('LessonHypothesisPanel', () => {
 
     expect(await screen.findByText('Bereits an FT-013 übergeben')).toBeInTheDocument();
     expect(screen.getByText('Exit discipline')).toBeInTheDocument();
+    expect(screen.getByText('Proposal workflow hypothesis-1')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Hypothese für FT-013 anlegen' })).toBeNull();
   });
 

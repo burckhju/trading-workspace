@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 
 import { ErrorNotice, LoadingNotice } from '../../market/components/ApiFeedback';
+import { HypothesisProposalPanel } from './HypothesisProposalPanel';
 import { lessonHypothesisClient } from '../services/lessonHypothesisClient';
 import type { LessonHypothesis } from '../types/lessonHypothesis';
 
@@ -87,6 +88,7 @@ export function LessonHypothesisPanel({ lessonVersionId }: LessonHypothesisPanel
                 {hypothesis.statement}
               </p>
               <p className="mt-2 break-all text-xs text-slate-500">{hypothesis.id}</p>
+              <HypothesisProposalPanel hypothesisId={hypothesis.id} />
             </article>
           ))}
         </div>
