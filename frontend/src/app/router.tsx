@@ -3,6 +3,7 @@ import { createBrowserRouter } from 'react-router-dom';
 import { TopDownWorkflowActionPage } from '../features/administration/pages';
 import { MarketAnalysisDetailPage, MarketAnalysisPage } from '../features/analysis/pages';
 import { CandidatePage } from '../features/candidate/pages';
+import { LessonDetailPage } from '../features/learning/pages/LessonDetailPage';
 import { BulkImportPage } from '../features/learning/pages';
 import {
   IssuerAdminPage,
@@ -34,6 +35,7 @@ export function createApplicationRouter() {
         { path: 'post-trade', element: <PostTradeLearningPage /> },
         { path: 'product-selection', element: <ProductSelectionPage /> },
         { path: 'learning-imports', element: <BulkImportPage /> },
+        { path: 'lessons/:lessonId', element: <LessonDetailPage /> },
         { path: 'top-down-admin', element: <TopDownWorkflowActionPage /> },
         { path: 'trading-venues-admin', element: <TradingVenueAdminPage /> },
         { path: 'issuers-admin', element: <IssuerAdminPage /> },
