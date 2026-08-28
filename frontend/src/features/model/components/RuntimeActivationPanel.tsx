@@ -62,7 +62,9 @@ export function RuntimeActivationPanel({
     <div className="mt-4 rounded-lg border border-slate-800 p-4">
       <h4 className="font-medium">Runtime-Aktivierung</h4>
       {current === null ? (
-        <p className="mt-2 text-sm text-slate-400">Für dieses Modell ist noch keine Runtime-Version aktiviert.</p>
+        <p className="mt-2 text-sm text-slate-400">
+          Für dieses Modell ist noch keine Runtime-Version aktiviert.
+        </p>
       ) : (
         <p className="mt-2 text-sm text-slate-400">
           Aktuell aktiv: Version {current.model_version.version}
@@ -75,7 +77,8 @@ export function RuntimeActivationPanel({
       ) : (
         <>
           <p className="mt-3 text-sm text-slate-400">
-            Version {approvedVersionNumber} ist freigegeben, aber noch nicht aktiv. Die Aktivierung ist ein bewusster letzter Governance-Schritt.
+            Version {approvedVersionNumber} ist freigegeben, aber noch nicht aktiv. Die Aktivierung
+            ist ein bewusster letzter Governance-Schritt.
           </p>
           {error !== null && (
             <div className="mt-3">
