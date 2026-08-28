@@ -75,7 +75,10 @@ export function PostTradeLearningPage() {
               <ul className="mt-3 space-y-2 text-sm">
                 {lessonReferences.map((lesson) => (
                   <li key={lesson.lesson_id}>
-                    <Link to={`/lessons/${lesson.lesson_id}`} className="text-emerald-300 underline">
+                    <Link
+                      to={`/lessons/${lesson.lesson_id}`}
+                      className="text-emerald-300 underline"
+                    >
                       {lesson.title} · {lesson.current_state}
                     </Link>
                   </li>
