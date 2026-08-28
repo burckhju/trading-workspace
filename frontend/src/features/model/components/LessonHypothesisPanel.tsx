@@ -1,4 +1,5 @@
-import { FormEvent, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
+import type { FormEvent } from 'react';
 
 import { ErrorNotice, LoadingNotice } from '../../market/components/ApiFeedback';
 import { lessonHypothesisClient } from '../services/lessonHypothesisClient';
@@ -53,6 +54,10 @@ export function LessonHypothesisPanel({ lessonVersionId }: LessonHypothesisPanel
     }
   }
 
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    void submit(event);
+  }
+
   if (loading) return <LoadingNotice label="FT-013-Hypothesen werden geladen …" />;
 
   return (
@@ -63,7 +68,11 @@ export function LessonHypothesisPanel({ lessonVersionId }: LessonHypothesisPanel
         Modelländerung und startet keine Validierung automatisch.
       </p>
 
-      {error !== null && <div className="mt-4"><ErrorNotice error={error} /></div>}
+      {error !== null && (
+        <div className="mt-4">
+          <ErrorNotice error={error} />
+        </div>
+      )}
 
       {hypotheses.length > 0 ? (
         <div className="mt-4 space-y-3">
@@ -82,7 +91,7 @@ export function LessonHypothesisPanel({ lessonVersionId }: LessonHypothesisPanel
           ))}
         </div>
       ) : (
-        <form className="mt-5 space-y-4" onSubmit={submit}>
+        <form className="mt-5 space-y-4" onSubmit={handleSubmit}>
           <label className="block text-sm">
             <span className="text-slate-400">Titel</span>
             <input
