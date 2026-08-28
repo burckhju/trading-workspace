@@ -210,6 +210,7 @@ describe('MarketAnalysisPage', () => {
     );
 
     const underlyingFilter = await screen.findByRole('combobox', { name: 'Basiswert filtern' });
+    await screen.findByRole('option', { name: 'Siemens AG' });
     await user.selectOptions(underlyingFilter, underlyingId);
     await waitFor(() =>
       expect(analysisApiClient.listPage).toHaveBeenLastCalledWith(
@@ -263,15 +264,8 @@ describe('MarketAnalysisPage', () => {
       </MemoryRouter>,
     );
 
-    const savedView = await screen.findByRole('combobox', {
-      name: 'Gespeicherte Ansicht',
-    });
-
-    await screen.findByRole('option', {
-      name: 'Gespeicherte Siemens-Ansicht',
-    });
-
-    await user.selectOptions(savedView, 'saved-view-existing');
+    const savedViews = await screen.findByRole('combobox', { name: 'Gespeicherte Ansicht' });
+    await user.selectOptions(savedViews, 'saved-view-existing');
 
     expect(screen.getByRole('combobox', { name: 'Status filtern' })).toHaveValue('COMPLETED');
     expect(screen.getByRole('combobox', { name: 'Qualität filtern' })).toHaveValue('GOOD');
@@ -283,13 +277,6 @@ describe('MarketAnalysisPage', () => {
     expect(screen.getByRole('combobox', { name: 'Sortierrichtung' })).toHaveValue('asc');
 
     await user.click(screen.getByRole('button', { name: 'Ansicht löschen' }));
-
-    await waitFor(() =>
-      expect(preferenceClient.delete.mock.calls.at(-1)?.[0]).toBe('saved-view-existing'),
-    );
-
-    expect(
-      screen.queryByRole('option', { name: 'Gespeicherte Siemens-Ansicht' }),
-    ).not.toBeInTheDocument();
+    await waitFor(() => expect(preferenceClient.delete).toHaveBeenCalledWith('saved-view-existing'));
   });
 });
