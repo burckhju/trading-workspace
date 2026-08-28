@@ -13,16 +13,8 @@ vi.mock('../services/proposalValidationClient', () => ({
 }));
 
 vi.mock('./ProposalApprovalPanel', () => ({
-  ProposalApprovalPanel: ({
-    proposalId,
-    proposalStatus,
-  }: {
-    proposalId: string;
-    proposalStatus: string;
-  }) => (
-    <div>
-      Approval workflow {proposalId} {proposalStatus}
-    </div>
+  ProposalApprovalPanel: (props: { proposalId: string; proposalStatus: string }) => (
+    <div>{`Approval workflow ${props.proposalId} ${props.proposalStatus}`}</div>
   ),
 }));
 
