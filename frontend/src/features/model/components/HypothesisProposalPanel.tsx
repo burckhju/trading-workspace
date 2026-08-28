@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 
 import { ErrorNotice, LoadingNotice } from '../../market/components/ApiFeedback';
+import { ProposalValidationPanel } from './ProposalValidationPanel';
 import { hypothesisProposalClient } from '../services/hypothesisProposalClient';
 import type {
   GovernedModelSummary,
@@ -121,6 +122,7 @@ export function HypothesisProposalPanel({ hypothesisId }: HypothesisProposalPane
             </p>
             <p className="mt-1 break-all text-slate-500">Proposal {proposal.id}</p>
             <p className="mt-2 whitespace-pre-wrap text-slate-300">{proposal.rationale}</p>
+            <ProposalValidationPanel proposalId={proposal.id} proposalStatus={proposal.status} />
           </div>
         ))}
       </div>
