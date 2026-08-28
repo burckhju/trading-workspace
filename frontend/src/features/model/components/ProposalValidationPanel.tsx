@@ -3,10 +3,7 @@ import type { FormEvent } from 'react';
 
 import { ErrorNotice, LoadingNotice } from '../../market/components/ApiFeedback';
 import { proposalValidationClient } from '../services/proposalValidationClient';
-import type {
-  ModelValidationSummary,
-  ValidationConclusion,
-} from '../types/proposalValidation';
+import type { ModelValidationSummary, ValidationConclusion } from '../types/proposalValidation';
 
 interface ProposalValidationPanelProps {
   proposalId: string;
@@ -20,7 +17,10 @@ function parseEvidenceIds(value: string): string[] {
     .filter(Boolean);
 }
 
-export function ProposalValidationPanel({ proposalId, proposalStatus }: ProposalValidationPanelProps) {
+export function ProposalValidationPanel({
+  proposalId,
+  proposalStatus,
+}: ProposalValidationPanelProps) {
   const [validations, setValidations] = useState<ModelValidationSummary[]>([]);
   const [evidenceIds, setEvidenceIds] = useState('');
   const [cutoff, setCutoff] = useState('');
