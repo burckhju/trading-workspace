@@ -4,7 +4,9 @@ from uuid import uuid4
 
 import pytest
 
-from app.features.model.service.proposal_approval_read_service import ProposalApprovalReadService
+from app.features.model.service.proposal_approval_read_service import (
+    ProposalApprovalReadService,
+)
 
 
 @pytest.mark.asyncio
@@ -28,9 +30,7 @@ async def test_reads_workspace_scoped_proposal_approval_and_version() -> None:
 
 @pytest.mark.asyncio
 async def test_returns_none_when_proposal_has_no_approval() -> None:
-    session = SimpleNamespace(
-        scalar=AsyncMock(side_effect=[SimpleNamespace(id=uuid4()), None])
-    )
+    session = SimpleNamespace(scalar=AsyncMock(side_effect=[SimpleNamespace(id=uuid4()), None]))
 
     result = await ProposalApprovalReadService(session).get_for_proposal(
         workspace_id=uuid4(),
