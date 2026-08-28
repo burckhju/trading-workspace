@@ -19,7 +19,11 @@ vi.mock('./ProposalApprovalPanel', () => ({
   }: {
     proposalId: string;
     proposalStatus: string;
-  }) => <div>Approval workflow {proposalId} {proposalStatus}</div>,
+  }) => (
+    <div>
+      Approval workflow {proposalId} {proposalStatus}
+    </div>
+  ),
 }));
 
 describe('ProposalValidationPanel', () => {
@@ -47,7 +51,9 @@ describe('ProposalValidationPanel', () => {
 
     expect(await screen.findByText('Retrospektiv validiert')).toBeInTheDocument();
     expect(screen.getByText('Approval workflow proposal-1 VALIDATED')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Proposal retrospektiv validieren' })).toBeNull();
+    expect(
+      screen.queryByRole('button', { name: 'Proposal retrospektiv validieren' }),
+    ).toBeNull();
   });
 
   it('creates a retrospective validation for a DRAFT proposal', async () => {
