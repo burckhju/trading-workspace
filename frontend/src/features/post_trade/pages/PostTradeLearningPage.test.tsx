@@ -2,6 +2,8 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import type { LessonEvidenceReference } from '../../learning/types/lessonReadback';
+import type { Ft011MaterializationStatus } from '../../learning/types/materialization';
 import { PostTradeLearningPage } from './PostTradeLearningPage';
 
 vi.mock('./PostTradeReviewPage', () => ({
@@ -12,28 +14,33 @@ vi.mock('../../learning/components/LessonDraftFromEvidence', () => ({
   LessonDraftFromEvidence: () => <div>lesson-form</div>,
 }));
 
-const status = vi.fn();
-const listForEvidence = vi.fn();
+const status = vi.fn(
+  async (_tradeId: string, _signal?: AbortSignal): Promise<Ft011MaterializationStatus> => ({
+    ready: true,
+    reason: 'READY',
+    materialized: true,
+    learning_evidence_id: 'evidence-1',
+    exit_review_version_id: 'version-1',
+  }),
+);
+const listForEvidence = vi.fn(
+  async (
+    _learningEvidenceId: string,
+    _signal?: AbortSignal,
+  ): Promise<LessonEvidenceReference[]> => [],
+);
 
 vi.mock('../../learning/services/materializationClient', () => ({
-  ft011MaterializationClient: { status: (...args: unknown[]) => status(...args) },
+  ft011MaterializationClient: { status },
 }));
 
 vi.mock('../../learning/services/lessonReadbackClient', () => ({
-  lessonReadbackClient: {
-    listForEvidence: (...args: unknown[]) => listForEvidence(...args),
-  },
+  lessonReadbackClient: { listForEvidence },
 }));
 
 describe('PostTradeLearningPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    status.mockResolvedValue({
-      ready: true,
-      materialized: true,
-      learning_evidence_id: 'evidence-1',
-      exit_review_version_id: 'version-1',
-    });
   });
 
   it('shows existing Lessons and suppresses duplicate creation form', async () => {
@@ -69,7 +76,9 @@ describe('PostTradeLearningPage', () => {
       </MemoryRouter>,
     );
 
-    await waitFor(() => expect(listForEvidence).toHaveBeenCalledWith('evidence-1', expect.anything()));
+    await waitFor(() =>
+      expect(listForEvidence).toHaveBeenCalledWith('evidence-1', expect.anything()),
+    );
     expect(screen.getByText('lesson-form')).toBeInTheDocument();
   });
 });
