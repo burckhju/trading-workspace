@@ -14,7 +14,9 @@ from app.features.model.api.dtos import ProposalResponse
 from app.features.model.api.errors import translate_model_governance_error
 from app.features.model.domain.enums import ProposalStatus
 from app.features.model.persistence.models import ModelChangeProposalRecord
-from app.features.model.service.hypothesis_proposal_read_service import HypothesisProposalReadService
+from app.features.model.service.hypothesis_proposal_read_service import (
+    HypothesisProposalReadService,
+)
 
 router = APIRouter(prefix="/api/v1/model-governance", tags=["model-governance"])
 WORKSPACE_ID = UUID("00000000-0000-4000-8000-000000000001")
