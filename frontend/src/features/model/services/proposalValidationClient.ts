@@ -1,9 +1,6 @@
 import { environment } from '../../../services/environment';
 import { requestJson } from '../../market/services/http';
-import type {
-  CreateModelValidationInput,
-  ModelValidationSummary,
-} from '../types/proposalValidation';
+import type { CreateModelValidationInput, ModelValidationSummary } from '../types/proposalValidation';
 
 const baseUrl = `${environment.apiBaseUrl}/api/v1/model-governance`;
 
