@@ -8,10 +8,16 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.dependencies import get_database_session
-from app.features.model.api.dtos import ApprovalResponse, ModelVersionResponse, ProposalApprovalResponse
+from app.features.model.api.dtos import (
+    ApprovalResponse,
+    ModelVersionResponse,
+    ProposalApprovalResponse,
+)
 from app.features.model.api.errors import translate_model_governance_error
 from app.features.model.domain.enums import ModelVersionStatus
-from app.features.model.service.proposal_approval_read_service import ProposalApprovalReadService
+from app.features.model.service.proposal_approval_read_service import (
+    ProposalApprovalReadService,
+)
 
 router = APIRouter(prefix="/api/v1/model-governance", tags=["model-governance"])
 WORKSPACE_ID = UUID("00000000-0000-4000-8000-000000000001")
@@ -33,10 +39,16 @@ def _raise(error: ValueError) -> NoReturn:
 )
 async def get_proposal_approval(
     proposal_id: UUID,
-    service: Annotated[ProposalApprovalReadService, Depends(get_proposal_approval_read_service)],
+    service: Annotated[
+        ProposalApprovalReadService,
+        Depends(get_proposal_approval_read_service),
+    ],
 ) -> ProposalApprovalResponse | None:
     try:
-        result = await service.get_for_proposal(workspace_id=WORKSPACE_ID, proposal_id=proposal_id)
+        result = await service.get_for_proposal(
+            workspace_id=WORKSPACE_ID,
+            proposal_id=proposal_id,
+        )
         if result is None:
             return None
         approval, version = result
