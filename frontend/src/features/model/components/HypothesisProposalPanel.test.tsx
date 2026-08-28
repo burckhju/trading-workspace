@@ -14,6 +14,12 @@ vi.mock('../services/hypothesisProposalClient', () => ({
   hypothesisProposalClient: mocks,
 }));
 
+vi.mock('./ProposalValidationPanel', () => ({
+  ProposalValidationPanel: ({ proposalId }: { proposalId: string }) => (
+    <div>Validation workflow {proposalId}</div>
+  ),
+}));
+
 describe('HypothesisProposalPanel', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -61,6 +67,7 @@ describe('HypothesisProposalPanel', () => {
     render(<HypothesisProposalPanel hypothesisId="hypothesis-1" />);
 
     expect(await screen.findByText('ModelChangeProposal vorhanden')).toBeInTheDocument();
+    expect(screen.getByText('Validation workflow proposal-1')).toBeInTheDocument();
     expect(
       screen.queryByRole('button', { name: 'ModelChangeProposal als DRAFT anlegen' }),
     ).toBeNull();
