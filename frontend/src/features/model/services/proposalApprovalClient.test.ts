@@ -9,7 +9,10 @@ describe('proposalApprovalClient', () => {
 
   it('reads proposal approval', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
-      new Response('null', { status: 200, headers: { 'Content-Type': 'application/json' } }),
+      new Response('null', {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
     );
     vi.stubGlobal('fetch', fetchMock);
 
