@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import { ErrorNotice, LoadingNotice } from '../../market/components/ApiFeedback';
+import { RuntimeActivationPanel } from './RuntimeActivationPanel';
 import { proposalApprovalClient } from '../services/proposalApprovalClient';
 import type { ProposalApprovalResult } from '../types/proposalApproval';
 
@@ -64,9 +65,11 @@ export function ProposalApprovalPanel({ proposalId, proposalStatus }: ProposalAp
             Correlation: {approval.approval.correlation_id}
           </p>
         )}
-        <p className="mt-3 text-xs text-slate-500">
-          Die Version ist APPROVED, aber nicht automatisch als Runtime-Version aktiviert.
-        </p>
+        <RuntimeActivationPanel
+          modelId={approval.model_version.model_id}
+          approvedVersionId={approval.model_version.id}
+          approvedVersionNumber={approval.model_version.version}
+        />
       </div>
     );
   }
@@ -77,8 +80,8 @@ export function ProposalApprovalPanel({ proposalId, proposalStatus }: ProposalAp
     <div className="mt-4 rounded-lg border border-slate-800 p-4">
       <h4 className="font-medium">Proposal freigeben</h4>
       <p className="mt-1 text-sm text-slate-400">
-        Approval erzeugt eine neue immutable APPROVED ModelVersion und schließt die Hypothese. Eine
-        Runtime-Aktivierung erfolgt nicht.
+        Approval erzeugt eine neue immutable APPROVED ModelVersion und schließt die Hypothese. Die
+        Runtime-Aktivierung bleibt ein separater, expliziter Schritt.
       </p>
       {error !== null && (
         <div className="mt-3">
