@@ -13,6 +13,8 @@ from app.database.dependencies import get_database_session
 from app.features.model.api.dtos import ModelVersionResponse
 from app.features.model.api.errors import translate_model_governance_error
 from app.features.model.domain.enums import ModelVersionStatus
+from app.features.model.persistence.models import ModelVersionRecord
+from app.features.model.persistence.runtime_activation_models import ModelRuntimeActivationRecord
 from app.features.model.service.runtime_activation_service import RuntimeActivationService
 
 router = APIRouter(prefix="/api/v1/model-governance", tags=["model-governance"])
@@ -40,7 +42,9 @@ def _raise(error: ValueError) -> NoReturn:
     raise translate_model_governance_error(error) from error
 
 
-def _response(value: tuple[object, object]) -> RuntimeActivationResponse:
+def _response(
+    value: tuple[ModelRuntimeActivationRecord, ModelVersionRecord],
+) -> RuntimeActivationResponse:
     activation, version = value
     return RuntimeActivationResponse(
         id=activation.id,
