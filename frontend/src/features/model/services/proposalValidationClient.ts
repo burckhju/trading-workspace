@@ -13,7 +13,10 @@ export const proposalValidationClient = {
       signal,
     }),
 
-  create: (proposalId: string, input: CreateModelValidationInput): Promise<ModelValidationSummary> =>
+  create: (
+    proposalId: string,
+    input: CreateModelValidationInput,
+  ): Promise<ModelValidationSummary> =>
     requestJson<ModelValidationSummary>(`${baseUrl}/proposals/${proposalId}/validations`, {
       method: 'POST',
       body: input,
