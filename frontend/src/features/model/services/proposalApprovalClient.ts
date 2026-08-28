@@ -13,6 +13,6 @@ export const proposalApprovalClient = {
   approve: (proposalId: string, correlationId?: string): Promise<ProposalApprovalResult> =>
     requestJson<ProposalApprovalResult>(`${baseUrl}/proposals/${proposalId}/approve`, {
       method: 'POST',
-      headers: correlationId ? { 'X-Correlation-ID': correlationId } : undefined,
+      correlationId,
     }),
 };
