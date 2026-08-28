@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 
 import { ErrorNotice, LoadingNotice } from '../../market/components/ApiFeedback';
+import { LessonHypothesisPanel } from '../../model/components/LessonHypothesisPanel';
 import { lessonReadbackClient } from '../services/lessonReadbackClient';
 import type { LessonDetail } from '../types/lessonReadback';
 
@@ -69,6 +70,8 @@ export function LessonDetailPage() {
           ))}
         </ul>
       </section>
+
+      <LessonHypothesisPanel lessonVersionId={lesson.current_version_id} />
 
       <Link to="/post-trade" className="inline-block text-sm text-emerald-300 underline">
         Zurück zum Post-Trade Review
