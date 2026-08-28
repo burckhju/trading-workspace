@@ -1,9 +1,6 @@
 import { environment } from '../../../services/environment';
 import { requestJson } from '../../market/services/http';
-import type {
-  CreateLessonHypothesisInput,
-  LessonHypothesis,
-} from '../types/lessonHypothesis';
+import type { CreateLessonHypothesisInput, LessonHypothesis } from '../types/lessonHypothesis';
 
 const baseUrl = `${environment.apiBaseUrl}/api/v1/model-governance/lesson-versions`;
 
