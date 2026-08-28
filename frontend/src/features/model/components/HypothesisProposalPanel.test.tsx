@@ -61,7 +61,9 @@ describe('HypothesisProposalPanel', () => {
     render(<HypothesisProposalPanel hypothesisId="hypothesis-1" />);
 
     expect(await screen.findByText('ModelChangeProposal vorhanden')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'ModelChangeProposal als DRAFT anlegen' })).toBeNull();
+    expect(
+      screen.queryByRole('button', { name: 'ModelChangeProposal als DRAFT anlegen' }),
+    ).toBeNull();
   });
 
   it('creates proposal from an approved base version', async () => {
@@ -80,9 +82,15 @@ describe('HypothesisProposalPanel', () => {
     render(<HypothesisProposalPanel hypothesisId="hypothesis-1" />);
 
     await screen.findByText('ModelChangeProposal erstellen');
-    fireEvent.change(screen.getByLabelText('Governed Model'), { target: { value: 'model-1' } });
-    await waitFor(() => expect(mocks.listVersions).toHaveBeenCalledWith('model-1', expect.anything()));
-    await waitFor(() => expect(screen.getByLabelText('APPROVED Base-Version')).toHaveValue('version-1'));
+    fireEvent.change(screen.getByLabelText('Governed Model'), {
+      target: { value: 'model-1' },
+    });
+    await waitFor(() =>
+      expect(mocks.listVersions).toHaveBeenCalledWith('model-1', expect.anything()),
+    );
+    await waitFor(() =>
+      expect(screen.getByLabelText('APPROVED Base-Version')).toHaveValue('version-1'),
+    );
     fireEvent.change(screen.getByLabelText('Proposed Definition (JSON)'), {
       target: { value: '{"threshold":2}' },
     });
