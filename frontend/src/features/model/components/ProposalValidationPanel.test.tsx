@@ -12,13 +12,23 @@ vi.mock('../services/proposalValidationClient', () => ({
   proposalValidationClient: mocks,
 }));
 
+vi.mock('./ProposalApprovalPanel', () => ({
+  ProposalApprovalPanel: ({
+    proposalId,
+    proposalStatus,
+  }: {
+    proposalId: string;
+    proposalStatus: string;
+  }) => <div>Approval workflow {proposalId} {proposalStatus}</div>,
+}));
+
 describe('ProposalValidationPanel', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.listForProposal.mockResolvedValue([]);
   });
 
-  it('shows existing validation and suppresses duplicate creation', async () => {
+  it('shows existing validation and exposes approval handoff', async () => {
     mocks.listForProposal.mockResolvedValue([
       {
         id: 'validation-1',
@@ -36,6 +46,7 @@ describe('ProposalValidationPanel', () => {
     render(<ProposalValidationPanel proposalId="proposal-1" proposalStatus="VALIDATED" />);
 
     expect(await screen.findByText('Retrospektiv validiert')).toBeInTheDocument();
+    expect(screen.getByText('Approval workflow proposal-1 VALIDATED')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Proposal retrospektiv validieren' })).toBeNull();
   });
 
@@ -70,5 +81,6 @@ describe('ProposalValidationPanel', () => {
 
     await waitFor(() => expect(mocks.create).toHaveBeenCalledOnce());
     expect(await screen.findByText('Retrospektiv validiert')).toBeInTheDocument();
+    expect(screen.getByText('Approval workflow proposal-1 VALIDATED')).toBeInTheDocument();
   });
 });
