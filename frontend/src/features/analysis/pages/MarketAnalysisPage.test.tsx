@@ -277,6 +277,8 @@ describe('MarketAnalysisPage', () => {
     expect(screen.getByRole('combobox', { name: 'Sortierrichtung' })).toHaveValue('asc');
 
     await user.click(screen.getByRole('button', { name: 'Ansicht löschen' }));
-    await waitFor(() => expect(preferenceClient.delete).toHaveBeenCalledWith('saved-view-existing'));
+    await waitFor(() =>
+      expect(preferenceClient.delete.mock.calls.at(-1)?.[0]).toBe('saved-view-existing'),
+    );
   });
 });
