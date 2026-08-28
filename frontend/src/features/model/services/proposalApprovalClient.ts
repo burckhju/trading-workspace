@@ -5,7 +5,10 @@ import type { ProposalApprovalResult } from '../types/proposalApproval';
 const baseUrl = `${environment.apiBaseUrl}/api/v1/model-governance`;
 
 export const proposalApprovalClient = {
-  getForProposal: (proposalId: string, signal?: AbortSignal): Promise<ProposalApprovalResult | null> =>
+  getForProposal: (
+    proposalId: string,
+    signal?: AbortSignal,
+  ): Promise<ProposalApprovalResult | null> =>
     requestJson<ProposalApprovalResult | null>(`${baseUrl}/proposals/${proposalId}/approval`, {
       signal,
     }),
