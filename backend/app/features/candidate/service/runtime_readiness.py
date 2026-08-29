@@ -1,6 +1,7 @@
 """Runtime-aware Candidate live-readiness built on the FT-013/015 contracts."""
 
 from dataclasses import replace
+from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -31,7 +32,7 @@ class RuntimeAwareCandidateLiveWorkflowService(CandidateLiveWorkflowService):
         *,
         workspace_id: UUID,
         candidate_id: UUID,
-        as_of=None,
+        as_of: datetime | None = None,
     ) -> CandidateLiveWorkflow:
         workflow = await super().inspect(
             workspace_id=workspace_id,
