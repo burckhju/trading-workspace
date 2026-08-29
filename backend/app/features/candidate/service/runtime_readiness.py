@@ -27,7 +27,11 @@ class RuntimeAwareCandidateLiveWorkflowService(CandidateLiveWorkflowService):
         self._runtime = RuntimeActivationService(session)
 
     async def inspect(
-        self, *, workspace_id: UUID, candidate_id: UUID, as_of=None
+        self,
+        *,
+        workspace_id: UUID,
+        candidate_id: UUID,
+        as_of=None,
     ) -> CandidateLiveWorkflow:
         workflow = await super().inspect(
             workspace_id=workspace_id,
