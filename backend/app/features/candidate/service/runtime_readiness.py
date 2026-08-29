@@ -89,10 +89,7 @@ class RuntimeAwareCandidateLiveWorkflowService(CandidateLiveWorkflowService):
             code="CANDIDATE_RUNTIME_MODEL",
             label="Candidate runtime model",
             status="COMPLETE",
-            detail=(
-                f"Active executable model {runtime.model_key} "
-                f"version {runtime.model_version}."
-            ),
+            detail=f"Active executable model {runtime.model_key} version {runtime.model_version}.",
             resource_id=runtime.model_version_id,
         )
 
