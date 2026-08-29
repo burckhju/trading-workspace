@@ -38,9 +38,7 @@ class RuntimeAwareCandidateLiveWorkflowService(CandidateLiveWorkflowService):
         )
         step = await self._runtime_step(workspace_id)
         runtime_ready = step.status == "COMPLETE"
-        next_action = workflow.next_action or (
-            step.action if step.status == "BLOCKED" else None
-        )
+        next_action = workflow.next_action or (step.action if step.status == "BLOCKED" else None)
         return replace(
             workflow,
             ready=workflow.ready and runtime_ready,
