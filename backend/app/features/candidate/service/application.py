@@ -13,7 +13,10 @@ from app.features.candidate.domain.models import (
     AnalysisReference,
     CandidateEvaluationInput,
 )
-from app.features.candidate.domain.qualification import evaluate_candidate
+from app.features.candidate.domain.runtime_definition import (
+    adapt_candidate_runtime_definition,
+    evaluate_candidate_with_runtime_rules,
+)
 from app.features.candidate.persistence.models import (
     CandidateCriterionModel,
     CandidateEvaluationModel,
@@ -31,12 +34,16 @@ from app.features.candidate.service.orchestration import (
 from app.features.candidate.service.source_resolution import (
     SemanticTopDownSourceResolver,
 )
+from app.features.model.service.runtime_activation_service import RuntimeActivationService
+
+CANDIDATE_RUNTIME_MODEL_KEY = "TOP_DOWN_CANDIDATE"
 
 
 class CandidateService:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
         self._repo = SqlAlchemyCandidateRepository(session)
+        self._runtime = RuntimeActivationService(session)
 
     async def create(self, workspace_id: UUID, underlying_id: UUID, actor: str) -> CandidateModel:
         if not await self._repo.underlying_exists(workspace_id, underlying_id):
@@ -127,7 +134,20 @@ class CandidateService:
         required_roles = {"MARKET", "SECTOR", "UNDERLYING"}
         if set(sources) != required_roles:
             raise ValueError("MARKET, SECTOR and UNDERLYING provenance sources are required")
-        result = evaluate_candidate(value)
+
+        runtime = await self._runtime.resolve_by_key(
+            workspace_id=workspace_id,
+            model_key=CANDIDATE_RUNTIME_MODEL_KEY,
+        )
+        if runtime is None:
+            raise ValueError("no active TOP_DOWN_CANDIDATE model version")
+        rules = adapt_candidate_runtime_definition(
+            model_key=runtime.model_key,
+            version=runtime.model_version,
+            definition=runtime.definition,
+        )
+        result = evaluate_candidate_with_runtime_rules(value, rules)
+
         version = await self._repo.next_evaluation_version(candidate_id)
         now = datetime.now(UTC)
         model = CandidateEvaluationModel(
