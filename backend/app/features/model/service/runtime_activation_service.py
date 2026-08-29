@@ -1,5 +1,7 @@
 """Explicit runtime activation service for approved FT-013 model versions."""
 
+from dataclasses import dataclass
+from datetime import datetime
 from uuid import UUID, uuid4
 
 from sqlalchemy import select
@@ -11,6 +13,21 @@ from app.features.model.persistence.runtime_activation_models import ModelRuntim
 from app.shared.utils.datetime import utc_now
 
 
+@dataclass(frozen=True, slots=True)
+class ResolvedRuntimeModel:
+    """Stable runtime view exposed to downstream model consumers."""
+
+    model_id: UUID
+    model_key: str
+    model_version_id: UUID
+    model_version: int
+    definition: dict[str, object]
+    activation_id: UUID
+    activated_at: datetime
+    activated_by: UUID
+    correlation_id: str | None
+
+
 class RuntimeActivationService:
     """Activate one APPROVED model version and read the current runtime selection."""
 
@@ -20,23 +37,40 @@ class RuntimeActivationService:
     async def get_current(
         self, *, workspace_id: UUID, model_id: UUID
     ) -> tuple[ModelRuntimeActivationRecord, ModelVersionRecord] | None:
-        await self._require_model(workspace_id, model_id)
-        activation = await self._session.scalar(
-            select(ModelRuntimeActivationRecord)
-            .where(
-                ModelRuntimeActivationRecord.workspace_id == workspace_id,
-                ModelRuntimeActivationRecord.model_id == model_id,
+        model = await self._require_model(workspace_id, model_id)
+        return await self._get_current_for_model(workspace_id=workspace_id, model=model)
+
+    async def resolve_by_key(
+        self, *, workspace_id: UUID, model_key: str
+    ) -> ResolvedRuntimeModel | None:
+        """Resolve the active APPROVED version for a stable workspace model key."""
+
+        if not model_key.strip():
+            raise ValueError("model_key is required")
+        model = await self._session.scalar(
+            select(GovernedModelRecord).where(
+                GovernedModelRecord.workspace_id == workspace_id,
+                GovernedModelRecord.model_key == model_key,
             )
-            .order_by(
-                ModelRuntimeActivationRecord.activated_at.desc(),
-                ModelRuntimeActivationRecord.id.desc(),
-            )
-            .limit(1)
         )
-        if activation is None:
+        if model is None:
+            raise ValueError("governed model not found")
+
+        current = await self._get_current_for_model(workspace_id=workspace_id, model=model)
+        if current is None:
             return None
-        version = await self._require_version(model_id, activation.model_version_id)
-        return activation, version
+        activation, version = current
+        return ResolvedRuntimeModel(
+            model_id=model.id,
+            model_key=model.model_key,
+            model_version_id=version.id,
+            model_version=version.version,
+            definition=dict(version.definition),
+            activation_id=activation.id,
+            activated_at=activation.activated_at,
+            activated_by=activation.activated_by,
+            correlation_id=activation.correlation_id,
+        )
 
     async def activate(
         self,
@@ -71,6 +105,28 @@ class RuntimeActivationService:
         except Exception:
             await self._session.rollback()
             raise
+        return activation, version
+
+    async def _get_current_for_model(
+        self, *, workspace_id: UUID, model: GovernedModelRecord
+    ) -> tuple[ModelRuntimeActivationRecord, ModelVersionRecord] | None:
+        activation = await self._session.scalar(
+            select(ModelRuntimeActivationRecord)
+            .where(
+                ModelRuntimeActivationRecord.workspace_id == workspace_id,
+                ModelRuntimeActivationRecord.model_id == model.id,
+            )
+            .order_by(
+                ModelRuntimeActivationRecord.activated_at.desc(),
+                ModelRuntimeActivationRecord.id.desc(),
+            )
+            .limit(1)
+        )
+        if activation is None:
+            return None
+        version = await self._require_version(model.id, activation.model_version_id)
+        if version.status != ModelVersionStatus.APPROVED.value:
+            raise ValueError("active model version is not APPROVED")
         return activation, version
 
     async def _require_model(self, workspace_id: UUID, model_id: UUID) -> GovernedModelRecord:
