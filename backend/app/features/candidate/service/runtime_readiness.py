@@ -5,9 +5,7 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.features.candidate.domain.runtime_definition import (
-    adapt_candidate_runtime_definition,
-)
+from app.features.candidate.domain.runtime_definition import adapt_candidate_runtime_definition
 from app.features.candidate.service.live_workflow import (
     CandidateLiveWorkflow,
     CandidateLiveWorkflowService,
