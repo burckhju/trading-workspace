@@ -21,7 +21,7 @@ from sqlalchemy.ext.asyncio import (
 from app.core.config import get_settings
 
 EXPECTED_DATABASE = "trading_workspace_test"
-EXPECTED_ALEMBIC_HEAD = "20260827_0028"
+EXPECTED_ALEMBIC_HEAD = "20260828_0029"
 REBUILD_BASE_ALEMBIC_HEAD = "20260826_0027"
 
 
