@@ -8,7 +8,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.dependencies import get_database_session
 from app.features.candidate.service.application import CandidateService
-from app.features.candidate.service.live_workflow import CandidateLiveWorkflowService
+from app.features.candidate.service.runtime_readiness import (
+    RuntimeAwareCandidateLiveWorkflowService,
+)
 
 
 async def get_candidate_service(
@@ -19,5 +21,5 @@ async def get_candidate_service(
 
 async def get_candidate_live_workflow_service(
     session: Annotated[AsyncSession, Depends(get_database_session)],
-) -> AsyncIterator[CandidateLiveWorkflowService]:
-    yield CandidateLiveWorkflowService(session)
+) -> AsyncIterator[RuntimeAwareCandidateLiveWorkflowService]:
+    yield RuntimeAwareCandidateLiveWorkflowService(session)
