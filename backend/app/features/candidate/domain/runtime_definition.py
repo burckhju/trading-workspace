@@ -2,12 +2,20 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from app.features.analysis.domain.top_down import ContextClassification, TradingDirection
+from app.features.candidate.domain.models import CandidateEvaluationInput, CandidateEvaluationResult
+from app.features.candidate.domain.qualification import evaluate_candidate
 
 SUPPORTED_SCHEMA = "TOP_DOWN_CANDIDATE/1.0"
 _SUPPORTED_KEYS = {"schema", "direction", "market_context_allowed"}
+_SUPPORTED_CONTEXTS = frozenset(
+    {
+        ContextClassification.FAVORABLE,
+        ContextClassification.CAUTIOUS,
+    }
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -28,8 +36,9 @@ def adapt_candidate_runtime_definition(
 ) -> CandidateRuntimeRules:
     """Translate only the explicitly supported Candidate 1.0 governed schema.
 
-    Unknown keys are rejected deliberately so governance definitions cannot appear
-    active while executable code silently ignores unsupported semantics.
+    V1 intentionally accepts only semantics identical to the existing executable
+    engine. Unknown or changed semantics fail closed until a separately implemented
+    and governed executable schema exists.
     """
 
     if model_key != "TOP_DOWN_CANDIDATE":
@@ -52,13 +61,8 @@ def adapt_candidate_runtime_definition(
         contexts = frozenset(ContextClassification(str(item)) for item in raw_contexts)
     except ValueError as exc:
         raise ValueError("market_context_allowed contains an unsupported context") from exc
-
-    supported_contexts = {
-        ContextClassification.FAVORABLE,
-        ContextClassification.CAUTIOUS,
-    }
-    if not contexts <= supported_contexts:
-        raise ValueError("TOP_DOWN_CANDIDATE/1.0 supports FAVORABLE and CAUTIOUS contexts only")
+    if contexts != _SUPPORTED_CONTEXTS:
+        raise ValueError("TOP_DOWN_CANDIDATE/1.0 requires FAVORABLE and CAUTIOUS contexts")
 
     return CandidateRuntimeRules(
         model_id=model_key,
@@ -66,3 +70,15 @@ def adapt_candidate_runtime_definition(
         direction=TradingDirection.LONG,
         market_context_allowed=contexts,
     )
+
+
+def evaluate_candidate_with_runtime_rules(
+    value: CandidateEvaluationInput,
+    rules: CandidateRuntimeRules,
+) -> CandidateEvaluationResult:
+    """Execute the supported governed rules and attach truthful governed provenance."""
+
+    if rules.direction is not TradingDirection.LONG or rules.market_context_allowed != _SUPPORTED_CONTEXTS:
+        raise ValueError("Candidate runtime rules are incompatible with executable schema 1.0")
+    result = evaluate_candidate(value)
+    return replace(result, model_id=rules.model_id, model_version=rules.model_version)
