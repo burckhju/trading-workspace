@@ -78,7 +78,11 @@ def evaluate_candidate_with_runtime_rules(
 ) -> CandidateEvaluationResult:
     """Execute the supported governed rules and attach truthful governed provenance."""
 
-    if rules.direction is not TradingDirection.LONG or rules.market_context_allowed != _SUPPORTED_CONTEXTS:
+    compatible = (
+        rules.direction is TradingDirection.LONG
+        and rules.market_context_allowed == _SUPPORTED_CONTEXTS
+    )
+    if not compatible:
         raise ValueError("Candidate runtime rules are incompatible with executable schema 1.0")
     result = evaluate_candidate(value)
     return replace(result, model_id=rules.model_id, model_version=rules.model_version)
