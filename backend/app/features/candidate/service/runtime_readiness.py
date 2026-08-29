@@ -46,7 +46,7 @@ class RuntimeAwareCandidateLiveWorkflowService(CandidateLiveWorkflowService):
             ready=workflow.ready and runtime_ready,
             can_evaluate=workflow.can_evaluate and runtime_ready,
             next_action=next_action,
-            steps=workflow.steps + (step,),
+            steps=(*workflow.steps, step),
         )
 
     async def _runtime_step(self, workspace_id: UUID) -> WorkflowStep:
