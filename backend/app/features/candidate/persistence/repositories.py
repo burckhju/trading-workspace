@@ -101,5 +101,8 @@ class SqlAlchemyCandidateRepository:
     def add_all(self, models: Sequence[object]) -> None:
         self._session.add_all(models)
 
+    async def flush(self) -> None:
+        await self._session.flush()
+
     async def commit(self) -> None:
         await self._session.commit()
