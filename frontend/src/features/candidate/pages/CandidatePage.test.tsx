@@ -128,7 +128,9 @@ describe('CandidatePage', () => {
 
     renderPage();
 
-    expect(await screen.findByText('Keine aktive Candidate-Modellversion vorhanden.')).toBeInTheDocument();
+    expect(
+      await screen.findByText('Keine aktive Candidate-Modellversion vorhanden.'),
+    ).toBeInTheDocument();
     expect(screen.getByText(/Nächster Schritt: Candidate-Modell aktivieren/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Top-down neu bewerten' })).toBeDisabled();
     expect(screen.queryByRole('link', { name: 'Schritt bearbeiten' })).not.toBeInTheDocument();
@@ -156,7 +158,9 @@ describe('CandidatePage', () => {
     renderPage();
 
     expect(
-      await screen.findByText('Eine Candidate-Modellversion ist aktiviert, aber aktuell nicht ausführbar.'),
+      await screen.findByText(
+        'Eine Candidate-Modellversion ist aktiviert, aber aktuell nicht ausführbar.',
+      ),
     ).toBeInTheDocument();
     expect(screen.getByText(/Kompatible Candidate-Modellversion aktivieren/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Top-down neu bewerten' })).toBeDisabled();
@@ -215,7 +219,9 @@ describe('CandidatePage', () => {
 
     renderPage();
 
-    expect(await screen.findByText('Voraussetzungen konnten nicht geprüft werden')).toBeInTheDocument();
+    expect(
+      await screen.findByText('Voraussetzungen konnten nicht geprüft werden'),
+    ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Top-down neu bewerten' })).toBeDisabled();
 
     await userEvent.click(screen.getByRole('button', { name: 'Erneut prüfen' }));
@@ -251,7 +257,9 @@ describe('CandidatePage', () => {
     await userEvent.click(evaluateButton);
 
     expect(await screen.findByText(/Runtime activation changed/)).toBeInTheDocument();
-    expect(await screen.findByText('Keine aktive Candidate-Modellversion vorhanden.')).toBeInTheDocument();
+    expect(
+      await screen.findByText('Keine aktive Candidate-Modellversion vorhanden.'),
+    ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Top-down neu bewerten' })).toBeDisabled();
     expect(mockedClient.liveWorkflow).toHaveBeenCalledTimes(2);
   });
