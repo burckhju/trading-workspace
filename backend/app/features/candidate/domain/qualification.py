@@ -1,4 +1,4 @@
-"""Deterministic TOP_DOWN_CANDIDATE 1.0 qualification model."""
+"""Deterministic TOP_DOWN_CANDIDATE qualification model."""
 
 from __future__ import annotations
 
@@ -21,6 +21,13 @@ from app.features.candidate.domain.models import (
     CandidateCriterionResult,
     CandidateEvaluationInput,
     CandidateEvaluationResult,
+)
+
+_LEGACY_MARKET_CONTEXTS = frozenset(
+    {
+        ContextClassification.FAVORABLE,
+        ContextClassification.CAUTIOUS,
+    }
 )
 
 
@@ -95,22 +102,40 @@ def _matches_direction(value: CriterionClassification, direction: TradingDirecti
     return value is expected
 
 
-def evaluate_candidate(value: CandidateEvaluationInput) -> CandidateEvaluationResult:
-    """Evaluate TOP_DOWN_CANDIDATE 1.0 without score or hidden weighting.
+def _market_rule_explanation(
+    *,
+    actual: ContextClassification,
+    allowed: frozenset[ContextClassification],
+    fulfilled: bool | None,
+) -> str:
+    allowed_text = " or ".join(item.value for item in sorted(allowed, key=lambda item: item.value))
+    if fulfilled is None:
+        return (
+            f"Market context {actual.value} is not evaluable against the active Candidate rule; "
+            f"allowed context is {allowed_text}"
+        )
+    if fulfilled:
+        return (
+            f"Market context {actual.value} is allowed by the active Candidate rule; "
+            f"allowed context is {allowed_text}"
+        )
+    return (
+        f"Market context {actual.value} is not allowed by the active Candidate rule; "
+        f"allowed context is {allowed_text}"
+    )
 
-    Candidate Model 1.0 is deliberately LONG-only. The domain keeps a direction
-    type for forward compatibility, but SHORT rules require a separately approved
-    model version rather than implicitly mirroring LONG rules.
-    """
 
+def _evaluate_candidate(
+    value: CandidateEvaluationInput,
+    *,
+    market_allowed: frozenset[ContextClassification],
+    market_expected: str,
+    market_explanation: str | None,
+) -> CandidateEvaluationResult:
     if value.direction is not TradingDirection.LONG:
-        raise ValueError("TOP_DOWN_CANDIDATE 1.0 supports LONG evaluations only")
+        raise ValueError("TOP_DOWN_CANDIDATE supports LONG evaluations only")
 
     direction_expected = "POSITIVE"
-    market_allowed = {
-        ContextClassification.FAVORABLE,
-        ContextClassification.CAUTIOUS,
-    }
     market_eval: bool | None = (
         None
         if value.market_context is ContextClassification.NOT_EVALUABLE
@@ -124,8 +149,13 @@ def evaluate_candidate(value: CandidateEvaluationInput) -> CandidateEvaluationRe
             "MarketContextAssessment",
             value.market_context.value,
             market_eval,
-            "FAVORABLE or CAUTIOUS",
-            "Primary market context must support the requested direction",
+            market_expected,
+            market_explanation
+            or _market_rule_explanation(
+                actual=value.market_context,
+                allowed=market_allowed,
+                fulfilled=market_eval,
+            ),
         ),
         _required(
             "TD-SECTOR-001",
@@ -282,4 +312,35 @@ def evaluate_candidate(value: CandidateEvaluationInput) -> CandidateEvaluationRe
         tuple(criteria),
         tuple(dict.fromkeys(warnings)),
         quality,
+    )
+
+
+def evaluate_candidate(value: CandidateEvaluationInput) -> CandidateEvaluationResult:
+    """Evaluate immutable TOP_DOWN_CANDIDATE 1.0 semantics."""
+
+    if value.direction is not TradingDirection.LONG:
+        raise ValueError("TOP_DOWN_CANDIDATE 1.0 supports LONG evaluations only")
+    return _evaluate_candidate(
+        value,
+        market_allowed=_LEGACY_MARKET_CONTEXTS,
+        market_expected="FAVORABLE or CAUTIOUS",
+        market_explanation="Primary market context must support the requested direction",
+    )
+
+
+def evaluate_candidate_with_market_context_rule(
+    value: CandidateEvaluationInput,
+    *,
+    market_context_allowed: frozenset[ContextClassification],
+) -> CandidateEvaluationResult:
+    """Evaluate Candidate semantics with an explicit governed market-context rule."""
+
+    expected = " or ".join(
+        item.value for item in sorted(market_context_allowed, key=lambda item: item.value)
+    )
+    return _evaluate_candidate(
+        value,
+        market_allowed=market_context_allowed,
+        market_expected=expected,
+        market_explanation=None,
     )
