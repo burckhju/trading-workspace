@@ -70,9 +70,7 @@ def adapt_candidate_runtime_definition(
         if contexts != _LEGACY_CONTEXTS:
             raise ValueError("TOP_DOWN_CANDIDATE/1.0 requires FAVORABLE and CAUTIOUS contexts")
     elif contexts not in _SUPPORTED_V2_CONTEXT_CONFIGURATIONS:
-        raise ValueError(
-            "TOP_DOWN_CANDIDATE/2.0 allows FAVORABLE alone or FAVORABLE and CAUTIOUS"
-        )
+        raise ValueError("TOP_DOWN_CANDIDATE/2.0 allows FAVORABLE alone or FAVORABLE and CAUTIOUS")
 
     return CandidateRuntimeRules(
         model_id=model_key,
