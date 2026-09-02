@@ -246,8 +246,7 @@ export function CandidatePage() {
     [candidates, selectedId],
   );
   const latest = evaluations[0] ?? null;
-  const canEvaluate =
-    workflow?.can_evaluate === true && !workflowLoading && workflowError === null;
+  const canEvaluate = workflow?.can_evaluate === true && !workflowLoading && workflowError === null;
 
   return (
     <div className="grid w-full gap-8 lg:grid-cols-[20rem_1fr]">
