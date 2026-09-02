@@ -184,7 +184,9 @@ export function CandidatePage() {
       .catch((error: unknown) => {
         if (!(error instanceof DOMException && error.name === 'AbortError')) {
           setMessage(
-            error instanceof Error ? error.message : 'Candidate-Daten konnten nicht geladen werden.',
+            error instanceof Error
+              ? error.message
+              : 'Candidate-Daten konnten nicht geladen werden.',
           );
         }
       });
@@ -193,7 +195,9 @@ export function CandidatePage() {
       .liveWorkflow(selectedId, controller.signal)
       .then(setWorkflow)
       .catch((error: unknown) => {
-        if (!(error instanceof DOMException && error.name === 'AbortError')) setWorkflowError(error);
+        if (!(error instanceof DOMException && error.name === 'AbortError')) {
+          setWorkflowError(error);
+        }
       })
       .finally(() => {
         if (!controller.signal.aborted) setWorkflowLoading(false);
@@ -242,7 +246,8 @@ export function CandidatePage() {
     [candidates, selectedId],
   );
   const latest = evaluations[0] ?? null;
-  const canEvaluate = workflow?.can_evaluate === true && !workflowLoading && workflowError === null;
+  const canEvaluate =
+    workflow?.can_evaluate === true && !workflowLoading && workflowError === null;
 
   return (
     <div className="grid w-full gap-8 lg:grid-cols-[20rem_1fr]">
@@ -302,8 +307,14 @@ export function CandidatePage() {
             <section className="mb-6 rounded-xl border border-slate-800 p-5">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <p className="text-xs uppercase tracking-wide text-slate-500">Live-Konfiguration</p>
-                  <h3 id="candidate-readiness-status" className="mt-1 font-semibold" aria-live="polite">
+                  <p className="text-xs uppercase tracking-wide text-slate-500">
+                    Live-Konfiguration
+                  </p>
+                  <h3
+                    id="candidate-readiness-status"
+                    className="mt-1 font-semibold"
+                    aria-live="polite"
+                  >
                     {workflowLoading
                       ? 'Voraussetzungen werden geprüft …'
                       : workflowError !== null
@@ -332,7 +343,10 @@ export function CandidatePage() {
 
               {workflowError !== null && !workflowLoading && (
                 <div className="mt-4 rounded-lg border border-rose-800 p-3 text-sm">
-                  <p>Voraussetzungen konnten nicht geprüft werden. Candidate Evaluation bleibt deaktiviert.</p>
+                  <p>
+                    Voraussetzungen konnten nicht geprüft werden. Candidate Evaluation bleibt
+                    deaktiviert.
+                  </p>
                   <button
                     type="button"
                     onClick={() => void refreshWorkflow()}
@@ -355,7 +369,10 @@ export function CandidatePage() {
                       step.code === runtimeStepCode ? (
                         <RuntimeModelStep key={step.code} step={step} />
                       ) : (
-                        <li key={step.code} className="rounded-lg border border-slate-800 p-3 text-sm">
+                        <li
+                          key={step.code}
+                          className="rounded-lg border border-slate-800 p-3 text-sm"
+                        >
                           <div className="flex flex-wrap justify-between gap-2">
                             <span className="font-medium">{step.label}</span>
                             <span
