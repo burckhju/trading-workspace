@@ -71,8 +71,7 @@ async def test_governance_activation_changes_candidate_semantics_with_truthful_p
     )
     await learning_session.flush()
     await learning_session.execute(
-        text(
-            """
+        text("""
             INSERT INTO underlyings (
                 id, workspace_id, type, name, isin, wkn, lifecycle_status,
                 quality_status, version, created_at, updated_at, data_origin
@@ -80,8 +79,7 @@ async def test_governance_activation_changes_candidate_semantics_with_truthful_p
                 :id, :workspace_id, 'STOCK', 'FT-019 Fixture', NULL, NULL, 'ACTIVE',
                 'GOOD', 1, :created_at, :updated_at, 'MANUAL'
             )
-            """
-        ),
+            """),
         {
             "id": underlying_id,
             "workspace_id": workspace_id,
@@ -90,15 +88,13 @@ async def test_governance_activation_changes_candidate_semantics_with_truthful_p
         },
     )
     await learning_session.execute(
-        text(
-            """
+        text("""
             INSERT INTO candidates (
                 id, workspace_id, underlying_id, status, created_at, created_by
             ) VALUES (
                 :id, :workspace_id, :underlying_id, 'IDENTIFIED', :created_at, 'ft019-test'
             )
-            """
-        ),
+            """),
         {
             "id": candidate_id,
             "workspace_id": workspace_id,
