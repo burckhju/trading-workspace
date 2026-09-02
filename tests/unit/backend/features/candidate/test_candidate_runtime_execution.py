@@ -13,10 +13,12 @@ from app.features.candidate.domain.models import AnalysisReference, CandidateEva
 from app.features.candidate.service.application import CandidateService
 
 
-def _input() -> CandidateEvaluationInput:
+def _input(
+    market_context: ContextClassification = ContextClassification.FAVORABLE,
+) -> CandidateEvaluationInput:
     return CandidateEvaluationInput(
         direction=TradingDirection.LONG,
-        market_context=ContextClassification.FAVORABLE,
+        market_context=market_context,
         market_quality=AnalysisQualityStatus.GOOD,
         sector_trend=CriterionClassification.POSITIVE,
         sector_relative_strength=CriterionClassification.POSITIVE,
@@ -83,6 +85,53 @@ async def test_candidate_evaluation_executes_active_governed_version() -> None:
         model_key="TOP_DOWN_CANDIDATE",
     )
     repo.commit.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_activation_switch_changes_candidate_result_and_persisted_provenance() -> None:
+    service, repo = _service()
+    repo.next_evaluation_version = AsyncMock(side_effect=[1, 2])
+    service._runtime = SimpleNamespace(
+        resolve_by_key=AsyncMock(
+            side_effect=[
+                SimpleNamespace(
+                    model_key="TOP_DOWN_CANDIDATE",
+                    model_version=10,
+                    definition={
+                        "schema": "TOP_DOWN_CANDIDATE/2.0",
+                        "direction": "LONG",
+                        "market_context_allowed": ["FAVORABLE", "CAUTIOUS"],
+                    },
+                ),
+                SimpleNamespace(
+                    model_key="TOP_DOWN_CANDIDATE",
+                    model_version=11,
+                    definition={
+                        "schema": "TOP_DOWN_CANDIDATE/2.0",
+                        "direction": "LONG",
+                        "market_context_allowed": ["FAVORABLE"],
+                    },
+                ),
+            ]
+        )
+    )
+    workspace_id = uuid4()
+    candidate_id = uuid4()
+    value = _input(ContextClassification.CAUTIOUS)
+    sources = _sources()
+
+    permissive = await service.evaluate(workspace_id, candidate_id, value, sources)
+    strict = await service.evaluate(workspace_id, candidate_id, value, sources)
+
+    assert permissive.version == 1
+    assert permissive.model_version == "10"
+    assert permissive.qualification == "QUALIFIED"
+    assert strict.version == 2
+    assert strict.model_version == "11"
+    assert strict.qualification == "NOT_QUALIFIED"
+    assert permissive.model_version == "10"
+    assert service._runtime.resolve_by_key.await_count == 2
+    assert repo.commit.await_count == 2
 
 
 @pytest.mark.asyncio
