@@ -76,6 +76,10 @@ Qualification:
 - sonst mindestens ein nicht bewertbares Required-Kriterium → `NOT_EVALUABLE`;
 - sonst → `QUALIFIED`.
 
+## FT-019 Governed Runtime Extension
+
+Die vorstehenden V1-Regeln bleiben als historischer `TOP_DOWN_CANDIDATE/1.0`-Contract unverändert. FT-019 führt separat `TOP_DOWN_CANDIDATE/2.0` ein und macht ausschließlich die bestehende Required-Regel `TD-MARKET-001` über `market_context_allowed` fachlich governbar. Eine aktive 2.0-ModelVersion darf entweder nur `FAVORABLE` oder `FAVORABLE` plus `CAUTIOUS` zulassen; Details zu Schema-Versionierung, Fail-closed Runtime, Readiness und Provenance stehen in `FT-019_GOVERNED_CANDIDATE_RULE_SEMANTICS.md`.
+
 ## Candidate und Lifecycle
 
 Ein Candidate ist langlebig pro Workspace und Underlying. Systemqualifikation und Benutzerentscheidung bleiben getrennt.

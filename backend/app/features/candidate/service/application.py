@@ -163,6 +163,7 @@ class CandidateService:
             evaluated_at=now,
         )
         self._repo.add(model)
+        await self._repo.flush()
         self._repo.add_all(
             [
                 CandidateEvaluationSourceModel(
