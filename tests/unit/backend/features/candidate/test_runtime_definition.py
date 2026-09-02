@@ -147,7 +147,7 @@ def test_rejects_changed_market_context_semantics_for_schema_v1() -> None:
 def test_v2_invalid_or_missing_market_context_configuration_fails_closed(
     definition: dict[str, object],
 ) -> None:
-    with pytest.raises(ValueError, match="market_context_allowed|TOP_DOWN_CANDIDATE/2.0"):
+    with pytest.raises(ValueError, match=r"market_context_allowed|TOP_DOWN_CANDIDATE/2\.0"):
         adapt_candidate_runtime_definition(
             model_key="TOP_DOWN_CANDIDATE",
             version=2,
