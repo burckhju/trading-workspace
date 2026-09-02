@@ -7,9 +7,11 @@ import type {
   CandidateCriterion,
   CandidateEvaluation,
   CandidateLiveWorkflow,
+  CandidateLiveWorkflowStep,
 } from '../types/api';
 
 const groups = ['MARKET', 'SECTOR', 'UNDERLYING'] as const;
+const runtimeStepCode = 'CANDIDATE_RUNTIME_MODEL';
 
 function resultClasses(result: string) {
   if (result === 'FULFILLED' || result === 'QUALIFIED')
@@ -18,6 +20,45 @@ function resultClasses(result: string) {
     return 'border-rose-700 bg-rose-950/40';
   if (result === 'NOT_EVALUABLE') return 'border-amber-700 bg-amber-950/40';
   return 'border-slate-700 bg-slate-900';
+}
+
+function workflowActionLabel(action: string | null) {
+  switch (action) {
+    case 'ACTIVATE_CANDIDATE_MODEL':
+      return 'Candidate-Modell aktivieren';
+    case 'ACTIVATE_COMPATIBLE_CANDIDATE_MODEL':
+      return 'Kompatible Candidate-Modellversion aktivieren';
+    default:
+      return action;
+  }
+}
+
+function RuntimeModelStep({ step }: { step: CandidateLiveWorkflowStep }) {
+  const blockedSummary =
+    step.action === 'ACTIVATE_CANDIDATE_MODEL'
+      ? 'Keine aktive Candidate-Modellversion vorhanden.'
+      : step.action === 'ACTIVATE_COMPATIBLE_CANDIDATE_MODEL'
+        ? 'Eine Candidate-Modellversion ist aktiviert, aber aktuell nicht ausführbar.'
+        : null;
+
+  return (
+    <li className="rounded-lg border border-slate-800 p-3 text-sm">
+      <div className="flex flex-wrap justify-between gap-2">
+        <span className="font-medium">Candidate-Laufzeitmodell</span>
+        <span className={step.status === 'COMPLETE' ? 'text-emerald-400' : 'text-amber-400'}>
+          {step.status === 'COMPLETE' ? 'Aktiv und verwendbar' : 'Blockiert'}
+        </span>
+      </div>
+      {blockedSummary && <p className="mt-2 font-medium text-amber-200">{blockedSummary}</p>}
+      <p className="mt-1 text-slate-400">{step.detail}</p>
+      {step.status === 'BLOCKED' && step.action && (
+        <p className="mt-3 text-xs text-slate-300">
+          Nächste Aktion: {workflowActionLabel(step.action)}. Die Aktivierung bleibt ein expliziter
+          Governance-Schritt.
+        </p>
+      )}
+    </li>
+  );
 }
 
 function Criterion({ item }: { item: CandidateCriterion }) {
@@ -94,6 +135,8 @@ export function CandidatePage() {
   const [selectedId, setSelectedId] = useState('');
   const [evaluations, setEvaluations] = useState<CandidateEvaluation[]>([]);
   const [workflow, setWorkflow] = useState<CandidateLiveWorkflow | null>(null);
+  const [workflowLoading, setWorkflowLoading] = useState(false);
+  const [workflowError, setWorkflowError] = useState<unknown>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [evaluating, setEvaluating] = useState(false);
 
@@ -125,17 +168,19 @@ export function CandidatePage() {
     if (!selectedId) {
       setEvaluations([]);
       setWorkflow(null);
+      setWorkflowLoading(false);
+      setWorkflowError(null);
       return;
     }
+
     const controller = new AbortController();
-    Promise.all([
-      candidateApiClient.evaluations(selectedId, controller.signal),
-      candidateApiClient.liveWorkflow(selectedId, controller.signal),
-    ])
-      .then(([evaluationItems, workflowValue]) => {
-        setEvaluations(evaluationItems);
-        setWorkflow(workflowValue);
-      })
+    setWorkflow(null);
+    setWorkflowLoading(true);
+    setWorkflowError(null);
+
+    candidateApiClient
+      .evaluations(selectedId, controller.signal)
+      .then(setEvaluations)
       .catch((error: unknown) => {
         if (!(error instanceof DOMException && error.name === 'AbortError')) {
           setMessage(
@@ -145,23 +190,52 @@ export function CandidatePage() {
           );
         }
       });
+
+    candidateApiClient
+      .liveWorkflow(selectedId, controller.signal)
+      .then(setWorkflow)
+      .catch((error: unknown) => {
+        if (!(error instanceof DOMException && error.name === 'AbortError')) {
+          setWorkflowError(error);
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setWorkflowLoading(false);
+      });
+
     return () => controller.abort();
   }, [selectedId]);
 
+  async function refreshWorkflow() {
+    if (!selectedId) return;
+    setWorkflow(null);
+    setWorkflowLoading(true);
+    setWorkflowError(null);
+    try {
+      setWorkflow(await candidateApiClient.liveWorkflow(selectedId));
+    } catch (error: unknown) {
+      setWorkflowError(error);
+    } finally {
+      setWorkflowLoading(false);
+    }
+  }
+
   async function evaluateSelected() {
-    if (!selectedId || evaluating) return;
+    if (!selectedId || evaluating || workflowLoading || workflow?.can_evaluate !== true) return;
     setEvaluating(true);
     setMessage(null);
     try {
       await candidateApiClient.evaluateAuto(selectedId);
-      const [evaluationItems, workflowValue] = await Promise.all([
-        candidateApiClient.evaluations(selectedId),
-        candidateApiClient.liveWorkflow(selectedId),
-      ]);
+      const evaluationItems = await candidateApiClient.evaluations(selectedId);
       setEvaluations(evaluationItems);
-      setWorkflow(workflowValue);
+      await refreshWorkflow();
     } catch (error: unknown) {
-      setMessage(error instanceof Error ? error.message : 'Top-down-Bewertung fehlgeschlagen.');
+      setMessage(
+        error instanceof Error
+          ? `${error.message} Voraussetzungen werden neu geprüft.`
+          : 'Top-down-Bewertung fehlgeschlagen. Voraussetzungen werden neu geprüft.',
+      );
+      await refreshWorkflow();
     } finally {
       setEvaluating(false);
     }
@@ -172,6 +246,7 @@ export function CandidatePage() {
     [candidates, selectedId],
   );
   const latest = evaluations[0] ?? null;
+  const canEvaluate = workflow?.can_evaluate === true && !workflowLoading && workflowError === null;
 
   return (
     <div className="grid w-full gap-8 lg:grid-cols-[20rem_1fr]">
@@ -216,7 +291,8 @@ export function CandidatePage() {
                 <button
                   type="button"
                   onClick={() => void evaluateSelected()}
-                  disabled={evaluating || workflow?.can_evaluate === false}
+                  disabled={evaluating || !canEvaluate}
+                  aria-describedby="candidate-readiness-status"
                   className="rounded-lg border border-sky-700 px-3 py-2 text-sm disabled:opacity-50"
                 >
                   {evaluating ? 'Bewertung läuft …' : 'Top-down neu bewerten'}
@@ -226,60 +302,110 @@ export function CandidatePage() {
                 </span>
               </div>
             </div>
-            {workflow && (
-              <section className="mb-6 rounded-xl border border-slate-800 p-5">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <p className="text-xs uppercase tracking-wide text-slate-500">
-                      Live-Konfiguration
-                    </p>
-                    <h3 className="mt-1 font-semibold">
-                      {workflow.ready
-                        ? 'Bereit für automatische Bewertung'
-                        : 'Konfiguration unvollständig'}
-                    </h3>
-                  </div>
-                  {workflow.next_action && (
-                    <span className="rounded-full border border-amber-700 px-3 py-1 text-xs">
-                      Nächster Schritt: {workflow.next_action}
-                    </span>
-                  )}
+
+            <section className="mb-6 rounded-xl border border-slate-800 p-5">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-slate-500">
+                    Live-Konfiguration
+                  </p>
+                  <h3
+                    id="candidate-readiness-status"
+                    className="mt-1 font-semibold"
+                    aria-live="polite"
+                  >
+                    {workflowLoading
+                      ? 'Voraussetzungen werden geprüft …'
+                      : workflowError !== null
+                        ? 'Voraussetzungen konnten nicht geprüft werden'
+                        : workflow?.ready
+                          ? 'Bereit für automatische Bewertung'
+                          : 'Konfiguration unvollständig'}
+                  </h3>
                 </div>
-                <ul className="mt-4 space-y-2">
-                  {workflow.steps.map((step) => (
-                    <li key={step.code} className="rounded-lg border border-slate-800 p-3 text-sm">
-                      <div className="flex flex-wrap justify-between gap-2">
-                        <span className="font-medium">{step.label}</span>
-                        <span
-                          className={
-                            step.status === 'COMPLETE' ? 'text-emerald-400' : 'text-amber-400'
-                          }
+                <button
+                  type="button"
+                  onClick={() => void refreshWorkflow()}
+                  disabled={workflowLoading}
+                  className="rounded border border-slate-700 px-3 py-1.5 text-xs disabled:opacity-50"
+                >
+                  Readiness aktualisieren
+                </button>
+              </div>
+
+              {workflowLoading && (
+                <p className="mt-4 text-sm text-slate-400">
+                  Candidate Evaluation bleibt deaktiviert, bis die aktuellen Voraussetzungen geladen
+                  sind.
+                </p>
+              )}
+
+              {workflowError !== null && !workflowLoading && (
+                <div className="mt-4 rounded-lg border border-rose-800 p-3 text-sm">
+                  <p>
+                    Voraussetzungen konnten nicht geprüft werden. Candidate Evaluation bleibt
+                    deaktiviert.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => void refreshWorkflow()}
+                    className="mt-3 rounded border border-sky-700 px-3 py-1.5 text-xs"
+                  >
+                    Erneut prüfen
+                  </button>
+                </div>
+              )}
+
+              {workflow && !workflowLoading && workflowError === null && (
+                <>
+                  {workflow.next_action && (
+                    <p className="mt-3 text-xs text-amber-300">
+                      Nächster Schritt: {workflowActionLabel(workflow.next_action)}
+                    </p>
+                  )}
+                  <ul className="mt-4 space-y-2">
+                    {workflow.steps.map((step) =>
+                      step.code === runtimeStepCode ? (
+                        <RuntimeModelStep key={step.code} step={step} />
+                      ) : (
+                        <li
+                          key={step.code}
+                          className="rounded-lg border border-slate-800 p-3 text-sm"
                         >
-                          {step.status}
-                        </span>
-                      </div>
-                      <p className="mt-1 text-slate-400">{step.detail}</p>
-                      {step.status === 'BLOCKED' && step.action && (
-                        <Link
-                          to={{
-                            pathname: '/top-down-admin',
-                            search: new URLSearchParams({
-                              action: step.action,
-                              candidate_id: selected.id,
-                              resource_id: step.resource_id ?? '',
-                              ...Object.fromEntries(Object.entries(step.action_params ?? {})),
-                            }).toString(),
-                          }}
-                          className="mt-3 inline-block rounded border border-sky-700 px-3 py-1.5 text-xs"
-                        >
-                          Schritt bearbeiten
-                        </Link>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            )}
+                          <div className="flex flex-wrap justify-between gap-2">
+                            <span className="font-medium">{step.label}</span>
+                            <span
+                              className={
+                                step.status === 'COMPLETE' ? 'text-emerald-400' : 'text-amber-400'
+                              }
+                            >
+                              {step.status}
+                            </span>
+                          </div>
+                          <p className="mt-1 text-slate-400">{step.detail}</p>
+                          {step.status === 'BLOCKED' && step.action && (
+                            <Link
+                              to={{
+                                pathname: '/top-down-admin',
+                                search: new URLSearchParams({
+                                  action: step.action,
+                                  candidate_id: selected.id,
+                                  resource_id: step.resource_id ?? '',
+                                  ...Object.fromEntries(Object.entries(step.action_params ?? {})),
+                                }).toString(),
+                              }}
+                              className="mt-3 inline-block rounded border border-sky-700 px-3 py-1.5 text-xs"
+                            >
+                              Schritt bearbeiten
+                            </Link>
+                          )}
+                        </li>
+                      ),
+                    )}
+                  </ul>
+                </>
+              )}
+            </section>
 
             {latest ? (
               <>
