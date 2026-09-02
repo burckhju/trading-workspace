@@ -162,7 +162,9 @@ describe('CandidatePage', () => {
         'Eine Candidate-Modellversion ist aktiviert, aber aktuell nicht ausführbar.',
       ),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Kompatible Candidate-Modellversion aktivieren/)).toBeInTheDocument();
+    expect(
+      screen.getByText('Nächster Schritt: Kompatible Candidate-Modellversion aktivieren'),
+    ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Top-down neu bewerten' })).toBeDisabled();
     expect(screen.queryByText('Aktiv und verwendbar')).not.toBeInTheDocument();
   });
@@ -251,7 +253,8 @@ describe('CandidatePage', () => {
     });
 
     renderPage();
-    const evaluateButton = await screen.findByRole('button', { name: 'Top-down neu bewerten' });
+    expect(await screen.findByText('Aktiv und verwendbar')).toBeInTheDocument();
+    const evaluateButton = screen.getByRole('button', { name: 'Top-down neu bewerten' });
     expect(evaluateButton).toBeEnabled();
 
     await userEvent.click(evaluateButton);
