@@ -51,6 +51,7 @@ def _service() -> tuple[CandidateService, Mock]:
     repo.next_evaluation_version = AsyncMock(return_value=1)
     repo.add = Mock()
     repo.add_all = Mock()
+    repo.flush = AsyncMock()
     repo.commit = AsyncMock()
     service._repo = repo
     return service, repo
@@ -84,6 +85,7 @@ async def test_candidate_evaluation_executes_active_governed_version() -> None:
         workspace_id=workspace_id,
         model_key="TOP_DOWN_CANDIDATE",
     )
+    repo.flush.assert_awaited_once()
     repo.commit.assert_awaited_once()
 
 
@@ -131,6 +133,7 @@ async def test_activation_switch_changes_candidate_result_and_persisted_provenan
     assert strict.qualification == "NOT_QUALIFIED"
     assert permissive.model_version == "10"
     assert service._runtime.resolve_by_key.await_count == 2
+    assert repo.flush.await_count == 2
     assert repo.commit.await_count == 2
 
 
@@ -143,6 +146,7 @@ async def test_candidate_evaluation_fails_closed_without_active_version() -> Non
         await service.evaluate(uuid4(), uuid4(), _input(), _sources())
 
     repo.add.assert_not_called()
+    repo.flush.assert_not_awaited()
     repo.commit.assert_not_awaited()
 
 
@@ -168,4 +172,5 @@ async def test_candidate_evaluation_fails_closed_for_incompatible_definition() -
         await service.evaluate(uuid4(), uuid4(), _input(), _sources())
 
     repo.add.assert_not_called()
+    repo.flush.assert_not_awaited()
     repo.commit.assert_not_awaited()
