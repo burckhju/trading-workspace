@@ -20,6 +20,10 @@ class Store:
         self.prepared = False
         self.completed: list[DeliveryResult] = []
 
+    async def list_pending_notification_ids(self, *, limit: int) -> tuple[UUID, ...]:
+        assert limit > 0
+        return (self.notification.id,)
+
     async def prepare(
         self,
         *,
@@ -109,6 +113,25 @@ async def test_attempt_is_prepared_before_external_delivery() -> None:
     assert result.status is DeliveryStatus.DELIVERED
     assert adapter.calls == 1
     assert store.completed == [result]
+
+
+@pytest.mark.asyncio
+async def test_pending_outbox_items_are_resumed() -> None:
+    item = notification()
+    store = Store(item)
+    adapter = Adapter(store)
+    service = DurableNotificationDeliveryService(
+        store=store,
+        adapter=adapter,
+        new_id=uuid4,
+        now=lambda: datetime(2026, 9, 3, 10, tzinfo=UTC),
+    )
+
+    results = await service.deliver_pending()
+
+    assert len(results) == 1
+    assert results[0].status is DeliveryStatus.DELIVERED
+    assert adapter.calls == 1
 
 
 @pytest.mark.asyncio
