@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
+import { TradeAlertsPanel } from '../../alert/components/TradeAlertsPanel';
 import { postTradeApiClient } from '../../post_trade/services/client';
 import { postTradeErrorMessage } from '../../post_trade/services/errors';
 import { tradeManagementApiClient } from '../services/client';
@@ -191,6 +192,8 @@ export function TradeManagementPage() {
               </div>
             </dl>
           </section>
+
+          <TradeAlertsPanel tradeId={tradeId} />
 
           <form
             onSubmit={(event) => void recordSale(event)}
