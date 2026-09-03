@@ -18,7 +18,8 @@ function alertTitle(alert: AlertResponse): string {
 function notificationLabel(notification: NotificationResponse): string {
   if (notification.status === 'DELIVERED') return `${notification.channel}: zugestellt`;
   if (notification.status === 'FAILED') return `${notification.channel}: fehlgeschlagen`;
-  if (notification.last_delivery?.status === 'IN_PROGRESS') return `${notification.channel}: Versand läuft`;
+  if (notification.last_delivery?.status === 'IN_PROGRESS')
+    return `${notification.channel}: Versand läuft`;
   return `${notification.channel}: ausstehend`;
 }
 
@@ -36,7 +37,9 @@ export function TradeAlertsPanel({ tradeId }: { tradeId: string }) {
       .then(setAlerts)
       .catch((reason: unknown) => {
         if (!controller.signal.aborted) {
-          setError(reason instanceof Error ? reason.message : 'Alerts konnten nicht geladen werden.');
+          setError(
+            reason instanceof Error ? reason.message : 'Alerts konnten nicht geladen werden.',
+          );
         }
       })
       .finally(() => {
@@ -48,7 +51,10 @@ export function TradeAlertsPanel({ tradeId }: { tradeId: string }) {
   const openCount = alerts.filter((alert) => alert.status === 'OPEN').length;
 
   return (
-    <section className="rounded-xl border border-slate-800 p-5" aria-labelledby="trade-alerts-title">
+    <section
+      className="rounded-xl border border-slate-800 p-5"
+      aria-labelledby="trade-alerts-title"
+    >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-xs uppercase tracking-wide text-slate-500">Monitoring</p>
@@ -71,7 +77,9 @@ export function TradeAlertsPanel({ tradeId }: { tradeId: string }) {
         </p>
       )}
       {!loading && !error && alerts.length === 0 && (
-        <p className="mt-4 text-sm text-slate-400">Für diesen Trade liegen noch keine Alerts vor.</p>
+        <p className="mt-4 text-sm text-slate-400">
+          Für diesen Trade liegen noch keine Alerts vor.
+        </p>
       )}
 
       {!loading && !error && alerts.length > 0 && (
