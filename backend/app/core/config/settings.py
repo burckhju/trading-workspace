@@ -73,6 +73,15 @@ class MarketDataSettings(BaseModel):
     eodhd: EodhdSettings = Field(default_factory=EodhdSettings)
 
 
+class PositionMonitoringSettings(BaseModel):
+    """Background scheduling and completed-price freshness settings."""
+
+    enabled: bool = False
+    interval_seconds: Annotated[float, Field(ge=30, le=86_400)] = 900.0
+    max_completed_price_age_days: Annotated[int, Field(ge=0, le=30)] = 4
+    delivery_recovery_timeout_seconds: Annotated[int, Field(ge=30, le=3600)] = 300
+
+
 class TelegramSettings(BaseModel):
     """Outbound-only Telegram delivery settings."""
 
@@ -141,6 +150,9 @@ class Settings(BaseSettings):
     database_max_overflow: Annotated[int, Field(ge=0, le=100)] = 10
     database_pool_recycle_seconds: Annotated[int, Field(ge=30)] = 1800
     market_data: MarketDataSettings = Field(default_factory=MarketDataSettings)
+    position_monitoring: PositionMonitoringSettings = Field(
+        default_factory=PositionMonitoringSettings
+    )
     notification: NotificationSettings = Field(default_factory=NotificationSettings)
 
     @field_validator("database_url")
