@@ -9,9 +9,7 @@ const mocks = vi.hoisted(() => ({
   listVersions: vi.fn(),
   create: vi.fn(),
 }));
-vi.mock('../services/hypothesisProposalClient', () => ({
-  hypothesisProposalClient: mocks,
-}));
+vi.mock('../services/hypothesisProposalClient', () => ({ hypothesisProposalClient: mocks }));
 vi.mock('./ProposalValidationPanel', () => ({
   ProposalValidationPanel: ({ proposalId }: { proposalId: string }) => (
     <div>Validation workflow {proposalId}</div>
@@ -56,9 +54,7 @@ const strictV2 = {
 };
 
 async function selectCandidate() {
-  fireEvent.change(screen.getByLabelText('Governed Model'), {
-    target: { value: 'model-1' },
-  });
+  fireEvent.change(screen.getByLabelText('Governed Model'), { target: { value: 'model-1' } });
   await waitFor(() =>
     expect(screen.getByLabelText('APPROVED Base-Version')).toHaveValue('version-1'),
   );
@@ -103,12 +99,8 @@ describe('HypothesisProposalPanel FT-020', () => {
     expect(screen.getByText(/Legacy 1.0 bleibt unverändert/)).toBeInTheDocument();
     fireEvent.click(screen.getByLabelText('FAVORABLE only'));
     expect(screen.getByText(/CAUTIOUS market context will no longer satisfy/)).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText('Rationale'), {
-      target: { value: 'Tighten policy' },
-    });
-    fireEvent.click(
-      screen.getByRole('button', { name: 'ModelChangeProposal als DRAFT anlegen' }),
-    );
+    fireEvent.change(screen.getByLabelText('Rationale'), { target: { value: 'Tighten policy' } });
+    fireEvent.click(screen.getByRole('button', { name: 'ModelChangeProposal als DRAFT anlegen' }));
     await waitFor(() =>
       expect(mocks.create).toHaveBeenCalledWith({
         model_id: 'model-1',
