@@ -66,9 +66,29 @@ class SqlAlchemyDurableNotificationDeliveryStore:
                     completed_at=now,
                     retryable=True,
                     error_code="PROCESS_INTERRUPTED",
-                    error_message="Previous delivery attempt did not complete before recovery timeout",
+                    error_message=(
+                        "Previous delivery attempt did not complete before recovery timeout"
+                    ),
                 )
             )
+            active_attempt = await session.scalar(
+                select(NotificationDeliveryAttemptModel.id).where(
+                    NotificationDeliveryAttemptModel.notification_id == notification_id,
+                    NotificationDeliveryAttemptModel.status == DeliveryStatus.IN_PROGRESS.value,
+                )
+            )
+            if active_attempt is not None:
+                await session.commit()
+                return DeliveryPreparation(
+                    notification=notification,
+                    terminal_result=DeliveryResult(
+                        status=DeliveryStatus.FAILED,
+                        retryable=True,
+                        error_code="DELIVERY_ALREADY_IN_PROGRESS",
+                        error_message="notification delivery is already in progress",
+                    ),
+                )
+
             current = await session.scalar(
                 select(func.max(NotificationDeliveryAttemptModel.attempt_number)).where(
                     NotificationDeliveryAttemptModel.notification_id == notification_id
