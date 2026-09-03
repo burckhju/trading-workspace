@@ -24,6 +24,7 @@ from app.features.position_monitoring.persistence import models as position_moni
 from app.features.product.persistence import models as product_models  # noqa: F401
 from app.features.product_selection.persistence import models as product_selection_models  # noqa: F401
 from app.features.trade_plan.persistence import models as trade_plan_models  # noqa: F401
+from app.features.trade_position.persistence import models as trade_position_models  # noqa: F401
 from app.features.user_preferences.persistence import models as user_preference_models  # noqa: F401
 
 config = context.config

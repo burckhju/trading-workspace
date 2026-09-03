@@ -59,11 +59,9 @@ async def test_trigger_is_edge_deduplicated_and_can_retrigger_after_reset() -> N
     states = StateRepo()
     alerts = AlertRepo()
     now = datetime(2026, 9, 3, 10, tzinfo=UTC)
-    service = PositionMonitoringService(
-        states=states, alerts=alerts, new_id=uuid4, now=lambda: now
-    )
+    service = PositionMonitoringService(states=states, alerts=alerts, new_id=uuid4, now=lambda: now)
     position_id, trade_id = uuid4(), uuid4()
-    rule = MonitoringRule("target:120", MonitoringRuleType.TARGET_REACHED, Decimal("120"))
+    rule = MonitoringRule("target", MonitoringRuleType.TARGET_REACHED, Decimal("120"))
 
     first = await service.evaluate(
         position_id=position_id,
@@ -77,8 +75,8 @@ async def test_trigger_is_edge_deduplicated_and_can_retrigger_after_reset() -> N
         rule=rule,
         observation=PriceObservation(Decimal("122"), now + timedelta(minutes=1)),
     )
-    assert first is not None
-    assert repeated is None
+    assert first.alert is not None
+    assert repeated.alert is None
     assert len(alerts.values) == 1
 
     await service.evaluate(
@@ -87,7 +85,7 @@ async def test_trigger_is_edge_deduplicated_and_can_retrigger_after_reset() -> N
         rule=rule,
         observation=PriceObservation(Decimal("119"), now + timedelta(minutes=2)),
     )
-    assert alerts.values[first.id].status is AlertStatus.RESOLVED
+    assert alerts.values[first.alert.id].status is AlertStatus.RESOLVED
 
     retriggered = await service.evaluate(
         position_id=position_id,
@@ -95,6 +93,33 @@ async def test_trigger_is_edge_deduplicated_and_can_retrigger_after_reset() -> N
         rule=rule,
         observation=PriceObservation(Decimal("120"), now + timedelta(minutes=3)),
     )
-    assert retriggered is not None
-    assert retriggered.id != first.id
+    assert retriggered.alert is not None
+    assert retriggered.alert.id != first.alert.id
     assert len(alerts.values) == 2
+
+
+@pytest.mark.asyncio
+async def test_threshold_change_is_a_new_rule_state_transition() -> None:
+    states = StateRepo()
+    alerts = AlertRepo()
+    now = datetime(2026, 9, 3, 10, tzinfo=UTC)
+    service = PositionMonitoringService(states=states, alerts=alerts, new_id=uuid4, now=lambda: now)
+    position_id, trade_id = uuid4(), uuid4()
+
+    first = await service.evaluate(
+        position_id=position_id,
+        trade_id=trade_id,
+        rule=MonitoringRule("stop", MonitoringRuleType.STOP_REACHED, Decimal("100")),
+        observation=PriceObservation(Decimal("99"), now),
+    )
+    changed = await service.evaluate(
+        position_id=position_id,
+        trade_id=trade_id,
+        rule=MonitoringRule("stop", MonitoringRuleType.STOP_REACHED, Decimal("101")),
+        observation=PriceObservation(Decimal("99"), now + timedelta(minutes=1)),
+    )
+
+    assert first.alert is not None
+    assert changed.alert is not None
+    assert changed.alert.id != first.alert.id
+    assert alerts.values[first.alert.id].status is AlertStatus.RESOLVED

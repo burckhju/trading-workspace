@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID
 
@@ -13,8 +14,17 @@ from app.features.position_monitoring.domain.models import (
     MonitoringRuleType,
     PriceObservation,
 )
-from app.features.position_monitoring.domain.transitions import decide_transition
+from app.features.position_monitoring.domain.transitions import (
+    TriggerTransition,
+    decide_transition,
+)
 from app.features.position_monitoring.persistence.repositories import MonitoringRuleStateRepository
+
+
+@dataclass(frozen=True, slots=True)
+class MonitoringEvaluationResult:
+    transition: TriggerTransition
+    alert: Alert | None
 
 
 class PositionMonitoringService:
@@ -40,11 +50,17 @@ class PositionMonitoringService:
         trade_id: UUID,
         rule: MonitoringRule,
         observation: PriceObservation,
-    ) -> Alert | None:
+    ) -> MonitoringEvaluationResult:
         current = await self._states.get(position_id=position_id, rule_key=rule.rule_key)
         evaluation = PositionRuleEvaluator.evaluate(rule=rule, observation=observation)
-        decision = decide_transition(current=current, evaluation=evaluation)
         detected_at = self._now()
+
+        if current is not None and current.threshold_value != rule.threshold:
+            if current.active_alert_id is not None:
+                await self._alerts.resolve(current.active_alert_id, resolved_at=detected_at)
+            current = None
+
+        decision = decide_transition(current=current, evaluation=evaluation)
         alert: Alert | None = None
         active_alert_id = current.active_alert_id if current is not None else None
 
@@ -97,4 +113,4 @@ class PositionMonitoringService:
                 active_alert_id=active_alert_id,
             )
         )
-        return alert
+        return MonitoringEvaluationResult(transition=decision.transition, alert=alert)
