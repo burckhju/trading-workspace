@@ -73,8 +73,8 @@ describe('HypothesisProposalPanel FT-020', () => {
     render(<HypothesisProposalPanel hypothesisId="hypothesis-1" />);
     await selectCandidate();
     expect(
-      screen.getByText('Candidate market context policy: FAVORABLE + CAUTIOUS'),
-    ).toBeInTheDocument();
+      screen.getAllByText('Candidate market context policy: FAVORABLE + CAUTIOUS'),
+    ).toHaveLength(2);
     expect(screen.queryByLabelText('Proposed Definition (JSON)')).toBeNull();
     expect(screen.getByText('Keine Änderung.')).toBeInTheDocument();
     expect(
