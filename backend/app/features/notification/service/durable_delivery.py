@@ -14,6 +14,8 @@ from app.features.notification.service.delivery import NotificationDeliveryAdapt
 
 
 class DurableNotificationDeliveryStore(Protocol):
+    async def list_pending_notification_ids(self, *, limit: int) -> tuple[UUID, ...]: ...
+
     async def prepare(
         self,
         *,
@@ -58,6 +60,15 @@ class DurableNotificationDeliveryService:
         self._now = now
         self._max_attempts = max_attempts
         self._in_progress_timeout = in_progress_timeout
+
+    async def deliver_pending(self, *, limit: int = 100) -> tuple[DeliveryResult, ...]:
+        if limit < 1:
+            raise ValueError("limit must be positive")
+        notification_ids = await self._store.list_pending_notification_ids(limit=limit)
+        results: list[DeliveryResult] = []
+        for notification_id in notification_ids:
+            results.append(await self.deliver(notification_id))
+        return tuple(results)
 
     async def deliver(self, notification_id: UUID) -> DeliveryResult:
         started_at = self._now()
