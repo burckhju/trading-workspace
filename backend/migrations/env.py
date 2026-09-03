@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from app.core.config import get_settings
 from app.database import Base
+from app.features.alert.persistence import models as alert_models  # noqa: F401
 from app.features.analysis.persistence import models as analysis_models  # noqa: F401
 from app.features.candidate.persistence import models as candidate_models  # noqa: F401
 from app.features.learning.persistence import bulk_import_models as learning_bulk_import_models  # noqa: F401
@@ -18,9 +19,12 @@ from app.features.market.persistence import top_down_models as market_top_down_m
 from app.features.market_data.persistence import instruments as market_data_instrument_models  # noqa: F401
 from app.features.market_data.persistence import models as market_data_models  # noqa: F401
 from app.features.model.persistence import models as model_governance_models  # noqa: F401
+from app.features.notification.persistence import models as notification_models  # noqa: F401
+from app.features.position_monitoring.persistence import models as position_monitoring_models  # noqa: F401
 from app.features.product.persistence import models as product_models  # noqa: F401
 from app.features.product_selection.persistence import models as product_selection_models  # noqa: F401
 from app.features.trade_plan.persistence import models as trade_plan_models  # noqa: F401
+from app.features.trade_position.persistence import models as trade_position_models  # noqa: F401
 from app.features.user_preferences.persistence import models as user_preference_models  # noqa: F401
 
 config = context.config
@@ -33,8 +37,6 @@ target_metadata = Base.metadata
 
 
 def run_migrations_offline() -> None:
-    """Run migrations without creating a database connection."""
-
     context.configure(
         url=config.get_main_option("sqlalchemy.url"),
         target_metadata=target_metadata,
@@ -47,20 +49,12 @@ def run_migrations_offline() -> None:
 
 
 def do_run_migrations(connection: Connection) -> None:
-    """Configure and execute migrations on an existing connection."""
-
-    context.configure(
-        connection=connection,
-        target_metadata=target_metadata,
-        compare_type=True,
-    )
+    context.configure(connection=connection, target_metadata=target_metadata, compare_type=True)
     with context.begin_transaction():
         context.run_migrations()
 
 
 async def run_migrations_online() -> None:
-    """Run migrations using the asynchronous PostgreSQL engine."""
-
     connectable = async_engine_from_config(
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",

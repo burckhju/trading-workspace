@@ -1,5 +1,6 @@
 """FastAPI application bootstrap and ASGI entry point."""
 
+import asyncio
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -23,6 +24,8 @@ from app.features.market.api.reference_market_data_router import (
 from app.features.market.api.top_down_router import router as top_down_reference_router
 from app.features.market_data.api import router as market_data_router
 from app.features.model.api import router as model_governance_router
+from app.features.position_monitoring.bootstrap import build_position_monitoring_runtime
+from app.features.position_monitoring.service.runner import PositionMonitoringRunner
 from app.features.post_trade.api import router as post_trade_router
 from app.features.product.api import router as product_router
 from app.features.product_selection.api import router as product_selection_router
@@ -48,13 +51,36 @@ def create_application(settings: Settings | None = None) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
-        logger.info(
-            "application_started",
-            extra={"environment": resolved_settings.environment.value},
-        )
-        yield
-        await container.close()
-        logger.info("application_stopped")
+        runner: PositionMonitoringRunner | None = None
+        monitoring_task: asyncio.Task[None] | None = None
+        try:
+            if resolved_settings.position_monitoring.enabled:
+                runtime = build_position_monitoring_runtime(
+                    settings=resolved_settings,
+                    database=container.database,
+                    market_data=container.require_eodhd_adapter(),
+                )
+                runner = PositionMonitoringRunner(
+                    runtime=runtime,
+                    interval_seconds=resolved_settings.position_monitoring.interval_seconds,
+                )
+                monitoring_task = asyncio.create_task(
+                    runner.run_forever(),
+                    name="position-monitoring",
+                )
+                logger.info("position_monitoring_started")
+            logger.info(
+                "application_started",
+                extra={"environment": resolved_settings.environment.value},
+            )
+            yield
+        finally:
+            if runner is not None and monitoring_task is not None:
+                runner.stop()
+                await monitoring_task
+                logger.info("position_monitoring_stopped")
+            await container.close()
+            logger.info("application_stopped")
 
     documentation_url = "/docs" if resolved_settings.documentation_enabled else None
     openapi_url = "/openapi.json" if resolved_settings.documentation_enabled else None

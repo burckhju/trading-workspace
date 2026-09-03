@@ -6,9 +6,9 @@
 |---|---|
 | Dokument | MODULE_AND_FEATURE_CATALOG.md |
 | Dokumenttyp | Product Architecture |
-| Version | 1.3 |
+| Version | 1.4 |
 | Status | 🟢 Approved |
-| Letzte Änderung | 2026-08-10 |
+| Letzte Änderung | 2026-09-03 |
 
 ## Zweck
 
@@ -47,6 +47,17 @@ Dieses Dokument ist die zentrale Zuordnung zwischen Roadmap-Meilensteinen, fachl
 
 TC-001 verändert die fachliche Feature-Nummerierung nicht. Eine benutzerverwaltete Providerkonfiguration bleibt ein separates, später zu spezifizierendes Feature.
 
+## Noch nicht nummerierte Capability in Technical Review
+
+Die Capability **Position Monitoring, Alerting and Outbound Notifications** ist auf dem Feature-Branch `feat/position-monitoring-alert-notification` implementiert und befindet sich im Technical Review. Im aktuell freigegebenen Katalog ist dafür keine FT-Nummer reserviert; deshalb wird hier bewusst keine Nummer erfunden.
+
+Der fachlich saubere Zuschnitt bleibt:
+
+- **Position Monitoring & Alert Domain:** konsumiert bestehende Position-, TradePlan- und Trade-Management-Zustände sowie providerneutrale Marktdaten; persistiert deterministische, deduplizierte Alerts.
+- **Notification Delivery & Telegram Adapter:** erzeugt providerneutrale Notifications und persistente Delivery Attempts; Telegram bleibt austauschbarer outbound-only Adapter.
+
+Die endgültige FT-Zuordnung ist eine separate Produktplanungsentscheidung. Die Implementierungs- und Scope-Dokumentation liegt unter `docs/features/POSITION_MONITORING_ALERT_NOTIFICATION.md`.
+
 ## Ownership der Kernobjekte
 
 | Domänenobjekt | Schreibender Owner | Lesende Features |
@@ -60,8 +71,10 @@ TC-001 verändert die fachliche Feature-Nummerierung nicht. Eine benutzerverwalt
 | Analyse | FT-006 | FT-005, FT-007, FT-012, FT-013 |
 | TradePlan / TradePlanVersion | FT-007 | FT-008–FT-012 |
 | Produktauswahl | FT-008 | FT-009, FT-012 |
-| Trade / Execution Record / Position | FT-009 | FT-010–FT-012 |
-| Trade Event | FT-010 | FT-011, FT-012 |
+| Trade / Execution Record / Position | FT-009 | FT-010–FT-012, Position Monitoring |
+| Trade Event | FT-010 | FT-011, FT-012, Position Monitoring |
+| Alert / Monitoring Rule State | Position Monitoring & Alert Capability (FT noch offen) | Notification Capability, spätere UI |
+| Notification / Delivery Attempt | Notification Capability (FT noch offen) | Delivery Adapter, spätere UI |
 | Nachbeobachtung/Exit Review | FT-011 | FT-012, FT-013 |
 | Journal/Performance Record | FT-012 | FT-013 |
 | Modell/Modellversion | FT-013 | alle berechnenden Features |
