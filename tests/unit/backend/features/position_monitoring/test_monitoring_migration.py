@@ -1,19 +1,22 @@
 from pathlib import Path
 
-MIGRATION = (
-    Path(__file__).parents[5]
-    / "backend/migrations/versions/20260903_0030_position_monitoring_alert_notification.py"
-)
+VERSIONS = Path(__file__).parents[5] / "backend/migrations/versions"
+MONITORING_MIGRATION = VERSIONS / "20260903_0030_position_monitoring_alert_notification.py"
+RECOVERY_MIGRATION = VERSIONS / "20260903_0031_notification_delivery_recovery.py"
 
 
-def test_monitoring_migration_follows_current_head() -> None:
-    text = MIGRATION.read_text()
-    assert 'revision: str = "20260903_0030"' in text
-    assert 'down_revision: str | None = "20260828_0029"' in text
+def test_monitoring_migrations_follow_current_head() -> None:
+    monitoring = MONITORING_MIGRATION.read_text()
+    recovery = RECOVERY_MIGRATION.read_text()
+    assert 'revision: str = "20260903_0030"' in monitoring
+    assert 'down_revision: str | None = "20260828_0029"' in monitoring
+    assert 'revision: str = "20260903_0031"' in recovery
+    assert 'down_revision: str | None = "20260903_0030"' in recovery
+    assert "IN_PROGRESS" in recovery
 
 
 def test_monitoring_migration_separates_alert_notification_and_delivery() -> None:
-    text = MIGRATION.read_text()
+    text = MONITORING_MIGRATION.read_text()
     for table in (
         "alerts",
         "monitoring_rule_states",
