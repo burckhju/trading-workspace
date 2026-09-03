@@ -6,9 +6,9 @@
 |---|---|
 | Dokument | PRODUCT_BACKLOG.md |
 | Dokumenttyp | Product Backlog |
-| Version | 1.2 |
+| Version | 1.3 |
 | Status | 🟢 Approved |
-| Letzte Änderung | 2026-08-10 |
+| Letzte Änderung | 2026-09-03 |
 
 ## Zweck
 
@@ -45,6 +45,25 @@ Das Product Backlog übersetzt Roadmap und Feature-Katalog in priorisierte, übe
 | 18 | PB-018 | FT-011 Nachbeobachtung | P3 | Not Started | geschlossene Trades können ohne reales Risiko weiterbeobachtet werden | PB-017 |
 | 19 | PB-019 | FT-012 Journal/Performance | P3 | Not Started | Prozess- und Ergebnisqualität werden getrennt ausgewertet | PB-018 |
 | 20 | PB-020 | FT-013 Modellkatalog | P3 | Not Started | Modellversionen sind freigebbar, vergleichbar und historisch zugeordnet | PB-004, PB-019 |
+
+## Unnummerierter Capability-Schnitt in Technical Review
+
+Die Capability **Position Monitoring, Alerting and Outbound Notifications** ist implementiert und befindet sich im Technical Review. Der zentrale Feature-Katalog enthält dafür aktuell keine freigegebene FT-Nummer; eine Nummer wird deshalb bewusst nicht vorweggenommen.
+
+Der aktuelle Abnahmekern ist:
+
+- offene beziehungsweise überwachungsrelevante Positionen deterministisch gegen den effektiven Stop und Target 1 prüfen,
+- completed-daily Underlying-Marktdaten providerneutral konsumieren,
+- fachliche Alerts persistent und edge-basiert dedupliziert speichern,
+- Alert und Notification/Delivery strikt trennen,
+- genau eine Telegram-Notification pro Alert/Destination erzeugen,
+- Telegram outbound-only und ohne Trading-Aktionen betreiben,
+- Delivery Failure/Retry/Restart behandeln, ohne Alerts zu verlieren oder neu zu erzeugen,
+- Success- und Failure-End-to-End-Szenarien automatisiert qualifizieren.
+
+Status: **Technical Review**. Referenz: `docs/features/POSITION_MONITORING_ALERT_NOTIFICATION.md` und PR #74.
+
+Die endgültige Produktplanung soll anschließend entscheiden, ob Monitoring/Alerting und Notification Delivery zwei eigene FT-Features werden oder gemeinsam nummeriert werden. Intraday-Underlying-Monitoring bleibt bis zu einem providerneutralen Underlying-Quote-Contract außerhalb dieses Schnitts.
 
 ## Nächster Umsetzungsschnitt
 
