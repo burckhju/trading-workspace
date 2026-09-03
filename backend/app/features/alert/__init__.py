@@ -1,0 +1,1 @@
+"""Persistable alert domain."""
