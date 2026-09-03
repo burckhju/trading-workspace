@@ -6,7 +6,11 @@ from decimal import Decimal
 from uuid import UUID
 
 from app.features.alert.domain.models import AlertSeverity, AlertStatus, AlertType
-from app.features.notification.domain.models import DeliveryStatus, NotificationChannel, NotificationStatus
+from app.features.notification.domain.models import (
+    DeliveryStatus,
+    NotificationChannel,
+    NotificationStatus,
+)
 
 
 @dataclass(frozen=True, slots=True)
