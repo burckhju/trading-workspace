@@ -100,9 +100,7 @@ describe('HypothesisProposalPanel FT-020', () => {
     await selectCandidate();
     expect(screen.getByText(/Legacy 1.0 bleibt unverändert/)).toBeInTheDocument();
     fireEvent.click(screen.getByLabelText('FAVORABLE only'));
-    expect(
-      screen.getByText(/CAUTIOUS market context will no longer satisfy/),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/CAUTIOUS market context will no longer satisfy/)).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Rationale'), {
       target: { value: 'Tighten policy' },
     });
@@ -125,9 +123,7 @@ describe('HypothesisProposalPanel FT-020', () => {
     render(<HypothesisProposalPanel hypothesisId="hypothesis-1" />);
     await selectCandidate();
     fireEvent.click(screen.getByLabelText('FAVORABLE + CAUTIOUS'));
-    expect(
-      screen.getByText(/CAUTIOUS market context will become eligible/),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/CAUTIOUS market context will become eligible/)).toBeInTheDocument();
   });
 
   it('fails closed for invalid or unknown Candidate definitions', async () => {
