@@ -43,6 +43,6 @@ def build_position_monitoring_runtime(
         max_completed_price_age_days=monitoring.max_completed_price_age_days,
         delivery_max_attempts=telegram.max_attempts,
         delivery_recovery_timeout=timedelta(
-            seconds=monitoring.delivery_recovery_timeout_seconds
+            seconds=monitoring.delivery_recovery_timeout_seconds,
         ),
     )
