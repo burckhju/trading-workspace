@@ -27,6 +27,16 @@ class SqlAlchemyDurableNotificationDeliveryStore:
     def __init__(self, database: DatabaseManager) -> None:
         self._database = database
 
+    async def list_pending_notification_ids(self, *, limit: int) -> tuple[UUID, ...]:
+        async with self._database.session_context() as session:
+            values = await session.scalars(
+                select(NotificationModel.id)
+                .where(NotificationModel.status == NotificationStatus.PENDING.value)
+                .order_by(NotificationModel.created_at, NotificationModel.id)
+                .limit(limit)
+            )
+            return tuple(values.all())
+
     async def prepare(
         self,
         *,
