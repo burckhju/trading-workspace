@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from contextlib import suppress
 from typing import Protocol
 
 from app.features.position_monitoring.service.runtime import PositionMonitoringRuntimeResult
@@ -47,10 +48,8 @@ class PositionMonitoringRunner:
             except Exception:
                 logger.exception("position_monitoring_cycle_failed")
 
-            try:
+            with suppress(TimeoutError):
                 await asyncio.wait_for(self._stop.wait(), timeout=self._interval_seconds)
-            except TimeoutError:
-                pass
 
     def stop(self) -> None:
         self._stop.set()
