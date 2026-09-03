@@ -17,6 +17,7 @@ class NotificationStatus(StrEnum):
 
 
 class DeliveryStatus(StrEnum):
+    IN_PROGRESS = "IN_PROGRESS"
     DELIVERED = "DELIVERED"
     FAILED = "FAILED"
 
@@ -48,8 +49,15 @@ class DeliveryAttempt:
     attempt_number: int
     status: DeliveryStatus
     attempted_at: datetime
-    completed_at: datetime
+    completed_at: datetime | None
     retryable: bool
     provider_message_id: str | None = None
     error_code: str | None = None
     error_message: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class DeliveryPreparation:
+    notification: Notification
+    attempt: DeliveryAttempt | None = None
+    terminal_result: DeliveryResult | None = None
