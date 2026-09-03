@@ -37,9 +37,7 @@ def test_stop_rule_enters_once_stays_deduplicated_and_resets() -> None:
 
     clear = PositionRuleEvaluator.evaluate(
         rule=rule,
-        observation=PriceObservation(
-            Decimal("101"), datetime(2026, 9, 4, tzinfo=UTC)
-        ),
+        observation=PriceObservation(Decimal("101"), datetime(2026, 9, 4, tzinfo=UTC)),
     )
     exited = decide_transition(current=state, evaluation=clear)
     assert exited.transition is TriggerTransition.EXITED
@@ -50,9 +48,7 @@ def test_target_rule_only_triggers_at_or_above_threshold() -> None:
     rule = MonitoringRule("target:120", MonitoringRuleType.TARGET_REACHED, Decimal("120"))
     below = PositionRuleEvaluator.evaluate(
         rule=rule,
-        observation=PriceObservation(
-            Decimal("119.99"), datetime(2026, 9, 3, tzinfo=UTC)
-        ),
+        observation=PriceObservation(Decimal("119.99"), datetime(2026, 9, 3, tzinfo=UTC)),
     )
     reached = PositionRuleEvaluator.evaluate(
         rule=rule,

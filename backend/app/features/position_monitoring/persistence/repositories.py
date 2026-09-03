@@ -14,7 +14,6 @@ class MonitoringRuleStateRepository(Protocol):
     async def get(
         self, *, position_id: UUID, rule_key: str
     ) -> MonitoringRuleState | None: ...
-
     async def put(self, state: MonitoringRuleState) -> None: ...
 
 
