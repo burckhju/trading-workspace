@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 from app.database import DatabaseManager
 from app.features.market_data.service.contracts import LatestCompletedDailyPriceProvider
@@ -21,6 +22,8 @@ from app.features.position_monitoring.service.cycle import (
 )
 from app.features.position_monitoring.service.processor import SqlAlchemyMonitoringRuleProcessor
 from app.features.position_monitoring.service.subjects import SqlAlchemyMonitoringSubjectReader
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
@@ -56,7 +59,17 @@ class PositionMonitoringRuntimeService:
         if self._delivery_adapter is None:
             return PositionMonitoringRuntimeResult(cycle_result, 0, 0, 0)
 
-        created = delivered = failures = 0
+        created = 0
+        for created_alert in cycle_result.created_alerts:
+            try:
+                await self._create_notification(created_alert)
+                created += 1
+            except Exception:
+                logger.exception(
+                    "position_alert_notification_creation_failed",
+                    extra={"alert_id": str(created_alert.alert.id)},
+                )
+
         delivery = DurableNotificationDeliveryService(
             store=SqlAlchemyDurableNotificationDeliveryStore(self._database),
             adapter=self._delivery_adapter,
@@ -65,17 +78,18 @@ class PositionMonitoringRuntimeService:
             max_attempts=self._delivery_max_attempts,
             in_progress_timeout=self._delivery_recovery_timeout,
         )
-        for created_alert in cycle_result.created_alerts:
-            try:
-                notification_id = await self._create_notification(created_alert)
-                created += 1
-                result = await delivery.deliver(notification_id)
+        delivered = failures = 0
+        try:
+            results = await delivery.deliver_pending()
+        except Exception:
+            logger.exception("pending_notification_delivery_failed")
+            failures += 1
+        else:
+            for result in results:
                 if result.status is DeliveryStatus.DELIVERED:
                     delivered += 1
                 else:
                     failures += 1
-            except Exception:
-                failures += 1
 
         return PositionMonitoringRuntimeResult(
             cycle=cycle_result,
@@ -95,16 +109,15 @@ class PositionMonitoringRuntimeService:
             )
             return await service.run()
 
-    async def _create_notification(self, created_alert: CreatedPositionAlert) -> UUID:
+    async def _create_notification(self, created_alert: CreatedPositionAlert) -> None:
         async with self._database.session_context() as session:
             service = AlertNotificationService(
                 notifications=SqlAlchemyNotificationRepository(session),
                 new_id=uuid4,
                 now=lambda: datetime.now(UTC),
             )
-            notification = await service.create_telegram(
+            await service.create_telegram(
                 alert=created_alert.alert,
                 symbol=created_alert.symbol,
             )
             await session.commit()
-            return notification.id
