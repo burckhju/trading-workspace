@@ -9,7 +9,9 @@ const mocks = vi.hoisted(() => ({
   listVersions: vi.fn(),
   create: vi.fn(),
 }));
-vi.mock('../services/hypothesisProposalClient', () => ({ hypothesisProposalClient: mocks }));
+vi.mock('../services/hypothesisProposalClient', () => ({
+  hypothesisProposalClient: mocks,
+}));
 vi.mock('./ProposalValidationPanel', () => ({
   ProposalValidationPanel: ({ proposalId }: { proposalId: string }) => (
     <div>Validation workflow {proposalId}</div>
