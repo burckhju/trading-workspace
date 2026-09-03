@@ -32,7 +32,9 @@ class AlertModel(Base):
     reason: Mapped[str] = mapped_column(String(1000), nullable=False)
     observed_value: Mapped[Decimal] = mapped_column(Numeric(24, 10), nullable=False)
     threshold_value: Mapped[Decimal] = mapped_column(Numeric(24, 10), nullable=False)
-    market_data_observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    market_data_observed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
     detected_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     status: Mapped[str] = mapped_column(String(20), nullable=False)
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

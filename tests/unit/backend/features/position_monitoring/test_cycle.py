@@ -1,10 +1,9 @@
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, date, datetime
 from decimal import Decimal
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 import pytest
 
-from app.features.alert.domain.models import Alert, AlertSeverity, AlertType
 from app.features.market_data.domain.enums import (
     CacheStatus,
     MarketDataCapability,
@@ -35,7 +34,9 @@ class MarketData:
     def __init__(self, price: DailyPrice | None) -> None:
         self.price = price
 
-    async def get_latest_completed_daily_price(self, request: object) -> MarketDataResult[DailyPrice | None]:
+    async def get_latest_completed_daily_price(
+        self, request: object
+    ) -> MarketDataResult[DailyPrice | None]:
         return MarketDataResult(
             data=self.price,
             provider=MarketDataProvider.EODHD,

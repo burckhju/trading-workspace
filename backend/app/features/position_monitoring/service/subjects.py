@@ -68,7 +68,10 @@ class SqlAlchemyMonitoringSubjectReader:
                 .order_by(PositionModel.id)
             )
         ).all()
-        return tuple([await self._resolve(position, trade, warrant) for position, trade, warrant in rows])
+        resolutions: list[MonitoringSubjectResolution] = []
+        for position, trade, warrant in rows:
+            resolutions.append(await self._resolve(position, trade, warrant))
+        return tuple(resolutions)
 
     async def _resolve(
         self,
@@ -119,7 +122,9 @@ class SqlAlchemyMonitoringSubjectReader:
         if stop is not None:
             rules.append(MonitoringRule("CURRENT_STOP", MonitoringRuleType.STOP_REACHED, stop))
         if target is not None:
-            rules.append(MonitoringRule("CURRENT_TARGET", MonitoringRuleType.TARGET_REACHED, target))
+            rules.append(
+                MonitoringRule("CURRENT_TARGET", MonitoringRuleType.TARGET_REACHED, target)
+            )
         if not rules:
             return MonitoringSubjectResolution(
                 position_id=position.id,
