@@ -23,6 +23,10 @@ class NotificationRepository(Protocol):
 
     async def get(self, notification_id: UUID) -> Notification | None: ...
 
+    async def get_for_alert(
+        self, *, alert_id: UUID, channel: NotificationChannel, destination_key: str
+    ) -> Notification | None: ...
+
     async def set_status(self, notification_id: UUID, status: NotificationStatus) -> None: ...
 
     async def next_attempt_number(self, notification_id: UUID) -> int: ...
@@ -51,17 +55,19 @@ class SqlAlchemyNotificationRepository:
         model = await self._session.scalar(
             select(NotificationModel).where(NotificationModel.id == notification_id)
         )
-        if model is None:
-            return None
-        return Notification(
-            id=model.id,
-            alert_id=model.alert_id,
-            channel=NotificationChannel(model.channel),
-            destination_key=model.destination_key,
-            body=model.body,
-            created_at=model.created_at,
-            status=NotificationStatus(model.status),
+        return None if model is None else self._to_domain(model)
+
+    async def get_for_alert(
+        self, *, alert_id: UUID, channel: NotificationChannel, destination_key: str
+    ) -> Notification | None:
+        model = await self._session.scalar(
+            select(NotificationModel).where(
+                NotificationModel.alert_id == alert_id,
+                NotificationModel.channel == channel.value,
+                NotificationModel.destination_key == destination_key,
+            )
         )
+        return None if model is None else self._to_domain(model)
 
     async def set_status(self, notification_id: UUID, status: NotificationStatus) -> None:
         model = await self._session.scalar(
@@ -93,4 +99,16 @@ class SqlAlchemyNotificationRepository:
                 error_code=attempt.error_code,
                 error_message=attempt.error_message,
             )
+        )
+
+    @staticmethod
+    def _to_domain(model: NotificationModel) -> Notification:
+        return Notification(
+            id=model.id,
+            alert_id=model.alert_id,
+            channel=NotificationChannel(model.channel),
+            destination_key=model.destination_key,
+            body=model.body,
+            created_at=model.created_at,
+            status=NotificationStatus(model.status),
         )

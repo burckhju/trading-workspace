@@ -41,7 +41,6 @@ class EodhdSettings(BaseModel):
     @field_validator("daily_call_safety_reserve")
     @classmethod
     def validate_daily_call_safety_reserve(cls, value: int, info: object) -> int:
-        """Keep the configured reserve below the effective account limit."""
         data = getattr(info, "data", {})
         limit = data.get("daily_call_limit", 100_000)
         if value >= limit:
@@ -51,7 +50,6 @@ class EodhdSettings(BaseModel):
     @field_validator("base_url")
     @classmethod
     def validate_base_url(cls, value: str) -> str:
-        """Require HTTPS and normalize a trailing slash."""
         from urllib.parse import urlparse
 
         normalized = value.rstrip("/")
@@ -63,7 +61,6 @@ class EodhdSettings(BaseModel):
     @field_validator("api_key")
     @classmethod
     def normalize_api_key(cls, value: SecretStr | None) -> SecretStr | None:
-        """Treat blank secrets as absent."""
         if value is None:
             return None
         secret = value.get_secret_value().strip()
@@ -74,6 +71,50 @@ class MarketDataSettings(BaseModel):
     """Settings for market-data infrastructure and providers."""
 
     eodhd: EodhdSettings = Field(default_factory=EodhdSettings)
+
+
+class TelegramSettings(BaseModel):
+    """Outbound-only Telegram delivery settings."""
+
+    enabled: bool = False
+    base_url: str = "https://api.telegram.org"
+    bot_token: SecretStr | None = None
+    chat_id: str | None = None
+    timeout_seconds: Annotated[float, Field(gt=0, le=60)] = 10.0
+    max_attempts: Annotated[int, Field(ge=1, le=10)] = 3
+
+    @field_validator("base_url")
+    @classmethod
+    def validate_base_url(cls, value: str) -> str:
+        from urllib.parse import urlparse
+
+        normalized = value.rstrip("/")
+        parsed = urlparse(normalized)
+        if parsed.scheme != "https" or not parsed.netloc:
+            raise ValueError("Telegram base_url must be an absolute HTTPS URL")
+        return normalized
+
+    @field_validator("bot_token")
+    @classmethod
+    def normalize_bot_token(cls, value: SecretStr | None) -> SecretStr | None:
+        if value is None:
+            return None
+        secret = value.get_secret_value().strip()
+        return SecretStr(secret) if secret else None
+
+    @field_validator("chat_id")
+    @classmethod
+    def normalize_chat_id(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip()
+        return normalized or None
+
+
+class NotificationSettings(BaseModel):
+    """Provider-neutral notification configuration."""
+
+    telegram: TelegramSettings = Field(default_factory=TelegramSettings)
 
 
 class Settings(BaseSettings):
@@ -100,11 +141,11 @@ class Settings(BaseSettings):
     database_max_overflow: Annotated[int, Field(ge=0, le=100)] = 10
     database_pool_recycle_seconds: Annotated[int, Field(ge=30)] = 1800
     market_data: MarketDataSettings = Field(default_factory=MarketDataSettings)
+    notification: NotificationSettings = Field(default_factory=NotificationSettings)
 
     @field_validator("database_url")
     @classmethod
     def validate_database_url(cls, value: str) -> str:
-        """Require the documented asynchronous PostgreSQL driver."""
         from sqlalchemy.engine import make_url
 
         url = make_url(value)
