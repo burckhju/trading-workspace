@@ -26,7 +26,8 @@ export function readCandidateConfiguration(
   const contexts = definition.market_context_allowed;
   if (!Array.isArray(contexts) || contexts.some((value) => typeof value !== 'string')) return null;
   const unique = [...new Set(contexts)].sort();
-  const permissive = unique.length === 2 && unique[0] === 'CAUTIOUS' && unique[1] === 'FAVORABLE';
+  const permissive =
+    unique.length === 2 && unique[0] === 'CAUTIOUS' && unique[1] === 'FAVORABLE';
   const strict = unique.length === 1 && unique[0] === 'FAVORABLE';
 
   if (schema === CANDIDATE_SCHEMA_V1 && !permissive) return null;
