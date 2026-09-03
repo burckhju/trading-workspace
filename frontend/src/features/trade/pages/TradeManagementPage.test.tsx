@@ -6,6 +6,10 @@ import { postTradeApiClient } from '../../post_trade/services/client';
 import { tradeManagementApiClient } from '../services/client';
 import { TradeManagementPage } from './TradeManagementPage';
 
+vi.mock('../../alert/components/TradeAlertsPanel', () => ({
+  TradeAlertsPanel: ({ tradeId }: { tradeId: string }) => <div>Alerts for {tradeId}</div>,
+}));
+
 vi.mock('../../post_trade/services/client', () => ({
   postTradeApiClient: {
     startObservation: vi.fn(),
@@ -76,6 +80,7 @@ describe('TradeManagementPage', () => {
     expect(screen.getByDisplayValue('2.80')).toBeInTheDocument();
     expect(screen.getByDisplayValue('Trend intact')).toBeInTheDocument();
     expect(screen.getByText('Initial note')).toBeInTheDocument();
+    expect(screen.getByText('Alerts for trade-1')).toBeInTheDocument();
 
     expect(api.position).toHaveBeenCalledWith('trade-1', expect.any(AbortSignal));
     expect(api.managementState).toHaveBeenCalledWith('trade-1', expect.any(AbortSignal));
