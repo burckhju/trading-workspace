@@ -36,6 +36,12 @@ class MonitoringRuleProcessor(Protocol):
 
 
 @dataclass(frozen=True, slots=True)
+class CreatedPositionAlert:
+    alert: Alert
+    symbol: str
+
+
+@dataclass(frozen=True, slots=True)
 class MonitoringCycleResult:
     positions_seen: int
     positions_checked: int
@@ -49,6 +55,7 @@ class MonitoringCycleResult:
     market_data_errors: int
     position_errors: int
     alerts: tuple[Alert, ...]
+    created_alerts: tuple[CreatedPositionAlert, ...]
 
 
 class PositionMonitoringCycleService:
@@ -78,6 +85,7 @@ class PositionMonitoringCycleService:
         checked = rules_evaluated = alerts_created = deduplicated = resolved = 0
         subject_errors = missing = stale = data_errors = position_errors = 0
         alerts: list[Alert] = []
+        created_alerts: list[CreatedPositionAlert] = []
         now = self._now()
 
         for resolution in resolutions:
@@ -130,6 +138,12 @@ class PositionMonitoringCycleService:
                     if evaluation.alert is not None:
                         alerts_created += 1
                         alerts.append(evaluation.alert)
+                        created_alerts.append(
+                            CreatedPositionAlert(
+                                alert=evaluation.alert,
+                                symbol=subject.symbol,
+                            )
+                        )
                     if evaluation.transition is TriggerTransition.STAYED_TRIGGERED:
                         deduplicated += 1
                     elif evaluation.transition is TriggerTransition.EXITED:
@@ -151,4 +165,5 @@ class PositionMonitoringCycleService:
             market_data_errors=data_errors,
             position_errors=position_errors,
             alerts=tuple(alerts),
+            created_alerts=tuple(created_alerts),
         )
