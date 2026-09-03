@@ -7,7 +7,11 @@ from uuid import UUID
 from pydantic import BaseModel
 
 from app.features.alert.domain.models import AlertSeverity, AlertStatus, AlertType
-from app.features.notification.domain.models import DeliveryStatus, NotificationChannel, NotificationStatus
+from app.features.notification.domain.models import (
+    DeliveryStatus,
+    NotificationChannel,
+    NotificationStatus,
+)
 
 
 class DeliveryAttemptResponse(BaseModel):
