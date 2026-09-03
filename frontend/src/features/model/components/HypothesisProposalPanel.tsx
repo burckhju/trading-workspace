@@ -4,6 +4,15 @@ import type { FormEvent } from 'react';
 import { ErrorNotice, LoadingNotice } from '../../market/components/ApiFeedback';
 import { ProposalValidationPanel } from './ProposalValidationPanel';
 import { hypothesisProposalClient } from '../services/hypothesisProposalClient';
+import {
+  CANDIDATE_MODEL_KEY,
+  CANDIDATE_SCHEMA_V1,
+  candidatePolicyImpact,
+  candidatePolicyLabel,
+  proposedCandidateDefinition,
+  readCandidateConfiguration,
+} from '../types/candidateConfiguration';
+import type { CandidateMarketContextPolicy } from '../types/candidateConfiguration';
 import type {
   GovernedModelSummary,
   GovernedModelVersion,
@@ -21,6 +30,7 @@ export function HypothesisProposalPanel({ hypothesisId }: HypothesisProposalPane
   const [modelId, setModelId] = useState('');
   const [baseVersionId, setBaseVersionId] = useState('');
   const [definition, setDefinition] = useState('');
+  const [candidatePolicy, setCandidatePolicy] = useState<CandidateMarketContextPolicy | ''>('');
   const [rationale, setRationale] = useState('');
   const [loading, setLoading] = useState(true);
   const [loadingVersions, setLoadingVersions] = useState(false);
@@ -31,7 +41,6 @@ export function HypothesisProposalPanel({ hypothesisId }: HypothesisProposalPane
     const controller = new AbortController();
     setLoading(true);
     setError(null);
-
     Promise.all([
       hypothesisProposalClient.listForHypothesis(hypothesisId, controller.signal),
       hypothesisProposalClient.listModels(controller.signal),
@@ -46,9 +55,14 @@ export function HypothesisProposalPanel({ hypothesisId }: HypothesisProposalPane
       .finally(() => {
         if (!controller.signal.aborted) setLoading(false);
       });
-
     return () => controller.abort();
   }, [hypothesisId]);
+
+  const selectedModel = useMemo(
+    () => models.find((model) => model.id === modelId),
+    [models, modelId],
+  );
+  const isCandidateModel = selectedModel?.model_key === CANDIDATE_MODEL_KEY;
 
   useEffect(() => {
     if (!modelId || proposals.length > 0) {
@@ -56,7 +70,6 @@ export function HypothesisProposalPanel({ hypothesisId }: HypothesisProposalPane
       setBaseVersionId('');
       return;
     }
-
     const controller = new AbortController();
     setLoadingVersions(true);
     setError(null);
@@ -68,6 +81,8 @@ export function HypothesisProposalPanel({ hypothesisId }: HypothesisProposalPane
         const latest = approved.at(-1);
         setBaseVersionId(latest?.id ?? '');
         setDefinition(latest ? JSON.stringify(latest.definition, null, 2) : '');
+        const config = latest ? readCandidateConfiguration(latest.definition) : null;
+        setCandidatePolicy(config?.policy ?? '');
       })
       .catch((nextError: unknown) => {
         if (!controller.signal.aborted) setError(nextError);
@@ -75,7 +90,6 @@ export function HypothesisProposalPanel({ hypothesisId }: HypothesisProposalPane
       .finally(() => {
         if (!controller.signal.aborted) setLoadingVersions(false);
       });
-
     return () => controller.abort();
   }, [modelId, proposals.length]);
 
@@ -83,13 +97,27 @@ export function HypothesisProposalPanel({ hypothesisId }: HypothesisProposalPane
     () => versions.find((version) => version.id === baseVersionId),
     [versions, baseVersionId],
   );
+  const candidateCurrent =
+    isCandidateModel && selectedVersion
+      ? readCandidateConfiguration(selectedVersion.definition)
+      : null;
+  const candidateImpact =
+    candidateCurrent && candidatePolicy
+      ? candidatePolicyImpact(candidateCurrent.policy, candidatePolicy)
+      : null;
+  const candidateNoOp = candidateCurrent !== null && candidatePolicy === candidateCurrent.policy;
+  const candidateUnsupported =
+    isCandidateModel && selectedVersion !== undefined && candidateCurrent === null;
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (isCandidateModel && (!candidateCurrent || !candidatePolicy || candidateNoOp)) return;
     setSaving(true);
     setError(null);
     try {
-      const proposedDefinition = JSON.parse(definition) as Record<string, unknown>;
+      const proposedDefinition = isCandidateModel
+        ? proposedCandidateDefinition(candidatePolicy as CandidateMarketContextPolicy)
+        : (JSON.parse(definition) as Record<string, unknown>);
       const created = await hypothesisProposalClient.create({
         model_id: modelId,
         base_model_version_id: baseVersionId,
@@ -103,10 +131,6 @@ export function HypothesisProposalPanel({ hypothesisId }: HypothesisProposalPane
     } finally {
       setSaving(false);
     }
-  }
-
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    void submit(event);
   }
 
   if (loading) return <LoadingNotice label="FT-013-Proposals werden geladen …" />;
@@ -129,26 +153,34 @@ export function HypothesisProposalPanel({ hypothesisId }: HypothesisProposalPane
     );
   }
 
+  const submitDisabled =
+    saving ||
+    !modelId ||
+    !baseVersionId ||
+    (isCandidateModel && (!candidateCurrent || !candidatePolicy || candidateNoOp));
+
   return (
     <div className="mt-4 rounded-lg border border-slate-800 p-4">
       <h4 className="font-medium">ModelChangeProposal erstellen</h4>
       <p className="mt-1 text-sm text-slate-400">
         Erstellt nur einen DRAFT. Validation, Approval und Aktivierung erfolgen nicht automatisch.
       </p>
-
       {error !== null && (
         <div className="mt-3">
           <ErrorNotice error={error} />
         </div>
       )}
 
-      <form className="mt-4 space-y-4" onSubmit={handleSubmit}>
+      <form className="mt-4 space-y-4" onSubmit={(event) => void submit(event)}>
         <label className="block text-sm">
           <span className="text-slate-400">Governed Model</span>
           <select
             className="mt-1 w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2"
             value={modelId}
-            onChange={(event) => setModelId(event.target.value)}
+            onChange={(event) => {
+              setModelId(event.target.value);
+              setCandidatePolicy('');
+            }}
             required
           >
             <option value="">Model auswählen</option>
@@ -169,7 +201,12 @@ export function HypothesisProposalPanel({ hypothesisId }: HypothesisProposalPane
               const nextId = event.target.value;
               setBaseVersionId(nextId);
               const nextVersion = versions.find((version) => version.id === nextId);
-              if (nextVersion) setDefinition(JSON.stringify(nextVersion.definition, null, 2));
+              if (nextVersion) {
+                setDefinition(JSON.stringify(nextVersion.definition, null, 2));
+                setCandidatePolicy(
+                  readCandidateConfiguration(nextVersion.definition)?.policy ?? '',
+                );
+              }
             }}
             required
             disabled={!modelId || loadingVersions}
@@ -189,22 +226,95 @@ export function HypothesisProposalPanel({ hypothesisId }: HypothesisProposalPane
           <p className="text-sm text-amber-300">Dieses Model hat keine APPROVED Version.</p>
         )}
 
-        <label className="block text-sm">
-          <span className="text-slate-400">Proposed Definition (JSON)</span>
-          <textarea
-            className="mt-1 min-h-48 w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 font-mono text-xs"
-            value={definition}
-            onChange={(event) => setDefinition(event.target.value)}
-            required
-          />
-        </label>
+        {isCandidateModel ? (
+          <div className="space-y-4" aria-live="polite">
+            {candidateUnsupported ? (
+              <div
+                className="rounded-md border border-amber-700 p-3 text-sm text-amber-200"
+                role="alert"
+              >
+                Diese Candidate Definition wird vom spezialisierten Editor nicht vollständig
+                verstanden und kann hier nicht verlustfrei geändert werden.
+              </div>
+            ) : candidateCurrent && selectedVersion ? (
+              <>
+                <div className="rounded-md border border-slate-700 p-3 text-sm">
+                  <p className="font-medium">Current / Base</p>
+                  <p className="mt-1">
+                    Model-Version {selectedVersion.version} · {candidateCurrent.schema}
+                  </p>
+                  <p className="mt-1">
+                    Candidate market context policy: {candidatePolicyLabel(candidateCurrent.policy)}
+                  </p>
+                  {candidateCurrent.schema === CANDIDATE_SCHEMA_V1 && (
+                    <p className="mt-2 text-slate-400">
+                      Legacy 1.0 bleibt unverändert. Eine vorgeschlagene Policy-Änderung erzeugt
+                      ausdrücklich eine neue 2.0-Definition.
+                    </p>
+                  )}
+                </div>
+                <fieldset className="rounded-md border border-slate-700 p-3">
+                  <legend className="px-1 text-sm font-medium">
+                    Proposed Candidate Policy · Schema 2.0
+                  </legend>
+                  <label className="mt-2 flex gap-2 text-sm">
+                    <input
+                      type="radio"
+                      name="candidate-policy"
+                      value="FAVORABLE_AND_CAUTIOUS"
+                      checked={candidatePolicy === 'FAVORABLE_AND_CAUTIOUS'}
+                      onChange={() => setCandidatePolicy('FAVORABLE_AND_CAUTIOUS')}
+                    />
+                    FAVORABLE + CAUTIOUS
+                  </label>
+                  <label className="mt-2 flex gap-2 text-sm">
+                    <input
+                      type="radio"
+                      name="candidate-policy"
+                      value="FAVORABLE_ONLY"
+                      checked={candidatePolicy === 'FAVORABLE_ONLY'}
+                      onChange={() => setCandidatePolicy('FAVORABLE_ONLY')}
+                    />
+                    FAVORABLE only
+                  </label>
+                </fieldset>
+                <div className="rounded-md border border-slate-700 p-3 text-sm">
+                  <p className="font-medium">Proposed</p>
+                  <p className="mt-1">
+                    Candidate market context policy:{' '}
+                    {candidatePolicy ? candidatePolicyLabel(candidatePolicy) : 'Keine Auswahl'}
+                  </p>
+                  {candidateNoOp && <p className="mt-2 text-amber-300">Keine Änderung.</p>}
+                  {candidateImpact && (
+                    <>
+                      <p className="mt-2">{candidateImpact}</p>
+                      <p className="mt-2 text-xs text-slate-500">
+                        Direkte definitorische Auswirkung; keine retrospective Validation,
+                        Performance-Prognose oder Empfehlung.
+                      </p>
+                    </>
+                  )}
+                </div>
+              </>
+            ) : null}
+          </div>
+        ) : (
+          <label className="block text-sm">
+            <span className="text-slate-400">Proposed Definition (JSON)</span>
+            <textarea
+              className="mt-1 min-h-48 w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 font-mono text-xs"
+              value={definition}
+              onChange={(event) => setDefinition(event.target.value)}
+              required
+            />
+          </label>
+        )}
 
         {selectedVersion && (
           <p className="text-xs text-slate-500">
             Ausgangspunkt: Model-Version {selectedVersion.version} · {selectedVersion.id}
           </p>
         )}
-
         <label className="block text-sm">
           <span className="text-slate-400">Rationale</span>
           <textarea
@@ -214,10 +324,9 @@ export function HypothesisProposalPanel({ hypothesisId }: HypothesisProposalPane
             required
           />
         </label>
-
         <button
           type="submit"
-          disabled={saving || !modelId || !baseVersionId}
+          disabled={submitDisabled}
           className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium disabled:opacity-50"
         >
           {saving ? 'Proposal wird angelegt …' : 'ModelChangeProposal als DRAFT anlegen'}

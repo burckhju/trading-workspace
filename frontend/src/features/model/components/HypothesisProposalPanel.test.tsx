@@ -9,112 +9,138 @@ const mocks = vi.hoisted(() => ({
   listVersions: vi.fn(),
   create: vi.fn(),
 }));
-
-vi.mock('../services/hypothesisProposalClient', () => ({
-  hypothesisProposalClient: mocks,
-}));
-
+vi.mock('../services/hypothesisProposalClient', () => ({ hypothesisProposalClient: mocks }));
 vi.mock('./ProposalValidationPanel', () => ({
   ProposalValidationPanel: ({ proposalId }: { proposalId: string }) => (
     <div>Validation workflow {proposalId}</div>
   ),
 }));
 
-describe('HypothesisProposalPanel', () => {
+const candidateModel = {
+  id: 'model-1',
+  model_key: 'TOP_DOWN_CANDIDATE',
+  name: 'Candidate',
+  purpose: 'Qualify candidates',
+  created_at: '2026-09-01T00:00:00Z',
+  created_by: 'actor-1',
+};
+function version(id: string, number: number, definition: Record<string, unknown>) {
+  return {
+    id,
+    model_id: 'model-1',
+    version: number,
+    status: 'APPROVED',
+    definition,
+    change_summary: 'Approved',
+    created_at: '2026-09-01T00:00:00Z',
+    created_by: 'actor-1',
+    previous_version_id: null,
+  };
+}
+const v1 = {
+  schema: 'TOP_DOWN_CANDIDATE/1.0',
+  direction: 'LONG',
+  market_context_allowed: ['FAVORABLE', 'CAUTIOUS'],
+};
+const permissiveV2 = {
+  schema: 'TOP_DOWN_CANDIDATE/2.0',
+  direction: 'LONG',
+  market_context_allowed: ['FAVORABLE', 'CAUTIOUS'],
+};
+const strictV2 = {
+  schema: 'TOP_DOWN_CANDIDATE/2.0',
+  direction: 'LONG',
+  market_context_allowed: ['FAVORABLE'],
+};
+
+async function selectCandidate() {
+  const modelSelect = await screen.findByLabelText('Governed Model');
+  fireEvent.change(modelSelect, { target: { value: 'model-1' } });
+  await waitFor(() =>
+    expect(screen.getByLabelText('APPROVED Base-Version')).toHaveValue('version-1'),
+  );
+}
+
+describe('HypothesisProposalPanel FT-020', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.listForHypothesis.mockResolvedValue([]);
-    mocks.listModels.mockResolvedValue([
-      {
-        id: 'model-1',
-        model_key: 'TOP_DOWN',
-        name: 'Top Down',
-        purpose: 'Rank candidates',
-        created_at: '2026-08-28T18:00:00Z',
-        created_by: 'actor-1',
-      },
-    ]);
-    mocks.listVersions.mockResolvedValue([
-      {
-        id: 'version-1',
-        model_id: 'model-1',
-        version: 1,
-        status: 'APPROVED',
-        definition: { threshold: 1 },
-        change_summary: 'Initial',
-        created_at: '2026-08-28T18:00:00Z',
-        created_by: 'actor-1',
-        previous_version_id: null,
-      },
-    ]);
+    mocks.listModels.mockResolvedValue([candidateModel]);
+    mocks.listVersions.mockResolvedValue([version('version-1', 1, permissiveV2)]);
   });
 
-  it('shows existing proposal and suppresses duplicate creation by default', async () => {
-    mocks.listForHypothesis.mockResolvedValue([
-      {
-        id: 'proposal-1',
-        model_id: 'model-1',
-        base_model_version_id: 'version-1',
-        hypothesis_id: 'hypothesis-1',
-        status: 'DRAFT',
-        proposed_definition: { threshold: 2 },
-        rationale: 'Tighten selectivity',
-        created_at: '2026-08-28T18:00:00Z',
-        created_by: 'actor-1',
-      },
-    ]);
-
+  it('renders V2 current policy without Candidate JSON editing', async () => {
     render(<HypothesisProposalPanel hypothesisId="hypothesis-1" />);
-
-    expect(await screen.findByText('ModelChangeProposal vorhanden')).toBeInTheDocument();
-    expect(screen.getByText('Validation workflow proposal-1')).toBeInTheDocument();
+    await selectCandidate();
     expect(
-      screen.queryByRole('button', { name: 'ModelChangeProposal als DRAFT anlegen' }),
-    ).toBeNull();
+      screen.getAllByText('Candidate market context policy: FAVORABLE + CAUTIOUS'),
+    ).toHaveLength(2);
+    expect(screen.queryByLabelText('Proposed Definition (JSON)')).toBeNull();
+    expect(screen.getByText('Keine Änderung.')).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'ModelChangeProposal als DRAFT anlegen' }),
+    ).toBeDisabled();
   });
 
-  it('creates proposal from an approved base version', async () => {
+  it('derives an explicit V2 strict proposal from immutable V1', async () => {
+    mocks.listVersions.mockResolvedValue([version('version-1', 1, v1)]);
     mocks.create.mockResolvedValue({
       id: 'proposal-1',
       model_id: 'model-1',
       base_model_version_id: 'version-1',
       hypothesis_id: 'hypothesis-1',
       status: 'DRAFT',
-      proposed_definition: { threshold: 2 },
-      rationale: 'Tighten selectivity',
-      created_at: '2026-08-28T18:00:00Z',
+      proposed_definition: strictV2,
+      rationale: 'Tighten policy',
+      created_at: '2026-09-03T00:00:00Z',
       created_by: 'actor-1',
     });
-
     render(<HypothesisProposalPanel hypothesisId="hypothesis-1" />);
-
-    await screen.findByText('ModelChangeProposal erstellen');
-    fireEvent.change(screen.getByLabelText('Governed Model'), {
-      target: { value: 'model-1' },
-    });
-    await waitFor(() =>
-      expect(mocks.listVersions).toHaveBeenCalledWith('model-1', expect.anything()),
-    );
-    await waitFor(() =>
-      expect(screen.getByLabelText('APPROVED Base-Version')).toHaveValue('version-1'),
-    );
-    fireEvent.change(screen.getByLabelText('Proposed Definition (JSON)'), {
-      target: { value: '{"threshold":2}' },
-    });
-    fireEvent.change(screen.getByLabelText('Rationale'), {
-      target: { value: 'Tighten selectivity' },
-    });
+    await selectCandidate();
+    expect(screen.getByText(/Legacy 1.0 bleibt unverändert/)).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText('FAVORABLE only'));
+    expect(screen.getByText(/CAUTIOUS market context will no longer satisfy/)).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Rationale'), { target: { value: 'Tighten policy' } });
     fireEvent.click(screen.getByRole('button', { name: 'ModelChangeProposal als DRAFT anlegen' }));
-
     await waitFor(() =>
       expect(mocks.create).toHaveBeenCalledWith({
         model_id: 'model-1',
         base_model_version_id: 'version-1',
         hypothesis_id: 'hypothesis-1',
-        proposed_definition: { threshold: 2 },
-        rationale: 'Tighten selectivity',
+        proposed_definition: strictV2,
+        rationale: 'Tighten policy',
       }),
     );
-    expect(await screen.findByText('ModelChangeProposal vorhanden')).toBeInTheDocument();
+  });
+
+  it('previews strict to permissive impact', async () => {
+    mocks.listVersions.mockResolvedValue([version('version-1', 2, strictV2)]);
+    render(<HypothesisProposalPanel hypothesisId="hypothesis-1" />);
+    await selectCandidate();
+    fireEvent.click(screen.getByLabelText('FAVORABLE + CAUTIOUS'));
+    expect(screen.getByText(/CAUTIOUS market context will become eligible/)).toBeInTheDocument();
+  });
+
+  it('fails closed for invalid or unknown Candidate definitions', async () => {
+    mocks.listVersions.mockResolvedValue([
+      version('version-1', 2, { schema: 'TOP_DOWN_CANDIDATE/2.0', direction: 'LONG' }),
+    ]);
+    render(<HypothesisProposalPanel hypothesisId="hypothesis-1" />);
+    await selectCandidate();
+    expect(screen.getByRole('alert')).toHaveTextContent('nicht vollständig verstanden');
+    expect(screen.queryByLabelText('FAVORABLE only')).toBeNull();
+    expect(
+      screen.getByRole('button', { name: 'ModelChangeProposal als DRAFT anlegen' }),
+    ).toBeDisabled();
+  });
+
+  it('rejects unknown definition content instead of lossy round-tripping', async () => {
+    mocks.listVersions.mockResolvedValue([
+      version('version-1', 2, { ...permissiveV2, future_rule: true }),
+    ]);
+    render(<HypothesisProposalPanel hypothesisId="hypothesis-1" />);
+    await selectCandidate();
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+    expect(mocks.create).not.toHaveBeenCalled();
   });
 });
