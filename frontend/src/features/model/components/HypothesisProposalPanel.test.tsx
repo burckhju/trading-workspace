@@ -54,7 +54,8 @@ const strictV2 = {
 };
 
 async function selectCandidate() {
-  fireEvent.change(screen.getByLabelText('Governed Model'), { target: { value: 'model-1' } });
+  const modelSelect = await screen.findByLabelText('Governed Model');
+  fireEvent.change(modelSelect, { target: { value: 'model-1' } });
   await waitFor(() =>
     expect(screen.getByLabelText('APPROVED Base-Version')).toHaveValue('version-1'),
   );
