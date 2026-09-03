@@ -2,7 +2,9 @@ export const CANDIDATE_MODEL_KEY = 'TOP_DOWN_CANDIDATE';
 export const CANDIDATE_SCHEMA_V1 = 'TOP_DOWN_CANDIDATE/1.0';
 export const CANDIDATE_SCHEMA_V2 = 'TOP_DOWN_CANDIDATE/2.0';
 
-export type CandidateMarketContextPolicy = 'FAVORABLE_AND_CAUTIOUS' | 'FAVORABLE_ONLY';
+export type CandidateMarketContextPolicy =
+  | 'FAVORABLE_AND_CAUTIOUS'
+  | 'FAVORABLE_ONLY';
 
 export interface CandidateConfiguration {
   schema: typeof CANDIDATE_SCHEMA_V1 | typeof CANDIDATE_SCHEMA_V2;
@@ -24,7 +26,9 @@ export function readCandidateConfiguration(
   if (schema !== CANDIDATE_SCHEMA_V1 && schema !== CANDIDATE_SCHEMA_V2) return null;
 
   const contexts = definition.market_context_allowed;
-  if (!Array.isArray(contexts) || contexts.some((value) => typeof value !== 'string')) return null;
+  if (!Array.isArray(contexts) || contexts.some((value) => typeof value !== 'string')) {
+    return null;
+  }
   const unique = [...new Set(contexts)].sort();
   const permissive =
     unique.length === 2 && unique[0] === 'CAUTIOUS' && unique[1] === 'FAVORABLE';
