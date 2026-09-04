@@ -32,6 +32,18 @@ interface FormState {
   riskNotes: string;
 }
 
+function tradePlanReference(id: string): string {
+  return `TP-${id.slice(0, 8).toUpperCase()}`;
+}
+
+function nextStep(status: TradePlanVersionResponse['status']): string {
+  if (status === 'DRAFT') return 'Zur Prüfung einreichen';
+  if (status === 'READY_FOR_REVIEW') return 'Explizit freigeben';
+  if (status === 'APPROVED') return 'Produktauswahl starten';
+  if (status === 'ABANDONED') return 'Kein weiterer Schritt – TradePlan wurde aufgegeben';
+  return 'Aktuellen versionsgenauen Planstand prüfen';
+}
+
 function initialForm(searchParams: URLSearchParams): FormState {
   const candidateId = searchParams.get('candidate_id') ?? '';
   const candidateEvaluationId = searchParams.get('candidate_evaluation_id') ?? '';
@@ -625,6 +637,31 @@ export function TradePlanPage() {
 
           {detail && current ? (
             <>
+              <section className="rounded-xl border border-sky-900 bg-sky-950/20 p-5">
+                <p className="text-xs uppercase tracking-wide text-slate-500">Aktiver TradePlan</p>
+                <h2 className="mt-1 text-xl font-semibold">{tradePlanReference(detail.plan.id)}</h2>
+                <p className="mt-1 text-sm text-slate-400">
+                  Erstellt {new Date(detail.plan.created_at).toLocaleString('de-DE')}
+                </p>
+                <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-3">
+                  <div>
+                    <dt className="text-slate-500">Status</dt>
+                    <dd className="mt-1 font-medium">{current.status}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-slate-500">Version</dt>
+                    <dd className="mt-1 font-medium">{current.version}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-slate-500">Nächster Schritt</dt>
+                    <dd className="mt-1 font-medium">{nextStep(current.status)}</dd>
+                  </div>
+                </dl>
+                <details className="mt-4 text-xs text-slate-500">
+                  <summary className="cursor-pointer">Technische Referenz anzeigen</summary>
+                  <p className="mt-2 break-all">{detail.plan.id}</p>
+                </details>
+              </section>
               <VersionCard version={current} />
               <CandidateProvenance version={current} />
               <AuditTrail version={current} />
