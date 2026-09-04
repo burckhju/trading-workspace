@@ -110,10 +110,15 @@ class SqlAlchemyTradePlanVersionRepository:
     async def add(self, version: TradePlanVersion) -> None:
         version_model, target_models = trade_plan_version_to_models(version)
         self._session.add(version_model)
+        # Targets are independently mapped FK children. Materialize the immutable
+        # TradePlanVersion identity before staging them; otherwise SQLAlchemy may emit
+        # target INSERTs before the version INSERT because there is no ORM relationship
+        # graph expressing that dependency.
+        await self._session.flush()
         self._session.add_all(list(target_models))
-        # Events and targets reference the immutable version identity. Flush the version
-        # (and its targets) before callers stage lifecycle events so FK ordering remains
-        # deterministic for both initial creation and later amendments.
+        # Materialize targets before callers stage lifecycle events. This keeps the
+        # complete Plan -> Version -> Targets -> Events chain deterministic while all
+        # rows remain inside the same Unit-of-Work transaction.
         await self._session.flush()
 
     async def _hydrate(self, model: TradePlanVersionModel) -> TradePlanVersion:

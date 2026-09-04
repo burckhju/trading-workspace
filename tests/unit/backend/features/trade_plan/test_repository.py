@@ -3,6 +3,7 @@ from uuid import uuid4
 
 import pytest
 
+from app.features.trade_plan.persistence import repositories as repositories_module
 from app.features.trade_plan.persistence.repositories import (
     SqlAlchemyTradePlanApprovalRepository,
     SqlAlchemyTradePlanEventRepository,
@@ -15,9 +16,42 @@ def _session():
     session = Mock()
     session.scalar = AsyncMock()
     session.scalars = AsyncMock()
+    session.flush = AsyncMock()
     session.add = Mock()
     session.add_all = Mock()
     return session
+
+
+@pytest.mark.asyncio
+async def test_version_add_flushes_parent_before_staging_targets(monkeypatch) -> None:
+    session = _session()
+    plans = Mock()
+    repo = SqlAlchemyTradePlanVersionRepository(session, plans)
+    version = object()
+    version_model = object()
+    target_models = (object(), object())
+    calls: list[str] = []
+
+    monkeypatch.setattr(
+        repositories_module,
+        "trade_plan_version_to_models",
+        lambda _version: (version_model, target_models),
+    )
+    session.add.side_effect = lambda model: calls.append(
+        "add-version" if model is version_model else "add-other"
+    )
+    session.add_all.side_effect = lambda models: calls.append(
+        "add-targets" if tuple(models) == target_models else "add-all-other"
+    )
+
+    async def record_flush() -> None:
+        calls.append("flush")
+
+    session.flush.side_effect = record_flush
+
+    await repo.add(version)  # type: ignore[arg-type]
+
+    assert calls == ["add-version", "flush", "add-targets", "flush"]
 
 
 @pytest.mark.asyncio
