@@ -319,9 +319,7 @@ export function TradePlanPage() {
       setDetail(created);
       setVersions([created.latest_version]);
       setLookupId(created.plan.id);
-      setMessage(
-        `TradePlan ${tradePlanReference(created.plan.id)} wurde als DRAFT erstellt. Nächster Schritt: Zur Prüfung einreichen.`,
-      );
+      setMessage('TradePlan wurde als DRAFT erstellt.');
     } catch (error: unknown) {
       setMessage(
         error instanceof Error ? error.message : 'TradePlan konnte nicht erstellt werden.',
