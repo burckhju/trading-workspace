@@ -160,7 +160,7 @@ describe('ProductSelectionPage', () => {
     await user.click(screen.getByRole('button', { name: 'Auswahl dokumentieren' }));
 
     await screen.findByText('Produkt ausgewählt');
-    expect(screen.getByText(runDetail.evaluations[0].warrant_id)).toBeInTheDocument();
+    expect(screen.getAllByText(runDetail.evaluations[0].warrant_id)).toHaveLength(2);
     expect(screen.getByText(runDetail.evaluations[0].warrant_listing_id)).toBeInTheDocument();
     expect(
       screen.getByRole('heading', { name: /tatsächlichen Kauf erfassen/i }),
