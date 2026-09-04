@@ -23,7 +23,9 @@ function normalizeDecimal(value: string | number | null | undefined) {
   return typeof value === 'string' ? value.replace(',', '.') : value;
 }
 
-function normalizeTradePlanContent<T extends CreateTradePlanRequest | AmendTradePlanRequest>(request: T): T {
+function normalizeTradePlanContent<T extends CreateTradePlanRequest | AmendTradePlanRequest>(
+  request: T,
+): T {
   return {
     ...request,
     entry: {
