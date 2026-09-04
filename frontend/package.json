@@ -10,7 +10,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint . --max-warnings=0",
-    "format": "prettier --write . && git diff -- src/features/trade/pages/TradeManagementPage.tsx src/features/trade/pages/TradeManagementPage.test.tsx && git diff --exit-code",
+    "format": "prettier --check .",
     "format:write": "prettier --write .",
     "typecheck": "tsc -b --pretty false",
     "test:coverage": "vitest run --coverage",
