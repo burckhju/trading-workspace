@@ -47,12 +47,17 @@ Die Repository-Implementierung und die akzeptierten ADRs/Feature Books bilden di
 
 `check-backend.sh` verwendet eine vorhandene Python-Umgebung oder richtet bei fehlenden Entwicklungswerkzeugen eine lokale `backend/.venv` aus `requirements-dev.txt` ein.
 
-## Anwendung mit Docker starten
+## Anwendung mit Docker unter Linux starten
+
+Der unterstützte Startpfad ist:
 
 ```bash
-cp docker/.env.example docker/.env
-docker compose --env-file docker/.env -f docker/compose.yml up --build
+bash scripts/start-linux.sh
 ```
+
+Beim ersten Aufruf erzeugt der Helper bei Bedarf `docker/.env` aus dem Template und stoppt vor dem Containerstart. Danach `docker/.env` konfigurieren und denselben Befehl erneut ausführen. Eine bestehende `docker/.env` darf nicht erneut mit `docker/.env.example` überschrieben werden.
+
+Der Helper baut die Images, startet PostgreSQL, führt ausstehende Alembic-Migrationen aus und startet anschließend Backend und Frontend. Details: `README_LINUX_DEPLOYMENT.md` und `docs/technical/LINUX_DEPLOYMENT.md`.
 
 - Frontend: `http://localhost:8080`
 - Backend direkt: `http://localhost:8000`
