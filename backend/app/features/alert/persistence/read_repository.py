@@ -70,8 +70,11 @@ class SqlAlchemyAlertReadRepository:
                     )
                 ).all()
             )
-            for attempt in attempt_models:
-                attempts_by_notification.setdefault(attempt.notification_id, attempt)
+            for attempt_model in attempt_models:
+                attempts_by_notification.setdefault(
+                    attempt_model.notification_id,
+                    attempt_model,
+                )
 
         notifications_by_alert: dict[UUID, list[NotificationView]] = defaultdict(list)
         for notification in notification_models:
