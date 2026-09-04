@@ -179,7 +179,7 @@ test('manual TradePlan flows from DRAFT through explicit approval with append-on
   await expect(page.getByRole('heading', { name: 'DRAFT' })).toBeVisible();
 
   await page.getByRole('button', { name: 'Zur Prüfung' }).click();
-  await expect(page.getByText('READY_FOR_REVIEW', { exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'READY_FOR_REVIEW' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Explizit freigeben' })).toBeEnabled();
 
   await page.getByRole('button', { name: 'Explizit freigeben' }).click();
