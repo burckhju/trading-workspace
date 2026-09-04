@@ -10,12 +10,13 @@ import type {
   TextManagementRequest,
   TradeManagementEventResponse,
   TradeManagementStateResponse,
+  TradeResponse,
 } from '../types/api';
 
 const tradePositionUrl = `${environment.apiBaseUrl}/api/v1/trade-position`;
 const baseUrl = `${tradePositionUrl}/trades`;
 
-function tradeUrl(tradeId: string, path: string): string {
+function tradeUrl(tradeId: string, path = ''): string {
   return `${baseUrl}/${tradeId}${path}`;
 }
 
@@ -32,6 +33,9 @@ export const tradeManagementApiClient = {
         price_per_unit: normalizeDecimal(request.price_per_unit),
       },
     }),
+
+  trade: (tradeId: string, signal?: AbortSignal): Promise<TradeResponse> =>
+    requestJson<TradeResponse>(tradeUrl(tradeId), { signal }),
 
   position: (tradeId: string, signal?: AbortSignal): Promise<PositionResponse> =>
     requestJson<PositionResponse>(tradeUrl(tradeId, '/position'), { signal }),
