@@ -170,7 +170,7 @@ describe('TradeManagementPage', () => {
     );
 
     expect(await screen.findByRole('heading', { name: 'CLOSED' })).toBeInTheDocument();
-    expect(screen.getByText('Nachbeobachtung starten')).toBeInTheDocument();
+    expect(screen.getAllByText('Nachbeobachtung starten')).toHaveLength(2);
     expect(
       screen.getByText(
         'Die Position ist geschlossen. Weitere SELL-Executions sind nicht verfügbar.',
