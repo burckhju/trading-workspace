@@ -1,3 +1,5 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { requestJson } from '../../market/services/http';
 import { tradePlanApiClient } from './client';
 
@@ -49,6 +51,34 @@ describe('tradePlanApiClient', () => {
     expect(request).not.toHaveProperty('underlying_id');
   });
 
+  it('normalizes localized decimal price fields before create', async () => {
+    await tradePlanApiClient.create({
+      origin_type: 'MANUAL',
+      underlying_id: PLAN_ID,
+      thesis: 'Localized decimals',
+      entry: {
+        type: 'PRICE',
+        currency: 'EUR',
+        price: '370,00',
+        reference_price: '369,50',
+      },
+      invalidation: { stop_price: '350,25' },
+      targets: [{ sequence: 1, price: '400,75' }],
+      risk_assumptions: { thesis_risk: 'Test risk' },
+    });
+
+    expect(requestJsonMock).toHaveBeenLastCalledWith(
+      'http://localhost:8000/api/v1/trade-plans',
+      expect.objectContaining({
+        body: expect.objectContaining({
+          entry: expect.objectContaining({ price: '370.00', reference_price: '369.50' }),
+          invalidation: expect.objectContaining({ stop_price: '350.25' }),
+          targets: [expect.objectContaining({ price: '400.75' })],
+        }),
+      }),
+    );
+  });
+
   it('uses exact version resource paths for read and amendment', async () => {
     await tradePlanApiClient.version(PLAN_ID, VERSION_ID);
     expect(requestJsonMock).toHaveBeenLastCalledWith(
@@ -63,6 +93,28 @@ describe('tradePlanApiClient', () => {
     expect(requestJsonMock).toHaveBeenLastCalledWith(
       `http://localhost:8000/api/v1/trade-plans/${PLAN_ID}/versions/${VERSION_ID}/amendments`,
       expect.objectContaining({ method: 'POST' }),
+    );
+  });
+
+  it('normalizes localized price ranges on amendments', async () => {
+    await tradePlanApiClient.amend(PLAN_ID, VERSION_ID, {
+      ...content,
+      entry: {
+        type: 'PRICE_RANGE',
+        currency: 'EUR',
+        price_from: '360,10',
+        price_to: '365,20',
+      },
+      change_reason: 'Adjust entry range',
+    });
+
+    expect(requestJsonMock).toHaveBeenLastCalledWith(
+      `http://localhost:8000/api/v1/trade-plans/${PLAN_ID}/versions/${VERSION_ID}/amendments`,
+      expect.objectContaining({
+        body: expect.objectContaining({
+          entry: expect.objectContaining({ price_from: '360.10', price_to: '365.20' }),
+        }),
+      }),
     );
   });
 
