@@ -475,7 +475,8 @@ export function ProductSelectionPage() {
                     </dl>
                   )}
                   <p className="mt-3 break-all text-xs text-slate-500">
-                    Selection {detail.selection.id} · Evaluation {detail.selection.product_evaluation_id}
+                    Selection {detail.selection.id} · Evaluation{' '}
+                    {detail.selection.product_evaluation_id}
                   </p>
                   <p className="mt-1 text-xs text-slate-400">
                     {new Date(detail.selection.selected_at).toLocaleString('de-DE')} · Actor{' '}
