@@ -12,6 +12,26 @@ describe('tradeManagementApiClient', () => {
     requestJsonMock.mockResolvedValue({} as never);
   });
 
+  it('records an initial BUY from a documented product selection and normalizes localized price', async () => {
+    await tradeManagementApiClient.purchaseFromSelection({
+      product_selection_id: 'selection-1',
+      quantity: 10,
+      price_per_unit: '2,35',
+    });
+
+    expect(requestJsonMock).toHaveBeenCalledWith(
+      'http://localhost:8000/api/v1/trade-position/purchases/from-selection',
+      {
+        method: 'POST',
+        body: {
+          product_selection_id: 'selection-1',
+          quantity: 10,
+          price_per_unit: '2.35',
+        },
+      },
+    );
+  });
+
   it('uses the FT-010 read endpoints', async () => {
     const signal = new AbortController().signal;
 
