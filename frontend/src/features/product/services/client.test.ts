@@ -36,14 +36,16 @@ const warrant = {
 };
 
 describe('warrantApiClient', () => {
-  it('calls list, create and lifecycle endpoints', async () => {
+  it('calls list, detail, create and lifecycle endpoints', async () => {
     vi.spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce(jsonResponse([warrant]))
+      .mockResolvedValueOnce(jsonResponse(warrant))
       .mockResolvedValueOnce(jsonResponse(warrant, 201))
       .mockResolvedValueOnce(jsonResponse({ ...warrant, lifecycle_status: 'INACTIVE', version: 2 }))
       .mockResolvedValueOnce(jsonResponse({ ...warrant, version: 3 }));
 
     await warrantApiClient.list();
+    await warrantApiClient.get(WARRANT_ID);
     await warrantApiClient.create({
       issuer_id: warrant.issuer_id,
       underlying_id: warrant.underlying_id,
@@ -60,14 +62,17 @@ describe('warrantApiClient', () => {
 
     const calls = vi.mocked(fetch).mock.calls;
     expect(requestInputUrl(calls[0][0])).toBe('http://localhost:8000/api/v1/warrants');
-    expect(calls[1][1]?.method).toBe('POST');
-    expect(JSON.parse(requestBodyText(calls[1][1]?.body))).toMatchObject({
+    expect(requestInputUrl(calls[1][0])).toBe(
+      `http://localhost:8000/api/v1/warrants/${WARRANT_ID}`,
+    );
+    expect(calls[2][1]?.method).toBe('POST');
+    expect(JSON.parse(requestBodyText(calls[2][1]?.body))).toMatchObject({
       strike: '370.00',
       ratio: '0.1',
     });
-    expect(JSON.parse(requestBodyText(calls[2][1]?.body))).toEqual({ version: 1 });
-    expect(requestInputUrl(calls[2][0])).toContain(`/${WARRANT_ID}/deactivate`);
-    expect(requestInputUrl(calls[3][0])).toContain(`/${WARRANT_ID}/reactivate`);
+    expect(JSON.parse(requestBodyText(calls[3][1]?.body))).toEqual({ version: 1 });
+    expect(requestInputUrl(calls[3][0])).toContain(`/${WARRANT_ID}/deactivate`);
+    expect(requestInputUrl(calls[4][0])).toContain(`/${WARRANT_ID}/reactivate`);
   });
 
   it('calls terms and listing endpoints with their request bodies', async () => {
