@@ -19,6 +19,9 @@ dependencies = [
   "uvicorn[standard]==0.48.0",
 ]
 
+[project.scripts]
+monitor-positions-once = "app.features.position_monitoring.cli:main"
+
 [project.optional-dependencies]
 dev = [
   "black==26.1.0",

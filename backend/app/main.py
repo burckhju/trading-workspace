@@ -14,6 +14,7 @@ from app.core.exceptions import register_exception_handlers
 from app.core.logging import configure_logging
 from app.core.middleware import RequestContextMiddleware
 from app.database import DatabaseManager
+from app.features.alert.api import router as alert_router
 from app.features.analysis.api import router as analysis_router
 from app.features.candidate.api import router as candidate_router
 from app.features.learning.api import router as learning_router
@@ -107,6 +108,7 @@ def create_application(settings: Settings | None = None) -> FastAPI:
     application.include_router(candidate_router)
     application.include_router(trade_plan_router)
     application.include_router(trade_position_router)
+    application.include_router(alert_router)
     application.include_router(post_trade_router)
     application.include_router(learning_router)
     application.include_router(model_governance_router)
