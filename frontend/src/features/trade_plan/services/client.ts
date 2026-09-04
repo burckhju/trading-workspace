@@ -19,12 +19,40 @@ function mutationOptions(method: 'POST', body: unknown, options?: TradePlanMutat
   } as const;
 }
 
+function normalizeDecimal(value: string | number | null | undefined) {
+  return typeof value === 'string' ? value.replace(',', '.') : value;
+}
+
+function normalizeTradePlanContent<T extends CreateTradePlanRequest | AmendTradePlanRequest>(request: T): T {
+  return {
+    ...request,
+    entry: {
+      ...request.entry,
+      price: normalizeDecimal(request.entry.price),
+      price_from: normalizeDecimal(request.entry.price_from),
+      price_to: normalizeDecimal(request.entry.price_to),
+      reference_price: normalizeDecimal(request.entry.reference_price),
+    },
+    invalidation: {
+      ...request.invalidation,
+      stop_price: normalizeDecimal(request.invalidation.stop_price),
+    },
+    targets: request.targets.map((target) => ({
+      ...target,
+      price: normalizeDecimal(target.price) ?? target.price,
+    })),
+  } as T;
+}
+
 export const tradePlanApiClient = {
   create: (
     request: CreateTradePlanRequest,
     options?: TradePlanMutationOptions,
   ): Promise<TradePlanDetailResponse> =>
-    requestJson<TradePlanDetailResponse>(baseUrl, mutationOptions('POST', request, options)),
+    requestJson<TradePlanDetailResponse>(
+      baseUrl,
+      mutationOptions('POST', normalizeTradePlanContent(request), options),
+    ),
 
   get: (tradePlanId: string, signal?: AbortSignal): Promise<TradePlanDetailResponse> =>
     requestJson<TradePlanDetailResponse>(`${baseUrl}/${tradePlanId}`, { signal }),
@@ -49,7 +77,7 @@ export const tradePlanApiClient = {
   ): Promise<TradePlanVersionResponse> =>
     requestJson<TradePlanVersionResponse>(
       `${baseUrl}/${tradePlanId}/versions/${baseVersionId}/amendments`,
-      mutationOptions('POST', request, options),
+      mutationOptions('POST', normalizeTradePlanContent(request), options),
     ),
 
   submitForReview: (
