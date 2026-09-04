@@ -1,1 +1,1 @@
-export { TradePlanPage } from './TradePlanPage';
+export { TradePlanWorkflowPage as TradePlanPage } from './TradePlanWorkflowPage';
