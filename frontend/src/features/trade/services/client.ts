@@ -1,6 +1,8 @@
 import { environment } from '../../../services/environment';
 import { requestJson } from '../../market/services/http';
 import type {
+  InitialPurchaseRequest,
+  InitialPurchaseResponse,
   PositionResponse,
   PriceManagementRequest,
   SaleRequest,
@@ -10,13 +12,27 @@ import type {
   TradeManagementStateResponse,
 } from '../types/api';
 
-const baseUrl = `${environment.apiBaseUrl}/api/v1/trade-position/trades`;
+const tradePositionUrl = `${environment.apiBaseUrl}/api/v1/trade-position`;
+const baseUrl = `${tradePositionUrl}/trades`;
 
 function tradeUrl(tradeId: string, path: string): string {
   return `${baseUrl}/${tradeId}${path}`;
 }
 
+function normalizeDecimal(value: string): string {
+  return value.trim().replace(',', '.');
+}
+
 export const tradeManagementApiClient = {
+  purchaseFromSelection: (request: InitialPurchaseRequest): Promise<InitialPurchaseResponse> =>
+    requestJson<InitialPurchaseResponse>(`${tradePositionUrl}/purchases/from-selection`, {
+      method: 'POST',
+      body: {
+        ...request,
+        price_per_unit: normalizeDecimal(request.price_per_unit),
+      },
+    }),
+
   position: (tradeId: string, signal?: AbortSignal): Promise<PositionResponse> =>
     requestJson<PositionResponse>(tradeUrl(tradeId, '/position'), { signal }),
 

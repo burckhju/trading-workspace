@@ -2,11 +2,23 @@ export type Uuid = string;
 export type IsoDateTime = string;
 
 export type ExecutionSide = 'BUY' | 'SELL';
+export type TradeOrigin = 'WORKSPACE_SELECTION' | 'EXTERNAL';
 export type TradeManagementEventType =
   | 'STOP_CHANGED'
   | 'TARGET_CHANGED'
   | 'THESIS_UPDATED'
   | 'MANAGEMENT_NOTE';
+
+export interface TradeResponse {
+  id: Uuid;
+  product_id: Uuid;
+  origin: TradeOrigin;
+  trade_plan_id: Uuid | null;
+  trade_plan_version_id: Uuid | null;
+  product_selection_id: Uuid | null;
+  product_evaluation_id: Uuid | null;
+  created_at: IsoDateTime;
+}
 
 export interface ExecutionResponse {
   id: Uuid;
@@ -32,6 +44,19 @@ export interface PositionResponse {
   last_execution_at: IsoDateTime;
   closed_at: IsoDateTime | null;
   is_closed: boolean;
+}
+
+export interface InitialPurchaseRequest {
+  product_selection_id: Uuid;
+  quantity: number;
+  price_per_unit: string;
+  executed_at?: IsoDateTime | null;
+}
+
+export interface InitialPurchaseResponse {
+  trade: TradeResponse;
+  execution: ExecutionResponse;
+  position: PositionResponse;
 }
 
 export interface SaleResponse {

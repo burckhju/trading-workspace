@@ -1,6 +1,8 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 
+import { tradeManagementApiClient } from '../../trade/services/client';
+import type { InitialPurchaseResponse } from '../../trade/types/api';
 import { productSelectionApiClient } from '../services/client';
 import type {
   CriterionResultResponse,
@@ -27,6 +29,10 @@ function criterionClass(outcome: CriterionResultResponse['outcome']): string {
 function metricLabel(metric: EvaluationMetricResponse): string {
   if (metric.value === null) return '—';
   return `${metric.value}${metric.unit ? ` ${metric.unit}` : ''}`;
+}
+
+function tradeReference(id: string): string {
+  return `TR-${id.slice(0, 8).toUpperCase()}`;
 }
 
 function EvaluationCard({
@@ -186,6 +192,9 @@ export function ProductSelectionPage() {
   const [busy, setBusy] = useState(false);
   const [pendingSelection, setPendingSelection] = useState<ProductEvaluationResponse | null>(null);
   const [rationale, setRationale] = useState('');
+  const [purchaseQuantity, setPurchaseQuantity] = useState('');
+  const [purchasePrice, setPurchasePrice] = useState('');
+  const [purchase, setPurchase] = useState<InitialPurchaseResponse | null>(null);
 
   const counts = useMemo(() => {
     const evaluations = detail?.evaluations ?? [];
@@ -195,6 +204,15 @@ export function ProductSelectionPage() {
       notEvaluable: evaluations.filter((item) => item.eligibility_status === 'NOT_EVALUABLE')
         .length,
     };
+  }, [detail]);
+
+  const selectedEvaluation = useMemo(() => {
+    if (!detail?.selection) return null;
+    return (
+      detail.evaluations.find(
+        (evaluation) => evaluation.id === detail.selection?.product_evaluation_id,
+      ) ?? null
+    );
   }, [detail]);
 
   useEffect(() => {
@@ -225,6 +243,7 @@ export function ProductSelectionPage() {
     setBusy(true);
     setMessage(null);
     setPendingSelection(null);
+    setPurchase(null);
     try {
       const created = await productSelectionApiClient.start({
         trade_plan_id: tradePlanId.trim(),
@@ -246,6 +265,7 @@ export function ProductSelectionPage() {
     setBusy(true);
     setMessage(null);
     setPendingSelection(null);
+    setPurchase(null);
     try {
       setDetail(await productSelectionApiClient.get(runId));
     } catch (error: unknown) {
@@ -269,11 +289,39 @@ export function ProductSelectionPage() {
       setDetail(updated);
       setPendingSelection(null);
       setRationale('');
-      setMessage('Produktauswahl wurde als explizite Benutzerentscheidung dokumentiert.');
+      setPurchase(null);
+      setMessage(
+        'Produktauswahl wurde dokumentiert. Nächster Schritt: tatsächlichen Kauf als BUY erfassen.',
+      );
     } catch (error: unknown) {
       setMessage(
         error instanceof Error ? error.message : 'Produktauswahl konnte nicht gespeichert werden.',
       );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function recordPurchase(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!detail?.selection || busy) return;
+    const quantity = Number(purchaseQuantity);
+    if (!Number.isInteger(quantity) || quantity <= 0 || purchasePrice.trim() === '') return;
+
+    setBusy(true);
+    setMessage(null);
+    try {
+      const created = await tradeManagementApiClient.purchaseFromSelection({
+        product_selection_id: detail.selection.id,
+        quantity,
+        price_per_unit: purchasePrice,
+      });
+      setPurchase(created);
+      setMessage(
+        `Kauf wurde als BUY erfasst. Trade ${tradeReference(created.trade.id)} und offene Position wurden erstellt.`,
+      );
+    } catch (error: unknown) {
+      setMessage(error instanceof Error ? error.message : 'Kauf konnte nicht erfasst werden.');
     } finally {
       setBusy(false);
     }
@@ -414,8 +462,21 @@ export function ProductSelectionPage() {
                     Benutzerentscheidung
                   </p>
                   <h2 className="mt-1 font-semibold">Produkt ausgewählt</h2>
-                  <p className="mt-2 break-all text-sm">
-                    Evaluation {detail.selection.product_evaluation_id}
+                  {selectedEvaluation && (
+                    <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+                      <div>
+                        <dt className="text-slate-500">Warrant</dt>
+                        <dd className="break-all">{selectedEvaluation.warrant_id}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-slate-500">Listing</dt>
+                        <dd className="break-all">{selectedEvaluation.warrant_listing_id}</dd>
+                      </div>
+                    </dl>
+                  )}
+                  <p className="mt-3 break-all text-xs text-slate-500">
+                    Selection {detail.selection.id} · Evaluation{' '}
+                    {detail.selection.product_evaluation_id}
                   </p>
                   <p className="mt-1 text-xs text-slate-400">
                     {new Date(detail.selection.selected_at).toLocaleString('de-DE')} · Actor{' '}
@@ -423,6 +484,101 @@ export function ProductSelectionPage() {
                   </p>
                   {detail.selection.rationale && (
                     <p className="mt-3 text-sm text-slate-300">{detail.selection.rationale}</p>
+                  )}
+
+                  {!purchase ? (
+                    <form
+                      onSubmit={(event) => void recordPurchase(event)}
+                      className="mt-5 rounded-lg border border-slate-700 bg-slate-950/50 p-4"
+                    >
+                      <h3 className="font-medium">Nächster Schritt: tatsächlichen Kauf erfassen</h3>
+                      <p className="mt-1 text-xs text-slate-400">
+                        Erst dieser BUY erzeugt den Trade und die offene Position. Die
+                        Produktauswahl allein ist noch keine Ausführung.
+                      </p>
+                      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                        <label className="text-sm">
+                          <span className="text-slate-400">Kaufmenge</span>
+                          <input
+                            aria-label="Kaufmenge"
+                            type="number"
+                            min="1"
+                            step="1"
+                            required
+                            value={purchaseQuantity}
+                            onChange={(event) => setPurchaseQuantity(event.target.value)}
+                            className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 p-2"
+                          />
+                        </label>
+                        <label className="text-sm">
+                          <span className="text-slate-400">Tatsächlicher Kaufpreis je Einheit</span>
+                          <input
+                            aria-label="Kaufpreis"
+                            inputMode="decimal"
+                            required
+                            value={purchasePrice}
+                            onChange={(event) => setPurchasePrice(event.target.value)}
+                            placeholder="z. B. 2,35"
+                            className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 p-2"
+                          />
+                        </label>
+                      </div>
+                      <button
+                        type="submit"
+                        disabled={
+                          busy || purchaseQuantity.trim() === '' || purchasePrice.trim() === ''
+                        }
+                        className="mt-4 rounded-lg border border-sky-700 px-4 py-2 text-sm disabled:opacity-40"
+                      >
+                        BUY erfassen und Position eröffnen
+                      </button>
+                    </form>
+                  ) : (
+                    <div className="mt-5 rounded-lg border border-sky-800 bg-sky-950/30 p-4">
+                      <p className="text-xs uppercase tracking-wide text-sky-400">
+                        Offene Position
+                      </p>
+                      <h3 className="mt-1 text-lg font-semibold">
+                        {tradeReference(purchase.trade.id)}
+                      </h3>
+                      <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+                        <div>
+                          <dt className="text-slate-500">BUY-Menge</dt>
+                          <dd>{purchase.execution.quantity}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-slate-500">Kaufpreis</dt>
+                          <dd>{purchase.execution.price_per_unit}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-slate-500">Cost Basis</dt>
+                          <dd>{purchase.position.cost_basis}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-slate-500">Offen</dt>
+                          <dd>{purchase.position.open_quantity}</dd>
+                        </div>
+                      </dl>
+                      <p className="mt-4 text-sm text-slate-300">
+                        Die Position ist jetzt die wirtschaftliche Wahrheit. Im Trade Management
+                        werden Position, Stop/Target, Verkäufe und Alerts gemeinsam sichtbar. Die
+                        serverseitige Überwachung läuft gemäß der konfigurierten
+                        Position-Monitoring-Einstellung.
+                      </p>
+                      <Link
+                        to={{
+                          pathname: '/trade-management',
+                          search: new URLSearchParams({ trade_id: purchase.trade.id }).toString(),
+                        }}
+                        className="mt-4 inline-block rounded-lg border border-violet-700 px-4 py-2 text-sm"
+                      >
+                        Position verwalten und Monitoring öffnen
+                      </Link>
+                      <details className="mt-4 text-xs text-slate-500">
+                        <summary className="cursor-pointer">Technische Trade-ID anzeigen</summary>
+                        <p className="mt-2 break-all">{purchase.trade.id}</p>
+                      </details>
+                    </div>
                   )}
                 </section>
               )}
