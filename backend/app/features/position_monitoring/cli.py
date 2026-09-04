@@ -13,8 +13,7 @@ from app.features.position_monitoring.service.runtime import PositionMonitoringR
 
 def build_parser() -> argparse.ArgumentParser:
     description = (
-        "Run exactly one persisted position-monitoring cycle "
-        "for operational smoke testing."
+        "Run exactly one persisted position-monitoring cycle " "for operational smoke testing."
     )
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument(
