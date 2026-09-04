@@ -112,7 +112,9 @@ describe('TradeManagementPage', () => {
     );
 
     expect(await screen.findByRole('heading', { name: 'OPEN' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: /TR-TRADE-1 · DAX Call 19000/ })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: /TR-TRADE-1 · DAX Call 19000/ }),
+    ).toBeInTheDocument();
     expect(screen.getByText(/ISIN DE000TEST123 · WKN TEST12/)).toBeInTheDocument();
     expect(screen.getByText('Workspace-Produktauswahl')).toBeInTheDocument();
     expect(screen.getByText('TP-PLAN-123')).toBeInTheDocument();
