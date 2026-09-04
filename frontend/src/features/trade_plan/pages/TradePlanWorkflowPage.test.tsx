@@ -56,7 +56,9 @@ describe('TradePlanWorkflowPage', () => {
       </MemoryRouter>,
     );
 
-    fireEvent.change(screen.getByLabelText('Basiswert suchen'), { target: { value: 'Apple' } });
+    fireEvent.change(screen.getByLabelText('Basiswert suchen'), {
+      target: { value: 'Apple' },
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Suchen' }));
 
     await waitFor(() =>
@@ -69,7 +71,9 @@ describe('TradePlanWorkflowPage', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: /Apple Inc\./ }));
 
-    expect(await screen.findByText(/Technische Referenz übernommen: underlying-apple/)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/Technische Referenz übernommen: underlying-apple/),
+    ).toBeInTheDocument();
     expect(screen.getByText('Base TradePlan Page')).toBeInTheDocument();
   });
 
