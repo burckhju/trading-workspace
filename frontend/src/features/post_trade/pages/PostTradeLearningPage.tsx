@@ -6,11 +6,25 @@ import { lessonReadbackClient } from '../../learning/services/lessonReadbackClie
 import { ft011MaterializationClient } from '../../learning/services/materializationClient';
 import type { LessonEvidenceReference } from '../../learning/types/lessonReadback';
 import type { Ft011MaterializationStatus } from '../../learning/types/materialization';
+import { warrantApiClient } from '../../product/services/client';
+import type { WarrantResponse } from '../../product/types/api';
+import { tradeManagementApiClient } from '../../trade/services/client';
+import type { TradeResponse } from '../../trade/types/api';
 import { PostTradeReviewPage } from './PostTradeReviewPage';
+
+function tradeReference(id: string): string {
+  return `TR-${id.slice(0, 8).toUpperCase()}`;
+}
+
+function tradePlanReference(id: string): string {
+  return `TP-${id.slice(0, 8).toUpperCase()}`;
+}
 
 export function PostTradeLearningPage() {
   const [searchParams] = useSearchParams();
   const tradeId = searchParams.get('trade_id') ?? '';
+  const [trade, setTrade] = useState<TradeResponse | null>(null);
+  const [warrant, setWarrant] = useState<WarrantResponse | null>(null);
   const [status, setStatus] = useState<Ft011MaterializationStatus | null>(null);
   const [lessonReferences, setLessonReferences] = useState<LessonEvidenceReference[]>([]);
 
@@ -18,6 +32,36 @@ export function PostTradeLearningPage() {
     const references = await lessonReadbackClient.listForEvidence(learningEvidenceId);
     setLessonReferences(references);
   }, []);
+
+  useEffect(() => {
+    if (!tradeId) {
+      setTrade(null);
+      setWarrant(null);
+      return undefined;
+    }
+
+    const controller = new AbortController();
+    tradeManagementApiClient
+      .trade(tradeId, controller.signal)
+      .then(async (nextTrade) => {
+        if (controller.signal.aborted) return;
+        setTrade(nextTrade);
+        try {
+          const nextWarrant = await warrantApiClient.get(nextTrade.product_id, controller.signal);
+          if (!controller.signal.aborted) setWarrant(nextWarrant);
+        } catch {
+          if (!controller.signal.aborted) setWarrant(null);
+        }
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) {
+          setTrade(null);
+          setWarrant(null);
+        }
+      });
+
+    return () => controller.abort();
+  }, [tradeId]);
 
   useEffect(() => {
     if (!tradeId) {
@@ -55,6 +99,62 @@ export function PostTradeLearningPage() {
 
   return (
     <>
+      {trade && (
+        <section className="mb-6 rounded-xl border border-sky-900 bg-sky-950/20 p-5">
+          <p className="text-xs uppercase tracking-wide text-sky-400">Post-Trade-Kontext</p>
+          <div className="mt-1 flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h1 className="text-xl font-semibold">
+                {tradeReference(trade.id)}
+                {warrant ? ` · ${warrant.display_name}` : ''}
+              </h1>
+              {warrant && (
+                <p className="mt-1 text-sm text-slate-400">
+                  {warrant.isin ? `ISIN ${warrant.isin}` : 'Keine ISIN'}
+                  {warrant.wkn ? ` · WKN ${warrant.wkn}` : ''}
+                </p>
+              )}
+            </div>
+            <span className="rounded-full border border-sky-800 px-3 py-1 text-xs">
+              Nachbeobachtung &amp; Review
+            </span>
+          </div>
+          <dl className="mt-4 grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-3">
+            <div>
+              <dt className="text-slate-500">Ursprung</dt>
+              <dd className="mt-1 font-medium">
+                {trade.origin === 'WORKSPACE_SELECTION' ? 'Workspace-Produktauswahl' : 'Extern'}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-slate-500">TradePlan</dt>
+              <dd className="mt-1 font-medium">
+                {trade.trade_plan_id ? tradePlanReference(trade.trade_plan_id) : 'Kein TradePlan'}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-slate-500">Learning-Übergang</dt>
+              <dd className="mt-1 font-medium">
+                {status?.materialized
+                  ? 'LearningEvidence materialisiert'
+                  : 'Noch im Post-Trade-Prozess'}
+              </dd>
+            </div>
+          </dl>
+          <details className="mt-4 text-xs text-slate-500">
+            <summary className="cursor-pointer">Technische Provenance anzeigen</summary>
+            <div className="mt-2 space-y-1 break-all">
+              <p>Trade-ID {trade.id}</p>
+              <p>Produkt-ID {trade.product_id}</p>
+              {trade.trade_plan_id && <p>TradePlan-ID {trade.trade_plan_id}</p>}
+              {trade.trade_plan_version_id && (
+                <p>TradePlanVersion-ID {trade.trade_plan_version_id}</p>
+              )}
+            </div>
+          </details>
+        </section>
+      )}
+
       <PostTradeReviewPage />
 
       {status?.materialized && learningEvidenceId && (
