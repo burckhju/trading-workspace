@@ -1,4 +1,7 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { requestJson } from '../../market/services/http';
+import type { AmendTradePlanRequest, CreateTradePlanRequest } from '../types/api';
 import { tradePlanApiClient } from './client';
 
 vi.mock('../../market/services/http', () => ({ requestJson: vi.fn() }));
@@ -14,6 +17,14 @@ const content = {
   targets: [{ sequence: 1, price: '110' }],
   risk_assumptions: { thesis_risk: 'Breakout may fail' },
 };
+
+function lastRequestBody<T>(): T {
+  const options = requestJsonMock.mock.calls.at(-1)?.[1];
+  if (!options || !('body' in options)) {
+    throw new Error('Expected request body');
+  }
+  return options.body as T;
+}
 
 describe('tradePlanApiClient', () => {
   beforeEach(() => {
@@ -49,6 +60,29 @@ describe('tradePlanApiClient', () => {
     expect(request).not.toHaveProperty('underlying_id');
   });
 
+  it('normalizes localized decimal price fields before create', async () => {
+    await tradePlanApiClient.create({
+      origin_type: 'MANUAL',
+      underlying_id: PLAN_ID,
+      thesis: 'Localized decimals',
+      entry: {
+        type: 'PRICE',
+        currency: 'EUR',
+        price: '370,00',
+        reference_price: '369,50',
+      },
+      invalidation: { stop_price: '350,25' },
+      targets: [{ sequence: 1, price: '400,75' }],
+      risk_assumptions: { thesis_risk: 'Test risk' },
+    });
+
+    const body = lastRequestBody<CreateTradePlanRequest>();
+    expect(body.entry.price).toBe('370.00');
+    expect(body.entry.reference_price).toBe('369.50');
+    expect(body.invalidation.stop_price).toBe('350.25');
+    expect(body.targets[0]?.price).toBe('400.75');
+  });
+
   it('uses exact version resource paths for read and amendment', async () => {
     await tradePlanApiClient.version(PLAN_ID, VERSION_ID);
     expect(requestJsonMock).toHaveBeenLastCalledWith(
@@ -64,6 +98,23 @@ describe('tradePlanApiClient', () => {
       `http://localhost:8000/api/v1/trade-plans/${PLAN_ID}/versions/${VERSION_ID}/amendments`,
       expect.objectContaining({ method: 'POST' }),
     );
+  });
+
+  it('normalizes localized price ranges on amendments', async () => {
+    await tradePlanApiClient.amend(PLAN_ID, VERSION_ID, {
+      ...content,
+      entry: {
+        type: 'PRICE_RANGE',
+        currency: 'EUR',
+        price_from: '360,10',
+        price_to: '365,20',
+      },
+      change_reason: 'Adjust entry range',
+    });
+
+    const body = lastRequestBody<AmendTradePlanRequest>();
+    expect(body.entry.price_from).toBe('360.10');
+    expect(body.entry.price_to).toBe('365.20');
   });
 
   it('maps all lifecycle commands and correlation ids', async () => {
