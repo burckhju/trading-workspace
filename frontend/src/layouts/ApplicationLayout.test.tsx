@@ -21,4 +21,21 @@ describe('ApplicationLayout', () => {
       '/issuers-admin',
     );
   });
+
+  it('provides an explicit keyboard focus indicator for main navigation links', () => {
+    render(
+      <MemoryRouter initialEntries={['/underlyings']}>
+        <Routes>
+          <Route path="/" element={<ApplicationLayout />}>
+            <Route path="underlyings" element={<div>Basiswerte</div>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    const mainNavigation = screen.getByRole('navigation', { name: 'Hauptnavigation' });
+    for (const link of Array.from(mainNavigation.querySelectorAll('a'))) {
+      expect(link).toHaveClass('focus-visible:ring-2', 'focus-visible:ring-sky-400');
+    }
+  });
 });
