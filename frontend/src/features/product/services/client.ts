@@ -13,10 +13,21 @@ function warrantUrl(path = ''): string {
   return `${environment.apiBaseUrl}/api/v1/warrants${path}`;
 }
 
+function normalizeDecimalInput(value: string): string {
+  return value.trim().replace(',', '.');
+}
+
 export const warrantApiClient = {
   list: (signal?: AbortSignal) => requestJson<WarrantResponse[]>(warrantUrl(), { signal }),
   create: (request: CreateWarrantRequest) =>
-    requestJson<WarrantResponse>(warrantUrl(), { method: 'POST', body: request }),
+    requestJson<WarrantResponse>(warrantUrl(), {
+      method: 'POST',
+      body: {
+        ...request,
+        strike: normalizeDecimalInput(request.strike),
+        ratio: normalizeDecimalInput(request.ratio),
+      },
+    }),
   deactivate: (id: string, version: number) =>
     requestJson<WarrantResponse>(warrantUrl(`/${id}/deactivate`), {
       method: 'POST',
@@ -32,7 +43,11 @@ export const warrantApiClient = {
   addTerms: (id: string, request: AddWarrantTermsRequest) =>
     requestJson<WarrantTermsResponse>(warrantUrl(`/${id}/terms`), {
       method: 'POST',
-      body: request,
+      body: {
+        ...request,
+        strike: normalizeDecimalInput(request.strike),
+        ratio: normalizeDecimalInput(request.ratio),
+      },
     }),
   listings: (id: string, signal?: AbortSignal) =>
     requestJson<WarrantListingResponse[]>(warrantUrl(`/${id}/listings`), { signal }),

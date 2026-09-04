@@ -51,9 +51,9 @@ describe('warrantApiClient', () => {
       isin: warrant.isin,
       wkn: warrant.wkn,
       option_direction: 'CALL',
-      strike: '100',
+      strike: '370,00',
       maturity_date: '2027-06-18',
-      ratio: '0.1',
+      ratio: '0,1',
     });
     await warrantApiClient.deactivate(WARRANT_ID, 1);
     await warrantApiClient.reactivate(WARRANT_ID, 2);
@@ -61,6 +61,10 @@ describe('warrantApiClient', () => {
     const calls = vi.mocked(fetch).mock.calls;
     expect(requestInputUrl(calls[0][0])).toBe('http://localhost:8000/api/v1/warrants');
     expect(calls[1][1]?.method).toBe('POST');
+    expect(JSON.parse(requestBodyText(calls[1][1]?.body))).toMatchObject({
+      strike: '370.00',
+      ratio: '0.1',
+    });
     expect(JSON.parse(requestBodyText(calls[2][1]?.body))).toEqual({ version: 1 });
     expect(requestInputUrl(calls[2][0])).toContain(`/${WARRANT_ID}/deactivate`);
     expect(requestInputUrl(calls[3][0])).toContain(`/${WARRANT_ID}/reactivate`);
@@ -77,9 +81,9 @@ describe('warrantApiClient', () => {
     await warrantApiClient.addTerms(WARRANT_ID, {
       expected_version: 1,
       option_direction: 'PUT',
-      strike: '95',
+      strike: '95,50',
       maturity_date: '2027-06-18',
-      ratio: '0.1',
+      ratio: '0,1',
     });
     await warrantApiClient.listings(WARRANT_ID);
     await warrantApiClient.addListing(WARRANT_ID, {
@@ -91,7 +95,11 @@ describe('warrantApiClient', () => {
     const calls = vi.mocked(fetch).mock.calls;
     expect(requestInputUrl(calls[0][0])).toContain(`/${WARRANT_ID}/terms`);
     expect(calls[1][1]?.method).toBe('POST');
-    expect(JSON.parse(requestBodyText(calls[1][1]?.body))).toMatchObject({ expected_version: 1 });
+    expect(JSON.parse(requestBodyText(calls[1][1]?.body))).toMatchObject({
+      expected_version: 1,
+      strike: '95.50',
+      ratio: '0.1',
+    });
     expect(requestInputUrl(calls[2][0])).toContain(`/${WARRANT_ID}/listings`);
     expect(calls[3][1]?.method).toBe('POST');
     expect(JSON.parse(requestBodyText(calls[3][1]?.body))).toMatchObject({ symbol: 'ABC123' });
