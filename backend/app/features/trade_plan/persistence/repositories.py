@@ -146,7 +146,7 @@ class SqlAlchemyTradePlanVersionRepository:
         model = await self._session.scalar(
             select(TradePlanVersionModel).where(
                 TradePlanVersionModel.trade_plan_id == trade_plan_id,
-                TradePlanVersionModel.id == version,
+                TradePlanVersionModel.version == version,
             )
         )
         return await self._hydrate(model) if model is not None else None
