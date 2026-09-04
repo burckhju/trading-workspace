@@ -134,7 +134,7 @@ describe('TradePlanPage', () => {
     expect(screen.getAllByText(/Correlation corr-approve/).length).toBeGreaterThan(0);
     expect(screen.getByText('Approval-Nachweis')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'TP-11111111' })).toBeInTheDocument();
-    expect(screen.getByText('Produktauswahl starten')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Produktauswahl starten' })).toBeInTheDocument();
   });
 
   it('creates a manual PRICE TradePlan with product-neutral plan inputs', async () => {
@@ -217,11 +217,7 @@ describe('TradePlanPage', () => {
       max_loss_assumption: '5%',
       notes: 'No position sizing',
     });
-    expect(
-      await screen.findByText(
-        'TradePlan TP-11111111 wurde als DRAFT erstellt. Nächster Schritt: Zur Prüfung einreichen.',
-      ),
-    ).toBeInTheDocument();
+    expect(await screen.findByText('TradePlan wurde als DRAFT erstellt.')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'TP-11111111' })).toBeInTheDocument();
     expect(screen.getByText('Zur Prüfung einreichen')).toBeInTheDocument();
     expect(screen.getAllByText(/Manueller Ursprung/).length).toBeGreaterThan(0);
