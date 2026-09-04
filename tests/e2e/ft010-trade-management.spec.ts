@@ -3,9 +3,12 @@ import { expect, test, type Route } from "@playwright/test";
 const tradeId = "10000000-0000-4000-8000-000000000010";
 const positionId = "10000000-0000-4000-8000-000000000011";
 const productId = "10000000-0000-4000-8000-000000000012";
+const tradePlanId = "10000000-0000-4000-8000-000000000013";
 const now = "2026-08-17T10:00:00Z";
 const tradeManagementRoute =
   /\/api\/api\/v1\/trade-position\/trades\/10000000-0000-4000-8000-000000000010(?:\/.*)?(?:\?.*)?$/;
+const warrantRoute =
+  /\/api\/api\/v1\/warrants\/10000000-0000-4000-8000-000000000012(?:\?.*)?$/;
 
 function position(overrides: Record<string, unknown> = {}) {
   return {
@@ -55,11 +58,40 @@ test("manages partial/full exit and explicit management decisions without provid
   let thesisPosts = 0;
   let notePosts = 0;
 
+  await page.route(warrantRoute, async (route) => {
+    return json(route, {
+      id: productId,
+      workspace_id: "00000000-0000-4000-8000-000000000001",
+      issuer_id: "30000000-0000-4000-8000-000000000001",
+      underlying_id: "40000000-0000-4000-8000-000000000001",
+      product_family: "WARRANT",
+      display_name: "DAX Call 19000",
+      isin: "DE000TEST123",
+      wkn: "TEST12",
+      lifecycle_status: "ACTIVE",
+      version: 1,
+      created_at: now,
+      updated_at: now,
+    });
+  });
+
   await page.route(tradeManagementRoute, async (route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname;
     const method = request.method();
 
+    if (method === "GET" && path.endsWith(`/trades/${tradeId}`)) {
+      return json(route, {
+        id: tradeId,
+        product_id: productId,
+        origin: "WORKSPACE_SELECTION",
+        trade_plan_id: tradePlanId,
+        trade_plan_version_id: "10000000-0000-4000-8000-000000000014",
+        product_selection_id: "10000000-0000-4000-8000-000000000015",
+        product_evaluation_id: "10000000-0000-4000-8000-000000000016",
+        created_at: now,
+      });
+    }
     if (method === "GET" && path.endsWith("/position")) {
       return json(route, currentPosition);
     }
@@ -151,6 +183,8 @@ test("manages partial/full exit and explicit management decisions without provid
 
   await page.goto(`/trade-management?trade_id=${tradeId}`);
   await expect(page.getByRole("heading", { name: "OPEN" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /TR-10000000 · DAX Call 19000/ })).toBeVisible();
+  await expect(page.getByText("TP-10000000")).toBeVisible();
   await expect(page.getByText("100 offen")).toBeVisible();
 
   await page.getByLabel("Verkaufsmenge").fill("40");

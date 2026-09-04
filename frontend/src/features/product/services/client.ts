@@ -19,6 +19,8 @@ function normalizeDecimalInput(value: string): string {
 
 export const warrantApiClient = {
   list: (signal?: AbortSignal) => requestJson<WarrantResponse[]>(warrantUrl(), { signal }),
+  get: (id: string, signal?: AbortSignal) =>
+    requestJson<WarrantResponse>(warrantUrl(`/${id}`), { signal }),
   create: (request: CreateWarrantRequest) =>
     requestJson<WarrantResponse>(warrantUrl(), {
       method: 'POST',
