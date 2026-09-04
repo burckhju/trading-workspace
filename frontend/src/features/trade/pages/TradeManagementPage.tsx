@@ -7,11 +7,7 @@ import { postTradeErrorMessage } from '../../post_trade/services/errors';
 import { warrantApiClient } from '../../product/services/client';
 import type { WarrantResponse } from '../../product/types/api';
 import { tradeManagementApiClient } from '../services/client';
-import type {
-  PositionResponse,
-  TradeManagementStateResponse,
-  TradeResponse,
-} from '../types/api';
+import type { PositionResponse, TradeManagementStateResponse, TradeResponse } from '../types/api';
 
 function formatNumber(value: string): string {
   return new Intl.NumberFormat('de-DE', {
@@ -228,8 +224,12 @@ export function TradeManagementPage() {
               <p>Trade-ID {trade.id}</p>
               <p>Produkt-ID {trade.product_id}</p>
               {trade.trade_plan_id && <p>TradePlan-ID {trade.trade_plan_id}</p>}
-              {trade.trade_plan_version_id && <p>TradePlanVersion-ID {trade.trade_plan_version_id}</p>}
-              {trade.product_selection_id && <p>ProductSelection-ID {trade.product_selection_id}</p>}
+              {trade.trade_plan_version_id && (
+                <p>TradePlanVersion-ID {trade.trade_plan_version_id}</p>
+              )}
+              {trade.product_selection_id && (
+                <p>ProductSelection-ID {trade.product_selection_id}</p>
+              )}
             </div>
           </details>
         </section>
