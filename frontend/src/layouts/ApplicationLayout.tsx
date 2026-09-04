@@ -18,6 +18,14 @@ export function ApplicationLayout() {
               Stammdaten · Basiswerte
             </NavLink>
             <NavLink
+              to="/issuers-admin"
+              className={({ isActive }) =>
+                `rounded-lg px-3 py-2 text-sm ${isActive ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-white'}`
+              }
+            >
+              Stammdaten · Emittenten
+            </NavLink>
+            <NavLink
               to="/warrants-admin"
               className={({ isActive }) =>
                 `rounded-lg px-3 py-2 text-sm ${isActive ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-white'}`
