@@ -204,9 +204,7 @@ describe('ProductSelectionPage', () => {
 
     expect(await screen.findByRole('heading', { name: 'TR-12345678' })).toBeInTheDocument();
     expect(screen.getByText('23.50')).toBeInTheDocument();
-    expect(
-      screen.getByText(/Position ist jetzt die wirtschaftliche Wahrheit/),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Position ist jetzt die wirtschaftliche Wahrheit/)).toBeInTheDocument();
 
     const managementLink = screen.getByRole('link', {
       name: 'Position verwalten und Monitoring öffnen',
