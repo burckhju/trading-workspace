@@ -2,7 +2,7 @@ export type Uuid = string;
 export type IsoDateTime = string;
 
 export type ExecutionSide = 'BUY' | 'SELL';
-export type TradeOrigin = 'PRODUCT_SELECTION' | 'EXTERNAL';
+export type TradeOrigin = 'WORKSPACE_SELECTION' | 'EXTERNAL';
 export type TradeManagementEventType =
   | 'STOP_CHANGED'
   | 'TARGET_CHANGED'
