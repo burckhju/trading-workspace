@@ -32,19 +32,25 @@ describe('tradeManagementApiClient', () => {
     );
   });
 
-  it('uses the FT-010 read endpoints', async () => {
+  it('uses the FT-010 read endpoints including persisted trade provenance', async () => {
     const signal = new AbortController().signal;
 
+    await tradeManagementApiClient.trade('trade-1', signal);
     await tradeManagementApiClient.position('trade-1', signal);
     await tradeManagementApiClient.managementState('trade-1', signal);
 
     expect(requestJsonMock).toHaveBeenNthCalledWith(
       1,
-      'http://localhost:8000/api/v1/trade-position/trades/trade-1/position',
+      'http://localhost:8000/api/v1/trade-position/trades/trade-1',
       { signal },
     );
     expect(requestJsonMock).toHaveBeenNthCalledWith(
       2,
+      'http://localhost:8000/api/v1/trade-position/trades/trade-1/position',
+      { signal },
+    );
+    expect(requestJsonMock).toHaveBeenNthCalledWith(
+      3,
       'http://localhost:8000/api/v1/trade-position/trades/trade-1/management',
       { signal },
     );
