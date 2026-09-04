@@ -493,8 +493,8 @@ export function ProductSelectionPage() {
                     >
                       <h3 className="font-medium">Nächster Schritt: tatsächlichen Kauf erfassen</h3>
                       <p className="mt-1 text-xs text-slate-400">
-                        Erst dieser BUY erzeugt den Trade und die offene Position. Die Produktauswahl
-                        allein ist noch keine Ausführung.
+                        Erst dieser BUY erzeugt den Trade und die offene Position. Die
+                        Produktauswahl allein ist noch keine Ausführung.
                       </p>
                       <div className="mt-4 grid gap-3 sm:grid-cols-2">
                         <label className="text-sm">
@@ -535,7 +535,9 @@ export function ProductSelectionPage() {
                     </form>
                   ) : (
                     <div className="mt-5 rounded-lg border border-sky-800 bg-sky-950/30 p-4">
-                      <p className="text-xs uppercase tracking-wide text-sky-400">Offene Position</p>
+                      <p className="text-xs uppercase tracking-wide text-sky-400">
+                        Offene Position
+                      </p>
                       <h3 className="mt-1 text-lg font-semibold">
                         {tradeReference(purchase.trade.id)}
                       </h3>
