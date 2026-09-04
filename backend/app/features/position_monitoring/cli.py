@@ -16,7 +16,7 @@ def build_parser() -> argparse.ArgumentParser:
         description=(
             "Run exactly one persisted position-monitoring cycle "
             "for operational smoke testing."
-        )
+        ),
     )
     parser.add_argument(
         "--allow-telegram",
