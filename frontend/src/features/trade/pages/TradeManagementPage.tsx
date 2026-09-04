@@ -4,8 +4,14 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { TradeAlertsPanel } from '../../alert/components/TradeAlertsPanel';
 import { postTradeApiClient } from '../../post_trade/services/client';
 import { postTradeErrorMessage } from '../../post_trade/services/errors';
+import { warrantApiClient } from '../../product/services/client';
+import type { WarrantResponse } from '../../product/types/api';
 import { tradeManagementApiClient } from '../services/client';
-import type { PositionResponse, TradeManagementStateResponse } from '../types/api';
+import type {
+  PositionResponse,
+  TradeManagementStateResponse,
+  TradeResponse,
+} from '../types/api';
 
 function formatNumber(value: string): string {
   return new Intl.NumberFormat('de-DE', {
@@ -17,11 +23,21 @@ function formatDateTime(value: string | null): string {
   return value ? new Date(value).toLocaleString('de-DE') : '—';
 }
 
+function tradeReference(id: string): string {
+  return `TR-${id.slice(0, 8).toUpperCase()}`;
+}
+
+function tradePlanReference(id: string): string {
+  return `TP-${id.slice(0, 8).toUpperCase()}`;
+}
+
 export function TradeManagementPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [lookupId, setLookupId] = useState(searchParams.get('trade_id') ?? '');
   const [tradeId, setTradeId] = useState(searchParams.get('trade_id') ?? '');
+  const [trade, setTrade] = useState<TradeResponse | null>(null);
+  const [warrant, setWarrant] = useState<WarrantResponse | null>(null);
   const [position, setPosition] = useState<PositionResponse | null>(null);
   const [management, setManagement] = useState<TradeManagementStateResponse | null>(null);
   const [saleQuantity, setSaleQuantity] = useState('');
@@ -34,10 +50,14 @@ export function TradeManagementPage() {
   const [busy, setBusy] = useState(false);
 
   async function refresh(id: string, signal?: AbortSignal) {
-    const [nextPosition, nextManagement] = await Promise.all([
+    const [nextTrade, nextPosition, nextManagement] = await Promise.all([
+      tradeManagementApiClient.trade(id, signal),
       tradeManagementApiClient.position(id, signal),
       tradeManagementApiClient.managementState(id, signal),
     ]);
+    const nextWarrant = await warrantApiClient.get(nextTrade.product_id, signal);
+    setTrade(nextTrade);
+    setWarrant(nextWarrant);
     setPosition(nextPosition);
     setManagement(nextManagement);
     setStopPrice(nextManagement.stop_price ?? '');
@@ -157,6 +177,62 @@ export function TradeManagementPage() {
         <div role="status" className="rounded-xl border border-slate-700 bg-slate-900 p-4 text-sm">
           {message}
         </div>
+      )}
+
+      {trade && warrant && position && (
+        <section className="rounded-xl border border-sky-900 bg-sky-950/20 p-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-xs uppercase tracking-wide text-sky-400">Aktiver Trade</p>
+              <h2 className="mt-1 text-xl font-semibold">
+                {tradeReference(trade.id)} · {warrant.display_name}
+              </h2>
+              <p className="mt-1 text-sm text-slate-400">
+                {warrant.isin ? `ISIN ${warrant.isin}` : 'Keine ISIN'}
+                {warrant.wkn ? ` · WKN ${warrant.wkn}` : ''}
+              </p>
+            </div>
+            <span className="rounded-full border border-sky-800 px-3 py-1 text-xs">
+              {position.is_closed ? 'CLOSED' : 'OPEN'}
+            </span>
+          </div>
+          <dl className="mt-5 grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
+            <div>
+              <dt className="text-slate-500">Ursprung</dt>
+              <dd className="mt-1 font-medium">
+                {trade.origin === 'WORKSPACE_SELECTION' ? 'Workspace-Produktauswahl' : 'Extern'}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-slate-500">TradePlan</dt>
+              <dd className="mt-1 font-medium">
+                {trade.trade_plan_id ? tradePlanReference(trade.trade_plan_id) : 'Kein TradePlan'}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-slate-500">Offene Menge</dt>
+              <dd className="mt-1 font-medium">{position.open_quantity}</dd>
+            </div>
+            <div>
+              <dt className="text-slate-500">Nächster Schritt</dt>
+              <dd className="mt-1 font-medium">
+                {position.is_closed
+                  ? 'Nachbeobachtung starten'
+                  : 'Alerts prüfen und Stop/Target aktiv managen'}
+              </dd>
+            </div>
+          </dl>
+          <details className="mt-4 text-xs text-slate-500">
+            <summary className="cursor-pointer">Technische Provenance anzeigen</summary>
+            <div className="mt-2 space-y-1 break-all">
+              <p>Trade-ID {trade.id}</p>
+              <p>Produkt-ID {trade.product_id}</p>
+              {trade.trade_plan_id && <p>TradePlan-ID {trade.trade_plan_id}</p>}
+              {trade.trade_plan_version_id && <p>TradePlanVersion-ID {trade.trade_plan_version_id}</p>}
+              {trade.product_selection_id && <p>ProductSelection-ID {trade.product_selection_id}</p>}
+            </div>
+          </details>
+        </section>
       )}
 
       {position && (
