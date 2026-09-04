@@ -60,6 +60,11 @@ class SqlAlchemyTradePlanRepository:
 
     async def add(self, plan: TradePlan) -> None:
         self._session.add(trade_plan_to_model(plan))
+        # Materialize the durable parent identity before any dependent TradePlanVersion
+        # or lifecycle event rows are staged. SQLAlchemy has no ORM relationship graph
+        # between these independently-mapped models, so relying on commit-time ordering
+        # can otherwise emit child INSERTs before their FK parent exists.
+        await self._session.flush()
 
     async def get(self, workspace_id: UUID, trade_plan_id: UUID) -> TradePlan | None:
         model = await self._session.scalar(
@@ -106,6 +111,10 @@ class SqlAlchemyTradePlanVersionRepository:
         version_model, target_models = trade_plan_version_to_models(version)
         self._session.add(version_model)
         self._session.add_all(list(target_models))
+        # Events and targets reference the immutable version identity. Flush the version
+        # (and its targets) before callers stage lifecycle events so FK ordering remains
+        # deterministic for both initial creation and later amendments.
+        await self._session.flush()
 
     async def _hydrate(self, model: TradePlanVersionModel) -> TradePlanVersion:
         targets = tuple(
