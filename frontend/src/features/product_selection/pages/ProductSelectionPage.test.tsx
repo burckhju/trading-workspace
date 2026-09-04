@@ -162,7 +162,9 @@ describe('ProductSelectionPage', () => {
     await screen.findByText('Produkt ausgewählt');
     expect(screen.getByText(runDetail.evaluations[0].warrant_id)).toBeInTheDocument();
     expect(screen.getByText(runDetail.evaluations[0].warrant_listing_id)).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: /tatsächlichen Kauf erfassen/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: /tatsächlichen Kauf erfassen/i }),
+    ).toBeInTheDocument();
     const selectionCall = fetchMock.mock.calls.find(([url]) => {
       if (typeof url === 'string') return url.includes('/selection');
       if (url instanceof URL) return url.href.includes('/selection');
@@ -202,7 +204,9 @@ describe('ProductSelectionPage', () => {
 
     expect(await screen.findByRole('heading', { name: 'TR-12345678' })).toBeInTheDocument();
     expect(screen.getByText('23.50')).toBeInTheDocument();
-    expect(screen.getByText(/Position ist jetzt die wirtschaftliche Wahrheit/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Position ist jetzt die wirtschaftliche Wahrheit/),
+    ).toBeInTheDocument();
 
     const managementLink = screen.getByRole('link', {
       name: 'Position verwalten und Monitoring öffnen',
