@@ -135,7 +135,9 @@ export function PostTradeLearningPage() {
             <div>
               <dt className="text-slate-500">Learning-Übergang</dt>
               <dd className="mt-1 font-medium">
-                {status?.materialized ? 'LearningEvidence materialisiert' : 'Noch im Post-Trade-Prozess'}
+                {status?.materialized
+                  ? 'LearningEvidence materialisiert'
+                  : 'Noch im Post-Trade-Prozess'}
               </dd>
             </div>
           </dl>
