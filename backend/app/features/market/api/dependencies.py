@@ -10,9 +10,7 @@ from app.database.dependencies import get_database_session
 from app.features.analysis.service.reference_application import (
     MarketReferenceAnalysisService,
 )
-from app.features.analysis.service.underlying_usage import (
-    MarketAnalysisUnderlyingUsageRepository,
-)
+from app.features.market.api.underlying_usage import ReleasedUnderlyingUsageRepository
 from app.features.market.service.issuer_administration import IssuerAdministrationService
 from app.features.market.service.listing_service import ListingService
 from app.features.market.service.reference_data_service import ReferenceDataService
@@ -36,7 +34,7 @@ async def get_underlying_service(
     return UnderlyingService(
         SqlAlchemyMarketUnitOfWork(
             session,
-            usages=MarketAnalysisUnderlyingUsageRepository(session),
+            usages=ReleasedUnderlyingUsageRepository(session),
         )
     )
 
