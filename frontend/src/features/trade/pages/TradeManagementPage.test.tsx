@@ -3,6 +3,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { postTradeApiClient } from '../../post_trade/services/client';
+import { warrantApiClient } from '../../product/services/client';
 import { tradeManagementApiClient } from '../services/client';
 import { TradeManagementPage } from './TradeManagementPage';
 
@@ -16,8 +17,15 @@ vi.mock('../../post_trade/services/client', () => ({
   },
 }));
 
+vi.mock('../../product/services/client', () => ({
+  warrantApiClient: {
+    get: vi.fn(),
+  },
+}));
+
 vi.mock('../services/client', () => ({
   tradeManagementApiClient: {
+    trade: vi.fn(),
     position: vi.fn(),
     managementState: vi.fn(),
     sell: vi.fn(),
@@ -29,7 +37,34 @@ vi.mock('../services/client', () => ({
 }));
 
 const api = vi.mocked(tradeManagementApiClient);
+const warrantApi = vi.mocked(warrantApiClient);
 const postTradeApi = vi.mocked(postTradeApiClient);
+
+const trade = {
+  id: 'trade-1',
+  product_id: 'product-1',
+  origin: 'WORKSPACE_SELECTION' as const,
+  trade_plan_id: 'plan-12345678',
+  trade_plan_version_id: 'plan-version-1',
+  product_selection_id: 'selection-1',
+  product_evaluation_id: 'evaluation-1',
+  created_at: '2026-08-17T08:00:00Z',
+};
+
+const warrant = {
+  id: 'product-1',
+  workspace_id: 'workspace-1',
+  issuer_id: 'issuer-1',
+  underlying_id: 'underlying-1',
+  product_family: 'WARRANT' as const,
+  display_name: 'DAX Call 19000',
+  isin: 'DE000TEST123',
+  wkn: 'TEST12',
+  lifecycle_status: 'ACTIVE' as const,
+  version: 1,
+  created_at: '2026-08-16T08:00:00Z',
+  updated_at: '2026-08-16T08:00:00Z',
+};
 
 const position = {
   id: 'position-1',
@@ -57,8 +92,10 @@ const management = {
 describe('TradeManagementPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    api.trade.mockResolvedValue(trade);
     api.position.mockResolvedValue(position);
     api.managementState.mockResolvedValue(management);
+    warrantApi.get.mockResolvedValue(warrant);
     api.sell.mockResolvedValue({} as never);
     api.changeStop.mockResolvedValue({} as never);
     api.changeTarget.mockResolvedValue({} as never);
@@ -67,7 +104,7 @@ describe('TradeManagementPage', () => {
     postTradeApi.startObservation.mockResolvedValue({} as never);
   });
 
-  it('loads position and current management state from a trade_id query parameter', async () => {
+  it('loads visible product, TradePlan, position and management context from a trade_id query parameter', async () => {
     render(
       <MemoryRouter initialEntries={['/trade-management?trade_id=trade-1']}>
         <TradeManagementPage />
@@ -75,6 +112,11 @@ describe('TradeManagementPage', () => {
     );
 
     expect(await screen.findByRole('heading', { name: 'OPEN' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /TR-TRADE-1 · DAX Call 19000/ })).toBeInTheDocument();
+    expect(screen.getByText(/ISIN DE000TEST123 · WKN TEST12/)).toBeInTheDocument();
+    expect(screen.getByText('Workspace-Produktauswahl')).toBeInTheDocument();
+    expect(screen.getByText('TP-PLAN-123')).toBeInTheDocument();
+    expect(screen.getByText('Alerts prüfen und Stop/Target aktiv managen')).toBeInTheDocument();
     expect(screen.getByText('10 offen')).toBeInTheDocument();
     expect(screen.getByDisplayValue('1.80')).toBeInTheDocument();
     expect(screen.getByDisplayValue('2.80')).toBeInTheDocument();
@@ -82,8 +124,10 @@ describe('TradeManagementPage', () => {
     expect(screen.getByText('Initial note')).toBeInTheDocument();
     expect(screen.getByText('Alerts for trade-1')).toBeInTheDocument();
 
+    expect(api.trade).toHaveBeenCalledWith('trade-1', expect.any(AbortSignal));
     expect(api.position).toHaveBeenCalledWith('trade-1', expect.any(AbortSignal));
     expect(api.managementState).toHaveBeenCalledWith('trade-1', expect.any(AbortSignal));
+    expect(warrantApi.get).toHaveBeenCalledWith('product-1', expect.any(AbortSignal));
   });
 
   it('records a SELL and refreshes the projected position', async () => {
@@ -126,6 +170,7 @@ describe('TradeManagementPage', () => {
     );
 
     expect(await screen.findByRole('heading', { name: 'CLOSED' })).toBeInTheDocument();
+    expect(screen.getByText('Nachbeobachtung starten')).toBeInTheDocument();
     expect(
       screen.getByText(
         'Die Position ist geschlossen. Weitere SELL-Executions sind nicht verfügbar.',
