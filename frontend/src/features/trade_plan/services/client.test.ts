@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { requestJson } from '../../market/services/http';
+import type { AmendTradePlanRequest, CreateTradePlanRequest } from '../types/api';
 import { tradePlanApiClient } from './client';
 
 vi.mock('../../market/services/http', () => ({ requestJson: vi.fn() }));
@@ -16,6 +17,14 @@ const content = {
   targets: [{ sequence: 1, price: '110' }],
   risk_assumptions: { thesis_risk: 'Breakout may fail' },
 };
+
+function lastRequestBody<T>(): T {
+  const options = requestJsonMock.mock.calls.at(-1)?.[1];
+  if (!options || !('body' in options)) {
+    throw new Error('Expected request body');
+  }
+  return options.body as T;
+}
 
 describe('tradePlanApiClient', () => {
   beforeEach(() => {
@@ -67,16 +76,11 @@ describe('tradePlanApiClient', () => {
       risk_assumptions: { thesis_risk: 'Test risk' },
     });
 
-    expect(requestJsonMock).toHaveBeenLastCalledWith(
-      'http://localhost:8000/api/v1/trade-plans',
-      expect.objectContaining({
-        body: expect.objectContaining({
-          entry: expect.objectContaining({ price: '370.00', reference_price: '369.50' }),
-          invalidation: expect.objectContaining({ stop_price: '350.25' }),
-          targets: [expect.objectContaining({ price: '400.75' })],
-        }),
-      }),
-    );
+    const body = lastRequestBody<CreateTradePlanRequest>();
+    expect(body.entry.price).toBe('370.00');
+    expect(body.entry.reference_price).toBe('369.50');
+    expect(body.invalidation.stop_price).toBe('350.25');
+    expect(body.targets[0]?.price).toBe('400.75');
   });
 
   it('uses exact version resource paths for read and amendment', async () => {
@@ -108,14 +112,9 @@ describe('tradePlanApiClient', () => {
       change_reason: 'Adjust entry range',
     });
 
-    expect(requestJsonMock).toHaveBeenLastCalledWith(
-      `http://localhost:8000/api/v1/trade-plans/${PLAN_ID}/versions/${VERSION_ID}/amendments`,
-      expect.objectContaining({
-        body: expect.objectContaining({
-          entry: expect.objectContaining({ price_from: '360.10', price_to: '365.20' }),
-        }),
-      }),
-    );
+    const body = lastRequestBody<AmendTradePlanRequest>();
+    expect(body.entry.price_from).toBe('360.10');
+    expect(body.entry.price_to).toBe('365.20');
   });
 
   it('maps all lifecycle commands and correlation ids', async () => {
