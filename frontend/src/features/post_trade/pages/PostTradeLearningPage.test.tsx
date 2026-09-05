@@ -124,9 +124,7 @@ describe('PostTradeLearningPage', () => {
       </MemoryRouter>,
     );
 
-    const handoff = await screen.findByRole('button', {
-      name: 'An Lessons Learned übergeben',
-    });
+    const handoff = await screen.findByRole('button', { name: 'An Lessons Learned übergeben' });
     expect(screen.queryByText('lesson-form')).not.toBeInTheDocument();
 
     fireEvent.click(handoff);
