@@ -44,6 +44,21 @@ const result: UnderlyingSearchResponse = {
   limit: 25,
 };
 
+const inactiveResult: UnderlyingSearchResponse = {
+  items: [
+    {
+      ...result.items[0],
+      id: '33333333-3333-4333-8333-333333333333',
+      name: 'Legacy Siemens AG',
+      lifecycle_status: 'INACTIVE',
+      version: 4,
+    },
+  ],
+  total: 1,
+  offset: 0,
+  limit: 25,
+};
+
 function renderPage() {
   return render(
     <MemoryRouter>
@@ -77,7 +92,7 @@ beforeEach(() => {
 });
 
 describe('UnderlyingListPage', () => {
-  it('loads controlled filters and renders the primary listing without detail requests', async () => {
+  it('loads all lifecycle states by default and renders the primary listing', async () => {
     renderPage();
 
     expect(await screen.findByRole('link', { name: 'Siemens AG' })).toHaveAttribute(
@@ -87,8 +102,9 @@ describe('UnderlyingListPage', () => {
     expect(screen.getByText('SIE · Xetra · EUR')).toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'Xetra · XETR' })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'EUR · Euro' })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Status' })).toHaveValue('');
     expect(marketApiClient.searchUnderlyings).toHaveBeenCalledWith(
-      expect.objectContaining({ lifecycleStatus: 'ACTIVE', offset: 0, limit: 25 }),
+      expect.objectContaining({ lifecycleStatus: undefined, offset: 0, limit: 25 }),
       expect.any(AbortSignal),
     );
   });
@@ -110,7 +126,7 @@ describe('UnderlyingListPage', () => {
       expect(marketApiClient.searchUnderlyings).toHaveBeenLastCalledWith(
         {
           query: 'SIE',
-          lifecycleStatus: 'ACTIVE',
+          lifecycleStatus: undefined,
           tradingVenueId: '00000000-0000-4000-8001-000000000001',
           currencyCode: 'EUR',
           offset: 0,
@@ -120,6 +136,44 @@ describe('UnderlyingListPage', () => {
       ),
     );
     expect(marketApiClient.searchProviderInstruments).not.toHaveBeenCalled();
+  });
+
+  it('keeps explicit lifecycle filtering available', async () => {
+    const user = userEvent.setup();
+    vi.mocked(marketApiClient.searchUnderlyings).mockResolvedValue(inactiveResult);
+    renderPage();
+    await screen.findByText('Legacy Siemens AG');
+
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Status' }), 'INACTIVE');
+
+    await waitFor(() =>
+      expect(marketApiClient.searchUnderlyings).toHaveBeenLastCalledWith(
+        expect.objectContaining({ lifecycleStatus: 'INACTIVE', offset: 0, limit: 25 }),
+        expect.any(AbortSignal),
+      ),
+    );
+  });
+
+  it('keeps an inactive local match discoverable and does not offer provider re-creation', async () => {
+    const user = userEvent.setup();
+    vi.mocked(marketApiClient.searchUnderlyings).mockImplementation(async (parameters) => {
+      if (parameters.query === 'Legacy Siemens') return inactiveResult;
+      return result;
+    });
+    renderPage();
+    await screen.findByText('Siemens AG');
+
+    await user.type(screen.getByRole('textbox', { name: 'Suche' }), 'Legacy Siemens');
+    await user.click(screen.getByRole('button', { name: 'Suchen' }));
+
+    expect(await screen.findByRole('link', { name: 'Legacy Siemens AG' })).toHaveAttribute(
+      'href',
+      '/underlyings/33333333-3333-4333-8333-333333333333',
+    );
+    expect(marketApiClient.searchProviderInstruments).not.toHaveBeenCalled();
+    expect(
+      screen.queryByRole('link', { name: 'Als Basiswert übernehmen' }),
+    ).not.toBeInTheDocument();
   });
 
   it('falls back to EODHD when a plain local search has no matches', async () => {
