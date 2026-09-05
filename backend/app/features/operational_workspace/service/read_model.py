@@ -10,6 +10,8 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.features.alert.domain.models import AlertStatus, AlertType
+from app.features.alert.persistence.models import AlertModel
 from app.features.candidate.domain.enums import CandidateStatus
 from app.features.candidate.persistence.models import CandidateModel
 from app.features.candidate.service.runtime_readiness import (
@@ -62,6 +64,7 @@ class OperationalWorkspaceReadModel:
     async def list_actions(self, *, workspace_id: UUID) -> tuple[OperationalAction, ...]:
         actions = [
             *(await self._candidate_actions(workspace_id)),
+            *(await self._alert_actions(workspace_id)),
             *(await self._open_position_actions(workspace_id)),
             *(await self._post_trade_actions(workspace_id)),
         ]
@@ -127,6 +130,41 @@ class OperationalWorkspaceReadModel:
                 )
             )
         return actions
+
+    async def _alert_actions(self, workspace_id: UUID) -> list[OperationalAction]:
+        alerts = (
+            await self._session.scalars(
+                select(AlertModel)
+                .join(TradeModel, TradeModel.id == AlertModel.trade_id)
+                .where(
+                    TradeModel.workspace_id == workspace_id,
+                    AlertModel.status == AlertStatus.OPEN.value,
+                )
+                .order_by(AlertModel.detected_at, AlertModel.id)
+            )
+        ).all()
+
+        return [
+            OperationalAction(
+                id=f"alert:{alert.id}:open",
+                source_feature="Position Monitoring / Alerting",
+                action_type="POSITION_ALERT",
+                priority="ACTION",
+                state="ACTIONABLE",
+                title=(
+                    "Stop erreicht"
+                    if alert.alert_type == AlertType.STOP_REACHED.value
+                    else "Target erreicht"
+                ),
+                detail=alert.reason,
+                resource_type="alert",
+                resource_id=alert.id,
+                next_action="Trade-Management prüfen",
+                target=f"/trade-management?trade_id={alert.trade_id}",
+                occurred_at=alert.detected_at,
+            )
+            for alert in alerts
+        ]
 
     async def _open_position_actions(self, workspace_id: UUID) -> list[OperationalAction]:
         rows = (
