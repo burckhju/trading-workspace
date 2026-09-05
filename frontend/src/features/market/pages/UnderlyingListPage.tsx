@@ -32,7 +32,7 @@ function providerPrefillUrl(item: ProviderInstrumentSearchItemResponse): string 
 export function UnderlyingListPage() {
   const [query, setQuery] = useState('');
   const [submittedQuery, setSubmittedQuery] = useState('');
-  const [lifecycle, setLifecycle] = useState<LifecycleStatus | ''>('ACTIVE');
+  const [lifecycle, setLifecycle] = useState<LifecycleStatus | ''>('');
   const [venueId, setVenueId] = useState('');
   const [currencyCode, setCurrencyCode] = useState('');
   const [offset, setOffset] = useState(0);
@@ -167,6 +167,7 @@ export function UnderlyingListPage() {
         <label>
           <span className="mb-1 block text-sm text-slate-300">Status</span>
           <select
+            aria-label="Status"
             value={lifecycle}
             onChange={(e) => {
               setLifecycle(e.target.value as LifecycleStatus | '');
@@ -174,14 +175,15 @@ export function UnderlyingListPage() {
             }}
             className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2"
           >
+            <option value="">Alle</option>
             <option value="ACTIVE">Aktiv</option>
             <option value="INACTIVE">Deaktiviert</option>
-            <option value="">Alle</option>
           </select>
         </label>
         <label>
           <span className="mb-1 block text-sm text-slate-300">Markt</span>
           <select
+            aria-label="Markt"
             value={venueId}
             onChange={(e) => {
               setVenueId(e.target.value);
@@ -200,6 +202,7 @@ export function UnderlyingListPage() {
         <label>
           <span className="mb-1 block text-sm text-slate-300">Währung</span>
           <select
+            aria-label="Währung"
             value={currencyCode}
             onChange={(e) => {
               setCurrencyCode(e.target.value);
