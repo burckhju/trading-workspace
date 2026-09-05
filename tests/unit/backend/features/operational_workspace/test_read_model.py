@@ -4,7 +4,7 @@ from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from typing import Any, cast
 from unittest.mock import AsyncMock
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -25,9 +25,7 @@ class _Rows:
         return self._rows
 
 
-def _action(
-    *, priority: str, occurred_at: datetime | None, suffix: str
-) -> OperationalAction:
+def _action(*, priority: str, occurred_at: datetime | None, suffix: str) -> OperationalAction:
     resource_id = uuid4()
     return OperationalAction(
         id=f"action:{suffix}",
