@@ -259,6 +259,38 @@ async def test_product_selection_choice_projection_requires_eligible_unselected_
 
 
 @pytest.mark.asyncio
+async def test_initial_purchase_projection_requires_selection_without_trade() -> None:
+    workspace_id = uuid4()
+    selection_id = uuid4()
+    run_id = uuid4()
+    selected_at = datetime.now(UTC)
+    session = AsyncMock(spec=AsyncSession)
+    session.execute.return_value = _Rows([(selection_id, run_id, selected_at)])
+    model = OperationalWorkspaceReadModel(cast(AsyncSession, session))
+
+    actions = await model._initial_purchase_actions(workspace_id)
+
+    assert len(actions) == 1
+    action = actions[0]
+    assert action.id == f"product-selection:{selection_id}:initial-buy"
+    assert action.action_type == "INITIAL_PURCHASE"
+    assert action.priority == "ACTION"
+    assert action.title == "Kauf erfassen"
+    assert action.resource_type == "product_selection"
+    assert action.resource_id == selection_id
+    assert action.target == f"/product-selection?run_id={run_id}"
+    assert action.occurred_at == selected_at
+
+    statement = session.execute.await_args.args[0]
+    sql = str(statement)
+    assert "JOIN product_selection_runs" in sql
+    assert "LEFT OUTER JOIN trades" in sql
+    assert "product_selection_runs.workspace_id" in sql
+    assert "trades.product_selection_id" in sql
+    assert "trades.id IS NULL" in sql
+
+
+@pytest.mark.asyncio
 async def test_open_position_projection_only_links_to_trade_management() -> None:
     workspace_id = uuid4()
     trade_id = uuid4()
@@ -334,6 +366,7 @@ async def test_list_actions_sorts_by_priority_time_then_id() -> None:
     model._trade_plan_review_actions = AsyncMock(return_value=[])
     model._product_selection_start_actions = AsyncMock(return_value=[])
     model._product_selection_choice_actions = AsyncMock(return_value=[])
+    model._initial_purchase_actions = AsyncMock(return_value=[])
     model._open_position_actions = AsyncMock(return_value=[action_late, action_early])
     model._post_trade_actions = AsyncMock(return_value=[review])
 
