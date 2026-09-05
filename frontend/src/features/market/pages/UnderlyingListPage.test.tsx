@@ -157,7 +157,7 @@ describe('UnderlyingListPage', () => {
   it('keeps an inactive local match discoverable and does not offer provider re-creation', async () => {
     const user = userEvent.setup();
     vi.mocked(marketApiClient.searchUnderlyings).mockImplementation(async (parameters) => {
-      if (parameters.query === 'Legacy Siemens') return inactiveResult;
+      if (parameters?.query === 'Legacy Siemens') return inactiveResult;
       return result;
     });
     renderPage();
