@@ -1,4 +1,4 @@
-import { FormEvent, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 
 import { tradePlanApiClient } from '../services/client';
@@ -280,6 +280,7 @@ function VersionCard({ version }: { version: TradePlanVersionResponse }) {
 
 export function TradePlanPage() {
   const [searchParams] = useSearchParams();
+  const tradePlanId = searchParams.get('trade_plan_id')?.trim() ?? '';
   const [form, setForm] = useState<FormState>(() => initialForm(searchParams));
   const [detail, setDetail] = useState<TradePlanDetailResponse | null>(null);
   const [versions, setVersions] = useState<TradePlanVersionResponse[]>([]);
@@ -309,6 +310,32 @@ export function TradePlanPage() {
     setVersions(history);
     setLookupId(planId);
   }
+
+  useEffect(() => {
+    if (!tradePlanId) return;
+    let active = true;
+    setBusy(true);
+    setMessage(null);
+    Promise.all([tradePlanApiClient.get(tradePlanId), tradePlanApiClient.versions(tradePlanId)])
+      .then(([nextDetail, history]) => {
+        if (!active) return;
+        setDetail(nextDetail);
+        setVersions(history);
+        setLookupId(tradePlanId);
+      })
+      .catch((error: unknown) => {
+        if (!active) return;
+        setMessage(
+          error instanceof Error ? error.message : 'TradePlan konnte nicht geladen werden.',
+        );
+      })
+      .finally(() => {
+        if (active) setBusy(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [tradePlanId]);
 
   async function createPlan(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
