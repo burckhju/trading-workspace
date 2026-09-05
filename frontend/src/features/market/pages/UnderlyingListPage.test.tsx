@@ -10,6 +10,7 @@ import { UnderlyingListPage } from './UnderlyingListPage';
 vi.mock('../services/client', () => ({
   marketApiClient: {
     searchUnderlyings: vi.fn(),
+    searchProviderInstruments: vi.fn(),
     listTradingVenues: vi.fn(),
     listCurrencies: vi.fn(),
   },
@@ -69,6 +70,10 @@ beforeEach(() => {
     items: [{ code: 'EUR', name: 'Euro', minor_unit: 2, reference_version: 'FT-001-V1' }],
   });
   vi.mocked(marketApiClient.searchUnderlyings).mockResolvedValue(result);
+  vi.mocked(marketApiClient.searchProviderInstruments).mockResolvedValue({
+    provider: 'EODHD',
+    items: [],
+  });
 });
 
 describe('UnderlyingListPage', () => {
@@ -114,9 +119,81 @@ describe('UnderlyingListPage', () => {
         expect.any(AbortSignal),
       ),
     );
+    expect(marketApiClient.searchProviderInstruments).not.toHaveBeenCalled();
   });
 
-  it('shows an empty state for an empty result', async () => {
+  it('falls back to EODHD when a plain local search has no matches', async () => {
+    const user = userEvent.setup();
+    vi.mocked(marketApiClient.searchUnderlyings).mockResolvedValue({
+      items: [],
+      total: 0,
+      offset: 0,
+      limit: 25,
+    });
+    vi.mocked(marketApiClient.searchProviderInstruments).mockResolvedValue({
+      provider: 'EODHD',
+      items: [
+        {
+          provider: 'EODHD',
+          provider_symbol: 'AAPL',
+          provider_exchange_code: 'US',
+          name: 'Apple Inc',
+          instrument_type: 'Common Stock',
+          currency: 'USD',
+          isin: 'US0378331005',
+        },
+      ],
+    });
+    renderPage();
+
+    await user.type(screen.getByRole('textbox', { name: 'Suche' }), 'Apple');
+    await user.click(screen.getByRole('button', { name: 'Suchen' }));
+
+    expect(await screen.findByText('Apple Inc')).toBeInTheDocument();
+    expect(marketApiClient.searchProviderInstruments).toHaveBeenCalledWith(
+      'Apple',
+      10,
+      expect.any(AbortSignal),
+    );
+    const transfer = screen.getByRole('link', { name: 'Als Basiswert übernehmen' });
+    expect(transfer.getAttribute('href')).toContain('/underlyings/new?');
+    expect(transfer.getAttribute('href')).toContain('source=EODHD');
+    expect(transfer.getAttribute('href')).toContain('ticker=AAPL');
+  });
+
+  it('does not offer non-stock provider results as STOCK underlyings', async () => {
+    const user = userEvent.setup();
+    vi.mocked(marketApiClient.searchUnderlyings).mockResolvedValue({
+      items: [],
+      total: 0,
+      offset: 0,
+      limit: 25,
+    });
+    vi.mocked(marketApiClient.searchProviderInstruments).mockResolvedValue({
+      provider: 'EODHD',
+      items: [
+        {
+          provider: 'EODHD',
+          provider_symbol: 'GDAXI',
+          provider_exchange_code: 'INDX',
+          name: 'DAX',
+          instrument_type: 'Index',
+          currency: 'EUR',
+          isin: null,
+        },
+      ],
+    });
+    renderPage();
+
+    await user.type(screen.getByRole('textbox', { name: 'Suche' }), 'DAX');
+    await user.click(screen.getByRole('button', { name: 'Suchen' }));
+
+    expect(await screen.findByText('DAX')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Als Basiswert übernehmen' })).not.toBeInTheDocument();
+    expect(screen.getByText(/Kein Aktien-Treffer/)).toBeInTheDocument();
+  });
+
+  it('shows an empty state for an empty result without a search term', async () => {
     vi.mocked(marketApiClient.searchUnderlyings).mockResolvedValue({
       items: [],
       total: 0,
@@ -125,7 +202,8 @@ describe('UnderlyingListPage', () => {
     });
     renderPage();
     expect(
-      await screen.findByRole('heading', { name: 'Keine Basiswerte gefunden' }),
+      await screen.findByRole('heading', { name: 'Keine lokalen Basiswerte gefunden' }),
     ).toBeInTheDocument();
+    expect(marketApiClient.searchProviderInstruments).not.toHaveBeenCalled();
   });
 });
