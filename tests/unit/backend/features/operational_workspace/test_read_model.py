@@ -168,6 +168,34 @@ async def test_terminal_notification_failure_projection_links_to_trade_managemen
 
 
 @pytest.mark.asyncio
+async def test_trade_plan_review_projection_uses_only_latest_version() -> None:
+    workspace_id = uuid4()
+    trade_plan_id = uuid4()
+    version_id = uuid4()
+    created_at = datetime.now(UTC)
+    session = AsyncMock(spec=AsyncSession)
+    session.execute.return_value = _Rows([(trade_plan_id, version_id, 3, created_at)])
+    model = OperationalWorkspaceReadModel(cast(AsyncSession, session))
+
+    actions = await model._trade_plan_review_actions(workspace_id)
+
+    assert len(actions) == 1
+    action = actions[0]
+    assert action.id == f"trade-plan:{trade_plan_id}:version:3:review"
+    assert action.action_type == "TRADE_PLAN_REVIEW"
+    assert action.priority == "REVIEW"
+    assert action.title == "TradePlan freigeben"
+    assert action.resource_id == trade_plan_id
+    assert action.target == f"/trade-plans?trade_plan_id={trade_plan_id}"
+    assert action.occurred_at == created_at
+
+    statement = session.execute.await_args.args[0]
+    sql = str(statement)
+    assert "max(trade_plan_versions.version)" in sql
+    assert "trade_plans.workspace_id" in sql
+
+
+@pytest.mark.asyncio
 async def test_open_position_projection_only_links_to_trade_management() -> None:
     workspace_id = uuid4()
     trade_id = uuid4()
@@ -240,6 +268,7 @@ async def test_list_actions_sorts_by_priority_time_then_id() -> None:
     model._candidate_actions = AsyncMock(return_value=[blocked])
     model._alert_actions = AsyncMock(return_value=[])
     model._notification_failure_actions = AsyncMock(return_value=[])
+    model._trade_plan_review_actions = AsyncMock(return_value=[])
     model._open_position_actions = AsyncMock(return_value=[action_late, action_early])
     model._post_trade_actions = AsyncMock(return_value=[review])
 
