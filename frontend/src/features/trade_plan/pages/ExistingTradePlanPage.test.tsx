@@ -4,7 +4,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { marketApiClient } from '../../market/services/client';
 import { tradePlanApiClient } from '../services/client';
-import type { TradePlanDetailResponse, TradePlanStatus, TradePlanVersionResponse } from '../types/api';
+import type {
+  TradePlanDetailResponse,
+  TradePlanStatus,
+  TradePlanVersionResponse,
+} from '../types/api';
 import { ExistingTradePlanPage } from './ExistingTradePlanPage';
 
 vi.mock('../../market/services/client', () => ({
