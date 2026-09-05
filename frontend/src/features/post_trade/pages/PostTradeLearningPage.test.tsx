@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -17,7 +17,7 @@ vi.mock('../../learning/components/LessonDraftFromEvidence', () => ({
 }));
 
 vi.mock('../../learning/services/materializationClient', () => ({
-  ft011MaterializationClient: { status: vi.fn() },
+  ft011MaterializationClient: { status: vi.fn(), materialize: vi.fn() },
 }));
 
 vi.mock('../../learning/services/lessonReadbackClient', () => ({
@@ -36,6 +36,7 @@ vi.mock('../../trade/services/client', () => ({
 }));
 
 const status = vi.mocked(ft011MaterializationClient.status);
+const materialize = vi.mocked(ft011MaterializationClient.materialize);
 const listForEvidence = vi.mocked(lessonReadbackClient.listForEvidence);
 const warrantGet = vi.mocked(warrantApiClient.get);
 const tradeGet = vi.mocked(tradeManagementApiClient.trade);
@@ -78,6 +79,12 @@ describe('PostTradeLearningPage', () => {
       learning_evidence_id: 'evidence-1',
       exit_review_version_id: 'version-1',
     });
+    materialize.mockResolvedValue({
+      learning_evidence_id: 'evidence-1',
+      exit_review_version_id: 'version-1',
+      created: true,
+      replayed: false,
+    });
   });
 
   it('keeps visible Trade, product and TradePlan context above the review', async () => {
@@ -99,6 +106,37 @@ describe('PostTradeLearningPage', () => {
     expect(screen.getByText('review')).toBeInTheDocument();
     expect(tradeGet).toHaveBeenCalledWith('trade-1', expect.any(AbortSignal));
     expect(warrantGet).toHaveBeenCalledWith('product-1', expect.any(AbortSignal));
+  });
+
+  it('hands a ready finalized review to FT-012 before showing the Lesson form', async () => {
+    status.mockResolvedValue({
+      ready: true,
+      reason: 'READY',
+      materialized: false,
+      learning_evidence_id: null,
+      exit_review_version_id: 'version-1',
+    });
+    listForEvidence.mockResolvedValue([]);
+
+    render(
+      <MemoryRouter initialEntries={['/post-trade?trade_id=trade-1']}>
+        <PostTradeLearningPage />
+      </MemoryRouter>,
+    );
+
+    const handoff = await screen.findByRole('button', { name: 'An Lessons Learned übergeben' });
+    expect(screen.queryByText('lesson-form')).not.toBeInTheDocument();
+
+    fireEvent.click(handoff);
+
+    await waitFor(() =>
+      expect(materialize).toHaveBeenCalledWith(
+        'trade-1',
+        'ft011-to-ft012:trade-1:version-1',
+      ),
+    );
+    expect(await screen.findByText('lesson-form')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'An Lessons Learned übergeben' })).not.toBeInTheDocument();
   });
 
   it('shows existing Lessons and suppresses duplicate creation form', async () => {
