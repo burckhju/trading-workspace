@@ -26,18 +26,35 @@ class FakeUow:
 
 
 @pytest.mark.asyncio
-async def test_persist_run_writes_complete_snapshot_before_commit():
+async def test_persist_run_establishes_run_parent_before_evaluations_and_commit():
     uow = FakeUow()
     service = ProductSelectionPersistenceService(uow)
     run = Mock(id=uuid4())
     e1, e2 = Mock(), Mock()
     o1 = Mock()
     result = Mock(run=run, evaluations=(e1, e2), universe_omissions=(o1,))
+    events: list[str] = []
+
+    uow.runs.add.side_effect = lambda value: events.append("run")
+    uow.evaluations.add.side_effect = lambda value: events.append("evaluation")
+    uow.omissions.add_all.side_effect = lambda run_id, values: events.append("omissions")
+
+    async def record_flush() -> None:
+        events.append("flush")
+
+    async def record_commit() -> None:
+        events.append("commit")
+
+    uow.flush.side_effect = record_flush
+    uow.commit.side_effect = record_commit
+
     await service.persist_run(result)
+
+    assert events == ["run", "flush", "evaluation", "evaluation", "omissions", "flush", "commit"]
     uow.runs.add.assert_awaited_once_with(run)
     assert uow.evaluations.add.await_count == 2
     uow.omissions.add_all.assert_awaited_once_with(run.id, (o1,))
-    uow.flush.assert_awaited_once()
+    assert uow.flush.await_count == 2
     uow.commit.assert_awaited_once()
 
 

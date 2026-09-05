@@ -75,6 +75,11 @@ class SqlAlchemyProductEvaluationRepository:
     async def add(self, evaluation: ProductEvaluation) -> None:
         root, inputs, criteria, metrics, reasons = evaluation_to_models(evaluation)
         self._session.add(root)
+        # These snapshot rows are mapped independently rather than through ORM
+        # relationships. Flush the aggregate root first so every FK-dependent
+        # evidence row sees an existing product_evaluations parent while the
+        # surrounding unit of work remains one atomic transaction.
+        await self._session.flush()
         self._session.add_all([*inputs, *criteria, *metrics, *reasons])
 
     async def _hydrate(
