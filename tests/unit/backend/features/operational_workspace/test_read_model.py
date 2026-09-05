@@ -151,9 +151,7 @@ async def test_terminal_notification_failure_projection_links_to_trade_managemen
     trade_id = uuid4()
     created_at = datetime.now(UTC)
     session = AsyncMock(spec=AsyncSession)
-    session.execute.return_value = _Rows(
-        [(notification_id, "TELEGRAM", created_at, trade_id)]
-    )
+    session.execute.return_value = _Rows([(notification_id, "TELEGRAM", created_at, trade_id)])
     model = OperationalWorkspaceReadModel(cast(AsyncSession, session))
 
     actions = await model._notification_failure_actions(workspace_id)
