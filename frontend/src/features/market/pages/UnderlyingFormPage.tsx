@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ErrorNotice, LoadingNotice } from '../components/ApiFeedback';
 import { marketApiClient } from '../services/client';
 import type {
@@ -12,6 +12,7 @@ export function UnderlyingFormPage() {
   const { underlyingId } = useParams();
   const editing = Boolean(underlyingId);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [existing, setExisting] = useState<UnderlyingDetailResponse | null>(null);
   const [venues, setVenues] = useState<TradingVenueResponse[]>([]);
   const [currencies, setCurrencies] = useState<CurrencyResponse[]>([]);
@@ -24,6 +25,10 @@ export function UnderlyingFormPage() {
   const [error, setError] = useState<unknown>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  const providerSource = !editing ? searchParams.get('source') : null;
+  const providerExchange = !editing ? searchParams.get('exchange')?.trim().toUpperCase() : null;
+  const providerTicker = !editing ? searchParams.get('ticker')?.trim().toUpperCase() : null;
 
   useEffect(() => {
     void Promise.all([
@@ -47,11 +52,28 @@ export function UnderlyingFormPage() {
             setTicker(primary.ticker);
             setCurrency(primary.currency_code);
           }
+          return;
+        }
+
+        const suggestedName = searchParams.get('name')?.trim();
+        const suggestedIsin = searchParams.get('isin')?.trim().toUpperCase();
+        const suggestedTicker = searchParams.get('ticker')?.trim().toUpperCase();
+        const suggestedCurrency = searchParams.get('currency')?.trim().toUpperCase();
+        const suggestedExchange = searchParams.get('exchange')?.trim().toUpperCase();
+        if (suggestedName) setName(suggestedName);
+        if (suggestedIsin) setIsin(suggestedIsin);
+        if (suggestedTicker) setTicker(suggestedTicker);
+        if (suggestedCurrency && c.items.some((item) => item.code === suggestedCurrency)) {
+          setCurrency(suggestedCurrency);
+        }
+        if (suggestedExchange) {
+          const exactVenue = v.items.find((item) => item.mic.toUpperCase() === suggestedExchange);
+          if (exactVenue) setVenueId(exactVenue.id);
         }
       })
       .catch(setError)
       .finally(() => setLoading(false));
-  }, [editing, underlyingId]);
+  }, [editing, underlyingId, searchParams]);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -106,6 +128,21 @@ export function UnderlyingFormPage() {
             : 'Grunddaten und primäre Notierung werden gemeinsam gespeichert.'}
         </p>
       </div>
+      {providerSource === 'EODHD' && (
+        <div className="rounded-xl border border-amber-900 bg-amber-950/20 p-4 text-sm">
+          <p className="font-medium text-amber-200">Vorschlag aus EODHD übernommen</p>
+          <p className="mt-1 text-slate-400">
+            Name, ISIN, Ticker und Währung wurden soweit verfügbar vorausgefüllt. Bitte Handelsplatz
+            und Stammdaten vor dem Speichern prüfen. Der Provider-Treffer selbst ist noch keine
+            Workspace-Wahrheit.
+          </p>
+          {(providerTicker || providerExchange) && (
+            <p className="mt-2 font-mono text-xs text-slate-500">
+              Provider: {providerTicker ?? '—'} · {providerExchange ?? '—'}
+            </p>
+          )}
+        </div>
+      )}
       {error !== null && <ErrorNotice error={error} />}
       <form
         onSubmit={(event) => {
