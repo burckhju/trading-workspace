@@ -154,6 +154,7 @@ export function UnderlyingListPage() {
         <label className="md:col-span-2">
           <span className="mb-1 block text-sm text-slate-300">Suche</span>
           <input
+            aria-label="Suche"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Name, Ticker, ISIN oder WKN"
