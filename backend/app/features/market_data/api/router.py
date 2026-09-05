@@ -69,12 +69,11 @@ async def import_daily_prices(
 
 @router.get("/instruments/search", response_model=ProviderInstrumentSearchResponse)
 async def search_provider_instruments(
+    container: Annotated[ApplicationContainer, Depends(get_container)],
     q: Annotated[str, Query(min_length=2, max_length=100)],
     limit: Annotated[int, Query(ge=1, le=20)] = 10,
-    container: Annotated[ApplicationContainer, Depends(get_container)] = None,
 ) -> ProviderInstrumentSearchResponse:
     """Search EODHD without creating or mutating workspace master data."""
-    assert container is not None
     try:
         values = await container.require_eodhd_adapter().search_instruments(q, limit=limit)
     except MarketDataError as error:
