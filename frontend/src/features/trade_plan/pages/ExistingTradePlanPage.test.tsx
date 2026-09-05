@@ -102,7 +102,9 @@ describe('ExistingTradePlanPage', () => {
     fireEvent.click(button);
 
     await waitFor(() => expect(abandon).toHaveBeenCalledWith('plan-1', 'version-1'));
-    expect(await screen.findByText('Version 1 · ABANDONED')).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: 'Version 1 · ABANDONED' }),
+    ).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'TradePlan aufgeben' })).not.toBeInTheDocument();
   });
 
@@ -116,7 +118,9 @@ describe('ExistingTradePlanPage', () => {
       </MemoryRouter>,
     );
 
-    expect(await screen.findByText('Version 1 · APPROVED')).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: 'Version 1 · APPROVED' }),
+    ).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'TradePlan aufgeben' })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Produktauswahl starten' })).toBeInTheDocument();
   });
