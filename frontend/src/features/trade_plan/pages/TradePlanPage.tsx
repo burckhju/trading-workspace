@@ -316,10 +316,7 @@ export function TradePlanPage() {
     let active = true;
     setBusy(true);
     setMessage(null);
-    Promise.all([
-      tradePlanApiClient.get(tradePlanId),
-      tradePlanApiClient.versions(tradePlanId),
-    ])
+    Promise.all([tradePlanApiClient.get(tradePlanId), tradePlanApiClient.versions(tradePlanId)])
       .then(([nextDetail, history]) => {
         if (!active) return;
         setDetail(nextDetail);
