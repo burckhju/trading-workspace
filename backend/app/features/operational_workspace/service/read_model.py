@@ -79,6 +79,7 @@ class OperationalWorkspaceReadModel:
             *(await self._trade_plan_review_actions(workspace_id)),
             *(await self._product_selection_start_actions(workspace_id)),
             *(await self._product_selection_choice_actions(workspace_id)),
+            *(await self._initial_purchase_actions(workspace_id)),
             *(await self._open_position_actions(workspace_id)),
             *(await self._post_trade_actions(workspace_id)),
         ]
@@ -374,6 +375,51 @@ class OperationalWorkspaceReadModel:
                 occurred_at=evaluated_at,
             )
             for run_id, evaluated_at in rows
+        ]
+
+    async def _initial_purchase_actions(self, workspace_id: UUID) -> list[OperationalAction]:
+        rows = (
+            await self._session.execute(
+                select(
+                    ProductSelectionModel.id,
+                    ProductSelectionModel.run_id,
+                    ProductSelectionModel.selected_at,
+                )
+                .join(
+                    ProductSelectionRunModel,
+                    ProductSelectionRunModel.id == ProductSelectionModel.run_id,
+                )
+                .outerjoin(
+                    TradeModel,
+                    TradeModel.product_selection_id == ProductSelectionModel.id,
+                )
+                .where(
+                    ProductSelectionRunModel.workspace_id == workspace_id,
+                    TradeModel.id.is_(None),
+                )
+                .order_by(ProductSelectionModel.selected_at, ProductSelectionModel.id)
+            )
+        ).all()
+
+        return [
+            OperationalAction(
+                id=f"product-selection:{selection_id}:initial-buy",
+                source_feature="FT-008/FT-009 Product Selection → Trade",
+                action_type="INITIAL_PURCHASE",
+                priority="ACTION",
+                state="ACTIONABLE",
+                title="Kauf erfassen",
+                detail=(
+                    "Die Produktauswahl ist dokumentiert; der tatsächliche BUY und damit "
+                    "Trade/Position fehlen noch."
+                ),
+                resource_type="product_selection",
+                resource_id=selection_id,
+                next_action="BUY erfassen",
+                target=f"/product-selection?run_id={run_id}",
+                occurred_at=selected_at,
+            )
+            for selection_id, run_id, selected_at in rows
         ]
 
     async def _open_position_actions(self, workspace_id: UUID) -> list[OperationalAction]:
