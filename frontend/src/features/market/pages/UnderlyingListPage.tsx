@@ -6,11 +6,28 @@ import { marketApiClient } from '../services/client';
 import type {
   CurrencyResponse,
   LifecycleStatus,
+  ProviderInstrumentSearchItemResponse,
   TradingVenueResponse,
   UnderlyingSearchResponse,
 } from '../types/api';
 
 const PAGE_SIZE = 25;
+
+function isStockSuggestion(item: ProviderInstrumentSearchItemResponse): boolean {
+  return item.instrument_type?.toLowerCase().includes('stock') ?? false;
+}
+
+function providerPrefillUrl(item: ProviderInstrumentSearchItemResponse): string {
+  const parameters = new URLSearchParams({
+    source: item.provider,
+    ticker: item.provider_symbol,
+    exchange: item.provider_exchange_code,
+  });
+  if (item.name) parameters.set('name', item.name);
+  if (item.isin) parameters.set('isin', item.isin);
+  if (item.currency) parameters.set('currency', item.currency);
+  return `/underlyings/new?${parameters.toString()}`;
+}
 
 export function UnderlyingListPage() {
   const [query, setQuery] = useState('');
@@ -20,6 +37,11 @@ export function UnderlyingListPage() {
   const [currencyCode, setCurrencyCode] = useState('');
   const [offset, setOffset] = useState(0);
   const [result, setResult] = useState<UnderlyingSearchResponse | null>(null);
+  const [providerSuggestions, setProviderSuggestions] = useState<
+    ProviderInstrumentSearchItemResponse[]
+  >([]);
+  const [providerError, setProviderError] = useState<unknown>(null);
+  const [providerLoading, setProviderLoading] = useState(false);
   const [venues, setVenues] = useState<TradingVenueResponse[]>([]);
   const [currencies, setCurrencies] = useState<CurrencyResponse[]>([]);
   const [error, setError] = useState<unknown>(null);
@@ -45,23 +67,58 @@ export function UnderlyingListPage() {
     const controller = new AbortController();
     setLoading(true);
     setError(null);
-    marketApiClient
-      .searchUnderlyings(
-        {
-          query: submittedQuery || undefined,
-          lifecycleStatus: lifecycle || undefined,
-          tradingVenueId: venueId || undefined,
-          currencyCode: currencyCode || undefined,
-          offset,
-          limit: PAGE_SIZE,
-        },
-        controller.signal,
-      )
-      .then(setResult)
-      .catch((reason: unknown) => {
+    setProviderError(null);
+    setProviderSuggestions([]);
+    setProviderLoading(false);
+
+    void (async () => {
+      try {
+        const localResult = await marketApiClient.searchUnderlyings(
+          {
+            query: submittedQuery || undefined,
+            lifecycleStatus: lifecycle || undefined,
+            tradingVenueId: venueId || undefined,
+            currencyCode: currencyCode || undefined,
+            offset,
+            limit: PAGE_SIZE,
+          },
+          controller.signal,
+        );
+        if (controller.signal.aborted) return;
+        setResult(localResult);
+        setLoading(false);
+
+        const canUseProviderFallback =
+          submittedQuery.length >= 2 &&
+          localResult.total === 0 &&
+          offset === 0 &&
+          !venueId &&
+          !currencyCode &&
+          lifecycle !== 'INACTIVE';
+        if (!canUseProviderFallback) return;
+
+        setProviderLoading(true);
+        try {
+          const providerResult = await marketApiClient.searchProviderInstruments(
+            submittedQuery,
+            10,
+            controller.signal,
+          );
+          if (!controller.signal.aborted) setProviderSuggestions(providerResult.items);
+        } catch (reason: unknown) {
+          if (!(reason instanceof DOMException && reason.name === 'AbortError')) {
+            setProviderError(reason);
+          }
+        } finally {
+          if (!controller.signal.aborted) setProviderLoading(false);
+        }
+      } catch (reason: unknown) {
         if (!(reason instanceof DOMException && reason.name === 'AbortError')) setError(reason);
-      })
-      .finally(() => setLoading(false));
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
+    })();
+
     return () => controller.abort();
   }, [submittedQuery, lifecycle, venueId, currencyCode, offset]);
 
@@ -102,6 +159,9 @@ export function UnderlyingListPage() {
             placeholder="Name, Ticker, ISIN oder WKN"
             className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2"
           />
+          <span className="mt-1 block text-xs text-slate-500">
+            Ohne lokalen Treffer wird automatisch read-only bei EODHD gesucht.
+          </span>
         </label>
         <label>
           <span className="mb-1 block text-sm text-slate-300">Status</span>
@@ -163,11 +223,73 @@ export function UnderlyingListPage() {
       ) : loading ? (
         <LoadingNotice />
       ) : result && result.items.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-slate-700 p-10 text-center">
-          <h2 className="font-semibold">Keine Basiswerte gefunden</h2>
-          <p className="mt-2 text-sm text-slate-400">
-            Filter anpassen oder einen neuen Basiswert anlegen.
-          </p>
+        <div className="space-y-4 rounded-xl border border-dashed border-slate-700 p-6">
+          <div className="text-center">
+            <h2 className="font-semibold">Keine lokalen Basiswerte gefunden</h2>
+            <p className="mt-2 text-sm text-slate-400">
+              {submittedQuery
+                ? 'Die lokale Suche ist leer. EODHD wird nur als externer Vorschlagskatalog verwendet.'
+                : 'Filter anpassen oder einen neuen Basiswert anlegen.'}
+            </p>
+          </div>
+
+          {providerLoading && (
+            <p role="status" className="text-center text-sm text-slate-400">
+              EODHD wird durchsucht …
+            </p>
+          )}
+          {providerError !== null && (
+            <p role="status" className="rounded-lg border border-amber-900 p-3 text-sm text-amber-200">
+              Die lokale Suche funktioniert. EODHD konnte für diesen Suchlauf nicht abgefragt werden.
+            </p>
+          )}
+          {providerSuggestions.length > 0 && (
+            <section aria-labelledby="eodhd-suggestions-title" className="space-y-3">
+              <div>
+                <p className="text-xs uppercase tracking-wide text-amber-400">Externe Vorschläge</p>
+                <h3 id="eodhd-suggestions-title" className="mt-1 font-semibold">
+                  EODHD-Treffer – vor Übernahme prüfen
+                </h3>
+              </div>
+              <div className="grid gap-3">
+                {providerSuggestions.map((item) => {
+                  const stockSuggestion = isStockSuggestion(item);
+                  return (
+                    <article
+                      key={`${item.provider_symbol}:${item.provider_exchange_code}`}
+                      className="rounded-lg border border-slate-800 bg-slate-950/50 p-4"
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <p className="font-medium">{item.name ?? item.provider_symbol}</p>
+                          <p className="mt-1 text-sm text-slate-400">
+                            {item.provider_symbol} · {item.provider_exchange_code}
+                            {item.currency ? ` · ${item.currency}` : ''}
+                            {item.isin ? ` · ${item.isin}` : ''}
+                          </p>
+                          <p className="mt-1 text-xs text-slate-500">
+                            Typ: {item.instrument_type ?? 'nicht angegeben'} · Quelle: {item.provider}
+                          </p>
+                        </div>
+                        {stockSuggestion ? (
+                          <Link
+                            to={providerPrefillUrl(item)}
+                            className="rounded-lg border border-amber-700 px-3 py-2 text-sm text-amber-100"
+                          >
+                            Als Basiswert übernehmen
+                          </Link>
+                        ) : (
+                          <span className="max-w-xs text-right text-xs text-slate-500">
+                            Kein Aktien-Treffer – wird nicht als STOCK-Basiswert übernommen.
+                          </span>
+                        )}
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            </section>
+          )}
         </div>
       ) : result ? (
         <>
