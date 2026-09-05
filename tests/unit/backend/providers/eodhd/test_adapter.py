@@ -162,6 +162,37 @@ async def test_latest_returns_newest_completed_row() -> None:
 
 
 @pytest.mark.asyncio
+async def test_search_instruments_returns_read_only_provider_suggestions() -> None:
+    adapter, client, _ = make_adapter()
+
+    async def search(path, *, capability, params=None):
+        client.calls.append((path, capability, params))
+        return [
+            {
+                "Code": "AAPL",
+                "Exchange": "US",
+                "Name": "Apple Inc",
+                "Type": "Common Stock",
+                "Currency": "USD",
+                "ISIN": "US0378331005",
+            }
+        ]
+
+    client.get_json = search
+    result = await adapter.search_instruments(" Apple Inc ", limit=7)
+
+    assert len(result) == 1
+    assert result[0].provider is MarketDataProvider.EODHD
+    assert result[0].provider_symbol == "AAPL"
+    assert result[0].provider_exchange_code == "US"
+    assert result[0].instrument_type == "Common Stock"
+    assert result[0].isin == "US0378331005"
+    assert client.calls == [
+        ("/search/Apple%20Inc", MarketDataCapability.INSTRUMENT_SEARCH, {"limit": 7})
+    ]
+
+
+@pytest.mark.asyncio
 async def test_validate_mapping_requires_exact_symbol_and_exchange_match() -> None:
     adapter, client, mapping = make_adapter()
 
