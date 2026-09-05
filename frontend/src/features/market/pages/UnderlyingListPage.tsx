@@ -239,8 +239,12 @@ export function UnderlyingListPage() {
             </p>
           )}
           {providerError !== null && (
-            <p role="status" className="rounded-lg border border-amber-900 p-3 text-sm text-amber-200">
-              Die lokale Suche funktioniert. EODHD konnte für diesen Suchlauf nicht abgefragt werden.
+            <p
+              role="status"
+              className="rounded-lg border border-amber-900 p-3 text-sm text-amber-200"
+            >
+              Die lokale Suche funktioniert. EODHD konnte für diesen Suchlauf nicht abgefragt
+              werden.
             </p>
           )}
           {providerSuggestions.length > 0 && (
@@ -268,7 +272,8 @@ export function UnderlyingListPage() {
                             {item.isin ? ` · ${item.isin}` : ''}
                           </p>
                           <p className="mt-1 text-xs text-slate-500">
-                            Typ: {item.instrument_type ?? 'nicht angegeben'} · Quelle: {item.provider}
+                            Typ: {item.instrument_type ?? 'nicht angegeben'} · Quelle:{' '}
+                            {item.provider}
                           </p>
                         </div>
                         {stockSuggestion ? (
