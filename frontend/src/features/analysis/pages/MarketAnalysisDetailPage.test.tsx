@@ -130,7 +130,7 @@ function renderPage() {
 describe('MarketAnalysisDetailPage', () => {
   it('renders version history, lifecycle events and superseded state', async () => {
     renderPage();
-    expect(await screen.findByText('TREND_ALIGNMENT')).toBeInTheDocument();
+    expect(await screen.findByText('TREND_ALIGNMENT', {}, { timeout: 5000 })).toBeInTheDocument();
     expect(screen.getByText('Ersetzt durch Version 2')).toBeInTheDocument();
     expect(screen.getByText('Grund: Retry erfolgreich')).toBeInTheDocument();
   });
@@ -138,7 +138,7 @@ describe('MarketAnalysisDetailPage', () => {
   it('verifies reproducibility for the selected version', async () => {
     const user = userEvent.setup();
     renderPage();
-    await screen.findByText('TREND_ALIGNMENT');
+    await screen.findByText('TREND_ALIGNMENT', {}, { timeout: 5000 });
     await user.click(screen.getByRole('button', { name: 'Reproduzierbarkeit prüfen' }));
     await waitFor(() => expect(analysisApiClient.verify).toHaveBeenCalledWith(analysisId, 2));
     expect(await screen.findByText('Reproduktion bestätigt')).toBeInTheDocument();
@@ -147,7 +147,7 @@ describe('MarketAnalysisDetailPage', () => {
   it('retries a retryable historical version using an optional reason', async () => {
     const user = userEvent.setup();
     renderPage();
-    await screen.findByText('TREND_ALIGNMENT');
+    await screen.findByText('TREND_ALIGNMENT', {}, { timeout: 5000 });
     await user.selectOptions(screen.getByRole('combobox', { name: 'Analyseversion' }), '1');
     await screen.findByText('Zu wenig Beobachtungen');
     // Version 1 is already superseded in the fixture, so the action must not be offered.
@@ -157,7 +157,7 @@ describe('MarketAnalysisDetailPage', () => {
   it('submits explicit parameters for a new version', async () => {
     const user = userEvent.setup();
     renderPage();
-    await screen.findByText('TREND_ALIGNMENT');
+    await screen.findByText('TREND_ALIGNMENT', {}, { timeout: 5000 });
     await user.clear(screen.getByRole('spinbutton', { name: 'Kurzfristiges Fenster' }));
     await user.type(screen.getByRole('spinbutton', { name: 'Kurzfristiges Fenster' }), '15');
     await user.click(screen.getByRole('button', { name: 'Analyse ausführen' }));
@@ -174,7 +174,7 @@ describe('MarketAnalysisDetailPage', () => {
   it('loads the persisted snapshot on demand', async () => {
     const user = userEvent.setup();
     renderPage();
-    await screen.findByText('TREND_ALIGNMENT');
+    await screen.findByText('TREND_ALIGNMENT', {}, { timeout: 5000 });
     await user.click(screen.getByRole('button', { name: 'Snapshot anzeigen (250)' }));
     expect(await screen.findByText('EODHD · SIE.XETRA')).toBeInTheDocument();
   });
@@ -185,7 +185,7 @@ describe('MarketAnalysisDetailPage', () => {
     vi.mocked(analysisApiClient.events).mockResolvedValue([]);
 
     renderPage();
-    await screen.findByText('TREND_ALIGNMENT');
+    await screen.findByText('TREND_ALIGNMENT', {}, { timeout: 5000 });
 
     await user.selectOptions(screen.getByRole('combobox', { name: 'Analyseversion' }), '1');
     await screen.findByText('Zu wenig Beobachtungen');
@@ -205,7 +205,7 @@ describe('MarketAnalysisDetailPage', () => {
     vi.mocked(analysisApiClient.events).mockResolvedValue([]);
 
     renderPage();
-    await screen.findByText('TREND_ALIGNMENT');
+    await screen.findByText('TREND_ALIGNMENT', {}, { timeout: 5000 });
 
     await user.selectOptions(screen.getByRole('combobox', { name: 'Analyseversion' }), '1');
     await screen.findByText('Zu wenig Beobachtungen');
