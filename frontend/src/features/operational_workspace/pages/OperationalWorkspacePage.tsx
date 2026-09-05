@@ -5,9 +5,21 @@ import { operationalWorkspaceApiClient } from '../services/client';
 import type { OperationalAction, OperationalPriority } from '../types';
 
 const sections: Array<{ priority: OperationalPriority; title: string; description: string }> = [
-  { priority: 'ACTION', title: 'Jetzt handeln', description: 'Aktive Arbeit an Kandidaten und offenen Positionen.' },
-  { priority: 'REVIEW', title: 'Review', description: 'Abgeschlossene Trades mit offenem Nachbereitungsbedarf.' },
-  { priority: 'BLOCKED', title: 'Blockiert', description: 'Nicht ausführbare Schritte mit dem nächsten bekannten Entblocker.' },
+  {
+    priority: 'ACTION',
+    title: 'Jetzt handeln',
+    description: 'Aktive Arbeit an Kandidaten und offenen Positionen.',
+  },
+  {
+    priority: 'REVIEW',
+    title: 'Review',
+    description: 'Abgeschlossene Trades mit offenem Nachbereitungsbedarf.',
+  },
+  {
+    priority: 'BLOCKED',
+    title: 'Blockiert',
+    description: 'Nicht ausführbare Schritte mit dem nächsten bekannten Entblocker.',
+  },
 ];
 
 function ActionCard({ action }: { action: OperationalAction }) {
@@ -15,7 +27,9 @@ function ActionCard({ action }: { action: OperationalAction }) {
     <li className="rounded-xl border border-slate-800 bg-slate-900/60 p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-xs uppercase tracking-wide text-slate-500">{action.source_feature}</p>
+          <p className="text-xs uppercase tracking-wide text-slate-500">
+            {action.source_feature}
+          </p>
           <h3 className="mt-1 text-lg font-semibold text-white">{action.title}</h3>
         </div>
         <span className="rounded-full border border-slate-700 px-2.5 py-1 text-xs text-slate-300">
@@ -51,7 +65,9 @@ export function OperationalWorkspacePage() {
       setGeneratedAt(response.generated_at);
     } catch (caught) {
       if (caught instanceof DOMException && caught.name === 'AbortError') return;
-      setError(caught instanceof Error ? caught.message : 'Arbeitsbereich konnte nicht geladen werden.');
+      setError(
+        caught instanceof Error ? caught.message : 'Arbeitsbereich konnte nicht geladen werden.',
+      );
     } finally {
       if (!signal?.aborted) setLoading(false);
     }
@@ -66,7 +82,10 @@ export function OperationalWorkspacePage() {
   const grouped = useMemo(
     () =>
       Object.fromEntries(
-        sections.map(({ priority }) => [priority, actions.filter((action) => action.priority === priority)]),
+        sections.map(({ priority }) => [
+          priority,
+          actions.filter((action) => action.priority === priority),
+        ]),
       ) as Record<OperationalPriority, OperationalAction[]>,
     [actions],
   );
@@ -76,9 +95,12 @@ export function OperationalWorkspacePage() {
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-sm font-medium text-slate-400">Operational Workspace</p>
-          <h1 className="mt-1 text-3xl font-semibold tracking-tight text-white">Was benötigt jetzt deine Aufmerksamkeit?</h1>
+          <h1 className="mt-1 text-3xl font-semibold tracking-tight text-white">
+            Was benötigt jetzt deine Aufmerksamkeit?
+          </h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
-            Priorisierte nächste Schritte aus bestehenden Feature-Zuständen. Die Fachlogik bleibt in den jeweiligen Owner-Features.
+            Priorisierte nächste Schritte aus bestehenden Feature-Zuständen. Die Fachlogik bleibt
+            in den jeweiligen Owner-Features.
           </p>
         </div>
         <button
@@ -94,7 +116,11 @@ export function OperationalWorkspacePage() {
       {error && (
         <div className="rounded-xl border border-rose-800 bg-rose-950/30 p-4 text-sm text-rose-200">
           <p>{error}</p>
-          <button type="button" onClick={() => void load()} className="mt-3 underline underline-offset-4">
+          <button
+            type="button"
+            onClick={() => void load()}
+            className="mt-3 underline underline-offset-4"
+          >
             Erneut versuchen
           </button>
         </div>
@@ -103,7 +129,10 @@ export function OperationalWorkspacePage() {
       {!error && !loading && actions.length === 0 && (
         <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-8 text-center">
           <h2 className="text-lg font-semibold text-white">Aktuell keine offenen Aufgaben.</h2>
-          <p className="mt-2 text-sm text-slate-400">Neue Aktionen erscheinen automatisch, wenn sich die zugrunde liegenden Fachzustände ändern.</p>
+          <p className="mt-2 text-sm text-slate-400">
+            Neue Aktionen erscheinen automatisch, wenn sich die zugrunde liegenden Fachzustände
+            ändern.
+          </p>
         </div>
       )}
 
@@ -113,9 +142,15 @@ export function OperationalWorkspacePage() {
             const items = grouped[section.priority];
             if (items.length === 0) return null;
             return (
-              <section key={section.priority} aria-labelledby={`workspace-${section.priority.toLowerCase()}`}>
+              <section
+                key={section.priority}
+                aria-labelledby={`workspace-${section.priority.toLowerCase()}`}
+              >
                 <div className="mb-3">
-                  <h2 id={`workspace-${section.priority.toLowerCase()}`} className="text-xl font-semibold text-white">
+                  <h2
+                    id={`workspace-${section.priority.toLowerCase()}`}
+                    className="text-xl font-semibold text-white"
+                  >
                     {section.title} <span className="text-slate-500">· {items.length}</span>
                   </h2>
                   <p className="mt-1 text-sm text-slate-400">{section.description}</p>
@@ -132,7 +167,9 @@ export function OperationalWorkspacePage() {
       )}
 
       {generatedAt && !error && (
-        <p className="text-xs text-slate-500">Stand: {new Date(generatedAt).toLocaleString('de-DE')}</p>
+        <p className="text-xs text-slate-500">
+          Stand: {new Date(generatedAt).toLocaleString('de-DE')}
+        </p>
       )}
     </section>
   );
