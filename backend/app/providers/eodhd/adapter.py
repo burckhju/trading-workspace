@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from typing import Protocol
+from urllib.parse import quote
 from uuid import UUID
 
 from pydantic import TypeAdapter, ValidationError
@@ -27,6 +28,7 @@ from app.features.market_data.service.types import (
     LatestDailyPriceRequest,
     MappingValidationResult,
     MarketDataResult,
+    ProviderInstrumentSearchItem,
 )
 from app.providers.eodhd.client import EodhdClient
 from app.providers.eodhd.dto import EodhdDailyPriceDto, EodhdSearchResultDto
@@ -78,6 +80,7 @@ class _CachedPrices:
 
 
 _DTO_LIST = TypeAdapter(list[EodhdDailyPriceDto])
+_SEARCH_DTO_LIST = TypeAdapter(list[EodhdSearchResultDto])
 
 
 class EodhdMarketDataAdapter:
@@ -106,6 +109,49 @@ class EodhdMarketDataAdapter:
         self._clock = clock
         self._settings = settings or EodhdAdapterSettings()
 
+    async def search_instruments(
+        self, query: str, *, limit: int = 10
+    ) -> tuple[ProviderInstrumentSearchItem, ...]:
+        """Return read-only provider suggestions without mutating workspace master data."""
+        normalized = query.strip()
+        if not normalized:
+            return ()
+        if not 1 <= limit <= 20:
+            raise ValueError("limit must be between 1 and 20")
+        capability = MarketDataCapability.INSTRUMENT_SEARCH
+
+        async def operation() -> tuple[EodhdSearchResultDto, ...]:
+            await self._budget.consume(self._settings.provider_call_cost, capability=capability)
+            await self._rate_limiter.acquire()
+            payload = await self._client.get_json(
+                f"/search/{quote(normalized, safe='')}",
+                capability=capability,
+                params={"limit": limit},
+            )
+            try:
+                return tuple(_SEARCH_DTO_LIST.validate_python(payload))
+            except ValidationError as exc:
+                raise MarketDataInvalidResponseError(
+                    "EODHD search response has an invalid structure",
+                    provider=MarketDataProvider.EODHD,
+                    capability=capability,
+                    retryable=False,
+                ) from exc
+
+        outcome = await self._retry.execute(operation)
+        return tuple(
+            ProviderInstrumentSearchItem(
+                provider=MarketDataProvider.EODHD,
+                provider_symbol=row.code,
+                provider_exchange_code=row.exchange,
+                name=row.name,
+                instrument_type=row.type,
+                currency=row.currency,
+                isin=row.isin,
+            )
+            for row in outcome.value
+        )
+
     async def validate_mapping(self, mapping: ProviderInstrumentMapping) -> MappingValidationResult:
         """Validate a mapping technically through EODHD Search API without mutation."""
         capability = MarketDataCapability.INSTRUMENT_MAPPING_VALIDATION
@@ -119,7 +165,7 @@ class EodhdMarketDataAdapter:
                 params={"exchange": mapping.provider_exchange_code, "limit": 20},
             )
             try:
-                return tuple(TypeAdapter(list[EodhdSearchResultDto]).validate_python(payload))
+                return tuple(_SEARCH_DTO_LIST.validate_python(payload))
             except ValidationError as exc:
                 raise MarketDataInvalidResponseError(
                     "EODHD search response has an invalid structure",
