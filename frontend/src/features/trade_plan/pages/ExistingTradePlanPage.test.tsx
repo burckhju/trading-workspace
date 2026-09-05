@@ -90,9 +90,7 @@ describe('ExistingTradePlanPage', () => {
 
   it('allows a draft TradePlan to be abandoned and reloads the authoritative state', async () => {
     getPlan.mockResolvedValueOnce(detail('DRAFT')).mockResolvedValue(detail('ABANDONED'));
-    getVersions
-      .mockResolvedValueOnce([version('DRAFT')])
-      .mockResolvedValue([version('ABANDONED')]);
+    getVersions.mockResolvedValueOnce([version('DRAFT')]).mockResolvedValue([version('ABANDONED')]);
 
     render(
       <MemoryRouter>
