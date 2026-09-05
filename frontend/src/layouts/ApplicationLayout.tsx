@@ -42,7 +42,7 @@ export function ApplicationLayout() {
               Kandidaten
             </NavLink>
             <NavLink
-              to="/trade-plans"
+              to="/trade-plans/overview"
               className={({ isActive }) =>
                 `rounded-lg px-3 py-2 text-sm ${isActive ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-white'}`
               }
