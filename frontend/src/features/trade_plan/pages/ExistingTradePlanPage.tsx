@@ -59,7 +59,7 @@ export function ExistingTradePlanPage({ tradePlanId }: { tradePlanId: string }) 
     return () => controller.abort();
   }, [refresh]);
 
-  async function mutate(action: 'submit' | 'approve') {
+  async function mutate(action: 'submit' | 'approve' | 'abandon') {
     if (!detail) return;
     setBusy(true);
     setMessage(null);
@@ -67,8 +67,10 @@ export function ExistingTradePlanPage({ tradePlanId }: { tradePlanId: string }) 
       const current = detail.latest_version;
       if (action === 'submit') {
         await tradePlanApiClient.submitForReview(detail.plan.id, current.id);
-      } else {
+      } else if (action === 'approve') {
         await tradePlanApiClient.approve(detail.plan.id, current.id);
+      } else {
+        await tradePlanApiClient.abandon(detail.plan.id, current.id);
       }
       await refresh();
     } catch (error: unknown) {
@@ -79,6 +81,7 @@ export function ExistingTradePlanPage({ tradePlanId }: { tradePlanId: string }) 
   }
 
   const current = detail?.latest_version ?? null;
+  const canAbandon = current?.status === 'DRAFT' || current?.status === 'READY_FOR_REVIEW';
 
   return (
     <main className="w-full space-y-6">
@@ -168,6 +171,15 @@ export function ExistingTradePlanPage({ tradePlanId }: { tradePlanId: string }) 
                   Explizit freigeben
                 </button>
               )}
+              {canAbandon && (
+                <button
+                  disabled={busy}
+                  onClick={() => void mutate('abandon')}
+                  className="rounded-lg border border-rose-800 px-4 py-2 text-sm text-rose-200 disabled:opacity-50"
+                >
+                  TradePlan aufgeben
+                </button>
+              )}
               {current.status === 'APPROVED' && (
                 <Link
                   to={`/product-selection?trade_plan_id=${encodeURIComponent(detail.plan.id)}&trade_plan_version_id=${encodeURIComponent(current.id)}`}
@@ -177,6 +189,12 @@ export function ExistingTradePlanPage({ tradePlanId }: { tradePlanId: string }) 
                 </Link>
               )}
             </div>
+            {canAbandon && (
+              <p className="mt-3 text-xs text-slate-500">
+                Aufgeben beendet diesen noch nicht freigegebenen TradePlan nachvollziehbar. Bereits
+                freigegebene oder gehandelte Pläne bleiben als Provenienz erhalten.
+              </p>
+            )}
           </section>
 
           <section className="rounded-xl border border-slate-800 p-5">
