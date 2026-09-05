@@ -105,6 +105,46 @@ async def test_candidate_projection_uses_authoritative_live_workflow() -> None:
 
 
 @pytest.mark.asyncio
+async def test_open_alert_projection_uses_existing_alert_state() -> None:
+    workspace_id = uuid4()
+    now = datetime.now(UTC)
+    stop_alert = SimpleNamespace(
+        id=uuid4(),
+        trade_id=uuid4(),
+        alert_type="STOP_REACHED",
+        reason="Effective stop reached.",
+        detected_at=now,
+    )
+    target_alert = SimpleNamespace(
+        id=uuid4(),
+        trade_id=uuid4(),
+        alert_type="TARGET_REACHED",
+        reason="Target 1 reached.",
+        detected_at=now + timedelta(seconds=1),
+    )
+    session = AsyncMock(spec=AsyncSession)
+    session.scalars.return_value = _Rows([stop_alert, target_alert])
+    model = OperationalWorkspaceReadModel(cast(AsyncSession, session))
+
+    actions = await model._alert_actions(workspace_id)
+
+    assert [action.title for action in actions] == ["Stop erreicht", "Target erreicht"]
+    assert [action.id for action in actions] == [
+        f"alert:{stop_alert.id}:open",
+        f"alert:{target_alert.id}:open",
+    ]
+    assert [action.detail for action in actions] == [stop_alert.reason, target_alert.reason]
+    assert all(action.action_type == "POSITION_ALERT" for action in actions)
+    assert all(action.priority == "ACTION" for action in actions)
+    assert actions[0].target == f"/trade-management?trade_id={stop_alert.trade_id}"
+    assert actions[1].target == f"/trade-management?trade_id={target_alert.trade_id}"
+    assert [action.occurred_at for action in actions] == [
+        stop_alert.detected_at,
+        target_alert.detected_at,
+    ]
+
+
+@pytest.mark.asyncio
 async def test_open_position_projection_only_links_to_trade_management() -> None:
     workspace_id = uuid4()
     trade_id = uuid4()
@@ -175,6 +215,7 @@ async def test_list_actions_sorts_by_priority_time_then_id() -> None:
     review = _action(priority="REVIEW", occurred_at=now - timedelta(days=1), suffix="review")
     blocked = _action(priority="BLOCKED", occurred_at=None, suffix="blocked")
     model._candidate_actions = AsyncMock(return_value=[blocked])
+    model._alert_actions = AsyncMock(return_value=[])
     model._open_position_actions = AsyncMock(return_value=[action_late, action_early])
     model._post_trade_actions = AsyncMock(return_value=[review])
 
