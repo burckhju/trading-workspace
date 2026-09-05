@@ -24,6 +24,7 @@ from app.features.post_trade.persistence.models import (
     ExitReviewVersionModel,
     PostTradeObservationModel,
 )
+from app.features.product_selection.persistence.models import ProductSelectionRunModel
 from app.features.trade_plan.domain.enums import TradePlanStatus
 from app.features.trade_plan.persistence.models import TradePlanModel, TradePlanVersionModel
 from app.features.trade_position.persistence.models import PositionModel, TradeModel
@@ -71,6 +72,7 @@ class OperationalWorkspaceReadModel:
             *(await self._alert_actions(workspace_id)),
             *(await self._notification_failure_actions(workspace_id)),
             *(await self._trade_plan_review_actions(workspace_id)),
+            *(await self._product_selection_start_actions(workspace_id)),
             *(await self._open_position_actions(workspace_id)),
             *(await self._post_trade_actions(workspace_id)),
         ]
@@ -261,6 +263,68 @@ class OperationalWorkspaceReadModel:
                 occurred_at=created_at,
             )
             for trade_plan_id, _version_id, version, created_at in rows
+        ]
+
+    async def _product_selection_start_actions(
+        self, workspace_id: UUID
+    ) -> list[OperationalAction]:
+        latest_versions = (
+            select(
+                TradePlanVersionModel.trade_plan_id.label("trade_plan_id"),
+                func.max(TradePlanVersionModel.version).label("version"),
+            )
+            .group_by(TradePlanVersionModel.trade_plan_id)
+            .subquery()
+        )
+        rows = (
+            await self._session.execute(
+                select(
+                    TradePlanModel.id,
+                    TradePlanVersionModel.id,
+                    TradePlanVersionModel.version,
+                    TradePlanVersionModel.created_at,
+                )
+                .join(latest_versions, latest_versions.c.trade_plan_id == TradePlanModel.id)
+                .join(
+                    TradePlanVersionModel,
+                    (TradePlanVersionModel.trade_plan_id == TradePlanModel.id)
+                    & (TradePlanVersionModel.version == latest_versions.c.version),
+                )
+                .outerjoin(
+                    ProductSelectionRunModel,
+                    ProductSelectionRunModel.trade_plan_version_id == TradePlanVersionModel.id,
+                )
+                .where(
+                    TradePlanModel.workspace_id == workspace_id,
+                    TradePlanVersionModel.status == TradePlanStatus.APPROVED.value,
+                    ProductSelectionRunModel.id.is_(None),
+                )
+                .order_by(TradePlanVersionModel.created_at, TradePlanModel.id)
+            )
+        ).all()
+
+        return [
+            OperationalAction(
+                id=f"trade-plan:{trade_plan_id}:version:{version}:product-selection-start",
+                source_feature="FT-007/FT-008 TradePlan → Product Selection",
+                action_type="PRODUCT_SELECTION_START",
+                priority="ACTION",
+                state="ACTIONABLE",
+                title="Produktauswahl starten",
+                detail=(
+                    f"TradePlan-Version {version} ist freigegeben; ein Selection Run wurde noch "
+                    "nicht gestartet."
+                ),
+                resource_type="trade_plan",
+                resource_id=trade_plan_id,
+                next_action="Produktauswahl starten",
+                target=(
+                    f"/product-selection?trade_plan_id={trade_plan_id}"
+                    f"&trade_plan_version_id={version_id}"
+                ),
+                occurred_at=created_at,
+            )
+            for trade_plan_id, version_id, version, created_at in rows
         ]
 
     async def _open_position_actions(self, workspace_id: UUID) -> list[OperationalAction]:
