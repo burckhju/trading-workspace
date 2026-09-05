@@ -12,6 +12,7 @@ import {
   UnderlyingFormPage,
   UnderlyingListPage,
 } from '../features/market/pages';
+import { OperationalWorkspacePage } from '../features/operational_workspace/pages/OperationalWorkspacePage';
 import { PostTradeLearningPage } from '../features/post_trade/pages/PostTradeLearningPage';
 import { ProductSelectionPage } from '../features/product_selection/pages';
 import { WarrantAdminPage } from '../features/product/pages';
@@ -27,6 +28,7 @@ export function createApplicationRouter() {
       element: <ApplicationLayout />,
       children: [
         { index: true, element: <UnderlyingListPage /> },
+        { path: 'workspace', element: <OperationalWorkspacePage /> },
         { path: 'underlyings', element: <UnderlyingListPage /> },
         { path: 'market-analyses', element: <MarketAnalysisPage /> },
         { path: 'candidates', element: <CandidatePage /> },
