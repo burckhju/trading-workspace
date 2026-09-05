@@ -189,7 +189,9 @@ describe('UnderlyingListPage', () => {
     await user.click(screen.getByRole('button', { name: 'Suchen' }));
 
     expect(await screen.findByText('DAX')).toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'Als Basiswert übernehmen' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('link', { name: 'Als Basiswert übernehmen' }),
+    ).not.toBeInTheDocument();
     expect(screen.getByText(/Kein Aktien-Treffer/)).toBeInTheDocument();
   });
 
