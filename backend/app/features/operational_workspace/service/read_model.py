@@ -265,9 +265,7 @@ class OperationalWorkspaceReadModel:
             for trade_plan_id, _version_id, version, created_at in rows
         ]
 
-    async def _product_selection_start_actions(
-        self, workspace_id: UUID
-    ) -> list[OperationalAction]:
+    async def _product_selection_start_actions(self, workspace_id: UUID) -> list[OperationalAction]:
         latest_versions = (
             select(
                 TradePlanVersionModel.trade_plan_id.label("trade_plan_id"),
