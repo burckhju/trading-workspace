@@ -49,6 +49,10 @@ class ProductSelectionPersistenceService:
     async def persist_run(self, result: ProductSelectionRunResult) -> None:
         async with self._uow:
             await self._uow.runs.add(result.run)
+            # ProductEvaluation and universe-omission rows both reference the
+            # immutable run snapshot. Establish the run parent first; flush does
+            # not commit and the complete snapshot remains atomic.
+            await self._uow.flush()
             for evaluation in result.evaluations:
                 await self._uow.evaluations.add(evaluation)
             await self._uow.omissions.add_all(result.run.id, result.universe_omissions)
