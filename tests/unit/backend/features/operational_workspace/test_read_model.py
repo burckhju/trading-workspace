@@ -196,6 +196,37 @@ async def test_trade_plan_review_projection_uses_only_latest_version() -> None:
 
 
 @pytest.mark.asyncio
+async def test_product_selection_start_projection_requires_no_existing_run() -> None:
+    workspace_id = uuid4()
+    trade_plan_id = uuid4()
+    version_id = uuid4()
+    created_at = datetime.now(UTC)
+    session = AsyncMock(spec=AsyncSession)
+    session.execute.return_value = _Rows([(trade_plan_id, version_id, 4, created_at)])
+    model = OperationalWorkspaceReadModel(cast(AsyncSession, session))
+
+    actions = await model._product_selection_start_actions(workspace_id)
+
+    assert len(actions) == 1
+    action = actions[0]
+    assert action.id == f"trade-plan:{trade_plan_id}:version:4:product-selection-start"
+    assert action.action_type == "PRODUCT_SELECTION_START"
+    assert action.priority == "ACTION"
+    assert action.title == "Produktauswahl starten"
+    assert action.resource_id == trade_plan_id
+    assert action.target == (
+        f"/product-selection?trade_plan_id={trade_plan_id}&trade_plan_version_id={version_id}"
+    )
+    assert action.occurred_at == created_at
+
+    statement = session.execute.await_args.args[0]
+    sql = str(statement)
+    assert "max(trade_plan_versions.version)" in sql
+    assert "LEFT OUTER JOIN product_selection_runs" in sql
+    assert "product_selection_runs.id IS NULL" in sql
+
+
+@pytest.mark.asyncio
 async def test_open_position_projection_only_links_to_trade_management() -> None:
     workspace_id = uuid4()
     trade_id = uuid4()
@@ -269,6 +300,7 @@ async def test_list_actions_sorts_by_priority_time_then_id() -> None:
     model._alert_actions = AsyncMock(return_value=[])
     model._notification_failure_actions = AsyncMock(return_value=[])
     model._trade_plan_review_actions = AsyncMock(return_value=[])
+    model._product_selection_start_actions = AsyncMock(return_value=[])
     model._open_position_actions = AsyncMock(return_value=[action_late, action_early])
     model._post_trade_actions = AsyncMock(return_value=[review])
 
