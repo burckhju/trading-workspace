@@ -121,9 +121,7 @@ class OperationalWorkspaceReadModel:
                     detail=blocked.detail,
                     resource_type="candidate",
                     resource_id=candidate.id,
-                    next_action=workflow.next_action
-                    or blocked.action
-                    or "Voraussetzungen prüfen",
+                    next_action=workflow.next_action or blocked.action or "Voraussetzungen prüfen",
                     target="/candidates",
                     occurred_at=candidate.created_at,
                 )
