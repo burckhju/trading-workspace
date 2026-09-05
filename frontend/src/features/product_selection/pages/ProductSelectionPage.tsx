@@ -184,6 +184,7 @@ export function ProductSelectionPage() {
   const [searchParams] = useSearchParams();
   const initialTradePlanId = searchParams.get('trade_plan_id') ?? '';
   const initialVersionId = searchParams.get('trade_plan_version_id') ?? '';
+  const initialRunId = searchParams.get('run_id')?.trim() ?? '';
   const [tradePlanId, setTradePlanId] = useState(initialTradePlanId);
   const [tradePlanVersionId, setTradePlanVersionId] = useState(initialVersionId);
   const [runs, setRuns] = useState<ProductSelectionRunSummaryResponse[]>([]);
@@ -216,7 +217,39 @@ export function ProductSelectionPage() {
   }, [detail]);
 
   useEffect(() => {
-    if (!initialVersionId) return;
+    if (!initialRunId) return;
+    const controller = new AbortController();
+    setBusy(true);
+    setMessage(null);
+    setPendingSelection(null);
+    setPurchase(null);
+    productSelectionApiClient
+      .get(initialRunId, controller.signal)
+      .then(async (loaded) => {
+        setDetail(loaded);
+        setTradePlanId(loaded.run.trade_plan_id);
+        setTradePlanVersionId(loaded.run.trade_plan_version_id);
+        const items = await productSelectionApiClient.listForTradePlanVersion(
+          loaded.run.trade_plan_version_id,
+          controller.signal,
+        );
+        setRuns(items);
+      })
+      .catch((error: unknown) => {
+        if (!(error instanceof DOMException && error.name === 'AbortError')) {
+          setMessage(
+            error instanceof Error ? error.message : 'Selection Run konnte nicht geladen werden.',
+          );
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setBusy(false);
+      });
+    return () => controller.abort();
+  }, [initialRunId]);
+
+  useEffect(() => {
+    if (!initialVersionId || initialRunId) return;
     const controller = new AbortController();
     productSelectionApiClient
       .listForTradePlanVersion(initialVersionId, controller.signal)
@@ -229,7 +262,7 @@ export function ProductSelectionPage() {
         }
       });
     return () => controller.abort();
-  }, [initialVersionId]);
+  }, [initialRunId, initialVersionId]);
 
   async function refreshRuns(versionId: string) {
     const items = await productSelectionApiClient.listForTradePlanVersion(versionId);
