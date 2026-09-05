@@ -24,7 +24,12 @@ from app.features.post_trade.persistence.models import (
     ExitReviewVersionModel,
     PostTradeObservationModel,
 )
-from app.features.product_selection.persistence.models import ProductSelectionRunModel
+from app.features.product_selection.domain.enums import EligibilityStatus
+from app.features.product_selection.persistence.models import (
+    ProductEvaluationModel,
+    ProductSelectionModel,
+    ProductSelectionRunModel,
+)
 from app.features.trade_plan.domain.enums import TradePlanStatus
 from app.features.trade_plan.persistence.models import TradePlanModel, TradePlanVersionModel
 from app.features.trade_position.persistence.models import PositionModel, TradeModel
@@ -73,6 +78,7 @@ class OperationalWorkspaceReadModel:
             *(await self._notification_failure_actions(workspace_id)),
             *(await self._trade_plan_review_actions(workspace_id)),
             *(await self._product_selection_start_actions(workspace_id)),
+            *(await self._product_selection_choice_actions(workspace_id)),
             *(await self._open_position_actions(workspace_id)),
             *(await self._post_trade_actions(workspace_id)),
         ]
@@ -323,6 +329,51 @@ class OperationalWorkspaceReadModel:
                 occurred_at=created_at,
             )
             for trade_plan_id, version_id, version, created_at in rows
+        ]
+
+    async def _product_selection_choice_actions(
+        self, workspace_id: UUID
+    ) -> list[OperationalAction]:
+        rows = (
+            await self._session.execute(
+                select(ProductSelectionRunModel.id, ProductSelectionRunModel.evaluated_at)
+                .join(
+                    ProductEvaluationModel,
+                    ProductEvaluationModel.run_id == ProductSelectionRunModel.id,
+                )
+                .outerjoin(
+                    ProductSelectionModel,
+                    ProductSelectionModel.run_id == ProductSelectionRunModel.id,
+                )
+                .where(
+                    ProductSelectionRunModel.workspace_id == workspace_id,
+                    ProductEvaluationModel.eligibility_status == EligibilityStatus.ELIGIBLE.value,
+                    ProductSelectionModel.id.is_(None),
+                )
+                .distinct()
+                .order_by(ProductSelectionRunModel.evaluated_at, ProductSelectionRunModel.id)
+            )
+        ).all()
+
+        return [
+            OperationalAction(
+                id=f"product-selection-run:{run_id}:choose-product",
+                source_feature="FT-008 Product Selection",
+                action_type="PRODUCT_SELECTION_CHOICE",
+                priority="ACTION",
+                state="ACTIONABLE",
+                title="Produkt auswählen",
+                detail=(
+                    "Der Selection Run enthält mindestens ein geeignetes Produkt; die explizite "
+                    "Produktauswahl steht noch aus."
+                ),
+                resource_type="product_selection_run",
+                resource_id=run_id,
+                next_action="Produkt explizit auswählen",
+                target=f"/product-selection?run_id={run_id}",
+                occurred_at=evaluated_at,
+            )
+            for run_id, evaluated_at in rows
         ]
 
     async def _open_position_actions(self, workspace_id: UUID) -> list[OperationalAction]:
