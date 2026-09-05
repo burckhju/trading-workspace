@@ -13,6 +13,7 @@ import type {
   IssuerListResponse,
   ListingResponse,
   PageParameters,
+  ProviderInstrumentSearchResponse,
   SearchUnderlyingsParameters,
   TradingVenueAdminListResponse,
   TradingVenueAdminResponse,
@@ -65,6 +66,11 @@ export interface MarketApiClient {
     parameters?: SearchUnderlyingsParameters,
     signal?: AbortSignal,
   ) => Promise<UnderlyingSearchResponse>;
+  searchProviderInstruments: (
+    query: string,
+    limit?: number,
+    signal?: AbortSignal,
+  ) => Promise<ProviderInstrumentSearchResponse>;
   getUnderlying: (id: Uuid, signal?: AbortSignal) => Promise<UnderlyingDetailResponse>;
   getUnderlyingAuditEvents: (
     id: Uuid,
@@ -164,6 +170,13 @@ export const marketApiClient: MarketApiClient = {
     const url = new URL(underlyingsUrl());
     appendSearchParameters(url, parameters);
     return requestJson<UnderlyingSearchResponse>(url.toString(), { signal });
+  },
+
+  searchProviderInstruments: (query, limit = 10, signal) => {
+    const url = new URL(apiUrl('/market-data/instruments/search'));
+    url.searchParams.set('q', query);
+    url.searchParams.set('limit', String(limit));
+    return requestJson<ProviderInstrumentSearchResponse>(url.toString(), { signal });
   },
 
   getUnderlying: (id, signal) =>
