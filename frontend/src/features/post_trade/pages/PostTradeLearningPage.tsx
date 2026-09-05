@@ -20,6 +20,10 @@ function tradePlanReference(id: string): string {
   return `TP-${id.slice(0, 8).toUpperCase()}`;
 }
 
+function materializationKey(tradeId: string, exitReviewVersionId: string | null): string {
+  return `ft011-to-ft012:${tradeId}:${exitReviewVersionId ?? 'current'}`;
+}
+
 export function PostTradeLearningPage() {
   const [searchParams] = useSearchParams();
   const tradeId = searchParams.get('trade_id') ?? '';
@@ -27,6 +31,8 @@ export function PostTradeLearningPage() {
   const [warrant, setWarrant] = useState<WarrantResponse | null>(null);
   const [status, setStatus] = useState<Ft011MaterializationStatus | null>(null);
   const [lessonReferences, setLessonReferences] = useState<LessonEvidenceReference[]>([]);
+  const [materializing, setMaterializing] = useState(false);
+  const [materializationError, setMaterializationError] = useState<string | null>(null);
 
   const refreshLessonReferences = useCallback(async (learningEvidenceId: string) => {
     const references = await lessonReadbackClient.listForEvidence(learningEvidenceId);
@@ -95,6 +101,32 @@ export function PostTradeLearningPage() {
     return () => controller.abort();
   }, [tradeId]);
 
+  const handleMaterialize = useCallback(async () => {
+    if (!tradeId || !status?.ready || status.materialized) return;
+
+    setMaterializing(true);
+    setMaterializationError(null);
+    try {
+      const result = await ft011MaterializationClient.materialize(
+        tradeId,
+        materializationKey(tradeId, status.exit_review_version_id),
+      );
+      setStatus({
+        ...status,
+        materialized: true,
+        learning_evidence_id: result.learning_evidence_id,
+        exit_review_version_id: result.exit_review_version_id,
+      });
+      setLessonReferences([]);
+    } catch (error) {
+      setMaterializationError(
+        error instanceof Error ? error.message : 'Übergabe an Lessons Learned fehlgeschlagen.',
+      );
+    } finally {
+      setMaterializing(false);
+    }
+  }, [status, tradeId]);
+
   const learningEvidenceId = status?.learning_evidence_id ?? null;
 
   return (
@@ -156,6 +188,29 @@ export function PostTradeLearningPage() {
       )}
 
       <PostTradeReviewPage />
+
+      {status?.ready && !status.materialized && (
+        <section className="mt-6 rounded-xl border border-amber-800 bg-amber-950/20 p-5">
+          <h2 className="text-lg font-semibold">Lessons Learned</h2>
+          <p className="mt-2 text-sm text-slate-300">
+            Das Exit Review ist finalisiert. Übergib es bewusst als unveränderliche Evidence an
+            FT-012, bevor du daraus eine Lesson ableitest.
+          </p>
+          <button
+            type="button"
+            className="mt-4 rounded-lg bg-amber-500 px-4 py-2 text-sm font-medium text-slate-950 disabled:opacity-50"
+            disabled={materializing}
+            onClick={() => void handleMaterialize()}
+          >
+            {materializing ? 'Wird übergeben…' : 'An Lessons Learned übergeben'}
+          </button>
+          {materializationError && (
+            <p role="alert" className="mt-3 text-sm text-red-300">
+              {materializationError}
+            </p>
+          )}
+        </section>
+      )}
 
       {status?.materialized && learningEvidenceId && (
         <section className="mt-6 rounded-xl border border-slate-800 p-5">
