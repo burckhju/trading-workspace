@@ -17,6 +17,8 @@ from app.features.candidate.persistence.models import CandidateModel
 from app.features.candidate.service.runtime_readiness import (
     RuntimeAwareCandidateLiveWorkflowService,
 )
+from app.features.notification.domain.models import NotificationStatus
+from app.features.notification.persistence.models import NotificationModel
 from app.features.post_trade.persistence.models import (
     ExitReviewModel,
     ExitReviewVersionModel,
@@ -65,6 +67,7 @@ class OperationalWorkspaceReadModel:
         actions = [
             *(await self._candidate_actions(workspace_id)),
             *(await self._alert_actions(workspace_id)),
+            *(await self._notification_failure_actions(workspace_id)),
             *(await self._open_position_actions(workspace_id)),
             *(await self._post_trade_actions(workspace_id)),
         ]
@@ -164,6 +167,46 @@ class OperationalWorkspaceReadModel:
                 occurred_at=alert.detected_at,
             )
             for alert in alerts
+        ]
+
+    async def _notification_failure_actions(self, workspace_id: UUID) -> list[OperationalAction]:
+        rows = (
+            await self._session.execute(
+                select(
+                    NotificationModel.id,
+                    NotificationModel.channel,
+                    NotificationModel.created_at,
+                    AlertModel.trade_id,
+                )
+                .join(AlertModel, AlertModel.id == NotificationModel.alert_id)
+                .join(TradeModel, TradeModel.id == AlertModel.trade_id)
+                .where(
+                    TradeModel.workspace_id == workspace_id,
+                    NotificationModel.status == NotificationStatus.FAILED.value,
+                )
+                .order_by(NotificationModel.created_at, NotificationModel.id)
+            )
+        ).all()
+
+        return [
+            OperationalAction(
+                id=f"notification:{notification_id}:failed",
+                source_feature="Notification Delivery",
+                action_type="NOTIFICATION_DELIVERY_FAILURE",
+                priority="ACTION",
+                state="ACTIONABLE",
+                title="Benachrichtigung fehlgeschlagen",
+                detail=(
+                    f"Die {channel}-Benachrichtigung zu einem Positions-Alert ist terminal "
+                    "fehlgeschlagen."
+                ),
+                resource_type="notification",
+                resource_id=notification_id,
+                next_action="Trade-Management prüfen",
+                target=f"/trade-management?trade_id={trade_id}",
+                occurred_at=created_at,
+            )
+            for notification_id, channel, created_at, trade_id in rows
         ]
 
     async def _open_position_actions(self, workspace_id: UUID) -> list[OperationalAction]:

@@ -145,6 +145,29 @@ async def test_open_alert_projection_uses_existing_alert_state() -> None:
 
 
 @pytest.mark.asyncio
+async def test_terminal_notification_failure_projection_links_to_trade_management() -> None:
+    workspace_id = uuid4()
+    notification_id = uuid4()
+    trade_id = uuid4()
+    created_at = datetime.now(UTC)
+    session = AsyncMock(spec=AsyncSession)
+    session.execute.return_value = _Rows([(notification_id, "TELEGRAM", created_at, trade_id)])
+    model = OperationalWorkspaceReadModel(cast(AsyncSession, session))
+
+    actions = await model._notification_failure_actions(workspace_id)
+
+    assert len(actions) == 1
+    action = actions[0]
+    assert action.id == f"notification:{notification_id}:failed"
+    assert action.action_type == "NOTIFICATION_DELIVERY_FAILURE"
+    assert action.priority == "ACTION"
+    assert action.title == "Benachrichtigung fehlgeschlagen"
+    assert "TELEGRAM" in action.detail
+    assert action.target == f"/trade-management?trade_id={trade_id}"
+    assert action.occurred_at == created_at
+
+
+@pytest.mark.asyncio
 async def test_open_position_projection_only_links_to_trade_management() -> None:
     workspace_id = uuid4()
     trade_id = uuid4()
@@ -216,6 +239,7 @@ async def test_list_actions_sorts_by_priority_time_then_id() -> None:
     blocked = _action(priority="BLOCKED", occurred_at=None, suffix="blocked")
     model._candidate_actions = AsyncMock(return_value=[blocked])
     model._alert_actions = AsyncMock(return_value=[])
+    model._notification_failure_actions = AsyncMock(return_value=[])
     model._open_position_actions = AsyncMock(return_value=[action_late, action_early])
     model._post_trade_actions = AsyncMock(return_value=[review])
 
