@@ -3,7 +3,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Request, status
+from fastapi import APIRouter, Depends, Query, Request, status
 
 from app.core.di import ApplicationContainer, get_container
 from app.features.market_data.api.dependencies import (
@@ -14,6 +14,8 @@ from app.features.market_data.api.dependencies import (
 from app.features.market_data.api.dtos import (
     ImportDailyPricesRequest,
     ImportDailyPricesResponse,
+    ProviderInstrumentSearchItemResponse,
+    ProviderInstrumentSearchResponse,
     ProviderMappingResponse,
     ProviderMappingStateRequest,
     ProviderMappingUpsertRequest,
@@ -21,6 +23,7 @@ from app.features.market_data.api.dtos import (
     VenueReconciliationResponse,
 )
 from app.features.market_data.api.errors import translate_market_data_error
+from app.features.market_data.domain.enums import MarketDataProvider
 from app.features.market_data.service.administration import (
     MappingCommand,
     ProviderMappingAdministrationService,
@@ -62,6 +65,24 @@ async def import_daily_prices(
     except MarketDataError as error:
         raise translate_market_data_error(error) from error
     return ImportDailyPricesResponse.from_result(result)
+
+
+@router.get("/instruments/search", response_model=ProviderInstrumentSearchResponse)
+async def search_provider_instruments(
+    q: Annotated[str, Query(min_length=2, max_length=100)],
+    limit: Annotated[int, Query(ge=1, le=20)] = 10,
+    container: Annotated[ApplicationContainer, Depends(get_container)] = None,
+) -> ProviderInstrumentSearchResponse:
+    """Search EODHD without creating or mutating workspace master data."""
+    assert container is not None
+    try:
+        values = await container.require_eodhd_adapter().search_instruments(q, limit=limit)
+    except MarketDataError as error:
+        raise translate_market_data_error(error) from error
+    return ProviderInstrumentSearchResponse(
+        provider=MarketDataProvider.EODHD,
+        items=[ProviderInstrumentSearchItemResponse.from_result(value) for value in values],
+    )
 
 
 @router.get("/provider-mappings", response_model=list[ProviderMappingResponse])
