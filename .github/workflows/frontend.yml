@@ -38,11 +38,8 @@ jobs:
         run: npm run typecheck
       - name: ESLint
         run: npm run lint
-      - name: Prettier diagnostic diff
-        run: |
-          npx prettier --write src/features/trade_plan/pages/TradePlanPage.tsx
-          git diff -- src/features/trade_plan/pages/TradePlanPage.tsx
-          git diff --quiet -- src/features/trade_plan/pages/TradePlanPage.tsx
+      - name: Prettier
+        run: npm run format
       - name: Unit tests with coverage
         run: >-
           npm run test:coverage --
