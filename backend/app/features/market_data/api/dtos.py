@@ -11,6 +11,7 @@ from app.features.market_data.domain.enums import (
     QualityStatus,
 )
 from app.features.market_data.service.application import DailyPriceImportResult
+from app.features.market_data.service.types import ProviderInstrumentSearchItem
 from app.features.market_data.service.venue_reconciliation import (
     VenueReconciliationResult,
     VenueReconciliationStatus,
@@ -78,6 +79,31 @@ class ImportDailyPricesResponse(BaseModel):
             provider_call_cost=result.provider_call_cost,
             retrieved_at=result.retrieved_at,
         )
+
+
+class ProviderInstrumentSearchItemResponse(BaseModel):
+    """Read-only provider suggestion; not yet workspace master data."""
+
+    provider: MarketDataProvider
+    provider_symbol: str
+    provider_exchange_code: str
+    name: str | None
+    instrument_type: str | None
+    currency: str | None
+    isin: str | None
+
+    @classmethod
+    def from_result(
+        cls, result: ProviderInstrumentSearchItem
+    ) -> "ProviderInstrumentSearchItemResponse":
+        return cls.model_validate(result, from_attributes=True)
+
+
+class ProviderInstrumentSearchResponse(BaseModel):
+    """Bounded provider suggestions for one user search term."""
+
+    provider: MarketDataProvider
+    items: list[ProviderInstrumentSearchItemResponse]
 
 
 class ProviderMappingUpsertRequest(BaseModel):

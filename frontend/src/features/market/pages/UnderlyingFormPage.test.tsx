@@ -69,7 +69,10 @@ beforeEach(() => {
     ],
   });
   vi.mocked(marketApiClient.listCurrencies).mockResolvedValue({
-    items: [{ code: 'EUR', name: 'Euro', minor_unit: 2, reference_version: 'FT-001-V1' }],
+    items: [
+      { code: 'EUR', name: 'Euro', minor_unit: 2, reference_version: 'FT-001-V1' },
+      { code: 'USD', name: 'US Dollar', minor_unit: 2, reference_version: 'FT-001-V1' },
+    ],
   });
   vi.mocked(marketApiClient.createUnderlying).mockResolvedValue(detail);
   vi.mocked(marketApiClient.updateUnderlying).mockResolvedValue(detail);
@@ -106,6 +109,28 @@ describe('UnderlyingFormPage', () => {
       },
     });
     expect(await screen.findByRole('heading', { name: 'Detail' })).toBeInTheDocument();
+  });
+
+  it('prefills a new stock from an EODHD suggestion but still requires user confirmation', async () => {
+    render(
+      <MemoryRouter
+        initialEntries={[
+          '/underlyings/new?source=EODHD&name=Apple+Inc&isin=US0378331005&ticker=AAPL&currency=USD&exchange=US',
+        ]}
+      >
+        <Routes>
+          <Route path="/underlyings/new" element={<UnderlyingFormPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText('Vorschlag aus EODHD übernommen')).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Name *' })).toHaveValue('Apple Inc');
+    expect(screen.getByRole('textbox', { name: 'ISIN' })).toHaveValue('US0378331005');
+    expect(screen.getByRole('textbox', { name: 'Ticker *' })).toHaveValue('AAPL');
+    expect(screen.getByRole('combobox', { name: 'Währung *' })).toHaveValue('USD');
+    expect(screen.getByText(/Provider: AAPL · US/)).toBeInTheDocument();
+    expect(marketApiClient.createUnderlying).not.toHaveBeenCalled();
   });
 
   it('uses the only active venue automatically without showing a market selector', async () => {

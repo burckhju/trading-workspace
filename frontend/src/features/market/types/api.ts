@@ -108,6 +108,21 @@ export interface UnderlyingSearchResponse {
   limit: number;
 }
 
+export interface ProviderInstrumentSearchItemResponse {
+  provider: 'EODHD';
+  provider_symbol: string;
+  provider_exchange_code: string;
+  name: string | null;
+  instrument_type: string | null;
+  currency: string | null;
+  isin: string | null;
+}
+
+export interface ProviderInstrumentSearchResponse {
+  provider: 'EODHD';
+  items: ProviderInstrumentSearchItemResponse[];
+}
+
 export interface TradingVenueResponse {
   id: Uuid;
   mic: string;
