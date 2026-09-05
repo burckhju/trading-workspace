@@ -2,7 +2,7 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 
 import { marketApiClient } from '../../market/services/client';
-import type { UnderlyingDetailResponse, UnderlyingSummaryResponse } from '../../market/types/api';
+import type { UnderlyingDetailResponse } from '../../market/types/api';
 import { AnalysisStatusBadge } from '../components/AnalysisStatusBadge';
 import { UnderlyingSearchCombobox } from '../components/UnderlyingSearchCombobox';
 import { analysisApiClient } from '../services/client';
@@ -52,13 +52,8 @@ export function MarketAnalysisPage() {
   const [savedViewName, setSavedViewName] = useState('');
   const [selectedSavedViewId, setSelectedSavedViewId] = useState('');
   const analysisLimit = 20;
-  const [underlyings, setUnderlyings] = useState<UnderlyingSummaryResponse[]>([]);
-  const [underlyingTotal, setUnderlyingTotal] = useState(0);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [appliedQuery, setAppliedQuery] = useState('');
-  const [underlyingOffset, setUnderlyingOffset] = useState(0);
-  const underlyingLimit = 20;
   const [selectedUnderlyingId, setSelectedUnderlyingId] = useState('');
+  const [selectedUnderlyingLabel, setSelectedUnderlyingLabel] = useState('');
   const [underlyingDetail, setUnderlyingDetail] = useState<UnderlyingDetailResponse | null>(null);
   const [listingId, setListingId] = useState('');
   const [message, setMessage] = useState<string | null>(null);
@@ -147,32 +142,6 @@ export function MarketAnalysisPage() {
       .finally(() => setLoading(false));
     return () => controller.abort();
   }, [loadAnalyses]);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    marketApiClient
-      .searchUnderlyings(
-        {
-          query: appliedQuery || undefined,
-          lifecycleStatus: 'ACTIVE',
-          offset: underlyingOffset,
-          limit: underlyingLimit,
-        },
-        controller.signal,
-      )
-      .then((result) => {
-        setUnderlyings(result.items);
-        setUnderlyingTotal(result.total);
-      })
-      .catch((error: unknown) => {
-        if (!(error instanceof DOMException && error.name === 'AbortError')) {
-          setMessage(
-            error instanceof Error ? error.message : 'Basiswerte konnten nicht geladen werden.',
-          );
-        }
-      });
-    return () => controller.abort();
-  }, [appliedQuery, underlyingOffset]);
 
   useEffect(() => {
     if (selectedUnderlyingId === '') {
@@ -313,6 +282,7 @@ export function MarketAnalysisPage() {
     try {
       await analysisApiClient.create(selectedUnderlyingId, listingId);
       setSelectedUnderlyingId('');
+      setSelectedUnderlyingLabel('');
       setUnderlyingDetail(null);
       setListingId('');
       await loadAnalyses();
@@ -340,58 +310,18 @@ export function MarketAnalysisPage() {
       >
         <label className="text-sm">
           Basiswert suchen
-          <div className="mt-2 flex gap-2">
-            <input
-              aria-label="Basiswert suchen"
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-              className="min-w-0 flex-1 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2"
-              placeholder="Name, ISIN, WKN oder Ticker"
-            />
-            <button
-              type="button"
-              onClick={() => {
-                setAppliedQuery(searchQuery.trim());
-                setUnderlyingOffset(0);
+          <div className="mt-2">
+            <UnderlyingSearchCombobox
+              value={selectedUnderlyingId}
+              selectedLabel={selectedUnderlyingLabel}
+              selectLabel="Basiswert"
+              emptyOptionLabel="Basiswert auswählen"
+              required
+              onChange={(id, label) => {
+                setSelectedUnderlyingId(id);
+                setSelectedUnderlyingLabel(label);
               }}
-              className="rounded-lg border border-slate-700 px-3 py-2"
-            >
-              Suchen
-            </button>
-          </div>
-          <select
-            required
-            aria-label="Basiswert"
-            value={selectedUnderlyingId}
-            onChange={(event) => setSelectedUnderlyingId(event.target.value)}
-            className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2"
-          >
-            <option value="">Basiswert auswählen</option>
-            {underlyings.map((underlying) => (
-              <option key={underlying.id} value={underlying.id}>
-                {underlying.name}
-                {underlying.primary_listing ? ` · ${underlying.primary_listing.ticker}` : ''}
-              </option>
-            ))}
-          </select>
-          <div className="mt-2 flex items-center justify-between text-xs text-slate-400">
-            <span>{underlyingTotal} Treffer</span>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                disabled={underlyingOffset === 0}
-                onClick={() => setUnderlyingOffset(Math.max(0, underlyingOffset - underlyingLimit))}
-              >
-                Zurück
-              </button>
-              <button
-                type="button"
-                disabled={underlyingOffset + underlyingLimit >= underlyingTotal}
-                onClick={() => setUnderlyingOffset(underlyingOffset + underlyingLimit)}
-              >
-                Weiter
-              </button>
-            </div>
+            />
           </div>
         </label>
         <label className="text-sm">
