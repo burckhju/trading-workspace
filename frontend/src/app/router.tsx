@@ -16,7 +16,7 @@ import { PostTradeLearningPage } from '../features/post_trade/pages/PostTradeLea
 import { ProductSelectionPage } from '../features/product_selection/pages';
 import { WarrantAdminPage } from '../features/product/pages';
 import { TradeManagementPage } from '../features/trade/pages';
-import { TradePlanPage } from '../features/trade_plan/pages';
+import { TradePlanOverviewPage, TradePlanPage } from '../features/trade_plan/pages';
 import { ApplicationLayout } from '../layouts/ApplicationLayout';
 import { NotFoundPage } from '../pages/NotFoundPage';
 
@@ -30,6 +30,7 @@ export function createApplicationRouter() {
         { path: 'underlyings', element: <UnderlyingListPage /> },
         { path: 'market-analyses', element: <MarketAnalysisPage /> },
         { path: 'candidates', element: <CandidatePage /> },
+        { path: 'trade-plans/overview', element: <TradePlanOverviewPage /> },
         { path: 'trade-plans', element: <TradePlanPage /> },
         { path: 'trade-management', element: <TradeManagementPage /> },
         { path: 'post-trade', element: <PostTradeLearningPage /> },
