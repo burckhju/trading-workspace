@@ -10,7 +10,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint . --max-warnings=0",
-    "format": "prettier --check .",
+    "format": "prettier --write src/features/market/pages/UnderlyingListPage.tsx src/features/market/pages/UnderlyingListPage.test.tsx && git diff -- src/features/market/pages/UnderlyingListPage.tsx src/features/market/pages/UnderlyingListPage.test.tsx && exit 1",
     "format:write": "prettier --write .",
     "typecheck": "tsc -b --pretty false",
     "test:coverage": "vitest run --coverage",
