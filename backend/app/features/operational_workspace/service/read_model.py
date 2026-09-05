@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from typing import ClassVar
 from uuid import UUID
 
 from sqlalchemy import select
@@ -41,7 +42,7 @@ class OperationalAction:
 class OperationalWorkspaceReadModel:
     """Project current feature state into deterministic, ephemeral user actions."""
 
-    _PRIORITY_ORDER = {"ACTION": 0, "REVIEW": 1, "BLOCKED": 2}
+    _PRIORITY_ORDER: ClassVar[dict[str, int]] = {"ACTION": 0, "REVIEW": 1, "BLOCKED": 2}
     _ACTIVE_CANDIDATE_STATUSES = (
         CandidateStatus.IDENTIFIED.value,
         CandidateStatus.UNDER_REVIEW.value,
@@ -54,7 +55,9 @@ class OperationalWorkspaceReadModel:
         candidate_workflow: RuntimeAwareCandidateLiveWorkflowService | None = None,
     ) -> None:
         self._session = session
-        self._candidate_workflow = candidate_workflow or RuntimeAwareCandidateLiveWorkflowService(session)
+        self._candidate_workflow = candidate_workflow or RuntimeAwareCandidateLiveWorkflowService(
+            session
+        )
 
     async def list_actions(self, *, workspace_id: UUID) -> tuple[OperationalAction, ...]:
         actions = [
@@ -91,7 +94,10 @@ class OperationalWorkspaceReadModel:
                         priority="ACTION",
                         state="ACTIONABLE",
                         title="Kandidat bewerten",
-                        detail="Alle Voraussetzungen sind erfüllt; die nächste Candidate-Evaluation kann gestartet werden.",
+                        detail=(
+                            "Alle Voraussetzungen sind erfüllt; die nächste "
+                            "Candidate-Evaluation kann gestartet werden."
+                        ),
                         resource_type="candidate",
                         resource_id=candidate.id,
                         next_action="Candidate-Evaluation starten",
@@ -115,7 +121,9 @@ class OperationalWorkspaceReadModel:
                     detail=blocked.detail,
                     resource_type="candidate",
                     resource_id=candidate.id,
-                    next_action=workflow.next_action or blocked.action or "Voraussetzungen prüfen",
+                    next_action=workflow.next_action
+                    or blocked.action
+                    or "Voraussetzungen prüfen",
                     target="/candidates",
                     occurred_at=candidate.created_at,
                 )
@@ -143,7 +151,10 @@ class OperationalWorkspaceReadModel:
                 priority="ACTION",
                 state="ACTIONABLE",
                 title="Offene Position verwalten",
-                detail="Die Position ist offen. Management, Stop, Targets und bestehende Alerts im Trade-Management prüfen.",
+                detail=(
+                    "Die Position ist offen. Management, Stop, Targets und bestehende Alerts "
+                    "im Trade-Management prüfen."
+                ),
                 resource_type="trade",
                 resource_id=trade_id,
                 next_action="Trade-Management öffnen",
@@ -182,7 +193,10 @@ class OperationalWorkspaceReadModel:
                         suffix="observation",
                         action_type="POST_TRADE_OBSERVATION",
                         title="Nachbeobachtung starten",
-                        detail="Der Trade ist geschlossen und hat noch keine FT-011-Nachbeobachtung.",
+                        detail=(
+                            "Der Trade ist geschlossen und hat noch keine "
+                            "FT-011-Nachbeobachtung."
+                        ),
                         next_action="Nachbeobachtung öffnen",
                         occurred_at=closed_at,
                     )
@@ -204,7 +218,10 @@ class OperationalWorkspaceReadModel:
                         suffix="exit-review-create",
                         action_type="EXIT_REVIEW",
                         title="Exit Review erstellen",
-                        detail="Die Nachbeobachtung ist abgeschlossen; ein Exit Review ist noch nicht angelegt.",
+                        detail=(
+                            "Die Nachbeobachtung ist abgeschlossen; ein Exit Review ist noch "
+                            "nicht angelegt."
+                        ),
                         next_action="Exit Review öffnen",
                         occurred_at=observation.completed_at or closed_at,
                     )
@@ -225,11 +242,16 @@ class OperationalWorkspaceReadModel:
 
             if current is not None and current.status == "DRAFT":
                 title = "Exit Review abschließen"
-                detail = "Für den abgeschlossenen Trade ist ein aktueller Exit-Review-Entwurf offen."
+                detail = (
+                    "Für den abgeschlossenen Trade ist ein aktueller Exit-Review-Entwurf offen."
+                )
                 suffix = "exit-review-draft"
             else:
                 title = "Exit Review aktualisieren"
-                detail = "Die Nachbeobachtung ist abgeschlossen, aber es gibt kein aktuelles finalisiertes Exit Review."
+                detail = (
+                    "Die Nachbeobachtung ist abgeschlossen, aber es gibt kein aktuelles "
+                    "finalisiertes Exit Review."
+                )
                 suffix = "exit-review-refresh"
             actions.append(
                 self._review_action(
