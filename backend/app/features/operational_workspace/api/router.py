@@ -1,5 +1,6 @@
 """Read-only operational workspace endpoints."""
 
+from dataclasses import asdict
 from datetime import UTC, datetime
 from typing import Annotated
 from uuid import UUID
@@ -26,5 +27,5 @@ async def list_operational_actions(
     actions = await OperationalWorkspaceReadModel(session).list_actions(workspace_id=WORKSPACE_ID)
     return OperationalWorkspaceResponse(
         generated_at=datetime.now(UTC),
-        actions=[OperationalActionResponse(**action.__dict__) for action in actions],
+        actions=[OperationalActionResponse(**asdict(action)) for action in actions],
     )
