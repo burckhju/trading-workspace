@@ -24,9 +24,7 @@ WORKSPACE_ID = UUID("00000000-0000-4000-8000-000000000001")
 async def list_operational_actions(
     session: Annotated[AsyncSession, Depends(get_database_session)],
 ) -> OperationalWorkspaceResponse:
-    actions = await OperationalWorkspaceReadModel(session).list_actions(
-        workspace_id=WORKSPACE_ID
-    )
+    actions = await OperationalWorkspaceReadModel(session).list_actions(workspace_id=WORKSPACE_ID)
     return OperationalWorkspaceResponse(
         generated_at=datetime.now(UTC),
         actions=[OperationalActionResponse(**asdict(action)) for action in actions],
