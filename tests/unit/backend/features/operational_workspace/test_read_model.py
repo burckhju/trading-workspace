@@ -10,7 +10,9 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.features.candidate.service.live_workflow import CandidateLiveWorkflow, WorkflowStep
-from app.features.candidate.service.runtime_readiness import RuntimeAwareCandidateLiveWorkflowService
+from app.features.candidate.service.runtime_readiness import (
+    RuntimeAwareCandidateLiveWorkflowService,
+)
 from app.features.operational_workspace.service.read_model import (
     OperationalAction,
     OperationalWorkspaceReadModel,
