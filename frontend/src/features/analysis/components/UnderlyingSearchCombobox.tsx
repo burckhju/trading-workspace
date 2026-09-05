@@ -11,6 +11,9 @@ type Props = {
   value: string;
   selectedLabel?: string;
   onChange: (id: string, label: string) => void;
+  selectLabel?: string;
+  emptyOptionLabel?: string;
+  required?: boolean;
 };
 
 function isStockSuggestion(item: ProviderInstrumentSearchItemResponse): boolean {
@@ -29,7 +32,14 @@ function providerPrefillUrl(item: ProviderInstrumentSearchItemResponse): string 
   return `/underlyings/new?${parameters.toString()}`;
 }
 
-export function UnderlyingSearchCombobox({ value, selectedLabel, onChange }: Props) {
+export function UnderlyingSearchCombobox({
+  value,
+  selectedLabel,
+  onChange,
+  selectLabel = 'Basiswert filtern',
+  emptyOptionLabel = 'Alle Basiswerte',
+  required = false,
+}: Props) {
   const [query, setQuery] = useState('');
   const [appliedQuery, setAppliedQuery] = useState('');
   const [items, setItems] = useState<UnderlyingSummaryResponse[]>([]);
@@ -113,7 +123,8 @@ export function UnderlyingSearchCombobox({ value, selectedLabel, onChange }: Pro
         </button>
       </div>
       <select
-        aria-label="Basiswert filtern"
+        required={required}
+        aria-label={selectLabel}
         value={value}
         onChange={(event) => {
           const selected = items.find((item) => item.id === event.target.value);
@@ -121,7 +132,7 @@ export function UnderlyingSearchCombobox({ value, selectedLabel, onChange }: Pro
         }}
         className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2"
       >
-        <option value="">Alle Basiswerte</option>
+        <option value="">{emptyOptionLabel}</option>
         {value && !items.some((item) => item.id === value) ? (
           <option value={value}>{selectedLabel || value}</option>
         ) : null}
