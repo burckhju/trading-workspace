@@ -39,7 +39,7 @@ jobs:
       - name: ESLint
         run: npm run lint
       - name: Prettier
-        run: npm run format:write && git diff --exit-code
+        run: npm run format
       - name: Unit tests with coverage
         run: >-
           npm run test:coverage --
