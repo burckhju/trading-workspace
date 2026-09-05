@@ -130,10 +130,7 @@ describe('PostTradeLearningPage', () => {
     fireEvent.click(handoff);
 
     await waitFor(() =>
-      expect(materialize).toHaveBeenCalledWith(
-        'trade-1',
-        'ft011-to-ft012:trade-1:version-1',
-      ),
+      expect(materialize).toHaveBeenCalledWith('trade-1', 'ft011-to-ft012:trade-1:version-1'),
     );
     expect(await screen.findByText('lesson-form')).toBeInTheDocument();
     expect(
