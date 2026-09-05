@@ -27,9 +27,7 @@ function ActionCard({ action }: { action: OperationalAction }) {
     <li className="rounded-xl border border-slate-800 bg-slate-900/60 p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-xs uppercase tracking-wide text-slate-500">
-            {action.source_feature}
-          </p>
+          <p className="text-xs uppercase tracking-wide text-slate-500">{action.source_feature}</p>
           <h3 className="mt-1 text-lg font-semibold text-white">{action.title}</h3>
         </div>
         <span className="rounded-full border border-slate-700 px-2.5 py-1 text-xs text-slate-300">
@@ -99,8 +97,8 @@ export function OperationalWorkspacePage() {
             Was benötigt jetzt deine Aufmerksamkeit?
           </h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
-            Priorisierte nächste Schritte aus bestehenden Feature-Zuständen. Die Fachlogik bleibt
-            in den jeweiligen Owner-Features.
+            Priorisierte nächste Schritte aus bestehenden Feature-Zuständen. Die Fachlogik bleibt in
+            den jeweiligen Owner-Features.
           </p>
         </div>
         <button
