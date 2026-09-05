@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { marketApiClient } from '../../market/services/client';
@@ -25,19 +25,22 @@ export function ExistingTradePlanPage({ tradePlanId }: { tradePlanId: string }) 
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  async function refresh(signal?: AbortSignal) {
-    const [nextDetail, history] = await Promise.all([
-      tradePlanApiClient.get(tradePlanId, signal),
-      tradePlanApiClient.versions(tradePlanId, signal),
-    ]);
-    setDetail(nextDetail);
-    setVersions(history);
-    try {
-      setUnderlying(await marketApiClient.getUnderlying(nextDetail.plan.underlying_id, signal));
-    } catch {
-      setUnderlying(null);
-    }
-  }
+  const refresh = useCallback(
+    async (signal?: AbortSignal) => {
+      const [nextDetail, history] = await Promise.all([
+        tradePlanApiClient.get(tradePlanId, signal),
+        tradePlanApiClient.versions(tradePlanId, signal),
+      ]);
+      setDetail(nextDetail);
+      setVersions(history);
+      try {
+        setUnderlying(await marketApiClient.getUnderlying(nextDetail.plan.underlying_id, signal));
+      } catch {
+        setUnderlying(null);
+      }
+    },
+    [tradePlanId],
+  );
 
   useEffect(() => {
     const controller = new AbortController();
@@ -52,7 +55,7 @@ export function ExistingTradePlanPage({ tradePlanId }: { tradePlanId: string }) 
         if (!controller.signal.aborted) setBusy(false);
       });
     return () => controller.abort();
-  }, [tradePlanId]);
+  }, [refresh]);
 
   async function mutate(action: 'submit' | 'approve') {
     if (!detail) return;
