@@ -64,6 +64,31 @@ class LatestDailyPriceRequest:
 
 
 @dataclass(frozen=True, slots=True)
+class ProviderInstrumentSearchItem:
+    """Read-only provider suggestion that is not yet workspace master data."""
+
+    provider: MarketDataProvider
+    provider_symbol: str
+    provider_exchange_code: str
+    name: str | None = None
+    instrument_type: str | None = None
+    currency: str | None = None
+    isin: str | None = None
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "provider_symbol", self.provider_symbol.strip().upper())
+        object.__setattr__(
+            self, "provider_exchange_code", self.provider_exchange_code.strip().upper()
+        )
+        for field_name in ("name", "instrument_type", "isin"):
+            value = getattr(self, field_name)
+            if value is not None:
+                object.__setattr__(self, field_name, value.strip() or None)
+        if self.currency is not None:
+            object.__setattr__(self, "currency", self.currency.strip().upper() or None)
+
+
+@dataclass(frozen=True, slots=True)
 class MarketDataResult[T]:
     """Data plus explicit provenance, cache and provider-consumption metadata."""
 
