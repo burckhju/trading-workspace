@@ -331,7 +331,9 @@ class OperationalWorkspaceReadModel:
             for trade_plan_id, version_id, version, created_at in rows
         ]
 
-    async def _product_selection_choice_actions(self, workspace_id: UUID) -> list[OperationalAction]:
+    async def _product_selection_choice_actions(
+        self, workspace_id: UUID
+    ) -> list[OperationalAction]:
         rows = (
             await self._session.execute(
                 select(ProductSelectionRunModel.id, ProductSelectionRunModel.evaluated_at)
