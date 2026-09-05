@@ -316,7 +316,10 @@ export function TradePlanPage() {
     let active = true;
     setBusy(true);
     setMessage(null);
-    Promise.all([tradePlanApiClient.get(tradePlanId), tradePlanApiClient.versions(tradePlanId)])
+    Promise.all([
+      tradePlanApiClient.get(tradePlanId),
+      tradePlanApiClient.versions(tradePlanId),
+    ])
       .then(([nextDetail, history]) => {
         if (!active) return;
         setDetail(nextDetail);
@@ -325,7 +328,9 @@ export function TradePlanPage() {
       })
       .catch((error: unknown) => {
         if (!active) return;
-        setMessage(error instanceof Error ? error.message : 'TradePlan konnte nicht geladen werden.');
+        setMessage(
+          error instanceof Error ? error.message : 'TradePlan konnte nicht geladen werden.',
+        );
       })
       .finally(() => {
         if (active) setBusy(false);
