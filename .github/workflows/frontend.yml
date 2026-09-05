@@ -39,10 +39,7 @@ jobs:
       - name: ESLint
         run: npm run lint
       - name: Prettier
-        run: |
-          npx prettier --write src/features/trade_plan/pages/ExistingTradePlanPage.test.tsx
-          git diff -- src/features/trade_plan/pages/ExistingTradePlanPage.test.tsx
-          git diff --exit-code -- src/features/trade_plan/pages/ExistingTradePlanPage.test.tsx
+        run: npm run format
       - name: Unit tests with coverage
         run: >-
           npm run test:coverage --
