@@ -39,6 +39,12 @@ const runDetail = {
   selection: null,
 };
 
+function requestUrl(value: RequestInfo | URL | undefined): string {
+  if (typeof value === 'string') return value;
+  if (value instanceof URL) return value.href;
+  return value?.url ?? '';
+}
+
 describe('ProductSelectionPage run deep link', () => {
   afterEach(() => vi.restoreAllMocks());
 
@@ -75,8 +81,8 @@ describe('ProductSelectionPage run deep link', () => {
     expect(screen.getAllByText(runDetail.run.id).length).toBeGreaterThan(0);
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
-    const firstUrl = String(fetchMock.mock.calls[0]?.[0]);
-    const secondUrl = String(fetchMock.mock.calls[1]?.[0]);
+    const firstUrl = requestUrl(fetchMock.mock.calls[0]?.[0]);
+    const secondUrl = requestUrl(fetchMock.mock.calls[1]?.[0]);
     expect(firstUrl).toContain(`/product-selection-runs/${runDetail.run.id}`);
     expect(secondUrl).toContain(
       `trade_plan_version_id=${encodeURIComponent(runDetail.run.trade_plan_version_id)}`,
