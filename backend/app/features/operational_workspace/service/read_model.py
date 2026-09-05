@@ -169,9 +169,7 @@ class OperationalWorkspaceReadModel:
             for alert in alerts
         ]
 
-    async def _notification_failure_actions(
-        self, workspace_id: UUID
-    ) -> list[OperationalAction]:
+    async def _notification_failure_actions(self, workspace_id: UUID) -> list[OperationalAction]:
         rows = (
             await self._session.execute(
                 select(
