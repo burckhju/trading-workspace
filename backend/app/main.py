@@ -25,6 +25,7 @@ from app.features.market.api.reference_market_data_router import (
 from app.features.market.api.top_down_router import router as top_down_reference_router
 from app.features.market_data.api import router as market_data_router
 from app.features.model.api import router as model_governance_router
+from app.features.operational_workspace.api import router as operational_workspace_router
 from app.features.position_monitoring.bootstrap import build_position_monitoring_runtime
 from app.features.position_monitoring.service.runner import PositionMonitoringRunner
 from app.features.post_trade.api import router as post_trade_router
@@ -110,6 +111,7 @@ def create_application(settings: Settings | None = None) -> FastAPI:
     application.include_router(trade_position_router)
     application.include_router(alert_router)
     application.include_router(post_trade_router)
+    application.include_router(operational_workspace_router)
     application.include_router(learning_router)
     application.include_router(model_governance_router)
     application.include_router(user_preferences_router)

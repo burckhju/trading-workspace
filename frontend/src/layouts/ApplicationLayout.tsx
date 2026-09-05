@@ -10,6 +10,14 @@ export function ApplicationLayout() {
           </NavLink>
           <nav aria-label="Hauptnavigation">
             <NavLink
+              to="/workspace"
+              className={({ isActive }) =>
+                `rounded-lg px-3 py-2 text-sm ${isActive ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-white'}`
+              }
+            >
+              Arbeitsbereich
+            </NavLink>
+            <NavLink
               to="/underlyings"
               className={({ isActive }) =>
                 `rounded-lg px-3 py-2 text-sm ${isActive ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-white'}`
