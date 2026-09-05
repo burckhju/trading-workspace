@@ -226,7 +226,7 @@ test('keeps a deactivated underlying discoverable so it can be deleted and recre
   expect((await deactivateRequest).postDataJSON()).toEqual({ version: 1 });
   await expect(page.getByRole('button', { name: 'Reaktivieren' })).toBeVisible();
 
-  await page.getByRole('link', { name: 'Basiswerte' }).click();
+  await page.getByRole('link', { name: '← Basiswerte', exact: true }).click();
   await expect(page.getByRole('link', { name: 'Siemens AG' })).toBeVisible();
 
   await page.getByRole('link', { name: 'Siemens AG' }).click();
