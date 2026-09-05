@@ -6,9 +6,9 @@
 |---|---|
 | Dokument | MODULE_AND_FEATURE_CATALOG.md |
 | Dokumenttyp | Product Architecture |
-| Version | 1.4 |
+| Version | 1.5 |
 | Status | 🟢 Approved |
-| Letzte Änderung | 2026-09-03 |
+| Letzte Änderung | 2026-09-05 |
 
 ## Zweck
 
@@ -44,8 +44,11 @@ Dieses Dokument ist die zentrale Zuordnung zwischen Roadmap-Meilensteinen, fachl
 | Kennung | Fähigkeit | Verantwortung | Konsumierende Features |
 |---|---|---|---|
 | TC-001 | Marktdaten-Infrastruktur (`market_data`) | Providerunabhängiger Abruf, Qualitätsprüfung, Herkunft, Cache und Persistenz von Marktdaten; keine Handelsentscheidung | FT-004, FT-006, FT-008, FT-013 sowie spätere Analysefähigkeiten |
+| unnummeriert | Operational Workspace | Read-only, ephemere Projektion bereits autoritativer Owner-Zustände in priorisierte nächste Benutzeraktionen; keine eigene fachliche Schreib-Ownership | FT-005/FT-020, FT-007–FT-011, Position Monitoring, Notification Delivery |
 
 TC-001 verändert die fachliche Feature-Nummerierung nicht. Eine benutzerverwaltete Providerkonfiguration bleibt ein separates, später zu spezifizierendes Feature.
+
+Der **Operational Workspace** verändert die fachliche Feature-Nummerierung ebenfalls nicht. Er ist keine neue Wahrheitsschicht und persistiert keine eigenen Done-, Acknowledge- oder Assignment-Zustände. Actions verschwinden ausschließlich durch Änderungen im jeweils schreibenden Owner-Feature. Die Scope- und Ownership-Dokumentation liegt unter `docs/features/OPERATIONAL_WORKSPACE.md`.
 
 ## Noch nicht nummerierte Capability in Technical Review
 
@@ -67,17 +70,19 @@ Die endgültige FT-Zuordnung ist eine separate Produktplanungsentscheidung. Die 
 | Emittent | FT-003 | FT-004, FT-008 |
 | Datenprovider/Datenquelle | separates Providerfeature | FT-004, FT-006, FT-008, FT-013 |
 | Instrument/Optionsschein | FT-004 | FT-008–FT-010, FT-012 |
-| Watchlist/Kandidat | FT-005 | FT-007 |
+| Watchlist/Kandidat | FT-005 | FT-007, Operational Workspace |
 | Analyse | FT-006 | FT-005, FT-007, FT-012, FT-013 |
-| TradePlan / TradePlanVersion | FT-007 | FT-008–FT-012 |
-| Produktauswahl | FT-008 | FT-009, FT-012 |
-| Trade / Execution Record / Position | FT-009 | FT-010–FT-012, Position Monitoring |
-| Trade Event | FT-010 | FT-011, FT-012, Position Monitoring |
-| Alert / Monitoring Rule State | Position Monitoring & Alert Capability (FT noch offen) | Notification Capability, spätere UI |
-| Notification / Delivery Attempt | Notification Capability (FT noch offen) | Delivery Adapter, spätere UI |
-| Nachbeobachtung/Exit Review | FT-011 | FT-012, FT-013 |
+| TradePlan / TradePlanVersion | FT-007 | FT-008–FT-012, Operational Workspace |
+| Produktauswahl | FT-008 | FT-009, FT-012, Operational Workspace |
+| Trade / Execution Record / Position | FT-009 | FT-010–FT-012, Position Monitoring, Operational Workspace |
+| Trade Event | FT-010 | FT-011, FT-012, Position Monitoring, Operational Workspace |
+| Alert / Monitoring Rule State | Position Monitoring & Alert Capability (FT noch offen) | Notification Capability, Operational Workspace, spätere UI |
+| Notification / Delivery Attempt | Notification Capability (FT noch offen) | Delivery Adapter, Operational Workspace, spätere UI |
+| Nachbeobachtung/Exit Review | FT-011 | FT-012, FT-013, Operational Workspace |
 | Journal/Performance Record | FT-012 | FT-013 |
 | Modell/Modellversion | FT-013 | alle berechnenden Features |
+
+Der Operational Workspace ist in dieser Tabelle ausschließlich Leser. Er besitzt keine Schreib-Ownership über die aufgeführten Kernobjekte.
 
 ## Statusmodell für Features
 
