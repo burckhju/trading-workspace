@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 
 import { marketApiClient } from '../../market/services/client';
 import type { UnderlyingSummaryResponse } from '../../market/types/api';
+import { ExistingTradePlanPage } from './ExistingTradePlanPage';
 import { TradePlanPage as BaseTradePlanPage } from './TradePlanPage';
 
 function underlyingLabel(item: UnderlyingSummaryResponse): string {
@@ -19,6 +20,7 @@ export function TradePlanWorkflowPage() {
   const [searchMessage, setSearchMessage] = useState<string | null>(null);
 
   const selectedUnderlyingId = searchParams.get('underlying_id') ?? '';
+  const existingTradePlanId = searchParams.get('trade_plan_id') ?? '';
   const candidateOrigin =
     searchParams.has('candidate_id') && searchParams.has('candidate_evaluation_id');
 
@@ -53,10 +55,15 @@ export function TradePlanWorkflowPage() {
     next.set('underlying_id', item.id);
     next.delete('candidate_id');
     next.delete('candidate_evaluation_id');
+    next.delete('trade_plan_id');
     setSearchParams(next);
     setResults([]);
     setQuery(underlyingLabel(item));
     setSearchMessage(`Basiswert gewählt: ${underlyingLabel(item)}`);
+  }
+
+  if (existingTradePlanId) {
+    return <ExistingTradePlanPage tradePlanId={existingTradePlanId} />;
   }
 
   return (
