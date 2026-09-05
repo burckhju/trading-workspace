@@ -15,7 +15,7 @@ from app.database.dependencies import get_database_session
 from app.features.trade_plan.domain.enums import TradePlanOriginType, TradePlanStatus
 from app.features.trade_plan.persistence.models import TradePlanModel, TradePlanVersionModel
 
-router = APIRouter()
+router = APIRouter(prefix="/api/v1/trade-plans", tags=["trade-plans"])
 WORKSPACE_ID = UUID("00000000-0000-4000-8000-000000000001")
 
 
