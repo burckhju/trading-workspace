@@ -100,9 +100,7 @@ export function WarrantAdminPageWithDelete() {
                 disabled={busy || warrants.length === 0}
                 className="mt-1 w-full rounded border border-slate-700 bg-slate-950 p-2"
               >
-                {warrants.length === 0 && (
-                  <option value="">Keine Optionsscheine vorhanden</option>
-                )}
+                {warrants.length === 0 && <option value="">Keine Optionsscheine vorhanden</option>}
                 {warrants.map((warrant) => (
                   <option key={warrant.id} value={warrant.id}>
                     {warrant.display_name} · {warrant.isin ?? warrant.wkn ?? 'ohne Kennnummer'}
@@ -122,10 +120,7 @@ export function WarrantAdminPageWithDelete() {
         )}
 
         {error && (
-          <p
-            role="alert"
-            className="mt-3 rounded border border-rose-800 p-3 text-sm text-rose-200"
-          >
+          <p role="alert" className="mt-3 rounded border border-rose-800 p-3 text-sm text-rose-200">
             {error}
           </p>
         )}
