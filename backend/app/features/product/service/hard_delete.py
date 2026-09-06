@@ -69,7 +69,8 @@ class WarrantHardDeleteService:
         except IntegrityError as error:
             await self._session.rollback()
             raise WarrantDeleteBlocked(
-                "Der Optionsschein wird bereits historisch oder operativ verwendet und kann nicht gelöscht werden."
+                "Der Optionsschein wird bereits historisch oder operativ verwendet "
+                "und kann nicht gelöscht werden."
             ) from error
         except Exception:
             await self._session.rollback()
