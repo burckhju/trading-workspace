@@ -98,9 +98,13 @@ async def test_maps_missing_and_error_health_without_creating_alert_actions() ->
         trade_id = uuid4()
         action = _action(action_type="OPEN_POSITION_MANAGEMENT", resource_id=trade_id)
 
-        async def health_reader(_trade_id, current_status=status):
+        async def health_reader(
+            _trade_id,
+            current_status=status,
+            current_trade_id=trade_id,
+        ):
             return PositionMonitoringHealth(
-                trade_id=trade_id,
+                trade_id=current_trade_id,
                 position_id=uuid4(),
                 status=current_status,
                 reason="TEST",
