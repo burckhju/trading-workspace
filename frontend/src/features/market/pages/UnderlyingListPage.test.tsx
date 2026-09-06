@@ -99,6 +99,7 @@ describe('UnderlyingListPage', () => {
       'href',
       '/underlyings/11111111-1111-4111-8111-111111111111',
     );
+    expect(screen.getByRole('status')).toHaveTextContent('1 Treffer');
     expect(screen.getByText('SIE · Xetra · EUR')).toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'Xetra · XETR' })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'EUR · Euro' })).toBeInTheDocument();
