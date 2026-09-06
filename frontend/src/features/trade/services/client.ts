@@ -11,6 +11,7 @@ import type {
   TradeManagementEventResponse,
   TradeManagementStateResponse,
   TradeResponse,
+  TradeTimelineEntryResponse,
 } from '../types/api';
 
 const tradePositionUrl = `${environment.apiBaseUrl}/api/v1/trade-position`;
@@ -42,6 +43,9 @@ export const tradeManagementApiClient = {
 
   managementState: (tradeId: string, signal?: AbortSignal): Promise<TradeManagementStateResponse> =>
     requestJson<TradeManagementStateResponse>(tradeUrl(tradeId, '/management'), { signal }),
+
+  timeline: (tradeId: string, signal?: AbortSignal): Promise<TradeTimelineEntryResponse[]> =>
+    requestJson<TradeTimelineEntryResponse[]>(tradeUrl(tradeId, '/timeline'), { signal }),
 
   sell: (tradeId: string, request: SaleRequest): Promise<SaleResponse> =>
     requestJson<SaleResponse>(tradeUrl(tradeId, '/sales'), {
