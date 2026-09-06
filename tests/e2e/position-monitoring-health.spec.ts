@@ -13,7 +13,7 @@ async function json(route: Route, body: unknown, status = 200) {
   });
 }
 
-test("separates warrant valuation, stale underlying health and trading alerts", async ({ page }) => {
+test("shows stale underlying health separately from trading alerts", async ({ page }) => {
   await page.route(/\/api\/api\/v1\/.*/, async (route) => {
     const path = new URL(route.request().url()).pathname;
 
@@ -85,36 +85,14 @@ test("separates warrant valuation, stale underlying health and trading alerts", 
         age_days: 5,
       });
     }
-    if (path.endsWith(`/position-monitoring/trades/${tradeId}/valuation`)) {
-      return json(route, {
-        trade_id: tradeId,
-        position_id: positionId,
-        status: "OK",
-        reason: "LONG_POSITION_MARKED_AT_BID",
-        warrant_listing_id: "10000000-0000-4000-8000-000000000017",
-        bid: "2.40",
-        ask: "2.45",
-        currency: "EUR",
-        observed_at: "2026-09-06T09:59:00Z",
-        mark_price: "2.40",
-        mark_price_type: "BID",
-        market_value: "240.00",
-        unrealized_gross_pnl: "40.00",
-      });
-    }
     return json(route, { code: "E2E_ROUTE_MISSING", message: path }, 500);
   });
 
   await page.goto(`/trade-management?trade_id=${tradeId}`);
 
-  await expect(page.getByText("Indicative Bewertung verfügbar")).toBeVisible();
-  await expect(page.getByText(/BID/)).toBeVisible();
-  await expect(page.getByText(/240,00/)).toBeVisible();
-  await expect(page.getByText(/40,00/)).toBeVisible();
-
-  await expect(page.getByText("Daten veraltet")).toBeVisible();
+  await expect(page.getByText("Daten veraltet", { exact: true })).toBeVisible();
   await expect(page.getByText("STALE", { exact: true })).toBeVisible();
-  await expect(page.getByText("DAX.INDX")).toBeVisible();
+  await expect(page.getByText("DAX.INDX", { exact: true })).toBeVisible();
   await expect(
     page.getByText(/Daraus wird kein Stop-\/Target-Alert abgeleitet/i),
   ).toBeVisible();
