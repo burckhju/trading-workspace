@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { tradeManagementApiClient } from '../services/client';
@@ -91,8 +91,8 @@ describe('ProductValuationPanel', () => {
 
     const { container } = render(<ProductValuationPanel tradeId="trade-1" />);
 
-    await vi.waitFor(() => expect(api.position).toHaveBeenCalled());
+    await waitFor(() => expect(container).toBeEmptyDOMElement());
+    expect(api.position).toHaveBeenCalled();
     expect(api.productValuation).not.toHaveBeenCalled();
-    expect(container).toBeEmptyDOMElement();
   });
 });
