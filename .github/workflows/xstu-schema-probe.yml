@@ -18,19 +18,98 @@ jobs:
           python-version: '3.12'
       - name: Install backend runtime dependencies
         run: python -m pip install --requirement backend/requirements.txt
-      - name: Download one officially resolved XSTU payload and print structural schema only
+      - name: Download and validate one officially resolved XSTU payload
         shell: bash
         run: |
           set -euo pipefail
           python - <<'PY'
+          import gzip
+          import json
+          import re
           import urllib.request
+          from datetime import datetime
+          from decimal import Decimal, InvalidOperation
           from pathlib import Path
 
-          url = "https://d3s5kssjdy247b.cloudfront.net/XSTU-pretrade-20260904T1311.json.gz?Expires=1789132260&Signature=fV5anp7Z~O5ppbTKqMOIiC203dpNNsFsZldqACItECeRDumoUMZM7l8Pp1AfKAwoOCjhQT8d7~lv2XCRala20KqMB0ZQHC-kJpgKMOLa43YJumXmonvJMnArV2dw8M7uUEuLsRUsN41D5flVTiF46Yn9zWikXv-KMwNeOaSInSMKt8BJLp9qfIsdCURX320HNEx37VY~qMeacVceONPNR62tTvWKxs8oIoTbB-x9K90To5u5VgZmP7nNBT1H9adeFWyAlkCoHJ74kN5stv7MU4AVR55AbJh6RhJxJ9Ag0~4s7pJEyxzTqOGUA2UCq4pIZLnslRX~OLGMiXEO4khBmQ__&Key-Pair-Id=K3HU6T4VCENDE8"
+          import httpx
+
+          index = (
+              "https://www.boerse-stuttgart.de/de-de/fuer-geschaeftspartner/reports/"
+              "mifir-ii-delayed-data/xstu-pre-trade/"
+          )
+          signed_url = "https://d3s5kssjdy247b.cloudfront.net/XSTU-pretrade-20260904T1311.json.gz?Expires=1789132260&Signature=fV5anp7Z~O5ppbTKqMOIiC203dpNNsFsZldqACItECeRDumoUMZM7l8Pp1AfKAwoOCjhQT8d7~lv2XCRala20KqMB0ZQHC-kJpgKMOLa43YJumXmonvJMnArV2dw8M7uUEuLsRUsN41D5flVTiF46Yn9zWikXv-KMwNeOaSInSMKt8BJLp9qfIsdCURX320HNEx37VY~qMeacVceONPNR62tTvWKxs8oIoTbB-x9K90To5u5VgZmP7nNBT1H9adeFWyAlkCoHJ74kN5stv7MU4AVR55AbJh6RhJxJ9Ag0~4s7pJEyxzTqOGUA2UCq4pIZLnslRX~OLGMiXEO4khBmQ__&Key-Pair-Id=K3HU6T4VCENDE8"
+
+          with httpx.Client(timeout=30.0, follow_redirects=False) as client:
+              index_response = client.get(index)
+              print(f"httpx_index_status={index_response.status_code}")
+              short_match = re.search(
+                  r'href=["\'](?P<href>[^"\']*ddl\.service\.boerse-stuttgart\.de[^"\']*)["\']',
+                  index_response.text,
+                  flags=re.I,
+              )
+              if short_match:
+                  short_response = client.get(short_match.group("href"))
+                  print(f"httpx_shortlink_status={short_response.status_code}")
+                  print(f"httpx_shortlink_has_location={bool(short_response.headers.get('location'))}")
+              else:
+                  print("httpx_shortlink_found=false")
+
           target = Path("/tmp/xstu.json.gz")
-          with urllib.request.urlopen(url, timeout=60) as response:
+          with urllib.request.urlopen(signed_url, timeout=60) as response:
               target.write_bytes(response.read())
           print("source_file=XSTU-pretrade-20260904T1311.json.gz")
           print(f"downloaded_bytes={target.stat().st_size}")
+
+          payload = json.loads(gzip.decompress(target.read_bytes()).decode("utf-8"))
+          fields = (
+              "Isin",
+              "VenueOfPublication",
+              "Bid",
+              "Ask",
+              "PriceCurrency",
+              "TransactionTimestamp",
+          )
+          missing = {field: 0 for field in fields}
+          timestamp_failures = 0
+          timestamp_naive = 0
+          nonpositive_bid = 0
+          nonpositive_ask = 0
+          for record in payload:
+              for field in fields:
+                  if record.get(field) is None:
+                      missing[field] += 1
+              value = record.get("TransactionTimestamp")
+              if value is not None:
+                  try:
+                      parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+                  except ValueError:
+                      timestamp_failures += 1
+                  else:
+                      if parsed.tzinfo is None:
+                          timestamp_naive += 1
+              for field, counter_name in (("Bid", "bid"), ("Ask", "ask")):
+                  raw = record.get(field)
+                  if raw is None:
+                      continue
+                  try:
+                      price = Decimal(str(raw))
+                  except InvalidOperation:
+                      if counter_name == "bid":
+                          nonpositive_bid += 1
+                      else:
+                          nonpositive_ask += 1
+                      continue
+                  if price <= 0:
+                      if counter_name == "bid":
+                          nonpositive_bid += 1
+                      else:
+                          nonpositive_ask += 1
+          print(f"records={len(payload)}")
+          for field in fields:
+              print(f"missing_{field}={missing[field]}")
+          print(f"timestamp_parse_failures={timestamp_failures}")
+          print(f"timestamp_naive={timestamp_naive}")
+          print(f"nonpositive_bid={nonpositive_bid}")
+          print(f"nonpositive_ask={nonpositive_ask}")
           PY
           PYTHONPATH=backend python -m app.providers.stuttgart_delayed.schema_probe /tmp/xstu.json.gz
