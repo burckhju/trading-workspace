@@ -23,7 +23,9 @@ export function WarrantAdminPageWithDelete() {
       setWarrants(response);
       setSelectedId(response[0]?.id ?? '');
     } catch (value: unknown) {
-      setError(value instanceof Error ? value.message : 'Optionsscheine konnten nicht geladen werden.');
+      setError(
+        value instanceof Error ? value.message : 'Optionsscheine konnten nicht geladen werden.',
+      );
     } finally {
       setBusy(false);
     }
@@ -121,7 +123,10 @@ export function WarrantAdminPageWithDelete() {
         )}
 
         {error && (
-          <p role="alert" className="mt-3 rounded border border-rose-800 p-3 text-sm text-rose-200">
+          <p
+            role="alert"
+            className="mt-3 rounded border border-rose-800 p-3 text-sm text-rose-200"
+          >
             {error}
           </p>
         )}
