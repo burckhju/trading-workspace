@@ -226,9 +226,13 @@ class StuttgartDelayedWarrantQuoteAdapter:
                         capability=MarketDataCapability.WARRANT_LISTING_QUOTE,
                     )
                 if row_bid is not None:
-                    selected_bid = max(selected_bid, row_bid) if selected_bid is not None else row_bid
+                    selected_bid = (
+                        max(selected_bid, row_bid) if selected_bid is not None else row_bid
+                    )
                 if row_ask is not None:
-                    selected_ask = min(selected_ask, row_ask) if selected_ask is not None else row_ask
+                    selected_ask = (
+                        min(selected_ask, row_ask) if selected_ask is not None else row_ask
+                    )
 
         if selected_at is None or (selected_bid is None and selected_ask is None):
             return None
