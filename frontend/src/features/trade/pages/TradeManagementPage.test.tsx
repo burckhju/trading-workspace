@@ -180,7 +180,9 @@ describe('TradeManagementPage', () => {
     expect(await screen.findByRole('heading', { name: 'CLOSED' })).toBeInTheDocument();
     expect(screen.getAllByText('Nachbeobachtung starten')).toHaveLength(2);
     expect(
-      screen.getByText('Die Position ist geschlossen. Weitere Verkäufe können nicht erfasst werden.'),
+      screen.getByText(
+        'Die Position ist geschlossen. Weitere Verkäufe können nicht erfasst werden.',
+      ),
     ).toBeInTheDocument();
     expect(
       screen.queryByRole('button', { name: 'Teilverkauf erfassen' }),
