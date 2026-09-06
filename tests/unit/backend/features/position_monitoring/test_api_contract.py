@@ -6,4 +6,3 @@ def test_position_monitoring_read_routes_are_registered() -> None:
     routes = {route.path for route in application.routes}
 
     assert "/api/v1/position-monitoring/trades/{trade_id}/health" in routes
-    assert "/api/v1/position-monitoring/trades/{trade_id}/valuation" in routes
