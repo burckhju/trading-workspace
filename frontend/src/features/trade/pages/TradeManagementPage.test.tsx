@@ -184,9 +184,7 @@ describe('TradeManagementPage', () => {
         'Die Position ist geschlossen. Weitere Verkäufe können nicht erfasst werden.',
       ),
     ).toBeInTheDocument();
-    expect(
-      screen.queryByRole('button', { name: 'Teilverkauf erfassen' }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Teilverkauf erfassen' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Nachbeobachtung starten' })).toBeInTheDocument();
   });
 
