@@ -1,10 +1,18 @@
 import { useEffect, useState } from 'react';
 
 import { alertApiClient } from '../services/client';
-import type { AlertResponse, NotificationResponse } from '../types/api';
+import type {
+  AlertResponse,
+  NotificationResponse,
+  PositionMonitoringHealthResponse,
+} from '../types/api';
 
 function formatDateTime(value: string | null): string {
   return value ? new Date(value).toLocaleString('de-DE') : '—';
+}
+
+function formatDate(value: string | null): string {
+  return value ? new Date(`${value}T00:00:00`).toLocaleDateString('de-DE') : '—';
 }
 
 function formatNumber(value: string): string {
@@ -23,8 +31,29 @@ function notificationLabel(notification: NotificationResponse): string {
   return `${notification.channel}: ausstehend`;
 }
 
+function healthLabel(health: PositionMonitoringHealthResponse): string {
+  if (health.status === 'OK') return 'Daten aktuell';
+  if (health.status === 'STALE') return 'Daten veraltet';
+  if (health.status === 'MISSING') return 'Daten fehlen';
+  return 'Datenproblem';
+}
+
+function healthExplanation(health: PositionMonitoringHealthResponse): string {
+  if (health.status === 'OK') {
+    return 'Die Underlying-Marktdaten sind für die Stop-/Target-Überwachung aktuell genug.';
+  }
+  if (health.status === 'STALE') {
+    return 'Die letzten completed-daily Underlying-Daten sind zu alt. Daraus wird kein Stop-/Target-Alert abgeleitet.';
+  }
+  if (health.status === 'MISSING') {
+    return 'Es liegen keine completed-daily Underlying-Daten vor. Daraus wird kein Stop-/Target-Alert abgeleitet.';
+  }
+  return 'Die Monitoring-Daten konnten nicht verlässlich ausgewertet werden. Es wird kein scheinbar normaler Stop-/Target-Zustand angenommen.';
+}
+
 export function TradeAlertsPanel({ tradeId }: { tradeId: string }) {
   const [alerts, setAlerts] = useState<AlertResponse[]>([]);
+  const [health, setHealth] = useState<PositionMonitoringHealthResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -32,9 +61,17 @@ export function TradeAlertsPanel({ tradeId }: { tradeId: string }) {
     const controller = new AbortController();
     setLoading(true);
     setError(null);
-    alertApiClient
-      .forTrade(tradeId, controller.signal)
-      .then(setAlerts)
+    setHealth(null);
+
+    const alertsRequest = alertApiClient.forTrade(tradeId, controller.signal).then(setAlerts);
+    const healthRequest = alertApiClient
+      .monitoringHealth(tradeId, controller.signal)
+      .then(setHealth)
+      .catch(() => {
+        if (!controller.signal.aborted) setHealth(null);
+      });
+
+    Promise.all([alertsRequest, healthRequest])
       .catch((reason: unknown) => {
         if (!controller.signal.aborted) {
           setError(
@@ -62,13 +99,55 @@ export function TradeAlertsPanel({ tradeId }: { tradeId: string }) {
             Positions-Alerts
           </h2>
           <p className="mt-1 text-xs text-slate-500">
-            Fachliche Alerts und Notification-Delivery werden getrennt dargestellt.
+            Underlying-Datenzustand, fachliche Alerts und Notification-Delivery werden getrennt
+            dargestellt.
           </p>
         </div>
         <span className="rounded-full border border-slate-700 px-3 py-1 text-xs">
           {openCount} offen
         </span>
       </div>
+
+      {health && (
+        <div className="mt-4 rounded-lg border border-slate-800 p-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-xs uppercase tracking-wide text-slate-500">Marktdatenstatus</p>
+              <p className="mt-1 font-medium">{healthLabel(health)}</p>
+            </div>
+            <span className="rounded-full border border-slate-700 px-2.5 py-1 text-xs">
+              {health.status}
+            </span>
+          </div>
+          <p className="mt-2 text-sm text-slate-400">{healthExplanation(health)}</p>
+          <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+            <div>
+              <dt className="text-slate-500">Underlying</dt>
+              <dd className="mt-1">{health.symbol ?? '—'}</dd>
+            </div>
+            <div>
+              <dt className="text-slate-500">Handelstag</dt>
+              <dd className="mt-1">{formatDate(health.trading_date)}</dd>
+            </div>
+            <div>
+              <dt className="text-slate-500">Datenzeitpunkt</dt>
+              <dd className="mt-1">{formatDateTime(health.market_data_observed_at)}</dd>
+            </div>
+            <div>
+              <dt className="text-slate-500">Alter</dt>
+              <dd className="mt-1">
+                {health.age_days === null ? '—' : `${health.age_days} Tag(e)`}
+              </dd>
+            </div>
+          </dl>
+          {health.status !== 'OK' && (
+            <details className="mt-3 text-xs text-slate-500">
+              <summary className="cursor-pointer">Technischen Grund anzeigen</summary>
+              <p className="mt-2 break-all">{health.reason}</p>
+            </details>
+          )}
+        </div>
+      )}
 
       {loading && <p className="mt-4 text-sm text-slate-400">Alerts werden geladen…</p>}
       {error && (
