@@ -76,9 +76,7 @@ def _context(*, external: bool = False):
         cost_basis=Decimal("20.00"),
     )
     evaluation = (
-        None
-        if external
-        else SimpleNamespace(id=evaluation_id, warrant_listing_id=listing_id)
+        None if external else SimpleNamespace(id=evaluation_id, warrant_listing_id=listing_id)
     )
     listing = SimpleNamespace(
         id=listing_id,
