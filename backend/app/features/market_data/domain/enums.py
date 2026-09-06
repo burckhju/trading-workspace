@@ -7,6 +7,7 @@ class MarketDataProvider(StrEnum):
     """Supported external market-data providers."""
 
     EODHD = "EODHD"
+    BOERSE_STUTTGART_DELAYED = "BOERSE_STUTTGART_DELAYED"
 
 
 class MarketDataCapability(StrEnum):
