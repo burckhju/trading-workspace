@@ -9,7 +9,9 @@ from app.features.position_monitoring.api.dtos import (
     ProductPositionValuationResponse,
 )
 from app.features.position_monitoring.service.health import PositionMonitoringHealthService
-from app.features.position_monitoring.service.product_valuation import ProductPositionValuationService
+from app.features.position_monitoring.service.product_valuation import (
+    ProductPositionValuationService,
+)
 from app.providers.eodhd.warrant_quote import EodhdWarrantQuoteAdapter
 
 router = APIRouter(prefix="/api/v1/position-monitoring", tags=["position-monitoring"])
