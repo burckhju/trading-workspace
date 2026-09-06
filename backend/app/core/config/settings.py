@@ -67,10 +67,61 @@ class EodhdSettings(BaseModel):
         return SecretStr(secret) if secret else None
 
 
+class StuttgartDelayedSettings(BaseModel):
+    """Fail-closed configuration for the official XSTU delayed pre-trade feed."""
+
+    enabled: bool = False
+    index_url: str = (
+        "https://www.boerse-stuttgart.de/de-de/fuer-geschaeftspartner/reports/"
+        "mifir-ii-delayed-data/xstu-pre-trade/"
+    )
+    schema_version: str | None = None
+    records_path: str | None = None
+    isin_field: str | None = None
+    mic_field: str | None = None
+    side_field: str | None = None
+    price_field: str | None = None
+    currency_field: str | None = None
+    observed_at_field: str | None = None
+    bid_side_value: str = "BID"
+    ask_side_value: str = "ASK"
+    timeout_seconds: Annotated[float, Field(gt=0, le=60)] = 15.0
+
+    @field_validator("index_url")
+    @classmethod
+    def validate_index_url(cls, value: str) -> str:
+        from urllib.parse import urlparse
+
+        normalized = value.strip()
+        parsed = urlparse(normalized)
+        if parsed.scheme != "https" or parsed.hostname not in {
+            "www.boerse-stuttgart.de",
+            "boerse-stuttgart.de",
+        }:
+            raise ValueError("Stuttgart delayed index_url must use the official HTTPS host")
+        return normalized
+
+    @property
+    def has_verified_schema(self) -> bool:
+        """Only explicit complete field mapping is considered activation-ready."""
+        required = (
+            self.schema_version,
+            self.records_path,
+            self.isin_field,
+            self.mic_field,
+            self.side_field,
+            self.price_field,
+            self.currency_field,
+            self.observed_at_field,
+        )
+        return all(value is not None and value.strip() for value in required)
+
+
 class MarketDataSettings(BaseModel):
     """Settings for market-data infrastructure and providers."""
 
     eodhd: EodhdSettings = Field(default_factory=EodhdSettings)
+    stuttgart_delayed: StuttgartDelayedSettings = Field(default_factory=StuttgartDelayedSettings)
 
 
 class PositionMonitoringSettings(BaseModel):
