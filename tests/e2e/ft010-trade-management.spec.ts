@@ -186,7 +186,7 @@ test("manages partial/full exit and explicit management decisions without provid
   await expect(page.getByRole("heading", { name: "OPEN" })).toBeVisible();
   await expect(page.getByRole("heading", { name: /TR-10000000 · DAX Call 19000/ })).toBeVisible();
   await expect(page.getByText("TP-10000000")).toBeVisible();
-  await expect(page.getByText("100 offen")).toBeVisible();
+  await expect(page.getByText("100 offen", { exact: true })).toBeVisible();
   await expect(page.getByText(/keine Broker-Order/i)).toBeVisible();
 
   await page.getByLabel("Verkaufsmenge").fill("40");
@@ -194,7 +194,7 @@ test("manages partial/full exit and explicit management decisions without provid
   await page.getByLabel("Ausführungszeit").fill("2026-08-17T09:30");
   await page.getByRole("button", { name: "Teilverkauf erfassen" }).click();
   await expect.poll(() => salePosts).toBe(1);
-  await expect(page.getByText("60 offen")).toBeVisible();
+  await expect(page.getByText("60 offen", { exact: true })).toBeVisible();
   await expect(page.getByText("20", { exact: true })).toBeVisible();
 
   await page.getByLabel("Stop").fill("1.90");
@@ -214,9 +214,7 @@ test("manages partial/full exit and explicit management decisions without provid
     .fill("Observed volatility after partial exit");
   await page.getByRole("button", { name: "Notiz hinzufügen" }).click();
   await expect.poll(() => notePosts).toBe(1);
-  await expect(
-    page.getByText("Observed volatility after partial exit"),
-  ).toBeVisible();
+  await expect(page.getByText("Observed volatility after partial exit")).toBeVisible();
 
   await page.getByLabel("Verkaufspreis").fill("2.40");
   await expect(page.getByLabel("Verkaufsmenge")).toHaveValue("");
