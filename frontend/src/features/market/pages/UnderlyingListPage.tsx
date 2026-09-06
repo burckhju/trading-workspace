@@ -347,7 +347,9 @@ export function UnderlyingListPage() {
             </table>
           </div>
           <div className="flex items-center justify-between text-sm text-slate-400">
-            <span>{result.total} Treffer</span>
+            <span role="status" aria-live="polite" aria-atomic="true">
+              {result.total} Treffer
+            </span>
             <div className="flex gap-2">
               <button
                 disabled={offset === 0}
