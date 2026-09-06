@@ -44,7 +44,9 @@ describe('WarrantAdminPageWithDelete', () => {
     expect(warrants.list).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Löschverwaltung öffnen' }));
 
-    expect(await screen.findByRole('option', { name: /Siemens Call 180 12\/2026/ })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('option', { name: /Siemens Call 180 12\/2026/ }),
+    ).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Endgültig löschen' }));
 
     await waitFor(() => expect(warrants.delete).toHaveBeenCalledWith(warrant.id, 4));
