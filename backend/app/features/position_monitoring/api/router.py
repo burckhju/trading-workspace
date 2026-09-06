@@ -7,10 +7,15 @@ from app.core.di import ApplicationContainer, get_container
 from app.features.position_monitoring.api.dtos import (
     PositionMonitoringHealthResponse,
     ProductPositionValuationResponse,
+    QuoteSourceAttemptResponse,
 )
 from app.features.position_monitoring.service.health import PositionMonitoringHealthService
 from app.features.position_monitoring.service.product_valuation import (
     ProductPositionValuationService,
+)
+from app.features.position_monitoring.service.quote_sources import (
+    MultiSourceWarrantQuoteResolver,
+    NamedWarrantQuoteSource,
 )
 from app.providers.eodhd.warrant_quote import EodhdWarrantQuoteAdapter
 
@@ -52,6 +57,32 @@ async def get_trade_monitoring_health(
     )
 
 
+def _warrant_quote_resolver() -> MultiSourceWarrantQuoteResolver:
+    return MultiSourceWarrantQuoteResolver(
+        (
+            NamedWarrantQuoteSource("EODHD", EodhdWarrantQuoteAdapter()),
+            NamedWarrantQuoteSource(
+                "BOERSE_STUTTGART_DELAYED",
+                None,
+                delayed=True,
+                unavailable_reason=(
+                    "Official XSTU delayed pre-trade source is reserved but not enabled until "
+                    "its payload schema and listing identity mapping are verified"
+                ),
+            ),
+            NamedWarrantQuoteSource(
+                "GETTEX_DELAYED",
+                None,
+                delayed=True,
+                unavailable_reason=(
+                    "Official MUND/MUNC delayed pre-trade source is reserved but not enabled until "
+                    "payload schema, usage terms, and listing identity are verified"
+                ),
+            ),
+        )
+    )
+
+
 @router.get(
     "/trades/{trade_id}/product-valuation",
     response_model=ProductPositionValuationResponse,
@@ -64,7 +95,7 @@ async def get_trade_product_valuation(
 
     service = ProductPositionValuationService(
         database=container.database,
-        quote_provider=EodhdWarrantQuoteAdapter(),
+        quote_resolver=_warrant_quote_resolver(),
     )
     value = await service.for_trade(trade_id)
     if value is None:
@@ -85,4 +116,17 @@ async def get_trade_product_valuation(
         quote_observed_at=value.quote_observed_at,
         market_value=value.market_value,
         unrealized_gross_pnl=value.unrealized_gross_pnl,
+        selected_source=value.selected_source,
+        source_attempts=tuple(
+            QuoteSourceAttemptResponse(
+                source=attempt.source,
+                status=attempt.status,
+                reason=attempt.reason,
+                delayed=attempt.delayed,
+                observed_at=attempt.observed_at,
+                bid_available=attempt.bid_available,
+                ask_available=attempt.ask_available,
+            )
+            for attempt in value.source_attempts
+        ),
     )

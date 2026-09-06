@@ -11,8 +11,13 @@ from sqlalchemy import select
 from app.database import DatabaseManager
 from app.features.market_data.domain.enums import QualityStatus
 from app.features.market_data.service.contracts import WarrantListingQuoteProvider
-from app.features.market_data.service.errors import MarketDataConfigurationError
 from app.features.market_data.service.types import WarrantQuoteRequest
+from app.features.position_monitoring.service.quote_sources import (
+    MultiSourceWarrantQuoteResolver,
+    NamedWarrantQuoteSource,
+    QuoteSourceAttempt,
+    QuoteSourceAttemptStatus,
+)
 from app.features.product.persistence.models import WarrantListingModel
 from app.features.product_selection.persistence.models import ProductEvaluationModel
 from app.features.trade_position.persistence.models import PositionModel, TradeModel
@@ -39,6 +44,8 @@ class ProductPositionValuation:
     quote_observed_at: datetime | None = None
     market_value: Decimal | None = None
     unrealized_gross_pnl: Decimal | None = None
+    selected_source: str | None = None
+    source_attempts: tuple[QuoteSourceAttempt, ...] = ()
 
 
 class ProductPositionValuationService:
@@ -48,10 +55,16 @@ class ProductPositionValuationService:
         self,
         *,
         database: DatabaseManager,
-        quote_provider: WarrantListingQuoteProvider | None,
+        quote_provider: WarrantListingQuoteProvider | None = None,
+        quote_resolver: MultiSourceWarrantQuoteResolver | None = None,
     ) -> None:
         self._database = database
-        self._quote_provider = quote_provider
+        self._legacy_single_source = quote_resolver is None and quote_provider is not None
+        self._quote_resolver = quote_resolver
+        if self._quote_resolver is None and quote_provider is not None:
+            self._quote_resolver = MultiSourceWarrantQuoteResolver(
+                (NamedWarrantQuoteSource("PRIMARY", quote_provider),)
+            )
 
     async def for_trade(self, trade_id: UUID) -> ProductPositionValuation | None:
         async with self._database.session_context() as session:
@@ -105,7 +118,7 @@ class ProductPositionValuationService:
                     warrant_listing_id=evaluation.warrant_listing_id,
                 )
 
-            if self._quote_provider is None:
+            if self._quote_resolver is None:
                 return ProductPositionValuation(
                     trade_id=trade_id,
                     position_id=position.id,
@@ -115,44 +128,70 @@ class ProductPositionValuationService:
                     reason="WARRANT_QUOTE_PROVIDER_UNAVAILABLE",
                 )
 
-            try:
-                result = await self._quote_provider.get_warrant_listing_quote(
-                    WarrantQuoteRequest(
-                        workspace_id=trade.workspace_id,
+            resolution = await self._quote_resolver.resolve(
+                WarrantQuoteRequest(
+                    workspace_id=trade.workspace_id,
+                    warrant_listing_id=listing.id,
+                    correlation_id=uuid4(),
+                    as_of=datetime.now(UTC),
+                )
+            )
+            result = resolution.result
+            if result is None:
+                if self._legacy_single_source and len(resolution.attempts) == 1:
+                    attempt = resolution.attempts[0]
+                    if attempt.status is QuoteSourceAttemptStatus.MISSING:
+                        status = ProductValuationStatus.MISSING
+                        reason = "WARRANT_QUOTE_MISSING"
+                    elif attempt.status is QuoteSourceAttemptStatus.INSUFFICIENT:
+                        if attempt.reason == "BID_MISSING":
+                            status = ProductValuationStatus.MISSING
+                            reason = "WARRANT_BID_MISSING"
+                        else:
+                            status = ProductValuationStatus.ERROR
+                            reason = f"WARRANT_QUOTE_{attempt.reason}"
+                    elif attempt.status is QuoteSourceAttemptStatus.UNAVAILABLE:
+                        status = ProductValuationStatus.UNAVAILABLE
+                        reason = "WARRANT_QUOTE_CAPABILITY_NOT_CONFIGURED"
+                    else:
+                        status = ProductValuationStatus.ERROR
+                        reason = (
+                            "WARRANT_QUOTE_LISTING_MISMATCH"
+                            if attempt.reason == "WARRANT_LISTING_MISMATCH"
+                            else "WARRANT_QUOTE_REQUEST_FAILED"
+                        )
+                    return ProductPositionValuation(
+                        trade_id=trade_id,
+                        position_id=position.id,
                         warrant_listing_id=listing.id,
-                        correlation_id=uuid4(),
-                        as_of=datetime.now(UTC),
+                        symbol=listing.symbol,
+                        status=status,
+                        reason=reason,
+                        source_attempts=resolution.attempts,
                     )
-                )
-            except MarketDataConfigurationError:
+
+                statuses = {attempt.status for attempt in resolution.attempts}
+                if statuses & {
+                    QuoteSourceAttemptStatus.MISSING,
+                    QuoteSourceAttemptStatus.INSUFFICIENT,
+                }:
+                    status = ProductValuationStatus.MISSING
+                elif statuses == {QuoteSourceAttemptStatus.ERROR}:
+                    status = ProductValuationStatus.ERROR
+                else:
+                    status = ProductValuationStatus.UNAVAILABLE
                 return ProductPositionValuation(
                     trade_id=trade_id,
                     position_id=position.id,
                     warrant_listing_id=listing.id,
                     symbol=listing.symbol,
-                    status=ProductValuationStatus.UNAVAILABLE,
-                    reason="WARRANT_QUOTE_CAPABILITY_NOT_CONFIGURED",
-                )
-            except Exception:
-                return ProductPositionValuation(
-                    trade_id=trade_id,
-                    position_id=position.id,
-                    warrant_listing_id=listing.id,
-                    symbol=listing.symbol,
-                    status=ProductValuationStatus.ERROR,
-                    reason="WARRANT_QUOTE_REQUEST_FAILED",
+                    status=status,
+                    reason="NO_USABLE_WARRANT_QUOTE",
+                    source_attempts=resolution.attempts,
                 )
 
             quote = result.data
-            if quote is None:
-                return ProductPositionValuation(
-                    trade_id=trade_id,
-                    position_id=position.id,
-                    warrant_listing_id=listing.id,
-                    symbol=listing.symbol,
-                    status=ProductValuationStatus.MISSING,
-                    reason="WARRANT_QUOTE_MISSING",
-                )
+            assert quote is not None
             if quote.warrant_listing_id != listing.id:
                 return ProductPositionValuation(
                     trade_id=trade_id,
@@ -161,6 +200,8 @@ class ProductPositionValuationService:
                     symbol=listing.symbol,
                     status=ProductValuationStatus.ERROR,
                     reason="WARRANT_QUOTE_LISTING_MISMATCH",
+                    selected_source=resolution.selected_source,
+                    source_attempts=resolution.attempts,
                 )
             if quote.currency != listing.quotation_currency_code:
                 return ProductPositionValuation(
@@ -174,31 +215,23 @@ class ProductPositionValuationService:
                     ask=quote.ask,
                     currency=quote.currency,
                     quote_observed_at=quote.observed_at,
+                    selected_source=resolution.selected_source,
+                    source_attempts=resolution.attempts,
                 )
-            if result.quality_status is not QualityStatus.VALID:
+            if result.quality_status is not QualityStatus.VALID or quote.bid is None:
                 return ProductPositionValuation(
                     trade_id=trade_id,
                     position_id=position.id,
                     warrant_listing_id=listing.id,
                     symbol=listing.symbol,
                     status=ProductValuationStatus.ERROR,
-                    reason=f"WARRANT_QUOTE_QUALITY_{result.quality_status.value}",
+                    reason="SELECTED_WARRANT_QUOTE_INVALID",
                     bid=quote.bid,
                     ask=quote.ask,
                     currency=quote.currency,
                     quote_observed_at=quote.observed_at,
-                )
-            if quote.bid is None:
-                return ProductPositionValuation(
-                    trade_id=trade_id,
-                    position_id=position.id,
-                    warrant_listing_id=listing.id,
-                    symbol=listing.symbol,
-                    status=ProductValuationStatus.MISSING,
-                    reason="WARRANT_BID_MISSING",
-                    ask=quote.ask,
-                    currency=quote.currency,
-                    quote_observed_at=quote.observed_at,
+                    selected_source=resolution.selected_source,
+                    source_attempts=resolution.attempts,
                 )
 
             market_value = quote.bid * Decimal(position.open_quantity)
@@ -215,4 +248,6 @@ class ProductPositionValuationService:
                 quote_observed_at=quote.observed_at,
                 market_value=market_value,
                 unrealized_gross_pnl=market_value - position.cost_basis,
+                selected_source=resolution.selected_source,
+                source_attempts=resolution.attempts,
             )

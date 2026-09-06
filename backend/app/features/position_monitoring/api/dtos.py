@@ -6,6 +6,7 @@ from pydantic import BaseModel
 
 from app.features.position_monitoring.service.health import MonitoringHealthStatus
 from app.features.position_monitoring.service.product_valuation import ProductValuationStatus
+from app.features.position_monitoring.service.quote_sources import QuoteSourceAttemptStatus
 
 
 class PositionMonitoringHealthResponse(BaseModel):
@@ -17,6 +18,16 @@ class PositionMonitoringHealthResponse(BaseModel):
     trading_date: date | None
     market_data_observed_at: datetime | None
     age_days: int | None
+
+
+class QuoteSourceAttemptResponse(BaseModel):
+    source: str
+    status: QuoteSourceAttemptStatus
+    reason: str
+    delayed: bool
+    observed_at: datetime | None
+    bid_available: bool
+    ask_available: bool
 
 
 class ProductPositionValuationResponse(BaseModel):
@@ -32,3 +43,5 @@ class ProductPositionValuationResponse(BaseModel):
     quote_observed_at: datetime | None
     market_value: Decimal | None
     unrealized_gross_pnl: Decimal | None
+    selected_source: str | None
+    source_attempts: tuple[QuoteSourceAttemptResponse, ...]
