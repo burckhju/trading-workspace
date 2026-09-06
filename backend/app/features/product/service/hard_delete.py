@@ -28,10 +28,12 @@ class WarrantHardDeleteService:
 
     async def delete(self, workspace_id: UUID, warrant_id: UUID, expected_version: int) -> None:
         warrant = await self._session.scalar(
-            select(WarrantModel).where(
+            select(WarrantModel)
+            .where(
                 WarrantModel.workspace_id == workspace_id,
                 WarrantModel.id == warrant_id,
             )
+            .with_for_update()
         )
         if warrant is None:
             raise WarrantNotFound("Warrant does not exist")
@@ -60,6 +62,7 @@ class WarrantHardDeleteService:
                 delete(WarrantModel).where(
                     WarrantModel.workspace_id == workspace_id,
                     WarrantModel.id == warrant_id,
+                    WarrantModel.version == expected_version,
                 )
             )
             await self._session.commit()
