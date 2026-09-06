@@ -178,7 +178,11 @@ def main(argv: list[str] | None = None) -> int:
             "without printing quote values or changing application configuration."
         )
     )
-    parser.add_argument("payload", type=Path, help="Path to an official XSTU-pretrade-*.json.gz file")
+    parser.add_argument(
+        "payload",
+        type=Path,
+        help="Path to an official XSTU-pretrade-*.json.gz file",
+    )
     args = parser.parse_args(argv)
     payload = load_gzipped_json(args.payload)
     print(render_report(payload))
