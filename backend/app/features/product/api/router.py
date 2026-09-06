@@ -7,13 +7,17 @@ from decimal import Decimal
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, Response as FastAPIResponse, status
+from fastapi import APIRouter, Depends, Query, Response, status
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.dependencies import get_database_session
 from app.features.product.api.errors import translate_product_error
-from app.features.product.domain.models import OptionDirection, ProductFamily, WarrantLifecycle
+from app.features.product.domain.models import (
+    OptionDirection,
+    ProductFamily,
+    WarrantLifecycle,
+)
 from app.features.product.service.application import WarrantService
 from app.features.product.service.hard_delete import WarrantHardDeleteService
 
@@ -25,7 +29,7 @@ class Request(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
-class Response(BaseModel):
+class ResponseModel(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -59,7 +63,7 @@ class ListingRequest(Request):
     quotation_currency_code: str = Field(min_length=3, max_length=3, pattern=r"^[A-Za-z]{3}$")
 
 
-class WarrantResponse(Response):
+class WarrantResponse(ResponseModel):
     id: UUID
     workspace_id: UUID
     issuer_id: UUID
@@ -74,7 +78,7 @@ class WarrantResponse(Response):
     updated_at: datetime
 
 
-class TermsResponse(Response):
+class TermsResponse(ResponseModel):
     id: UUID
     warrant_id: UUID
     version_no: int
@@ -87,7 +91,7 @@ class TermsResponse(Response):
     created_at: datetime
 
 
-class ListingResponse(Response):
+class ListingResponse(ResponseModel):
     id: UUID
     workspace_id: UUID
     warrant_id: UUID
@@ -143,10 +147,10 @@ async def delete_warrant(
     warrant_id: UUID,
     svc: Annotated[WarrantHardDeleteService, Depends(hard_delete_service)],
     version: int = Query(ge=1),
-) -> FastAPIResponse:
+) -> Response:
     try:
         await svc.delete(WORKSPACE_ID, warrant_id, version)
-        return FastAPIResponse(status_code=status.HTTP_204_NO_CONTENT)
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
     except Exception as error:
         raise translate_product_error(error) from error
 
