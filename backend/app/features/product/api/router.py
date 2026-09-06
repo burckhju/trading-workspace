@@ -141,11 +141,10 @@ async def get_warrant(
 @router.delete("/{warrant_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_warrant(
     warrant_id: UUID,
+    svc: Annotated[WarrantHardDeleteService, Depends(hard_delete_service)],
     version: int = Query(ge=1),
-    svc: Annotated[WarrantHardDeleteService, Depends(hard_delete_service)] = None,
 ) -> FastAPIResponse:
     try:
-        assert svc is not None
         await svc.delete(WORKSPACE_ID, warrant_id, version)
         return FastAPIResponse(status_code=status.HTTP_204_NO_CONTENT)
     except Exception as error:
