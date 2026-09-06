@@ -10,6 +10,12 @@ export type TradeManagementEventType =
   | 'MANAGEMENT_NOTE';
 export type TradeTimelineEntryKind = 'EXECUTION' | 'MANAGEMENT_EVENT';
 export type ProductValuationStatus = 'AVAILABLE' | 'MISSING' | 'UNAVAILABLE' | 'ERROR';
+export type QuoteSourceAttemptStatus =
+  | 'AVAILABLE'
+  | 'MISSING'
+  | 'INSUFFICIENT'
+  | 'UNAVAILABLE'
+  | 'ERROR';
 
 export interface TradeResponse {
   id: Uuid;
@@ -48,6 +54,16 @@ export interface PositionResponse {
   is_closed: boolean;
 }
 
+export interface QuoteSourceAttemptResponse {
+  source: string;
+  status: QuoteSourceAttemptStatus;
+  reason: string;
+  delayed: boolean;
+  observed_at: IsoDateTime | null;
+  bid_available: boolean;
+  ask_available: boolean;
+}
+
 export interface ProductPositionValuationResponse {
   trade_id: Uuid;
   position_id: Uuid;
@@ -61,6 +77,8 @@ export interface ProductPositionValuationResponse {
   quote_observed_at: IsoDateTime | null;
   market_value: string | null;
   unrealized_gross_pnl: string | null;
+  selected_source: string | null;
+  source_attempts: QuoteSourceAttemptResponse[];
 }
 
 export interface InitialPurchaseRequest {
