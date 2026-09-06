@@ -26,8 +26,9 @@ class NamedWarrantQuoteSource:
     """One ordered quote source behind the shared warrant quote boundary."""
 
     name: str
-    provider: WarrantListingQuoteProvider
+    provider: WarrantListingQuoteProvider | None
     delayed: bool = False
+    unavailable_reason: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -61,6 +62,17 @@ class MultiSourceWarrantQuoteResolver:
     async def resolve(self, request: WarrantQuoteRequest) -> MultiSourceWarrantQuoteResolution:
         attempts: list[QuoteSourceAttempt] = []
         for source in self._sources:
+            if source.provider is None:
+                attempts.append(
+                    QuoteSourceAttempt(
+                        source=source.name,
+                        status=QuoteSourceAttemptStatus.UNAVAILABLE,
+                        reason=source.unavailable_reason or "SOURCE_NOT_CONFIGURED",
+                        delayed=source.delayed,
+                    )
+                )
+                continue
+
             try:
                 result = await source.provider.get_warrant_listing_quote(request)
             except MarketDataConfigurationError as exc:
