@@ -4,6 +4,7 @@ export type AlertStatus = 'OPEN' | 'RESOLVED';
 export type NotificationChannel = 'TELEGRAM';
 export type NotificationStatus = 'PENDING' | 'DELIVERED' | 'FAILED';
 export type DeliveryStatus = 'IN_PROGRESS' | 'DELIVERED' | 'FAILED';
+export type MonitoringHealthStatus = 'OK' | 'MISSING' | 'STALE' | 'ERROR';
 
 export interface DeliveryAttemptResponse {
   status: DeliveryStatus;
@@ -38,4 +39,15 @@ export interface AlertResponse {
   status: AlertStatus;
   resolved_at: string | null;
   notifications: NotificationResponse[];
+}
+
+export interface PositionMonitoringHealthResponse {
+  trade_id: string;
+  position_id: string;
+  status: MonitoringHealthStatus;
+  reason: string;
+  symbol: string | null;
+  trading_date: string | null;
+  market_data_observed_at: string | null;
+  age_days: number | null;
 }
