@@ -38,6 +38,7 @@ export function TradeManagementPage() {
   const [management, setManagement] = useState<TradeManagementStateResponse | null>(null);
   const [saleQuantity, setSaleQuantity] = useState('');
   const [salePrice, setSalePrice] = useState('');
+  const [saleExecutedAt, setSaleExecutedAt] = useState('');
   const [stopPrice, setStopPrice] = useState('');
   const [targetPrice, setTargetPrice] = useState('');
   const [thesis, setThesis] = useState('');
@@ -119,21 +120,39 @@ export function TradeManagementPage() {
     }
   }
 
-  async function recordSale(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const quantity = Number(saleQuantity);
-    if (!Number.isInteger(quantity) || quantity <= 0 || !salePrice) return;
+  async function submitSale(quantity: number, successMessage: string) {
+    if (!tradeId || !salePrice) return;
 
+    const executedAt = saleExecutedAt ? new Date(saleExecutedAt).toISOString() : undefined;
     await mutate(
       () =>
         tradeManagementApiClient.sell(tradeId, {
           quantity,
           price_per_unit: salePrice,
+          executed_at: executedAt,
         }),
-      'Verkauf wurde erfasst und die Position neu projiziert.',
+      successMessage,
     );
     setSaleQuantity('');
     setSalePrice('');
+    setSaleExecutedAt('');
+  }
+
+  async function recordSale(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const quantity = Number(saleQuantity);
+    if (!Number.isInteger(quantity) || quantity <= 0 || !salePrice) return;
+
+    await submitSale(quantity, 'Teilverkauf wurde erfasst und die Position neu projiziert.');
+  }
+
+  async function closePosition() {
+    if (!position || position.is_closed || position.open_quantity <= 0 || !salePrice) return;
+
+    await submitSale(
+      position.open_quantity,
+      'Vollständiger Verkauf wurde erfasst und die Position neu projiziert.',
+    );
   }
 
   return (
@@ -275,15 +294,16 @@ export function TradeManagementPage() {
             onSubmit={(event) => void recordSale(event)}
             className="rounded-xl border border-slate-800 p-5"
           >
-            <h2 className="text-lg font-semibold">SELL erfassen</h2>
+            <h2 className="text-lg font-semibold">Verkauf erfassen</h2>
             <p className="mt-1 text-xs text-slate-500">
-              Partial und Full Exit werden aus Menge und aktueller effektiver Execution-Historie
+              Hier wird eine bereits erfolgte Ausführung dokumentiert. Es wird keine Broker-Order
+              gesendet. Teil- und Vollausstieg werden aus der effektiven Execution-Historie
               abgeleitet.
             </p>
             {position.is_closed ? (
               <div className="mt-4 space-y-3">
                 <p className="text-sm text-slate-400">
-                  Die Position ist geschlossen. Weitere SELL-Executions sind nicht verfügbar.
+                  Die Position ist geschlossen. Weitere Verkäufe können nicht erfasst werden.
                 </p>
 
                 <button
@@ -296,39 +316,73 @@ export function TradeManagementPage() {
                 </button>
               </div>
             ) : (
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                <label className="text-sm">
-                  <span className="text-slate-400">Menge</span>
-                  <input
-                    aria-label="Verkaufsmenge"
-                    type="number"
-                    min="1"
-                    max={position.open_quantity}
-                    step="1"
-                    value={saleQuantity}
-                    onChange={(event) => setSaleQuantity(event.target.value)}
-                    className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2"
-                  />
-                </label>
-                <label className="text-sm">
-                  <span className="text-slate-400">Preis je Einheit</span>
-                  <input
-                    aria-label="Verkaufspreis"
-                    type="number"
-                    min="0"
-                    step="any"
-                    value={salePrice}
-                    onChange={(event) => setSalePrice(event.target.value)}
-                    className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2"
-                  />
-                </label>
-                <button
-                  type="submit"
-                  disabled={busy || saleQuantity === '' || salePrice === ''}
-                  className="rounded-lg border border-slate-600 px-4 py-2 sm:col-span-2 disabled:opacity-50"
-                >
-                  SELL speichern
-                </button>
+              <div className="mt-4 space-y-4">
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  <label className="text-sm">
+                    <span className="text-slate-400">Verkaufte Stückzahl</span>
+                    <input
+                      aria-label="Verkaufsmenge"
+                      type="number"
+                      min="1"
+                      max={position.open_quantity}
+                      step="1"
+                      value={saleQuantity}
+                      onChange={(event) => setSaleQuantity(event.target.value)}
+                      className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2"
+                    />
+                    <span className="mt-1 block text-xs text-slate-500">
+                      Maximal {position.open_quantity} Stück offen.
+                    </span>
+                  </label>
+                  <label className="text-sm">
+                    <span className="text-slate-400">Verkaufspreis je Einheit</span>
+                    <input
+                      aria-label="Verkaufspreis"
+                      type="number"
+                      min="0"
+                      step="any"
+                      value={salePrice}
+                      onChange={(event) => setSalePrice(event.target.value)}
+                      className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2"
+                    />
+                  </label>
+                  <label className="text-sm">
+                    <span className="text-slate-400">Ausführungszeit (optional)</span>
+                    <input
+                      aria-label="Ausführungszeit"
+                      type="datetime-local"
+                      value={saleExecutedAt}
+                      onChange={(event) => setSaleExecutedAt(event.target.value)}
+                      className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2"
+                    />
+                    <span className="mt-1 block text-xs text-slate-500">
+                      Leer lassen, wenn die Ausführung jetzt erfasst wird.
+                    </span>
+                  </label>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <button
+                    type="submit"
+                    disabled={busy || saleQuantity === '' || salePrice === ''}
+                    className="rounded-lg border border-slate-600 px-4 py-2 disabled:opacity-50"
+                  >
+                    Teilverkauf erfassen
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy || salePrice === ''}
+                    onClick={() => void closePosition()}
+                    className="rounded-lg border border-amber-700 px-4 py-2 disabled:opacity-50"
+                  >
+                    Position vollständig schließen
+                  </button>
+                </div>
+                <p className="text-xs text-slate-500">
+                  „Position vollständig schließen“ erfasst einen Verkauf über alle aktuell{' '}
+                  {position.open_quantity} offenen Stück. Die Reststückzahl muss nicht manuell
+                  eingegeben werden.
+                </p>
               </div>
             )}
           </form>
