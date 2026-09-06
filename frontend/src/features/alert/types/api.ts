@@ -5,6 +5,7 @@ export type NotificationChannel = 'TELEGRAM';
 export type NotificationStatus = 'PENDING' | 'DELIVERED' | 'FAILED';
 export type DeliveryStatus = 'IN_PROGRESS' | 'DELIVERED' | 'FAILED';
 export type MonitoringHealthStatus = 'OK' | 'MISSING' | 'STALE' | 'ERROR';
+export type PositionValuationStatus = 'OK' | 'MISSING' | 'UNAVAILABLE' | 'ERROR';
 
 export interface DeliveryAttemptResponse {
   status: DeliveryStatus;
@@ -50,4 +51,20 @@ export interface PositionMonitoringHealthResponse {
   trading_date: string | null;
   market_data_observed_at: string | null;
   age_days: number | null;
+}
+
+export interface PositionValuationResponse {
+  trade_id: string;
+  position_id: string;
+  status: PositionValuationStatus;
+  reason: string;
+  warrant_listing_id: string | null;
+  bid: string | null;
+  ask: string | null;
+  currency: string | null;
+  observed_at: string | null;
+  mark_price: string | null;
+  mark_price_type: string | null;
+  market_value: string | null;
+  unrealized_gross_pnl: string | null;
 }
