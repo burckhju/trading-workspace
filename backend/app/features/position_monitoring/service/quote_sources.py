@@ -96,6 +96,17 @@ class MultiSourceWarrantQuoteResolver:
                 )
                 continue
 
+            if result is None:
+                attempts.append(
+                    QuoteSourceAttempt(
+                        source=source.name,
+                        status=QuoteSourceAttemptStatus.MISSING,
+                        reason="NO_QUOTE_RETURNED",
+                        delayed=source.delayed,
+                    )
+                )
+                continue
+
             quote = result.data
             if quote is None:
                 attempts.append(
