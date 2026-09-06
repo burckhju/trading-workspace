@@ -8,7 +8,7 @@ import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
-from typing import Any
+from typing import Any, cast
 from urllib.parse import urljoin, urlparse
 
 import httpx
@@ -168,7 +168,7 @@ class StuttgartDelayedWarrantQuoteAdapter:
                 provider=MarketDataProvider.BOERSE_STUTTGART_DELAYED,
                 capability=MarketDataCapability.WARRANT_LISTING_QUOTE,
             )
-        url = urljoin(self._settings.index_url, match.group("href"))
+        url = cast(str, urljoin(self._settings.index_url, match.group("href")))
         parsed = urlparse(url)
         if parsed.scheme != "https" or parsed.hostname != "ddl.service.boerse-stuttgart.de":
             raise MarketDataInvalidResponseError(
