@@ -179,13 +179,12 @@ class StuttgartDelayedWarrantQuoteAdapter:
         return url
 
     def _parse_quote(self, payload: Any, identity: _ListingIdentity) -> WarrantQuoteSnapshot | None:
-        records = self._records(payload)
-        bid: Decimal | None = None
-        ask: Decimal | None = None
-        currency: str | None = None
-        observed_at: datetime | None = None
+        selected_at: datetime | None = None
+        selected_bid: Decimal | None = None
+        selected_ask: Decimal | None = None
+        selected_currency: str | None = None
 
-        for record in records:
+        for record in self._records(payload):
             if not isinstance(record, dict):
                 continue
             isin = self._text(record, self._settings.isin_field)
@@ -196,10 +195,8 @@ class StuttgartDelayedWarrantQuoteAdapter:
                 continue
 
             row_currency = self._text(record, self._settings.currency_field)
-            side = self._text(record, self._settings.side_field)
-            price_text = self._text(record, self._settings.price_field)
             timestamp = self._text(record, self._settings.observed_at_field)
-            if row_currency is None or side is None or price_text is None or timestamp is None:
+            if row_currency is None or timestamp is None:
                 continue
             row_currency = row_currency.upper()
             if row_currency != identity.currency:
@@ -208,38 +205,52 @@ class StuttgartDelayedWarrantQuoteAdapter:
                     provider=MarketDataProvider.BOERSE_STUTTGART_DELAYED,
                     capability=MarketDataCapability.WARRANT_LISTING_QUOTE,
                 )
-            if currency is not None and currency != row_currency:
-                raise MarketDataInvalidResponseError(
-                    "Stuttgart delayed quote contains conflicting currencies for one listing",
-                    provider=MarketDataProvider.BOERSE_STUTTGART_DELAYED,
-                    capability=MarketDataCapability.WARRANT_LISTING_QUOTE,
-                )
-            currency = row_currency
-            price = self._decimal(price_text)
-            row_observed_at = self._datetime(timestamp)
-            observed_at = max(observed_at, row_observed_at) if observed_at else row_observed_at
-            if side.upper() == self._settings.bid_side_value.upper():
-                bid = max(bid, price) if bid is not None else price
-            elif side.upper() == self._settings.ask_side_value.upper():
-                ask = min(ask, price) if ask is not None else price
 
-        if bid is None and ask is None:
+            row_bid = self._quote_side(record, self._settings.bid_field)
+            row_ask = self._quote_side(record, self._settings.ask_field)
+            if row_bid is None and row_ask is None:
+                continue
+
+            row_observed_at = self._datetime(timestamp)
+            if selected_at is None or row_observed_at > selected_at:
+                selected_at = row_observed_at
+                selected_bid = row_bid
+                selected_ask = row_ask
+                selected_currency = row_currency
+                continue
+            if row_observed_at == selected_at:
+                if selected_currency is not None and selected_currency != row_currency:
+                    raise MarketDataInvalidResponseError(
+                        "Stuttgart delayed quote contains conflicting currencies at one timestamp",
+                        provider=MarketDataProvider.BOERSE_STUTTGART_DELAYED,
+                        capability=MarketDataCapability.WARRANT_LISTING_QUOTE,
+                    )
+                if row_bid is not None:
+                    selected_bid = (
+                        max(selected_bid, row_bid) if selected_bid is not None else row_bid
+                    )
+                if row_ask is not None:
+                    selected_ask = (
+                        min(selected_ask, row_ask) if selected_ask is not None else row_ask
+                    )
+
+        if selected_at is None or (selected_bid is None and selected_ask is None):
             return None
-        if bid is not None and ask is not None and ask < bid:
+        if selected_bid is not None and selected_ask is not None and selected_ask < selected_bid:
             raise MarketDataInvalidResponseError(
-                "Stuttgart delayed quote is crossed after best-price aggregation",
+                "Stuttgart delayed latest quote is crossed",
                 provider=MarketDataProvider.BOERSE_STUTTGART_DELAYED,
                 capability=MarketDataCapability.WARRANT_LISTING_QUOTE,
             )
-        assert currency is not None and observed_at is not None
+        assert selected_currency is not None
         return WarrantQuoteSnapshot(
             warrant_listing_id=identity.listing_id,
-            bid=bid,
-            ask=ask,
-            currency=currency,
+            bid=selected_bid,
+            ask=selected_ask,
+            currency=selected_currency,
             provider_symbol=identity.symbol,
             provider_exchange_code="XSTU",
-            observed_at=observed_at,
+            observed_at=selected_at,
         )
 
     def _records(self, payload: Any) -> list[Any]:
@@ -272,23 +283,27 @@ class StuttgartDelayedWarrantQuoteAdapter:
         text = str(value).strip()
         return text or None
 
-    @staticmethod
-    def _decimal(value: str) -> Decimal:
+    def _quote_side(self, record: dict[str, Any], path: str | None) -> Decimal | None:
+        if path is None:
+            return None
+        value = self._value(record, path)
+        if value is None:
+            return None
         try:
-            price = Decimal(value)
+            price = Decimal(str(value))
         except InvalidOperation as exc:
             raise MarketDataInvalidResponseError(
                 "Stuttgart delayed quote contains an invalid price",
                 provider=MarketDataProvider.BOERSE_STUTTGART_DELAYED,
                 capability=MarketDataCapability.WARRANT_LISTING_QUOTE,
             ) from exc
-        if price <= 0:
+        if price < 0:
             raise MarketDataInvalidResponseError(
-                "Stuttgart delayed quote price must be positive",
+                "Stuttgart delayed quote price must not be negative",
                 provider=MarketDataProvider.BOERSE_STUTTGART_DELAYED,
                 capability=MarketDataCapability.WARRANT_LISTING_QUOTE,
             )
-        return price
+        return price if price > 0 else None
 
     @staticmethod
     def _datetime(value: str) -> datetime:

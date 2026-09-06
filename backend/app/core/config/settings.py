@@ -68,23 +68,21 @@ class EodhdSettings(BaseModel):
 
 
 class StuttgartDelayedSettings(BaseModel):
-    """Fail-closed configuration for the official XSTU delayed pre-trade feed."""
+    """Fail-closed configuration for the verified official XSTU delayed feed."""
 
     enabled: bool = False
     index_url: str = (
         "https://www.boerse-stuttgart.de/de-de/fuer-geschaeftspartner/reports/"
         "mifir-ii-delayed-data/xstu-pre-trade/"
     )
-    schema_version: str | None = None
-    records_path: str | None = None
-    isin_field: str | None = None
-    mic_field: str | None = None
-    side_field: str | None = None
-    price_field: str | None = None
-    currency_field: str | None = None
-    observed_at_field: str | None = None
-    bid_side_value: str = "BID"
-    ask_side_value: str = "ASK"
+    schema_version: str | None = "xstu-pretrade-flat-2026-09-04"
+    records_path: str | None = "$"
+    isin_field: str | None = "Isin"
+    mic_field: str | None = "VenueOfPublication"
+    bid_field: str | None = "Bid"
+    ask_field: str | None = "Ask"
+    currency_field: str | None = "PriceCurrency"
+    observed_at_field: str | None = "TransactionTime"
     timeout_seconds: Annotated[float, Field(gt=0, le=60)] = 15.0
 
     @field_validator("index_url")
@@ -103,14 +101,14 @@ class StuttgartDelayedSettings(BaseModel):
 
     @property
     def has_verified_schema(self) -> bool:
-        """Only explicit complete field mapping is considered activation-ready."""
+        """Only the complete verified flat XSTU mapping is activation-ready."""
         required = (
             self.schema_version,
             self.records_path,
             self.isin_field,
             self.mic_field,
-            self.side_field,
-            self.price_field,
+            self.bid_field,
+            self.ask_field,
             self.currency_field,
             self.observed_at_field,
         )
