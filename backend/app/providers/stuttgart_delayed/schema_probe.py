@@ -131,9 +131,7 @@ def candidate_field_hints(
     hints: dict[str, tuple[str, ...]] = {}
     for category, terms in keywords.items():
         matches = tuple(
-            path
-            for path in candidate.leaf_paths
-            if any(term in path.lower() for term in terms)
+            path for path in candidate.leaf_paths if any(term in path.lower() for term in terms)
         )
         if matches:
             hints[category] = matches
@@ -161,22 +159,16 @@ def render_report(payload: Any) -> str:
         lines.append(f"candidate[{index}].items={candidate.item_count}")
         lines.append(f"candidate[{index}].objects={candidate.object_count}")
         lines.append(f"candidate[{index}].leaf_paths={len(candidate.leaf_paths)}")
-        type_counts = Counter(
-            type_name for _, types in candidate.leaf_types for type_name in types
-        )
+        type_counts = Counter(type_name for _, types in candidate.leaf_types for type_name in types)
         lines.append(
             f"candidate[{index}].leaf_type_counts="
-            + ",".join(
-                f"{name}:{count}" for name, count in sorted(type_counts.items())
-            )
+            + ",".join(f"{name}:{count}" for name, count in sorted(type_counts.items()))
         )
         for path, types in candidate.leaf_types:
             lines.append(f"  {path}: {'|'.join(types)}")
         hints = candidate_field_hints(candidate)
         for category, paths in sorted(hints.items()):
-            lines.append(
-                f"candidate[{index}].hint.{category}=" + ",".join(paths)
-            )
+            lines.append(f"candidate[{index}].hint.{category}=" + ",".join(paths))
     return "\n".join(lines)
 
 
