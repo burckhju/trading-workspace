@@ -88,7 +88,13 @@ def _context(*, external: bool = False):
     return trade, position, evaluation, listing
 
 
-def _quote_result(*, listing_id, bid=Decimal("2.50"), ask=Decimal("2.55"), currency="EUR"):
+def _quote_result(
+    *,
+    listing_id,
+    bid=Decimal("2.50"),
+    ask=Decimal("2.55"),
+    currency="EUR",
+):
     quote = WarrantQuoteSnapshot(
         warrant_listing_id=listing_id,
         bid=bid,
