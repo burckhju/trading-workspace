@@ -30,6 +30,8 @@ export const warrantApiClient = {
         ratio: normalizeDecimalInput(request.ratio),
       },
     }),
+  delete: (id: string, version: number) =>
+    requestJson<void>(warrantUrl(`/${id}?version=${version}`), { method: 'DELETE' }),
   deactivate: (id: string, version: number) =>
     requestJson<WarrantResponse>(warrantUrl(`/${id}/deactivate`), {
       method: 'POST',
