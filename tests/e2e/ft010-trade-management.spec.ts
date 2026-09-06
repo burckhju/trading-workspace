@@ -112,11 +112,12 @@ test("manages partial/full exit and explicit management decisions without provid
 
       if (salePosts === 1) {
         expect(body).toMatchObject({ quantity: 40, price_per_unit: "2.50" });
+        expect(body.executed_at).toBeTruthy();
         currentPosition = position({
           open_quantity: 60,
           cost_basis: "120.00",
           realized_gross_pnl: "20.00",
-          last_execution_at: now,
+          last_execution_at: body.executed_at ?? now,
         });
       } else {
         expect(body).toMatchObject({ quantity: 60, price_per_unit: "2.40" });
@@ -139,7 +140,7 @@ test("manages partial/full exit and explicit management decisions without provid
             quantity: body.quantity,
             price_per_unit: body.price_per_unit,
             gross_amount: String(Number(body.price_per_unit) * body.quantity),
-            executed_at: now,
+            executed_at: body.executed_at ?? now,
             recorded_at: now,
           },
           position: currentPosition,
@@ -186,10 +187,12 @@ test("manages partial/full exit and explicit management decisions without provid
   await expect(page.getByRole("heading", { name: /TR-10000000 · DAX Call 19000/ })).toBeVisible();
   await expect(page.getByText("TP-10000000")).toBeVisible();
   await expect(page.getByText("100 offen")).toBeVisible();
+  await expect(page.getByText(/keine Broker-Order/i)).toBeVisible();
 
   await page.getByLabel("Verkaufsmenge").fill("40");
   await page.getByLabel("Verkaufspreis").fill("2.50");
-  await page.getByRole("button", { name: "SELL speichern" }).click();
+  await page.getByLabel("Ausführungszeit").fill("2026-08-17T09:30");
+  await page.getByRole("button", { name: "Teilverkauf erfassen" }).click();
   await expect.poll(() => salePosts).toBe(1);
   await expect(page.getByText("60 offen")).toBeVisible();
   await expect(page.getByText("20", { exact: true })).toBeVisible();
@@ -215,17 +218,17 @@ test("manages partial/full exit and explicit management decisions without provid
     page.getByText("Observed volatility after partial exit"),
   ).toBeVisible();
 
-  await page.getByLabel("Verkaufsmenge").fill("60");
   await page.getByLabel("Verkaufspreis").fill("2.40");
-  await page.getByRole("button", { name: "SELL speichern" }).click();
+  await expect(page.getByLabel("Verkaufsmenge")).toHaveValue("");
+  await page.getByRole("button", { name: "Position vollständig schließen" }).click();
   await expect.poll(() => salePosts).toBe(2);
   await expect(page.getByRole("heading", { name: "CLOSED" })).toBeVisible();
   await expect(
     page.getByText(
-      "Die Position ist geschlossen. Weitere SELL-Executions sind nicht verfügbar.",
+      "Die Position ist geschlossen. Weitere Verkäufe können nicht erfasst werden.",
     ),
   ).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "SELL speichern" }),
+    page.getByRole("button", { name: "Position vollständig schließen" }),
   ).toHaveCount(0);
 });
