@@ -6,7 +6,13 @@ from uuid import UUID, uuid4
 
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-from app.core.logging.context import bind_request_id, reset_request_id
+from app.core.logging.context import (
+    bind_database_query_stats,
+    bind_request_id,
+    get_database_query_stats,
+    reset_database_query_stats,
+    reset_request_id,
+)
 
 logger = logging.getLogger(__name__)
 _REQUEST_ID_HEADER = b"x-request-id"
@@ -39,6 +45,7 @@ class RequestContextMiddleware:
         started_at = perf_counter()
         status_code = 500
         request_id_token = bind_request_id(request_id)
+        query_stats_token = bind_database_query_stats()
 
         async def send_with_context(message: Message) -> None:
             nonlocal status_code
@@ -53,6 +60,7 @@ class RequestContextMiddleware:
             await self.application(scope, receive, send_with_context)
         finally:
             try:
+                query_stats = get_database_query_stats()
                 logger.info(
                     "http_request_completed",
                     extra={
@@ -61,7 +69,10 @@ class RequestContextMiddleware:
                         "path": scope["path"],
                         "status_code": status_code,
                         "duration_ms": round((perf_counter() - started_at) * 1000, 3),
+                        "db_query_count": query_stats.count,
+                        "db_query_duration_ms": round(query_stats.duration_ms, 3),
                     },
                 )
             finally:
+                reset_database_query_stats(query_stats_token)
                 reset_request_id(request_id_token)
