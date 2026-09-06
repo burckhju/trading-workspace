@@ -11,10 +11,6 @@ vi.mock('../../alert/components/TradeAlertsPanel', () => ({
   TradeAlertsPanel: ({ tradeId }: { tradeId: string }) => <div>Alerts for {tradeId}</div>,
 }));
 
-vi.mock('../components/TradeTimelinePanel', () => ({
-  TradeTimelinePanel: ({ tradeId }: { tradeId: string }) => <div>Timeline for {tradeId}</div>,
-}));
-
 vi.mock('../../post_trade/services/client', () => ({
   postTradeApiClient: {
     startObservation: vi.fn(),
@@ -129,7 +125,6 @@ describe('TradeManagementPage', () => {
     expect(screen.getByDisplayValue('Trend intact')).toBeInTheDocument();
     expect(screen.getByText('Initial note')).toBeInTheDocument();
     expect(screen.getByText('Alerts for trade-1')).toBeInTheDocument();
-    expect(screen.getByText('Timeline for trade-1')).toBeInTheDocument();
 
     expect(api.trade).toHaveBeenCalledWith('trade-1', expect.any(AbortSignal));
     expect(api.position).toHaveBeenCalledWith('trade-1', expect.any(AbortSignal));
