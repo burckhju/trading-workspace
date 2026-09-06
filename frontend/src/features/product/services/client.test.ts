@@ -75,6 +75,18 @@ describe('warrantApiClient', () => {
     expect(requestInputUrl(calls[4][0])).toContain(`/${WARRANT_ID}/reactivate`);
   });
 
+  it('calls the guarded hard-delete endpoint with the stored version', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response(null, { status: 204 }));
+
+    await warrantApiClient.delete(WARRANT_ID, 7);
+
+    const [input, options] = vi.mocked(fetch).mock.calls[0];
+    expect(requestInputUrl(input)).toBe(
+      `http://localhost:8000/api/v1/warrants/${WARRANT_ID}?version=7`,
+    );
+    expect(options?.method).toBe('DELETE');
+  });
+
   it('calls terms and listing endpoints with their request bodies', async () => {
     vi.spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce(jsonResponse([]))
