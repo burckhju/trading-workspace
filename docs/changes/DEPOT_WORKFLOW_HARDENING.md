@@ -25,6 +25,15 @@ This change hardens the existing FT-010 position workflow without changing trade
 - Keeps corrected and superseded facts visible instead of hiding immutable history.
 - Refreshes the timeline after successful sale and management captures without introducing a second history model.
 
+### Operational workspace prioritization
+
+- Reuses the existing ephemeral Operational Workspace read model instead of adding a new attention domain.
+- Keeps persisted open position alerts as the highest-priority operational position signal.
+- Replaces the generic open-position action with a read-only data-health action when the existing monitoring health service reports `MISSING`, `STALE`, or `ERROR`.
+- Leaves healthy open positions as the existing normal trade-management action.
+- Does not create alert records, notification records, or persisted attention state from data-health problems.
+- Treats ordering as an operational presentation rule, not as a trading recommendation.
+
 ## Deferred
 
 Current product valuation, market value, and unrealized gross P&L remain a separate follow-up. The provider-neutral `WARRANT_LISTING_QUOTE` boundary exists, but the currently configured EODHD adapter does not implement that capability yet. This slice therefore does not pretend that a reliable current product quote is available.
