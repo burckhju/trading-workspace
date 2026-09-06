@@ -34,12 +34,12 @@ describe('ProductValuationPanel', () => {
     api.position.mockResolvedValue(openPosition);
   });
 
-  it('shows fail-closed provider capability instead of inventing a product price', async () => {
+  it('documents each unavailable source instead of inventing a product price', async () => {
     api.productValuation.mockResolvedValue({
       trade_id: 'trade-1',
       position_id: 'position-1',
       status: 'UNAVAILABLE',
-      reason: 'WARRANT_QUOTE_CAPABILITY_NOT_CONFIGURED',
+      reason: 'NO_USABLE_WARRANT_QUOTE',
       warrant_listing_id: 'listing-1',
       symbol: 'TEST12.STU',
       bid: null,
@@ -48,16 +48,38 @@ describe('ProductValuationPanel', () => {
       quote_observed_at: null,
       market_value: null,
       unrealized_gross_pnl: null,
+      selected_source: null,
+      source_attempts: [
+        {
+          source: 'EODHD',
+          status: 'UNAVAILABLE',
+          reason: 'capability not configured',
+          delayed: false,
+          observed_at: null,
+          bid_available: false,
+          ask_available: false,
+        },
+        {
+          source: 'BOERSE_STUTTGART_DELAYED',
+          status: 'UNAVAILABLE',
+          reason: 'schema not verified',
+          delayed: true,
+          observed_at: null,
+          bid_available: false,
+          ask_available: false,
+        },
+      ],
     });
 
     render(<ProductValuationPanel tradeId="trade-1" />);
 
     expect(await screen.findByText('Produktkurs nicht verfügbar')).toBeInTheDocument();
-    expect(screen.getByText(/kein verifizierter Bid\/Ask-Transport/)).toBeInTheDocument();
+    expect(screen.getByText(/Keine der geprüften Kursquellen/)).toBeInTheDocument();
+    expect(screen.getByText(/Geprüfte Kursquellen anzeigen/)).toBeInTheDocument();
     expect(screen.queryByText('Marktwert (Bid)')).not.toBeInTheDocument();
   });
 
-  it('shows BID-based market value and unrealized gross pnl when a valid quote exists', async () => {
+  it('shows BID-based market value and selected source when a valid quote exists', async () => {
     api.productValuation.mockResolvedValue({
       trade_id: 'trade-1',
       position_id: 'position-1',
@@ -71,6 +93,27 @@ describe('ProductValuationPanel', () => {
       quote_observed_at: '2026-09-06T12:00:00Z',
       market_value: '25.00',
       unrealized_gross_pnl: '5.00',
+      selected_source: 'SECONDARY',
+      source_attempts: [
+        {
+          source: 'EODHD',
+          status: 'UNAVAILABLE',
+          reason: 'not configured',
+          delayed: false,
+          observed_at: null,
+          bid_available: false,
+          ask_available: false,
+        },
+        {
+          source: 'SECONDARY',
+          status: 'AVAILABLE',
+          reason: 'VALID_BID_AVAILABLE',
+          delayed: true,
+          observed_at: '2026-09-06T12:00:00Z',
+          bid_available: true,
+          ask_available: true,
+        },
+      ],
     });
 
     render(<ProductValuationPanel tradeId="trade-1" />);
@@ -78,7 +121,7 @@ describe('ProductValuationPanel', () => {
     expect(await screen.findByText('Produktkurs verfügbar')).toBeInTheDocument();
     expect(screen.getByText('Marktwert (Bid)')).toBeInTheDocument();
     expect(screen.getByText('Unrealized gross P&L')).toBeInTheDocument();
-    expect(screen.getByText(/Stop und Target werden weiterhin ausschließlich/)).toBeInTheDocument();
+    expect(screen.getByText(/Bewertungsquelle: SECONDARY/)).toBeInTheDocument();
   });
 
   it('does not request a quote for a closed position', async () => {
