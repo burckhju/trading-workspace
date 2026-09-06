@@ -124,7 +124,12 @@ async def test_values_open_long_position_at_exact_listing_bid() -> None:
     provider = _Provider(_quote_result(listing_id=listing.id))
     service = ProductPositionValuationService(
         database=_Database(
-            _Session(trade=trade, position=position, evaluation=evaluation, listing=listing)
+            _Session(
+                trade=trade,
+                position=position,
+                evaluation=evaluation,
+                listing=listing,
+            )
         ),
         quote_provider=provider,
     )
@@ -161,7 +166,12 @@ async def test_missing_bid_does_not_create_indicative_value() -> None:
     provider = _Provider(_quote_result(listing_id=listing.id, bid=None))
     service = ProductPositionValuationService(
         database=_Database(
-            _Session(trade=trade, position=position, evaluation=evaluation, listing=listing)
+            _Session(
+                trade=trade,
+                position=position,
+                evaluation=evaluation,
+                listing=listing,
+            )
         ),
         quote_provider=provider,
     )
@@ -181,7 +191,12 @@ async def test_wrong_quote_listing_is_rejected() -> None:
     provider = _Provider(_quote_result(listing_id=uuid4()))
     service = ProductPositionValuationService(
         database=_Database(
-            _Session(trade=trade, position=position, evaluation=evaluation, listing=listing)
+            _Session(
+                trade=trade,
+                position=position,
+                evaluation=evaluation,
+                listing=listing,
+            )
         ),
         quote_provider=provider,
     )
