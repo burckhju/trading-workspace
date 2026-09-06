@@ -42,17 +42,29 @@ function reasonText(reason: string): string {
 
 export function ProductValuationPanel({ tradeId }: { tradeId: string }) {
   const [value, setValue] = useState<ProductPositionValuationResponse | null>(null);
+  const [closed, setClosed] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(
     async (signal?: AbortSignal) => {
       try {
+        const position = await tradeManagementApiClient.position(tradeId, signal);
+        if (position.is_closed) {
+          setClosed(true);
+          setValue(null);
+          setError(null);
+          return;
+        }
+
         const next = await tradeManagementApiClient.productValuation(tradeId, signal);
+        setClosed(false);
         setValue(next);
         setError(null);
       } catch (caught) {
         if (caught instanceof DOMException && caught.name === 'AbortError') return;
-        setError(caught instanceof Error ? caught.message : 'Produktbewertung konnte nicht geladen werden.');
+        setError(
+          caught instanceof Error ? caught.message : 'Produktbewertung konnte nicht geladen werden.',
+        );
       }
     },
     [tradeId],
@@ -73,6 +85,8 @@ export function ProductValuationPanel({ tradeId }: { tradeId: string }) {
       window.removeEventListener(tradeTimelineChangedEvent, onTimelineChanged);
     };
   }, [load, tradeId]);
+
+  if (closed) return null;
 
   if (error) {
     return (
@@ -113,23 +127,34 @@ export function ProductValuationPanel({ tradeId }: { tradeId: string }) {
           <dl className="mt-5 grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
             <div>
               <dt className="text-slate-500">Bid</dt>
-              <dd className="mt-1 font-medium">{formatDecimal(value.bid)} {value.currency}</dd>
+              <dd className="mt-1 font-medium">
+                {formatDecimal(value.bid)} {value.currency}
+              </dd>
             </div>
             <div>
               <dt className="text-slate-500">Ask</dt>
-              <dd className="mt-1 font-medium">{formatDecimal(value.ask)} {value.currency}</dd>
+              <dd className="mt-1 font-medium">
+                {formatDecimal(value.ask)} {value.currency}
+              </dd>
             </div>
             <div>
               <dt className="text-slate-500">Marktwert (Bid)</dt>
-              <dd className="mt-1 font-medium">{formatDecimal(value.market_value)} {value.currency}</dd>
+              <dd className="mt-1 font-medium">
+                {formatDecimal(value.market_value)} {value.currency}
+              </dd>
             </div>
             <div>
               <dt className="text-slate-500">Unrealized gross P&amp;L</dt>
-              <dd className="mt-1 font-medium">{formatDecimal(value.unrealized_gross_pnl)} {value.currency}</dd>
+              <dd className="mt-1 font-medium">
+                {formatDecimal(value.unrealized_gross_pnl)} {value.currency}
+              </dd>
             </div>
           </dl>
           <p className="mt-4 text-xs text-slate-500">
-            Quote: {value.symbol ?? '—'} · {value.quote_observed_at ? new Date(value.quote_observed_at).toLocaleString('de-DE') : 'Zeitpunkt unbekannt'}
+            Quote: {value.symbol ?? '—'} ·{' '}
+            {value.quote_observed_at
+              ? new Date(value.quote_observed_at).toLocaleString('de-DE')
+              : 'Zeitpunkt unbekannt'}
           </p>
         </>
       ) : (
