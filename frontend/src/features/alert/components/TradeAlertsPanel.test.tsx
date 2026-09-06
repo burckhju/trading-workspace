@@ -69,7 +69,7 @@ describe('TradeAlertsPanel', () => {
     expect(await screen.findByText('Target erreicht')).toBeInTheDocument();
     expect(screen.getByText('Target 1 wurde erreicht.')).toBeInTheDocument();
     expect(screen.getByText('TELEGRAM: zugestellt')).toBeInTheDocument();
-    expect(screen.getByText('1 Alerts offen')).toBeInTheDocument();
+    expect(screen.getByText('1 offen')).toBeInTheDocument();
   });
 
   it('renders delivery failure without changing the alert state', async () => {
