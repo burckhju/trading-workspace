@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
-import { tradeManagementApiClient } from '../services/client';
+import { tradeManagementApiClient, tradeTimelineChangedEvent } from '../services/client';
 import type { TradeTimelineEntryResponse } from '../types/api';
 
 function formatDateTime(value: string): string {
@@ -31,32 +31,45 @@ function entryDetail(entry: TradeTimelineEntryResponse): string {
   return entry.text_value ?? '—';
 }
 
-export function TradeTimelinePanel({ tradeId, refreshKey }: { tradeId: string; refreshKey: number }) {
+export function TradeTimelinePanel({ tradeId }: { tradeId: string }) {
   const [entries, setEntries] = useState<TradeTimelineEntryResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const controller = new AbortController();
-    setLoading(true);
-    setError(null);
-
-    tradeManagementApiClient
-      .timeline(tradeId, controller.signal)
-      .then(setEntries)
-      .catch((reason: unknown) => {
-        if (!controller.signal.aborted) {
+  const load = useCallback(
+    async (signal?: AbortSignal) => {
+      setLoading(true);
+      setError(null);
+      try {
+        setEntries(await tradeManagementApiClient.timeline(tradeId, signal));
+      } catch (reason: unknown) {
+        if (!signal?.aborted) {
           setError(
             reason instanceof Error ? reason.message : 'Timeline konnte nicht geladen werden.',
           );
         }
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
-      });
+      } finally {
+        if (!signal?.aborted) setLoading(false);
+      }
+    },
+    [tradeId],
+  );
 
+  useEffect(() => {
+    const controller = new AbortController();
+    void load(controller.signal);
     return () => controller.abort();
-  }, [tradeId, refreshKey]);
+  }, [load]);
+
+  useEffect(() => {
+    function refresh(event: Event) {
+      const detail = (event as CustomEvent<{ tradeId?: string }>).detail;
+      if (detail?.tradeId === tradeId) void load();
+    }
+
+    window.addEventListener(tradeTimelineChangedEvent, refresh);
+    return () => window.removeEventListener(tradeTimelineChangedEvent, refresh);
+  }, [load, tradeId]);
 
   return (
     <section className="rounded-xl border border-slate-800 p-5" aria-labelledby="timeline-title">
