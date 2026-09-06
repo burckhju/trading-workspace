@@ -18,13 +18,16 @@ This change hardens the existing FT-010 position workflow without changing trade
 - Does not create alerts for missing, stale, or failed market data.
 - Does not mutate monitoring rule state.
 
-### Warrant position valuation
+### Trade timeline
 
-- Adds read-only indicative valuation for open LONG positions using the exact historical WarrantListing provenance from ProductEvaluation.
-- Marks the LONG position at bid and exposes bid/ask, quote timestamp, market value, and unrealized gross P&L.
-- Does not guess a listing for external trades without historical listing provenance.
-- Does not estimate market value when a usable bid is missing.
-- Keeps product valuation separate from Underlying-based stop/target monitoring.
+- Exposes the existing combined execution/management timeline in the operational position workflow.
+- Shows BUY/SELL executions and management decisions with occurred/effective and recorded timestamps.
+- Keeps corrected and superseded facts visible instead of hiding immutable history.
+- Refreshes the timeline after successful sale and management captures without introducing a second history model.
+
+## Deferred
+
+Current product valuation, market value, and unrealized gross P&L remain a separate follow-up. The provider-neutral `WARRANT_LISTING_QUOTE` boundary exists, but the currently configured EODHD adapter does not implement that capability yet. This slice therefore does not pretend that a reliable current product quote is available.
 
 ## Non-scope
 
