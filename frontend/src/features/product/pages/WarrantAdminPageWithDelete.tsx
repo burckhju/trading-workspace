@@ -4,6 +4,10 @@ import { warrantApiClient } from '../services/client';
 import type { WarrantResponse } from '../types/api';
 import { WarrantAdminPage as WarrantAdminCorePage } from './WarrantAdminPage';
 
+const LOAD_ERROR = 'Optionsscheine konnten nicht geladen werden.';
+const DELETE_ERROR =
+  'Optionsschein konnte nicht gelöscht werden. Historische Verwendungen bleiben geschützt.';
+
 export function WarrantAdminPageWithDelete() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [warrants, setWarrants] = useState<WarrantResponse[]>([]);
@@ -23,9 +27,7 @@ export function WarrantAdminPageWithDelete() {
       setWarrants(response);
       setSelectedId(response[0]?.id ?? '');
     } catch (value: unknown) {
-      setError(
-        value instanceof Error ? value.message : 'Optionsscheine konnten nicht geladen werden.',
-      );
+      setError(value instanceof Error ? value.message : LOAD_ERROR);
     } finally {
       setBusy(false);
     }
@@ -34,13 +36,12 @@ export function WarrantAdminPageWithDelete() {
   async function deleteSelected() {
     const selected = warrants.find((item) => item.id === selectedId);
     if (!selected) return;
-    if (
-      !window.confirm(
-        `Optionsschein „${selected.display_name}“ endgültig löschen? Das ist nur möglich, solange keine historische oder operative Verwendung existiert.`,
-      )
-    ) {
-      return;
-    }
+
+    const confirmed = window.confirm(
+      `Optionsschein „${selected.display_name}“ endgültig löschen? ` +
+        'Das ist nur möglich, solange keine historische oder operative Verwendung existiert.',
+    );
+    if (!confirmed) return;
 
     setBusy(true);
     setError(null);
@@ -53,11 +54,7 @@ export function WarrantAdminPageWithDelete() {
       setAdminRevision((current) => current + 1);
       setMessage(`Optionsschein „${selected.display_name}“ wurde gelöscht.`);
     } catch (value: unknown) {
-      setError(
-        value instanceof Error
-          ? value.message
-          : 'Optionsschein konnte nicht gelöscht werden. Historische Verwendungen bleiben geschützt.',
-      );
+      setError(value instanceof Error ? value.message : DELETE_ERROR);
     } finally {
       setBusy(false);
     }
