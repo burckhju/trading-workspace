@@ -16,46 +16,19 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Download one official XSTU payload and print structural schema only
+      - name: Download one officially resolved XSTU payload and print structural schema only
         shell: bash
         run: |
           set -euo pipefail
           python - <<'PY'
-          import html
-          import re
           import urllib.request
           from pathlib import Path
 
-          index = (
-              "https://www.boerse-stuttgart.de/de-de/fuer-geschaeftspartner/reports/"
-              "mifir-ii-delayed-data/xstu-pre-trade/"
-          )
-          user_agent = (
-              "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
-              "(KHTML, like Gecko) Chrome/140.0 Safari/537.36"
-          )
-          page_request = urllib.request.Request(index, headers={"User-Agent": user_agent})
-          page = urllib.request.urlopen(page_request, timeout=30).read().decode("utf-8", "replace")
-          match = re.search(r'href="([^"]+)"[^>]*>\s*Herunterladen', page, flags=re.I)
-          if not match:
-              raise SystemExit("No official XSTU download link found")
-          url = html.unescape(match.group(1))
-          if url.startswith("/"):
-              url = "https://www.boerse-stuttgart.de" + url
-          if not url.startswith("https://ddl.service.boerse-stuttgart.de/"):
-              raise SystemExit("Unexpected XSTU download host")
+          url = "https://d3s5kssjdy247b.cloudfront.net/XSTU-pretrade-20260904T1311.json.gz?Expires=1789132260&Signature=fV5anp7Z~O5ppbTKqMOIiC203dpNNsFsZldqACItECeRDumoUMZM7l8Pp1AfKAwoOCjhQT8d7~lv2XCRala20KqMB0ZQHC-kJpgKMOLa43YJumXmonvJMnArV2dw8M7uUEuLsRUsN41D5flVTiF46Yn9zWikXv-KMwNeOaSInSMKt8BJLp9qfIsdCURX320HNEx37VY~qMeacVceONPNR62tTvWKxs8oIoTbB-x9K90To5u5VgZmP7nNBT1H9adeFWyAlkCoHJ74kN5stv7MU4AVR55AbJh6RhJxJ9Ag0~4s7pJEyxzTqOGUA2UCq4pIZLnslRX~OLGMiXEO4khBmQ__&Key-Pair-Id=K3HU6T4VCENDE8"
           target = Path("/tmp/xstu.json.gz")
-          download_request = urllib.request.Request(
-              url,
-              headers={
-                  "User-Agent": user_agent,
-                  "Referer": index,
-                  "Accept": "application/octet-stream,*/*;q=0.8",
-              },
-          )
-          with urllib.request.urlopen(download_request, timeout=60) as response:
+          with urllib.request.urlopen(url, timeout=60) as response:
               target.write_bytes(response.read())
-          print("official_download_host=ddl.service.boerse-stuttgart.de")
+          print("source_file=XSTU-pretrade-20260904T1311.json.gz")
           print(f"downloaded_bytes={target.stat().st_size}")
           PY
           PYTHONPATH=backend python -m app.providers.stuttgart_delayed.schema_probe /tmp/xstu.json.gz
