@@ -35,6 +35,8 @@ function reasonText(reason: string): string {
       return 'Die Quote-Währung passt nicht zur Währung des dokumentierten WarrantListings.';
     case 'WARRANT_QUOTE_LISTING_MISMATCH':
       return 'Der gelieferte Quote gehört nicht zum dokumentierten WarrantListing.';
+    case 'NO_USABLE_WARRANT_QUOTE':
+      return 'Keine der geprüften Kursquellen hat einen belastbaren Bid für das dokumentierte Listing geliefert.';
     default:
       return reason;
   }
@@ -153,7 +155,7 @@ export function ProductValuationPanel({ tradeId }: { tradeId: string }) {
             </div>
           </dl>
           <p className="mt-4 text-xs text-slate-500">
-            Quote: {value.symbol ?? '—'} ·{' '}
+            Bewertungsquelle: {value.selected_source ?? '—'} · Quote {value.symbol ?? '—'} ·{' '}
             {value.quote_observed_at
               ? new Date(value.quote_observed_at).toLocaleString('de-DE')
               : 'Zeitpunkt unbekannt'}
@@ -167,6 +169,28 @@ export function ProductValuationPanel({ tradeId }: { tradeId: string }) {
             keine automatische Kauf- oder Verkaufsentscheidung.
           </p>
         </div>
+      )}
+
+      {value.source_attempts.length > 0 && (
+        <details className="mt-5 text-xs text-slate-500">
+          <summary className="cursor-pointer">Geprüfte Kursquellen anzeigen</summary>
+          <ol className="mt-3 space-y-2">
+            {value.source_attempts.map((attempt) => (
+              <li key={attempt.source} className="rounded-lg border border-slate-800 p-3">
+                <p className="font-medium text-slate-300">
+                  {attempt.source} · {attempt.status}
+                  {attempt.delayed ? ' · verzögert' : ''}
+                </p>
+                <p className="mt-1 break-all">{attempt.reason}</p>
+                {attempt.observed_at && (
+                  <p className="mt-1">
+                    Datenzeitpunkt {new Date(attempt.observed_at).toLocaleString('de-DE')}
+                  </p>
+                )}
+              </li>
+            ))}
+          </ol>
+        </details>
       )}
     </section>
   );
