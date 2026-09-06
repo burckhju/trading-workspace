@@ -9,6 +9,7 @@ export type TradeManagementEventType =
   | 'THESIS_UPDATED'
   | 'MANAGEMENT_NOTE';
 export type TradeTimelineEntryKind = 'EXECUTION' | 'MANAGEMENT_EVENT';
+export type ProductValuationStatus = 'AVAILABLE' | 'MISSING' | 'UNAVAILABLE' | 'ERROR';
 
 export interface TradeResponse {
   id: Uuid;
@@ -45,6 +46,21 @@ export interface PositionResponse {
   last_execution_at: IsoDateTime;
   closed_at: IsoDateTime | null;
   is_closed: boolean;
+}
+
+export interface ProductPositionValuationResponse {
+  trade_id: Uuid;
+  position_id: Uuid;
+  status: ProductValuationStatus;
+  reason: string;
+  warrant_listing_id: Uuid | null;
+  symbol: string | null;
+  bid: string | null;
+  ask: string | null;
+  currency: string | null;
+  quote_observed_at: IsoDateTime | null;
+  market_value: string | null;
+  unrealized_gross_pnl: string | null;
 }
 
 export interface InitialPurchaseRequest {
