@@ -59,6 +59,7 @@ class ProductPositionValuationService:
         quote_resolver: MultiSourceWarrantQuoteResolver | None = None,
     ) -> None:
         self._database = database
+        self._legacy_single_source = quote_resolver is None and quote_provider is not None
         self._quote_resolver = quote_resolver
         if self._quote_resolver is None and quote_provider is not None:
             self._quote_resolver = MultiSourceWarrantQuoteResolver(
@@ -137,6 +138,38 @@ class ProductPositionValuationService:
             )
             result = resolution.result
             if result is None:
+                if self._legacy_single_source and len(resolution.attempts) == 1:
+                    attempt = resolution.attempts[0]
+                    if attempt.status is QuoteSourceAttemptStatus.MISSING:
+                        status = ProductValuationStatus.MISSING
+                        reason = "WARRANT_QUOTE_MISSING"
+                    elif attempt.status is QuoteSourceAttemptStatus.INSUFFICIENT:
+                        if attempt.reason == "BID_MISSING":
+                            status = ProductValuationStatus.MISSING
+                            reason = "WARRANT_BID_MISSING"
+                        else:
+                            status = ProductValuationStatus.ERROR
+                            reason = f"WARRANT_QUOTE_{attempt.reason}"
+                    elif attempt.status is QuoteSourceAttemptStatus.UNAVAILABLE:
+                        status = ProductValuationStatus.UNAVAILABLE
+                        reason = "WARRANT_QUOTE_CAPABILITY_NOT_CONFIGURED"
+                    else:
+                        status = ProductValuationStatus.ERROR
+                        reason = (
+                            "WARRANT_QUOTE_LISTING_MISMATCH"
+                            if attempt.reason == "WARRANT_LISTING_MISMATCH"
+                            else "WARRANT_QUOTE_REQUEST_FAILED"
+                        )
+                    return ProductPositionValuation(
+                        trade_id=trade_id,
+                        position_id=position.id,
+                        warrant_listing_id=listing.id,
+                        symbol=listing.symbol,
+                        status=status,
+                        reason=reason,
+                        source_attempts=resolution.attempts,
+                    )
+
                 statuses = {attempt.status for attempt in resolution.attempts}
                 if statuses & {
                     QuoteSourceAttemptStatus.MISSING,
