@@ -7,7 +7,7 @@ from decimal import Decimal
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, Response as FastAPIResponse, status
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,6 +15,7 @@ from app.database.dependencies import get_database_session
 from app.features.product.api.errors import translate_product_error
 from app.features.product.domain.models import OptionDirection, ProductFamily, WarrantLifecycle
 from app.features.product.service.application import WarrantService
+from app.features.product.service.hard_delete import WarrantHardDeleteService
 
 router = APIRouter(prefix="/api/v1/warrants", tags=["warrants"])
 WORKSPACE_ID = UUID("00000000-0000-4000-8000-000000000001")
@@ -105,6 +106,12 @@ async def service(
     return WarrantService(session)
 
 
+async def hard_delete_service(
+    session: Annotated[AsyncSession, Depends(get_database_session)],
+) -> WarrantHardDeleteService:
+    return WarrantHardDeleteService(session)
+
+
 @router.get("", response_model=list[WarrantResponse])
 async def list_warrants(svc: Annotated[WarrantService, Depends(service)]) -> list[WarrantResponse]:
     return [WarrantResponse.model_validate(x) for x in await svc.list(WORKSPACE_ID)]
@@ -127,6 +134,20 @@ async def get_warrant(
 ) -> WarrantResponse:
     try:
         return WarrantResponse.model_validate(await svc.get(WORKSPACE_ID, warrant_id))
+    except Exception as error:
+        raise translate_product_error(error) from error
+
+
+@router.delete("/{warrant_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_warrant(
+    warrant_id: UUID,
+    version: int = Query(ge=1),
+    svc: Annotated[WarrantHardDeleteService, Depends(hard_delete_service)] = None,
+) -> FastAPIResponse:
+    try:
+        assert svc is not None
+        await svc.delete(WORKSPACE_ID, warrant_id, version)
+        return FastAPIResponse(status_code=status.HTTP_204_NO_CONTENT)
     except Exception as error:
         raise translate_product_error(error) from error
 
