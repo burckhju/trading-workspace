@@ -1,0 +1,48 @@
+name: XSTU Schema Probe
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    name: XSTU schema probe
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Download one official XSTU payload and print structural schema only
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import html
+          import re
+          import urllib.request
+          from pathlib import Path
+
+          index = (
+              "https://www.boerse-stuttgart.de/de-de/fuer-geschaeftspartner/reports/"
+              "mifir-ii-delayed-data/xstu-pre-trade/"
+          )
+          page = urllib.request.urlopen(index, timeout=30).read().decode("utf-8", "replace")
+          match = re.search(r'href="([^"]+)"[^>]*>\s*Herunterladen', page, flags=re.I)
+          if not match:
+              raise SystemExit("No official XSTU download link found")
+          url = html.unescape(match.group(1))
+          if url.startswith("/"):
+              url = "https://www.boerse-stuttgart.de" + url
+          if not url.startswith("https://ddl.service.boerse-stuttgart.de/"):
+              raise SystemExit("Unexpected XSTU download host")
+          target = Path("/tmp/xstu.json.gz")
+          with urllib.request.urlopen(url, timeout=60) as response:
+              target.write_bytes(response.read())
+          print("official_download_host=ddl.service.boerse-stuttgart.de")
+          print(f"downloaded_bytes={target.stat().st_size}")
+          PY
+          PYTHONPATH=backend python -m app.providers.stuttgart_delayed.schema_probe /tmp/xstu.json.gz
