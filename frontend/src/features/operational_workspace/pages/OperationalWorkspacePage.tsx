@@ -8,7 +8,8 @@ const sections: Array<{ priority: OperationalPriority; title: string; descriptio
   {
     priority: 'ACTION',
     title: 'Jetzt handeln',
-    description: 'Aktive Arbeit an Kandidaten und offenen Positionen.',
+    description:
+      'Offene Positions-Alerts zuerst, danach Monitoring-Datenprobleme und weitere ausführbare Schritte.',
   },
   {
     priority: 'REVIEW',
@@ -98,7 +99,8 @@ export function OperationalWorkspacePage() {
           </h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
             Priorisierte nächste Schritte aus bestehenden Feature-Zuständen. Die Fachlogik bleibt in
-            den jeweiligen Owner-Features.
+            den jeweiligen Owner-Features. Die Reihenfolge ist eine operative Sicht und keine
+            Tradingempfehlung.
           </p>
         </div>
         <button
