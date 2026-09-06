@@ -8,7 +8,7 @@ from uuid import UUID
 from fastapi.testclient import TestClient
 
 from app.core.config import Environment, Settings
-from app.features.product.api.router import service
+from app.features.product.api.router import WORKSPACE_ID, hard_delete_service, service
 from app.features.product.domain.models import (
     OptionDirection,
     ProductFamily,
@@ -22,6 +22,7 @@ from app.features.product.service.errors import (
     DuplicateWarrantIsin,
     DuplicateWarrantListing,
     WarrantConcurrentModification,
+    WarrantDeleteBlocked,
     WarrantNotFound,
 )
 from app.main import create_application
@@ -100,6 +101,31 @@ def test_terms_update_requires_and_delegates_expected_version() -> None:
     assert svc.add_terms_version.await_args.kwargs["expected_version"] == 3
 
 
+def test_delete_warrant_delegates_version_and_returns_no_content() -> None:
+    svc = AsyncMock()
+    app = create_application(settings())
+    app.dependency_overrides[hard_delete_service] = service_override(svc)
+
+    with TestClient(app) as client:
+        response = client.delete(f"/api/v1/warrants/{WARRANT_ID}?version=4")
+
+    assert response.status_code == 204
+    svc.delete.assert_awaited_once_with(WORKSPACE_ID, WARRANT_ID, 4)
+
+
+def test_delete_warrant_uses_stable_conflict_when_history_blocks_delete() -> None:
+    svc = AsyncMock()
+    svc.delete.side_effect = WarrantDeleteBlocked("historical use")
+    app = create_application(settings())
+    app.dependency_overrides[hard_delete_service] = service_override(svc)
+
+    with TestClient(app) as client:
+        response = client.delete(f"/api/v1/warrants/{WARRANT_ID}?version=4")
+
+    assert response.status_code == 409
+    assert response.json()["code"] == "WARRANT_DELETE_BLOCKED"
+
+
 def test_product_errors_use_stable_http_conflict_contract() -> None:
     cases = [
         (WarrantNotFound("missing"), 404, "WARRANT_NOT_FOUND"),
@@ -118,6 +144,7 @@ def test_product_errors_use_stable_http_conflict_contract() -> None:
             409,
             "WARRANT_CONCURRENT_MODIFICATION",
         ),
+        (WarrantDeleteBlocked("historical use"), 409, "WARRANT_DELETE_BLOCKED"),
     ]
     for error, status_code, code in cases:
         svc = AsyncMock()
