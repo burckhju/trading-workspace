@@ -2,8 +2,10 @@
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from time import perf_counter
+from typing import Any
 
-from sqlalchemy import text
+from sqlalchemy import event, text
 from sqlalchemy.engine import URL, make_url
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
@@ -13,6 +15,9 @@ from sqlalchemy.ext.asyncio import (
 )
 
 from app.core.config import Settings
+from app.core.logging.context import record_database_query
+
+_QUERY_STARTED_AT = "trading_workspace_query_started_at"
 
 
 class DatabaseManager:
@@ -43,7 +48,37 @@ class DatabaseManager:
                 max_overflow=self._settings.database_max_overflow,
                 pool_recycle=self._settings.database_pool_recycle_seconds,
             )
+            self._attach_query_metrics(self._engine)
         return self._engine
+
+    @staticmethod
+    def _attach_query_metrics(engine: AsyncEngine) -> None:
+        """Attach lightweight timing listeners without logging SQL or parameters."""
+
+        def before_cursor_execute(
+            _connection: Any,
+            _cursor: Any,
+            _statement: str,
+            _parameters: Any,
+            context: Any,
+            _executemany: bool,
+        ) -> None:
+            setattr(context, _QUERY_STARTED_AT, perf_counter())
+
+        def after_cursor_execute(
+            _connection: Any,
+            _cursor: Any,
+            _statement: str,
+            _parameters: Any,
+            context: Any,
+            _executemany: bool,
+        ) -> None:
+            started_at = getattr(context, _QUERY_STARTED_AT, None)
+            if started_at is not None:
+                record_database_query((perf_counter() - started_at) * 1000)
+
+        event.listen(engine.sync_engine, "before_cursor_execute", before_cursor_execute)
+        event.listen(engine.sync_engine, "after_cursor_execute", after_cursor_execute)
 
     def _get_session_factory(self) -> async_sessionmaker[AsyncSession]:
         if self._session_factory is None:
