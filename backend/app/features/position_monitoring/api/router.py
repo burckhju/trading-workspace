@@ -18,7 +18,6 @@ from app.features.position_monitoring.service.quote_sources import (
     NamedWarrantQuoteSource,
 )
 from app.providers.eodhd.warrant_quote import EodhdWarrantQuoteAdapter
-from app.providers.shared.unavailable_warrant_quote import UnavailableWarrantQuoteAdapter
 
 router = APIRouter(prefix="/api/v1/position-monitoring", tags=["position-monitoring"])
 
@@ -64,23 +63,21 @@ def _warrant_quote_resolver() -> MultiSourceWarrantQuoteResolver:
             NamedWarrantQuoteSource("EODHD", EodhdWarrantQuoteAdapter()),
             NamedWarrantQuoteSource(
                 "BOERSE_STUTTGART_DELAYED",
-                UnavailableWarrantQuoteAdapter(
-                    reason=(
-                        "Official XSTU delayed pre-trade source is reserved but not enabled until "
-                        "its payload schema and listing identity mapping are verified"
-                    )
-                ),
+                None,
                 delayed=True,
+                unavailable_reason=(
+                    "Official XSTU delayed pre-trade source is reserved but not enabled until "
+                    "its payload schema and listing identity mapping are verified"
+                ),
             ),
             NamedWarrantQuoteSource(
                 "GETTEX_DELAYED",
-                UnavailableWarrantQuoteAdapter(
-                    reason=(
-                        "Official MUND/MUNC delayed pre-trade source is reserved but not enabled "
-                        "until payload schema, usage terms, and listing identity are verified"
-                    )
-                ),
+                None,
                 delayed=True,
+                unavailable_reason=(
+                    "Official MUND/MUNC delayed pre-trade source is reserved but not enabled until "
+                    "payload schema, usage terms, and listing identity are verified"
+                ),
             ),
         )
     )
