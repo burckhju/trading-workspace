@@ -142,17 +142,18 @@ describe('TradeManagementPage', () => {
 
     fireEvent.change(screen.getByLabelText('Verkaufsmenge'), { target: { value: '4' } });
     fireEvent.change(screen.getByLabelText('Verkaufspreis'), { target: { value: '2.50' } });
-    fireEvent.click(screen.getByRole('button', { name: 'SELL speichern' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Teilverkauf erfassen' }));
 
     await waitFor(() =>
       expect(api.sell).toHaveBeenCalledWith('trade-1', {
         quantity: 4,
         price_per_unit: '2.50',
+        executed_at: undefined,
       }),
     );
     await waitFor(() => expect(api.position).toHaveBeenCalledTimes(2));
     expect(screen.getByRole('status')).toHaveTextContent(
-      'Verkauf wurde erfasst und die Position neu projiziert.',
+      'Teilverkauf wurde erfasst und die Position neu projiziert.',
     );
   });
 
@@ -175,10 +176,10 @@ describe('TradeManagementPage', () => {
     expect(screen.getAllByText('Nachbeobachtung starten')).toHaveLength(2);
     expect(
       screen.getByText(
-        'Die Position ist geschlossen. Weitere SELL-Executions sind nicht verfügbar.',
+        'Die Position ist geschlossen. Weitere Verkäufe können nicht erfasst werden.',
       ),
     ).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'SELL speichern' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Teilverkauf erfassen' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Nachbeobachtung starten' })).toBeInTheDocument();
   });
 

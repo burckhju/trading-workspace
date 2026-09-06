@@ -8,6 +8,7 @@ export type TradeManagementEventType =
   | 'TARGET_CHANGED'
   | 'THESIS_UPDATED'
   | 'MANAGEMENT_NOTE';
+export type TradeTimelineEntryKind = 'EXECUTION' | 'MANAGEMENT_EVENT';
 
 export interface TradeResponse {
   id: Uuid;
@@ -82,6 +83,21 @@ export interface TradeManagementStateResponse {
   thesis: string | null;
   notes: string[];
   last_event_at: IsoDateTime | null;
+}
+
+export interface TradeTimelineEntryResponse {
+  id: Uuid;
+  trade_id: Uuid;
+  occurred_at: IsoDateTime;
+  recorded_at: IsoDateTime;
+  kind: TradeTimelineEntryKind;
+  execution_side: ExecutionSide | null;
+  management_event_type: TradeManagementEventType | null;
+  quantity: number | null;
+  price_per_unit: string | null;
+  numeric_value: string | null;
+  text_value: string | null;
+  supersedes_id: Uuid | null;
 }
 
 export interface SaleRequest {

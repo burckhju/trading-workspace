@@ -11,10 +11,13 @@ import type {
   TradeManagementEventResponse,
   TradeManagementStateResponse,
   TradeResponse,
+  TradeTimelineEntryResponse,
 } from '../types/api';
 
 const tradePositionUrl = `${environment.apiBaseUrl}/api/v1/trade-position`;
 const baseUrl = `${tradePositionUrl}/trades`;
+
+export const tradeTimelineChangedEvent = 'trade-timeline-changed';
 
 function tradeUrl(tradeId: string, path = ''): string {
   return `${baseUrl}/${tradeId}${path}`;
@@ -22,6 +25,14 @@ function tradeUrl(tradeId: string, path = ''): string {
 
 function normalizeDecimal(value: string): string {
   return value.trim().replace(',', '.');
+}
+
+function notifyTimelineChanged(tradeId: string): void {
+  window.dispatchEvent(
+    new CustomEvent(tradeTimelineChangedEvent, {
+      detail: { tradeId },
+    }),
+  );
 }
 
 export const tradeManagementApiClient = {
@@ -43,45 +54,63 @@ export const tradeManagementApiClient = {
   managementState: (tradeId: string, signal?: AbortSignal): Promise<TradeManagementStateResponse> =>
     requestJson<TradeManagementStateResponse>(tradeUrl(tradeId, '/management'), { signal }),
 
-  sell: (tradeId: string, request: SaleRequest): Promise<SaleResponse> =>
-    requestJson<SaleResponse>(tradeUrl(tradeId, '/sales'), {
+  timeline: (tradeId: string, signal?: AbortSignal): Promise<TradeTimelineEntryResponse[]> =>
+    requestJson<TradeTimelineEntryResponse[]>(tradeUrl(tradeId, '/timeline'), { signal }),
+
+  sell: async (tradeId: string, request: SaleRequest): Promise<SaleResponse> => {
+    const response = await requestJson<SaleResponse>(tradeUrl(tradeId, '/sales'), {
       method: 'POST',
       body: request,
-    }),
+    });
+    notifyTimelineChanged(tradeId);
+    return response;
+  },
 
-  changeStop: (
+  changeStop: async (
     tradeId: string,
     request: PriceManagementRequest,
-  ): Promise<TradeManagementEventResponse> =>
-    requestJson<TradeManagementEventResponse>(tradeUrl(tradeId, '/management/stop'), {
-      method: 'POST',
-      body: request,
-    }),
+  ): Promise<TradeManagementEventResponse> => {
+    const response = await requestJson<TradeManagementEventResponse>(
+      tradeUrl(tradeId, '/management/stop'),
+      { method: 'POST', body: request },
+    );
+    notifyTimelineChanged(tradeId);
+    return response;
+  },
 
-  changeTarget: (
+  changeTarget: async (
     tradeId: string,
     request: PriceManagementRequest,
-  ): Promise<TradeManagementEventResponse> =>
-    requestJson<TradeManagementEventResponse>(tradeUrl(tradeId, '/management/target'), {
-      method: 'POST',
-      body: request,
-    }),
+  ): Promise<TradeManagementEventResponse> => {
+    const response = await requestJson<TradeManagementEventResponse>(
+      tradeUrl(tradeId, '/management/target'),
+      { method: 'POST', body: request },
+    );
+    notifyTimelineChanged(tradeId);
+    return response;
+  },
 
-  updateThesis: (
+  updateThesis: async (
     tradeId: string,
     request: TextManagementRequest,
-  ): Promise<TradeManagementEventResponse> =>
-    requestJson<TradeManagementEventResponse>(tradeUrl(tradeId, '/management/thesis'), {
-      method: 'POST',
-      body: request,
-    }),
+  ): Promise<TradeManagementEventResponse> => {
+    const response = await requestJson<TradeManagementEventResponse>(
+      tradeUrl(tradeId, '/management/thesis'),
+      { method: 'POST', body: request },
+    );
+    notifyTimelineChanged(tradeId);
+    return response;
+  },
 
-  addNote: (
+  addNote: async (
     tradeId: string,
     request: TextManagementRequest,
-  ): Promise<TradeManagementEventResponse> =>
-    requestJson<TradeManagementEventResponse>(tradeUrl(tradeId, '/management/notes'), {
-      method: 'POST',
-      body: request,
-    }),
+  ): Promise<TradeManagementEventResponse> => {
+    const response = await requestJson<TradeManagementEventResponse>(
+      tradeUrl(tradeId, '/management/notes'),
+      { method: 'POST', body: request },
+    );
+    notifyTimelineChanged(tradeId);
+    return response;
+  },
 };
