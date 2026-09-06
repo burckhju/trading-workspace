@@ -9,6 +9,7 @@ from app.features.product.service.errors import (
     DuplicateWarrantWkn,
     InactiveWarrantReference,
     WarrantConcurrentModification,
+    WarrantDeleteBlocked,
     WarrantNotFound,
     WarrantServiceError,
 )
@@ -23,6 +24,7 @@ def translate_product_error(error: Exception) -> ApplicationError:
         error,
         (
             WarrantConcurrentModification,
+            WarrantDeleteBlocked,
             DuplicateWarrantIsin,
             DuplicateWarrantWkn,
             DuplicateWarrantListing,
