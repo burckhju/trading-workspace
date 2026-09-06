@@ -11,6 +11,7 @@ export function WarrantAdminPageWithDelete() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [adminRevision, setAdminRevision] = useState(0);
 
   async function openDeletePanel() {
     setDeleteOpen(true);
@@ -47,6 +48,7 @@ export function WarrantAdminPageWithDelete() {
       const remaining = warrants.filter((item) => item.id !== selected.id);
       setWarrants(remaining);
       setSelectedId(remaining[0]?.id ?? '');
+      setAdminRevision((current) => current + 1);
       setMessage(`Optionsschein „${selected.display_name}“ wurde gelöscht.`);
     } catch (value: unknown) {
       setError(
@@ -61,9 +63,12 @@ export function WarrantAdminPageWithDelete() {
 
   return (
     <div className="space-y-8">
-      <WarrantAdminCorePage />
+      <WarrantAdminCorePage key={adminRevision} />
 
-      <section className="rounded-xl border border-slate-800 p-5" aria-labelledby="warrant-delete-heading">
+      <section
+        className="rounded-xl border border-slate-800 p-5"
+        aria-labelledby="warrant-delete-heading"
+      >
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h2 id="warrant-delete-heading" className="text-lg font-medium">
@@ -96,7 +101,7 @@ export function WarrantAdminPageWithDelete() {
                 disabled={busy || warrants.length === 0}
                 className="mt-1 w-full rounded border border-slate-700 bg-slate-950 p-2"
               >
-                {warrants.length === 0 && <option value="">Keine löschbaren Kandidaten geladen</option>}
+                {warrants.length === 0 && <option value="">Keine Optionsscheine vorhanden</option>}
                 {warrants.map((warrant) => (
                   <option key={warrant.id} value={warrant.id}>
                     {warrant.display_name} · {warrant.isin ?? warrant.wkn ?? 'ohne Kennnummer'}
@@ -121,7 +126,10 @@ export function WarrantAdminPageWithDelete() {
           </p>
         )}
         {message && (
-          <p role="status" className="mt-3 rounded border border-emerald-800 p-3 text-sm text-emerald-200">
+          <p
+            role="status"
+            className="mt-3 rounded border border-emerald-800 p-3 text-sm text-emerald-200"
+          >
             {message}
           </p>
         )}
