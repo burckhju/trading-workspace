@@ -7,6 +7,7 @@ import { TradeAlertsPanel } from './TradeAlertsPanel';
 vi.mock('../services/client', () => ({
   alertApiClient: {
     forTrade: vi.fn(),
+    monitoringHealth: vi.fn(),
   },
 }));
 
@@ -15,6 +16,16 @@ const api = vi.mocked(alertApiClient);
 describe('TradeAlertsPanel', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    api.monitoringHealth.mockResolvedValue({
+      trade_id: 'trade-1',
+      position_id: 'position-1',
+      status: 'OK',
+      reason: 'COMPLETED_DAILY_PRICE_FRESH',
+      symbol: 'DAX.INDX',
+      trading_date: '2026-09-03',
+      market_data_observed_at: '2026-09-03T10:00:00Z',
+      age_days: 0,
+    });
   });
 
   it('shows persisted alert and delivery state separately', async () => {
@@ -58,7 +69,7 @@ describe('TradeAlertsPanel', () => {
     expect(await screen.findByText('Target erreicht')).toBeInTheDocument();
     expect(screen.getByText('Target 1 wurde erreicht.')).toBeInTheDocument();
     expect(screen.getByText('TELEGRAM: zugestellt')).toBeInTheDocument();
-    expect(screen.getByText('1 offen')).toBeInTheDocument();
+    expect(screen.getByText('1 Alerts offen')).toBeInTheDocument();
   });
 
   it('renders delivery failure without changing the alert state', async () => {
