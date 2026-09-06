@@ -17,6 +17,10 @@ class WarrantConcurrentModification(WarrantServiceError):
     code = "WARRANT_CONCURRENT_MODIFICATION"
 
 
+class WarrantDeleteBlocked(WarrantServiceError):
+    code = "WARRANT_DELETE_BLOCKED"
+
+
 class DuplicateWarrantIsin(WarrantServiceError):
     code = "WARRANT_DUPLICATE_ISIN"
 
