@@ -5,6 +5,7 @@ import type {
   InitialPurchaseResponse,
   PositionResponse,
   PriceManagementRequest,
+  ProductPositionValuationResponse,
   SaleRequest,
   SaleResponse,
   TextManagementRequest,
@@ -15,6 +16,7 @@ import type {
 } from '../types/api';
 
 const tradePositionUrl = `${environment.apiBaseUrl}/api/v1/trade-position`;
+const monitoringUrl = `${environment.apiBaseUrl}/api/v1/position-monitoring`;
 const baseUrl = `${tradePositionUrl}/trades`;
 
 export const tradeTimelineChangedEvent = 'trade-timeline-changed';
@@ -56,6 +58,15 @@ export const tradeManagementApiClient = {
 
   timeline: (tradeId: string, signal?: AbortSignal): Promise<TradeTimelineEntryResponse[]> =>
     requestJson<TradeTimelineEntryResponse[]>(tradeUrl(tradeId, '/timeline'), { signal }),
+
+  productValuation: (
+    tradeId: string,
+    signal?: AbortSignal,
+  ): Promise<ProductPositionValuationResponse> =>
+    requestJson<ProductPositionValuationResponse>(
+      `${monitoringUrl}/trades/${encodeURIComponent(tradeId)}/product-valuation`,
+      { signal },
+    ),
 
   sell: async (tradeId: string, request: SaleRequest): Promise<SaleResponse> => {
     const response = await requestJson<SaleResponse>(tradeUrl(tradeId, '/sales'), {
