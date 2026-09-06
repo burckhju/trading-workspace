@@ -1,16 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import {
-  tradeManagementApiClient,
-  tradeTimelineChangedEvent,
-} from '../services/client';
+import { tradeManagementApiClient, tradeTimelineChangedEvent } from '../services/client';
 import type { ProductPositionValuationResponse } from '../types/api';
 
 function formatDecimal(value: string | null): string {
   if (value === null) return '—';
-  return new Intl.NumberFormat('de-DE', {
-    maximumFractionDigits: 10,
-  }).format(Number(value));
+  return new Intl.NumberFormat('de-DE', { maximumFractionDigits: 10 }).format(Number(value));
 }
 
 function statusText(value: ProductPositionValuationResponse): string {
