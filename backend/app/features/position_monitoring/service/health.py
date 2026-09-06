@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from enum import StrEnum
@@ -43,7 +44,7 @@ class PositionMonitoringHealthService:
         database: DatabaseManager,
         market_data: LatestCompletedDailyPriceProvider | None,
         max_completed_price_age_days: int,
-        now: callable = lambda: datetime.now(UTC),
+        now: Callable[[], datetime] = lambda: datetime.now(UTC),
     ) -> None:
         if max_completed_price_age_days < 0:
             raise ValueError("max_completed_price_age_days must not be negative")
