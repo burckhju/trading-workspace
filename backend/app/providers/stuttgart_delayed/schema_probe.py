@@ -115,7 +115,9 @@ def discover_record_arrays(
     return tuple(sorted(candidates, key=lambda candidate: candidate.path))
 
 
-def candidate_field_hints(candidate: RecordArrayCandidate) -> dict[str, tuple[str, ...]]:
+def candidate_field_hints(
+    candidate: RecordArrayCandidate,
+) -> dict[str, tuple[str, ...]]:
     """Return name-based candidate paths without declaring any mapping verified."""
 
     keywords = {
@@ -149,7 +151,10 @@ def render_report(payload: Any) -> str:
     """Render a deterministic structural report with no market-data values."""
 
     candidates = discover_record_arrays(payload)
-    lines = [f"top_level_type={_type_name(payload)}", f"record_array_candidates={len(candidates)}"]
+    lines = [
+        f"top_level_type={_type_name(payload)}",
+        f"record_array_candidates={len(candidates)}",
+    ]
     for index, candidate in enumerate(candidates, start=1):
         lines.append("")
         lines.append(f"candidate[{index}].path={candidate.path}")
@@ -161,13 +166,17 @@ def render_report(payload: Any) -> str:
         )
         lines.append(
             f"candidate[{index}].leaf_type_counts="
-            + ",".join(f"{name}:{count}" for name, count in sorted(type_counts.items()))
+            + ",".join(
+                f"{name}:{count}" for name, count in sorted(type_counts.items())
+            )
         )
         for path, types in candidate.leaf_types:
             lines.append(f"  {path}: {'|'.join(types)}")
         hints = candidate_field_hints(candidate)
         for category, paths in sorted(hints.items()):
-            lines.append(f"candidate[{index}].hint.{category}=" + ",".join(paths))
+            lines.append(
+                f"candidate[{index}].hint.{category}=" + ",".join(paths)
+            )
     return "\n".join(lines)
 
 
