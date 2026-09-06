@@ -105,15 +105,12 @@ class ProductPositionValuationService:
                     warrant_listing_id=evaluation.warrant_listing_id,
                 )
 
-            base = dict(
-                trade_id=trade_id,
-                position_id=position.id,
-                warrant_listing_id=listing.id,
-                symbol=listing.symbol,
-            )
             if self._quote_provider is None:
                 return ProductPositionValuation(
-                    **base,
+                    trade_id=trade_id,
+                    position_id=position.id,
+                    warrant_listing_id=listing.id,
+                    symbol=listing.symbol,
                     status=ProductValuationStatus.UNAVAILABLE,
                     reason="WARRANT_QUOTE_PROVIDER_UNAVAILABLE",
                 )
@@ -129,13 +126,19 @@ class ProductPositionValuationService:
                 )
             except MarketDataConfigurationError:
                 return ProductPositionValuation(
-                    **base,
+                    trade_id=trade_id,
+                    position_id=position.id,
+                    warrant_listing_id=listing.id,
+                    symbol=listing.symbol,
                     status=ProductValuationStatus.UNAVAILABLE,
                     reason="WARRANT_QUOTE_CAPABILITY_NOT_CONFIGURED",
                 )
             except Exception:
                 return ProductPositionValuation(
-                    **base,
+                    trade_id=trade_id,
+                    position_id=position.id,
+                    warrant_listing_id=listing.id,
+                    symbol=listing.symbol,
                     status=ProductValuationStatus.ERROR,
                     reason="WARRANT_QUOTE_REQUEST_FAILED",
                 )
@@ -143,19 +146,28 @@ class ProductPositionValuationService:
             quote = result.data
             if quote is None:
                 return ProductPositionValuation(
-                    **base,
+                    trade_id=trade_id,
+                    position_id=position.id,
+                    warrant_listing_id=listing.id,
+                    symbol=listing.symbol,
                     status=ProductValuationStatus.MISSING,
                     reason="WARRANT_QUOTE_MISSING",
                 )
             if quote.warrant_listing_id != listing.id:
                 return ProductPositionValuation(
-                    **base,
+                    trade_id=trade_id,
+                    position_id=position.id,
+                    warrant_listing_id=listing.id,
+                    symbol=listing.symbol,
                     status=ProductValuationStatus.ERROR,
                     reason="WARRANT_QUOTE_LISTING_MISMATCH",
                 )
             if quote.currency != listing.quotation_currency_code:
                 return ProductPositionValuation(
-                    **base,
+                    trade_id=trade_id,
+                    position_id=position.id,
+                    warrant_listing_id=listing.id,
+                    symbol=listing.symbol,
                     status=ProductValuationStatus.ERROR,
                     reason="WARRANT_QUOTE_CURRENCY_MISMATCH",
                     bid=quote.bid,
@@ -165,7 +177,10 @@ class ProductPositionValuationService:
                 )
             if result.quality_status is not QualityStatus.VALID:
                 return ProductPositionValuation(
-                    **base,
+                    trade_id=trade_id,
+                    position_id=position.id,
+                    warrant_listing_id=listing.id,
+                    symbol=listing.symbol,
                     status=ProductValuationStatus.ERROR,
                     reason=f"WARRANT_QUOTE_QUALITY_{result.quality_status.value}",
                     bid=quote.bid,
@@ -175,7 +190,10 @@ class ProductPositionValuationService:
                 )
             if quote.bid is None:
                 return ProductPositionValuation(
-                    **base,
+                    trade_id=trade_id,
+                    position_id=position.id,
+                    warrant_listing_id=listing.id,
+                    symbol=listing.symbol,
                     status=ProductValuationStatus.MISSING,
                     reason="WARRANT_BID_MISSING",
                     ask=quote.ask,
@@ -185,7 +203,10 @@ class ProductPositionValuationService:
 
             market_value = quote.bid * Decimal(position.open_quantity)
             return ProductPositionValuation(
-                **base,
+                trade_id=trade_id,
+                position_id=position.id,
+                warrant_listing_id=listing.id,
+                symbol=listing.symbol,
                 status=ProductValuationStatus.AVAILABLE,
                 reason="WARRANT_BID_AVAILABLE",
                 bid=quote.bid,
