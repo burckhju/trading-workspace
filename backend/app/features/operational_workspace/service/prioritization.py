@@ -110,15 +110,23 @@ async def prioritize_position_monitoring(
 
     prioritized: list[OperationalAction] = []
     for action in actions:
-        if action.action_type != "OPEN_POSITION_MANAGEMENT" or action.resource_type != "trade":
+        if (
+            action.action_type != "OPEN_POSITION_MANAGEMENT"
+            or action.resource_type != "trade"
+        ):
             prioritized.append(action)
             continue
 
         health = await health_reader(action.resource_id)
-        valuation = await valuation_reader(action.resource_id) if valuation_reader else None
-        underlying_problem = health is not None and health.status is not MonitoringHealthStatus.OK
+        valuation = (
+            await valuation_reader(action.resource_id) if valuation_reader else None
+        )
+        underlying_problem = (
+            health is not None and health.status is not MonitoringHealthStatus.OK
+        )
         product_problem = (
-            valuation is not None and valuation.status is not ProductValuationStatus.AVAILABLE
+            valuation is not None
+            and valuation.status is not ProductValuationStatus.AVAILABLE
         )
 
         if not underlying_problem and not product_problem:
