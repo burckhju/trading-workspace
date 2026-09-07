@@ -1,4 +1,4 @@
-"""Schema-gated adapter for the official XSTU delayed pre-trade download service."""
+"""Schema-gated adapter for verified XSTU delayed pre-trade payloads."""
 
 from __future__ import annotations
 
@@ -8,13 +8,14 @@ import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
+from pathlib import Path
 from typing import Any, cast
 from urllib.parse import urljoin, urlparse
 
 import httpx
 from sqlalchemy import select
 
-from app.core.config.settings import StuttgartDelayedSettings
+from app.core.config.settings import StuttgartDelayedSettings, StuttgartDelayedSourceMode
 from app.database import DatabaseManager
 from app.features.market.persistence.models import TradingVenueModel
 from app.features.market_data.domain.enums import (
@@ -36,6 +37,7 @@ _DOWNLOAD_LINK = re.compile(
     r'href=["\'](?P<href>[^"\']*ddl\.service\.boerse-stuttgart\.de[^"\']*)["\']',
     re.IGNORECASE,
 )
+_XSTU_FILE_NAME = re.compile(r"^XSTU-pretrade-(?P<stamp>\d{8}T\d{4})\.json\.gz$")
 
 
 @dataclass(frozen=True, slots=True)
@@ -48,7 +50,7 @@ class _ListingIdentity:
 
 
 class StuttgartDelayedWarrantQuoteAdapter:
-    """Read an exact XSTU warrant listing quote from the official delayed-data files."""
+    """Read an exact XSTU warrant listing quote from a configured delayed-data source."""
 
     def __init__(
         self,
@@ -87,15 +89,21 @@ class StuttgartDelayedWarrantQuoteAdapter:
             warnings=(
                 "Börse Stuttgart XSTU delayed pre-trade data; not a real-time executable quote",
                 f"schema={self._settings.schema_version}",
+                f"source={self._settings.source_mode.value}",
             ),
             retry_count=0,
             provider_call_cost=None,
         )
 
     def _require_ready_configuration(self) -> None:
-        if not self._settings.enabled or not self._settings.has_verified_schema:
+        if (
+            not self._settings.enabled
+            or not self._settings.has_verified_schema
+            or not self._settings.has_source_configuration
+        ):
             raise MarketDataConfigurationError(
-                "Stuttgart delayed quote provider requires enabled=true and a verified schema map",
+                "Stuttgart delayed quote provider requires enabled=true, a verified schema map, "
+                "and a configured payload source",
                 provider=MarketDataProvider.BOERSE_STUTTGART_DELAYED,
                 capability=MarketDataCapability.WARRANT_LISTING_QUOTE,
             )
@@ -139,6 +147,45 @@ class StuttgartDelayedWarrantQuoteAdapter:
         )
 
     async def _load_latest_payload(self) -> Any:
+        if self._settings.source_mode == StuttgartDelayedSourceMode.LOCAL_DIRECTORY:
+            return self._load_latest_local_payload()
+        if self._settings.source_mode == StuttgartDelayedSourceMode.DIRECT_URL:
+            assert self._settings.direct_url is not None
+            return await self._load_url_payload(self._settings.direct_url)
+        return await self._load_index_payload()
+
+    def _load_latest_local_payload(self) -> Any:
+        assert self._settings.local_directory is not None
+        directory = Path(self._settings.local_directory)
+        if not directory.is_dir():
+            raise MarketDataConfigurationError(
+                "Configured Stuttgart delayed local_directory is not an accessible directory",
+                provider=MarketDataProvider.BOERSE_STUTTGART_DELAYED,
+                capability=MarketDataCapability.WARRANT_LISTING_QUOTE,
+            )
+
+        candidates = [
+            path
+            for path in directory.glob(self._settings.local_file_pattern)
+            if path.is_file() and _XSTU_FILE_NAME.fullmatch(path.name)
+        ]
+        if not candidates:
+            raise MarketDataInvalidResponseError(
+                "No verified XSTU delayed payload file found in configured local_directory",
+                provider=MarketDataProvider.BOERSE_STUTTGART_DELAYED,
+                capability=MarketDataCapability.WARRANT_LISTING_QUOTE,
+            )
+        latest = max(candidates, key=lambda path: path.name)
+        try:
+            return self._decode_payload(latest.read_bytes())
+        except OSError as exc:
+            raise MarketDataInvalidResponseError(
+                "Latest local Stuttgart delayed payload could not be read",
+                provider=MarketDataProvider.BOERSE_STUTTGART_DELAYED,
+                capability=MarketDataCapability.WARRANT_LISTING_QUOTE,
+            ) from exc
+
+    async def _load_index_payload(self) -> Any:
         owns_client = self._client is None
         client = self._client or httpx.AsyncClient(timeout=self._settings.timeout_seconds)
         try:
@@ -147,18 +194,33 @@ class StuttgartDelayedWarrantQuoteAdapter:
             download_url = self._extract_official_download_url(index_response.text)
             response = await client.get(download_url)
             response.raise_for_status()
-            try:
-                decoded = gzip.decompress(response.content).decode("utf-8")
-                return json.loads(decoded)
-            except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
-                raise MarketDataInvalidResponseError(
-                    "Stuttgart delayed download is not valid UTF-8 JSON gzip content",
-                    provider=MarketDataProvider.BOERSE_STUTTGART_DELAYED,
-                    capability=MarketDataCapability.WARRANT_LISTING_QUOTE,
-                ) from exc
+            return self._decode_payload(response.content)
         finally:
             if owns_client:
                 await client.aclose()
+
+    async def _load_url_payload(self, url: str) -> Any:
+        owns_client = self._client is None
+        client = self._client or httpx.AsyncClient(timeout=self._settings.timeout_seconds)
+        try:
+            response = await client.get(url)
+            response.raise_for_status()
+            return self._decode_payload(response.content)
+        finally:
+            if owns_client:
+                await client.aclose()
+
+    @staticmethod
+    def _decode_payload(content: bytes) -> Any:
+        try:
+            decoded = gzip.decompress(content).decode("utf-8")
+            return json.loads(decoded)
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise MarketDataInvalidResponseError(
+                "Stuttgart delayed payload is not valid UTF-8 JSON gzip content",
+                provider=MarketDataProvider.BOERSE_STUTTGART_DELAYED,
+                capability=MarketDataCapability.WARRANT_LISTING_QUOTE,
+            ) from exc
 
     def _extract_official_download_url(self, html: str) -> str:
         match = _DOWNLOAD_LINK.search(html)

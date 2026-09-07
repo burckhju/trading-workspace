@@ -16,6 +16,14 @@ class Environment(StrEnum):
     PRODUCTION = "production"
 
 
+class StuttgartDelayedSourceMode(StrEnum):
+    """Supported transport sources for verified XSTU delayed payloads."""
+
+    INDEX = "index"
+    LOCAL_DIRECTORY = "local_directory"
+    DIRECT_URL = "direct_url"
+
+
 class EodhdSettings(BaseModel):
     """Validated transport settings for the optional EODHD provider."""
 
@@ -71,10 +79,14 @@ class StuttgartDelayedSettings(BaseModel):
     """Fail-closed configuration for the verified official XSTU delayed feed."""
 
     enabled: bool = False
+    source_mode: StuttgartDelayedSourceMode = StuttgartDelayedSourceMode.INDEX
     index_url: str = (
         "https://www.boerse-stuttgart.de/de-de/fuer-geschaeftspartner/reports/"
         "mifir-ii-delayed-data/xstu-pre-trade/"
     )
+    local_directory: str | None = None
+    local_file_pattern: str = "XSTU-pretrade-*.json.gz"
+    direct_url: str | None = None
     schema_version: str | None = "xstu-pretrade-flat-2026-09-04"
     records_path: str | None = "$"
     isin_field: str | None = "Isin"
@@ -99,6 +111,29 @@ class StuttgartDelayedSettings(BaseModel):
             raise ValueError("Stuttgart delayed index_url must use the official HTTPS host")
         return normalized
 
+    @field_validator("direct_url")
+    @classmethod
+    def validate_direct_url(cls, value: str | None) -> str | None:
+        from urllib.parse import urlparse
+
+        if value is None:
+            return None
+        normalized = value.strip()
+        if not normalized:
+            return None
+        parsed = urlparse(normalized)
+        if parsed.scheme != "https" or not parsed.netloc:
+            raise ValueError("Stuttgart delayed direct_url must be an absolute HTTPS URL")
+        return normalized
+
+    @field_validator("local_directory")
+    @classmethod
+    def normalize_local_directory(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip()
+        return normalized or None
+
     @property
     def has_verified_schema(self) -> bool:
         """Only the complete verified flat XSTU mapping is activation-ready."""
@@ -113,6 +148,17 @@ class StuttgartDelayedSettings(BaseModel):
             self.observed_at_field,
         )
         return all(value is not None and value.strip() for value in required)
+
+    @property
+    def has_source_configuration(self) -> bool:
+        """Return whether the selected transport mode has the required source configured."""
+        if self.source_mode == StuttgartDelayedSourceMode.INDEX:
+            return True
+        if self.source_mode == StuttgartDelayedSourceMode.LOCAL_DIRECTORY:
+            return self.local_directory is not None
+        if self.source_mode == StuttgartDelayedSourceMode.DIRECT_URL:
+            return self.direct_url is not None
+        return False
 
 
 class MarketDataSettings(BaseModel):
@@ -132,7 +178,7 @@ class PositionMonitoringSettings(BaseModel):
 
 
 class TelegramSettings(BaseModel):
-    """Outbound-only Telegram delivery settings."""
+    """Outbound-only Telegram delivery configuration."""
 
     enabled: bool = False
     base_url: str = "https://api.telegram.org"
