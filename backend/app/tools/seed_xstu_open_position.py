@@ -10,10 +10,10 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+from collections.abc import Sequence
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
-from typing import Sequence
 from uuid import UUID
 
 from sqlalchemy import Select, select
@@ -107,9 +107,11 @@ async def find_xstu_selection(
     workspace_id: UUID,
     selection_id: UUID | None = None,
 ) -> XstuSelectionCandidate | None:
-    row = (await session.execute(
-        _candidate_statement(workspace_id=workspace_id, selection_id=selection_id)
-    )).mappings().first()
+    row = (
+        await session.execute(
+            _candidate_statement(workspace_id=workspace_id, selection_id=selection_id)
+        )
+    ).mappings().first()
     if row is None:
         return None
     isin = row["isin"]
@@ -191,7 +193,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--selection-id",
         type=UUID,
-        help="Use this ProductSelection UUID; otherwise the latest eligible XSTU selection is used.",
+        help=(
+            "Use this ProductSelection UUID; otherwise the latest eligible XSTU selection is used."
+        ),
     )
     parser.add_argument("--quantity", type=_positive_int, default=1)
     parser.add_argument(
@@ -209,7 +213,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--force-new",
         action="store_true",
-        help="Create another trade even when the selected ProductSelection already has an open one.",
+        help=(
+            "Create another trade even when the selected ProductSelection already has an open one."
+        ),
     )
     return parser
 
@@ -231,7 +237,8 @@ async def seed(args: argparse.Namespace) -> dict[str, object]:
                 raise RuntimeError(
                     "No existing FT-008 ProductSelection"
                     f"{qualifier} references a WarrantListing on MIC XSTU with an ISIN. "
-                    "Create/select an XSTU warrant through the normal product-selection workflow first."
+                    "Create/select an XSTU warrant through the normal product-selection "
+                    "workflow first."
                 )
 
             if not args.force_new:
