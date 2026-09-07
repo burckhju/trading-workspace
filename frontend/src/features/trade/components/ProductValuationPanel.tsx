@@ -8,10 +8,18 @@ function formatDecimal(value: string | null): string {
   return new Intl.NumberFormat('de-DE', { maximumFractionDigits: 10 }).format(Number(value));
 }
 
+function formatQuoteAge(value: ProductPositionValuationResponse): string {
+  if (value.quote_age_seconds === null) return 'Alter unbekannt';
+  if (value.quote_age_seconds < 60) return `${value.quote_age_seconds} Sek.`;
+  return `${Math.floor(value.quote_age_seconds / 60)} Min.`;
+}
+
 function statusText(value: ProductPositionValuationResponse): string {
   switch (value.status) {
     case 'AVAILABLE':
       return 'Produktkurs verfügbar';
+    case 'STALE':
+      return 'Produktkurs veraltet';
     case 'MISSING':
       return 'Produktkurs fehlt';
     case 'UNAVAILABLE':
@@ -23,6 +31,10 @@ function statusText(value: ProductPositionValuationResponse): string {
 
 function reasonText(reason: string): string {
   switch (reason) {
+    case 'WARRANT_QUOTE_STALE':
+      return 'Der letzte Produktkurs ist zu alt für eine belastbare aktuelle Depotbewertung. Marktwert und unrealized P&L werden deshalb nicht berechnet.';
+    case 'WARRANT_QUOTE_TIME_INCONSISTENT':
+      return 'Der Datenzeitpunkt des Produktkurses liegt nach dem Abrufzeitpunkt. Der Kurs wird nicht für die Depotbewertung verwendet.';
     case 'WARRANT_QUOTE_CAPABILITY_NOT_CONFIGURED':
       return 'Für das gehaltene WarrantListing ist derzeit kein verifizierter Bid/Ask-Transport konfiguriert.';
     case 'WARRANT_LISTING_PROVENANCE_UNAVAILABLE':
@@ -158,15 +170,22 @@ export function ProductValuationPanel({ tradeId }: { tradeId: string }) {
             Bewertungsquelle: {value.selected_source ?? '—'} · Quote {value.symbol ?? '—'} ·{' '}
             {value.quote_observed_at
               ? new Date(value.quote_observed_at).toLocaleString('de-DE')
-              : 'Zeitpunkt unbekannt'}
+              : 'Zeitpunkt unbekannt'}{' '}
+            · {formatQuoteAge(value)}
           </p>
         </>
       ) : (
         <div className="mt-3 space-y-2 text-sm text-slate-400">
           <p>{reasonText(value.reason)}</p>
+          {value.quote_observed_at && (
+            <p>
+              Letzter Produktkurs: {new Date(value.quote_observed_at).toLocaleString('de-DE')} ·{' '}
+              {formatQuoteAge(value)}
+            </p>
+          )}
           <p>
-            Fehlende Produktdaten werden nicht als unauffällige Position interpretiert und erzeugen
-            keine automatische Kauf- oder Verkaufsentscheidung.
+            Fehlende, veraltete oder unzuverlässige Produktdaten werden nicht als unauffällige
+            Position interpretiert und erzeugen keine automatische Kauf- oder Verkaufsentscheidung.
           </p>
         </div>
       )}

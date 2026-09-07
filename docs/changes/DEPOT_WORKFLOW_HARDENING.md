@@ -18,6 +18,16 @@ This change hardens the existing FT-010 position workflow without changing trade
 - Does not create alerts for missing, stale, or failed market data.
 - Does not mutate monitoring rule state.
 
+### Held-product valuation
+
+- Resolves the exact historical WarrantListing instead of guessing a venue or replacement product.
+- Uses the held product Bid for indicative LONG market value and unrealized gross P&L.
+- Keeps product valuation separate from Underlying-based Stop/Target monitoring.
+- Exposes quote observation time and age as explicit data-health facts.
+- Treats quotes older than the product-valuation freshness limit as `STALE`.
+- Keeps stale Bid/Ask values visible for diagnosis but does not calculate a current market value or unrealized P&L from them.
+- Does not create trading alerts or automatic buy/sell decisions from product valuation state.
+
 ### Trade timeline
 
 - Exposes the existing combined execution/management timeline in the operational position workflow.
@@ -36,7 +46,9 @@ This change hardens the existing FT-010 position workflow without changing trade
 
 ## Deferred
 
-Current product valuation, market value, and unrealized gross P&L remain a separate follow-up. The provider-neutral `WARRANT_LISTING_QUOTE` boundary exists, but the currently configured EODHD adapter does not implement that capability yet. This slice therefore does not pretend that a reliable current product quote is available.
+- Product-data health is currently shown in the trade workflow but is not yet projected into a separate Operational Workspace action.
+- Multi-target monitoring and pre-threshold distance warnings remain deferred until existing trading/management rules define their semantics.
+- Intraday Underlying monitoring remains separate from the current completed-daily Stop/Target contract.
 
 ## Non-scope
 

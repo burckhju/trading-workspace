@@ -41,6 +41,8 @@ class ProductPositionValuationResponse(BaseModel):
     ask: Decimal | None
     currency: str | None
     quote_observed_at: datetime | None
+    quote_age_seconds: int | None
+    max_quote_age_seconds: int | None
     market_value: Decimal | None
     unrealized_gross_pnl: Decimal | None
     selected_source: str | None

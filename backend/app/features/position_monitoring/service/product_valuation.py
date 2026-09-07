@@ -22,9 +22,12 @@ from app.features.product.persistence.models import WarrantListingModel
 from app.features.product_selection.persistence.models import ProductEvaluationModel
 from app.features.trade_position.persistence.models import PositionModel, TradeModel
 
+DEFAULT_MAX_PRODUCT_QUOTE_AGE_SECONDS = 3600
+
 
 class ProductValuationStatus(StrEnum):
     AVAILABLE = "AVAILABLE"
+    STALE = "STALE"
     MISSING = "MISSING"
     UNAVAILABLE = "UNAVAILABLE"
     ERROR = "ERROR"
@@ -42,6 +45,8 @@ class ProductPositionValuation:
     ask: Decimal | None = None
     currency: str | None = None
     quote_observed_at: datetime | None = None
+    quote_age_seconds: int | None = None
+    max_quote_age_seconds: int | None = None
     market_value: Decimal | None = None
     unrealized_gross_pnl: Decimal | None = None
     selected_source: str | None = None
@@ -57,10 +62,14 @@ class ProductPositionValuationService:
         database: DatabaseManager,
         quote_provider: WarrantListingQuoteProvider | None = None,
         quote_resolver: MultiSourceWarrantQuoteResolver | None = None,
+        max_quote_age_seconds: int = DEFAULT_MAX_PRODUCT_QUOTE_AGE_SECONDS,
     ) -> None:
+        if max_quote_age_seconds < 0:
+            raise ValueError("max_quote_age_seconds must not be negative")
         self._database = database
         self._legacy_single_source = quote_resolver is None and quote_provider is not None
         self._quote_resolver = quote_resolver
+        self._max_quote_age_seconds = max_quote_age_seconds
         if self._quote_resolver is None and quote_provider is not None:
             self._quote_resolver = MultiSourceWarrantQuoteResolver(
                 (NamedWarrantQuoteSource("PRIMARY", quote_provider),)
@@ -234,6 +243,42 @@ class ProductPositionValuationService:
                     source_attempts=resolution.attempts,
                 )
 
+            quote_age_seconds = int((result.retrieved_at - quote.observed_at).total_seconds())
+            if quote_age_seconds < 0:
+                return ProductPositionValuation(
+                    trade_id=trade_id,
+                    position_id=position.id,
+                    warrant_listing_id=listing.id,
+                    symbol=listing.symbol,
+                    status=ProductValuationStatus.ERROR,
+                    reason="WARRANT_QUOTE_TIME_INCONSISTENT",
+                    bid=quote.bid,
+                    ask=quote.ask,
+                    currency=quote.currency,
+                    quote_observed_at=quote.observed_at,
+                    quote_age_seconds=quote_age_seconds,
+                    max_quote_age_seconds=self._max_quote_age_seconds,
+                    selected_source=resolution.selected_source,
+                    source_attempts=resolution.attempts,
+                )
+            if quote_age_seconds > self._max_quote_age_seconds:
+                return ProductPositionValuation(
+                    trade_id=trade_id,
+                    position_id=position.id,
+                    warrant_listing_id=listing.id,
+                    symbol=listing.symbol,
+                    status=ProductValuationStatus.STALE,
+                    reason="WARRANT_QUOTE_STALE",
+                    bid=quote.bid,
+                    ask=quote.ask,
+                    currency=quote.currency,
+                    quote_observed_at=quote.observed_at,
+                    quote_age_seconds=quote_age_seconds,
+                    max_quote_age_seconds=self._max_quote_age_seconds,
+                    selected_source=resolution.selected_source,
+                    source_attempts=resolution.attempts,
+                )
+
             market_value = quote.bid * Decimal(position.open_quantity)
             return ProductPositionValuation(
                 trade_id=trade_id,
@@ -246,6 +291,8 @@ class ProductPositionValuationService:
                 ask=quote.ask,
                 currency=quote.currency,
                 quote_observed_at=quote.observed_at,
+                quote_age_seconds=quote_age_seconds,
+                max_quote_age_seconds=self._max_quote_age_seconds,
                 market_value=market_value,
                 unrealized_gross_pnl=market_value - position.cost_basis,
                 selected_source=resolution.selected_source,

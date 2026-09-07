@@ -46,6 +46,8 @@ describe('ProductValuationPanel', () => {
       ask: null,
       currency: null,
       quote_observed_at: null,
+      quote_age_seconds: null,
+      max_quote_age_seconds: null,
       market_value: null,
       unrealized_gross_pnl: null,
       selected_source: null,
@@ -79,7 +81,7 @@ describe('ProductValuationPanel', () => {
     expect(screen.queryByText('Marktwert (Bid)')).not.toBeInTheDocument();
   });
 
-  it('shows BID-based market value and selected source when a valid quote exists', async () => {
+  it('shows BID-based market value for a fresh valid quote', async () => {
     api.productValuation.mockResolvedValue({
       trade_id: 'trade-1',
       position_id: 'position-1',
@@ -91,6 +93,8 @@ describe('ProductValuationPanel', () => {
       ask: '2.55',
       currency: 'EUR',
       quote_observed_at: '2026-09-06T12:00:00Z',
+      quote_age_seconds: 900,
+      max_quote_age_seconds: 3600,
       market_value: '25.00',
       unrealized_gross_pnl: '5.00',
       selected_source: 'SECONDARY',
@@ -121,7 +125,37 @@ describe('ProductValuationPanel', () => {
     expect(await screen.findByText('Produktkurs verfügbar')).toBeInTheDocument();
     expect(screen.getByText('Marktwert (Bid)')).toBeInTheDocument();
     expect(screen.getByText('Unrealized gross P&L')).toBeInTheDocument();
-    expect(screen.getByText(/Bewertungsquelle: SECONDARY/)).toBeInTheDocument();
+    expect(screen.getByText(/Bewertungsquelle: SECONDARY/)).toHaveTextContent('15 Min.');
+  });
+
+  it('fails closed for a stale product quote', async () => {
+    api.productValuation.mockResolvedValue({
+      trade_id: 'trade-1',
+      position_id: 'position-1',
+      status: 'STALE',
+      reason: 'WARRANT_QUOTE_STALE',
+      warrant_listing_id: 'listing-1',
+      symbol: 'TEST12.STU',
+      bid: '2.50',
+      ask: '2.55',
+      currency: 'EUR',
+      quote_observed_at: '2026-09-06T10:00:00Z',
+      quote_age_seconds: 7200,
+      max_quote_age_seconds: 3600,
+      market_value: null,
+      unrealized_gross_pnl: null,
+      selected_source: 'SECONDARY',
+      source_attempts: [],
+    });
+
+    render(<ProductValuationPanel tradeId="trade-1" />);
+
+    expect(await screen.findByText('Produktkurs veraltet')).toBeInTheDocument();
+    const staleMessage = screen.getByText(/zu alt für eine belastbare aktuelle Depotbewertung/);
+    expect(staleMessage).toBeInTheDocument();
+    expect(screen.getByText(/120 Min\./)).toBeInTheDocument();
+    expect(screen.queryByText('Marktwert (Bid)')).not.toBeInTheDocument();
+    expect(screen.queryByText('Unrealized gross P&L')).not.toBeInTheDocument();
   });
 
   it('does not request a quote for a closed position', async () => {
