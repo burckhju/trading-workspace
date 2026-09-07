@@ -1,3 +1,4 @@
+import argparse
 from datetime import UTC, datetime
 from decimal import Decimal
 from uuid import UUID
@@ -32,18 +33,18 @@ def test_parser_defaults_to_one_unit_and_local_actor() -> None:
 
 
 def test_positive_value_parsers_reject_zero_and_negative_values() -> None:
-    with pytest.raises(Exception):
+    with pytest.raises(argparse.ArgumentTypeError):
         _positive_decimal("0")
-    with pytest.raises(Exception):
+    with pytest.raises(argparse.ArgumentTypeError):
         _positive_decimal("-1")
-    with pytest.raises(Exception):
+    with pytest.raises(argparse.ArgumentTypeError):
         _positive_int("0")
-    with pytest.raises(Exception):
+    with pytest.raises(argparse.ArgumentTypeError):
         _positive_int("-1")
 
 
 def test_timestamp_requires_timezone_and_normalizes_to_utc() -> None:
-    with pytest.raises(Exception):
+    with pytest.raises(argparse.ArgumentTypeError):
         _timestamp("2026-09-07T18:00:00")
 
     value = _timestamp("2026-09-07T20:00:00+02:00")
