@@ -94,7 +94,9 @@ def test_configuration_is_fail_closed_when_disabled() -> None:
 
 def test_source_configuration_is_fail_closed_when_required_value_is_missing() -> None:
     with pytest.raises(MarketDataConfigurationError):
-        _adapter(source_mode=StuttgartDelayedSourceMode.LOCAL_DIRECTORY)._require_ready_configuration()
+        _adapter(
+            source_mode=StuttgartDelayedSourceMode.LOCAL_DIRECTORY
+        )._require_ready_configuration()
 
     with pytest.raises(MarketDataConfigurationError):
         _adapter(source_mode=StuttgartDelayedSourceMode.DIRECT_URL)._require_ready_configuration()
