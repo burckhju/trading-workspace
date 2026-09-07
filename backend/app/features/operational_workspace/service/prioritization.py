@@ -65,11 +65,9 @@ def _product_title(status: ProductValuationStatus) -> str:
 
 def _product_detail(value: ProductPositionValuation) -> str:
     if value.status is ProductValuationStatus.STALE:
-        age = (
-            f" ({value.quote_age_seconds} Sek. alt)"
-            if value.quote_age_seconds is not None
-            else ""
-        )
+        age = ""
+        if value.quote_age_seconds is not None:
+            age = f" ({value.quote_age_seconds} Sek. alt)"
         return (
             "Der letzte Kurs des gehaltenen Produkts ist zu alt"
             f"{age}. Daraus werden kein aktueller Marktwert und kein unrealized P&L abgeleitet."
@@ -110,24 +108,25 @@ async def prioritize_position_monitoring(
 
     prioritized: list[OperationalAction] = []
     for action in actions:
-        if (
-            action.action_type != "OPEN_POSITION_MANAGEMENT"
-            or action.resource_type != "trade"
-        ):
+        if action.action_type != "OPEN_POSITION_MANAGEMENT":
+            prioritized.append(action)
+            continue
+        if action.resource_type != "trade":
             prioritized.append(action)
             continue
 
         health = await health_reader(action.resource_id)
-        valuation = (
-            await valuation_reader(action.resource_id) if valuation_reader else None
-        )
-        underlying_problem = (
-            health is not None and health.status is not MonitoringHealthStatus.OK
-        )
-        product_problem = (
-            valuation is not None
-            and valuation.status is not ProductValuationStatus.AVAILABLE
-        )
+        valuation = None
+        if valuation_reader is not None:
+            valuation = await valuation_reader(action.resource_id)
+
+        underlying_problem = False
+        if health is not None:
+            underlying_problem = health.status is not MonitoringHealthStatus.OK
+
+        product_problem = False
+        if valuation is not None:
+            product_problem = valuation.status is not ProductValuationStatus.AVAILABLE
 
         if not underlying_problem and not product_problem:
             prioritized.append(action)
