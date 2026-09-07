@@ -42,7 +42,7 @@ jobs:
 
     env:
       TRADING_WORKSPACE_DATABASE_URL: postgresql+asyncpg://trading_workspace:trading_workspace_ci@localhost:5432/trading_workspace_test
-      TRADING_WORKSPACE_TEST_DATABASE_URL: postgresql+asyncpg://trading_workspace:trading_workspace_ci@localhost:5432/trading_workspace_test
+      TRADING_WORKSPACE_TEST_DATABASE_URL: postgresql+asyncpg://trading_workspace:5432/trading_workspace_test
 
     defaults:
       run:
@@ -61,7 +61,7 @@ jobs:
       - name: Ruff
         run: ruff check app ../tests/unit/backend ../tests/integration/backend
       - name: Black
-        run: black --diff --check --config pyproject.toml app ../tests/unit/backend ../tests/integration/backend
+        run: black --check --config pyproject.toml app ../tests/unit/backend ../tests/integration/backend
       - name: mypy
         run: mypy app
       - name: Migrate PostgreSQL test database
