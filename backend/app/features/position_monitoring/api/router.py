@@ -126,6 +126,8 @@ async def get_trade_product_valuation(
         ask=value.ask,
         currency=value.currency,
         quote_observed_at=value.quote_observed_at,
+        quote_age_seconds=value.quote_age_seconds,
+        max_quote_age_seconds=value.max_quote_age_seconds,
         market_value=value.market_value,
         unrealized_gross_pnl=value.unrealized_gross_pnl,
         selected_source=value.selected_source,
