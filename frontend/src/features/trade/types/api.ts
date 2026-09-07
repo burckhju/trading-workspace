@@ -9,7 +9,7 @@ export type TradeManagementEventType =
   | 'THESIS_UPDATED'
   | 'MANAGEMENT_NOTE';
 export type TradeTimelineEntryKind = 'EXECUTION' | 'MANAGEMENT_EVENT';
-export type ProductValuationStatus = 'AVAILABLE' | 'MISSING' | 'UNAVAILABLE' | 'ERROR';
+export type ProductValuationStatus = 'AVAILABLE' | 'STALE' | 'MISSING' | 'UNAVAILABLE' | 'ERROR';
 export type QuoteSourceAttemptStatus =
   | 'AVAILABLE'
   | 'MISSING'
@@ -75,6 +75,8 @@ export interface ProductPositionValuationResponse {
   ask: string | null;
   currency: string | null;
   quote_observed_at: IsoDateTime | null;
+  quote_age_seconds: number | null;
+  max_quote_age_seconds: number | null;
   market_value: string | null;
   unrealized_gross_pnl: string | null;
   selected_source: string | null;
