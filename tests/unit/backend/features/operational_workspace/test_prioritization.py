@@ -9,6 +9,10 @@ from app.features.position_monitoring.service.health import (
     MonitoringHealthStatus,
     PositionMonitoringHealth,
 )
+from app.features.position_monitoring.service.product_valuation import (
+    ProductPositionValuation,
+    ProductValuationStatus,
+)
 
 NOW = datetime(2026, 9, 6, 12, 0, tzinfo=UTC)
 
@@ -36,6 +40,34 @@ def _action(
     )
 
 
+def _health(trade_id, status: MonitoringHealthStatus) -> PositionMonitoringHealth:
+    return PositionMonitoringHealth(
+        trade_id=trade_id,
+        position_id=uuid4(),
+        status=status,
+        reason="TEST",
+        symbol="DAX.INDX",
+        market_data_observed_at=NOW,
+        age_days=5 if status is MonitoringHealthStatus.STALE else None,
+    )
+
+
+def _valuation(
+    trade_id,
+    status: ProductValuationStatus,
+) -> ProductPositionValuation:
+    return ProductPositionValuation(
+        trade_id=trade_id,
+        position_id=uuid4(),
+        status=status,
+        reason="TEST",
+        symbol="TEST12.STU",
+        quote_observed_at=NOW,
+        quote_age_seconds=7200 if status is ProductValuationStatus.STALE else 60,
+        max_quote_age_seconds=3600,
+    )
+
+
 @pytest.mark.asyncio
 async def test_prioritizes_open_alert_then_unhealthy_position_then_other_actions() -> None:
     trade_id = uuid4()
@@ -47,15 +79,7 @@ async def test_prioritizes_open_alert_then_unhealthy_position_then_other_actions
 
     async def health_reader(requested_trade_id):
         assert requested_trade_id == trade_id
-        return PositionMonitoringHealth(
-            trade_id=trade_id,
-            position_id=uuid4(),
-            status=MonitoringHealthStatus.STALE,
-            reason="COMPLETED_DAILY_PRICE_STALE",
-            symbol="DAX.INDX",
-            market_data_observed_at=NOW,
-            age_days=5,
-        )
+        return _health(trade_id, MonitoringHealthStatus.STALE)
 
     result = await prioritize_position_monitoring(actions, health_reader=health_reader)
 
@@ -72,25 +96,108 @@ async def test_prioritizes_open_alert_then_unhealthy_position_then_other_actions
 
 
 @pytest.mark.asyncio
-async def test_keeps_healthy_open_position_as_normal_management_action() -> None:
+async def test_keeps_position_normal_when_underlying_and_product_data_are_healthy() -> None:
     trade_id = uuid4()
     action = _action(action_type="OPEN_POSITION_MANAGEMENT", resource_id=trade_id)
 
     async def health_reader(_trade_id):
-        return PositionMonitoringHealth(
-            trade_id=trade_id,
-            position_id=uuid4(),
-            status=MonitoringHealthStatus.OK,
-            reason="COMPLETED_DAILY_PRICE_CURRENT",
-        )
+        return _health(trade_id, MonitoringHealthStatus.OK)
 
-    result = await prioritize_position_monitoring((action,), health_reader=health_reader)
+    async def valuation_reader(_trade_id):
+        return _valuation(trade_id, ProductValuationStatus.AVAILABLE)
+
+    result = await prioritize_position_monitoring(
+        (action,),
+        health_reader=health_reader,
+        valuation_reader=valuation_reader,
+    )
 
     assert result == (action,)
 
 
 @pytest.mark.asyncio
-async def test_maps_missing_and_error_health_without_creating_alert_actions() -> None:
+async def test_surfaces_stale_product_quote_without_creating_trading_alert() -> None:
+    trade_id = uuid4()
+    action = _action(action_type="OPEN_POSITION_MANAGEMENT", resource_id=trade_id)
+
+    async def health_reader(_trade_id):
+        return _health(trade_id, MonitoringHealthStatus.OK)
+
+    async def valuation_reader(_trade_id):
+        return _valuation(trade_id, ProductValuationStatus.STALE)
+
+    result = await prioritize_position_monitoring(
+        (action,),
+        health_reader=health_reader,
+        valuation_reader=valuation_reader,
+    )
+
+    assert result[0].action_type == "POSITION_DATA_HEALTH"
+    assert result[0].title == "Produktkurs veraltet"
+    assert result[0].source_feature == "Position Monitoring / Product Data Health"
+    assert "kein aktueller Marktwert" in result[0].detail
+    assert "unrealized P&L" in result[0].detail
+    assert result[0].target == "/target"
+
+
+@pytest.mark.asyncio
+async def test_combines_underlying_and_product_data_problems_without_mixing_semantics() -> None:
+    trade_id = uuid4()
+    action = _action(action_type="OPEN_POSITION_MANAGEMENT", resource_id=trade_id)
+
+    async def health_reader(_trade_id):
+        return _health(trade_id, MonitoringHealthStatus.STALE)
+
+    async def valuation_reader(_trade_id):
+        return _valuation(trade_id, ProductValuationStatus.MISSING)
+
+    result = await prioritize_position_monitoring(
+        (action,),
+        health_reader=health_reader,
+        valuation_reader=valuation_reader,
+    )
+
+    assert result[0].action_type == "POSITION_DATA_HEALTH"
+    assert result[0].title == "Positionsdaten prüfen"
+    assert "Underlying-Monitoring:" in result[0].detail
+    assert "Stop-/Target-Alert" in result[0].detail
+    assert "Produktbewertung:" in result[0].detail
+    assert "Marktwert und unrealized P&L" in result[0].detail
+
+
+@pytest.mark.asyncio
+async def test_maps_product_missing_unavailable_and_error_to_data_health() -> None:
+    for status, expected_title in (
+        (ProductValuationStatus.MISSING, "Produktkurs fehlt"),
+        (ProductValuationStatus.UNAVAILABLE, "Produktbewertung nicht verfügbar"),
+        (ProductValuationStatus.ERROR, "Produktbewertung prüfen"),
+    ):
+        trade_id = uuid4()
+        action = _action(action_type="OPEN_POSITION_MANAGEMENT", resource_id=trade_id)
+
+        async def health_reader(_trade_id, current_trade_id=trade_id):
+            return _health(current_trade_id, MonitoringHealthStatus.OK)
+
+        async def valuation_reader(
+            _trade_id,
+            current_status=status,
+            current_trade_id=trade_id,
+        ):
+            return _valuation(current_trade_id, current_status)
+
+        result = await prioritize_position_monitoring(
+            (action,),
+            health_reader=health_reader,
+            valuation_reader=valuation_reader,
+        )
+
+        assert result[0].action_type == "POSITION_DATA_HEALTH"
+        assert result[0].title == expected_title
+        assert result[0].source_feature == "Position Monitoring / Product Data Health"
+
+
+@pytest.mark.asyncio
+async def test_maps_missing_and_error_underlying_health_without_creating_alert_actions() -> None:
     for status, expected_title in (
         (MonitoringHealthStatus.MISSING, "Monitoring-Daten fehlen"),
         (MonitoringHealthStatus.ERROR, "Monitoring-Daten prüfen"),
@@ -103,15 +210,35 @@ async def test_maps_missing_and_error_health_without_creating_alert_actions() ->
             current_status=status,
             current_trade_id=trade_id,
         ):
-            return PositionMonitoringHealth(
-                trade_id=current_trade_id,
-                position_id=uuid4(),
-                status=current_status,
-                reason="TEST",
-            )
+            return _health(current_trade_id, current_status)
 
         result = await prioritize_position_monitoring((action,), health_reader=health_reader)
 
         assert result[0].action_type == "POSITION_DATA_HEALTH"
         assert result[0].title == expected_title
         assert result[0].source_feature == "Position Monitoring / Data Health"
+
+
+@pytest.mark.asyncio
+async def test_existing_position_alert_is_not_reclassified_by_data_health_readers() -> None:
+    alert = _action(action_type="POSITION_ALERT")
+    calls = 0
+
+    async def health_reader(_trade_id):
+        nonlocal calls
+        calls += 1
+        return None
+
+    async def valuation_reader(_trade_id):
+        nonlocal calls
+        calls += 1
+        return None
+
+    result = await prioritize_position_monitoring(
+        (alert,),
+        health_reader=health_reader,
+        valuation_reader=valuation_reader,
+    )
+
+    assert result == (alert,)
+    assert calls == 0
