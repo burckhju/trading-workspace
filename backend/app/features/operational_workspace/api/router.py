@@ -17,6 +17,10 @@ from app.features.operational_workspace.api.dtos import (
 from app.features.operational_workspace.service import OperationalWorkspaceReadModel
 from app.features.operational_workspace.service.prioritization import prioritize_position_monitoring
 from app.features.position_monitoring.service.health import PositionMonitoringHealthService
+from app.features.position_monitoring.service.product_valuation import (
+    ProductPositionValuationService,
+)
+from app.features.position_monitoring.service.quote_runtime import build_warrant_quote_resolver
 
 router = APIRouter(prefix="/api/v1/operational-workspace", tags=["operational-workspace"])
 
@@ -36,9 +40,14 @@ async def list_operational_actions(
             container.settings.position_monitoring.max_completed_price_age_days
         ),
     )
+    valuation_service = ProductPositionValuationService(
+        database=container.database,
+        quote_resolver=build_warrant_quote_resolver(container),
+    )
     actions = await prioritize_position_monitoring(
         actions,
         health_reader=health_service.for_trade,
+        valuation_reader=valuation_service.for_trade,
     )
     return OperationalWorkspaceResponse(
         generated_at=datetime.now(UTC),

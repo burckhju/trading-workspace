@@ -12,8 +12,13 @@ from app.features.position_monitoring.service.health import (
     MonitoringHealthStatus,
     PositionMonitoringHealth,
 )
+from app.features.position_monitoring.service.product_valuation import (
+    ProductPositionValuation,
+    ProductValuationStatus,
+)
 
 PositionHealthReader = Callable[[UUID], Awaitable[PositionMonitoringHealth | None]]
+ProductValuationReader = Callable[[UUID], Awaitable[ProductPositionValuation | None]]
 
 _PRIORITY_ORDER = {"ACTION": 0, "REVIEW": 1, "BLOCKED": 2}
 _ACTION_TYPE_ORDER = {
@@ -48,6 +53,41 @@ def _health_detail(health: PositionMonitoringHealth) -> str:
     )
 
 
+def _product_title(status: ProductValuationStatus) -> str:
+    if status is ProductValuationStatus.STALE:
+        return "Produktkurs veraltet"
+    if status is ProductValuationStatus.MISSING:
+        return "Produktkurs fehlt"
+    if status is ProductValuationStatus.UNAVAILABLE:
+        return "Produktbewertung nicht verfügbar"
+    return "Produktbewertung prüfen"
+
+
+def _product_detail(value: ProductPositionValuation) -> str:
+    if value.status is ProductValuationStatus.STALE:
+        age = ""
+        if value.quote_age_seconds is not None:
+            age = f" ({value.quote_age_seconds} Sek. alt)"
+        return (
+            "Der letzte Kurs des gehaltenen Produkts ist zu alt"
+            f"{age}. Daraus werden kein aktueller Marktwert und kein unrealized P&L abgeleitet."
+        )
+    if value.status is ProductValuationStatus.MISSING:
+        return (
+            "Für das gehaltene Produkt liegt kein belastbarer Bid vor. "
+            "Marktwert und unrealized P&L werden nicht geschätzt."
+        )
+    if value.status is ProductValuationStatus.UNAVAILABLE:
+        return (
+            "Die Produktbewertung ist für das dokumentierte WarrantListing derzeit nicht "
+            "verfügbar. Das System rät keinen Ersatzkurs oder Börsenplatz."
+        )
+    return (
+        "Die Datenbasis für die Produktbewertung konnte nicht verlässlich ausgewertet werden. "
+        "Marktwert und unrealized P&L werden nicht als aktuell dargestellt."
+    )
+
+
 def _sort_key(action: OperationalAction) -> tuple[int, int, datetime, str]:
     occurred_at = action.occurred_at
     if occurred_at is None:
@@ -62,29 +102,84 @@ async def prioritize_position_monitoring(
     actions: tuple[OperationalAction, ...],
     *,
     health_reader: PositionHealthReader,
+    valuation_reader: ProductValuationReader | None = None,
 ) -> tuple[OperationalAction, ...]:
     """Surface existing alert and data-health facts before normal workspace actions."""
 
     prioritized: list[OperationalAction] = []
     for action in actions:
-        if action.action_type != "OPEN_POSITION_MANAGEMENT" or action.resource_type != "trade":
+        if action.action_type != "OPEN_POSITION_MANAGEMENT":
+            prioritized.append(action)
+            continue
+        if action.resource_type != "trade":
             prioritized.append(action)
             continue
 
         health = await health_reader(action.resource_id)
-        if health is None or health.status is MonitoringHealthStatus.OK:
+        valuation = None
+        if valuation_reader is not None:
+            valuation = await valuation_reader(action.resource_id)
+
+        underlying_problem = False
+        if health is not None:
+            underlying_problem = health.status is not MonitoringHealthStatus.OK
+
+        product_problem = False
+        if valuation is not None:
+            product_problem = valuation.status is not ProductValuationStatus.AVAILABLE
+
+        if not underlying_problem and not product_problem:
             prioritized.append(action)
             continue
 
+        if underlying_problem and product_problem:
+            assert health is not None
+            assert valuation is not None
+            prioritized.append(
+                replace(
+                    action,
+                    source_feature="Position Monitoring / Data Health",
+                    action_type="POSITION_DATA_HEALTH",
+                    title="Positionsdaten prüfen",
+                    detail=(
+                        f"Underlying-Monitoring: {_health_detail(health)} "
+                        f"Produktbewertung: {_product_detail(valuation)}"
+                    ),
+                    next_action="Positionsdatenzustand prüfen",
+                    occurred_at=(
+                        health.market_data_observed_at
+                        or valuation.quote_observed_at
+                        or action.occurred_at
+                    ),
+                )
+            )
+            continue
+
+        if underlying_problem:
+            assert health is not None
+            prioritized.append(
+                replace(
+                    action,
+                    source_feature="Position Monitoring / Data Health",
+                    action_type="POSITION_DATA_HEALTH",
+                    title=_health_title(health.status),
+                    detail=_health_detail(health),
+                    next_action="Monitoring-Datenzustand prüfen",
+                    occurred_at=health.market_data_observed_at or action.occurred_at,
+                )
+            )
+            continue
+
+        assert valuation is not None
         prioritized.append(
             replace(
                 action,
-                source_feature="Position Monitoring / Data Health",
+                source_feature="Position Monitoring / Product Data Health",
                 action_type="POSITION_DATA_HEALTH",
-                title=_health_title(health.status),
-                detail=_health_detail(health),
-                next_action="Monitoring-Datenzustand prüfen",
-                occurred_at=health.market_data_observed_at or action.occurred_at,
+                title=_product_title(valuation.status),
+                detail=_product_detail(valuation),
+                next_action="Produktdatenzustand prüfen",
+                occurred_at=valuation.quote_observed_at or action.occurred_at,
             )
         )
 

@@ -13,12 +13,7 @@ from app.features.position_monitoring.service.health import PositionMonitoringHe
 from app.features.position_monitoring.service.product_valuation import (
     ProductPositionValuationService,
 )
-from app.features.position_monitoring.service.quote_sources import (
-    MultiSourceWarrantQuoteResolver,
-    NamedWarrantQuoteSource,
-)
-from app.providers.eodhd.warrant_quote import EodhdWarrantQuoteAdapter
-from app.providers.stuttgart_delayed import StuttgartDelayedWarrantQuoteAdapter
+from app.features.position_monitoring.service.quote_runtime import build_warrant_quote_resolver
 
 router = APIRouter(prefix="/api/v1/position-monitoring", tags=["position-monitoring"])
 
@@ -58,43 +53,6 @@ async def get_trade_monitoring_health(
     )
 
 
-def _warrant_quote_resolver(container: ApplicationContainer) -> MultiSourceWarrantQuoteResolver:
-    stuttgart_settings = container.settings.market_data.stuttgart_delayed
-    stuttgart_provider = (
-        StuttgartDelayedWarrantQuoteAdapter(
-            database=container.database,
-            settings=stuttgart_settings,
-        )
-        if stuttgart_settings.enabled and stuttgart_settings.has_verified_schema
-        else None
-    )
-    stuttgart_reason = (
-        "STUTTGART_DELAYED_DISABLED"
-        if not stuttgart_settings.enabled
-        else "STUTTGART_DELAYED_SCHEMA_NOT_VERIFIED"
-    )
-    return MultiSourceWarrantQuoteResolver(
-        (
-            NamedWarrantQuoteSource("EODHD", EodhdWarrantQuoteAdapter()),
-            NamedWarrantQuoteSource(
-                "BOERSE_STUTTGART_DELAYED",
-                stuttgart_provider,
-                delayed=True,
-                unavailable_reason=stuttgart_reason,
-            ),
-            NamedWarrantQuoteSource(
-                "GETTEX_DELAYED",
-                None,
-                delayed=True,
-                unavailable_reason=(
-                    "Official MUND/MUNC delayed pre-trade source is reserved but not enabled until "
-                    "payload schema, usage terms, and listing identity are verified"
-                ),
-            ),
-        )
-    )
-
-
 @router.get(
     "/trades/{trade_id}/product-valuation",
     response_model=ProductPositionValuationResponse,
@@ -107,7 +65,7 @@ async def get_trade_product_valuation(
 
     service = ProductPositionValuationService(
         database=container.database,
-        quote_resolver=_warrant_quote_resolver(container),
+        quote_resolver=build_warrant_quote_resolver(container),
     )
     value = await service.for_trade(trade_id)
     if value is None:
