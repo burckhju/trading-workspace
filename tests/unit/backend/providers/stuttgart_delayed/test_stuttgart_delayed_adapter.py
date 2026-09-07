@@ -1,10 +1,13 @@
+import gzip
+import json
 from datetime import UTC, datetime
 from decimal import Decimal
 from uuid import uuid4
 
+import httpx
 import pytest
 
-from app.core.config.settings import StuttgartDelayedSettings
+from app.core.config.settings import StuttgartDelayedSettings, StuttgartDelayedSourceMode
 from app.features.market_data.service.errors import (
     MarketDataConfigurationError,
     MarketDataInvalidResponseError,
@@ -75,6 +78,10 @@ def _record(
     return record
 
 
+def _gzip_payload(records: list[dict]) -> bytes:
+    return gzip.compress(json.dumps(records).encode("utf-8"))
+
+
 def test_configuration_is_fail_closed_when_disabled() -> None:
     adapter = StuttgartDelayedWarrantQuoteAdapter(
         database=_Database(),  # type: ignore[arg-type]
@@ -85,11 +92,21 @@ def test_configuration_is_fail_closed_when_disabled() -> None:
         adapter._require_ready_configuration()
 
 
+def test_source_configuration_is_fail_closed_when_required_value_is_missing() -> None:
+    with pytest.raises(MarketDataConfigurationError):
+        _adapter(source_mode=StuttgartDelayedSourceMode.LOCAL_DIRECTORY)._require_ready_configuration()
+
+    with pytest.raises(MarketDataConfigurationError):
+        _adapter(source_mode=StuttgartDelayedSourceMode.DIRECT_URL)._require_ready_configuration()
+
+
 def test_verified_default_schema_is_complete_but_disabled() -> None:
     settings = StuttgartDelayedSettings()
 
     assert settings.enabled is False
+    assert settings.source_mode == StuttgartDelayedSourceMode.INDEX
     assert settings.has_verified_schema is True
+    assert settings.has_source_configuration is True
     assert settings.records_path == "$"
     assert settings.isin_field == "Isin"
     assert settings.mic_field == "VenueOfPublication"
@@ -97,6 +114,14 @@ def test_verified_default_schema_is_complete_but_disabled() -> None:
     assert settings.ask_field == "Ask"
     assert settings.currency_field == "PriceCurrency"
     assert settings.observed_at_field == "TransactionTime"
+
+
+def test_direct_url_requires_absolute_https() -> None:
+    with pytest.raises(ValueError):
+        StuttgartDelayedSettings(direct_url="http://example.com/xstu.json.gz")
+
+    settings = StuttgartDelayedSettings(direct_url="https://mirror.example/xstu.json.gz")
+    assert settings.direct_url == "https://mirror.example/xstu.json.gz"
 
 
 def test_extracts_only_official_https_download_host() -> None:
@@ -109,6 +134,60 @@ def test_extracts_only_official_https_download_host() -> None:
 
     with pytest.raises(MarketDataInvalidResponseError):
         adapter._extract_official_download_url('<a href="https://example.com/file.json.gz">x</a>')
+
+
+@pytest.mark.asyncio
+async def test_local_directory_uses_latest_verified_xstu_file(tmp_path) -> None:
+    older = tmp_path / "XSTU-pretrade-20260907T1840.json.gz"
+    latest = tmp_path / "XSTU-pretrade-20260907T1849.json.gz"
+    ignored = tmp_path / "other.json.gz"
+    older.write_bytes(_gzip_payload([_record(bid="1.00")]))
+    latest.write_bytes(_gzip_payload([_record(bid="2.42")]))
+    ignored.write_bytes(_gzip_payload([_record(bid="9.99")]))
+
+    adapter = _adapter(
+        source_mode=StuttgartDelayedSourceMode.LOCAL_DIRECTORY,
+        local_directory=str(tmp_path),
+    )
+
+    payload = await adapter._load_latest_payload()
+    quote = adapter._parse_quote(payload, _identity())
+
+    assert quote is not None
+    assert quote.bid == Decimal("2.42")
+
+
+@pytest.mark.asyncio
+async def test_local_directory_rejects_missing_payload(tmp_path) -> None:
+    adapter = _adapter(
+        source_mode=StuttgartDelayedSourceMode.LOCAL_DIRECTORY,
+        local_directory=str(tmp_path),
+    )
+
+    with pytest.raises(MarketDataInvalidResponseError):
+        await adapter._load_latest_payload()
+
+
+@pytest.mark.asyncio
+async def test_direct_url_loads_gzip_payload_from_configured_https_endpoint() -> None:
+    async def handler(request: httpx.Request) -> httpx.Response:
+        assert str(request.url) == "https://mirror.example/latest-xstu.json.gz"
+        return httpx.Response(200, content=_gzip_payload([_record(bid="2.43")]))
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        adapter = StuttgartDelayedWarrantQuoteAdapter(
+            database=_Database(),  # type: ignore[arg-type]
+            settings=_settings(
+                source_mode=StuttgartDelayedSourceMode.DIRECT_URL,
+                direct_url="https://mirror.example/latest-xstu.json.gz",
+            ),
+            client=client,
+        )
+        payload = await adapter._load_latest_payload()
+
+    quote = adapter._parse_quote(payload, _identity())
+    assert quote is not None
+    assert quote.bid == Decimal("2.43")
 
 
 def test_selects_latest_flat_xstu_quote_instead_of_historical_best_price() -> None:
