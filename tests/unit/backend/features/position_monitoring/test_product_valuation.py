@@ -1,5 +1,5 @@
 from contextlib import asynccontextmanager
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from types import SimpleNamespace
 from uuid import uuid4
@@ -92,6 +92,8 @@ def _quote_result(
     bid=Decimal("2.50"),
     ask=Decimal("2.55"),
     currency="EUR",
+    observed_at=NOW,
+    retrieved_at=NOW,
 ):
     quote = WarrantQuoteSnapshot(
         warrant_listing_id=listing_id,
@@ -100,14 +102,14 @@ def _quote_result(
         currency=currency,
         provider_symbol="TEST12",
         provider_exchange_code="STU",
-        observed_at=NOW,
+        observed_at=observed_at,
     )
     return MarketDataResult(
         data=quote,
         provider=MarketDataProvider.EODHD,
         capability=MarketDataCapability.WARRANT_LISTING_QUOTE,
         correlation_id=uuid4(),
-        retrieved_at=NOW,
+        retrieved_at=retrieved_at,
         cache_status=CacheStatus.MISS,
         quality_status=QualityStatus.VALID,
         warnings=(),
@@ -138,8 +140,45 @@ async def test_values_open_long_position_at_exact_listing_bid() -> None:
     assert result.status is ProductValuationStatus.AVAILABLE
     assert result.warrant_listing_id == listing.id
     assert result.bid == Decimal("2.50")
+    assert result.quote_age_seconds == 0
+    assert result.max_quote_age_seconds == 3600
     assert result.market_value == Decimal("25.00")
     assert result.unrealized_gross_pnl == Decimal("5.00")
+
+
+@pytest.mark.asyncio
+async def test_stale_quote_does_not_create_current_market_value_or_unrealized_pnl() -> None:
+    trade, position, evaluation, listing = _context()
+    provider = _Provider(
+        _quote_result(
+            listing_id=listing.id,
+            observed_at=NOW - timedelta(hours=2),
+            retrieved_at=NOW,
+        )
+    )
+    service = ProductPositionValuationService(
+        database=_Database(
+            _Session(
+                trade=trade,
+                position=position,
+                evaluation=evaluation,
+                listing=listing,
+            )
+        ),
+        quote_provider=provider,
+        max_quote_age_seconds=3600,
+    )
+
+    result = await service.for_trade(trade.id)
+
+    assert result is not None
+    assert result.status is ProductValuationStatus.STALE
+    assert result.reason == "WARRANT_QUOTE_STALE"
+    assert result.bid == Decimal("2.50")
+    assert result.quote_age_seconds == 7200
+    assert result.max_quote_age_seconds == 3600
+    assert result.market_value is None
+    assert result.unrealized_gross_pnl is None
 
 
 @pytest.mark.asyncio
