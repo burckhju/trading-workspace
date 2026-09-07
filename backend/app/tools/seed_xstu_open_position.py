@@ -40,6 +40,8 @@ from app.features.trade_position.service.resolvers import (
 WORKSPACE_ID = UUID("00000000-0000-4000-8000-000000000001")
 LOCAL_ACTOR_ID = UUID("00000000-0000-4000-8000-000000000002")
 
+SelectionRow = tuple[UUID, UUID, UUID, UUID, str, str | None, str, datetime]
+
 
 @dataclass(frozen=True, slots=True)
 class XstuSelectionCandidate:
@@ -57,7 +59,7 @@ def _candidate_statement(
     *,
     workspace_id: UUID,
     selection_id: UUID | None,
-) -> Select[tuple[object, ...]]:
+) -> Select[SelectionRow]:
     statement = (
         select(
             ProductSelectionModel.id.label("selection_id"),
