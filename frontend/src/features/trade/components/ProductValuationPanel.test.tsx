@@ -81,7 +81,7 @@ describe('ProductValuationPanel', () => {
     expect(screen.queryByText('Marktwert (Bid)')).not.toBeInTheDocument();
   });
 
-  it('shows BID-based market value and selected source when a fresh valid quote exists', async () => {
+  it('shows BID-based market value for a fresh valid quote', async () => {
     api.productValuation.mockResolvedValue({
       trade_id: 'trade-1',
       position_id: 'position-1',
@@ -128,39 +128,35 @@ describe('ProductValuationPanel', () => {
     expect(screen.getByText(/Bewertungsquelle: SECONDARY/)).toHaveTextContent('15 Min.');
   });
 
-  it(
-    'shows a stale quote as data problem and does not render market value or unrealized pnl',
-    async () => {
-      api.productValuation.mockResolvedValue({
-        trade_id: 'trade-1',
-        position_id: 'position-1',
-        status: 'STALE',
-        reason: 'WARRANT_QUOTE_STALE',
-        warrant_listing_id: 'listing-1',
-        symbol: 'TEST12.STU',
-        bid: '2.50',
-        ask: '2.55',
-        currency: 'EUR',
-        quote_observed_at: '2026-09-06T10:00:00Z',
-        quote_age_seconds: 7200,
-        max_quote_age_seconds: 3600,
-        market_value: null,
-        unrealized_gross_pnl: null,
-        selected_source: 'SECONDARY',
-        source_attempts: [],
-      });
+  it('fails closed for a stale product quote', async () => {
+    api.productValuation.mockResolvedValue({
+      trade_id: 'trade-1',
+      position_id: 'position-1',
+      status: 'STALE',
+      reason: 'WARRANT_QUOTE_STALE',
+      warrant_listing_id: 'listing-1',
+      symbol: 'TEST12.STU',
+      bid: '2.50',
+      ask: '2.55',
+      currency: 'EUR',
+      quote_observed_at: '2026-09-06T10:00:00Z',
+      quote_age_seconds: 7200,
+      max_quote_age_seconds: 3600,
+      market_value: null,
+      unrealized_gross_pnl: null,
+      selected_source: 'SECONDARY',
+      source_attempts: [],
+    });
 
-      render(<ProductValuationPanel tradeId="trade-1" />);
+    render(<ProductValuationPanel tradeId="trade-1" />);
 
-      expect(await screen.findByText('Produktkurs veraltet')).toBeInTheDocument();
-      expect(
-        screen.getByText(/zu alt für eine belastbare aktuelle Depotbewertung/),
-      ).toBeInTheDocument();
-      expect(screen.getByText(/120 Min\./)).toBeInTheDocument();
-      expect(screen.queryByText('Marktwert (Bid)')).not.toBeInTheDocument();
-      expect(screen.queryByText('Unrealized gross P&L')).not.toBeInTheDocument();
-    },
-  );
+    expect(await screen.findByText('Produktkurs veraltet')).toBeInTheDocument();
+    const staleMessage = screen.getByText(/zu alt für eine belastbare aktuelle Depotbewertung/);
+    expect(staleMessage).toBeInTheDocument();
+    expect(screen.getByText(/120 Min\./)).toBeInTheDocument();
+    expect(screen.queryByText('Marktwert (Bid)')).not.toBeInTheDocument();
+    expect(screen.queryByText('Unrealized gross P&L')).not.toBeInTheDocument();
+  });
 
   it('does not request a quote for a closed position', async () => {
     api.position.mockResolvedValue({
