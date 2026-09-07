@@ -108,10 +108,14 @@ async def find_xstu_selection(
     selection_id: UUID | None = None,
 ) -> XstuSelectionCandidate | None:
     row = (
-        await session.execute(
-            _candidate_statement(workspace_id=workspace_id, selection_id=selection_id)
+        (
+            await session.execute(
+                _candidate_statement(workspace_id=workspace_id, selection_id=selection_id)
+            )
         )
-    ).mappings().first()
+        .mappings()
+        .first()
+    )
     if row is None:
         return None
     isin = row["isin"]
@@ -231,9 +235,7 @@ async def seed(args: argparse.Namespace) -> dict[str, object]:
                 selection_id=args.selection_id,
             )
             if candidate is None:
-                qualifier = (
-                    f" with id {args.selection_id}" if args.selection_id is not None else ""
-                )
+                qualifier = f" with id {args.selection_id}" if args.selection_id is not None else ""
                 raise RuntimeError(
                     "No existing FT-008 ProductSelection"
                     f"{qualifier} references a WarrantListing on MIC XSTU with an ISIN. "
