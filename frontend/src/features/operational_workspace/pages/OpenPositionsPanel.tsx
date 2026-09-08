@@ -4,7 +4,9 @@ import type { OperationalPosition } from '../types';
 
 function formatNumber(value: string | null, currency?: string | null): string {
   if (value === null) return '—';
-  const formatted = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 2 }).format(Number(value));
+  const formatted = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 2 }).format(
+    Number(value),
+  );
   return currency ? `${formatted} ${currency}` : formatted;
 }
 
@@ -106,7 +108,10 @@ export function OpenPositionsPanel({ positions }: { positions: OperationalPositi
                 Produktkurs: {statusLabel(position.valuation_status)}
               </span>
               {position.open_alert_types.map((alertType) => (
-                <span key={alertType} className="rounded-full border border-slate-700 px-2.5 py-1">
+                <span
+                  key={alertType}
+                  className="rounded-full border border-slate-700 px-2.5 py-1"
+                >
                   {alertType === 'STOP_REACHED' ? 'Stop erreicht' : 'Target erreicht'}
                 </span>
               ))}
