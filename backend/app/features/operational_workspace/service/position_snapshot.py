@@ -6,6 +6,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
+from typing import ClassVar
 from uuid import UUID
 
 from sqlalchemy import select
@@ -64,7 +65,7 @@ class PositionOperationalSnapshot:
 class OperationalPositionSnapshotService:
     """Compose one non-persisted operational row per open position."""
 
-    _ATTENTION_ORDER = {"ALERT": 0, "DATA_HEALTH": 1, "OK": 2}
+    _ATTENTION_ORDER: ClassVar[dict[str, int]] = {"ALERT": 0, "DATA_HEALTH": 1, "OK": 2}
 
     def __init__(
         self,
@@ -78,7 +79,11 @@ class OperationalPositionSnapshotService:
         self._valuation_reader = valuation_reader
         self._management_events = SqlAlchemyTradeManagementEventRepository(session)
 
-    async def list_positions(self, *, workspace_id: UUID) -> tuple[PositionOperationalSnapshot, ...]:
+    async def list_positions(
+        self,
+        *,
+        workspace_id: UUID,
+    ) -> tuple[PositionOperationalSnapshot, ...]:
         rows = (
             await self._session.execute(
                 select(PositionModel, TradeModel, WarrantModel)
