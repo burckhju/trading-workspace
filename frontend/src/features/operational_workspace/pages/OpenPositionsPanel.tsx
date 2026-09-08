@@ -38,7 +38,8 @@ export function OpenPositionsPanel({ positions }: { positions: OperationalPositi
           Offene Positionen <span className="text-slate-500">· {positions.length}</span>
         </h2>
         <p className="mt-1 text-sm text-slate-400">
-          Kompakter Depotstatus aus bestehenden Positions-, Monitoring-, Bewertungs- und Alert-Daten.
+          Kompakter Depotstatus aus bestehenden Positions-, Monitoring-, Bewertungs- und
+          Alert-Daten.
         </p>
       </div>
       <ul className="grid gap-3 xl:grid-cols-2">
@@ -66,7 +67,9 @@ export function OpenPositionsPanel({ positions }: { positions: OperationalPositi
               </div>
               <div>
                 <dt className="text-slate-500">Ø Einstand</dt>
-                <dd className="mt-1 text-slate-200">{formatNumber(position.average_entry_price)}</dd>
+                <dd className="mt-1 text-slate-200">
+                  {formatNumber(position.average_entry_price)}
+                </dd>
               </div>
               <div>
                 <dt className="text-slate-500">Marktwert</dt>
