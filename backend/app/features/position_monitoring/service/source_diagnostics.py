@@ -61,10 +61,7 @@ def get_stuttgart_delayed_source_health(
     if not settings.has_verified_schema or not settings.has_source_configuration:
         return StuttgartDelayedSourceHealth(
             status=StuttgartDelayedSourceStatus.MISCONFIGURED,
-            reason=(
-                "Enabled source requires the verified schema and a complete source "
-                "configuration"
-            ),
+            reason="Verified schema and complete source configuration are required",
             enabled=True,
             source_mode=settings.source_mode,
             schema_version=settings.schema_version,
