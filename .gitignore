@@ -56,3 +56,5 @@ coverage/
 # Local environment
 .env
 docker/.env
+# Local Börse Stuttgart runtime market-data cache
+docker/stuttgart-data/
