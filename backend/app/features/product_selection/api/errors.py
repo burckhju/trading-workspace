@@ -19,6 +19,7 @@ def translate_product_selection_error(error: ValueError) -> ApplicationError:
         or "does not belong" in lowered
         or "already has a user selection" in lowered
         or "requires an eligible" in lowered
+        or "ineligible productevaluation cannot be selected" in lowered
     ):
         return ApplicationError(
             code="PRODUCT_SELECTION_CONFLICT",
