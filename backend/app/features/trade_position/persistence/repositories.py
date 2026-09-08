@@ -93,6 +93,10 @@ class SqlAlchemyTradeRepository:
                 product_evaluation_id=trade.product_evaluation_id,
             )
         )
+        # ExecutionRecordModel and PositionModel reference TradeModel by FK but
+        # intentionally have no ORM relationships. Flush the aggregate parent
+        # so PostgreSQL sees it before dependent rows are flushed at commit.
+        await self._session.flush()
 
     async def get(
         self,
