@@ -4,7 +4,11 @@ from uuid import uuid4
 
 import pytest
 
-from app.features.product_selection.domain.enums import CriterionOutcome, EligibilityStatus
+from app.features.product_selection.domain.enums import (
+    CriterionOutcome,
+    DataAvailability,
+    EligibilityStatus,
+)
 from app.features.product_selection.domain.models import (
     CriterionResult,
     ModelReference,
@@ -53,11 +57,18 @@ def run():
 
 
 def evaluation(run_id, status=EligibilityStatus.ELIGIBLE):
-    outcome = (
-        CriterionOutcome.FULFILLED
-        if status is EligibilityStatus.ELIGIBLE
-        else CriterionOutcome.NOT_FULFILLED
-    )
+    if status is EligibilityStatus.ELIGIBLE:
+        outcome = CriterionOutcome.FULFILLED
+        availability = DataAvailability.AVAILABLE
+        reasons: tuple[str, ...] = ()
+    elif status is EligibilityStatus.INELIGIBLE:
+        outcome = CriterionOutcome.NOT_FULFILLED
+        availability = DataAvailability.AVAILABLE
+        reasons = ("excluded",)
+    else:
+        outcome = CriterionOutcome.NOT_EVALUABLE
+        availability = DataAvailability.MISSING
+        reasons = ("quote missing",)
     return ProductEvaluation(
         id=uuid4(),
         run_id=run_id,
@@ -70,12 +81,15 @@ def evaluation(run_id, status=EligibilityStatus.ELIGIBLE):
         inputs=(),
         criteria=(
             CriterionResult(
-                criterion_id="reference", outcome=outcome, explanation="reference rule"
+                criterion_id="reference",
+                outcome=outcome,
+                explanation="reference rule",
+                data_availability=availability,
             ),
         ),
         metrics=(),
         eligibility_status=status,
-        reasons=() if status is EligibilityStatus.ELIGIBLE else ("excluded",),
+        reasons=reasons,
     )
 
 
@@ -110,6 +124,52 @@ async def test_select_product_persists_explicit_eligible_user_decision_atomicall
 
 
 @pytest.mark.asyncio
+async def test_select_product_persists_not_evaluable_decision_with_explicit_rationale():
+    uow = FakeUow()
+    r = run()
+    e = evaluation(r.id, EligibilityStatus.NOT_EVALUABLE)
+    uow.runs.get.return_value = r
+    uow.selections.get_for_run.return_value = None
+    uow.evaluations.get.return_value = e
+    service = ProductSelectionCommandService(uow)
+
+    result = await service.select_product(
+        workspace_id=r.workspace_id,
+        run_id=r.id,
+        evaluation_id=e.id,
+        actor=uuid4(),
+        rationale="Bewusst trotz fehlender Quote ausgewählt",
+        selected_at=NOW,
+    )
+
+    assert result.product_evaluation_id == e.id
+    assert result.rationale == "Bewusst trotz fehlender Quote ausgewählt"
+    uow.selections.add.assert_awaited_once_with(result)
+    uow.commit.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_select_product_rejects_not_evaluable_without_rationale():
+    uow = FakeUow()
+    r = run()
+    e = evaluation(r.id, EligibilityStatus.NOT_EVALUABLE)
+    uow.runs.get.return_value = r
+    uow.selections.get_for_run.return_value = None
+    uow.evaluations.get.return_value = e
+    service = ProductSelectionCommandService(uow)
+
+    with pytest.raises(ValueError, match="explicit rationale"):
+        await service.select_product(
+            workspace_id=r.workspace_id,
+            run_id=r.id,
+            evaluation_id=e.id,
+            actor=uuid4(),
+        )
+    uow.selections.add.assert_not_awaited()
+    uow.commit.assert_not_awaited()
+
+
+@pytest.mark.asyncio
 async def test_select_product_rejects_second_selection_before_loading_evaluation():
     uow = FakeUow()
     r = run()
@@ -126,7 +186,7 @@ async def test_select_product_rejects_second_selection_before_loading_evaluation
 
 
 @pytest.mark.asyncio
-async def test_select_product_rejects_non_eligible_evaluation():
+async def test_select_product_rejects_ineligible_evaluation():
     uow = FakeUow()
     r = run()
     e = evaluation(r.id, EligibilityStatus.INELIGIBLE)
@@ -134,9 +194,38 @@ async def test_select_product_rejects_non_eligible_evaluation():
     uow.selections.get_for_run.return_value = None
     uow.evaluations.get.return_value = e
     service = ProductSelectionCommandService(uow)
-    with pytest.raises(ValueError, match="requires an ELIGIBLE"):
+    with pytest.raises(ValueError, match="INELIGIBLE ProductEvaluation cannot be selected"):
         await service.select_product(
             workspace_id=r.workspace_id, run_id=r.id, evaluation_id=e.id, actor=uuid4()
         )
     uow.selections.add.assert_not_awaited()
     uow.commit.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_select_product_rejects_missing_run():
+    uow = FakeUow()
+    uow.runs.get.return_value = None
+    service = ProductSelectionCommandService(uow)
+
+    with pytest.raises(ValueError, match="product selection run not found"):
+        await service.select_product(
+            workspace_id=uuid4(), run_id=uuid4(), evaluation_id=uuid4(), actor=uuid4()
+        )
+    uow.selections.get_for_run.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_select_product_rejects_missing_evaluation():
+    uow = FakeUow()
+    r = run()
+    uow.runs.get.return_value = r
+    uow.selections.get_for_run.return_value = None
+    uow.evaluations.get.return_value = None
+    service = ProductSelectionCommandService(uow)
+
+    with pytest.raises(ValueError, match="product evaluation not found for run"):
+        await service.select_product(
+            workspace_id=r.workspace_id, run_id=r.id, evaluation_id=uuid4(), actor=uuid4()
+        )
+    uow.selections.add.assert_not_awaited()
