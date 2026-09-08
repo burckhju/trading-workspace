@@ -1,18 +1,13 @@
 from pathlib import Path
 
-from app.core.config.settings import (
-    StuttgartDelayedSettings,
-    StuttgartDelayedSourceMode,
-)
+from app.core.config.settings import StuttgartDelayedSettings, StuttgartDelayedSourceMode
 from app.features.position_monitoring.service.source_diagnostics import (
     StuttgartDelayedSourceStatus,
     get_stuttgart_delayed_source_health,
 )
 
 
-def _settings(
-    directory: str | None, *, enabled: bool = True
-) -> StuttgartDelayedSettings:
+def _settings(directory: str | None, *, enabled: bool = True) -> StuttgartDelayedSettings:
     return StuttgartDelayedSettings(
         enabled=enabled,
         source_mode=StuttgartDelayedSourceMode.LOCAL_DIRECTORY,
