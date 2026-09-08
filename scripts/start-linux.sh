@@ -5,6 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ENV_FILE="$ROOT_DIR/docker/.env"
 ENV_EXAMPLE="$ROOT_DIR/docker/.env.example"
 COMPOSE_FILE="$ROOT_DIR/docker/compose.yml"
+DEFAULT_STUTTGART_DATA_DIR="$ROOT_DIR/docker/stuttgart-data"
 
 if ! command -v docker >/dev/null 2>&1; then
   echo "docker is required and was not found in PATH" >&2
@@ -30,6 +31,8 @@ if grep -q '^POSTGRES_PASSWORD=change-me$' "$ENV_FILE"; then
   echo "Edit docker/.env and keep POSTGRES_PASSWORD synchronized with TRADING_WORKSPACE_DATABASE_URL." >&2
   exit 2
 fi
+
+mkdir -p "$DEFAULT_STUTTGART_DATA_DIR"
 
 docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" config >/dev/null
 
@@ -65,5 +68,7 @@ echo "Frontend:  http://localhost:8080"
 echo "Backend:   http://localhost:8000"
 echo "Liveness:  http://localhost:8000/health"
 echo "Readiness: http://localhost:8000/health/ready"
+echo "Quote data: http://localhost:8000/api/v1/position-monitoring/quote-sources/stuttgart-delayed/health"
+echo "Stuttgart local data directory: $DEFAULT_STUTTGART_DATA_DIR"
 echo "Status:    docker compose --env-file docker/.env -f docker/compose.yml ps"
 echo "Logs:      docker compose --env-file docker/.env -f docker/compose.yml logs -f backend"
