@@ -169,7 +169,7 @@ function EvaluationCard({
       <div className="mt-4 flex justify-end">
         <button
           type="button"
-          disabled={disabled || evaluation.eligibility_status !== 'ELIGIBLE'}
+          disabled={disabled || evaluation.eligibility_status === 'INELIGIBLE'}
           onClick={() => onChoose(evaluation)}
           className="rounded-lg border border-emerald-700 px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-40"
         >
@@ -312,6 +312,7 @@ export function ProductSelectionPage() {
 
   async function confirmSelection() {
     if (!detail || !pendingSelection || busy) return;
+    if (pendingSelection.eligibility_status === 'NOT_EVALUABLE' && rationale.trim() === '') return;
     setBusy(true);
     setMessage(null);
     try {
@@ -642,8 +643,8 @@ export function ProductSelectionPage() {
                 <div className="mb-3">
                   <h2 className="font-semibold">Produktvergleich</h2>
                   <p className="mt-1 text-xs text-slate-500">
-                    Keine automatische Best-Product-Entscheidung. Auswahl ist nur bei ELIGIBLE
-                    möglich.
+                    INELIGIBLE bleibt gesperrt. Nicht bewertbare Produkte können mit expliziter
+                    Begründung bewusst ausgewählt werden.
                   </p>
                 </div>
                 <div className="grid gap-4 lg:grid-cols-2">
@@ -691,14 +692,37 @@ export function ProductSelectionPage() {
               Die Auswahl wird historisch für genau diesen Selection Run dokumentiert und kann nicht
               still überschrieben werden.
             </p>
+            {pendingSelection.eligibility_status === 'NOT_EVALUABLE' && (
+              <div className="mt-3 rounded-lg border border-amber-700 bg-amber-950/30 p-3 text-sm text-amber-200">
+                <p className="font-medium">Bewertung unvollständig</p>
+                <p className="mt-1">
+                  Mindestens eine Prüfung konnte wegen fehlender Daten oder Konfiguration nicht
+                  abgeschlossen werden. Die Auswahl ist möglich, muss aber ausdrücklich begründet
+                  werden.
+                </p>
+                {pendingSelection.reasons.length > 0 && (
+                  <ul className="mt-2 list-disc space-y-1 pl-5 text-xs">
+                    {pendingSelection.reasons.map((reason) => (
+                      <li key={reason}>{reason}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
             <p className="mt-3 break-all rounded border border-slate-800 p-3 text-xs">
               Evaluation {pendingSelection.id}
             </p>
             <label className="mt-4 block text-sm">
-              <span className="text-slate-400">Begründung (optional)</span>
+              <span className="text-slate-400">
+                Begründung
+                {pendingSelection.eligibility_status === 'NOT_EVALUABLE'
+                  ? ' (erforderlich bei nicht bewertbar)'
+                  : ' (optional)'}
+              </span>
               <textarea
                 rows={3}
                 maxLength={2000}
+                required={pendingSelection.eligibility_status === 'NOT_EVALUABLE'}
                 value={rationale}
                 onChange={(event) => setRationale(event.target.value)}
                 className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 p-2"
@@ -718,7 +742,11 @@ export function ProductSelectionPage() {
               </button>
               <button
                 type="button"
-                disabled={busy}
+                disabled={
+                  busy ||
+                  (pendingSelection.eligibility_status === 'NOT_EVALUABLE' &&
+                    rationale.trim() === '')
+                }
                 onClick={() => void confirmSelection()}
                 className="rounded-lg border border-emerald-700 px-3 py-2 text-sm disabled:opacity-40"
               >

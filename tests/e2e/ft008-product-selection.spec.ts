@@ -62,47 +62,43 @@ async function json(route: Route, body: unknown, status = 200) {
   });
 }
 
-test("approved TradePlan handoff shows missing warrant quote transparently and blocks selection", async ({
+test("approved TradePlan handoff keeps missing quote visible and allows an explicit not-evaluable selection", async ({
   page,
 }) => {
-  const notEvaluable = evaluation(
-    "20000000-0000-4000-8000-000000000001",
-    "NOT_EVALUABLE",
-    {
-      inputs: [
-        {
-          name: "bid",
-          value: null,
-          availability: "MISSING",
-          source: "warrant-listing-market-data",
-          observed_at: null,
-          quality: null,
-        },
-        {
-          name: "ask",
-          value: null,
-          availability: "MISSING",
-          source: "warrant-listing-market-data",
-          observed_at: null,
-          quality: null,
-        },
-      ],
-      criteria: [
-        {
-          criterion_id: "market_data_available",
-          outcome: "NOT_EVALUABLE",
-          explanation:
-            "No verified WarrantListing quote snapshot is available.",
-          actual_value: null,
-          expected_value: "verified bid/ask snapshot",
-          data_availability: "MISSING",
-        },
-      ],
-      reasons: [
-        "WarrantListing quote data is unavailable or provider capability is unverified.",
-      ],
-    },
-  );
+  const evaluationId = "20000000-0000-4000-8000-000000000001";
+  const notEvaluable = evaluation(evaluationId, "NOT_EVALUABLE", {
+    inputs: [
+      {
+        name: "bid",
+        value: null,
+        availability: "MISSING",
+        source: "warrant-listing-market-data",
+        observed_at: null,
+        quality: null,
+      },
+      {
+        name: "ask",
+        value: null,
+        availability: "MISSING",
+        source: "warrant-listing-market-data",
+        observed_at: null,
+        quality: null,
+      },
+    ],
+    criteria: [
+      {
+        criterion_id: "market_data_available",
+        outcome: "NOT_EVALUABLE",
+        explanation: "No verified WarrantListing quote snapshot is available.",
+        actual_value: null,
+        expected_value: "verified bid/ask snapshot",
+        data_availability: "MISSING",
+      },
+    ],
+    reasons: [
+      "WarrantListing quote data is unavailable or provider capability is unverified.",
+    ],
+  });
   const detail = {
     run: summary(),
     evaluations: [notEvaluable],
@@ -115,25 +111,39 @@ test("approved TradePlan handoff shows missing warrant quote transparently and b
     ],
     selection: null,
   };
+  const selected = {
+    ...detail,
+    selection: {
+      id: "30000000-0000-4000-8000-000000000002",
+      run_id: runId,
+      product_evaluation_id: evaluationId,
+      selected_at: "2026-08-16T10:05:00Z",
+      selected_by: actorId,
+      rationale: "Bewusst trotz fehlender Quote ausgewählt",
+    },
+  };
+  let selectionPosts = 0;
 
   await page.route(productSelectionRoute, async (route) => {
     const request = route.request();
     const url = new URL(request.url());
-    if (
-      request.method() === "GET" &&
-      url.searchParams.has("trade_plan_version_id")
-    ) {
+    if (request.method() === "GET" && url.searchParams.has("trade_plan_version_id")) {
       return json(route, []);
     }
-    if (
-      request.method() === "POST" &&
-      url.pathname.endsWith("/product-selection-runs")
-    ) {
+    if (request.method() === "POST" && url.pathname.endsWith("/product-selection-runs")) {
       expect(request.postDataJSON()).toMatchObject({
         trade_plan_id: tradePlanId,
         trade_plan_version_id: versionId,
       });
       return json(route, detail, 201);
+    }
+    if (request.method() === "POST" && url.pathname.endsWith(`/${runId}/selection`)) {
+      selectionPosts += 1;
+      expect(request.postDataJSON()).toEqual({
+        product_evaluation_id: evaluationId,
+        rationale: "Bewusst trotz fehlender Quote ausgewählt",
+      });
+      return json(route, selected, 201);
     }
     return json(
       route,
@@ -152,18 +162,15 @@ test("approved TradePlan handoff shows missing warrant quote transparently and b
   await expect(page.getByLabel("TradePlanVersion-ID")).toHaveValue(versionId);
   await page.getByRole("button", { name: "Produkte neu bewerten" }).click();
 
-  await expect(
-    page.getByText("NOT_EVALUABLE", { exact: true }).first(),
-  ).toBeVisible();
+  await expect(page.getByText("NOT_EVALUABLE", { exact: true }).first()).toBeVisible();
   await expect(
     page.getByText(
       "WarrantListing quote data is unavailable or provider capability is unverified.",
     ),
   ).toBeVisible();
   await expect(page.getByText("NO_ACTIVE_LISTING")).toBeVisible();
-  await expect(
-    page.getByRole("button", { name: "Dieses Produkt auswählen" }),
-  ).toBeDisabled();
+  const chooseButton = page.getByRole("button", { name: "Dieses Produkt auswählen" });
+  await expect(chooseButton).toBeEnabled();
 
   await page.getByText("Bewertungsdetails").click();
   await expect(
@@ -172,6 +179,26 @@ test("approved TradePlan handoff shows missing warrant quote transparently and b
   await expect(
     page.getByText(/kein Wert · Quelle warrant-listing-market-data/).first(),
   ).toBeVisible();
+
+  await chooseButton.click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByText("Bewertung unvollständig")).toBeVisible();
+  await expect(
+    dialog.getByText(
+      "WarrantListing quote data is unavailable or provider capability is unverified.",
+    ),
+  ).toBeVisible();
+  const confirm = dialog.getByRole("button", { name: "Auswahl dokumentieren" });
+  await expect(confirm).toBeDisabled();
+  await dialog
+    .getByLabel("Begründung (erforderlich bei nicht bewertbar)")
+    .fill("Bewusst trotz fehlender Quote ausgewählt");
+  await expect(confirm).toBeEnabled();
+  await confirm.click();
+
+  await expect.poll(() => selectionPosts).toBe(1);
+  await expect(page.getByText("Produkt ausgewählt")).toBeVisible();
+  await expect(page.getByText("Bewusst trotz fehlender Quote ausgewählt")).toBeVisible();
 });
 
 test("fixture-backed eligible quote requires explicit confirmation before one user selection is persisted", async ({
@@ -259,20 +286,11 @@ test("fixture-backed eligible quote requires explicit confirmation before one us
   await page.route(productSelectionRoute, async (route) => {
     const request = route.request();
     const url = new URL(request.url());
-    if (
-      request.method() === "GET" &&
-      url.searchParams.has("trade_plan_version_id")
-    )
+    if (request.method() === "GET" && url.searchParams.has("trade_plan_version_id"))
       return json(route, []);
-    if (
-      request.method() === "POST" &&
-      url.pathname.endsWith("/product-selection-runs")
-    )
+    if (request.method() === "POST" && url.pathname.endsWith("/product-selection-runs"))
       return json(route, detail, 201);
-    if (
-      request.method() === "POST" &&
-      url.pathname.endsWith(`/${runId}/selection`)
-    ) {
+    if (request.method() === "POST" && url.pathname.endsWith(`/${runId}/selection`)) {
       selectionPosts += 1;
       expect(request.postDataJSON()).toEqual({
         product_evaluation_id: evaluationId,
@@ -295,9 +313,7 @@ test("fixture-backed eligible quote requires explicit confirmation before one us
   );
   await page.getByRole("button", { name: "Produkte neu bewerten" }).click();
 
-  await expect(
-    page.getByText("ELIGIBLE", { exact: true }),
-  ).toBeVisible();
+  await expect(page.getByText("ELIGIBLE", { exact: true })).toBeVisible();
   await expect(page.getByText("1.20 EUR", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("1.24 EUR", { exact: true }).first()).toBeVisible();
   await page.getByRole("button", { name: "Dieses Produkt auswählen" }).click();
@@ -312,8 +328,6 @@ test("fixture-backed eligible quote requires explicit confirmation before one us
 
   await expect.poll(() => selectionPosts).toBe(1);
   await expect(page.getByText("Produkt ausgewählt")).toBeVisible();
-  await expect(
-    page.getByText("Nach transparentem Vergleich bewusst gewählt"),
-  ).toBeVisible();
+  await expect(page.getByText("Nach transparentem Vergleich bewusst gewählt")).toBeVisible();
   await expect(page.getByRole("button", { name: "Ausgewählt" })).toBeDisabled();
 });

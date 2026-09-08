@@ -67,6 +67,18 @@ const selected = {
   },
 };
 
+const selectedNotEvaluable = {
+  ...runDetail,
+  selection: {
+    id: '00000000-0000-4000-8000-000000000702',
+    run_id: runDetail.run.id,
+    product_evaluation_id: runDetail.evaluations[1].id,
+    selected_at: '2026-08-16T10:05:00Z',
+    selected_by: '00000000-0000-4000-8000-000000000002',
+    rationale: 'Brokerdaten manuell geprüft; Quote-Provider derzeit nicht verfügbar.',
+  },
+};
+
 const purchaseResponse = {
   trade: {
     id: '12345678-0000-4000-8000-000000000801',
@@ -107,7 +119,7 @@ const purchaseResponse = {
 describe('ProductSelectionPage', () => {
   afterEach(() => vi.restoreAllMocks());
 
-  it('shows transparent statuses and disables selection for not evaluable products', async () => {
+  it('keeps not evaluable products selectable while preserving their warning status', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(JSON.stringify(runDetail), { status: 201 }),
     );
@@ -130,7 +142,50 @@ describe('ProductSelectionPage', () => {
     const buttons = screen.getAllByRole('button', { name: 'Dieses Produkt auswählen' });
     expect(buttons).toHaveLength(2);
     expect(buttons[0]).toBeEnabled();
-    expect(buttons[1]).toBeDisabled();
+    expect(buttons[1]).toBeEnabled();
+  });
+
+  it('requires a rationale before documenting a not evaluable selection', async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response(JSON.stringify(runDetail), { status: 201 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify([]), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify(selectedNotEvaluable), { status: 201 }));
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter>
+        <ProductSelectionPage />
+      </MemoryRouter>,
+    );
+
+    await user.type(screen.getByLabelText('TradePlan-ID'), runDetail.run.trade_plan_id);
+    await user.type(
+      screen.getByLabelText('TradePlanVersion-ID'),
+      runDetail.run.trade_plan_version_id,
+    );
+    await user.click(screen.getByRole('button', { name: 'Produkte neu bewerten' }));
+    await screen.findByText('Produktvergleich');
+    await user.click(screen.getAllByRole('button', { name: 'Dieses Produkt auswählen' })[1]);
+
+    expect(screen.getByText('Bewertung unvollständig')).toBeInTheDocument();
+    expect(screen.getByText('Quote missing')).toBeInTheDocument();
+    const confirm = screen.getByRole('button', { name: 'Auswahl dokumentieren' });
+    expect(confirm).toBeDisabled();
+
+    await user.type(
+      screen.getByLabelText('Begründung (erforderlich bei nicht bewertbar)'),
+      'Brokerdaten manuell geprüft; Quote-Provider derzeit nicht verfügbar.',
+    );
+    expect(confirm).toBeEnabled();
+    await user.click(confirm);
+
+    await screen.findByText('Produkt ausgewählt');
+    const selectionCall = fetchMock.mock.calls.find(([url]) => {
+      if (typeof url === 'string') return url.includes('/selection');
+      if (url instanceof URL) return url.href.includes('/selection');
+      return url.url.includes('/selection');
+    });
+    expect(selectionCall).toBeDefined();
   });
 
   it('requires explicit confirmation before documenting a selection', async () => {

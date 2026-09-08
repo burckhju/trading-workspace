@@ -223,16 +223,54 @@ def test_user_selection_must_reference_eligible_evaluation_from_same_run():
         )
 
 
-def test_v1_user_selection_rejects_ineligible_and_not_evaluable_without_override() -> None:
+def test_user_selection_rejects_ineligible_evaluation() -> None:
     run = _run()
-    for status in (EligibilityStatus.INELIGIBLE, EligibilityStatus.NOT_EVALUABLE):
-        evaluation = _evaluation(run, status)
-        with pytest.raises(ValueError, match="requires an ELIGIBLE"):
-            ProductSelection.from_user_decision(
-                id=uuid4(),
-                run=run,
-                evaluation=evaluation,
-                selected_at=NOW,
-                selected_by=uuid4(),
-                rationale="manual override attempt",
-            )
+    evaluation = _evaluation(run, EligibilityStatus.INELIGIBLE)
+    with pytest.raises(ValueError, match="INELIGIBLE"):
+        ProductSelection.from_user_decision(
+            id=uuid4(),
+            run=run,
+            evaluation=evaluation,
+            selected_at=NOW,
+            selected_by=uuid4(),
+            rationale="manual override attempt",
+        )
+
+
+def test_not_evaluable_selection_requires_explicit_rationale() -> None:
+    run = _run()
+    evaluation = _evaluation(run, EligibilityStatus.NOT_EVALUABLE)
+    with pytest.raises(ValueError, match="explicit rationale"):
+        ProductSelection.from_user_decision(
+            id=uuid4(),
+            run=run,
+            evaluation=evaluation,
+            selected_at=NOW,
+            selected_by=uuid4(),
+        )
+    with pytest.raises(ValueError, match="explicit rationale"):
+        ProductSelection.from_user_decision(
+            id=uuid4(),
+            run=run,
+            evaluation=evaluation,
+            selected_at=NOW,
+            selected_by=uuid4(),
+            rationale="   ",
+        )
+
+
+def test_not_evaluable_selection_allows_explicit_user_override() -> None:
+    run = _run()
+    evaluation = _evaluation(run, EligibilityStatus.NOT_EVALUABLE)
+    selection = ProductSelection.from_user_decision(
+        id=uuid4(),
+        run=run,
+        evaluation=evaluation,
+        selected_at=NOW,
+        selected_by=uuid4(),
+        rationale="Quote provider is unavailable; broker execution data was checked manually.",
+    )
+    assert selection.product_evaluation_id == evaluation.id
+    assert selection.rationale == (
+        "Quote provider is unavailable; broker execution data was checked manually."
+    )
