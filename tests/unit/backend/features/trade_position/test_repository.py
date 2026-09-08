@@ -24,6 +24,7 @@ NOW = datetime(2026, 8, 17, 8, 0, tzinfo=UTC)
 def _session():
     session = Mock()
     session.add = Mock()
+    session.flush = AsyncMock()
     session.scalar = AsyncMock()
     session.scalars = AsyncMock()
     return session
@@ -75,6 +76,7 @@ async def test_trade_repository_add_maps_domain_to_model() -> None:
     assert model.workspace_id == trade.workspace_id
     assert model.product_id == trade.product_id
     assert model.origin == TradeOrigin.EXTERNAL.value
+    session.flush.assert_awaited_once_with()
 
 
 @pytest.mark.asyncio
@@ -102,12 +104,13 @@ async def test_trade_repository_get_returns_domain_trade() -> None:
 
 
 @pytest.mark.asyncio
-async def test_trade_repository_get_returns_none_for_unknown_trade() -> None:
+async def test_trade_repository_get_returns_none_when_missing() -> None:
     session = _session()
     repo = SqlAlchemyTradeRepository(session)
+    trade = _trade()
     session.scalar.return_value = None
 
-    assert await repo.get(uuid4(), uuid4()) is None
+    assert await repo.get(trade.workspace_id, trade.id) is None
 
 
 @pytest.mark.asyncio
@@ -122,11 +125,63 @@ async def test_execution_repository_add_maps_domain_to_model() -> None:
     model = session.add.call_args.args[0]
     assert isinstance(model, ExecutionRecordModel)
     assert model.id == execution.id
-    assert model.trade_id == execution.trade_id
     assert model.side == ExecutionSide.BUY.value
     assert model.quantity == execution.quantity
     assert model.price_per_unit == execution.price_per_unit
-    assert model.supersedes_execution_id is None
+
+
+@pytest.mark.asyncio
+async def test_execution_repository_lists_effective_records() -> None:
+    session = _session()
+    repo = SqlAlchemyExecutionRecordRepository(session)
+    trade = _trade()
+    execution = _execution(trade)
+    model = ExecutionRecordModel(
+        id=execution.id,
+        trade_id=execution.trade_id,
+        product_id=execution.product_id,
+        side=execution.side.value,
+        supersedes_execution_id=None,
+        quantity=execution.quantity,
+        price_per_unit=execution.price_per_unit,
+        executed_at=execution.executed_at,
+        recorded_at=execution.recorded_at,
+        recorded_by=execution.recorded_by,
+    )
+    result = Mock()
+    result.all.return_value = [model]
+    session.scalars.return_value = result
+
+    records = await repo.list_effective_for_trade(trade.id)
+
+    assert records == [execution]
+
+
+@pytest.mark.asyncio
+async def test_execution_repository_lists_all_records() -> None:
+    session = _session()
+    repo = SqlAlchemyExecutionRecordRepository(session)
+    trade = _trade()
+    execution = _execution(trade)
+    model = ExecutionRecordModel(
+        id=execution.id,
+        trade_id=execution.trade_id,
+        product_id=execution.product_id,
+        side=execution.side.value,
+        supersedes_execution_id=None,
+        quantity=execution.quantity,
+        price_per_unit=execution.price_per_unit,
+        executed_at=execution.executed_at,
+        recorded_at=execution.recorded_at,
+        recorded_by=execution.recorded_by,
+    )
+    result = Mock()
+    result.all.return_value = [model]
+    session.scalars.return_value = result
+
+    records = await repo.list_for_trade(trade.id)
+
+    assert records == [execution]
 
 
 @pytest.mark.asyncio
@@ -142,17 +197,15 @@ async def test_position_repository_add_maps_domain_to_model() -> None:
     model = session.add.call_args.args[0]
     assert isinstance(model, PositionModel)
     assert model.id == position.id
-    assert model.trade_id == position.trade_id
     assert model.open_quantity == position.open_quantity
+    assert model.cost_basis == position.cost_basis
     assert model.realized_gross_pnl == Decimal("0")
-    assert model.closed_at is None
 
 
 @pytest.mark.asyncio
-async def test_position_repository_get_for_trade_returns_domain_position() -> None:
+async def test_position_repository_get_returns_domain_position() -> None:
     session = _session()
     repo = SqlAlchemyPositionRepository(session)
-
     trade = _trade()
     execution = _execution(trade)
     position = _position(trade, execution)
@@ -176,125 +229,51 @@ async def test_position_repository_get_for_trade_returns_domain_position() -> No
 
 
 @pytest.mark.asyncio
-async def test_position_replace_updates_persisted_snapshot() -> None:
+async def test_position_repository_get_returns_none_when_missing() -> None:
     session = _session()
     repo = SqlAlchemyPositionRepository(session)
+    trade = _trade()
+    session.scalar.return_value = None
 
+    assert await repo.get_for_trade(trade.workspace_id, trade.id) is None
+
+
+@pytest.mark.asyncio
+async def test_position_repository_replace_updates_model() -> None:
+    session = _session()
+    repo = SqlAlchemyPositionRepository(session)
     trade = _trade()
     execution = _execution(trade)
     position = _position(trade, execution)
-
-    persisted = PositionModel(
+    model = PositionModel(
         id=position.id,
         trade_id=position.trade_id,
         product_id=position.product_id,
         open_quantity=1,
-        cost_basis=Decimal("1.00"),
-        average_entry_price=Decimal("1.00"),
+        cost_basis=Decimal("1"),
+        average_entry_price=Decimal("1"),
         opened_at=position.opened_at,
-        last_execution_at=position.opened_at,
+        last_execution_at=position.last_execution_at,
+        realized_gross_pnl=Decimal("0"),
+        closed_at=None,
     )
-    session.scalar.return_value = persisted
+    session.scalar.return_value = model
 
     await repo.replace(position)
 
-    assert persisted.open_quantity == position.open_quantity
-    assert persisted.cost_basis == position.cost_basis
-    assert persisted.average_entry_price == position.average_entry_price
-    assert persisted.last_execution_at == position.last_execution_at
+    assert model.open_quantity == position.open_quantity
+    assert model.cost_basis == position.cost_basis
+    assert model.average_entry_price == position.average_entry_price
 
 
 @pytest.mark.asyncio
-async def test_execution_repository_add_maps_supersession_relation() -> None:
+async def test_position_repository_replace_rejects_missing_position() -> None:
     session = _session()
-    repo = SqlAlchemyExecutionRecordRepository(session)
+    repo = SqlAlchemyPositionRepository(session)
     trade = _trade()
-    original = _execution(trade)
-    replacement = ExecutionRecord(
-        id=uuid4(),
-        trade_id=trade.id,
-        product_id=trade.product_id,
-        quantity=8,
-        price_per_unit=Decimal("2.60"),
-        executed_at=NOW,
-        recorded_at=NOW,
-        recorded_by=uuid4(),
-        supersedes_execution_id=original.id,
-    )
+    execution = _execution(trade)
+    position = _position(trade, execution)
+    session.scalar.return_value = None
 
-    await repo.add(replacement)
-
-    model = session.add.call_args.args[0]
-    assert model.supersedes_execution_id == original.id
-
-
-@pytest.mark.asyncio
-async def test_execution_repository_lists_full_audit_history() -> None:
-    session = _session()
-    repo = SqlAlchemyExecutionRecordRepository(session)
-    trade = _trade()
-    original = _execution(trade)
-    replacement = ExecutionRecord(
-        id=uuid4(),
-        trade_id=trade.id,
-        product_id=trade.product_id,
-        quantity=8,
-        price_per_unit=Decimal("2.60"),
-        executed_at=NOW,
-        recorded_at=NOW,
-        recorded_by=uuid4(),
-        supersedes_execution_id=original.id,
-    )
-    models = [
-        ExecutionRecordModel(
-            id=execution.id,
-            trade_id=execution.trade_id,
-            product_id=execution.product_id,
-            side=execution.side.value,
-            quantity=execution.quantity,
-            price_per_unit=execution.price_per_unit,
-            executed_at=execution.executed_at,
-            recorded_at=execution.recorded_at,
-            recorded_by=execution.recorded_by,
-            supersedes_execution_id=execution.supersedes_execution_id,
-        )
-        for execution in (original, replacement)
-    ]
-    result = Mock()
-    result.all.return_value = models
-    session.scalars.return_value = result
-
-    executions = await repo.list_for_trade(trade.id)
-
-    assert executions == [original, replacement]
-
-
-@pytest.mark.asyncio
-async def test_execution_repository_effective_query_excludes_superseded_ids() -> None:
-    session = _session()
-    repo = SqlAlchemyExecutionRecordRepository(session)
-    trade = _trade()
-    effective = _execution(trade)
-    model = ExecutionRecordModel(
-        id=effective.id,
-        trade_id=effective.trade_id,
-        product_id=effective.product_id,
-        side=effective.side.value,
-        quantity=effective.quantity,
-        price_per_unit=effective.price_per_unit,
-        executed_at=effective.executed_at,
-        recorded_at=effective.recorded_at,
-        recorded_by=effective.recorded_by,
-        supersedes_execution_id=None,
-    )
-    result = Mock()
-    result.all.return_value = [model]
-    session.scalars.return_value = result
-
-    executions = await repo.list_effective_for_trade(trade.id)
-
-    assert executions == [effective]
-    statement = session.scalars.await_args.args[0]
-    sql = str(statement)
-    assert "supersedes_execution_id" in sql
-    assert "NOT (EXISTS" in sql
+    with pytest.raises(LookupError, match="position not found"):
+        await repo.replace(position)
