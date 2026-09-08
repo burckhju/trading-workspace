@@ -1,10 +1,12 @@
 import { environment } from '../../../services/environment';
 import { requestJson } from '../../market/services/http';
-import type { OperationalWorkspaceResponse } from '../types';
+import type { OperationalPositionsResponse, OperationalWorkspaceResponse } from '../types';
 
-const url = `${environment.apiBaseUrl}/api/v1/operational-workspace/actions`;
+const baseUrl = `${environment.apiBaseUrl}/api/v1/operational-workspace`;
 
 export const operationalWorkspaceApiClient = {
   getActions: (signal?: AbortSignal): Promise<OperationalWorkspaceResponse> =>
-    requestJson<OperationalWorkspaceResponse>(url, { signal }),
+    requestJson<OperationalWorkspaceResponse>(`${baseUrl}/actions`, { signal }),
+  getPositions: (signal?: AbortSignal): Promise<OperationalPositionsResponse> =>
+    requestJson<OperationalPositionsResponse>(`${baseUrl}/positions`, { signal }),
 };
