@@ -148,6 +148,31 @@ def test_start_run_uses_server_controlled_models_and_persists_before_reading() -
     assert response.json()["evaluations"][0]["eligibility_status"] == "NOT_EVALUABLE"
 
 
+def test_list_runs_returns_summaries() -> None:
+    service, persistence, query = AsyncMock(), AsyncMock(), AsyncMock()
+    query.list_for_trade_plan_version.return_value = (run(),)
+    with TestClient(app_with(service, persistence, query)) as client:
+        response = client.get(
+            "/api/v1/product-selection-runs",
+            params={"trade_plan_version_id": str(VERSION_ID)},
+        )
+    assert response.status_code == 200
+    assert response.json()[0]["id"] == str(RUN_ID)
+    query.list_for_trade_plan_version.assert_awaited_once_with(WORKSPACE_ID, VERSION_ID)
+
+
+def test_list_runs_maps_query_error_to_conflict() -> None:
+    service, persistence, query = AsyncMock(), AsyncMock(), AsyncMock()
+    query.list_for_trade_plan_version.side_effect = ValueError("trade plan version not found")
+    with TestClient(app_with(service, persistence, query)) as client:
+        response = client.get(
+            "/api/v1/product-selection-runs",
+            params={"trade_plan_version_id": str(VERSION_ID)},
+        )
+    assert response.status_code == 409
+    assert response.json()["code"] == "PRODUCT_SELECTION_CONFLICT"
+
+
 def test_get_run_surfaces_missing_data_reason() -> None:
     service, persistence, query = AsyncMock(), AsyncMock(), AsyncMock()
     query.get_run.return_value = ProductSelectionRunView(
@@ -162,6 +187,15 @@ def test_get_run_surfaces_missing_data_reason() -> None:
     assert "not available" in payload["evaluations"][0]["reasons"][0]
 
 
+def test_get_run_maps_query_error_to_conflict() -> None:
+    service, persistence, query = AsyncMock(), AsyncMock(), AsyncMock()
+    query.get_run.side_effect = ValueError("product selection run not found")
+    with TestClient(app_with(service, persistence, query)) as client:
+        response = client.get(f"/api/v1/product-selection-runs/{RUN_ID}")
+    assert response.status_code == 409
+    assert response.json()["code"] == "PRODUCT_SELECTION_CONFLICT"
+
+
 def test_get_evaluation_is_scoped_to_run() -> None:
     service, persistence, query = AsyncMock(), AsyncMock(), AsyncMock()
     query.get_evaluation.return_value = evaluation()
@@ -171,6 +205,17 @@ def test_get_evaluation_is_scoped_to_run() -> None:
         )
     assert response.status_code == 200
     query.get_evaluation.assert_awaited_once_with(WORKSPACE_ID, RUN_ID, EVALUATION_ID)
+
+
+def test_get_evaluation_maps_query_error_to_conflict() -> None:
+    service, persistence, query = AsyncMock(), AsyncMock(), AsyncMock()
+    query.get_evaluation.side_effect = ValueError("product evaluation not found")
+    with TestClient(app_with(service, persistence, query)) as client:
+        response = client.get(
+            f"/api/v1/product-selection-runs/{RUN_ID}/evaluations/{EVALUATION_ID}"
+        )
+    assert response.status_code == 409
+    assert response.json()["code"] == "PRODUCT_SELECTION_CONFLICT"
 
 
 def test_non_approved_start_maps_to_conflict() -> None:
@@ -219,6 +264,26 @@ def test_select_endpoint_creates_explicit_user_decision_and_returns_updated_run(
     assert response.json()["selection"]["product_evaluation_id"] == str(EVALUATION_ID)
 
 
+def test_select_endpoint_maps_updated_run_query_error_to_conflict() -> None:
+    service, persistence, query, command = AsyncMock(), AsyncMock(), AsyncMock(), AsyncMock()
+    command.select_product.return_value = ProductSelection(
+        id=UUID("a0000000-0000-4000-8000-000000000001"),
+        run_id=RUN_ID,
+        product_evaluation_id=EVALUATION_ID,
+        selected_at=NOW,
+        selected_by=ACTOR_ID,
+        rationale="explicit choice",
+    )
+    query.get_run.side_effect = ValueError("product selection run not found")
+    with TestClient(app_with(service, persistence, query, command)) as client:
+        response = client.post(
+            f"/api/v1/product-selection-runs/{RUN_ID}/selection",
+            json={"product_evaluation_id": str(EVALUATION_ID), "rationale": "explicit choice"},
+        )
+    assert response.status_code == 409
+    assert response.json()["code"] == "PRODUCT_SELECTION_CONFLICT"
+
+
 def test_second_selection_maps_to_conflict():
     service, persistence, query, command = AsyncMock(), AsyncMock(), AsyncMock(), AsyncMock()
     command.select_product.side_effect = ValueError(
@@ -236,7 +301,7 @@ def test_second_selection_maps_to_conflict():
 def test_ineligible_selection_is_rejected_by_api():
     service, persistence, query, command = AsyncMock(), AsyncMock(), AsyncMock(), AsyncMock()
     command.select_product.side_effect = ValueError(
-        "V1 ProductSelection requires an ELIGIBLE ProductEvaluation"
+        "INELIGIBLE ProductEvaluation cannot be selected"
     )
     with TestClient(app_with(service, persistence, query, command)) as client:
         response = client.post(
@@ -244,3 +309,4 @@ def test_ineligible_selection_is_rejected_by_api():
             json={"product_evaluation_id": str(EVALUATION_ID)},
         )
     assert response.status_code == 409
+    assert response.json()["code"] == "PRODUCT_SELECTION_CONFLICT"
