@@ -93,6 +93,10 @@ class SqlAlchemyTradeRepository:
                 product_evaluation_id=trade.product_evaluation_id,
             )
         )
+        # Trade is the aggregate parent for executions and positions. These models
+        # intentionally do not use ORM relationships, so make the FK ordering
+        # explicit before dependent rows are staged in the same transaction.
+        await self._session.flush()
 
     async def get(
         self,
