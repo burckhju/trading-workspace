@@ -8,14 +8,39 @@ from app.features.position_monitoring.api.dtos import (
     PositionMonitoringHealthResponse,
     ProductPositionValuationResponse,
     QuoteSourceAttemptResponse,
+    StuttgartDelayedSourceHealthResponse,
 )
 from app.features.position_monitoring.service.health import PositionMonitoringHealthService
 from app.features.position_monitoring.service.product_valuation import (
     ProductPositionValuationService,
 )
 from app.features.position_monitoring.service.quote_runtime import build_warrant_quote_resolver
+from app.features.position_monitoring.service.source_diagnostics import (
+    get_stuttgart_delayed_source_health,
+)
 
 router = APIRouter(prefix="/api/v1/position-monitoring", tags=["position-monitoring"])
+
+
+@router.get(
+    "/quote-sources/stuttgart-delayed/health",
+    response_model=StuttgartDelayedSourceHealthResponse,
+)
+async def get_stuttgart_delayed_health(
+    container: Annotated[ApplicationContainer, Depends(get_container)],
+) -> StuttgartDelayedSourceHealthResponse:
+    value = get_stuttgart_delayed_source_health(container.settings.market_data.stuttgart_delayed)
+    return StuttgartDelayedSourceHealthResponse(
+        status=value.status,
+        reason=value.reason,
+        enabled=value.enabled,
+        source_mode=value.source_mode,
+        schema_version=value.schema_version,
+        local_directory=value.local_directory,
+        latest_file=value.latest_file,
+        latest_file_timestamp=value.latest_file_timestamp,
+        file_count=value.file_count,
+    )
 
 
 @router.get(
