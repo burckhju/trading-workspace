@@ -39,16 +39,17 @@ function version(status: 'DRAFT' | 'APPROVED') {
     previous_version_id: null,
     change_reason: null,
     candidate_evaluation: null,
-    approval: status === 'APPROVED'
-      ? {
-          approval_id: '77777777-7777-4777-8777-777777777777',
-          trade_plan_version_id: versionId,
-          version: 1,
-          actor: actorId,
-          approved_at: now,
-          correlation_id: null,
-        }
-      : null,
+    approval:
+      status === 'APPROVED'
+        ? {
+            approval_id: '77777777-7777-4777-8777-777777777777',
+            trade_plan_version_id: versionId,
+            version: 1,
+            actor: actorId,
+            approved_at: now,
+            correlation_id: null,
+          }
+        : null,
     events: [],
   };
 }
@@ -77,7 +78,9 @@ for (const scenario of [
   { name: 'APPROVED', status: 'APPROVED' as const, historical: false },
   { name: 'historically traded APPROVED', status: 'APPROVED' as const, historical: true },
 ]) {
-  test(`${scenario.name} TradePlan requires exact confirmation and is permanently deleted`, async ({ page }) => {
+  test(`${scenario.name} TradePlan requires exact confirmation and is permanently deleted`, async ({
+    page,
+  }) => {
     let deleteRequests = 0;
 
     await page.route(tradePlanApiRoute, async (route) => {
@@ -113,9 +116,7 @@ for (const scenario of [
       return json(route, []);
     });
 
-    await page.goto('/trade-plans');
-    await page.getByLabel('TradePlan-ID').fill(planId);
-    await page.getByRole('button', { name: 'Laden' }).click();
+    await page.goto(`/trade-plans?trade_plan_id=${planId}`);
 
     await expect(page.getByRole('heading', { name: reference })).toBeVisible();
     const deleteButton = page.getByRole('button', { name: 'TradePlan unwiderruflich löschen' });
