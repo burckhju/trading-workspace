@@ -34,6 +34,15 @@ fi
 
 mkdir -p "$DEFAULT_STUTTGART_DATA_DIR"
 
+if grep -qi '^TRADING_WORKSPACE_MARKET_DATA__STUTTGART_DELAYED__ENABLED=true$' "$ENV_FILE" && \
+   grep -qi '^TRADING_WORKSPACE_MARKET_DATA__STUTTGART_DELAYED__SOURCE_MODE=local_directory$' "$ENV_FILE"; then
+  echo "Refreshing Börse Stuttgart delayed market-data cache..."
+  if ! python3 "$ROOT_DIR/scripts/sync-stuttgart-delayed.py" \
+    --directory "$DEFAULT_STUTTGART_DATA_DIR"; then
+    echo "Warning: Stuttgart delayed refresh failed; existing cache is preserved." >&2
+  fi
+fi
+
 docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" config >/dev/null
 
 echo "Building backend and frontend images..."
@@ -70,5 +79,6 @@ echo "Liveness:  http://localhost:8000/health"
 echo "Readiness: http://localhost:8000/health/ready"
 echo "Quote data: http://localhost:8000/api/v1/position-monitoring/quote-sources/stuttgart-delayed/health"
 echo "Stuttgart local data directory: $DEFAULT_STUTTGART_DATA_DIR"
+echo "Manual Stuttgart refresh: python3 scripts/sync-stuttgart-delayed.py"
 echo "Status:    docker compose --env-file docker/.env -f docker/compose.yml ps"
 echo "Logs:      docker compose --env-file docker/.env -f docker/compose.yml logs -f backend"
