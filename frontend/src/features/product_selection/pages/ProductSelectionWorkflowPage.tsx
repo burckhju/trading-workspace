@@ -20,9 +20,7 @@ export function ProductSelectionWorkflowPage() {
     (Boolean(searchParams.get('trade_plan_id')?.trim()) &&
       Boolean(searchParams.get('trade_plan_version_id')?.trim()));
   const [plans, setPlans] = useState<TradePlanOverviewItem[]>([]);
-  const [underlyings, setUnderlyings] = useState<
-    Record<string, UnderlyingDetailResponse>
-  >({});
+  const [underlyings, setUnderlyings] = useState<Record<string, UnderlyingDetailResponse>>({});
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(!hasContext);
 
