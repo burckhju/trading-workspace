@@ -92,7 +92,9 @@ export function ExistingTradePlanPage({ tradePlanId }: { tradePlanId: string }) 
       await tradePlanApiClient.delete(detail.plan.id);
       void navigate('/trade-plans/overview', { replace: true });
     } catch (error: unknown) {
-      setMessage(error instanceof Error ? error.message : 'TradePlan konnte nicht gelöscht werden.');
+      setMessage(
+        error instanceof Error ? error.message : 'TradePlan konnte nicht gelöscht werden.',
+      );
       setBusy(false);
     }
   }
