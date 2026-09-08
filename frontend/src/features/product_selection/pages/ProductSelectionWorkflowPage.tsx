@@ -129,9 +129,7 @@ export function ProductSelectionWorkflowPage() {
                   <p className="text-xs uppercase tracking-wide text-slate-500">
                     {tradePlanReference(plan.id)}
                   </p>
-                  <h2 className="mt-1 text-lg font-semibold">
-                    {underlying?.name ?? 'Basiswert'}
-                  </h2>
+                  <h2 className="mt-1 text-lg font-semibold">{underlying?.name ?? 'Basiswert'}</h2>
                   <p className="mt-1 text-sm text-slate-400">
                     {identifiers.join(' · ') || 'Keine sichtbaren Kennungen'}
                   </p>
