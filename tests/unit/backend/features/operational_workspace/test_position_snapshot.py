@@ -39,7 +39,9 @@ class _ManagementEvents:
 
 
 @pytest.mark.asyncio
-async def test_composes_alert_first_snapshot_with_plan_rules_and_current_valuation(monkeypatch) -> None:
+async def test_composes_alert_first_snapshot_with_plan_rules_and_current_valuation(
+    monkeypatch,
+) -> None:
     monkeypatch.setattr(
         snapshot_module,
         "SqlAlchemyTradeManagementEventRepository",
