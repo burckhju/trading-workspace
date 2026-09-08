@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { operationalWorkspaceApiClient } from '../services/client';
-import type { OperationalAction, OperationalPriority } from '../types';
+import type { OperationalAction, OperationalPosition, OperationalPriority } from '../types';
+import { OpenPositionsPanel } from './OpenPositionsPanel';
 
 const sections: Array<{ priority: OperationalPriority; title: string; description: string }> = [
   {
@@ -51,6 +52,7 @@ function ActionCard({ action }: { action: OperationalAction }) {
 
 export function OperationalWorkspacePage() {
   const [actions, setActions] = useState<OperationalAction[]>([]);
+  const [positions, setPositions] = useState<OperationalPosition[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [generatedAt, setGeneratedAt] = useState<string | null>(null);
@@ -59,9 +61,13 @@ export function OperationalWorkspacePage() {
     setLoading(true);
     setError(null);
     try {
-      const response = await operationalWorkspaceApiClient.getActions(signal);
-      setActions(response.actions);
-      setGeneratedAt(response.generated_at);
+      const [actionResponse, positionResponse] = await Promise.all([
+        operationalWorkspaceApiClient.getActions(signal),
+        operationalWorkspaceApiClient.getPositions(signal),
+      ]);
+      setActions(actionResponse.actions);
+      setPositions(positionResponse.positions);
+      setGeneratedAt(actionResponse.generated_at);
     } catch (caught) {
       if (caught instanceof DOMException && caught.name === 'AbortError') return;
       setError(
@@ -125,6 +131,8 @@ export function OperationalWorkspacePage() {
           </button>
         </div>
       )}
+
+      {!error && !loading && <OpenPositionsPanel positions={positions} />}
 
       {!error && !loading && actions.length === 0 && (
         <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-8 text-center">
