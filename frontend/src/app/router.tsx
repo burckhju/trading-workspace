@@ -14,7 +14,7 @@ import {
 } from '../features/market/pages';
 import { OperationalWorkspacePage } from '../features/operational_workspace/pages/OperationalWorkspacePage';
 import { PostTradeLearningPage } from '../features/post_trade/pages/PostTradeLearningPage';
-import { ProductSelectionPage } from '../features/product_selection/pages';
+import { ProductSelectionWorkflowPage } from '../features/product_selection/pages';
 import { WarrantAdminPage } from '../features/product/pages';
 import { TradeManagementPage } from '../features/trade/pages';
 import { TradePlanOverviewPage, TradePlanPage } from '../features/trade_plan/pages';
@@ -36,7 +36,7 @@ export function createApplicationRouter() {
         { path: 'trade-plans', element: <TradePlanPage /> },
         { path: 'trade-management', element: <TradeManagementPage /> },
         { path: 'post-trade', element: <PostTradeLearningPage /> },
-        { path: 'product-selection', element: <ProductSelectionPage /> },
+        { path: 'product-selection', element: <ProductSelectionWorkflowPage /> },
         { path: 'learning-imports', element: <BulkImportPage /> },
         { path: 'lessons/:lessonId', element: <LessonDetailPage /> },
         { path: 'top-down-admin', element: <TopDownWorkflowActionPage /> },
