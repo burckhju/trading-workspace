@@ -4,6 +4,7 @@ import type {
   AmendTradePlanRequest,
   CreateTradePlanRequest,
   LifecycleReasonRequest,
+  TradePlanDeletionResponse,
   TradePlanDetailResponse,
   TradePlanMutationOptions,
   TradePlanVersionResponse,
@@ -123,4 +124,7 @@ export const tradePlanApiClient = {
       `${baseUrl}/${tradePlanId}/versions/${versionId}/approve`,
       mutationOptions('POST', undefined, options),
     ),
+
+  delete: (tradePlanId: string): Promise<TradePlanDeletionResponse> =>
+    requestJson<TradePlanDeletionResponse>(`${baseUrl}/${tradePlanId}`, { method: 'DELETE' }),
 };
