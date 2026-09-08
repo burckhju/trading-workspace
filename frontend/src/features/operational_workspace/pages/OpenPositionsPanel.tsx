@@ -111,10 +111,7 @@ export function OpenPositionsPanel({ positions }: { positions: OperationalPositi
                 Produktkurs: {statusLabel(position.valuation_status)}
               </span>
               {position.open_alert_types.map((alertType) => (
-                <span
-                  key={alertType}
-                  className="rounded-full border border-slate-700 px-2.5 py-1"
-                >
+                <span key={alertType} className="rounded-full border border-slate-700 px-2.5 py-1">
                   {alertType === 'STOP_REACHED' ? 'Stop erreicht' : 'Target erreicht'}
                 </span>
               ))}
