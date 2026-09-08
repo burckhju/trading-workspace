@@ -4,9 +4,11 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
+from app.core.config.settings import StuttgartDelayedSourceMode
 from app.features.position_monitoring.service.health import MonitoringHealthStatus
 from app.features.position_monitoring.service.product_valuation import ProductValuationStatus
 from app.features.position_monitoring.service.quote_sources import QuoteSourceAttemptStatus
+from app.features.position_monitoring.service.source_diagnostics import StuttgartDelayedSourceStatus
 
 
 class PositionMonitoringHealthResponse(BaseModel):
@@ -47,3 +49,15 @@ class ProductPositionValuationResponse(BaseModel):
     unrealized_gross_pnl: Decimal | None
     selected_source: str | None
     source_attempts: tuple[QuoteSourceAttemptResponse, ...]
+
+
+class StuttgartDelayedSourceHealthResponse(BaseModel):
+    status: StuttgartDelayedSourceStatus
+    reason: str
+    enabled: bool
+    source_mode: StuttgartDelayedSourceMode
+    schema_version: str | None
+    local_directory: str | None
+    latest_file: str | None
+    latest_file_timestamp: datetime | None
+    file_count: int | None
