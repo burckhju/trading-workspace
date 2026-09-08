@@ -22,12 +22,14 @@ vi.mock('../services/client', () => ({
     submitForReview: vi.fn(),
     approve: vi.fn(),
     abandon: vi.fn(),
+    delete: vi.fn(),
   },
 }));
 
 const getPlan = vi.mocked(tradePlanApiClient.get);
 const getVersions = vi.mocked(tradePlanApiClient.versions);
 const abandon = vi.mocked(tradePlanApiClient.abandon);
+const hardDelete = vi.mocked(tradePlanApiClient.delete);
 const getUnderlying = vi.mocked(marketApiClient.getUnderlying);
 
 function version(status: TradePlanStatus): TradePlanVersionResponse {
@@ -86,6 +88,20 @@ describe('ExistingTradePlanPage', () => {
     vi.clearAllMocks();
     getUnderlying.mockRejectedValue(new Error('optional context unavailable'));
     abandon.mockResolvedValue(version('ABANDONED'));
+    hardDelete.mockResolvedValue({
+      trade_plan_id: 'plan-1',
+      trade_plan_versions: 1,
+      product_selection_runs: 0,
+      trades: 0,
+      positions: 0,
+      alerts: 0,
+      notifications: 0,
+      post_trade_observations: 0,
+      exit_reviews: 0,
+      trade_journals: 0,
+      learning_evidence: 0,
+      external_observation_trade_links: 0,
+    });
   });
 
   it('allows a draft TradePlan to be abandoned and reloads the authoritative state', async () => {
@@ -123,5 +139,29 @@ describe('ExistingTradePlanPage', () => {
     ).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'TradePlan aufgeben' })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Produktauswahl starten' })).toBeInTheDocument();
+  });
+
+  it('requires the visible TradePlan reference before permanent deletion', async () => {
+    getPlan.mockResolvedValue(detail('APPROVED'));
+    getVersions.mockResolvedValue([version('APPROVED')]);
+
+    render(
+      <MemoryRouter>
+        <ExistingTradePlanPage tradePlanId="plan-1" />
+      </MemoryRouter>,
+    );
+
+    const deleteButton = await screen.findByRole('button', {
+      name: 'TradePlan unwiderruflich löschen',
+    });
+    expect(deleteButton).toBeDisabled();
+
+    fireEvent.change(screen.getByLabelText(/Zur Bestätigung/), {
+      target: { value: 'TP-PLAN-1' },
+    });
+    expect(deleteButton).toBeEnabled();
+    fireEvent.click(deleteButton);
+
+    await waitFor(() => expect(hardDelete).toHaveBeenCalledWith('plan-1'));
   });
 });

@@ -180,6 +180,21 @@ export interface TradePlanDetailResponse {
   latest_version: TradePlanVersionResponse;
 }
 
+export interface TradePlanDeletionResponse {
+  trade_plan_id: Uuid;
+  trade_plan_versions: number;
+  product_selection_runs: number;
+  trades: number;
+  positions: number;
+  alerts: number;
+  notifications: number;
+  post_trade_observations: number;
+  exit_reviews: number;
+  trade_journals: number;
+  learning_evidence: number;
+  external_observation_trade_links: number;
+}
+
 export interface TradePlanMutationOptions {
   correlationId?: string;
 }

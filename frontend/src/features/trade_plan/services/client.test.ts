@@ -144,4 +144,13 @@ describe('tradePlanApiClient', () => {
       correlationId: undefined,
     });
   });
+
+  it('maps permanent deletion to DELETE on the TradePlan resource', async () => {
+    await tradePlanApiClient.delete(PLAN_ID);
+
+    expect(requestJsonMock).toHaveBeenLastCalledWith(
+      `http://localhost:8000/api/v1/trade-plans/${PLAN_ID}`,
+      { method: 'DELETE' },
+    );
+  });
 });

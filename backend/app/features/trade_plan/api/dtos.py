@@ -192,3 +192,18 @@ class TradePlanVersionResponse(BaseModel):
 class TradePlanDetailResponse(BaseModel):
     plan: TradePlanSummaryResponse
     latest_version: TradePlanVersionResponse
+
+
+class TradePlanDeletionResponse(BaseModel):
+    trade_plan_id: UUID
+    trade_plan_versions: int
+    product_selection_runs: int
+    trades: int
+    positions: int
+    alerts: int
+    notifications: int
+    post_trade_observations: int
+    exit_reviews: int
+    trade_journals: int
+    learning_evidence: int
+    external_observation_trade_links: int

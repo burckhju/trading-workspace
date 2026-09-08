@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.dependencies import get_database_session
 from app.features.trade_plan.service.application import TradePlanService
+from app.features.trade_plan.service.hard_delete import TradePlanHardDeleteService
 from app.features.trade_plan.service.queries import TradePlanQueryService
 
 
@@ -21,3 +22,9 @@ async def get_trade_plan_query_service(
     session: Annotated[AsyncSession, Depends(get_database_session)],
 ) -> AsyncIterator[TradePlanQueryService]:
     yield TradePlanQueryService(session)
+
+
+async def get_trade_plan_hard_delete_service(
+    session: Annotated[AsyncSession, Depends(get_database_session)],
+) -> AsyncIterator[TradePlanHardDeleteService]:
+    yield TradePlanHardDeleteService(session)

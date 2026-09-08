@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 import { marketApiClient } from '../../market/services/client';
 import type { UnderlyingDetailResponse } from '../../market/types/api';
@@ -19,10 +19,12 @@ function nextStep(status: TradePlanVersionResponse['status']): string {
 }
 
 export function ExistingTradePlanPage({ tradePlanId }: { tradePlanId: string }) {
+  const navigate = useNavigate();
   const [detail, setDetail] = useState<TradePlanDetailResponse | null>(null);
   const [versions, setVersions] = useState<TradePlanVersionResponse[]>([]);
   const [underlying, setUnderlying] = useState<UnderlyingDetailResponse | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [deleteConfirmation, setDeleteConfirmation] = useState('');
   const [busy, setBusy] = useState(false);
 
   const refresh = useCallback(
@@ -80,8 +82,26 @@ export function ExistingTradePlanPage({ tradePlanId }: { tradePlanId: string }) 
     }
   }
 
+  async function hardDelete() {
+    if (!detail) return;
+    const reference = tradePlanReference(detail.plan.id);
+    if (deleteConfirmation !== reference) return;
+    setBusy(true);
+    setMessage(null);
+    try {
+      await tradePlanApiClient.delete(detail.plan.id);
+      void navigate('/trade-plans/overview', { replace: true });
+    } catch (error: unknown) {
+      setMessage(
+        error instanceof Error ? error.message : 'TradePlan konnte nicht gelöscht werden.',
+      );
+      setBusy(false);
+    }
+  }
+
   const current = detail?.latest_version ?? null;
   const canAbandon = current?.status === 'DRAFT' || current?.status === 'READY_FOR_REVIEW';
+  const reference = detail ? tradePlanReference(detail.plan.id) : '';
 
   return (
     <main className="w-full space-y-6">
@@ -90,9 +110,7 @@ export function ExistingTradePlanPage({ tradePlanId }: { tradePlanId: string }) 
           <p className="text-xs uppercase tracking-wide text-slate-500">
             FT-007 · Bestehender TradePlan
           </p>
-          <h1 className="mt-1 text-2xl font-semibold">
-            {detail ? tradePlanReference(detail.plan.id) : 'TradePlan'}
-          </h1>
+          <h1 className="mt-1 text-2xl font-semibold">{detail ? reference : 'TradePlan'}</h1>
           {underlying && (
             <p className="mt-2 text-sm text-slate-400">
               {underlying.name}
@@ -191,8 +209,7 @@ export function ExistingTradePlanPage({ tradePlanId }: { tradePlanId: string }) 
             </div>
             {canAbandon && (
               <p className="mt-3 text-xs text-slate-500">
-                Aufgeben beendet diesen noch nicht freigegebenen TradePlan nachvollziehbar. Bereits
-                freigegebene oder gehandelte Pläne bleiben als Provenienz erhalten.
+                Aufgeben beendet diesen noch nicht freigegebenen TradePlan nachvollziehbar.
               </p>
             )}
           </section>
@@ -211,6 +228,35 @@ export function ExistingTradePlanPage({ tradePlanId }: { tradePlanId: string }) 
                 </li>
               ))}
             </ol>
+          </section>
+
+          <section className="rounded-xl border border-rose-900 bg-rose-950/20 p-5">
+            <h2 className="text-lg font-semibold text-rose-200">TradePlan dauerhaft löschen</h2>
+            <p className="mt-2 text-sm text-rose-100/80">
+              Diese Aktion löscht den TradePlan und seine abhängige Auswahl-, Trade-, Positions-,
+              Monitoring-, Post-Trade- und Lernhistorie dauerhaft. Gemeinsame Referenzdaten wie
+              Underlying, Warrant, Emittent oder Handelsplatz werden nicht gelöscht.
+            </p>
+            <label className="mt-4 block text-sm text-slate-300" htmlFor="delete-confirmation">
+              Zur Bestätigung <strong>{reference}</strong> eingeben
+            </label>
+            <div className="mt-2 flex flex-wrap gap-3">
+              <input
+                id="delete-confirmation"
+                value={deleteConfirmation}
+                onChange={(event) => setDeleteConfirmation(event.target.value)}
+                disabled={busy}
+                autoComplete="off"
+                className="min-w-64 rounded-lg border border-rose-900 bg-slate-950 px-3 py-2 text-sm"
+              />
+              <button
+                disabled={busy || deleteConfirmation !== reference}
+                onClick={() => void hardDelete()}
+                className="rounded-lg border border-rose-700 px-4 py-2 text-sm font-medium text-rose-200 disabled:opacity-40"
+              >
+                TradePlan unwiderruflich löschen
+              </button>
+            </div>
           </section>
 
           <details className="rounded-xl border border-slate-800 p-4 text-xs text-slate-500">
