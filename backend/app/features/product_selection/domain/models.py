@@ -203,8 +203,12 @@ class ProductSelection:
     ) -> ProductSelection:
         if evaluation.run_id != run.id:
             raise ValueError("selected ProductEvaluation must belong to ProductSelectionRun")
-        if evaluation.eligibility_status is not EligibilityStatus.ELIGIBLE:
-            raise ValueError("V1 ProductSelection requires an ELIGIBLE ProductEvaluation")
+        if evaluation.eligibility_status is EligibilityStatus.INELIGIBLE:
+            raise ValueError("INELIGIBLE ProductEvaluation cannot be selected")
+        if evaluation.eligibility_status is EligibilityStatus.NOT_EVALUABLE and not (
+            rationale and rationale.strip()
+        ):
+            raise ValueError("NOT_EVALUABLE ProductSelection requires an explicit rationale")
         return cls(
             id=id,
             run_id=run.id,
