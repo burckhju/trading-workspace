@@ -24,7 +24,9 @@ def _test_database_url() -> str:
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("status", ["DRAFT", "APPROVED"])
-async def test_hard_delete_removes_plan_history_but_preserves_shared_underlying(status: str) -> None:
+async def test_hard_delete_removes_plan_history_but_preserves_shared_underlying(
+    status: str,
+) -> None:
     engine = create_async_engine(_test_database_url())
     session_factory = async_sessionmaker(engine, expire_on_commit=False)
     workspace_id = uuid4()
@@ -135,7 +137,11 @@ async def test_hard_delete_removes_plan_history_but_preserves_shared_underlying(
         )
         assert remaining_plan == 0
         assert remaining_underlying == 1
-        await connection.execute(text("DELETE FROM underlyings WHERE id = :id"), {"id": underlying_id})
-        await connection.execute(text("DELETE FROM workspaces WHERE id = :id"), {"id": workspace_id})
+        await connection.execute(
+            text("DELETE FROM underlyings WHERE id = :id"), {"id": underlying_id}
+        )
+        await connection.execute(
+            text("DELETE FROM workspaces WHERE id = :id"), {"id": workspace_id}
+        )
 
     await engine.dispose()
