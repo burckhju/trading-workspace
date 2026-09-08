@@ -98,14 +98,21 @@ class TradePlanHardDeleteService:
             journal_version_ids,
         )
         learning_evidence_ids = tuple(dict.fromkeys((*ft011_evidence_ids, *journal_evidence_ids)))
-
-        await self._delete_in("lesson_review_signal_evidence", "lesson_evidence_link_id", await self._ids_for_parent(
+        lesson_link_ids = await self._ids_for_parent(
             "SELECT id FROM lesson_evidence_links WHERE learning_evidence_id IN :ids",
             learning_evidence_ids,
-        ))
-        await self._delete_in("lesson_evidence_links", "learning_evidence_id", learning_evidence_ids)
+        )
+
+        await self._delete_in(
+            "lesson_review_signal_evidence", "lesson_evidence_link_id", lesson_link_ids
+        )
+        await self._delete_in(
+            "lesson_evidence_links", "learning_evidence_id", learning_evidence_ids
+        )
         await self._delete_in("ft011_evidence", "learning_evidence_id", learning_evidence_ids)
-        await self._delete_in("trade_journal_version_evidence", "learning_evidence_id", learning_evidence_ids)
+        await self._delete_in(
+            "trade_journal_version_evidence", "learning_evidence_id", learning_evidence_ids
+        )
         await self._delete_in("learning_evidence", "id", learning_evidence_ids)
 
         await self._delete_in("exit_review_versions", "id", exit_review_version_ids)
@@ -116,7 +123,9 @@ class TradePlanHardDeleteService:
         await self._delete_in("trade_journals", "id", journal_ids)
 
         await self._delete_in(
-            "external_observation_trade_link_versions", "external_observation_trade_link_id", link_ids
+            "external_observation_trade_link_versions",
+            "external_observation_trade_link_id",
+            link_ids,
         )
         await self._delete_in("external_observation_trade_links", "id", link_ids)
 
@@ -131,7 +140,9 @@ class TradePlanHardDeleteService:
 
         await self._delete_in("product_selections", "id", selection_ids)
         await self._delete_in("product_evaluation_inputs", "product_evaluation_id", evaluation_ids)
-        await self._delete_in("product_evaluation_criteria", "product_evaluation_id", evaluation_ids)
+        await self._delete_in(
+            "product_evaluation_criteria", "product_evaluation_id", evaluation_ids
+        )
         await self._delete_in("product_evaluation_metrics", "product_evaluation_id", evaluation_ids)
         await self._delete_in("product_evaluation_reasons", "product_evaluation_id", evaluation_ids)
         await self._delete_in("product_evaluations", "id", evaluation_ids)
