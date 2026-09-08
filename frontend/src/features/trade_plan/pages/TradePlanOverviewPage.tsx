@@ -83,6 +83,10 @@ export function TradePlanOverviewPage() {
         {items.map((item) => {
           const underlying = underlyings[item.underlying_id];
           const ticker = underlying?.primary_listing?.ticker;
+          const selectionSearch = new URLSearchParams({
+            trade_plan_id: item.id,
+            trade_plan_version_id: item.latest_version_id,
+          }).toString();
           return (
             <article key={item.id} className="rounded-xl border border-slate-800 p-5">
               <div className="flex flex-wrap items-start justify-between gap-4">
@@ -118,13 +122,21 @@ export function TradePlanOverviewPage() {
                   <dd className="mt-1">{new Date(item.created_at).toLocaleString('de-DE')}</dd>
                 </div>
               </dl>
-              <div className="mt-4">
+              <div className="mt-4 flex flex-wrap gap-3">
                 <Link
                   to={`/trade-plans?trade_plan_id=${encodeURIComponent(item.id)}`}
                   className="inline-flex rounded-lg border border-slate-600 px-4 py-2 text-sm"
                 >
                   Öffnen
                 </Link>
+                {item.status === 'APPROVED' && (
+                  <Link
+                    to={`/product-selection?${selectionSearch}`}
+                    className="inline-flex rounded-lg border border-emerald-700 px-4 py-2 text-sm"
+                  >
+                    Produkt auswählen
+                  </Link>
+                )}
               </div>
             </article>
           );
