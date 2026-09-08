@@ -1,5 +1,6 @@
 """Explicit destructive TradePlan hard-delete endpoint."""
 
+from dataclasses import asdict
 from typing import Annotated
 from uuid import UUID
 
@@ -21,6 +22,6 @@ async def hard_delete_trade_plan(
 ) -> TradePlanDeletionResponse:
     try:
         summary = await service.delete(workspace_id=WORKSPACE_ID, trade_plan_id=trade_plan_id)
-        return TradePlanDeletionResponse(**summary.__dict__)
+        return TradePlanDeletionResponse(**asdict(summary))
     except ValueError as exc:
         raise translate_trade_plan_error(exc) from exc
