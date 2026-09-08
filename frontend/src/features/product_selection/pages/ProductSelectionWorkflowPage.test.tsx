@@ -40,7 +40,9 @@ describe('ProductSelectionWorkflowPage', () => {
 
   it('offers approved trade plans without requiring UUID input', async () => {
     vi.spyOn(globalThis, 'fetch')
-      .mockResolvedValueOnce(new Response(JSON.stringify([approvedPlan, draftPlan]), { status: 200 }))
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify([approvedPlan, draftPlan]), { status: 200 }),
+      )
       .mockResolvedValueOnce(new Response(JSON.stringify(underlying), { status: 200 }));
 
     render(
