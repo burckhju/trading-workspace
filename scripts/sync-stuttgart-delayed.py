@@ -17,11 +17,13 @@ INDEX_URL = (
     "https://www.boerse-stuttgart.de/de-de/fuer-geschaeftspartner/reports/"
     "mifir-ii-delayed-data/xstu-pre-trade/"
 )
-DOWNLOAD_LINK = re.compile(
+FILE_NAME_PATTERN = r"XSTU-pretrade-\d{8}T\d{4}\.json\.gz"
+DOWNLOAD_ENTRY = re.compile(
+    rf"(?P<filename>{FILE_NAME_PATTERN})[\s\S]{{0,2000}}?"
     r'href=["\'](?P<href>[^"\']*ddl\.service\.boerse-stuttgart\.de[^"\']*)["\']',
     re.IGNORECASE,
 )
-FILE_NAME = re.compile(r"^XSTU-pretrade-\d{8}T\d{4}\.json\.gz$")
+FILE_NAME = re.compile(rf"^{FILE_NAME_PATTERN}$")
 
 
 def _get(url: str, timeout: float) -> bytes:
@@ -30,15 +32,20 @@ def _get(url: str, timeout: float) -> bytes:
         return response.read()
 
 
-def _official_download_url(index_html: str) -> str:
-    match = DOWNLOAD_LINK.search(index_html)
+def _official_download(index_html: str) -> tuple[str, str]:
+    match = DOWNLOAD_ENTRY.search(index_html)
     if match is None:
-        raise RuntimeError("No official XSTU download link found in Stuttgart index")
+        raise RuntimeError("No official XSTU download entry found in Stuttgart index")
+
+    filename = match.group("filename")
+    if not FILE_NAME.fullmatch(filename):
+        raise RuntimeError(f"Unexpected XSTU filename in Stuttgart index: {filename}")
+
     url = urljoin(INDEX_URL, match.group("href"))
     parsed = urlparse(url)
     if parsed.scheme != "https" or parsed.hostname != "ddl.service.boerse-stuttgart.de":
         raise RuntimeError("Unexpected Stuttgart delayed download host")
-    return url
+    return url, filename
 
 
 def _validate_payload(content: bytes) -> None:
@@ -66,10 +73,7 @@ def main() -> int:
     directory.mkdir(parents=True, exist_ok=True)
 
     index_html = _get(INDEX_URL, args.timeout).decode("utf-8")
-    download_url = _official_download_url(index_html)
-    filename = Path(urlparse(download_url).path).name
-    if not FILE_NAME.fullmatch(filename):
-        raise RuntimeError(f"Unexpected XSTU filename: {filename}")
+    download_url, filename = _official_download(index_html)
 
     destination = directory / filename
     if destination.exists():
