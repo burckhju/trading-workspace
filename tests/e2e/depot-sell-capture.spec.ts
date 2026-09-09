@@ -4,6 +4,8 @@ const tradeId = '10000000-0000-4000-8000-000000000010';
 const positionId = '10000000-0000-4000-8000-000000000011';
 const productId = '10000000-0000-4000-8000-000000000012';
 const now = '2026-09-09T18:00:00Z';
+const tradeManagementRoute =
+  /\/api\/api\/v1\/trade-position\/trades\/10000000-0000-4000-8000-000000000010(?:\/.*)?(?:\?.*)?$/;
 
 async function json(route: Route, body: unknown, status = 200) {
   await route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
@@ -69,7 +71,7 @@ test('captures a partial sale from the operational depot without manual trade id
     }),
   );
 
-  await page.route(`**/api/api/v1/trade-position/trades/${tradeId}**`, async (route) => {
+  await page.route(tradeManagementRoute, async (route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname;
 
