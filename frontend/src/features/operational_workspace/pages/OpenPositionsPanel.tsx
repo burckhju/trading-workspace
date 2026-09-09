@@ -117,12 +117,18 @@ export function OpenPositionsPanel({ positions }: { positions: OperationalPositi
               ))}
             </div>
 
-            <div className="mt-4 flex justify-end">
+            <div className="mt-4 flex flex-wrap justify-end gap-2">
+              <Link
+                to={position.target}
+                className="rounded-lg border border-slate-600 px-3 py-2 text-sm font-medium text-slate-100 hover:border-slate-400"
+              >
+                Trade-Management
+              </Link>
               <Link
                 to={position.target}
                 className="rounded-lg bg-slate-100 px-3 py-2 text-sm font-medium text-slate-950 hover:bg-white"
               >
-                Trade-Management
+                Verkauf erfassen
               </Link>
             </div>
           </li>
