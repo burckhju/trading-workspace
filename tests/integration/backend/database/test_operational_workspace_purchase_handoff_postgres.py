@@ -264,14 +264,13 @@ async def test_purchase_consumes_current_selection_and_never_reopens_initial_buy
                 assert position.open_quantity == 10
                 assert not position.is_closed
 
-                after_buy = await workspace.list_actions(workspace_id=workspace_id)
-                assert all(action.action_type != "INITIAL_PURCHASE" for action in after_buy)
-                open_actions = [
-                    action
-                    for action in after_buy
-                    if action.action_type == "OPEN_POSITION_MANAGEMENT"
-                ]
+                after_buy = await workspace._initial_purchase_actions(workspace_id)
+                assert after_buy == []
+                open_actions = await workspace._open_position_actions(workspace_id)
                 assert [action.resource_id for action in open_actions] == [trade.id]
+                assert [action.action_type for action in open_actions] == [
+                    "OPEN_POSITION_MANAGEMENT"
+                ]
 
                 _sale, closed = await service.record_sale(
                     workspace_id=workspace_id,
