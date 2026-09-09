@@ -152,9 +152,16 @@ fi
 if [[ -n "$SEED_PRICE" ]]; then
   echo
   echo "Creating/reusing controlled XSTU open position..."
+  set +e
   SEED_OUTPUT="$(compose exec -T backend python -m app.tools.seed_xstu_open_position \
-    --price "$SEED_PRICE" --quantity "$SEED_QUANTITY")"
+    --price "$SEED_PRICE" --quantity "$SEED_QUANTITY" 2>&1)"
+  SEED_STATUS=$?
+  set -e
   echo "$SEED_OUTPUT"
+  if ((SEED_STATUS != 0)); then
+    echo "Controlled XSTU seed failed with exit code $SEED_STATUS." >&2
+    exit "$SEED_STATUS"
+  fi
   TRADE_ID="$(sed -n 's/.*"trade_id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' <<<"$SEED_OUTPUT" | tail -n 1)"
   if [[ -z "$TRADE_ID" ]]; then
     echo "Could not read trade_id from XSTU seed output." >&2
