@@ -32,7 +32,7 @@ function position(overrides: Partial<OperationalPosition> = {}): OperationalPosi
 }
 
 describe('OpenPositionsPanel', () => {
-  it('shows the compact healthy depot state and management link', () => {
+  it('shows direct sell capture and management links for an open position', () => {
     render(
       <MemoryRouter>
         <OpenPositionsPanel positions={[position()]} />
@@ -48,9 +48,14 @@ describe('OpenPositionsPanel', () => {
       'href',
       '/trade-management?trade_id=trade-1',
     );
+    expect(screen.getByRole('link', { name: 'Verkauf erfassen' })).toHaveAttribute(
+      'href',
+      '/trade-management?trade_id=trade-1',
+    );
+    expect(screen.queryByPlaceholderText('UUID des Trades')).not.toBeInTheDocument();
   });
 
-  it('does not present stale product valuation as a current market value', () => {
+  it('keeps sell capture available when product valuation is stale', () => {
     render(
       <MemoryRouter>
         <OpenPositionsPanel
@@ -69,9 +74,13 @@ describe('OpenPositionsPanel', () => {
     expect(screen.getByText('Daten prüfen')).toBeInTheDocument();
     expect(screen.getByText('Produktkurs: Veraltet')).toBeInTheDocument();
     expect(screen.getAllByText('—')).toHaveLength(2);
+    expect(screen.getByRole('link', { name: 'Verkauf erfassen' })).toHaveAttribute(
+      'href',
+      '/trade-management?trade_id=trade-1',
+    );
   });
 
-  it('surfaces an existing position alert above normal health labels', () => {
+  it('surfaces an existing position alert without blocking sell capture', () => {
     render(
       <MemoryRouter>
         <OpenPositionsPanel
@@ -88,5 +97,6 @@ describe('OpenPositionsPanel', () => {
 
     expect(screen.getByText('1 offener Alert')).toBeInTheDocument();
     expect(screen.getByText('Stop erreicht')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Verkauf erfassen' })).toBeInTheDocument();
   });
 });
