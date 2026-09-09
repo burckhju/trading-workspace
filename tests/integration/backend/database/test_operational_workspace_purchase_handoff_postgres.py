@@ -22,7 +22,9 @@ def _test_database_url() -> str:
     if not url:
         pytest.skip("TRADING_WORKSPACE_TEST_DATABASE_URL is not configured")
     if url.split("?", 1)[0].rsplit("/", 1)[-1] != "trading_workspace_test":
-        pytest.fail("Operational Workspace handoff test may run only against trading_workspace_test")
+        pytest.fail(
+            "Operational Workspace handoff test may run only against trading_workspace_test"
+        )
     return url
 
 
@@ -49,7 +51,9 @@ async def test_purchase_consumes_current_selection_and_never_reopens_initial_buy
     async with engine.connect() as connection:
         outer_transaction = await connection.begin()
         try:
-            venue_id = await connection.scalar(text("SELECT id FROM trading_venues ORDER BY id LIMIT 1"))
+            venue_id = await connection.scalar(
+                text("SELECT id FROM trading_venues ORDER BY id LIMIT 1")
+            )
             currency_code = await connection.scalar(
                 text("SELECT code FROM currencies ORDER BY code LIMIT 1")
             )
@@ -177,9 +181,10 @@ async def test_purchase_consumes_current_selection_and_never_reopens_initial_buy
                     text(
                         "INSERT INTO product_selection_runs "
                         "(id, workspace_id, trade_plan_id, trade_plan_version_id, "
-                        "trade_plan_version_status, underlying_id, evaluated_at, universe_model_id, "
-                        "universe_model_version, eligibility_model_id, eligibility_model_version, "
-                        "evaluation_model_id, evaluation_model_version, created_at, created_by) "
+                        "trade_plan_version_status, underlying_id, evaluated_at, "
+                        "universe_model_id, universe_model_version, eligibility_model_id, "
+                        "eligibility_model_version, evaluation_model_id, evaluation_model_version, "
+                        "created_at, created_by) "
                         "VALUES (:id, :workspace_id, :trade_plan_id, :trade_plan_version_id, "
                         "'APPROVED', :underlying_id, :evaluated_at, 'FT008', '1', 'FT008', '1', "
                         "'FT008', '1', :evaluated_at, :actor)"
