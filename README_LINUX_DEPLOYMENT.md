@@ -2,6 +2,8 @@
 
 See `docs/technical/LINUX_DEPLOYMENT.md` for the supported ZIP download, Docker Compose configuration, migration, monitoring/Telegram setup, verification and smoke-test procedure.
 
+For deployment-near qualification of the already implemented open-position operating loop, use `docs/technical/DAILY_POSITION_LOOP_VALIDATION.md` and `bash scripts/validate-daily-position-loop.sh`.
+
 ## First installation
 
 Run the startup helper once:
