@@ -56,13 +56,16 @@ def calculate_position_analytics(
         for row in rows
     ]
     closes = [value for value in selected if value is not None]
-    atr14 = sum(
-        (
-            _true_range(rows[index], rows[index - 1].close)
-            for index in range(len(rows) - 14, len(rows))
-        ),
-        Decimal(0),
-    ) / Decimal(14)
+    atr14 = (
+        sum(
+            (
+                _true_range(rows[index], rows[index - 1].close)
+                for index in range(len(rows) - 14, len(rows))
+            ),
+            Decimal(0),
+        )
+        / Decimal(14)
+    )
 
     metrics = dict(baseline.metrics)
     metrics.update(
