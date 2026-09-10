@@ -91,7 +91,7 @@ async def get_trade_position_analytics(
     trade_id: UUID,
     container: Annotated[ApplicationContainer, Depends(get_container)],
 ) -> PositionAnalyticsResponse:
-    """Return deterministic FT-006-backed analytics projected into position context."""
+    """Return deterministic analysis-backed analytics projected into position context."""
 
     service = PositionAwareAnalyticsService(
         database=container.database,
