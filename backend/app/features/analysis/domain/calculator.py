@@ -1,4 +1,4 @@
-"""Pure deterministic FT-006 trend, momentum, and position analytics model V1."""
+"""Pure deterministic FT-006 trend, momentum, and position analytics models."""
 
 from __future__ import annotations
 
@@ -18,7 +18,9 @@ from app.features.analysis.domain.models import (
 )
 
 MODEL_ID = "EOD_TREND_MOMENTUM"
+LEGACY_MODEL_VERSION = "1.0.0"
 MODEL_VERSION = "1.1.0"
+SUPPORTED_MODEL_VERSIONS = frozenset({LEGACY_MODEL_VERSION, MODEL_VERSION})
 
 
 def _classification(
@@ -57,9 +59,27 @@ def _rsi14(closes: list[Decimal]) -> Decimal:
     return Decimal(100) - Decimal(100) / (Decimal(1) + relative_strength)
 
 
-def calculate(
+def calculate(parameters: AnalysisParameters, rows: tuple[SnapshotRow, ...]) -> AnalysisComputation:
+    return _calculate(parameters, rows, include_position_metrics=True)
+
+
+def calculate_for_version(
+    model_version: str,
     parameters: AnalysisParameters,
     rows: tuple[SnapshotRow, ...],
+) -> AnalysisComputation:
+    if model_version == LEGACY_MODEL_VERSION:
+        return _calculate(parameters, rows, include_position_metrics=False)
+    if model_version == MODEL_VERSION:
+        return _calculate(parameters, rows, include_position_metrics=True)
+    raise ValueError(f"unsupported analysis model version: {model_version}")
+
+
+def _calculate(
+    parameters: AnalysisParameters,
+    rows: tuple[SnapshotRow, ...],
+    *,
+    include_position_metrics: bool,
 ) -> AnalysisComputation:
     notes: list[str] = []
     selected: list[Decimal] = []
@@ -116,20 +136,21 @@ def calculate(
             )
         )
 
-    atr14 = sum(
-        (
-            _true_range(rows[index], rows[index - 1].close)
-            for index in range(len(rows) - 14, len(rows))
-        ),
-        Decimal(0),
-    ) / Decimal(14)
-    metrics.update(
-        {
-            "atr_14": str(rounded(atr14)),
-            "rsi_14": str(rounded(_rsi14(selected))),
-            "highest_high_20": str(rounded(max(row.high for row in rows[-20:]))),
-        }
-    )
+    if include_position_metrics:
+        atr14 = sum(
+            (
+                _true_range(rows[index], rows[index - 1].close)
+                for index in range(len(rows) - 14, len(rows))
+            ),
+            Decimal(0),
+        ) / Decimal(14)
+        metrics.update(
+            {
+                "atr_14": str(rounded(atr14)),
+                "rsi_14": str(rounded(_rsi14(selected))),
+                "highest_high_20": str(rounded(max(row.high for row in rows[-20:]))),
+            }
+        )
 
     for window in parameters.momentum_windows:
         momentum = latest / selected[-window - 1] - Decimal(1) if len(selected) > window else None
