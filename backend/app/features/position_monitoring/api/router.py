@@ -12,7 +12,9 @@ from app.features.position_monitoring.api.dtos import (
     StuttgartDelayedSourceHealthResponse,
 )
 from app.features.position_monitoring.service.health import PositionMonitoringHealthService
-from app.features.position_monitoring.service.position_analytics import PositionAwareAnalyticsService
+from app.features.position_monitoring.service.position_analytics import (
+    PositionAwareAnalyticsService,
+)
 from app.features.position_monitoring.service.product_valuation import (
     ProductPositionValuationService,
 )
