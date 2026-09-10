@@ -5,7 +5,11 @@ from __future__ import annotations
 from decimal import ROUND_HALF_EVEN, Decimal
 
 from app.features.analysis.domain.calculator import calculate
-from app.features.analysis.domain.models import AnalysisComputation, AnalysisParameters, SnapshotRow
+from app.features.analysis.domain.models import (
+    AnalysisComputation,
+    AnalysisParameters,
+    SnapshotRow,
+)
 
 INDICATOR_SET_VERSION = "POSITION_ANALYTICS_V1"
 
