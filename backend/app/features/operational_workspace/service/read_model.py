@@ -378,26 +378,44 @@ class OperationalWorkspaceReadModel:
         ]
 
     async def _initial_purchase_actions(self, workspace_id: UUID) -> list[OperationalAction]:
+        ranked_selections = (
+            select(
+                ProductSelectionModel.id.label("selection_id"),
+                ProductSelectionModel.run_id.label("run_id"),
+                ProductSelectionModel.selected_at.label("selected_at"),
+                func.row_number()
+                .over(
+                    partition_by=ProductSelectionRunModel.trade_plan_version_id,
+                    order_by=(
+                        ProductSelectionModel.selected_at.desc(),
+                        ProductSelectionModel.id.desc(),
+                    ),
+                )
+                .label("selection_rank"),
+            )
+            .join(
+                ProductSelectionRunModel,
+                ProductSelectionRunModel.id == ProductSelectionModel.run_id,
+            )
+            .where(ProductSelectionRunModel.workspace_id == workspace_id)
+            .subquery()
+        )
         rows = (
             await self._session.execute(
                 select(
-                    ProductSelectionModel.id,
-                    ProductSelectionModel.run_id,
-                    ProductSelectionModel.selected_at,
-                )
-                .join(
-                    ProductSelectionRunModel,
-                    ProductSelectionRunModel.id == ProductSelectionModel.run_id,
+                    ranked_selections.c.selection_id,
+                    ranked_selections.c.run_id,
+                    ranked_selections.c.selected_at,
                 )
                 .outerjoin(
                     TradeModel,
-                    TradeModel.product_selection_id == ProductSelectionModel.id,
+                    TradeModel.product_selection_id == ranked_selections.c.selection_id,
                 )
                 .where(
-                    ProductSelectionRunModel.workspace_id == workspace_id,
+                    ranked_selections.c.selection_rank == 1,
                     TradeModel.id.is_(None),
                 )
-                .order_by(ProductSelectionModel.selected_at, ProductSelectionModel.id)
+                .order_by(ranked_selections.c.selected_at, ranked_selections.c.selection_id)
             )
         ).all()
 
