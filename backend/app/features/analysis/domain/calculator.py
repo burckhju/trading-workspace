@@ -1,4 +1,4 @@
-"""Pure deterministic FT-006 trend, momentum, and position analytics models."""
+"""Pure deterministic FT-006 trend and momentum model V1."""
 
 from __future__ import annotations
 
@@ -18,14 +18,11 @@ from app.features.analysis.domain.models import (
 )
 
 MODEL_ID = "EOD_TREND_MOMENTUM"
-LEGACY_MODEL_VERSION = "1.0.0"
-MODEL_VERSION = "1.1.0"
-SUPPORTED_MODEL_VERSIONS = frozenset({LEGACY_MODEL_VERSION, MODEL_VERSION})
+MODEL_VERSION = "1.0.0"
 
 
 def _classification(
-    value: Decimal | None,
-    threshold: Decimal = Decimal("0.01"),
+    value: Decimal | None, threshold: Decimal = Decimal("0.01")
 ) -> CriterionClassification:
     if value is None:
         return CriterionClassification.NOT_EVALUABLE
@@ -36,51 +33,7 @@ def _classification(
     return CriterionClassification.NEUTRAL
 
 
-def _true_range(row: SnapshotRow, previous_close: Decimal) -> Decimal:
-    return max(
-        row.high - row.low,
-        abs(row.high - previous_close),
-        abs(row.low - previous_close),
-    )
-
-
-def _rsi14(closes: list[Decimal]) -> Decimal:
-    gains: list[Decimal] = []
-    losses: list[Decimal] = []
-    for previous, current in zip(closes[-15:-1], closes[-14:], strict=True):
-        change = current - previous
-        gains.append(max(change, Decimal(0)))
-        losses.append(max(-change, Decimal(0)))
-    average_gain = sum(gains, Decimal(0)) / Decimal(14)
-    average_loss = sum(losses, Decimal(0)) / Decimal(14)
-    if average_loss == 0:
-        return Decimal(100) if average_gain > 0 else Decimal(50)
-    relative_strength = average_gain / average_loss
-    return Decimal(100) - Decimal(100) / (Decimal(1) + relative_strength)
-
-
 def calculate(parameters: AnalysisParameters, rows: tuple[SnapshotRow, ...]) -> AnalysisComputation:
-    return _calculate(parameters, rows, include_position_metrics=True)
-
-
-def calculate_for_version(
-    model_version: str,
-    parameters: AnalysisParameters,
-    rows: tuple[SnapshotRow, ...],
-) -> AnalysisComputation:
-    if model_version == LEGACY_MODEL_VERSION:
-        return _calculate(parameters, rows, include_position_metrics=False)
-    if model_version == MODEL_VERSION:
-        return _calculate(parameters, rows, include_position_metrics=True)
-    raise ValueError(f"unsupported analysis model version: {model_version}")
-
-
-def _calculate(
-    parameters: AnalysisParameters,
-    rows: tuple[SnapshotRow, ...],
-    *,
-    include_position_metrics: bool,
-) -> AnalysisComputation:
     notes: list[str] = []
     selected: list[Decimal] = []
     for row in rows:
@@ -102,8 +55,10 @@ def _calculate(
             ),
             notes=(
                 *notes,
-                f"Required {parameters.minimum_required_observations}, "
-                f"available {len(selected)}",
+                (
+                    f"Required {parameters.minimum_required_observations}, "
+                    f"available {len(selected)}"
+                ),
             ),
             quality_status=AnalysisQualityStatus.INSUFFICIENT,
         )
@@ -135,23 +90,6 @@ def _calculate(
                 f"Latest price relative to SMA {window}",
             )
         )
-
-    if include_position_metrics:
-        atr14 = sum(
-            (
-                _true_range(rows[index], rows[index - 1].close)
-                for index in range(len(rows) - 14, len(rows))
-            ),
-            Decimal(0),
-        ) / Decimal(14)
-        metrics.update(
-            {
-                "atr_14": str(rounded(atr14)),
-                "rsi_14": str(rounded(_rsi14(selected))),
-                "highest_high_20": str(rounded(max(row.high for row in rows[-20:]))),
-            }
-        )
-
     for window in parameters.momentum_windows:
         momentum = latest / selected[-window - 1] - Decimal(1) if len(selected) > window else None
         metrics[f"momentum_{window}"] = None if momentum is None else str(rounded(momentum))
