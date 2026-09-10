@@ -11,6 +11,10 @@ from app.features.analysis.domain.models import (
     SnapshotRow,
     calculate_input_hash,
 )
+from app.features.analysis.domain.position_analytics import (
+    INDICATOR_SET_VERSION,
+    calculate_position_analytics,
+)
 
 
 def rows(count: int = 220) -> tuple[SnapshotRow, ...]:
@@ -48,13 +52,14 @@ def test_calculation_is_deterministic_and_transparent() -> None:
 
 
 def test_position_analytics_foundation_uses_persisted_ohlc() -> None:
-    result = calculate(AnalysisParameters(), rows())
+    result = calculate_position_analytics(AnalysisParameters(), rows())
     assert result.metrics["atr_14"] == "3.000000"
     assert result.metrics["rsi_14"] == "100.000000"
     assert result.metrics["highest_high_20"] == "321.000000"
     assert result.metrics["distance_sma_20"] is not None
     assert result.metrics["distance_sma_50"] is not None
     assert result.metrics["distance_sma_200"] is not None
+    assert result.metrics["indicator_set_version"] == INDICATOR_SET_VERSION
 
 
 def test_flat_prices_have_neutral_rsi() -> None:
@@ -75,7 +80,7 @@ def test_flat_prices_have_neutral_rsi() -> None:
         )
         for index in range(220)
     )
-    result = calculate(AnalysisParameters(), flat)
+    result = calculate_position_analytics(AnalysisParameters(), flat)
     assert result.metrics["atr_14"] == "0.000000"
     assert result.metrics["rsi_14"] == "50.000000"
     assert result.metrics["highest_high_20"] == "100.000000"
@@ -90,7 +95,7 @@ def test_input_hash_changes_with_input() -> None:
 
 
 def test_insufficient_data_is_not_evaluable() -> None:
-    result = calculate(AnalysisParameters(), rows(20))
+    result = calculate_position_analytics(AnalysisParameters(), rows(20))
     assert result.quality_status is AnalysisQualityStatus.INSUFFICIENT
     assert result.metrics == {}
     assert result.criteria[0].classification is CriterionClassification.NOT_EVALUABLE
