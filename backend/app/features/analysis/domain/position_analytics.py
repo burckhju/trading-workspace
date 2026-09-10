@@ -52,8 +52,7 @@ def calculate_position_analytics(
         return value.quantize(q, rounding=ROUND_HALF_EVEN)
 
     selected = [
-        row.close if parameters.price_field.value == "CLOSE" else row.adjusted_close
-        for row in rows
+        row.close if parameters.price_field.value == "CLOSE" else row.adjusted_close for row in rows
     ]
     closes = [value for value in selected if value is not None]
     atr14 = (
