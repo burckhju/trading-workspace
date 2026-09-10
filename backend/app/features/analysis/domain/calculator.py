@@ -64,11 +64,7 @@ def calculate(
     notes: list[str] = []
     selected: list[Decimal] = []
     for row in rows:
-        value = (
-            row.close
-            if parameters.price_field is PriceField.CLOSE
-            else row.adjusted_close
-        )
+        value = row.close if parameters.price_field is PriceField.CLOSE else row.adjusted_close
         if value is None:
             notes.append(f"{row.trading_date.isoformat()}: adjusted close missing")
             continue
@@ -139,14 +135,8 @@ def calculate(
     )
 
     for window in parameters.momentum_windows:
-        momentum = (
-            latest / selected[-window - 1] - Decimal(1)
-            if len(selected) > window
-            else None
-        )
-        metrics[f"momentum_{window}"] = (
-            None if momentum is None else str(rounded(momentum))
-        )
+        momentum = latest / selected[-window - 1] - Decimal(1) if len(selected) > window else None
+        metrics[f"momentum_{window}"] = None if momentum is None else str(rounded(momentum))
         criteria.append(
             CriterionResult(
                 f"MOMENTUM_{window}",
