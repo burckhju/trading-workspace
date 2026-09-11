@@ -15,7 +15,7 @@ else
   exit 127
 fi
 
-if ! "${python_bin}" -c 'import ruff, black, mypy, pytest' >/dev/null 2>&1; then
+if ! "${python_bin}" -c 'import ruff, black, mypy, pytest, pytest_asyncio' >/dev/null 2>&1; then
   if [[ "${python_bin}" != ".venv/bin/python" ]]; then
     echo "Entwicklungsabhängigkeiten fehlen; erstelle backend/.venv ..."
     "${python_bin}" -m venv .venv
