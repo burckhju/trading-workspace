@@ -16,6 +16,7 @@ from app.features.position_monitoring.service.product_valuation import (
     ProductPositionValuation,
     ProductValuationStatus,
 )
+from app.features.position_monitoring.service.quote_sources import QuoteSourceAttemptStatus
 
 PositionHealthReader = Callable[[UUID], Awaitable[PositionMonitoringHealth | None]]
 ProductValuationReader = Callable[[UUID], Awaitable[ProductPositionValuation | None]]
@@ -53,17 +54,33 @@ def _health_detail(health: PositionMonitoringHealth) -> str:
     )
 
 
-def _product_title(status: ProductValuationStatus) -> str:
-    if status is ProductValuationStatus.STALE:
+def _stuttgart_quote_missing(value: ProductPositionValuation) -> bool:
+    return any(
+        attempt.source == "BOERSE_STUTTGART_DELAYED"
+        and attempt.status is QuoteSourceAttemptStatus.MISSING
+        for attempt in value.source_attempts
+    )
+
+
+def _product_title(value: ProductPositionValuation) -> str:
+    if _stuttgart_quote_missing(value):
+        return "Produkt nicht im Stuttgart-Feed enthalten"
+    if value.status is ProductValuationStatus.STALE:
         return "Produktkurs veraltet"
-    if status is ProductValuationStatus.MISSING:
+    if value.status is ProductValuationStatus.MISSING:
         return "Produktkurs fehlt"
-    if status is ProductValuationStatus.UNAVAILABLE:
+    if value.status is ProductValuationStatus.UNAVAILABLE:
         return "Produktbewertung nicht verfügbar"
     return "Produktbewertung prüfen"
 
 
 def _product_detail(value: ProductPositionValuation) -> str:
+    if _stuttgart_quote_missing(value):
+        return (
+            "Das dokumentierte WarrantListing wurde im aktuellen Börse-Stuttgart-Delayed-Feed "
+            "nicht gefunden. Marktwert und unrealized P&L werden nicht geschätzt; die "
+            "Underlying-Überwachung bleibt davon getrennt."
+        )
     if value.status is ProductValuationStatus.STALE:
         age = ""
         if value.quote_age_seconds is not None:
@@ -176,7 +193,7 @@ async def prioritize_position_monitoring(
                 action,
                 source_feature="Position Monitoring / Product Data Health",
                 action_type="POSITION_DATA_HEALTH",
-                title=_product_title(valuation.status),
+                title=_product_title(valuation),
                 detail=_product_detail(valuation),
                 next_action="Produktdatenzustand prüfen",
                 occurred_at=valuation.quote_observed_at or action.occurred_at,
