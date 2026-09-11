@@ -15,7 +15,7 @@ else
   exit 127
 fi
 
-if ! "${python_bin}" -c 'import ruff, black, mypy, pytest' >/dev/null 2>&1; then
+if ! "${python_bin}" -c 'import ruff, black, mypy, pytest, pytest_asyncio' >/dev/null 2>&1; then
   if [[ "${python_bin}" != ".venv/bin/python" ]]; then
     echo "Entwicklungsabhängigkeiten fehlen; erstelle backend/.venv ..."
     "${python_bin}" -m venv .venv
@@ -27,8 +27,14 @@ fi
 "${python_bin}" -m ruff check app ../tests/unit/backend ../tests/integration/backend
 "${python_bin}" -m black --check --config pyproject.toml app ../tests/unit/backend ../tests/integration/backend
 "${python_bin}" -m mypy app
+
 PYTHONPATH="${repository_root}/backend:${repository_root}" \
-"${python_bin}" -m pytest ../tests/unit/backend ../tests/integration/backend \
+TRADING_WORKSPACE_MARKET_DATA__EODHD__ENABLED=false \
+TRADING_WORKSPACE_MARKET_DATA__EODHD__API_KEY= \
+TRADING_WORKSPACE_MARKET_DATA__STUTTGART_DELAYED__ENABLED=false \
+TRADING_WORKSPACE_NOTIFICATION__TELEGRAM__ENABLED=false \
+"${python_bin}" -m pytest -c pyproject.toml \
+  ../tests/unit/backend ../tests/integration/backend \
   --cov=app \
   --cov-report=term-missing \
   --cov-report=xml:coverage.xml \
