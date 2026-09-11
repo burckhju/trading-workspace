@@ -5,12 +5,16 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.core.di import ApplicationContainer, get_container
 from app.features.position_monitoring.api.dtos import (
+    PositionAnalyticsResponse,
     PositionMonitoringHealthResponse,
     ProductPositionValuationResponse,
     QuoteSourceAttemptResponse,
     StuttgartDelayedSourceHealthResponse,
 )
 from app.features.position_monitoring.service.health import PositionMonitoringHealthService
+from app.features.position_monitoring.service.position_analytics import (
+    PositionAwareAnalyticsService,
+)
 from app.features.position_monitoring.service.product_valuation import (
     ProductPositionValuationService,
 )
@@ -20,6 +24,16 @@ from app.features.position_monitoring.service.source_diagnostics import (
 )
 
 router = APIRouter(prefix="/api/v1/position-monitoring", tags=["position-monitoring"])
+
+
+def _health_service(container: ApplicationContainer) -> PositionMonitoringHealthService:
+    return PositionMonitoringHealthService(
+        database=container.database,
+        market_data=container.eodhd.adapter if container.eodhd is not None else None,
+        max_completed_price_age_days=(
+            container.settings.position_monitoring.max_completed_price_age_days
+        ),
+    )
 
 
 @router.get(
@@ -53,14 +67,7 @@ async def get_trade_monitoring_health(
 ) -> PositionMonitoringHealthResponse:
     """Return provider-neutral monitoring data health without mutating alert state."""
 
-    service = PositionMonitoringHealthService(
-        database=container.database,
-        market_data=container.eodhd.adapter if container.eodhd is not None else None,
-        max_completed_price_age_days=(
-            container.settings.position_monitoring.max_completed_price_age_days
-        ),
-    )
-    value = await service.for_trade(trade_id)
+    value = await _health_service(container).for_trade(trade_id)
     if value is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -75,6 +82,39 @@ async def get_trade_monitoring_health(
         trading_date=value.trading_date,
         market_data_observed_at=value.market_data_observed_at,
         age_days=value.age_days,
+    )
+
+
+@router.get(
+    "/trades/{trade_id}/analytics",
+    response_model=PositionAnalyticsResponse,
+)
+async def get_trade_position_analytics(
+    trade_id: UUID,
+    container: Annotated[ApplicationContainer, Depends(get_container)],
+) -> PositionAnalyticsResponse:
+    """Return deterministic analysis-backed analytics projected into position context."""
+
+    service = PositionAwareAnalyticsService(
+        database=container.database,
+        monitoring_health=_health_service(container),
+    )
+    value = await service.for_trade(trade_id)
+    if value is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No open position is available for position analytics",
+        )
+    return PositionAnalyticsResponse(
+        trade_id=value.trade_id,
+        position_id=value.position_id,
+        entry_executed_at=value.entry_executed_at,
+        highest_high_since_entry=value.highest_high_since_entry,
+        analysis_run_id=value.analysis_run_id,
+        market_data_observed_at=value.market_data_observed_at,
+        quality_status=value.quality_status,
+        reason=value.reason,
+        sessions_since_entry=value.sessions_since_entry,
     )
 
 

@@ -6,6 +6,7 @@ from pydantic import BaseModel
 
 from app.core.config.settings import StuttgartDelayedSourceMode
 from app.features.position_monitoring.service.health import MonitoringHealthStatus
+from app.features.position_monitoring.service.position_analytics import PositionAnalyticsStatus
 from app.features.position_monitoring.service.product_valuation import ProductValuationStatus
 from app.features.position_monitoring.service.quote_sources import QuoteSourceAttemptStatus
 from app.features.position_monitoring.service.source_diagnostics import StuttgartDelayedSourceStatus
@@ -20,6 +21,18 @@ class PositionMonitoringHealthResponse(BaseModel):
     trading_date: date | None
     market_data_observed_at: datetime | None
     age_days: int | None
+
+
+class PositionAnalyticsResponse(BaseModel):
+    trade_id: UUID
+    position_id: UUID
+    entry_executed_at: datetime | None
+    highest_high_since_entry: Decimal | None
+    analysis_run_id: UUID | None
+    market_data_observed_at: datetime | None
+    quality_status: PositionAnalyticsStatus
+    reason: str
+    sessions_since_entry: int | None
 
 
 class QuoteSourceAttemptResponse(BaseModel):
