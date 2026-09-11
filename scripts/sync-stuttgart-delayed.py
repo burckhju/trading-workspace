@@ -24,6 +24,7 @@ DOWNLOAD_ENTRY = re.compile(
     re.IGNORECASE,
 )
 FILE_NAME = re.compile(rf"^{FILE_NAME_PATTERN}$")
+SNAPSHOT_MODE = 0o644
 
 
 def _get(url: str, timeout: float) -> bytes:
@@ -59,6 +60,22 @@ def _validate_payload(content: bytes) -> None:
         raise RuntimeError("Downloaded XSTU payload is empty; keeping last known good snapshot")
 
 
+def _publish_payload(directory: Path, filename: str, content: bytes) -> Path:
+    destination = directory / filename
+    fd, temporary_name = tempfile.mkstemp(prefix=f".{filename}.", dir=directory)
+    try:
+        with os.fdopen(fd, "wb") as handle:
+            handle.write(content)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.chmod(temporary_name, SNAPSHOT_MODE)
+        os.replace(temporary_name, destination)
+    finally:
+        if os.path.exists(temporary_name):
+            os.unlink(temporary_name)
+    return destination
+
+
 def _prune(directory: Path, keep: int) -> None:
     files = sorted(path for path in directory.glob("XSTU-pretrade-*.json.gz") if path.is_file())
     for path in files[:-keep]:
@@ -84,16 +101,7 @@ def main() -> int:
 
     content = _get(download_url, args.timeout)
     _validate_payload(content)
-    fd, temporary_name = tempfile.mkstemp(prefix=f".{filename}.", dir=directory)
-    try:
-        with os.fdopen(fd, "wb") as handle:
-            handle.write(content)
-            handle.flush()
-            os.fsync(handle.fileno())
-        os.replace(temporary_name, destination)
-    finally:
-        if os.path.exists(temporary_name):
-            os.unlink(temporary_name)
+    destination = _publish_payload(directory, filename, content)
 
     _prune(directory, max(args.keep, 1))
     print(f"Downloaded Stuttgart delayed payload: {destination}")
