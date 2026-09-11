@@ -31,6 +31,7 @@ from app.features.market_data.service.errors import (
     MarketDataMappingError,
 )
 from app.features.market_data.service.types import MarketDataResult, WarrantQuoteRequest
+from app.features.product.domain.models import WarrantLifecycle
 from app.features.product.persistence.models import WarrantListingModel, WarrantModel
 
 _DOWNLOAD_LINK = re.compile(
@@ -121,13 +122,14 @@ class StuttgartDelayedWarrantQuoteAdapter:
                     .where(
                         WarrantListingModel.id == request.warrant_listing_id,
                         WarrantListingModel.workspace_id == request.workspace_id,
+                        WarrantListingModel.lifecycle_status == WarrantLifecycle.ACTIVE,
                         WarrantModel.workspace_id == request.workspace_id,
                     )
                 )
             ).one_or_none()
         if row is None:
             raise MarketDataMappingError(
-                "WarrantListing identity could not be resolved for Stuttgart delayed data",
+                "Active WarrantListing identity could not be resolved for Stuttgart delayed data",
                 provider=MarketDataProvider.BOERSE_STUTTGART_DELAYED,
                 capability=MarketDataCapability.WARRANT_LISTING_QUOTE,
             )
