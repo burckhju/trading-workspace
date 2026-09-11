@@ -59,7 +59,7 @@ class TermsRequest(Request):
 
 class ListingRequest(Request):
     trading_venue_id: UUID
-    symbol: str = Field(min_length=1, max_length=64)
+    symbol: str | None = Field(default=None, max_length=64)
     quotation_currency_code: str = Field(min_length=3, max_length=3, pattern=r"^[A-Za-z]{3}$")
 
 
@@ -100,7 +100,7 @@ class ListingResponse(ResponseModel):
     workspace_id: UUID
     warrant_id: UUID
     trading_venue_id: UUID
-    symbol: str
+    symbol: str | None
     quotation_currency_code: str
     lifecycle_status: WarrantLifecycle
     version: int
