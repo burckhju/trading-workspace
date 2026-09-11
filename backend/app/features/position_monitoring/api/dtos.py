@@ -47,6 +47,20 @@ class PositionPhaseResponse(BaseModel):
     sessions_since_entry: int | None
 
 
+class PositionScoreResponse(BaseModel):
+    trade_id: UUID
+    position_id: UUID
+    trend_score: int | None
+    peak_score: int | None
+    trend_components: dict[str, int]
+    peak_components: dict[str, int]
+    quality_status: PositionAnalyticsStatus
+    reason: str
+    policy_version: str
+    analysis_run_id: UUID | None
+    sessions_since_entry: int | None
+
+
 class QuoteSourceAttemptResponse(BaseModel):
     source: str
     status: QuoteSourceAttemptStatus
