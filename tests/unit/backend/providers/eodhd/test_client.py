@@ -1,6 +1,7 @@
 """Tests for the EODHD HTTP transport boundary."""
 
 from datetime import timedelta
+from decimal import Decimal
 
 import httpx
 import pytest
@@ -45,6 +46,23 @@ async def test_client_adds_credentials_without_exposing_them_in_result() -> None
     assert result == [{"date": "2026-08-04"}]
     assert "api_token=top-secret" in seen_url
     assert "fmt=json" in seen_url
+
+
+@pytest.mark.asyncio
+async def test_client_decodes_json_floats_as_decimal() -> None:
+    def handler(_: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            content=b'[{"close": 123.45}]',
+            headers={"content-type": "application/json"},
+        )
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http:
+        result = await EodhdClient(settings=settings(), client=http).get_json(
+            "https://eodhd.test/api/eod/SAP", capability=CAPABILITY
+        )
+
+    assert result == [{"close": Decimal("123.45")}]
 
 
 @pytest.mark.asyncio
