@@ -61,6 +61,27 @@ class PositionScoreResponse(BaseModel):
     sessions_since_entry: int | None
 
 
+class DynamicStopResponse(BaseModel):
+    trade_id: UUID
+    position_id: UUID
+    candidate_stop: Decimal | None
+    atr_multiple: Decimal | None
+    latest_price: Decimal | None
+    atr_14: Decimal | None
+    highest_high_since_entry: Decimal | None
+    breached: bool | None
+    distance_to_stop: Decimal | None
+    phase: PositionPhase | None
+    trend_score: int | None
+    peak_score: int | None
+    quality_status: PositionAnalyticsStatus
+    reason: str
+    policy_version: str
+    phase_policy_version: str
+    score_policy_version: str
+    analysis_run_id: UUID | None
+
+
 class QuoteSourceAttemptResponse(BaseModel):
     source: str
     status: QuoteSourceAttemptStatus

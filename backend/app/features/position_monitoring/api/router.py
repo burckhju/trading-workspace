@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.core.di import ApplicationContainer, get_container
 from app.features.position_monitoring.api.dtos import (
+    DynamicStopResponse,
     PositionAnalyticsResponse,
     PositionMonitoringHealthResponse,
     PositionPhaseResponse,
@@ -13,6 +14,7 @@ from app.features.position_monitoring.api.dtos import (
     QuoteSourceAttemptResponse,
     StuttgartDelayedSourceHealthResponse,
 )
+from app.features.position_monitoring.service.dynamic_stop import DynamicStopService
 from app.features.position_monitoring.service.health import PositionMonitoringHealthService
 from app.features.position_monitoring.service.phase_engine import PositionPhaseService
 from app.features.position_monitoring.service.position_analytics import (
@@ -189,6 +191,59 @@ async def get_trade_position_scores(
         policy_version=value.policy_version,
         analysis_run_id=value.analysis_run_id,
         sessions_since_entry=value.sessions_since_entry,
+    )
+
+
+@router.get(
+    "/trades/{trade_id}/dynamic-stop",
+    response_model=DynamicStopResponse,
+)
+async def get_trade_dynamic_stop(
+    trade_id: UUID,
+    container: Annotated[ApplicationContainer, Depends(get_container)],
+) -> DynamicStopResponse:
+    """Return an indicative read-only dynamic stop projection."""
+
+    analytics = _analytics_service(container)
+    phase_service = PositionPhaseService(
+        database=container.database,
+        position_analytics=analytics,
+    )
+    score_service = PositionScoreService(
+        database=container.database,
+        position_analytics=analytics,
+    )
+    service = DynamicStopService(
+        database=container.database,
+        position_analytics=analytics,
+        phase_service=phase_service,
+        score_service=score_service,
+    )
+    value = await service.for_trade(trade_id)
+    if value is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No open position is available for dynamic stop projection",
+        )
+    return DynamicStopResponse(
+        trade_id=value.trade_id,
+        position_id=value.position_id,
+        candidate_stop=value.candidate_stop,
+        atr_multiple=value.atr_multiple,
+        latest_price=value.latest_price,
+        atr_14=value.atr_14,
+        highest_high_since_entry=value.highest_high_since_entry,
+        breached=value.breached,
+        distance_to_stop=value.distance_to_stop,
+        phase=value.phase,
+        trend_score=value.trend_score,
+        peak_score=value.peak_score,
+        quality_status=value.quality_status,
+        reason=value.reason,
+        policy_version=value.policy_version,
+        phase_policy_version=value.phase_policy_version,
+        score_policy_version=value.score_policy_version,
+        analysis_run_id=value.analysis_run_id,
     )
 
 
