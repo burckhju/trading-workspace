@@ -5,6 +5,7 @@ from uuid import UUID
 from pydantic import BaseModel
 
 from app.core.config.settings import StuttgartDelayedSourceMode
+from app.features.position_monitoring.service.alert_projection import PositionAlertLevel
 from app.features.position_monitoring.service.health import MonitoringHealthStatus
 from app.features.position_monitoring.service.phase_engine import PositionPhase
 from app.features.position_monitoring.service.position_analytics import PositionAnalyticsStatus
@@ -79,6 +80,21 @@ class DynamicStopResponse(BaseModel):
     policy_version: str
     phase_policy_version: str
     score_policy_version: str
+    analysis_run_id: UUID | None
+
+
+class PositionAlertProjectionResponse(BaseModel):
+    trade_id: UUID
+    position_id: UUID
+    alert_level: PositionAlertLevel | None
+    attention_required: bool
+    quality_status: PositionAnalyticsStatus
+    reason: str
+    candidate_stop: Decimal | None
+    latest_price: Decimal | None
+    phase: PositionPhase | None
+    policy_version: str
+    dynamic_stop_policy_version: str
     analysis_run_id: UUID | None
 
 
