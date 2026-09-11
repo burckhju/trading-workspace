@@ -9,7 +9,7 @@ from uuid import UUID, uuid4
 from sqlalchemy import select
 
 from app.database import DatabaseManager
-from app.features.market_data.domain.enums import QualityStatus
+from app.features.market_data.domain.enums import MarketDataProvider, QualityStatus
 from app.features.market_data.service.contracts import WarrantListingQuoteProvider
 from app.features.market_data.service.types import WarrantQuoteRequest
 from app.features.position_monitoring.service.quote_sources import (
@@ -51,6 +51,13 @@ class ProductPositionValuation:
     market_value: Decimal | None = None
     unrealized_gross_pnl: Decimal | None = None
     selected_source: str | None = None
+    quote_provider: MarketDataProvider | None = None
+    provider_identity: str | None = None
+    provider_exchange_code: str | None = None
+    isin: str | None = None
+    wkn: str | None = None
+    source_mode: str | None = None
+    trading_status: str | None = None
     source_attempts: tuple[QuoteSourceAttempt, ...] = ()
 
 
@@ -295,6 +302,13 @@ class ProductPositionValuationService:
                     quote_age_seconds=quote_age_seconds,
                     max_quote_age_seconds=self._max_quote_age_seconds,
                     selected_source=selected_source,
+                    quote_provider=selected_result.provider,
+                    provider_identity=quote.provider_symbol,
+                    provider_exchange_code=quote.provider_exchange_code,
+                    isin=quote.isin,
+                    wkn=quote.wkn,
+                    source_mode=quote.source_mode,
+                    trading_status=quote.trading_status,
                     source_attempts=attempts,
                 )
             if quote_age_seconds > self._max_quote_age_seconds:
@@ -312,6 +326,13 @@ class ProductPositionValuationService:
                     quote_age_seconds=quote_age_seconds,
                     max_quote_age_seconds=self._max_quote_age_seconds,
                     selected_source=selected_source,
+                    quote_provider=selected_result.provider,
+                    provider_identity=quote.provider_symbol,
+                    provider_exchange_code=quote.provider_exchange_code,
+                    isin=quote.isin,
+                    wkn=quote.wkn,
+                    source_mode=quote.source_mode,
+                    trading_status=quote.trading_status,
                     source_attempts=attempts,
                 )
 
@@ -336,5 +357,12 @@ class ProductPositionValuationService:
                 market_value=market_value,
                 unrealized_gross_pnl=market_value - position.cost_basis,
                 selected_source=selected_source,
+                quote_provider=selected_result.provider,
+                provider_identity=quote.provider_symbol,
+                provider_exchange_code=quote.provider_exchange_code,
+                isin=quote.isin,
+                wkn=quote.wkn,
+                source_mode=quote.source_mode,
+                trading_status=quote.trading_status,
                 source_attempts=attempts,
             )

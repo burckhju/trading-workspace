@@ -7,6 +7,7 @@ class MarketDataProvider(StrEnum):
     """Supported external market-data providers."""
 
     EODHD = "EODHD"
+    VONTOBEL_MARKETS = "VONTOBEL_MARKETS"
     BOERSE_STUTTGART_DELAYED = "BOERSE_STUTTGART_DELAYED"
 
 

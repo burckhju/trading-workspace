@@ -3,8 +3,8 @@ from app.features.position_monitoring.service.quote_sources import (
     MultiSourceWarrantQuoteResolver,
     NamedWarrantQuoteSource,
 )
-from app.providers.eodhd.warrant_quote import EodhdWarrantQuoteAdapter
 from app.providers.stuttgart_delayed import StuttgartDelayedWarrantQuoteAdapter
+from app.providers.vontobel_markets import VontobelMarketsWarrantQuoteAdapter
 
 
 def build_warrant_quote_resolver(
@@ -12,6 +12,15 @@ def build_warrant_quote_resolver(
 ) -> MultiSourceWarrantQuoteResolver:
     """Build the shared runtime quote resolver for held-product valuation reads."""
 
+    vontobel_settings = container.settings.market_data.vontobel_markets
+    vontobel_provider = (
+        VontobelMarketsWarrantQuoteAdapter(
+            database=container.database,
+            settings=vontobel_settings,
+        )
+        if vontobel_settings.enabled
+        else None
+    )
     stuttgart_settings = container.settings.market_data.stuttgart_delayed
     stuttgart_provider = (
         StuttgartDelayedWarrantQuoteAdapter(
@@ -28,7 +37,11 @@ def build_warrant_quote_resolver(
     )
     return MultiSourceWarrantQuoteResolver(
         (
-            NamedWarrantQuoteSource("EODHD", EodhdWarrantQuoteAdapter()),
+            NamedWarrantQuoteSource(
+                "VONTOBEL_MARKETS",
+                vontobel_provider,
+                unavailable_reason="VONTOBEL_MARKETS_DISABLED",
+            ),
             NamedWarrantQuoteSource(
                 "BOERSE_STUTTGART_DELAYED",
                 stuttgart_provider,

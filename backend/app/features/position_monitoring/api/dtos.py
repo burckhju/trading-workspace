@@ -5,6 +5,7 @@ from uuid import UUID
 from pydantic import BaseModel
 
 from app.core.config.settings import StuttgartDelayedSourceMode
+from app.features.market_data.domain.enums import MarketDataProvider
 from app.features.position_monitoring.service.alert_projection import PositionAlertLevel
 from app.features.position_monitoring.service.health import MonitoringHealthStatus
 from app.features.position_monitoring.service.phase_engine import PositionPhase
@@ -124,6 +125,13 @@ class ProductPositionValuationResponse(BaseModel):
     market_value: Decimal | None
     unrealized_gross_pnl: Decimal | None
     selected_source: str | None
+    quote_provider: MarketDataProvider | None
+    provider_identity: str | None
+    provider_exchange_code: str | None
+    isin: str | None
+    wkn: str | None
+    source_mode: str | None
+    trading_status: str | None
     source_attempts: tuple[QuoteSourceAttemptResponse, ...]
 
 
@@ -137,3 +145,11 @@ class StuttgartDelayedSourceHealthResponse(BaseModel):
     latest_file: str | None
     latest_file_timestamp: datetime | None
     file_count: int | None
+
+
+class VontobelMarketsSourceHealthResponse(BaseModel):
+    status: str
+    reason: str
+    enabled: bool
+    base_url: str
+    culture: str
