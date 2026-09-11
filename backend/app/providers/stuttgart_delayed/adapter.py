@@ -312,7 +312,7 @@ class StuttgartDelayedWarrantQuoteAdapter:
             bid=selected_bid,
             ask=selected_ask,
             currency=selected_currency,
-            provider_symbol=identity.symbol,
+            provider_symbol=identity.isin,
             provider_exchange_code="XSTU",
             observed_at=selected_at,
         )
