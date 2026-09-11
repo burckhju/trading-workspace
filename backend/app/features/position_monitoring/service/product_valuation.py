@@ -18,6 +18,7 @@ from app.features.position_monitoring.service.quote_sources import (
     QuoteSourceAttempt,
     QuoteSourceAttemptStatus,
 )
+from app.features.product.domain.models import WarrantLifecycle
 from app.features.product.persistence.models import WarrantListingModel
 from app.features.product_selection.persistence.models import ProductEvaluationModel
 from app.features.trade_position.persistence.models import PositionModel, TradeModel
@@ -137,18 +138,51 @@ class ProductPositionValuationService:
                     reason="WARRANT_QUOTE_PROVIDER_UNAVAILABLE",
                 )
 
-            resolution = await self._quote_resolver.resolve(
-                WarrantQuoteRequest(
-                    workspace_id=trade.workspace_id,
-                    warrant_listing_id=listing.id,
-                    correlation_id=uuid4(),
-                    as_of=datetime.now(UTC),
+            candidate_listings = [listing]
+            warrant_id = getattr(listing, "warrant_id", None)
+            if warrant_id is not None:
+                rows = await session.scalars(
+                    select(WarrantListingModel)
+                    .where(
+                        WarrantListingModel.workspace_id == trade.workspace_id,
+                        WarrantListingModel.warrant_id == warrant_id,
+                        WarrantListingModel.lifecycle_status == WarrantLifecycle.ACTIVE,
+                    )
+                    .order_by(WarrantListingModel.symbol)
                 )
-            )
-            result = resolution.result
-            if result is None:
-                if self._legacy_single_source and len(resolution.attempts) == 1:
-                    attempt = resolution.attempts[0]
+                siblings = list(rows)
+                candidate_listings = [listing] + [
+                    candidate for candidate in siblings if candidate.id != listing.id
+                ]
+
+            all_attempts: list[QuoteSourceAttempt] = []
+            selected_listing = None
+            selected_result = None
+            selected_source = None
+            for candidate in candidate_listings:
+                resolution = await self._quote_resolver.resolve(
+                    WarrantQuoteRequest(
+                        workspace_id=trade.workspace_id,
+                        warrant_listing_id=candidate.id,
+                        correlation_id=uuid4(),
+                        as_of=datetime.now(UTC),
+                    )
+                )
+                all_attempts.extend(resolution.attempts)
+                if resolution.result is not None:
+                    selected_listing = candidate
+                    selected_result = resolution.result
+                    selected_source = resolution.selected_source
+                    break
+
+            attempts = tuple(all_attempts)
+            if selected_result is None or selected_listing is None:
+                if (
+                    self._legacy_single_source
+                    and len(candidate_listings) == 1
+                    and len(attempts) == 1
+                ):
+                    attempt = attempts[0]
                     if attempt.status is QuoteSourceAttemptStatus.MISSING:
                         status = ProductValuationStatus.MISSING
                         reason = "WARRANT_QUOTE_MISSING"
@@ -176,10 +210,10 @@ class ProductPositionValuationService:
                         symbol=listing.symbol,
                         status=status,
                         reason=reason,
-                        source_attempts=resolution.attempts,
+                        source_attempts=attempts,
                     )
 
-                statuses = {attempt.status for attempt in resolution.attempts}
+                statuses = {attempt.status for attempt in attempts}
                 if statuses & {
                     QuoteSourceAttemptStatus.MISSING,
                     QuoteSourceAttemptStatus.INSUFFICIENT,
@@ -196,60 +230,62 @@ class ProductPositionValuationService:
                     symbol=listing.symbol,
                     status=status,
                     reason="NO_USABLE_WARRANT_QUOTE",
-                    source_attempts=resolution.attempts,
+                    source_attempts=attempts,
                 )
 
-            quote = result.data
+            quote = selected_result.data
             assert quote is not None
-            if quote.warrant_listing_id != listing.id:
+            if quote.warrant_listing_id != selected_listing.id:
                 return ProductPositionValuation(
                     trade_id=trade_id,
                     position_id=position.id,
-                    warrant_listing_id=listing.id,
-                    symbol=listing.symbol,
+                    warrant_listing_id=selected_listing.id,
+                    symbol=selected_listing.symbol,
                     status=ProductValuationStatus.ERROR,
                     reason="WARRANT_QUOTE_LISTING_MISMATCH",
-                    selected_source=resolution.selected_source,
-                    source_attempts=resolution.attempts,
+                    selected_source=selected_source,
+                    source_attempts=attempts,
                 )
-            if quote.currency != listing.quotation_currency_code:
+            if quote.currency != selected_listing.quotation_currency_code:
                 return ProductPositionValuation(
                     trade_id=trade_id,
                     position_id=position.id,
-                    warrant_listing_id=listing.id,
-                    symbol=listing.symbol,
+                    warrant_listing_id=selected_listing.id,
+                    symbol=selected_listing.symbol,
                     status=ProductValuationStatus.ERROR,
                     reason="WARRANT_QUOTE_CURRENCY_MISMATCH",
                     bid=quote.bid,
                     ask=quote.ask,
                     currency=quote.currency,
                     quote_observed_at=quote.observed_at,
-                    selected_source=resolution.selected_source,
-                    source_attempts=resolution.attempts,
+                    selected_source=selected_source,
+                    source_attempts=attempts,
                 )
-            if result.quality_status is not QualityStatus.VALID or quote.bid is None:
+            if selected_result.quality_status is not QualityStatus.VALID or quote.bid is None:
                 return ProductPositionValuation(
                     trade_id=trade_id,
                     position_id=position.id,
-                    warrant_listing_id=listing.id,
-                    symbol=listing.symbol,
+                    warrant_listing_id=selected_listing.id,
+                    symbol=selected_listing.symbol,
                     status=ProductValuationStatus.ERROR,
                     reason="SELECTED_WARRANT_QUOTE_INVALID",
                     bid=quote.bid,
                     ask=quote.ask,
                     currency=quote.currency,
                     quote_observed_at=quote.observed_at,
-                    selected_source=resolution.selected_source,
-                    source_attempts=resolution.attempts,
+                    selected_source=selected_source,
+                    source_attempts=attempts,
                 )
 
-            quote_age_seconds = int((result.retrieved_at - quote.observed_at).total_seconds())
+            quote_age_seconds = int(
+                (selected_result.retrieved_at - quote.observed_at).total_seconds()
+            )
             if quote_age_seconds < 0:
                 return ProductPositionValuation(
                     trade_id=trade_id,
                     position_id=position.id,
-                    warrant_listing_id=listing.id,
-                    symbol=listing.symbol,
+                    warrant_listing_id=selected_listing.id,
+                    symbol=selected_listing.symbol,
                     status=ProductValuationStatus.ERROR,
                     reason="WARRANT_QUOTE_TIME_INCONSISTENT",
                     bid=quote.bid,
@@ -258,15 +294,15 @@ class ProductPositionValuationService:
                     quote_observed_at=quote.observed_at,
                     quote_age_seconds=quote_age_seconds,
                     max_quote_age_seconds=self._max_quote_age_seconds,
-                    selected_source=resolution.selected_source,
-                    source_attempts=resolution.attempts,
+                    selected_source=selected_source,
+                    source_attempts=attempts,
                 )
             if quote_age_seconds > self._max_quote_age_seconds:
                 return ProductPositionValuation(
                     trade_id=trade_id,
                     position_id=position.id,
-                    warrant_listing_id=listing.id,
-                    symbol=listing.symbol,
+                    warrant_listing_id=selected_listing.id,
+                    symbol=selected_listing.symbol,
                     status=ProductValuationStatus.STALE,
                     reason="WARRANT_QUOTE_STALE",
                     bid=quote.bid,
@@ -275,18 +311,22 @@ class ProductPositionValuationService:
                     quote_observed_at=quote.observed_at,
                     quote_age_seconds=quote_age_seconds,
                     max_quote_age_seconds=self._max_quote_age_seconds,
-                    selected_source=resolution.selected_source,
-                    source_attempts=resolution.attempts,
+                    selected_source=selected_source,
+                    source_attempts=attempts,
                 )
 
             market_value = quote.bid * Decimal(position.open_quantity)
             return ProductPositionValuation(
                 trade_id=trade_id,
                 position_id=position.id,
-                warrant_listing_id=listing.id,
-                symbol=listing.symbol,
+                warrant_listing_id=selected_listing.id,
+                symbol=selected_listing.symbol,
                 status=ProductValuationStatus.AVAILABLE,
-                reason="WARRANT_BID_AVAILABLE",
+                reason=(
+                    "WARRANT_BID_AVAILABLE"
+                    if selected_listing.id == listing.id
+                    else "WARRANT_BID_AVAILABLE_ON_ALTERNATE_LISTING"
+                ),
                 bid=quote.bid,
                 ask=quote.ask,
                 currency=quote.currency,
@@ -295,6 +335,6 @@ class ProductPositionValuationService:
                 max_quote_age_seconds=self._max_quote_age_seconds,
                 market_value=market_value,
                 unrealized_gross_pnl=market_value - position.cost_basis,
-                selected_source=resolution.selected_source,
-                source_attempts=resolution.attempts,
+                selected_source=selected_source,
+                source_attempts=attempts,
             )
