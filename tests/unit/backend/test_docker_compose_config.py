@@ -1,6 +1,5 @@
 """Regression tests for Docker Compose environment isolation."""
 
-
 REPOSITORY_ROOT = __import__("pathlib").Path(__file__).resolve().parents[3]
 COMPOSE_FILE = REPOSITORY_ROOT / "docker" / "compose.yml"
 ENV_EXAMPLE = REPOSITORY_ROOT / "docker" / ".env.example"
