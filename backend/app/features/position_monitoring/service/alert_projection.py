@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from decimal import Decimal
 from enum import StrEnum
 from uuid import UUID
 
@@ -31,8 +32,8 @@ class PositionAlertProjection:
     attention_required: bool
     quality_status: PositionAnalyticsStatus
     reason: str
-    candidate_stop: object | None
-    latest_price: object | None
+    candidate_stop: Decimal | None
+    latest_price: Decimal | None
     phase: PositionPhase | None
     policy_version: str
     dynamic_stop_policy_version: str
