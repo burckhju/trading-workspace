@@ -71,3 +71,14 @@ def test_validate_payload_rejects_empty_json_dict() -> None:
 
     with pytest.raises(RuntimeError, match="payload is empty"):
         module._validate_payload(content)
+
+
+def test_publish_payload_is_readable_by_container_user(tmp_path: Path) -> None:
+    module = _load_script()
+    filename = "XSTU-pretrade-20260911T1637.json.gz"
+    content = gzip.compress(json.dumps([{"Isin": "DE000TEST001"}]).encode())
+
+    destination = module._publish_payload(tmp_path, filename, content)
+
+    assert destination.read_bytes() == content
+    assert destination.stat().st_mode & 0o777 == 0o644
