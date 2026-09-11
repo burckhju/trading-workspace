@@ -63,6 +63,10 @@ class ListingRequest(Request):
     quotation_currency_code: str = Field(min_length=3, max_length=3, pattern=r"^[A-Za-z]{3}$")
 
 
+class ListingLifecycleRequest(Request):
+    expected_version: int = Field(ge=1)
+
+
 class WarrantResponse(ResponseModel):
     id: UUID
     workspace_id: UUID
@@ -231,6 +235,29 @@ async def add_listing(
     try:
         return ListingResponse.model_validate(
             await svc.add_listing(WORKSPACE_ID, warrant_id, **payload.model_dump())
+        )
+    except Exception as error:
+        raise translate_product_error(error) from error
+
+
+@router.post(
+    "/{warrant_id}/listings/{listing_id}/deactivate",
+    response_model=ListingResponse,
+)
+async def deactivate_listing(
+    warrant_id: UUID,
+    listing_id: UUID,
+    payload: ListingLifecycleRequest,
+    svc: Annotated[WarrantService, Depends(service)],
+) -> ListingResponse:
+    try:
+        return ListingResponse.model_validate(
+            await svc.deactivate_listing(
+                WORKSPACE_ID,
+                warrant_id,
+                listing_id,
+                expected_version=payload.expected_version,
+            )
         )
     except Exception as error:
         raise translate_product_error(error) from error

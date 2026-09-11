@@ -271,6 +271,37 @@ class WarrantService:
         await self._commit()
         return listing
 
+    async def deactivate_listing(
+        self,
+        workspace_id: UUID,
+        warrant_id: UUID,
+        listing_id: UUID,
+        *,
+        expected_version: int,
+    ) -> WarrantListingModel:
+        await self.get(workspace_id, warrant_id)
+        listing = await self._session.scalar(
+            select(WarrantListingModel).where(
+                WarrantListingModel.id == listing_id,
+                WarrantListingModel.workspace_id == workspace_id,
+                WarrantListingModel.warrant_id == warrant_id,
+            )
+        )
+        if listing is None:
+            raise WarrantServiceError("Warrant listing does not exist", field="listing_id")
+        if listing.version != expected_version:
+            raise WarrantConcurrentModification(
+                f"Expected listing version {expected_version}, found {listing.version}",
+                field="expected_version",
+            )
+        if listing.lifecycle_status is WarrantLifecycle.INACTIVE:
+            return listing
+        listing.lifecycle_status = WarrantLifecycle.INACTIVE
+        listing.version += 1
+        listing.updated_at = datetime.now(UTC)
+        await self._commit()
+        return listing
+
     async def listings(self, workspace_id: UUID, warrant_id: UUID) -> Sequence[WarrantListingModel]:
         await self.get(workspace_id, warrant_id)
         rows = await self._session.scalars(

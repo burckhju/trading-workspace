@@ -15,6 +15,7 @@ from app.features.product.domain.models import (
     WarrantLifecycle,
 )
 from app.features.product.persistence.models import (
+    WarrantListingModel,
     WarrantModel,
     WarrantTermsVersionModel,
 )
@@ -29,6 +30,8 @@ from app.main import create_application
 
 NOW = datetime(2026, 8, 15, 12, 0, tzinfo=UTC)
 WARRANT_ID = UUID("60000000-0000-4000-8000-000000000001")
+LISTING_ID = UUID("62000000-0000-4000-8000-000000000001")
+VENUE_ID = UUID("20000000-0000-4000-8000-000000000001")
 ISSUER_ID = UUID("50000000-0000-4000-8000-000000000001")
 UNDERLYING_ID = UUID("10000000-0000-4000-8000-000000000001")
 
@@ -53,6 +56,21 @@ def warrant(*, version: int = 1) -> WarrantModel:
         isin="DE000TEST001",
         wkn="TEST01",
         lifecycle_status=WarrantLifecycle.ACTIVE,
+        version=version,
+        created_at=NOW,
+        updated_at=NOW,
+    )
+
+
+def listing(*, version: int = 2) -> WarrantListingModel:
+    return WarrantListingModel(
+        id=LISTING_ID,
+        workspace_id=WORKSPACE_ID,
+        warrant_id=WARRANT_ID,
+        trading_venue_id=VENUE_ID,
+        symbol="TEST01",
+        quotation_currency_code="EUR",
+        lifecycle_status=WarrantLifecycle.INACTIVE,
         version=version,
         created_at=NOW,
         updated_at=NOW,
@@ -99,6 +117,29 @@ def test_terms_update_requires_and_delegates_expected_version() -> None:
         )
     assert response.status_code == 201
     assert svc.add_terms_version.await_args.kwargs["expected_version"] == 3
+
+
+def test_listing_deactivation_delegates_expected_version() -> None:
+    svc = AsyncMock()
+    svc.deactivate_listing.return_value = listing(version=3)
+    app = create_application(settings())
+    app.dependency_overrides[service] = service_override(svc)
+
+    with TestClient(app) as client:
+        response = client.post(
+            f"/api/v1/warrants/{WARRANT_ID}/listings/{LISTING_ID}/deactivate",
+            json={"expected_version": 2},
+        )
+
+    assert response.status_code == 200
+    assert response.json()["lifecycle_status"] == "INACTIVE"
+    assert response.json()["version"] == 3
+    svc.deactivate_listing.assert_awaited_once_with(
+        WORKSPACE_ID,
+        WARRANT_ID,
+        LISTING_ID,
+        expected_version=2,
+    )
 
 
 def test_delete_warrant_delegates_version_and_returns_no_content() -> None:

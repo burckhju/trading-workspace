@@ -185,6 +185,77 @@ async def test_add_listing_rejects_blank_symbol_inactive_venue_and_duplicate() -
 
 
 @pytest.mark.asyncio
+async def test_deactivate_listing_preserves_history_and_is_idempotent() -> None:
+    workspace_id = uuid4()
+    warrant_id = uuid4()
+    listing_id = uuid4()
+    session = AsyncMock()
+    service = WarrantService(session)
+    service.get = AsyncMock(return_value=SimpleNamespace())  # type: ignore[method-assign]
+    listing = SimpleNamespace(
+        id=listing_id,
+        version=2,
+        lifecycle_status=WarrantLifecycle.ACTIVE,
+        updated_at=None,
+    )
+    session.scalar.return_value = listing
+
+    result = await service.deactivate_listing(
+        workspace_id,
+        warrant_id,
+        listing_id,
+        expected_version=2,
+    )
+
+    assert result is listing
+    assert listing.lifecycle_status is WarrantLifecycle.INACTIVE
+    assert listing.version == 3
+    assert listing.updated_at is not None
+    session.commit.assert_awaited_once_with()
+
+    session.commit.reset_mock()
+    result = await service.deactivate_listing(
+        workspace_id,
+        warrant_id,
+        listing_id,
+        expected_version=3,
+    )
+    assert result is listing
+    session.commit.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_deactivate_listing_rejects_missing_and_stale_listing() -> None:
+    workspace_id = uuid4()
+    warrant_id = uuid4()
+    listing_id = uuid4()
+    session = AsyncMock()
+    service = WarrantService(session)
+    service.get = AsyncMock(return_value=SimpleNamespace())  # type: ignore[method-assign]
+
+    session.scalar.return_value = None
+    with pytest.raises(WarrantServiceError, match="listing does not exist"):
+        await service.deactivate_listing(
+            workspace_id,
+            warrant_id,
+            listing_id,
+            expected_version=1,
+        )
+
+    session.scalar.return_value = SimpleNamespace(
+        version=4,
+        lifecycle_status=WarrantLifecycle.ACTIVE,
+    )
+    with pytest.raises(WarrantConcurrentModification, match="Expected listing version 3"):
+        await service.deactivate_listing(
+            workspace_id,
+            warrant_id,
+            listing_id,
+            expected_version=3,
+        )
+
+
+@pytest.mark.asyncio
 async def test_commit_translates_remaining_constraints_and_unknown_integrity_error() -> None:
     cases = [
         ("uq_warrants_workspace_wkn", DuplicateWarrantWkn),
