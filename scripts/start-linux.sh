@@ -32,6 +32,17 @@ if grep -q '^POSTGRES_PASSWORD=change-me$' "$ENV_FILE"; then
   exit 2
 fi
 
+RUNTIME_DATABASE_URL="$(grep -m1 '^TRADING_WORKSPACE_DATABASE_URL=' "$ENV_FILE" | cut -d= -f2-)"
+if [[ -z "$RUNTIME_DATABASE_URL" ]]; then
+  echo "TRADING_WORKSPACE_DATABASE_URL must be set in docker/.env." >&2
+  exit 2
+fi
+
+compose() {
+  TRADING_WORKSPACE_DATABASE_URL="$RUNTIME_DATABASE_URL" \
+    docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" "$@"
+}
+
 mkdir -p "$DEFAULT_STUTTGART_DATA_DIR"
 
 if grep -qi '^TRADING_WORKSPACE_MARKET_DATA__STUTTGART_DELAYED__ENABLED=true$' "$ENV_FILE" && \
@@ -43,34 +54,33 @@ if grep -qi '^TRADING_WORKSPACE_MARKET_DATA__STUTTGART_DELAYED__ENABLED=true$' "
   fi
 fi
 
-docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" config >/dev/null
+compose config >/dev/null
 
 echo "Building backend and frontend images..."
-docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" build backend frontend
+compose build backend frontend
 
 echo "Starting PostgreSQL..."
-docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d database
+compose up -d database
 
 for _ in {1..30}; do
-  if docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" exec -T database \
+  if compose exec -T database \
     sh -lc 'pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"' >/dev/null 2>&1; then
     break
   fi
   sleep 1
 done
 
-if ! docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" exec -T database \
+if ! compose exec -T database \
   sh -lc 'pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"' >/dev/null 2>&1; then
   echo "PostgreSQL did not become ready in time." >&2
   exit 1
 fi
 
 echo "Applying Alembic migrations..."
-docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" run --rm backend \
-  python -m alembic upgrade head
+compose run --rm backend python -m alembic upgrade head
 
 echo "Starting backend and frontend..."
-docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d backend frontend
+compose up -d backend frontend
 
 echo "Trading Workspace started."
 echo "Frontend:  http://localhost:8080"
