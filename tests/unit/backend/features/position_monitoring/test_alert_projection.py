@@ -38,9 +38,7 @@ def _stop(*, phase: PositionPhase, breached: bool) -> DynamicStopProjection:
 
 
 def test_breached_dynamic_stop_is_critical() -> None:
-    projection = project_position_alert(
-        _stop(phase=PositionPhase.PEAK_PROTECTION, breached=True)
-    )
+    projection = project_position_alert(_stop(phase=PositionPhase.PEAK_PROTECTION, breached=True))
 
     assert projection.alert_level is PositionAlertLevel.CRITICAL
     assert projection.attention_required is True
@@ -49,9 +47,7 @@ def test_breached_dynamic_stop_is_critical() -> None:
 
 
 def test_peak_protection_requires_attention_without_stop_breach() -> None:
-    projection = project_position_alert(
-        _stop(phase=PositionPhase.PEAK_PROTECTION, breached=False)
-    )
+    projection = project_position_alert(_stop(phase=PositionPhase.PEAK_PROTECTION, breached=False))
 
     assert projection.alert_level is PositionAlertLevel.ATTENTION
     assert projection.attention_required is True
@@ -59,9 +55,7 @@ def test_peak_protection_requires_attention_without_stop_breach() -> None:
 
 
 def test_regular_phase_is_normal_without_attention() -> None:
-    projection = project_position_alert(
-        _stop(phase=PositionPhase.TREND, breached=False)
-    )
+    projection = project_position_alert(_stop(phase=PositionPhase.TREND, breached=False))
 
     assert projection.alert_level is PositionAlertLevel.NORMAL
     assert projection.attention_required is False
