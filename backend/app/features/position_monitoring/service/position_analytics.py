@@ -66,9 +66,7 @@ def highest_high_since_entry(
         raise ValueError("entry and evaluation timestamps must be timezone-aware")
     entry_date = entry_executed_at.astimezone(UTC).date()
     evaluation_date = evaluation_time.astimezone(UTC).date()
-    eligible = tuple(
-        row for row in rows if entry_date < row.trading_date < evaluation_date
-    )
+    eligible = tuple(row for row in rows if entry_date < row.trading_date < evaluation_date)
     if not eligible:
         return None, 0
     return max(row.high for row in eligible), len(eligible)
@@ -116,9 +114,7 @@ class PositionAwareAnalyticsService:
                     ~exists(
                         select(1)
                         .select_from(replacement)
-                        .where(
-                            replacement.c.supersedes_execution_id == ExecutionRecordModel.id
-                        )
+                        .where(replacement.c.supersedes_execution_id == ExecutionRecordModel.id)
                     ),
                 )
                 .order_by(
