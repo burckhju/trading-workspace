@@ -14,6 +14,7 @@ from app.features.position_monitoring.api.dtos import (
     ProductPositionValuationResponse,
     QuoteSourceAttemptResponse,
     StuttgartDelayedSourceHealthResponse,
+    VontobelMarketsSourceHealthResponse,
 )
 from app.features.position_monitoring.service.alert_projection import (
     PositionAlertProjectionService,
@@ -31,6 +32,7 @@ from app.features.position_monitoring.service.quote_runtime import build_warrant
 from app.features.position_monitoring.service.score_engine import PositionScoreService
 from app.features.position_monitoring.service.source_diagnostics import (
     get_stuttgart_delayed_source_health,
+    get_vontobel_markets_source_health,
 )
 
 router = APIRouter(prefix="/api/v1/position-monitoring", tags=["position-monitoring"])
@@ -88,6 +90,17 @@ async def get_stuttgart_delayed_health(
         latest_file_timestamp=value.latest_file_timestamp,
         file_count=value.file_count,
     )
+
+
+@router.get(
+    "/quote-sources/vontobel-markets/health",
+    response_model=VontobelMarketsSourceHealthResponse,
+)
+async def get_vontobel_markets_health(
+    container: Annotated[ApplicationContainer, Depends(get_container)],
+) -> VontobelMarketsSourceHealthResponse:
+    value = get_vontobel_markets_source_health(container.settings.market_data.vontobel_markets)
+    return VontobelMarketsSourceHealthResponse.model_validate(value, from_attributes=True)
 
 
 @router.get(
@@ -322,6 +335,13 @@ async def get_trade_product_valuation(
         market_value=value.market_value,
         unrealized_gross_pnl=value.unrealized_gross_pnl,
         selected_source=value.selected_source,
+        quote_provider=value.quote_provider,
+        provider_identity=value.provider_identity,
+        provider_exchange_code=value.provider_exchange_code,
+        isin=value.isin,
+        wkn=value.wkn,
+        source_mode=value.source_mode,
+        trading_status=value.trading_status,
         source_attempts=tuple(
             QuoteSourceAttemptResponse(
                 source=attempt.source,

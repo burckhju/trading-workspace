@@ -132,7 +132,9 @@ class WarrantProviderMapping:
 
     def __post_init__(self) -> None:
         object.__setattr__(
-            self, "provider_symbol", _normalize_code(self.provider_symbol, field="provider_symbol")
+            self,
+            "provider_symbol",
+            _normalize_code(self.provider_symbol, field="provider_symbol"),
         )
         object.__setattr__(
             self,
@@ -237,6 +239,10 @@ class WarrantQuoteSnapshot:
     provider_symbol: str
     provider_exchange_code: str
     observed_at: datetime
+    isin: str | None = None
+    wkn: str | None = None
+    source_mode: str | None = None
+    trading_status: str | None = None
 
     def __post_init__(self) -> None:
         if self.bid is not None:
@@ -251,7 +257,9 @@ class WarrantQuoteSnapshot:
             raise InvalidMarketDataValue("ask must not be below bid", field="ask")
         object.__setattr__(self, "currency", _normalize_code(self.currency, field="currency"))
         object.__setattr__(
-            self, "provider_symbol", _normalize_code(self.provider_symbol, field="provider_symbol")
+            self,
+            "provider_symbol",
+            _normalize_code(self.provider_symbol, field="provider_symbol"),
         )
         object.__setattr__(
             self,
@@ -259,3 +267,7 @@ class WarrantQuoteSnapshot:
             _normalize_code(self.provider_exchange_code, field="provider_exchange_code"),
         )
         _require_utc(self.observed_at, field="observed_at")
+        for field in ("isin", "wkn", "source_mode", "trading_status"):
+            value = getattr(self, field)
+            if value is not None:
+                object.__setattr__(self, field, _normalize_code(value, field=field))

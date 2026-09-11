@@ -7,7 +7,11 @@ from datetime import UTC, datetime
 from enum import StrEnum
 from pathlib import Path
 
-from app.core.config.settings import StuttgartDelayedSettings, StuttgartDelayedSourceMode
+from app.core.config.settings import (
+    StuttgartDelayedSettings,
+    StuttgartDelayedSourceMode,
+    VontobelMarketsSettings,
+)
 
 _XSTU_FILE_NAME = re.compile(r"^XSTU-pretrade-(?P<stamp>\d{8}T\d{4})\.json\.gz$")
 
@@ -17,6 +21,31 @@ class StuttgartDelayedSourceStatus(StrEnum):
     READY = "READY"
     MISCONFIGURED = "MISCONFIGURED"
     SOURCE_MISSING = "SOURCE_MISSING"
+
+
+@dataclass(frozen=True, slots=True)
+class VontobelMarketsSourceHealth:
+    status: str
+    reason: str
+    enabled: bool
+    base_url: str
+    culture: str
+
+
+def get_vontobel_markets_source_health(
+    settings: VontobelMarketsSettings,
+) -> VontobelMarketsSourceHealth:
+    return VontobelMarketsSourceHealth(
+        status="READY" if settings.enabled else "DISABLED",
+        reason=(
+            "Official Vontobel structured product payload is configured"
+            if settings.enabled
+            else "Vontobel Markets quote source is disabled"
+        ),
+        enabled=settings.enabled,
+        base_url=settings.base_url,
+        culture=settings.culture,
+    )
 
 
 @dataclass(frozen=True, slots=True)

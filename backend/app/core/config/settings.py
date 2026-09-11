@@ -1,5 +1,6 @@
 """Environment-based application settings."""
 
+import re
 from enum import StrEnum
 from functools import lru_cache
 from typing import Annotated
@@ -22,6 +23,34 @@ class StuttgartDelayedSourceMode(StrEnum):
     INDEX = "index"
     LOCAL_DIRECTORY = "local_directory"
     DIRECT_URL = "direct_url"
+
+
+class VontobelMarketsSettings(BaseModel):
+    """Transport settings for the official Vontobel Markets product payload."""
+
+    enabled: bool = False
+    base_url: str = "https://markets.vontobel.com"
+    culture: str = "de-de"
+    timeout_seconds: Annotated[float, Field(gt=0, le=60)] = 15.0
+
+    @field_validator("base_url")
+    @classmethod
+    def validate_base_url(cls, value: str) -> str:
+        from urllib.parse import urlparse
+
+        normalized = value.rstrip("/")
+        parsed = urlparse(normalized)
+        if parsed.scheme != "https" or parsed.hostname != "markets.vontobel.com":
+            raise ValueError("Vontobel Markets base_url must use the official HTTPS host")
+        return normalized
+
+    @field_validator("culture")
+    @classmethod
+    def validate_culture(cls, value: str) -> str:
+        normalized = value.strip().lower()
+        if not re.fullmatch(r"[a-z]{2}-[a-z]{2}", normalized):
+            raise ValueError("Vontobel Markets culture must use ll-cc format")
+        return normalized
 
 
 class EodhdSettings(BaseModel):
@@ -165,6 +194,7 @@ class MarketDataSettings(BaseModel):
     """Settings for market-data infrastructure and providers."""
 
     eodhd: EodhdSettings = Field(default_factory=EodhdSettings)
+    vontobel_markets: VontobelMarketsSettings = Field(default_factory=VontobelMarketsSettings)
     stuttgart_delayed: StuttgartDelayedSettings = Field(default_factory=StuttgartDelayedSettings)
 
 

@@ -2,10 +2,15 @@ import gzip
 import json
 from pathlib import Path
 
-from app.core.config.settings import StuttgartDelayedSettings, StuttgartDelayedSourceMode
+from app.core.config.settings import (
+    StuttgartDelayedSettings,
+    StuttgartDelayedSourceMode,
+    VontobelMarketsSettings,
+)
 from app.features.position_monitoring.service.source_diagnostics import (
     StuttgartDelayedSourceStatus,
     get_stuttgart_delayed_source_health,
+    get_vontobel_markets_source_health,
 )
 
 
@@ -26,6 +31,16 @@ def test_source_health_reports_disabled() -> None:
 
     assert result.status == StuttgartDelayedSourceStatus.DISABLED
     assert result.enabled is False
+
+
+def test_vontobel_health_is_configuration_only_and_secret_free() -> None:
+    disabled = get_vontobel_markets_source_health(VontobelMarketsSettings())
+    enabled = get_vontobel_markets_source_health(VontobelMarketsSettings(enabled=True))
+
+    assert disabled.status == "DISABLED"
+    assert enabled.status == "READY"
+    assert enabled.base_url == "https://markets.vontobel.com"
+    assert enabled.culture == "de-de"
 
 
 def test_source_health_reports_missing_directory(tmp_path: Path) -> None:
