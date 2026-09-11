@@ -44,7 +44,7 @@ _XSTU_FILE_NAME = re.compile(r"^XSTU-pretrade-(?P<stamp>\d{8}T\d{4})\.json\.gz$"
 @dataclass(frozen=True, slots=True)
 class _ListingIdentity:
     listing_id: Any
-    symbol: str
+    symbol: str | None
     currency: str
     isin: str
     mic: str

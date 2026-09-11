@@ -11,6 +11,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.exc import StaleDataError
+from sqlalchemy.sql.elements import ColumnElement
 
 from app.features.market.domain.enums import LifecycleStatus
 from app.features.market.persistence.models import (
@@ -208,13 +209,13 @@ class WarrantService:
         warrant_id: UUID,
         *,
         trading_venue_id: UUID,
-        symbol: str,
+        symbol: str | None,
         quotation_currency_code: str,
     ) -> WarrantListingModel:
         warrant = await self.get(workspace_id, warrant_id)
-        normalized_symbol = symbol.strip().upper()
-        if not normalized_symbol:
+        if symbol is not None and not symbol.strip():
             raise WarrantServiceError("symbol must not be blank", field="symbol")
+        normalized_symbol = _up(symbol)
         normalized_currency = quotation_currency_code.strip().upper()
         venue = await self._session.get(TradingVenueModel, trading_venue_id)
         if venue is None:
@@ -230,29 +231,40 @@ class WarrantService:
             raise InactiveWarrantReference(
                 "Quotation currency is inactive", field="quotation_currency_code"
             )
-        underlying_listing = await self._session.scalar(
-            select(ListingModel.id).where(
-                ListingModel.workspace_id == workspace_id,
-                ListingModel.underlying_id == warrant.underlying_id,
-                ListingModel.trading_venue_id == trading_venue_id,
-                ListingModel.ticker == normalized_symbol,
+        duplicate_filter: list[ColumnElement[bool]]
+        if normalized_symbol is not None:
+            underlying_listing = await self._session.scalar(
+                select(ListingModel.id).where(
+                    ListingModel.workspace_id == workspace_id,
+                    ListingModel.underlying_id == warrant.underlying_id,
+                    ListingModel.trading_venue_id == trading_venue_id,
+                    ListingModel.ticker == normalized_symbol,
+                )
             )
-        )
-        if underlying_listing is not None:
-            raise WarrantServiceError(
-                "Warrant listing must not reuse the underlying venue and symbol",
-                field="symbol",
-            )
-        duplicate = await self._session.scalar(
-            select(WarrantListingModel.id).where(
+            if underlying_listing is not None:
+                raise WarrantServiceError(
+                    "Warrant listing must not reuse the underlying venue and symbol",
+                    field="symbol",
+                )
+            duplicate_filter = [
                 WarrantListingModel.workspace_id == workspace_id,
                 WarrantListingModel.trading_venue_id == trading_venue_id,
                 WarrantListingModel.symbol == normalized_symbol,
-            )
+            ]
+        else:
+            duplicate_filter = [
+                WarrantListingModel.workspace_id == workspace_id,
+                WarrantListingModel.warrant_id == warrant_id,
+                WarrantListingModel.trading_venue_id == trading_venue_id,
+                WarrantListingModel.symbol.is_(None),
+            ]
+        duplicate = await self._session.scalar(
+            select(WarrantListingModel.id).where(*duplicate_filter)
         )
         if duplicate is not None:
+            field = "symbol" if normalized_symbol is not None else "trading_venue_id"
             raise DuplicateWarrantListing(
-                "A warrant listing with this venue and symbol already exists", field="symbol"
+                "A warrant listing with this identity already exists", field=field
             )
         now = datetime.now(UTC)
         listing = WarrantListingModel(
@@ -310,7 +322,7 @@ class WarrantService:
                 WarrantListingModel.workspace_id == workspace_id,
                 WarrantListingModel.warrant_id == warrant_id,
             )
-            .order_by(WarrantListingModel.symbol)
+            .order_by(WarrantListingModel.symbol.asc().nulls_last())
         )
         return list(rows)
 
@@ -384,9 +396,12 @@ class WarrantService:
                 raise DuplicateWarrantWkn(
                     "A warrant with this WKN already exists", field="wkn"
                 ) from error
-            if "uq_warrant_listings_workspace_venue_symbol" in message:
+            if (
+                "uq_warrant_listings_workspace_venue_symbol" in message
+                or "uq_warrant_listings_symbol_less_warrant_venue" in message
+            ):
                 raise DuplicateWarrantListing(
-                    "A warrant listing with this venue and symbol already exists", field="symbol"
+                    "A warrant listing identity already exists"
                 ) from error
             if (
                 "uq_warrant_terms_versions_open" in message

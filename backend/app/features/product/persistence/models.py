@@ -135,7 +135,18 @@ class WarrantListingModel(Base):
             name="uq_warrant_listings_workspace_venue_symbol",
         ),
         CheckConstraint("version >= 1", name="version_positive"),
-        CheckConstraint("length(trim(symbol)) > 0", name="symbol_not_blank"),
+        CheckConstraint(
+            "symbol IS NULL OR length(trim(symbol)) > 0",
+            name="symbol_not_blank",
+        ),
+        Index(
+            "uq_warrant_listings_symbol_less_warrant_venue",
+            "workspace_id",
+            "warrant_id",
+            "trading_venue_id",
+            unique=True,
+            postgresql_where=text("symbol IS NULL"),
+        ),
         Index("ix_warrant_listings_warrant_lifecycle", "warrant_id", "lifecycle_status"),
     )
     id: Mapped[UUID] = mapped_column(primary_key=True)
@@ -148,7 +159,7 @@ class WarrantListingModel(Base):
     trading_venue_id: Mapped[UUID] = mapped_column(
         ForeignKey("trading_venues.id", ondelete="RESTRICT"), nullable=False
     )
-    symbol: Mapped[str] = mapped_column(String(64), nullable=False)
+    symbol: Mapped[str | None] = mapped_column(String(64), nullable=True)
     quotation_currency_code: Mapped[str] = mapped_column(
         ForeignKey("currencies.code", ondelete="RESTRICT"), nullable=False
     )

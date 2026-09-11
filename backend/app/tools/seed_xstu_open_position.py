@@ -40,7 +40,7 @@ from app.features.trade_position.service.resolvers import (
 WORKSPACE_ID = UUID("00000000-0000-4000-8000-000000000001")
 LOCAL_ACTOR_ID = UUID("00000000-0000-4000-8000-000000000002")
 
-SelectionRow = tuple[UUID, UUID, UUID, UUID, str, str | None, str, datetime]
+SelectionRow = tuple[UUID, UUID, UUID, UUID, str | None, str | None, str, datetime]
 
 
 @dataclass(frozen=True, slots=True)
@@ -49,7 +49,7 @@ class XstuSelectionCandidate:
     evaluation_id: UUID
     warrant_listing_id: UUID
     warrant_id: UUID
-    symbol: str
+    symbol: str | None
     isin: str
     currency: str
     selected_at: datetime

@@ -84,7 +84,7 @@ class WarrantListing:
     workspace_id: UUID
     warrant_id: UUID
     trading_venue_id: UUID
-    symbol: str
+    symbol: str | None
     quotation_currency_code: str
     lifecycle_status: WarrantLifecycle
     version: int
@@ -92,10 +92,8 @@ class WarrantListing:
     updated_at: datetime
 
     def __post_init__(self) -> None:
-        symbol = self.symbol.strip().upper()
+        symbol = _optional_upper(self.symbol)
         currency = self.quotation_currency_code.strip().upper()
-        if not symbol:
-            raise ValueError("symbol must not be blank")
         if len(currency) != 3:
             raise ValueError("quotation_currency_code must be a 3-letter code")
         object.__setattr__(self, "symbol", symbol)
