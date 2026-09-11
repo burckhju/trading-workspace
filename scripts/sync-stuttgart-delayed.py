@@ -55,6 +55,8 @@ def _validate_payload(content: bytes) -> None:
         raise RuntimeError("Downloaded XSTU payload is not valid UTF-8 JSON gzip") from exc
     if not isinstance(payload, (list, dict)):
         raise RuntimeError("Downloaded XSTU payload has an unsupported JSON root")
+    if not payload:
+        raise RuntimeError("Downloaded XSTU payload is empty; keeping last known good snapshot")
 
 
 def _prune(directory: Path, keep: int) -> None:
