@@ -1,6 +1,23 @@
 export type OperationalPriority = 'ACTION' | 'REVIEW' | 'BLOCKED';
 export type OperationalState = 'ACTIONABLE' | 'BLOCKED';
 export type PositionAttentionState = 'ALERT' | 'DATA_HEALTH' | 'OK';
+export type PositionSignalLevel = 'NORMAL' | 'ATTENTION' | 'CRITICAL';
+export type PositionSignalQuality = 'AVAILABLE' | 'INSUFFICIENT' | 'MISSING' | 'STALE' | 'ERROR';
+
+export interface PositionAlertProjection {
+  trade_id: string;
+  position_id: string;
+  alert_level: PositionSignalLevel | null;
+  attention_required: boolean;
+  quality_status: PositionSignalQuality;
+  reason: string;
+  candidate_stop: string | null;
+  latest_price: string | null;
+  phase: 'BUILDING' | 'CONFIRMED' | 'TREND' | 'PEAK_PROTECTION' | null;
+  policy_version: string;
+  dynamic_stop_policy_version: string;
+  analysis_run_id: string | null;
+}
 
 export interface OperationalAction {
   id: string;
@@ -44,6 +61,7 @@ export interface OperationalPosition {
   open_alert_types: string[];
   attention_state: PositionAttentionState;
   target: string;
+  position_signal?: PositionAlertProjection | null;
 }
 
 export interface OperationalPositionsResponse {

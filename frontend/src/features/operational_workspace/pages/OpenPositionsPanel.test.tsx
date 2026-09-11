@@ -27,6 +27,20 @@ function position(overrides: Partial<OperationalPosition> = {}): OperationalPosi
     open_alert_types: [],
     attention_state: 'OK',
     target: '/trade-management?trade_id=trade-1',
+    position_signal: {
+      trade_id: 'trade-1',
+      position_id: 'position-1',
+      alert_level: 'NORMAL',
+      attention_required: false,
+      quality_status: 'AVAILABLE',
+      reason: 'NO_POSITION_ATTENTION_REQUIRED',
+      candidate_stop: '1.80',
+      latest_price: '2.50',
+      phase: 'TREND',
+      policy_version: 'POSITION_ALERT_V1',
+      dynamic_stop_policy_version: 'DYNAMIC_STOP_V1',
+      analysis_run_id: 'analysis-1',
+    },
     ...overrides,
   };
 }
@@ -44,7 +58,10 @@ describe('OpenPositionsPanel', () => {
     expect(screen.getByText('5 EUR')).toBeInTheDocument();
     expect(screen.getByText('Monitoring: Aktuell')).toBeInTheDocument();
     expect(screen.getByText('Produktkurs: Aktuell')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Trade-Management' })).toHaveAttribute(
+    expect(
+      screen.getByText('Positionssignal: keine besondere Aufmerksamkeit nötig'),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Trade verwalten' })).toHaveAttribute(
       'href',
       '/trade-management?trade_id=trade-1',
     );
@@ -95,8 +112,41 @@ describe('OpenPositionsPanel', () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByText('1 offener Alert')).toBeInTheDocument();
+    expect(screen.getByText('1 offener Hinweis')).toBeInTheDocument();
     expect(screen.getByText('Stop erreicht')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Verkauf erfassen' })).toBeInTheDocument();
+  });
+
+  it('shows critical and stale position signals in German', () => {
+    const critical = position({
+      position_signal: {
+        ...position().position_signal!,
+        alert_level: 'CRITICAL',
+        attention_required: true,
+        reason: 'DYNAMIC_STOP_BREACHED',
+      },
+    });
+    const stale = position({
+      trade_id: 'trade-2',
+      position_id: 'position-2',
+      position_signal: {
+        ...position().position_signal!,
+        trade_id: 'trade-2',
+        position_id: 'position-2',
+        alert_level: null,
+        attention_required: false,
+        quality_status: 'STALE',
+        reason: 'COMPLETED_DAILY_PRICE_STALE',
+      },
+    });
+
+    render(
+      <MemoryRouter>
+        <OpenPositionsPanel positions={[critical, stale]} />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText('Positionssignal: dynamischer Stop erreicht')).toBeInTheDocument();
+    expect(screen.getByText('Positionssignal: Daten veraltet')).toBeInTheDocument();
   });
 });

@@ -14,6 +14,7 @@ function statusLabel(status: string): string {
   if (status === 'OK' || status === 'AVAILABLE') return 'Aktuell';
   if (status === 'STALE') return 'Veraltet';
   if (status === 'MISSING') return 'Fehlt';
+  if (status === 'INSUFFICIENT') return 'Noch nicht ausreichend';
   if (status === 'UNAVAILABLE') return 'Nicht verfügbar';
   return 'Prüfen';
 }
@@ -21,11 +22,27 @@ function statusLabel(status: string): string {
 function attentionLabel(position: OperationalPosition): string {
   if (position.attention_state === 'ALERT') {
     return position.open_alert_count === 1
-      ? '1 offener Alert'
-      : `${position.open_alert_count} offene Alerts`;
+      ? '1 offener Hinweis'
+      : `${position.open_alert_count} offene Hinweise`;
   }
   if (position.attention_state === 'DATA_HEALTH') return 'Daten prüfen';
   return 'Normal';
+}
+
+function positionSignalLabel(position: OperationalPosition): string {
+  const signal = position.position_signal;
+  if (!signal) return 'Positionssignal: nicht verfügbar';
+  if (signal.quality_status !== 'AVAILABLE') {
+    if (signal.quality_status === 'STALE') return 'Positionssignal: Daten veraltet';
+    if (signal.quality_status === 'MISSING') return 'Positionssignal: Daten fehlen';
+    if (signal.quality_status === 'INSUFFICIENT') {
+      return 'Positionssignal: noch nicht ausreichend Daten';
+    }
+    return 'Positionssignal: Prüfung erforderlich';
+  }
+  if (signal.alert_level === 'CRITICAL') return 'Positionssignal: dynamischer Stop erreicht';
+  if (signal.alert_level === 'ATTENTION') return 'Positionssignal: Gewinnschutz aktiv';
+  return 'Positionssignal: keine besondere Aufmerksamkeit nötig';
 }
 
 export function OpenPositionsPanel({ positions }: { positions: OperationalPosition[] }) {
@@ -39,7 +56,7 @@ export function OpenPositionsPanel({ positions }: { positions: OperationalPositi
         </h2>
         <p className="mt-1 text-sm text-slate-400">
           Kompakter Depotstatus aus bestehenden Positions-, Monitoring-, Bewertungs- und
-          Alert-Daten.
+          Hinweisdaten.
         </p>
       </div>
       <ul className="grid gap-3 xl:grid-cols-2">
@@ -78,13 +95,13 @@ export function OpenPositionsPanel({ positions }: { positions: OperationalPositi
                 </dd>
               </div>
               <div>
-                <dt className="text-slate-500">Unrealized P&amp;L</dt>
+                <dt className="text-slate-500">Nicht realisierter G/V</dt>
                 <dd className="mt-1 text-slate-200">
                   {formatNumber(position.unrealized_gross_pnl, position.valuation_currency)}
                 </dd>
               </div>
               <div>
-                <dt className="text-slate-500">Realized P&amp;L</dt>
+                <dt className="text-slate-500">Realisierter G/V</dt>
                 <dd className="mt-1 text-slate-200">
                   {formatNumber(position.realized_gross_pnl, position.valuation_currency)}
                 </dd>
@@ -94,11 +111,11 @@ export function OpenPositionsPanel({ positions }: { positions: OperationalPositi
                 <dd className="mt-1 text-slate-200">{formatNumber(position.stop_price)}</dd>
               </div>
               <div>
-                <dt className="text-slate-500">Target</dt>
+                <dt className="text-slate-500">Ziel</dt>
                 <dd className="mt-1 text-slate-200">{formatNumber(position.target_price)}</dd>
               </div>
               <div>
-                <dt className="text-slate-500">Underlying</dt>
+                <dt className="text-slate-500">Basiswert</dt>
                 <dd className="mt-1 text-slate-200">{position.underlying_symbol ?? '—'}</dd>
               </div>
             </dl>
@@ -110,9 +127,12 @@ export function OpenPositionsPanel({ positions }: { positions: OperationalPositi
               <span className="rounded-full border border-slate-700 px-2.5 py-1">
                 Produktkurs: {statusLabel(position.valuation_status)}
               </span>
+              <span className="rounded-full border border-slate-700 px-2.5 py-1">
+                {positionSignalLabel(position)}
+              </span>
               {position.open_alert_types.map((alertType) => (
                 <span key={alertType} className="rounded-full border border-slate-700 px-2.5 py-1">
-                  {alertType === 'STOP_REACHED' ? 'Stop erreicht' : 'Target erreicht'}
+                  {alertType === 'STOP_REACHED' ? 'Stop erreicht' : 'Ziel erreicht'}
                 </span>
               ))}
             </div>
@@ -122,7 +142,7 @@ export function OpenPositionsPanel({ positions }: { positions: OperationalPositi
                 to={position.target}
                 className="rounded-lg border border-slate-600 px-3 py-2 text-sm font-medium text-slate-100 hover:border-slate-400"
               >
-                Trade-Management
+                Trade verwalten
               </Link>
               <Link
                 to={position.target}

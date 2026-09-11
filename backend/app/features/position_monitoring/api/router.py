@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from app.core.di import ApplicationContainer, get_container
 from app.features.position_monitoring.api.dtos import (
     DynamicStopResponse,
+    PositionAlertProjectionResponse,
     PositionAnalyticsResponse,
     PositionMonitoringHealthResponse,
     PositionPhaseResponse,
@@ -13,6 +14,9 @@ from app.features.position_monitoring.api.dtos import (
     ProductPositionValuationResponse,
     QuoteSourceAttemptResponse,
     StuttgartDelayedSourceHealthResponse,
+)
+from app.features.position_monitoring.service.alert_projection import (
+    PositionAlertProjectionService,
 )
 from app.features.position_monitoring.service.dynamic_stop import DynamicStopService
 from app.features.position_monitoring.service.health import PositionMonitoringHealthService
@@ -46,6 +50,22 @@ def _analytics_service(container: ApplicationContainer) -> PositionAwareAnalytic
     return PositionAwareAnalyticsService(
         database=container.database,
         monitoring_health=_health_service(container),
+    )
+
+
+def _dynamic_stop_service(container: ApplicationContainer) -> DynamicStopService:
+    analytics = _analytics_service(container)
+    return DynamicStopService(
+        database=container.database,
+        position_analytics=analytics,
+        phase_service=PositionPhaseService(
+            database=container.database,
+            position_analytics=analytics,
+        ),
+        score_service=PositionScoreService(
+            database=container.database,
+            position_analytics=analytics,
+        ),
     )
 
 
@@ -204,22 +224,7 @@ async def get_trade_dynamic_stop(
 ) -> DynamicStopResponse:
     """Return an indicative read-only dynamic stop projection."""
 
-    analytics = _analytics_service(container)
-    phase_service = PositionPhaseService(
-        database=container.database,
-        position_analytics=analytics,
-    )
-    score_service = PositionScoreService(
-        database=container.database,
-        position_analytics=analytics,
-    )
-    service = DynamicStopService(
-        database=container.database,
-        position_analytics=analytics,
-        phase_service=phase_service,
-        score_service=score_service,
-    )
-    value = await service.for_trade(trade_id)
+    value = await _dynamic_stop_service(container).for_trade(trade_id)
     if value is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -243,6 +248,40 @@ async def get_trade_dynamic_stop(
         policy_version=value.policy_version,
         phase_policy_version=value.phase_policy_version,
         score_policy_version=value.score_policy_version,
+        analysis_run_id=value.analysis_run_id,
+    )
+
+
+@router.get(
+    "/trades/{trade_id}/alert-projection",
+    response_model=PositionAlertProjectionResponse,
+)
+async def get_trade_alert_projection(
+    trade_id: UUID,
+    container: Annotated[ApplicationContainer, Depends(get_container)],
+) -> PositionAlertProjectionResponse:
+    """Return read-only operational attention without creating persisted alerts."""
+
+    value = await PositionAlertProjectionService(
+        dynamic_stop=_dynamic_stop_service(container)
+    ).for_trade(trade_id)
+    if value is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No open position is available for alert projection",
+        )
+    return PositionAlertProjectionResponse(
+        trade_id=value.trade_id,
+        position_id=value.position_id,
+        alert_level=value.alert_level,
+        attention_required=value.attention_required,
+        quality_status=value.quality_status,
+        reason=value.reason,
+        candidate_stop=value.candidate_stop,
+        latest_price=value.latest_price,
+        phase=value.phase,
+        policy_version=value.policy_version,
+        dynamic_stop_policy_version=value.dynamic_stop_policy_version,
         analysis_run_id=value.analysis_run_id,
     )
 
