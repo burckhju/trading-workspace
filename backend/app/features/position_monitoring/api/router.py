@@ -8,6 +8,7 @@ from app.features.position_monitoring.api.dtos import (
     PositionAnalyticsResponse,
     PositionMonitoringHealthResponse,
     PositionPhaseResponse,
+    PositionScoreResponse,
     ProductPositionValuationResponse,
     QuoteSourceAttemptResponse,
     StuttgartDelayedSourceHealthResponse,
@@ -21,6 +22,7 @@ from app.features.position_monitoring.service.product_valuation import (
     ProductPositionValuationService,
 )
 from app.features.position_monitoring.service.quote_runtime import build_warrant_quote_resolver
+from app.features.position_monitoring.service.score_engine import PositionScoreService
 from app.features.position_monitoring.service.source_diagnostics import (
     get_stuttgart_delayed_source_health,
 )
@@ -147,6 +149,41 @@ async def get_trade_position_phase(
         trade_id=value.trade_id,
         position_id=value.position_id,
         phase=value.phase,
+        quality_status=value.quality_status,
+        reason=value.reason,
+        policy_version=value.policy_version,
+        analysis_run_id=value.analysis_run_id,
+        sessions_since_entry=value.sessions_since_entry,
+    )
+
+
+@router.get(
+    "/trades/{trade_id}/scores",
+    response_model=PositionScoreResponse,
+)
+async def get_trade_position_scores(
+    trade_id: UUID,
+    container: Annotated[ApplicationContainer, Depends(get_container)],
+) -> PositionScoreResponse:
+    """Return deterministic explainable TrendScore and PeakScore projections."""
+
+    service = PositionScoreService(
+        database=container.database,
+        position_analytics=_analytics_service(container),
+    )
+    value = await service.for_trade(trade_id)
+    if value is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No open position is available for score projection",
+        )
+    return PositionScoreResponse(
+        trade_id=value.trade_id,
+        position_id=value.position_id,
+        trend_score=value.trend_score,
+        peak_score=value.peak_score,
+        trend_components=value.trend_components,
+        peak_components=value.peak_components,
         quality_status=value.quality_status,
         reason=value.reason,
         policy_version=value.policy_version,
