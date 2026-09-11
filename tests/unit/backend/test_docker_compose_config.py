@@ -10,7 +10,8 @@ def test_backend_container_database_url_is_isolated_from_host_application_env() 
     compose = COMPOSE_FILE.read_text(encoding="utf-8")
 
     assert (
-        "TRADING_WORKSPACE_DATABASE_URL: ${TRADING_WORKSPACE_DATABASE_URL" not in compose
+        "TRADING_WORKSPACE_DATABASE_URL: ${TRADING_WORKSPACE_DATABASE_URL"
+        not in compose
     )
     assert "TRADING_WORKSPACE_DOCKER_DATABASE_URL" in compose
     assert "@database:5432/" in compose
