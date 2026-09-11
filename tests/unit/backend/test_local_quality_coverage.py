@@ -20,6 +20,7 @@ from app.features.position_monitoring.service.processor import (
     SqlAlchemyMonitoringRuleProcessor,
 )
 from app.features.user_preferences.service.application import UserPreferenceService
+from app.providers.shared.metrics import ProviderMetrics
 
 
 def _now() -> datetime:
@@ -191,3 +192,18 @@ async def test_monitoring_rule_processor_commits_success_and_rolls_back_failure(
     with pytest.raises(RuntimeError, match="boom"):
         await processor.process(**kwargs)
     session.rollback.assert_awaited_once_with()
+
+
+async def test_provider_metrics_increment_snapshot_and_reject_negative_values() -> None:
+    metrics = ProviderMetrics()
+
+    await metrics.increment("requests")
+    await metrics.increment("requests", 2)
+    await metrics.increment("errors", 0)
+
+    assert await metrics.snapshot() == {"requests": 3, "errors": 0}
+
+    with pytest.raises(ValueError, match="must not be negative"):
+        await metrics.increment("requests", -1)
+
+    assert await metrics.snapshot() == {"requests": 3, "errors": 0}
