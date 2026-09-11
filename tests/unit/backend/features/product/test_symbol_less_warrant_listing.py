@@ -1,9 +1,9 @@
+from datetime import UTC, datetime
 from uuid import uuid4
 
 from app.features.product.api.router import ListingRequest, ListingResponse
-from app.features.product.persistence.models import WarrantListingModel
 from app.features.product.domain.models import WarrantLifecycle
-from datetime import UTC, datetime
+from app.features.product.persistence.models import WarrantListingModel
 
 
 def test_listing_request_allows_venue_identity_without_symbol() -> None:
