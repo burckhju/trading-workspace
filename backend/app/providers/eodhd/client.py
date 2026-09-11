@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from datetime import timedelta
+from decimal import Decimal
 from typing import Any
 
 import httpx
@@ -65,7 +66,7 @@ class EodhdClient:
             ) from exc
         self._raise_for_status(response, capability=capability)
         try:
-            return response.json()
+            return response.json(parse_float=Decimal)
         except ValueError as exc:
             raise MarketDataInvalidResponseError(
                 "EODHD returned invalid JSON",
