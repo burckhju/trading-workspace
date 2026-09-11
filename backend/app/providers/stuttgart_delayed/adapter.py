@@ -312,7 +312,7 @@ class StuttgartDelayedWarrantQuoteAdapter:
             bid=selected_bid,
             ask=selected_ask,
             currency=selected_currency,
-            provider_symbol=identity.symbol,
+            provider_symbol=identity.isin,
             provider_exchange_code="XSTU",
             observed_at=selected_at,
         )
@@ -366,7 +366,7 @@ class StuttgartDelayedWarrantQuoteAdapter:
                 "Stuttgart delayed quote price must not be negative",
                 provider=MarketDataProvider.BOERSE_STUTTGART_DELAYED,
                 capability=MarketDataCapability.WARRANT_LISTING_QUOTE,
-            )
+            ) from exc
         return price if price > 0 else None
 
     @staticmethod
