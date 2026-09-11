@@ -51,7 +51,11 @@ async def test_client_adds_credentials_without_exposing_them_in_result() -> None
 @pytest.mark.asyncio
 async def test_client_decodes_json_floats_as_decimal() -> None:
     def handler(_: httpx.Request) -> httpx.Response:
-        return httpx.Response(200, content=b'[{"close": 123.45}]', headers={"content-type": "application/json"})
+        return httpx.Response(
+            200,
+            content=b'[{"close": 123.45}]',
+            headers={"content-type": "application/json"},
+        )
 
     async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http:
         result = await EodhdClient(settings=settings(), client=http).get_json(
