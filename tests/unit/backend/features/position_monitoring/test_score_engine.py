@@ -60,7 +60,12 @@ def test_full_peak_score_is_100_when_near_high() -> None:
 
 
 def test_peak_score_drops_when_more_than_one_atr_below_high() -> None:
-    result = calculate_peak_score(inputs(latest_price=Decimal("118"), highest_high_since_entry=Decimal("123")))
+    result = calculate_peak_score(
+        inputs(
+            latest_price=Decimal("118"),
+            highest_high_since_entry=Decimal("123"),
+        )
+    )
     assert result.value == 75
     assert result.components["near_peak"] == 0
 
