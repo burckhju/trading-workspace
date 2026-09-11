@@ -11,9 +11,7 @@ from app.features.position_monitoring.service.dynamic_stop import (
     DynamicStopProjection,
 )
 from app.features.position_monitoring.service.phase_engine import PositionPhase
-from app.features.position_monitoring.service.position_analytics import (
-    PositionAnalyticsStatus,
-)
+from app.features.position_monitoring.service.position_analytics import PositionAnalyticsStatus
 
 
 def _stop(*, phase: PositionPhase, breached: bool) -> DynamicStopProjection:
