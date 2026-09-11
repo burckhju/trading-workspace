@@ -85,7 +85,9 @@ async def test_add_listing_validates_references_and_normalizes_values() -> None:
     session = AsyncMock()
     session.add = Mock()
     service = WarrantService(session)
-    service.get = AsyncMock(return_value=SimpleNamespace())  # type: ignore[method-assign]
+    service.get = AsyncMock(  # type: ignore[method-assign]
+        return_value=SimpleNamespace(underlying_id=uuid4())
+    )
     session.get.side_effect = [
         SimpleNamespace(is_active=True),
         SimpleNamespace(is_active=True),
@@ -108,10 +110,45 @@ async def test_add_listing_validates_references_and_normalizes_values() -> None:
 
 
 @pytest.mark.asyncio
+async def test_add_listing_rejects_underlying_venue_and_symbol_identity() -> None:
+    workspace_id = uuid4()
+    warrant_id = uuid4()
+    underlying_id = uuid4()
+    trading_venue_id = uuid4()
+    session = AsyncMock()
+    service = WarrantService(session)
+    service.get = AsyncMock(  # type: ignore[method-assign]
+        return_value=SimpleNamespace(underlying_id=underlying_id)
+    )
+    session.get.side_effect = [
+        SimpleNamespace(is_active=True),
+        SimpleNamespace(is_active=True),
+    ]
+    session.scalar.return_value = uuid4()
+
+    with pytest.raises(
+        WarrantServiceError,
+        match="must not reuse the underlying venue and symbol",
+    ):
+        await service.add_listing(
+            workspace_id,
+            warrant_id,
+            trading_venue_id=trading_venue_id,
+            symbol="UNH",
+            quotation_currency_code="EUR",
+        )
+
+    session.add.assert_not_called()
+    session.commit.assert_not_awaited()
+
+
+@pytest.mark.asyncio
 async def test_add_listing_rejects_blank_symbol_inactive_venue_and_duplicate() -> None:
     session = AsyncMock()
     service = WarrantService(session)
-    service.get = AsyncMock(return_value=SimpleNamespace())  # type: ignore[method-assign]
+    service.get = AsyncMock(  # type: ignore[method-assign]
+        return_value=SimpleNamespace(underlying_id=uuid4())
+    )
 
     with pytest.raises(WarrantServiceError, match="symbol must not be blank"):
         await service.add_listing(
@@ -136,7 +173,7 @@ async def test_add_listing_rejects_blank_symbol_inactive_venue_and_duplicate() -
         SimpleNamespace(is_active=True),
         SimpleNamespace(is_active=True),
     ]
-    session.scalar.return_value = uuid4()
+    session.scalar.side_effect = [None, uuid4()]
     with pytest.raises(DuplicateWarrantListing):
         await service.add_listing(
             uuid4(),

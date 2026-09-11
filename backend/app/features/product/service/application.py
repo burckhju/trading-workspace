@@ -16,6 +16,7 @@ from app.features.market.domain.enums import LifecycleStatus
 from app.features.market.persistence.models import (
     CurrencyModel,
     IssuerModel,
+    ListingModel,
     TradingVenueModel,
     UnderlyingModel,
 )
@@ -210,7 +211,7 @@ class WarrantService:
         symbol: str,
         quotation_currency_code: str,
     ) -> WarrantListingModel:
-        await self.get(workspace_id, warrant_id)
+        warrant = await self.get(workspace_id, warrant_id)
         normalized_symbol = symbol.strip().upper()
         if not normalized_symbol:
             raise WarrantServiceError("symbol must not be blank", field="symbol")
@@ -228,6 +229,19 @@ class WarrantService:
         if not currency.is_active:
             raise InactiveWarrantReference(
                 "Quotation currency is inactive", field="quotation_currency_code"
+            )
+        underlying_listing = await self._session.scalar(
+            select(ListingModel.id).where(
+                ListingModel.workspace_id == workspace_id,
+                ListingModel.underlying_id == warrant.underlying_id,
+                ListingModel.trading_venue_id == trading_venue_id,
+                ListingModel.ticker == normalized_symbol,
+            )
+        )
+        if underlying_listing is not None:
+            raise WarrantServiceError(
+                "Warrant listing must not reuse the underlying venue and symbol",
+                field="symbol",
             )
         duplicate = await self._session.scalar(
             select(WarrantListingModel.id).where(
