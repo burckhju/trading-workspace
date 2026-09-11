@@ -177,7 +177,11 @@ class ProductPositionValuationService:
 
             attempts = tuple(all_attempts)
             if selected_result is None or selected_listing is None:
-                if self._legacy_single_source and len(candidate_listings) == 1 and len(attempts) == 1:
+                if (
+                    self._legacy_single_source
+                    and len(candidate_listings) == 1
+                    and len(attempts) == 1
+                ):
                     attempt = attempts[0]
                     if attempt.status is QuoteSourceAttemptStatus.MISSING:
                         status = ProductValuationStatus.MISSING
