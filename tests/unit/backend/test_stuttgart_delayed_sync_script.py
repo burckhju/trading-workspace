@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import gzip
 import importlib.util
+import json
 from pathlib import Path
 from types import ModuleType
 
@@ -46,3 +48,26 @@ def test_official_download_rejects_non_official_host() -> None:
 
     with pytest.raises(RuntimeError, match="No official XSTU download entry"):
         module._official_download(html)
+
+
+def test_validate_payload_accepts_nonempty_json_list() -> None:
+    module = _load_script()
+    content = gzip.compress(json.dumps([{"Isin": "DE000VH2LU21"}]).encode())
+
+    module._validate_payload(content)
+
+
+def test_validate_payload_rejects_empty_json_list() -> None:
+    module = _load_script()
+    content = gzip.compress(b"[]")
+
+    with pytest.raises(RuntimeError, match="payload is empty"):
+        module._validate_payload(content)
+
+
+def test_validate_payload_rejects_empty_json_dict() -> None:
+    module = _load_script()
+    content = gzip.compress(b"{}")
+
+    with pytest.raises(RuntimeError, match="payload is empty"):
+        module._validate_payload(content)

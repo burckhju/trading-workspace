@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import gzip
 import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -40,6 +41,20 @@ def _timestamp_from_filename(path: Path) -> datetime | None:
     except ValueError:
         return None
     return parsed.replace(tzinfo=UTC)
+
+
+def _has_nonempty_json_root(path: Path) -> bool:
+    try:
+        with gzip.open(path, "rt", encoding="utf-8") as handle:
+            prefix = handle.read(4096)
+    except (OSError, UnicodeDecodeError):
+        return False
+    compact = "".join(prefix.split())
+    if not compact:
+        return False
+    if compact.startswith("[]") or compact.startswith("{}"):
+        return False
+    return compact.startswith("[") or compact.startswith("{")
 
 
 def get_stuttgart_delayed_source_health(
@@ -120,10 +135,23 @@ def get_stuttgart_delayed_source_health(
             file_count=0,
         )
 
-    latest = candidates[-1]
+    latest = next((path for path in reversed(candidates) if _has_nonempty_json_root(path)), None)
+    if latest is None:
+        return StuttgartDelayedSourceHealth(
+            status=StuttgartDelayedSourceStatus.SOURCE_MISSING,
+            reason="No non-empty XSTU delayed payload file is available",
+            enabled=True,
+            source_mode=settings.source_mode,
+            schema_version=settings.schema_version,
+            local_directory=settings.local_directory,
+            latest_file=None,
+            latest_file_timestamp=None,
+            file_count=len(candidates),
+        )
+
     return StuttgartDelayedSourceHealth(
         status=StuttgartDelayedSourceStatus.READY,
-        reason="Newest verified XSTU delayed payload is available",
+        reason="Newest non-empty verified XSTU delayed payload is available",
         enabled=True,
         source_mode=settings.source_mode,
         schema_version=settings.schema_version,
