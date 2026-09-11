@@ -16,7 +16,9 @@ from app.features.position_monitoring.domain.models import MonitoringRuleState
 from app.features.position_monitoring.persistence.repositories import (
     SqlAlchemyMonitoringRuleStateRepository,
 )
-from app.features.position_monitoring.service.processor import SqlAlchemyMonitoringRuleProcessor
+from app.features.position_monitoring.service.processor import (
+    SqlAlchemyMonitoringRuleProcessor,
+)
 from app.features.user_preferences.service.application import UserPreferenceService
 
 
