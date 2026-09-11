@@ -72,10 +72,7 @@ def calculate_peak_score(inputs: ScoreInputs) -> ScoreResult:
     """Return an additive 0-100 peak-protection readiness score under V1."""
     trend_structure = inputs.latest_price > inputs.sma_20 > inputs.sma_50 > inputs.sma_200
     peak_distance = inputs.highest_high_since_entry - inputs.latest_price
-    near_peak = (
-        peak_distance >= 0
-        and peak_distance <= inputs.atr_14 * PEAK_ATR_DISTANCE_MULTIPLE
-    )
+    near_peak = peak_distance >= 0 and peak_distance <= inputs.atr_14 * PEAK_ATR_DISTANCE_MULTIPLE
     components = {
         "trend_structure": 25 if trend_structure else 0,
         "maturity": 25 if inputs.sessions_since_entry >= TREND_MIN_SESSIONS else 0,
