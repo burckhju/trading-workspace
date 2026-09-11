@@ -366,7 +366,7 @@ class StuttgartDelayedWarrantQuoteAdapter:
                 "Stuttgart delayed quote price must not be negative",
                 provider=MarketDataProvider.BOERSE_STUTTGART_DELAYED,
                 capability=MarketDataCapability.WARRANT_LISTING_QUOTE,
-            ) from exc
+            )
         return price if price > 0 else None
 
     @staticmethod
