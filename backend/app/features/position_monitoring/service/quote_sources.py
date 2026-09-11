@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
+from uuid import UUID
 
 from app.features.market_data.domain.enums import QualityStatus
 from app.features.market_data.domain.models import WarrantQuoteSnapshot
@@ -39,6 +40,7 @@ class QuoteSourceAttempt:
     status: QuoteSourceAttemptStatus
     reason: str
     delayed: bool
+    warrant_listing_id: UUID | None = None
     observed_at: datetime | None = None
     bid_available: bool = False
     ask_available: bool = False
@@ -69,6 +71,7 @@ class MultiSourceWarrantQuoteResolver:
                         status=QuoteSourceAttemptStatus.UNAVAILABLE,
                         reason=source.unavailable_reason or "SOURCE_NOT_CONFIGURED",
                         delayed=source.delayed,
+                        warrant_listing_id=request.warrant_listing_id,
                     )
                 )
                 continue
@@ -82,6 +85,7 @@ class MultiSourceWarrantQuoteResolver:
                         status=QuoteSourceAttemptStatus.UNAVAILABLE,
                         reason=str(exc),
                         delayed=source.delayed,
+                        warrant_listing_id=request.warrant_listing_id,
                     )
                 )
                 continue
@@ -92,6 +96,7 @@ class MultiSourceWarrantQuoteResolver:
                         status=QuoteSourceAttemptStatus.ERROR,
                         reason=type(exc).__name__,
                         delayed=source.delayed,
+                        warrant_listing_id=request.warrant_listing_id,
                     )
                 )
                 continue
@@ -103,6 +108,7 @@ class MultiSourceWarrantQuoteResolver:
                         status=QuoteSourceAttemptStatus.MISSING,
                         reason="NO_QUOTE_RETURNED",
                         delayed=source.delayed,
+                        warrant_listing_id=request.warrant_listing_id,
                     )
                 )
                 continue
@@ -115,6 +121,7 @@ class MultiSourceWarrantQuoteResolver:
                         status=QuoteSourceAttemptStatus.MISSING,
                         reason="NO_QUOTE_RETURNED",
                         delayed=source.delayed,
+                        warrant_listing_id=request.warrant_listing_id,
                     )
                 )
                 continue
@@ -125,6 +132,7 @@ class MultiSourceWarrantQuoteResolver:
                         status=QuoteSourceAttemptStatus.ERROR,
                         reason="WARRANT_LISTING_MISMATCH",
                         delayed=source.delayed,
+                        warrant_listing_id=request.warrant_listing_id,
                         observed_at=quote.observed_at,
                         bid_available=quote.bid is not None,
                         ask_available=quote.ask is not None,
@@ -142,6 +150,7 @@ class MultiSourceWarrantQuoteResolver:
                             else "BID_MISSING"
                         ),
                         delayed=source.delayed,
+                        warrant_listing_id=request.warrant_listing_id,
                         observed_at=quote.observed_at,
                         bid_available=quote.bid is not None,
                         ask_available=quote.ask is not None,
@@ -155,6 +164,7 @@ class MultiSourceWarrantQuoteResolver:
                     status=QuoteSourceAttemptStatus.AVAILABLE,
                     reason="VALID_BID_AVAILABLE",
                     delayed=source.delayed,
+                    warrant_listing_id=request.warrant_listing_id,
                     observed_at=quote.observed_at,
                     bid_available=True,
                     ask_available=quote.ask is not None,
