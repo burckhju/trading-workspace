@@ -254,7 +254,9 @@ class WarrantService:
                 WarrantListingModel.trading_venue_id == trading_venue_id,
                 WarrantListingModel.symbol.is_(None),
             )
-        duplicate = await self._session.scalar(select(WarrantListingModel.id).where(*duplicate_filter))
+        duplicate = await self._session.scalar(
+            select(WarrantListingModel.id).where(*duplicate_filter)
+        )
         if duplicate is not None:
             field = "symbol" if normalized_symbol is not None else "trading_venue_id"
             raise DuplicateWarrantListing(
@@ -394,7 +396,9 @@ class WarrantService:
                 "uq_warrant_listings_workspace_venue_symbol" in message
                 or "uq_warrant_listings_symbol_less_warrant_venue" in message
             ):
-                raise DuplicateWarrantListing("A warrant listing identity already exists") from error
+                raise DuplicateWarrantListing(
+                    "A warrant listing identity already exists"
+                ) from error
             if (
                 "uq_warrant_terms_versions_open" in message
                 or "uq_warrant_terms_versions_warrant_version" in message
