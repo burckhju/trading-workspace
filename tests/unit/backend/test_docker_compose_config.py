@@ -1,4 +1,4 @@
-from __future__ import annotations
+"""Regression tests for Docker Compose environment isolation."""
 
 from pathlib import Path
 
