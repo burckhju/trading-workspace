@@ -1,0 +1,1 @@
+Coverage intent for POSITION_ALERT_V1: critical stop breach, peak-protection attention, normal state, fail-closed stale data, and API route registration. Frontend coverage verifies German labels for normal, critical, stale, persisted-alert, and sell-capture paths.
