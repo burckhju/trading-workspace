@@ -11,6 +11,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.exc import StaleDataError
+from sqlalchemy.sql.elements import ColumnElement
 
 from app.features.market.domain.enums import LifecycleStatus
 from app.features.market.persistence.models import (
@@ -228,6 +229,7 @@ class WarrantService:
             raise InactiveWarrantReference(
                 "Quotation currency is inactive", field="quotation_currency_code"
             )
+        duplicate_filter: list[ColumnElement[bool]]
         if normalized_symbol is not None:
             underlying_listing = await self._session.scalar(
                 select(ListingModel.id).where(
@@ -242,18 +244,18 @@ class WarrantService:
                     "Warrant listing must not reuse the underlying venue and symbol",
                     field="symbol",
                 )
-            duplicate_filter = (
+            duplicate_filter = [
                 WarrantListingModel.workspace_id == workspace_id,
                 WarrantListingModel.trading_venue_id == trading_venue_id,
                 WarrantListingModel.symbol == normalized_symbol,
-            )
+            ]
         else:
-            duplicate_filter = (
+            duplicate_filter = [
                 WarrantListingModel.workspace_id == workspace_id,
                 WarrantListingModel.warrant_id == warrant_id,
                 WarrantListingModel.trading_venue_id == trading_venue_id,
                 WarrantListingModel.symbol.is_(None),
-            )
+            ]
         duplicate = await self._session.scalar(
             select(WarrantListingModel.id).where(*duplicate_filter)
         )
