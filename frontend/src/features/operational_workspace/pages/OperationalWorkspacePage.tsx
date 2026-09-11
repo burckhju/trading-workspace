@@ -10,11 +10,11 @@ const sections: Array<{ priority: OperationalPriority; title: string; descriptio
     priority: 'ACTION',
     title: 'Jetzt handeln',
     description:
-      'Offene Positions-Alerts zuerst, danach Monitoring-Datenprobleme und weitere ausführbare Schritte.',
+      'Offene Positionshinweise zuerst, danach Monitoring-Datenprobleme und weitere ausführbare Schritte.',
   },
   {
     priority: 'REVIEW',
-    title: 'Review',
+    title: 'Prüfen',
     description: 'Abgeschlossene Trades mit offenem Nachbereitungsbedarf.',
   },
   {
@@ -65,8 +65,22 @@ export function OperationalWorkspacePage() {
         operationalWorkspaceApiClient.getActions(signal),
         operationalWorkspaceApiClient.getPositions(signal),
       ]);
+      const positionsWithSignals = await Promise.all(
+        positionResponse.positions.map(async (position) => {
+          try {
+            const positionSignal = await operationalWorkspaceApiClient.getPositionAlertProjection(
+              position.trade_id,
+              signal,
+            );
+            return { ...position, position_signal: positionSignal };
+          } catch (caught) {
+            if (caught instanceof DOMException && caught.name === 'AbortError') throw caught;
+            return { ...position, position_signal: null };
+          }
+        }),
+      );
       setActions(actionResponse.actions);
-      setPositions(positionResponse.positions);
+      setPositions(positionsWithSignals);
       setGeneratedAt(actionResponse.generated_at);
     } catch (caught) {
       if (caught instanceof DOMException && caught.name === 'AbortError') return;
@@ -99,13 +113,13 @@ export function OperationalWorkspacePage() {
     <section className="w-full space-y-8">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-sm font-medium text-slate-400">Operational Workspace</p>
+          <p className="text-sm font-medium text-slate-400">Operativer Arbeitsbereich</p>
           <h1 className="mt-1 text-3xl font-semibold tracking-tight text-white">
             Was benötigt jetzt deine Aufmerksamkeit?
           </h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
-            Priorisierte nächste Schritte aus bestehenden Feature-Zuständen. Die Fachlogik bleibt in
-            den jeweiligen Owner-Features. Die Reihenfolge ist eine operative Sicht und keine
+            Priorisierte nächste Schritte aus bestehenden Fachzuständen. Die Fachlogik bleibt in den
+            jeweiligen zuständigen Bereichen. Die Reihenfolge ist eine operative Sicht und keine
             Tradingempfehlung.
           </p>
         </div>
