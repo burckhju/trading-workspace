@@ -61,7 +61,9 @@ def test_peak_protection_requires_attention_without_stop_breach() -> None:
 
 
 def test_regular_phase_is_normal_without_attention() -> None:
-    projection = project_position_alert(_stop(phase=PositionPhase.TREND, breached=False))
+    projection = project_position_alert(
+        _stop(phase=PositionPhase.TREND, breached=False)
+    )
 
     assert projection.alert_level is PositionAlertLevel.NORMAL
     assert projection.attention_required is False
