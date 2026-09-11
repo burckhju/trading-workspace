@@ -246,15 +246,13 @@ async def test_service_rejects_missing_run_invalid_metrics_and_non_positive_atr(
     assert result is not None
     assert result.reason == "STOP_ANALYSIS_RUN_MISSING"
 
-    result = await service(value, run=SimpleNamespace(metrics={"latest_price": "bad", "atr_14": "4"})).for_trade(
-        value.trade_id
-    )
+    invalid_run = SimpleNamespace(metrics={"latest_price": "bad", "atr_14": "4"})
+    result = await service(value, run=invalid_run).for_trade(value.trade_id)
     assert result is not None
     assert result.reason == "STOP_REQUIRED_METRICS_INVALID"
 
-    result = await service(value, run=SimpleNamespace(metrics={"latest_price": "120", "atr_14": "0"})).for_trade(
-        value.trade_id
-    )
+    zero_atr_run = SimpleNamespace(metrics={"latest_price": "120", "atr_14": "0"})
+    result = await service(value, run=zero_atr_run).for_trade(value.trade_id)
     assert result is not None
     assert result.reason == "STOP_ATR_NON_POSITIVE"
 
