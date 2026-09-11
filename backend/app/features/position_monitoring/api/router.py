@@ -7,11 +7,13 @@ from app.core.di import ApplicationContainer, get_container
 from app.features.position_monitoring.api.dtos import (
     PositionAnalyticsResponse,
     PositionMonitoringHealthResponse,
+    PositionPhaseResponse,
     ProductPositionValuationResponse,
     QuoteSourceAttemptResponse,
     StuttgartDelayedSourceHealthResponse,
 )
 from app.features.position_monitoring.service.health import PositionMonitoringHealthService
+from app.features.position_monitoring.service.phase_engine import PositionPhaseService
 from app.features.position_monitoring.service.position_analytics import (
     PositionAwareAnalyticsService,
 )
@@ -33,6 +35,13 @@ def _health_service(container: ApplicationContainer) -> PositionMonitoringHealth
         max_completed_price_age_days=(
             container.settings.position_monitoring.max_completed_price_age_days
         ),
+    )
+
+
+def _analytics_service(container: ApplicationContainer) -> PositionAwareAnalyticsService:
+    return PositionAwareAnalyticsService(
+        database=container.database,
+        monitoring_health=_health_service(container),
     )
 
 
@@ -95,11 +104,7 @@ async def get_trade_position_analytics(
 ) -> PositionAnalyticsResponse:
     """Return deterministic analysis-backed analytics projected into position context."""
 
-    service = PositionAwareAnalyticsService(
-        database=container.database,
-        monitoring_health=_health_service(container),
-    )
-    value = await service.for_trade(trade_id)
+    value = await _analytics_service(container).for_trade(trade_id)
     if value is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -114,6 +119,38 @@ async def get_trade_position_analytics(
         market_data_observed_at=value.market_data_observed_at,
         quality_status=value.quality_status,
         reason=value.reason,
+        sessions_since_entry=value.sessions_since_entry,
+    )
+
+
+@router.get(
+    "/trades/{trade_id}/phase",
+    response_model=PositionPhaseResponse,
+)
+async def get_trade_position_phase(
+    trade_id: UUID,
+    container: Annotated[ApplicationContainer, Depends(get_container)],
+) -> PositionPhaseResponse:
+    """Return the deterministic read-only position phase projection."""
+
+    service = PositionPhaseService(
+        database=container.database,
+        position_analytics=_analytics_service(container),
+    )
+    value = await service.for_trade(trade_id)
+    if value is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No open position is available for phase classification",
+        )
+    return PositionPhaseResponse(
+        trade_id=value.trade_id,
+        position_id=value.position_id,
+        phase=value.phase,
+        quality_status=value.quality_status,
+        reason=value.reason,
+        policy_version=value.policy_version,
+        analysis_run_id=value.analysis_run_id,
         sessions_since_entry=value.sessions_since_entry,
     )
 

@@ -7,4 +7,5 @@ def test_position_monitoring_read_routes_are_registered() -> None:
 
     assert "/api/v1/position-monitoring/trades/{trade_id}/health" in routes
     assert "/api/v1/position-monitoring/trades/{trade_id}/analytics" in routes
+    assert "/api/v1/position-monitoring/trades/{trade_id}/phase" in routes
     assert "/api/v1/position-monitoring/trades/{trade_id}/product-valuation" in routes
