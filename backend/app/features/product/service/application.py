@@ -213,6 +213,8 @@ class WarrantService:
         quotation_currency_code: str,
     ) -> WarrantListingModel:
         warrant = await self.get(workspace_id, warrant_id)
+        if symbol is not None and not symbol.strip():
+            raise WarrantServiceError("symbol must not be blank", field="symbol")
         normalized_symbol = _up(symbol)
         normalized_currency = quotation_currency_code.strip().upper()
         venue = await self._session.get(TradingVenueModel, trading_venue_id)
