@@ -15,9 +15,16 @@ branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
 
+_PREVIOUS_SYMBOL_CHECK = "ck_warrant_listings_ck_warrant_listings_symbol_not_blank"
+_CURRENT_SYMBOL_CHECK = "ck_warrant_listings_symbol_not_blank"
+
+
 def upgrade() -> None:
+    # 20260815_0011 created this check with a fully qualified name while the
+    # metadata naming convention also prefixes check constraints. Mark the
+    # persisted name as already formatted so Alembic does not prefix it again.
     op.drop_constraint(
-        "ck_warrant_listings_ck_warrant_listings_symbol_not_blank",
+        op.f(_PREVIOUS_SYMBOL_CHECK),
         "warrant_listings",
         type_="check",
     )
@@ -28,7 +35,7 @@ def upgrade() -> None:
         nullable=True,
     )
     op.create_check_constraint(
-        "ck_warrant_listings_ck_warrant_listings_symbol_not_blank",
+        "symbol_not_blank",
         "warrant_listings",
         "symbol IS NULL OR length(trim(symbol)) > 0",
     )
@@ -47,7 +54,7 @@ def downgrade() -> None:
         table_name="warrant_listings",
     )
     op.drop_constraint(
-        "ck_warrant_listings_ck_warrant_listings_symbol_not_blank",
+        op.f(_CURRENT_SYMBOL_CHECK),
         "warrant_listings",
         type_="check",
     )
@@ -63,7 +70,7 @@ def downgrade() -> None:
         nullable=False,
     )
     op.create_check_constraint(
-        "ck_warrant_listings_ck_warrant_listings_symbol_not_blank",
+        op.f(_PREVIOUS_SYMBOL_CHECK),
         "warrant_listings",
         "length(trim(symbol)) > 0",
     )
