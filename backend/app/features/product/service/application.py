@@ -21,7 +21,12 @@ from app.features.market.persistence.models import (
     TradingVenueModel,
     UnderlyingModel,
 )
-from app.features.product.domain.models import OptionDirection, ProductFamily, WarrantLifecycle
+from app.features.product.domain.models import (
+    OptionDirection,
+    ProductFamily,
+    WarrantLifecycle,
+    normalize_strike_currency,
+)
 from app.features.product.persistence.models import (
     WarrantListingModel,
     WarrantModel,
@@ -73,11 +78,13 @@ class WarrantService:
         strike: Decimal,
         maturity_date: date,
         ratio: Decimal,
+        strike_currency_code: str | None = None,
     ) -> WarrantModel:
         normalized_name = display_name.strip()
         if not normalized_name:
             raise WarrantServiceError("display_name must not be blank", field="display_name")
         await self._require_references(workspace_id, issuer_id, underlying_id)
+        strike_currency = await self._require_strike_currency(strike_currency_code)
         normalized_isin, normalized_wkn = _up(isin), _up(wkn)
         await self._require_unique_identifiers(workspace_id, normalized_isin, normalized_wkn)
         now = datetime.now(UTC)
@@ -103,6 +110,7 @@ class WarrantService:
             effective_to=None,
             option_direction=option_direction,
             strike=strike,
+            strike_currency_code=strike_currency,
             maturity_date=maturity_date,
             ratio=ratio,
             created_at=now,
@@ -161,6 +169,7 @@ class WarrantService:
         strike: Decimal,
         maturity_date: date,
         ratio: Decimal,
+        strike_currency_code: str | None = None,
     ) -> WarrantTermsVersionModel:
         self._validate_terms(strike, ratio)
         model = await self.get(workspace_id, warrant_id)
@@ -169,6 +178,7 @@ class WarrantService:
                 f"Expected version {expected_version}, found {model.version}",
                 field="expected_version",
             )
+        strike_currency = await self._require_strike_currency(strike_currency_code)
         now = datetime.now(UTC)
         current = await self.current_terms(workspace_id, warrant_id)
         current.effective_to = now
@@ -193,6 +203,7 @@ class WarrantService:
             effective_to=None,
             option_direction=option_direction,
             strike=strike,
+            strike_currency_code=strike_currency,
             maturity_date=maturity_date,
             ratio=ratio,
             created_at=now,
@@ -345,6 +356,20 @@ class WarrantService:
             )
         if underlying.lifecycle_status != LifecycleStatus.ACTIVE:
             raise InactiveWarrantReference("Underlying is inactive", field="underlying_id")
+
+    async def _require_strike_currency(self, value: str | None) -> str | None:
+        try:
+            code = normalize_strike_currency(value)
+        except ValueError as error:
+            raise WarrantServiceError(str(error), field="strike_currency_code") from error
+        if code is None:
+            return None
+        currency = await self._session.get(CurrencyModel, code)
+        if currency is None:
+            raise WarrantServiceError("Strike currency does not exist", field="strike_currency_code")
+        if not currency.is_active:
+            raise InactiveWarrantReference("Strike currency is inactive", field="strike_currency_code")
+        return code
 
     async def _require_unique_identifiers(
         self, workspace_id: UUID, isin: str | None, wkn: str | None
