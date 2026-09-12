@@ -237,14 +237,20 @@ describe('ProductValuationPanel', () => {
     expect(api.productValuation).not.toHaveBeenCalled();
   });
 
-  it.each(['LAST_TRADE', 'PREVIOUS_CLOSE'] as const)(
-    'shows %s as its own indicative basis with unknown freshness and no invented bid',
-    async (kind) => {
+  it.each(
+    (['LAST_TRADE', 'PREVIOUS_CLOSE'] as const).flatMap((kind) =>
+      [false, true].map((refreshFailed) => ({ kind, refreshFailed })),
+    ),
+  )(
+    'shows $kind with refreshFailed=$refreshFailed as disclosed indicative analysis',
+    async ({ kind, refreshFailed }) => {
       api.productValuation.mockResolvedValue({
         trade_id: 'trade-1',
         position_id: 'position-1',
         status: 'INDICATIVE',
-        reason: 'REFERENCE_PRICE_AVAILABLE_FOR_ANALYSIS',
+        reason: refreshFailed
+          ? 'LAST_SUCCESSFUL_QUOTE_REFRESH_FAILED'
+          : 'REFERENCE_PRICE_AVAILABLE_FOR_ANALYSIS',
         warrant_listing_id: 'frankfurt-listing',
         symbol: null,
         bid: null,
@@ -260,7 +266,10 @@ describe('ProductValuationPanel', () => {
         execution_usable: false,
         analysis_usable: true,
         monitoring_usable: true,
-        analysis_warning: 'QUOTE_TIMESTAMP_UNKNOWN_INDICATIVE_ANALYSIS_ONLY',
+        analysis_warning: refreshFailed
+          ? 'QUOTE_REFRESH_FAILED_INDICATIVE_ANALYSIS_ONLY'
+          : 'QUOTE_TIMESTAMP_UNKNOWN_INDICATIVE_ANALYSIS_ONLY',
+        quote_refresh_error: refreshFailed ? 'FRANKFURT_HTTP_503' : null,
         analysis_market_value: '462.00',
         analysis_unrealized_gross_pnl: '-558.00',
         freshness_policy: 'REFERENCE_PRICE_DISCLOSURE_V1',
@@ -276,7 +285,10 @@ describe('ProductValuationPanel', () => {
       });
       render(<ProductValuationPanel tradeId="trade-1" />);
       expect(await screen.findByText('Indikative Auswertung')).toBeInTheDocument();
-      expect(screen.getByRole('status')).toHaveTextContent('Kurszeitpunkt unbekannt');
+      expect(screen.getByRole('status')).toHaveTextContent(
+        refreshFailed ? 'letzter erfolgreicher Abruf' : 'Kurszeitpunkt unbekannt',
+      );
+      if (refreshFailed) expect(screen.getByRole('status')).toHaveTextContent('FRANKFURT_HTTP_503');
       expect(screen.getByRole('status')).toHaveTextContent('Sie entscheiden');
       expect(screen.getByText('0,231 EUR')).toBeInTheDocument();
       expect(screen.getByText('462 EUR')).toBeInTheDocument();

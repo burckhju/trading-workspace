@@ -360,6 +360,7 @@ async def get_trade_product_valuation(
         reference_price=value.reference_price,
         reference_price_type=value.reference_price_type,
         quote_retrieved_at=value.quote_retrieved_at,
+        quote_refresh_error=value.quote_refresh_error,
         quote_assessed_at=value.quote_assessed_at,
         quote_delay_seconds=value.quote_delay_seconds,
         quote_venue_mic=value.quote_venue_mic,
@@ -380,6 +381,7 @@ async def get_trade_product_valuation(
                 reference_price=attempt.reference_price,
                 reference_price_type=attempt.reference_price_type,
                 currency=attempt.currency,
+                refresh_error=attempt.refresh_error,
             )
             for attempt in value.source_attempts
         ),

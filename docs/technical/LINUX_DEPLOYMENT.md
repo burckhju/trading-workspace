@@ -196,3 +196,21 @@ bash scripts/start-linux.sh
 ```
 
 The helper applies pending Alembic migrations before starting backend and frontend. Verify `/health/ready` before using the workspace.
+
+## Existing Frankfurt quote configuration
+
+The startup helper includes `docker/compose.frankfurt.yml` whenever
+`docker/frankfurt.env` exists. It preserves that file, `docker/.env`, and all
+provider activation/usage settings. No login, paid data service or subscription
+is created. To require Frankfurt configuration before starting, use:
+
+```bash
+git pull --ff-only
+bash scripts/start-linux.sh --frankfurt
+curl -fsS http://localhost:8000/api/v1/position-monitoring/quote-sources/frankfurt/health
+```
+
+If the file is absent, `--frankfurt` stops before Docker operations. Follow
+[the Frankfurt setup instructions](../frankfurt-quotes.md) to configure the source deliberately.
+Manual Compose operations still need `-f docker/compose.frankfurt.yml` in addition
+to the ordinary Compose file. The helper prints matching status/log commands.

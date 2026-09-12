@@ -21,6 +21,21 @@ from app.providers.frankfurt_quotes.public import (
 )
 from app.providers.frankfurt_quotes.schema import FrankfurtSnapshot, FrankfurtSourceError
 
+# Only temporary transport failures permit explicitly disclosed historical reuse.
+# Authentication, identity, schema and empty-response errors remain fail-closed.
+TRANSIENT_ERRORS = frozenset(
+    {
+        "FRANKFURT_TRANSPORT_TIMEOUT",
+        "FRANKFURT_TRANSPORT_ERROR",
+        "FRANKFURT_HTTP_408",
+        "FRANKFURT_HTTP_429",
+        "FRANKFURT_HTTP_500",
+        "FRANKFURT_HTTP_502",
+        "FRANKFURT_HTTP_503",
+        "FRANKFURT_HTTP_504",
+    }
+)
+
 
 def utc_now() -> datetime:
     return datetime.now(UTC)
@@ -131,10 +146,28 @@ class FrankfurtSnapshotClient:
             return value, retrieved_at, False
 
     def _fail(self, reason: str) -> NoReturn:
-        self._cached.clear()  # Never silently resurrect an older successful response.
+        if reason not in TRANSIENT_ERRORS:
+            self._cached.clear()
         self.last_error = reason
         self._next_fetch = self._timer() + max(60, self.settings.refresh_interval_seconds)
         raise FrankfurtSourceError(reason) from None
+
+    def cached_after_error(
+        self, reason: str, isin: str | None = None
+    ) -> tuple[FrankfurtSnapshot | FrankfurtPublicPrice, datetime] | None:
+        """Historical evidence only; strict load/setup/probe still report the failure.
+
+        The adapter must reassess identity/price/time and disclose this error.
+        Retrieval time and the request budget are never changed by this read.
+        """
+        if self.settings.readiness_reason != "CONFIGURED_NOT_PROBED":
+            return None
+        if reason not in TRANSIENT_ERRORS and reason != "FRANKFURT_REQUEST_THROTTLED":
+            return None
+        if self.last_error is not None and self.last_error not in TRANSIENT_ERRORS:
+            return None
+        cached = self._cached.get(isin or "snapshot")
+        return (cached[0], cached[1]) if cached is not None else None
 
     async def _read(self, isin: str | None = None) -> bytes:
         if self.settings.source_mode is FrankfurtSourceMode.LOCAL_FILE:
