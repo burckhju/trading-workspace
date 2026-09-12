@@ -198,14 +198,17 @@ async def test_catalog_preserves_unlisted_underlyings_and_scopes_all_reads():
     session = SimpleNamespace(
         execute=AsyncMock(
             side_effect=[
-                Mock(all=Mock(return_value=[(warrant, SimpleNamespace(legal_name="Vontobel"))])),
-                Mock(all=Mock(return_value=[(stock, None)])),
+                Mock(
+                    all=Mock(return_value=[(warrant, SimpleNamespace(legal_name="Vontobel"), True)])
+                ),
+                Mock(all=Mock(return_value=[(stock, None, False)])),
             ]
         )
     )
     database = SimpleNamespace(session_context=lambda: session_context(session))
     warrants, stocks = await read_catalog(database, workspace)
     assert warrants[0].id == warrant.id and stocks[0].listing_id is None
+    assert warrants[0].held is True and stocks[0].held is False
     for call in session.execute.call_args_list:
         statement = call.args[0]
         assert workspace in statement.compile().params.values()
@@ -344,3 +347,57 @@ async def test_scheduler_observes_frankfurt_cooldown_after_response_and_failure(
     monkeypatch.setattr(module.asyncio, "sleep", sleeper)
     await MarketDataRefreshRuntime._pace(value)
     sleeper.assert_awaited_once_with(59.0)
+
+
+@pytest.mark.asyncio
+async def test_open_positions_are_first_and_entire_queue_is_visible_before_network(monkeypatch):
+    value = runtime()
+    catalog_only = RefreshInstrument(uuid4(), "Catalog", "DE000HM4EB12")
+    held = RefreshInstrument(uuid4(), "Held", "DE000VH2LU21", held=True)
+    stock = RefreshInstrument(uuid4(), "Held stock", None, held=True)
+    monkeypatch.setattr(
+        module, "read_catalog", AsyncMock(return_value=([catalog_only, held], [stock]))
+    )
+    started, release = asyncio.Event(), asyncio.Event()
+    order = []
+
+    async def quote(item):
+        order.append(item.name)
+        if item.held:
+            started.set()
+            await release.wait()
+        return {"reason": "OK"}
+
+    async def daily(item):
+        order.append(item.name)
+        return {"status": "BLOCKED", "reason": "EODHD_DISABLED"}
+
+    value._warrant = quote
+    value._underlying = daily
+    task = asyncio.create_task(value.run_once())
+    try:
+        await asyncio.wait_for(started.wait(), timeout=1)
+        status = value.status()
+        assert status["pending_jobs"] == 3
+        assert status["current_job"] == f"WARRANT_QUOTES:{held.id}"
+        assert [j["name"] for j in status["jobs"]] == ["Held", "Held stock", "Catalog"]
+        assert all(j["checked_at"] is None and j["next_run_at"] is None for j in status["jobs"])
+    finally:
+        release.set()
+        await task
+    assert order == ["Held", "Held stock", "Catalog"]
+    assert value.status()["pending_jobs"] == 0 and value.current_job is None
+
+
+@pytest.mark.asyncio
+async def test_discovery_reports_safe_frankfurt_reason_instead_of_opaque_exception():
+    value = runtime()
+    await value._job(
+        "mapping",
+        RefreshInstrument(uuid4(), "Invalid identifier", "DE000PK72H6"),
+        3600,
+        AsyncMock(side_effect=FrankfurtSourceError("FRANKFURT_ISIN_INVALID")),
+    )
+    assert value.jobs["mapping"]["reason"] == "FRANKFURT_ISIN_INVALID"
+    assert value.jobs["mapping"]["status"] == "ERROR"
+    assert value.current_job is None

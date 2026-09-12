@@ -8,6 +8,8 @@ type RefreshStatus = {
   running: boolean;
   leader: boolean;
   last_error: string | null;
+  current_job?: string | null;
+  pending_jobs?: number;
   settings: {
     warrants_interval_seconds: number;
     underlyings_interval_seconds: number;
@@ -19,11 +21,13 @@ type RefreshStatus = {
     isin: string | null;
     status: string;
     reason: string;
-    next_run_at: string;
+    next_run_at: string | null;
+    held?: boolean;
   }>;
 };
 
 function statusLabel(status: string): string {
+  if (status === 'PENDING') return 'Erster Abruf steht aus';
   if (status === 'AVAILABLE') return 'Erfolgreich';
   if (status === 'MISSING') return 'Keine Kursdaten';
   if (status === 'BLOCKED') return 'Zuordnung oder Zugang fehlt';
@@ -64,7 +68,8 @@ export function MarketDataRefreshPanel() {
       </summary>
       <p className="mt-3 text-sm text-slate-400">
         Aktive Basiswerte und Optionsscheine werden in den konfigurierten Intervallen geprüft.
-        Verfügbare Kurse behalten ihren ursprünglichen Kurszeitpunkt.
+        Offene Positionen und ihre Basiswerte werden zuerst geprüft. Verfügbare Kurse behalten ihren
+        ursprünglichen Kurszeitpunkt.
       </p>
       <button
         type="button"
@@ -99,6 +104,11 @@ export function MarketDataRefreshPanel() {
             Basiswerte: abgeschlossene Tagesschlusskurse. Anbieterlimits können den nächsten Abruf
             verzögern.
           </p>
+          {value.pending_jobs !== undefined && value.pending_jobs > 0 && (
+            <p className="mt-2">
+              Noch {value.pending_jobs} Aufgaben ohne abgeschlossene Erstprüfung.
+            </p>
+          )}
           {value.last_error && (
             <p className="mt-2 text-amber-300">Letzte Prüfung fehlgeschlagen: {value.last_error}</p>
           )}
@@ -107,10 +117,17 @@ export function MarketDataRefreshPanel() {
               <li key={job.job} className="py-2">
                 <p>
                   {job.name} · {job.isin ?? 'ISIN fehlt'} · {taskLabel(job.job)}
+                  {job.held && ' · Offene Position'}
                 </p>
                 <p>
-                  {statusLabel(job.status)} · Nächste Prüfung frühestens{' '}
-                  {new Date(job.next_run_at).toLocaleString('de-DE')}
+                  {value.current_job === job.job ? 'Abruf läuft' : statusLabel(job.status)}
+                  {job.next_run_at && (
+                    <>
+                      {' '}
+                      · Nächste Prüfung frühestens{' '}
+                      {new Date(job.next_run_at).toLocaleString('de-DE')}
+                    </>
+                  )}
                 </p>
                 <details className="mt-1 text-xs text-slate-400">
                   <summary>Diagnose</summary>

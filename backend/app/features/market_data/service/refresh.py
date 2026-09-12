@@ -29,6 +29,7 @@ from app.features.position_monitoring.service.quote_runtime import build_warrant
 from app.features.product.domain.models import WarrantLifecycle
 from app.features.product.persistence.models import WarrantListingModel
 from app.providers.frankfurt_quotes.configure import configure_warrant as configure_frankfurt
+from app.providers.frankfurt_quotes.schema import FrankfurtSourceError
 from app.providers.vontobel_markets.configure import configure_warrant as configure_vontobel
 
 if TYPE_CHECKING:
@@ -52,6 +53,7 @@ class MarketDataRefreshRuntime:
         self._lock = asyncio.Lock()
         self._next_request = 0.0
         self.running = False
+        self.current_job: str | None = None
         self.last_scan_at: datetime | None = None
         self.last_error: str | None = None
         self.leader = False
@@ -70,6 +72,8 @@ class MarketDataRefreshRuntime:
             "single_instance_only": True,
             "quote_storage": "PROCESS_CACHE_WITH_ORIGINAL_TIMESTAMPS",
             "underlying_price_type": "COMPLETED_EOD",
+            "current_job": self.current_job,
+            "pending_jobs": sum(job["status"] == "PENDING" for job in self.jobs.values()),
             "jobs": list(self.jobs.values()),
         }
 
@@ -84,7 +88,9 @@ class MarketDataRefreshRuntime:
                 )
                 self.last_scan_at = datetime.now(UTC)
                 self.last_error = None
-                live_keys: set[str] = set()
+                schedule: list[
+                    tuple[str, RefreshInstrument, int, Callable[[], Awaitable[dict[str, Any]]]]
+                ] = []
                 # Refresh all active master data, including products without a position.
                 for item in warrants:
                     if self.settings.auto_configure:
@@ -94,53 +100,77 @@ class MarketDataRefreshRuntime:
                             is FrankfurtSourceMode.PUBLIC_WEBSITE
                         ):
                             key = f"FRANKFURT_MAPPING:{item.id}"
-                            live_keys.add(key)
-                            await self._job(
-                                key,
-                                item,
-                                self.settings.discovery_interval_seconds,
-                                partial(self._configure_frankfurt, item),
+                            schedule.append(
+                                (
+                                    key,
+                                    item,
+                                    self.settings.discovery_interval_seconds,
+                                    partial(self._configure_frankfurt, item),
+                                )
                             )
                         if (
                             self.container.vontobel is not None
                             and "vontobel" in (item.issuer or "").lower()
                         ):
                             key = f"VONTOBEL_MAPPING:{item.id}"
-                            live_keys.add(key)
-                            await self._job(
-                                key,
-                                item,
-                                self.settings.discovery_interval_seconds,
-                                partial(self._configure_vontobel, item),
+                            schedule.append(
+                                (
+                                    key,
+                                    item,
+                                    self.settings.discovery_interval_seconds,
+                                    partial(self._configure_vontobel, item),
+                                )
                             )
                     key = f"WARRANT_QUOTES:{item.id}"
-                    live_keys.add(key)
-                    await self._job(
-                        key,
-                        item,
-                        self.settings.warrants_interval_seconds,
-                        partial(self._warrant, item),
+                    schedule.append(
+                        (
+                            key,
+                            item,
+                            self.settings.warrants_interval_seconds,
+                            partial(self._warrant, item),
+                        )
                     )
                 for item in underlyings:
                     if self.settings.auto_configure and item.listing_id is not None:
                         key = f"EODHD_MAPPING:{item.id}:{item.listing_id}"
-                        live_keys.add(key)
-                        await self._job(
-                            key,
-                            item,
-                            self.settings.discovery_interval_seconds,
-                            partial(self._configure_underlying, item),
+                        schedule.append(
+                            (
+                                key,
+                                item,
+                                self.settings.discovery_interval_seconds,
+                                partial(self._configure_underlying, item),
+                            )
                         )
                     key = f"UNDERLYING_EOD:{item.id}:{item.listing_id}"
-                    live_keys.add(key)
-                    await self._job(
-                        key,
-                        item,
-                        self.settings.underlyings_interval_seconds,
-                        partial(self._underlying, item),
+                    schedule.append(
+                        (
+                            key,
+                            item,
+                            self.settings.underlyings_interval_seconds,
+                            partial(self._underlying, item),
+                        )
                     )
-                self.jobs = {key: value for key, value in self.jobs.items() if key in live_keys}
-                self._due = {key: value for key, value in self._due.items() if key in live_keys}
+                schedule.sort(key=lambda job: not job[1].held)
+                self.jobs = {
+                    key: {
+                        "job": key,
+                        "instrument_id": item.id,
+                        "listing_id": item.listing_id,
+                        "name": item.name,
+                        "isin": item.isin,
+                        "status": "PENDING",
+                        "reason": "AWAITING_FIRST_REFRESH",
+                        "checked_at": None,
+                        "last_success_at": None,
+                        "next_run_at": None,
+                        **self.jobs.get(key, {}),
+                        "held": item.held,
+                    }
+                    for key, item, _interval, _operation in schedule
+                }
+                self._due = {key: value for key, value in self._due.items() if key in self.jobs}
+                for key, item, interval, operation in schedule:
+                    await self._job(key, item, interval, operation)
             except asyncio.CancelledError:
                 raise
             except Exception as exc:
@@ -159,6 +189,7 @@ class MarketDataRefreshRuntime:
         if self.timer() < self._due.get(key, 0):
             return
         previous = self.jobs.get(key, {})
+        self.current_job = key
         try:
             details = await operation()
             status = details.pop("status", "AVAILABLE")
@@ -169,9 +200,17 @@ class MarketDataRefreshRuntime:
             raise
         except Exception as exc:
             # Never expose transport URLs or credentials in operational diagnostics.
-            details = {"reason": str(exc) if isinstance(exc, ValueError) else type(exc).__name__}
+            details = {
+                "reason": (
+                    str(exc)
+                    if isinstance(exc, (ValueError, FrankfurtSourceError))
+                    else type(exc).__name__
+                )
+            }
             status = "ERROR"
             success_at = previous.get("last_success_at")
+        finally:
+            self.current_job = None
         completed = datetime.now(UTC)
         self._due[key] = self.timer() + interval
         self.jobs[key] = {
@@ -180,6 +219,7 @@ class MarketDataRefreshRuntime:
             "listing_id": item.listing_id,
             "name": item.name,
             "isin": item.isin,
+            "held": item.held,
             "status": status,
             "checked_at": completed,
             "last_success_at": success_at,

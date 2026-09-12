@@ -10,7 +10,7 @@ from uuid import uuid4
 
 import httpx
 import pytest
-from sqlalchemy import text
+from sqlalchemy import insert, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.pool import NullPool
@@ -21,6 +21,8 @@ from tests.unit.backend.providers.vontobel_markets.test_adapter import _html
 
 from app.core.config import Settings
 from app.core.di import ApplicationContainer
+from app.features.market_data.service.refresh_catalog import read_catalog
+from app.features.trade_position.persistence.models import PositionModel, TradeModel
 from app.features.market_data.service.refresh import MarketDataRefreshRuntime
 from app.features.market_data.service.types import WarrantQuoteRequest
 from app.providers.frankfurt_quotes.adapter import FrankfurtWarrantQuoteAdapter
@@ -204,6 +206,57 @@ async def test_catalog_automatically_maps_bnp_and_vontobel_without_position_or_i
                     await runtime.run_once()
                     assert (snapshots._read.await_count, len(calls)) == before
                     assert len(calls) == 1 and calls[0].endswith("DE000VV00123")
+                    # Held products outrank UUID order; closed and foreign-workspace
+                    # positions do not confer priority, and duplicate trades add no jobs.
+                    held, unheld = sorted([warrant_v, warrant_b], reverse=True)
+                    foreign_workspace = uuid4()
+                    await connection.execute(
+                        text(
+                            "INSERT INTO workspaces (id,name,created_at) VALUES (:id,'Other',:now)"
+                        ),
+                        {"id": foreign_workspace, "now": NOW},
+                    )
+                    for product, trade_workspace, quantity in [
+                        (held, workspace, 10),
+                        (held, workspace, 20),
+                        (unheld, workspace, 0),
+                        (unheld, foreign_workspace, 10),
+                    ]:
+                        trade_id = uuid4()
+                        await connection.execute(
+                            insert(TradeModel).values(
+                                id=trade_id,
+                                workspace_id=trade_workspace,
+                                product_id=product,
+                                origin="EXTERNAL",
+                                created_at=NOW,
+                                created_by=uuid4(),
+                            )
+                        )
+                        await connection.execute(
+                            insert(PositionModel).values(
+                                id=uuid4(),
+                                trade_id=trade_id,
+                                product_id=product,
+                                open_quantity=quantity,
+                                cost_basis=quantity,
+                                average_entry_price=1,
+                                opened_at=NOW,
+                                last_execution_at=NOW,
+                                realized_gross_pnl=0,
+                                closed_at=NOW if quantity == 0 else None,
+                            )
+                        )
+                    warrants, stocks = await read_catalog(database, workspace)
+                    assert [(w.id, w.held) for w in warrants] == [(held, True), (unheld, False)]
+                    assert len(stocks) == 1 and stocks[0].held is True
+                    await runtime.run_once()
+                    assert [
+                        j["instrument_id"]
+                        for j in runtime.jobs.values()
+                        if j["job"].startswith("WARRANT_QUOTES:")
+                    ] == [held, unheld]
+                    assert (snapshots._read.await_count, len(calls)) == before
                     # Disabling the mapping immediately prevents a cached issuer quote being served.
                     issuer_listing = next(row[4] for row in rows if row[1] == "VONTOBEL_MARKETS")
                     await connection.execute(

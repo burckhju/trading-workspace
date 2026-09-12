@@ -52,6 +52,42 @@ describe('MarketDataRefreshPanel', () => {
     expect(screen.getByText(/Zuordnung oder Zugang fehlt/)).toBeInTheDocument();
     expect(request.mock.calls[0][0]).toContain('/market-data/refresh/status');
   });
+  it('shows held products awaiting their first fetch without inventing timestamps', async () => {
+    request.mockResolvedValue({
+      ...sample,
+      running: true,
+      current_job: 'WARRANT_QUOTES:held',
+      pending_jobs: 2,
+      jobs: [
+        {
+          job: 'WARRANT_QUOTES:held',
+          name: 'Held Call',
+          isin: 'DE000VH2LU21',
+          held: true,
+          status: 'PENDING',
+          reason: 'AWAITING_FIRST_REFRESH',
+          next_run_at: null,
+        },
+        {
+          job: 'WARRANT_QUOTES:later',
+          name: 'Later Call',
+          isin: null,
+          held: false,
+          status: 'PENDING',
+          reason: 'AWAITING_FIRST_REFRESH',
+          next_run_at: null,
+        },
+      ],
+    });
+    render(<MarketDataRefreshPanel />);
+    fireEvent.click(screen.getByText('Automatischer Kursabruf'));
+    fireEvent.click(screen.getByRole('button', { name: 'Abrufstatus laden' }));
+    expect(await screen.findByText(/Held Call.*Offene Position/)).toBeInTheDocument();
+    expect(screen.getByText('Abruf läuft')).toBeInTheDocument();
+    expect(screen.getByText('Erster Abruf steht aus')).toBeInTheDocument();
+    expect(screen.queryByText(/Nächste Prüfung frühestens/)).not.toBeInTheDocument();
+    expect(screen.getByText(/Noch 2 Aufgaben/)).toBeInTheDocument();
+  });
   it('distinguishes disabled configuration from failed retrieval', async () => {
     request.mockResolvedValue({ ...sample, enabled: false, jobs: [] });
     render(<MarketDataRefreshPanel />);

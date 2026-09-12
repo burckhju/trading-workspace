@@ -267,3 +267,114 @@ async def test_refresh_failed_bid_does_not_preempt_a_healthy_current_bid():
     ).resolve(request)
     assert result.selected_source == "HEALTHY"
     assert result.attempts[0].refresh_error == "FRANKFURT_HTTP_503"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("body", [{}, [], wire(isin="US91324P1021"), wire(mic="XETR")])
+async def test_bad_other_product_keeps_held_valuation_and_exact_original_timestamps(body):
+    timer, failing, calls = [0.0], [False], []
+    other = "DE000VH7S657"
+
+    def handler(request):
+        isin = request.url.params["isin"]
+        calls.append(isin)
+        return httpx.Response(200, json=body if failing[0] else wire(isin=isin))
+
+    adapter, _, _, request, row = context()
+    row[2].provider_exchange_code = "XSC"
+    adapter.settings = public_settings()
+    adapter._clock = lambda: NOW + timedelta(seconds=timer[0])
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as upstream:
+        client = FrankfurtSnapshotClient(
+            public_settings(),
+            client=upstream,
+            clock=lambda: NOW + timedelta(seconds=timer[0]),
+            timer=lambda: timer[0],
+            cache_seconds=300,
+        )
+        adapter.snapshots = client
+        await client.load_public(other)
+        timer[0] = 15
+        original = await adapter.get_warrant_listing_quote(request)
+        timer[0] = 301
+        failing[0] = True
+        with pytest.raises(FrankfurtSourceError):
+            await client.load_public(other)
+        failed_reason = client.last_error
+        held = await adapter.get_warrant_listing_quote(request)
+        assert held.data.reference_price == original.data.reference_price
+        assert held.data.provider_symbol == "DE000VH2LU21"
+        assert held.data.observed_at == original.data.observed_at
+        assert held.retrieved_at == original.retrieved_at
+        assert held.data.refresh_error is None
+        assert client.last_error == failed_reason  # Cache reads do not hide provider health.
+        assert client.cached_after_error("FRANKFURT_REQUEST_THROTTLED", other) is None
+        # Once transport TTL expires, only disclosed historical analysis is permitted.
+        timer[0] = 316
+        historical = await adapter.get_warrant_listing_quote(request)
+        assert historical.data.refresh_error == "FRANKFURT_REQUEST_THROTTLED"
+        assert historical.retrieved_at == original.retrieved_at
+        with pytest.raises(FrankfurtSourceError, match="REQUEST_THROTTLED"):
+            await client.load_public("DE000VX12345")
+        assert len(calls) == 3
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("code", [401, 403])
+async def test_access_failure_for_another_product_still_invalidates_entire_source(code):
+    timer = [0.0]
+    calls = []
+
+    def handler(request):
+        calls.append(request)
+        return httpx.Response(200, json=wire()) if len(calls) == 1 else httpx.Response(code)
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as upstream:
+        client = FrankfurtSnapshotClient(
+            public_settings(),
+            client=upstream,
+            clock=lambda: NOW,
+            timer=lambda: timer[0],
+            cache_seconds=300,
+        )
+        await client.load_public("DE000VH2LU21")
+        timer[0] = 15
+        with pytest.raises(FrankfurtSourceError, match=str(code)):
+            await client.load_public("DE000VH7S657")
+        with pytest.raises(FrankfurtSourceError, match=str(code)):
+            await client.load_public("DE000VH2LU21")
+        assert client.cached_after_error("FRANKFURT_REQUEST_THROTTLED", "DE000VH2LU21") is None
+        assert len(calls) == 2
+
+
+@pytest.mark.asyncio
+async def test_other_product_recovery_does_not_clear_same_product_refresh_failure():
+    timer, failing = [0.0], [False]
+    held = "DE000VH2LU21"
+
+    def handler(request):
+        isin = request.url.params["isin"]
+        return (
+            httpx.Response(503)
+            if failing[0] and isin == held
+            else httpx.Response(200, json=wire(isin=isin))
+        )
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as upstream:
+        client = FrankfurtSnapshotClient(
+            public_settings(),
+            client=upstream,
+            clock=lambda: NOW,
+            timer=lambda: timer[0],
+            cache_seconds=300,
+        )
+        await client.load_public(held)
+        timer[0] = 301
+        failing[0] = True
+        with pytest.raises(FrankfurtSourceError, match="503"):
+            await client.load_public(held)
+        timer[0] = 361
+        await client.load_public("DE000VH7S657")
+        with pytest.raises(FrankfurtSourceError, match="503"):
+            await client.load_public(held)
+        assert client.cached_after_error("FRANKFURT_HTTP_503", held)[0].isin == held

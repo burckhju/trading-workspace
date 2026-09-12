@@ -1,7 +1,11 @@
 # Automatic market-data refresh
 
 The active workspace catalog drives discovery and retrieval. An open position is
-not required. There are no per-product UUID commands and no hardcoded user
+not required. Products held in open positions and their underlyings are processed
+first; the remaining active catalog still follows in the same batch. Position
+priority is derived from positive open quantity and no closing timestamp in the
+configured workspace, not from a manually maintained product list.
+There are no per-product UUID commands and no hardcoded user
 instruments. Existing provider adapters, provider mappings, quote resolution and
 daily-price import services remain the governing paths.
 
@@ -64,7 +68,11 @@ default scope. Other backend deployments can set
 - Successful issuer responses and Frankfurt observations are cached per identity;
   Stuttgart's large payload is shared. Quote eligibility is checked before cache
   access. Original quote and retrieval timestamps remain unchanged, while age is
-  reassessed at read time. A browser visit is not needed to initiate background
+  reassessed at read time. A malformed/empty public Frankfurt response invalidates
+  only that requested ISIN, retaining independently verified observations for
+  other instruments. HTTP 401/403 invalidate all cached source data. The shared
+  provider cooldown remains in effect; expired transport caches may be reused
+  only through the existing disclosed historical-analysis fallback. A browser visit is not needed to initiate background
   retrieval.
 - Workspace cards display available indicative reference valuations as well as
   normal bid valuations, with warnings and source/time information. The existing
@@ -87,6 +95,26 @@ provider budgets and durable job scheduling before activation.
 
 Open **Arbeitsbereich → Automatischer Kursabruf → Abrufstatus laden** to see
 intervals, per-instrument coverage, diagnostic reasons and the earliest next run.
+All catalog jobs are published before provider work begins. `PENDING` means the
+first check has not completed; it is not a negative coverage result. `current_job`
+identifies the running operation and `pending_jobs` counts jobs without a first
+completed check. `held: true` identifies a product or underlying belonging to an
+open position. Failed discovery exposes the safe provider reason, for example
+`FRANKFURT_ISIN_INVALID` or `FRANKFURT_PUBLIC_EMPTY_RESPONSE`, instead of only an
+exception class. Missing quote observations alone cannot identify the discovery
+failure; inspect both the mapping and quote jobs.
+
+```bash
+curl -fsS http://localhost:8000/api/v1/market-data/refresh/status \
+  | jq '{running, current_job, pending_jobs, last_error,
+         jobs: [.jobs[] | select(.held == true)
+                | {name, isin, job, status, reason, quotes, source_attempts}]}'
+```
+
+An invalid catalog ISIN must be corrected against verified instrument evidence;
+it is never guessed or automatically padded. A product outside the active catalog
+(for example an inactive issuer) remains excluded and needs master-data review.
+
 `AVAILABLE` in this view describes successful retrieval or mapping verification;
 it does not assert a fresh or executable price.
 
