@@ -29,6 +29,7 @@ from app.features.market_data.service.errors import (
     MarketDataConfigurationError,
     MarketDataInvalidResponseError,
     MarketDataMappingError,
+    MarketDataNotFoundError,
 )
 from app.features.market_data.service.types import MarketDataResult, WarrantQuoteRequest
 from app.features.product.domain.models import WarrantLifecycle
@@ -69,12 +70,6 @@ class StuttgartDelayedWarrantQuoteAdapter:
     ) -> MarketDataResult[WarrantQuoteSnapshot | None]:
         self._require_ready_configuration()
         identity = await self._resolve_identity(request)
-        if identity.mic != "XSTU":
-            raise MarketDataMappingError(
-                "Börse Stuttgart delayed quotes are only valid for XSTU warrant listings",
-                provider=MarketDataProvider.BOERSE_STUTTGART_DELAYED,
-                capability=MarketDataCapability.WARRANT_LISTING_QUOTE,
-            )
 
         retrieved_at = datetime.now(UTC)
         payload = await self._load_latest_payload()
@@ -134,6 +129,15 @@ class StuttgartDelayedWarrantQuoteAdapter:
                 capability=MarketDataCapability.WARRANT_LISTING_QUOTE,
             )
         listing, warrant, venue = row
+        if venue.mic.upper() != "XSTU":
+            # The implicit ISIN route of this feed applies only to XSTU. An
+            # eligible listing at another venue is ordinary routing metadata,
+            # not an invalid mapping and must not cause any feed download.
+            raise MarketDataNotFoundError(
+                "STUTTGART_LISTING_VENUE_NOT_SUPPORTED",
+                provider=MarketDataProvider.BOERSE_STUTTGART_DELAYED,
+                capability=MarketDataCapability.WARRANT_LISTING_QUOTE,
+            )
         if warrant.isin is None:
             raise MarketDataMappingError(
                 "Warrant ISIN is required for Stuttgart delayed quote matching",
