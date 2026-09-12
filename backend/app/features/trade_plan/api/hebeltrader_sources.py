@@ -131,6 +131,7 @@ def source_axis(payload: dict[str, object], *, stock: bool) -> SourceAxis:
 def source_snapshot(version: ExternalObservationVersionModel) -> SourceSnapshot:
     payload = version.source_metadata or {}
     issues = []
+    issue_date: date | None
     try:
         issue_date = date.fromisoformat(_text(payload, "issue_date") or "")
     except ValueError:
@@ -144,6 +145,10 @@ def source_snapshot(version: ExternalObservationVersionModel) -> SourceSnapshot:
     if isinstance(source_file, dict):
         filename = _text(source_file, "filename")
         content_hash = _text(source_file, "content_hash")
+    if content_hash is not None and (
+        len(content_hash) != 64 or any(char not in "0123456789abcdef" for char in content_hash)
+    ):
+        content_hash = None
     if filename is None or content_hash is None:
         issues.append("Dateinachweis fehlt; keine aktuelle Einstiegsprüfung.")
     if payload.get("validation_issues"):
@@ -253,11 +258,15 @@ async def source_preview(
     if source.issue_date is None or values.get("gd200") is None:
         missing.append("Ausgabedatum oder GD200 fehlen in der Quelle.")
     if request.quote is None:
-        missing.append("Kein aktueller Geld-/Briefkurs: nur Quellenszenario, keine Einstiegsfreigabe.")
+        missing.append(
+            "Kein aktueller Geld-/Briefkurs: nur Quellenszenario, keine Einstiegsfreigabe."
+        )
     elif request.quote.currency != source.stock.currency:
         raise HTTPException(status_code=422, detail="Kurswährung passt nicht zur Empfehlung.")
     if request.target_history == "UNKNOWN":
-        missing.append("Zielhistorie nicht belegt; frühere Zielerreichung wird nicht ausgeschlossen.")
+        missing.append(
+            "Zielhistorie nicht belegt; frühere Zielerreichung wird nicht ausgeschlossen."
+        )
     if missing:
         return SourcePreviewResponse(source=source, missing_data=missing)
     # These values come from the selected immutable source, never from invented defaults.
@@ -266,7 +275,10 @@ async def source_preview(
             {
                 "as_of": datetime.now(UTC),
                 "analysis_date": source.issue_date,
-                "source_ref": f"ExternalObservationVersion:{source.version_id}; {source.filename}",
+                "source_ref": (
+                    f"ExternalObservationVersion:{source.version_id}; "
+                    f"sha256:{source.content_hash}"
+                ),
                 "quote": request.quote,
                 "gd200": values["gd200"],
                 "gd50": values.get("gd50"),

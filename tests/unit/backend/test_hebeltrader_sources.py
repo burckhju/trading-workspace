@@ -272,10 +272,41 @@ async def test_reader_scopes_workspace_underlying_source_and_current_version():
     compiled = str(
         query.compile(dialect=postgresql.dialect(), compile_kwargs={"literal_binds": True})
     )
-    for expected in (
-        str(WORKSPACE_ID), str(UNDERLYING), str(SOURCE), "HEBELTRADER", "FILE_IMPORT"
-    ):
+    for expected in (str(WORKSPACE_ID), str(UNDERLYING), str(SOURCE), "HEBELTRADER", "FILE_IMPORT"):
         assert expected in compiled
     assert "current_version_id" in compiled
     assert "LIMIT 51" in compiled
     session.commit.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "key, value",
+    [
+        ("issue_date", "2999-01-01"),
+        ("gd200", None),
+        ("underlying_stop_1", "170"),
+        ("source_file", {"filename": "example.pdf", "content_hash": "bad"}),
+    ],
+)
+def test_incomplete_or_future_sources_never_get_current_drafts(api, key, value):
+    client, reader = api
+    data = payload()
+    data[key] = value
+    reader.versions.return_value = [version(data)]
+    response = client.post(
+        "/api/v1/trade-plans/strategies/hebeltrader/source-preview",
+        json=source_body(quote=quote(), fundamental_ok=True, target_history="NOT_REACHED"),
+    )
+    assert response.status_code == 200
+    assert response.json()["current_preview"] is None
+    assert response.json()["missing_data"]
+
+
+def test_already_reached_target2_is_not_reopened(api):
+    client, _ = api
+    response = client.post(
+        "/api/v1/trade-plans/strategies/hebeltrader/source-preview",
+        json=source_body(quote=quote(), fundamental_ok=True, target_history="TARGET2_REACHED"),
+    ).json()
+    assert response["current_preview"]["assessment"]["eligible"] is False
+    assert response["current_preview"]["trade_plan_content"] is None

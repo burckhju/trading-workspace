@@ -41,7 +41,9 @@ function AxisView({ axis, label }: { axis: SourceAxis; label: string }) {
       </dl>
       <p>Quellen-CRV (50/50, vor Kosten): {axis.reward_risk ?? 'Nicht berechenbar'}</p>
       {axis.issues.map((issue) => (
-        <p key={issue} className="text-sm text-amber-300">{issue}</p>
+        <p key={issue} className="text-sm text-amber-300">
+          {issue}
+        </p>
       ))}
     </section>
   );
@@ -61,7 +63,8 @@ function SourcePanel({ underlyingId, onCreated }: Props) {
   const [reload, setReload] = useState(0);
   const [quote, setQuote] = useState(emptyQuote);
   const [fundamentalOk, setFundamentalOk] = useState(false);
-  const [targetHistory, setTargetHistory] = useState<SourceReviewRequest['target_history']>('UNKNOWN');
+  const [targetHistory, setTargetHistory] =
+    useState<SourceReviewRequest['target_history']>('UNKNOWN');
   const [review, setReview] = useState<SourceReview | null>(null);
   const [reviewed, setReviewed] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -120,7 +123,9 @@ function SourcePanel({ underlyingId, onCreated }: Props) {
     try {
       const hasQuote = Object.values(quote).some((value) => value.trim() !== '');
       if (hasQuote && Object.values(quote).some((value) => value.trim() === '')) {
-        throw new Error('Kurs, Kurszeit und Handelsplatz nur vollständig übernehmen oder leer lassen.');
+        throw new Error(
+          'Kurs, Kurszeit und Handelsplatz nur vollständig übernehmen oder leer lassen.',
+        );
       }
       const body: SourceReviewRequest = {
         underlying_id: underlyingId,
@@ -180,7 +185,9 @@ function SourcePanel({ underlyingId, onCreated }: Props) {
       {loading && <p role="status">Importierte Empfehlungen werden geladen.</p>}
       {loadError && <p role="alert">{loadError}</p>}
       {!loading && !loadError && items.length === 0 && (
-        <p>Keine bestätigte Hebeltrader-Empfehlung für diesen Basiswert vorhanden. PDF-Import nutzen.</p>
+        <p>
+          Keine bestätigte Hebeltrader-Empfehlung für diesen Basiswert vorhanden. PDF-Import nutzen.
+        </p>
       )}
       <button
         type="button"
@@ -231,24 +238,32 @@ function SourcePanel({ underlyingId, onCreated }: Props) {
             Quelle: {selected.filename ?? 'Dateinachweis fehlt'} · Ausgabe: {selected.issue_date}
           </p>
           <p className="text-sm text-amber-300">
-            Historische Veröffentlichung, kein aktueller Geld-/Briefkurs und keine Einstiegsfreigabe.
+            Historische Veröffentlichung, kein aktueller Geld-/Briefkurs und keine
+            Einstiegsfreigabe.
           </p>
           <AxisView axis={selected.stock} label="Aktie: veröffentlichte Werte" />
           <AxisView axis={selected.warrant} label="Optionsschein: veröffentlichte Werte" />
-          {selected.source_issues.map((issue) => <p key={issue} role="alert">{issue}</p>)}
+          {selected.source_issues.map((issue) => (
+            <p key={issue} role="alert">
+              {issue}
+            </p>
+          ))}
           <details>
             <summary>Optional: aktuell sichtbare Aktienkurse prüfen</summary>
             <p className="mt-2 text-sm text-slate-400">
               Nur unmittelbar bei Bank oder Börse ablesbare Werte übernehmen, sonst leer lassen.
-              Kurszeit in der lokalen Browser-Zeitzone. Währung: {selected.stock.currency ?? 'unbekannt'}.
+              Kurszeit in der lokalen Browser-Zeitzone. Währung:{' '}
+              {selected.stock.currency ?? 'unbekannt'}.
             </p>
             <fieldset disabled={busy} className="mt-3 grid gap-3 md:grid-cols-2">
-              {([
-                ['bid', 'Geldkurs Aktie'],
-                ['ask', 'Briefkurs Aktie'],
-                ['observedAt', 'Angezeigte Kurszeit'],
-                ['source', 'Angezeigter Handelsplatz / Kursanbieter'],
-              ] as const).map(([key, label]) => (
+              {(
+                [
+                  ['bid', 'Geldkurs Aktie'],
+                  ['ask', 'Briefkurs Aktie'],
+                  ['observedAt', 'Angezeigte Kurszeit'],
+                  ['source', 'Angezeigter Handelsplatz / Kursanbieter'],
+                ] as const
+              ).map(([key, label]) => (
                 <label key={key} className="text-sm">
                   {label}
                   <input
@@ -285,7 +300,10 @@ function SourcePanel({ underlyingId, onCreated }: Props) {
                 <input
                   type="checkbox"
                   checked={fundamentalOk}
-                  onChange={(event) => { setFundamentalOk(event.target.checked); invalidate(); }}
+                  onChange={(event) => {
+                    setFundamentalOk(event.target.checked);
+                    invalidate();
+                  }}
                 />{' '}
                 Fundamentale These separat geprüft
               </label>
@@ -296,10 +314,14 @@ function SourcePanel({ underlyingId, onCreated }: Props) {
           </button>
           {review && (
             <section aria-label="Hebeltrader-Ergebnis" className="space-y-3 text-sm">
-              {review.missing_data.map((message) => <p key={message}>{message}</p>)}
+              {review.missing_data.map((message) => (
+                <p key={message}>{message}</p>
+              ))}
               {current && (
                 <>
-                  <p>Aktuelles Brutto-CRV: {current.assessment.reward_risk ?? 'Nicht berechenbar'}</p>
+                  <p>
+                    Aktuelles Brutto-CRV: {current.assessment.reward_risk ?? 'Nicht berechenbar'}
+                  </p>
                   {!current.assessment.eligible && (
                     <p role="alert">Nicht freigegeben: {current.assessment.reasons.join(', ')}</p>
                   )}
@@ -329,11 +351,16 @@ function SourcePanel({ underlyingId, onCreated }: Props) {
             </section>
           )}
           <p className="text-xs text-slate-500">
-            Quellenversion: {selected.version_id} · Datei-Prüfwert: {selected.content_hash ?? 'fehlt'}
+            Quellenversion: {selected.version_id} · Datei-Prüfwert:{' '}
+            {selected.content_hash ?? 'fehlt'}
           </p>
         </div>
       )}
-      {error && <p role="alert" className="mt-3 text-red-400">{error}</p>}
+      {error && (
+        <p role="alert" className="mt-3 text-red-400">
+          {error}
+        </p>
+      )}
     </details>
   );
 }
