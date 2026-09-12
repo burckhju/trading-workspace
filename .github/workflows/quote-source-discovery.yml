@@ -10,13 +10,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      - run: python -m pip install PyYAML==6.0.3
       - name: Inspect official public documentation (no authentication)
         run: |
           python - <<'PY'
           import json
           import re
           import urllib.request
-          import urllib.parse
+          import yaml
           from datetime import datetime, timezone
 
           class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -24,44 +25,34 @@ jobs:
                   return None
 
           opener = urllib.request.build_opener(NoRedirect)
-          allowed = {'mds.ariva-services.de', 'mfs.deutsche-boerse.com', 'mvs.deutsche-boerse.com'}
-          seen = set()
           def get(url):
-              if urllib.parse.urlsplit(url).hostname not in allowed or url in seen:
-                  return ''
-              seen.add(url)
               print('\nDOCUMENT', url, 'AT', datetime.now(timezone.utc).isoformat())
               try:
                   req = urllib.request.Request(url, headers={'User-Agent': 'TradingWorkspace-SourceCheck/1.0'})
                   with opener.open(req, timeout=15) as response:
-                      data = response.read(1500001)
-                      print('HTTP', response.status, 'TYPE', response.headers.get('Content-Type'), 'BYTES', len(data))
-                      if len(data) > 1500000:
-                          print('DOCUMENT_TOO_LARGE')
+                      data = response.read(3000001)
+                      print('HTTP', response.status, 'BYTES', len(data))
+                      if len(data) > 3000000:
                           return ''
                       return data.decode('utf-8')
               except Exception as exc:
                   print('FAILURE', type(exc).__name__, str(exc)[:200])
                   return ''
 
-          url = 'https://mds.ariva-services.de/swagger-ui/'
-          html = get(url)
-          print(html[:22000])
-          for src in re.findall(r'<script[^>]*src=["\x27]([^"\x27]+)', html):
-              if any(word in src for word in ('bundle', 'standalone', 'jquery')):
-                  continue
-              script_url = urllib.parse.urljoin(url, src)
-              text = get(script_url)
-              print(text[:60000])
-          # Standard public documentation locations; never API credential probes.
-          for path in ('/v3/api-docs', '/openapi.json', '/swagger.json'):
-              text = get('https://mds.ariva-services.de' + path)
-              if text.lstrip().startswith('{'):
-                  doc = json.loads(text)
-                  print('SPEC', json.dumps(doc, ensure_ascii=False)[:100000])
-                  if 'paths' in doc:
-                      break
-          for url in ('https://mfs.deutsche-boerse.com/DXSC-posttrade', 'https://mvs.deutsche-boerse.com/'):
-              text = get(url)
-              print(text[:18000])
+          text = get('https://mds.ariva-services.de/swagger-ui/openapi.yml')
+          doc = yaml.safe_load(text)
+          if isinstance(doc, dict):
+              print('META', json.dumps({k:v for k,v in doc.items() if k not in ('paths', 'components')}, default=str))
+              print('PATHS', list(doc.get('paths', {})))
+              selected = {}
+              for name, path in doc.get('paths', {}).items():
+                  if any(key in name.lower() for key in ('quote', 'snapshot', 'login', 'auth', 'instrument', 'source')):
+                      selected[name] = path
+              print('PATH DETAILS', json.dumps(selected, default=str)[:100000])
+              print('COMPONENTS', json.dumps(doc.get('components', {}), default=str)[:140000])
+          print(get('https://mfs.deutsche-boerse.com/app.js')[:40000])
+          text = get('https://mvs.deutsche-boerse.com/assets/index-CnjaO4GD.js')
+          for keyword in ('DXSC', 'pretrade', 'api/', 'dbgservice', 'baseURL', 'search', 'isin'):
+              for match in list(re.finditer(re.escape(keyword), text, re.I))[-5:]:
+                  print('JS CONTEXT', keyword, text[max(0, match.start()-300):match.end()+500])
           PY
