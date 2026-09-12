@@ -47,7 +47,8 @@ def test_strike_currency_migration_preserves_legacy_values_and_is_reversible() -
         assert old.strike == 500
         assert old.strike_currency_code is None
         column = next(
-            col for col in inspect(connection).get_columns("warrant_terms_versions")
+            col
+            for col in inspect(connection).get_columns("warrant_terms_versions")
             if col["name"] == "strike_currency_code"
         )
         assert column["nullable"] is True
@@ -67,9 +68,7 @@ def test_strike_currency_migration_preserves_legacy_values_and_is_reversible() -
                     ),
                     {"currency": invalid},
                 )
-        connection.execute(
-            text("INSERT INTO warrant_terms_versions VALUES (2, 500, 'USD')")
-        )
+        connection.execute(text("INSERT INTO warrant_terms_versions VALUES (2, 500, 'USD')"))
         with Operations.context(context):
             migration.downgrade()
         assert "strike_currency_code" not in {
