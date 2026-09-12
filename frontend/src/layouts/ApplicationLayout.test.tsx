@@ -35,7 +35,7 @@ describe('ApplicationLayout', () => {
 
     const navigation = screen.getByRole('navigation', { name: 'Hauptnavigation' });
     const links = within(navigation).getAllByRole('link');
-    expect(links).toHaveLength(9);
+    expect(links).toHaveLength(10);
     links.forEach((link) => expect(link).toHaveClass('focus-visible:ring-2'));
   });
 });

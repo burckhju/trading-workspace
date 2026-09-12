@@ -5,6 +5,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, status
 
+from app.features.market.api.currency_router import router as currency_admin_router
 from app.features.market.api.dependencies import (
     get_issuer_administration_service,
     get_reference_data_service,
@@ -326,3 +327,6 @@ async def list_currencies(
 ) -> CurrencyListResponse:
     items = await service.list_active_currencies()
     return CurrencyListResponse(items=[CurrencyResponse.model_validate(item) for item in items])
+
+
+router.include_router(currency_admin_router)

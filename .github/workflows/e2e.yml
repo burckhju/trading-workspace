@@ -8,11 +8,11 @@ on:
   push:
     branches: [main]
     paths:
-      - 'backend/**'
-      - 'frontend/**'
-      - 'docker/**'
-      - 'tests/e2e/**'
-      - '.github/workflows/e2e.yml'
+      - "backend/**"
+      - "frontend/**"
+      - "docker/**"
+      - "tests/e2e/**"
+      - ".github/workflows/e2e.yml"
 
 permissions:
   contents: read
@@ -30,12 +30,13 @@ jobs:
       POSTGRES_DB: trading_workspace
       POSTGRES_USER: trading_workspace
       POSTGRES_PASSWORD: ci-only-password
-      POSTGRES_PORT: '5432'
-      BACKEND_PORT: '8000'
-      FRONTEND_PORT: '8080'
+      POSTGRES_PORT: "5432"
+      BACKEND_PORT: "8000"
+      FRONTEND_PORT: "8080"
       TRADING_WORKSPACE_DATABASE_URL: postgresql+asyncpg://trading_workspace:ci-only-password@database:5432/trading_workspace
       VITE_API_BASE_URL: http://localhost:8080/api
       PLAYWRIGHT_BASE_URL: http://127.0.0.1:8080
+      CURRENCY_E2E_WRITES_ALLOWED: "1"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -56,6 +57,8 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Build and start stack
         run: docker compose -f docker/compose.yml up --build --wait --wait-timeout 180
+      - name: Migrate disposable E2E database
+        run: docker compose -f docker/compose.yml run --rm --no-deps -T backend python -m alembic upgrade head
       - name: Run Playwright smoke tests
         working-directory: frontend
         env:

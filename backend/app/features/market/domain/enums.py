@@ -28,6 +28,8 @@ class AggregateType(StrEnum):
     PROVIDER_MAPPING = "PROVIDER_MAPPING"
     TRADING_VENUE = "TRADING_VENUE"
     ISSUER = "ISSUER"
+    CURRENCY = "CURRENCY"
+    CURRENCY_CATALOG = "CURRENCY_CATALOG"
 
 
 class ActorType(StrEnum):
