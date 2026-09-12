@@ -72,6 +72,10 @@ class ProductPositionValuation:
     trading_status: str | None = None
     valuation_usable: bool = False
     execution_usable: bool = False
+    analysis_usable: bool = False
+    analysis_warning: str | None = None
+    analysis_market_value: Decimal | None = None
+    analysis_unrealized_gross_pnl: Decimal | None = None
     freshness_policy: str | None = None
     source_attempts: tuple[QuoteSourceAttempt, ...] = ()
 
@@ -383,6 +387,10 @@ class ProductPositionValuationService:
                     trading_status=quote.trading_status,
                     valuation_usable=True,
                     execution_usable=False,
+                    analysis_usable=True,
+                    analysis_warning="OUTDATED_QUOTE_INDICATIVE_ANALYSIS_ONLY",
+                    analysis_market_value=market_value,
+                    analysis_unrealized_gross_pnl=market_value - position.cost_basis,
                     freshness_policy=self._freshness_policy.policy_version,
                     source_attempts=attempts,
                 )
@@ -396,6 +404,10 @@ class ProductPositionValuationService:
                     symbol=selected_listing.symbol,
                     status=ProductValuationStatus.STALE,
                     reason="WARRANT_QUOTE_STALE",
+                    analysis_usable=True,
+                    analysis_warning="OUTDATED_QUOTE_INDICATIVE_ANALYSIS_ONLY",
+                    analysis_market_value=market_value,
+                    analysis_unrealized_gross_pnl=market_value - position.cost_basis,
                     bid=quote.bid,
                     ask=quote.ask,
                     currency=quote.currency,
@@ -444,6 +456,9 @@ class ProductPositionValuationService:
                 source_mode=quote.source_mode,
                 trading_status=quote.trading_status,
                 valuation_usable=True,
+                analysis_usable=True,
+                analysis_market_value=market_value,
+                analysis_unrealized_gross_pnl=market_value - position.cost_basis,
                 execution_usable=(
                     quote.trading_status == "OPEN"
                     and quote.source_mode != "OFFICIAL_ISSUER_INDICATION"

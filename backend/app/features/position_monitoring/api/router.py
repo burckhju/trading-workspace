@@ -346,6 +346,10 @@ async def get_trade_product_valuation(
         trading_status=value.trading_status,
         valuation_usable=value.valuation_usable,
         execution_usable=value.execution_usable,
+        analysis_usable=value.analysis_usable,
+        analysis_warning=value.analysis_warning,
+        analysis_market_value=value.analysis_market_value,
+        analysis_unrealized_gross_pnl=value.analysis_unrealized_gross_pnl,
         freshness_policy=value.freshness_policy,
         source_attempts=tuple(
             QuoteSourceAttemptResponse(

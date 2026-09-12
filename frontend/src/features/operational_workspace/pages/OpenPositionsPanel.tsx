@@ -12,6 +12,7 @@ function formatNumber(value: string | null, currency?: string | null): string {
 
 function statusLabel(status: string): string {
   if (status === 'OK' || status === 'AVAILABLE') return 'Aktuell';
+  if (status === 'LAST_AVAILABLE') return 'Letzter verfügbarer Kurs';
   if (status === 'STALE') return 'Veraltet';
   if (status === 'MISSING') return 'Fehlt';
   if (status === 'INSUFFICIENT') return 'Noch nicht ausreichend';
@@ -119,6 +120,13 @@ export function OpenPositionsPanel({ positions }: { positions: OperationalPositi
                 <dd className="mt-1 text-slate-200">{position.underlying_symbol ?? '—'}</dd>
               </div>
             </dl>
+
+            {position.valuation_status === 'LAST_AVAILABLE' && (
+              <p className="mt-3 text-sm text-amber-300">
+                Kursdaten veraltet: Bewertung und darauf basierende Analysen sind indikativ.
+                Kurszeitpunkt und Quelle unter „Trade verwalten“ prüfen. Keine Orderfreigabe.
+              </p>
+            )}
 
             <div className="mt-4 flex flex-wrap gap-2 text-xs text-slate-300">
               <span className="rounded-full border border-slate-700 px-2.5 py-1">

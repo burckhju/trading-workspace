@@ -34,9 +34,9 @@ function statusText(value: ProductPositionValuationResponse): string {
 function reasonText(reason: string): string {
   switch (reason) {
     case 'WARRANT_QUOTE_STALE':
-      return 'Der letzte Produktkurs ist zu alt für eine belastbare aktuelle Depotbewertung. Marktwert und unrealized P&L werden deshalb nicht berechnet.';
+      return 'Der letzte Produktkurs ist zu alt für eine belastbare aktuelle Depotbewertung. Eine indikative Analyse zum letzten verfügbaren Kurs bleibt möglich.';
     case 'MARKET_CLOSED_LAST_AVAILABLE_QUOTE':
-      return 'Der Handel ist geschlossen. Angezeigt wird der letzte plausible Schlusskurs; die Bewertung ist indikativ und nicht für eine Orderentscheidung nutzbar.';
+      return 'Der Handel ist geschlossen. Angezeigt wird der letzte plausible Kurs der vorherigen Handelssitzung; die Bewertung ist indikativ.';
     case 'WARRANT_QUOTE_TIME_INCONSISTENT':
       return 'Der Datenzeitpunkt des Produktkurses liegt nach dem Abrufzeitpunkt. Der Kurs wird nicht für die Depotbewertung verwendet.';
     case 'WARRANT_QUOTE_CAPABILITY_NOT_CONFIGURED':
@@ -138,10 +138,31 @@ export function ProductValuationPanel({ tradeId }: { tradeId: string }) {
         </span>
       </div>
 
-      {value.valuation_usable ? (
+      {(value.analysis_usable || value.valuation_usable) && value.analysis_warning && (
+        <div
+          role="status"
+          className="mt-3 rounded-lg border border-amber-700 bg-amber-950/30 p-3 text-sm text-amber-200"
+        >
+          <p className="font-medium">Kursdaten veraltet – nur indikative Analyse</p>
+          <p className="mt-1">
+            Analyseergebnisse und Empfehlungen auf dieser Kursbasis beziehen sich auf den letzten
+            verfügbaren Kurs, nicht auf die aktuelle Marktlage. Vor einer Umsetzung ist eine erneute
+            Prüfung mit aktuellen, ausführbaren Kursdaten erforderlich.
+          </p>
+          <p className="mt-1">
+            Kursstand:{' '}
+            {value.quote_observed_at
+              ? new Date(value.quote_observed_at).toLocaleString('de-DE')
+              : 'Zeitpunkt unbekannt'}{' '}
+            · {formatQuoteAge(value)}
+          </p>
+        </div>
+      )}
+
+      {value.valuation_usable || value.analysis_usable ? (
         <>
           <p className="mt-3 text-xs text-slate-500">
-            {value.status === 'LAST_AVAILABLE'
+            {value.status === 'LAST_AVAILABLE' || value.status === 'STALE'
               ? reasonText(value.reason)
               : 'Indikative LONG-Bewertung zum Bid des exakt dokumentierten WarrantListings. Stop und Target werden weiterhin ausschließlich anhand des Underlyings überwacht.'}
           </p>
@@ -159,15 +180,29 @@ export function ProductValuationPanel({ tradeId }: { tradeId: string }) {
               </dd>
             </div>
             <div>
-              <dt className="text-slate-500">Marktwert (Bid)</dt>
+              <dt className="text-slate-500">
+                {value.analysis_warning ? 'Indikativer Wert (letzter Bid)' : 'Marktwert (Bid)'}
+              </dt>
               <dd className="mt-1 font-medium">
-                {formatDecimal(value.market_value)} {value.currency}
+                {formatDecimal(
+                  value.analysis_usable ? value.analysis_market_value : value.market_value,
+                )}{' '}
+                {value.currency}
               </dd>
             </div>
             <div>
-              <dt className="text-slate-500">Unrealized gross P&amp;L</dt>
+              <dt className="text-slate-500">
+                {value.analysis_warning
+                  ? 'Indikativer unrealized gross P&L'
+                  : 'Unrealized gross P&L'}
+              </dt>
               <dd className="mt-1 font-medium">
-                {formatDecimal(value.unrealized_gross_pnl)} {value.currency}
+                {formatDecimal(
+                  value.analysis_usable
+                    ? value.analysis_unrealized_gross_pnl
+                    : value.unrealized_gross_pnl,
+                )}{' '}
+                {value.currency}
               </dd>
             </div>
           </dl>
@@ -180,7 +215,8 @@ export function ProductValuationPanel({ tradeId }: { tradeId: string }) {
           </p>
           {!value.execution_usable && (
             <p className="mt-2 text-xs text-amber-300">
-              Dieser Kurs ist nicht für eine automatische Exit- oder Orderentscheidung freigegeben.
+              Indikative Empfehlungen sind möglich. Dieser Kurs erteilt keine Freigabe zur
+              Orderausführung.
             </p>
           )}
         </>
@@ -194,8 +230,8 @@ export function ProductValuationPanel({ tradeId }: { tradeId: string }) {
             </p>
           )}
           <p>
-            Fehlende, veraltete oder unzuverlässige Produktdaten werden nicht als unauffällige
-            Position interpretiert und erzeugen keine automatische Kauf- oder Verkaufsentscheidung.
+            Fehlende oder unzuverlässige Produktdaten werden weder für kursbasierte Empfehlungen
+            noch für eine Orderfreigabe verwendet.
           </p>
         </div>
       )}
