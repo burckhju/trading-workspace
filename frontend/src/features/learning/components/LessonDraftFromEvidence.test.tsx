@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { lessonDraftClient } from '../services/lessonDraftClient';
@@ -27,8 +28,12 @@ describe('LessonDraftFromEvidence', () => {
     });
   });
 
-  it('requires explicit interpretation fields before creating a Lesson', async () => {
-    render(<LessonDraftFromEvidence learningEvidenceId="evidence-1" />);
+  it('requires explicit interpretation fields and links directly to the created Lesson', async () => {
+    render(
+      <MemoryRouter>
+        <LessonDraftFromEvidence learningEvidenceId="evidence-1" />
+      </MemoryRouter>,
+    );
 
     const button = screen.getByRole('button', { name: 'Lesson anlegen' });
     expect(button).toBeDisabled();
@@ -53,6 +58,10 @@ describe('LessonDraftFromEvidence', () => {
         tags: [],
       }),
     );
-    expect(await screen.findByText(/Lesson angelegt:/)).toBeInTheDocument();
+    expect(await screen.findByText('Lesson LS-LESSON-1 wurde angelegt.')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Lesson öffnen' })).toHaveAttribute(
+      'href',
+      '/lessons/lesson-1',
+    );
   });
 });
