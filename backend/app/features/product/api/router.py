@@ -8,7 +8,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Response, status
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.dependencies import get_database_session
@@ -23,6 +23,16 @@ from app.features.product.service.hard_delete import WarrantHardDeleteService
 
 router = APIRouter(prefix="/api/v1/warrants", tags=["warrants"])
 WORKSPACE_ID = UUID("00000000-0000-4000-8000-000000000001")
+StrikeCurrencyCode = Annotated[
+    str,
+    StringConstraints(
+        strip_whitespace=True,
+        to_upper=True,
+        min_length=3,
+        max_length=3,
+        pattern=r"^[A-Za-z]{3}$",
+    ),
+]
 
 
 class Request(BaseModel):
@@ -41,6 +51,10 @@ class CreateWarrantRequest(Request):
     wkn: str | None = Field(default=None, max_length=16)
     option_direction: OptionDirection
     strike: Decimal = Field(ge=0)
+    strike_currency_code: StrikeCurrencyCode | None = Field(
+        default=None,
+        description="Contractual strike currency, independent of listing. Null means unknown.",
+    )
     maturity_date: date
     ratio: Decimal = Field(gt=0)
 
@@ -53,6 +67,10 @@ class TermsRequest(Request):
     expected_version: int = Field(ge=1)
     option_direction: OptionDirection
     strike: Decimal = Field(ge=0)
+    strike_currency_code: StrikeCurrencyCode | None = Field(
+        default=None,
+        description="Explicit currency for this terms version; never inferred from a listing.",
+    )
     maturity_date: date
     ratio: Decimal = Field(gt=0)
 
@@ -90,6 +108,7 @@ class TermsResponse(ResponseModel):
     effective_to: datetime | None
     option_direction: OptionDirection
     strike: Decimal
+    strike_currency_code: str | None = None
     maturity_date: date
     ratio: Decimal
     created_at: datetime

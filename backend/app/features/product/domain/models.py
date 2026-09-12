@@ -66,6 +66,8 @@ class WarrantTermsVersion:
     maturity_date: date
     ratio: Decimal
     created_at: datetime
+    # None means unknown, never the listing currency or an implicit EUR default.
+    strike_currency_code: str | None = None
 
     def __post_init__(self) -> None:
         if self.version_no < 1:
@@ -76,6 +78,17 @@ class WarrantTermsVersion:
             raise ValueError("ratio must be greater than zero")
         if self.effective_to is not None and self.effective_to <= self.effective_from:
             raise ValueError("effective_to must be after effective_from")
+        object.__setattr__(
+            self, "strike_currency_code", normalize_strike_currency(self.strike_currency_code)
+        )
+
+    def require_strike_reference_currency(self, reference_currency_code: str | None) -> None:
+        """Guard strike comparisons; this does not perform FX or Quanto conversion."""
+        if self.strike_currency_code is None:
+            raise ValueError("Strike currency is unknown; strike comparison is not available")
+        reference_currency = normalize_strike_currency(reference_currency_code)
+        if reference_currency is None or reference_currency != self.strike_currency_code:
+            raise ValueError("Reference price currency must match strike currency")
 
 
 @dataclass(frozen=True, slots=True)
@@ -100,6 +113,16 @@ class WarrantListing:
         object.__setattr__(self, "quotation_currency_code", currency)
         if self.version < 1:
             raise ValueError("version must be positive")
+
+
+def normalize_strike_currency(value: str | None) -> str | None:
+    """Normalize an explicit currency, preserving unknown and rejecting blank/non-ISO syntax."""
+    if value is None:
+        return None
+    code = value.strip()
+    if len(code) != 3 or not code.isascii() or not code.isalpha():
+        raise ValueError("strike_currency_code must be a 3-letter currency code or null")
+    return code.upper()
 
 
 def _optional_upper(value: str | None) -> str | None:

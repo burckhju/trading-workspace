@@ -6,6 +6,7 @@ import type {
   TradingVenueResponse,
   UnderlyingSummaryResponse,
 } from '../../market/types/api';
+import { StrikeCurrencyInput } from '../components/StrikeCurrencyInput';
 import { warrantApiClient } from '../services/client';
 import type {
   OptionDirection,
@@ -22,12 +23,14 @@ const EMPTY_PRODUCT = {
   wkn: '',
   option_direction: 'CALL' as OptionDirection,
   strike: '',
+  strike_currency_code: '',
   maturity_date: '',
   ratio: '',
 };
 const EMPTY_TERMS = {
   option_direction: 'CALL' as OptionDirection,
   strike: '',
+  strike_currency_code: '',
   maturity_date: '',
   ratio: '',
 };
@@ -111,6 +114,7 @@ export function WarrantAdminPage() {
         ...productForm,
         isin: productForm.isin || null,
         wkn: productForm.wkn || null,
+        strike_currency_code: productForm.strike_currency_code || null,
       });
       setProductForm(EMPTY_PRODUCT);
       await loadWarrants(created.id);
@@ -131,6 +135,7 @@ export function WarrantAdminPage() {
     try {
       await warrantApiClient.addTerms(selected.id, {
         ...termsForm,
+        strike_currency_code: termsForm.strike_currency_code || null,
         expected_version: selected.version,
       });
       setTermsForm(EMPTY_TERMS);
@@ -295,6 +300,11 @@ export function WarrantAdminPage() {
                 />
               </label>
             </div>
+            <StrikeCurrencyInput
+              label="Strike-Währung"
+              value={productForm.strike_currency_code}
+              onChange={(value) => setProductForm({ ...productForm, strike_currency_code: value })}
+            />
             <div className="grid grid-cols-2 gap-3">
               <label className="text-sm">
                 Fälligkeit *
@@ -401,7 +411,8 @@ export function WarrantAdminPage() {
                       <span>{t.option_direction}</span>
                     </div>
                     <p className="mt-1 text-slate-400">
-                      Strike {t.strike} · Ratio {t.ratio} · Fälligkeit {t.maturity_date}
+                      Strike {t.strike} {t.strike_currency_code ?? '(Währung ungeklärt)'} · Ratio{' '}
+                      {t.ratio} · Fälligkeit {t.maturity_date}
                     </p>
                     <p className="mt-1 text-xs text-slate-500">
                       gültig ab {new Date(t.effective_from).toLocaleString('de-DE')}
@@ -440,6 +451,11 @@ export function WarrantAdminPage() {
                     className="rounded border border-slate-700 bg-slate-950 p-2 text-sm"
                   />
                 </div>
+                <StrikeCurrencyInput
+                  label="Neue Strike-Währung"
+                  value={termsForm.strike_currency_code}
+                  onChange={(value) => setTermsForm({ ...termsForm, strike_currency_code: value })}
+                />
                 <div className="grid grid-cols-2 gap-2">
                   <input
                     aria-label="Neue Fälligkeit"

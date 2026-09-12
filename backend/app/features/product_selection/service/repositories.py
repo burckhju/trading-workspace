@@ -145,6 +145,7 @@ def _terms_from_model(model: WarrantTermsVersionModel) -> WarrantTermsVersion:
         effective_to=model.effective_to,
         option_direction=model.option_direction,
         strike=model.strike,
+        strike_currency_code=model.strike_currency_code,
         maturity_date=model.maturity_date,
         ratio=model.ratio,
         created_at=model.created_at,
