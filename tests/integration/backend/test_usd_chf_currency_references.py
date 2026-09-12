@@ -15,10 +15,11 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import text
 from sqlalchemy.engine import make_url
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.pool import NullPool
 
 from app.core.config import Environment, Settings
+from app.database import DatabaseManager
 from app.database.dependencies import get_database_session
 from app.main import create_application
 
@@ -77,29 +78,28 @@ def currency_database() -> Iterator[str]:
 
 @asynccontextmanager
 async def _client(url: str) -> AsyncIterator[AsyncClient]:
-    engine = create_async_engine(url, poolclass=NullPool)
-    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    settings = Settings(
+        _env_file=None,
+        environment=Environment.TEST,
+        database_url=url,
+        documentation_enabled=True,
+        log_level="CRITICAL",
+    )
+    # Use production session semantics, including autoflush=False and rollback cleanup.
+    database = DatabaseManager(settings)
 
     async def session_dependency() -> AsyncIterator[AsyncSession]:
-        async with sessions() as session:
+        async for session in database.session():
             yield session
 
-    app = create_application(
-        Settings(
-            _env_file=None,
-            environment=Environment.TEST,
-            database_url=url,
-            documentation_enabled=True,
-            log_level="CRITICAL",
-        )
-    )
+    app = create_application(settings)
     app.dependency_overrides[get_database_session] = session_dependency
     try:
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             yield client
     finally:
         app.dependency_overrides.clear()
-        await engine.dispose()
+        await database.dispose()
 
 
 async def _product_payload(client: AsyncClient) -> dict[str, object]:
@@ -202,6 +202,13 @@ def test_fresh_migrations_make_usd_chf_available_for_real_warrant_writes(
                 "/api/v1/warrants", json={**payload, "strike_currency_code": "ZZZ"}
             )
             assert 400 <= rejected.status_code < 500
+
+            # Retain newly seeded references even after they are used by historical terms.
+            for action, revision in (("downgrade", PREVIOUS_REVISION), ("upgrade", "head")):
+                await asyncio.to_thread(_migrate, currency_database, revision, action=action)
+                remaining = await client.get("/api/v1/market-reference-data/currencies")
+                assert remaining.json() == response.json()
+                assert (await client.get(terms_url)).json() == history
 
     asyncio.run(exercise())
 
