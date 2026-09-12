@@ -10,7 +10,10 @@ from uuid import UUID
 from app.features.market_data.domain.enums import QualityStatus
 from app.features.market_data.domain.models import WarrantQuoteSnapshot
 from app.features.market_data.service.contracts import WarrantListingQuoteProvider
-from app.features.market_data.service.errors import MarketDataConfigurationError
+from app.features.market_data.service.errors import (
+    MarketDataConfigurationError,
+    MarketDataNotFoundError,
+)
 from app.features.market_data.service.types import MarketDataResult, WarrantQuoteRequest
 
 
@@ -71,6 +74,10 @@ class MultiSourceWarrantQuoteResolver:
 
             try:
                 result = await source.provider.get_warrant_listing_quote(request)
+            except MarketDataNotFoundError:
+                # The listing is not configured/mapped for this provider. This is
+                # routing metadata, not a failed provider quote attempt.
+                continue
             except MarketDataConfigurationError as exc:
                 attempts.append(
                     QuoteSourceAttempt(
