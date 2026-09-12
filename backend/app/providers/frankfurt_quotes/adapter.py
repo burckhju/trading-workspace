@@ -32,12 +32,15 @@ from app.features.product.persistence.models import WarrantListingModel, Warrant
 from app.providers.frankfurt_quotes.client import FrankfurtSnapshotClient, utc_now
 from app.providers.frankfurt_quotes.public import (
     PUBLIC_EXCHANGE_CODE,
+    FrankfurtPublicPrice,
     assess_public_price,
 )
 from app.providers.frankfurt_quotes.schema import (
     FRANKFURT_MIC,
     FrankfurtObservation,
+    FrankfurtSnapshot,
     FrankfurtSourceError,
+    QuoteStatus,
     assess_snapshot,
 )
 
@@ -127,6 +130,22 @@ class FrankfurtWarrantQuoteAdapter:
             listing.id, warrant.isin, warrant.wkn, listing.quotation_currency_code
         )
 
+    async def _load(
+        self, isin: str | None
+    ) -> tuple[FrankfurtSnapshot | FrankfurtPublicPrice, datetime, bool, str | None]:
+        try:
+            value, retrieved_at, hit = (
+                await self.snapshots.load_public(isin)
+                if isin is not None
+                else await self.snapshots.load()
+            )
+            return value, retrieved_at, hit, None
+        except FrankfurtSourceError as exc:
+            cached = self.snapshots.cached_after_error(str(exc), isin)
+            if cached is None:
+                raise
+            return cached[0], cached[1], True, str(exc)
+
     async def inspect(self, request: WarrantQuoteRequest) -> tuple[FrankfurtObservation, bool]:
         reason = self.settings.readiness_reason
         if reason != "CONFIGURED_NOT_PROBED":
@@ -134,32 +153,40 @@ class FrankfurtWarrantQuoteAdapter:
         identity = await self._identity(request)  # Resolve eligibility before any network I/O.
         try:
             if self.settings.source_mode is FrankfurtSourceMode.PUBLIC_WEBSITE:
-                price, retrieved_at, hit = await self.snapshots.load_public(identity.isin)
-                return (
-                    assess_public_price(
-                        price,
-                        isin=identity.isin,
-                        currency=identity.currency,
-                        now=self._clock(),
-                        retrieved_at=retrieved_at,
-                        max_age_seconds=self.settings.max_quote_age_seconds,
-                    ),
-                    hit,
+                price, retrieved_at, hit, refresh_error = await self._load(identity.isin)
+                assert isinstance(price, FrankfurtPublicPrice)
+                observation = assess_public_price(
+                    price,
+                    isin=identity.isin,
+                    currency=identity.currency,
+                    now=self._clock(),
+                    retrieved_at=retrieved_at,
+                    max_age_seconds=self.settings.max_quote_age_seconds,
                 )
-            snapshot, retrieved_at, hit = await self.snapshots.load()
-            observation = assess_snapshot(
-                snapshot,
-                isin=identity.isin,
-                wkn=identity.wkn,
-                currency=identity.currency,
-                now=self._clock(),  # Reassess actual age even when the transport cache hits.
-                retrieved_at=retrieved_at,
-                max_age_seconds=self.settings.max_quote_age_seconds,
-            )
+            else:
+                snapshot, retrieved_at, hit, refresh_error = await self._load(None)
+                assert isinstance(snapshot, FrankfurtSnapshot)
+                observation = assess_snapshot(
+                    snapshot,
+                    isin=identity.isin,
+                    wkn=identity.wkn,
+                    currency=identity.currency,
+                    now=self._clock(),  # Reassess actual age even for historical cache reads.
+                    retrieved_at=retrieved_at,
+                    max_age_seconds=self.settings.max_quote_age_seconds,
+                )
         except FrankfurtSourceError as exc:
             raise MarketDataInvalidResponseError(
                 str(exc), provider=PROVIDER, capability=CAPABILITY
             ) from None
+        if refresh_error is not None:
+            changes: dict[str, object] = {"refresh_error": refresh_error}
+            if observation.analysis_usable:
+                changes.update(
+                    status=QuoteStatus.INSUFFICIENT,
+                    reason="FRANKFURT_LAST_SUCCESSFUL_QUOTE_REFRESH_FAILED",
+                )
+            observation = observation.model_copy(update=changes)
         return observation, hit
 
     async def get_warrant_listing_quote(
@@ -205,6 +232,7 @@ class FrankfurtWarrantQuoteAdapter:
                 feed_delay_seconds=observation.declared_delay_seconds,
                 venue_mic=FRANKFURT_MIC,
                 max_quote_age_seconds=self.settings.max_quote_age_seconds,
+                refresh_error=observation.refresh_error,
             )
         return MarketDataResult(
             data=quote,

@@ -97,6 +97,7 @@ class FrankfurtObservation(BaseModel):
     record: FrankfurtRecord | None = None
     provider_exchange_code: str = FRANKFURT_MIC
     source_mode: str = "NORMALIZED_SNAPSHOT"
+    refresh_error: str | None = None
     execution_usable: Literal[False] = False
 
     @property

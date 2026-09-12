@@ -420,8 +420,12 @@ docker compose --env-file docker/.env \
 ```
 
 Use the existing Linux startup procedure first for database initialization and
-migrations. The override is required on subsequent Compose commands for this
-source; the ordinary startup helper does not automatically select it.
+migrations. The override is required on manual Compose commands for this source.
+`bash scripts/start-linux.sh` automatically includes an existing `docker/frankfurt.env`
+through the same override on every step (validation, build, migrations, start).
+Use `bash scripts/start-linux.sh --frankfurt` to require that file to exist before
+any Docker operation. The helper never creates or edits Frankfurt configuration
+or turns its activation/usage/schema flags on.
 Do not overwrite `docker/.env`. For the local-file mode, place snapshots in
 `docker/frankfurt-data/`, which the override mounts as a read-only directory.
 
@@ -438,11 +442,49 @@ request budget across all instruments. Cached timestamps are never refreshed.
 Another uncached instrument within that interval receives REQUEST_THROTTLED;
 the CSV probe waits one configured interval and retries once. This conservative
 local limit is not a claim about the provider's unpublished rate limits.
-Failures back off at least 60 seconds. There are no redirects, aggressive retries
-or silent reuse of an old success after failure. Timeout and decoded byte limits
+Failures back off at least 60 seconds. There are no redirects or aggressive retries.
+The monitoring adapter may reuse historical data after a temporary transport failure
+only with the explicit disclosure described below. Strict setup and CSV coverage
+probes continue to report the failed refresh. Timeout and decoded byte limits
 apply. Multiple workers need a shared upstream budget/gateway; throttling here is
 process-local. A snapshot is portfolio-sized (at most 10,000 records), not a full
 1.8-million-product exchange dump. No automatic background schedule is added.
+
+## Last successful retrieval during temporary outages
+
+After a timeout, transport error, HTTP 408/429/500/502/503/504, or the process-local
+request throttle, the monitoring adapter can reuse the same instrument's last
+successfully parsed payload. It rechecks the active listing/mapping, exact identity,
+currency, price and original timestamp before allowing any analysis. An instrument
+without a cached observation remains unavailable. Access errors (401/403), redirects,
+404, empty responses, invalid JSON/schema or changed response identity never take
+this path. Those transport errors invalidate the cache. A newly received but
+semantically unusable record also cannot resurrect an older record.
+
+The selected valuation is `INDICATIVE`, with
+`reason=LAST_SUCCESSFUL_QUOTE_REFRESH_FAILED` and
+`analysis_warning=QUOTE_REFRESH_FAILED_INDICATIVE_ANALYSIS_ONLY`.
+`quote_refresh_error` and each source attempt's `refresh_error` expose the stable,
+redacted failure code. The detail diagnostic exposes `observation.refresh_error`;
+configuration health retains `last_error` and the real `last_success_at`.
+The UI shows the unavailable refresh and the last successful retrieval explicitly.
+Even a recently observed bid is no longer labelled a current valuation after a
+failed refresh: `valuation_usable=false`, `execution_usable=false`; indicative
+value/P&L and `analysis_usable`/`monitoring_usable` remain available. A healthy current
+bid from another eligible source takes priority over a bid whose refresh failed.
+
+`quote_observed_at` and `quote_retrieved_at` retain their original values.
+`quote_assessed_at` and quote age reflect this assessment; unknown close dates remain
+unknown. Reusing data performs no request and does not reset the backoff or request
+budget. A successful subsequent fetch clears the refresh warning normally.
+The cache remains bounded to 256 payloads per process and is lost on restart;
+this is no persistent price history, and no schema migration is introduced.
+
+Normal `load`/`load_public`, the setup command and the CSV probe remain strict:
+an outage cannot be presented as a newly verified instrument mapping or successful
+coverage check. No exchange entitlement, paid API, subscription, or broker operation
+is activated by this change. A zero provider price is not inferred from anonymous
+HTTP access; `provider_call_cost` stays unknown until a price is verified.
 
 ## APIs and coverage probe
 

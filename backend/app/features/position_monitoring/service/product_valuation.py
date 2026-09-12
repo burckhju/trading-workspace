@@ -82,6 +82,7 @@ class ProductPositionValuation:
     reference_price: Decimal | None = None
     reference_price_type: str | None = None
     quote_retrieved_at: datetime | None = None
+    quote_refresh_error: str | None = None
     quote_assessed_at: datetime | None = None
     quote_delay_seconds: int | None = None
     quote_venue_mic: str | None = None
@@ -450,6 +451,7 @@ class ProductPositionValuationService:
                 quote_retrieved_at=selected_result.retrieved_at,
                 quote_assessed_at=assessed_at,
                 quote_delay_seconds=quote.feed_delay_seconds,
+                quote_refresh_error=quote.refresh_error,
                 quote_venue_mic=quote.venue_mic,
                 quote_age_limit_exceeded=(age > max_age if age is not None else None),
                 spread_absolute=spread,
@@ -460,6 +462,13 @@ class ProductPositionValuationService:
             )
             # Temporal disclosure never assigns a reference trade/close to bid/ask.
             # Missing timestamps remain unknown; retrieval time is separate evidence.
+            if quote.refresh_error:
+                return replace(
+                    value,
+                    reason="LAST_SUCCESSFUL_QUOTE_REFRESH_FAILED",
+                    analysis_warning="QUOTE_REFRESH_FAILED_INDICATIVE_ANALYSIS_ONLY",
+                    freshness_policy="LAST_SUCCESSFUL_QUOTE_DISCLOSURE_V1",
+                )
             if quote.bid is None:
                 return replace(
                     value,
