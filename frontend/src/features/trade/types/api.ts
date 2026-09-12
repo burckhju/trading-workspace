@@ -73,6 +73,7 @@ export interface QuoteSourceAttemptResponse {
   reference_price?: string | null;
   reference_price_type?: string | null;
   currency?: string | null;
+  refresh_error?: string | null;
 }
 
 export interface ProductPositionValuationResponse {
@@ -110,6 +111,7 @@ export interface ProductPositionValuationResponse {
   source_mode?: string | null;
   trading_status?: string | null;
   quote_retrieved_at?: IsoDateTime | null;
+  quote_refresh_error?: string | null;
   quote_assessed_at?: IsoDateTime | null;
   quote_delay_seconds?: number | null;
   quote_venue_mic?: string | null;

@@ -35,6 +35,8 @@ function statusText(value: ProductPositionValuationResponse): string {
 
 function reasonText(reason: string): string {
   switch (reason) {
+    case 'LAST_SUCCESSFUL_QUOTE_REFRESH_FAILED':
+      return 'Der Kurs konnte nicht erneut abgerufen werden. Die Auswertung verwendet die Daten des letzten erfolgreichen Abrufs; Kursstand und Abrufzeitpunkt bleiben unverändert.';
     case 'REFERENCE_PRICE_AVAILABLE_FOR_ANALYSIS':
       return 'Auswertung und Überwachung verwenden den verfügbaren Handels- oder Schlusskurs. Dieser Referenzkurs ist kein aktuelles Kauf- oder Verkaufsangebot. Stop und Target werden weiterhin anhand des Underlyings überwacht.';
     case 'WARRANT_QUOTE_STALE':
@@ -69,6 +71,9 @@ function priceTypeText(type: string | null | undefined): string {
 }
 
 function warningText(warning: string): string {
+  if (warning === 'QUOTE_REFRESH_FAILED_INDICATIVE_ANALYSIS_ONLY') {
+    return 'Kursabruf nicht verfügbar – letzter erfolgreicher Abruf, nur indikative Analyse';
+  }
   if (warning === 'QUOTE_TIMESTAMP_UNKNOWN_INDICATIVE_ANALYSIS_ONLY') {
     return 'Kurszeitpunkt unbekannt – indikative Analyse';
   }
@@ -176,6 +181,9 @@ export function ProductValuationPanel({ tradeId }: { tradeId: string }) {
               : 'Zeitpunkt unbekannt'}{' '}
             · {formatQuoteAge(value)}
           </p>
+          {value.quote_refresh_error && (
+            <p className="mt-1">Abrufhinweis: {value.quote_refresh_error}</p>
+          )}
         </div>
       )}
 
@@ -311,6 +319,9 @@ export function ProductValuationPanel({ tradeId }: { tradeId: string }) {
                   {attempt.delayed ? ' · verzögert' : ''}
                 </p>
                 <p className="mt-1 break-all">{attempt.reason}</p>
+                {attempt.refresh_error && (
+                  <p>Letzter erfolgreicher Abruf verwendet · {attempt.refresh_error}</p>
+                )}
                 {attempt.reference_price != null && (
                   <p>
                     {priceTypeText(attempt.reference_price_type)}:{' '}

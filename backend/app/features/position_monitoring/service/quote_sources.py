@@ -51,6 +51,7 @@ class QuoteSourceAttempt:
     reference_price: Decimal | None = None
     reference_price_type: str | None = None
     currency: str | None = None
+    refresh_error: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -206,9 +207,13 @@ class MultiSourceWarrantQuoteResolver:
                     source=source.name,
                     status=QuoteSourceAttemptStatus.AVAILABLE,
                     reason=(
-                        result.reason_code or "VALID_BID_AVAILABLE"
-                        if quote.bid is not None
-                        else "REFERENCE_PRICE_AVAILABLE_FOR_ANALYSIS"
+                        "LAST_SUCCESSFUL_QUOTE_REFRESH_FAILED"
+                        if quote.refresh_error
+                        else (
+                            result.reason_code or "VALID_BID_AVAILABLE"
+                            if quote.bid is not None
+                            else "REFERENCE_PRICE_AVAILABLE_FOR_ANALYSIS"
+                        )
                     ),
                     delayed=source.delayed,
                     warrant_listing_id=request.warrant_listing_id,
@@ -218,6 +223,7 @@ class MultiSourceWarrantQuoteResolver:
                     reference_price=quote.reference_price,
                     reference_price_type=quote.reference_price_type,
                     currency=quote.currency,
+                    refresh_error=quote.refresh_error,
                 )
             )
             priority = quote_priority(quote, assessed_at, request.max_quote_age_seconds)
@@ -244,6 +250,7 @@ def quote_priority(
             max_age_seconds = min(max_age_seconds, quote.max_quote_age_seconds)
         if (
             quote.observed_at is not None
+            and quote.refresh_error is None
             and (assessed_at - quote.observed_at).total_seconds() <= max_age_seconds
         ):
             return 0

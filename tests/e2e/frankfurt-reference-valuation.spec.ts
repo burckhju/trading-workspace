@@ -2,8 +2,11 @@ import { expect, test } from "@playwright/test";
 
 const tradeId = "dd8338bd-a092-42c0-94c0-c068a9094f77";
 
-for (const kind of ["LAST_TRADE", "PREVIOUS_CLOSE"]) {
-  test(`shows Frankfurt ${kind} analysis and provenance without permitting an order`, async ({
+for (const [kind, refreshError] of [
+  ["LAST_TRADE", null], ["PREVIOUS_CLOSE", null],
+  ["LAST_TRADE", "FRANKFURT_HTTP_503"], ["PREVIOUS_CLOSE", "FRANKFURT_REQUEST_THROTTLED"],
+] as const) {
+  test(`shows Frankfurt ${kind} ${refreshError ?? "success"} analysis and provenance without permitting an order`, async ({
     page,
   }) => {
     let writes = 0;
@@ -29,7 +32,7 @@ for (const kind of ["LAST_TRADE", "PREVIOUS_CLOSE"]) {
         body = {
           trade_id: tradeId,
           status: "INDICATIVE",
-          reason: "REFERENCE_PRICE_AVAILABLE_FOR_ANALYSIS",
+          reason: refreshError ? "LAST_SUCCESSFUL_QUOTE_REFRESH_FAILED" : "REFERENCE_PRICE_AVAILABLE_FOR_ANALYSIS",
           bid: null,
           ask: null,
           currency: "EUR",
@@ -45,7 +48,8 @@ for (const kind of ["LAST_TRADE", "PREVIOUS_CLOSE"]) {
           monitoring_usable: true,
           valuation_usable: false,
           execution_usable: false,
-          analysis_warning: "QUOTE_TIMESTAMP_UNKNOWN_INDICATIVE_ANALYSIS_ONLY",
+          analysis_warning: refreshError ? "QUOTE_REFRESH_FAILED_INDICATIVE_ANALYSIS_ONLY" : "QUOTE_TIMESTAMP_UNKNOWN_INDICATIVE_ANALYSIS_ONLY",
+          quote_refresh_error: refreshError,
           selected_source: "FRANKFURT_QUOTES",
           provider_identity: "DE000VH2LU21",
           provider_exchange_code: "XSC",
@@ -95,7 +99,7 @@ for (const kind of ["LAST_TRADE", "PREVIOUS_CLOSE"]) {
     await expect(panel.getByText("462 EUR", { exact: true })).toBeVisible();
     await expect(panel.getByText("-558 EUR", { exact: true })).toBeVisible();
     await expect(panel.getByRole("status")).toContainText(
-      "Kurszeitpunkt unbekannt",
+      refreshError ? "letzter erfolgreicher Abruf" : "Kurszeitpunkt unbekannt",
     );
     await expect(panel.getByText(/Bewertungsquelle:/)).toContainText(
       "DE000VH2LU21",
@@ -110,6 +114,7 @@ for (const kind of ["LAST_TRADE", "PREVIOUS_CLOSE"]) {
     await expect(
       panel.getByText(/keine Freigabe zur Orderausführung/),
     ).toBeVisible();
+    if (refreshError) await expect(panel.getByRole("status")).toContainText(refreshError);
     expect(writes).toBe(0);
   });
 }

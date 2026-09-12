@@ -6,6 +6,29 @@ ENV_FILE="$ROOT_DIR/docker/.env"
 ENV_EXAMPLE="$ROOT_DIR/docker/.env.example"
 COMPOSE_FILE="$ROOT_DIR/docker/compose.yml"
 DEFAULT_STUTTGART_DATA_DIR="$ROOT_DIR/docker/stuttgart-data"
+FRANKFURT_ENV_FILE="$ROOT_DIR/docker/frankfurt.env"
+COMPOSE_FILES=(-f "$COMPOSE_FILE")
+REQUIRE_FRANKFURT=false
+
+for arg in "$@"; do
+  case "$arg" in
+    --frankfurt) REQUIRE_FRANKFURT=true ;;
+    --help|-h)
+      echo "Usage: bash scripts/start-linux.sh [--frankfurt]"
+      echo "Existing docker/frankfurt.env is included automatically, without changing its activation flags."
+      echo "--frankfurt requires that configuration to exist; no account or subscription is created."
+      exit 0 ;;
+    *) echo "Unknown argument: $arg" >&2; exit 2 ;;
+  esac
+done
+
+if [[ -f "$FRANKFURT_ENV_FILE" ]]; then
+  COMPOSE_FILES+=(-f "$ROOT_DIR/docker/compose.frankfurt.yml")
+  echo "Including existing Frankfurt configuration (activation flags are preserved)."
+elif [[ "$REQUIRE_FRANKFURT" == true ]]; then
+  echo "docker/frankfurt.env is missing. Configure it using docs/frankfurt-quotes.md first." >&2
+  exit 2
+fi
 
 if ! command -v docker >/dev/null 2>&1; then
   echo "docker is required and was not found in PATH" >&2
@@ -40,7 +63,7 @@ fi
 
 compose() {
   TRADING_WORKSPACE_DATABASE_URL="$RUNTIME_DATABASE_URL" \
-    docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" "$@"
+    docker compose --env-file "$ENV_FILE" "${COMPOSE_FILES[@]}" "$@"
 }
 
 mkdir -p "$DEFAULT_STUTTGART_DATA_DIR"
@@ -90,5 +113,10 @@ echo "Readiness: http://localhost:8000/health/ready"
 echo "Quote data: http://localhost:8000/api/v1/position-monitoring/quote-sources/stuttgart-delayed/health"
 echo "Stuttgart local data directory: $DEFAULT_STUTTGART_DATA_DIR"
 echo "Manual Stuttgart refresh: python3 scripts/sync-stuttgart-delayed.py"
-echo "Status:    docker compose --env-file docker/.env -f docker/compose.yml ps"
-echo "Logs:      docker compose --env-file docker/.env -f docker/compose.yml logs -f backend"
+COMPOSE_HINT="docker compose --env-file docker/.env -f docker/compose.yml"
+if [[ -f "$FRANKFURT_ENV_FILE" ]]; then
+  COMPOSE_HINT+=" -f docker/compose.frankfurt.yml"
+  echo "Frankfurt health: http://localhost:8000/api/v1/position-monitoring/quote-sources/frankfurt/health"
+fi
+echo "Status:    $COMPOSE_HINT ps"
+echo "Logs:      $COMPOSE_HINT logs -f backend"

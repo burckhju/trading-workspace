@@ -119,6 +119,7 @@ class QuoteSourceAttemptResponse(BaseModel):
     reference_price: Decimal | None = None
     reference_price_type: str | None = None
     currency: str | None = None
+    refresh_error: str | None = None
 
 
 class ProductPositionValuationResponse(BaseModel):
@@ -156,6 +157,7 @@ class ProductPositionValuationResponse(BaseModel):
     reference_price: Decimal | None = None
     reference_price_type: str | None = None
     quote_retrieved_at: datetime | None = None
+    quote_refresh_error: str | None = None
     quote_assessed_at: datetime | None = None
     quote_delay_seconds: int | None = None
     quote_venue_mic: str | None = None

@@ -250,6 +250,7 @@ class WarrantQuoteSnapshot:
     feed_delay_seconds: int | None = None
     venue_mic: str | None = None
     max_quote_age_seconds: int | None = None
+    refresh_error: str | None = None
 
     def __post_init__(self) -> None:
         if (self.reference_price is None) != (self.reference_price_type is None):
