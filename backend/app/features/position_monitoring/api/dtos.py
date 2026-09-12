@@ -115,6 +115,8 @@ class ProductPositionValuationResponse(BaseModel):
     status: ProductValuationStatus
     reason: str
     warrant_listing_id: UUID | None
+    provenance_listing_id: UUID | None = None
+    quote_listing_id: UUID | None = None
     symbol: str | None
     bid: Decimal | None
     ask: Decimal | None
