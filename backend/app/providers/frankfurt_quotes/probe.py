@@ -98,7 +98,8 @@ async def run(args: argparse.Namespace, client: FrankfurtSnapshotClient) -> dict
 def main() -> None:
     args = parser().parse_args()
     try:
-        counts = asyncio.run(run(args, FrankfurtSnapshotClient(get_settings().market_data.frankfurt)))
+        client = FrankfurtSnapshotClient(get_settings().market_data.frankfurt)
+        counts = asyncio.run(run(args, client))
     except (OSError, ValueError, csv.Error):
         raise SystemExit(
             "Frankfurt probe failed: check input/output paths and CSV configuration"
