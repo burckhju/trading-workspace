@@ -10,6 +10,7 @@ vi.mock('../../market/services/client', () => ({
     listIssuers: vi.fn(),
     searchUnderlyings: vi.fn(),
     listTradingVenues: vi.fn(),
+    listCurrencies: vi.fn(),
   },
 }));
 vi.mock('../services/client', () => ({
@@ -44,6 +45,9 @@ const warrant = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  market.listCurrencies.mockResolvedValue({
+    items: [{ code: 'EUR', name: 'Euro', minor_unit: 2, reference_version: 'test' }],
+  });
   market.listIssuers.mockResolvedValue({
     items: [
       {
