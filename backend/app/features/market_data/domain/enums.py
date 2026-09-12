@@ -9,6 +9,7 @@ class MarketDataProvider(StrEnum):
     EODHD = "EODHD"
     VONTOBEL_MARKETS = "VONTOBEL_MARKETS"
     BOERSE_STUTTGART_DELAYED = "BOERSE_STUTTGART_DELAYED"
+    FRANKFURT_QUOTES = "FRANKFURT_QUOTES"
 
 
 class MarketDataCapability(StrEnum):

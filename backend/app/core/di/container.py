@@ -34,6 +34,7 @@ from app.providers.eodhd.persistence import (
     SqlAlchemyListingCurrencyReader,
     SqlAlchemyMappingReader,
 )
+from app.providers.frankfurt_quotes.adapter import FrankfurtWarrantQuoteAdapter
 from app.providers.shared.budget import DailyCallBudget
 from app.providers.shared.cache import InMemoryTtlCache
 from app.providers.shared.clock import AsyncioSleeper, SystemClock
@@ -66,13 +67,19 @@ class ApplicationContainer:
     settings: Settings
     database: DatabaseManager
     eodhd: EodhdRuntime | None = None
+    frankfurt: FrankfurtWarrantQuoteAdapter | None = None
 
     @classmethod
     def build(cls, settings: Settings) -> ApplicationContainer:
         """Build the technical dependency graph for one application instance."""
         database = DatabaseManager(settings)
         runtime = cls._build_eodhd(settings, database)
-        return cls(settings=settings, database=database, eodhd=runtime)
+        frankfurt = (
+            FrankfurtWarrantQuoteAdapter(database=database, settings=settings.market_data.frankfurt)
+            if settings.market_data.frankfurt.enabled
+            else None
+        )
+        return cls(settings=settings, database=database, eodhd=runtime, frankfurt=frankfurt)
 
     @staticmethod
     def _build_eodhd(settings: Settings, database: DatabaseManager) -> EodhdRuntime | None:

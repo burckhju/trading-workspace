@@ -8,6 +8,8 @@ from typing import Annotated
 from pydantic import BaseModel, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from app.core.config.frankfurt import FrankfurtQuoteSettings
+
 
 class Environment(StrEnum):
     """Supported runtime environments."""
@@ -196,6 +198,7 @@ class MarketDataSettings(BaseModel):
     eodhd: EodhdSettings = Field(default_factory=EodhdSettings)
     vontobel_markets: VontobelMarketsSettings = Field(default_factory=VontobelMarketsSettings)
     stuttgart_delayed: StuttgartDelayedSettings = Field(default_factory=StuttgartDelayedSettings)
+    frankfurt: FrankfurtQuoteSettings = Field(default_factory=FrankfurtQuoteSettings)
 
 
 class PositionMonitoringSettings(BaseModel):
