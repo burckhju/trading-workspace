@@ -213,7 +213,9 @@ class ProductSelectionService:
     async def _market_data_evaluation(
         self, *, run: ProductSelectionRun, member: ProductUniverseMember
     ) -> tuple[
-        tuple[CriterionResult, ...], tuple[EvaluationInput, ...], tuple[EvaluationMetric, ...]
+        tuple[CriterionResult, ...],
+        tuple[EvaluationInput, ...],
+        tuple[EvaluationMetric, ...],
     ]:
         if self._market_data is None:
             explanation = (
@@ -258,11 +260,11 @@ class ProductSelectionService:
         return self._evaluate_quote(member=member, result=result)
 
     @staticmethod
-    def _market_data_not_applicable() -> (
-        tuple[
-            tuple[CriterionResult, ...], tuple[EvaluationInput, ...], tuple[EvaluationMetric, ...]
-        ]
-    ):
+    def _market_data_not_applicable() -> tuple[
+        tuple[CriterionResult, ...],
+        tuple[EvaluationInput, ...],
+        tuple[EvaluationMetric, ...],
+    ]:
         return (
             (
                 CriterionResult(
@@ -288,7 +290,9 @@ class ProductSelectionService:
     def _missing_quote(
         result: MarketDataResult[WarrantQuoteSnapshot | None],
     ) -> tuple[
-        tuple[CriterionResult, ...], tuple[EvaluationInput, ...], tuple[EvaluationMetric, ...]
+        tuple[CriterionResult, ...],
+        tuple[EvaluationInput, ...],
+        tuple[EvaluationMetric, ...],
     ]:
         explanation = "No WarrantListing quote snapshot was available at the evaluation time"
         return (
@@ -319,7 +323,9 @@ class ProductSelectionService:
         member: ProductUniverseMember,
         result: MarketDataResult[WarrantQuoteSnapshot | None],
     ) -> tuple[
-        tuple[CriterionResult, ...], tuple[EvaluationInput, ...], tuple[EvaluationMetric, ...]
+        tuple[CriterionResult, ...],
+        tuple[EvaluationInput, ...],
+        tuple[EvaluationMetric, ...],
     ]:
         snapshot = result.data
         assert snapshot is not None
@@ -346,7 +352,7 @@ class ProductSelectionService:
 
         criterion = CriterionResult(
             criterion_id="warrant-market-data-contract-available",
-            outcome=CriterionOutcome.FULFILLED if usable else CriterionOutcome.NOT_EVALUABLE,
+            outcome=(CriterionOutcome.FULFILLED if usable else CriterionOutcome.NOT_EVALUABLE),
             explanation=(
                 "Complete, currency-consistent WarrantListing quote is available"
                 if usable
@@ -369,7 +375,10 @@ class ProductSelectionService:
         inputs = (
             EvaluationInput(
                 name="market_data_snapshot",
-                value=(f"{source}@{snapshot.observed_at.isoformat()}"),
+                value=(
+                    f"{source}@"
+                    f"{snapshot.observed_at.isoformat() if snapshot.observed_at else 'UNKNOWN'}"
+                ),
                 availability=DataAvailability.AVAILABLE,
                 source="TC-001 WarrantListing quote boundary",
                 observed_at=snapshot.observed_at,

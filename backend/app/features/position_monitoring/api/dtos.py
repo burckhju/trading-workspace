@@ -9,10 +9,18 @@ from app.features.market_data.domain.enums import MarketDataProvider
 from app.features.position_monitoring.service.alert_projection import PositionAlertLevel
 from app.features.position_monitoring.service.health import MonitoringHealthStatus
 from app.features.position_monitoring.service.phase_engine import PositionPhase
-from app.features.position_monitoring.service.position_analytics import PositionAnalyticsStatus
-from app.features.position_monitoring.service.product_valuation import ProductValuationStatus
-from app.features.position_monitoring.service.quote_sources import QuoteSourceAttemptStatus
-from app.features.position_monitoring.service.source_diagnostics import StuttgartDelayedSourceStatus
+from app.features.position_monitoring.service.position_analytics import (
+    PositionAnalyticsStatus,
+)
+from app.features.position_monitoring.service.product_valuation import (
+    ProductValuationStatus,
+)
+from app.features.position_monitoring.service.quote_sources import (
+    QuoteSourceAttemptStatus,
+)
+from app.features.position_monitoring.service.source_diagnostics import (
+    StuttgartDelayedSourceStatus,
+)
 
 
 class PositionMonitoringHealthResponse(BaseModel):
@@ -107,6 +115,10 @@ class QuoteSourceAttemptResponse(BaseModel):
     observed_at: datetime | None
     bid_available: bool
     ask_available: bool
+    warrant_listing_id: UUID | None = None
+    reference_price: Decimal | None = None
+    reference_price_type: str | None = None
+    currency: str | None = None
 
 
 class ProductPositionValuationResponse(BaseModel):
@@ -140,6 +152,16 @@ class ProductPositionValuationResponse(BaseModel):
     analysis_warning: str | None
     analysis_market_value: Decimal | None
     analysis_unrealized_gross_pnl: Decimal | None
+    monitoring_usable: bool = False
+    reference_price: Decimal | None = None
+    reference_price_type: str | None = None
+    quote_retrieved_at: datetime | None = None
+    quote_assessed_at: datetime | None = None
+    quote_delay_seconds: int | None = None
+    quote_venue_mic: str | None = None
+    quote_age_limit_exceeded: bool | None = None
+    spread_absolute: Decimal | None = None
+    spread_percent: Decimal | None = None
     freshness_policy: str | None
     source_attempts: tuple[QuoteSourceAttemptResponse, ...]
 

@@ -20,7 +20,9 @@ from app.features.position_monitoring.service.alert_projection import (
     PositionAlertProjectionService,
 )
 from app.features.position_monitoring.service.dynamic_stop import DynamicStopService
-from app.features.position_monitoring.service.health import PositionMonitoringHealthService
+from app.features.position_monitoring.service.health import (
+    PositionMonitoringHealthService,
+)
 from app.features.position_monitoring.service.phase_engine import PositionPhaseService
 from app.features.position_monitoring.service.position_analytics import (
     PositionAwareAnalyticsService,
@@ -28,7 +30,9 @@ from app.features.position_monitoring.service.position_analytics import (
 from app.features.position_monitoring.service.product_valuation import (
     ProductPositionValuationService,
 )
-from app.features.position_monitoring.service.quote_runtime import build_warrant_quote_resolver
+from app.features.position_monitoring.service.quote_runtime import (
+    build_warrant_quote_resolver,
+)
 from app.features.position_monitoring.service.score_engine import PositionScoreService
 from app.features.position_monitoring.service.source_diagnostics import (
     get_stuttgart_delayed_source_health,
@@ -48,7 +52,9 @@ def _health_service(container: ApplicationContainer) -> PositionMonitoringHealth
     )
 
 
-def _analytics_service(container: ApplicationContainer) -> PositionAwareAnalyticsService:
+def _analytics_service(
+    container: ApplicationContainer,
+) -> PositionAwareAnalyticsService:
     return PositionAwareAnalyticsService(
         database=container.database,
         monitoring_health=_health_service(container),
@@ -307,7 +313,7 @@ async def get_trade_product_valuation(
     trade_id: UUID,
     container: Annotated[ApplicationContainer, Depends(get_container)],
 ) -> ProductPositionValuationResponse:
-    """Return fail-closed held-product quote health and BID-based indicative valuation."""
+    """Return typed, transparent held-product valuation and analysis reference data."""
 
     service = ProductPositionValuationService(
         database=container.database,
@@ -350,6 +356,16 @@ async def get_trade_product_valuation(
         analysis_warning=value.analysis_warning,
         analysis_market_value=value.analysis_market_value,
         analysis_unrealized_gross_pnl=value.analysis_unrealized_gross_pnl,
+        monitoring_usable=value.monitoring_usable,
+        reference_price=value.reference_price,
+        reference_price_type=value.reference_price_type,
+        quote_retrieved_at=value.quote_retrieved_at,
+        quote_assessed_at=value.quote_assessed_at,
+        quote_delay_seconds=value.quote_delay_seconds,
+        quote_venue_mic=value.quote_venue_mic,
+        quote_age_limit_exceeded=value.quote_age_limit_exceeded,
+        spread_absolute=value.spread_absolute,
+        spread_percent=value.spread_percent,
         freshness_policy=value.freshness_policy,
         source_attempts=tuple(
             QuoteSourceAttemptResponse(
@@ -360,6 +376,10 @@ async def get_trade_product_valuation(
                 observed_at=attempt.observed_at,
                 bid_available=attempt.bid_available,
                 ask_available=attempt.ask_available,
+                warrant_listing_id=attempt.warrant_listing_id,
+                reference_price=attempt.reference_price,
+                reference_price_type=attempt.reference_price_type,
+                currency=attempt.currency,
             )
             for attempt in value.source_attempts
         ),

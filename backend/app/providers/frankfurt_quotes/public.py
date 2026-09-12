@@ -37,8 +37,9 @@ class FrankfurtPublicPrice(BaseModel):
     isin: Annotated[str, Field(pattern=r"^[A-Z]{2}[A-Z0-9]{9}[0-9]$")]
     mic: Literal["XSC"]
     currency: PublicCurrency
-    lastPrice: Price | None
-    timestampLastPrice: datetime | None
+    lastPrice: Price | None = None
+    timestampLastPrice: datetime | None = None
+    closingPricePrevTradingDay: Price | None = None
 
     @field_validator("timestampLastPrice", mode="before")
     @classmethod
@@ -56,7 +57,9 @@ def assess_public_price(
     max_age_seconds: int,
 ) -> FrankfurtObservation:
     now, retrieved_at = _utc(now), _utc(retrieved_at)
-    observed_at = price.timestampLastPrice
+    use_last = price.lastPrice is not None
+    # No date accompanies closingPricePrevTradingDay in this wire contract.
+    observed_at = price.timestampLastPrice if use_last else None
     age = (now - observed_at).total_seconds() if observed_at is not None else None
     status, reason = QuoteStatus.INSUFFICIENT, "FRANKFURT_POST_TRADE_ONLY"
     record = None
@@ -71,12 +74,15 @@ def assess_public_price(
             isin=price.isin,
             mic=FRANKFURT_MIC,
             currency=price.currency.originalValue,
-            kind="LAST_TRADE",
-            last_price=price.lastPrice,
+            kind="LAST_TRADE" if use_last else "PREVIOUS_CLOSE",
+            last_price=price.lastPrice if use_last else None,
             last_at=observed_at,
+            close_price=price.closingPricePrevTradingDay if not use_last else None,
         )
-        if price.lastPrice is None or observed_at is None:
+        if not use_last and price.closingPricePrevTradingDay is None:
             status, reason = QuoteStatus.MISSING, "FRANKFURT_LAST_TRADE_MISSING"
+        elif observed_at is None:
+            reason = "FRANKFURT_REFERENCE_TIMESTAMP_UNKNOWN"
         elif age is not None and age > max_age_seconds:
             status, reason = QuoteStatus.STALE, "FRANKFURT_LAST_TRADE_STALE"
     return FrankfurtObservation(
@@ -93,5 +99,5 @@ def assess_public_price(
         age_seconds=age,
         record=record,
         provider_exchange_code=PUBLIC_EXCHANGE_CODE,
-        source_mode=PUBLIC_MODE,
+        source_mode=PUBLIC_MODE if use_last else "OFFICIAL_WEBSITE_PREVIOUS_CLOSE",
     )

@@ -47,9 +47,13 @@ class WarrantQuoteRequest:
     warrant_listing_id: UUID
     correlation_id: UUID
     as_of: datetime
+    max_quote_age_seconds: int = 3600
+    expected_currency: str | None = None
 
     def __post_init__(self) -> None:
         _require_utc(self.as_of, field="as_of")
+        if self.max_quote_age_seconds < 0:
+            raise InvalidMarketDataValue("Maximum quote age must not be negative")
 
 
 @dataclass(frozen=True, slots=True)
