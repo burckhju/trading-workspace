@@ -15,6 +15,14 @@ COPY app ./app
 
 RUN python -m pip install --no-cache-dir --requirement requirements.txt
 
+# COPY preserves local checkout modes, including 0600/0700 from umask 077.
+# Normalize only image-owned runtime code, never host files or mounted secrets.
+# Keep root ownership so the unprivileged app user can read but not modify code.
+RUN chmod 0755 /app \
+    && find /app/app /app/migrations -type d -exec chmod 0755 {} + \
+    && find /app/app /app/migrations -type f -exec chmod 0644 {} + \
+    && chmod 0644 /app/alembic.ini /app/requirements.txt
+
 USER app
 
 EXPOSE 8000
