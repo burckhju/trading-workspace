@@ -18,6 +18,8 @@ function statusText(value: ProductPositionValuationResponse): string {
   switch (value.status) {
     case 'AVAILABLE':
       return 'Produktkurs verfügbar';
+    case 'LAST_AVAILABLE':
+      return 'Letzter verfügbarer Produktkurs';
     case 'STALE':
       return 'Produktkurs veraltet';
     case 'MISSING':
@@ -33,6 +35,8 @@ function reasonText(reason: string): string {
   switch (reason) {
     case 'WARRANT_QUOTE_STALE':
       return 'Der letzte Produktkurs ist zu alt für eine belastbare aktuelle Depotbewertung. Marktwert und unrealized P&L werden deshalb nicht berechnet.';
+    case 'MARKET_CLOSED_LAST_AVAILABLE_QUOTE':
+      return 'Der Handel ist geschlossen. Angezeigt wird der letzte plausible Schlusskurs; die Bewertung ist indikativ und nicht für eine Orderentscheidung nutzbar.';
     case 'WARRANT_QUOTE_TIME_INCONSISTENT':
       return 'Der Datenzeitpunkt des Produktkurses liegt nach dem Abrufzeitpunkt. Der Kurs wird nicht für die Depotbewertung verwendet.';
     case 'WARRANT_QUOTE_CAPABILITY_NOT_CONFIGURED':
@@ -134,11 +138,12 @@ export function ProductValuationPanel({ tradeId }: { tradeId: string }) {
         </span>
       </div>
 
-      {value.status === 'AVAILABLE' ? (
+      {value.valuation_usable ? (
         <>
           <p className="mt-3 text-xs text-slate-500">
-            Indikative LONG-Bewertung zum Bid des exakt dokumentierten WarrantListings. Stop und
-            Target werden weiterhin ausschließlich anhand des Underlyings überwacht.
+            {value.status === 'LAST_AVAILABLE'
+              ? reasonText(value.reason)
+              : 'Indikative LONG-Bewertung zum Bid des exakt dokumentierten WarrantListings. Stop und Target werden weiterhin ausschließlich anhand des Underlyings überwacht.'}
           </p>
           <dl className="mt-5 grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
             <div>
@@ -173,6 +178,11 @@ export function ProductValuationPanel({ tradeId }: { tradeId: string }) {
               : 'Zeitpunkt unbekannt'}{' '}
             · {formatQuoteAge(value)}
           </p>
+          {!value.execution_usable && (
+            <p className="mt-2 text-xs text-amber-300">
+              Dieser Kurs ist nicht für eine automatische Exit- oder Orderentscheidung freigegeben.
+            </p>
+          )}
         </>
       ) : (
         <div className="mt-3 space-y-2 text-sm text-slate-400">

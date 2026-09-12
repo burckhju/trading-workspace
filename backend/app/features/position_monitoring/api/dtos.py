@@ -134,6 +134,9 @@ class ProductPositionValuationResponse(BaseModel):
     wkn: str | None
     source_mode: str | None
     trading_status: str | None
+    valuation_usable: bool
+    execution_usable: bool
+    freshness_policy: str | None
     source_attempts: tuple[QuoteSourceAttemptResponse, ...]
 
 

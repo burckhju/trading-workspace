@@ -344,6 +344,9 @@ async def get_trade_product_valuation(
         wkn=value.wkn,
         source_mode=value.source_mode,
         trading_status=value.trading_status,
+        valuation_usable=value.valuation_usable,
+        execution_usable=value.execution_usable,
+        freshness_policy=value.freshness_policy,
         source_attempts=tuple(
             QuoteSourceAttemptResponse(
                 source=attempt.source,

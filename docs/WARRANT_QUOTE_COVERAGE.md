@@ -62,6 +62,24 @@ invalid prices or timestamps, stale observations, missing BID, and inactive mapp
 usable valuation. Responses preserve provider, provider identity, provider exchange code, ISIN,
 WKN, bid, ask, timestamp, source mode, trading status, and every source attempt.
 
+### Closed-session freshness
+
+`DE_WARRANT_SESSION_FRESHNESS_V1` distinguishes wall-clock age from the next expected German
+warrant trading session. A quote that exceeds the ordinary one-hour limit is `LAST_AVAILABLE`
+only when all of these conditions hold:
+
+- the provider explicitly reports `CLOSED`;
+- the observation is no earlier than one freshness window before the regular 22:00 Europe/Berlin
+  close;
+- no later weekday trading session should have completed;
+- the next session's 08:00 opening plus a 15-minute grace period has not passed.
+
+Weekends and the regular full-day Frankfurt/Xetra closures (New Year, Good Friday, Easter Monday,
+1 May, 24-26 December, and 31 December) are skipped. After the next opening grace period the quote
+is `STALE` again. `LAST_AVAILABLE` permits a clearly indicative BID valuation but always sets
+`execution_usable=false`; an issuer indication also remains non-executable when fresh. Increasing
+the general maximum quote age is deliberately avoided.
+
 ## Local activation and end-to-end check
 
 Enable the adapter (no secret required):
@@ -81,5 +99,6 @@ Then query the trade owning warrant `8ee5ab84-86ce-491e-b4b0-d98a0379d0c3`:
 curl -fsS http://localhost:8000/api/v1/position-monitoring/trades/<TRADE_ID>/product-valuation | jq
 ```
 
-Expect `AVAILABLE` only while the BID is fresh; otherwise expect `STALE`, `MISSING`, `UNAVAILABLE`,
-or `ERROR`, never a synthetic price.
+Expect `AVAILABLE` while the BID is fresh, or `LAST_AVAILABLE` for the immediately preceding close
+while the market is closed. Other outcomes remain `STALE`, `MISSING`, `UNAVAILABLE`, or `ERROR`,
+never a synthetic price.
