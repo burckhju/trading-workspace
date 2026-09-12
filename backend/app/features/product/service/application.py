@@ -368,7 +368,9 @@ class WarrantService:
         if currency is None:
             raise WarrantServiceError("Strike currency does not exist", field="strike_currency_code")
         if not currency.is_active:
-            raise InactiveWarrantReference("Strike currency is inactive", field="strike_currency_code")
+            raise InactiveWarrantReference(
+                "Strike currency is inactive", field="strike_currency_code"
+            )
         return code
 
     async def _require_unique_identifiers(
