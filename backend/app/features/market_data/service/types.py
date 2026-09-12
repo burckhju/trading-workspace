@@ -102,6 +102,7 @@ class MarketDataResult[T]:
     warnings: tuple[str, ...]
     retry_count: int
     provider_call_cost: int | None
+    reason_code: str | None = None
 
     def __post_init__(self) -> None:
         _require_utc(self.retrieved_at, field="retrieved_at")

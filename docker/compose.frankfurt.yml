@@ -1,0 +1,9 @@
+# Opt-in overlay: docker compose --env-file docker/.env -f docker/compose.yml
+# -f docker/compose.frankfurt.yml up --build -d
+# See docs/frankfurt-quotes.md. No provider is enabled by the template.
+services:
+  backend:
+    env_file:
+      - frankfurt.env
+    volumes:
+      - ./frankfurt-data:/var/lib/trading-workspace/frankfurt:ro

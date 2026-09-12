@@ -118,8 +118,12 @@ class MultiSourceWarrantQuoteResolver:
                 attempts.append(
                     QuoteSourceAttempt(
                         source=source.name,
-                        status=QuoteSourceAttemptStatus.MISSING,
-                        reason="NO_QUOTE_RETURNED",
+                        status=(
+                            QuoteSourceAttemptStatus.INSUFFICIENT
+                            if result.quality_status is not QualityStatus.VALID
+                            else QuoteSourceAttemptStatus.MISSING
+                        ),
+                        reason=result.reason_code or "NO_QUOTE_RETURNED",
                         delayed=source.delayed,
                         warrant_listing_id=request.warrant_listing_id,
                     )
@@ -145,9 +149,12 @@ class MultiSourceWarrantQuoteResolver:
                         source=source.name,
                         status=QuoteSourceAttemptStatus.INSUFFICIENT,
                         reason=(
-                            f"QUALITY_{result.quality_status.value}"
-                            if result.quality_status is not QualityStatus.VALID
-                            else "BID_MISSING"
+                            result.reason_code
+                            or (
+                                f"QUALITY_{result.quality_status.value}"
+                                if result.quality_status is not QualityStatus.VALID
+                                else "BID_MISSING"
+                            )
                         ),
                         delayed=source.delayed,
                         warrant_listing_id=request.warrant_listing_id,
