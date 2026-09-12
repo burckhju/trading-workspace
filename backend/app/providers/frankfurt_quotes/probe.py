@@ -59,6 +59,9 @@ async def run(args: argparse.Namespace, client: FrankfurtSnapshotClient) -> dict
                 "provider_exchange_code",
                 "source_mode",
                 "delay_seconds",
+                "close_price",
+                "close_at",
+                "analysis_usable",
             ],
             delimiter=args.delimiter,
         )
@@ -71,6 +74,7 @@ async def run(args: argparse.Namespace, client: FrankfurtSnapshotClient) -> dict
                 "wkn": wkn,
                 "isin": isin,
                 "execution_usable": "false",
+                "analysis_usable": "false",
                 "source": client.settings.source_name,
                 "mic": "XFRA",
             }
@@ -112,9 +116,9 @@ async def run(args: argparse.Namespace, client: FrankfurtSnapshotClient) -> dict
                         status=item.status,
                         reason=item.reason,
                         age_seconds=item.age_seconds,
-                        observed_at=item.observed_at.isoformat() if item.observed_at else None,
-                        bid=str(item.record.bid) if item.record and item.record.bid else None,
-                        ask=str(item.record.ask) if item.record and item.record.ask else None,
+                        observed_at=(item.observed_at.isoformat() if item.observed_at else None),
+                        bid=(str(item.record.bid) if item.record and item.record.bid else None),
+                        ask=(str(item.record.ask) if item.record and item.record.ask else None),
                         last_price=(
                             str(item.record.last_price)
                             if item.record and item.record.last_price
@@ -128,6 +132,17 @@ async def run(args: argparse.Namespace, client: FrankfurtSnapshotClient) -> dict
                         provider_exchange_code=item.provider_exchange_code,
                         source_mode=item.source_mode,
                         delay_seconds=item.declared_delay_seconds,
+                        close_price=(
+                            str(item.record.close_price)
+                            if item.record and item.record.close_price
+                            else None
+                        ),
+                        close_at=(
+                            item.record.close_at.isoformat()
+                            if item.record and item.record.close_at
+                            else None
+                        ),
+                        analysis_usable=str(item.analysis_usable).lower(),
                     )
                 except FrankfurtSourceError as exc:
                     output.update(status="ERROR", reason=str(exc))

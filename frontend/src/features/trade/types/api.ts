@@ -11,6 +11,7 @@ export type TradeManagementEventType =
 export type TradeTimelineEntryKind = 'EXECUTION' | 'MANAGEMENT_EVENT';
 export type ProductValuationStatus =
   | 'AVAILABLE'
+  | 'INDICATIVE'
   | 'LAST_AVAILABLE'
   | 'STALE'
   | 'MISSING'
@@ -68,6 +69,10 @@ export interface QuoteSourceAttemptResponse {
   observed_at: IsoDateTime | null;
   bid_available: boolean;
   ask_available: boolean;
+  warrant_listing_id?: Uuid | null;
+  reference_price?: string | null;
+  reference_price_type?: string | null;
+  currency?: string | null;
 }
 
 export interface ProductPositionValuationResponse {
@@ -94,6 +99,25 @@ export interface ProductPositionValuationResponse {
   analysis_unrealized_gross_pnl: string | null;
   freshness_policy: string | null;
   source_attempts: QuoteSourceAttemptResponse[];
+  monitoring_usable?: boolean;
+  reference_price?: string | null;
+  reference_price_type?: 'BID' | 'LAST_TRADE' | 'PREVIOUS_CLOSE' | null;
+  quote_provider?: string | null;
+  provider_identity?: string | null;
+  provider_exchange_code?: string | null;
+  isin?: string | null;
+  wkn?: string | null;
+  source_mode?: string | null;
+  trading_status?: string | null;
+  quote_retrieved_at?: IsoDateTime | null;
+  quote_assessed_at?: IsoDateTime | null;
+  quote_delay_seconds?: number | null;
+  quote_venue_mic?: string | null;
+  quote_age_limit_exceeded?: boolean | null;
+  spread_absolute?: string | null;
+  spread_percent?: string | null;
+  provenance_listing_id?: Uuid | null;
+  quote_listing_id?: Uuid | null;
 }
 
 export interface InitialPurchaseRequest {

@@ -14,6 +14,29 @@ from app.features.position_monitoring.service.product_valuation import (
     ProductValuationStatus,
 )
 
+
+def test_indicative_price_is_disclosed_as_available_analysis():
+    from app.features.operational_workspace.service.prioritization import (
+        _product_detail,
+        _product_title,
+    )
+
+    value = ProductPositionValuation(
+        trade_id=uuid4(),
+        position_id=uuid4(),
+        status=ProductValuationStatus.INDICATIVE,
+        reason="REFERENCE_PRICE_AVAILABLE_FOR_ANALYSIS",
+        analysis_usable=True,
+        reference_price_type="PREVIOUS_CLOSE",
+        selected_source="FRANKFURT_QUOTES",
+    )
+    assert _product_title(value) == "Indikative Produktbewertung"
+    detail = _product_detail(value)
+    assert "Schlusskurs von FRANKFURT_QUOTES" in detail
+    assert "Kurszeitpunkt unbekannt" in detail
+    assert "Auswertung und Wert-/P&L-Überwachung sind verfügbar" in detail
+
+
 NOW = datetime(2026, 9, 6, 12, 0, tzinfo=UTC)
 
 

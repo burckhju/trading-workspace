@@ -3,6 +3,7 @@
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Literal
 from uuid import UUID
 
 from sqlalchemy import select
@@ -29,12 +30,14 @@ from app.features.market_data.service.types import MarketDataResult, WarrantQuot
 from app.features.product.domain.models import WarrantLifecycle
 from app.features.product.persistence.models import WarrantListingModel, WarrantModel
 from app.providers.frankfurt_quotes.client import FrankfurtSnapshotClient, utc_now
-from app.providers.frankfurt_quotes.public import PUBLIC_EXCHANGE_CODE, assess_public_price
+from app.providers.frankfurt_quotes.public import (
+    PUBLIC_EXCHANGE_CODE,
+    assess_public_price,
+)
 from app.providers.frankfurt_quotes.schema import (
     FRANKFURT_MIC,
     FrankfurtObservation,
     FrankfurtSourceError,
-    QuoteStatus,
     assess_snapshot,
 )
 
@@ -88,6 +91,8 @@ class FrankfurtWarrantQuoteAdapter:
                         WarrantListingModel.workspace_id == request.workspace_id,
                         WarrantListingModel.lifecycle_status == WarrantLifecycle.ACTIVE,
                         WarrantModel.workspace_id == request.workspace_id,
+                        WarrantModel.lifecycle_status == WarrantLifecycle.ACTIVE,
+                        TradingVenueModel.is_active.is_(True),
                         WarrantProviderMappingModel.workspace_id == request.workspace_id,
                         WarrantProviderMappingModel.provider == PROVIDER,
                         WarrantProviderMappingModel.status == MappingStatus.ACTIVE,
@@ -96,7 +101,9 @@ class FrankfurtWarrantQuoteAdapter:
             ).one_or_none()
         if row is None:
             raise MarketDataNotFoundError(
-                "FRANKFURT_ACTIVE_MAPPING_NOT_FOUND", provider=PROVIDER, capability=CAPABILITY
+                "FRANKFURT_ACTIVE_MAPPING_NOT_FOUND",
+                provider=PROVIDER,
+                capability=CAPABILITY,
             )
         listing, warrant, mapping, venue = row
         exchange_code = (
@@ -112,7 +119,9 @@ class FrankfurtWarrantQuoteAdapter:
             or mapping.validated_at is None
         ):
             raise MarketDataMappingError(
-                "FRANKFURT_MAPPING_IDENTITY_INVALID", provider=PROVIDER, capability=CAPABILITY
+                "FRANKFURT_MAPPING_IDENTITY_INVALID",
+                provider=PROVIDER,
+                capability=CAPABILITY,
             )
         return FrankfurtIdentity(
             listing.id, warrant.isin, warrant.wkn, listing.quotation_currency_code
@@ -158,25 +167,44 @@ class FrankfurtWarrantQuoteAdapter:
     ) -> MarketDataResult[WarrantQuoteSnapshot | None]:
         observation, hit = await self.inspect(request)
         quote = None
-        if observation.status is QuoteStatus.AVAILABLE:
+        if observation.analysis_usable:
             record = observation.record
-            assert record is not None and observation.observed_at is not None
+            assert record is not None
+            reference_type: Literal["LAST_TRADE", "PREVIOUS_CLOSE"] | None = (
+                "LAST_TRADE"
+                if record.kind == "LAST_TRADE"
+                else "PREVIOUS_CLOSE" if record.kind == "PREVIOUS_CLOSE" else None
+            )
             quote = WarrantQuoteSnapshot(
                 warrant_listing_id=request.warrant_listing_id,
                 isin=record.isin,
                 wkn=record.wkn,
-                bid=record.bid,
-                ask=record.ask,
+                bid=record.bid if reference_type is None else None,
+                ask=record.ask if reference_type is None else None,
                 currency=record.currency,
                 provider_symbol=record.isin,
-                provider_exchange_code=FRANKFURT_MIC,
+                provider_exchange_code=observation.provider_exchange_code,
                 observed_at=observation.observed_at,
                 trading_status=record.trading_status,
                 source_mode=(
-                    "FRANKFURT_DELAYED_MONITORING"
-                    if observation.declared_delay_seconds
-                    else "FRANKFURT_REALTIME_MONITORING"
+                    observation.source_mode
+                    if reference_type is not None
+                    else (
+                        "FRANKFURT_DELAYED_MONITORING"
+                        if observation.declared_delay_seconds
+                        else "FRANKFURT_REALTIME_MONITORING"
+                    )
                 ),
+                reference_price=(
+                    record.last_price
+                    if reference_type == "LAST_TRADE"
+                    else (record.close_price if reference_type == "PREVIOUS_CLOSE" else None)
+                ),
+                reference_price_type=reference_type,
+                assessed_at=observation.assessed_at,
+                feed_delay_seconds=observation.declared_delay_seconds,
+                venue_mic=FRANKFURT_MIC,
+                max_quote_age_seconds=self.settings.max_quote_age_seconds,
             )
         return MarketDataResult(
             data=quote,
@@ -185,8 +213,12 @@ class FrankfurtWarrantQuoteAdapter:
             correlation_id=request.correlation_id,
             retrieved_at=observation.retrieved_at,
             cache_status=CacheStatus.HIT if hit else CacheStatus.MISS,
-            quality_status=QualityStatus.VALID if quote is not None else QualityStatus.INCOMPLETE,
-            warnings=(observation.reason, f"source={observation.source}", "NOT_EXECUTABLE"),
+            quality_status=(QualityStatus.VALID if quote is not None else QualityStatus.INCOMPLETE),
+            warnings=(
+                observation.reason,
+                f"source={observation.source}",
+                "NOT_EXECUTABLE",
+            ),
             reason_code=observation.reason,
             retry_count=0,
             provider_call_cost=None,  # No invented claim that a vendor feed is free.

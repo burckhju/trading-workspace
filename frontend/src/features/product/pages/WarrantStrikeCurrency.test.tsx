@@ -153,7 +153,7 @@ it('does not infer a legacy strike currency from an EUR quotation', async () => 
   );
 });
 
-it.each(['USD', 'CHF'])('posts an explicit %s strike independently of the EUR listing', async (code) => {
+it.each(['USD', 'CHF'])('posts %s independently of EUR', async (code) => {
   render(<WarrantAdminPage />);
   await screen.findByText(/Strike 500 \(Währung ungeklärt\)/);
   const selector = screen.getByRole('combobox', { name: 'Strike-Währung' });
@@ -170,7 +170,7 @@ it.each(['USD', 'CHF'])('posts an explicit %s strike independently of the EUR li
   );
 });
 
-it.each(['USD', 'CHF'])('adds %s terms while retaining the unknown historical version', async (code) => {
+it.each(['USD', 'CHF'])('adds %s terms and retains history', async (code) => {
   const next = {
     ...legacyTerms,
     id: 'terms-2',

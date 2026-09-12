@@ -60,7 +60,7 @@ it.each(['USD', 'CHF'])('submits the explicitly selected %s', async (code) => {
   expect(submitted).toHaveBeenCalledWith(code);
 });
 
-it('does not invent missing currencies when the endpoint returns no references', async () => {
+it('does not invent missing currencies after an empty response', async () => {
   listCurrencies.mockResolvedValue({ items: [] });
   render(<Form />);
   await screen.findByText(/Keine aktiven Währungen verfügbar/);
@@ -70,7 +70,7 @@ it('does not invent missing currencies when the endpoint returns no references',
   expect(screen.getByRole('combobox')).toHaveValue('');
 });
 
-it('preserves a selection on load failure and recovers only after a successful retry', async () => {
+it('retains a selection after failure and supports retry', async () => {
   listCurrencies.mockRejectedValueOnce(new Error('network failure'));
   render(<Form initial="CHF" />);
   await screen.findByRole('alert');
@@ -89,8 +89,10 @@ it('preserves a selection on load failure and recovers only after a successful r
   expect(submitted).toHaveBeenCalledWith('CHF');
 });
 
-it('blocks a no-longer-active code without silently replacing it with EUR', async () => {
-  listCurrencies.mockResolvedValue({ items: references.items.filter((item) => item.code === 'EUR') });
+it('blocks an unavailable code without silently replacing it with EUR', async () => {
+  listCurrencies.mockResolvedValue({
+    items: references.items.filter((item) => item.code === 'EUR'),
+  });
   render(<Form initial="CHF" />);
   await screen.findByRole('option', { name: 'EUR – Euro' });
   const selector = screen.getByRole('combobox');
@@ -105,15 +107,19 @@ it('blocks a no-longer-active code without silently replacing it with EUR', asyn
   expect(submitted).toHaveBeenCalledWith(null);
 });
 
-it('aborts reference loading when unmounted and ignores late responses', async () => {
+it('aborts on unmount and ignores late responses', async () => {
   let resolve: ((response: CurrencyListResponse) => void) | undefined;
-  listCurrencies.mockImplementation(
-    () => new Promise<CurrencyListResponse>((done) => (resolve = done)),
-  );
+  const pending = new Promise<CurrencyListResponse>((done) => {
+    resolve = done;
+  });
+  listCurrencies.mockReturnValue(pending);
   const { unmount } = render(<Form />);
   const signal = listCurrencies.mock.calls[0][0];
   unmount();
   expect(signal?.aborted).toBe(true);
-  await act(async () => resolve?.(references));
+  await act(async () => {
+    resolve?.(references);
+    await pending;
+  });
   expect(submitted).not.toHaveBeenCalled();
 });

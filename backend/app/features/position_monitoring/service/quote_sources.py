@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
+from decimal import Decimal
 from enum import StrEnum
 from uuid import UUID
 
@@ -47,6 +48,9 @@ class QuoteSourceAttempt:
     observed_at: datetime | None = None
     bid_available: bool = False
     ask_available: bool = False
+    reference_price: Decimal | None = None
+    reference_price_type: str | None = None
+    currency: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -56,16 +60,23 @@ class MultiSourceWarrantQuoteResolution:
     result: MarketDataResult[WarrantQuoteSnapshot | None] | None
     selected_source: str | None
     attempts: tuple[QuoteSourceAttempt, ...]
+    rejected_result: MarketDataResult[WarrantQuoteSnapshot | None] | None = None
+    rejected_source: str | None = None
 
 
 class MultiSourceWarrantQuoteResolver:
-    """Try independent quote sources until an exact, valid BID quote is available."""
+    """Prefer a current bid; retain older bids and typed reference prices for analysis."""
 
     def __init__(self, sources: tuple[NamedWarrantQuoteSource, ...]) -> None:
         self._sources = sources
 
     async def resolve(self, request: WarrantQuoteRequest) -> MultiSourceWarrantQuoteResolution:
         attempts: list[QuoteSourceAttempt] = []
+        best: MarketDataResult[WarrantQuoteSnapshot | None] | None = None
+        best_source = None
+        best_priority = 99
+        rejected = None
+        rejected_source = None
         for source in self._sources:
             # A runtime placeholder without an adapter is configuration metadata,
             # not a provider attempt. Keep diagnostics limited to calls that ran.
@@ -143,7 +154,9 @@ class MultiSourceWarrantQuoteResolver:
                     )
                 )
                 continue
-            if result.quality_status is not QualityStatus.VALID or quote.bid is None:
+            if result.quality_status is not QualityStatus.VALID or (
+                quote.bid is None and quote.reference_price is None
+            ):
                 attempts.append(
                     QuoteSourceAttempt(
                         source=source.name,
@@ -165,26 +178,74 @@ class MultiSourceWarrantQuoteResolver:
                 )
                 continue
 
+            assessed_at = quote.assessed_at or result.retrieved_at
+            invalid_reason = None
+            if (
+                quote.observed_at is not None and quote.observed_at > result.retrieved_at
+            ) or assessed_at < result.retrieved_at:
+                invalid_reason = "WARRANT_QUOTE_TIME_INCONSISTENT"
+            if request.expected_currency and quote.currency != request.expected_currency:
+                invalid_reason = "WARRANT_QUOTE_CURRENCY_MISMATCH"
+            if invalid_reason:
+                if rejected is None:
+                    rejected, rejected_source = result, source.name
+                attempts.append(
+                    QuoteSourceAttempt(
+                        source=source.name,
+                        status=QuoteSourceAttemptStatus.ERROR,
+                        reason=invalid_reason,
+                        delayed=source.delayed,
+                        warrant_listing_id=request.warrant_listing_id,
+                        observed_at=quote.observed_at,
+                    )
+                )
+                continue
+
             attempts.append(
                 QuoteSourceAttempt(
                     source=source.name,
                     status=QuoteSourceAttemptStatus.AVAILABLE,
-                    reason="VALID_BID_AVAILABLE",
+                    reason=(
+                        result.reason_code or "VALID_BID_AVAILABLE"
+                        if quote.bid is not None
+                        else "REFERENCE_PRICE_AVAILABLE_FOR_ANALYSIS"
+                    ),
                     delayed=source.delayed,
                     warrant_listing_id=request.warrant_listing_id,
                     observed_at=quote.observed_at,
-                    bid_available=True,
+                    bid_available=quote.bid is not None,
                     ask_available=quote.ask is not None,
+                    reference_price=quote.reference_price,
+                    reference_price_type=quote.reference_price_type,
+                    currency=quote.currency,
                 )
             )
-            return MultiSourceWarrantQuoteResolution(
-                result=result,
-                selected_source=source.name,
-                attempts=tuple(attempts),
-            )
+            priority = quote_priority(quote, assessed_at, request.max_quote_age_seconds)
+            if priority < best_priority:
+                best, best_source, best_priority = result, source.name, priority
+            if priority == 0:
+                break
 
         return MultiSourceWarrantQuoteResolution(
-            result=None,
-            selected_source=None,
+            result=best,
+            selected_source=best_source,
             attempts=tuple(attempts),
+            rejected_result=rejected,
+            rejected_source=rejected_source,
         )
+
+
+def quote_priority(
+    quote: WarrantQuoteSnapshot, assessed_at: datetime, max_age_seconds: int = 3600
+) -> int:
+    """Selection priority is not a verdict about the user's analysis decision."""
+    if quote.bid is not None:
+        if quote.max_quote_age_seconds is not None:
+            max_age_seconds = min(max_age_seconds, quote.max_quote_age_seconds)
+        if (
+            quote.observed_at is not None
+            and (assessed_at - quote.observed_at).total_seconds() <= max_age_seconds
+        ):
+            return 0
+        return 1
+    return 2 if quote.observed_at is not None else 3

@@ -178,7 +178,7 @@ def test_fresh_migrations_make_usd_chf_available_for_real_warrant_writes(
                     "quotation_currency_code": "EUR",
                 },
             )
-            assert listing.status_code == 200, listing.text
+            assert listing.status_code == 201, listing.text
             for version, code in enumerate(("USD", "CHF"), start=1):
                 updated = await client.post(
                     terms_url,

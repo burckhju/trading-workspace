@@ -89,9 +89,7 @@ export function StrikeCurrencyInput({ label, value, onChange }: StrikeCurrencyIn
       </p>
       <div id={`${id}-status`} aria-live="polite" className="mt-1 text-xs text-slate-400">
         {state === 'loading' && <p>Währungsstammdaten werden geladen.</p>}
-        {state === 'error' && (
-          <p role="alert">Währungsstammdaten konnten nicht geladen werden.</p>
-        )}
+        {state === 'error' && <p role="alert">Währungsstammdaten konnten nicht geladen werden.</p>}
         {state === 'ready' && currencies.length === 0 && (
           <p>Keine aktiven Währungen verfügbar. Bitte den Referenzdatenstand prüfen.</p>
         )}

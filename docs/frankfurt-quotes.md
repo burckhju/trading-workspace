@@ -5,22 +5,70 @@
 `FRANKFURT_QUOTES` is an opt-in provider behind the existing
 `WarrantListingQuoteProvider` and `MultiSourceWarrantQuoteResolver`. It reads a
 bounded JSON snapshot over HTTPS or an atomically replaced local JSON file.
-The normalized bid/ask import is tried before existing sources **for each eligible active listing**.
-The existing cross-listing order remains unchanged; this is not a global
-best-price aggregator. Historical evaluation/purchase listings are not rewritten.
+Frankfurt is tried before existing sources **for each eligible active listing**.
+The resolver compares available price kinds across sources and active listings
+of the same warrant and quotation currency. Historical evaluation/purchase
+listings are not rewritten. No currency conversion or best-price aggregation is implied.
 
 There are now two explicit capabilities behind this provider:
 
 | Mode | Actual input | Capability | Position valuation |
 | --- | --- | --- | --- |
-| `public_website` | Official website REST endpoint, direct ISIN/XSC query | Last trade with exchange timestamp; no bid/ask | Diagnostic API/CSV only; never selected as a warrant quote |
-| `https_json` / `local_file` | Application-owned normalized snapshot | Validated bid/ask and side timestamps | Monitoring only, always `execution_usable=false` |
+| `public_website` | Official website REST endpoint, direct ISIN/XSC query | Last trade; previous close if Last is absent; no bid/ask | Indicative analysis and held-product value/P&L monitoring, including old or unknown-time references |
+| `https_json` / `local_file` | Application-owned normalized snapshot | Validated bid/ask, typed Last/previous close | Monitoring and indicative analysis; always `execution_usable=false` |
 
 The normalized import still requires an approved upstream vendor/exporter.
 The public website mode needs no API key for the tested request, but is an
 undocumented website interface without a verified production SLA or rate limit.
-Both modes remain disabled by default and require usage approval. No master data,
-portfolio tables, active mappings, subscription or paid access are created.
+Both modes remain disabled by default. The operator has confirmed private usage
+for this installation; no further account or paid-access decision is needed for
+the demonstrated public Last/close request. A website login is not required by
+this transport and no password, session cookie, API key or subscription is created.
+The explicit setup command below can create reference/listing/mapping rows;
+normal quote reads never write portfolio data.
+
+## Available-price analysis policy (2026-09-12)
+
+At the user's request, data age and price kind are disclosed rather than used to
+silence analysis. `WarrantQuoteSnapshot` now represents either bid/ask with a
+quote timestamp or an explicitly typed `reference_price` (`LAST_TRADE` or
+`PREVIOUS_CLOSE`). A reference is never copied into bid/ask. The existing provider
+port, listing mappings and valuation API are reused; no parallel price database
+or migration is introduced.
+
+Selection order: current bid, older bid, timestamped reference, reference with
+unknown time. Within a tier the configured source/listing order is retained.
+A reference does not prevent a later source/listing from supplying a bid. The
+provider's freshness budget (Frankfurt: 900 seconds), application budget and
+actual assessment time are respected even for cached data. Alternate listings
+must use the original valuation currency; unconverted foreign-currency P&L is
+never calculated. Identity errors, invalid prices, crossed quotes and impossible
+future timestamps still fail closed and do not shadow a valid fallback.
+
+`INDICATIVE` means `analysis_usable=true`, `monitoring_usable=true` and
+`execution_usable=false`. It supplies `analysis_market_value` and
+`analysis_unrealized_gross_pnl` from reference price × open quantity and recorded
+cost basis. Current `market_value`/`valuation_usable` remain separate. Older
+bid observations retain STALE/LAST_AVAILABLE and their existing indicative
+analysis permissions. Age imposes no arbitrary historical-analysis cutoff.
+The user decides whether the disclosed source and age suit their analysis.
+
+The response/UI expose price kind, provider, provider identity, ISIN/WKN when
+returned, operating MIC and provider place code, currency, actual quote timestamp,
+retrieval and assessment times, age and unknown/declared feed delay. The public
+field `closingPricePrevTradingDay` has **no date in the verified payload**. Its
+observation time/age therefore remain null, even if `timestampLastPrice` exists
+alongside it. A freshly retrieved close is not relabelled a fresh market quote.
+
+The reported website bid 0.24 / ask 2.40 implies an absolute spread of 2.16 and a
+relative spread of 900%. Values are displayed as received, not "corrected" from
+another provider's quote. The verified public REST response does not contain
+those bid/ask fields, so this implementation does not claim to retrieve them.
+
+"Monitoring" here means held-product value/P&L observation in Trade Management.
+Existing underlying-based Stop/Target alerts keep their underlying input;
+reference warrant prices are not substituted into those rules. No broker order,
+notification or automatic exit is generated by the valuation read.
 
 ## Git and live findings (2026-09-12)
 
@@ -82,30 +130,50 @@ import continues to require its existing verified `XFRA` mapping.
 ## Public retrieval configuration and verification
 
 `docker/frankfurt-public.env.example` configures the fixed official host and source
-mode without accepting usage terms or activating access. Review the website's
+mode without activating access. The operator is responsible for the website's
 [disclaimer and data-download terms](https://live.deutsche-boerse.com/en/disclaimer-en)
-for your intended use. A free browser page or non-commercial historical download
+for their intended use. A free browser page or non-commercial historical download
 does not by itself verify rights for a commercial service or automated non-display
-use. The configuration gate is retained until the operator confirms the intended
-usage; no paid action is required merely to review this implementation.
+use. Private usage was confirmed in this task. Keep the defaults for other
+installations until their operator chooses to enable the source.
 
-After that review, copy the example to `docker/frankfurt.env` **only if that file
+For this confirmed private installation, copy the example to `docker/frankfurt.env` **only if that file
 does not already exist**, configure it, and set ENABLED/USAGE_APPROVED/
 CONTRACT_VERIFIED true. The last flag confirms only the observed Last-Trade JSON
 contract; it does not assert access to a bid/ask feed. Do not set a snapshot URL,
 allowed host, local file or bearer token in public mode: conflicting vendor
 configuration is rejected before network I/O.
 
-For the existing listing diagnostic, first create or identify a verified ACTIVE
-Frankfurt listing through the product administration and an
-ACTIVE `FRANKFURT_QUOTES` mapping: provider symbol = exact ISIN, exchange code =
-`XSC`, validated timestamp set, matching workspace. Do not change the existing
-XSTU listing into a Frankfurt listing or rewrite the trade's historical listing.
-Warrant mappings currently use `warrant_provider_mappings` and its existing
-repository/admin procedure; the `/market-data/provider-mappings` API administers
-underlying listings and must not be used for these warrant mappings. This change
-does not introduce an automatic mapping writer.
-No database mutation is necessary for the standalone CSV probe below.
+The setup CLI checks an existing ACTIVE warrant in the requested workspace,
+queries its exact ISIN/XSC, verifies a usable reference and an active reference
+currency, and reuses or creates an ACTIVE XFRA listing and mapping. Provider
+symbol = ISIN, provider exchange = XSC, validated timestamp = actual retrieval.
+It creates the officially verified XFRA operating venue if absent. Existing
+inactive, ambiguous or conflicting data is reported for review and never
+overwritten. Dry-run is the default; `--apply` writes in one transaction and
+repeating it is idempotent. No WKN claim is inferred from this endpoint.
+The `/market-data/provider-mappings` API is for underlying listings and must not
+be used for these warrant mappings.
+
+Create an activated public configuration only if no Frankfurt configuration exists:
+
+```bash
+python3 - <<'PY'
+from pathlib import Path
+target = Path('docker/frankfurt.env')
+if target.exists():
+    raise SystemExit('docker/frankfurt.env exists: review its mode/settings; do not overwrite it.')
+content = Path('docker/frankfurt-public.env.example').read_text()
+for key in ('ENABLED', 'USAGE_APPROVED', 'CONTRACT_VERIFIED'):
+    content = content.replace(f'__{key}=false', f'__{key}=true')
+with target.open('x') as handle:
+    handle.write(content)
+PY
+```
+
+For an existing public configuration, those three switches must be `true`,
+SOURCE_MODE `public_website`, and SOURCE_NAME `deutsche-boerse-public`.
+Preserve existing Vontobel settings in `docker/.env`.
 
 ```bash
 git switch main
@@ -124,6 +192,23 @@ curl -fsS http://localhost:8000/api/v1/position-monitoring/quote-sources/frankfu
 No migration is introduced by this change. Health must show `public_website`,
 `bid_ask_supported=false`, `delay_seconds=null`, and `execution_usable=false`.
 Configuration readiness is not a live-data success signal.
+
+Create the exact listing/mapping after deployment (omit `--apply` for a read-only
+preview). The default workspace is the local application's standard workspace;
+use `--workspace-id UUID` for another workspace. The same command works for each
+other existing warrant by supplying its own warrant UUID; none is hardcoded:
+
+```bash
+docker compose --env-file docker/.env -f docker/compose.yml \
+  -f docker/compose.frankfurt.yml exec -T backend \
+  python -m app.providers.frankfurt_quotes.configure \
+  --warrant-id 8ee5ab84-86ce-491e-b4b0-d98a0379d0c3 --apply
+```
+
+This preserves XSTU listing `8fd2a716-9a96-4c8b-ac20-521e96c18b32` and historical
+XETR listing `2cd25058-f843-462a-a49e-5ba8154ab5e4`. It does not write a user
+instrument or trade into any migration. Actual setup output includes the new or
+reused Frankfurt listing UUID and a diagnostic observation.
 
 Run the real retrieval through the installed client for this exact instrument,
 without guessing UUIDs or changing user data. The temporary input is inside the
@@ -145,9 +230,11 @@ source mode `OFFICIAL_WEBSITE_LAST_TRADE`, last price/time when returned,
 bid/ask empty, delay unknown, execution false. A fresh last trade is INSUFFICIENT
 with `FRANKFURT_POST_TRADE_ONLY`; an old one is STALE with
 `FRANKFURT_LAST_TRADE_STALE`. `{}` is an error (`FRANKFURT_PUBLIC_EMPTY_RESPONSE`),
-never READY or proof that a security does not exist. This public mode is skipped
-by the bid/ask resolver, so valuation does not waste requests on known Last-only
-data; Vontobel and the other appropriate sources continue independently.
+never READY or proof that a security does not exist. These diagnostic statuses
+describe bid/ask freshness/capability; `analysis_usable=true` separately reports
+valid Last/close evidence. The resolver now retains that evidence for indicative
+analysis while allowing Vontobel and other suitable sources to supply a bid.
+The CSV also reports close_price, close_at and analysis_usable.
 
 ```bash
 curl -fsS \
@@ -162,6 +249,23 @@ validated through the new parser. The default Python transport could not make a
 direct external connection there; the environment requires a SOCKS proxy whose
 optional Python dependency is absent. No sandbox/network workaround or proxy
 configuration is added to production code to hide that validation limitation.
+The user subsequently confirmed HTTP 200 with the same Last payload from the
+deployed backend Python transport, and HTTP 200 `{}` for quote history. That
+confirms local REST transport, not an already completed integrated deployment
+of this new valuation policy.
+
+With only the observed 0.231 EUR Last available for 2,000 units and 1,020 EUR
+cost basis, the expected **indicative** value is 462 EUR and gross unrealized
+P&L -558 EUR. Expect reference_price_type=LAST_TRADE, bid/ask=null,
+provider=FRANKFURT_QUOTES, provider_identity=DE000VH2LU21, provider place XSC,
+venue XFRA, analysis_usable/monitoring_usable=true, execution_usable=false.
+The provider's actual timestamp and delay disclosure must remain in the response.
+If Vontobel still supplies its 0.24 bid, the preferred bid-based indicative
+value remains 480 EUR with -540 EUR P&L; a different source selection is expected,
+not evidence of a failed Frankfurt integration. Expand source attempts or use
+the returned Frankfurt listing UUID at `/quote-sources/frankfurt/listings/UUID`
+to inspect that source directly. A close-only response uses PREVIOUS_CLOSE and
+unknown timestamp/age. Never expect literal fixture prices from a later live run.
 
 ## Bid/ask access still needed: user and cost decision
 

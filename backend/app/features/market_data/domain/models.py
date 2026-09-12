@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from decimal import Decimal, InvalidOperation
+from typing import Literal
 from uuid import UUID
 
 from app.features.market_data.domain.enums import (
@@ -225,7 +226,7 @@ class DailyPrice:
 
 @dataclass(frozen=True, slots=True)
 class WarrantQuoteSnapshot:
-    """Provider-neutral bid/ask observation for one concrete FT-004 WarrantListing.
+    """Exact-listing bid/ask or explicitly typed indicative reference observation.
 
     Provider identity remains provenance only; it never becomes Warrant/WarrantListing
     master data.  Partial quotes are allowed and carry explicit quality through the
@@ -238,13 +239,34 @@ class WarrantQuoteSnapshot:
     currency: str
     provider_symbol: str
     provider_exchange_code: str
-    observed_at: datetime
+    observed_at: datetime | None
     isin: str | None = None
     wkn: str | None = None
     source_mode: str | None = None
     trading_status: str | None = None
+    reference_price: Decimal | None = None
+    reference_price_type: Literal["LAST_TRADE", "PREVIOUS_CLOSE"] | None = None
+    assessed_at: datetime | None = None
+    feed_delay_seconds: int | None = None
+    venue_mic: str | None = None
+    max_quote_age_seconds: int | None = None
 
     def __post_init__(self) -> None:
+        if (self.reference_price is None) != (self.reference_price_type is None):
+            raise InvalidMarketDataValue("Reference price requires its price type")
+        if self.reference_price is not None:
+            object.__setattr__(
+                self,
+                "reference_price",
+                _decimal(self.reference_price, field="reference_price"),
+            )
+            if self.reference_price <= 0 or self.reference_price_type not in (
+                "LAST_TRADE",
+                "PREVIOUS_CLOSE",
+            ):
+                raise InvalidMarketDataValue("Invalid reference price or price type")
+            if self.bid is not None or self.ask is not None:
+                raise InvalidMarketDataValue("Reference prices must not masquerade as bid/ask")
         if self.bid is not None:
             object.__setattr__(self, "bid", _decimal(self.bid, field="bid"))
             if self.bid <= 0:
@@ -266,7 +288,16 @@ class WarrantQuoteSnapshot:
             "provider_exchange_code",
             _normalize_code(self.provider_exchange_code, field="provider_exchange_code"),
         )
-        _require_utc(self.observed_at, field="observed_at")
+        if self.observed_at is not None:
+            _require_utc(self.observed_at, field="observed_at")
+        elif self.reference_price is None:
+            raise InvalidMarketDataValue("Bid/ask observation requires a timestamp")
+        if self.assessed_at is not None:
+            _require_utc(self.assessed_at, field="assessed_at")
+        if self.feed_delay_seconds is not None and self.feed_delay_seconds < 0:
+            raise InvalidMarketDataValue("Feed delay must not be negative")
+        if self.max_quote_age_seconds is not None and self.max_quote_age_seconds < 0:
+            raise InvalidMarketDataValue("Maximum quote age must not be negative")
         for field in ("isin", "wkn", "source_mode", "trading_status"):
             value = getattr(self, field)
             if value is not None:

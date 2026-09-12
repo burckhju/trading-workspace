@@ -236,4 +236,66 @@ describe('ProductValuationPanel', () => {
     expect(api.position).toHaveBeenCalled();
     expect(api.productValuation).not.toHaveBeenCalled();
   });
+
+  it.each(['LAST_TRADE', 'PREVIOUS_CLOSE'] as const)(
+    'shows %s as its own indicative basis with unknown freshness and no invented bid',
+    async (kind) => {
+      api.productValuation.mockResolvedValue({
+        trade_id: 'trade-1',
+        position_id: 'position-1',
+        status: 'INDICATIVE',
+        reason: 'REFERENCE_PRICE_AVAILABLE_FOR_ANALYSIS',
+        warrant_listing_id: 'frankfurt-listing',
+        symbol: null,
+        bid: null,
+        ask: null,
+        currency: 'EUR',
+        quote_observed_at: null,
+        quote_age_seconds: null,
+        max_quote_age_seconds: 900,
+        market_value: null,
+        unrealized_gross_pnl: null,
+        selected_source: 'FRANKFURT_QUOTES',
+        valuation_usable: false,
+        execution_usable: false,
+        analysis_usable: true,
+        monitoring_usable: true,
+        analysis_warning: 'QUOTE_TIMESTAMP_UNKNOWN_INDICATIVE_ANALYSIS_ONLY',
+        analysis_market_value: '462.00',
+        analysis_unrealized_gross_pnl: '-558.00',
+        freshness_policy: 'REFERENCE_PRICE_DISCLOSURE_V1',
+        source_attempts: [],
+        reference_price: '0.231',
+        reference_price_type: kind,
+        provider_identity: 'DE000VH2LU21',
+        provider_exchange_code: 'XSC',
+        quote_venue_mic: 'XFRA',
+        quote_delay_seconds: null,
+        quote_retrieved_at: '2026-09-12T10:00:00Z',
+        quote_assessed_at: '2026-09-12T10:01:00Z',
+      });
+      render(<ProductValuationPanel tradeId="trade-1" />);
+      expect(await screen.findByText('Indikative Auswertung')).toBeInTheDocument();
+      expect(screen.getByRole('status')).toHaveTextContent('Kurszeitpunkt unbekannt');
+      expect(screen.getByRole('status')).toHaveTextContent('Sie entscheiden');
+      expect(screen.getByText('0,231 EUR')).toBeInTheDocument();
+      expect(screen.getByText('462 EUR')).toBeInTheDocument();
+      expect(screen.getByText('-558 EUR')).toBeInTheDocument();
+      expect(screen.getByText(/Bewertungsquelle: FRANKFURT_QUOTES/)).toHaveTextContent(
+        'DE000VH2LU21',
+      );
+      expect(screen.getByText(/Handelsplatz: XFRA/)).toHaveTextContent(
+        'Feed-Verzögerung: unbekannt',
+      );
+      expect(screen.queryByText('Marktwert (Bid)')).not.toBeInTheDocument();
+      expect(screen.queryByText('Indikativer Wert (letzter Bid)')).not.toBeInTheDocument();
+      expect(
+        screen.getByText(
+          kind === 'LAST_TRADE'
+            ? 'Indikativer Wert (letzter Handelspreis)'
+            : 'Indikativer Wert (Schlusskurs)',
+        ),
+      ).toBeInTheDocument();
+    },
+  );
 });
