@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, expect, it, vi } from 'vitest';
 
 import { marketApiClient } from '../../market/services/client';
@@ -11,6 +11,7 @@ vi.mock('../../market/services/client', () => ({
     listIssuers: vi.fn(),
     searchUnderlyings: vi.fn(),
     listTradingVenues: vi.fn(),
+    listCurrencies: vi.fn(),
   },
 }));
 vi.mock('../services/client', () => ({
@@ -56,6 +57,13 @@ const legacyTerms: WarrantTermsResponse = {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  market.listCurrencies.mockResolvedValue({
+    items: [
+      { code: 'CHF', name: 'Swiss Franc', minor_unit: 2, reference_version: 'test' },
+      { code: 'EUR', name: 'Euro', minor_unit: 2, reference_version: 'test' },
+      { code: 'USD', name: 'US Dollar', minor_unit: 2, reference_version: 'test' },
+    ],
+  });
   market.listIssuers.mockResolvedValue({
     items: [
       {
@@ -145,34 +153,38 @@ it('does not infer a legacy strike currency from an EUR quotation', async () => 
   );
 });
 
-it('posts the explicit USD strike independently of the EUR listing', async () => {
+it.each(['USD', 'CHF'])('posts %s independently of EUR', async (code) => {
   render(<WarrantAdminPage />);
   await screen.findByText(/Strike 500 \(Währung ungeklärt\)/);
+  const selector = screen.getByRole('combobox', { name: 'Strike-Währung' });
+  await within(selector).findByRole('option', { name: new RegExp(`^${code}`) });
   fillProduct();
-  fireEvent.change(screen.getByLabelText('Strike-Währung'), { target: { value: 'usd' } });
-  expect(screen.getByLabelText('Strike-Währung')).toHaveValue('USD');
+  fireEvent.change(selector, { target: { value: code } });
+  expect(selector).toHaveValue(code);
   expect(screen.getByLabelText('Handelswährung')).toHaveValue('EUR');
   fireEvent.click(screen.getByRole('button', { name: 'Optionsschein anlegen' }));
   await waitFor(() =>
     expect(warrants.create).toHaveBeenCalledWith(
-      expect.objectContaining({ strike: '500', strike_currency_code: 'USD' }),
+      expect.objectContaining({ strike: '500', strike_currency_code: code }),
     ),
   );
 });
 
-it('adds USD terms while retaining the unknown historical version', async () => {
+it.each(['USD', 'CHF'])('adds %s terms and retains history', async (code) => {
   const next = {
     ...legacyTerms,
     id: 'terms-2',
     version_no: 2,
-    strike_currency_code: 'USD',
+    strike_currency_code: code,
   };
   warrants.addTerms.mockResolvedValue(next);
   render(<WarrantAdminPage />);
   await screen.findByText(/Strike 500 \(Währung ungeklärt\)/);
+  const selector = screen.getByRole('combobox', { name: 'Neue Strike-Währung' });
+  await within(selector).findByRole('option', { name: new RegExp(`^${code}`) });
 
   fireEvent.change(screen.getByLabelText('Neuer Strike'), { target: { value: '500' } });
-  fireEvent.change(screen.getByLabelText('Neue Strike-Währung'), { target: { value: 'usd' } });
+  fireEvent.change(selector, { target: { value: code } });
   fireEvent.change(screen.getByLabelText('Neue Fälligkeit'), { target: { value: '2027-01-15' } });
   fireEvent.change(screen.getByLabelText('Neues Bezugsverhältnis'), { target: { value: '0.1' } });
   warrants.terms.mockResolvedValue([{ ...legacyTerms, effective_to: warrant.updated_at }, next]);
@@ -184,11 +196,11 @@ it('adds USD terms while retaining the unknown historical version', async () => 
       expect.objectContaining({
         expected_version: 1,
         strike: '500',
-        strike_currency_code: 'USD',
+        strike_currency_code: code,
       }),
     ),
   );
-  expect(await screen.findByText(/Strike 500 USD/)).toBeInTheDocument();
+  expect(await screen.findByText(new RegExp(`Strike 500 ${code}`))).toBeInTheDocument();
   expect(screen.getByText(/Strike 500 \(Währung ungeklärt\)/)).toBeInTheDocument();
   expect(screen.getByText(/Test Venue · EUR/)).toBeInTheDocument();
   expect(warrants.addListing).not.toHaveBeenCalled();
