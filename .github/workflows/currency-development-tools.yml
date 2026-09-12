@@ -18,14 +18,16 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version-file: frontend/.nvmrc
-      - name: Assemble isolated formatter toolchain and tracked sources
+      - name: Assemble isolated test toolchain and reference data
         run: |
           mkdir -p /tmp/currency-tools
-          python -m pip install --target /tmp/currency-tools/python black==26.1.0 ruff==0.15.1
+          python -m pip install --target /tmp/currency-tools/python -r backend/requirements-dev.txt
           cd frontend
           npm ci --no-audit --no-fund
-          cp -a node_modules/prettier /tmp/currency-tools/prettier
+          cp -a node_modules /tmp/currency-tools/node_modules
           cd ..
+          curl --fail --show-error --location --max-time 60 'https://www.six-group.com/dam/download/financial-information/data-center/iso-currrency/lists/list-one.xml' -o /tmp/currency-tools/list-one.xml
+          sha256sum /tmp/currency-tools/list-one.xml
           git archive HEAD > /tmp/currency-tools/source.tar
           tar -czf /tmp/currency-tools.tar.gz -C /tmp currency-tools
       - uses: actions/upload-artifact@v4
