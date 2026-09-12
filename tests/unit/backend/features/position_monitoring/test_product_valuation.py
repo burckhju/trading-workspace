@@ -94,6 +94,8 @@ def _quote_result(
     currency="EUR",
     observed_at=NOW,
     retrieved_at=NOW,
+    trading_status=None,
+    source_mode=None,
 ):
     quote = WarrantQuoteSnapshot(
         warrant_listing_id=listing_id,
@@ -103,6 +105,8 @@ def _quote_result(
         provider_symbol="TEST12",
         provider_exchange_code="STU",
         observed_at=observed_at,
+        trading_status=trading_status,
+        source_mode=source_mode,
     )
     return MarketDataResult(
         data=quote,
@@ -179,6 +183,45 @@ async def test_stale_quote_does_not_create_current_market_value_or_unrealized_pn
     assert result.max_quote_age_seconds == 3600
     assert result.market_value is None
     assert result.unrealized_gross_pnl is None
+
+
+@pytest.mark.asyncio
+async def test_previous_close_is_usable_for_indicative_weekend_valuation_only() -> None:
+    trade, position, evaluation, listing = _context()
+    friday_close = datetime(2026, 9, 11, 19, 59, 13, tzinfo=UTC)
+    saturday = datetime(2026, 9, 12, 6, 51, 13, tzinfo=UTC)
+    provider = _Provider(
+        _quote_result(
+            listing_id=listing.id,
+            observed_at=friday_close,
+            retrieved_at=saturday,
+            trading_status="CLOSED",
+            source_mode="OFFICIAL_ISSUER_INDICATION",
+        )
+    )
+    service = ProductPositionValuationService(
+        database=_Database(
+            _Session(
+                trade=trade,
+                position=position,
+                evaluation=evaluation,
+                listing=listing,
+            )
+        ),
+        quote_provider=provider,
+        max_quote_age_seconds=3600,
+    )
+
+    result = await service.for_trade(trade.id)
+
+    assert result is not None
+    assert result.status is ProductValuationStatus.LAST_AVAILABLE
+    assert result.reason == "MARKET_CLOSED_LAST_AVAILABLE_QUOTE"
+    assert result.market_value == Decimal("25.00")
+    assert result.unrealized_gross_pnl == Decimal("5.00")
+    assert result.valuation_usable is True
+    assert result.execution_usable is False
+    assert result.freshness_policy == "DE_WARRANT_SESSION_FRESHNESS_V1"
 
 
 @pytest.mark.asyncio

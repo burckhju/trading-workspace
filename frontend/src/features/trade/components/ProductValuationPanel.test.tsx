@@ -51,6 +51,9 @@ describe('ProductValuationPanel', () => {
       market_value: null,
       unrealized_gross_pnl: null,
       selected_source: null,
+      valuation_usable: false,
+      execution_usable: false,
+      freshness_policy: null,
       source_attempts: [
         {
           source: 'EODHD',
@@ -98,6 +101,9 @@ describe('ProductValuationPanel', () => {
       market_value: '25.00',
       unrealized_gross_pnl: '5.00',
       selected_source: 'SECONDARY',
+      valuation_usable: true,
+      execution_usable: false,
+      freshness_policy: 'DE_WARRANT_SESSION_FRESHNESS_V1',
       source_attempts: [
         {
           source: 'EODHD',
@@ -145,6 +151,9 @@ describe('ProductValuationPanel', () => {
       market_value: null,
       unrealized_gross_pnl: null,
       selected_source: 'SECONDARY',
+      valuation_usable: false,
+      execution_usable: false,
+      freshness_policy: 'DE_WARRANT_SESSION_FRESHNESS_V1',
       source_attempts: [],
     });
 
@@ -156,6 +165,37 @@ describe('ProductValuationPanel', () => {
     expect(screen.getByText(/120 Min\./)).toBeInTheDocument();
     expect(screen.queryByText('Marktwert (Bid)')).not.toBeInTheDocument();
     expect(screen.queryByText('Unrealized gross P&L')).not.toBeInTheDocument();
+  });
+
+  it('shows the previous close as an indicative weekend valuation', async () => {
+    api.productValuation.mockResolvedValue({
+      trade_id: 'trade-1',
+      position_id: 'position-1',
+      status: 'LAST_AVAILABLE',
+      reason: 'MARKET_CLOSED_LAST_AVAILABLE_QUOTE',
+      warrant_listing_id: 'listing-1',
+      symbol: null,
+      bid: '0.24',
+      ask: '0.25',
+      currency: 'EUR',
+      quote_observed_at: '2026-09-11T19:59:13Z',
+      quote_age_seconds: 39120,
+      max_quote_age_seconds: 3600,
+      market_value: '480.00',
+      unrealized_gross_pnl: '-540.00',
+      selected_source: 'VONTOBEL_MARKETS',
+      valuation_usable: true,
+      execution_usable: false,
+      freshness_policy: 'DE_WARRANT_SESSION_FRESHNESS_V1',
+      source_attempts: [],
+    });
+
+    render(<ProductValuationPanel tradeId="trade-1" />);
+
+    expect(await screen.findByText('Letzter verfügbarer Produktkurs')).toBeInTheDocument();
+    expect(screen.getByText('Marktwert (Bid)')).toBeInTheDocument();
+    expect(screen.getByText('Unrealized gross P&L')).toBeInTheDocument();
+    expect(screen.getByText(/nicht für eine automatische Exit-/)).toBeInTheDocument();
   });
 
   it('does not request a quote for a closed position', async () => {

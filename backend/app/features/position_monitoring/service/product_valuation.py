@@ -17,6 +17,10 @@ from app.features.market_data.domain.enums import (
 from app.features.market_data.persistence.models import WarrantProviderMappingModel
 from app.features.market_data.service.contracts import WarrantListingQuoteProvider
 from app.features.market_data.service.types import WarrantQuoteRequest
+from app.features.position_monitoring.service.quote_freshness import (
+    QuoteFreshness,
+    TradingSessionFreshnessPolicy,
+)
 from app.features.position_monitoring.service.quote_sources import (
     MultiSourceWarrantQuoteResolver,
     NamedWarrantQuoteSource,
@@ -33,6 +37,7 @@ DEFAULT_MAX_PRODUCT_QUOTE_AGE_SECONDS = 3600
 
 class ProductValuationStatus(StrEnum):
     AVAILABLE = "AVAILABLE"
+    LAST_AVAILABLE = "LAST_AVAILABLE"
     STALE = "STALE"
     MISSING = "MISSING"
     UNAVAILABLE = "UNAVAILABLE"
@@ -65,6 +70,9 @@ class ProductPositionValuation:
     wkn: str | None = None
     source_mode: str | None = None
     trading_status: str | None = None
+    valuation_usable: bool = False
+    execution_usable: bool = False
+    freshness_policy: str | None = None
     source_attempts: tuple[QuoteSourceAttempt, ...] = ()
 
 
@@ -78,6 +86,7 @@ class ProductPositionValuationService:
         quote_provider: WarrantListingQuoteProvider | None = None,
         quote_resolver: MultiSourceWarrantQuoteResolver | None = None,
         max_quote_age_seconds: int = DEFAULT_MAX_PRODUCT_QUOTE_AGE_SECONDS,
+        freshness_policy: TradingSessionFreshnessPolicy | None = None,
     ) -> None:
         if max_quote_age_seconds < 0:
             raise ValueError("max_quote_age_seconds must not be negative")
@@ -85,6 +94,7 @@ class ProductPositionValuationService:
         self._legacy_single_source = quote_resolver is None and quote_provider is not None
         self._quote_resolver = quote_resolver
         self._max_quote_age_seconds = max_quote_age_seconds
+        self._freshness_policy = freshness_policy or TradingSessionFreshnessPolicy()
         if self._quote_resolver is None and quote_provider is not None:
             self._quote_resolver = MultiSourceWarrantQuoteResolver(
                 (NamedWarrantQuoteSource("PRIMARY", quote_provider),)
@@ -338,7 +348,43 @@ class ProductPositionValuationService:
                     trading_status=quote.trading_status,
                     source_attempts=attempts,
                 )
-            if quote_age_seconds > self._max_quote_age_seconds:
+            freshness = self._freshness_policy.classify(
+                observed_at=quote.observed_at,
+                retrieved_at=selected_result.retrieved_at,
+                max_age_seconds=self._max_quote_age_seconds,
+                trading_status=quote.trading_status,
+            )
+            market_value = quote.bid * Decimal(position.open_quantity)
+            if freshness is QuoteFreshness.LAST_AVAILABLE:
+                return ProductPositionValuation(
+                    trade_id=trade_id,
+                    position_id=position.id,
+                    warrant_listing_id=selected_listing.id,
+                    symbol=selected_listing.symbol,
+                    status=ProductValuationStatus.LAST_AVAILABLE,
+                    reason="MARKET_CLOSED_LAST_AVAILABLE_QUOTE",
+                    bid=quote.bid,
+                    ask=quote.ask,
+                    currency=quote.currency,
+                    quote_observed_at=quote.observed_at,
+                    quote_age_seconds=quote_age_seconds,
+                    max_quote_age_seconds=self._max_quote_age_seconds,
+                    market_value=market_value,
+                    unrealized_gross_pnl=market_value - position.cost_basis,
+                    selected_source=selected_source,
+                    quote_provider=selected_result.provider,
+                    provider_identity=quote.provider_symbol,
+                    provider_exchange_code=quote.provider_exchange_code,
+                    isin=quote.isin,
+                    wkn=quote.wkn,
+                    source_mode=quote.source_mode,
+                    trading_status=quote.trading_status,
+                    valuation_usable=True,
+                    execution_usable=False,
+                    freshness_policy=self._freshness_policy.policy_version,
+                    source_attempts=attempts,
+                )
+            if freshness is QuoteFreshness.STALE:
                 return ProductPositionValuation(
                     trade_id=trade_id,
                     position_id=position.id,
@@ -362,10 +408,10 @@ class ProductPositionValuationService:
                     wkn=quote.wkn,
                     source_mode=quote.source_mode,
                     trading_status=quote.trading_status,
+                    freshness_policy=self._freshness_policy.policy_version,
                     source_attempts=attempts,
                 )
 
-            market_value = quote.bid * Decimal(position.open_quantity)
             return ProductPositionValuation(
                 trade_id=trade_id,
                 position_id=position.id,
@@ -395,5 +441,11 @@ class ProductPositionValuationService:
                 wkn=quote.wkn,
                 source_mode=quote.source_mode,
                 trading_status=quote.trading_status,
+                valuation_usable=True,
+                execution_usable=(
+                    quote.trading_status == "OPEN"
+                    and quote.source_mode != "OFFICIAL_ISSUER_INDICATION"
+                ),
+                freshness_policy=self._freshness_policy.policy_version,
                 source_attempts=attempts,
             )

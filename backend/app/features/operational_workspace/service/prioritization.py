@@ -143,7 +143,10 @@ async def prioritize_position_monitoring(
 
         product_problem = False
         if valuation is not None:
-            product_problem = valuation.status is not ProductValuationStatus.AVAILABLE
+            product_problem = valuation.status not in {
+                ProductValuationStatus.AVAILABLE,
+                ProductValuationStatus.LAST_AVAILABLE,
+            }
 
         if not underlying_problem and not product_problem:
             prioritized.append(action)

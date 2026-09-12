@@ -143,13 +143,21 @@ class OperationalPositionSnapshotService:
                     market_value=(
                         valuation.market_value
                         if valuation is not None
-                        and valuation.status is ProductValuationStatus.AVAILABLE
+                        and valuation.status
+                        in {
+                            ProductValuationStatus.AVAILABLE,
+                            ProductValuationStatus.LAST_AVAILABLE,
+                        }
                         else None
                     ),
                     unrealized_gross_pnl=(
                         valuation.unrealized_gross_pnl
                         if valuation is not None
-                        and valuation.status is ProductValuationStatus.AVAILABLE
+                        and valuation.status
+                        in {
+                            ProductValuationStatus.AVAILABLE,
+                            ProductValuationStatus.LAST_AVAILABLE,
+                        }
                         else None
                     ),
                     open_alert_count=len(alert_types),
@@ -208,9 +216,9 @@ class OperationalPositionSnapshotService:
     ) -> str:
         if alert_types:
             return "ALERT"
-        if (
-            monitoring_status != MonitoringHealthStatus.OK.value
-            or valuation_status != ProductValuationStatus.AVAILABLE.value
-        ):
+        if monitoring_status != MonitoringHealthStatus.OK.value or valuation_status not in {
+            ProductValuationStatus.AVAILABLE.value,
+            ProductValuationStatus.LAST_AVAILABLE.value,
+        }:
             return "DATA_HEALTH"
         return "OK"
