@@ -100,6 +100,12 @@ class WarrantTermsVersionModel(Base):
         CheckConstraint("strike >= 0", name="strike_non_negative"),
         CheckConstraint("ratio > 0", name="ratio_positive"),
         CheckConstraint(
+            "strike_currency_code IS NULL OR "
+            "(length(strike_currency_code) = 3 AND "
+            "strike_currency_code = upper(strike_currency_code))",
+            name="strike_currency_valid",
+        ),
+        CheckConstraint(
             "effective_to IS NULL OR effective_to > effective_from", name="effective_window_valid"
         ),
         Index(
@@ -120,6 +126,11 @@ class WarrantTermsVersionModel(Base):
         _enum(OptionDirection, length=10), nullable=False
     )
     strike: Mapped[Decimal] = mapped_column(Numeric(20, 8), nullable=False)
+    strike_currency_code: Mapped[str | None] = mapped_column(
+        String(3),
+        ForeignKey("currencies.code", name="fk_warrant_terms_strike_currency", ondelete="RESTRICT"),
+        nullable=True,
+    )
     maturity_date: Mapped[date] = mapped_column(Date, nullable=False)
     ratio: Mapped[Decimal] = mapped_column(Numeric(20, 10), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
