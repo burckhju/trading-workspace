@@ -129,3 +129,13 @@ async def test_existing_mappings_are_idempotent_and_never_reactivated_or_overwri
         )
     adapter.probe.assert_not_awaited()
     session.add.assert_not_called()
+
+
+def test_automatic_issuer_probe_rejects_naive_time_and_does_not_invent_closed_status():
+    from app.features.market_data.service.errors import MarketDataInvalidResponseError
+
+    html = _html().replace("2026-09-11T19:59:13+00:00", "2026-09-11T19:59:13")
+    with pytest.raises(MarketDataInvalidResponseError, match="timestamp"):
+        _adapter()._parse(html, _identity())
+    quote = _adapter()._parse(_html().replace('"isOpen": false', '"isOpen": null'), _identity())
+    assert quote.trading_status == "UNKNOWN"

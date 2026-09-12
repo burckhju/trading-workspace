@@ -77,6 +77,10 @@ class FrankfurtSnapshotClient:
         self.last_error: str | None = None
         self.last_success_at: datetime | None = None
 
+    def request_delay_seconds(self) -> float:
+        """Expose the remaining shared cooldown to the background scheduler."""
+        return max(0.0, self._next_fetch - self._timer())
+
     async def load(self) -> tuple[FrankfurtSnapshot, datetime, bool]:
         if self.settings.source_mode is FrankfurtSourceMode.PUBLIC_WEBSITE:
             raise FrankfurtSourceError("FRANKFURT_ISIN_REQUIRED")

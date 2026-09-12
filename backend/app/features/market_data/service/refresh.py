@@ -189,6 +189,8 @@ class MarketDataRefreshRuntime:
 
     async def _pace(self) -> None:
         delay = self._next_request - self.timer()
+        if self.container.frankfurt is not None:
+            delay = max(delay, self.container.frankfurt.snapshots.request_delay_seconds())
         if delay > 0:
             await asyncio.sleep(delay)
         spacing = self.settings.request_spacing_seconds

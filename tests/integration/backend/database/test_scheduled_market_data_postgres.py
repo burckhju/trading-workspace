@@ -1,5 +1,6 @@
 """Catalog -> verified mappings -> quote reads with actual PostgreSQL constraints."""
 
+import asyncio
 import os
 from contextlib import asynccontextmanager
 from dataclasses import replace
@@ -10,7 +11,9 @@ from uuid import uuid4
 import httpx
 import pytest
 from sqlalchemy import text
+from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.pool import NullPool
 from tests.integration.backend.database.conftest import _run_alembic
 from tests.unit.backend.providers.frankfurt_quotes.test_public import public_settings, wire
 from tests.unit.backend.providers.frankfurt_quotes.test_schema import NOW
@@ -27,12 +30,31 @@ from app.providers.vontobel_markets.adapter import VontobelMarketsWarrantQuoteAd
 
 @pytest.fixture
 def current_database_url():
-    url = os.environ.get("TRADING_WORKSPACE_TEST_DATABASE_URL", "")
-    if not url:
+    base = os.environ.get("TRADING_WORKSPACE_TEST_DATABASE_URL", "")
+    if not base:
         pytest.skip("TRADING_WORKSPACE_TEST_DATABASE_URL is not configured")
-    assert url.split("?", 1)[0].rsplit("/", 1)[-1] == "trading_workspace_test"
-    _run_alembic("upgrade", "head", url)
-    return url
+    parsed = make_url(base)
+    assert parsed.database == "trading_workspace_test"
+    database_name = "trading_workspace_refresh_test_" + uuid4().hex
+    isolated_url = parsed.set(database=database_name).render_as_string(hide_password=False)
+
+    async def manage(action):
+        engine = create_async_engine(base, isolation_level="AUTOCOMMIT", poolclass=NullPool)
+        try:
+            async with engine.connect() as connection:
+                if action == "create":
+                    await connection.execute(text(f'CREATE DATABASE "{database_name}"'))
+                else:
+                    await connection.execute(text(f'DROP DATABASE "{database_name}" WITH (FORCE)'))
+        finally:
+            await engine.dispose()
+
+    asyncio.run(manage("create"))
+    try:
+        _run_alembic("upgrade", "head", isolated_url)
+        yield isolated_url
+    finally:
+        asyncio.run(manage("drop"))
 
 
 @pytest.mark.asyncio

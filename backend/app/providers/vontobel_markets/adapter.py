@@ -148,7 +148,6 @@ class VontobelMarketsWarrantQuoteAdapter:
         client = self._client or httpx.AsyncClient(
             timeout=self._settings.timeout_seconds, follow_redirects=False
         )
-        retrieved_at = datetime.now(UTC)
         try:
             response = await client.get(url, headers={"Accept": "text/html"})
             response.raise_for_status()
@@ -158,7 +157,7 @@ class VontobelMarketsWarrantQuoteAdapter:
         finally:
             if owns_client:
                 await client.aclose()
-        return quote, retrieved_at
+        return quote, datetime.now(UTC)
 
     async def _resolve_identity(self, request: WarrantQuoteRequest) -> _Identity:
         async with self._database.session_context() as session:
@@ -261,11 +260,15 @@ class VontobelMarketsWarrantQuoteAdapter:
         if not isinstance(timestamp, str):
             raise self._invalid("Vontobel quote has no timestamp")
         try:
-            observed_at = datetime.fromisoformat(timestamp.replace("Z", "+00:00")).astimezone(UTC)
+            observed_at = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+            if observed_at.tzinfo is None or observed_at.utcoffset() is None:
+                raise ValueError("Quote timestamp has no timezone")
+            observed_at = observed_at.astimezone(UTC)
         except ValueError as exc:
             raise self._invalid("Vontobel quote timestamp is invalid") from exc
         trading = quote_data.get("tradingHours")
-        status = "OPEN" if isinstance(trading, dict) and trading.get("isOpen") is True else "CLOSED"
+        is_open = trading.get("isOpen") if isinstance(trading, dict) else None
+        status = "OPEN" if is_open is True else "CLOSED" if is_open is False else "UNKNOWN"
         return WarrantQuoteSnapshot(
             warrant_listing_id=identity.listing_id,
             bid=bid,

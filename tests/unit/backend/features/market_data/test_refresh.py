@@ -329,3 +329,18 @@ async def test_background_replica_does_not_run_without_leader_lock():
     with pytest.raises(asyncio.CancelledError):
         await task
     value.run_once.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_scheduler_observes_frankfurt_cooldown_after_response_and_failure(monkeypatch):
+    value = runtime()
+    value.container = SimpleNamespace(
+        frankfurt=SimpleNamespace(
+            settings=SimpleNamespace(refresh_interval_seconds=15),
+            snapshots=SimpleNamespace(request_delay_seconds=lambda: 59.0),
+        )
+    )
+    sleeper = AsyncMock()
+    monkeypatch.setattr(module.asyncio, "sleep", sleeper)
+    await MarketDataRefreshRuntime._pace(value)
+    sleeper.assert_awaited_once_with(59.0)
