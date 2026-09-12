@@ -27,6 +27,8 @@ export interface WarrantTermsResponse {
   effective_to: IsoDateTime | null;
   option_direction: OptionDirection;
   strike: string;
+  // Missing on older API versions; both missing and null mean unknown, never EUR.
+  strike_currency_code?: string | null;
   maturity_date: string;
   ratio: string;
   created_at: IsoDateTime;
@@ -53,6 +55,7 @@ export interface CreateWarrantRequest {
   wkn?: string | null;
   option_direction: OptionDirection;
   strike: string;
+  strike_currency_code?: string | null;
   maturity_date: string;
   ratio: string;
 }
@@ -61,6 +64,7 @@ export interface AddWarrantTermsRequest {
   expected_version: number;
   option_direction: OptionDirection;
   strike: string;
+  strike_currency_code?: string | null;
   maturity_date: string;
   ratio: string;
 }
