@@ -41,6 +41,8 @@ class ProductPositionValuation:
     status: ProductValuationStatus
     reason: str
     warrant_listing_id: UUID | None = None
+    provenance_listing_id: UUID | None = None
+    quote_listing_id: UUID | None = None
     symbol: str | None = None
     bid: Decimal | None = None
     ask: Decimal | None = None
@@ -133,6 +135,7 @@ class ProductPositionValuationService:
                     status=ProductValuationStatus.ERROR,
                     reason="WARRANT_LISTING_NOT_FOUND",
                     warrant_listing_id=evaluation.warrant_listing_id,
+                    provenance_listing_id=evaluation.warrant_listing_id,
                 )
 
             if self._quote_resolver is None:
@@ -140,6 +143,7 @@ class ProductPositionValuationService:
                     trade_id=trade_id,
                     position_id=position.id,
                     warrant_listing_id=listing.id,
+                    provenance_listing_id=listing.id,
                     symbol=listing.symbol,
                     status=ProductValuationStatus.UNAVAILABLE,
                     reason="WARRANT_QUOTE_PROVIDER_UNAVAILABLE",
@@ -157,10 +161,10 @@ class ProductPositionValuationService:
                     )
                     .order_by(WarrantListingModel.symbol)
                 )
-                siblings = list(rows)
-                candidate_listings = [listing] + [
-                    candidate for candidate in siblings if candidate.id != listing.id
-                ]
+                # Historical product-selection provenance remains immutable, but
+                # current quotes are requested only for active listings returned
+                # by the lifecycle-filtered query.
+                candidate_listings = list(rows)
 
             all_attempts: list[QuoteSourceAttempt] = []
             selected_listing = None
@@ -214,6 +218,7 @@ class ProductPositionValuationService:
                         trade_id=trade_id,
                         position_id=position.id,
                         warrant_listing_id=listing.id,
+                        provenance_listing_id=listing.id,
                         symbol=listing.symbol,
                         status=status,
                         reason=reason,
@@ -234,6 +239,7 @@ class ProductPositionValuationService:
                     trade_id=trade_id,
                     position_id=position.id,
                     warrant_listing_id=listing.id,
+                    provenance_listing_id=listing.id,
                     symbol=listing.symbol,
                     status=status,
                     reason="NO_USABLE_WARRANT_QUOTE",
@@ -247,6 +253,8 @@ class ProductPositionValuationService:
                     trade_id=trade_id,
                     position_id=position.id,
                     warrant_listing_id=selected_listing.id,
+                    provenance_listing_id=listing.id,
+                    quote_listing_id=selected_listing.id,
                     symbol=selected_listing.symbol,
                     status=ProductValuationStatus.ERROR,
                     reason="WARRANT_QUOTE_LISTING_MISMATCH",
@@ -258,6 +266,8 @@ class ProductPositionValuationService:
                     trade_id=trade_id,
                     position_id=position.id,
                     warrant_listing_id=selected_listing.id,
+                    provenance_listing_id=listing.id,
+                    quote_listing_id=selected_listing.id,
                     symbol=selected_listing.symbol,
                     status=ProductValuationStatus.ERROR,
                     reason="WARRANT_QUOTE_CURRENCY_MISMATCH",
@@ -273,6 +283,8 @@ class ProductPositionValuationService:
                     trade_id=trade_id,
                     position_id=position.id,
                     warrant_listing_id=selected_listing.id,
+                    provenance_listing_id=listing.id,
+                    quote_listing_id=selected_listing.id,
                     symbol=selected_listing.symbol,
                     status=ProductValuationStatus.ERROR,
                     reason="SELECTED_WARRANT_QUOTE_INVALID",
@@ -292,6 +304,8 @@ class ProductPositionValuationService:
                     trade_id=trade_id,
                     position_id=position.id,
                     warrant_listing_id=selected_listing.id,
+                    provenance_listing_id=listing.id,
+                    quote_listing_id=selected_listing.id,
                     symbol=selected_listing.symbol,
                     status=ProductValuationStatus.ERROR,
                     reason="WARRANT_QUOTE_TIME_INCONSISTENT",
@@ -316,6 +330,8 @@ class ProductPositionValuationService:
                     trade_id=trade_id,
                     position_id=position.id,
                     warrant_listing_id=selected_listing.id,
+                    provenance_listing_id=listing.id,
+                    quote_listing_id=selected_listing.id,
                     symbol=selected_listing.symbol,
                     status=ProductValuationStatus.STALE,
                     reason="WARRANT_QUOTE_STALE",
@@ -341,6 +357,8 @@ class ProductPositionValuationService:
                 trade_id=trade_id,
                 position_id=position.id,
                 warrant_listing_id=selected_listing.id,
+                provenance_listing_id=listing.id,
+                quote_listing_id=selected_listing.id,
                 symbol=selected_listing.symbol,
                 status=ProductValuationStatus.AVAILABLE,
                 reason=(
