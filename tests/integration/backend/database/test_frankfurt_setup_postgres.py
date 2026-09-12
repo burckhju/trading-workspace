@@ -8,6 +8,7 @@ from uuid import uuid4
 import pytest
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from tests.integration.backend.database.conftest import _run_alembic
 from tests.unit.backend.providers.frankfurt_quotes.test_public import public_settings, wire
 from tests.unit.backend.providers.frankfurt_quotes.test_schema import NOW
 
@@ -15,13 +16,23 @@ from app.providers.frankfurt_quotes.configure import configure_warrant
 from app.providers.frankfurt_quotes.public import FrankfurtPublicPrice
 
 
-@pytest.mark.asyncio
-async def test_setup_dry_run_apply_idempotency_and_conflict_with_real_constraints():
+@pytest.fixture
+def current_database_url():
     url = os.environ.get("TRADING_WORKSPACE_TEST_DATABASE_URL", "")
     if not url:
         pytest.skip("TRADING_WORKSPACE_TEST_DATABASE_URL is not configured")
     assert url.split("?", 1)[0].rsplit("/", 1)[-1] == "trading_workspace_test"
-    engine = create_async_engine(url)
+    # Earlier migration qualification tests intentionally leave revision 0029.
+    # This feature needs the actual current schema, including symbol-less listings.
+    _run_alembic("upgrade", "head", url)
+    return url
+
+
+@pytest.mark.asyncio
+async def test_setup_dry_run_apply_idempotency_and_conflict_with_real_constraints(
+    current_database_url,
+):
+    engine = create_async_engine(current_database_url)
     workspace, warrant, issuer, underlying = (uuid4() for _ in range(4))
     client = SimpleNamespace(
         settings=public_settings(),

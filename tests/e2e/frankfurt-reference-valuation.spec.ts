@@ -12,7 +12,9 @@ for (const kind of ["LAST_TRADE", "PREVIOUS_CLOSE"]) {
       if (request.method() !== "GET") writes += 1;
       const path = new URL(request.url()).pathname;
       let body: unknown = {};
-      if (path.endsWith("/position")) {
+      if (path.includes("/alerts/") || path.endsWith("/timeline")) {
+        body = [];
+      } else if (path.endsWith("/position")) {
         body = {
           id: "9f1e7034-3977-4600-a37c-de119d7e8d8c",
           trade_id: tradeId,
@@ -73,8 +75,6 @@ for (const kind of ["LAST_TRADE", "PREVIOUS_CLOSE"]) {
           thesis: null,
           notes: [],
         };
-      } else if (path.includes("alerts") || path.endsWith("/timeline")) {
-        body = [];
       }
       await route.fulfill({
         status: 200,
@@ -83,14 +83,12 @@ for (const kind of ["LAST_TRADE", "PREVIOUS_CLOSE"]) {
       });
     });
     await page.goto(`/trade-management?trade_id=${tradeId}`);
-    const panel = page
-      .locator("section")
-      .filter({
-        has: page.getByRole("heading", {
-          name: "Produktbewertung",
-          exact: true,
-        }),
-      });
+    const panel = page.locator("section").filter({
+      has: page.getByRole("heading", {
+        name: "Produktbewertung",
+        exact: true,
+      }),
+    });
     await expect(
       panel.getByText("Indikative Auswertung", { exact: true }),
     ).toBeVisible();
