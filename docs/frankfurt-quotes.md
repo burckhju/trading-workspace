@@ -450,6 +450,31 @@ apply. Multiple workers need a shared upstream budget/gateway; throttling here i
 process-local. A snapshot is portfolio-sized (at most 10,000 records), not a full
 1.8-million-product exchange dump. No automatic background schedule is added.
 
+## Listing eligibility and diagnostic attempts
+
+The deployed setup for DE000VH2LU21 confirmed exact Frankfurt ISIN/XSC retrieval,
+a LAST_TRADE observation and its inclusion in the trade's source attempts. A
+selected Vontobel bid can therefore coexist with a usable Frankfurt reference.
+The configuration-only health response is not a coverage verdict; the setup CLI
+uses its own process, and its success does not update the API process's transport
+health. The reference's STALE status discloses elapsed time without suppressing
+indicative analysis or inferring unverified Frankfurt trading sessions.
+
+An alternate Frankfurt listing is not automatically mapped to every provider.
+The resolver's existing MarketDataNotFoundError routing convention now also applies
+to Vontobel without an active mapping and Stuttgart for a venue other than XSTU.
+Those combinations are skipped before HTTP/file access and do not appear as failed
+quote attempts. Existing contradictory Vontobel ISIN/ISSUER mappings, unresolved
+Stuttgart identities and missing ISINs on XSTU remain errors. No broad error filter
+is added to the resolver, and no mapping is created during valuation reads.
+
+For an issuer-mapped XSTU listing plus a separately mapped Frankfurt listing, the
+observed trace should contain the real issuer quote, the real Stuttgart MISSING
+result if the instrument is absent from that feed, and the Frankfurt reference.
+It should not contain Vontobel/Stuttgart mapping errors merely because the
+Frankfurt alternative exists. Bid/reference selection, freshness warnings,
+historical provenance and execution permissions are unchanged.
+
 ## Last successful retrieval during temporary outages
 
 After a timeout, transport error, HTTP 408/429/500/502/503/504, or the process-local

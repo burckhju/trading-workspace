@@ -28,6 +28,7 @@ from app.features.market_data.service.errors import (
     MarketDataConfigurationError,
     MarketDataInvalidResponseError,
     MarketDataMappingError,
+    MarketDataNotFoundError,
 )
 from app.features.market_data.service.types import MarketDataResult, WarrantQuoteRequest
 from app.features.product.domain.models import WarrantLifecycle
@@ -143,8 +144,11 @@ class VontobelMarketsWarrantQuoteAdapter:
                 )
             ).one_or_none()
         if row is None:
-            raise MarketDataMappingError(
-                "No active Vontobel mapping exists for the WarrantListing",
+            # No configured route is not a failed quote request. The shared
+            # resolver skips this before HTTP; inconsistent existing mappings
+            # below must still be reported as errors.
+            raise MarketDataNotFoundError(
+                "VONTOBEL_ACTIVE_MAPPING_NOT_FOUND",
                 provider=MarketDataProvider.VONTOBEL_MARKETS,
                 capability=MarketDataCapability.WARRANT_LISTING_QUOTE,
             )
