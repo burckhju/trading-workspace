@@ -72,8 +72,8 @@ default scope. Other backend deployments can set
   only that requested ISIN, retaining independently verified observations for
   other instruments. HTTP 401/403 invalidate all cached source data. The shared
   provider cooldown remains in effect; expired transport caches may be reused
-  only through the existing disclosed historical-analysis fallback. A browser visit is not needed to initiate background
-  retrieval.
+  only through the existing disclosed historical-analysis fallback. A browser visit
+  is not needed to initiate background retrieval.
 - Workspace cards display available indicative reference valuations as well as
   normal bid valuations, with warnings and source/time information. The existing
   execution restrictions remain in effect.

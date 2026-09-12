@@ -21,10 +21,10 @@ from tests.unit.backend.providers.vontobel_markets.test_adapter import _html
 
 from app.core.config import Settings
 from app.core.di import ApplicationContainer
-from app.features.market_data.service.refresh_catalog import read_catalog
-from app.features.trade_position.persistence.models import PositionModel, TradeModel
 from app.features.market_data.service.refresh import MarketDataRefreshRuntime
+from app.features.market_data.service.refresh_catalog import read_catalog
 from app.features.market_data.service.types import WarrantQuoteRequest
+from app.features.trade_position.persistence.models import PositionModel, TradeModel
 from app.providers.frankfurt_quotes.adapter import FrankfurtWarrantQuoteAdapter
 from app.providers.frankfurt_quotes.client import FrankfurtSnapshotClient
 from app.providers.vontobel_markets.adapter import VontobelMarketsWarrantQuoteAdapter
