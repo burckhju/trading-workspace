@@ -217,6 +217,8 @@ async def test_previous_close_is_usable_for_indicative_weekend_valuation_only() 
     assert result is not None
     assert result.status is ProductValuationStatus.LAST_AVAILABLE
     assert result.reason == "MARKET_CLOSED_LAST_AVAILABLE_QUOTE"
+    assert result.provenance_listing_id == listing.id
+    assert result.quote_listing_id == listing.id
     assert result.market_value == Decimal("25.00")
     assert result.unrealized_gross_pnl == Decimal("5.00")
     assert result.valuation_usable is True
