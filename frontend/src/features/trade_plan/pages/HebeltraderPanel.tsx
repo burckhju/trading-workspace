@@ -116,9 +116,9 @@ export function HebeltraderPanel({ underlyingId, onCreated }: Props) {
     <details className="rounded-xl border border-slate-800 p-5">
       <summary className="cursor-pointer text-lg font-semibold">Hebeltrader-Regelvorschau</summary>
       <p className="mt-3 text-sm text-slate-400">
-        Manuell belegter Snapshot, kein Livefeed. Aktienmarken in Hauptwährungseinheiten eingeben (GBP
-        statt GBp). B ist eine offengelegte Annahme; die Original-Volatilitätsformel ist unbekannt.
-        Diese Vorschau erstellt keine Order und ändert keine bestehende Position.
+        Manuell belegter Snapshot, kein Livefeed. Aktienmarken in Hauptwährungseinheiten eingeben
+        (GBP statt GBp). B ist eine offengelegte Annahme; die Original-Volatilitätsformel ist
+        unbekannt. Diese Vorschau erstellt keine Order und ändert keine bestehende Position.
       </p>
       <form onSubmit={(event) => void calculate(event)} className="mt-4">
         <fieldset disabled={busy} className="grid gap-3 md:grid-cols-2">
@@ -200,10 +200,11 @@ export function HebeltraderPanel({ underlyingId, onCreated }: Props) {
               : Number(preview.assessment.reward_risk).toFixed(2)}
           </p>
           <p className="text-slate-400">
-            T1: Hälfte verkaufen, Reststopp erst nach bestätigtem Verkauf auf Einstand. Nach weiteren
-            20 Handelssitzungen: max(bisheriger Stopp, 80 % von T1). Kein Stopp wird abgesenkt.
-            Verlustpositionen ab 20 Handelssitzungen prüfen; Calls spätestens 20 Sitzungen vor dem
-            letzten Handelstag schließen. Call-Marken sind separat zu bewerten, nicht per Omega.
+            T1: Hälfte verkaufen, Reststopp erst nach bestätigtem Verkauf auf Einstand. Nach
+            weiteren 20 Handelssitzungen: max(bisheriger Stopp, 80 % von T1). Kein Stopp wird
+            abgesenkt. Verlustpositionen ab 20 Handelssitzungen prüfen; Calls spätestens 20
+            Sitzungen vor dem letzten Handelstag schließen. Call-Marken sind separat zu bewerten,
+            nicht per Omega.
           </p>
           {!preview.assessment.eligible && (
             <p role="alert">
