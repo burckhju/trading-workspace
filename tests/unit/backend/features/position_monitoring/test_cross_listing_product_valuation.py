@@ -93,43 +93,38 @@ def _result(listing_id, bid):
 
 
 @pytest.mark.asyncio
-async def test_uses_active_alternate_listing_for_same_warrant_when_primary_has_no_quote() -> None:
+async def test_uses_only_active_quote_listing_and_preserves_historical_provenance() -> None:
     warrant_id = uuid4()
-    primary_id = uuid4()
-    alternate_id = uuid4()
+    historical_id = uuid4()
+    active_id = uuid4()
     workspace_id = uuid4()
     evaluation_id = uuid4()
     trade = SimpleNamespace(
         id=uuid4(), workspace_id=workspace_id, product_evaluation_id=evaluation_id
     )
     position = SimpleNamespace(id=uuid4(), open_quantity=10, cost_basis=Decimal("20.00"))
-    evaluation = SimpleNamespace(id=evaluation_id, warrant_listing_id=primary_id)
-    primary = SimpleNamespace(
-        id=primary_id,
+    evaluation = SimpleNamespace(id=evaluation_id, warrant_listing_id=historical_id)
+    historical = SimpleNamespace(
+        id=historical_id,
         warrant_id=warrant_id,
-        symbol="TEST.STU",
+        symbol="UNH.XETR",
         quotation_currency_code="EUR",
     )
-    alternate = SimpleNamespace(
-        id=alternate_id,
+    active = SimpleNamespace(
+        id=active_id,
         warrant_id=warrant_id,
-        symbol="TEST.GETTEX",
+        symbol="VH2LU2.ISSUER",
         quotation_currency_code="EUR",
     )
-    provider = _Provider(
-        {
-            primary_id: _result(primary_id, None),
-            alternate_id: _result(alternate_id, Decimal("2.60")),
-        }
-    )
+    provider = _Provider({active_id: _result(active_id, Decimal("2.60"))})
     service = ProductPositionValuationService(
         database=_Database(
             _Session(
                 trade=trade,
                 position=position,
                 evaluation=evaluation,
-                listing=primary,
-                siblings=[primary, alternate],
+                listing=historical,
+                siblings=[active],
             )
         ),
         quote_provider=provider,
@@ -140,12 +135,12 @@ async def test_uses_active_alternate_listing_for_same_warrant_when_primary_has_n
     assert result is not None
     assert result.status is ProductValuationStatus.AVAILABLE
     assert result.reason == "WARRANT_BID_AVAILABLE_ON_ALTERNATE_LISTING"
-    assert result.warrant_listing_id == alternate_id
-    assert result.symbol == "TEST.GETTEX"
+    assert result.provenance_listing_id == historical_id
+    assert result.quote_listing_id == active_id
+    assert result.warrant_listing_id == active_id
+    assert result.symbol == "VH2LU2.ISSUER"
     assert result.bid == Decimal("2.60")
     assert result.market_value == Decimal("26.00")
     assert result.unrealized_gross_pnl == Decimal("6.00")
-    assert [attempt.warrant_listing_id for attempt in result.source_attempts] == [
-        primary_id,
-        alternate_id,
-    ]
+    assert [request.warrant_listing_id for request in provider.requests] == [active_id]
+    assert [attempt.warrant_listing_id for attempt in result.source_attempts] == [active_id]

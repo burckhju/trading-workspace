@@ -325,6 +325,8 @@ async def get_trade_product_valuation(
         status=value.status,
         reason=value.reason,
         warrant_listing_id=value.warrant_listing_id,
+        provenance_listing_id=value.provenance_listing_id,
+        quote_listing_id=value.quote_listing_id,
         symbol=value.symbol,
         bid=value.bid,
         ask=value.ask,

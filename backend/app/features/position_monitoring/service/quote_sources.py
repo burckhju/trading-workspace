@@ -10,7 +10,10 @@ from uuid import UUID
 from app.features.market_data.domain.enums import QualityStatus
 from app.features.market_data.domain.models import WarrantQuoteSnapshot
 from app.features.market_data.service.contracts import WarrantListingQuoteProvider
-from app.features.market_data.service.errors import MarketDataConfigurationError
+from app.features.market_data.service.errors import (
+    MarketDataConfigurationError,
+    MarketDataNotFoundError,
+)
 from app.features.market_data.service.types import MarketDataResult, WarrantQuoteRequest
 
 
@@ -64,20 +67,17 @@ class MultiSourceWarrantQuoteResolver:
     async def resolve(self, request: WarrantQuoteRequest) -> MultiSourceWarrantQuoteResolution:
         attempts: list[QuoteSourceAttempt] = []
         for source in self._sources:
+            # A runtime placeholder without an adapter is configuration metadata,
+            # not a provider attempt. Keep diagnostics limited to calls that ran.
             if source.provider is None:
-                attempts.append(
-                    QuoteSourceAttempt(
-                        source=source.name,
-                        status=QuoteSourceAttemptStatus.UNAVAILABLE,
-                        reason=source.unavailable_reason or "SOURCE_NOT_CONFIGURED",
-                        delayed=source.delayed,
-                        warrant_listing_id=request.warrant_listing_id,
-                    )
-                )
                 continue
 
             try:
                 result = await source.provider.get_warrant_listing_quote(request)
+            except MarketDataNotFoundError:
+                # The listing is not configured/mapped for this provider. This is
+                # routing metadata, not a failed provider quote attempt.
+                continue
             except MarketDataConfigurationError as exc:
                 attempts.append(
                     QuoteSourceAttempt(

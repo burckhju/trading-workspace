@@ -155,3 +155,21 @@ async def test_returns_complete_attempt_trace_when_no_source_is_usable() -> None
         QuoteSourceAttemptStatus.MISSING,
         QuoteSourceAttemptStatus.ERROR,
     ]
+
+
+@pytest.mark.asyncio
+async def test_unconfigured_placeholder_is_not_reported_as_executed_attempt() -> None:
+    listing_id = uuid4()
+    provider = _Provider(result=_result(listing_id))
+    resolver = MultiSourceWarrantQuoteResolver(
+        (
+            NamedWarrantQuoteSource("RESERVED", None),
+            NamedWarrantQuoteSource("ACTIVE", provider),
+        )
+    )
+
+    resolved = await resolver.resolve(_request(listing_id))
+
+    assert provider.calls == 1
+    assert resolved.selected_source == "ACTIVE"
+    assert [attempt.source for attempt in resolved.attempts] == ["ACTIVE"]
