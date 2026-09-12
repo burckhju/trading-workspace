@@ -104,10 +104,11 @@ class ExitDecision:
 def evaluate_exit(
     value: ExitDecisionInput,
     *,
-    policy: ExitPolicy = ExitPolicy(),
+    policy: ExitPolicy | None = None,
 ) -> ExitDecision:
     """Evaluate one position deterministically and fail closed before proposal creation."""
 
+    effective_policy = policy or ExitPolicy()
     blockers: list[str] = []
     quote = value.quote
 
@@ -115,7 +116,10 @@ def evaluate_exit(
         blockers.append("POSITION_QUANTITY_UNKNOWN")
     if value.broker_available_quantity is None:
         blockers.append("BROKER_POSITION_UNKNOWN")
-    elif value.position_quantity is not None and value.broker_available_quantity < value.position_quantity:
+    elif (
+        value.position_quantity is not None
+        and value.broker_available_quantity < value.position_quantity
+    ):
         blockers.append("BROKER_POSITION_INSUFFICIENT")
     if not value.broker_instrument_identity:
         blockers.append("BROKER_INSTRUMENT_IDENTITY_MISSING")
@@ -141,7 +145,7 @@ def evaluate_exit(
             blockers.append("LIQUIDITY_INSUFFICIENT")
         if quote.observed_at is None or quote.age_seconds is None:
             blockers.append("QUOTE_TIMESTAMP_MISSING")
-        elif quote.age_seconds < 0 or quote.age_seconds > policy.max_quote_age_seconds:
+        elif quote.age_seconds < 0 or quote.age_seconds > effective_policy.max_quote_age_seconds:
             blockers.append("QUOTE_STALE")
         if quote.trading_status != "OPEN":
             blockers.append("MARKET_NOT_OPEN")
@@ -155,15 +159,15 @@ def evaluate_exit(
                 blockers.append("SPREAD_INVALID")
             else:
                 spread_bps = int(((quote.ask - quote.bid) / midpoint) * Decimal("10000"))
-                if spread_bps < 0 or spread_bps > policy.max_spread_bps:
+                if spread_bps < 0 or spread_bps > effective_policy.max_spread_bps:
                     blockers.append("SPREAD_LIMIT_EXCEEDED")
         else:
             blockers.append("ASK_MISSING")
 
     if blockers:
         return ExitDecision(
-            policy_name=policy.name,
-            policy_version=policy.version,
+            policy_name=effective_policy.name,
+            policy_version=effective_policy.version,
             action=ExitAction.BLOCKED,
             triggered_rules=(),
             blocking_gates=tuple(dict.fromkeys(blockers)),
@@ -187,8 +191,8 @@ def evaluate_exit(
 
     if not triggered:
         return ExitDecision(
-            policy_name=policy.name,
-            policy_version=policy.version,
+            policy_name=effective_policy.name,
+            policy_version=effective_policy.version,
             action=ExitAction.HOLD,
             triggered_rules=(),
             blocking_gates=(),
@@ -201,8 +205,8 @@ def evaluate_exit(
     if value.requested_partial_quantity is not None:
         if value.requested_partial_quantity <= 0 or value.requested_partial_quantity > quantity:
             return ExitDecision(
-                policy_name=policy.name,
-                policy_version=policy.version,
+                policy_name=effective_policy.name,
+                policy_version=effective_policy.version,
                 action=ExitAction.BLOCKED,
                 triggered_rules=tuple(triggered),
                 blocking_gates=("PARTIAL_QUANTITY_INVALID",),
@@ -223,8 +227,8 @@ def evaluate_exit(
         idempotency_key=value.idempotency_key,
     )
     return ExitDecision(
-        policy_name=policy.name,
-        policy_version=policy.version,
+        policy_name=effective_policy.name,
+        policy_version=effective_policy.version,
         action=action,
         triggered_rules=tuple(triggered),
         blocking_gates=(),
