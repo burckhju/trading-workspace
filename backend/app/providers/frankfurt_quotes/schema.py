@@ -87,12 +87,14 @@ class FrankfurtObservation(BaseModel):
     mic: str = FRANKFURT_MIC
     assessed_at: datetime
     retrieved_at: datetime
-    snapshot_generated_at: datetime
-    declared_delay_seconds: int
+    snapshot_generated_at: datetime | None
+    declared_delay_seconds: int | None
     max_quote_age_seconds: int
     observed_at: datetime | None = None
     age_seconds: float | None = None
     record: FrankfurtRecord | None = None
+    provider_exchange_code: str = FRANKFURT_MIC
+    source_mode: str = "NORMALIZED_SNAPSHOT"
     execution_usable: Literal[False] = False
 
 

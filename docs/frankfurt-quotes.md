@@ -5,16 +5,192 @@
 `FRANKFURT_QUOTES` is an opt-in provider behind the existing
 `WarrantListingQuoteProvider` and `MultiSourceWarrantQuoteResolver`. It reads a
 bounded JSON snapshot over HTTPS or an atomically replaced local JSON file.
-It is tried before existing sources **for each eligible active listing**.
+The normalized bid/ask import is tried before existing sources **for each eligible active listing**.
 The existing cross-listing order remains unchanged; this is not a global
 best-price aggregator. Historical evaluation/purchase listings are not rewritten.
 
-This is a functional **normalized import boundary**, not a reverse-engineered
-Frankfurt website API or a completed connection to a named vendor. An upstream
-licensed vendor/exporter must supply the contract below. No production endpoint,
-credentials, entitlement or live coverage has been verified here. The earlier
-WKN research is not live-feed evidence and is not imported as active mappings.
-No portfolio table is committed.
+There are now two explicit capabilities behind this provider:
+
+| Mode | Actual input | Capability | Position valuation |
+| --- | --- | --- | --- |
+| `public_website` | Official website REST endpoint, direct ISIN/XSC query | Last trade with exchange timestamp; no bid/ask | Diagnostic API/CSV only; never selected as a warrant quote |
+| `https_json` / `local_file` | Application-owned normalized snapshot | Validated bid/ask and side timestamps | Monitoring only, always `execution_usable=false` |
+
+The normalized import still requires an approved upstream vendor/exporter.
+The public website mode needs no API key for the tested request, but is an
+undocumented website interface without a verified production SLA or rate limit.
+Both modes remain disabled by default and require usage approval. No master data,
+portfolio tables, active mappings, subscription or paid access are created.
+
+## Git and live findings (2026-09-12)
+
+Base `main`: `e138125f16ec3d5a591fce694739fcad9aeaea89`. That revision already
+implemented the normalized Frankfurt importer, but had no actual upstream
+retrieval. It also labelled Frankfurt monitoring quotes non-executable only in
+diagnostics: product valuation could still set `execution_usable=true` for an
+OPEN Frankfurt quote. The provider-level exclusion now applies in valuation too,
+including if the upstream source-mode label is missing.
+Before the PR, the branch was updated to `43cc9899c9b3a90ec1af0cb2e7ef6460f5759e9b`,
+including PR #183 (strike currency) and #184 (Docker checkout permissions).
+
+The [official product page](https://live.deutsche-boerse.com/derivative/de000vh2lu21-call-auf-unitedhealth-group)
+identifies ISIN `DE000VH2LU21`, WKN `VH2LU2`, issuer Vontobel and website venue
+code `XSC`. Its structured application data identifies the instrument type as
+`derivative`. No underlying symbol search is needed. The page was inspected for
+discovery; the implementation reads JSON directly and does not scrape HTML.
+
+A direct anonymous GET to the actual website endpoint succeeded:
+
+```text
+https://api.live.deutsche-boerse.com/v1/data/price_information/single?isin=DE000VH2LU21&mic=XSC
+```
+
+Observed response fields (historical test evidence, not a current quote):
+
+```json
+{
+  "isin": "DE000VH2LU21",
+  "mic": "XSC",
+  "currency": {"originalValue": "EUR"},
+  "lastPrice": 0.231,
+  "timestampLastPrice": "2026-09-11T19:43:41+02:00"
+}
+```
+
+This is a **last trade**, not bid, ask or issuer indication. The source does not
+return a WKN in this endpoint; `record.wkn` therefore stays null. The input CSV's
+WKN is operator-supplied identity information, not independently verified here.
+No feed-generation timestamp, bounded delay, quoted sizes or current trading
+status is supplied. These remain null/UNKNOWN rather than being inferred from
+download time, turnover, minimum tradable unit or published trading hours.
+
+The website JavaScript calls `/data/quote_history_derivatives` with ISIN, mic,
+UTC from/to, offset and limit. Requests for the target's Friday session returned
+HTTP 200 with `{}`. The website's real-time quote component uses a separate MDS
+WebSocket/token service; an anonymous token request also returned `{}`. Neither
+result establishes missing product coverage, market closure or usable feed access.
+No website request-signature emulation or access-control workaround is implemented.
+
+`XSC` is a **provider code**, not an ISO MIC. The [official market contact page](https://www.cashmarket.deutsche-boerse.com/cash-en/your-contacts)
+identifies Frankfurt as `XFRA`. The [ISO register](https://www.iso20022.org/10383/iso-10383-market-identifier-codes)
+also contains separate technical identifiers `XSCO`, `XSC1/2/3` and `XXSC`;
+we do not guess a product-level segment from these names. A verified internal
+Frankfurt listing uses `XFRA`, while this public mode requires mapping exchange
+code **`XSC`** and preserves that code in every diagnostic result. The normalized
+import continues to require its existing verified `XFRA` mapping.
+
+## Public retrieval configuration and verification
+
+`docker/frankfurt-public.env.example` configures the fixed official host and source
+mode without accepting usage terms or activating access. Review the website's
+[disclaimer and data-download terms](https://live.deutsche-boerse.com/en/disclaimer-en)
+for your intended use. A free browser page or non-commercial historical download
+does not by itself verify rights for a commercial service or automated non-display
+use. The configuration gate is retained until the operator confirms the intended
+usage; no paid action is required merely to review this implementation.
+
+After that review, copy the example to `docker/frankfurt.env` **only if that file
+does not already exist**, configure it, and set ENABLED/USAGE_APPROVED/
+CONTRACT_VERIFIED true. The last flag confirms only the observed Last-Trade JSON
+contract; it does not assert access to a bid/ask feed. Do not set a snapshot URL,
+allowed host, local file or bearer token in public mode: conflicting vendor
+configuration is rejected before network I/O.
+
+For the existing listing diagnostic, first create or identify a verified ACTIVE
+Frankfurt listing through the product administration and an
+ACTIVE `FRANKFURT_QUOTES` mapping: provider symbol = exact ISIN, exchange code =
+`XSC`, validated timestamp set, matching workspace. Do not change the existing
+XSTU listing into a Frankfurt listing or rewrite the trade's historical listing.
+Warrant mappings currently use `warrant_provider_mappings` and its existing
+repository/admin procedure; the `/market-data/provider-mappings` API administers
+underlying listings and must not be used for these warrant mappings. This change
+does not introduce an automatic mapping writer.
+No database mutation is necessary for the standalone CSV probe below.
+
+```bash
+git switch main
+git pull --ff-only
+docker compose --env-file docker/.env -f docker/compose.yml \
+  -f docker/compose.frankfurt.yml build backend frontend
+docker compose --env-file docker/.env -f docker/compose.yml \
+  -f docker/compose.frankfurt.yml up -d database
+docker compose --env-file docker/.env -f docker/compose.yml \
+  -f docker/compose.frankfurt.yml run --rm backend alembic upgrade head
+docker compose --env-file docker/.env -f docker/compose.yml \
+  -f docker/compose.frankfurt.yml up -d backend frontend
+curl -fsS http://localhost:8000/api/v1/position-monitoring/quote-sources/frankfurt/health | jq
+```
+
+No migration is introduced by this change. Health must show `public_website`,
+`bid_ask_supported=false`, `delay_seconds=null`, and `execution_usable=false`.
+Configuration readiness is not a live-data success signal.
+
+Run the real retrieval through the installed client for this exact instrument,
+without guessing UUIDs or changing user data. The temporary input is inside the
+container; `mktemp` prevents overwriting an existing file or report:
+
+```bash
+docker compose --env-file docker/.env -f docker/compose.yml \
+  -f docker/compose.frankfurt.yml exec -T backend sh -eu -c '
+  probe_dir=$(mktemp -d)
+  printf "ISIN;WKN\nDE000VH2LU21;VH2LU2\n" > "$probe_dir/input.csv"
+  python -m app.providers.frankfurt_quotes.probe \
+    --input "$probe_dir/input.csv" --output "$probe_dir/result.csv"
+  cat "$probe_dir/result.csv"
+'
+```
+
+Expected semantics: source `deutsche-boerse-public`, provider exchange `XSC`,
+source mode `OFFICIAL_WEBSITE_LAST_TRADE`, last price/time when returned,
+bid/ask empty, delay unknown, execution false. A fresh last trade is INSUFFICIENT
+with `FRANKFURT_POST_TRADE_ONLY`; an old one is STALE with
+`FRANKFURT_LAST_TRADE_STALE`. `{}` is an error (`FRANKFURT_PUBLIC_EMPTY_RESPONSE`),
+never READY or proof that a security does not exist. This public mode is skipped
+by the bid/ask resolver, so valuation does not waste requests on known Last-only
+data; Vontobel and the other appropriate sources continue independently.
+
+```bash
+curl -fsS \
+  'http://localhost:8000/api/v1/position-monitoring/trades/dd8338bd-a092-42c0-94c0-c068a9094f77/product-valuation' | jq
+```
+
+This user's live database/container cannot be accessed from the repository work
+environment. The above deployed check must be run there; mocked route tests and
+the public HTTP observation do not establish a completed test of that database.
+In the work environment the public HTTP response was retrieved with curl and
+validated through the new parser. The default Python transport could not make a
+direct external connection there; the environment requires a SOCKS proxy whose
+optional Python dependency is absent. No sandbox/network workaround or proxy
+configuration is added to production code to hide that validation limitation.
+
+## Bid/ask access still needed: user and cost decision
+
+The best verified Frankfurt-specific candidate is the dedicated
+[Börse Frankfurt Certificates and Warrants data product](https://www.mds.deutsche-boerse.com/mds-en/real-time-data/spot-markets/B-rse-Frankfurt-Certificates-and-Warrants-1341024):
+it explicitly includes traded prices, best bid/ask and volumes. The product's
+information fee is currently described as free until further notice. This is
+not a promise of free connectivity, a free vendor API or unrestricted usage.
+Xetra Core's inclusion of these instruments explicitly excludes their best bid/ask.
+
+Before purchasing or activating anything, obtain confirmation from Deutsche
+Börse Market Data Services or an entitled distributor for:
+
+1. Coverage of `DE000VH2LU21` and the actual portfolio by ISIN, including Frankfurt
+   warrant best bid/ask, sizes and exchange timestamps (not only last trades).
+2. A technical endpoint/exporter for the dedicated information product. The
+   [feed overview](https://www.mds.deutsche-boerse.com/mds-en/real-time-data/Real-time-data-feeds)
+   describes CEF Core access; its listed Cloud Stream API products do not establish
+   Frankfurt warrant coverage. No undocumented CEF decoder is invented here.
+3. Rights for the intended private/commercial automated monitoring and any future
+   non-display/trading use, plus connection/vendor charges and request limits.
+   The [agreements page](https://www.mds.deutsche-boerse.com/mds-en/real-time-data/agreements)
+   separates dissemination, non-display/trading and connectivity agreements.
+4. The concrete service URL, authentication method/secret, delay/SLA and mapping
+   of provider venue codes to the actual Frankfurt listing. None are assumed.
+
+No exact subscription price, API-key name or confirmed warrant entitlement was
+available to verify. Until supplied, the existing normalized import is ready for
+an approved exporter; Frankfurt public last trades cannot unlock order decisions.
 
 ## Why no guessed public bid/ask endpoint
 
@@ -153,6 +329,11 @@ The provider enum uses the existing VARCHAR mapping; no new DB tables are added.
 
 The application container shares one adapter/cache per process. Concurrent reads
 share a download, refreshed on demand at most every 15 seconds by default.
+Public mode keys cache entries by ISIN (bounded to 256 entries) with one shared
+request budget across all instruments. Cached timestamps are never refreshed.
+Another uncached instrument within that interval receives REQUEST_THROTTLED;
+the CSV probe waits one configured interval and retries once. This conservative
+local limit is not a claim about the provider's unpublished rate limits.
 Failures back off at least 60 seconds. There are no redirects, aggressive retries
 or silent reuse of an old success after failure. Timeout and decoded byte limits
 apply. Multiple workers need a shared upstream budget/gateway; throttling here is
@@ -185,9 +366,11 @@ python -m app.providers.frankfurt_quotes.probe \
   --delimiter ';' --isin-column ISIN --wkn-column WKN --currency EUR
 ```
 
-One shared snapshot is fetched, then prices, status/reason, venue, source,
+In normalized mode one shared snapshot is fetched, then prices, status/reason, venue, source,
 observation timestamp and age are written per input row. An existing output is
 never overwritten. Choose column names explicitly for differently named input
 columns. This standalone diagnostic does not persist mappings or establish broker
 tradability. Tests use synthetic payloads and HTTP mocks, not live-market claims.
-The production data access and 135-WKN coverage remain activation prerequisites.
+In public mode each exact ISIN is requested within the shared rate budget and
+Last-only provenance is exported separately. Production bid/ask data access and
+135-WKN bid/ask coverage remain unverified prerequisites.

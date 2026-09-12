@@ -1,3 +1,4 @@
+from app.core.config.frankfurt import FrankfurtSourceMode
 from app.core.di import ApplicationContainer
 from app.features.position_monitoring.service.quote_sources import (
     MultiSourceWarrantQuoteResolver,
@@ -35,13 +36,21 @@ def build_warrant_quote_resolver(
         if not stuttgart_settings.enabled
         else "STUTTGART_DELAYED_SCHEMA_NOT_VERIFIED"
     )
+    frankfurt_settings = container.settings.market_data.frankfurt
+    public_frankfurt = frankfurt_settings.source_mode is FrankfurtSourceMode.PUBLIC_WEBSITE
     return MultiSourceWarrantQuoteResolver(
         (
             NamedWarrantQuoteSource(
                 "FRANKFURT_QUOTES",
-                container.frankfurt,
-                delayed=container.settings.market_data.frankfurt.feed_delay_seconds > 0,
-                unavailable_reason="FRANKFURT_DISABLED",
+                # Public last trades are diagnostic-only. Do not spend requests
+                # on a source known to lack bid/ask during position valuation.
+                None if public_frankfurt else container.frankfurt,
+                delayed=not public_frankfurt and frankfurt_settings.feed_delay_seconds > 0,
+                unavailable_reason=(
+                    "FRANKFURT_PUBLIC_LAST_TRADE_ONLY"
+                    if public_frankfurt and frankfurt_settings.enabled
+                    else "FRANKFURT_DISABLED"
+                ),
             ),
             NamedWarrantQuoteSource(
                 "VONTOBEL_MARKETS",

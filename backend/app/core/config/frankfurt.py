@@ -1,4 +1,4 @@
-"""Opt-in configuration for a licensed, normalized Frankfurt quote snapshot."""
+"""Opt-in Frankfurt imports and public last-trade diagnostics."""
 
 from enum import StrEnum
 from pathlib import Path
@@ -11,6 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
 class FrankfurtSourceMode(StrEnum):
     HTTPS_JSON = "https_json"
     LOCAL_FILE = "local_file"
+    PUBLIC_WEBSITE = "public_website"
 
 
 class FrankfurtQuoteSettings(BaseModel):
@@ -74,6 +75,12 @@ class FrankfurtQuoteSettings(BaseModel):
             return "FRANKFURT_CONTRACT_NOT_VERIFIED"
         if not self.source_name:
             return "FRANKFURT_SOURCE_NAME_MISSING"
+        if self.source_mode is FrankfurtSourceMode.PUBLIC_WEBSITE:
+            if self.source_name != "deutsche-boerse-public":
+                return "FRANKFURT_SOURCE_MISMATCH"
+            if any((self.snapshot_url, self.allowed_host, self.bearer_token, self.local_file)):
+                return "FRANKFURT_PUBLIC_CONFIGURATION_CONFLICT"
+            return "CONFIGURED_NOT_PROBED"
         if self.source_mode is FrankfurtSourceMode.LOCAL_FILE:
             return "CONFIGURED_NOT_PROBED" if self.local_file else "FRANKFURT_LOCAL_FILE_MISSING"
         if not self.snapshot_url:

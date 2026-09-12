@@ -7,6 +7,7 @@ from uuid import UUID, uuid4
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
+from app.core.config.frankfurt import FrankfurtSourceMode
 from app.core.di import ApplicationContainer, get_container
 from app.features.market_data.service.errors import (
     MarketDataConfigurationError,
@@ -30,6 +31,9 @@ class FrankfurtHealthResponse(BaseModel):
     enabled: bool
     reason: str
     source_name: str | None
+    source_mode: FrankfurtSourceMode
+    bid_ask_supported: bool
+    delay_seconds: int | None
     schema_version: str = SCHEMA_VERSION
     max_quote_age_seconds: int
     last_success_at: datetime | None
@@ -59,6 +63,18 @@ async def get_frankfurt_health(
         enabled=settings.enabled,
         reason=settings.readiness_reason,
         source_name=settings.source_name,
+        schema_version=(
+            "deutsche-boerse-public-last-trade-v1"
+            if settings.source_mode is FrankfurtSourceMode.PUBLIC_WEBSITE
+            else SCHEMA_VERSION
+        ),
+        source_mode=settings.source_mode,
+        bid_ask_supported=settings.source_mode is not FrankfurtSourceMode.PUBLIC_WEBSITE,
+        delay_seconds=(
+            None
+            if settings.source_mode is FrankfurtSourceMode.PUBLIC_WEBSITE
+            else settings.feed_delay_seconds
+        ),
         max_quote_age_seconds=settings.max_quote_age_seconds,
         last_success_at=client.last_success_at if client else None,
         last_error=client.last_error if client else None,
