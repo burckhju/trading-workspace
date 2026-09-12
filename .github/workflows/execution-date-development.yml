@@ -1,0 +1,21 @@
+name: Execution date development sources
+on:
+  push:
+    branches: [fix/actual-purchase-sale-dates]
+    paths: [.github/workflows/execution-date-development.yml]
+permissions:
+  contents: read
+jobs:
+  sources:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Archive tracked source for isolated development
+        run: git archive HEAD -o /tmp/execution-date-source.tar
+      - uses: actions/upload-artifact@v4
+        with:
+          name: execution-date-source
+          path: /tmp/execution-date-source.tar
+          retention-days: 1
