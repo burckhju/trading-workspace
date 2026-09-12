@@ -145,7 +145,7 @@ it('does not infer a legacy strike currency from an EUR quotation', async () => 
   );
 });
 
-it('sends the explicit USD strike currency on creation without changing EUR quotation', async () => {
+it('posts the explicit USD strike independently of the EUR listing', async () => {
   render(<WarrantAdminPage />);
   await screen.findByText(/Strike 500 \(Währung ungeklärt\)/);
   fillProduct();
@@ -160,7 +160,7 @@ it('sends the explicit USD strike currency on creation without changing EUR quot
   );
 });
 
-it('adds a currency-confirmed terms version while retaining the unknown historical version', async () => {
+it('adds USD terms while retaining the unknown historical version', async () => {
   const next = {
     ...legacyTerms,
     id: 'terms-2',
@@ -175,10 +175,7 @@ it('adds a currency-confirmed terms version while retaining the unknown historic
   fireEvent.change(screen.getByLabelText('Neue Strike-Währung'), { target: { value: 'usd' } });
   fireEvent.change(screen.getByLabelText('Neue Fälligkeit'), { target: { value: '2027-01-15' } });
   fireEvent.change(screen.getByLabelText('Neues Bezugsverhältnis'), { target: { value: '0.1' } });
-  warrants.terms.mockResolvedValue([
-    { ...legacyTerms, effective_to: warrant.updated_at },
-    next,
-  ]);
+  warrants.terms.mockResolvedValue([{ ...legacyTerms, effective_to: warrant.updated_at }, next]);
   fireEvent.click(screen.getByRole('button', { name: 'Neue Terms-Version' }));
 
   await waitFor(() =>
