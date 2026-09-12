@@ -29,7 +29,10 @@ const result: HebeltraderPreview = {
     thesis: 'Synthetic fixture',
     entry: { type: 'PRICE', currency: 'EUR', price: '101' },
     invalidation: { stop_price: '95' },
-    targets: [{ sequence: 1, price: '125' }, { sequence: 2, price: '155' }],
+    targets: [
+      { sequence: 1, price: '125' },
+      { sequence: 2, price: '155' },
+    ],
     risk_assumptions: { thesis_risk: 'Reconstruction, not publisher formula' },
   },
 };

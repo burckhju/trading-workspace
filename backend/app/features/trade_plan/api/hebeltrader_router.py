@@ -186,13 +186,10 @@ def preview(request: PreviewRequest) -> PreviewResponse:
                     },
                     "invalidation": {
                         "stop_price": assessment.effective_stop,
-                        "rationale": (
-                            "Technische Invalidierung; kein garantierter Ausführungskurs."
-                        ),
+                        "rationale": "Technische Invalidierung; kein garantierter Ausführungskurs.",
                     },
                     "targets": [
-                        {"sequence": i, "price": price}
-                        for i, price in enumerate(target_prices, 1)
+                        {"sequence": i, "price": price} for i, price in enumerate(target_prices, 1)
                     ],
                     "risk_assumptions": {
                         "thesis_risk": (
@@ -426,9 +423,7 @@ def call_scenario(request: CallScenarioRequest) -> dict[str, Any]:
                 "model": "BSM_EUROPEAN_CALL_ACT_365",
                 "theoretical_value": value,
                 "execution_enabled": False,
-                "warning": (
-                    "THEORETICAL_NOT_ISSUER_BID; no spread, credit or discrete dividends"
-                ),
+                "warning": "THEORETICAL_NOT_ISSUER_BID; no spread, credit or discrete dividends",
                 "inputs": request.model_dump(mode="json"),
             }
         )
@@ -454,7 +449,9 @@ def rules() -> dict[str, Any]:
             "loss_timer": "At/after 20 venue sessions, bid < actual entry",
             "post_target1": "After 20 venue sessions: max(current stop, breakeven, 0.8*T1)",
             "expiry": "Review exit with <= 20 sessions to verified last trading date",
-            "late_entry": "Half allocation; stop original entry; no fictional first-target proceeds",
+            "late_entry": (
+                "Half allocation; stop original entry; no fictional first-target proceeds"
+            ),
         },
         "implementation_choices": [
             "Explicit B: publisher volatility window/multiplier are unknown",

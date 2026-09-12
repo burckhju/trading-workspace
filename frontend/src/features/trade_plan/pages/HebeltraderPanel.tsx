@@ -116,8 +116,8 @@ export function HebeltraderPanel({ underlyingId, onCreated }: Props) {
     <details className="rounded-xl border border-slate-800 p-5">
       <summary className="cursor-pointer text-lg font-semibold">Hebeltrader-Regelvorschau</summary>
       <p className="mt-3 text-sm text-slate-400">
-        Manuell belegter Snapshot, kein Livefeed. Aktienmarken in Hauptwährungseinheiten eingeben
-        (GBP statt GBp). B ist eine offengelegte Annahme; die Original-Volatilitätsformel ist unbekannt.
+        Manuell belegter Snapshot, kein Livefeed. Aktienmarken in Hauptwährungseinheiten eingeben (GBP
+        statt GBp). B ist eine offengelegte Annahme; die Original-Volatilitätsformel ist unbekannt.
         Diese Vorschau erstellt keine Order und ändert keine bestehende Position.
       </p>
       <form onSubmit={(event) => void calculate(event)} className="mt-4">
@@ -150,12 +150,14 @@ export function HebeltraderPanel({ underlyingId, onCreated }: Props) {
               <option value="GD50">GD50</option>
             </select>
           </label>
-          {([
-            ['currency', 'Währung (ISO, z. B. EUR)'],
-            ['observedAt', 'Kurszeit mit Zeitzone (ISO 8601)'],
-            ['analysisDate', 'Analysedatum (YYYY-MM-DD)'],
-            ['source', 'Quellennachweis und Begründung für B'],
-          ] as const).map(([key, label]) => (
+          {(
+            [
+              ['currency', 'Währung (ISO, z. B. EUR)'],
+              ['observedAt', 'Kurszeit mit Zeitzone (ISO 8601)'],
+              ['analysisDate', 'Analysedatum (YYYY-MM-DD)'],
+              ['source', 'Quellennachweis und Begründung für B'],
+            ] as const
+          ).map(([key, label]) => (
             <label key={key} className="text-sm">
               {label}
               <input
@@ -204,7 +206,9 @@ export function HebeltraderPanel({ underlyingId, onCreated }: Props) {
             letzten Handelstag schließen. Call-Marken sind separat zu bewerten, nicht per Omega.
           </p>
           {!preview.assessment.eligible && (
-            <p role="alert">Einstiegsbedingungen nicht erfüllt: {preview.assessment.reasons.join(', ')}</p>
+            <p role="alert">
+              Einstiegsbedingungen nicht erfüllt: {preview.assessment.reasons.join(', ')}
+            </p>
           )}
           <p className="text-xs text-slate-500">Hinweise: {preview.warnings.join(', ')}</p>
           {preview.trade_plan_content && preview.assessment.eligible && (
