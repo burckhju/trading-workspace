@@ -53,7 +53,7 @@ class CreateWarrantRequest(Request):
     strike: Decimal = Field(ge=0)
     strike_currency_code: StrikeCurrencyCode | None = Field(
         default=None,
-        description="Currency of the contractual strike, not the listing currency. Null is unknown.",
+        description="Contractual strike currency, independent of listing. Null means unknown.",
     )
     maturity_date: date
     ratio: Decimal = Field(gt=0)
