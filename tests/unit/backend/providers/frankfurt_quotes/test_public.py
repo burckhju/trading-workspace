@@ -14,7 +14,10 @@ from app.features.position_monitoring.service.quote_sources import (
     NamedWarrantQuoteSource,
 )
 from app.providers.frankfurt_quotes.client import FrankfurtSnapshotClient
-from app.providers.frankfurt_quotes.public import FrankfurtPublicPrice, assess_public_price
+from app.providers.frankfurt_quotes.public import (
+    FrankfurtPublicPrice,
+    assess_public_price,
+)
 from app.providers.frankfurt_quotes.schema import FrankfurtSourceError
 from tests.unit.backend.providers.frankfurt_quotes.test_adapter_api import context
 from tests.unit.backend.providers.frankfurt_quotes.test_schema import NOW
@@ -84,8 +87,11 @@ def test_public_last_trade_provenance_never_invents_bid_delay_status_or_wkn():
             {"timestampLastPrice": (NOW + timedelta(seconds=1)).isoformat()},
             "TIMESTAMP_INCONSISTENT",
         ),
-        ({"timestampLastPrice": (NOW - timedelta(seconds=901)).isoformat()}, "LAST_TRADE_STALE"),
-        ({"timestampLastPrice": None}, "LAST_TRADE_MISSING"),
+        (
+            {"timestampLastPrice": (NOW - timedelta(seconds=901)).isoformat()},
+            "LAST_TRADE_STALE",
+        ),
+        ({"timestampLastPrice": None}, "REFERENCE_TIMESTAMP_UNKNOWN"),
         ({"lastPrice": None}, "LAST_TRADE_MISSING"),
     ],
 )
@@ -107,7 +113,10 @@ async def test_public_transport_exact_identifier_no_credentials_and_global_rate_
         await asyncio.sleep(0)
         assert request.url.host == "api.live.deutsche-boerse.com"
         assert request.url.path == "/v1/data/price_information/single"
-        assert dict(request.url.params) == {"isin": request.url.params["isin"], "mic": "XSC"}
+        assert dict(request.url.params) == {
+            "isin": request.url.params["isin"],
+            "mic": "XSC",
+        }
         assert "authorization" not in request.headers
         return httpx.Response(200, json=wire(isin=request.url.params["isin"]))
 
@@ -186,7 +195,9 @@ async def test_public_mapping_and_last_trade_fallback_through_existing_port():
     snapshots.load_public.assert_not_awaited()
     row[2].provider_exchange_code = "XSC"
     value = await adapter.get_warrant_listing_quote(request)
-    assert value.data is None
+    assert value.data.reference_price == Decimal("0.231")
+    assert value.data.reference_price_type == "LAST_TRADE"
+    assert value.data.bid is value.data.ask is None
     assert value.reason_code == "FRANKFURT_POST_TRADE_ONLY"
     snapshots.load.assert_not_awaited()
     secondary, *_rest = context()
@@ -198,7 +209,7 @@ async def test_public_mapping_and_last_trade_fallback_through_existing_port():
     )
     result = await resolver.resolve(request)
     assert result.selected_source == "FALLBACK"
-    assert result.attempts[0].reason == "FRANKFURT_POST_TRADE_ONLY"
+    assert result.attempts[0].reason == "REFERENCE_PRICE_AVAILABLE_FOR_ANALYSIS"
     assert result.attempts[0].bid_available is False
 
 

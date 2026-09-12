@@ -51,6 +51,7 @@ class FrankfurtProbeResponse(BaseModel):
     reason: str
     observation: FrankfurtObservation | None = None
     cache_hit: bool = False
+    analysis_usable: bool = False
 
 
 @router.get("/quote-sources/frankfurt/health", response_model=FrankfurtHealthResponse)
@@ -81,7 +82,10 @@ async def get_frankfurt_health(
     )
 
 
-@router.get("/quote-sources/frankfurt/listings/{listing_id}", response_model=FrankfurtProbeResponse)
+@router.get(
+    "/quote-sources/frankfurt/listings/{listing_id}",
+    response_model=FrankfurtProbeResponse,
+)
 async def get_frankfurt_quote(
     listing_id: UUID,
     workspace_id: UUID,
@@ -111,4 +115,5 @@ async def get_frankfurt_quote(
         result.status = observation.status
         result.reason = observation.reason
         result.cache_hit = hit
+        result.analysis_usable = observation.analysis_usable
     return result

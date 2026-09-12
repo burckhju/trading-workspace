@@ -95,7 +95,10 @@ def test_age_boundary_never_rounds_down(seconds, expected):
         ({"trading_status": "CLOSED"}, "MARKET_NOT_OPEN"),
         ({"trading_status": "SUSPENDED"}, "MARKET_NOT_OPEN"),
         ({"trading_status": "UNKNOWN"}, "MARKET_NOT_OPEN"),
-        ({"ask_at": (NOW + timedelta(seconds=1)).isoformat()}, "TIMESTAMP_INCONSISTENT"),
+        (
+            {"ask_at": (NOW + timedelta(seconds=1)).isoformat()},
+            "TIMESTAMP_INCONSISTENT",
+        ),
     ],
 )
 def test_rejected_quotes(patch, reason):
@@ -153,13 +156,22 @@ def test_empty_snapshot_is_missing_not_available():
     "patch,reason",
     [
         ({"delay_seconds": 901}, "FEED_DELAY_EXCEEDED"),
-        ({"generated_at": (NOW - timedelta(seconds=901)).isoformat()}, "SNAPSHOT_STALE"),
-        ({"generated_at": (NOW + timedelta(seconds=1)).isoformat()}, "TIMESTAMP_INCONSISTENT"),
+        (
+            {"generated_at": (NOW - timedelta(seconds=901)).isoformat()},
+            "SNAPSHOT_STALE",
+        ),
+        (
+            {"generated_at": (NOW + timedelta(seconds=1)).isoformat()},
+            "TIMESTAMP_INCONSISTENT",
+        ),
     ],
 )
 def test_snapshot_gates(patch, reason):
     data = payload()
     data.update(patch)
+    if reason == "SNAPSHOT_STALE":
+        data["records"][0]["bid_at"] = data["generated_at"]
+        data["records"][0]["ask_at"] = data["generated_at"]
     assert assess(data).reason == f"FRANKFURT_{reason}"
 
 

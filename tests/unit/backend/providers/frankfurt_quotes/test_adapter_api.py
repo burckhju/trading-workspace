@@ -12,10 +12,15 @@ from fastapi.testclient import TestClient
 from app.core.config.settings import Settings
 from app.core.di import ApplicationContainer, get_container
 from app.features.market_data.domain.enums import QualityStatus
-from app.features.market_data.service.errors import MarketDataMappingError, MarketDataNotFoundError
+from app.features.market_data.service.errors import (
+    MarketDataMappingError,
+    MarketDataNotFoundError,
+)
 from app.features.market_data.service.types import WarrantQuoteRequest
 from app.features.position_monitoring.api import router
-from app.features.position_monitoring.service.quote_runtime import build_warrant_quote_resolver
+from app.features.position_monitoring.service.quote_runtime import (
+    build_warrant_quote_resolver,
+)
 from app.features.position_monitoring.service.quote_sources import (
     MultiSourceWarrantQuoteResolver,
     NamedWarrantQuoteSource,
@@ -41,13 +46,19 @@ def context(data=None):
         SimpleNamespace(id=listing_id, quotation_currency_code="EUR"),
         SimpleNamespace(isin="DE000VH2LU21", wkn="VH2LU2"),
         SimpleNamespace(
-            provider_symbol="DE000VH2LU21", provider_exchange_code="XFRA", validated_at=NOW
+            provider_symbol="DE000VH2LU21",
+            provider_exchange_code="XFRA",
+            validated_at=NOW,
         ),
         SimpleNamespace(mic="XFRA"),
     )
     snapshots = SimpleNamespace(
         load=AsyncMock(
-            return_value=(FrankfurtSnapshot.model_validate(data or payload()), NOW, False)
+            return_value=(
+                FrankfurtSnapshot.model_validate(data or payload()),
+                NOW,
+                False,
+            )
         ),
         last_success_at=None,
         last_error=None,
@@ -131,7 +142,7 @@ async def test_stale_primary_falls_back_and_retains_reason():
     result = await resolver.resolve(request)
     assert result.selected_source == "FALLBACK"
     assert result.attempts[0].reason == "FRANKFURT_QUOTE_STALE"
-    assert result.attempts[0].status == "INSUFFICIENT"
+    assert result.attempts[0].status == "AVAILABLE"  # retained for indicative analysis
 
 
 @pytest.mark.asyncio
@@ -141,7 +152,7 @@ async def test_post_trade_never_becomes_bid():
     adapter, _db, _snapshots, request, _row = context(data)
     result = await adapter.get_warrant_listing_quote(request)
     assert result.data is None
-    assert result.reason_code == "FRANKFURT_POST_TRADE_ONLY"
+    assert result.reason_code == "FRANKFURT_REFERENCE_PRICE_MISSING"
 
 
 def test_api_diagnostics_and_disabled_default():
@@ -169,7 +180,10 @@ def test_api_diagnostics_and_disabled_default():
 
 def test_public_health_and_listing_diagnostic_do_not_claim_bid_ask_capability():
     from app.providers.frankfurt_quotes.public import FrankfurtPublicPrice
-    from tests.unit.backend.providers.frankfurt_quotes.test_public import public_settings, wire
+    from tests.unit.backend.providers.frankfurt_quotes.test_public import (
+        public_settings,
+        wire,
+    )
 
     adapter, database, snapshots, request, row = context()
     adapter.settings = public_settings()
@@ -202,15 +216,26 @@ def test_public_health_and_listing_diagnostic_do_not_claim_bid_ask_capability():
 
 
 @pytest.mark.asyncio
-async def test_runtime_does_not_poll_known_public_last_only_source():
-    from tests.unit.backend.providers.frankfurt_quotes.test_public import public_settings
+async def test_runtime_uses_public_last_only_source_for_analysis():
+    from app.providers.frankfurt_quotes.public import FrankfurtPublicPrice
+    from tests.unit.backend.providers.frankfurt_quotes.test_public import (
+        public_settings,
+        wire,
+    )
 
-    adapter, database, snapshots, request, _row = context()
+    adapter, database, snapshots, request, row = context()
+    adapter.settings = public_settings()
+    row[2].provider_exchange_code = "XSC"
+    snapshots.load_public = AsyncMock(
+        return_value=(FrankfurtPublicPrice.model_validate(wire()), NOW, False)
+    )
     configured = Settings(_env_file=None, market_data={"frankfurt": public_settings()})
     container = ApplicationContainer(settings=configured, database=database, frankfurt=adapter)
     result = await build_warrant_quote_resolver(container).resolve(request)
-    # The resolver suppresses disabled/ineligible sources from normal diagnostics.
-    assert not result.attempts
+    assert result.selected_source == "FRANKFURT_QUOTES"
+    assert result.result.data.reference_price_type == "LAST_TRADE"
+    assert result.result.data.bid is None
+    snapshots.load_public.assert_awaited_once_with("DE000VH2LU21")
     snapshots.load.assert_not_awaited()
 
 

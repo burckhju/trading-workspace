@@ -63,6 +63,8 @@ def _stuttgart_quote_missing(value: ProductPositionValuation) -> bool:
 
 
 def _product_title(value: ProductPositionValuation) -> str:
+    if value.analysis_usable:
+        return "Indikative Produktbewertung"
     if _stuttgart_quote_missing(value):
         return "Produkt nicht im Stuttgart-Feed enthalten"
     if value.status is ProductValuationStatus.STALE:
@@ -75,6 +77,21 @@ def _product_title(value: ProductPositionValuation) -> str:
 
 
 def _product_detail(value: ProductPositionValuation) -> str:
+    if value.analysis_usable:
+        price_type = {
+            "LAST_TRADE": "Letzter Handelspreis",
+            "PREVIOUS_CLOSE": "Schlusskurs",
+        }.get(value.reference_price_type or "BID", "Letzter Bid")
+        age = (
+            f"{value.quote_age_seconds} Sek. alt"
+            if value.quote_age_seconds is not None
+            else "Kurszeitpunkt unbekannt"
+        )
+        return (
+            f"{price_type} von {value.selected_source or 'unbekannter Quelle'} ({age}). "
+            "Indikative Auswertung und Wert-/P&L-Überwachung sind verfügbar; "
+            "Quelle und Aktualität beurteilen Sie selbst. Keine automatische Orderfreigabe."
+        )
     if _stuttgart_quote_missing(value):
         return (
             "Das dokumentierte WarrantListing wurde im aktuellen Börse-Stuttgart-Delayed-Feed "

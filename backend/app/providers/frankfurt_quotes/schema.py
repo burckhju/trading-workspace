@@ -41,7 +41,7 @@ class FrankfurtRecord(BaseModel):
     wkn: Annotated[str, Field(pattern=r"^[A-Z0-9]{6}$")] | None = None
     mic: Annotated[str, Field(pattern=r"^[A-Z0-9]{4}$")]
     currency: Annotated[str, Field(pattern=r"^[A-Z]{3}$")]
-    kind: Literal["BID_ASK", "LAST_TRADE"]
+    kind: Literal["BID_ASK", "LAST_TRADE", "PREVIOUS_CLOSE"]
     bid: Price | None = None
     ask: Price | None = None
     bid_size: Size | None = None
@@ -50,9 +50,11 @@ class FrankfurtRecord(BaseModel):
     ask_at: datetime | None = None
     last_price: Price | None = None
     last_at: datetime | None = None
+    close_price: Price | None = None
+    close_at: datetime | None = None
     trading_status: Literal["OPEN", "CLOSED", "SUSPENDED", "UNKNOWN"] = "UNKNOWN"
 
-    @field_validator("bid_at", "ask_at", "last_at", mode="before")
+    @field_validator("bid_at", "ask_at", "last_at", "close_at", mode="before")
     @classmethod
     def validate_timestamp(cls, value: Any) -> datetime | None:
         return None if value is None else _utc(value)
@@ -97,6 +99,21 @@ class FrankfurtObservation(BaseModel):
     source_mode: str = "NORMALIZED_SNAPSHOT"
     execution_usable: Literal[False] = False
 
+    @property
+    def analysis_usable(self) -> bool:
+        """Age/market state affect disclosure, not identity-validated analysis."""
+        record = self.record
+        if (
+            self.status in (QuoteStatus.ERROR, QuoteStatus.MISSING, QuoteStatus.UNAVAILABLE)
+            or record is None
+        ):
+            return False
+        if record.kind == "LAST_TRADE":
+            return record.last_price is not None
+        if record.kind == "PREVIOUS_CLOSE":
+            return record.close_price is not None
+        return record.bid is not None and self.observed_at is not None
+
 
 def assess_snapshot(
     snapshot: FrankfurtSnapshot,
@@ -137,10 +154,34 @@ def assess_snapshot(
             status, reason = QuoteStatus.ERROR, "FRANKFURT_WKN_MISMATCH"
         elif record.kind != "BID_ASK":
             status, reason = QuoteStatus.INSUFFICIENT, "FRANKFURT_POST_TRADE_ONLY"
+            observed_at = record.last_at if record.kind == "LAST_TRADE" else record.close_at
+            reference_price = (
+                record.last_price if record.kind == "LAST_TRADE" else record.close_price
+            )
+            if reference_price is None:
+                status, reason = (
+                    QuoteStatus.MISSING,
+                    "FRANKFURT_REFERENCE_PRICE_MISSING",
+                )
+            elif observed_at is not None:
+                age = (now - observed_at).total_seconds()
+                if observed_at > snapshot.generated_at:
+                    status, reason = (
+                        QuoteStatus.ERROR,
+                        "FRANKFURT_TIMESTAMP_INCONSISTENT",
+                    )
+                elif age > max_age_seconds:
+                    status, reason = (
+                        QuoteStatus.STALE,
+                        "FRANKFURT_REFERENCE_PRICE_STALE",
+                    )
         elif record.bid is None or record.ask is None:
             status, reason = QuoteStatus.INSUFFICIENT, "FRANKFURT_BID_ASK_MISSING"
         elif record.bid_at is None or record.ask_at is None:
-            status, reason = QuoteStatus.INSUFFICIENT, "FRANKFURT_SIDE_TIMESTAMP_MISSING"
+            status, reason = (
+                QuoteStatus.INSUFFICIENT,
+                "FRANKFURT_SIDE_TIMESTAMP_MISSING",
+            )
         elif record.ask < record.bid:
             status, reason = QuoteStatus.ERROR, "FRANKFURT_CROSSED_QUOTE"
         else:
@@ -156,9 +197,12 @@ def assess_snapshot(
 
     if snapshot.generated_at > retrieved_at or retrieved_at > now:
         status, reason = QuoteStatus.ERROR, "FRANKFURT_TIMESTAMP_INCONSISTENT"
-    elif snapshot.delay_seconds > max_age_seconds:
+    elif status is not QuoteStatus.ERROR and snapshot.delay_seconds > max_age_seconds:
         status, reason = QuoteStatus.INSUFFICIENT, "FRANKFURT_FEED_DELAY_EXCEEDED"
-    elif (now - snapshot.generated_at).total_seconds() > max_age_seconds:
+    elif (
+        status is not QuoteStatus.ERROR
+        and (now - snapshot.generated_at).total_seconds() > max_age_seconds
+    ):
         status, reason = QuoteStatus.STALE, "FRANKFURT_SNAPSHOT_STALE"
 
     return FrankfurtObservation(
