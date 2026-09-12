@@ -9,7 +9,12 @@ from uuid import UUID, uuid4
 from sqlalchemy import select
 
 from app.database import DatabaseManager
-from app.features.market_data.domain.enums import MarketDataProvider, QualityStatus
+from app.features.market_data.domain.enums import (
+    MappingStatus,
+    MarketDataProvider,
+    QualityStatus,
+)
+from app.features.market_data.persistence.models import WarrantProviderMappingModel
 from app.features.market_data.service.contracts import WarrantListingQuoteProvider
 from app.features.market_data.service.types import WarrantQuoteRequest
 from app.features.position_monitoring.service.quote_sources import (
@@ -152,6 +157,14 @@ class ProductPositionValuationService:
             candidate_listings = [listing]
             warrant_id = getattr(listing, "warrant_id", None)
             if warrant_id is not None:
+                active_mapping_exists = (
+                    select(WarrantProviderMappingModel.id)
+                    .where(
+                        WarrantProviderMappingModel.warrant_listing_id == WarrantListingModel.id,
+                        WarrantProviderMappingModel.status == MappingStatus.ACTIVE,
+                    )
+                    .exists()
+                )
                 rows = await session.scalars(
                     select(WarrantListingModel)
                     .where(
@@ -159,11 +172,11 @@ class ProductPositionValuationService:
                         WarrantListingModel.warrant_id == warrant_id,
                         WarrantListingModel.lifecycle_status == WarrantLifecycle.ACTIVE,
                     )
-                    .order_by(WarrantListingModel.symbol)
+                    .order_by(active_mapping_exists.desc(), WarrantListingModel.symbol)
                 )
                 # Historical product-selection provenance remains immutable, but
-                # current quotes are requested only for active listings returned
-                # by the lifecycle-filtered query.
+                # current quotes are requested only for active listings. Listings
+                # with a configured active provider mapping are tried first.
                 candidate_listings = list(rows)
 
             all_attempts: list[QuoteSourceAttempt] = []
