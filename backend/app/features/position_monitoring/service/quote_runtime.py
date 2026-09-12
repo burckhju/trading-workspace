@@ -38,6 +38,12 @@ def build_warrant_quote_resolver(
     return MultiSourceWarrantQuoteResolver(
         (
             NamedWarrantQuoteSource(
+                "FRANKFURT_QUOTES",
+                container.frankfurt,
+                delayed=container.settings.market_data.frankfurt.feed_delay_seconds > 0,
+                unavailable_reason="FRANKFURT_DISABLED",
+            ),
+            NamedWarrantQuoteSource(
                 "VONTOBEL_MARKETS",
                 vontobel_provider,
                 unavailable_reason="VONTOBEL_MARKETS_DISABLED",

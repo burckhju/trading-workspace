@@ -58,3 +58,6 @@ coverage/
 docker/.env
 # Local Börse Stuttgart runtime market-data cache
 docker/stuttgart-data/
+# Frankfurt credentials and runtime snapshots
+docker/frankfurt.env
+docker/frankfurt-data/
