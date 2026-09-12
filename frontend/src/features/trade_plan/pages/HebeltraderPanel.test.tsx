@@ -2,112 +2,129 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { tradePlanApiClient } from '../services/client';
-import { previewHebeltrader } from '../services/hebeltraderClient';
-import type { HebeltraderPreview } from '../services/hebeltraderClient';
-import type { TradePlanDetailResponse } from '../types/api';
+import {
+  loadHebeltraderSources,
+  reviewHebeltraderSource,
+} from '../services/hebeltraderSourcesClient';
+import type { HebeltraderSource } from '../services/hebeltraderSourcesClient';
 import { HebeltraderPanel } from './HebeltraderPanel';
 
 vi.mock('../services/client', () => ({ tradePlanApiClient: { create: vi.fn() } }));
-vi.mock('../services/hebeltraderClient', () => ({ previewHebeltrader: vi.fn() }));
+vi.mock('../services/hebeltraderSourcesClient', () => ({
+  loadHebeltraderSources: vi.fn(),
+  reviewHebeltraderSource: vi.fn(),
+}));
 
-const result: HebeltraderPreview = {
-  policy_id: 'HEBELTRADER_RECONSTRUCTED_V1',
-  execution_enabled: false,
-  input_digest: 'fixture-digest',
-  mode: 'RECONSTRUCTED_BANDS',
-  levels: { entry: '101', stop: '95', target1: '125', target2: '155' },
-  assessment: {
-    eligible: true,
-    reasons: [],
-    reward_risk: '6.5',
-    allocation_fraction: '1',
-    stock_stop_distance: '0.05',
-    late_entry: false,
+const source: HebeltraderSource = {
+  version_id: 'source-1',
+  underlying_id: 'stock-1',
+  label: 'Beispielaktie · Hebeltrader 1/2026',
+  issue_date: '2026-09-11',
+  filename: 'example.pdf',
+  content_hash: 'test-hash',
+  scope: 'PUBLISHED_SNAPSHOT_NOT_LIVE',
+  source_issues: [],
+  stock: {
+    currency: 'USD',
+    values: { entry: '100', stop: '90', target1: '120', target2: '145', gd200: '95' },
+    reward_risk: '3.25',
+    band_deviation: '0',
+    issues: [],
   },
-  warnings: ['RECONSTRUCTION_NOT_PUBLISHER_FORMULA'],
-  trade_plan_content: {
-    thesis: 'Synthetic fixture',
-    entry: { type: 'PRICE', currency: 'EUR', price: '101' },
-    invalidation: { stop_price: '95' },
-    targets: [
-      { sequence: 1, price: '125' },
-      { sequence: 2, price: '155' },
-    ],
-    risk_assumptions: { thesis_risk: 'Reconstruction, not publisher formula' },
+  warrant: {
+    currency: 'EUR',
+    values: { entry: '0.16', stop: '0.07', target1: '0.71', target2: '2.12' },
+    reward_risk: '13.94',
+    band_deviation: null,
+    issues: [],
   },
 };
 
-function enterSnapshot() {
-  screen.getByText('Hebeltrader-Regelvorschau').closest('details')?.setAttribute('open', '');
-  const fields: Record<string, string> = {
-    'Geldkurs Aktie': '100',
-    'Briefkurs Aktie': '101',
-    GD200: '95',
-    'Explizite Bandbreite B': '30',
-    'Kurszeit mit Zeitzone (ISO 8601)': new Date().toISOString(),
-    'Analysedatum (YYYY-MM-DD)': new Date().toISOString().slice(0, 10),
-    'Quellennachweis und Begründung für B': 'Synthetic source',
-  };
-  for (const [label, value] of Object.entries(fields)) {
-    fireEvent.change(screen.getByLabelText(label), { target: { value } });
-  }
-  fireEvent.click(screen.getByLabelText('Fundamentale These separat geprüft'));
-  fireEvent.click(screen.getByRole('button', { name: 'Regelvorschau berechnen' }));
+function openDetails(container: HTMLElement) {
+  container.querySelectorAll('details').forEach((element) => { element.open = true; });
 }
 
-describe('HebeltraderPanel', () => {
+describe('Hebeltrader source-first input policy', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(previewHebeltrader).mockResolvedValue(result);
-    vi.mocked(tradePlanApiClient.create).mockResolvedValue({
-      plan: { id: 'created-plan' },
-    } as TradePlanDetailResponse);
-  });
-
-  it('requires a separate review before creating a manual draft', async () => {
-    const onCreated = vi.fn();
-    render(<HebeltraderPanel underlyingId="selected-underlying" onCreated={onCreated} />);
-    enterSnapshot();
-    const create = await screen.findByRole('button', { name: 'Geprüften Entwurf anlegen' });
-    expect(create).toBeDisabled();
-    expect(tradePlanApiClient.create).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByLabelText(/Rekonstruktion, Annahmen und Marken geprüft/));
-    fireEvent.click(create);
-    await waitFor(() => expect(onCreated).toHaveBeenCalledWith('created-plan'));
-    expect(tradePlanApiClient.create).toHaveBeenCalledWith({
-      ...result.trade_plan_content,
-      origin_type: 'MANUAL',
-      underlying_id: 'selected-underlying',
+    vi.mocked(loadHebeltraderSources).mockResolvedValue({
+      items: [source], has_more: false, next_offset: null,
+    });
+    vi.mocked(reviewHebeltraderSource).mockResolvedValue({
+      source, current_preview: null, execution_enabled: false,
+      missing_data: ['Kein aktueller Geld-/Briefkurs: nur Quellenszenario.'],
     });
   });
 
-  it('invalidates a reviewed preview after an input change', async () => {
-    render(<HebeltraderPanel underlyingId="selected-underlying" onCreated={vi.fn()} />);
-    enterSnapshot();
-    await screen.findByRole('button', { name: 'Geprüften Entwurf anlegen' });
-    fireEvent.click(screen.getByLabelText(/Rekonstruktion, Annahmen und Marken geprüft/));
-    fireEvent.change(screen.getByLabelText('Briefkurs Aktie'), { target: { value: '102' } });
-    expect(screen.queryByRole('button', { name: 'Geprüften Entwurf anlegen' })).toBeNull();
+  it('loads visible source facts and requests no model parameters', async () => {
+    const { container } = render(<HebeltraderPanel underlyingId="stock-1" onCreated={vi.fn()} />);
+    await screen.findByText(/example.pdf/);
+    openDetails(container);
+    expect(loadHebeltraderSources).toHaveBeenCalledWith('stock-1', 0, expect.any(AbortSignal));
+    expect(screen.getByText('100 USD')).toBeInTheDocument();
+    expect(screen.getByText('0.16 EUR')).toBeInTheDocument();
+    expect(container.querySelectorAll('input[required]')).toHaveLength(0);
+    expect(screen.queryByLabelText('Explizite Bandbreite B')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Tickgröße')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('GD200')).not.toBeInTheDocument();
     expect(tradePlanApiClient.create).not.toHaveBeenCalled();
   });
 
-  it('does not offer draft creation for rejected entry conditions', async () => {
-    vi.mocked(previewHebeltrader).mockResolvedValue({
-      ...result,
-      assessment: { ...result.assessment, eligible: false, reasons: ['QUOTE_STALE_OR_FUTURE'] },
-      trade_plan_content: null,
+  it('reviews only existing data when no current quote can be read', async () => {
+    const { container } = render(<HebeltraderPanel underlyingId="stock-1" onCreated={vi.fn()} />);
+    await screen.findByText(/example.pdf/);
+    openDetails(container);
+    fireEvent.click(screen.getByRole('button', { name: 'Vorhandene Daten prüfen' }));
+    expect(await screen.findByText(/Kein aktueller Geld-\/Briefkurs/)).toBeInTheDocument();
+    expect(reviewHebeltraderSource).toHaveBeenCalledWith({
+      underlying_id: 'stock-1', source_version_id: 'source-1',
+      fundamental_ok: false, target_history: 'UNKNOWN',
     });
-    render(<HebeltraderPanel underlyingId="selected-underlying" onCreated={vi.fn()} />);
-    enterSnapshot();
-    expect(await screen.findByRole('alert')).toHaveTextContent('QUOTE_STALE_OR_FUTURE');
-    expect(screen.queryByRole('button', { name: 'Geprüften Entwurf anlegen' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Geprüften Entwurf anlegen' })).not.toBeInTheDocument();
   });
 
-  it('shows calculation errors without creating a draft', async () => {
-    vi.mocked(previewHebeltrader).mockRejectedValue(new Error('Snapshot unavailable'));
-    render(<HebeltraderPanel underlyingId="selected-underlying" onCreated={vi.fn()} />);
-    enterSnapshot();
-    expect(await screen.findByRole('alert')).toHaveTextContent('Snapshot unavailable');
-    expect(tradePlanApiClient.create).not.toHaveBeenCalled();
+  it('reports missing imports without opening a manual-parameter form', async () => {
+    vi.mocked(loadHebeltraderSources).mockResolvedValue({
+      items: [], has_more: false, next_offset: null,
+    });
+    const { container } = render(<HebeltraderPanel underlyingId="stock-1" onCreated={vi.fn()} />);
+    expect(await screen.findByText(/Keine bestätigte Hebeltrader-Empfehlung/)).toBeInTheDocument();
+    expect(container.querySelectorAll('input')).toHaveLength(0);
+  });
+
+  it('does not invent missing components of a partially entered quote', async () => {
+    const { container } = render(<HebeltraderPanel underlyingId="stock-1" onCreated={vi.fn()} />);
+    await screen.findByText(/example.pdf/);
+    openDetails(container);
+    fireEvent.change(screen.getByLabelText('Briefkurs Aktie'), { target: { value: '101' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Vorhandene Daten prüfen' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(/vollständig übernehmen/);
+    expect(reviewHebeltraderSource).not.toHaveBeenCalled();
+  });
+
+  it('clears observable quote entries on source change', async () => {
+    vi.mocked(loadHebeltraderSources).mockResolvedValue({
+      items: [source, { ...source, version_id: 'source-2', label: 'Andere Ausgabe' }],
+      has_more: false, next_offset: null,
+    });
+    const { container } = render(<HebeltraderPanel underlyingId="stock-1" onCreated={vi.fn()} />);
+    await screen.findByText(/example.pdf/);
+    openDetails(container);
+    fireEvent.change(screen.getByLabelText('Briefkurs Aktie'), { target: { value: '101' } });
+    fireEvent.change(screen.getByLabelText('Importierte Empfehlung'), {
+      target: { value: 'source-2' },
+    });
+    expect(screen.getByLabelText('Briefkurs Aktie')).toHaveValue('');
+  });
+
+  it('ignores a late source response after changing the underlying', async () => {
+    let complete: ((result: { items: HebeltraderSource[]; has_more: boolean; next_offset: null }) => void) | undefined;
+    vi.mocked(loadHebeltraderSources).mockReturnValueOnce(new Promise((resolve) => { complete = resolve; }));
+    const { rerender } = render(<HebeltraderPanel underlyingId="stock-1" onCreated={vi.fn()} />);
+    vi.mocked(loadHebeltraderSources).mockResolvedValue({ items: [], has_more: false, next_offset: null });
+    rerender(<HebeltraderPanel underlyingId="stock-2" onCreated={vi.fn()} />);
+    await screen.findByText(/Keine bestätigte Hebeltrader-Empfehlung/);
+    complete?.({ items: [source], has_more: false, next_offset: null });
+    await waitFor(() => expect(screen.queryByText(/example.pdf/)).not.toBeInTheDocument());
   });
 });

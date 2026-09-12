@@ -1,0 +1,44 @@
+name: Hebeltrader input diagnostic
+on:
+  push:
+    branches: [feat/hebeltrader-rules-v1]
+    paths: ['.github/workflows/hebeltrader-input-diagnostic.yml']
+permissions:
+  contents: read
+jobs:
+  focused:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: frontend/.nvmrc
+      - name: Dependencies
+        run: |
+          python -m pip install --requirement backend/requirements-dev.txt
+          cd frontend && npm ci
+      - name: Formatting diagnostics
+        run: |
+          black --config backend/pyproject.toml backend/app/features/trade_plan/api/hebeltrader_sources.py tests/unit/backend/test_hebeltrader_sources.py
+          cd frontend
+          npx prettier --write src/features/trade_plan/pages/HebeltraderPanel.tsx src/features/trade_plan/pages/HebeltraderPanel.test.tsx src/features/trade_plan/services/hebeltraderSourcesClient.ts
+          cd ..
+          git diff -- backend/app/features/trade_plan/api/hebeltrader_sources.py tests/unit/backend/test_hebeltrader_sources.py frontend/src/features/trade_plan
+      - name: Focused backend tests
+        working-directory: backend
+        run: PYTHONPATH=.:.. pytest ../tests/unit/backend/test_hebeltrader_sources.py -q
+      - name: Focused frontend tests
+        if: always()
+        working-directory: frontend
+        run: npx vitest run src/features/trade_plan/pages/HebeltraderPanel.test.tsx
+      - name: Type checks
+        if: always()
+        run: |
+          cd backend && mypy app
+          cd ../frontend && npm run typecheck
