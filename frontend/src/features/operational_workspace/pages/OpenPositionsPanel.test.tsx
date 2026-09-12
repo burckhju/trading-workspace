@@ -162,3 +162,28 @@ describe('OpenPositionsPanel', () => {
     expect(screen.getByText('Positionssignal: Daten veraltet')).toBeInTheDocument();
   });
 });
+
+it('shows an indicative Frankfurt value with its source and original quote time', () => {
+  render(
+    <MemoryRouter>
+      <OpenPositionsPanel
+        positions={[
+          position({
+            valuation_status: 'INDICATIVE',
+            market_value: '462.00',
+            unrealized_gross_pnl: '-558.00',
+            analysis_warning: 'OUTDATED_QUOTE_INDICATIVE_ANALYSIS_ONLY',
+            quote_source: 'FRANKFURT_QUOTES',
+            quote_observed_at: '2026-09-11T17:43:41Z',
+          }),
+        ]}
+      />
+    </MemoryRouter>,
+  );
+  expect(screen.getByText('462 EUR')).toBeInTheDocument();
+  expect(
+    screen.getByText(/Indikative Bewertung mit dem verfügbaren Referenzkurs/),
+  ).toHaveTextContent('Keine Orderfreigabe');
+  expect(screen.getByText(/Quelle: FRANKFURT_QUOTES/)).toHaveTextContent('11.9.2026');
+  expect(screen.getByText('Produktkurs: Indikativer Referenzkurs')).toBeInTheDocument();
+});

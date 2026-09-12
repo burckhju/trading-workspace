@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
-from dataclasses import dataclass
+from collections import OrderedDict
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
 from html.parser import HTMLParser
+from time import monotonic
 from typing import Any
 from uuid import UUID
 
@@ -55,13 +58,16 @@ class _NextDataParser(HTMLParser):
 
 
 @dataclass(frozen=True, slots=True)
-class _Identity:
+class VontobelIdentity:
     listing_id: UUID
     isin: str
     wkn: str | None
     currency: str
     provider_symbol: str
     provider_exchange_code: str
+
+
+_Identity = VontobelIdentity
 
 
 class VontobelMarketsWarrantQuoteAdapter:
@@ -73,10 +79,16 @@ class VontobelMarketsWarrantQuoteAdapter:
         database: DatabaseManager,
         settings: VontobelMarketsSettings,
         client: httpx.AsyncClient | None = None,
+        cache_seconds: int = 0,
     ) -> None:
         self._database = database
         self._settings = settings
         self._client = client
+        self._cache_seconds = cache_seconds
+        self._cache: OrderedDict[
+            VontobelIdentity, tuple[WarrantQuoteSnapshot | None, datetime, float]
+        ] = OrderedDict()
+        self._lock = asyncio.Lock()
 
     async def get_warrant_listing_quote(
         self, request: WarrantQuoteRequest
@@ -88,6 +100,46 @@ class VontobelMarketsWarrantQuoteAdapter:
                 capability=MarketDataCapability.WARRANT_LISTING_QUOTE,
             )
         identity = await self._resolve_identity(request)
+        quote, retrieved_at, hit = await self.probe(identity)
+        if quote is not None:
+            quote = replace(quote, assessed_at=datetime.now(UTC))
+        return MarketDataResult(
+            data=quote,
+            provider=MarketDataProvider.VONTOBEL_MARKETS,
+            capability=MarketDataCapability.WARRANT_LISTING_QUOTE,
+            correlation_id=request.correlation_id,
+            retrieved_at=retrieved_at,
+            cache_status=CacheStatus.HIT if hit else CacheStatus.BYPASS,
+            quality_status=QualityStatus.VALID,
+            warnings=(
+                "Official issuer indication; not an executable exchange order-book quote",
+                "source=official_product_page_structured_payload",
+            ),
+            retry_count=0,
+            provider_call_cost=0,
+        )
+
+    async def probe(
+        self, identity: VontobelIdentity
+    ) -> tuple[WarrantQuoteSnapshot | None, datetime, bool]:
+        """Validate exact issuer identity before an automatic mapping may be written."""
+        if not self._settings.enabled:
+            raise MarketDataConfigurationError("Vontobel Markets quote provider is disabled")
+        async with self._lock:
+            cached = self._cache.get(identity)
+            if cached is not None and monotonic() < cached[2]:
+                return cached[0], cached[1], True
+            quote, retrieved_at = await self._download(identity)
+            if self._cache_seconds:
+                self._cache[identity] = (quote, retrieved_at, monotonic() + self._cache_seconds)
+                self._cache.move_to_end(identity)
+                if len(self._cache) > 256:
+                    self._cache.popitem(last=False)
+            return quote, retrieved_at, False
+
+    async def _download(
+        self, identity: VontobelIdentity
+    ) -> tuple[WarrantQuoteSnapshot | None, datetime]:
         url = (
             f"{self._settings.base_url}/{self._settings.culture}/produkte/hebel/"
             f"optionsscheine/{identity.isin}"
@@ -106,21 +158,7 @@ class VontobelMarketsWarrantQuoteAdapter:
         finally:
             if owns_client:
                 await client.aclose()
-        return MarketDataResult(
-            data=quote,
-            provider=MarketDataProvider.VONTOBEL_MARKETS,
-            capability=MarketDataCapability.WARRANT_LISTING_QUOTE,
-            correlation_id=request.correlation_id,
-            retrieved_at=retrieved_at,
-            cache_status=CacheStatus.BYPASS,
-            quality_status=QualityStatus.VALID,
-            warnings=(
-                "Official issuer indication; not an executable exchange order-book quote",
-                "source=official_product_page_structured_payload",
-            ),
-            retry_count=0,
-            provider_call_cost=0,
-        )
+        return quote, retrieved_at
 
     async def _resolve_identity(self, request: WarrantQuoteRequest) -> _Identity:
         async with self._database.session_context() as session:
@@ -137,9 +175,11 @@ class VontobelMarketsWarrantQuoteAdapter:
                         WarrantListingModel.workspace_id == request.workspace_id,
                         WarrantListingModel.lifecycle_status == WarrantLifecycle.ACTIVE,
                         WarrantModel.workspace_id == request.workspace_id,
+                        WarrantModel.lifecycle_status == WarrantLifecycle.ACTIVE,
                         WarrantProviderMappingModel.workspace_id == request.workspace_id,
                         WarrantProviderMappingModel.provider == MarketDataProvider.VONTOBEL_MARKETS,
                         WarrantProviderMappingModel.status == MappingStatus.ACTIVE,
+                        WarrantProviderMappingModel.validated_at.is_not(None),
                     )
                 )
             ).one_or_none()

@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
+import asyncio
 import gzip
 import json
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
+from time import monotonic
 from typing import Any, cast
 from urllib.parse import urljoin, urlparse
 
@@ -60,10 +62,14 @@ class StuttgartDelayedWarrantQuoteAdapter:
         database: DatabaseManager,
         settings: StuttgartDelayedSettings,
         client: httpx.AsyncClient | None = None,
+        cache_seconds: int = 0,
     ) -> None:
         self._database = database
         self._settings = settings
         self._client = client
+        self._cache_seconds = cache_seconds
+        self._payload_cache: tuple[Any, datetime, float] | None = None
+        self._payload_lock = asyncio.Lock()
 
     async def get_warrant_listing_quote(
         self, request: WarrantQuoteRequest
@@ -71,9 +77,10 @@ class StuttgartDelayedWarrantQuoteAdapter:
         self._require_ready_configuration()
         identity = await self._resolve_identity(request)
 
-        retrieved_at = datetime.now(UTC)
-        payload = await self._load_latest_payload()
+        payload, retrieved_at = await self._cached_payload()
         quote = self._parse_quote(payload, identity)
+        if quote is not None:
+            quote = replace(quote, assessed_at=datetime.now(UTC))
         return MarketDataResult(
             data=quote,
             provider=MarketDataProvider.BOERSE_STUTTGART_DELAYED,
@@ -90,6 +97,17 @@ class StuttgartDelayedWarrantQuoteAdapter:
             retry_count=0,
             provider_call_cost=None,
         )
+
+    async def _cached_payload(self) -> tuple[Any, datetime]:
+        """Share the large exchange snapshot; never replace its retrieval timestamp."""
+        async with self._payload_lock:
+            if self._payload_cache is not None and monotonic() < self._payload_cache[2]:
+                return self._payload_cache[0], self._payload_cache[1]
+            payload = await self._load_latest_payload()
+            retrieved_at = datetime.now(UTC)
+            if self._cache_seconds:
+                self._payload_cache = (payload, retrieved_at, monotonic() + self._cache_seconds)
+            return payload, retrieved_at
 
     def _require_ready_configuration(self) -> None:
         if (

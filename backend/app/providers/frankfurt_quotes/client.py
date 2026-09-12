@@ -62,8 +62,10 @@ class FrankfurtSnapshotClient:
         client: httpx.AsyncClient | None = None,
         clock: Callable[[], datetime] = utc_now,
         timer: Callable[[], float] = monotonic,
+        cache_seconds: int | None = None,
     ) -> None:
         self.settings = settings
+        self.cache_seconds = cache_seconds
         self._client = client
         self._clock = clock
         self._timer = timer
@@ -99,6 +101,14 @@ class FrankfurtSnapshotClient:
             raise FrankfurtSourceError(reason)
         async with self._lock:
             key = isin or "snapshot"
+            cached = self._cached.get(key)
+            if (
+                self.cache_seconds is not None
+                and self.last_error is None
+                and cached is not None
+                and self._timer() < cached[2]
+            ):
+                return cached[0], cached[1], True
             if self._timer() < self._next_fetch:
                 if self.last_error is not None:
                     raise FrankfurtSourceError(self.last_error)
@@ -139,7 +149,11 @@ class FrankfurtSnapshotClient:
             self.last_success_at = retrieved_at
             self.last_error = None
             self._next_fetch = self._timer() + self.settings.refresh_interval_seconds
-            self._cached[key] = (value, retrieved_at, self._next_fetch)
+            self._cached[key] = (
+                value,
+                retrieved_at,
+                self._timer() + (self.cache_seconds or self.settings.refresh_interval_seconds),
+            )
             self._cached.move_to_end(key)
             if len(self._cached) > 256:
                 self._cached.popitem(last=False)

@@ -4,6 +4,7 @@ import re
 from enum import StrEnum
 from functools import lru_cache
 from typing import Annotated
+from uuid import UUID
 
 from pydantic import BaseModel, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -192,6 +193,18 @@ class StuttgartDelayedSettings(BaseModel):
         return False
 
 
+class MarketDataRefreshSettings(BaseModel):
+    """Opt-in catalog discovery and refresh, independent of trading decisions."""
+
+    enabled: bool = False
+    workspace_id: UUID = UUID("00000000-0000-4000-8000-000000000001")
+    warrants_interval_seconds: Annotated[int, Field(ge=60, le=86_400)] = 300
+    underlyings_interval_seconds: Annotated[int, Field(ge=300, le=604_800)] = 3600
+    discovery_interval_seconds: Annotated[int, Field(ge=300, le=604_800)] = 3600
+    request_spacing_seconds: Annotated[float, Field(ge=1, le=60)] = 15.0
+    auto_configure: bool = True
+
+
 class MarketDataSettings(BaseModel):
     """Settings for market-data infrastructure and providers."""
 
@@ -199,6 +212,7 @@ class MarketDataSettings(BaseModel):
     vontobel_markets: VontobelMarketsSettings = Field(default_factory=VontobelMarketsSettings)
     stuttgart_delayed: StuttgartDelayedSettings = Field(default_factory=StuttgartDelayedSettings)
     frankfurt: FrankfurtQuoteSettings = Field(default_factory=FrankfurtQuoteSettings)
+    refresh: MarketDataRefreshSettings = Field(default_factory=MarketDataRefreshSettings)
 
 
 class PositionMonitoringSettings(BaseModel):

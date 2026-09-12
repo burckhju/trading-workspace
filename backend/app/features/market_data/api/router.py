@@ -177,3 +177,26 @@ async def provider_status(
 ) -> ProviderStatusResponse:
     """Expose non-secret local EODHD budget and rate-limit status."""
     return ProviderStatusResponse.model_validate(await container.provider_status())
+
+
+@router.get("/refresh/status")
+async def market_data_refresh_status(request: Request) -> dict[str, object]:
+    """Non-secret per-instrument coverage, intervals and last refresh results."""
+    from app.features.market_data.service.refresh import MarketDataRefreshRuntime
+
+    runtime: MarketDataRefreshRuntime = request.app.state.market_data_refresh
+    return runtime.status()
+
+
+@router.post("/refresh/run", status_code=202)
+async def wake_market_data_refresh(request: Request) -> dict[str, str]:
+    """Wake catalog discovery; configured due times and transport budgets still apply."""
+    from fastapi import HTTPException
+
+    from app.features.market_data.service.refresh import MarketDataRefreshRuntime
+
+    runtime: MarketDataRefreshRuntime = request.app.state.market_data_refresh
+    if not runtime.settings.enabled:
+        raise HTTPException(status_code=409, detail="MARKET_DATA_REFRESH_DISABLED")
+    runtime.wake.set()
+    return {"status": "QUEUED"}

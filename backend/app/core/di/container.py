@@ -35,12 +35,15 @@ from app.providers.eodhd.persistence import (
     SqlAlchemyMappingReader,
 )
 from app.providers.frankfurt_quotes.adapter import FrankfurtWarrantQuoteAdapter
+from app.providers.frankfurt_quotes.client import FrankfurtSnapshotClient
 from app.providers.shared.budget import DailyCallBudget
 from app.providers.shared.cache import InMemoryTtlCache
 from app.providers.shared.clock import AsyncioSleeper, SystemClock
 from app.providers.shared.metrics import ProviderMetrics
 from app.providers.shared.rate_limit import TokenBucketRateLimiter
 from app.providers.shared.retry import RetryPolicy
+from app.providers.stuttgart_delayed.adapter import StuttgartDelayedWarrantQuoteAdapter
+from app.providers.vontobel_markets.adapter import VontobelMarketsWarrantQuoteAdapter
 
 
 @dataclass(frozen=True, slots=True)
@@ -68,18 +71,57 @@ class ApplicationContainer:
     database: DatabaseManager
     eodhd: EodhdRuntime | None = None
     frankfurt: FrankfurtWarrantQuoteAdapter | None = None
+    vontobel: VontobelMarketsWarrantQuoteAdapter | None = None
+    stuttgart: StuttgartDelayedWarrantQuoteAdapter | None = None
 
     @classmethod
     def build(cls, settings: Settings) -> ApplicationContainer:
         """Build the technical dependency graph for one application instance."""
         database = DatabaseManager(settings)
         runtime = cls._build_eodhd(settings, database)
+        cache_seconds = (
+            settings.market_data.refresh.warrants_interval_seconds
+            if settings.market_data.refresh.enabled
+            else 0
+        )
         frankfurt = (
-            FrankfurtWarrantQuoteAdapter(database=database, settings=settings.market_data.frankfurt)
+            FrankfurtWarrantQuoteAdapter(
+                database=database,
+                settings=settings.market_data.frankfurt,
+                snapshots=FrankfurtSnapshotClient(
+                    settings.market_data.frankfurt,
+                    cache_seconds=cache_seconds or None,
+                ),
+            )
             if settings.market_data.frankfurt.enabled
             else None
         )
-        return cls(settings=settings, database=database, eodhd=runtime, frankfurt=frankfurt)
+        vontobel = (
+            VontobelMarketsWarrantQuoteAdapter(
+                database=database,
+                settings=settings.market_data.vontobel_markets,
+                cache_seconds=cache_seconds,
+            )
+            if settings.market_data.vontobel_markets.enabled
+            else None
+        )
+        stuttgart = (
+            StuttgartDelayedWarrantQuoteAdapter(
+                database=database,
+                settings=settings.market_data.stuttgart_delayed,
+                cache_seconds=cache_seconds,
+            )
+            if settings.market_data.stuttgart_delayed.enabled
+            else None
+        )
+        return cls(
+            settings=settings,
+            database=database,
+            eodhd=runtime,
+            frankfurt=frankfurt,
+            vontobel=vontobel,
+            stuttgart=stuttgart,
+        )
 
     @staticmethod
     def _build_eodhd(settings: Settings, database: DatabaseManager) -> EodhdRuntime | None:
