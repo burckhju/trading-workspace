@@ -360,6 +360,8 @@ class ProductPositionValuationService:
                     trade_id=trade_id,
                     position_id=position.id,
                     warrant_listing_id=selected_listing.id,
+                    provenance_listing_id=listing.id,
+                    quote_listing_id=selected_listing.id,
                     symbol=selected_listing.symbol,
                     status=ProductValuationStatus.LAST_AVAILABLE,
                     reason="MARKET_CLOSED_LAST_AVAILABLE_QUOTE",
