@@ -167,6 +167,53 @@ def test_api_diagnostics_and_disabled_default():
         assert "snapshot_url" not in client.get(f"{prefix}/health").text
 
 
+def test_public_health_and_listing_diagnostic_do_not_claim_bid_ask_capability():
+    from app.providers.frankfurt_quotes.public import FrankfurtPublicPrice
+    from tests.unit.backend.providers.frankfurt_quotes.test_public import public_settings, wire
+
+    adapter, database, snapshots, request, row = context()
+    adapter.settings = public_settings()
+    row[2].provider_exchange_code = "XSC"
+    snapshots.load_public = AsyncMock(
+        return_value=(FrankfurtPublicPrice.model_validate(wire()), NOW, False)
+    )
+    container = ApplicationContainer(
+        settings=Settings(_env_file=None, market_data={"frankfurt": public_settings()}),
+        database=database,
+        frankfurt=adapter,
+    )
+    app = FastAPI()
+    app.include_router(router)
+    app.dependency_overrides[get_container] = lambda: container
+    prefix = "/api/v1/position-monitoring/quote-sources/frankfurt"
+    with TestClient(app) as client:
+        health = client.get(f"{prefix}/health").json()
+        assert health["source_mode"] == "public_website"
+        assert health["schema_version"] == "deutsche-boerse-public-last-trade-v1"
+        assert health["bid_ask_supported"] is health["execution_usable"] is False
+        assert health["delay_seconds"] is None
+        result = client.get(
+            f"{prefix}/listings/{request.warrant_listing_id}?workspace_id={request.workspace_id}"
+        ).json()
+        assert result["reason"] == "FRANKFURT_POST_TRADE_ONLY"
+        assert result["observation"]["record"]["last_price"] == "0.231"
+        assert result["observation"]["record"]["bid"] is None
+        assert result["observation"]["provider_exchange_code"] == "XSC"
+
+
+@pytest.mark.asyncio
+async def test_runtime_does_not_poll_known_public_last_only_source():
+    from tests.unit.backend.providers.frankfurt_quotes.test_public import public_settings
+
+    adapter, database, snapshots, request, _row = context()
+    configured = Settings(_env_file=None, market_data={"frankfurt": public_settings()})
+    container = ApplicationContainer(settings=configured, database=database, frankfurt=adapter)
+    result = await build_warrant_quote_resolver(container).resolve(request)
+    # The resolver suppresses disabled/ineligible sources from normal diagnostics.
+    assert not result.attempts
+    snapshots.load.assert_not_awaited()
+
+
 @pytest.mark.asyncio
 async def test_runtime_reuses_process_adapter_and_places_it_first():
     adapter, database, _snapshots, request, _row = context()

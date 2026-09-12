@@ -7,7 +7,7 @@ from uuid import UUID
 
 from sqlalchemy import select
 
-from app.core.config.frankfurt import FrankfurtQuoteSettings
+from app.core.config.frankfurt import FrankfurtQuoteSettings, FrankfurtSourceMode
 from app.database import DatabaseManager
 from app.features.market.persistence.models import TradingVenueModel
 from app.features.market_data.domain.enums import (
@@ -29,6 +29,7 @@ from app.features.market_data.service.types import MarketDataResult, WarrantQuot
 from app.features.product.domain.models import WarrantLifecycle
 from app.features.product.persistence.models import WarrantListingModel, WarrantModel
 from app.providers.frankfurt_quotes.client import FrankfurtSnapshotClient, utc_now
+from app.providers.frankfurt_quotes.public import PUBLIC_EXCHANGE_CODE, assess_public_price
 from app.providers.frankfurt_quotes.schema import (
     FRANKFURT_MIC,
     FrankfurtObservation,
@@ -98,11 +99,16 @@ class FrankfurtWarrantQuoteAdapter:
                 "FRANKFURT_ACTIVE_MAPPING_NOT_FOUND", provider=PROVIDER, capability=CAPABILITY
             )
         listing, warrant, mapping, venue = row
+        exchange_code = (
+            PUBLIC_EXCHANGE_CODE
+            if self.settings.source_mode is FrankfurtSourceMode.PUBLIC_WEBSITE
+            else FRANKFURT_MIC
+        )
         if (
             venue.mic != FRANKFURT_MIC
             or not warrant.isin
             or mapping.provider_symbol != warrant.isin
-            or mapping.provider_exchange_code != FRANKFURT_MIC
+            or mapping.provider_exchange_code != exchange_code
             or mapping.validated_at is None
         ):
             raise MarketDataMappingError(
@@ -118,6 +124,19 @@ class FrankfurtWarrantQuoteAdapter:
             raise MarketDataConfigurationError(reason, provider=PROVIDER, capability=CAPABILITY)
         identity = await self._identity(request)  # Resolve eligibility before any network I/O.
         try:
+            if self.settings.source_mode is FrankfurtSourceMode.PUBLIC_WEBSITE:
+                price, retrieved_at, hit = await self.snapshots.load_public(identity.isin)
+                return (
+                    assess_public_price(
+                        price,
+                        isin=identity.isin,
+                        currency=identity.currency,
+                        now=self._clock(),
+                        retrieved_at=retrieved_at,
+                        max_age_seconds=self.settings.max_quote_age_seconds,
+                    ),
+                    hit,
+                )
             snapshot, retrieved_at, hit = await self.snapshots.load()
             observation = assess_snapshot(
                 snapshot,

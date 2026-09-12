@@ -6,8 +6,10 @@ import csv
 from collections import Counter
 from pathlib import Path
 
+from app.core.config.frankfurt import FrankfurtSourceMode
 from app.core.config.settings import get_settings
 from app.providers.frankfurt_quotes.client import FrankfurtSnapshotClient, utc_now
+from app.providers.frankfurt_quotes.public import assess_public_price
 from app.providers.frankfurt_quotes.schema import FrankfurtSourceError, assess_snapshot
 
 
@@ -28,10 +30,12 @@ async def run(args: argparse.Namespace, client: FrankfurtSnapshotClient) -> dict
     snapshot = None
     retrieved_at = utc_now()
     failure = None
-    try:
-        snapshot, retrieved_at, _hit = await client.load()
-    except FrankfurtSourceError as exc:
-        failure = str(exc)
+    public = client.settings.source_mode is FrankfurtSourceMode.PUBLIC_WEBSITE
+    if not public:
+        try:
+            snapshot, retrieved_at, _hit = await client.load()
+        except FrankfurtSourceError as exc:
+            failure = str(exc)
     counts: Counter[str] = Counter()
     # Never overwrite the supplied table or an existing report.
     with args.output.open("x", encoding="utf-8-sig", newline="") as handle:
@@ -50,6 +54,11 @@ async def run(args: argparse.Namespace, client: FrankfurtSnapshotClient) -> dict
                 "source",
                 "mic",
                 "execution_usable",
+                "last_price",
+                "last_at",
+                "provider_exchange_code",
+                "source_mode",
+                "delay_seconds",
             ],
             delimiter=args.delimiter,
         )
@@ -67,19 +76,38 @@ async def run(args: argparse.Namespace, client: FrankfurtSnapshotClient) -> dict
             }
             if not isin:
                 output.update(status="UNAVAILABLE", reason="ISIN_REQUIRED_NO_WKN_GUESSING")
-            elif snapshot is None:
+            elif snapshot is None and not public:
                 output.update(status="UNAVAILABLE", reason=failure)
             else:
                 try:
-                    item = assess_snapshot(
-                        snapshot,
-                        isin=isin,
-                        wkn=wkn or None,
-                        currency=args.currency,
-                        now=utc_now(),
-                        retrieved_at=retrieved_at,
-                        max_age_seconds=client.settings.max_quote_age_seconds,
-                    )
+                    if public:
+                        try:
+                            price, retrieved_at, _hit = await client.load_public(isin)
+                        except FrankfurtSourceError as exc:
+                            if str(exc) != "FRANKFURT_REQUEST_THROTTLED":
+                                raise
+                            # Respect the shared budget; no parallel fanout per portfolio.
+                            await asyncio.sleep(client.settings.refresh_interval_seconds)
+                            price, retrieved_at, _hit = await client.load_public(isin)
+                        item = assess_public_price(
+                            price,
+                            isin=isin,
+                            currency=args.currency,
+                            now=utc_now(),
+                            retrieved_at=retrieved_at,
+                            max_age_seconds=client.settings.max_quote_age_seconds,
+                        )
+                    else:
+                        assert snapshot is not None
+                        item = assess_snapshot(
+                            snapshot,
+                            isin=isin,
+                            wkn=wkn or None,
+                            currency=args.currency,
+                            now=utc_now(),
+                            retrieved_at=retrieved_at,
+                            max_age_seconds=client.settings.max_quote_age_seconds,
+                        )
                     output.update(
                         status=item.status,
                         reason=item.reason,
@@ -87,6 +115,19 @@ async def run(args: argparse.Namespace, client: FrankfurtSnapshotClient) -> dict
                         observed_at=item.observed_at.isoformat() if item.observed_at else None,
                         bid=str(item.record.bid) if item.record and item.record.bid else None,
                         ask=str(item.record.ask) if item.record and item.record.ask else None,
+                        last_price=(
+                            str(item.record.last_price)
+                            if item.record and item.record.last_price
+                            else None
+                        ),
+                        last_at=(
+                            item.record.last_at.isoformat()
+                            if item.record and item.record.last_at
+                            else None
+                        ),
+                        provider_exchange_code=item.provider_exchange_code,
+                        source_mode=item.source_mode,
+                        delay_seconds=item.declared_delay_seconds,
                     )
                 except FrankfurtSourceError as exc:
                     output.update(status="ERROR", reason=str(exc))

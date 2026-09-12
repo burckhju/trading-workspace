@@ -2,6 +2,8 @@
 
 import asyncio
 import json
+import re
+from collections import OrderedDict
 from collections.abc import Callable
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -12,6 +14,11 @@ from typing import Any, NoReturn
 import httpx
 
 from app.core.config.frankfurt import FrankfurtQuoteSettings, FrankfurtSourceMode
+from app.providers.frankfurt_quotes.public import (
+    PUBLIC_EXCHANGE_CODE,
+    PUBLIC_URL,
+    FrankfurtPublicPrice,
+)
 from app.providers.frankfurt_quotes.schema import FrankfurtSnapshot, FrankfurtSourceError
 
 
@@ -46,35 +53,67 @@ class FrankfurtSnapshotClient:
         self._clock = clock
         self._timer = timer
         self._lock = asyncio.Lock()
-        self._cached: tuple[FrankfurtSnapshot, datetime] | None = None
+        self._cached: OrderedDict[
+            str, tuple[FrankfurtSnapshot | FrankfurtPublicPrice, datetime, float]
+        ] = OrderedDict()
         self._next_fetch = 0.0
         self.last_error: str | None = None
         self.last_success_at: datetime | None = None
 
     async def load(self) -> tuple[FrankfurtSnapshot, datetime, bool]:
+        if self.settings.source_mode is FrankfurtSourceMode.PUBLIC_WEBSITE:
+            raise FrankfurtSourceError("FRANKFURT_ISIN_REQUIRED")
+        value, retrieved_at, hit = await self._load()
+        assert isinstance(value, FrankfurtSnapshot)
+        return value, retrieved_at, hit
+
+    async def load_public(self, isin: str) -> tuple[FrankfurtPublicPrice, datetime, bool]:
+        if self.settings.source_mode is not FrankfurtSourceMode.PUBLIC_WEBSITE:
+            raise FrankfurtSourceError("FRANKFURT_PUBLIC_MODE_REQUIRED")
+        if re.fullmatch(r"[A-Z]{2}[A-Z0-9]{9}[0-9]", isin) is None:
+            raise FrankfurtSourceError("FRANKFURT_ISIN_INVALID")
+        value, retrieved_at, hit = await self._load(isin)
+        assert isinstance(value, FrankfurtPublicPrice)
+        return value, retrieved_at, hit
+
+    async def _load(
+        self, isin: str | None = None
+    ) -> tuple[FrankfurtSnapshot | FrankfurtPublicPrice, datetime, bool]:
         reason = self.settings.readiness_reason
         if reason != "CONFIGURED_NOT_PROBED":
             raise FrankfurtSourceError(reason)
         async with self._lock:
+            key = isin or "snapshot"
             if self._timer() < self._next_fetch:
                 if self.last_error is not None:
                     raise FrankfurtSourceError(self.last_error)
-                if self._cached is not None:
-                    return self._cached[0], self._cached[1], True
+                cached = self._cached.get(key)
+                if cached is not None and self._timer() < cached[2]:
+                    return cached[0], cached[1], True
+                # One process-wide request budget, not one budget per holding.
+                raise FrankfurtSourceError("FRANKFURT_REQUEST_THROTTLED")
             try:
                 async with asyncio.timeout(self.settings.timeout_seconds):
-                    raw = await self._read()
+                    raw = await self._read(isin)
                 payload = json.loads(
                     raw,
                     parse_float=Decimal,
                     parse_constant=_reject_constant,
                     object_pairs_hook=_unique_object,
                 )
-                snapshot = FrankfurtSnapshot.model_validate(payload)
-                if snapshot.source != self.settings.source_name:
-                    raise FrankfurtSourceError("FRANKFURT_SOURCE_MISMATCH")
-                if snapshot.delay_seconds != self.settings.feed_delay_seconds:
-                    raise FrankfurtSourceError("FRANKFURT_FEED_DELAY_MISMATCH")
+                value: FrankfurtSnapshot | FrankfurtPublicPrice
+                if isin is not None:
+                    if payload == {}:
+                        raise FrankfurtSourceError("FRANKFURT_PUBLIC_EMPTY_RESPONSE")
+                    value = FrankfurtPublicPrice.model_validate(payload)
+                    if value.isin != isin:
+                        raise FrankfurtSourceError("FRANKFURT_ISIN_MISMATCH")
+                else:
+                    value = FrankfurtSnapshot.model_validate(payload)
+                    if value.source != self.settings.source_name:
+                        raise FrankfurtSourceError("FRANKFURT_SOURCE_MISMATCH")
+                    if value.delay_seconds != self.settings.feed_delay_seconds:
+                        raise FrankfurtSourceError("FRANKFURT_FEED_DELAY_MISMATCH")
             except ValueError:
                 self._fail("FRANKFURT_SCHEMA_INVALID")
             except TimeoutError:
@@ -82,27 +121,30 @@ class FrankfurtSnapshotClient:
             except FrankfurtSourceError as exc:
                 self._fail(str(exc))
             retrieved_at = self._clock()
-            self._cached = (snapshot, retrieved_at)
             self.last_success_at = retrieved_at
             self.last_error = None
             self._next_fetch = self._timer() + self.settings.refresh_interval_seconds
-            return snapshot, retrieved_at, False
+            self._cached[key] = (value, retrieved_at, self._next_fetch)
+            self._cached.move_to_end(key)
+            if len(self._cached) > 256:
+                self._cached.popitem(last=False)
+            return value, retrieved_at, False
 
     def _fail(self, reason: str) -> NoReturn:
-        self._cached = None  # Never silently resurrect an older successful snapshot.
+        self._cached.clear()  # Never silently resurrect an older successful response.
         self.last_error = reason
         self._next_fetch = self._timer() + max(60, self.settings.refresh_interval_seconds)
         raise FrankfurtSourceError(reason) from None
 
-    async def _read(self) -> bytes:
+    async def _read(self, isin: str | None = None) -> bytes:
         if self.settings.source_mode is FrankfurtSourceMode.LOCAL_FILE:
             return await asyncio.to_thread(self._read_file)
         if self._client is not None:
-            return await self._read_http(self._client)
+            return await self._read_http(self._client, isin)
         async with httpx.AsyncClient(
             timeout=self.settings.timeout_seconds, follow_redirects=False, trust_env=False
         ) as client:
-            return await self._read_http(client)
+            return await self._read_http(client, isin)
 
     def _read_file(self) -> bytes:
         assert self.settings.local_file is not None
@@ -115,15 +157,19 @@ class FrankfurtSnapshotClient:
             raise FrankfurtSourceError("FRANKFURT_PAYLOAD_TOO_LARGE")
         return raw
 
-    async def _read_http(self, client: httpx.AsyncClient) -> bytes:
-        assert self.settings.snapshot_url is not None
+    async def _read_http(self, client: httpx.AsyncClient, isin: str | None = None) -> bytes:
         headers = {"Accept": "application/json"}
-        if self.settings.bearer_token is not None:
+        if isin is not None:
+            url = httpx.URL(PUBLIC_URL, params={"isin": isin, "mic": PUBLIC_EXCHANGE_CODE})
+        else:
+            assert self.settings.snapshot_url is not None
+            url = httpx.URL(self.settings.snapshot_url)
+        if isin is None and self.settings.bearer_token is not None:
             headers["Authorization"] = f"Bearer {self.settings.bearer_token.get_secret_value()}"
         try:
             async with client.stream(
                 "GET",
-                self.settings.snapshot_url,
+                url,
                 headers=headers,
                 follow_redirects=False,
                 timeout=self.settings.timeout_seconds,

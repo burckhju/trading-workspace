@@ -462,6 +462,7 @@ class ProductPositionValuationService:
                 execution_usable=(
                     quote.trading_status == "OPEN"
                     and quote.source_mode != "OFFICIAL_ISSUER_INDICATION"
+                    and selected_result.provider != MarketDataProvider.FRANKFURT_QUOTES
                 ),
                 freshness_policy=self._freshness_policy.policy_version,
                 source_attempts=attempts,
