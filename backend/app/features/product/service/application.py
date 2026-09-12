@@ -366,7 +366,9 @@ class WarrantService:
             return None
         currency = await self._session.get(CurrencyModel, code)
         if currency is None:
-            raise WarrantServiceError("Strike currency does not exist", field="strike_currency_code")
+            raise WarrantServiceError(
+                "Strike currency does not exist", field="strike_currency_code"
+            )
         if not currency.is_active:
             raise InactiveWarrantReference(
                 "Strike currency is inactive", field="strike_currency_code"
