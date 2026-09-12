@@ -214,3 +214,9 @@ If the file is absent, `--frankfurt` stops before Docker operations. Follow
 [the Frankfurt setup instructions](../frankfurt-quotes.md) to configure the source deliberately.
 Manual Compose operations still need `-f docker/compose.frankfurt.yml` in addition
 to the ordinary Compose file. The helper prints matching status/log commands.
+
+## Automatischer Kursabruf
+
+Aktive Basiswerte und Optionsscheine können automatisch geprüft und in getrennten
+Intervallen aktualisiert werden. Einrichtung, Provider-Grenzen und Diagnose:
+[Automatischer Kursabruf](../automatic-market-data.md).

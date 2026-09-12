@@ -37,6 +37,9 @@ TRANSIENT_ERRORS = frozenset(
 )
 
 
+ACCESS_ERRORS = frozenset({"FRANKFURT_HTTP_401", "FRANKFURT_HTTP_403"})
+
+
 def utc_now() -> datetime:
     return datetime.now(UTC)
 
@@ -62,8 +65,10 @@ class FrankfurtSnapshotClient:
         client: httpx.AsyncClient | None = None,
         clock: Callable[[], datetime] = utc_now,
         timer: Callable[[], float] = monotonic,
+        cache_seconds: int | None = None,
     ) -> None:
         self.settings = settings
+        self.cache_seconds = cache_seconds
         self._client = client
         self._clock = clock
         self._timer = timer
@@ -71,9 +76,14 @@ class FrankfurtSnapshotClient:
         self._cached: OrderedDict[
             str, tuple[FrankfurtSnapshot | FrankfurtPublicPrice, datetime, float]
         ] = OrderedDict()
+        self._errors: OrderedDict[str, str] = OrderedDict()
         self._next_fetch = 0.0
         self.last_error: str | None = None
         self.last_success_at: datetime | None = None
+
+    def request_delay_seconds(self) -> float:
+        """Expose the remaining shared cooldown to the background scheduler."""
+        return max(0.0, self._next_fetch - self._timer())
 
     async def load(self) -> tuple[FrankfurtSnapshot, datetime, bool]:
         if self.settings.source_mode is FrankfurtSourceMode.PUBLIC_WEBSITE:
@@ -99,9 +109,20 @@ class FrankfurtSnapshotClient:
             raise FrankfurtSourceError(reason)
         async with self._lock:
             key = isin or "snapshot"
+            cached = self._cached.get(key)
+            if (
+                self.cache_seconds is not None
+                and key not in self._errors
+                and cached is not None
+                and self._timer() < cached[2]
+            ):
+                return cached[0], cached[1], True
             if self._timer() < self._next_fetch:
-                if self.last_error is not None:
-                    raise FrankfurtSourceError(self.last_error)
+                error = self._errors.get(key)
+                if self.last_error in ACCESS_ERRORS:
+                    error = self.last_error
+                if error is not None:
+                    raise FrankfurtSourceError(error)
                 cached = self._cached.get(key)
                 if cached is not None and self._timer() < cached[2]:
                     return cached[0], cached[1], True
@@ -130,24 +151,37 @@ class FrankfurtSnapshotClient:
                     if value.delay_seconds != self.settings.feed_delay_seconds:
                         raise FrankfurtSourceError("FRANKFURT_FEED_DELAY_MISMATCH")
             except ValueError:
-                self._fail("FRANKFURT_SCHEMA_INVALID")
+                self._fail("FRANKFURT_SCHEMA_INVALID", key)
             except TimeoutError:
-                self._fail("FRANKFURT_TRANSPORT_TIMEOUT")
+                self._fail("FRANKFURT_TRANSPORT_TIMEOUT", key)
             except FrankfurtSourceError as exc:
-                self._fail(str(exc))
+                self._fail(str(exc), key)
             retrieved_at = self._clock()
             self.last_success_at = retrieved_at
             self.last_error = None
+            self._errors.pop(key, None)
             self._next_fetch = self._timer() + self.settings.refresh_interval_seconds
-            self._cached[key] = (value, retrieved_at, self._next_fetch)
+            self._cached[key] = (
+                value,
+                retrieved_at,
+                self._timer() + (self.cache_seconds or self.settings.refresh_interval_seconds),
+            )
             self._cached.move_to_end(key)
             if len(self._cached) > 256:
                 self._cached.popitem(last=False)
             return value, retrieved_at, False
 
-    def _fail(self, reason: str) -> NoReturn:
-        if reason not in TRANSIENT_ERRORS:
+    def _fail(self, reason: str, key: str) -> NoReturn:
+        if reason in ACCESS_ERRORS:
+            # Access failures affect the entire source, not just one product.
             self._cached.clear()
+        elif reason not in TRANSIENT_ERRORS:
+            self._cached.pop(key, None)
+        self._errors[key] = reason
+        self._errors.move_to_end(key)
+        if len(self._errors) > 256:
+            evicted, _ = self._errors.popitem(last=False)
+            self._cached.pop(evicted, None)
         self.last_error = reason
         self._next_fetch = self._timer() + max(60, self.settings.refresh_interval_seconds)
         raise FrankfurtSourceError(reason) from None
@@ -164,9 +198,13 @@ class FrankfurtSnapshotClient:
             return None
         if reason not in TRANSIENT_ERRORS and reason != "FRANKFURT_REQUEST_THROTTLED":
             return None
-        if self.last_error is not None and self.last_error not in TRANSIENT_ERRORS:
+        key = isin or "snapshot"
+        error = self._errors.get(key)
+        if self.last_error in ACCESS_ERRORS or (
+            error is not None and error not in TRANSIENT_ERRORS
+        ):
             return None
-        cached = self._cached.get(isin or "snapshot")
+        cached = self._cached.get(key)
         return (cached[0], cached[1]) if cached is not None else None
 
     async def _read(self, isin: str | None = None) -> bytes:

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 
 import { operationalWorkspaceApiClient } from '../services/client';
 import type { OperationalAction, OperationalPosition, OperationalPriority } from '../types';
+import { MarketDataRefreshPanel } from './MarketDataRefreshPanel';
 import { OpenPositionsPanel } from './OpenPositionsPanel';
 
 const sections: Array<{ priority: OperationalPriority; title: string; description: string }> = [
@@ -146,6 +147,7 @@ export function OperationalWorkspacePage() {
         </div>
       )}
 
+      <MarketDataRefreshPanel />
       {!error && !loading && <OpenPositionsPanel positions={positions} />}
 
       {!error && !loading && actions.length === 0 && (

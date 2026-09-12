@@ -197,3 +197,55 @@ def test_attention_state_is_ok_only_without_alerts_and_with_healthy_data() -> No
         )
         == "ALERT"
     )
+
+
+@pytest.mark.asyncio
+async def test_workspace_shows_frankfurt_analysis_values_with_warning_and_provenance(monkeypatch):
+    monkeypatch.setattr(
+        snapshot_module, "SqlAlchemyTradeManagementEventRepository", _ManagementEvents
+    )
+    trade_id, position_id = uuid4(), uuid4()
+    position = SimpleNamespace(
+        id=position_id,
+        opened_at=datetime(2026, 9, 8, tzinfo=UTC),
+        open_quantity=2000,
+        average_entry_price=Decimal("0.51"),
+        cost_basis=Decimal("1020"),
+        realized_gross_pnl=Decimal("0"),
+    )
+    session = AsyncMock(spec=AsyncSession)
+    session.execute.return_value = _Rows(
+        [
+            (
+                position,
+                SimpleNamespace(id=trade_id, trade_plan_version_id=None),
+                SimpleNamespace(display_name="BNP Call"),
+            )
+        ]
+    )
+    session.scalars.return_value = _Rows([])
+    valuation = ProductPositionValuation(
+        trade_id=trade_id,
+        position_id=position_id,
+        status=ProductValuationStatus.INDICATIVE,
+        reason="REFERENCE_PRICE_AVAILABLE_FOR_ANALYSIS",
+        currency="EUR",
+        analysis_usable=True,
+        analysis_warning="OUTDATED_QUOTE_INDICATIVE_ANALYSIS_ONLY",
+        analysis_market_value=Decimal("462"),
+        analysis_unrealized_gross_pnl=Decimal("-558"),
+        selected_source="FRANKFURT_QUOTES",
+        quote_observed_at=datetime(2026, 9, 11, 17, 43, tzinfo=UTC),
+    )
+    service = OperationalPositionSnapshotService(
+        session,
+        health_reader=AsyncMock(return_value=None),
+        valuation_reader=AsyncMock(return_value=valuation),
+    )
+    (item,) = await service.list_positions(workspace_id=uuid4())
+    assert item.market_value == Decimal("462") and item.unrealized_gross_pnl == Decimal("-558")
+    assert item.valuation_status == "INDICATIVE" and item.attention_state == "DATA_HEALTH"
+    assert (
+        item.quote_source == "FRANKFURT_QUOTES"
+        and item.analysis_warning == valuation.analysis_warning
+    )

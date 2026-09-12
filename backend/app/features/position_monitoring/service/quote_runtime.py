@@ -3,8 +3,6 @@ from app.features.position_monitoring.service.quote_sources import (
     MultiSourceWarrantQuoteResolver,
     NamedWarrantQuoteSource,
 )
-from app.providers.stuttgart_delayed import StuttgartDelayedWarrantQuoteAdapter
-from app.providers.vontobel_markets import VontobelMarketsWarrantQuoteAdapter
 
 
 def build_warrant_quote_resolver(
@@ -12,24 +10,9 @@ def build_warrant_quote_resolver(
 ) -> MultiSourceWarrantQuoteResolver:
     """Build the shared runtime quote resolver for held-product valuation reads."""
 
-    vontobel_settings = container.settings.market_data.vontobel_markets
-    vontobel_provider = (
-        VontobelMarketsWarrantQuoteAdapter(
-            database=container.database,
-            settings=vontobel_settings,
-        )
-        if vontobel_settings.enabled
-        else None
-    )
+    vontobel_provider = container.vontobel
     stuttgart_settings = container.settings.market_data.stuttgart_delayed
-    stuttgart_provider = (
-        StuttgartDelayedWarrantQuoteAdapter(
-            database=container.database,
-            settings=stuttgart_settings,
-        )
-        if stuttgart_settings.enabled and stuttgart_settings.has_verified_schema
-        else None
-    )
+    stuttgart_provider = container.stuttgart
     stuttgart_reason = (
         "STUTTGART_DELAYED_DISABLED"
         if not stuttgart_settings.enabled

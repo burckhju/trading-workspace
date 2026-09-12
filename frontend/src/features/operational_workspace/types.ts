@@ -53,6 +53,9 @@ export interface OperationalPosition {
   monitoring_status: string;
   underlying_symbol: string | null;
   valuation_status: string;
+  analysis_warning?: string | null;
+  quote_source?: string | null;
+  quote_observed_at?: string | null;
   product_symbol: string | null;
   valuation_currency: string | null;
   market_value: string | null;

@@ -13,6 +13,7 @@ function formatNumber(value: string | null, currency?: string | null): string {
 function statusLabel(status: string): string {
   if (status === 'OK' || status === 'AVAILABLE') return 'Aktuell';
   if (status === 'LAST_AVAILABLE') return 'Letzter verfügbarer Kurs';
+  if (status === 'INDICATIVE') return 'Indikativer Referenzkurs';
   if (status === 'STALE') return 'Veraltet';
   if (status === 'MISSING') return 'Fehlt';
   if (status === 'INSUFFICIENT') return 'Noch nicht ausreichend';
@@ -121,9 +122,20 @@ export function OpenPositionsPanel({ positions }: { positions: OperationalPositi
               </div>
             </dl>
 
-            {position.valuation_status === 'LAST_AVAILABLE' && (
+            {position.quote_source && (
+              <p className="mt-2 text-xs text-slate-400">
+                Quelle: {position.quote_source} · Kurszeitpunkt:{' '}
+                {position.quote_observed_at
+                  ? new Date(position.quote_observed_at).toLocaleString('de-DE')
+                  : 'unbekannt'}
+              </p>
+            )}
+            {(position.valuation_status === 'LAST_AVAILABLE' || position.analysis_warning) && (
               <p className="mt-3 text-sm text-amber-300">
-                Kursdaten veraltet: Bewertung und darauf basierende Analysen sind indikativ.
+                {position.valuation_status === 'LAST_AVAILABLE' ||
+                position.valuation_status === 'STALE'
+                  ? 'Kursdaten veraltet: Bewertung und darauf basierende Analysen sind indikativ.'
+                  : 'Indikative Bewertung mit dem verfügbaren Referenzkurs; Aktualität und Handelbarkeit sind nicht bestätigt.'}
                 Kurszeitpunkt und Quelle unter „Trade verwalten“ prüfen. Keine Orderfreigabe.
               </p>
             )}

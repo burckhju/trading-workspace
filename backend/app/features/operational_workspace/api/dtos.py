@@ -50,6 +50,10 @@ class OperationalPositionResponse(BaseModel):
     attention_state: str
     target: str
 
+    analysis_warning: str | None = None
+    quote_source: str | None = None
+    quote_observed_at: datetime | None = None
+
 
 class OperationalPositionsResponse(BaseModel):
     generated_at: datetime
