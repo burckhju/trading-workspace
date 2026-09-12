@@ -40,7 +40,7 @@ def _migrate(url: str, revision: str, *, action: str = "upgrade") -> None:
         timeout=120,
         check=False,
     )
-    output = result.stdout + result.stderr
+    output = (result.stdout + result.stderr).replace(url, "<REDACTED_DATABASE_URL>")
     password = make_url(url).password
     if password:
         output = output.replace(password, "<REDACTED>")
@@ -165,12 +165,11 @@ def test_fresh_migrations_make_usd_chf_available_for_real_warrant_writes(
                 assert history.status_code == 200, history.text
                 assert history.json()[0]["strike_currency_code"] == code
 
-            # The migration must not infer the legacy strike from its EUR quotation.
+            # No automatic assignment of a currency to the pre-existing terms.
             history = await client.get(terms_url)
             assert history.json()[0]["strike_currency_code"] is None
-            venue = (await client.get("/api/v1/market-reference-data/trading-venues")).json()[
-                "items"
-            ][0]
+            venues = await client.get("/api/v1/market-reference-data/trading-venues")
+            venue = next(item for item in venues.json()["items"] if item["mic"] == "XETR")
             listing = await client.post(
                 f"/api/v1/warrants/{legacy_id}/listings",
                 json={
@@ -212,11 +211,14 @@ def test_existing_local_and_inactive_references_survive_upgrade_and_rollback(
 ) -> None:
     async def exercise() -> None:
         engine = create_async_engine(currency_database, poolclass=NullPool)
+        query = text("SELECT * FROM currencies ORDER BY code")
         try:
             async with engine.begin() as connection:
                 await connection.execute(
                     text(
-                        "INSERT INTO currencies VALUES "
+                        "INSERT INTO currencies "
+                        "(code, name, minor_unit, is_active, reference_version, "
+                        "created_at, updated_at) VALUES "
                         "('USD', 'Local dollar label', 2, true, 'LOCAL-USD-20260912', "
                         "'2026-09-01T00:00:00Z', '2026-09-02T00:00:00Z'), "
                         "('CHF', 'Deliberately inactive franc', 2, false, 'LOCAL-CHF', "
@@ -224,7 +226,7 @@ def test_existing_local_and_inactive_references_survive_upgrade_and_rollback(
                     )
                 )
             async with engine.connect() as connection:
-                before = (await connection.execute(text("SELECT * FROM currencies ORDER BY code"))).all()
+                before = (await connection.execute(query)).all()
             for action, revision in (
                 ("upgrade", "head"),
                 ("downgrade", PREVIOUS_REVISION),
@@ -232,7 +234,7 @@ def test_existing_local_and_inactive_references_survive_upgrade_and_rollback(
             ):
                 await asyncio.to_thread(_migrate, currency_database, revision, action=action)
                 async with engine.connect() as connection:
-                    after = (await connection.execute(text("SELECT * FROM currencies ORDER BY code"))).all()
+                    after = (await connection.execute(query)).all()
                 assert after == before
             async with _client(currency_database) as client:
                 response = await client.get("/api/v1/market-reference-data/currencies")
