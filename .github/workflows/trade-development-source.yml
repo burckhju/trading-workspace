@@ -1,0 +1,20 @@
+name: Trade development source
+on:
+  push:
+    branches: [fix/duplicate-trade-cancellation]
+    paths: [.github/workflows/trade-development-source.yml]
+permissions:
+  contents: read
+jobs:
+  source:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - run: git archive HEAD | gzip > /tmp/trade-source.tar.gz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: trade-development-source
+          path: /tmp/trade-source.tar.gz
+          retention-days: 1
