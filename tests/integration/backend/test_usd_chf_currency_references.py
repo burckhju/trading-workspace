@@ -7,7 +7,7 @@ import os
 import subprocess
 import sys
 from collections.abc import AsyncIterator, Iterator
-from contextlib import asynccontextmanager
+from contextlib import aclosing, asynccontextmanager
 from pathlib import Path
 from uuid import uuid4
 
@@ -89,8 +89,11 @@ async def _client(url: str) -> AsyncIterator[AsyncClient]:
     database = DatabaseManager(settings)
 
     async def session_dependency() -> AsyncIterator[AsyncSession]:
-        async for session in database.session():
-            yield session
+        # A rejected request throws into this wrapper, not the inner generator.
+        # Await its cleanup before pool disposal instead of relying on finalization.
+        async with aclosing(database.session()) as sessions:
+            async for session in sessions:
+                yield session
 
     app = create_application(settings)
     app.dependency_overrides[get_database_session] = session_dependency
