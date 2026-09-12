@@ -1,5 +1,7 @@
 import { createBrowserRouter } from 'react-router-dom';
 
+import { CurrencyAdminPage } from '../features/market/pages/CurrencyAdminPage';
+
 import { TopDownWorkflowActionPage } from '../features/administration/pages';
 import { MarketAnalysisDetailPage, MarketAnalysisPage } from '../features/analysis/pages';
 import { CandidatePage } from '../features/candidate/pages';
@@ -42,6 +44,7 @@ export function createApplicationRouter() {
         { path: 'top-down-admin', element: <TopDownWorkflowActionPage /> },
         { path: 'trading-venues-admin', element: <TradingVenueAdminPage /> },
         { path: 'issuers-admin', element: <IssuerAdminPage /> },
+        { path: 'currencies-admin', element: <CurrencyAdminPage /> },
         { path: 'warrants-admin', element: <WarrantAdminPage /> },
         { path: 'market-analyses/:analysisId', element: <MarketAnalysisDetailPage /> },
         { path: 'underlyings/new', element: <UnderlyingFormPage /> },

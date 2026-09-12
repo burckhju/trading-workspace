@@ -16,7 +16,7 @@ export function ApplicationLayout() {
           >
             Trading Workspace
           </NavLink>
-          <nav aria-label="Hauptnavigation">
+          <nav aria-label="Hauptnavigation" className="flex flex-wrap justify-end gap-1">
             <NavLink to="/workspace" className={navigationLinkClass}>
               Arbeitsbereich
             </NavLink>
@@ -25,6 +25,9 @@ export function ApplicationLayout() {
             </NavLink>
             <NavLink to="/issuers-admin" className={navigationLinkClass}>
               Stammdaten · Emittenten
+            </NavLink>
+            <NavLink to="/currencies-admin" className={navigationLinkClass}>
+              Administration · Währungen
             </NavLink>
             <NavLink to="/warrants-admin" className={navigationLinkClass}>
               Produkte · Optionsscheine

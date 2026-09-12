@@ -1,0 +1,276 @@
+{
+  "schema_version": 1,
+  "version": "TW-MONETARY-20260912-V1",
+  "source_url": "https://www.six-group.com/dam/download/financial-information/data-center/iso-currrency/lists/list-one.xml",
+  "source_sha256": "838dfb991648cf36df939edd5fe3811737962b75a32252847d239cedd1e291c9",
+  "source_published_on": "2026-01-01",
+  "scope": "Reviewed subset of 38 monetary currencies from SIX List One. Excludes fund, metal, testing, accounting and historical codes. Not a complete ISO catalog.",
+  "entries": [
+    {
+      "code": "AED",
+      "name": "UAE Dirham",
+      "numeric_code": "784",
+      "minor_unit": 2,
+      "kind": "CURRENCY"
+    },
+    {
+      "code": "AUD",
+      "name": "Australian Dollar",
+      "numeric_code": "036",
+      "minor_unit": 2,
+      "kind": "CURRENCY"
+    },
+    {
+      "code": "BHD",
+      "name": "Bahraini Dinar",
+      "numeric_code": "048",
+      "minor_unit": 3,
+      "kind": "CURRENCY"
+    },
+    {
+      "code": "BRL",
+      "name": "Brazilian Real",
+      "numeric_code": "986",
+      "minor_unit": 2,
+      "kind": "CURRENCY"
+    },
+    {
+      "code": "CAD",
+      "name": "Canadian Dollar",
+      "numeric_code": "124",
+      "minor_unit": 2,
+      "kind": "CURRENCY"
+    },
+    {
+      "code": "CHF",
+      "name": "Swiss Franc",
+      "numeric_code": "756",
+      "minor_unit": 2,
+      "kind": "CURRENCY"
+    },
+    {
+      "code": "CLP",
+      "name": "Chilean Peso",
+      "numeric_code": "152",
+      "minor_unit": 0,
+      "kind": "CURRENCY"
+    },
+    {
+      "code": "CNY",
+      "name": "Yuan Renminbi",
+      "numeric_code": "156",
+      "minor_unit": 2,
+      "kind": "CURRENCY"
+    },
+    {
+      "code": "COP",
+      "name": "Colombian Peso",
+      "numeric_code": "170",
+      "minor_unit": 2,
+      "kind": "CURRENCY"
+    },
+    {
+      "code": "CZK",
+      "name": "Czech Koruna",
+      "numeric_code": "203",
+      "minor_unit": 2,
+      "kind": "CURRENCY"
+    },
+    {
+      "code": "DKK",
+      "name": "Danish Krone",
+      "numeric_code": "208",
+      "minor_unit": 2,
+      "kind": "CURRENCY"
+    },
+    {
+      "code": "EUR",
+      "name": "Euro",
+      "numeric_code": "978",
+      "minor_unit": 2,
+      "kind": "CURRENCY"
+    },
+    {
+      "code": "GBP",
+      "name": "Pound Sterling",
+      "numeric_code": "826",
+      "minor_unit": 2,
+      "kind": "CURRENCY"
+    },
+    {
+      "code": "HKD",
+      "name": "Hong Kong Dollar",
+      "numeric_code": "344",
+      "minor_unit": 2,
+      "kind": "CURRENCY"
+    },
+    {
+      "code": "HUF",
+      "name": "Forint",
+      "numeric_code": "348",
+      "minor_unit": 2,
+      "kind": "CURRENCY"
+    },
+    {
+      "code": "IDR",
+      "name": "Rupiah",
+      "numeric_code": "360",
+      "minor_unit": 2,
+      "kind": "CURRENCY"
+    },
+    {
+      "code": "ILS",
+      "name": "New Israeli Sheqel",
+      "numeric_code": "376",
+      "minor_unit": 2,
+      "kind": "CURRENCY"
+    },
+    {
+      "code": "INR",
+      "name": "Indian Rupee",
+      "numeric_code": "356",
+      "minor_unit": 2,
+      "kind": "CURRENCY"
+    },
+    {
+      "code": "JPY",
+      "name": "Yen",
+      "numeric_code": "392",
+      "minor_unit": 0,
+      "kind": "CURRENCY"
+    },
+    {
+      "code": "KRW",
+      "name": "Won",
+      "numeric_code": "410",
+      "minor_unit": 0,
+      "kind": "CURRENCY"
+    },
+    {
+      "code": "KWD",
+      "name": "Kuwaiti Dinar",
+      "numeric_code": "414",
+      "minor_unit": 3,
+      "kind": "CURRENCY"
+    },
+    {
+      "code": "MXN",
+      "name": "Mexican Peso",
+      "numeric_code": "484",
+      "minor_unit": 2,
+      "kind": "CURRENCY"
+    },
+    {
+      "code": "MYR",
+      "name": "Malaysian Ringgit",
+      "numeric_code": "458",
+      "minor_unit": 2,
+      "kind": "CURRENCY"
+    },
+    {
+      "code": "NOK",
+      "name": "Norwegian Krone",
+      "numeric_code": "578",
+      "minor_unit": 2,
+      "kind": "CURRENCY"
+    },
+    {
+      "code": "NZD",
+      "name": "New Zealand Dollar",
+      "numeric_code": "554",
+      "minor_unit": 2,
+      "kind": "CURRENCY"
+    },
+    {
+      "code": "OMR",
+      "name": "Rial Omani",
+      "numeric_code": "512",
+      "minor_unit": 3,
+      "kind": "CURRENCY"
+    },
+    {
+      "code": "PHP",
+      "name": "Philippine Peso",
+      "numeric_code": "608",
+      "minor_unit": 2,
+      "kind": "CURRENCY"
+    },
+    {
+      "code": "PLN",
+      "name": "Zloty",
+      "numeric_code": "985",
+      "minor_unit": 2,
+      "kind": "CURRENCY"
+    },
+    {
+      "code": "QAR",
+      "name": "Qatari Rial",
+      "numeric_code": "634",
+      "minor_unit": 2,
+      "kind": "CURRENCY"
+    },
+    {
+      "code": "RON",
+      "name": "Romanian Leu",
+      "numeric_code": "946",
+      "minor_unit": 2,
+      "kind": "CURRENCY"
+    },
+    {
+      "code": "SAR",
+      "name": "Saudi Riyal",
+      "numeric_code": "682",
+      "minor_unit": 2,
+      "kind": "CURRENCY"
+    },
+    {
+      "code": "SEK",
+      "name": "Swedish Krona",
+      "numeric_code": "752",
+      "minor_unit": 2,
+      "kind": "CURRENCY"
+    },
+    {
+      "code": "SGD",
+      "name": "Singapore Dollar",
+      "numeric_code": "702",
+      "minor_unit": 2,
+      "kind": "CURRENCY"
+    },
+    {
+      "code": "THB",
+      "name": "Baht",
+      "numeric_code": "764",
+      "minor_unit": 2,
+      "kind": "CURRENCY"
+    },
+    {
+      "code": "TRY",
+      "name": "Turkish Lira",
+      "numeric_code": "949",
+      "minor_unit": 2,
+      "kind": "CURRENCY"
+    },
+    {
+      "code": "TWD",
+      "name": "New Taiwan Dollar",
+      "numeric_code": "901",
+      "minor_unit": 2,
+      "kind": "CURRENCY"
+    },
+    {
+      "code": "USD",
+      "name": "US Dollar",
+      "numeric_code": "840",
+      "minor_unit": 2,
+      "kind": "CURRENCY"
+    },
+    {
+      "code": "ZAR",
+      "name": "Rand",
+      "numeric_code": "710",
+      "minor_unit": 2,
+      "kind": "CURRENCY"
+    }
+  ]
+}

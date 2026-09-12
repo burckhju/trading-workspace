@@ -151,3 +151,9 @@ Reload the browser. Both terms forms should offer the returned active currencies
 An already known strike currency is not silently changed; legacy terms still display
 `Währung ungeklärt`. Save only independently verified product conditions as a new terms
 version and check the resulting history. No manual SQL insert is required after upgrade.
+
+## Additional currencies
+
+See [Currency catalog administration](currency-administration.md) for the reviewed
+local catalog, preview/import workflow and explicit activation/deactivation. Migration
+0035 adds this workflow without changing 0034 or its preservation guarantees.
