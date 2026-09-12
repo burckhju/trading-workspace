@@ -84,3 +84,65 @@ jobs:
           name: backend-coverage
           path: backend/coverage.xml
           if-no-files-found: error
+
+  image-permissions:
+    name: Backend / restrictive-umask image
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: trading_workspace
+          POSTGRES_PASSWORD: trading_workspace_ci
+          POSTGRES_DB: trading_workspace_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U trading_workspace -d trading_workspace_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      TRADING_WORKSPACE_DATABASE_URL: postgresql+asyncpg://trading_workspace:trading_workspace_ci@localhost:5432/trading_workspace_test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Reproduce restrictive local checkout modes
+        run: |
+          # Only disposable CI checkout files; no credentials or runtime volumes.
+          find backend/app backend/migrations -type d -exec chmod 0700 {} +
+          find backend/app backend/migrations -type f -exec chmod 0600 {} +
+          chmod 0600 backend/alembic.ini backend/requirements.txt
+      - name: Build production backend from restricted sources
+        run: docker build --tag trading-workspace-permissions:test backend
+      - name: Verify non-root imports, read-only code and Frankfurt route
+        run: |
+          docker run --rm --network none -i trading-workspace-permissions:test python - <<'PY'
+          import os
+          from pathlib import Path
+          from fastapi.testclient import TestClient
+          from app.main import app
+
+          assert os.geteuid() != 0, "Runtime must not run as root"
+          paths = [Path("/app"), Path("/app/alembic.ini"), Path("/app/requirements.txt")]
+          for root in (Path("/app/app"), Path("/app/migrations")):
+              paths.extend([root, *root.rglob("*")])
+          for path in paths:
+              assert path.stat().st_uid == 0, f"Source ownership changed: {path}"
+              assert not os.access(path, os.W_OK), f"Runtime can modify source: {path}"
+              if path.is_dir():
+                  assert os.access(path, os.R_OK | os.X_OK), f"Unreadable directory: {path}"
+              else:
+                  path.read_bytes()
+          response = TestClient(app).get(
+              "/api/v1/position-monitoring/quote-sources/frankfurt/health"
+          )
+          assert response.status_code == 200, response.text
+          assert response.json()["reason"] == "FRANKFURT_DISABLED", response.text
+          print("Restricted-source image: non-root imports and Frankfurt health passed")
+          PY
+      - name: Run Alembic migrations as the image default user
+        run: |
+          docker run --rm --network host \
+            --env TRADING_WORKSPACE_DATABASE_URL \
+            trading-workspace-permissions:test python -m alembic upgrade head
