@@ -3,7 +3,7 @@
 import asyncio
 import logging
 from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from typing import Annotated, TypedDict
 
 from fastapi import Depends, FastAPI, HTTPException, status
@@ -24,6 +24,8 @@ from app.features.market.api.reference_market_data_router import (
 )
 from app.features.market.api.top_down_router import router as top_down_reference_router
 from app.features.market_data.api import router as market_data_router
+from app.features.market_data.service.refresh import MarketDataRefreshRuntime
+from app.features.market_data.service.refresh_runner import run_refresh_forever
 from app.features.model.api import router as model_governance_router
 from app.features.operational_workspace.api import router as operational_workspace_router
 from app.features.position_monitoring.api import router as position_monitoring_router
@@ -51,12 +53,18 @@ def create_application(settings: Settings | None = None) -> FastAPI:
     resolved_settings = settings or get_settings()
     configure_logging(resolved_settings.log_level)
     container = ApplicationContainer.build(resolved_settings)
+    refresh_runtime = MarketDataRefreshRuntime(container)
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         runner: PositionMonitoringRunner | None = None
         monitoring_task: asyncio.Task[None] | None = None
+        refresh_task: asyncio.Task[None] | None = None
         try:
+            if resolved_settings.market_data.refresh.enabled:
+                refresh_task = asyncio.create_task(
+                    run_refresh_forever(refresh_runtime), name="market-data-refresh"
+                )
             if resolved_settings.position_monitoring.enabled:
                 runtime = build_position_monitoring_runtime(
                     settings=resolved_settings,
@@ -78,6 +86,10 @@ def create_application(settings: Settings | None = None) -> FastAPI:
             )
             yield
         finally:
+            if refresh_task is not None:
+                refresh_task.cancel()
+                with suppress(asyncio.CancelledError):
+                    await refresh_task
             if runner is not None and monitoring_task is not None:
                 runner.stop()
                 await monitoring_task
@@ -97,6 +109,7 @@ def create_application(settings: Settings | None = None) -> FastAPI:
         lifespan=lifespan,
     )
     application.state.container = container
+    application.state.market_data_refresh = refresh_runtime
     application.add_middleware(RequestContextMiddleware)
     register_exception_handlers(application)
     application.include_router(underlying_router)

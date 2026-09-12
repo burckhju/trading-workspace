@@ -60,6 +60,9 @@ class PositionOperationalSnapshot:
     open_alert_types: tuple[str, ...]
     attention_state: str
     target: str
+    analysis_warning: str | None = None
+    quote_source: str | None = None
+    quote_observed_at: datetime | None = None
 
 
 class OperationalPositionSnapshotService:
@@ -141,24 +144,37 @@ class OperationalPositionSnapshotService:
                     product_symbol=valuation.symbol if valuation is not None else None,
                     valuation_currency=valuation.currency if valuation is not None else None,
                     market_value=(
-                        valuation.market_value
-                        if valuation is not None
-                        and valuation.status
-                        in {
-                            ProductValuationStatus.AVAILABLE,
-                            ProductValuationStatus.LAST_AVAILABLE,
-                        }
-                        else None
+                        valuation.analysis_market_value
+                        if valuation is not None and valuation.analysis_usable
+                        else (
+                            valuation.market_value
+                            if valuation is not None
+                            and valuation.status
+                            in {
+                                ProductValuationStatus.AVAILABLE,
+                                ProductValuationStatus.LAST_AVAILABLE,
+                            }
+                            else None
+                        )
                     ),
                     unrealized_gross_pnl=(
-                        valuation.unrealized_gross_pnl
-                        if valuation is not None
-                        and valuation.status
-                        in {
-                            ProductValuationStatus.AVAILABLE,
-                            ProductValuationStatus.LAST_AVAILABLE,
-                        }
-                        else None
+                        valuation.analysis_unrealized_gross_pnl
+                        if valuation is not None and valuation.analysis_usable
+                        else (
+                            valuation.unrealized_gross_pnl
+                            if valuation is not None
+                            and valuation.status
+                            in {
+                                ProductValuationStatus.AVAILABLE,
+                                ProductValuationStatus.LAST_AVAILABLE,
+                            }
+                            else None
+                        )
+                    ),
+                    analysis_warning=valuation.analysis_warning if valuation is not None else None,
+                    quote_source=valuation.selected_source if valuation is not None else None,
+                    quote_observed_at=(
+                        valuation.quote_observed_at if valuation is not None else None
                     ),
                     open_alert_count=len(alert_types),
                     open_alert_types=alert_types,
