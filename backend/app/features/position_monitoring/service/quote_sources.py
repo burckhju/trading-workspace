@@ -64,16 +64,9 @@ class MultiSourceWarrantQuoteResolver:
     async def resolve(self, request: WarrantQuoteRequest) -> MultiSourceWarrantQuoteResolution:
         attempts: list[QuoteSourceAttempt] = []
         for source in self._sources:
+            # A runtime placeholder without an adapter is configuration metadata,
+            # not a provider attempt. Keep diagnostics limited to calls that ran.
             if source.provider is None:
-                attempts.append(
-                    QuoteSourceAttempt(
-                        source=source.name,
-                        status=QuoteSourceAttemptStatus.UNAVAILABLE,
-                        reason=source.unavailable_reason or "SOURCE_NOT_CONFIGURED",
-                        delayed=source.delayed,
-                        warrant_listing_id=request.warrant_listing_id,
-                    )
-                )
                 continue
 
             try:
