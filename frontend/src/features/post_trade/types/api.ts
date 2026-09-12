@@ -28,10 +28,12 @@ export interface ExitExecutionResponse {
   quantity: DecimalString;
   price_per_unit: DecimalString;
   executed_at: IsoDateTime;
+  executed_on?: string | null;
 }
 
 export interface ActualExitResponse {
   full_exit_at: IsoDateTime;
+  full_exit_on?: string | null;
   realized_gross_pnl: DecimalString;
   executions: ExitExecutionResponse[];
 }

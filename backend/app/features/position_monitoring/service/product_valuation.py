@@ -125,6 +125,7 @@ class ProductPositionValuationService:
                     .join(PositionModel, PositionModel.trade_id == TradeModel.id)
                     .where(
                         TradeModel.id == trade_id,
+                        TradeModel.cancelled_at.is_(None),
                         PositionModel.open_quantity > 0,
                         PositionModel.closed_at.is_(None),
                     )

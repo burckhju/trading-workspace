@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+import hashlib
+import json
+from dataclasses import replace
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import Protocol
 from uuid import UUID, uuid4
@@ -26,10 +29,12 @@ from app.features.trade_position.domain.projector import PositionProjector
 from app.features.trade_position.domain.timeline import (
     Ft011Eligibility,
     TradeTimelineEntry,
+    TradeTimelineEntryKind,
     compose_trade_timeline,
     ft011_eligibility,
 )
 from app.features.trade_position.persistence.unit_of_work import TradePositionUnitOfWork
+from app.features.trade_position.service.errors import capture_conflict
 from app.features.trade_position.service.resolvers import (
     ResolvedProduct,
     ResolvedWorkspaceSelection,
@@ -53,6 +58,61 @@ class ProductResolver(Protocol):
 
 
 class TradePositionService:
+    @staticmethod
+    def _request_identity(
+        workspace_id: UUID,
+        request_id: UUID | None,
+        scope: str,
+        quantity: int,
+        price: Decimal,
+        executed_at: datetime,
+        executed_on: date | None = None,
+        execution_timezone: str | None = None,
+    ) -> tuple[str | None, str | None]:
+        if request_id is None:
+            return None, None
+        key = hashlib.sha256(f"{workspace_id}:{request_id}".encode()).hexdigest()
+        payload = [
+            scope,
+            quantity,
+            str(price.normalize()),
+            executed_at.astimezone(UTC).isoformat(),
+            str(executed_on),
+            execution_timezone,
+        ]
+        return key, hashlib.sha256(json.dumps(payload).encode()).hexdigest()
+
+    async def _replay(
+        self, workspace_id: UUID, key: str | None, fingerprint: str | None
+    ) -> tuple[Trade, ExecutionRecord, Position] | None:
+        if key is None:
+            return None
+        original = await self._uow.executions.find_request(workspace_id, key)
+        if original is None:
+            return None
+        if original.request_fingerprint != fingerprint:
+            raise capture_conflict(
+                "CAPTURE_KEY_CONFLICT",
+                "Diese Vorgangskennung wurde bereits für andere Kauf-/Verkaufsdaten verwendet.",
+            )
+        trade = await self._uow.trades.get(workspace_id, original.trade_id)
+        if trade is None:
+            raise ValueError("trade not found")
+        self._require_active(trade)
+        position = await self._uow.positions.get_for_trade(workspace_id, trade.id)
+        if position is None:
+            raise ValueError("position not found")
+        return trade, original, position
+
+    @staticmethod
+    def _require_active(trade: Trade) -> None:
+        if trade.cancelled_at is not None:
+            raise capture_conflict(
+                "TRADE_CANCELLED",
+                "Dieser Trade wurde als Fehleingabe storniert. Seine Historie ist "
+                "schreibgeschützt.",
+            )
+
     def __init__(
         self,
         *,
@@ -73,7 +133,23 @@ class TradePositionService:
         price_per_unit: Decimal,
         executed_at: datetime,
         actor: UUID,
+        executed_on: date | None = None,
+        execution_timezone: str | None = None,
+        request_id: UUID | None = None,
     ) -> tuple[Trade, ExecutionRecord, Position]:
+        request_key, request_fingerprint = self._request_identity(
+            workspace_id,
+            request_id,
+            f"selection:{product_selection_id}",
+            quantity,
+            price_per_unit,
+            executed_at,
+            executed_on,
+            execution_timezone,
+        )
+        replay = await self._replay(workspace_id, request_key, request_fingerprint)
+        if replay is not None:
+            return replay
         selection = await self._workspace_selections.resolve(
             workspace_id,
             product_selection_id,
@@ -103,8 +179,12 @@ class TradePositionService:
             quantity=quantity,
             price_per_unit=price_per_unit,
             executed_at=executed_at,
-            recorded_at=max(now, executed_at),
+            recorded_at=now,
             recorded_by=actor,
+            executed_on=executed_on,
+            execution_timezone=execution_timezone,
+            request_key=request_key,
+            request_fingerprint=request_fingerprint,
         )
 
         position = Position.from_execution(
@@ -130,7 +210,23 @@ class TradePositionService:
         price_per_unit: Decimal,
         executed_at: datetime,
         actor: UUID,
+        executed_on: date | None = None,
+        execution_timezone: str | None = None,
+        request_id: UUID | None = None,
     ) -> tuple[Trade, ExecutionRecord, Position]:
+        request_key, request_fingerprint = self._request_identity(
+            workspace_id,
+            request_id,
+            f"external:{product_id}",
+            quantity,
+            price_per_unit,
+            executed_at,
+            executed_on,
+            execution_timezone,
+        )
+        replay = await self._replay(workspace_id, request_key, request_fingerprint)
+        if replay is not None:
+            return replay
         if self._products is None:
             raise ValueError("product resolver is required")
 
@@ -159,8 +255,12 @@ class TradePositionService:
             quantity=quantity,
             price_per_unit=price_per_unit,
             executed_at=executed_at,
-            recorded_at=max(now, executed_at),
+            recorded_at=now,
             recorded_by=actor,
+            executed_on=executed_on,
+            execution_timezone=execution_timezone,
+            request_key=request_key,
+            request_fingerprint=request_fingerprint,
         )
 
         position = Position.from_execution(
@@ -186,7 +286,23 @@ class TradePositionService:
         price_per_unit: Decimal,
         executed_at: datetime,
         actor: UUID,
+        executed_on: date | None = None,
+        execution_timezone: str | None = None,
+        request_id: UUID | None = None,
     ) -> tuple[ExecutionRecord, Position]:
+        request_key, request_fingerprint = self._request_identity(
+            workspace_id,
+            request_id,
+            f"purchase:{trade_id}",
+            quantity,
+            price_per_unit,
+            executed_at,
+            executed_on,
+            execution_timezone,
+        )
+        replay = await self._replay(workspace_id, request_key, request_fingerprint)
+        if replay is not None:
+            return replay[1], replay[2]
         async with self._uow as uow:
             trade = await uow.trades.get(
                 workspace_id,
@@ -194,6 +310,7 @@ class TradePositionService:
             )
             if trade is None:
                 raise ValueError("trade not found")
+            self._require_active(trade)
 
             position = await uow.positions.get_for_trade(
                 workspace_id,
@@ -211,8 +328,12 @@ class TradePositionService:
                 quantity=quantity,
                 price_per_unit=price_per_unit,
                 executed_at=executed_at,
-                recorded_at=max(now, executed_at),
+                recorded_at=now,
                 recorded_by=actor,
+                executed_on=executed_on,
+                execution_timezone=execution_timezone,
+                request_key=request_key,
+                request_fingerprint=request_fingerprint,
             )
 
             effective_history = await uow.executions.list_effective_for_trade(trade.id)
@@ -239,7 +360,23 @@ class TradePositionService:
         price_per_unit: Decimal,
         executed_at: datetime,
         actor: UUID,
+        executed_on: date | None = None,
+        execution_timezone: str | None = None,
+        request_id: UUID | None = None,
     ) -> tuple[ExecutionRecord, Position]:
+        request_key, request_fingerprint = self._request_identity(
+            workspace_id,
+            request_id,
+            f"sale:{trade_id}",
+            quantity,
+            price_per_unit,
+            executed_at,
+            executed_on,
+            execution_timezone,
+        )
+        replay = await self._replay(workspace_id, request_key, request_fingerprint)
+        if replay is not None:
+            return replay[1], replay[2]
         async with self._uow as uow:
             trade = await uow.trades.get(
                 workspace_id,
@@ -247,6 +384,7 @@ class TradePositionService:
             )
             if trade is None:
                 raise ValueError("trade not found")
+            self._require_active(trade)
 
             position = await uow.positions.get_for_trade(
                 workspace_id,
@@ -266,8 +404,12 @@ class TradePositionService:
                 quantity=quantity,
                 price_per_unit=price_per_unit,
                 executed_at=executed_at,
-                recorded_at=max(now, executed_at),
+                recorded_at=now,
                 recorded_by=actor,
+                executed_on=executed_on,
+                execution_timezone=execution_timezone,
+                request_key=request_key,
+                request_fingerprint=request_fingerprint,
             )
 
             effective_history = await uow.executions.list_effective_for_trade(trade.id)
@@ -301,6 +443,7 @@ class TradePositionService:
             trade = await uow.trades.get(workspace_id, trade_id)
             if trade is None:
                 raise ValueError("trade not found")
+            self._require_active(trade)
 
             now = datetime.now(UTC)
             event = TradeManagementEvent(
@@ -422,7 +565,7 @@ class TradePositionService:
             if position is None:
                 raise ValueError("position not found")
 
-        return position
+        return replace(position, is_cancelled=trade.cancelled_at is not None)
 
     async def correct_execution(
         self,
@@ -435,11 +578,14 @@ class TradePositionService:
         price_per_unit: Decimal,
         executed_at: datetime,
         actor: UUID,
+        executed_on: date | None = None,
+        execution_timezone: str | None = None,
     ) -> tuple[ExecutionRecord, Position]:
         async with self._uow as uow:
             trade = await uow.trades.get(workspace_id, trade_id)
             if trade is None:
                 raise ValueError("trade not found")
+            self._require_active(trade)
 
             position = await uow.positions.get_for_trade(workspace_id, trade_id)
             if position is None:
@@ -461,8 +607,10 @@ class TradePositionService:
                 quantity=quantity,
                 price_per_unit=price_per_unit,
                 executed_at=executed_at,
-                recorded_at=max(now, executed_at),
+                recorded_at=now,
                 recorded_by=actor,
+                executed_on=executed_on,
+                execution_timezone=execution_timezone,
                 supersedes_execution_id=target.id,
             )
 
@@ -499,6 +647,7 @@ class TradePositionService:
             trade = await uow.trades.get(workspace_id, trade_id)
             if trade is None:
                 raise ValueError("trade not found")
+            self._require_active(trade)
 
             history = await uow.management_events.list_for_trade(trade.id)
             target = next((item for item in history if item.id == event_id), None)
@@ -537,11 +686,23 @@ class TradePositionService:
             executions = await uow.executions.list_for_trade(trade.id)
             management_events = await uow.management_events.list_for_trade(trade.id)
 
-        return compose_trade_timeline(
+        timeline = compose_trade_timeline(
             trade_id=trade.id,
             executions=executions,
             management_events=management_events,
         )
+        if trade.cancelled_at is not None:
+            timeline.append(
+                TradeTimelineEntry(
+                    id=trade.id,
+                    trade_id=trade.id,
+                    occurred_at=trade.cancelled_at,
+                    recorded_at=trade.cancelled_at,
+                    kind=TradeTimelineEntryKind.CANCELLATION,
+                    text_value=trade.cancellation_reason,
+                )
+            )
+        return sorted(timeline, key=lambda item: (item.occurred_at, item.recorded_at, item.id))
 
     async def get_ft011_eligibility(
         self,

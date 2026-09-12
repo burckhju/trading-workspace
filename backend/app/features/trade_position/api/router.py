@@ -1,8 +1,9 @@
 """REST endpoints for FT-009 Trade & Position."""
 
-from datetime import UTC, datetime
-from typing import Annotated
+from datetime import UTC, datetime, time
+from typing import Annotated, Any
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 
@@ -10,6 +11,7 @@ from app.features.trade_position.api.dependencies import get_trade_position_serv
 from app.features.trade_position.api.dtos import (
     AdditionalPurchaseRequest,
     AdditionalPurchaseResponse,
+    CaptureTimeRequest,
     ExecutionCorrectionRequest,
     ExecutionResponse,
     ExternalPurchaseRequest,
@@ -55,6 +57,10 @@ def _trade(value: Trade) -> TradeResponse:
         product_selection_id=value.product_selection_id,
         product_evaluation_id=value.product_evaluation_id,
         created_at=value.created_at,
+        cancelled_at=value.cancelled_at,
+        cancelled_by=value.cancelled_by,
+        cancellation_reason=value.cancellation_reason,
+        duplicate_of_trade_id=value.duplicate_of_trade_id,
     )
 
 
@@ -69,6 +75,8 @@ def _execution(value: ExecutionRecord) -> ExecutionResponse:
         gross_amount=value.gross_amount,
         executed_at=value.executed_at,
         recorded_at=value.recorded_at,
+        executed_on=value.executed_on,
+        execution_timezone=value.execution_timezone,
     )
 
 
@@ -85,6 +93,10 @@ def _position(value: Position) -> PositionResponse:
         last_execution_at=value.last_execution_at,
         closed_at=value.closed_at,
         is_closed=value.is_closed,
+        is_cancelled=value.is_cancelled,
+        opened_on=value.opened_on,
+        last_execution_on=value.last_execution_on,
+        closed_on=value.closed_on,
     )
 
 
@@ -126,6 +138,8 @@ def _timeline_entry(value: TradeTimelineEntry) -> TradeTimelineEntryResponse:
         numeric_value=value.numeric_value,
         text_value=value.text_value,
         supersedes_id=value.supersedes_id,
+        executed_on=value.executed_on,
+        execution_timezone=value.execution_timezone,
     )
 
 
@@ -137,8 +151,26 @@ def _ft011(value: Ft011Eligibility) -> Ft011EligibilityResponse:
     )
 
 
-def _executed_at(value: datetime | None) -> datetime:
-    return value or datetime.now(UTC)
+def _capture_time(request: CaptureTimeRequest) -> dict[str, Any]:
+    now = datetime.now(UTC)
+    result: dict[str, Any] = {}
+    if request.executed_on is not None:
+        zone = ZoneInfo(request.execution_timezone or "UTC")
+        if request.executed_on > now.astimezone(zone).date():
+            raise ValueError("Kauf-/Verkaufsdatum darf nicht in der Zukunft liegen")
+        # Internal ordering anchor only. DATE precision is persisted and displayed.
+        at = datetime.combine(request.executed_on, time.min, tzinfo=zone).astimezone(UTC)
+        result.update(
+            executed_on=request.executed_on, execution_timezone=request.execution_timezone
+        )
+    else:
+        at = request.executed_at or now
+        if at > now:
+            raise ValueError("Ausführungszeit darf nicht in der Zukunft liegen")
+    result["executed_at"] = at
+    if request.request_id is not None:
+        result["request_id"] = request.request_id
+    return result
 
 
 def _effective_at(value: datetime | None) -> datetime:
@@ -176,7 +208,7 @@ async def record_purchase_from_selection(
             product_selection_id=request.product_selection_id,
             quantity=request.quantity,
             price_per_unit=request.price_per_unit,
-            executed_at=_executed_at(request.executed_at),
+            **_capture_time(request),
             actor=actor_id or LOCAL_ACTOR_ID,
         )
     except ValueError as error:
@@ -205,7 +237,7 @@ async def record_external_purchase(
             product_id=request.product_id,
             quantity=request.quantity,
             price_per_unit=request.price_per_unit,
-            executed_at=_executed_at(request.executed_at),
+            **_capture_time(request),
             actor=actor_id or LOCAL_ACTOR_ID,
         )
     except ValueError as error:
@@ -235,7 +267,7 @@ async def record_additional_purchase(
             trade_id=trade_id,
             quantity=request.quantity,
             price_per_unit=request.price_per_unit,
-            executed_at=_executed_at(request.executed_at),
+            **_capture_time(request),
             actor=actor_id or LOCAL_ACTOR_ID,
         )
     except ValueError as error:
@@ -264,7 +296,7 @@ async def record_sale(
             trade_id=trade_id,
             quantity=request.quantity,
             price_per_unit=request.price_per_unit,
-            executed_at=_executed_at(request.executed_at),
+            **_capture_time(request),
             actor=actor_id or LOCAL_ACTOR_ID,
         )
     except ValueError as error:
@@ -428,7 +460,7 @@ async def correct_execution(
             side=request.side,
             quantity=request.quantity,
             price_per_unit=request.price_per_unit,
-            executed_at=request.executed_at,
+            **_capture_time(request),
             actor=actor_id or LOCAL_ACTOR_ID,
         )
     except ValueError as error:

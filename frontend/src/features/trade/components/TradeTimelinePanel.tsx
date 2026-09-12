@@ -12,6 +12,7 @@ function formatNumber(value: string): string {
 }
 
 function entryTitle(entry: TradeTimelineEntryResponse): string {
+  if (entry.kind === 'CANCELLATION') return 'Fehleingabe storniert (kein Verkauf)';
   if (entry.kind === 'EXECUTION') {
     return entry.execution_side === 'SELL' ? 'Verkauf erfasst' : 'Kauf erfasst';
   }
@@ -103,13 +104,21 @@ export function TradeTimelinePanel({ tradeId }: { tradeId: string }) {
                   <p className="mt-1 text-sm text-slate-400">{entryDetail(entry)}</p>
                 </div>
                 <span className="rounded-full border border-slate-700 px-2.5 py-1 text-xs">
-                  {entry.kind === 'EXECUTION' ? entry.execution_side : 'MANAGEMENT'}
+                  {entry.kind === 'EXECUTION'
+                    ? entry.execution_side
+                    : entry.kind === 'CANCELLATION'
+                      ? 'CANCELLED'
+                      : 'MANAGEMENT'}
                 </span>
               </div>
               <dl className="mt-3 grid gap-3 text-xs sm:grid-cols-2">
                 <div>
                   <dt className="text-slate-500">Wirksam / ausgeführt</dt>
-                  <dd className="mt-1">{formatDateTime(entry.occurred_at)}</dd>
+                  <dd className="mt-1">
+                    {entry.executed_on
+                      ? `${entry.executed_on} (Uhrzeit unbekannt, ${entry.execution_timezone})`
+                      : formatDateTime(entry.occurred_at)}
+                  </dd>
                 </div>
                 <div>
                   <dt className="text-slate-500">Erfasst</dt>

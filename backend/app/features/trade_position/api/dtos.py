@@ -1,10 +1,12 @@
 """REST DTOs for FT-009 purchase execution capture."""
 
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
+from typing import Self
 from uuid import UUID
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from pydantic import BaseModel, Field
+from pydantic import AwareDatetime, BaseModel, Field, model_validator
 
 from app.features.trade_position.domain.enums import (
     ExecutionSide,
@@ -13,30 +15,48 @@ from app.features.trade_position.domain.enums import (
 )
 
 
-class WorkspacePurchaseRequest(BaseModel):
+class CaptureTimeRequest(BaseModel):
+    executed_at: AwareDatetime | None = None
+    executed_on: date | None = None
+    execution_timezone: str | None = Field(default=None, max_length=64)
+    request_id: UUID | None = None
+
+    @model_validator(mode="after")
+    def validate_time(self) -> Self:
+        if self.executed_on is not None:
+            if self.executed_at is not None or not self.execution_timezone:
+                raise ValueError("Supply either an exact timestamp OR a calendar date and timezone")
+            try:
+                ZoneInfo(self.execution_timezone)
+            except (ZoneInfoNotFoundError, ValueError) as error:
+                raise ValueError("Unknown execution timezone") from error
+        elif self.execution_timezone is not None:
+            raise ValueError("A timezone requires a calendar execution date")
+        if self.request_id is not None and self.executed_at is None and self.executed_on is None:
+            raise ValueError("Idempotent capture requires an explicit execution date or time")
+        return self
+
+
+class WorkspacePurchaseRequest(CaptureTimeRequest):
     product_selection_id: UUID
     quantity: int = Field(gt=0)
     price_per_unit: Decimal = Field(gt=0)
-    executed_at: datetime | None = None
 
 
-class ExternalPurchaseRequest(BaseModel):
+class ExternalPurchaseRequest(CaptureTimeRequest):
     product_id: UUID
     quantity: int = Field(gt=0)
     price_per_unit: Decimal = Field(gt=0)
-    executed_at: datetime | None = None
 
 
-class AdditionalPurchaseRequest(BaseModel):
+class AdditionalPurchaseRequest(CaptureTimeRequest):
     quantity: int = Field(gt=0)
     price_per_unit: Decimal = Field(gt=0)
-    executed_at: datetime | None = None
 
 
-class SaleRequest(BaseModel):
+class SaleRequest(CaptureTimeRequest):
     quantity: int = Field(gt=0)
     price_per_unit: Decimal = Field(gt=0)
-    executed_at: datetime | None = None
 
 
 class PriceManagementRequest(BaseModel):
@@ -49,11 +69,20 @@ class TextManagementRequest(BaseModel):
     effective_at: datetime | None = None
 
 
-class ExecutionCorrectionRequest(BaseModel):
+class ExecutionCorrectionRequest(CaptureTimeRequest):
     side: ExecutionSide
     quantity: int = Field(gt=0)
     price_per_unit: Decimal = Field(gt=0)
-    executed_at: datetime
+
+    @model_validator(mode="after")
+    def correction_requires_time(self) -> Self:
+        if self.executed_at is None and self.executed_on is None:
+            raise ValueError("A correction requires an explicit execution date or time")
+        if self.request_id is not None:
+            raise ValueError(
+                "Corrections use the existing supersession identity, not a capture key"
+            )
+        return self
 
 
 class ManagementEventCorrectionRequest(BaseModel):
@@ -71,6 +100,10 @@ class TradeResponse(BaseModel):
     product_selection_id: UUID | None
     product_evaluation_id: UUID | None
     created_at: datetime
+    cancelled_at: datetime | None = None
+    cancelled_by: UUID | None = None
+    cancellation_reason: str | None = None
+    duplicate_of_trade_id: UUID | None = None
 
 
 class ExecutionResponse(BaseModel):
@@ -83,6 +116,8 @@ class ExecutionResponse(BaseModel):
     gross_amount: Decimal
     executed_at: datetime
     recorded_at: datetime
+    executed_on: date | None = None
+    execution_timezone: str | None = None
 
 
 class PositionResponse(BaseModel):
@@ -97,6 +132,10 @@ class PositionResponse(BaseModel):
     last_execution_at: datetime
     closed_at: datetime | None
     is_closed: bool
+    is_cancelled: bool = False
+    opened_on: date | None = None
+    last_execution_on: date | None = None
+    closed_on: date | None = None
 
 
 class InitialPurchaseResponse(BaseModel):
@@ -143,6 +182,8 @@ class TradeTimelineEntryResponse(BaseModel):
     numeric_value: Decimal | None
     text_value: str | None
     supersedes_id: UUID | None
+    executed_on: date | None = None
+    execution_timezone: str | None = None
 
 
 class Ft011EligibilityResponse(BaseModel):

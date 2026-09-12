@@ -1,6 +1,6 @@
 """REST contracts for the operational workspace read model."""
 
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID
 
@@ -50,6 +50,7 @@ class OperationalPositionResponse(BaseModel):
     attention_state: str
     target: str
 
+    opened_on: date | None = None
     analysis_warning: str | None = None
     quote_source: str | None = None
     quote_observed_at: datetime | None = None

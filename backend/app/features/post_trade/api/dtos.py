@@ -33,10 +33,12 @@ class ExitExecutionResponse(BaseModel):
     quantity: Decimal
     price_per_unit: Decimal
     executed_at: datetime
+    executed_on: date | None = None
 
 
 class ActualExitResponse(BaseModel):
     full_exit_at: datetime
+    full_exit_on: date | None = None
     realized_gross_pnl: Decimal
     executions: list[ExitExecutionResponse]
 

@@ -1,6 +1,14 @@
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 
+import { ExecutionDateInput } from '../../trade/components/ExecutionDateInput';
+import {
+  captureRequest,
+  executionTime,
+  finishCapture,
+  localToday,
+} from '../../trade/services/capture';
+import { MarketApiError } from '../../market/services/http';
 import { tradeManagementApiClient } from '../../trade/services/client';
 import type { InitialPurchaseResponse } from '../../trade/types/api';
 import { productSelectionApiClient } from '../services/client';
@@ -195,6 +203,10 @@ export function ProductSelectionPage() {
   const [rationale, setRationale] = useState('');
   const [purchaseQuantity, setPurchaseQuantity] = useState('');
   const [purchasePrice, setPurchasePrice] = useState('');
+  const [purchaseDate, setPurchaseDate] = useState(localToday);
+  const [purchaseTime, setPurchaseTime] = useState('');
+  const [existingTradeId, setExistingTradeId] = useState<string | null>(null);
+  const purchaseLock = useRef(false);
   const [purchase, setPurchase] = useState<InitialPurchaseResponse | null>(null);
 
   const counts = useMemo(() => {
@@ -338,26 +350,41 @@ export function ProductSelectionPage() {
 
   async function recordPurchase(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!detail?.selection || busy) return;
+    if (!detail?.selection || busy || purchaseLock.current || purchase) return;
     const quantity = Number(purchaseQuantity);
     if (!Number.isInteger(quantity) || quantity <= 0 || purchasePrice.trim() === '') return;
 
+    purchaseLock.current = true;
     setBusy(true);
     setMessage(null);
     try {
-      const created = await tradeManagementApiClient.purchaseFromSelection({
+      const scope = `selection:${detail.selection.id}`;
+      const payload = {
         product_selection_id: detail.selection.id,
         quantity,
-        price_per_unit: purchasePrice,
+        price_per_unit: purchasePrice.trim().replace(',', '.'),
+        ...executionTime(purchaseDate, purchaseTime),
+      };
+      const created = await tradeManagementApiClient.purchaseFromSelection({
+        ...payload,
+        request_id: captureRequest(scope, payload),
       });
+      finishCapture(scope);
       setPurchase(created);
       setMessage(
         `Kauf wurde als BUY erfasst. Trade ${tradeReference(created.trade.id)} und offene Position wurden erstellt.`,
       );
     } catch (error: unknown) {
+      if (error instanceof MarketApiError && error.response.code === 'OPEN_TRADE_EXISTS') {
+        const id = error.response.details.find(
+          (item) => typeof item.context?.existing_trade_id === 'string',
+        )?.context?.existing_trade_id;
+        if (typeof id === 'string') setExistingTradeId(id);
+      }
       setMessage(error instanceof Error ? error.message : 'Kauf konnte nicht erfasst werden.');
     } finally {
       setBusy(false);
+      purchaseLock.current = false;
     }
   }
 
@@ -526,6 +553,25 @@ export function ProductSelectionPage() {
                       className="mt-5 rounded-lg border border-slate-700 bg-slate-950/50 p-4"
                     >
                       <h3 className="font-medium">Nächster Schritt: tatsächlichen Kauf erfassen</h3>
+                      {existingTradeId && (
+                        <p role="alert">
+                          Offener Trade vorhanden.{' '}
+                          <Link
+                            className="underline"
+                            to={`/trade-management?trade_id=${encodeURIComponent(existingTradeId)}`}
+                          >
+                            Bestehenden Trade öffnen und Nachkauf erfassen
+                          </Link>
+                          . Es wurde nichts zusätzlich gebucht.
+                        </p>
+                      )}
+                      <ExecutionDateInput
+                        label="Kaufdatum"
+                        date={purchaseDate}
+                        time={purchaseTime}
+                        onDate={setPurchaseDate}
+                        onTime={setPurchaseTime}
+                      />
                       <p className="mt-1 text-xs text-slate-400">
                         Erst dieser BUY erzeugt den Trade und die offene Position. Die
                         Produktauswahl allein ist noch keine Ausführung.

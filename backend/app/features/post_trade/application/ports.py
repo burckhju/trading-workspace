@@ -16,6 +16,7 @@ class ExitExecutionFact:
     quantity: Decimal
     price_per_unit: Decimal
     executed_at: datetime
+    executed_on: date | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -36,6 +37,7 @@ class TradeExitContext:
     realized_gross_pnl: Decimal
     executions: tuple[ExitExecutionFact, ...]
     management_events: tuple[ManagementLevelFact, ...]
+    full_exit_on: date | None = None
 
 
 @dataclass(frozen=True, slots=True)

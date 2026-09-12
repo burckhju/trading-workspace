@@ -34,7 +34,9 @@ class PositionProjector:
         average_entry_price: Decimal | None = None
         realized_gross_pnl = Decimal("0")
         opened_at = None
+        opened_on = None
         closed_at = None
+        closed_on = None
 
         for execution in ordered:
             if execution.trade_id != trade.id:
@@ -48,6 +50,7 @@ class PositionProjector:
 
                 if opened_at is None:
                     opened_at = execution.executed_at
+                    opened_on = execution.executed_on
 
                 new_quantity = open_quantity + execution.quantity
                 cost_basis += execution.gross_amount
@@ -70,6 +73,7 @@ class PositionProjector:
             if open_quantity == 0:
                 cost_basis = Decimal("0")
                 closed_at = execution.executed_at
+                closed_on = execution.executed_on
 
         if opened_at is None or average_entry_price is None:
             raise ValueError("position projection requires BUY execution")
@@ -85,4 +89,7 @@ class PositionProjector:
             opened_at=opened_at,
             last_execution_at=ordered[-1].executed_at,
             closed_at=closed_at,
+            opened_on=opened_on,
+            last_execution_on=ordered[-1].executed_on,
+            closed_on=closed_on,
         )

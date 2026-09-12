@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from enum import StrEnum
 from uuid import UUID
@@ -18,6 +18,7 @@ from app.features.trade_position.domain.models import (
 
 class TradeTimelineEntryKind(StrEnum):
     EXECUTION = "EXECUTION"
+    CANCELLATION = "CANCELLATION"
     MANAGEMENT_EVENT = "MANAGEMENT_EVENT"
 
 
@@ -35,6 +36,8 @@ class TradeTimelineEntry:
     numeric_value: Decimal | None = None
     text_value: str | None = None
     supersedes_id: UUID | None = None
+    executed_on: date | None = None
+    execution_timezone: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -66,6 +69,8 @@ def compose_trade_timeline(
                 quantity=execution.quantity,
                 price_per_unit=execution.price_per_unit,
                 supersedes_id=execution.supersedes_execution_id,
+                executed_on=execution.executed_on,
+                execution_timezone=execution.execution_timezone,
             )
         )
 
@@ -93,6 +98,12 @@ def compose_trade_timeline(
 
 
 def ft011_eligibility(position: Position) -> Ft011Eligibility:
+    if position.is_cancelled:
+        return Ft011Eligibility(
+            trade_id=position.trade_id,
+            eligible=False,
+            reason="trade was cancelled as an entry mistake, not sold",
+        )
     if position.is_closed:
         return Ft011Eligibility(
             trade_id=position.trade_id,

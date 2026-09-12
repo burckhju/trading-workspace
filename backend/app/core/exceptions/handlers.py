@@ -7,6 +7,7 @@ from typing import Any
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from sqlalchemy.exc import IntegrityError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.core.exceptions.types import ApplicationError
@@ -120,10 +121,39 @@ async def unexpected_error_handler(request: Request, exception: Exception) -> JS
     )
 
 
+async def trade_constraint_error_handler(
+    request: Request, exception: IntegrityError
+) -> JSONResponse:
+    cause = getattr(exception.orig, "__cause__", None)
+    constraint = getattr(cause, "constraint_name", None)
+    messages = {
+        "tw_one_open_trade": (
+            "OPEN_TRADE_EXISTS",
+            "Für diesen Optionsschein besteht bereits ein offener Trade. Bitte den "
+            "bestehenden Trade für einen Nachkauf öffnen.",
+        ),
+        "tw_cancelled_trade_write": (
+            "TRADE_CANCELLED",
+            "Ein stornierter Trade darf nicht erneut verändert werden.",
+        ),
+        "tw_cancellation_dependencies": (
+            "CANCELLATION_BLOCKED",
+            "Abhängige Vorgänge verhindern die Stornierung. Bitte neu prüfen.",
+        ),
+    }
+    if constraint in messages:
+        code, message = messages[constraint]
+        return JSONResponse(
+            status_code=409, content=_error_payload(code=code, message=message, details=[])
+        )
+    return await unexpected_error_handler(request, exception)
+
+
 def register_exception_handlers(application: FastAPI) -> None:
     """Register all central exception handlers on the application."""
 
     application.add_exception_handler(ApplicationError, application_error_handler)  # type: ignore[arg-type]
     application.add_exception_handler(StarletteHTTPException, http_error_handler)  # type: ignore[arg-type]
     application.add_exception_handler(RequestValidationError, validation_error_handler)  # type: ignore[arg-type]
+    application.add_exception_handler(IntegrityError, trade_constraint_error_handler)  # type: ignore[arg-type]
     application.add_exception_handler(Exception, unexpected_error_handler)

@@ -55,6 +55,7 @@ async def test_composes_alert_first_snapshot_with_plan_rules_and_current_valuati
     position = SimpleNamespace(
         id=position_id,
         opened_at=opened_at,
+        opened_on=None,
         open_quantity=10,
         average_entry_price=Decimal("2.00"),
         cost_basis=Decimal("20.00"),
@@ -128,6 +129,7 @@ async def test_fails_closed_for_unhealthy_or_missing_snapshot_reads(monkeypatch)
     position = SimpleNamespace(
         id=position_id,
         opened_at=datetime(2026, 9, 8, 8, 0, tzinfo=UTC),
+        opened_on=None,
         open_quantity=5,
         average_entry_price=Decimal("3.00"),
         cost_basis=Decimal("15.00"),
@@ -208,6 +210,7 @@ async def test_workspace_shows_frankfurt_analysis_values_with_warning_and_proven
     position = SimpleNamespace(
         id=position_id,
         opened_at=datetime(2026, 9, 8, tzinfo=UTC),
+        opened_on=None,
         open_quantity=2000,
         average_entry_price=Decimal("0.51"),
         cost_basis=Decimal("1020"),

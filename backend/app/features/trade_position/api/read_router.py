@@ -36,6 +36,10 @@ def _response(value: Trade) -> TradeResponse:
         product_selection_id=value.product_selection_id,
         product_evaluation_id=value.product_evaluation_id,
         created_at=value.created_at,
+        cancelled_at=value.cancelled_at,
+        cancelled_by=value.cancelled_by,
+        cancellation_reason=value.cancellation_reason,
+        duplicate_of_trade_id=value.duplicate_of_trade_id,
     )
 
 

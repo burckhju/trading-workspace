@@ -5,9 +5,10 @@ from __future__ import annotations
 from typing import Protocol
 from uuid import UUID
 
-from sqlalchemy import exists, select
+from sqlalchemy import exists, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.features.product.persistence.models import WarrantModel
 from app.features.trade_position.domain.enums import (
     ExecutionSide,
     TradeManagementEventType,
@@ -25,6 +26,7 @@ from app.features.trade_position.persistence.models import (
     TradeManagementEventModel,
     TradeModel,
 )
+from app.features.trade_position.service.errors import OpenTradeExists
 
 
 class TradeRepository(Protocol):
@@ -38,6 +40,10 @@ class TradeRepository(Protocol):
 
 
 class ExecutionRecordRepository(Protocol):
+    async def find_request(
+        self, workspace_id: UUID, request_key: str
+    ) -> ExecutionRecord | None: ...
+
     async def add(self, execution: ExecutionRecord) -> None: ...
 
     async def list_for_trade(
@@ -79,6 +85,30 @@ class SqlAlchemyTradeRepository:
         self._session = session
 
     async def add(self, trade: Trade) -> None:
+        # All first-purchase paths (also Learning imports) share this boundary.
+        product = await self._session.scalar(
+            select(WarrantModel.id)
+            .where(
+                WarrantModel.id == trade.product_id, WarrantModel.workspace_id == trade.workspace_id
+            )
+            .with_for_update()
+        )
+        if product is None:
+            raise ValueError("product not found")
+        existing = await self._session.scalar(
+            select(TradeModel.id)
+            .join(PositionModel, PositionModel.trade_id == TradeModel.id)
+            .where(
+                TradeModel.workspace_id == trade.workspace_id,
+                TradeModel.product_id == trade.product_id,
+                TradeModel.cancelled_at.is_(None),
+                PositionModel.open_quantity > 0,
+            )
+            .order_by(TradeModel.created_at, TradeModel.id)
+            .limit(1)
+        )
+        if existing is not None:
+            raise OpenTradeExists(existing)
         self._session.add(
             TradeModel(
                 id=trade.id,
@@ -104,10 +134,13 @@ class SqlAlchemyTradeRepository:
         trade_id: UUID,
     ) -> Trade | None:
         model = await self._session.scalar(
-            select(TradeModel).where(
+            select(TradeModel)
+            .where(
                 TradeModel.workspace_id == workspace_id,
                 TradeModel.id == trade_id,
             )
+            .with_for_update()
+            .execution_options(populate_existing=True)
         )
         if model is None:
             return None
@@ -123,10 +156,29 @@ class SqlAlchemyTradeRepository:
             trade_plan_version_id=model.trade_plan_version_id,
             product_selection_id=model.product_selection_id,
             product_evaluation_id=model.product_evaluation_id,
+            cancelled_at=model.cancelled_at,
+            cancelled_by=model.cancelled_by,
+            cancellation_reason=model.cancellation_reason,
+            duplicate_of_trade_id=model.duplicate_of_trade_id,
         )
 
 
 class SqlAlchemyExecutionRecordRepository:
+    async def find_request(self, workspace_id: UUID, request_key: str) -> ExecutionRecord | None:
+        # Held until the surrounding capture commits/rolls back. Concurrent retries wait.
+        await self._session.execute(
+            text("SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))"), {"key": request_key}
+        )
+        model = await self._session.scalar(
+            select(ExecutionRecordModel)
+            .join(TradeModel, TradeModel.id == ExecutionRecordModel.trade_id)
+            .where(
+                TradeModel.workspace_id == workspace_id,
+                ExecutionRecordModel.request_key == request_key,
+            )
+        )
+        return None if model is None else self._to_domain(model)
+
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
@@ -138,6 +190,10 @@ class SqlAlchemyExecutionRecordRepository:
                 product_id=execution.product_id,
                 side=execution.side.value,
                 supersedes_execution_id=execution.supersedes_execution_id,
+                request_key=execution.request_key,
+                request_fingerprint=execution.request_fingerprint,
+                executed_on=execution.executed_on,
+                execution_timezone=execution.execution_timezone,
                 quantity=execution.quantity,
                 price_per_unit=execution.price_per_unit,
                 executed_at=execution.executed_at,
@@ -201,6 +257,10 @@ class SqlAlchemyExecutionRecordRepository:
             recorded_at=model.recorded_at,
             recorded_by=model.recorded_by,
             supersedes_execution_id=model.supersedes_execution_id,
+            request_key=model.request_key,
+            request_fingerprint=model.request_fingerprint,
+            executed_on=model.executed_on,
+            execution_timezone=model.execution_timezone,
         )
 
 
@@ -306,6 +366,9 @@ class SqlAlchemyPositionRepository:
                 last_execution_at=position.last_execution_at,
                 realized_gross_pnl=position.realized_gross_pnl,
                 closed_at=position.closed_at,
+                opened_on=position.opened_on,
+                last_execution_on=position.last_execution_on,
+                closed_on=position.closed_on,
             )
         )
 
@@ -339,6 +402,9 @@ class SqlAlchemyPositionRepository:
             last_execution_at=model.last_execution_at,
             realized_gross_pnl=model.realized_gross_pnl,
             closed_at=model.closed_at,
+            opened_on=model.opened_on,
+            last_execution_on=model.last_execution_on,
+            closed_on=model.closed_on,
         )
 
     async def replace(self, position: Position) -> None:
@@ -358,3 +424,6 @@ class SqlAlchemyPositionRepository:
         model.last_execution_at = position.last_execution_at
         model.realized_gross_pnl = position.realized_gross_pnl
         model.closed_at = position.closed_at
+        model.opened_on = position.opened_on
+        model.last_execution_on = position.last_execution_on
+        model.closed_on = position.closed_on

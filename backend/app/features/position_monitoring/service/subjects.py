@@ -64,7 +64,11 @@ class SqlAlchemyMonitoringSubjectReader:
                 select(PositionModel, TradeModel, WarrantModel)
                 .join(TradeModel, TradeModel.id == PositionModel.trade_id)
                 .join(WarrantModel, WarrantModel.id == TradeModel.product_id)
-                .where(PositionModel.open_quantity > 0, PositionModel.closed_at.is_(None))
+                .where(
+                    PositionModel.open_quantity > 0,
+                    PositionModel.closed_at.is_(None),
+                    TradeModel.cancelled_at.is_(None),
+                )
                 .order_by(PositionModel.id)
             )
         ).all()
