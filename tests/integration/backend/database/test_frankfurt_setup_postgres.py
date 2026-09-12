@@ -12,6 +12,7 @@ from tests.integration.backend.database.conftest import _run_alembic
 from tests.unit.backend.providers.frankfurt_quotes.test_public import public_settings, wire
 from tests.unit.backend.providers.frankfurt_quotes.test_schema import NOW
 
+from app.features.market_data.domain.enums import MappingStatus
 from app.providers.frankfurt_quotes.configure import configure_warrant
 from app.providers.frankfurt_quotes.public import FrankfurtPublicPrice
 
@@ -127,8 +128,8 @@ async def test_setup_dry_run_apply_idempotency_and_conflict_with_real_constraint
                     assert tuple(row) == (None, "EUR", 1, "XFRA", "DE000VH2LU21", "XSC", "ACTIVE")
                     # Conflicts must be reviewed, not silently overwritten or revalidated.
                     await session.execute(
-                        text("UPDATE warrant_provider_mappings SET status='INACTIVE' WHERE id=:id"),
-                        {"id": applied["mapping_id"]},
+                        text("UPDATE warrant_provider_mappings SET status=:status WHERE id=:id"),
+                        {"id": applied["mapping_id"], "status": MappingStatus.DISABLED.value},
                     )
                     await session.commit()
                     session.expire_all()
