@@ -66,9 +66,7 @@ def _html(*, isin: str = "DE000VH2LU21", bid: object = 0.24, ask: object = 0.25)
 
 
 def _legacy_html() -> str:
-    payload = json.loads(
-        _html().split('type="application/json">', 1)[1].split("</script>", 1)[0]
-    )
+    payload = json.loads(_html().split('type="application/json">', 1)[1].split("</script>", 1)[0])
     additional_data = payload["props"]["pageProps"].pop("additionalData")
     product_data = additional_data.pop("data")
     product_data.update(additional_data)

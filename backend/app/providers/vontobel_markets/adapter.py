@@ -100,9 +100,7 @@ class VontobelMarketsWarrantQuoteAdapter:
             response = await client.get(url, headers={"Accept": "text/html"})
             response.raise_for_status()
             if str(response.url) != url:
-                raise self._invalid(
-                    "Vontobel product request changed identity through a redirect"
-                )
+                raise self._invalid("Vontobel product request changed identity through a redirect")
             quote = self._parse(response.text, identity)
         finally:
             if owns_client:
@@ -127,26 +125,19 @@ class VontobelMarketsWarrantQuoteAdapter:
         async with self._database.session_context() as session:
             row = (
                 await session.execute(
-                    select(
-                        WarrantListingModel, WarrantModel, WarrantProviderMappingModel
-                    )
-                    .join(
-                        WarrantModel, WarrantModel.id == WarrantListingModel.warrant_id
-                    )
+                    select(WarrantListingModel, WarrantModel, WarrantProviderMappingModel)
+                    .join(WarrantModel, WarrantModel.id == WarrantListingModel.warrant_id)
                     .join(
                         WarrantProviderMappingModel,
-                        WarrantProviderMappingModel.warrant_listing_id
-                        == WarrantListingModel.id,
+                        WarrantProviderMappingModel.warrant_listing_id == WarrantListingModel.id,
                     )
                     .where(
                         WarrantListingModel.id == request.warrant_listing_id,
                         WarrantListingModel.workspace_id == request.workspace_id,
                         WarrantListingModel.lifecycle_status == WarrantLifecycle.ACTIVE,
                         WarrantModel.workspace_id == request.workspace_id,
-                        WarrantProviderMappingModel.workspace_id
-                        == request.workspace_id,
-                        WarrantProviderMappingModel.provider
-                        == MarketDataProvider.VONTOBEL_MARKETS,
+                        WarrantProviderMappingModel.workspace_id == request.workspace_id,
+                        WarrantProviderMappingModel.provider == MarketDataProvider.VONTOBEL_MARKETS,
                         WarrantProviderMappingModel.status == MappingStatus.ACTIVE,
                     )
                 )
@@ -184,16 +175,12 @@ class VontobelMarketsWarrantQuoteAdapter:
         parser = _NextDataParser()
         parser.feed(html)
         if not parser.value:
-            raise self._invalid(
-                "Vontobel response has no structured __NEXT_DATA__ payload"
-            )
+            raise self._invalid("Vontobel response has no structured __NEXT_DATA__ payload")
         try:
             root = json.loads("".join(parser.value))
             page_props = root["props"]["pageProps"]
             additional_data = page_props.get("additionalData")
-            if isinstance(additional_data, dict) and isinstance(
-                additional_data.get("data"), dict
-            ):
+            if isinstance(additional_data, dict) and isinstance(additional_data.get("data"), dict):
                 # Current payload: product master data is nested under ``data``;
                 # quote, identifiers and trading hours are sibling properties.
                 data = additional_data["data"]
@@ -208,28 +195,20 @@ class VontobelMarketsWarrantQuoteAdapter:
                 "Vontobel structured product payload has an unknown schema"
             ) from exc
         if str(data.get("isin", "")).upper() != identity.isin:
-            raise self._invalid(
-                "Vontobel payload ISIN does not match the requested mapping"
-            )
+            raise self._invalid("Vontobel payload ISIN does not match the requested mapping")
         identifiers = {
             str(item.get("value", "")).upper()
             for item in quote_data.get("identifiers", [])
             if isinstance(item, dict)
         }
-        if identity.isin not in identifiers or (
-            identity.wkn and identity.wkn not in identifiers
-        ):
-            raise self._invalid(
-                "Vontobel payload identifiers do not match ISIN/WKN master data"
-            )
+        if identity.isin not in identifiers or (identity.wkn and identity.wkn not in identifiers):
+            raise self._invalid("Vontobel payload identifiers do not match ISIN/WKN master data")
         price = quote_data.get("price")
         if not isinstance(price, dict):
             return None
         currency = str(price.get("currency", "")).upper()
         if currency != identity.currency:
-            raise self._invalid(
-                "Vontobel quote currency does not match the WarrantListing"
-            )
+            raise self._invalid("Vontobel quote currency does not match the WarrantListing")
         bid = self._decimal(price.get("bid"), "bid")
         ask = self._decimal(price.get("ask"), "ask")
         if bid is None and ask is None:
@@ -238,17 +217,11 @@ class VontobelMarketsWarrantQuoteAdapter:
         if not isinstance(timestamp, str):
             raise self._invalid("Vontobel quote has no timestamp")
         try:
-            observed_at = datetime.fromisoformat(
-                timestamp.replace("Z", "+00:00")
-            ).astimezone(UTC)
+            observed_at = datetime.fromisoformat(timestamp.replace("Z", "+00:00")).astimezone(UTC)
         except ValueError as exc:
             raise self._invalid("Vontobel quote timestamp is invalid") from exc
         trading = quote_data.get("tradingHours")
-        status = (
-            "OPEN"
-            if isinstance(trading, dict) and trading.get("isOpen") is True
-            else "CLOSED"
-        )
+        status = "OPEN" if isinstance(trading, dict) and trading.get("isOpen") is True else "CLOSED"
         return WarrantQuoteSnapshot(
             warrant_listing_id=identity.listing_id,
             bid=bid,
