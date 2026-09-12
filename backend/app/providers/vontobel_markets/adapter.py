@@ -178,7 +178,18 @@ class VontobelMarketsWarrantQuoteAdapter:
             raise self._invalid("Vontobel response has no structured __NEXT_DATA__ payload")
         try:
             root = json.loads("".join(parser.value))
-            data = root["props"]["pageProps"]["data"]["additionalData"]["data"]
+            page_props = root["props"]["pageProps"]
+            additional_data = page_props.get("additionalData")
+            if isinstance(additional_data, dict) and isinstance(additional_data.get("data"), dict):
+                # Current payload: product master data is nested under ``data``;
+                # quote, identifiers and trading hours are sibling properties.
+                data = additional_data["data"]
+                quote_data = additional_data
+            else:
+                # Previous payload retained for compatibility with already
+                # deployed Vontobel page versions and cached responses.
+                data = page_props["data"]["additionalData"]["data"]
+                quote_data = data
         except (json.JSONDecodeError, KeyError, TypeError) as exc:
             raise self._invalid(
                 "Vontobel structured product payload has an unknown schema"
@@ -187,12 +198,12 @@ class VontobelMarketsWarrantQuoteAdapter:
             raise self._invalid("Vontobel payload ISIN does not match the requested mapping")
         identifiers = {
             str(item.get("value", "")).upper()
-            for item in data.get("identifiers", [])
+            for item in quote_data.get("identifiers", [])
             if isinstance(item, dict)
         }
         if identity.isin not in identifiers or (identity.wkn and identity.wkn not in identifiers):
             raise self._invalid("Vontobel payload identifiers do not match ISIN/WKN master data")
-        price = data.get("price")
+        price = quote_data.get("price")
         if not isinstance(price, dict):
             return None
         currency = str(price.get("currency", "")).upper()
@@ -209,7 +220,7 @@ class VontobelMarketsWarrantQuoteAdapter:
             observed_at = datetime.fromisoformat(timestamp.replace("Z", "+00:00")).astimezone(UTC)
         except ValueError as exc:
             raise self._invalid("Vontobel quote timestamp is invalid") from exc
-        trading = data.get("tradingHours")
+        trading = quote_data.get("tradingHours")
         status = "OPEN" if isinstance(trading, dict) and trading.get("isOpen") is True else "CLOSED"
         return WarrantQuoteSnapshot(
             warrant_listing_id=identity.listing_id,
