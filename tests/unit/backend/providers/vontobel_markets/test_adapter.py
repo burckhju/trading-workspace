@@ -44,29 +44,39 @@ def _html(*, isin: str = "DE000VH2LU21", bid: object = 0.24, ask: object = 0.25)
     data = {
         "props": {
             "pageProps": {
-                "data": {
-                    "additionalData": {
-                        "data": {
-                            "isin": isin,
-                            "identifiers": [
-                                {"type": 0, "value": isin},
-                                {"type": 2, "value": "VH2LU2"},
-                            ],
-                            "price": {
-                                "bid": bid,
-                                "ask": ask,
-                                "latestTimestamp": "2026-09-11T19:59:13+00:00",
-                                "currency": "EUR",
-                            },
-                            "tradingHours": {"isOpen": False},
-                        }
-                    }
+                "additionalData": {
+                    "data": {"isin": isin, "wkn": "VH2LU2", "currency": "EUR"},
+                    "identifiers": [
+                        {"type": 0, "value": isin},
+                        {"type": 2, "value": "VH2LU2"},
+                    ],
+                    "price": {
+                        "bid": bid,
+                        "ask": ask,
+                        "latestTimestamp": "2026-09-11T19:59:13+00:00",
+                        "currency": "EUR",
+                    },
+                    "tradingHours": {"isOpen": False},
                 }
             }
         }
     }
     payload = json.dumps(data)
     return f'<html><script id="__NEXT_DATA__" type="application/json">{payload}</script></html>'
+
+
+def _legacy_html() -> str:
+    payload = json.loads(
+        _html().split('type="application/json">', 1)[1].split("</script>", 1)[0]
+    )
+    additional_data = payload["props"]["pageProps"].pop("additionalData")
+    product_data = additional_data.pop("data")
+    product_data.update(additional_data)
+    payload["props"]["pageProps"]["data"] = {"additionalData": {"data": product_data}}
+    return (
+        '<html><script id="__NEXT_DATA__" type="application/json">'
+        f"{json.dumps(payload)}</script></html>"
+    )
 
 
 def test_parses_exact_official_issuer_quote_with_provenance() -> None:
@@ -83,6 +93,14 @@ def test_parses_exact_official_issuer_quote_with_provenance() -> None:
     assert quote.wkn == "VH2LU2"
     assert quote.source_mode == "OFFICIAL_ISSUER_INDICATION"
     assert quote.trading_status == "CLOSED"
+
+
+def test_parses_previous_nested_payload_schema() -> None:
+    quote = _adapter()._parse(_legacy_html(), _identity())
+
+    assert quote is not None
+    assert quote.bid == Decimal("0.24")
+    assert quote.provider_symbol == "DE000VH2LU21"
 
 
 def test_rejects_payload_for_another_isin() -> None:
