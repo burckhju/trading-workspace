@@ -136,6 +136,10 @@ class ProductPositionValuationResponse(BaseModel):
     trading_status: str | None
     valuation_usable: bool
     execution_usable: bool
+    analysis_usable: bool
+    analysis_warning: str | None
+    analysis_market_value: Decimal | None
+    analysis_unrealized_gross_pnl: Decimal | None
     freshness_policy: str | None
     source_attempts: tuple[QuoteSourceAttemptResponse, ...]
 

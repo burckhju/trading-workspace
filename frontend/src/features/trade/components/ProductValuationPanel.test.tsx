@@ -54,6 +54,10 @@ describe('ProductValuationPanel', () => {
       valuation_usable: false,
       execution_usable: false,
       freshness_policy: null,
+      analysis_usable: false,
+      analysis_warning: null,
+      analysis_market_value: null,
+      analysis_unrealized_gross_pnl: null,
       source_attempts: [
         {
           source: 'EODHD',
@@ -103,6 +107,10 @@ describe('ProductValuationPanel', () => {
       selected_source: 'SECONDARY',
       valuation_usable: true,
       execution_usable: false,
+      analysis_usable: true,
+      analysis_warning: null,
+      analysis_market_value: '25.00',
+      analysis_unrealized_gross_pnl: '5.00',
       freshness_policy: 'DE_WARRANT_SESSION_FRESHNESS_V1',
       source_attempts: [
         {
@@ -132,9 +140,10 @@ describe('ProductValuationPanel', () => {
     expect(screen.getByText('Marktwert (Bid)')).toBeInTheDocument();
     expect(screen.getByText('Unrealized gross P&L')).toBeInTheDocument();
     expect(screen.getByText(/Bewertungsquelle: SECONDARY/)).toHaveTextContent('15 Min.');
+    expect(screen.queryByText(/Kursdaten veraltet/)).not.toBeInTheDocument();
   });
 
-  it('fails closed for a stale product quote', async () => {
+  it('shows stale analysis with a warning without presenting a current valuation', async () => {
     api.productValuation.mockResolvedValue({
       trade_id: 'trade-1',
       position_id: 'position-1',
@@ -154,6 +163,10 @@ describe('ProductValuationPanel', () => {
       valuation_usable: false,
       execution_usable: false,
       freshness_policy: 'DE_WARRANT_SESSION_FRESHNESS_V1',
+      analysis_usable: true,
+      analysis_warning: 'OUTDATED_QUOTE_INDICATIVE_ANALYSIS_ONLY',
+      analysis_market_value: '25.00',
+      analysis_unrealized_gross_pnl: '5.00',
       source_attempts: [],
     });
 
@@ -162,7 +175,13 @@ describe('ProductValuationPanel', () => {
     expect(await screen.findByText('Produktkurs veraltet')).toBeInTheDocument();
     const staleMessage = screen.getByText(/zu alt für eine belastbare aktuelle Depotbewertung/);
     expect(staleMessage).toBeInTheDocument();
-    expect(screen.getByText(/120 Min\./)).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('120 Min.');
+    expect(screen.getByRole('status')).toHaveTextContent('Kursdaten veraltet');
+    expect(screen.getByRole('status')).toHaveTextContent('Kursstand:');
+    expect(screen.getByText('Indikativer Wert (letzter Bid)')).toBeInTheDocument();
+    expect(screen.getByText('25 EUR')).toBeInTheDocument();
+    expect(screen.getByText('5 EUR')).toBeInTheDocument();
+    expect(screen.getByText(/keine Freigabe zur Orderausführung/)).toBeInTheDocument();
     expect(screen.queryByText('Marktwert (Bid)')).not.toBeInTheDocument();
     expect(screen.queryByText('Unrealized gross P&L')).not.toBeInTheDocument();
   });
@@ -186,6 +205,10 @@ describe('ProductValuationPanel', () => {
       selected_source: 'VONTOBEL_MARKETS',
       valuation_usable: true,
       execution_usable: false,
+      analysis_usable: true,
+      analysis_warning: 'OUTDATED_QUOTE_INDICATIVE_ANALYSIS_ONLY',
+      analysis_market_value: '480.00',
+      analysis_unrealized_gross_pnl: '-540.00',
       freshness_policy: 'DE_WARRANT_SESSION_FRESHNESS_V1',
       source_attempts: [],
     });
@@ -193,9 +216,10 @@ describe('ProductValuationPanel', () => {
     render(<ProductValuationPanel tradeId="trade-1" />);
 
     expect(await screen.findByText('Letzter verfügbarer Produktkurs')).toBeInTheDocument();
-    expect(screen.getByText('Marktwert (Bid)')).toBeInTheDocument();
-    expect(screen.getByText('Unrealized gross P&L')).toBeInTheDocument();
-    expect(screen.getByText(/nicht für eine automatische Exit-/)).toBeInTheDocument();
+    expect(screen.getByText('Indikativer Wert (letzter Bid)')).toBeInTheDocument();
+    expect(screen.getByText('Indikativer unrealized gross P&L')).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Kursdaten veraltet');
+    expect(screen.getByText(/keine Freigabe zur Orderausführung/)).toBeInTheDocument();
   });
 
   it('does not request a quote for a closed position', async () => {

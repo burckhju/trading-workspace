@@ -17,6 +17,34 @@ The system must keep these states separate:
 
 An issuer indication, including the official Vontobel product-page quote, is at most a monitoring/decision quote. It must never be promoted to executable merely because it has a bid and ask.
 
+### Indicative analysis using the last available quote
+
+Age alone does not prohibit displaying an analysis or non-actionable recommendation.
+The read-only product valuation endpoint exposes a separate `analysis_usable` flag and
+`analysis_market_value` / `analysis_unrealized_gross_pnl` amounts. They apply the last
+verified product bid to the **currently open quantity and cost basis**; they are not a
+reconstruction of the historical portfolio and not an executable exit price.
+
+| Quote state | Analysis | Warning | Existing valuation | Order execution |
+| --- | --- | --- | --- | --- |
+| `AVAILABLE` | Allowed after existing validation | No age warning | Unchanged | Separate executable-quote gates |
+| `LAST_AVAILABLE` | Indicative | `OUTDATED_QUOTE_INDICATIVE_ANALYSIS_ONLY` | Indicative previous-session value | Blocked |
+| `STALE` | Indicative | `OUTDATED_QUOTE_INDICATIVE_ANALYSIS_ONLY` | Current value and P&L remain null | Blocked |
+| Missing, wrong identity/currency, invalid price or future timestamp | Not allowed | Existing error/missing reason | No usable valuation | Blocked |
+
+Every displayed recommendation derived from the analysis fields must retain the parent
+quote's timestamp, age, provider identity, listing provenance and warning. The UI explicitly
+labels the data as outdated, labels the computed amounts as indicative and requires new
+validation with current executable data before implementation. It never changes `STALE`
+to `AVAILABLE`, refreshes the quote timestamp, or promotes an issuer indication to an
+executable quote. There is no new cache fallback across instruments or to underlying/EOD prices.
+
+This change enables the product-price analysis contract and its UI; it does not add a new
+buy/sell strategy or change the existing underlying-based stop/target alerts, score policies
+or the fail-closed `evaluate_exit` order-proposal gates. A consumer must not use
+`analysis_usable` as an execution permission. An old observation can support a clearly
+dated scenario, but cannot establish that its trigger still holds now.
+
 ## Current provider assessment (2026-09-12)
 
 ### Vontobel Markets public product page

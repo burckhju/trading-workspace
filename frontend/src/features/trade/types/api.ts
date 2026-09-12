@@ -88,6 +88,10 @@ export interface ProductPositionValuationResponse {
   selected_source: string | null;
   valuation_usable: boolean;
   execution_usable: boolean;
+  analysis_usable: boolean;
+  analysis_warning: string | null;
+  analysis_market_value: string | null;
+  analysis_unrealized_gross_pnl: string | null;
   freshness_policy: string | null;
   source_attempts: QuoteSourceAttemptResponse[];
 }

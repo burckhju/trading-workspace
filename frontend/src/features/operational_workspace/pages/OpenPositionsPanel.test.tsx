@@ -46,6 +46,18 @@ function position(overrides: Partial<OperationalPosition> = {}): OperationalPosi
 }
 
 describe('OpenPositionsPanel', () => {
+  it('labels the previous-session valuation as outdated and indicative', () => {
+    render(
+      <MemoryRouter>
+        <OpenPositionsPanel positions={[position({ valuation_status: 'LAST_AVAILABLE' })]} />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText('Produktkurs: Letzter verfügbarer Kurs')).toBeInTheDocument();
+    expect(screen.getByText(/Kursdaten veraltet:/)).toHaveTextContent('Keine Orderfreigabe');
+    expect(screen.getByText('25 EUR')).toBeInTheDocument();
+  });
+
   it('shows direct sell capture and management links for an open position', () => {
     render(
       <MemoryRouter>
