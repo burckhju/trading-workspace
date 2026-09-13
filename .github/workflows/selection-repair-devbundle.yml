@@ -12,6 +12,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ac2d8e0e4e31f7b4c2869bae0f3be5a564e0795b
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
@@ -22,9 +23,9 @@ jobs:
       - name: Package public source and development dependencies only
         run: |
           mkdir -p /tmp/selection-repair-bundle
-          git archive --format=tar ac2d8e0e4e31f7b4c2869bae0f3be5a564e0795b > /tmp/selection-repair-bundle/source.tar
-          git rev-parse ac2d8e0e4e31f7b4c2869bae0f3be5a564e0795b > /tmp/selection-repair-bundle/commit.txt
-          git rev-parse ac2d8e0e4e31f7b4c2869bae0f3be5a564e0795b^{tree} > /tmp/selection-repair-bundle/tree.txt
+          git archive --format=tar HEAD > /tmp/selection-repair-bundle/source.tar
+          git rev-parse HEAD > /tmp/selection-repair-bundle/commit.txt
+          git rev-parse HEAD^{tree} > /tmp/selection-repair-bundle/tree.txt
           tar -czf /tmp/selection-repair-bundle/frontend-deps.tgz -C frontend node_modules
           cd /tmp/selection-repair-bundle
           sha256sum source.tar frontend-deps.tgz > SHA256SUMS
