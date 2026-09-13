@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from enum import StrEnum
 from uuid import UUID
@@ -52,6 +52,7 @@ def highest_high_since_entry(
     entry_executed_at: datetime,
     evaluation_time: datetime,
     rows: tuple[MarketAnalysisSnapshotRowModel, ...],
+    entry_on: date | None = None,
 ) -> tuple[Decimal | None, int]:
     """Project the peak from completed daily snapshot rows without look-ahead.
 
@@ -64,7 +65,7 @@ def highest_high_since_entry(
     """
     if entry_executed_at.tzinfo is None or evaluation_time.tzinfo is None:
         raise ValueError("entry and evaluation timestamps must be timezone-aware")
-    entry_date = entry_executed_at.astimezone(UTC).date()
+    entry_date = entry_on or entry_executed_at.astimezone(UTC).date()
     evaluation_date = evaluation_time.astimezone(UTC).date()
     eligible = tuple(row for row in rows if entry_date < row.trading_date < evaluation_date)
     if not eligible:
@@ -96,6 +97,7 @@ class PositionAwareAnalyticsService:
                     .join(WarrantModel, WarrantModel.id == TradeModel.product_id)
                     .where(
                         TradeModel.id == trade_id,
+                        TradeModel.cancelled_at.is_(None),
                         PositionModel.open_quantity > 0,
                         PositionModel.closed_at.is_(None),
                     )
@@ -217,6 +219,7 @@ class PositionAwareAnalyticsService:
                 entry_executed_at=entry.executed_at,
                 evaluation_time=evaluation_time,
                 rows=snapshot_rows,
+                entry_on=entry.executed_on,
             )
             if peak is None:
                 return PositionAnalytics(

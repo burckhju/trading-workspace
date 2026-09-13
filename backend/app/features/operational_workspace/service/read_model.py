@@ -153,6 +153,7 @@ class OperationalWorkspaceReadModel:
                 .join(TradeModel, TradeModel.id == AlertModel.trade_id)
                 .where(
                     TradeModel.workspace_id == workspace_id,
+                    TradeModel.cancelled_at.is_(None),
                     AlertModel.status == AlertStatus.OPEN.value,
                 )
                 .order_by(AlertModel.detected_at, AlertModel.id)
@@ -194,6 +195,7 @@ class OperationalWorkspaceReadModel:
                 .join(TradeModel, TradeModel.id == AlertModel.trade_id)
                 .where(
                     TradeModel.workspace_id == workspace_id,
+                    TradeModel.cancelled_at.is_(None),
                     NotificationModel.status == NotificationStatus.FAILED.value,
                 )
                 .order_by(NotificationModel.created_at, NotificationModel.id)
@@ -409,7 +411,8 @@ class OperationalWorkspaceReadModel:
                 )
                 .outerjoin(
                     TradeModel,
-                    TradeModel.product_selection_id == ranked_selections.c.selection_id,
+                    (TradeModel.product_selection_id == ranked_selections.c.selection_id)
+                    & TradeModel.cancelled_at.is_(None),
                 )
                 .where(
                     ranked_selections.c.selection_rank == 1,
@@ -447,6 +450,7 @@ class OperationalWorkspaceReadModel:
                 .join(PositionModel, PositionModel.trade_id == TradeModel.id)
                 .where(
                     TradeModel.workspace_id == workspace_id,
+                    TradeModel.cancelled_at.is_(None),
                     PositionModel.open_quantity > 0,
                     PositionModel.closed_at.is_(None),
                 )
@@ -481,6 +485,7 @@ class OperationalWorkspaceReadModel:
                 .join(PositionModel, PositionModel.trade_id == TradeModel.id)
                 .where(
                     TradeModel.workspace_id == workspace_id,
+                    TradeModel.cancelled_at.is_(None),
                     PositionModel.open_quantity == 0,
                     PositionModel.closed_at.is_not(None),
                 )

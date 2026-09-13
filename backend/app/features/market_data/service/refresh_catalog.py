@@ -39,6 +39,7 @@ async def read_catalog(
         .join(TradeModel, TradeModel.id == PositionModel.trade_id)
         .where(
             TradeModel.workspace_id == workspace_id,
+            TradeModel.cancelled_at.is_(None),
             TradeModel.product_id == PositionModel.product_id,
             PositionModel.open_quantity > 0,
             PositionModel.closed_at.is_(None),

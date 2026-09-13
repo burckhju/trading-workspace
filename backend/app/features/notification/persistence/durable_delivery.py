@@ -6,6 +6,7 @@ from uuid import UUID
 from sqlalchemy import func, select, update
 
 from app.database import DatabaseManager
+from app.features.alert.persistence.models import AlertModel
 from app.features.notification.domain.models import (
     DeliveryAttempt,
     DeliveryPreparation,
@@ -19,6 +20,7 @@ from app.features.notification.persistence.models import (
     NotificationDeliveryAttemptModel,
     NotificationModel,
 )
+from app.features.trade_position.persistence.models import TradeModel
 
 
 class SqlAlchemyDurableNotificationDeliveryStore:
@@ -31,7 +33,12 @@ class SqlAlchemyDurableNotificationDeliveryStore:
         async with self._database.session_context() as session:
             values = await session.scalars(
                 select(NotificationModel.id)
-                .where(NotificationModel.status == NotificationStatus.PENDING.value)
+                .join(AlertModel, AlertModel.id == NotificationModel.alert_id)
+                .join(TradeModel, TradeModel.id == AlertModel.trade_id)
+                .where(
+                    NotificationModel.status == NotificationStatus.PENDING.value,
+                    TradeModel.cancelled_at.is_(None),
+                )
                 .order_by(NotificationModel.created_at, NotificationModel.id)
                 .limit(limit)
             )
@@ -47,6 +54,14 @@ class SqlAlchemyDurableNotificationDeliveryStore:
         max_attempts: int,
     ) -> DeliveryPreparation:
         async with self._database.session_context() as session:
+            trade_id = await session.scalar(
+                select(AlertModel.trade_id)
+                .join(NotificationModel, NotificationModel.alert_id == AlertModel.id)
+                .where(NotificationModel.id == notification_id)
+            )
+            cancelled_at = await session.scalar(
+                select(TradeModel.cancelled_at).where(TradeModel.id == trade_id).with_for_update()
+            )
             model = await session.scalar(
                 select(NotificationModel)
                 .where(NotificationModel.id == notification_id)
@@ -55,6 +70,18 @@ class SqlAlchemyDurableNotificationDeliveryStore:
             if model is None:
                 raise LookupError("notification not found")
             notification = self._notification(model)
+            if cancelled_at is not None:
+                return DeliveryPreparation(
+                    notification=notification,
+                    terminal_result=DeliveryResult(
+                        status=DeliveryStatus.FAILED,
+                        retryable=False,
+                        error_code="TRADE_CANCELLED",
+                        error_message=(
+                            "Trade was cancelled as an entry mistake; delivery " "suppressed"
+                        ),
+                    ),
+                )
             if notification.status is NotificationStatus.DELIVERED:
                 return DeliveryPreparation(
                     notification=notification,

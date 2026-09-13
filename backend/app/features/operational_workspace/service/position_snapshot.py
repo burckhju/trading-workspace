@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from typing import ClassVar
 from uuid import UUID
@@ -60,6 +60,7 @@ class PositionOperationalSnapshot:
     open_alert_types: tuple[str, ...]
     attention_state: str
     target: str
+    opened_on: date | None = None
     analysis_warning: str | None = None
     quote_source: str | None = None
     quote_observed_at: datetime | None = None
@@ -94,6 +95,7 @@ class OperationalPositionSnapshotService:
                 .join(WarrantModel, WarrantModel.id == PositionModel.product_id)
                 .where(
                     TradeModel.workspace_id == workspace_id,
+                    TradeModel.cancelled_at.is_(None),
                     PositionModel.open_quantity > 0,
                     PositionModel.closed_at.is_(None),
                 )
@@ -132,6 +134,7 @@ class OperationalPositionSnapshotService:
                     position_id=position.id,
                     product_name=warrant.display_name,
                     opened_at=position.opened_at,
+                    opened_on=position.opened_on,
                     open_quantity=position.open_quantity,
                     average_entry_price=position.average_entry_price,
                     cost_basis=position.cost_basis,

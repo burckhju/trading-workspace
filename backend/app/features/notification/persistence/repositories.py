@@ -6,6 +6,7 @@ from uuid import UUID
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.features.alert.persistence.models import AlertModel
 from app.features.notification.domain.models import (
     DeliveryAttempt,
     Notification,
@@ -16,6 +17,8 @@ from app.features.notification.persistence.models import (
     NotificationDeliveryAttemptModel,
     NotificationModel,
 )
+from app.features.trade_position.persistence.models import TradeModel
+from app.features.trade_position.service.errors import capture_conflict
 
 
 class NotificationRepository(Protocol):
@@ -52,6 +55,17 @@ class SqlAlchemyNotificationRepository:
         )
 
     async def get(self, notification_id: UUID) -> Notification | None:
+        cancelled_at = await self._session.scalar(
+            select(TradeModel.cancelled_at)
+            .join(AlertModel, AlertModel.trade_id == TradeModel.id)
+            .join(NotificationModel, NotificationModel.alert_id == AlertModel.id)
+            .where(NotificationModel.id == notification_id)
+            .with_for_update(of=TradeModel)
+        )
+        if cancelled_at is not None:
+            raise capture_conflict(
+                "TRADE_CANCELLED", "Benachrichtigung für stornierten Trade unterdrückt."
+            )
         model = await self._session.scalar(
             select(NotificationModel).where(NotificationModel.id == notification_id)
         )

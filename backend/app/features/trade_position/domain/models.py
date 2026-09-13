@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
-from datetime import datetime
+from datetime import UTC, date, datetime, time
 from decimal import Decimal
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 from app.features.trade_position.domain.enums import (
     ExecutionSide,
@@ -26,6 +27,10 @@ class Trade:
     trade_plan_version_id: UUID | None = None
     product_selection_id: UUID | None = None
     product_evaluation_id: UUID | None = None
+    cancelled_at: datetime | None = None
+    cancelled_by: UUID | None = None
+    cancellation_reason: str | None = None
+    duplicate_of_trade_id: UUID | None = None
 
     def __post_init__(self) -> None:
         provenance = (
@@ -56,8 +61,24 @@ class ExecutionRecord:
     recorded_by: UUID
     side: ExecutionSide = ExecutionSide.BUY
     supersedes_execution_id: UUID | None = None
+    request_key: str | None = None
+    request_fingerprint: str | None = None
+    executed_on: date | None = None
+    execution_timezone: str | None = None
 
     def __post_init__(self) -> None:
+        if self.executed_at.tzinfo is None or self.recorded_at.tzinfo is None:
+            raise ValueError("execution and recording timestamps must be timezone-aware")
+        if (self.request_key is None) != (self.request_fingerprint is None):
+            raise ValueError("request identity must be complete")
+        if (self.executed_on is None) != (self.execution_timezone is None):
+            raise ValueError("calendar execution date requires its timezone")
+        if self.executed_on is not None and self.execution_timezone is not None:
+            anchor = datetime.combine(
+                self.executed_on, time.min, tzinfo=ZoneInfo(self.execution_timezone)
+            )
+            if anchor.astimezone(UTC) != self.executed_at.astimezone(UTC):
+                raise ValueError("calendar date does not match internal ordering anchor")
         if self.quantity <= 0:
             raise ValueError("quantity must be positive")
         if self.price_per_unit <= 0:
@@ -84,6 +105,10 @@ class Position:
     last_execution_at: datetime
     realized_gross_pnl: Decimal = Decimal("0")
     closed_at: datetime | None = None
+    is_cancelled: bool = False
+    opened_on: date | None = None
+    last_execution_on: date | None = None
+    closed_on: date | None = None
 
     def __post_init__(self) -> None:
         if self.open_quantity < 0:
@@ -132,6 +157,8 @@ class Position:
             average_entry_price=execution.price_per_unit,
             opened_at=execution.executed_at,
             last_execution_at=execution.executed_at,
+            opened_on=execution.executed_on,
+            last_execution_on=execution.executed_on,
         )
 
     def apply_purchase(self, execution: ExecutionRecord) -> Position:
@@ -154,6 +181,7 @@ class Position:
             cost_basis=new_cost_basis,
             average_entry_price=new_average_entry_price,
             last_execution_at=execution.executed_at,
+            last_execution_on=execution.executed_on,
         )
 
 

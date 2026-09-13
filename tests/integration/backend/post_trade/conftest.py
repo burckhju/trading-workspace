@@ -7,6 +7,8 @@ from pathlib import Path
 from urllib.parse import quote
 
 import pytest_asyncio
+from alembic.config import Config
+from alembic.script import ScriptDirectory
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (
     AsyncConnection,
@@ -16,7 +18,10 @@ from sqlalchemy.ext.asyncio import (
 )
 
 EXPECTED_DATABASE = "trading_workspace_test"
-EXPECTED_ALEMBIC_HEAD = "20260828_0029"
+EXPECTED_ALEMBIC_HEAD = ScriptDirectory.from_config(
+    Config(str(Path(__file__).resolve().parents[4] / "backend" / "alembic.ini"))
+).get_current_head()
+assert EXPECTED_ALEMBIC_HEAD is not None
 
 
 def _test_database_url() -> str:

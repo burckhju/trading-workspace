@@ -30,6 +30,7 @@ class AggregateType(StrEnum):
     ISSUER = "ISSUER"
     CURRENCY = "CURRENCY"
     CURRENCY_CATALOG = "CURRENCY_CATALOG"
+    TRADE = "TRADE"
 
 
 class ActorType(StrEnum):

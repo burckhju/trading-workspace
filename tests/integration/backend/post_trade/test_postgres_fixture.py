@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
+from tests.integration.backend.post_trade.conftest import EXPECTED_ALEMBIC_HEAD
 
 pytestmark = pytest.mark.asyncio
 
@@ -17,7 +18,7 @@ async def test_fixture_uses_isolated_database(
         revision = await connection.scalar(text("select version_num from alembic_version"))
 
     assert database == "trading_workspace_test"
-    assert revision == "20260828_0029"
+    assert revision == EXPECTED_ALEMBIC_HEAD
 
 
 async def test_session_commit_is_contained_by_outer_transaction(

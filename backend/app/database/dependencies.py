@@ -1,6 +1,7 @@
 """FastAPI dependencies for database access."""
 
 from collections.abc import AsyncIterator
+from contextlib import aclosing
 from typing import cast
 
 from fastapi import Request
@@ -19,5 +20,6 @@ async def get_database_session(request: Request) -> AsyncIterator[AsyncSession]:
     """Provide one request-scoped asynchronous database session."""
 
     manager = get_database_manager(request)
-    async for session in manager.session():
-        yield session
+    async with aclosing(manager.session()) as sessions:
+        async for session in sessions:
+            yield session

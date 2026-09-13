@@ -384,7 +384,8 @@ export function PostTradeReviewPage() {
                 <div>
                   <dt className="text-slate-500">Full Exit</dt>
                   <dd className="mt-1 font-medium">
-                    {formatDateTime(evidence.actual_exit.full_exit_at)}
+                    {evidence.actual_exit.full_exit_on ??
+                      formatDateTime(evidence.actual_exit.full_exit_at)}
                   </dd>
                 </div>
                 <div>
@@ -403,7 +404,7 @@ export function PostTradeReviewPage() {
                     className="rounded-lg border border-slate-800 p-3"
                   >
                     {formatNumber(execution.quantity)} × {formatNumber(execution.price_per_unit)} ·{' '}
-                    {formatDateTime(execution.executed_at)}
+                    {execution.executed_on ?? formatDateTime(execution.executed_at)}
                   </li>
                 ))}
               </ul>

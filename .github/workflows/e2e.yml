@@ -37,6 +37,7 @@ jobs:
       VITE_API_BASE_URL: http://localhost:8080/api
       PLAYWRIGHT_BASE_URL: http://127.0.0.1:8080
       CURRENCY_E2E_WRITES_ALLOWED: "1"
+      TRADE_E2E_WRITES_ALLOWED: "1"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

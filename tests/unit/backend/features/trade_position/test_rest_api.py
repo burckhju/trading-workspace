@@ -651,6 +651,8 @@ def test_trade_timeline_keeps_sale_as_execution_only() -> None:
             "numeric_value": None,
             "text_value": None,
             "supersedes_id": None,
+            "executed_on": None,
+            "execution_timezone": None,
         }
     ]
 

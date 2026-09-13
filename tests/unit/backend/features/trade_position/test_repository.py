@@ -67,6 +67,7 @@ async def test_trade_repository_add_maps_domain_to_model() -> None:
     session = _session()
     repo = SqlAlchemyTradeRepository(session)
     trade = _trade()
+    session.scalar.side_effect = [trade.product_id, None]
 
     await repo.add(trade)
 

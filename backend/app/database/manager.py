@@ -1,7 +1,7 @@
 """SQLAlchemy engine and session lifecycle management."""
 
-from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
+from collections.abc import AsyncGenerator, AsyncIterator
+from contextlib import aclosing, asynccontextmanager
 from time import perf_counter
 from typing import Any
 
@@ -90,7 +90,7 @@ class DatabaseManager:
             )
         return self._session_factory
 
-    async def session(self) -> AsyncIterator[AsyncSession]:
+    async def session(self) -> AsyncGenerator[AsyncSession, None]:
         """Yield one transactional session and guarantee cleanup."""
 
         async with self._get_session_factory()() as session:
@@ -104,9 +104,10 @@ class DatabaseManager:
     async def session_context(self) -> AsyncIterator[AsyncSession]:
         """Expose a reusable async context manager around one managed session."""
 
-        async for session in self.session():
-            yield session
-            return
+        async with aclosing(self.session()) as sessions:
+            async for session in sessions:
+                yield session
+                return
 
     async def ping(self) -> None:
         """Verify that the database accepts a simple statement."""

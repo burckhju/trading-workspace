@@ -6,14 +6,14 @@ from datetime import UTC, date, datetime
 from enum import StrEnum
 from uuid import UUID, uuid4
 
-from sqlalchemy import select
+from sqlalchemy import exists, select
 
 from app.database import DatabaseManager
 from app.features.market_data.domain.enums import QualityStatus
 from app.features.market_data.service.contracts import LatestCompletedDailyPriceProvider
 from app.features.market_data.service.types import LatestDailyPriceRequest
 from app.features.position_monitoring.service.subjects import SqlAlchemyMonitoringSubjectReader
-from app.features.trade_position.persistence.models import PositionModel
+from app.features.trade_position.persistence.models import PositionModel, TradeModel
 
 
 class MonitoringHealthStatus(StrEnum):
@@ -58,6 +58,12 @@ class PositionMonitoringHealthService:
             position = await session.scalar(
                 select(PositionModel).where(
                     PositionModel.trade_id == trade_id,
+                    ~exists(
+                        select(1).where(
+                            TradeModel.id == PositionModel.trade_id,
+                            TradeModel.cancelled_at.is_not(None),
+                        )
+                    ),
                     PositionModel.open_quantity > 0,
                     PositionModel.closed_at.is_(None),
                 )

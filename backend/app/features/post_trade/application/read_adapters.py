@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -59,7 +60,7 @@ class SqlAlchemyTradeExitContextReader:
         trade_id: UUID,
     ) -> TradeExitContext | None:
         trade = await self._trades.get(workspace_id, trade_id)
-        if trade is None:
+        if trade is None or trade.cancelled_at is not None:
             return None
 
         position = await self._positions.get_for_trade(
@@ -77,7 +78,12 @@ class SqlAlchemyTradeExitContextReader:
                 execution_id=value.id,
                 quantity=Decimal(value.quantity),
                 price_per_unit=value.price_per_unit,
-                executed_at=value.executed_at,
+                executed_at=(
+                    value.executed_at.astimezone(ZoneInfo(value.execution_timezone))
+                    if value.execution_timezone
+                    else value.executed_at
+                ),
+                executed_on=value.executed_on,
             )
             for value in executions
             if value.side is ExecutionSide.SELL
@@ -93,12 +99,16 @@ class SqlAlchemyTradeExitContextReader:
             for value in management
         )
 
+        final_exit_at = position.closed_at
+        if position.closed_on is not None and exit_executions:
+            final_exit_at = max(exit_executions, key=lambda value: value.executed_at).executed_at
         return TradeExitContext(
             workspace_id=workspace_id,
             trade_id=trade.id,
             product_id=trade.product_id,
             is_fully_closed=position.is_closed,
-            full_exit_at=position.closed_at,
+            full_exit_at=final_exit_at,
+            full_exit_on=position.closed_on,
             realized_gross_pnl=position.realized_gross_pnl,
             executions=exit_executions,
             management_events=management_events,

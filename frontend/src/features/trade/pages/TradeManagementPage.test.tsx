@@ -5,6 +5,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { postTradeApiClient } from '../../post_trade/services/client';
 import { warrantApiClient } from '../../product/services/client';
 import { tradeManagementApiClient } from '../services/client';
+import { localToday } from '../services/capture';
+
 import { TradeManagementPage } from './TradeManagementPage';
 
 vi.mock('../../alert/components/TradeAlertsPanel', () => ({
@@ -24,7 +26,9 @@ vi.mock('../../product/services/client', () => ({
 }));
 
 vi.mock('../services/client', () => ({
+  tradeTimelineChangedEvent: 'trade-timeline-changed',
   tradeManagementApiClient: {
+    timeline: vi.fn(),
     trade: vi.fn(),
     position: vi.fn(),
     managementState: vi.fn(),
@@ -92,6 +96,7 @@ const management = {
 describe('TradeManagementPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    api.timeline.mockResolvedValue([]);
     api.trade.mockResolvedValue(trade);
     api.position.mockResolvedValue(position);
     api.managementState.mockResolvedValue(management);
@@ -148,7 +153,9 @@ describe('TradeManagementPage', () => {
       expect(api.sell).toHaveBeenCalledWith('trade-1', {
         quantity: 4,
         price_per_unit: '2.50',
-        executed_at: undefined,
+        executed_on: localToday(),
+        execution_timezone: expect.any(String),
+        request_id: expect.any(String),
       }),
     );
     await waitFor(() => expect(api.position).toHaveBeenCalledTimes(2));

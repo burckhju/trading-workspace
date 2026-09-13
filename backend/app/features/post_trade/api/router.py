@@ -280,6 +280,7 @@ async def get_observation_evidence(
             ],
             actual_exit=ActualExitResponse(
                 full_exit_at=trade.full_exit_at,
+                full_exit_on=trade.full_exit_on,
                 realized_gross_pnl=trade.realized_gross_pnl,
                 executions=[
                     ExitExecutionResponse(
@@ -287,6 +288,7 @@ async def get_observation_evidence(
                         quantity=item.quantity,
                         price_per_unit=item.price_per_unit,
                         executed_at=item.executed_at,
+                        executed_on=item.executed_on,
                     )
                     for item in trade.executions
                 ],

@@ -8,7 +8,7 @@ export type TradeManagementEventType =
   | 'TARGET_CHANGED'
   | 'THESIS_UPDATED'
   | 'MANAGEMENT_NOTE';
-export type TradeTimelineEntryKind = 'EXECUTION' | 'MANAGEMENT_EVENT';
+export type TradeTimelineEntryKind = 'EXECUTION' | 'MANAGEMENT_EVENT' | 'CANCELLATION';
 export type ProductValuationStatus =
   | 'AVAILABLE'
   | 'INDICATIVE'
@@ -33,6 +33,10 @@ export interface TradeResponse {
   product_selection_id: Uuid | null;
   product_evaluation_id: Uuid | null;
   created_at: IsoDateTime;
+  cancelled_at?: IsoDateTime | null;
+  cancelled_by?: Uuid | null;
+  cancellation_reason?: string | null;
+  duplicate_of_trade_id?: Uuid | null;
 }
 
 export interface ExecutionResponse {
@@ -45,6 +49,8 @@ export interface ExecutionResponse {
   gross_amount: string;
   executed_at: IsoDateTime;
   recorded_at: IsoDateTime;
+  executed_on?: string | null;
+  execution_timezone?: string | null;
 }
 
 export interface PositionResponse {
@@ -59,6 +65,10 @@ export interface PositionResponse {
   last_execution_at: IsoDateTime;
   closed_at: IsoDateTime | null;
   is_closed: boolean;
+  is_cancelled?: boolean;
+  opened_on?: string | null;
+  closed_on?: string | null;
+  last_execution_on?: string | null;
 }
 
 export interface QuoteSourceAttemptResponse {
@@ -127,6 +137,9 @@ export interface InitialPurchaseRequest {
   quantity: number;
   price_per_unit: string;
   executed_at?: IsoDateTime | null;
+  executed_on?: string | null;
+  execution_timezone?: string | null;
+  request_id?: Uuid;
 }
 
 export interface InitialPurchaseResponse {
@@ -146,6 +159,8 @@ export interface TradeManagementEventResponse {
   event_type: TradeManagementEventType;
   effective_at: IsoDateTime;
   recorded_at: IsoDateTime;
+  executed_on?: string | null;
+  execution_timezone?: string | null;
   numeric_value: string | null;
   text_value: string | null;
   supersedes_event_id: Uuid | null;
@@ -165,6 +180,8 @@ export interface TradeTimelineEntryResponse {
   trade_id: Uuid;
   occurred_at: IsoDateTime;
   recorded_at: IsoDateTime;
+  executed_on?: string | null;
+  execution_timezone?: string | null;
   kind: TradeTimelineEntryKind;
   execution_side: ExecutionSide | null;
   management_event_type: TradeManagementEventType | null;
@@ -179,6 +196,9 @@ export interface SaleRequest {
   quantity: number;
   price_per_unit: string;
   executed_at?: IsoDateTime | null;
+  executed_on?: string | null;
+  execution_timezone?: string | null;
+  request_id?: Uuid;
 }
 
 export interface PriceManagementRequest {
@@ -189,4 +209,37 @@ export interface PriceManagementRequest {
 export interface TextManagementRequest {
   text: string;
   effective_at?: IsoDateTime | null;
+}
+
+export interface CancellationPreview {
+  executions?: {
+    id: string;
+    side: string;
+    quantity: number;
+    price_per_unit: string;
+    executed_at: string;
+    executed_on: string | null;
+    execution_timezone: string | null;
+    recorded_at: string;
+  }[];
+  trade_id: Uuid;
+  product_id: Uuid;
+  created_at: string;
+  cancelled_at: string | null;
+  reason: string | null;
+  duplicate_of_trade_id: Uuid | null;
+  open_quantity: number | null;
+  cost_basis: string | null;
+  opened_at: string | null;
+  other_open_trade_ids: Uuid[];
+  blockers: string[];
+  can_cancel: boolean;
+  state_token: string;
+}
+export interface CancellationRequest {
+  expected_product_id: Uuid;
+  expected_state_token: string;
+  reason: string;
+  confirmed: true;
+  duplicate_of_trade_id: Uuid | null;
 }

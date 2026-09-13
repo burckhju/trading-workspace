@@ -2,19 +2,22 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID
 
 from sqlalchemy import (
     CheckConstraint,
+    Date,
     DateTime,
     ForeignKeyConstraint,
+    Index,
     Integer,
     Numeric,
     String,
     UniqueConstraint,
     Uuid,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -24,6 +27,19 @@ from app.database.base import Base
 class TradeModel(Base):
     __tablename__ = "trades"
     __table_args__ = (
+        CheckConstraint(
+            "(cancelled_at IS NULL AND cancelled_by IS NULL AND cancellation_reason "
+            "IS NULL AND duplicate_of_trade_id IS NULL) OR "
+            "(cancelled_at IS NOT NULL AND cancelled_by IS NOT NULL AND "
+            "cancellation_reason IS NOT NULL AND length(trim(cancellation_reason)) > 0)",
+            name="cancellation_consistent",
+        ),
+        ForeignKeyConstraint(
+            ["duplicate_of_trade_id"],
+            ["trades.id"],
+            ondelete="RESTRICT",
+            name="fk_trades_duplicate_of",
+        ),
         CheckConstraint(
             """
             (
@@ -97,10 +113,24 @@ class TradeModel(Base):
     product_selection_id: Mapped[UUID | None] = mapped_column(Uuid(), nullable=True)
     product_evaluation_id: Mapped[UUID | None] = mapped_column(Uuid(), nullable=True)
 
+    cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    cancelled_by: Mapped[UUID | None] = mapped_column(Uuid(), nullable=True)
+    cancellation_reason: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    duplicate_of_trade_id: Mapped[UUID | None] = mapped_column(Uuid(), nullable=True)
+
 
 class ExecutionRecordModel(Base):
     __tablename__ = "execution_records"
     __table_args__ = (
+        UniqueConstraint("request_key", name="uq_execution_records_request_key"),
+        CheckConstraint(
+            "(executed_on IS NULL) = (execution_timezone IS NULL)",
+            name="execution_calendar_consistent",
+        ),
+        CheckConstraint(
+            "(request_key IS NULL) = (request_fingerprint IS NULL)",
+            name="request_identity_consistent",
+        ),
         CheckConstraint(
             "side IN ('BUY', 'SELL')",
             name="side_valid",
@@ -147,6 +177,10 @@ class ExecutionRecordModel(Base):
 
     side: Mapped[str] = mapped_column(String(16), nullable=False)
     supersedes_execution_id: Mapped[UUID | None] = mapped_column(Uuid(), nullable=True)
+    request_key: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    request_fingerprint: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    executed_on: Mapped[date | None] = mapped_column(Date(), nullable=True)
+    execution_timezone: Mapped[str | None] = mapped_column(String(64), nullable=True)
     quantity: Mapped[int] = mapped_column(Integer(), nullable=False)
     price_per_unit: Mapped[Decimal] = mapped_column(
         Numeric(24, 10),
@@ -167,6 +201,9 @@ class ExecutionRecordModel(Base):
 class PositionModel(Base):
     __tablename__ = "positions"
     __table_args__ = (
+        Index(
+            "ix_positions_product_open", "product_id", postgresql_where=text("open_quantity > 0")
+        ),
         CheckConstraint(
             "open_quantity >= 0",
             name="open_quantity_non_negative",
@@ -209,6 +246,9 @@ class PositionModel(Base):
     trade_id: Mapped[UUID] = mapped_column(Uuid(), nullable=False)
     product_id: Mapped[UUID] = mapped_column(Uuid(), nullable=False)
 
+    opened_on: Mapped[date | None] = mapped_column(Date(), nullable=True)
+    last_execution_on: Mapped[date | None] = mapped_column(Date(), nullable=True)
+    closed_on: Mapped[date | None] = mapped_column(Date(), nullable=True)
     open_quantity: Mapped[int] = mapped_column(Integer(), nullable=False)
     cost_basis: Mapped[Decimal] = mapped_column(
         Numeric(30, 10),

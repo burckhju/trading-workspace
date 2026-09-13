@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import { TradeAlertsPanel } from '../../alert/components/TradeAlertsPanel';
@@ -7,6 +7,11 @@ import { postTradeErrorMessage } from '../../post_trade/services/errors';
 import { warrantApiClient } from '../../product/services/client';
 import type { WarrantResponse } from '../../product/types/api';
 import { tradeManagementApiClient } from '../services/client';
+import { TradeCancellationPanel } from '../components/TradeCancellationPanel';
+import { AdditionalPurchasePanel } from '../components/AdditionalPurchasePanel';
+import { TradeTimelinePanel } from '../components/TradeTimelinePanel';
+import { ExecutionDateInput } from '../components/ExecutionDateInput';
+import { captureRequest, executionTime, finishCapture, localToday } from '../services/capture';
 import type { PositionResponse, TradeManagementStateResponse, TradeResponse } from '../types/api';
 
 function formatNumber(value: string): string {
@@ -38,7 +43,9 @@ export function TradeManagementPage() {
   const [management, setManagement] = useState<TradeManagementStateResponse | null>(null);
   const [saleQuantity, setSaleQuantity] = useState('');
   const [salePrice, setSalePrice] = useState('');
-  const [saleExecutedAt, setSaleExecutedAt] = useState('');
+  const [saleDate, setSaleDate] = useState(localToday);
+  const [saleTime, setSaleTime] = useState('');
+  const saleLock = useRef(false);
   const [stopPrice, setStopPrice] = useState('');
   const [targetPrice, setTargetPrice] = useState('');
   const [thesis, setThesis] = useState('');
@@ -88,7 +95,7 @@ export function TradeManagementPage() {
   }
 
   async function mutate(action: () => Promise<unknown>, successMessage: string) {
-    if (!tradeId) return;
+    if (!tradeId || trade?.cancelled_at || busy) return;
     setBusy(true);
     setMessage(null);
     try {
@@ -105,7 +112,7 @@ export function TradeManagementPage() {
   }
 
   async function startPostTradeObservation() {
-    if (!tradeId || !position?.is_closed) return;
+    if (!tradeId || !position?.is_closed || trade?.cancelled_at) return;
 
     setBusy(true);
     setMessage(null);
@@ -121,21 +128,35 @@ export function TradeManagementPage() {
   }
 
   async function submitSale(quantity: number, successMessage: string) {
-    if (!tradeId || !salePrice) return;
-
-    const executedAt = saleExecutedAt ? new Date(saleExecutedAt).toISOString() : undefined;
-    await mutate(
-      () =>
-        tradeManagementApiClient.sell(tradeId, {
-          quantity,
-          price_per_unit: salePrice,
-          executed_at: executedAt,
-        }),
-      successMessage,
-    );
-    setSaleQuantity('');
-    setSalePrice('');
-    setSaleExecutedAt('');
+    if (!tradeId || !salePrice || saleLock.current || trade?.cancelled_at) return;
+    saleLock.current = true;
+    setBusy(true);
+    setMessage(null);
+    const scope = `sale:${tradeId}`;
+    try {
+      const payload = {
+        quantity,
+        price_per_unit: salePrice.trim().replace(',', '.'),
+        ...executionTime(saleDate, saleTime),
+      };
+      await tradeManagementApiClient.sell(tradeId, {
+        ...payload,
+        request_id: captureRequest(scope, payload),
+      });
+      finishCapture(scope);
+      setSaleQuantity('');
+      setSalePrice('');
+      setSaleTime('');
+      await refresh(tradeId);
+      setMessage(successMessage);
+    } catch (error) {
+      setMessage(
+        error instanceof Error ? error.message : 'Verkauf konnte nicht gespeichert werden.',
+      );
+    } finally {
+      saleLock.current = false;
+      setBusy(false);
+    }
   }
 
   async function recordSale(event: FormEvent<HTMLFormElement>) {
@@ -198,7 +219,13 @@ export function TradeManagementPage() {
         <section className="rounded-xl border border-sky-900 bg-sky-950/20 p-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <p className="text-xs uppercase tracking-wide text-sky-400">Aktiver Trade</p>
+              <p className="text-xs uppercase tracking-wide text-sky-400">
+                {trade.cancelled_at
+                  ? 'Stornierter Trade'
+                  : position.is_closed
+                    ? 'Geschlossener Trade'
+                    : 'Aktiver Trade'}
+              </p>
               <h2 className="mt-1 text-xl font-semibold">
                 {tradeReference(trade.id)} · {warrant.display_name}
               </h2>
@@ -208,7 +235,7 @@ export function TradeManagementPage() {
               </p>
             </div>
             <span className="rounded-full border border-sky-800 px-3 py-1 text-xs">
-              {position.is_closed ? 'CLOSED' : 'OPEN'}
+              {trade.cancelled_at ? 'CANCELLED' : position.is_closed ? 'CLOSED' : 'OPEN'}
             </span>
           </div>
           <dl className="mt-5 grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
@@ -226,14 +253,18 @@ export function TradeManagementPage() {
             </div>
             <div>
               <dt className="text-slate-500">Offene Menge</dt>
-              <dd className="mt-1 font-medium">{position.open_quantity}</dd>
+              <dd className="mt-1 font-medium">
+                {trade.cancelled_at ? 'Storniert – kein Bestand' : position.open_quantity}
+              </dd>
             </div>
             <div>
               <dt className="text-slate-500">Nächster Schritt</dt>
               <dd className="mt-1 font-medium">
-                {position.is_closed
-                  ? 'Nachbeobachtung starten'
-                  : 'Alerts prüfen und Stop/Target aktiv managen'}
+                {trade.cancelled_at
+                  ? 'Stornierung und Historie prüfen'
+                  : position.is_closed
+                    ? 'Nachbeobachtung starten'
+                    : 'Alerts prüfen und Stop/Target aktiv managen'}
               </dd>
             </div>
           </dl>
@@ -254,14 +285,14 @@ export function TradeManagementPage() {
         </section>
       )}
 
-      {position && (
+      {position && trade && !trade.cancelled_at && (
         <>
           <section className="rounded-xl border border-slate-800 p-5">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <p className="text-xs uppercase tracking-wide text-slate-500">Position</p>
                 <h2 className="mt-1 text-lg font-semibold">
-                  {position.is_closed ? 'CLOSED' : 'OPEN'}
+                  {trade.cancelled_at ? 'CANCELLED' : position.is_closed ? 'CLOSED' : 'OPEN'}
                 </h2>
               </div>
               <span className="rounded-full border border-slate-700 px-3 py-1 text-xs">
@@ -269,6 +300,10 @@ export function TradeManagementPage() {
               </span>
             </div>
             <dl className="mt-5 grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
+              <div>
+                <dt className="text-slate-500">Kaufdatum / eröffnet</dt>
+                <dd>{position.opened_on ?? formatDateTime(position.opened_at)}</dd>
+              </div>
               <div>
                 <dt className="text-slate-500">Cost Basis</dt>
                 <dd className="mt-1 font-medium">{formatNumber(position.cost_basis)}</dd>
@@ -282,15 +317,25 @@ export function TradeManagementPage() {
                 <dd className="mt-1 font-medium">{formatNumber(position.realized_gross_pnl)}</dd>
               </div>
               <div>
-                <dt className="text-slate-500">Closed at</dt>
-                <dd className="mt-1 font-medium">{formatDateTime(position.closed_at)}</dd>
+                <dt className="text-slate-500">Verkaufsdatum / geschlossen</dt>
+                <dd className="mt-1 font-medium">
+                  {position.closed_on ?? formatDateTime(position.closed_at)}
+                </dd>
               </div>
             </dl>
           </section>
 
           <TradeAlertsPanel tradeId={tradeId} />
+          {!position.is_closed && (
+            <AdditionalPurchasePanel
+              key={trade.id}
+              tradeId={tradeId}
+              onChanged={() => refresh(tradeId)}
+            />
+          )}
 
           <form
+            aria-label="Verkauf erfassen"
             onSubmit={(event) => void recordSale(event)}
             className="rounded-xl border border-slate-800 p-5"
           >
@@ -346,19 +391,13 @@ export function TradeManagementPage() {
                       className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2"
                     />
                   </label>
-                  <label className="text-sm">
-                    <span className="text-slate-400">Ausführungszeit (optional)</span>
-                    <input
-                      aria-label="Ausführungszeit"
-                      type="datetime-local"
-                      value={saleExecutedAt}
-                      onChange={(event) => setSaleExecutedAt(event.target.value)}
-                      className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2"
-                    />
-                    <span className="mt-1 block text-xs text-slate-500">
-                      Leer lassen, wenn die Ausführung jetzt erfasst wird.
-                    </span>
-                  </label>
+                  <ExecutionDateInput
+                    label="Verkaufsdatum"
+                    date={saleDate}
+                    time={saleTime}
+                    onDate={setSaleDate}
+                    onTime={setSaleTime}
+                  />
                 </div>
 
                 <div className="grid gap-3 sm:grid-cols-2">
@@ -389,7 +428,7 @@ export function TradeManagementPage() {
         </>
       )}
 
-      {management && position && (
+      {management && position && !trade?.cancelled_at && (
         <section className="rounded-xl border border-slate-800 p-5">
           <h2 className="text-lg font-semibold">Aktueller Management-Zustand</h2>
           <p className="mt-1 text-xs text-slate-500">
@@ -528,6 +567,15 @@ export function TradeManagementPage() {
           </div>
         </section>
       )}
+      {trade && warrant && (
+        <TradeCancellationPanel
+          key={trade.id}
+          trade={trade}
+          productName={warrant.display_name}
+          onChanged={() => refresh(tradeId)}
+        />
+      )}
+      {trade?.cancelled_at && <TradeTimelinePanel key={`timeline-${tradeId}`} tradeId={tradeId} />}
     </main>
   );
 }
