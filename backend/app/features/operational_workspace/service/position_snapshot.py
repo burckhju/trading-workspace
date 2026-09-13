@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.features.alert.domain.models import AlertStatus
 from app.features.alert.persistence.models import AlertModel
+from app.features.market.persistence.models import UnderlyingModel
 from app.features.position_monitoring.service.health import (
     MonitoringHealthStatus,
     PositionMonitoringHealth,
@@ -60,6 +61,9 @@ class PositionOperationalSnapshot:
     open_alert_types: tuple[str, ...]
     attention_state: str
     target: str
+    product_isin: str | None = None
+    product_wkn: str | None = None
+    underlying_name: str | None = None
     opened_on: date | None = None
     analysis_warning: str | None = None
     quote_source: str | None = None
@@ -90,11 +94,17 @@ class OperationalPositionSnapshotService:
     ) -> tuple[PositionOperationalSnapshot, ...]:
         rows = (
             await self._session.execute(
-                select(PositionModel, TradeModel, WarrantModel)
+                select(PositionModel, TradeModel, WarrantModel, UnderlyingModel.name)
                 .join(TradeModel, TradeModel.id == PositionModel.trade_id)
                 .join(WarrantModel, WarrantModel.id == PositionModel.product_id)
+                .outerjoin(
+                    UnderlyingModel,
+                    (UnderlyingModel.id == WarrantModel.underlying_id)
+                    & (UnderlyingModel.workspace_id == TradeModel.workspace_id),
+                )
                 .where(
                     TradeModel.workspace_id == workspace_id,
+                    WarrantModel.workspace_id == workspace_id,
                     TradeModel.cancelled_at.is_(None),
                     PositionModel.open_quantity > 0,
                     PositionModel.closed_at.is_(None),
@@ -104,7 +114,7 @@ class OperationalPositionSnapshotService:
         ).all()
 
         snapshots: list[PositionOperationalSnapshot] = []
-        for position, trade, warrant in rows:
+        for position, trade, warrant, underlying_name in rows:
             stop_price, target_price = await self._current_stop_target(trade)
             alerts = (
                 await self._session.scalars(
@@ -133,6 +143,9 @@ class OperationalPositionSnapshotService:
                     trade_id=trade.id,
                     position_id=position.id,
                     product_name=warrant.display_name,
+                    product_isin=warrant.isin,
+                    product_wkn=warrant.wkn,
+                    underlying_name=underlying_name,
                     opened_at=position.opened_at,
                     opened_on=position.opened_on,
                     open_quantity=position.open_quantity,

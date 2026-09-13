@@ -26,9 +26,10 @@ test('workspace shows automatic refresh coverage and indicative Frankfurt valuat
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
   });
   await page.goto('/workspace');
-  await expect(page.getByText('462 EUR', { exact: true })).toBeVisible();
+  await expect(page.getByText('462,00 EUR', { exact: true })).toBeVisible();
+  await page.getByRole('button', {name: 'Details',exact:true}).click();
   await expect(page.getByText(/Quelle: FRANKFURT_QUOTES/)).toBeVisible();
-  await expect(page.getByText(/Keine Orderfreigabe/)).toBeVisible();
+  await expect(page.getByText(/Keine Orderfreigabe/).first()).toBeVisible();
   await page.getByText('Automatischer Kursabruf', { exact: true }).click();
   await page.getByRole('button', { name: 'Abrufstatus laden' }).click();
   await expect(page.getByText(/Optionsscheine: alle 5 Min/)).toBeVisible();

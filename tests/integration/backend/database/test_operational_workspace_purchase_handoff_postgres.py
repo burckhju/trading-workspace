@@ -12,6 +12,11 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.features.operational_workspace.service.read_model import OperationalWorkspaceReadModel
+from app.features.trade_plan.api import overview_router
+from app.features.operational_workspace.service.position_snapshot import (
+    OperationalPositionSnapshotService,
+)
+from unittest.mock import AsyncMock
 from app.features.trade_position.persistence.unit_of_work import SqlAlchemyTradePositionUnitOfWork
 from app.features.trade_position.service.application import TradePositionService
 from app.features.trade_position.service.resolvers import SqlAlchemyWorkspaceSelectionResolver
@@ -29,7 +34,9 @@ def _test_database_url() -> str:
 
 
 @pytest.mark.asyncio
-async def test_purchase_consumes_current_selection_and_never_reopens_initial_buy() -> None:
+async def test_purchase_consumes_current_selection_and_never_reopens_initial_buy(
+    monkeypatch,
+) -> None:
     engine = create_async_engine(_test_database_url())
     workspace_id = uuid4()
     underlying_id = uuid4()
@@ -243,6 +250,13 @@ async def test_purchase_consumes_current_selection_and_never_reopens_initial_buy
                 join_transaction_mode="create_savepoint",
             )
             async with session_factory() as session:
+                monkeypatch.setattr(overview_router, "WORKSPACE_ID", workspace_id)
+                (overview,) = await overview_router.list_trade_plans(session=session)
+                assert overview.underlying_name == "Handoff Underlying"
+                assert overview.selected_product.run_id == current_run_id
+                assert overview.selected_product.warrant_id == warrant_id
+                assert overview.selected_product.display_name == "Handoff Warrant"
+                assert overview.selected_product.run_id != old_run_id
                 workspace = OperationalWorkspaceReadModel(session)
                 before = await workspace._initial_purchase_actions(workspace_id)
                 assert [action.resource_id for action in before] == [current_selection_id]
@@ -269,6 +283,15 @@ async def test_purchase_consumes_current_selection_and_never_reopens_initial_buy
                 assert position.open_quantity == 10
                 assert not position.is_closed
 
+                (snapshot,) = await OperationalPositionSnapshotService(
+                    session,
+                    health_reader=AsyncMock(return_value=None),
+                    valuation_reader=AsyncMock(return_value=None),
+                ).list_positions(workspace_id=workspace_id)
+                assert snapshot.product_name == "Handoff Warrant"
+                assert snapshot.underlying_name == "Handoff Underlying"
+                assert snapshot.product_isin is None and snapshot.product_wkn is None
+
                 after_buy = await workspace._initial_purchase_actions(workspace_id)
                 assert after_buy == []
                 open_actions = await workspace._open_position_actions(workspace_id)
@@ -292,6 +315,26 @@ async def test_purchase_consumes_current_selection_and_never_reopens_initial_buy
 
                 after_close = await workspace._initial_purchase_actions(workspace_id)
                 assert after_close == []
+                # A new plan version must not inherit the previous version's selection.
+                new_version_id = uuid4()
+                await session.execute(
+                    text(
+                        "INSERT INTO trade_plan_versions "
+                        "(id, trade_plan_id, version, direction, thesis, entry_type, entry_currency, "
+                        "entry_price, risk_thesis, status, created_at, created_by) VALUES "
+                        "(:id, :plan, 2, 'LONG', 'New version', 'PRICE', :currency, "
+                        "100, 'risk', 'APPROVED', :now, 'test')"
+                    ),
+                    {
+                        "id": new_version_id,
+                        "plan": trade_plan_id,
+                        "currency": currency_code,
+                        "now": now,
+                    },
+                )
+                (new_overview,) = await overview_router.list_trade_plans(session=session)
+                assert new_overview.latest_version_id == new_version_id
+                assert new_overview.selected_product is None
         finally:
             await outer_transaction.rollback()
     await engine.dispose()

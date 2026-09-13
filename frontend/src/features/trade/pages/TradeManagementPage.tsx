@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useRef, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 
 import { TradeAlertsPanel } from '../../alert/components/TradeAlertsPanel';
 import { postTradeApiClient } from '../../post_trade/services/client';
@@ -35,6 +35,7 @@ function tradePlanReference(id: string): string {
 
 export function TradeManagementPage() {
   const navigate = useNavigate();
+  const { hash } = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const [lookupId, setLookupId] = useState(searchParams.get('trade_id') ?? '');
   const [tradeId, setTradeId] = useState(searchParams.get('trade_id') ?? '');
@@ -86,6 +87,13 @@ export function TradeManagementPage() {
       });
     return () => controller.abort();
   }, [tradeId]);
+
+  useEffect(() => {
+    if (!trade || !position || !['#sale-capture', '#execution-dates'].includes(hash)) return;
+    const target = document.getElementById(hash.slice(1));
+    target?.scrollIntoView?.({ block: 'start' });
+    target?.focus({ preventScroll: true });
+  }, [hash, trade, position]);
 
   function lookupTrade(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -345,6 +353,8 @@ export function TradeManagementPage() {
           )}
 
           <form
+            id="sale-capture"
+            tabIndex={-1}
             aria-label="Verkauf erfassen"
             onSubmit={(event) => void recordSale(event)}
             className="rounded-xl border border-slate-800 p-5"

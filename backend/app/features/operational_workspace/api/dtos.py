@@ -50,6 +50,9 @@ class OperationalPositionResponse(BaseModel):
     attention_state: str
     target: str
 
+    product_isin: str | None = None
+    product_wkn: str | None = None
+    underlying_name: str | None = None
     opened_on: date | None = None
     analysis_warning: str | None = None
     quote_source: str | None = None

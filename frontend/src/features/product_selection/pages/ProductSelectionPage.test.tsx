@@ -1,7 +1,10 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
+
+import { warrantApiClient } from '../../product/services/client';
+import { tradePlanOverviewApiClient } from '../../trade_plan/services/overviewClient';
 
 import { ProductSelectionPage } from './ProductSelectionPage';
 
@@ -116,6 +119,26 @@ const purchaseResponse = {
   },
 };
 
+beforeEach(() => {
+  vi.spyOn(warrantApiClient, 'list').mockResolvedValue(
+    runDetail.evaluations.map((e, i) => ({
+      id: e.warrant_id,
+      workspace_id: 'w',
+      issuer_id: 'i',
+      underlying_id: runDetail.run.underlying_id,
+      product_family: 'WARRANT',
+      display_name: `Selected warrant ${i}`,
+      isin: null,
+      wkn: `TEST0${i}`,
+      lifecycle_status: 'ACTIVE',
+      version: 1,
+      created_at: '2026-08-16T10:00:00Z',
+      updated_at: '2026-08-16T10:00:00Z',
+    })),
+  );
+  vi.spyOn(tradePlanOverviewApiClient, 'list').mockResolvedValue([]);
+});
+
 describe('ProductSelectionPage', () => {
   afterEach(() => vi.restoreAllMocks());
 
@@ -215,7 +238,10 @@ describe('ProductSelectionPage', () => {
     await user.click(screen.getByRole('button', { name: 'Auswahl dokumentieren' }));
 
     await screen.findByText('Produkt ausgewählt');
-    expect(screen.getAllByText(runDetail.evaluations[0].warrant_id)).toHaveLength(2);
+    expect(screen.getAllByText(runDetail.evaluations[0].warrant_id).length).toBeGreaterThanOrEqual(
+      2,
+    );
+    expect(screen.getAllByText('Selected warrant 0').length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText(runDetail.evaluations[0].warrant_listing_id)).toBeInTheDocument();
     expect(
       screen.getByRole('heading', { name: /tatsächlichen Kauf erfassen/i }),

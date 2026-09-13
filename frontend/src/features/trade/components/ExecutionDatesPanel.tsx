@@ -131,6 +131,8 @@ export function ExecutionDatesPanel({
 
   return (
     <section
+      id="execution-dates"
+      tabIndex={-1}
       aria-label="Kauf- und Verkaufsdaten"
       className="rounded-xl border border-slate-800 p-5"
     >

@@ -9,7 +9,7 @@ export function ApplicationLayout() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
       <header className="border-b border-slate-800 bg-slate-950/95">
-        <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between px-6">
+        <div className="mx-auto flex min-h-16 max-w-[1600px] flex-col gap-3 py-3 md:flex-row items-center justify-between px-6">
           <NavLink
             to="/underlyings"
             className="rounded-lg text-lg font-semibold tracking-tight focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
@@ -50,7 +50,7 @@ export function ApplicationLayout() {
           </nav>
         </div>
       </header>
-      <main className="mx-auto flex max-w-7xl px-6 py-10">
+      <main className="mx-auto flex min-w-0 max-w-[1600px] px-3 py-6 sm:px-6 sm:py-10">
         <Outlet />
       </main>
     </div>

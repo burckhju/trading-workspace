@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 
+import { loadPositionSignals } from '../services/loadPositionSignals';
 import { operationalWorkspaceApiClient } from '../services/client';
 import type { OperationalAction, OperationalPosition, OperationalPriority } from '../types';
 import { MarketDataRefreshPanel } from './MarketDataRefreshPanel';
@@ -55,48 +56,61 @@ export function OperationalWorkspacePage() {
   const [actions, setActions] = useState<OperationalAction[]>([]);
   const [positions, setPositions] = useState<OperationalPosition[]>([]);
   const [loading, setLoading] = useState(true);
+  const [signalsLoading, setSignalsLoading] = useState(false);
+  const activeLoad = useRef<AbortController | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [generatedAt, setGeneratedAt] = useState<string | null>(null);
 
   const load = useCallback(async (signal?: AbortSignal) => {
+    activeLoad.current?.abort();
+    const controller = new AbortController();
+    activeLoad.current = controller;
+    if (signal?.aborted) controller.abort();
+    signal?.addEventListener('abort', () => controller.abort(), { once: true });
+    const currentSignal = controller.signal;
     setLoading(true);
+    setSignalsLoading(false);
     setError(null);
     try {
       const [actionResponse, positionResponse] = await Promise.all([
-        operationalWorkspaceApiClient.getActions(signal),
-        operationalWorkspaceApiClient.getPositions(signal),
+        operationalWorkspaceApiClient.getActions(currentSignal),
+        operationalWorkspaceApiClient.getPositions(currentSignal),
       ]);
-      const positionsWithSignals = await Promise.all(
-        positionResponse.positions.map(async (position) => {
-          try {
-            const positionSignal = await operationalWorkspaceApiClient.getPositionAlertProjection(
-              position.trade_id,
-              signal,
-            );
-            return { ...position, position_signal: positionSignal };
-          } catch (caught) {
-            if (caught instanceof DOMException && caught.name === 'AbortError') throw caught;
-            return { ...position, position_signal: null };
-          }
-        }),
-      );
+      if (currentSignal.aborted) return;
       setActions(actionResponse.actions);
-      setPositions(positionsWithSignals);
-      setGeneratedAt(actionResponse.generated_at);
+      setPositions(positionResponse.positions);
+      setGeneratedAt(positionResponse.generated_at);
+      setLoading(false);
+      setSignalsLoading(positionResponse.positions.length > 0);
+      await loadPositionSignals(
+        positionResponse.positions,
+        operationalWorkspaceApiClient.getPositionAlertProjection,
+        (id, result) =>
+          setPositions((current) =>
+            current.map((p) => (p.position_id === id ? { ...p, position_signal: result } : p)),
+          ),
+        currentSignal,
+      );
     } catch (caught) {
-      if (caught instanceof DOMException && caught.name === 'AbortError') return;
+      if (currentSignal.aborted) return;
       setError(
         caught instanceof Error ? caught.message : 'Arbeitsbereich konnte nicht geladen werden.',
       );
     } finally {
-      if (!signal?.aborted) setLoading(false);
+      if (!currentSignal.aborted) {
+        setLoading(false);
+        setSignalsLoading(false);
+      }
     }
   }, []);
 
   useEffect(() => {
     const controller = new AbortController();
     void load(controller.signal);
-    return () => controller.abort();
+    return () => {
+      controller.abort();
+      activeLoad.current?.abort();
+    };
   }, [load]);
 
   const grouped = useMemo(
@@ -111,7 +125,7 @@ export function OperationalWorkspacePage() {
   );
 
   return (
-    <section className="w-full space-y-8">
+    <section className="min-w-0 w-full space-y-8">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-sm font-medium text-slate-400">Operativer Arbeitsbereich</p>
@@ -148,7 +162,9 @@ export function OperationalWorkspacePage() {
       )}
 
       <MarketDataRefreshPanel />
-      {!error && !loading && <OpenPositionsPanel positions={positions} />}
+      {!error && !loading && (
+        <OpenPositionsPanel positions={positions} signalsLoading={signalsLoading} />
+      )}
 
       {!error && !loading && actions.length === 0 && (
         <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-8 text-center">

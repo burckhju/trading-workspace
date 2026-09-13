@@ -43,6 +43,9 @@ export interface OperationalPosition {
   trade_id: string;
   position_id: string;
   product_name: string;
+  product_isin?: string | null;
+  product_wkn?: string | null;
+  underlying_name?: string | null;
   opened_at: string;
   opened_on?: string | null;
   open_quantity: number;
