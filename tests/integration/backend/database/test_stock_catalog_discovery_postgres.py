@@ -1,5 +1,6 @@
 """Scheduled official discovery -> audited mapping -> persisted EOD with real DB guards."""
 
+import asyncio
 import json
 from contextlib import asynccontextmanager
 from dataclasses import replace
@@ -24,7 +25,9 @@ from app.providers.eodhd.persistence import SqlAlchemyListingCurrencyReader, Sql
 
 
 @pytest.mark.asyncio
-async def test_scheduler_bootstraps_several_venues_imports_eod_and_preserves_disabled_mapping():
+async def test_scheduler_bootstraps_several_venues_imports_eod_and_preserves_disabled_mapping(
+    monkeypatch,
+):
     engine = create_async_engine(_test_database_url())
     workspace = uuid4()
     now = datetime.now(UTC)
@@ -133,6 +136,10 @@ async def test_scheduler_bootstraps_several_venues_imports_eod_and_preserves_dis
                 database = SimpleNamespace(session_context=session_context)
                 adapter, client, _ = make_adapter()
                 adapter._clock.now = now
+                # This test qualifies DB orchestration. Limiter/quota behavior has
+                # dedicated unit tests; the helper's zero-yield fake sleeper can
+                # stall at sub-ULP refill delays after several transport calls.
+                monkeypatch.setattr(type(adapter._rate_limiter), "acquire", AsyncMock())
                 adapter._mappings = SqlAlchemyMappingReader(database)
                 adapter._currencies = SqlAlchemyListingCurrencyReader(database)
                 client.get_json = AsyncMock(side_effect=lambda path, **_: payloads[path])
@@ -147,7 +154,7 @@ async def test_scheduler_bootstraps_several_venues_imports_eod_and_preserves_dis
                 )
                 runtime = MarketDataRefreshRuntime(container)
                 runtime._pace = AsyncMock()
-                await runtime.run_once()
+                await asyncio.wait_for(runtime.run_once(), timeout=30)
                 assert runtime.last_error is None
                 assert all(
                     job["status"] == "AVAILABLE" for job in runtime.jobs.values()
@@ -195,7 +202,7 @@ async def test_scheduler_bootstraps_several_venues_imports_eod_and_preserves_dis
                     {"id": mappings[0].id},
                 )
                 runtime._due.clear()
-                await runtime.run_once()
+                await asyncio.wait_for(runtime.run_once(), timeout=30)
                 assert client.get_json.await_count == calls
                 assert (
                     await connection.scalar(
