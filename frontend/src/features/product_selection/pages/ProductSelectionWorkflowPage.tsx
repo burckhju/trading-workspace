@@ -27,14 +27,27 @@ export function ProductSelectionWorkflowPage() {
   useEffect(() => {
     if (hasContext) return;
     const controller = new AbortController();
+    setLoading(true);
+    setMessage(null);
+    setPlans([]);
+    setUnderlyings({});
 
     async function load() {
       try {
         const items = await tradePlanOverviewApiClient.list(controller.signal);
         const approved = items.filter((item) => item.status === 'APPROVED');
+        if (controller.signal.aborted) return;
         setPlans(approved);
 
-        const uniqueUnderlyingIds = [...new Set(approved.map((item) => item.underlying_id))];
+        // New overview responses already resolve labels in one set-based query.
+        // Keep a deduplicated fallback for installations still serving the older API.
+        const uniqueUnderlyingIds = [
+          ...new Set(
+            approved
+              .filter((item) => item.underlying_name === undefined)
+              .map((item) => item.underlying_id),
+          ),
+        ];
         const resolved = await Promise.all(
           uniqueUnderlyingIds.map(async (id) => {
             try {
@@ -44,6 +57,7 @@ export function ProductSelectionWorkflowPage() {
             }
           }),
         );
+        if (controller.signal.aborted) return;
         setUnderlyings(
           Object.fromEntries(
             resolved.filter(
@@ -73,7 +87,7 @@ export function ProductSelectionWorkflowPage() {
     [plans],
   );
 
-  if (hasContext) return <ProductSelectionPage />;
+  if (hasContext) return <ProductSelectionPage key={searchParams.toString()} />;
 
   return (
     <main className="w-full space-y-6">
@@ -115,9 +129,11 @@ export function ProductSelectionWorkflowPage() {
           const underlying = underlyings[plan.underlying_id];
           const identifiers = [
             underlying?.primary_listing?.ticker,
-            underlying?.isin,
-            underlying?.wkn,
+            plan.underlying_isin ?? underlying?.isin,
+            plan.underlying_wkn ?? underlying?.wkn,
           ].filter(Boolean);
+          const selectedProduct = plan.selected_product;
+          const underlyingName = plan.underlying_name ?? underlying?.name;
           const target = new URLSearchParams({
             trade_plan_id: plan.id,
             trade_plan_version_id: plan.latest_version_id,
@@ -129,7 +145,15 @@ export function ProductSelectionWorkflowPage() {
                   <p className="text-xs uppercase tracking-wide text-slate-500">
                     {tradePlanReference(plan.id)}
                   </p>
-                  <h2 className="mt-1 text-lg font-semibold">{underlying?.name ?? 'Basiswert'}</h2>
+                  <h2 className="mt-1 break-words text-lg font-semibold">
+                    {selectedProduct
+                      ? selectedProduct.display_name || 'Produktname nicht verfügbar'
+                      : underlyingName ||
+                        (loading ? 'Basiswert wird geladen …' : 'Basiswertname nicht verfügbar')}
+                  </h2>
+                  <p className="mt-1 text-sm text-slate-400">
+                    Basiswert: {underlyingName || 'Name nicht verfügbar'}
+                  </p>
                   <p className="mt-1 text-sm text-slate-400">
                     {identifiers.join(' · ') || 'Keine sichtbaren Kennungen'}
                   </p>
@@ -137,6 +161,27 @@ export function ProductSelectionWorkflowPage() {
                 <span className="rounded-full border border-emerald-800 px-3 py-1 text-xs text-emerald-300">
                   APPROVED
                 </span>
+              </div>
+
+              <div className="mt-3 rounded-lg border border-slate-800 p-3 text-sm">
+                {selectedProduct ? (
+                  <>
+                    <p className="text-slate-300">Zuletzt ausgewähltes Produkt dieser Version</p>
+                    <p className="mt-1 break-words text-slate-400">
+                      WKN {selectedProduct.wkn ?? 'nicht hinterlegt'} · ISIN{' '}
+                      {selectedProduct.isin ?? 'nicht hinterlegt'}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Bezeichnung aus aktuellen Stammdaten
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-slate-400">
+                    {plan.selected_product === undefined
+                      ? 'Produktauswahl-Status nicht verfügbar – Bewertungslauf öffnen.'
+                      : 'Für diese Version wurde noch kein Produkt ausgewählt.'}
+                  </p>
+                )}
               </div>
 
               <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
@@ -151,6 +196,14 @@ export function ProductSelectionWorkflowPage() {
               </dl>
 
               <div className="mt-5 flex flex-wrap gap-3">
+                {selectedProduct && (
+                  <Link
+                    to={`/product-selection?run_id=${encodeURIComponent(selectedProduct.run_id)}`}
+                    className="rounded-lg border border-sky-700 px-4 py-2 text-sm"
+                  >
+                    Ausgewähltes Produkt öffnen
+                  </Link>
+                )}
                 <Link
                   to={`/product-selection?${target.toString()}`}
                   className="rounded-lg border border-emerald-700 px-4 py-2 text-sm"
