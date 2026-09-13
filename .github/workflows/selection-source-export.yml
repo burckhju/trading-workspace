@@ -1,0 +1,25 @@
+name: Selection source export
+on:
+  push:
+    branches: [fix/selection-german-guidance]
+    paths: [.github/workflows/selection-source-export.yml]
+permissions:
+  contents: read
+jobs:
+  source:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Export only tracked source at verified base
+        run: |
+          mkdir -p /tmp/selection-source
+          git archive HEAD > /tmp/selection-source/source.tar
+          git rev-parse HEAD > /tmp/selection-source/commit.txt
+          git rev-parse HEAD^{tree} > /tmp/selection-source/tree.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: selection-diagnostics-source
+          path: /tmp/selection-source
+          retention-days: 1
