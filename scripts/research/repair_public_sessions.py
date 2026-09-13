@@ -1,11 +1,23 @@
-"""Targeted, read-only repair attempts. Missing observations are never interpolated."""
+"""Targeted public-history repairs. Never interpolate absent prices.
+
+Hourly fallback is evidence for a separate, locally reviewed session aggregation,
+not automatically a certified daily bar or an official closing-auction price.
+"""
 from pathlib import Path
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 import json
 import sys
 import time
 from collect_public_history import chart_url, fetch, write_json, digest
+
+
+def complete_observation_on(payload, day, zone):
+    result = json.loads(payload)['chart']['result'][0]
+    quote = result['indicators']['quote'][0]
+    return any(datetime.fromtimestamp(ts, zone).date() == day and
+               all(quote[k][i] is not None for k in ['open','high','low','close'])
+               for i, ts in enumerate(result['timestamp']))
 
 
 def main():
@@ -26,36 +38,38 @@ def main():
             day = datetime.fromtimestamp(timestamp, zone).date()
             if day.isoformat() > manifest['end']:
                 continue
-            if all(quote[k][i] is not None for k in ['open', 'high', 'low', 'close']):
+            if all(quote[k][i] is not None for k in ['open','high','low','close']):
                 continue
             start = (day - timedelta(days=1)).isoformat()
             end = min((day + timedelta(days=1)).isoformat(), manifest['end'])
             path = root / 'repairs' / symbol / (day.isoformat() + '.json')
-            result_record = fetch(chart_url(symbol, start, end), path, 'yahoo', symbol)
-            result_record['missing_date'] = day.isoformat()
-            result_record['original_raw_sha256'] = rec['sha256']
-            result_record['repair_verified'] = False
-            if result_record['status'] == 'FETCHED':
-                new = json.loads(path.read_bytes())['chart']['result'][0]
-                nq = new['indicators']['quote'][0]
-                for j, ts in enumerate(new['timestamp']):
-                    observed = datetime.fromtimestamp(ts, zone).date()
-                    if observed == day and all(nq[k][j] is not None for k in ['open', 'high', 'low', 'close']):
-                        result_record['repair_verified'] = True
-            records.append(result_record)
+            record = fetch(chart_url(symbol, start, end), path, 'yahoo', symbol)
+            record.update(missing_date=day.isoformat(), original_raw_sha256=rec['sha256'], repair_verified=False)
+            if record['status'] == 'FETCHED':
+                record['repair_verified'] = complete_observation_on(path.read_bytes(), day, zone)
+            if not record['repair_verified']:
+                hourly_path = root / 'intraday' / symbol / (day.isoformat() + '.json')
+                url = chart_url(symbol, day.isoformat(), day.isoformat()).replace('interval=1d', 'interval=60m') + '&includePrePost=false'
+                hourly = fetch(url, hourly_path, 'yahoo', symbol)
+                hourly['contains_missing_day'] = hourly['status'] == 'FETCHED' and complete_observation_on(hourly_path.read_bytes(), day, zone)
+                hourly['aggregation_review_required'] = True
+                record['intraday_attempt'] = hourly
+                time.sleep(1)
+            records.append(record)
             write_json(root / 'repair_manifest.json', records)
-            print(symbol, day, result_record['status'], 'actual_missing_day_present=', result_record['repair_verified'], flush=True)
+            print(symbol, day, 'daily_repaired=', record['repair_verified'], 'hourly_day_available=', record.get('intraday_attempt', {}).get('contains_missing_day'), flush=True)
             time.sleep(1)
-    # Public child-company data only. Entitlement/valuation decisions remain local.
     children = []
-    for symbol in ['HONA', 'MBGL']:
+    for symbol in ['HONA','MBGL']:
         path = root / 'children' / (symbol + '.json')
         rec = fetch(chart_url(symbol, '2026-06-01', manifest['end']), path, 'yahoo', symbol)
         children.append(rec)
         time.sleep(1)
     write_json(root / 'child_manifest.json', children)
-    print(json.dumps({'null_session_requests': len(records), 'actual_repairs_obtained': sum(r['repair_verified'] for r in records)}))
-    return 0 if all(r['repair_verified'] for r in records) else 2
+    daily = sum(r['repair_verified'] for r in records)
+    hourly = sum(r.get('intraday_attempt', {}).get('contains_missing_day', False) for r in records)
+    print(json.dumps({'null_session_requests':len(records), 'daily_repairs':daily, 'hourly_evidence':hourly}))
+    return 0 if daily == len(records) else 2
 
 
 if __name__ == '__main__':
