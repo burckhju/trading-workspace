@@ -1,7 +1,9 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 
+import { warrantApiClient } from '../../product/services/client';
+import { tradePlanOverviewApiClient } from '../../trade_plan/services/overviewClient';
 import { ProductSelectionPage } from './ProductSelectionPage';
 
 const runDetail = {
@@ -46,6 +48,10 @@ function requestUrl(value: RequestInfo | URL | undefined): string {
 }
 
 describe('ProductSelectionPage run deep link', () => {
+  beforeEach(() => {
+    vi.spyOn(warrantApiClient, 'list').mockResolvedValue([]);
+    vi.spyOn(tradePlanOverviewApiClient, 'list').mockResolvedValue([]);
+  });
   afterEach(() => vi.restoreAllMocks());
 
   it('loads the exact run and hydrates its plan context from run_id', async () => {

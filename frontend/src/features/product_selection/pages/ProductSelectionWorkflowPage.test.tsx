@@ -85,3 +85,55 @@ describe('ProductSelectionWorkflowPage', () => {
     );
   });
 });
+
+it('uses the exact selected product name with WKN/ISIN, not the plan reference or underlying as product', async () => {
+  const plan = {
+    ...approvedPlan,
+    underlying_name: 'DAX',
+    underlying_isin: 'DE0008469008',
+    underlying_wkn: '846900',
+    selected_product: {
+      run_id: 'selected-run',
+      product_evaluation_id: 'evaluation',
+      warrant_id: 'warrant',
+      display_name: 'Selected DAX Call',
+      wkn: 'DX1234',
+      isin: 'DE000DX12345',
+    },
+  };
+  const fetchMock = vi
+    .spyOn(globalThis, 'fetch')
+    .mockResolvedValue(new Response(JSON.stringify([plan]), { status: 200 }));
+  render(
+    <MemoryRouter>
+      <ProductSelectionWorkflowPage />
+    </MemoryRouter>,
+  );
+  expect(await screen.findByRole('heading', { name: 'Selected DAX Call' })).toBeInTheDocument();
+  expect(screen.getByText(/WKN DX1234/)).toHaveTextContent('DE000DX12345');
+  expect(screen.getByText('Basiswert: DAX')).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: 'Ausgewähltes Produkt öffnen' })).toHaveAttribute(
+    'href',
+    '/product-selection?run_id=selected-run',
+  );
+  expect(fetchMock).toHaveBeenCalledTimes(1);
+});
+it('shows explicit no-selection for the current version and never inherits another product', async () => {
+  vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+    new Response(
+      JSON.stringify([{ ...approvedPlan, underlying_name: 'DAX', selected_product: null }]),
+      { status: 200 },
+    ),
+  );
+  render(
+    <MemoryRouter>
+      <ProductSelectionWorkflowPage />
+    </MemoryRouter>,
+  );
+  expect(
+    await screen.findByText('Für diese Version wurde noch kein Produkt ausgewählt.'),
+  ).toBeInTheDocument();
+  expect(
+    screen.queryByRole('link', { name: 'Ausgewähltes Produkt öffnen' }),
+  ).not.toBeInTheDocument();
+});

@@ -62,12 +62,12 @@ async def test_composes_alert_first_snapshot_with_plan_rules_and_current_valuati
         realized_gross_pnl=Decimal("1.50"),
     )
     trade = SimpleNamespace(id=trade_id, trade_plan_version_id=plan_version_id)
-    warrant = SimpleNamespace(display_name="Test Warrant")
+    warrant = SimpleNamespace(display_name="Test Warrant", isin="DE000TEST1234", wkn="TEST12")
     alert = SimpleNamespace(alert_type="STOP_REACHED")
     plan_version = SimpleNamespace(id=plan_version_id, stop_price=Decimal("19000"))
 
     session = AsyncMock(spec=AsyncSession)
-    session.execute.return_value = _Rows([(position, trade, warrant)])
+    session.execute.return_value = _Rows([(position, trade, warrant, "Test Underlying")])
     session.scalars.return_value = _Rows([alert])
     session.scalar.side_effect = [plan_version, Decimal("20500")]
 
@@ -104,6 +104,9 @@ async def test_composes_alert_first_snapshot_with_plan_rules_and_current_valuati
 
     assert len(result) == 1
     item = result[0]
+    assert item.product_isin == "DE000TEST1234"
+    assert item.product_wkn == "TEST12"
+    assert item.underlying_name == "Test Underlying"
     assert item.trade_id == trade_id
     assert item.stop_price == Decimal("19000")
     assert item.target_price == Decimal("20500")
@@ -136,10 +139,10 @@ async def test_fails_closed_for_unhealthy_or_missing_snapshot_reads(monkeypatch)
         realized_gross_pnl=Decimal("0"),
     )
     trade = SimpleNamespace(id=trade_id, trade_plan_version_id=None)
-    warrant = SimpleNamespace(display_name="External Warrant")
+    warrant = SimpleNamespace(display_name="External Warrant", isin=None, wkn=None)
 
     session = AsyncMock(spec=AsyncSession)
-    session.execute.return_value = _Rows([(position, trade, warrant)])
+    session.execute.return_value = _Rows([(position, trade, warrant, "Test Underlying")])
     session.scalars.return_value = _Rows([])
 
     async def health_reader(_trade_id):
@@ -222,7 +225,8 @@ async def test_workspace_shows_frankfurt_analysis_values_with_warning_and_proven
             (
                 position,
                 SimpleNamespace(id=trade_id, trade_plan_version_id=None),
-                SimpleNamespace(display_name="BNP Call"),
+                SimpleNamespace(display_name="BNP Call", isin=None, wkn=None),
+                None,
             )
         ]
     )

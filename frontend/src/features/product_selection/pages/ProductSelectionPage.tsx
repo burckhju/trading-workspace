@@ -11,6 +11,8 @@ import {
 import { MarketApiError } from '../../market/services/http';
 import { tradeManagementApiClient } from '../../trade/services/client';
 import type { InitialPurchaseResponse } from '../../trade/types/api';
+import { SelectionProductIdentity } from '../components/SelectionProductIdentity';
+import { useSelectionReferenceData } from '../services/useSelectionReferenceData';
 import { productSelectionApiClient } from '../services/client';
 import type {
   CriterionResultResponse,
@@ -48,7 +50,9 @@ function EvaluationCard({
   selected,
   disabled,
   onChoose,
+  references,
 }: {
+  references: ReturnType<typeof useSelectionReferenceData>;
   evaluation: ProductEvaluationResponse;
   selected: boolean;
   disabled: boolean;
@@ -66,11 +70,17 @@ function EvaluationCard({
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-xs uppercase tracking-wide text-slate-500">Warrant</p>
-          <h3 className="mt-1 break-all font-semibold">{evaluation.warrant_id}</h3>
-          <p className="mt-1 break-all text-xs text-slate-500">
-            Listing {evaluation.warrant_listing_id}
-          </p>
+          <p className="text-xs uppercase tracking-wide text-slate-500">Produkt</p>
+          <SelectionProductIdentity
+            productId={evaluation.warrant_id}
+            product={references.products[evaluation.warrant_id]}
+            loading={references.loading}
+            heading
+          />
+          <details className="mt-2 text-xs text-slate-500">
+            <summary className="cursor-pointer">Technische Listing-ID</summary>
+            <p className="mt-1 break-all">Listing {evaluation.warrant_listing_id}</p>
+          </details>
         </div>
         <span
           className={`rounded-full border px-3 py-1 text-xs ${eligibilityClass(
@@ -189,6 +199,7 @@ function EvaluationCard({
 }
 
 export function ProductSelectionPage() {
+  const references = useSelectionReferenceData();
   const [searchParams] = useSearchParams();
   const initialTradePlanId = searchParams.get('trade_plan_id') ?? '';
   const initialVersionId = searchParams.get('trade_plan_version_id') ?? '';
@@ -401,6 +412,18 @@ export function ProductSelectionPage() {
       </div>
 
       {message && <p className="rounded-lg border border-slate-700 p-3 text-sm">{message}</p>}
+      <p className="text-xs text-slate-500">
+        Produktnamen, WKN, ISIN und Basiswertnamen stammen aus den aktuellen Stammdaten. Die
+        historische Bewertung und die dokumentierte Produktauswahl bleiben unverändert.
+      </p>
+      {references.errors.length > 0 && (
+        <div role="status" className="rounded-lg border border-amber-800 p-3 text-sm">
+          <p>{references.errors.join(' ')} Technische IDs bleiben zur Prüfung sichtbar.</p>
+          <button type="button" onClick={references.reload} className="mt-2 underline">
+            Bezeichnungen erneut laden
+          </button>
+        </div>
+      )}
 
       <div className="grid gap-8 xl:grid-cols-[21rem_1fr]">
         <aside className="space-y-5">
@@ -412,6 +435,15 @@ export function ProductSelectionPage() {
             <p className="mt-1 text-xs text-slate-500">
               Nur APPROVED TradePlanVersionen sind zulässig.
             </p>
+            {tradePlanId.trim() && (
+              <p className="mt-3 break-words font-medium">
+                TradePlan für{' '}
+                {references.plans[tradePlanId.trim()]?.underlying_name ||
+                  (references.loading
+                    ? 'Basiswert wird geladen …'
+                    : 'Basiswertname nicht verfügbar')}
+              </p>
+            )}
             <label className="mt-4 block text-sm">
               <span className="text-slate-400">TradePlan-ID</span>
               <input
@@ -482,6 +514,11 @@ export function ProductSelectionPage() {
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div>
                     <p className="text-xs uppercase tracking-wide text-slate-500">Selection Run</p>
+                    <p className="mt-1 break-words font-semibold">
+                      Basiswert:{' '}
+                      {references.plans[detail.run.trade_plan_id]?.underlying_name ||
+                        (references.loading ? 'wird geladen …' : 'Name nicht verfügbar')}
+                    </p>
                     <h2 className="mt-1 text-lg font-semibold">
                       {new Date(detail.run.evaluated_at).toLocaleString('de-DE')}
                     </h2>
@@ -526,8 +563,14 @@ export function ProductSelectionPage() {
                   {selectedEvaluation && (
                     <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
                       <div>
-                        <dt className="text-slate-500">Warrant</dt>
-                        <dd className="break-all">{selectedEvaluation.warrant_id}</dd>
+                        <dt className="text-slate-500">Ausgewähltes Produkt</dt>
+                        <dd>
+                          <SelectionProductIdentity
+                            productId={selectedEvaluation.warrant_id}
+                            product={references.products[selectedEvaluation.warrant_id]}
+                            loading={references.loading}
+                          />
+                        </dd>
                       </div>
                       <div>
                         <dt className="text-slate-500">Listing</dt>
@@ -553,6 +596,13 @@ export function ProductSelectionPage() {
                       className="mt-5 rounded-lg border border-slate-700 bg-slate-950/50 p-4"
                     >
                       <h3 className="font-medium">Nächster Schritt: tatsächlichen Kauf erfassen</h3>
+                      {selectedEvaluation && (
+                        <p className="mt-2 break-words text-sm font-medium">
+                          Kauf für:{' '}
+                          {references.products[selectedEvaluation.warrant_id]?.display_name ||
+                            'Produktname nicht verfügbar'}
+                        </p>
+                      )}
                       {existingTradeId && (
                         <p role="alert">
                           Offener Trade vorhanden.{' '}
@@ -678,7 +728,11 @@ export function ProductSelectionPage() {
                       >
                         <span className="font-medium">{item.reason}</span>
                         <p className="mt-1 text-slate-400">{item.explanation}</p>
-                        <p className="mt-1 break-all text-xs text-slate-500">{item.warrant_id}</p>
+                        <SelectionProductIdentity
+                          productId={item.warrant_id}
+                          product={references.products[item.warrant_id]}
+                          loading={references.loading}
+                        />
                       </li>
                     ))}
                   </ul>
@@ -698,6 +752,7 @@ export function ProductSelectionPage() {
                     <EvaluationCard
                       key={evaluation.id}
                       evaluation={evaluation}
+                      references={references}
                       selected={detail.selection?.product_evaluation_id === evaluation.id}
                       disabled={busy || detail.selection !== null}
                       onChoose={setPendingSelection}
@@ -755,9 +810,18 @@ export function ProductSelectionPage() {
                 )}
               </div>
             )}
-            <p className="mt-3 break-all rounded border border-slate-800 p-3 text-xs">
-              Evaluation {pendingSelection.id}
-            </p>
+            <div className="mt-3 rounded border border-slate-800 p-3">
+              <SelectionProductIdentity
+                productId={pendingSelection.warrant_id}
+                product={references.products[pendingSelection.warrant_id]}
+                loading={references.loading}
+              />
+              <details className="mt-2 text-xs text-slate-500">
+                <summary className="cursor-pointer">Technische Auswahlreferenzen</summary>
+                <p className="mt-1 break-all">Evaluation {pendingSelection.id}</p>
+                <p className="mt-1 break-all">Listing {pendingSelection.warrant_listing_id}</p>
+              </details>
+            </div>
             <label className="mt-4 block text-sm">
               <span className="text-slate-400">
                 Begründung
