@@ -135,3 +135,39 @@ immutable date corrections. Frontend tests cover preview/confirmation/dismissal,
 response retries and calendar date inputs. A real browser-to-database workflow runs only
 with `TRADE_E2E_WRITES_ALLOWED=1` on the disposable CI stack. Do not enable that test on a
 user database. All existing Backend, image, Frontend and End-to-End gates remain required.
+
+## Correct existing purchase and sale dates in the browser
+
+PR #195 added dates to **new** captures, but did not expose the existing execution
+correction endpoint in the frontend. The **Kauf- und Verkaufsdaten** section in
+Trade Management now lists each effective BUY/SELL, including additional purchases,
+with its execution date and separate recording timestamp. It appears before the
+monitoring panels and works for open and closed trades. Cancelled trades remain
+read-only. Product master-data creation dates are not purchase dates.
+
+Select **Kaufdatum korrigieren** or **Verkaufsdatum korrigieren** on the exact booking,
+change its confirmed date, review the timezone/clock precision and explicitly confirm
+**Datumsänderung speichern**. The value is initialized from the saved execution, not
+from today. Each correction references that execution ID and sends its unchanged side,
+quantity and decimal price to the existing corrections API. It does not call a purchase
+or sale endpoint. An invalid chronology or a concurrently superseded execution is
+rejected; the UI reloads the effective history before offering another attempt.
+
+A formerly known clock time is retained by default, including fractional seconds.
+For precise timestamps the displayed calendar date/time is in the browser timezone.
+Moving to a DST gap or repeated clock time is rejected instead of guessing an offset.
+Uncheck **Bisherige Uhrzeit beibehalten** only when the corrected record has a confirmed
+date but no known clock time. Existing date-only entries retain their original IANA
+zone and never acquire a fabricated time.
+
+Original executions and their original recording timestamps remain in Trade Timeline;
+the superseding correction receives the current recording timestamp. The position is
+recomputed, so changing the chronological order of trades can also change the derived
+cost basis or P/L. Quantities/prices are not editable through this date-only correction
+form. Later projections must be reviewed rather than manually changing database dates.
+
+No migration, automatic backdating, per-user data change or change to the one-open-trade
+rule is included in this UI follow-up. Deploy the new frontend/backend build normally;
+`20260912_0036` remains the required backend schema. The regression browser test covers
+an actual UI BUY-date correction, a backdated full sale through the sale form, a SELL-date
+correction after closure, reload persistence and unchanged original execution history.

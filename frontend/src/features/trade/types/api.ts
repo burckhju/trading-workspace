@@ -243,3 +243,10 @@ export interface CancellationRequest {
   confirmed: true;
   duplicate_of_trade_id: Uuid | null;
 }
+
+/** Date corrections reference an existing execution, not a new capture request. */
+export type ExecutionCorrectionRequest = {
+  side: ExecutionSide;
+  quantity: number;
+  price_per_unit: string;
+} & ({ executed_at: IsoDateTime } | { executed_on: string; execution_timezone: string });

@@ -3,6 +3,7 @@ import { requestJson } from '../../market/services/http';
 import type {
   CancellationPreview,
   CancellationRequest,
+  ExecutionCorrectionRequest,
   InitialPurchaseRequest,
   InitialPurchaseResponse,
   PositionResponse,
@@ -40,6 +41,18 @@ function notifyTimelineChanged(tradeId: string): void {
 }
 
 export const tradeManagementApiClient = {
+  correctExecution: async (
+    tradeId: string,
+    executionId: string,
+    request: ExecutionCorrectionRequest,
+  ): Promise<SaleResponse> => {
+    const result = await requestJson<SaleResponse>(
+      tradeUrl(tradeId, `/executions/${executionId}/corrections`),
+      { method: 'POST', body: request },
+    );
+    notifyTimelineChanged(tradeId);
+    return result;
+  },
   cancellationPreview: (tradeId: string): Promise<CancellationPreview> =>
     requestJson<CancellationPreview>(tradeUrl(tradeId, '/cancellation')),
   cancel: async (tradeId: string, request: CancellationRequest): Promise<CancellationPreview> => {
