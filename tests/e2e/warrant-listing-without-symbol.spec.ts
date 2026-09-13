@@ -156,14 +156,14 @@ test('an empty selection continues into existing product administration with the
   });
   await page.goto(`/product-selection?run_id=${before.run.id}`);
   await page.getByRole('link', { name: 'Optionsscheinstammdaten prüfen' }).click();
-  const underlyingField = page.getByLabel('Basiswert *', { exact: true });
+  const underlyingField = page.getByRole('combobox', { name: 'Basiswert *', exact: true });
   await expect(underlyingField).toHaveValue(underlying.id);
   await expect(underlyingField).toBeDisabled();
   await page.reload();
   await expect(underlyingField).toHaveValue(underlying.id);
   expect(writes).toEqual([]);
   await page.getByLabel('Anzeigename *', { exact: true }).fill(`Synthetic repaired warrant ${token}`);
-  await page.getByLabel('Emittent *', { exact: true }).selectOption(issuer.id);
+  await page.getByRole('combobox', { name: 'Emittent *', exact: true }).selectOption(issuer.id);
   await page.getByLabel('Strike *', { exact: true }).fill('100');
   await page.getByLabel('Fälligkeit *', { exact: true }).fill('2099-12-31');
   await page.getByLabel(/^Bezugsverhältnis/).fill('0.1');
