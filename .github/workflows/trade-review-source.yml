@@ -1,0 +1,22 @@
+name: Trade review source
+on:
+  push:
+    branches: [fix/duplicate-trade-cancellation]
+    paths: [.github/workflows/trade-review-source.yml]
+permissions:
+  contents: read
+jobs:
+  source:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Archive tracked review history
+        run: git bundle create /tmp/trade-review.bundle HEAD refs/remotes/origin/main
+      - uses: actions/upload-artifact@v4
+        with:
+          name: trade-review-source
+          path: /tmp/trade-review.bundle
+          retention-days: 1
