@@ -162,7 +162,8 @@ async def test_scheduler_bootstraps_several_venues_imports_eod_and_preserves_dis
                 mappings = (
                     await connection.execute(
                         text(
-                            "SELECT id,status,validation_message,market_data_instrument_id FROM "
+                            "SELECT id,status,validation_message,market_data_instrument_id,"
+                            "provider_symbol,provider_exchange_code FROM "
                             "provider_instrument_mappings WHERE workspace_id=:ws"
                         ),
                         {"ws": workspace},
@@ -203,7 +204,23 @@ async def test_scheduler_bootstraps_several_venues_imports_eod_and_preserves_dis
                 )
                 runtime._due.clear()
                 await asyncio.wait_for(runtime.run_once(), timeout=30)
-                assert client.get_json.await_count == calls
+                # The second import intentionally uses a shorter correction window,
+                # so it has a new cache key. Catalogs stay cached; only the three
+                # active mappings may request that EOD window.
+                disabled = mappings[0]
+                disabled_path = f"/eod/{disabled.provider_symbol}.{disabled.provider_exchange_code}"
+                expected = {path for path in payloads if path.startswith("/eod/")} - {disabled_path}
+                assert client.get_json.await_count == calls + len(expected)
+                assert {
+                    call.args[0] for call in client.get_json.await_args_list[calls:]
+                } == expected
+                assert (
+                    await connection.scalar(
+                        text("SELECT count(*) FROM daily_prices WHERE workspace_id=:ws"),
+                        {"ws": workspace},
+                    )
+                    == 4
+                )
                 assert (
                     await connection.scalar(
                         text("SELECT status FROM provider_instrument_mappings WHERE id=:id"),
