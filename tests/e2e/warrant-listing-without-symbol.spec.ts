@@ -55,8 +55,10 @@ test('existing administration records a symbol-less listing and unblocks the exi
     expect.objectContaining({ warrant_id: warrant.id, reason: 'NO_LISTING' }),
   ]);
 
-  await page.goto('/warrants-admin');
-  await page.getByRole('button', { name: new RegExp(warrant.display_name) }).click();
+  await page.goto(`/product-selection?run_id=${before.run.id}`);
+  await page.getByRole('link', { name: 'Notierung ergänzen' }).click();
+  await expect(page.getByRole('heading', { name: warrant.display_name, exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Optionsschein anlegen', exact: true })).toHaveCount(0);
   const symbol = page.getByLabel('Symbol', { exact: true });
   await expect(symbol).not.toHaveAttribute('required');
   await expect(symbol).toHaveAttribute('maxlength', '64');
@@ -85,13 +87,20 @@ test('existing administration records a symbol-less listing and unblocks the exi
     data: { trading_venue_id: venueId, symbol: null, quotation_currency_code: 'EUR' },
   }), 409);
   expect(await body(await request.get(`${root}/product-selection-runs/${before.run.id}`), 200)).toEqual(before);
-  const after = await evaluate();
+  await page.getByRole('link', { name: 'Zurück zur Produktauswahl', exact: true }).click();
+  await expect(page).toHaveURL(`/product-selection?run_id=${before.run.id}`);
+  await expect(page.getByRole('link', { name: 'Notierung ergänzen' })).toBeVisible();
+  const reevaluated = page.waitForResponse(response =>
+    response.request().method() === 'POST' && response.url().endsWith('/product-selection-runs'),
+  );
+  await page.getByRole('button', { name: 'Produkte neu bewerten', exact: true }).click();
+  const after = await body(await reevaluated);
+  expect(after.run).toMatchObject({ trade_plan_id: plan.plan.id, trade_plan_version_id: plan.latest_version.id });
   expect(after.universe_omissions).toEqual([]);
   expect(after.evaluations).toHaveLength(1);
   expect(after.evaluations[0]).toMatchObject({ warrant_id: warrant.id, warrant_listing_id: added.id, eligibility_status: 'NOT_EVALUABLE' });
   expect(after.selection).toBeNull();
 
-  await page.goto(`/product-selection?run_id=${after.run.id}`);
   await page.getByRole('button', { name: 'Dieses Produkt auswählen' }).click();
   const dialog = page.getByRole('dialog');
   await expect(dialog.getByRole('button', { name: 'Auswahl dokumentieren' })).toBeDisabled();
@@ -110,4 +119,67 @@ test('existing administration records a symbol-less listing and unblocks the exi
   expect(captured.position.open_quantity).toBe(10);
   expect(Number(captured.position.cost_basis)).toBe(23.5);
   expect((await body(await request.get(`${root}/product-selection-runs/${after.run.id}`), 200)).evaluations).toEqual(after.evaluations);
+});
+
+test('an empty selection continues into existing product administration with the exact underlying', async ({ page, request }) => {
+  const root = 'http://127.0.0.1:8000/api/v1';
+  const token = randomUUID().slice(0, 8);
+  const issuer = await body(await request.post(`${root}/market-reference-data/issuers`, {
+    data: { legal_name: `Synthetic empty repair ${randomUUID()}`, display_name: `Synthetic repair ${token}` },
+  }));
+  const venues = await body(await request.get(`${root}/market-reference-data/trading-venues`), 200);
+  const venueId = venues.items.find((venue: { mic: string }) => venue.mic === 'XETR').id;
+  const underlying = await body(await request.post(`${root}/underlyings`, {
+    data: { name: `Synthetic empty repair stock ${token}`, type: 'STOCK',
+      primary_listing: { trading_venue_id: venueId, ticker: `ER${token}`, currency_code: 'EUR' },
+    },
+  }));
+  const plan = await body(await request.post(`${root}/trade-plans`, {
+    data: { origin_type: 'MANUAL', underlying_id: underlying.id,
+      thesis: 'Synthetic empty selection repair only',
+      entry: { type: 'PRICE', currency: 'EUR', price: '100' },
+      invalidation: { stop_price: '95' }, targets: [{ sequence: 1, price: '110' }],
+      risk_assumptions: { thesis_risk: 'Synthetic risk' },
+    },
+  }));
+  const versionUrl = `${root}/trade-plans/${plan.plan.id}/versions/${plan.latest_version.id}`;
+  await body(await request.post(`${versionUrl}/submit-review`), 200);
+  await body(await request.post(`${versionUrl}/approve`), 200);
+  const before = await body(await request.post(`${root}/product-selection-runs`, {
+    data: { trade_plan_id: plan.plan.id, trade_plan_version_id: plan.latest_version.id },
+  }));
+  expect(before.evaluations).toEqual([]);
+  expect(before.universe_omissions).toEqual([]);
+  const writes: string[] = [];
+  page.on('request', outgoing => {
+    if (outgoing.method() === 'POST') writes.push(outgoing.url());
+  });
+  await page.goto(`/product-selection?run_id=${before.run.id}`);
+  await page.getByRole('link', { name: 'Optionsscheinstammdaten prüfen' }).click();
+  const underlyingField = page.getByLabel('Basiswert *', { exact: true });
+  await expect(underlyingField).toHaveValue(underlying.id);
+  await expect(underlyingField).toBeDisabled();
+  await page.reload();
+  await expect(underlyingField).toHaveValue(underlying.id);
+  expect(writes).toEqual([]);
+  await page.getByLabel('Anzeigename *', { exact: true }).fill(`Synthetic repaired warrant ${token}`);
+  await page.getByLabel('Emittent *', { exact: true }).selectOption(issuer.id);
+  await page.getByLabel('Strike *', { exact: true }).fill('100');
+  await page.getByLabel('Fälligkeit *', { exact: true }).fill('2099-12-31');
+  await page.getByLabel(/^Bezugsverhältnis/).fill('0.1');
+  const createdResponse = page.waitForResponse(response =>
+    response.request().method() === 'POST' && response.url().endsWith('/warrants'),
+  );
+  await page.getByRole('button', { name: 'Optionsschein anlegen', exact: true }).click();
+  const created = await body(await createdResponse);
+  expect(created.underlying_id).toBe(underlying.id);
+  await expect(page.getByRole('heading', { name: created.display_name, exact: true })).toBeVisible();
+  await page.getByRole('link', { name: 'Zurück zur Produktauswahl' }).click();
+  await expect(page).toHaveURL(`/product-selection?run_id=${before.run.id}`);
+  await expect(page.getByRole('link', { name: 'Optionsscheinstammdaten prüfen' })).toBeVisible();
+  expect(await body(await request.get(`${root}/product-selection-runs/${before.run.id}`), 200)).toEqual(before);
+  expect(writes).toHaveLength(1);
+  expect(writes[0]).toMatch(/\/warrants$/);
+  // No automatic evaluation, selection or BUY, and no invented listing.
+  expect(await body(await request.get(`${root}/warrants/${created.id}/listings`), 200)).toEqual([]);
 });
