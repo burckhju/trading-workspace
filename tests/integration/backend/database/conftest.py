@@ -12,7 +12,7 @@ from alembic.config import Config
 from app.core.config import get_settings
 
 PREVIOUS_HEAD = "20260827_0028"
-CURRENT_HEAD = "20260828_0029"
+CURRENT_HEAD = "head"
 LEGACY_HEAD_TESTS = {
     "test_daily_price_instrument_migration_postgres.py",
     "test_market_analysis_instrument_migration_postgres.py",

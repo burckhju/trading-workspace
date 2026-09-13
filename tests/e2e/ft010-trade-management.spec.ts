@@ -191,7 +191,8 @@ test("manages partial/full exit and explicit management decisions without provid
 
   await page.getByLabel("Verkaufsmenge").fill("40");
   await page.getByLabel("Verkaufspreis").fill("2.50");
-  await page.getByLabel("Ausführungszeit").fill("2026-08-17T09:30");
+  await page.getByLabel("Verkaufsdatum", { exact: true }).fill("2026-08-17");
+  await page.getByLabel("Verkaufsdatum Uhrzeit").fill("09:30");
   await page.getByRole("button", { name: "Teilverkauf erfassen" }).click();
   await expect.poll(() => salePosts).toBe(1);
   await expect(page.getByText("60 offen", { exact: true })).toBeVisible();

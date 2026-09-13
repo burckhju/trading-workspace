@@ -87,11 +87,12 @@ class SqlAlchemyTradeRepository:
     async def add(self, trade: Trade) -> None:
         # All first-purchase paths (also Learning imports) share this boundary.
         product = await self._session.scalar(
-            select(WarrantModel.id)
-            .where(
+            select(WarrantModel.id).where(
                 WarrantModel.id == trade.product_id, WarrantModel.workspace_id == trade.workspace_id
             )
-            .with_for_update()
+            # Serialize creators while remaining compatible with FK KEY SHARE locks
+            # already held by raw/imported trade rows in concurrent transactions.
+            .with_for_update(key_share=True)
         )
         if product is None:
             raise ValueError("product not found")

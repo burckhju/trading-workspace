@@ -53,7 +53,7 @@ def current_database_url():
 
     asyncio.run(manage("create"))
     try:
-        _run_alembic("upgrade", "head", isolated_url)
+        _run_alembic("upgrade", "20260912_0035", isolated_url)
         yield isolated_url
     finally:
         asyncio.run(manage("drop"))
@@ -132,6 +132,53 @@ async def test_catalog_automatically_maps_bnp_and_vontobel_without_position_or_i
                         },
                     )
 
+                # Held products outrank UUID order; closed and foreign-workspace
+                # positions do not confer priority, and duplicate trades add no jobs.
+                held, unheld = sorted([warrant_v, warrant_b], reverse=True)
+                foreign_workspace = uuid4()
+                await connection.execute(
+                    text("INSERT INTO workspaces (id,name,created_at) VALUES (:id,'Other',:now)"),
+                    {"id": foreign_workspace, "now": NOW},
+                )
+                for product, trade_workspace, quantity in [
+                    (held, workspace, 10),
+                    (held, workspace, 20),
+                    (unheld, workspace, 0),
+                    (unheld, foreign_workspace, 10),
+                ]:
+                    trade_id = uuid4()
+                    await connection.execute(
+                        insert(TradeModel).values(
+                            id=trade_id,
+                            workspace_id=trade_workspace,
+                            product_id=product,
+                            origin="EXTERNAL",
+                            created_at=NOW,
+                            created_by=uuid4(),
+                        )
+                    )
+                    await connection.execute(
+                        insert(PositionModel).values(
+                            id=uuid4(),
+                            trade_id=trade_id,
+                            product_id=product,
+                            open_quantity=quantity,
+                            cost_basis=quantity,
+                            average_entry_price=1,
+                            opened_at=NOW,
+                            last_execution_at=NOW,
+                            realized_gross_pnl=0,
+                            closed_at=NOW if quantity == 0 else None,
+                        )
+                    )
+
+                # These deliberate legacy anomalies were possible before 0036. Commit
+                # them in this disposable database, then run the real upgrade. Never
+                # disable the runtime guard to manufacture new invalid trades.
+                await transaction.commit()
+                await asyncio.to_thread(_run_alembic, "upgrade", "head", current_database_url)
+                transaction = await connection.begin()
+
                 @asynccontextmanager
                 async def session_context():
                     async with AsyncSession(
@@ -206,47 +253,8 @@ async def test_catalog_automatically_maps_bnp_and_vontobel_without_position_or_i
                     await runtime.run_once()
                     assert (snapshots._read.await_count, len(calls)) == before
                     assert len(calls) == 1 and calls[0].endswith("DE000VV00123")
-                    # Held products outrank UUID order; closed and foreign-workspace
-                    # positions do not confer priority, and duplicate trades add no jobs.
-                    held, unheld = sorted([warrant_v, warrant_b], reverse=True)
-                    foreign_workspace = uuid4()
-                    await connection.execute(
-                        text(
-                            "INSERT INTO workspaces (id,name,created_at) VALUES (:id,'Other',:now)"
-                        ),
-                        {"id": foreign_workspace, "now": NOW},
-                    )
-                    for product, trade_workspace, quantity in [
-                        (held, workspace, 10),
-                        (held, workspace, 20),
-                        (unheld, workspace, 0),
-                        (unheld, foreign_workspace, 10),
-                    ]:
-                        trade_id = uuid4()
-                        await connection.execute(
-                            insert(TradeModel).values(
-                                id=trade_id,
-                                workspace_id=trade_workspace,
-                                product_id=product,
-                                origin="EXTERNAL",
-                                created_at=NOW,
-                                created_by=uuid4(),
-                            )
-                        )
-                        await connection.execute(
-                            insert(PositionModel).values(
-                                id=uuid4(),
-                                trade_id=trade_id,
-                                product_id=product,
-                                open_quantity=quantity,
-                                cost_basis=quantity,
-                                average_entry_price=1,
-                                opened_at=NOW,
-                                last_execution_at=NOW,
-                                realized_gross_pnl=0,
-                                closed_at=NOW if quantity == 0 else None,
-                            )
-                        )
+                    # Legacy duplicates add no jobs, and foreign-workspace positions
+                    # do not confer priority after the current migration is applied.
                     warrants, stocks = await read_catalog(database, workspace)
                     assert [(w.id, w.held) for w in warrants] == [(held, True), (unheld, False)]
                     assert len(stocks) == 1 and stocks[0].held is True

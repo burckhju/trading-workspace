@@ -1,5 +1,6 @@
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
+from tests.integration.backend.learning.conftest import EXPECTED_ALEMBIC_HEAD
 
 
 async def test_learning_fixture_is_on_current_head(
@@ -7,7 +8,7 @@ async def test_learning_fixture_is_on_current_head(
 ) -> None:
     async with learning_test_engine.connect() as connection:
         revision = await connection.scalar(text("select version_num from alembic_version"))
-    assert revision == "20260828_0029"
+    assert revision == EXPECTED_ALEMBIC_HEAD
 
 
 async def test_learning_session_is_live(

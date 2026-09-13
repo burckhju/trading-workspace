@@ -96,7 +96,9 @@ BEGIN
         IF OLD.open_quantity > 0 OR NEW.open_quantity = 0 THEN RETURN NEW; END IF;
     END IF;
     IF NEW.open_quantity = 0 THEN RETURN NEW; END IF;
-    PERFORM 1 FROM warrants WHERE id = NEW.product_id AND workspace_id = parent.workspace_id FOR UPDATE;
+    -- FK inserts already hold KEY SHARE on this row. NO KEY UPDATE still
+    -- serializes creators, without mutually upgrading those FK locks.
+    PERFORM 1 FROM warrants WHERE id = NEW.product_id AND workspace_id = parent.workspace_id FOR NO KEY UPDATE;
     IF NOT FOUND THEN
         RAISE EXCEPTION 'position workspace/product mismatch' USING ERRCODE='23514', CONSTRAINT='tw_position_identity';
     END IF;

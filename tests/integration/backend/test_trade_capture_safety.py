@@ -448,7 +448,7 @@ def test_cancellation_rollback_monitoring_exclusion_and_pending_notifications(
                 "INSERT INTO "
                 "alerts(id,position_id,trade_id,alert_type,severity,rule_key,reason,"
                 "observed_value,threshold_value,market_data_observed_at,detected_at,status) "
-                "VALUES(:alert,:position,:trade,'STOP_BREACHED','WARNING','test','test',1,2,"
+                "VALUES(:alert,:position,:trade,'STOP_REACHED','WARNING','test','test',1,2,"
                 "now(),now(),'OPEN')",
                 args,
             )

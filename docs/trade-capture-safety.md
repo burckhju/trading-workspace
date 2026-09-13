@@ -10,7 +10,10 @@ trade; further real purchases are explicitly recorded in **Nachkauf erfassen** t
 No request is automatically converted into a subsequent purchase. After a full sale
 or cancellation, a deliberately new capture may open a new trade.
 
-The initial guard locks the workspace's warrant row. A database trigger also protects
+The initial guard takes `FOR NO KEY UPDATE` on the workspace's warrant row.
+This lock serializes creators but is compatible with foreign-key `KEY SHARE` locks
+already acquired by concurrent raw trade inserts; `FOR UPDATE` would deadlock on
+those lock upgrades. A database trigger also protects
 new/reopened positions and serializes concurrent writes under the application's
 PostgreSQL default READ COMMITTED isolation. Trade mutations lock their parent trade,
 so sale, correction, additional purchase and cancellation cannot overwrite one another.
