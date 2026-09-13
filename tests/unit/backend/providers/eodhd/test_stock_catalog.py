@@ -75,6 +75,7 @@ async def test_bootstrap_exact_stock_without_prior_workspace_mappings(mic, label
         ({"Exchange": "US"}, "EODHD_INSTRUMENT_VENUE_MISMATCH"),
         ({"Code": " "}, "EODHD_INSTRUMENT_VENUE_MISMATCH"),
         ({"Code": "../WRONG?query"}, "EODHD_PROVIDER_SYMBOL_UNSUPPORTED"),
+        ({"Code": "X" * 65}, "EODHD_PROVIDER_SYMBOL_UNSUPPORTED"),
     ],
 )
 async def test_never_substitute_currency_other_venue_adr_ordinary_share_or_instrument(

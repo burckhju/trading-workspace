@@ -30,7 +30,7 @@ def setup(monkeypatch):
     )
     venue = SimpleNamespace(id=venue_id, mic="XPAR", is_active=True)
     session = SimpleNamespace(
-        scalar=AsyncMock(side_effect=[listing, None]),
+        scalar=AsyncMock(side_effect=[listing, None, None]),
         get=AsyncMock(side_effect=[underlying, venue]),
     )
     now = datetime.now(UTC)
@@ -150,3 +150,17 @@ async def test_unverified_identity_or_existing_mapping_never_changes_master_data
         assert result["status"] == "BLOCKED"
     admin.create_or_update.assert_not_awaited()
     admin.validate.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_catalog_identity_owned_by_another_listing_is_not_reassigned(monkeypatch):
+    container, session, _adapter, admin, _underlying, _venue, workspace, listing_id = setup(
+        monkeypatch
+    )
+    owner = SimpleNamespace(id=uuid4(), listing_id=uuid4())
+    values = list(session.scalar.side_effect)
+    session.scalar.side_effect = [*values[:2], owner]
+    result = await discover_underlying(container, workspace, listing_id)
+    assert result["reason"] == "EODHD_PROVIDER_IDENTITY_ALREADY_MAPPED"
+    assert result["owner_listing_id"] == str(owner.listing_id)
+    admin.create_or_update.assert_not_awaited()

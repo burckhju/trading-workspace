@@ -154,7 +154,7 @@ class EodhdStockCatalog:
                 reason = "EODHD_INSTRUMENT_VENUE_MISMATCH"
             elif len(symbols) != 1:
                 reason = "EODHD_STOCK_IDENTITY_AMBIGUOUS"
-            elif not re.fullmatch(r"[A-Z0-9][A-Z0-9._-]{0,99}", next(iter(symbols))):
+            elif not re.fullmatch(r"[A-Z0-9][A-Z0-9._-]{0,63}", next(iter(symbols))):
                 reason = "EODHD_PROVIDER_SYMBOL_UNSUPPORTED"
             elif any(
                 r.code.strip().upper() in symbols and r not in venue_rows for r in tickers.rows

@@ -110,6 +110,7 @@ Vertiv and Nasdaq Inc. Do not infer their listing markets from these names.
 | `EODHD_INSTRUMENT_VENUE_MISMATCH` | Provider row does not substantiate the requested venue. |
 | `EODHD_STOCK_TYPE_REQUIRED` / `EODHD_PROVIDER_SYMBOL_UNSUPPORTED` | Verify provider identity/type; no substitution or unsafe request path. |
 | `EXISTING_MAPPING_PRESERVED` with `BLOCKED` | Review the existing disabled/unvalidated mapping explicitly. |
+| `EODHD_PROVIDER_IDENTITY_ALREADY_MAPPED` | Review the reported owner listing and mapping; the provider identity is not reassigned automatically. |
 | Provider authentication/quota/transport error | Resolve access or wait for the existing budget/cooldown; do not increase subscription automatically. |
 
 ## Regression coverage

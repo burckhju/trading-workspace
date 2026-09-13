@@ -85,6 +85,23 @@ async def discover_underlying(
         identity = result.identity
         symbol = identity.item.provider_symbol
         exchange = identity.item.provider_exchange_code
+        owner = await session.scalar(
+            select(ProviderInstrumentMappingModel).where(
+                ProviderInstrumentMappingModel.workspace_id == workspace_id,
+                ProviderInstrumentMappingModel.provider == MarketDataProvider.EODHD,
+                ProviderInstrumentMappingModel.provider_symbol == symbol,
+                ProviderInstrumentMappingModel.provider_exchange_code == exchange,
+            )
+        )
+        if owner is not None:
+            return {
+                **details,
+                "status": "BLOCKED",
+                "reason": "EODHD_PROVIDER_IDENTITY_ALREADY_MAPPED",
+                "mapping_id": str(owner.id),
+                "provider_identity": symbol,
+                "owner_listing_id": str(owner.listing_id),
+            }
         uow = SqlAlchemyMarketDataUnitOfWork(session)
         reconciliation = ProviderVenueReconciliationService(
             uow,
