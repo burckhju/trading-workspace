@@ -1,0 +1,37 @@
+name: Position history development export
+on:
+  push:
+    branches: [docs/position-price-history-readiness]
+    paths: [.github/workflows/position-history-development-export.yml]
+permissions:
+  contents: read
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: frontend/.nvmrc
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Export tracked public source and locked development dependencies
+        run: |
+          mkdir -p /tmp/position-history-development/wheels
+          git archive --format=tar HEAD > /tmp/position-history-development/source.tar
+          git rev-parse HEAD > /tmp/position-history-development/commit.txt
+          git rev-parse HEAD^{tree} > /tmp/position-history-development/tree.txt
+          python -m pip download -r backend/requirements-dev.txt -d /tmp/position-history-development/wheels
+          cd frontend
+          npm ci --ignore-scripts
+          tar -czf /tmp/position-history-development/node_modules.tar.gz node_modules
+      - uses: actions/upload-artifact@v4
+        with:
+          name: position-history-development
+          path: /tmp/position-history-development
+          retention-days: 1
+          if-no-files-found: error
