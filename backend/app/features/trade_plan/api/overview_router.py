@@ -21,6 +21,10 @@ from app.features.product_selection.persistence.models import (
 )
 from app.features.trade_plan.domain.enums import TradePlanOriginType, TradePlanStatus
 from app.features.trade_plan.persistence.models import TradePlanModel, TradePlanVersionModel
+from app.features.trade_plan.service.execution_overview import (
+    PlanExecutionOverview,
+    read_execution_overviews,
+)
 
 router = APIRouter(prefix="/api/v1/trade-plans", tags=["trade-plans"])
 WORKSPACE_ID = UUID("00000000-0000-4000-8000-000000000001")
@@ -49,6 +53,7 @@ class TradePlanOverviewItemResponse(BaseModel):
     underlying_isin: str | None = None
     underlying_wkn: str | None = None
     selected_product: SelectedProductOverviewResponse | None = None
+    execution: PlanExecutionOverview | None = None
 
 
 @router.get("", response_model=list[TradePlanOverviewItemResponse])
@@ -142,6 +147,11 @@ async def list_trade_plans(
             .order_by(TradePlanModel.created_at.desc(), TradePlanModel.id)
         )
     ).all()
+    executions = await read_execution_overviews(
+        session,
+        workspace_id=WORKSPACE_ID,
+        current_versions={row[0].id: row[1].id for row in rows},
+    )
     return [
         TradePlanOverviewItemResponse(
             id=plan.id,
@@ -151,6 +161,7 @@ async def list_trade_plans(
             latest_version_id=version.id,
             latest_version=version.version,
             status=version.status,
+            execution=executions[plan.id],
             underlying_name=underlying.name if underlying else None,
             underlying_isin=underlying.isin if underlying else None,
             underlying_wkn=underlying.wkn if underlying else None,

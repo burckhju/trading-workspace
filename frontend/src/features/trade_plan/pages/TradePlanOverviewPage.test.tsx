@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -74,5 +75,64 @@ describe('TradePlanOverviewPage', () => {
       'href',
       '/trade-plans?trade_plan_id=12345678-0000-4000-8000-000000000001',
     );
+  });
+  it('filters purchase state independently of approval and refreshes persisted progress', async () => {
+    const user = userEvent.setup();
+    const base = {
+      id: 'plan',
+      underlying_id: 'u',
+      underlying_name: 'Status stock',
+      origin_type: 'MANUAL' as const,
+      created_at: '2026-09-13T08:00:00Z',
+      latest_version_id: 'v1',
+      latest_version: 1,
+      status: 'APPROVED' as const,
+    };
+    overviewApi.list.mockResolvedValue([
+      {
+        ...base,
+        execution: { status: 'NOT_STARTED', current_version_status: 'NOT_STARTED', trades: [] },
+      },
+      {
+        ...base,
+        id: 'bought-plan',
+        execution: { status: 'OPEN', current_version_status: 'OPEN', trades: [] },
+      },
+    ]);
+    render(
+      <MemoryRouter>
+        <TradePlanOverviewPage />
+      </MemoryRouter>,
+    );
+    expect(
+      await screen.findByText('Noch kein Kauf erfasst', { selector: 'span' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText('Kauf erfasst · Position offen', { selector: 'span' }),
+    ).toBeInTheDocument();
+    expect(marketApi.getUnderlying).not.toHaveBeenCalled();
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: 'Nach Kaufstatus filtern' }),
+      'NOT_STARTED',
+    );
+    expect(screen.getByText('1 von 2 TradePlans')).toBeInTheDocument();
+    expect(
+      screen.queryByText('Kauf erfasst · Position offen', { selector: 'span' }),
+    ).not.toBeInTheDocument();
+    overviewApi.list.mockResolvedValue([
+      { ...base, execution: { status: 'OPEN', current_version_status: 'OPEN', trades: [] } },
+    ]);
+    await user.click(screen.getByRole('button', { name: 'Übersicht aktualisieren' }));
+    expect(await screen.findByText('Keine TradePlans mit diesem Kaufstatus.')).toBeInTheDocument();
+    await user.selectOptions(screen.getByRole('combobox'), 'OPEN');
+    expect(
+      screen.getByText('Kauf erfasst · Position offen', { selector: 'span' }),
+    ).toBeInTheDocument();
+    overviewApi.list.mockRejectedValue(new Error('Status request failed'));
+    await user.click(screen.getByRole('button', { name: 'Übersicht aktualisieren' }));
+    expect(await screen.findByText('Status request failed')).toBeInTheDocument();
+    expect(
+      screen.queryByText('Kauf erfasst · Position offen', { selector: 'span' }),
+    ).not.toBeInTheDocument();
   });
 });

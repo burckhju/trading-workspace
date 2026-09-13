@@ -18,8 +18,10 @@ from app.features.operational_workspace.service.position_snapshot import (
     OperationalPositionSnapshotService,
 )
 from app.features.operational_workspace.service.read_model import OperationalWorkspaceReadModel
+from app.features.trade_plan.service.execution_overview import read_execution_overviews
 from app.features.trade_position.persistence.unit_of_work import SqlAlchemyTradePositionUnitOfWork
 from app.features.trade_position.service.application import TradePositionService
+from app.features.trade_position.service.cancellation import TradeCancellationService
 from app.features.trade_position.service.resolvers import SqlAlchemyWorkspaceSelectionResolver
 
 # The API package exports an APIRouter under this name, not the module containing
@@ -265,6 +267,8 @@ async def test_purchase_consumes_current_selection_and_never_reopens_initial_buy
                 assert overview.selected_product.warrant_id == warrant_id
                 assert overview.selected_product.display_name == "Handoff Warrant"
                 assert overview.selected_product.run_id != old_run_id
+                assert overview.execution.status == "NOT_STARTED"
+                assert overview.execution.trades == ()
                 workspace = OperationalWorkspaceReadModel(session)
                 before = await workspace._initial_purchase_actions(workspace_id)
                 assert [action.resource_id for action in before] == [current_selection_id]
@@ -290,6 +294,19 @@ async def test_purchase_consumes_current_selection_and_never_reopens_initial_buy
                 assert position.trade_id == trade.id
                 assert position.open_quantity == 10
                 assert not position.is_closed
+                (started,) = await overview_router.list_trade_plans(session=session)
+                assert started.status.value == "APPROVED"
+                assert started.execution.status == "OPEN"
+                assert started.execution.current_version_status == "OPEN"
+                (linked,) = started.execution.trades
+                assert linked.trade_id == trade.id
+                assert linked.product_id == warrant_id
+                assert linked.product_name == "Handoff Warrant"
+                assert linked.purchased_at == now
+                assert linked.open_quantity == 10
+                assert linked.plan_version == 1
+                assert linked.purchased_at != execution.recorded_at
+                assert started.model_dump(mode="json")["execution"]["status"] == "OPEN"
 
                 (snapshot,) = await OperationalPositionSnapshotService(
                     session,
@@ -308,10 +325,23 @@ async def test_purchase_consumes_current_selection_and_never_reopens_initial_buy
                     "OPEN_POSITION_MANAGEMENT"
                 ]
 
+                # A partial sale keeps the purchase progress open.
+                await service.record_sale(
+                    workspace_id=workspace_id,
+                    trade_id=trade.id,
+                    quantity=4,
+                    price_per_unit=Decimal("2.50"),
+                    executed_at=now + timedelta(seconds=30),
+                    actor=actor,
+                )
+                (partial,) = await overview_router.list_trade_plans(session=session)
+                assert partial.execution.status == "OPEN"
+                assert partial.execution.trades[0].open_quantity == 6
+
                 sale, closed = await service.record_sale(
                     workspace_id=workspace_id,
                     trade_id=trade.id,
-                    quantity=10,
+                    quantity=6,
                     price_per_unit=Decimal("2.60"),
                     executed_at=now + timedelta(minutes=1),
                     actor=actor,
@@ -320,6 +350,9 @@ async def test_purchase_consumes_current_selection_and_never_reopens_initial_buy
                 assert recording_started_at <= sale.recorded_at <= datetime.now(UTC)
                 assert closed.is_closed
                 assert closed.open_quantity == 0
+                (finished,) = await overview_router.list_trade_plans(session=session)
+                assert finished.execution.status == "CLOSED"
+                assert finished.execution.trades[0].closed_at == sale.executed_at
 
                 after_close = await workspace._initial_purchase_actions(workspace_id)
                 assert after_close == []
@@ -344,6 +377,45 @@ async def test_purchase_consumes_current_selection_and_never_reopens_initial_buy
                 (new_overview,) = await overview_router.list_trade_plans(session=session)
                 assert new_overview.latest_version_id == new_version_id
                 assert new_overview.selected_product is None
+                assert new_overview.execution.status == "CLOSED"
+                assert new_overview.execution.current_version_status == "NOT_STARTED"
+                assert (
+                    new_overview.execution.trades[0].trade_plan_version_id == trade_plan_version_id
+                )
+
+                # Explicit older-version provenance is retained for a later purchase too.
+                second, _, _ = await service.record_initial_purchase(
+                    workspace_id=workspace_id,
+                    product_selection_id=old_selection_id,
+                    quantity=3,
+                    price_per_unit=Decimal("2.00"),
+                    executed_at=now,
+                    actor=actor,
+                )
+                cancellation = TradeCancellationService(session)
+                preview = await cancellation.preview(workspace_id, second.id)
+                assert preview["can_cancel"]
+                await cancellation.cancel(
+                    workspace_id=workspace_id,
+                    trade_id=second.id,
+                    expected_product_id=warrant_id,
+                    expected_state_token=preview["state_token"],
+                    reason="Synthetic duplicate entry",
+                    actor=actor,
+                )
+                (cancelled,) = await overview_router.list_trade_plans(session=session)
+                assert cancelled.execution.status == "CLOSED"
+                assert {t.status for t in cancelled.execution.trades} == {"CLOSED", "CANCELLED"}
+                assert cancelled.execution.current_version_status == "NOT_STARTED"
+
+                # The exact workspace boundary must not leak even when plan ids are supplied.
+                isolated = await read_execution_overviews(
+                    session,
+                    workspace_id=uuid4(),
+                    current_versions={trade_plan_id: new_version_id},
+                )
+                assert isolated[trade_plan_id].status == "NOT_STARTED"
+                assert isolated[trade_plan_id].trades == ()
         finally:
             await outer_transaction.rollback()
     await engine.dispose()
