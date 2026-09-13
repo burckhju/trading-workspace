@@ -11,6 +11,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: 36928cd08f6705033affa73a0d556535ec686fa5
           persist-credentials: false
       - name: Export tracked sources only
         run: |
