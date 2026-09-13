@@ -350,7 +350,11 @@ class OperationalWorkspaceReadModel:
                 )
                 .where(
                     ProductSelectionRunModel.workspace_id == workspace_id,
-                    ProductEvaluationModel.eligibility_status == EligibilityStatus.ELIGIBLE.value,
+                    # FT-008 already permits NOT_EVALUABLE with explicit rationale.
+                    # Navigation must expose that path, not grant eligibility itself.
+                    ProductEvaluationModel.eligibility_status.in_(
+                        (EligibilityStatus.ELIGIBLE.value, EligibilityStatus.NOT_EVALUABLE.value)
+                    ),
                     ProductSelectionModel.id.is_(None),
                 )
                 .distinct()
@@ -367,8 +371,9 @@ class OperationalWorkspaceReadModel:
                 state="ACTIONABLE",
                 title="Produkt auswählen",
                 detail=(
-                    "Der Selection Run enthält mindestens ein geeignetes Produkt; die explizite "
-                    "Produktauswahl steht noch aus."
+                    "Die Produktauswahl steht noch aus. Unvollständig bewertete Produkte "
+                    "erfordern eine ausdrückliche Begründung und Bestätigung. "
+                    "Damit wird noch kein Kauf erfasst."
                 ),
                 resource_type="product_selection_run",
                 resource_id=run_id,
