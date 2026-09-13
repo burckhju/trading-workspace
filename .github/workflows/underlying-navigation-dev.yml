@@ -1,0 +1,36 @@
+name: Underlying navigation development bundle
+on:
+  push:
+    branches: [fix/underlying-list-return]
+    paths: [.github/workflows/underlying-navigation-dev.yml]
+permissions:
+  contents: read
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: a3df71702791b63d1c103631f195f13bbe0efb63
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --no-audit --no-fund
+        working-directory: frontend
+      - name: Archive tracked sources and installed public dependencies only
+        run: |
+          mkdir -p /tmp/underlying-navigation-dev
+          git archive HEAD -o /tmp/underlying-navigation-dev/source.tar
+          git rev-parse HEAD > /tmp/underlying-navigation-dev/commit.txt
+          git rev-parse HEAD^{tree} > /tmp/underlying-navigation-dev/tree.txt
+          tar -czf /tmp/underlying-navigation-dev/frontend-deps.tar.gz -C frontend node_modules
+      - uses: actions/upload-artifact@v4
+        with:
+          name: underlying-navigation-dev
+          path: /tmp/underlying-navigation-dev/
+          retention-days: 1
+          if-no-files-found: error
