@@ -4,6 +4,17 @@ import { warrantApiClient } from './client';
 const productId = '10000000-0000-4000-8000-000000000001';
 const venueId = '10000000-0000-4000-8000-000000000002';
 
+function requestUrl(input: RequestInfo | URL): string {
+  if (typeof input === 'string') return input;
+  if (input instanceof URL) return input.href;
+  return input.url;
+}
+
+function bodyText(value: BodyInit | null | undefined): string {
+  if (typeof value !== 'string') throw new TypeError('Expected a JSON string body');
+  return value;
+}
+
 beforeEach(() => vi.restoreAllMocks());
 
 describe('symbol-less warrant listing requests', () => {
@@ -20,9 +31,9 @@ describe('symbol-less warrant listing requests', () => {
       });
       expect(fetchMock).toHaveBeenCalledTimes(1);
       const [url, options] = fetchMock.mock.calls[0];
-      expect(String(url)).toBe(`http://localhost:8000/api/v1/warrants/${productId}/listings`);
+      expect(requestUrl(url)).toBe(`http://localhost:8000/api/v1/warrants/${productId}/listings`);
       expect(options?.method).toBe('POST');
-      expect(JSON.parse(String(options?.body))).toEqual({
+      expect(JSON.parse(bodyText(options?.body))).toEqual({
         trading_venue_id: venueId,
         quotation_currency_code: 'USD',
         symbol: null,
@@ -40,7 +51,7 @@ describe('symbol-less warrant listing requests', () => {
       quotation_currency_code: 'CHF',
       symbol: ' TESTCALL ',
     });
-    expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toEqual({
+    expect(JSON.parse(bodyText(fetchMock.mock.calls[0][1]?.body))).toEqual({
       trading_venue_id: venueId,
       quotation_currency_code: 'CHF',
       symbol: 'TESTCALL',
