@@ -13,6 +13,7 @@ import pytest
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
+from app.features.market.domain.enums import UnderlyingType
 from app.features.operational_workspace.service.position_snapshot import (
     OperationalPositionSnapshotService,
 )
@@ -83,12 +84,13 @@ async def test_purchase_consumes_current_selection_and_never_reopens_initial_buy
                     "INSERT INTO underlyings "
                     "(id, workspace_id, type, name, isin, wkn, lifecycle_status, quality_status, "
                     "version, created_at, updated_at, data_origin) VALUES "
-                    "(:id, :workspace_id, 'INDEX', :name, NULL, NULL, 'ACTIVE', 'VERIFIED', "
+                    "(:id, :workspace_id, :underlying_type, :name, NULL, NULL, 'ACTIVE', 'VERIFIED', "
                     "1, :now, :now, 'MANUAL')"
                 ),
                 {
                     "id": underlying_id,
                     "workspace_id": workspace_id,
+                    "underlying_type": UnderlyingType.STOCK.value,
                     "name": "Handoff Underlying",
                     "now": now,
                 },
