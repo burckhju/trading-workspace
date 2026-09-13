@@ -84,7 +84,8 @@ async def test_purchase_consumes_current_selection_and_never_reopens_initial_buy
                     "INSERT INTO underlyings "
                     "(id, workspace_id, type, name, isin, wkn, lifecycle_status, quality_status, "
                     "version, created_at, updated_at, data_origin) VALUES "
-                    "(:id, :workspace_id, :underlying_type, :name, NULL, NULL, 'ACTIVE', 'VERIFIED', "
+                    "(:id, :workspace_id, :underlying_type, :name, NULL, NULL, "
+                    "'ACTIVE', 'VERIFIED', "
                     "1, :now, :now, 'MANUAL')"
                 ),
                 {
