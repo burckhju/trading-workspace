@@ -1,0 +1,23 @@
+name: German UI development sources
+on:
+  push:
+    branches: [fix/german-language-number-format]
+    paths: [.github/workflows/german-ui-source.yml]
+permissions:
+  contents: read
+jobs:
+  source:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Export tracked sources only
+        run: |
+          mkdir -p /tmp/german-ui-source
+          git archive HEAD | gzip > /tmp/german-ui-source/source.tar.gz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: german-ui-tracked-source
+          path: /tmp/german-ui-source/source.tar.gz
+          retention-days: 1
