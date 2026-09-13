@@ -50,6 +50,13 @@ are rejected. The server always generates the real `recorded_at`; it is never ch
 to match an economic date.
 
 - Known time: send an aware `executed_at` timestamp.
+  The first-party purchase, additional purchase and sale forms reject a repeated
+  local clock time during a timezone rollback before sending any capture request.
+  They do not silently choose the earlier/later offset or remove the entered time.
+  Verify the actual execution; when the exact instant is unknown, explicitly clear
+  the optional clock field to record only the confirmed date. Unique known times
+  and API timestamps with an explicit offset remain supported. Existing records
+  are not changed by this validation.
 - Unknown time: send `executed_on` plus an IANA `execution_timezone`. The calendar date
   and timezone are retained. An internal UTC midnight anchor supports the existing
   projection contract; it is **not evidence of a midnight execution**. Timeline and
