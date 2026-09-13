@@ -5,12 +5,9 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
-from collections.abc import AsyncGenerator, Sequence
+from collections.abc import Sequence
 from contextlib import aclosing
 from pathlib import Path
-from typing import cast
-
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
 from app.database import DatabaseManager
@@ -40,9 +37,7 @@ async def _run(args: argparse.Namespace) -> None:
     catalog = read_catalog(args.file)
     database = DatabaseManager(get_settings())
     try:
-        async with aclosing(
-            cast(AsyncGenerator[AsyncSession, None], database.session())
-        ) as sessions:
+        async with aclosing(database.session()) as sessions:
             async for session in sessions:
                 service = CurrencyAdministrationService(session)
                 if args.apply:

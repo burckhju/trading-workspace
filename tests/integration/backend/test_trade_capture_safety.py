@@ -66,17 +66,27 @@ async def seed_legacy_pair(url, product_id):
         }
         await sql(
             url,
-            "INSERT INTO trades(id, workspace_id, product_id, origin, created_at, created_by) VALUES(:id,:workspace,:product,'EXTERNAL','2026-08-17T08:00:00Z',:actor)",
+            "INSERT INTO trades(id, workspace_id, product_id, origin, created_at, "
+            "created_by) "
+            "VALUES(:id,:workspace,:product,'EXTERNAL','2026-08-17T08:00:00Z',:actor)",
             args,
         )
         await sql(
             url,
-            "INSERT INTO execution_records(id,trade_id,product_id,side,quantity,price_per_unit,executed_at,recorded_at,recorded_by) VALUES(:execution,:id,:product,'BUY',3500,0.55,'2026-08-17T08:00:00Z','2026-08-17T09:00:00Z',:actor)",
+            "INSERT INTO "
+            "execution_records(id,trade_id,product_id,side,quantity,price_per_unit,"
+            "executed_at,recorded_at,recorded_by) "
+            "VALUES(:execution,:id,:product,'BUY',3500,0.55,'2026-08-17T08:00:00Z',"
+            "'2026-08-17T09:00:00Z',:actor)",
             args,
         )
         await sql(
             url,
-            "INSERT INTO positions(id,trade_id,product_id,open_quantity,cost_basis,average_entry_price,opened_at,last_execution_at,realized_gross_pnl) VALUES(:position,:id,:product,3500,1925,0.55,'2026-08-17T08:00:00Z','2026-08-17T08:00:00Z',0)",
+            "INSERT INTO "
+            "positions(id,trade_id,product_id,open_quantity,cost_basis,average_entry_price,"
+            "opened_at,last_execution_at,realized_gross_pnl) "
+            "VALUES(:position,:id,:product,3500,1925,0.55,'2026-08-17T08:00:00Z',"
+            "'2026-08-17T08:00:00Z',0)",
             args,
         )
     return ids
@@ -326,26 +336,37 @@ def test_database_guard_serializes_raw_position_creation_and_reopening(database)
                     async with engine.begin() as connection:
                         await connection.execute(
                             text(
-                                "INSERT INTO trades(id,workspace_id,product_id,origin,created_at,created_by) VALUES(:id,:workspace,:product,'EXTERNAL',now(),:actor)"
+                                "INSERT INTO trades(id,workspace_id,product_id,origin,"
+                                "created_at,created_by) "
+                                "VALUES(:id,:workspace,:product,'EXTERNAL',now(),:actor)"
                             ),
                             args,
                         )
                         await connection.execute(
                             text(
-                                "INSERT INTO execution_records(id,trade_id,product_id,side,quantity,price_per_unit,executed_at,recorded_at,recorded_by) VALUES(:execution,:id,:product,'BUY',10,0.55,'2026-08-17T08:00:00Z',now(),:actor)"
+                                "INSERT INTO "
+                                "execution_records(id,trade_id,product_id,side,quantity,price_per_unit,"
+                                "executed_at,recorded_at,recorded_by) "
+                                "VALUES(:execution,:id,:product,'BUY',10,0.55,'2026-08-17T08:00:00Z',now(),"
+                                ":actor)"
                             ),
                             args,
                         )
                         await connection.execute(
                             text(
-                                "INSERT INTO positions(id,trade_id,product_id,open_quantity,cost_basis,average_entry_price,opened_at,last_execution_at,realized_gross_pnl) VALUES(:position,:id,:product,10,5.5,0.55,'2026-08-17T08:00:00Z','2026-08-17T08:00:00Z',0)"
+                                "INSERT INTO "
+                                "positions(id,trade_id,product_id,open_quantity,cost_basis,average_entry_price,"
+                                "opened_at,last_execution_at,realized_gross_pnl) "
+                                "VALUES(:position,:id,:product,10,5.5,0.55,'2026-08-17T08:00:00Z',"
+                                "'2026-08-17T08:00:00Z',0)"
                             ),
                             args,
                         )
                     return tid
                 except IntegrityError as error:
-                    assert "tw_one_open_trade" == getattr(
-                        error.orig.__cause__, "constraint_name", None
+                    assert (
+                        getattr(error.orig.__cause__, "constraint_name", None)
+                        == "tw_one_open_trade"
                     )
                     return None
 
@@ -368,7 +389,10 @@ def test_database_guard_serializes_raw_position_creation_and_reopening(database)
                     async with engine.begin() as connection:
                         await connection.execute(
                             text(
-                                "UPDATE positions SET open_quantity=10,cost_basis=5.5,closed_at=NULL,closed_on=NULL WHERE trade_id=:id"
+                                "UPDATE positions SET "
+                                "open_quantity=10,cost_basis=5.5,closed_at=NULL,"
+                                "closed_on=NULL WHERE "
+                                "trade_id=:id"
                             ),
                             {"id": tid},
                         )
@@ -398,10 +422,10 @@ def test_cancellation_rollback_monitoring_exclusion_and_pending_notifications(
     from app.features.operational_workspace.service.position_snapshot import (
         OperationalPositionSnapshotService,
     )
-    from app.features.position_monitoring.service.subjects import SqlAlchemyMonitoringSubjectReader
     from app.features.position_monitoring.service.product_valuation import (
         ProductPositionValuationService,
     )
+    from app.features.position_monitoring.service.subjects import SqlAlchemyMonitoringSubjectReader
     from app.features.trade_position.service.cancellation import TradeCancellationService
 
     _migrate(database, "head")
@@ -421,17 +445,26 @@ def test_cancellation_rollback_monitoring_exclusion_and_pending_notifications(
             }
             await sql(
                 database,
-                "INSERT INTO alerts(id,position_id,trade_id,alert_type,severity,rule_key,reason,observed_value,threshold_value,market_data_observed_at,detected_at,status) VALUES(:alert,:position,:trade,'STOP_BREACHED','WARNING','test','test',1,2,now(),now(),'OPEN')",
+                "INSERT INTO "
+                "alerts(id,position_id,trade_id,alert_type,severity,rule_key,reason,"
+                "observed_value,threshold_value,market_data_observed_at,detected_at,status) "
+                "VALUES(:alert,:position,:trade,'STOP_BREACHED','WARNING','test','test',1,2,"
+                "now(),now(),'OPEN')",
                 args,
             )
             await sql(
                 database,
-                "INSERT INTO notifications(id,alert_id,channel,destination_key,body,created_at,status) VALUES(:notification,:alert,'TELEGRAM','test','test',now(),'PENDING')",
+                "INSERT INTO "
+                "notifications(id,alert_id,channel,destination_key,body,created_at,status) "
+                "VALUES(:notification,:alert,'TELEGRAM','test','test',now(),'PENDING')",
                 args,
             )
             await sql(
                 database,
-                "INSERT INTO notification_delivery_attempts(id,notification_id,attempt_number,status,attempted_at,retryable) VALUES(:attempt,:notification,1,'IN_PROGRESS',now(),false)",
+                "INSERT INTO "
+                "notification_delivery_attempts(id,notification_id,attempt_number,status,"
+                "attempted_at,retryable) "
+                "VALUES(:attempt,:notification,1,'IN_PROGRESS',now(),false)",
                 args,
             )
             url = BASE + f"/trades/{tid}"
@@ -439,7 +472,8 @@ def test_cancellation_rollback_monitoring_exclusion_and_pending_notifications(
             assert not blocked["can_cancel"] and any("versendet" in b for b in blocked["blockers"])
             await sql(
                 database,
-                "UPDATE notification_delivery_attempts SET status='FAILED',completed_at=now() WHERE id=:id",
+                "UPDATE notification_delivery_attempts SET status='FAILED',completed_at=now() "
+                "WHERE id=:id",
                 {"id": attempt},
             )
             preview = (await client.get(url + "/cancellation")).json()

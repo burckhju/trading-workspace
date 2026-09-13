@@ -1,5 +1,7 @@
 import { expect, test, type Route } from '@playwright/test';
 
+test.use({ timezoneId: 'Europe/Berlin' });
+
 const tradePlanId = '71000000-0000-4000-8000-000000000001';
 const versionId = '71000000-0000-4000-8000-000000000002';
 const underlyingId = '71000000-0000-4000-8000-000000000003';
@@ -119,6 +121,9 @@ test('successful BUY hands off to the operational workspace without a hard reloa
       product_selection_id: selectionId,
       quantity: 10,
       price_per_unit: '2.40',
+      executed_on: '2026-08-17',
+      execution_timezone: 'Europe/Berlin',
+      request_id: expect.stringMatching(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/),
     });
     purchasePosts += 1;
     purchased = true;
@@ -198,6 +203,7 @@ test('successful BUY hands off to the operational workspace without a hard reloa
 
   await page.goto(`/product-selection?run_id=${runId}`);
   await expect(page.getByRole('heading', { name: /tatsächlichen Kauf erfassen/i })).toBeVisible();
+  await page.getByLabel('Kaufdatum', { exact: true }).fill('2026-08-17');
   await page.getByLabel('Kaufmenge').fill('10');
   await page.getByLabel('Kaufpreis').fill('2.40');
   await page.getByRole('button', { name: 'BUY erfassen und Position eröffnen' }).click();

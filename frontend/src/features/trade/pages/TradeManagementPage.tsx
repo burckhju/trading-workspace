@@ -335,6 +335,7 @@ export function TradeManagementPage() {
           )}
 
           <form
+            aria-label="Verkauf erfassen"
             onSubmit={(event) => void recordSale(event)}
             className="rounded-xl border border-slate-800 p-5"
           >
@@ -574,7 +575,7 @@ export function TradeManagementPage() {
           onChanged={() => refresh(tradeId)}
         />
       )}
-      {trade && <TradeTimelinePanel key={`timeline-${tradeId}`} tradeId={tradeId} />}
+      {trade?.cancelled_at && <TradeTimelinePanel key={`timeline-${tradeId}`} tradeId={tradeId} />}
     </main>
   );
 }

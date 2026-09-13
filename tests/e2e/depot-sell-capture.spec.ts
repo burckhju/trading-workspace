@@ -130,7 +130,7 @@ test('captures a partial sale from the operational depot without manual trade id
   await expect(page).toHaveURL(new RegExp(`/trade-management\\?trade_id=${tradeId}$`));
   await expect(page.getByRole('heading', { name: 'OPEN' })).toBeVisible();
   await expect(page.getByLabel('Trade-ID')).toHaveValue(tradeId);
-  await expect(page.getByText(/keine Broker-Order/i)).toBeVisible();
+  await expect(page.getByRole("form", { name: "Verkauf erfassen" }).getByText(/keine Broker-Order/i)).toBeVisible();
 
   await page.getByLabel('Verkaufsmenge').fill('5');
   await page.getByLabel('Verkaufspreis').fill('2.50');

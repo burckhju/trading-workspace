@@ -187,7 +187,7 @@ test("manages partial/full exit and explicit management decisions without provid
   await expect(page.getByRole("heading", { name: /TR-10000000 · DAX Call 19000/ })).toBeVisible();
   await expect(page.getByText("TP-10000000")).toBeVisible();
   await expect(page.getByText("100 offen", { exact: true })).toBeVisible();
-  await expect(page.getByText(/keine Broker-Order/i)).toBeVisible();
+  await expect(page.getByRole("form", { name: "Verkauf erfassen" }).getByText(/keine Broker-Order/i)).toBeVisible();
 
   await page.getByLabel("Verkaufsmenge").fill("40");
   await page.getByLabel("Verkaufspreis").fill("2.50");
