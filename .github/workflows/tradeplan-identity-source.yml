@@ -1,0 +1,29 @@
+name: TradePlan identity development sources
+on:
+  push:
+    branches: [fix/tradeplan-warrant-identity]
+    paths: [.github/workflows/tradeplan-identity-source.yml]
+permissions:
+  contents: read
+jobs:
+  source:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: frontend/.nvmrc
+      - name: Export tracked sources and locked frontend dependencies
+        run: |
+          mkdir -p /tmp/tradeplan-identity-source
+          git archive HEAD | gzip > /tmp/tradeplan-identity-source/source.tar.gz
+          cd frontend
+          npm ci
+          tar -czf /tmp/tradeplan-identity-source/frontend-dependencies.tar.gz node_modules
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tradeplan-identity-development-source
+          path: /tmp/tradeplan-identity-source/*.tar.gz
+          retention-days: 1
