@@ -25,7 +25,7 @@ class SqlAlchemyTradeReader:
         trade_id: UUID,
     ) -> TradeContext | None:
         trade = await self._trades.get(workspace_id, trade_id)
-        if trade is None:
+        if trade is None or trade.cancelled_at is not None:
             return None
         return TradeContext(
             workspace_id=trade.workspace_id,
