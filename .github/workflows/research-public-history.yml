@@ -40,6 +40,8 @@ jobs:
           --symbols scripts/research/public_symbols.json
           --start 2024-10-01 --end 2026-09-11
           --output research-data
+      - name: Requery actual null sessions and obtain child-company history
+        run: python scripts/research/repair_public_sessions.py research-data
       - name: Return raw responses and audit trail even for an incomplete download
         if: always()
         uses: actions/upload-artifact@v4
@@ -49,6 +51,6 @@ jobs:
           retention-days: 3
           if-no-files-found: warn
 
-# No secrets, .env, recommendations, broker connection, model mutation or schedule.
+# No stored secrets, .env, recommendations, broker connection, model mutation or schedule.
 # Acquisition success alone does not certify currency, listing identity, corporate
 # actions, full study coverage, strategy performance or production activation.
