@@ -52,3 +52,37 @@ Neubau über `scripts/start-linux.sh`; die Anzeige verändert keine vorhandenen 
 Regressionen: Status-/Versionslogik, API-Serialisierung, echte PostgreSQL-Kauf-/Teilverkauf-/
 Verkauf-/Storno-Abfolge und Isolation; Frontend-Statusfarben, Filter, Aktualisierung,
 Fehlerfall, Datum/Identität; Browserdarstellung mit ausdrücklich synthetischen API-Fixtures.
+
+## Optionsschein-Identität in der Übersicht (TP-IDENTITY-001)
+
+Die Übersicht beschriftet den **Basiswert** ausdrücklich und zeigt zusätzlich den
+**ausgewählten Optionsschein der aktuellen Planversion** mit Produktname, WKN und
+ISIN. Die vorhandene API lieferte `selected_product` bereits; die TradePlan-Karte
+hatte dieses Feld bisher nicht dargestellt. Es gibt keine neue API-/Providerabfrage.
+
+Die Anzeige verwendet ausschließlich die letzte ausdrückliche Auswahl dieser
+exakten Planversion. `selected_product: null` heißt noch keine Auswahl; ein fehlendes
+Feld bei einem älteren Backend heißt Auswahlstatus nicht verfügbar. Fehlende oder
+leere Stammdaten bleiben erkennbar unvollständig. Weder Basiswert noch frühere Käufe
+oder ein anderes Produkt mit demselben Basiswert dürfen als Ersatz dienen.
+
+**Ausgewählten Optionsschein prüfen** öffnet den bereits vorhandenen, exakt über
+`run_id` verknüpften Selection Run. Navigation bucht nichts und startet keine neue
+Bewertung. Auswahl ist kein Kaufnachweis: tatsächlich erfasste Optionsscheine und
+frühere Planversionen bleiben unverändert im separaten Kaufstatus sichtbar.
+
+Lokale Nachprüfung nach separat freigegebenem Frontend-Neubau: `/trade-plans/overview`
+öffnen, einen Plan mit vorhandener Produktauswahl ansehen und Name/WKN/ISIN mit der
+verknüpften Auswahl vergleichen. Bei einem Plan ohne Auswahl muss der entsprechende
+Hinweis erscheinen; alte Käufe dürfen nicht zur aktuellen Auswahl werden. Übersicht
+aktualisieren und den Prüf-Link öffnen. Dieser Prüfweg ist ausschließlich lesend;
+keinen Bewertungs-, Auswahl- oder BUY-Button bestätigen. Keine zusätzliche Migration
+oder Runtime-Konfiguration. Die Plan-Detailansicht und Buchungsformulare bleiben
+unverändert.
+
+Regression: `TradePlanOverviewPage.identity.test.tsx` prüft getrennte Identitäten,
+gleiche Basiswerte mit verschiedenen Optionsscheinen, Versionswechsel, fehlende
+Stammdaten/Alt-Backend, Fehler und abgebrochene Antworten. Der Playwright-Test
+`trade-plan-warrant-identity.spec.ts` prüft Desktop/390px, lange Namen, Tastatur-Link
+und den Handoff bis zur Kaufmaske ohne Schreibrequest. Seine API-Antworten sind
+synthetische Fixtures, kein neuer Browser-zu-Datenbank-Buchungsnachweis.
