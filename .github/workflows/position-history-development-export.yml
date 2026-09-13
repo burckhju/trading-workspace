@@ -8,30 +8,21 @@ permissions:
 jobs:
   export:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
         with:
+          fetch-depth: 0
           persist-credentials: false
-      - uses: actions/setup-node@v4
-        with:
-          node-version-file: frontend/.nvmrc
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.13'
-      - name: Export tracked public source and locked development dependencies
+      - name: Export public Git objects and pinned integration source only
         run: |
-          mkdir -p /tmp/position-history-development/wheels
-          git archive --format=tar HEAD > /tmp/position-history-development/source.tar
-          git rev-parse HEAD > /tmp/position-history-development/commit.txt
-          git rev-parse HEAD^{tree} > /tmp/position-history-development/tree.txt
-          python -m pip download -r backend/requirements-dev.txt -d /tmp/position-history-development/wheels
-          cd frontend
-          npm ci --ignore-scripts
-          tar -czf /tmp/position-history-development/node_modules.tar.gz node_modules
+          mkdir -p /tmp/position-history-source
+          git bundle create /tmp/position-history-source/repository.bundle --all
+          git archive --format=tar 36928cd08f6705033affa73a0d556535ec686fa5 > /tmp/position-history-source/source.tar
+          git rev-parse 36928cd08f6705033affa73a0d556535ec686fa5^{tree} > /tmp/position-history-source/tree.txt
       - uses: actions/upload-artifact@v4
         with:
-          name: position-history-development
-          path: /tmp/position-history-development
+          name: position-history-source-current
+          path: /tmp/position-history-source
           retention-days: 1
           if-no-files-found: error
