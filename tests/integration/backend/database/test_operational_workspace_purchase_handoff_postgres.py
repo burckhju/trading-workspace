@@ -46,7 +46,10 @@ async def test_purchase_consumes_current_selection_and_never_reopens_initial_buy
     old_selection_id = uuid4()
     current_selection_id = uuid4()
     actor = uuid4()
-    now = datetime.now(UTC)
+    recording_started_at = datetime.now(UTC)
+    # Both executions already happened; recorded_at must remain the real capture time.
+    # A future SELL is invalid, rather than a reason to fabricate its recording time.
+    now = recording_started_at - timedelta(minutes=2)
 
     async with engine.connect() as connection:
         outer_transaction = await connection.begin()
@@ -260,6 +263,8 @@ async def test_purchase_consumes_current_selection_and_never_reopens_initial_buy
                 assert trade.product_selection_id == current_selection_id
                 assert trade.product_evaluation_id == current_evaluation_id
                 assert execution.trade_id == trade.id
+                assert execution.executed_at == now
+                assert recording_started_at <= execution.recorded_at <= datetime.now(UTC)
                 assert position.trade_id == trade.id
                 assert position.open_quantity == 10
                 assert not position.is_closed
@@ -272,7 +277,7 @@ async def test_purchase_consumes_current_selection_and_never_reopens_initial_buy
                     "OPEN_POSITION_MANAGEMENT"
                 ]
 
-                _sale, closed = await service.record_sale(
+                sale, closed = await service.record_sale(
                     workspace_id=workspace_id,
                     trade_id=trade.id,
                     quantity=10,
@@ -280,6 +285,8 @@ async def test_purchase_consumes_current_selection_and_never_reopens_initial_buy
                     executed_at=now + timedelta(minutes=1),
                     actor=actor,
                 )
+                assert sale.executed_at == now + timedelta(minutes=1)
+                assert recording_started_at <= sale.recorded_at <= datetime.now(UTC)
                 assert closed.is_closed
                 assert closed.open_quantity == 0
 
