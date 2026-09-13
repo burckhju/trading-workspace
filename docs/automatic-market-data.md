@@ -57,11 +57,14 @@ default scope. Other backend deployments can set
   currency is required; Frankfurt can supply that verified listing first.
   No venue is invented for an issuer indication.
 - Basiswerte/stock listings use EODHD completed daily prices. Missing mappings may
-  be created only if search returns an unambiguous exact ISIN, stock type, currency
-  and exchange association. Exchange/MIC evidence comes from existing validated
-  workspace mappings through the venue-reconciliation service. Missing ISINs,
-  missing active listings, unknown venue associations and contradictory mappings
-  remain blocked with a reason. Symbol similarity alone is never sufficient.
+  be created only if the official exchange and symbol catalogs verify one exact
+  ISIN, stock type, listing currency and venue. This also works for the first
+  mapping at a venue; the composite US code requires instrument-specific NYSE or
+  NASDAQ evidence. Existing mappings, including disabled mappings, are preserved.
+  Catalogs share the configured EODHD quota, limiter and retries and are cached
+  for 24 hours. Unresolved identity or venue differences remain blocked with a
+  specific reason. See [Underlying mapping discovery](underlying-mapping-discovery.md)
+  for evidence, limits and deployment verification.
 - Daily imports use the existing idempotent persistence path. Initial history is
   up to 400 calendar days; later imports overlap seven days to capture corrections.
   No EOD price is converted into a warrant bid/ask or an execution permission.

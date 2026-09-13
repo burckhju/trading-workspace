@@ -29,11 +29,25 @@ class VenueReconciliationResult:
     evidence_venue_ids: tuple[UUID, ...]
 
 
-class ProviderVenueReconciliationService:
-    """Reconcile provider codes using existing active listing mappings as evidence only."""
+@dataclass(frozen=True, slots=True)
+class VerifiedListingVenue:
+    """Provider-verified evidence for one listing, never a global exchange alias."""
 
-    def __init__(self, uow: MarketDataUnitOfWork) -> None:
+    workspace_id: UUID
+    listing_id: UUID
+    provider: MarketDataProvider
+    provider_exchange_code: str
+    venue_id: UUID
+
+
+class ProviderVenueReconciliationService:
+    """Prefer scoped instrument evidence; otherwise explain historical mapping evidence."""
+
+    def __init__(
+        self, uow: MarketDataUnitOfWork, *, verified_listing: VerifiedListingVenue | None = None
+    ) -> None:
         self._uow = uow
+        self._verified_listing = verified_listing
 
     async def reconcile_mapping(
         self, workspace_id: UUID, mapping_id: UUID
@@ -68,6 +82,28 @@ class ProviderVenueReconciliationService:
                 status=VenueReconciliationStatus.UNRESOLVED,
                 listing_venue_id=None,
                 evidence_venue_ids=(),
+            )
+
+        verified = self._verified_listing
+        if verified is not None and (
+            workspace_id,
+            listing_id,
+            provider,
+            provider_exchange_code,
+        ) == (
+            verified.workspace_id,
+            verified.listing_id,
+            verified.provider,
+            verified.provider_exchange_code,
+        ):
+            return VenueReconciliationResult(
+                (
+                    VenueReconciliationStatus.MATCHED
+                    if listing_venue_id == verified.venue_id
+                    else VenueReconciliationStatus.CONFLICT
+                ),
+                listing_venue_id,
+                (verified.venue_id,),
             )
 
         evidence = tuple(
