@@ -21,9 +21,9 @@ describe('symbol-less warrant listing requests', () => {
   it.each(['', '   ', null, undefined])(
     'sends missing symbol %s as null, not an invented identity',
     async (symbol) => {
-      const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-        new Response(JSON.stringify({ id: 'listing', symbol: null }), { status: 201 }),
-      );
+      const response = new Response(JSON.stringify({ id: 'listing', symbol: null }), { status: 201 });
+      const fetchMock = vi.spyOn(globalThis, 'fetch');
+      fetchMock.mockResolvedValue(response);
       const result = await warrantApiClient.addListing(productId, {
         trading_venue_id: venueId,
         quotation_currency_code: 'USD',
@@ -43,9 +43,11 @@ describe('symbol-less warrant listing requests', () => {
   );
 
   it('preserves an explicitly supplied venue symbol and the quotation currency', async () => {
-    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify({ id: 'listing', symbol: 'TESTCALL' }), { status: 201 }),
-    );
+    const response = new Response(JSON.stringify({ id: 'listing', symbol: 'TESTCALL' }), {
+      status: 201,
+    });
+    const fetchMock = vi.spyOn(globalThis, 'fetch');
+    fetchMock.mockResolvedValue(response);
     await warrantApiClient.addListing(productId, {
       trading_venue_id: venueId,
       quotation_currency_code: 'CHF',
