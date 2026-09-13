@@ -165,3 +165,18 @@ it('handles empty results and no positions', async () => {
   ).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Nächste Seite' })).toBeDisabled();
 });
+
+it('resets expanded details as well as filters and paging without leaving a duplicate-looking row', async () => {
+  const user = userEvent.setup();
+  show([position()]);
+  await user.type(screen.getByRole('searchbox'), 'Test');
+  await user.click(screen.getByRole('button', { name: 'Details' }));
+  const table = screen.getByRole('table');
+  expect(table.querySelectorAll('tbody tr[data-position-id]')).toHaveLength(1);
+  expect(screen.getByRole('region', { name: 'Details Test Warrant' })).toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: 'Ansicht zurücksetzen' }));
+  expect(screen.getByRole('searchbox')).toHaveValue('');
+  expect(screen.queryByRole('region', { name: 'Details Test Warrant' })).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Details' })).toHaveAttribute('aria-expanded', 'false');
+  expect(table.querySelectorAll('tbody tr')).toHaveLength(1);
+});

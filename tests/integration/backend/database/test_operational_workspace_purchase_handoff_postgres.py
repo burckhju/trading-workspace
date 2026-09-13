@@ -5,18 +5,18 @@ from __future__ import annotations
 import os
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
+from unittest.mock import AsyncMock
 from uuid import uuid4
 
 import pytest
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from app.features.operational_workspace.service.read_model import OperationalWorkspaceReadModel
-from app.features.trade_plan.api import overview_router
 from app.features.operational_workspace.service.position_snapshot import (
     OperationalPositionSnapshotService,
 )
-from unittest.mock import AsyncMock
+from app.features.operational_workspace.service.read_model import OperationalWorkspaceReadModel
+from app.features.trade_plan.api import overview_router
 from app.features.trade_position.persistence.unit_of_work import SqlAlchemyTradePositionUnitOfWork
 from app.features.trade_position.service.application import TradePositionService
 from app.features.trade_position.service.resolvers import SqlAlchemyWorkspaceSelectionResolver
@@ -169,7 +169,8 @@ async def test_purchase_consumes_current_selection_and_never_reopens_initial_buy
             await connection.execute(
                 text(
                     "INSERT INTO trade_plan_versions "
-                    "(id, trade_plan_id, version, direction, thesis, entry_type, entry_currency, "
+                    "(id, trade_plan_id, version, direction, thesis, entry_type, "
+                    "entry_currency, "
                     "entry_price, risk_thesis, status, created_at, created_by) VALUES "
                     "(:id, :trade_plan_id, 1, 'LONG', 'Handoff thesis', 'PRICE', :currency_code, "
                     "100, 'Handoff risk', 'APPROVED', :now, 'test')"
@@ -320,7 +321,8 @@ async def test_purchase_consumes_current_selection_and_never_reopens_initial_buy
                 await session.execute(
                     text(
                         "INSERT INTO trade_plan_versions "
-                        "(id, trade_plan_id, version, direction, thesis, entry_type, entry_currency, "
+                        "(id, trade_plan_id, version, direction, thesis, entry_type, "
+                        "entry_currency, "
                         "entry_price, risk_thesis, status, created_at, created_by) VALUES "
                         "(:id, :plan, 2, 'LONG', 'New version', 'PRICE', :currency, "
                         "100, 'risk', 'APPROVED', :now, 'test')"

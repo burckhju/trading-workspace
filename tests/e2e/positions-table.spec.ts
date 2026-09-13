@@ -86,7 +86,7 @@ test("100 positions: global search, colored statuses, pagination, details and re
   await expect(
     page.getByRole("heading", { name: "Offene Positionen · 100" }),
   ).toBeVisible();
-  await expect(page.locator("tbody > tr")).toHaveCount(25);
+  await expect(page.locator("tbody > tr[data-position-id]")).toHaveCount(25);
   await expect(
     page.getByText("! Kritischer Hinweis", { exact: true }),
   ).toHaveClass(/text-rose-200/);
@@ -94,7 +94,7 @@ test("100 positions: global search, colored statuses, pagination, details and re
   await expect(page.getByRole("status")).toContainText("Seite 2 von 4");
   const search = page.getByRole("searchbox");
   await search.fill("DE000TEST0099");
-  await expect(page.locator("tbody > tr")).toHaveCount(1);
+  await expect(page.locator("tbody > tr[data-position-id]")).toHaveCount(1);
   await expect(
     page.getByText("Optionsschein 099", { exact: true }),
   ).toBeVisible();
@@ -109,20 +109,23 @@ test("100 positions: global search, colored statuses, pagination, details and re
   await page.goBack();
   await expect(search).toHaveValue("DE000TEST0099");
   await page.getByRole("button", { name: "Ansicht zurücksetzen" }).click();
+  await expect(
+    page.getByRole("region", { name: "Details Optionsschein 099" }),
+  ).toHaveCount(0);
   await page.getByLabel("Zeilen pro Seite").selectOption("100");
-  await expect(page.locator("tbody > tr")).toHaveCount(100);
+  await expect(page.locator("tbody > tr[data-position-id]")).toHaveCount(100);
   await page
     .getByRole("button", { name: "Fachliche Hinweise", exact: true })
     .click();
-  await expect(page.locator("tbody > tr")).toHaveCount(1);
+  await expect(page.locator("tbody > tr[data-position-id]")).toHaveCount(1);
   await page.getByRole("button", { name: "Alle offenen Positionen" }).click();
   await page.getByRole("button", { name: /^Nicht realisierter G\/V/ }).click();
   await expect(
     page.getByRole("columnheader", { name: /Nicht realisierter G\/V/ }),
   ).toHaveAttribute("aria-sort", "ascending");
-  await expect(page.locator("tbody > tr").last()).toContainText(
-    "Optionsschein 098",
-  );
+  await expect(
+    page.locator("tbody > tr[data-position-id]").last(),
+  ).toContainText("Optionsschein 098");
   await page.getByLabel("Zeilen pro Seite").selectOption("25");
   await testInfo.attach("Positionsübersicht desktop (synthetische Testdaten)", {
     body: await page.screenshot({ fullPage: true }),
@@ -156,7 +159,16 @@ test("narrow layout: bounded horizontal scroll and keyboard-accessible details a
   const details = page.getByRole("button", { name: "Details", exact: true });
   await details.focus();
   await page.keyboard.press("Enter");
-  await expect(details).toHaveAttribute("aria-expanded", "true");
+  // The accessible label changes to “Details schließen” after activation.
+  const expanded = page.getByRole("button", {
+    name: "Details schließen",
+    exact: true,
+  });
+  await expect(expanded).toHaveAttribute("aria-expanded", "true");
+  await expect(expanded).toBeFocused();
+  await expect(
+    page.getByRole("region", { name: "Details Optionsschein 099" }),
+  ).toBeVisible();
   await testInfo.attach("Positionsübersicht mobile (synthetische Testdaten)", {
     body: await page.screenshot({ fullPage: true }),
     contentType: "image/png",

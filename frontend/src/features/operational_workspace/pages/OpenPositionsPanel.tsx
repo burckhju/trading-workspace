@@ -188,7 +188,10 @@ export function OpenPositionsPanel({
           ))}
           <button
             type="button"
-            onClick={() => setView({ ...defaultPositionsView })}
+            onClick={() => {
+              setExpanded(null);
+              setView({ ...defaultPositionsView });
+            }}
             className={control}
           >
             Ansicht zurücksetzen
