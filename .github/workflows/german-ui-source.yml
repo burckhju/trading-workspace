@@ -9,16 +9,15 @@ jobs:
   source:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
-          ref: 36928cd08f6705033affa73a0d556535ec686fa5
-          persist-credentials: false
-      - name: Export tracked sources only
+          python-version: '3.13'
+      - name: Download pinned development tools only
         run: |
-          mkdir -p /tmp/german-ui-source
-          git archive HEAD | gzip > /tmp/german-ui-source/source.tar.gz
+          mkdir -p /tmp/german-ui-tools
+          python -m pip download --only-binary=:all: --dest /tmp/german-ui-tools black==26.1.0 ruff==0.15.1
       - uses: actions/upload-artifact@v4
         with:
-          name: german-ui-tracked-source
-          path: /tmp/german-ui-source/source.tar.gz
+          name: german-ui-lint-tools
+          path: /tmp/german-ui-tools/*.whl
           retention-days: 1
