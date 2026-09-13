@@ -1,0 +1,41 @@
+name: Trade repair diagnostics
+on:
+  push:
+    branches: [fix/duplicate-trade-cancellation]
+    paths: [.github/workflows/trade-diagnostic.yml]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  diagnostics:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Collect source and existing failing run logs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p /tmp/trade-diagnostics
+          git archive HEAD > /tmp/trade-diagnostics/source.tar
+          python - <<'PY'
+          import os, pathlib, urllib.request, zipfile, io
+          out = pathlib.Path('/tmp/trade-diagnostics')
+          for run in (34739430473, 34739430404):
+              req = urllib.request.Request(f'https://api.github.com/repos/burckhju/trading-workspace/actions/runs/{run}/logs', headers={'Authorization': 'Bearer ' + os.environ['GH_TOKEN'], 'Accept': 'application/vnd.github+json'})
+              with urllib.request.urlopen(req, timeout=60) as response:
+                  data = response.read()
+              (out / f'{run}.zip').write_bytes(data)
+              with zipfile.ZipFile(io.BytesIO(data)) as z:
+                  for name in z.namelist():
+                      if any(x in name.lower() for x in ('coverage', 'playwright', 'build')):
+                          text = z.read(name).decode('utf-8', errors='replace')
+                          print(name)
+                          print('\n'.join(text.splitlines()[-25:]))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: trade-repair-diagnostics
+          path: /tmp/trade-diagnostics
+          retention-days: 1
