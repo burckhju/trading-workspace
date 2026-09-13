@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { marketApiClient } from '../../market/services/client';
 import type { UnderlyingDetailResponse } from '../../market/types/api';
 import { PlanPurchaseStatus } from '../components/PlanPurchaseStatus';
+import { PlanSelectedProduct } from '../components/PlanSelectedProduct';
 import { purchaseLabels } from '../services/purchaseStatus';
 import {
   tradePlanOverviewApiClient,
@@ -149,7 +150,8 @@ export function TradePlanOverviewPage() {
                     <p className="text-xs uppercase tracking-wide text-slate-500">
                       {tradePlanReference(item.id)}
                     </p>
-                    <h2 className="mt-1 text-lg font-semibold">
+                    <p className="mt-2 text-xs text-slate-400">Basiswert</p>
+                    <h2 className="mt-1 break-words text-lg font-semibold">
                       {item.underlying_name ?? underlying?.name ?? 'Basiswert wird nicht aufgelöst'}
                     </h2>
                     <p className="mt-1 text-sm text-slate-400">
@@ -183,6 +185,7 @@ export function TradePlanOverviewPage() {
                     <dd className="mt-1">{new Date(item.created_at).toLocaleString('de-DE')}</dd>
                   </div>
                 </dl>
+                <PlanSelectedProduct item={item} />
                 <PlanPurchaseStatus item={item} />
                 <div className="mt-4 flex flex-wrap gap-3">
                   <Link
@@ -196,7 +199,7 @@ export function TradePlanOverviewPage() {
                       to={`/product-selection?${selectionSearch}`}
                       className="inline-flex rounded-lg border border-emerald-700 px-4 py-2 text-sm"
                     >
-                      {item.execution?.status === 'NOT_STARTED'
+                      {item.selected_product === null && item.execution?.status === 'NOT_STARTED'
                         ? 'Produkt auswählen'
                         : 'Produktauswahl öffnen'}
                     </Link>
