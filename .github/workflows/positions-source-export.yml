@@ -1,0 +1,25 @@
+name: Positions source export
+on:
+  push:
+    branches: [feat/positions-table-colors]
+    paths: [.github/workflows/positions-source-export.yml]
+permissions:
+  contents: read
+jobs:
+  source:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Export tracked sources only
+        run: |
+          mkdir -p /tmp/positions-source
+          git archive HEAD | gzip > /tmp/positions-source/prepared.tar.gz
+          git archive aba5bff449bab980e487282bee155097018a3e25 | gzip > /tmp/positions-source/base.tar.gz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: positions-tracked-source
+          path: /tmp/positions-source/*.tar.gz
+          retention-days: 1
