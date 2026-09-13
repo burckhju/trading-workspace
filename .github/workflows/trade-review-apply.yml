@@ -38,7 +38,10 @@ jobs:
                   lines.append(indent + json.dumps(value) + suffix)
               else:
                   lines.append(line)
-          p.write_text('\n'.join(lines) + '\n')
+          s = '\n'.join(lines) + '\n'
+          s = s.replace('"INSERT INTO trades(id,workspace_id,product_id,origin,created_at,created_by) "', '"INSERT INTO trades(id,workspace_id,product_id,origin,"\n                                "created_at,created_by) "')
+          s = s.replace('"open_quantity=10,cost_basis=5.5,closed_at=NULL,closed_on=NULL WHERE "', '"open_quantity=10,cost_basis=5.5,closed_at=NULL,"\n                                "closed_on=NULL WHERE "')
+          p.write_text(s)
           p = Path('backend/app/database/manager.py')
           s = p.read_text().replace('from collections.abc import AsyncIterator', 'from collections.abc import AsyncGenerator, AsyncIterator').replace('async def session(self) -> AsyncIterator[AsyncSession]:', 'async def session(self) -> AsyncGenerator[AsyncSession, None]:')
           p.write_text(s)
