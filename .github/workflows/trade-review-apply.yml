@@ -12,11 +12,88 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: Apply reviewed patch and verify exact tree
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python -m pip install black==26.1.0 ruff==0.15.1
+      - name: Apply reviewed corrections and verify exact local tree
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import ast, json, subprocess
+          p = Path('tests/integration/backend/test_trade_capture_safety.py')
+          lines = []
+          for line in p.read_text().splitlines():
+              s = line.strip()
+              if len(line) > 100 and s.startswith('"') and (s.endswith('"') or s.endswith('",')):
+                  suffix = ',' if s.endswith(',') else ''
+                  value = ast.literal_eval(s[:-1] if suffix else s)
+                  indent = line[:len(line)-len(line.lstrip())]
+                  while len(value) > 78:
+                      split = value.rfind(' ', 0, 78) + 1
+                      if split <= 0: split = value.rfind(',', 0, 78) + 1
+                      if split <= 0: split = 78
+                      lines.append(indent + json.dumps(value[:split]))
+                      value = value[split:]
+                  lines.append(indent + json.dumps(value) + suffix)
+              else:
+                  lines.append(line)
+          p.write_text('\n'.join(lines) + '\n')
+          p = Path('backend/app/database/manager.py')
+          s = p.read_text().replace('from collections.abc import AsyncIterator', 'from collections.abc import AsyncGenerator, AsyncIterator').replace('async def session(self) -> AsyncIterator[AsyncSession]:', 'async def session(self) -> AsyncGenerator[AsyncSession, None]:')
+          p.write_text(s)
+          p = Path('backend/app/tools/import_currency_catalog.py')
+          s = p.read_text().replace('from collections.abc import AsyncGenerator, Sequence', 'from collections.abc import Sequence').replace('from typing import cast\n\nfrom sqlalchemy.ext.asyncio import AsyncSession\n', '')
+          s = s.replace('async with aclosing(\n            cast(AsyncGenerator[AsyncSession, None], database.session())\n        ) as sessions:', 'async with aclosing(database.session()) as sessions:')
+          p.write_text(s)
+          p = Path('frontend/src/features/trade/pages/TradeManagementPage.tsx')
+          s = p.read_text().replace('onSubmit={(event) => void recordSale(event)}', 'aria-label="Verkauf erfassen"\n            onSubmit={(event) => void recordSale(event)}').replace('{trade && <TradeTimelinePanel key={`timeline-${tradeId}`} tradeId={tradeId} />}', '{trade?.cancelled_at && <TradeTimelinePanel key={`timeline-${tradeId}`} tradeId={tradeId} />}')
+          p.write_text(s)
+          for name in ['depot-sell-capture.spec.ts', 'ft010-trade-management.spec.ts']:
+              p = Path('tests/e2e') / name
+              p.write_text(p.read_text().replace('page.getByText(/keine Broker-Order/i)', 'page.getByRole("form", { name: "Verkauf erfassen" }).getByText(/keine Broker-Order/i)'))
+          p = Path('tests/e2e/purchase-workspace-handoff.spec.ts')
+          s = p.read_text().replace('const tradePlanId', "test.use({ timezoneId: 'Europe/Berlin' });\n\nconst tradePlanId", 1)
+          s = s.replace("price_per_unit: '2.40',\n    });", "price_per_unit: '2.40',\n      executed_on: '2026-08-17',\n      execution_timezone: 'Europe/Berlin',\n      request_id: expect.stringMatching(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/),\n    });", 1)
+          s = s.replace("await page.getByLabel('Kaufmenge')", "await page.getByLabel('Kaufdatum', { exact: true }).fill('2026-08-17');\n  await page.getByLabel('Kaufmenge')", 1)
+          p.write_text(s)
+          subprocess.run(['python', '-m', 'ruff', 'check', '--fix', 'app/database/manager.py', 'app/tools/import_currency_catalog.py', '../tests/integration/backend/test_trade_capture_safety.py'], cwd='backend', check=True)
+          subprocess.run(['python', '-m', 'black', '--config', 'pyproject.toml', 'app/database/manager.py', 'app/tools/import_currency_catalog.py', '../tests/integration/backend/test_trade_capture_safety.py'], cwd='backend', check=True)
+          Path('.github/workflows/trade-review-source.yml').unlink()
+          Path('.github/workflows/trade-review-apply.yml').unlink()
+          subprocess.run(['git', 'add', '-u'], check=True)
+          actual = subprocess.check_output(['git', 'write-tree'], text=True).strip()
+          assert actual == '683626029aeb0c1931a36f876214ba560fcc479a', actual
+          print('Verified exact reviewed tree:', actual)
+          PY
+      - name: Create Git objects only; connector will update PR branch after verification
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           python - <<'PY'
-          import base64, json, os, pathlib, subprocess, urllib.request, zlib
-          encoded = '''eJztW+ty4sgV/s9TdKm2ApQlcTEYzIbd8cyQXVc8Hsf2zCbZTLSN1DJaC0mjlmyzLr9NniH5n7xYzuluCQkLjC9T2UpCuYwufU73uXzn0hKO57rEMC68hNCWCV+zdNq6DuNL1w+veSuJqcOMmF157NrgYRrbzFzMfTLdfmzNYT5LmENcz2dkHjqMdNrtvV6v5gUOuyF92xn0WN802/JTMwzjMW2010'''
+          import json, os, pathlib, subprocess, urllib.request
+          repo = os.environ['GITHUB_REPOSITORY']
+          assert repo == 'burckhju/trading-workspace'
+          assert os.environ['GITHUB_REF'] == 'refs/heads/fix/duplicate-trade-cancellation'
+          parent = os.environ['GITHUB_SHA']
+          def request(path, payload=None):
+              req = urllib.request.Request('https://api.github.com/repos/' + repo + path, data=None if payload is None else json.dumps(payload).encode(), headers={'Authorization': 'Bearer ' + os.environ['GH_TOKEN'], 'Accept': 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', 'Content-Type': 'application/json'})
+              with urllib.request.urlopen(req, timeout=30) as response:
+                  return json.load(response)
+          base_tree = request('/git/commits/' + parent)['tree']['sha']
+          elements = []
+          for line in subprocess.check_output(['git', 'diff', '--cached', '--name-status'], text=True).splitlines():
+              status, path = line.split('\t')
+              element = {'path': path, 'mode': '100644', 'type': 'blob'}
+              if status == 'D':
+                  element['sha'] = None
+              else:
+                  element['content'] = pathlib.Path(path).read_text()
+              elements.append(element)
+          tree = request('/git/trees', {'base_tree': base_tree, 'tree': elements})['sha']
+          assert tree == '683626029aeb0c1931a36f876214ba560fcc479a'
+          commit = request('/git/commits', {'message': 'fix(trade): validate session cleanup and restore unambiguous capture UI', 'tree': tree, 'parents': [parent]})
+          print('CANDIDATE_COMMIT=' + commit['sha'])
+          print('CANDIDATE_TREE=' + tree)
+          print('No branch reference was changed by this workflow.')
           PY
