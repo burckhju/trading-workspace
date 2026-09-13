@@ -1,0 +1,36 @@
+name: Selection repair development bundle
+on:
+  push:
+    branches: [chore/selection-repair-devbundle]
+    paths: [.github/workflows/selection-repair-devbundle.yml]
+permissions:
+  contents: read
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: frontend/.nvmrc
+      - name: Install pinned development dependencies
+        working-directory: frontend
+        run: npm ci --no-audit
+      - name: Package public source and development dependencies only
+        run: |
+          mkdir -p /tmp/selection-repair-bundle
+          git archive --format=tar ac2d8e0e4e31f7b4c2869bae0f3be5a564e0795b > /tmp/selection-repair-bundle/source.tar
+          git rev-parse ac2d8e0e4e31f7b4c2869bae0f3be5a564e0795b > /tmp/selection-repair-bundle/commit.txt
+          git rev-parse ac2d8e0e4e31f7b4c2869bae0f3be5a564e0795b^{tree} > /tmp/selection-repair-bundle/tree.txt
+          tar -czf /tmp/selection-repair-bundle/frontend-deps.tgz -C frontend node_modules
+          cd /tmp/selection-repair-bundle
+          sha256sum source.tar frontend-deps.tgz > SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: selection-repair-devbundle
+          path: /tmp/selection-repair-bundle
+          retention-days: 1
+          if-no-files-found: error
