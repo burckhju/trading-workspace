@@ -1,8 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ErrorNotice, LoadingNotice } from '../components/ApiFeedback';
 import { StatusBadge } from '../components/StatusBadge';
 import { marketApiClient } from '../services/client';
+import {
+  underlyingListReturnTo,
+  withUnderlyingListReturnTo,
+} from '../services/underlyingListNavigation';
 import type {
   AuditEventResponse,
   UnderlyingDetailResponse,
@@ -12,6 +16,9 @@ import type {
 export function UnderlyingDetailPage() {
   const { underlyingId = '' } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const returnTo = underlyingListReturnTo(searchParams);
+  const listUrl = returnTo ?? '/underlyings';
   const [item, setItem] = useState<UnderlyingDetailResponse | null>(null);
   const [audit, setAudit] = useState<AuditEventResponse[]>([]);
   const [usages, setUsages] = useState<UnderlyingUsageResponse[]>([]);
@@ -61,7 +68,7 @@ export function UnderlyingDetailPage() {
         await marketApiClient.reactivateUnderlying(item.id, { version: item.version });
       if (action === 'delete') {
         await marketApiClient.deleteUnderlying(item.id, item.version);
-        void navigate('/underlyings');
+        void navigate(listUrl, { replace: true });
         return;
       }
       await load();
@@ -76,7 +83,7 @@ export function UnderlyingDetailPage() {
     return (
       <section className="w-full space-y-4">
         <ErrorNotice error={error} />
-        <Link to="/underlyings" className="text-sky-300">
+        <Link to={listUrl} className="text-sky-300">
           Zurück zur Liste
         </Link>
       </section>
@@ -88,7 +95,7 @@ export function UnderlyingDetailPage() {
     <section className="w-full space-y-8" aria-labelledby="underlying-title">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <Link to="/underlyings" className="text-sm text-sky-300 hover:underline">
+          <Link to={listUrl} className="text-sm text-sky-300 hover:underline">
             ← Basiswerte
           </Link>
           <h1 id="underlying-title" className="mt-3 text-3xl font-semibold">
@@ -101,7 +108,7 @@ export function UnderlyingDetailPage() {
         </div>
         <div className="flex flex-wrap gap-2">
           <Link
-            to={`/underlyings/${item.id}/edit`}
+            to={withUnderlyingListReturnTo(`/underlyings/${item.id}/edit`, returnTo)}
             className="rounded-lg border border-slate-700 px-4 py-2 hover:bg-slate-800"
           >
             Bearbeiten
