@@ -12,33 +12,68 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: Build exact reviewed tree objects without updating refs
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python -m pip install black==26.1.0
+      - name: Prepare reviewed repairs without changing branch refs
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           python - <<'PY'
-          import base64, gzip, hashlib, json, os, pathlib, subprocess, urllib.request
-          encoded = '''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'''
-          patch = gzip.decompress(base64.b64decode(encoded))
-          assert hashlib.sha256(patch).hexdigest() == 'b71d7fc683c49df12f65a01117b9901688095be992448bff16eae5201724b028'
-          subprocess.run(['git','apply','--check','-'],input=patch,check=True)
-          subprocess.run(['git','apply','-'],input=patch,check=True)
-          pathlib.Path('.github/workflows/trade-diagnostic.yml').unlink()
-          subprocess.run(['git','add','-u'],check=True)
+          from pathlib import Path
+          import json, os, subprocess, urllib.request
+          def edit(path, old, new):
+              p=Path(path); s=p.read_text(); assert old in s, (path,old); p.write_text(s.replace(old,new))
+          edit('backend/app/features/trade_position/persistence/repositories.py',
+              '            .with_for_update()\n        )\n        if product is None:',
+              '            # Serialize creators while remaining compatible with FK KEY SHARE locks\n            # already held by raw/imported trade rows in concurrent transactions.\n            .with_for_update(key_share=True)\n        )\n        if product is None:')
+          edit('backend/migrations/versions/20260912_0036_trade_capture_safety.py',
+              'PERFORM 1 FROM warrants WHERE id = NEW.product_id AND workspace_id = parent.workspace_id FOR UPDATE;',
+              '-- FK inserts already hold KEY SHARE on this row. NO KEY UPDATE still\n    -- serializes creators, without mutually upgrading those FK locks.\n    PERFORM 1 FROM warrants WHERE id = NEW.product_id AND workspace_id = parent.workspace_id FOR NO KEY UPDATE;')
+          edit('tests/integration/backend/database/conftest.py','CURRENT_HEAD = "20260828_0029"','CURRENT_HEAD = "head"')
+          edit('tests/integration/backend/learning/conftest.py','from alembic.config import Config','from alembic.config import Config\nfrom alembic.script import ScriptDirectory')
+          current='EXPECTED_ALEMBIC_HEAD = ScriptDirectory.from_config(\n    Config(str(Path(__file__).resolve().parents[4] / "backend" / "alembic.ini"))\n).get_current_head()\nassert EXPECTED_ALEMBIC_HEAD is not None'
+          edit('tests/integration/backend/learning/conftest.py','EXPECTED_ALEMBIC_HEAD = "20260828_0029"',current)
+          edit('tests/integration/backend/learning/test_learning_postgres_fixture.py','from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession','from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession\nfrom tests.integration.backend.learning.conftest import EXPECTED_ALEMBIC_HEAD')
+          edit('tests/integration/backend/learning/test_learning_postgres_fixture.py','assert revision == "20260828_0029"','assert revision == EXPECTED_ALEMBIC_HEAD')
+          edit('tests/integration/backend/post_trade/conftest.py','import pytest_asyncio\n','import pytest_asyncio\nfrom alembic.config import Config\nfrom alembic.script import ScriptDirectory\n')
+          edit('tests/integration/backend/post_trade/conftest.py','EXPECTED_ALEMBIC_HEAD = "20260828_0029"',current)
+          edit('tests/integration/backend/post_trade/test_postgres_fixture.py','from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession','from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession\nfrom tests.integration.backend.post_trade.conftest import EXPECTED_ALEMBIC_HEAD')
+          edit('tests/integration/backend/post_trade/test_postgres_fixture.py','assert revision == "20260828_0029"','assert revision == EXPECTED_ALEMBIC_HEAD')
+          edit('tests/integration/backend/test_trade_capture_safety.py',"'STOP_BREACHED'","'STOP_REACHED'")
+          edit('tests/e2e/ft010-trade-management.spec.ts','  await page.getByLabel("Ausführungszeit").fill("2026-08-17T09:30");','  await page.getByLabel("Verkaufsdatum", { exact: true }).fill("2026-08-17");\n  await page.getByLabel("Verkaufsdatum Uhrzeit").fill("09:30");')
+          p=Path('tests/integration/backend/database/test_scheduled_market_data_postgres.py');s=p.read_text()
+          s=s.replace('_run_alembic("upgrade", "head", isolated_url)', '_run_alembic("upgrade", "20260912_0035", isolated_url)')
+          start=s.index('                    # Held products outrank UUID order;')
+          end=s.index('                    warrants, stocks = await read_catalog',start)
+          legacy=s[start:end]
+          s=s[:start]+'                    # Legacy duplicates add no jobs, and foreign-workspace positions\n                    # do not confer priority after the current migration is applied.\n'+s[end:]
+          legacy='\n'.join(line[4:] if line.startswith('    ') else line for line in legacy.splitlines())+'\n'
+          marker='                @asynccontextmanager\n                async def session_context():'
+          assert marker in s
+          s=s.replace(marker,legacy+'\n                # These deliberate legacy anomalies were possible before 0036. Commit\n                # them in this disposable database, then run the real upgrade. Never\n                # disable the runtime guard to manufacture new invalid trades.\n                await transaction.commit()\n                await asyncio.to_thread(_run_alembic, "upgrade", "head", current_database_url)\n                transaction = await connection.begin()\n\n'+marker)
+          p.write_text(s)
+          edit('docs/trade-capture-safety.md',"The initial guard locks the workspace's warrant row.","The initial guard takes `FOR NO KEY UPDATE` on the workspace's warrant row.\nThis lock serializes creators but is compatible with foreign-key `KEY SHARE` locks\nalready acquired by concurrent raw trade inserts; `FOR UPDATE` would deadlock on\nthose lock upgrades.")
           git=lambda *args: subprocess.check_output(['git',*args],text=True).strip()
+          changed=git('diff','--name-only','HEAD').splitlines()
+          subprocess.run(['python','-m','black','--config','backend/pyproject.toml',*[n for n in changed if n.endswith('.py')]],check=True)
+          Path('.github/workflows/trade-diagnostic.yml').unlink()
+          subprocess.run(['git','add','-u'],check=True)
           expected='7dcdf733989f7bab35380616617aeae3e06adcaa'
-          assert git('write-tree') == expected
-          def post(endpoint, payload):
+          actual=git('write-tree')
+          assert actual == expected, (actual,expected)
+          def post(endpoint,payload):
               req=urllib.request.Request('https://api.github.com/repos/burckhju/trading-workspace/git/'+endpoint,data=json.dumps(payload).encode(),headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json','Content-Type':'application/json'},method='POST')
               with urllib.request.urlopen(req,timeout=60) as res: return json.load(res)
           entries=[]
           for name in git('diff','--cached','--name-only','HEAD').splitlines():
-              path=pathlib.Path(name)
+              path=Path(name)
               sha=post('blobs',{'content':path.read_text(),'encoding':'utf-8'})['sha'] if path.exists() else None
               entries.append({'path':name,'mode':'100644','type':'blob','sha':sha})
           tree=post('trees',{'base_tree':git('rev-parse','HEAD^{tree}'),'tree':entries})['sha']
           assert tree == expected
-          pathlib.Path('/tmp/trade-repair-tree.json').write_text(json.dumps({'tree':tree,'parent':git('rev-parse','HEAD'),'files':entries},indent=2))
+          Path('/tmp/trade-repair-tree.json').write_text(json.dumps({'tree':tree,'parent':git('rev-parse','HEAD'),'files':entries},indent=2))
           print('Prepared verified tree:',tree,'No commit or branch ref updated.')
           PY
       - uses: actions/upload-artifact@v4
