@@ -490,14 +490,17 @@ export function WarrantAdminPage() {
               <div className="mt-3 space-y-2">
                 {listings.map((l) => (
                   <div key={l.id} className="rounded border border-slate-800 p-3 text-sm">
-                    <strong>{l.symbol}</strong>
+                    <strong>{l.symbol ?? 'Ohne Börsensymbol'}</strong>
                     <p className="mt-1 text-slate-400">
                       {venueName(l.trading_venue_id)} · {l.quotation_currency_code}
                     </p>
                   </div>
                 ))}
                 {listings.length === 0 && (
-                  <p className="text-sm text-slate-500">Noch keine Notierung hinterlegt.</p>
+                  <p className="text-sm text-slate-500">
+                    Noch keine Notierung hinterlegt. Für die Produktauswahl werden ein belegter
+                    Handelsplatz und die Handelswährung benötigt, kein aktueller Kurs.
+                  </p>
                 )}
               </div>
               <form
@@ -523,8 +526,9 @@ export function WarrantAdminPage() {
                 <div className="grid grid-cols-2 gap-2">
                   <input
                     aria-label="Symbol"
-                    required
-                    placeholder="Symbol"
+                    aria-describedby="warrant-listing-symbol-help"
+                    maxLength={64}
+                    placeholder="Symbol (optional)"
                     value={listingForm.symbol}
                     onChange={(e) => setListingForm({ ...listingForm, symbol: e.target.value })}
                     className="rounded border border-slate-700 bg-slate-950 p-2 text-sm"
@@ -549,6 +553,10 @@ export function WarrantAdminPage() {
                 >
                   Notierung hinzufügen
                 </button>
+                <p id="warrant-listing-symbol-help" className="text-xs text-slate-500">
+                  Veröffentlicht der Handelsplatz kein Börsensymbol, bleibt das Feld leer. Kein
+                  Basiswertsymbol, keine ISIN oder WKN als Ersatz eintragen.
+                </p>
               </form>
             </div>
           </div>

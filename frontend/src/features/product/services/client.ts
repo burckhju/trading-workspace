@@ -58,6 +58,6 @@ export const warrantApiClient = {
   addListing: (id: string, request: AddWarrantListingRequest) =>
     requestJson<WarrantListingResponse>(warrantUrl(`/${id}/listings`), {
       method: 'POST',
-      body: request,
+      body: { ...request, symbol: request.symbol?.trim() || null },
     }),
 };
