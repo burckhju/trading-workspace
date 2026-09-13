@@ -142,6 +142,11 @@ test("narrow layout: bounded horizontal scroll and keyboard-accessible details a
   await page.goto("/workspace");
   const search = page.getByRole("searchbox");
   await search.fill("WK0099");
+  const searchBox = await search.boundingBox();
+  const sortBox = await page.getByLabel("Sortierung").boundingBox();
+  expect(searchBox).not.toBeNull();
+  expect(sortBox).not.toBeNull();
+  expect(searchBox!.y + searchBox!.height).toBeLessThanOrEqual(sortBox!.y);
   await expect(
     page.getByText("Optionsschein 099", { exact: true }),
   ).toBeVisible();
@@ -169,6 +174,20 @@ test("narrow layout: bounded horizontal scroll and keyboard-accessible details a
   await expect(
     page.getByRole("region", { name: "Details Optionsschein 099" }),
   ).toBeVisible();
+  const detailRegion = page.getByRole("region", {
+    name: "Details Optionsschein 099",
+  });
+  // Details remain readable when the table is scrolled to its actions on the right.
+  const detailBox = await detailRegion.boundingBox();
+  expect(detailBox).not.toBeNull();
+  expect(detailBox!.x).toBeGreaterThanOrEqual(0);
+  expect(detailBox!.x + detailBox!.width).toBeLessThanOrEqual(390);
+  await expect(detailRegion).toContainText("Quelle: FIXTURE");
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth + 1,
+    ),
+  ).toBe(true);
   await testInfo.attach("Positionsübersicht mobile (synthetische Testdaten)", {
     body: await page.screenshot({ fullPage: true }),
     contentType: "image/png",

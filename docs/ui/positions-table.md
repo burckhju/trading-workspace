@@ -7,7 +7,7 @@ Karten. Suche über Produktname, WKN, ISIN, Basiswertname und Symbol; Filter fü
 fachliche Hinweise, Datenprobleme, Gewinn und Verlust. Es wird **der gesamte geladene
 Bestand** gefiltert und sortiert, erst danach in 25/50/100 Zeilen paginiert. Die
 Trefferzahl nennt immer auch den Gesamtbestand. Ansicht zurücksetzen entfernt alle
-Filter. Suche, Sortierung und Seite bleiben im gleichen Browser-Tab beim Rücksprung
+Filter und schließt geöffnete Details. Suche, Sortierung und Seite bleiben im gleichen Browser-Tab beim Rücksprung
 erhalten; sie sind keine serverseitige Benutzerpräferenz. Fehlerhafte oder gesperrte
 Session-Speicherung blockiert die Nutzung nicht.
 
@@ -16,6 +16,9 @@ Produktspalte bleiben im Tabellen-Scrollbereich stehen. Auf schmalen Bildschirme
 werden Basiswert, Kaufdatum und Einstand in die Details verlagert; die Tabelle ist
 innerhalb ihres begrenzten Bereichs horizontal scrollbar, nicht das ganze Dokument.
 Es gibt keine unzugänglichen ausschließlich per Hover sichtbaren Aktionen.
+Die Suchfelder stehen auf schmalen Bildschirmen untereinander. Geöffnete Details
+erscheinen in einem eigenen Bereich direkt unter der Tabelle: Ihre Lesbarkeit bleibt
+unabhängig vom horizontalen Scrollstand der Tabelle erhalten.
 
 ## Farben bedeuten nicht dasselbe
 

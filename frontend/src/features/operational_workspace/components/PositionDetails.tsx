@@ -5,7 +5,10 @@ import { signalLabel, statusLabel } from '../services/statusLabels';
 
 export function PositionDetails({ position: p }: { position: OperationalPosition }) {
   return (
-    <section aria-label={`Details ${p.product_name}`} className="space-y-3 p-4 text-sm">
+    <section
+      aria-label={`Details ${p.product_name}`}
+      className="min-w-0 space-y-3 break-words p-4 text-sm"
+    >
       <h3 className="font-semibold text-white">{p.product_name} · Positionsdetails</h3>
       <p className="text-slate-300">
         WKN {p.product_wkn ?? 'nicht hinterlegt'} · ISIN {p.product_isin ?? 'nicht hinterlegt'}
