@@ -11,6 +11,7 @@ import {
 import { MarketApiError } from '../../market/services/http';
 import { tradeManagementApiClient } from '../../trade/services/client';
 import type { InitialPurchaseResponse } from '../../trade/types/api';
+import { selectionRepairUrl } from '../../product/services/selectionRepairContext';
 import { SelectionProductIdentity } from '../components/SelectionProductIdentity';
 import { useSelectionReferenceData } from '../services/useSelectionReferenceData';
 import { productSelectionApiClient } from '../services/client';
@@ -726,8 +727,22 @@ export function ProductSelectionPage() {
                         key={`${item.warrant_id}-${item.reason}`}
                         className="rounded border border-slate-800 p-3"
                       >
-                        <span className="font-medium">{item.reason}</span>
+                        <span className="font-medium">
+                          {item.reason === 'NO_LISTING'
+                            ? 'Notierung fehlt'
+                            : item.reason === 'NO_EFFECTIVE_TERMS'
+                              ? 'Gültige Produktbedingungen fehlen'
+                              : item.reason}
+                        </span>
                         <p className="mt-1 text-slate-400">{item.explanation}</p>
+                        <Link
+                          to={selectionRepairUrl(detail.run.id, item.warrant_id)}
+                          className="mt-2 inline-block text-sky-300 underline"
+                        >
+                          {item.reason === 'NO_LISTING'
+                            ? 'Notierung ergänzen'
+                            : 'Produktstammdaten prüfen'}
+                        </Link>
                         <SelectionProductIdentity
                           productId={item.warrant_id}
                           product={references.products[item.warrant_id]}
@@ -760,9 +775,26 @@ export function ProductSelectionPage() {
                   ))}
                 </div>
                 {detail.evaluations.length === 0 && (
-                  <p className="rounded-xl border border-slate-800 p-5 text-sm text-slate-400">
-                    Dieser Run enthält keine bewertbaren Listing-Kontexte.
-                  </p>
+                  <div className="space-y-3 rounded-xl border border-amber-800 p-5 text-sm">
+                    <p>
+                      {detail.universe_omissions.length > 0
+                        ? 'Die oben genannten Stammdaten fehlen in diesem Bewertungslauf. Ein fehlender Kurs ist nicht die Ursache dieser Auslassungen.'
+                        : 'In diesem Bewertungslauf ist kein Optionsschein enthalten. Produktidentität und Zuordnung zum Plan-Basiswert in den vorhandenen Stammdaten prüfen.'}
+                    </p>
+                    <p>
+                      Nach der Pflege „Produkte neu bewerten“ wählen. Dieser historische Lauf bleibt
+                      unverändert. Fehlende Bewertungsdaten können anschließend über die bestehende
+                      Begründung und Bestätigung behandelt werden.
+                    </p>
+                    {detail.universe_omissions.length === 0 && (
+                      <Link
+                        to={selectionRepairUrl(detail.run.id)}
+                        className="inline-block text-sky-300 underline"
+                      >
+                        Optionsscheinstammdaten prüfen
+                      </Link>
+                    )}
+                  </div>
                 )}
               </section>
             </div>
