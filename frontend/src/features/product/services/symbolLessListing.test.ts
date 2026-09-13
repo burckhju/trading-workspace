@@ -21,7 +21,9 @@ describe('symbol-less warrant listing requests', () => {
   it.each(['', '   ', null, undefined])(
     'sends missing symbol %s as null, not an invented identity',
     async (symbol) => {
-      const response = new Response(JSON.stringify({ id: 'listing', symbol: null }), { status: 201 });
+      const response = new Response(JSON.stringify({ id: 'listing', symbol: null }), {
+        status: 201,
+      });
       const fetchMock = vi.spyOn(globalThis, 'fetch');
       fetchMock.mockResolvedValue(response);
       const result = await warrantApiClient.addListing(productId, {
