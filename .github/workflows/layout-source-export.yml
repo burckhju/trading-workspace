@@ -1,0 +1,27 @@
+name: Layout source export
+on:
+  push:
+    branches: [feat/compact-positions-workspace]
+    paths: [.github/workflows/layout-source-export.yml]
+permissions:
+  contents: read
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Archive tracked source only
+        run: |
+          mkdir -p /tmp/layout-source
+          git archive HEAD > /tmp/layout-source/prepared.tar
+          git archive aba5bff449bab980e487282bee155097018a3e25 > /tmp/layout-source/main.tar
+          git rev-parse HEAD > /tmp/layout-source/commit.txt
+          git rev-parse HEAD^{tree} > /tmp/layout-source/tree.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: layout-tracked-source
+          path: /tmp/layout-source
+          retention-days: 1
