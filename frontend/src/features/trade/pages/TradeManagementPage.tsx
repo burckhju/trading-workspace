@@ -7,6 +7,7 @@ import { postTradeErrorMessage } from '../../post_trade/services/errors';
 import { warrantApiClient } from '../../product/services/client';
 import type { WarrantResponse } from '../../product/types/api';
 import { tradeManagementApiClient } from '../services/client';
+import { ExecutionDatesPanel } from '../components/ExecutionDatesPanel';
 import { TradeCancellationPanel } from '../components/TradeCancellationPanel';
 import { AdditionalPurchasePanel } from '../components/AdditionalPurchasePanel';
 import { TradeTimelinePanel } from '../components/TradeTimelinePanel';
@@ -283,6 +284,15 @@ export function TradeManagementPage() {
             </div>
           </details>
         </section>
+      )}
+
+      {position && trade && (
+        <ExecutionDatesPanel
+          key={`dates-${trade.id}`}
+          tradeId={trade.id}
+          cancelled={Boolean(trade.cancelled_at)}
+          onChanged={() => refresh(trade.id)}
+        />
       )}
 
       {position && trade && !trade.cancelled_at && (

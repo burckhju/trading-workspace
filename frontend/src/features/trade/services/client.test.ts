@@ -83,3 +83,31 @@ describe('tradeManagementApiClient', () => {
     );
   });
 });
+
+it('corrects an exact execution identity and announces changes only after success', async () => {
+  const listener = vi.fn();
+  window.addEventListener('trade-timeline-changed', listener);
+  const payload = {
+    side: 'SELL' as const,
+    quantity: 10,
+    price_per_unit: '0.550000',
+    executed_on: '2026-08-22',
+    execution_timezone: 'Europe/Berlin',
+  };
+  try {
+    requestJsonMock.mockResolvedValue({} as never);
+    await tradeManagementApiClient.correctExecution('trade-1', 'execution-1', payload);
+    expect(requestJsonMock).toHaveBeenLastCalledWith(
+      'http://localhost:8000/api/v1/trade-position/trades/trade-1/executions/execution-1/corrections',
+      { method: 'POST', body: payload },
+    );
+    expect(listener).toHaveBeenCalledOnce();
+    requestJsonMock.mockRejectedValue(new Error('superseded'));
+    await expect(
+      tradeManagementApiClient.correctExecution('trade-1', 'execution-1', payload),
+    ).rejects.toThrow('superseded');
+    expect(listener).toHaveBeenCalledOnce();
+  } finally {
+    window.removeEventListener('trade-timeline-changed', listener);
+  }
+});
