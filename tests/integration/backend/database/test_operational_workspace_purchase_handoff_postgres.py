@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib
 import os
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
@@ -16,10 +17,13 @@ from app.features.operational_workspace.service.position_snapshot import (
     OperationalPositionSnapshotService,
 )
 from app.features.operational_workspace.service.read_model import OperationalWorkspaceReadModel
-from app.features.trade_plan.api import overview_router
 from app.features.trade_position.persistence.unit_of_work import SqlAlchemyTradePositionUnitOfWork
 from app.features.trade_position.service.application import TradePositionService
 from app.features.trade_position.service.resolvers import SqlAlchemyWorkspaceSelectionResolver
+
+# The API package exports an APIRouter under this name, not the module containing
+# the workspace constant and query function exercised by this integration test.
+overview_router = importlib.import_module("app.features.trade_plan.api.overview_router")
 
 
 def _test_database_url() -> str:
