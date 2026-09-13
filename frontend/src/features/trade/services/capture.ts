@@ -20,6 +20,26 @@ export function executionTime(date: string, time = '') {
     ) {
       throw new Error('Die Uhrzeit ist in der lokalen Zeitzone nicht gültig.');
     }
+    // Date silently chooses one offset for a repeated local clock time. Check
+    // offsets on both sides of the transition, including non-hour clock changes.
+    const offset = at.getTimezoneOffset();
+    const ambiguous = [-36, 36].some((hours) => {
+      const otherOffset = new Date(at.getTime() + hours * 3600000).getTimezoneOffset();
+      if (otherOffset === offset) return false;
+      const other = new Date(at.getTime() + (otherOffset - offset) * 60000);
+      return (
+        localToday(other) === date &&
+        other.getHours() === at.getHours() &&
+        other.getMinutes() === at.getMinutes()
+      );
+    });
+    if (ambiguous) {
+      throw new Error(
+        'Die Uhrzeit ist wegen der Zeitumstellung nicht eindeutig. ' +
+          'Bitte die tatsächliche Ausführung prüfen; keine Uhrzeit schätzen. ' +
+          'Ohne eindeutig bekannte Uhrzeit nur das bestätigte Datum erfassen.',
+      );
+    }
     if (at.getTime() > Date.now())
       throw new Error('Die Ausführung darf nicht in der Zukunft liegen.');
     return { executed_at: at.toISOString() };
