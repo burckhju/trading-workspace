@@ -1,4 +1,4 @@
-"""Conservative discovery for stock listings using existing venue evidence."""
+"""Conservative stock discovery using official, instrument-specific venue evidence."""
 
 from __future__ import annotations
 
@@ -8,18 +8,19 @@ from uuid import UUID
 from sqlalchemy import select
 
 from app.features.market.domain.enums import LifecycleStatus
-from app.features.market.persistence.models import ListingModel, UnderlyingModel
+from app.features.market.persistence.models import ListingModel, TradingVenueModel, UnderlyingModel
 from app.features.market_data.domain.enums import MappingStatus, MarketDataProvider
 from app.features.market_data.persistence.models import ProviderInstrumentMappingModel
 from app.features.market_data.service.administration import (
     MappingCommand,
     ProviderMappingAdministrationService,
 )
+from app.features.market_data.service.catalog_mapping_validation import CatalogMappingResolver
 from app.features.market_data.service.instrument_identity import MarketDataInstrumentIdentityService
 from app.features.market_data.service.unit_of_work import SqlAlchemyMarketDataUnitOfWork
 from app.features.market_data.service.venue_reconciliation import (
     ProviderVenueReconciliationService,
-    VenueReconciliationStatus,
+    VerifiedListingVenue,
 )
 
 if TYPE_CHECKING:
@@ -62,29 +63,42 @@ async def discover_underlying(
         underlying = await session.get(UnderlyingModel, listing.underlying_id)
         if underlying is None or underlying.workspace_id != workspace_id or not underlying.isin:
             return {"status": "BLOCKED", "reason": "UNDERLYING_ISIN_REQUIRED"}
-        results = await container.eodhd.adapter.search_instruments(underlying.isin, limit=20)
+        if underlying.lifecycle_status != LifecycleStatus.ACTIVE:
+            return {"status": "BLOCKED", "reason": "ACTIVE_UNDERLYING_REQUIRED"}
+        venue = await session.get(TradingVenueModel, listing.trading_venue_id)
+        if venue is None or not venue.is_active:
+            return {"status": "BLOCKED", "reason": "ACTIVE_TRADING_VENUE_REQUIRED"}
+        result = await container.eodhd.adapter.stock_catalog.discover(
+            isin=underlying.isin, currency=listing.currency_code, mic=venue.mic
+        )
+        details = {
+            "isin": underlying.isin,
+            "listing_currency": listing.currency_code,
+            "listing_mic": venue.mic,
+            "discovery_source": "EODHD_OFFICIAL_STOCK_CATALOG",
+            "provider_exchange_code": result.provider_exchange_code or "",
+            "matching_isin_count": str(result.matching_isin_count),
+            "candidate_currencies": ",".join(result.candidate_currencies),
+        }
+        if result.identity is None:
+            return {**details, "status": "BLOCKED", "reason": result.reason}
+        identity = result.identity
+        symbol = identity.item.provider_symbol
+        exchange = identity.item.provider_exchange_code
         uow = SqlAlchemyMarketDataUnitOfWork(session)
-        reconciliation = ProviderVenueReconciliationService(uow)
-        matches = []
-        for result in results:
-            if (
-                result.isin != underlying.isin
-                or result.currency != listing.currency_code
-                or (result.instrument_type or "").lower() not in {"common stock", "stock"}
-            ):
-                continue
-            venue = await reconciliation.reconcile(
-                workspace_id, listing_id, MarketDataProvider.EODHD, result.provider_exchange_code
-            )
-            if venue.status is VenueReconciliationStatus.MATCHED:
-                matches.append(result)
-        identities = {(m.provider_symbol, m.provider_exchange_code) for m in matches}
-        if len(identities) != 1:
-            return {"status": "BLOCKED", "reason": "UNAMBIGUOUS_ISIN_CURRENCY_VENUE_MATCH_REQUIRED"}
-        symbol, exchange = next(iter(identities))
+        reconciliation = ProviderVenueReconciliationService(
+            uow,
+            verified_listing=VerifiedListingVenue(
+                workspace_id,
+                listing_id,
+                MarketDataProvider.EODHD,
+                exchange,
+                venue.id,
+            ),
+        )
         service = ProviderMappingAdministrationService(
             uow,
-            resolver=container.eodhd.adapter,
+            resolver=CatalogMappingResolver(session, workspace_id, listing_id, identity),
             venue_reconciliation=reconciliation,
             instrument_identity=MarketDataInstrumentIdentityService(session),
         )
@@ -103,6 +117,11 @@ async def discover_underlying(
             workspace_id, mapping.id, actor_id=None, actor_name="Automatic market-data discovery"
         )
         return {
+            **details,
             "status": "AVAILABLE" if mapping.status.value == "ACTIVE" else "BLOCKED",
             "reason": "EODHD_MAPPING_" + mapping.status.value,
+            "mapping_id": str(mapping.id),
+            "provider_identity": symbol,
+            "catalog_endpoint": identity.endpoint,
+            "catalog_retrieved_at": identity.catalog_retrieved_at.isoformat(),
         }
