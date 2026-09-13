@@ -59,7 +59,11 @@ Ziel: `/product-selection?trade_plan_id=<id>&trade_plan_version_id=<id>`
 
 ### Explizite Produktauswahl / FT-008
 
-Existiert ein ProductSelectionRun mit mindestens einer `ELIGIBLE` ProductEvaluation, aber noch keine ProductSelection, wird „Produkt auswählen“ projiziert.
+Existiert ein ProductSelectionRun mit mindestens einer `ELIGIBLE` oder `NOT_EVALUABLE` ProductEvaluation, aber noch keine ProductSelection, wird die vorhandene Aktion „Produkt auswählen“ einmal pro Run projiziert. Reine `INELIGIBLE`-Runs und Runs ohne Evaluation bleiben ausgeschlossen.
+
+`NOT_EVALUABLE` bedeutet Informationsmangel, nicht bestätigte Eignung. Der bestehende FT-008-Dialog zeigt die fehlenden Informationen und verlangt vor „Auswahl dokumentieren“ eine ausdrückliche Begründung und Bestätigung. Navigation und Workspace-Reads erzeugen weder eine Auswahl noch einen Kauf. Nach der Bestätigung führt derselbe Run zum vorhandenen Kaufformular; erst der separate BUY legt Trade und Position an. Die exakte Plan-/Versions-/Auswahlherkunft und der Schutz vor einer zweiten offenen Position bleiben unverändert.
+
+Regression: SQL-Filtertest, isolierte PostgreSQL-Projektionsfälle und `tests/e2e/product-selection-confirmation-capture.spec.ts` prüfen den bestehenden Weg bis zur persistierten Kaufbuchung. Der Browser-Schreibtest läuft ausschließlich mit `TRADE_E2E_WRITES_ALLOWED=1` auf dem Wegwerf-CI-Stack, niemals auf einem Nutzerdepot. Für eine rein lesende lokale Prüfung einen vorhandenen unbestätigten Run mit `NOT_EVALUABLE` im Arbeitsbereich öffnen: Aktion sichtbar, Hinweis auf unvollständige Bewertung sichtbar, Bestätigung ohne Begründung gesperrt; anschließend abbrechen. Keine neue Migration oder Konfiguration.
 
 FT-008 definiert keinen Supersede-/Currentness-State für Selection Runs. Der Workspace erfindet deshalb keine zusätzliche Latest-Run-Regel.
 
