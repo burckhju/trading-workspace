@@ -41,6 +41,9 @@ class MonitoringRuleProcessor(Protocol):
 class CreatedPositionAlert:
     alert: Alert
     symbol: str
+    warrant_name: str | None = None
+    warrant_isin: str | None = None
+    warrant_wkn: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -164,6 +167,9 @@ class PositionMonitoringCycleService:
                                 and rule.price_binding.basis.value == "WARRANT"
                                 else subject.symbol
                             ),
+                            warrant_name=subject.warrant_name,
+                            warrant_isin=subject.warrant_isin,
+                            warrant_wkn=subject.warrant_wkn,
                         )
                     )
                 if evaluation.transition is TriggerTransition.STAYED_TRIGGERED:
