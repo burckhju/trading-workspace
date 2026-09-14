@@ -157,3 +157,50 @@ async def test_instrument_proof_overrides_global_us_history_only_for_exact_scope
     if failure == "missing_venue":
         expected = VenueReconciliationStatus.UNRESOLVED
     assert result.status == expected
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "failure", [None, "expired", "future", "missing_time", "wrong_isin", "missing_endpoint"]
+)
+async def test_search_proof_is_scoped_fresh_complete_and_preserved(failure):
+    mapping, proof, listing, underlying, venue = evidence()
+    now = datetime.now(UTC)
+    proof = replace(proof, search_endpoint=f"/search/{proof.item.isin}", search_retrieved_at=now)
+    if failure == "expired":
+        proof = replace(proof, search_retrieved_at=now - timedelta(days=1))
+    if failure == "future":
+        proof = replace(proof, search_retrieved_at=now + timedelta(minutes=1))
+    if failure == "missing_time":
+        proof = replace(proof, search_retrieved_at=None)
+    if failure == "wrong_isin":
+        proof = replace(proof, search_endpoint="/search/OTHER")
+    if failure == "missing_endpoint":
+        proof = replace(proof, search_endpoint=None)
+    session = SimpleNamespace(get=AsyncMock(side_effect=[listing, underlying, venue]))
+    result = await CatalogMappingResolver(
+        session, mapping.workspace_id, mapping.listing_id, proof
+    ).validate_mapping(mapping)
+    assert result.status == (MappingStatus.ACTIVE if failure is None else MappingStatus.INVALID)
+    if failure is None:
+        data = json.loads(result.message)
+        assert data["source"] == "EODHD_ISIN_CATALOG_V1"
+        assert data["search_at"] == proof.search_retrieved_at.isoformat()
+        assert data["catalog_at"] == proof.catalog_retrieved_at.isoformat()
+        assert data["exchanges_at"] == proof.exchanges_retrieved_at.isoformat()
+        assert data["isin"] == proof.item.isin
+        assert data["search"] == f"/search/{proof.item.isin}"
+
+
+def test_search_provenance_fits_existing_field_at_maximum_supported_identity_lengths():
+    from app.features.market_data.service.catalog_mapping_validation import _evidence_message
+
+    _, proof, _, _, _ = evidence()
+    proof = replace(
+        proof,
+        item=replace(proof.item, provider_symbol="S" * 64, provider_exchange_code="E" * 32),
+        endpoint="/exchange-symbol-list/" + "E" * 32,
+        search_endpoint=f"/search/{proof.item.isin}",
+        search_retrieved_at=datetime.now(UTC),
+    )
+    assert len(_evidence_message(proof)) <= 500
