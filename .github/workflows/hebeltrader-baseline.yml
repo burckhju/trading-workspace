@@ -1,0 +1,38 @@
+name: Hebeltrader confirmed baseline
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - 'tests/**'
+      - 'frontend/**'
+      - 'docs/features/HEBELTRADER_BASELINE*'
+      - '.github/workflows/hebeltrader-baseline.yml'
+permissions:
+  contents: read
+jobs:
+  baseline:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'feat/hebeltrader-confirmed-baseline-20260914'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Tracked-source snapshot for offline implementation review
+        run: |
+          mkdir -p verification
+          git archive --format=zip HEAD -o verification/tracked-source.zip
+          git rev-parse HEAD > verification/source-sha.txt
+      - name: Return verification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: confirmed-baseline-${{ github.run_id }}
+          path: verification/
+          retention-days: 3
+          if-no-files-found: error
+# No credentials, private PDFs, positions, broker access, deployment or schedules.
