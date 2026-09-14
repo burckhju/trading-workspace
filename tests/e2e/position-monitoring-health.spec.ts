@@ -169,7 +169,7 @@ for (const valuationStatus of ["STALE", "LAST_AVAILABLE"] as const) {
     await expect(
       page.getByText("Kursdaten veraltet – nur indikative Analyse"),
     ).toBeVisible();
-    await expect(page.getByText(/Kursstand:/)).toContainText("2280 Min.");
+    await expect(page.getByText(/Kursstand:/)).toContainText("1 Tag 14 Std.");
     await expect(
       page.getByText("Indikativer Wert (letzter Bid)"),
     ).toBeVisible();

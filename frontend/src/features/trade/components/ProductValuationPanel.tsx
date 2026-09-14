@@ -12,7 +12,8 @@ function formatQuoteAge(value: ProductPositionValuationResponse): string {
   if (value.quote_age_seconds === null) return 'Alter unbekannt';
   if (value.quote_age_seconds < 60) return `${value.quote_age_seconds} Sek.`;
   if (value.quote_age_seconds >= 86400) {
-    return `${Math.floor(value.quote_age_seconds / 86400)} Tage ${Math.floor((value.quote_age_seconds % 86400) / 3600)} Std.`;
+    const days = Math.floor(value.quote_age_seconds / 86400);
+    return `${days} ${days === 1 ? 'Tag' : 'Tage'} ${Math.floor((value.quote_age_seconds % 86400) / 3600)} Std.`;
   }
   if (value.quote_age_seconds >= 3600) {
     return `${Math.floor(value.quote_age_seconds / 3600)} Std. ${Math.floor((value.quote_age_seconds % 3600) / 60)} Min.`;
@@ -207,7 +208,7 @@ export function ProductValuationPanel({ tradeId }: { tradeId: string }) {
             value.status === 'STALE' ||
             value.status === 'INDICATIVE'
               ? reasonText(value.reason)
-              : 'Indikative LONG-Bewertung zum Bid des exakt dokumentierten WarrantListings. Stop und Target werden weiterhin ausschließlich anhand des Underlyings überwacht.'}
+              : 'Indikative LONG-Bewertung zum Bid des zugeordneten Optionsscheins. Stop und Target werden auf der für die jeweilige Regel festgelegten Instrument- und Währungsbasis geprüft.'}
           </p>
           {value.reference_price_type && value.reference_price_type !== 'BID' && (
             <p className="mt-3 text-sm">
