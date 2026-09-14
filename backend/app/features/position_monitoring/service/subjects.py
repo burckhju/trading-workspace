@@ -47,6 +47,8 @@ class MonitoringSubject:
     underlying_id: UUID | None = None
     warrant_isin: str | None = None
     listing_currency: str | None = None
+    warrant_name: str | None = None
+    warrant_wkn: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -208,6 +210,8 @@ class SqlAlchemyMonitoringSubjectReader:
                 warrant_id=warrant.id,
                 underlying_id=warrant.underlying_id,
                 warrant_isin=warrant.isin,
+                warrant_name=warrant.display_name,
+                warrant_wkn=warrant.wkn,
                 listing_currency=listing.currency_code if listing else None,
                 rules=tuple(rules),
             ),

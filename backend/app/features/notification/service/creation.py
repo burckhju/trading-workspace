@@ -29,6 +29,9 @@ class AlertNotificationService:
         *,
         alert: Alert,
         symbol: str,
+        warrant_name: str | None = None,
+        warrant_isin: str | None = None,
+        warrant_wkn: str | None = None,
         destination_key: str = "telegram_default",
     ) -> Notification:
         existing = await self._notifications.get_for_alert(
@@ -43,7 +46,13 @@ class AlertNotificationService:
             alert_id=alert.id,
             channel=NotificationChannel.TELEGRAM,
             destination_key=destination_key,
-            body=format_position_alert(alert, symbol=symbol),
+            body=format_position_alert(
+                alert,
+                symbol=symbol,
+                warrant_name=warrant_name,
+                warrant_isin=warrant_isin,
+                warrant_wkn=warrant_wkn,
+            ),
             created_at=self._now(),
         )
         await self._notifications.add(notification)

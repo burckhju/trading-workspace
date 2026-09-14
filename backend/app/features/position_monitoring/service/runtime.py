@@ -128,5 +128,8 @@ class PositionMonitoringRuntimeService:
             await service.create_telegram(
                 alert=created_alert.alert,
                 symbol=created_alert.symbol,
+                warrant_name=created_alert.warrant_name,
+                warrant_isin=created_alert.warrant_isin,
+                warrant_wkn=created_alert.warrant_wkn,
             )
             await session.commit()
