@@ -59,9 +59,16 @@ class MonitoringSubjectResolution:
 class SqlAlchemyMonitoringSubjectReader:
     """Resolve open positions to current management rules and market-data addresses."""
 
-    def __init__(self, session: AsyncSession, *, for_rule_evaluation: bool = False) -> None:
+    def __init__(
+        self,
+        session: AsyncSession,
+        *,
+        for_rule_evaluation: bool = False,
+        workspace_id: UUID | None = None,
+    ) -> None:
         self._session = session
         self._for_rule_evaluation = for_rule_evaluation
+        self._workspace_id = workspace_id
         self._management_events = SqlAlchemyTradeManagementEventRepository(session)
 
     async def list_resolutions(self) -> tuple[MonitoringSubjectResolution, ...]:
@@ -74,6 +81,11 @@ class SqlAlchemyMonitoringSubjectReader:
                     PositionModel.open_quantity > 0,
                     PositionModel.closed_at.is_(None),
                     TradeModel.cancelled_at.is_(None),
+                    *(
+                        [TradeModel.workspace_id == self._workspace_id]
+                        if self._workspace_id is not None
+                        else []
+                    ),
                 )
                 .order_by(PositionModel.id)
             )
