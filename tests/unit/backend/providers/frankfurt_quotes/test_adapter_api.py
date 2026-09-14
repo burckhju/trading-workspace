@@ -27,6 +27,9 @@ from app.features.position_monitoring.service.quote_sources import (
 )
 from app.providers.frankfurt_quotes.adapter import FrankfurtWarrantQuoteAdapter
 from app.providers.frankfurt_quotes.schema import FrankfurtSnapshot
+from tests.unit.backend.features.market_data.test_retained_quotes import (
+    context as durable_database,  # noqa: F401
+)
 from tests.unit.backend.providers.frankfurt_quotes.test_client import settings
 from tests.unit.backend.providers.frankfurt_quotes.test_schema import NOW, payload
 
@@ -221,7 +224,7 @@ def test_public_health_and_listing_diagnostic_do_not_claim_bid_ask_capability():
 
 
 @pytest.mark.asyncio
-async def test_runtime_uses_public_last_only_source_for_analysis():
+async def test_runtime_uses_public_last_only_source_for_analysis(durable_database):  # noqa: F811
     from app.providers.frankfurt_quotes.public import FrankfurtPublicPrice
     from tests.unit.backend.providers.frankfurt_quotes.test_public import (
         public_settings,
@@ -235,6 +238,8 @@ async def test_runtime_uses_public_last_only_source_for_analysis():
         return_value=(FrankfurtPublicPrice.model_validate(wire()), NOW, False)
     )
     configured = Settings(_env_file=None, market_data={"frankfurt": public_settings()})
+    database = adapter._database = durable_database.database
+    request = replace(durable_database.request, as_of=NOW)
     container = ApplicationContainer(settings=configured, database=database, frankfurt=adapter)
     result = await build_warrant_quote_resolver(container).resolve(request)
     assert result.selected_source == "FRANKFURT_QUOTES"
@@ -246,8 +251,10 @@ async def test_runtime_uses_public_last_only_source_for_analysis():
 
 @pytest.mark.asyncio
 async def test_runtime_reuses_process_adapter_and_places_it_first():
-    adapter, database, _snapshots, request, _row = context()
+    adapter, database, _snapshots, _request, _row = context()
     configured = Settings(_env_file=None, market_data={"frankfurt": settings()})
     container = ApplicationContainer(settings=configured, database=database, frankfurt=adapter)
-    result = await build_warrant_quote_resolver(container).resolve(request)
-    assert result.selected_source == "FRANKFURT_QUOTES"
+    source = build_warrant_quote_resolver(container)._sources[0]
+    assert source.name == "FRANKFURT_QUOTES"
+    assert source.provider._provider is adapter
+    assert build_warrant_quote_resolver(container)._sources[0].provider._provider is adapter

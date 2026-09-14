@@ -31,6 +31,7 @@ class AggregateType(StrEnum):
     CURRENCY = "CURRENCY"
     CURRENCY_CATALOG = "CURRENCY_CATALOG"
     TRADE = "TRADE"
+    WARRANT = "WARRANT"
 
 
 class ActorType(StrEnum):

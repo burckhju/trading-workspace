@@ -1,4 +1,6 @@
 from app.core.di import ApplicationContainer
+from app.features.market_data.domain.enums import MarketDataProvider
+from app.features.market_data.service.retained_quotes import RetainedWarrantQuoteProvider
 from app.features.position_monitoring.service.quote_sources import (
     MultiSourceWarrantQuoteResolver,
     NamedWarrantQuoteSource,
@@ -10,9 +12,21 @@ def build_warrant_quote_resolver(
 ) -> MultiSourceWarrantQuoteResolver:
     """Build the shared runtime quote resolver for held-product valuation reads."""
 
-    vontobel_provider = container.vontobel
+    vontobel_provider = (
+        RetainedWarrantQuoteProvider(
+            container.database, container.vontobel, MarketDataProvider.VONTOBEL_MARKETS
+        )
+        if container.vontobel is not None
+        else None
+    )
     stuttgart_settings = container.settings.market_data.stuttgart_delayed
-    stuttgart_provider = container.stuttgart
+    stuttgart_provider = (
+        RetainedWarrantQuoteProvider(
+            container.database, container.stuttgart, MarketDataProvider.BOERSE_STUTTGART_DELAYED
+        )
+        if container.stuttgart is not None
+        else None
+    )
     stuttgart_reason = (
         "STUTTGART_DELAYED_DISABLED"
         if not stuttgart_settings.enabled
@@ -23,7 +37,13 @@ def build_warrant_quote_resolver(
         (
             NamedWarrantQuoteSource(
                 "FRANKFURT_QUOTES",
-                container.frankfurt,
+                (
+                    RetainedWarrantQuoteProvider(
+                        container.database, container.frankfurt, MarketDataProvider.FRANKFURT_QUOTES
+                    )
+                    if container.frankfurt is not None
+                    else None
+                ),
                 delayed=frankfurt_settings.feed_delay_seconds > 0,
                 unavailable_reason="FRANKFURT_DISABLED",
             ),

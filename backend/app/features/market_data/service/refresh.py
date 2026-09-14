@@ -113,7 +113,7 @@ class MarketDataRefreshRuntime:
             "last_error": self.last_error
             or next((error for error in self._lane_errors.values() if error is not None), None),
             "single_instance_only": True,
-            "quote_storage": "PROCESS_CACHE_WITH_ORIGINAL_TIMESTAMPS",
+            "quote_storage": "DATABASE_LAST_SUCCESS_WITH_ORIGINAL_TIMESTAMPS",
             "underlying_price_type": "COMPLETED_EOD",
             "current_job": self.current_job,
             "current_jobs": dict(self._current_jobs),

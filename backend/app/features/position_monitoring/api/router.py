@@ -369,6 +369,7 @@ async def get_trade_product_valuation(
         reference_price_type=value.reference_price_type,
         quote_retrieved_at=value.quote_retrieved_at,
         quote_refresh_error=value.quote_refresh_error,
+        quote_retained=value.quote_retained,
         quote_assessed_at=value.quote_assessed_at,
         quote_delay_seconds=value.quote_delay_seconds,
         quote_venue_mic=value.quote_venue_mic,

@@ -83,6 +83,7 @@ class ProductPositionValuation:
     reference_price_type: str | None = None
     quote_retrieved_at: datetime | None = None
     quote_refresh_error: str | None = None
+    quote_retained: bool = False
     quote_assessed_at: datetime | None = None
     quote_delay_seconds: int | None = None
     quote_venue_mic: str | None = None
@@ -453,6 +454,7 @@ class ProductPositionValuationService:
                 quote_assessed_at=assessed_at,
                 quote_delay_seconds=quote.feed_delay_seconds,
                 quote_refresh_error=quote.refresh_error,
+                quote_retained=quote.retained,
                 quote_venue_mic=quote.venue_mic,
                 quote_age_limit_exceeded=(age > max_age if age is not None else None),
                 spread_absolute=spread,
