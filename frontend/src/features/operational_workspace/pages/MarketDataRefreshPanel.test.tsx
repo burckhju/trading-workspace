@@ -131,4 +131,29 @@ describe('MarketDataRefreshPanel', () => {
       'Abrufstatus konnte nicht geladen werden.',
     );
   });
+  it('shows overdue repeat checks even after every first check completed', async () => {
+    request.mockResolvedValue({
+      ...sample,
+      pending_jobs: 0,
+      lanes: {
+        WARRANTS: {
+          running: true,
+          current_job: null,
+          pending_jobs: 0,
+          due_jobs: 48,
+          overdue_jobs: 48,
+          max_overdue_seconds: 1694,
+          last_error: null,
+        },
+      },
+      jobs: [{ ...sample.jobs[0], status: 'DEFERRED', reason: 'FRANKFURT_REQUEST_THROTTLED' }],
+    });
+    render(<MarketDataRefreshPanel />);
+    fireEvent.click(screen.getByText('Automatischer Kursabruf'));
+    fireEvent.click(screen.getByRole('button', { name: 'Abrufstatus laden' }));
+    expect(await screen.findByText(/48 fällig · davon 48 überfällig/)).toBeInTheDocument();
+    expect(screen.getByText(/längster Rückstand 29 Min/)).toBeInTheDocument();
+    expect(screen.getByText(/Abruflimit erreicht · Wiederholung eingeplant/)).toBeInTheDocument();
+    expect(screen.queryByText('Abruf prüfen')).not.toBeInTheDocument();
+  });
 });

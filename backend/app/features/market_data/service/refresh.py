@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Iterable
 from dataclasses import asdict
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
@@ -89,7 +89,20 @@ class MarketDataRefreshRuntime:
         # in lanes/current_jobs, since both lanes may be active at the same time.
         return next((job for job in self._current_jobs.values() if job is not None), None)
 
+    def _schedule_counts(self, keys: Iterable[str], now: float) -> dict[str, int | float]:
+        # Pending is a first-check counter. Completed jobs can still be due or
+        # overdue; exclude work already in flight from the waiting backlog.
+        waiting = [key for key in keys if key not in self._current_jobs.values()]
+        overdue = [now - self._due[key] for key in waiting if self._due.get(key, now) < now]
+        return {
+            "due_jobs": sum(self._due.get(key, now) <= now for key in waiting),
+            "overdue_jobs": len(overdue),
+            "max_overdue_seconds": max(overdue, default=0.0),
+            "deferred_jobs": sum(self.jobs[key]["status"] == "DEFERRED" for key in waiting),
+        }
+
     def status(self) -> dict[str, Any]:
+        now = self.timer()
         return {
             "enabled": self.settings.enabled,
             "running": self.running,
@@ -115,10 +128,14 @@ class MarketDataRefreshRuntime:
                         for key, job in self.jobs.items()
                         if _job_lane(key) == lane
                     ),
+                    **self._schedule_counts(
+                        (key for key in self.jobs if _job_lane(key) == lane), now
+                    ),
                 }
                 for lane in RefreshLane
             },
             "pending_jobs": sum(job["status"] == "PENDING" for job in self.jobs.values()),
+            **self._schedule_counts(self.jobs, now),
             "jobs": list(self.jobs.values()),
         }
 
@@ -274,6 +291,7 @@ class MarketDataRefreshRuntime:
         if self.timer() < self._due.get(key, 0):
             return
         previous = self.jobs.get(key, {})
+        retry_delay: float = interval
         lane = _job_lane(key)
         self._current_jobs[lane] = key
         try:
@@ -295,12 +313,28 @@ class MarketDataRefreshRuntime:
             }
             status = "ERROR"
             success_at = previous.get("last_success_at")
+            if isinstance(exc, FrankfurtSourceError) and str(exc) == "FRANKFURT_REQUEST_THROTTLED":
+                # A competing API request may consume the slot after _pace().
+                # No provider request failed: retry after the shared cooldown,
+                # rather than waiting the full (normally hourly) discovery interval.
+                retry_delay = max(
+                    1.0,
+                    self.settings.request_spacing_seconds,
+                    self._next_request - self.timer(),
+                    (
+                        self.container.frankfurt.snapshots.request_delay_seconds()
+                        if self.container.frankfurt is not None
+                        else 0.0
+                    ),
+                )
+                status = "DEFERRED"
+                details["retry_after_seconds"] = retry_delay
         finally:
             self._current_jobs[lane] = None
         if catalog_job and key not in self.jobs:
             return
         completed = datetime.now(UTC)
-        self._due[key] = self.timer() + interval
+        self._due[key] = self.timer() + retry_delay
         self.jobs[key] = {
             "job": key,
             "instrument_id": item.id,
@@ -312,7 +346,7 @@ class MarketDataRefreshRuntime:
             "status": status,
             "checked_at": completed,
             "last_success_at": success_at,
-            "next_run_at": completed + timedelta(seconds=interval),
+            "next_run_at": completed + timedelta(seconds=retry_delay),
             **details,
         }
 
