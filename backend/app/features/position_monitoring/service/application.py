@@ -55,10 +55,17 @@ class PositionMonitoringService:
         evaluation = PositionRuleEvaluator.evaluate(rule=rule, observation=observation)
         detected_at = self._now()
 
-        if current is not None and current.threshold_value != rule.threshold:
+        assert rule.price_binding is not None  # validated before any write
+        if current is not None and (
+            current.threshold_value != rule.threshold
+            or current.price_binding_key != rule.price_binding.key
+        ):
             if current.active_alert_id is not None:
                 await self._alerts.resolve(current.active_alert_id, resolved_at=detected_at)
             current = None
+
+        if current is not None and observation.observed_at < current.last_seen_at:
+            raise ValueError("OUT_OF_ORDER_RULE_OBSERVATION")
 
         decision = decide_transition(current=current, evaluation=evaluation)
         alert: Alert | None = None
@@ -86,6 +93,7 @@ class PositionMonitoringService:
                 threshold_value=rule.threshold,
                 market_data_observed_at=observation.observed_at,
                 detected_at=detected_at,
+                price_context={**(observation.context or {}), **rule.price_binding.as_dict()},
             )
             await self._alerts.add(alert)
             active_alert_id = alert.id
@@ -111,6 +119,7 @@ class PositionMonitoringService:
                 last_observed_value=observation.value,
                 threshold_value=rule.threshold,
                 active_alert_id=active_alert_id,
+                price_binding_key=rule.price_binding.key,
             )
         )
         return MonitoringEvaluationResult(transition=decision.transition, alert=alert)

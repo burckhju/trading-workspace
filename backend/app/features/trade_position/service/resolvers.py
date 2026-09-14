@@ -32,6 +32,7 @@ class ResolvedWorkspaceSelection:
 class ResolvedProduct:
     workspace_id: UUID
     product_id: UUID
+    underlying_id: UUID | None = None
 
 
 class WarrantReader(Protocol):
@@ -111,4 +112,5 @@ class WarrantProductResolver:
         return ResolvedProduct(
             workspace_id=warrant.workspace_id,
             product_id=warrant.id,
+            underlying_id=warrant.underlying_id,
         )

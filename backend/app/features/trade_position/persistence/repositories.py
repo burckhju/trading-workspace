@@ -20,6 +20,7 @@ from app.features.trade_position.domain.models import (
     Trade,
     TradeManagementEvent,
 )
+from app.features.trade_position.domain.price_binding import PriceBinding
 from app.features.trade_position.persistence.models import (
     ExecutionRecordModel,
     PositionModel,
@@ -279,6 +280,7 @@ class SqlAlchemyTradeManagementEventRepository:
                 recorded_at=event.recorded_at,
                 recorded_by=event.recorded_by,
                 numeric_value=event.numeric_value,
+                price_binding=event.price_binding.as_dict() if event.price_binding else None,
                 text_value=event.text_value,
                 supersedes_event_id=event.supersedes_event_id,
             )
@@ -305,6 +307,7 @@ class SqlAlchemyTradeManagementEventRepository:
                 recorded_at=model.recorded_at,
                 recorded_by=model.recorded_by,
                 numeric_value=model.numeric_value,
+                price_binding=PriceBinding.from_dict(model.price_binding),
                 text_value=model.text_value,
                 supersedes_event_id=model.supersedes_event_id,
             )
@@ -343,6 +346,7 @@ class SqlAlchemyTradeManagementEventRepository:
                 recorded_at=model.recorded_at,
                 recorded_by=model.recorded_by,
                 numeric_value=model.numeric_value,
+                price_binding=PriceBinding.from_dict(model.price_binding),
                 text_value=model.text_value,
                 supersedes_event_id=model.supersedes_event_id,
             )

@@ -108,6 +108,7 @@ def _management_event(value: TradeManagementEvent) -> TradeManagementEventRespon
         effective_at=value.effective_at,
         recorded_at=value.recorded_at,
         numeric_value=value.numeric_value,
+        price_binding=value.price_binding,
         text_value=value.text_value,
         supersedes_event_id=value.supersedes_event_id,
     )
@@ -117,6 +118,8 @@ def _management_state(value: TradeManagementState) -> TradeManagementStateRespon
     return TradeManagementStateResponse(
         trade_id=value.trade_id,
         stop_price=value.stop_price,
+        stop_price_binding=value.stop_price_binding,
+        target_price_binding=value.target_price_binding,
         target_price=value.target_price,
         thesis=value.thesis,
         notes=value.notes,
@@ -136,6 +139,7 @@ def _timeline_entry(value: TradeTimelineEntry) -> TradeTimelineEntryResponse:
         quantity=value.quantity,
         price_per_unit=value.price_per_unit,
         numeric_value=value.numeric_value,
+        price_binding=value.price_binding,
         text_value=value.text_value,
         supersedes_id=value.supersedes_id,
         executed_on=value.executed_on,
@@ -324,6 +328,7 @@ async def change_stop(
             workspace_id=WORKSPACE_ID,
             trade_id=trade_id,
             stop_price=request.price,
+            price_binding=request.price_binding,
             effective_at=_effective_at(request.effective_at),
             actor=actor_id or LOCAL_ACTOR_ID,
         )
@@ -348,6 +353,7 @@ async def change_target(
             workspace_id=WORKSPACE_ID,
             trade_id=trade_id,
             target_price=request.price,
+            price_binding=request.price_binding,
             effective_at=_effective_at(request.effective_at),
             actor=actor_id or LOCAL_ACTOR_ID,
         )
@@ -491,6 +497,7 @@ async def correct_management_event(
             effective_at=request.effective_at,
             actor=actor_id or LOCAL_ACTOR_ID,
             numeric_value=request.numeric_value,
+            price_binding=request.price_binding,
             text_value=request.text_value,
         )
     except ValueError as error:

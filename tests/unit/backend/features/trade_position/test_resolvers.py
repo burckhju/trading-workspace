@@ -126,6 +126,7 @@ async def test_product_resolver_returns_existing_warrant_identity() -> None:
     service.get.return_value = SimpleNamespace(
         id=warrant_id,
         workspace_id=workspace_id,
+        underlying_id=uuid4(),
     )
 
     result = await resolver.resolve(

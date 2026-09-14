@@ -14,6 +14,7 @@ from app.features.trade_position.domain.models import (
     Position,
     TradeManagementEvent,
 )
+from app.features.trade_position.domain.price_binding import PriceBinding
 
 
 class TradeTimelineEntryKind(StrEnum):
@@ -36,6 +37,7 @@ class TradeTimelineEntry:
     numeric_value: Decimal | None = None
     text_value: str | None = None
     supersedes_id: UUID | None = None
+    price_binding: PriceBinding | None = None
     executed_on: date | None = None
     execution_timezone: str | None = None
 
@@ -86,6 +88,7 @@ def compose_trade_timeline(
                 kind=TradeTimelineEntryKind.MANAGEMENT_EVENT,
                 management_event_type=event.event_type,
                 numeric_value=event.numeric_value,
+                price_binding=event.price_binding,
                 text_value=event.text_value,
                 supersedes_id=event.supersedes_event_id,
             )

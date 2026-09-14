@@ -46,4 +46,7 @@ class AlertResponse(BaseModel):
     detected_at: datetime
     status: AlertStatus
     resolved_at: datetime | None
+    price_context: dict[str, str | None] | None = None
+    invalidated_at: datetime | None = None
+    invalidation_reason: str | None = None
     notifications: list[NotificationResponse]

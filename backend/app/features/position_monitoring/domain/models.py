@@ -6,6 +6,8 @@ from decimal import Decimal
 from enum import StrEnum
 from uuid import UUID
 
+from app.features.trade_position.domain.price_binding import PriceBinding
+
 
 class MonitoringRuleType(StrEnum):
     STOP_REACHED = "STOP_REACHED"
@@ -16,6 +18,8 @@ class MonitoringRuleType(StrEnum):
 class PriceObservation:
     value: Decimal
     observed_at: datetime
+    price_binding: PriceBinding | None = None
+    context: dict[str, str | None] | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -23,6 +27,7 @@ class MonitoringRule:
     rule_key: str
     rule_type: MonitoringRuleType
     threshold: Decimal
+    price_binding: PriceBinding | None = None
 
     def __post_init__(self) -> None:
         if not self.rule_key.strip():
@@ -41,6 +46,7 @@ class MonitoringRuleState:
     last_observed_value: Decimal
     threshold_value: Decimal
     active_alert_id: UUID | None = None
+    price_binding_key: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

@@ -41,6 +41,7 @@ class MonitoringRuleStateModel(Base):
     id: Mapped[UUID] = mapped_column(Uuid(), primary_key=True)
     position_id: Mapped[UUID] = mapped_column(Uuid(), nullable=False)
     rule_key: Mapped[str] = mapped_column(String(200), nullable=False)
+    price_binding_key: Mapped[str | None] = mapped_column(String(100), nullable=True)
     triggered: Mapped[bool] = mapped_column(Boolean(), nullable=False)
     first_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

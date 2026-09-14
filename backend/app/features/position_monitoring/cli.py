@@ -8,6 +8,10 @@ from dataclasses import asdict
 from app.core.config import get_settings
 from app.core.di import ApplicationContainer
 from app.features.position_monitoring.bootstrap import build_position_monitoring_runtime
+from app.features.position_monitoring.service.product_valuation import (
+    ProductPositionValuationService,
+)
+from app.features.position_monitoring.service.quote_runtime import build_warrant_quote_resolver
 from app.features.position_monitoring.service.runtime import PositionMonitoringRuntimeResult
 
 
@@ -33,6 +37,8 @@ def summarize(result: PositionMonitoringRuntimeResult) -> dict[str, int]:
         "positions_seen": int(cycle["positions_seen"]),
         "positions_checked": int(cycle["positions_checked"]),
         "rules_evaluated": int(cycle["rules_evaluated"]),
+        "blocked_rules": int(cycle["blocked_rules"]),
+        "alerts_invalidated": result.alerts_invalidated,
         "alerts_created": int(cycle["alerts_created"]),
         "alerts_deduplicated": int(cycle["alerts_deduplicated"]),
         "alerts_resolved": int(cycle["alerts_resolved"]),
@@ -78,7 +84,10 @@ async def run_once(*, allow_telegram: bool) -> PositionMonitoringRuntimeResult:
         runtime = build_position_monitoring_runtime(
             settings=settings,
             database=container.database,
-            market_data=container.require_eodhd_adapter(),
+            market_data=container.eodhd.adapter if container.eodhd else None,
+            products=ProductPositionValuationService(
+                database=container.database, quote_resolver=build_warrant_quote_resolver(container)
+            ),
         )
         return await runtime.run()
     finally:

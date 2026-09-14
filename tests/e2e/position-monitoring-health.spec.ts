@@ -161,7 +161,7 @@ for (const valuationStatus of ["STALE", "LAST_AVAILABLE"] as const) {
     await expect(page.getByText('24.200 EUR', { exact: true })).toBeVisible();
     await expect(page.getByText(/Example basis · US0378331005 · XFRA · EUR/)).toBeVisible();
     await expect(
-      page.getByText(/Daraus wird kein Stop-\/Target-Alert abgeleitet/i),
+      page.getByText(/Optionsschein-Regeln verwenden ihre eigene Kursquelle/i),
     ).toBeVisible();
     await expect(
       page.getByText("Für diesen Trade liegen noch keine Alerts vor."),

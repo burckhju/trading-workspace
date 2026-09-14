@@ -128,3 +128,8 @@ Automatisiert qualifiziert sind insbesondere:
 - Telegram inbound/bidirektional,
 - Order Execution oder automatische Kauf-/Verkaufsentscheidung,
 - Kafka/RabbitMQ oder ein generischer Message Bus.
+
+
+## Explicit price basis correction (2026-09-14)
+
+Automatic stop/target checks require a confirmed instrument and currency binding in the immutable management history. The former unconditional underlying-price interpretation is superseded. Legacy unbound rules remain blocked; legacy open alerts without provenance are quarantined. Product rules reuse the existing product valuation source and retain indicative-data warnings. See [Monitoring price basis](../monitoring-price-basis.md) for the binding contract, migration and local validation.

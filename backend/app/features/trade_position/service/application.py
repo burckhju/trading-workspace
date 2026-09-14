@@ -25,6 +25,7 @@ from app.features.trade_position.domain.models import (
     Trade,
     TradeManagementEvent,
 )
+from app.features.trade_position.domain.price_binding import PriceBasis, PriceBinding
 from app.features.trade_position.domain.projector import PositionProjector
 from app.features.trade_position.domain.timeline import (
     Ft011Eligibility,
@@ -427,6 +428,22 @@ class TradePositionService:
 
         return execution, updated
 
+    async def _validate_price_binding(self, trade: Trade, binding: PriceBinding | None) -> None:
+        if binding is None:
+            return  # Legacy callers can record intent, but cannot activate monitoring.
+        if self._products is None:
+            raise ValueError("Product identity cannot be verified")
+        product = await self._products.resolve(trade.workspace_id, trade.product_id)
+        expected = (
+            None
+            if product is None
+            else (
+                product.product_id if binding.basis is PriceBasis.WARRANT else product.underlying_id
+            )
+        )
+        if expected is None or expected != binding.instrument_id:
+            raise ValueError("Price binding does not match this trade's instrument")
+
     async def record_management_event(
         self,
         *,
@@ -435,6 +452,7 @@ class TradePositionService:
         event_type: TradeManagementEventType,
         effective_at: datetime,
         actor: UUID,
+        price_binding: PriceBinding | None = None,
         numeric_value: Decimal | None = None,
         text_value: str | None = None,
         supersedes_event_id: UUID | None = None,
@@ -446,6 +464,7 @@ class TradePositionService:
             self._require_active(trade)
 
             now = datetime.now(UTC)
+            await self._validate_price_binding(trade, price_binding)
             event = TradeManagementEvent(
                 id=uuid4(),
                 trade_id=trade.id,
@@ -454,6 +473,7 @@ class TradePositionService:
                 recorded_at=max(now, effective_at),
                 recorded_by=actor,
                 numeric_value=numeric_value,
+                price_binding=price_binding,
                 text_value=text_value,
                 supersedes_event_id=supersedes_event_id,
             )
@@ -468,6 +488,7 @@ class TradePositionService:
         workspace_id: UUID,
         trade_id: UUID,
         stop_price: Decimal,
+        price_binding: PriceBinding | None = None,
         effective_at: datetime,
         actor: UUID,
     ) -> TradeManagementEvent:
@@ -478,6 +499,7 @@ class TradePositionService:
             effective_at=effective_at,
             actor=actor,
             numeric_value=stop_price,
+            price_binding=price_binding,
         )
 
     async def change_target(
@@ -486,6 +508,7 @@ class TradePositionService:
         workspace_id: UUID,
         trade_id: UUID,
         target_price: Decimal,
+        price_binding: PriceBinding | None = None,
         effective_at: datetime,
         actor: UUID,
     ) -> TradeManagementEvent:
@@ -496,6 +519,7 @@ class TradePositionService:
             effective_at=effective_at,
             actor=actor,
             numeric_value=target_price,
+            price_binding=price_binding,
         )
 
     async def update_thesis(
@@ -640,6 +664,7 @@ class TradePositionService:
         event_id: UUID,
         effective_at: datetime,
         actor: UUID,
+        price_binding: PriceBinding | None = None,
         numeric_value: Decimal | None = None,
         text_value: str | None = None,
     ) -> TradeManagementEvent:
@@ -657,6 +682,7 @@ class TradePositionService:
                 raise ValueError("management event is already superseded")
 
             now = datetime.now(UTC)
+            await self._validate_price_binding(trade, price_binding)
             replacement = TradeManagementEvent(
                 id=uuid4(),
                 trade_id=trade.id,
@@ -665,6 +691,7 @@ class TradePositionService:
                 recorded_at=max(now, effective_at),
                 recorded_by=actor,
                 numeric_value=numeric_value,
+                price_binding=price_binding,
                 text_value=text_value,
                 supersedes_event_id=target.id,
             )

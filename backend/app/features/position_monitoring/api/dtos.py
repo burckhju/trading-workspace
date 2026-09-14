@@ -52,15 +52,14 @@ class MonitoringRuntimeStatusResponse(BaseModel):
     cycle_running: bool = False
     interval_seconds: int
     scope: Literal["PROCESS_LOCAL_ALL_WORKSPACES"] = "PROCESS_LOCAL_ALL_WORKSPACES"
-    price_basis: Literal["COMPLETED_UNDERLYING_DAILY_LOW_HIGH"] = (
-        "COMPLETED_UNDERLYING_DAILY_LOW_HIGH"
-    )
+    price_basis: Literal["EXPLICIT_INSTRUMENT_AND_CURRENCY"] = "EXPLICIT_INSTRUMENT_AND_CURRENCY"
     last_cycle_started_at: datetime | None = None
     last_cycle_completed_at: datetime | None = None
     next_run_at: datetime | None = None
     last_error: str | None = None
     last_error_at: datetime | None = None
     last_result: dict[str, int] | None = None
+    last_rule_checks: tuple[dict[str, str | None], ...] = ()
 
 
 class PositionMonitoringHealthResponse(BaseModel):
