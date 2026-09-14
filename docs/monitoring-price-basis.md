@@ -58,3 +58,66 @@ curl -fsS http://localhost:8000/api/v1/position-monitoring/runtime/status \
 ```
 
 `blocked_rules` muss als offene Aufgabe bewertet werden, auch wenn andere Regeln bereits ausgewertet wurden. `positions_checked` zählt Positionen mit mindestens einer erfolgreichen Regelprüfung, nicht zwingend mit allen Regeln. Fehlender Basiswertkurs bleibt im getrennten Datenzustand sichtbar. Für UNH mit bestätigtem Optionsschein-Ziel 2,50 und beobachtetem Produktkurs 0,24 muss das Ziel unausgelöst bleiben; ein Basiswertkurs von 337 ist für diese Regel ausgeschlossen. Die konkreten Live-Werte müssen lokal zum jeweiligen Prüfzeitpunkt kontrolliert werden.
+
+## Sammelbestätigung vorhandener Optionsschein-Regeln
+
+Wenn fachlich bestätigt ist, dass **alle vorhandenen Stop- und Zielwerte der ausgewählten offenen Positionen Optionsscheinpreise in der angegebenen Währung sind**, kann die Zuordnung gesammelt erfolgen. Die folgende Anleitung gilt für die bestätigten 52 Positionen mit EUR-Schwellen. Diese Anzahl und Währung sind Aufrufparameter; der Code enthält keine Benutzer- oder Produkt-IDs.
+
+Zuerst aktualisieren und bauen:
+
+```bash
+git switch main
+git pull --ff-only
+bash scripts/start-linux.sh --frankfurt
+```
+
+Vorschau erzeugen. Sie enthält die konkreten Trades, Positionen, Optionsschein-IDs, ISINs, unveränderten Schwellen und bereits passende Zuordnungen. Es wird noch nichts gespeichert und kein Provider abgefragt:
+
+```bash
+mkdir -p docker/rule-confirmations
+docker compose --env-file docker/.env \
+  -f docker/compose.yml -f docker/compose.frankfurt.yml exec -T backend \
+  python -m app.tools.confirm_warrant_rules preview \
+  --workspace-id 00000000-0000-4000-8000-000000000001 \
+  --currency EUR --expect-positions 52 \
+  > docker/rule-confirmations/warrant-eur.json
+
+jq '{workspace_id, basis, currency, positions_count,
+     rules_count: (.rules | length),
+     pending_rules: ([.rules[] | select(.already_confirmed == false)] | length)}' \
+  docker/rule-confirmations/warrant-eur.json
+```
+
+Bei 52 bisher unbestätigten Positionen werden `positions_count: 52`, `rules_count: 104` und `pending_rules: 104` erwartet. Mit folgendem Befehl genau diese Vorschau anwenden; die lokale Actor-ID entspricht dem vorhandenen lokalen UI-Benutzer:
+
+```bash
+docker compose --env-file docker/.env \
+  -f docker/compose.yml -f docker/compose.frankfurt.yml exec -T backend \
+  python -m app.tools.confirm_warrant_rules apply \
+  --workspace-id 00000000-0000-4000-8000-000000000001 \
+  --currency EUR --expect-positions 52 \
+  --actor-id 00000000-0000-4000-8000-000000000002 \
+  < docker/rule-confirmations/warrant-eur.json
+```
+
+Erwartet: `status: APPLIED`, `events_created: 104` (abzüglich bereits passend bestätigter Regeln). Eine Wiederholung derselben Vorschau erzeugt keine weiteren Einträge: `ALREADY_CONFIRMED`, `events_created: 0`.
+
+Die Anwendung prüft die gesamte Vorschau gegen den aktuellen Bestand. Geänderte Positionen, Instrumente, Schwellen, widersprechende Zuordnungen oder bereits geplante zukünftige Preisänderungen brechen den Vorgang ab. Eine neue Vorschau muss auf dem korrigierten Bestand erzeugt werden; die JSON-Datei nicht manuell zur Umgehung der Prüfung ändern. Geschlossene/stornierte Positionen und andere Workspaces sind ausgeschlossen. Bei fehlendem Stop oder Ziel wird keine Schwelle erfunden.
+
+Alle Zuordnungen werden als neue FT-010-Management-Ereignisse in **einer Transaktion** geschrieben; bestehende Historie, TradePlan-Versionen, Mengen, Einstand und Kursquellen werden nicht umgeschrieben. Kurze Datenbanksperren verhindern parallele Änderungen während Prüfung und Anwendung. Andere Schreibvorgänge können kurz warten; kann die Sperre innerhalb von fünf Sekunden nicht erworben werden, wird abgebrochen. Die Vorschau ist lesend, die Anwendung ist ein einmaliger Wartungsvorgang.
+
+Der Sammelbefehl erzeugt selbst weder Alerts noch Benachrichtigungen oder Orders. Der bereits aktive Hintergrundlauf prüft die bestätigten Regeln beim nächsten Durchlauf und kann entsprechend der bestehenden Konfiguration Benachrichtigungen erzeugen. Für eine sofortige Prüfung ohne Telegram kann der oben dokumentierte Einmalbefehl verwendet werden; dieser ersetzt nicht den Prozessstatus des Hintergrundlaufs.
+
+Nach dem nächsten Hintergrunddurchlauf:
+
+```bash
+curl -fsS http://localhost:8000/api/v1/position-monitoring/runtime/status \
+  | jq '{last_cycle_completed_at, last_result,
+         unconfirmed: ([.last_rule_checks[]
+           | select(.reason == "RULE_PRICE_BASIS_UNCONFIRMED")] | length),
+         other_checks: [.last_rule_checks[]
+           | select(.status == "BLOCKED" or .status == "MISSING"
+                    or .status == "STALE" or .status == "ERROR")]}'
+```
+
+Die fehlenden Zuordnungen sollen auf null sinken. Das ist noch kein Beleg für vollständige Kursversorgung: anschließend verbleibende Identitäts-, Währungs-, Kurs- oder Mappingprobleme anhand der jeweiligen `last_rule_checks` prüfen. Das Bestätigen eines Optionsscheinpreises macht keinen fehlenden Kurs verfügbar und erteilt keine Orderfreigabe.
