@@ -167,6 +167,7 @@ async def test_scheduler_bootstraps_several_venues_imports_eod_and_preserves_dis
                 )
                 runtime = MarketDataRefreshRuntime(container)
                 runtime._pace = AsyncMock()
+                runtime._pace_underlying = AsyncMock()
                 await asyncio.wait_for(runtime.run_once(), timeout=30)
                 assert runtime.last_error is None
                 assert all(

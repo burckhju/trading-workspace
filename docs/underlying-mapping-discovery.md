@@ -196,10 +196,12 @@ bash scripts/start-linux.sh --frankfurt
 
 The helper rebuilds/restarts the services and runs `alembic upgrade head`. Keep
 `market_data.refresh.enabled` and `auto_configure` enabled. The first catalog
-pass after restart performs discovery; the serial scheduler can take substantially
-longer than the configured quote interval for a large portfolio. An immediate
-status request may therefore still show pending jobs. No per-instrument SQL
-repair or additional credentials are required to run the verification.
+pass after restart performs discovery in the independent underlying queue.
+It no longer waits for the warrant queue, but provider pacing and earlier jobs
+within the same queue can still delay completion for a large portfolio.
+An immediate status request may therefore still show pending jobs. See
+[queue diagnostics](automatic-market-data.md#independent-warrant-and-underlying-queues-2026-09-14).
+No per-instrument SQL repair or additional credentials are required to run the verification.
 
 After discovery, inspect held underlying mappings:
 
