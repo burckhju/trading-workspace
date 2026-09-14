@@ -126,6 +126,11 @@ portfolio verification must occur in the user's deployment.
 
 ## Sparse ISIN catalogs and alternative venues (2026-09-14)
 
+After an explicit same-currency venue decision, use the
+[verified underlying venue switch](underlying-venue-switch.md). It stages and
+imports the target data before changing the primary listing; automatic discovery
+continues to leave the venue decision untouched.
+
 A later 52-position deployment report showed 20 underlying discoveries with
 `EODHD_ISIN_NOT_FOUND_ON_VENUE`, all on existing XETR/EUR listings. This proves
 that the requested venue catalog did not return their ISINs. It does **not**
