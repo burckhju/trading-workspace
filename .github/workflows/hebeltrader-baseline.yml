@@ -27,6 +27,12 @@ jobs:
           mkdir -p verification
           git archive --format=zip HEAD -o verification/tracked-source.zip
           git rev-parse HEAD > verification/source-sha.txt
+      - name: Pinned public quality tools for offline Python 3.13 checks
+        run: >-
+          python -m pip download --dest verification/wheels
+          --only-binary=:all: --python-version 3.13 --implementation cp --abi cp313
+          --platform manylinux_2_17_x86_64 --platform manylinux2014_x86_64
+          asyncpg==0.31.0 black==26.1.0 ruff==0.15.1 mypy==1.19.1
       - name: Return verification evidence
         if: always()
         uses: actions/upload-artifact@v4
