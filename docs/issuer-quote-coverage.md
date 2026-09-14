@@ -1,5 +1,12 @@
 # Alternativen für Morgan Stanley, JPMorgan und UniCredit
 
+**Fortsetzung:** Die [erweiterte Recherche](issuer-quote-research-expanded.md)
+bestätigt inzwischen alle zehn MS-Produktseiten, UC im vollständig geprüften
+gettex-Feed und einen JPM-Optionsschein im Onvista-JSON. Sie dokumentiert auch die
+Zugangsgrenzen sowie konkrete kommerzielle APIs. Die folgenden Befunde bleiben als
+erste Untersuchung erhalten; ihre noch offenen UC-/MS-Abdeckungsfragen werden dort
+präzisiert.
+
 Recherche vom 14.09.2026. Die Diagnose des Nutzers ergab 32 vorhandene und 20 fehlende
 Optionsscheinbeobachtungen. Die fehlenden umfassen zehn Morgan-Stanley-, acht
 JPMorgan-, einen UniCredit-Optionsschein sowie die unvollständige BNP-ISIN.
