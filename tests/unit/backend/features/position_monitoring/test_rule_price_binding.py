@@ -101,17 +101,36 @@ async def test_unh_target_compares_product_bid_and_never_underlying_337():
     states, alerts = StateRepo(), AlertRepo()
     app = PositionMonitoringService(states=states, alerts=alerts, new_id=uuid4, now=lambda: NOW)
     result = await PositionMonitoringCycleService(
-        subjects=Subjects((MonitoringSubjectResolution(SUBJECT.position_id, SUBJECT),)),
+        subjects=Subjects(
+            (
+                MonitoringSubjectResolution(
+                    SUBJECT.position_id,
+                    replace(
+                        SUBJECT,
+                        rules=(
+                            RULE,
+                            replace(
+                                RULE,
+                                rule_key="CURRENT_STOP",
+                                rule_type=MonitoringRuleType.STOP_REACHED,
+                                threshold=Decimal("0.16"),
+                            ),
+                        ),
+                    ),
+                ),
+            )
+        ),
         products=products,
         market_data=market,
         processor=type("Processor", (), {"process": app.evaluate})(),
         now=lambda: NOW,
         new_id=uuid4,
     ).run()
-    assert result.positions_checked == 1 and result.rules_evaluated == 1
+    assert result.positions_checked == 1 and result.rules_evaluated == 2
     assert result.alerts_created == 0
     assert result.rule_checks[0]["observed_value"] == "0.24"
     assert result.rule_checks[0]["warning"] == "OUTDATED_QUOTE_INDICATIVE_ANALYSIS_ONLY"
+    products.for_trade.assert_awaited_once_with(SUBJECT.trade_id)
     market.get_latest_completed_daily_price.assert_not_awaited()
 
 
@@ -289,3 +308,19 @@ async def test_basis_change_resets_dedup_and_keeps_exact_alert_provenance():
                 observation, price_binding=other, observed_at=NOW - timedelta(days=1)
             ),
         )
+
+
+@pytest.mark.asyncio
+async def test_completed_daily_request_excludes_the_current_session():
+    market = AsyncMock()
+    market.get_latest_completed_daily_price.return_value = _daily_result(
+        trading_date=NOW.date() - timedelta(days=1)
+    )
+    rule = replace(RULE, price_binding=PriceBinding(PriceBasis.UNDERLYING, UNDERLYING_ID, "EUR"))
+    result = await rule_price(
+        subject=SUBJECT, rule=rule, market_data=market, products=None, now=NOW, max_age_days=4
+    )
+    assert result.observation is not None
+    assert market.get_latest_completed_daily_price.call_args.args[
+        0
+    ].as_of_date == NOW.date() - timedelta(days=1)

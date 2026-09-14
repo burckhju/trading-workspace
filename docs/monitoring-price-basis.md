@@ -18,7 +18,7 @@ Vorhandene ungebundene Managementwerte und die historische Plan-Rückfallquelle 
 
 ## Alte Meldungen
 
-Die additive Migration `20260914_0037` verändert keine Preise, Positionen oder Meldungsdaten. Beim ersten neuen Monitoring-Durchlauf werden noch offene Meldungen ohne gespeicherten Kursbezug auf `INVALIDATED` gesetzt, mit `invalidated_at` und `LEGACY_RULE_PRICE_BASIS_UNCONFIRMED`. Ihre ursprünglichen Werte, Gründe und Versandhistorien bleiben erhalten. Bereits versendete Benachrichtigungen können dadurch nicht zurückgerufen werden. Ausstehende Benachrichtigungen ungültiger Meldungen werden vom Versand ausgeschlossen. Diese Quarantäne ist idempotent und behauptet keine erfolgreiche Kursauflösung.
+Die additive Migration `20260914_0037` verändert keine Preise, Positionen oder Meldungsdaten. Beim ersten neuen Monitoring-Durchlauf werden noch offene Meldungen ohne gespeicherten Kursbezug auf `INVALIDATED` gesetzt, mit `invalidated_at` und `LEGACY_RULE_PRICE_BASIS_UNCONFIRMED`. Ihre ursprünglichen Werte, Gründe und Versandhistorien bleiben erhalten. Bereits versendete Benachrichtigungen können dadurch nicht zurückgerufen werden. Ausstehende Benachrichtigungen ungültiger Meldungen werden vom Versand ausgeschlossen. Diese Quarantäne ist idempotent und behauptet keine erfolgreiche Kursauflösung. Ein Schema-Downgrade verweigert die Rückkehr zu den alten Statuswerten, solange `INVALIDATED`-Historie vorhanden ist; diese wird nicht stillschweigend umgeschrieben.
 
 ## Lokales Deployment und Prüfung
 

@@ -24,6 +24,7 @@ export function PriceBindingInput({
       <label className="block text-sm">
         Instrument für {label}
         <select
+          aria-label={`Instrument für ${label}`}
           required
           value={value?.basis ?? ''}
           onChange={(event) => {
@@ -48,6 +49,7 @@ export function PriceBindingInput({
       <label className="block text-sm">
         Währung für {label}
         <input
+          aria-label={`Währung für ${label}`}
           required
           pattern="[A-Z]{3}"
           maxLength={3}

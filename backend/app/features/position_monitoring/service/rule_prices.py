@@ -1,7 +1,7 @@
 """Obtain a price for the user's confirmed rule identity, without cross-instrument fallback."""
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Protocol
 from uuid import UUID, uuid4
 
@@ -104,7 +104,7 @@ async def rule_price(
             listing_id=subject.listing_id,
             mapping_id=subject.mapping_id,
             correlation_id=uuid4(),
-            as_of_date=now.date(),
+            as_of_date=now.date() - timedelta(days=1),
         )
     )
     price = result.data

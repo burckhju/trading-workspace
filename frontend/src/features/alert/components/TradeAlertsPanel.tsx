@@ -280,7 +280,11 @@ export function TradeAlertsPanel({ tradeId }: { tradeId: string }) {
                     <ul className="mt-2 space-y-2 text-sm">
                       {alert.notifications.map((notification) => (
                         <li key={notification.id}>
-                          <span>{notificationLabel(notification)}</span>
+                          <span>
+                            {alert.status === 'INVALIDATED' && notification.status === 'PENDING'
+                              ? 'Versand unterdrückt: Meldung ungültig'
+                              : notificationLabel(notification)}
+                          </span>
                           {notification.last_delivery?.error_code && (
                             <span className="ml-2 text-slate-500">
                               ({notification.last_delivery.error_code})

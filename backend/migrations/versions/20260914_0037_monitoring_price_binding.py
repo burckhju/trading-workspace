@@ -16,6 +16,12 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
+    op.drop_constraint(op.f("ck_alerts_alert_status_valid"), "alerts", type_="check")
+    op.create_check_constraint(
+        op.f("ck_alerts_alert_status_valid"),
+        "alerts",
+        "status IN ('OPEN', 'RESOLVED', 'INVALIDATED')",
+    )
     op.add_column(
         "trade_management_events",
         sa.Column("price_binding", sa.JSON(none_as_null=True), nullable=True),
@@ -29,6 +35,11 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    # Intentionally fail if INVALIDATED history exists; never silently rewrite it.
+    op.drop_constraint(op.f("ck_alerts_alert_status_valid"), "alerts", type_="check")
+    op.create_check_constraint(
+        op.f("ck_alerts_alert_status_valid"), "alerts", "status IN ('OPEN', 'RESOLVED')"
+    )
     for name in ("invalidation_reason", "invalidated_at", "price_context"):
         op.drop_column("alerts", name)
     op.drop_column("monitoring_rule_states", "price_binding_key")

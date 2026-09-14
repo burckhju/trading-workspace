@@ -1,7 +1,9 @@
 """Real persistence of quarantine, immutable confirmation and product rule resolution."""
 
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from decimal import Decimal
+from types import SimpleNamespace
 from unittest.mock import AsyncMock
 from uuid import uuid4
 
@@ -13,6 +15,10 @@ from tests.integration.backend.database.test_market_data_instrument_workspace_po
 )
 
 from app.features.alert.persistence.models import AlertModel
+from app.features.notification.persistence.durable_delivery import (
+    SqlAlchemyDurableNotificationDeliveryStore,
+)
+from app.features.notification.persistence.models import NotificationModel
 from app.features.position_monitoring.persistence.models import MonitoringRuleStateModel
 from app.features.position_monitoring.service.legacy_alerts import invalidate_unbound_alerts
 from app.features.position_monitoring.service.subjects import SqlAlchemyMonitoringSubjectReader
@@ -144,6 +150,19 @@ async def test_confirmation_and_quarantine_preserve_history_and_do_not_require_s
                     expire_on_commit=False,
                     join_transaction_mode="create_savepoint",
                 ) as session:
+                    pending_id = uuid4()
+                    session.add(
+                        NotificationModel(
+                            id=pending_id,
+                            alert_id=old_alert,
+                            channel="TELEGRAM",
+                            destination_key="test",
+                            body="legacy target",
+                            created_at=now,
+                            status="PENDING",
+                        )
+                    )
+                    await session.flush()
                     reader = SqlAlchemyMonitoringSubjectReader(session, for_rule_evaluation=True)
                     before = next(
                         r for r in await reader.list_resolutions() if r.position_id == position
@@ -157,6 +176,25 @@ async def test_confirmation_and_quarantine_preserve_history_and_do_not_require_s
                     assert alert.observed_value == 337 and alert.threshold_value == Decimal("2.50")
                     assert alert.reason == "observed_value=337 >= threshold=2.50"
                     assert alert.invalidation_reason == "LEGACY_RULE_PRICE_BASIS_UNCONFIRMED"
+
+                    @asynccontextmanager
+                    async def notification_session():
+                        yield session
+
+                    store = SqlAlchemyDurableNotificationDeliveryStore(
+                        SimpleNamespace(session_context=notification_session)
+                    )
+                    assert pending_id not in await store.list_pending_notification_ids(limit=100)
+                    suppressed = await store.prepare(
+                        notification_id=pending_id,
+                        attempt_id=uuid4(),
+                        now=now,
+                        stale_before=now,
+                        max_attempts=3,
+                    )
+                    assert suppressed.attempt is None
+                    assert suppressed.terminal_result.error_code == "ALERT_INVALIDATED"
+                    assert suppressed.notification.body == "legacy target"
                     products = AsyncMock()
                     products.resolve.return_value = ResolvedProduct(workspace, warrant, underlying)
                     service = TradePositionService(

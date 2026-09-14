@@ -150,14 +150,16 @@ test("manages partial/full exit and explicit management decisions without provid
     }
     if (method === "POST" && path.endsWith("/management/stop")) {
       stopPosts += 1;
-      const body = request.postDataJSON() as { price: string };
-      currentManagement = { ...currentManagement, stop_price: body.price };
+      const body = request.postDataJSON() as { price: string; price_binding: { basis: string; instrument_id: string; currency: string } };
+      expect(body.price_binding).toEqual({ basis: "WARRANT", instrument_id: productId, currency: "EUR" });
+      currentManagement = management({ ...currentManagement, stop_price: body.price, stop_price_binding: body.price_binding });
       return json(route, {}, 201);
     }
     if (method === "POST" && path.endsWith("/management/target")) {
       targetPosts += 1;
-      const body = request.postDataJSON() as { price: string };
-      currentManagement = { ...currentManagement, target_price: body.price };
+      const body = request.postDataJSON() as { price: string; price_binding: { basis: string; instrument_id: string; currency: string } };
+      expect(body.price_binding).toEqual({ basis: "UNDERLYING", instrument_id: "40000000-0000-4000-8000-000000000001", currency: "EUR" });
+      currentManagement = management({ ...currentManagement, target_price: body.price, target_price_binding: body.price_binding });
       return json(route, {}, 201);
     }
     if (method === "POST" && path.endsWith("/management/thesis")) {
@@ -203,12 +205,14 @@ test("manages partial/full exit and explicit management decisions without provid
   await page.getByLabel("Währung für Stop", { exact: true }).fill("EUR");
   await page.getByRole("button", { name: "Stop speichern" }).click();
   await expect.poll(() => stopPosts).toBe(1);
+  await expect(page.getByText("Stop wurde aktualisiert.")).toBeVisible();
 
   await page.getByLabel("Target", { exact: true }).fill("3.00");
   await page.getByLabel("Instrument für Target", { exact: true }).selectOption("UNDERLYING");
   await page.getByLabel("Währung für Target", { exact: true }).fill("EUR");
   await page.getByRole("button", { name: "Target speichern" }).click();
   await expect.poll(() => targetPosts).toBe(1);
+  await expect(page.getByText("Target wurde aktualisiert.")).toBeVisible();
 
   await page.getByLabel("Aktuelle These").fill("Thesis updated by user");
   await page.getByRole("button", { name: "These speichern" }).click();
