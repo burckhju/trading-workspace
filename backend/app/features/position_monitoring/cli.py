@@ -3,15 +3,23 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+from contextlib import AsyncExitStack
 from dataclasses import asdict
+
+import httpx
 
 from app.core.config import get_settings
 from app.core.di import ApplicationContainer
+from app.features.position_monitoring.backend_valuations import (
+    BackendProductValuations,
+    backend_origin,
+)
 from app.features.position_monitoring.bootstrap import build_position_monitoring_runtime
 from app.features.position_monitoring.service.product_valuation import (
     ProductPositionValuationService,
 )
 from app.features.position_monitoring.service.quote_runtime import build_warrant_quote_resolver
+from app.features.position_monitoring.service.rule_prices import ProductValuationReader
 from app.features.position_monitoring.service.runtime import PositionMonitoringRuntimeResult
 
 
@@ -28,6 +36,16 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--expect-alerts", type=int)
     parser.add_argument("--expect-deliveries", type=int)
     parser.add_argument("--expect-delivery-failures", type=int)
+    parser.add_argument(
+        "--backend-url",
+        type=backend_origin,
+        help="Use product valuations from the running backend and its shared quote cache/budget.",
+    )
+    parser.add_argument(
+        "--include-rule-checks",
+        action="store_true",
+        help="Include per-rule results and backend product-source diagnostics in JSON output.",
+    )
     return parser
 
 
@@ -38,6 +56,7 @@ def summarize(result: PositionMonitoringRuntimeResult) -> dict[str, int]:
         "positions_checked": int(cycle["positions_checked"]),
         "rules_evaluated": int(cycle["rules_evaluated"]),
         "blocked_rules": int(cycle["blocked_rules"]),
+        "subject_errors": int(cycle["subject_errors"]),
         "alerts_invalidated": result.alerts_invalidated,
         "alerts_created": int(cycle["alerts_created"]),
         "alerts_deduplicated": int(cycle["alerts_deduplicated"]),
@@ -71,7 +90,12 @@ def validate_expectations(
     ]
 
 
-async def run_once(*, allow_telegram: bool) -> PositionMonitoringRuntimeResult:
+async def run_once(
+    *,
+    allow_telegram: bool,
+    backend_url: str | None = None,
+    quote_diagnostics: list[dict[str, object]] | None = None,
+) -> PositionMonitoringRuntimeResult:
     settings = get_settings()
     telegram = settings.notification.telegram
     if telegram.enabled and not allow_telegram:
@@ -81,15 +105,32 @@ async def run_once(*, allow_telegram: bool) -> PositionMonitoringRuntimeResult:
 
     container = ApplicationContainer.build(settings)
     try:
-        runtime = build_position_monitoring_runtime(
-            settings=settings,
-            database=container.database,
-            market_data=container.eodhd.adapter if container.eodhd else None,
-            products=ProductPositionValuationService(
-                database=container.database, quote_resolver=build_warrant_quote_resolver(container)
-            ),
-        )
-        return await runtime.run()
+        async with AsyncExitStack() as stack:
+            products: ProductValuationReader
+            if backend_url is not None:
+                client = await stack.enter_async_context(
+                    httpx.AsyncClient(
+                        base_url=backend_origin(backend_url),
+                        timeout=60,
+                        follow_redirects=False,
+                        trust_env=False,
+                    )
+                )
+                remote = BackendProductValuations(client, diagnostics=quote_diagnostics)
+                await remote.check_ready()
+                products = remote
+            else:
+                products = ProductPositionValuationService(
+                    database=container.database,
+                    quote_resolver=build_warrant_quote_resolver(container),
+                )
+            runtime = build_position_monitoring_runtime(
+                settings=settings,
+                database=container.database,
+                market_data=container.eodhd.adapter if container.eodhd else None,
+                products=products,
+            )
+            return await runtime.run()
     finally:
         await container.close()
 
@@ -97,13 +138,27 @@ async def run_once(*, allow_telegram: bool) -> PositionMonitoringRuntimeResult:
 def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
+    quote_diagnostics: list[dict[str, object]] = []
     try:
-        result = asyncio.run(run_once(allow_telegram=args.allow_telegram))
+        result = asyncio.run(
+            run_once(
+                allow_telegram=args.allow_telegram,
+                backend_url=args.backend_url,
+                quote_diagnostics=quote_diagnostics if args.include_rule_checks else None,
+            )
+        )
     except RuntimeError as error:
         parser.error(str(error))
 
     summary = summarize(result)
-    print(json.dumps(summary, sort_keys=True))
+    output: dict[str, object] = {
+        **summary,
+        "quote_context": "RUNNING_BACKEND" if args.backend_url else "ISOLATED_PROCESS_CACHE",
+    }
+    if args.include_rule_checks:
+        output["rule_checks"] = result.cycle.rule_checks
+        output["product_valuations"] = quote_diagnostics
+    print(json.dumps(output, sort_keys=True))
     failures = validate_expectations(
         summary,
         expect_alerts=args.expect_alerts,

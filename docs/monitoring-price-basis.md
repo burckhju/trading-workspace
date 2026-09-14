@@ -43,7 +43,8 @@ docker compose --env-file docker/.env -f docker/compose.yml -f docker/compose.fr
 ```bash
 docker compose --env-file docker/.env -f docker/compose.yml -f docker/compose.frankfurt.yml exec -T \
   -e TRADING_WORKSPACE_NOTIFICATION__TELEGRAM__ENABLED=false backend \
-  python -m app.features.position_monitoring.cli
+  python -m app.features.position_monitoring.cli \
+  --backend-url http://127.0.0.1:8000 --include-rule-checks
 ```
 
 3. Automatik nach Prüfung bei Bedarf wieder aktivieren: `TRADING_WORKSPACE_POSITION_MONITORING__ENABLED=true` in `docker/.env`, anschließend Backend mit denselben Compose-Dateien neu erstellen. Ein beim Start bereits aktivierter Hintergrundlauf kann unabhängig vom obigen Einmalbefehl die konfigurierten Benachrichtigungen versenden.
@@ -121,3 +122,55 @@ curl -fsS http://localhost:8000/api/v1/position-monitoring/runtime/status \
 ```
 
 Die fehlenden Zuordnungen sollen auf null sinken. Das ist noch kein Beleg für vollständige Kursversorgung: anschließend verbleibende Identitäts-, Währungs-, Kurs- oder Mappingprobleme anhand der jeweiligen `last_rule_checks` prüfen. Das Bestätigen eines Optionsscheinpreises macht keinen fehlenden Kurs verfügbar und erteilt keine Orderfreigabe.
+
+## Aussagekraft des Einmallaufs und Kursdiagnose
+
+`docker compose exec … python -m app.features.position_monitoring.cli` startet einen **separaten Prozess**. Ohne `--backend-url` hat dieser Prozess einen eigenen, zunächst leeren Provider-Cache. Die im API-Backend durch den Refresh-Scheduler gespeicherten letzten Kurse sind dort nicht vorhanden. Frankfurt begrenzt gleichzeitig die zeitlich unmittelbar folgenden Abrufe. Dadurch können viele Regeln `MISSING` melden, obwohl der laufende Backend-Prozess die betreffenden Kurse bereits im Cache besitzt. Ein solcher Lauf belegt keine fehlende Börsenabdeckung. Er startet außerdem keinen dauerhaften Refresh-Scheduler.
+
+Für die Kontrolle eines laufenden lokalen Depots deshalb `--backend-url http://127.0.0.1:8000` verwenden. Der CLI-Lauf liest die bestehende Produktbewertungs-API und teilt dadurch deren Provider-Cache, letzte erfolgreiche Beobachtungen und Abrufbegrenzung mit UI und Hintergrundlauf. Er senkt keine Abrufgrenze und erzeugt keinen neuen Produkt-Provider-Abrufhaushalt. Die Basiswert-Tagesdaten verwenden weiterhin den bestehenden EOD-Zugriff. Quelle, Kursart, Originalzeitstempel, Warnungen und Instrumentidentität werden vom API-Vertrag übernommen und durch dieselbe Regelprüfung validiert. Bei nicht erreichbarem Backend gibt es keinen stillen Rückfall auf einen separaten Produkt-Cache.
+
+**Aktualisierung des Einmalwerkzeugs ohne Verlust des laufenden Kurs-Caches:** Ein Backend-Neustart leert auch dessen Prozess-Cache. Deshalb kann zunächst nur das neue Image gebaut und der neue CLI-Prozess als separater Compose-Container gestartet werden. `--no-deps` lässt das bestehende Backend laufen; dessen Adresse im Compose-Netz ist `http://backend:8000`:
+
+```bash
+git switch main
+git pull --ff-only
+docker compose --env-file docker/.env \
+  -f docker/compose.yml -f docker/compose.frankfurt.yml build backend
+
+mkdir -p docker/rule-confirmations
+docker compose --env-file docker/.env \
+  -f docker/compose.yml -f docker/compose.frankfurt.yml run --rm --no-deps -T \
+  -e TRADING_WORKSPACE_NOTIFICATION__TELEGRAM__ENABLED=false backend \
+  python -m app.features.position_monitoring.cli \
+  --backend-url http://backend:8000 --include-rule-checks \
+  > docker/rule-confirmations/monitoring-check.json
+```
+
+Das aktualisiert das CLI-Werkzeug für diesen Lauf, nicht den bereits laufenden API-Prozess. Änderungen an dessen Quellen-Fehlercodes werden beim nächsten regulären Backend-Deployment aktiv. Nach einem regulären Neustart muss der Refresh-Scheduler die Kurse erst wieder aufbauen; ein kurz danach noch unvollständiges Ergebnis ist kein Abdeckungsnachweis. Der Modus liest vorhandene Bewertungen und kann fehlende Kurse nicht selbst herstellen.
+
+Die Ausgabe nennt `quote_context: RUNNING_BACKEND` bzw. `ISOLATED_PROCESS_CACHE`. Mit `--include-rule-checks` enthält sie zusätzlich:
+
+- `rule_checks`: Instrument, Währung, Schwelle, Status, tatsächlicher Vergleichskurs und Provenienz je Regel.
+- `product_valuations`: Produktbewertungsstatus und tatsächlich versuchte Kursquellen je Trade bei Nutzung des Backends. Begrenzte technische Fehlercodes wie `FRANKFURT_REQUEST_THROTTLED` oder `FRANKFURT_HTTP_404` bleiben in `source_attempts` erhalten; beliebige Exception-Texte oder HTTP-Antworten werden nicht ausgegeben.
+
+Zum Speichern und Auswerten eines aktuellen Prüflaufs (schreibt Regelzustände/Alerts, Telegram für diesen Prozess deaktiviert):
+
+```bash
+mkdir -p docker/rule-confirmations
+docker compose --env-file docker/.env \
+  -f docker/compose.yml -f docker/compose.frankfurt.yml exec -T \
+  -e TRADING_WORKSPACE_NOTIFICATION__TELEGRAM__ENABLED=false backend \
+  python -m app.features.position_monitoring.cli \
+  --backend-url http://127.0.0.1:8000 --include-rule-checks \
+  > docker/rule-confirmations/monitoring-check.json
+
+jq '{quote_context, positions_seen, positions_checked, rules_evaluated,
+     blocked_rules, subject_errors, missing_market_data, market_data_errors,
+     rules_by_status: ([.rule_checks[]] | group_by(.status)
+       | map({status: .[0].status, count: length})),
+     missing_products: [.product_valuations[]
+       | select(.status == "MISSING" or .status == "UNAVAILABLE" or .status == "ERROR")]}' \
+  docker/rule-confirmations/monitoring-check.json
+```
+
+Fehlende Marktdaten werden **pro Regel** gezählt: 92 fehlgeschlagene Preisprüfungen können bei je zwei Regeln 46 Positionen betreffen. `market_data_errors: 0` allein beweist keinen fehlerfreien Provider, weil eine Produktbewertung mehrere fehlgeschlagene Quellen zu `NO_USABLE_WARRANT_QUOTE` zusammenfassen kann. Die Quelle der Einschränkung steht in den Detaildaten. Der Einmallauf aktualisiert weiterhin nicht `runtime/status`; dort bleibt das letzte Ergebnis des separaten Hintergrund-Schedulers sichtbar. Ein bereits aktiver Hintergrundlauf kann unabhängig vom CLI-Aufruf konfigurierte Benachrichtigungen versenden.
