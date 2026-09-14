@@ -129,6 +129,25 @@ Die fehlenden Zuordnungen sollen auf null sinken. Das ist noch kein Beleg für v
 
 Für die Kontrolle eines laufenden lokalen Depots deshalb `--backend-url http://127.0.0.1:8000` verwenden. Der CLI-Lauf liest die bestehende Produktbewertungs-API und teilt dadurch deren Provider-Cache, letzte erfolgreiche Beobachtungen und Abrufbegrenzung mit UI und Hintergrundlauf. Er senkt keine Abrufgrenze und erzeugt keinen neuen Produkt-Provider-Abrufhaushalt. Die Basiswert-Tagesdaten verwenden weiterhin den bestehenden EOD-Zugriff. Quelle, Kursart, Originalzeitstempel, Warnungen und Instrumentidentität werden vom API-Vertrag übernommen und durch dieselbe Regelprüfung validiert. Bei nicht erreichbarem Backend gibt es keinen stillen Rückfall auf einen separaten Produkt-Cache.
 
+**Aktualisierung des Einmalwerkzeugs ohne Verlust des laufenden Kurs-Caches:** Ein Backend-Neustart leert auch dessen Prozess-Cache. Deshalb kann zunächst nur das neue Image gebaut und der neue CLI-Prozess als separater Compose-Container gestartet werden. `--no-deps` lässt das bestehende Backend laufen; dessen Adresse im Compose-Netz ist `http://backend:8000`:
+
+```bash
+git switch main
+git pull --ff-only
+docker compose --env-file docker/.env \
+  -f docker/compose.yml -f docker/compose.frankfurt.yml build backend
+
+mkdir -p docker/rule-confirmations
+docker compose --env-file docker/.env \
+  -f docker/compose.yml -f docker/compose.frankfurt.yml run --rm --no-deps -T \
+  -e TRADING_WORKSPACE_NOTIFICATION__TELEGRAM__ENABLED=false backend \
+  python -m app.features.position_monitoring.cli \
+  --backend-url http://backend:8000 --include-rule-checks \
+  > docker/rule-confirmations/monitoring-check.json
+```
+
+Das aktualisiert das CLI-Werkzeug für diesen Lauf, nicht den bereits laufenden API-Prozess. Änderungen an dessen Quellen-Fehlercodes werden beim nächsten regulären Backend-Deployment aktiv. Nach einem regulären Neustart muss der Refresh-Scheduler die Kurse erst wieder aufbauen; ein kurz danach noch unvollständiges Ergebnis ist kein Abdeckungsnachweis. Der Modus liest vorhandene Bewertungen und kann fehlende Kurse nicht selbst herstellen.
+
 Die Ausgabe nennt `quote_context: RUNNING_BACKEND` bzw. `ISOLATED_PROCESS_CACHE`. Mit `--include-rule-checks` enthält sie zusätzlich:
 
 - `rule_checks`: Instrument, Währung, Schwelle, Status, tatsächlicher Vergleichskurs und Provenienz je Regel.
