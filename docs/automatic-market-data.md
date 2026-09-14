@@ -85,6 +85,11 @@ Intervals are minimum pauses after a job finishes. Provider pacing, retries and
 large catalogs can delay a subsequent run. The global Frankfurt request budget
 still applies; changing the instrument does not reset it. Individual failures do
 not stop other jobs. Missing discoveries retry at the discovery interval.
+Public Frankfurt 404 responses now wait per ISIN (default one hour) while other
+identities retain the ordinary 15-second provider pacing. Cached failures perform
+no network request. Other source errors keep their global backoff, including
+longer `Retry-After` instructions on HTTP 429/503. See the retry diagnostics in
+[Frankfurt quotes](frankfurt-quotes.md#per-instrument-retry-isolation-2026-09-14).
 Set `AUTO_CONFIGURE=false` to refresh only existing configured routes.
 
 The supported deployment remains a single backend process, as for the existing

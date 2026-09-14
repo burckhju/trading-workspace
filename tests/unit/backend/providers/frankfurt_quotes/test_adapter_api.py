@@ -62,6 +62,8 @@ def context(data=None):
         ),
         last_success_at=None,
         last_error=None,
+        instrument_backoff_count=lambda: 0,
+        request_delay_seconds=lambda: 0.0,
     )
     database = Database(row)
     adapter = FrankfurtWarrantQuoteAdapter(
@@ -206,6 +208,9 @@ def test_public_health_and_listing_diagnostic_do_not_claim_bid_ask_capability():
         assert health["schema_version"] == "deutsche-boerse-public-last-trade-v1"
         assert health["bid_ask_supported"] is health["execution_usable"] is False
         assert health["delay_seconds"] is None
+        assert health["instrument_retry_seconds"] == 3600
+        assert health["instrument_backoff_count"] == 0
+        assert health["request_cooldown_seconds"] == 0
         result = client.get(
             f"{prefix}/listings/{request.warrant_listing_id}?workspace_id={request.workspace_id}"
         ).json()

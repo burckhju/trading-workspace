@@ -38,6 +38,9 @@ class FrankfurtHealthResponse(BaseModel):
     max_quote_age_seconds: int
     last_success_at: datetime | None
     last_error: str | None
+    instrument_retry_seconds: int
+    instrument_backoff_count: int
+    request_cooldown_seconds: float
     # A successful transport request is not an instrument-coverage or freshness check.
     coverage_verified: Literal[False] = False
     execution_usable: Literal[False] = False
@@ -79,6 +82,9 @@ async def get_frankfurt_health(
         max_quote_age_seconds=settings.max_quote_age_seconds,
         last_success_at=client.last_success_at if client else None,
         last_error=client.last_error if client else None,
+        instrument_retry_seconds=settings.instrument_retry_seconds,
+        instrument_backoff_count=client.instrument_backoff_count() if client else 0,
+        request_cooldown_seconds=client.request_delay_seconds() if client else 0.0,
     )
 
 
