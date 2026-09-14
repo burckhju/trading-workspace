@@ -9,6 +9,16 @@ type RefreshStatus = {
   leader: boolean;
   last_error: string | null;
   current_job?: string | null;
+  current_jobs?: Record<string, string | null>;
+  lanes?: Record<
+    string,
+    {
+      running: boolean;
+      current_job: string | null;
+      pending_jobs: number;
+      last_error: string | null;
+    }
+  >;
   pending_jobs?: number;
   settings: {
     warrants_interval_seconds: number;
@@ -104,6 +114,22 @@ export function MarketDataRefreshPanel() {
             Basiswerte: abgeschlossene Tagesschlusskurse. Anbieterlimits können den nächsten Abruf
             verzögern.
           </p>
+          {value.enabled && value.lanes && (
+            <ul className="mt-2 text-slate-400">
+              {(['WARRANTS', 'UNDERLYINGS'] as const).map((lane) => {
+                const progress = value.lanes?.[lane];
+                if (!progress) return null;
+                return (
+                  <li key={lane}>
+                    {lane === 'WARRANTS' ? 'Optionsscheine' : 'Basiswerte'}:{' '}
+                    {progress.running ? 'Abruf läuft' : 'Wartet auf nächste Prüfung'} ·{' '}
+                    {progress.pending_jobs} {progress.pending_jobs === 1 ? 'Aufgabe' : 'Aufgaben'}{' '}
+                    ohne Erstprüfung
+                  </li>
+                );
+              })}
+            </ul>
+          )}
           {value.pending_jobs !== undefined && value.pending_jobs > 0 && (
             <p className="mt-2">
               Noch {value.pending_jobs} Aufgaben ohne abgeschlossene Erstprüfung.
@@ -120,7 +146,10 @@ export function MarketDataRefreshPanel() {
                   {job.held && ' · Offene Position'}
                 </p>
                 <p>
-                  {value.current_job === job.job ? 'Abruf läuft' : statusLabel(job.status)}
+                  {Object.values(value.current_jobs ?? {}).includes(job.job) ||
+                  value.current_job === job.job
+                    ? 'Abruf läuft'
+                    : statusLabel(job.status)}
                   {job.next_run_at && (
                     <>
                       {' '}

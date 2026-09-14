@@ -88,6 +88,35 @@ describe('MarketDataRefreshPanel', () => {
     expect(screen.queryByText(/Nächste Prüfung frühestens/)).not.toBeInTheDocument();
     expect(screen.getByText(/Noch 2 Aufgaben/)).toBeInTheDocument();
   });
+  it('shows both active lanes and highlights both running jobs', async () => {
+    request.mockResolvedValue({
+      ...sample,
+      running: true,
+      current_job: 'WARRANT_QUOTES:1',
+      current_jobs: { WARRANTS: 'WARRANT_QUOTES:1', UNDERLYINGS: 'UNDERLYING_EOD:2' },
+      lanes: {
+        WARRANTS: {
+          running: true,
+          current_job: 'WARRANT_QUOTES:1',
+          pending_jobs: 52,
+          last_error: null,
+        },
+        UNDERLYINGS: {
+          running: true,
+          current_job: 'UNDERLYING_EOD:2',
+          pending_jobs: 4,
+          last_error: null,
+        },
+      },
+    });
+    render(<MarketDataRefreshPanel />);
+    fireEvent.click(screen.getByText('Automatischer Kursabruf'));
+    fireEvent.click(screen.getByRole('button', { name: 'Abrufstatus laden' }));
+    expect(await screen.findByText(/Basiswerte: Abruf läuft · 4 Aufgaben/)).toBeInTheDocument();
+    expect(screen.getByText(/Optionsscheine: Abruf läuft · 52 Aufgaben/)).toBeInTheDocument();
+    expect(screen.getAllByText(/^Abruf läuft/)).toHaveLength(2);
+    expect(screen.queryByText('Zuordnung oder Zugang fehlt')).not.toBeInTheDocument();
+  });
   it('distinguishes disabled configuration from failed retrieval', async () => {
     request.mockResolvedValue({ ...sample, enabled: false, jobs: [] });
     render(<MarketDataRefreshPanel />);

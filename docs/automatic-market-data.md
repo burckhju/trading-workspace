@@ -2,8 +2,8 @@
 
 The active workspace catalog drives discovery and retrieval. An open position is
 not required. Products held in open positions and their underlyings are processed
-first; the remaining active catalog still follows in the same batch. Position
-priority is derived from positive open quantity and no closing timestamp in the
+first within their respective queues; the remaining active catalog follows in
+that queue's batch. Position priority is derived from positive open quantity and no closing timestamp in the
 configured workspace, not from a manually maintained product list.
 There are no per-product UUID commands and no hardcoded user
 instruments. Existing provider adapters, provider mappings, quote resolution and
@@ -43,9 +43,11 @@ default scope. Other backend deployments can set
 
 ## Behavior
 
-- New active catalog records are detected on the next scan, normally within
-  30 seconds after the previous batch. Inactive instruments, inactive listings
-  and disabled mappings are not reactivated.
+- New active catalog records are detected on the next scan, normally every
+  30 seconds while the leader is running. Catalog scans and the leader connection
+  check continue even while a provider queue is busy. New jobs are visible as
+  pending and start when their queue can accept its next batch. Inactive
+  instruments/listings and disabled mappings are not reactivated.
 - Frankfurt discovery reuses the existing verifier: the public structured response
   must match the exact ISIN, provider exchange code and an active reference
   currency. Only then may an XFRA listing and XSC provider mapping be created.
@@ -105,16 +107,18 @@ Open **Arbeitsbereich → Automatischer Kursabruf → Abrufstatus laden** to see
 intervals, per-instrument coverage, diagnostic reasons and the earliest next run.
 All catalog jobs are published before provider work begins. `PENDING` means the
 first check has not completed; it is not a negative coverage result. `current_job`
-identifies the running operation and `pending_jobs` counts jobs without a first
-completed check. `held: true` identifies a product or underlying belonging to an
-open position. Failed discovery exposes the safe provider reason, for example
+is a compatibility field showing one running operation. `current_jobs` and
+`lanes` show both independent queues (`WARRANTS` and `UNDERLYINGS`), their running
+jobs, errors and remaining first checks. Each job includes its `lane`.
+`pending_jobs` counts jobs without a first completed check across both queues.
+`held: true` identifies a product or underlying belonging to an open position. Failed discovery exposes the safe provider reason, for example
 `FRANKFURT_ISIN_INVALID` or `FRANKFURT_PUBLIC_EMPTY_RESPONSE`, instead of only an
 exception class. Missing quote observations alone cannot identify the discovery
 failure; inspect both the mapping and quote jobs.
 
 ```bash
 curl -fsS http://localhost:8000/api/v1/market-data/refresh/status \
-  | jq '{running, current_job, pending_jobs, last_error,
+  | jq '{running, current_jobs, lanes, pending_jobs, last_error,
          jobs: [.jobs[] | select(.held == true)
                 | {name, isin, job, status, reason, quotes, source_attempts}]}'
 ```
@@ -159,3 +163,74 @@ mapping. Verified alternative venues/currencies appear in `alternative_candidate
 they require explicit listing/rule-basis review and are never substituted silently.
 See [underlying mapping discovery](underlying-mapping-discovery.md#sparse-isin-catalogs-and-alternative-venues-2026-09-14)
 for limits, account requirements, provenance and local verification.
+
+## Independent warrant and underlying queues (2026-09-14)
+
+The deployment diagnostics showed first-check pending jobs falling from 238 to
+188 while all 52 held underlying mapping jobs still awaited their first result.
+The worker was progressing through warrant jobs. A single serial queue placed
+held warrants before held underlyings; Frankfurt's pacing/cooldown also governed
+EODHD work. Completing a fast group could not start its next due run until the
+entire mixed batch finished.
+
+The scheduler now dispatches two independent, sequential workers under the same
+PostgreSQL leader lock:
+
+- `WARRANTS`: Frankfurt/Vontobel discovery and warrant quote resolution, preserving
+  their ordering, existing provider cooldowns and shared website limits.
+- `UNDERLYINGS`: EODHD mapping discovery and completed daily-price import, preserving
+  mapping-before-import order and all existing identity/currency checks.
+
+At most one worker per queue runs. Catalog scans dispatch only idle queues;
+repeated scans or manual wake requests cannot duplicate a running queue. The
+completed queue can execute newly due work on the next scan without waiting for
+the other queue. No per-instrument task explosion or parallel HTTP burst is added
+within a queue. Work already queued in the same group can still delay its next
+run: intervals remain minimum completion-based pauses, not a portfolio-wide SLA.
+
+`REQUEST_SPACING_SECONDS` now supplies a separate pacing clock for each queue.
+It remains 15 seconds by default. EODHD continues to enforce its own shared API
+budget, limiter and retries for all internal requests; Frankfurt's provider-wide
+cooldown still governs the warrant queue. Requests to the independent providers
+may therefore occur concurrently, while neither provider's limit is increased.
+No new provider, subscription, secret or migration is required. The configured
+API quota may be consumed earlier because unrelated website delays no longer
+hold up EODHD work.
+
+Shutdown, disablement or a failed catalog scan cancels and joins outstanding
+workers. The leader probes its dedicated database connection before each scan;
+a detected connection failure stops both workers before attempting unlock.
+Normal shutdown joins workers before releasing the lock. Connection failure is
+detected at these probes, not instantaneously. Newly inactive queued jobs are
+removed on catalog rescan; a finishing removed job cannot recreate a stale job
+entry. Already issued operations still rely on their existing provider/service
+validation and transaction boundaries. The single-backend-process deployment
+requirement remains in effect.
+
+After deploying with `bash scripts/start-linux.sh --frankfurt`, verify progress:
+
+```bash
+curl -fsS http://localhost:8000/api/v1/market-data/refresh/status \
+  | jq '{enabled, running, leader, scheduling_mode, last_error, current_jobs, lanes,
+         basiswert_mapping_status: (
+           [.jobs[] | select(.held == true and (.job | startswith("EODHD_MAPPING:")))]
+           | group_by(.status)
+           | map({status: .[0].status, anzahl: length})
+         )}'
+```
+
+Expect `scheduling_mode: INDEPENDENT_WARRANT_UNDERLYING_LANES`. Underlying jobs can
+now finish while the warrant queue is still busy. Two non-null current jobs are
+allowed; a completed queue reports `running: false` until its next scan/run.
+`PENDING` remains a first-result state, and a running first check is counted in
+pending until it completes. The workspace refresh panel displays both queues
+and marks both currently running jobs. A successful schedule is not evidence of
+provider coverage: inspect mapping/import results and the position's monitoring
+health separately.
+
+Regression tests reproduce 52 underlying discoveries/imports completing and
+running again while the first warrant request remains blocked, and the inverse
+case with a stalled EOD import. They cover per-provider pacing, duplicate dispatch,
+queued removal, cancellation, catalog failures, heartbeat failure and joining
+both workers before leader unlock. The browser regression displays two concurrent
+jobs while preserving indicative-valuation and no-order-permission warnings.
