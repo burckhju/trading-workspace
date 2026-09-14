@@ -1,0 +1,25 @@
+name: German locale source verification
+on:
+  push:
+    branches: [fix/deutsche-oberflaeche-zahlen]
+    paths: [.github/workflows/de-locale-source.yml]
+permissions:
+  contents: read
+jobs:
+  source:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Export tracked source snapshots only
+        run: |
+          mkdir -p /tmp/de-locale-source
+          git archive db573d5a31d9b6afe689af39492886f4234a3a1d | gzip > /tmp/de-locale-source/main.tar.gz
+          git archive 766db5c7714dd74a79e97124a4346eb6524685cb | gzip > /tmp/de-locale-source/previous-attempt.tar.gz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: de-locale-source
+          path: /tmp/de-locale-source/*.tar.gz
+          retention-days: 1
