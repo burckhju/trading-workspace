@@ -63,6 +63,13 @@ class VersionRequest(Request):
     version: int = Field(ge=1)
 
 
+class CorrectIdentifiersRequest(Request):
+    expected_version: int = Field(ge=1)
+    isin: str = Field(min_length=12, max_length=12)
+    wkn: str | None = Field(default=None, min_length=6, max_length=6)
+    evidence: str = Field(min_length=1, max_length=500)
+
+
 class TermsRequest(Request):
     expected_version: int = Field(ge=1)
     option_direction: OptionDirection
@@ -142,6 +149,19 @@ async def hard_delete_service(
 @router.get("", response_model=list[WarrantResponse])
 async def list_warrants(svc: Annotated[WarrantService, Depends(service)]) -> list[WarrantResponse]:
     return [WarrantResponse.model_validate(x) for x in await svc.list(WORKSPACE_ID)]
+
+
+@router.patch("/{warrant_id}/identifiers", response_model=WarrantResponse)
+async def correct_identifiers(
+    warrant_id: UUID,
+    payload: CorrectIdentifiersRequest,
+    svc: Annotated[WarrantService, Depends(service)],
+) -> WarrantResponse:
+    try:
+        result = await svc.correct_identifiers(WORKSPACE_ID, warrant_id, **payload.model_dump())
+    except Exception as error:
+        raise translate_product_error(error) from error
+    return WarrantResponse.model_validate(result)
 
 
 @router.post("", response_model=WarrantResponse, status_code=status.HTTP_201_CREATED)

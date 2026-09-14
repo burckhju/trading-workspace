@@ -122,6 +122,7 @@ export interface ProductPositionValuationResponse {
   trading_status?: string | null;
   quote_retrieved_at?: IsoDateTime | null;
   quote_refresh_error?: string | null;
+  quote_retained?: boolean;
   quote_assessed_at?: IsoDateTime | null;
   quote_delay_seconds?: number | null;
   quote_venue_mic?: string | null;
