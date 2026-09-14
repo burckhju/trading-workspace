@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from typing import ClassVar
 from uuid import UUID
@@ -24,6 +24,7 @@ from app.features.post_trade.persistence.models import (
     ExitReviewVersionModel,
     PostTradeObservationModel,
 )
+from app.features.product.service.application import WarrantService
 from app.features.product_selection.domain.enums import EligibilityStatus
 from app.features.product_selection.persistence.models import (
     ProductEvaluationModel,
@@ -49,6 +50,10 @@ class OperationalAction:
     next_action: str
     target: str
     occurred_at: datetime | None
+    product_id: UUID | None = None
+    product_name: str | None = None
+    product_isin: str | None = None
+    product_wkn: str | None = None
 
 
 class OperationalWorkspaceReadModel:
@@ -83,7 +88,32 @@ class OperationalWorkspaceReadModel:
             *(await self._open_position_actions(workspace_id)),
             *(await self._post_trade_actions(workspace_id)),
         ]
+        actions = await self._with_product_names(actions, workspace_id=workspace_id)
         return tuple(sorted(actions, key=self._sort_key))
+
+    async def _with_product_names(
+        self, actions: list[OperationalAction], *, workspace_id: UUID
+    ) -> list[OperationalAction]:
+        product_ids = {action.product_id for action in actions if action.product_id is not None}
+        if not product_ids:
+            return actions
+        identities = await WarrantService(self._session).read_identities(
+            workspace_id=workspace_id, warrant_ids=product_ids
+        )
+        return [
+            (
+                replace(
+                    action,
+                    product_name=identity.display_name,
+                    product_isin=identity.isin,
+                    product_wkn=identity.wkn,
+                )
+                if action.product_id is not None
+                and (identity := identities.get(action.product_id)) is not None
+                else action
+            )
+            for action in actions
+        ]
 
     async def _candidate_actions(self, workspace_id: UUID) -> list[OperationalAction]:
         candidates = (
@@ -148,8 +178,8 @@ class OperationalWorkspaceReadModel:
 
     async def _alert_actions(self, workspace_id: UUID) -> list[OperationalAction]:
         alerts = (
-            await self._session.scalars(
-                select(AlertModel)
+            await self._session.execute(
+                select(AlertModel, TradeModel.product_id)
                 .join(TradeModel, TradeModel.id == AlertModel.trade_id)
                 .where(
                     TradeModel.workspace_id == workspace_id,
@@ -178,8 +208,9 @@ class OperationalWorkspaceReadModel:
                 next_action="Trade-Management prüfen",
                 target=f"/trade-management?trade_id={alert.trade_id}",
                 occurred_at=alert.detected_at,
+                product_id=product_id,
             )
-            for alert in alerts
+            for alert, product_id in alerts
         ]
 
     async def _notification_failure_actions(self, workspace_id: UUID) -> list[OperationalAction]:
@@ -190,6 +221,7 @@ class OperationalWorkspaceReadModel:
                     NotificationModel.channel,
                     NotificationModel.created_at,
                     AlertModel.trade_id,
+                    TradeModel.product_id,
                 )
                 .join(AlertModel, AlertModel.id == NotificationModel.alert_id)
                 .join(TradeModel, TradeModel.id == AlertModel.trade_id)
@@ -219,8 +251,9 @@ class OperationalWorkspaceReadModel:
                 next_action="Trade-Management prüfen",
                 target=f"/trade-management?trade_id={trade_id}",
                 occurred_at=created_at,
+                product_id=product_id,
             )
-            for notification_id, channel, created_at, trade_id in rows
+            for notification_id, channel, created_at, trade_id, product_id in rows
         ]
 
     async def _trade_plan_review_actions(self, workspace_id: UUID) -> list[OperationalAction]:
@@ -390,6 +423,7 @@ class OperationalWorkspaceReadModel:
                 ProductSelectionModel.id.label("selection_id"),
                 ProductSelectionModel.run_id.label("run_id"),
                 ProductSelectionModel.selected_at.label("selected_at"),
+                ProductEvaluationModel.warrant_id.label("product_id"),
                 func.row_number()
                 .over(
                     partition_by=ProductSelectionRunModel.trade_plan_version_id,
@@ -404,6 +438,11 @@ class OperationalWorkspaceReadModel:
                 ProductSelectionRunModel,
                 ProductSelectionRunModel.id == ProductSelectionModel.run_id,
             )
+            .outerjoin(
+                ProductEvaluationModel,
+                (ProductEvaluationModel.id == ProductSelectionModel.product_evaluation_id)
+                & (ProductEvaluationModel.run_id == ProductSelectionModel.run_id),
+            )
             .where(ProductSelectionRunModel.workspace_id == workspace_id)
             .subquery()
         )
@@ -413,6 +452,7 @@ class OperationalWorkspaceReadModel:
                     ranked_selections.c.selection_id,
                     ranked_selections.c.run_id,
                     ranked_selections.c.selected_at,
+                    ranked_selections.c.product_id,
                 )
                 .outerjoin(
                     TradeModel,
@@ -444,14 +484,15 @@ class OperationalWorkspaceReadModel:
                 next_action="BUY erfassen",
                 target=f"/product-selection?run_id={run_id}",
                 occurred_at=selected_at,
+                product_id=product_id,
             )
-            for selection_id, run_id, selected_at in rows
+            for selection_id, run_id, selected_at, product_id in rows
         ]
 
     async def _open_position_actions(self, workspace_id: UUID) -> list[OperationalAction]:
         rows = (
             await self._session.execute(
-                select(TradeModel.id, PositionModel.opened_at)
+                select(TradeModel.id, PositionModel.opened_at, TradeModel.product_id)
                 .join(PositionModel, PositionModel.trade_id == TradeModel.id)
                 .where(
                     TradeModel.workspace_id == workspace_id,
@@ -479,14 +520,15 @@ class OperationalWorkspaceReadModel:
                 next_action="Trade-Management öffnen",
                 target=f"/trade-management?trade_id={trade_id}",
                 occurred_at=opened_at,
+                product_id=product_id,
             )
-            for trade_id, opened_at in rows
+            for trade_id, opened_at, product_id in rows
         ]
 
     async def _post_trade_actions(self, workspace_id: UUID) -> list[OperationalAction]:
         closed = (
             await self._session.execute(
-                select(TradeModel.id, PositionModel.closed_at)
+                select(TradeModel.id, PositionModel.closed_at, TradeModel.product_id)
                 .join(PositionModel, PositionModel.trade_id == TradeModel.id)
                 .where(
                     TradeModel.workspace_id == workspace_id,
@@ -499,7 +541,7 @@ class OperationalWorkspaceReadModel:
         ).all()
 
         actions: list[OperationalAction] = []
-        for trade_id, closed_at in closed:
+        for trade_id, closed_at, product_id in closed:
             observation = await self._session.scalar(
                 select(PostTradeObservationModel).where(
                     PostTradeObservationModel.workspace_id == workspace_id,
@@ -510,6 +552,7 @@ class OperationalWorkspaceReadModel:
                 actions.append(
                     self._review_action(
                         trade_id=trade_id,
+                        product_id=product_id,
                         suffix="observation",
                         action_type="POST_TRADE_OBSERVATION",
                         title="Nachbeobachtung starten",
@@ -535,6 +578,7 @@ class OperationalWorkspaceReadModel:
                 actions.append(
                     self._review_action(
                         trade_id=trade_id,
+                        product_id=product_id,
                         suffix="exit-review-create",
                         action_type="EXIT_REVIEW",
                         title="Exit Review erstellen",
@@ -576,6 +620,7 @@ class OperationalWorkspaceReadModel:
             actions.append(
                 self._review_action(
                     trade_id=trade_id,
+                    product_id=product_id,
                     suffix=suffix,
                     action_type="EXIT_REVIEW",
                     title=title,
@@ -596,6 +641,7 @@ class OperationalWorkspaceReadModel:
         detail: str,
         next_action: str,
         occurred_at: datetime | None,
+        product_id: UUID | None = None,
     ) -> OperationalAction:
         return OperationalAction(
             id=f"trade:{trade_id}:{suffix}",
@@ -610,6 +656,7 @@ class OperationalWorkspaceReadModel:
             next_action=next_action,
             target=f"/post-trade?trade_id={trade_id}",
             occurred_at=occurred_at,
+            product_id=product_id,
         )
 
     def _sort_key(self, action: OperationalAction) -> tuple[int, datetime, str]:
