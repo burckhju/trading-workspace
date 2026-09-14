@@ -12,6 +12,7 @@ function runtimeLabel(value: MonitoringRuntimeStatusResponse): string {
   if (
     [
       'subject_errors',
+      'blocked_rules',
       'missing_market_data',
       'stale_market_data',
       'market_data_errors',
@@ -27,6 +28,8 @@ const counts: [string, string][] = [
   ['positions_seen', 'Positionen erfasst'],
   ['positions_checked', 'Positionen mit Kursdaten geprüft'],
   ['rules_evaluated', 'Regeln ausgewertet'],
+  ['blocked_rules', 'Regeln blockiert: Kursbezug oder Zuordnung prüfen'],
+  ['alerts_invalidated', 'Historische Meldungen ungültig gesetzt'],
   ['subject_errors', 'Zuordnung oder Regeln fehlen'],
   ['missing_market_data', 'Kursdaten fehlen'],
   ['stale_market_data', 'Kursdaten zu alt'],
@@ -36,7 +39,7 @@ const counts: [string, string][] = [
   ['notification_failures', 'Versandfehler'],
 ];
 
-export function MonitoringRuntimePanel() {
+export function MonitoringRuntimePanel({ tradeId }: { tradeId?: string }) {
   const [value, setValue] = useState<MonitoringRuntimeStatusResponse | null>(null);
   const [failed, setFailed] = useState(false);
 
@@ -66,13 +69,15 @@ export function MonitoringRuntimePanel() {
             : 'Laufstatus wird geladen…'}
       </p>
       <p className="mt-2 text-sm text-slate-400">
-        Stop und Ziel werden anhand abgeschlossener Tagesdaten des Basiswerts geprüft. Der
-        Optionsscheinkurs dient separat der Produktbewertung.
+        Jede Regel verwendet ihren bestätigten Instrument- und Währungsbezug. Basiswert-Regeln
+        verwenden abgeschlossene Tagesdaten; Optionsschein-Regeln den ausgewiesenen Produktkurs.
+        Regeln ohne bestätigten Kursbezug bleiben blockiert.
       </p>
       {value && (
         <>
           <p className="mt-2 text-xs text-slate-400">
-            Prüfintervall: {value.interval_seconds} Sekunden · Tagesdaten, keine Intraday-Prüfung
+            Prüfintervall: {value.interval_seconds} Sekunden · Kursart und Aktualität je Regel
+            beachten
           </p>
           {value.last_cycle_started_at && (
             <p className="mt-2 text-xs text-slate-400">
@@ -98,6 +103,35 @@ export function MonitoringRuntimePanel() {
               {value.last_result.rules_evaluated} Regeln ausgewertet.
             </p>
           )}
+          {tradeId &&
+            value.last_rule_checks
+              ?.filter((check) => check.trade_id === tradeId)
+              .map((check) => (
+                <div
+                  key={check.rule_key}
+                  className="mt-3 rounded border border-slate-700 p-3 text-sm"
+                >
+                  <p>
+                    {check.rule_key === 'CURRENT_STOP' ? 'Stop-Prüfung' : 'Ziel-Prüfung'} ·{' '}
+                    {check.basis === 'WARRANT'
+                      ? 'Optionsschein'
+                      : check.basis === 'UNDERLYING'
+                        ? 'Basiswert'
+                        : 'Kursbezug ungeklärt'}
+                  </p>
+                  <p>
+                    Schwelle: {check.threshold} {check.currency} · Beobachtet:{' '}
+                    {check.observed_value ?? '—'} · {check.status}
+                  </p>
+                  <p className="text-xs text-slate-400">
+                    {check.reason} · {check.provider ?? 'Quelle nicht verfügbar'} ·{' '}
+                    {check.price_type ?? '—'}
+                  </p>
+                  {check.warning && (
+                    <p className="text-xs text-amber-300">Indikative Prüfung: {check.warning}</p>
+                  )}
+                </div>
+              ))}
           {value.last_result && (
             <details className="mt-3 text-xs text-slate-400">
               <summary className="cursor-pointer">

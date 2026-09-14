@@ -43,13 +43,13 @@ function healthLabel(health: PositionMonitoringHealthResponse): string {
 
 function healthExplanation(health: PositionMonitoringHealthResponse): string {
   if (health.status === 'OK') {
-    return 'Die Underlying-Marktdaten sind für die Stop-/Target-Überwachung aktuell genug.';
+    return 'Die Basiswertdaten sind aktuell genug. Eine Regel wird nur mit ausdrücklich bestätigtem Kursbezug geprüft.';
   }
   if (health.status === 'STALE') {
-    return 'Die letzten completed-daily Underlying-Daten sind zu alt. Daraus wird kein Stop-/Target-Alert abgeleitet.';
+    return 'Die abgeschlossenen Tagesdaten des Basiswerts sind zu alt. Optionsschein-Regeln verwenden ihre eigene Kursquelle.';
   }
   if (health.status === 'MISSING') {
-    return 'Es liegen keine completed-daily Underlying-Daten vor. Daraus wird kein Stop-/Target-Alert abgeleitet.';
+    return 'Abgeschlossene Tagesdaten des Basiswerts fehlen. Optionsschein-Regeln verwenden ihre eigene Kursquelle.';
   }
   return 'Die Monitoring-Daten konnten nicht verlässlich ausgewertet werden. Es wird kein scheinbar normaler Stop-/Target-Zustand angenommen.';
 }
@@ -113,14 +113,14 @@ export function TradeAlertsPanel({ tradeId }: { tradeId: string }) {
           </span>
         </div>
 
-        <MonitoringRuntimePanel key={tradeId} />
+        <MonitoringRuntimePanel key={tradeId} tradeId={tradeId} />
 
         {health && (
           <div className="mt-4 rounded-lg border border-slate-800 p-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <p className="text-xs uppercase tracking-wide text-slate-500">
-                  Basiswert · Kursdaten für Stop und Ziel
+                  Basiswert · Tagesdaten
                 </p>
                 <p className="mt-1 font-medium">{healthLabel(health)}</p>
               </div>
@@ -217,17 +217,42 @@ export function TradeAlertsPanel({ tradeId }: { tradeId: string }) {
                   <div>
                     <p className="font-medium">{alertTitle(alert)}</p>
                     <p className="mt-1 text-xs text-slate-400">
-                      {alert.alert_type === 'STOP_REACHED'
-                        ? 'Auslöser: Basiswert · Tagestief'
-                        : 'Auslöser: Basiswert · Tageshoch'}
+                      {alert.price_context
+                        ? `Auslöser: ${alert.price_context.basis === 'WARRANT' ? 'Optionsschein' : 'Basiswert'} · ${alert.price_context.price_type ?? 'Kurs'} · ${alert.price_context.currency ?? '—'}`
+                        : 'Kursbezug ungeklärt · historische Meldung nicht belastbar'}
                     </p>
                     <p className="mt-1 text-sm text-slate-400">{alert.reason}</p>
                   </div>
                   <span className="rounded-full border border-slate-700 px-2.5 py-1 text-xs">
-                    {alert.status === 'OPEN' ? 'OPEN' : 'RESOLVED'}
+                    {alert.status === 'INVALIDATED' ? 'Ungültig' : alert.status}
                   </span>
                 </div>
 
+                {alert.invalidation_reason && (
+                  <p className="mt-2 text-sm text-amber-300">
+                    Meldung wegen ungeklärtem Kursbezug ungültig. Ursprüngliche Werte bleiben zur
+                    Nachvollziehbarkeit erhalten.
+                  </p>
+                )}
+                {alert.price_context && (
+                  <div className="mt-2 text-xs text-slate-400">
+                    <p>
+                      Quelle: {alert.price_context.provider} ·{' '}
+                      {alert.price_context.provider_identity} ·{' '}
+                      {alert.price_context.venue_mic ?? 'Handelsplatz nicht angegeben'}
+                    </p>
+                    <p>
+                      Kurszeitpunkt: {alert.price_context.observed_at ?? 'nicht bekannt'} ·
+                      Handelstag: {alert.price_context.trading_date ?? '—'} · Abgerufen:{' '}
+                      {alert.price_context.retrieved_at ?? '—'}
+                    </p>
+                    {alert.price_context.warning && (
+                      <p className="text-amber-300">
+                        Indikative Prüfung · {alert.price_context.warning}. Keine Orderfreigabe.
+                      </p>
+                    )}
+                  </div>
+                )}
                 <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
                   <div>
                     <dt className="text-slate-500">Beobachtet</dt>

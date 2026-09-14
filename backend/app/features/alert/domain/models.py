@@ -20,6 +20,7 @@ class AlertSeverity(StrEnum):
 class AlertStatus(StrEnum):
     OPEN = "OPEN"
     RESOLVED = "RESOLVED"
+    INVALIDATED = "INVALIDATED"
 
 
 @dataclass(frozen=True, slots=True)
@@ -37,3 +38,6 @@ class Alert:
     detected_at: datetime
     status: AlertStatus = AlertStatus.OPEN
     resolved_at: datetime | None = None
+    price_context: dict[str, str | None] | None = None
+    invalidated_at: datetime | None = None
+    invalidation_reason: str | None = None

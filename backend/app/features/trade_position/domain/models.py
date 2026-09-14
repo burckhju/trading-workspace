@@ -13,6 +13,7 @@ from app.features.trade_position.domain.enums import (
     TradeManagementEventType,
     TradeOrigin,
 )
+from app.features.trade_position.domain.price_binding import PriceBinding
 
 
 @dataclass(frozen=True, slots=True)
@@ -196,6 +197,7 @@ class TradeManagementEvent:
     numeric_value: Decimal | None = None
     text_value: str | None = None
     supersedes_event_id: UUID | None = None
+    price_binding: PriceBinding | None = None
 
     def __post_init__(self) -> None:
         if self.recorded_at < self.effective_at:
@@ -212,6 +214,8 @@ class TradeManagementEvent:
             if self.text_value is not None:
                 raise ValueError("price management event must not carry text_value")
         else:
+            if self.price_binding is not None:
+                raise ValueError("Only price events may carry a price binding")
             if self.text_value is None or not self.text_value.strip():
                 raise ValueError("text management event requires non-empty text_value")
             if self.numeric_value is not None:

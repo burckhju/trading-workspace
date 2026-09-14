@@ -1,6 +1,6 @@
 export type AlertType = 'STOP_REACHED' | 'TARGET_REACHED';
 export type AlertSeverity = 'WARNING' | 'INFO';
-export type AlertStatus = 'OPEN' | 'RESOLVED';
+export type AlertStatus = 'OPEN' | 'RESOLVED' | 'INVALIDATED';
 export type NotificationChannel = 'TELEGRAM';
 export type NotificationStatus = 'PENDING' | 'DELIVERED' | 'FAILED';
 export type DeliveryStatus = 'IN_PROGRESS' | 'DELIVERED' | 'FAILED';
@@ -25,6 +25,9 @@ export interface NotificationResponse {
 }
 
 export interface AlertResponse {
+  price_context?: Record<string, string | null> | null;
+  invalidated_at?: string | null;
+  invalidation_reason?: string | null;
   id: string;
   position_id: string;
   trade_id: string;
@@ -78,7 +81,8 @@ export interface MonitoringRuntimeStatusResponse {
   cycle_running: boolean;
   interval_seconds: number;
   scope: 'PROCESS_LOCAL_ALL_WORKSPACES';
-  price_basis: 'COMPLETED_UNDERLYING_DAILY_LOW_HIGH';
+  price_basis: 'EXPLICIT_INSTRUMENT_AND_CURRENCY' | 'COMPLETED_UNDERLYING_DAILY_LOW_HIGH';
+  last_rule_checks?: Record<string, string | null>[];
   last_cycle_started_at: string | null;
   last_cycle_completed_at: string | null;
   next_run_at: string | null;

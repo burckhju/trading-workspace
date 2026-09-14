@@ -111,6 +111,7 @@ class PositionMonitoringHealthService:
                 )
 
             subject = resolution.subject
+            assert subject.listing_id is not None and subject.mapping_id is not None
             basis_row = (
                 await session.execute(
                     select(ListingModel, UnderlyingModel, TradingVenueModel)

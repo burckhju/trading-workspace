@@ -85,7 +85,9 @@ describe('TradeAlertsPanel', () => {
     expect(screen.getByText('Target 1 wurde erreicht.')).toBeInTheDocument();
     expect(screen.getByText('TELEGRAM: zugestellt')).toBeInTheDocument();
     expect(screen.getByText('1 offen')).toBeInTheDocument();
-    expect(screen.getByText('Auslöser: Basiswert · Tageshoch')).toBeInTheDocument();
+    expect(
+      screen.getByText('Kursbezug ungeklärt · historische Meldung nicht belastbar'),
+    ).toBeInTheDocument();
     expect(screen.getByText('Automatische Prüfung deaktiviert')).toBeInTheDocument();
   });
 
@@ -131,7 +133,9 @@ describe('TradeAlertsPanel', () => {
     expect(screen.getByText('OPEN')).toBeInTheDocument();
     expect(screen.getByText('TELEGRAM: fehlgeschlagen')).toBeInTheDocument();
     expect(screen.getByText('(TELEGRAM_TIMEOUT)')).toBeInTheDocument();
-    expect(screen.getByText('Auslöser: Basiswert · Tagestief')).toBeInTheDocument();
+    expect(
+      screen.getByText('Kursbezug ungeklärt · historische Meldung nicht belastbar'),
+    ).toBeInTheDocument();
   });
 
   it('shows Frankfurt basis prices separately from disabled automatic evaluation', async () => {

@@ -198,11 +198,15 @@ test("manages partial/full exit and explicit management decisions without provid
   await expect(page.getByText("60 offen", { exact: true })).toBeVisible();
   await expect(page.getByText("20", { exact: true })).toBeVisible();
 
-  await page.getByLabel("Stop").fill("1.90");
+  await page.getByLabel("Stop", { exact: true }).fill("1.90");
+  await page.getByLabel("Instrument für Stop", { exact: true }).selectOption("WARRANT");
+  await page.getByLabel("Währung für Stop", { exact: true }).fill("EUR");
   await page.getByRole("button", { name: "Stop speichern" }).click();
   await expect.poll(() => stopPosts).toBe(1);
 
-  await page.getByLabel("Target").fill("3.00");
+  await page.getByLabel("Target", { exact: true }).fill("3.00");
+  await page.getByLabel("Instrument für Target", { exact: true }).selectOption("UNDERLYING");
+  await page.getByLabel("Währung für Target", { exact: true }).fill("EUR");
   await page.getByRole("button", { name: "Target speichern" }).click();
   await expect.poll(() => targetPosts).toBe(1);
 

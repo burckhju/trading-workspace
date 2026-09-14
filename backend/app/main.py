@@ -30,6 +30,10 @@ from app.features.model.api import router as model_governance_router
 from app.features.operational_workspace.api import router as operational_workspace_router
 from app.features.position_monitoring.api import router as position_monitoring_router
 from app.features.position_monitoring.bootstrap import build_position_monitoring_runtime
+from app.features.position_monitoring.service.product_valuation import (
+    ProductPositionValuationService,
+)
+from app.features.position_monitoring.service.quote_runtime import build_warrant_quote_resolver
 from app.features.position_monitoring.service.runner import PositionMonitoringRunner
 from app.features.post_trade.api import router as post_trade_router
 from app.features.product.api import router as product_router
@@ -69,7 +73,11 @@ def create_application(settings: Settings | None = None) -> FastAPI:
                 runtime = build_position_monitoring_runtime(
                     settings=resolved_settings,
                     database=container.database,
-                    market_data=container.require_eodhd_adapter(),
+                    market_data=container.eodhd.adapter if container.eodhd else None,
+                    products=ProductPositionValuationService(
+                        database=container.database,
+                        quote_resolver=build_warrant_quote_resolver(container),
+                    ),
                 )
                 runner = PositionMonitoringRunner(
                     runtime=runtime,

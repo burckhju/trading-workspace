@@ -334,3 +334,8 @@ The UI must explain that the original record remains in history and that a corre
 15. A Trade becomes eligible for FT-011 only after a full economic exit derived from effective executions.
 16. Missing provider/broker capability does not block recording a historical actual sale.
 17. No FT-010 workflow makes an automatic trading decision.
+
+
+## Explicit price basis correction (2026-09-14)
+
+Automatic stop/target checks require a confirmed instrument and currency binding in the immutable management history. The former unconditional underlying-price interpretation is superseded. Legacy unbound rules remain blocked; legacy open alerts without provenance are quarantined. Product rules reuse the existing product valuation source and retain indicative-data warnings. See [Monitoring price basis](../monitoring-price-basis.md) for the binding contract, migration and local validation.

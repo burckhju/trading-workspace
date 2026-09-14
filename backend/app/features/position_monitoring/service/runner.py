@@ -40,6 +40,7 @@ class PositionMonitoringRunner:
         self.last_error: str | None = None
         self.last_error_at: datetime | None = None
         self.last_result: dict[str, int] | None = None
+        self.last_rule_checks: tuple[dict[str, str | None], ...] = ()
 
     def status(self) -> dict[str, Any]:
         return {
@@ -51,6 +52,7 @@ class PositionMonitoringRunner:
             "last_error": self.last_error,
             "last_error_at": self.last_error_at,
             "last_result": self.last_result,
+            "last_rule_checks": self.last_rule_checks,
         }
 
     async def run_forever(self) -> None:
@@ -76,6 +78,7 @@ class PositionMonitoringRunner:
                         "positions_seen",
                         "positions_checked",
                         "rules_evaluated",
+                        "blocked_rules",
                         "alerts_created",
                         "alerts_deduplicated",
                         "alerts_resolved",
@@ -86,7 +89,9 @@ class PositionMonitoringRunner:
                         "position_errors",
                     )
                 }
+                self.last_rule_checks = result.cycle.rule_checks
                 self.last_result.update(
+                    alerts_invalidated=result.alerts_invalidated,
                     notifications_created=result.notifications_created,
                     notifications_delivered=result.notifications_delivered,
                     notification_failures=result.notification_failures,

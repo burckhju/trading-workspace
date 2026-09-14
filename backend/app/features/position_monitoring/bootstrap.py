@@ -10,6 +10,7 @@ from app.features.notification.providers.telegram import (
     TelegramDeliveryConfig,
 )
 from app.features.notification.service.delivery import NotificationDeliveryAdapter
+from app.features.position_monitoring.service.rule_prices import ProductValuationReader
 from app.features.position_monitoring.service.runtime import PositionMonitoringRuntimeService
 
 
@@ -17,7 +18,8 @@ def build_position_monitoring_runtime(
     *,
     settings: Settings,
     database: DatabaseManager,
-    market_data: LatestCompletedDailyPriceProvider,
+    market_data: LatestCompletedDailyPriceProvider | None,
+    products: ProductValuationReader | None = None,
 ) -> PositionMonitoringRuntimeService:
     """Build the runtime without leaking provider details into monitoring services."""
 
@@ -39,6 +41,7 @@ def build_position_monitoring_runtime(
     return PositionMonitoringRuntimeService(
         database=database,
         market_data=market_data,
+        products=products,
         delivery_adapter=delivery_adapter,
         max_completed_price_age_days=monitoring.max_completed_price_age_days,
         delivery_max_attempts=telegram.max_attempts,

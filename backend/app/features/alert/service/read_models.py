@@ -49,3 +49,6 @@ class AlertView:
     status: AlertStatus
     resolved_at: datetime | None
     notifications: tuple[NotificationView, ...]
+    price_context: dict[str, str | None] | None = None
+    invalidated_at: datetime | None = None
+    invalidation_reason: str | None = None

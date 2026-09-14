@@ -13,6 +13,7 @@ from app.features.trade_position.domain.enums import (
     TradeManagementEventType,
     TradeOrigin,
 )
+from app.features.trade_position.domain.price_binding import PriceBinding
 
 
 class CaptureTimeRequest(BaseModel):
@@ -60,6 +61,7 @@ class SaleRequest(CaptureTimeRequest):
 
 
 class PriceManagementRequest(BaseModel):
+    price_binding: PriceBinding | None = None
     price: Decimal = Field(gt=0)
     effective_at: datetime | None = None
 
@@ -86,6 +88,7 @@ class ExecutionCorrectionRequest(CaptureTimeRequest):
 
 
 class ManagementEventCorrectionRequest(BaseModel):
+    price_binding: PriceBinding | None = None
     effective_at: datetime
     numeric_value: Decimal | None = Field(default=None, gt=0)
     text_value: str | None = Field(default=None, min_length=1, max_length=4000)
@@ -150,6 +153,7 @@ class AdditionalPurchaseResponse(BaseModel):
 
 
 class TradeManagementEventResponse(BaseModel):
+    price_binding: PriceBinding | None = None
     id: UUID
     trade_id: UUID
     event_type: TradeManagementEventType
@@ -161,6 +165,8 @@ class TradeManagementEventResponse(BaseModel):
 
 
 class TradeManagementStateResponse(BaseModel):
+    stop_price_binding: PriceBinding | None = None
+    target_price_binding: PriceBinding | None = None
     trade_id: UUID
     stop_price: Decimal | None
     target_price: Decimal | None
@@ -170,6 +176,7 @@ class TradeManagementStateResponse(BaseModel):
 
 
 class TradeTimelineEntryResponse(BaseModel):
+    price_binding: PriceBinding | None = None
     id: UUID
     trade_id: UUID
     occurred_at: datetime
