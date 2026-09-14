@@ -97,6 +97,12 @@ Trade monitoring health should resolve the new mapping. A successful import is
 not proof of a completed alert cycle; use the existing monitoring diagnostics to
 check that separately.
 
+Refresh scans also retain active secondary listings. The old Xetra mapping job
+can still be blocked and labelled `held`, even after successful activation of the
+Frankfurt primary. Match job `listing_id` against the command's `target_listing_id`
+and check per-trade monitoring health; do not infer switch failure from the total
+count of blocked jobs across all listings.
+
 Existing FT-006 analysis runs retain their original listing and snapshot. They
 are not relabelled or copied onto the new venue. Run a new market analysis for the
 new primary listing when positions need dynamic-stop/phase/score projections;

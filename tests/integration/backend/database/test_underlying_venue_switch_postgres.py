@@ -5,7 +5,7 @@ from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from sqlalchemy import select, text
@@ -25,6 +25,7 @@ from app.features.market.persistence.models import (
     UnderlyingModel,
     WorkspaceModel,
 )
+from app.features.market.service.listing_service import ListingService
 from app.features.market_data.persistence.models import (
     DailyPriceModel,
     ProviderInstrumentMappingModel,
@@ -40,12 +41,33 @@ ISIN = "US0378331005"
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("scenario", ["success", "empty", "stale", "invalid", "source_changed"])
+@pytest.mark.parametrize(
+    "scenario",
+    [
+        "success",
+        "target_before_source",
+        "empty",
+        "stale",
+        "invalid",
+        "source_changed",
+        "promotion_failure",
+    ],
+)
 async def test_verified_switch_preserves_history_and_fails_before_primary_change(
     monkeypatch, scenario
 ):
     engine = create_async_engine(_test_database_url())
     workspace, underlying_id, source_id = uuid4(), uuid4(), uuid4()
+    seeded_target_id = UUID(int=1) if scenario == "target_before_source" else None
+    if scenario == "promotion_failure":
+        original_audit = ListingService._audit
+
+        async def fail_promotion(self, after, actor_id, actor_name, change_type, before):
+            if change_type.value == "PRIMARY_CHANGED":
+                raise VenueSwitchError("TEST_PROMOTION_FAILURE")
+            await original_audit(self, after, actor_id, actor_name, change_type, before)
+
+        monkeypatch.setattr(ListingService, "_audit", fail_promotion)
     now = datetime.now(UTC)
     day = now.date() - timedelta(days=1)
     while day.weekday() > 4:
@@ -134,6 +156,23 @@ async def test_verified_switch_preserves_history_and_fails_before_primary_change
                         )
                     )
                     await session.flush()
+                    if seeded_target_id is not None:
+                        session.add(
+                            ListingModel(
+                                id=seeded_target_id,
+                                workspace_id=workspace,
+                                underlying_id=underlying_id,
+                                trading_venue_id=venues["XFRA"],
+                                ticker="APC",
+                                currency_code="EUR",
+                                is_primary=False,
+                                lifecycle_status="ACTIVE",
+                                version=1,
+                                created_at=now,
+                                updated_at=now,
+                                data_origin="MANUAL",
+                            )
+                        )
                     session.add(
                         DailyPriceModel(
                             id=uuid4(),
@@ -206,14 +245,11 @@ async def test_verified_switch_preserves_history_and_fails_before_primary_change
                     currency="EUR",
                 )
                 plan = await prepare(container, **kwargs)
-                assert plan.target_id is None
-                assert (
-                    await connection.scalar(
-                        text("SELECT count(*) FROM listings WHERE workspace_id=:ws"),
-                        {"ws": workspace},
-                    )
-                    == 1
-                )
+                assert plan.target_id == seeded_target_id
+                assert await connection.scalar(
+                    text("SELECT count(*) FROM listings WHERE workspace_id=:ws"),
+                    {"ws": workspace},
+                ) == (2 if seeded_target_id else 1)
                 assert (
                     await connection.scalar(
                         text(
@@ -224,7 +260,7 @@ async def test_verified_switch_preserves_history_and_fails_before_primary_change
                     )
                     == 0
                 )
-                if scenario == "success":
+                if scenario in {"success", "target_before_source"}:
                     result = await apply_plan(container, plan)
                     assert result["status"] == "APPLIED" and result["data_verified"]
                     assert result["close"] == 11 and result["trading_date"] == day
@@ -246,8 +282,8 @@ async def test_verified_switch_preserves_history_and_fails_before_primary_change
                         )
                         == before_audit
                     )
-                    assert (
-                        before_audit == 5
+                    assert before_audit == (
+                        4 if seeded_target_id else 5
                     )  # listing creation, mapping creation/validation, two primary flags
                     async with session_context() as session:
                         mapping = await session.get(
