@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 from sqlalchemy import select
@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 
 async def discover_underlying(
     container: ApplicationContainer, workspace_id: UUID, listing_id: UUID
-) -> dict[str, str]:
+) -> dict[str, Any]:
     if container.eodhd is None:
         return {"status": "BLOCKED", "reason": "EODHD_DISABLED"}
     async with container.database.session_context() as session:
@@ -68,10 +68,10 @@ async def discover_underlying(
         venue = await session.get(TradingVenueModel, listing.trading_venue_id)
         if venue is None or not venue.is_active:
             return {"status": "BLOCKED", "reason": "ACTIVE_TRADING_VENUE_REQUIRED"}
-        result = await container.eodhd.adapter.stock_catalog.discover(
+        result = await container.eodhd.adapter.stock_catalog.discover_with_search(
             isin=underlying.isin, currency=listing.currency_code, mic=venue.mic
         )
-        details = {
+        details: dict[str, Any] = {
             "isin": underlying.isin,
             "listing_currency": listing.currency_code,
             "listing_mic": venue.mic,
@@ -80,9 +80,48 @@ async def discover_underlying(
             "matching_isin_count": str(result.matching_isin_count),
             "candidate_currencies": ",".join(result.candidate_currencies),
         }
+        if result.search_endpoint is not None:
+            details.update(
+                search_endpoint=result.search_endpoint,
+                search_retrieved_at=(
+                    result.search_retrieved_at.isoformat() if result.search_retrieved_at else None
+                ),
+                search_reason=result.search_reason,
+                alternative_candidates=[
+                    {
+                        "isin": underlying.isin,
+                        "provider": MarketDataProvider.EODHD.value,
+                        "provider_identity": candidate.provider_symbol,
+                        "provider_exchange_code": candidate.provider_exchange_code,
+                        "mic": candidate.mic,
+                        "currency": candidate.currency,
+                        "identity_verified": candidate.identity is not None,
+                        "reason": candidate.reason,
+                        "same_currency": candidate.currency == listing.currency_code,
+                        "same_venue": candidate.mic == venue.mic,
+                        "requires_listing_review": (
+                            candidate.mic != venue.mic
+                            or candidate.currency != listing.currency_code
+                        ),
+                        "requires_rule_currency_review": candidate.currency
+                        != listing.currency_code,
+                        "catalog_endpoint": (
+                            candidate.identity.endpoint if candidate.identity else None
+                        ),
+                        "catalog_retrieved_at": (
+                            candidate.identity.catalog_retrieved_at.isoformat()
+                            if candidate.identity
+                            else None
+                        ),
+                        "execution_usable": False,
+                    }
+                    for candidate in result.alternatives
+                ],
+            )
         if result.identity is None:
             return {**details, "status": "BLOCKED", "reason": result.reason}
         identity = result.identity
+        details["discovery_source"] = identity.source
         symbol = identity.item.provider_symbol
         exchange = identity.item.provider_exchange_code
         owner = await session.scalar(

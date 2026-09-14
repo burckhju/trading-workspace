@@ -25,8 +25,10 @@ from app.providers.eodhd.persistence import SqlAlchemyListingCurrencyReader, Sql
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("sparse_catalog", [False, True])
 async def test_scheduler_bootstraps_several_venues_imports_eod_and_preserves_disabled_mapping(
     monkeypatch,
+    sparse_catalog,
 ):
     engine = create_async_engine(_test_database_url())
     workspace = uuid4()
@@ -114,6 +116,17 @@ async def test_scheduler_bootstraps_several_venues_imports_eod_and_preserves_dis
                     payloads[f"/exchange-symbol-list/{label}"] = [
                         stock(Code=symbol, Exchange=label, Currency=currency, Isin=isin)
                     ]
+                    if sparse_catalog and mic == "XPAR":
+                        payloads[f"/exchange-symbol-list/{label}"][0]["Isin"] = None
+                        payloads[f"/search/{isin}"] = [
+                            {
+                                "Code": symbol,
+                                "Exchange": code,
+                                "ISIN": isin,
+                                "Currency": currency,
+                                "Type": "Common Stock",
+                            }
+                        ]
                     payloads[f"/eod/{symbol}.{code}"] = [
                         {
                             "date": day.isoformat(),
@@ -197,6 +210,28 @@ async def test_scheduler_bootstraps_several_venues_imports_eod_and_preserves_dis
                     )
                     == 8
                 )
+                if sparse_catalog:
+                    verified = next(
+                        json.loads(row.validation_message)
+                        for row in mappings
+                        if json.loads(row.validation_message)["mic"] == "XPAR"
+                    )
+                    assert verified["source"] == "EODHD_ISIN_CATALOG_V1"
+                    assert verified["search"].startswith("/search/")
+                    assert verified["catalog"] == "/exchange-symbol-list/PA"
+                    assert verified["ccy"] == "EUR"
+                    assert all(len(row.validation_message) <= 500 for row in mappings)
+                # Auto discovery may create mappings, never move the primary listing,
+                # rewrite its currency/ticker or create additional master listings.
+                assert (
+                    await connection.scalar(
+                        text(
+                            "SELECT count(*) FROM listings WHERE workspace_id=:ws AND "
+                            "is_primary=true AND version=1"
+                        ),
+                        {"ws": workspace},
+                    )
+                ) == 4
                 calls = client.get_json.await_count
                 await connection.execute(
                     text("UPDATE provider_instrument_mappings SET status='DISABLED' WHERE id=:id"),

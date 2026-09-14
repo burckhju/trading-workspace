@@ -152,3 +152,10 @@ transaction, exact-identity rejection, disabled-mapping preservation, independen
 intervals, new/deactivated catalog members, cache timestamp/freshness behavior,
 leader shutdown and an indicative workspace browser flow. Live quotes for the
 user's other products still require the user's local catalog and provider access.
+
+For underlying catalog ISIN misses, refresh now corroborates exact ISIN Search
+results against symbol and exchange catalogs before activating an existing listing
+mapping. Verified alternative venues/currencies appear in `alternative_candidates`;
+they require explicit listing/rule-basis review and are never substituted silently.
+See [underlying mapping discovery](underlying-mapping-discovery.md#sparse-isin-catalogs-and-alternative-venues-2026-09-14)
+for limits, account requirements, provenance and local verification.
