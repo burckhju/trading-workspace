@@ -9,17 +9,13 @@ jobs:
   source:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
-          fetch-depth: 0
-          persist-credentials: false
-      - name: Export tracked source snapshots only
-        run: |
-          mkdir -p /tmp/de-locale-source
-          git archive db573d5a31d9b6afe689af39492886f4234a3a1d | gzip > /tmp/de-locale-source/main.tar.gz
-          git archive 766db5c7714dd74a79e97124a4346eb6524685cb | gzip > /tmp/de-locale-source/previous-attempt.tar.gz
+          python-version: '3.13'
+      - name: Download pinned development wheels only
+        run: python -m pip download --only-binary=:all: --dest /tmp/de-locale-tools black==26.1.0 ruff==0.15.1 mypy==1.19.1
       - uses: actions/upload-artifact@v4
         with:
-          name: de-locale-source
-          path: /tmp/de-locale-source/*.tar.gz
+          name: de-locale-tools
+          path: /tmp/de-locale-tools/*.whl
           retention-days: 1
