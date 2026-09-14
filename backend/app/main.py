@@ -75,6 +75,7 @@ def create_application(settings: Settings | None = None) -> FastAPI:
                     runtime=runtime,
                     interval_seconds=resolved_settings.position_monitoring.interval_seconds,
                 )
+                application.state.position_monitoring_runner = runner
                 monitoring_task = asyncio.create_task(
                     runner.run_forever(),
                     name="position-monitoring",
@@ -110,6 +111,7 @@ def create_application(settings: Settings | None = None) -> FastAPI:
     )
     application.state.container = container
     application.state.market_data_refresh = refresh_runtime
+    application.state.position_monitoring_runner = None
     application.add_middleware(RequestContextMiddleware)
     register_exception_handlers(application)
     application.include_router(underlying_router)

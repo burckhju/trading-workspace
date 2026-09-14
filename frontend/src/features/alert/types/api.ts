@@ -50,4 +50,39 @@ export interface PositionMonitoringHealthResponse {
   trading_date: string | null;
   market_data_observed_at: string | null;
   age_days: number | null;
+  basis?: {
+    underlying_id: string;
+    name: string;
+    isin: string | null;
+    listing_id: string;
+    venue_mic: string;
+    currency: string;
+  } | null;
+  daily_price?: {
+    listing_id: string;
+    trading_date: string;
+    close: string;
+    low: string;
+    high: string;
+    currency: string;
+    provider: string;
+    provider_symbol: string;
+    source_updated_at: string | null;
+    retrieved_at: string;
+  } | null;
+}
+
+export interface MonitoringRuntimeStatusResponse {
+  enabled: boolean;
+  running: boolean;
+  cycle_running: boolean;
+  interval_seconds: number;
+  scope: 'PROCESS_LOCAL_ALL_WORKSPACES';
+  price_basis: 'COMPLETED_UNDERLYING_DAILY_LOW_HIGH';
+  last_cycle_started_at: string | null;
+  last_cycle_completed_at: string | null;
+  next_run_at: string | null;
+  last_error: string | null;
+  last_error_at: string | null;
+  last_result: Record<string, number> | null;
 }

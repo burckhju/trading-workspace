@@ -7,6 +7,7 @@ import type {
   NotificationResponse,
   PositionMonitoringHealthResponse,
 } from '../types/api';
+import { MonitoringRuntimePanel } from './MonitoringRuntimePanel';
 
 function formatDateTime(value: string | null): string {
   return value ? new Date(value).toLocaleString('de-DE') : '—';
@@ -112,11 +113,15 @@ export function TradeAlertsPanel({ tradeId }: { tradeId: string }) {
           </span>
         </div>
 
+        <MonitoringRuntimePanel key={tradeId} />
+
         {health && (
           <div className="mt-4 rounded-lg border border-slate-800 p-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <p className="text-xs uppercase tracking-wide text-slate-500">Marktdatenstatus</p>
+                <p className="text-xs uppercase tracking-wide text-slate-500">
+                  Basiswert · Kursdaten für Stop und Ziel
+                </p>
                 <p className="mt-1 font-medium">{healthLabel(health)}</p>
               </div>
               <span className="rounded-full border border-slate-700 px-2.5 py-1 text-xs">
@@ -124,6 +129,39 @@ export function TradeAlertsPanel({ tradeId }: { tradeId: string }) {
               </span>
             </div>
             <p className="mt-2 text-sm text-slate-400">{healthExplanation(health)}</p>
+            {health.basis && (
+              <p className="mt-2 text-sm">
+                {health.basis.name} · {health.basis.isin ?? 'ISIN nicht hinterlegt'} ·{' '}
+                {health.basis.venue_mic} · {health.basis.currency}
+              </p>
+            )}
+            {health.daily_price && (
+              <>
+                <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-3">
+                  {(
+                    [
+                      ['Schlusskurs', health.daily_price.close],
+                      ['Tagestief · Stop-Prüfung', health.daily_price.low],
+                      ['Tageshoch · Ziel-Prüfung', health.daily_price.high],
+                    ] as const
+                  ).map(([label, price]) => (
+                    <div key={label}>
+                      <dt className="text-slate-500">{label}</dt>
+                      <dd className="mt-1">
+                        {formatNumber(price)} {health.daily_price?.currency}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+                <p className="mt-2 text-xs text-slate-400">
+                  Quelle: {health.daily_price.provider} · {health.daily_price.provider_symbol}
+                </p>
+                <p className="mt-2 text-xs text-slate-400">
+                  Quellenzeitpunkt: {formatDateTime(health.daily_price.source_updated_at)} ·
+                  Abgerufen: {formatDateTime(health.daily_price.retrieved_at)}
+                </p>
+              </>
+            )}
             <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
               <div>
                 <dt className="text-slate-500">Underlying</dt>
@@ -144,6 +182,12 @@ export function TradeAlertsPanel({ tradeId }: { tradeId: string }) {
                 </dd>
               </div>
             </dl>
+            {health.basis && (
+              <details className="mt-3 text-xs text-slate-500">
+                <summary className="cursor-pointer">Verwendetes Basiswert-Listing anzeigen</summary>
+                <p className="mt-2 break-all">{health.basis.listing_id}</p>
+              </details>
+            )}
             {health.status !== 'OK' && (
               <details className="mt-3 text-xs text-slate-500">
                 <summary className="cursor-pointer">Technischen Grund anzeigen</summary>
@@ -172,6 +216,11 @@ export function TradeAlertsPanel({ tradeId }: { tradeId: string }) {
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <p className="font-medium">{alertTitle(alert)}</p>
+                    <p className="mt-1 text-xs text-slate-400">
+                      {alert.alert_type === 'STOP_REACHED'
+                        ? 'Auslöser: Basiswert · Tagestief'
+                        : 'Auslöser: Basiswert · Tageshoch'}
+                    </p>
                     <p className="mt-1 text-sm text-slate-400">{alert.reason}</p>
                   </div>
                   <span className="rounded-full border border-slate-700 px-2.5 py-1 text-xs">

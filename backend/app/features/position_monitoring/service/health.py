@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, date, datetime
 from enum import StrEnum
 from uuid import UUID, uuid4
@@ -9,7 +9,9 @@ from uuid import UUID, uuid4
 from sqlalchemy import exists, select
 
 from app.database import DatabaseManager
+from app.features.market.persistence.models import ListingModel, TradingVenueModel, UnderlyingModel
 from app.features.market_data.domain.enums import QualityStatus
+from app.features.market_data.domain.models import DailyPrice
 from app.features.market_data.service.contracts import LatestCompletedDailyPriceProvider
 from app.features.market_data.service.types import LatestDailyPriceRequest
 from app.features.position_monitoring.service.subjects import SqlAlchemyMonitoringSubjectReader
@@ -24,6 +26,16 @@ class MonitoringHealthStatus(StrEnum):
 
 
 @dataclass(frozen=True, slots=True)
+class MonitoringBasis:
+    underlying_id: UUID
+    name: str
+    isin: str | None
+    listing_id: UUID
+    venue_mic: str
+    currency: str
+
+
+@dataclass(frozen=True, slots=True)
 class PositionMonitoringHealth:
     trade_id: UUID
     position_id: UUID
@@ -33,6 +45,8 @@ class PositionMonitoringHealth:
     trading_date: date | None = None
     market_data_observed_at: datetime | None = None
     age_days: int | None = None
+    basis: MonitoringBasis | None = None
+    daily_price: DailyPrice | None = None
 
 
 class PositionMonitoringHealthService:
@@ -97,14 +111,39 @@ class PositionMonitoringHealthService:
                 )
 
             subject = resolution.subject
-            if self._market_data is None:
-                return PositionMonitoringHealth(
-                    trade_id=trade_id,
-                    position_id=position.id,
-                    status=MonitoringHealthStatus.ERROR,
-                    reason="MARKET_DATA_PROVIDER_UNAVAILABLE",
-                    symbol=subject.symbol,
+            basis_row = (
+                await session.execute(
+                    select(ListingModel, UnderlyingModel, TradingVenueModel)
+                    .join(UnderlyingModel, UnderlyingModel.id == ListingModel.underlying_id)
+                    .join(TradingVenueModel, TradingVenueModel.id == ListingModel.trading_venue_id)
+                    .where(
+                        ListingModel.id == subject.listing_id,
+                        ListingModel.workspace_id == subject.workspace_id,
+                        UnderlyingModel.workspace_id == subject.workspace_id,
+                    )
                 )
+            ).first()
+            basis = None
+            if basis_row is not None:
+                listing, underlying, venue = basis_row
+                basis = MonitoringBasis(
+                    underlying.id,
+                    underlying.name,
+                    underlying.isin,
+                    listing.id,
+                    venue.mic,
+                    listing.currency_code,
+                )
+            base = PositionMonitoringHealth(
+                trade_id=trade_id,
+                position_id=position.id,
+                status=MonitoringHealthStatus.ERROR,
+                reason="MARKET_DATA_PROVIDER_UNAVAILABLE",
+                symbol=subject.symbol,
+                basis=basis,
+            )
+            if self._market_data is None:
+                return base
 
             now = self._now()
             try:
@@ -118,55 +157,50 @@ class PositionMonitoringHealthService:
                     )
                 )
             except Exception:
-                return PositionMonitoringHealth(
-                    trade_id=trade_id,
-                    position_id=position.id,
-                    status=MonitoringHealthStatus.ERROR,
-                    reason="MARKET_DATA_REQUEST_FAILED",
-                    symbol=subject.symbol,
-                )
+                return replace(base, reason="MARKET_DATA_REQUEST_FAILED")
 
             price = result.data
             if price is None:
-                return PositionMonitoringHealth(
-                    trade_id=trade_id,
-                    position_id=position.id,
+                return replace(
+                    base,
                     status=MonitoringHealthStatus.MISSING,
                     reason="NO_COMPLETED_DAILY_PRICE",
-                    symbol=subject.symbol,
                 )
-            if result.quality_status is not QualityStatus.VALID:
-                return PositionMonitoringHealth(
-                    trade_id=trade_id,
-                    position_id=position.id,
-                    status=MonitoringHealthStatus.ERROR,
-                    reason=f"MARKET_DATA_QUALITY_{result.quality_status.value}",
-                    symbol=subject.symbol,
+            if price.listing_id != subject.listing_id or (
+                basis is not None and price.currency != basis.currency
+            ):
+                return replace(base, reason="MARKET_DATA_IDENTITY_MISMATCH")
+            if price.trading_date > now.date():
+                return replace(base, reason="DAILY_PRICE_IN_FUTURE")
+            quality = result.quality_status
+            if quality is QualityStatus.VALID:
+                quality = price.quality_status
+            if quality is not QualityStatus.VALID:
+                return replace(
+                    base,
+                    reason=f"MARKET_DATA_QUALITY_{quality.value}",
                     trading_date=price.trading_date,
                     market_data_observed_at=price.source_updated_at or price.retrieved_at,
                 )
 
             age_days = (now.date() - price.trading_date).days
             observed_at = price.source_updated_at or price.retrieved_at
-            if age_days > self._max_age_days:
-                return PositionMonitoringHealth(
-                    trade_id=trade_id,
-                    position_id=position.id,
-                    status=MonitoringHealthStatus.STALE,
-                    reason="COMPLETED_DAILY_PRICE_STALE",
-                    symbol=subject.symbol,
-                    trading_date=price.trading_date,
-                    market_data_observed_at=observed_at,
-                    age_days=age_days,
-                )
-
-            return PositionMonitoringHealth(
-                trade_id=trade_id,
-                position_id=position.id,
-                status=MonitoringHealthStatus.OK,
-                reason="COMPLETED_DAILY_PRICE_CURRENT",
-                symbol=subject.symbol,
+            base = replace(
+                base,
                 trading_date=price.trading_date,
                 market_data_observed_at=observed_at,
                 age_days=age_days,
+                daily_price=price,
+            )
+            if age_days > self._max_age_days:
+                return replace(
+                    base,
+                    status=MonitoringHealthStatus.STALE,
+                    reason="COMPLETED_DAILY_PRICE_STALE",
+                )
+
+            return replace(
+                base,
+                status=MonitoringHealthStatus.OK,
+                reason="COMPLETED_DAILY_PRICE_CURRENT",
             )

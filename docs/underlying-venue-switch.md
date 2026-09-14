@@ -97,6 +97,10 @@ Trade monitoring health should resolve the new mapping. A successful import is
 not proof of a completed alert cycle; use the existing monitoring diagnostics to
 check that separately.
 
+The [monitoring diagnostics](monitoring-diagnostics.md) show the exact current
+underlying listing/prices in Trade Management and the separate automatic runner's
+last completed cycle, including missing-data and rule-error counts.
+
 Refresh scans also retain active secondary listings. The old Xetra mapping job
 can still be blocked and labelled `held`, even after successful activation of the
 Frankfurt primary. Match job `listing_id` against the command's `target_listing_id`
