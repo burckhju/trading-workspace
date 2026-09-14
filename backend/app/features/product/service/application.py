@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
 from datetime import UTC, date, datetime
 from decimal import Decimal
 from uuid import UUID, uuid4
@@ -37,6 +37,7 @@ from app.features.product.domain.models import (
     WarrantLifecycle,
     normalize_strike_currency,
 )
+from app.features.product.persistence.identity_reader import read_identities
 from app.features.product.persistence.models import (
     WarrantListingModel,
     WarrantModel,
@@ -51,11 +52,20 @@ from app.features.product.service.errors import (
     WarrantNotFound,
     WarrantServiceError,
 )
+from app.features.product.service.identities import WarrantIdentity
 
 
 class WarrantService:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
+
+    async def read_identities(
+        self, *, workspace_id: UUID, warrant_ids: Collection[UUID]
+    ) -> dict[UUID, WarrantIdentity]:
+        """Return current labels for exact IDs in one batch, without resolving similar names."""
+        return await read_identities(
+            self._session, workspace_id=workspace_id, warrant_ids=warrant_ids
+        )
 
     async def list(self, workspace_id: UUID) -> list[WarrantModel]:
         rows = await self._session.scalars(

@@ -20,6 +20,10 @@ class OperationalActionResponse(BaseModel):
     next_action: str
     target: str
     occurred_at: datetime | None
+    product_id: UUID | None = None
+    product_name: str | None = None
+    product_isin: str | None = None
+    product_wkn: str | None = None
 
 
 class OperationalWorkspaceResponse(BaseModel):

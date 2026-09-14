@@ -123,3 +123,12 @@ Der Workspace besitzt über keines dieser Objekte Schreib-Ownership.
 - Historische Zustände werden nicht ohne vorhandene Owner-Semantik als „superseded“ interpretiert.
 - Bestehende Feature-Grenzen und explizite Benutzerentscheidungen bleiben erhalten.
 - Neue Workflow-Regeln benötigen weiterhin eine eigene fachliche Entscheidung und dürfen nicht im Workspace implizit eingeführt werden.
+
+## Verständliche Statusmeldungen und Produktzuordnung
+
+Der [Katalog der Statusmeldungen](../ui/workspace-statusmeldungen.md) beschreibt
+Aufgabenprioritäten, Positions-/Kurs-/Monitoringstatus, alle aktuellen Kartentitel
+und die getrennten Abrufzustände. Produktbezogene Einzelkarten ergänzen den exakten
+Optionsscheinnamen samt WKN/ISIN über den öffentlichen Produkt-Lesevertrag;
+fehlende Zuordnungen bleiben explizit. Details, Grenzen und Regressionen stehen
+im Katalog. Es entsteht kein neuer Alert-/Action-State und keine Schreibfunktion.

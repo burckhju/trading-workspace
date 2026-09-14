@@ -272,6 +272,12 @@ async def test_purchase_consumes_current_selection_and_never_reopens_initial_buy
                 workspace = OperationalWorkspaceReadModel(session)
                 before = await workspace._initial_purchase_actions(workspace_id)
                 assert [action.resource_id for action in before] == [current_selection_id]
+                assert before[0].product_id == warrant_id
+                (named_buy,) = await workspace._with_product_names(
+                    before, workspace_id=workspace_id
+                )
+                assert named_buy.product_name == "Handoff Warrant"
+                assert named_buy.product_isin is None and named_buy.product_wkn is None
 
                 service = TradePositionService(
                     uow=SqlAlchemyTradePositionUnitOfWork(session),
