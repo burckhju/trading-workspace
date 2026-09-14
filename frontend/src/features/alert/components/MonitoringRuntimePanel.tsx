@@ -54,10 +54,7 @@ export function MonitoringRuntimePanel() {
   }, []);
 
   return (
-    <div
-      className="mt-4 rounded-lg border border-slate-800 p-4"
-      aria-label="Automatische Stop-/Ziel-Prüfung"
-    >
+    <div className="mt-4 rounded-lg border border-slate-800 p-4">
       <p className="text-xs uppercase tracking-wide text-slate-500">
         Automatische Stop-/Ziel-Prüfung
       </p>
