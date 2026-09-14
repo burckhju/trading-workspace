@@ -1,0 +1,27 @@
+name: Telegram name development source export
+on:
+  push:
+    branches: [fix/telegram-warrant-name]
+    paths: [.github/workflows/telegram-name-source-export.yml]
+permissions:
+  contents: read
+jobs:
+  source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: db573d5a31d9b6afe689af39492886f4234a3a1d
+          persist-credentials: false
+      - name: Archive tracked public development source
+        run: |
+          mkdir -p /tmp/telegram-name-source
+          git archive --format=tar HEAD > /tmp/telegram-name-source/source.tar
+          git rev-parse HEAD HEAD^{tree} > /tmp/telegram-name-source/revision.txt
+          sha256sum /tmp/telegram-name-source/source.tar
+      - uses: actions/upload-artifact@v4
+        with:
+          name: telegram-name-source-db573d5
+          path: /tmp/telegram-name-source/
+          retention-days: 1
