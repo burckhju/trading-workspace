@@ -14,7 +14,8 @@ jobs:
         with:
           python-version: '3.13'
       - name: Download development wheels only
-        run: python -m pip download --only-binary=:all: --dest /tmp/telegram-name-tools ruff==0.15.1 black==26.1.0 mypy==1.19.1 asyncpg==0.31.0
+        run: |
+          python -m pip download --only-binary=:all: --dest /tmp/telegram-name-tools ruff==0.15.1 black==26.1.0 mypy==1.19.1 asyncpg==0.31.0
       - uses: actions/upload-artifact@v4
         with:
           name: telegram-name-validation-tools
