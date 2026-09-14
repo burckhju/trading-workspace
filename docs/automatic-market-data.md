@@ -111,6 +111,29 @@ is a compatibility field showing one running operation. `current_jobs` and
 `lanes` show both independent queues (`WARRANTS` and `UNDERLYINGS`), their running
 jobs, errors and remaining first checks. Each job includes its `lane`.
 `pending_jobs` counts jobs without a first completed check across both queues.
+It does **not** measure the repeat-refresh backlog. Top-level and per-lane
+`due_jobs` count eligible waiting jobs, including first checks; `overdue_jobs`
+count jobs whose scheduled repeat deadline has passed. `max_overdue_seconds`
+reports the longest such delay. Running jobs are excluded from these waiting
+counters. Status reads do not issue provider requests or reschedule work.
+
+`DEFERRED` / `FRANKFURT_REQUEST_THROTTLED` means the local shared request budget
+prevented a discovery request. It is neither an external HTTP failure nor a
+negative coverage result. `retry_after_seconds` and `next_run_at` use the greater
+of the scheduler spacing and the remaining shared provider cooldown, instead of
+the full discovery interval. The next eligible lane pass performs the retry;
+the deadline is not a guaranteed start time. `deferred_jobs` counts these waiting
+jobs, including those whose retry deadline has not arrived yet. Successful
+retries restore the normal discovery interval. Instrument 404s, invalid ISINs,
+access failures and upstream rate limits retain their existing error/backoff
+policy. No additional request budget or cache is created.
+
+The workspace panel displays due/overdue counts and the longest delay for each
+lane even when `pending_jobs` is zero. A five-minute configured refresh interval
+is not a coverage or latency guarantee: at 15 seconds per slot, 52 single-slot
+jobs already require 13 minutes, before discovery, additional listings or other
+catalog work. Missing identity or coverage cannot be fixed by shorter intervals.
+
 `held: true` identifies a product or underlying belonging to an open position. Failed discovery exposes the safe provider reason, for example
 `FRANKFURT_ISIN_INVALID` or `FRANKFURT_PUBLIC_EMPTY_RESPONSE`, instead of only an
 exception class. Missing quote observations alone cannot identify the discovery
@@ -118,7 +141,8 @@ failure; inspect both the mapping and quote jobs.
 
 ```bash
 curl -fsS http://localhost:8000/api/v1/market-data/refresh/status \
-  | jq '{running, current_jobs, lanes, pending_jobs, last_error,
+  | jq '{running, current_jobs, lanes, pending_jobs, due_jobs, overdue_jobs,
+         max_overdue_seconds, deferred_jobs, last_error,
          jobs: [.jobs[] | select(.held == true)
                 | {name, isin, job, status, reason, quotes, source_attempts}]}'
 ```

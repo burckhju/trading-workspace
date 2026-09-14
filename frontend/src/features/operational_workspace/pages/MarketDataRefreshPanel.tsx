@@ -16,6 +16,9 @@ type RefreshStatus = {
       running: boolean;
       current_job: string | null;
       pending_jobs: number;
+      due_jobs?: number;
+      overdue_jobs?: number;
+      max_overdue_seconds?: number;
       last_error: string | null;
     }
   >;
@@ -38,6 +41,7 @@ type RefreshStatus = {
 
 function statusLabel(status: string): string {
   if (status === 'PENDING') return 'Erster Abruf steht aus';
+  if (status === 'DEFERRED') return 'Abruflimit erreicht · Wiederholung eingeplant';
   if (status === 'AVAILABLE') return 'Erfolgreich';
   if (status === 'MISSING') return 'Keine Kursdaten';
   if (status === 'BLOCKED') return 'Zuordnung oder Zugang fehlt';
@@ -125,6 +129,21 @@ export function MarketDataRefreshPanel() {
                     {progress.running ? 'Abruf läuft' : 'Wartet auf nächste Prüfung'} ·{' '}
                     {progress.pending_jobs} {progress.pending_jobs === 1 ? 'Aufgabe' : 'Aufgaben'}{' '}
                     ohne Erstprüfung
+                    {progress.due_jobs !== undefined && (
+                      <>
+                        {' '}
+                        · {progress.due_jobs} fällig
+                        {progress.overdue_jobs !== undefined && (
+                          <> · davon {progress.overdue_jobs} überfällig</>
+                        )}
+                        {!!progress.max_overdue_seconds && (
+                          <>
+                            {' '}
+                            · längster Rückstand {Math.ceil(progress.max_overdue_seconds / 60)} Min.
+                          </>
+                        )}
+                      </>
+                    )}
                   </li>
                 );
               })}
