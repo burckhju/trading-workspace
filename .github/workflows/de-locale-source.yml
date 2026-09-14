@@ -9,14 +9,16 @@ jobs:
   source:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
         with:
-          python-version: '3.13'
-      - name: Download pinned development wheels only
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Export tracked current main only
         run: |
-          python -m pip download --only-binary=:all: --dest /tmp/de-locale-tools black==26.1.0 ruff==0.15.1 mypy==1.19.1 asyncpg==0.31.0
+          mkdir -p /tmp/de-locale-main
+          git archive 3b344855d56e8add972d2459d5a15c32c8e9c230 | gzip > /tmp/de-locale-main/main.tar.gz
       - uses: actions/upload-artifact@v4
         with:
-          name: de-locale-tools
-          path: /tmp/de-locale-tools/*.whl
+          name: de-locale-updated-main
+          path: /tmp/de-locale-main/*.tar.gz
           retention-days: 1
