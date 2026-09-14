@@ -8,20 +8,15 @@ permissions:
 jobs:
   source:
     runs-on: ubuntu-latest
-    timeout-minutes: 3
+    timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
-          ref: db573d5a31d9b6afe689af39492886f4234a3a1d
-          persist-credentials: false
-      - name: Archive tracked public development source
-        run: |
-          mkdir -p /tmp/telegram-name-source
-          git archive --format=tar HEAD > /tmp/telegram-name-source/source.tar
-          git rev-parse HEAD HEAD^{tree} > /tmp/telegram-name-source/revision.txt
-          sha256sum /tmp/telegram-name-source/source.tar
+          python-version: '3.13'
+      - name: Download development wheels only
+        run: python -m pip download --only-binary=:all: --dest /tmp/telegram-name-tools ruff==0.15.1 black==26.1.0 mypy==1.19.1 asyncpg==0.31.0
       - uses: actions/upload-artifact@v4
         with:
-          name: telegram-name-source-db573d5
-          path: /tmp/telegram-name-source/
+          name: telegram-name-validation-tools
+          path: /tmp/telegram-name-tools/
           retention-days: 1
