@@ -63,10 +63,19 @@ def test_owner_flow_read_only_coverage_and_closed_position_exclusion(database):
                 created = await client.post("/api/v1/warrants", json=payload)
                 assert created.status_code == 201, created.text
                 warrant = created.json()
-                venues = (await client.get("/api/v1/market-reference-data/trading-venues")).json()[
-                    "items"
-                ]
-                venue = next(v for v in venues if v["mic"] == "XSTU")
+                # Fresh migrations seed XETR, not every venue in the user's catalog.
+                # Create this fixture explicitly through the reference-data owner API.
+                venue_response = await client.post(
+                    "/api/v1/market-reference-data/trading-venues",
+                    json={
+                        "mic": "XSTU",
+                        "name": "Synthetic coverage venue",
+                        "country_code": "DE",
+                        "timezone": "Europe/Berlin",
+                    },
+                )
+                assert venue_response.status_code == 201, venue_response.text
+                venue = venue_response.json()
                 listed = await client.post(
                     f'/api/v1/warrants/{warrant["id"]}/listings',
                     json={"trading_venue_id": venue["id"], "quotation_currency_code": "EUR"},
