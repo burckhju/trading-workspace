@@ -36,11 +36,27 @@ function tradePlanReference(id: string): string {
 }
 
 export function TradeManagementPage() {
+  const [searchParams] = useSearchParams();
+  const tradeId = searchParams.get('trade_id') ?? '';
+  const [readAttempt, setReadAttempt] = useState(0);
+
+  // URL identity owns the entire transaction context, including child forms.
+  // Reset synchronously on trade changes, not after a render of stale holdings.
+  return (
+    <TradeManagementContext
+      key={`${tradeId}:${readAttempt}`}
+      tradeId={tradeId}
+      onReload={() => setReadAttempt((attempt) => attempt + 1)}
+    />
+  );
+}
+
+function TradeManagementContext({ tradeId, onReload }: { tradeId: string; onReload: () => void }) {
   const navigate = useNavigate();
   const { hash } = useLocation();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const [lookupId, setLookupId] = useState(searchParams.get('trade_id') ?? '');
-  const [tradeId, setTradeId] = useState(searchParams.get('trade_id') ?? '');
+  const [, setSearchParams] = useSearchParams();
+  const [lookupId, setLookupId] = useState(tradeId);
+  const active = useRef(false);
   const [trade, setTrade] = useState<TradeResponse | null>(null);
   const [warrant, setWarrant] = useState<WarrantResponse | null>(null);
   const [position, setPosition] = useState<PositionResponse | null>(null);
@@ -59,13 +75,23 @@ export function TradeManagementPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  useEffect(() => {
+    active.current = true;
+    return () => {
+      active.current = false;
+    };
+  }, []);
+
   async function refresh(id: string, signal?: AbortSignal) {
+    if (!active.current || signal?.aborted) return;
     const [nextTrade, nextPosition, nextManagement] = await Promise.all([
       tradeManagementApiClient.trade(id, signal),
       tradeManagementApiClient.position(id, signal),
       tradeManagementApiClient.managementState(id, signal),
     ]);
+    if (!active.current || signal?.aborted) return;
     const nextWarrant = await warrantApiClient.get(nextTrade.product_id, signal);
+    if (!active.current || signal?.aborted) return;
     setTrade(nextTrade);
     setWarrant(nextWarrant);
     setPosition(nextPosition);
@@ -105,8 +131,9 @@ export function TradeManagementPage() {
     event.preventDefault();
     const id = lookupId.trim();
     if (!id) return;
-    setSearchParams({ trade_id: id });
-    setTradeId(id);
+    if (busy) return;
+    if (id === tradeId) onReload();
+    else setSearchParams({ trade_id: id });
   }
 
   async function mutate(action: () => Promise<unknown>, successMessage: string) {
@@ -134,7 +161,7 @@ export function TradeManagementPage() {
 
     try {
       await postTradeApiClient.startObservation(tradeId);
-      void navigate(`/post-trade?trade_id=${encodeURIComponent(tradeId)}`);
+      if (active.current) void navigate(`/post-trade?trade_id=${encodeURIComponent(tradeId)}`);
     } catch (error: unknown) {
       setMessage(postTradeErrorMessage(error));
     } finally {
