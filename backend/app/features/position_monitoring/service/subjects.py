@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from enum import StrEnum
 from uuid import UUID
 
@@ -38,10 +39,16 @@ class MonitoringSubject:
     workspace_id: UUID
     position_id: UUID
     trade_id: UUID
-    listing_id: UUID
-    mapping_id: UUID
+    listing_id: UUID | None
+    mapping_id: UUID | None
     symbol: str
     rules: tuple[MonitoringRule, ...]
+    warrant_id: UUID | None = None
+    underlying_id: UUID | None = None
+    warrant_isin: str | None = None
+    listing_currency: str | None = None
+    warrant_name: str | None = None
+    warrant_wkn: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -54,8 +61,16 @@ class MonitoringSubjectResolution:
 class SqlAlchemyMonitoringSubjectReader:
     """Resolve open positions to current management rules and market-data addresses."""
 
-    def __init__(self, session: AsyncSession) -> None:
+    def __init__(
+        self,
+        session: AsyncSession,
+        *,
+        for_rule_evaluation: bool = False,
+        workspace_id: UUID | None = None,
+    ) -> None:
         self._session = session
+        self._for_rule_evaluation = for_rule_evaluation
+        self._workspace_id = workspace_id
         self._management_events = SqlAlchemyTradeManagementEventRepository(session)
 
     async def list_resolutions(self) -> tuple[MonitoringSubjectResolution, ...]:
@@ -68,6 +83,11 @@ class SqlAlchemyMonitoringSubjectReader:
                     PositionModel.open_quantity > 0,
                     PositionModel.closed_at.is_(None),
                     TradeModel.cancelled_at.is_(None),
+                    *(
+                        [TradeModel.workspace_id == self._workspace_id]
+                        if self._workspace_id is not None
+                        else []
+                    ),
                 )
                 .order_by(PositionModel.id)
             )
@@ -84,7 +104,10 @@ class SqlAlchemyMonitoringSubjectReader:
         warrant: WarrantModel,
     ) -> MonitoringSubjectResolution:
         events = await self._management_events.list_effective_for_trade(trade.id)
-        management = TradeManagementStateProjector.project(trade_id=trade.id, events=events)
+        management = TradeManagementStateProjector.project(
+            trade_id=trade.id,
+            events=[event for event in events if event.effective_at <= datetime.now(UTC)],
+        )
         planned_stop = None
         planned_target = None
 
@@ -124,10 +147,22 @@ class SqlAlchemyMonitoringSubjectReader:
         stop = management.stop_price if management.stop_price is not None else planned_stop
         target = management.target_price if management.target_price is not None else planned_target
         if stop is not None:
-            rules.append(MonitoringRule("CURRENT_STOP", MonitoringRuleType.STOP_REACHED, stop))
+            rules.append(
+                MonitoringRule(
+                    "CURRENT_STOP",
+                    MonitoringRuleType.STOP_REACHED,
+                    stop,
+                    management.stop_price_binding,
+                )
+            )
         if target is not None:
             rules.append(
-                MonitoringRule("CURRENT_TARGET", MonitoringRuleType.TARGET_REACHED, target)
+                MonitoringRule(
+                    "CURRENT_TARGET",
+                    MonitoringRuleType.TARGET_REACHED,
+                    target,
+                    management.target_price_binding,
+                )
             )
         if not rules:
             return MonitoringSubjectResolution(
@@ -144,7 +179,7 @@ class SqlAlchemyMonitoringSubjectReader:
                 ListingModel.lifecycle_status == LifecycleStatus.ACTIVE,
             )
         )
-        if listing is None:
+        if listing is None and not self._for_rule_evaluation:
             return MonitoringSubjectResolution(
                 position_id=position.id,
                 subject=None,
@@ -153,11 +188,11 @@ class SqlAlchemyMonitoringSubjectReader:
         mapping = await self._session.scalar(
             select(ProviderInstrumentMappingModel).where(
                 ProviderInstrumentMappingModel.workspace_id == trade.workspace_id,
-                ProviderInstrumentMappingModel.listing_id == listing.id,
+                ProviderInstrumentMappingModel.listing_id == (listing.id if listing else None),
                 ProviderInstrumentMappingModel.status == MappingStatus.ACTIVE,
             )
         )
-        if mapping is None:
+        if mapping is None and not self._for_rule_evaluation:
             return MonitoringSubjectResolution(
                 position_id=position.id,
                 subject=None,
@@ -169,9 +204,15 @@ class SqlAlchemyMonitoringSubjectReader:
                 workspace_id=trade.workspace_id,
                 position_id=position.id,
                 trade_id=trade.id,
-                listing_id=listing.id,
-                mapping_id=mapping.id,
-                symbol=listing.ticker,
+                listing_id=listing.id if listing else None,
+                mapping_id=mapping.id if mapping else None,
+                symbol=listing.ticker if listing else (warrant.isin or str(warrant.id)),
+                warrant_id=warrant.id,
+                underlying_id=warrant.underlying_id,
+                warrant_isin=warrant.isin,
+                warrant_name=warrant.display_name,
+                warrant_wkn=warrant.wkn,
+                listing_currency=listing.currency_code if listing else None,
                 rules=tuple(rules),
             ),
         )

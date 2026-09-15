@@ -2,8 +2,8 @@
 
 The active workspace catalog drives discovery and retrieval. An open position is
 not required. Products held in open positions and their underlyings are processed
-first; the remaining active catalog still follows in the same batch. Position
-priority is derived from positive open quantity and no closing timestamp in the
+first within their respective queues; the remaining active catalog follows in
+that queue's batch. Position priority is derived from positive open quantity and no closing timestamp in the
 configured workspace, not from a manually maintained product list.
 There are no per-product UUID commands and no hardcoded user
 instruments. Existing provider adapters, provider mappings, quote resolution and
@@ -43,9 +43,11 @@ default scope. Other backend deployments can set
 
 ## Behavior
 
-- New active catalog records are detected on the next scan, normally within
-  30 seconds after the previous batch. Inactive instruments, inactive listings
-  and disabled mappings are not reactivated.
+- New active catalog records are detected on the next scan, normally every
+  30 seconds while the leader is running. Catalog scans and the leader connection
+  check continue even while a provider queue is busy. New jobs are visible as
+  pending and start when their queue can accept its next batch. Inactive
+  instruments/listings and disabled mappings are not reactivated.
 - Frankfurt discovery reuses the existing verifier: the public structured response
   must match the exact ISIN, provider exchange code and an active reference
   currency. Only then may an XFRA listing and XSC provider mapping be created.
@@ -85,6 +87,11 @@ Intervals are minimum pauses after a job finishes. Provider pacing, retries and
 large catalogs can delay a subsequent run. The global Frankfurt request budget
 still applies; changing the instrument does not reset it. Individual failures do
 not stop other jobs. Missing discoveries retry at the discovery interval.
+Public Frankfurt 404 responses now wait per ISIN (default one hour) while other
+identities retain the ordinary 15-second provider pacing. Cached failures perform
+no network request. Other source errors keep their global backoff, including
+longer `Retry-After` instructions on HTTP 429/503. See the retry diagnostics in
+[Frankfurt quotes](frankfurt-quotes.md#per-instrument-retry-isolation-2026-09-14).
 Set `AUTO_CONFIGURE=false` to refresh only existing configured routes.
 
 The supported deployment remains a single backend process, as for the existing
@@ -100,16 +107,42 @@ Open **Arbeitsbereich → Automatischer Kursabruf → Abrufstatus laden** to see
 intervals, per-instrument coverage, diagnostic reasons and the earliest next run.
 All catalog jobs are published before provider work begins. `PENDING` means the
 first check has not completed; it is not a negative coverage result. `current_job`
-identifies the running operation and `pending_jobs` counts jobs without a first
-completed check. `held: true` identifies a product or underlying belonging to an
-open position. Failed discovery exposes the safe provider reason, for example
+is a compatibility field showing one running operation. `current_jobs` and
+`lanes` show both independent queues (`WARRANTS` and `UNDERLYINGS`), their running
+jobs, errors and remaining first checks. Each job includes its `lane`.
+`pending_jobs` counts jobs without a first completed check across both queues.
+It does **not** measure the repeat-refresh backlog. Top-level and per-lane
+`due_jobs` count eligible waiting jobs, including first checks; `overdue_jobs`
+count jobs whose scheduled repeat deadline has passed. `max_overdue_seconds`
+reports the longest such delay. Running jobs are excluded from these waiting
+counters. Status reads do not issue provider requests or reschedule work.
+
+`DEFERRED` / `FRANKFURT_REQUEST_THROTTLED` means the local shared request budget
+prevented a discovery request. It is neither an external HTTP failure nor a
+negative coverage result. `retry_after_seconds` and `next_run_at` use the greater
+of the scheduler spacing and the remaining shared provider cooldown, instead of
+the full discovery interval. The next eligible lane pass performs the retry;
+the deadline is not a guaranteed start time. `deferred_jobs` counts these waiting
+jobs, including those whose retry deadline has not arrived yet. Successful
+retries restore the normal discovery interval. Instrument 404s, invalid ISINs,
+access failures and upstream rate limits retain their existing error/backoff
+policy. No additional request budget or cache is created.
+
+The workspace panel displays due/overdue counts and the longest delay for each
+lane even when `pending_jobs` is zero. A five-minute configured refresh interval
+is not a coverage or latency guarantee: at 15 seconds per slot, 52 single-slot
+jobs already require 13 minutes, before discovery, additional listings or other
+catalog work. Missing identity or coverage cannot be fixed by shorter intervals.
+
+`held: true` identifies a product or underlying belonging to an open position. Failed discovery exposes the safe provider reason, for example
 `FRANKFURT_ISIN_INVALID` or `FRANKFURT_PUBLIC_EMPTY_RESPONSE`, instead of only an
 exception class. Missing quote observations alone cannot identify the discovery
 failure; inspect both the mapping and quote jobs.
 
 ```bash
 curl -fsS http://localhost:8000/api/v1/market-data/refresh/status \
-  | jq '{running, current_job, pending_jobs, last_error,
+  | jq '{running, current_jobs, lanes, pending_jobs, due_jobs, overdue_jobs,
+         max_overdue_seconds, deferred_jobs, last_error,
          jobs: [.jobs[] | select(.held == true)
                 | {name, isin, job, status, reason, quotes, source_attempts}]}'
 ```
@@ -147,3 +180,137 @@ transaction, exact-identity rejection, disabled-mapping preservation, independen
 intervals, new/deactivated catalog members, cache timestamp/freshness behavior,
 leader shutdown and an indicative workspace browser flow. Live quotes for the
 user's other products still require the user's local catalog and provider access.
+
+For underlying catalog ISIN misses, refresh now corroborates exact ISIN Search
+results against symbol and exchange catalogs before activating an existing listing
+mapping. Verified alternative venues/currencies appear in `alternative_candidates`;
+they require explicit listing/rule-basis review and are never substituted silently.
+See [underlying mapping discovery](underlying-mapping-discovery.md#sparse-isin-catalogs-and-alternative-venues-2026-09-14)
+for limits, account requirements, provenance and local verification.
+
+## Independent warrant and underlying queues (2026-09-14)
+
+The deployment diagnostics showed first-check pending jobs falling from 238 to
+188 while all 52 held underlying mapping jobs still awaited their first result.
+The worker was progressing through warrant jobs. A single serial queue placed
+held warrants before held underlyings; Frankfurt's pacing/cooldown also governed
+EODHD work. Completing a fast group could not start its next due run until the
+entire mixed batch finished.
+
+The scheduler now dispatches two independent, sequential workers under the same
+PostgreSQL leader lock:
+
+- `WARRANTS`: Frankfurt/Vontobel discovery and warrant quote resolution, preserving
+  their ordering, existing provider cooldowns and shared website limits.
+- `UNDERLYINGS`: EODHD mapping discovery and completed daily-price import, preserving
+  mapping-before-import order and all existing identity/currency checks.
+
+At most one worker per queue runs. Catalog scans dispatch only idle queues;
+repeated scans or manual wake requests cannot duplicate a running queue. The
+completed queue can execute newly due work on the next scan without waiting for
+the other queue. No per-instrument task explosion or parallel HTTP burst is added
+within a queue. Work already queued in the same group can still delay its next
+run: intervals remain minimum completion-based pauses, not a portfolio-wide SLA.
+
+`REQUEST_SPACING_SECONDS` now supplies a separate pacing clock for each queue.
+It remains 15 seconds by default. EODHD continues to enforce its own shared API
+budget, limiter and retries for all internal requests; Frankfurt's provider-wide
+cooldown still governs the warrant queue. Requests to the independent providers
+may therefore occur concurrently, while neither provider's limit is increased.
+No new provider, subscription, secret or migration is required. The configured
+API quota may be consumed earlier because unrelated website delays no longer
+hold up EODHD work.
+
+Shutdown, disablement or a failed catalog scan cancels and joins outstanding
+workers. The leader probes its dedicated database connection before each scan;
+a detected connection failure stops both workers before attempting unlock.
+Normal shutdown joins workers before releasing the lock. Connection failure is
+detected at these probes, not instantaneously. Newly inactive queued jobs are
+removed on catalog rescan; a finishing removed job cannot recreate a stale job
+entry. Already issued operations still rely on their existing provider/service
+validation and transaction boundaries. The single-backend-process deployment
+requirement remains in effect.
+
+After deploying with `bash scripts/start-linux.sh --frankfurt`, verify progress:
+
+```bash
+curl -fsS http://localhost:8000/api/v1/market-data/refresh/status \
+  | jq '{enabled, running, leader, scheduling_mode, last_error, current_jobs, lanes,
+         basiswert_mapping_status: (
+           [.jobs[] | select(.held == true and (.job | startswith("EODHD_MAPPING:")))]
+           | group_by(.status)
+           | map({status: .[0].status, anzahl: length})
+         )}'
+```
+
+Expect `scheduling_mode: INDEPENDENT_WARRANT_UNDERLYING_LANES`. Underlying jobs can
+now finish while the warrant queue is still busy. Two non-null current jobs are
+allowed; a completed queue reports `running: false` until its next scan/run.
+`PENDING` remains a first-result state, and a running first check is counted in
+pending until it completes. The workspace refresh panel displays both queues
+and marks both currently running jobs. A successful schedule is not evidence of
+provider coverage: inspect mapping/import results and the position's monitoring
+health separately.
+
+Regression tests reproduce 52 underlying discoveries/imports completing and
+running again while the first warrant request remains blocked, and the inverse
+case with a stalled EOD import. They cover per-provider pacing, duplicate dispatch,
+queued removal, cancellation, catalog failures, heartbeat failure and joining
+both workers before leader unlock. The browser regression displays two concurrent
+jobs while preserving indicative-valuation and no-order-permission warnings.
+
+
+## Held-product source coverage (2026-09-15)
+
+**Arbeitsbereich → Automatischer Kursabruf → Kursquellen im Depot prüfen** reads
+existing `warrant_provider_mappings` and the last verified
+`warrant_quote_observations`. Filter by the stored issuer name or select
+**Nur Prüfbedarf**. No per-product UUID entry is required. The GET is diagnostic:
+it does not contact providers, enqueue a refresh, create a mapping or change a
+trade. The normal scheduler, its source approvals, identity verification, budgets
+and fallback policy remain responsible for retrieval.
+
+The read model includes all held warrants in the configured workspace, including
+inactive products/issuers and products without a usable listing. Cancelled/closed
+trades and foreign workspaces are excluded. Four batched SELECTs load a nonempty
+inventory; it does not perform a database or provider request per table cell.
+Stuttgart's direct ISIN/XSTU route is distinguished from a persisted mapping.
+Disabled, invalid and unvalidated mappings stay visible and are never reactivated
+by this read. The same identity fingerprint as durable quote retention invalidates
+observations after instrument/listing/mapping changes. Prices remain per listing
+and currency; the report does not select the actual position valuation source,
+convert currencies or aggregate portfolio values.
+
+`BID_WITHIN_AGE_BUDGET` describes a stored bid within the existing quote resolver's
+age budget at `assessed_at`. It is **not** a fresh network check, continuous
+coverage guarantee, market-open assertion or execution permission. The original
+observation/retrieval timestamps and declared delay are preserved. Older bids,
+reference-only observations and unknown timestamps are distinct. Current
+scheduler status and discovery/refresh errors are separate; after restart the
+stored evidence remains, but earlier process-local job status is not invented.
+A successful job is not synonymous with a new quote timestamp. Use the existing
+product-valuation view to see the source actually used for the position.
+
+The issuer label `VONT FINL.` (punctuation/case normalized) now selects the same
+Vontobel verification probe as a full Vontobel name. It does not change the legal
+issuer name or assign a product to a corporate entity. Exact ISIN/WKN/currency,
+time and bid validation still gate mapping creation. Unsupported labels do not
+acquire a new adapter. Other issuers continue to use their verified existing
+routes; no new gettex, broker or commercial subscription is enabled.
+
+Read-only local verification after separately authorized deployment:
+
+```bash
+curl -fsS http://localhost:8000/api/v1/market-data/warrants/quote-coverage \
+  | jq '{assessed_at, scheduler_enabled, scheduler_leader, configured_sources,
+         items: [.items[] | {name, isin, issuer, coverage, refresh_status,
+                 refresh_reason, discovery_reasons, routes}]}'
+```
+
+The result contains local holdings identities. Do not post a complete private
+inventory publicly. Inspect the gaps locally and share only the necessary,
+redacted evidence. A verified issuer does not establish coverage for every ISIN.
+To obtain new prices, leave the already authorized scheduler running; this button
+intentionally does not bypass its due times. No migration is introduced. Paid
+feeds, new source transports, persisted user preference/priority overrides and
+historical price series remain outside this diagnostic slice.

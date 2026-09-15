@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
 from app.features.trade_position.domain.enums import TradeManagementEventType
 from app.features.trade_position.domain.models import TradeManagementEvent
+from app.features.trade_position.domain.price_binding import PriceBinding
 
 
 @dataclass(frozen=True, slots=True)
@@ -19,6 +20,8 @@ class TradeManagementState:
     thesis: str | None = None
     notes: tuple[str, ...] = ()
     last_event_at: datetime | None = None
+    stop_price_binding: PriceBinding | None = None
+    target_price_binding: PriceBinding | None = None
 
 
 class TradeManagementStateProjector:
@@ -41,41 +44,20 @@ class TradeManagementStateProjector:
             if event.trade_id != trade_id:
                 raise ValueError("management event does not belong to trade")
 
+            state = replace(state, last_event_at=event.effective_at)
             if event.event_type is TradeManagementEventType.STOP_CHANGED:
-                state = TradeManagementState(
-                    trade_id=trade_id,
-                    stop_price=event.numeric_value,
-                    target_price=state.target_price,
-                    thesis=state.thesis,
-                    notes=state.notes,
-                    last_event_at=event.effective_at,
+                state = replace(
+                    state, stop_price=event.numeric_value, stop_price_binding=event.price_binding
                 )
             elif event.event_type is TradeManagementEventType.TARGET_CHANGED:
-                state = TradeManagementState(
-                    trade_id=trade_id,
-                    stop_price=state.stop_price,
+                state = replace(
+                    state,
                     target_price=event.numeric_value,
-                    thesis=state.thesis,
-                    notes=state.notes,
-                    last_event_at=event.effective_at,
+                    target_price_binding=event.price_binding,
                 )
             elif event.event_type is TradeManagementEventType.THESIS_UPDATED:
-                state = TradeManagementState(
-                    trade_id=trade_id,
-                    stop_price=state.stop_price,
-                    target_price=state.target_price,
-                    thesis=event.text_value,
-                    notes=state.notes,
-                    last_event_at=event.effective_at,
-                )
+                state = replace(state, thesis=event.text_value)
             else:
-                state = TradeManagementState(
-                    trade_id=trade_id,
-                    stop_price=state.stop_price,
-                    target_price=state.target_price,
-                    thesis=state.thesis,
-                    notes=(*state.notes, event.text_value or ""),
-                    last_event_at=event.effective_at,
-                )
+                state = replace(state, notes=(*state.notes, event.text_value or ""))
 
         return state

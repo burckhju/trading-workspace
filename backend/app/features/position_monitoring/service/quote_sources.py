@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
@@ -13,6 +14,7 @@ from app.features.market_data.domain.models import WarrantQuoteSnapshot
 from app.features.market_data.service.contracts import WarrantListingQuoteProvider
 from app.features.market_data.service.errors import (
     MarketDataConfigurationError,
+    MarketDataError,
     MarketDataNotFoundError,
 )
 from app.features.market_data.service.types import MarketDataResult, WarrantQuoteRequest
@@ -71,6 +73,10 @@ class MultiSourceWarrantQuoteResolver:
     def __init__(self, sources: tuple[NamedWarrantQuoteSource, ...]) -> None:
         self._sources = sources
 
+    def source_configuration(self) -> tuple[tuple[str, bool], ...]:
+        """Configured adapters in policy order; availability is not quote coverage."""
+        return tuple((source.name, source.provider is not None) for source in self._sources)
+
     async def resolve(self, request: WarrantQuoteRequest) -> MultiSourceWarrantQuoteResolution:
         attempts: list[QuoteSourceAttempt] = []
         best: MarketDataResult[WarrantQuoteSnapshot | None] | None = None
@@ -102,11 +108,19 @@ class MultiSourceWarrantQuoteResolver:
                 )
                 continue
             except Exception as exc:  # provider isolation is intentional at this read boundary
+                # Preserve bounded application codes (not arbitrary HTTP bodies,
+                # URLs or exception text) so throttling is distinguishable from
+                # absent coverage in existing source-attempt diagnostics.
+                reason = type(exc).__name__
+                if isinstance(exc, MarketDataError) and re.fullmatch(
+                    r"(?:FRANKFURT|VONTOBEL|STUTTGART|WARRANT|EODHD)_[A-Z0-9_]{1,100}", str(exc)
+                ):
+                    reason = str(exc)
                 attempts.append(
                     QuoteSourceAttempt(
                         source=source.name,
                         status=QuoteSourceAttemptStatus.ERROR,
-                        reason=type(exc).__name__,
+                        reason=reason,
                         delayed=source.delayed,
                         warrant_listing_id=request.warrant_listing_id,
                     )

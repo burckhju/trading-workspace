@@ -7,16 +7,18 @@ from typing import Protocol
 from uuid import UUID
 
 from app.features.alert.domain.models import Alert
-from app.features.market_data.domain.enums import QualityStatus
 from app.features.market_data.service.contracts import LatestCompletedDailyPriceProvider
-from app.features.market_data.service.types import LatestDailyPriceRequest
 from app.features.position_monitoring.domain.models import (
     MonitoringRule,
-    MonitoringRuleType,
     PriceObservation,
 )
 from app.features.position_monitoring.domain.transitions import TriggerTransition
 from app.features.position_monitoring.service.application import MonitoringEvaluationResult
+from app.features.position_monitoring.service.rule_prices import (
+    CycleProductValuations,
+    ProductValuationReader,
+    rule_price,
+)
 from app.features.position_monitoring.service.subjects import MonitoringSubjectResolution
 
 
@@ -39,6 +41,9 @@ class MonitoringRuleProcessor(Protocol):
 class CreatedPositionAlert:
     alert: Alert
     symbol: str
+    warrant_name: str | None = None
+    warrant_isin: str | None = None
+    warrant_wkn: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -56,6 +61,8 @@ class MonitoringCycleResult:
     position_errors: int
     alerts: tuple[Alert, ...]
     created_alerts: tuple[CreatedPositionAlert, ...]
+    blocked_rules: int = 0
+    rule_checks: tuple[dict[str, str | None], ...] = ()
 
 
 class PositionMonitoringCycleService:
@@ -65,7 +72,8 @@ class PositionMonitoringCycleService:
         self,
         *,
         subjects: MonitoringSubjectSource,
-        market_data: LatestCompletedDailyPriceProvider,
+        market_data: LatestCompletedDailyPriceProvider | None,
+        products: ProductValuationReader | None = None,
         processor: MonitoringRuleProcessor,
         now: Callable[[], datetime] = lambda: datetime.now(UTC),
         new_id: Callable[[], UUID],
@@ -75,6 +83,7 @@ class PositionMonitoringCycleService:
             raise ValueError("max_completed_price_age_days must not be negative")
         self._subjects = subjects
         self._market_data = market_data
+        self._products = products
         self._processor = processor
         self._now = now
         self._new_id = new_id
@@ -88,69 +97,87 @@ class PositionMonitoringCycleService:
         created_alerts: list[CreatedPositionAlert] = []
         now = self._now()
 
+        checks: list[dict[str, str | None]] = []
+        blocked = 0
+        products = CycleProductValuations(self._products) if self._products else None
         for resolution in resolutions:
             subject = resolution.subject
             if subject is None:
                 subject_errors += 1
                 continue
-            try:
-                result = await self._market_data.get_latest_completed_daily_price(
-                    LatestDailyPriceRequest(
-                        workspace_id=subject.workspace_id,
-                        listing_id=subject.listing_id,
-                        mapping_id=subject.mapping_id,
-                        correlation_id=self._new_id(),
-                        as_of_date=now.date(),
+            position_checked = False
+            for rule in subject.rules:
+                check: dict[str, str | None] = {
+                    "trade_id": str(subject.trade_id),
+                    "rule_key": rule.rule_key,
+                    "threshold": str(rule.threshold),
+                    **(rule.price_binding.as_dict() if rule.price_binding else {}),
+                }
+                try:
+                    result = await rule_price(
+                        subject=subject,
+                        rule=rule,
+                        market_data=self._market_data,
+                        products=products,
+                        now=now,
+                        max_age_days=self._max_age_days,
                     )
-                )
-            except Exception:
-                data_errors += 1
-                continue
-            price = result.data
-            if price is None:
-                missing += 1
-                continue
-            if result.quality_status is not QualityStatus.VALID:
-                data_errors += 1
-                continue
-            if (now.date() - price.trading_date).days > self._max_age_days:
-                stale += 1
-                continue
-
-            checked += 1
-            try:
-                for rule in subject.rules:
-                    value = (
-                        price.low
-                        if rule.rule_type is MonitoringRuleType.STOP_REACHED
-                        else price.high
+                except Exception:
+                    data_errors += 1
+                    checks.append(
+                        {**check, "status": "ERROR", "reason": "RULE_PRICE_REQUEST_FAILED"}
                     )
+                    continue
+                checks.append({**check, "status": result.status, "reason": result.reason})
+                if result.observation is None:
+                    if result.status == "BLOCKED":
+                        blocked += 1
+                    elif result.status == "MISSING":
+                        missing += 1
+                    elif result.status == "STALE":
+                        stale += 1
+                    else:
+                        data_errors += 1
+                    continue
+                observation = result.observation
+                checks[-1].update(observation.context or {})
+                checks[-1]["observed_value"] = str(observation.value)
+                try:
                     evaluation = await self._processor.process(
                         position_id=subject.position_id,
                         trade_id=subject.trade_id,
                         rule=rule,
-                        observation=PriceObservation(
-                            value=value,
-                            observed_at=price.source_updated_at or price.retrieved_at,
-                        ),
+                        observation=observation,
                     )
-                    rules_evaluated += 1
-                    if evaluation.alert is not None:
-                        alerts_created += 1
-                        alerts.append(evaluation.alert)
-                        created_alerts.append(
-                            CreatedPositionAlert(
-                                alert=evaluation.alert,
-                                symbol=subject.symbol,
-                            )
+                except Exception:
+                    position_errors += 1
+                    checks[-1].update(status="ERROR", reason="RULE_EVALUATION_FAILED")
+                    continue
+                position_checked = True
+                rules_evaluated += 1
+                if evaluation.alert is not None:
+                    alerts_created += 1
+                    alerts.append(evaluation.alert)
+                    created_alerts.append(
+                        CreatedPositionAlert(
+                            evaluation.alert,
+                            (
+                                subject.warrant_isin or subject.symbol
+                                if rule.price_binding
+                                and rule.price_binding.basis.value == "WARRANT"
+                                else subject.symbol
+                            ),
+                            warrant_name=subject.warrant_name,
+                            warrant_isin=subject.warrant_isin,
+                            warrant_wkn=subject.warrant_wkn,
                         )
-                    if evaluation.transition is TriggerTransition.STAYED_TRIGGERED:
-                        deduplicated += 1
-                    elif evaluation.transition is TriggerTransition.EXITED:
-                        resolved += 1
-            except Exception:
-                position_errors += 1
-                continue
+                    )
+                if evaluation.transition is TriggerTransition.STAYED_TRIGGERED:
+                    deduplicated += 1
+                elif evaluation.transition is TriggerTransition.EXITED:
+                    resolved += 1
+            if position_checked:
+                checked += 1
 
         return MonitoringCycleResult(
             positions_seen=len(resolutions),
@@ -166,4 +193,6 @@ class PositionMonitoringCycleService:
             position_errors=position_errors,
             alerts=tuple(alerts),
             created_alerts=tuple(created_alerts),
+            blocked_rules=blocked,
+            rule_checks=tuple(checks),
         )

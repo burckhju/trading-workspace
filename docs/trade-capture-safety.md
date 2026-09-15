@@ -178,3 +178,25 @@ rule is included in this UI follow-up. Deploy the new frontend/backend build nor
 `20260912_0036` remains the required backend schema. The regression browser test covers
 an actual UI BUY-date correction, a backdated full sale through the sale form, a SELL-date
 correction after closure, reload persistence and unchanged original execution history.
+
+## Trade Management: one URL, one transaction context
+
+`trade_id` in the current URL owns the page's complete trade context. Changing it
+through the lookup, an application link or browser back/forward discards the old
+position, management data and unsent form drafts before the new reads complete.
+If any required read fails, no previous trade's capture/management controls remain
+visible. **Laden** can retry that same failed context without a write. Navigating
+to a section anchor within the same trade does not reset its draft.
+
+An obsolete read cannot replace the current trade. An already submitted action
+continues to refer only to its original trade; navigation neither cancels a real
+execution nor replays it for the new trade. Its late completion cannot update the
+new page or redirect it into the old trade's post-trade observation. Existing
+request identities, execution dates, corrections and backend guards are unchanged.
+
+Read-only check after separately approved deployment: open one known trade, then
+another through the existing lookup/navigation, and use browser back/forward.
+Check exact product identity, quantity and dates each time. Do not save or submit
+a transaction for this check. Failed-read and pending-write scenarios are covered
+by synthetic component tests and the disposable-stack browser regression; do not
+interrupt the production provider or create test bookings in the real depot.

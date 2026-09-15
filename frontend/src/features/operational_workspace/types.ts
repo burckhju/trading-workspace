@@ -32,6 +32,10 @@ export interface OperationalAction {
   next_action: string;
   target: string;
   occurred_at: string | null;
+  product_id?: string | null;
+  product_name?: string | null;
+  product_isin?: string | null;
+  product_wkn?: string | null;
 }
 
 export interface OperationalWorkspaceResponse {

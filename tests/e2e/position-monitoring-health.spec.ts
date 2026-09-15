@@ -24,6 +24,14 @@ for (const valuationStatus of ["STALE", "LAST_AVAILABLE"] as const) {
         return json(route, { message: "Analysis must be read-only" }, 405);
       }
       const path = new URL(route.request().url()).pathname;
+      if (path.endsWith('/position-monitoring/runtime/status')) {
+        return json(route, {
+          enabled: false, running: false, cycle_running: false, interval_seconds: 900,
+          scope: 'PROCESS_LOCAL_ALL_WORKSPACES', price_basis: 'COMPLETED_UNDERLYING_DAILY_LOW_HIGH',
+          last_cycle_started_at: null, last_cycle_completed_at: null,
+          next_run_at: null, last_error: null, last_error_at: null, last_result: null,
+        });
+      }
 
       if (path.endsWith(`/trade-position/trades/${tradeId}`)) {
         return json(route, {
@@ -124,6 +132,17 @@ for (const valuationStatus of ["STALE", "LAST_AVAILABLE"] as const) {
           trading_date: "2026-09-01",
           market_data_observed_at: "2026-09-01T20:00:00Z",
           age_days: 5,
+          basis: {
+            underlying_id: '40000000-0000-4000-8000-000000000001',
+            name: 'Example basis', isin: 'US0378331005',
+            listing_id: '40000000-0000-4000-8000-000000000002', venue_mic: 'XFRA', currency: 'EUR',
+          },
+          daily_price: {
+            listing_id: '40000000-0000-4000-8000-000000000002', trading_date: '2026-09-01',
+            close: '24100', low: '23900', high: '24200', currency: 'EUR',
+            provider: 'EODHD', provider_symbol: 'DAX.INDX', source_updated_at: null,
+            retrieved_at: '2026-09-01T20:00:00Z',
+          },
         });
       }
       return json(route, { code: "E2E_ROUTE_MISSING", message: path }, 500);
@@ -136,8 +155,13 @@ for (const valuationStatus of ["STALE", "LAST_AVAILABLE"] as const) {
     ).toBeVisible();
     await expect(page.getByText("STALE", { exact: true })).toBeVisible();
     await expect(page.getByText("DAX.INDX", { exact: true })).toBeVisible();
+    await expect(page.getByText('Automatische Prüfung deaktiviert')).toBeVisible();
+    await expect(page.getByText('24.100 EUR', { exact: true })).toBeVisible();
+    await expect(page.getByText('23.900 EUR', { exact: true })).toBeVisible();
+    await expect(page.getByText('24.200 EUR', { exact: true })).toBeVisible();
+    await expect(page.getByText(/Example basis · US0378331005 · XFRA · EUR/)).toBeVisible();
     await expect(
-      page.getByText(/Daraus wird kein Stop-\/Target-Alert abgeleitet/i),
+      page.getByText(/Optionsschein-Regeln verwenden ihre eigene Kursquelle/i),
     ).toBeVisible();
     await expect(
       page.getByText("Für diesen Trade liegen noch keine Alerts vor."),
@@ -145,7 +169,7 @@ for (const valuationStatus of ["STALE", "LAST_AVAILABLE"] as const) {
     await expect(
       page.getByText("Kursdaten veraltet – nur indikative Analyse"),
     ).toBeVisible();
-    await expect(page.getByText(/Kursstand:/)).toContainText("2280 Min.");
+    await expect(page.getByText(/Kursstand:/)).toContainText("1 Tag 14 Std.");
     await expect(
       page.getByText("Indikativer Wert (letzter Bid)"),
     ).toBeVisible();

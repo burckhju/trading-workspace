@@ -209,3 +209,19 @@ def test_product_errors_use_stable_http_conflict_contract() -> None:
             )
         assert response.status_code == status_code
         assert response.json()["code"] == code
+
+
+def test_identifier_correction_endpoint_scopes_version_and_validates_request():
+    app = create_application(settings())
+    svc = AsyncMock()
+    svc.correct_identifiers.return_value = warrant(version=2)
+    app.dependency_overrides[service] = lambda: svc
+    body = dict(expected_version=1, isin="DE000VH2LU21", wkn="VH2LU2", evidence="Broker document")
+    with TestClient(app) as client:
+        path = f"/api/v1/warrants/{WARRANT_ID}/identifiers"
+        response = client.patch(path, json=body)
+        assert response.status_code == 200
+        svc.correct_identifiers.assert_awaited_once_with(WORKSPACE_ID, WARRANT_ID, **body)
+        assert client.patch(path, json={**body, "isin": "DE000PK72H6"}).status_code == 422
+        svc.correct_identifiers.side_effect = WarrantConcurrentModification("Reload required")
+        assert client.patch(path, json=body).status_code == 409

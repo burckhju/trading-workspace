@@ -24,9 +24,10 @@ symbol, mapping or venue is seeded by this change.
 
 ## Decision and identity checks
 
-Missing stock mappings use the existing EODHD adapter's authenticated exchange
+Missing stock mappings first use the existing EODHD adapter's authenticated exchange
 and active-symbol catalogs. Exact ISIN, row currency, stock type and venue are
-required, with exactly one provider symbol. Duplicate conflicting identities,
+required, with exactly one provider symbol. The sparse-ISIN fallback described below
+can corroborate a missing catalog ISIN through the official Search API. Duplicate conflicting identities,
 unverified segments and missing ISINs block creation. An ADR is never replaced
 by the ordinary share, nor a stock by an index. Local ticker names are not evidence.
 
@@ -122,3 +123,124 @@ The PostgreSQL test exercises scheduled discovery at four venues, neutral
 identity constraints, mapping audit, EOD persistence, repeated scans and disabled
 mapping preservation with deterministic provider responses. Live account and
 portfolio verification must occur in the user's deployment.
+
+## Sparse ISIN catalogs and alternative venues (2026-09-14)
+
+After an explicit same-currency venue decision, use the
+[verified underlying venue switch](underlying-venue-switch.md). It stages and
+imports the target data before changing the primary listing; automatic discovery
+continues to leave the venue decision untouched.
+
+A later 52-position deployment report showed 20 underlying discoveries with
+`EODHD_ISIN_NOT_FOUND_ON_VENUE`, all on existing XETR/EUR listings. This proves
+that the requested venue catalog did not return their ISINs. It does **not**
+prove that the stocks are unavailable throughout EODHD, or whether their local
+catalog rows have a missing ISIN. Both possibilities must be distinguished using
+the configured account; the report did not contain those raw provider rows.
+
+Automatic refresh now uses an additional, bounded verification path **only**
+after `EODHD_ISIN_NOT_FOUND_ON_VENUE`:
+
+1. Query the official Search API with the exact underlying ISIN (`limit=500`).
+   Ignore names, local ticker guesses, other ISINs and Search's price fields.
+2. Corroborate each candidate using the existing exchange and symbol catalogs.
+   The candidate symbol must actually occur at that venue, in the same currency,
+   as a stock. A missing catalog ISIN can be supplied by Search's exact ISIN;
+   a conflicting catalog ISIN, currency, type or venue cannot be overridden.
+3. Activate through the existing audited mapping administration only when the
+   requested venue and currency have one unambiguous, corroborated identity.
+   The next underlying EOD job then follows the existing import path. Existing
+   mappings, including disabled ones, remain unchanged.
+4. If that fails, expose checked alternatives in the refresh job. Even a verified
+   alternative is **not** substituted into the existing primary listing. Different
+   currencies require review of the rule price basis; even the same currency at a
+   different venue requires an explicit listing decision. A US composite symbol
+   still needs NASDAQ/NYSE symbol-catalog evidence to establish its MIC.
+
+This extends identity verification within the existing provider boundary. It
+creates no additional listings, switches no primary flags, changes no stop/target
+values, converts no currencies, and writes no user-specific reference seeds.
+No schema change is needed. A verified identity establishes a provider address,
+not available EOD history, live prices, executable quotes or a successful monitoring
+cycle. Warrant valuation and missing issuer coverage are separate paths.
+
+Source: [EODHD Search API](https://eodhd.com/financial-apis/search-api-for-stocks-etfs-mutual-funds)
+and the exchange catalog documentation linked above, checked 2026-09-14.
+
+### Access and request limits
+
+The path uses the configured EODHD account and its existing shared daily budget,
+rate limiter and retries. No subscription change or additional secret is made.
+Search consumes provider quota (the documentation lists one API call per request);
+access to the requested markets/history remains account-dependent. Authentication,
+authorization, quota and transport errors remain visible.
+
+Successful search responses, including empty results, are cached for 24 hours
+with at most 256 ISIN keys in the single backend process. Catalogs share their
+existing 24-hour cache. Concurrent discoveries share a lock; repeated empty
+searches do not consume quota each scan. Expiry, eviction or restart permits a
+new request. Invalid payloads are not cached.
+
+An exactly full 500-row Search response cannot establish uniqueness and blocks
+activation. More than 12 candidates at the requested provider venue also blocks
+activation. At most 12 candidate rows are checked across venues; additional
+alternative candidates are explicitly reported as truncated. US candidates may
+require two subvenue catalogs. A verified current listing returns immediately
+without fetching unrelated foreign catalogs. Direct catalog success and existing
+catalog conflicts do not trigger Search at all.
+
+### Diagnostics and local verification
+
+Deploy with the existing configuration:
+
+```bash
+git switch main
+git pull --ff-only
+bash scripts/start-linux.sh --frankfurt
+```
+
+The helper rebuilds/restarts the services and runs `alembic upgrade head`. Keep
+`market_data.refresh.enabled` and `auto_configure` enabled. The first catalog
+pass after restart performs discovery in the independent underlying queue.
+It no longer waits for the warrant queue, but provider pacing and earlier jobs
+within the same queue can still delay completion for a large portfolio.
+An immediate status request may therefore still show pending jobs. See
+[queue diagnostics](automatic-market-data.md#independent-warrant-and-underlying-queues-2026-09-14).
+No per-instrument SQL repair or additional credentials are required to run the verification.
+
+After discovery, inspect held underlying mappings:
+
+```bash
+curl -fsS http://localhost:8000/api/v1/market-data/refresh/status \
+  | jq '[.jobs[]
+         | select(.held == true and (.job | startswith("EODHD_MAPPING:")))
+         | {name, isin, listing_id, status, reason, discovery_source,
+            listing_mic, listing_currency, provider_identity,
+            search_reason, search_retrieved_at, alternative_candidates}]'
+```
+
+| Result | Meaning / next action |
+| --- | --- |
+| `EODHD_MAPPING_ACTIVE`, source `EODHD_ISIN_SEARCH_AND_CATALOG` | Existing listing repaired using both official payloads. Check its subsequent `UNDERLYING_EOD` job for `COMPLETED_EOD_IMPORTED` and then monitoring health. |
+| `EODHD_SEARCH_ISIN_NOT_FOUND` | Search also returned no exact ISIN. Verify master identity and request provider coverage evidence. |
+| Candidate `identity_verified: true` | Symbol, currency and MIC are corroborated. This candidate has not automatically changed the primary listing or monitoring rules. |
+| `requires_listing_review: true` | Alternative venue and/or currency; review and explicitly maintain the intended listing. |
+| `requires_rule_currency_review: true` | Never compare this candidate's foreign-currency prices with existing thresholds without an explicit rule-basis decision. |
+| Candidate `EODHD_SEARCH_CATALOG_CONFLICT` | Search and catalog disagree; no automatic activation. |
+| Candidate `EODHD_SEARCH_SYMBOL_NOT_IN_VENUE_CATALOG` | Search alone does not prove the venue. For US candidates, one missing subvenue alongside a verified other subvenue is expected. |
+| `EODHD_SEARCH_RESULT_LIMIT_REACHED` / `EODHD_SEARCH_CANDIDATE_LIMIT_REACHED` | Verification was incomplete; no automatic selection. |
+| `EODHD_SEARCH_ALTERNATIVES_TRUNCATED` | Bounded, partial alternative list; no automatic selection. |
+
+The mapping audit stores `EODHD_ISIN_CATALOG_V1` provenance in compact JSON:
+`isin`, `ccy`, `mic`, `symbol`, `exchange`, `catalog`, `catalog_at`,
+`exchanges_at`, `search`, `search_at`. The exchange metadata endpoint is always
+`/exchanges-list/`. All three original retrieval timestamps are rechecked before
+activation. They are metadata verification times, not quote times.
+
+Regression tests cover absent versus conflicting catalog ISINs, exact ISIN and
+ADR isolation, US subvenues, foreign-currency and same-currency alternatives,
+ambiguous and unsafe symbols, result bounds, cache expiry/eviction/concurrency,
+quota, scoped evidence and disabled mappings. The PostgreSQL regression exercises
+scheduler discovery, audited mapping activation, EOD persistence and repeat scans
+without changing the primary listing. Live coverage of the reported 20 stocks
+still requires the user's configured deployment; tests use controlled payloads.

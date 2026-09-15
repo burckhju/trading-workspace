@@ -20,7 +20,9 @@ from app.features.position_monitoring.service.cycle import (
     MonitoringCycleResult,
     PositionMonitoringCycleService,
 )
+from app.features.position_monitoring.service.legacy_alerts import invalidate_unbound_alerts
 from app.features.position_monitoring.service.processor import SqlAlchemyMonitoringRuleProcessor
+from app.features.position_monitoring.service.rule_prices import ProductValuationReader
 from app.features.position_monitoring.service.subjects import SqlAlchemyMonitoringSubjectReader
 
 logger = logging.getLogger(__name__)
@@ -32,6 +34,7 @@ class PositionMonitoringRuntimeResult:
     notifications_created: int
     notifications_delivered: int
     notification_failures: int
+    alerts_invalidated: int = 0
 
 
 class PositionMonitoringRuntimeService:
@@ -41,7 +44,8 @@ class PositionMonitoringRuntimeService:
         self,
         *,
         database: DatabaseManager,
-        market_data: LatestCompletedDailyPriceProvider,
+        market_data: LatestCompletedDailyPriceProvider | None,
+        products: ProductValuationReader | None = None,
         delivery_adapter: NotificationDeliveryAdapter | None,
         max_completed_price_age_days: int = 4,
         delivery_max_attempts: int = 3,
@@ -49,15 +53,18 @@ class PositionMonitoringRuntimeService:
     ) -> None:
         self._database = database
         self._market_data = market_data
+        self._products = products
         self._delivery_adapter = delivery_adapter
         self._max_completed_price_age_days = max_completed_price_age_days
         self._delivery_max_attempts = delivery_max_attempts
         self._delivery_recovery_timeout = delivery_recovery_timeout
 
     async def run(self) -> PositionMonitoringRuntimeResult:
+        async with self._database.session_context() as session:
+            invalidated = await invalidate_unbound_alerts(session, now=datetime.now(UTC))
         cycle_result = await self._run_monitoring_cycle()
         if self._delivery_adapter is None:
-            return PositionMonitoringRuntimeResult(cycle_result, 0, 0, 0)
+            return PositionMonitoringRuntimeResult(cycle_result, 0, 0, 0, invalidated)
 
         created = 0
         for created_alert in cycle_result.created_alerts:
@@ -96,12 +103,14 @@ class PositionMonitoringRuntimeService:
             notifications_created=created,
             notifications_delivered=delivered,
             notification_failures=failures,
+            alerts_invalidated=invalidated,
         )
 
     async def _run_monitoring_cycle(self) -> MonitoringCycleResult:
         async with self._database.session_context() as session:
             service = PositionMonitoringCycleService(
-                subjects=SqlAlchemyMonitoringSubjectReader(session),
+                subjects=SqlAlchemyMonitoringSubjectReader(session, for_rule_evaluation=True),
+                products=self._products,
                 market_data=self._market_data,
                 processor=SqlAlchemyMonitoringRuleProcessor(session),
                 new_id=uuid4,
@@ -119,5 +128,8 @@ class PositionMonitoringRuntimeService:
             await service.create_telegram(
                 alert=created_alert.alert,
                 symbol=created_alert.symbol,
+                warrant_name=created_alert.warrant_name,
+                warrant_isin=created_alert.warrant_isin,
+                warrant_wkn=created_alert.warrant_wkn,
             )
             await session.commit()

@@ -29,6 +29,66 @@ normal quote reads never write portfolio data.
 
 ## Available-price analysis policy (2026-09-12)
 
+### Per-instrument retry isolation (2026-09-14)
+
+A public `single?isin=...&mic=XSC` HTTP 404 is remembered for that exact ISIN
+for one hour by default. It does not establish that the product is delisted.
+Other instruments can proceed after the ordinary configured request spacing
+(default 15 seconds), without the former additional 60-second source backoff.
+Repeated reads of the failed identity make no HTTP request and do not extend
+either retry deadline. The failed identity stays unavailable; its previous
+observation cannot be resurrected as an indicative fallback after a 404.
+
+The existing error cache is bounded to 256 identities and remains process-local.
+A successful retry clears that identity's failure; restart or cache eviction can
+cause an earlier reprobe, still subject to the ordinary provider request limit.
+The next eligible probe also depends on scheduler due times and queue length.
+The optional backend setting, passed through `docker/frankfurt.env`, is:
+
+```dotenv
+TRADING_WORKSPACE_MARKET_DATA__FRANKFURT__INSTRUMENT_RETRY_SECONDS=3600
+```
+
+Allowed range: 60–86400 seconds. Existing installations need no configuration
+change. The fixed snapshot endpoint's HTTP 404 and all other error classes retain
+their source-wide backoff. HTTP 401/403 continue to invalidate all source prices.
+HTTP 429/503 additionally honor a valid `Retry-After` duration or HTTP date if it
+requires a longer pause than the existing minimum of 60 seconds. Invalid or past
+headers never reduce that minimum. This change enables no provider, subscription,
+order, notification or user-data mutation.
+
+`GET /api/v1/position-monitoring/quote-sources/frankfurt/health` adds:
+
+- `instrument_retry_seconds`: configured per-ISIN 404 retry interval;
+- `instrument_backoff_count`: identities currently waiting for that interval;
+- `request_cooldown_seconds`: remaining pause for a new provider HTTP request.
+
+The count is a transport diagnostic, not a count of all unavailable positions.
+An expired retry window is not proof of recovered coverage. Cache reads leave
+original quote/retrieval timestamps intact; `coverage_verified` and
+`execution_usable` remain false in source health.
+
+Deploy and inspect without reconfiguring mappings:
+
+```bash
+git switch main
+git pull --ff-only
+bash scripts/start-linux.sh --frankfurt
+curl -fsS http://localhost:8000/api/v1/position-monitoring/quote-sources/frankfurt/health \
+  | jq '{last_error, instrument_retry_seconds, instrument_backoff_count, request_cooldown_seconds}'
+curl -fsS http://localhost:8000/api/v1/market-data/refresh/status \
+  | jq '{current_job, jobs: [.jobs[] | select(.held == true) | {name, job, status, reason, checked_at, next_run_at}]}'
+```
+
+The startup helper builds the images, upgrades Alembic and restarts the services.
+This change adds no migration. During a missing product's retry window, another
+covered instrument must continue to obtain observations at the ordinary pacing.
+Persistent 404/mapping failures remain visible. This fix removes an avoidable
+portfolio delay; it does not promise a five-minute cycle for a large catalog or
+repair missing source coverage or underlying mappings.
+
+### Reference valuation semantics
+
 At the user's request, data age and price kind are disclosed rather than used to
 silence analysis. `WarrantQuoteSnapshot` now represents either bid/ask with a
 quote timestamp or an explicitly typed `reference_price` (`LAST_TRADE` or

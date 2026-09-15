@@ -45,7 +45,7 @@ def setup(monkeypatch):
     )
     adapter = SimpleNamespace(
         stock_catalog=SimpleNamespace(
-            discover=AsyncMock(
+            discover_with_search=AsyncMock(
                 return_value=StockCatalogDiscovery(
                     "EODHD_CATALOG_IDENTITY_VERIFIED", proof, "PA", 1
                 )
@@ -76,7 +76,7 @@ async def test_first_mapping_uses_official_proof_and_existing_audited_administra
     assert (
         result["listing_mic"] == "XPAR" and result["catalog_endpoint"] == "/exchange-symbol-list/PA"
     )
-    adapter.stock_catalog.discover.assert_awaited_once_with(
+    adapter.stock_catalog.discover_with_search.assert_awaited_once_with(
         isin="FR0000121329", currency="EUR", mic="XPAR"
     )
     command = admin.create_or_update.await_args.args[0]
@@ -133,7 +133,7 @@ async def test_unverified_identity_or_existing_mapping_never_changes_master_data
     if failure == "disabled_provider":
         container.eodhd = None
     if failure == "currency":
-        adapter.stock_catalog.discover.return_value = StockCatalogDiscovery(
+        adapter.stock_catalog.discover_with_search.return_value = StockCatalogDiscovery(
             "EODHD_LISTING_CURRENCY_MISMATCH",
             provider_exchange_code="PA",
             matching_isin_count=1,
@@ -164,3 +164,34 @@ async def test_catalog_identity_owned_by_another_listing_is_not_reassigned(monke
     assert result["reason"] == "EODHD_PROVIDER_IDENTITY_ALREADY_MAPPED"
     assert result["owner_listing_id"] == str(owner.listing_id)
     admin.create_or_update.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_foreign_verified_alternative_is_visible_but_never_activated(monkeypatch):
+    from dataclasses import replace
+
+    from app.providers.eodhd.stock_catalog import StockCatalogAlternative
+
+    container, _, adapter, admin, _, _, workspace, listing_id = setup(monkeypatch)
+    proof = adapter.stock_catalog.discover_with_search.return_value.identity
+    proof = replace(
+        proof, mic="XNAS", item=replace(proof.item, currency="USD", provider_exchange_code="US")
+    )
+    adapter.stock_catalog.discover_with_search.return_value = StockCatalogDiscovery(
+        "EODHD_ISIN_NOT_FOUND_ON_VENUE",
+        provider_exchange_code="PA",
+        alternatives=(StockCatalogAlternative("EXAMPLE", "US", "USD", "XNAS", "VERIFIED", proof),),
+        search_endpoint=f"/search/{proof.item.isin}",
+        search_retrieved_at=proof.catalog_retrieved_at,
+        search_reason="EODHD_SEARCH_CANDIDATES_CHECKED",
+    )
+    result = await discover_underlying(container, workspace, listing_id)
+    assert result["status"] == "BLOCKED"
+    candidate = result["alternative_candidates"][0]
+    assert candidate["identity_verified"] is True
+    assert candidate["requires_rule_currency_review"] is True
+    assert candidate["requires_listing_review"] is True
+    assert candidate["same_currency"] is False
+    assert candidate["execution_usable"] is False
+    admin.create_or_update.assert_not_awaited()
+    admin.validate.assert_not_awaited()

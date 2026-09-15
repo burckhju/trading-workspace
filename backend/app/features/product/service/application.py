@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
 from datetime import UTC, date, datetime
 from decimal import Decimal
 from uuid import UUID, uuid4
@@ -13,20 +13,31 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.exc import StaleDataError
 from sqlalchemy.sql.elements import ColumnElement
 
-from app.features.market.domain.enums import LifecycleStatus
+from app.features.market.domain.enums import (
+    ActorType,
+    AggregateType,
+    ChangeType,
+    DataOrigin,
+    LifecycleStatus,
+)
+from app.features.market.domain.normalization import normalize_isin, normalize_wkn
 from app.features.market.persistence.models import (
+    AuditEventModel,
     CurrencyModel,
     IssuerModel,
     ListingModel,
     TradingVenueModel,
     UnderlyingModel,
 )
+from app.features.market_data.domain.enums import MappingStatus
+from app.features.market_data.persistence.models import WarrantProviderMappingModel
 from app.features.product.domain.models import (
     OptionDirection,
     ProductFamily,
     WarrantLifecycle,
     normalize_strike_currency,
 )
+from app.features.product.persistence.identity_reader import read_identities
 from app.features.product.persistence.models import (
     WarrantListingModel,
     WarrantModel,
@@ -41,11 +52,20 @@ from app.features.product.service.errors import (
     WarrantNotFound,
     WarrantServiceError,
 )
+from app.features.product.service.identities import WarrantIdentity
 
 
 class WarrantService:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
+
+    async def read_identities(
+        self, *, workspace_id: UUID, warrant_ids: Collection[UUID]
+    ) -> dict[UUID, WarrantIdentity]:
+        """Return current labels for exact IDs in one batch, without resolving similar names."""
+        return await read_identities(
+            self._session, workspace_id=workspace_id, warrant_ids=warrant_ids
+        )
 
     async def list(self, workspace_id: UUID) -> list[WarrantModel]:
         rows = await self._session.scalars(
@@ -133,6 +153,80 @@ class WarrantService:
         model.lifecycle_status = status
         model.version += 1
         model.updated_at = datetime.now(UTC)
+        await self._commit()
+        return model
+
+    async def correct_identifiers(
+        self,
+        workspace_id: UUID,
+        warrant_id: UUID,
+        *,
+        expected_version: int,
+        isin: str,
+        wkn: str | None,
+        evidence: str,
+    ) -> WarrantModel:
+        """Correct reference data without recreating the held product or its history."""
+        model = await self.get(workspace_id, warrant_id)
+        if model.version != expected_version:
+            raise WarrantConcurrentModification(
+                "Warrant changed; reload before correcting identifiers"
+            )
+        normalized_isin, normalized_wkn = normalize_isin(isin), normalize_wkn(wkn)
+        if normalized_isin is None or not evidence.strip():
+            raise WarrantServiceError("Verified ISIN and correction evidence are required")
+        if (model.isin, model.wkn) == (normalized_isin, normalized_wkn):
+            return model
+        await self._require_unique_identifiers(
+            workspace_id,
+            normalized_isin if normalized_isin != model.isin else None,
+            normalized_wkn if normalized_wkn != model.wkn else None,
+        )
+        now = datetime.now(UTC)
+        before = {"isin": model.isin, "wkn": model.wkn}
+        mappings = await self._session.scalars(
+            select(WarrantProviderMappingModel)
+            .join(
+                WarrantListingModel,
+                WarrantListingModel.id == WarrantProviderMappingModel.warrant_listing_id,
+            )
+            .where(
+                WarrantListingModel.warrant_id == warrant_id,
+                WarrantListingModel.workspace_id == workspace_id,
+                WarrantProviderMappingModel.workspace_id == workspace_id,
+                WarrantProviderMappingModel.status == MappingStatus.ACTIVE,
+            )
+        )
+        for mapping in mappings:
+            mapping.status = MappingStatus.INVALID
+            mapping.validated_at = None
+            mapping.validation_message = "WARRANT_IDENTIFIERS_CORRECTED_REVALIDATION_REQUIRED"
+            mapping.version += 1
+            mapping.updated_at = now
+        self._session.add(
+            AuditEventModel(
+                id=uuid4(),
+                workspace_id=workspace_id,
+                aggregate_type=AggregateType.WARRANT,
+                aggregate_id=model.id,
+                occurred_at=now,
+                actor_type=ActorType.SYSTEM_USER,
+                actor_id=None,
+                actor_display_name="Workspace user",
+                data_origin=DataOrigin.MANUAL,
+                change_type=ChangeType.UPDATED,
+                version_before=model.version,
+                version_after=model.version + 1,
+                field_changes={
+                    "isin": {"old": before["isin"], "new": normalized_isin},
+                    "wkn": {"old": before["wkn"], "new": normalized_wkn},
+                    "correction_evidence": {"old": None, "new": evidence.strip()},
+                },
+            )
+        )
+        model.isin, model.wkn = normalized_isin, normalized_wkn
+        model.version += 1
+        model.updated_at = now
         await self._commit()
         return model
 

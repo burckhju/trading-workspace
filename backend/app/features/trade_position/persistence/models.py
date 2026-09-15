@@ -7,6 +7,7 @@ from decimal import Decimal
 from uuid import UUID
 
 from sqlalchemy import (
+    JSON,
     CheckConstraint,
     Date,
     DateTime,
@@ -331,6 +332,9 @@ class TradeManagementEventModel(Base):
     effective_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     recorded_by: Mapped[UUID] = mapped_column(Uuid(), nullable=False)
+    price_binding: Mapped[dict[str, str] | None] = mapped_column(
+        JSON(none_as_null=True), nullable=True
+    )
     numeric_value: Mapped[Decimal | None] = mapped_column(Numeric(24, 10), nullable=True)
     text_value: Mapped[str | None] = mapped_column(String(4000), nullable=True)
     supersedes_event_id: Mapped[UUID | None] = mapped_column(Uuid(), nullable=True)

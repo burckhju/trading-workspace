@@ -11,6 +11,13 @@ function formatDecimal(value: string | null): string {
 function formatQuoteAge(value: ProductPositionValuationResponse): string {
   if (value.quote_age_seconds === null) return 'Alter unbekannt';
   if (value.quote_age_seconds < 60) return `${value.quote_age_seconds} Sek.`;
+  if (value.quote_age_seconds >= 86400) {
+    const days = Math.floor(value.quote_age_seconds / 86400);
+    return `${days} ${days === 1 ? 'Tag' : 'Tage'} ${Math.floor((value.quote_age_seconds % 86400) / 3600)} Std.`;
+  }
+  if (value.quote_age_seconds >= 3600) {
+    return `${Math.floor(value.quote_age_seconds / 3600)} Std. ${Math.floor((value.quote_age_seconds % 3600) / 60)} Min.`;
+  }
   return `${Math.floor(value.quote_age_seconds / 60)} Min.`;
 }
 
@@ -38,7 +45,7 @@ function reasonText(reason: string): string {
     case 'LAST_SUCCESSFUL_QUOTE_REFRESH_FAILED':
       return 'Der Kurs konnte nicht erneut abgerufen werden. Die Auswertung verwendet die Daten des letzten erfolgreichen Abrufs; Kursstand und Abrufzeitpunkt bleiben unverändert.';
     case 'REFERENCE_PRICE_AVAILABLE_FOR_ANALYSIS':
-      return 'Auswertung und Überwachung verwenden den verfügbaren Handels- oder Schlusskurs. Dieser Referenzkurs ist kein aktuelles Kauf- oder Verkaufsangebot. Stop und Target werden weiterhin anhand des Underlyings überwacht.';
+      return 'Auswertung und Überwachung verwenden den verfügbaren Handels- oder Schlusskurs. Dieser Referenzkurs ist kein aktuelles Kauf- oder Verkaufsangebot. Stop und Target werden auf der für die jeweilige Regel festgelegten Instrument- und Währungsbasis geprüft.';
     case 'WARRANT_QUOTE_STALE':
       return 'Der letzte Produktkurs ist zu alt für eine belastbare aktuelle Depotbewertung. Eine indikative Analyse zum letzten verfügbaren Kurs bleibt möglich.';
     case 'MARKET_CLOSED_LAST_AVAILABLE_QUOTE':
@@ -184,6 +191,13 @@ export function ProductValuationPanel({ tradeId }: { tradeId: string }) {
           {value.quote_refresh_error && (
             <p className="mt-1">Abrufhinweis: {value.quote_refresh_error}</p>
           )}
+          {value.quote_retained && (
+            <p className="mt-1">
+              Gespeicherter Kurs: Seit dem letzten erfolgreichen Abruf liegt keine neue geprüfte
+              Kursbeobachtung vor. Kurszeitpunkt und Abrufzeit bleiben unverändert; die Bewertung
+              ist indikativ.
+            </p>
+          )}
         </div>
       )}
 
@@ -194,7 +208,7 @@ export function ProductValuationPanel({ tradeId }: { tradeId: string }) {
             value.status === 'STALE' ||
             value.status === 'INDICATIVE'
               ? reasonText(value.reason)
-              : 'Indikative LONG-Bewertung zum Bid des exakt dokumentierten WarrantListings. Stop und Target werden weiterhin ausschließlich anhand des Underlyings überwacht.'}
+              : 'Indikative LONG-Bewertung zum Bid des zugeordneten Optionsscheins. Stop und Target werden auf der für die jeweilige Regel festgelegten Instrument- und Währungsbasis geprüft.'}
           </p>
           {value.reference_price_type && value.reference_price_type !== 'BID' && (
             <p className="mt-3 text-sm">
@@ -267,7 +281,7 @@ export function ProductValuationPanel({ tradeId }: { tradeId: string }) {
             · Handelsstatus: {value.trading_status ?? 'unbekannt'}
           </p>
           <p className="mt-2 text-xs text-slate-500">
-            Abgerufen:{' '}
+            Letzter erfolgreicher Abruf:{' '}
             {value.quote_retrieved_at
               ? new Date(value.quote_retrieved_at).toLocaleString('de-DE')
               : 'unbekannt'}{' '}

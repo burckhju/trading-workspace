@@ -24,15 +24,16 @@ async def run_refresh_forever(runtime: MarketDataRefreshRuntime) -> None:
                     runtime.leader = True
                     try:
                         while True:
-                            # Probe the dedicated connection before each batch; if
-                            # PostgreSQL lost the session, its lock is gone as well.
+                            # Probe every catalog scan, even while a provider lane
+                            # is busy. A lost session must stop both lane workers.
                             await connection.execute(text("SELECT 1"))
                             await connection.commit()
                             runtime.wake.clear()
-                            await runtime.run_once()
+                            await runtime.run_once(wait_for_completion=False)
                             with suppress(TimeoutError):
                                 await asyncio.wait_for(runtime.wake.wait(), timeout=30)
                     finally:
+                        await runtime.stop()
                         runtime.leader = False
                         await connection.execute(
                             text("SELECT pg_advisory_unlock(:key)"), {"key": lock_id}

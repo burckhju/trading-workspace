@@ -128,3 +128,55 @@ Automatisiert qualifiziert sind insbesondere:
 - Telegram inbound/bidirektional,
 - Order Execution oder automatische Kauf-/Verkaufsentscheidung,
 - Kafka/RabbitMQ oder ein generischer Message Bus.
+
+
+## Explicit price basis correction (2026-09-14)
+
+Automatic stop/target checks require a confirmed instrument and currency binding in the immutable management history. The former unconditional underlying-price interpretation is superseded. Legacy unbound rules remain blocked; legacy open alerts without provenance are quarantined. Product rules reuse the existing product valuation source and retain indicative-data warnings. See [Monitoring price basis](../monitoring-price-basis.md) for the binding contract, migration and local validation.
+
+## Optionsscheinname in Telegram (2026-09-14, NOTIFY-NAME-001)
+
+Neue Stop-/Target-Nachrichten nennen den vorhandenen `Warrant.display_name` sowie
+WKN und ISIN des zum Trade gehörenden Optionsscheins. Bisher transportierte der
+Monitoring-Zyklus nur das Kursreferenzsymbol (Basiswertticker beziehungsweise
+Optionsschein-ISIN), obwohl der Produktdatensatz bereits mit der Position geladen
+wurde. `MonitoringSubject` und `CreatedPositionAlert` reichen die zusätzlichen
+optionalen Anzeigefelder bis zur Notification-Erstellung weiter. Es gibt keine
+zusätzliche Produktabfrage, Provideranforderung, Identitätsauflösung nach Namen
+oder Änderung an Kursbezug, Regeln und Schwellen.
+
+Der Nachrichtentext beginnt beispielsweise mit ausschließlich synthetischen Daten:
+
+```text
+Position Alert
+Optionsschein: SYNTHETIC Musterbank Call auf Beispiel AG 120 2028
+WKN: SYN001 | ISIN: DE000SYN0010
+```
+
+Die bisherige Kursreferenz sowie Kursart, Währung, Quelle, Originalzeit und
+Warnungen bleiben erhalten. Produktnamen ändern nicht die Bedeutung eines
+Basiswert-Stops. Fehlende Namen werden als `Name nicht verfügbar`, fehlende
+Kennungen als `—` angezeigt; es wird kein Name aus dem Basiswertsymbol erfunden.
+Zeilenumbrüche/Mehrfachleerraum in den Anzeigefeldern werden vereinheitlicht.
+Telegram erhält weiterhin Plaintext ohne `parse_mode`; Sonderzeichen werden
+nicht als HTML oder Markdown interpretiert.
+
+Der Text wird einmal mit der Notification gespeichert. Bereits gespeicherte oder
+versandte Nachrichten werden nicht nachträglich umgeschrieben oder erneut
+versandt. Auch Pending-/Retry-Nachrichten behalten ihren ursprünglichen Text.
+Eine spätere Stammdatenumbenennung gilt erst für neu erzeugte Notifications.
+Alert-Deduplication, Outbox, Retry-/Recovery- und Stornierungssperren bleiben
+unverändert. Keine Migration und keine neue Konfiguration sind erforderlich.
+
+Prüfung: Unit-Tests decken Name/Leerwerte/Sonderzeichen, beide Alert-Typen und
+Preisbasen, zwei Optionsscheine auf demselben Basiswert, Datenweitergabe und
+unveränderte wiederholte Notification-Erstellung ab. Der PostgreSQL-Test
+`test_telegram_warrant_name_postgres.py` prüft Reader, Cycle, persistierte Outbox
+und Retry bis zum echten Telegram-Adapter mit vollständig abgefangenem HTTP.
+Er verwendet nur die ausgewiesene Wegwerf-Testdatenbank, keine reale Zustellung.
+
+Nach separat freigegebenem Deployment kann eine regulär neu entstehende Meldung
+auf Produktname und Kennungen geprüft werden. Bestehende Nachrichten bleiben
+unverändert. Die Alert-Sicht im Trade Management ist lesend; der One-shot-
+Monitoring-Befehl ist dagegen schreibend und darf nicht bloß für eine
+Namensprüfung mit realem Versand gestartet werden.

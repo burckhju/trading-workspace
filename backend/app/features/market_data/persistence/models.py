@@ -8,6 +8,7 @@ from typing import Any
 from uuid import UUID
 
 from sqlalchemy import (
+    JSON,
     CheckConstraint,
     Date,
     DateTime,
@@ -152,6 +153,22 @@ class WarrantProviderMappingModel(Base):
         "version_id_col": version,
         "version_id_generator": False,
     }
+
+
+class WarrantQuoteObservationModel(Base):
+    """Last validated observation per workspace, listing and provider; no expiry."""
+
+    __tablename__ = "warrant_quote_observations"
+
+    workspace_id: Mapped[UUID] = mapped_column(
+        ForeignKey("workspaces.id", ondelete="RESTRICT"), primary_key=True
+    )
+    warrant_listing_id: Mapped[UUID] = mapped_column(
+        ForeignKey("warrant_listings.id", ondelete="CASCADE"), primary_key=True
+    )
+    provider: Mapped[str] = mapped_column(String(30), primary_key=True)
+    identity_key: Mapped[str] = mapped_column(String(64), nullable=False)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
 
 
 class DailyPriceModel(Base):

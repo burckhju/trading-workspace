@@ -1,11 +1,12 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from app.core.di import ApplicationContainer, get_container
 from app.features.position_monitoring.api.dtos import (
     DynamicStopResponse,
+    MonitoringRuntimeStatusResponse,
     PositionAlertProjectionResponse,
     PositionAnalyticsResponse,
     PositionMonitoringHealthResponse,
@@ -33,6 +34,7 @@ from app.features.position_monitoring.service.product_valuation import (
 from app.features.position_monitoring.service.quote_runtime import (
     build_warrant_quote_resolver,
 )
+from app.features.position_monitoring.service.runner import PositionMonitoringRunner
 from app.features.position_monitoring.service.score_engine import PositionScoreService
 from app.features.position_monitoring.service.source_diagnostics import (
     get_stuttgart_delayed_source_health,
@@ -40,6 +42,21 @@ from app.features.position_monitoring.service.source_diagnostics import (
 )
 
 router = APIRouter(prefix="/api/v1/position-monitoring", tags=["position-monitoring"])
+
+
+@router.get("/runtime/status", response_model=MonitoringRuntimeStatusResponse)
+async def get_monitoring_runtime_status(
+    request: Request,
+    container: Annotated[ApplicationContainer, Depends(get_container)],
+) -> MonitoringRuntimeStatusResponse:
+    """Read this process's scheduler evidence; never run monitoring or delivery."""
+    runner = getattr(request.app.state, "position_monitoring_runner", None)
+    values = runner.status() if isinstance(runner, PositionMonitoringRunner) else {}
+    return MonitoringRuntimeStatusResponse(
+        enabled=container.settings.position_monitoring.enabled,
+        interval_seconds=container.settings.position_monitoring.interval_seconds,
+        **values,
+    )
 
 
 def _health_service(container: ApplicationContainer) -> PositionMonitoringHealthService:
@@ -125,16 +142,7 @@ async def get_trade_monitoring_health(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="No open position is available for monitoring",
         )
-    return PositionMonitoringHealthResponse(
-        trade_id=value.trade_id,
-        position_id=value.position_id,
-        status=value.status,
-        reason=value.reason,
-        symbol=value.symbol,
-        trading_date=value.trading_date,
-        market_data_observed_at=value.market_data_observed_at,
-        age_days=value.age_days,
-    )
+    return PositionMonitoringHealthResponse.model_validate(value, from_attributes=True)
 
 
 @router.get(
@@ -361,6 +369,7 @@ async def get_trade_product_valuation(
         reference_price_type=value.reference_price_type,
         quote_retrieved_at=value.quote_retrieved_at,
         quote_refresh_error=value.quote_refresh_error,
+        quote_retained=value.quote_retained,
         quote_assessed_at=value.quote_assessed_at,
         quote_delay_seconds=value.quote_delay_seconds,
         quote_venue_mic=value.quote_venue_mic,

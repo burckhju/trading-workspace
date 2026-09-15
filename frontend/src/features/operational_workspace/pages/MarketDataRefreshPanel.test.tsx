@@ -88,6 +88,35 @@ describe('MarketDataRefreshPanel', () => {
     expect(screen.queryByText(/Nächste Prüfung frühestens/)).not.toBeInTheDocument();
     expect(screen.getByText(/Noch 2 Aufgaben/)).toBeInTheDocument();
   });
+  it('shows both active lanes and highlights both running jobs', async () => {
+    request.mockResolvedValue({
+      ...sample,
+      running: true,
+      current_job: 'WARRANT_QUOTES:1',
+      current_jobs: { WARRANTS: 'WARRANT_QUOTES:1', UNDERLYINGS: 'UNDERLYING_EOD:2' },
+      lanes: {
+        WARRANTS: {
+          running: true,
+          current_job: 'WARRANT_QUOTES:1',
+          pending_jobs: 52,
+          last_error: null,
+        },
+        UNDERLYINGS: {
+          running: true,
+          current_job: 'UNDERLYING_EOD:2',
+          pending_jobs: 4,
+          last_error: null,
+        },
+      },
+    });
+    render(<MarketDataRefreshPanel />);
+    fireEvent.click(screen.getByText('Automatischer Kursabruf'));
+    fireEvent.click(screen.getByRole('button', { name: 'Abrufstatus laden' }));
+    expect(await screen.findByText(/Basiswerte: Abruf läuft · 4 Aufgaben/)).toBeInTheDocument();
+    expect(screen.getByText(/Optionsscheine: Abruf läuft · 52 Aufgaben/)).toBeInTheDocument();
+    expect(screen.getAllByText(/^Abruf läuft/)).toHaveLength(2);
+    expect(screen.queryByText('Zuordnung oder Zugang fehlt')).not.toBeInTheDocument();
+  });
   it('distinguishes disabled configuration from failed retrieval', async () => {
     request.mockResolvedValue({ ...sample, enabled: false, jobs: [] });
     render(<MarketDataRefreshPanel />);
@@ -101,5 +130,30 @@ describe('MarketDataRefreshPanel', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Abrufstatus konnte nicht geladen werden.',
     );
+  });
+  it('shows overdue repeat checks even after every first check completed', async () => {
+    request.mockResolvedValue({
+      ...sample,
+      pending_jobs: 0,
+      lanes: {
+        WARRANTS: {
+          running: true,
+          current_job: null,
+          pending_jobs: 0,
+          due_jobs: 48,
+          overdue_jobs: 48,
+          max_overdue_seconds: 1694,
+          last_error: null,
+        },
+      },
+      jobs: [{ ...sample.jobs[0], status: 'DEFERRED', reason: 'FRANKFURT_REQUEST_THROTTLED' }],
+    });
+    render(<MarketDataRefreshPanel />);
+    fireEvent.click(screen.getByText('Automatischer Kursabruf'));
+    fireEvent.click(screen.getByRole('button', { name: 'Abrufstatus laden' }));
+    expect(await screen.findByText(/48 fällig · davon 48 überfällig/)).toBeInTheDocument();
+    expect(screen.getByText(/längster Rückstand 29 Min/)).toBeInTheDocument();
+    expect(screen.getByText(/Abruflimit erreicht · Wiederholung eingeplant/)).toBeInTheDocument();
+    expect(screen.queryByText('Abruf prüfen')).not.toBeInTheDocument();
   });
 });

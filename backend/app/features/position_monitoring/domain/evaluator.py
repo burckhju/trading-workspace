@@ -13,6 +13,12 @@ class PositionRuleEvaluator:
 
     @staticmethod
     def evaluate(*, rule: MonitoringRule, observation: PriceObservation) -> RuleEvaluation:
+        if rule.price_binding is None or observation.price_binding is None:
+            raise ValueError("RULE_PRICE_BASIS_UNCONFIRMED")
+        if rule.price_binding != observation.price_binding:
+            raise ValueError("RULE_PRICE_IDENTITY_OR_CURRENCY_MISMATCH")
+        if not observation.value.is_finite() or observation.value <= 0:
+            raise ValueError("INVALID_OBSERVED_PRICE")
         if rule.rule_type is MonitoringRuleType.STOP_REACHED:
             triggered = observation.value <= rule.threshold
             comparator = "<="

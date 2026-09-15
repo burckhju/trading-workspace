@@ -32,6 +32,7 @@ class FrankfurtQuoteSettings(BaseModel):
     max_quote_age_seconds: Annotated[int, Field(ge=1, le=900)] = 900
     timeout_seconds: Annotated[float, Field(gt=0, le=30)] = 10.0
     refresh_interval_seconds: Annotated[int, Field(ge=1, le=60)] = 15
+    instrument_retry_seconds: Annotated[int, Field(ge=60, le=86_400)] = 3600
     max_response_bytes: Annotated[int, Field(ge=1024, le=32_000_000)] = 8_000_000
 
     @field_validator("snapshot_url")

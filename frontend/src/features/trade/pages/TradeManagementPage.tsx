@@ -7,6 +7,8 @@ import { postTradeErrorMessage } from '../../post_trade/services/errors';
 import { warrantApiClient } from '../../product/services/client';
 import type { WarrantResponse } from '../../product/types/api';
 import { tradeManagementApiClient } from '../services/client';
+import { PriceBindingInput } from '../components/PriceBindingInput';
+import type { PriceBinding } from '../types/api';
 import { ExecutionDatesPanel } from '../components/ExecutionDatesPanel';
 import { TradeCancellationPanel } from '../components/TradeCancellationPanel';
 import { AdditionalPurchasePanel } from '../components/AdditionalPurchasePanel';
@@ -34,11 +36,27 @@ function tradePlanReference(id: string): string {
 }
 
 export function TradeManagementPage() {
+  const [searchParams] = useSearchParams();
+  const tradeId = searchParams.get('trade_id') ?? '';
+  const [readAttempt, setReadAttempt] = useState(0);
+
+  // URL identity owns the entire transaction context, including child forms.
+  // Reset synchronously on trade changes, not after a render of stale holdings.
+  return (
+    <TradeManagementContext
+      key={`${tradeId}:${readAttempt}`}
+      tradeId={tradeId}
+      onReload={() => setReadAttempt((attempt) => attempt + 1)}
+    />
+  );
+}
+
+function TradeManagementContext({ tradeId, onReload }: { tradeId: string; onReload: () => void }) {
   const navigate = useNavigate();
   const { hash } = useLocation();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const [lookupId, setLookupId] = useState(searchParams.get('trade_id') ?? '');
-  const [tradeId, setTradeId] = useState(searchParams.get('trade_id') ?? '');
+  const [, setSearchParams] = useSearchParams();
+  const [lookupId, setLookupId] = useState(tradeId);
+  const active = useRef(false);
   const [trade, setTrade] = useState<TradeResponse | null>(null);
   const [warrant, setWarrant] = useState<WarrantResponse | null>(null);
   const [position, setPosition] = useState<PositionResponse | null>(null);
@@ -49,24 +67,38 @@ export function TradeManagementPage() {
   const [saleTime, setSaleTime] = useState('');
   const saleLock = useRef(false);
   const [stopPrice, setStopPrice] = useState('');
+  const [stopBinding, setStopBinding] = useState<PriceBinding | null>(null);
+  const [targetBinding, setTargetBinding] = useState<PriceBinding | null>(null);
   const [targetPrice, setTargetPrice] = useState('');
   const [thesis, setThesis] = useState('');
   const [note, setNote] = useState('');
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  useEffect(() => {
+    active.current = true;
+    return () => {
+      active.current = false;
+    };
+  }, []);
+
   async function refresh(id: string, signal?: AbortSignal) {
+    if (!active.current || signal?.aborted) return;
     const [nextTrade, nextPosition, nextManagement] = await Promise.all([
       tradeManagementApiClient.trade(id, signal),
       tradeManagementApiClient.position(id, signal),
       tradeManagementApiClient.managementState(id, signal),
     ]);
+    if (!active.current || signal?.aborted) return;
     const nextWarrant = await warrantApiClient.get(nextTrade.product_id, signal);
+    if (!active.current || signal?.aborted) return;
     setTrade(nextTrade);
     setWarrant(nextWarrant);
     setPosition(nextPosition);
     setManagement(nextManagement);
     setStopPrice(nextManagement.stop_price ?? '');
+    setStopBinding(nextManagement.stop_price_binding ?? null);
+    setTargetBinding(nextManagement.target_price_binding ?? null);
     setTargetPrice(nextManagement.target_price ?? '');
     setThesis(nextManagement.thesis ?? '');
   }
@@ -99,8 +131,9 @@ export function TradeManagementPage() {
     event.preventDefault();
     const id = lookupId.trim();
     if (!id) return;
-    setSearchParams({ trade_id: id });
-    setTradeId(id);
+    if (busy) return;
+    if (id === tradeId) onReload();
+    else setSearchParams({ trade_id: id });
   }
 
   async function mutate(action: () => Promise<unknown>, successMessage: string) {
@@ -128,7 +161,7 @@ export function TradeManagementPage() {
 
     try {
       await postTradeApiClient.startObservation(tradeId);
-      void navigate(`/post-trade?trade_id=${encodeURIComponent(tradeId)}`);
+      if (active.current) void navigate(`/post-trade?trade_id=${encodeURIComponent(tradeId)}`);
     } catch (error: unknown) {
       setMessage(postTradeErrorMessage(error));
     } finally {
@@ -461,12 +494,25 @@ export function TradeManagementPage() {
               onSubmit={(event) => {
                 event.preventDefault();
                 void mutate(
-                  () => tradeManagementApiClient.changeStop(tradeId, { price: stopPrice }),
+                  () =>
+                    tradeManagementApiClient.changeStop(tradeId, {
+                      price: stopPrice,
+                      price_binding: stopBinding,
+                    }),
                   'Stop wurde aktualisiert.',
                 );
               }}
               className="space-y-2"
             >
+              {warrant && (
+                <PriceBindingInput
+                  label="Stop"
+                  value={stopBinding}
+                  warrantId={warrant.id}
+                  underlyingId={warrant.underlying_id}
+                  onChange={setStopBinding}
+                />
+              )}
               <label className="block text-sm" htmlFor="stop-price">
                 Stop
               </label>
@@ -480,7 +526,10 @@ export function TradeManagementPage() {
                 onChange={(event) => setStopPrice(event.target.value)}
                 className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2"
               />
-              <button disabled={busy} className="rounded-lg border border-slate-600 px-3 py-2">
+              <button
+                disabled={busy || !stopBinding || !/^[A-Z]{3}$/.test(stopBinding.currency)}
+                className="rounded-lg border border-slate-600 px-3 py-2"
+              >
                 Stop speichern
               </button>
             </form>
@@ -489,12 +538,25 @@ export function TradeManagementPage() {
               onSubmit={(event) => {
                 event.preventDefault();
                 void mutate(
-                  () => tradeManagementApiClient.changeTarget(tradeId, { price: targetPrice }),
+                  () =>
+                    tradeManagementApiClient.changeTarget(tradeId, {
+                      price: targetPrice,
+                      price_binding: targetBinding,
+                    }),
                   'Target wurde aktualisiert.',
                 );
               }}
               className="space-y-2"
             >
+              {warrant && (
+                <PriceBindingInput
+                  label="Target"
+                  value={targetBinding}
+                  warrantId={warrant.id}
+                  underlyingId={warrant.underlying_id}
+                  onChange={setTargetBinding}
+                />
+              )}
               <label className="block text-sm" htmlFor="target-price">
                 Target
               </label>
@@ -508,7 +570,10 @@ export function TradeManagementPage() {
                 onChange={(event) => setTargetPrice(event.target.value)}
                 className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2"
               />
-              <button disabled={busy} className="rounded-lg border border-slate-600 px-3 py-2">
+              <button
+                disabled={busy || !targetBinding || !/^[A-Z]{3}$/.test(targetBinding.currency)}
+                className="rounded-lg border border-slate-600 px-3 py-2"
+              >
                 Target speichern
               </button>
             </form>

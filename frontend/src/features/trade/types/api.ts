@@ -122,6 +122,7 @@ export interface ProductPositionValuationResponse {
   trading_status?: string | null;
   quote_retrieved_at?: IsoDateTime | null;
   quote_refresh_error?: string | null;
+  quote_retained?: boolean;
   quote_assessed_at?: IsoDateTime | null;
   quote_delay_seconds?: number | null;
   quote_venue_mic?: string | null;
@@ -154,6 +155,7 @@ export interface SaleResponse {
 }
 
 export interface TradeManagementEventResponse {
+  price_binding?: PriceBinding | null;
   id: Uuid;
   trade_id: Uuid;
   event_type: TradeManagementEventType;
@@ -167,6 +169,8 @@ export interface TradeManagementEventResponse {
 }
 
 export interface TradeManagementStateResponse {
+  stop_price_binding?: PriceBinding | null;
+  target_price_binding?: PriceBinding | null;
   trade_id: Uuid;
   stop_price: string | null;
   target_price: string | null;
@@ -176,6 +180,7 @@ export interface TradeManagementStateResponse {
 }
 
 export interface TradeTimelineEntryResponse {
+  price_binding?: PriceBinding | null;
   id: Uuid;
   trade_id: Uuid;
   occurred_at: IsoDateTime;
@@ -202,6 +207,7 @@ export interface SaleRequest {
 }
 
 export interface PriceManagementRequest {
+  price_binding?: PriceBinding | null;
   price: string;
   effective_at?: IsoDateTime | null;
 }
@@ -250,3 +256,9 @@ export type ExecutionCorrectionRequest = {
   quantity: number;
   price_per_unit: string;
 } & ({ executed_at: IsoDateTime } | { executed_on: string; execution_timezone: string });
+
+export interface PriceBinding {
+  basis: 'UNDERLYING' | 'WARRANT';
+  instrument_id: string;
+  currency: string;
+}

@@ -31,6 +31,7 @@ def runtime(**settings):
     config = Settings(environment="test", market_data={"refresh": {"enabled": True, **settings}})
     result = MarketDataRefreshRuntime(ApplicationContainer.build(config), timer=lambda: 1000)
     result._pace = AsyncMock()
+    result._pace_underlying = AsyncMock()
     return result
 
 
@@ -275,7 +276,8 @@ async def test_background_scheduler_releases_leader_lock_on_shutdown():
 
     called = asyncio.Event()
 
-    async def run():
+    async def run(*, wait_for_completion):
+        assert wait_for_completion is False
         called.set()
 
     connection = SimpleNamespace(
@@ -290,6 +292,7 @@ async def test_background_scheduler_releases_leader_lock_on_shutdown():
             )
         ),
         run_once=run,
+        stop=AsyncMock(),
         wake=asyncio.Event(),
         last_error=None,
     )
@@ -370,6 +373,7 @@ async def test_open_positions_are_first_and_entire_queue_is_visible_before_netwo
 
     async def daily(item):
         order.append(item.name)
+        await release.wait()
         return {"status": "BLOCKED", "reason": "EODHD_DISABLED"}
 
     value._warrant = quote

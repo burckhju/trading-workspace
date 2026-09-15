@@ -2,6 +2,7 @@ import { useState } from 'react';
 
 import { environment } from '../../../services/environment';
 import { requestJson } from '../../market/services/http';
+import { QuoteCoveragePanel } from './QuoteCoveragePanel';
 
 type RefreshStatus = {
   enabled: boolean;
@@ -9,6 +10,19 @@ type RefreshStatus = {
   leader: boolean;
   last_error: string | null;
   current_job?: string | null;
+  current_jobs?: Record<string, string | null>;
+  lanes?: Record<
+    string,
+    {
+      running: boolean;
+      current_job: string | null;
+      pending_jobs: number;
+      due_jobs?: number;
+      overdue_jobs?: number;
+      max_overdue_seconds?: number;
+      last_error: string | null;
+    }
+  >;
   pending_jobs?: number;
   settings: {
     warrants_interval_seconds: number;
@@ -28,6 +42,7 @@ type RefreshStatus = {
 
 function statusLabel(status: string): string {
   if (status === 'PENDING') return 'Erster Abruf steht aus';
+  if (status === 'DEFERRED') return 'Abruflimit erreicht · Wiederholung eingeplant';
   if (status === 'AVAILABLE') return 'Erfolgreich';
   if (status === 'MISSING') return 'Keine Kursdaten';
   if (status === 'BLOCKED') return 'Zuordnung oder Zugang fehlt';
@@ -84,6 +99,7 @@ export function MarketDataRefreshPanel() {
           {error}
         </p>
       )}
+      <QuoteCoveragePanel />
       {value && (
         <div className="mt-3 text-sm text-slate-300">
           <p>
@@ -104,6 +120,37 @@ export function MarketDataRefreshPanel() {
             Basiswerte: abgeschlossene Tagesschlusskurse. Anbieterlimits können den nächsten Abruf
             verzögern.
           </p>
+          {value.enabled && value.lanes && (
+            <ul className="mt-2 text-slate-400">
+              {(['WARRANTS', 'UNDERLYINGS'] as const).map((lane) => {
+                const progress = value.lanes?.[lane];
+                if (!progress) return null;
+                return (
+                  <li key={lane}>
+                    {lane === 'WARRANTS' ? 'Optionsscheine' : 'Basiswerte'}:{' '}
+                    {progress.running ? 'Abruf läuft' : 'Wartet auf nächste Prüfung'} ·{' '}
+                    {progress.pending_jobs} {progress.pending_jobs === 1 ? 'Aufgabe' : 'Aufgaben'}{' '}
+                    ohne Erstprüfung
+                    {progress.due_jobs !== undefined && (
+                      <>
+                        {' '}
+                        · {progress.due_jobs} fällig
+                        {progress.overdue_jobs !== undefined && (
+                          <> · davon {progress.overdue_jobs} überfällig</>
+                        )}
+                        {!!progress.max_overdue_seconds && (
+                          <>
+                            {' '}
+                            · längster Rückstand {Math.ceil(progress.max_overdue_seconds / 60)} Min.
+                          </>
+                        )}
+                      </>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
           {value.pending_jobs !== undefined && value.pending_jobs > 0 && (
             <p className="mt-2">
               Noch {value.pending_jobs} Aufgaben ohne abgeschlossene Erstprüfung.
@@ -120,7 +167,10 @@ export function MarketDataRefreshPanel() {
                   {job.held && ' · Offene Position'}
                 </p>
                 <p>
-                  {value.current_job === job.job ? 'Abruf läuft' : statusLabel(job.status)}
+                  {Object.values(value.current_jobs ?? {}).includes(job.job) ||
+                  value.current_job === job.job
+                    ? 'Abruf läuft'
+                    : statusLabel(job.status)}
                   {job.next_run_at && (
                     <>
                       {' '}

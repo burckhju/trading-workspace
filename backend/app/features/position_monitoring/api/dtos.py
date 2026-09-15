@@ -1,5 +1,6 @@
 from datetime import date, datetime
 from decimal import Decimal
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel
@@ -23,6 +24,44 @@ from app.features.position_monitoring.service.source_diagnostics import (
 )
 
 
+class MonitoringBasisResponse(BaseModel):
+    underlying_id: UUID
+    name: str
+    isin: str | None
+    listing_id: UUID
+    venue_mic: str
+    currency: str
+
+
+class MonitoringDailyPriceResponse(BaseModel):
+    listing_id: UUID
+    trading_date: date
+    close: Decimal
+    low: Decimal
+    high: Decimal
+    currency: str
+    provider: MarketDataProvider
+    provider_symbol: str
+    source_updated_at: datetime | None
+    retrieved_at: datetime
+
+
+class MonitoringRuntimeStatusResponse(BaseModel):
+    enabled: bool
+    running: bool = False
+    cycle_running: bool = False
+    interval_seconds: int
+    scope: Literal["PROCESS_LOCAL_ALL_WORKSPACES"] = "PROCESS_LOCAL_ALL_WORKSPACES"
+    price_basis: Literal["EXPLICIT_INSTRUMENT_AND_CURRENCY"] = "EXPLICIT_INSTRUMENT_AND_CURRENCY"
+    last_cycle_started_at: datetime | None = None
+    last_cycle_completed_at: datetime | None = None
+    next_run_at: datetime | None = None
+    last_error: str | None = None
+    last_error_at: datetime | None = None
+    last_result: dict[str, int] | None = None
+    last_rule_checks: tuple[dict[str, str | None], ...] = ()
+
+
 class PositionMonitoringHealthResponse(BaseModel):
     trade_id: UUID
     position_id: UUID
@@ -32,6 +71,8 @@ class PositionMonitoringHealthResponse(BaseModel):
     trading_date: date | None
     market_data_observed_at: datetime | None
     age_days: int | None
+    basis: MonitoringBasisResponse | None = None
+    daily_price: MonitoringDailyPriceResponse | None = None
 
 
 class PositionAnalyticsResponse(BaseModel):
@@ -158,6 +199,7 @@ class ProductPositionValuationResponse(BaseModel):
     reference_price_type: str | None = None
     quote_retrieved_at: datetime | None = None
     quote_refresh_error: str | None = None
+    quote_retained: bool = False
     quote_assessed_at: datetime | None = None
     quote_delay_seconds: int | None = None
     quote_venue_mic: str | None = None

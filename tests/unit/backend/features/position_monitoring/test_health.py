@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+from dataclasses import replace
 from datetime import UTC, date, datetime
 from decimal import Decimal
 from types import SimpleNamespace
@@ -25,6 +26,8 @@ from app.features.position_monitoring.service.subjects import (
 )
 
 NOW = datetime(2026, 9, 6, 12, 0, tzinfo=UTC)
+LISTING_ID = uuid4()
+UNDERLYING_ID = uuid4()
 
 
 class _Session:
@@ -33,6 +36,15 @@ class _Session:
 
     async def scalar(self, _statement):
         return SimpleNamespace(id=self._position_id)
+
+    async def execute(self, _statement):
+        return SimpleNamespace(
+            first=lambda: (
+                SimpleNamespace(id=LISTING_ID, currency_code="EUR"),
+                SimpleNamespace(id=UNDERLYING_ID, name="Example basis", isin="US0378331005"),
+                SimpleNamespace(mic="XFRA"),
+            )
+        )
 
 
 class _Database:
@@ -68,7 +80,7 @@ def _subject(position_id, trade_id):
         workspace_id=uuid4(),
         position_id=position_id,
         trade_id=trade_id,
-        listing_id=uuid4(),
+        listing_id=LISTING_ID,
         mapping_id=uuid4(),
         symbol="DAX.INDX",
         rules=(),
@@ -77,7 +89,7 @@ def _subject(position_id, trade_id):
 
 def _daily_result(*, trading_date: date, quality: QualityStatus = QualityStatus.VALID):
     price = DailyPrice(
-        listing_id=uuid4(),
+        listing_id=LISTING_ID,
         trading_date=trading_date,
         open=Decimal("24000"),
         high=Decimal("24200"),
@@ -153,6 +165,13 @@ async def test_health_reports_current_completed_daily_data(monkeypatch) -> None:
     assert result.status is MonitoringHealthStatus.OK
     assert result.age_days == 1
     assert result.symbol == "DAX.INDX"
+    assert result.basis.listing_id == LISTING_ID
+    assert result.basis.venue_mic == "XFRA"
+    assert result.basis.underlying_id == UNDERLYING_ID
+    assert result.daily_price.close == Decimal("24100")
+    assert result.daily_price.low == Decimal("23900")
+    assert result.daily_price.high == Decimal("24200")
+    assert result.daily_price.retrieved_at == NOW
 
 
 @pytest.mark.asyncio
@@ -166,6 +185,7 @@ async def test_health_reports_stale_without_turning_it_into_trading_alert(monkey
     assert result.status is MonitoringHealthStatus.STALE
     assert result.reason == "COMPLETED_DAILY_PRICE_STALE"
     assert result.age_days == 5
+    assert result.daily_price.close == Decimal("24100")
 
 
 @pytest.mark.asyncio
@@ -184,3 +204,38 @@ async def test_health_reports_provider_failure_as_data_error(monkeypatch) -> Non
     assert result is not None
     assert result.status is MonitoringHealthStatus.ERROR
     assert result.reason == "MARKET_DATA_REQUEST_FAILED"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "problem,reason",
+    [
+        ("listing", "MARKET_DATA_IDENTITY_MISMATCH"),
+        ("currency", "MARKET_DATA_IDENTITY_MISMATCH"),
+        ("future", "DAILY_PRICE_IN_FUTURE"),
+        ("quality", "MARKET_DATA_QUALITY_SUSPICIOUS"),
+    ],
+)
+async def test_does_not_attach_an_invalid_price_to_the_selected_basis(monkeypatch, problem, reason):
+    daily = _daily_result(trading_date=date(2026, 9, 5))
+    changes = {
+        "listing": {"listing_id": uuid4()},
+        "currency": {"currency": "USD"},
+        "future": {"trading_date": date(2026, 9, 7)},
+        "quality": {"quality_status": QualityStatus.SUSPICIOUS},
+    }
+    result = await _health(
+        monkeypatch, _Provider(replace(daily, data=replace(daily.data, **changes[problem])))
+    )
+    assert result.status is MonitoringHealthStatus.ERROR
+    assert result.reason == reason
+    assert result.daily_price is None
+    assert result.basis.venue_mic == "XFRA"
+
+
+@pytest.mark.asyncio
+async def test_provider_disabled_preserves_selected_basis(monkeypatch):
+    result = await _health(monkeypatch, None)
+    assert result.reason == "MARKET_DATA_PROVIDER_UNAVAILABLE"
+    assert result.basis.listing_id == LISTING_ID
+    assert result.daily_price is None
