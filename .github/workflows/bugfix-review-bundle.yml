@@ -1,0 +1,33 @@
+name: Bugfix review development bundle
+on:
+  push:
+    branches: [devtools/bugfix-review-20260915]
+    paths: [.github/workflows/bugfix-review-bundle.yml]
+permissions:
+  contents: read
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: c99ba9a1b1209e05fdc6b6a486c74f6e3be832b8
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Archive tracked public source only
+        run: |
+          mkdir -p /tmp/bugfix-review-bundle
+          git archive --format=tar.gz --output=/tmp/bugfix-review-bundle/source.tar.gz HEAD
+          git rev-parse HEAD HEAD^{tree} > /tmp/bugfix-review-bundle/source-identity.txt
+      - name: Download repository-pinned test dependencies for local Python
+        run: |
+          python -m pip download --only-binary=:all: -r backend/requirements-dev.txt -d /tmp/bugfix-review-bundle/wheels
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bugfix-review-c99ba9a-source-and-wheels
+          path: /tmp/bugfix-review-bundle/
+          if-no-files-found: error
+          retention-days: 1
