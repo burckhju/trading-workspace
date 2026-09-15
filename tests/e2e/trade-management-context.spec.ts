@@ -125,8 +125,10 @@ test("failed trade switch cannot reuse another position; retry and history prese
     .fill("Draft belongs to A");
   await page.getByLabel("Trade-ID", { exact: true }).fill(b.trade.id);
   await page.getByRole("button", { name: "Laden", exact: true }).click();
+  // The separate product-valuation panel may report the same failed read.
+  // Assert the management page's status, not a duplicate text anywhere on the page.
   await expect(
-    page.getByText("Test: Position B nicht verfügbar.", { exact: true }),
+    page.getByRole("status").filter({ hasText: "Test: Position B nicht verfügbar." }),
   ).toBeVisible();
   await expect(page).toHaveURL(new RegExp(`trade_id=${b.trade.id}$`));
   await expect(
