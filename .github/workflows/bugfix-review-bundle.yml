@@ -14,20 +14,20 @@ jobs:
         with:
           ref: c99ba9a1b1209e05fdc6b6a486c74f6e3be832b8
           persist-credentials: false
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-node@v4
         with:
-          python-version: '3.13'
-      - name: Archive tracked public source only
+          node-version-file: frontend/.nvmrc
+      - name: Install unchanged locked dependencies
+        working-directory: frontend
+        run: npm ci --no-audit --no-fund
+      - name: Archive development dependencies only
         run: |
-          mkdir -p /tmp/bugfix-review-bundle
-          git archive --format=tar.gz --output=/tmp/bugfix-review-bundle/source.tar.gz HEAD
-          git rev-parse HEAD HEAD^{tree} > /tmp/bugfix-review-bundle/source-identity.txt
-      - name: Download repository-pinned test dependencies for local Python
-        run: |
-          python -m pip download --only-binary=:all: -r backend/requirements-dev.txt -d /tmp/bugfix-review-bundle/wheels
+          mkdir -p /tmp/bugfix-review-frontend
+          tar -czf /tmp/bugfix-review-frontend/node-modules.tar.gz -C frontend node_modules
+          sha256sum frontend/package-lock.json > /tmp/bugfix-review-frontend/lock.sha256
       - uses: actions/upload-artifact@v4
         with:
-          name: bugfix-review-c99ba9a-source-and-wheels
-          path: /tmp/bugfix-review-bundle/
+          name: bugfix-review-c99ba9a-frontend-dependencies
+          path: /tmp/bugfix-review-frontend/
           if-no-files-found: error
           retention-days: 1
