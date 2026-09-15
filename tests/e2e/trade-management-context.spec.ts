@@ -80,7 +80,15 @@ test("failed trade switch cannot reuse another position; retry and history prese
   const b = await capture("B", 20);
   const aUrl = `${root}/trade-position/trades/${a.trade.id}`;
   const bUrl = `${root}/trade-position/trades/${b.trade.id}`;
-  const originalAHistory = await (await request.get(`${aUrl}/timeline`)).json();
+  // Compare persisted reads with persisted reads: the write response preserves
+  // input Decimal scale, while PostgreSQL returns its declared column scale.
+  async function readState(url: string) {
+    const response = await request.get(url);
+    expect(response.status()).toBe(200);
+    return response.json();
+  }
+  const originalAPosition = await readState(`${aUrl}/position`);
+  const originalAHistory = await readState(`${aUrl}/timeline`);
 
   const writes: Array<{ path: string; data: unknown }> = [];
   page.on("request", (req) => {
@@ -185,17 +193,13 @@ test("failed trade switch cannot reuse another position; retry and history prese
       request_id: expect.any(String),
     },
   });
-  const remainingB = await (await request.get(`${bUrl}/position`)).json();
+  const remainingB = await readState(`${bUrl}/position`);
   expect(remainingB.trade_id).toBe(b.trade.id);
   expect(remainingB.product_id).toBe(b.warrant.id);
   expect(remainingB.open_quantity).toBe(18);
   expect(Number(remainingB.realized_gross_pnl)).toBe(2.5);
-  expect(await (await request.get(`${aUrl}/position`)).json()).toEqual(
-    a.position,
-  );
-  expect(await (await request.get(`${aUrl}/timeline`)).json()).toEqual(
-    originalAHistory,
-  );
+  expect(await readState(`${aUrl}/position`)).toEqual(originalAPosition);
+  expect(await readState(`${aUrl}/timeline`)).toEqual(originalAHistory);
 
   // Query-only history navigation must load the actual URL trade, not stale local state.
   await page.goBack();
