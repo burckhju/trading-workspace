@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-import hashlib
 import re
-from dataclasses import dataclass, replace
+from dataclasses import replace
 from datetime import UTC, datetime
 
 from pydantic import TypeAdapter
@@ -12,18 +11,16 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.manager import DatabaseManager
-from app.features.market.persistence.models import TradingVenueModel
 from app.features.market_data.domain.enums import (
     CacheStatus,
-    MappingStatus,
     MarketDataProvider,
     QualityStatus,
 )
 from app.features.market_data.domain.models import WarrantQuoteSnapshot
 from app.features.market_data.persistence.models import (
-    WarrantProviderMappingModel,
     WarrantQuoteObservationModel,
 )
+from app.features.market_data.persistence.quote_identity import QuoteIdentity, read_quote_identity
 from app.features.market_data.service.contracts import WarrantListingQuoteProvider
 from app.features.market_data.service.errors import (
     MarketDataConfigurationError,
@@ -33,21 +30,10 @@ from app.features.market_data.service.errors import (
     MarketDataNotFoundError,
 )
 from app.features.market_data.service.types import MarketDataResult, WarrantQuoteRequest
-from app.features.product.domain.models import WarrantLifecycle
-from app.features.product.persistence.models import WarrantListingModel, WarrantModel
+from app.features.product.persistence.models import WarrantListingModel
 
 QuoteResult = MarketDataResult[WarrantQuoteSnapshot | None]
 _RESULT = TypeAdapter(QuoteResult)
-
-
-@dataclass(frozen=True)
-class QuoteIdentity:
-    key: str
-    isin: str
-    wkn: str | None
-    currency: str
-    exchange: str
-    mic: str
 
 
 class RetainedWarrantQuoteProvider:
@@ -190,69 +176,4 @@ class RetainedWarrantQuoteProvider:
     async def _identity(
         self, session: AsyncSession, request: WarrantQuoteRequest
     ) -> QuoteIdentity | None:
-        row = (
-            await session.execute(
-                select(WarrantListingModel, WarrantModel, TradingVenueModel)
-                .join(WarrantModel, WarrantModel.id == WarrantListingModel.warrant_id)
-                .join(
-                    TradingVenueModel, TradingVenueModel.id == WarrantListingModel.trading_venue_id
-                )
-                .where(
-                    WarrantListingModel.id == request.warrant_listing_id,
-                    WarrantListingModel.workspace_id == request.workspace_id,
-                    WarrantModel.workspace_id == request.workspace_id,
-                    WarrantListingModel.lifecycle_status == WarrantLifecycle.ACTIVE,
-                    WarrantModel.lifecycle_status == WarrantLifecycle.ACTIVE,
-                    TradingVenueModel.is_active.is_(True),
-                )
-            )
-        ).one_or_none()
-        if row is None:
-            return None
-        listing, warrant, venue = row
-        if not warrant.isin or not re.fullmatch(r"[A-Z0-9]{12}", warrant.isin):
-            return None
-        fingerprint = [
-            str(request.workspace_id),
-            str(warrant.id),
-            str(warrant.version),
-            str(listing.id),
-            str(listing.version),
-            venue.mic,
-            warrant.isin,
-            warrant.wkn or "",
-            listing.quotation_currency_code,
-            self._name.value,
-        ]
-        if self._name == MarketDataProvider.BOERSE_STUTTGART_DELAYED:
-            if venue.mic != "XSTU":
-                return None
-            exchange = "XSTU"
-        else:
-            mapping = await session.scalar(
-                select(WarrantProviderMappingModel).where(
-                    WarrantProviderMappingModel.workspace_id == request.workspace_id,
-                    WarrantProviderMappingModel.warrant_listing_id == listing.id,
-                    WarrantProviderMappingModel.provider == self._name,
-                    WarrantProviderMappingModel.status == MappingStatus.ACTIVE,
-                    WarrantProviderMappingModel.validated_at.is_not(None),
-                )
-            )
-            if mapping is None or mapping.provider_symbol != warrant.isin:
-                return None
-            exchange = mapping.provider_exchange_code
-            if self._name == MarketDataProvider.VONTOBEL_MARKETS and exchange != "ISSUER":
-                return None
-            if self._name == MarketDataProvider.FRANKFURT_QUOTES and (
-                venue.mic != "XFRA" or exchange not in {"XSC", "XFRA"}
-            ):
-                return None
-            fingerprint.extend([str(mapping.id), str(mapping.version), exchange])
-        return QuoteIdentity(
-            hashlib.sha256("|".join(fingerprint).encode()).hexdigest(),
-            warrant.isin,
-            warrant.wkn,
-            listing.quotation_currency_code,
-            exchange,
-            venue.mic,
-        )
+        return await read_quote_identity(session, request, self._name)

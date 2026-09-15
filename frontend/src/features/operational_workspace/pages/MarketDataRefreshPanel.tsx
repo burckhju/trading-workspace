@@ -2,6 +2,7 @@ import { useState } from 'react';
 
 import { environment } from '../../../services/environment';
 import { requestJson } from '../../market/services/http';
+import { QuoteCoveragePanel } from './QuoteCoveragePanel';
 
 type RefreshStatus = {
   enabled: boolean;
@@ -98,6 +99,7 @@ export function MarketDataRefreshPanel() {
           {error}
         </p>
       )}
+      <QuoteCoveragePanel />
       {value && (
         <div className="mt-3 text-sm text-slate-300">
           <p>

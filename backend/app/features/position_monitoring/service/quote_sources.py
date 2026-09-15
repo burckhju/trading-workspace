@@ -73,6 +73,10 @@ class MultiSourceWarrantQuoteResolver:
     def __init__(self, sources: tuple[NamedWarrantQuoteSource, ...]) -> None:
         self._sources = sources
 
+    def source_configuration(self) -> tuple[tuple[str, bool], ...]:
+        """Configured adapters in policy order; availability is not quote coverage."""
+        return tuple((source.name, source.provider is not None) for source in self._sources)
+
     async def resolve(self, request: WarrantQuoteRequest) -> MultiSourceWarrantQuoteResolution:
         attempts: list[QuoteSourceAttempt] = []
         best: MarketDataResult[WarrantQuoteSnapshot | None] | None = None
