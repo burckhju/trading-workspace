@@ -32,6 +32,7 @@ from app.features.product.persistence.models import WarrantListingModel
 from app.providers.frankfurt_quotes.configure import configure_warrant as configure_frankfurt
 from app.providers.frankfurt_quotes.schema import FrankfurtSourceError
 from app.providers.vontobel_markets.configure import configure_warrant as configure_vontobel
+from app.providers.vontobel_markets.issuer import supports_issuer_probe
 
 if TYPE_CHECKING:
     from app.core.di import ApplicationContainer
@@ -176,9 +177,8 @@ class MarketDataRefreshRuntime:
                                     partial(self._configure_frankfurt, item),
                                 )
                             )
-                        if (
-                            self.container.vontobel is not None
-                            and "vontobel" in (item.issuer or "").lower()
+                        if self.container.vontobel is not None and supports_issuer_probe(
+                            item.issuer
                         ):
                             key = f"VONTOBEL_MAPPING:{item.id}"
                             schedule.append(

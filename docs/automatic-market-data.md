@@ -258,3 +258,59 @@ case with a stalled EOD import. They cover per-provider pacing, duplicate dispat
 queued removal, cancellation, catalog failures, heartbeat failure and joining
 both workers before leader unlock. The browser regression displays two concurrent
 jobs while preserving indicative-valuation and no-order-permission warnings.
+
+
+## Held-product source coverage (2026-09-15)
+
+**Arbeitsbereich → Automatischer Kursabruf → Kursquellen im Depot prüfen** reads
+existing `warrant_provider_mappings` and the last verified
+`warrant_quote_observations`. Filter by the stored issuer name or select
+**Nur Prüfbedarf**. No per-product UUID entry is required. The GET is diagnostic:
+it does not contact providers, enqueue a refresh, create a mapping or change a
+trade. The normal scheduler, its source approvals, identity verification, budgets
+and fallback policy remain responsible for retrieval.
+
+The read model includes all held warrants in the configured workspace, including
+inactive products/issuers and products without a usable listing. Cancelled/closed
+trades and foreign workspaces are excluded. Four batched SELECTs load a nonempty
+inventory; it does not perform a database or provider request per table cell.
+Stuttgart's direct ISIN/XSTU route is distinguished from a persisted mapping.
+Disabled, invalid and unvalidated mappings stay visible and are never reactivated
+by this read. The same identity fingerprint as durable quote retention invalidates
+observations after instrument/listing/mapping changes. Prices remain per listing
+and currency; the report does not select the actual position valuation source,
+convert currencies or aggregate portfolio values.
+
+`BID_WITHIN_AGE_BUDGET` describes a stored bid within the existing quote resolver's
+age budget at `assessed_at`. It is **not** a fresh network check, continuous
+coverage guarantee, market-open assertion or execution permission. The original
+observation/retrieval timestamps and declared delay are preserved. Older bids,
+reference-only observations and unknown timestamps are distinct. Current
+scheduler status and discovery/refresh errors are separate; after restart the
+stored evidence remains, but earlier process-local job status is not invented.
+A successful job is not synonymous with a new quote timestamp. Use the existing
+product-valuation view to see the source actually used for the position.
+
+The issuer label `VONT FINL.` (punctuation/case normalized) now selects the same
+Vontobel verification probe as a full Vontobel name. It does not change the legal
+issuer name or assign a product to a corporate entity. Exact ISIN/WKN/currency,
+time and bid validation still gate mapping creation. Unsupported labels do not
+acquire a new adapter. Other issuers continue to use their verified existing
+routes; no new gettex, broker or commercial subscription is enabled.
+
+Read-only local verification after separately authorized deployment:
+
+```bash
+curl -fsS http://localhost:8000/api/v1/market-data/warrants/quote-coverage \
+  | jq '{assessed_at, scheduler_enabled, scheduler_leader, configured_sources,
+         items: [.items[] | {name, isin, issuer, coverage, refresh_status,
+                 refresh_reason, discovery_reasons, routes}]}'
+```
+
+The result contains local holdings identities. Do not post a complete private
+inventory publicly. Inspect the gaps locally and share only the necessary,
+redacted evidence. A verified issuer does not establish coverage for every ISIN.
+To obtain new prices, leave the already authorized scheduler running; this button
+intentionally does not bypass its due times. No migration is introduced. Paid
+feeds, new source transports, persisted user preference/priority overrides and
+historical price series remain outside this diagnostic slice.
