@@ -168,7 +168,7 @@ async def test_bad_routes_or_payloads_cannot_be_presented_as_available(case):
 
 @pytest.mark.asyncio
 async def test_unknown_time_reference_is_never_a_bid_and_error_is_not_hidden():
-    workspace, route, record, reader, service, scheduler = context()
+    workspace, route, record, _, service, scheduler = context()
     data = route.payload["data"]
     data.update(
         bid=None,

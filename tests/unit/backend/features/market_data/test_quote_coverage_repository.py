@@ -17,9 +17,9 @@ from app.features.market_data.persistence.models import (
 )
 from app.features.market_data.persistence.quote_coverage import QuoteCoverageRepository
 from app.features.product.persistence.models import WarrantListingModel, WarrantModel
-from app.features.trade_plan.persistence.models import TradePlanModel  # noqa: F401
 from app.features.product_selection.persistence.models import ProductEvaluationModel  # noqa: F401
-from app.features.trade_position.persistence.models import TradeModel, PositionModel
+from app.features.trade_plan.persistence.models import TradePlanModel  # noqa: F401
+from app.features.trade_position.persistence.models import PositionModel, TradeModel
 
 NOW = datetime(2026, 9, 15, 10, tzinfo=UTC)
 

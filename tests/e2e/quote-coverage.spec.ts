@@ -1,6 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
 
+// Match the deployment origin, as in the other real backend browser tests.
+test.use({ baseURL: "http://localhost:8080" });
+
 test("held warrant quote sources are visible from workspace without extra writes or invented coverage", async ({
   page,
   request,
