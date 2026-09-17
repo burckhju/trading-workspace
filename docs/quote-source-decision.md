@@ -1,6 +1,6 @@
 # Optionsschein-Kursquellen: konsolidierter Entscheidungsstand
 
-**Status:** Entscheidungsentwurf, Dokumentation בלבד  
+**Status:** Entscheidungsentwurf, nur Dokumentation  
 **Stand:** 17.09.2026  
 **Repository-Basis:** `main` nach #221 und #222  
 
@@ -9,6 +9,13 @@ verfügbaren read-only Depot-Coverage-Diagnose. Es aktiviert keinen Provider,
 ändert keine Produktdaten und erteilt keine Bewertungs- oder Orderfreigabe.
 Konkrete lokale Depotbestände, ISINs und Häufigkeiten werden bewusst nicht in
 dieser öffentlichen Dokumentation wiederholt.
+
+Relevante bestehende Dokumente:
+
+- [Automatischer Market-Data-Refresh](automatic-market-data.md)
+- [Gettex Schema Probe](GETTEX_SCHEMA_PROBE.md)
+- [Aufbewahrung validierter Optionsscheinkurse](retained-warrant-quotes.md)
+- [Frühere Emittenten-/Quellenrecherche](issuer-quote-coverage.md)
 
 ## 1. Gesicherter aktueller Systemstand
 
