@@ -67,7 +67,10 @@ def test_midnight_file_assigns_previous_day_to_2345_rows() -> None:
 def test_row_outside_filename_window_is_rejected() -> None:
     window = parse_file_window("pretrade.20260916.21.00.mund.csv.gz")
 
-    with pytest.raises(GettexPayloadError, match="GETTEX_ROW_TIME_OUTSIDE_FILE_WINDOW"):
+    with pytest.raises(
+        GettexPayloadError,
+        match="GETTEX_ROW_TIME_OUTSIDE_FILE_WINDOW",
+    ):
         parse_quote_row(
             "DE000UN37224,20:44:59.999999,EUR,1.23,100,1.24,100",
             window=window,
@@ -92,7 +95,10 @@ def test_wrong_field_count_is_rejected() -> None:
 
 
 def test_non_quarter_hour_filename_is_rejected() -> None:
-    with pytest.raises(GettexPayloadError, match="GETTEX_FILE_WINDOW_NOT_QUARTER_HOUR"):
+    with pytest.raises(
+        GettexPayloadError,
+        match="GETTEX_FILE_WINDOW_NOT_QUARTER_HOUR",
+    ):
         parse_file_window("pretrade.20260916.21.07.mund.csv.gz")
 
 
@@ -128,7 +134,10 @@ def test_streaming_scan_rejects_conflicting_duplicate_timestamp() -> None:
         ]
     ).encode()
 
-    with pytest.raises(GettexPayloadError, match="GETTEX_DUPLICATE_TIMESTAMP_CONFLICT"):
+    with pytest.raises(
+        GettexPayloadError,
+        match="GETTEX_DUPLICATE_TIMESTAMP_CONFLICT",
+    ):
         scan_gzip_quotes(
             BytesIO(gzip.compress(content)),
             file_name="pretrade.20260916.21.00.mund.csv.gz",
