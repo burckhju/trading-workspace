@@ -22,6 +22,7 @@ dependencies = [
 [project.scripts]
 monitor-positions-once = "app.features.position_monitoring.cli:main"
 seed-xstu-open-position = "app.tools.seed_xstu_open_position:main"
+configure-gettex-warrant = "app.tools.configure_gettex_warrant:main"
 
 [project.optional-dependencies]
 dev = [
