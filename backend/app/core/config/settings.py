@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.core.config.frankfurt import FrankfurtQuoteSettings
+from app.core.config.gettex import GettexDelayedSettings
 
 
 class Environment(StrEnum):
@@ -211,6 +212,7 @@ class MarketDataSettings(BaseModel):
     eodhd: EodhdSettings = Field(default_factory=EodhdSettings)
     vontobel_markets: VontobelMarketsSettings = Field(default_factory=VontobelMarketsSettings)
     stuttgart_delayed: StuttgartDelayedSettings = Field(default_factory=StuttgartDelayedSettings)
+    gettex_delayed: GettexDelayedSettings = Field(default_factory=GettexDelayedSettings)
     frankfurt: FrankfurtQuoteSettings = Field(default_factory=FrankfurtQuoteSettings)
     refresh: MarketDataRefreshSettings = Field(default_factory=MarketDataRefreshSettings)
 
