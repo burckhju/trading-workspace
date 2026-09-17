@@ -68,18 +68,19 @@ async def test_slow_discovery_does_not_block_warrant_quote_lane(monkeypatch) -> 
     value._warrant = quote
 
     await value.run_once(wait_for_completion=False)
-    await asyncio.wait_for(discovery_started.wait(), timeout=1)
-    await asyncio.wait_for(quote_finished.wait(), timeout=1)
+    try:
+        await asyncio.wait_for(discovery_started.wait(), timeout=1)
+        await asyncio.wait_for(quote_finished.wait(), timeout=1)
 
-    status = value.status()
-    quote_job = status["jobs"][1]
-    assert quote_job["job"] == f"WARRANT_QUOTES:{item.id}"
-    assert quote_job["status"] == "AVAILABLE"
-    assert quote_job["lane"] == RefreshLane.WARRANTS.value
-    assert status["lanes"][RefreshLane.WARRANT_DISCOVERY.value]["running"] is True
-
-    release_discovery.set()
-    await asyncio.gather(*value._lane_tasks.values())
+        status = value.status()
+        quote_job = status["jobs"][1]
+        assert quote_job["job"] == f"WARRANT_QUOTES:{item.id}"
+        assert quote_job["status"] == "AVAILABLE"
+        assert quote_job["lane"] == RefreshLane.WARRANTS.value
+        assert status["lanes"][RefreshLane.WARRANT_DISCOVERY.value]["running"] is True
+    finally:
+        release_discovery.set()
+        await value.stop()
 
 
 @pytest.mark.asyncio
