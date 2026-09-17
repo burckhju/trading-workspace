@@ -45,9 +45,28 @@ mit maschinenlesbaren Geld-/Briefdaten nachgewiesen. Für den geprüften MUND-Fe
 wurden ein headerloses CSV-Format, exakte Instrumentidentität, UTC-Zeit und
 getrennte Geld-/Briefwerte beobachtet.
 
+Die aktuell veröffentlichten gettex-Bedingungen nennen für verzögerte Daten:
+
+- File-Service für MUNC und MUND;
+- maximal 15 Minuten Verzögerung;
+- UTC-Zeitstempel;
+- Verfügbarkeit für mindestens 24 Stunden;
+- Nutzung nur durch natürliche Personen ausschließlich für private Zwecke;
+- keine Weitergabe an Dritte und keine Nutzung zum kommerziellen Vorteil Dritter;
+- Bestätigung dieser Bedingungen durch den Download.
+
+Die offizielle Seite beschreibt die Dateien derzeit als Daten des jeweiligen MIC
+der letzten 24 Stunden. Die frühere vollständige technische Probe beobachtete in
+einer konkreten MUND-Datei dagegen nur ein 15-Minuten-Zeitfenster. Dieser
+Widerspruch muss vor Implementierung reproduzierbar geklärt werden; weder die
+Website-Beschreibung noch eine Einzelprobe darf stillschweigend zur Parser- oder
+Downloadannahme werden.
+
 Noch offen vor einer produktiven Aktivierung:
 
 - MUNC separat verifizieren;
+- tatsächlichen Zeitumfang aktueller MUND-/MUNC-Dateien gegen die offizielle
+  24-Stunden-Beschreibung verifizieren;
 - Tageswechsel/Mitternacht und Dateifenster robust behandeln;
 - große Dateien zentral genau einmal laden und streamend auf die benötigten
   Instrumente filtern;
@@ -125,9 +144,9 @@ Beobachtungsqualität und Schedulerstatus.
 ### Gate A — gettex delayed
 
 **Technisch konkret genug für einen separaten Implementierungsentscheid**, sobald
-MUNC/Tageswechsel, Deployment-Zugriff und Nutzungsbedingungen abschließend
-bestätigt sind. Scope muss auf den tatsächlich durch gettex gedeckten Bedarf
-begrenzt bleiben.
+MUNC, tatsächlicher Dateizeitumfang, Tageswechsel, Deployment-Zugriff und
+Nutzungsbedingungen abschließend bestätigt sind. Scope muss auf den tatsächlich
+durch gettex gedeckten Bedarf begrenzt bleiben.
 
 ### Gate B — Morgan Stanley
 
@@ -161,9 +180,10 @@ Ein zusätzlicher Provider behebt diese vier Zustände nicht automatisch zugleic
 
 Vor Provider-Code ist für **Gate A (gettex delayed)** eine kleine technische und
 rechtliche Abnahme zu dokumentieren: aktuelle offizielle Nutzungsbedingungen,
-MUNC/UTC-Tageswechsel, vollständige Dateiintegrität und erreichbarer
-Deployment-Zugriff. Erst danach kann ein eigener Implementierungs-PR mit klarer
-Abnahme und ohne Änderungen an Depot-/Produktdaten freigegeben werden.
+MUNC, tatsächlicher Dateizeitumfang, UTC-Tageswechsel, vollständige
+Dateiintegrität und erreichbarer Deployment-Zugriff. Erst danach kann ein eigener
+Implementierungs-PR mit klarer Abnahme und ohne Änderungen an Depot-/Produktdaten
+freigegeben werden.
 
 Die ältere Quellenrecherche bleibt als Evidenz erhalten, soll aber nicht direkt
 als Implementierungsfreigabe oder als aktueller lokaler Depotstatus gelesen
