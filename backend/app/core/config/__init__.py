@@ -1,5 +1,6 @@
 """Application configuration exports."""
 
+from app.core.config.gettex import GettexDelayedSettings
 from app.core.config.settings import (
     Environment,
     EodhdSettings,
@@ -14,6 +15,7 @@ from app.core.config.settings import (
 __all__ = [
     "Environment",
     "EodhdSettings",
+    "GettexDelayedSettings",
     "MarketDataSettings",
     "NotificationSettings",
     "PositionMonitoringSettings",
