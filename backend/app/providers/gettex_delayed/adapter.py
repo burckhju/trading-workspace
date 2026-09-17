@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from tempfile import SpooledTemporaryFile
 from time import monotonic
@@ -71,6 +71,15 @@ class GettexDelayedWarrantQuoteAdapter:
         self, request: WarrantQuoteRequest
     ) -> MarketDataResult[WarrantQuoteSnapshot | None]:
         identity = await self._resolve_identity(request)
+        if (
+            request.expected_currency is not None
+            and request.expected_currency.upper() != identity.currency
+        ):
+            raise MarketDataInvalidResponseError(
+                "GETTEX_DELAYED_EXPECTED_CURRENCY_MISMATCH",
+                provider=MarketDataProvider.GETTEX_DELAYED,
+                capability=MarketDataCapability.WARRANT_LISTING_QUOTE,
+            )
         quotes, retrieved_at, cache_hit = await self._quotes_for(
             request.workspace_id,
             identity.exchange,
@@ -99,14 +108,8 @@ class GettexDelayedWarrantQuoteAdapter:
                 trading_status="UNKNOWN",
                 assessed_at=datetime.now(UTC),
                 feed_delay_seconds=self._settings.feed_delay_seconds,
-                venue_mic=identity.exchange,
+                venue_mic=identity.mic,
                 max_quote_age_seconds=request.max_quote_age_seconds,
-            )
-        elif request.expected_currency is not None and request.expected_currency.upper() != identity.currency:
-            raise MarketDataInvalidResponseError(
-                "GETTEX_DELAYED_EXPECTED_CURRENCY_MISMATCH",
-                provider=MarketDataProvider.GETTEX_DELAYED,
-                capability=MarketDataCapability.WARRANT_LISTING_QUOTE,
             )
 
         return MarketDataResult(
@@ -255,7 +258,10 @@ class GettexDelayedWarrantQuoteAdapter:
                     )
 
                 content_length = response.headers.get("Content-Length")
-                if content_length is not None and int(content_length) > self._settings.max_download_bytes:
+                if (
+                    content_length is not None
+                    and int(content_length) > self._settings.max_download_bytes
+                ):
                     raise MarketDataInvalidResponseError(
                         "GETTEX_DELAYED_FILE_TOO_LARGE",
                         provider=MarketDataProvider.GETTEX_DELAYED,
