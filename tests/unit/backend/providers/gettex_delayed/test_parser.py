@@ -1,5 +1,7 @@
+import gzip
 from datetime import UTC, datetime
 from decimal import Decimal
+from io import BytesIO
 
 import pytest
 
@@ -7,6 +9,7 @@ from app.providers.gettex_delayed.parser import (
     GettexPayloadError,
     parse_file_window,
     parse_quote_row,
+    scan_gzip_quotes,
 )
 
 
@@ -91,3 +94,55 @@ def test_wrong_field_count_is_rejected() -> None:
 def test_non_quarter_hour_filename_is_rejected() -> None:
     with pytest.raises(GettexPayloadError, match="GETTEX_FILE_WINDOW_NOT_QUARTER_HOUR"):
         parse_file_window("pretrade.20260916.21.07.mund.csv.gz")
+
+
+def test_streaming_scan_keeps_only_latest_tracked_rows() -> None:
+    content = "\n".join(
+        [
+            "US17327CAU71,20:45:00.002850,USD,94.544,2000000,95.407,2000000",
+            "DE000UN37224,20:46:00.000001,EUR,1.20,100,1.21,100",
+            "DE000UN37224,20:58:00.000001,EUR,1.23,120,1.24,110",
+            "IE000HFBJ0U0,20:59:00.000001,EUR,19.128,600,19.682,600",
+        ]
+    ).encode()
+    source = BytesIO(gzip.compress(content))
+
+    quotes = scan_gzip_quotes(
+        source,
+        file_name="pretrade.20260916.21.00.mund.csv.gz",
+        tracked_isins={"DE000UN37224"},
+    )
+
+    assert set(quotes) == {"DE000UN37224"}
+    assert quotes["DE000UN37224"].observed_at == datetime(
+        2026, 9, 16, 20, 58, 0, 1, tzinfo=UTC
+    )
+    assert quotes["DE000UN37224"].bid == Decimal("1.23")
+
+
+def test_streaming_scan_rejects_conflicting_duplicate_timestamp() -> None:
+    content = "\n".join(
+        [
+            "DE000UN37224,20:58:00.000001,EUR,1.23,120,1.24,110",
+            "DE000UN37224,20:58:00.000001,EUR,1.22,120,1.24,110",
+        ]
+    ).encode()
+
+    with pytest.raises(GettexPayloadError, match="GETTEX_DUPLICATE_TIMESTAMP_CONFLICT"):
+        scan_gzip_quotes(
+            BytesIO(gzip.compress(content)),
+            file_name="pretrade.20260916.21.00.mund.csv.gz",
+            tracked_isins={"DE000UN37224"},
+        )
+
+
+def test_streaming_scan_rejects_truncated_gzip() -> None:
+    content = b"DE000UN37224,20:58:00.000001,EUR,1.23,120,1.24,110\n"
+    compressed = gzip.compress(content)
+
+    with pytest.raises(GettexPayloadError, match="GETTEX_GZIP_INVALID"):
+        scan_gzip_quotes(
+            BytesIO(compressed[:-8]),
+            file_name="pretrade.20260916.21.00.mund.csv.gz",
+            tracked_isins={"DE000UN37224"},
+        )
