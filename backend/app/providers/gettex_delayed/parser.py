@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import csv
+import gzip
 import re
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal, InvalidOperation
+from io import TextIOWrapper
+from typing import BinaryIO
 
 _FILE_NAME = re.compile(
     r"^pretrade\.(?P<date>\d{8})\.(?P<hour>\d{2})\.(?P<minute>\d{2})\."
@@ -106,6 +109,37 @@ def parse_quote_row(line: str, *, window: GettexFileWindow) -> GettexQuoteRow:
         ask_volume=parsed_ask_volume,
         mic=window.mic,
     )
+
+
+def scan_gzip_quotes(
+    source: BinaryIO, *, file_name: str, tracked_isins: set[str]
+) -> dict[str, GettexQuoteRow]:
+    """Stream a complete gzip file and retain only the newest requested ISIN rows."""
+
+    window = parse_file_window(file_name)
+    tracked = {value.strip().upper() for value in tracked_isins}
+    if any(_ISIN.fullmatch(value) is None for value in tracked):
+        raise GettexPayloadError("GETTEX_TRACKED_ISIN_INVALID")
+    if not tracked:
+        return {}
+
+    latest: dict[str, GettexQuoteRow] = {}
+    try:
+        with gzip.GzipFile(fileobj=source, mode="rb") as compressed:
+            text = TextIOWrapper(compressed, encoding="utf-8", newline="")
+            for raw_line in text:
+                candidate = raw_line.partition(",")[0].strip().upper()
+                if candidate not in tracked:
+                    continue
+                row = parse_quote_row(raw_line.rstrip("\r\n"), window=window)
+                previous = latest.get(row.isin)
+                if previous is None or row.observed_at > previous.observed_at:
+                    latest[row.isin] = row
+                elif row.observed_at == previous.observed_at and row != previous:
+                    raise GettexPayloadError("GETTEX_DUPLICATE_TIMESTAMP_CONFLICT")
+    except (EOFError, OSError, UnicodeDecodeError) as exc:
+        raise GettexPayloadError("GETTEX_GZIP_INVALID") from exc
+    return latest
 
 
 def _observed_at(clock: str, window: GettexFileWindow) -> datetime:
