@@ -11,10 +11,7 @@ class GettexDelayedSettings(BaseModel):
 
     enabled: bool = False
     private_use_confirmed: bool = False
-    base_url: str = (
-        "https://erdk.bayerische-boerse.de:8000/"
-        "delayed-data/MUNC-MUND/pretrade"
-    )
+    base_url: str = "https://erdk.bayerische-boerse.de:8000/delayed-data/MUNC-MUND/pretrade"
     timeout_seconds: Annotated[float, Field(gt=0, le=600)] = 180.0
     max_download_bytes: Annotated[int, Field(ge=1, le=2_147_483_648)] = 1_073_741_824
     fallback_windows: Annotated[int, Field(ge=1, le=16)] = 8
