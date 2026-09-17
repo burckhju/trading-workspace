@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from tempfile import SpooledTemporaryFile
 from time import monotonic
+from typing import BinaryIO, cast
 from uuid import UUID
 
 import httpx
@@ -283,7 +284,7 @@ class GettexDelayedWarrantQuoteAdapter:
                     try:
                         quotes = await asyncio.to_thread(
                             scan_gzip_quotes,
-                            temporary,
+                            cast(BinaryIO, temporary),
                             file_name=file_name,
                             tracked_isins=tracked_isins,
                         )
