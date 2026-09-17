@@ -30,7 +30,7 @@ describe('Application', () => {
     expect(await screen.findByRole('heading', { name: 'Basiswerte' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Basiswert anlegen' })).toHaveAttribute(
       'href',
-      '/underlyings/new',
+      '/underlyings/new?returnTo=%2Funderlyings',
     );
     expect(marketApiClient.searchUnderlyings).toHaveBeenCalled();
   });

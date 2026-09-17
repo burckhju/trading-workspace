@@ -97,7 +97,7 @@ describe('UnderlyingListPage', () => {
 
     expect(await screen.findByRole('link', { name: 'Siemens AG' })).toHaveAttribute(
       'href',
-      '/underlyings/11111111-1111-4111-8111-111111111111',
+      '/underlyings/11111111-1111-4111-8111-111111111111?returnTo=%2Funderlyings',
     );
     expect(screen.getByRole('status')).toHaveTextContent('1 Treffer');
     expect(screen.getByText('SIE · Xetra · EUR')).toBeInTheDocument();
@@ -168,7 +168,7 @@ describe('UnderlyingListPage', () => {
 
     expect(await screen.findByRole('link', { name: 'Legacy Siemens AG' })).toHaveAttribute(
       'href',
-      '/underlyings/33333333-3333-4333-8333-333333333333',
+      '/underlyings/33333333-3333-4333-8333-333333333333?returnTo=%2Funderlyings%3Fquery%3DLegacy%2BSiemens',
     );
     expect(marketApiClient.searchProviderInstruments).not.toHaveBeenCalled();
     expect(
