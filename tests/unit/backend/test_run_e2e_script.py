@@ -10,9 +10,9 @@ def test_run_e2e_uses_isolated_compose_project_and_ports() -> None:
 
     assert 'compose_project="trading-workspace-e2e"' in script
     assert '--project-name "${compose_project}"' in script
-    assert 'postgres_port="${E2E_POSTGRES_PORT:-15432}"' in script
-    assert 'backend_port="${E2E_BACKEND_PORT:-18000}"' in script
-    assert 'frontend_port="${E2E_FRONTEND_PORT:-18080}"' in script
+    assert 'postgres_port="${E2E_POSTGRES_PORT:-25432}"' in script
+    assert 'backend_port="${E2E_BACKEND_PORT:-28000}"' in script
+    assert 'frontend_port="${E2E_FRONTEND_PORT:-28080}"' in script
     assert 'VITE_API_BASE_URL="${vite_api_base_url}"' in script
     assert 'PLAYWRIGHT_BASE_URL="${playwright_base_url}"' in script
 
