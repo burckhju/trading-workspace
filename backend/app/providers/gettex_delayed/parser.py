@@ -112,7 +112,10 @@ def parse_quote_row(line: str, *, window: GettexFileWindow) -> GettexQuoteRow:
 
 
 def scan_gzip_quotes(
-    source: BinaryIO, *, file_name: str, tracked_isins: set[str]
+    source: BinaryIO,
+    *,
+    file_name: str,
+    tracked_isins: set[str],
 ) -> dict[str, GettexQuoteRow]:
     """Stream a complete gzip file and retain only the newest requested ISIN rows."""
 
@@ -152,7 +155,9 @@ def _observed_at(clock: str, window: GettexFileWindow) -> datetime:
         datetime.combine(window.starts_at.date(), parsed_time, tzinfo=UTC),
         datetime.combine(window.ends_at.date(), parsed_time, tzinfo=UTC),
     }
-    matching = [value for value in candidates if window.starts_at <= value < window.ends_at]
+    matching = [
+        value for value in candidates if window.starts_at <= value < window.ends_at
+    ]
     if len(matching) != 1:
         raise GettexPayloadError("GETTEX_ROW_TIME_OUTSIDE_FILE_WINDOW")
     return matching[0]
