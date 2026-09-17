@@ -120,9 +120,7 @@ def test_streaming_scan_keeps_only_latest_tracked_rows() -> None:
     )
 
     assert set(quotes) == {"DE000UN37224"}
-    assert quotes["DE000UN37224"].observed_at == datetime(
-        2026, 9, 16, 20, 58, 0, 1, tzinfo=UTC
-    )
+    assert quotes["DE000UN37224"].observed_at == datetime(2026, 9, 16, 20, 58, 0, 1, tzinfo=UTC)
     assert quotes["DE000UN37224"].bid == Decimal("1.23")
 
 
