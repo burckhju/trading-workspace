@@ -79,9 +79,7 @@ def parse_quote_row(line: str, *, window: GettexFileWindow) -> GettexQuoteRow:
     if len(fields) != 7:
         raise GettexPayloadError("GETTEX_ROW_FIELD_COUNT_INVALID")
 
-    isin, clock, currency, bid, bid_volume, ask, ask_volume = (
-        value.strip() for value in fields
-    )
+    isin, clock, currency, bid, bid_volume, ask, ask_volume = (value.strip() for value in fields)
     isin = isin.upper()
     currency = currency.upper()
     if _ISIN.fullmatch(isin) is None:
@@ -155,9 +153,7 @@ def _observed_at(clock: str, window: GettexFileWindow) -> datetime:
         datetime.combine(window.starts_at.date(), parsed_time, tzinfo=UTC),
         datetime.combine(window.ends_at.date(), parsed_time, tzinfo=UTC),
     }
-    matching = [
-        value for value in candidates if window.starts_at <= value < window.ends_at
-    ]
+    matching = [value for value in candidates if window.starts_at <= value < window.ends_at]
     if len(matching) != 1:
         raise GettexPayloadError("GETTEX_ROW_TIME_OUTSIDE_FILE_WINDOW")
     return matching[0]
