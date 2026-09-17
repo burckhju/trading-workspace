@@ -21,7 +21,9 @@ from app.features.product.persistence.models import WarrantListingModel, Warrant
 WORKSPACE_ID = UUID("00000000-0000-4000-8000-000000000001")
 
 
-async def configure(*, isin: str, mic: str, apply: bool, evidence_confirmed: bool) -> dict[str, object]:
+async def configure(
+    *, isin: str, mic: str, apply: bool, evidence_confirmed: bool
+) -> dict[str, object]:
     settings = get_settings()
     normalized_isin = isin.strip().upper()
     normalized_mic = mic.strip().upper()
