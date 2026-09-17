@@ -55,24 +55,32 @@ Die aktuell veröffentlichten gettex-Bedingungen nennen für verzögerte Daten:
 - keine Weitergabe an Dritte und keine Nutzung zum kommerziellen Vorteil Dritter;
 - Bestätigung dieser Bedingungen durch den Download.
 
-Die offizielle Seite beschreibt die Dateien derzeit als Daten des jeweiligen MIC
-der letzten 24 Stunden. Die frühere vollständige technische Probe beobachtete in
-einer konkreten MUND-Datei dagegen nur ein 15-Minuten-Zeitfenster. Dieser
-Widerspruch muss vor Implementierung reproduzierbar geklärt werden; weder die
-Website-Beschreibung noch eine Einzelprobe darf stillschweigend zur Parser- oder
-Downloadannahme werden.
+Die offizielle Pre-Trade-Seite beschreibt die Dateien zugleich als Daten des
+jeweiligen MIC der letzten 24 Stunden und listet einzelne MUND-/MUNC-Dateien im
+15-Minuten-Raster auf. Aktuelle read-only Probes vom Deployment-Host bestätigen:
 
-Noch offen vor einer produktiven Aktivierung:
+- öffentliche gettex-Seite erreichbar;
+- Dateiserver auf Port 8000 über HTTPS erreichbar;
+- Range-Requests liefern `206 Partial Content`;
+- MUND und MUNC verwenden dasselbe beobachtete Schema ohne Header:
+  `ISIN,UTC-Uhrzeit,Währung,Geld,Geldvolumen,Brief,Briefvolumen`;
+- für den Dateistempel `21.00` beginnen die beobachteten Datensätze bei `20:45`;
+- die vollständig gelesene kleine MUNC-Datei endete bei `20:59:59` und belegt
+  damit für diesen Fall ein 15-Minuten-Fenster;
+- eine frühere vollständig gelesene große MUND-Datei zeigte ebenfalls genau ein
+  15-Minuten-Fenster.
 
-- MUNC separat verifizieren;
-- tatsächlichen Zeitumfang aktueller MUND-/MUNC-Dateien gegen die offizielle
-  24-Stunden-Beschreibung verifizieren;
-- Tageswechsel/Mitternacht und Dateifenster robust behandeln;
-- große Dateien zentral genau einmal laden und streamend auf die benötigten
-  Instrumente filtern;
-- ausgehenden Zugriff des Deployment-Hosts und die betrieblichen Downloadkosten
-  verifizieren;
-- Nutzungsbedingungen weiterhin fail-closed behandeln.
+Damit besteht eine dokumentierte Inkonsistenz zwischen dem Website-Satz
+„letzte 24 Stunden“ und dem tatsächlich beobachteten File-Service. Eine spätere
+Implementierung darf daraus keine 24-Stunden-Dateiannahme ableiten. Sie muss die
+Dateiliste als Quelle der Intervalle verwenden, jede Datei eigenständig
+validieren und Zeit-/Dateigrenzen fail-closed behandeln.
+
+Der Deployment-Zugriff und das MUNC-Schema sind damit technisch geprüft. Ein
+erneuter vollständiger Download einer großen MUND-Datei ist für diese
+Entscheidungsunterlage nicht erforderlich; die Implementierung selbst muss vor
+einem Checkpoint vollständige GZip-Dekompression und Integritätsprüfung
+verlangen.
 
 Eine Umsetzung müsste hinter dem bestehenden `WarrantListingQuoteProvider`
 liegen und erfolgreiche Beobachtungen in der vorhandenen dauerhaften
@@ -143,10 +151,21 @@ Beobachtungsqualität und Schedulerstatus.
 
 ### Gate A — gettex delayed
 
-**Technisch konkret genug für einen separaten Implementierungsentscheid**, sobald
-MUNC, tatsächlicher Dateizeitumfang, Tageswechsel, Deployment-Zugriff und
-Nutzungsbedingungen abschließend bestätigt sind. Scope muss auf den tatsächlich
-durch gettex gedeckten Bedarf begrenzt bleiben.
+**Technisch entscheidungsreif für einen separaten Implementierungs-PR**, unter
+der Voraussetzung, dass die konkrete Nutzung die veröffentlichten Bedingungen
+für natürliche Personen und private Zwecke erfüllt.
+
+Der Implementierungs-Scope muss eng bleiben:
+
+- Dateiliste statt angenommener 24-Stunden-Datei als Intervallquelle;
+- zentraler Download einer neuen Datei genau einmal;
+- vollständige GZip-/CSV-Validierung vor Checkpoint;
+- Filterung nur auf konfigurierte/benötigte ISINs;
+- Datum aus verifiziertem Dateinamen und UTC-Zeit mit strikter Intervallprüfung;
+- kein Überschreiben einer letzten gültigen Beobachtung durch fehlenden Treffer,
+  Teil-Download oder Parserfehler;
+- vorhandene `WarrantListingQuoteProvider`- und Retention-Architektur nutzen;
+- keine Produkt-/Depotmigration und keine Orderfreigabe.
 
 ### Gate B — Morgan Stanley
 
@@ -178,12 +197,12 @@ Ein zusätzlicher Provider behebt diese vier Zustände nicht automatisch zugleic
 
 ## 6. Nächster zulässiger Schritt
 
-Vor Provider-Code ist für **Gate A (gettex delayed)** eine kleine technische und
-rechtliche Abnahme zu dokumentieren: aktuelle offizielle Nutzungsbedingungen,
-MUNC, tatsächlicher Dateizeitumfang, UTC-Tageswechsel, vollständige
-Dateiintegrität und erreichbarer Deployment-Zugriff. Erst danach kann ein eigener
-Implementierungs-PR mit klarer Abnahme und ohne Änderungen an Depot-/Produktdaten
-freigegeben werden.
+Für **Gate A (gettex delayed)** kann nun ein eigener, begrenzter
+Implementierungs-PR vorbereitet werden. Vor Aktivierung in einer konkreten
+Installation muss der Betreiber die veröffentlichten privaten Nutzungsbedingungen
+bewusst bestätigen. Der PR muss mit synthetischen/öffentlichen Testfixtures und
+einer Wegwerf-Testdatenbank qualifiziert werden; echte Depotdaten sind dafür nicht
+erforderlich.
 
 Die ältere Quellenrecherche bleibt als Evidenz erhalten, soll aber nicht direkt
 als Implementierungsfreigabe oder als aktueller lokaler Depotstatus gelesen
