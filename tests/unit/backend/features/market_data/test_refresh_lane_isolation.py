@@ -84,6 +84,48 @@ async def test_slow_discovery_does_not_block_warrant_quote_lane(monkeypatch) -> 
 
 
 @pytest.mark.asyncio
+async def test_same_cycle_discovery_retries_quote_that_missed_before_mapping(monkeypatch) -> None:
+    value = runtime()
+    item = RefreshInstrument(uuid4(), "Unrouted", "DE000TEST456")
+    monkeypatch.setattr(module, "read_catalog", AsyncMock(return_value=([item], [])))
+    value.container = SimpleNamespace(
+        database=object(),
+        frankfurt=SimpleNamespace(
+            settings=SimpleNamespace(source_mode=FrankfurtSourceMode.PUBLIC_WEBSITE)
+        ),
+        vontobel=None,
+    )
+    first_quote_finished = asyncio.Event()
+    quote_calls = 0
+
+    async def discover(_item):
+        await first_quote_finished.wait()
+        return {"reason": "FRANKFURT_IDENTITY_VERIFIED"}
+
+    async def quote(_item):
+        nonlocal quote_calls
+        quote_calls += 1
+        if quote_calls == 1:
+            first_quote_finished.set()
+            return {
+                "status": "MISSING",
+                "reason": "NO_USABLE_WARRANT_QUOTE",
+                "active_listing_count": 0,
+            }
+        return {"status": "AVAILABLE", "reason": "QUOTE_OBSERVATIONS_AVAILABLE"}
+
+    value._configure_frankfurt = discover
+    value._warrant = quote
+
+    await value.run_once()
+
+    quote_job = value.jobs[f"WARRANT_QUOTES:{item.id}"]
+    assert quote_calls == 2
+    assert quote_job["status"] == "AVAILABLE"
+    assert quote_job["reason"] == "QUOTE_OBSERVATIONS_AVAILABLE"
+
+
+@pytest.mark.asyncio
 async def test_warrant_paces_only_public_frankfurt_listings() -> None:
     value = runtime()
     xf_listing = SimpleNamespace(id=uuid4(), quotation_currency_code="EUR")
