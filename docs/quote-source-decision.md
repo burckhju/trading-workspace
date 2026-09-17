@@ -151,9 +151,11 @@ Beobachtungsqualität und Schedulerstatus.
 
 ### Gate A — gettex delayed
 
-**Technisch entscheidungsreif für einen separaten Implementierungs-PR**, unter
-der Voraussetzung, dass die konkrete Nutzung die veröffentlichten Bedingungen
-für natürliche Personen und private Zwecke erfüllt.
+**Technisch entscheidungsreif für einen separaten Implementierungs-PR.** Das ist
+noch keine Freigabe zur Aktivierung. Vor jeder produktiven Aktivierung muss der
+Betreiber ausdrücklich bestätigen, dass die konkrete Nutzung die veröffentlichten
+Bedingungen für eine natürliche Person und ausschließlich private Zwecke erfüllt
+und keine Datenweitergabe bzw. Nutzung zum kommerziellen Vorteil Dritter erfolgt.
 
 Der Implementierungs-Scope muss eng bleiben:
 
@@ -198,10 +200,11 @@ Ein zusätzlicher Provider behebt diese vier Zustände nicht automatisch zugleic
 ## 6. Nächster zulässiger Schritt
 
 Für **Gate A (gettex delayed)** kann nun ein eigener, begrenzter
-Implementierungs-PR vorbereitet werden. Vor Aktivierung in einer konkreten
-Installation muss der Betreiber die veröffentlichten privaten Nutzungsbedingungen
-bewusst bestätigen. Der PR muss mit synthetischen/öffentlichen Testfixtures und
-einer Wegwerf-Testdatenbank qualifiziert werden; echte Depotdaten sind dafür nicht
+Implementierungs-PR vorbereitet werden. Vorbereitung und Tests dürfen ohne
+produktive Aktivierung erfolgen. Vor Aktivierung in einer konkreten Installation
+muss der Betreiber die veröffentlichten privaten Nutzungsbedingungen bewusst
+bestätigen. Der PR muss mit synthetischen/öffentlichen Testfixtures und einer
+Wegwerf-Testdatenbank qualifiziert werden; echte Depotdaten sind dafür nicht
 erforderlich.
 
 Die ältere Quellenrecherche bleibt als Evidenz erhalten, soll aber nicht direkt
