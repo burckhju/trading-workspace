@@ -24,6 +24,7 @@ jobs:
   quality:
     name: Backend / quality
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     services:
       postgres:
@@ -69,11 +70,24 @@ jobs:
           PYTHONPATH: ${{ github.workspace }}/backend:${{ github.workspace }}
         run: alembic upgrade head
 
+      - name: Scheduler lane regression
+        env:
+          PYTHONPATH: ${{ github.workspace }}/backend:${{ github.workspace }}
+        run: >-
+          timeout 120s
+          pytest -c pyproject.toml
+          ../tests/unit/backend/features/market_data/test_refresh_lane_isolation.py
+          ../tests/unit/backend/features/market_data/test_refresh.py
+          -vv -s
+
       - name: Tests with coverage
         env:
           PYTHONPATH: ${{ github.workspace }}/backend:${{ github.workspace }}
         run: >-
+          timeout 900s
           pytest -c pyproject.toml ../tests/unit/backend ../tests/integration/backend
+          -vv
+          --durations=20
           --cov=app
           --cov-report=term-missing
           --cov-report=xml:coverage.xml
