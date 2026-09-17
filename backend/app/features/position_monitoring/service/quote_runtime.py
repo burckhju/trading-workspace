@@ -32,6 +32,18 @@ def build_warrant_quote_resolver(
         if not stuttgart_settings.enabled
         else "STUTTGART_DELAYED_SCHEMA_NOT_VERIFIED"
     )
+    gettex_provider = (
+        RetainedWarrantQuoteProvider(
+            container.database, container.gettex, MarketDataProvider.GETTEX_DELAYED
+        )
+        if container.gettex is not None
+        else None
+    )
+    gettex_reason = (
+        "GETTEX_DELAYED_DISABLED"
+        if not container.settings.market_data.gettex_delayed.enabled
+        else "GETTEX_DELAYED_MAPPING_REQUIRED"
+    )
     frankfurt_settings = container.settings.market_data.frankfurt
     return MultiSourceWarrantQuoteResolver(
         (
@@ -60,12 +72,9 @@ def build_warrant_quote_resolver(
             ),
             NamedWarrantQuoteSource(
                 "GETTEX_DELAYED",
-                None,
+                gettex_provider,
                 delayed=True,
-                unavailable_reason=(
-                    "Official MUND/MUNC delayed pre-trade source is reserved but not enabled until "
-                    "payload schema, usage terms, and listing identity are verified"
-                ),
+                unavailable_reason=gettex_reason,
             ),
         )
     )
