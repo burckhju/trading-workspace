@@ -42,6 +42,7 @@ logger = logging.getLogger(__name__)
 
 class RefreshLane(StrEnum):
     WARRANTS = "WARRANTS"
+    WARRANT_DISCOVERY = "WARRANT_DISCOVERY"
     UNDERLYINGS = "UNDERLYINGS"
 
 
@@ -49,11 +50,11 @@ type ScheduledJob = tuple[str, RefreshInstrument, int, Callable[[], Awaitable[di
 
 
 def _job_lane(key: str) -> RefreshLane:
-    return (
-        RefreshLane.UNDERLYINGS
-        if key.startswith(("EODHD_MAPPING:", "UNDERLYING_EOD:"))
-        else RefreshLane.WARRANTS
-    )
+    if key.startswith(("FRANKFURT_MAPPING:", "VONTOBEL_MAPPING:")):
+        return RefreshLane.WARRANT_DISCOVERY
+    if key.startswith(("EODHD_MAPPING:", "UNDERLYING_EOD:")):
+        return RefreshLane.UNDERLYINGS
+    return RefreshLane.WARRANTS
 
 
 class MarketDataRefreshRuntime:
@@ -87,7 +88,7 @@ class MarketDataRefreshRuntime:
     @property
     def current_job(self) -> str | None:
         # Compatibility with clients displaying one job. The complete status is
-        # in lanes/current_jobs, since both lanes may be active at the same time.
+        # in lanes/current_jobs, since multiple lanes may be active at the same time.
         return next((job for job in self._current_jobs.values() if job is not None), None)
 
     def _schedule_counts(self, keys: Iterable[str], now: float) -> dict[str, int | float]:
@@ -118,7 +119,7 @@ class MarketDataRefreshRuntime:
             "underlying_price_type": "COMPLETED_EOD",
             "current_job": self.current_job,
             "current_jobs": dict(self._current_jobs),
-            "scheduling_mode": "INDEPENDENT_WARRANT_UNDERLYING_LANES",
+            "scheduling_mode": "INDEPENDENT_WARRANT_QUOTE_DISCOVERY_UNDERLYING_LANES",
             "lanes": {
                 lane.value: {
                     "running": lane in self._lane_tasks and not self._lane_tasks[lane].done(),
@@ -145,7 +146,7 @@ class MarketDataRefreshRuntime:
 
         The leader calls with wait_for_completion=False so the next catalog scan,
         lock heartbeat and a completed lane never wait for the other lane's batch.
-        Awaiting both lanes remains useful for explicit one-shot runs and tests.
+        Awaiting all lanes remains useful for explicit one-shot runs and tests.
         """
         if not self.settings.enabled:
             await self.stop()
@@ -369,6 +370,13 @@ class MarketDataRefreshRuntime:
             await asyncio.sleep(delay)
         self._next_underlying_request = self.timer() + self.settings.request_spacing_seconds
 
+    def _should_pace_frankfurt_quote(self, venue_mic: str) -> bool:
+        return (
+            venue_mic == "XFRA"
+            and self.container.frankfurt is not None
+            and self.container.frankfurt.settings.source_mode is FrankfurtSourceMode.PUBLIC_WEBSITE
+        )
+
     async def _configure_frankfurt(self, item: RefreshInstrument) -> dict[str, Any]:
         assert self.container.frankfurt is not None
         await self._pace()
@@ -397,9 +405,9 @@ class MarketDataRefreshRuntime:
 
     async def _warrant(self, item: RefreshInstrument) -> dict[str, Any]:
         async with self.container.database.session_context() as session:
-            listings = list(
-                await session.scalars(
-                    select(WarrantListingModel)
+            listing_rows = (
+                await session.execute(
+                    select(WarrantListingModel, TradingVenueModel.mic)
                     .join(
                         TradingVenueModel,
                         TradingVenueModel.id == WarrantListingModel.trading_venue_id,
@@ -412,7 +420,8 @@ class MarketDataRefreshRuntime:
                     )
                     .order_by(WarrantListingModel.id)
                 )
-            )
+            ).all()
+            listings = [listing for listing, _venue_mic in listing_rows]
             mappings = list(
                 await session.scalars(
                     select(WarrantProviderMappingModel).where(
@@ -425,8 +434,9 @@ class MarketDataRefreshRuntime:
             )
         observations: list[dict[str, Any]] = []
         quotes: list[dict[str, Any]] = []
-        for listing in listings:
-            await self._pace()
+        for listing, venue_mic in listing_rows:
+            if self._should_pace_frankfurt_quote(venue_mic):
+                await self._pace()
             resolution = await self._resolver.resolve(
                 WarrantQuoteRequest(
                     self.workspace_id,
