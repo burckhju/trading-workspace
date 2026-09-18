@@ -80,6 +80,7 @@ def test_policy_uses_exact_currency_and_preferred_listing_without_guessing_provi
         expected_currency="EUR",
     )
     assert missing.status is PositionQuoteSourceSelectionStatus.NO_VERIFIED_QUOTE_SOURCE
+    assert missing.reason == "NO_VERIFIED_QUOTE_SOURCE_FOR_CURRENCY"
     assert missing.selected is None
 
 
@@ -106,7 +107,7 @@ async def test_selector_persists_failure_state_and_is_idempotent():
     assert row.selection_reason == "NO_VERIFIED_QUOTE_SOURCE"
     assert row.provider is None and row.identity_key is None
     assert row.policy_version == POSITION_QUOTE_SOURCE_POLICY_V1
-    assert row.evidence["enabled_providers"] == ["GETTEX_DELAYED"]
+    assert row.evidence["allowed_providers"] == ["GETTEX_DELAYED"]
     repository.add.assert_awaited_once_with(row)
 
     repository.active_for_position.return_value = row
