@@ -1,0 +1,61 @@
+name: Quote source discovery
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/quote-source-discovery.yml'
+permissions:
+  contents: read
+jobs:
+  public-docs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - run: python -m pip install PyYAML==6.0.3
+      - name: Verify public read-only data services (no credentials)
+        run: |
+          python - <<'PY'
+          import json
+          import re
+          import urllib.request
+          import yaml
+          from datetime import datetime, timezone
+
+          class NoRedirect(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self, req, fp, code, msg, headers, newurl):
+                  return None
+
+          opener = urllib.request.build_opener(NoRedirect)
+          def get(url, body=None):
+              print('\nREQUEST', url, body, 'AT', datetime.now(timezone.utc).isoformat(), flush=True)
+              try:
+                  req = urllib.request.Request(url, data=None if body is None else json.dumps(body).encode(), headers={'User-Agent': 'TradingWorkspace-SourceCheck/1.0', 'Accept': 'application/json', 'Content-Type': 'application/json'})
+                  with opener.open(req, timeout=20) as response:
+                      data = response.read(1000001)
+                      print('HTTP', response.status, 'BYTES', len(data), flush=True)
+                      if len(data) > 1000000:
+                          return ''
+                      return data.decode('utf-8')
+              except Exception as exc:
+                  print('FAILURE', type(exc).__name__, str(exc)[:200], flush=True)
+                  return ''
+
+          doc = yaml.safe_load(get('https://mds.ariva-services.de/swagger-ui/openapi.yml'))
+          if isinstance(doc, dict):
+              for path in ('/marketstates/', '/search', '/references/{referenceId}', '/sources/{sourceId}/tradingtime/{date}'):
+                  print('ARIVA PATH', path, json.dumps(doc.get('paths', {}).get(path), default=str))
+          text = get('https://mvs.deutsche-boerse.com/assets/index-CnjaO4GD.js')
+          for keyword in ('yH=', 'gH=', 'VC_ASK', 'VC_BID', 'VC_TIMESTAMP', 'SRC_XSC', 'Terms of Use'):
+              for match in list(re.finditer(re.escape(keyword), text))[:3]:
+                  print('JS CONTEXT', keyword, text[max(0, match.start()-200):match.end()+1700])
+          def millis(hour, minute):
+              return str(int(datetime(2026, 9, 11, hour, minute, tzinfo=timezone.utc).timestamp()*1000))
+          for isin in ('DE000VH2LU21', 'DE000SY7B4G7'):
+              for kind in ('pretrade', 'posttrade'):
+                  result = get('https://mvs.deutsche-boerse.com/api', {'sourceOfData':'DXSC', 'exchangeType':kind, 'isin':isin, 'start':millis(12,0), 'end':millis(12,5)})
+                  print('PUBLIC DATA', result[:12000], flush=True)
+          text = get('https://mfs.deutsche-boerse.com/api/DXSC-posttrade')
+          if text:
+              doc = json.loads(text)
+              print('MANIFEST', json.dumps({k:v for k,v in doc.items() if k != 'CurrentFiles'})[:2000])
+              print('FILE EXAMPLES', doc.get('CurrentFiles', [])[-3:])
+          PY
