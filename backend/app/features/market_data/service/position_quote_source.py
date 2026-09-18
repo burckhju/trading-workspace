@@ -146,6 +146,7 @@ class PositionQuoteSourceSelector:
             }
 
         evidence = {
+            "warrant_id": str(warrant_id),
             "preferred_listing_id": (
                 str(preferred_listing_id) if preferred_listing_id is not None else None
             ),
