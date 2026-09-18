@@ -19,6 +19,7 @@ from sqlalchemy import (
     Numeric,
     String,
     UniqueConstraint,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -153,6 +154,78 @@ class WarrantProviderMappingModel(Base):
         "version_id_col": version,
         "version_id_generator": False,
     }
+
+
+class PositionQuoteSourceSelectionModel(Base):
+    """One auditable source decision for a position; health is derived separately."""
+
+    __tablename__ = "position_quote_source_selections"
+    __table_args__ = (
+        CheckConstraint(
+            "selection_status IN "
+            "('SELECTED','NO_VERIFIED_QUOTE_SOURCE','AMBIGUOUS_SOURCE')",
+            name="selection_status_valid",
+        ),
+        CheckConstraint(
+            "(selection_status = 'SELECTED' "
+            "AND warrant_listing_id IS NOT NULL "
+            "AND provider IS NOT NULL "
+            "AND identity_key IS NOT NULL) "
+            "OR "
+            "(selection_status <> 'SELECTED' "
+            "AND warrant_listing_id IS NULL "
+            "AND warrant_provider_mapping_id IS NULL "
+            "AND provider IS NULL "
+            "AND identity_key IS NULL "
+            "AND mapping_version IS NULL)",
+            name="selected_route_consistent",
+        ),
+        CheckConstraint(
+            "(warrant_provider_mapping_id IS NULL AND mapping_version IS NULL) "
+            "OR "
+            "(warrant_provider_mapping_id IS NOT NULL AND mapping_version IS NOT NULL)",
+            name="mapping_version_consistent",
+        ),
+        CheckConstraint(
+            "superseded_at IS NULL OR superseded_at >= selected_at",
+            name="superseded_not_before_selected",
+        ),
+        Index(
+            "ix_position_quote_source_selections_workspace_position",
+            "workspace_id",
+            "position_id",
+        ),
+        Index(
+            "uq_position_quote_source_selections_active_position",
+            "workspace_id",
+            "position_id",
+            unique=True,
+            postgresql_where=text("superseded_at IS NULL"),
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    workspace_id: Mapped[UUID] = mapped_column(
+        ForeignKey("workspaces.id", ondelete="RESTRICT"), nullable=False
+    )
+    position_id: Mapped[UUID] = mapped_column(
+        ForeignKey("positions.id", ondelete="RESTRICT"), nullable=False
+    )
+    warrant_listing_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("warrant_listings.id", ondelete="RESTRICT"), nullable=True
+    )
+    warrant_provider_mapping_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("warrant_provider_mappings.id", ondelete="RESTRICT"), nullable=True
+    )
+    provider: Mapped[str | None] = mapped_column(String(30))
+    identity_key: Mapped[str | None] = mapped_column(String(64))
+    mapping_version: Mapped[int | None] = mapped_column(Integer)
+    selection_status: Mapped[str] = mapped_column(String(32), nullable=False)
+    selection_reason: Mapped[str] = mapped_column(String(100), nullable=False)
+    policy_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    evidence: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    selected_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    superseded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class WarrantQuoteObservationModel(Base):
