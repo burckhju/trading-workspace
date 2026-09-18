@@ -44,7 +44,7 @@ class PositionQuoteSourceSelectionRepository:
     async def active_for_position(
         self, workspace_id: UUID, position_id: UUID
     ) -> PositionQuoteSourceSelectionModel | None:
-        return await self.session.scalar(
+        result = await self.session.scalars(
             select(PositionQuoteSourceSelectionModel)
             .where(
                 PositionQuoteSourceSelectionModel.workspace_id == workspace_id,
@@ -53,6 +53,7 @@ class PositionQuoteSourceSelectionRepository:
             )
             .with_for_update()
         )
+        return result.one_or_none()
 
     async def verified_candidates(
         self,
