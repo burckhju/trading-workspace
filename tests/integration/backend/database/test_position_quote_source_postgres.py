@@ -1,6 +1,9 @@
 """Persist position quote-source decisions against the migrated PostgreSQL schema."""
 
 from datetime import UTC, datetime
+from decimal import Decimal
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
 from uuid import uuid4
 
 import pytest
@@ -16,6 +19,9 @@ from app.features.market_data.persistence.position_quote_source import (
     PositionQuoteSourceSelectionRepository,
 )
 from app.features.market_data.service.position_quote_source import PositionQuoteSourceSelector
+from app.features.trade_position.persistence.unit_of_work import SqlAlchemyTradePositionUnitOfWork
+from app.features.trade_position.service.application import TradePositionService
+from app.features.trade_position.service.resolvers import ResolvedProduct
 
 
 @pytest.mark.asyncio
@@ -33,8 +39,6 @@ async def test_selection_is_identity_verified_persistent_and_idempotent(
             "warrant",
             "listing",
             "mapping",
-            "trade",
-            "position",
             "actor",
             "trade_without_source",
             "position_without_source",
@@ -89,11 +93,6 @@ async def test_selection_is_identity_verified_persistent_and_idempotent(
                     "(:mapping,:workspace,:listing,'GETTEX_DELAYED','DE000QS00001','MUND',"
                     "'ACTIVE',:now,1,:now,:now)",
                     "INSERT INTO trades(id,workspace_id,product_id,origin,created_at,created_by) "
-                    "VALUES (:trade,:workspace,:warrant,'EXTERNAL',:now,:actor)",
-                    "INSERT INTO positions(id,trade_id,product_id,open_quantity,cost_basis,"
-                    "average_entry_price,opened_at,last_execution_at,realized_gross_pnl) VALUES "
-                    "(:position,:trade,:warrant,10,10,1,:now,:now,0)",
-                    "INSERT INTO trades(id,workspace_id,product_id,origin,created_at,created_by) "
                     "VALUES (:trade_without_source,:workspace,:warrant,'EXTERNAL',:now,:actor)",
                     "INSERT INTO positions(id,trade_id,product_id,open_quantity,cost_basis,"
                     "average_entry_price,opened_at,last_execution_at,realized_gross_pnl) VALUES "
@@ -110,13 +109,32 @@ async def test_selection_is_identity_verified_persistent_and_idempotent(
                     selector = PositionQuoteSourceSelector(
                         repository, {MarketDataProvider.GETTEX_DELAYED}
                     )
-                    selected = await selector.select_once(
-                        workspace_id=ids["workspace"],
-                        position_id=ids["position"],
-                        warrant_id=ids["warrant"],
-                        expected_currency="EUR",
-                        selected_at=now,
+                    products = SimpleNamespace(
+                        resolve=AsyncMock(
+                            return_value=ResolvedProduct(
+                                workspace_id=ids["workspace"],
+                                product_id=ids["warrant"],
+                            )
+                        )
                     )
+                    service = TradePositionService(
+                        uow=SqlAlchemyTradePositionUnitOfWork(session),
+                        workspace_selections=SimpleNamespace(resolve=AsyncMock()),
+                        products=products,
+                        quote_source_selector=selector,
+                    )
+                    _trade, _execution, position = await service.record_external_purchase(
+                        workspace_id=ids["workspace"],
+                        product_id=ids["warrant"],
+                        quantity=10,
+                        price_per_unit=Decimal("1.00"),
+                        executed_at=now,
+                        actor=ids["actor"],
+                    )
+                    selected = await repository.active_for_position(
+                        ids["workspace"], position.id
+                    )
+                    assert selected is not None
                     assert selected.selection_status == "SELECTED"
                     assert selected.warrant_listing_id == ids["listing"]
                     assert selected.warrant_provider_mapping_id == ids["mapping"]
@@ -126,7 +144,7 @@ async def test_selection_is_identity_verified_persistent_and_idempotent(
 
                     repeated = await selector.select_once(
                         workspace_id=ids["workspace"],
-                        position_id=ids["position"],
+                        position_id=position.id,
                         warrant_id=ids["warrant"],
                     )
                     assert repeated.id == selected.id
@@ -134,7 +152,7 @@ async def test_selection_is_identity_verified_persistent_and_idempotent(
                         await session.scalar(
                             select(PositionQuoteSourceSelectionModel).where(
                                 PositionQuoteSourceSelectionModel.workspace_id == ids["workspace"],
-                                PositionQuoteSourceSelectionModel.position_id == ids["position"],
+                                PositionQuoteSourceSelectionModel.position_id == position.id,
                             )
                         )
                     ).id == selected.id
@@ -145,7 +163,7 @@ async def test_selection_is_identity_verified_persistent_and_idempotent(
                                 "WHERE workspace_id=:workspace AND position_id=:position "
                                 "AND superseded_at IS NULL"
                             ),
-                            ids,
+                            {"workspace": ids["workspace"], "position": position.id},
                         )
                         == 1
                     )
