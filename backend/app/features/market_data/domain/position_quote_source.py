@@ -17,8 +17,8 @@ class PositionQuoteSourceSelectionStatus(StrEnum):
 class PositionQuoteSourceCandidate:
     provider: MarketDataProvider
     listing_id: UUID
-    mapping_id: UUID | None
-    mapping_version: int | None
+    mapping_id: UUID
+    mapping_version: int
     identity_key: str
     currency: str
     mic: str
