@@ -131,9 +131,7 @@ async def test_selection_is_identity_verified_persistent_and_idempotent(
                         executed_at=now,
                         actor=ids["actor"],
                     )
-                    selected = await repository.active_for_position(
-                        ids["workspace"], position.id
-                    )
+                    selected = await repository.active_for_position(ids["workspace"], position.id)
                     assert selected is not None
                     assert selected.selection_status == "SELECTED"
                     assert selected.warrant_listing_id == ids["listing"]
