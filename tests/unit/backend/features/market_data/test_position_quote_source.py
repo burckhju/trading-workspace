@@ -122,6 +122,29 @@ async def test_selector_persists_failure_state_and_is_idempotent():
 
 
 @pytest.mark.asyncio
+async def test_selector_records_verified_but_disallowed_source() -> None:
+    route = candidate()
+    repository = SimpleNamespace(
+        lock_open_position=AsyncMock(return_value=True),
+        active_for_position=AsyncMock(return_value=None),
+        verified_candidates=AsyncMock(return_value=(route,)),
+        add=AsyncMock(),
+    )
+    selector = PositionQuoteSourceSelector(repository, ())
+
+    row = await selector.select_once(
+        workspace_id=uuid4(),
+        position_id=uuid4(),
+        warrant_id=uuid4(),
+    )
+
+    assert row.selection_status == "NO_VERIFIED_QUOTE_SOURCE"
+    assert row.selection_reason == "NO_ALLOWED_VERIFIED_QUOTE_SOURCE"
+    assert row.evidence["verified_candidates"][0]["provider"] == "GETTEX_DELAYED"
+    assert row.evidence["allowed_candidates"] == []
+
+
+@pytest.mark.asyncio
 async def test_selector_rejects_non_open_or_foreign_position():
     repository = SimpleNamespace(
         lock_open_position=AsyncMock(return_value=False),
