@@ -80,7 +80,8 @@ async def test_selection_is_identity_verified_persistent_and_idempotent(
 
                 for sql in (
                     "INSERT INTO warrant_listings(id,workspace_id,warrant_id,trading_venue_id,"
-                    "symbol,quotation_currency_code,lifecycle_status,version,created_at,updated_at) "
+                    "symbol,quotation_currency_code,lifecycle_status,version,"
+                    "created_at,updated_at) "
                     "VALUES (:listing,:workspace,:warrant,:venue,NULL,'EUR','ACTIVE',1,:now,:now)",
                     "INSERT INTO warrant_provider_mappings(id,workspace_id,warrant_listing_id,"
                     "provider,provider_symbol,provider_exchange_code,status,validated_at,version,"
