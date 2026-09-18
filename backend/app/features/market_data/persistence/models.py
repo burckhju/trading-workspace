@@ -162,8 +162,7 @@ class PositionQuoteSourceSelectionModel(Base):
     __tablename__ = "position_quote_source_selections"
     __table_args__ = (
         CheckConstraint(
-            "selection_status IN "
-            "('SELECTED','NO_VERIFIED_QUOTE_SOURCE','AMBIGUOUS_SOURCE')",
+            "selection_status IN " "('SELECTED','NO_VERIFIED_QUOTE_SOURCE','AMBIGUOUS_SOURCE')",
             name="selection_status_valid",
         ),
         CheckConstraint(
