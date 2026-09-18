@@ -59,9 +59,9 @@ class PositionQuoteSourceSelectionRepository:
         self,
         workspace_id: UUID,
         warrant_id: UUID,
-        enabled_providers: Iterable[MarketDataProvider],
+        allowed_providers: Iterable[MarketDataProvider],
     ) -> tuple[PositionQuoteSourceCandidate, ...]:
-        providers = tuple(sorted(set(enabled_providers), key=lambda item: item.value))
+        providers = tuple(sorted(set(allowed_providers), key=lambda item: item.value))
         if not providers:
             return ()
 
