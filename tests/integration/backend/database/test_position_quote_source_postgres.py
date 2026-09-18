@@ -37,6 +37,7 @@ async def test_selection_is_identity_verified_persistent_and_idempotent(
             "issuer",
             "underlying",
             "warrant",
+            "warrant_without_source",
             "listing",
             "mapping",
             "actor",
@@ -63,6 +64,10 @@ async def test_selection_is_identity_verified_persistent_and_idempotent(
                     "display_name,isin,lifecycle_status,version,created_at,updated_at) VALUES "
                     "(:warrant,:workspace,:issuer,:underlying,'WARRANT','Quote source test',"
                     "'DE000QS00001','ACTIVE',1,:now,:now)",
+                    "INSERT INTO warrants(id,workspace_id,issuer_id,underlying_id,product_family,"
+                    "display_name,isin,lifecycle_status,version,created_at,updated_at) VALUES "
+                    "(:warrant_without_source,:workspace,:issuer,:underlying,'WARRANT',"
+                    "'Quote source test missing','DE000QS00002','ACTIVE',1,:now,:now)",
                 ):
                     await connection.execute(text(sql), params)
 
@@ -93,10 +98,12 @@ async def test_selection_is_identity_verified_persistent_and_idempotent(
                     "(:mapping,:workspace,:listing,'GETTEX_DELAYED','DE000QS00001','MUND',"
                     "'ACTIVE',:now,1,:now,:now)",
                     "INSERT INTO trades(id,workspace_id,product_id,origin,created_at,created_by) "
-                    "VALUES (:trade_without_source,:workspace,:warrant,'EXTERNAL',:now,:actor)",
+                    "VALUES (:trade_without_source,:workspace,:warrant_without_source,"
+                    "'EXTERNAL',:now,:actor)",
                     "INSERT INTO positions(id,trade_id,product_id,open_quantity,cost_basis,"
                     "average_entry_price,opened_at,last_execution_at,realized_gross_pnl) VALUES "
-                    "(:position_without_source,:trade_without_source,:warrant,10,10,1,:now,:now,0)",
+                    "(:position_without_source,:trade_without_source,:warrant_without_source,"
+                    "10,10,1,:now,:now,0)",
                 ):
                     await connection.execute(text(sql), params)
 
@@ -170,7 +177,7 @@ async def test_selection_is_identity_verified_persistent_and_idempotent(
                     missing = await no_source_selector.select_once(
                         workspace_id=ids["workspace"],
                         position_id=ids["position_without_source"],
-                        warrant_id=ids["warrant"],
+                        warrant_id=ids["warrant_without_source"],
                         selected_at=now,
                     )
                     assert missing.selection_status == "NO_VERIFIED_QUOTE_SOURCE"
