@@ -120,14 +120,21 @@ class PositionQuoteSourceSelector:
         if existing is not None:
             return existing
 
-        candidates = await self.repository.verified_candidates(
-            workspace_id, warrant_id, self.allowed_providers
+        candidates = await self.repository.verified_candidates(workspace_id, warrant_id)
+        allowed_candidates = tuple(
+            candidate for candidate in candidates if candidate.provider in self.allowed_providers
         )
         decision = choose_position_quote_source(
-            candidates,
+            allowed_candidates,
             preferred_listing_id=preferred_listing_id,
             expected_currency=expected_currency,
         )
+        if candidates and not allowed_candidates:
+            decision = PositionQuoteSourceDecision(
+                PositionQuoteSourceSelectionStatus.NO_VERIFIED_QUOTE_SOURCE,
+                "NO_ALLOWED_VERIFIED_QUOTE_SOURCE",
+                (),
+            )
         selected = decision.selected
         when = selected_at or datetime.now(UTC)
 
@@ -153,6 +160,9 @@ class PositionQuoteSourceSelector:
             "expected_currency": expected_currency,
             "allowed_providers": sorted(provider.value for provider in self.allowed_providers),
             "verified_candidates": [candidate_evidence(candidate) for candidate in candidates],
+            "allowed_candidates": [
+                candidate_evidence(candidate) for candidate in allowed_candidates
+            ],
             "eligible_candidates": [
                 candidate_evidence(candidate) for candidate in decision.candidates
             ],
