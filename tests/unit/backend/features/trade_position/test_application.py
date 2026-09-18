@@ -52,6 +52,8 @@ class FakeWorkspaceSelections:
         self.trade_plan_version_id = uuid4()
         self.product_selection_id = uuid4()
         self.product_evaluation_id = uuid4()
+        self.warrant_listing_id = uuid4()
+        self.quotation_currency_code = "EUR"
 
         self.resolve = AsyncMock(
             return_value=SimpleNamespace(
@@ -61,17 +63,26 @@ class FakeWorkspaceSelections:
                 trade_plan_version_id=self.trade_plan_version_id,
                 product_selection_id=self.product_selection_id,
                 product_evaluation_id=self.product_evaluation_id,
+                warrant_listing_id=self.warrant_listing_id,
+                quotation_currency_code=self.quotation_currency_code,
             )
         )
+
+
+class FakeQuoteSourceSelector:
+    def __init__(self) -> None:
+        self.select_once = AsyncMock()
 
 
 @pytest.mark.asyncio
 async def test_record_initial_purchase_from_workspace_selection() -> None:
     uow = FakeUow()
     selections = FakeWorkspaceSelections()
+    quote_sources = FakeQuoteSourceSelector()
     service = TradePositionService(
         uow=uow,
         workspace_selections=selections,
+        quote_source_selector=quote_sources,
     )
     actor = uuid4()
 
@@ -110,6 +121,15 @@ async def test_record_initial_purchase_from_workspace_selection() -> None:
     uow.trades.add.assert_awaited_once_with(trade)
     uow.executions.add.assert_awaited_once_with(execution)
     uow.positions.add.assert_awaited_once_with(position)
+    uow.flush.assert_awaited_once()
+    quote_sources.select_once.assert_awaited_once_with(
+        workspace_id=selections.workspace_id,
+        position_id=position.id,
+        warrant_id=selections.product_id,
+        preferred_listing_id=selections.warrant_listing_id,
+        expected_currency="EUR",
+        selected_at=trade.created_at,
+    )
     uow.commit.assert_awaited_once()
 
 
@@ -261,6 +281,7 @@ async def test_record_external_purchase_creates_trade_without_selection_provenan
     uow = FakeUow()
     selections = FakeWorkspaceSelections()
     products = FakeProducts()
+    quote_sources = FakeQuoteSourceSelector()
 
     workspace_id = uuid4()
     product_id = uuid4()
@@ -275,6 +296,7 @@ async def test_record_external_purchase_creates_trade_without_selection_provenan
         uow=uow,
         workspace_selections=selections,
         products=products,
+        quote_source_selector=quote_sources,
     )
 
     trade, execution, position = await service.record_external_purchase(
@@ -311,7 +333,49 @@ async def test_record_external_purchase_creates_trade_without_selection_provenan
     uow.trades.add.assert_awaited_once_with(trade)
     uow.executions.add.assert_awaited_once_with(execution)
     uow.positions.add.assert_awaited_once_with(position)
+    uow.flush.assert_awaited_once()
+    quote_sources.select_once.assert_awaited_once_with(
+        workspace_id=workspace_id,
+        position_id=position.id,
+        warrant_id=product_id,
+        selected_at=trade.created_at,
+    )
     uow.commit.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_quote_source_failure_rolls_back_new_position() -> None:
+    uow = FakeUow()
+    selections = FakeWorkspaceSelections()
+    products = FakeProducts()
+    quote_sources = FakeQuoteSourceSelector()
+    workspace_id = uuid4()
+    product_id = uuid4()
+    products.resolve.return_value = SimpleNamespace(
+        workspace_id=workspace_id,
+        product_id=product_id,
+    )
+    quote_sources.select_once.side_effect = RuntimeError("selection persistence failed")
+    service = TradePositionService(
+        uow=uow,
+        workspace_selections=selections,
+        products=products,
+        quote_source_selector=quote_sources,
+    )
+
+    with pytest.raises(RuntimeError, match="selection persistence failed"):
+        await service.record_external_purchase(
+            workspace_id=workspace_id,
+            product_id=product_id,
+            quantity=1,
+            price_per_unit=Decimal("1.00"),
+            executed_at=NOW,
+            actor=uuid4(),
+        )
+
+    uow.flush.assert_awaited_once()
+    uow.commit.assert_not_awaited()
+    uow.rollback.assert_awaited_once()
 
 
 @pytest.mark.asyncio
