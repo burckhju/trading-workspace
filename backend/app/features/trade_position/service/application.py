@@ -58,6 +58,19 @@ class ProductResolver(Protocol):
     ) -> ResolvedProduct | None: ...
 
 
+class PositionQuoteSourceSelector(Protocol):
+    async def select_once(
+        self,
+        *,
+        workspace_id: UUID,
+        position_id: UUID,
+        warrant_id: UUID,
+        preferred_listing_id: UUID | None = None,
+        expected_currency: str | None = None,
+        selected_at: datetime | None = None,
+    ) -> object: ...
+
+
 class TradePositionService:
     @staticmethod
     def _request_identity(
@@ -120,10 +133,12 @@ class TradePositionService:
         uow: TradePositionUnitOfWork,
         workspace_selections: WorkspaceSelectionResolver,
         products: ProductResolver | None = None,
+        quote_source_selector: PositionQuoteSourceSelector | None = None,
     ) -> None:
         self._uow = uow
         self._workspace_selections = workspace_selections
         self._products = products
+        self._quote_source_selector = quote_source_selector
 
     async def record_initial_purchase(
         self,
@@ -194,10 +209,22 @@ class TradePositionService:
             execution=execution,
         )
 
+        if self._quote_source_selector is None:
+            raise ValueError("quote source selector is required")
+
         async with self._uow as uow:
             await uow.trades.add(trade)
             await uow.executions.add(execution)
             await uow.positions.add(position)
+            await uow.flush()
+            await self._quote_source_selector.select_once(
+                workspace_id=workspace_id,
+                position_id=position.id,
+                warrant_id=trade.product_id,
+                preferred_listing_id=selection.warrant_listing_id,
+                expected_currency=selection.quotation_currency_code,
+                selected_at=now,
+            )
             await uow.commit()
 
         return trade, execution, position
@@ -270,10 +297,20 @@ class TradePositionService:
             execution=execution,
         )
 
+        if self._quote_source_selector is None:
+            raise ValueError("quote source selector is required")
+
         async with self._uow as uow:
             await uow.trades.add(trade)
             await uow.executions.add(execution)
             await uow.positions.add(position)
+            await uow.flush()
+            await self._quote_source_selector.select_once(
+                workspace_id=workspace_id,
+                position_id=position.id,
+                warrant_id=trade.product_id,
+                selected_at=now,
+            )
             await uow.commit()
 
         return trade, execution, position
