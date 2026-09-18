@@ -40,8 +40,10 @@ def upgrade() -> None:
         sa.CheckConstraint(
             "(selection_status = 'SELECTED' "
             "AND warrant_listing_id IS NOT NULL "
+            "AND warrant_provider_mapping_id IS NOT NULL "
             "AND provider IS NOT NULL "
-            "AND identity_key IS NOT NULL) "
+            "AND identity_key IS NOT NULL "
+            "AND mapping_version IS NOT NULL) "
             "OR "
             "(selection_status <> 'SELECTED' "
             "AND warrant_listing_id IS NULL "
