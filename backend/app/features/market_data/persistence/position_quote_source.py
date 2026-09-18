@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.features.market.persistence.models import CurrencyModel, TradingVenueModel
-from app.features.market_data.domain.enums import MappingStatus, MarketDataProvider
+from app.features.market_data.domain.enums import MappingStatus
 from app.features.market_data.domain.position_quote_source import PositionQuoteSourceCandidate
 from app.features.market_data.persistence.models import (
     PositionQuoteSourceSelectionModel,
