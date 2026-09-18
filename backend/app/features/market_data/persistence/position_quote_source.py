@@ -6,7 +6,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.features.market.persistence.models import TradingVenueModel
+from app.features.market.persistence.models import CurrencyModel, TradingVenueModel
 from app.features.market_data.domain.enums import MappingStatus, MarketDataProvider
 from app.features.market_data.domain.position_quote_source import PositionQuoteSourceCandidate
 from app.features.market_data.persistence.models import (
@@ -73,6 +73,10 @@ class PositionQuoteSourceSelectionRepository:
                     TradingVenueModel,
                     TradingVenueModel.id == WarrantListingModel.trading_venue_id,
                 )
+                .join(
+                    CurrencyModel,
+                    CurrencyModel.code == WarrantListingModel.quotation_currency_code,
+                )
                 .where(
                     WarrantListingModel.workspace_id == workspace_id,
                     WarrantListingModel.warrant_id == warrant_id,
@@ -81,6 +85,7 @@ class PositionQuoteSourceSelectionRepository:
                     WarrantModel.id == warrant_id,
                     WarrantModel.lifecycle_status == WarrantLifecycle.ACTIVE,
                     TradingVenueModel.is_active.is_(True),
+                    CurrencyModel.is_active.is_(True),
                 )
                 .order_by(WarrantListingModel.id)
             )
