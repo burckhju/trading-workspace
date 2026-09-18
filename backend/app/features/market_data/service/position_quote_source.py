@@ -130,6 +130,7 @@ class PositionQuoteSourceSelector:
         )
         selected = decision.selected
         when = selected_at or datetime.now(UTC)
+
         def candidate_evidence(candidate: PositionQuoteSourceCandidate) -> dict[str, object]:
             return {
                 "provider": candidate.provider.value,
