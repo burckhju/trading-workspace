@@ -132,12 +132,9 @@ async def test_selection_is_identity_verified_persistent_and_idempotent(
                     assert repeated.id == selected.id
                     assert (
                         await session.scalar(
-                            select(PositionQuoteSourceSelectionModel)
-                            .where(
-                                PositionQuoteSourceSelectionModel.workspace_id
-                                == ids["workspace"],
-                                PositionQuoteSourceSelectionModel.position_id
-                                == ids["position"],
+                            select(PositionQuoteSourceSelectionModel).where(
+                                PositionQuoteSourceSelectionModel.workspace_id == ids["workspace"],
+                                PositionQuoteSourceSelectionModel.position_id == ids["position"],
                             )
                         )
                     ).id == selected.id
