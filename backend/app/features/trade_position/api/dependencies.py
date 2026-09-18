@@ -23,20 +23,34 @@ from app.features.trade_position.service.resolvers import (
 )
 
 
+def _allowed_warrant_quote_providers(
+    container: ApplicationContainer,
+) -> frozenset[MarketDataProvider]:
+    allowed: set[MarketDataProvider] = set()
+    if (
+        container.frankfurt is not None
+        and container.settings.market_data.frankfurt.readiness_reason == "CONFIGURED_NOT_PROBED"
+    ):
+        allowed.add(MarketDataProvider.FRANKFURT_QUOTES)
+    if container.vontobel is not None:
+        allowed.add(MarketDataProvider.VONTOBEL_MARKETS)
+    stuttgart = container.settings.market_data.stuttgart_delayed
+    if (
+        container.stuttgart is not None
+        and stuttgart.has_verified_schema
+        and stuttgart.has_source_configuration
+    ):
+        allowed.add(MarketDataProvider.BOERSE_STUTTGART_DELAYED)
+    if container.gettex is not None:
+        allowed.add(MarketDataProvider.GETTEX_DELAYED)
+    return frozenset(allowed)
+
+
 def get_trade_position_service(
     session: Annotated[AsyncSession, Depends(get_database_session)],
     container: Annotated[ApplicationContainer, Depends(get_container)],
 ) -> TradePositionService:
-    allowed_providers = {
-        provider
-        for provider, adapter in (
-            (MarketDataProvider.FRANKFURT_QUOTES, container.frankfurt),
-            (MarketDataProvider.VONTOBEL_MARKETS, container.vontobel),
-            (MarketDataProvider.BOERSE_STUTTGART_DELAYED, container.stuttgart),
-            (MarketDataProvider.GETTEX_DELAYED, container.gettex),
-        )
-        if adapter is not None
-    }
+    allowed_providers = _allowed_warrant_quote_providers(container)
     return TradePositionService(
         uow=SqlAlchemyTradePositionUnitOfWork(session),
         workspace_selections=SqlAlchemyWorkspaceSelectionResolver(session),
