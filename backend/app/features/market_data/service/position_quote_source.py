@@ -28,7 +28,16 @@ def choose_position_quote_source(
 
     eligible = list(candidates)
     if expected_currency is not None:
-        eligible = [candidate for candidate in eligible if candidate.currency == expected_currency]
+        currency_matches = [
+            candidate for candidate in eligible if candidate.currency == expected_currency
+        ]
+        if eligible and not currency_matches:
+            return PositionQuoteSourceDecision(
+                PositionQuoteSourceSelectionStatus.NO_VERIFIED_QUOTE_SOURCE,
+                "NO_VERIFIED_QUOTE_SOURCE_FOR_CURRENCY",
+                (),
+            )
+        eligible = currency_matches
 
     if preferred_listing_id is not None:
         preferred = [
@@ -89,10 +98,10 @@ class PositionQuoteSourceSelector:
     def __init__(
         self,
         repository: PositionQuoteSourceSelectionRepository,
-        enabled_providers: Iterable[MarketDataProvider],
+        allowed_providers: Iterable[MarketDataProvider],
     ) -> None:
         self.repository = repository
-        self.enabled_providers = frozenset(enabled_providers)
+        self.allowed_providers = frozenset(allowed_providers)
 
     async def select_once(
         self,
@@ -112,7 +121,7 @@ class PositionQuoteSourceSelector:
             return existing
 
         candidates = await self.repository.verified_candidates(
-            workspace_id, warrant_id, self.enabled_providers
+            workspace_id, warrant_id, self.allowed_providers
         )
         decision = choose_position_quote_source(
             candidates,
@@ -121,26 +130,29 @@ class PositionQuoteSourceSelector:
         )
         selected = decision.selected
         when = selected_at or datetime.now(UTC)
+        def candidate_evidence(candidate: PositionQuoteSourceCandidate) -> dict[str, object]:
+            return {
+                "provider": candidate.provider.value,
+                "listing_id": str(candidate.listing_id),
+                "mapping_id": (
+                    str(candidate.mapping_id) if candidate.mapping_id is not None else None
+                ),
+                "mapping_version": candidate.mapping_version,
+                "identity_key": candidate.identity_key,
+                "currency": candidate.currency,
+                "mic": candidate.mic,
+                "provider_exchange_code": candidate.provider_exchange_code,
+            }
+
         evidence = {
             "preferred_listing_id": (
                 str(preferred_listing_id) if preferred_listing_id is not None else None
             ),
             "expected_currency": expected_currency,
-            "enabled_providers": sorted(provider.value for provider in self.enabled_providers),
-            "candidates": [
-                {
-                    "provider": candidate.provider.value,
-                    "listing_id": str(candidate.listing_id),
-                    "mapping_id": (
-                        str(candidate.mapping_id) if candidate.mapping_id is not None else None
-                    ),
-                    "mapping_version": candidate.mapping_version,
-                    "identity_key": candidate.identity_key,
-                    "currency": candidate.currency,
-                    "mic": candidate.mic,
-                    "provider_exchange_code": candidate.provider_exchange_code,
-                }
-                for candidate in decision.candidates
+            "allowed_providers": sorted(provider.value for provider in self.allowed_providers),
+            "verified_candidates": [candidate_evidence(candidate) for candidate in candidates],
+            "eligible_candidates": [
+                candidate_evidence(candidate) for candidate in decision.candidates
             ],
         }
         row = PositionQuoteSourceSelectionModel(
