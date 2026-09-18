@@ -116,14 +116,14 @@ class PositionQuoteSourceSelectionRepository:
                 identity = verified_identity(
                     workspace_id, listing, warrant, venue, provider, mapping
                 )
-                if identity is None:
+                if identity is None or mapping is None:
                     continue
                 candidates.append(
                     PositionQuoteSourceCandidate(
                         provider=provider,
                         listing_id=listing.id,
-                        mapping_id=mapping.id if mapping is not None else None,
-                        mapping_version=mapping.version if mapping is not None else None,
+                        mapping_id=mapping.id,
+                        mapping_version=mapping.version,
                         identity_key=identity.key,
                         currency=identity.currency,
                         mic=identity.mic,
