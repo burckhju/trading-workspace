@@ -289,9 +289,7 @@ async def _plan(
                 WarrantProviderMappingModel.provider == alternative.provider,
             )
             if lock:
-                alternative_mapping_statement = (
-                    alternative_mapping_statement.with_for_update()
-                )
+                alternative_mapping_statement = alternative_mapping_statement.with_for_update()
             alternative_mapping = (
                 await session.scalars(alternative_mapping_statement)
             ).one_or_none()
@@ -305,9 +303,7 @@ async def _plan(
             ):
                 raise ValueError(f"VONTOBEL_MAPPING_CHANGED_{warrant.isin}")
 
-            alternative_observation_statement = select(
-                WarrantQuoteObservationModel
-            ).where(
+            alternative_observation_statement = select(WarrantQuoteObservationModel).where(
                 WarrantQuoteObservationModel.workspace_id == trade.workspace_id,
                 WarrantQuoteObservationModel.warrant_listing_id == alternative.listing_id,
                 WarrantQuoteObservationModel.provider == alternative.provider.value,
