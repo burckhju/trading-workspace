@@ -3,6 +3,7 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from importlib import import_module
 from types import SimpleNamespace
+from unittest.mock import AsyncMock
 from uuid import uuid4
 
 import pytest
@@ -19,9 +20,14 @@ from app.features.position_monitoring.service.product_valuation import (
     ProductPositionValuationService,
     ProductValuationStatus,
 )
+from app.features.position_monitoring.service.quote_sources import (
+    MultiSourceWarrantQuoteResolver,
+    NamedWarrantQuoteSource,
+)
 
 NOW = datetime(2026, 9, 6, 12, 0, tzinfo=UTC)
 monitoring_api = import_module("app.features.position_monitoring.api.router")
+valuation_module = import_module("app.features.position_monitoring.service.product_valuation")
 
 
 class _ExecuteResult:
@@ -33,10 +39,23 @@ class _ExecuteResult:
 
 
 class _Session:
-    def __init__(self, *, trade, position, evaluation=None, listing=None):
+    def __init__(
+        self,
+        *,
+        trade,
+        position,
+        evaluation=None,
+        listing=None,
+        source_selection=None,
+        scalars=None,
+    ):
         self._trade = trade
         self._position = position
-        self._scalars = [evaluation, listing]
+        self._scalars = (
+            list(scalars)
+            if scalars is not None
+            else [source_selection, evaluation, listing]
+        )
 
     async def execute(self, _statement):
         return _ExecuteResult((self._trade, self._position))
@@ -57,8 +76,10 @@ class _Database:
 class _Provider:
     def __init__(self, result):
         self._result = result
+        self.calls = 0
 
     async def get_warrant_listing_quote(self, _request):
+        self.calls += 1
         return self._result
 
 
@@ -67,9 +88,11 @@ def _context(*, external: bool = False):
     position_id = uuid4()
     evaluation_id = None if external else uuid4()
     listing_id = uuid4()
+    product_id = uuid4()
     trade = SimpleNamespace(
         id=trade_id,
         workspace_id=uuid4(),
+        product_id=product_id,
         product_evaluation_id=evaluation_id,
     )
     position = SimpleNamespace(
@@ -82,6 +105,7 @@ def _context(*, external: bool = False):
     )
     listing = SimpleNamespace(
         id=listing_id,
+        warrant_id=product_id,
         symbol="TEST12.STU",
         quotation_currency_code="EUR",
     )
@@ -386,3 +410,122 @@ async def test_api_retains_analysis_permission_warning_and_quote_provenance(
     assert payload["provider_identity"] == "TEST12"
     assert payload["quote_listing_id"] == str(listing.id)
     assert payload["provenance_listing_id"] == str(listing.id)
+
+
+@pytest.mark.asyncio
+async def test_persisted_selection_drives_external_trade_without_fallback(monkeypatch) -> None:
+    trade, position, _evaluation, listing = _context(external=True)
+    mapping_id = uuid4()
+    selection = SimpleNamespace(
+        selection_status="SELECTED",
+        selection_reason="UNIQUE_VERIFIED_ROUTE",
+        policy_version="POSITION_QUOTE_SOURCE_POLICY_V1",
+        warrant_listing_id=listing.id,
+        warrant_provider_mapping_id=mapping_id,
+        provider="EODHD",
+        identity_key="bound-identity",
+        mapping_version=1,
+    )
+    mapping = SimpleNamespace(id=mapping_id)
+    monkeypatch.setattr(
+        valuation_module,
+        "read_quote_identity",
+        AsyncMock(return_value=SimpleNamespace(key="bound-identity")),
+    )
+    selected = _Provider(_quote_result(listing_id=listing.id))
+    fallback = _Provider(_quote_result(listing_id=listing.id, bid=Decimal("9.99")))
+    resolver = MultiSourceWarrantQuoteResolver(
+        (
+            NamedWarrantQuoteSource("EODHD", selected),
+            NamedWarrantQuoteSource("FALLBACK", fallback),
+        )
+    )
+    service = ProductPositionValuationService(
+        database=_Database(
+            _Session(
+                trade=trade,
+                position=position,
+                scalars=[selection, listing, mapping],
+            )
+        ),
+        quote_resolver=resolver,
+    )
+
+    result = await service.for_trade(trade.id)
+
+    assert result is not None
+    assert result.status is ProductValuationStatus.AVAILABLE
+    assert result.quote_listing_id == listing.id
+    assert result.provenance_listing_id is None
+    assert result.selected_source == "EODHD"
+    assert result.source_selection_status == "SELECTED"
+    assert result.source_selection_reason == "UNIQUE_VERIFIED_ROUTE"
+    assert result.source_selection_policy_version == "POSITION_QUOTE_SOURCE_POLICY_V1"
+    assert result.bid == Decimal("2.50")
+    assert selected.calls == 1
+    assert fallback.calls == 0
+
+
+@pytest.mark.asyncio
+async def test_fail_closed_selection_does_not_call_any_quote_provider() -> None:
+    trade, position, _evaluation, _listing = _context(external=True)
+    selection = SimpleNamespace(
+        selection_status="NO_VERIFIED_QUOTE_SOURCE",
+        selection_reason="NO_ALLOWED_VERIFIED_QUOTE_SOURCE",
+        policy_version="POSITION_QUOTE_SOURCE_POLICY_V1",
+    )
+    provider = _Provider(_quote_result(listing_id=uuid4()))
+    resolver = MultiSourceWarrantQuoteResolver(
+        (NamedWarrantQuoteSource("EODHD", provider),)
+    )
+    service = ProductPositionValuationService(
+        database=_Database(
+            _Session(trade=trade, position=position, scalars=[selection])
+        ),
+        quote_resolver=resolver,
+    )
+
+    result = await service.for_trade(trade.id)
+
+    assert result is not None
+    assert result.status is ProductValuationStatus.UNAVAILABLE
+    assert result.reason == "NO_ALLOWED_VERIFIED_QUOTE_SOURCE"
+    assert result.source_selection_status == "NO_VERIFIED_QUOTE_SOURCE"
+    assert provider.calls == 0
+
+
+@pytest.mark.asyncio
+async def test_changed_bound_mapping_fails_closed_before_quote_read() -> None:
+    trade, position, _evaluation, listing = _context(external=True)
+    selection = SimpleNamespace(
+        selection_status="SELECTED",
+        selection_reason="UNIQUE_VERIFIED_ROUTE",
+        policy_version="POSITION_QUOTE_SOURCE_POLICY_V1",
+        warrant_listing_id=listing.id,
+        warrant_provider_mapping_id=uuid4(),
+        provider="EODHD",
+        identity_key="bound-identity",
+        mapping_version=1,
+    )
+    provider = _Provider(_quote_result(listing_id=listing.id))
+    resolver = MultiSourceWarrantQuoteResolver(
+        (NamedWarrantQuoteSource("EODHD", provider),)
+    )
+    service = ProductPositionValuationService(
+        database=_Database(
+            _Session(
+                trade=trade,
+                position=position,
+                scalars=[selection, listing, None],
+            )
+        ),
+        quote_resolver=resolver,
+    )
+
+    result = await service.for_trade(trade.id)
+
+    assert result is not None
+    assert result.status is ProductValuationStatus.UNAVAILABLE
+    assert result.reason == "POSITION_QUOTE_SOURCE_MAPPING_CHANGED"
+    assert result.selected_source == "EODHD"
+    assert provider.calls == 0
