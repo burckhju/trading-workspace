@@ -77,6 +77,42 @@ class MultiSourceWarrantQuoteResolver:
         """Configured adapters in policy order; availability is not quote coverage."""
         return tuple((source.name, source.provider is not None) for source in self._sources)
 
+    async def resolve_selected(
+        self, source_name: str, request: WarrantQuoteRequest
+    ) -> MultiSourceWarrantQuoteResolution:
+        """Resolve exactly one persisted source; never fall back to another provider."""
+
+        source = next((item for item in self._sources if item.name == source_name), None)
+        if source is None:
+            return MultiSourceWarrantQuoteResolution(
+                result=None,
+                selected_source=None,
+                attempts=(
+                    QuoteSourceAttempt(
+                        source=source_name,
+                        status=QuoteSourceAttemptStatus.UNAVAILABLE,
+                        reason="POSITION_QUOTE_SOURCE_NOT_CONFIGURED",
+                        delayed=False,
+                        warrant_listing_id=request.warrant_listing_id,
+                    ),
+                ),
+            )
+        if source.provider is None:
+            return MultiSourceWarrantQuoteResolution(
+                result=None,
+                selected_source=None,
+                attempts=(
+                    QuoteSourceAttempt(
+                        source=source.name,
+                        status=QuoteSourceAttemptStatus.UNAVAILABLE,
+                        reason=source.unavailable_reason or "POSITION_QUOTE_SOURCE_UNAVAILABLE",
+                        delayed=source.delayed,
+                        warrant_listing_id=request.warrant_listing_id,
+                    ),
+                ),
+            )
+        return await MultiSourceWarrantQuoteResolver((source,)).resolve(request)
+
     async def resolve(self, request: WarrantQuoteRequest) -> MultiSourceWarrantQuoteResolution:
         attempts: list[QuoteSourceAttempt] = []
         best: MarketDataResult[WarrantQuoteSnapshot | None] | None = None
