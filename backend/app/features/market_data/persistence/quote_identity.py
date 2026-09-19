@@ -81,7 +81,9 @@ def verified_identity(
             venue.mic != "XFRA" or exchange not in {"XSC", "XFRA"}
         ):
             return None
-        if name == MarketDataProvider.GETTEX_DELAYED and exchange not in {"MUND", "MUNC"}:
+        if name == MarketDataProvider.GETTEX_DELAYED and (
+            exchange not in {"MUND", "MUNC"} or venue.mic != exchange
+        ):
             return None
         fingerprint.extend([str(mapping.id), str(mapping.version), exchange])
     return QuoteIdentity(
