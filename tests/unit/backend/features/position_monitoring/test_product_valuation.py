@@ -430,7 +430,7 @@ async def test_persisted_selection_drives_external_trade_without_fallback(monkey
         AsyncMock(return_value=SimpleNamespace(key="bound-identity")),
     )
     selected = _Provider(_quote_result(listing_id=listing.id))
-    fallback = _Provider(_quote_result(listing_id=listing.id, bid=Decimal("9.99")))
+    fallback = _Provider(_quote_result(listing_id=listing.id, bid=Decimal("2.49")))
     resolver = MultiSourceWarrantQuoteResolver(
         (
             NamedWarrantQuoteSource("EODHD", selected),
