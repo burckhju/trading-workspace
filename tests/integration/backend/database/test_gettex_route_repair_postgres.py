@@ -136,9 +136,7 @@ async def test_gettex_route_repair_moves_mapping_but_not_historical_observation(
                         )
                     )
                     target_listing = await session.scalar(
-                        select(WarrantListingModel).where(
-                            WarrantListingModel.id == target_id
-                        )
+                        select(WarrantListingModel).where(WarrantListingModel.id == target_id)
                     )
                     warrant = await session.scalar(
                         select(WarrantModel).where(WarrantModel.id == ids["warrant"])
