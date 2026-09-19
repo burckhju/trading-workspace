@@ -387,9 +387,7 @@ class ProductPositionValuationService:
                     expected_currency=candidate.quotation_currency_code,
                 )
                 resolution = (
-                    await self._quote_resolver.resolve_selected(
-                        bound_source_name, quote_request
-                    )
+                    await self._quote_resolver.resolve_selected(bound_source_name, quote_request)
                     if bound_source_name is not None
                     else await self._quote_resolver.resolve(quote_request)
                 )
