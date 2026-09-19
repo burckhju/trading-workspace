@@ -284,9 +284,7 @@ class PositionQuoteCoverageService:
             observed_at=route.observed_at if route is not None else None,
             retrieved_at=route.retrieved_at if route is not None else None,
             age_seconds=route.age_seconds if route is not None else None,
-            max_quote_age_seconds=(
-                route.max_quote_age_seconds if route is not None else None
-            ),
+            max_quote_age_seconds=(route.max_quote_age_seconds if route is not None else None),
             refresh_error=route.refresh_error if route is not None else None,
             trading_status=route.trading_status if route is not None else None,
             monitoring_usable=monitoring_usable,
@@ -308,9 +306,7 @@ class PositionQuoteCoverageService:
         ]
         return routes[0] if len(routes) == 1 else None
 
-    def _quote_health(
-        self, route: RouteCoverage, now: datetime
-    ) -> PositionQuoteSourceHealth:
+    def _quote_health(self, route: RouteCoverage, now: datetime) -> PositionQuoteSourceHealth:
         if route.observation_status in {"IDENTITY_CHANGED", "INVALID_STORED_OBSERVATION"}:
             return PositionQuoteSourceHealth.INVALID_QUOTE
         if route.observation_status in {"NO_VERIFIED_OBSERVATION", "ROUTE_UNAVAILABLE"}:
