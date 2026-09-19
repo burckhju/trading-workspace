@@ -76,7 +76,8 @@ async def test_gettex_route_repair_moves_mapping_but_not_historical_observation(
 
                 for sql in (
                     "INSERT INTO warrant_listings(id,workspace_id,warrant_id,trading_venue_id,"
-                    "symbol,quotation_currency_code,lifecycle_status,version,created_at,updated_at) "
+                    "symbol,quotation_currency_code,lifecycle_status,version,"
+                    "created_at,updated_at) "
                     "VALUES (:source_listing,:workspace,:warrant,:xfra,NULL,'EUR','ACTIVE',"
                     "1,:now,:now)",
                     "INSERT INTO warrant_provider_mappings(id,workspace_id,warrant_listing_id,"
