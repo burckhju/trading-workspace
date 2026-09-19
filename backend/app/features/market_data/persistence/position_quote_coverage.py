@@ -115,6 +115,7 @@ class PositionQuoteCoverageRepository:
                 and listing is not None
                 and venue is not None
             ):
+                provider: MarketDataProvider | None
                 try:
                     provider = MarketDataProvider(selection.provider)
                 except ValueError:
