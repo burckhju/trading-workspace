@@ -202,7 +202,7 @@ async def test_unconfigured_placeholder_is_not_reported_as_executed_attempt() ->
 async def test_persisted_source_resolution_never_falls_back() -> None:
     listing_id = uuid4()
     selected = _Provider(result=_result(listing_id))
-    fallback = _Provider(result=_result(listing_id, bid=Decimal("9.99")))
+    fallback = _Provider(result=_result(listing_id, bid=Decimal("2.44")))
     resolver = MultiSourceWarrantQuoteResolver(
         (
             NamedWarrantQuoteSource("EODHD", selected),
