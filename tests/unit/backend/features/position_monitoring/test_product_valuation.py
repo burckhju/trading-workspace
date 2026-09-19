@@ -105,7 +105,6 @@ def _context(*, external: bool = False):
     )
     listing = SimpleNamespace(
         id=listing_id,
-        warrant_id=product_id,
         symbol="TEST12.STU",
         quotation_currency_code="EUR",
     )
