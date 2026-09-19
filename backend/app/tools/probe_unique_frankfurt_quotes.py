@@ -8,7 +8,7 @@ import hashlib
 import json
 import sys
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
 from uuid import UUID, uuid4
 
 from sqlalchemy import select
@@ -171,9 +171,9 @@ async def _apply(
     _require_public_runtime(container)
     resolver = build_warrant_quote_resolver(container)
     results: list[dict[str, object]] = []
+    eligible = cast(list[dict[str, object]], preview["eligible"])
 
-    for item in preview["eligible"]:
-        assert isinstance(item, dict)
+    for item in eligible:
         if container.frankfurt is None:
             raise ValueError("FRANKFURT_RUNTIME_NOT_AVAILABLE")
         delay = container.frankfurt.snapshots.request_delay_seconds()
@@ -229,7 +229,7 @@ async def _apply(
             }
         )
 
-    listing_ids = [UUID(str(item["listing_id"])) for item in preview["eligible"]]
+    listing_ids = [UUID(str(item["listing_id"])) for item in eligible]
     async with container.database.session_context() as session:
         persisted = set(
             await session.scalars(
