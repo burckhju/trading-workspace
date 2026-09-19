@@ -73,9 +73,8 @@ def _validate_binding(row: Any) -> None:
 
 async def _bindings(container: ApplicationContainer) -> list[Any]:
     async with container.database.session_context() as session:
-        return list(
-            (
-                await session.execute(
+        rows = (
+            await session.execute(
                 select(
                     PositionModel.id.label("position_id"),
                     WarrantModel.id.label("warrant_id"),
@@ -127,7 +126,7 @@ async def _bindings(container: ApplicationContainer) -> list[Any]:
                 .order_by(WarrantModel.isin, PositionModel.id)
             )
         ).all()
-    )
+        return list(rows)
 
 
 async def _historical_evidence(
