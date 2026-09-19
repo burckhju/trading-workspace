@@ -461,9 +461,9 @@ class ProductPositionValuationService:
                         status=status,
                         reason=reason,
                         source_selection_status=selection_status,
-                    source_selection_reason=selection_reason,
-                    source_selection_policy_version=selection_policy_version,
-                    source_attempts=attempts,
+                        source_selection_reason=selection_reason,
+                        source_selection_policy_version=selection_policy_version,
+                        source_attempts=attempts,
                     )
 
                 statuses = {attempt.status for attempt in attempts}
