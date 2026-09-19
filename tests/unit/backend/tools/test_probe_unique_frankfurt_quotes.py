@@ -17,9 +17,7 @@ def _container(**changes):
     values.update(changes)
     settings = FrankfurtQuoteSettings(**values)
     return SimpleNamespace(
-        settings=SimpleNamespace(
-            market_data=SimpleNamespace(frankfurt=settings)
-        )
+        settings=SimpleNamespace(market_data=SimpleNamespace(frankfurt=settings))
     )
 
 
