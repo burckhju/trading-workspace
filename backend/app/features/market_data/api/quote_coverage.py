@@ -51,9 +51,7 @@ async def warrant_quote_coverage(
 @router.get("/positions/quote-coverage", response_model=PositionQuoteCoverageReport)
 async def position_quote_coverage(
     request: Request,
-    service: Annotated[
-        PositionQuoteCoverageService, Depends(get_position_quote_coverage_service)
-    ],
+    service: Annotated[PositionQuoteCoverageService, Depends(get_position_quote_coverage_service)],
 ) -> PositionQuoteCoverageReport:
     """Project persisted position source decisions from stored evidence only."""
 
