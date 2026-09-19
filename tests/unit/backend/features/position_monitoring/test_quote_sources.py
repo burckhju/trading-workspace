@@ -196,3 +196,47 @@ async def test_unconfigured_placeholder_is_not_reported_as_executed_attempt() ->
     assert provider.calls == 1
     assert resolved.selected_source == "ACTIVE"
     assert [attempt.source for attempt in resolved.attempts] == ["ACTIVE"]
+
+
+@pytest.mark.asyncio
+async def test_persisted_source_resolution_never_falls_back() -> None:
+    listing_id = uuid4()
+    selected = _Provider(result=_result(listing_id))
+    fallback = _Provider(result=_result(listing_id, bid=Decimal("9.99")))
+    resolver = MultiSourceWarrantQuoteResolver(
+        (
+            NamedWarrantQuoteSource("EODHD", selected),
+            NamedWarrantQuoteSource("FALLBACK", fallback),
+        )
+    )
+
+    resolved = await resolver.resolve_selected("EODHD", _request(listing_id))
+
+    assert resolved.selected_source == "EODHD"
+    assert selected.calls == 1
+    assert fallback.calls == 0
+
+
+@pytest.mark.asyncio
+async def test_persisted_disabled_source_is_unavailable_without_fallback() -> None:
+    listing_id = uuid4()
+    fallback = _Provider(result=_result(listing_id))
+    resolver = MultiSourceWarrantQuoteResolver(
+        (
+            NamedWarrantQuoteSource(
+                "GETTEX_DELAYED",
+                None,
+                delayed=True,
+                unavailable_reason="GETTEX_DELAYED_DISABLED",
+            ),
+            NamedWarrantQuoteSource("FALLBACK", fallback),
+        )
+    )
+
+    resolved = await resolver.resolve_selected("GETTEX_DELAYED", _request(listing_id))
+
+    assert resolved.result is None
+    assert resolved.selected_source is None
+    assert resolved.attempts[0].status is QuoteSourceAttemptStatus.UNAVAILABLE
+    assert resolved.attempts[0].reason == "GETTEX_DELAYED_DISABLED"
+    assert fallback.calls == 0
