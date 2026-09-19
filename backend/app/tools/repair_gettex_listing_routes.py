@@ -13,7 +13,7 @@ from sqlalchemy import select
 from app.core.config import get_settings
 from app.database import DatabaseManager
 from app.features.market.persistence.models import TradingVenueModel
-from app.features.market_data.domain.enums import MarketDataProvider
+from app.features.market_data.domain.enums import MappingStatus, MarketDataProvider
 from app.features.market_data.persistence.models import (
     PositionQuoteSourceSelectionModel,
     WarrantProviderMappingModel,
@@ -65,8 +65,11 @@ async def repair(*, apply: bool, confirmation: bool) -> dict[str, object]:
                         WarrantProviderMappingModel.workspace_id == WORKSPACE_ID,
                         WarrantProviderMappingModel.provider
                         == MarketDataProvider.GETTEX_DELAYED,
+                        WarrantProviderMappingModel.status == MappingStatus.ACTIVE,
+                        WarrantProviderMappingModel.validated_at.is_not(None),
                     )
                     .order_by(WarrantModel.isin, WarrantProviderMappingModel.id)
+                    .with_for_update()
                 )
             ).all()
 
