@@ -207,6 +207,9 @@ class ProductPositionValuationResponse(BaseModel):
     spread_absolute: Decimal | None = None
     spread_percent: Decimal | None = None
     freshness_policy: str | None
+    source_selection_status: str | None = None
+    source_selection_reason: str | None = None
+    source_selection_policy_version: str | None = None
     source_attempts: tuple[QuoteSourceAttemptResponse, ...]
 
 
