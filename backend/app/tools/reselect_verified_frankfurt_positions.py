@@ -61,7 +61,9 @@ def _require_runtime(container: ApplicationContainer) -> None:
         raise ValueError(settings.readiness_reason)
 
 
-def _observation_payload(row: WarrantQuoteObservationModel, *, isin: str) -> dict[str, object]:
+def _observation_payload(
+    row: WarrantQuoteObservationModel, *, isin: str
+) -> dict[str, object]:
     try:
         result = _RESULT.validate_python(row.payload)
     except (ValidationError, TypeError, ValueError) as exc:
@@ -145,7 +147,9 @@ async def _plan(session: AsyncSession, *, lock: bool) -> dict[str, object]:
         .order_by(WarrantModel.isin, PositionModel.id)
     )
     if lock:
-        statement = statement.with_for_update(of=(PositionModel, PositionQuoteSourceSelectionModel))
+        statement = statement.with_for_update(
+            of=(PositionModel, PositionQuoteSourceSelectionModel)
+        )
 
     rows = (await session.execute(statement)).all()
     eligible: list[dict[str, object]] = []
