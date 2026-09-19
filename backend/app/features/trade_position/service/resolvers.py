@@ -9,7 +9,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.features.product.persistence.models import WarrantModel
+from app.features.product.persistence.models import WarrantListingModel, WarrantModel
 from app.features.product.service.errors import WarrantNotFound
 from app.features.product_selection.persistence.models import (
     ProductEvaluationModel,
@@ -26,6 +26,8 @@ class ResolvedWorkspaceSelection:
     trade_plan_version_id: UUID
     product_selection_id: UUID
     product_evaluation_id: UUID
+    warrant_listing_id: UUID
+    quotation_currency_code: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -80,6 +82,16 @@ class SqlAlchemyWorkspaceSelectionResolver:
         if evaluation is None:
             return None
 
+        listing = await self._session.scalar(
+            select(WarrantListingModel).where(
+                WarrantListingModel.id == evaluation.warrant_listing_id,
+                WarrantListingModel.workspace_id == workspace_id,
+                WarrantListingModel.warrant_id == evaluation.warrant_id,
+            )
+        )
+        if listing is None:
+            return None
+
         return ResolvedWorkspaceSelection(
             workspace_id=run.workspace_id,
             product_id=evaluation.warrant_id,
@@ -87,6 +99,8 @@ class SqlAlchemyWorkspaceSelectionResolver:
             trade_plan_version_id=run.trade_plan_version_id,
             product_selection_id=selection.id,
             product_evaluation_id=evaluation.id,
+            warrant_listing_id=listing.id,
+            quotation_currency_code=listing.quotation_currency_code,
         )
 
 

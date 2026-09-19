@@ -66,12 +66,13 @@ async def configure(
                         WarrantListingModel.warrant_id == warrant.id,
                         WarrantListingModel.lifecycle_status == WarrantLifecycle.ACTIVE,
                         TradingVenueModel.is_active.is_(True),
+                        TradingVenueModel.mic == normalized_mic,
                     )
                     .order_by(WarrantListingModel.id)
                 )
             )
             if len(listings) != 1:
-                raise ValueError(f"GETTEX_ACTIVE_LISTING_COUNT_{len(listings)}")
+                raise ValueError(f"GETTEX_MATCHING_LISTING_COUNT_{len(listings)}")
             listing = listings[0]
             mappings = list(
                 await session.scalars(

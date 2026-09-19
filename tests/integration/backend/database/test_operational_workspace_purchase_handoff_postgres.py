@@ -14,6 +14,10 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.features.market.domain.enums import UnderlyingType
+from app.features.market_data.persistence.position_quote_source import (
+    PositionQuoteSourceSelectionRepository,
+)
+from app.features.market_data.service.position_quote_source import PositionQuoteSourceSelector
 from app.features.operational_workspace.service.position_snapshot import (
     OperationalPositionSnapshotService,
 )
@@ -282,6 +286,10 @@ async def test_purchase_consumes_current_selection_and_never_reopens_initial_buy
                 service = TradePositionService(
                     uow=SqlAlchemyTradePositionUnitOfWork(session),
                     workspace_selections=SqlAlchemyWorkspaceSelectionResolver(session),
+                    quote_source_selector=PositionQuoteSourceSelector(
+                        PositionQuoteSourceSelectionRepository(session),
+                        (),
+                    ),
                 )
                 trade, execution, position = await service.record_initial_purchase(
                     workspace_id=workspace_id,
