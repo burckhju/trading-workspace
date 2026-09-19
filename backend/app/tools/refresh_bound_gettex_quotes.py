@@ -8,6 +8,7 @@ import hashlib
 import json
 import sys
 from datetime import UTC, datetime, timedelta
+from typing import Any
 from uuid import UUID, uuid4
 
 from pydantic import TypeAdapter, ValidationError
@@ -40,7 +41,7 @@ def _digest(payload: dict[str, object]) -> str:
     return hashlib.sha256(encoded).hexdigest()
 
 
-def _binding_payload(row) -> dict[str, object]:
+def _binding_payload(row: Any) -> dict[str, object]:
     return {
         "position_id": str(row.position_id),
         "warrant_id": str(row.warrant_id),
@@ -57,7 +58,7 @@ def _binding_payload(row) -> dict[str, object]:
     }
 
 
-def _validate_binding(row) -> None:
+def _validate_binding(row: Any) -> None:
     if row.provider != MarketDataProvider.GETTEX_DELAYED.value:
         raise ValueError("BOUND_GETTEX_PROVIDER_CHANGED")
     if row.mic != "MUND" or row.provider_exchange_code != "MUND":
@@ -70,10 +71,11 @@ def _validate_binding(row) -> None:
         raise ValueError("BOUND_GETTEX_IDENTITY_MISSING")
 
 
-async def _bindings(container: ApplicationContainer):
+async def _bindings(container: ApplicationContainer) -> list[Any]:
     async with container.database.session_context() as session:
-        return (
-            await session.execute(
+        return list(
+            (
+                await session.execute(
                 select(
                     PositionModel.id.label("position_id"),
                     WarrantModel.id.label("warrant_id"),
@@ -124,7 +126,8 @@ async def _bindings(container: ApplicationContainer):
                 )
                 .order_by(WarrantModel.isin, PositionModel.id)
             )
-        ).all()
+            ).all()
+        )
 
 
 async def _historical_evidence(
