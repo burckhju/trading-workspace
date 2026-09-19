@@ -139,15 +139,12 @@ async def _plan(session: AsyncSession, *, lock: bool) -> dict[str, object]:
             TradeModel.cancelled_at.is_(None),
             PositionModel.open_quantity > 0,
             PositionModel.closed_at.is_(None),
-            PositionQuoteSourceSelectionModel.selection_status
-            == "NO_VERIFIED_QUOTE_SOURCE",
+            PositionQuoteSourceSelectionModel.selection_status == "NO_VERIFIED_QUOTE_SOURCE",
         )
         .order_by(WarrantModel.isin, PositionModel.id)
     )
     if lock:
-        statement = statement.with_for_update(
-            of=(PositionModel, PositionQuoteSourceSelectionModel)
-        )
+        statement = statement.with_for_update(of=(PositionModel, PositionQuoteSourceSelectionModel))
 
     rows = (await session.execute(statement)).all()
     eligible: list[dict[str, object]] = []
