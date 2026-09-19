@@ -14,7 +14,11 @@ from app.features.market_data.domain.enums import (
     MarketDataProvider,
     QualityStatus,
 )
-from app.features.market_data.persistence.models import WarrantProviderMappingModel
+from app.features.market_data.persistence.models import (
+    PositionQuoteSourceSelectionModel,
+    WarrantProviderMappingModel,
+)
+from app.features.market_data.persistence.quote_identity import read_quote_identity
 from app.features.market_data.service.contracts import WarrantListingQuoteProvider
 from app.features.market_data.service.types import WarrantQuoteRequest
 from app.features.position_monitoring.service.quote_freshness import (
@@ -91,6 +95,9 @@ class ProductPositionValuation:
     spread_absolute: Decimal | None = None
     spread_percent: Decimal | None = None
     freshness_policy: str | None = None
+    source_selection_status: str | None = None
+    source_selection_reason: str | None = None
+    source_selection_policy_version: str | None = None
     source_attempts: tuple[QuoteSourceAttempt, ...] = ()
 
 
@@ -136,79 +143,203 @@ class ProductPositionValuationService:
                 return None
             trade, position = row
 
-            if trade.product_evaluation_id is None:
-                return ProductPositionValuation(
-                    trade_id=trade_id,
-                    position_id=position.id,
-                    status=ProductValuationStatus.UNAVAILABLE,
-                    reason="WARRANT_LISTING_PROVENANCE_UNAVAILABLE",
-                )
-
-            evaluation = await session.scalar(
-                select(ProductEvaluationModel).where(
-                    ProductEvaluationModel.id == trade.product_evaluation_id
+            source_selection = await session.scalar(
+                select(PositionQuoteSourceSelectionModel).where(
+                    PositionQuoteSourceSelectionModel.workspace_id == trade.workspace_id,
+                    PositionQuoteSourceSelectionModel.position_id == position.id,
+                    PositionQuoteSourceSelectionModel.superseded_at.is_(None),
                 )
             )
-            if evaluation is None:
-                return ProductPositionValuation(
-                    trade_id=trade_id,
-                    position_id=position.id,
-                    status=ProductValuationStatus.ERROR,
-                    reason="PRODUCT_EVALUATION_NOT_FOUND",
-                )
-
-            listing = await session.scalar(
-                select(WarrantListingModel).where(
-                    WarrantListingModel.id == evaluation.warrant_listing_id
-                )
+            selection_status = (
+                source_selection.selection_status if source_selection is not None else None
             )
-            if listing is None:
-                return ProductPositionValuation(
-                    trade_id=trade_id,
-                    position_id=position.id,
-                    status=ProductValuationStatus.ERROR,
-                    reason="WARRANT_LISTING_NOT_FOUND",
-                    warrant_listing_id=evaluation.warrant_listing_id,
-                    provenance_listing_id=evaluation.warrant_listing_id,
+            selection_reason = (
+                source_selection.selection_reason if source_selection is not None else None
+            )
+            selection_policy_version = (
+                source_selection.policy_version if source_selection is not None else None
+            )
+            provenance_listing_id = None
+            bound_source_name = None
+
+            if source_selection is not None:
+                if source_selection.selection_status != "SELECTED":
+                    return ProductPositionValuation(
+                        trade_id=trade_id,
+                        position_id=position.id,
+                        status=ProductValuationStatus.UNAVAILABLE,
+                        reason=source_selection.selection_reason,
+                        source_selection_status=selection_status,
+                        source_selection_reason=selection_reason,
+                        source_selection_policy_version=selection_policy_version,
+                    )
+                if (
+                    source_selection.warrant_listing_id is None
+                    or source_selection.provider is None
+                    or source_selection.identity_key is None
+                ):
+                    return ProductPositionValuation(
+                        trade_id=trade_id,
+                        position_id=position.id,
+                        status=ProductValuationStatus.ERROR,
+                        reason="POSITION_QUOTE_SOURCE_SELECTION_INVALID",
+                        source_selection_status=selection_status,
+                        source_selection_reason=selection_reason,
+                        source_selection_policy_version=selection_policy_version,
+                    )
+                listing = await session.scalar(
+                    select(WarrantListingModel).where(
+                        WarrantListingModel.id == source_selection.warrant_listing_id,
+                        WarrantListingModel.workspace_id == trade.workspace_id,
+                        WarrantListingModel.warrant_id == trade.product_id,
+                        WarrantListingModel.lifecycle_status == WarrantLifecycle.ACTIVE,
+                    )
                 )
+                if listing is None:
+                    return ProductPositionValuation(
+                        trade_id=trade_id,
+                        position_id=position.id,
+                        status=ProductValuationStatus.UNAVAILABLE,
+                        reason="POSITION_QUOTE_SOURCE_LISTING_UNAVAILABLE",
+                        warrant_listing_id=source_selection.warrant_listing_id,
+                        source_selection_status=selection_status,
+                        source_selection_reason=selection_reason,
+                        source_selection_policy_version=selection_policy_version,
+                    )
+                try:
+                    bound_provider = MarketDataProvider(source_selection.provider)
+                except ValueError:
+                    return ProductPositionValuation(
+                        trade_id=trade_id,
+                        position_id=position.id,
+                        status=ProductValuationStatus.ERROR,
+                        reason="POSITION_QUOTE_SOURCE_PROVIDER_INVALID",
+                        warrant_listing_id=listing.id,
+                        symbol=listing.symbol,
+                        source_selection_status=selection_status,
+                        source_selection_reason=selection_reason,
+                        source_selection_policy_version=selection_policy_version,
+                    )
+                request = WarrantQuoteRequest(
+                    workspace_id=trade.workspace_id,
+                    warrant_listing_id=listing.id,
+                    correlation_id=uuid4(),
+                    as_of=datetime.now(UTC),
+                    max_quote_age_seconds=self._max_quote_age_seconds,
+                    expected_currency=listing.quotation_currency_code,
+                )
+                identity = await read_quote_identity(session, request, bound_provider)
+                if identity is None or identity.key != source_selection.identity_key:
+                    return ProductPositionValuation(
+                        trade_id=trade_id,
+                        position_id=position.id,
+                        status=ProductValuationStatus.UNAVAILABLE,
+                        reason="POSITION_QUOTE_SOURCE_IDENTITY_CHANGED",
+                        warrant_listing_id=listing.id,
+                        quote_listing_id=listing.id,
+                        symbol=listing.symbol,
+                        selected_source=source_selection.provider,
+                        source_selection_status=selection_status,
+                        source_selection_reason=selection_reason,
+                        source_selection_policy_version=selection_policy_version,
+                    )
+                bound_source_name = bound_provider.value
+                candidate_listings = [listing]
+
+                if trade.product_evaluation_id is not None:
+                    evaluation = await session.scalar(
+                        select(ProductEvaluationModel).where(
+                            ProductEvaluationModel.id == trade.product_evaluation_id
+                        )
+                    )
+                    if evaluation is None:
+                        return ProductPositionValuation(
+                            trade_id=trade_id,
+                            position_id=position.id,
+                            status=ProductValuationStatus.ERROR,
+                            reason="PRODUCT_EVALUATION_NOT_FOUND",
+                            warrant_listing_id=listing.id,
+                            source_selection_status=selection_status,
+                            source_selection_reason=selection_reason,
+                            source_selection_policy_version=selection_policy_version,
+                        )
+                    provenance_listing_id = evaluation.warrant_listing_id
+            else:
+                if trade.product_evaluation_id is None:
+                    return ProductPositionValuation(
+                        trade_id=trade_id,
+                        position_id=position.id,
+                        status=ProductValuationStatus.UNAVAILABLE,
+                        reason="WARRANT_LISTING_PROVENANCE_UNAVAILABLE",
+                    )
+
+                evaluation = await session.scalar(
+                    select(ProductEvaluationModel).where(
+                        ProductEvaluationModel.id == trade.product_evaluation_id
+                    )
+                )
+                if evaluation is None:
+                    return ProductPositionValuation(
+                        trade_id=trade_id,
+                        position_id=position.id,
+                        status=ProductValuationStatus.ERROR,
+                        reason="PRODUCT_EVALUATION_NOT_FOUND",
+                    )
+
+                listing = await session.scalar(
+                    select(WarrantListingModel).where(
+                        WarrantListingModel.id == evaluation.warrant_listing_id
+                    )
+                )
+                if listing is None:
+                    return ProductPositionValuation(
+                        trade_id=trade_id,
+                        position_id=position.id,
+                        status=ProductValuationStatus.ERROR,
+                        reason="WARRANT_LISTING_NOT_FOUND",
+                        warrant_listing_id=evaluation.warrant_listing_id,
+                        provenance_listing_id=evaluation.warrant_listing_id,
+                    )
+                provenance_listing_id = listing.id
+
+                candidate_listings = [listing]
+                warrant_id = getattr(listing, "warrant_id", None)
+                if warrant_id is not None:
+                    active_mapping_exists = (
+                        select(WarrantProviderMappingModel.id)
+                        .where(
+                            WarrantProviderMappingModel.warrant_listing_id
+                            == WarrantListingModel.id,
+                            WarrantProviderMappingModel.status == MappingStatus.ACTIVE,
+                        )
+                        .exists()
+                    )
+                    rows = await session.scalars(
+                        select(WarrantListingModel)
+                        .where(
+                            WarrantListingModel.workspace_id == trade.workspace_id,
+                            WarrantListingModel.warrant_id == warrant_id,
+                            WarrantListingModel.quotation_currency_code
+                            == listing.quotation_currency_code,
+                            WarrantListingModel.lifecycle_status == WarrantLifecycle.ACTIVE,
+                        )
+                        .order_by(active_mapping_exists.desc(), WarrantListingModel.symbol)
+                    )
+                    candidate_listings = list(rows)
 
             if self._quote_resolver is None:
                 return ProductPositionValuation(
                     trade_id=trade_id,
                     position_id=position.id,
                     warrant_listing_id=listing.id,
-                    provenance_listing_id=listing.id,
+                    provenance_listing_id=provenance_listing_id,
                     symbol=listing.symbol,
                     status=ProductValuationStatus.UNAVAILABLE,
                     reason="WARRANT_QUOTE_PROVIDER_UNAVAILABLE",
+                    source_selection_status=selection_status,
+                    source_selection_reason=selection_reason,
+                    source_selection_policy_version=selection_policy_version,
                 )
-
-            candidate_listings = [listing]
-            warrant_id = getattr(listing, "warrant_id", None)
-            if warrant_id is not None:
-                active_mapping_exists = (
-                    select(WarrantProviderMappingModel.id)
-                    .where(
-                        WarrantProviderMappingModel.warrant_listing_id == WarrantListingModel.id,
-                        WarrantProviderMappingModel.status == MappingStatus.ACTIVE,
-                    )
-                    .exists()
-                )
-                rows = await session.scalars(
-                    select(WarrantListingModel)
-                    .where(
-                        WarrantListingModel.workspace_id == trade.workspace_id,
-                        WarrantListingModel.warrant_id == warrant_id,
-                        WarrantListingModel.quotation_currency_code
-                        == listing.quotation_currency_code,
-                        WarrantListingModel.lifecycle_status == WarrantLifecycle.ACTIVE,
-                    )
-                    .order_by(active_mapping_exists.desc(), WarrantListingModel.symbol)
-                )
-                # Historical product-selection provenance remains immutable, but
-                # current quotes are requested only for active listings. Listings
-                # with a configured active provider mapping are tried first.
-                candidate_listings = list(rows)
 
             all_attempts: list[QuoteSourceAttempt] = []
             selected_listing = None
@@ -219,15 +350,20 @@ class ProductPositionValuationService:
             rejected_listing = None
             rejected_source = None
             for candidate in candidate_listings:
-                resolution = await self._quote_resolver.resolve(
-                    WarrantQuoteRequest(
-                        workspace_id=trade.workspace_id,
-                        warrant_listing_id=candidate.id,
-                        correlation_id=uuid4(),
-                        as_of=datetime.now(UTC),
-                        max_quote_age_seconds=self._max_quote_age_seconds,
-                        expected_currency=candidate.quotation_currency_code,
+                quote_request = WarrantQuoteRequest(
+                    workspace_id=trade.workspace_id,
+                    warrant_listing_id=candidate.id,
+                    correlation_id=uuid4(),
+                    as_of=datetime.now(UTC),
+                    max_quote_age_seconds=self._max_quote_age_seconds,
+                    expected_currency=candidate.quotation_currency_code,
+                )
+                resolution = (
+                    await self._quote_resolver.resolve_selected(
+                        bound_source_name, quote_request
                     )
+                    if bound_source_name is not None
+                    else await self._quote_resolver.resolve(quote_request)
                 )
                 all_attempts.extend(resolution.attempts)
                 if rejected_result is None and resolution.rejected_result is not None:
@@ -292,11 +428,17 @@ class ProductPositionValuationService:
                         trade_id=trade_id,
                         position_id=position.id,
                         warrant_listing_id=listing.id,
-                        provenance_listing_id=listing.id,
+                        provenance_listing_id=provenance_listing_id,
                         symbol=listing.symbol,
                         status=status,
                         reason=reason,
-                        source_attempts=attempts,
+                        source_selection_status=selection_status,
+                    source_selection_reason=selection_reason,
+                    source_selection_policy_version=selection_policy_version,
+                    source_selection_status=selection_status,
+                source_selection_reason=selection_reason,
+                source_selection_policy_version=selection_policy_version,
+                source_attempts=attempts,
                     )
 
                 statuses = {attempt.status for attempt in attempts}
@@ -313,11 +455,17 @@ class ProductPositionValuationService:
                     trade_id=trade_id,
                     position_id=position.id,
                     warrant_listing_id=listing.id,
-                    provenance_listing_id=listing.id,
+                    provenance_listing_id=provenance_listing_id,
                     symbol=listing.symbol,
                     status=status,
                     reason="NO_USABLE_WARRANT_QUOTE",
-                    source_attempts=attempts,
+                    source_selection_status=selection_status,
+                    source_selection_reason=selection_reason,
+                    source_selection_policy_version=selection_policy_version,
+                    source_selection_status=selection_status,
+                source_selection_reason=selection_reason,
+                source_selection_policy_version=selection_policy_version,
+                source_attempts=attempts,
                 )
 
             quote = selected_result.data
@@ -327,20 +475,26 @@ class ProductPositionValuationService:
                     trade_id=trade_id,
                     position_id=position.id,
                     warrant_listing_id=selected_listing.id,
-                    provenance_listing_id=listing.id,
+                    provenance_listing_id=provenance_listing_id,
                     quote_listing_id=selected_listing.id,
                     symbol=selected_listing.symbol,
                     status=ProductValuationStatus.ERROR,
                     reason="WARRANT_QUOTE_LISTING_MISMATCH",
                     selected_source=selected_source,
-                    source_attempts=attempts,
+                    source_selection_status=selection_status,
+                    source_selection_reason=selection_reason,
+                    source_selection_policy_version=selection_policy_version,
+                    source_selection_status=selection_status,
+                source_selection_reason=selection_reason,
+                source_selection_policy_version=selection_policy_version,
+                source_attempts=attempts,
                 )
             if quote.currency != selected_listing.quotation_currency_code:
                 return ProductPositionValuation(
                     trade_id=trade_id,
                     position_id=position.id,
                     warrant_listing_id=selected_listing.id,
-                    provenance_listing_id=listing.id,
+                    provenance_listing_id=provenance_listing_id,
                     quote_listing_id=selected_listing.id,
                     symbol=selected_listing.symbol,
                     status=ProductValuationStatus.ERROR,
@@ -350,7 +504,13 @@ class ProductPositionValuationService:
                     currency=quote.currency,
                     quote_observed_at=quote.observed_at,
                     selected_source=selected_source,
-                    source_attempts=attempts,
+                    source_selection_status=selection_status,
+                    source_selection_reason=selection_reason,
+                    source_selection_policy_version=selection_policy_version,
+                    source_selection_status=selection_status,
+                source_selection_reason=selection_reason,
+                source_selection_policy_version=selection_policy_version,
+                source_attempts=attempts,
                 )
             if selected_result.quality_status is not QualityStatus.VALID or (
                 quote.bid is None and quote.reference_price is None
@@ -359,7 +519,7 @@ class ProductPositionValuationService:
                     trade_id=trade_id,
                     position_id=position.id,
                     warrant_listing_id=selected_listing.id,
-                    provenance_listing_id=listing.id,
+                    provenance_listing_id=provenance_listing_id,
                     quote_listing_id=selected_listing.id,
                     symbol=selected_listing.symbol,
                     status=ProductValuationStatus.ERROR,
@@ -369,7 +529,13 @@ class ProductPositionValuationService:
                     currency=quote.currency,
                     quote_observed_at=quote.observed_at,
                     selected_source=selected_source,
-                    source_attempts=attempts,
+                    source_selection_status=selection_status,
+                    source_selection_reason=selection_reason,
+                    source_selection_policy_version=selection_policy_version,
+                    source_selection_status=selection_status,
+                source_selection_reason=selection_reason,
+                source_selection_policy_version=selection_policy_version,
+                source_attempts=attempts,
                 )
 
             assessed_at = quote.assessed_at or selected_result.retrieved_at
@@ -380,7 +546,7 @@ class ProductPositionValuationService:
                     trade_id=trade_id,
                     position_id=position.id,
                     warrant_listing_id=selected_listing.id,
-                    provenance_listing_id=listing.id,
+                    provenance_listing_id=provenance_listing_id,
                     quote_listing_id=selected_listing.id,
                     symbol=selected_listing.symbol,
                     status=ProductValuationStatus.ERROR,
@@ -399,7 +565,13 @@ class ProductPositionValuationService:
                     wkn=quote.wkn,
                     source_mode=quote.source_mode,
                     trading_status=quote.trading_status,
-                    source_attempts=attempts,
+                    source_selection_status=selection_status,
+                    source_selection_reason=selection_reason,
+                    source_selection_policy_version=selection_policy_version,
+                    source_selection_status=selection_status,
+                source_selection_reason=selection_reason,
+                source_selection_policy_version=selection_policy_version,
+                source_attempts=attempts,
                 )
             max_age = min(
                 self._max_quote_age_seconds,
@@ -425,7 +597,7 @@ class ProductPositionValuationService:
                 trade_id=trade_id,
                 position_id=position.id,
                 warrant_listing_id=selected_listing.id,
-                provenance_listing_id=listing.id,
+                provenance_listing_id=provenance_listing_id,
                 quote_listing_id=selected_listing.id,
                 symbol=selected_listing.symbol,
                 status=ProductValuationStatus.INDICATIVE,
@@ -461,6 +633,9 @@ class ProductPositionValuationService:
                 spread_percent=(
                     spread / quote.bid * 100 if spread is not None and quote.bid else None
                 ),
+                source_selection_status=selection_status,
+                source_selection_reason=selection_reason,
+                source_selection_policy_version=selection_policy_version,
                 source_attempts=attempts,
             )
             # Temporal disclosure never assigns a reference trade/close to bid/ask.
