@@ -48,9 +48,7 @@ class PositionQuoteCoverageRepository:
     def __init__(self, database: DatabaseManager) -> None:
         self.database = database
 
-    async def open_positions(
-        self, workspace_id: UUID
-    ) -> tuple[PositionQuoteCoverageRecord, ...]:
+    async def open_positions(self, workspace_id: UUID) -> tuple[PositionQuoteCoverageRecord, ...]:
         async with self.database.session_context() as session:
             rows = (
                 await session.execute(
@@ -144,13 +142,9 @@ class PositionQuoteCoverageRepository:
                     policy_version=selection.policy_version if selection is not None else None,
                     selected_at=selection.selected_at if selection is not None else None,
                     provider=selection.provider if selection is not None else None,
-                    listing_id=(
-                        selection.warrant_listing_id if selection is not None else None
-                    ),
+                    listing_id=(selection.warrant_listing_id if selection is not None else None),
                     mapping_id=(
-                        selection.warrant_provider_mapping_id
-                        if selection is not None
-                        else None
+                        selection.warrant_provider_mapping_id if selection is not None else None
                     ),
                     persisted_identity_key=(
                         selection.identity_key if selection is not None else None
@@ -159,17 +153,13 @@ class PositionQuoteCoverageRepository:
                         selection.mapping_version if selection is not None else None
                     ),
                     current_identity_key=current_identity_key,
-                    current_mapping_status=(
-                        mapping.status.value if mapping is not None else None
-                    ),
+                    current_mapping_status=(mapping.status.value if mapping is not None else None),
                     current_mapping_version=mapping.version if mapping is not None else None,
                     provider_exchange_code=(
                         mapping.provider_exchange_code if mapping is not None else None
                     ),
                     mic=venue.mic if venue is not None else None,
-                    currency=(
-                        listing.quotation_currency_code if listing is not None else None
-                    ),
+                    currency=(listing.quotation_currency_code if listing is not None else None),
                 )
             )
         return tuple(result)
