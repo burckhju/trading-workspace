@@ -72,7 +72,7 @@ async def test_selection_is_identity_verified_persistent_and_idempotent(
                     await connection.execute(text(sql), params)
 
                 venue = await connection.scalar(
-                    text("SELECT id FROM trading_venues WHERE mic='XSTU'")
+                    text("SELECT id FROM trading_venues WHERE mic='MUND'")
                 )
                 if venue is None:
                     venue = uuid4()
@@ -80,7 +80,7 @@ async def test_selection_is_identity_verified_persistent_and_idempotent(
                         text(
                             "INSERT INTO trading_venues(id,mic,name,country_code,timezone,"
                             "is_active,reference_version,version,created_at,updated_at) VALUES "
-                            "(:id,'XSTU','Quote source test','DE','Europe/Berlin',true,"
+                            "(:id,'MUND','Quote source test','DE','Europe/Berlin',true,"
                             "'test',1,:now,:now)"
                         ),
                         {"id": venue, "now": now},
