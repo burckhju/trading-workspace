@@ -61,9 +61,7 @@ def _require_runtime(container: ApplicationContainer) -> None:
         raise ValueError(settings.readiness_reason)
 
 
-def _observation_payload(
-    row: WarrantQuoteObservationModel, *, isin: str
-) -> dict[str, object]:
+def _observation_payload(row: WarrantQuoteObservationModel, *, isin: str) -> dict[str, object]:
     try:
         result = _RESULT.validate_python(row.payload)
     except (ValidationError, TypeError, ValueError) as exc:
@@ -87,9 +85,7 @@ def _observation_payload(
 
     return {
         "retrieved_at": result.retrieved_at.isoformat(),
-        "observed_at": (
-            quote.observed_at.isoformat() if quote.observed_at is not None else None
-        ),
+        "observed_at": quote.observed_at.isoformat() if quote.observed_at is not None else None,
         "reference_price": str(quote.reference_price),
         "reference_price_type": quote.reference_price_type,
         "source_mode": quote.source_mode,
@@ -134,8 +130,7 @@ async def _plan(session: AsyncSession, *, lock: bool) -> dict[str, object]:
             PositionQuoteSourceSelectionModel,
             and_(
                 PositionQuoteSourceSelectionModel.position_id == PositionModel.id,
-                PositionQuoteSourceSelectionModel.workspace_id
-                == TradeModel.workspace_id,
+                PositionQuoteSourceSelectionModel.workspace_id == TradeModel.workspace_id,
                 PositionQuoteSourceSelectionModel.superseded_at.is_(None),
             ),
         )
@@ -161,9 +156,7 @@ async def _plan(session: AsyncSession, *, lock: bool) -> dict[str, object]:
 
     repository = PositionQuoteSourceSelectionRepository(session)
     for position, trade, warrant, selection in rows:
-        candidates = await repository.verified_candidates(
-            trade.workspace_id, warrant.id
-        )
+        candidates = await repository.verified_candidates(trade.workspace_id, warrant.id)
         if not candidates:
             no_verified_mapping += 1
             continue
@@ -368,9 +361,7 @@ async def run(
         raise ValueError("MARKET_DATA_AUTO_CONFIGURE_MUST_BE_DISABLED")
     if apply and not confirmation:
         raise ValueError("FRANKFURT_RESELECTION_CONFIRMATION_REQUIRED")
-    if apply and (
-        expected_preview_sha256 is None or len(expected_preview_sha256) != 64
-    ):
+    if apply and (expected_preview_sha256 is None or len(expected_preview_sha256) != 64):
         raise ValueError("FRANKFURT_RESELECTION_PREVIEW_SHA256_REQUIRED")
 
     container = ApplicationContainer.build(settings)
