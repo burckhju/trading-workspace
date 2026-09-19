@@ -45,9 +45,7 @@ def _row(*, venue_mic: str, exchange: str):
 
 
 def test_gettex_identity_requires_listing_mic_to_match_provider_exchange():
-    workspace, listing, warrant, venue, mapping = _row(
-        venue_mic="XFRA", exchange="MUND"
-    )
+    workspace, listing, warrant, venue, mapping = _row(venue_mic="XFRA", exchange="MUND")
 
     assert (
         verified_identity(
@@ -63,9 +61,7 @@ def test_gettex_identity_requires_listing_mic_to_match_provider_exchange():
 
 
 def test_gettex_identity_accepts_matching_mund_listing():
-    workspace, listing, warrant, venue, mapping = _row(
-        venue_mic="MUND", exchange="MUND"
-    )
+    workspace, listing, warrant, venue, mapping = _row(venue_mic="MUND", exchange="MUND")
 
     identity = verified_identity(
         workspace,
