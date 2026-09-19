@@ -42,14 +42,10 @@ def record(*, selection_status: str | None = "SELECTED", identity: str = "identi
         selection_id=uuid4() if selection_status is not None else None,
         selection_status=selection_status,
         selection_reason=(
-            "UNIQUE_VERIFIED_ROUTE"
-            if selection_status == "SELECTED"
-            else selection_status
+            "UNIQUE_VERIFIED_ROUTE" if selection_status == "SELECTED" else selection_status
         ),
         policy_version=(
-            "POSITION_QUOTE_SOURCE_POLICY_V1"
-            if selection_status is not None
-            else None
+            "POSITION_QUOTE_SOURCE_POLICY_V1" if selection_status is not None else None
         ),
         selected_at=NOW - timedelta(days=1) if selection_status is not None else None,
         provider="GETTEX_DELAYED" if selection_status == "SELECTED" else None,
@@ -189,9 +185,7 @@ async def test_selected_position_projects_fresh_stored_quote_without_provider_re
         ),
     ],
 )
-async def test_selected_position_separates_last_retained_and_stale(
-    selected_route, expected
-):
+async def test_selected_position_separates_last_retained_and_stale(selected_route, expected):
     workspace, row = record()
     selected = selected_route(row)
     service, _, _ = service_for(workspace, row, product(row, selected))
