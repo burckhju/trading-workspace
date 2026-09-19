@@ -463,10 +463,7 @@ class ProductPositionValuationService:
                         source_selection_status=selection_status,
                     source_selection_reason=selection_reason,
                     source_selection_policy_version=selection_policy_version,
-                    source_selection_status=selection_status,
-                source_selection_reason=selection_reason,
-                source_selection_policy_version=selection_policy_version,
-                source_attempts=attempts,
+                    source_attempts=attempts,
                     )
 
                 statuses = {attempt.status for attempt in attempts}
@@ -490,10 +487,7 @@ class ProductPositionValuationService:
                     source_selection_status=selection_status,
                     source_selection_reason=selection_reason,
                     source_selection_policy_version=selection_policy_version,
-                    source_selection_status=selection_status,
-                source_selection_reason=selection_reason,
-                source_selection_policy_version=selection_policy_version,
-                source_attempts=attempts,
+                    source_attempts=attempts,
                 )
 
             quote = selected_result.data
@@ -512,10 +506,7 @@ class ProductPositionValuationService:
                     source_selection_status=selection_status,
                     source_selection_reason=selection_reason,
                     source_selection_policy_version=selection_policy_version,
-                    source_selection_status=selection_status,
-                source_selection_reason=selection_reason,
-                source_selection_policy_version=selection_policy_version,
-                source_attempts=attempts,
+                    source_attempts=attempts,
                 )
             if quote.currency != selected_listing.quotation_currency_code:
                 return ProductPositionValuation(
@@ -535,10 +526,7 @@ class ProductPositionValuationService:
                     source_selection_status=selection_status,
                     source_selection_reason=selection_reason,
                     source_selection_policy_version=selection_policy_version,
-                    source_selection_status=selection_status,
-                source_selection_reason=selection_reason,
-                source_selection_policy_version=selection_policy_version,
-                source_attempts=attempts,
+                    source_attempts=attempts,
                 )
             if selected_result.quality_status is not QualityStatus.VALID or (
                 quote.bid is None and quote.reference_price is None
@@ -560,10 +548,7 @@ class ProductPositionValuationService:
                     source_selection_status=selection_status,
                     source_selection_reason=selection_reason,
                     source_selection_policy_version=selection_policy_version,
-                    source_selection_status=selection_status,
-                source_selection_reason=selection_reason,
-                source_selection_policy_version=selection_policy_version,
-                source_attempts=attempts,
+                    source_attempts=attempts,
                 )
 
             assessed_at = quote.assessed_at or selected_result.retrieved_at
@@ -596,10 +581,7 @@ class ProductPositionValuationService:
                     source_selection_status=selection_status,
                     source_selection_reason=selection_reason,
                     source_selection_policy_version=selection_policy_version,
-                    source_selection_status=selection_status,
-                source_selection_reason=selection_reason,
-                source_selection_policy_version=selection_policy_version,
-                source_attempts=attempts,
+                    source_attempts=attempts,
                 )
             max_age = min(
                 self._max_quote_age_seconds,
