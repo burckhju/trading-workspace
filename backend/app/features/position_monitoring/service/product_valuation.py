@@ -177,6 +177,8 @@ class ProductPositionValuationService:
                     source_selection.warrant_listing_id is None
                     or source_selection.provider is None
                     or source_selection.identity_key is None
+                    or source_selection.warrant_provider_mapping_id is None
+                    or source_selection.mapping_version is None
                 ):
                     return ProductPositionValuation(
                         trade_id=trade_id,
@@ -216,6 +218,32 @@ class ProductPositionValuationService:
                         reason="POSITION_QUOTE_SOURCE_PROVIDER_INVALID",
                         warrant_listing_id=listing.id,
                         symbol=listing.symbol,
+                        source_selection_status=selection_status,
+                        source_selection_reason=selection_reason,
+                        source_selection_policy_version=selection_policy_version,
+                    )
+                mapping = await session.scalar(
+                    select(WarrantProviderMappingModel).where(
+                        WarrantProviderMappingModel.id
+                        == source_selection.warrant_provider_mapping_id,
+                        WarrantProviderMappingModel.workspace_id == trade.workspace_id,
+                        WarrantProviderMappingModel.warrant_listing_id == listing.id,
+                        WarrantProviderMappingModel.provider == bound_provider,
+                        WarrantProviderMappingModel.status == MappingStatus.ACTIVE,
+                        WarrantProviderMappingModel.validated_at.is_not(None),
+                        WarrantProviderMappingModel.version == source_selection.mapping_version,
+                    )
+                )
+                if mapping is None:
+                    return ProductPositionValuation(
+                        trade_id=trade_id,
+                        position_id=position.id,
+                        status=ProductValuationStatus.UNAVAILABLE,
+                        reason="POSITION_QUOTE_SOURCE_MAPPING_CHANGED",
+                        warrant_listing_id=listing.id,
+                        quote_listing_id=listing.id,
+                        symbol=listing.symbol,
+                        selected_source=source_selection.provider,
                         source_selection_status=selection_status,
                         source_selection_reason=selection_reason,
                         source_selection_policy_version=selection_policy_version,
