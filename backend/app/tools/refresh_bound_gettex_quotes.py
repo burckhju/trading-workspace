@@ -126,8 +126,8 @@ async def _bindings(container: ApplicationContainer) -> list[Any]:
                 )
                 .order_by(WarrantModel.isin, PositionModel.id)
             )
-            ).all()
-        )
+        ).all()
+    )
 
 
 async def _historical_evidence(
