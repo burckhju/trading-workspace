@@ -161,6 +161,23 @@ def test_owner_flow_read_only_coverage_and_closed_position_exclusion(database):
                         datetime.fromisoformat(route["observed_at"].replace("Z", "+00:00")) == now
                     )
                     assert route["mapping_status"] == "ACTIVE"
+
+                    position_response = await client.get(
+                        "/api/v1/market-data/positions/quote-coverage"
+                    )
+                    assert position_response.status_code == 200, position_response.text
+                    position_report = position_response.json()
+                    assert position_report["summary"]["open_positions"] == 1
+                    assert position_report["summary"]["source_verified"] == 0
+                    assert position_report["summary"]["missing_source"] == 1
+                    position_item = position_report["items"][0]
+                    assert position_item["trade_id"] == trade_id
+                    assert position_item["selection_status"] == "NO_VERIFIED_QUOTE_SOURCE"
+                    assert position_item["source_health"] == "NO_VERIFIED_QUOTE_SOURCE"
+                    assert position_item["selected_provider"] is None
+                    assert position_item["candidate_product_coverage"] == "BID_WITHIN_AGE_BUDGET"
+                    assert position_item["monitoring_usable"] is False
+                    assert position_item["execution_usable"] is False
                 provider.get_warrant_listing_quote.assert_not_awaited()
                 assert (
                     await client.get(f"/api/v1/trade-position/trades/{trade_id}/position")
@@ -182,6 +199,11 @@ def test_owner_flow_read_only_coverage_and_closed_position_exclusion(database):
                 assert (await client.get("/api/v1/market-data/warrants/quote-coverage")).json()[
                     "items"
                 ] == []
+                closed_position_report = (
+                    await client.get("/api/v1/market-data/positions/quote-coverage")
+                ).json()
+                assert closed_position_report["items"] == []
+                assert closed_position_report["summary"]["open_positions"] == 0
         finally:
             await app.state.container.database.dispose()
 
