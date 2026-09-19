@@ -1,4 +1,4 @@
-"""Preview or atomically reselect verified Frankfurt public quote routes."""
+"""Preview or atomically reselect uniquely enabled Frankfurt public quote routes."""
 
 from __future__ import annotations
 
@@ -7,7 +7,6 @@ import asyncio
 import hashlib
 import json
 from datetime import UTC, datetime
-from typing import Any
 from uuid import UUID, uuid4
 
 from pydantic import TypeAdapter, ValidationError
@@ -20,6 +19,7 @@ from app.core.di import ApplicationContainer
 from app.features.market.persistence.models import TradingVenueModel
 from app.features.market_data.domain.enums import MappingStatus, MarketDataProvider
 from app.features.market_data.domain.models import WarrantQuoteSnapshot
+from app.features.market_data.domain.position_quote_source import PositionQuoteSourceCandidate
 from app.features.market_data.persistence.models import (
     PositionQuoteSourceSelectionModel,
     WarrantProviderMappingModel,
@@ -37,6 +37,7 @@ from app.features.trade_position.persistence.models import PositionModel, TradeM
 
 WORKSPACE_ID = UUID("00000000-0000-4000-8000-000000000001")
 _PROVIDER = MarketDataProvider.FRANKFURT_QUOTES
+_ALTERNATIVE_PROVIDER = MarketDataProvider.VONTOBEL_MARKETS
 _RESULT = TypeAdapter(MarketDataResult[WarrantQuoteSnapshot | None])
 
 
@@ -92,31 +93,85 @@ def _observation_payload(row: WarrantQuoteObservationModel, *, isin: str) -> dic
     }
 
 
-async def _candidate_for(
-    session: AsyncSession,
+def _disabled_alternative_observation_payload(
+    row: WarrantQuoteObservationModel,
     *,
-    workspace_id: UUID,
-    warrant_id: UUID,
     isin: str,
-) -> Any | None:
-    repository = PositionQuoteSourceSelectionRepository(session)
-    candidates = await repository.verified_candidates(workspace_id, warrant_id)
-    if len(candidates) != 1:
-        return None
-    candidate = candidates[0]
+) -> dict[str, object]:
+    try:
+        result = _RESULT.validate_python(row.payload)
+    except (ValidationError, TypeError, ValueError) as exc:
+        raise ValueError(f"VONTOBEL_OBSERVATION_INVALID_{isin}") from exc
+
+    quote = result.data
     if (
-        candidate.provider is not _PROVIDER
-        or candidate.mic != "XFRA"
+        result.provider is not _ALTERNATIVE_PROVIDER
+        or quote is None
+        or (quote.bid is None and quote.ask is None)
+        or quote.reference_price is not None
+        or quote.provider_exchange_code != "ISSUER"
+        or quote.venue_mic is not None
+        or quote.currency != "EUR"
+        or quote.isin != isin
+        or quote.source_mode != "OFFICIAL_ISSUER_INDICATION"
+        or quote.refresh_error is not None
+    ):
+        raise ValueError(f"VONTOBEL_OBSERVATION_NOT_INDICATIVE_USABLE_{isin}")
+
+    return {
+        "retrieved_at": result.retrieved_at.isoformat(),
+        "observed_at": quote.observed_at.isoformat() if quote.observed_at is not None else None,
+        "bid": str(quote.bid) if quote.bid is not None else None,
+        "ask": str(quote.ask) if quote.ask is not None else None,
+        "source_mode": quote.source_mode,
+        "trading_status": quote.trading_status,
+    }
+
+
+def _candidate_for(
+    candidates: tuple[PositionQuoteSourceCandidate, ...],
+    *,
+    isin: str,
+    vontobel_enabled: bool,
+) -> tuple[PositionQuoteSourceCandidate, tuple[PositionQuoteSourceCandidate, ...]] | None:
+    frankfurt = tuple(candidate for candidate in candidates if candidate.provider is _PROVIDER)
+    if len(frankfurt) != 1:
+        return None
+
+    candidate = frankfurt[0]
+    if (
+        candidate.mic != "XFRA"
         or candidate.provider_exchange_code != "XSC"
         or candidate.currency != "EUR"
     ):
         return None
     if candidate.mapping_id is None or not candidate.identity_key:
         raise ValueError(f"FRANKFURT_ROUTE_IDENTITY_INVALID_{isin}")
-    return candidate
+
+    alternatives = tuple(item for item in candidates if item is not candidate)
+    if not alternatives:
+        return candidate, ()
+    if vontobel_enabled or len(alternatives) != 1:
+        return None
+
+    alternative = alternatives[0]
+    if (
+        alternative.provider is not _ALTERNATIVE_PROVIDER
+        or alternative.provider_exchange_code != "ISSUER"
+        or alternative.currency != "EUR"
+    ):
+        return None
+    if alternative.mapping_id is None or not alternative.identity_key:
+        raise ValueError(f"VONTOBEL_ROUTE_IDENTITY_INVALID_{isin}")
+    return candidate, alternatives
 
 
-async def _plan(session: AsyncSession, *, lock: bool) -> dict[str, object]:
+async def _plan(
+    session: AsyncSession,
+    *,
+    lock: bool,
+    vontobel_enabled: bool,
+) -> dict[str, object]:
     statement = (
         select(
             PositionModel,
@@ -157,19 +212,20 @@ async def _plan(session: AsyncSession, *, lock: bool) -> dict[str, object]:
         if not candidates:
             no_verified_mapping += 1
             continue
-        if len(candidates) != 1:
-            multiple_or_other_routes += 1
-            continue
-
-        candidate = await _candidate_for(
-            session,
-            workspace_id=trade.workspace_id,
-            warrant_id=warrant.id,
+        classified = _candidate_for(
+            candidates,
             isin=warrant.isin,
+            vontobel_enabled=vontobel_enabled,
         )
-        if candidate is None:
+        if classified is None:
             multiple_or_other_routes += 1
             continue
+        candidate, disabled_alternatives = classified
+        if (
+            disabled_alternatives
+            and selection.selection_reason != "NO_ALLOWED_VERIFIED_QUOTE_SOURCE"
+        ):
+            raise ValueError(f"FRANKFURT_RESELECTION_PREVIOUS_REASON_INVALID_{warrant.isin}")
 
         mapping_statement = select(WarrantProviderMappingModel).where(
             WarrantProviderMappingModel.id == candidate.mapping_id,
@@ -185,6 +241,7 @@ async def _plan(session: AsyncSession, *, lock: bool) -> dict[str, object]:
             or mapping.status is not MappingStatus.ACTIVE
             or mapping.validated_at is None
             or mapping.version != candidate.mapping_version
+            or mapping.provider_symbol != warrant.isin
             or mapping.provider_exchange_code != "XSC"
         ):
             raise ValueError(f"FRANKFURT_MAPPING_CHANGED_{warrant.isin}")
@@ -223,6 +280,63 @@ async def _plan(session: AsyncSession, *, lock: bool) -> dict[str, object]:
             raise ValueError(f"FRANKFURT_OBSERVATION_IDENTITY_CHANGED_{warrant.isin}")
         evidence = _observation_payload(observation, isin=warrant.isin)
 
+        alternative_evidence: list[dict[str, object]] = []
+        for alternative in disabled_alternatives:
+            alternative_mapping_statement = select(WarrantProviderMappingModel).where(
+                WarrantProviderMappingModel.id == alternative.mapping_id,
+                WarrantProviderMappingModel.workspace_id == trade.workspace_id,
+                WarrantProviderMappingModel.warrant_listing_id == alternative.listing_id,
+                WarrantProviderMappingModel.provider == alternative.provider,
+            )
+            if lock:
+                alternative_mapping_statement = alternative_mapping_statement.with_for_update()
+            alternative_mapping = (
+                await session.scalars(alternative_mapping_statement)
+            ).one_or_none()
+            if (
+                alternative_mapping is None
+                or alternative_mapping.status is not MappingStatus.ACTIVE
+                or alternative_mapping.validated_at is None
+                or alternative_mapping.version != alternative.mapping_version
+                or alternative_mapping.provider_symbol != warrant.isin
+                or alternative_mapping.provider_exchange_code != "ISSUER"
+            ):
+                raise ValueError(f"VONTOBEL_MAPPING_CHANGED_{warrant.isin}")
+
+            alternative_observation_statement = select(WarrantQuoteObservationModel).where(
+                WarrantQuoteObservationModel.workspace_id == trade.workspace_id,
+                WarrantQuoteObservationModel.warrant_listing_id == alternative.listing_id,
+                WarrantQuoteObservationModel.provider == alternative.provider.value,
+            )
+            if lock:
+                alternative_observation_statement = (
+                    alternative_observation_statement.with_for_update()
+                )
+            alternative_observation = (
+                await session.scalars(alternative_observation_statement)
+            ).one_or_none()
+            if alternative_observation is None:
+                raise ValueError(f"VONTOBEL_OBSERVATION_MISSING_{warrant.isin}")
+            if alternative_observation.identity_key != alternative.identity_key:
+                raise ValueError(f"VONTOBEL_OBSERVATION_IDENTITY_CHANGED_{warrant.isin}")
+
+            alternative_evidence.append(
+                {
+                    "provider": alternative.provider.value,
+                    "listing_id": str(alternative.listing_id),
+                    "mapping_id": str(alternative.mapping_id),
+                    "mapping_version": alternative.mapping_version,
+                    "identity_key": alternative.identity_key,
+                    "currency": alternative.currency,
+                    "listing_mic": alternative.mic,
+                    "provider_exchange_code": alternative.provider_exchange_code,
+                    "observation": _disabled_alternative_observation_payload(
+                        alternative_observation,
+                        isin=warrant.isin,
+                    ),
+                }
+            )
+
         eligible.append(
             {
                 "position_id": str(position.id),
@@ -238,6 +352,12 @@ async def _plan(session: AsyncSession, *, lock: bool) -> dict[str, object]:
                 "listing_mic": candidate.mic,
                 "provider_exchange_code": candidate.provider_exchange_code,
                 "observation": evidence,
+                "disabled_alternatives": alternative_evidence,
+                "reselection_reason": (
+                    "RESELECTED_UNIQUE_ENABLED_VERIFIED_FRANKFURT_ROUTE"
+                    if alternative_evidence
+                    else "RESELECTED_AFTER_VERIFIED_FRANKFURT_OBSERVATION"
+                ),
             }
         )
 
@@ -246,6 +366,9 @@ async def _plan(session: AsyncSession, *, lock: bool) -> dict[str, object]:
         "provider": _PROVIDER.value,
         "source_mode": FrankfurtSourceMode.PUBLIC_WEBSITE.value,
         "source_name": "deutsche-boerse-public",
+        "runtime_eligibility": {
+            "vontobel_enabled": vontobel_enabled,
+        },
         "eligible": eligible,
         "excluded": {
             "no_verified_mapping": no_verified_mapping,
@@ -263,7 +386,11 @@ async def _plan(session: AsyncSession, *, lock: bool) -> dict[str, object]:
 async def _preview(container: ApplicationContainer) -> dict[str, object]:
     _require_runtime(container)
     async with container.database.session_context() as session:
-        return await _plan(session, lock=False)
+        return await _plan(
+            session,
+            lock=False,
+            vontobel_enabled=container.settings.market_data.vontobel_markets.enabled,
+        )
 
 
 async def _apply(
@@ -273,7 +400,11 @@ async def _apply(
 ) -> dict[str, object]:
     _require_runtime(container)
     async with container.database.session_context() as session:
-        plan = await _plan(session, lock=True)
+        plan = await _plan(
+            session,
+            lock=True,
+            vontobel_enabled=container.settings.market_data.vontobel_markets.enabled,
+        )
         if plan["preview_sha256"] != expected_preview_sha256:
             raise ValueError("FRANKFURT_RESELECTION_PREVIEW_CHANGED")
 
@@ -311,7 +442,7 @@ async def _apply(
                     identity_key=str(item["identity_key"]),
                     mapping_version=int(item["mapping_version"]),
                     selection_status="SELECTED",
-                    selection_reason="RESELECTED_AFTER_VERIFIED_FRANKFURT_OBSERVATION",
+                    selection_reason=str(item["reselection_reason"]),
                     policy_version=POSITION_QUOTE_SOURCE_POLICY_V1,
                     evidence={
                         "warrant_id": item["warrant_id"],
@@ -326,6 +457,7 @@ async def _apply(
                         "mic": item["listing_mic"],
                         "provider_exchange_code": item["provider_exchange_code"],
                         "verified_observation": observation,
+                        "disabled_alternatives": item["disabled_alternatives"],
                         "reselection_preview_sha256": expected_preview_sha256,
                     },
                     selected_at=when,

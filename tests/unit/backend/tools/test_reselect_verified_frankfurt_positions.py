@@ -1,9 +1,16 @@
 from types import SimpleNamespace
+from uuid import UUID
 
 import pytest
 
 from app.core.config.frankfurt import FrankfurtQuoteSettings, FrankfurtSourceMode
-from app.tools.reselect_verified_frankfurt_positions import _digest, _require_runtime
+from app.features.market_data.domain.enums import MarketDataProvider
+from app.features.market_data.domain.position_quote_source import PositionQuoteSourceCandidate
+from app.tools.reselect_verified_frankfurt_positions import (
+    _candidate_for,
+    _digest,
+    _require_runtime,
+)
 
 
 def _container(**changes):
@@ -88,3 +95,97 @@ def test_reselection_preview_digest_is_stable_and_evidence_sensitive():
         ],
     }
     assert _digest(changed) != first
+
+
+def _candidate(
+    provider: MarketDataProvider,
+    *,
+    mic: str,
+    exchange: str,
+    identity: int,
+) -> PositionQuoteSourceCandidate:
+    return PositionQuoteSourceCandidate(
+        provider=provider,
+        listing_id=UUID(int=identity),
+        mapping_id=UUID(int=identity + 100),
+        mapping_version=1,
+        identity_key=f"{identity:064x}",
+        currency="EUR",
+        mic=mic,
+        provider_exchange_code=exchange,
+    )
+
+
+def test_reselection_accepts_only_disabled_vontobel_issuer_alternative():
+    frankfurt = _candidate(
+        MarketDataProvider.FRANKFURT_QUOTES,
+        mic="XFRA",
+        exchange="XSC",
+        identity=1,
+    )
+    vontobel = _candidate(
+        MarketDataProvider.VONTOBEL_MARKETS,
+        mic="XETR",
+        exchange="ISSUER",
+        identity=2,
+    )
+
+    assert _candidate_for(
+        (frankfurt,),
+        isin="DE000VJ2RFH7",
+        vontobel_enabled=True,
+    ) == (frankfurt, ())
+    assert _candidate_for(
+        (frankfurt, vontobel),
+        isin="DE000VJ2RFH7",
+        vontobel_enabled=False,
+    ) == (frankfurt, (vontobel,))
+    assert (
+        _candidate_for(
+            (frankfurt, vontobel),
+            isin="DE000VJ2RFH7",
+            vontobel_enabled=True,
+        )
+        is None
+    )
+
+
+def test_reselection_rejects_other_alternative_provider():
+    frankfurt = _candidate(
+        MarketDataProvider.FRANKFURT_QUOTES,
+        mic="XFRA",
+        exchange="XSC",
+        identity=1,
+    )
+    gettex = _candidate(
+        MarketDataProvider.GETTEX_DELAYED,
+        mic="MUND",
+        exchange="MUND",
+        identity=2,
+    )
+
+    assert (
+        _candidate_for(
+            (frankfurt, gettex),
+            isin="DE000VJ2RFH7",
+            vontobel_enabled=False,
+        )
+        is None
+    )
+
+
+def test_reselection_runtime_state_changes_preview_digest():
+    payload = {
+        "runtime_eligibility": {
+            "vontobel_enabled": False,
+        },
+        "eligible": [],
+    }
+    changed = {
+        **payload,
+        "runtime_eligibility": {
+            "vontobel_enabled": True,
+        },
+    }
+
+    assert _digest(payload) != _digest(changed)
