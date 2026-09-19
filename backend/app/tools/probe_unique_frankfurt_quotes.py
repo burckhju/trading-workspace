@@ -205,9 +205,7 @@ async def _apply(
                     if quote is not None and quote.reference_price is not None
                     else None
                 ),
-                "reference_price_type": (
-                    quote.reference_price_type if quote is not None else None
-                ),
+                "reference_price_type": (quote.reference_price_type if quote is not None else None),
                 "observed_at": (
                     quote.observed_at.isoformat()
                     if quote is not None and quote.observed_at is not None
