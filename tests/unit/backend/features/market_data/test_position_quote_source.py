@@ -31,7 +31,7 @@ def candidate(
         mapping_version=1,
         identity_key="a" * 64,
         currency=currency,
-        mic="XSTU",
+        mic=("MUND" if provider is MarketDataProvider.GETTEX_DELAYED else "XSTU"),
         provider_exchange_code=(
             "MUND" if provider is MarketDataProvider.GETTEX_DELAYED else "ISSUER"
         ),
