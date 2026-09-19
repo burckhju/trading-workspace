@@ -52,9 +52,7 @@ class _Session:
         self._trade = trade
         self._position = position
         self._scalars = (
-            list(scalars)
-            if scalars is not None
-            else [source_selection, evaluation, listing]
+            list(scalars) if scalars is not None else [source_selection, evaluation, listing]
         )
 
     async def execute(self, _statement):
@@ -474,13 +472,9 @@ async def test_fail_closed_selection_does_not_call_any_quote_provider() -> None:
         policy_version="POSITION_QUOTE_SOURCE_POLICY_V1",
     )
     provider = _Provider(_quote_result(listing_id=uuid4()))
-    resolver = MultiSourceWarrantQuoteResolver(
-        (NamedWarrantQuoteSource("EODHD", provider),)
-    )
+    resolver = MultiSourceWarrantQuoteResolver((NamedWarrantQuoteSource("EODHD", provider),))
     service = ProductPositionValuationService(
-        database=_Database(
-            _Session(trade=trade, position=position, scalars=[selection])
-        ),
+        database=_Database(_Session(trade=trade, position=position, scalars=[selection])),
         quote_resolver=resolver,
     )
 
@@ -507,9 +501,7 @@ async def test_changed_bound_mapping_fails_closed_before_quote_read() -> None:
         mapping_version=1,
     )
     provider = _Provider(_quote_result(listing_id=listing.id))
-    resolver = MultiSourceWarrantQuoteResolver(
-        (NamedWarrantQuoteSource("EODHD", provider),)
-    )
+    resolver = MultiSourceWarrantQuoteResolver((NamedWarrantQuoteSource("EODHD", provider),))
     service = ProductPositionValuationService(
         database=_Database(
             _Session(
