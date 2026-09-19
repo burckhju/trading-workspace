@@ -103,8 +103,7 @@ async def _bindings(container: ApplicationContainer):
                 )
                 .join(
                     WarrantListingModel,
-                    WarrantListingModel.id
-                    == PositionQuoteSourceSelectionModel.warrant_listing_id,
+                    WarrantListingModel.id == PositionQuoteSourceSelectionModel.warrant_listing_id,
                 )
                 .join(
                     TradingVenueModel,
@@ -142,8 +141,7 @@ async def _historical_evidence(
                 )
                 .join(
                     WarrantListingModel,
-                    WarrantListingModel.id
-                    == WarrantQuoteObservationModel.warrant_listing_id,
+                    WarrantListingModel.id == WarrantQuoteObservationModel.warrant_listing_id,
                 )
                 .join(WarrantModel, WarrantModel.id == WarrantListingModel.warrant_id)
                 .where(
@@ -311,9 +309,7 @@ async def run(
         raise ValueError("GETTEX_PRIVATE_USE_CONFIRMATION_REQUIRED")
     if apply and not confirmation:
         raise ValueError("BOUND_GETTEX_REFRESH_CONFIRMATION_REQUIRED")
-    if apply and (
-        expected_preview_sha256 is None or len(expected_preview_sha256) != 64
-    ):
+    if apply and (expected_preview_sha256 is None or len(expected_preview_sha256) != 64):
         raise ValueError("BOUND_GETTEX_REFRESH_PREVIEW_SHA256_REQUIRED")
 
     container = ApplicationContainer.build(settings)
