@@ -11,7 +11,6 @@ from app.features.market_data.persistence.position_quote_coverage import (
     PositionQuoteCoverageRecord,
 )
 from app.features.market_data.service.quote_coverage import (
-    CoverageReport,
     ProductCoverage,
     QuoteCoverageService,
     RouteCoverage,
@@ -154,8 +153,102 @@ class PositionQuoteCoverageService:
         product: ProductCoverage | None,
         now: datetime,
     ) -> PositionQuoteCoverage:
-        candidate_coverage = product.coverage if product is not None else None
-        base = dict(
+        if row.selection_status is None:
+            return self._result(
+                row,
+                product,
+                identity_valid=False,
+                source_verified=False,
+                health=PositionQuoteSourceHealth.LEGACY_UNBOUND,
+            )
+        if row.selection_status == "NO_VERIFIED_QUOTE_SOURCE":
+            return self._result(
+                row,
+                product,
+                identity_valid=False,
+                source_verified=False,
+                health=PositionQuoteSourceHealth.NO_VERIFIED_QUOTE_SOURCE,
+            )
+        if row.selection_status == "AMBIGUOUS_SOURCE":
+            return self._result(
+                row,
+                product,
+                identity_valid=False,
+                source_verified=False,
+                health=PositionQuoteSourceHealth.AMBIGUOUS_SOURCE,
+            )
+
+        identity_valid = (
+            row.persisted_identity_key is not None
+            and row.persisted_identity_key == row.current_identity_key
+            and row.persisted_mapping_version is not None
+            and row.persisted_mapping_version == row.current_mapping_version
+            and row.current_mapping_status == "ACTIVE"
+        )
+        if not identity_valid:
+            return self._result(
+                row,
+                product,
+                identity_valid=False,
+                source_verified=False,
+                health=PositionQuoteSourceHealth.MAPPING_CONFLICT,
+            )
+
+        route = self._selected_route(row, product)
+        if route is None or route.route_reason != "ROUTE_IDENTITY_VERIFIED":
+            return self._result(
+                row,
+                product,
+                identity_valid=True,
+                source_verified=True,
+                health=PositionQuoteSourceHealth.MAPPING_CONFLICT,
+            )
+        if not route.configured:
+            return self._result(
+                row,
+                product,
+                identity_valid=True,
+                source_verified=True,
+                health=PositionQuoteSourceHealth.SOURCE_DISABLED,
+                route=route,
+            )
+
+        health = self._quote_health(route, now)
+        quote_present = route.bid is not None or route.reference_price is not None
+        monitoring_usable = (
+            quote_present
+            and route.observed_at is not None
+            and health
+            in {
+                PositionQuoteSourceHealth.FRESH_QUOTE,
+                PositionQuoteSourceHealth.LAST_AVAILABLE,
+                PositionQuoteSourceHealth.RETAINED_AFTER_REFRESH_ERROR,
+                PositionQuoteSourceHealth.STALE,
+                PositionQuoteSourceHealth.REFERENCE_ONLY,
+            }
+        )
+        return self._result(
+            row,
+            product,
+            identity_valid=True,
+            source_verified=True,
+            health=health,
+            route=route,
+            monitoring_usable=monitoring_usable,
+        )
+
+    @staticmethod
+    def _result(
+        row: PositionQuoteCoverageRecord,
+        product: ProductCoverage | None,
+        *,
+        identity_valid: bool,
+        source_verified: bool,
+        health: PositionQuoteSourceHealth,
+        route: RouteCoverage | None = None,
+        monitoring_usable: bool = False,
+    ) -> PositionQuoteCoverage:
+        return PositionQuoteCoverage(
             position_id=row.position_id,
             trade_id=row.trade_id,
             warrant_id=row.warrant_id,
@@ -175,93 +268,29 @@ class PositionQuoteCoverageService:
             currency=row.currency,
             mapping_status=row.current_mapping_status,
             mapping_version=row.current_mapping_version,
-            candidate_product_coverage=candidate_coverage,
-        )
-        if row.selection_status is None:
-            return PositionQuoteCoverage(
-                **base,
-                identity_valid=False,
-                source_verified=False,
-                source_health=PositionQuoteSourceHealth.LEGACY_UNBOUND,
-            )
-        if row.selection_status == "NO_VERIFIED_QUOTE_SOURCE":
-            return PositionQuoteCoverage(
-                **base,
-                identity_valid=False,
-                source_verified=False,
-                source_health=PositionQuoteSourceHealth.NO_VERIFIED_QUOTE_SOURCE,
-            )
-        if row.selection_status == "AMBIGUOUS_SOURCE":
-            return PositionQuoteCoverage(
-                **base,
-                identity_valid=False,
-                source_verified=False,
-                source_health=PositionQuoteSourceHealth.AMBIGUOUS_SOURCE,
-            )
-
-        identity_valid = (
-            row.persisted_identity_key is not None
-            and row.persisted_identity_key == row.current_identity_key
-            and row.persisted_mapping_version is not None
-            and row.persisted_mapping_version == row.current_mapping_version
-            and row.current_mapping_status == "ACTIVE"
-        )
-        if not identity_valid:
-            return PositionQuoteCoverage(
-                **base,
-                identity_valid=False,
-                source_verified=False,
-                source_health=PositionQuoteSourceHealth.MAPPING_CONFLICT,
-            )
-
-        route = self._selected_route(row, product)
-        if route is None or route.route_reason != "ROUTE_IDENTITY_VERIFIED":
-            return PositionQuoteCoverage(
-                **base,
-                identity_valid=True,
-                source_verified=True,
-                source_health=PositionQuoteSourceHealth.MAPPING_CONFLICT,
-            )
-        if not route.configured:
-            return PositionQuoteCoverage(
-                **base,
-                identity_valid=True,
-                source_verified=True,
-                source_health=PositionQuoteSourceHealth.SOURCE_DISABLED,
-                quote_status=route.observation_status,
-            )
-
-        health = self._quote_health(route, now)
-        quote_present = route.bid is not None or route.reference_price is not None
-        monitoring_usable = (
-            quote_present
-            and route.observed_at is not None
-            and health
-            in {
-                PositionQuoteSourceHealth.FRESH_QUOTE,
-                PositionQuoteSourceHealth.LAST_AVAILABLE,
-                PositionQuoteSourceHealth.RETAINED_AFTER_REFRESH_ERROR,
-                PositionQuoteSourceHealth.STALE,
-                PositionQuoteSourceHealth.REFERENCE_ONLY,
-            }
-        )
-        return PositionQuoteCoverage(
-            **base,
-            identity_valid=True,
-            source_verified=True,
+            identity_valid=identity_valid,
+            source_verified=source_verified,
             source_health=health,
-            quote_status=route.observation_status,
-            quote_type="BID" if route.bid is not None else route.reference_price_type,
-            bid=route.bid,
-            ask=route.ask,
-            reference_price=route.reference_price,
-            observed_at=route.observed_at,
-            retrieved_at=route.retrieved_at,
-            age_seconds=route.age_seconds,
-            max_quote_age_seconds=route.max_quote_age_seconds,
-            refresh_error=route.refresh_error,
-            trading_status=route.trading_status,
+            candidate_product_coverage=product.coverage if product is not None else None,
+            quote_status=route.observation_status if route is not None else None,
+            quote_type=(
+                "BID"
+                if route is not None and route.bid is not None
+                else route.reference_price_type if route is not None else None
+            ),
+            bid=route.bid if route is not None else None,
+            ask=route.ask if route is not None else None,
+            reference_price=route.reference_price if route is not None else None,
+            observed_at=route.observed_at if route is not None else None,
+            retrieved_at=route.retrieved_at if route is not None else None,
+            age_seconds=route.age_seconds if route is not None else None,
+            max_quote_age_seconds=(
+                route.max_quote_age_seconds if route is not None else None
+            ),
+            refresh_error=route.refresh_error if route is not None else None,
+            trading_status=route.trading_status if route is not None else None,
             monitoring_usable=monitoring_usable,
+            execution_usable=False,
         )
 
     @staticmethod
