@@ -41,12 +41,12 @@ def upgrade() -> None:
         (
             _MUND_ID,
             "MUND",
-            "Boerse Muenchen - gettex - Freiverkehr",
+            "BOERSE MUENCHEN - GETTEX - FREIVERKEHR",
         ),
         (
             _MUNC_ID,
             "MUNC",
-            "Boerse Muenchen - gettex - Regulierter Markt",
+            "BOERSE MUENCHEN - GETTEX - REGULIERTER MARKT",
         ),
     )
     for venue_id, mic, name in venues:
