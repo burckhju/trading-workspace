@@ -1,3 +1,4 @@
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from types import SimpleNamespace
@@ -204,12 +205,7 @@ async def test_selected_position_separates_last_retained_and_stale(
 @pytest.mark.asyncio
 async def test_changed_identity_is_mapping_conflict_even_if_product_route_looks_available():
     workspace, row = record()
-    row = PositionQuoteCoverageRecord(
-        **{
-            **row.__dict__,
-            "current_identity_key": "changed",
-        }
-    )
+    row = replace(row, current_identity_key="changed")
     selected_route = route(row, observed_at=NOW - timedelta(minutes=1))
     service, _, _ = service_for(workspace, row, product(row, selected_route))
 
