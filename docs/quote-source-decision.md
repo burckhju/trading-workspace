@@ -1,8 +1,10 @@
 # Optionsschein-Kursquellen: konsolidierter Entscheidungsstand
 
-**Status:** Entscheidungsentwurf, nur Dokumentation  
-**Stand:** 17.09.2026  
-**Repository-Basis:** `main` nach #221 und #222  
+**Status:** Aktueller Architektur- und Entscheidungsstand
+
+**Stand:** 20.09.2026
+
+**Repository-Basis:** `main` nach #233 (`bc07ae5`)
 
 Dieses Dokument konsolidiert die vorhandene Quellenrecherche mit der inzwischen
 verfügbaren read-only Depot-Coverage-Diagnose. Es aktiviert keinen Provider,
@@ -19,26 +21,63 @@ Relevante bestehende Dokumente:
 
 ## 1. Gesicherter aktueller Systemstand
 
-Der aktuelle `main` trennt drei Aussagen ausdrücklich:
+Der aktuelle `main` trennt vier Ebenen ausdrücklich:
 
-1. ob ein Provider konfiguriert ist;
-2. ob für ein Produkt eine exakt verifizierte Route existiert;
-3. ob eine gespeicherte Beobachtung einen verwendbaren Geldkurs innerhalb des
-   Altersbudgets enthält.
+1. ob ein Provider zur Runtime konfiguriert und zugelassen ist;
+2. ob für ein Listing eine exakt verifizierte Provider-Route mit gültiger
+   Instrumentidentität existiert;
+3. welche dieser verifizierten Routen für eine konkrete offene Position
+   persistent ausgewählt wurde;
+4. welchen Health-/Freshness-Zustand die gespeicherten Quote-Beobachtungen dieser
+   gebundenen Route haben.
 
-`GET /api/v1/market-data/warrants/quote-coverage` ist rein lesend. Der Aufruf
-startet keinen Providerabruf, aktiviert keinen Scheduler und ändert keine
-Mappings. Gespeicherte Evidenz ist keine Live-Bewertung; `execution_usable`
-bleibt `false`.
+Für offene Depotpositionen ist der produktive Pfad:
 
-Ein lokaler Betreiberlauf nach vollständigem Scheduler-Durchlauf hat bestätigt,
-dass fehlende Routen und reine Referenzpreise als unterschiedliche reale
-Zustände bestehen bleiben. Die exakten lokalen Instrumente und Counts gehören
-in die private Betriebsdiagnose, nicht in dieses Dokument.
+`Position`
+→ `PositionQuoteSourceSelection`
+→ exakte Revalidierung von Listing, Mapping, Provider, Mapping-Version,
+Identity-Key und Währung
+→ genau der persistierte Provider
+→ Quote Health/Freshness
+→ Monitoring.
+
+Eine persistierte `SELECTED`-Route darf beim Lesen nicht still auf einen anderen
+Provider ausweichen. Der dafür verwendete `resolve_selected()`-Pfad löst genau
+die gebundene Quelle auf; die allgemeine Multi-Source-Auflösung bleibt für
+Discovery, Diagnose und andere nicht positionsgebundene Reads getrennt.
+
+Persistierte Source Decisions unterscheiden mindestens:
+
+- `SELECTED`;
+- `NO_VERIFIED_QUOTE_SOURCE`;
+- `AMBIGUOUS_SOURCE`.
+
+Eine fachlich fehlende oder mehrdeutige Quelle wird damit als expliziter
+fail-closed Zustand gespeichert und nicht durch geratenes Provider-Fallback
+ersetzt.
+
+Bei der Neuanlage einer Position wird die Source Decision innerhalb derselben
+Unit of Work wie die Position persistiert. Eine unerwartete technische Störung
+bei dieser Entscheidung darf keine teilweise gespeicherte Position hinterlassen.
+
+`GET /api/v1/market-data/positions/quote-coverage` ist die read-only Diagnose für
+diese positionsbezogene Bindung. Sie projiziert unter anderem fehlende Bindung,
+Source-Selection-Status, Mapping-/Identity-Konflikte, Provider-Verfügbarkeit und
+Quote Health aus gespeicherter Evidenz. Der Aufruf startet keinen Providerabruf
+und ändert keine Mappings.
+
+`LEGACY_UNBOUND` bleibt dabei ein expliziter Diagnosezustand für Positionen ohne
+persistierte Source Selection. Er ist kein gewünschter zweiter
+Produktionsarchitekturpfad.
+
+Die produktbezogene Diagnose
+`GET /api/v1/market-data/warrants/quote-coverage` bleibt separat sinnvoll für
+Route-, Discovery- und Quote-Evidenz. Produkt-Coverage ersetzt jedoch keine
+persistierte Source Selection einer offenen Position.
 
 ## 2. Bereits vorhandene Quellen-Evidenz
 
-### 2.1 UniCredit / gettex delayed pre-trade
+### 2.1 GETTEX delayed pre-trade
 
 Die bisherige Recherche hat einen offiziellen verzögerten gettex-Pre-Trade-Weg
 mit maschinenlesbaren Geld-/Briefdaten nachgewiesen. Für den geprüften MUND-Feed
@@ -71,10 +110,10 @@ jeweiligen MIC der letzten 24 Stunden und listet einzelne MUND-/MUNC-Dateien im
   15-Minuten-Fenster.
 
 Damit besteht eine dokumentierte Inkonsistenz zwischen dem Website-Satz
-„letzte 24 Stunden“ und dem tatsächlich beobachteten File-Service. Eine spätere
-Implementierung darf daraus keine 24-Stunden-Dateiannahme ableiten. Sie muss die
-Dateiliste als Quelle der Intervalle verwenden, jede Datei eigenständig
-validieren und Zeit-/Dateigrenzen fail-closed behandeln.
+„letzte 24 Stunden“ und dem tatsächlich beobachteten File-Service. Die
+implementierte GETTEX-Anbindung darf daraus keine 24-Stunden-Dateiannahme
+ableiten. Dateiliste und einzelne Intervalle müssen eigenständig validiert und
+Zeit-/Dateigrenzen fail-closed behandelt werden.
 
 Der Deployment-Zugriff und das MUNC-Schema sind damit technisch geprüft. Ein
 erneuter vollständiger Download einer großen MUND-Datei ist für diese
@@ -82,10 +121,17 @@ Entscheidungsunterlage nicht erforderlich; die Implementierung selbst muss vor
 einem Checkpoint vollständige GZip-Dekompression und Integritätsprüfung
 verlangen.
 
-Eine Umsetzung müsste hinter dem bestehenden `WarrantListingQuoteProvider`
-liegen und erfolgreiche Beobachtungen in der vorhandenen dauerhaften
-Quote-Ablage speichern. Eine parallele Kurs-Historienarchitektur ist nicht
-begründet.
+GETTEX ist inzwischen als `GETTEX_DELAYED` hinter der bestehenden
+`WarrantListingQuoteProvider`-Grenze integriert. Erfolgreiche Beobachtungen
+werden in der vorhandenen dauerhaften Quote-Ablage gespeichert.
+
+GETTEX-Routen sind venue-korrekt an eigene `MUND`-/`MUNC`-Listings gebunden.
+Provider-Exchange und Listing-MIC müssen dabei übereinstimmen; frühere
+XFRA/GETTEX-Mischidentitäten sind kein zulässiger produktiver Pfad.
+
+Die Quellen- und Nutzungsevidenz dieses Abschnitts bleibt trotz erfolgter
+Implementierung relevant. Eine parallele Kurs-Historienarchitektur ist weiterhin
+nicht begründet.
 
 ### 2.2 Morgan Stanley
 
@@ -128,9 +174,9 @@ Ein kommerzieller Zugang ist erst dann sinnvoll zu bewerten, wenn
 - Geld/Brief, Zeit, Quelle und Qualitätsstatus maschinenlesbar vorliegen;
 - Preis und private Nutzungsrechte geklärt sind.
 
-## 3. Architektur- und Datenintegritätsregeln für jede neue Quelle
+## 3. Architektur- und Datenintegritätsregeln für Quellen
 
-Jede neue Quelle muss die vorhandene Architektur wiederverwenden:
+Jede Quote-Quelle muss die vorhandene Architektur wiederverwenden:
 
 - `WarrantListingQuoteProvider` als Provider-Grenze;
 - exakte ISIN/Listing/MIC/Währung-Identität;
@@ -144,30 +190,51 @@ Jede neue Quelle muss die vorhandene Architektur wiederverwenden:
 - keine automatische Order- oder Bewertungsfreigabe aus einer neuen Route
   ableiten.
 
-Die read-only Coverage-Diagnose bleibt die Abnahmequelle für Route,
-Beobachtungsqualität und Schedulerstatus.
+Für positionsgebundene Reads gelten zusätzliche harte Grenzen:
+
+- die persistierte `PositionQuoteSourceSelection` bestimmt die Quelle;
+- Listing, Mapping-ID, Provider, Mapping-Version und Identity-Key werden beim
+  Lesen erneut geprüft;
+- ein ungültig gewordenes Mapping führt fail-closed zu einem Diagnosezustand;
+- `resolve_selected()` darf keinen Cross-Provider-Fallback durchführen;
+- Discovery darf eine offene Position nicht still auf eine andere Quelle
+  umschalten;
+- mehrere gleichwertige verifizierte Kandidaten bleiben als Ambiguität
+  fail-closed.
+
+Für `GETTEX_DELAYED` gehört die Venue-Identität zur Instrumentidentität:
+`MUND`-/`MUNC`-Provider-Routen dürfen nur auf dem entsprechend passenden
+Listing-MIC verwendet werden.
+
+Die read-only Coverage-Diagnosen bleiben die Abnahmequelle für Route,
+Source Selection, Beobachtungsqualität und Schedulerstatus.
 
 ## 4. Entscheidungstore
 
-### Gate A — gettex delayed
+### Gate A — GETTEX delayed
 
-**Technisch entscheidungsreif für einen separaten Implementierungs-PR.** Das ist
-noch keine Freigabe zur Aktivierung. Vor jeder produktiven Aktivierung muss der
-Betreiber ausdrücklich bestätigen, dass die konkrete Nutzung die veröffentlichten
-Bedingungen für eine natürliche Person und ausschließlich private Zwecke erfüllt
-und keine Datenweitergabe bzw. Nutzung zum kommerziellen Vorteil Dritter erfolgt.
+**Implementiert; produktive Nutzung bleibt explizit opt-in.**
 
-Der Implementierungs-Scope muss eng bleiben:
+`GETTEX_DELAYED` ist als verzögerte Pre-Trade-Quelle integriert. Die technische
+Integration ist damit kein zukünftiges Entscheidungstor mehr.
+
+Vor produktiver Aktivierung muss weiterhin ausdrücklich bestätigt sein, dass die
+konkrete Nutzung die veröffentlichten Bedingungen für natürliche Personen und
+ausschließlich private Zwecke erfüllt und keine unzulässige Weitergabe oder
+Nutzung zum kommerziellen Vorteil Dritter erfolgt.
+
+Für den Betrieb gelten weiterhin:
 
 - Dateiliste statt angenommener 24-Stunden-Datei als Intervallquelle;
-- zentraler Download einer neuen Datei genau einmal;
-- vollständige GZip-/CSV-Validierung vor Checkpoint;
-- Filterung nur auf konfigurierte/benötigte ISINs;
-- Datum aus verifiziertem Dateinamen und UTC-Zeit mit strikter Intervallprüfung;
+- vollständige GZip-/CSV-Validierung vor erfolgreichem Checkpoint;
+- Filterung auf benötigte/verifizierte Instrumentidentitäten;
+- Datum und UTC-Zeit mit strikter Intervallprüfung;
 - kein Überschreiben einer letzten gültigen Beobachtung durch fehlenden Treffer,
   Teil-Download oder Parserfehler;
-- vorhandene `WarrantListingQuoteProvider`- und Retention-Architektur nutzen;
-- keine Produkt-/Depotmigration und keine Orderfreigabe.
+- persistierte Quote-Retention statt paralleler Historienablage;
+- venue-korrekte `MUND`-/`MUNC`-Identität;
+- keine automatische Änderung einer bereits persistierten
+  Position-Source-Selection.
 
 ### Gate B — Morgan Stanley
 
@@ -197,16 +264,30 @@ Die folgenden Probleme bleiben getrennte Arbeitspakete:
 
 Ein zusätzlicher Provider behebt diese vier Zustände nicht automatisch zugleich.
 
-## 6. Nächster zulässiger Schritt
+## 6. Aktueller Erweiterungs- und Betriebsrahmen
 
-Für **Gate A (gettex delayed)** kann nun ein eigener, begrenzter
-Implementierungs-PR vorbereitet werden. Vorbereitung und Tests dürfen ohne
-produktive Aktivierung erfolgen. Vor Aktivierung in einer konkreten Installation
-muss der Betreiber die veröffentlichten privaten Nutzungsbedingungen bewusst
-bestätigen. Der PR muss mit synthetischen/öffentlichen Testfixtures und einer
-Wegwerf-Testdatenbank qualifiziert werden; echte Depotdaten sind dafür nicht
-erforderlich.
+GETTEX benötigt keinen eigenen Implementierungs-PR mehr. Weitere Arbeiten daran
+sollen sich auf klar abgegrenzte Betriebs-, Parser- oder Coverage-Probleme
+beschränken und die persistierte Positionsbindung nicht umgehen.
 
-Die ältere Quellenrecherche bleibt als Evidenz erhalten, soll aber nicht direkt
-als Implementierungsfreigabe oder als aktueller lokaler Depotstatus gelesen
-werden.
+Für zusätzliche Provider wie Morgan Stanley oder J.P. Morgan gelten die oben
+beschriebenen Zugangs-, Nutzungs- und Identitätsgates weiterhin. Eine beobachtete
+Website-Quote oder allgemeine Produktabdeckung reicht nicht aus, um einen
+produktiven automatisierten Adapter oder eine Positionsroute freizugeben.
+
+Automatische Mapping Discovery ist fail-closed: Der Default für
+`market_data.refresh.auto_configure` ist `false`. Discovery muss bewusst
+aktiviert werden und aktiviert selbst keinen Provider.
+
+Die ältere Quellenrecherche bleibt als Evidenz erhalten. Sie ist weder ein
+aktueller lokaler Depotstatus noch eine automatische Implementierungs-,
+Aktivierungs- oder Bewertungsfreigabe.
+
+Für offene Positionen bleibt der Zielzustand eindeutig:
+
+`Position`
+→ persistierte `PositionQuoteSourceSelection`
+→ exakte Mapping-/Identity-Revalidierung
+→ genau ein gebundener Provider
+→ Quote/Health
+→ Monitoring.
