@@ -6,7 +6,6 @@ from pathlib import Path
 from uuid import UUID
 
 import pytest
-
 from app.core.config.settings import StuttgartDelayedSettings
 from app.tools.scan_stuttgart_delayed_targets import (
     OpenTarget,

@@ -127,9 +127,7 @@ def scan_target_quotes(
 
     _require_verified_schema(settings)
     normalized_targets = {isin.strip().upper() for isin in target_isins}
-    invalid_isins = sorted(
-        isin for isin in normalized_targets if _ISIN.fullmatch(isin) is None
-    )
+    invalid_isins = sorted(isin for isin in normalized_targets if _ISIN.fullmatch(isin) is None)
     if invalid_isins:
         raise ValueError("STUTTGART_TARGET_ISIN_INVALID_" + "_".join(invalid_isins))
     if not isinstance(payload, list):
@@ -271,12 +269,8 @@ def _render_result(
             "position_ids": [str(target.position_id) for target in isin_targets],
             "warrant_ids": sorted({str(target.warrant_id) for target in isin_targets}),
             "selection_ids": [str(target.selection_id) for target in isin_targets],
-            "selection_statuses": sorted(
-                {target.selection_status for target in isin_targets}
-            ),
-            "selection_reasons": sorted(
-                {target.selection_reason for target in isin_targets}
-            ),
+            "selection_statuses": sorted({target.selection_status for target in isin_targets}),
+            "selection_reasons": sorted({target.selection_reason for target in isin_targets}),
         }
         quote = quotes.get(isin)
         if quote is None:
@@ -349,11 +343,7 @@ def main() -> None:
         help="Path to one manually downloaded official XSTU-pretrade-YYYYMMDDTHHMM.json.gz",
     )
     args = parser.parse_args()
-    print(
-        json.dumps(
-            asyncio.run(run(payload_path=args.payload)), indent=2, sort_keys=True
-        )
-    )
+    print(json.dumps(asyncio.run(run(payload_path=args.payload)), indent=2, sort_keys=True))
 
 
 if __name__ == "__main__":
