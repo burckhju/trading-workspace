@@ -47,6 +47,24 @@ python -m app.providers.stuttgart_delayed.schema_probe /path/to/XSTU-pretrade-YY
 
 The probe prints only structural metadata: candidate record-array paths, leaf field paths, observed JSON types, and name-based field hints. It intentionally does not print market-data values and does not modify application configuration.
 
+## Open-position discovery scan
+
+Before creating any XSTU listing or source selection, scan one manually downloaded
+official payload against the currently open positions whose active decision is
+`NO_VERIFIED_QUOTE_SOURCE`:
+
+```bash
+docker compose --env-file docker/.env -f docker/compose.yml exec -T backend \
+  python -m app.tools.scan_stuttgart_delayed_targets \
+  /var/lib/trading-workspace/xstu/XSTU-pretrade-YYYYMMDDTHHMM.json.gz
+```
+
+The command is read-only. It requires the pinned verified schema and official filename
+shape, records the SHA-256 of the compressed source file, and reports exact
+ISIN/XSTU/EUR matches with their newest `TransactionTime`. It never creates listings,
+mappings, observations, or position source selections. Any matches remain evidence for
+a separate reviewed preview/apply operation.
+
 ## Deployment activation
 
 `market_data.stuttgart_delayed.enabled` remains `false` by default. Choose one transport mode explicitly.
