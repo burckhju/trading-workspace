@@ -21,9 +21,79 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  diagnostics:
+    name: Backend / diagnostics (${{ matrix.name }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: unit-features
+            test_paths: ../tests/unit/backend/features
+          - name: unit-core
+            test_paths: >-
+              ../tests/unit/backend/analysis
+              ../tests/unit/backend/core
+              ../tests/unit/backend/database
+              ../tests/unit/backend/providers
+              ../tests/unit/backend/shared
+              ../tests/unit/backend/test_*.py
+          - name: integration
+            test_paths: ../tests/integration/backend
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: trading_workspace
+          POSTGRES_PASSWORD: trading_workspace_ci
+          POSTGRES_DB: trading_workspace_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U trading_workspace -d trading_workspace_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      TRADING_WORKSPACE_DATABASE_URL: postgresql+asyncpg://trading_workspace:trading_workspace_ci@localhost:5432/trading_workspace_test
+      TRADING_WORKSPACE_TEST_DATABASE_URL: postgresql+asyncpg://trading_workspace:trading_workspace_ci@localhost:5432/trading_workspace_test
+
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: |
+            backend/requirements.txt
+            backend/requirements-dev.txt
+      - name: Install backend with development dependencies
+        run: python -m pip install --upgrade pip && python -m pip install --requirement requirements-dev.txt
+      - name: Migrate PostgreSQL test database
+        env:
+          PYTHONPATH: ${{ github.workspace }}/backend:${{ github.workspace }}
+        run: alembic upgrade head
+      - name: Run diagnostic shard
+        env:
+          PYTHONPATH: ${{ github.workspace }}/backend:${{ github.workspace }}
+        run: >-
+          timeout 300s
+          pytest -c pyproject.toml
+          ${{ matrix.test_paths }}
+          -vv -s
+          --durations=20
+
   quality:
     name: Backend / quality
+    needs: diagnostics
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     services:
       postgres:
@@ -69,11 +139,24 @@ jobs:
           PYTHONPATH: ${{ github.workspace }}/backend:${{ github.workspace }}
         run: alembic upgrade head
 
+      - name: Scheduler lane regression
+        env:
+          PYTHONPATH: ${{ github.workspace }}/backend:${{ github.workspace }}
+        run: >-
+          timeout 120s
+          pytest -c pyproject.toml
+          ../tests/unit/backend/features/market_data/test_refresh_lane_isolation.py
+          ../tests/unit/backend/features/market_data/test_refresh.py
+          -vv -s
+
       - name: Tests with coverage
         env:
           PYTHONPATH: ${{ github.workspace }}/backend:${{ github.workspace }}
         run: >-
+          timeout 900s
           pytest -c pyproject.toml ../tests/unit/backend ../tests/integration/backend
+          -vv
+          --durations=20
           --cov=app
           --cov-report=term-missing
           --cov-report=xml:coverage.xml
