@@ -19,7 +19,7 @@ from app.features.market_data.service.refresh_runner import run_refresh_forever
 async def test_all_52_held_underlyings_start_and_refresh_again_while_first_warrant_is_blocked(
     monkeypatch,
 ):
-    value = runtime()
+    value = runtime(auto_configure=True)
     value.container = replace(value.container, eodhd=object())
     warrants = [RefreshInstrument(uuid4(), f"Warrant {i}", None, held=True) for i in range(52)]
     stocks = [

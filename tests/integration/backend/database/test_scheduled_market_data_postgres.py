@@ -68,7 +68,7 @@ async def test_catalog_automatically_maps_bnp_and_vontobel_without_position_or_i
     settings = Settings(
         environment="test",
         market_data={
-            "refresh": {"enabled": True, "workspace_id": workspace},
+            "refresh": {"enabled": True, "workspace_id": workspace, "auto_configure": True},
             "vontobel_markets": {"enabled": True},
             "frankfurt": public_settings().model_dump(),
         },

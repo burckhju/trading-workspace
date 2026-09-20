@@ -158,7 +158,13 @@ async def test_scheduler_bootstraps_several_venues_imports_eod_and_preserves_dis
                 client.get_json = AsyncMock(side_effect=lambda path, **_: payloads[path])
                 settings = Settings(
                     environment="test",
-                    market_data={"refresh": {"enabled": True, "workspace_id": workspace}},
+                    market_data={
+                        "refresh": {
+                            "enabled": True,
+                            "workspace_id": workspace,
+                            "auto_configure": True,
+                        }
+                    },
                 )
                 container = replace(
                     ApplicationContainer.build(settings),
