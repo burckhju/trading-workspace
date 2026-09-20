@@ -115,6 +115,14 @@ def test_load_requires_official_filename_and_returns_compressed_hash(
         _load_official_payload(invalid_name)
 
 
+def test_load_rejects_empty_official_payload(tmp_path: Path) -> None:
+    path = tmp_path / "XSTU-pretrade-20260918T2153.json.gz"
+    path.write_bytes(gzip.compress(b"[]"))
+
+    with pytest.raises(ValueError, match="SOURCE_FILE_EMPTY"):
+        _load_official_payload(path)
+
+
 def test_rendered_result_contains_auditable_identity_without_apply_controls() -> None:
     position_id = UUID("11111111-1111-4111-8111-111111111111")
     warrant_id = UUID("22222222-2222-4222-8222-222222222222")

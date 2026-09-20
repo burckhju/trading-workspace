@@ -63,7 +63,8 @@ The command is read-only. It requires the pinned verified schema and official fi
 shape, records the SHA-256 of the compressed source file, and reports exact
 ISIN/XSTU/EUR matches with their newest `TransactionTime`. It never creates listings,
 mappings, observations, or position source selections. Any matches remain evidence for
-a separate reviewed preview/apply operation.
+a separate reviewed preview/apply operation. Empty JSON arrays are rejected rather than
+being reported as evidence that all target ISINs are missing.
 
 ## Deployment activation
 
