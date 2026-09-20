@@ -83,6 +83,8 @@ def _load_official_payload(path: Path) -> tuple[Any, str]:
         payload = json.loads(gzip.decompress(compressed).decode("utf-8"))
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise ValueError("STUTTGART_SOURCE_FILE_INVALID") from exc
+    if payload == []:
+        raise ValueError("STUTTGART_SOURCE_FILE_EMPTY")
     return payload, hashlib.sha256(compressed).hexdigest()
 
 
