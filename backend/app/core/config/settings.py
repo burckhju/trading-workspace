@@ -203,7 +203,7 @@ class MarketDataRefreshSettings(BaseModel):
     underlyings_interval_seconds: Annotated[int, Field(ge=300, le=604_800)] = 3600
     discovery_interval_seconds: Annotated[int, Field(ge=300, le=604_800)] = 3600
     request_spacing_seconds: Annotated[float, Field(ge=1, le=60)] = 15.0
-    auto_configure: bool = True
+    auto_configure: bool = False
 
 
 class MarketDataSettings(BaseModel):

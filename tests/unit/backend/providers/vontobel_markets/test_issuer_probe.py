@@ -69,7 +69,7 @@ async def test_alias_never_bypasses_failed_identity_probe():
 
 @pytest.mark.asyncio
 async def test_scheduler_uses_same_alias_gate_without_activating_other_sources(monkeypatch):
-    value = runtime()
+    value = runtime(auto_configure=True)
     # Only simulate an already enabled adapter; the test activates no source.
     value.container = replace(value.container, vontobel=object())
     items = [
