@@ -83,3 +83,29 @@ Die Anlage erfolgt als geführter Ablauf mit Grunddaten und primärer Notierung.
 ## Freigabestatus
 
 Alle fachlichen Grund- und Detailentscheidungen sind akzeptiert. FT-001 wurde in Sprint 2 vollständig über Backend, REST API, React-Frontend, Tests und Dokumentation umgesetzt. Die Implementierung bleibt an die akzeptierten ADRs und die Feature-Book-Verträge gebunden.
+
+## Rückkehr nach der Stammdatenpflege
+
+Die Basiswertliste hält ihre bestätigte Suche, Status-/Markt-/Währungsfilter und
+25er-Paginierung in der URL. Beim Öffnen von Details oder Bearbeitung wird dieser
+Listenkontext als auf `/underlyings` begrenztes `returnTo` weitergegeben. Nach
+**erfolgreichem Speichern**, **Abbrechen** oder dem Formular-Zurücklink geht es
+direkt auf die ursprüngliche Listenseite; der Detail-Zurücklink erhält sie ebenfalls.
+Die Liste lädt ihre Daten dort erneut. Ein Speicherfehler bleibt mit den Eingaben
+im Formular. Direkte Bearbeitungslinks ohne Listenkontext führen wie bisher zur
+Detailansicht; Neuanlage führt weiterhin zum neu angelegten Basiswert.
+
+Reload und Browser-Zurück/Vorwärts erhalten den URL-Kontext, getrennt je Tab.
+Neue Suche oder Filteränderungen beginnen auf Seite 1. Existiert die gemerkte
+letzte Seite nach einer Änderung/Löschung nicht mehr, wird die letzte vorhandene
+Seite derselben gefilterten Liste geladen. Ungültige Seitenwerte fallen auf
+Seite 1 zurück; externe oder fremde Rücksprungziele werden nicht verwendet.
+Keine Backend-, Datenmodell-, Stammdatenvalidierungs- oder Provideränderung.
+
+Prüfweg: Liste auf Seite 2/3 öffnen, Basiswert → Bearbeiten → Abbrechen oder
+Detail → Basiswerte: Rückkehr zu derselben Seite mit denselben Filtern (lesend).
+Speichern/Löschen und Fehlerfälle nur mit synthetischen Daten in der Testumgebung
+prüfen; diese Aktionen verändern Stammdaten. Regressionen: `UnderlyingNavigation.test.tsx`,
+`underlyingListNavigation.test.ts`, `tests/e2e/underlying-list-return.spec.ts`.
+Die neuen Browserfälle verwenden vollständig abgefangene synthetische API-Antworten;
+sie sind kein zusätzlicher Datenbank-Schreibnachweis.
