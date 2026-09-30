@@ -42,6 +42,7 @@ logger = logging.getLogger(__name__)
 
 class RefreshLane(StrEnum):
     WARRANTS = "WARRANTS"
+    WARRANT_DISCOVERY = "WARRANT_DISCOVERY"
     UNDERLYINGS = "UNDERLYINGS"
 
 
@@ -49,11 +50,11 @@ type ScheduledJob = tuple[str, RefreshInstrument, int, Callable[[], Awaitable[di
 
 
 def _job_lane(key: str) -> RefreshLane:
-    return (
-        RefreshLane.UNDERLYINGS
-        if key.startswith(("EODHD_MAPPING:", "UNDERLYING_EOD:"))
-        else RefreshLane.WARRANTS
-    )
+    if key.startswith(("FRANKFURT_MAPPING:", "VONTOBEL_MAPPING:")):
+        return RefreshLane.WARRANT_DISCOVERY
+    if key.startswith(("EODHD_MAPPING:", "UNDERLYING_EOD:")):
+        return RefreshLane.UNDERLYINGS
+    return RefreshLane.WARRANTS
 
 
 class MarketDataRefreshRuntime:
@@ -87,7 +88,7 @@ class MarketDataRefreshRuntime:
     @property
     def current_job(self) -> str | None:
         # Compatibility with clients displaying one job. The complete status is
-        # in lanes/current_jobs, since both lanes may be active at the same time.
+        # in lanes/current_jobs, since multiple lanes may be active at the same time.
         return next((job for job in self._current_jobs.values() if job is not None), None)
 
     def _schedule_counts(self, keys: Iterable[str], now: float) -> dict[str, int | float]:
@@ -118,7 +119,7 @@ class MarketDataRefreshRuntime:
             "underlying_price_type": "COMPLETED_EOD",
             "current_job": self.current_job,
             "current_jobs": dict(self._current_jobs),
-            "scheduling_mode": "INDEPENDENT_WARRANT_UNDERLYING_LANES",
+            "scheduling_mode": "INDEPENDENT_WARRANT_QUOTE_DISCOVERY_UNDERLYING_LANES",
             "lanes": {
                 lane.value: {
                     "running": lane in self._lane_tasks and not self._lane_tasks[lane].done(),
@@ -145,7 +146,7 @@ class MarketDataRefreshRuntime:
 
         The leader calls with wait_for_completion=False so the next catalog scan,
         lock heartbeat and a completed lane never wait for the other lane's batch.
-        Awaiting both lanes remains useful for explicit one-shot runs and tests.
+        Awaiting all lanes remains useful for explicit one-shot runs and tests.
         """
         if not self.settings.enabled:
             await self.stop()
@@ -265,11 +266,56 @@ class MarketDataRefreshRuntime:
                 # A later catalog scan can remove queued inactive instruments.
                 if key in self.jobs:
                     await self._job(key, item, interval, operation, catalog_job=True)
+            if lane is RefreshLane.WARRANT_DISCOVERY:
+                await self._retry_quotes_after_discovery(schedule)
         except asyncio.CancelledError:
             raise
         except Exception as exc:
             self._lane_errors[lane] = type(exc).__name__
             logger.exception("market_data_lane_failed", extra={"lane": lane.value})
+
+    async def _retry_quotes_after_discovery(
+        self, schedule: list[ScheduledJob]
+    ) -> None:
+        """Retry quotes that missed a route before same-cycle discovery succeeded."""
+
+        quote_task = self._lane_tasks.get(RefreshLane.WARRANTS)
+        current_task = asyncio.current_task()
+        if quote_task is not None and quote_task is not current_task and not quote_task.done():
+            await quote_task
+
+        latest_discovery_success: dict[Any, tuple[RefreshInstrument, datetime]] = {}
+        for key, item, _interval, _operation in schedule:
+            job = self.jobs.get(key)
+            checked_at = None if job is None else job.get("checked_at")
+            if job is None or job.get("status") != "AVAILABLE" or checked_at is None:
+                continue
+            previous = latest_discovery_success.get(item.id)
+            if previous is None or checked_at > previous[1]:
+                latest_discovery_success[item.id] = (item, checked_at)
+
+        for item, discovery_checked_at in latest_discovery_success.values():
+            quote_key = f"WARRANT_QUOTES:{item.id}"
+            quote_job = self.jobs.get(quote_key)
+            if (
+                quote_job is None
+                or quote_job.get("status") != "MISSING"
+                or quote_job.get("reason") != "NO_USABLE_WARRANT_QUOTE"
+            ):
+                continue
+
+            quote_checked_at = quote_job.get("checked_at")
+            if quote_checked_at is None or quote_checked_at >= discovery_checked_at:
+                continue
+
+            self._due.pop(quote_key, None)
+            await self._job(
+                quote_key,
+                item,
+                self.settings.warrants_interval_seconds,
+                partial(self._warrant, item),
+                catalog_job=True,
+            )
 
     async def stop(self) -> None:
         """Cancel and join all workers before the runner releases its leader lock."""
