@@ -48,13 +48,17 @@ class MonitoringDailyPriceResponse(BaseModel):
 
 class MonitoringRuntimeStatusResponse(BaseModel):
     enabled: bool
+    telegram_enabled: bool = False
+    telegram_configured: bool = False
     running: bool = False
     cycle_running: bool = False
     interval_seconds: int
+    parallel_positions: int = 1
     scope: Literal["PROCESS_LOCAL_ALL_WORKSPACES"] = "PROCESS_LOCAL_ALL_WORKSPACES"
     price_basis: Literal["EXPLICIT_INSTRUMENT_AND_CURRENCY"] = "EXPLICIT_INSTRUMENT_AND_CURRENCY"
     last_cycle_started_at: datetime | None = None
     last_cycle_completed_at: datetime | None = None
+    last_cycle_duration_seconds: float | None = None
     next_run_at: datetime | None = None
     last_error: str | None = None
     last_error_at: datetime | None = None
@@ -198,6 +202,10 @@ class ProductPositionValuationResponse(BaseModel):
     reference_price: Decimal | None = None
     reference_price_type: str | None = None
     quote_retrieved_at: datetime | None = None
+    quote_time_text: str | None = None
+    quote_time_basis: str | None = None
+    bid_volume: int | None = None
+    ask_volume: int | None = None
     quote_refresh_error: str | None = None
     quote_retained: bool = False
     quote_assessed_at: datetime | None = None

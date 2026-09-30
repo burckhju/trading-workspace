@@ -46,6 +46,7 @@ class PositionMonitoringRuntimeService:
         database: DatabaseManager,
         market_data: LatestCompletedDailyPriceProvider | None,
         products: ProductValuationReader | None = None,
+        parallel_positions: int = 4,
         delivery_adapter: NotificationDeliveryAdapter | None,
         max_completed_price_age_days: int = 4,
         delivery_max_attempts: int = 3,
@@ -54,6 +55,7 @@ class PositionMonitoringRuntimeService:
         self._database = database
         self._market_data = market_data
         self._products = products
+        self._parallel_positions = parallel_positions
         self._delivery_adapter = delivery_adapter
         self._max_completed_price_age_days = max_completed_price_age_days
         self._delivery_max_attempts = delivery_max_attempts
@@ -111,6 +113,7 @@ class PositionMonitoringRuntimeService:
             service = PositionMonitoringCycleService(
                 subjects=SqlAlchemyMonitoringSubjectReader(session, for_rule_evaluation=True),
                 products=self._products,
+                parallel_positions=self._parallel_positions,
                 market_data=self._market_data,
                 processor=SqlAlchemyMonitoringRuleProcessor(session),
                 new_id=uuid4,

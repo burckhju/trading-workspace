@@ -55,6 +55,12 @@ async def get_monitoring_runtime_status(
     return MonitoringRuntimeStatusResponse(
         enabled=container.settings.position_monitoring.enabled,
         interval_seconds=container.settings.position_monitoring.interval_seconds,
+        parallel_positions=container.settings.position_monitoring.parallel_positions,
+        telegram_enabled=container.settings.notification.telegram.enabled,
+        telegram_configured=bool(
+            container.settings.notification.telegram.bot_token
+            and container.settings.notification.telegram.chat_id
+        ),
         **values,
     )
 
@@ -368,6 +374,10 @@ async def get_trade_product_valuation(
         reference_price=value.reference_price,
         reference_price_type=value.reference_price_type,
         quote_retrieved_at=value.quote_retrieved_at,
+        quote_time_text=value.quote_time_text,
+        quote_time_basis=value.quote_time_basis,
+        bid_volume=value.bid_volume,
+        ask_volume=value.ask_volume,
         quote_refresh_error=value.quote_refresh_error,
         quote_retained=value.quote_retained,
         quote_assessed_at=value.quote_assessed_at,
@@ -377,6 +387,9 @@ async def get_trade_product_valuation(
         spread_absolute=value.spread_absolute,
         spread_percent=value.spread_percent,
         freshness_policy=value.freshness_policy,
+        source_selection_status=value.source_selection_status,
+        source_selection_reason=value.source_selection_reason,
+        source_selection_policy_version=value.source_selection_policy_version,
         source_attempts=tuple(
             QuoteSourceAttemptResponse(
                 source=attempt.source,

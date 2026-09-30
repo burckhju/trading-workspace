@@ -74,6 +74,8 @@ class RouteCoverage:
     feed_delay_seconds: int | None = None
     trading_status: str | None = None
     refresh_error: str | None = None
+    quote_time_text: str | None = None
+    quote_time_basis: str | None = None
 
 
 @dataclass(frozen=True)
@@ -158,6 +160,8 @@ class QuoteCoverageService:
                 coverage = "BID_WITHIN_AGE_BUDGET"
             elif "OLDER_BID" in statuses:
                 coverage = "HISTORICAL_BID_ONLY"
+            elif "QUOTE_TIMESTAMP_UNKNOWN" in statuses:
+                coverage = "QUOTE_TIMESTAMP_UNKNOWN"
             elif "REFERENCE_ONLY" in statuses:
                 coverage = "REFERENCE_ONLY"
             elif any(
@@ -255,7 +259,11 @@ class QuoteCoverageService:
                 )
                 or result.retrieved_at > now
                 or (quote.observed_at is not None and quote.observed_at > result.retrieved_at)
-                or (quote.bid is None and quote.reference_price is None)
+                or (
+                    quote.bid is None
+                    and quote.reference_price is None
+                    and row.provider not in {"JPMORGAN", "MORGAN_STANLEY"}
+                )
             ):
                 raise ValueError("INVALID_STORED_OBSERVATION")
             priority = quote_priority(quote, now)
@@ -264,6 +272,10 @@ class QuoteCoverageService:
                 if priority == 0
                 else "OLDER_BID" if quote.bid is not None else "REFERENCE_ONLY"
             )
+            if quote.bid is None and quote.reference_price is None:
+                status = "NO_VERIFIED_OBSERVATION"
+            elif quote.bid is not None and quote.observed_at is None:
+                status = "QUOTE_TIMESTAMP_UNKNOWN"
             if values["refresh_error"] and status == "BID_WITHIN_AGE_BUDGET":
                 status = "OLDER_BID"
             return RouteCoverage(
@@ -275,6 +287,8 @@ class QuoteCoverageService:
                     "reference_price": quote.reference_price,
                     "reference_price_type": quote.reference_price_type,
                     "observed_at": quote.observed_at,
+                    "quote_time_text": quote.quote_time_text,
+                    "quote_time_basis": quote.quote_time_basis,
                     "retrieved_at": result.retrieved_at,
                     "age_seconds": (
                         int((now - quote.observed_at).total_seconds())

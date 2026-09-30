@@ -187,4 +187,48 @@ describe('TradeAlertsPanel', () => {
     expect(await screen.findByText('Laufstatus nicht verfügbar')).toBeInTheDocument();
     expect(screen.getByText('Daten aktuell')).toBeInTheDocument();
   });
+  it('keeps an issuer source clock separate from receipt and detection time', async () => {
+    api.forTrade.mockResolvedValue([
+      {
+        id: 'issuer-alert',
+        position_id: 'position-1',
+        trade_id: 'trade-1',
+        alert_type: 'STOP_REACHED',
+        severity: 'WARNING',
+        rule_key: 'CURRENT_STOP',
+        reason: 'Indikativer Geldkurs unter Stop',
+        observed_value: '0.94',
+        threshold_value: '1.00',
+        market_data_observed_at: null,
+        detected_at: '2026-09-22T18:20:08Z',
+        status: 'OPEN',
+        resolved_at: null,
+        notifications: [],
+        price_context: {
+          basis: 'WARRANT',
+          currency: 'EUR',
+          price_type: 'BID',
+          provider: 'JPMORGAN',
+          provider_identity: 'DE000JE7KTY8',
+          observed_at: null,
+          retrieved_at: '2026-09-22T18:20:04Z',
+          quote_time_text: '20:18:16',
+          quote_time_basis: 'DATE_AND_TIMEZONE_UNKNOWN',
+          evaluation_mode: 'INDICATIVE_ISSUER',
+          warning: 'QUOTE_TIMESTAMP_UNKNOWN_INDICATIVE_ANALYSIS_ONLY',
+        },
+      },
+    ]);
+    render(<TradeAlertsPanel tradeId="trade-1" />);
+    expect(await screen.findByText('Stop erreicht (indikative Prüfung)')).toBeInTheDocument();
+    expect(screen.getByText(/Zeitangabe der Quelle: 20:18:16/)).toHaveTextContent(
+      'Kursdatum und Zeitzone unbekannt',
+    );
+    expect(screen.getByText(/Kurszeitpunkt: nicht bekannt/)).toHaveTextContent(
+      'Abgerufen: 2026-09-22T18:20:04Z',
+    );
+    expect(screen.getByText(/Indikative Prüfung · QUOTE_TIMESTAMP/)).toHaveTextContent(
+      'Keine Orderfreigabe',
+    );
+  });
 });

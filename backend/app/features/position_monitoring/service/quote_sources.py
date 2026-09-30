@@ -20,6 +20,17 @@ from app.features.market_data.service.errors import (
 from app.features.market_data.service.types import MarketDataResult, WarrantQuoteRequest
 
 
+def _safe_error_reason(exc: Exception) -> str:
+    """Expose bounded application codes, never provider bodies or credentials."""
+    if isinstance(exc, MarketDataError) and re.fullmatch(
+        r"(?:JPMORGAN|MORGAN_STANLEY|FRANKFURT|VONTOBEL|STUTTGART|WARRANT|EODHD|GETTEX)"
+        r"_[A-Z0-9_]{1,100}",
+        str(exc),
+    ):
+        return str(exc)
+    return type(exc).__name__
+
+
 class QuoteSourceAttemptStatus(StrEnum):
     AVAILABLE = "AVAILABLE"
     MISSING = "MISSING"
@@ -111,9 +122,16 @@ class MultiSourceWarrantQuoteResolver:
                     ),
                 ),
             )
-        return await MultiSourceWarrantQuoteResolver((source,)).resolve(request)
+        return await MultiSourceWarrantQuoteResolver((source,))._resolve(
+            request, report_not_found=True
+        )
 
     async def resolve(self, request: WarrantQuoteRequest) -> MultiSourceWarrantQuoteResolution:
+        return await self._resolve(request, report_not_found=False)
+
+    async def _resolve(
+        self, request: WarrantQuoteRequest, *, report_not_found: bool
+    ) -> MultiSourceWarrantQuoteResolution:
         attempts: list[QuoteSourceAttempt] = []
         best: MarketDataResult[WarrantQuoteSnapshot | None] | None = None
         best_source = None
@@ -128,9 +146,19 @@ class MultiSourceWarrantQuoteResolver:
 
             try:
                 result = await source.provider.get_warrant_listing_quote(request)
-            except MarketDataNotFoundError:
-                # The listing is not configured/mapped for this provider. This is
-                # routing metadata, not a failed provider quote attempt.
+            except MarketDataNotFoundError as exc:
+                # Unmapped candidates are expected during multi-provider discovery.
+                # A persisted selection, however, must explain why it returned nothing.
+                if report_not_found:
+                    attempts.append(
+                        QuoteSourceAttempt(
+                            source=source.name,
+                            status=QuoteSourceAttemptStatus.MISSING,
+                            reason=_safe_error_reason(exc),
+                            delayed=source.delayed,
+                            warrant_listing_id=request.warrant_listing_id,
+                        )
+                    )
                 continue
             except MarketDataConfigurationError as exc:
                 attempts.append(
@@ -147,16 +175,11 @@ class MultiSourceWarrantQuoteResolver:
                 # Preserve bounded application codes (not arbitrary HTTP bodies,
                 # URLs or exception text) so throttling is distinguishable from
                 # absent coverage in existing source-attempt diagnostics.
-                reason = type(exc).__name__
-                if isinstance(exc, MarketDataError) and re.fullmatch(
-                    r"(?:FRANKFURT|VONTOBEL|STUTTGART|WARRANT|EODHD)_[A-Z0-9_]{1,100}", str(exc)
-                ):
-                    reason = str(exc)
                 attempts.append(
                     QuoteSourceAttempt(
                         source=source.name,
                         status=QuoteSourceAttemptStatus.ERROR,
-                        reason=reason,
+                        reason=_safe_error_reason(exc),
                         delayed=source.delayed,
                         warrant_listing_id=request.warrant_listing_id,
                     )

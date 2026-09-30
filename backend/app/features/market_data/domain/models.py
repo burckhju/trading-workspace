@@ -252,6 +252,10 @@ class WarrantQuoteSnapshot:
     max_quote_age_seconds: int | None = None
     refresh_error: str | None = None
     retained: bool = False
+    quote_time_text: str | None = None
+    quote_time_basis: str | None = None
+    bid_volume: int | None = None
+    ask_volume: int | None = None
 
     def __post_init__(self) -> None:
         if (self.reference_price is None) != (self.reference_price_type is None):
@@ -292,8 +296,27 @@ class WarrantQuoteSnapshot:
         )
         if self.observed_at is not None:
             _require_utc(self.observed_at, field="observed_at")
-        elif self.reference_price is None:
+        elif self.reference_price is None and not (
+            (self.source_mode, self.quote_time_basis)
+            in {
+                ("OFFICIAL_ISSUER_INDICATION_TIME_ONLY", "DATE_AND_TIMEZONE_UNKNOWN"),
+                ("OFFICIAL_ISSUER_INDICATION_LOCAL_DATETIME", "LOCAL_DATETIME_TIMEZONE_UNKNOWN"),
+                ("OFFICIAL_ISSUER_INDICATION_LOCAL_DATETIME", "TIMESTAMP_MISSING"),
+            }
+            and self.provider_exchange_code == "ISSUER"
+        ):
             raise InvalidMarketDataValue("Bid/ask observation requires a timestamp")
+        if (
+            self.quote_time_basis
+            in {"DATE_AND_TIMEZONE_UNKNOWN", "LOCAL_DATETIME_TIMEZONE_UNKNOWN", "TIMESTAMP_MISSING"}
+            and self.observed_at is not None
+        ):
+            raise InvalidMarketDataValue("Unknown date/timezone cannot carry a UTC quote timestamp")
+        for volume in (self.bid_volume, self.ask_volume):
+            if volume is not None and (
+                isinstance(volume, bool) or not isinstance(volume, int) or volume < 0
+            ):
+                raise InvalidMarketDataValue("Quote volume must be a nonnegative integer")
         if self.assessed_at is not None:
             _require_utc(self.assessed_at, field="assessed_at")
         if self.feed_delay_seconds is not None and self.feed_delay_seconds < 0:

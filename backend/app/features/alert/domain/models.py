@@ -34,7 +34,7 @@ class Alert:
     reason: str
     observed_value: Decimal
     threshold_value: Decimal
-    market_data_observed_at: datetime
+    market_data_observed_at: datetime | None
     detected_at: datetime
     status: AlertStatus = AlertStatus.OPEN
     resolved_at: datetime | None = None

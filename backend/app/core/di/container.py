@@ -37,6 +37,8 @@ from app.providers.eodhd.persistence import (
 from app.providers.frankfurt_quotes.adapter import FrankfurtWarrantQuoteAdapter
 from app.providers.frankfurt_quotes.client import FrankfurtSnapshotClient
 from app.providers.gettex_delayed.adapter import GettexDelayedWarrantQuoteAdapter
+from app.providers.jpmorgan.adapter import JPMorganWarrantQuoteAdapter
+from app.providers.morganstanley.adapter import MorganStanleyWarrantQuoteAdapter
 from app.providers.shared.budget import DailyCallBudget
 from app.providers.shared.cache import InMemoryTtlCache
 from app.providers.shared.clock import AsyncioSleeper, SystemClock
@@ -75,6 +77,8 @@ class ApplicationContainer:
     vontobel: VontobelMarketsWarrantQuoteAdapter | None = None
     stuttgart: StuttgartDelayedWarrantQuoteAdapter | None = None
     gettex: GettexDelayedWarrantQuoteAdapter | None = None
+    jpmorgan: JPMorganWarrantQuoteAdapter | None = None
+    morganstanley: MorganStanleyWarrantQuoteAdapter | None = None
 
     @classmethod
     def build(cls, settings: Settings) -> ApplicationContainer:
@@ -132,6 +136,20 @@ class ApplicationContainer:
             vontobel=vontobel,
             stuttgart=stuttgart,
             gettex=gettex,
+            jpmorgan=(
+                JPMorganWarrantQuoteAdapter(
+                    database=database, settings=settings.market_data.jpmorgan
+                )
+                if settings.market_data.jpmorgan.enabled
+                else None
+            ),
+            morganstanley=(
+                MorganStanleyWarrantQuoteAdapter(
+                    database=database, settings=settings.market_data.morganstanley
+                )
+                if settings.market_data.morganstanley.enabled
+                else None
+            ),
         )
 
     @staticmethod

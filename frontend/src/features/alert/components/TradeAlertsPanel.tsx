@@ -22,7 +22,10 @@ function formatNumber(value: string): string {
 }
 
 function alertTitle(alert: AlertResponse): string {
-  return alert.alert_type === 'STOP_REACHED' ? 'Stop erreicht' : 'Target erreicht';
+  const title = alert.alert_type === 'STOP_REACHED' ? 'Stop erreicht' : 'Target erreicht';
+  return alert.price_context?.evaluation_mode === 'INDICATIVE_ISSUER'
+    ? `${title} (indikative Prüfung)`
+    : title;
 }
 
 function notificationLabel(notification: NotificationResponse): string {
@@ -246,6 +249,17 @@ export function TradeAlertsPanel({ tradeId }: { tradeId: string }) {
                       Handelstag: {alert.price_context.trading_date ?? '—'} · Abgerufen:{' '}
                       {alert.price_context.retrieved_at ?? '—'}
                     </p>
+                    {alert.price_context.quote_time_text && (
+                      <p>
+                        Zeitangabe der Quelle: {alert.price_context.quote_time_text} ·{' '}
+                        {alert.price_context.quote_time_basis === 'DATE_AND_TIMEZONE_UNKNOWN'
+                          ? 'Kursdatum und Zeitzone unbekannt'
+                          : alert.price_context.quote_time_basis ===
+                              'LOCAL_DATETIME_TIMEZONE_UNKNOWN'
+                            ? 'Zeitzone unbekannt'
+                            : alert.price_context.quote_time_basis}
+                      </p>
+                    )}
                     {alert.price_context.warning && (
                       <p className="text-amber-300">
                         Indikative Prüfung · {alert.price_context.warning}. Keine Orderfreigabe.

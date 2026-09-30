@@ -45,6 +45,12 @@ class MonitoringRuleStateModel(Base):
     triggered: Mapped[bool] = mapped_column(Boolean(), nullable=False)
     first_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    time_basis: Mapped[str] = mapped_column(
+        String(24),
+        nullable=False,
+        default="SOURCE_TIMESTAMP",
+        server_default="SOURCE_TIMESTAMP",
+    )
     last_observed_value: Mapped[Decimal] = mapped_column(Numeric(24, 10), nullable=False)
     threshold_value: Mapped[Decimal] = mapped_column(Numeric(24, 10), nullable=False)
     active_alert_id: Mapped[UUID | None] = mapped_column(Uuid(), nullable=True)

@@ -21,6 +21,15 @@ function formatQuoteAge(value: ProductPositionValuationResponse): string {
   return `${Math.floor(value.quote_age_seconds / 60)} Min.`;
 }
 
+function formatQuoteTimestamp(value: ProductPositionValuationResponse): string {
+  if (value.quote_observed_at) return new Date(value.quote_observed_at).toLocaleString('de-DE');
+  if (!value.quote_time_text) return 'Zeitpunkt unbekannt';
+  if (value.quote_time_basis === 'LOCAL_DATETIME_TIMEZONE_UNKNOWN') {
+    return `Quellzeit ${value.quote_time_text} (Zeitzone unbekannt)`;
+  }
+  return `Quelluhrzeit ${value.quote_time_text} (Datum und Zeitzone unbekannt)`;
+}
+
 function statusText(value: ProductPositionValuationResponse): string {
   switch (value.status) {
     case 'AVAILABLE':
@@ -42,6 +51,10 @@ function statusText(value: ProductPositionValuationResponse): string {
 
 function reasonText(reason: string): string {
   switch (reason) {
+    case 'QUOTE_TIMEZONE_UNKNOWN_INDICATIVE_ANALYSIS_ONLY':
+      return 'Datum und Uhrzeit des Emittentenkurses sind vorhanden. Die Zeitzone ist nicht bestätigt; deshalb bleiben Kursalter und Aktualität unbekannt. Der Geldkurs dient der indikativen Analyse.';
+    case 'QUOTE_TIMESTAMP_UNKNOWN_INDICATIVE_ANALYSIS_ONLY':
+      return 'Ein vollständiger, bestätigter Kurszeitpunkt fehlt. Der Geldkurs dient der indikativen Analyse.';
     case 'LAST_SUCCESSFUL_QUOTE_REFRESH_FAILED':
       return 'Der Kurs konnte nicht erneut abgerufen werden. Die Auswertung verwendet die Daten des letzten erfolgreichen Abrufs; Kursstand und Abrufzeitpunkt bleiben unverändert.';
     case 'REFERENCE_PRICE_AVAILABLE_FOR_ANALYSIS':
@@ -78,6 +91,9 @@ function priceTypeText(type: string | null | undefined): string {
 }
 
 function warningText(warning: string): string {
+  if (warning === 'QUOTE_TIMEZONE_UNKNOWN_INDICATIVE_ANALYSIS_ONLY') {
+    return 'Zeitzone des Kurszeitpunkts unbekannt – indikative Analyse';
+  }
   if (warning === 'QUOTE_REFRESH_FAILED_INDICATIVE_ANALYSIS_ONLY') {
     return 'Kursabruf nicht verfügbar – letzter erfolgreicher Abruf, nur indikative Analyse';
   }
@@ -182,11 +198,7 @@ export function ProductValuationPanel({ tradeId }: { tradeId: string }) {
             gewichten. Dieser Referenzwert garantiert keinen ausführbaren Orderpreis.
           </p>
           <p className="mt-1">
-            Kursstand:{' '}
-            {value.quote_observed_at
-              ? new Date(value.quote_observed_at).toLocaleString('de-DE')
-              : 'Zeitpunkt unbekannt'}{' '}
-            · {formatQuoteAge(value)}
+            Kursstand: {formatQuoteTimestamp(value)} · {formatQuoteAge(value)}
           </p>
           {value.quote_refresh_error && (
             <p className="mt-1">Abrufhinweis: {value.quote_refresh_error}</p>
@@ -225,12 +237,22 @@ export function ProductValuationPanel({ tradeId }: { tradeId: string }) {
               <dd className="mt-1 font-medium">
                 {formatDecimal(value.bid)} {value.currency}
               </dd>
+              {value.bid_volume != null && (
+                <dd className="mt-1 text-xs text-slate-500">
+                  Volumen {value.bid_volume.toLocaleString('de-DE')}
+                </dd>
+              )}
             </div>
             <div>
               <dt className="text-slate-500">Ask</dt>
               <dd className="mt-1 font-medium">
                 {formatDecimal(value.ask)} {value.currency}
               </dd>
+              {value.ask_volume != null && (
+                <dd className="mt-1 text-xs text-slate-500">
+                  Volumen {value.ask_volume.toLocaleString('de-DE')}
+                </dd>
+              )}
             </div>
             <div>
               <dt className="text-slate-500">
@@ -265,13 +287,17 @@ export function ProductValuationPanel({ tradeId }: { tradeId: string }) {
               </dd>
             </div>
           </dl>
+          {((value.bid !== null && value.bid_volume === 0) ||
+            (value.ask !== null && value.ask_volume === 0)) && (
+            <p className="mt-3 text-xs text-amber-700">
+              Die Quelle meldet für mindestens eine Kursseite Volumen 0. Daraus ergibt sich keine
+              handelbare Stückzahl.
+            </p>
+          )}
           <p className="mt-4 text-xs text-slate-500">
             Bewertungsquelle: {value.quote_provider ?? value.selected_source ?? '—'} · Instrument{' '}
-            {value.provider_identity ?? value.symbol ?? '—'} ·{' '}
-            {value.quote_observed_at
-              ? new Date(value.quote_observed_at).toLocaleString('de-DE')
-              : 'Zeitpunkt unbekannt'}{' '}
-            · {formatQuoteAge(value)}
+            {value.provider_identity ?? value.symbol ?? '—'} · {formatQuoteTimestamp(value)} ·{' '}
+            {formatQuoteAge(value)}
           </p>
           <p className="mt-2 text-xs text-slate-500">
             Kursart: {priceTypeText(value.reference_price_type)} · Handelsplatz:{' '}

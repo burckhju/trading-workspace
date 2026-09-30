@@ -132,6 +132,7 @@ async def test_monitoring_rule_state_repository_covers_insert_update_and_read() 
         active_alert_id=active_alert_id,
     )
     existing = SimpleNamespace(
+        time_basis="SOURCE_TIMESTAMP",
         position_id=position_id,
         rule_key="target",
         triggered=False,

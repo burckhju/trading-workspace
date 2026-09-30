@@ -5,6 +5,7 @@ import logging
 from collections.abc import Callable
 from contextlib import suppress
 from datetime import UTC, datetime, timedelta
+from time import monotonic
 from typing import Any, Protocol
 
 from app.features.position_monitoring.service.runtime import PositionMonitoringRuntimeResult
@@ -37,6 +38,7 @@ class PositionMonitoringRunner:
         self.last_cycle_started_at: datetime | None = None
         self.last_cycle_completed_at: datetime | None = None
         self.next_run_at: datetime | None = None
+        self.last_cycle_duration_seconds: float | None = None
         self.last_error: str | None = None
         self.last_error_at: datetime | None = None
         self.last_result: dict[str, int] | None = None
@@ -49,6 +51,7 @@ class PositionMonitoringRunner:
             "last_cycle_started_at": self.last_cycle_started_at,
             "last_cycle_completed_at": self.last_cycle_completed_at,
             "next_run_at": self.next_run_at,
+            "last_cycle_duration_seconds": self.last_cycle_duration_seconds,
             "last_error": self.last_error,
             "last_error_at": self.last_error_at,
             "last_result": self.last_result,
@@ -68,6 +71,7 @@ class PositionMonitoringRunner:
             self.cycle_running = True
             self.last_cycle_started_at = self._now()
             self.next_run_at = None
+            started = monotonic()
             try:
                 result = await self._runtime.run()
                 self.last_cycle_completed_at = self._now()
@@ -118,6 +122,7 @@ class PositionMonitoringRunner:
                 self.last_error_at = self._now()
                 logger.exception("position_monitoring_cycle_failed")
             finally:
+                self.last_cycle_duration_seconds = round(monotonic() - started, 3)
                 self.cycle_running = False
 
             self.next_run_at = self._now() + timedelta(seconds=self._interval_seconds)

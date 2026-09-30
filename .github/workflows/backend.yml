@@ -146,3 +146,57 @@ jobs:
           docker run --rm --network host \
             --env TRADING_WORKSPACE_DATABASE_URL \
             trading-workspace-permissions:test python -m alembic upgrade head
+
+  issuer-renderer:
+    name: Backend / issuer renderer sandbox
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the optional issuer renderer
+        run: docker build -f docker/issuer-renderer/Dockerfile -t issuer-renderer:test .
+      - name: Verify Chromium starts with the production sandbox
+        run: |
+          docker run -d --name issuer-renderer-ci --network none --init \
+            --read-only --cap-drop ALL --security-opt no-new-privileges:true \
+            --security-opt "seccomp=$PWD/docker/issuer-renderer/seccomp_profile.json" \
+            --shm-size 256m --tmpfs /tmp:size=256m,mode=1777 \
+            --mount type=volume,source=issuer-consent-ci,target=/state \
+            --memory 1g --cpus 1 --pids-limit 256 issuer-renderer:test
+          ready=false
+          for attempt in $(seq 1 60); do
+            health=$(docker inspect --format '{{.State.Health.Status}}' issuer-renderer-ci)
+            if [ "$health" = healthy ]; then
+              ready=true
+              break
+            fi
+            if [ "$health" = unhealthy ]; then
+              break
+            fi
+            sleep 2
+          done
+          if [ "$ready" != true ]; then
+            docker logs issuer-renderer-ci
+            exit 1
+          fi
+          docker exec -i issuer-renderer-ci python - <<'PY'
+          import json
+          import os
+          import urllib.request
+          from pathlib import Path
+
+          assert os.geteuid() != 0
+          assert not os.access('/app/app', os.W_OK)
+          assert os.access('/state', os.W_OK)
+          assert not Path('/state/jpmorgan-consent.json').exists()
+          with urllib.request.urlopen('http://127.0.0.1:8091/health', timeout=5) as response:
+              health = json.load(response)
+          assert health['ready'] is True
+          assert health['chromium_sandbox'] is True
+          assert health['jpmorgan_consent'] == 'NOT_CONFIGURED'
+          PY
+      - name: Remove test renderer
+        if: always()
+        run: |
+          docker rm -f issuer-renderer-ci || true
+          docker volume rm issuer-consent-ci || true

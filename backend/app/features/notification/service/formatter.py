@@ -18,6 +18,8 @@ def format_position_alert(
 ) -> str:
     title = "Stop erreicht" if alert.alert_type is AlertType.STOP_REACHED else "Target erreicht"
     context = alert.price_context or {}
+    if context.get("evaluation_mode") == "INDICATIVE_ISSUER":
+        title += " (indikative Prüfung)"
     details = ""
     if context:
         details = (
@@ -30,6 +32,9 @@ def format_position_alert(
                     ("Quelle", "provider"),
                     ("Provider-ID", "provider_identity"),
                     ("Kurszeitpunkt", "observed_at"),
+                    ("Zeitangabe der Quelle", "quote_time_text"),
+                    ("Zeitbasis", "quote_time_basis"),
+                    ("Abgerufen", "retrieved_at"),
                     ("Handelstag", "trading_date"),
                     ("Hinweis", "warning"),
                 )

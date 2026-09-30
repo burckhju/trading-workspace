@@ -11,6 +11,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.core.config.frankfurt import FrankfurtQuoteSettings
 from app.core.config.gettex import GettexDelayedSettings
+from app.core.config.jpmorgan import JPMorganSettings
+from app.core.config.morganstanley import MorganStanleySettings
 
 
 class Environment(StrEnum):
@@ -204,6 +206,9 @@ class MarketDataRefreshSettings(BaseModel):
     discovery_interval_seconds: Annotated[int, Field(ge=300, le=604_800)] = 3600
     request_spacing_seconds: Annotated[float, Field(ge=1, le=60)] = 15.0
     auto_configure: bool = False
+    auto_select_position_sources: bool = False
+    auto_discover_issuer_routes: bool = False
+    issuer_renderer_enabled: bool = False
 
 
 class MarketDataSettings(BaseModel):
@@ -211,6 +216,8 @@ class MarketDataSettings(BaseModel):
 
     eodhd: EodhdSettings = Field(default_factory=EodhdSettings)
     vontobel_markets: VontobelMarketsSettings = Field(default_factory=VontobelMarketsSettings)
+    jpmorgan: JPMorganSettings = Field(default_factory=JPMorganSettings)
+    morganstanley: MorganStanleySettings = Field(default_factory=MorganStanleySettings)
     stuttgart_delayed: StuttgartDelayedSettings = Field(default_factory=StuttgartDelayedSettings)
     gettex_delayed: GettexDelayedSettings = Field(default_factory=GettexDelayedSettings)
     frankfurt: FrankfurtQuoteSettings = Field(default_factory=FrankfurtQuoteSettings)
@@ -222,6 +229,7 @@ class PositionMonitoringSettings(BaseModel):
 
     enabled: bool = False
     interval_seconds: Annotated[float, Field(ge=30, le=86_400)] = 900.0
+    parallel_positions: Annotated[int, Field(ge=1, le=4)] = 4
     max_completed_price_age_days: Annotated[int, Field(ge=0, le=30)] = 4
     delivery_recovery_timeout_seconds: Annotated[int, Field(ge=30, le=3600)] = 300
 

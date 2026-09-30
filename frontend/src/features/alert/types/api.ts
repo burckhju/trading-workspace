@@ -37,7 +37,7 @@ export interface AlertResponse {
   reason: string;
   observed_value: string;
   threshold_value: string;
-  market_data_observed_at: string;
+  market_data_observed_at: string | null;
   detected_at: string;
   status: AlertStatus;
   resolved_at: string | null;
