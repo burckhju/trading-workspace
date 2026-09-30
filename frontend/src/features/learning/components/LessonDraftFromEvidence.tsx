@@ -1,4 +1,5 @@
 import { FormEvent, useState } from 'react';
+import { Link } from 'react-router-dom';
 
 import { lessonDraftClient } from '../services/lessonDraftClient';
 
@@ -6,6 +7,10 @@ interface LessonDraftFromEvidenceProps {
   learningEvidenceId: string;
   disabled?: boolean;
   onCreated?: (lessonId: string) => void;
+}
+
+function lessonReference(id: string): string {
+  return `LS-${id.slice(0, 8).toUpperCase()}`;
 }
 
 export function LessonDraftFromEvidence({
@@ -66,9 +71,21 @@ export function LessonDraftFromEvidence({
       </p>
 
       {createdLessonId ? (
-        <p role="status" className="mt-4 text-sm text-emerald-300">
-          Lesson angelegt: <span className="break-all">{createdLessonId}</span>
-        </p>
+        <div role="status" className="mt-4 rounded-lg border border-emerald-800 p-4">
+          <p className="text-sm text-emerald-300">
+            Lesson {lessonReference(createdLessonId)} wurde angelegt.
+          </p>
+          <Link
+            to={`/lessons/${createdLessonId}`}
+            className="mt-3 inline-block rounded-lg border border-emerald-700 px-4 py-2 text-sm text-emerald-300"
+          >
+            Lesson öffnen
+          </Link>
+          <details className="mt-3 text-xs text-slate-500">
+            <summary className="cursor-pointer">Technische Lesson-ID anzeigen</summary>
+            <p className="mt-2 break-all">{createdLessonId}</p>
+          </details>
+        </div>
       ) : (
         <form onSubmit={handleSubmit} className="mt-4 space-y-3">
           <label className="block text-sm">
