@@ -69,7 +69,9 @@ class RetainedWarrantQuoteProvider:
         except Exception as exc:  # preserve bounded diagnostics, never response bodies/secrets
             error = type(exc).__name__
             if isinstance(exc, MarketDataError) and re.fullmatch(
-                r"(?:FRANKFURT|VONTOBEL|STUTTGART|WARRANT)_[A-Z0-9_]{1,100}", str(exc)
+                r"(?:JPMORGAN|MORGAN_STANLEY|FRANKFURT|VONTOBEL|STUTTGART|WARRANT|GETTEX)"
+                r"_[A-Z0-9_]{1,100}",
+                str(exc),
             ):
                 error = str(exc)
 
@@ -150,7 +152,12 @@ class RetainedWarrantQuoteProvider:
             result.provider != self._name
             or result.quality_status != QualityStatus.VALID
             or quote.retained
-            or (quote.bid is None and quote.reference_price is None)
+            or (
+                quote.bid is None
+                and quote.reference_price is None
+                and self._name
+                not in {MarketDataProvider.JPMORGAN, MarketDataProvider.MORGAN_STANLEY}
+            )
         ):
             return "WARRANT_QUOTE_NOT_VALIDATED"
         if (

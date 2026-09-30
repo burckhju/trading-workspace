@@ -250,11 +250,16 @@ async def test_runtime_uses_public_last_only_source_for_analysis(durable_databas
 
 
 @pytest.mark.asyncio
-async def test_runtime_reuses_process_adapter_and_places_it_first():
+async def test_runtime_reuses_process_adapter_and_places_frankfurt_first_among_exchanges():
     adapter, database, _snapshots, _request, _row = context()
     configured = Settings(_env_file=None, market_data={"frankfurt": settings()})
     container = ApplicationContainer(settings=configured, database=database, frankfurt=adapter)
-    source = build_warrant_quote_resolver(container)._sources[0]
+    sources = build_warrant_quote_resolver(container)._sources
+    exchange_sources = [s for s in sources if s.name not in {"JPMORGAN", "MORGAN_STANLEY"}]
+    source = exchange_sources[0]
     assert source.name == "FRANKFURT_QUOTES"
     assert source.provider._provider is adapter
-    assert build_warrant_quote_resolver(container)._sources[0].provider._provider is adapter
+    repeated = next(
+        s for s in build_warrant_quote_resolver(container)._sources if s.name == "FRANKFURT_QUOTES"
+    )
+    assert repeated.provider._provider is adapter

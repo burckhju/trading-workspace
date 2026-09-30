@@ -34,6 +34,7 @@ class PositionQuoteSourceHealth(StrEnum):
     RETAINED_AFTER_REFRESH_ERROR = "RETAINED_AFTER_REFRESH_ERROR"
     STALE = "STALE"
     REFERENCE_ONLY = "REFERENCE_ONLY"
+    QUOTE_TIMESTAMP_UNKNOWN = "QUOTE_TIMESTAMP_UNKNOWN"
 
 
 class PositionCoverageReader(Protocol):
@@ -80,6 +81,8 @@ class PositionQuoteCoverage:
     trading_status: str | None = None
     monitoring_usable: bool = False
     execution_usable: bool = False
+    quote_time_text: str | None = None
+    quote_time_basis: str | None = None
 
 
 @dataclass(frozen=True)
@@ -99,6 +102,7 @@ class PositionQuoteCoverageSummary:
     mapping_conflict: int
     ambiguous_source: int
     invalid_quote: int
+    quote_timestamp_unknown: int = 0
 
 
 @dataclass(frozen=True)
@@ -217,7 +221,10 @@ class PositionQuoteCoverageService:
         quote_present = route.bid is not None or route.reference_price is not None
         monitoring_usable = (
             quote_present
-            and route.observed_at is not None
+            and (
+                route.observed_at is not None
+                or route.observation_status == "QUOTE_TIMESTAMP_UNKNOWN"
+            )
             and health
             in {
                 PositionQuoteSourceHealth.FRESH_QUOTE,
@@ -225,6 +232,7 @@ class PositionQuoteCoverageService:
                 PositionQuoteSourceHealth.RETAINED_AFTER_REFRESH_ERROR,
                 PositionQuoteSourceHealth.STALE,
                 PositionQuoteSourceHealth.REFERENCE_ONLY,
+                PositionQuoteSourceHealth.QUOTE_TIMESTAMP_UNKNOWN,
             }
         )
         return self._result(
@@ -283,6 +291,8 @@ class PositionQuoteCoverageService:
             reference_price=route.reference_price if route is not None else None,
             observed_at=route.observed_at if route is not None else None,
             retrieved_at=route.retrieved_at if route is not None else None,
+            quote_time_text=route.quote_time_text if route else None,
+            quote_time_basis=route.quote_time_basis if route else None,
             age_seconds=route.age_seconds if route is not None else None,
             max_quote_age_seconds=(route.max_quote_age_seconds if route is not None else None),
             refresh_error=route.refresh_error if route is not None else None,
@@ -315,6 +325,8 @@ class PositionQuoteCoverageService:
             return PositionQuoteSourceHealth.RETAINED_AFTER_REFRESH_ERROR
         if route.observation_status == "REFERENCE_ONLY":
             return PositionQuoteSourceHealth.REFERENCE_ONLY
+        if route.observation_status == "QUOTE_TIMESTAMP_UNKNOWN":
+            return PositionQuoteSourceHealth.QUOTE_TIMESTAMP_UNKNOWN
         if route.observed_at is None:
             return PositionQuoteSourceHealth.MISSING_QUOTE
 
@@ -359,4 +371,5 @@ class PositionQuoteCoverageService:
             mapping_conflict=count(PositionQuoteSourceHealth.MAPPING_CONFLICT),
             ambiguous_source=count(PositionQuoteSourceHealth.AMBIGUOUS_SOURCE),
             invalid_quote=count(PositionQuoteSourceHealth.INVALID_QUOTE),
+            quote_timestamp_unknown=count(PositionQuoteSourceHealth.QUOTE_TIMESTAMP_UNKNOWN),
         )

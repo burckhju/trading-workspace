@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.features.market.persistence.models import TradingVenueModel
 from app.features.market_data.domain.enums import MappingStatus, MarketDataProvider
+from app.features.market_data.domain.issuer_route_evidence import evidence_stream_id
 from app.features.market_data.persistence.models import WarrantProviderMappingModel
 from app.features.market_data.service.types import WarrantQuoteRequest
 from app.features.product.domain.models import WarrantLifecycle
@@ -24,6 +25,7 @@ class QuoteIdentity:
     currency: str
     exchange: str
     mic: str
+    stream_id: str | None = None
 
 
 def verified_identity(
@@ -47,6 +49,7 @@ def verified_identity(
         or not re.fullmatch(r"[A-Z0-9]{12}", warrant.isin)
     ):
         return None
+    stream_id = None
     fingerprint = [
         str(workspace_id),
         str(warrant.id),
@@ -75,6 +78,38 @@ def verified_identity(
         ):
             return None
         exchange = mapping.provider_exchange_code
+        if name in {MarketDataProvider.JPMORGAN, MarketDataProvider.MORGAN_STANLEY}:
+            from app.providers.jpmorgan.products import INSTRUMENTS
+            from app.providers.morganstanley.products import ELIGIBLE_INSTRUMENTS, EXCLUDED_PRODUCTS
+
+            known = INSTRUMENTS if name == MarketDataProvider.JPMORGAN else ELIGIBLE_INSTRUMENTS
+            if (
+                exchange != "ISSUER"
+                or listing.quotation_currency_code != "EUR"
+                or (warrant.wkn is not None and warrant.wkn != warrant.isin[5:11])
+                or (name == MarketDataProvider.MORGAN_STANLEY and warrant.isin in EXCLUDED_PRODUCTS)
+            ):
+                return None
+            evidence = getattr(mapping, "identity_evidence", None)
+            if evidence is None and warrant.isin in known:
+                # Preserve fingerprints for the previously verified fixed routes.
+                stream_id = known[warrant.isin]
+            else:
+                stream_id = evidence_stream_id(
+                    evidence,
+                    provider=name.value,
+                    isin=warrant.isin,
+                    currency=listing.quotation_currency_code,
+                    workspace_id=str(workspace_id),
+                    warrant_id=str(warrant.id),
+                    warrant_version=warrant.version,
+                    listing_id=str(listing.id),
+                    listing_version=listing.version,
+                    mapping_version=mapping.version,
+                )
+                if stream_id is None or not isinstance(evidence, dict):
+                    return None
+                fingerprint.extend([stream_id, evidence["source_sha256"]])
         if name == MarketDataProvider.VONTOBEL_MARKETS and exchange != "ISSUER":
             return None
         if name == MarketDataProvider.FRANKFURT_QUOTES and (
@@ -93,6 +128,7 @@ def verified_identity(
         listing.quotation_currency_code,
         exchange,
         venue.mic,
+        stream_id,
     )
 
 
@@ -128,4 +164,19 @@ async def read_quote_identity(
                 WarrantProviderMappingModel.validated_at.is_not(None),
             )
         )
+    if mapping is not None and mapping.identity_evidence is not None:
+        # Dynamic route evidence cannot authorize prices after reference deactivation.
+        from app.features.market.persistence.models import CurrencyModel, IssuerModel
+        from app.providers.issuer_pages import provider_for_issuer
+
+        issuer = await session.get(IssuerModel, warrant.issuer_id)
+        currency = await session.get(CurrencyModel, listing.quotation_currency_code)
+        if (
+            issuer is None
+            or not issuer.is_active
+            or provider_for_issuer(issuer.legal_name) != name.value
+            or currency is None
+            or not currency.is_active
+        ):
+            return None
     return verified_identity(request.workspace_id, listing, warrant, venue, name, mapping)

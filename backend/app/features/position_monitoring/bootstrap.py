@@ -42,6 +42,7 @@ def build_position_monitoring_runtime(
         database=database,
         market_data=market_data,
         products=products,
+        parallel_positions=monitoring.parallel_positions,
         delivery_adapter=delivery_adapter,
         max_completed_price_age_days=monitoring.max_completed_price_age_days,
         delivery_max_attempts=telegram.max_attempts,

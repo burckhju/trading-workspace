@@ -146,6 +146,9 @@ class WarrantProviderMappingModel(Base):
     status: Mapped[MappingStatus] = mapped_column(_enum(MappingStatus, length=20), nullable=False)
     validated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     validation_message: Mapped[str | None] = mapped_column(String(500))
+    identity_evidence: Mapped[dict[str, Any] | None] = mapped_column(
+        JSON(none_as_null=True), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     version: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -162,7 +165,7 @@ class PositionQuoteSourceSelectionModel(Base):
     __tablename__ = "position_quote_source_selections"
     __table_args__ = (
         CheckConstraint(
-            "selection_status IN " "('SELECTED','NO_VERIFIED_QUOTE_SOURCE','AMBIGUOUS_SOURCE')",
+            "selection_status IN ('SELECTED','NO_VERIFIED_QUOTE_SOURCE','AMBIGUOUS_SOURCE')",
             name="selection_status_valid",
         ),
         CheckConstraint(

@@ -86,6 +86,10 @@ class ProductPositionValuation:
     reference_price: Decimal | None = None
     reference_price_type: str | None = None
     quote_retrieved_at: datetime | None = None
+    quote_time_text: str | None = None
+    quote_time_basis: str | None = None
+    bid_volume: int | None = None
+    ask_volume: int | None = None
     quote_refresh_error: str | None = None
     quote_retained: bool = False
     quote_assessed_at: datetime | None = None
@@ -567,6 +571,10 @@ class ProductPositionValuationService:
                     currency=quote.currency,
                     quote_observed_at=quote.observed_at,
                     quote_retrieved_at=selected_result.retrieved_at,
+                    quote_time_text=quote.quote_time_text,
+                    quote_time_basis=quote.quote_time_basis,
+                    bid_volume=quote.bid_volume,
+                    ask_volume=quote.ask_volume,
                     quote_assessed_at=assessed_at,
                     selected_source=selected_source,
                     quote_provider=selected_result.provider,
@@ -631,6 +639,10 @@ class ProductPositionValuationService:
                 reference_price=reference_price,
                 reference_price_type=reference_type,
                 quote_retrieved_at=selected_result.retrieved_at,
+                quote_time_text=quote.quote_time_text,
+                quote_time_basis=quote.quote_time_basis,
+                bid_volume=quote.bid_volume,
+                ask_volume=quote.ask_volume,
                 quote_assessed_at=assessed_at,
                 quote_delay_seconds=quote.feed_delay_seconds,
                 quote_refresh_error=quote.refresh_error,
@@ -668,6 +680,19 @@ class ProductPositionValuationService:
                         )
                     ),
                     freshness_policy="REFERENCE_PRICE_DISCLOSURE_V1",
+                )
+
+            if quote.observed_at is None:
+                time_reason = (
+                    "QUOTE_TIMEZONE_UNKNOWN_INDICATIVE_ANALYSIS_ONLY"
+                    if quote.quote_time_basis == "LOCAL_DATETIME_TIMEZONE_UNKNOWN"
+                    else "QUOTE_TIMESTAMP_UNKNOWN_INDICATIVE_ANALYSIS_ONLY"
+                )
+                return replace(
+                    value,
+                    reason=time_reason,
+                    analysis_warning=time_reason,
+                    freshness_policy="UNKNOWN_TIMESTAMP_DISCLOSURE_V1",
                 )
 
             assert quote.observed_at is not None

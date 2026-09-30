@@ -1,11 +1,12 @@
 """Persistence reader/writer for position quote-source decisions."""
 
+from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.features.market.persistence.models import CurrencyModel, TradingVenueModel
+from app.features.market.persistence.models import CurrencyModel, IssuerModel, TradingVenueModel
 from app.features.market_data.domain.enums import MappingStatus
 from app.features.market_data.domain.position_quote_source import PositionQuoteSourceCandidate
 from app.features.market_data.persistence.models import (
@@ -21,6 +22,23 @@ from app.features.trade_position.persistence.models import PositionModel, TradeM
 class PositionQuoteSourceSelectionRepository:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
+
+    async def open_positions(self, workspace_id: UUID, warrant_id: UUID) -> list[UUID]:
+        return list(
+            await self.session.scalars(
+                select(PositionModel.id)
+                .join(TradeModel, TradeModel.id == PositionModel.trade_id)
+                .where(
+                    TradeModel.workspace_id == workspace_id,
+                    TradeModel.product_id == warrant_id,
+                    TradeModel.cancelled_at.is_(None),
+                    PositionModel.product_id == warrant_id,
+                    PositionModel.open_quantity > 0,
+                    PositionModel.closed_at.is_(None),
+                )
+                .order_by(PositionModel.id)
+            )
+        )
 
     async def lock_open_position(
         self, workspace_id: UUID, position_id: UUID, warrant_id: UUID
@@ -64,6 +82,7 @@ class PositionQuoteSourceSelectionRepository:
             await self.session.execute(
                 select(WarrantListingModel, WarrantModel, TradingVenueModel)
                 .join(WarrantModel, WarrantModel.id == WarrantListingModel.warrant_id)
+                .join(IssuerModel, IssuerModel.id == WarrantModel.issuer_id)
                 .join(
                     TradingVenueModel,
                     TradingVenueModel.id == WarrantListingModel.trading_venue_id,
@@ -79,6 +98,7 @@ class PositionQuoteSourceSelectionRepository:
                     WarrantModel.workspace_id == workspace_id,
                     WarrantModel.id == warrant_id,
                     WarrantModel.lifecycle_status == WarrantLifecycle.ACTIVE,
+                    IssuerModel.is_active.is_(True),
                     TradingVenueModel.is_active.is_(True),
                     CurrencyModel.is_active.is_(True),
                 )
@@ -134,4 +154,10 @@ class PositionQuoteSourceSelectionRepository:
 
     async def add(self, selection: PositionQuoteSourceSelectionModel) -> None:
         self.session.add(selection)
+        await self.session.flush()
+
+    async def supersede(self, selection: PositionQuoteSourceSelectionModel, when: datetime) -> None:
+        selection.superseded_at = when
+        # Release the partial unique index before inserting the successor, within
+        # the caller's transaction. A failure rolls both changes back together.
         await self.session.flush()

@@ -45,8 +45,31 @@ def build_warrant_quote_resolver(
         else "GETTEX_DELAYED_MAPPING_REQUIRED"
     )
     frankfurt_settings = container.settings.market_data.frankfurt
+    morganstanley = getattr(container, "morganstanley", None)
     return MultiSourceWarrantQuoteResolver(
         (
+            NamedWarrantQuoteSource(
+                "MORGAN_STANLEY",
+                (
+                    RetainedWarrantQuoteProvider(
+                        container.database, morganstanley, MarketDataProvider.MORGAN_STANLEY
+                    )
+                    if morganstanley is not None
+                    else None
+                ),
+                unavailable_reason="MORGAN_STANLEY_DISABLED" if morganstanley is None else None,
+            ),
+            NamedWarrantQuoteSource(
+                "JPMORGAN",
+                (
+                    RetainedWarrantQuoteProvider(
+                        container.database, container.jpmorgan, MarketDataProvider.JPMORGAN
+                    )
+                    if container.jpmorgan is not None
+                    else None
+                ),
+                unavailable_reason="JPMORGAN_DISABLED" if container.jpmorgan is None else None,
+            ),
             NamedWarrantQuoteSource(
                 "FRANKFURT_QUOTES",
                 (

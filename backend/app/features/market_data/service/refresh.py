@@ -11,7 +11,7 @@ from enum import StrEnum
 from functools import partial
 from time import monotonic
 from typing import TYPE_CHECKING, Any
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from sqlalchemy import func, select
 
@@ -23,14 +23,22 @@ from app.features.market_data.persistence.models import (
     ProviderInstrumentMappingModel,
     WarrantProviderMappingModel,
 )
-from app.features.market_data.service.refresh_catalog import RefreshInstrument, read_catalog
+from app.features.market_data.service.issuer_discovery import discover_issuer_route
+from app.features.market_data.service.refresh_catalog import (
+    ISSUER_PROVIDERS,
+    RefreshInstrument,
+    read_catalog,
+    read_issuer_route_groups,
+)
 from app.features.market_data.service.refresh_discovery import discover_underlying
+from app.features.market_data.service.source_reconciliation import reconcile_warrant_positions
 from app.features.market_data.service.types import DailyPriceRequest, WarrantQuoteRequest
 from app.features.position_monitoring.service.quote_runtime import build_warrant_quote_resolver
 from app.features.product.domain.models import WarrantLifecycle
 from app.features.product.persistence.models import WarrantListingModel
 from app.providers.frankfurt_quotes.configure import configure_warrant as configure_frankfurt
 from app.providers.frankfurt_quotes.schema import FrankfurtSourceError
+from app.providers.issuer_pages import DiscoveryDeferred, IssuerPageClient, provider_for_issuer
 from app.providers.vontobel_markets.configure import configure_warrant as configure_vontobel
 from app.providers.vontobel_markets.issuer import supports_issuer_probe
 
@@ -42,6 +50,9 @@ logger = logging.getLogger(__name__)
 
 class RefreshLane(StrEnum):
     WARRANTS = "WARRANTS"
+    ISSUER_QUOTES = "ISSUER_QUOTES"
+    WARRANT_DISCOVERY = "WARRANT_DISCOVERY"
+    ISSUER_DISCOVERY = "ISSUER_DISCOVERY"
     UNDERLYINGS = "UNDERLYINGS"
 
 
@@ -49,11 +60,15 @@ type ScheduledJob = tuple[str, RefreshInstrument, int, Callable[[], Awaitable[di
 
 
 def _job_lane(key: str) -> RefreshLane:
-    return (
-        RefreshLane.UNDERLYINGS
-        if key.startswith(("EODHD_MAPPING:", "UNDERLYING_EOD:"))
-        else RefreshLane.WARRANTS
-    )
+    if key.startswith("ISSUER_MAPPING:"):
+        return RefreshLane.ISSUER_DISCOVERY
+    if key.startswith("ISSUER_QUOTES:"):
+        return RefreshLane.ISSUER_QUOTES
+    if key.startswith(("FRANKFURT_MAPPING:", "VONTOBEL_MAPPING:")):
+        return RefreshLane.WARRANT_DISCOVERY
+    if key.startswith(("EODHD_MAPPING:", "UNDERLYING_EOD:")):
+        return RefreshLane.UNDERLYINGS
+    return RefreshLane.WARRANTS
 
 
 class MarketDataRefreshRuntime:
@@ -71,6 +86,7 @@ class MarketDataRefreshRuntime:
         self._lock = asyncio.Lock()
         self._next_request = 0.0
         self._next_underlying_request = 0.0
+        self._next_other_request = 0.0
         self._lane_tasks: dict[RefreshLane, asyncio.Task[None]] = {}
         self._current_jobs: dict[RefreshLane, str | None] = dict.fromkeys(RefreshLane)
         self._lane_errors: dict[RefreshLane, str | None] = dict.fromkeys(RefreshLane)
@@ -79,6 +95,9 @@ class MarketDataRefreshRuntime:
         self.leader = False
         self.wake = asyncio.Event()
         self._resolver = build_warrant_quote_resolver(container)
+        self._issuer_pages = IssuerPageClient(
+            timer=timer, renderer_enabled=self.settings.issuer_renderer_enabled
+        )
 
     @property
     def running(self) -> bool:
@@ -87,7 +106,7 @@ class MarketDataRefreshRuntime:
     @property
     def current_job(self) -> str | None:
         # Compatibility with clients displaying one job. The complete status is
-        # in lanes/current_jobs, since both lanes may be active at the same time.
+        # in lanes/current_jobs, since multiple lanes may be active at the same time.
         return next((job for job in self._current_jobs.values() if job is not None), None)
 
     def _schedule_counts(self, keys: Iterable[str], now: float) -> dict[str, int | float]:
@@ -118,7 +137,7 @@ class MarketDataRefreshRuntime:
             "underlying_price_type": "COMPLETED_EOD",
             "current_job": self.current_job,
             "current_jobs": dict(self._current_jobs),
-            "scheduling_mode": "INDEPENDENT_WARRANT_UNDERLYING_LANES",
+            "scheduling_mode": "INDEPENDENT_ISSUER_EXCHANGE_DISCOVERY_UNDERLYING_LANES",
             "lanes": {
                 lane.value: {
                     "running": lane in self._lane_tasks and not self._lane_tasks[lane].done(),
@@ -145,7 +164,7 @@ class MarketDataRefreshRuntime:
 
         The leader calls with wait_for_completion=False so the next catalog scan,
         lock heartbeat and a completed lane never wait for the other lane's batch.
-        Awaiting both lanes remains useful for explicit one-shot runs and tests.
+        Awaiting all lanes remains useful for explicit one-shot runs and tests.
         """
         if not self.settings.enabled:
             await self.stop()
@@ -157,11 +176,46 @@ class MarketDataRefreshRuntime:
                 warrants, underlyings = await read_catalog(
                     self.container.database, self.workspace_id
                 )
+                issuer_ids: set[UUID] = set()
+                issuer_only_ids: set[UUID] = set()
+                if any(
+                    getattr(self.container, name, None) is not None
+                    for name in ("jpmorgan", "morganstanley")
+                ):
+                    issuer_ids, issuer_only_ids = await read_issuer_route_groups(
+                        self.container.database, self.workspace_id
+                    )
                 self.last_scan_at = datetime.now(UTC)
                 self.last_error = None
                 schedule: list[ScheduledJob] = []
                 # Refresh all active master data, including products without a position.
                 for item in warrants:
+                    issuer_provider = provider_for_issuer(item.issuer)
+                    issuer_adapter = getattr(
+                        self.container,
+                        {
+                            "JPMORGAN": "jpmorgan",
+                            "MORGAN_STANLEY": "morganstanley",
+                        }.get(issuer_provider or "", "_no_issuer"),
+                        None,
+                    )
+                    if (
+                        self.settings.auto_discover_issuer_routes
+                        and issuer_adapter is not None
+                        and issuer_provider is not None
+                    ):
+                        schedule.append(
+                            (
+                                f"ISSUER_MAPPING:{issuer_provider}:{item.id}",
+                                item,
+                                self.settings.discovery_interval_seconds,
+                                partial(
+                                    self._configure_issuer,
+                                    item,
+                                    MarketDataProvider(issuer_provider),
+                                ),
+                            )
+                        )
                     if self.settings.auto_configure:
                         if (
                             self.container.frankfurt is not None
@@ -189,15 +243,24 @@ class MarketDataRefreshRuntime:
                                     partial(self._configure_vontobel, item),
                                 )
                             )
-                    key = f"WARRANT_QUOTES:{item.id}"
-                    schedule.append(
-                        (
-                            key,
-                            item,
-                            self.settings.warrants_interval_seconds,
-                            partial(self._warrant, item),
+                    if item.id in issuer_ids:
+                        schedule.append(
+                            (
+                                f"ISSUER_QUOTES:{item.id}",
+                                item,
+                                self.settings.warrants_interval_seconds,
+                                partial(self._warrant, item, issuers_only=True),
+                            )
                         )
-                    )
+                    if item.id not in issuer_only_ids:
+                        schedule.append(
+                            (
+                                f"WARRANT_QUOTES:{item.id}",
+                                item,
+                                self.settings.warrants_interval_seconds,
+                                partial(self._warrant, item),
+                            )
+                        )
                 for item in underlyings:
                     if self.settings.auto_configure and item.listing_id is not None:
                         key = f"EODHD_MAPPING:{item.id}:{item.listing_id}"
@@ -265,11 +328,54 @@ class MarketDataRefreshRuntime:
                 # A later catalog scan can remove queued inactive instruments.
                 if key in self.jobs:
                     await self._job(key, item, interval, operation, catalog_job=True)
+            if lane is RefreshLane.WARRANT_DISCOVERY:
+                await self._retry_quotes_after_discovery(schedule)
         except asyncio.CancelledError:
             raise
         except Exception as exc:
             self._lane_errors[lane] = type(exc).__name__
             logger.exception("market_data_lane_failed", extra={"lane": lane.value})
+
+    async def _retry_quotes_after_discovery(self, schedule: list[ScheduledJob]) -> None:
+        """Retry quotes that missed a route before same-cycle discovery succeeded."""
+
+        quote_task = self._lane_tasks.get(RefreshLane.WARRANTS)
+        current_task = asyncio.current_task()
+        if quote_task is not None and quote_task is not current_task and not quote_task.done():
+            await quote_task
+
+        latest_discovery_success: dict[Any, tuple[RefreshInstrument, datetime]] = {}
+        for key, item, _interval, _operation in schedule:
+            job = self.jobs.get(key)
+            checked_at = None if job is None else job.get("checked_at")
+            if job is None or job.get("status") != "AVAILABLE" or checked_at is None:
+                continue
+            previous = latest_discovery_success.get(item.id)
+            if previous is None or checked_at > previous[1]:
+                latest_discovery_success[item.id] = (item, checked_at)
+
+        for item, discovery_checked_at in latest_discovery_success.values():
+            quote_key = f"WARRANT_QUOTES:{item.id}"
+            quote_job = self.jobs.get(quote_key)
+            if (
+                quote_job is None
+                or quote_job.get("status") != "MISSING"
+                or quote_job.get("reason") != "NO_USABLE_WARRANT_QUOTE"
+            ):
+                continue
+
+            quote_checked_at = quote_job.get("checked_at")
+            if quote_checked_at is None or quote_checked_at >= discovery_checked_at:
+                continue
+
+            self._due.pop(quote_key, None)
+            await self._job(
+                quote_key,
+                item,
+                self.settings.warrants_interval_seconds,
+                partial(self._warrant, item),
+                catalog_job=True,
+            )
 
     async def stop(self) -> None:
         """Cancel and join all workers before the runner releases its leader lock."""
@@ -294,6 +400,7 @@ class MarketDataRefreshRuntime:
         retry_delay: float = interval
         lane = _job_lane(key)
         self._current_jobs[lane] = key
+        started = self.timer()
         try:
             details = await operation()
             status = details.pop("status", "AVAILABLE")
@@ -313,6 +420,10 @@ class MarketDataRefreshRuntime:
             }
             status = "ERROR"
             success_at = previous.get("last_success_at")
+            if isinstance(exc, DiscoveryDeferred):
+                retry_delay = exc.retry_after_seconds
+                status = "DEFERRED"
+                details["retry_after_seconds"] = retry_delay
             if isinstance(exc, FrankfurtSourceError) and str(exc) == "FRANKFURT_REQUEST_THROTTLED":
                 # A competing API request may consume the slot after _pace().
                 # No provider request failed: retry after the shared cooldown,
@@ -345,6 +456,7 @@ class MarketDataRefreshRuntime:
             "lane": lane.value,
             "status": status,
             "checked_at": completed,
+            "duration_seconds": round(max(0.0, self.timer() - started), 3),
             "last_success_at": success_at,
             "next_run_at": completed + timedelta(seconds=retry_delay),
             **details,
@@ -361,6 +473,14 @@ class MarketDataRefreshRuntime:
             spacing = max(spacing, self.container.frankfurt.settings.refresh_interval_seconds)
         self._next_request = self.timer() + spacing
 
+    async def _pace_other(self) -> None:
+        # Local snapshots and issuer batch streams have their own caches/limits.
+        # Vontobel's public HTTP reads use a separate spacing clock.
+        delay = self._next_other_request - self.timer()
+        if delay > 0:
+            await asyncio.sleep(delay)
+        self._next_other_request = self.timer() + self.settings.request_spacing_seconds
+
     async def _pace_underlying(self) -> None:
         # Licensed EODHD work is independent of the public Frankfurt cooldown.
         # Adapter-internal requests still share EODHD's limiter, quota and retries.
@@ -368,6 +488,27 @@ class MarketDataRefreshRuntime:
         if delay > 0:
             await asyncio.sleep(delay)
         self._next_underlying_request = self.timer() + self.settings.request_spacing_seconds
+
+    async def _configure_issuer(
+        self, item: RefreshInstrument, provider: MarketDataProvider
+    ) -> dict[str, object]:
+        result = await discover_issuer_route(
+            self.container.database, self._issuer_pages, self.workspace_id, item.id, provider
+        )
+        if result.get("mapping_created"):
+            adapter = getattr(
+                self.container,
+                "jpmorgan" if provider == MarketDataProvider.JPMORGAN else "morganstanley",
+            )
+            adapter.invalidate_routes()
+            # Next catalog pass schedules the dedicated issuer job. No exchange-lane wait.
+            self._due.pop(f"ISSUER_QUOTES:{item.id}", None)
+            self.wake.set()
+        if result.get("status") == "AVAILABLE" and self.settings.auto_select_position_sources:
+            result["source_selection"] = await reconcile_warrant_positions(
+                self.container, self.workspace_id, item.id
+            )
+        return result
 
     async def _configure_frankfurt(self, item: RefreshInstrument) -> dict[str, Any]:
         assert self.container.frankfurt is not None
@@ -388,14 +529,21 @@ class MarketDataRefreshRuntime:
 
     async def _configure_vontobel(self, item: RefreshInstrument) -> dict[str, Any]:
         assert self.container.vontobel is not None
-        await self._pace()
+        await self._pace_other()
         async with self.container.database.session_context() as session:
             listing_id = await configure_vontobel(
                 session, self.container.vontobel, workspace_id=self.workspace_id, warrant_id=item.id
             )
         return {"reason": "ISSUER_IDENTITY_VERIFIED", "warrant_listing_id": listing_id}
 
-    async def _warrant(self, item: RefreshInstrument) -> dict[str, Any]:
+    async def _warrant(
+        self, item: RefreshInstrument, *, issuers_only: bool = False
+    ) -> dict[str, Any]:
+        selection = None
+        if self.settings.auto_select_position_sources:
+            selection = await reconcile_warrant_positions(
+                self.container, self.workspace_id, item.id
+            )
         async with self.container.database.session_context() as session:
             listings = list(
                 await session.scalars(
@@ -425,26 +573,51 @@ class MarketDataRefreshRuntime:
             )
         observations: list[dict[str, Any]] = []
         quotes: list[dict[str, Any]] = []
+        attempted_routes = 0
         for listing in listings:
-            await self._pace()
-            resolution = await self._resolver.resolve(
-                WarrantQuoteRequest(
-                    self.workspace_id,
-                    listing.id,
-                    uuid4(),
-                    datetime.now(UTC),
-                    expected_currency=listing.quotation_currency_code,
-                )
+            # No delay or network probing for an unmapped/inactive route. The
+            # retained provider still performs full identity validation itself.
+            providers = sorted(
+                {
+                    mapping.provider
+                    for mapping in mappings
+                    if mapping.warrant_listing_id == listing.id
+                    and mapping.status == MappingStatus.ACTIVE
+                    and mapping.validated_at is not None
+                    and (mapping.provider in ISSUER_PROVIDERS) == issuers_only
+                }
             )
-            observations.extend(asdict(attempt) for attempt in resolution.attempts)
-            if resolution.result is not None and resolution.result.data is not None:
-                quotes.append(
-                    {
-                        **asdict(resolution.result.data),
-                        "provider": resolution.result.provider,
-                        "retrieved_at": resolution.result.retrieved_at,
-                    }
+            for provider in providers:
+                if (
+                    provider == MarketDataProvider.FRANKFURT_QUOTES
+                    and self.container.frankfurt is not None
+                ):
+                    await self._pace()
+                elif (
+                    provider == MarketDataProvider.VONTOBEL_MARKETS
+                    and self.container.vontobel is not None
+                ):
+                    await self._pace_other()
+                attempted_routes += 1
+                resolution = await self._resolver.resolve_selected(
+                    provider.value,
+                    WarrantQuoteRequest(
+                        self.workspace_id,
+                        listing.id,
+                        uuid4(),
+                        datetime.now(UTC),
+                        expected_currency=listing.quotation_currency_code,
+                    ),
                 )
+                observations.extend(asdict(attempt) for attempt in resolution.attempts)
+                if resolution.result is not None and resolution.result.data is not None:
+                    quotes.append(
+                        {
+                            **asdict(resolution.result.data),
+                            "provider": resolution.result.provider,
+                            "retrieved_at": resolution.result.retrieved_at,
+                        }
+                    )
         available = any(row["status"] == "AVAILABLE" for row in observations)
         return {
             "status": "AVAILABLE" if available else "MISSING",
@@ -456,6 +629,8 @@ class MarketDataRefreshRuntime:
                 for m in mappings
             ],
             "active_listing_count": len(listings),
+            "attempted_route_count": attempted_routes,
+            "source_selection": selection,
         }
 
     async def _configure_underlying(self, item: RefreshInstrument) -> dict[str, Any]:

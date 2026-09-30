@@ -96,3 +96,8 @@ Erforderlich sind die in `.nvmrc` und `package.json` festgelegten Node-/npm-Vers
 - Betriebs- und Entwicklungsanleitung: `docs/technical/DEVELOPMENT_GUIDE.md`
 - Sprint-2-Abschluss: `docs/planning/SPRINT_2_CLOSEOUT.md`
 - vollständige Traceability: `docs/foundation/TRACEABILITY.md`
+
+## Emittentenkurse und Monitoring (1.4.0)
+
+- [Versionsumfang und offene Live-Abnahmen](docs/releases/V1.4.0-ISSUER-MONITORING.md)
+- [Aktuelle Betriebsanleitung und automatische Kursquellenwahl](docs/technical/ISSUER_MONITORING_OPERATIONS.md)

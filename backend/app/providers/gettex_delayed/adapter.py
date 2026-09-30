@@ -198,7 +198,9 @@ class GettexDelayedWarrantQuoteAdapter:
                 )
                 return quotes, retrieved_at, False
 
-        raise MarketDataNotFoundError(
+        # A missing publication window does not invalidate a verified product route.
+        # Let the retention boundary disclose the last successful observation.
+        raise MarketDataUnavailableError(
             "GETTEX_DELAYED_RECENT_FILE_NOT_AVAILABLE",
             provider=MarketDataProvider.GETTEX_DELAYED,
             capability=MarketDataCapability.WARRANT_LISTING_QUOTE,
