@@ -71,7 +71,10 @@ async def test_slow_discovery_does_not_block_warrant_quote_lane(monkeypatch) -> 
 
 
 @pytest.mark.asyncio
-async def test_same_cycle_discovery_retries_quote_that_missed_before_mapping(monkeypatch) -> None:
+@pytest.mark.parametrize("finish_after_discovery", [False, True])
+async def test_same_cycle_discovery_retries_quote_that_missed_before_mapping(
+    monkeypatch, finish_after_discovery
+) -> None:
     value = runtime(auto_configure=True)
     item = RefreshInstrument(uuid4(), "Unrouted", "DE000TEST456")
     monkeypatch.setattr(module, "read_catalog", AsyncMock(return_value=([item], [])))
@@ -83,10 +86,12 @@ async def test_same_cycle_discovery_retries_quote_that_missed_before_mapping(mon
         vontobel=None,
     )
     first_quote_finished = asyncio.Event()
+    discovery_finished = asyncio.Event()
     quote_calls = 0
 
     async def discover(_item):
         await first_quote_finished.wait()
+        discovery_finished.set()
         return {"reason": "FRANKFURT_IDENTITY_VERIFIED"}
 
     async def quote(_item):
@@ -94,6 +99,11 @@ async def test_same_cycle_discovery_retries_quote_that_missed_before_mapping(mon
         quote_calls += 1
         if quote_calls == 1:
             first_quote_finished.set()
+            if finish_after_discovery:
+                # The empty-listing read started before discovery committed, but its
+                # processing finishes afterwards. It still needs a same-cycle retry.
+                await discovery_finished.wait()
+                await asyncio.sleep(0)
             return {
                 "status": "MISSING",
                 "reason": "NO_USABLE_WARRANT_QUOTE",

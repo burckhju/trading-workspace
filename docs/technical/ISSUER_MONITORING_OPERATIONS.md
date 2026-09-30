@@ -109,3 +109,11 @@ kein Datenbank-Stamp und kein stiller Rollback.
 Der Release-PR enthält lokale Prüfergebnisse und GitHub-CI. Die noch offene
 JPMorgan-Liveabnahme und fehlende neue Produktabdeckung sind dort ausdrücklich
 aufgeführt und dürfen nicht aus grünen Unit-Tests abgeleitet werden.
+
+## Git-Versionierung
+
+`VERSION`, `backend/pyproject.toml`, `frontend/package.json` und dessen Lockdatei
+werden im Release-PR gemeinsam fortgeschrieben. Der Workflow `Version tag` setzt
+`v<VERSION>` erst, wenn Backend, Frontend und End-to-End am selben aktuellen
+`main`-Commit vollständig erfolgreich sind. Vorhandene Tags werden niemals
+verschoben. Der Workflow übernimmt keine PRs und führt kein Deployment aus.

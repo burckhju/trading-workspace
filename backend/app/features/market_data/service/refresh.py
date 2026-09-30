@@ -364,8 +364,8 @@ class MarketDataRefreshRuntime:
             ):
                 continue
 
-            quote_checked_at = quote_job.get("checked_at")
-            if quote_checked_at is None or quote_checked_at >= discovery_checked_at:
+            quote_started_at = quote_job.get("started_at", quote_job.get("checked_at"))
+            if quote_started_at is None or quote_started_at >= discovery_checked_at:
                 continue
 
             self._due.pop(quote_key, None)
@@ -401,6 +401,7 @@ class MarketDataRefreshRuntime:
         lane = _job_lane(key)
         self._current_jobs[lane] = key
         started = self.timer()
+        started_at = datetime.now(UTC)
         try:
             details = await operation()
             status = details.pop("status", "AVAILABLE")
@@ -456,6 +457,7 @@ class MarketDataRefreshRuntime:
             "lane": lane.value,
             "status": status,
             "checked_at": completed,
+            "started_at": started_at,
             "duration_seconds": round(max(0.0, self.timer() - started), 3),
             "last_success_at": success_at,
             "next_run_at": completed + timedelta(seconds=retry_delay),

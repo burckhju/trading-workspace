@@ -179,12 +179,13 @@ async def test_catalog_automatically_maps_bnp_and_vontobel_without_position_or_i
                 await asyncio.to_thread(_run_alembic, "upgrade", "head", current_database_url)
                 transaction = await connection.begin()
 
+                # Parallel lanes need independent pooled connections, like the runtime.
+                # The fixture rows above are committed in this disposable database.
                 @asynccontextmanager
                 async def session_context():
                     async with AsyncSession(
-                        bind=connection,
+                        bind=engine,
                         expire_on_commit=False,
-                        join_transaction_mode="create_savepoint",
                     ) as session:
                         yield session
 
@@ -223,12 +224,14 @@ async def test_catalog_automatically_maps_bnp_and_vontobel_without_position_or_i
 
                     runtime._pace = paced
                     await runtime.run_once()
-                    assert runtime.last_error is None
+                    assert runtime.last_error is None, runtime.status()
+                    mapping_jobs = [j for j in runtime.jobs.values() if "_MAPPING:" in j["job"]]
+                    assert all(j["status"] == "AVAILABLE" for j in mapping_jobs), mapping_jobs
                     quote_jobs = [
                         j for j in runtime.jobs.values() if j["job"].startswith("WARRANT_QUOTES:")
                     ]
                     assert len(quote_jobs) == 2
-                    assert {j["status"] for j in quote_jobs} == {"AVAILABLE"}
+                    assert {j["status"] for j in quote_jobs} == {"AVAILABLE"}, quote_jobs
                     rows = (
                         await connection.execute(
                             text(
@@ -274,6 +277,8 @@ async def test_catalog_automatically_maps_bnp_and_vontobel_without_position_or_i
                         ),
                         {"listing": issuer_listing},
                     )
+                    # The adapter reads through its own connection, not this transaction.
+                    await transaction.commit()
                     from app.features.market_data.service.errors import MarketDataNotFoundError
 
                     with pytest.raises(MarketDataNotFoundError):
@@ -281,6 +286,7 @@ async def test_catalog_automatically_maps_bnp_and_vontobel_without_position_or_i
                             WarrantQuoteRequest(workspace, issuer_listing, uuid4(), NOW)
                         )
             finally:
-                await transaction.rollback()
+                if transaction.is_active:
+                    await transaction.rollback()
     finally:
         await engine.dispose()
