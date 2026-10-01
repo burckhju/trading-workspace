@@ -67,3 +67,8 @@ to the ordinary Compose file. The helper prints matching status/log commands.
 Aktive Basiswerte und Optionsscheine können automatisch geprüft und in getrennten
 Intervallen aktualisiert werden. Einrichtung, Provider-Grenzen und Diagnose:
 [Automatischer Kursabruf](docs/automatic-market-data.md).
+
+Für bestehendes Emittentenmonitoring ab 1.4.1: `bash scripts/start-linux.sh --issuer-monitoring`.
+Vorab prüft derselbe Aufruf mit `--check` die Konfiguration ohne Deployment.
+Weitere bestehende Overlays mit `--overlay DATEI` erhalten; die vollständige Anleitung
+steht in [Linux Deployment](docs/technical/LINUX_DEPLOYMENT.md#issuer-monitoring-and-existing-overlay-chains-141).
