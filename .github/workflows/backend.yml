@@ -169,6 +169,7 @@ jobs:
             --label com.docker.compose.project=trading-workspace \
             --label com.docker.compose.service=backend \
             --label com.docker.compose.container-number=1 \
+            --label com.docker.compose.config-hash=synthetic-startup-check \
             --label "com.docker.compose.project.config_files=$PWD/docker/compose.yml,$PWD/docker/compose.issuer-monitoring.yml" \
             issuer-renderer:test
           if bash scripts/start-linux.sh --check > startup-check.log 2>&1; then
