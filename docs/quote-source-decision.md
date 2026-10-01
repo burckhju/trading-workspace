@@ -1,6 +1,13 @@
 # Optionsschein-Kursquellen: konsolidierter Entscheidungsstand
 
-**Status:** Aktueller Architektur- und Entscheidungsstand
+**Status:** Historischer Entscheidungsstand vom 20.09.2026
+
+Ab v1.4.0 sind JPMorgan-/Morgan-Stanley-Adapter und dynamische Emittentensuche
+implementiert. Für den aktuellen technischen Stand gelten die
+[Release-Notizen](releases/V1.4.0-ISSUER-MONITORING.md) und die
+[Betriebsanleitung](technical/ISSUER_MONITORING_OPERATIONS.md). Die folgenden
+früheren Implementierungstore sind historisch; Nutzungsrechte, Zustimmung,
+exakte Identität und Live-Abnahme werden dadurch nicht pauschal bestätigt.
 
 **Stand:** 20.09.2026
 

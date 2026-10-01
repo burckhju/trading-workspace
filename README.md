@@ -101,3 +101,8 @@ Erforderlich sind die in `.nvmrc` und `package.json` festgelegten Node-/npm-Vers
 
 - [Versionsumfang und offene Live-Abnahmen](docs/releases/V1.4.0-ISSUER-MONITORING.md)
 - [Aktuelle Betriebsanleitung und automatische Kursquellenwahl](docs/technical/ISSUER_MONITORING_OPERATIONS.md)
+
+Für bestehendes Emittentenmonitoring ab 1.4.1: `bash scripts/start-linux.sh --issuer-monitoring`.
+Vorab prüft derselbe Aufruf mit `--check` die Konfiguration ohne Deployment.
+Weitere bestehende Overlays mit `--overlay DATEI` erhalten; die vollständige Anleitung
+steht in [Linux Deployment](docs/technical/LINUX_DEPLOYMENT.md#issuer-monitoring-and-existing-overlay-chains-141).

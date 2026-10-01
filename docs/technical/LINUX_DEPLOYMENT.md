@@ -89,20 +89,25 @@ The helper performs these steps in order:
 1. validates Docker and Docker Compose v2,
 2. refuses the unchanged example PostgreSQL password,
 3. validates the Compose model,
-4. builds backend and frontend images,
-5. starts PostgreSQL and waits for database readiness,
-6. runs `python -m alembic upgrade head` in the backend image,
-7. starts backend and frontend.
+4. verifies that the requested Compose file order preserves every existing project
+   container’s recorded chain, including stopped containers,
+5. builds backend/frontend and, when opted in, the issuer renderer,
+6. starts the opted-in renderer with a bounded sandbox health check,
+7. starts PostgreSQL and waits for database readiness,
+8. runs `python -m alembic upgrade head` with `--no-deps` in the backend image,
+9. starts backend and frontend.
 
 This ordering prevents the application from being treated as ready before required database migrations have been applied.
 
-Equivalent manual operation, if needed for diagnostics, is:
+Equivalent manual operation for a **base-only** installation is shown below.
+Retain the complete reviewed overlay chain for any enabled quote providers; a
+manual operation does not perform the helper’s existing-container provenance check:
 
 ```bash
-docker compose --env-file docker/.env -f docker/compose.yml config
+docker compose --env-file docker/.env -f docker/compose.yml config --quiet
 docker compose --env-file docker/.env -f docker/compose.yml build backend frontend
 docker compose --env-file docker/.env -f docker/compose.yml up -d database
-docker compose --env-file docker/.env -f docker/compose.yml run --rm backend python -m alembic upgrade head
+docker compose --env-file docker/.env -f docker/compose.yml run --rm --no-deps backend python -m alembic upgrade head
 docker compose --env-file docker/.env -f docker/compose.yml up -d backend frontend
 ```
 
@@ -185,7 +190,7 @@ Before updating, back up `docker/.env` and the PostgreSQL data. Never overwrite 
 For a Git checkout:
 
 ```bash
-git pull origin main
+git pull --ff-only
 bash scripts/start-linux.sh
 ```
 
@@ -220,3 +225,45 @@ to the ordinary Compose file. The helper prints matching status/log commands.
 Aktive Basiswerte und Optionsscheine können automatisch geprüft und in getrennten
 Intervallen aktualisiert werden. Einrichtung, Provider-Grenzen und Diagnose:
 [Automatischer Kursabruf](../automatic-market-data.md).
+
+## Issuer monitoring and existing overlay chains (1.4.1)
+
+For an installation intentionally using the canonical issuer integration:
+
+```bash
+bash scripts/start-linux.sh --issuer-monitoring --check
+bash scripts/start-linux.sh --issuer-monitoring
+```
+
+`--check` validates Compose and reads existing container labels without creating
+configuration, refreshing provider files, building images, migrating, or starting
+containers. The second command deploys and resumes the configured background work;
+it does not send a separate test message or accept provider terms. Retain existing
+monitoring/Telegram settings. The renderer uses the existing private consent volume.
+
+`docker/frankfurt.env` is still included automatically when present. For any other
+required existing exchange/custom overlay, repeat `--overlay FILE` in its original
+order on both commands. Relative paths are resolved from the repository, even when
+the helper is invoked elsewhere. The canonical issuer overlay is appended last;
+use `--issuer-monitoring`, not `--overlay`, for that file. The helper supplies the
+absolute repository sandbox-profile path unless an explicit shell value is set.
+
+The helper refuses to omit or reorder a file recorded on an existing project
+container. This includes stopped containers. An unavailable Docker inspection or
+missing provenance stops deployment. No existing overlay is inferred, activated,
+deleted or silently replaced. A routine issuer update therefore needs the issuer
+flag again. Printed status/log commands contain the complete shell-quoted chain.
+
+Container labels prove paths/order, not unchanged file contents or environment
+values. Review private configuration locally; never post full `compose config`
+output. Old package overlays must not be combined with the canonical issuer overlay.
+An intentional migration away from old packages or a relocated ZIP checkout needs
+a reviewed manual deployment with the complete intended chain, preserved project
+name/volumes and existing environment. There is no force/bypass option in the helper.
+
+Renderer failure stops before database migration and backend recreation. Migration
+failure also stops before backend recreation. Built images and a restarted renderer
+may already exist; no automatic rollback or data deletion is attempted. Verify
+readiness, loaded runtime settings, complete refresh/monitoring cycles and source
+coverage after deployment using the [issuer operations guide](ISSUER_MONITORING_OPERATIONS.md).
+A healthy sandbox does not prove provider access or consent reuse.

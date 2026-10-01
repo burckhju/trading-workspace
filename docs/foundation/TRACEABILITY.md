@@ -318,3 +318,13 @@ Architecture review: `docs/implementation/SPRINT_10_ARCHITECTURE_REVIEW.md`.
 Technical closeout: `docs/implementation/SPRINT_10_TECHNICAL_CLOSEOUT.md`.
 
 Release readiness: `docs/implementation/SPRINT_10_FT010_RELEASE_READINESS.md`.
+
+## Issuer deployment stabilization (1.4.1)
+
+| Requirement | Implementation | Verification |
+|---|---|---|
+| Preserve the complete existing Compose chain before mutation | `scripts/start-linux.sh` provenance preflight / `--overlay` | `tests/unit/backend/test_start_linux_script.py` |
+| Explicit issuer opt-in, renderer health before migration/app recreation | `--issuer-monitoring`, bounded health wait, Alembic `--no-deps` | startup regression tests; existing renderer sandbox CI |
+| Read-only preparation and unchanged private configuration | `--check` | startup regression tests |
+
+Scope, acceptance criteria and operational limits: [implementation report](../implementation/ISSUER_DEPLOYMENT_STARTUP.md).

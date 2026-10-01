@@ -33,7 +33,24 @@ Performance-, Auswahl-, Renderer- und Monitoring-Overlays. Bestehende Frankfurt-
 gettex- und Stuttgart-Konfiguration zusätzlich erhalten. Die neuen Dateien nicht
 mit alten Paket-Overlays mischen, die dieselben Werte erneut überschreiben.
 
-Im Projektverzeichnis:
+Ab 1.4.1 unterstützt der kanonische Starthelfer das Overlay ausdrücklich:
+
+```bash
+bash scripts/start-linux.sh --issuer-monitoring --check
+bash scripts/start-linux.sh --issuer-monitoring
+```
+
+Der erste Aufruf ist rein prüfend; der zweite führt das Deployment aus. Vorhandenes
+`docker/frankfurt.env` wird automatisch berücksichtigt. Weitere tatsächlich benötigte
+Börsen-Overlays auf beiden Aufrufen in bisheriger Reihenfolge mit `--overlay DATEI`
+angeben. Weggelassene oder umsortierte frühere Compose-Dateien führen vor Änderungen
+zum Abbruch. Alte Paket-Overlays erst nach bewusster manueller Migrationsprüfung
+ablösen, nicht zusätzlich mit dem kanonischen Overlay mischen. Details und Grenzen:
+[Linux Deployment](LINUX_DEPLOYMENT.md#issuer-monitoring-and-existing-overlay-chains-141).
+
+Der Helper baut auch den Renderer und verlangt dessen Sandbox-Healthcheck vor
+Migration/Backend-Neustart. Der Migrationscontainer startet keine Abhängigkeiten.
+Für manuelle Compose-Aufrufe im Projektverzeichnis weiterhin:
 
 ```bash
 export ISSUER_RENDERER_SECCOMP_PATH="$PWD/docker/issuer-renderer/seccomp_profile.json"
