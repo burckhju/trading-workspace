@@ -243,7 +243,7 @@ async def test_status_audit_reads_no_quotes_and_keeps_nonpositive_or_retained_qu
     from app.tools import audit_monitoring_performance as audit
 
     paths = []
-    issuer = next(iter(audit.TARGETS))
+    issuer = "SYNTHETIC-ISSUER-PRODUCT"
     monitoring = {
         "enabled": True,
         "running": True,
@@ -251,6 +251,7 @@ async def test_status_audit_reads_no_quotes_and_keeps_nonpositive_or_retained_qu
         "last_rule_checks": [
             {
                 "isin": issuer,
+                "provider": "JPMORGAN",
                 "position_id": "1",
                 "status": "INDICATIVE",
                 "price_request_seconds": "0.5",
@@ -269,7 +270,7 @@ async def test_status_audit_reads_no_quotes_and_keeps_nonpositive_or_retained_qu
                 "checked_at": NOW.isoformat(),
                 "quotes": [
                     {
-                        "provider": audit.TARGETS[issuer],
+                        "provider": "JPMORGAN",
                         "bid": "NaN",
                         "retrieved_at": NOW.isoformat(),
                     }

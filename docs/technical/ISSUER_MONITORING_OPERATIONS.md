@@ -77,6 +77,28 @@ benötigen die Hashliste des tatsächlich deployten Commitstands, keine alten
 Paket-Hashes. `audit_issuer_monitoring` kann über die normalen Bewertungs-GETs Kurse
 aktualisieren; es verändert keine Regeln und versendet keine Meldungen.
 
+Ab 1.4.2 zählt `audit_monitoring_performance` alle aktuellen `ISSUER_QUOTES`-Jobs,
+auch für neu entdeckte Produkte. Eine historische ISIN-Liste begrenzt diese
+Diagnose nicht mehr. Ein Regelcheck wird anhand seines expliziten Providers oder,
+bei fehlender Providerangabe, seiner Instrument-ID in einem solchen Job zugeordnet.
+Eine ausdrücklich andere Kursquelle bleibt maßgeblich. Diese Zuordnung ist keine
+Änderung oder Bestätigung der benutzergebundenen Quellenentscheidung.
+
+`issuer_refresh_success_isins` erfordert je Produkt einen verfügbaren Job mit
+positivem endlichem Geldkurs eines unterstützten Emittenten, Empfangszeit und ohne
+Retention/Abruffehler. `issuer_refresh_unverified_isins` nennt die übrigen Produkte.
+Die Jobliste zeigt `positive_bid_evidenced` und kompakte Original-Kursfelder, damit
+ein verfügbares Ergebnis ohne diesen Nachweis erklärbar bleibt. Empfangszeit ist
+weiterhin keine Kurszeit; ein positiver Geldkurs beweist weder Aktualität noch
+Ausführbarkeit. `rule_issues` umfasst auch indikative Regelchecks mit Abruffehlern
+und erhält deren ursprünglichen Status.
+
+`wait_completed=true` bestätigt Schedulerfortschritt und erfolgte Erstprüfungen
+aller aktuellen Emittentenjobs, keine vollständige Kursabdeckung. Monitoring- und
+Refresh-Status werden nacheinander gelesen. Ein späterer erfolgreicher Abruf kann
+deshalb neben einem noch fehlgeschlagenen Check des letzten Monitoring-Zyklus
+stehen. Der nächste reguläre Zyklus liefert den neuen Bewertungsnachweis.
+
 ## JPMorgan-Zustimmung
 
 Der Renderer verwendet ausschließlich seinen eigenen privaten Zustand im Volume

@@ -14,7 +14,7 @@ from typing import Any
 
 import httpx
 
-from app.tools.audit_issuer_monitoring import TARGETS
+from app.features.market_data.service.refresh_catalog import ISSUER_PROVIDERS
 
 
 def positive(value: object) -> bool:
@@ -25,30 +25,47 @@ def positive(value: object) -> bool:
         return False
 
 
+def positive_issuer_bid_evidenced(job: dict[str, Any]) -> bool:
+    return job.get("status") == "AVAILABLE" and any(
+        quote.get("provider") in ISSUER_PROVIDERS
+        and positive(quote.get("bid"))
+        and quote.get("retrieved_at")
+        and not quote.get("retained")
+        and not quote.get("refresh_error")
+        for quote in job.get("quotes", [])
+    )
+
+
 def summarize(monitoring: dict[str, Any], refresh: dict[str, Any]) -> dict[str, Any]:
     checks = monitoring.get("last_rule_checks", [])
-    issuer_checks = [row for row in checks if row.get("isin") in TARGETS]
     jobs = refresh.get("jobs", [])
-    issuer_jobs = [
-        row for row in jobs if row.get("lane") == "ISSUER_QUOTES" and row.get("isin") in TARGETS
+    issuer_jobs = [row for row in jobs if row.get("lane") == "ISSUER_QUOTES"]
+    issuer_instruments = {
+        str(row["instrument_id"]) for row in issuer_jobs if row.get("instrument_id") is not None
+    }
+    # Failed rule prices may omit the provider. Link those checks to actual
+    # scheduled instruments, while respecting an explicit exchange selection.
+    issuer_checks = [
+        row
+        for row in checks
+        if row.get("provider") in ISSUER_PROVIDERS
+        or (
+            row.get("provider") is None
+            and row.get("instrument_id") is not None
+            and str(row["instrument_id"]) in issuer_instruments
+        )
     ]
     successful = sorted(
         {
             row["isin"]
             for row in issuer_jobs
-            if row.get("status") == "AVAILABLE"
-            and any(
-                q.get("provider") == TARGETS[row["isin"]]
-                and positive(q.get("bid"))
-                and q.get("retrieved_at")
-                and not q.get("retained")
-                and not q.get("refresh_error")
-                for q in row.get("quotes", [])
-            )
+            if row.get("isin") and positive_issuer_bid_evidenced(row)
         }
     )
+    unverified = sorted({row["isin"] for row in issuer_jobs if row.get("isin")} - set(successful))
     fields = (
         "isin",
+        "instrument_id",
         "job",
         "lane",
         "status",
@@ -58,9 +75,33 @@ def summarize(monitoring: dict[str, Any], refresh: dict[str, Any]) -> dict[str, 
         "next_run_at",
     )
     failures = [
-        row for row in checks if row.get("status") in {"ERROR", "STALE", "MISSING", "BLOCKED"}
+        row
+        for row in checks
+        if row.get("status") in {"ERROR", "STALE", "MISSING", "BLOCKED"} or row.get("refresh_error")
     ]
-    compact_jobs = [{key: row.get(key) for key in fields} for row in issuer_jobs]
+    compact_jobs = [
+        {
+            **{key: row.get(key) for key in fields},
+            "positive_bid_evidenced": positive_issuer_bid_evidenced(row),
+            "quotes": [
+                {
+                    key: quote.get(key)
+                    for key in (
+                        "provider",
+                        "bid",
+                        "ask",
+                        "retrieved_at",
+                        "observed_at",
+                        "quote_time_basis",
+                        "retained",
+                        "refresh_error",
+                    )
+                }
+                for quote in row.get("quotes", [])
+            ],
+        }
+        for row in issuer_jobs
+    ]
     slow_checks = sorted(
         checks, key=lambda row: float(row.get("price_request_seconds") or 0), reverse=True
     )[:10]
@@ -70,6 +111,7 @@ def summarize(monitoring: dict[str, Any], refresh: dict[str, Any]) -> dict[str, 
         "checked_at": datetime.now(UTC).isoformat(),
         "read_only": True,
         "may_refresh_quotes": False,
+        "coverage_note": "SCHEDULER_PROGRESS_IS_NOT_COMPLETE_QUOTE_COVERAGE_OR_EXECUTION_USABILITY",
         "monitoring": {
             key: monitoring.get(key)
             for key in (
@@ -108,6 +150,7 @@ def summarize(monitoring: dict[str, Any], refresh: dict[str, Any]) -> dict[str, 
             "issuer_refresh_success_count": len(successful),
         },
         "issuer_refresh_success_isins": successful,
+        "issuer_refresh_unverified_isins": unverified,
         "issuer_refresh_jobs": compact_jobs,
         "rule_issues": failures,
         "slow_price_requests": [
