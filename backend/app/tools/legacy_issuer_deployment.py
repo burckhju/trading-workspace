@@ -125,6 +125,21 @@ def compose_literal(value: Any) -> Any:
     return value
 
 
+def compose_runtime(value: Any) -> Any:
+    """Decode the one escaping layer added by `docker compose config` serialization.
+
+    Docker's cmd/compose/config.go runConfig doubles every dollar after resolving
+    the model, including JSON output. Inspect values have no such encoding.
+    """
+    if isinstance(value, str):
+        return value.replace("$$", "$")
+    if isinstance(value, dict):
+        return {key: compose_runtime(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [compose_runtime(item) for item in value]
+    return value
+
+
 def make_overlay(
     items: list[dict[str, Any]], base: dict[str, Any], revision: str
 ) -> dict[str, Any]:
@@ -134,7 +149,7 @@ def make_overlay(
         len(revision) == 40 and all(c in "0123456789abcdef" for c in revision), "Invalid commit"
     )
     current = relevant(environment(containers["backend"]), "backend")
-    configured = relevant(base["services"]["backend"]["environment"], "backend")
+    configured = relevant(compose_runtime(base)["services"]["backend"]["environment"], "backend")
     differences = {
         key for key in current.keys() | configured.keys() if current.get(key) != configured.get(key)
     }
@@ -178,6 +193,7 @@ def make_overlay(
 
 
 def validate_candidate(items: list[dict[str, Any]], candidate: dict[str, Any]) -> None:
+    candidate = compose_runtime(candidate)
     containers = containers_by_service(items)
     validate_runtime(containers)
     require(candidate["name"] == PROJECT, "Target project differs")

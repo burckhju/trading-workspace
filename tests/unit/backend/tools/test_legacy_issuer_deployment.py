@@ -124,7 +124,7 @@ def deployment_fixture() -> tuple[list[dict[str, Any]], dict[str, Any]]:
                 }
             )
         services[service] = target_service
-    return items, {
+    model = {
         "name": "trading-workspace",
         "services": services,
         "volumes": {
@@ -132,6 +132,8 @@ def deployment_fixture() -> tuple[list[dict[str, Any]], dict[str, Any]]:
             for name in ("postgres-data", "issuer-consent-state")
         },
     }
+
+    return items, migration.compose_literal(model)
 
 
 def test_overlay_preserves_false_flags_and_literal_paths_without_copying_secrets() -> None:
@@ -280,3 +282,19 @@ def test_cli_reports_no_private_values(
     assert result == (0 if mode in ("overlay", "validate", "identity") else 2)
     assert "synthetic-secret" not in out.out + out.err
     assert "secret-new" not in out.out + out.err
+
+
+@pytest.mark.parametrize("literal", ["$TOKEN", "$$TOKEN", "${TOKEN}", "$", "a$$$b"])
+def test_compose_serialization_is_decoded_once_without_interpreting_variables(literal: str) -> None:
+    items, candidate = deployment_fixture()
+    key = "TRADING_WORKSPACE_DATABASE_URL"
+    items[0]["Config"]["Env"] = [
+        entry if not entry.startswith(key + "=") else f"{key}={literal}"
+        for entry in items[0]["Config"]["Env"]
+    ]
+    candidate["services"]["backend"]["environment"][key] = migration.compose_literal(literal)
+    source = "/existing/" + literal
+    items[0]["Mounts"][0]["Source"] = source
+    candidate["services"]["backend"]["volumes"][0]["source"] = migration.compose_literal(source)
+    migration.make_overlay(items, candidate, REVISION)
+    migration.validate_candidate(items, candidate)

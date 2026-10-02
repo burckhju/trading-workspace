@@ -74,8 +74,11 @@ volumes, sandbox and migration mechanism are retained.
 
 ## Verification
 
-- Pure validator regressions cover settings, dollar escaping, topology, mounts,
+- Pure validator regressions cover settings, dollar escaping/decoding, topology, mounts,
   resources, ports, secret-safe errors and immutable preparation identity.
+  Docker Compose serializes resolved JSON with doubled dollar signs; the validator
+  decodes that single layer before comparing it to raw Docker inspection. The real
+  container fixture includes a bind path with spaces and a literal dollar sign.
 - Shell regressions execute the real entry point in disposable Git checkouts with
   fake Docker, covering build-only preparation, private permissions, ordering,
   input drift and backup/renderer/migration/application failures.

@@ -25,19 +25,22 @@ if "-c" in log_args and "--entrypoint" in log_args:
     log_args[log_args.index("-c") + 1] = "<validator source>"
 with (fixture / "calls.jsonl").open("a") as log:
     log.write(json.dumps(log_args) + "\n")
-revision = subprocess.check_output(["git", "-C", str(fixture / "release checkout"), "rev-parse", "HEAD"], text=True).strip()
+revision = subprocess.check_output(
+    ["git", "-C", str(fixture / "release checkout"), "rev-parse", "HEAD"], text=True
+).strip()
 failed = os.environ.get("TEST_FAIL", "")
 if args[0] == "run":
     code_index = args.index("-c") + 1
-    sys.exit(subprocess.run([sys.executable, "-c", args[code_index], *args[code_index+1:]]).returncode)
+    command = [sys.executable, "-c", args[code_index], *args[code_index+1:]]
+    sys.exit(subprocess.run(command).returncode)
 if args[0] == "ps":
     print("a\nb\nc\nd" if failed != "extra-container" else "a\nb\nc\nd\ne")
 elif args[0] == "inspect":
     if "--format" in args:
         pattern = args[args.index("--format")+1]
         service = args[-1].removeprefix("trading-workspace-").removesuffix("-1")
-        print("id-database" if pattern == "{{.Id}}" else
-              f"sha256:new-{service}" if (fixture / "replaced").exists() else f"sha256:old-{service}")
+        image = f"sha256:{'new' if (fixture / 'replaced').exists() else 'old'}-{service}"
+        print("id-database" if pattern == "{{.Id}}" else image)
     else:
         print((fixture / "inspect.json").read_text())
 elif args[:2] == ["image", "inspect"]:
