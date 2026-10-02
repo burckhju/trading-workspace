@@ -267,3 +267,85 @@ may already exist; no automatic rollback or data deletion is attempted. Verify
 readiness, loaded runtime settings, complete refresh/monitoring cycles and source
 coverage after deployment using the [issuer operations guide](ISSUER_MONITORING_OPERATIONS.md).
 A healthy sandbox does not prove provider access or consent reuse.
+
+## Reviewed legacy issuer migration (1.4.3)
+
+The normal startup helper intentionally refuses removing/reordering old package
+files or relocating a checkout. For the reviewed four-service legacy issuer
+installation, use `scripts/migrate-legacy-issuer.sh` from a **separate, clean release
+checkout pinned to a qualified commit**. This is an explicit migration, not a
+provenance bypass. Other topologies stop for review. Requires Bash, Git, Docker
+Compose v2, coreutils and tar; Python runs offline in the existing backend image.
+No host Python/Node installation is needed. Plan build disk space and backup space.
+
+After `v1.4.3` is published and its commit/CI verified, the following concrete
+example creates a detached sibling worktree without changing the existing checkout:
+
+```bash
+cd ~/Boerse/trading-workspace
+git fetch origin tag v1.4.3
+git worktree add --detach ../trading-workspace-v1.4.3 v1.4.3
+bash ../trading-workspace-v1.4.3/scripts/migrate-legacy-issuer.sh prepare \
+  "$PWD" "$HOME/Boerse/trading-workspace-deploy-v1.4.3"
+```
+
+The preparation never restarts a running service. It retains `.env` byte-for-byte
+in a new directory (0700, files 0600), reads actual container settings, validates
+the proposed model and builds separate commit-tagged images. Existing database
+and consent volumes are external references and cannot silently become new empty
+volumes. The Stuttgart bind remains at its original absolute source. The overlay
+is last so actual false values stay false despite the canonical opt-in defaults.
+Unexpected overrides, mounts, ports, restrictions or extra services cause refusal.
+
+The private directory contains secrets, inspection data and eventually backups.
+Do not publish it. Review its local `operation.log` on failure; share only the
+phase/error summary after redaction. Do not edit prepared inputs: they and their
+resolved model are checked again at apply. If preparation fails, services remain
+running; use a **new** private directory after resolving the cause. Never delete an
+old private directory that already contains an applied configuration or backups.
+
+The successful preparation prints the exact apply command. In a maintenance
+window (API/frontend requests can fail while backend is stopped), for this example:
+
+```bash
+bash ~/Boerse/trading-workspace-v1.4.3/scripts/migrate-legacy-issuer.sh apply \
+  "$HOME/Boerse/trading-workspace-deploy-v1.4.3"
+```
+
+The sequence revalidates images/configuration/containers; stops backend and
+renderer; creates and checks listings of a custom PostgreSQL dump and a consent
+archive; starts/health-checks the sandboxed renderer; runs Alembic; starts the
+application; checks actual images, mounts/settings and the unchanged DB container.
+The database is not recreated. Ensure no independent writer/setup process is
+running during this maintenance window. A readable archive listing is not proof
+of a tested restore. Keep backups privately according to the operator's policy.
+
+A failure leaves its last reached phase visible and prevents a repeated apply.
+There is **no automatic rollback**. Before `migration-started` exists, if no
+container replacement occurred (check `operation.log`/Docker IDs), the original
+stopped backend/renderer can be started by their saved IDs. After replacement or
+migration has begun, inspect the phase, schema and image compatibility before
+choosing recovery; do not stamp, blindly downgrade or restore over a live database.
+Preserve the original checkout, images, private state and backup files for review.
+Do not remove phase markers just to retry.
+
+For subsequent diagnosis use the same immutable chain:
+
+```bash
+bash ~/Boerse/trading-workspace-v1.4.3/scripts/migrate-legacy-issuer.sh compose \
+  "$HOME/Boerse/trading-workspace-deploy-v1.4.3" ps
+bash ~/Boerse/trading-workspace-v1.4.3/scripts/migrate-legacy-issuer.sh compose \
+  "$HOME/Boerse/trading-workspace-deploy-v1.4.3" exec -T backend \
+  python -m app.tools.audit_monitoring_performance
+```
+
+The wrapper permits `ps`, `logs` and `exec`; it does not provide a generic update or
+rollback command. Keep the release worktree and private directory at their prepared
+paths. Future updates need deliberate review of the complete base + canonical +
+preservation chain. The normal base-only start remains intentionally blocked.
+
+A successful apply proves image identity, loaded environment/bindings, readiness,
+renderer sandbox health and completion of the migration command. It does not prove
+fresh provider quotes, product-level consent reuse, a complete post-restart
+monitoring cycle or Telegram delivery. Use the issuer operations runbook for those
+separate live checks; test messages and changed consent remain separately approved.

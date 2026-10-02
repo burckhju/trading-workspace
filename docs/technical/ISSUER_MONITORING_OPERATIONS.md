@@ -156,3 +156,15 @@ werden im Release-PR gemeinsam fortgeschrieben. Der Workflow `Version tag` setzt
 `v<VERSION>` erst, wenn Backend, Frontend und End-to-End am selben aktuellen
 `main`-Commit vollständig erfolgreich sind. Vorhandene Tags werden niemals
 verschoben. Der Workflow übernimmt keine PRs und führt kein Deployment aus.
+
+## Umstieg alter Paket-Overlays (1.4.3)
+
+Ein bestehender Paket-Stack darf nicht allein durch Austausch seiner Compose-Liste
+aktualisiert werden: Laufzeitwerte können von `.env` abweichen. Für die geprüfte
+Vier-Service-Topologie beschreibt [Linux Deployment](LINUX_DEPLOYMENT.md#reviewed-legacy-issuer-migration-143)
+die getrennte Vorbereitung und den Wechsel mit Erhalt tatsächlicher Einstellungen,
+Volumes, absolutem Stuttgart-Pfad, Sicherungen und Sandbox. Der ursprüngliche
+Checkout bleibt bestehen. Der private Erhaltungs-Overlay gehört anschließend zur
+vollständigen Betriebskonfiguration; ihn nicht ins Repository oder Support kopieren.
+Ein erfolgreicher Wechsel ersetzt keine JPMorgan-Produktprüfung und keinen
+Nachweis vollständiger Monitoring-Zyklen nach dem Cacheaufbau.

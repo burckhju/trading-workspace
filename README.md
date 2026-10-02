@@ -2,9 +2,10 @@
 
 Produktionsnahes Referenzrepository für den **Trading Workspace**.
 
-Version 1.4.2 verbessert die rein lesende Betriebsdiagnose für dynamisch entdeckte
-Emittentenprodukte und macht indikative Abruffehler sichtbar. Details und
-Nachweisgrenzen: [Release-Dokumentation](docs/releases/V1.4.2-DYNAMIC-MONITORING-DIAGNOSTICS.md).
+Version 1.4.3 ergänzt den geprüften Umstieg bestehender Emittenten-Paketinstallationen
+auf die kanonische Compose-Konfiguration. Laufende Einstellungen, Datenbank und
+Zustimmungsspeicher werden erhalten. Umfang und Grenzen:
+[Release-Dokumentation](docs/releases/V1.4.3-LEGACY-ISSUER-MIGRATION.md).
 
 ## Status
 

@@ -338,3 +338,11 @@ Scope, acceptance criteria and operational limits: [implementation report](../im
 | Indicative refresh errors remain visible without changing rule status | `rule_issues` includes `refresh_error` | Indicative-error regression; existing concurrency tests |
 
 Scope and acceptance criteria: [implementation report](../implementation/DYNAMIC_ISSUER_MONITORING_AUDIT.md).
+
+## Reviewed legacy issuer migration (1.4.3)
+
+| Requirement | Implementation | Verification |
+|---|---|---|
+| Preserve effective settings/data during explicit package replacement | `migrate-legacy-issuer.sh`, offline `legacy_issuer_deployment` validator | Validator and shell regression suites |
+| Backups and sandbox health precede schema/application replacement | Separate prepare/apply phases; immutable input/image checks | Failure regressions; disposable Docker/PostgreSQL migration in renderer workflow |
+| Keep operational evidence distinct from provider/live acceptance | Private state and explicit post-deployment checks | [Implementation/acceptance criteria](../implementation/LEGACY_ISSUER_DEPLOYMENT_MIGRATION.md) |
