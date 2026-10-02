@@ -79,6 +79,8 @@ volumes, sandbox and migration mechanism are retained.
   Docker Compose serializes resolved JSON with doubled dollar signs; the validator
   decodes that single layer before comparing it to raw Docker inspection. The real
   container fixture includes a bind path with spaces and a literal dollar sign.
+  Resource byte counts accept Compose's numeric strings as well as Docker integers;
+  their exact values are still required.
 - Shell regressions execute the real entry point in disposable Git checkouts with
   fake Docker, covering build-only preparation, private permissions, ordering,
   input drift and backup/renderer/migration/application failures.

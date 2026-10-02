@@ -116,10 +116,10 @@ def deployment_fixture() -> tuple[list[dict[str, Any]], dict[str, Any]]:
                     "user": "pwuser",
                     "read_only": True,
                     "cap_drop": ["ALL"],
-                    "mem_limit": 1073741824,
+                    "mem_limit": "1073741824",
                     "cpus": 1.0,
                     "pids_limit": 256,
-                    "shm_size": 268435456,
+                    "shm_size": "268435456",
                     "security_opt": host["SecurityOpt"],
                 }
             )

@@ -220,7 +220,9 @@ def validate_candidate(items: list[dict[str, Any]], candidate: dict[str, Any]) -
             ("pids_limit", host.get("PidsLimit") or 0, 0),
             ("shm_size", host["ShmSize"], 67108864),
         ):
-            require(target.get(key, default) == actual, f"Target resource differs: {service}/{key}")
+            require(
+                int(target.get(key, default)) == actual, f"Target resource differs: {service}/{key}"
+            )
         require(
             float(target.get("cpus", 0)) * 1000000000 == host["NanoCpus"],
             "Target CPU limit differs",
@@ -272,10 +274,10 @@ def validate_candidate(items: list[dict[str, Any]], candidate: dict[str, Any]) -
         "Renderer privileges differ",
     )
     require(
-        renderer["mem_limit"] == 1073741824
+        int(renderer["mem_limit"]) == 1073741824
         and float(renderer["cpus"]) == 1.0
-        and renderer["pids_limit"] == 256
-        and renderer["shm_size"] == 268435456,
+        and int(renderer["pids_limit"]) == 256
+        and int(renderer["shm_size"]) == 268435456,
         "Renderer resource limits differ",
     )
     security = renderer["security_opt"]
