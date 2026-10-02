@@ -150,11 +150,13 @@ jobs:
   issuer-renderer:
     name: Backend / issuer renderer sandbox
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - name: Build the optional issuer renderer
         run: docker build -f docker/issuer-renderer/Dockerfile -t issuer-renderer:test .
+      - name: Qualify legacy migration against disposable containers and PostgreSQL
+        run: bash tests/deployment/legacy-issuer-migration.sh
       - name: Verify issuer startup preflight with real Compose provenance
         run: |
           # Synthetic CI configuration and a stopped, network-isolated container.
