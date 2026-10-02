@@ -2,6 +2,10 @@
 
 Produktionsnahes Referenzrepository für den **Trading Workspace**.
 
+Version 1.4.2 verbessert die rein lesende Betriebsdiagnose für dynamisch entdeckte
+Emittentenprodukte und macht indikative Abruffehler sichtbar. Details und
+Nachweisgrenzen: [Release-Dokumentation](docs/releases/V1.4.2-DYNAMIC-MONITORING-DIAGNOSTICS.md).
+
 ## Status
 
 - Sprint 0 – technische Basis: abgeschlossen

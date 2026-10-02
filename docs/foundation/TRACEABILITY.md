@@ -328,3 +328,13 @@ Release readiness: `docs/implementation/SPRINT_10_FT010_RELEASE_READINESS.md`.
 | Read-only preparation and unchanged private configuration | `--check` | startup regression tests |
 
 Scope, acceptance criteria and operational limits: [implementation report](../implementation/ISSUER_DEPLOYMENT_STARTUP.md).
+
+## Dynamic issuer monitoring diagnostics (1.4.2)
+
+| Requirement | Implementation | Verification |
+|---|---|---|
+| Current issuer jobs, including discovered products, remain visible | `app/tools/audit_monitoring_performance.py` runtime-catalogue scope | `tests/unit/backend/tools/test_audit_monitoring_performance.py` |
+| Scheduler completion and positive-bid evidence stay distinct | Per-job evidence, unverified-product list, unchanged quote-time boundaries | Synthetic pending, failed, retained and nonpositive quote regressions |
+| Indicative refresh errors remain visible without changing rule status | `rule_issues` includes `refresh_error` | Indicative-error regression; existing concurrency tests |
+
+Scope and acceptance criteria: [implementation report](../implementation/DYNAMIC_ISSUER_MONITORING_AUDIT.md).
