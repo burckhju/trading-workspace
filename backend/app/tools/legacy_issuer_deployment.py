@@ -302,9 +302,26 @@ def verify_identity(before: list[dict[str, Any]], after: list[dict[str, Any]]) -
         )
 
 
+def unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    """Reject ambiguous JSON without exposing a duplicate key or its value."""
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        require(key not in result, "Duplicate JSON field")
+        result[key] = value
+    return result
+
+
+def verify_configuration(before: dict[str, Any], after: dict[str, Any]) -> None:
+    """Ignore JSON presentation only; retain scalar types and array ordering."""
+    require(isinstance(before, dict) and isinstance(after, dict), "Expected Compose objects")
+    expected = json.dumps(before, sort_keys=True, separators=(",", ":"), allow_nan=False)
+    actual = json.dumps(after, sort_keys=True, separators=(",", ":"), allow_nan=False)
+    require(expected == actual, "Effective Compose configuration changed")
+
+
 def main() -> int:
     try:
-        payload = json.load(sys.stdin)
+        payload = json.load(sys.stdin, object_pairs_hook=unique_object)
         mode = sys.argv[1]
         if mode == "overlay":
             print(json.dumps(make_overlay(payload[0], payload[1], sys.argv[2]), indent=2))
@@ -312,6 +329,8 @@ def main() -> int:
             validate_candidate(payload[0], payload[1])
         elif mode == "identity":
             verify_identity(payload[0], payload[1])
+        elif mode == "config":
+            verify_configuration(payload[0], payload[1])
         else:
             raise ValueError("Unknown validation mode")
     except DeploymentError as exc:

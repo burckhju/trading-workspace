@@ -298,3 +298,48 @@ def test_compose_serialization_is_decoded_once_without_interpreting_variables(li
     candidate["services"]["backend"]["volumes"][0]["source"] = migration.compose_literal(source)
     migration.make_overlay(items, candidate, REVISION)
     migration.validate_candidate(items, candidate)
+
+
+@pytest.mark.parametrize(
+    "before,after",
+    [
+        ({"flag": False}, {"flag": 0}),
+        ({"count": 1}, {"count": 1.0}),
+        ({"limit": "256"}, {"limit": 256}),
+        ({"secret": "$TOKEN"}, {"secret": "$$TOKEN"}),
+        ({"command": ["a", "b"]}, {"command": ["b", "a"]}),
+        ({"value": None}, {}),
+        ({}, {"added": "private-value"}),
+        ({"flag": False}, {"flag": True}),
+    ],
+)
+def test_configuration_comparison_preserves_values_types_and_order(
+    before: dict[str, Any], after: dict[str, Any]
+) -> None:
+    with pytest.raises(migration.DeploymentError, match="configuration changed"):
+        migration.verify_configuration(before, after)
+
+
+@pytest.mark.parametrize(
+    "payload,success",
+    [
+        ('[{"b":2,"a":{"x":"\\u00e4"}}, {"a":{"x":"ä"},"b":2}]', True),
+        ('[{"secret":"private-value"},{"secret":"private-changed"}]', False),
+        ('[{"flag":false,"flag":true},{"flag":true}]', False),
+        ('[{"value":NaN},{"value":NaN}]', False),
+        ('[{"value":Infinity},{"value":Infinity}]', False),
+        ("[[],[]]", False),
+        ("private-invalid-json", False),
+    ],
+)
+def test_configuration_cli_ignores_presentation_and_rejects_ambiguous_inputs(
+    payload: str,
+    success: bool,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr(sys, "stdin", io.StringIO(payload))
+    monkeypatch.setattr(sys, "argv", ["validator", "config"])
+    assert migration.main() == (0 if success else 2)
+    output = capsys.readouterr()
+    assert "private-" not in output.out + output.err

@@ -95,3 +95,39 @@ volumes, sandbox and migration mechanism are retained.
 GitHub checks do not prove deployment or provider reachability on the operator
 host. JPMorgan product access/consent reuse and complete monitoring cycles remain
 separate live acceptance steps.
+
+
+## Compose integrity correction (1.4.4)
+
+Date: 2026-10-03. Baseline: v1.4.3 (`cac83db893004d6a2ac40839a1f4f862c5face7a`).
+The operator reproduced `Effective Compose configuration changed` for all three
+post-deployment diagnostics. A read-only comparison returned JSON content equality
+and zero changed fields. The executable guard used `cmp` on rendered JSON, so
+presentation alone could block an unchanged model. The exact formatting difference
+on the host was not collected; no private JSON is published. A deterministic
+regression reformats/reorders the same synthetic model and fails on the old guard.
+
+Acceptance criteria:
+
+1. Parsed configuration equality ignores only JSON whitespace/escaping and object
+   key order. Changed values, scalar types, missing/added fields and ordered arrays
+   are rejected. Duplicate keys and non-finite numbers fail closed. Error output
+   contains no configuration values.
+2. Existing sealed files, including the original `candidate.json`, retain their
+   byte-level checksum checks. Nothing rewrites a seal or accepts changed inputs.
+3. A clean newer tool checkout may execute only the existing `compose` operations
+   against the sealed original release root. That checkout must still be clean
+   at its prepared commit, and its base/canonical/preservation chain is retained.
+   A newer tool cannot `apply` an older prepared deployment. No generic update,
+   rebuild, service replacement or consent/notification operation is added.
+4. Shell regressions prove both presentation tolerance and rejection before the
+   requested command for genuine model/input/revision/checkout drift. Real Docker
+   CI reformats only current config output, applies the migration, runs diagnostics
+   from a second checkout, rejects an ambient port change and retains container IDs.
+5. The runbook documents inspecting v1.4.3 with v1.4.4 tooling without redeploying.
+   Closed stdin is explicit for non-interactive diagnostics in shell command blocks.
+
+This is the same deployment-integration responsibility and M10/M11 scope as above;
+no new architecture decision or business rule is introduced. Full final-commit CI
+and tag evidence belong in the PR. Tool publication is not a server deployment or
+a provider/consent-reuse/Telegram live acceptance.
