@@ -2,10 +2,11 @@
 
 Produktionsnahes Referenzrepository für den **Trading Workspace**.
 
-Version 1.4.3 ergänzt den geprüften Umstieg bestehender Emittenten-Paketinstallationen
-auf die kanonische Compose-Konfiguration. Laufende Einstellungen, Datenbank und
-Zustimmungsspeicher werden erhalten. Umfang und Grenzen:
-[Release-Dokumentation](docs/releases/V1.4.3-LEGACY-ISSUER-MIGRATION.md).
+Version 1.4.4 korrigiert den Konfigurationsvergleich der Emittenten-Migration:
+Unterschiedliche JSON-Darstellung blockiert bei identischen Inhalten keine
+Diagnose mehr. Bestehende vorbereitete Deployments können mit dem neuen Werkzeug
+unter Beibehaltung ihres geprüften Checkouts untersucht werden. Umfang und Grenzen:
+[Release-Dokumentation](docs/releases/V1.4.4-COMPOSE-INTEGRITY.md).
 
 ## Status
 

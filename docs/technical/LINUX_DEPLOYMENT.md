@@ -349,3 +349,52 @@ renderer sandbox health and completion of the migration command. It does not pro
 fresh provider quotes, product-level consent reuse, a complete post-restart
 monitoring cycle or Telegram delivery. Use the issuer operations runbook for those
 separate live checks; test messages and changed consent remain separately approved.
+
+
+### Diagnose an existing prepared deployment with 1.4.4 tooling
+
+Version 1.4.3 used a byte comparison for rendered Compose JSON. Different whitespace
+or object-field order could therefore reject an unchanged effective model with
+`Effective Compose configuration changed`. Version 1.4.4 compares parsed content
+while retaining exact input seals, scalar types, array order and all existing
+release/configuration guards. Do not edit/reseal `candidate.json`, remove phase
+markers or repeat `apply` to repair this diagnostic failure.
+
+Once tag `v1.4.4` and its final-commit checks are published, obtain its tool in a
+separate clean checkout. Keep the original v1.4.3 checkout and private state in
+place. This example uses the prepared paths from the v1.4.3 example above:
+
+```bash
+git -C "$HOME/Boerse/trading-workspace" fetch origin tag v1.4.4
+git -C "$HOME/Boerse/trading-workspace" worktree add --detach \
+  "$HOME/Boerse/trading-workspace-tools-v1.4.4" v1.4.4
+bash "$HOME/Boerse/trading-workspace-tools-v1.4.4/scripts/migrate-legacy-issuer.sh" \
+  compose "$HOME/Boerse/trading-workspace-deploy-v1.4.3" ps </dev/null
+```
+
+Only `compose` supports an older prepared release. It checks the tool checkout,
+sealed inputs, original release commit/cleanliness and effective model, then uses
+that original release for Compose files and the seccomp path. It does not substitute
+new images or change the loaded application version. The pinned helper image from
+preparation is still required; retain the original images as already required by
+the migration procedure. `prepare`/`apply` remain bound to their own release root.
+Actual content changes or unavailable inputs/images stop the command for review.
+
+For the pending read-only diagnostics, stdin is closed inside the wrapper so
+`docker compose exec -T` cannot consume the remaining shell command block:
+
+```bash
+bash <<'SH'
+tw_diag() {
+  bash "$HOME/Boerse/trading-workspace-tools-v1.4.4/scripts/migrate-legacy-issuer.sh" compose \
+    "$HOME/Boerse/trading-workspace-deploy-v1.4.3" "$@" </dev/null
+}
+tw_diag exec -T backend python -m app.tools.audit_monitoring_performance --wait-seconds 60
+tw_diag exec -T backend python -m app.tools.monitoring_resume preflight
+tw_diag exec -T issuer-renderer python -c 'import json, urllib.request; print(json.dumps(json.load(urllib.request.urlopen("http://127.0.0.1:8091/health", timeout=10)), indent=2))'
+SH
+```
+
+These queries do not send a test notification or accept consent. Renderer health
+can identify stored state; product access in a fresh context is still needed to
+prove its reuse. Report tool version and actually deployed image revision separately.

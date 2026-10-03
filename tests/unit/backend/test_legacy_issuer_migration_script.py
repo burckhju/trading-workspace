@@ -137,6 +137,26 @@ def calls(root: Path) -> list[list[str]]:
     return [json.loads(line) for line in path.read_text().splitlines()] if path.exists() else []
 
 
+def test_equal_rendered_json_does_not_block_apply_or_diagnostics(
+    migration_checkout: tuple[Path, Path, dict[str, str]],
+) -> None:
+    root, state, env = migration_checkout
+    assert run(migration_checkout, "prepare").returncode == 0
+    rendered = root.parent / "candidate.json"
+    rendered.write_text(json.dumps(json.loads(rendered.read_text()), sort_keys=True, indent=4))
+    assert rendered.read_bytes() != (state / "candidate.json").read_bytes()
+    result = run(migration_checkout, "apply")
+    assert result.returncode == 0, result.stderr
+    result = subprocess.run(
+        ["bash", str(root / "scripts/migrate-legacy-issuer.sh"), "compose", str(state), "ps"],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert result.returncode == 0, result.stderr
+    assert calls(root)[-1][-1] == "ps"
+
+
 def test_preparation_builds_without_restarting_and_apply_orders_safety_gates(
     migration_checkout: tuple[Path, Path, dict[str, str]],
 ) -> None:
@@ -256,3 +276,132 @@ def test_preparation_refuses_unreviewed_state_without_service_mutation(
     assert result.returncode != 0
     assert not (state / "prepared").exists()
     assert not any(args[0] in ("stop", "cp", "exec") or "up" in args for args in calls(root))
+
+
+def newer_tool_checkout(root: Path) -> Path:
+    tool = root.parent / "newer tool checkout"
+    subprocess.run(["git", "clone", "-q", str(root), str(tool)], check=True)
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            str(tool),
+            "-c",
+            "user.name=Test",
+            "-c",
+            "user.email=test@example.invalid",
+            "commit",
+            "--allow-empty",
+            "-qm",
+            "new tool",
+        ],
+        check=True,
+    )
+    return tool
+
+
+def test_newer_tool_uses_sealed_release_for_compose_only(
+    migration_checkout: tuple[Path, Path, dict[str, str]],
+) -> None:
+    root, state, env = migration_checkout
+    tool = newer_tool_checkout(root)
+    # An older release has no config-comparison mode; use the new tool's helper,
+    # while keeping that release's own Compose model and pinned revision.
+    helper = root / "backend/app/tools/legacy_issuer_deployment.py"
+    helper.write_text(
+        helper.read_text().replace('elif mode == "config":', 'elif mode == "unavailable":')
+    )
+    subprocess.run(["git", "-C", str(root), "add", str(helper)], check=True)
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            str(root),
+            "-c",
+            "user.name=Test",
+            "-c",
+            "user.email=test@example.invalid",
+            "commit",
+            "-qm",
+            "older helper without config mode",
+        ],
+        check=True,
+    )
+    assert run(migration_checkout, "prepare").returncode == 0
+    start = len(calls(root))
+    script = str(tool / "scripts/migrate-legacy-issuer.sh")
+    result = subprocess.run(
+        ["bash", script, "compose", str(state), "exec", "-T", "backend", "python", "--version"],
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+    assert result.returncode == 0, result.stderr
+    commands = calls(root)[start:]
+    composed = [args for args in commands if args[0] == "compose"]
+    assert composed[-1][-5:] == ["exec", "-T", "backend", "python", "--version"]
+    assert all(str(root / "docker/compose.yml") in args for args in composed)
+    assert not any(str(tool / "docker/compose.yml") in args for args in composed)
+    assert not any(args[0] == "stop" or "up" in args or "build" in args for args in commands)
+    result = subprocess.run(
+        ["bash", script, "apply", str(state)],
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+    assert result.returncode != 0
+    assert "Prepared release checkout differs" in result.stderr
+    assert not (state / "apply-started").exists()
+
+
+@pytest.mark.parametrize(
+    "drift", ["tool-dirty", "release-dirty", "release-revision", "inputs", "model", "command"]
+)
+def test_cross_checkout_diagnostics_retain_integrity_gates(
+    migration_checkout: tuple[Path, Path, dict[str, str]],
+    drift: str,
+) -> None:
+    root, state, env = migration_checkout
+    assert run(migration_checkout, "prepare").returncode == 0
+    tool = newer_tool_checkout(root)
+    action = "ps"
+    if drift == "tool-dirty":
+        (tool / "untracked").write_text("private-value")
+    elif drift == "release-dirty":
+        (root / "untracked").write_text("private-value")
+    elif drift == "release-revision":
+        subprocess.run(
+            [
+                "git",
+                "-C",
+                str(root),
+                "-c",
+                "user.name=Test",
+                "-c",
+                "user.email=test@example.invalid",
+                "commit",
+                "--allow-empty",
+                "-qm",
+                "drift",
+            ],
+            check=True,
+        )
+    elif drift == "inputs":
+        (state / "preserve.json").write_text("private-value")
+    elif drift == "model":
+        data = json.loads((root.parent / "candidate.json").read_text())
+        data["services"]["backend"]["environment"]["NEW_SETTING"] = "private-value"
+        (root.parent / "candidate.json").write_text(json.dumps(data))
+    else:
+        action = "up"
+    start = len(calls(root))
+    result = subprocess.run(
+        ["bash", str(tool / "scripts/migrate-legacy-issuer.sh"), "compose", str(state), action],
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+    assert result.returncode != 0
+    assert "private-value" not in result.stdout + result.stderr
+    assert not any(args[0] == "compose" and action in args for args in calls(root)[start:])
+    assert not (state / "apply-started").exists()

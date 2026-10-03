@@ -3,6 +3,7 @@
 set -euo pipefail
 umask 077
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+TOOL_ROOT="$ROOT"
 MODE="${1:-help}"
 shift || true
 fail() { echo "$*" >&2; exit 2; }
@@ -11,6 +12,7 @@ if [[ "$MODE" == help || "$MODE" == --help ]]; then
   echo '       migrate-legacy-issuer.sh apply PRIVATE_STATE_DIR'
   echo '       migrate-legacy-issuer.sh compose PRIVATE_STATE_DIR ps|logs|exec ...'
   echo 'Run from a separate, clean, pinned release checkout. prepare builds only; apply stops services.'
+  echo 'compose can inspect older prepared releases; it retains their pinned checkout and full chain.'
   exit 0
 fi
 [[ "$MODE" == prepare || "$MODE" == apply || "$MODE" == compose ]] || fail 'Unknown mode'
@@ -34,6 +36,13 @@ fi
 LOG="$STATE/operation.log"
 trap 'echo "Stopped in phase ${PHASE:-preflight}. Private details: $LOG. No automatic rollback." >&2' ERR
 PHASE=preflight
+git -C "$TOOL_ROOT" rev-parse --verify HEAD >/dev/null
+[[ -z "$(git -C "$TOOL_ROOT" status --porcelain --untracked-files=all)" ]] || fail 'Tool checkout must be clean, including untracked files'
+if [[ "$MODE" == compose ]]; then
+  [[ $# -ge 1 && ( "$1" == ps || "$1" == logs || "$1" == exec ) ]] || fail 'compose permits only ps, logs or exec'
+  (cd "$STATE" && sha256sum --check --status inputs.sha256) || fail 'Prepared inputs changed; inspect private state'
+  ROOT="$(cat "$STATE/release-root")"
+fi
 REVISION="$(git -C "$ROOT" rev-parse HEAD)"
 [[ -z "$(git -C "$ROOT" status --porcelain --untracked-files=all)" ]] || fail 'Release checkout must be clean, including untracked files'
 export ISSUER_RENDERER_SECCOMP_PATH="$ROOT/docker/issuer-renderer/seccomp_profile.json"
@@ -51,7 +60,7 @@ helper() {
   docker run --rm -i --network none --read-only --cap-drop ALL \
     --security-opt no-new-privileges:true --memory 128m --cpus 1 --pids-limit 64 \
     --entrypoint python "$(cat "$STATE/helper-image")" \
-    -c "$(cat "$ROOT/backend/app/tools/legacy_issuer_deployment.py")" "$@"
+    -c "$(cat "$TOOL_ROOT/backend/app/tools/legacy_issuer_deployment.py")" "$@"
 }
 pair() { printf '['; cat "$1"; printf ','; cat "$2"; printf ']'; }
 seal() {
@@ -90,10 +99,10 @@ fi
 [[ -f "$STATE/prepared" && "$(cat "$STATE/revision")" == "$REVISION" && "$(cat "$STATE/release-root")" == "$ROOT" ]] || fail 'Prepared release checkout differs'
 (cd "$STATE" && sha256sum --check --status inputs.sha256) || fail 'Prepared inputs changed; prepare again in a new directory'
 compose config --format json > "$STATE/current-config.json" 2>> "$LOG"
-# Ambient environment interpolation must not change the prepared effective model.
-cmp -s "$STATE/candidate.json" "$STATE/current-config.json" || fail 'Effective Compose configuration changed'
+# Ambient interpolation must not change values, types or ordered arrays. Object
+# key order and whitespace from Compose serialization are not configuration drift.
+pair "$STATE/candidate.json" "$STATE/current-config.json" | helper config >> "$LOG" 2>&1 || fail 'Effective Compose configuration changed or comparison failed; inspect private operation.log'
 if [[ "$MODE" == compose ]]; then
-  [[ $# -ge 1 && ( "$1" == ps || "$1" == logs || "$1" == exec ) ]] || fail 'compose permits only ps, logs or exec'
   compose "$@"
   exit 0
 fi

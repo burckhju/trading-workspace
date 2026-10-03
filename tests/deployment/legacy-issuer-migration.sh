@@ -62,8 +62,26 @@ docker exec trading-workspace-database-1 psql -U migration_test -d migration_tes
   -c "CREATE TABLE deployment_probe (marker text); INSERT INTO deployment_probe VALUES ('retained');"
 docker exec trading-workspace-issuer-renderer-1 python -c 'from pathlib import Path; Path("/state/ci-marker").write_text("retained")'
 bash "$ROOT/scripts/migrate-legacy-issuer.sh" prepare "$fixture/legacy" "$fixture/private"
+# Reproduce serialization-only drift without changing any sealed input. All
+# Docker operations still reach the real daemon; only rendered JSON is reformatted.
+export TW_REAL_DOCKER="$(command -v docker)"
+mkdir "$fixture/bin"
+cat > "$fixture/bin/docker" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+if [[ "$1" == compose && " $* " == *' config --format json '* ]]; then
+  "$TW_REAL_DOCKER" "$@" | python3 -c 'import json, sys; print(json.dumps(json.load(sys.stdin), sort_keys=True, indent=4))'
+else
+  exec "$TW_REAL_DOCKER" "$@"
+fi
+EOF
+chmod 700 "$fixture/bin/docker"
+export PATH="$fixture/bin:$PATH"
 # Deliberate preservation overlay must keep false activation flags despite canonical opt-in.
 bash "$ROOT/scripts/migrate-legacy-issuer.sh" apply "$fixture/private"
+if cmp -s "$fixture/private/candidate.json" "$fixture/private/current-config.json"; then
+  echo 'Fixture did not reproduce serialization-only drift' >&2; exit 1
+fi
 test -f "$fixture/private/deployed"
 test -s "$fixture/private/database.dump"
 grep -q deployment_probe "$fixture/private/database.contents"
@@ -72,4 +90,17 @@ test "$(docker exec trading-workspace-database-1 psql -At -U migration_test -d m
 test "$(docker exec trading-workspace-issuer-renderer-1 cat /state/ci-marker)" = retained
 # Inspect only approved values; do not output a full deployment environment.
 docker exec trading-workspace-backend-1 python -c 'import os; assert os.environ["TRADING_WORKSPACE_MARKET_DATA__REFRESH__ENABLED"] == "false"; assert os.environ["TRADING_WORKSPACE_NOTIFICATION__TELEGRAM__ENABLED"] == "false"'
+# New tooling must inspect the original sealed checkout, without rebuilding or
+# changing its release, configuration, services or persistent state.
+git -C "$ROOT" worktree add --detach "$fixture/diagnostic-tool" HEAD
+docker ps -aq --filter label=com.docker.compose.project=trading-workspace | sort > "$fixture/before.ids"
+bash "$fixture/diagnostic-tool/scripts/migrate-legacy-issuer.sh" compose "$fixture/private" ps
+bash "$fixture/diagnostic-tool/scripts/migrate-legacy-issuer.sh" compose "$fixture/private" \
+  exec -T backend python -c 'print("Existing deployment diagnostics succeeded")' </dev/null
+if BACKEND_PORT=9001 bash "$fixture/diagnostic-tool/scripts/migrate-legacy-issuer.sh" \
+  compose "$fixture/private" ps; then
+  echo 'Actual environment drift was not rejected' >&2; exit 1
+fi
+docker ps -aq --filter label=com.docker.compose.project=trading-workspace | sort > "$fixture/after.ids"
+cmp "$fixture/before.ids" "$fixture/after.ids"
 echo 'Synthetic migration passed: data, state, settings, sandbox, schema and images retained/verified.'
