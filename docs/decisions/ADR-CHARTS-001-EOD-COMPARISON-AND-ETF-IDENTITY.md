@@ -1,6 +1,6 @@
 # ADR-CHARTS-001 – EOD-Vergleich und echte ETF-Identität
 
-Status: Implementiert im Chart-Arbeitszweig; Merge-Prüfung ausstehend.
+Status: Implementiert und über PR #243 gemergt; Teil von Version 1.5.0.
 Datum: 2026-10-04. Auftrag: Markt-/Sektor-/Aktiendiagramme.
 
 ## Entscheidung

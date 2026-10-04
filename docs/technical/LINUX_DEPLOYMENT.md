@@ -450,3 +450,82 @@ need no redundant approval while their hash and approved scope remain unchanged;
 changed terms require fresh review. Require product access and stored-state reuse,
 then independently check discovery and a completed monitoring cycle. This update
 does not authorize a Telegram test message or prove provider availability.
+
+### Market charts and position risk (1.5.0)
+
+Version 1.5.0 adds charts and qualified risk/trend views; it does not activate new
+risk warnings. The additive schema chain is `0042 -> 0043 -> 0044`, with one head
+`20261004_0044`. Both new histories and ETF master data have downgrade guards.
+[Release scope and limits](../releases/V1.5.0-MARKET-CHARTS-AND-POSITION-RISK.md)
+separate source qualification from live acceptance.
+
+These commands apply to the already reviewed, migrated four-service issuer stack.
+For an unmigrated or different topology use the earlier migration procedure first;
+do not guess an old private state directory or substitute a base-only startup.
+The current JMBbot release/configuration paths are not known from GitHub.
+
+After the version workflow has published the tag, run the following on the host
+as its deployment owner. Supply the actual existing configuration checkout and
+private state directory. The new versioned paths below must not already exist.
+The commands fetch and inspect source and live state; they do not deploy:
+
+```bash
+read -r -p 'Existing configuration checkout containing docker/.env: ' TW_CONFIG_ROOT
+read -r -p 'Existing private deployment state directory: ' TW_CURRENT_STATE
+git -C "$TW_CONFIG_ROOT" fetch origin tag v1.5.0 </dev/null
+git -C "$TW_CONFIG_ROOT" rev-parse 'v1.5.0^{commit}'
+TW_RELEASE_ROOT="$HOME/Boerse/trading-workspace-v1.5.0"
+TW_RELEASE_STATE="$HOME/Boerse/trading-workspace-deploy-v1.5.0"
+git -C "$TW_CONFIG_ROOT" worktree add --detach "$TW_RELEASE_ROOT" v1.5.0 </dev/null
+bash "$TW_RELEASE_ROOT/scripts/migrate-legacy-issuer.sh" compose "$TW_CURRENT_STATE" ps </dev/null
+bash "$TW_RELEASE_ROOT/scripts/migrate-legacy-issuer.sh" compose "$TW_CURRENT_STATE" \
+  exec -T backend python -m alembic current </dev/null
+bash "$TW_RELEASE_ROOT/scripts/migrate-legacy-issuer.sh" compose "$TW_CURRENT_STATE" \
+  exec -T backend python -c 'import urllib.request; print(urllib.request.urlopen("http://127.0.0.1:8000/health/ready", timeout=10).status)' </dev/null
+```
+
+Compare the printed tag SHA with the qualified 1.5.0 release PR. The diagnostic
+wrapper retains the old state's sealed release root and full Compose chain, so a
+new tool version is not mistaken for a newly deployed application. Keep private
+configuration, logs, database contents and consent data off GitHub and chat.
+
+If this inventory matches the reviewed topology and the existing `.env` still
+matches the runtime outside the explicitly preserved settings, prepare the new
+release. This validates the complete candidate configuration and builds isolated
+images while existing services remain running:
+
+```bash
+bash "$TW_RELEASE_ROOT/scripts/migrate-legacy-issuer.sh" prepare \
+  "$TW_CONFIG_ROOT" "$TW_RELEASE_STATE" </dev/null
+```
+
+Only after successful preparation, apply in a maintenance window:
+
+```bash
+bash "$TW_RELEASE_ROOT/scripts/migrate-legacy-issuer.sh" apply "$TW_RELEASE_STATE" </dev/null
+bash "$TW_RELEASE_ROOT/scripts/migrate-legacy-issuer.sh" compose "$TW_RELEASE_STATE" ps </dev/null
+bash "$TW_RELEASE_ROOT/scripts/migrate-legacy-issuer.sh" compose "$TW_RELEASE_STATE" \
+  exec -T backend python -m alembic current </dev/null
+bash "$TW_RELEASE_ROOT/scripts/migrate-legacy-issuer.sh" compose "$TW_RELEASE_STATE" \
+  exec -T backend python -m alembic heads </dev/null
+bash "$TW_RELEASE_ROOT/scripts/migrate-legacy-issuer.sh" compose "$TW_RELEASE_STATE" \
+  exec -T backend python -c 'import urllib.request; print(urllib.request.urlopen("http://127.0.0.1:8000/health/ready", timeout=10).status)' </dev/null
+bash "$TW_RELEASE_ROOT/scripts/migrate-legacy-issuer.sh" compose "$TW_RELEASE_STATE" \
+  exec -T backend python -m app.tools.monitoring_resume preflight </dev/null
+```
+
+The helper backs up database and consent state, verifies the renderer sandbox,
+applies migrations and retains actual settings and data bindings. Existing
+release/state directories remain intact. If a phase fails, inspect its private
+log and backups; do not erase markers, blindly repeat `apply`, stamp the database
+or force a downgrade. A restore needs its own reviewed recovery procedure.
+
+For live acceptance, `current` and `heads` must each report `20261004_0044` and
+readiness must return 200. Then inspect **Diagramme** with real existing data:
+benchmark identity/basis, full sector coverage and explicit missing history;
+confirm any bounded imports individually. Inspect an existing position's risk
+panel and parameter preview. New warning configurations remain disabled until
+explicitly reviewed; a running scheduler may still store qualified snapshots.
+Missing product history or unverified synchronized timestamps must stay visibly
+unavailable. Recheck existing consent reuse and normal monitoring without sending
+a test notification or inventing a test trade in the production portfolio.

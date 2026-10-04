@@ -1,6 +1,8 @@
 # Position risk and trend signals
 
 Status: implemented; exact-head integration evidence in PR #244; 2026-10-04. No production activation or live acceptance.
+Merged as `35a9cb7`; included in [version 1.5.0](../releases/V1.5.0-MARKET-CHARTS-AND-POSITION-RISK.md).
+The no-release statements below describe the feature PR before this coordinated release.
 User mandate: attached independent risk/trend specification dated 2026-10-04.
 Baseline: `16e2feec398658c82fa8773fa29feaa1c8fbbba8` (main and v1.4.5, verified).
 No AGENTS.md or additional agent instructions were found in the checkout.

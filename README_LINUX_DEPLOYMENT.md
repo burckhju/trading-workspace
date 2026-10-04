@@ -2,6 +2,10 @@
 
 See `docs/technical/LINUX_DEPLOYMENT.md` for the supported ZIP download, Docker Compose configuration, migration, monitoring/Telegram setup, verification and smoke-test procedure.
 
+For version 1.5.0 on an existing migrated issuer-monitoring stack, use the
+[qualified update and read-only inventory](docs/technical/LINUX_DEPLOYMENT.md#market-charts-and-position-risk-150).
+Retain the actual private state and complete Compose chain.
+
 For deployment-near qualification of the already implemented open-position operating loop, use `docs/technical/DAILY_POSITION_LOOP_VALIDATION.md` and `bash scripts/validate-daily-position-loop.sh`.
 
 ## First installation
