@@ -2,11 +2,11 @@
 
 Produktionsnahes Referenzrepository für den **Trading Workspace**.
 
-Version 1.4.4 korrigiert den Konfigurationsvergleich der Emittenten-Migration:
-Unterschiedliche JSON-Darstellung blockiert bei identischen Inhalten keine
-Diagnose mehr. Bestehende vorbereitete Deployments können mit dem neuen Werkzeug
-unter Beibehaltung ihres geprüften Checkouts untersucht werden. Umfang und Grenzen:
-[Release-Dokumentation](docs/releases/V1.4.4-COMPOSE-INTEGRITY.md).
+Version 1.4.5 korrigiert die JPMorgan-Routenerkennung bei Produktseiten ohne
+DOM-Uhrzeitfeld. Exakte Geld-/Briefbindungen und Produktmetadaten bleiben Pflicht;
+fehlende Zeitinformationen werden nicht ergänzt. Die Korrektur gilt gemeinsam
+für Backend-Discovery, Renderer und die Produktprüfung beim Zustimmungs-Setup.
+Umfang und Grenzen: [Release-Dokumentation](docs/releases/V1.4.5-JPMORGAN-PRICE-BINDING.md).
 
 ## Status
 

@@ -152,10 +152,11 @@ def test_renderer_resource_allowlist_blocks_local_and_foreign_destinations(url):
 
 
 class FakePage:
-    def __init__(self, *, denied=None, failure=None):
+    def __init__(self, *, denied=None, failure=None, include_clock=True):
         self.url = product_url("JPMORGAN", ISIN)
         self.main_frame = object()
         self.denied, self.failure = denied, failure
+        self.include_clock = include_clock
 
     async def goto(self, *args, **kwargs):
         if self.failure:
@@ -166,7 +167,7 @@ class FakePage:
         if script == ACCESS_STATE:
             return self.denied
         assert script == SANITIZED_DOM
-        return page().decode()
+        return page(include_clock=self.include_clock).decode()
 
 
 class FakeContext:
@@ -189,9 +190,10 @@ class FakeContext:
 @pytest.mark.parametrize(
     "denied", [None, "ISSUER_RENDER_ACCESS_BLOCKED", "ISSUER_RENDER_TERMS_REQUIRED"]
 )
-async def test_context_always_closes_and_access_gates_remain_closed(denied):
+@pytest.mark.parametrize("include_clock", [True, False])
+async def test_context_always_closes_and_access_gates_remain_closed(denied, include_clock):
     renderer = IssuerRenderer()
-    context = FakeContext(FakePage(denied=denied))
+    context = FakeContext(FakePage(denied=denied, include_clock=include_clock))
     renderer.browser = SimpleNamespace(
         new_context=AsyncMock(return_value=context), is_connected=lambda: True
     )
@@ -201,7 +203,8 @@ async def test_context_always_closes_and_access_gates_remain_closed(denied):
         assert renderer.next_request["JPMORGAN"] > renderer.timer() + 3500
     else:
         result = await renderer.render("JPMORGAN", ISIN)
-        assert result["isin"] == ISIN and result["html"] == page().decode()
+        assert result["isin"] == ISIN
+        assert result["html"] == page(include_clock=include_clock).decode()
     assert context.closed
     assert renderer.browser.new_context.await_args.kwargs == {
         "accept_downloads": False,

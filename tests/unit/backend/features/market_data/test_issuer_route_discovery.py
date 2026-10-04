@@ -44,7 +44,14 @@ NOW = datetime(2026, 9, 28, 12, tzinfo=UTC)
 ISIN = "DE000AB12CD8"  # Synthetic; never requested from a live endpoint.
 
 
-def page(provider="JPMORGAN", isin=ISIN, currency="EUR", expiry="31.12.2099", prefix="XTEST1"):
+def page(
+    provider="JPMORGAN",
+    isin=ISIN,
+    currency="EUR",
+    expiry="31.12.2099",
+    prefix="XTEST1",
+    include_clock=True,
+):
     grid, clock = (
         ("staticgrid", "quotetime")
         if provider == "JPMORGAN"
@@ -55,7 +62,7 @@ def page(provider="JPMORGAN", isin=ISIN, currency="EUR", expiry="31.12.2099", pr
         f'<span class="{price_class}"><strong><span data-field="{field}" '
         f'data-grid="{grid}" data-item="{prefix}{isin}" data-source="lightstreamer">'
         f"1,234</span></strong> {currency}</span>"
-        for field in ("bid", "ask", clock)
+        for field in (("bid", "ask", clock) if include_clock else ("bid", "ask"))
     )
     return (
         f"<table><tr><td>ISIN</td><td>{isin}</td></tr>"
@@ -86,6 +93,46 @@ def test_bound_product_fields_ignore_underlying_currency(provider):
     assert value.valid_through == "2099-12-31"
 
 
+def test_jpmorgan_price_bindings_verify_route_without_dom_clock():
+    value = evidence(include_clock=False)
+    assert value.stream_id == "XTEST1" + ISIN
+    assert value.currency == "EUR" and value.isin == ISIN
+
+
+def test_morgan_stanley_clock_binding_is_still_required():
+    with pytest.raises(ValueError, match=r"^ISSUER_STREAM_BINDING_UNVERIFIED$"):
+        evidence(P.MORGAN_STANLEY, include_clock=False)
+
+
+@pytest.mark.parametrize("include_clock", [True, False])
+@pytest.mark.parametrize("field", ["bid", "ask"])
+@pytest.mark.parametrize("change", ["missing", "other_item", "wrong_grid", "wrong_source"])
+def test_jpmorgan_requires_both_exact_price_bindings(include_clock, field, change):
+    raw = page(include_clock=include_clock)
+    start = raw.index(f'data-field="{field}"'.encode())
+    end = raw.index(b">", start)
+    target = raw[start:end]
+    replacements = {
+        "missing": (field.encode(), b"ignored"),
+        "other_item": (b"XTEST1", b"XOTHER2"),
+        "wrong_grid": (b"staticgrid", b"othergrid"),
+        "wrong_source": (b"lightstreamer", b"otherfeed"),
+    }
+    old, new = replacements[change]
+    raw = raw[:start] + target.replace(old, new) + raw[end:]
+    with pytest.raises(ValueError, match=r"^ISSUER_STREAM_BINDING_UNVERIFIED$"):
+        parse_product_page(raw, "JPMORGAN", ISIN, product_url("JPMORGAN", ISIN), now=NOW)
+
+
+def test_present_jpmorgan_clock_cannot_conflict_with_price_stream():
+    raw = page().replace(
+        b'data-field="quotetime" data-grid="staticgrid" data-item="XTEST1',
+        b'data-field="quotetime" data-grid="staticgrid" data-item="XOTHER2',
+    )
+    with pytest.raises(ValueError, match=r"^ISSUER_STREAM_BINDING_UNVERIFIED$"):
+        parse_product_page(raw, "JPMORGAN", ISIN, product_url("JPMORGAN", ISIN), now=NOW)
+
+
 @pytest.mark.parametrize(
     "change",
     [
@@ -96,7 +143,6 @@ def test_bound_product_fields_ignore_underlying_currency(provider):
         "expired",
         "ambiguous_stream",
         "wrong_wkn",
-        "no_clock",
     ],
 )
 def test_invalid_or_ambiguous_evidence_is_rejected(change):
@@ -115,8 +161,6 @@ def test_invalid_or_ambiguous_evidence_is_rejected(change):
         raw = raw.replace(b"XTEST1", b"XOTHER2", 1)
     if change == "wrong_wkn":
         raw = raw.replace(b"<td>AB12CD</td>", b"<td>FOREIG</td>")
-    if change == "no_clock":
-        raw = raw.replace(b'data-field="quotetime"', b'data-field="foo"')
     with pytest.raises(ValueError, match="ISSUER_"):
         parse_product_page(raw, "JPMORGAN", ISIN, product_url("JPMORGAN", ISIN), now=NOW)
 
@@ -168,13 +212,16 @@ def prepare(c, provider=P.JPMORGAN):
     return SimpleNamespace(fetch=AsyncMock(return_value=evidence(provider)))
 
 
-@pytest.mark.parametrize("provider", [P.JPMORGAN, P.MORGAN_STANLEY])
+@pytest.mark.parametrize(
+    "provider,include_clock", [(P.JPMORGAN, True), (P.JPMORGAN, False), (P.MORGAN_STANLEY, True)]
+)
 @pytest.mark.parametrize("acquisition", ["http", "rendered"])
 async def test_new_isin_discovery_selection_and_actual_adapter_batch(
-    selection_context, provider, acquisition
+    selection_context, provider, acquisition, include_clock
 ):
     c = selection_context
     pages = prepare(c, provider)
+    pages.fetch.return_value = evidence(provider, include_clock=include_clock)
     hits = []
     if acquisition == "rendered":
 
@@ -188,7 +235,7 @@ async def test_new_isin_discovery_selection_and_actual_adapter_batch(
                         "provider": provider.value,
                         "isin": ISIN,
                         "source_url": product_url(provider.value, ISIN),
-                        "html": page(provider.value).decode(),
+                        "html": page(provider.value, include_clock=include_clock).decode(),
                         "captured_at": datetime.now(UTC).isoformat(),
                     },
                 )
@@ -224,7 +271,7 @@ async def test_new_isin_discovery_selection_and_actual_adapter_batch(
     assert await read_bindings(c.database, c.workspace, provider) == {ISIN: "XTEST1" + ISIN}
     fields = {"bid": "0.0230", "bidsize": "100", "ask": "0.0000", "asksize": "0"}
     fields.update(
-        {"quotetime": "14:00:00"}
+        {"quotetime": "14:00:00" if include_clock else None}
         if provider == P.JPMORGAN
         else {"lastquotetimestamp": "28/09/2026 14:00:00.047"}
     )
@@ -240,6 +287,10 @@ async def test_new_isin_discovery_selection_and_actual_adapter_batch(
     )
     assert str(quote.data.bid) == "0.0230" and quote.data.ask is None
     assert quote.data.observed_at is None and quote.retrieved_at == cached.retrieved_at == NOW
+    if not include_clock:
+        assert quote.data.quote_time_text is None
+        assert quote.data.quote_time_basis == "DATE_AND_TIMEZONE_UNKNOWN"
+        assert "ISSUER_INDICATION_NOT_EXECUTABLE" in quote.warnings
     from app.features.market_data.persistence.models import WarrantQuoteObservationModel
     from app.features.market_data.service.retained_quotes import RetainedWarrantQuoteProvider
 

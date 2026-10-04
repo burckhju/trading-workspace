@@ -21,6 +21,7 @@ from app.tools.setup_jpmorgan_consent import (
     same_origin,
     terms_digest,
 )
+from tests.unit.backend.features.market_data.test_issuer_route_discovery import page as product_page
 
 TERMS = (
     "WICHTIGE HINWEISE UND NUTZUNGSBEDINGUNGEN "
@@ -158,8 +159,9 @@ async def test_missing_or_changed_confirmation_never_clicks(
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("reuse_ok", [True, False])
+@pytest.mark.parametrize("include_clock", [True, False])
 async def test_state_saved_only_after_verified_fresh_context(
-    monkeypatch: pytest.MonkeyPatch, reuse_ok: bool
+    monkeypatch: pytest.MonkeyPatch, reuse_ok: bool, include_clock: bool
 ) -> None:
     from app.tools import setup_jpmorgan_consent as tool
 
@@ -176,7 +178,9 @@ async def test_state_saved_only_after_verified_fresh_context(
         goto=AsyncMock(return_value=SimpleNamespace(status=200)),
         get_by_role=lambda *a, **kw: control,
         locator=lambda *a: control,
-        evaluate=AsyncMock(return_value="<product/>"),
+        evaluate=AsyncMock(
+            return_value=product_page(isin=ISIN, include_clock=include_clock).decode()
+        ),
     )
     state = {
         "cookies": [],
@@ -200,7 +204,6 @@ async def test_state_saved_only_after_verified_fresh_context(
     monkeypatch.setattr(tool, "inspect_form", AsyncMock(return_value={"accept_control_count": 1}))
     choices = AsyncMock()
     monkeypatch.setattr(tool, "apply_choices", choices)
-    monkeypatch.setattr(tool, "parse_product_page", lambda *a: object())
     saved = []
     monkeypatch.setattr(tool, "save_consent", lambda *a: saved.append(a))
     _, digest = terms_digest(TERMS)
