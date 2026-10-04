@@ -5,6 +5,7 @@ from enum import StrEnum
 
 class UnderlyingType(StrEnum):
     STOCK = "STOCK"
+    ETF = "ETF"
 
 
 class LifecycleStatus(StrEnum):

@@ -47,6 +47,9 @@ export function ApplicationLayout() {
             <NavLink to="/market-analyses" className={navigationLinkClass}>
               Marktanalyse
             </NavLink>
+            <NavLink to="/market-charts" className={navigationLinkClass}>
+              Diagramme
+            </NavLink>
           </nav>
         </div>
       </header>

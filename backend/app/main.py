@@ -16,6 +16,7 @@ from app.core.middleware import RequestContextMiddleware
 from app.database import DatabaseManager
 from app.features.alert.api import router as alert_router
 from app.features.analysis.api import router as analysis_router
+from app.features.analysis.api.charts import router as charts_router
 from app.features.candidate.api import router as candidate_router
 from app.features.learning.api import router as learning_router
 from app.features.market.api import reference_data_router, underlying_router
@@ -130,6 +131,7 @@ def create_application(settings: Settings | None = None) -> FastAPI:
     application.include_router(product_router)
     application.include_router(product_selection_router)
     application.include_router(analysis_router)
+    application.include_router(charts_router)
     application.include_router(candidate_router)
     application.include_router(trade_plan_router)
     application.include_router(trade_position_router)

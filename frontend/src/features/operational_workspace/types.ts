@@ -50,6 +50,7 @@ export interface OperationalPosition {
   product_isin?: string | null;
   product_wkn?: string | null;
   underlying_name?: string | null;
+  underlying_id?: string | null;
   opened_at: string;
   opened_on?: string | null;
   open_quantity: number;
