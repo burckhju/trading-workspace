@@ -2,8 +2,8 @@ from app.features.market.domain.enums import UnderlyingType
 from app.features.market_data.persistence.instruments import MarketDataInstrumentModel
 
 
-def test_ft001_underlying_universe_remains_stock_only() -> None:
-    assert list(UnderlyingType) == [UnderlyingType.STOCK]
+def test_real_securities_include_etfs_but_indices_keep_separate_identity() -> None:
+    assert list(UnderlyingType) == [UnderlyingType.STOCK, UnderlyingType.ETF]
 
 
 def test_market_data_instrument_is_identity_only() -> None:

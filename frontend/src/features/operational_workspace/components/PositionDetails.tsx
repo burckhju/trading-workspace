@@ -18,6 +18,16 @@ export function PositionDetails({ position: p }: { position: OperationalPosition
         <div>
           <dt className="text-slate-400">Basiswert</dt>
           <dd>{p.underlying_name ?? p.underlying_symbol ?? 'Nicht verfügbar'}</dd>
+          {p.underlying_id && (
+            <dd>
+              <Link
+                className="text-sky-300 underline"
+                to={`/market-charts?underlying=${p.underlying_id}`}
+              >
+                Basiswertdiagramm
+              </Link>
+            </dd>
+          )}
         </div>
         <div>
           <dt className="text-slate-400">Kaufdatum / erster Kauf</dt>

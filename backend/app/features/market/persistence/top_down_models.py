@@ -7,10 +7,12 @@ from uuid import UUID
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     Date,
     DateTime,
     ForeignKey,
     Index,
+    Integer,
     String,
     UniqueConstraint,
 )
@@ -36,6 +38,32 @@ class MarketReferenceModel(Base):
     reference_version: Mapped[str] = mapped_column(String(50), nullable=False)
     active: Mapped[bool] = mapped_column(Boolean, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class ReferenceSeriesDefinitionModel(Base):
+    """Append-only meaning confirmed for one exact provider-mapping revision."""
+
+    __tablename__ = "reference_series_definitions"
+    __table_args__ = (
+        CheckConstraint("mapping_version >= 1", name="ck_reference_series_definition_version"),
+        CheckConstraint(
+            "return_basis IN ('PRICE_INDEX', 'TOTAL_RETURN_INDEX')",
+            name="ck_reference_series_definition_basis",
+        ),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    workspace_id: Mapped[UUID] = mapped_column(ForeignKey("workspaces.id", ondelete="RESTRICT"))
+    market_reference_id: Mapped[UUID] = mapped_column(
+        ForeignKey("market_references.id", ondelete="RESTRICT"), index=True
+    )
+    mapping_id: Mapped[UUID] = mapped_column(
+        ForeignKey("provider_instrument_mappings.id", ondelete="RESTRICT")
+    )
+    mapping_version: Mapped[int] = mapped_column(Integer)
+    return_basis: Mapped[str] = mapped_column(String(30))
+    source_url: Mapped[str] = mapped_column(String(500))
+    confirmed_by: Mapped[str] = mapped_column(String(200))
+    confirmed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
 class SectorModel(Base):

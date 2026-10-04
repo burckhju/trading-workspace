@@ -57,6 +57,7 @@ class OperationalPositionResponse(BaseModel):
     product_isin: str | None = None
     product_wkn: str | None = None
     underlying_name: str | None = None
+    underlying_id: UUID | None = None
     opened_on: date | None = None
     analysis_warning: str | None = None
     quote_source: str | None = None

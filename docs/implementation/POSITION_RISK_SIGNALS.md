@@ -149,7 +149,7 @@ Active alerts are replayed into the existing idempotent notification creator, re
 an interruption between alert commit and outbox creation. Delivery remains with the
 existing durable notification service and its configured Telegram adapter.
 
-Migration `20261004_0044` is additive after `20260928_0042`: no data conversion, activation
+Migration `20261004_0044` is additive after `20261004_0043`: no data conversion, activation
 or defaults written to existing positions. The two new tables preserve configuration
 versions and evaluation inputs. Downgrade refuses when either contains history. Preserve
 that history and follow the established backup/upgrade procedure before deployment;
@@ -167,15 +167,14 @@ from a single saved success. No historical calibration or holdout performance is
 
 ### Concurrent schema coordination
 
-Rechecked main and open PRs after implementation: main remains `16e2fee`; #243 now
-contains chart code, a Market Data `TimeSeriesReader`, and migration `20261004_0043`
-after 0042. This PR therefore uses the distinct `20261004_0044` identifier. Its parent
-is the current main head 0042; it must be rechained to 0043 if #243 merges first.
-Conversely, #243 must rechain to the current main migration head if this PR merges
-first. Required up-to-date checks and an Alembic single-head check are merge gates;
-never merge both independent heads or stamp past the conflict. The only shared UI
-file is PositionDetails; preserve both the chart link and the risk detail panel.
-No unmerged chart contract is silently assumed as a dependency of this PR.
+PR #243 merged as `f580bfe9295d32336c1456f91cdf1476cacfd580` during final CI.
+This main revision is integrated here. Our distinct `20261004_0044` migration now
+follows its `20261004_0043`; Alembic has exactly one head. PositionDetails preserves
+both the chart link and risk panel. The merged Market Data `TimeSeriesReader`
+provides EOD chart data, not verified original stock/warrant time pairs; the explicit
+risk qualification and missing product-history boundaries therefore still apply.
+The original pinned baseline remains recorded above. All mandatory gates are rerun
+on the combined code before merge; no unmerged dependency is assumed.
 
 ## Validation and operator handoff
 

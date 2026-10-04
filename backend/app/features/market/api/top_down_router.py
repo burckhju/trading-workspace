@@ -4,7 +4,7 @@ from dataclasses import asdict
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, Header, HTTPException, status
 
 from app.features.market.api.dependencies import (
     get_top_down_reference_administration_service,
@@ -12,6 +12,7 @@ from app.features.market.api.dependencies import (
 from app.features.market.api.top_down_dtos import (
     ActiveStateRequest,
     AssignmentResponse,
+    ConfirmSeriesBasisRequest,
     CreateSectorReferenceRequest,
     CreateSectorRequest,
     MarketReferenceResponse,
@@ -23,6 +24,7 @@ from app.features.market.api.top_down_dtos import (
     UnderlyingBenchmarkAssignmentRequest,
     UnderlyingSectorAssignmentRequest,
 )
+from app.features.market.service.sector_proposals import SECTOR_PROPOSALS, SectorProposal
 from app.features.market.service.top_down_administration import (
     TopDownReferenceAdministrationService,
 )
@@ -30,6 +32,28 @@ from app.providers.eodhd.reference_catalog import TOP_DOWN_V1_EODHD_SUGGESTIONS
 
 router = APIRouter(prefix="/api/v1/top-down-reference-data", tags=["top-down-reference-data"])
 WORKSPACE_ID = UUID("00000000-0000-4000-8000-000000000001")
+
+
+@router.post("/market-references/{reference_id}/series-basis", status_code=201)
+async def confirm_series_basis(
+    reference_id: UUID,
+    body: ConfirmSeriesBasisRequest,
+    service: Annotated[
+        TopDownReferenceAdministrationService,
+        Depends(get_top_down_reference_administration_service),
+    ],
+    x_actor_name: Annotated[str, Header(max_length=200)] = "Trading Workspace User",
+) -> dict[str, str]:
+    try:
+        result = await service.confirm_series_basis(
+            workspace_id=WORKSPACE_ID,
+            market_reference_id=reference_id,
+            actor=x_actor_name,
+            **body.model_dump(exclude={"confirmed"}),
+        )
+    except ValueError as error:
+        raise _http_error(error) from error
+    return {"id": str(result.id), "return_basis": result.return_basis}
 
 
 def _http_error(error: ValueError) -> HTTPException:
@@ -40,6 +64,11 @@ def _http_error(error: ValueError) -> HTTPException:
         else status.HTTP_422_UNPROCESSABLE_ENTITY
     )
     return HTTPException(status_code=code, detail=message)
+
+
+@router.get("/sector-proposals", response_model=list[SectorProposal])
+async def sector_proposals() -> list[SectorProposal]:
+    return list(SECTOR_PROPOSALS)
 
 
 @router.get(

@@ -170,3 +170,13 @@ Der Stand des S5.17-Reviews umfasst 230 erfolgreiche Backend-Tests einschließli
 - bestehende Playwright-/E2E-Gates;
 - generischer Watchlist-Vollausbau, falls FT-005 als gesamtes Feature statt Candidate Qualification V1 abgeschlossen werden soll;
 - sauberer Git-/PR-/Branch-Protection-Releaseprozess im echten Repository.
+
+
+## Ergänzung 2026-10-04: integrierte EOD-Diagramme
+
+Der Chart-Arbeitszweig ergänzt echte ETF-Stammdaten und einen rein lesenden
+Markt-/Sektor-/Aktienvergleich. Indexreferenzen bleiben ohne synthetische Listings.
+Frühere STOCK-only-Aussagen gelten damit nicht mehr für die Stammdatenverwaltung.
+Analyse-Runs, Candidate-Regeln und fachliche Freigaben bleiben unverändert.
+Contracts, Preis-/Zeitsemantik, Einrichtung und Prüfstand:
+[MARKET_CHARTS](../implementation/MARKET_CHARTS.md).

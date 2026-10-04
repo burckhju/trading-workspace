@@ -45,3 +45,13 @@ The service can create a missing identity for a newly created owner after valida
 ## Explicit non-goals
 
 D01-A does not make MarketDataInstrument the source of truth for ProviderInstrumentMapping, DailyPrice, MarketAnalysis, FT-006 model provenance, or readiness. Those consumer changes require later explicit D01 slices.
+
+
+## Ergänzung 2026-10-04: integrierte EOD-Diagramme
+
+Der Chart-Arbeitszweig ergänzt echte ETF-Stammdaten und einen rein lesenden
+Markt-/Sektor-/Aktienvergleich. Indexreferenzen bleiben ohne synthetische Listings.
+Frühere STOCK-only-Aussagen gelten damit nicht mehr für die Stammdatenverwaltung.
+Analyse-Runs, Candidate-Regeln und fachliche Freigaben bleiben unverändert.
+Contracts, Preis-/Zeitsemantik, Einrichtung und Prüfstand:
+[MARKET_CHARTS](../implementation/MARKET_CHARTS.md).
