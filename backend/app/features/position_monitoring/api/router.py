@@ -17,6 +17,7 @@ from app.features.position_monitoring.api.dtos import (
     StuttgartDelayedSourceHealthResponse,
     VontobelMarketsSourceHealthResponse,
 )
+from app.features.position_monitoring.api.risk import router as risk_router
 from app.features.position_monitoring.service.alert_projection import (
     PositionAlertProjectionService,
 )
@@ -408,3 +409,6 @@ async def get_trade_product_valuation(
             for attempt in value.source_attempts
         ),
     )
+
+
+router.include_router(risk_router)

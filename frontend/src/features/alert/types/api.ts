@@ -1,4 +1,8 @@
-export type AlertType = 'STOP_REACHED' | 'TARGET_REACHED';
+export type AlertType =
+  | 'STOP_REACHED'
+  | 'TARGET_REACHED'
+  | 'RISK_TREND_CHANGED'
+  | 'RISK_VOLATILITY_HIGH';
 export type AlertSeverity = 'WARNING' | 'INFO';
 export type AlertStatus = 'OPEN' | 'RESOLVED' | 'INVALIDATED';
 export type NotificationChannel = 'TELEGRAM';

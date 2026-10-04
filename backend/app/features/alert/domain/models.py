@@ -10,6 +10,8 @@ from uuid import UUID
 class AlertType(StrEnum):
     STOP_REACHED = "STOP_REACHED"
     TARGET_REACHED = "TARGET_REACHED"
+    RISK_TREND_CHANGED = "RISK_TREND_CHANGED"
+    RISK_VOLATILITY_HIGH = "RISK_VOLATILITY_HIGH"
 
 
 class AlertSeverity(StrEnum):

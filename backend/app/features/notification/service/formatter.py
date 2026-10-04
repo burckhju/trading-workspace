@@ -16,7 +16,24 @@ def format_position_alert(
     warrant_isin: str | None = None,
     warrant_wkn: str | None = None,
 ) -> str:
-    title = "Stop erreicht" if alert.alert_type is AlertType.STOP_REACHED else "Target erreicht"
+    title = {
+        AlertType.STOP_REACHED: "Stop erreicht",
+        AlertType.TARGET_REACHED: "Target erreicht",
+        AlertType.RISK_TREND_CHANGED: "Trendverschlechterung (indikativ)",
+        AlertType.RISK_VOLATILITY_HIGH: "Erhöhte realisierte Volatilität",
+    }[alert.alert_type]
+    if alert.alert_type in {AlertType.RISK_TREND_CHANGED, AlertType.RISK_VOLATILITY_HIGH}:
+        context = alert.price_context or {}
+        return (
+            f"Position Alert\nOptionsschein: {_display_text(warrant_name)}\n"
+            f"WKN: {_display_text(warrant_wkn)} | ISIN: {_display_text(warrant_isin)}\n"
+            f"{symbol}\n{title}\nMesswert: {alert.observed_value * 100}%\n"
+            f"Regelparameter: {alert.threshold_value * 100}%\n"
+            f"Regel: {context.get('policy_version')} / "
+            f"Revision {context.get('configuration_revision')}\n"
+            f"Handelstag: {context.get('trading_date')}\nQuelle: {context.get('provider')}\n"
+            f"Grund: {alert.reason}\nBeschreibender Risikohinweis. Keine Orderfreigabe."
+        )
     context = alert.price_context or {}
     if context.get("evaluation_mode") == "INDICATIVE_ISSUER":
         title += " (indikative Prüfung)"
