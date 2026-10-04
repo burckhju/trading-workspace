@@ -228,6 +228,14 @@ async def test_preview_configuration_snapshot_alert_replay_recovery_and_versioni
         recovered, _ = await service.evaluate(**kwargs, now=inputs.now())
     assert recovered.assessment.transition == "CROSSED_ABOVE"
     assert session.sync.get(AlertModel, trend.alert.id).status == "RESOLVED"
+    # A new confirmed deterioration after recovery is a new alert, not a replay.
+    for _ in range(2):
+        inputs.append(80)
+        _, new_alerts = await service.evaluate(**kwargs, now=inputs.now())
+    new_trend = next(
+        item for item in new_alerts if item.alert.alert_type.value == "RISK_TREND_CHANGED"
+    )
+    assert new_trend.alert.id != trend.alert.id
     history = await service.history(**kwargs)
     assert any(
         v.snapshot_id == crossed.snapshot_id and v.assessment.state.trend_warning for v in history
@@ -257,6 +265,8 @@ async def test_preview_configuration_snapshot_alert_replay_recovery_and_versioni
         and fresh.assessment.transition == "INITIALIZED"
         and not alerts
     )
+    assert session.sync.get(AlertModel, new_trend.alert.id).status == "INVALIDATED"
+    assert session.sync.get(AlertModel, trend.alert.id).status == "RESOLVED"
     assert session.sync.get(PositionModel, ref.position_id).open_quantity == 10
     assert (
         await service.preview(workspace_id=uuid4(), trade_id=ref.trade_id, now=inputs.now()) is None

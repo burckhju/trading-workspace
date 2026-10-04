@@ -1,13 +1,13 @@
 """Append-only risk configuration and qualified evaluation snapshots.
 
-Revision ID: 20261004_0043
+Revision ID: 20261004_0044
 Revises: 20260928_0042
 """
 
 import sqlalchemy as sa
 from alembic import op
 
-revision = "20261004_0043"
+revision = "20261004_0044"
 down_revision = "20260928_0042"
 branch_labels = None
 depends_on = None

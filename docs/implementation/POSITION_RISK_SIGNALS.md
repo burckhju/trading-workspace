@@ -1,6 +1,6 @@
 # Position risk and trend signals
 
-Status: implementation in progress; 2026-10-04. No production activation or live acceptance.
+Status: implemented; exact-head integration evidence in PR #244; 2026-10-04. No production activation or live acceptance.
 User mandate: attached independent risk/trend specification dated 2026-10-04.
 Baseline: `16e2feec398658c82fa8773fa29feaa1c8fbbba8` (main and v1.4.5, verified).
 No AGENTS.md or additional agent instructions were found in the checkout.
@@ -9,8 +9,8 @@ Frontend / quality and End-to-End / smoke; no bypass. Baseline workflows are gre
 
 ## Coordination and document reconciliation
 
-Open work checked before implementation: #243 (market/sector/stock charts; specification
-only at 27ff3dd), #205 (product history proposal), #187/#207 (different trading rules),
+Open work checked before implementation: #243 (market/sector/stock charts; initial specification
+at 27ff3dd; implementation now visible at 4187d33), #205 (product history proposal), #187/#207 (different trading rules),
 #225/#235 (scheduler), #220/#204/#197/#90. None is silently treated as delivered.
 This work adds no chart platform, changes no scheduler lanes and duplicates no baseline
 trading rules. main and open PRs must be checked again before structural integration/merge.
@@ -110,7 +110,7 @@ no unverified product condition is inferred from a name or from OIC examples.
 
 ## Handoff
 
-Current stage: implementation and controlled domain/SQL/API tests complete; full CI and diff review in progress. PR #244.
+Current stage: implementation, controlled domain/SQL/API tests and diff review complete. Final exact-head CI and merge evidence: PR #244.
 No deployment, data-provider activation, real notification, release-number reservation,
 production threshold activation, historical validation or loss-reduction claim.
 
@@ -144,7 +144,7 @@ Active alerts are replayed into the existing idempotent notification creator, re
 an interruption between alert commit and outbox creation. Delivery remains with the
 existing durable notification service and its configured Telegram adapter.
 
-Migration `20261004_0043` is additive after `20260928_0042`: no data conversion, activation
+Migration `20261004_0044` is additive after `20260928_0042`: no data conversion, activation
 or defaults written to existing positions. The two new tables preserve configuration
 versions and evaluation inputs. Downgrade refuses when either contains history. Preserve
 that history and follow the established backup/upgrade procedure before deployment;
@@ -158,3 +158,57 @@ append-only history extension above before a real synchronous product comparison
 The kernel and its API view can evaluate suitable controlled owner inputs today; production
 EOD and one saved issuer quote cannot supply them. Sudden quote changes cannot be tested
 from a single saved success. No historical calibration or holdout performance is claimed.
+
+
+### Concurrent schema coordination
+
+Rechecked main and open PRs after implementation: main remains `16e2fee`; #243 now
+contains chart code, a Market Data `TimeSeriesReader`, and migration `20261004_0043`
+after 0042. This PR therefore uses the distinct `20261004_0044` identifier. Its parent
+is the current main head 0042; it must be rechained to 0043 if #243 merges first.
+Conversely, #243 must rechain to the current main migration head if this PR merges
+first. Required up-to-date checks and an Alembic single-head check are merge gates;
+never merge both independent heads or stamp past the conflict. The only shared UI
+file is PositionDetails; preserve both the chart link and the risk detail panel.
+No unmerged chart contract is silently assumed as a dependency of this PR.
+
+## Validation and operator handoff
+
+Checkpoint `bbb96f66db8f9e0e8226ae6e7c127d95fb91971a`: GitHub Backend quality
+passed 2,341 tests with 85.40% coverage; Frontend quality and production build,
+43 End-to-End tests, restrictive-umask image, issuer sandbox and real disposable
+legacy-update qualification passed. Subsequent changes add defensive cache-payload
+qualification, repeat-warning/downgrade tests, and the distinct 0044 migration name.
+Final exact-head checks and merge evidence are recorded in PR #244; the thresholds
+and required gates are unchanged. Local configured Backend unit run passed 2,202
+checks; the full local script could not qualify PostgreSQL in this execution environment.
+Frontend component assertions passed locally but the local worker did not exit;
+the completed GitHub frontend gate is the reliable full-run evidence.
+
+No host was accessed. There is no new release/tag and no proven JMBbot deployment.
+Risk warnings remain disabled until explicitly confirmed per position. Existing
+scheduler/Telegram settings are preserved; no real message or consent was sent.
+The current migrated deployment's private directory and release root are unknown.
+Consequently no host update is prescribed against an assumed base-only Compose chain.
+Use the reviewed installation path in [Linux deployment](../technical/LINUX_DEPLOYMENT.md)
+and [legacy migration](LEGACY_ISSUER_DEPLOYMENT_MIGRATION.md), preserving actual
+configuration, database/consent volumes and the Stuttgart bind before an approved update.
+
+For an **already migrated** deployment, these existing, read-only commands run from
+its qualified tool/release checkout. Enter the real existing private state directory;
+this does not prepare/apply a deployment or change an activation:
+
+```bash
+read -r -p 'Existing private deployment state directory: ' TW_DEPLOY_STATE
+bash scripts/migrate-legacy-issuer.sh compose "$TW_DEPLOY_STATE" ps </dev/null
+bash scripts/migrate-legacy-issuer.sh compose "$TW_DEPLOY_STATE" exec -T backend \
+  python -m alembic current </dev/null
+bash scripts/migrate-legacy-issuer.sh compose "$TW_DEPLOY_STATE" exec -T backend \
+  python -c 'import urllib.request; print(urllib.request.urlopen("http://127.0.0.1:8000/health/ready", timeout=10).status)' </dev/null
+```
+
+After a separately approved upgrade, verify one Alembic head/current revision, runtime
+health and the risk detail UI of an existing controlled position. The initial configuration
+must be disabled; missing product history/time evidence must remain explicit. Review the
+parameter preview before any activation. Do not create fictitious trades on the real depot.
+Retain the snapshot/configuration history; downgrade now deliberately refuses to erase it.

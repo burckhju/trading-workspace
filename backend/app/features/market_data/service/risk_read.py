@@ -58,7 +58,10 @@ class RiskMarketDataReader:
             or selection.provider is None
         ):
             return SavedQuoteEvidence("NO_CONFIRMED_SAVED_QUOTE_SOURCE")
-        provider = MarketDataProvider(selection.provider)
+        try:
+            provider = MarketDataProvider(selection.provider)
+        except ValueError:
+            return SavedQuoteEvidence("SAVED_QUOTE_PROVIDER_UNSUPPORTED")
         identity = await read_quote_identity(
             self._session,
             WarrantQuoteRequest(
@@ -77,9 +80,12 @@ class RiskMarketDataReader:
         )
         if record is None or record.identity_key != identity.key:
             return SavedQuoteEvidence("NO_SAVED_QUOTE_FOR_CURRENT_ROUTE")
-        result = TypeAdapter(MarketDataResult[WarrantQuoteSnapshot | None]).validate_python(
-            record.payload
-        )
+        try:
+            result = TypeAdapter(MarketDataResult[WarrantQuoteSnapshot | None]).validate_python(
+                record.payload
+            )
+        except ValueError:
+            return SavedQuoteEvidence("SAVED_QUOTE_PAYLOAD_INVALID")
         if result.quality_status is not QualityStatus.VALID or result.data is None:
             return SavedQuoteEvidence("SAVED_QUOTE_QUALITY_INVALID")
         if (
