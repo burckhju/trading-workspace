@@ -4,10 +4,11 @@ from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID
 
-from app.features.analysis.domain.product_comparison import ProductComparison
+from app.features.analysis.domain.product_comparison import ProductComparison, SynchronizedPricePair
 from app.features.analysis.domain.risk_analytics import RiskMetrics
 from app.features.market.service.risk_reference import RiskListingReference
 from app.features.market_data.domain.models import DailyPrice
+from app.features.market_data.domain.risk_evidence import SavedQuoteEvidence
 from app.features.position_monitoring.domain.quote_quality import QuoteQuality
 from app.features.position_monitoring.domain.risk_signals import RiskAssessment, RiskParameters
 from app.features.product.service.risk_reference import RiskProductReference
@@ -40,5 +41,7 @@ class PositionRiskView:
     input_prices: tuple[DailyPrice, ...]
     previous_snapshot_id: UUID | None = None
     snapshot_id: UUID | None = None
+    quote_evidence: SavedQuoteEvidence | None = None
+    comparison_inputs: tuple[SynchronizedPricePair, ...] = ()
     mode: str = "PREVIEW"
     execution_usable: bool = False

@@ -137,7 +137,12 @@ with #243. GET is available in expanded position details, configuration in Trade
 An enabled existing monitoring scheduler also evaluates risk from a bounded 61-row
 persisted daily history per position, serially, without additional provider traffic.
 It records preview state while disabled. A position-row lock serializes evaluations
-and configuration changes. Exact input repeats reuse a snapshot. Parameter/terms/source
+and configuration changes. Identical daily values reuse a snapshot even when re-received; the last-success quote
+is display context and does not make a new daily signal observation. GET shows current
+quote context; stored evaluations preserve the context at their original evaluation.
+This risk history is explicitly not an independent product quote collector. Verified
+synchronous pairs, if supplied by a future owner reader, are fingerprinted and stored
+in full; original saved-quote evidence is preserved on each actual signal snapshot. Parameter/terms/source
 changes start a new baseline; old open risk alerts are invalidated (not resolved as an
 improvement). No risk alerts or notification records are created while disabled.
 Active alerts are replayed into the existing idempotent notification creator, recovering

@@ -190,6 +190,15 @@ async def test_preview_configuration_snapshot_alert_replay_recovery_and_versioni
     assert baseline.assessment.transition == "INITIALIZED" and not alerts
     duplicate, _ = await service.evaluate(**kwargs, now=inputs.now() + timedelta(minutes=1))
     assert duplicate.snapshot_id == baseline.snapshot_id
+    inputs.quote = SavedQuoteEvidence("DISPLAY_CONTEXT_CHANGED")
+    inputs.values = [
+        replace(p, retrieved_at=p.retrieved_at + timedelta(minutes=1)) for p in inputs.values
+    ]
+    refreshed, _ = await service.evaluate(**kwargs, now=inputs.now())
+    assert refreshed.snapshot_id == baseline.snapshot_id
+    current_preview = await service.preview(**kwargs, now=inputs.now())
+    assert current_preview.quote_evidence.reason == "DISPLAY_CONTEXT_CHANGED"
+    assert refreshed.quote_evidence.reason == "NO_CONFIRMED_SAVED_QUOTE_SOURCE"
     for _ in range(2):
         inputs.append(80)
         crossed, alerts = await PositionRiskService(session, inputs).evaluate(

@@ -1,6 +1,7 @@
 """Qualified risk snapshots and explicitly confirmed, append-only activation."""
 
 import hashlib
+import json
 from dataclasses import replace
 from datetime import datetime
 from uuid import UUID, uuid4
@@ -209,8 +210,14 @@ class PositionRiskService:
             quote = replace(quote, quote=None, reason="POSITION_QUOTE_IDENTITY_MISMATCH")
         # Stable input identity excludes evaluation clock/state; repeated polls do not
         # append duplicate snapshots. A new quality failure is nevertheless auditable.
+        canonical_inputs = INPUTS.dump_python(inputs, mode="json")
+        # A last-success quote is display context, not a product-history collector.
+        # Re-receiving identical daily values also is not a new signal observation.
+        canonical_inputs["quote"] = None
+        for price in canonical_inputs["prices"]:
+            price.pop("retrieved_at")
         fingerprint = hashlib.sha256(
-            INPUTS.dump_json(inputs)
+            json.dumps(canonical_inputs, sort_keys=True, separators=(",", ":")).encode()
             + RISK_PARAMETERS.dump_json(config.parameters)
             + str((config.revision, basis, metrics.status, metrics.reason)).encode()
         ).hexdigest()
@@ -229,4 +236,6 @@ class PositionRiskService:
             basis,
             inputs.prices,
             previous_snapshot_id=last.snapshot_id if last else None,
+            quote_evidence=quote,
+            comparison_inputs=inputs.synchronized_pairs,
         )
