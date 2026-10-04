@@ -292,7 +292,7 @@ export function MarketChartsPage() {
                   'Historie',
                   'Status / Aktion',
                 ].map((title) => (
-                  <th key={title} className="p-2">
+                  <th scope="col" key={title} className="p-2">
                     {title}
                   </th>
                 ))}

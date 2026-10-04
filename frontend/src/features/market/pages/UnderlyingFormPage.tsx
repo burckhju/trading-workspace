@@ -31,6 +31,13 @@ export function UnderlyingFormPage() {
   const providerSource = !editing ? searchParams.get('source') : null;
   const providerExchange = !editing ? searchParams.get('exchange')?.trim().toUpperCase() : null;
   const providerTicker = !editing ? searchParams.get('ticker')?.trim().toUpperCase() : null;
+  const requiredMic = !editing ? searchParams.get('mic')?.trim().toUpperCase() : null;
+  const requiredCurrency = requiredMic ? searchParams.get('currency')?.trim().toUpperCase() : null;
+  const proposalMismatch = Boolean(
+    requiredMic &&
+      (venues.find((venue) => venue.id === venueId)?.mic !== requiredMic ||
+        (requiredCurrency && currency !== requiredCurrency)),
+  );
 
   useEffect(() => {
     void Promise.all([
@@ -63,15 +70,15 @@ export function UnderlyingFormPage() {
         const suggestedIsin = searchParams.get('isin')?.trim().toUpperCase();
         const suggestedTicker = searchParams.get('ticker')?.trim().toUpperCase();
         const suggestedCurrency = searchParams.get('currency')?.trim().toUpperCase();
-        const suggestedExchange = searchParams.get('exchange')?.trim().toUpperCase();
+        const suggestedMic = searchParams.get('mic')?.trim().toUpperCase();
         if (suggestedName) setName(suggestedName);
         if (suggestedIsin) setIsin(suggestedIsin);
         if (suggestedTicker) setTicker(suggestedTicker);
         if (suggestedCurrency && c.items.some((item) => item.code === suggestedCurrency)) {
           setCurrency(suggestedCurrency);
         }
-        if (suggestedExchange) {
-          const exactVenue = v.items.find((item) => item.mic.toUpperCase() === suggestedExchange);
+        if (suggestedMic) {
+          const exactVenue = v.items.find((item) => item.mic.toUpperCase() === suggestedMic);
           if (exactVenue) setVenueId(exactVenue.id);
         }
       })
@@ -81,6 +88,7 @@ export function UnderlyingFormPage() {
 
   async function submit(event: FormEvent) {
     event.preventDefault();
+    if (proposalMismatch) return;
     setSaving(true);
     setError(null);
     try {
@@ -149,6 +157,25 @@ export function UnderlyingFormPage() {
         </div>
       )}
       {error !== null && <ErrorNotice error={error} />}
+      {requiredMic && (
+        <p role={proposalMismatch ? 'alert' : undefined} className="text-sm text-amber-200">
+          Dieser Listing-Vorschlag verlangt {requiredMic} / {requiredCurrency ?? 'geprüfte Währung'}
+          .
+          {proposalMismatch &&
+            ' Der passende aktive Handelsplatz bzw. die Währung fehlt in der Auswahl. Bitte zuerst administrieren und die Seite neu laden oder die passende Auswahl treffen.'}{' '}
+          <Link to="/trading-venues-admin" className="underline">
+            Handelsplätze administrieren
+          </Link>{' '}
+          ·{' '}
+          <Link to="/currencies-admin" className="underline">
+            Währungen administrieren
+          </Link>{' '}
+          ·{' '}
+          <Link to="/underlyings/new" className="underline">
+            Neuen Basiswert ohne Listing-Vorschlag anlegen
+          </Link>
+        </p>
+      )}
       <form
         onSubmit={(event) => {
           void submit(event);
@@ -275,7 +302,7 @@ export function UnderlyingFormPage() {
             Abbrechen
           </Link>
           <button
-            disabled={saving}
+            disabled={saving || proposalMismatch}
             className="rounded-lg bg-sky-500 px-5 py-2 font-semibold text-slate-950 disabled:opacity-50"
           >
             {saving ? 'Speichern …' : 'Speichern'}

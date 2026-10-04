@@ -1,6 +1,7 @@
 # Markt-, Sektor- und Aktiendiagramme
 
-Datum: 2026-10-04. Status: Implementierung; keine fachliche Liveabnahme.
+Datum: 2026-10-04. Status: implementiert; finale Gates und Merge siehe PR #243.
+Keine fachliche Liveabnahme oder Bereitstellung.
 Auftrag: integrierte, rein lesende Diagramme und nachvollziehbare Vergleiche.
 Ausgangsbasis: `16e2feec398658c82fa8773fa29feaa1c8fbbba8` (`main`, `v1.4.5`).
 
@@ -42,8 +43,9 @@ Ein Abruffehler schaltet keine Quelle um.
 
 Vergleich: maximal 4 Serien, maximal 10.000 EOD-Beobachtungen je Serie, keine
 stille Reduktion. ALL bezeichnet vorhandene Historie innerhalb der offengelegten
-Antwortgrenze. Gemeinsamer Start ist der erste gemeinsame, gültige, positive
-Beobachtungstag im gewählten Intervall. Fehlende Serien verhindern einen
+Antwortgrenze. Gemeinsamer Start ist der erste gemeinsam beobachtete Tag im
+gewählten Intervall; ein unbrauchbarer Startwert sperrt den Vergleich, ohne auf
+einen späteren Tag auszuweichen. Fehlende Serien verhindern einen
 scheinbar vollständigen Vergleich. Kein Forward-Fill, keine Interpolation,
 keine FX-Umrechnung. CLOSE bleibt unbereinigt; ADJUSTED_CLOSE fällt niemals auf
 CLOSE zurück. Unpassende Renditegrundlagen werden erklärt statt vermischt.
@@ -76,10 +78,14 @@ Keine Candlesticks oder geglättete Linien über unbelegte Intervalle.
 
 ## Übergabestand
 
-Pflichtdokumente und D01-Korrekturen geprüft; sauberer eigener Branch angelegt.
-GitHub-Basis verifiziert. Providerzugangsrechte und tatsächliche Historie auf
-JMBbot sind noch nicht belegt. Kein Deployment erfolgt. Umsetzung und Prüfungen
-werden hier mit konkreten Nachweisen fortgeschrieben.
+Implementiert auf `feat/market-sector-stock-charts`,
+[PR #243](https://github.com/burckhju/trading-workspace/pull/243).
+Marktserie, dynamische gesamte Sektormatrix, Aktien-/Positions-Drill-down,
+Vergleich und bestätigte Einrichtung sind vorhanden. Die PostgreSQL-Abnahme nutzt
+elf synthetische Sektoren, zwei ETF-Zuordnungen, eine Aktie und einen direkten
+Index; neun absichtliche Einrichtungslücken bleiben sichtbar. Diese Fixtures
+werden nie als Produktionsdaten ausgeliefert. Providerzugangsrechte, vorhandene
+Zuordnungen und tatsächliche Historie auf JMBbot sind nicht belegt.
 
 ## Implementierter Arbeitsstand und wiederverwendbare API
 
@@ -117,6 +123,14 @@ Bei fremder Providerherkunft wird keine Bereinigungssemantik angenommen.
 Verschiedene lokale Währungen werden ausdrücklich ohne FX verglichen; wechselnde
 Währung innerhalb einer Serie ist ein Datenfehler. Vorhandene Preise können auch
 bei deaktiviertem Mapping angezeigt werden, mit sichtbarem Hinweis.
+
+Provenienzgrenze der vorhandenen DailyPrice-Persistenz: je Zeile sind MDI,
+Provider, Symbol, Währung und Empfangs-/Quellenzeit gespeichert, jedoch keine
+historische Provider-Exchange- oder Mappingrevision. `identity.mapping_*` und
+`provider_identity` beschreiben den aktuellen Verwaltungsstand, keinen
+nachträglich erfundenen Importnachweis. Symbol-/Providerkonflikte sperren die
+betroffenen Werte. Nach einer fachlichen Mappingkorrektur müssen betroffene
+Historien über den kontrollierten Import geprüft/erneuert werden.
 
 ## Einrichtung und vollständige Sektorbelege
 
@@ -160,6 +174,11 @@ Fehler rollen bereits erfolgreich bestätigte andere Schritte nicht zurück.
 Jahre pro Anfrage; der Status zeigt laufenden Schritt, Fehler oder Importzahlen.
 Indexreferenzen benötigen kein ETF-Listing. Ihre Provideridentität wird direkt
 administriert und die belegte Preis-/Total-Return-Grundlage separat bestätigt.
+ETF-Vorbelegungen binden MIC und Währung explizit; fehlt der passende aktive
+Handelsplatz oder die Währung, blockiert das Formular statt den ersten Eintrag
+zu übernehmen. Der vorhandene Handelsplatzabgleich wird nach technischer
+Mappingvalidierung angezeigt; mehrdeutige Provider-Exchange-Codes sind kein
+Beweis für eine genaue Notierung.
 
 Migration `20261004_0043` folgt `20260928_0042`: append-only
 `reference_series_definitions` mit Quelle, Akteur und exakter Mappingrevision;
@@ -180,7 +199,10 @@ paginiert zugängliche Datentabelle ergänzen sich. Quellen:
 [Installation](https://recharts.github.io/en-US/guide/installation/).
 `npm audit --omit=dev` vom 04.10.2026 meldet keine neue Chart-Abhängigkeit;
 die zwei vorhandenen High-Pakete sind react-router/react-router-dom 7.6.0.
-Kein pauschales Abhängigkeitsupgrade im Chart-PR. Bundle-Nachweis folgt nach Build.
+Kein pauschales Abhängigkeitsupgrade im Chart-PR. Produktionsbuild: Haupteinstieg
+633,42 kB / 170,19 kB gzip (Basis: 629,46 / 168,73 kB); separat geladene
+Diagrammroute 382,24 / 113,26 kB, Einrichtung 14,04 / 4,82 kB. Die schon zuvor
+vorhandene Vite-Warnung zum Haupteinstieg über 500 kB bleibt bestehen.
 
 Lokale Python-3.12-Unit-Suite: 2.188 bestanden; anschließend elf weitere gezielte
 Zuordnungs-/Quellen-Tests bestanden. Der vollständige Backend-Einstieg wurde
@@ -189,7 +211,57 @@ Chromium-Ausführung endet vor Testbeginn mit SIGTRAP; Browser-/Container- und
 PostgreSQL-Nachweise werden auf dem tatsächlichen PR-Code in der CI benötigt.
 Diese Einschränkungen sind keine bestandenen Gates. Keine Schwelle wurde gesenkt.
 
-Erneuter GitHub-Abgleich: main weiterhin `16e2fee`; neuer Draft #244 besitzt
-Risiko-/Trendsignale und verweist ausdrücklich auf #243 als Chart-Eigentümer.
-Dieses Feature ändert keine Risk-Contracts. Version/Tags bleiben bis zu einem
-koordinierten Release unverändert. CI, Diff-Review und Übergabe werden ergänzt.
+CI auf `4187d33c5d0975324debb22107c18882350f206d`: 2.335 Backend-Tests,
+85,48 % Coverage; Ruff, Black, mypy, PostgreSQL-Migration, restriktive Image-Rechte
+und Renderer-/Legacy-Migrations-/Compose-Sandbox-Prüfung bestanden. Erste
+Frontend-Runde: 403/405 bestanden (zwei ältere Erwartungen an Navigation und
+STOCK-Payload); E2E: 43/44 bestanden (neue Tabellenüberschriften benötigten
+explizites `scope="col"` für Chromium). Folgeänderungen beheben diese Befunde,
+prüfen die exakte ETF-Vorbelegung und hängen Desktop-/Mobilbilder zur visuellen
+Kontrolle an. Finale unveränderte Gates und Commit sind im PR nachgewiesen.
+
+Erneuter GitHub-Abgleich: main weiterhin `16e2fee`; Draft #244 besitzt
+Risiko-/Trendsignale. Dessen Migration verwendet derzeit ebenfalls Revision 0043
+ab 0042; **vor dem zweiten Merge ist eine Neuverkettung samt vollständiger CI
+erforderlich**. Gemeinsame Berührungen sind Positions-Readmodel und Detailansicht.
+Dieses Feature ändert keine Risk-Contracts. Version und Tag bleiben 1.4.5;
+der bestehende Tag wird nicht verschoben. Die neuen Funktionen gehören erst zu
+einem später koordinierten Release oder dem qualifizierten Merge-Commit.
+
+## Betreiberübergabe ohne Serverzugriff
+
+Keine Server-, Provider-, Consent- oder Telegram-Aktivierung wurde ausgeführt.
+Auf einem bereits migrierten Vier-Service-Stack gilt der aktuelle Abschnitt
+[Update an already migrated four-service deployment](../technical/LINUX_DEPLOYMENT.md#update-an-already-migrated-four-service-deployment-145).
+Vor einer Bereitstellung muss der Betreiber den tatsächlich qualifizierten
+Merge-Commit aus PR #243 und seine aktuelle Topologie prüfen. `v1.4.5` enthält
+diese Diagramme nicht. Mit diesem geprüften Commit kann ein neuer, bislang
+nicht existierender Arbeitsbaum vorbereitet werden (lokale Eingabe statt
+erfundener SHA oder privater Zustandsdatei):
+
+```bash
+read -r -p 'Qualifizierter Merge-Commit aus PR #243: ' chart_commit
+git -C "$HOME/Boerse/trading-workspace" fetch origin main </dev/null
+git -C "$HOME/Boerse/trading-workspace" show --no-patch --format=fuller "$chart_commit"
+chart_release="$HOME/Boerse/trading-workspace-charts-${chart_commit:0:12}"
+chart_state="$HOME/Boerse/trading-workspace-deploy-charts-${chart_commit:0:12}"
+git -C "$HOME/Boerse/trading-workspace" worktree add --detach "$chart_release" "$chart_commit" </dev/null
+bash "$chart_release/scripts/migrate-legacy-issuer.sh" prepare \
+  "$HOME/Boerse/trading-workspace" "$chart_state" </dev/null
+```
+
+Nur nach erfolgreicher Prüfung dieser Vorbereitung im Wartungsfenster:
+
+```bash
+bash "$chart_release/scripts/migrate-legacy-issuer.sh" apply "$chart_state" </dev/null
+bash "$chart_release/scripts/migrate-legacy-issuer.sh" compose "$chart_state" ps
+bash "$chart_release/scripts/migrate-legacy-issuer.sh" compose "$chart_state" \
+  exec -T backend python -m app.tools.monitoring_resume preflight
+```
+
+Die Befehle setzen die im Runbook dokumentierte Quellinstallation voraus; bei
+abweichender Topologie zuerst den vorhandenen Erhaltungsnachweis klären.
+Alte Release-/Zustandsverzeichnisse bleiben erhalten. Kein ungeprüfter Basisstart,
+kein Volume-Löschen, kein DB-Stamp und kein automatisches Downgrade. Anschließend
+im UI Zuordnungen/Quellen prüfen, einzelne begrenzte Importe bestätigen und die
+Abdeckungsmatrix sowie reale EOD-Daten abnehmen. CI belegt diesen Livezustand nicht.

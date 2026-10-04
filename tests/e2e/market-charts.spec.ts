@@ -94,9 +94,9 @@ test("market to sectors and stock: backend values, keyboard tooltip, legend and 
   ).toBeVisible();
   expect(requests.seriesCalls).toHaveLength(before);
   expect(requests.writes).toEqual([]);
-  await page.screenshot({
-    path: testInfo.outputPath("chart-desktop.png"),
-    fullPage: true,
+  await testInfo.attach("chart-desktop", {
+    body: await page.screenshot({ fullPage: true }),
+    contentType: "image/png",
   });
   await page.goto("/market-charts?underlying=stock&end=2026-10-04");
   await page
@@ -119,8 +119,8 @@ test("mobile chart fits the page; tables scroll within their regions", async ({
     () => document.documentElement.scrollWidth > window.innerWidth,
   );
   expect(overflow).toBe(false);
-  await page.screenshot({
-    path: testInfo.outputPath("chart-mobile.png"),
-    fullPage: true,
+  await testInfo.attach("chart-mobile", {
+    body: await page.screenshot({ fullPage: true }),
+    contentType: "image/png",
   });
 });

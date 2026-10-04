@@ -166,6 +166,7 @@ export function TimeSeriesChart({ result }: { result: ChartComparison }) {
               <XAxis
                 dataKey="day"
                 type="number"
+                allowDecimals={false}
                 domain={['dataMin', 'dataMax']}
                 tickFormatter={(day) =>
                   chartDate(new Date(Number(day) * 86400000).toISOString().slice(0, 10))
@@ -196,7 +197,8 @@ export function TimeSeriesChart({ result }: { result: ChartComparison }) {
                             {row?.points[index]?.provider_symbol ?? ''}
                           </p>
                           <p>
-                            Preis: {chartNumber(row?.points[index]?.value ?? null)} {item.currency}
+                            Preis: {chartNumber(row?.points[index]?.value ?? null)}{' '}
+                            {item.identity.listing_id ? item.currency : 'Indexpunkte'}
                           </p>
                         </div>
                       ))}
@@ -231,8 +233,7 @@ export function TimeSeriesChart({ result }: { result: ChartComparison }) {
         {result.series.map((item) => (
           <article key={item.identity.key} className="rounded border border-slate-700 p-3 text-sm">
             <p className="font-semibold">
-              {item.identity.name}{' '}
-              {item.identity.instrument_type === 'ETF' ? '· ETF / Stellvertreter' : ''}
+              {item.identity.name} {item.identity.instrument_type === 'ETF' ? '· ETF' : ''}
             </p>
             <p className="text-slate-300">
               {item.identity.isin ?? item.identity.reference_code} ·{' '}
@@ -285,7 +286,8 @@ export function TimeSeriesChart({ result }: { result: ChartComparison }) {
         <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="EOD-Datentabelle">
           <table className="w-full text-left text-xs">
             <caption className="mb-2 text-left">
-              {selectedTable?.identity.name} · {result.price_field} · {selectedTable?.currency}
+              {selectedTable?.identity.name} · {result.price_field} ·{' '}
+              {selectedTable?.identity.listing_id ? selectedTable.currency : 'Indexpunkte'}
             </caption>
             <thead>
               <tr>
@@ -299,7 +301,7 @@ export function TimeSeriesChart({ result }: { result: ChartComparison }) {
                   'Quellenaktualisierung',
                   'Qualität / Hinweise',
                 ].map((title) => (
-                  <th className="p-2" key={title}>
+                  <th scope="col" className="p-2" key={title}>
                     {title}
                   </th>
                 ))}

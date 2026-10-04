@@ -17,6 +17,7 @@ vi.mock('../../administration/services/topDownAdminClient', () => ({
     mappings: vi.fn(),
     createMapping: vi.fn(),
     validateMapping: vi.fn(),
+    venueReconciliation: vi.fn(),
     importHistory: vi.fn(),
   },
 }));
@@ -29,6 +30,12 @@ vi.mock('../components/UnderlyingSearchCombobox', () => ({
   ),
 }));
 beforeEach(() => {
+  vi.mocked(topDownAdminClient.venueReconciliation).mockResolvedValue({
+    status: 'AMBIGUOUS',
+    listing_venue_id: 'venue',
+    evidence_venue_ids: ['venue', 'other'],
+    explanation: 'Provider-Code umfasst mehrere Handelsplätze.',
+  });
   vi.mocked(chartClient.catalog).mockResolvedValue(chartCatalog());
   vi.mocked(chartSetupClient.proposals).mockResolvedValue([
     {
@@ -143,6 +150,10 @@ it.each([
   await confirm(user);
   await waitFor(() => expect(chartClient.clear).toHaveBeenCalled());
   expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  if (action === 'listingValidate') {
+    expect(topDownAdminClient.venueReconciliation).toHaveBeenCalledWith('m');
+    expect(screen.getByText(/Provider-Code umfasst mehrere Handelsplätze/)).toBeInTheDocument();
+  }
 });
 it('retains errors for a deliberate retry', async () => {
   const user = userEvent.setup();

@@ -1,6 +1,9 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { topDownAdminClient } from '../../administration/services/topDownAdminClient';
+import {
+  topDownAdminClient,
+  type VenueReconciliation,
+} from '../../administration/services/topDownAdminClient';
 import { marketApiClient } from '../../market/services/client';
 import type { ListingResponse } from '../../market/types/api';
 import { UnderlyingSearchCombobox } from '../components/UnderlyingSearchCombobox';
@@ -63,6 +66,7 @@ export function ChartSetupPage() {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [revision, setRevision] = useState(0);
+  const [venueEvidence, setVenueEvidence] = useState<VenueReconciliation | null>(null);
   const identity = catalog?.references.find(
     (item) => item.identity.reference_id === reference,
   )?.identity;
@@ -122,6 +126,7 @@ export function ChartSetupPage() {
     setBusy(true);
     setError('');
     setMessage('');
+    setVenueEvidence(null);
     const evidence = {
       valid_from: start,
       valid_to: null,
@@ -213,10 +218,12 @@ export function ChartSetupPage() {
           const mappings = await topDownAdminClient.mappings();
           const mapping = mappings.find((item) => item.listing_id === listing);
           if (!mapping) throw new Error('Für diese Notierung fehlt ein Mapping.');
-          result =
-            action === 'listingValidate'
-              ? await topDownAdminClient.validateMapping(mapping.id)
-              : await topDownAdminClient.importHistory(listing, mapping.id, start, end);
+          if (action === 'listingValidate') {
+            result = await topDownAdminClient.validateMapping(mapping.id);
+            setVenueEvidence(await topDownAdminClient.venueReconciliation(mapping.id));
+          } else {
+            result = await topDownAdminClient.importHistory(listing, mapping.id, start, end);
+          }
           break;
         }
       }
@@ -264,6 +271,13 @@ export function ChartSetupPage() {
           {message}
         </p>
       )}
+      {venueEvidence && (
+        <p className="rounded border border-amber-700 p-3 text-sm">
+          Handelsplatzabgleich: {venueEvidence.status}. {venueEvidence.explanation}{' '}
+          {venueEvidence.status !== 'MATCHED' &&
+            'Technische Mappingaktivierung allein belegt keine eindeutige Handelsplatzzuordnung. Bitte vor dem Import klären.'}
+        </p>
+      )}
       <section className="space-y-3 rounded border border-slate-700 p-4">
         <h2 className="text-xl font-semibold">Vollständige Sektor-Vorschläge zur Prüfung</h2>
         <p className="text-sm text-slate-300">
@@ -277,7 +291,7 @@ export function ChartSetupPage() {
             <thead>
               <tr>
                 {['Sektor', 'Benchmark / ETF', 'Identität / Quelle', 'Einrichtung'].map((label) => (
-                  <th className="p-2" key={label}>
+                  <th scope="col" className="p-2" key={label}>
                     {label}
                   </th>
                 ))}
@@ -336,7 +350,7 @@ export function ChartSetupPage() {
                     </button>
                     <Link
                       className="block text-sky-300 underline"
-                      to={`/underlyings/new?${new URLSearchParams({ type: 'ETF', name: `State Street ${hint.benchmark.replace(' Index', '')} SPDR ETF`, isin: hint.isin, ticker: hint.ticker, exchange: hint.mic, currency: hint.currency })}`}
+                      to={`/underlyings/new?${new URLSearchParams({ type: 'ETF', name: `State Street ${hint.benchmark.replace(' Index', '')} SPDR ETF`, isin: hint.isin, ticker: hint.ticker, mic: hint.mic, currency: hint.currency })}`}
                     >
                       ETF-Stammdaten prüfen / anlegen
                     </Link>
