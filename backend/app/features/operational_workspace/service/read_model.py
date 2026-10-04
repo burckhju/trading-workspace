@@ -200,7 +200,15 @@ class OperationalWorkspaceReadModel:
                 title=(
                     "Stop erreicht"
                     if alert.alert_type == AlertType.STOP_REACHED.value
-                    else "Target erreicht"
+                    else (
+                        "Trendverschlechterung"
+                        if alert.alert_type == AlertType.RISK_TREND_CHANGED.value
+                        else (
+                            "Erhöhte realisierte Volatilität"
+                            if alert.alert_type == AlertType.RISK_VOLATILITY_HIGH.value
+                            else "Target erreicht"
+                        )
+                    )
                 ),
                 detail=alert.reason,
                 resource_type="alert",

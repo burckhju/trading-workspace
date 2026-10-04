@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import { TradeTimelinePanel } from '../../trade/components/TradeTimelinePanel';
+import { riskPercent } from '../services/riskLabels';
 import { alertApiClient } from '../services/client';
 import type {
   AlertResponse,
@@ -22,7 +23,12 @@ function formatNumber(value: string): string {
 }
 
 function alertTitle(alert: AlertResponse): string {
-  const title = alert.alert_type === 'STOP_REACHED' ? 'Stop erreicht' : 'Target erreicht';
+  const title = {
+    STOP_REACHED: 'Stop erreicht',
+    TARGET_REACHED: 'Target erreicht',
+    RISK_TREND_CHANGED: 'Trendverschlechterung',
+    RISK_VOLATILITY_HIGH: 'Erhöhte realisierte Volatilität',
+  }[alert.alert_type];
   return alert.price_context?.evaluation_mode === 'INDICATIVE_ISSUER'
     ? `${title} (indikative Prüfung)`
     : title;
@@ -270,11 +276,19 @@ export function TradeAlertsPanel({ tradeId }: { tradeId: string }) {
                 <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
                   <div>
                     <dt className="text-slate-500">Beobachtet</dt>
-                    <dd className="mt-1">{formatNumber(alert.observed_value)}</dd>
+                    <dd className="mt-1">
+                      {alert.price_context?.basis === 'UNDERLYING_RISK_SIGNAL'
+                        ? riskPercent(alert.observed_value)
+                        : formatNumber(alert.observed_value)}
+                    </dd>
                   </div>
                   <div>
                     <dt className="text-slate-500">Schwelle</dt>
-                    <dd className="mt-1">{formatNumber(alert.threshold_value)}</dd>
+                    <dd className="mt-1">
+                      {alert.price_context?.basis === 'UNDERLYING_RISK_SIGNAL'
+                        ? riskPercent(alert.threshold_value)
+                        : formatNumber(alert.threshold_value)}
+                    </dd>
                   </div>
                   <div>
                     <dt className="text-slate-500">Marktdaten</dt>

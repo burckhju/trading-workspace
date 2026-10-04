@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 
+import { PositionRiskPanel } from '../../alert/components/PositionRiskPanel';
 import { TradeAlertsPanel } from '../../alert/components/TradeAlertsPanel';
 import { postTradeApiClient } from '../../post_trade/services/client';
 import { postTradeErrorMessage } from '../../post_trade/services/errors';
@@ -376,6 +377,7 @@ function TradeManagementContext({ tradeId, onReload }: { tradeId: string; onRelo
             </dl>
           </section>
 
+          <PositionRiskPanel tradeId={tradeId} />
           <TradeAlertsPanel tradeId={tradeId} />
           {!position.is_closed && (
             <AdditionalPurchasePanel

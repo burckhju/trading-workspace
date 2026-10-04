@@ -50,7 +50,7 @@ def alert(kind: AlertType = AlertType.TARGET_REACHED) -> Alert:
     )
 
 
-@pytest.mark.parametrize("kind", list(AlertType))
+@pytest.mark.parametrize("kind", [AlertType.STOP_REACHED, AlertType.TARGET_REACHED])
 def test_product_name_does_not_replace_price_basis_or_warning(kind: AlertType) -> None:
     value = alert(kind)
     body = format_position_alert(
@@ -158,3 +158,28 @@ async def test_real_adapter_sends_product_text_as_plain_json_without_network() -
         result = await adapter.deliver(body=body)
     assert result.status is DeliveryStatus.DELIVERED
     assert len(requests) == 1
+
+
+@pytest.mark.parametrize("kind", [AlertType.RISK_TREND_CHANGED, AlertType.RISK_VOLATILITY_HIGH])
+def test_risk_message_names_metric_fraction_version_and_no_execution(kind):
+    from dataclasses import replace
+
+    value = replace(
+        alert(kind),
+        observed_value=Decimal(".42"),
+        threshold_value=Decimal(".4"),
+        market_data_observed_at=None,
+        price_context={
+            "basis": "UNDERLYING_RISK_SIGNAL",
+            "policy_version": "POSITION_RISK_V1",
+            "configuration_revision": "2",
+            "provider": "SYNTHETIC",
+            "trading_date": "2026-09-23",
+        },
+    )
+    body = format_position_alert(value, symbol="TEST", warrant_name=NAME)
+    assert "Messwert: 42.00%" in body
+    assert "Regel: POSITION_RISK_V1 / Revision 2" in body
+    assert "Handelstag: 2026-09-23" in body and "Quelle: SYNTHETIC" in body
+    assert "Keine Orderfreigabe" in body and NAME in body
+    assert "Target erreicht" not in body and "Kurs: " not in body

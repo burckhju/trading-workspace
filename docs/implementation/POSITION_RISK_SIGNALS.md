@@ -110,6 +110,51 @@ no unverified product condition is inferred from a name or from OIC examples.
 
 ## Handoff
 
-Current stage: inventory and scoped specification complete; implementation/tests pending.
+Current stage: implementation and controlled domain/SQL/API tests complete; full CI and diff review in progress. PR #244.
 No deployment, data-provider activation, real notification, release-number reservation,
 production threshold activation, historical validation or loss-reduction claim.
+
+## Implemented interfaces and upgrade contract
+
+The position risk API is under `/api/v1/position-monitoring/trades/{trade_id}/risk`:
+
+| Method/path suffix | Effect |
+| --- | --- |
+| GET `/risk` | live preview from persisted owner inputs, no provider request or write |
+| POST `/risk/preview` | supplied `parameters`, unactivated parameter preview, no write |
+| POST `/risk/evaluations` | persist an immutable snapshot; active configuration may create an Alert, never direct delivery |
+| GET `/risk/history` | latest 20 immutable evaluations with input rows, fingerprint, previous snapshot and parameters |
+| PUT `/risk/configuration` | `parameters`, `enabled`, `expected_revision`, exact `confirmation=CONFIRM_POSITION_RISK_CONFIGURATION`; explicit actor/correlation headers as for existing local commands; stale revision returns 409 |
+
+The new owner readers are `OpenPositionReader`, `RiskProductReader`, `RiskListingReader`
+and `RiskMarketDataReader`. They expose typed read contracts without cross-feature
+persistence imports in the Monitoring consumer. Analysis owns `RiskMetrics` and
+`SynchronizedPricePair`/`ProductComparison`; the latter is a future Market Data reader's
+input contract. The current persisted reader deliberately supplies no fictitious pairs.
+The UI renders backend comparison results as a normalized table, leaving chart ownership
+with #243. GET is available in expanded position details, configuration in Trade Management.
+
+An enabled existing monitoring scheduler also evaluates risk from a bounded 61-row
+persisted daily history per position, serially, without additional provider traffic.
+It records preview state while disabled. A position-row lock serializes evaluations
+and configuration changes. Exact input repeats reuse a snapshot. Parameter/terms/source
+changes start a new baseline; old open risk alerts are invalidated (not resolved as an
+improvement). No risk alerts or notification records are created while disabled.
+Active alerts are replayed into the existing idempotent notification creator, recovering
+an interruption between alert commit and outbox creation. Delivery remains with the
+existing durable notification service and its configured Telegram adapter.
+
+Migration `20261004_0043` is additive after `20260928_0042`: no data conversion, activation
+or defaults written to existing positions. The two new tables preserve configuration
+versions and evaluation inputs. Downgrade refuses when either contains history. Preserve
+that history and follow the established backup/upgrade procedure before deployment;
+do not force a downgrade or stamp. No VERSION change or tag is reserved in this feature PR.
+
+Explicit remaining input limits: no verified exchange calendar (missing weekdays,
+including possible holidays, fail closed); no provider-independent stock close instant;
+no product price history; no observed latest refresh outcome in the last-success cache;
+no exercise/quanto or synchronized IV/Greek contract. Market Data needs the minimal
+append-only history extension above before a real synchronous product comparison can run.
+The kernel and its API view can evaluate suitable controlled owner inputs today; production
+EOD and one saved issuer quote cannot supply them. Sudden quote changes cannot be tested
+from a single saved success. No historical calibration or holdout performance is claimed.

@@ -132,3 +132,12 @@ und die getrennten Abrufzustände. Produktbezogene Einzelkarten ergänzen den ex
 Optionsscheinnamen samt WKN/ISIN über den öffentlichen Produkt-Lesevertrag;
 fehlende Zuordnungen bleiben explizit. Details, Grenzen und Regressionen stehen
 im Katalog. Es entsteht kein neuer Alert-/Action-State und keine Schreibfunktion.
+
+### Position risk detail extension (2026-10-04)
+
+Expanded position details now read the qualified risk preview from Position Monitoring:
+RV20, SMA20 state/transition, raw relative ATR, quote quality and qualified product
+comparison. This surface issues no write. Explicit configuration and stored evaluation
+commands remain in Trade Management. See
+[Position risk signals](../implementation/POSITION_RISK_SIGNALS.md) for versions,
+source/time limitations and the absence of a calibrated loss-reduction claim.

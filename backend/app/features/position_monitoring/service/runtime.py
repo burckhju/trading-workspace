@@ -7,7 +7,7 @@ from uuid import uuid4
 
 from app.database import DatabaseManager
 from app.features.market_data.service.contracts import LatestCompletedDailyPriceProvider
-from app.features.notification.domain.models import DeliveryStatus
+from app.features.notification.domain.models import DeliveryStatus, NotificationChannel
 from app.features.notification.persistence.durable_delivery import (
     SqlAlchemyDurableNotificationDeliveryStore,
 )
@@ -22,6 +22,7 @@ from app.features.position_monitoring.service.cycle import (
 )
 from app.features.position_monitoring.service.legacy_alerts import invalidate_unbound_alerts
 from app.features.position_monitoring.service.processor import SqlAlchemyMonitoringRuleProcessor
+from app.features.position_monitoring.service.risk_runtime import RiskRuntimeService
 from app.features.position_monitoring.service.rule_prices import ProductValuationReader
 from app.features.position_monitoring.service.subjects import SqlAlchemyMonitoringSubjectReader
 
@@ -49,9 +50,11 @@ class PositionMonitoringRuntimeService:
         parallel_positions: int = 4,
         delivery_adapter: NotificationDeliveryAdapter | None,
         max_completed_price_age_days: int = 4,
+        risk: RiskRuntimeService | None = None,
         delivery_max_attempts: int = 3,
         delivery_recovery_timeout: timedelta = timedelta(minutes=5),
     ) -> None:
+        self._risk = risk
         self._database = database
         self._market_data = market_data
         self._products = products
@@ -65,14 +68,15 @@ class PositionMonitoringRuntimeService:
         async with self._database.session_context() as session:
             invalidated = await invalidate_unbound_alerts(session, now=datetime.now(UTC))
         cycle_result = await self._run_monitoring_cycle()
+        risk_alerts = await self._risk.run() if self._risk else ()
         if self._delivery_adapter is None:
             return PositionMonitoringRuntimeResult(cycle_result, 0, 0, 0, invalidated)
 
         created = 0
-        for created_alert in cycle_result.created_alerts:
+        for created_alert in (*cycle_result.created_alerts, *risk_alerts):
             try:
-                await self._create_notification(created_alert)
-                created += 1
+                if await self._create_notification(created_alert):
+                    created += 1
             except Exception:
                 logger.exception(
                     "position_alert_notification_creation_failed",
@@ -121,10 +125,18 @@ class PositionMonitoringRuntimeService:
             )
             return await service.run()
 
-    async def _create_notification(self, created_alert: CreatedPositionAlert) -> None:
+    async def _create_notification(self, created_alert: CreatedPositionAlert) -> bool:
         async with self._database.session_context() as session:
+            repository = SqlAlchemyNotificationRepository(session)
+            existing = await repository.get_for_alert(
+                alert_id=created_alert.alert.id,
+                channel=NotificationChannel.TELEGRAM,
+                destination_key="telegram_default",
+            )
+            if existing is not None:
+                return False
             service = AlertNotificationService(
-                notifications=SqlAlchemyNotificationRepository(session),
+                notifications=repository,
                 new_id=uuid4,
                 now=lambda: datetime.now(UTC),
             )
@@ -136,3 +148,4 @@ class PositionMonitoringRuntimeService:
                 warrant_wkn=created_alert.warrant_wkn,
             )
             await session.commit()
+            return True

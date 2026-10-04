@@ -180,3 +180,12 @@ auf Produktname und Kennungen geprüft werden. Bestehende Nachrichten bleiben
 unverändert. Die Alert-Sicht im Trade Management ist lesend; der One-shot-
 Monitoring-Befehl ist dagegen schreibend und darf nicht bloß für eine
 Namensprüfung mit realem Versand gestartet werden.
+
+## Qualified risk extension (2026-10-04)
+
+`POSITION_RISK_V1` adds separately versioned realized-volatility and confirmed SMA20
+trend signals. It does not change the released phase, score, dynamic-stop or confirmed
+price rules. Preview, append-only evaluation history and explicit per-position opt-in
+are documented with the owner contracts and additive migration in
+[Position risk signals](../implementation/POSITION_RISK_SIGNALS.md).
+Data-quality failures preserve the last signal state and never become price/sale alerts.
