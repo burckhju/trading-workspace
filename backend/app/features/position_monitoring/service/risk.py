@@ -63,7 +63,9 @@ class PositionRiskService:
         config = await self._records.configuration(position.position_id)
         if parameters is not None:
             # A proposed parameter set is never allowed to inherit an active alert state.
-            config = replace(config, enabled=False, parameters=parameters)
+            config = replace(
+                config, enabled=False, parameters=parameters, configured_at=None, actor=None
+            )
         return await self._calculate(position, config, now, inherit=parameters is None)
 
     async def evaluate(

@@ -186,6 +186,11 @@ async def test_preview_configuration_snapshot_alert_replay_recovery_and_versioni
         correlation_id="test",
     )
     assert config.revision == 1
+    proposed = await service.preview(
+        **kwargs, now=inputs.now(), parameters=RiskParameters(confirmation_sessions=3)
+    )
+    assert not proposed.configuration.enabled
+    assert proposed.configuration.actor is None and proposed.configuration.configured_at is None
     baseline, alerts = await service.evaluate(**kwargs, now=inputs.now())
     assert baseline.assessment.transition == "INITIALIZED" and not alerts
     duplicate, _ = await service.evaluate(**kwargs, now=inputs.now() + timedelta(minutes=1))
