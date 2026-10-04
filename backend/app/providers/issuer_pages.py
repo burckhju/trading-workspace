@@ -221,7 +221,11 @@ def parse_product_page(
         )
     ]
     ids = {n.attrs["data-item"] for n in targets}
-    if len(ids) != 1 or {n.attrs["data-field"] for n in targets} != {"bid", "ask", clock}:
+    # JPMorgan product pages can bind both prices without displaying quotetime.
+    # Route identity comes from those exact DOM bindings, not from a quote clock.
+    # If a clock binding exists, it must still use the same stream item.
+    required_fields = {"bid", "ask"} if provider == "JPMORGAN" else {"bid", "ask", clock}
+    if len(ids) != 1 or not required_fields <= {n.attrs["data-field"] for n in targets}:
         raise ValueError("ISSUER_STREAM_BINDING_UNVERIFIED")
     # Both price cells must bind the currency to this exact stream item.
     currencies = set()

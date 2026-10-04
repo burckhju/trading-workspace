@@ -49,7 +49,9 @@ old() {
     -f "$ROOT/docker/compose.yml" -f "$ROOT/docker/compose.issuer-monitoring.yml" -f "$fixture/old.yml" "$@"
 }
 cleanup() {
-  if [[ -f "$fixture/private/operation.log" ]]; then cat "$fixture/private/operation.log"; fi
+  for state in private upgrade; do
+    if [[ -f "$fixture/$state/operation.log" ]]; then cat "$fixture/$state/operation.log"; fi
+  done
   # This entire runner and these volumes are synthetic, created above in this job.
   old down --volumes || true
 }
@@ -103,4 +105,17 @@ if BACKEND_PORT=9001 bash "$fixture/diagnostic-tool/scripts/migrate-legacy-issue
 fi
 docker ps -aq --filter label=com.docker.compose.project=trading-workspace | sort > "$fixture/after.ids"
 cmp "$fixture/before.ids" "$fixture/after.ids"
+# Qualify the documented next-release update of this already canonical deployment.
+# A distinct disposable commit supplies a new revision/image tag without changing
+# production code or any prepared state from the first deployment.
+git -C "$fixture/diagnostic-tool" -c user.name=CI -c user.email=ci@example.invalid \
+  commit --allow-empty -m 'CI next-release deployment fixture'
+bash "$fixture/diagnostic-tool/scripts/migrate-legacy-issuer.sh" \
+  prepare "$fixture/legacy" "$fixture/upgrade"
+bash "$fixture/diagnostic-tool/scripts/migrate-legacy-issuer.sh" apply "$fixture/upgrade"
+test -f "$fixture/upgrade/deployed"
+test "$(cat "$fixture/private/database-container")" = "$(cat "$fixture/upgrade/database-container")"
+test "$(docker exec trading-workspace-database-1 psql -At -U migration_test -d migration_test -c 'SELECT marker FROM deployment_probe')" = retained
+test "$(docker exec trading-workspace-issuer-renderer-1 cat /state/ci-marker)" = retained
+bash "$fixture/diagnostic-tool/scripts/migrate-legacy-issuer.sh" compose "$fixture/upgrade" ps
 echo 'Synthetic migration passed: data, state, settings, sandbox, schema and images retained/verified.'

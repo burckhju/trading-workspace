@@ -398,3 +398,55 @@ SH
 These queries do not send a test notification or accept consent. Renderer health
 can identify stored state; product access in a fresh context is still needed to
 prove its reuse. Report tool version and actually deployed image revision separately.
+
+### Update an already migrated four-service deployment (1.4.5)
+
+The JPMorgan parser correction must run in both backend and renderer images. A
+new tool checkout inspecting old containers cannot supply that application fix.
+For the same reviewed four-service topology, the existing migration helper can
+prepare a new release from the currently inspected containers. The disposable
+Docker CI also exercises this second deployment from a canonical stack, retaining
+the database container, database data, consent state, settings and sandbox.
+
+Keep the original checkout/configuration and every earlier release/private state
+directory in place. Do not edit a sealed preservation file, reuse an `apply`
+directory, inject patched Python into a running service or drop volumes. The
+original `docker/.env` must still match all runtime settings outside the twelve
+explicitly preserved keys; any drift or unsupported topology blocks preparation.
+The new preparation validates the complete current runtime against the new
+effective model and pins new image revisions. It does not execute old overlays.
+
+After `v1.4.5` is published by the version workflow, use these paths for the
+previously documented installation. Check the tag commit against the qualified
+release PR before continuing:
+
+```bash
+git -C "$HOME/Boerse/trading-workspace" fetch origin tag v1.4.5 </dev/null
+git -C "$HOME/Boerse/trading-workspace" rev-parse 'v1.4.5^{commit}'
+git -C "$HOME/Boerse/trading-workspace" worktree add --detach \
+  "$HOME/Boerse/trading-workspace-v1.4.5" v1.4.5 </dev/null
+bash "$HOME/Boerse/trading-workspace-v1.4.5/scripts/migrate-legacy-issuer.sh" prepare \
+  "$HOME/Boerse/trading-workspace" \
+  "$HOME/Boerse/trading-workspace-deploy-v1.4.5" </dev/null
+```
+
+Only after successful preparation, apply in the maintenance window:
+
+```bash
+bash "$HOME/Boerse/trading-workspace-v1.4.5/scripts/migrate-legacy-issuer.sh" apply \
+  "$HOME/Boerse/trading-workspace-deploy-v1.4.5" </dev/null
+```
+
+The helper stops backend/renderer for consistent backups, leaves the database
+running, verifies renderer sandbox health before migration and restarts the
+application with the preserved full configuration. There is no automatic rollback.
+On failure keep the private logs/backups and inspect the exact failed phase;
+do not delete markers or blindly rerun apply. On success, use the new checkout
+and private directory together for all subsequent `compose` diagnostics.
+
+Then rerun the existing consent setup against the updated renderer with the
+operator's reviewed hash and explicit declarations. Previously confirmed terms
+need no redundant approval while their hash and approved scope remain unchanged;
+changed terms require fresh review. Require product access and stored-state reuse,
+then independently check discovery and a completed monitoring cycle. This update
+does not authorize a Telegram test message or prove provider availability.

@@ -355,3 +355,14 @@ Scope and acceptance criteria: [implementation report](../implementation/DYNAMIC
 | Identical JSON configuration must tolerate presentation differences | Offline `verify_configuration`; byte-level seals retained | Strict scalar/array/duplicate-key tests; real shell failure reproduction |
 | Diagnose an existing prepared release without replacing it | `compose` uses its sealed release root and validates both checkouts | Cross-checkout drift tests; real Docker CI checks unchanged container IDs |
 | Keep tool and deployed versions distinct | [Runbook](../technical/LINUX_DEPLOYMENT.md#diagnose-an-existing-prepared-deployment-with-144-tooling) | [Acceptance criteria](../implementation/LEGACY_ISSUER_DEPLOYMENT_MIGRATION.md#compose-integrity-correction-144) |
+
+## JPMorgan price-binding correction (1.4.5)
+
+| Requirement | Implementation | Verification |
+|---|---|---|
+| Exact route identity without requiring an undisplayed JPMorgan clock | Shared `issuer_pages.parse_product_page`; both price bindings remain mandatory | Missing-clock reproduction and negative binding regressions |
+| Consent and route discovery share the same provider evidence | Existing setup, renderer and backend call the same parser | Actual-parser setup/renderer tests; SQL discovery/selection/adapter tests |
+| Unknown timestamps and non-executable indications remain explicit | Unchanged quote adapter and indicative policies | Missing-time stream result and retention assertions; full regression suite |
+| Safely update the already canonical stack | Existing prepare/apply helper with fresh private state | Second real Docker deployment, DB/consent retention and sandbox checks |
+
+Scope and acceptance criteria: [implementation report](../implementation/JPMORGAN_PRICE_BINDING.md).

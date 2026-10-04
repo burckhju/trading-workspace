@@ -26,6 +26,31 @@ Konfiguration bleiben neue Provider, automatische Auswahl und Discovery aus.
 Das Discovery-Intervall beträgt standardmäßig eine Stunde; Diagnose-GETs erzwingen
 keinen sofortigen Wiederholungsabruf. `SELECTED` beweist keine neue oder handelbare Quote.
 
+### JPMorgan-Produktseiten ohne DOM-Uhrzeitfeld (ab 1.4.5)
+
+Die Routenerkennung verlangt Geld- und Briefbindung im `staticgrid` mit
+`data-source=lightstreamer` und derselben exakten, ISIN-bezogenen Streamkennung.
+Das JPMorgan-DOM-Feld `quotetime` ist optional: Ein am 04.10.2026 zurückgemeldeter
+Serverlauf enthielt beide Preisbindungen, aber kein solches Zeitfeld. Ist eine
+passende Zeitbindung vorhanden, darf sie der Preiskennung weiterhin nicht
+widersprechen. Produktmetadaten, Währung und alle übrigen Identitätsgrenzen gelten
+unverändert. Morgan Stanley verlangt weiterhin `lastquotetimestamp`.
+
+Dies ist ausschließlich ein Seitennachweis für die technische Route, keine
+Kursprüfung. Der Streamadapter behält sein eigenes Schema und seine Prüfungen.
+Fehlende Kurszeit bleibt unbekannt; weder Empfangszeit, Bewertungstag noch
+Basiswertzeit werden eingesetzt. `execution_usable=false` bleibt erhalten.
+
+Auf älteren Ständen kann das Zustimmungs-Setup nach erfolgreicher Formularbedienung
+mit `JPMORGAN_CONSENT_NOT_VERIFIED_NO_STATE_SAVED` und der Ursache
+`ISSUER_STREAM_BINDING_UNVERIFIED` abbrechen. Erst die konkreten DOM-Bindungen
+unterscheiden diesen Fehler von fehlenden oder widersprüchlichen Preisbindungen.
+Keine Speicherung erzwingen, keine Zeitfelder synthetisch ergänzen und keine
+Wartezeiten pauschal erhöhen. Backend und Renderer auf denselben korrigierten
+Release-Stand bringen; ein neuer Diagnose-Checkout allein ersetzt deren Parser
+nicht. Danach den bestehenden freigegebenen Setup-Ablauf mit weiterhin identischem
+Bedingungshash erneut ausführen und die Wiederverwendung separat nachweisen.
+
 ## Reguläre Konfiguration
 
 `docker/compose.issuer-monitoring.yml` bündelt die bisherigen Emittenten-,

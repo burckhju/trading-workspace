@@ -3,6 +3,9 @@
 > Historischer Paketstand. Für den Git-Stand ab 1.4.0 gelten die
 > [aktuelle Betriebsanleitung](ISSUER_MONITORING_OPERATIONS.md) und die
 > [Release-Notizen](../releases/V1.4.0-ISSUER-MONITORING.md).
+> Ab 1.4.5 ersetzt die [JPMorgan-Korrektur](ISSUER_MONITORING_OPERATIONS.md#jpmorgan-produktseiten-ohne-dom-uhrzeitfeld-ab-145)
+> die historische Pflicht zu einem JPMorgan-DOM-Zeitfeld. Der folgende Pakettext
+> beschreibt weiterhin den damaligen Stand; der Morgan-Stanley-Vertrag bleibt erhalten.
 
 Stand: 28.09.2026. Aufbauend auf Quellenauswahl v1 und Schema 20260922_0041.
 
