@@ -285,6 +285,12 @@ export function CandidatePage() {
             <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
               <div>
                 <p className="text-sm text-slate-400">Basiswert {selected.underlying_id}</p>
+                <Link
+                  className="text-sm text-sky-300 underline"
+                  to={`/market-charts?underlying=${selected.underlying_id}`}
+                >
+                  Kursdiagramm und Vergleich
+                </Link>
                 <h2 className="text-xl font-semibold">Top-down Candidate</h2>
               </div>
               <div className="flex items-center gap-3">

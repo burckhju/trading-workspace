@@ -1,7 +1,7 @@
 export type Uuid = string;
 export type IsoDateTime = string;
 
-export type UnderlyingType = 'STOCK';
+export type UnderlyingType = 'STOCK' | 'ETF';
 export type LifecycleStatus = 'ACTIVE' | 'INACTIVE';
 export type QualityStatus = 'DRAFT' | 'COMPLETE' | 'VERIFIED';
 

@@ -6,6 +6,7 @@ import type {
   CurrencyResponse,
   TradingVenueResponse,
   UnderlyingDetailResponse,
+  UnderlyingType,
 } from '../types/api';
 
 export function UnderlyingFormPage() {
@@ -17,6 +18,7 @@ export function UnderlyingFormPage() {
   const [venues, setVenues] = useState<TradingVenueResponse[]>([]);
   const [currencies, setCurrencies] = useState<CurrencyResponse[]>([]);
   const [name, setName] = useState('');
+  const [type, setType] = useState<UnderlyingType>('STOCK');
   const [isin, setIsin] = useState('');
   const [wkn, setWkn] = useState('');
   const [venueId, setVenueId] = useState('');
@@ -44,6 +46,7 @@ export function UnderlyingFormPage() {
         if (detail) {
           setExisting(detail);
           setName(detail.name);
+          setType(detail.type);
           setIsin(detail.isin ?? '');
           setWkn(detail.wkn ?? '');
           const primary = detail.listings.find((l) => l.is_primary);
@@ -56,6 +59,7 @@ export function UnderlyingFormPage() {
         }
 
         const suggestedName = searchParams.get('name')?.trim();
+        if (searchParams.get('type') === 'ETF') setType('ETF');
         const suggestedIsin = searchParams.get('isin')?.trim().toUpperCase();
         const suggestedTicker = searchParams.get('ticker')?.trim().toUpperCase();
         const suggestedCurrency = searchParams.get('currency')?.trim().toUpperCase();
@@ -91,6 +95,7 @@ export function UnderlyingFormPage() {
       } else {
         const created = await marketApiClient.createUnderlying({
           name,
+          type,
           isin: isin || null,
           wkn: wkn || null,
           primary_listing: {
@@ -166,10 +171,13 @@ export function UnderlyingFormPage() {
             <label>
               <span className="mb-1 block text-sm">Basiswertart</span>
               <select
-                disabled
+                disabled={editing}
+                value={type}
+                onChange={(event) => setType(event.target.value as UnderlyingType)}
                 className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2"
               >
-                <option>Aktie</option>
+                <option value="STOCK">Aktie</option>
+                <option value="ETF">ETF</option>
               </select>
             </label>
             <span />

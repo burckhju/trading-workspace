@@ -58,3 +58,13 @@ Der Lebenszyklus wird durch eine explizite State Machine erzwungen. Terminale Ru
 Retry ist nur für `FAILED` und `NOT_EVALUABLE` zulässig und verwendet ausschließlich den persistierten Snapshot der Quellversion. Der Retry liest keine aktuellen Marktdaten und verwendet exakt dieselbe Modell-ID/-Version sowie dieselben aufgelösten Parameter.
 
 Die Reproduzierbarkeit einer Version kann über `POST /api/v1/market-analyses/{analysis_id}/runs/{version}/verify` technisch geprüft werden. Die Prüfung umfasst Eingabe-Hash, Modellversion, Kennzahlen, Kriterien, Qualitätsstatus und Hinweise.
+
+
+## Ergänzung 2026-10-04: integrierte EOD-Diagramme
+
+Der Chart-Arbeitszweig ergänzt echte ETF-Stammdaten und einen rein lesenden
+Markt-/Sektor-/Aktienvergleich. Indexreferenzen bleiben ohne synthetische Listings.
+Frühere STOCK-only-Aussagen gelten damit nicht mehr für die Stammdatenverwaltung.
+Analyse-Runs, Candidate-Regeln und fachliche Freigaben bleiben unverändert.
+Contracts, Preis-/Zeitsemantik, Einrichtung und Prüfstand:
+[MARKET_CHARTS](../implementation/MARKET_CHARTS.md).

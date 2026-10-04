@@ -21,6 +21,7 @@ from app.features.market.persistence.models import ListingModel, UnderlyingModel
 from app.features.market.persistence.top_down_models import (
     MarketReferenceListingAssignmentModel,
     MarketReferenceModel,
+    ReferenceSeriesDefinitionModel,
     SectorModel,
     SectorReferenceAssignmentModel,
     UnderlyingBenchmarkAssignmentModel,
@@ -59,6 +60,66 @@ class TopDownReferenceAdministrationService:
 
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
+
+    async def confirm_series_basis(
+        self,
+        *,
+        workspace_id: UUID,
+        market_reference_id: UUID,
+        mapping_id: UUID,
+        mapping_version: int,
+        return_basis: str,
+        source_url: str,
+        actor: str,
+    ) -> ReferenceSeriesDefinitionModel:
+        """Append evidence bound to the mapping revision explicitly reviewed by the user."""
+        from urllib.parse import urlparse
+
+        from app.features.market_data.persistence.instruments import MarketDataInstrumentModel
+
+        await self._require_reference(workspace_id, market_reference_id)
+        if return_basis not in {"PRICE_INDEX", "TOTAL_RETURN_INDEX"}:
+            raise ValueError("unsupported index return basis")
+        parsed = urlparse(source_url)
+        if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password:
+            raise ValueError("a public HTTPS evidence URL is required")
+        mapping = await self._session.scalar(
+            select(ProviderInstrumentMappingModel)
+            .join(
+                MarketDataInstrumentModel,
+                MarketDataInstrumentModel.id
+                == ProviderInstrumentMappingModel.market_data_instrument_id,
+            )
+            .where(
+                ProviderInstrumentMappingModel.id == mapping_id,
+                ProviderInstrumentMappingModel.workspace_id == workspace_id,
+                MarketDataInstrumentModel.workspace_id == workspace_id,
+                MarketDataInstrumentModel.market_reference_id == market_reference_id,
+            )
+            .with_for_update()
+        )
+        if (
+            mapping is None
+            or mapping.version != mapping_version
+            or mapping.status != MappingStatus.ACTIVE
+        ):
+            raise ValueError("active mapping revision changed; reload and review")
+        if mapping.provider_exchange_code != "INDX":
+            raise ValueError("an index mapping is required; ETFs need their real listing")
+        definition = ReferenceSeriesDefinitionModel(
+            id=uuid4(),
+            workspace_id=workspace_id,
+            market_reference_id=market_reference_id,
+            mapping_id=mapping_id,
+            mapping_version=mapping_version,
+            return_basis=return_basis,
+            source_url=source_url,
+            confirmed_by=actor,
+            confirmed_at=datetime.now(UTC),
+        )
+        self._session.add(definition)
+        await self._session.commit()
+        return definition
 
     async def list_market_references(self, workspace_id: UUID) -> tuple[MarketReferenceModel, ...]:
         rows = await self._session.scalars(

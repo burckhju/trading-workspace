@@ -94,6 +94,12 @@ export function UnderlyingDetailPage() {
           <h1 id="underlying-title" className="mt-3 text-3xl font-semibold">
             {item.name}
           </h1>
+          <Link
+            className="mt-2 inline-block text-sky-300 underline"
+            to={`/market-charts?underlying=${item.id}`}
+          >
+            Kursdiagramm und Vergleich
+          </Link>
           <div className="mt-3 flex gap-2">
             <StatusBadge status={item.lifecycle_status} />
             <StatusBadge status={item.quality_status} />

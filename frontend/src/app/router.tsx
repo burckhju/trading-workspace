@@ -33,6 +33,19 @@ export function createApplicationRouter() {
         { path: 'workspace', element: <OperationalWorkspacePage /> },
         { path: 'underlyings', element: <UnderlyingListPage /> },
         { path: 'market-analyses', element: <MarketAnalysisPage /> },
+        {
+          path: 'market-charts',
+          lazy: async () => ({
+            Component: (await import('../features/analysis/pages/MarketChartsPage'))
+              .MarketChartsPage,
+          }),
+        },
+        {
+          path: 'chart-setup',
+          lazy: async () => ({
+            Component: (await import('../features/analysis/pages/ChartSetupPage')).ChartSetupPage,
+          }),
+        },
         { path: 'candidates', element: <CandidatePage /> },
         { path: 'trade-plans/overview', element: <TradePlanOverviewPage /> },
         { path: 'trade-plans', element: <TradePlanPage /> },
