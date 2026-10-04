@@ -18,17 +18,22 @@ export const riskApi = {
     requestJson<RiskView>(`${url(id)}/preview`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ parameters }),
+      body: { parameters },
     }),
-  configure: (id: string, view: RiskView, parameters: RiskParameters, enabled: boolean) =>
+  configure: (
+    id: string,
+    view: Pick<RiskView, 'configuration'>,
+    parameters: RiskParameters,
+    enabled: boolean,
+  ) =>
     requestJson(`${url(id)}/configuration`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+      body: {
         parameters,
         enabled,
         expected_revision: view.configuration.revision,
         confirmation: 'CONFIRM_POSITION_RISK_CONFIGURATION',
-      }),
+      },
     }),
 };

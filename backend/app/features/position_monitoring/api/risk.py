@@ -5,7 +5,7 @@ from typing import Annotated, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, HTTPException
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.core.di import ApplicationContainer, get_container
 from app.features.position_monitoring.domain.risk_signals import RiskParameters
@@ -26,6 +26,24 @@ LOCAL_ACTOR_ID = UUID("00000000-0000-4000-8000-000000000002")
 class RiskPreviewRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     parameters: RiskParameters
+
+    @field_validator("parameters", mode="before")
+    @classmethod
+    def explicit_parameter_types(cls, value: object) -> object:
+        if isinstance(value, dict):
+            allowed = {
+                "hysteresis_fraction",
+                "confirmation_sessions",
+                "volatility_high",
+                "volatility_reset",
+                "maximum_age_days",
+            }
+            if set(value) - allowed:
+                raise ValueError("Unknown risk parameter")
+            for key in ("confirmation_sessions", "maximum_age_days"):
+                if key in value and type(value[key]) is not int:
+                    raise ValueError(f"{key} must be an integer")
+        return value
 
 
 class RiskConfigurationRequest(RiskPreviewRequest):

@@ -217,6 +217,12 @@ async def test_preview_configuration_snapshot_alert_replay_recovery_and_versioni
     assert gap.assessment.state.trend_warning and gap.assessment.trend_triggered is None
     assert session.sync.get(AlertModel, trend.alert.id).status == "OPEN"
     inputs.values[-1] = original
+    original_product = inputs.product
+    inputs.product = replace(original_product, terms_id=None)
+    missing_terms, _ = await service.evaluate(**kwargs, now=inputs.now())
+    assert missing_terms.assessment.state.trend_warning
+    assert missing_terms.basis_key == crossed.basis_key
+    inputs.product = original_product
     for _ in range(2):
         inputs.append(120)
         recovered, _ = await service.evaluate(**kwargs, now=inputs.now())
@@ -322,6 +328,15 @@ async def test_risk_http_contract_confirmation_preview_history_and_unknown_posit
         data = response.json()
         assert data["metrics"]["status"] == "AVAILABLE" and data["snapshot_id"] is None
         params = data["configuration"]["parameters"]
+        for invalid in (
+            {"confirmation_sessions": True},
+            {"confirmation_sessions": 1.5},
+            {"unexpected_parameter": 1},
+        ):
+            response = await client.post(
+                base + "/preview", json={"parameters": {**params, **invalid}}
+            )
+            assert response.status_code == 422
         assert (await client.get(base + "/history")).json() == []
         proposed = await client.post(base + "/preview", json={"parameters": params})
         assert proposed.status_code == 200 and proposed.json()["mode"] == "PREVIEW"

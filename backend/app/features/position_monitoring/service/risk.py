@@ -144,7 +144,7 @@ class PositionRiskService:
         metrics = risk_metrics(
             inputs.prices, as_of=now, max_age_days=config.parameters.maximum_age_days
         )
-        if product is None or listing is None:
+        if product is None or product.terms_id is None or listing is None:
             metrics = RiskMetrics("NOT_EVALUABLE", "PRODUCT_TERMS_OR_PRIMARY_LISTING_MISSING")
         elif any(
             p.listing_id != listing.listing_id or p.currency != listing.currency
@@ -173,6 +173,8 @@ class PositionRiskService:
         last = (
             await self._records.latest(position.position_id, config.revision) if inherit else None
         )
+        if last is not None and metrics.status != "AVAILABLE":
+            basis = last.basis_key
         previous = (
             last.assessment.state
             if last and (last.basis_key == basis or metrics.status != "AVAILABLE")

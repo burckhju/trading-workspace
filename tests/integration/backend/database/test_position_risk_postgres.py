@@ -32,19 +32,27 @@ async def test_parallel_evaluation_and_configuration_are_serialized_and_restart_
         async with engine.begin() as connection:
             statements = [
                 (
-                    "INSERT INTO workspaces(id,name,created_at) VALUES (:id,'Risk concurrency test',:now)",
+                    "INSERT INTO workspaces(id,name,created_at) VALUES (:id,'Risk concurren"
+                    "cy test',:now)",
                     {"id": workspace},
                 ),
                 (
-                    "INSERT INTO issuers(id,legal_name,display_name,is_active,version,created_at,updated_at) VALUES (:id,:name,:name,true,1,:now,:now)",
+                    "INSERT INTO issuers(id,legal_name,display_name,is_active,version,creat"
+                    "ed_at,updated_at) VALUES (:id,:name,:name,true,1,:now,:now)",
                     {"id": issuer, "name": str(issuer)},
                 ),
                 (
-                    "INSERT INTO underlyings(id,workspace_id,type,name,lifecycle_status,quality_status,version,created_at,updated_at,data_origin) VALUES (:id,:workspace,'STOCK','Synthetic risk','ACTIVE','VERIFIED',1,:now,:now,'MANUAL')",
+                    "INSERT INTO underlyings(id,workspace_id,type,name,lifecycle_status,qua"
+                    "lity_status,version,created_at,updated_at,data_origin) VALUES (:id,:wo"
+                    "rkspace,'STOCK','Synthetic risk','ACTIVE','VERIFIED',1,:now,:now,'MANU"
+                    "AL')",
                     {"id": underlying, "workspace": workspace},
                 ),
                 (
-                    "INSERT INTO warrants(id,workspace_id,issuer_id,underlying_id,product_family,display_name,lifecycle_status,version,created_at,updated_at) VALUES (:id,:workspace,:issuer,:underlying,'WARRANT','Synthetic risk','ACTIVE',1,:now,:now)",
+                    "INSERT INTO warrants(id,workspace_id,issuer_id,underlying_id,product_f"
+                    "amily,display_name,lifecycle_status,version,created_at,updated_at) VAL"
+                    "UES (:id,:workspace,:issuer,:underlying,'WARRANT','Synthetic risk','AC"
+                    "TIVE',1,:now,:now)",
                     {
                         "id": warrant,
                         "workspace": workspace,
