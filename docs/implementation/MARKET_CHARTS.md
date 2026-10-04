@@ -1,6 +1,7 @@
 # Markt-, Sektor- und Aktiendiagramme
 
-Datum: 2026-10-04. Status: implementiert; finale Gates und Merge siehe PR #243.
+Datum: 2026-10-04. Status: implementiert und mit PR #243 gemergt (`f580bfe`).
+Versionierte Auslieferung: [1.5.0](../releases/V1.5.0-MARKET-CHARTS-AND-POSITION-RISK.md).
 Keine fachliche Liveabnahme oder Bereitstellung.
 Auftrag: integrierte, rein lesende Diagramme und nachvollziehbare Vergleiche.
 Ausgangsbasis: `16e2feec398658c82fa8773fa29feaa1c8fbbba8` (`main`, `v1.4.5`).
@@ -220,15 +221,19 @@ explizites `scope="col"` für Chromium). Folgeänderungen beheben diese Befunde,
 prüfen die exakte ETF-Vorbelegung und hängen Desktop-/Mobilbilder zur visuellen
 Kontrolle an. Finale unveränderte Gates und Commit sind im PR nachgewiesen.
 
-Erneuter GitHub-Abgleich: main weiterhin `16e2fee`; Draft #244 besitzt
-Risiko-/Trendsignale. Dessen Migration verwendet derzeit ebenfalls Revision 0043
-ab 0042; **vor dem zweiten Merge ist eine Neuverkettung samt vollständiger CI
-erforderlich**. Gemeinsame Berührungen sind Positions-Readmodel und Detailansicht.
-Dieses Feature ändert keine Risk-Contracts. Version und Tag bleiben 1.4.5;
-der bestehende Tag wird nicht verschoben. Die neuen Funktionen gehören erst zu
-einem später koordinierten Release oder dem qualifizierten Merge-Commit.
+Integrationsnachweis vom 04.10.2026: PR #244 ist anschließend als `35a9cb7`
+gemergt. Seine Risiko-Migration `20261004_0044` folgt der Chart-Migration 0043;
+es gibt genau einen Alembic-Head. Die Positionsdetails enthalten Diagrammlink
+und Risikoanzeige. Der kombinierte Stand besteht die vollständige CI: 2.393
+Backend-Tests mit 85,71 % Coverage, 417 Frontend- und 45 E2E-Tests. Die
+Chart-Fachverträge wurden dabei nicht verändert. Der gemeinsame Release ist
+1.5.0; der historische Tag 1.4.5 bleibt unverändert auf `16e2fee`.
 
 ## Betreiberübergabe ohne Serverzugriff
+
+Für die versionierte Auslieferung gelten die aktuellen
+[1.5.0-Betreiberbefehle](../technical/LINUX_DEPLOYMENT.md#market-charts-and-position-risk-150).
+Die folgenden Commit-Befehle dokumentieren die vorherige Chart-Einzelübergabe.
 
 Keine Server-, Provider-, Consent- oder Telegram-Aktivierung wurde ausgeführt.
 Auf einem bereits migrierten Vier-Service-Stack gilt der aktuelle Abschnitt

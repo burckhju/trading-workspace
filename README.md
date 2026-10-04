@@ -2,11 +2,13 @@
 
 Produktionsnahes Referenzrepository für den **Trading Workspace**.
 
-Version 1.4.5 korrigiert die JPMorgan-Routenerkennung bei Produktseiten ohne
-DOM-Uhrzeitfeld. Exakte Geld-/Briefbindungen und Produktmetadaten bleiben Pflicht;
-fehlende Zeitinformationen werden nicht ergänzt. Die Korrektur gilt gemeinsam
-für Backend-Discovery, Renderer und die Produktprüfung beim Zustimmungs-Setup.
-Umfang und Grenzen: [Release-Dokumentation](docs/releases/V1.4.5-JPMORGAN-PRICE-BINDING.md).
+Version 1.5.0 ergänzt interaktive Markt-, Sektor- und Aktiendiagramme sowie
+qualifizierte Risiko-/Trendanzeigen für bestehende Positionen. Vergleiche werden
+im Backend berechnet; Datenlücken, Quellen und Preisgrundlagen bleiben sichtbar.
+Neue Risikowarnungen bleiben bis zur expliziten Konfiguration deaktiviert.
+Die bisherigen Emittenten-, Zustimmungs- und Ausführungsgrenzen gelten weiter.
+Umfang, Migrationen und offene Live-Abnahme:
+[Release-Dokumentation](docs/releases/V1.5.0-MARKET-CHARTS-AND-POSITION-RISK.md).
 
 ## Status
 
