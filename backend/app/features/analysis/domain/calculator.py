@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-from decimal import ROUND_HALF_EVEN, Decimal, localcontext
-from math import log, sqrt
+from decimal import ROUND_HALF_EVEN, Decimal
 
 from app.features.analysis.domain.enums import (
     AnalysisQualityStatus,
     CriterionClassification,
     PriceField,
 )
+from app.features.analysis.domain.indicators import realized_volatility, simple_average
 from app.features.analysis.domain.models import (
     AnalysisComputation,
     AnalysisParameters,
@@ -68,7 +68,7 @@ def calculate(parameters: AnalysisParameters, rows: tuple[SnapshotRow, ...]) -> 
         return value.quantize(q, rounding=ROUND_HALF_EVEN)
 
     def sma(window: int) -> Decimal:
-        return sum(selected[-window:], Decimal(0)) / Decimal(window)
+        return simple_average(selected, window)
 
     latest = selected[-1]
     metrics: dict[str, str | None] = {"latest_price": str(rounded(latest))}
@@ -101,15 +101,9 @@ def calculate(parameters: AnalysisParameters, rows: tuple[SnapshotRow, ...]) -> 
                 f"Return over {window} observations",
             )
         )
-    returns = [
-        log(float(selected[i] / selected[i - 1]))
-        for i in range(len(selected) - parameters.volatility_window, len(selected))
-    ]
-    mean = sum(returns) / len(returns)
-    variance = sum((value - mean) ** 2 for value in returns) / max(len(returns) - 1, 1)
-    with localcontext() as ctx:
-        ctx.prec = 28
-        volatility = Decimal(str(sqrt(variance))) * parameters.annualization_factor.sqrt()
+    volatility = realized_volatility(
+        selected, parameters.volatility_window, parameters.annualization_factor
+    )
     metrics["annualized_volatility"] = str(rounded(volatility))
     criteria.append(
         CriterionResult(
