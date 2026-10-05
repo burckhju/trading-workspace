@@ -227,7 +227,7 @@ function RiskPanel({ tradeId, readOnly }: { tradeId: string; readOnly: boolean }
           </details>
           {!readOnly && (
             <>
-              <fieldset disabled={busy} className="space-y-2">
+              <fieldset disabled={busy} className="min-w-0 space-y-2">
                 <legend>Explizite Regelkonfiguration</legend>
                 <p>
                   Die vorgeschlagenen Schwellen sind nicht historisch kalibriert. Dezimalbrüche:
@@ -248,7 +248,7 @@ function RiskPanel({ tradeId, readOnly }: { tradeId: string; readOnly: boolean }
                     <input
                       type="number"
                       step="any"
-                      className="rounded border bg-slate-900 p-1"
+                      className="max-w-full rounded border bg-slate-900 p-1"
                       value={parameters[key]}
                       onChange={(event) => {
                         setConfirmed(false);

@@ -88,15 +88,24 @@ test("qualified risk preview, explicit activation and immutable evaluation prese
   });
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(summary).toBeVisible();
-  expect(
-    await page.evaluate(
-      () => document.documentElement.scrollWidth > window.innerWidth,
-    ),
-  ).toBe(false);
   await testInfo.attach("risk-overview-mobile", {
     body: await panel.screenshot(),
     contentType: "image/png",
   });
+  const overflow = await page.evaluate(() => ({
+    pageWidth: document.documentElement.scrollWidth,
+    viewport: window.innerWidth,
+    elements: [...document.querySelectorAll("body *")]
+      .filter(
+        (element) =>
+          element.getBoundingClientRect().right > window.innerWidth + 1,
+      )
+      .map((element) => ({ tag: element.tagName, classes: element.className }))
+      .slice(0, 12),
+  }));
+  expect(overflow.pageWidth, JSON.stringify(overflow)).toBeLessThanOrEqual(
+    overflow.viewport,
+  );
   await panel
     .getByText("Kennzahlen, Kursqualität und Quellen im Detail")
     .click();
