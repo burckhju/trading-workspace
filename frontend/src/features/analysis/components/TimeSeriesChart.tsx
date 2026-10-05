@@ -9,10 +9,15 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import type { ChartComparison, ChartPoint, ChartSeries } from '../types/charts';
+import type {
+  ChartComparison,
+  ChartDisplayMode,
+  ChartDisplayState,
+  ChartPoint,
+  ChartSeries,
+} from '../types/charts';
 import { chartDate, chartMessage, chartNumber } from './chartLabels';
 
-type Mode = 'value' | 'normalized' | 'change_percent';
 type PlotRow = {
   date: string;
   day: number;
@@ -24,7 +29,7 @@ const dashes = ['', '8 4', '3 3', '10 3 2 3'];
 
 // Only plotting coordinates are converted to binary floats. Alignment, prices,
 // normalization and percentages are provided by the backend unchanged.
-function plotRows(series: ChartSeries[], mode: Mode): PlotRow[] {
+function plotRows(series: ChartSeries[], mode: ChartDisplayMode): PlotRow[] {
   const dates = new Set(series.flatMap((item) => item.points.map((point) => point.trading_date)));
   for (const item of series) {
     item.points.forEach((point) => {
@@ -49,10 +54,28 @@ function plotRows(series: ChartSeries[], mode: Mode): PlotRow[] {
   });
 }
 
-export function TimeSeriesChart({ result }: { result: ChartComparison }) {
-  const [mode, setMode] = useState<Mode>('value');
-  const [single, setSingle] = useState(0);
-  const [hidden, setHidden] = useState<string[]>([]);
+export function TimeSeriesChart({
+  result,
+  display,
+  onDisplayChange,
+}: {
+  result: ChartComparison;
+  display?: ChartDisplayState;
+  onDisplayChange?: (value: ChartDisplayState) => void;
+}) {
+  const [localDisplay, setLocalDisplay] = useState<ChartDisplayState>({
+    mode: null,
+    singleKey: null,
+    hiddenKeys: [],
+  });
+  const preferences = display ?? localDisplay;
+  const changeDisplay = (patch: Partial<ChartDisplayState>) =>
+    (onDisplayChange ?? setLocalDisplay)({ ...preferences, ...patch });
+  const mode = preferences.mode ?? (result.series.length > 1 ? 'normalized' : 'value');
+  const single = Math.max(
+    0,
+    result.series.findIndex((item) => item.identity.key === preferences.singleKey),
+  );
   const [tableIndex, setTableIndex] = useState(0);
   const [page, setPage] = useState(0);
   const rows = useMemo(() => plotRows(result.series, mode), [result.series, mode]);
@@ -61,7 +84,7 @@ export function TimeSeriesChart({ result }: { result: ChartComparison }) {
   const visible = result.series
     .map((item, index) => ({ item, index }))
     .filter(({ item, index }) =>
-      comparison ? !hidden.includes(item.identity.key) : index === single,
+      comparison ? !preferences.hiddenKeys.includes(item.identity.key) : index === single,
     );
   const selectedTable = result.series[tableIndex] ?? result.series[0];
   const tablePoints = selectedTable?.points.slice(page * 50, (page + 1) * 50) ?? [];
@@ -83,7 +106,7 @@ export function TimeSeriesChart({ result }: { result: ChartComparison }) {
           Darstellung
           <select
             value={mode}
-            onChange={(event) => setMode(event.target.value as Mode)}
+            onChange={(event) => changeDisplay({ mode: event.target.value as ChartDisplayMode })}
             className="ml-2 rounded border border-slate-600 bg-slate-950 p-2"
           >
             <option value="value">Absolute Einzelserie</option>
@@ -95,12 +118,12 @@ export function TimeSeriesChart({ result }: { result: ChartComparison }) {
           <label className="text-sm">
             Einzelserie
             <select
-              value={single}
-              onChange={(event) => setSingle(Number(event.target.value))}
+              value={result.series[single]?.identity.key ?? ''}
+              onChange={(event) => changeDisplay({ singleKey: event.target.value })}
               className="ml-2 rounded border border-slate-600 bg-slate-950 p-2"
             >
-              {result.series.map((item, index) => (
-                <option value={index} key={item.identity.key}>
+              {result.series.map((item) => (
+                <option value={item.identity.key} key={item.identity.key}>
                   {item.identity.name}
                 </option>
               ))}
@@ -136,13 +159,13 @@ export function TimeSeriesChart({ result }: { result: ChartComparison }) {
             <label key={item.identity.key} className="flex items-center gap-2 text-sm">
               <input
                 type="checkbox"
-                checked={!hidden.includes(item.identity.key)}
+                checked={!preferences.hiddenKeys.includes(item.identity.key)}
                 onChange={() =>
-                  setHidden((current) =>
-                    current.includes(item.identity.key)
-                      ? current.filter((key) => key !== item.identity.key)
-                      : [...current, item.identity.key],
-                  )
+                  changeDisplay({
+                    hiddenKeys: preferences.hiddenKeys.includes(item.identity.key)
+                      ? preferences.hiddenKeys.filter((key) => key !== item.identity.key)
+                      : [...preferences.hiddenKeys, item.identity.key],
+                  })
                 }
               />
               <span style={{ color: colors[index] }}>

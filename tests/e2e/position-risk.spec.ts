@@ -10,7 +10,7 @@ test.skip(
 test("qualified risk preview, explicit activation and immutable evaluation preserve the position", async ({
   page,
   request,
-}) => {
+}, testInfo) => {
   const root = "http://127.0.0.1:8000/api/v1";
   const marker = randomUUID();
   const issuerResponse = await request.post(
@@ -77,6 +77,29 @@ test("qualified risk preview, explicit activation and immutable evaluation prese
   expect(preview.comparison.reasons).toContain("PRODUCT_HISTORY_NOT_AVAILABLE");
   await page.goto(`/trade-management?trade_id=${captured.trade.id}`);
   const panel = page.getByRole("region", { name: "Risiko- und Trendsignale" });
+  const summary = panel.getByRole("region", { name: "Risikoübersicht" });
+  await expect(summary.getByText("Deaktiviert", { exact: true })).toBeVisible();
+  await expect(
+    summary.getByText("Nicht auswertbar", { exact: true }),
+  ).toHaveCount(2);
+  await testInfo.attach("risk-overview-desktop", {
+    body: await panel.screenshot(),
+    contentType: "image/png",
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(summary).toBeVisible();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth > window.innerWidth,
+    ),
+  ).toBe(false);
+  await testInfo.attach("risk-overview-mobile", {
+    body: await panel.screenshot(),
+    contentType: "image/png",
+  });
+  await panel
+    .getByText("Kennzahlen, Kursqualität und Quellen im Detail")
+    .click();
   await expect(panel).toContainText(
     "Mindestens 21 abgeschlossene bereinigte Tageskurse erforderlich",
   );

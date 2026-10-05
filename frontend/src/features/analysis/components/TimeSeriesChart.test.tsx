@@ -36,12 +36,29 @@ describe('TimeSeriesChart', () => {
       chartSeries(chartIdentity('listing:energy', 'TEST ETF', 'ETF')),
     ]);
     show(result);
-    await user.selectOptions(screen.getByLabelText('Einzelserie'), '1');
+    expect(screen.getByLabelText('Darstellung')).toHaveValue('normalized');
+    await user.selectOptions(screen.getByLabelText('Darstellung'), 'value');
+    await user.selectOptions(screen.getByLabelText('Einzelserie'), 'listing:energy');
     expect(screen.getByText(/Einheit: USD/)).toBeInTheDocument();
     await user.selectOptions(screen.getByLabelText('Darstellung'), 'normalized');
     await user.click(screen.getByRole('checkbox', { name: '2. TEST ETF' }));
     expect(screen.getByRole('checkbox', { name: '2. TEST ETF' })).not.toBeChecked();
     expect(result.series[1].points[2].normalized).toBe('120');
+  });
+  it('keeps absolute selection by identity when series order changes', async () => {
+    const user = userEvent.setup();
+    const first = chartSeries();
+    const second = chartSeries(chartIdentity('listing:energy', 'TEST ETF', 'ETF'));
+    const rendered = show(comparison([first, second]));
+    await user.selectOptions(screen.getByLabelText('Darstellung'), 'value');
+    await user.selectOptions(screen.getByLabelText('Einzelserie'), second.identity.key);
+    rendered.rerender(
+      <MemoryRouter>
+        <TimeSeriesChart result={comparison([second, first])} />
+      </MemoryRouter>,
+    );
+    expect(screen.getByLabelText('Einzelserie')).toHaveValue(second.identity.key);
+    expect(screen.getByText(/Einheit: USD/)).toBeInTheDocument();
   });
   it('explains unavailable comparison and empty values but permits absolute inspection', async () => {
     const user = userEvent.setup();

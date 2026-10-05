@@ -2,6 +2,13 @@
 
 Status: implemented; exact-head integration evidence in PR #244; 2026-10-04. No production activation or live acceptance.
 Merged as `35a9cb7`; included in [version 1.5.0](../releases/V1.5.0-MARKET-CHARTS-AND-POSITION-RISK.md).
+Version 1.5.1 adds a compact UI summary of the existing backend assessment:
+trend, realized volatility, underlying/quote quality and warning activation.
+Full metrics and provenance are expandable. Unavailable data masks current
+signal values and retains the warning explanation. A parameter preview is
+labelled as preview; its deliberately disabled backend configuration is never
+misrepresented as a change to the saved activation. No rule, parameter,
+evaluation, configuration command or delivery responsibility changes.
 The no-release statements below describe the feature PR before this coordinated release.
 User mandate: attached independent risk/trend specification dated 2026-10-04.
 Baseline: `16e2feec398658c82fa8773fa29feaa1c8fbbba8` (main and v1.4.5, verified).
