@@ -1,5 +1,30 @@
 import { randomUUID } from "node:crypto";
-import { expect, test } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
+
+async function expectUsableRiskWidth(page: Page, panel: Locator) {
+  const layout = await panel.evaluate((element) => {
+    const ancestors = [];
+    for (
+      let node: HTMLElement | null = element as HTMLElement;
+      node;
+      node = node.parentElement
+    ) {
+      const style = getComputedStyle(node);
+      ancestors.push({
+        tag: node.tagName,
+        classes: node.className,
+        width: node.getBoundingClientRect().width,
+        display: style.display,
+        flex: style.flex,
+        alignItems: style.alignItems,
+      });
+    }
+    return { width: element.getBoundingClientRect().width, ancestors };
+  });
+  expect(layout.width, JSON.stringify(layout)).toBeGreaterThanOrEqual(
+    Math.min(page.viewportSize()!.width, 1600) - 64,
+  );
+}
 
 test.use({ baseURL: "http://localhost:8080" });
 test.skip(
@@ -86,12 +111,14 @@ test("qualified risk preview, explicit activation and immutable evaluation prese
     body: await panel.screenshot(),
     contentType: "image/png",
   });
+  await expectUsableRiskWidth(page, panel);
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(summary).toBeVisible();
   await testInfo.attach("risk-overview-mobile", {
     body: await panel.screenshot(),
     contentType: "image/png",
   });
+  await expectUsableRiskWidth(page, panel);
   const overflow = await page.evaluate(() => ({
     pageWidth: document.documentElement.scrollWidth,
     viewport: window.innerWidth,
