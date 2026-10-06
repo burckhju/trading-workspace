@@ -1,5 +1,58 @@
 import { randomUUID } from "node:crypto";
-import { expect, test } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
+
+async function expectUsableWidth(page: Page, panel: Locator) {
+  const layout = await panel.evaluate((element) => {
+    const ancestors = [];
+    for (
+      let node: HTMLElement | null = element as HTMLElement;
+      node;
+      node = node.parentElement
+    ) {
+      const style = getComputedStyle(node);
+      ancestors.push({
+        tag: node.tagName,
+        classes: node.className,
+        width: node.getBoundingClientRect().width,
+        display: style.display,
+        flex: style.flex,
+        alignItems: style.alignItems,
+      });
+    }
+    return { width: element.getBoundingClientRect().width, ancestors };
+  });
+  expect(layout.width, JSON.stringify(layout)).toBeGreaterThanOrEqual(
+    Math.min(page.viewportSize()!.width, 1600) - 64,
+  );
+}
+
+async function expectStackedPanels(
+  page: Page,
+  risk: Locator,
+  valuation: Locator,
+) {
+  await expectUsableWidth(page, risk);
+  await expectUsableWidth(page, valuation);
+  const riskBounds = await risk.boundingBox();
+  const valuationBounds = await valuation.boundingBox();
+  expect(valuationBounds!.y).toBeGreaterThanOrEqual(
+    riskBounds!.y + riskBounds!.height,
+  );
+  const overflow = await page.evaluate(() => ({
+    pageWidth: document.documentElement.scrollWidth,
+    viewport: window.innerWidth,
+    elements: [...document.querySelectorAll("body *")]
+      .filter(
+        (element) =>
+          element.getBoundingClientRect().right > window.innerWidth + 1,
+      )
+      .map((element) => ({ tag: element.tagName, classes: element.className }))
+      .slice(0, 12),
+  }));
+  expect(overflow.pageWidth, JSON.stringify(overflow)).toBeLessThanOrEqual(
+    overflow.viewport,
+  );
+}
 
 test.use({ baseURL: "http://localhost:8080" });
 test.skip(
@@ -10,7 +63,7 @@ test.skip(
 test("qualified risk preview, explicit activation and immutable evaluation preserve the position", async ({
   page,
   request,
-}) => {
+}, testInfo) => {
   const root = "http://127.0.0.1:8000/api/v1";
   const marker = randomUUID();
   const issuerResponse = await request.post(
@@ -77,10 +130,43 @@ test("qualified risk preview, explicit activation and immutable evaluation prese
   expect(preview.comparison.reasons).toContain("PRODUCT_HISTORY_NOT_AVAILABLE");
   await page.goto(`/trade-management?trade_id=${captured.trade.id}`);
   const panel = page.getByRole("region", { name: "Risiko- und Trendsignale" });
+  const summary = panel.getByRole("region", { name: "Risikoübersicht" });
+  const valuation = page.locator("section").filter({
+    has: page.getByRole("heading", { name: "Produktbewertung", exact: true }),
+  });
+  await expect(summary.getByText("Deaktiviert", { exact: true })).toBeVisible();
+  await expect(
+    summary.getByText("Nicht auswertbar", { exact: true }),
+  ).toHaveCount(2);
+  await testInfo.attach("risk-overview-desktop", {
+    body: await panel.screenshot(),
+    contentType: "image/png",
+  });
+  await expectStackedPanels(page, panel, valuation);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(summary).toBeVisible();
+  await testInfo.attach("risk-overview-mobile", {
+    body: await panel.screenshot(),
+    contentType: "image/png",
+  });
+  await expectStackedPanels(page, panel, valuation);
+  await panel
+    .getByText("Kennzahlen, Kursqualität und Quellen im Detail")
+    .click();
   await expect(panel).toContainText(
     "Mindestens 21 abgeschlossene bereinigte Tageskurse erforderlich",
   );
   await expect(panel).toContainText("Echte Optionsschein-Kurshistorie fehlt");
+  await expectStackedPanels(page, panel, valuation);
+  for (const width of [320, 768]) {
+    await page.setViewportSize({ width, height: 844 });
+    await expectStackedPanels(page, panel, valuation);
+    await testInfo.attach(`risk-details-${width}`, {
+      body: await panel.screenshot(),
+      contentType: "image/png",
+    });
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
   const activate = panel.getByRole("button", {
     name: "Warnregeln für diese Position aktivieren",
   });

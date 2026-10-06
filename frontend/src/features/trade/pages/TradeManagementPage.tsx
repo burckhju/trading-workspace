@@ -220,7 +220,7 @@ function TradeManagementContext({ tradeId, onReload }: { tradeId: string; onRelo
   }
 
   return (
-    <main className="space-y-6">
+    <main className="min-w-0 w-full space-y-6 [overflow-wrap:anywhere]">
       <header>
         <p className="text-xs uppercase tracking-wide text-slate-500">FT-010</p>
         <h1 className="mt-1 text-2xl font-semibold">Trade Management</h1>

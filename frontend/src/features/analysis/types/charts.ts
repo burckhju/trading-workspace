@@ -1,3 +1,12 @@
+export type ChartDisplayMode = 'value' | 'normalized' | 'change_percent';
+
+/** Presentation preferences survive data reloads; they never change backend values. */
+export interface ChartDisplayState {
+  mode: ChartDisplayMode | null;
+  singleKey: string | null;
+  hiddenKeys: string[];
+}
+
 export interface ChartIdentity {
   key: string;
   name: string;

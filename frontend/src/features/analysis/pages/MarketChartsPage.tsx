@@ -5,7 +5,12 @@ import { UnderlyingSearchCombobox } from '../components/UnderlyingSearchCombobox
 import { TimeSeriesChart } from '../components/TimeSeriesChart';
 import { chartDate, chartMessage } from '../components/chartLabels';
 import { chartClient } from '../services/chartClient';
-import type { ChartCatalog, ChartComparison, UnderlyingChartContext } from '../types/charts';
+import type {
+  ChartCatalog,
+  ChartComparison,
+  ChartDisplayState,
+  UnderlyingChartContext,
+} from '../types/charts';
 
 const today = () => new Date().toISOString().slice(0, 10);
 const control = 'rounded border border-slate-600 bg-slate-950 p-2 text-sm';
@@ -28,6 +33,11 @@ export function MarketChartsPage() {
   const [catalogError, setCatalogError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [selectionError, setSelectionError] = useState<string | null>(null);
+  const [display, setDisplay] = useState<ChartDisplayState>({
+    mode: null,
+    singleKey: null,
+    hiddenKeys: [],
+  });
 
   function update(name: string, value: string) {
     const next = new URLSearchParams(params);
@@ -43,6 +53,13 @@ export function MarketChartsPage() {
     const next = new URLSearchParams(params);
     next.delete('target');
     [...new Set(targets)].forEach((key) => next.append('target', key));
+    // An explicit comparison action must show the selected series even after
+    // absolute inspection. Reloading the same selection keeps all preferences.
+    setDisplay((current) => ({
+      ...current,
+      mode: targets.length > 1 && current.mode === 'value' ? 'normalized' : current.mode,
+      hiddenKeys: current.hiddenKeys.filter((key) => !targets.includes(key)),
+    }));
     setSelectionError(null);
     setParams(next);
   }
@@ -156,17 +173,23 @@ export function MarketChartsPage() {
             }}
           />
         </label>
-        <label className="grid gap-2 text-sm">
-          Preisgrundlage
+        <div className="grid gap-2 text-sm">
+          <label htmlFor="chart-price-field">Preisgrundlage</label>
           <select
+            id="chart-price-field"
+            aria-describedby="chart-price-field-help"
             className={control}
             value={field}
             onChange={(event) => update('field', event.target.value)}
           >
-            <option value="CLOSE">CLOSE – unbereinigt</option>
-            <option value="ADJUSTED_CLOSE">ADJUSTED_CLOSE – Splits/Dividenden</option>
+            <option value="CLOSE">Originalkurs – unbereinigt</option>
+            <option value="ADJUSTED_CLOSE">Split-/dividendenbereinigter Kurs</option>
           </select>
-        </label>
+          <span id="chart-price-field-help" className="text-xs text-slate-400">
+            Originalkurse können Kurssprünge durch Splits enthalten. Fehlende bereinigte Werte
+            werden nicht ersetzt.
+          </span>
+        </div>
         <label className="grid gap-2 text-sm">
           Marktreferenz
           <select
@@ -248,7 +271,12 @@ export function MarketChartsPage() {
       )}
       {loading && <p role="status">Gespeicherte Kurse werden geladen …</p>}
       {result && (
-        <TimeSeriesChart key={`${effectiveKeys}:${period}:${end}:${field}`} result={result} />
+        <TimeSeriesChart
+          key={`${effectiveKeys}:${period}:${end}:${field}`}
+          result={result}
+          display={display}
+          onDisplayChange={setDisplay}
+        />
       )}
       {!effectiveKeys && !loading && (
         <p className="rounded border border-amber-700 p-4">

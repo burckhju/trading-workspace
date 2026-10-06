@@ -72,7 +72,7 @@ test("market to sectors and stock: backend values, keyboard tooltip, legend and 
     .getByRole("button", { name: "Vergleichen", exact: true })
     .nth(1)
     .click();
-  await page.getByLabel("Darstellung").selectOption("normalized");
+  await expect(page.getByLabel("Darstellung")).toHaveValue("normalized");
   await expect(page.locator(".recharts-line-curve")).toHaveCount(3);
   const before = requests.seriesCalls.length;
   await page.getByRole("checkbox", { name: "2. TEST Energy ETF" }).uncheck();
@@ -93,6 +93,23 @@ test("market to sectors and stock: backend values, keyboard tooltip, legend and 
     page.getByRole("cell", { name: "20", exact: true }),
   ).toBeVisible();
   expect(requests.seriesCalls).toHaveLength(before);
+  await page.getByRole("checkbox", { name: "2. TEST Energy ETF" }).uncheck();
+  await page.getByLabel("Zeitraum").selectOption("6");
+  await expect.poll(() => requests.seriesCalls.length).toBe(before + 1);
+  await expect(page.getByLabel("Darstellung")).toHaveValue("change_percent");
+  await expect(
+    page.getByRole("checkbox", { name: "2. TEST Energy ETF" }),
+  ).not.toBeChecked();
+  await page.getByLabel("Preisgrundlage").selectOption("ADJUSTED_CLOSE");
+  await expect.poll(() => requests.seriesCalls.length).toBe(before + 2);
+  await expect(page.getByLabel("Darstellung")).toHaveValue("change_percent");
+  await expect(
+    page.getByRole("checkbox", { name: "2. TEST Energy ETF" }),
+  ).not.toBeChecked();
+  await page.getByLabel("Enddatum").fill("2026-10-03");
+  await expect.poll(() => requests.seriesCalls.length).toBe(before + 3);
+  await expect(page.getByLabel("Darstellung")).toHaveValue("change_percent");
+  await expect(page.locator(".recharts-line-curve")).toHaveCount(2);
   expect(requests.writes).toEqual([]);
   await testInfo.attach("chart-desktop", {
     body: await page.screenshot({ fullPage: true }),
@@ -105,6 +122,8 @@ test("market to sectors and stock: backend values, keyboard tooltip, legend and 
   await expect
     .poll(() => requests.seriesCalls.at(-1))
     .toEqual(["listing:stock", "listing:Energy", "reference:sp500"]);
+  await expect(page.getByLabel("Darstellung")).toHaveValue("normalized");
+  await expect(page.locator(".recharts-line-curve")).toHaveCount(3);
 });
 
 test("mobile chart fits the page; tables scroll within their regions", async ({

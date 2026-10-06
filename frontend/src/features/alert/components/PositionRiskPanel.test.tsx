@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { riskApi } from '../services/risk';
 import type { RiskView } from '../types/risk';
@@ -98,7 +98,12 @@ describe('qualified risk panel', () => {
   it('separates risk metrics, original time and receipt; read-only performs no writes', async () => {
     render(<PositionRiskPanel tradeId="trade-1" readOnly />);
     await screen.findByText(/Wechsel unter SMA20 bestätigt/);
-    expect(screen.getByText('42 %')).toBeInTheDocument();
+    const summary = within(screen.getByRole('region', { name: 'Risikoübersicht' }));
+    expect(summary.getByText('42 %')).toBeVisible();
+    expect(summary.getByText('Deaktiviert')).toBeVisible();
+    expect(summary.getByText('Optionsscheinquote: Eingeschränkt')).toBeVisible();
+    expect(screen.getByText(/Originalkurszeit: unbekannt/)).not.toBeVisible();
+    fireEvent.click(screen.getByText('Kennzahlen, Kursqualität und Quellen im Detail'));
     expect(screen.getByText(/Echte Optionsschein-Kurshistorie fehlt/)).toBeInTheDocument();
     expect(screen.getByText(/Originalkurszeit: unbekannt/)).toBeInTheDocument();
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
@@ -163,11 +168,49 @@ describe('qualified risk panel', () => {
     vi.mocked(riskApi.read).mockResolvedValue(data);
     vi.mocked(riskApi.history).mockResolvedValue([{ ...data, snapshot_id: 'past' }]);
     render(<PositionRiskPanel tradeId="trade-1" />);
-    await screen.findByText(/Basiswertdaten veraltet/);
+    const summary = within(await screen.findByRole('region', { name: 'Risikoübersicht' }));
+    expect(summary.getByText('Basiswertdaten veraltet')).toBeVisible();
+    expect(summary.getAllByText('Nicht auswertbar')).toHaveLength(2);
+    expect(summary.queryByText('42 %')).not.toBeInTheDocument();
+    expect(summary.getByText(/Bisheriger Warnzustand bleibt/)).toBeVisible();
+    fireEvent.click(screen.getByText('Kennzahlen, Kursqualität und Quellen im Detail'));
     expect(screen.getByRole('table')).toHaveTextContent('101');
     expect(screen.getByText(/keine nachgewiesene Fehlbewertung/)).toBeInTheDocument();
     fireEvent.click(screen.getByText('Letzte 20 Auswertungen anzeigen'));
     await waitFor(() => expect(riskApi.history).toHaveBeenCalledWith('trade-1'));
+  });
+  it('shows a pending change and preview independently from active warnings', async () => {
+    const pending = view();
+    pending.configuration.enabled = true;
+    pending.assessment.transition = 'CONFIRMING';
+    pending.assessment.interpretation = 'FAVORABLE';
+    pending.assessment.state.pending_sessions = 1;
+    pending.assessment.state.trend_warning = false;
+    pending.assessment.state.volatility_warning = false;
+    vi.mocked(riskApi.read).mockResolvedValue(pending);
+    vi.mocked(riskApi.preview).mockResolvedValue({
+      ...pending,
+      configuration: { ...pending.configuration, enabled: false },
+    });
+    render(<PositionRiskPanel tradeId="trade-1" />);
+    const summary = within(await screen.findByRole('region', { name: 'Risikoübersicht' }));
+    expect(summary.getByText(/1 von 2 Bestätigungstagen/)).toBeVisible();
+    expect(summary.getByText('Aktiv')).toBeVisible();
+    expect(summary.getByText('Kein erhöhter Warnzustand in der Auswertung')).toBeVisible();
+    fireEvent.click(screen.getByText('Parameter unverbindlich prüfen'));
+    expect(await summary.findByText(/Unverbindliche Vorschau/)).toBeVisible();
+    expect(summary.getByText('Vorschau', { exact: true })).toBeVisible();
+    expect(summary.queryByText('Deaktiviert')).not.toBeInTheDocument();
+    expect(riskApi.configure).not.toHaveBeenCalled();
+  });
+  it('identifies an initial state without claiming a trend break', async () => {
+    const initial = view();
+    initial.assessment.transition = 'INITIALIZED';
+    initial.assessment.state.trend_warning = false;
+    vi.mocked(riskApi.read).mockResolvedValue(initial);
+    render(<PositionRiskPanel tradeId="trade-1" readOnly />);
+    const summary = within(await screen.findByRole('region', { name: 'Risikoübersicht' }));
+    expect(summary.getByText('Ausgangszustand, noch kein Trendbruch.')).toBeVisible();
   });
   it('reports command failures and supports explicit deactivation', async () => {
     const active = view();

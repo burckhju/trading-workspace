@@ -53,6 +53,15 @@ CLOSE zurück. Unpassende Renditegrundlagen werden erklärt statt vermischt.
 
 ## UI und Einrichtung
 
+Bedienkorrektur 1.5.1: Mehrere Serien starten mit gemeinsamem Start 100.
+Explizites Vergleichen verlässt die absolute Einzelansicht und blendet die
+gewählten Reihen ein. Prozentdarstellung, Legende und per Identität gewählte
+Einzelserie bleiben bei Zeitraum-, Enddatum- und Preisfeldwechsel erhalten.
+Die Einstellung gilt innerhalb der geöffneten Seite; ein vollständiges Neuladen
+startet mit der automatischen Darstellung. Tabellenpagination startet nach einem
+Datenwechsel neu. „Originalkurs“ und „Split-/dividendenbereinigter Kurs“ sind
+verständliche Beschriftungen der unveränderten CLOSE/ADJUSTED_CLOSE-Werte.
+
 Einstieg über Marktanalyse → Diagramme, außerdem URLs aus Basiswert-/Kandidaten-
 und Positionskontext. Markt, gesamte administrierte Sektormatrix und ausgewählte
 Aktie verwenden dieselbe Komponente. Sektormatrix enthält auch inaktive, fehlende

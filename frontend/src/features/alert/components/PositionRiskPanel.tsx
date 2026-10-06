@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { riskApi } from '../services/risk';
 import { riskLabel as label, riskPercent as percent } from '../services/riskLabels';
 import type { RiskParameters, RiskView } from '../types/risk';
+import { PositionRiskSummary } from './PositionRiskSummary';
 
 export function PositionRiskPanel({
   tradeId,
@@ -78,15 +79,11 @@ function RiskPanel({ tradeId, readOnly }: { tradeId: string; readOnly: boolean }
         <>
           <p>
             {view.configuration.policy_version} · Revision {view.configuration.revision} ·{' '}
-            {view.configuration.enabled ? 'Warnregeln aktiv' : 'Warnregeln deaktiviert'}
-            {proposed ? ' · Parametervorschau' : ''}
-          </p>
-          <p>
-            Parameter: SMA-Band {percent(view.configuration.parameters.hysteresis_fraction)} ·{' '}
-            {view.configuration.parameters.confirmation_sessions} Bestätigungstage · Volatilität
-            hoch {percent(view.configuration.parameters.volatility_high)}, Rücksetzung{' '}
-            {percent(view.configuration.parameters.volatility_reset)} · Datenalter höchstens{' '}
-            {view.configuration.parameters.maximum_age_days} Tage.
+            {proposed
+              ? 'Parametervorschau · gespeicherte Aktivierung unverändert'
+              : view.configuration.enabled
+                ? 'Warnregeln aktiv'
+                : 'Warnregeln deaktiviert'}
           </p>
           <p>
             {view.listing?.symbol ?? 'Basiswert unbekannt'} ·{' '}
@@ -94,128 +91,143 @@ function RiskPanel({ tradeId, readOnly }: { tradeId: string; readOnly: boolean }
             {view.product?.direction ?? 'Call/Put unbekannt'} · ISIN{' '}
             {view.product?.isin ?? 'unbekannt'}
           </p>
-          <p>
-            {label(view.metrics.status)}: {label(view.metrics.reason)}. Zeitraum{' '}
-            {view.metrics.window_start ?? '—'} bis {view.metrics.session ?? '—'} (
-            {view.metrics.observations} Kurse).
-          </p>
-          <dl className="grid gap-3 sm:grid-cols-2">
-            <div>
-              <dt>Realisierte Volatilität (20 Renditen, jährlich)</dt>
-              <dd>{percent(view.metrics.realized_volatility20)}</dd>
-            </div>
-            <div>
-              <dt>Vorheriges, nicht überlappendes Fenster</dt>
-              <dd>{percent(view.metrics.previous_volatility20)}</dd>
-            </div>
-            <div>
-              <dt>Abstand zum SMA20</dt>
-              <dd>{percent(view.metrics.distance_sma20)}</dd>
-            </div>
-            <div>
-              <dt>Änderung des SMA20 zum Vortag</dt>
-              <dd>{percent(view.metrics.sma20_slope)}</dd>
-            </div>
-            <div>
-              <dt>ATR14 / unbereinigter Schlusskurs</dt>
-              <dd>
-                {percent(view.metrics.atr14_relative)}
-                {view.metrics.atr14_relative === null ? ` · ${label(view.metrics.atr_reason)}` : ''}
-              </dd>
-            </div>
-          </dl>
-          <p>
-            Trend: {label(view.assessment.state.trend)} · {label(view.assessment.transition)} ·{' '}
-            {label(view.assessment.interpretation)}. {label(view.assessment.reason)}. Bestätigungen:{' '}
-            {view.assessment.state.pending_sessions}.
-          </p>
-          {(view.assessment.state.trend_warning || view.assessment.state.volatility_warning) && (
-            <p className="text-amber-200">
-              Gespeicherter Warnzustand:{' '}
-              {view.assessment.state.trend_warning ? 'Trendverschlechterung. ' : ''}
-              {view.assessment.state.volatility_warning ? 'Erhöhte Volatilität.' : ''} Bei
-              Datenlücken keine Entwarnung.
-            </p>
-          )}
-          <p>
-            Log-Renditen bereinigter Schlusskurse, Stichproben-Standardabweichung × √252. ATR14
-            verwendet einfache Mittelung. Keine implizite Volatilität, Erfolgswahrscheinlichkeit
-            oder Verkaufsempfehlung.
-          </p>
-          <h4 className="font-semibold">Optionsscheinquote und Vergleich</h4>
-          <p>
-            Geld {view.quote_quality.bid ?? 'fehlt'} · Brief {view.quote_quality.ask ?? 'fehlt'} ·
-            Spread / Mid {view.quote_quality.spread_mid_percent ?? '—'} %. Volumen Geld/Brief:{' '}
-            {view.quote_quality.bid_volume ?? 'unbekannt'} /{' '}
-            {view.quote_quality.ask_volume ?? 'unbekannt'}.
-          </p>
-          <p>
-            Quelle: {view.quote_quality.provider ?? 'unbekannt'} · Originalkurszeit:{' '}
-            {view.quote_quality.observed_at ?? 'unbekannt'} · Empfangszeit:{' '}
-            {view.quote_quality.received_at ?? 'unbekannt'}.
-          </p>
-          <ul>
-            {view.quote_quality.reasons.map((reason) => (
-              <li key={reason}>{label(reason)}</li>
-            ))}
-          </ul>
-          <p>
-            Aktie/Optionsschein: {label(view.comparison.status)} ·{' '}
-            {view.comparison.reasons.map(label).join('; ')}
-          </p>
-          {view.comparison.status === 'AVAILABLE' && (
-            <>
-              <p>
-                {view.comparison.price_type}: Aktie {percent(view.comparison.underlying_return)},
-                Optionsschein {percent(view.comparison.warrant_return)}.{' '}
-                {view.comparison.descriptive_divergence
-                  ? 'Beobachtete Richtungsdivergenz; keine nachgewiesene Fehlbewertung.'
-                  : 'Keine Richtungsdivergenz in diesem Intervall.'}
-              </p>
-              <table>
-                <caption>Synchrone Reihen, Startwert 100</caption>
-                <thead>
-                  <tr>
-                    <th>Zeit</th>
-                    <th>Aktie</th>
-                    <th>Optionsschein</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {view.comparison.times.map((time, index) => (
-                    <tr key={time}>
-                      <td>{time}</td>
-                      <td>{view.comparison.normalized_underlying[index]}</td>
-                      <td>{view.comparison.normalized_warrant[index]}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </>
-          )}
-          <p>
-            Indikative Auswertung. Empfangszeit bestätigt keine Kursaktualität. Keine
-            Ausführungsfreigabe.
-          </p>
-          <details>
-            <summary>Herkunft und Reproduzierbarkeit</summary>
+          <PositionRiskSummary view={view} proposed={proposed} />
+          <details className="space-y-3 rounded border border-slate-700 p-3">
+            <summary className="cursor-pointer font-semibold">
+              Kennzahlen, Kursqualität und Quellen im Detail
+            </summary>
             <p>
-              Auswertung {view.evaluated_at} · {view.metrics.policy_version} · Snapshot{' '}
-              {view.snapshot_id ?? 'ungespeicherte Vorschau'} · Eingangskennung{' '}
-              {view.input_fingerprint}
+              Parameter: SMA-Band {percent(view.configuration.parameters.hysteresis_fraction)} ·{' '}
+              {view.configuration.parameters.confirmation_sessions} Bestätigungstage · Volatilität
+              hoch {percent(view.configuration.parameters.volatility_high)}, Rücksetzung{' '}
+              {percent(view.configuration.parameters.volatility_reset)} · Datenalter höchstens{' '}
+              {view.configuration.parameters.maximum_age_days} Tage.
+            </p>
+            <p>
+              {label(view.metrics.status)}: {label(view.metrics.reason)}. Zeitraum{' '}
+              {view.metrics.window_start ?? '—'} bis {view.metrics.session ?? '—'} (
+              {view.metrics.observations} Kurse).
+            </p>
+            <dl className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <dt>Realisierte Volatilität (20 Renditen, jährlich)</dt>
+                <dd>{percent(view.metrics.realized_volatility20)}</dd>
+              </div>
+              <div>
+                <dt>Vorheriges, nicht überlappendes Fenster</dt>
+                <dd>{percent(view.metrics.previous_volatility20)}</dd>
+              </div>
+              <div>
+                <dt>Abstand zum SMA20</dt>
+                <dd>{percent(view.metrics.distance_sma20)}</dd>
+              </div>
+              <div>
+                <dt>Änderung des SMA20 zum Vortag</dt>
+                <dd>{percent(view.metrics.sma20_slope)}</dd>
+              </div>
+              <div>
+                <dt>ATR14 / unbereinigter Schlusskurs</dt>
+                <dd>
+                  {percent(view.metrics.atr14_relative)}
+                  {view.metrics.atr14_relative === null
+                    ? ` · ${label(view.metrics.atr_reason)}`
+                    : ''}
+                </dd>
+              </div>
+            </dl>
+            <p>
+              Trend: {label(view.assessment.state.trend)} · {label(view.assessment.transition)} ·{' '}
+              {label(view.assessment.interpretation)}. {label(view.assessment.reason)}.
+              Bestätigungen: {view.assessment.state.pending_sessions}.
+            </p>
+            {(view.assessment.state.trend_warning || view.assessment.state.volatility_warning) && (
+              <p className="text-amber-200">
+                Gespeicherter Warnzustand:{' '}
+                {view.assessment.state.trend_warning ? 'Trendverschlechterung. ' : ''}
+                {view.assessment.state.volatility_warning ? 'Erhöhte Volatilität.' : ''} Bei
+                Datenlücken keine Entwarnung.
+              </p>
+            )}
+            <p>
+              Log-Renditen bereinigter Schlusskurse, Stichproben-Standardabweichung × √252. ATR14
+              verwendet einfache Mittelung. Keine implizite Volatilität, Erfolgswahrscheinlichkeit
+              oder Verkaufsempfehlung.
+            </p>
+            <h4 className="font-semibold">Optionsscheinquote und Vergleich</h4>
+            <p>
+              Geld {view.quote_quality.bid ?? 'fehlt'} · Brief {view.quote_quality.ask ?? 'fehlt'} ·
+              Spread / Mid {view.quote_quality.spread_mid_percent ?? '—'} %. Volumen Geld/Brief:{' '}
+              {view.quote_quality.bid_volume ?? 'unbekannt'} /{' '}
+              {view.quote_quality.ask_volume ?? 'unbekannt'}.
+            </p>
+            <p>
+              Quelle: {view.quote_quality.provider ?? 'unbekannt'} · Originalkurszeit:{' '}
+              {view.quote_quality.observed_at ?? 'unbekannt'} · Empfangszeit:{' '}
+              {view.quote_quality.received_at ?? 'unbekannt'}.
             </p>
             <ul>
-              {view.input_prices.map((p) => (
-                <li key={p.trading_date}>
-                  {p.trading_date} · {p.provider}/{p.provider_symbol} · bereinigter Schluss{' '}
-                  {p.adjusted_close ?? 'fehlt'} {p.currency} · empfangen {p.retrieved_at}
-                </li>
+              {view.quote_quality.reasons.map((reason) => (
+                <li key={reason}>{label(reason)}</li>
               ))}
             </ul>
+            <p>
+              Aktie/Optionsschein: {label(view.comparison.status)} ·{' '}
+              {view.comparison.reasons.map(label).join('; ')}
+            </p>
+            {view.comparison.status === 'AVAILABLE' && (
+              <>
+                <p>
+                  {view.comparison.price_type}: Aktie {percent(view.comparison.underlying_return)},
+                  Optionsschein {percent(view.comparison.warrant_return)}.{' '}
+                  {view.comparison.descriptive_divergence
+                    ? 'Beobachtete Richtungsdivergenz; keine nachgewiesene Fehlbewertung.'
+                    : 'Keine Richtungsdivergenz in diesem Intervall.'}
+                </p>
+                <table>
+                  <caption>Synchrone Reihen, Startwert 100</caption>
+                  <thead>
+                    <tr>
+                      <th>Zeit</th>
+                      <th>Aktie</th>
+                      <th>Optionsschein</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {view.comparison.times.map((time, index) => (
+                      <tr key={time}>
+                        <td>{time}</td>
+                        <td>{view.comparison.normalized_underlying[index]}</td>
+                        <td>{view.comparison.normalized_warrant[index]}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </>
+            )}
+            <p>
+              Indikative Auswertung. Empfangszeit bestätigt keine Kursaktualität. Keine
+              Ausführungsfreigabe.
+            </p>
+            <details>
+              <summary>Herkunft und Reproduzierbarkeit</summary>
+              <p>
+                Auswertung {view.evaluated_at} · {view.metrics.policy_version} · Snapshot{' '}
+                {view.snapshot_id ?? 'ungespeicherte Vorschau'} · Eingangskennung{' '}
+                {view.input_fingerprint}
+              </p>
+              <ul>
+                {view.input_prices.map((p) => (
+                  <li key={p.trading_date}>
+                    {p.trading_date} · {p.provider}/{p.provider_symbol} · bereinigter Schluss{' '}
+                    {p.adjusted_close ?? 'fehlt'} {p.currency} · empfangen {p.retrieved_at}
+                  </li>
+                ))}
+              </ul>
+            </details>
           </details>
           {!readOnly && (
             <>
-              <fieldset disabled={busy} className="space-y-2">
+              <fieldset disabled={busy} className="min-w-0 space-y-2">
                 <legend>Explizite Regelkonfiguration</legend>
                 <p>
                   Die vorgeschlagenen Schwellen sind nicht historisch kalibriert. Dezimalbrüche:
@@ -236,7 +248,7 @@ function RiskPanel({ tradeId, readOnly }: { tradeId: string; readOnly: boolean }
                     <input
                       type="number"
                       step="any"
-                      className="rounded border bg-slate-900 p-1"
+                      className="max-w-full rounded border bg-slate-900 p-1"
                       value={parameters[key]}
                       onChange={(event) => {
                         setConfirmed(false);

@@ -2,6 +2,10 @@
 
 Produktionsnahes Referenzrepository für den **Trading Workspace**.
 
+Version 1.5.1 verbessert die Diagrammbedienung und fasst Risikoindikationen
+kompakt zusammen. Darstellung, Linienauswahl und Einzelserie bleiben beim
+Datenneuladen erhalten. [Bedienung und Umfang](docs/releases/V1.5.1-CHARTS-AND-RISK-USABILITY.md).
+
 Version 1.5.0 ergänzt interaktive Markt-, Sektor- und Aktiendiagramme sowie
 qualifizierte Risiko-/Trendanzeigen für bestehende Positionen. Vergleiche werden
 im Backend berechnet; Datenlücken, Quellen und Preisgrundlagen bleiben sichtbar.
