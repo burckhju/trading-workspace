@@ -2,6 +2,11 @@
 
 Produktionsnahes Referenzrepository für den **Trading Workspace**.
 
+Version 1.5.2 isoliert fehlerhafte gettex-Zeilen pro ISIN. Gültige Kurse anderer
+Produkte aus derselben Datei bleiben verfügbar; ungültige Produkte behalten
+ihren Fehlerstatus und gegebenenfalls ausdrücklich gekennzeichnete historische
+Kurse. [Umfang und Prüfung](docs/releases/V1.5.2-GETTEX-ROW-ISOLATION.md).
+
 Version 1.5.1 verbessert die Diagrammbedienung und fasst Risikoindikationen
 kompakt zusammen. Darstellung, Linienauswahl und Einzelserie bleiben beim
 Datenneuladen erhalten. [Bedienung und Umfang](docs/releases/V1.5.1-CHARTS-AND-RISK-USABILITY.md).

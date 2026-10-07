@@ -47,6 +47,14 @@ class GettexQuoteRow:
     mic: str
 
 
+@dataclass(frozen=True, slots=True)
+class GettexQuoteBatch:
+    """Valid products and per-ISIN failures from one fully verified gzip stream."""
+
+    quotes: dict[str, GettexQuoteRow]
+    errors: dict[str, str]
+
+
 def parse_file_window(file_name: str) -> GettexFileWindow:
     """Parse the observed 15-minute file-window convention without guessing from content."""
 
@@ -115,32 +123,56 @@ def scan_gzip_quotes(
     file_name: str,
     tracked_isins: set[str],
 ) -> dict[str, GettexQuoteRow]:
-    """Stream a complete gzip file and retain only the newest requested ISIN rows."""
+    """Strict compatibility entry point: reject a batch with any tracked row error."""
+
+    batch = scan_gzip_quote_batch(source, file_name=file_name, tracked_isins=tracked_isins)
+    if batch.errors:
+        raise GettexPayloadError(next(iter(batch.errors.values())))
+    return batch.quotes
+
+
+def scan_gzip_quote_batch(
+    source: BinaryIO,
+    *,
+    file_name: str,
+    tracked_isins: set[str],
+) -> GettexQuoteBatch:
+    """Isolate row failures by ISIN; file integrity errors still reject every product.
+
+    Any invalid tracked row excludes that ISIN for the entire file, even if an
+    earlier or later row is valid. Never silently substitute an older row from
+    the same file or treat an invalid quote as a new successful observation.
+    """
 
     window = parse_file_window(file_name)
     tracked = {value.strip().upper() for value in tracked_isins}
     if any(_ISIN.fullmatch(value) is None for value in tracked):
         raise GettexPayloadError("GETTEX_TRACKED_ISIN_INVALID")
     if not tracked:
-        return {}
+        return GettexQuoteBatch({}, {})
 
     latest: dict[str, GettexQuoteRow] = {}
+    errors: dict[str, str] = {}
     try:
         with gzip.GzipFile(fileobj=source, mode="rb") as compressed:
             text = TextIOWrapper(compressed, encoding="utf-8", newline="")
             for raw_line in text:
                 candidate = raw_line.partition(",")[0].strip().upper()
-                if candidate not in tracked:
+                if candidate not in tracked or candidate in errors:
                     continue
-                row = parse_quote_row(raw_line.rstrip("\r\n"), window=window)
-                previous = latest.get(row.isin)
-                if previous is None or row.observed_at > previous.observed_at:
-                    latest[row.isin] = row
-                elif row.observed_at == previous.observed_at and row != previous:
-                    raise GettexPayloadError("GETTEX_DUPLICATE_TIMESTAMP_CONFLICT")
+                try:
+                    row = parse_quote_row(raw_line.rstrip("\r\n"), window=window)
+                    previous = latest.get(row.isin)
+                    if previous is None or row.observed_at > previous.observed_at:
+                        latest[row.isin] = row
+                    elif row.observed_at == previous.observed_at and row != previous:
+                        raise GettexPayloadError("GETTEX_DUPLICATE_TIMESTAMP_CONFLICT")
+                except GettexPayloadError as exc:
+                    errors[candidate] = str(exc)
+                    latest.pop(candidate, None)
     except (EOFError, OSError, UnicodeDecodeError) as exc:
         raise GettexPayloadError("GETTEX_GZIP_INVALID") from exc
-    return latest
+    return GettexQuoteBatch(latest, errors)
 
 
 def _observed_at(clock: str, window: GettexFileWindow) -> datetime:
