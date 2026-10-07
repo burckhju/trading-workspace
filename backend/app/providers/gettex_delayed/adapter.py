@@ -32,13 +32,17 @@ from app.features.market_data.service.errors import (
     MarketDataUnavailableError,
 )
 from app.features.market_data.service.types import MarketDataResult, WarrantQuoteRequest
-from app.providers.gettex_delayed.parser import GettexPayloadError, GettexQuoteRow, scan_gzip_quotes
+from app.providers.gettex_delayed.parser import (
+    GettexPayloadError,
+    GettexQuoteBatch,
+    scan_gzip_quote_batch,
+)
 
 
 @dataclass(frozen=True, slots=True)
 class _CacheEntry:
     file_name: str
-    quotes: dict[str, GettexQuoteRow]
+    batch: GettexQuoteBatch
     retrieved_at: datetime
 
 
@@ -81,12 +85,18 @@ class GettexDelayedWarrantQuoteAdapter:
                 provider=MarketDataProvider.GETTEX_DELAYED,
                 capability=MarketDataCapability.WARRANT_LISTING_QUOTE,
             )
-        quotes, retrieved_at, cache_hit = await self._quotes_for(
+        batch, retrieved_at, cache_hit = await self._quotes_for(
             request.workspace_id,
             identity.exchange,
             request.as_of,
         )
-        row = quotes.get(identity.isin)
+        if error := batch.errors.get(identity.isin):
+            raise MarketDataInvalidResponseError(
+                error,
+                provider=MarketDataProvider.GETTEX_DELAYED,
+                capability=MarketDataCapability.WARRANT_LISTING_QUOTE,
+            )
+        row = batch.quotes.get(identity.isin)
         quote = None
         if row is not None:
             if row.currency != identity.currency:
@@ -164,7 +174,7 @@ class GettexDelayedWarrantQuoteAdapter:
         workspace_id: UUID,
         mic: str,
         as_of: datetime,
-    ) -> tuple[dict[str, GettexQuoteRow], datetime, bool]:
+    ) -> tuple[GettexQuoteBatch, datetime, bool]:
         async with self._lock:
             tracked_isins = await self._tracked_isins(workspace_id, mic)
             if not tracked_isins:
@@ -178,7 +188,7 @@ class GettexDelayedWarrantQuoteAdapter:
             for file_name in self._candidate_file_names(as_of, mic):
                 cached = self._cache.get(cache_key)
                 if cached is not None and cached.file_name == file_name:
-                    return cached.quotes, cached.retrieved_at, True
+                    return cached.batch, cached.retrieved_at, True
 
                 missing_key = (mic, file_name)
                 if monotonic() < self._missing_until.get(missing_key, 0):
@@ -190,13 +200,13 @@ class GettexDelayedWarrantQuoteAdapter:
                         monotonic() + self._settings.unavailable_retry_seconds
                     )
                     continue
-                quotes, retrieved_at = loaded
+                batch, retrieved_at = loaded
                 self._cache[cache_key] = _CacheEntry(
                     file_name=file_name,
-                    quotes=quotes,
+                    batch=batch,
                     retrieved_at=retrieved_at,
                 )
-                return quotes, retrieved_at, False
+                return batch, retrieved_at, False
 
         # A missing publication window does not invalidate a verified product route.
         # Let the retention boundary disclose the last successful observation.
@@ -224,7 +234,7 @@ class GettexDelayedWarrantQuoteAdapter:
         self,
         file_name: str,
         tracked_isins: set[str],
-    ) -> tuple[dict[str, GettexQuoteRow], datetime] | None:
+    ) -> tuple[GettexQuoteBatch, datetime] | None:
         url = f"{self._settings.base_url.rstrip('/')}/{file_name}"
         try:
             async with self._client.stream(
@@ -284,8 +294,8 @@ class GettexDelayedWarrantQuoteAdapter:
                         temporary.write(chunk)
                     temporary.seek(0)
                     try:
-                        quotes = await asyncio.to_thread(
-                            scan_gzip_quotes,
+                        batch = await asyncio.to_thread(
+                            scan_gzip_quote_batch,
                             cast(BinaryIO, temporary),
                             file_name=file_name,
                             tracked_isins=tracked_isins,
@@ -310,4 +320,4 @@ class GettexDelayedWarrantQuoteAdapter:
                 capability=MarketDataCapability.WARRANT_LISTING_QUOTE,
                 retryable=True,
             ) from exc
-        return quotes, datetime.now(UTC)
+        return batch, datetime.now(UTC)

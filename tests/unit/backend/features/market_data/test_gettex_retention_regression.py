@@ -1,5 +1,6 @@
 """Missing feed windows must retain verified history and disclose failed refreshes."""
 
+import gzip
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
@@ -266,3 +267,40 @@ async def test_not_found_is_disclosed_for_selected_route_only(gettex_context, se
         assert resolved.attempts[0].status is QuoteSourceAttemptStatus.MISSING
     else:
         assert resolved.attempts == ()
+
+
+@pytest.mark.asyncio
+async def test_invalid_product_keeps_original_history_and_explicit_row_error(
+    gettex_context: SimpleNamespace, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    c = gettex_context
+    await RetainedWarrantQuoteProvider(c.database, c.provider, PROVIDER).get_warrant_listing_quote(
+        c.request
+    )
+    content = (
+        f"{c.result.data.isin},19:10:00.000001,EUR,0.04,100,0,100\n"
+        "DE000UN37224,19:10:01.000001,EUR,1.23,100,1.24,100\n"
+    ).encode()
+    async with httpx.AsyncClient(
+        transport=httpx.MockTransport(
+            lambda request: httpx.Response(200, content=gzip.compress(content))
+        )
+    ) as client:
+        adapter = missing_files_adapter(c, client, monkeypatch)
+        monkeypatch.setattr(
+            adapter, "_tracked_isins", AsyncMock(return_value={c.result.data.isin, "DE000UN37224"})
+        )
+        result = await RetainedWarrantQuoteProvider(
+            c.database, adapter, PROVIDER
+        ).get_warrant_listing_quote(c.request)
+    assert result.data is not None
+    assert result.data.retained is True
+    assert result.data.refresh_error == "GETTEX_ROW_ASK_NOT_POSITIVE"
+    assert result.data.bid == Decimal("0.030")
+    assert result.data.observed_at == FRIDAY
+    assert result.retrieved_at == c.result.retrieved_at
+    with Session(c.database.engine) as session:
+        payload = session.scalar(select(WarrantQuoteObservationModel)).payload
+        assert payload["data"]["refresh_error"] is None
+        assert payload["data"]["retained"] is False
+        assert payload["retrieved_at"] == c.result.retrieved_at.isoformat().replace("+00:00", "Z")

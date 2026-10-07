@@ -9,6 +9,7 @@ from app.providers.gettex_delayed.parser import (
     GettexPayloadError,
     parse_file_window,
     parse_quote_row,
+    scan_gzip_quote_batch,
     scan_gzip_quotes,
 )
 
@@ -153,3 +154,85 @@ def test_streaming_scan_rejects_truncated_gzip() -> None:
             file_name="pretrade.20260916.21.00.mund.csv.gz",
             tracked_isins={"DE000UN37224"},
         )
+
+
+@pytest.mark.parametrize(
+    ("bad_row", "reason"),
+    [
+        ("20:50:00.000001,EUR,1.23,100,0,100", "GETTEX_ROW_ASK_NOT_POSITIVE"),
+        ("20:50:00.000001,EUR,0,100,1.24,100", "GETTEX_ROW_BID_NOT_POSITIVE"),
+        ("20:50:00.000001,EUR,1.23,100,-1,100", "GETTEX_ROW_ASK_NOT_POSITIVE"),
+        ("20:50:00.000001,EUR,1.23,100,NaN,100", "GETTEX_ROW_ASK_INVALID"),
+        ("20:50:00.000001,EUR,1.25,100,1.24,100", "GETTEX_ROW_CROSSED_QUOTE"),
+        ("20:50:00.000001,EUR,1.23", "GETTEX_ROW_FIELD_COUNT_INVALID"),
+        ("20:44:59.000001,EUR,1.23,100,1.24,100", "GETTEX_ROW_TIME_OUTSIDE_FILE_WINDOW"),
+    ],
+)
+def test_batch_isolates_invalid_product_without_promoting_its_other_rows(
+    bad_row: str, reason: str
+) -> None:
+    content = "\n".join(
+        [
+            "DE000UN37224,20:46:00.000001,EUR,1.20,100,1.21,100",
+            f"DE000UN37224,{bad_row}",
+            "IE000HFBJ0U0,20:55:00.000001,EUR,19.128,600,19.682,600",
+            "DE000UN37224,20:58:00.000001,EUR,1.23,120,1.24,110",
+        ]
+    ).encode()
+    batch = scan_gzip_quote_batch(
+        BytesIO(gzip.compress(content)),
+        file_name="pretrade.20260916.21.00.mund.csv.gz",
+        tracked_isins={"DE000UN37224", "IE000HFBJ0U0"},
+    )
+
+    assert batch.errors == {"DE000UN37224": reason}
+    assert set(batch.quotes) == {"IE000HFBJ0U0"}
+    assert batch.quotes["IE000HFBJ0U0"].bid == Decimal("19.128")
+    assert batch.quotes["IE000HFBJ0U0"].observed_at == datetime(
+        2026, 9, 16, 20, 55, 0, 1, tzinfo=UTC
+    )
+
+
+def test_batch_conflicting_timestamp_excludes_only_affected_isin() -> None:
+    content = "\n".join(
+        [
+            "DE000UN37224,20:58:00.000001,EUR,1.23,120,1.24,110",
+            "IE000HFBJ0U0,20:59:00.000001,EUR,19.128,600,19.682,600",
+            "DE000UN37224,20:58:00.000001,EUR,1.22,120,1.24,110",
+        ]
+    ).encode()
+    batch = scan_gzip_quote_batch(
+        BytesIO(gzip.compress(content)),
+        file_name="pretrade.20260916.21.00.mund.csv.gz",
+        tracked_isins={"DE000UN37224", "IE000HFBJ0U0"},
+    )
+
+    assert batch.errors == {"DE000UN37224": "GETTEX_DUPLICATE_TIMESTAMP_CONFLICT"}
+    assert set(batch.quotes) == {"IE000HFBJ0U0"}
+
+
+def test_batch_checks_gzip_integrity_even_after_an_isolated_row_failure() -> None:
+    content = (
+        b"DE000UN37224,20:50:00.000001,EUR,1.23,100,0,100\n"
+        b"IE000HFBJ0U0,20:59:00.000001,EUR,19.128,600,19.682,600\n"
+    )
+    with pytest.raises(GettexPayloadError, match="GETTEX_GZIP_INVALID"):
+        scan_gzip_quote_batch(
+            BytesIO(gzip.compress(content)[:-8]),
+            file_name="pretrade.20260916.21.00.mund.csv.gz",
+            tracked_isins={"DE000UN37224", "IE000HFBJ0U0"},
+        )
+
+
+def test_batch_ignores_untracked_invalid_quotes() -> None:
+    content = (
+        b"DE000UN37224,20:50:00.000001,EUR,1.23,100,0,100\n"
+        b"IE000HFBJ0U0,20:59:00.000001,EUR,19.128,600,19.682,600\n"
+    )
+    batch = scan_gzip_quote_batch(
+        BytesIO(gzip.compress(content)),
+        file_name="pretrade.20260916.21.00.mund.csv.gz",
+        tracked_isins={"IE000HFBJ0U0"},
+    )
+    assert not batch.errors
+    assert set(batch.quotes) == {"IE000HFBJ0U0"}
