@@ -1,5 +1,13 @@
 # Linux quick start
 
+Already installed in `~/Boerse/trading-workspace-app` with a saved
+`trading-workspace-state/current-state`? Use the
+[simple Linux launcher](docs/technical/LINUX_LAUNCHER.md): install once, then select
+**Trading Workspace** in the application menu or run `trading-workspace`.
+It keeps the existing issuer/private Compose configuration and separates daily
+start/stop from a release update. The generic build commands below apply to an
+unmanaged Compose installation.
+
 See `docs/technical/LINUX_DEPLOYMENT.md` for the supported ZIP download, Docker Compose configuration, migration, monitoring/Telegram setup, verification and smoke-test procedure.
 
 For version 1.5.0 on an existing migrated issuer-monitoring stack, use the

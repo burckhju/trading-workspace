@@ -2,6 +2,13 @@
 
 This runbook describes the supported local Linux deployment path for the Trading Workspace using Docker Compose.
 
+For an existing managed installation in `~/Boerse/trading-workspace-app` with a
+sealed `trading-workspace-state/current-state`, use the
+[daily Linux launcher](LINUX_LAUNCHER.md). It provides Start, Status, Stop and an
+explicit pinned Update while retaining the complete private Compose configuration.
+The generic `start-linux.sh` instructions below are not the daily start command
+for that managed deployment.
+
 ## Prerequisites
 
 - 64-bit Linux host
