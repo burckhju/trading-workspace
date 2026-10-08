@@ -49,8 +49,8 @@ old() {
     -f "$ROOT/docker/compose.yml" -f "$ROOT/docker/compose.issuer-monitoring.yml" -f "$fixture/old.yml" "$@"
 }
 cleanup() {
-  for state in private upgrade; do
-    if [[ -f "$fixture/$state/operation.log" ]]; then cat "$fixture/$state/operation.log"; fi
+  for state in "$fixture/private" "$fixture/trading-workspace-state/runs/ci/deployment"; do
+    if [[ -f "$state/operation.log" ]]; then cat "$state/operation.log"; fi
   done
   # This entire runner and these volumes are synthetic, created above in this job.
   old down --volumes || true
@@ -94,12 +94,12 @@ test "$(docker exec trading-workspace-issuer-renderer-1 cat /state/ci-marker)" =
 docker exec trading-workspace-backend-1 python -c 'import os; assert os.environ["TRADING_WORKSPACE_MARKET_DATA__REFRESH__ENABLED"] == "false"; assert os.environ["TRADING_WORKSPACE_NOTIFICATION__TELEGRAM__ENABLED"] == "false"'
 # New tooling must inspect the original sealed checkout, without rebuilding or
 # changing its release, configuration, services or persistent state.
-git -C "$ROOT" worktree add --detach "$fixture/diagnostic-tool" HEAD
+git -C "$ROOT" worktree add --detach "$fixture/trading-workspace-app" HEAD
 docker ps -aq --filter label=com.docker.compose.project=trading-workspace | sort > "$fixture/before.ids"
-bash "$fixture/diagnostic-tool/scripts/migrate-legacy-issuer.sh" compose "$fixture/private" ps
-bash "$fixture/diagnostic-tool/scripts/migrate-legacy-issuer.sh" compose "$fixture/private" \
+bash "$fixture/trading-workspace-app/scripts/migrate-legacy-issuer.sh" compose "$fixture/private" ps
+bash "$fixture/trading-workspace-app/scripts/migrate-legacy-issuer.sh" compose "$fixture/private" \
   exec -T backend python -c 'print("Existing deployment diagnostics succeeded")' </dev/null
-if BACKEND_PORT=9001 bash "$fixture/diagnostic-tool/scripts/migrate-legacy-issuer.sh" \
+if BACKEND_PORT=9001 bash "$fixture/trading-workspace-app/scripts/migrate-legacy-issuer.sh" \
   compose "$fixture/private" ps; then
   echo 'Actual environment drift was not rejected' >&2; exit 1
 fi
@@ -108,14 +108,39 @@ cmp "$fixture/before.ids" "$fixture/after.ids"
 # Qualify the documented next-release update of this already canonical deployment.
 # A distinct disposable commit supplies a new revision/image tag without changing
 # production code or any prepared state from the first deployment.
-git -C "$fixture/diagnostic-tool" -c user.name=CI -c user.email=ci@example.invalid \
+git -C "$fixture/trading-workspace-app" -c user.name=CI -c user.email=ci@example.invalid \
   commit --allow-empty -m 'CI next-release deployment fixture'
-bash "$fixture/diagnostic-tool/scripts/migrate-legacy-issuer.sh" \
-  prepare "$fixture/legacy" "$fixture/upgrade"
-bash "$fixture/diagnostic-tool/scripts/migrate-legacy-issuer.sh" apply "$fixture/upgrade"
-test -f "$fixture/upgrade/deployed"
-test "$(cat "$fixture/private/database-container")" = "$(cat "$fixture/upgrade/database-container")"
+mkdir -m 700 "$fixture/trading-workspace-state"
+mkdir -p "$fixture/trading-workspace-state/runs/ci"
+bash "$fixture/trading-workspace-app/scripts/migrate-legacy-issuer.sh" \
+  prepare "$fixture/legacy" "$fixture/trading-workspace-state/runs/ci/deployment"
+bash "$fixture/trading-workspace-app/scripts/migrate-legacy-issuer.sh" apply "$fixture/trading-workspace-state/runs/ci/deployment"
+test -f "$fixture/trading-workspace-state/runs/ci/deployment/deployed"
+test "$(cat "$fixture/private/database-container")" = "$(cat "$fixture/trading-workspace-state/runs/ci/deployment/database-container")"
 test "$(docker exec trading-workspace-database-1 psql -At -U migration_test -d migration_test -c 'SELECT marker FROM deployment_probe')" = retained
 test "$(docker exec trading-workspace-issuer-renderer-1 cat /state/ci-marker)" = retained
-bash "$fixture/diagnostic-tool/scripts/migrate-legacy-issuer.sh" compose "$fixture/upgrade" ps
+bash "$fixture/trading-workspace-app/scripts/migrate-legacy-issuer.sh" compose "$fixture/trading-workspace-state/runs/ci/deployment" ps
 echo 'Synthetic migration passed: data, state, settings, sandbox, schema and images retained/verified.'
+
+# Daily controls must keep the migrated containers, images and persistent data.
+# The database intentionally still has the original Compose-file provenance.
+launcher_state="$fixture/trading-workspace-state/runs/ci/deployment"
+printf '%s\n' "$launcher_state" > "$fixture/trading-workspace-state/current-state"
+launcher() {
+  TRADING_WORKSPACE_BASE="$fixture" DISPLAY= WAYLAND_DISPLAY= \
+    bash "$ROOT/scripts/trading-workspace.sh" "$@"
+}
+docker inspect --format '{{.Id}} {{.Image}}' trading-workspace-database-1 \
+  trading-workspace-issuer-renderer-1 trading-workspace-backend-1 trading-workspace-frontend-1 > "$fixture/launcher-before"
+launcher status
+launcher start
+launcher stop
+launcher start
+launcher status
+docker inspect --format '{{.Id}} {{.Image}}' trading-workspace-database-1 \
+  trading-workspace-issuer-renderer-1 trading-workspace-backend-1 trading-workspace-frontend-1 > "$fixture/launcher-after"
+cmp "$fixture/launcher-before" "$fixture/launcher-after"
+(cd "$launcher_state" && sha256sum --check --status inputs.sha256)
+test "$(docker exec trading-workspace-database-1 psql -At -U migration_test -d migration_test -c 'SELECT marker FROM deployment_probe')" = retained
+test "$(docker exec trading-workspace-issuer-renderer-1 cat /state/ci-marker)" = retained
+echo 'Daily launcher passed: repeated start and stop/start kept containers, images, data and configuration.'

@@ -66,7 +66,16 @@ Die Repository-Implementierung und die akzeptierten ADRs/Feature Books bilden di
 
 ## Anwendung mit Docker unter Linux starten
 
-Der unterstützte Startpfad ist:
+Für die bereits verwaltete Installation im festen Ordner
+`~/Boerse/trading-workspace-app` gibt es den einfachen
+[Linux-Starter](docs/technical/LINUX_LAUNCHER.md): nach einmaliger Installation
+im Anwendungsmenü **Trading Workspace** wählen oder `trading-workspace` ausführen.
+Start, Status, Stop und ein explizites Release-Update verwenden automatisch den
+gespeicherten Installationszustand einschließlich Emittenten- und privater
+Konfiguration. Der tägliche Start baut keine Images und legt keine neuen
+Programmordner an.
+
+Für eine neue, noch nicht verwaltete Compose-Installation ist der Startpfad:
 
 ```bash
 bash scripts/start-linux.sh
