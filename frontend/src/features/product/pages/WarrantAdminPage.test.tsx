@@ -145,6 +145,12 @@ it('creates a warrant and refreshes selection', async () => {
   fireEvent.change(screen.getByLabelText('Strike *'), { target: { value: '100' } });
   fireEvent.change(screen.getByLabelText('Fälligkeit *'), { target: { value: '2027-06-18' } });
   fireEvent.change(screen.getByLabelText(/^Bezugsverhältnis/), { target: { value: '0.1' } });
+  fireEvent.change(screen.getByLabelText('Handelsplatz des Optionsscheins'), {
+    target: { value: '00000000-0000-4000-8001-000000000501' },
+  });
+  fireEvent.change(screen.getByLabelText('Handelswährung des Optionsscheins'), {
+    target: { value: 'EUR' },
+  });
   fireEvent.click(screen.getByRole('button', { name: 'Optionsschein anlegen' }));
 
   await waitFor(() => expect(warrants.create).toHaveBeenCalled());
@@ -152,6 +158,11 @@ it('creates a warrant and refreshes selection', async () => {
     display_name: 'Neuer Call',
     isin: 'DE000ABC1234',
     wkn: 'ABC123',
+    initial_listing: {
+      trading_venue_id: '00000000-0000-4000-8001-000000000501',
+      quotation_currency_code: 'EUR',
+      symbol: null,
+    },
   });
 });
 
@@ -183,6 +194,7 @@ it('adds a terms version and a listing', async () => {
 
   render(<WarrantAdminPage />);
   await screen.findByText('Produktbedingungen / Historie');
+  fireEvent.click(screen.getByText('Produktbedingungen ändern'));
 
   fireEvent.change(screen.getByLabelText('Neue Richtung'), { target: { value: 'PUT' } });
   fireEvent.change(screen.getByLabelText('Neuer Strike'), { target: { value: '170' } });

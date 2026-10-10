@@ -121,65 +121,236 @@ test('existing administration records a symbol-less listing and unblocks the exi
   expect((await body(await request.get(`${root}/product-selection-runs/${after.run.id}`), 200)).evaluations).toEqual(after.evaluations);
 });
 
-test('an empty selection continues into existing product administration with the exact underlying', async ({ page, request }) => {
-  const root = 'http://127.0.0.1:8000/api/v1';
-  const token = randomUUID().slice(0, 8);
-  const issuer = await body(await request.post(`${root}/market-reference-data/issuers`, {
-    data: { legal_name: `Synthetic empty repair ${randomUUID()}`, display_name: `Synthetic repair ${token}` },
-  }));
-  const venues = await body(await request.get(`${root}/market-reference-data/trading-venues`), 200);
-  const venueId = venues.items.find((venue: { mic: string }) => venue.mic === 'XETR').id;
-  const underlying = await body(await request.post(`${root}/underlyings`, {
-    data: { name: `Synthetic empty repair stock ${token}`, type: 'STOCK',
-      primary_listing: { trading_venue_id: venueId, ticker: `ER${token}`, currency_code: 'EUR' },
-    },
-  }));
-  const plan = await body(await request.post(`${root}/trade-plans`, {
-    data: { origin_type: 'MANUAL', underlying_id: underlying.id,
-      thesis: 'Synthetic empty selection repair only',
-      entry: { type: 'PRICE', currency: 'EUR', price: '100' },
-      invalidation: { stop_price: '95' }, targets: [{ sequence: 1, price: '110' }],
-      risk_assumptions: { thesis_risk: 'Synthetic risk' },
-    },
-  }));
-  const versionUrl = `${root}/trade-plans/${plan.plan.id}/versions/${plan.latest_version.id}`;
-  await body(await request.post(`${versionUrl}/submit-review`), 200);
-  await body(await request.post(`${versionUrl}/approve`), 200);
-  const before = await body(await request.post(`${root}/product-selection-runs`, {
-    data: { trade_plan_id: plan.plan.id, trade_plan_version_id: plan.latest_version.id },
-  }));
-  expect(before.evaluations).toEqual([]);
-  expect(before.universe_omissions).toEqual([]);
-  const writes: string[] = [];
-  page.on('request', outgoing => {
-    if (outgoing.method() === 'POST') writes.push(outgoing.url());
+for (const viewport of [
+  { width: 1440, height: 1000 },
+  { width: 390, height: 844 },
+]) {
+  test(`one creation saves the explicit product listing and reuses it after reload (${viewport.width})`, async ({
+    page,
+    request,
+  }) => {
+    await page.setViewportSize(viewport);
+    const root = "http://127.0.0.1:8000/api/v1";
+    const token = randomUUID().slice(0, 8);
+    const issuer = await body(
+      await request.post(`${root}/market-reference-data/issuers`, {
+        data: {
+          legal_name: `Synthetic empty repair ${randomUUID()}`,
+          display_name: `Synthetic repair ${token}`,
+        },
+      }),
+    );
+    const venues = await body(
+      await request.get(`${root}/market-reference-data/trading-venues`),
+      200,
+    );
+    const venueId = venues.items.find(
+      (venue: { mic: string }) => venue.mic === "XETR",
+    ).id;
+    const underlying = await body(
+      await request.post(`${root}/underlyings`, {
+        data: {
+          name: `Synthetic empty repair stock ${token}`,
+          type: "STOCK",
+          primary_listing: {
+            trading_venue_id: venueId,
+            ticker: `ER${token}`,
+            currency_code: "EUR",
+          },
+        },
+      }),
+    );
+    const plan = await body(
+      await request.post(`${root}/trade-plans`, {
+        data: {
+          origin_type: "MANUAL",
+          underlying_id: underlying.id,
+          thesis: "Synthetic empty selection repair only",
+          entry: { type: "PRICE", currency: "EUR", price: "100" },
+          invalidation: { stop_price: "95" },
+          targets: [{ sequence: 1, price: "110" }],
+          risk_assumptions: { thesis_risk: "Synthetic risk" },
+        },
+      }),
+    );
+    const versionUrl = `${root}/trade-plans/${plan.plan.id}/versions/${plan.latest_version.id}`;
+    await body(await request.post(`${versionUrl}/submit-review`), 200);
+    await body(await request.post(`${versionUrl}/approve`), 200);
+    const before = await body(
+      await request.post(`${root}/product-selection-runs`, {
+        data: {
+          trade_plan_id: plan.plan.id,
+          trade_plan_version_id: plan.latest_version.id,
+        },
+      }),
+    );
+    expect(before.evaluations).toEqual([]);
+    expect(before.universe_omissions).toEqual([]);
+    const writes: string[] = [];
+    page.on("request", (outgoing) => {
+      if (outgoing.method() === "POST") writes.push(outgoing.url());
+    });
+    await page.goto(`/product-selection?run_id=${before.run.id}`);
+    await page
+      .getByRole("link", { name: "Optionsscheinstammdaten prüfen" })
+      .click();
+    const underlyingField = page.getByRole("combobox", {
+      name: "Basiswert *",
+      exact: true,
+    });
+    await expect(underlyingField).toHaveValue(underlying.id);
+    await expect(underlyingField).toBeDisabled();
+    await page.reload();
+    await expect(underlyingField).toHaveValue(underlying.id);
+    expect(writes).toEqual([]);
+    await page
+      .getByLabel("Anzeigename *", { exact: true })
+      .fill(`Synthetic repaired warrant ${token}`);
+    await page
+      .getByRole("combobox", { name: "Emittent *", exact: true })
+      .selectOption(issuer.id);
+    await page.getByLabel("Strike *", { exact: true }).fill("100");
+    await page.getByLabel("Fälligkeit *", { exact: true }).fill("2099-12-31");
+    await page.getByLabel(/^Bezugsverhältnis/).fill("0.1");
+    // No currency/venue is copied from the underlying. Explicit input is made once.
+    await expect(
+      page.getByLabel("Handelsplatz des Optionsscheins", { exact: true }),
+    ).toHaveValue("");
+    await expect(
+      page.getByLabel("Handelswährung des Optionsscheins", { exact: true }),
+    ).toHaveValue("");
+    await page
+      .getByLabel("Handelsplatz des Optionsscheins", { exact: true })
+      .selectOption(venueId);
+    await page
+      .getByLabel("Handelswährung des Optionsscheins", { exact: true })
+      .fill("EUR");
+    await expect
+      .poll(() =>
+        page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+      )
+      .toBe(true);
+    await test
+      .info()
+      .attach(`creation-${viewport.width}`, {
+        body: await page.screenshot({ fullPage: true }),
+        contentType: "image/png",
+      });
+    const createdResponse = page.waitForResponse(
+      (response) =>
+        response.request().method() === "POST" &&
+        response.url().endsWith("/warrants"),
+    );
+    await page
+      .getByRole("button", { name: "Optionsschein anlegen", exact: true })
+      .click();
+    const created = await body(await createdResponse);
+    expect(created.underlying_id).toBe(underlying.id);
+    await expect(
+      page.getByRole("heading", { name: created.display_name, exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", {
+        name: "Optionsschein und Notierung gespeichert",
+      }),
+    ).toBeVisible();
+    const persisted = await body(
+      await request.get(`${root}/warrants/${created.id}/listings`),
+      200,
+    );
+    expect(persisted).toHaveLength(1);
+    expect(persisted[0]).toMatchObject({
+      warrant_id: created.id,
+      trading_venue_id: venueId,
+      quotation_currency_code: "EUR",
+      symbol: null,
+    });
+    expect(
+      (
+        await body(
+          await request.get(`${root}/warrants/${created.id}/terms`),
+          200,
+        )
+      )[0].strike_currency_code,
+    ).toBeNull();
+    // Real API validation cannot leave an additional orphan product behind.
+    const catalogue = await body(await request.get(`${root}/warrants`), 200);
+    await body(
+      await request.post(`${root}/warrants`, {
+        data: {
+          issuer_id: issuer.id,
+          underlying_id: underlying.id,
+          display_name: `Rejected ${token}`,
+          option_direction: "CALL",
+          strike: "100",
+          maturity_date: "2099-12-31",
+          ratio: "0.1",
+          initial_listing: {
+            trading_venue_id: randomUUID(),
+            quotation_currency_code: "EUR",
+          },
+        },
+      }),
+      422,
+    );
+    expect(await body(await request.get(`${root}/warrants`), 200)).toEqual(
+      catalogue,
+    );
+    await page.reload();
+    await expect(
+      page.getByText("Ohne Börsensymbol", { exact: true }),
+    ).toBeVisible();
+    expect(
+      await body(
+        await request.get(`${root}/warrants/${created.id}/listings`),
+        200,
+      ),
+    ).toEqual(persisted);
+    await expect(page.getByText("Produktbedingungen ändern")).toBeVisible();
+    await expect(
+      page.getByLabel("Neue Strike-Währung", { exact: true }),
+    ).not.toBeVisible();
+    await expect
+      .poll(() =>
+        page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+      )
+      .toBe(true);
+    await test
+      .info()
+      .attach(`saved-listing-${viewport.width}`, {
+        body: await page.screenshot({ fullPage: true }),
+        contentType: "image/png",
+      });
+    await page.getByRole("link", { name: "Zurück zur Produktauswahl" }).click();
+    await expect(page).toHaveURL(`/product-selection?run_id=${before.run.id}`);
+    await expect(
+      page.getByRole("link", { name: "Optionsscheinstammdaten prüfen" }),
+    ).toBeVisible();
+    expect(
+      await body(
+        await request.get(`${root}/product-selection-runs/${before.run.id}`),
+        200,
+      ),
+    ).toEqual(before);
+    expect(writes).toHaveLength(1);
+    expect(writes[0]).toMatch(/\/warrants$/);
+    // Re-evaluation consumes the stored listing, no repeat input or extra listing POST.
+    const evaluatedResponse = page.waitForResponse(
+      (response) =>
+        response.request().method() === "POST" &&
+        response.url().endsWith("/product-selection-runs"),
+    );
+    await page
+      .getByRole("button", { name: "Produkte neu bewerten", exact: true })
+      .click();
+    const evaluated = await body(await evaluatedResponse);
+    expect(evaluated.universe_omissions).toEqual([]);
+    expect(evaluated.evaluations).toHaveLength(1);
+    expect(evaluated.evaluations[0]).toMatchObject({
+      warrant_id: created.id,
+      warrant_listing_id: persisted[0].id,
+    });
+    expect(evaluated.selection).toBeNull();
+    expect(writes).toHaveLength(2); // One create and one deliberate evaluation, no selection/BUY.
   });
-  await page.goto(`/product-selection?run_id=${before.run.id}`);
-  await page.getByRole('link', { name: 'Optionsscheinstammdaten prüfen' }).click();
-  const underlyingField = page.getByRole('combobox', { name: 'Basiswert *', exact: true });
-  await expect(underlyingField).toHaveValue(underlying.id);
-  await expect(underlyingField).toBeDisabled();
-  await page.reload();
-  await expect(underlyingField).toHaveValue(underlying.id);
-  expect(writes).toEqual([]);
-  await page.getByLabel('Anzeigename *', { exact: true }).fill(`Synthetic repaired warrant ${token}`);
-  await page.getByRole('combobox', { name: 'Emittent *', exact: true }).selectOption(issuer.id);
-  await page.getByLabel('Strike *', { exact: true }).fill('100');
-  await page.getByLabel('Fälligkeit *', { exact: true }).fill('2099-12-31');
-  await page.getByLabel(/^Bezugsverhältnis/).fill('0.1');
-  const createdResponse = page.waitForResponse(response =>
-    response.request().method() === 'POST' && response.url().endsWith('/warrants'),
-  );
-  await page.getByRole('button', { name: 'Optionsschein anlegen', exact: true }).click();
-  const created = await body(await createdResponse);
-  expect(created.underlying_id).toBe(underlying.id);
-  await expect(page.getByRole('heading', { name: created.display_name, exact: true })).toBeVisible();
-  await page.getByRole('link', { name: 'Zurück zur Produktauswahl' }).click();
-  await expect(page).toHaveURL(`/product-selection?run_id=${before.run.id}`);
-  await expect(page.getByRole('link', { name: 'Optionsscheinstammdaten prüfen' })).toBeVisible();
-  expect(await body(await request.get(`${root}/product-selection-runs/${before.run.id}`), 200)).toEqual(before);
-  expect(writes).toHaveLength(1);
-  expect(writes[0]).toMatch(/\/warrants$/);
-  // No automatic evaluation, selection or BUY, and no invented listing.
-  expect(await body(await request.get(`${root}/warrants/${created.id}/listings`), 200)).toEqual([]);
-});
+}

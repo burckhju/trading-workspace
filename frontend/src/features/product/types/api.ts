@@ -48,6 +48,7 @@ export interface WarrantListingResponse {
 }
 
 export interface CreateWarrantRequest {
+  initial_listing?: AddWarrantListingRequest | null;
   issuer_id: Uuid;
   underlying_id: Uuid;
   display_name: string;

@@ -66,3 +66,70 @@ empty-run creation, reload, unchanged historic runs and the existing confirmatio
 through actual persistence. Local read-only check: open an omitted product, follow
 the repair link, verify its identity and return without submitting. Saving a listing
 or creating a product is a real master-data write; never use a real purchase as a test.
+
+## Implementation note: create product and first listing in one submission
+
+The product creation form now includes the first product venue, quotation currency
+and optional venue symbol. **Optionsschein anlegen** submits those inputs once to
+`POST /api/v1/warrants`, using the additive optional `initial_listing` object:
+
+```json
+{
+  "initial_listing": {
+    "trading_venue_id": "<verified venue UUID>",
+    "quotation_currency_code": "EUR",
+    "symbol": null
+  }
+}
+```
+
+The identity, first terms version and first listing remain separate canonical
+objects, but are validated before any is staged and committed in one database
+transaction. Listing validation is shared with the existing add-listing service:
+active venue/currency, exact product scope, no reused underlying venue/symbol,
+and existing uniqueness constraints. A failed combined commit rolls back all
+three records. This is not two client-side POSTs with partial persistence.
+
+The ordinary UI requires explicit first-listing inputs; the API still accepts
+older clients without `initial_listing` and does not invent a listing for them.
+No schema migration or backfill is required. A symbol is still optional and never
+substituted with the underlying ticker, ISIN or WKN. Neither quotation currency
+nor venue is inferred from the underlying or strike. HTTP success still returns
+the existing Warrant response; listings remain readable through their owner API.
+
+After a successful creation, the UI confirms the combined save and offers a
+separate **Weiteren Optionsschein anlegen** action. A failed follow-up read is
+reported as a display error, not as a failed write: the confirmed identity remains
+visible and the user is warned not to recreate it. Double submissions are guarded
+synchronously. Server-side requests already sent are not cancelled or rolled back
+by leaving a page; no network-ambiguity idempotency guarantee is claimed.
+
+Existing saved listings are reused by new Product Selection runs, including after
+reload; no second entry of venue/currency is needed. Additional listings for an
+existing product remain a separate explicit command with visibly labelled fields.
+The new terms editor is collapsed under **Produktbedingungen ändern**, so its
+empty currency warning is not confused with the saved terms. Draft listing input
+is reset when selecting a different existing product and is never silently moved
+to a different product's creation form.
+
+Previously omitted products are not repaired by guessing: the old creation
+contract did not persist venue/currency on the Warrant itself. Without a stored
+WarrantListing or other verified product-bound source, past unsaved user input
+cannot be reconstructed. This implementation does not assert where any individual
+user previously entered their data, and does not alter real master data. Old
+selection runs remain immutable; re-evaluation, explicit product selection and
+actual BUY capture remain separate actions. No quote-provider, consent, monitoring
+or execution policy is changed.
+
+Checks: `test_create_with_listing.py`, `WarrantCreateWithListing.test.tsx`, existing
+product/service regressions, and the disposable PostgreSQL browser flow in
+`warrant-listing-without-symbol.spec.ts` (desktop and mobile creation, readback,
+reload, validation failure without orphan product, and unchanged old selection).
+
+The native PostgreSQL transaction regression is
+`tests/integration/backend/database/test_warrant_creation_listing_postgres.py`.
+It uses an isolated disposable schema and real asynchronous sessions. A child-table
+CHECK failure is injected after the product INSERT; a fresh transaction must see
+no product, terms or listing. The successful case must retain all three with their
+explicit identities and independent strike/quotation currencies. This complements
+the migrated REST/browser tests and never operates on a user installation.
