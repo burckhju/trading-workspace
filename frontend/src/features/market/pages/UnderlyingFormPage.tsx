@@ -2,6 +2,10 @@ import { FormEvent, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ErrorNotice, LoadingNotice } from '../components/ApiFeedback';
 import { marketApiClient } from '../services/client';
+import {
+  underlyingListReturnTo,
+  withUnderlyingListReturnTo,
+} from '../services/underlyingListNavigation';
 import type {
   CurrencyResponse,
   TradingVenueResponse,
@@ -14,6 +18,9 @@ export function UnderlyingFormPage() {
   const editing = Boolean(underlyingId);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const returnTo = underlyingListReturnTo(searchParams);
+  const backTo =
+    returnTo ?? (editing && underlyingId ? `/underlyings/${underlyingId}` : '/underlyings');
   const [existing, setExisting] = useState<UnderlyingDetailResponse | null>(null);
   const [venues, setVenues] = useState<TradingVenueResponse[]>([]);
   const [currencies, setCurrencies] = useState<CurrencyResponse[]>([]);
@@ -99,7 +106,7 @@ export function UnderlyingFormPage() {
           isin: isin || null,
           wkn: wkn || null,
         });
-        void navigate(`/underlyings/${updated.id}`);
+        void navigate(returnTo ?? `/underlyings/${updated.id}`, { replace: Boolean(returnTo) });
       } else {
         const created = await marketApiClient.createUnderlying({
           name,
@@ -113,7 +120,7 @@ export function UnderlyingFormPage() {
             is_primary: true,
           },
         });
-        void navigate(`/underlyings/${created.id}`);
+        void navigate(withUnderlyingListReturnTo(`/underlyings/${created.id}`, returnTo));
       }
     } catch (reason) {
       setError(reason);
@@ -126,10 +133,7 @@ export function UnderlyingFormPage() {
   return (
     <section className="w-full max-w-3xl space-y-6">
       <div>
-        <Link
-          to={editing && underlyingId ? `/underlyings/${underlyingId}` : '/underlyings'}
-          className="text-sm text-sky-300"
-        >
+        <Link to={backTo} className="text-sm text-sky-300">
           ← Zurück
         </Link>
         <h1 className="mt-3 text-3xl font-semibold">
@@ -295,10 +299,7 @@ export function UnderlyingFormPage() {
           </fieldset>
         )}
         <div className="flex justify-end gap-3">
-          <Link
-            to={editing && underlyingId ? `/underlyings/${underlyingId}` : '/underlyings'}
-            className="rounded-lg border border-slate-700 px-4 py-2"
-          >
+          <Link to={backTo} className="rounded-lg border border-slate-700 px-4 py-2">
             Abbrechen
           </Link>
           <button

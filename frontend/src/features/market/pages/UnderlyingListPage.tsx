@@ -1,8 +1,16 @@
 import { FormEvent, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { ErrorNotice, LoadingNotice } from '../components/ApiFeedback';
 import { StatusBadge } from '../components/StatusBadge';
 import { marketApiClient } from '../services/client';
+import {
+  UNDERLYING_PAGE_SIZE as PAGE_SIZE,
+  readUnderlyingListView,
+  underlyingListParams,
+  underlyingListUrl,
+  withUnderlyingListReturnTo,
+  type UnderlyingListView,
+} from '../services/underlyingListNavigation';
 import type {
   CurrencyResponse,
   LifecycleStatus,
@@ -10,8 +18,6 @@ import type {
   TradingVenueResponse,
   UnderlyingSearchResponse,
 } from '../types/api';
-
-const PAGE_SIZE = 25;
 
 function isStockSuggestion(item: ProviderInstrumentSearchItemResponse): boolean {
   return item.instrument_type?.toLowerCase().includes('stock') ?? false;
@@ -30,12 +36,18 @@ function providerPrefillUrl(item: ProviderInstrumentSearchItemResponse): string 
 }
 
 export function UnderlyingListPage() {
-  const [query, setQuery] = useState('');
-  const [submittedQuery, setSubmittedQuery] = useState('');
-  const [lifecycle, setLifecycle] = useState<LifecycleStatus | ''>('');
-  const [venueId, setVenueId] = useState('');
-  const [currencyCode, setCurrencyCode] = useState('');
-  const [offset, setOffset] = useState(0);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const view = readUnderlyingListView(searchParams);
+  const { query: submittedQuery, lifecycle, venueId, currencyCode, offset } = view;
+  const [query, setQuery] = useState(submittedQuery);
+  const returnTo = underlyingListUrl(view);
+
+  useEffect(() => setQuery(submittedQuery), [submittedQuery]);
+
+  function updateView(patch: Partial<UnderlyingListView>) {
+    setSearchParams(underlyingListParams({ ...view, ...patch }));
+  }
+
   const [result, setResult] = useState<UnderlyingSearchResponse | null>(null);
   const [providerSuggestions, setProviderSuggestions] = useState<
     ProviderInstrumentSearchItemResponse[]
@@ -58,7 +70,11 @@ export function UnderlyingListPage() {
         setCurrencies(currencyResponse.items);
       })
       .catch((reason: unknown) => {
-        if (!(reason instanceof DOMException && reason.name === 'AbortError')) setError(reason);
+        if (
+          !controller.signal.aborted &&
+          !(reason instanceof DOMException && reason.name === 'AbortError')
+        )
+          setError(reason);
       });
     return () => controller.abort();
   }, []);
@@ -85,6 +101,17 @@ export function UnderlyingListPage() {
           controller.signal,
         );
         if (controller.signal.aborted) return;
+        // A deleted or filtered-out last item can make the remembered page empty.
+        // Preserve filters and return to the nearest page that still exists.
+        if (offset > 0 && offset >= localResult.total) {
+          const lastOffset = Math.max(0, Math.ceil(localResult.total / PAGE_SIZE) - 1) * PAGE_SIZE;
+          setSearchParams(
+            (current) =>
+              underlyingListParams({ ...readUnderlyingListView(current), offset: lastOffset }),
+            { replace: true },
+          );
+          return;
+        }
         setResult(localResult);
         setLoading(false);
 
@@ -106,26 +133,32 @@ export function UnderlyingListPage() {
           );
           if (!controller.signal.aborted) setProviderSuggestions(providerResult.items);
         } catch (reason: unknown) {
-          if (!(reason instanceof DOMException && reason.name === 'AbortError')) {
+          if (
+            !controller.signal.aborted &&
+            !(reason instanceof DOMException && reason.name === 'AbortError')
+          ) {
             setProviderError(reason);
           }
         } finally {
           if (!controller.signal.aborted) setProviderLoading(false);
         }
       } catch (reason: unknown) {
-        if (!(reason instanceof DOMException && reason.name === 'AbortError')) setError(reason);
+        if (
+          !controller.signal.aborted &&
+          !(reason instanceof DOMException && reason.name === 'AbortError')
+        )
+          setError(reason);
       } finally {
         if (!controller.signal.aborted) setLoading(false);
       }
     })();
 
     return () => controller.abort();
-  }, [submittedQuery, lifecycle, venueId, currencyCode, offset]);
+  }, [submittedQuery, lifecycle, venueId, currencyCode, offset, setSearchParams]);
 
   function submitSearch(event: FormEvent) {
     event.preventDefault();
-    setOffset(0);
-    setSubmittedQuery(query.trim());
+    updateView({ offset: 0, query: query.trim() });
   }
 
   return (
@@ -141,7 +174,7 @@ export function UnderlyingListPage() {
           </p>
         </div>
         <Link
-          to="/underlyings/new"
+          to={withUnderlyingListReturnTo('/underlyings/new', returnTo)}
           className="rounded-lg bg-sky-500 px-4 py-2.5 font-semibold text-slate-950 hover:bg-sky-400"
         >
           Basiswert anlegen
@@ -170,8 +203,7 @@ export function UnderlyingListPage() {
             aria-label="Status"
             value={lifecycle}
             onChange={(e) => {
-              setLifecycle(e.target.value as LifecycleStatus | '');
-              setOffset(0);
+              updateView({ lifecycle: e.target.value as LifecycleStatus | '', offset: 0 });
             }}
             className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2"
           >
@@ -186,8 +218,7 @@ export function UnderlyingListPage() {
             aria-label="Markt"
             value={venueId}
             onChange={(e) => {
-              setVenueId(e.target.value);
-              setOffset(0);
+              updateView({ venueId: e.target.value, offset: 0 });
             }}
             className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2"
           >
@@ -205,8 +236,7 @@ export function UnderlyingListPage() {
             aria-label="Währung"
             value={currencyCode}
             onChange={(e) => {
-              setCurrencyCode(e.target.value);
-              setOffset(0);
+              updateView({ currencyCode: e.target.value, offset: 0 });
             }}
             className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2"
           >
@@ -282,7 +312,7 @@ export function UnderlyingListPage() {
                         </div>
                         {stockSuggestion ? (
                           <Link
-                            to={providerPrefillUrl(item)}
+                            to={withUnderlyingListReturnTo(providerPrefillUrl(item), returnTo)}
                             className="rounded-lg border border-amber-700 px-3 py-2 text-sm text-amber-100"
                           >
                             Als Basiswert übernehmen
@@ -320,7 +350,7 @@ export function UnderlyingListPage() {
                     <td className="px-4 py-4">
                       <Link
                         className="font-medium text-sky-300 hover:underline"
-                        to={`/underlyings/${item.id}`}
+                        to={withUnderlyingListReturnTo(`/underlyings/${item.id}`, returnTo)}
                       >
                         {item.name}
                       </Link>
@@ -348,19 +378,20 @@ export function UnderlyingListPage() {
           </div>
           <div className="flex items-center justify-between text-sm text-slate-400">
             <span role="status" aria-live="polite" aria-atomic="true">
-              {result.total} Treffer
+              {result.total} Treffer · Seite {offset / PAGE_SIZE + 1} von{' '}
+              {Math.max(1, Math.ceil(result.total / PAGE_SIZE))}
             </span>
             <div className="flex gap-2">
               <button
                 disabled={offset === 0}
-                onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}
+                onClick={() => updateView({ offset: Math.max(0, offset - PAGE_SIZE) })}
                 className="rounded-lg border border-slate-700 px-3 py-2 disabled:opacity-40"
               >
                 Zurück
               </button>
               <button
                 disabled={offset + PAGE_SIZE >= result.total}
-                onClick={() => setOffset(offset + PAGE_SIZE)}
+                onClick={() => updateView({ offset: offset + PAGE_SIZE })}
                 className="rounded-lg border border-slate-700 px-3 py-2 disabled:opacity-40"
               >
                 Weiter
