@@ -28,6 +28,7 @@ async function json(route: Route, body: unknown, status = 200) {
 
 async function installApi(page: Page, failLoad: boolean) {
   let held: Route | undefined;
+  let currentReadPath: string | undefined;
   const writes: { method: string; path: string; body: unknown }[] = [];
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
@@ -83,8 +84,10 @@ async function installApi(page: Page, failLoad: boolean) {
       held = route;
       return;
     }
-    if (path.endsWith(`/underlyings/${secondId}`))
+    if (path.endsWith(`/underlyings/${secondId}`)) {
+      currentReadPath = path;
       return json(route, detail(secondId));
+    }
     if (path.endsWith("/usages")) return json(route, { items: [] });
     if (path.endsWith("/audit-events"))
       return json(route, { items: [], total: 0, offset: 0, limit: 50 });
@@ -102,6 +105,8 @@ async function installApi(page: Page, failLoad: boolean) {
   return {
     writes,
     hasHeldRequest: () => Boolean(held),
+    // Reuse the actual B read endpoint; deployment proxy prefixes may differ.
+    currentPath: () => currentReadPath,
     release: async () => {
       if (!held)
         throw new Error("Expected a held request for the first underlying.");
@@ -172,7 +177,7 @@ for (const viewport of [
         .toEqual([
           {
             method: "PATCH",
-            path: `/api/v1/underlyings/${secondId}`,
+            path: api.currentPath(),
             body: {
               version: 3,
               name: "Testwert B bearbeitet",
