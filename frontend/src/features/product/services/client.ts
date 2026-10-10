@@ -36,6 +36,15 @@ export const warrantApiClient = {
         ...request,
         strike: normalizeDecimalInput(request.strike),
         ratio: normalizeDecimalInput(request.ratio),
+        ...(request.initial_listing && {
+          initial_listing: {
+            ...request.initial_listing,
+            symbol: request.initial_listing.symbol?.trim() || null,
+            quotation_currency_code: request.initial_listing.quotation_currency_code
+              .trim()
+              .toUpperCase(),
+          },
+        }),
       },
     }),
   delete: (id: string, version: number) =>
