@@ -29,6 +29,7 @@ export function WarrantListingFields({
       <label className="block text-sm">
         <span>{venueLabel}</span>
         <select
+          aria-label={venueLabel}
           required
           value={value.trading_venue_id}
           onChange={(event) => onChange({ ...value, trading_venue_id: event.target.value })}
