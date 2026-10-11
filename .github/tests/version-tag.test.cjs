@@ -88,3 +88,35 @@ test('write job is limited to successful main push events from this repository',
   ]) assert.ok(workflow.includes(guard));
   assert.ok(workflow.includes('needs: validate'));
 });
+
+// A version-only release must schedule the same main-push workflows that the
+// publisher requires. PR or manual runs cannot satisfy that publication gate.
+for (const filename of ['backend.yml', 'frontend.yml', 'e2e.yml']) {
+  test(`${filename} runs for VERSION changes on main`, () => {
+    const source = readFileSync(join(__dirname, '../workflows', filename), 'utf8');
+    const triggers = source.match(/^on:\n((?:[ \t].*\n|\n)*)/m)?.[1];
+    assert.ok(triggers, `${filename}: on block missing`);
+    const push = triggers.match(/^  push:\n((?: {4,}.*\n|\n)*)/m)?.[1];
+    assert.ok(push, `${filename}: push trigger missing`);
+    assert.match(push, /^    branches: \[main\]$/m);
+    const paths = push.match(/^    paths:\n((?: {6}- .*\n)*)/m)?.[1];
+    assert.ok(paths, `${filename}: push paths missing`);
+    assert.match(paths, /^      - ['"]VERSION['"]$/m);
+    assert.doesNotMatch(paths, /^      - ['"]!/m,
+      `${filename}: review exclusions before changing release triggers`);
+  });
+}
+
+test('all application package versions match VERSION', () => {
+  const root = join(__dirname, '../..');
+  const version = readFileSync(join(root, 'VERSION'), 'utf8').trim();
+  const manifest = JSON.parse(readFileSync(join(root, 'frontend/package.json'), 'utf8'));
+  const lock = JSON.parse(readFileSync(join(root, 'frontend/package-lock.json'), 'utf8'));
+  const backend = readFileSync(join(root, 'backend/pyproject.toml'), 'utf8');
+  const project = backend.split('[project]\n')[1]?.split('\n[')[0];
+  assert.match(version, /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/);
+  assert.equal(manifest.version, version);
+  assert.equal(lock.version, version);
+  assert.equal(lock.packages[''].version, version);
+  assert.equal(project?.match(/^version = "([^"]+)"$/m)?.[1], version);
+});
