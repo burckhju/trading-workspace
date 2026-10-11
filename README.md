@@ -2,6 +2,11 @@
 
 Produktionsnahes Referenzrepository für den **Trading Workspace**.
 
+Version 1.5.3 vereinfacht die Optionsschein-Neuanlage: Produkt, Bedingungen,
+Handelsplatz und Handelswährung werden gemeinsam gespeichert. Eine zusätzliche
+Notierungseingabe entfällt. Der einfache Linux-Starter ist ebenfalls enthalten.
+[Umfang, Grenzen und Updateweg](docs/releases/V1.5.3-PRODUCT-CREATION-AND-LINUX-LAUNCHER.md).
+
 Version 1.5.2 isoliert fehlerhafte gettex-Zeilen pro ISIN. Gültige Kurse anderer
 Produkte aus derselben Datei bleiben verfügbar; ungültige Produkte behalten
 ihren Fehlerstatus und gegebenenfalls ausdrücklich gekennzeichnete historische

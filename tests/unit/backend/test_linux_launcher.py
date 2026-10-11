@@ -177,11 +177,12 @@ def installation(tmp_path: Path) -> Installation:
         "backend/app/tools/legacy_issuer_deployment.py",
         "docker/compose.yml",
         "docker/compose.issuer-monitoring.yml",
-        "VERSION",
     ):
         destination = app / name
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(ROOT / name, destination)
+    # The simulated installed release must not follow the repository VERSION.
+    (app / "VERSION").write_text("1.5.2\n")
     command(GIT, "init", str(app))
     command(GIT, "config", "user.name", "Fixture", cwd=app)
     command(GIT, "config", "user.email", "fixture@example.invalid", cwd=app)
@@ -412,3 +413,13 @@ def test_launcher_does_not_change_the_pinned_migration_helpers() -> None:
         "backend/app/tools/legacy_issuer_deployment.py",
     ):
         assert hashlib.sha256((ROOT / name).read_bytes()).hexdigest() in content
+
+
+def test_fixture_versions_do_not_depend_on_the_repository_release(
+    installation: Installation,
+) -> None:
+    assert (installation.app / "VERSION").read_text() == "1.5.2\n"
+    assert command(GIT, "show", "v1.5.2:VERSION", cwd=installation.app) == "1.5.2"
+    target = installation.release("v1.5.3")
+    assert target != installation.revision
+    assert command(GIT, "show", "v1.5.3:VERSION", cwd=installation.work / "releases.git") == "1.5.3"
