@@ -20,6 +20,7 @@ from app.features.position_monitoring.persistence.risk_records import (
     RiskRecordRepository,
 )
 from app.features.position_monitoring.service.cycle import CreatedPositionAlert
+from app.features.position_monitoring.service.iv_readiness import IvReadiness, assess_iv_readiness
 from app.features.position_monitoring.service.risk_alerts import RiskAlertService
 from app.features.position_monitoring.service.risk_contracts import (
     PositionRiskView,
@@ -36,6 +37,7 @@ from app.features.trade_position.service.open_position_reader import (
 )
 
 INPUTS = TypeAdapter(RiskInputs)
+IV = TypeAdapter(IvReadiness)
 
 
 class RiskConfigurationConflict(ValueError):
@@ -210,12 +212,19 @@ class PositionRiskService:
         quote = inputs.quote
         if product and quote.quote and quote.quote.isin != product.isin:
             quote = replace(quote, quote=None, reason="POSITION_QUOTE_IDENTITY_MISMATCH")
+        iv = assess_iv_readiness(product, listing, quote, as_of=now)
         # Stable input identity excludes evaluation clock/state; repeated polls do not
         # append duplicate snapshots. A new quality failure is nevertheless auditable.
         canonical_inputs = INPUTS.dump_python(inputs, mode="json")
-        # A last-success quote is display context, not a product-history collector.
-        # Re-receiving identical daily values also is not a new signal observation.
-        canonical_inputs["quote"] = None
+        # IV evidence changes are auditable but never additional signal sessions.
+        # Receipt-only refreshes and elapsed seconds do not weight the observations.
+        # These irregular snapshots are NOT an IV time series.
+        canonical_inputs["quote"].pop("retrieved_at")
+        if canonical_inputs["quote"]["quote"] is not None:
+            canonical_inputs["quote"]["quote"].pop("assessed_at")
+        iv_identity = IV.dump_python(iv, mode="json")
+        iv_identity.pop("quote_age_seconds")
+        canonical_inputs["iv_readiness"] = iv_identity
         for price in canonical_inputs["prices"]:
             price.pop("retrieved_at")
         fingerprint = hashlib.sha256(
@@ -240,4 +249,5 @@ class PositionRiskService:
             previous_snapshot_id=last.snapshot_id if last else None,
             quote_evidence=quote,
             comparison_inputs=inputs.synchronized_pairs,
+            iv=iv,
         )

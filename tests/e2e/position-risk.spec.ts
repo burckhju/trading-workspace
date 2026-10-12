@@ -128,6 +128,10 @@ test("qualified risk preview, explicit activation and immutable evaluation prese
   expect(preview.configuration.enabled).toBe(false);
   expect(preview.snapshot_id).toBeNull();
   expect(preview.comparison.reasons).toContain("PRODUCT_HISTORY_NOT_AVAILABLE");
+  expect(preview.iv.status).toBe("NOT_EVALUABLE");
+  expect(preview.iv.current_iv_decimal).toBeNull();
+  expect(preview.iv.percentile).toBeNull();
+  expect(preview.iv.risk_level).toBeNull();
   await page.goto(`/trade-management?trade_id=${captured.trade.id}`);
   const panel = page.getByRole("region", { name: "Risiko- und Trendsignale" });
   const summary = panel.getByRole("region", { name: "Risikoübersicht" });
@@ -166,6 +170,44 @@ test("qualified risk preview, explicit activation and immutable evaluation prese
       contentType: "image/png",
     });
   }
+  const iv = panel.getByRole("region", {
+    name: "Implizite Volatilität",
+    exact: true,
+  });
+  await expect(iv.getByText("Nicht verfügbar", { exact: true })).toHaveCount(6);
+  await iv.getByText("Warum IV-Kennzahlen fehlen · Daten und Grenzen").click();
+  await expect(iv).toContainText(
+    "Ein Basiswertkurs mit passendem Originalzeitpunkt fehlt",
+  );
+  await iv.getByText("Modelllabor: IV-Szenario mit eigenen Annahmen").click();
+  await iv.getByRole("button", { name: "Beispielannahmen laden" }).click();
+  await iv
+    .getByLabel("Modellgeltung ausdrücklich wählen")
+    .selectOption("EUROPEAN");
+  await iv
+    .getByRole("button", { name: "Annahmen berechnen", exact: true })
+    .click();
+  await expect(
+    iv.getByRole("region", { name: "Hypothetisches IV-Ergebnis" }),
+  ).toBeVisible();
+  await expect(iv).toContainText("kein Verkaufserlös");
+  for (const width of [320, 390, 768, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expectStackedPanels(page, panel, valuation);
+    await testInfo.attach(`iv-model-${width}`, {
+      body: await iv.screenshot(),
+      contentType: "image/png",
+    });
+  }
+  await iv.getByLabel("IV-Änderung (Prozentpunkte)").fill("-10");
+  await expect(
+    iv.getByRole("region", { name: "Hypothetisches IV-Ergebnis" }),
+  ).toHaveCount(0);
+  await iv
+    .getByRole("button", { name: "Annahmen berechnen", exact: true })
+    .click();
+  await expect(iv).toContainText("lineare Näherung ausgesetzt");
+  expect(await (await request.get(positionUrl)).json()).toEqual(original);
   await page.setViewportSize({ width: 390, height: 844 });
   const activate = panel.getByRole("button", {
     name: "Warnregeln für diese Position aktivieren",

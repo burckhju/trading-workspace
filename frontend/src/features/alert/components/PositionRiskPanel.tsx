@@ -3,6 +3,7 @@ import { riskApi } from '../services/risk';
 import { riskLabel as label, riskPercent as percent } from '../services/riskLabels';
 import type { RiskParameters, RiskView } from '../types/risk';
 import { PositionRiskSummary } from './PositionRiskSummary';
+import { IvRiskPanel } from './IvRiskPanel';
 
 export function PositionRiskPanel({
   tradeId,
@@ -92,6 +93,7 @@ function RiskPanel({ tradeId, readOnly }: { tradeId: string; readOnly: boolean }
             {view.product?.isin ?? 'unbekannt'}
           </p>
           <PositionRiskSummary view={view} proposed={proposed} />
+          <IvRiskPanel view={view} />
           <details className="space-y-3 rounded border border-slate-700 p-3">
             <summary className="cursor-pointer font-semibold">
               Kennzahlen, Kursqualität und Quellen im Detail
@@ -318,6 +320,14 @@ function RiskPanel({ tradeId, readOnly }: { tradeId: string; readOnly: boolean }
                   <li key={item.snapshot_id}>
                     {item.evaluated_at} · Revision {item.configuration.revision} ·{' '}
                     {label(item.assessment.transition)} · {label(item.metrics.reason)}
+                    {' · IV: '}
+                    {item.iv ? 'nicht auswertbar' : 'noch nicht geprüft'}
+                    {' · Quelle '}
+                    {item.quote_evidence?.provider ?? 'unbekannt'}
+                    {' · Kursart '}
+                    {item.iv?.quote_side ?? 'unbekannt'}
+                    {' · Kurszeit '}
+                    {item.quote_quality.observed_at ?? 'unbekannt'}
                   </li>
                 ))}
               </ul>

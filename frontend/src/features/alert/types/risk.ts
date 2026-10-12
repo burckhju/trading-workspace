@@ -16,7 +16,22 @@ export interface RiskView {
     parameters: RiskParameters;
     policy_version: string;
   };
-  product: { direction: string | null; isin: string | null; ratio: string | null } | null;
+  product: {
+    direction: string | null;
+    isin: string | null;
+    ratio: string | null;
+    strike_currency?: string | null;
+  } | null;
+  iv?: IvReadiness | null;
+  quote_evidence?: {
+    provider: string | null;
+    identity_key: string | null;
+    quote: {
+      currency: string;
+      feed_delay_seconds: number | null;
+      max_quote_age_seconds: number | null;
+    } | null;
+  } | null;
   listing: { symbol: string; currency: string; listing_id: string } | null;
   metrics: {
     status: string;
@@ -78,3 +93,4 @@ export interface RiskView {
     currency: string;
   }[];
 }
+import type { IvReadiness } from './iv';

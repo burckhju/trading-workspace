@@ -11,6 +11,7 @@ from app.features.market_data.domain.models import DailyPrice
 from app.features.market_data.domain.risk_evidence import SavedQuoteEvidence
 from app.features.position_monitoring.domain.quote_quality import QuoteQuality
 from app.features.position_monitoring.domain.risk_signals import RiskAssessment, RiskParameters
+from app.features.position_monitoring.service.iv_readiness import IvReadiness
 from app.features.product.service.risk_reference import RiskProductReference
 
 
@@ -45,3 +46,5 @@ class PositionRiskView:
     comparison_inputs: tuple[SynchronizedPricePair, ...] = ()
     mode: str = "PREVIEW"
     execution_usable: bool = False
+    # Old immutable snapshots have no IV assessment; do not backfill invented history.
+    iv: IvReadiness | None = None
