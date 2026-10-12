@@ -12,6 +12,7 @@ from tests.unit.backend.features.position_monitoring.test_risk_signals import LI
 
 from app.features.alert.persistence.models import AlertModel
 from app.features.market.service.risk_reference import RiskListingReference
+from app.features.market_data.domain.models import WarrantQuoteSnapshot
 from app.features.market_data.domain.risk_evidence import SavedQuoteEvidence
 from app.features.notification.persistence.models import NotificationModel
 from app.features.notification.persistence.repositories import SqlAlchemyNotificationRepository
@@ -22,6 +23,7 @@ from app.features.position_monitoring.persistence.models import (
     PositionRiskConfigurationModel,
     PositionRiskSnapshotModel,
 )
+from app.features.position_monitoring.persistence.risk_records import RISK_VIEW
 from app.features.position_monitoring.service.risk import (
     PositionRiskService,
     RiskConfigurationConflict,
@@ -175,6 +177,7 @@ async def test_preview_configuration_snapshot_alert_replay_recovery_and_versioni
     kwargs = dict(workspace_id=ref.workspace_id, trade_id=ref.trade_id)
     preview = await service.preview(**kwargs, now=inputs.now())
     assert preview.configuration.enabled is False and preview.snapshot_id is None
+    assert preview.iv.status == "NOT_EVALUABLE" and preview.iv.current_iv_decimal is None
     assert session.sync.scalar(select(func.count()).select_from(PositionRiskSnapshotModel)) == 0
     config = await service.configure(
         **kwargs,
@@ -200,10 +203,13 @@ async def test_preview_configuration_snapshot_alert_replay_recovery_and_versioni
         replace(p, retrieved_at=p.retrieved_at + timedelta(minutes=1)) for p in inputs.values
     ]
     refreshed, _ = await service.evaluate(**kwargs, now=inputs.now())
-    assert refreshed.snapshot_id == baseline.snapshot_id
+    # New IV evidence is auditable, but it does not create another confirmation day.
+    assert refreshed.snapshot_id != baseline.snapshot_id
+    assert refreshed.assessment.state == baseline.assessment.state
+    assert refreshed.assessment.trend_triggered is None
     current_preview = await service.preview(**kwargs, now=inputs.now())
     assert current_preview.quote_evidence.reason == "DISPLAY_CONTEXT_CHANGED"
-    assert refreshed.quote_evidence.reason == "NO_CONFIRMED_SAVED_QUOTE_SOURCE"
+    assert refreshed.quote_evidence.reason == "DISPLAY_CONTEXT_CHANGED"
     for _ in range(2):
         inputs.append(80)
         crossed, alerts = await PositionRiskService(session, inputs).evaluate(
@@ -307,6 +313,56 @@ async def test_disabled_preview_correction_same_day_and_parameter_preview(stored
     preview = await service.preview(**kwargs, parameters=RiskParameters(confirmation_sessions=3))
     assert preview.assessment.transition == "INITIALIZED" and not preview.configuration.enabled
     assert len(await service.history(workspace_id=ref.workspace_id, trade_id=ref.trade_id)) == 2
+
+
+@pytest.mark.asyncio
+async def test_iv_evidence_storage_source_side_age_changes_do_not_add_alerts_or_sessions(stored):
+    session, ref, inputs = stored
+    service = PositionRiskService(session, inputs)
+    kwargs = dict(workspace_id=ref.workspace_id, trade_id=ref.trade_id)
+    now = inputs.now()
+    await service.configure(
+        **kwargs,
+        now=now,
+        parameters=RiskParameters(),
+        enabled=True,
+        expected_revision=0,
+        actor=uuid4(),
+        correlation_id=None,
+    )
+    quote = WarrantQuoteSnapshot(
+        uuid4(), Decimal(2), Decimal("2.2"), "EUR", "SYN", "ISSUER", now, max_quote_age_seconds=60
+    )
+    inputs.quote = SavedQuoteEvidence("SAVED", quote, "SYN-A", now, "route-a")
+    baseline, alerts = await service.evaluate(**kwargs, now=now)
+    assert not alerts and baseline.iv.current_iv_decimal is None
+    inputs.quote = replace(
+        inputs.quote,
+        retrieved_at=now + timedelta(seconds=1),
+        quote=replace(quote, assessed_at=now + timedelta(seconds=1)),
+    )
+    same, alerts = await service.evaluate(**kwargs, now=now + timedelta(seconds=1))
+    assert same.snapshot_id == baseline.snapshot_id and not alerts
+    inputs.quote = replace(inputs.quote, provider="SYN-B", identity_key="route-b")
+    changed, alerts = await service.evaluate(**kwargs, now=now + timedelta(seconds=2))
+    assert changed.snapshot_id != baseline.snapshot_id and not alerts
+    assert changed.assessment.state == baseline.assessment.state
+    assert changed.assessment.transition == "SAME_OR_OLDER_SESSION"
+    inputs.quote = replace(inputs.quote, quote=replace(quote, ask=None))
+    partial, alerts = await service.evaluate(**kwargs, now=now + timedelta(seconds=3))
+    assert partial.iv.quote_side == "BID_ONLY" and not alerts
+    stale, alerts = await service.evaluate(**kwargs, now=now + timedelta(seconds=61))
+    assert stale.snapshot_id != partial.snapshot_id and "QUOTE_STALE" in stale.iv.reasons
+    assert not alerts and stale.assessment.state == baseline.assessment.state
+    assert session.sync.scalar(select(func.count()).select_from(AlertModel)) == 0
+    assert session.sync.scalar(select(func.count()).select_from(NotificationModel)) == 0
+    history = await service.history(**kwargs)
+    assert len(history) == 4
+    assert {v.quote_evidence.provider for v in history} == {"SYN-A", "SYN-B"}
+    assert session.sync.get(PositionModel, ref.position_id).open_quantity == 10
+    old_payload = RISK_VIEW.dump_python(baseline, mode="json")
+    old_payload.pop("iv")
+    assert RISK_VIEW.validate_python(old_payload).iv is None  # No invented backfill.
 
 
 @pytest.mark.asyncio

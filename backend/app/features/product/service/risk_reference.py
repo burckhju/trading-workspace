@@ -27,6 +27,10 @@ class RiskProductReference:
     maturity: date | None
     exercise_style: str | None = None
     quanto: bool | None = None
+    # WARRANT alone does not prove a vanilla payoff or a ratio convention.
+    product_type: str | None = None
+    ratio_convention: str | None = None
+    issuer_id: UUID | None = None
 
 
 class RiskProductReader:
@@ -71,4 +75,5 @@ class RiskProductReader:
             term.strike if term else None,
             term.strike_currency_code if term else None,
             term.maturity_date if term else None,
+            issuer_id=warrant.issuer_id,
         )

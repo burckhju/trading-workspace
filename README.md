@@ -26,6 +26,10 @@ Umfang, Migrationen und offene Live-Abnahme:
 
 ## Status
 
+In Entwicklung: [IV-Datenprüfung und hypothetische Vanilla-Szenarien](docs/features/IMPLIED_VOLATILITY.md).
+Die erste Stufe zeigt Datenlücken ausdrücklich; sie behauptet keine aktuelle IV
+oder IV-Historie ohne qualifizierte Quelle und verändert keine Stop-/Zielregeln.
+
 - Sprint 0 – technische Basis: abgeschlossen
 - Sprint 1 – fachliche Architektur: abgeschlossen und freigegeben
 - Sprint 2 – FT-001 Basiswertverwaltung: released
