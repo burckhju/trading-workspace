@@ -1,7 +1,7 @@
 """Audit current IV availability from owner evidence; never invent provider fields.
 
-V1 deliberately cannot produce a current IV: the persisted provider contracts lack
-IV/Greeks, verified exercise/Quanto facts and a synchronized underlying quote.
+V2 accepts explicitly reviewed product documents, but cannot produce a current IV:
+the provider contracts still lack IV/Greeks and a synchronized underlying quote.
 This capability limit must be changed together with a qualified ingestion path.
 """
 
@@ -32,7 +32,7 @@ class IvReadiness:
     selected_scenario_loss: Decimal | None = None
     history_status: str = "NO_QUALIFIED_IV_HISTORY"
     event_status: str = "NO_VERIFIED_EVENT_SOURCE"
-    policy_version: str = "IV_READINESS_V1"
+    policy_version: str = "IV_READINESS_V2"
     model_version: str | None = None
     execution_usable: bool = False
 
@@ -52,8 +52,10 @@ def assess_iv_readiness(
     ]
     if product is None or product.terms_id is None:
         reasons.append("PRODUCT_TERMS_OR_PRIMARY_LISTING_MISSING")
-    if product is None or product.product_type != "VANILLA_WARRANT":
+    if product is None or product.product_type is None:
         reasons.append("VANILLA_PRODUCT_TYPE_UNVERIFIED")
+    elif product.product_type != "VANILLA_WARRANT":
+        reasons.append("UNSUPPORTED_PRODUCT_OR_EXERCISE")
     if product is None or product.exercise_style is None:
         reasons.append("EXERCISE_STYLE_UNKNOWN")
     elif product.exercise_style != "EUROPEAN":
@@ -73,6 +75,9 @@ def assess_iv_readiness(
         reasons.append("INVALID_PRICE_OR_RATIO")
     if product is None or product.maturity is None:
         reasons.append("MATURITY_MISSING")
+    elif product.expiry_at is not None:
+        if product.expiry_at <= as_of:
+            reasons.append("MATURITY_REACHED_OR_TODAY")
     elif product.maturity <= as_of.date():
         reasons.append("MATURITY_REACHED_OR_TODAY")
     else:

@@ -25,6 +25,7 @@ from app.features.market_data.domain.models import WarrantQuoteSnapshot
 from app.features.market_data.persistence.models import (
     WarrantProviderMappingModel,
     WarrantQuoteObservationModel,
+    WarrantQuoteSampleModel,
 )
 from app.features.market_data.persistence.quote_identity import verified_identity
 from app.features.market_data.service.quote_coverage import (
@@ -285,6 +286,7 @@ def route():
         WarrantListingModel,
         WarrantProviderMappingModel,
         WarrantQuoteObservationModel,
+        WarrantQuoteSampleModel,
     ):
         m.__table__.create(db.engine)
     req = request()

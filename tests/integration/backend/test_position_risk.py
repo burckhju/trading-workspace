@@ -230,6 +230,27 @@ async def test_preview_configuration_snapshot_alert_replay_recovery_and_versioni
     )
     second = await notification_service.create_telegram(alert=replay_trend.alert, symbol="TEST")
     assert first.id == second.id and "Messwert" in first.body
+    # A document revision changes audit evidence, never a signal session or alert edge.
+    alert_count = session.sync.scalar(select(func.count()).select_from(AlertModel))
+    inputs.product = replace(
+        inputs.product,
+        evidence_revision=1,
+        evidence_origin="MANUAL_DOCUMENT_REVIEW",
+        evidence_document="Synthetic final terms",
+        exercise_style="EUROPEAN",
+        quanto=False,
+        ratio_convention="UNDERLYING_UNITS_PER_WARRANT",
+        product_type="VANILLA_WARRANT",
+    )
+    documented, replay = await service.evaluate(**kwargs, now=inputs.now())
+    assert documented.snapshot_id != crossed.snapshot_id
+    assert documented.basis_key == crossed.basis_key
+    assert documented.assessment.state == crossed.assessment.state
+    assert documented.iv.current_iv_decimal is documented.iv.risk_level is None
+    assert session.sync.scalar(select(func.count()).select_from(AlertModel)) == alert_count
+    documented_trend = next(item for item in replay if item.alert.id == trend.alert.id)
+    third = await notification_service.create_telegram(alert=documented_trend.alert, symbol="TEST")
+    assert third.id == first.id
     # A data failure creates a new audit record, preserving the active warning.
     original = inputs.values[-1]
     inputs.values[-1] = replace(original, adjusted_close=None)

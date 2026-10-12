@@ -24,6 +24,7 @@ from app.features.market_data.domain.models import WarrantQuoteSnapshot
 from app.features.market_data.persistence.models import (
     WarrantProviderMappingModel,
     WarrantQuoteObservationModel,
+    WarrantQuoteSampleModel,
 )
 from app.features.market_data.service.errors import (
     MarketDataConfigurationError,
@@ -48,6 +49,9 @@ class SqlSession:
 
     async def execute(self, statement):
         return self.session.execute(statement)
+
+    async def scalars(self, statement):
+        return self.session.scalars(statement)
 
     async def scalar(self, statement):
         return self.session.scalar(statement)
@@ -82,6 +86,7 @@ def context(tmp_path):
         WarrantListingModel,
         WarrantProviderMappingModel,
         WarrantQuoteObservationModel,
+        WarrantQuoteSampleModel,
     ]
     for model in tables:
         model.__table__.create(database.engine)

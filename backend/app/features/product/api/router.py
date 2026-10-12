@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.dependencies import get_database_session
 from app.features.product.api.errors import translate_product_error
+from app.features.product.api.valuation_evidence import router as valuation_evidence_router
 from app.features.product.domain.models import (
     OptionDirection,
     ProductFamily,
@@ -22,6 +23,7 @@ from app.features.product.service.application import InitialWarrantListing, Warr
 from app.features.product.service.hard_delete import WarrantHardDeleteService
 
 router = APIRouter(prefix="/api/v1/warrants", tags=["warrants"])
+router.include_router(valuation_evidence_router)
 WORKSPACE_ID = UUID("00000000-0000-4000-8000-000000000001")
 StrikeCurrencyCode = Annotated[
     str,

@@ -248,6 +248,39 @@ class WarrantQuoteObservationModel(Base):
     payload: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
 
 
+class WarrantQuoteSampleModel(Base):
+    """First completed capture per UTC five-minute slot and verified source identity."""
+
+    __tablename__ = "warrant_quote_samples"
+    __table_args__ = (
+        UniqueConstraint(
+            "workspace_id",
+            "warrant_listing_id",
+            "provider",
+            "identity_key",
+            "slot_at",
+            name="uq_warrant_quote_sample_slot",
+        ),
+        Index("ix_warrant_quote_sample_product_time", "workspace_id", "warrant_id", "captured_at"),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    workspace_id: Mapped[UUID] = mapped_column(ForeignKey("workspaces.id", ondelete="RESTRICT"))
+    warrant_id: Mapped[UUID] = mapped_column(ForeignKey("warrants.id", ondelete="RESTRICT"))
+    warrant_listing_id: Mapped[UUID] = mapped_column(
+        ForeignKey("warrant_listings.id", ondelete="RESTRICT")
+    )
+    provider: Mapped[str] = mapped_column(String(30))
+    identity_key: Mapped[str] = mapped_column(String(64))
+    isin: Mapped[str] = mapped_column(String(12))
+    slot_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    day_utc: Mapped[date] = mapped_column(Date)
+    captured_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    status: Mapped[str] = mapped_column(String(40))
+    reason: Mapped[str | None] = mapped_column(String(140))
+    quote_fingerprint: Mapped[str | None] = mapped_column(String(64))
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON)
+
+
 class DailyPriceModel(Base):
     """Persisted provider-independent completed end-of-day price."""
 

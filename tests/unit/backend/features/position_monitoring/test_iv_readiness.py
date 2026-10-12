@@ -136,3 +136,38 @@ def test_reference_missing_terms_receipt_and_unsupported_product():
     assert "UNSUPPORTED_PRODUCT_OR_EXERCISE" in unsupported.reasons
     assert "MATURITY_REACHED_OR_TODAY" in unsupported.reasons
     assert "QUOTE_RECEIPT_UNKNOWN" in unsupported.reasons
+
+
+def test_explicit_product_evidence_removes_only_product_blockers_not_quote_or_model_gaps():
+    product = replace(
+        PRODUCT,
+        product_type="VANILLA_WARRANT",
+        exercise_style="EUROPEAN",
+        quanto=False,
+        ratio_convention="UNDERLYING_UNITS_PER_WARRANT",
+        expiry_at=NOW + timedelta(days=30),
+        evidence_revision=1,
+        evidence_origin="MANUAL_DOCUMENT_REVIEW",
+    )
+    result = assess_iv_readiness(
+        product, LISTING, SavedQuoteEvidence("SAVED", QUOTE, "SYNTHETIC", NOW, "route-a"), as_of=NOW
+    )
+    assert result.current_iv_decimal is result.risk_level is None
+    assert result.status == "NOT_EVALUABLE" and result.policy_version == "IV_READINESS_V2"
+    assert "EXACT_EXPIRY_TIME_UNVERIFIED" not in result.reasons
+    assert "EXERCISE_STYLE_UNKNOWN" not in result.reasons
+    assert "QUANTO_STATUS_UNKNOWN" not in result.reasons
+    assert "PROVIDER_IV_AND_GREEKS_NOT_INGESTED" in result.reasons
+    assert "SYNCHRONIZED_UNDERLYING_QUOTE_MISSING" in result.reasons
+    expired = assess_iv_readiness(
+        replace(product, expiry_at=NOW), LISTING, SavedQuoteEvidence("MISSING"), as_of=NOW
+    )
+    assert "MATURITY_REACHED_OR_TODAY" in expired.reasons
+    structured = assess_iv_readiness(
+        replace(product, product_type="OTHER_STRUCTURED"),
+        LISTING,
+        SavedQuoteEvidence("MISSING"),
+        as_of=NOW,
+    )
+    assert "UNSUPPORTED_PRODUCT_OR_EXERCISE" in structured.reasons
+    assert "VANILLA_PRODUCT_TYPE_UNVERIFIED" not in structured.reasons
