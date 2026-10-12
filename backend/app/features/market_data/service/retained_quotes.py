@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from dataclasses import replace
 from datetime import UTC, datetime
 
@@ -29,6 +30,7 @@ from app.features.market_data.service.errors import (
     MarketDataMappingError,
     MarketDataNotFoundError,
 )
+from app.features.market_data.service.quote_history import capture_quote_sample
 from app.features.market_data.service.types import MarketDataResult, WarrantQuoteRequest
 from app.features.product.persistence.models import WarrantListingModel
 
@@ -48,10 +50,13 @@ class RetainedWarrantQuoteProvider:
         database: DatabaseManager,
         provider: WarrantListingQuoteProvider,
         name: MarketDataProvider,
+        *,
+        capture_clock: Callable[[], datetime] | None = None,
     ) -> None:
         self._database = database
         self._provider = provider
         self._name = name
+        self._capture_clock = capture_clock or (lambda: datetime.now(UTC))
 
     async def get_warrant_listing_quote(self, request: WarrantQuoteRequest) -> QuoteResult:
         async with self._database.session_context() as session:
@@ -61,11 +66,17 @@ class RetainedWarrantQuoteProvider:
 
         result = None
         error = None
+        fatal_error = None
         try:
             result = await self._provider.get_warrant_listing_quote(request)
-        except (MarketDataConfigurationError, MarketDataMappingError, MarketDataNotFoundError):
+        except (
+            MarketDataConfigurationError,
+            MarketDataMappingError,
+            MarketDataNotFoundError,
+        ) as exc:
             # A disabled/unmapped source is not an outage of a verified route.
-            raise
+            fatal_error = exc
+            error = type(exc).__name__
         except Exception as exc:  # preserve bounded diagnostics, never response bodies/secrets
             error = type(exc).__name__
             if isinstance(exc, MarketDataError) and re.fullmatch(
@@ -77,8 +88,8 @@ class RetainedWarrantQuoteProvider:
 
         async with self._database.session_context() as session:
             # Lock the existing parent even when no observation has been inserted yet.
-            await session.scalar(
-                select(WarrantListingModel.id)
+            listing = await session.scalar(
+                select(WarrantListingModel)
                 .where(
                     WarrantListingModel.id == request.warrant_listing_id,
                     WarrantListingModel.workspace_id == request.workspace_id,
@@ -87,6 +98,7 @@ class RetainedWarrantQuoteProvider:
             )
             if await self._identity(session, request) != identity:
                 raise MarketDataMappingError("WARRANT_QUOTE_IDENTITY_CHANGED_DURING_REFRESH")
+            assert listing is not None
             key = (request.workspace_id, request.warrant_listing_id, self._name.value)
             row = await session.get(WarrantQuoteObservationModel, key)
             previous = (
@@ -118,8 +130,31 @@ class RetainedWarrantQuoteProvider:
                         )
                     elif row.payload != payload or row.identity_key != identity.key:
                         row.identity_key, row.payload = identity.key, payload
+                    await capture_quote_sample(
+                        session,
+                        request=request,
+                        warrant_id=listing.warrant_id,
+                        provider=self._name.value,
+                        identity=identity,
+                        result=result,
+                        reason=None,
+                        captured_at=self._capture_clock(),
+                    )
                     await session.commit()
                     return result
+            await capture_quote_sample(
+                session,
+                request=request,
+                warrant_id=listing.warrant_id,
+                provider=self._name.value,
+                identity=identity,
+                result=result,
+                reason=reason,
+                captured_at=self._capture_clock(),
+            )
+            await session.commit()
+            if fatal_error is not None:
+                raise fatal_error
             if previous is not None and previous.data is not None:
                 return replace(
                     previous,

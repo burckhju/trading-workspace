@@ -2,6 +2,7 @@ import { ivLabel } from '../services/iv';
 import { riskLabel } from '../services/riskLabels';
 import type { RiskView } from '../types/risk';
 import { IvModelCalculator } from './IvModelCalculator';
+import { WarrantQuoteHistory } from '../../product/components/WarrantQuoteHistory';
 
 export function IvRiskPanel({ view }: { view: RiskView }) {
   const iv = view.iv;
@@ -68,8 +69,20 @@ export function IvRiskPanel({ view }: { view: RiskView }) {
           Währungen: Schein {quote?.quote?.currency ?? 'unbekannt'}, Basiswert{' '}
           {view.listing?.currency ?? 'unbekannt'}, Basispreis{' '}
           {view.product?.strike_currency ?? 'unbekannt'}. Bezugsverhältnis{' '}
-          {view.product?.ratio ?? 'unbekannt'}; Konvention noch nicht bestätigt.
+          {view.product?.ratio ?? 'unbekannt'}; Konvention:{' '}
+          {view.product?.ratio_convention === 'UNDERLYING_UNITS_PER_WARRANT'
+            ? 'Basiswerteinheiten je Schein (manuell belegt)'
+            : 'noch nicht bestätigt'}
+          .
         </p>
+        {view.product?.evidence_revision != null && (
+          <p>
+            Manuell geprüfter Produktbeleg, Revision {view.product.evidence_revision}:{' '}
+            {view.product.evidence_document}. Bewertungszeitpunkt:{' '}
+            {view.product.expiry_at ?? 'unbekannt'}. Die Anwendung hat den Beleg nicht selbst
+            verifiziert.
+          </p>
+        )}
         <p>
           Feed-Verzögerung:{' '}
           {quote?.quote?.feed_delay_seconds == null
@@ -98,6 +111,9 @@ export function IvRiskPanel({ view }: { view: RiskView }) {
           keine Entwarnung.
         </p>
       </details>
+      {view.product?.warrant_id && (
+        <WarrantQuoteHistory key={view.product.warrant_id} warrantId={view.product.warrant_id} />
+      )}
       <IvModelCalculator key={view.trade_id} tradeId={view.trade_id} />
     </section>
   );

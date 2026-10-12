@@ -8,6 +8,10 @@ bleibt v1.5.2/`baee6f8`; PC, lokale Datenbank, Bind-Mount und aktueller Provider
 waren aus dieser Entwicklungsumgebung nicht zugänglich. Die Diagnosen vom
 06./07.10. werden ausdrücklich nicht als aktuelle Messungen behandelt.
 
+Weiterentwicklung: [Produktbelege und Kurs-Erfassungsprotokoll](IV_DATA_EVIDENCE.md).
+Die folgende Bestandsaufnahme beschreibt ausdrücklich die Ausgangslage vor V1;
+neue manuelle Produktbelege und die ergänzende Stichprobenablage sind dort dokumentiert.
+
 ## Bestandsaufnahme und Entscheidung
 
 Die folgenden Feststellungen betreffen nachprüfbare Codeverträge und Tests,

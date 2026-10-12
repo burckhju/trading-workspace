@@ -9,6 +9,8 @@ import type {
 import { StrikeCurrencyInput } from '../components/StrikeCurrencyInput';
 import { WarrantListingFields } from '../components/WarrantListingFields';
 import { WarrantIdentifierCorrection } from '../components/WarrantIdentifierCorrection';
+import { WarrantValuationEvidence } from '../components/WarrantValuationEvidence';
+import { WarrantQuoteHistory } from '../components/WarrantQuoteHistory';
 import type { SelectionRepairContext } from '../services/selectionRepairContext';
 import { warrantApiClient } from '../services/client';
 import type {
@@ -554,6 +556,16 @@ export function WarrantAdminPage({
             </button>
           </div>
           <div className="grid gap-6 lg:grid-cols-2">
+            {terms
+              .filter((t) => t.warrant_id === selected.id && !t.effective_to)
+              .map((t) => (
+                <WarrantValuationEvidence
+                  key={`${selected.id}:${selected.version}:${t.id}`}
+                  warrant={selected}
+                  terms={t}
+                />
+              ))}
+            <WarrantQuoteHistory key={selected.id} warrantId={selected.id} />
             <div>
               <h3 className="font-medium">Produktbedingungen / Historie</h3>
               <p className="mt-1 text-xs text-slate-500">

@@ -17,6 +17,12 @@ export interface RiskView {
     policy_version: string;
   };
   product: {
+    warrant_id?: string;
+    ratio_convention?: string | null;
+    evidence_revision?: number | null;
+    evidence_origin?: string | null;
+    evidence_document?: string | null;
+    expiry_at?: string | null;
     direction: string | null;
     isin: string | null;
     ratio: string | null;
