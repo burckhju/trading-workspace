@@ -80,21 +80,27 @@ test("document revision and empty observation journal remain explicit at mobile 
     .getByRole("button", { name: new RegExp(warrant.display_name) })
     .click();
   await page.getByText("Produktmerkmale für IV mit Beleg erfassen").click();
-  await page.getByRole("button", { name: "Produktbelege laden" }).click();
-  await expect(page.getByLabel("Ausübungsart", { exact: true })).toHaveValue(
-    "",
+  const evidenceRead = page.waitForResponse(
+    (response) =>
+      response.request().method() === "GET" &&
+      response.url().endsWith(`/warrants/${warrant.id}/valuation-evidence`),
   );
+  await page.getByRole("button", { name: "Produktbelege laden" }).click();
+  expect((await evidenceRead).status()).toBe(200);
+  await expect(
+    page.getByRole("combobox", { name: "Ausübungsart", exact: true }),
+  ).toHaveValue("");
   await page
-    .getByLabel("Produktart", { exact: true })
+    .getByRole("combobox", { name: "Produktart", exact: true })
     .selectOption("VANILLA_WARRANT");
   await page
-    .getByLabel("Ausübungsart", { exact: true })
+    .getByRole("combobox", { name: "Ausübungsart", exact: true })
     .selectOption("EUROPEAN");
   await page
-    .getByLabel("Quanto-Eigenschaft", { exact: true })
+    .getByRole("combobox", { name: "Quanto-Eigenschaft", exact: true })
     .selectOption("false");
   await page
-    .getByLabel("Bezugsverhältnis-Konvention", { exact: true })
+    .getByRole("combobox", { name: "Bezugsverhältnis-Konvention", exact: true })
     .selectOption("UNDERLYING_UNITS_PER_WARRANT");
   await page
     .getByLabel("Bewertungszeitpunkt mit Zeitzone (optional)", { exact: true })
@@ -157,6 +163,6 @@ test("document revision and empty observation journal remain explicit at mobile 
   await page.getByText("Produktmerkmale für IV mit Beleg erfassen").click();
   await page.getByRole("button", { name: "Produktbelege laden" }).click();
   await expect(
-    page.getByLabel("Quanto-Eigenschaft", { exact: true }),
+    page.getByRole("combobox", { name: "Quanto-Eigenschaft", exact: true }),
   ).toHaveValue("false");
 });
