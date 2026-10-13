@@ -182,3 +182,43 @@ it('filters operational failures independently of observed bid age and aborts un
   unmount();
   expect(signal?.aborted).toBe(true);
 });
+
+it('keeps separate issuer failures visible beside successful other sources and in gap filter', async () => {
+  request.mockResolvedValue({
+    ...report,
+    items: [
+      {
+        ...item,
+        coverage: 'BID_WITHIN_AGE_BUDGET',
+        refresh_status: 'MIXED',
+        refresh_reason: null,
+        refresh_jobs: [
+          {
+            lane: 'WARRANT_QUOTES',
+            status: 'AVAILABLE',
+            reason: 'QUOTE_OBSERVATIONS_AVAILABLE',
+            checked_at: '2026-09-15T10:00:00Z',
+            next_run_at: null,
+          },
+          {
+            lane: 'ISSUER_QUOTES',
+            status: 'ERROR',
+            reason: 'ISSUER_TIMEOUT',
+            checked_at: '2026-09-15T09:59:00Z',
+            next_run_at: null,
+          },
+        ],
+      },
+    ],
+  });
+  render(<QuoteCoveragePanel />);
+  fireEvent.click(screen.getByRole('button'));
+  await screen.findByText('Synthetic old bid');
+  fireEvent.click(screen.getByLabelText('Nur Prüfbedarf'));
+  expect(screen.getByText('Unterschiedliche Abrufstände – Details prüfen')).toBeInTheDocument();
+  expect(screen.getByText('Weitere Kursquellen: Letzter Abruf erfolgreich')).toBeInTheDocument();
+  expect(screen.getByText('Emittentenabruf: Letzter Abruf fehlgeschlagen')).toBeInTheDocument();
+  expect(screen.getByText('ISSUER_TIMEOUT')).toBeInTheDocument();
+  expect(screen.queryByText('Noch kein Abrufnachweis in dieser Laufzeit')).not.toBeInTheDocument();
+  expect(request).toHaveBeenCalledTimes(1);
+});

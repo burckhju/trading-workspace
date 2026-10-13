@@ -253,3 +253,107 @@ def test_api_is_read_only_and_uses_runtime_workspace_not_request_parameter():
     assert response.json()["execution_usable"] is False
     service.reader.held_products.assert_awaited_once_with(workspace)
     assert client.post("/api/v1/market-data/warrants/quote-coverage").status_code == 405
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("provider", ["MORGAN_STANLEY", "JPMORGAN"])
+async def test_issuer_job_is_reported_without_inventing_quote_time(provider):
+    workspace, route, record, reader, _, scheduler = context()
+    payload = deepcopy(route.payload)
+    payload["provider"] = provider
+    payload["data"]["observed_at"] = None
+    payload["data"]["source_mode"] = (
+        "OFFICIAL_ISSUER_INDICATION_LOCAL_DATETIME"
+        if provider == "MORGAN_STANLEY"
+        else "OFFICIAL_ISSUER_INDICATION_TIME_ONLY"
+    )
+    payload["data"]["quote_time_basis"] = (
+        "LOCAL_DATETIME_TIMEZONE_UNKNOWN"
+        if provider == "MORGAN_STANLEY"
+        else "DATE_AND_TIMEZONE_UNKNOWN"
+    )
+    route = replace(route, provider=provider, payload=payload)
+    reader.held_products.return_value = (replace(record, routes=(route,)),)
+    service = QuoteCoverageService(reader, ((provider, True),))
+    key = f"ISSUER_QUOTES:{record.warrant_id}"
+    scheduler["jobs"] = [
+        {
+            "job": key,
+            "status": "AVAILABLE",
+            "reason": "QUOTE_OBSERVATIONS_AVAILABLE",
+            "checked_at": NOW,
+            "next_run_at": NOW + timedelta(minutes=5),
+            "source_attempts": [
+                {
+                    "source": provider,
+                    "warrant_listing_id": str(route.listing_id),
+                    "status": "AVAILABLE",
+                    "refresh_error": "ISSUER_REFRESH_FAILED",
+                }
+            ],
+        }
+    ]
+    item = (await service.report(workspace, scheduler, as_of=NOW)).items[0]
+    assert item.refresh_status == "AVAILABLE"
+    assert item.checked_at == NOW
+    assert item.next_run_at == NOW + timedelta(minutes=5)
+    assert item.refresh_jobs[0].lane == "ISSUER_QUOTES"
+    assert item.routes[0].refresh_error == "ISSUER_REFRESH_FAILED"
+    assert item.routes[0].observed_at is None
+    assert item.coverage == "QUOTE_TIMESTAMP_UNKNOWN"
+    scheduler["current_jobs"] = {"issuer": key}
+    assert (await service.report(workspace, scheduler, as_of=NOW)).items[
+        0
+    ].refresh_status == "RUNNING"
+    scheduler["workspace_id"] = uuid4()
+    foreign = (await service.report(workspace, scheduler, as_of=NOW)).items[0]
+    assert foreign.refresh_status == "DISABLED"
+    assert foreign.refresh_jobs == ()
+    assert foreign.checked_at is None
+    assert foreign.routes[0].refresh_error is None
+
+
+@pytest.mark.asyncio
+async def test_mixed_jobs_preserve_independent_results_and_route_errors():
+    workspace, route, record, reader, service, scheduler = context()
+    other = replace(route, provider="MORGAN_STANLEY", listing_id=uuid4(), payload=None)
+    reader.held_products.return_value = (replace(record, routes=(route, other)),)
+    scheduler["jobs"] = [
+        {
+            "job": f"WARRANT_QUOTES:{record.warrant_id}",
+            "status": "AVAILABLE",
+            "checked_at": NOW,
+            "next_run_at": NOW + timedelta(minutes=5),
+        },
+        {
+            "job": f"ISSUER_QUOTES:{record.warrant_id}",
+            "status": "ERROR",
+            "reason": "https://secret.invalid",
+            "checked_at": NOW - timedelta(minutes=1),
+            "source_attempts": [
+                {
+                    "source": "MORGAN_STANLEY",
+                    "warrant_listing_id": str(other.listing_id),
+                    "status": "MISSING",
+                    "reason": "ISSUER_TIMEOUT",
+                }
+            ],
+        },
+    ]
+    item = (await service.report(workspace, scheduler, as_of=NOW)).items[0]
+    assert item.refresh_status == "MIXED"
+    assert item.checked_at is None and item.next_run_at is None
+    assert [job.status for job in item.refresh_jobs] == ["AVAILABLE", "ERROR"]
+    assert item.refresh_jobs[1].checked_at == NOW - timedelta(minutes=1)
+    assert item.refresh_jobs[1].reason is None
+    assert item.routes[0].refresh_error is None
+    assert item.routes[1].refresh_error == "ISSUER_TIMEOUT"
+    assert item.coverage == "BID_WITHIN_AGE_BUDGET"
+    scheduler["jobs"][1]["status"] = "AVAILABLE"
+    assert (await service.report(workspace, scheduler, as_of=NOW)).items[
+        0
+    ].refresh_status == "AVAILABLE"
+    scheduler["enabled"] = False
+    disabled = (await service.report(workspace, scheduler, as_of=NOW)).items[0]
+    assert disabled.refresh_status == "DISABLED"
+    assert all(job.status == "DISABLED" for job in disabled.refresh_jobs)
