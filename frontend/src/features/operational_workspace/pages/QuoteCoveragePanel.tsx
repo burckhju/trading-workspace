@@ -27,6 +27,14 @@ type Route = {
   refresh_error: string | null;
 };
 
+type RefreshJob = {
+  lane: string;
+  status: string;
+  reason: string | null;
+  checked_at: string | null;
+  next_run_at: string | null;
+};
+
 type Item = {
   warrant_id: string;
   name: string;
@@ -41,6 +49,7 @@ type Item = {
   checked_at: string | null;
   next_run_at: string | null;
   discovery_reasons: string[];
+  refresh_jobs?: RefreshJob[];
 };
 
 type Report = {
@@ -72,6 +81,10 @@ const labels: Record<string, string> = {
   QUOTE_CURRENCY_INACTIVE: 'Kurswährung inaktiv',
   LISTING_OR_VENUE_INACTIVE: 'Notierung oder Handelsplatz inaktiv',
   ISIN_REQUIRED: 'ISIN fehlt',
+  MIXED: 'Unterschiedliche Abrufstände – Details prüfen',
+  ISSUER_QUOTES: 'Emittentenabruf',
+  WARRANT_QUOTES: 'Weitere Kursquellen',
+  QUOTE_TIMESTAMP_UNKNOWN: 'Kurszeitpunkt nicht belegt',
   DISABLED: 'Automatischer Abruf aus',
   NOT_SCHEDULED: 'Noch nicht eingeplant',
   PENDING: 'Erster Abruf steht aus',
@@ -123,7 +136,9 @@ export function QuoteCoveragePanel() {
         (!issuer || issuer === item.issuer) &&
         (!onlyGaps ||
           item.coverage !== 'BID_WITHIN_AGE_BUDGET' ||
-          ['ERROR', 'MISSING', 'DISABLED', 'NOT_SCHEDULED'].includes(item.refresh_status)),
+          ['ERROR', 'MISSING', 'DISABLED', 'NOT_SCHEDULED', 'MIXED', 'DEFERRED'].includes(
+            item.refresh_status,
+          )),
     ) ?? [];
 
   return (
@@ -291,11 +306,31 @@ export function QuoteCoveragePanel() {
                     </td>
                     <td className="p-2">
                       <p>{label(item.refresh_status)}</p>
-                      <p>Letzte Prüfung: {date(item.checked_at)}</p>
-                      <p>Nächste Prüfung frühestens: {date(item.next_run_at)}</p>
+                      {item.refresh_jobs && item.refresh_jobs.length > 0 ? (
+                        item.refresh_jobs.map((job) => (
+                          <div key={job.lane} className="mt-2 break-words">
+                            <p>
+                              {label(job.lane)}: {label(job.status)}
+                            </p>
+                            <p>Letzte Prüfung: {date(job.checked_at)}</p>
+                            <p>Nächste Prüfung frühestens: {date(job.next_run_at)}</p>
+                            {job.reason && <p className="text-xs">{job.reason}</p>}
+                          </div>
+                        ))
+                      ) : (
+                        <>
+                          <p>Letzte Prüfung: {date(item.checked_at)}</p>
+                          <p>Nächste Prüfung frühestens: {date(item.next_run_at)}</p>
+                        </>
+                      )}
                       <details className="mt-2">
                         <summary>Diagnose</summary>
-                        <p>{item.refresh_reason ?? 'Noch kein Abrufnachweis in dieser Laufzeit'}</p>
+                        <p>
+                          {item.refresh_reason ??
+                            (item.refresh_jobs?.length
+                              ? 'Abrufnachweise je Auftragsart siehe oben'
+                              : 'Noch kein Abrufnachweis in dieser Laufzeit')}
+                        </p>
                         {item.discovery_reasons.map((reason) => (
                           <p key={reason}>{reason}</p>
                         ))}

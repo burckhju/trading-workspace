@@ -99,3 +99,83 @@ test("held warrant quote sources are visible from workspace without extra writes
     ).json(),
   ).toEqual(before);
 });
+
+test("issuer and exchange refresh evidence stays readable on mobile", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.route("**/api/v1/market-data/warrants/quote-coverage", (route) =>
+    route.fulfill({
+      json: {
+        assessed_at: "2026-10-13T16:00:00Z",
+        scheduler_enabled: true,
+        scheduler_leader: true,
+        configured_sources: ["MORGAN_STANLEY"],
+        source_order: ["MORGAN_STANLEY"],
+        items: [
+          {
+            warrant_id: "synthetic-issuer-diagnostics",
+            name: "Synthetic issuer diagnostics",
+            isin: null,
+            wkn: null,
+            issuer: "Synthetic issuer",
+            coverage: "QUOTE_TIMESTAMP_UNKNOWN",
+            routes: [],
+            refresh_status: "MIXED",
+            refresh_reason: null,
+            checked_at: null,
+            next_run_at: null,
+            discovery_reasons: [],
+            refresh_jobs: [
+              {
+                lane: "ISSUER_QUOTES",
+                status: "AVAILABLE",
+                reason: "QUOTE_OBSERVATIONS_AVAILABLE",
+                checked_at: "2026-10-13T16:00:00Z",
+                next_run_at: null,
+              },
+              {
+                lane: "WARRANT_QUOTES",
+                status: "ERROR",
+                reason: "QUOTE_REFRESH_FAILED",
+                checked_at: "2026-10-13T15:59:00Z",
+                next_run_at: null,
+              },
+            ],
+          },
+        ],
+      },
+    }),
+  );
+  await page.goto("/workspace");
+  await page.getByText("Automatischer Kursabruf", { exact: true }).click();
+  const panel = page.getByRole("region", {
+    name: "Kursquellen im Depot",
+    exact: true,
+  });
+  await panel
+    .getByRole("button", { name: "Kursquellen im Depot prüfen", exact: true })
+    .click();
+  await expect(
+    panel.getByText("Kurszeitpunkt nicht belegt", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    panel.getByText("Emittentenabruf: Letzter Abruf erfolgreich", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(
+    panel.getByText("Weitere Kursquellen: Letzter Abruf fehlgeschlagen", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await panel.getByLabel("Nur Prüfbedarf", { exact: true }).check();
+  await expect(
+    panel.getByText("Synthetic issuer diagnostics", { exact: true }),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
+});

@@ -79,6 +79,15 @@ class RouteCoverage:
 
 
 @dataclass(frozen=True)
+class RefreshJobCoverage:
+    lane: str
+    status: str
+    reason: str | None
+    checked_at: datetime | None
+    next_run_at: datetime | None
+
+
+@dataclass(frozen=True)
 class ProductCoverage:
     warrant_id: UUID
     name: str
@@ -93,6 +102,7 @@ class ProductCoverage:
     checked_at: datetime | None
     next_run_at: datetime | None
     discovery_reasons: tuple[str, ...]
+    refresh_jobs: tuple[RefreshJobCoverage, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -137,11 +147,32 @@ class QuoteCoverageService:
         products = await self.reader.held_products(workspace_id)
         items = []
         for product in products:
-            key = f"WARRANT_QUOTES:{product.warrant_id}"
-            job = indexed.get(key, {})
+            keys = tuple(
+                f"{lane}:{product.warrant_id}" for lane in ("WARRANT_QUOTES", "ISSUER_QUOTES")
+            )
+            refresh_jobs = tuple(
+                RefreshJobCoverage(
+                    key.split(":", 1)[0],
+                    (
+                        "DISABLED"
+                        if not enabled
+                        else (
+                            "RUNNING"
+                            if key in running
+                            else _code(indexed.get(key, {}).get("status")) or "NOT_SCHEDULED"
+                        )
+                    ),
+                    _code(indexed.get(key, {}).get("reason")),
+                    indexed.get(key, {}).get("checked_at"),
+                    indexed.get(key, {}).get("next_run_at"),
+                )
+                for key in keys
+                if key in indexed or key in running
+            )
             attempts = {
                 (a.get("source"), str(a.get("warrant_listing_id"))): a
-                for a in job.get("source_attempts", [])
+                for key in keys
+                for a in indexed.get(key, {}).get("source_attempts", [])
             }
             routes = tuple(
                 self._route(
@@ -176,11 +207,18 @@ class QuoteCoverageService:
                 for prefix in ("FRANKFURT_MAPPING", "VONTOBEL_MAPPING")
                 if (code := _code(indexed.get(f"{prefix}:{product.warrant_id}", {}).get("reason")))
             )
+            job_statuses = {job.status for job in refresh_jobs}
             status = (
                 "DISABLED"
                 if not enabled
-                else "RUNNING" if key in running else _code(job.get("status")) or "NOT_SCHEDULED"
+                else (
+                    next(iter(job_statuses))
+                    if len(job_statuses) == 1
+                    else "MIXED" if job_statuses else "NOT_SCHEDULED"
+                )
             )
+            # Multiple independent jobs have no single last/next execution time.
+            single_job = refresh_jobs[0] if len(refresh_jobs) == 1 else None
             items.append(
                 ProductCoverage(
                     product.warrant_id,
@@ -192,10 +230,11 @@ class QuoteCoverageService:
                     coverage,
                     routes,
                     status,
-                    _code(job.get("reason")),
-                    job.get("checked_at"),
-                    job.get("next_run_at"),
+                    single_job.reason if single_job else None,
+                    single_job.checked_at if single_job else None,
+                    single_job.next_run_at if single_job else None,
                     discovery,
+                    refresh_jobs,
                 )
             )
         return CoverageReport(
