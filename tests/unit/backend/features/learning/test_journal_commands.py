@@ -12,10 +12,12 @@ from sqlalchemy.exc import IntegrityError
 from app.features.learning.application.journal_service import (
     JournalCommand,
     JournalError,
-    JournalOperation as Op,
     JournalService,
 )
-from app.features.learning.domain import JournalVersionStatus, IdempotencyStatus
+from app.features.learning.application.journal_service import (
+    JournalOperation as Op,
+)
+from app.features.learning.domain import IdempotencyStatus, JournalVersionStatus
 from app.features.post_trade.application.handoff_service import Ft012Handoff
 from app.features.post_trade.domain import ExitReviewCurrentness
 

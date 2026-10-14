@@ -14,7 +14,7 @@ test("real PostgreSQL: captured full exit, review, journal, lesson and stale cor
   );
   test.setTimeout(120_000);
   expect(process.env.CI).toBe("true");
-  expect(baseURL).toBe("http://127.0.0.1:28080");
+  expect(baseURL).toBe("http://127.0.0.1:8080");
   const api = `${baseURL}/api/api/v1`;
   const post = async (path: string, data?: object) => {
     const response = await request.post(api + path, { data });
@@ -166,9 +166,9 @@ test("real PostgreSQL: captured full exit, review, journal, lesson and stale cor
   await expect(lessonLink).toBeVisible();
   const lessonPath = (await lessonLink.getAttribute("href"))!;
   const lessonId = lessonPath.split("/").at(-1)!;
-  const before = await (
-    await request.get(api + `/learning/lessons/${lessonId}`)
-  ).json();
+  const persisted = await request.get(api + `/learning/lessons/${lessonId}`);
+  expect(persisted.status(), await persisted.text()).toBe(200);
+  const before = await persisted.json();
   await post(
     `/trade-position/trades/${tid}/executions/${sale.execution.id}/corrections`,
     {

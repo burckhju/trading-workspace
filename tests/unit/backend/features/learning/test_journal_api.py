@@ -6,10 +6,11 @@ from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
+
 from app.core.config import Environment, Settings
-from app.main import create_application
 from app.features.learning.api.journal_dependencies import get_journal_service
 from app.features.learning.application.journal_service import JournalError, JournalReceipt
+from app.main import create_application
 
 
 @pytest.fixture

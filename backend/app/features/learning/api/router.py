@@ -1262,7 +1262,7 @@ async def create_lesson(
     actor = _actor(actor_id)
 
     try:
-        result = await service.create(
+        command = await service.create_with_tags(
             workspace_id=WORKSPACE_ID,
             title=request.title,
             main_category=request.main_category,
@@ -1274,15 +1274,10 @@ async def create_lesson(
                 )
                 for item in request.evidence_links
             ),
-            actor_id=actor,
-        )
-
-        tags = await service.replace_tags(
-            workspace_id=WORKSPACE_ID,
-            lesson_id=result.lesson.id,
             tags=tuple(request.tags),
             actor_id=actor,
         )
+        result, tags = command.created, command.tags
     except Exception as error:
         raise translate_lesson_error(error) from error
 

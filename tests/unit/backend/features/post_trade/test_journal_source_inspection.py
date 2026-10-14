@@ -7,12 +7,13 @@ from uuid import uuid4
 import pytest
 from tests.unit.backend.features.post_trade.test_exit_review_service import (
     _observation,
-    _trade,
     _planning,
     _prices,
     _service,
+    _trade,
     _uow,
 )
+
 from app.features.post_trade.application.input_fingerprint import (
     build_exit_review_input_fingerprint,
 )

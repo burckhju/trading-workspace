@@ -215,20 +215,31 @@ def test_actual_exit_to_journal_evidence_lesson_and_execution_correction(journal
                 "type": "TRADE_JOURNAL_VERSION",
                 "trade_journal_version_id": draft,
             }
-            lesson = await client.post(
-                f"{LEARN}/lessons",
-                json={
-                    "title": "Eigene ausdrückliche Interpretation",
-                    "main_category": "Prozess",
-                    "content": "Diese Reflexion ist eine persönliche Hypothese, kein Marktbeweis.",
-                    "tags": [],
-                    "evidence_links": [{"learning_evidence_id": evidence, "relation": "SUPPORTS"}],
-                },
-            )
+            interpretation = {
+                "title": "Eigene ausdrückliche Interpretation",
+                "main_category": "Prozess",
+                "content": "Diese Reflexion ist eine persönliche Hypothese, kein Marktbeweis.",
+                "tags": ["Dokumentation"],
+                "evidence_links": [{"learning_evidence_id": evidence, "relation": "SUPPORTS"}],
+            }
+            invalid = await client.post(f"{LEARN}/lessons", json={**interpretation, "tags": [" "]})
+            assert invalid.status_code == 422 and invalid.json()["code"] == "LESSON_INVALID"
+            # A failed tag assignment rolls back the already-flushed lesson/version/links.
+            for table in ("lessons", "lesson_versions", "lesson_evidence_links", "lesson_tags"):
+                assert (await sql(url, f"SELECT count(*) AS n FROM {table}", {}))[0]["n"] == 0
+            lesson = await client.post(f"{LEARN}/lessons", json=interpretation)
             assert lesson.status_code == 201, lesson.text
             lid = lesson.json()["lesson_id"]
             lversion = lesson.json()["current_version_id"]
-            old_lesson = (await client.get(f"{LEARN}/lessons/{lid}")).json()
+            # A new HTTP request/session must see the committed interpretation, not a flush.
+            persisted = await client.get(f"{LEARN}/lessons/{lid}")
+            assert persisted.status_code == 200, persisted.text
+            old_lesson = persisted.json()
+            assert old_lesson["current_version_id"] == lversion
+            assert (
+                await sql(url, "SELECT content FROM lesson_versions WHERE id=:id", {"id": lversion})
+            )[0]["content"] == interpretation["content"]
+            assert (await sql(url, "SELECT count(*) AS n FROM lesson_tags", {}))[0]["n"] == 1
             correction = await client.post(
                 f"{BASE}/trades/{tid}/executions/{sale}/corrections",
                 json={
@@ -268,7 +279,8 @@ def test_actual_exit_to_journal_evidence_lesson_and_execution_correction(journal
             for statement in (
                 "UPDATE trade_journal_versions SET additional_notes=additional_notes WHERE id=:id",
                 "DELETE FROM trade_journal_versions WHERE id=:id",
-                "UPDATE trade_journals SET created_at=created_at+interval '1 second' WHERE id=(SELECT trade_journal_id FROM trade_journal_versions WHERE id=:id)",
+                "UPDATE trade_journals SET created_at=created_at+interval '1 second' "
+                "WHERE id=(SELECT trade_journal_id FROM trade_journal_versions WHERE id=:id)",
                 "DELETE FROM trade_journal_version_evidence WHERE trade_journal_version_id=:id",
             ):
                 with pytest.raises(IntegrityError):
@@ -277,8 +289,10 @@ def test_actual_exit_to_journal_evidence_lesson_and_execution_correction(journal
             plan = uuid4()
             await sql(
                 url,
-                """INSERT INTO trade_plans(id,workspace_id,underlying_id,origin_type,created_at,created_by)
-              SELECT :plan,workspace_id,underlying_id,'MANUAL',now(),'synthetic-journal-test' FROM warrants WHERE id=:pid""",
+                """INSERT INTO trade_plans
+                   (id,workspace_id,underlying_id,origin_type,created_at,created_by)
+                   SELECT :plan,workspace_id,underlying_id,'MANUAL',now(),'synthetic-journal-test'
+                   FROM warrants WHERE id=:pid""",
                 {"plan": plan, "pid": pid},
             )
             await sql(
@@ -406,7 +420,8 @@ def test_migration_preserves_unknown_legacy_final_and_blocks_source_reassignment
                 url,
                 """INSERT INTO trade_journal_versions(id,trade_journal_id,version,status,
                 what_went_well,created_at,created_by,updated_at,updated_by,finalized_at,finalized_by)
-              VALUES(:id,:journal,1,'FINALIZED','Legacy original',now(),:actor,now(),:actor,now(),:actor)""",
+              VALUES(:id,:journal,1,'FINALIZED','Legacy original',
+                     now(),:actor,now(),:actor,now(),:actor)""",
                 dict(id=vid, journal=jid, actor=ACTOR),
             )
         await asyncio.to_thread(_migrate, url, "head")
@@ -428,7 +443,8 @@ def test_migration_preserves_unknown_legacy_final_and_blocks_source_reassignment
             with pytest.raises(IntegrityError):
                 await sql(
                     url,
-                    "UPDATE trade_journal_versions SET source_exit_review_version_id=:source WHERE id=:id",
+                    "UPDATE trade_journal_versions SET source_exit_review_version_id=:source "
+                    "WHERE id=:id",
                     dict(source=uuid4(), id=vid),
                 )
             assert (await history(client, tid))["versions"][0]["version"] == v["version"]

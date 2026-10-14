@@ -60,6 +60,12 @@ class CreateLessonResult:
 
 
 @dataclass(frozen=True, slots=True)
+class CreateLessonWithTagsResult:
+    created: CreateLessonResult
+    tags: tuple[LessonTag, ...]
+
+
+@dataclass(frozen=True, slots=True)
 class CreateLessonVersionResult:
     lesson: Lesson
     version: LessonVersion
@@ -415,6 +421,40 @@ class LessonService:
 
         await self._uow.flush()
         return tuple(requested_tags)
+
+    async def create_with_tags(
+        self,
+        *,
+        workspace_id: UUID,
+        title: str,
+        main_category: str,
+        content: str,
+        evidence: tuple[LessonEvidenceInput, ...],
+        tags: tuple[str, ...],
+        actor_id: UUID,
+    ) -> CreateLessonWithTagsResult:
+        """Own the public create command's complete transaction, including tags.
+
+        The lower-level operations remain composable for suggestion/review owners;
+        committing inside either would prematurely commit those callers' work.
+        """
+        async with self._uow:
+            created = await self.create(
+                workspace_id=workspace_id,
+                title=title,
+                main_category=main_category,
+                content=content,
+                evidence=evidence,
+                actor_id=actor_id,
+            )
+            assigned_tags = await self.replace_tags(
+                workspace_id=workspace_id,
+                lesson_id=created.lesson.id,
+                tags=tags,
+                actor_id=actor_id,
+            )
+            await self._uow.commit()
+            return CreateLessonWithTagsResult(created=created, tags=assigned_tags)
 
     async def create(
         self,
