@@ -67,7 +67,11 @@ jobs:
                   candidate.packages[''].version = original.packages[''].version;
                 }
                 assert.deepEqual(candidate, original, `Dependencies changed: ${path}`);
-                const expected = before.replace(/"version": "1\.5\.5"/g, '"version": "1.5.6"');
+                // The first six-space version is packages[''].version; later dependency versions stay untouched.
+                let expected = before.replace(/^  "version": "1\.5\.5",$/m, '  "version": "1.5.6",');
+                if (path.includes('package-lock')) {
+                  expected = expected.replace(/^      "version": "1\.5\.5",$/m, '      "version": "1.5.6",');
+                }
                 assert.equal(after, expected, `Unexpected formatting or other changes: ${path}`);
               } else if (path === 'VERSION') {
                 assert.equal(before, '1.5.5\n');
