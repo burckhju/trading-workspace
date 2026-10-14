@@ -1,0 +1,190 @@
+name: Post-trade handoff focused qualification
+
+on:
+  push:
+    branches: [dev/post-trade-handoff-qualification-20261014]
+
+permissions: {}
+
+concurrency:
+  group: post-trade-handoff-qualification-20261014
+  cancel-in-progress: false
+
+jobs:
+  integrate:
+    if: github.repository == 'burckhju/trading-workspace' && github.ref == 'refs/heads/dev/post-trade-handoff-qualification-20261014'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    outputs:
+      sha: ${{ steps.format.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version-file: backend/.python-version
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: frontend/.nvmrc
+      - run: python -m pip install black==26.1.0 ruff==0.15.1
+      - run: npm --prefix frontend ci
+      - name: Format only the reviewed patch and added tests, then remove this helper
+        id: format
+        shell: bash
+        env:
+          BRANCH: dev/post-trade-handoff-qualification-20261014
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = "refs/heads/$BRANCH"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -z "$(git status --porcelain)"
+          python -m black --config backend/pyproject.toml backend/app/features/learning/api/materialization_router.py tests/unit/backend/features/learning/test_ft011_materialization_version_pin.py tests/integration/backend/post_trade/test_ft011_materialization_command_postgres.py
+          python -m ruff check --select I --fix tests/integration/backend/post_trade/test_ft011_materialization_command_postgres.py
+          frontend/node_modules/.bin/prettier --config frontend/.prettierrc.json --write frontend/src/features/post_trade/pages/PostTradeLearningPage.test.tsx frontend/src/features/post_trade/pages/PostTradeLearningPage.tsx tests/e2e/post-trade-handoff-pin.spec.ts
+          git add backend/app/features/learning/api/materialization_router.py tests/unit/backend/features/learning/test_ft011_materialization_version_pin.py tests/integration/backend/post_trade/test_ft011_materialization_command_postgres.py frontend/src/features/post_trade/pages/PostTradeLearningPage.test.tsx frontend/src/features/post_trade/pages/PostTradeLearningPage.tsx tests/e2e/post-trade-handoff-pin.spec.ts
+          git rm .github/workflows/post-trade-handoff-focused.yml
+          git diff --cached --check
+          git diff --cached --stat
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'style(learning): apply pinned formatters and remove qualification helper'
+          test "$(git ls-remote origin "refs/heads/$BRANCH" | cut -f1)" = "$GITHUB_SHA"
+          git push origin "HEAD:refs/heads/$BRANCH"
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          git rev-parse HEAD HEAD^{tree}
+
+  backend:
+    needs: integrate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: trading_workspace
+          POSTGRES_PASSWORD: handoff-ci-only
+          POSTGRES_DB: trading_workspace_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U trading_workspace -d trading_workspace_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TRADING_WORKSPACE_DATABASE_URL: postgresql+asyncpg://trading_workspace:handoff-ci-only@localhost:5432/trading_workspace_test
+      TRADING_WORKSPACE_TEST_DATABASE_URL: postgresql+asyncpg://trading_workspace:handoff-ci-only@localhost:5432/trading_workspace_test
+      TRADING_WORKSPACE_MARKET_DATA__REFRESH__ENABLED: 'false'
+      TRADING_WORKSPACE_POSITION_MONITORING__ENABLED: 'false'
+      TRADING_WORKSPACE_NOTIFICATION__TELEGRAM__ENABLED: 'false'
+      TRADING_WORKSPACE_MARKET_DATA__EODHD__ENABLED: 'false'
+      TRADING_WORKSPACE_MARKET_DATA__VONTOBEL_MARKETS__ENABLED: 'false'
+      TRADING_WORKSPACE_MARKET_DATA__STUTTGART_DELAYED__ENABLED: 'false'
+      TRADING_WORKSPACE_MARKET_DATA__GETTEX_DELAYED__ENABLED: 'false'
+      TRADING_WORKSPACE_MARKET_DATA__FRANKFURT__ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.integrate.outputs.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version-file: backend/.python-version
+      - run: python -m pip install --requirement backend/requirements-dev.txt
+      - name: Migrate disposable PostgreSQL and identify schema
+        working-directory: backend
+        run: python -m alembic heads && python -m alembic upgrade head && python -m alembic current
+      - name: Focused learning and post-trade tests
+        env:
+          PYTHONPATH: ${{ github.workspace }}/backend:${{ github.workspace }}
+        run: python -m pytest -c backend/pyproject.toml tests/unit/backend/features/learning tests/unit/backend/features/post_trade tests/integration/backend/post_trade/test_ft011_materialization_command_postgres.py
+      - name: Unmodified complete backend gate
+        run: bash scripts/check-backend.sh
+      - name: Tested identity
+        if: always()
+        run: git rev-parse HEAD HEAD^{tree}
+
+  frontend:
+    needs: integrate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.integrate.outputs.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: frontend/.nvmrc
+      - run: npm --prefix frontend ci
+      - name: Focused React and wire regressions
+        run: npm --prefix frontend test -- src/features/post_trade src/features/learning
+      - name: Unmodified complete frontend gate
+        run: bash scripts/check-frontend.sh
+      - name: Tested identity
+        if: always()
+        run: git rev-parse HEAD HEAD^{tree}
+
+  browser:
+    needs: integrate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    env:
+      VITE_API_BASE_URL: /api
+      PLAYWRIGHT_BASE_URL: http://127.0.0.1:28080
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.integrate.outputs.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: frontend/.nvmrc
+      - run: npm --prefix frontend ci
+      - name: Install Chromium
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+      - name: Isolated browser regression with fully intercepted synthetic API
+        run: |
+          set -euo pipefail
+          npm --prefix frontend run dev -- --host 127.0.0.1 --port 28080 > "$RUNNER_TEMP/handoff-vite.log" 2>&1 &
+          server=$!
+          trap 'kill "$server"' EXIT
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:28080 >/dev/null; then break; fi
+            sleep 1
+          done
+          curl --fail --silent http://127.0.0.1:28080 >/dev/null
+          cd frontend
+          NODE_PATH=./node_modules npx playwright test ../tests/e2e/post-trade-handoff-pin.spec.ts
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: handoff-focused-browser-report
+          path: frontend/playwright-report
+          if-no-files-found: ignore
+          retention-days: 7
+      - if: always()
+        run: git rev-parse HEAD HEAD^{tree}
+
+  baseline-docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 2ac107d04f9b2f6b2636009da6ad16af59550df5
+          persist-credentials: false
+      - name: Reproduce original lockfile with the unchanged Dockerfile Node image
+        run: |
+          git rev-parse HEAD
+          sha256sum frontend/package.json frontend/package-lock.json frontend/Dockerfile
+          docker pull node:22-alpine
+          docker image inspect --format '{{json .RepoDigests}}' node:22-alpine
+          docker run --rm -v "$PWD/frontend:/source:ro" node:22-alpine sh -c 'mkdir /app && cp /source/package.json /source/package-lock.json /app/ && cd /app && node --version && npm --version && npm ci --no-audit --no-fund'
