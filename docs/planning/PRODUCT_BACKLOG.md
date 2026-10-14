@@ -1148,6 +1148,9 @@ Die Felder „Soll“ und „Nicht-Soll“ sind die vor einer Umsetzung zu prüf
 <details>
 <summary>PB-019 — Exit-Review-Evidence bewusst materialisieren</summary>
 
+> Nachweisfortschreibung 2026-10-14: [begrenzter Handoff-Patch](../implementation/POST_TRADE_LEARNING_HANDOFF_REVIEW.md) auf ausgewählten Originaldateien von `f918194`; 23 isolierte Application-Tests und vier Client-Wire-Prüfungen, keine vollständige Repository-/API-/React-/PostgreSQL-/Browserqualifikation.
+> First-party-Review-Pin und UI-Readback sind ein technischer Teilschnitt, keine Abnahme des Journals oder des gesamten Lernprozesses. Arbeitsstatus und Betriebsfreigabe werden durch diese Notiz nicht hochgestuft.
+
 | Nachweisfeld | Einordnung |
 |---|---|
 | Zuordnung | M6→M7: Übergang zum Lernen. Bereich/Querschnitt: 7. Bestehender Bezug: FT-012; FT-011 bleibt Quellowner. Lieferziel: B, D. |
@@ -1167,6 +1170,9 @@ Die Felder „Soll“ und „Nicht-Soll“ sind die vor einer Umsetzung zu prüf
 <a id="pb-019-journal"></a>
 <details>
 <summary>PB-019 — Journalentwurf und Journalabschluss</summary>
+
+> Bestandsnotiz 2026-10-14: [getrennte Matrix und Journal-Vertragsvorschlag](../implementation/POST_TRADE_LEARNING_HANDOFF_REVIEW.md) präzisieren vorhandene Domain-/Persistenzmodelle, fehlenden Editor im gelesenen Consumer und nicht nachgewiesenen Schreibweg. Ein leeres finales Journal ist im jetzigen Domainmodell möglich; die konkrete Review-Bindung fehlt dort.
+> Journal-Commands, API, UI, Finalisierung, Folgeversion und Datenbanknachweise sind durch den Handoff-Patch nicht geliefert. Keine automatische Verschärfung durch Performance und keine neue Freigabe für zusätzliche Pflichtbewertungen.
 
 | Nachweisfeld | Einordnung |
 |---|---|

@@ -21,12 +21,20 @@ export const ft011MaterializationClient = {
   materialize: (
     tradeId: string,
     idempotencyKey: string,
+    expectedExitReviewVersionId?: string,
   ): Promise<MaterializeFt011LearningEvidenceResponse> =>
     requestJson<MaterializeFt011LearningEvidenceResponse>(
       tradeUrl(tradeId, '/ft011-evidence/materialize'),
       {
         method: 'POST',
         headers: { 'Idempotency-Key': idempotencyKey },
+        ...(expectedExitReviewVersionId === undefined
+          ? {}
+          : {
+              body: {
+                expected_exit_review_version_id: expectedExitReviewVersionId,
+              },
+            }),
       },
     ),
 };

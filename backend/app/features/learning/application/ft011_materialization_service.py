@@ -7,7 +7,7 @@ import json
 from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
 from uuid import UUID
 
 from sqlalchemy.exc import IntegrityError
@@ -19,12 +19,14 @@ from app.features.learning.domain import (
     LearningEvidence,
     LearningEvidenceType,
 )
-from app.features.learning.persistence.ft011_materialization_repository import (
-    Ft011MaterializationRepository,
-)
-from app.features.learning.persistence.repositories import LearningEvidenceProjection
-from app.features.learning.persistence.unit_of_work import LearningTradeLinkUnitOfWork
-from app.features.post_trade.application.handoff_service import Ft012Handoff
+
+if TYPE_CHECKING:
+    from app.features.learning.persistence.ft011_materialization_repository import (
+        Ft011MaterializationRepository,
+    )
+    from app.features.learning.persistence.repositories import LearningEvidenceProjection
+    from app.features.learning.persistence.unit_of_work import LearningTradeLinkUnitOfWork
+    from app.features.post_trade.application.handoff_service import Ft012Handoff
 
 COMMAND_TYPE = "MATERIALIZE_FT011_LEARNING_EVIDENCE"
 RESULT_TYPE = "LEARNING_EVIDENCE"
@@ -32,6 +34,7 @@ RESULT_TYPE = "LEARNING_EVIDENCE"
 
 class Ft011MaterializationErrorCode(StrEnum):
     SOURCE_NOT_READY = "SOURCE_NOT_READY"
+    SOURCE_VERSION_MISMATCH = "SOURCE_VERSION_MISMATCH"
     IDEMPOTENCY_KEY_REUSED = "IDEMPOTENCY_KEY_REUSED"
     IDEMPOTENCY_IN_PROGRESS = "IDEMPOTENCY_IN_PROGRESS"
     IDEMPOTENCY_FAILED_FINAL = "IDEMPOTENCY_FAILED_FINAL"
@@ -76,11 +79,19 @@ class MaterializeFt011LearningEvidenceResult:
     replayed: bool
 
 
-def request_fingerprint(*, workspace_id: UUID, trade_id: UUID) -> str:
+def request_fingerprint(
+    *,
+    workspace_id: UUID,
+    trade_id: UUID,
+    expected_exit_review_version_id: UUID | None = None,
+) -> str:
     payload = {
         "workspace_id": str(workspace_id),
         "trade_id": str(trade_id),
     }
+    # Keep existing fingerprints stable for already persisted, unpinned requests.
+    if expected_exit_review_version_id is not None:
+        payload["expected_exit_review_version_id"] = str(expected_exit_review_version_id)
     encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()
 
@@ -109,8 +120,13 @@ class MaterializeFt011LearningEvidenceService:
         workspace_id: UUID,
         trade_id: UUID,
         idempotency_key: str,
+        expected_exit_review_version_id: UUID | None = None,
     ) -> MaterializeFt011LearningEvidenceResult:
-        fingerprint = request_fingerprint(workspace_id=workspace_id, trade_id=trade_id)
+        fingerprint = request_fingerprint(
+            workspace_id=workspace_id,
+            trade_id=trade_id,
+            expected_exit_review_version_id=expected_exit_review_version_id,
+        )
 
         async with self._uow:
             existing_request = await self._uow.idempotency_records.get(
@@ -141,6 +157,15 @@ class MaterializeFt011LearningEvidenceService:
                 or handoff.exit_review_version_id is None
             ):
                 raise RuntimeError("READY FT-011 handoff requires complete provenance")
+
+            if (
+                expected_exit_review_version_id is not None
+                and handoff.exit_review_version_id != expected_exit_review_version_id
+            ):
+                raise Ft011MaterializationError(
+                    Ft011MaterializationErrorCode.SOURCE_VERSION_MISMATCH,
+                    "FT-011 review version changed; reload and explicitly confirm the new version",
+                )
 
             existing_source = await self._repository.get_by_source(
                 workspace_id=workspace_id,

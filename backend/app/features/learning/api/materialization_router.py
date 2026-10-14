@@ -4,7 +4,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, status
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from app.core.exceptions import ApplicationError
 from app.features.learning.api.materialization_dependencies import (
@@ -21,6 +21,14 @@ from app.features.learning.application.ft011_materialization_status_service impo
 
 router = APIRouter(prefix="/api/v1/learning", tags=["learning"])
 WORKSPACE_ID = UUID("00000000-0000-4000-8000-000000000001")
+
+
+class MaterializeFt011LearningEvidenceRequest(BaseModel):
+    """Explicit source confirmation; omitted body retains the legacy contract."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    expected_exit_review_version_id: UUID
 
 
 class MaterializeFt011LearningEvidenceResponse(BaseModel):
@@ -74,13 +82,22 @@ async def materialize_ft011_learning_evidence(
         Depends(get_ft011_materialization_service),
     ],
     idempotency_key: Annotated[str, Header(alias="Idempotency-Key")],
+    request: MaterializeFt011LearningEvidenceRequest | None = None,
 ) -> MaterializeFt011LearningEvidenceResponse:
     try:
-        result = await service.execute(
-            workspace_id=WORKSPACE_ID,
-            trade_id=trade_id,
-            idempotency_key=idempotency_key,
-        )
+        if request is None:
+            result = await service.execute(
+                workspace_id=WORKSPACE_ID,
+                trade_id=trade_id,
+                idempotency_key=idempotency_key,
+            )
+        else:
+            result = await service.execute(
+                workspace_id=WORKSPACE_ID,
+                trade_id=trade_id,
+                idempotency_key=idempotency_key,
+                expected_exit_review_version_id=request.expected_exit_review_version_id,
+            )
     except Ft011MaterializationError as error:
         raise ApplicationError(
             code=error.code.value,
