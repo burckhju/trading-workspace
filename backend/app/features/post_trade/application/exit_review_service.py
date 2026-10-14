@@ -324,6 +324,49 @@ class ExitReviewService:
 
             return stale
 
+    async def inspect_version_currentness(
+        self, *, workspace_id: UUID, version_id: UUID
+    ) -> ExitReviewCurrentness | None:
+        """Inspect this exact historical source, without mutating stored review status.
+
+        None means missing/unqualified provenance, not a current source. The caller
+        exposes the check time separately; this is not a past-knowledge assertion.
+        """
+        version = await self._uow.exit_review_versions.get(version_id)
+        if version is None or version.status is not ExitReviewStatus.FINALIZED:
+            return None
+        review = await self._uow.exit_reviews.get(workspace_id, version.exit_review_id)
+        if review is None or version.input_fingerprint is None:
+            return None
+        if version.currentness is ExitReviewCurrentness.STALE:
+            return ExitReviewCurrentness.STALE
+        latest = await self._uow.exit_review_versions.get_latest(review.id)
+        if latest is None or latest.id != version.id:
+            return ExitReviewCurrentness.STALE
+        observation = await self._uow.observations.get(
+            workspace_id, review.post_trade_observation_id
+        )
+        if observation is None:
+            return None
+        if observation.status is not PostTradeObservationStatus.COMPLETED:
+            return ExitReviewCurrentness.STALE
+        try:
+            trade, planning, evidence = await self._review_inputs(
+                workspace_id=workspace_id, observation=observation, now=self._clock()
+            )
+        except ExitReviewNotFoundError:
+            return ExitReviewCurrentness.STALE
+        fingerprint = build_exit_review_input_fingerprint(
+            trade=trade, planning=planning, evidence=evidence
+        )
+        if (
+            not trade.is_fully_closed
+            or not evidence.horizon_complete
+            or fingerprint != version.input_fingerprint
+        ):
+            return ExitReviewCurrentness.STALE
+        return ExitReviewCurrentness.CURRENT
+
     async def _review_inputs(
         self,
         *,

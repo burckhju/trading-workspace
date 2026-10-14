@@ -6,6 +6,8 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends
 
+from app.core.exceptions import ApplicationError
+from app.features.learning.application.journal_retention import JournalHistoryProtectedError
 from app.features.trade_plan.api.dependencies import get_trade_plan_hard_delete_service
 from app.features.trade_plan.api.dtos import TradePlanDeletionResponse
 from app.features.trade_plan.api.errors import translate_trade_plan_error
@@ -23,5 +25,7 @@ async def hard_delete_trade_plan(
     try:
         summary = await service.delete(workspace_id=WORKSPACE_ID, trade_plan_id=trade_plan_id)
         return TradePlanDeletionResponse(**asdict(summary))
+    except JournalHistoryProtectedError as exc:
+        raise ApplicationError(code=exc.code, message=str(exc), status_code=409) from exc
     except ValueError as exc:
         raise translate_trade_plan_error(exc) from exc

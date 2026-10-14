@@ -1,3 +1,4 @@
+import { TradeJournalPanel } from '../../learning/components/TradeJournalPanel';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 
@@ -233,6 +234,10 @@ function PostTradeLearningContent({ tradeId }: { tradeId: string }) {
         externalRefreshVersion={refreshVersion}
         showMaterializationAction={false}
       />
+
+      {tradeId && (
+        <TradeJournalPanel key={tradeId} tradeId={tradeId} refreshVersion={refreshVersion} />
+      )}
 
       {materializationError && (
         <div role="alert" className="mt-3 text-sm text-red-300">

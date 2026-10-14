@@ -423,3 +423,16 @@ Scope and acceptance criteria: [implementation report](../implementation/JPMORGA
 <!-- END UNCHANGED TRACEABILITY BASELINE a78288ad -->
 
 </details>
+
+## FT-012 Journal write continuation — 2026-10-14
+
+[PB-019 Journal](../planning/PRODUCT_BACKLOG.md#pb-019-journal) →
+[DoR](../implementation/FT012_JOURNAL_WRITE_DOR.md) →
+[ADR-POST-FT012-005](../decisions/ADR-POST-FT012-005-JOURNAL-WRITE-LIFECYCLE.md) →
+`learning/application/journal_service.py`, `learning/persistence/journal_repository.py`,
+`learning/api/journal_router.py`, `TradeJournalPanel.tsx`, `JournalEvidenceOrigin.tsx`.
+Tests: `test_journal_commands.py`, `test_journal_api.py`, `test_journal_source_inspection.py`,
+`test_journal_write_postgres.py`, `TradeJournalPanel.test.tsx`, `journalClient.test.ts`,
+`post-trade-journal-postgres.spec.ts`. These are trace links, not independent status
+or proof that a test has run. FT-011 remains the source-currentness owner; Performance
+and Governance only read exact version/source/inspection-time boundaries. M0–M11 unchanged.

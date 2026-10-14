@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 
 import { ErrorNotice, LoadingNotice } from '../../market/components/ApiFeedback';
 import { LessonHypothesisPanel } from '../../model/components/LessonHypothesisPanel';
+import { JournalEvidenceOrigin } from '../components/JournalEvidenceOrigin';
 import { lessonReadbackClient } from '../services/lessonReadbackClient';
 import type { LessonDetail } from '../types/lessonReadback';
 
@@ -66,6 +67,10 @@ export function LessonDetailPage() {
             <li key={item.id} className="rounded-lg border border-slate-800 p-3">
               <span className="font-medium">{item.relation}</span>
               <span className="ml-2 break-all text-slate-400">{item.learning_evidence_id}</span>
+              <JournalEvidenceOrigin
+                key={item.learning_evidence_id}
+                evidenceId={item.learning_evidence_id}
+              />
             </li>
           ))}
         </ul>

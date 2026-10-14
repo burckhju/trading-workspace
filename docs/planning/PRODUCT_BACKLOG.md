@@ -1171,6 +1171,10 @@ Die Felder „Soll“ und „Nicht-Soll“ sind die vor einer Umsetzung zu prüf
 <details>
 <summary>PB-019 — Journalentwurf und Journalabschluss</summary>
 
+> Umsetzungsschnitt 2026-10-14: [Journal-Schreibvertrag und Abnahmekriterien](../implementation/FT012_JOURNAL_WRITE_DOR.md), [ADR zur Versionierung/Quellenbindung](../decisions/ADR-POST-FT012-005-JOURNAL-WRITE-LIFECYCLE.md). Auf getrenntem Entwicklungsbranch aus PR #259: vorhandenes Modell → Commands/UOW → API → Entwurf/Finalisierung/Folgeversion → explizite Journal-Evidence. Historienanzeige bleibt bei veralteter Quelle verfügbar; TradePlan-Hard-Delete erhält eine Final-Historien-Sperre.
+> Qualifikation dieses Journal-Schnitts ist separat zu bestätigen; grüne Handoff-CI ist kein Journal-Nachweis. Keine menschliche Fachabnahme, Veröffentlichungsversion oder Zielinstallation wird behauptet. Die folgenden Bestandsnotizen beschreiben den Stand **vor** diesem Journal-Schnitt.
+
+
 > Bestandsnotiz 2026-10-14: [vollständiger Checkout und Journal-Vertragsvorschlag](../implementation/POST_TRADE_LEARNING_HANDOFF_REVIEW.md) bestätigen Journalmodelle und Evidence-Lesetypen, aber keinen Journal-Schreibservice, entsprechende UOW-Repositories, registrierte Schreibroute oder Editor im FT-012-Consumer. Die Domain erlaubt leere Finals und enthält dort keinen konkreten Review-Pin.
 > Journal-Commands, API, UI, Finalisierung, Folgeversion und Datenbanknachweise sind durch den Handoff-Patch nicht geliefert. Keine automatische Verschärfung durch Performance und keine neue Freigabe für zusätzliche Pflichtbewertungen.
 
