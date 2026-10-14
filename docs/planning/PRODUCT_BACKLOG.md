@@ -4,119 +4,1823 @@
 
 | Feld | Wert |
 |---|---|
-| Dokument | PRODUCT_BACKLOG.md |
-| Dokumenttyp | Product Backlog |
-| Version | 1.3 |
-| Status | 🟢 Approved |
-| Letzte Änderung | 2026-09-03 |
+| Revision | Konsolidierung 2026-10-13; zur fachlichen Prüfung |
+| Quellenstand | `main` / `a78288ad38610656480d0363abe657b567c7ba94` / Softwaretag `v1.5.5` |
+| Funktion | Einzige maßgebliche Quelle des aktuellen Arbeitsstatus |
+| Prüfgrenze | Statische Quellen- und CI-Prüfung; kein vollständiger lokaler Checkout, keine neue Fach- oder Liveabnahme |
 
-## Zweck
+## Pflegevertrag und Statusbedeutung
 
-Das Product Backlog übersetzt Roadmap und Feature-Katalog in priorisierte, überprüfbare Arbeitspakete. Die Reihenfolge berücksichtigt fachliche Abhängigkeiten und reduziert frühe Architekturentscheidungen auf das notwendige Minimum.
+Nur die **Arbeitsstatus-Felder der Teilfähigkeiten** unten sind maßgeblich. PB-001 bis PB-020 bleiben erhalten; ihre Überschriften sind Container, keine zweite aggregierte Statusliste. Die unnummerierten Fähigkeiten bleiben unnummeriert. Beschreibende HTML-Anker sind lediglich Sprungziele innerhalb dieses Dokuments, keine neuen FT-/PB-IDs. Die Originalzuordnung und die Sichten sind statusfreie Ansichten auf dieselben Einträge.
 
-## Prioritätsklassen
+Das vorhandene Feature-Lifecycle-Modell bleibt maßgeblich:
+`Idea → Analysis → Specified → Approved for Build → In Development → Technical Review → Business Review → Accepted → Released → Observed`.
+Hier bedeutet **Analysis** eine offene Umfangs-/Nachweisklärung, nicht automatisch „kein Code“. **Technical Review** bezeichnet den aktuellen Nachweisabgleich vorhandener Teilfähigkeiten, nicht deren erneute Implementierung oder den Widerruf historischer Freigaben. Historische `Done`, `Accepted`, `Released` und RC-Aussagen bleiben mit Quelle getrennt aufgeführt; sie werden weder rückwirkend erweitert noch durch neue, unbelegte Abnahmen ersetzt. Implementierung, erfolgreicher Test, fachliche Abnahme, Software-Auslieferung und beobachteter Betrieb sind verschiedene Nachweise.
 
-- **P0:** Voraussetzung für jede fachliche Implementierung
-- **P1:** nächster umsetzbarer Produktwert
-- **P2:** benötigt für den vollständigen Tradingprozess
-- **P3:** Auswertung, Lernen und Optimierung
+Für jeden Beleg gilt der oben genannte Basiscommit, sofern explizit ein historischer Commit genannt ist. **Nicht verifiziert** ist weder „nachweislich fehlend“ noch „erledigt“. Ein Router beweist Anbindung, kein vollständiges Benutzerergebnis. Ein Verzeichnis, leeres Legacy-Paket oder eine unvollständige Codesuche beweist weder Funktion noch Abwesenheit. Breite Ausgangseinträge werden nur für den belegten Teil eingeordnet. Keine Fertigstellungsprozente werden abgeleitet.
 
-## Backlog
+## Orientierung und Priorisierung
 
-| Rang | ID | Titel | Priorität | Status | Ergebnis / Abnahmekern | Abhängigkeit |
-|---:|---|---|---|---|---|---|
-| 1 | PB-001 | Fachliche Domain Map | P0 | Done | Kernobjekte, Aggregate, Beziehungen und Ownership sind freigegeben | Sprint 0 |
-| 2 | PB-002 | End-to-End-Prozessmodell | P0 | Done | Prozess von Marktanalyse bis Modellverbesserung inklusive Statusübergängen ist dokumentiert | PB-001 |
-| 3 | PB-003 | ADR Benutzer-/Workspace-Grenze | P0 | Accepted | Single-Workspace-Entscheidung und spätere Erweiterungsgrenze sind festgelegt | Sprint 0 |
-| 4 | PB-004 | Governance-Baselines freigeben | P0 | Proposed | REQUIREMENTS, TRACEABILITY, MODEL_BOOK und FEATURE_LIFECYCLE sind geprüft und freigegeben | PB-001/002 |
-| 5 | PB-005 | FT-001 Feature Book | P1 | Approved for Build | Basiswertverwaltung ist implementierungsreif spezifiziert | PB-001, PB-003 |
-| 6 | PB-006 | FT-001 Backend | P1 | Done | Migration, Domain, Repository, Service und API erfüllen Contract und Tests | PB-005 |
-| 7 | PB-007 | FT-001 Frontend | P1 | Done | Basiswerte können gesucht, angelegt, bearbeitet und deaktiviert werden | PB-006 |
-| 8 | PB-008 | FT-001 Integration und Abnahme | P1 | Done | E2E, Traceability, Dokumentation und fachliche Abnahme abgeschlossen | PB-006/007 |
-| 9 | PB-009 | FT-002 Börsen/Handelsplätze | P1 | Released | Provider-neutrale Handelsplätze sind zentral administrierbar, providerseitig reconciliert und in normalen Nutzerflüssen low-input konsumierbar; Backend-, Frontend- und End-to-End-Release-Gates sind erfolgreich | PB-008 |
-| 10 | PB-010 | FT-003 Emittenten | P1 | Released | Emittenten sind als globale, provider-neutrale Referenzobjekte mit stabiler interner Identität, Lifecycle, Audit und Low-Input-Administration verfügbar; Backend-, Frontend- und End-to-End-Gates sind erfolgreich | PB-008 |
-| 11 | PB-011 | FT-004 Optionsscheine | P2 | Released (`v0.9.0-warrants`) | Klassische Call-/Put-Optionsscheine besitzen stabile Produktidentität, historisierte Terms sowie getrennte handelbare Notierungen; Implementierungs-PR #13 und protected Backend/Frontend/E2E CI erfolgreich | PB-009/010 |
-| 12 | PB-012 | FT-005 Watchlisten/Kandidaten | P2 | Technical Review | Kandidatenqualifikation, Lifecycle und Top-down-Nachvollziehbarkeit sind ohne Handelsentscheidung nutzbar; Watchlist-Vollausbau bleibt offen | PB-008, PB-013 |
-| 13 | PB-013 | FT-006 Marktanalyse | P2 | Technical Review | Analysen speichern Quellen, Eingaben, Modellversion und Ergebnis; Sprint-4-RC ist fachlich abgenommen, externe Release-Gates bleiben offen | PB-004, PB-008 |
-| 14 | PB-014 | FT-007 TradePlan | P2 | Released (`v0.6.0-trade-plan`) | Benutzer kann einen produktneutralen, versionierten LONG-TradePlan erstellen und eine konkrete Version explizit freigeben; Candidate-Ursprung referenziert die konkrete CandidateEvaluation | PB-013; FT-005-Integration optional, aber bei Candidate-Ursprung versioniert |
-| 15 | PB-015 | FT-008 Produktauswahl | P2 | Released (`v1.0.0-product-selection`) | Produkte werden nachvollziehbar gegen den freigegebenen TradePlan verglichen; Auswahl bleibt Benutzerentscheidung und verändert den TradePlan nicht | PB-011, PB-014 |
-| 16 | PB-016 | FT-009 Trade/Position | P2 | Released (`v1.1.0-trade-position`) | Tatsächliche Optionsscheinkäufe werden mit minimaler Eingabe als immutable ExecutionRecords erfasst; Erst- und Nachkäufe leiten eine offene Position ab | PB-011, PB-014/015 |
-| 17 | PB-017 | FT-010 Trade Management | P2 | Not Started | alle Änderungen am aktiven Trade erscheinen in unveränderbarer Event-Historie | PB-016 |
-| 18 | PB-018 | FT-011 Nachbeobachtung | P3 | Not Started | geschlossene Trades können ohne reales Risiko weiterbeobachtet werden | PB-017 |
-| 19 | PB-019 | FT-012 Journal/Performance | P3 | Not Started | Prozess- und Ergebnisqualität werden getrennt ausgewertet | PB-018 |
-| 20 | PB-020 | FT-013 Modellkatalog | P3 | Not Started | Modellversionen sind freigebbar, vergleichbar und historisch zugeordnet | PB-004, PB-019 |
+Die [acht dauerhaften Planungssichten und drei Querschnittsthemen](MODULE_AND_FEATURE_CATALOG.md#planungssichten) sind keine neuen Paketgrenzen. Die [Lieferziele A–D](../foundation/ROADMAP.md#lieferziele) sind keine starre Reihenfolge. Fokus ist **B: Abschluss/Journal/Lernen** und **C: belastbare Performance**; belegte akute Daten- oder Betriebssicherheitsprobleme in A dürfen vorgezogen werden. D verwendet bestehende Kandidaten-Governance statt Neubau. Governance und Betrieb begleiten alle Ziele.
 
-## Unnummerierter Capability-Schnitt in Technical Review
+Die bisherigen Prioritätsklassen P0–P3 bleiben verwendbar; P0 steht für zwingende Voraussetzungen/Sicherheit, P1 für den nächsten umsetzbaren Nutzen. Die explizit markierten B-/C-Reste erhalten P1 als Planungsfokus; das behauptet keine erfüllte Definition of Ready. Es gibt keine neue durchnummerierte Feature- oder Sprintfolge.
 
-Die Capability **Position Monitoring, Alerting and Outbound Notifications** ist implementiert und befindet sich im Technical Review. Der zentrale Feature-Katalog enthält dafür aktuell keine freigegebene FT-Nummer; eine Nummer wird deshalb bewusst nicht vorweggenommen.
+<a id="originalzuordnung"></a>
+## Originalzuordnung M0–M11
 
-Der aktuelle Abnahmekern ist:
+Vergleichsbasis ist die [unveränderte Roadmap vom 2026-07-22](../foundation/archive/ROADMAP_2026-07-22.md). Die folgenden **63 Inhaltsziel-Vorkommen** werden wortgetreu referenziert; dies ist eine Aussage über Rückverfolgbarkeit, nicht über Produktfertigstellung. Gleichartige ursprüngliche Vorkommen (Scanner, Produktscore) verweisen auf denselben Eintrag. Die Meilenstein-Ziel-/Ergebnisformulierungen bleiben zusätzlich in der Baseline erhalten; weder historische Versionsnamen noch heutige Tags erklären sie pauschal für erfüllt.
 
-- offene beziehungsweise überwachungsrelevante Positionen deterministisch gegen den effektiven Stop und Target 1 prüfen,
-- completed-daily Underlying-Marktdaten providerneutral konsumieren,
-- fachliche Alerts persistent und edge-basiert dedupliziert speichern,
-- Alert und Notification/Delivery strikt trennen,
-- genau eine Telegram-Notification pro Alert/Destination erzeugen,
-- Telegram outbound-only und ohne Trading-Aktionen betreiben,
-- Delivery Failure/Retry/Restart behandeln, ohne Alerts zu verlieren oder neu zu erzeugen,
-- Success- und Failure-End-to-End-Szenarien automatisiert qualifizieren.
+<a id="original-m0"></a>
+### M0
 
-Status: **Technical Review**. Referenz: `docs/features/POSITION_MONITORING_ALERT_NOTIFICATION.md` und PR #74.
+| Ursprüngliches Inhaltsziel | Maßgebliche Teilfähigkeit |
+|---|---|
+| Repositorystruktur | [Repositorystruktur](#pb-004-repository) |
+| Dokumentation | [Dokumentation und Spezifikationsführung](#pb-004-documentation) |
+| Spezifikationen | [Projektweite Spezifikationen](#pb-004-specifications) |
+| Terminologie | [Terminologie](#pb-004-terminology) |
+| Architektur | [Fachliche Domain Map und Architektur](#pb-001-domain) |
+| Entwicklungsstandards | [Entwicklungsstandards und Governance-Baselines](#pb-004-standards) |
 
-Die endgültige Produktplanung soll anschließend entscheiden, ob Monitoring/Alerting und Notification Delivery zwei eigene FT-Features werden oder gemeinsam nummeriert werden. Intraday-Underlying-Monitoring bleibt bis zu einem providerneutralen Underlying-Quote-Contract außerhalb dieses Schnitts.
+<a id="original-m1"></a>
+### M1
 
-## Nächster Umsetzungsschnitt
+| Ursprüngliches Inhaltsziel | Maßgebliche Teilfähigkeit |
+|---|---|
+| Basiswerte | [Basiswerte, Listings und Identitäten im Backend](#pb-006-underlying) |
+| Börsen | [Börsen und Handelsplätze](#pb-009-venues) |
+| Emittenten | [Emittenten](#pb-010-issuers) |
+| Instrumente | [Instrumente und Optionsscheine](#pb-011-warrants) |
+| Optionsscheine | [Instrumente und Optionsscheine](#pb-011-warrants) |
+| Datenprovider | [Datenprovider und benutzerverwaltete Konfiguration](#provider-configuration) |
 
-PB-014 / FT-007 TradePlan ist funktional implementiert und durch Backend-, Frontend- und E2E-Gates abgesichert. Vor Sprint-Closeout steht noch der Sprint-6 Architecture Review aus. Der generische Watchlist-Restscope aus PB-012 blockiert FT-007 nicht.
+<a id="original-m2"></a>
+### M2
 
-### Lieferobjekte
+| Ursprüngliches Inhaltsziel | Maßgebliche Teilfähigkeit |
+|---|---|
+| Marktübersicht | [Marktübersicht](#pb-013-overview) |
+| Scanner | [Scanner und Scanner-Modell](#pb-012-scanner) |
+| Marktbreite | [Marktbreite](#pb-013-breadth) |
+| Sektoren | [Sektoren und Referenzen](#pb-013-sectors) |
+| Watchlist | [Watchlist](#pb-012-watchlist) |
+| Kandidaten | [Kandidatenqualifikation](#pb-012-candidate) |
 
-1. FT-005 Candidate-/Top-down-Dokumentation
-2. Sprint-5-ADRs
-3. migrations- und API-konsistente Candidate-Implementierung
-4. nachvollziehbare Top-down-Evaluation und Live-Readiness
-5. Sprint-5-Architecture-Review und Traceability
+<a id="original-m3"></a>
+### M3
 
-### Nicht Bestandteil
+| Ursprüngliches Inhaltsziel | Maßgebliche Teilfähigkeit |
+|---|---|
+| Analyse | [Reproduzierbare Analyse und Marktmodell](#pb-013-analysis) |
+| Einstieg | [Einstieg planen](#pb-014-entry) |
+| Stopstrategie | [Stopstrategie im TradePlan](#pb-014-stop) |
+| Kursziele | [Kursziele im TradePlan](#pb-014-targets) |
+| Risiko | [Risikoannahmen im TradePlan](#pb-014-risk) |
+| Annahmen | [Annahmen, Freigabe und Herkunft des Plans](#pb-014-assumptions) |
 
-- aggregierter Candidate-Score,
-- automatische Handelsentscheidung,
-- automatische Produktauswahl,
-- Orderausführung,
-- Depot-Synchronisation,
-- KI-basierte Empfehlungen.
+<a id="original-m4"></a>
+### M4
 
-## Randbedingungen für nachfolgende Features
+| Ursprüngliches Inhaltsziel | Maßgebliche Teilfähigkeit |
+|---|---|
+| Produktsuche | [Produktsuche und Suchuniversum](#pb-015-search) |
+| Produktvergleich | [Produktvergleich und bewusste Auswahl](#pb-015-comparison) |
+| Produktscore | [Produktscore und fachliche Modellfamilie](#pb-015-score) |
+| Produktwechsel | [Produktwechsel](#pb-017-product-change) |
 
-Die Sprint-5-Erweiterungen ändern die Roadmap-Reihenfolge nicht. Sie präzisieren jedoch die Übergaben:
+<a id="original-m5"></a>
+### M5
 
-1. **FT-007 TradePlan:** Candidate ist optionaler Ursprung. Bei Candidate-Ursprung muss die konkrete immutable CandidateEvaluation referenziert werden; `READY_FOR_PLANNING` ist keine Planfreigabe. FT-007 bleibt produktneutral.
-2. **FT-008 Produktauswahl:** benötigt FT-004 und einen explizit freigegebenen TradePlan. Candidate-/MarketContext-Ergebnisse dürfen erklärt, aber nicht als automatische Produktauswahl interpretiert werden.
-3. **FT-009/010 Execution:** keine automatische Order- oder Positionsgrößenentscheidung aus Candidate-/TradePlan-Modellen ableiten. Tatsächliche Ausführungen bleiben Benutzerbestätigungen.
-4. **FT-011/012 Learning:** historische CandidateEvaluation, TradePlan-Version und Produktauswahl müssen unverändert referenzierbar bleiben, damit spätere Entscheidungsqualität getrennt vom Ergebnis bewertet werden kann.
-5. **FT-013 Model Governance:** MarketContext 1.0.0, Relative Strength 1.0.0 und TOP_DOWN_CANDIDATE 1.0.0 sind künftig als governte Modellartefakte zu übernehmen; Änderungen erzeugen neue Modellversionen.
-6. **SHORT-Unterstützung:** Candidate Model 1.0 bleibt LONG-only. SHORT ist ein eigener späterer Fachentscheid und darf nicht durch Spiegelung der LONG-Regeln eingeführt werden.
-7. **Reference Data:** `Underlying` bleibt in V1 `STOCK`; Benchmark-/Sektorobjekte bleiben `MarketReference` und dürfen nicht in FT-001 als neue Underlying-Arten eingeschleust werden.
-8. **Watchlist:** ein generisches Watchlist-Aggregat bleibt Restscope von FT-005, ist aber keine technische Voraussetzung für FT-007, da der Prozess auch einen manuell gewählten Basiswert als TradePlan-Ursprung zulässt.
+| Ursprüngliches Inhaltsziel | Maßgebliche Teilfähigkeit |
+|---|---|
+| Trade eröffnen | [Trade eröffnen und tatsächliche Käufe erfassen](#pb-016-opening) |
+| Depot | [Depot und abgeleitete offene Positionen](#pb-016-positions) |
+| Stopmanagement | [Stop- und Zielmanagement](#pb-017-stop) |
+| Teilverkauf | [Teilverkäufe](#pb-017-partial) |
+| Trade schließen | [Vollverkauf und Abschluss](#pb-017-close) |
+| Event-Historie | [Event-Historie und historische Korrekturen](#pb-017-history) |
 
-## Definition of Ready
+<a id="original-m6"></a>
+### M6
 
-Ein Backlog-Element ist umsetzungsbereit, wenn:
+| Ursprüngliches Inhaltsziel | Maßgebliche Teilfähigkeit |
+|---|---|
+| Nachbeobachtung | [Zulässige Nachbeobachtung](#pb-018-observation) |
+| Virtuelle Weiterführung | [Virtuelle Weiterführung](#pb-018-virtual) |
+| Exit Review | [Exit Review und Handoff](#pb-018-review) |
+| Vergleich tatsächlicher und virtueller Ausstiege | [Vergleich tatsächlicher und virtueller Ausstiege](#pb-018-exit-comparison) |
 
-- Nutzerproblem und erwarteter Nutzen beschrieben sind,
-- Scope und Nicht-Scope feststehen,
-- Akzeptanzkriterien testbar sind,
-- Daten- und Objekt-Ownership geklärt ist,
-- Abhängigkeiten erfüllt oder geplant sind,
-- offene Entscheidungen keine Implementierung blockieren.
+<a id="original-m7"></a>
+### M7
 
-## Definition of Done
+| Ursprüngliches Inhaltsziel | Maßgebliche Teilfähigkeit |
+|---|---|
+| Journal | [Journalentwurf und Journalabschluss](#pb-019-journal) |
+| Regelabweichungen | [Regelabweichungen dokumentieren](#pb-019-deviations) |
+| Lessons Learned | [Belegte Lessons Learned](#pb-019-lessons) |
+| Entscheidungsbewertung | [Entscheidungsbewertung getrennt vom Ergebnis](#pb-019-decision-quality) |
 
-Ein Backlog-Element ist abgeschlossen, wenn:
+<a id="original-m8"></a>
+### M8
 
-- spezifizierte Funktionen implementiert sind,
-- automatisierte Tests erfolgreich sind,
-- fachliche Abnahme dokumentiert ist,
-- Traceability und Changelog aktualisiert sind,
-- keine kritischen offenen Punkte verbleiben,
-- der Git-Arbeitsstand sauber und versioniert ist.
+| Ursprüngliches Inhaltsziel | Maßgebliche Teilfähigkeit |
+|---|---|
+| Performancekennzahlen | [Performancekennzahlen](#pb-019-performance-metrics) |
+| Statistiken | [Tradeübergreifende Statistiken](#pb-019-performance-statistics) |
+| Dashboards | [Performance-Dashboards](#pb-019-performance-dashboards) |
+| Auswertungen | [Perioden- und Tradeauswertungen](#pb-019-performance-evaluations) |
+
+<a id="original-m9"></a>
+### M9
+
+| Ursprüngliches Inhaltsziel | Maßgebliche Teilfähigkeit |
+|---|---|
+| Marktmodell | [Reproduzierbare Analyse und Marktmodell](#pb-013-analysis) |
+| Scanner | [Scanner und Scanner-Modell](#pb-012-scanner) |
+| Stopmodell | [Stopmodell](#pb-020-stop-model) |
+| Zielmodell | [Zielmodell](#pb-020-target-model) |
+| Produktscore | [Produktscore und fachliche Modellfamilie](#pb-015-score) |
+| Trade Assistant | [Trade Assistant](#pb-020-assistant) |
+| Nachbeobachtungsmodell | [Nachbeobachtungsmodell](#pb-020-observation-model) |
+
+<a id="original-m10"></a>
+### M10
+
+| Ursprüngliches Inhaltsziel | Maßgebliche Teilfähigkeit |
+|---|---|
+| Erinnerungen | [Erinnerungen](#reminders) |
+| Benachrichtigungen | [Benachrichtigungen und Zustellzustände](#notification-delivery) |
+| Regelüberwachung | [Regelüberwachung und fachliche Alerts](#monitoring-rules) |
+| Datenaktualisierung | [Datenaktualisierung und Schedulerzustände](#market-data-refresh) |
+| Modellüberwachung | [Modellüberwachung](#model-monitoring) |
+
+<a id="original-m11"></a>
+### M11
+
+| Ursprüngliches Inhaltsziel | Maßgebliche Teilfähigkeit |
+|---|---|
+| Performanceoptimierung | [Performanceoptimierung](#operations-optimization) |
+| Stabilität | [Stabilität und sichere Betriebsgrenzen](#operations-stability) |
+| Regressionstests | [Regressionstests](#operations-regression) |
+| Dokumentationsreview | [Dokumentation und Spezifikationsführung](#pb-004-documentation) |
+| Releasevorbereitung | [Releasevorbereitung und Softwarestand](#operations-release) |
+
+<a id="nachweisregister"></a>
+## Nachweisregister und erreichbare Prüfungen
+
+Alle unten verlinkten Quellbelege sind auf den Basiscommit gepinnt. Historische Dateien können frühere Commitstände beschreiben; deren Zahlen und Freigaben sind keine heutigen Vollnachweise.
+
+| Aktueller Basisnachweis | Erreichbares Ergebnis | Aussagegrenze |
+|---|---|---|
+| [Backend Run 38433996217](https://github.com/burckhju/trading-workspace/actions/runs/38433996217) | 2026-10-13, success; quality inkl. Ruff, Black, mypy, PostgreSQL-Migration, Tests/Coverage; restrictive-umask image; issuer renderer sandbox/isolierte Migrations- und Compose-Prüfung | Run-/Job-/Step-Ergebnisse gelesen; Rohlogs, Assertions und komplette Testreports nicht vollständig geprüft |
+| [Frontend Run 38433996560](https://github.com/burckhju/trading-workspace/actions/runs/38433996560) | 2026-10-13, success; TypeScript, ESLint, Prettier, Unit/Coverage, Build | Kein lokaler neuer Lauf und keine menschliche Benutzerabnahme |
+| [End-to-End Run 38433996404](https://github.com/burckhju/trading-workspace/actions/runs/38433996404) | 2026-10-13, success; Stackstart, Migration der Wegwerfdatenbank und Playwright smoke erfolgreich; fehlerabhängige Container-Log-Schritte skipped | Kein Liveprovider-/JMBbot-Nachweis; kein Beleg jedes ursprünglich versprochenen Features |
+| [Git-Tag v1.5.5](https://github.com/burckhju/trading-workspace/tree/v1.5.5) | Ref zeigt auf a78288ad38610656480d0363abe657b567c7ba94; VERSION und Backend-/Frontend-Manifeste nennen 1.5.5 | Software-Auslieferung ist nicht Installation; vollständige Lock-/Versionsdateikonsistenz nicht erneut geprüft |
+
+Die dokumentierten 2.567/445/48 Tests der Release-Notiz betreffen deren Nachweisstand und werden hier nicht als eigenständig nachgezählte Ergebnisse ausgegeben. Ebenso bleiben ältere 839-/274-/89-Testzahlen historische Belege.
+
+**Zielinstallation:** JMBbot ist durch die 1.5.5-Release-Notiz identifiziert. Ihr dort genannter früher bestätigter PC-Stand ist v1.5.4 / `ab4730885b91fd954f3494434ff3d1f4734397db`. Aktuell installierte Revision, Schema, Compose-Kette, Providerrechte, Datenhistorie, reale Regeln und Zustellung wurden hier nicht beobachtet. Der in Release-Dokumenten genannte Schema-Head `20261012_0045` ist ein Dokument-/CI-Kontext, kein hier ausgeführtes `alembic heads/current` auf JMBbot.
+
+**Nicht lokal ausgeführt:** `bash scripts/check-backend.sh`, `bash scripts/check-frontend.sh`, `bash scripts/run-e2e.sh`, gezielte Anwendungs-/DB-/Browserprüfungen. Ursache: nur eine hashgeprüfte Dokument-Arbeitskopie, kein vollständiger Checkout bzw. identifizierter lokaler Anwendungs-Teststack. Die drei Skripte wurden gelesen. Insbesondere löscht der E2E-Cleanup seine Testvolumes; er wurde nicht gegen unbekannte Ressourcen gestartet. Keine Provideraufrufe, echten Nachrichten oder Nutzerbestandsänderungen.
+
+**Quellenzugriffsgrenzen:** Git-Klon/Archivzugriff im lokalen Laufzeitraum nicht verfügbar; GitHub-Datei-/Tree-/CI-Lesezugriff verfügbar. Code-Suche lieferte unvollständige Ergebnisse und wurde nicht als Abwesenheitsbeleg genutzt. Root/docs/foundation/docs/planning wurden auf anwendbare Anweisungsdateien geprüft; keine dortige AGENTS.md gefunden. Kein Zugriff auf nicht veröffentlichte Nutzer-Arbeitsbäume. Nicht sämtliche ADR-Volltexte, Feature Books, Backendservices, Migrationen, Lockdateien, Workflowdefinitionen, CI-Rohlogs und historischen Abnahmedokumente wurden vollständig neu geprüft. Diese Grenzen sind kein Grund, belegte Funktionen als Not Started zu führen.
+
+<a id="konfliktaufloesung"></a>
+## Statusdrift und Auflösung
+
+| Konflikt am Basisstand | Geltende Einordnung und maßgeblicher Eintrag |
+|---|---|
+| Alte Sammelstatus PB-017–PB-020: Not Started, obwohl spätere Anbindungen/Nachweise vorhanden | Keine pauschale Freigabe; vorhandene Teilfähigkeiten einzeln unter PB-017–PB-020 mit Code-/Consumerbelegen führen |
+| Alter FT-007-Hinweis Architecture Review Pending versus historische Traceability Accepted / PB-014 Released | Alten nächsten Sprintschritt nicht weiterführen; vorhandene Planfähigkeit erhalten, konkrete aktuelle Nachweise getrennt |
+| Golden-Path-Closeout: Materialisierung/Runtime-Aktivierung offen | Extension 09, PostTradeLearningPage und RuntimeActivationService schließen spätere Teile; ursprüngliche Aussage bleibt historischer Stand |
+| FT-013 V1: kein Aktivierungsendpoint; spätere FT-020-Strecke verlangt getrennte Aktivierung | V1-Nicht-Soll nicht als heutige Infrastruktur-Lücke verallgemeinern; Modellfamilien weiterhin separat prüfen |
+| Alter Katalog nennt Produktwechsel; FT-010 V1 schließt ihn ausdrücklich aus | M4-Anspruch bleibt unter Produktwechsel offen; keine dauerhafte Verschiebung/Entfernung ohne Entscheidung |
+| STOCK-only in alten Baselines; FT-006-/Chart-Nachtrag vom 2026-10-04 erlaubt ETF-Stammdaten | Historische Regel nur für ihren Umfang; aktuelle ETF-Stammdaten berücksichtigen, Indizes bleiben semantische Referenzen ohne erfundene Listings |
+| Alter S8-Selektionshinweis versus begründeter NOT_EVALUABLE-Ausnahmeweg im aktuellen Domainvertrag | Ausnahme nicht als bestätigte Eignung darstellen; tatsächlichen aktuellen API-/UI-Vertrag vor fachlicher Behauptung prüfen |
+| Alter Monitoringtext: unbedingte Underlying-Preisbasis | FT-010-Nachtrag 2026-09-14 verlangt explizite Instrument-/Währungsbindung; Legacy-ungebundene Regeln nicht als gültig behaupten |
+| Alte README-Version/Checklisten versus aktuelle Manifeste/Tag | README führt zu VERSION, Release-Notiz und diesem Backlog; keine zweite vollständige Statusliste |
+| Softwaretag 1.5.5 versus historisch genannter PC-Stand 1.5.4 | Aktueller JMBbot-Betriebsbeleg fehlt; kein erfundener Installationsstatus |
+
+Offene PRs werden nicht dem Basiscommit zugerechnet: #249 Formularintegrität, #235/#225 Scheduler, #90 Learning-Navigation und die bereits gelesenen weiteren offenen Recherche-/Regel-/Historienentwürfe (#220/#207/#205/#204/#197/#187). Sie sind fremde/offene Änderungen; kein Merge, keine Übernahme und keine daraus abgeleitete neue Freigabe in diesem Auftrag.
+
+<a id="abnahmematrix"></a>
+## Abnahmematrix – maßgebliche Teilfähigkeiten
+
+Die Felder „Soll“ und „Nicht-Soll“ sind die vor einer Umsetzung zu prüfenden Abnahmegrenzen. Fachliche Entscheidungen fehlen nur für die jeweils betroffenen Reste; unabhängige freigegebene Arbeit bleibt möglich. „Abnahme nicht verifiziert“ entwertet keinen früheren Beleg, sondern begrenzt diese Prüfung. Bereichsziffern beziehen sich auf den Katalog. Lieferzielbuchstaben beziehen sich auf die Roadmap.
+
+### PB-001
+
+[Fachliche Domain Map und Architektur](#pb-001-domain)
+
+<a id="pb-001-domain"></a>
+<details>
+<summary>PB-001 — Fachliche Domain Map und Architektur</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | M0: Architektur. Bereich/Querschnitt: Querschnitt: technische Qualität/Betrieb. Bestehender Bezug: kein eigener FT-Bezug. Lieferziel: A–D. |
+| Arbeitsstatus | Accepted (historische Dokumentbaseline) |
+| Soll / Nicht-Soll | **Soll:** Kernobjekte, Schichten, Beziehungen und ein schreibender Owner je Objekt sind nachvollziehbar. **Nicht-Soll:** Keine Neuaufteilung der Pakete durch die acht Planungssichten. |
+| Vorhandenseinsnachweis | Dokument- und/oder Routing-Nachweis vorhanden; Details, historische Grenzen und nicht erneut geprüfte Implementierung im Eintrag. |
+| Implementierung / Consumer | [docs/domain/DOMAIN_MAP.md](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/domain/DOMAIN_MAP.md) und [docs/foundation/ARCHITECTURE.md](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/foundation/ARCHITECTURE.md) gelesen; tatsächliche Anbindung über [API-Komposition](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/backend/app/main.py) / [UI-Router](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/frontend/src/app/router.tsx). |
+| Test / Commit | Quellenprüfung am Basiscommit; kein ausführbarer Test für die Dokumentfreigabe. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | DOMAIN_MAP Version 1.0 trägt Approved / 2026-08-03; keine neue Abnahme erteilt. |
+| Software-Auslieferung | Nicht anwendbar: Dokumentbaseline. |
+| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
+| Restarbeit / nächste Abhängigkeit | Historische STOCK-only- und Prozessformulierungen gegen spätere Präzisierungen lesen, nicht pauschal als aktuellen Vertrag übernehmen. **Nächste Abhängigkeit:** PB-004: spätere Dokumentnachträge und Freigabegrenzen. |
+| Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
+
+</details>
+
+### PB-002
+
+[Durchgängiger Prozess und Übergaben](#pb-002-process)
+
+<a id="pb-002-process"></a>
+<details>
+<summary>PB-002 — Durchgängiger Prozess und Übergaben</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | M0: Spezifikationen; übergreifend M2–M9. Bereich/Querschnitt: Querschnitt: durchgängiger Arbeitsablauf/Bedienbarkeit. Bestehender Bezug: FT-005–FT-013. Lieferziel: B, D. |
+| Arbeitsstatus | Accepted (historische Prozessbaseline) |
+| Soll / Nicht-Soll | **Soll:** Explizite Übergaben, konkrete historische Versionen und Korrekturen verbinden den Gesamtprozess. **Nicht-Soll:** Kein automatischer Handels- oder Interpretations-Orchestrator; kein Journalentwurf-Gate durch Performance. |
+| Vorhandenseinsnachweis | Dokument- und/oder Routing-Nachweis vorhanden; Details, historische Grenzen und nicht erneut geprüfte Implementierung im Eintrag. |
+| Implementierung / Consumer | [docs/domain/TRADING_PROCESS_MODEL.md](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/domain/TRADING_PROCESS_MODEL.md) und [Golden-Path-Abschluss](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/implementation/POST_D01_GOLDEN_PATH_CLOSEOUT.md) beschreiben Prozess bzw. benachbarte Integrationsstrecken; [Post-Trade-Consumer](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/frontend/src/features/post_trade/pages/PostTradeLearningPage.tsx) ergänzt spätere UI-Übergaben. |
+| Test / Commit | Golden-Path-Nachweise sind historische, zusammengesetzte Integrationsnachweise; kein vollständiger neuer Browserlauf dieser Prüfung. CI-Basis siehe Nachweisregister. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | TRADING_PROCESS_MODEL Version 1.0 trägt Approved / 2026-08-03; vollständige aktuelle Nutzerstrecke nicht neu abgenommen. |
+| Software-Auslieferung | Nicht anwendbar für die Prozessbeschreibung. |
+| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
+| Restarbeit / nächste Abhängigkeit | Journalübergang und historische Korrekturen als eigene Restanforderungen prüfen; alte Prozessgrafik nicht als Laufzeitabhängigkeit auslegen. **Nächste Abhängigkeit:** PB-019: Journal; PB-018: Currentness; PB-020: konkrete Modellanwendung. |
+| Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
+
+</details>
+
+### PB-003
+
+[Benutzer- und Workspace-Grenze](#pb-003-workspace)
+
+<a id="pb-003-workspace"></a>
+<details>
+<summary>PB-003 — Benutzer- und Workspace-Grenze</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | M0: Architektur. Bereich/Querschnitt: Querschnitt: technische Qualität/Betrieb. Bestehender Bezug: FT-001; alle workspacegebundenen Consumer. Lieferziel: A–D. |
+| Arbeitsstatus | Accepted (historischer PB-003-Beleg) |
+| Soll / Nicht-Soll | **Soll:** Bestehender unsichtbarer Workspace und Identitätsgrenzen bleiben erhalten. **Nicht-Soll:** Keine Multiuser-Erweiterung; Audit-Actor ist kein Authentifizierungsbeleg. |
+| Vorhandenseinsnachweis | Dokument- und/oder Routing-Nachweis vorhanden; Details, historische Grenzen und nicht erneut geprüfte Implementierung im Eintrag. |
+| Implementierung / Consumer | [docs/domain/DOMAIN_MAP.md](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/domain/DOMAIN_MAP.md) und [historische Traceability](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/foundation/TRACEABILITY.md) referenzieren ADR-S1-004 / ADR-S2-001 und serverseitige Workspace-Auflösung. |
+| Test / Commit | Historische Persistenz-/Servicebelege in Traceability; aktuelle Authentifizierung nicht geprüft. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | Der bisherige PB-003 ist Accepted; Beleg bleibt historisch und wird nicht erweitert. |
+| Software-Auslieferung | Nicht anwendbar: Architekturentscheidung. |
+| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
+| Restarbeit / nächste Abhängigkeit | Keine neue Architekturänderung; aktuelle Nachweise nur im jeweils betroffenen Consumer ergänzen. **Nächste Abhängigkeit:** Bestehende Workspace-Contracts. |
+| Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
+
+</details>
+
+### PB-004
+
+[Repositorystruktur](#pb-004-repository) · [Dokumentation und Spezifikationsführung](#pb-004-documentation) · [Terminologie](#pb-004-terminology) · [Entwicklungsstandards und Governance-Baselines](#pb-004-standards) · [Projektweite Spezifikationen](#pb-004-specifications)
+
+<a id="pb-004-repository"></a>
+<details>
+<summary>PB-004 — Repositorystruktur</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | M0: Repositorystruktur. Bereich/Querschnitt: Querschnitt: technische Qualität/Betrieb. Bestehender Bezug: kein eigener FT-Bezug. Lieferziel: A–D. |
+| Arbeitsstatus | Analysis |
+| Soll / Nicht-Soll | **Soll:** Quell- und Dokumentstruktur sind nachvollziehbar, Aufgabenänderungen isoliert. **Nicht-Soll:** Keine Fachlogik- oder Laufzeitänderung. |
+| Vorhandenseinsnachweis | Vollständige Teilfähigkeit nicht verifiziert. Vorhandene Nachbarfunktionen/Dokumente sind im Implementierungsfeld benannt; daraus folgt kein Abwesenheitsbeweis. |
+| Implementierung / Consumer | Repository-Wurzel sowie docs/foundation, docs/planning und Router am Basiscommit gelesen; [Entwicklungsanleitung](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/technical/DEVELOPMENT_GUIDE.md). |
+| Test / Commit | Dokument-/Strukturprüfung am Basiscommit; keine neue fachliche Abnahme. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | Keine eigenständige fachliche Abnahme für diesen vollständigen Zuschnitt verifiziert. |
+| Software-Auslieferung | Dokumentationsarbeit, kein Software-Release. |
+| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
+| Restarbeit / nächste Abhängigkeit | Vollständiger Git-Checkout und nicht veröffentlichte Nutzeränderungen hier nicht zugänglich. **Nächste Abhängigkeit:** Vollständiger Checkout vor Integration dieses Diffs. |
+| Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
+
+</details>
+
+<a id="pb-004-documentation"></a>
+<details>
+<summary>PB-004 — Dokumentation und Spezifikationsführung</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | M0: Dokumentation; M11: Dokumentationsreview. Bereich/Querschnitt: Querschnitt: technische Qualität/Betrieb. Bestehender Bezug: kein eigener FT-Bezug. Lieferziel: A–D. |
+| Arbeitsstatus | Analysis |
+| Soll / Nicht-Soll | **Soll:** Eine aktuelle Statusquelle; Baseline, Entscheidungen und Nachweise sind verknüpft. **Nicht-Soll:** Keine Fachlogik- oder Laufzeitänderung. |
+| Vorhandenseinsnachweis | Vollständige Teilfähigkeit nicht verifiziert. Vorhandene Nachbarfunktionen/Dokumente sind im Implementierungsfeld benannt; daraus folgt kein Abwesenheitsbeweis. |
+| Implementierung / Consumer | Fünf Planungsdokumente gegen ihre Git-Blob-Hashes geprüft; historische Nachweise aus [historische Traceability](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/foundation/TRACEABILITY.md). |
+| Test / Commit | Dokument-/Strukturprüfung am Basiscommit; keine neue fachliche Abnahme. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | Keine eigenständige fachliche Abnahme für diesen vollständigen Zuschnitt verifiziert. |
+| Software-Auslieferung | Dokumentationsarbeit, kein Software-Release. |
+| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
+| Restarbeit / nächste Abhängigkeit | Neue Dokumentrevision fachlich reviewen; historische Freigaben nicht auf neuen Umfang übertragen. **Nächste Abhängigkeit:** Review der konsolidierten Zuordnung. |
+| Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
+
+</details>
+
+<a id="pb-004-terminology"></a>
+<details>
+<summary>PB-004 — Terminologie</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | M0: Terminologie. Bereich/Querschnitt: Querschnitt: technische Qualität/Betrieb. Bestehender Bezug: kein eigener FT-Bezug. Lieferziel: A–D. |
+| Arbeitsstatus | Analysis |
+| Soll / Nicht-Soll | **Soll:** Begriffe trennen Fakten, Plan, Bewertung und Beobachtung. **Nicht-Soll:** Keine Fachlogik- oder Laufzeitänderung. |
+| Vorhandenseinsnachweis | Vollständige Teilfähigkeit nicht verifiziert. Vorhandene Nachbarfunktionen/Dokumente sind im Implementierungsfeld benannt; daraus folgt kein Abwesenheitsbeweis. |
+| Implementierung / Consumer | PROJECT, DOMAIN_MAP und tatsächlich gelesene Execution-/Learning-Verträge bilden den geprüften Begriffskontext. |
+| Test / Commit | Dokument-/Strukturprüfung am Basiscommit; keine neue fachliche Abnahme. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | Keine eigenständige fachliche Abnahme für diesen vollständigen Zuschnitt verifiziert. |
+| Software-Auslieferung | Dokumentationsarbeit, kein Software-Release. |
+| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
+| Restarbeit / nächste Abhängigkeit | GLOSSARY-Inhalt nicht eigenständig verifiziert; vollständigen Terminologieabgleich nachführen. **Nächste Abhängigkeit:** GLOSSARY und betroffene freigegebene Verträge. |
+| Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
+
+</details>
+
+<a id="pb-004-standards"></a>
+<details>
+<summary>PB-004 — Entwicklungsstandards und Governance-Baselines</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | M0: Entwicklungsstandards. Bereich/Querschnitt: Querschnitt: technische Qualität/Betrieb. Bestehender Bezug: kein eigener FT-Bezug. Lieferziel: A–D. |
+| Arbeitsstatus | Analysis |
+| Soll / Nicht-Soll | **Soll:** Definition of Ready, getrennte Prüf-/Abnahmeschritte und Modellfreigaben sind verbindlich. **Nicht-Soll:** Keine Fachlogik- oder Laufzeitänderung. |
+| Vorhandenseinsnachweis | Vollständige Teilfähigkeit nicht verifiziert. Vorhandene Nachbarfunktionen/Dokumente sind im Implementierungsfeld benannt; daraus folgt kein Abwesenheitsbeweis. |
+| Implementierung / Consumer | [docs/technical/DEVELOPMENT_GUIDE.md](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/technical/DEVELOPMENT_GUIDE.md) gelesen; [docs/technical/FEATURE_LIFECYCLE.md](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/technical/FEATURE_LIFECYCLE.md) bis Lebenszyklus; [docs/foundation/MODEL_BOOK.md](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/foundation/MODEL_BOOK.md) weiterhin mit Review-Metadaten. |
+| Test / Commit | Dokument-/Strukturprüfung am Basiscommit; keine neue fachliche Abnahme. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | Keine eigenständige fachliche Abnahme für diesen vollständigen Zuschnitt verifiziert. |
+| Software-Auslieferung | Dokumentationsarbeit, kein Software-Release. |
+| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
+| Restarbeit / nächste Abhängigkeit | Freigaben von REQUIREMENTS, MODEL_BOOK und FEATURE_LIFECYCLE einzeln belegen; keine pauschale Freigabe behaupten. **Nächste Abhängigkeit:** Product-Owner-/Modellverantwortlichen-Entscheidung je Dokument. |
+| Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
+
+</details>
+
+<a id="pb-004-specifications"></a>
+<details>
+<summary>PB-004 — Projektweite Spezifikationen</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | M0: Spezifikationen. Bereich/Querschnitt: Querschnitt: technische Qualität/Betrieb. Bestehender Bezug: bestehende FT-001–FT-013 und spätere belegte Erweiterungen. Lieferziel: A–D. |
+| Arbeitsstatus | Analysis |
+| Soll / Nicht-Soll | **Soll:** Originalziele haben testbare Verträge mit Soll, Nicht-Soll und Entscheidungskette. **Nicht-Soll:** Ein enger V1-Vertrag entfernt nicht automatisch den weiteren Roadmapanspruch. |
+| Vorhandenseinsnachweis | Vollständige Teilfähigkeit nicht verifiziert. Vorhandene Nachbarfunktionen/Dokumente sind im Implementierungsfeld benannt; daraus folgt kein Abwesenheitsbeweis. |
+| Implementierung / Consumer | Foundation, Domain Map, Prozessmodell, gelesene FT-006/010/013/020-Verträge und [historische Traceability](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/foundation/TRACEABILITY.md) bilden die geprüfte Teilmenge. |
+| Test / Commit | Statische Quellenprüfung; nicht sämtliche Feature Books und ADR-Volltexte erneut geprüft. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | Keine eigenständige fachliche Abnahme für diesen vollständigen Zuschnitt verifiziert. |
+| Software-Auslieferung | Nicht anwendbar für die Spezifikationsprüfung. |
+| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
+| Restarbeit / nächste Abhängigkeit | Nicht gelesene Vertragsdetails gezielt am jeweils nächsten Umsetzungsschnitt prüfen. **Nächste Abhängigkeit:** Die in den Einzelanforderungen benannten offenen Umfangsentscheidungen. |
+| Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
+
+</details>
+
+### PB-005
+
+[FT-001 Feature Book](#pb-005-spec)
+
+<a id="pb-005-spec"></a>
+<details>
+<summary>PB-005 — FT-001 Feature Book</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | M0: Spezifikationen; M1: Basiswerte. Bereich/Querschnitt: 1; Querschnitt: technische Qualität/Betrieb. Bestehender Bezug: FT-001. Lieferziel: A. |
+| Arbeitsstatus | Approved for Build (historische FT-001-Baseline) |
+| Soll / Nicht-Soll | **Soll:** Basiswert-/Listing-Vertrag und Regeln sind referenzierbar. **Nicht-Soll:** Keine Ableitung aktueller ETF-Grenzen allein aus der alten Aktienbaseline. |
+| Vorhandenseinsnachweis | Dokument- und/oder Routing-Nachweis vorhanden; Details, historische Grenzen und nicht erneut geprüfte Implementierung im Eintrag. |
+| Implementierung / Consumer | [FT-001-Traceability](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/foundation/TRACEABILITY.md) referenziert U-R-001 bis U-R-021 und das Feature Book; [Nachtrag 2026-10-04](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/features/FT-006_MARKET_ANALYSIS.md) erweitert Stammdaten auf ETF. |
+| Test / Commit | Historische Spec-/Implementierungskette vorhanden; Feature Book nicht vollständig erneut gelesen. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | Bisheriger PB-005: Approved for Build; keine erneute oder weitergehende Freigabe. |
+| Software-Auslieferung | Nicht anwendbar für die Spezifikation. |
+| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
+| Restarbeit / nächste Abhängigkeit | ETF-Ergänzung und alte Feature-Book-Aussagen im nächsten fachlichen Review ausdrücklich zuordnen. **Nächste Abhängigkeit:** PB-006: tatsächlicher Stammdatenconsumer; PB-013: Charts. |
+| Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
+
+</details>
+
+### PB-006
+
+[Basiswerte, Listings und Identitäten im Backend](#pb-006-underlying)
+
+<a id="pb-006-underlying"></a>
+<details>
+<summary>PB-006 — Basiswerte, Listings und Identitäten im Backend</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | M1: Basiswerte. Bereich/Querschnitt: 1. Bestehender Bezug: FT-001. Lieferziel: A. |
+| Arbeitsstatus | Technical Review |
+| Soll / Nicht-Soll | **Soll:** Stabile Basiswert-/Listing-Identität, Änderungs- und Löschschutz; aktuelle Instrumentgrenzen beachten. **Nicht-Soll:** Indexreferenzen nicht als synthetische Wertpapierlistings anlegen; keine stille SHORT-Erweiterung. |
+| Vorhandenseinsnachweis | Dokument- und/oder Routing-Nachweis vorhanden; Details, historische Grenzen und nicht erneut geprüfte Implementierung im Eintrag. |
+| Implementierung / Consumer | [Underlying-/Reference-Router registriert](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/backend/app/main.py); [FT-001 Domain/Service/Persistenzkette](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/foundation/TRACEABILITY.md); ETF-Ergänzung laut [Chart-Implementierungsbericht](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/implementation/MARKET_CHARTS.md). |
+| Test / Commit | Historische FT-001-Tests in Traceability; aktueller Gesamt-CI-Lauf, aber Detailverträge hier nicht vollständig neu getestet. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | Historischer PB-006 meldete Done; spezifischer aktueller Fachabnahmebeleg nicht neu ermittelt. |
+| Software-Auslieferung | Kein gesonderter Release-Nachweis für den vollständigen Zuschnitt verifiziert; ein allgemeiner Softwaretag ersetzt ihn nicht. |
+| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
+| Restarbeit / nächste Abhängigkeit | Aktuelle Stammdaten-/ETF-Regressionsfälle gezielt nachlesen; offene Formular-PR #249 nicht als main-Implementierung zählen. **Nächste Abhängigkeit:** Bestehende FT-001-Contracts; PB-009: Venue. |
+| Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
+
+</details>
+
+### PB-007
+
+[Basiswertverwaltung in der Oberfläche](#pb-007-underlying-ui)
+
+<a id="pb-007-underlying-ui"></a>
+<details>
+<summary>PB-007 — Basiswertverwaltung in der Oberfläche</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | M1: Basiswerte. Bereich/Querschnitt: 1; Querschnitt: durchgängiger Arbeitsablauf/Bedienbarkeit. Bestehender Bezug: FT-001. Lieferziel: A. |
+| Arbeitsstatus | Technical Review |
+| Soll / Nicht-Soll | **Soll:** Suchen, anlegen, ändern und deaktivieren über denselben fachlichen Owner. **Nicht-Soll:** Kein konkurrierender Stammdatenbestand in UI oder Workspace. |
+| Vorhandenseinsnachweis | Dokument- und/oder Routing-Nachweis vorhanden; Details, historische Grenzen und nicht erneut geprüfte Implementierung im Eintrag. |
+| Implementierung / Consumer | [Underlying-Routen](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/frontend/src/app/router.tsx); historische UI-Verträge und Tests in [historische Traceability](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/foundation/TRACEABILITY.md). |
+| Test / Commit | Aktuelle Frontend-CI erfolgreich; kein lokaler Browsernachweis. Offene PR #249 bleibt separat. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | Historischer PB-007: Done; aktuelle vollständige Benutzerabnahme nicht neu geprüft. |
+| Software-Auslieferung | Kein gesonderter Release-Nachweis für den vollständigen Zuschnitt verifiziert; ein allgemeiner Softwaretag ersetzt ihn nicht. |
+| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
+| Restarbeit / nächste Abhängigkeit | Formular-Datenintegrität und Navigation aus offenen PRs getrennt reviewen; keine fremden Änderungen übernehmen. **Nächste Abhängigkeit:** PB-006; tatsächlicher PR-Mergestand vor Umsetzung. |
+| Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
+
+</details>
+
+### PB-008
+
+[FT-001 Integration und Abnahme](#pb-008-underlying-acceptance)
+
+<a id="pb-008-underlying-acceptance"></a>
+<details>
+<summary>PB-008 — FT-001 Integration und Abnahme</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | M1: Basiswerte. Bereich/Querschnitt: 1; Querschnitt: technische Qualität/Betrieb. Bestehender Bezug: FT-001. Lieferziel: A. |
+| Arbeitsstatus | Accepted (historischer PB-008-Abnahmekern) |
+| Soll / Nicht-Soll | **Soll:** Integration und Abnahme haben einen datierten, versionsgenauen Beleg. **Nicht-Soll:** Ein grüner Lauf ersetzt keine menschliche Fachabnahme. |
+| Vorhandenseinsnachweis | Dokument- und/oder Routing-Nachweis vorhanden; Details, historische Grenzen und nicht erneut geprüfte Implementierung im Eintrag. |
+| Implementierung / Consumer | [FT-001 Gesamttraceability und Sprint-2-Abschlussreferenzen](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/foundation/TRACEABILITY.md). |
+| Test / Commit | Historische 89 Backend- und 18 Frontendtests sind alte Nachweise, nicht heutige Testzahlen; aktuelle CI getrennt. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | Bisheriger PB-008 meldete Integration und fachliche Abnahme abgeschlossen; referenzierte Abschlussdateien hier nicht vollständig neu gelesen. |
+| Software-Auslieferung | Kein gesonderter Release-Nachweis für den vollständigen Zuschnitt verifiziert; ein allgemeiner Softwaretag ersetzt ihn nicht. |
+| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
+| Restarbeit / nächste Abhängigkeit | Den vollständigen aktuellen Abnahmeumfang inklusive späterer Erweiterungen verifizieren. **Nächste Abhängigkeit:** PB-006/007; Review des historischen Abschlussdokuments. |
+| Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
+
+</details>
+
+### PB-009
+
+[Börsen und Handelsplätze](#pb-009-venues)
+
+<a id="pb-009-venues"></a>
+<details>
+<summary>PB-009 — Börsen und Handelsplätze</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | M1: Börsen und Handelsplätze. Bereich/Querschnitt: 1. Bestehender Bezug: FT-002. Lieferziel: A. |
+| Arbeitsstatus | Released (belegter historischer Teilscope) |
+| Soll / Nicht-Soll | **Soll:** Providerneutrale, stabile Identität und Lifecycle; historische Referenzen bleiben gültig. **Nicht-Soll:** Stammdaten sind weder Kursquelle noch Produktscore oder Benutzerwahl. |
+| Vorhandenseinsnachweis | Dokument- und/oder Routing-Nachweis vorhanden; Details, historische Grenzen und nicht erneut geprüfte Implementierung im Eintrag. |
+| Implementierung / Consumer | Reference-Data-Router registriert; historische Venue-Reconciliation, Listing-FK, Deaktivierungsschutz und Low-input-Consumer in Traceability. [historische Traceability](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/foundation/TRACEABILITY.md) |
+| Test / Commit | Historische Vertrags-/API-/DB-Nachweise; aktuelle CI auf Basiscommit. Nicht jeder Einzeltest neu gelesen. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | Historische Sprint-7A-Release-Evidence: PR #8 / 7f39bc0; keine neue Fachabnahme. |
+| Software-Auslieferung | Historisch Released; Quelle: bisheriger PB-009 und Sprint-7A-Traceability. |
+| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
+| Restarbeit / nächste Abhängigkeit | Spätere Erweiterungen und aktueller Betrieb separat qualifizieren; keine pauschale Vollständigkeit der ursprünglichen Planung ableiten. **Nächste Abhängigkeit:** FT-001 Listing-Consumer. |
+| Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
+
+</details>
+
+### PB-010
+
+[Emittenten](#pb-010-issuers)
+
+<a id="pb-010-issuers"></a>
+<details>
+<summary>PB-010 — Emittenten</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | M1: Emittenten. Bereich/Querschnitt: 1. Bestehender Bezug: FT-003. Lieferziel: A. |
+| Arbeitsstatus | Released (belegter historischer Teilscope) |
+| Soll / Nicht-Soll | **Soll:** Providerneutrale, stabile Identität und Lifecycle; historische Referenzen bleiben gültig. **Nicht-Soll:** Stammdaten sind weder Kursquelle noch Produktscore oder Benutzerwahl. |
+| Vorhandenseinsnachweis | Dokument- und/oder Routing-Nachweis vorhanden; Details, historische Grenzen und nicht erneut geprüfte Implementierung im Eintrag. |
+| Implementierung / Consumer | Reference-Data-Router registriert; globale Issuer-Identität und Warrant-Consumer historisch dokumentiert. [historische Traceability](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/foundation/TRACEABILITY.md) |
+| Test / Commit | Historische Vertrags-/API-/DB-Nachweise; aktuelle CI auf Basiscommit. Nicht jeder Einzeltest neu gelesen. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | Historische RC-Notiz wird nicht rückwirkend umgeschrieben; späterer PB-010 nennt Released. |
+| Software-Auslieferung | Historisch Released laut PB-010; eigenständigen Tag nicht neu geprüft. |
+| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
+| Restarbeit / nächste Abhängigkeit | Spätere Erweiterungen und aktueller Betrieb separat qualifizieren; keine pauschale Vollständigkeit der ursprünglichen Planung ableiten. **Nächste Abhängigkeit:** FT-004-Consumer, keine Ableitung aus dem Underlying-Unternehmen. |
+| Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
+
+</details>
+
+### PB-011
+
+[Instrumente und Optionsscheine](#pb-011-warrants)
+
+<a id="pb-011-warrants"></a>
+<details>
+<summary>PB-011 — Instrumente und Optionsscheine</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | M1: Instrumente; Optionsscheine. Bereich/Querschnitt: 1. Bestehender Bezug: FT-004. Lieferziel: A. |
+| Arbeitsstatus | Released (belegter historischer Teilscope) |
+| Soll / Nicht-Soll | **Soll:** Providerneutrale, stabile Identität und Lifecycle; historische Referenzen bleiben gültig. **Nicht-Soll:** Stammdaten sind weder Kursquelle noch Produktscore oder Benutzerwahl. |
+| Vorhandenseinsnachweis | Dokument- und/oder Routing-Nachweis vorhanden; Details, historische Grenzen und nicht erneut geprüfte Implementierung im Eintrag. |
+| Implementierung / Consumer | Product-Router registriert; [FT-008 konsumiert konkrete Warrant-/Terms-/Listing-IDs](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/backend/app/features/product_selection/domain/models.py). [historische Traceability](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/foundation/TRACEABILITY.md) |
+| Test / Commit | Historische Vertrags-/API-/DB-Nachweise; aktuelle CI auf Basiscommit. Nicht jeder Einzeltest neu gelesen. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | Historischer FT-004-Umfang laut PB-011 und Traceability; keine neue Gesamtfreigabe. |
+| Software-Auslieferung | Historisch v0.9.0-warrants / PR #13 laut PB-011. |
+| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
+| Restarbeit / nächste Abhängigkeit | Spätere Erweiterungen und aktueller Betrieb separat qualifizieren; keine pauschale Vollständigkeit der ursprünglichen Planung ableiten. **Nächste Abhängigkeit:** PB-009/010 und FT-001; Produktbelege separat. |
+| Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
+
+</details>
+
+### PB-012
+
+[Watchlist](#pb-012-watchlist) · [Kandidatenqualifikation](#pb-012-candidate) · [Scanner und Scanner-Modell](#pb-012-scanner)
+
+<a id="pb-012-watchlist"></a>
+<details>
+<summary>PB-012 — Watchlist</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | M2: Watchlist. Bereich/Querschnitt: 3. Bestehender Bezug: FT-005. Lieferziel: A. |
+| Arbeitsstatus | Analysis |
+| Soll / Nicht-Soll | **Soll:** Benutzerverwaltete Beobachtungsliste mit nachvollziehbarer Zugehörigkeit, unabhängig vom Qualifikationsergebnis. **Nicht-Soll:** Kandidatenliste ist kein Nachweis eines generischen Watchlist-Aggregats. |
+| Vorhandenseinsnachweis | Vollständige Teilfähigkeit nicht verifiziert. Vorhandene Nachbarfunktionen/Dokumente sind im Implementierungsfeld benannt; daraus folgt kein Abwesenheitsbeweis. |
+| Implementierung / Consumer | [UI-Router](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/frontend/src/app/router.tsx) zeigt Kandidaten; [bisheriger PB-012](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/planning/PRODUCT_BACKLOG.md) benennt Watchlist ausdrücklich als Rest. Keine vollständige Watchlist-Consumerkette in den gelesenen Quellen verifiziert. |
+| Test / Commit | Kein separater Watchlist-Test-/Abnahmebeleg verifiziert; negative Codesuche war unvollständig und ist kein Abwesenheitsbeweis. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | Keine eigenständige fachliche Abnahme für diesen vollständigen Zuschnitt verifiziert. |
+| Software-Auslieferung | Kein gesonderter Release-Nachweis für den vollständigen Zuschnitt verifiziert; ein allgemeiner Softwaretag ersetzt ihn nicht. |
+| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
+| Restarbeit / nächste Abhängigkeit | Vorhandene alternative Ownership ausschließen und Watchlist-Vertrag mit Nutzeraktionen abgrenzen. **Nächste Abhängigkeit:** FT-005-Spezifikation / Product-Owner-Entscheidung; keine Voraussetzung für manuellen TradePlan. |
+| Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
+
+</details>
+
+<a id="pb-012-candidate"></a>
+<details>
+<summary>PB-012 — Kandidatenqualifikation</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | M2: Kandidaten. Bereich/Querschnitt: 3; Querschnitt: Modelle/Regelgovernance. Bestehender Bezug: FT-005; FT-019/FT-020 als vorhandene Kandidaten-Erweiterungen. Lieferziel: A, D. |
+| Arbeitsstatus | Technical Review |
+| Soll / Nicht-Soll | **Soll:** Nachvollziehbare Top-down-Evaluation mit konkreter Analyse-/Modellversion und explizitem Handoff. **Nicht-Soll:** Kein aggregierter Candidate-Score und keine automatische Planfreigabe. |
+| Vorhandenseinsnachweis | Dokument- und/oder Routing-Nachweis vorhanden; Details, historische Grenzen und nicht erneut geprüfte Implementierung im Eintrag. |
+| Implementierung / Consumer | [Candidate-API](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/backend/app/main.py) / [Kandidaten-UI](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/frontend/src/app/router.tsx) registriert; [qualifizierte Candidate→TradePlan-Naht](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/implementation/POST_D01_GOLDEN_PATH_CLOSEOUT.md) und [spätere governte Konfiguration](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/features/FT-020_CANDIDATE_MODEL_CONFIGURATION_UX.md). |
+| Test / Commit | Historische Domain-/Orchestrierungs-/Integrationsbelege in Traceability; CI-Basis erfolgreich. Runtime-Adapter hier nicht vollständig neu gelesen. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | Historische Sprint-5-Reviewreferenzen; keine neue globale FT-005-Abnahme. |
+| Software-Auslieferung | Kein gesonderter Release-Nachweis für den vollständigen Zuschnitt verifiziert; ein allgemeiner Softwaretag ersetzt ihn nicht. |
+| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
+| Restarbeit / nächste Abhängigkeit | Versionsgenaue Reproduzierbarkeit und Rückkehrfall mit konkretem Candidate-Consumer prüfen; keine neue Kandidatenstrecke bauen. **Nächste Abhängigkeit:** PB-020: bestehende Runtime-Aktivierung; PB-013: qualifizierte Analysen. |
+| Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
+
+</details>
+
+<a id="pb-012-scanner"></a>
+<details>
+<summary>PB-012 — Scanner und Scanner-Modell</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | M2: Scanner; M9: Scanner. Bereich/Querschnitt: 3; Querschnitt: Modelle/Regelgovernance. Bestehender Bezug: FT-005 / FT-006; FT-013 für Governance. Lieferziel: A, D. |
+| Arbeitsstatus | Analysis |
+| Soll / Nicht-Soll | **Soll:** Der ursprüngliche Scanneranspruch bleibt als eigener Umfang mit explizitem Suchuniversum, Auslöser und Modellbezug sichtbar. **Nicht-Soll:** Einzelne Candidate-Evaluation oder eine Liste ist nicht automatisch ein vollständiger Scanner. |
+| Vorhandenseinsnachweis | Vollständige Teilfähigkeit nicht verifiziert. Vorhandene Nachbarfunktionen/Dokumente sind im Implementierungsfeld benannt; daraus folgt kein Abwesenheitsbeweis. |
+| Implementierung / Consumer | [Analyse→Kandidaten-Strecke](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/implementation/POST_D01_GOLDEN_PATH_CLOSEOUT.md) vorhanden; vollständige eigenständige Scanner-Consumer-/Modellfamilie in der geprüften Teilmenge nicht verifiziert. |
+| Test / Commit | Kein eindeutig dem vollständigen Scanneranspruch zugeordneter Test-/Abnahmebeleg verifiziert. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | Keine eigenständige fachliche Abnahme für diesen vollständigen Zuschnitt verifiziert. |
+| Software-Auslieferung | Kein gesonderter Release-Nachweis für den vollständigen Zuschnitt verifiziert; ein allgemeiner Softwaretag ersetzt ihn nicht. |
+| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
+| Restarbeit / nächste Abhängigkeit | Umfang des Scanners gegenüber bestehender Qualifikation entscheiden; freigegebene vorhandene Orchestrierung wiederverwenden. **Nächste Abhängigkeit:** Bestehende FT-005/006-Verträge und konkrete Modellfamilienentscheidung. |
+| Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
+
+</details>
+
+### PB-013
+
+[Marktübersicht](#pb-013-overview) · [Marktbreite](#pb-013-breadth) · [Sektoren und Referenzen](#pb-013-sectors) · [Reproduzierbare Analyse und Marktmodell](#pb-013-analysis)
+
+<a id="pb-013-overview"></a>
+<details>
+<summary>PB-013 — Marktübersicht</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | M2: Marktübersicht. Bereich/Querschnitt: 3; Querschnitt: Modelle/Regelgovernance. Bestehender Bezug: FT-006; FT-013 als Governance-Querschnitt. Lieferziel: A, D. |
+| Arbeitsstatus | Technical Review |
+| Soll / Nicht-Soll | **Soll:** Markt- und Datenzustände nachvollziehbar lesen. **Nicht-Soll:** Chartvergleich ist keine Depot-Performance. |
+| Vorhandenseinsnachweis | Dokument- und/oder Routing-Nachweis vorhanden; Details, historische Grenzen und nicht erneut geprüfte Implementierung im Eintrag. |
+| Implementierung / Consumer | [Analyse-/Chart-Routen](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/frontend/src/app/router.tsx); [lesender Markt-/Sektor-/Aktienvergleich](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/implementation/MARKET_CHARTS.md). |
+| Test / Commit | Historische Vertrags-/Regressionsergebnisse in Analyse-/Chart-Berichten; aktuelle CI, kein neuer lokaler Lauf. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | Sprint-4-RC im bisherigen PB-013 als fachlich abgenommen bezeichnet; neuere Erweiterung / kompletter M2-Umfang nicht mitabgenommen. |
+| Software-Auslieferung | Charts laut Implementierungsbericht in 1.5.0 ausgeliefert; kein Beleg vollständiger M2/M9-Erfüllung. |
+| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
+| Restarbeit / nächste Abhängigkeit | Den ursprünglichen Übersichtsanspruch gegen vorhandene Darstellung und Ziel-A-Aufgaben prüfen. **Nächste Abhängigkeit:** Qualifizierte TC-001-Daten; bestehende Referenz-/Analysecontracts. |
+| Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
+
+</details>
+
+<a id="pb-013-breadth"></a>
+<details>
+<summary>PB-013 — Marktbreite</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | M2: Marktbreite. Bereich/Querschnitt: 3; Querschnitt: Modelle/Regelgovernance. Bestehender Bezug: FT-006; FT-013 als Governance-Querschnitt. Lieferziel: A, D. |
+| Arbeitsstatus | Analysis |
+| Soll / Nicht-Soll | **Soll:** Marktbreite besitzt eine definierte Grundgesamtheit, Berechnung und Datenqualität. **Nicht-Soll:** Marktbenchmark, Sektormatrix oder Relative Strength allein belegt keine Marktbreite. |
+| Vorhandenseinsnachweis | Vollständige Teilfähigkeit nicht verifiziert. Vorhandene Nachbarfunktionen/Dokumente sind im Implementierungsfeld benannt; daraus folgt kein Abwesenheitsbeweis. |
+| Implementierung / Consumer | [FT-006 V1](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/features/FT-006_MARKET_ANALYSIS.md) dokumentiert SMA, Momentum, Volatilität und Handelsspanne, aber keinen vollständigen Marktbreite-Nachweis. |
+| Test / Commit | Historische Analyse-/Chart-Testnachweise; aktuelle Basis-CI. Marktbreite-spezifischer Nachweis fehlt. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | Sprint-4-RC im bisherigen PB-013 als fachlich abgenommen bezeichnet; neuere Erweiterung / kompletter M2-Umfang nicht mitabgenommen. |
+| Software-Auslieferung | Historische Analyse-RC-/Golden-Path-Nachweise; kein pauschaler Gesamtstatus. |
+| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
+| Restarbeit / nächste Abhängigkeit | Definition/Universum/Verfügbarkeit entscheiden und tatsächlichen Consumer nachweisen. **Nächste Abhängigkeit:** Qualifizierte TC-001-Daten; bestehende Referenz-/Analysecontracts. |
+| Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
+
+</details>
+
+<a id="pb-013-sectors"></a>
+<details>
+<summary>PB-013 — Sektoren und Referenzen</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | M2: Sektoren. Bereich/Querschnitt: 3; Querschnitt: Modelle/Regelgovernance. Bestehender Bezug: FT-006; FT-013 als Governance-Querschnitt. Lieferziel: A, D. |
+| Arbeitsstatus | Technical Review |
+| Soll / Nicht-Soll | **Soll:** Administrierte Sektor-/Marktreferenzen und ihre Datenabdeckung bleiben erkennbar. **Nicht-Soll:** Keine erfundenen Index-Listings; ETF-Vorschläge sind keine zweite Stammdatenwahrheit. |
+| Vorhandenseinsnachweis | Dokument- und/oder Routing-Nachweis vorhanden; Details, historische Grenzen und nicht erneut geprüfte Implementierung im Eintrag. |
+| Implementierung / Consumer | [D01-Nachfolge und dynamische Sektormatrix](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/implementation/MARKET_CHARTS.md); Reference-/Chart-Router angebunden. |
+| Test / Commit | Historische Vertrags-/Regressionsergebnisse in Analyse-/Chart-Berichten; aktuelle CI, kein neuer lokaler Lauf. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | Sprint-4-RC im bisherigen PB-013 als fachlich abgenommen bezeichnet; neuere Erweiterung / kompletter M2-Umfang nicht mitabgenommen. |
+| Software-Auslieferung | Charts laut Implementierungsbericht in 1.5.0 ausgeliefert; kein Beleg vollständiger M2/M9-Erfüllung. |
+| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
+| Restarbeit / nächste Abhängigkeit | Aktuelle Zuordnungen, Providerrechte und echte Historien auf JMBbot getrennt prüfen. **Nächste Abhängigkeit:** Qualifizierte TC-001-Daten; bestehende Referenz-/Analysecontracts. |
+| Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
+
+</details>
+
+<a id="pb-013-analysis"></a>
+<details>
+<summary>PB-013 — Reproduzierbare Analyse und Marktmodell</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | M3: Analyse; M9: Marktmodell. Bereich/Querschnitt: 3; Querschnitt: Modelle/Regelgovernance. Bestehender Bezug: FT-006; FT-013 als Governance-Querschnitt. Lieferziel: A, D. |
+| Arbeitsstatus | Technical Review |
+| Soll / Nicht-Soll | **Soll:** Beschreibende Analyse speichert Eingaben, Parameter, Quellen und konkrete Modellversion. **Nicht-Soll:** Keine Handelsentscheidung; Charts erzeugen keine FT-006-Runs. |
+| Vorhandenseinsnachweis | Dokument- und/oder Routing-Nachweis vorhanden; Details, historische Grenzen und nicht erneut geprüfte Implementierung im Eintrag. |
+| Implementierung / Consumer | [EOD_TREND_MOMENTUM, Retry-/Verify-Vertrag](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/features/FT-006_MARKET_ANALYSIS.md); [Analysis-API](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/backend/app/main.py) / [Analysis-UI](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/frontend/src/app/router.tsx). |
+| Test / Commit | Historische Vertrags-/Regressionsergebnisse in Analyse-/Chart-Berichten; aktuelle CI, kein neuer lokaler Lauf. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | Sprint-4-RC im bisherigen PB-013 als fachlich abgenommen bezeichnet; neuere Erweiterung / kompletter M2-Umfang nicht mitabgenommen. |
+| Software-Auslieferung | Historische Analyse-RC-/Golden-Path-Nachweise; kein pauschaler Gesamtstatus. |
+| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
+| Restarbeit / nächste Abhängigkeit | Jede fachliche Modellfamilie von der allgemeinen Governance unterscheiden; aktuellen Replay-/Verify-Test gezielt qualifizieren. **Nächste Abhängigkeit:** Qualifizierte TC-001-Daten; bestehende Referenz-/Analysecontracts. |
+| Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
+
+</details>
+
+### PB-014
+
+[Einstieg planen](#pb-014-entry) · [Stopstrategie im TradePlan](#pb-014-stop) · [Kursziele im TradePlan](#pb-014-targets) · [Risikoannahmen im TradePlan](#pb-014-risk) · [Annahmen, Freigabe und Herkunft des Plans](#pb-014-assumptions)
+
+<a id="pb-014-entry"></a>
+<details>
+<summary>PB-014 — Einstieg planen</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | M3: Einstieg. Bereich/Querschnitt: 4. Bestehender Bezug: FT-007. Lieferziel: A, B. |
+| Arbeitsstatus | Released (historischer FT-007-Teilscope) |
+| Soll / Nicht-Soll | **Soll:** Produktneutralen Einstieg in einer konkreten TradePlanVersion dokumentieren. **Nicht-Soll:** Keine Order, keine automatische Einstiegsempfehlung. |
+| Vorhandenseinsnachweis | Dokument- und/oder Routing-Nachweis vorhanden; Details, historische Grenzen und nicht erneut geprüfte Implementierung im Eintrag. |
+| Implementierung / Consumer | [TradePlan-API](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/backend/app/main.py) / [TradePlan-UI](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/frontend/src/app/router.tsx); [ADRs S6-001–008 und Implementierungskette](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/foundation/TRACEABILITY.md); [FT-008 konsumiert genaue APPROVED-Version](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/backend/app/features/product_selection/service/application.py). |
+| Test / Commit | Historische S6-13- und Golden-Path-Nachweise; aktuelle Basis-CI. Kein neuer lokaler Plan-Testlauf. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | S6 Architecture Review in historischer Traceability: Accepted; kein neues menschliches Approval. |
+| Software-Auslieferung | Bisheriger PB-014: v0.6.0-trade-plan. Alte Review-Pending-Notiz ist kein heutiger Arbeitsauftrag. |
+| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
+| Restarbeit / nächste Abhängigkeit | Eingabe-/Amendment-Fälle bei nächster Planänderung versionsgenau prüfen. **Nächste Abhängigkeit:** Bestehender FT-007-Vertrag; Candidate nur optionaler Ursprung. |
+| Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
+
+</details>
+
+<a id="pb-014-stop"></a>
+<details>
+<summary>PB-014 — Stopstrategie im TradePlan</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | M3: Stopstrategie. Bereich/Querschnitt: 4. Bestehender Bezug: FT-007. Lieferziel: A, B. |
+| Arbeitsstatus | Released (historischer FT-007-Teilscope) |
+| Soll / Nicht-Soll | **Soll:** Geplante Invalidation/Stopannahme bleibt unveränderlich referenzierbar. **Nicht-Soll:** Planparameter sind kein Nachweis eines eigenständigen Stopmodells. |
+| Vorhandenseinsnachweis | Dokument- und/oder Routing-Nachweis vorhanden; Details, historische Grenzen und nicht erneut geprüfte Implementierung im Eintrag. |
+| Implementierung / Consumer | [TradePlan-API](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/backend/app/main.py) / [TradePlan-UI](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/frontend/src/app/router.tsx); [ADRs S6-001–008 und Implementierungskette](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/foundation/TRACEABILITY.md); [FT-008 konsumiert genaue APPROVED-Version](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/backend/app/features/product_selection/service/application.py). |
+| Test / Commit | Historische S6-13- und Golden-Path-Nachweise; aktuelle Basis-CI. Kein neuer lokaler Plan-Testlauf. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | S6 Architecture Review in historischer Traceability: Accepted; kein neues menschliches Approval. |
+| Software-Auslieferung | Bisheriger PB-014: v0.6.0-trade-plan. Alte Review-Pending-Notiz ist kein heutiger Arbeitsauftrag. |
+| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
+| Restarbeit / nächste Abhängigkeit | Geplanten Stop, späteren Managementstop und Modellfamilie getrennt prüfen. **Nächste Abhängigkeit:** Bestehender FT-007-Vertrag; Candidate nur optionaler Ursprung. |
+| Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
+
+</details>
+
+<a id="pb-014-targets"></a>
+<details>
+<summary>PB-014 — Kursziele im TradePlan</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | M3: Kursziele. Bereich/Querschnitt: 4. Bestehender Bezug: FT-007. Lieferziel: A, B. |
+| Arbeitsstatus | Released (historischer FT-007-Teilscope) |
+| Soll / Nicht-Soll | **Soll:** Ursprüngliche Ziele in der konkreten Planversion erhalten. **Nicht-Soll:** Keine automatische Zielwahl; Managementänderungen überschreiben nicht den Plan. |
+| Vorhandenseinsnachweis | Dokument- und/oder Routing-Nachweis vorhanden; Details, historische Grenzen und nicht erneut geprüfte Implementierung im Eintrag. |
+| Implementierung / Consumer | [TradePlan-API](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/backend/app/main.py) / [TradePlan-UI](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/frontend/src/app/router.tsx); [ADRs S6-001–008 und Implementierungskette](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/foundation/TRACEABILITY.md); [FT-008 konsumiert genaue APPROVED-Version](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/backend/app/features/product_selection/service/application.py). |
+| Test / Commit | Historische S6-13- und Golden-Path-Nachweise; aktuelle Basis-CI. Kein neuer lokaler Plan-Testlauf. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | S6 Architecture Review in historischer Traceability: Accepted; kein neues menschliches Approval. |
+| Software-Auslieferung | Bisheriger PB-014: v0.6.0-trade-plan. Alte Review-Pending-Notiz ist kein heutiger Arbeitsauftrag. |
+| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
+| Restarbeit / nächste Abhängigkeit | Zielhistorie und Handoff in die Nachbeobachtung gezielt regressieren. **Nächste Abhängigkeit:** Bestehender FT-007-Vertrag; Candidate nur optionaler Ursprung. |
+| Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
+
+</details>
+
+<a id="pb-014-risk"></a>
+<details>
+<summary>PB-014 — Risikoannahmen im TradePlan</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | M3: Risiko. Bereich/Querschnitt: 4. Bestehender Bezug: FT-007. Lieferziel: A, B. |
+| Arbeitsstatus | Released (historischer FT-007-Teilscope) |
+| Soll / Nicht-Soll | **Soll:** Risikoannahmen und Grenzen transparent dokumentieren. **Nicht-Soll:** Keine Positionsgrößenentscheidung; fehlende Eingaben sind nicht Nullrisiko. |
+| Vorhandenseinsnachweis | Dokument- und/oder Routing-Nachweis vorhanden; Details, historische Grenzen und nicht erneut geprüfte Implementierung im Eintrag. |
+| Implementierung / Consumer | [TradePlan-API](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/backend/app/main.py) / [TradePlan-UI](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/frontend/src/app/router.tsx); [ADRs S6-001–008 und Implementierungskette](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/foundation/TRACEABILITY.md); [FT-008 konsumiert genaue APPROVED-Version](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/backend/app/features/product_selection/service/application.py). |
+| Test / Commit | Historische S6-13- und Golden-Path-Nachweise; aktuelle Basis-CI. Kein neuer lokaler Plan-Testlauf. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | S6 Architecture Review in historischer Traceability: Accepted; kein neues menschliches Approval. |
+| Software-Auslieferung | Bisheriger PB-014: v0.6.0-trade-plan. Alte Review-Pending-Notiz ist kein heutiger Arbeitsauftrag. |
+| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
+| Restarbeit / nächste Abhängigkeit | Abgrenzung gegen spätere Positionsrisiko-/IV-Sichten prüfen. **Nächste Abhängigkeit:** Bestehender FT-007-Vertrag; Candidate nur optionaler Ursprung. |
+| Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
+
+</details>
+
+<a id="pb-014-assumptions"></a>
+<details>
+<summary>PB-014 — Annahmen, Freigabe und Herkunft des Plans</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | M3: Annahmen. Bereich/Querschnitt: 4. Bestehender Bezug: FT-007. Lieferziel: A, B. |
+| Arbeitsstatus | Released (historischer FT-007-Teilscope) |
+| Soll / Nicht-Soll | **Soll:** Versionierte Annahmen, explizite Freigabe und gegebenenfalls genaue CandidateEvaluation referenzieren. **Nicht-Soll:** Keine Verwendung von latest statt des historischen Ursprungs. |
+| Vorhandenseinsnachweis | Dokument- und/oder Routing-Nachweis vorhanden; Details, historische Grenzen und nicht erneut geprüfte Implementierung im Eintrag. |
+| Implementierung / Consumer | [TradePlan-API](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/backend/app/main.py) / [TradePlan-UI](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/frontend/src/app/router.tsx); [ADRs S6-001–008 und Implementierungskette](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/foundation/TRACEABILITY.md); [FT-008 konsumiert genaue APPROVED-Version](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/backend/app/features/product_selection/service/application.py). |
+| Test / Commit | Historische S6-13- und Golden-Path-Nachweise; aktuelle Basis-CI. Kein neuer lokaler Plan-Testlauf. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | S6 Architecture Review in historischer Traceability: Accepted; kein neues menschliches Approval. |
+| Software-Auslieferung | Bisheriger PB-014: v0.6.0-trade-plan. Alte Review-Pending-Notiz ist kein heutiger Arbeitsauftrag. |
+| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
+| Restarbeit / nächste Abhängigkeit | Historische Freigabe-/Amendment-Belege erhalten; aktuelle Benutzerabnahme nicht erfinden. **Nächste Abhängigkeit:** Bestehender FT-007-Vertrag; Candidate nur optionaler Ursprung. |
+| Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
+
+</details>
+
+### PB-015
+
+[Produktsuche und Suchuniversum](#pb-015-search) · [Produktvergleich und bewusste Auswahl](#pb-015-comparison) · [Produktscore und fachliche Modellfamilie](#pb-015-score)
+
+<a id="pb-015-search"></a>
+<details>
+<summary>PB-015 — Produktsuche und Suchuniversum</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | M4: Produktsuche. Bereich/Querschnitt: 4. Bestehender Bezug: FT-008; FT-004 Stammdaten; TC-001. Lieferziel: A. |
+| Arbeitsstatus | Released (historischer FT-008-Teilscope) |
+| Soll / Nicht-Soll | **Soll:** Produkte und gültige Terms/Listings für die konkrete freigegebene Planversion nachvollziehbar ermitteln. **Nicht-Soll:** Provider-Discovery ist keine stabile Produktidentität und keine Eignungsbestätigung. |
+| Vorhandenseinsnachweis | Vorhandener Code beziehungsweise tatsächlicher Consumer statisch gelesen; nur der im Implementierungsfeld benannte Teilscope ist dadurch belegt. |
+| Implementierung / Consumer | [ProductSelectionService.start_run / _load_universe](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/backend/app/features/product_selection/service/application.py) liest Warrants, Terms und Listings des Underlyings; API/UI über registrierte Router. |
+| Test / Commit | Historische FT-008- und Golden-Path-Nachweise; aktuelle Basis-CI; Live-Suchabdeckung nicht geprüft. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | Keine neue fachliche Live-Abnahme. |
+| Software-Auslieferung | Bisheriger PB-015: v1.0.0-product-selection; vollständige Live-Produktsuche damit nicht bewiesen. |
+| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
+| Restarbeit / nächste Abhängigkeit | Provider-/Produktabdeckung und spätere Low-input-Erweiterungen gesondert nachweisen. **Nächste Abhängigkeit:** PB-011; konkrete freigegebene PB-014-Planversion. |
+| Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
+
+</details>
+
+<a id="pb-015-comparison"></a>
+<details>
+<summary>PB-015 — Produktvergleich und bewusste Auswahl</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | M4: Produktvergleich. Bereich/Querschnitt: 4. Bestehender Bezug: FT-008. Lieferziel: A. |
+| Arbeitsstatus | Released (historischer FT-008-Teilscope) |
+| Soll / Nicht-Soll | **Soll:** Inputs, Kriterien, Datenzustände und exakte Produktversionen erklären; Auswahl bleibt Benutzerentscheidung. **Nicht-Soll:** Vergleich ist kein numerischer Produktscore. Eine begründete Ausnahme bestätigt keine Eignung. |
+| Vorhandenseinsnachweis | Vorhandener Code beziehungsweise tatsächlicher Consumer statisch gelesen; nur der im Implementierungsfeld benannte Teilscope ist dadurch belegt. |
+| Implementierung / Consumer | [ProductEvaluation / ProductSelection.from_user_decision](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/backend/app/features/product_selection/domain/models.py) und [Service (gelesen bis Zeile 235)](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/backend/app/features/product_selection/service/application.py); INELIGIBLE abgewiesen, NOT_EVALUABLE im Domainvertrag nur mit expliziter Begründung auswählbar. |
+| Test / Commit | Historische S8-E2E-Notiz beschreibt engere damalige Grenzen; aktuelle Domain-Ausnahme nicht mit altem pauschalem Selektionsverbot überschreiben. Basis-CI erfolgreich. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | Frühere Release-/Reviewbelege erhalten; konkrete heutige Ausnahme-Fachabnahme nicht verifiziert. |
+| Software-Auslieferung | Bisheriger PB-015: v1.0.0-product-selection; neuere Abweichungen nicht rückwirkend freigegeben. |
+| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
+| Restarbeit / nächste Abhängigkeit | Ausnahmeweg durch tatsächlichen API-/UI-Consumer und gezielte Tests prüfen; Datenqualität bleibt unabhängig von Nutzerbestätigung. **Nächste Abhängigkeit:** FT-008 aktueller API-/UI-Vertrag; qualifizierte WarrantListing-Kursdaten. |
+| Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
+
+</details>
+
+<a id="pb-015-score"></a>
+<details>
+<summary>PB-015 — Produktscore und fachliche Modellfamilie</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | M4: Produktscore; M9: Produktscore. Bereich/Querschnitt: 4; Querschnitt: Modelle/Regelgovernance. Bestehender Bezug: FT-008; FT-013 Governance. Lieferziel: D. |
+| Arbeitsstatus | Analysis |
+| Soll / Nicht-Soll | **Soll:** Ein Produktscore benötigt definierte Bedeutung, Eingaben, Parameter, Modellversion und nachvollziehbare Validierung. **Nicht-Soll:** Allgemeine EvaluationMetric-Felder, Eligibility oder Sortierung sind kein fertiger Score. |
+| Vorhandenseinsnachweis | Nachweislich außerhalb des im Eintrag benannten historischen V1-Umfangs. Heutige vollständige Implementierung des ursprünglichen Anspruchs nicht verifiziert. |
+| Implementierung / Consumer | [ProductEvaluation enthält Kriterien/Metriken](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/backend/app/features/product_selection/domain/models.py); [S8-Abgrenzung: keine erfundenen numerischen V1-Schwellen](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/foundation/TRACEABILITY.md). Vollständiger Score-Consumer nicht verifiziert. |
+| Test / Commit | Kein belastbarer Test-/Abnahmebeleg für den ursprünglichen Produktscore ermittelt. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | Keine eigenständige fachliche Abnahme für diesen vollständigen Zuschnitt verifiziert. |
+| Software-Auslieferung | Kein gesonderter Release-Nachweis für den vollständigen Zuschnitt verifiziert; ein allgemeiner Softwaretag ersetzt ihn nicht. |
+| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
+| Restarbeit / nächste Abhängigkeit | Geltende Scoreentscheidung und eventuell andere Consumer suchen; sonst konkreten Modell-/Scopevorschlag freigeben lassen. **Nächste Abhängigkeit:** Modellverantwortliche Entscheidung; qualifizierte Daten; bestehende FT-008-Ownership. |
+| Umfangsentscheidung | Im engeren S8-V1 nicht freigegeben; das ist keine belegte Entfernung aus dem ursprünglichen Zielbild. Originalanspruch bleibt offen. |
+
+</details>
+
+### PB-016
+
+[Trade eröffnen und tatsächliche Käufe erfassen](#pb-016-opening) · [Depot und abgeleitete offene Positionen](#pb-016-positions)
+
+<a id="pb-016-opening"></a>
+<details>
+<summary>PB-016 — Trade eröffnen und tatsächliche Käufe erfassen</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | M5: Trade eröffnen. Bereich/Querschnitt: 5. Bestehender Bezug: FT-009. Lieferziel: A, B. |
+| Arbeitsstatus | Released (historischer FT-009-Teilscope) |
+| Soll / Nicht-Soll | **Soll:** Bestätigte Erst-/Nachkäufe als immutable Ausführungsfakten erfassen, Herkunft exakt behalten. **Nicht-Soll:** Keine Brokerorder, autonome Produktauswahl oder Mengenempfehlung. |
+| Vorhandenseinsnachweis | Dokument- und/oder Routing-Nachweis vorhanden; Details, historische Grenzen und nicht erneut geprüfte Implementierung im Eintrag. |
+| Implementierung / Consumer | [FT-009 record_initial_purchase / record_additional_purchase, Migration 0014](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/foundation/TRACEABILITY.md); [trade_position-API](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/backend/app/main.py) / [Trade-Management-UI](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/frontend/src/app/router.tsx). |
+| Test / Commit | Historische PR-18-CI und Merge 1f98a4a2f4568dbe3e1352c0ae5e5e0c93034c2a; aktuelle Basis-CI. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | Historische Release-/Abnahmehinweise; keine neue menschliche Abnahme. |
+| Software-Auslieferung | v1.1.0-trade-position laut historischer Traceability. |
+| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
+| Restarbeit / nächste Abhängigkeit | Aktuelle Execution-Verträge bei Folgearbeit gezielt prüfen; ursprüngliche Kaufhistorie nicht umschreiben. **Nächste Abhängigkeit:** PB-011; Workspace-Ursprung zusätzlich PB-014/015. |
+| Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
+
+</details>
+
+<a id="pb-016-positions"></a>
+<details>
+<summary>PB-016 — Depot und abgeleitete offene Positionen</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | M5: Depot. Bereich/Querschnitt: 5. Bestehender Bezug: FT-009, durch FT-010 weiterentwickelter gemeinsamer Execution-/Position-Vertrag. Lieferziel: A, C. |
+| Arbeitsstatus | Technical Review |
+| Soll / Nicht-Soll | **Soll:** Offene Mengen und Einstand aus effektiven Ausführungsfakten reproduzierbar darstellen. **Nicht-Soll:** Positionsübersicht ist weder Brokerdepot-Synchronisation noch vollständige Depot-Equity. |
+| Vorhandenseinsnachweis | Dokument- und/oder Routing-Nachweis vorhanden; Details, historische Grenzen und nicht erneut geprüfte Implementierung im Eintrag. |
+| Implementierung / Consumer | [Position-Owner und Projektion](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/foundation/TRACEABILITY.md); [FT-010 Average-Cost-/Korrekturvertrag](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/features/FT-010_TRADE_MANAGEMENT.md); Trade-UI registriert. |
+| Test / Commit | Historische Projektor-/Korrekturtests und aktuelle Basis-CI; keine Nutzerbestandsprüfung. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | Historische FT-009/010-Nachweise betreffen definierte Teilsichten, nicht alle denkbaren Depotfunktionen. |
+| Software-Auslieferung | FT-009-Release und FT-010-Releasevorbereitungsdokument; kein Beleg einer Brokerintegration. |
+| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
+| Restarbeit / nächste Abhängigkeit | Daten-/Berechnungsgrenzen der Positionssicht von tradeübergreifender Performance getrennt abnehmen. **Nächste Abhängigkeit:** Effektive Execution-Historie; PB-019 Performance liest nur. |
+| Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
+
+</details>
+
+### PB-017
+
+[Stop- und Zielmanagement](#pb-017-stop) · [Teilverkäufe](#pb-017-partial) · [Vollverkauf und Abschluss](#pb-017-close) · [Event-Historie und historische Korrekturen](#pb-017-history) · [Produktwechsel](#pb-017-product-change) · [Positionsbezogenes realisiertes Brutto-PnL](#pb-017-gross-pnl)
+
+<a id="pb-017-stop"></a>
+<details>
+<summary>PB-017 — Stop- und Zielmanagement</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | M5: Stopmanagement. Bereich/Querschnitt: 5. Bestehender Bezug: FT-010; FT-009 gemeinsamer Execution-/Position-Owner. Lieferziel: A, B. |
+| Arbeitsstatus | Technical Review (aktueller Nachweisabgleich) |
+| Soll / Nicht-Soll | **Soll:** Bestätigte Managemententscheidungen historisieren; für automatische Prüfung Instrument und Währung explizit binden. **Nicht-Soll:** Managementereignis ist kein SELL und überschreibt keine Planversion. |
+| Vorhandenseinsnachweis | Dokument- und/oder Routing-Nachweis vorhanden; Details, historische Grenzen und nicht erneut geprüfte Implementierung im Eintrag. |
+| Implementierung / Consumer | [FT-010 Vertrag samt späterer Preisbasis-Korrektur](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/features/FT-010_TRADE_MANAGEMENT.md); [Implementierung: service, projector, timeline, ft011_eligibility](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/foundation/TRACEABILITY.md); API/UI registriert. |
+| Test / Commit | [PR #22 / Merge 18fe1df90e4f63529867fc32b5b6441d90738ff4: historische Tests und Gates](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/releases/V1.2.0-TRADE-MANAGEMENT.md); aktuelle Basis-CI. Nicht hier neu ausgeführt. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | Keine eigenständige menschliche Abnahme im gelesenen Releasevorbereitungsdokument belegt. |
+| Software-Auslieferung | FT-010-Notiz nennt READY FOR RELEASE TAG; Tagstatus nicht daraus ableiten. Implementierung ist im aktuellen Softwarestand enthalten. |
+| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
+| Restarbeit / nächste Abhängigkeit | Sep-14-Preisbindung in aktuellem Regelconsumer und Regression nachweisen; Legacy-ungebundene Regeln nicht als aktiv behandeln. **Nächste Abhängigkeit:** PB-016; für Übergabe PB-018-Currentness-Vertrag. |
+| Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
+
+</details>
+
+<a id="pb-017-partial"></a>
+<details>
+<summary>PB-017 — Teilverkäufe</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | M5: Teilverkauf. Bereich/Querschnitt: 5. Bestehender Bezug: FT-010; FT-009 gemeinsamer Execution-/Position-Owner. Lieferziel: A, B. |
+| Arbeitsstatus | Technical Review (aktueller Nachweisabgleich) |
+| Soll / Nicht-Soll | **Soll:** SELL kleiner als offene Menge erzeugt einen Teilverkauf und reproduzierbare Restposition. **Nicht-Soll:** Keine negative Position und kein impliziter SHORT. |
+| Vorhandenseinsnachweis | Dokument- und/oder Routing-Nachweis vorhanden; Details, historische Grenzen und nicht erneut geprüfte Implementierung im Eintrag. |
+| Implementierung / Consumer | [FT-010 Vertrag samt späterer Preisbasis-Korrektur](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/features/FT-010_TRADE_MANAGEMENT.md); [Implementierung: service, projector, timeline, ft011_eligibility](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/foundation/TRACEABILITY.md); API/UI registriert. |
+| Test / Commit | [PR #22 / Merge 18fe1df90e4f63529867fc32b5b6441d90738ff4: historische Tests und Gates](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/releases/V1.2.0-TRADE-MANAGEMENT.md); aktuelle Basis-CI. Nicht hier neu ausgeführt. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | Keine eigenständige menschliche Abnahme im gelesenen Releasevorbereitungsdokument belegt. |
+| Software-Auslieferung | FT-010-Notiz nennt READY FOR RELEASE TAG; Tagstatus nicht daraus ableiten. Implementierung ist im aktuellen Softwarestand enthalten. |
+| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
+| Restarbeit / nächste Abhängigkeit | Gezielte Mengen-, Replay-, Korrektur- und Nebenläufigkeitsfälle bei nächster Änderung prüfen. **Nächste Abhängigkeit:** PB-016; für Übergabe PB-018-Currentness-Vertrag. |
+| Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
+
+</details>
+
+<a id="pb-017-close"></a>
+<details>
+<summary>PB-017 — Vollverkauf und Abschluss</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | M5: Trade schließen. Bereich/Querschnitt: 5. Bestehender Bezug: FT-010; FT-009 gemeinsamer Execution-/Position-Owner. Lieferziel: A, B. |
+| Arbeitsstatus | Technical Review (aktueller Nachweisabgleich) |
+| Soll / Nicht-Soll | **Soll:** Realer voller SELL schließt wirtschaftlich durch effektive Historie; FT-011 erst danach. **Nicht-Soll:** Kein unabhängig editierbarer CLOSED-Status und keine virtuelle Ausführung. |
+| Vorhandenseinsnachweis | Dokument- und/oder Routing-Nachweis vorhanden; Details, historische Grenzen und nicht erneut geprüfte Implementierung im Eintrag. |
+| Implementierung / Consumer | [FT-010 Vertrag samt späterer Preisbasis-Korrektur](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/features/FT-010_TRADE_MANAGEMENT.md); [Implementierung: service, projector, timeline, ft011_eligibility](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/foundation/TRACEABILITY.md); API/UI registriert. |
+| Test / Commit | [PR #22 / Merge 18fe1df90e4f63529867fc32b5b6441d90738ff4: historische Tests und Gates](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/releases/V1.2.0-TRADE-MANAGEMENT.md); aktuelle Basis-CI. Nicht hier neu ausgeführt. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | Keine eigenständige menschliche Abnahme im gelesenen Releasevorbereitungsdokument belegt. |
+| Software-Auslieferung | FT-010-Notiz nennt READY FOR RELEASE TAG; Tagstatus nicht daraus ableiten. Implementierung ist im aktuellen Softwarestand enthalten. |
+| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
+| Restarbeit / nächste Abhängigkeit | UI→Execution→Position→FT-011-Eignung mit exakten Versionen und Korrekturfall nachweisen. **Nächste Abhängigkeit:** PB-016; für Übergabe PB-018-Currentness-Vertrag. |
+| Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
+
+</details>
+
+<a id="pb-017-history"></a>
+<details>
+<summary>PB-017 — Event-Historie und historische Korrekturen</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | M5: Event-Historie. Bereich/Querschnitt: 5. Bestehender Bezug: FT-010; FT-009 gemeinsamer Execution-/Position-Owner. Lieferziel: A, B. |
+| Arbeitsstatus | Technical Review (aktueller Nachweisabgleich) |
+| Soll / Nicht-Soll | **Soll:** Ausführungen und Managementevents unveränderlich erhalten; Korrektur/Supersession leitet aktuellen Zustand neu ab. **Nicht-Soll:** Keine zweite Verkaufstatsache in der Timeline, kein Überschreiben historischer Fakten. |
+| Vorhandenseinsnachweis | Dokument- und/oder Routing-Nachweis vorhanden; Details, historische Grenzen und nicht erneut geprüfte Implementierung im Eintrag. |
+| Implementierung / Consumer | [FT-010 Vertrag samt späterer Preisbasis-Korrektur](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/features/FT-010_TRADE_MANAGEMENT.md); [Implementierung: service, projector, timeline, ft011_eligibility](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/foundation/TRACEABILITY.md); API/UI registriert. |
+| Test / Commit | [PR #22 / Merge 18fe1df90e4f63529867fc32b5b6441d90738ff4: historische Tests und Gates](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/releases/V1.2.0-TRADE-MANAGEMENT.md); aktuelle Basis-CI. Nicht hier neu ausgeführt. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | Keine eigenständige menschliche Abnahme im gelesenen Releasevorbereitungsdokument belegt. |
+| Software-Auslieferung | FT-010-Notiz nennt READY FOR RELEASE TAG; Tagstatus nicht daraus ableiten. Implementierung ist im aktuellen Softwarestand enthalten. |
+| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
+| Restarbeit / nächste Abhängigkeit | Auswirkungen auf bestehende Observation/Review/LearningEvidence gezielt durchprüfen. **Nächste Abhängigkeit:** PB-016; für Übergabe PB-018-Currentness-Vertrag. |
+| Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
+
+</details>
+
+<a id="pb-017-product-change"></a>
+<details>
+<summary>PB-017 — Produktwechsel</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | M4: Produktwechsel. Bereich/Querschnitt: 4, 5. Bestehender Bezug: FT-008/FT-010; Umsetzungseigentum erst nach Entscheidung, keine neue Paketgrenze. Lieferziel: B. |
+| Arbeitsstatus | Analysis |
+| Soll / Nicht-Soll | **Soll:** Wechsel zwischen konkreten Produkten erhält wirtschaftliche SELL-/BUY-Fakten, Planherkunft und verständliche Trade-Identität. **Nicht-Soll:** Kein PRODUCT_CHANGED-Ereignis, das Ausführungen verdeckt; keine Mutation von Trade.product_id. |
+| Vorhandenseinsnachweis | Nachweislich außerhalb des im Eintrag benannten historischen V1-Umfangs. Heutige vollständige Implementierung des ursprünglichen Anspruchs nicht verifiziert. |
+| Implementierung / Consumer | [Alter Katalog nennt Produktwechsel](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/planning/MODULE_AND_FEATURE_CATALOG.md); [FT-010 Product change boundary](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/features/FT-010_TRADE_MANAGEMENT.md) schließt ihn aus V1 aus und fordert eine eigene fachliche Entscheidung/ADR. |
+| Test / Commit | Kein vollständiger Product-Switch-Consumer oder entsprechender Abnahmebeleg verifiziert. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | Keine eigenständige fachliche Abnahme für diesen vollständigen Zuschnitt verifiziert. |
+| Software-Auslieferung | Kein gesonderter Release-Nachweis für den vollständigen Zuschnitt verifiziert; ein allgemeiner Softwaretag ersetzt ihn nicht. |
+| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
+| Restarbeit / nächste Abhängigkeit | Entscheidungsvorschlag: getrennte reale Ausführungen und explizite, nachvollziehbare Wechselbeziehung; Trade-Identitätssemantik vor Umsetzung klären. **Nächste Abhängigkeit:** Product Owner: Trade-Identität und Korrektursemantik; danach vorhandene Execution-Contracts. |
+| Umfangsentscheidung | Belegt: nicht Teil von FT-010 V1. Nicht belegt: dauerhafte Verschiebung/Entfernung aus M4. Dieser Eintrag verantwortet die Restklärung; PB-015 verweist nur hierher. |
+
+</details>
+
+<a id="pb-017-gross-pnl"></a>
+<details>
+<summary>PB-017 — Positionsbezogenes realisiertes Brutto-PnL</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | M5: abgeleitetes Positionsergebnis; Vorleistung für M8. Bereich/Querschnitt: 5, 8. Bestehender Bezug: FT-010 auf FT-009 Execution-/Position-Vertrag. Lieferziel: C. |
+| Arbeitsstatus | Technical Review |
+| Soll / Nicht-Soll | **Soll:** Realisiertes Brutto-PnL und Einstand aus effektiven BUY-/SELL-Fakten nach bestehender Average-Cost-Semantik ableiten. **Nicht-Soll:** Keine Gebühren, Steuern, Nettoerträge, Depot-Equity oder tradeübergreifende Performance erfinden. |
+| Vorhandenseinsnachweis | Dokument- und/oder Routing-Nachweis vorhanden; Details, historische Grenzen und nicht erneut geprüfte Implementierung im Eintrag. |
+| Implementierung / Consumer | [Position projection / Realized P&L](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/features/FT-010_TRADE_MANAGEMENT.md); [domain/projector.py und Migration 0017](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/foundation/TRACEABILITY.md); [FT-010-Lieferumfang](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/releases/V1.2.0-TRADE-MANAGEMENT.md). |
+| Test / Commit | Historische Projektor-/Korrekturtests; aktuelle Basis-CI. Rechenpfad nicht vollständig neu lokal ausgeführt. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | Historische FT-010-Nachweise; keine vollständige M8-Abnahme. |
+| Software-Auslieferung | FT-010-Implementierung im Basisstand; Releasevorbereitungsbeleg separat. |
+| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
+| Restarbeit / nächste Abhängigkeit | Als Vorleistung für C qualifizieren; nicht als Fertigstellung von M8 zählen. **Nächste Abhängigkeit:** Effektive Execution-Historie; keine neue Kennzahlenbedeutung. |
+| Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
+
+</details>
+
+### PB-018
+
+[Zulässige Nachbeobachtung](#pb-018-observation) · [Virtuelle Weiterführung](#pb-018-virtual) · [Exit Review und Handoff](#pb-018-review) · [Vergleich tatsächlicher und virtueller Ausstiege](#pb-018-exit-comparison) · [Korrekturen, Review-Currentness und historische Herkunft](#pb-018-currentness)
+
+<a id="pb-018-observation"></a>
+<details>
+<summary>PB-018 — Zulässige Nachbeobachtung</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | M6: Nachbeobachtung. Bereich/Querschnitt: 7. Bestehender Bezug: FT-011. Lieferziel: B. |
+| Arbeitsstatus | Technical Review |
+| Soll / Nicht-Soll | **Soll:** Nachbeobachtung startet nur nach tatsächlichem vollständigem wirtschaftlichem Exit und mit historischem Produkt-/Listingkontext. **Nicht-Soll:** Kein Beobachtungsstart allein durch manuell gesetzten Abschlussstatus; keine neue reale Position. |
+| Vorhandenseinsnachweis | Vorhandener Code beziehungsweise tatsächlicher Consumer statisch gelesen; nur der im Implementierungsfeld benannte Teilscope ist dadurch belegt. |
+| Implementierung / Consumer | [PostTradeObservationService.start](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/backend/app/features/post_trade/application/observation_service.py) prüft is_fully_closed und full_exit_at, Kontext und vorhandene Observation; [Post-Trade-UI](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/frontend/src/features/post_trade/pages/PostTradeLearningPage.tsx) ist angebunden. |
+| Test / Commit | Gelesener Service am Basiscommit; [Handoff-Unit-Tests](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/tests/unit/backend/features/post_trade/test_handoff_service.py) prüfen Folgegate mit Mocks. Historische Golden-Path-Naht und aktuelle Basis-CI; kein neuer lokaler Lauf. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | Keine eigenständige fachliche Abnahme für diesen vollständigen Zuschnitt verifiziert. |
+| Software-Auslieferung | Kein gesonderter Release-Nachweis für den vollständigen Zuschnitt verifiziert; ein allgemeiner Softwaretag ersetzt ihn nicht. |
+| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
+| Restarbeit / nächste Abhängigkeit | Wiederholungs-, Listing-, Korrektur- und Nebenläufigkeitsfälle mit echter Persistenz gezielt qualifizieren. **Nächste Abhängigkeit:** PB-017 Vollverkauf; gültiger FT-004-Kontext und TC-001-Historie. |
+| Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
+
+</details>
+
+<a id="pb-018-virtual"></a>
+<details>
+<summary>PB-018 — Virtuelle Weiterführung</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | M6: Virtuelle Weiterführung. Bereich/Querschnitt: 7. Bestehender Bezug: FT-011. Lieferziel: B. |
+| Arbeitsstatus | Technical Review |
+| Soll / Nicht-Soll | **Soll:** Der definierte Nachbeobachtungshorizont verwendet nachvollziehbare gespeicherte Beobachtungsdaten. **Nicht-Soll:** Keine virtuellen Daten als reale Ausführung, keine erfundene historische Warrant-Equity. |
+| Vorhandenseinsnachweis | Vorhandener Code beziehungsweise tatsächlicher Consumer statisch gelesen; nur der im Implementierungsfeld benannte Teilscope ist dadurch belegt. |
+| Implementierung / Consumer | [refresh](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/backend/app/features/post_trade/application/observation_service.py) liest persistierte Tagespreise und ruft build_observation_evidence mit Originalzielen/-stop und definiertem Zielhorizont auf. |
+| Test / Commit | Historischer Golden-Path-Nachweis; Details der Metrik-/Kalenderberechnung hier nicht vollständig neu qualifiziert. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | Keine eigenständige fachliche Abnahme für diesen vollständigen Zuschnitt verifiziert. |
+| Software-Auslieferung | Kein gesonderter Release-Nachweis für den vollständigen Zuschnitt verifiziert; ein allgemeiner Softwaretag ersetzt ihn nicht. |
+| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
+| Restarbeit / nächste Abhängigkeit | Horizont, zulässige Datenbasis und unvollständige Beobachtung in eigener Fachabnahme abgrenzen. **Nächste Abhängigkeit:** Qualifizierte Beobachtungen und ursprüngliche Planversion; keine Performancevoraussetzung. |
+| Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
+
+</details>
+
+<a id="pb-018-review"></a>
+<details>
+<summary>PB-018 — Exit Review und Handoff</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | M6: Exit Review. Bereich/Querschnitt: 7. Bestehender Bezug: FT-011. Lieferziel: B. |
+| Arbeitsstatus | Technical Review |
+| Soll / Nicht-Soll | **Soll:** Abgeschlossene Beobachtung und finalisierte aktuelle Reviewversion erlauben einen versionsgenauen Handoff. **Nicht-Soll:** Finalisierung erzeugt keine automatische Lesson oder Modellfreigabe. |
+| Vorhandenseinsnachweis | Vorhandener Code beziehungsweise tatsächlicher Consumer statisch gelesen; nur der im Implementierungsfeld benannte Teilscope ist dadurch belegt. |
+| Implementierung / Consumer | [Ft012HandoffService](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/backend/app/features/post_trade/application/handoff_service.py) liefert READY nur für COMPLETED / FINALIZED / CURRENT mit konkreten IDs; [Review-UI und bewusster Übergang](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/frontend/src/features/post_trade/pages/PostTradeLearningPage.tsx). |
+| Test / Commit | [tests/unit/backend/features/post_trade/test_handoff_service.py](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/tests/unit/backend/features/post_trade/test_handoff_service.py): sechs gelesene Tests für fehlende/unvollständige Observation, fehlendes/DRAFT/STALE Review und READY mit exakten IDs. Mock-Unit-Tests, kein DB-Abnahmeersatz; Basis-CI separat. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | Keine eigenständige fachliche Abnahme für diesen vollständigen Zuschnitt verifiziert. |
+| Software-Auslieferung | Kein gesonderter Release-Nachweis für den vollständigen Zuschnitt verifiziert; ein allgemeiner Softwaretag ersetzt ihn nicht. |
+| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
+| Restarbeit / nächste Abhängigkeit | Fachliche Reviewbedienung, Validierungsfehler und Versionswechsel entlang der vollständigen UI-Strecke nachweisen. **Nächste Abhängigkeit:** PB-018 Beobachtung; FT-012 übernimmt nur qualifizierte konkrete Herkunft. |
+| Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
+
+</details>
+
+<a id="pb-018-exit-comparison"></a>
+<details>
+<summary>PB-018 — Vergleich tatsächlicher und virtueller Ausstiege</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | M6: Vergleich tatsächlicher und virtueller Ausstiege. Bereich/Querschnitt: 7. Bestehender Bezug: FT-011. Lieferziel: B. |
+| Arbeitsstatus | Technical Review |
+| Soll / Nicht-Soll | **Soll:** Tatsächliche Exitfakten und hypothetische Nachbeobachtung mit offengelegter Preis-/Datenbasis unterscheiden. **Nicht-Soll:** Underlying-Bewegung ist nicht automatisch hypothetische Warrant-Rendite oder Gebühren-/Netto-PnL. |
+| Vorhandenseinsnachweis | Dokument- und/oder Routing-Nachweis vorhanden; Details, historische Grenzen und nicht erneut geprüfte Implementierung im Eintrag. |
+| Implementierung / Consumer | [Observation-Service](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/backend/app/features/post_trade/application/observation_service.py) konsumiert full_exit_at, originale Ziele/Stop und gespeicherte Preise; [historischer Review-Übergang](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/implementation/POST_D01_GOLDEN_PATH_CLOSEOUT.md). Vollständige Vergleichsmetrik nicht neu verifiziert. |
+| Test / Commit | Kein vollständiger aktueller Fach-/Berechnungsabnahmebeleg für jede ursprüngliche Vergleichsaussage verifiziert. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | Keine eigenständige fachliche Abnahme für diesen vollständigen Zuschnitt verifiziert. |
+| Software-Auslieferung | Kein gesonderter Release-Nachweis für den vollständigen Zuschnitt verifiziert; ein allgemeiner Softwaretag ersetzt ihn nicht. |
+| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
+| Restarbeit / nächste Abhängigkeit | Tatsächliche Vergleichsformeln und nicht anwendbare Fälle am Domain-Owner lesen und mit expliziten Datengrenzen abnehmen. **Nächste Abhängigkeit:** Reale effektive Exitfakten; Beobachtungsdaten, keine erfundenen Optionsscheinhistorien. |
+| Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
+
+</details>
+
+<a id="pb-018-currentness"></a>
+<details>
+<summary>PB-018 — Korrekturen, Review-Currentness und historische Herkunft</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | M5/M6/M7: historische Korrekturen als durchgängiger Vertrag. Bereich/Querschnitt: 7; Querschnitt: technische Qualität/Betrieb. Bestehender Bezug: FT-010 → FT-011 → FT-012. Lieferziel: B, D. |
+| Arbeitsstatus | Technical Review |
+| Soll / Nicht-Soll | **Soll:** Korrekturen erhalten alte Fakten und Versionen; veraltete Review-/Evidence-Kontexte bleiben erkennbar. **Nicht-Soll:** Keine nachträgliche Umschreibung bereits materialisierter Evidence auf latest. |
+| Vorhandenseinsnachweis | Dokument- und/oder Routing-Nachweis vorhanden; Details, historische Grenzen und nicht erneut geprüfte Implementierung im Eintrag. |
+| Implementierung / Consumer | [STALE blockiert READY](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/backend/app/features/post_trade/application/handoff_service.py); [exakte exit_review_version_id und keine historische Retargetierung](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/implementation/POST_D01_GOLDEN_PATH_EXTENSION_09.md). |
+| Test / Commit | [STALE-Unit-Test](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/tests/unit/backend/features/post_trade/test_handoff_service.py); vollständige Korrektur→Review→Evidence→Lesson-Regressionsstrecke nicht neu ausgeführt. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | Keine eigenständige fachliche Abnahme für diesen vollständigen Zuschnitt verifiziert. |
+| Software-Auslieferung | Kein gesonderter Release-Nachweis für den vollständigen Zuschnitt verifiziert; ein allgemeiner Softwaretag ersetzt ihn nicht. |
+| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
+| Restarbeit / nächste Abhängigkeit | Auslösung von STALE/Currentness nach faktischer Korrektur und spätere Revalidierung separat prüfen. **Nächste Abhängigkeit:** Bestehende Supersession-/Currentnessverträge; PB-019 Materialisierung. |
+| Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
+
+</details>
+
+### PB-019
+
+[Exit-Review-Evidence bewusst materialisieren](#pb-019-materialization) · [Journalentwurf und Journalabschluss](#pb-019-journal) · [Regelabweichungen dokumentieren](#pb-019-deviations) · [Belegte Lessons Learned](#pb-019-lessons) · [Entscheidungsbewertung getrennt vom Ergebnis](#pb-019-decision-quality) · [Performancekennzahlen](#pb-019-performance-metrics) · [Tradeübergreifende Statistiken](#pb-019-performance-statistics) · [Performance-Dashboards](#pb-019-performance-dashboards) · [Perioden- und Tradeauswertungen](#pb-019-performance-evaluations)
+
+<a id="pb-019-materialization"></a>
+<details>
+<summary>PB-019 — Exit-Review-Evidence bewusst materialisieren</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | M6→M7: Übergang zum Lernen. Bereich/Querschnitt: 7. Bestehender Bezug: FT-012; FT-011 bleibt Quellowner. Lieferziel: B, D. |
+| Arbeitsstatus | Technical Review |
+| Soll / Nicht-Soll | **Soll:** Ein expliziter idempotenter FT-012-Befehl materialisiert unveränderliche Evidence mit exakter Reviewversion. **Nicht-Soll:** Keine automatische Interpretation, keine zweite Readinesslogik in FT-012. |
+| Vorhandenseinsnachweis | Vorhandener Code beziehungsweise tatsächlicher Consumer statisch gelesen; nur der im Implementierungsfeld benannte Teilscope ist dadurch belegt. |
+| Implementierung / Consumer | [Extension 09](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/implementation/POST_D01_GOLDEN_PATH_EXTENSION_09.md) dokumentiert MaterializeFt011LearningEvidenceService, semantic uniqueness und Konfliktgrenzen; [aktuelle UI](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/frontend/src/features/post_trade/pages/PostTradeLearningPage.tsx) ruft status/materialize auf und liest LearningEvidence-ID zurück. |
+| Test / Commit | Extension 09 beschreibt Replay-/Dedup-/Not-ready-Tests; aktuelle UI-Codeprüfung und Basis-CI. Einzelne Materialisierungstests nicht vollständig neu gelesen/ausgeführt. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | Keine eigenständige fachliche Abnahme für diesen vollständigen Zuschnitt verifiziert. |
+| Software-Auslieferung | Kein gesonderter Release-Nachweis für den vollständigen Zuschnitt verifiziert; ein allgemeiner Softwaretag ersetzt ihn nicht. |
+| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
+| Restarbeit / nächste Abhängigkeit | Source-/Key-Replay, Concurrent Conflict und reale DB-Constraints am vollständigen Checkout nachweisen; keinen zweiten Materialisierungsweg bauen. **Nächste Abhängigkeit:** READY aus PB-018; bestehende FT-012-Idempotenz und Evidence-Persistenz. |
+| Umfangsentscheidung | Historische Lücke im Golden-Path-Closeout durch Extension 09 und spätere UI überholt. Rest ist Verifikation/Abnahme, nicht pauschaler Neubau. |
+
+</details>
+
+<a id="pb-019-journal"></a>
+<details>
+<summary>PB-019 — Journalentwurf und Journalabschluss</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | M7: Journal. Bereich/Querschnitt: 7. Bestehender Bezug: FT-012; bestehende Evaluation-Ownership. Lieferziel: B. |
+| Arbeitsstatus | Analysis; P1 – Fokus B |
+| Soll / Nicht-Soll | **Soll:** Ein eigenständiger Journalentwurf dokumentiert Reflexion und genaue Trade-/Review-Herkunft; Abschlussregeln sind testbar festgelegt. **Nicht-Soll:** Performance ist keine Voraussetzung für einen Entwurf. Exit Review, LearningEvidence und Lesson sind kein stiller Ersatz für Journal. |
+| Vorhandenseinsnachweis | Vollständige Teilfähigkeit nicht verifiziert. Vorhandene Nachbarfunktionen/Dokumente sind im Implementierungsfeld benannt; daraus folgt kein Abwesenheitsbeweis. |
+| Implementierung / Consumer | [Prozessmodell verlangt Journal](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/domain/TRADING_PROCESS_MODEL.md); [gelesener Post-Trade-Consumer](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/frontend/src/features/post_trade/pages/PostTradeLearningPage.tsx) bietet Review, Evidence und Lessons. Ein separater aktueller Journal-Consumer ist nicht verifiziert; unvollständige Codesuche beweist keine Abwesenheit. |
+| Test / Commit | Kein Journal-spezifischer Test-/Abnahmebeleg verifiziert. Basis-CI sagt darüber nichts Spezifisches aus. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | Keine eigenständige fachliche Abnahme für diesen vollständigen Zuschnitt verifiziert. |
+| Software-Auslieferung | Kein gesonderter Release-Nachweis für den vollständigen Zuschnitt verifiziert; ein allgemeiner Softwaretag ersetzt ihn nicht. |
+| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
+| Restarbeit / nächste Abhängigkeit | Im vollständigen Checkout FT-012-Consumer/Umbenennungen abgleichen; anschließend kleinsten Journalentwurf-Schnitt mit klaren Feldern, Versionsbezug und Korrekturvertrag spezifizieren/umsetzen, soweit freigegeben. **Nächste Abhängigkeit:** Bestehender FT-012-Owner; genaue Trade-/Review-Referenzen; fachlicher Entwurfs-/Abschlussvertrag. Nicht PB-019 Performance. |
+| Umfangsentscheidung | M7 bleibt geplant. Entwurf ohne Performance ist Vorgabe des Planungsauftrags vom 2026-10-13; daraus wird keine rückwirkende Freigabe neuer Journal-Fachlogik abgeleitet. |
+
+</details>
+
+<a id="pb-019-deviations"></a>
+<details>
+<summary>PB-019 — Regelabweichungen dokumentieren</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | M7: Regelabweichungen. Bereich/Querschnitt: 7; Querschnitt: Modelle/Regelgovernance. Bestehender Bezug: FT-012; Reviewquelle FT-011. Lieferziel: B, D. |
+| Arbeitsstatus | Analysis |
+| Soll / Nicht-Soll | **Soll:** Abweichungen beziehen sich auf die tatsächlich verwendete Regel-/Planversion und belegte Fakten. **Nicht-Soll:** Keine nachträgliche Bewertung alter Entscheidungen mit latest-Regeln. |
+| Vorhandenseinsnachweis | Vollständige Teilfähigkeit nicht verifiziert. Vorhandene Nachbarfunktionen/Dokumente sind im Implementierungsfeld benannt; daraus folgt kein Abwesenheitsbeweis. |
+| Implementierung / Consumer | [ExitReviewAssessment-Prozessfelder im Testvertrag](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/tests/unit/backend/features/post_trade/test_handoff_service.py); [ursprünglicher Journalprozess](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/domain/TRADING_PROCESS_MODEL.md). Eigenständige Regelabweichungsfunktion nicht vollständig verifiziert. |
+| Test / Commit | Gelesene Handoff-Tests sind kein Test der vollständigen Abweichungsbewertung. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | Keine eigenständige fachliche Abnahme für diesen vollständigen Zuschnitt verifiziert. |
+| Software-Auslieferung | Kein gesonderter Release-Nachweis für den vollständigen Zuschnitt verifiziert; ein allgemeiner Softwaretag ersetzt ihn nicht. |
+| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
+| Restarbeit / nächste Abhängigkeit | Vorhandene Review-/Lesson-Felder gegen Journalanspruch abgrenzen; Lücken und zulässige Bewertungen entscheiden. **Nächste Abhängigkeit:** Genaue historische Regel-/Planversion und Journalvertrag. |
+| Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
+
+</details>
+
+<a id="pb-019-lessons"></a>
+<details>
+<summary>PB-019 — Belegte Lessons Learned</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | M7: Lessons Learned. Bereich/Querschnitt: 7. Bestehender Bezug: FT-012. Lieferziel: B, D. |
+| Arbeitsstatus | Technical Review |
+| Soll / Nicht-Soll | **Soll:** Eine bewusste Interpretation referenziert konkrete LearningEvidence und eine unveränderliche LessonVersion. **Nicht-Soll:** Evidence-Transport erzeugt keine Lesson; Lesson erzeugt kein automatisches Modellapproval. |
+| Vorhandenseinsnachweis | Vorhandener Code beziehungsweise tatsächlicher Consumer statisch gelesen; nur der im Implementierungsfeld benannte Teilscope ist dadurch belegt. |
+| Implementierung / Consumer | [LessonDraftFromEvidence, Evidence-Readback und /lessons/:lessonId](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/frontend/src/features/post_trade/pages/PostTradeLearningPage.tsx) sowie [historische Evidence→Lesson-Naht](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/implementation/POST_D01_GOLDEN_PATH_CLOSEOUT.md). |
+| Test / Commit | Historische Golden-Path-Qualification; aktuelle UI-Consumer gelesen; Basis-CI. Nicht jeder Lesson-Service/Test erneut gelesen. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | Keine eigenständige fachliche Abnahme für diesen vollständigen Zuschnitt verifiziert. |
+| Software-Auslieferung | Kein gesonderter Release-Nachweis für den vollständigen Zuschnitt verifiziert; ein allgemeiner Softwaretag ersetzt ihn nicht. |
+| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
+| Restarbeit / nächste Abhängigkeit | Korrektur-/Currentness-Readback und Benutzerweg qualifizieren. Offene PR #90 für direkte Navigation nicht als main-Funktion zählen. **Nächste Abhängigkeit:** FT-012 Evidence; Journal ist keine neu eingeführte technische Zwangsvoraussetzung für die vorhandene Lesson-Strecke. |
+| Umfangsentscheidung | Vorhandene Lesson-Strecke erhalten, nicht neu bauen. Journal bleibt daneben eigener ursprünglicher Anspruch. |
+
+</details>
+
+<a id="pb-019-decision-quality"></a>
+<details>
+<summary>PB-019 — Entscheidungsbewertung getrennt vom Ergebnis</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | M7: Entscheidungsbewertung. Bereich/Querschnitt: 7. Bestehender Bezug: FT-011 Review / FT-012 Journal und Lessons. Lieferziel: B, D. |
+| Arbeitsstatus | Analysis |
+| Soll / Nicht-Soll | **Soll:** Prozess-/Entscheidungsqualität und wirtschaftliches Ergebnis werden mit erklärten Kriterien getrennt bewertet. **Nicht-Soll:** Ein positiver Ertrag beweist keine gute Entscheidung; keine erfundenen Scorekriterien. |
+| Vorhandenseinsnachweis | Vollständige Teilfähigkeit nicht verifiziert. Vorhandene Nachbarfunktionen/Dokumente sind im Implementierungsfeld benannt; daraus folgt kein Abwesenheitsbeweis. |
+| Implementierung / Consumer | [Reviewvertrag enthält timing, process_adherence, risk_decision, overall_exit_decision](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/tests/unit/backend/features/post_trade/test_handoff_service.py); [Review-/Learning-UI](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/frontend/src/features/post_trade/pages/PostTradeLearningPage.tsx). |
+| Test / Commit | Handoff-Test enthält Bewertungsfixtures, qualifiziert aber nicht die vollständige fachliche Bewertungsbedeutung. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | Keine eigenständige fachliche Abnahme für diesen vollständigen Zuschnitt verifiziert. |
+| Software-Auslieferung | Kein gesonderter Release-Nachweis für den vollständigen Zuschnitt verifiziert; ein allgemeiner Softwaretag ersetzt ihn nicht. |
+| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
+| Restarbeit / nächste Abhängigkeit | Originalen M7-Bewertungsumfang gegen vorhandene Review-/Lessonfelder abnehmen; ungeklärte Bewertungsmaßstäbe explizit entscheiden. **Nächste Abhängigkeit:** Freigegebene Kriterien; konkrete historische Evidence. |
+| Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
+
+</details>
+
+<a id="pb-019-performance-metrics"></a>
+<details>
+<summary>PB-019 — Performancekennzahlen</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | M8: Performancekennzahlen. Bereich/Querschnitt: 8. Bestehender Bezug: FT-012; vorhandener Evaluation-Owner. Lieferziel: C. |
+| Arbeitsstatus | Analysis; P1 – Fokus C |
+| Soll / Nicht-Soll | **Soll:** Kennzahlen besitzen explizite Bedeutung, Daten-/Währungsgrenzen, Nenner und Behandlung unbekannter Werte. **Nicht-Soll:** Keine erfundene Equity, Nullgebühren, FX-Historie oder Netto-Performance. |
+| Vorhandenseinsnachweis | Vollständige Teilfähigkeit nicht verifiziert. Vorhandene Nachbarfunktionen/Dokumente sind im Implementierungsfeld benannt; daraus folgt kein Abwesenheitsbeweis. |
+| Implementierung / Consumer | [registrierte UI-Routen](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/frontend/src/app/router.tsx) und [Learning-Consumer](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/frontend/src/features/post_trade/pages/PostTradeLearningPage.tsx) gelesen; [Positions-Brutto-PnL](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/features/FT-010_TRADE_MANAGEMENT.md)/[Chart-Renditen](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/implementation/MARKET_CHARTS.md) sind Nachbarfähigkeiten. Eigener vollständiger Performance-Consumer nicht verifiziert. |
+| Test / Commit | Kein diesen M8-Zuschnitt eindeutig belegender Test-/Abnahmebeleg verifiziert; Suite-Erfolg ist kein Ersatz. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | Keine eigenständige fachliche Abnahme für diesen vollständigen Zuschnitt verifiziert. |
+| Software-Auslieferung | Kein gesonderter Release-Nachweis für den vollständigen Zuschnitt verifiziert; ein allgemeiner Softwaretag ersetzt ihn nicht. |
+| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
+| Restarbeit / nächste Abhängigkeit | Konkreten ersten Kennzahlensatz fachlich entscheiden; belegte Ausführungsfakten und verfügbare Daten als Grenze festhalten. **Nächste Abhängigkeit:** PB-017 Brutto-PnL; fachliche Kennzahlendefinition, nicht Journalentwurf. |
+| Umfangsentscheidung | Ursprüngliches M8 bleibt sichtbar und geplant. Konkrete Kennzahlen-/Periodenentscheidungen offen; weder bewusst verschoben noch entfernt. |
+
+</details>
+
+<a id="pb-019-performance-statistics"></a>
+<details>
+<summary>PB-019 — Tradeübergreifende Statistiken</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | M8: Statistiken. Bereich/Querschnitt: 8. Bestehender Bezug: FT-012; vorhandener Evaluation-Owner. Lieferziel: C. |
+| Arbeitsstatus | Analysis; P1 – Fokus C |
+| Soll / Nicht-Soll | **Soll:** Aggregation erklärt Population, offene/geschlossene Trades, Korrekturen und Filter. **Nicht-Soll:** Keine undefinierte Grundgesamtheit oder aus Teildaten abgeleitete Erfolgsquote. |
+| Vorhandenseinsnachweis | Vollständige Teilfähigkeit nicht verifiziert. Vorhandene Nachbarfunktionen/Dokumente sind im Implementierungsfeld benannt; daraus folgt kein Abwesenheitsbeweis. |
+| Implementierung / Consumer | [registrierte UI-Routen](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/frontend/src/app/router.tsx) und [Learning-Consumer](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/frontend/src/features/post_trade/pages/PostTradeLearningPage.tsx) gelesen; [Positions-Brutto-PnL](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/features/FT-010_TRADE_MANAGEMENT.md)/[Chart-Renditen](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/implementation/MARKET_CHARTS.md) sind Nachbarfähigkeiten. Eigener vollständiger Performance-Consumer nicht verifiziert. |
+| Test / Commit | Kein diesen M8-Zuschnitt eindeutig belegender Test-/Abnahmebeleg verifiziert; Suite-Erfolg ist kein Ersatz. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | Keine eigenständige fachliche Abnahme für diesen vollständigen Zuschnitt verifiziert. |
+| Software-Auslieferung | Kein gesonderter Release-Nachweis für den vollständigen Zuschnitt verifiziert; ein allgemeiner Softwaretag ersetzt ihn nicht. |
+| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
+| Restarbeit / nächste Abhängigkeit | Population und Aggregationsregeln festlegen; alternative vorhandene Consumer im vollständigen Checkout ausschließen. **Nächste Abhängigkeit:** Freigegebene Kennzahlen, Datenverfügbarkeit und Korrektursemantik. |
+| Umfangsentscheidung | Ursprüngliches M8 bleibt sichtbar und geplant. Konkrete Kennzahlen-/Periodenentscheidungen offen; weder bewusst verschoben noch entfernt. |
+
+</details>
+
+<a id="pb-019-performance-dashboards"></a>
+<details>
+<summary>PB-019 — Performance-Dashboards</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | M8: Dashboards. Bereich/Querschnitt: 8. Bestehender Bezug: FT-012; vorhandener Evaluation-Owner. Lieferziel: C. |
+| Arbeitsstatus | Analysis; P1 – Fokus C |
+| Soll / Nicht-Soll | **Soll:** Lesende Auswertung zeigt Kennzahlen, Grenzen, Datenlücken und Herkunft verständlich. **Nicht-Soll:** Operational Workspace und Marktcharts sind kein Performance-Dashboard; keine Frontend-Zweitberechnung. |
+| Vorhandenseinsnachweis | Vollständige Teilfähigkeit nicht verifiziert. Vorhandene Nachbarfunktionen/Dokumente sind im Implementierungsfeld benannt; daraus folgt kein Abwesenheitsbeweis. |
+| Implementierung / Consumer | [registrierte UI-Routen](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/frontend/src/app/router.tsx) und [Learning-Consumer](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/frontend/src/features/post_trade/pages/PostTradeLearningPage.tsx) gelesen; [Positions-Brutto-PnL](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/features/FT-010_TRADE_MANAGEMENT.md)/[Chart-Renditen](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/implementation/MARKET_CHARTS.md) sind Nachbarfähigkeiten. Eigener vollständiger Performance-Consumer nicht verifiziert. |
+| Test / Commit | Kein diesen M8-Zuschnitt eindeutig belegender Test-/Abnahmebeleg verifiziert; Suite-Erfolg ist kein Ersatz. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | Keine eigenständige fachliche Abnahme für diesen vollständigen Zuschnitt verifiziert. |
+| Software-Auslieferung | Kein gesonderter Release-Nachweis für den vollständigen Zuschnitt verifiziert; ein allgemeiner Softwaretag ersetzt ihn nicht. |
+| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
+| Restarbeit / nächste Abhängigkeit | Einen Consumer gegen den freigegebenen Backend-Auswertungsvertrag definieren; unbekannte Werte explizit anzeigen. **Nächste Abhängigkeit:** Backend-Auswertung von PB-019; keine neue schreibende Wahrheit. |
+| Umfangsentscheidung | Ursprüngliches M8 bleibt sichtbar und geplant. Konkrete Kennzahlen-/Periodenentscheidungen offen; weder bewusst verschoben noch entfernt. |
+
+</details>
+
+<a id="pb-019-performance-evaluations"></a>
+<details>
+<summary>PB-019 — Perioden- und Tradeauswertungen</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | M8: Auswertungen. Bereich/Querschnitt: 8. Bestehender Bezug: FT-012; vorhandener Evaluation-Owner. Lieferziel: C. |
+| Arbeitsstatus | Analysis; P1 – Fokus C |
+| Soll / Nicht-Soll | **Soll:** Explizite Zeit-/Tradeauswahl, Stichtag und nachvollziehbare Berechnungsgrenzen. **Nicht-Soll:** Keine stillen historischen Rekonstruktionen eines damals unbekannten Datenstands. |
+| Vorhandenseinsnachweis | Vollständige Teilfähigkeit nicht verifiziert. Vorhandene Nachbarfunktionen/Dokumente sind im Implementierungsfeld benannt; daraus folgt kein Abwesenheitsbeweis. |
+| Implementierung / Consumer | [registrierte UI-Routen](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/frontend/src/app/router.tsx) und [Learning-Consumer](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/frontend/src/features/post_trade/pages/PostTradeLearningPage.tsx) gelesen; [Positions-Brutto-PnL](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/features/FT-010_TRADE_MANAGEMENT.md)/[Chart-Renditen](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/implementation/MARKET_CHARTS.md) sind Nachbarfähigkeiten. Eigener vollständiger Performance-Consumer nicht verifiziert. |
+| Test / Commit | Kein diesen M8-Zuschnitt eindeutig belegender Test-/Abnahmebeleg verifiziert; Suite-Erfolg ist kein Ersatz. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | Keine eigenständige fachliche Abnahme für diesen vollständigen Zuschnitt verifiziert. |
+| Software-Auslieferung | Kein gesonderter Release-Nachweis für den vollständigen Zuschnitt verifiziert; ein allgemeiner Softwaretag ersetzt ihn nicht. |
+| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
+| Restarbeit / nächste Abhängigkeit | Perioden-, Trade-, Currentness- und Provenienzvertrag entscheiden und mit synthetischen Fällen qualifizieren. **Nächste Abhängigkeit:** Kennzahlenbedeutung und qualifizierte Execution-/Datenbasis. |
+| Umfangsentscheidung | Ursprüngliches M8 bleibt sichtbar und geplant. Konkrete Kennzahlen-/Periodenentscheidungen offen; weder bewusst verschoben noch entfernt. |
+
+</details>
+
+### PB-020
+
+[Modellinfrastruktur: Evidence bis Freigabe](#pb-020-governance) · [Gesonderte Runtime-Aktivierung und Rückkehr](#pb-020-activation) · [Stopmodell](#pb-020-stop-model) · [Zielmodell](#pb-020-target-model) · [Trade Assistant](#pb-020-assistant) · [Nachbeobachtungsmodell](#pb-020-observation-model) · [TOP_DOWN_CANDIDATE als konkrete Modellfamilie](#pb-020-candidate-family) · [MarketContext als fachliche Modellfamilie](#pb-020-market-context) · [Relative Strength als fachliche Modellfamilie](#pb-020-relative-strength)
+
+<a id="pb-020-governance"></a>
+<details>
+<summary>PB-020 — Modellinfrastruktur: Evidence bis Freigabe</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | M9: gemeinsame Governance der Modellfamilien. Bereich/Querschnitt: Querschnitt: Modelle/Regelgovernance. Bestehender Bezug: FT-013; FT-012 besitzt Evidence. Lieferziel: D. |
+| Arbeitsstatus | Technical Review |
+| Soll / Nicht-Soll | **Soll:** Explizite Hypothese, Proposal gegen konkrete genehmigte Basis, cutoffgebundene Validierung und Freigabe erzeugen eine neue immutable ModelVersion. **Nicht-Soll:** Freigabe ist weder Runtime-Aktivierung noch Handelsentscheidung; keine rückwirkende Evidence-Umschreibung. |
+| Vorhandenseinsnachweis | Dokument- und/oder Routing-Nachweis vorhanden; Details, historische Grenzen und nicht erneut geprüfte Implementierung im Eintrag. |
+| Implementierung / Consumer | [FT-013 Controlled Governance V1](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/features/FT-013_CONTROLLED_MODEL_GOVERNANCE.md); [historische Governance-Naht](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/implementation/POST_D01_GOLDEN_PATH_CLOSEOUT.md); Model-Governance-API in main registriert; [Candidate-Konfigurationsconsumer](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/features/FT-020_CANDIDATE_MODEL_CONFIGURATION_UX.md). |
+| Test / Commit | Historischer PostgreSQL-Golden-Path weist gezielte Flush-Korrekturen nach; aktuelle Basis-CI; keine neue vollständige Governance-Abnahme. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | Keine eigenständige fachliche Abnahme für diesen vollständigen Zuschnitt verifiziert. |
+| Software-Auslieferung | Kein gesonderter Release-Nachweis für den vollständigen Zuschnitt verifiziert; ein allgemeiner Softwaretag ersetzt ihn nicht. |
+| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
+| Restarbeit / nächste Abhängigkeit | Konkreten Kandidatenregel-Fall mit Basis-/Evidence-/Cutoff-Provenienz und expliziten Benutzeraktionen qualifizieren. **Nächste Abhängigkeit:** Bestehende LearningEvidence; freigegebene konkrete fachliche Regel. |
+| Umfangsentscheidung | Vorhandene Governance wiederverwenden; der alte PB-020-Status Not Started ist überholt. |
+
+</details>
+
+<a id="pb-020-activation"></a>
+<details>
+<summary>PB-020 — Gesonderte Runtime-Aktivierung und Rückkehr</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | M9: reproduzierbare Anwendung freigegebener Modelle. Bereich/Querschnitt: Querschnitt: Modelle/Regelgovernance; technische Qualität/Betrieb. Bestehender Bezug: FT-013; vorhandener Candidate-Consumer FT-005/FT-019/FT-020. Lieferziel: D. |
+| Arbeitsstatus | Technical Review |
+| Soll / Nicht-Soll | **Soll:** Explizite Aktivierung einer kompatiblen freigegebenen Version, konkrete Aktivierungsherkunft und kontrollierte Rückkehr zu früherer Version. **Nicht-Soll:** Keine Aktivierung durch Installation, Migration, Review oder Modellfreigabe. |
+| Vorhandenseinsnachweis | Vorhandener Code beziehungsweise tatsächlicher Consumer statisch gelesen; nur der im Implementierungsfeld benannte Teilscope ist dadurch belegt. |
+| Implementierung / Consumer | [RuntimeActivationService.activate / resolve_by_key](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/backend/app/features/model/service/runtime_activation_service.py) verlangt APPROVED und schreibt eine neue Aktivierung; auch frühere APPROVED-Versionen sind im Service nicht ausgeschlossen. [FT-020](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/features/FT-020_CANDIDATE_MODEL_CONFIGURATION_UX.md) trennt Approval/Activation. |
+| Test / Commit | Statische Serviceprüfung am Basiscommit; vollständiger Candidate-Consumer-, Konkurrenz-, Replay- und Rückkehrtest nicht neu verifiziert. Basis-CI ist nur Gesamtnachweis. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | Keine eigenständige fachliche Abnahme für diesen vollständigen Zuschnitt verifiziert. |
+| Software-Auslieferung | Kein gesonderter Release-Nachweis für den vollständigen Zuschnitt verifiziert; ein allgemeiner Softwaretag ersetzt ihn nicht. |
+| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
+| Restarbeit / nächste Abhängigkeit | Eine konkrete Regel über Aktivierung, Candidate-Anwendung und Rückkehr auf exakte frühere Version nachweisen; nicht erneut implementieren, sofern belegt. **Nächste Abhängigkeit:** Kompatible Kandidatenmodellversion; explizite Freigabe; aktuelle Runtime-Adapterprüfung. |
+| Umfangsentscheidung | Die alte V1- und Golden-Path-Aussage ohne Runtime-Aktivierung ist historisch. Vorhandener Service schließt die Infrastruktur-Lücke, nicht jede Modellfamilien-/Betriebsabnahme. |
+
+</details>
+
+<a id="pb-020-stop-model"></a>
+<details>
+<summary>PB-020 — Stopmodell</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | M9: Stopmodell. Bereich/Querschnitt: Querschnitt: Modelle/Regelgovernance. Bestehender Bezug: FT-013 Governance; FT-007/FT-010 fachliche Consumer. Lieferziel: D. |
+| Arbeitsstatus | Analysis |
+| Soll / Nicht-Soll | **Soll:** Eine konkrete fachliche Stopmodellfamilie hat definierte Inputs, Versionen und Consumer. **Nicht-Soll:** Keine erfundenen Handels-/Scoring-/Risikoschwellen; generische Modellinfrastruktur belegt nicht diese Familie. |
+| Vorhandenseinsnachweis | Vollständige Teilfähigkeit nicht verifiziert. Vorhandene Nachbarfunktionen/Dokumente sind im Implementierungsfeld benannt; daraus folgt kein Abwesenheitsbeweis. |
+| Implementierung / Consumer | [Stopmanagement und gebundene Stopprüfung](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/features/FT-010_TRADE_MANAGEMENT.md) sowie Planparameter sind vorhanden; daraus folgt kein vollständig governter Stopmodell-Consumer. |
+| Test / Commit | Kein vollständiger familienbezogener Test-/Abnahme-/Betriebsnachweis verifiziert. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | Keine eigenständige fachliche Abnahme für diesen vollständigen Zuschnitt verifiziert. |
+| Software-Auslieferung | Kein gesonderter Release-Nachweis für den vollständigen Zuschnitt verifiziert; ein allgemeiner Softwaretag ersetzt ihn nicht. |
+| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
+| Restarbeit / nächste Abhängigkeit | Geltende Modellentscheidung und aktuellen Consumer identifizieren; fehlende fachliche Modellgrenzen entscheiden. **Nächste Abhängigkeit:** Bestehende fachliche Entscheidungen oder expliziter Entscheidungsvorschlag; konkrete Daten/Consumer. |
+| Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
+
+</details>
+
+<a id="pb-020-target-model"></a>
+<details>
+<summary>PB-020 — Zielmodell</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | M9: Zielmodell. Bereich/Querschnitt: Querschnitt: Modelle/Regelgovernance. Bestehender Bezug: FT-013 Governance; FT-007/FT-010 fachliche Consumer. Lieferziel: D. |
+| Arbeitsstatus | Analysis |
+| Soll / Nicht-Soll | **Soll:** Eine konkrete Zielmodellfamilie ist fachlich definiert und reproduzierbar anwendbar. **Nicht-Soll:** Keine erfundenen Handels-/Scoring-/Risikoschwellen; generische Modellinfrastruktur belegt nicht diese Familie. |
+| Vorhandenseinsnachweis | Vollständige Teilfähigkeit nicht verifiziert. Vorhandene Nachbarfunktionen/Dokumente sind im Implementierungsfeld benannt; daraus folgt kein Abwesenheitsbeweis. |
+| Implementierung / Consumer | [Zielmanagement](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/features/FT-010_TRADE_MANAGEMENT.md) ist kein Nachweis eines eigenständigen governbaren Zielmodells. |
+| Test / Commit | Kein vollständiger familienbezogener Test-/Abnahme-/Betriebsnachweis verifiziert. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | Keine eigenständige fachliche Abnahme für diesen vollständigen Zuschnitt verifiziert. |
+| Software-Auslieferung | Kein gesonderter Release-Nachweis für den vollständigen Zuschnitt verifiziert; ein allgemeiner Softwaretag ersetzt ihn nicht. |
+| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
+| Restarbeit / nächste Abhängigkeit | Modellfamilie von manuellen Planzielen und Monitoringregeln abgrenzen. **Nächste Abhängigkeit:** Bestehende fachliche Entscheidungen oder expliziter Entscheidungsvorschlag; konkrete Daten/Consumer. |
+| Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
+
+</details>
+
+<a id="pb-020-assistant"></a>
+<details>
+<summary>PB-020 — Trade Assistant</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | M9: Trade Assistant. Bereich/Querschnitt: Querschnitt: Modelle/Regelgovernance. Bestehender Bezug: FT-013 laut ursprünglichem Modellplan; konkrete fachliche Consumer-/Ownershipentscheidung offen. Lieferziel: D. |
+| Arbeitsstatus | Analysis |
+| Soll / Nicht-Soll | **Soll:** Eine begrenzte, nachvollziehbare Entscheidungsunterstützung mit explizitem Versionsbezug. **Nicht-Soll:** Keine erfundenen Handels-/Scoring-/Risikoschwellen; generische Modellinfrastruktur belegt nicht diese Familie. |
+| Vorhandenseinsnachweis | Vollständige Teilfähigkeit nicht verifiziert. Vorhandene Nachbarfunktionen/Dokumente sind im Implementierungsfeld benannt; daraus folgt kein Abwesenheitsbeweis. |
+| Implementierung / Consumer | [Ursprünglicher Modellkatalog](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/planning/MODULE_AND_FEATURE_CATALOG.md); Workspace/Plan-/Risikosichten liefern Unterstützung, aber keinen vollständigen Trade-Assistant-Modellnachweis. |
+| Test / Commit | Kein vollständiger familienbezogener Test-/Abnahme-/Betriebsnachweis verifiziert. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | Keine eigenständige fachliche Abnahme für diesen vollständigen Zuschnitt verifiziert. |
+| Software-Auslieferung | Kein gesonderter Release-Nachweis für den vollständigen Zuschnitt verifiziert; ein allgemeiner Softwaretag ersetzt ihn nicht. |
+| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
+| Restarbeit / nächste Abhängigkeit | Konkreten Nutzen und Modell-/Consumervertrag entscheiden, vorhandene Unterstützung nicht parallel nachbauen. **Nächste Abhängigkeit:** Bestehende fachliche Entscheidungen oder expliziter Entscheidungsvorschlag; konkrete Daten/Consumer. |
+| Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
+
+</details>
+
+<a id="pb-020-observation-model"></a>
+<details>
+<summary>PB-020 — Nachbeobachtungsmodell</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | M9: Nachbeobachtungsmodell. Bereich/Querschnitt: Querschnitt: Modelle/Regelgovernance. Bestehender Bezug: FT-011 fachlicher Consumer; FT-013 Governance. Lieferziel: D. |
+| Arbeitsstatus | Analysis |
+| Soll / Nicht-Soll | **Soll:** Definierte Nachbeobachtungslogik mit konkretem historischen Modellbezug. **Nicht-Soll:** Keine erfundenen Handels-/Scoring-/Risikoschwellen; generische Modellinfrastruktur belegt nicht diese Familie. |
+| Vorhandenseinsnachweis | Vollständige Teilfähigkeit nicht verifiziert. Vorhandene Nachbarfunktionen/Dokumente sind im Implementierungsfeld benannt; daraus folgt kein Abwesenheitsbeweis. |
+| Implementierung / Consumer | [FT-011 nutzt einen definierten Horizont und build_observation_evidence](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/backend/app/features/post_trade/application/observation_service.py); eigenständige governte Modellfamilie nicht verifiziert. |
+| Test / Commit | Kein vollständiger familienbezogener Test-/Abnahme-/Betriebsnachweis verifiziert. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | Keine eigenständige fachliche Abnahme für diesen vollständigen Zuschnitt verifiziert. |
+| Software-Auslieferung | Kein gesonderter Release-Nachweis für den vollständigen Zuschnitt verifiziert; ein allgemeiner Softwaretag ersetzt ihn nicht. |
+| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
+| Restarbeit / nächste Abhängigkeit | Vorhandene fachliche Logik, Modellversionierung und Runtime-Governance getrennt nachweisen. **Nächste Abhängigkeit:** Bestehende fachliche Entscheidungen oder expliziter Entscheidungsvorschlag; konkrete Daten/Consumer. |
+| Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
+
+</details>
+
+<a id="pb-020-candidate-family"></a>
+<details>
+<summary>PB-020 — TOP_DOWN_CANDIDATE als konkrete Modellfamilie</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | M2/M9: spätere Präzisierung, FT-019/FT-020. Bereich/Querschnitt: 3; Querschnitt: Modelle/Regelgovernance. Bestehender Bezug: FT-005, FT-013, FT-019, FT-020. Lieferziel: D. |
+| Arbeitsstatus | Technical Review |
+| Soll / Nicht-Soll | **Soll:** Die bestehende konkrete Kandidatenregel über Hypothese, Proposal, Validation, Approval, separate Aktivierung und Anwendung nachvollziehen. **Nicht-Soll:** Keine neue Candidate-Strecke oder automatische Auswahl/Aktivierung. |
+| Vorhandenseinsnachweis | Dokument- und/oder Routing-Nachweis vorhanden; Details, historische Grenzen und nicht erneut geprüfte Implementierung im Eintrag. |
+| Implementierung / Consumer | [FT-020 beschreibt 1.0→2.0 und 2.0→2.0 ohne Mutation](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/features/FT-020_CANDIDATE_MODEL_CONFIGURATION_UX.md) mit zulässigen expliziten Policies und read-only unbekannten Definitionen; [ActivationService](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/backend/app/features/model/service/runtime_activation_service.py). |
+| Test / Commit | Code der Aktivierung gelesen; konkreter Candidate-Adapter und seine vollständigen Regressionstests nicht neu qualifiziert. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | Keine eigenständige fachliche Abnahme für diesen vollständigen Zuschnitt verifiziert. |
+| Software-Auslieferung | Kein gesonderter Release-Nachweis für den vollständigen Zuschnitt verifiziert; ein allgemeiner Softwaretag ersetzt ihn nicht. |
+| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
+| Restarbeit / nächste Abhängigkeit | Genau einen bestehenden Policy-Wechsel samt unverändertem Basismodell, konkreter Anwendung und Rückkehr belegen. **Nächste Abhängigkeit:** PB-020 Governance / Aktivierung; freigegebene Evidence und kompatible Policy. |
+| Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
+
+</details>
+
+<a id="pb-020-market-context"></a>
+<details>
+<summary>PB-020 — MarketContext als fachliche Modellfamilie</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | M2/M9: spätere Top-down-Präzisierung. Bereich/Querschnitt: 3; Querschnitt: Modelle/Regelgovernance. Bestehender Bezug: FT-006 / FT-005; FT-013 Governance. Lieferziel: D. |
+| Arbeitsstatus | Analysis |
+| Soll / Nicht-Soll | **Soll:** Fachliche Berechnung, historische Version und tatsächlicher Runtime-Consumer bleiben genau referenzierbar. **Nicht-Soll:** Governance der Kandidatenregel beweist nicht automatisch eine eigenständig governte Aktivierung dieser Familie. |
+| Vorhandenseinsnachweis | Vollständige Teilfähigkeit nicht verifiziert. Vorhandene Nachbarfunktionen/Dokumente sind im Implementierungsfeld benannt; daraus folgt kein Abwesenheitsbeweis. |
+| Implementierung / Consumer | [Top-down-Regeltraceability](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/foundation/TRACEABILITY.md); [Analyse→Market Context/Relative Strength→Candidate](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/implementation/POST_D01_GOLDEN_PATH_CLOSEOUT.md). Eigene Governance-/Aktivierungskette nicht vollständig verifiziert. |
+| Test / Commit | Historische Domain-/Top-down-Fixturen referenziert; kein familienbezogener aktueller Aktivierungsnachweis. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | Keine eigenständige fachliche Abnahme für diesen vollständigen Zuschnitt verifiziert. |
+| Software-Auslieferung | Kein gesonderter Release-Nachweis für den vollständigen Zuschnitt verifiziert; ein allgemeiner Softwaretag ersetzt ihn nicht. |
+| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
+| Restarbeit / nächste Abhängigkeit | Runtime-Verwendung und eigenständige Modellversionierung von vorhandener Candidate-Policy unterscheiden. **Nächste Abhängigkeit:** Geltender Analysevertrag; tatsächlicher Consumer; keine erfundene Parametrisierung. |
+| Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
+
+</details>
+
+<a id="pb-020-relative-strength"></a>
+<details>
+<summary>PB-020 — Relative Strength als fachliche Modellfamilie</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | M2/M9: spätere Top-down-Präzisierung. Bereich/Querschnitt: 3; Querschnitt: Modelle/Regelgovernance. Bestehender Bezug: FT-006 / FT-005; FT-013 Governance. Lieferziel: D. |
+| Arbeitsstatus | Analysis |
+| Soll / Nicht-Soll | **Soll:** Fachliche Berechnung, historische Version und tatsächlicher Runtime-Consumer bleiben genau referenzierbar. **Nicht-Soll:** Governance der Kandidatenregel beweist nicht automatisch eine eigenständig governte Aktivierung dieser Familie. |
+| Vorhandenseinsnachweis | Vollständige Teilfähigkeit nicht verifiziert. Vorhandene Nachbarfunktionen/Dokumente sind im Implementierungsfeld benannt; daraus folgt kein Abwesenheitsbeweis. |
+| Implementierung / Consumer | [Top-down-Regeltraceability](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/foundation/TRACEABILITY.md); [Analyse→Market Context/Relative Strength→Candidate](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/implementation/POST_D01_GOLDEN_PATH_CLOSEOUT.md). Eigene Governance-/Aktivierungskette nicht vollständig verifiziert. |
+| Test / Commit | Historische Domain-/Top-down-Fixturen referenziert; kein familienbezogener aktueller Aktivierungsnachweis. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | Keine eigenständige fachliche Abnahme für diesen vollständigen Zuschnitt verifiziert. |
+| Software-Auslieferung | Kein gesonderter Release-Nachweis für den vollständigen Zuschnitt verifiziert; ein allgemeiner Softwaretag ersetzt ihn nicht. |
+| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
+| Restarbeit / nächste Abhängigkeit | Runtime-Verwendung und eigenständige Modellversionierung von vorhandener Candidate-Policy unterscheiden. **Nächste Abhängigkeit:** Geltender Analysevertrag; tatsächlicher Consumer; keine erfundene Parametrisierung. |
+| Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
+
+</details>
+
+### Bestehende unnummerierte Fähigkeiten und Querschnittsarbeit
+
+[Datenprovider und benutzerverwaltete Konfiguration](#provider-configuration) · [Marktdatenbereitschaft, Qualität und Herkunft](#market-data-quality) · [Datenaktualisierung und Schedulerzustände](#market-data-refresh) · [Kursprotokoll und versionierte Produktbelege](#market-data-evidence) · [IV-Datenbereitschaft und hypothetisches Modelllabor](#iv-risk-lab) · [Regelüberwachung und fachliche Alerts](#monitoring-rules) · [Benachrichtigungen und Zustellzustände](#notification-delivery) · [Erinnerungen](#reminders) · [Modellüberwachung](#model-monitoring) · [Täglicher Operational Workspace](#operational-workspace) · [Performanceoptimierung](#operations-optimization) · [Stabilität und sichere Betriebsgrenzen](#operations-stability) · [Regressionstests](#operations-regression) · [Releasevorbereitung und Softwarestand](#operations-release) · [Betriebsnachweis der identifizierten Zielinstallation](#operations-installation)
+
+<a id="provider-configuration"></a>
+<details>
+<summary>unnummeriert — Datenprovider und benutzerverwaltete Konfiguration</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | M1: Datenprovider. Bereich/Querschnitt: 1, 2. Bestehender Bezug: separates Providerfeature; TC-001 nur technische Dateninfrastruktur. Lieferziel: A. |
+| Arbeitsstatus | Analysis |
+| Soll / Nicht-Soll | **Soll:** Provider-/Quellenidentität, Rechte und bewusste Einrichtung haben eindeutige Ownership. **Nicht-Soll:** TC-001 wird nicht zum erfundenen fachlichen Stammdatenowner; keine neue Zustimmung oder kostenpflichtiger Abruf. |
+| Vorhandenseinsnachweis | Vollständige Teilfähigkeit nicht verifiziert. Vorhandene Nachbarfunktionen/Dokumente sind im Implementierungsfeld benannt; daraus folgt kein Abwesenheitsbeweis. |
+| Implementierung / Consumer | [Bestehende Providergrenze](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/planning/MODULE_AND_FEATURE_CATALOG.md); Marktdaten-/Referenzadministration in [registrierten Routern](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/backend/app/main.py). |
+| Test / Commit | Aktuelle Konfigurations-/Rechteabnahme nicht geprüft; Ordnername provider ist kein Fehlbeleg. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | Keine eigenständige fachliche Abnahme für diesen vollständigen Zuschnitt verifiziert. |
+| Software-Auslieferung | Kein gesonderter Release-Nachweis für den vollständigen Zuschnitt verifiziert; ein allgemeiner Softwaretag ersetzt ihn nicht. |
+| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
+| Restarbeit / nächste Abhängigkeit | Benutzerverwaltete Providerkonfiguration vom vorhandenen technischen Routing abgrenzen; fehlenden fachlichen Zuschnitt als Entscheidungsvorschlag führen. **Nächste Abhängigkeit:** Bestehende Administration und tatsächlich genutzte Consumer. |
+| Umfangsentscheidung | Original M1 bleibt offen, soweit nicht belegt. Vorhandener Katalog sieht ein separates später zu spezifizierendes Providerfeature vor; keine neue FT-Nummer. |
+
+</details>
+
+<a id="market-data-quality"></a>
+<details>
+<summary>unnummeriert — Marktdatenbereitschaft, Qualität und Herkunft</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | M1: Datenprovider; M2: Datenbasis; spätere TC-001-Fähigkeit. Bereich/Querschnitt: 2. Bestehender Bezug: TC-001; fachliche Consumer bleiben Eigentümer ihrer Ergebnisse. Lieferziel: A. |
+| Arbeitsstatus | Technical Review |
+| Soll / Nicht-Soll | **Soll:** Fehlende, veraltete, indikative und nicht anwendbare Daten sowie Kurs-, Abruf- und Erfassungszeiten unterscheiden. **Nicht-Soll:** Erfolgreicher Abruf ersetzt keine aktuelle verwertbare Quote; unbekannt ist nicht Null oder geringes Risiko. |
+| Vorhandenseinsnachweis | Dokument- und/oder Routing-Nachweis vorhanden; Details, historische Grenzen und nicht erneut geprüfte Implementierung im Eintrag. |
+| Implementierung / Consumer | [Market-Data-/Reference-Router](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/backend/app/main.py); [NOT_EVALUABLE bei fehlender Datenquelle](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/backend/app/features/product_selection/service/application.py); [1.5.5 Abrufdiagnose](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/releases/V1.5.5-ISSUER-COVERAGE.md) trennt Jobstatus und Kursnachweis. |
+| Test / Commit | Aktuelle Basis-CI; aktuelle Diagnose-Liveabnahme / Quoten / Providerrechte auf JMBbot nicht geprüft. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | Keine eigenständige fachliche Abnahme für diesen vollständigen Zuschnitt verifiziert. |
+| Software-Auslieferung | Kein gesonderter Release-Nachweis für den vollständigen Zuschnitt verifiziert; ein allgemeiner Softwaretag ersetzt ihn nicht. |
+| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
+| Restarbeit / nächste Abhängigkeit | Qualifizierte Daten-/Readinesszustände für konkrete tägliche Aufgaben und Positionen belegen. **Nächste Abhängigkeit:** Identifizierte Zielinstallation, vorhandene Rechte und unveränderte erlaubte Abrufwege. |
+| Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
+
+</details>
+
+<a id="market-data-refresh"></a>
+<details>
+<summary>unnummeriert — Datenaktualisierung und Schedulerzustände</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | M10: Datenaktualisierung. Bereich/Querschnitt: 2, 6; Querschnitt: technische Qualität/Betrieb. Bestehender Bezug: TC-001; bestehender Scheduler, keine neue FT-Nummer. Lieferziel: A. |
+| Arbeitsstatus | Technical Review |
+| Soll / Nicht-Soll | **Soll:** Abrufzustände und Datenbereitschaft nachvollziehbar zeigen; vorhandene Providergrenzen erhalten. **Nicht-Soll:** Kein Diagnoselauf mit unbeabsichtigtem Schreiben/Versand; neue Planung ist keine Providerzustimmung. |
+| Vorhandenseinsnachweis | Dokument- und/oder Routing-Nachweis vorhanden; Details, historische Grenzen und nicht erneut geprüfte Implementierung im Eintrag. |
+| Implementierung / Consumer | [Lifespan-Startpunkte für Refresh/Monitoring](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/backend/app/main.py); [ISSUER_QUOTES/WARRANT_QUOTES-Diagnose](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/releases/V1.5.5-ISSUER-COVERAGE.md). Offene Scheduler-PRs #235/#225 sind kein main-Nachweis. |
+| Test / Commit | Aktuelle Basis-CI und historische Betriebsregressionsbelege; keine aktuelle reale Schedulerbeobachtung. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | Keine eigenständige fachliche Abnahme für diesen vollständigen Zuschnitt verifiziert. |
+| Software-Auslieferung | Kein gesonderter Release-Nachweis für den vollständigen Zuschnitt verifiziert; ein allgemeiner Softwaretag ersetzt ihn nicht. |
+| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
+| Restarbeit / nächste Abhängigkeit | Für bestehende Installation aktuelle geplante Jobs, tatsächliche Zustände und Datenalter gesondert nachweisen. **Nächste Abhängigkeit:** JMBbot-Konfiguration und normale bereits freigegebene Betriebsabläufe. |
+| Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
+
+</details>
+
+<a id="market-data-evidence"></a>
+<details>
+<summary>unnummeriert — Kursprotokoll und versionierte Produktbelege</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | Nach ursprünglicher Baseline: 1.5.4-Ergänzung zu M1/M10. Bereich/Querschnitt: 1, 2. Bestehender Bezug: bestehende TC-001-/Produktbelegfähigkeit; keine neue FT-Zuordnung. Lieferziel: A, C. |
+| Arbeitsstatus | Technical Review |
+| Soll / Nicht-Soll | **Soll:** Erlaubte Abrufe nachvollziehbar protokollieren und manuell geprüfte Belege an Produktidentität/TermsVersion binden. **Nicht-Soll:** Kein Backfill erfundener Historie; Empfangszeit ersetzt keine Originalkurszeit. |
+| Vorhandenseinsnachweis | Dokument- und/oder Routing-Nachweis vorhanden; Details, historische Grenzen und nicht erneut geprüfte Implementierung im Eintrag. |
+| Implementierung / Consumer | [1.5.4-Lieferumfang](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/releases/V1.5.4-IV-DATA-AND-RISK.md) dokumentiert warrant_quote_samples und warrant_valuation_evidence, Migration 20261012_0045. |
+| Test / Commit | Aktuelle CI enthält erfolgreiche PostgreSQL-Migrationsschritte; konkrete neue Tabellen/Constraints hier nicht vollständig eigenständig gelesen oder lokal geprüft. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | Keine eigenständige fachliche Abnahme für diesen vollständigen Zuschnitt verifiziert. |
+| Software-Auslieferung | Version 1.5.4 laut Release-Notiz; in Softwarebasis 1.5.5 enthalten, aktuelle Installation separat. |
+| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
+| Restarbeit / nächste Abhängigkeit | Aufbewahrung, wachsenden Speicher und tatsächliche vorhandene Belege auf der Zielinstallation prüfen; Bericht nicht mit Livebeobachtung verwechseln. **Nächste Abhängigkeit:** Bestehende erlaubte Datenabrufe / manuelle Belegerfassung; unveränderte Providerzustimmungen. |
+| Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
+
+</details>
+
+<a id="iv-risk-lab"></a>
+<details>
+<summary>unnummeriert — IV-Datenbereitschaft und hypothetisches Modelllabor</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | Nach ursprünglicher Baseline: 1.5.4-Ergänzung. Bereich/Querschnitt: 4, 6; Querschnitt: Modelle/Regelgovernance. Bestehender Bezug: bestehende Risiko-/Modelllaborfähigkeit; genaue Code-Ownership hier nicht neu bestimmt. Lieferziel: A, D. |
+| Arbeitsstatus | Technical Review |
+| Soll / Nicht-Soll | **Soll:** Reale Positionsdaten von eigenen hypothetischen Modellannahmen und deren Modellgrenzen unterscheiden. **Nicht-Soll:** Modelllabor ist kein Beleg echter Positions-IV, historischer IV-Ranks oder belastbarer realer Sensitivität. |
+| Vorhandenseinsnachweis | Dokument- und/oder Routing-Nachweis vorhanden; Details, historische Grenzen und nicht erneut geprüfte Implementierung im Eintrag. |
+| Implementierung / Consumer | [1.5.4-Notiz](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/releases/V1.5.4-IV-DATA-AND-RISK.md): Szenarien für europäische Vanilla-Calls/Puts, getrennte Datenbereitschaft und unbekannte reale Werte. |
+| Test / Commit | Quellenbeleg aus Release-Dokument; spezifischer Modell-/UI-/Testcode nicht vollständig neu gelesen. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | Keine eigenständige fachliche Abnahme für diesen vollständigen Zuschnitt verifiziert. |
+| Software-Auslieferung | Dokumentierter 1.5.4-Lieferumfang; keine fachliche Liveabnahme daraus ableiten. |
+| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
+| Restarbeit / nächste Abhängigkeit | Bestehende Modelleingaben und zulässige Produktgrenzen vor jeder weiteren fachlichen Nutzung nachweisen; keine neuen Schwellen erfinden. **Nächste Abhängigkeit:** Qualifizierte Produktbelege und ausdrücklich hypothetische Annahmen. |
+| Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
+
+</details>
+
+<a id="monitoring-rules"></a>
+<details>
+<summary>unnummeriert — Regelüberwachung und fachliche Alerts</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | M10: Regelüberwachung. Bereich/Querschnitt: 6. Bestehender Bezug: Position Monitoring & Alert Capability; FT noch offen. Lieferziel: A. |
+| Arbeitsstatus | Technical Review |
+| Soll / Nicht-Soll | **Soll:** Effektive Positions-/Managementregeln mit richtiger Instrument-/Währungsbasis auswerten; deduplizierte fachliche Alerts erhalten. **Nicht-Soll:** Alert ist keine Notification, kein SELL und keine automatische Stop-/Zieländerung. |
+| Vorhandenseinsnachweis | Dokument- und/oder Routing-Nachweis vorhanden; Details, historische Grenzen und nicht erneut geprüfte Implementierung im Eintrag. |
+| Implementierung / Consumer | [Monitoring-/Alert-Router registriert](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/backend/app/main.py); [bestehende getrennte Ownership](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/planning/MODULE_AND_FEATURE_CATALOG.md); [spätere explizite Preisbindung](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/features/FT-010_TRADE_MANAGEMENT.md). |
+| Test / Commit | Historische Monitoring-/Preisbindungs-/Betriebsregressionen referenziert; aktuelle Basis-CI. Nicht alle Regeln am Zielsystem geprüft. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | Keine eigenständige fachliche Abnahme für diesen vollständigen Zuschnitt verifiziert. |
+| Software-Auslieferung | Kein gesonderter Release-Nachweis für den vollständigen Zuschnitt verifiziert; ein allgemeiner Softwaretag ersetzt ihn nicht. |
+| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
+| Restarbeit / nächste Abhängigkeit | Qualität und Auswertungsstatus je Regel mit gebundener Basis, Legacy-Sperren und Zustellzustand verständlich abnehmen. **Nächste Abhängigkeit:** Effektive FT-009/010-Zustände und qualifizierte TC-001-Daten. |
+| Umfangsentscheidung | Bestehende unnummerierte Fähigkeit behalten; keine FT-Nummer erfinden. Frühere reine Underlying-EOD-Aussage nicht auf sämtliche spätere Regeln verallgemeinern. |
+
+</details>
+
+<a id="notification-delivery"></a>
+<details>
+<summary>unnummeriert — Benachrichtigungen und Zustellzustände</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | M10: Benachrichtigungen. Bereich/Querschnitt: 6. Bestehender Bezug: Notification Capability / austauschbarer Outbound-Adapter; FT noch offen. Lieferziel: A. |
+| Arbeitsstatus | Technical Review |
+| Soll / Nicht-Soll | **Soll:** Notification und DeliveryAttempts getrennt vom Alert führen; Fehler, Retry und erfolgreiche Zustellung sichtbar halten. **Nicht-Soll:** Keine echten Testnachrichten; Telegram ist kein Trading-Eingabekanal. |
+| Vorhandenseinsnachweis | Dokument- und/oder Routing-Nachweis vorhanden; Details, historische Grenzen und nicht erneut geprüfte Implementierung im Eintrag. |
+| Implementierung / Consumer | [Notification-/Delivery-Ownership](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/planning/MODULE_AND_FEATURE_CATALOG.md); [historischer Schnitt und PR #74](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/planning/PRODUCT_BACKLOG.md); API-Komposition und Workspace referenzieren vorhandene Fähigkeiten. |
+| Test / Commit | Historische Success-/Failure-E2E-Verweise und aktuelle Basis-CI; kein spezifischer aktueller Zustell-/Livebeleg. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | Keine eigenständige fachliche Abnahme für diesen vollständigen Zuschnitt verifiziert. |
+| Software-Auslieferung | Kein gesonderter Release-Nachweis für den vollständigen Zuschnitt verifiziert; ein allgemeiner Softwaretag ersetzt ihn nicht. |
+| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
+| Restarbeit / nächste Abhängigkeit | Consumer-/Restart-/Retry-Nachweise und reale Zustellzustände ohne Nachrichtenversand prüfen. **Nächste Abhängigkeit:** Persistierte fachliche Alerts; bestehende explizite Zustellkonfiguration. |
+| Umfangsentscheidung | Vorhandene Capability, Nummerierungsentscheidung weiterhin separat offen; keine neue Plattform oder neuer Kanal. |
+
+</details>
+
+<a id="reminders"></a>
+<details>
+<summary>unnummeriert — Erinnerungen</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | M10: Erinnerungen. Bereich/Querschnitt: 6. Bestehender Bezug: bestehende Notification-/Workspace-Bezüge; fachlicher Erinnerungsowner noch nicht belegt. Lieferziel: A. |
+| Arbeitsstatus | Analysis |
+| Soll / Nicht-Soll | **Soll:** Erinnerungsanlass, Fälligkeit, Benutzeraktion und Herkunft sind ausdrücklich definiert. **Nicht-Soll:** Ein Alert, Schedulerjob oder Workspace-Hinweis ist nicht automatisch ein vollständiger Reminder-Contract. |
+| Vorhandenseinsnachweis | Vollständige Teilfähigkeit nicht verifiziert. Vorhandene Nachbarfunktionen/Dokumente sind im Implementierungsfeld benannt; daraus folgt kein Abwesenheitsbeweis. |
+| Implementierung / Consumer | [Workspace-/Notification-Bezüge](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/planning/MODULE_AND_FEATURE_CATALOG.md); eigener vollständiger Erinnerungsconsumer nicht verifiziert. |
+| Test / Commit | Kein spezifischer Test-/Abnahmebeleg verifiziert. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | Keine eigenständige fachliche Abnahme für diesen vollständigen Zuschnitt verifiziert. |
+| Software-Auslieferung | Kein gesonderter Release-Nachweis für den vollständigen Zuschnitt verifiziert; ein allgemeiner Softwaretag ersetzt ihn nicht. |
+| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
+| Restarbeit / nächste Abhängigkeit | Originalumfang gegen bestehende Aufgaben/Notifications abgrenzen; nur konkrete fehlende Fähigkeit nach Ownerentscheidung planen. **Nächste Abhängigkeit:** Fachlicher Anlass/Fälligkeitsvertrag; vorhandene Consumer. |
+| Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
+
+</details>
+
+<a id="model-monitoring"></a>
+<details>
+<summary>unnummeriert — Modellüberwachung</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | M10: Modellüberwachung. Bereich/Querschnitt: 6; Querschnitt: Modelle/Regelgovernance. Bestehender Bezug: FT-013 und jeweilige fachliche Modellconsumer; keine neue Capability-ID. Lieferziel: A, D. |
+| Arbeitsstatus | Analysis |
+| Soll / Nicht-Soll | **Soll:** Aktive/angewendete Version, Kompatibilität und Datenbereitschaft bleiben überprüfbar. **Nicht-Soll:** Runtime-Auflösung ist nicht automatisch Modellgüte-/Driftüberwachung oder automatische Modelländerung. |
+| Vorhandenseinsnachweis | Vollständige Teilfähigkeit nicht verifiziert. Vorhandene Nachbarfunktionen/Dokumente sind im Implementierungsfeld benannt; daraus folgt kein Abwesenheitsbeweis. |
+| Implementierung / Consumer | [versionsgenaue Runtime-Auflösung](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/backend/app/features/model/service/runtime_activation_service.py); [backend-authoritative Candidate-Readiness](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/features/FT-020_CANDIDATE_MODEL_CONFIGURATION_UX.md). Vollständiger M10-Modellüberwachungsumfang nicht verifiziert. |
+| Test / Commit | Kein eigener vollständiger Monitoring-/Drift-Test- oder Betriebsnachweis ermittelt. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | Keine eigenständige fachliche Abnahme für diesen vollständigen Zuschnitt verifiziert. |
+| Software-Auslieferung | Kein gesonderter Release-Nachweis für den vollständigen Zuschnitt verifiziert; ein allgemeiner Softwaretag ersetzt ihn nicht. |
+| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
+| Restarbeit / nächste Abhängigkeit | Gewünschte Überwachungsanlässe und Metriken ohne erfundene Schwellen entscheiden; vorhandene Statusreader wiederverwenden. **Nächste Abhängigkeit:** Konkreter aktiver Modellconsumer und freigegebene Überwachungsbedeutung. |
+| Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
+
+</details>
+
+<a id="operational-workspace"></a>
+<details>
+<summary>unnummeriert — Täglicher Operational Workspace</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | Spätere Querschnittsfähigkeit zu M2–M10. Bereich/Querschnitt: Querschnitt: durchgängiger Arbeitsablauf/Bedienbarkeit. Bestehender Bezug: Operational Workspace; nur lesend. Lieferziel: A. |
+| Arbeitsstatus | Technical Review |
+| Soll / Nicht-Soll | **Soll:** Nächste Aufgaben, Datenbereitschaft, offene Positionen, Monitoring und Zustellung aus autoritativen Quellen verständlich zusammenführen. **Nicht-Soll:** Keine eigenen Done-/Acknowledge-/Assignment-Zustände und keine konkurrierende fachliche Schreibwahrheit. |
+| Vorhandenseinsnachweis | Dokument- und/oder Routing-Nachweis vorhanden; Details, historische Grenzen und nicht erneut geprüfte Implementierung im Eintrag. |
+| Implementierung / Consumer | [Operational-Workspace-API](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/backend/app/main.py) / [/workspace](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/frontend/src/app/router.tsx) registriert; [ephemerer Read-model-Vertrag](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/planning/MODULE_AND_FEATURE_CATALOG.md). |
+| Test / Commit | Aktuelle Basis-CI; vollständiger Aufgaben-/Fehler-/Readiness-Consumer hier nicht neu durchlaufen. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | Keine eigenständige fachliche Abnahme für diesen vollständigen Zuschnitt verifiziert. |
+| Software-Auslieferung | Kein gesonderter Release-Nachweis für den vollständigen Zuschnitt verifiziert; ein allgemeiner Softwaretag ersetzt ihn nicht. |
+| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
+| Restarbeit / nächste Abhängigkeit | End-to-End-Lesbarkeit der konkreten täglichen Aufgaben in einer identifizierten Installation abnehmen. **Nächste Abhängigkeit:** Vorhandene Ownerzustände; fehlende Journal-/Performance-Funktionen nicht als erledigt anzeigen. |
+| Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
+
+</details>
+
+<a id="operations-optimization"></a>
+<details>
+<summary>unnummeriert — Performanceoptimierung</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | M11: Performanceoptimierung. Bereich/Querschnitt: Querschnitt: technische Qualität/Betrieb. Bestehender Bezug: repositoryweite Qualität/Betrieb, kein neuer FT-Bezug. Lieferziel: A. |
+| Arbeitsstatus | Analysis |
+| Soll / Nicht-Soll | **Soll:** Technische Leistung mit explizitem Szenario und messbarem Ausgangswert verbessern. **Nicht-Soll:** Keine Produktionsmutation, keine Gate-Absenkung und keine Gleichsetzung von Software-Release mit installierter Zielumgebung. |
+| Vorhandenseinsnachweis | Vollständige Teilfähigkeit nicht verifiziert. Vorhandene Nachbarfunktionen/Dokumente sind im Implementierungsfeld benannt; daraus folgt kein Abwesenheitsbeweis. |
+| Implementierung / Consumer | Vorhandene Diagnoseberichte zur Monitoring-Abrufabdeckung sind keine allgemeinen Laufzeitbenchmarks. |
+| Test / Commit | Siehe CI-/Prüfregister mit exaktem Basiscommit; lokale Anwendungsgates nicht ausgeführt. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | Keine eigenständige fachliche Abnahme für diesen vollständigen Zuschnitt verifiziert. |
+| Software-Auslieferung | Nicht als vollständiger Abschluss von M11 zu interpretieren. |
+| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
+| Restarbeit / nächste Abhängigkeit | Engpass, Lastprofil und messbaren Zielwert erst nach Beleg bestimmen; keine erfundene Fertigstellungsquote. **Nächste Abhängigkeit:** Geeigneter isolierter Prüfstack bzw. autorisierter Releaseprozess. |
+| Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
+
+</details>
+
+<a id="operations-stability"></a>
+<details>
+<summary>unnummeriert — Stabilität und sichere Betriebsgrenzen</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | M11: Stabilität. Bereich/Querschnitt: Querschnitt: technische Qualität/Betrieb. Bestehender Bezug: repositoryweite Qualität/Betrieb, kein neuer FT-Bezug. Lieferziel: A. |
+| Arbeitsstatus | Technical Review |
+| Soll / Nicht-Soll | **Soll:** Wiederholbarkeit, Erhalt privater Konfiguration/Daten und nachvollziehbare Fehlerzustände. **Nicht-Soll:** Keine Produktionsmutation, keine Gate-Absenkung und keine Gleichsetzung von Software-Release mit installierter Zielumgebung. |
+| Vorhandenseinsnachweis | Dokument- und/oder Routing-Nachweis vorhanden; Details, historische Grenzen und nicht erneut geprüfte Implementierung im Eintrag. |
+| Implementierung / Consumer | Aktuelle Backend-CI qualifiziert restrictive-umask image und issuer renderer sandbox einschließlich isolierter Legacy-Migration/Compose-Provenienz. Historische Operations-Nachweise bleiben in Traceability. |
+| Test / Commit | Siehe CI-/Prüfregister mit exaktem Basiscommit; lokale Anwendungsgates nicht ausgeführt. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | Keine eigenständige fachliche Abnahme für diesen vollständigen Zuschnitt verifiziert. |
+| Software-Auslieferung | Nicht als vollständiger Abschluss von M11 zu interpretieren. |
+| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
+| Restarbeit / nächste Abhängigkeit | Zielinstallation und Wiederherstellung separat prüfen; CI-Docker ist nicht JMBbot. **Nächste Abhängigkeit:** Geeigneter isolierter Prüfstack bzw. autorisierter Releaseprozess. |
+| Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
+
+</details>
+
+<a id="operations-regression"></a>
+<details>
+<summary>unnummeriert — Regressionstests</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | M11: Regressionstests. Bereich/Querschnitt: Querschnitt: technische Qualität/Betrieb. Bestehender Bezug: repositoryweite Qualität/Betrieb, kein neuer FT-Bezug. Lieferziel: A. |
+| Arbeitsstatus | Technical Review |
+| Soll / Nicht-Soll | **Soll:** Etablierte Backend-, Frontend-, PostgreSQL- und Browser-Gates bleiben unverändert. **Nicht-Soll:** Keine Produktionsmutation, keine Gate-Absenkung und keine Gleichsetzung von Software-Release mit installierter Zielumgebung. |
+| Vorhandenseinsnachweis | Dokument- und/oder Routing-Nachweis vorhanden; Details, historische Grenzen und nicht erneut geprüfte Implementierung im Eintrag. |
+| Implementierung / Consumer | CI-Jobs und relevante Steps auf a78288ad erfolgreich; Backend quality, PostgreSQL migrations, FE type/lint/coverage/build, E2E migrate/smoke. |
+| Test / Commit | Siehe CI-/Prüfregister mit exaktem Basiscommit; lokale Anwendungsgates nicht ausgeführt. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | Keine eigenständige fachliche Abnahme für diesen vollständigen Zuschnitt verifiziert. |
+| Software-Auslieferung | Nicht als vollständiger Abschluss von M11 zu interpretieren. |
+| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
+| Restarbeit / nächste Abhängigkeit | Dokumentdiff lokal prüfen; vollständige Anwendungsgates auf finalem integrierten Repository-Head ausführen lassen, nicht als bereits erfolgt darstellen. **Nächste Abhängigkeit:** Geeigneter isolierter Prüfstack bzw. autorisierter Releaseprozess. |
+| Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
+
+</details>
+
+<a id="operations-release"></a>
+<details>
+<summary>unnummeriert — Releasevorbereitung und Softwarestand</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | M11: Releasevorbereitung. Bereich/Querschnitt: Querschnitt: technische Qualität/Betrieb. Bestehender Bezug: repositoryweite Qualität/Betrieb, kein neuer FT-Bezug. Lieferziel: A. |
+| Arbeitsstatus | Technical Review |
+| Soll / Nicht-Soll | **Soll:** Versionierte Software und nachvollziehbare Release-/CI-Bindung. **Nicht-Soll:** Keine Produktionsmutation, keine Gate-Absenkung und keine Gleichsetzung von Software-Release mit installierter Zielumgebung. |
+| Vorhandenseinsnachweis | Dokument- und/oder Routing-Nachweis vorhanden; Details, historische Grenzen und nicht erneut geprüfte Implementierung im Eintrag. |
+| Implementierung / Consumer | VERSION, backend/pyproject.toml und frontend/package.json nennen 1.5.5. Git-Tag v1.5.5 zeigt auf a78288ad; drei Main-Push-CI-Läufe erfolgreich. |
+| Test / Commit | Siehe CI-/Prüfregister mit exaktem Basiscommit; lokale Anwendungsgates nicht ausgeführt. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | Keine eigenständige fachliche Abnahme für diesen vollständigen Zuschnitt verifiziert. |
+| Software-Auslieferung | Software v1.5.5 mit verifiziertem Git-Tag auf Basiscommit; das sagt nichts über vollständige M0–M11-Erfüllung. |
+| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
+| Restarbeit / nächste Abhängigkeit | Bei Integration dieses reinen Dokumentdiffs geltenden Releaseprozess beachten; keine Tagverschiebung oder Veröffentlichung durch diesen Auftrag. **Nächste Abhängigkeit:** Geeigneter isolierter Prüfstack bzw. autorisierter Releaseprozess. |
+| Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
+
+</details>
+
+<a id="operations-installation"></a>
+<details>
+<summary>unnummeriert — Betriebsnachweis der identifizierten Zielinstallation</summary>
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | M11: Betrieb; Ziel A. Bereich/Querschnitt: Querschnitt: technische Qualität/Betrieb. Bestehender Bezug: bestehende Betriebs-/Releaseverantwortung. Lieferziel: A. |
+| Arbeitsstatus | Analysis |
+| Soll / Nicht-Soll | **Soll:** JMBbot mit tatsächlich installierter Version/Commit, Schema, Compose-Provenienz, Daten-/Monitoring-/Zustellzuständen und Nachweiszeitpunkt identifizieren. **Nicht-Soll:** Keine Diagnoseanleitung als erfolgreichen Lauf ausgeben; kein Monitoring-Einmallauf, Deployment oder Nachricht. |
+| Vorhandenseinsnachweis | Vollständige Teilfähigkeit nicht verifiziert. Vorhandene Nachbarfunktionen/Dokumente sind im Implementierungsfeld benannt; daraus folgt kein Abwesenheitsbeweis. |
+| Implementierung / Consumer | [Release-Notiz 1.5.5](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/releases/V1.5.5-ISSUER-COVERAGE.md) nennt zuvor bestätigten PC-Stand v1.5.4 / ab4730885b91fd954f3494434ff3d1f4734397db. Dies ist ein historischer Dokumentbeleg, keine aktuelle Beobachtung. |
+| Test / Commit | CI-Wegwerfinstallationen qualifiziert; aktuelle JMBbot-Installation und Wiederherstellung nicht geprüft. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Fachliche Abnahme | Keine eigenständige fachliche Abnahme für diesen vollständigen Zuschnitt verifiziert. |
+| Software-Auslieferung | Softwaretag 1.5.5 getrennt vom historisch genannten PC-Stand 1.5.4. |
+| Betriebsnachweis | JMBbot identifiziert; aktueller Zustand nicht geprüft. Historischer PC-Stand nur laut Release-Notiz. |
+| Restarbeit / nächste Abhängigkeit | Bei autorisiertem lesendem Zugriff Installation und Zustände mit vorhandenen sicheren Diagnosewegen belegen; keine Nutzerbestände ändern. **Nächste Abhängigkeit:** Erreichbare identifizierte Zielinstallation / zulässiger lesender Zugang. |
+| Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
+
+</details>
+
+<a id="naechster-schnitt"></a>
+## Genau nächster sinnvoller Umsetzungsschnitt
+
+**PB-019 / FT-012: Journalentwurf ohne Performancevoraussetzung.** Zuerst im vollständigen Checkout die vorhandenen FT-012-Consumer und mögliche Umbenennungen verifizieren, damit kein paralleler Ersatz entsteht. Der einzeln umsetzbare Schnitt dokumentiert einen Entwurf mit exakten Trade-/Review-Referenzen und nachvollziehbarer Korrektur-/Currentnessbehandlung. Inputfelder, Entwurfs-/Abschlussregeln und schreibender Owner müssen im bestehenden FT-012-Vertrag ausdrücklich geklärt werden. Ein fehlender Journal-Consumer wird nicht allein aus Ordnern oder aus dieser eingeschränkten Suche behauptet.
+
+### Definition of Ready für diesen Schnitt
+
+Vor der Änderung sind vorhandener Owner und Consumer geprüft, die zulässigen Journalfelder entschieden sowie folgende Akzeptanzgrenzen testbar: Entwurf ohne vorhandene Performance; unveränderte reale Trade-/Review-Fakten; konkrete historische Versionen; sichtbare veraltete Herkunft; keine automatische Lesson-/Modellerzeugung. Fehlende fachliche Entscheidungen blockieren nur diese noch ungeklärten Felder, nicht belegte unabhängige Arbeit. Keine zusätzlichen Kennzahlen oder Gebühren werden eingeführt.
+
+### Definition of Done
+
+Der konkrete Entwurf-Vertrag ist implementiert und mit positiven, negativen, Wiederholungs-, Herkunfts- und Korrekturfällen nachgewiesen; Persistenz-/Nebenläufigkeitsverträge werden bei Relevanz in echter Wegwerf-PostgreSQL geprüft; relevante Benutzerübergänge im Browser. Erforderliche Gates, Fachabnahme und Betriebsgrenzen bleiben getrennt. Backlog/Traceability werden auf dem tatsächlichen Liefercommit aktualisiert. Das schließt weder alle Journalfunktionen noch den gesamten Bereich 7 oder Ziel C automatisch ab.
