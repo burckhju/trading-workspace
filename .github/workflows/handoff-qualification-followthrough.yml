@@ -1,0 +1,177 @@
+name: Handoff qualification followthrough
+
+on:
+  push:
+    branches: [dev/post-trade-handoff-qualification-20261014]
+    paths: [.github/workflows/handoff-qualification-followthrough.yml]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: handoff-qualification-followthrough
+  cancel-in-progress: false
+
+env:
+  QUALIFICATION_SHA: b40c5cc120512a3f8b5c5af36bcaf06691f920ed
+
+jobs:
+  frontend-and-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      VITE_API_BASE_URL: http://127.0.0.1:28080/api
+      PLAYWRIGHT_BASE_URL: http://127.0.0.1:28080
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.QUALIFICATION_SHA }}
+          persist-credentials: false
+      - name: Identify complete disposable checkout and instructions
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$QUALIFICATION_SHA"
+          test -z "$(git status --porcelain)"
+          test -z "$(git ls-files -- AGENTS.md '**/AGENTS.md')"
+          test ! -e .env && test ! -e backend/.env && test ! -e frontend/.env
+          mkdir -p "$RUNNER_TEMP/handoff-evidence"
+          git rev-parse HEAD HEAD^{tree} | tee "$RUNNER_TEMP/handoff-evidence/source-identity.txt"
+          git ls-files -s > "$RUNNER_TEMP/handoff-evidence/tracked-files.txt"
+          cat scripts/check-frontend.sh frontend/package.json frontend/.nvmrc frontend/.npmrc frontend/playwright.config.ts
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: frontend/.nvmrc
+      - name: Install locked frontend dependencies
+        run: npm --prefix frontend ci
+      - name: Export credential-free complete source and locked test dependencies
+        run: |
+          set -euo pipefail
+          git clone --bare --no-hardlinks . "$RUNNER_TEMP/handoff-export.git"
+          git --git-dir="$RUNNER_TEMP/handoff-export.git" config --unset-all remote.origin.url
+          test -z "$(git --git-dir="$RUNNER_TEMP/handoff-export.git" config --get-regexp 'extraheader|sshCommand|credential' || true)"
+          tar -C "$RUNNER_TEMP" -czf "$RUNNER_TEMP/handoff-evidence/source-git.tar.gz" handoff-export.git
+          tar -czf "$RUNNER_TEMP/handoff-evidence/frontend-node-modules.tar.gz" frontend/node_modules
+          sha256sum "$RUNNER_TEMP/handoff-evidence/"*.tar.gz > "$RUNNER_TEMP/handoff-evidence/archive-sha256.txt"
+      - name: Unmodified complete frontend gate
+        id: frontend
+        run: |
+          set -euo pipefail
+          bash scripts/check-frontend.sh 2>&1 | tee "$RUNNER_TEMP/handoff-evidence/frontend-gate.log"
+      - name: Install Chromium
+        if: ${{ !cancelled() && steps.frontend.outcome != 'skipped' }}
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+      - name: Focused browser boundary tests with intercepted synthetic HTTP
+        if: ${{ !cancelled() && steps.frontend.outcome != 'skipped' }}
+        run: |
+          set -euo pipefail
+          npm --prefix frontend run dev -- --host 127.0.0.1 --port 28080 --strictPort > "$RUNNER_TEMP/handoff-evidence/vite.log" 2>&1 &
+          server=$!
+          trap 'kill "$server" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:28080 >/dev/null; then break; fi
+            sleep 1
+          done
+          curl --fail --silent http://127.0.0.1:28080 >/dev/null
+          cd frontend
+          NODE_PATH=./node_modules npx playwright test ../tests/e2e/post-trade-handoff-pin.spec.ts 2>&1 | tee "$RUNNER_TEMP/handoff-evidence/browser.log"
+      - name: Verify tracked files remain unchanged
+        if: always()
+        run: |
+          git diff --exit-code
+          git diff --check
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: handoff-followthrough-frontend
+          path: |
+            ${{ runner.temp }}/handoff-evidence
+            frontend/playwright-report
+          retention-days: 7
+          if-no-files-found: error
+
+  backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: trading_workspace
+          POSTGRES_PASSWORD: handoff-disposable-test
+          POSTGRES_DB: trading_workspace_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U trading_workspace -d trading_workspace_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TRADING_WORKSPACE_DATABASE_URL: postgresql+asyncpg://trading_workspace:handoff-disposable-test@localhost:5432/trading_workspace_test
+      TRADING_WORKSPACE_TEST_DATABASE_URL: postgresql+asyncpg://trading_workspace:handoff-disposable-test@localhost:5432/trading_workspace_test
+      TRADING_WORKSPACE_MARKET_DATA__REFRESH__ENABLED: 'false'
+      TRADING_WORKSPACE_POSITION_MONITORING__ENABLED: 'false'
+      TRADING_WORKSPACE_NOTIFICATION__TELEGRAM__ENABLED: 'false'
+      TRADING_WORKSPACE_MARKET_DATA__EODHD__ENABLED: 'false'
+      TRADING_WORKSPACE_MARKET_DATA__EODHD__API_KEY: ''
+      TRADING_WORKSPACE_MARKET_DATA__VONTOBEL_MARKETS__ENABLED: 'false'
+      TRADING_WORKSPACE_MARKET_DATA__STUTTGART_DELAYED__ENABLED: 'false'
+      TRADING_WORKSPACE_MARKET_DATA__GETTEX_DELAYED__ENABLED: 'false'
+      TRADING_WORKSPACE_MARKET_DATA__FRANKFURT__ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.QUALIFICATION_SHA }}
+          persist-credentials: false
+      - name: Verify disposable test context before writes
+        run: |
+          set -euo pipefail
+          test "$RUNNER_ENVIRONMENT" = github-hosted
+          test "$(git rev-parse HEAD)" = "$QUALIFICATION_SHA"
+          test -z "$(git status --porcelain)"
+          test -z "$(git ls-files -- AGENTS.md '**/AGENTS.md')"
+          test ! -e .env && test ! -e backend/.env
+          mkdir -p "$RUNNER_TEMP/handoff-evidence"
+          git rev-parse HEAD HEAD^{tree} | tee "$RUNNER_TEMP/handoff-evidence/source-identity.txt"
+          cat scripts/check-backend.sh backend/requirements-dev.txt backend/requirements.txt backend/.python-version
+          python - <<'PY'
+          import os
+          from urllib.parse import urlsplit
+          for key in ('TRADING_WORKSPACE_DATABASE_URL', 'TRADING_WORKSPACE_TEST_DATABASE_URL'):
+              url = urlsplit(os.environ[key])
+              assert url.hostname == 'localhost' and url.port == 5432
+              assert url.path == '/trading_workspace_test'
+          print('Only hosted-runner localhost:5432/trading_workspace_test is authorized.')
+          PY
+      - uses: actions/setup-python@v5
+        with:
+          python-version-file: backend/.python-version
+      - name: Install manifest-pinned development dependencies
+        run: python -m pip install --requirement backend/requirements-dev.txt
+      - name: Migrate disposable PostgreSQL
+        working-directory: backend
+        run: |
+          set -euo pipefail
+          { python -m alembic heads; python -m alembic upgrade head; python -m alembic current; } 2>&1 | tee "$RUNNER_TEMP/handoff-evidence/migrations.log"
+      - name: Focused independent-transaction PostgreSQL tests
+        env:
+          PYTHONPATH: ${{ github.workspace }}/backend:${{ github.workspace }}
+        run: |
+          set -euo pipefail
+          python -m pytest -c backend/pyproject.toml tests/integration/backend/post_trade/test_ft011_materialization_command_postgres.py -v 2>&1 | tee "$RUNNER_TEMP/handoff-evidence/postgres-focused.log"
+      - name: Unmodified complete backend gate
+        run: |
+          set -euo pipefail
+          bash scripts/check-backend.sh 2>&1 | tee "$RUNNER_TEMP/handoff-evidence/backend-gate.log"
+      - name: Verify tracked files remain unchanged
+        if: always()
+        run: |
+          git diff --exit-code
+          git diff --check
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: handoff-followthrough-backend
+          path: |
+            ${{ runner.temp }}/handoff-evidence
+            backend/coverage.xml
+          retention-days: 7
+          if-no-files-found: error
