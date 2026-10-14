@@ -149,8 +149,8 @@ jobs:
       E2E_BACKEND_PORT: '8000'
       E2E_FRONTEND_PORT: '8080'
       E2E_PLAYWRIGHT_BASE_URL: http://127.0.0.1:8080
-      E2E_VITE_API_BASE_URL: http://localhost:8080/api
-      VITE_API_BASE_URL: http://localhost:8080/api
+      E2E_VITE_API_BASE_URL: http://127.0.0.1:8080/api
+      VITE_API_BASE_URL: http://127.0.0.1:8080/api
       TRADING_WORKSPACE_TEST_DATABASE_URL: postgresql+asyncpg://trading_workspace:journal-browser-ci-only@127.0.0.1:25432/trading_workspace_test
       JOURNAL_E2E_WRITES_ALLOWED: '1'
       TRADE_E2E_WRITES_ALLOWED: '1'
