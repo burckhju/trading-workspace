@@ -1,6 +1,6 @@
 # Traceability – aktueller Nachweiseinstieg
 
-> Nachweisergänzung 2026-10-14: [Handoff-Teilschnitt, Tests und offene Journalstrecke](../implementation/POST_TRADE_LEARNING_HANDOFF_REVIEW.md). Die neuen Unit-/Wire-Belege sind keine vollständige Browser-/PostgreSQL-Strecke und keine Betriebsabnahme.
+> Nachweisergänzung 2026-10-14: [integrierter Handoff-Teilschnitt, PostgreSQL-/Browserbelege und offene Journalstrecke](../implementation/POST_TRADE_LEARNING_HANDOFF_REVIEW.md). Die Fortschreibung trennt Prüfcommits, echte DB-Transaktionen und abgefangenes Browser-HTTP. Arbeitsstatus ausschließlich im [zentralen Backlog](../planning/PRODUCT_BACKLOG.md#pb-019-materialization); keine Fach-/Betriebsabnahme.
 > Maßgeblich bleiben [PB-019 Materialisierung](../planning/PRODUCT_BACKLOG.md#pb-019-materialization), [PB-019 Journal](../planning/PRODUCT_BACKLOG.md#pb-019-journal) und [PB-018 Currentness](../planning/PRODUCT_BACKLOG.md#pb-018-currentness); der historische Bestand unten bleibt unverändert.
 
 ## Revision und Verantwortlichkeit

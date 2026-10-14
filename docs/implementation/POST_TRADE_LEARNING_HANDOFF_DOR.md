@@ -33,3 +33,11 @@ neu; sie erzeugt keine eigene READY-/CURRENT-Wahrheit.
 Nicht durch diesen Schnitt geschlossen: vollständiger Journal-Schreibpfad,
 atomare Serialisierung gegen gleichzeitige Upstream-Korrektur, vollständige
 PostgreSQL-/Browserqualifikation. Unit-Fakes ersetzen diese Nachweise nicht.
+
+## Nachweisfortschreibung nach Implementierung — 14.10.2026
+
+Die vorab festgelegten Kriterien bleiben unverändert. Spätere echte PostgreSQL-
+Transaktionsfälle und abgefangene Browser-HTTP-Fälle sind jetzt in der
+[technischen Fortschreibung](POST_TRADE_LEARNING_HANDOFF_REVIEW.md) mit konkreten
+Commits/Läufen belegt. Sie ersetzen weder die komplette Capture→Journal→Lesson-
+Strecke noch Fachabnahme. Journal und Upstream-Korrektur-Atomarität bleiben offen.

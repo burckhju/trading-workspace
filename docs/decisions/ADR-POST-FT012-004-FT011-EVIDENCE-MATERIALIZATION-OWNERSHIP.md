@@ -26,8 +26,10 @@ FT-011 finalization remains independent of FT-012 persistence failures. READY me
 
 This section describes the bounded patch based on repository commit
 `f918194150636f03faab466a6e41a4b67b2841dc`. It does not change the historical
-Accepted decision into a new approval. Full technical review, PostgreSQL/browser
-qualification and business acceptance of this extension remain outstanding.
+Accepted decision into a new approval. The 2026-10-14 followthrough qualifies
+the bounded pin/replay/UI slice with real PostgreSQL transactions and intercepted
+browser HTTP tests. Business acceptance, the complete journal path and atomic
+serialization against upstream correction remain outstanding.
 See [scope, evidence and limitations](../implementation/POST_TRADE_LEARNING_HANDOFF_REVIEW.md).
 The [central materialization entry](../planning/PRODUCT_BACKLOG.md#pb-019-materialization)
 remains the status authority.

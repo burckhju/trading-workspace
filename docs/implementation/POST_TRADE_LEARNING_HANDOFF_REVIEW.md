@@ -1,5 +1,108 @@
 # Startprompt 07 — begrenzter Handoff-Patch und offene Lernabschlussstrecke
 
+## Technische Fortschreibung — 14.10.2026
+
+Der begrenzte Review-Pin-/Readback-Schnitt ist im vollständigen Repository
+auf `dev/post-trade-handoff-qualification-20261014` integriert:
+[Draft-PR #259](https://github.com/burckhju/trading-workspace/pull/259).
+Der Journal-/Lern-Gesamtabschluss bleibt offen. Nur das zentrale Backlog
+führt Arbeitsstatus; technische Prüfung ist keine Fach-/Betriebsabnahme.
+
+### Identifizierte Prüfstände
+
+Basis: `2ac107d04f9b2f6b2636009da6ad16af59550df5` (v1.5.6).
+Implementierung: `b40c5cc120512a3f8b5c5af36bcaf06691f920ed`, vollständiger
+Tree `25f7269dc471e9f512887a22221fc89418f7995a`.
+Der Zusatzworkflow auf `8f2a423107c91b286d1c261d38a7e4b3f209b578` testet
+den gepinnten b40-Anwendungscode. Reguläre PR-Läufe auf 8f testen
+`173c952f71c3d51936a988ecd86332102e8cb170`, GitHubs synthetischen Testmerge
+mit main, keinen tatsächlich vollzogenen Merge. Spätere Heads separat prüfen.
+
+### Technische Belege
+
+| Prüfung | Stand / Lauf | Ergebnis |
+|---|---|---|
+| Unverändertes `bash scripts/check-backend.sh` | b40; [38613983711](https://github.com/burckhju/trading-workspace/actions/runs/38613983711) | Ruff, Black (912 Dateien), mypy (523 Quelldateien), 2600 Tests bestanden; Coverage 86,15 % bei unveränderter 85-%-Schwelle |
+| Unabhängige PostgreSQL-Transaktionen | b40; gleicher Lauf, `test_ft011_materialization_command_postgres.py` | Drei Fälle bestanden: gleiche/verschiedene Keys, Rollback ohne orphan Evidence, Retry, falsche/veraltete/ersetzte Quelle |
+| Migrationen | b40; `alembic heads`, `upgrade head`, `current` | Ein Head `20261012_0045`; lokaler Graphabgleich: 45 Revisionen, keine fehlenden Eltern; keine neue Migration |
+| Reguläre Frontend-CI | 8f-Testmerge; [38613992924](https://github.com/burckhju/trading-workspace/actions/runs/38613992924) | TypeScript, ESLint, Prettier, 456 Tests in 99 Dateien, Coverage-Gates und Build bestanden; Lines/Statements 92,21 %, Branches 83,39 %, Functions 84,42 % |
+| Reguläre End-to-End-CI | 8f-Testmerge; [38613992910](https://github.com/burckhju/trading-workspace/actions/runs/38613992910) | Docker-Build, Migration und 51 Browserfälle bestanden; 0 fehlgeschlagen/flaky/skipped |
+| Neue Handoff-Browserfälle | Drei der 51; zusätzlich separat gegen b40 im Zusatzlauf | Explizite Reviewfinalisierung, gepinnte Materialisierung, ausdrückliche Interpretation; Versionswechsel ohne automatischen Retry; historischer Replay ohne CURRENT-Fiktion |
+
+Die drei PostgreSQL-Fälle sind Teil der 2600, nicht zusätzliche 2603
+unterschiedliche Tests. Die drei neuen Browserfälle sind Teil der 51.
+Die neuen Browserfälle fangen synthetische HTTP-Antworten ab: kein
+Browser-zu-Datenbank-Beweis der vollständigen Nutzerreise. Die PostgreSQL-
+Fixture beginnt mit einem qualifizierten Reviewgraphen, nicht mit einem
+durch reale Capture-Commands erzeugten synthetischen BUY/SELL-Voll-Exit.
+
+Die zehn vorab festgelegten DoR-Kriterien besitzen jetzt abgegrenzte
+Application-/API-/React- sowie PostgreSQL-/Browserbelege. Pin und semantische
+Eindeutigkeit sind geprüft; FT-011 bleibt der einzige Readiness-Owner.
+Keine Aussage über atomare Serialisierung gegen eine Upstream-Korrektur
+nach dem Handoff-Read oder über unveränderte historische Lesson-Versionen
+über die gesamte Execution-/Journal-Korrekturkette.
+
+### Umgebungs-, Fehler- und Betriebsgrenzen
+
+Frische GitHub-Runner, synthetische UUIDs und PostgreSQL 17 auf
+`localhost:5432/trading_workspace_test`; Ziel und Alembic-Head werden geprüft.
+Keine private .env/Nutzer-Volumes. Provider, Scheduler und Telegram im
+Zusatzlauf ausgeschaltet. Reguläre E2E-CI nutzt ihren eigenen Wegwerf-
+Compose-Stack mit bestehenden synthetischen Schreibfreigaben, nicht JMBbot.
+Python 3.12.15 und Frontend Node/npm 22.16.0/10.9.2. Eine AnyIO-
+BlockingPortal-DeprecationWarning und die bestehende Vite-Warnung zu Chunks
+über 500 kB bleiben sichtbar; kein warnungsfreier Lauf behauptet.
+
+Vollständiger credential-freier Quell-/Dependency-Export aus Zusatzlauf
+38613983711: Archivprüfsummen und b40-HEAD/Tree lokal abgeglichen, eigener
+Aufgabenbranch. Das ist jetzt ein vollständiger Quellbaum, aber nur shallow
+Git-Historie. Keine AGENTS.md im vollständigen verfolgten Baum gefunden.
+
+Der erste isolierte Browserlauf blieb durch `VITE_API_BASE_URL=/api` vor
+jedem API-Aufruf leer: Die bestehende Anwendung verlangt eine absolute
+HTTP(S)-URL. Ausschließlich Prüfaufbau korrigiert; Anwendung und Assertions
+unverändert. Danach alle drei Browserfälle grün. Die jobweite Browser-URL
+im Zusatzlauf beeinflusste außerdem 18 Unit-Assertions auf die Standard-URL
+(438 bestanden/18 fehlgeschlagen); dieser Frontend-Teil ist NICHT grün.
+Die oben genannte reguläre Frontend-CI lief mit Standardumgebung erfolgreich.
+Ein lokaler vollständiger Skriptversuch endete nach Typecheck während
+ESLint am Werkzeug-Zeitlimit und zählt nicht als bestandener Gesamtgate.
+
+Der frühere npm-ci-/sharp-Fehler war im separaten unveränderten main-
+Versuch ([38609444879](https://github.com/burckhju/trading-workspace/actions/runs/38609444879),
+`baseline-docker`) nicht reproduzierbar. Auch der neue reguläre E2E-Build
+ist grün. Keine Lockdatei, kein Image und keine Schwelle zur Erzwingung von
+Grün geändert; kein fortbestehender Lockfiledefekt behauptet.
+
+Ergänzend ist `bash scripts/check-frontend.sh` in Standardumgebung auf b40 im erfolgreichen vorgeschalteten Job von [Run 38616143106](https://github.com/burckhju/trading-workspace/actions/runs/38616143106) vollständig ausgeführt. Die Dokumentationsfortschreibung ändert keinen Anwendungscode.
+
+### Offener fachlicher Schnitt
+
+Der vollständige Checkout bestätigt im FT-012-Owner Journalmodelle,
+Mapping und Evidence-Lesetypen, aber keinen Journal-Schreibservice,
+entsprechende UOW-Repositories, registrierte Schreibroute oder Editor.
+Der untenstehende Journal-Vertragsvorschlag ist keine fachliche Freigabe.
+Nächster Schnitt bleibt [PB-019 Journal](../planning/PRODUCT_BACKLOG.md#naechster-schnitt):
+Modell zu Commands, Persistenz, API und Entwurfsdialog verbinden;
+Abschlussinhalt, exakte Quellenbindung, Konkurrenz und Folgeversion vor
+der jeweiligen Änderung festlegen. Keine Performance-Zwangsvoraussetzung.
+
+Ebenfalls offen: historische Evidence-Anzeige bei NOT_READY, atomare
+Upstream-Korrekturabsicherung und vollständige Capture→Journal→Lesson-
+Korrekturstrecke. Keine neue Migration, Backfill, reale Ausführung,
+Nachricht, Modellaktivierung, Merge/Tag/Deployment oder Zielinstallations-
+beobachtung. Temporäre Prüfhilfe vor Übergabe aus dem PR entfernen.
+
+---
+
+## Historischer Erstnachweis — vor vollständiger Qualifikation
+
+Die folgenden Nicht-ausgeführt-Aussagen dokumentieren den ursprünglichen
+Teilrekonstruktionsstand. Nur die oben belegten Teilprüfungen sind inzwischen
+fortgeschrieben; frühere Prüfungen werden nicht rückwirkend als ausgeführt
+und der Gesamtprozess nicht als abgeschlossen ausgegeben.
+
 ## Einordnung
 
 **Der beauftragte vollständige Abschluss ist nicht geliefert.** Vorbereitet ist ein
