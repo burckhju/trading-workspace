@@ -449,7 +449,9 @@ describe('PostTradeReviewPage', () => {
       </MemoryRouter>,
     );
     expect(await screen.findByText('FT-012 Handoff')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Als LearningEvidence materialisieren' })).toBeNull();
+    expect(
+      screen.queryByRole('button', { name: 'Als LearningEvidence materialisieren' }),
+    ).toBeNull();
     expect(materializationApi.materialize).not.toHaveBeenCalled();
   });
 
@@ -464,5 +466,4 @@ describe('PostTradeReviewPage', () => {
     expect(api.startObservation).not.toHaveBeenCalled();
     expect(api.revalidateReview).not.toHaveBeenCalled();
   });
-
 });

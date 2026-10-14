@@ -718,7 +718,8 @@ function PostTradeReviewContent({
 
           {!materializationStatus?.materialized && showMaterializationAction && (
             <p className="mt-3 break-all text-xs text-slate-400">
-              ExitReviewVersion: {materializationStatus?.exit_review_version_id ?? 'Nicht verfügbar'}
+              ExitReviewVersion:{' '}
+              {materializationStatus?.exit_review_version_id ?? 'Nicht verfügbar'}
             </p>
           )}
 

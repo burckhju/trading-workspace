@@ -5,6 +5,10 @@ from datetime import timedelta
 from uuid import uuid4
 
 import pytest
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import async_sessionmaker
+from test_post_trade_repositories_postgres import NOW, _draft, _review_graph
+
 from app.features.learning.application.ft011_materialization_service import (
     Ft011MaterializationError,
     Ft011MaterializationErrorCode,
@@ -22,9 +26,6 @@ from app.features.post_trade.domain import ExitReviewAssessment
 from app.features.post_trade.persistence.unit_of_work import (
     SqlAlchemyPostTradeLearningUnitOfWork,
 )
-from sqlalchemy import text
-from sqlalchemy.ext.asyncio import async_sessionmaker
-from test_post_trade_repositories_postgres import NOW, _draft, _review_graph
 
 
 class Clock:
