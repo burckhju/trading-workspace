@@ -1,0 +1,54 @@
+name: Post-trade handoff formatter
+on:
+  push:
+    branches: [dev/post-trade-handoff-qualification-20261014]
+permissions: {}
+jobs:
+  format:
+    if: github.repository == 'burckhju/trading-workspace' && github.ref == 'refs/heads/dev/post-trade-handoff-qualification-20261014'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version-file: backend/.python-version
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: frontend/.nvmrc
+      - run: python -m pip install black==26.1.0 ruff==0.15.1
+      - run: npm --prefix frontend ci
+      - name: Format only changed sources under the standard gate configuration
+        shell: bash
+        env:
+          BRANCH: dev/post-trade-handoff-qualification-20261014
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = "refs/heads/$BRANCH"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -z "$(git status --porcelain)"
+          python - <<'PY'
+          from pathlib import Path
+          import subprocess
+          root = Path.cwd()
+          paths = subprocess.check_output(['git','diff','--name-only','2ac107d04f9b2f6b2636009da6ad16af59550df5','HEAD'], text=True).splitlines()
+          python_paths = [str(root/p) for p in paths if p.endswith('.py') and p.startswith(('backend/app/features/learning/','tests/'))]
+          ts_paths = [str(root/p) for p in paths if p.endswith(('.ts','.tsx')) and p.startswith(('frontend/src/features/learning/','frontend/src/features/post_trade/','tests/e2e/'))]
+          subprocess.run(['python','-m','ruff','check','--select','I','--fix',*python_paths], cwd=root/'backend', check=True)
+          subprocess.run(['python','-m','black','--config','pyproject.toml',*python_paths], cwd=root/'backend', check=True)
+          subprocess.run([str(root/'frontend/node_modules/.bin/prettier'),'--config','.prettierrc.json','--write',*ts_paths], cwd=root/'frontend', check=True)
+          subprocess.run(['git','add','--',*python_paths,*ts_paths], check=True)
+          PY
+          git rm .github/workflows/post-trade-handoff-format.yml
+          git diff --cached --check
+          git diff --cached --stat
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'style(learning): match complete gate formatting without changing assertions'
+          test "$(git ls-remote origin "refs/heads/$BRANCH" | cut -f1)" = "$GITHUB_SHA"
+          git push origin "HEAD:refs/heads/$BRANCH"
+          git rev-parse HEAD HEAD^{tree}
