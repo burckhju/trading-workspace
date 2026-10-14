@@ -1,0 +1,29 @@
+name: Journal qualification
+on:
+  push:
+    branches: [dev/ft012-journal-write-20261014]
+    paths: [.github/workflows/journal-qualification.yml]
+permissions:
+  contents: read
+jobs:
+  tools:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Download pinned lint/type tools and local PostgreSQL driver
+        run: |
+          mkdir -p "$RUNNER_TEMP/journal-tools"
+          python -m pip download --dest "$RUNNER_TEMP/journal-tools" black==26.1.0 ruff==0.15.1 mypy==1.19.1 asyncpg==0.31.0
+          cd "$RUNNER_TEMP/journal-tools"
+          sha256sum *.whl > SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: journal-pinned-tools
+          path: ${{ runner.temp }}/journal-tools
+          retention-days: 7
