@@ -1,0 +1,249 @@
+name: Post-trade handoff qualification
+
+on:
+  push:
+    branches: [dev/post-trade-handoff-qualification-20261014]
+
+permissions: {}
+
+concurrency:
+  group: post-trade-handoff-qualification-20261014
+  cancel-in-progress: false
+
+jobs:
+  integrate:
+    if: github.repository == 'burckhju/trading-workspace' && github.ref == 'refs/heads/dev/post-trade-handoff-qualification-20261014'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    outputs:
+      sha: ${{ steps.apply.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply the approved archive only to this development branch
+        id: apply
+        shell: bash
+        env:
+          BASE_SHA: 2ac107d04f9b2f6b2636009da6ad16af59550df5
+          BRANCH: dev/post-trade-handoff-qualification-20261014
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = "refs/heads/$BRANCH"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -z "$(git status --porcelain)"
+          git merge-base --is-ancestor "$BASE_SHA" HEAD
+          python3 - <<'PY'
+          import gzip, hashlib, os, pathlib, subprocess
+          root = pathlib.Path('.github/dev/post-trade-handoff')
+          helpers = {str(root / f'code.part{i}') for i in range(5)} | {str(root / 'docs.patch'), '.github/workflows/post-trade-handoff-qualification.yml'}
+          changed = set(subprocess.check_output(['git','diff','--name-only',os.environ['BASE_SHA'],'HEAD'], text=True).splitlines())
+          assert changed == helpers, ('unexpected bootstrap changes', sorted(changed))
+          tracked = subprocess.check_output(['git','ls-files'], text=True).splitlines()
+          agents = [p for p in tracked if pathlib.Path(p).name.upper() == 'AGENTS.MD']
+          for path in agents:
+              print(path, pathlib.Path(path).read_text())
+          assert not agents, 'Repository instructions require review before integration'
+          assert not any(pathlib.Path(p).exists() for p in ('.env','backend/.env','docker/.env','frontend/.env'))
+          code = gzip.decompress(b''.join((root / f'code.part{i}').read_bytes() for i in range(5)))
+          docs = (root / 'docs.patch').read_bytes()
+          assert hashlib.sha256(code).hexdigest() == '30e5ac1e7857b6b14fd21e54ed4603f51c6cfb87029a7600dd9b1748c8f4709b'
+          assert hashlib.sha256(docs).hexdigest() == '9d408dc13bdcc6c56333f37def583f8bb16ace88de7b0d872abcdfe1c6841b18'
+          tmp = pathlib.Path(os.environ['RUNNER_TEMP'])
+          for name, data in (('handoff-code.patch', code), ('handoff-docs.patch', docs)):
+              path = tmp / name
+              path.write_bytes(data)
+              subprocess.run(['git','apply','--check',str(path)], check=True)
+              subprocess.run(['git','apply','--index',str(path)], check=True)
+          expected = {
+              'backend/app/features/learning/api/materialization_router.py',
+              'backend/app/features/learning/application/ft011_materialization_service.py',
+              'docs/decisions/ADR-POST-FT012-004-FT011-EVIDENCE-MATERIALIZATION-OWNERSHIP.md',
+              'docs/implementation/POST_TRADE_LEARNING_HANDOFF_DOR.md',
+              'docs/implementation/POST_TRADE_LEARNING_HANDOFF_REVIEW.md',
+              'frontend/src/features/learning/services/materializationClient.ts',
+              'frontend/src/features/learning/services/materializationPinClient.test.ts',
+              'frontend/src/features/post_trade/pages/PostTradeLearningPage.test.tsx',
+              'frontend/src/features/post_trade/pages/PostTradeLearningPage.tsx',
+              'frontend/src/features/post_trade/pages/PostTradeReviewPage.test.tsx',
+              'frontend/src/features/post_trade/pages/PostTradeReviewPage.tsx',
+              'frontend/src/features/post_trade/services/errors.ts',
+              'tests/unit/backend/features/learning/test_ft011_materialization_pin_api.py',
+              'tests/unit/backend/features/learning/test_ft011_materialization_version_pin.py',
+              'docs/planning/PRODUCT_BACKLOG.md', 'docs/foundation/TRACEABILITY.md',
+          }
+          staged = set(subprocess.check_output(['git','diff','--cached','--name-only'], text=True).splitlines())
+          assert staged == expected, ('unexpected patch changes', sorted(staged))
+          for path in sorted(expected):
+              print(hashlib.sha256(pathlib.Path(path).read_bytes()).hexdigest(), path)
+          subprocess.run(['git','rm','--',*sorted(helpers)], check=True)
+          PY
+          git diff --cached --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'fix(learning): integrate approved review pin and owner readback patch' -m 'User-authorized development-branch integration on 2026-10-14. Exact archive hashes verified; bootstrap removed. No journal completion, migration, tag or deployment.'
+          test "$(git ls-remote origin "refs/heads/$BRANCH" | cut -f1)" = "$GITHUB_SHA"
+          git push origin "HEAD:refs/heads/$BRANCH"
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          git show --stat --oneline HEAD
+          git rev-parse HEAD HEAD^{tree}
+
+  backend:
+    needs: integrate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: trading_workspace
+          POSTGRES_PASSWORD: handoff-ci-only
+          POSTGRES_DB: trading_workspace_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U trading_workspace -d trading_workspace_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TRADING_WORKSPACE_DATABASE_URL: postgresql+asyncpg://trading_workspace:handoff-ci-only@localhost:5432/trading_workspace_test
+      TRADING_WORKSPACE_TEST_DATABASE_URL: postgresql+asyncpg://trading_workspace:handoff-ci-only@localhost:5432/trading_workspace_test
+      TRADING_WORKSPACE_MARKET_DATA__REFRESH__ENABLED: 'false'
+      TRADING_WORKSPACE_POSITION_MONITORING__ENABLED: 'false'
+      TRADING_WORKSPACE_NOTIFICATION__TELEGRAM__ENABLED: 'false'
+      TRADING_WORKSPACE_MARKET_DATA__EODHD__ENABLED: 'false'
+      TRADING_WORKSPACE_MARKET_DATA__VONTOBEL_MARKETS__ENABLED: 'false'
+      TRADING_WORKSPACE_MARKET_DATA__STUTTGART_DELAYED__ENABLED: 'false'
+      TRADING_WORKSPACE_MARKET_DATA__GETTEX_DELAYED__ENABLED: 'false'
+      TRADING_WORKSPACE_MARKET_DATA__FRANKFURT__ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.integrate.outputs.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version-file: backend/.python-version
+      - run: python -m pip install --requirement backend/requirements-dev.txt
+      - name: Migrate disposable PostgreSQL and identify schema
+        working-directory: backend
+        run: python -m alembic heads && python -m alembic upgrade head && python -m alembic current
+      - name: Focused learning and post-trade tests
+        env:
+          PYTHONPATH: ${{ github.workspace }}/backend:${{ github.workspace }}
+        run: python -m pytest -c backend/pyproject.toml tests/unit/backend/features/learning tests/unit/backend/features/post_trade
+      - name: Unmodified complete backend gate
+        run: bash scripts/check-backend.sh
+      - name: Tested identity
+        if: always()
+        run: git rev-parse HEAD HEAD^{tree}
+
+  frontend:
+    needs: integrate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.integrate.outputs.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: frontend/.nvmrc
+      - run: npm --prefix frontend ci
+      - name: Focused React and wire regressions
+        run: npm --prefix frontend test -- src/features/post_trade src/features/learning
+      - name: Unmodified complete frontend gate
+        run: bash scripts/check-frontend.sh
+      - name: Tested identity
+        if: always()
+        run: git rev-parse HEAD HEAD^{tree}
+
+  browser:
+    needs: integrate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    env:
+      POSTGRES_DB: trading_workspace_test
+      POSTGRES_USER: trading_workspace
+      POSTGRES_PASSWORD: handoff-ci-only
+      POSTGRES_PORT: '25432'
+      BACKEND_PORT: '28000'
+      FRONTEND_PORT: '28080'
+      VITE_API_BASE_URL: http://localhost:28080/api
+      PLAYWRIGHT_BASE_URL: http://127.0.0.1:28080
+      TRADE_E2E_WRITES_ALLOWED: '1'
+      CURRENCY_E2E_WRITES_ALLOWED: '1'
+      TRADING_WORKSPACE_MARKET_DATA__REFRESH__ENABLED: 'false'
+      TRADING_WORKSPACE_POSITION_MONITORING__ENABLED: 'false'
+      TRADING_WORKSPACE_NOTIFICATION__TELEGRAM__ENABLED: 'false'
+      TRADING_WORKSPACE_MARKET_DATA__EODHD__ENABLED: 'false'
+      TRADING_WORKSPACE_MARKET_DATA__VONTOBEL_MARKETS__ENABLED: 'false'
+      TRADING_WORKSPACE_MARKET_DATA__STUTTGART_DELAYED__ENABLED: 'false'
+      TRADING_WORKSPACE_MARKET_DATA__GETTEX_DELAYED__ENABLED: 'false'
+      TRADING_WORKSPACE_MARKET_DATA__FRANKFURT__ENABLED: 'false'
+      STUTTGART_DELAYED_SOURCE_DIRECTORY: /tmp/handoff-empty-market-data
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.integrate.outputs.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: frontend/.nvmrc
+      - run: npm --prefix frontend ci
+      - name: Install Chromium
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+      - name: Verify disposable Compose targets
+        run: |
+          test "$GITHUB_ACTIONS" = true
+          test -z "$(docker ps -aq --filter label=com.docker.compose.project=trading-workspace-e2e)"
+          test -z "$(docker volume ls -q --filter label=com.docker.compose.project=trading-workspace-e2e)"
+          test ! -e docker/.env
+          mkdir "$STUTTGART_DELAYED_SOURCE_DIRECTORY"
+          docker compose -p trading-workspace-e2e -f docker/compose.yml config --format json > "$RUNNER_TEMP/handoff-compose.json"
+          python3 - <<'PY'
+          import json, os, pathlib
+          config = json.loads((pathlib.Path(os.environ['RUNNER_TEMP'])/'handoff-compose.json').read_text())
+          assert config['name'] == 'trading-workspace-e2e'
+          backend = config['services']['backend']
+          env = backend['environment']
+          for key, value in env.items():
+              if key.endswith('__ENABLED'):
+                  assert str(value).lower() == 'false', (key, value)
+          assert '@database:5432/trading_workspace_test' in env['TRADING_WORKSPACE_DATABASE_URL']
+          for service in config['services'].values():
+              for volume in service.get('volumes', []):
+                  if volume['type'] == 'bind':
+                      assert volume['source'] == os.environ['STUTTGART_DELAYED_SOURCE_DIRECTORY']
+                      assert volume['read_only'] is True
+          assert not any(v.get('external') for v in config['volumes'].values())
+          print('Fresh CI stack: trading-workspace-e2e; ports 25432/28000/28080; no runtime overlays or external volumes.')
+          PY
+      - name: Initial stack and explicit migration as in standard CI
+        run: |
+          docker compose -p trading-workspace-e2e -f docker/compose.yml up --build --wait --wait-timeout 180
+          docker compose -p trading-workspace-e2e -f docker/compose.yml run --rm --no-deps -T backend python -m alembic upgrade head
+      - name: Unmodified E2E entrypoint
+        run: bash scripts/run-e2e.sh
+      - name: Upload browser report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: handoff-browser-report
+          path: frontend/playwright-report
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Remove only this runner's disposable stack
+        if: always()
+        run: docker compose -p trading-workspace-e2e -f docker/compose.yml down --volumes --remove-orphans
+      - name: Tested identity
+        if: always()
+        run: git rev-parse HEAD HEAD^{tree}
