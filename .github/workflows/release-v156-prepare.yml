@@ -1,0 +1,91 @@
+name: Prepare v1.5.6 version blobs
+on:
+  push:
+    branches: [dev/release-v156-metadata-20261014]
+    paths: [.github/workflows/release-v156-prepare.yml]
+permissions: {}
+jobs:
+  metadata:
+    if: github.repository == 'burckhju/trading-workspace' && github.ref == 'refs/heads/dev/release-v156-metadata-20261014'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: f918194150636f03faab466a6e41a4b67b2841dc
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: frontend/.nvmrc
+      - name: Generate package versions with the repository npm
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(node --version)" = v22.16.0
+          test "$(npm --version)" = 10.9.2
+          test "$(git rev-parse HEAD)" = f918194150636f03faab466a6e41a4b67b2841dc
+          test "$(git hash-object frontend/package-lock.json)" = 03a4670d38277bd201687645a7c37149023e2354
+          test "$(cat VERSION)" = 1.5.5
+          npm --prefix frontend version 1.5.6 --no-git-tag-version --ignore-scripts
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('backend/pyproject.toml')
+          before = path.read_text()
+          assert before.count('\nversion = "1.5.5"\n') == 1
+          path.write_text(before.replace('\nversion = "1.5.5"\n', '\nversion = "1.5.6"\n'))
+          Path('VERSION').write_text('1.5.6\n')
+          PY
+          git diff --check
+          node --test .github/tests/version-tag.test.cjs
+      - name: Verify scope and store only unreferenced version blobs
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const assert = require('node:assert/strict');
+            const fs = require('node:fs');
+            const crypto = require('node:crypto');
+            const { execFileSync } = require('node:child_process');
+            const { owner, repo } = context.repo;
+            const paths = ['VERSION', 'backend/pyproject.toml', 'frontend/package-lock.json', 'frontend/package.json'].sort();
+            const changed = execFileSync('git', ['diff', '--name-only'], { encoding: 'utf8' }).trim().split('\n').sort();
+            assert.deepEqual(changed, paths);
+            const manifest = [];
+            for (const path of paths) {
+              const before = execFileSync('git', ['show', `HEAD:${path}`], { encoding: 'utf8' });
+              const after = fs.readFileSync(path, 'utf8');
+              if (path.endsWith('.json')) {
+                const original = JSON.parse(before);
+                const candidate = JSON.parse(after);
+                assert.equal(original.version, '1.5.5');
+                assert.equal(candidate.version, '1.5.6');
+                candidate.version = original.version;
+                if (path.includes('package-lock')) {
+                  assert.equal(original.packages[''].version, '1.5.5');
+                  assert.equal(candidate.packages[''].version, '1.5.6');
+                  candidate.packages[''].version = original.packages[''].version;
+                }
+                assert.deepEqual(candidate, original, `Dependencies changed: ${path}`);
+                const expected = before.replace(/"version": "1\.5\.5"/g, '"version": "1.5.6"');
+                assert.equal(after, expected, `Unexpected formatting or other changes: ${path}`);
+              } else if (path === 'VERSION') {
+                assert.equal(before, '1.5.5\n');
+                assert.equal(after, '1.5.6\n');
+              } else {
+                assert.equal(after, before.replace('\nversion = "1.5.5"\n', '\nversion = "1.5.6"\n'));
+              }
+              const bytes = Buffer.from(after, 'utf8');
+              const expected = crypto.createHash('sha1').update(`blob ${bytes.length}\0`).update(bytes).digest('hex');
+              const result = await github.rest.git.createBlob({ owner, repo, content: after, encoding: 'utf-8' });
+              assert.equal(result.data.sha, expected);
+              manifest.push({ path, sha: result.data.sha, sha256: crypto.createHash('sha256').update(bytes).digest('hex') });
+            }
+            for (const [path, expected] of [
+              ['scripts/migrate-legacy-issuer.sh', '98e654752c7da85828d7367d19e3f145c43960634dfc831be17778caae7756d9'],
+              ['backend/app/tools/legacy_issuer_deployment.py', '37319d79a373f3f4fe0a7f7d416164cde165787be30714731d61d538f70de4f4'],
+            ]) {
+              assert.equal(crypto.createHash('sha256').update(fs.readFileSync(path)).digest('hex'), expected);
+            }
+            core.notice(`VERSION_BLOBS=${JSON.stringify(manifest)}`);
+            core.notice('Only four unreferenced metadata blobs created. No ref, tag, release, runtime, database, provider or notification changed.');
