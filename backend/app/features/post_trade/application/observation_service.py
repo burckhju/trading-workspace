@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
 from app.features.post_trade.application.ports import (
@@ -183,29 +183,11 @@ class PostTradeObservationService:
                 observation.status is PostTradeObservationStatus.ACTIVE
                 and evidence.horizon_complete
             ):
-                completed_at = self._completion_timestamp(
-                    evidence=evidence,
-                    fallback=now,
-                )
-                updated = observation.complete(completed_at=completed_at)
+                # Record when completion is established, not a fabricated midnight
+                # after the last trading date. Late starts/late data are valid;
+                # evidence retains its own trading dates independently.
+                updated = observation.complete(completed_at=now)
                 await self._uow.observations.replace(updated)
                 await self._uow.commit()
 
             return updated, evidence
-
-    @staticmethod
-    def _completion_timestamp(
-        *,
-        evidence: ObservationEvidence,
-        fallback: datetime,
-    ) -> datetime:
-        if evidence.final_close is None:
-            return fallback
-
-        completion_date = evidence.final_close.trading_date
-
-        return datetime.combine(
-            completion_date,
-            datetime.min.time(),
-            tzinfo=UTC,
-        ) + timedelta(days=1)

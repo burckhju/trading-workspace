@@ -74,3 +74,16 @@ The [DoR and acceptance criteria](../implementation/FT012_JOURNAL_WRITE_DOR.md)
 and separately recorded PostgreSQL/browser/full-gate results define the technical
 scope. External-observation journals, a general Lesson review editor and model
 optimization are not substitutes for or additions to this slice.
+
+
+## Qualification refinement: explicit review correction UI
+
+The journal correction journey exposed an existing FT-011 consumer gap: the
+backend permits an explicit successor draft, but the finalized-review UI did not
+offer it. The existing `createReviewDraft` command is now reachable as
+"Neue Review-Version vorbereiten". An explicit currentness check is available
+for finalized CURRENT sources as well as the existing STALE check. No UI flag
+creates a review automatically or decides that correction is required. Owner
+validation, immutable previous reviews and separate finalization are retained.
+The real browser acceptance additionally exercises review correction followed by
+a saved/finalized JournalVersion 2, while Version 1 and its Lesson stay unchanged.

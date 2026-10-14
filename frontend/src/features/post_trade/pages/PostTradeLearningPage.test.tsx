@@ -10,18 +10,16 @@ import { PostTradeLearningPage } from './PostTradeLearningPage';
 
 vi.mock('../../learning/services/journalClient', () => ({
   journalClient: {
-    history: vi
-      .fn()
-      .mockResolvedValue({
-        trade_id: 'trade-1',
-        journal_id: null,
-        handoff: {
-          ready: false,
-          reason: 'POST_TRADE_OBSERVATION_MISSING',
-          exit_review_version_id: null,
-        },
-        versions: [],
-      }),
+    history: vi.fn().mockResolvedValue({
+      trade_id: 'trade-1',
+      journal_id: null,
+      handoff: {
+        ready: false,
+        reason: 'POST_TRADE_OBSERVATION_MISSING',
+        exit_review_version_id: null,
+      },
+      versions: [],
+    }),
   },
 }));
 

@@ -168,7 +168,10 @@ def test_actual_exit_to_journal_evidence_lesson_and_execution_correction(journal
             assert incomplete["available_observation_count"] == 19 and not incomplete["is_complete"]
             assert (await history(client, tid))["versions"] == []
             await seed_prices(url, listing, start=19)
-            assert (await client.get(f"{POST}/{tid}/observation")).json()["is_complete"]
+            complete = await client.get(f"{POST}/{tid}/observation")
+            assert complete.status_code == 200, complete.text
+            assert complete.json()["is_complete"]
+            assert complete.json()["completed_at"] >= complete.json()["started_at"]
             rid = await review(client, tid)
             draft = (await command(client, tid, first(rid), "create"))["result_id"]
             # Retry creates no extra version; incorrect pins cannot be used as a fallback.

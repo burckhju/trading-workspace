@@ -120,7 +120,7 @@ it('ignores a late source response after evidence navigation', async () => {
     </MemoryRouter>,
   );
   await screen.findByText(/Quellentyp: FT011/);
-  await act(async () => resolve(source));
+  await act(() => Promise.resolve(resolve(source)));
   await waitFor(() => expect(screen.getByText(/Quellentyp: FT011/)).toBeVisible());
   expect(screen.queryByText('Originale persönliche Reflexion')).not.toBeInTheDocument();
 });
