@@ -399,6 +399,9 @@ class LessonService:
                 await self._uow.lesson_tags.add(tag)
             requested_tags.append(tag)
 
+        # Production sessions disable autoflush. Persist newly created tag parents
+        # before adding assignment rows with immediate foreign keys; no commit here.
+        await self._uow.flush()
         existing = tuple(await self._uow.lesson_tags.list_for_lesson(lesson_id))
         existing_ids = {tag.id for tag in existing}
         requested_ids = {tag.id for tag in requested_tags}
