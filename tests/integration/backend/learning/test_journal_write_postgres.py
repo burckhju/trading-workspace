@@ -106,7 +106,9 @@ async def closed(client):
         confirmed=True,
     )
     assert (await command(client, tid, initial, status=409))["code"] == "JOURNAL_SOURCE_NOT_READY"
-    assert (await client.post(f"{POST}/{tid}/observation")).status_code == 409
+    rejected = await client.post(f"{POST}/{tid}/observation")
+    assert rejected.status_code == 422, rejected.text
+    assert rejected.json()["code"] == "POST_TRADE_NOT_ELIGIBLE"
     sale = await client.post(
         f"{BASE}/trades/{tid}/sales",
         json={

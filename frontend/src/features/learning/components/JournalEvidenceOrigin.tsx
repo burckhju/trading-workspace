@@ -30,6 +30,12 @@ export function JournalEvidenceOrigin({ evidenceId }: { evidenceId: string }) {
           evidence.source.type === 'TRADE_JOURNAL_VERSION' && sourceId
             ? await journalClient.version(sourceId, controller.signal)
             : null;
+        if (
+          evidence.source.type === 'TRADE_JOURNAL_VERSION' &&
+          (!sourceId || !journal?.versions.some((entry) => entry.version.id === sourceId))
+        ) {
+          throw new Error('Exact journal source version was not returned');
+        }
         if (!controller.signal.aborted) {
           setSource(evidence);
           setHistory(journal);
@@ -49,28 +55,36 @@ export function JournalEvidenceOrigin({ evidenceId }: { evidenceId: string }) {
         <button onClick={() => setRetry((n) => n + 1)}>Quellenherkunft erneut laden</button>
       </div>
     );
-  const entry = history?.versions[0];
+  const entry = history?.versions.find(
+    (item) => item.version.id === source?.source.trade_journal_version_id,
+  );
   return (
     <div className="mt-3 space-y-2">
       <p>
         Quellentyp: {source?.source.type} · Materialisiert: {source?.created_at}
       </p>
-      {entry && (
+      {entry && history && (
         <>
           <JournalVersionSource entry={entry} />
           <p>Die heutige Quellenprüfung ändert diese gespeicherte Lesson-Version nicht.</p>
           <dl>
             <dt>Was lief gut?</dt>
             <dd className="whitespace-pre-wrap">
-              {entry.version.what_went_well ?? 'Nicht ausgefüllt'}
+              {entry.version.what_went_well?.trim()
+                ? entry.version.what_went_well
+                : 'Nicht ausgefüllt'}
             </dd>
             <dt>Was würde ich anders machen?</dt>
             <dd className="whitespace-pre-wrap">
-              {entry.version.would_do_differently ?? 'Nicht ausgefüllt'}
+              {entry.version.would_do_differently?.trim()
+                ? entry.version.would_do_differently
+                : 'Nicht ausgefüllt'}
             </dd>
             <dt>Weitere Notizen</dt>
             <dd className="whitespace-pre-wrap">
-              {entry.version.additional_notes ?? 'Nicht ausgefüllt'}
+              {entry.version.additional_notes?.trim()
+                ? entry.version.additional_notes
+                : 'Nicht ausgefüllt'}
             </dd>
           </dl>
           <Link
