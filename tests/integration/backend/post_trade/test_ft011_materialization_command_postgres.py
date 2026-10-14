@@ -5,10 +5,6 @@ from datetime import timedelta
 from uuid import uuid4
 
 import pytest
-from sqlalchemy import text
-from sqlalchemy.ext.asyncio import async_sessionmaker
-from test_post_trade_repositories_postgres import NOW, _draft, _review_graph
-
 from app.features.learning.application.ft011_materialization_service import (
     Ft011MaterializationError,
     Ft011MaterializationErrorCode,
@@ -18,10 +14,17 @@ from app.features.learning.application.ft011_materialization_service import (
 from app.features.learning.persistence.ft011_materialization_repository import (
     SqlAlchemyFt011MaterializationRepository,
 )
-from app.features.learning.persistence.unit_of_work import SqlAlchemyLearningTradeLinkUnitOfWork
+from app.features.learning.persistence.unit_of_work import (
+    SqlAlchemyLearningTradeLinkUnitOfWork,
+)
 from app.features.post_trade.application.handoff_service import Ft012HandoffService
 from app.features.post_trade.domain import ExitReviewAssessment
-from app.features.post_trade.persistence.unit_of_work import SqlAlchemyPostTradeLearningUnitOfWork
+from app.features.post_trade.persistence.unit_of_work import (
+    SqlAlchemyPostTradeLearningUnitOfWork,
+)
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import async_sessionmaker
+from test_post_trade_repositories_postgres import NOW, _draft, _review_graph
 
 
 class Clock:
@@ -59,17 +62,21 @@ async def committed_review(post_trade_test_engine):
         final = _finalize(draft, parents["actor_id"])
         await versions.replace(final)
         extra = (
-            await session.execute(
-                text("""
+            (
+                await session.execute(
+                    text("""
                     SELECT w.id AS warrant_id, w.issuer_id, l.underlying_id,
                            l.trading_venue_id
                     FROM trades t JOIN warrants w ON w.id = t.product_id
                     JOIN listings l ON l.id = :listing_id
                     WHERE t.id = :trade_id
                 """),
-                parents,
+                    parents,
+                )
             )
-        ).mappings().one()
+            .mappings()
+            .one()
+        )
         owned = {**parents, **extra, "observation_id": observation.id, "review_id": review.id}
         await session.commit()
     try:
@@ -175,12 +182,17 @@ async def test_parallel_handoffs_have_one_source_and_retry_recovers(committed_re
         assert retried.created is False
     assert await _count(sessions, parents) == 1  # Losing transaction left no orphan parent.
     async with sessions() as session:
+        assert (
+            await session.scalar(
+                text("SELECT count(*) FROM ft011_evidence WHERE exit_review_version_id = :id"),
+                {"id": final.id},
+            )
+            == 1
+        )
         assert await session.scalar(
-            text("SELECT count(*) FROM ft011_evidence WHERE exit_review_version_id = :id"),
-            {"id": final.id},
-        ) == 1
-        assert await session.scalar(
-            text("SELECT count(*) FROM ft012_idempotency_records WHERE workspace_id = :workspace_id"),
+            text(
+                "SELECT count(*) FROM ft012_idempotency_records WHERE workspace_id = :workspace_id"
+            ),
             parents,
         ) == (1 if same_key else 2)
 

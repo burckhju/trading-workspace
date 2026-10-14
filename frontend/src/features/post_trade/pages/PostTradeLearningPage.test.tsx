@@ -19,9 +19,7 @@ vi.mock('./PostTradeReviewPage', () => ({
     <div>
       <p>review</p>
       <button onClick={onLearningStateChanged}>Review-Änderung simulieren</button>
-      {showMaterializationAction !== false && (
-        <button>Als LearningEvidence materialisieren</button>
-      )}
+      {showMaterializationAction !== false && <button>Als LearningEvidence materialisieren</button>}
     </div>
   ),
 }));
@@ -243,8 +241,12 @@ describe('PostTradeLearningPage', () => {
       exit_review_version_id: 'version-1',
     });
     fireEvent.click(screen.getByRole('button', { name: 'Review-Änderung simulieren' }));
-    expect(await screen.findByRole('button', { name: 'An Lessons Learned übergeben' })).toBeEnabled();
-    expect(screen.queryByRole('button', { name: 'Als LearningEvidence materialisieren' })).toBeNull();
+    expect(
+      await screen.findByRole('button', { name: 'An Lessons Learned übergeben' }),
+    ).toBeEnabled();
+    expect(
+      screen.queryByRole('button', { name: 'Als LearningEvidence materialisieren' }),
+    ).toBeNull();
     expect(materialize).not.toHaveBeenCalled();
   });
 
@@ -302,7 +304,9 @@ describe('PostTradeLearningPage', () => {
         <PostTradeLearningPage />
       </MemoryRouter>,
     );
-    expect(await screen.findByText('Lesson-Verweise konnten nicht geladen werden.')).toBeInTheDocument();
+    expect(
+      await screen.findByText('Lesson-Verweise konnten nicht geladen werden.'),
+    ).toBeInTheDocument();
     expect(screen.queryByText('lesson-form')).toBeNull();
     listForEvidence.mockResolvedValue([]);
     fireEvent.click(screen.getByRole('button', { name: 'Lesson-Verweise erneut laden' }));
@@ -348,5 +352,4 @@ describe('PostTradeLearningPage', () => {
     expect(listForEvidence).not.toHaveBeenCalled();
     expect(materialize).not.toHaveBeenCalled();
   });
-
 });

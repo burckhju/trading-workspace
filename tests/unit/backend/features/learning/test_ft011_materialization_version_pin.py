@@ -209,9 +209,7 @@ async def test_pin_materializes_complete_provenance(subject):
     source = repository.sources[result.learning_evidence_id]
     assert result.created and not result.replayed
     assert result.exit_review_version_id == VERSION
-    assert source == FT011Evidence(
-        result.learning_evidence_id, TRADE, OBSERVATION, REVIEW, VERSION
-    )
+    assert source == FT011Evidence(result.learning_evidence_id, TRADE, OBSERVATION, REVIEW, VERSION)
     assert uow.commits == 1
     assert reader.calls == 1
 
