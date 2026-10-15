@@ -82,3 +82,11 @@ Successful writes or a genuinely different/finalized owner version rehydrate the
 form. This local draft flag makes no readiness/currentness decision and writes no
 review itself. The normal PR merge is user-authorized only after green checks;
 release, target installation and human domain acceptance remain separate.
+
+## Qualification evidence — 2026-10-16
+
+The [separate qualification report](../implementation/FT012_LESSON_REVIEW_QUALIFICATION.md)
+records completed tests on `4081563509cb4ad4e765de499765a1759b59cdd3`,
+failures corrected without weakened gates, residual scope and the authorized
+normal-merge boundary. Technical qualification does not constitute human domain
+acceptance, a release, a model activation or a target-installation observation.

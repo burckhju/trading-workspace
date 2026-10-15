@@ -72,3 +72,11 @@ text and assessments, while a genuinely new/final version rehydrates correctly;
 (4) all unchanged full gates, real PostgreSQL and the extended lesson browser path
 pass on an identified checkout. Formatting fixes neither weaken assertions nor
 change schemas/financial rules. Review currentness remains backend-owned.
+
+## Qualification evidence — 2026-10-16
+
+The [separate qualification report](../implementation/FT012_LESSON_REVIEW_QUALIFICATION.md)
+records completed tests on `4081563509cb4ad4e765de499765a1759b59cdd3`,
+failures corrected without weakened gates, residual scope and the authorized
+normal-merge boundary. Technical qualification does not constitute human domain
+acceptance, a release, a model activation or a target-installation observation.
