@@ -259,4 +259,197 @@ test("real PostgreSQL: captured full exit, review, journal, lesson and stale cor
     path: "test-results/journal-real-postgres-successor.png",
     fullPage: true,
   });
+
+  // Continue the same genuine database journey into explicit Lesson source review.
+  await journal
+    .getByRole("button", {
+      name: "Journalversion als Evidence übergeben",
+      exact: true,
+    })
+    .click();
+  await journal
+    .getByRole("button", { name: "Journalaktion bestätigen", exact: true })
+    .click();
+  await expect(journal.getByLabel("Lesson-Titel")).toBeVisible();
+  const evidence2 = (await getHistory()).versions[0].learning_evidence_id;
+  expect(evidence2).toBeTruthy();
+  const reviewContext = async () => {
+    const response = await request.get(
+      api + `/learning/lessons/${lessonId}/review-context`,
+    );
+    expect(response.status(), await response.text()).toBe(200);
+    return response.json();
+  };
+  const originalLessonContext = await reviewContext();
+  const oldLessonVersion = originalLessonContext.history[0];
+  const reviewWrites: {
+    body: Record<string, unknown>;
+    key: string | undefined;
+  }[] = [];
+  page.on("request", (req) => {
+    if (
+      req.method() === "POST" &&
+      req.url().endsWith(`/learning/lessons/${lessonId}/review-commands`)
+    )
+      reviewWrites.push({
+        body: req.postDataJSON(),
+        key: req.headers()["idempotency-key"],
+      });
+  });
+  await page.goto(lessonPath);
+  const lessonReview = page.getByRole("region", {
+    name: "Lesson-Prüfung und Historie",
+    exact: true,
+  });
+  await lessonReview
+    .getByRole("button", {
+      name: "Quellenbezogene Prüfung beginnen",
+      exact: true,
+    })
+    .click();
+  expect(reviewWrites).toHaveLength(0);
+  const confirmReview = lessonReview.getByRole("button", {
+    name: "Prüfentscheidung verbindlich bestätigen",
+    exact: true,
+  });
+  await expect(confirmReview).toBeDisabled();
+  await lessonReview
+    .getByLabel(/Begründung der Prüfentscheidung/)
+    .fill(
+      "Die zugrunde liegende Ausführung und das Journal wurden korrigiert.",
+    );
+  await confirmReview.click();
+  await expect(
+    lessonReview.getByText(/Lesson-Status: REVIEW_RECOMMENDED/),
+  ).toBeVisible();
+  expect(reviewWrites).toHaveLength(1);
+  expect(reviewWrites[0].body).toMatchObject({
+    operation: "OPEN_SOURCE_REVIEW",
+    expected_current_version_id: oldLessonVersion.version.id,
+    expected_current_state: "CURRENT",
+    expected_open_signal_id: null,
+    confirmed: true,
+  });
+  expect((await reviewContext()).history).toEqual(
+    originalLessonContext.history,
+  );
+  await lessonReview
+    .getByRole("button", {
+      name: "Weitere ausdrückliche Prüfung vorbereiten",
+      exact: true,
+    })
+    .click();
+  await lessonReview
+    .getByRole("button", {
+      name: "Neue Lesson-Version vorbereiten",
+      exact: true,
+    })
+    .click();
+  await expect(lessonReview.getByLabel("Bezug 1", { exact: true })).toHaveValue(
+    "SUPPORTS",
+  );
+  await expect(
+    lessonReview.getByLabel("Vorhandene Evidence ergänzen"),
+  ).toBeEnabled();
+  await lessonReview
+    .getByLabel("Vorhandene Evidence ergänzen")
+    .selectOption(evidence2);
+  await lessonReview
+    .getByRole("button", {
+      name: "Ausgewählte Evidence hinzufügen",
+      exact: true,
+    })
+    .click();
+  await expect(lessonReview.getByLabel("Bezug 2", { exact: true })).toHaveValue(
+    "CONTEXTUAL",
+  );
+  await lessonReview
+    .getByLabel("Bezug 1", { exact: true })
+    .selectOption("CONTEXTUAL");
+  await lessonReview
+    .getByLabel(/Begründung der Prüfentscheidung/)
+    .fill(
+      "Ich beziehe mich ausdrücklich auf das korrigierte Journal, alte Quelle bleibt Kontext.",
+    );
+  await expect(confirmReview).toBeDisabled(); // No inferred SUPPORTS on a newly added source.
+  await lessonReview
+    .getByLabel("Bezug 2", { exact: true })
+    .selectOption("SUPPORTS");
+  await lessonReview
+    .getByLabel("Ausdrückliche Interpretation der neuen Lesson-Version")
+    .fill(
+      "Meine überprüfte Interpretation anhand der ausdrücklich gewählten Journal-Folgeversion.",
+    );
+  await confirmReview.click();
+  await expect(
+    page.getByText("Version 2 · CURRENT", { exact: true }),
+  ).toBeVisible();
+  const latest = await reviewContext();
+  expect(latest.history).toHaveLength(2);
+  expect(latest.history[1]).toEqual(oldLessonVersion);
+  expect(latest.history[0].version.supersedes_version_id).toBe(
+    oldLessonVersion.version.id,
+  );
+  expect(
+    latest.history[0].evidence_links
+      .map((link: { learning_evidence_id: string; relation: string }) => [
+        link.learning_evidence_id,
+        link.relation,
+      ])
+      .sort(),
+  ).toEqual(
+    [
+      [before.evidence[0].learning_evidence_id, "CONTEXTUAL"],
+      [evidence2, "SUPPORTS"],
+    ].sort(),
+  );
+  expect(latest.signals).toEqual([]); // Source ageing was not relabelled a contradiction.
+  expect(reviewWrites).toHaveLength(2);
+  expect(reviewWrites[1].body).toMatchObject({
+    operation: "NEW_VERSION",
+    expected_current_version_id: oldLessonVersion.version.id,
+    expected_current_state: "REVIEW_RECOMMENDED",
+    expected_open_signal_id: null,
+    confirmed: true,
+  });
+  expect(reviewWrites[0].key).toBeTruthy();
+  expect(reviewWrites[1].key).not.toBe(reviewWrites[0].key);
+  await page.reload();
+  await expect(
+    page.getByText("Version 2 · CURRENT", { exact: true }),
+  ).toBeVisible();
+  await lessonReview
+    .getByLabel("Lesson-Version ansehen")
+    .selectOption(oldLessonVersion.version.id);
+  const historical = lessonReview.getByRole("article", {
+    name: "Lesson-Snapshot Version 1",
+    exact: true,
+  });
+  await expect(
+    historical.getByText(before.content, { exact: true }),
+  ).toBeVisible();
+  await expect(
+    lessonReview.getByRole("button", {
+      name: "Quellenbezogene Prüfung beginnen",
+      exact: true,
+    }),
+  ).toHaveCount(0);
+  await historical
+    .getByText(
+      `SUPPORTS · Evidence ${before.evidence[0].learning_evidence_id}`,
+      { exact: true },
+    )
+    .click();
+  await expect(
+    historical.getByText("Quellversion jetzt: SUPERSEDED", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    historical.getByText("Review-Quelle jetzt: STALE", { exact: true }),
+  ).toBeVisible();
+  expect((await getHistory()).versions[1].version).toEqual(original);
+  expect(reviewWrites).toHaveLength(2); // Reload/history/source reads generate nothing.
+  await page.screenshot({
+    path: "test-results/lesson-review-historical-source.png",
+    fullPage: true,
+  });
 });

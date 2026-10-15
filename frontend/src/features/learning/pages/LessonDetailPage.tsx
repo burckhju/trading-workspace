@@ -1,26 +1,35 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 
 import { ErrorNotice, LoadingNotice } from '../../market/components/ApiFeedback';
 import { LessonHypothesisPanel } from '../../model/components/LessonHypothesisPanel';
+import { LessonReviewPanel } from '../components/LessonReviewPanel';
 import { JournalEvidenceOrigin } from '../components/JournalEvidenceOrigin';
 import { lessonReadbackClient } from '../services/lessonReadbackClient';
 import type { LessonDetail } from '../types/lessonReadback';
 
 export function LessonDetailPage() {
   const { lessonId = '' } = useParams();
+  return <LessonDetail key={lessonId} lessonId={lessonId} />;
+}
+
+function LessonDetail({ lessonId }: { lessonId: string }) {
+  const [refresh, setRefresh] = useState(0);
+  const onChanged = useCallback(() => setRefresh((n) => n + 1), []);
   const [lesson, setLesson] = useState<LessonDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<unknown>(null);
 
   useEffect(() => {
     const controller = new AbortController();
-    setLoading(true);
+    if (refresh === 0) setLoading(true);
     setError(null);
 
     lessonReadbackClient
       .getLesson(lessonId, controller.signal)
-      .then(setLesson)
+      .then((value) => {
+        if (!controller.signal.aborted) setLesson(value);
+      })
       .catch((nextError: unknown) => {
         if (!controller.signal.aborted) setError(nextError);
       })
@@ -29,14 +38,27 @@ export function LessonDetailPage() {
       });
 
     return () => controller.abort();
-  }, [lessonId]);
+  }, [lessonId, refresh]);
 
   if (loading) return <LoadingNotice label="Lesson wird geladen …" />;
-  if (error !== null) return <ErrorNotice error={error} />;
+  if (error !== null && !lesson)
+    return (
+      <>
+        <ErrorNotice error={error} />
+        <button onClick={onChanged}>Lesson erneut laden</button>
+      </>
+    );
   if (!lesson) return null;
 
   return (
     <main className="space-y-6">
+      {error !== null && (
+        <>
+          <ErrorNotice error={error} />
+          <p>Aktueller Lesson-Lesestand nicht aktualisiert.</p>
+          <button onClick={onChanged}>Lesson erneut laden</button>
+        </>
+      )}
       <header>
         <p className="text-xs uppercase tracking-wide text-slate-500">FT-012 Lesson</p>
         <h1 className="mt-1 text-2xl font-semibold">{lesson.title}</h1>
@@ -68,13 +90,15 @@ export function LessonDetailPage() {
               <span className="font-medium">{item.relation}</span>
               <span className="ml-2 break-all text-slate-400">{item.learning_evidence_id}</span>
               <JournalEvidenceOrigin
-                key={item.learning_evidence_id}
+                key={`${item.learning_evidence_id}:${refresh}`}
                 evidenceId={item.learning_evidence_id}
               />
             </li>
           ))}
         </ul>
       </section>
+
+      <LessonReviewPanel lessonId={lessonId} onChanged={onChanged} />
 
       <LessonHypothesisPanel lessonVersionId={lesson.current_version_id} />
 

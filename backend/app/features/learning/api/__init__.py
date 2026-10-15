@@ -5,10 +5,12 @@ from fastapi import APIRouter
 from app.features.learning.api.bulk_import_router import router as bulk_import_router
 from app.features.learning.api.journal_router import router as journal_router
 from app.features.learning.api.lesson_evidence_router import router as lesson_evidence_router
+from app.features.learning.api.lesson_review_router import router as lesson_review_router
 from app.features.learning.api.materialization_router import router as materialization_router
 from app.features.learning.api.router import router as learning_router
 
 router = APIRouter()
+router.include_router(lesson_review_router)
 router.include_router(journal_router)
 router.include_router(learning_router)
 router.include_router(materialization_router)

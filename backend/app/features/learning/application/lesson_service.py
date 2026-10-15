@@ -8,6 +8,7 @@ from enum import StrEnum
 from typing import Protocol
 from uuid import UUID
 
+from app.features.learning.application.command_transaction import committed_command
 from app.features.learning.domain import (
     Lesson,
     LessonEvidenceLink,
@@ -150,6 +151,10 @@ class LessonService:
         expected_current_state: LessonState,
         actor_id: UUID,
     ) -> CreateLessonVersionResult:
+        if len({item.learning_evidence_id for item in evidence}) != len(evidence):
+            raise LessonServiceError(LessonErrorCode.LESSON_INVALID, "Duplicate evidence IDs")
+        if not main_category.strip() or not content.strip():
+            raise LessonServiceError(LessonErrorCode.LESSON_INVALID, "Interpretation is required")
         if not evidence:
             raise LessonServiceError(
                 LessonErrorCode.LESSON_EVIDENCE_REQUIRED,
@@ -182,6 +187,11 @@ class LessonService:
             raise LessonServiceError(
                 LessonErrorCode.CONCURRENT_MODIFICATION,
                 "lesson current projection changed",
+            )
+
+        if await self._uow.lesson_review_signals.get_open_for_lesson(lesson_id):
+            raise LessonServiceError(
+                LessonErrorCode.CONCURRENT_MODIFICATION, "Resolve the open review signal first"
             )
 
         seen: set[UUID] = set()
@@ -229,6 +239,7 @@ class LessonService:
         )
 
         await self._uow.lesson_versions.add(version)
+        await self._uow.flush()
         await self._uow.lesson_evidence_links.add_snapshot(version_id, links)
 
         advanced = await self._uow.lessons.advance_current(
@@ -315,6 +326,17 @@ class LessonService:
                 LessonErrorCode.CONCURRENT_MODIFICATION,
                 "lesson current state changed",
             )
+
+        if await self._uow.lesson_review_signals.get_open_for_lesson(lesson_id):
+            raise LessonServiceError(
+                LessonErrorCode.CONCURRENT_MODIFICATION, "Resolve the open review signal first"
+            )
+        if related_lesson_version_id is not None:
+            related = await self._uow.lesson_versions.get(related_lesson_version_id)
+            if related is None or related.lesson_id != lesson_id:
+                raise LessonServiceError(LessonErrorCode.LESSON_INVALID, "Wrong version owner")
+        if not reason.strip():
+            raise LessonServiceError(LessonErrorCode.LESSON_INVALID, "Review reason is required")
 
         now = self._clock.now()
         transition = LessonStateTransition(
@@ -469,6 +491,10 @@ class LessonService:
         evidence: tuple[LessonEvidenceInput, ...],
         actor_id: UUID,
     ) -> CreateLessonResult:
+        if len({item.learning_evidence_id for item in evidence}) != len(evidence):
+            raise LessonServiceError(LessonErrorCode.LESSON_INVALID, "Duplicate evidence IDs")
+        if not main_category.strip() or not content.strip():
+            raise LessonServiceError(LessonErrorCode.LESSON_INVALID, "Interpretation is required")
         if not evidence:
             raise LessonServiceError(
                 LessonErrorCode.LESSON_EVIDENCE_REQUIRED,
@@ -543,3 +569,7 @@ class LessonService:
             version=version,
             evidence_links=links,
         )
+
+    # The public API owns the command transaction. Composition uses the methods above.
+    create_new_version_command = committed_command(create_new_version)
+    transition_state_command = committed_command(transition_state)

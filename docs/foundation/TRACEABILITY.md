@@ -5,6 +5,8 @@
 
 > Nachweisfortschreibung 2026-10-15: [Journal-V1 mit echter PostgreSQL-/Browser-Korrekturstrecke](../implementation/FT012_JOURNAL_WRITE_QUALIFICATION.md) verbindet gespeicherten Entwurf, Finalisierung, Folgeversion und explizite Journal-Evidence/Lesson. Prüfcommit `666e8ab…`, Befehle, Artefakte und verbleibender Lesson-Review-Scope im Bericht. Arbeitsstatus ausschließlich [PB-019 Journal](../planning/PRODUCT_BACKLOG.md#pb-019-journal); kein Release-/Fachabnahmenachweis.
 
+> Ergänzung 2026-10-15: [explizite Lesson-Prüfung und Folgeversion](../implementation/FT012_LESSON_REVIEW_DOR.md), [ADR zum Quellen-/Widerspruchs- und Transaktionsvertrag](../decisions/ADR-POST-FT012-006-EXPLICIT-LESSON-REVIEW.md). Maßgeblicher Arbeitsstatus ausschließlich [PB-019 Lessons](../planning/PRODUCT_BACKLOG.md#pb-019-lessons). Neuer Prüfstand separat; historische Journalqualifikation ist kein Ersatz.
+
 ## Revision und Verantwortlichkeit
 
 Konsolidiert am 2026-10-13 anhand von `main` / `a78288ad38610656480d0363abe657b567c7ba94` / Softwaretag `v1.5.5`. Diese Ergänzung ist ein Dokumentations-/Nachweisstand zur fachlichen Prüfung, keine neue menschliche Abnahme oder Betriebsfreigabe.
