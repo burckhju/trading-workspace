@@ -120,7 +120,9 @@ async def planned_purchase(client, pid):
     )
     assert response.status_code == 201, response.text
     plan = response.json()
-    version_url = f"/api/v1/trade-plans/{plan['plan']['id']}/versions/{plan['latest_version']['id']}"
+    version_url = (
+        f"/api/v1/trade-plans/{plan['plan']['id']}/versions/{plan['latest_version']['id']}"
+    )
     for action in ("submit-review", "approve"):
         response = await client.post(f"{version_url}/{action}")
         assert response.status_code == 200, response.text
