@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 
 import { LessonDraftFromEvidence } from '../../learning/components/LessonDraftFromEvidence';
@@ -10,6 +10,7 @@ import { warrantApiClient } from '../../product/services/client';
 import type { WarrantResponse } from '../../product/types/api';
 import { tradeManagementApiClient } from '../../trade/services/client';
 import type { TradeResponse } from '../../trade/types/api';
+import { postTradeErrorMessage } from '../services/errors';
 import { PostTradeReviewPage } from './PostTradeReviewPage';
 
 function tradeReference(id: string): string {
@@ -20,24 +21,47 @@ function tradePlanReference(id: string): string {
   return `TP-${id.slice(0, 8).toUpperCase()}`;
 }
 
-function materializationKey(tradeId: string, exitReviewVersionId: string | null): string {
-  return `ft011-to-ft012:${tradeId}:${exitReviewVersionId ?? 'current'}`;
+function materializationKey(tradeId: string, exitReviewVersionId: string): string {
+  return `ft011-to-ft012:v2:${tradeId}:${exitReviewVersionId}`;
 }
 
 export function PostTradeLearningPage() {
   const [searchParams] = useSearchParams();
   const tradeId = searchParams.get('trade_id') ?? '';
+  return <PostTradeLearningContent key={tradeId} tradeId={tradeId} />;
+}
+
+function PostTradeLearningContent({ tradeId }: { tradeId: string }) {
   const [trade, setTrade] = useState<TradeResponse | null>(null);
   const [warrant, setWarrant] = useState<WarrantResponse | null>(null);
   const [status, setStatus] = useState<Ft011MaterializationStatus | null>(null);
-  const [lessonReferences, setLessonReferences] = useState<LessonEvidenceReference[]>([]);
+  const [lessonReferences, setLessonReferences] = useState<LessonEvidenceReference[] | null>(null);
+  const [lessonSourceId, setLessonSourceId] = useState<string | null>(null);
+  const [lessonReadbackError, setLessonReadbackError] = useState<string | null>(null);
+  const [refreshVersion, setRefreshVersion] = useState(0);
+  const [lessonRefreshVersion, setLessonRefreshVersion] = useState(0);
+  const mounted = useRef(false);
+  const mutationPending = useRef(false);
   const [materializing, setMaterializing] = useState(false);
   const [materializationError, setMaterializationError] = useState<string | null>(null);
 
-  const refreshLessonReferences = useCallback(async (learningEvidenceId: string) => {
-    const references = await lessonReadbackClient.listForEvidence(learningEvidenceId);
-    setLessonReferences(references);
+  const refreshLearningState = useCallback(() => {
+    setRefreshVersion((value) => value + 1);
   }, []);
+
+  const refreshLessonReferences = useCallback(() => {
+    setLessonReferences(null);
+    setLessonRefreshVersion((value) => value + 1);
+  }, []);
+
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+
+  const learningEvidenceId = status?.materialized ? status.learning_evidence_id : null;
 
   useEffect(() => {
     if (!tradeId) {
@@ -70,64 +94,79 @@ export function PostTradeLearningPage() {
   }, [tradeId]);
 
   useEffect(() => {
-    if (!tradeId) {
-      setStatus(null);
-      setLessonReferences([]);
-      return undefined;
-    }
+    setStatus(null);
+    if (!tradeId) return undefined;
 
     const controller = new AbortController();
     ft011MaterializationClient
       .status(tradeId, controller.signal)
-      .then(async (nextStatus) => {
-        setStatus(nextStatus);
-        if (nextStatus.materialized && nextStatus.learning_evidence_id) {
-          const references = await lessonReadbackClient.listForEvidence(
-            nextStatus.learning_evidence_id,
-            controller.signal,
-          );
-          if (!controller.signal.aborted) setLessonReferences(references);
-        } else {
-          setLessonReferences([]);
-        }
+      .then((nextStatus) => {
+        if (!controller.signal.aborted) setStatus(nextStatus);
       })
       .catch(() => {
         if (!controller.signal.aborted) {
-          setStatus(null);
-          setLessonReferences([]);
+          setMaterializationError('Der Learning-Übergabestatus konnte nicht geladen werden.');
         }
       });
 
     return () => controller.abort();
-  }, [tradeId]);
+  }, [tradeId, refreshVersion]);
+
+  useEffect(() => {
+    setLessonReferences(null);
+    setLessonReadbackError(null);
+    setLessonSourceId(learningEvidenceId);
+    if (!learningEvidenceId) return undefined;
+
+    const controller = new AbortController();
+    lessonReadbackClient
+      .listForEvidence(learningEvidenceId, controller.signal)
+      .then((references) => {
+        if (!controller.signal.aborted) setLessonReferences(references);
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) {
+          setLessonReadbackError('Lesson-Verweise konnten nicht geladen werden.');
+        }
+      });
+
+    return () => controller.abort();
+  }, [learningEvidenceId, lessonRefreshVersion]);
 
   const handleMaterialize = useCallback(async () => {
-    if (!tradeId || !status?.ready || status.materialized) return;
+    if (
+      !tradeId ||
+      !status?.ready ||
+      status.materialized ||
+      !status.exit_review_version_id ||
+      mutationPending.current
+    ) {
+      return;
+    }
 
+    mutationPending.current = true;
     setMaterializing(true);
     setMaterializationError(null);
     try {
-      const result = await ft011MaterializationClient.materialize(
+      await ft011MaterializationClient.materialize(
         tradeId,
         materializationKey(tradeId, status.exit_review_version_id),
+        status.exit_review_version_id,
       );
-      setStatus({
-        ...status,
-        materialized: true,
-        learning_evidence_id: result.learning_evidence_id,
-        exit_review_version_id: result.exit_review_version_id,
-      });
-      setLessonReferences([]);
     } catch (error) {
-      setMaterializationError(
-        error instanceof Error ? error.message : 'Übergabe an Lessons Learned fehlgeschlagen.',
-      );
+      if (mounted.current) {
+        setMaterializationError(postTradeErrorMessage(error));
+      }
     } finally {
-      setMaterializing(false);
+      mutationPending.current = false;
+      if (mounted.current) {
+        // A response/replay is not a fresh READY or CURRENT assessment.
+        setStatus(null);
+        setMaterializing(false);
+        refreshLearningState();
+      }
     }
-  }, [status, tradeId]);
-
-  const learningEvidenceId = status?.learning_evidence_id ?? null;
+  }, [refreshLearningState, status, tradeId]);
 
   return (
     <>
@@ -167,9 +206,11 @@ export function PostTradeLearningPage() {
             <div>
               <dt className="text-slate-500">Learning-Übergang</dt>
               <dd className="mt-1 font-medium">
-                {status?.materialized
-                  ? 'LearningEvidence materialisiert'
-                  : 'Noch im Post-Trade-Prozess'}
+                {status === null
+                  ? 'Übergabestatus wird geprüft'
+                  : status.materialized
+                    ? 'LearningEvidence materialisiert'
+                    : 'Noch im Post-Trade-Prozess'}
               </dd>
             </div>
           </dl>
@@ -187,7 +228,28 @@ export function PostTradeLearningPage() {
         </section>
       )}
 
-      <PostTradeReviewPage />
+      <PostTradeReviewPage
+        onLearningStateChanged={refreshLearningState}
+        externalRefreshVersion={refreshVersion}
+        showMaterializationAction={false}
+      />
+
+      {materializationError && (
+        <div role="alert" className="mt-3 text-sm text-red-300">
+          <p>{materializationError}</p>
+          <button
+            type="button"
+            className="mt-2 underline"
+            disabled={materializing}
+            onClick={() => {
+              setMaterializationError(null);
+              refreshLearningState();
+            }}
+          >
+            Übergabestatus erneut laden
+          </button>
+        </div>
+      )}
 
       {status?.ready && !status.materialized && (
         <section className="mt-6 rounded-xl border border-amber-800 bg-amber-950/20 p-5">
@@ -199,16 +261,14 @@ export function PostTradeLearningPage() {
           <button
             type="button"
             className="mt-4 rounded-lg bg-amber-500 px-4 py-2 text-sm font-medium text-slate-950 disabled:opacity-50"
-            disabled={materializing}
+            disabled={materializing || !status.exit_review_version_id}
             onClick={() => void handleMaterialize()}
           >
             {materializing ? 'Wird übergeben…' : 'An Lessons Learned übergeben'}
           </button>
-          {materializationError && (
-            <p role="alert" className="mt-3 text-sm text-red-300">
-              {materializationError}
-            </p>
-          )}
+          <p className="mt-3 break-all text-xs text-slate-400">
+            ExitReviewVersion: {status.exit_review_version_id ?? 'Nicht verfügbar'}
+          </p>
         </section>
       )}
 
@@ -220,7 +280,18 @@ export function PostTradeLearningPage() {
             automatische Lesson- oder FT-013-Erzeugung statt.
           </p>
 
-          {lessonReferences.length > 0 ? (
+          {lessonSourceId === learningEvidenceId && lessonReadbackError ? (
+            <div role="alert" className="mt-4 text-sm text-red-300">
+              <p>{lessonReadbackError}</p>
+              <button type="button" onClick={refreshLessonReferences} className="mt-2 underline">
+                Lesson-Verweise erneut laden
+              </button>
+            </div>
+          ) : lessonSourceId !== learningEvidenceId || lessonReferences === null ? (
+            <p role="status" className="mt-4 text-sm text-slate-400">
+              Lesson-Verweise werden geladen …
+            </p>
+          ) : lessonReferences.length > 0 ? (
             <div className="mt-5 rounded-lg border border-emerald-800 p-4">
               <p className="font-medium text-emerald-300">Bereits interpretiert</p>
               <p className="mt-1 text-sm text-slate-400">
@@ -243,7 +314,7 @@ export function PostTradeLearningPage() {
           ) : (
             <LessonDraftFromEvidence
               learningEvidenceId={learningEvidenceId}
-              onCreated={() => void refreshLessonReferences(learningEvidenceId)}
+              onCreated={refreshLessonReferences}
             />
           )}
         </section>

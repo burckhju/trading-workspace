@@ -1148,18 +1148,21 @@ Die Felder „Soll“ und „Nicht-Soll“ sind die vor einer Umsetzung zu prüf
 <details>
 <summary>PB-019 — Exit-Review-Evidence bewusst materialisieren</summary>
 
+> Nachweisfortschreibung 2026-10-14: [vollständige Repository-Integration und abgegrenzte Qualifikation](../implementation/POST_TRADE_LEARNING_HANDOFF_REVIEW.md) in Draft-PR #259 auf v1.5.6. b40: 2600 Backendtests einschließlich drei unabhängiger PostgreSQL-Fälle; dort bezeichneter 8f-Testmerge: 456 Frontendtests und 51 Browserfälle. Drei neue Browserfälle verwenden abgefangenes HTTP, keine vollständige Journal-/DB-Nutzerreise.
+> First-party-Review-Pin und UI-Readback sind ein technischer Teilschnitt, keine Abnahme des Journals oder des gesamten Lernprozesses. Arbeitsstatus und Betriebsfreigabe werden durch diese Notiz nicht hochgestuft.
+
 | Nachweisfeld | Einordnung |
 |---|---|
 | Zuordnung | M6→M7: Übergang zum Lernen. Bereich/Querschnitt: 7. Bestehender Bezug: FT-012; FT-011 bleibt Quellowner. Lieferziel: B, D. |
 | Arbeitsstatus | Technical Review |
 | Soll / Nicht-Soll | **Soll:** Ein expliziter idempotenter FT-012-Befehl materialisiert unveränderliche Evidence mit exakter Reviewversion. **Nicht-Soll:** Keine automatische Interpretation, keine zweite Readinesslogik in FT-012. |
-| Vorhandenseinsnachweis | Vorhandener Code beziehungsweise tatsächlicher Consumer statisch gelesen; nur der im Implementierungsfeld benannte Teilscope ist dadurch belegt. |
+| Vorhandenseinsnachweis | Bestehender Materialisierungsowner plus additiver Review-Pin im vollständigen Entwicklungsbranch implementiert und begrenzt technisch geprüft; kein vollständiger Lernabschluss. |
 | Implementierung / Consumer | [Extension 09](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/implementation/POST_D01_GOLDEN_PATH_EXTENSION_09.md) dokumentiert MaterializeFt011LearningEvidenceService, semantic uniqueness und Konfliktgrenzen; [aktuelle UI](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/frontend/src/features/post_trade/pages/PostTradeLearningPage.tsx) ruft status/materialize auf und liest LearningEvidence-ID zurück. |
-| Test / Commit | Extension 09 beschreibt Replay-/Dedup-/Not-ready-Tests; aktuelle UI-Codeprüfung und Basis-CI. Einzelne Materialisierungstests nicht vollständig neu gelesen/ausgeführt. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Test / Commit | Konkrete Tests, Commits, Run-IDs, Coverage und Fehlversuche in der [technischen Fortschreibung](../implementation/POST_TRADE_LEARNING_HANDOFF_REVIEW.md). b40: kompletter Backend-Prüfeinstieg, drei echte PostgreSQL-Transaktionsfälle. Reguläre Frontend-/Browser-CI auf Testmerge `173c952` von `8f2a423` erfolgreich. Spätere Heads separat prüfen. |
 | Fachliche Abnahme | Keine eigenständige fachliche Abnahme für diesen vollständigen Zuschnitt verifiziert. |
 | Software-Auslieferung | Kein gesonderter Release-Nachweis für den vollständigen Zuschnitt verifiziert; ein allgemeiner Softwaretag ersetzt ihn nicht. |
 | Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
-| Restarbeit / nächste Abhängigkeit | Source-/Key-Replay, Concurrent Conflict und reale DB-Constraints am vollständigen Checkout nachweisen; keinen zweiten Materialisierungsweg bauen. **Nächste Abhängigkeit:** READY aus PB-018; bestehende FT-012-Idempotenz und Evidence-Persistenz. |
+| Restarbeit / nächste Abhängigkeit | Review des qualifizierten Teilschnitts, historische Evidence-Anzeige bei NOT_READY und atomare Absicherung gegen gleichzeitige Upstream-Korrektur bleiben offen. Journal und komplette Capture→Journal→Lesson-Korrekturstrecke sind nicht geliefert. **Nächste Abhängigkeit:** Bestehender FT-012-Journalvertrag; kein zweiter Materialisierungsweg. |
 | Umfangsentscheidung | Historische Lücke im Golden-Path-Closeout durch Extension 09 und spätere UI überholt. Rest ist Verifikation/Abnahme, nicht pauschaler Neubau. |
 
 </details>
@@ -1167,6 +1170,9 @@ Die Felder „Soll“ und „Nicht-Soll“ sind die vor einer Umsetzung zu prüf
 <a id="pb-019-journal"></a>
 <details>
 <summary>PB-019 — Journalentwurf und Journalabschluss</summary>
+
+> Bestandsnotiz 2026-10-14: [vollständiger Checkout und Journal-Vertragsvorschlag](../implementation/POST_TRADE_LEARNING_HANDOFF_REVIEW.md) bestätigen Journalmodelle und Evidence-Lesetypen, aber keinen Journal-Schreibservice, entsprechende UOW-Repositories, registrierte Schreibroute oder Editor im FT-012-Consumer. Die Domain erlaubt leere Finals und enthält dort keinen konkreten Review-Pin.
+> Journal-Commands, API, UI, Finalisierung, Folgeversion und Datenbanknachweise sind durch den Handoff-Patch nicht geliefert. Keine automatische Verschärfung durch Performance und keine neue Freigabe für zusätzliche Pflichtbewertungen.
 
 | Nachweisfeld | Einordnung |
 |---|---|

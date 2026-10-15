@@ -412,9 +412,58 @@ describe('PostTradeReviewPage', () => {
     await waitFor(() => expect(materializationApi.materialize).toHaveBeenCalledTimes(1));
     expect(materializationApi.materialize).toHaveBeenCalledWith(
       'trade-1',
-      expect.stringMatching(/^post-trade-trade-1-/),
+      'ft011-to-ft012:v2:trade-1:version-1',
+      'version-1',
     );
     expect(await screen.findByText('MATERIALIZED')).toBeInTheDocument();
     expect(screen.getByText('learning-evidence-1')).toBeInTheDocument();
+  });
+
+  it('notifies the Learning consumer after finalization without materializing evidence', async () => {
+    const onLearningStateChanged = vi.fn();
+    api.observation.mockResolvedValue({
+      ...observation,
+      status: 'COMPLETED',
+      available_observation_count: 20,
+      missing_observation_count: 0,
+      is_complete: true,
+    });
+    api.review.mockResolvedValue(draft);
+    render(
+      <MemoryRouter initialEntries={['/post-trade?trade_id=trade-1']}>
+        <PostTradeReviewPage onLearningStateChanged={onLearningStateChanged} />
+      </MemoryRouter>,
+    );
+    const button = await screen.findByRole('button', { name: 'Review finalisieren' });
+    await waitFor(() => expect(button).toBeEnabled());
+    fireEvent.click(button);
+    await waitFor(() => expect(onLearningStateChanged).toHaveBeenCalledTimes(1));
+    expect(api.finalizeReview).toHaveBeenCalledWith('trade-1');
+    expect(materializationApi.materialize).not.toHaveBeenCalled();
+  });
+
+  it('does not render a second materialization action when embedded', async () => {
+    render(
+      <MemoryRouter initialEntries={['/post-trade?trade_id=trade-1']}>
+        <PostTradeReviewPage showMaterializationAction={false} />
+      </MemoryRouter>,
+    );
+    expect(await screen.findByText('FT-012 Handoff')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Als LearningEvidence materialisieren' }),
+    ).toBeNull();
+    expect(materializationApi.materialize).not.toHaveBeenCalled();
+  });
+
+  it('reloads the same trade explicitly instead of relying on a URL change', async () => {
+    renderPage();
+    expect(await screen.findByText('13/20')).toBeInTheDocument();
+    const button = screen.getByRole('button', { name: 'Laden' });
+    await waitFor(() => expect(button).toBeEnabled());
+    const before = api.observation.mock.calls.length;
+    fireEvent.click(button);
+    await waitFor(() => expect(api.observation).toHaveBeenCalledTimes(before + 1));
+    expect(api.startObservation).not.toHaveBeenCalled();
+    expect(api.revalidateReview).not.toHaveBeenCalled();
   });
 });

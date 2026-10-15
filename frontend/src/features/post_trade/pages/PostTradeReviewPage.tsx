@@ -1,4 +1,4 @@
-import { FormEvent, useCallback, useEffect, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 import { ft011MaterializationClient } from '../../learning/services/materializationClient';
@@ -29,10 +29,28 @@ function formatDateTime(value: string | null): string {
   return value ? new Date(value).toLocaleString('de-DE') : '—';
 }
 
-export function PostTradeReviewPage() {
+interface PostTradeReviewPageProps {
+  onLearningStateChanged?: () => void;
+  externalRefreshVersion?: number;
+  showMaterializationAction?: boolean;
+}
+
+export function PostTradeReviewPage(props: PostTradeReviewPageProps) {
+  const [searchParams] = useSearchParams();
+  return <PostTradeReviewContent key={searchParams.get('trade_id') ?? ''} {...props} />;
+}
+
+function PostTradeReviewContent({
+  onLearningStateChanged,
+  externalRefreshVersion = 0,
+  showMaterializationAction = true,
+}: PostTradeReviewPageProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const [lookupId, setLookupId] = useState(searchParams.get('trade_id') ?? '');
-  const [tradeId, setTradeId] = useState(searchParams.get('trade_id') ?? '');
+  const tradeId = searchParams.get('trade_id') ?? '';
+  const mounted = useRef(false);
+  const refreshSequence = useRef(0);
+  const mutationPending = useRef(false);
 
   const [observation, setObservation] = useState<ObservationResponse | null>(null);
   const [evidence, setEvidence] = useState<ObservationEvidenceResponse | null>(null);
@@ -53,6 +71,14 @@ export function PostTradeReviewPage() {
   const [error, setError] = useState<unknown>(null);
   const [message, setMessage] = useState<string | null>(null);
 
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      refreshSequence.current += 1;
+    };
+  }, []);
+
   function hydrateReviewForm(nextReview: ExitReviewResponse | null) {
     if (!nextReview) return;
 
@@ -64,7 +90,13 @@ export function PostTradeReviewPage() {
   }
 
   const refresh = useCallback(async (id: string, signal?: AbortSignal) => {
+    if (!mounted.current) return;
+    const sequence = ++refreshSequence.current;
+    const isCurrentRead = () =>
+      mounted.current && !signal?.aborted && sequence === refreshSequence.current;
+    setMaterializationStatus(null);
     const nextObservation = await postTradeApiClient.observation(id, signal);
+    if (!isCurrentRead()) return;
 
     setObservation(nextObservation);
 
@@ -75,6 +107,7 @@ export function PostTradeReviewPage() {
       ft011MaterializationClient.status(id, signal),
     ]);
 
+    if (!isCurrentRead()) return;
     setEvidence(nextEvidence);
     setHandoff(nextHandoff);
     setHistory(nextHistory);
@@ -82,10 +115,11 @@ export function PostTradeReviewPage() {
 
     try {
       const nextReview = await postTradeApiClient.review(id, signal);
+      if (!isCurrentRead()) return;
       setReview(nextReview);
       hydrateReviewForm(nextReview);
     } catch {
-      setReview(null);
+      if (isCurrentRead()) setReview(null);
     }
   }, []);
 
@@ -105,7 +139,7 @@ export function PostTradeReviewPage() {
       });
 
     return () => controller.abort();
-  }, [refresh, tradeId]);
+  }, [refresh, tradeId, externalRefreshVersion]);
 
   function lookupTrade(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -113,13 +147,28 @@ export function PostTradeReviewPage() {
     const id = lookupId.trim();
     if (!id) return;
 
-    setSearchParams({ trade_id: id });
-    setTradeId(id);
+    if (id === tradeId) {
+      setLoading(true);
+      setError(null);
+      void refresh(id)
+        .catch((nextError: unknown) => {
+          if (mounted.current) setError(new Error(postTradeErrorMessage(nextError)));
+        })
+        .finally(() => {
+          if (mounted.current) {
+            setLoading(false);
+            onLearningStateChanged?.();
+          }
+        });
+    } else {
+      setSearchParams({ trade_id: id });
+    }
   }
 
   async function startObservation() {
-    if (!tradeId) return;
+    if (!tradeId || mutationPending.current) return;
 
+    mutationPending.current = true;
     setLoading(true);
     setError(null);
     setMessage(null);
@@ -131,13 +180,18 @@ export function PostTradeReviewPage() {
     } catch (nextError: unknown) {
       setError(new Error(postTradeErrorMessage(nextError)));
     } finally {
-      setLoading(false);
+      mutationPending.current = false;
+      if (mounted.current) {
+        setLoading(false);
+        onLearningStateChanged?.();
+      }
     }
   }
 
   async function createDraft() {
-    if (!tradeId) return;
+    if (!tradeId || mutationPending.current) return;
 
+    mutationPending.current = true;
     setLoading(true);
     setError(null);
     setMessage(null);
@@ -151,13 +205,18 @@ export function PostTradeReviewPage() {
     } catch (nextError: unknown) {
       setError(new Error(postTradeErrorMessage(nextError)));
     } finally {
-      setLoading(false);
+      mutationPending.current = false;
+      if (mounted.current) {
+        setLoading(false);
+        onLearningStateChanged?.();
+      }
     }
   }
 
   async function saveDraft() {
-    if (!tradeId || !review) return;
+    if (!tradeId || !review || mutationPending.current) return;
 
+    mutationPending.current = true;
     setLoading(true);
     setError(null);
     setMessage(null);
@@ -176,13 +235,18 @@ export function PostTradeReviewPage() {
     } catch (nextError: unknown) {
       setError(new Error(postTradeErrorMessage(nextError)));
     } finally {
-      setLoading(false);
+      mutationPending.current = false;
+      if (mounted.current) {
+        setLoading(false);
+        onLearningStateChanged?.();
+      }
     }
   }
 
   async function finalizeReview() {
-    if (!tradeId || !review || rationale.trim() === '') return;
+    if (!tradeId || !review || rationale.trim() === '' || mutationPending.current) return;
 
+    mutationPending.current = true;
     setLoading(true);
     setError(null);
     setMessage(null);
@@ -204,13 +268,18 @@ export function PostTradeReviewPage() {
     } catch (nextError: unknown) {
       setError(new Error(postTradeErrorMessage(nextError)));
     } finally {
-      setLoading(false);
+      mutationPending.current = false;
+      if (mounted.current) {
+        setLoading(false);
+        onLearningStateChanged?.();
+      }
     }
   }
 
   async function revalidateReview() {
-    if (!tradeId) return;
+    if (!tradeId || mutationPending.current) return;
 
+    mutationPending.current = true;
     setLoading(true);
     setError(null);
     setMessage(null);
@@ -224,25 +293,48 @@ export function PostTradeReviewPage() {
     } catch (nextError: unknown) {
       setError(new Error(postTradeErrorMessage(nextError)));
     } finally {
-      setLoading(false);
+      mutationPending.current = false;
+      if (mounted.current) {
+        setLoading(false);
+        onLearningStateChanged?.();
+      }
     }
   }
 
   async function materializeLearningEvidence() {
-    if (!tradeId || !handoff?.ready || materializationStatus?.materialized) return;
+    if (
+      !tradeId ||
+      !handoff?.ready ||
+      !materializationStatus?.ready ||
+      materializationStatus.materialized ||
+      !materializationStatus.exit_review_version_id ||
+      mutationPending.current
+    ) {
+      return;
+    }
 
+    mutationPending.current = true;
     setLoading(true);
     setError(null);
     setMessage(null);
 
     try {
-      await ft011MaterializationClient.materialize(tradeId, `post-trade-${tradeId}-${Date.now()}`);
+      const versionId = materializationStatus.exit_review_version_id;
+      await ft011MaterializationClient.materialize(
+        tradeId,
+        `ft011-to-ft012:v2:${tradeId}:${versionId}`,
+        versionId,
+      );
       await refresh(tradeId);
       setMessage('FT-011 LearningEvidence wurde in FT-012 materialisiert.');
     } catch (nextError: unknown) {
       setError(new Error(postTradeErrorMessage(nextError)));
     } finally {
-      setLoading(false);
+      mutationPending.current = false;
+      if (mounted.current) {
+        setLoading(false);
+        onLearningStateChanged?.();
+      }
     }
   }
 
@@ -624,6 +716,13 @@ export function PostTradeReviewPage() {
             )}
           </div>
 
+          {!materializationStatus?.materialized && showMaterializationAction && (
+            <p className="mt-3 break-all text-xs text-slate-400">
+              ExitReviewVersion:{' '}
+              {materializationStatus?.exit_review_version_id ?? 'Nicht verfügbar'}
+            </p>
+          )}
+
           {materializationStatus?.materialized ? (
             <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
               <div>
@@ -639,16 +738,21 @@ export function PostTradeReviewPage() {
                 </dd>
               </div>
             </dl>
-          ) : (
+          ) : showMaterializationAction ? (
             <button
               type="button"
               onClick={() => void materializeLearningEvidence()}
-              disabled={loading || !handoff.ready || materializationStatus?.ready !== true}
+              disabled={
+                loading ||
+                !handoff.ready ||
+                materializationStatus?.ready !== true ||
+                !materializationStatus.exit_review_version_id
+              }
               className="mt-4 rounded-lg border border-emerald-700 px-4 py-2 disabled:opacity-50"
             >
               Als LearningEvidence materialisieren
             </button>
-          )}
+          ) : null}
         </section>
       )}
     </main>

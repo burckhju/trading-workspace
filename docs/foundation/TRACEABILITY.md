@@ -1,5 +1,8 @@
 # Traceability – aktueller Nachweiseinstieg
 
+> Nachweisergänzung 2026-10-14: [integrierter Handoff-Teilschnitt, PostgreSQL-/Browserbelege und offene Journalstrecke](../implementation/POST_TRADE_LEARNING_HANDOFF_REVIEW.md). Die Fortschreibung trennt Prüfcommits, echte DB-Transaktionen und abgefangenes Browser-HTTP. Arbeitsstatus ausschließlich im [zentralen Backlog](../planning/PRODUCT_BACKLOG.md#pb-019-materialization); keine Fach-/Betriebsabnahme.
+> Maßgeblich bleiben [PB-019 Materialisierung](../planning/PRODUCT_BACKLOG.md#pb-019-materialization), [PB-019 Journal](../planning/PRODUCT_BACKLOG.md#pb-019-journal) und [PB-018 Currentness](../planning/PRODUCT_BACKLOG.md#pb-018-currentness); der historische Bestand unten bleibt unverändert.
+
 ## Revision und Verantwortlichkeit
 
 Konsolidiert am 2026-10-13 anhand von `main` / `a78288ad38610656480d0363abe657b567c7ba94` / Softwaretag `v1.5.5`. Diese Ergänzung ist ein Dokumentations-/Nachweisstand zur fachlichen Prüfung, keine neue menschliche Abnahme oder Betriebsfreigabe.
