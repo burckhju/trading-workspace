@@ -101,3 +101,10 @@ passed, but did not qualify those regressions.
   suite; failed, skipped and flaky cases must remain visible.
 - Update PB-019 and traceability with actual results, remove the temporary CI
   helper after use, and leave both stacked PRs unmerged. No release or deployment.
+
+## Ausführungsnachweis 2026-10-15
+
+Die [gesonderte technische Qualifikation](FT012_JOURNAL_WRITE_QUALIFICATION.md)
+belegt die abgegrenzten Kriterien einschließlich echter PostgreSQL-/Browser-
+Korrekturstrecke auf einem gemeinsamen Prüfcommit. Sie erhält die Fehlversuche und
+trennt Journal-V1, offenen allgemeinen Lesson-Review sowie Fach-/Betriebsabnahme.

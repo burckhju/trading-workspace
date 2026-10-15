@@ -109,3 +109,11 @@ Production sessions use `autoflush=False`. The same real-API test also requires
 flushing newly created tag parents before assignment foreign keys. This flush is
 inside the owning command's transaction and is not an early commit; tag validation
 and all assignment/commit failures still roll back the complete creation.
+
+## Qualification evidence 2026-10-15
+
+The [technical qualification report](../implementation/FT012_JOURNAL_WRITE_QUALIFICATION.md)
+records real plan-based and external captures, durable journal/lesson commands,
+source correction, successor history and retention checks. The qualification repair
+changes test provenance/origin setup only; this ADR retains its existing semantics.
+Human business approval and target-installation acceptance remain separate.
