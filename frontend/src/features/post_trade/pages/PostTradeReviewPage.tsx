@@ -51,6 +51,8 @@ function PostTradeReviewContent({
   const mounted = useRef(false);
   const refreshSequence = useRef(0);
   const mutationPending = useRef(false);
+  const formVersion = useRef<string | null>(null);
+  const formEdited = useRef(false);
 
   const [observation, setObservation] = useState<ObservationResponse | null>(null);
   const [evidence, setEvidence] = useState<ObservationEvidenceResponse | null>(null);
@@ -79,8 +81,19 @@ function PostTradeReviewContent({
     };
   }, []);
 
-  function hydrateReviewForm(nextReview: ExitReviewResponse | null) {
+  function hydrateReviewForm(nextReview: ExitReviewResponse | null, saved = false) {
     if (!nextReview) return;
+    // Readback is not a user's decision to discard unsaved interpretation.
+    // A genuinely new version or a finalized owner state still replaces the form.
+    if (
+      !saved &&
+      nextReview.status === 'DRAFT' &&
+      formVersion.current === nextReview.current_version_id &&
+      formEdited.current
+    )
+      return;
+    formVersion.current = nextReview.current_version_id;
+    formEdited.current = false;
 
     setTiming(nextReview.timing ?? 'GOOD');
     setProcessAdherence(nextReview.process_adherence ?? 'GOOD');
@@ -199,7 +212,7 @@ function PostTradeReviewContent({
     try {
       const nextReview = await postTradeApiClient.createReviewDraft(tradeId);
       setReview(nextReview);
-      hydrateReviewForm(nextReview);
+      hydrateReviewForm(nextReview, true);
       await refresh(tradeId);
       setMessage('Exit-Review-Entwurf wurde angelegt.');
     } catch (nextError: unknown) {
@@ -230,7 +243,7 @@ function PostTradeReviewContent({
         rationale,
       });
       setReview(nextReview);
-      hydrateReviewForm(nextReview);
+      hydrateReviewForm(nextReview, true);
       setMessage('Exit-Review-Entwurf wurde gespeichert.');
     } catch (nextError: unknown) {
       setError(new Error(postTradeErrorMessage(nextError)));
@@ -262,7 +275,7 @@ function PostTradeReviewContent({
 
       const nextReview = await postTradeApiClient.finalizeReview(tradeId);
       setReview(nextReview);
-      hydrateReviewForm(nextReview);
+      hydrateReviewForm(nextReview, true);
       await refresh(tradeId);
       setMessage('Exit Review wurde finalisiert.');
     } catch (nextError: unknown) {
@@ -287,7 +300,7 @@ function PostTradeReviewContent({
     try {
       const nextReview = await postTradeApiClient.revalidateReview(tradeId);
       setReview(nextReview);
-      hydrateReviewForm(nextReview);
+      hydrateReviewForm(nextReview, true);
       await refresh(tradeId);
       setMessage('Review wurde erneut geprüft.');
     } catch (nextError: unknown) {
@@ -618,12 +631,13 @@ function PostTradeReviewContent({
                     <span className="text-slate-400">{label as string}</span>
                     <select
                       value={value as ExitReviewAssessment}
-                      disabled={reviewReadOnly || loading}
-                      onChange={(event) =>
+                      disabled={reviewReadOnly || loading || mutationPending.current}
+                      onChange={(event) => {
+                        formEdited.current = true;
                         (setter as (value: ExitReviewAssessment) => void)(
                           event.target.value as ExitReviewAssessment,
-                        )
-                      }
+                        );
+                      }}
                       className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2"
                     >
                       <option value="GOOD">GOOD</option>
@@ -640,8 +654,11 @@ function PostTradeReviewContent({
                 <textarea
                   aria-label="Review-Begründung"
                   value={rationale}
-                  disabled={reviewReadOnly || loading}
-                  onChange={(event) => setRationale(event.target.value)}
+                  disabled={reviewReadOnly || loading || mutationPending.current}
+                  onChange={(event) => {
+                    formEdited.current = true;
+                    setRationale(event.target.value);
+                  }}
                   className="mt-1 min-h-32 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2"
                 />
               </label>

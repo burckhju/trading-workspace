@@ -7,16 +7,16 @@ from uuid import uuid4
 import pytest
 from test_explicit_review_commands import NOW
 
-from app.features.learning.application.lesson_review_query import LessonReviewQuery
 from app.features.learning.application.lesson_review_commands import ReviewCommandError
+from app.features.learning.application.lesson_review_query import LessonReviewQuery
 from app.features.learning.domain import (
-    FT011Evidence,
-    TradeJournalVersionEvidence,
     ExternalObservationEvidence,
     ExternalObservationJournalVersionEvidence,
+    FT011Evidence,
+    JournalVersionStatus,
     LearningEvidence,
     LearningEvidenceType,
-    JournalVersionStatus,
+    TradeJournalVersionEvidence,
 )
 from app.features.post_trade.domain import ExitReviewCurrentness
 
@@ -27,8 +27,8 @@ def build(kind):
         LearningEvidenceType.FT011: FT011Evidence(eid, uuid4(), uuid4(), uuid4(), vid),
         LearningEvidenceType.TRADE_JOURNAL_VERSION: TradeJournalVersionEvidence(eid, vid),
         LearningEvidenceType.EXTERNAL_OBSERVATION: ExternalObservationEvidence(eid, vid),
-        LearningEvidenceType.EXTERNAL_OBSERVATION_JOURNAL_VERSION: ExternalObservationJournalVersionEvidence(
-            eid, vid
+        LearningEvidenceType.EXTERNAL_OBSERVATION_JOURNAL_VERSION: (
+            ExternalObservationJournalVersionEvidence(eid, vid)
         ),
     }
     uow = SimpleNamespace(
@@ -152,6 +152,7 @@ async def test_missing_cross_workspace_evidence_and_failed_owner_are_not_zero_or
 
 async def test_context_sorts_history_without_changing_current_pointer_or_writing():
     from dataclasses import replace
+
     from test_explicit_review_commands import Uow
 
     uow = Uow()

@@ -6,19 +6,17 @@ vi.mock('../../../services/environment', () => ({
 vi.mock('../../../services/identity/requestIdentity', () => ({ getRequestIdentity: () => ({}) }));
 afterEach(() => vi.unstubAllGlobals());
 it('pins exact state, version, open signal, interpretation, relations and idempotency key once', async () => {
-  const fetchMock = vi
-    .fn()
-    .mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          code: 'LESSON_REVIEW_CONFLICT',
-          message: 'Changed context',
-          details: [],
-          timestamp: '2026-10-15T00:00:00Z',
-        }),
-        { status: 409 },
-      ),
-    );
+  const fetchMock = vi.fn().mockResolvedValue(
+    new Response(
+      JSON.stringify({
+        code: 'LESSON_REVIEW_CONFLICT',
+        message: 'Changed context',
+        details: [],
+        timestamp: '2026-10-15T00:00:00Z',
+      }),
+      { status: 409 },
+    ),
+  );
   vi.stubGlobal('fetch', fetchMock);
   const command: ReviewCommand = {
     operation: 'NEW_VERSION',
@@ -48,7 +46,7 @@ it('pins exact state, version, open signal, interpretation, relations and idempo
 it('history, catalog and exact-source inspection are read only and forward abort signal', async () => {
   const fetchMock = vi
     .fn<(url: string, init: RequestInit) => Promise<Response>>()
-    .mockImplementation(async () => new Response('{}'));
+    .mockImplementation(() => Promise.resolve(new Response('{}')));
   vi.stubGlobal('fetch', fetchMock);
   const signal = new AbortController().signal;
   await lessonReviewClient.context('l1', signal);

@@ -60,3 +60,15 @@ Currentness is as-of-read, not global source-write serializability. External jou
 source currentness without an existing qualified reader remains explicitly UNKNOWN.
 General RETIRED reactivation, title/tag editors, journal mobile acceptance and the
 FT-011 materialization race remain separate. Existing M0–M11 references remain.
+
+## Qualification repairs — 2026-10-16, before correction
+
+User authorized correction and normal PR merges only after green checks. The
+qualification slice addresses the concrete failed run 38704759931, not a new
+learning subsystem. Acceptance: (1) exact accessible labels for each evidence
+relation select; (2) StrictMode/cleanup and late reads cannot replace newer lesson
+context; (3) an owner refresh of the same ExitReview draft preserves unsaved user
+text and assessments, while a genuinely new/final version rehydrates correctly;
+(4) all unchanged full gates, real PostgreSQL and the extended lesson browser path
+pass on an identified checkout. Formatting fixes neither weaken assertions nor
+change schemas/financial rules. Review currentness remains backend-owned.

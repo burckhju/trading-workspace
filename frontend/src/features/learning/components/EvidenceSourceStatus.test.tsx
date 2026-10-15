@@ -52,6 +52,9 @@ it('late old-source response cannot populate another evidence identity', async (
   const view = render(<EvidenceSourceStatus evidenceId="e1" />);
   view.rerender(<EvidenceSourceStatus evidenceId="e2" />);
   await screen.findByText('Konkrete Quellversion: v-e2');
-  await act(async () => resolve(source('e1')));
+  await act(async () => {
+    resolve(source('e1'));
+    await Promise.resolve();
+  });
   expect(screen.queryByText('Konkrete Quellversion: v-e1')).not.toBeInTheDocument();
 });

@@ -71,3 +71,14 @@ shapes but now finish a transaction. Existing composable lower-level methods sti
 only flush. Generic version/state endpoints reject an open contradiction signal;
 only its proper resolution may advance the projection. Retired reactivation and
 mutable title/tag commands remain outside this UI slice.
+
+## 2026-10-16 qualification clarification
+
+Explicit label/control associations identify relation selects independently of
+option text. A stable request-generation counter is captured by the effect
+cleanup; StrictMode and late-read regression coverage preserve this contract.
+FT-011 readback of the same draft does not discard unsaved text/assessments.
+Successful writes or a genuinely different/finalized owner version rehydrate the
+form. This local draft flag makes no readiness/currentness decision and writes no
+review itself. The normal PR merge is user-authorized only after green checks;
+release, target installation and human domain acceptance remain separate.

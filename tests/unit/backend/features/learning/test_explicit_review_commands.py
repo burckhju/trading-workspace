@@ -18,13 +18,13 @@ from app.features.learning.application.lesson_review_commands import (
 from app.features.learning.application.lesson_review_service import LessonReviewServiceError
 from app.features.learning.application.lesson_service import LessonEvidenceInput, LessonServiceError
 from app.features.learning.domain import (
+    IdempotencyStatus,
     Lesson,
-    LessonVersion,
-    LessonState,
     LessonEvidenceLink,
     LessonEvidenceRelation,
     LessonReviewSignalStatus,
-    IdempotencyStatus,
+    LessonState,
+    LessonVersion,
 )
 
 NOW = datetime(2026, 10, 15, tzinfo=UTC)

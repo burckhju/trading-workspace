@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { StrictMode } from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { LessonReviewPanel } from './LessonReviewPanel';
@@ -78,15 +79,17 @@ const receipt: ReviewReceipt = {
 beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(lessonReviewClient.context).mockResolvedValue(context());
-  vi.mocked(lessonReviewClient.source).mockImplementation(async (eid) => ({
-    evidence_id: eid,
-    source_type: 'TRADE_JOURNAL_VERSION',
-    source_version_id: `source-${eid}`,
-    source_currentness: 'CURRENT',
-    review_currentness: 'STALE',
-    checked_at: at,
-    superseded_by_version_id: null,
-  }));
+  vi.mocked(lessonReviewClient.source).mockImplementation((eid) =>
+    Promise.resolve({
+      evidence_id: eid,
+      source_type: 'TRADE_JOURNAL_VERSION',
+      source_version_id: `source-${eid}`,
+      source_currentness: 'CURRENT',
+      review_currentness: 'STALE',
+      checked_at: at,
+      superseded_by_version_id: null,
+    }),
+  );
   vi.mocked(lessonReviewClient.evidence).mockResolvedValue([
     {
       evidence_id: 'e3',
@@ -200,7 +203,10 @@ it('failed write preserves input, blocks synchronous double submit, and manually
   fireEvent.click(confirm());
   expect(lessonReviewClient.execute).toHaveBeenCalledTimes(1);
   expect(reason()).toBeDisabled();
-  await act(async () => reject(new Error('unknown transport result')));
+  await act(async () => {
+    reject(new Error('unknown transport result'));
+    await Promise.resolve();
+  });
   expect(reason()).toHaveValue('Prüfen.');
   expect(confirm()).toBeEnabled();
   expect(lessonReviewClient.execute).toHaveBeenCalledTimes(1);
@@ -306,7 +312,10 @@ it('keyed lesson navigation ignores an old pending command result and calls no n
     </MemoryRouter>,
   );
   await screen.findByRole('button', { name: 'Quellenbezogene Prüfung beginnen' });
-  await act(async () => resolve(receipt));
+  await act(async () => {
+    resolve(receipt);
+    await Promise.resolve();
+  });
   expect(onChanged).not.toHaveBeenCalled();
   expect(screen.queryByText(/Prüfentscheidung gespeichert/)).not.toBeInTheDocument();
   expect(screen.queryByLabelText(/Begründung der Prüfentscheidung/)).not.toBeInTheDocument();
@@ -375,4 +384,46 @@ it('failed evidence catalog retains the draft and only reloads the catalog on re
     screen.getByLabelText('Ausdrückliche Interpretation der neuen Lesson-Version'),
   ).toHaveValue('Mein ungespeicherter Text.');
   expect(lessonReviewClient.execute).not.toHaveBeenCalled();
+});
+
+it('relation selects have exact accessible names independent of their option text', async () => {
+  vi.mocked(lessonReviewClient.context).mockResolvedValue(context('REVIEW_RECOMMENDED'));
+  mount();
+  await screen.findByRole('button', { name: 'Neue Lesson-Version vorbereiten' });
+  click('Neue Lesson-Version vorbereiten');
+  const relation = screen.getByRole('combobox', { name: 'Bezug 1' });
+  const label = document.querySelector(`label[for="${relation.id}"]`);
+  expect(label?.textContent).toBe('Bezug 1');
+  expect(screen.getByLabelText('Bezug 1', { exact: true })).toBe(relation);
+  expect(relation).toHaveValue('SUPPORTS');
+  expect(screen.getByRole('combobox', { name: 'Bezug 2' })).toHaveValue('CONTRADICTS');
+  expect(lessonReviewClient.execute).not.toHaveBeenCalled();
+});
+
+it('StrictMode cleanup invalidates its pending read without erasing the newer context', async () => {
+  let resolve!: (value: ReviewContext) => void;
+  vi.mocked(lessonReviewClient.context)
+    .mockImplementationOnce(
+      () =>
+        new Promise((done) => {
+          resolve = done;
+        }),
+    )
+    .mockResolvedValue(context('REVIEW_RECOMMENDED'));
+  render(
+    <StrictMode>
+      <MemoryRouter>
+        <LessonReviewPanel lessonId="A" onChanged={onChanged} />
+      </MemoryRouter>
+    </StrictMode>,
+  );
+  await screen.findByText(/Lesson-Status: REVIEW_RECOMMENDED/);
+  await act(async () => {
+    resolve(context('CURRENT'));
+    await Promise.resolve();
+  });
+  expect(screen.getByText(/Lesson-Status: REVIEW_RECOMMENDED/)).toBeVisible();
+  expect(screen.queryByRole('button', { name: 'Quellenbezogene Prüfung beginnen' })).toBeNull();
+  expect(lessonReviewClient.execute).not.toHaveBeenCalled();
+  expect(onChanged).not.toHaveBeenCalled();
 });

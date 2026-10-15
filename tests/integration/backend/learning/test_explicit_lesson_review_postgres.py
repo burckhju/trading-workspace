@@ -112,7 +112,7 @@ def test_actual_correction_source_review_successor_and_exact_historical_relation
 
     async def exercise():
         async with _client(url) as client:
-            tid, rid, sale, jvid, j1, ft, lid = await setup_lesson(client, url)
+            tid, _rid, sale, jvid, j1, ft, lid = await setup_lesson(client, url)
             c = await context(client, lid)
             old = c["history"][0]
             assert len(c["history"]) == 1 and c["signals"] == []
@@ -302,7 +302,8 @@ def test_parallel_commands_commit_failures_and_legacy_public_resolution(
             assert (
                 await sql(
                     url,
-                    "SELECT count(*) n FROM ft012_idempotency_records WHERE idempotency_key='failed-commit'",
+                    "SELECT count(*) n FROM ft012_idempotency_records "
+                    "WHERE idempotency_key='failed-commit'",
                 )
             )[0]["n"] == 0
             assert not (await post(client, lid, command_body, "failed-commit"))["replayed"]

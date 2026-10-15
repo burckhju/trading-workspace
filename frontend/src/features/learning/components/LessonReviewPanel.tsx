@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { ErrorNotice } from '../../market/components/ApiFeedback';
 import { MarketApiError } from '../../market/services/http';
 import { EvidenceSourceStatus } from './EvidenceSourceStatus';
@@ -33,6 +33,7 @@ export function LessonReviewPanel({
   lessonId: string;
   onChanged: () => void;
 }) {
+  const fieldPrefix = useId();
   const [context, setContext] = useState<ReviewContext | null>(null);
   const [readError, setReadError] = useState<unknown>(null);
   const [loading, setLoading] = useState(true);
@@ -77,9 +78,12 @@ export function LessonReviewPanel({
   useEffect(() => {
     active.current = true;
     void load();
+    // Capture the stable counter object, not its value: invalidate every read
+    // from this effect lifetime, including reads begun by explicit refreshes.
+    const requests = readSequence;
     return () => {
       active.current = false;
-      ++readSequence.current;
+      ++requests.current;
     };
   }, [load]);
   useEffect(() => {
@@ -389,26 +393,27 @@ export function LessonReviewPanel({
                     <p className="break-all">
                       Evidence {i + 1}: {choice.learning_evidence_id}
                     </p>
-                    <label>
+                    <label htmlFor={`${fieldPrefix}-relation-${choice.learning_evidence_id}`}>
                       Bezug {i + 1}
-                      <select
-                        className={inputClass}
-                        value={choice.relation}
-                        onChange={(e) =>
-                          setChoices((old) =>
-                            old.map((c, index) =>
-                              index === i
-                                ? { ...c, relation: e.target.value as EvidenceRelation }
-                                : c,
-                            ),
-                          )
-                        }
-                      >
-                        <option value="SUPPORTS">SUPPORTS — unterstützt</option>
-                        <option value="CONTRADICTS">CONTRADICTS — widerspricht</option>
-                        <option value="CONTEXTUAL">CONTEXTUAL — Kontext</option>
-                      </select>
                     </label>
+                    <select
+                      id={`${fieldPrefix}-relation-${choice.learning_evidence_id}`}
+                      className={inputClass}
+                      value={choice.relation}
+                      onChange={(e) =>
+                        setChoices((old) =>
+                          old.map((c, index) =>
+                            index === i
+                              ? { ...c, relation: e.target.value as EvidenceRelation }
+                              : c,
+                          ),
+                        )
+                      }
+                    >
+                      <option value="SUPPORTS">SUPPORTS — unterstützt</option>
+                      <option value="CONTRADICTS">CONTRADICTS — widerspricht</option>
+                      <option value="CONTEXTUAL">CONTEXTUAL — Kontext</option>
+                    </select>
                     <EvidenceSourceStatus evidenceId={choice.learning_evidence_id} />
                     <button
                       type="button"
