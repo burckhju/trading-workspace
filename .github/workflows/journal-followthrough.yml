@@ -1,0 +1,276 @@
+name: Journal followthrough
+on:
+  push:
+    branches: [dev/ft012-journal-write-20261014]
+    paths: [.github/workflows/journal-followthrough.yml]
+permissions:
+  contents: read
+concurrency:
+  group: journal-followthrough
+  cancel-in-progress: false
+env:
+  TRADING_WORKSPACE_MARKET_DATA__REFRESH__ENABLED: 'false'
+  TRADING_WORKSPACE_POSITION_MONITORING__ENABLED: 'false'
+  TRADING_WORKSPACE_NOTIFICATION__TELEGRAM__ENABLED: 'false'
+  TRADING_WORKSPACE_MARKET_DATA__EODHD__ENABLED: 'false'
+  TRADING_WORKSPACE_MARKET_DATA__VONTOBEL_MARKETS__ENABLED: 'false'
+  TRADING_WORKSPACE_MARKET_DATA__STUTTGART_DELAYED__ENABLED: 'false'
+  TRADING_WORKSPACE_MARKET_DATA__GETTEX_DELAYED__ENABLED: 'false'
+  TRADING_WORKSPACE_MARKET_DATA__FRANKFURT__ENABLED: 'false'
+jobs:
+  integrate:
+    if: github.ref == 'refs/heads/dev/ft012-journal-write-20261014'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    outputs:
+      head_sha: ${{ steps.patch.outputs.head_sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 5
+      - name: Wrap only the diagnosed test line and remove this helper
+        id: patch
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          python - <<'PY'
+          from pathlib import Path
+          import subprocess
+          helper='.github/workflows/journal-followthrough.yml'
+          base='6e5a9a32fbb102c8896eacf0032da541f97919d2'
+          assert subprocess.check_output(['git','diff','--name-only',base,'HEAD'],text=True).splitlines()==[helper]
+          p=Path('tests/integration/backend/learning/test_journal_write_postgres.py')
+          s=p.read_text()
+          lines=s.splitlines(keepends=True)
+          matches=[i for i,line in enumerate(lines) if line.startswith('    version_url = f"/api/v1/trade-plans/')]
+          assert len(matches)==1
+          i=matches[0]
+          expression=lines[i].split(' = ',1)[1].rstrip('\n')
+          lines[i]='    version_url = (\n        '+expression+'\n    )\n'
+          p.write_text(''.join(lines))
+          subprocess.run(['git','add','--',str(p)],check=True)
+          subprocess.run(['git','rm','--',helper],check=True)
+          subprocess.run(['git','diff','--cached','--check'],check=True)
+          assert subprocess.check_output(['git','write-tree'],text=True).strip()=='542e50b5259c5d830e9c4b42946ef68165fbb439'
+          PY
+          test "$(git ls-remote origin refs/heads/dev/ft012-journal-write-20261014 | cut -f1)" = "$GITHUB_SHA"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'style(tests): wrap journal provenance URL without changing assertions'
+          git push origin HEAD:refs/heads/dev/ft012-journal-write-20261014
+          echo "head_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          git rev-parse HEAD HEAD^{tree}
+  backend:
+    needs: integrate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: trading_workspace
+          POSTGRES_PASSWORD: journal-followthrough-ci
+          POSTGRES_DB: trading_workspace_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U trading_workspace -d trading_workspace_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TRADING_WORKSPACE_DATABASE_URL: postgresql+asyncpg://trading_workspace:journal-followthrough-ci@localhost:5432/trading_workspace_test
+      TRADING_WORKSPACE_TEST_DATABASE_URL: postgresql+asyncpg://trading_workspace:journal-followthrough-ci@localhost:5432/trading_workspace_test
+      PYTHONPATH: ${{ github.workspace }}/backend:${{ github.workspace }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.integrate.outputs.head_sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version-file: backend/.python-version
+      - name: Verify disposable database context
+        run: |
+          set -euo pipefail
+          test "$GITHUB_ACTIONS" = true
+          test ! -f .env
+          test ! -f backend/.env
+          mkdir -p qualification
+          git rev-parse HEAD HEAD^{tree} | tee qualification/identity.txt
+          python - <<'PY'
+          import os
+          from urllib.parse import urlparse
+          u=urlparse(os.environ['TRADING_WORKSPACE_TEST_DATABASE_URL'])
+          assert u.hostname=='localhost' and u.port==5432 and u.path=='/trading_workspace_test'
+          PY
+      - run: python -m pip install --requirement backend/requirements-dev.txt
+      - name: Migrate real PostgreSQL and verify one head
+        working-directory: backend
+        run: |
+          set -euo pipefail
+          python -m alembic heads | tee ../qualification/heads.log
+          test "$(python -m alembic heads)" = '20261014_0046 (head)'
+          python -m alembic upgrade head 2>&1 | tee ../qualification/migration.log
+          python -m alembic current | tee ../qualification/current.log
+      - name: Journal and actual PostgreSQL acceptance
+        run: |
+          set -euo pipefail
+          python -m pytest -c backend/pyproject.toml tests/unit/backend/features/learning/test_journal_commands.py tests/unit/backend/features/learning/test_journal_api.py tests/unit/backend/features/learning/test_lesson_create_command.py tests/unit/backend/features/learning/test_lesson_tags.py tests/unit/backend/features/post_trade/test_journal_source_inspection.py tests/unit/backend/features/post_trade/test_observation_service.py tests/unit/backend/features/trade_plan/test_hard_delete_api.py tests/integration/backend/learning/test_journal_write_postgres.py -vv 2>&1 | tee qualification/targeted.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: journal-followthrough-targeted
+          path: qualification
+          retention-days: 7
+      - name: Unchanged complete backend gate
+        run: |
+          set -euo pipefail
+          bash scripts/check-backend.sh 2>&1 | tee qualification/backend-full.log
+          git diff --exit-code
+          git diff --check
+          cd backend
+          python -m alembic heads | tee ../qualification/final-heads.log
+          python -m alembic current | tee ../qualification/final-current.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: journal-followthrough-backend
+          path: |
+            qualification
+            backend/coverage.xml
+          retention-days: 7
+  frontend:
+    needs: integrate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.integrate.outputs.head_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: frontend/.nvmrc
+      - run: npm --prefix frontend ci
+      - name: Identify complete checkout and focused frontend tests
+        run: |
+          set -euo pipefail
+          test ! -f .env
+          test ! -f frontend/.env
+          mkdir -p qualification
+          git rev-parse HEAD HEAD^{tree} | tee qualification/identity.txt
+          npm --prefix frontend test -- src/features/learning/components/TradeJournalPanel.test.tsx src/features/learning/components/JournalEvidenceOrigin.test.tsx src/features/learning/services/journalClient.test.ts src/features/post_trade/pages/PostTradeLearningPage.test.tsx src/features/post_trade/pages/PostTradeReviewPage.test.tsx 2>&1 | tee qualification/frontend-targeted.log
+      - name: Unchanged complete frontend gate in its standard environment
+        run: |
+          set -euo pipefail
+          bash scripts/check-frontend.sh 2>&1 | tee qualification/frontend-full.log
+          git diff --exit-code
+          git diff --check
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: journal-followthrough-frontend
+          path: |
+            qualification
+            frontend/coverage
+          retention-days: 7
+  browser-postgres:
+    needs: integrate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CI: 'true'
+      POSTGRES_DB: trading_workspace_test
+      POSTGRES_USER: trading_workspace
+      POSTGRES_PASSWORD: journal-followthrough-browser-ci
+      POSTGRES_PORT: '25432'
+      BACKEND_PORT: '8000'
+      FRONTEND_PORT: '8080'
+      E2E_POSTGRES_PORT: '25432'
+      E2E_BACKEND_PORT: '8000'
+      E2E_FRONTEND_PORT: '8080'
+      E2E_PLAYWRIGHT_BASE_URL: http://127.0.0.1:8080
+      PLAYWRIGHT_BASE_URL: http://127.0.0.1:8080
+      E2E_VITE_API_BASE_URL: http://localhost:8080/api
+      VITE_API_BASE_URL: http://localhost:8080/api
+      TRADING_WORKSPACE_TEST_DATABASE_URL: postgresql+asyncpg://trading_workspace:journal-followthrough-browser-ci@127.0.0.1:25432/trading_workspace_test
+      JOURNAL_E2E_WRITES_ALLOWED: '1'
+      TRADE_E2E_WRITES_ALLOWED: '1'
+      CURRENCY_E2E_WRITES_ALLOWED: '1'
+      PYTHONPATH: ${{ github.workspace }}/backend:${{ github.workspace }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.integrate.outputs.head_sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version-file: backend/.python-version
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: frontend/.nvmrc
+      - name: Verify new disposable Compose project, mounts and ports before writes
+        id: safety
+        run: |
+          set -euo pipefail
+          test "$GITHUB_ACTIONS" = true
+          test ! -f .env
+          test ! -f backend/.env
+          test ! -f frontend/.env
+          test -z "$(docker ps -aq --filter label=com.docker.compose.project=trading-workspace-e2e)"
+          test -z "$(docker volume ls -q --filter label=com.docker.compose.project=trading-workspace-e2e)"
+          test ! -d docker/stuttgart-data
+          mkdir -p qualification docker/stuttgart-data
+          git rev-parse HEAD HEAD^{tree} | tee qualification/identity.txt
+          python - <<'PY'
+          import os,socket
+          from urllib.parse import urlparse
+          u=urlparse(os.environ['TRADING_WORKSPACE_TEST_DATABASE_URL'])
+          assert u.hostname=='127.0.0.1' and u.port==25432 and u.path=='/trading_workspace_test'
+          assert os.environ['VITE_API_BASE_URL']=='http://localhost:8080/api'
+          for port in (25432,8000,8080):
+              with socket.socket() as s:s.bind(('127.0.0.1',port))
+          PY
+          echo 'owned=true' >> "$GITHUB_OUTPUT"
+      - run: python -m pip install --requirement backend/requirements-dev.txt
+      - run: npm --prefix frontend ci
+      - name: Install Chromium
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+      - name: Build and migrate only the project used by the unchanged E2E script
+        run: |
+          set -euo pipefail
+          docker compose --project-name trading-workspace-e2e -f docker/compose.yml up --build --wait --wait-timeout 180
+          docker compose --project-name trading-workspace-e2e -f docker/compose.yml run --rm --no-deps -T backend python -m alembic upgrade head
+      - name: Focused real journal browser journey with success trace
+        working-directory: frontend
+        run: |
+          set -euo pipefail
+          NODE_PATH=./node_modules npx playwright test ../tests/e2e/post-trade-journal-postgres.spec.ts --trace on 2>&1 | tee ../qualification/browser-targeted.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: journal-followthrough-browser-targeted
+          path: |
+            qualification
+            frontend/playwright-report
+            frontend/test-results
+          retention-days: 7
+      - name: Unchanged complete E2E gate, including all previous regressions
+        run: |
+          set -euo pipefail
+          bash scripts/run-e2e.sh 2>&1 | tee qualification/browser-full.log
+          git diff --exit-code
+          git diff --check
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: journal-followthrough-browser-full
+          path: |
+            qualification
+            frontend/playwright-report
+            frontend/test-results
+          retention-days: 7
+      - name: Cleanup exclusively the newly owned disposable project
+        if: always() && steps.safety.outputs.owned == 'true'
+        run: docker compose --project-name trading-workspace-e2e -f docker/compose.yml down --volumes --remove-orphans
