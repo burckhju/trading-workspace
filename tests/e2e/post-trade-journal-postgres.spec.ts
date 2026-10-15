@@ -2,6 +2,9 @@ import { execFileSync } from "node:child_process";
 import { resolve } from "node:path";
 import { expect, test } from "@playwright/test";
 
+// Match the canonical origin used by the existing real-write browser cases.
+test.use({ baseURL: "http://localhost:8080" });
+
 // Requires the separately identified CI Compose stack + Python fixtures. Never a user stack.
 test("real PostgreSQL: captured full exit, review, journal, lesson and stale correction", async ({
   page,
@@ -14,7 +17,7 @@ test("real PostgreSQL: captured full exit, review, journal, lesson and stale cor
   );
   test.setTimeout(120_000);
   expect(process.env.CI).toBe("true");
-  expect(baseURL).toBe("http://127.0.0.1:8080");
+  expect(baseURL).toBe("http://localhost:8080");
   const api = `${baseURL}/api/api/v1`;
   const post = async (path: string, data?: object) => {
     const response = await request.post(api + path, { data });

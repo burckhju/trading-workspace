@@ -80,3 +80,24 @@ No stamp, destructive user-volume operation, scheduler or notification run.
 ExternalObservationJournal editor, deletion-policy redesign beyond the necessary
 final-journal blocker, general Lesson review workflow, all-source materialization
 race closure and Performance remain separate. Preserve M0–M11 and current owners.
+
+## Qualification continuation 2026-10-15 — acceptance before test repair
+
+Continue PR #260 from `85be220fdef6b21d27e1d3909e99d11a13b274cc`, not a
+new journal owner. Run 38634613102 was red: one invalid retention fixture and
+12 browser failures. The retained browser traces show cross-origin requests from
+`localhost:8080` to `127.0.0.1:8080` rejected by CORS. The new journal journey
+passed, but did not qualify those regressions.
+
+- Build the retention case through actual synthetic plan approval, product
+  selection and keyed BUY, then SELL. Never reassign EXTERNAL trade provenance
+  with SQL. Assert the full original provenance before and after refused delete;
+  preserve journal, Lesson, execution-count and successor assertions.
+- Keep the new real journal browser on the existing suite's `localhost:8080`
+  origin and its matching API build URL. Keep explicit CI/database/port/write
+  guards. Do not widen production CORS, change legacy tests or relax assertions.
+- Run targeted PostgreSQL/browser checks followed by the three unchanged full
+  scripts on an identified common commit. A passed new journey is not a passed
+  suite; failed, skipped and flaky cases must remain visible.
+- Update PB-019 and traceability with actual results, remove the temporary CI
+  helper after use, and leave both stacked PRs unmerged. No release or deployment.

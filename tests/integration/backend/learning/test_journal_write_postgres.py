@@ -93,9 +93,81 @@ async def review(client, trade):
     return response.json()["current_version_id"]
 
 
-async def closed(client):
+async def planned_purchase(client, pid):
+    """Create every provenance parent through its owner, not a SQL reassignment."""
+    response = await client.get(f"/api/v1/warrants/{pid}")
+    assert response.status_code == 200, response.text
+    underlying_id = response.json()["underlying_id"]
+    response = await client.get("/api/v1/market-reference-data/trading-venues")
+    assert response.status_code == 200, response.text
+    venue = next(v for v in response.json()["items"] if v["mic"] == "XETR")
+    response = await client.post(
+        f"/api/v1/warrants/{pid}/listings",
+        json={"trading_venue_id": venue["id"], "quotation_currency_code": "EUR"},
+    )
+    assert response.status_code == 201, response.text
+    response = await client.post(
+        "/api/v1/trade-plans",
+        json={
+            "origin_type": "MANUAL",
+            "underlying_id": underlying_id,
+            "thesis": "Synthetic planned journal and retention qualification",
+            "entry": {"type": "PRICE", "currency": "EUR", "price": "100"},
+            "invalidation": {"stop_price": "95"},
+            "targets": [{"sequence": 1, "price": "110"}],
+            "risk_assumptions": {"thesis_risk": "Synthetic risk, not a trading recommendation"},
+        },
+    )
+    assert response.status_code == 201, response.text
+    plan = response.json()
+    version_url = f"/api/v1/trade-plans/{plan['plan']['id']}/versions/{plan['latest_version']['id']}"
+    for action in ("submit-review", "approve"):
+        response = await client.post(f"{version_url}/{action}")
+        assert response.status_code == 200, response.text
+    response = await client.post(
+        "/api/v1/product-selection-runs",
+        json={
+            "trade_plan_id": plan["plan"]["id"],
+            "trade_plan_version_id": plan["latest_version"]["id"],
+        },
+    )
+    assert response.status_code == 201, response.text
+    run = response.json()
+    assert len(run["evaluations"]) == 1
+    evaluation = run["evaluations"][0]
+    assert evaluation["warrant_id"] == pid
+    assert evaluation["eligibility_status"] == "NOT_EVALUABLE"
+    response = await client.post(
+        f"/api/v1/product-selection-runs/{run['run']['id']}/selection",
+        json={
+            "product_evaluation_id": evaluation["id"],
+            "rationale": "Synthetic confirmed execution; missing quotes remain missing.",
+        },
+    )
+    assert response.status_code == 201, response.text
+    selected = response.json()
+    assert selected["evaluations"] == run["evaluations"]
+    payload = purchase(pid)
+    del payload["product_id"]
+    payload["product_selection_id"] = selected["selection"]["id"]
+    bought = await client.post(BASE + "/purchases/from-selection", json=payload)
+    assert bought.status_code == 201, bought.text
+    trade = bought.json()["trade"]
+    assert trade["origin"] == "WORKSPACE_SELECTION"
+    assert trade["trade_plan_id"] == plan["plan"]["id"]
+    assert trade["trade_plan_version_id"] == plan["latest_version"]["id"]
+    assert trade["product_selection_id"] == selected["selection"]["id"]
+    assert trade["product_evaluation_id"] == evaluation["id"]
+    return bought
+
+
+async def closed(client, *, planned=False):
     pid = await product(client)
-    bought = await client.post(BASE + "/purchases/external", json=purchase(pid))
+    bought = (
+        await planned_purchase(client, pid)
+        if planned
+        else await client.post(BASE + "/purchases/external", json=purchase(pid))
+    )
     assert bought.status_code == 201, bought.text
     tid = bought.json()["trade"]["id"]
     # An open real trade is not eligible for a journal or observation.
@@ -162,7 +234,12 @@ def test_actual_exit_to_journal_evidence_lesson_and_execution_correction(journal
 
     async def exercise():
         async with _client(url) as client:
-            tid, listing, sale, pid = await closed(client)
+            tid, listing, sale, pid = await closed(client, planned=True)
+            response = await client.get(f"{BASE}/trades/{tid}")
+            assert response.status_code == 200, response.text
+            original_trade = response.json()
+            plan = original_trade["trade_plan_id"]
+            assert plan is not None and original_trade["origin"] == "WORKSPACE_SELECTION"
             await seed_prices(url, listing, stop=19)
             incomplete = (await client.get(f"{POST}/{tid}/observation")).json()
             assert incomplete["available_observation_count"] == 19 and not incomplete["is_complete"]
@@ -285,23 +362,15 @@ def test_actual_exit_to_journal_evidence_lesson_and_execution_correction(journal
             ):
                 with pytest.raises(IntegrityError):
                     await sql(url, statement, {"id": draft})
-            # Add a synthetic parent link solely to exercise the existing delete consumer.
-            plan = uuid4()
-            await sql(
-                url,
-                """INSERT INTO trade_plans
-                   (id,workspace_id,underlying_id,origin_type,created_at,created_by)
-                   SELECT :plan,workspace_id,underlying_id,'MANUAL',now(),'synthetic-journal-test'
-                   FROM warrants WHERE id=:pid""",
-                {"plan": plan, "pid": pid},
-            )
-            await sql(
-                url, "UPDATE trades SET trade_plan_id=:plan WHERE id=:id", {"plan": plan, "id": tid}
-            )
+            # The actual planned capture already owns this parent; never rewrite origin.
+            assert (await client.get(f"{BASE}/trades/{tid}")).json() == original_trade
+            plan_before = (await client.get(f"/api/v1/trade-plans/{plan}")).json()
             blocked = await client.delete(f"/api/v1/trade-plans/{plan}")
             assert (
                 blocked.status_code == 409 and blocked.json()["code"] == "JOURNAL_HISTORY_PROTECTED"
             ), blocked.text
+            assert (await client.get(f"{BASE}/trades/{tid}")).json() == original_trade
+            assert (await client.get(f"/api/v1/trade-plans/{plan}")).json() == plan_before
             assert (await client.get(f"{LEARN}/lessons/{lid}")).json() == old_lesson
             assert (await history(client, tid))["versions"][-1]["version"] == snapshot
             assert (
