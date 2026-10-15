@@ -1,0 +1,49 @@
+name: Journal followthrough
+on:
+  push:
+    branches: [dev/ft012-journal-write-20261014]
+    paths: [.github/workflows/journal-followthrough.yml]
+permissions:
+  contents: read
+concurrency:
+  group: journal-followthrough
+  cancel-in-progress: false
+jobs:
+  source:
+    if: github.ref == 'refs/heads/dev/ft012-journal-write-20261014'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 85be220fdef6b21d27e1d3909e99d11a13b274cc
+          fetch-depth: 50
+          persist-credentials: false
+      - name: Export only tracked credential-free repository and Git history
+        run: |
+          set -euo pipefail
+          test "$GITHUB_ACTIONS" = true
+          test "$(git rev-parse HEAD)" = 85be220fdef6b21d27e1d3909e99d11a13b274cc
+          test ! -f .env
+          test ! -f backend/.env
+          test ! -f frontend/.env
+          mkdir -p "$RUNNER_TEMP/journal-export"
+          git rev-parse HEAD HEAD^{tree} > "$RUNNER_TEMP/journal-export/identity.txt"
+          git ls-files '*AGENTS.md' > "$RUNNER_TEMP/journal-export/instructions.txt"
+          while IFS= read -r p; do printf '\n===== %s\n' "$p"; cat "$p"; done < "$RUNNER_TEMP/journal-export/instructions.txt"
+          git clone --bare --no-hardlinks . "$RUNNER_TEMP/journal-export/source.git"
+          git -C "$RUNNER_TEMP/journal-export/source.git" remote remove origin
+          test -z "$(git -C "$RUNNER_TEMP/journal-export/source.git" config --get-regexp 'http.*extraheader' || true)"
+          tar -C "$RUNNER_TEMP/journal-export" -czf "$RUNNER_TEMP/journal-export/source-git.tar.gz" source.git
+          cd "$RUNNER_TEMP/journal-export"
+          sha256sum source-git.tar.gz > SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: journal-source-85be220
+          path: |
+            ${{ runner.temp }}/journal-export/source-git.tar.gz
+            ${{ runner.temp }}/journal-export/identity.txt
+            ${{ runner.temp }}/journal-export/instructions.txt
+            ${{ runner.temp }}/journal-export/SHA256SUMS
+          retention-days: 7
+          if-no-files-found: error
