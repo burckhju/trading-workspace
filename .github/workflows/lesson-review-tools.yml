@@ -1,0 +1,35 @@
+name: Lesson review tools
+on:
+  push:
+    branches: [dev/ft012-lesson-review-20261015]
+    paths: [.github/workflows/lesson-review-tools.yml]
+permissions:
+  contents: read
+jobs:
+  tools:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 37b6ed0ab45a30ea5a6b8f8111c9a5f3b76aacaa
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Export only public manifest-pinned development wheels
+        run: |
+          set -euo pipefail
+          test "$GITHUB_ACTIONS" = true
+          test ! -f .env
+          mkdir wheels
+          grep -E '^(ruff|black|mypy|asyncpg)==' backend/requirements*.txt | sed 's/^[^:]*://' | sort -u > wheels/requirements.txt
+          python -m pip download --only-binary=:all: --dest wheels --requirement wheels/requirements.txt
+          sha256sum wheels/* > wheel-sha256.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lesson-review-public-tools
+          path: |
+            wheels
+            wheel-sha256.txt
+          retention-days: 7
