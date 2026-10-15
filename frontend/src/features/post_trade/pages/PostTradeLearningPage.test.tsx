@@ -2,11 +2,16 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { Link, MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { journalClient } from '../../learning/services/journalClient';
 import { lessonReadbackClient } from '../../learning/services/lessonReadbackClient';
 import { ft011MaterializationClient } from '../../learning/services/materializationClient';
 import { warrantApiClient } from '../../product/services/client';
 import { tradeManagementApiClient } from '../../trade/services/client';
 import { PostTradeLearningPage } from './PostTradeLearningPage';
+
+vi.mock('../../learning/services/journalClient', () => ({
+  journalClient: { history: vi.fn() },
+}));
 
 vi.mock('./PostTradeReviewPage', () => ({
   PostTradeReviewPage: ({
@@ -82,6 +87,16 @@ const warrant = {
 describe('PostTradeLearningPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(journalClient.history).mockResolvedValue({
+      trade_id: 'trade-1',
+      journal_id: null,
+      handoff: {
+        ready: false,
+        reason: 'POST_TRADE_OBSERVATION_MISSING',
+        exit_review_version_id: null,
+      },
+      versions: [],
+    });
     tradeGet.mockResolvedValue(trade);
     warrantGet.mockResolvedValue(warrant);
     status.mockResolvedValue({

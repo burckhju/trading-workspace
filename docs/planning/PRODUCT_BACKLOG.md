@@ -1162,7 +1162,7 @@ Die Felder „Soll“ und „Nicht-Soll“ sind die vor einer Umsetzung zu prüf
 | Fachliche Abnahme | Keine eigenständige fachliche Abnahme für diesen vollständigen Zuschnitt verifiziert. |
 | Software-Auslieferung | Kein gesonderter Release-Nachweis für den vollständigen Zuschnitt verifiziert; ein allgemeiner Softwaretag ersetzt ihn nicht. |
 | Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
-| Restarbeit / nächste Abhängigkeit | Review des qualifizierten Teilschnitts, historische Evidence-Anzeige bei NOT_READY und atomare Absicherung gegen gleichzeitige Upstream-Korrektur bleiben offen. Journal und komplette Capture→Journal→Lesson-Korrekturstrecke sind nicht geliefert. **Nächste Abhängigkeit:** Bestehender FT-012-Journalvertrag; kein zweiter Materialisierungsweg. |
+| Restarbeit / nächste Abhängigkeit | Review des qualifizierten FT011-Teilschnitts, historisches FT011-Evidence-Inventar bei NOT_READY und atomare Absicherung gegen gleichzeitige Upstream-Korrektur bleiben offen. Der eigene [Journal-V1-Nachweis](../implementation/FT012_JOURNAL_WRITE_QUALIFICATION.md) erweitert den Journal-Evidence-Weg, ersetzt diese FT011-Restlücken aber nicht. **Nächste Abhängigkeit:** jeweiliger FT-011-/FT-012-Owner, keine zweite Materialisierung. |
 | Umfangsentscheidung | Historische Lücke im Golden-Path-Closeout durch Extension 09 und spätere UI überholt. Rest ist Verifikation/Abnahme, nicht pauschaler Neubau. |
 
 </details>
@@ -1171,22 +1171,26 @@ Die Felder „Soll“ und „Nicht-Soll“ sind die vor einer Umsetzung zu prüf
 <details>
 <summary>PB-019 — Journalentwurf und Journalabschluss</summary>
 
+> Umsetzungsschnitt 2026-10-14: [Journal-Schreibvertrag und Abnahmekriterien](../implementation/FT012_JOURNAL_WRITE_DOR.md), [ADR zur Versionierung/Quellenbindung](../decisions/ADR-POST-FT012-005-JOURNAL-WRITE-LIFECYCLE.md). Auf getrenntem Entwicklungsbranch aus PR #259: vorhandenes Modell → Commands/UOW → API → Entwurf/Finalisierung/Folgeversion → explizite Journal-Evidence. Historienanzeige bleibt bei veralteter Quelle verfügbar; TradePlan-Hard-Delete erhält eine Final-Historien-Sperre.
+> Fortschreibung 2026-10-15: [eigene Journal-Qualifikation](../implementation/FT012_JOURNAL_WRITE_QUALIFICATION.md) auf gemeinsamem Prüfcommit abgeschlossen. Die Tabelle führt den aktuellen begrenzten Arbeitsstand. Keine menschliche Fachabnahme, Veröffentlichungsversion oder Zielinstallation wird behauptet. Die folgenden Bestandsnotizen bleiben als Stand **vor** diesem Journal-Schnitt erhalten.
+
+
 > Bestandsnotiz 2026-10-14: [vollständiger Checkout und Journal-Vertragsvorschlag](../implementation/POST_TRADE_LEARNING_HANDOFF_REVIEW.md) bestätigen Journalmodelle und Evidence-Lesetypen, aber keinen Journal-Schreibservice, entsprechende UOW-Repositories, registrierte Schreibroute oder Editor im FT-012-Consumer. Die Domain erlaubt leere Finals und enthält dort keinen konkreten Review-Pin.
 > Journal-Commands, API, UI, Finalisierung, Folgeversion und Datenbanknachweise sind durch den Handoff-Patch nicht geliefert. Keine automatische Verschärfung durch Performance und keine neue Freigabe für zusätzliche Pflichtbewertungen.
 
 | Nachweisfeld | Einordnung |
 |---|---|
 | Zuordnung | M7: Journal. Bereich/Querschnitt: 7. Bestehender Bezug: FT-012; bestehende Evaluation-Ownership. Lieferziel: B. |
-| Arbeitsstatus | Analysis; P1 – Fokus B |
+| Arbeitsstatus | Technical Review; P1 – Fokus B. Journal-V1 technisch qualifiziert, fachliche Abnahme offen. |
 | Soll / Nicht-Soll | **Soll:** Ein eigenständiger Journalentwurf dokumentiert Reflexion und genaue Trade-/Review-Herkunft; Abschlussregeln sind testbar festgelegt. **Nicht-Soll:** Performance ist keine Voraussetzung für einen Entwurf. Exit Review, LearningEvidence und Lesson sind kein stiller Ersatz für Journal. |
-| Vorhandenseinsnachweis | Vollständige Teilfähigkeit nicht verifiziert. Vorhandene Nachbarfunktionen/Dokumente sind im Implementierungsfeld benannt; daraus folgt kein Abwesenheitsbeweis. |
-| Implementierung / Consumer | [Prozessmodell verlangt Journal](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/domain/TRADING_PROCESS_MODEL.md); [gelesener Post-Trade-Consumer](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/frontend/src/features/post_trade/pages/PostTradeLearningPage.tsx) bietet Review, Evidence und Lessons. Ein separater aktueller Journal-Consumer ist nicht verifiziert; unvollständige Codesuche beweist keine Abwesenheit. |
-| Test / Commit | Kein Journal-spezifischer Test-/Abnahmebeleg verifiziert. Basis-CI sagt darüber nichts Spezifisches aus. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Vorhandenseinsnachweis | Journal-V1 im bestehenden FT-012-Owner implementiert und im vollständigen Checkout einschließlich echtem PostgreSQL-/Browserweg technisch geprüft; Entwurf, finaler Stand und Folgeversion eigenständig. |
+| Implementierung / Consumer | [JournalService](../../backend/app/features/learning/application/journal_service.py), bestehende Persistenz/UOW und [Journal-API](../../backend/app/features/learning/api/journal_router.py) → [TradeJournalPanel](../../frontend/src/features/learning/components/TradeJournalPanel.tsx) im PostTradeLearningPage. JournalEvidenceOrigin zeigt die genaue Quellenversion im Lesson-Detail. |
+| Test / Commit | [Gemeinsamer Qualifikationsnachweis](../implementation/FT012_JOURNAL_WRITE_QUALIFICATION.md) auf `666e8ab07d4fd509e316eadfa9b31d57ce3d48c3`, Lauf `38683089292`: Backend 2645, Frontend 472, Browser 52 bestanden. Echte BUY/SELL-, 19/20-Beobachtungs-, Journal-/Lesson-/Korrekturstrecke und parallele PostgreSQL-Commands; keine Hochrechnung von Basis-CI. |
 | Fachliche Abnahme | Keine eigenständige fachliche Abnahme für diesen vollständigen Zuschnitt verifiziert. |
-| Software-Auslieferung | Kein gesonderter Release-Nachweis für den vollständigen Zuschnitt verifiziert; ein allgemeiner Softwaretag ersetzt ihn nicht. |
+| Software-Auslieferung | Draft-PR #260 ist auf #259 gestapelt; kein Merge/Release. Additive Migration 20261014_0046 nur im Teststack qualifiziert, keine Nutzerinstallation. |
 | Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
-| Restarbeit / nächste Abhängigkeit | Im vollständigen Checkout FT-012-Consumer/Umbenennungen abgleichen; anschließend kleinsten Journalentwurf-Schnitt mit klaren Feldern, Versionsbezug und Korrekturvertrag spezifizieren/umsetzen, soweit freigegeben. **Nächste Abhängigkeit:** Bestehender FT-012-Owner; genaue Trade-/Review-Referenzen; fachlicher Entwurfs-/Abschlussvertrag. Nicht PB-019 Performance. |
-| Umfangsentscheidung | M7 bleibt geplant. Entwurf ohne Performance ist Vorgabe des Planungsauftrags vom 2026-10-13; daraus wird keine rückwirkende Freigabe neuer Journal-Fachlogik abgeleitet. |
+| Restarbeit / nächste Abhängigkeit | Fachreview des Journal-V1-Vertrags, insbesondere leerer Abschluss und Historienerhalt, sowie Installationsfreigabe offen. Allgemeiner Lesson-Review-/Folgeversionsdialog, FT011-Handoff-Race und externe Journale bleiben eigener Restscope; siehe [Matrix](../implementation/FT012_JOURNAL_WRITE_QUALIFICATION.md). **Nächste Abhängigkeit:** vorhandene FT-012-Review-/Versionsverträge, nicht Performance. |
+| Umfangsentscheidung | M7 bleibt ursprüngliche Referenz. Journal-V1 ist kein pauschaler Abschluss von M7 oder des ganzen Lernbereichs; keine neuen Scores, Pflichtbewertungen, Importquellen oder Modellaktivierungen. |
 
 </details>
 
@@ -1219,13 +1223,13 @@ Die Felder „Soll“ und „Nicht-Soll“ sind die vor einer Umsetzung zu prüf
 | Zuordnung | M7: Lessons Learned. Bereich/Querschnitt: 7. Bestehender Bezug: FT-012. Lieferziel: B, D. |
 | Arbeitsstatus | Technical Review |
 | Soll / Nicht-Soll | **Soll:** Eine bewusste Interpretation referenziert konkrete LearningEvidence und eine unveränderliche LessonVersion. **Nicht-Soll:** Evidence-Transport erzeugt keine Lesson; Lesson erzeugt kein automatisches Modellapproval. |
-| Vorhandenseinsnachweis | Vorhandener Code beziehungsweise tatsächlicher Consumer statisch gelesen; nur der im Implementierungsfeld benannte Teilscope ist dadurch belegt. |
-| Implementierung / Consumer | [LessonDraftFromEvidence, Evidence-Readback und /lessons/:lessonId](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/frontend/src/features/post_trade/pages/PostTradeLearningPage.tsx) sowie [historische Evidence→Lesson-Naht](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/implementation/POST_D01_GOLDEN_PATH_CLOSEOUT.md). |
-| Test / Commit | Historische Golden-Path-Qualification; aktuelle UI-Consumer gelesen; Basis-CI. Nicht jeder Lesson-Service/Test erneut gelesen. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Vorhandenseinsnachweis | Bestehende ausdrückliche Lesson-Erstellung plus dauerhafte Journal-Evidence→Lesson-Strecke mit getrenntem Currentness-Readback technisch qualifiziert. Allgemeiner Lesson-Review-Editor dadurch nicht erledigt. |
+| Implementierung / Consumer | Bestehendes LessonDraftFromEvidence und LessonDetailPage; FT-012 LessonService.create_with_tags schließt den expliziten Erstellungsbefehl atomar ab. JournalEvidenceOrigin liest konkrete Journalversion und heutige Quellenprüfung getrennt; keine automatische Neuinterpretation. |
+| Test / Commit | [Journal-Qualifikation](../implementation/FT012_JOURNAL_WRITE_QUALIFICATION.md) auf `666e8ab…`: separate HTTP-/SQL-Reads nach Commit, Rollback bei ungültigen Tags, exakter Evidenzbezug und unveränderte alte Lesson nach Execution-/Review-/Journal-Korrektur. Allgemeine spätere Lesson-Review-Commands dadurch nicht pauschal qualifiziert. |
 | Fachliche Abnahme | Keine eigenständige fachliche Abnahme für diesen vollständigen Zuschnitt verifiziert. |
 | Software-Auslieferung | Kein gesonderter Release-Nachweis für den vollständigen Zuschnitt verifiziert; ein allgemeiner Softwaretag ersetzt ihn nicht. |
 | Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
-| Restarbeit / nächste Abhängigkeit | Korrektur-/Currentness-Readback und Benutzerweg qualifizieren. Offene PR #90 für direkte Navigation nicht als main-Funktion zählen. **Nächste Abhängigkeit:** FT-012 Evidence; Journal ist keine neu eingeführte technische Zwangsvoraussetzung für die vorhandene Lesson-Strecke. |
+| Restarbeit / nächste Abhängigkeit | Allgemeinen ausdrücklichen Lesson-Review-/Revalidierungs-/Folgeversionsdialog mit genauer Quellenversion und SUPPORTS/CONTRADICTS-Verträgen schließen; Transaktionsgrenzen eigenständig prüfen. Offenen PR #90 nicht als main-Funktion zählen. **Nächste Abhängigkeit:** bestehende FT-012-Evidence-/Review-Verträge; Journal ist keine Pflicht für die vorhandene FT011-Lesson-Strecke. |
 | Umfangsentscheidung | Vorhandene Lesson-Strecke erhalten, nicht neu bauen. Journal bleibt daneben eigener ursprünglicher Anspruch. |
 
 </details>

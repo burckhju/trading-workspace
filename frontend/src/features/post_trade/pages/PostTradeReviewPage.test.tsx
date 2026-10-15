@@ -442,6 +442,56 @@ describe('PostTradeReviewPage', () => {
     expect(materializationApi.materialize).not.toHaveBeenCalled();
   });
 
+  it('checks a finalized review explicitly and creates a successor only on a separate action', async () => {
+    api.observation.mockResolvedValue({
+      ...observation,
+      status: 'COMPLETED',
+      available_observation_count: 20,
+      missing_observation_count: 0,
+      is_complete: true,
+    });
+    const final: ExitReviewResponse = {
+      ...draft,
+      status: 'FINALIZED',
+      finalized_at: '2026-09-15T12:00:00Z',
+      finalized_by: 'actor-1',
+    };
+    api.review.mockResolvedValue(final);
+    renderPage();
+    const check = await screen.findByRole('button', { name: 'Review-Quellenstand prüfen' });
+    await waitFor(() => expect(check).toBeEnabled());
+    expect(api.revalidateReview).not.toHaveBeenCalled();
+    expect(api.createReviewDraft).not.toHaveBeenCalled();
+    const stale: ExitReviewResponse = {
+      ...final,
+      currentness: 'STALE',
+      stale_reason: 'INPUT_CHANGED',
+    };
+    api.revalidateReview.mockResolvedValue(stale);
+    api.review.mockResolvedValue(stale);
+    fireEvent.click(check);
+    await screen.findByText('Dieser Review ist STALE und muss erneut geprüft werden.');
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Neue Review-Version vorbereiten' })).toBeEnabled(),
+    );
+    expect(api.createReviewDraft).not.toHaveBeenCalled();
+    const successor = {
+      ...draft,
+      current_version_id: 'version-2',
+      version: 2,
+      supersedes_version_id: 'version-1',
+    };
+    api.createReviewDraft.mockResolvedValue(successor);
+    api.review.mockResolvedValue(successor);
+    fireEvent.click(screen.getByRole('button', { name: 'Neue Review-Version vorbereiten' }));
+    await waitFor(() => expect(api.createReviewDraft).toHaveBeenCalledOnce());
+    await waitFor(() => expect(screen.getByLabelText('Review-Begründung')).toBeEnabled());
+    expect(api.revalidateReview).toHaveBeenCalledWith('trade-1');
+    expect(api.createReviewDraft).toHaveBeenCalledWith('trade-1');
+    expect(api.finalizeReview).not.toHaveBeenCalled();
+    expect(materializationApi.materialize).not.toHaveBeenCalled();
+  });
+
   it('does not render a second materialization action when embedded', async () => {
     render(
       <MemoryRouter initialEntries={['/post-trade?trade_id=trade-1']}>

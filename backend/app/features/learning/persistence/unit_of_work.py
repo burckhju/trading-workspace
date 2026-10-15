@@ -7,6 +7,10 @@ from typing import Protocol, Self
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.features.learning.persistence.journal_repository import (
+    JournalRepository,
+    SqlAlchemyJournalRepository,
+)
 from app.features.learning.persistence.repositories import (
     ExternalObservationRepository,
     ExternalObservationTradeLinkRepository,
@@ -38,6 +42,7 @@ from app.features.learning.persistence.repositories import (
 
 
 class LearningTradeLinkUnitOfWork(Protocol):
+    journals: JournalRepository
     lesson_evidence_links: LessonEvidenceLinkRepository
     lesson_state_transitions: LessonStateTransitionRepository
     lesson_review_signals: LessonReviewSignalRepository
@@ -71,6 +76,7 @@ class LearningTradeLinkUnitOfWork(Protocol):
 class SqlAlchemyLearningTradeLinkUnitOfWork:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
+        self.journals = SqlAlchemyJournalRepository(session)
         self.lessons = SqlAlchemyLessonRepository(session)
         self.lesson_versions = SqlAlchemyLessonVersionRepository(session)
         self.lesson_evidence_links = SqlAlchemyLessonEvidenceLinkRepository(session)

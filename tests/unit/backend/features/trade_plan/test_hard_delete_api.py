@@ -71,3 +71,16 @@ def test_delete_trade_plan_translates_missing_plan() -> None:
         response = client.delete(f"/api/v1/trade-plans/{PLAN_ID}")
 
     assert response.status_code == 404
+
+
+def test_finalized_journal_is_a_structured_conflict_not_a_missing_plan() -> None:
+    from app.features.learning.application.journal_retention import JournalHistoryProtectedError
+
+    service = AsyncMock()
+    service.delete.side_effect = JournalHistoryProtectedError("Final history is retained")
+    application = create_application(settings())
+    application.dependency_overrides[get_trade_plan_hard_delete_service] = lambda: service
+    with TestClient(application) as client:
+        response = client.delete(f"/api/v1/trade-plans/{PLAN_ID}")
+    assert response.status_code == 409
+    assert response.json()["code"] == "JOURNAL_HISTORY_PROTECTED"

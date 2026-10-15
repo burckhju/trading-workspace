@@ -98,3 +98,38 @@ async def test_replace_tags_normalizes_and_does_not_create_version() -> None:
     assert len(uow.lesson_tags.assignments) == 2
     assert uow.flushed
     assert not hasattr(uow, "lesson_versions")
+
+
+@pytest.mark.asyncio
+async def test_new_tag_parents_are_flushed_before_assignment_without_committing() -> None:
+    actor = uuid4()
+    lesson = Lesson(
+        id=uuid4(),
+        workspace_id=uuid4(),
+        title="Tags",
+        current_version_id=uuid4(),
+        current_state=LessonState.CURRENT,
+        created_at=NOW,
+        created_by=actor,
+        updated_at=NOW,
+        updated_by=actor,
+    )
+    uow = Uow(lesson)
+    assigned = []
+    original_assign = uow.lesson_tags.assign
+
+    async def assign_after_parent_flush(**kwargs):
+        assert uow.flushed, "Tag foreign-key parent must exist before assignment"
+        assigned.append(kwargs["tag_id"])
+        await original_assign(**kwargs)
+
+    uow.lesson_tags.assign = assign_after_parent_flush
+    result = await LessonService(uow=uow, clock=Clock(), id_factory=Ids()).replace_tags(
+        workspace_id=lesson.workspace_id,
+        lesson_id=lesson.id,
+        tags=("New tag",),
+        actor_id=actor,
+    )
+    assert assigned == [result[0].id]
+    assert result[0].normalized_name == "new tag"
+    assert not hasattr(uow, "commit")  # The composable operation must not commit.

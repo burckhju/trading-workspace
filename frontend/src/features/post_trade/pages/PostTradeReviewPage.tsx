@@ -647,9 +647,35 @@ function PostTradeReviewContent({
               </label>
 
               {reviewReadOnly ? (
-                <p className="mt-4 text-sm text-slate-400">
-                  Finalisierte Reviews sind schreibgeschützt.
-                </p>
+                <div className="mt-4 space-y-3">
+                  <p className="text-sm text-slate-400">
+                    Finalisierte Reviews sind schreibgeschützt.
+                  </p>
+                  <p className="text-sm text-slate-400">
+                    Ein neuer Entwurf erhält eine eigene Version; bisherige Bewertungen bleiben
+                    bestehen.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {review.currentness === 'CURRENT' && (
+                      <button
+                        type="button"
+                        onClick={() => void revalidateReview()}
+                        disabled={loading}
+                        className="rounded-lg border border-slate-600 px-3 py-2 disabled:opacity-50"
+                      >
+                        Review-Quellenstand prüfen
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => void createDraft()}
+                      disabled={loading}
+                      className="rounded-lg border border-slate-600 px-3 py-2 disabled:opacity-50"
+                    >
+                      Neue Review-Version vorbereiten
+                    </button>
+                  </div>
+                </div>
               ) : (
                 <div className="mt-4 flex flex-wrap gap-2">
                   <button
