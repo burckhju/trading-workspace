@@ -84,3 +84,14 @@ supported concurrent business command. Original M0–M11 scope is not relabelled
 The global journal/lesson dashboard and the known navigation/data-feed issues are
 independent. Only the combined page's wrapper may change as needed to make the
 inventory readable without introducing another navigation system.
+
+## Qualification finding, 2026-10-16 (before readback correction)
+
+The first real browser run 38954345066 reached materialized FT011 Evidence but
+received HTTP 500 from the existing `learning-evidence/{id}/lessons` GET. The
+original DISTINCT query ordered by Lesson.updated_at without selecting it, which
+PostgreSQL rejects even for an empty result. Fix only this query projection, not
+the response contract, relation semantics or the new browser assertions. Add real
+PostgreSQL coverage for empty and populated references and deduplication after
+multiple LessonVersions reference the same Evidence. The original browser
+failure stays a failed run. Requalify the exact corrected code/tree.

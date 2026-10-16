@@ -359,6 +359,20 @@ def test_parallel_commands_explicit_retry_and_commit_failure_leave_no_orphans(
     asyncio.run(exercise())
 
 
+def test_existing_lesson_readback_uses_postgresql_distinct_ordering(source_database):
+    """The existing browser GET must succeed even with no matching Lesson rows."""
+    url = source_database
+    _migrate(url, "head")
+
+    async def exercise():
+        async with _client(url) as client:
+            response = await client.get(f"{LEARN}/learning-evidence/{uuid4()}/lessons")
+            assert response.status_code == 200, response.text
+            assert response.json() == []
+
+    asyncio.run(exercise())
+
+
 def test_inventory_preserves_old_lesson_version_relations_after_successor(source_database):
     from tests.integration.backend.learning.test_explicit_lesson_review_postgres import (
         body,
@@ -375,6 +389,9 @@ def test_inventory_preserves_old_lesson_version_relations_after_successor(source
             first = await materialize(client, trade, version, "old")
             assert first.status_code == 200, first.text
             eid = first.json()["learning_evidence_id"]
+            reference_path = f"{LEARN}/learning-evidence/{eid}/lessons"
+            empty = await client.get(reference_path)
+            assert empty.status_code == 200 and empty.json() == [], empty.text
             response = await client.post(
                 f"{LEARN}/lessons",
                 json=dict(
@@ -389,6 +406,11 @@ def test_inventory_preserves_old_lesson_version_relations_after_successor(source
             lid = response.json()["lesson_id"]
             original = await context(client, lid)
             previous = original["history"][0]
+            references = await client.get(reference_path)
+            assert references.status_code == 200, references.text
+            assert len(references.json()) == 1
+            assert references.json()[0]["lesson_id"] == lid
+            assert references.json()[0]["current_version_id"] == previous["version"]["id"]
             before = (await inventory(client, trade))[0]
             assert before["source_currentness"] == "CURRENT"
             assert before["lesson_links"][0]["lesson_version_id"] == previous["version"]["id"]
@@ -430,6 +452,13 @@ def test_inventory_preserves_old_lesson_version_relations_after_successor(source
                 ),
             )
             latest = await context(client, lid)
+            references = await client.get(reference_path)
+            assert references.status_code == 200, references.text
+            assert len(references.json()) == 1  # Root readback deduplicates V1/V2 links.
+            assert references.json()[0]["lesson_id"] == lid
+            assert (
+                references.json()[0]["current_version_id"] == latest["lesson"]["current_version_id"]
+            )
             assert latest["history"][1] == previous
             items = await inventory(client, trade)
             assert len(items) == 2

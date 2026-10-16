@@ -52,6 +52,9 @@ class SqlAlchemyLessonEvidenceReadRepository:
                     LessonModel.current_version_id,
                     LessonModel.current_state,
                     LessonModel.title,
+                    # PostgreSQL requires every DISTINCT ORDER BY expression
+                    # in the projection. This is not an extra API field.
+                    LessonModel.updated_at,
                 )
                 .join(LessonVersionModel, LessonVersionModel.lesson_id == LessonModel.id)
                 .join(
