@@ -12,6 +12,10 @@ from app.features.post_trade.application.exit_review_service import (
 from app.features.post_trade.application.handoff_service import (
     Ft012HandoffService,
 )
+from app.features.post_trade.application.materialization_handoff import (
+    InspectedFt012HandoffService,
+    MaterializationSourceGuard,
+)
 from app.features.post_trade.application.observation_service import (
     PostTradeObservationService,
 )
@@ -69,6 +73,23 @@ def get_ft012_handoff_service(
     return Ft012HandoffService(
         uow=SqlAlchemyPostTradeLearningUnitOfWork(session),
     )
+
+
+def build_inspected_ft012_handoff_service(
+    session: AsyncSession, *, guard: MaterializationSourceGuard | None = None
+) -> InspectedFt012HandoffService:
+    """Shared owner inspection; only the materialization command supplies a guard."""
+    return InspectedFt012HandoffService(
+        handoff=get_ft012_handoff_service(session),
+        inspector=get_exit_review_service(session),
+        guard=guard,
+    )
+
+
+def get_inspected_ft012_handoff_service(
+    session: Annotated[AsyncSession, Depends(get_database_session)],
+) -> InspectedFt012HandoffService:
+    return build_inspected_ft012_handoff_service(session)
 
 
 def get_post_trade_query_service(

@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.features.post_trade.api.dependencies import (
-    get_ft012_handoff_service,
+    get_inspected_ft012_handoff_service,
 )
 from app.features.post_trade.api.router import router
 from app.features.post_trade.application.handoff_service import (
@@ -31,7 +31,7 @@ def test_handoff_endpoint_exposes_ready_state() -> None:
 
     app = FastAPI()
     app.include_router(router)
-    app.dependency_overrides[get_ft012_handoff_service] = lambda: service
+    app.dependency_overrides[get_inspected_ft012_handoff_service] = lambda: service
 
     client = TestClient(app)
 

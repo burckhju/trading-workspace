@@ -168,6 +168,12 @@ test("real PostgreSQL: FT011 history survives correction and opens the exact Les
   );
   await page.reload();
   await expect(history.getByText(/Quellenprüfung: STALE/)).toBeVisible();
+  await expect(
+    page.getByText("Bereit für FT-012.", { exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByText("Noch nicht bereit: EXIT_REVIEW_STALE", { exact: true }),
+  ).toBeVisible();
   await expect(oldLink).toHaveAttribute("href", oldHref);
   expect(
     (

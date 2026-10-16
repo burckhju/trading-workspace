@@ -26,28 +26,21 @@ from app.features.learning.persistence.unit_of_work import (
     LearningTradeLinkUnitOfWork,
     SqlAlchemyLearningTradeLinkUnitOfWork,
 )
-from app.features.post_trade.api.dependencies import get_exit_review_service
-from app.features.post_trade.application.handoff_service import Ft012HandoffService
+from app.features.post_trade.api.dependencies import (
+    build_inspected_ft012_handoff_service,
+    get_exit_review_service,
+)
 from app.features.post_trade.application.materialization_handoff import InspectedFt012HandoffService
 from app.features.post_trade.persistence.materialization_guard import (
     SqlAlchemyMaterializationSourceGuard,
-)
-from app.features.post_trade.persistence.unit_of_work import (
-    PostTradeLearningUnitOfWork,
-    SqlAlchemyPostTradeLearningUnitOfWork,
 )
 
 
 def _handoff_reader(
     session: AsyncSession, *, guarded: bool = False
 ) -> InspectedFt012HandoffService:
-    post_trade_uow = cast(
-        PostTradeLearningUnitOfWork,
-        SqlAlchemyPostTradeLearningUnitOfWork(session),
-    )
-    return InspectedFt012HandoffService(
-        handoff=Ft012HandoffService(uow=post_trade_uow),
-        inspector=get_exit_review_service(session),
+    return build_inspected_ft012_handoff_service(
+        session,
         guard=SqlAlchemyMaterializationSourceGuard(session) if guarded else None,
     )
 

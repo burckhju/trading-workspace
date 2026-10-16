@@ -95,3 +95,14 @@ the response contract, relation semantics or the new browser assertions. Add rea
 PostgreSQL coverage for empty and populated references and deduplication after
 multiple LessonVersions reference the same Evidence. The original browser
 failure stays a failed run. Requalify the exact corrected code/tree.
+
+## Visual qualification finding, 2026-10-16 (before reader unification)
+
+The corrected real browser journey passed twice in run 38955904535. Visual
+inspection nevertheless found the legacy FT-011 Handoff card still saying READY
+after correction, while the materialization status and independent inventory
+correctly said NOT_READY/STALE. Its public GET must use the same FT-011 inspected
+reader as the materialization status, without mutating the stored review. Keep
+the journal command's existing gate/composition unchanged. Add explicit real PG
+and browser assertions that both public read surfaces reject the outdated source,
+while old Evidence remains discoverable. No frontend currentness calculation.

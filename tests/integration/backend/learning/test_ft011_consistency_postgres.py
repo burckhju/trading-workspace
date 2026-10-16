@@ -421,6 +421,10 @@ def test_inventory_preserves_old_lesson_version_relations_after_successor(source
                 f"{LEARN}/trades/{trade}/ft011-evidence/materialization-status"
             )
             assert not status.json()["ready"] and not status.json()["materialized"]
+            public_handoff = await client.get(f"{POST}/{trade}/handoff")
+            assert public_handoff.status_code == 200, public_handoff.text
+            assert public_handoff.json()["ready"] is False
+            assert public_handoff.json()["reason"] == status.json()["reason"] == "EXIT_REVIEW_STALE"
             stale = (await inventory(client, trade))[0]
             assert stale["learning_evidence_id"] == eid and stale["source_currentness"] == "STALE"
             assert (
