@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ErrorNotice, LoadingNotice } from '../components/ApiFeedback';
 import { marketApiClient } from '../services/client';
@@ -11,9 +11,26 @@ import type {
 
 export function UnderlyingFormPage() {
   const { underlyingId } = useParams();
+  const [searchParams] = useSearchParams();
+  // A different record or creation proposal must never inherit another form's state.
+  return (
+    <UnderlyingForm
+      key={JSON.stringify([underlyingId, searchParams.toString()])}
+      underlyingId={underlyingId}
+      searchParams={searchParams}
+    />
+  );
+}
+
+function UnderlyingForm({
+  underlyingId,
+  searchParams,
+}: {
+  underlyingId: string | undefined;
+  searchParams: URLSearchParams;
+}) {
   const editing = Boolean(underlyingId);
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
   const [existing, setExisting] = useState<UnderlyingDetailResponse | null>(null);
   const [venues, setVenues] = useState<TradingVenueResponse[]>([]);
   const [currencies, setCurrencies] = useState<CurrencyResponse[]>([]);
@@ -27,6 +44,9 @@ export function UnderlyingFormPage() {
   const [error, setError] = useState<unknown>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [ready, setReady] = useState(false);
+  const active = useRef(false);
+  const savePending = useRef(false);
 
   const providerSource = !editing ? searchParams.get('source') : null;
   const providerExchange = !editing ? searchParams.get('exchange')?.trim().toUpperCase() : null;
@@ -40,12 +60,19 @@ export function UnderlyingFormPage() {
   );
 
   useEffect(() => {
+    active.current = true;
+    let cancelled = false;
     void Promise.all([
       marketApiClient.listTradingVenues(),
       marketApiClient.listCurrencies(),
       editing && underlyingId ? marketApiClient.getUnderlying(underlyingId) : Promise.resolve(null),
     ])
       .then(([v, c, detail]) => {
+        if (cancelled) return;
+        if (editing && (!detail || detail.id !== underlyingId)) {
+          throw new Error('The loaded underlying does not match the edit route.');
+        }
+        setReady(true);
         setVenues(v.items);
         setCurrencies(c.items);
         setVenueId(v.items[0]?.id ?? '');
@@ -82,13 +109,23 @@ export function UnderlyingFormPage() {
           if (exactVenue) setVenueId(exactVenue.id);
         }
       })
-      .catch(setError)
-      .finally(() => setLoading(false));
+      .catch((reason: unknown) => {
+        if (!cancelled) setError(reason);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+      active.current = false;
+    };
   }, [editing, underlyingId, searchParams]);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
-    if (proposalMismatch) return;
+    if (!active.current || !ready || loading || savePending.current || proposalMismatch) return;
+    if (editing && (!existing || existing.id !== underlyingId)) return;
+    savePending.current = true;
     setSaving(true);
     setError(null);
     try {
@@ -99,8 +136,8 @@ export function UnderlyingFormPage() {
           isin: isin || null,
           wkn: wkn || null,
         });
-        void navigate(`/underlyings/${updated.id}`);
-      } else {
+        if (active.current) void navigate(`/underlyings/${updated.id}`);
+      } else if (!editing) {
         const created = await marketApiClient.createUnderlying({
           name,
           type,
@@ -113,12 +150,13 @@ export function UnderlyingFormPage() {
             is_primary: true,
           },
         });
-        void navigate(`/underlyings/${created.id}`);
+        if (active.current) void navigate(`/underlyings/${created.id}`);
       }
     } catch (reason) {
-      setError(reason);
+      if (active.current) setError(reason);
     } finally {
-      setSaving(false);
+      savePending.current = false;
+      if (active.current) setSaving(false);
     }
   }
 
@@ -157,6 +195,12 @@ export function UnderlyingFormPage() {
         </div>
       )}
       {error !== null && <ErrorNotice error={error} />}
+      {!ready && (
+        <p className="text-sm text-slate-300">
+          Speichern ist gesperrt, weil das Formular nicht vollständig geladen werden konnte. Bitte
+          die Seite neu laden oder zurückgehen.
+        </p>
+      )}
       {requiredMic && (
         <p role={proposalMismatch ? 'alert' : undefined} className="text-sm text-amber-200">
           Dieser Listing-Vorschlag verlangt {requiredMic} / {requiredCurrency ?? 'geprüfte Währung'}
@@ -182,7 +226,10 @@ export function UnderlyingFormPage() {
         }}
         className="space-y-6"
       >
-        <fieldset className="rounded-xl border border-slate-800 bg-slate-900/50 p-5">
+        <fieldset
+          disabled={!ready || saving}
+          className="rounded-xl border border-slate-800 bg-slate-900/50 p-5"
+        >
           <legend className="px-2 font-semibold">1. Grunddaten</legend>
           <div className="grid gap-4 md:grid-cols-2">
             <label className="md:col-span-2">
@@ -229,7 +276,10 @@ export function UnderlyingFormPage() {
           </div>
         </fieldset>
         {!editing && (
-          <fieldset className="rounded-xl border border-slate-800 bg-slate-900/50 p-5">
+          <fieldset
+            disabled={!ready || saving}
+            className="rounded-xl border border-slate-800 bg-slate-900/50 p-5"
+          >
             <legend className="px-2 font-semibold">2. Primäre Notierung</legend>
             <div className="grid gap-4 md:grid-cols-3">
               {venues.length === 1 ? (
@@ -302,7 +352,7 @@ export function UnderlyingFormPage() {
             Abbrechen
           </Link>
           <button
-            disabled={saving || proposalMismatch}
+            disabled={!ready || saving || proposalMismatch}
             className="rounded-lg bg-sky-500 px-5 py-2 font-semibold text-slate-950 disabled:opacity-50"
           >
             {saving ? 'Speichern …' : 'Speichern'}
