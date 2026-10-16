@@ -1,0 +1,299 @@
+name: FT011 consistency requalification
+on:
+  push:
+    branches: [dev/ft011-materialization-consistency-20261016]
+    paths: [.github/workflows/ft011-consistency-qualification.yml]
+permissions:
+  contents: read
+concurrency:
+  group: ft011-readback-requalification
+  cancel-in-progress: false
+env:
+  TRADING_WORKSPACE_MARKET_DATA__REFRESH__ENABLED: 'false'
+  TRADING_WORKSPACE_MARKET_DATA__REFRESH__AUTO_CONFIGURE: 'false'
+  TRADING_WORKSPACE_POSITION_MONITORING__ENABLED: 'false'
+  TRADING_WORKSPACE_NOTIFICATION__TELEGRAM__ENABLED: 'false'
+  TRADING_WORKSPACE_MARKET_DATA__EODHD__ENABLED: 'false'
+  TRADING_WORKSPACE_MARKET_DATA__VONTOBEL_MARKETS__ENABLED: 'false'
+  TRADING_WORKSPACE_MARKET_DATA__STUTTGART_DELAYED__ENABLED: 'false'
+  TRADING_WORKSPACE_MARKET_DATA__GETTEX_DELAYED__ENABLED: 'false'
+  TRADING_WORKSPACE_MARKET_DATA__FRANKFURT__ENABLED: 'false'
+jobs:
+  integrate:
+    if: github.repository == 'burckhju/trading-workspace' && github.ref == 'refs/heads/dev/ft011-materialization-consistency-20261016'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    outputs:
+      head_sha: ${{ steps.patch.outputs.head_sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 30
+      - name: Verify focused repair and remove temporary helpers
+        id: patch
+        run: |
+          set -euo pipefail
+          test "$GITHUB_ACTIONS" = true
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          python - <<'PY'
+          import base64,hashlib,lzma,pathlib,subprocess
+          base='5119782c57cf272407622fa535acc5af08a26818'
+          helpers={'.github/ft011-readback-fix.b64','.github/workflows/ft011-consistency-qualification.yml'}
+          assert set(subprocess.check_output(['git','diff','--name-only',base,'HEAD'],text=True).splitlines())==helpers
+          raw=pathlib.Path('.github/ft011-readback-fix.b64').read_text().strip()
+          patch=lzma.decompress(base64.b64decode(raw,validate=True))
+          assert hashlib.sha256(patch).hexdigest()=='7ddae089ce5c1cae3a09b274f3faa136ac0398d5999d03089bc243cea9d3eafc'
+          paths={'backend/app/features/learning/persistence/lesson_evidence_read_repository.py','tests/integration/backend/learning/test_ft011_consistency_postgres.py','docs/implementation/FT011_MATERIALIZATION_CONSISTENCY_DOR.md'}
+          stats=subprocess.check_output(['git','apply','--numstat'],input=patch).decode()
+          assert {row.split('\t')[2] for row in stats.splitlines()}==paths
+          subprocess.run(['git','apply','--check'],input=patch,check=True)
+          subprocess.run(['git','apply'],input=patch,check=True)
+          subprocess.run(['git','rm',*sorted(helpers)],check=True)
+          subprocess.run(['git','add','--',*sorted(paths)],check=True)
+          subprocess.run(['git','diff','--cached','--check'],check=True)
+          assert subprocess.check_output(['git','write-tree'],text=True).strip()=='0a07a45746cf72de611b1f954d30bfdd1a523e47'
+          PY
+          test "$(git ls-remote origin refs/heads/dev/ft011-materialization-consistency-20261016 | cut -f1)" = "$GITHUB_SHA"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'fix(learning): preserve PostgreSQL DISTINCT ordering in lesson readback'
+          git push origin HEAD:refs/heads/dev/ft011-materialization-consistency-20261016
+          echo "head_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          git rev-parse HEAD HEAD^{tree}
+  backend:
+    needs: integrate
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: trading_workspace
+          POSTGRES_PASSWORD: ft011-ci-only
+          POSTGRES_DB: trading_workspace_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U trading_workspace -d trading_workspace_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TRADING_WORKSPACE_DATABASE_URL: postgresql+asyncpg://trading_workspace:ft011-ci-only@localhost:5432/trading_workspace_test
+      TRADING_WORKSPACE_TEST_DATABASE_URL: postgresql+asyncpg://trading_workspace:ft011-ci-only@localhost:5432/trading_workspace_test
+      PYTHONPATH: ${{ github.workspace }}/backend:${{ github.workspace }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.integrate.outputs.head_sha }}
+          fetch-depth: 30
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version-file: backend/.python-version
+      - name: Verify fresh disposable database context
+        run: |
+          set -euo pipefail
+          test "$GITHUB_ACTIONS" = true
+          test ! -f .env
+          test ! -f backend/.env
+          mkdir -p qualification
+          git rev-parse HEAD HEAD^{tree} | tee qualification/identity.txt
+          python - <<'PY'
+          import os
+          from urllib.parse import urlparse
+          u=urlparse(os.environ['TRADING_WORKSPACE_TEST_DATABASE_URL'])
+          assert u.hostname=='localhost' and u.port==5432 and u.path=='/trading_workspace_test'
+          PY
+      - run: python -m pip install --requirement backend/requirements-dev.txt
+      - name: Migrate PostgreSQL and verify unchanged single schema head
+        working-directory: backend
+        run: |
+          set -euo pipefail
+          python -m alembic heads | tee ../qualification/heads.log
+          test "$(python -m alembic heads)" = '20261014_0046 (head)'
+          python -m alembic upgrade head 2>&1 | tee ../qualification/migration.log
+          python -m alembic current | tee ../qualification/current.log
+      - name: Reproduce exact PostgreSQL query failure on original reader then restore
+        run: |
+          set -euo pipefail
+          path=backend/app/features/learning/persistence/lesson_evidence_read_repository.py
+          cp "$path" "$RUNNER_TEMP/qualified-reader.py"
+          trap 'cp "$RUNNER_TEMP/qualified-reader.py" "$path"' EXIT
+          git show "5119782c57cf272407622fa535acc5af08a26818:$path" > "$path"
+          set +e
+          python -m pytest -c backend/pyproject.toml tests/integration/backend/learning/test_ft011_consistency_postgres.py::test_existing_lesson_readback_uses_postgresql_distinct_ordering -vv > qualification/regression-before.log 2>&1
+          code=$?
+          set -e
+          cp "$RUNNER_TEMP/qualified-reader.py" "$path"
+          trap - EXIT
+          test "$code" = 1
+          grep -q 'InvalidColumnReferenceError' qualification/regression-before.log
+          grep -q 'for SELECT DISTINCT, ORDER BY expressions must appear in select list' qualification/regression-before.log
+          git diff --exit-code
+          echo 'Original reader reproduced PostgreSQL DISTINCT/ORDER BY failure; exact corrected source restored.'
+      - name: Actual source races, historical relations and focused owner contracts
+        run: |
+          set -euo pipefail
+          python -m pytest -c backend/pyproject.toml tests/integration/backend/learning/test_ft011_consistency_postgres.py tests/unit/backend/features/learning/test_ft011*.py tests/unit/backend/features/post_trade/test_materialization_handoff.py tests/unit/backend/features/post_trade/test_journal_source_inspection.py -vv 2>&1 | tee qualification/targeted.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ft011-corrected-backend-targeted
+          path: qualification
+          retention-days: 7
+      - name: Unmodified complete backend gate
+        if: always()
+        run: |
+          set -euo pipefail
+          bash scripts/check-backend.sh 2>&1 | tee qualification/backend-full.log
+          git diff --exit-code
+          git diff --check
+          cd backend
+          test "$(python -m alembic heads)" = '20261014_0046 (head)'
+          python -m alembic current | tee ../qualification/current-after.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ft011-corrected-backend-full
+          path: |
+            qualification
+            backend/coverage.xml
+          retention-days: 7
+  frontend:
+    needs: integrate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.integrate.outputs.head_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: frontend/.nvmrc
+      - run: npm --prefix frontend ci
+      - name: Exact checkout and focused history UI tests
+        run: |
+          set -euo pipefail
+          mkdir -p qualification
+          git rev-parse HEAD HEAD^{tree} | tee qualification/identity.txt
+          cd frontend
+          npx vitest run src/features/learning/components/Ft011EvidenceHistory.test.tsx src/features/learning/components/LessonReviewPanel.test.tsx src/features/post_trade/pages/PostTradeLearningPage.test.tsx 2>&1 | tee ../qualification/frontend-targeted.log
+      - name: Unmodified complete frontend gate
+        run: |
+          set -euo pipefail
+          bash scripts/check-frontend.sh 2>&1 | tee qualification/frontend-full.log
+          git diff --exit-code
+          git diff --check
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ft011-corrected-frontend
+          path: |
+            qualification
+            frontend/coverage
+          retention-days: 7
+  browser-postgres:
+    needs: integrate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CI: 'true'
+      POSTGRES_DB: trading_workspace_test
+      POSTGRES_USER: trading_workspace
+      POSTGRES_PASSWORD: ft011-browser-ci-only
+      POSTGRES_PORT: '25432'
+      BACKEND_PORT: '8000'
+      FRONTEND_PORT: '8080'
+      E2E_POSTGRES_PORT: '25432'
+      E2E_BACKEND_PORT: '8000'
+      E2E_FRONTEND_PORT: '8080'
+      E2E_PLAYWRIGHT_BASE_URL: http://localhost:8080
+      E2E_VITE_API_BASE_URL: http://localhost:8080/api
+      VITE_API_BASE_URL: http://localhost:8080/api
+      TRADING_WORKSPACE_TEST_DATABASE_URL: postgresql+asyncpg://trading_workspace:ft011-browser-ci-only@127.0.0.1:25432/trading_workspace_test
+      FT011_E2E_WRITES_ALLOWED: '1'
+      JOURNAL_E2E_WRITES_ALLOWED: '1'
+      TRADE_E2E_WRITES_ALLOWED: '1'
+      CURRENCY_E2E_WRITES_ALLOWED: '1'
+      PYTHONPATH: ${{ github.workspace }}/backend:${{ github.workspace }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.integrate.outputs.head_sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version-file: backend/.python-version
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: frontend/.nvmrc
+      - name: Verify exclusively owned disposable Compose project before writes
+        id: safety
+        run: |
+          set -euo pipefail
+          test "$GITHUB_ACTIONS" = true
+          test ! -f .env
+          test ! -f backend/.env
+          test ! -f frontend/.env
+          test ! -f docker/.env
+          test -z "$(docker ps -aq --filter label=com.docker.compose.project=trading-workspace-e2e)"
+          test -z "$(docker volume ls -q --filter label=com.docker.compose.project=trading-workspace-e2e)"
+          test ! -d docker/stuttgart-data
+          python - <<'PY'
+          import os,socket
+          from urllib.parse import urlparse
+          u=urlparse(os.environ['TRADING_WORKSPACE_TEST_DATABASE_URL'])
+          assert u.hostname=='127.0.0.1' and u.port==25432 and u.path=='/trading_workspace_test'
+          for port in (25432,8000,8080):
+              with socket.socket() as s:s.bind(('127.0.0.1',port))
+          PY
+          mkdir -p qualification docker/stuttgart-data
+          git rev-parse HEAD HEAD^{tree} | tee qualification/identity.txt
+          echo 'disposable_owned=true' >> "$GITHUB_OUTPUT"
+      - run: python -m pip install --requirement backend/requirements-dev.txt
+      - run: npm --prefix frontend ci
+      - name: Install Chromium
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+      - name: Build and migrate only the verified disposable project
+        run: |
+          set -euo pipefail
+          docker compose --project-name trading-workspace-e2e -f docker/compose.yml up --build --wait --wait-timeout 180
+          docker compose --project-name trading-workspace-e2e -f docker/compose.yml run --rm --no-deps -T backend python -m alembic upgrade head
+      - name: Unchanged real correction and historical navigation twice without retries
+        working-directory: frontend
+        env:
+          NODE_PATH: ${{ github.workspace }}/frontend/node_modules
+          PLAYWRIGHT_BASE_URL: http://localhost:8080
+        run: |
+          set -euo pipefail
+          npx playwright test ../tests/e2e/post-trade-evidence-history-postgres.spec.ts --repeat-each=2 --retries=0 --trace=on 2>&1 | tee ../qualification/browser-targeted.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ft011-corrected-browser-targeted
+          path: |
+            qualification
+            frontend/playwright-report
+            frontend/test-results
+          retention-days: 7
+      - name: Unmodified complete E2E gate with authorized synthetic writes
+        if: always() && steps.safety.outputs.disposable_owned == 'true'
+        run: |
+          set -euo pipefail
+          bash scripts/run-e2e.sh 2>&1 | tee qualification/browser-full.log
+          git diff --exit-code
+          git diff --check
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ft011-corrected-browser-full
+          path: |
+            qualification
+            frontend/playwright-report
+            frontend/test-results
+          retention-days: 7
+      - name: Cleanup only the newly owned disposable project
+        if: always() && steps.safety.outputs.disposable_owned == 'true'
+        run: docker compose --project-name trading-workspace-e2e -f docker/compose.yml down --volumes --remove-orphans
