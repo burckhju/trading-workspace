@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -515,5 +515,57 @@ describe('PostTradeReviewPage', () => {
     await waitFor(() => expect(api.observation).toHaveBeenCalledTimes(before + 1));
     expect(api.startObservation).not.toHaveBeenCalled();
     expect(api.revalidateReview).not.toHaveBeenCalled();
+  });
+
+  it('preserves unsaved draft text and assessments through an external owner refresh', async () => {
+    api.observation.mockResolvedValue({
+      ...observation,
+      status: 'COMPLETED',
+      is_complete: true,
+      available_observation_count: 20,
+      missing_observation_count: 0,
+    });
+    api.review.mockResolvedValue(draft);
+    const view = render(
+      <MemoryRouter initialEntries={['/post-trade?trade_id=trade-1']}>
+        <PostTradeReviewPage externalRefreshVersion={0} />
+      </MemoryRouter>,
+    );
+    const rationale = await screen.findByLabelText('Review-Begründung');
+    await waitFor(() => expect(rationale).toBeEnabled());
+    fireEvent.change(rationale, { target: { value: 'Meine noch nicht gespeicherte Begründung.' } });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Timing' }), {
+      target: { value: 'NOT_ASSESSABLE' },
+    });
+    let resolve!: (value: ExitReviewResponse) => void;
+    api.review.mockImplementationOnce(
+      () =>
+        new Promise((done) => {
+          resolve = done;
+        }),
+    );
+    view.rerender(
+      <MemoryRouter initialEntries={['/post-trade?trade_id=trade-1']}>
+        <PostTradeReviewPage externalRefreshVersion={1} />
+      </MemoryRouter>,
+    );
+    await waitFor(() => expect(api.review).toHaveBeenCalledTimes(2));
+    await act(async () => {
+      resolve(draft);
+      await Promise.resolve();
+    });
+    await waitFor(() => expect(rationale).toBeEnabled());
+    expect(rationale).toHaveValue('Meine noch nicht gespeicherte Begründung.');
+    expect(screen.getByRole('combobox', { name: 'Timing' })).toHaveValue('NOT_ASSESSABLE');
+    fireEvent.click(screen.getByRole('button', { name: 'Review finalisieren' }));
+    await waitFor(() =>
+      expect(api.updateReviewDraft).toHaveBeenCalledWith(
+        'trade-1',
+        expect.objectContaining({
+          rationale: 'Meine noch nicht gespeicherte Begründung.',
+          timing: 'NOT_ASSESSABLE',
+        }),
+      ),
+    );
   });
 });
