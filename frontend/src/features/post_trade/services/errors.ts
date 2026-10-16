@@ -1,6 +1,8 @@
 import { MarketApiError } from '../../market/services/http';
 
 const messages: Record<string, string> = {
+  SOURCE_BUSY:
+    'Die Quelle wird gerade bearbeitet. Es wurde keine neue Evidence gespeichert. Lade den Stand neu und wiederhole die Übergabe bewusst.',
   SOURCE_VERSION_MISMATCH:
     'Die Review-Version hat sich geändert. Lade den Stand neu und bestätige die neue Version ausdrücklich.',
   SOURCE_NOT_READY: 'Der FT-011-Owner gibt diesen Reviewstand noch nicht zur Übergabe frei.',

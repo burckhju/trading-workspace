@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
@@ -55,6 +56,15 @@ class ExitReviewIncompleteError(ExitReviewServiceError):
 
 class ExitReviewAlreadyFinalizedError(ExitReviewServiceError):
     code = "EXIT_REVIEW_ALREADY_FINALIZED"
+
+
+@dataclass(frozen=True, slots=True)
+class Ft011SourceInspection:
+    version_number: int | None
+    review_status: str | None
+    stored_currentness: str | None
+    source_currentness: str
+    superseded_by_version_id: UUID | None
 
 
 class ExitReviewService:
@@ -366,6 +376,41 @@ class ExitReviewService:
         ):
             return ExitReviewCurrentness.STALE
         return ExitReviewCurrentness.CURRENT
+
+    async def inspect_materialized_source(
+        self,
+        *,
+        workspace_id: UUID,
+        trade_id: UUID,
+        observation_id: UUID,
+        review_id: UUID,
+        version_id: UUID,
+    ) -> Ft011SourceInspection:
+        """Read the exact source graph; never mutate persisted status or history."""
+        unknown = Ft011SourceInspection(None, None, None, "UNKNOWN", None)
+        observation = await self._uow.observations.get(workspace_id, observation_id)
+        review = await self._uow.exit_reviews.get(workspace_id, review_id)
+        version = await self._uow.exit_review_versions.get(version_id)
+        if (
+            observation is None
+            or observation.trade_id != trade_id
+            or review is None
+            or review.post_trade_observation_id != observation_id
+            or version is None
+            or version.exit_review_id != review_id
+        ):
+            return unknown
+        latest = await self._uow.exit_review_versions.get_latest(review_id)
+        currentness = await self.inspect_version_currentness(
+            workspace_id=workspace_id, version_id=version_id
+        )
+        return Ft011SourceInspection(
+            version.version,
+            version.status.value,
+            version.currentness.value,
+            currentness.value if currentness else "UNKNOWN",
+            latest.id if latest and latest.id != version_id else None,
+        )
 
     async def _review_inputs(
         self,

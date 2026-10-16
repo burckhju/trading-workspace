@@ -29,15 +29,17 @@ type Preparation = { operation: ReviewOperation; context: ReviewContext };
 export function LessonReviewPanel({
   lessonId,
   onChanged,
+  initialVersionId,
 }: {
   lessonId: string;
+  initialVersionId?: string;
   onChanged: () => void;
 }) {
   const fieldPrefix = useId();
   const [context, setContext] = useState<ReviewContext | null>(null);
   const [readError, setReadError] = useState<unknown>(null);
   const [loading, setLoading] = useState(true);
-  const [selectedVersion, setSelectedVersion] = useState('');
+  const [selectedVersion, setSelectedVersion] = useState(initialVersionId ?? '');
   const [preparation, setPreparation] = useState<Preparation | null>(null);
   const [reason, setReason] = useState('');
   const [category, setCategory] = useState('');
@@ -207,6 +209,7 @@ export function LessonReviewPanel({
   };
   return (
     <section
+      id="lesson-history"
       aria-label="Lesson-Prüfung und Historie"
       className="space-y-4 rounded-xl border border-slate-700 p-5"
     >
@@ -235,6 +238,12 @@ export function LessonReviewPanel({
             bleibt gültig.
           </p>
         </>
+      )}
+      {context && selectedVersion && !viewed && (
+        <p role="alert">
+          Die angeforderte Lesson-Version wurde nicht gefunden. Keine andere Version wurde dafür
+          eingesetzt.
+        </p>
       )}
       {context && viewed && (
         <>

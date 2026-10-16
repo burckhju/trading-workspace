@@ -89,3 +89,53 @@ async def test_owner_inspects_without_rewriting_review(variant, expected):
     assert (result.value if result else None) == expected
     uow.commit.assert_not_awaited()
     uow.exit_review_versions.replace.assert_not_awaited()
+
+
+@pytest.mark.parametrize("mismatch", [None, "trade", "observation", "review", "version"])
+async def test_materialized_source_inspection_validates_exact_graph_without_mutation(mismatch):
+    from unittest.mock import AsyncMock
+
+    ws, trade_id, observation_id, review_id, version_id = (uuid4() for _ in range(5))
+    uow = _uow()
+    observation = SimpleNamespace(id=observation_id, trade_id=trade_id)
+    review = SimpleNamespace(id=review_id, post_trade_observation_id=observation_id)
+    version = SimpleNamespace(
+        id=version_id,
+        exit_review_id=review_id,
+        version=1,
+        status=ExitReviewStatus.FINALIZED,
+        currentness=ExitReviewCurrentness.CURRENT,
+    )
+    uow.observations.get.return_value = observation
+    uow.exit_reviews.get.return_value = review
+    uow.exit_review_versions.get.return_value = version
+    later = uuid4()
+    uow.exit_review_versions.get_latest.return_value = SimpleNamespace(id=later)
+    if mismatch == "trade":
+        observation.trade_id = uuid4()
+    if mismatch == "observation":
+        review.post_trade_observation_id = uuid4()
+    if mismatch == "review":
+        version.exit_review_id = uuid4()
+    if mismatch == "version":
+        uow.exit_review_versions.get.return_value = None
+    service = _service(uow=uow, trade=None, planning=None, prices=())
+    service.inspect_version_currentness = AsyncMock(return_value=ExitReviewCurrentness.STALE)
+    result = await service.inspect_materialized_source(
+        workspace_id=ws,
+        trade_id=trade_id,
+        observation_id=observation_id,
+        review_id=review_id,
+        version_id=version_id,
+    )
+    if mismatch:
+        assert result.source_currentness == "UNKNOWN" and result.version_number is None
+        service.inspect_version_currentness.assert_not_awaited()
+    else:
+        assert result.stored_currentness == "CURRENT" and result.source_currentness == "STALE"
+        assert result.superseded_by_version_id == later and result.version_number == 1
+        service.inspect_version_currentness.assert_awaited_once_with(
+            workspace_id=ws, version_id=version_id
+        )
+    uow.commit.assert_not_awaited()
+    uow.exit_review_versions.replace.assert_not_awaited()

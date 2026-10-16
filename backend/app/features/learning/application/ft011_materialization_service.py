@@ -19,6 +19,7 @@ from app.features.learning.domain import (
     LearningEvidence,
     LearningEvidenceType,
 )
+from app.features.post_trade.application.materialization_handoff import Ft011SourceBusyError
 
 if TYPE_CHECKING:
     from app.features.learning.persistence.ft011_materialization_repository import (
@@ -34,6 +35,7 @@ RESULT_TYPE = "LEARNING_EVIDENCE"
 
 class Ft011MaterializationErrorCode(StrEnum):
     SOURCE_NOT_READY = "SOURCE_NOT_READY"
+    SOURCE_BUSY = "SOURCE_BUSY"
     SOURCE_VERSION_MISMATCH = "SOURCE_VERSION_MISMATCH"
     IDEMPOTENCY_KEY_REUSED = "IDEMPOTENCY_KEY_REUSED"
     IDEMPOTENCY_IN_PROGRESS = "IDEMPOTENCY_IN_PROGRESS"
@@ -141,10 +143,16 @@ class MaterializeFt011LearningEvidenceService:
                     record=existing_request,
                 )
 
-            handoff = await self._handoff_reader.get(
-                workspace_id=workspace_id,
-                trade_id=trade_id,
-            )
+            try:
+                handoff = await self._handoff_reader.get(
+                    workspace_id=workspace_id,
+                    trade_id=trade_id,
+                )
+            except Ft011SourceBusyError as exc:
+                raise Ft011MaterializationError(
+                    Ft011MaterializationErrorCode.SOURCE_BUSY,
+                    "FT-011 source is being changed; reload and retry explicitly",
+                ) from exc
             if not handoff.ready:
                 raise Ft011MaterializationError(
                     Ft011MaterializationErrorCode.SOURCE_NOT_READY,

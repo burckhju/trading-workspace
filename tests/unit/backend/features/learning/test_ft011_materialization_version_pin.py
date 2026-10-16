@@ -377,3 +377,20 @@ async def test_integrity_error_translation_is_not_a_postgresql_race_test(subject
     assert isinstance(caught.value.__cause__, IntegrityError)
     assert uow.rollbacks >= 1
     assert uow.commits == 0
+
+
+async def test_source_busy_rolls_back_without_receipt_or_evidence(subject):
+    from app.features.post_trade.application.materialization_handoff import Ft011SourceBusyError
+
+    service, uow, repository, reader = subject
+
+    async def busy(**kwargs):
+        raise Ft011SourceBusyError()
+
+    reader.get = busy
+    with pytest.raises(Ft011MaterializationError) as error:
+        await service.execute(**command())
+    assert error.value.code is Ft011MaterializationErrorCode.SOURCE_BUSY
+    assert uow.rollbacks == 1 and uow.commits == 0
+    assert not uow.idempotency_records.records
+    assert not repository.evidence and not repository.sources

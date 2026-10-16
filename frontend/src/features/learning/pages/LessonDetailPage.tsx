@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 
 import { ErrorNotice, LoadingNotice } from '../../market/components/ApiFeedback';
 import { LessonHypothesisPanel } from '../../model/components/LessonHypothesisPanel';
@@ -10,10 +10,18 @@ import type { LessonDetail } from '../types/lessonReadback';
 
 export function LessonDetailPage() {
   const { lessonId = '' } = useParams();
-  return <LessonDetail key={lessonId} lessonId={lessonId} />;
+  const [params] = useSearchParams();
+  const versionId = params.get('lesson_version_id') ?? undefined;
+  return (
+    <LessonDetail
+      key={`${lessonId}:${versionId ?? ''}`}
+      lessonId={lessonId}
+      versionId={versionId}
+    />
+  );
 }
 
-function LessonDetail({ lessonId }: { lessonId: string }) {
+function LessonDetail({ lessonId, versionId }: { lessonId: string; versionId?: string }) {
   const [refresh, setRefresh] = useState(0);
   const onChanged = useCallback(() => setRefresh((n) => n + 1), []);
   const [lesson, setLesson] = useState<LessonDetail | null>(null);
@@ -78,7 +86,7 @@ function LessonDetail({ lessonId }: { lessonId: string }) {
             <dd className="mt-1 break-all font-medium">{lesson.current_version_id}</dd>
           </div>
         </dl>
-        <h2 className="mt-5 font-semibold">Inhalt</h2>
+        <h2 className="mt-5 font-semibold">Inhalt des aktuellen Lesson-Stands</h2>
         <p className="mt-2 whitespace-pre-wrap text-sm text-slate-300">{lesson.content}</p>
       </section>
 
@@ -98,7 +106,7 @@ function LessonDetail({ lessonId }: { lessonId: string }) {
         </ul>
       </section>
 
-      <LessonReviewPanel lessonId={lessonId} onChanged={onChanged} />
+      <LessonReviewPanel lessonId={lessonId} initialVersionId={versionId} onChanged={onChanged} />
 
       <LessonHypothesisPanel lessonVersionId={lesson.current_version_id} />
 
