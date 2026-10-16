@@ -91,3 +91,14 @@ after correction and selects its original LessonVersion after a successor exists
 Fakes do not establish native lock behavior. Test source presence is not a successful
 run; completed results and exact checkouts are recorded in the qualification report
 and PR. No PC deployment or human acceptance follows from this decision.
+
+## Qualification clarification — 2026-10-16
+
+The public FT-011 handoff GET and FT-012 status projection share the same inspected
+FT-011 reader. This corrects a contradictory READY card without persisting STALE
+as a read side effect. Existing journal command composition is unchanged.
+Inventory materialized_at is persisted LearningEvidence.created_at, not an exact
+database commit time or the source's historical market/knowledge timestamp.
+Completed native-lock, history and full-gate evidence, including failed intermediate
+runs, is in the [qualification report](../implementation/FT011_MATERIALIZATION_CONSISTENCY_QUALIFICATION.md).
+Status remains in PB-019; no PC deployment or human acceptance is inferred.

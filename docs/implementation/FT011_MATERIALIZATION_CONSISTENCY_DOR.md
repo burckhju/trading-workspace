@@ -106,3 +106,11 @@ reader as the materialization status, without mutating the stored review. Keep
 the journal command's existing gate/composition unchanged. Add explicit real PG
 and browser assertions that both public read surfaces reject the outdated source,
 while old Evidence remains discoverable. No frontend currentness calculation.
+
+## Executed qualification reference
+
+The [separate result report](FT011_MATERIALIZATION_CONSISTENCY_QUALIFICATION.md)
+records the common executed source commit, native PostgreSQL lock/rollback proof,
+real browser history navigation, complete gates and exact operational limits.
+These results do not change the pre-implementation criteria above or turn failed
+intermediate runs into successes. PB-019 is the only task-status authority.

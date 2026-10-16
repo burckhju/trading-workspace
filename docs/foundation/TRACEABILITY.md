@@ -458,3 +458,7 @@ detail. Tests: `test_ft011_consistency_postgres.py`,
 `post-trade-evidence-history-postgres.spec.ts` and matching React regressions.
 These are trace links, not a second status register or a claim of completed runs.
 No migration, provider, automated interpretation or new financial owner.
+
+Qualification of the defined FT-011/FT-012 consistency/inventory slice:
+[exact code/test commit, PostgreSQL races, browser and full-gate evidence](../implementation/FT011_MATERIALIZATION_CONSISTENCY_QUALIFICATION.md).
+This trace extends the existing PB-019 link; no second status or human acceptance.
