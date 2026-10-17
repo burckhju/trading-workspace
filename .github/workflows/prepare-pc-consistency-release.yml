@@ -1,0 +1,118 @@
+name: Prepare PC consistency release
+on:
+  push:
+    branches: [release/v1.5.8-pc-consistency-20261017]
+    paths: [.github/workflows/prepare-pc-consistency-release.yml]
+permissions:
+  contents: write
+concurrency:
+  group: prepare-pc-consistency-release-158
+  cancel-in-progress: false
+jobs:
+  prepare:
+    if: github.repository == 'burckhju/trading-workspace' && github.ref == 'refs/heads/release/v1.5.8-pc-consistency-20261017'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: frontend/.nvmrc
+      - name: Verify exact source and generate only approved release metadata
+        env:
+          BASE: 38e89baf1b2c4aaa9f824df1ba597e5b6abad489
+          RELEASE_BRANCH: release/v1.5.8-pc-consistency-20261017
+        run: |
+          set -euo pipefail
+          test "$GITHUB_ACTIONS" = true
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(git rev-parse HEAD^)" = cb281b729bdda170c9db99ea5624f3ec637638d3
+          test "$(git rev-parse "$BASE^{tree}")" = 33aee7f612dc864f104843906e49fa4d029a6a47
+          test "$(git ls-remote origin refs/heads/main | cut -f1)" = "$BASE"
+          test -z "$(git ls-remote origin refs/tags/v1.5.8)"
+          test -z "$(git status --porcelain --untracked-files=all)"
+          test -z "$(git ls-files '*AGENTS.md')"
+          test ! -f .env && test ! -f docker/.env && test ! -f backend/.env
+          test "$(node --version)" = v22.16.0
+          test "$(npm --version)" = 10.9.2
+          python3 - <<'PY'
+          import hashlib, os, subprocess
+          from pathlib import Path
+          base = os.environ['BASE']
+          changed = set(subprocess.check_output(['git','diff','--name-only',base,'HEAD'], text=True).splitlines())
+          assert changed == {'docs/releases/V1.5.8-FT011-CONSISTENCY-HISTORY.md','.github/workflows/prepare-pc-consistency-release.yml'}, changed
+          expected = {'VERSION':'f01291b87fd57485703e1abae333e341d0af57b8','backend/pyproject.toml':'2aa56a8117e449649fb2dfd8d91423d461ea4318','frontend/package.json':'0370a153e4e767a0e263106a2c827b08d2cbaffd','frontend/package-lock.json':'218e9a605e7663dd5494e8fd4136baec5ca8f773','scripts/trading-workspace.sh':'00af6329261ac010b894b51279fdba3b8ed29cbc'}
+          for path, sha in expected.items():
+              assert subprocess.check_output(['git','hash-object',path], text=True).strip() == sha, path
+          for path, sha in {'scripts/migrate-legacy-issuer.sh':'98e654752c7da85828d7367d19e3f145c43960634dfc831be17778caae7756d9','backend/app/tools/legacy_issuer_deployment.py':'37319d79a373f3f4fe0a7f7d416164cde165787be30714731d61d538f70de4f4'}.items():
+              assert hashlib.sha256(Path(path).read_bytes()).hexdigest() == sha, path
+          Path('VERSION').write_text('1.5.8\n')
+          p = Path('backend/pyproject.toml'); s = p.read_text()
+          assert s.count('version = "1.5.7"') == 1
+          p.write_text(s.replace('version = "1.5.7"','version = "1.5.8"'))
+          PY
+          npm --prefix frontend version 1.5.8 --no-git-tag-version --ignore-scripts
+          git rm -- .github/workflows/prepare-pc-consistency-release.yml
+          git add -- VERSION backend/pyproject.toml frontend/package.json frontend/package-lock.json docs/releases/V1.5.8-FT011-CONSISTENCY-HISTORY.md
+          python3 - <<'PY'
+          import ast, json, os, subprocess, tomllib
+          from pathlib import Path
+          base = os.environ['BASE']
+          expected = {'VERSION':'1cc9c180e266a183d615bbbb1b28f7ca520254d5','backend/pyproject.toml':'586837c904a64f40f26c7a34a3ef0b606fc1f08a','frontend/package.json':'b142b318bea39d92f0a26e043281a2642bb2f444','frontend/package-lock.json':'a82a750a7b8de3de4b50c3330e85ce3ededb6c1f','docs/releases/V1.5.8-FT011-CONSISTENCY-HISTORY.md':'3e3b0f484f1f4e10520214e0abc2c7bd9fb5c9e4'}
+          actual = set(subprocess.check_output(['git','diff','--cached','--name-only',base], text=True).splitlines())
+          assert actual == set(expected), actual
+          for path, sha in expected.items():
+              assert subprocess.check_output(['git','rev-parse',':'+path], text=True).strip() == sha, path
+          for path in ['frontend/package.json','frontend/package-lock.json']:
+              old = json.loads(subprocess.check_output(['git','show',base+':'+path], text=True))
+              new = json.loads(Path(path).read_text())
+              assert new['version'] == '1.5.8'; new['version'] = old['version']
+              if 'packages' in new:
+                  assert new['packages']['']['version'] == '1.5.8'
+                  new['packages']['']['version'] = old['packages']['']['version']
+              assert new == old, path
+          assert tomllib.loads(Path('backend/pyproject.toml').read_text())['project']['version'] == '1.5.8'
+          revisions = {}; parents = set()
+          for p in Path('backend/migrations/versions').glob('*.py'):
+              values = {}
+              for n in ast.parse(p.read_text()).body:
+                  if isinstance(n, ast.Assign):
+                      for target in n.targets:
+                          if isinstance(target, ast.Name) and target.id in {'revision','down_revision'}:
+                              values[target.id] = ast.literal_eval(n.value)
+                  elif isinstance(n, ast.AnnAssign) and isinstance(n.target, ast.Name) and n.target.id in {'revision','down_revision'}:
+                      values[n.target.id] = ast.literal_eval(n.value)
+              if 'revision' not in values: continue
+              revision = values['revision']; assert revision not in revisions
+              revisions[revision] = p.name
+              parent = values.get('down_revision')
+              if isinstance(parent, tuple): parents.update(parent)
+              elif parent is not None: parents.add(parent)
+          assert parents <= set(revisions)
+          assert set(revisions)-parents == {'20261014_0046'}
+          print('Version metadata, dependency identity and single unchanged migration head verified.')
+          PY
+          mkdir -p "$RUNNER_TEMP/pc-release-158"
+          node --test .github/tests/version-tag.test.cjs | tee "$RUNNER_TEMP/pc-release-158/version-guards.log"
+          bash -n scripts/trading-workspace.sh scripts/migrate-legacy-issuer.sh
+          git diff --cached --check "$BASE"
+          git diff --cached --binary "$BASE" > "$RUNNER_TEMP/pc-release-158/release.patch"
+          test "$(git ls-remote origin "refs/heads/$RELEASE_BRANCH" | cut -f1)" = "$GITHUB_SHA"
+          test "$(git ls-remote origin refs/heads/main | cut -f1)" = "$BASE"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'chore(release): prepare v1.5.8 PC consistency and evidence history'
+          git push origin "HEAD:refs/heads/$RELEASE_BRANCH"
+          git rev-parse HEAD HEAD^{tree} > "$RUNNER_TEMP/pc-release-158/identity.txt"
+          git bundle create "$RUNNER_TEMP/pc-release-158/source.bundle" HEAD
+          cd "$RUNNER_TEMP/pc-release-158"
+          sha256sum source.bundle release.patch version-guards.log identity.txt > SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pc-release-v1.5.8-preparation
+          path: ${{ runner.temp }}/pc-release-158
+          if-no-files-found: error
+          retention-days: 7
