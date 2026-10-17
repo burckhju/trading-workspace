@@ -1148,22 +1148,25 @@ Die Felder „Soll“ und „Nicht-Soll“ sind die vor einer Umsetzung zu prüf
 <details>
 <summary>PB-019 — Exit-Review-Evidence bewusst materialisieren</summary>
 
+> Fortschreibung 2026-10-16: neuer abgegrenzter Konsistenz-/Inventarschnitt aus v1.5.7 (`3faf0f76…`). Bestehende Journal-/Lesson-Owner und 20-EOD-Semantik unverändert. Historische Prüfbezüge unten sind keine Qualifikation der neuen Änderungen.
+> Qualifikationsfortschreibung: [eigener Nachweis auf gemeinsamem Commit](../implementation/FT011_MATERIALIZATION_CONSISTENCY_QUALIFICATION.md). Die folgende Tabelle beschreibt diesen technischen Schnitt; ältere Notizen bleiben als historische Belege erhalten.
+
 > Nachweisfortschreibung 2026-10-14: [vollständige Repository-Integration und abgegrenzte Qualifikation](../implementation/POST_TRADE_LEARNING_HANDOFF_REVIEW.md) in Draft-PR #259 auf v1.5.6. b40: 2600 Backendtests einschließlich drei unabhängiger PostgreSQL-Fälle; dort bezeichneter 8f-Testmerge: 456 Frontendtests und 51 Browserfälle. Drei neue Browserfälle verwenden abgefangenes HTTP, keine vollständige Journal-/DB-Nutzerreise.
 > First-party-Review-Pin und UI-Readback sind ein technischer Teilschnitt, keine Abnahme des Journals oder des gesamten Lernprozesses. Arbeitsstatus und Betriebsfreigabe werden durch diese Notiz nicht hochgestuft.
 
 | Nachweisfeld | Einordnung |
 |---|---|
 | Zuordnung | M6→M7: Übergang zum Lernen. Bereich/Querschnitt: 7. Bestehender Bezug: FT-012; FT-011 bleibt Quellowner. Lieferziel: B, D. |
-| Arbeitsstatus | Technical Review |
+| Arbeitsstatus | Technical Review — definierter Konsistenz-/Inventarschnitt technisch qualifiziert; fachliche Abnahme offen. |
 | Soll / Nicht-Soll | **Soll:** Ein expliziter idempotenter FT-012-Befehl materialisiert unveränderliche Evidence mit exakter Reviewversion. **Nicht-Soll:** Keine automatische Interpretation, keine zweite Readinesslogik in FT-012. |
-| Vorhandenseinsnachweis | Bestehender Materialisierungsowner plus additiver Review-Pin im vollständigen Entwicklungsbranch implementiert und begrenzt technisch geprüft; kein vollständiger Lernabschluss. |
-| Implementierung / Consumer | [Extension 09](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/implementation/POST_D01_GOLDEN_PATH_EXTENSION_09.md) dokumentiert MaterializeFt011LearningEvidenceService, semantic uniqueness und Konfliktgrenzen; [aktuelle UI](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/frontend/src/features/post_trade/pages/PostTradeLearningPage.tsx) ruft status/materialize auf und liest LearningEvidence-ID zurück. |
-| Test / Commit | Konkrete Tests, Commits, Run-IDs, Coverage und Fehlversuche in der [technischen Fortschreibung](../implementation/POST_TRADE_LEARNING_HANDOFF_REVIEW.md). b40: kompletter Backend-Prüfeinstieg, drei echte PostgreSQL-Transaktionsfälle. Reguläre Frontend-/Browser-CI auf Testmerge `173c952` von `8f2a423` erfolgreich. Spätere Heads separat prüfen. |
+| Vorhandenseinsnachweis | Bestehender FT-012-Command mit transaktionsgebundenem FT-011-Quellschutz, tatsächlicher Owner-Fingerprintprüfung und unabhängigem historischen Evidence-Inventar einschließlich exakter alter LessonVersion-Relationen umgesetzt und auf PostgreSQL/Browser qualifiziert. |
+| Implementierung / Consumer | [Guard/Handoff](../../backend/app/features/post_trade/application/materialization_handoff.py) bleibt FT-011; [FT-012-Inventar](../../backend/app/features/learning/application/ft011_evidence_history_service.py) und bestehende Materialisierung → [Bisherige Review-Evidence](../../frontend/src/features/learning/components/Ft011EvidenceHistory.tsx) im PostTradeLearningPage; genauer historischer Lesson-Detail-Link. Öffentlicher Handoff und Materialisierungsstatus verwenden denselben inspizierenden Owner. |
+| Test / Commit | [Gemeinsame Qualifikation](../implementation/FT011_MATERIALIZATION_CONSISTENCY_QUALIFICATION.md), `0863248b0c44e7c36d41b29acbef56b451d2592f`, Lauf `38957166870`: Backend 2736, Frontend 500, Browser 53 bestanden; 92 gezielte Fälle einschließlich 11 echter PostgreSQL-Fälle und zwei retryfreie Wiederholungen des neuen Browserfalls. Keine Doppelzählung; rote Zwischenstände und Commitgrenzen dokumentiert. |
 | Fachliche Abnahme | Keine eigenständige fachliche Abnahme für diesen vollständigen Zuschnitt verifiziert. |
-| Software-Auslieferung | PR #259 nach bestätigten grünen Prüfungen normal nach main integriert (`c78122ffd…`); kein neuer Release/Tag und kein Zielinstallationsnachweis. |
-| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
-| Restarbeit / nächste Abhängigkeit | Historisches FT011-Evidence-Inventar bei NOT_READY und atomare Absicherung gegen gleichzeitige Upstream-Korrektur bleiben offen. [Journal-V1](../implementation/FT012_JOURNAL_WRITE_QUALIFICATION.md) und [Lesson-Review](../implementation/FT012_LESSON_REVIEW_QUALIFICATION.md) ersetzen diese FT011-Restlücken nicht. **Nächste Abhängigkeit:** FT-011-/FT-012-Owner, keine zweite Materialisierung. |
-| Umfangsentscheidung | Historische Lücke im Golden-Path-Closeout durch Extension 09 und spätere UI überholt. Rest ist Verifikation/Abnahme, nicht pauschaler Neubau. |
+| Software-Auslieferung | Definierter Code-/Testschnitt technisch qualifiziert. Aktuelle Pflichtprüfungen und tatsächlicher Integrations-/Mergebeleg werden in [PR #263](https://github.com/burckhju/trading-workspace/pull/263) nachgewiesen; nicht aus früherer CI abgeleitet. Keine neue Veröffentlichungsversion oder PC-Installation durch diesen Schnitt. |
+| Betriebsnachweis | Das vom Nutzer bestätigte v1.5.7-Installationsprotokoll enthält den neuen Konsistenz-/Inventarschnitt noch nicht. Dessen Zielinstallations- und Lastnachweis bleibt offen. |
+| Restarbeit / nächste Abhängigkeit | Die zwei benannten V1-Race-/Inventarlücken sind innerhalb [ADR-007](../decisions/ADR-POST-FT012-007-MATERIALIZATION-CONSISTENCY.md) technisch geschlossen. Historische Reads bleiben as-of-read; gleicher Listing-Kontext kann kurz SOURCE_BUSY liefern. **Nächste Abhängigkeit:** abgeschlossene aktuelle PR-Prüfungen/normaler Merge, danach gesondert freigegebener Release-/PC-Updateweg; große Historien, Mobil-/Barrierefreiheits- und Fachabnahme separat. |
+| Umfangsentscheidung | Kein paralleler Owner, keine geänderte 20-EOD- oder Journal-Schreibregel. Ältere offene Race-/Inventarhinweise gelten für deren damalige Baselines; der neue Nachweis ist kein pauschaler Abschluss von M6/M7 oder aller PB-019-Fähigkeiten. |
 
 </details>
 

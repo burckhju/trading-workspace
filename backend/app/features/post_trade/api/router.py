@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, Header, status
 from app.core.exceptions import ApplicationError
 from app.features.post_trade.api.dependencies import (
     get_exit_review_service,
-    get_ft012_handoff_service,
+    get_inspected_ft012_handoff_service,
     get_post_trade_observation_service,
     get_post_trade_query_service,
 )
@@ -38,8 +38,8 @@ from app.features.post_trade.application.exit_review_service import (
     ExitReviewNotFoundError,
     ExitReviewService,
 )
-from app.features.post_trade.application.handoff_service import (
-    Ft012HandoffService,
+from app.features.post_trade.application.materialization_handoff import (
+    InspectedFt012HandoffService,
 )
 from app.features.post_trade.application.observation_service import (
     PostTradeContextNotFoundError,
@@ -568,8 +568,8 @@ async def get_exit_review_history(
 async def get_ft012_handoff(
     trade_id: UUID,
     service: Annotated[
-        Ft012HandoffService,
-        Depends(get_ft012_handoff_service),
+        InspectedFt012HandoffService,
+        Depends(get_inspected_ft012_handoff_service),
     ],
 ) -> HandoffResponse:
     result = await service.get(

@@ -34,7 +34,7 @@ vi.mock('../../learning/components/LessonDraftFromEvidence', () => ({
 }));
 
 vi.mock('../../learning/services/materializationClient', () => ({
-  ft011MaterializationClient: { status: vi.fn(), materialize: vi.fn() },
+  ft011MaterializationClient: { status: vi.fn(), materialize: vi.fn(), history: vi.fn() },
 }));
 
 vi.mock('../../learning/services/lessonReadbackClient', () => ({
@@ -87,6 +87,7 @@ const warrant = {
 describe('PostTradeLearningPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(ft011MaterializationClient.history).mockResolvedValue([]);
     vi.mocked(journalClient.history).mockResolvedValue({
       trade_id: 'trade-1',
       journal_id: null,
@@ -365,6 +366,42 @@ describe('PostTradeLearningPage', () => {
     });
     expect(screen.queryByText('lesson-form')).toBeNull();
     expect(listForEvidence).not.toHaveBeenCalled();
+    expect(materialize).not.toHaveBeenCalled();
+  });
+
+  it('keeps historical evidence visible even when the current handoff cannot be read', async () => {
+    vi.clearAllMocks();
+    status.mockRejectedValueOnce(new Error('owner offline'));
+    vi.mocked(ft011MaterializationClient.history).mockResolvedValue([
+      {
+        learning_evidence_id: 'old-e',
+        evidence_type: 'FT011',
+        materialized_at: '2026-09-01',
+        trade_id: 'trade-1',
+        post_trade_observation_id: 'obs',
+        exit_review_id: 'review',
+        exit_review_version_id: 'old-version',
+        review_version: 1,
+        review_status: 'FINALIZED',
+        stored_review_currentness: 'CURRENT',
+        source_currentness: 'STALE',
+        superseded_by_version_id: null,
+        checked_at: '2026-10-16',
+        lesson_links: [],
+      },
+    ]);
+    render(
+      <MemoryRouter initialEntries={['/post-trade?trade_id=trade-1']}>
+        <PostTradeLearningPage />
+      </MemoryRouter>,
+    );
+    expect(await screen.findByText(/Quellenprüfung: STALE/)).toBeInTheDocument();
+    expect(
+      await screen.findByText('Der Learning-Übergabestatus konnte nicht geladen werden.'),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'An Lessons Learned übergeben' }),
+    ).not.toBeInTheDocument();
     expect(materialize).not.toHaveBeenCalled();
   });
 });

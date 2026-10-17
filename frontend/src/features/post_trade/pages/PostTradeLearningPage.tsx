@@ -1,3 +1,4 @@
+import { Ft011EvidenceHistory } from '../../learning/components/Ft011EvidenceHistory';
 import { TradeJournalPanel } from '../../learning/components/TradeJournalPanel';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
@@ -170,7 +171,7 @@ function PostTradeLearningContent({ tradeId }: { tradeId: string }) {
   }, [refreshLearningState, status, tradeId]);
 
   return (
-    <>
+    <div className="min-w-0 w-full space-y-6">
       {trade && (
         <section className="mb-6 rounded-xl border border-sky-900 bg-sky-950/20 p-5">
           <p className="text-xs uppercase tracking-wide text-sky-400">Post-Trade-Kontext</p>
@@ -211,7 +212,9 @@ function PostTradeLearningContent({ tradeId }: { tradeId: string }) {
                   ? 'Übergabestatus wird geprüft'
                   : status.materialized
                     ? 'LearningEvidence materialisiert'
-                    : 'Noch im Post-Trade-Prozess'}
+                    : status.ready
+                      ? 'Aktueller Reviewstand noch nicht übergeben'
+                      : 'Neue Übergabe derzeit nicht bereit'}
               </dd>
             </div>
           </dl>
@@ -237,6 +240,14 @@ function PostTradeLearningContent({ tradeId }: { tradeId: string }) {
 
       {tradeId && (
         <TradeJournalPanel key={tradeId} tradeId={tradeId} refreshVersion={refreshVersion} />
+      )}
+
+      {tradeId && (
+        <Ft011EvidenceHistory
+          key={`evidence:${tradeId}`}
+          tradeId={tradeId}
+          refreshVersion={refreshVersion}
+        />
       )}
 
       {materializationError && (
@@ -324,6 +335,6 @@ function PostTradeLearningContent({ tradeId }: { tradeId: string }) {
           )}
         </section>
       )}
-    </>
+    </div>
   );
 }

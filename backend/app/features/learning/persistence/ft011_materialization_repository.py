@@ -22,6 +22,10 @@ from app.features.learning.persistence.repositories import LearningEvidenceProje
 
 
 class Ft011MaterializationRepository(Protocol):
+    async def list_for_trade(
+        self, *, workspace_id: UUID, trade_id: UUID
+    ) -> tuple[LearningEvidenceProjection, ...]: ...
+
     async def get_by_source(
         self,
         *,
@@ -44,6 +48,21 @@ class Ft011MaterializationRepository(Protocol):
 class SqlAlchemyFt011MaterializationRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
+
+    async def list_for_trade(
+        self, *, workspace_id: UUID, trade_id: UUID
+    ) -> tuple[LearningEvidenceProjection, ...]:
+        rows = (
+            await self._session.execute(
+                self._base_query()
+                .where(
+                    LearningEvidenceModel.workspace_id == workspace_id,
+                    FT011EvidenceModel.trade_id == trade_id,
+                )
+                .order_by(LearningEvidenceModel.created_at.desc(), LearningEvidenceModel.id)
+            )
+        ).all()
+        return tuple(self._projection(row) for row in rows)
 
     async def get_by_source(
         self,

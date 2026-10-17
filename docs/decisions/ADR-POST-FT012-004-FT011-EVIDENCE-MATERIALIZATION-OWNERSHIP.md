@@ -58,3 +58,10 @@ is not an inventory of previously materialized historical evidence.
 No migration, backfill, automatic Lesson, journal finalization, performance
 calculation or model activation is introduced. The separate journal contract and
 write path remain open; this amendment does not declare FT-012 complete.
+
+## 2026-10-16 consistency continuation
+
+[ADR-POST-FT012-007](ADR-POST-FT012-007-MATERIALIZATION-CONSISTENCY.md) closes the
+source-read/commit race and adds an independent historical inventory within these
+owners. It preserves old receipt and source identities; current readiness is not
+historical existence. Qualification status remains in PB-019, not this addendum.

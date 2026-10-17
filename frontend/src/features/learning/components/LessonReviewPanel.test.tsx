@@ -427,3 +427,38 @@ it('StrictMode cleanup invalidates its pending read without erasing the newer co
   expect(lessonReviewClient.execute).not.toHaveBeenCalled();
   expect(onChanged).not.toHaveBeenCalled();
 });
+
+it('a historical version deep link selects that exact snapshot without a write action', async () => {
+  const value = context();
+  value.lesson.current_version_id = 'v2';
+  value.history.unshift({
+    version: { ...value.history[0].version, id: 'v2', version: 2, content: 'New interpretation' },
+    evidence_links: [],
+  });
+  vi.mocked(lessonReviewClient.context).mockResolvedValue(value);
+  render(
+    <MemoryRouter>
+      <LessonReviewPanel lessonId="A" initialVersionId="v1" onChanged={onChanged} />
+    </MemoryRouter>,
+  );
+  const historical = await screen.findByRole('article', { name: 'Lesson-Snapshot Version 1' });
+  expect(within(historical).getByText('Original interpretation')).toBeInTheDocument();
+  expect(screen.getByLabelText('Lesson-Version ansehen')).toHaveValue('v1');
+  expect(
+    screen.queryByRole('button', { name: 'Quellenbezogene Prüfung beginnen' }),
+  ).not.toBeInTheDocument();
+  expect(lessonReviewClient.execute).not.toHaveBeenCalled();
+});
+
+it('never substitutes the current snapshot for an unknown requested version', async () => {
+  render(
+    <MemoryRouter>
+      <LessonReviewPanel lessonId="A" initialVersionId="missing" onChanged={onChanged} />
+    </MemoryRouter>,
+  );
+  expect(await screen.findByRole('alert')).toHaveTextContent(
+    'Keine andere Version wurde dafür eingesetzt',
+  );
+  expect(screen.queryByRole('article')).not.toBeInTheDocument();
+  expect(lessonReviewClient.execute).not.toHaveBeenCalled();
+});

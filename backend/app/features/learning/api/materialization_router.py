@@ -1,5 +1,7 @@
 """REST invocation seam for FT-011 LearningEvidence materialization."""
 
+from dataclasses import asdict
+from datetime import datetime
 from typing import Annotated
 from uuid import UUID
 
@@ -8,8 +10,12 @@ from pydantic import BaseModel, ConfigDict
 
 from app.core.exceptions import ApplicationError
 from app.features.learning.api.materialization_dependencies import (
+    get_ft011_evidence_history_service,
     get_ft011_materialization_service,
     get_ft011_materialization_status_service,
+)
+from app.features.learning.application.ft011_evidence_history_service import (
+    Ft011EvidenceHistoryService,
 )
 from app.features.learning.application.ft011_materialization_service import (
     Ft011MaterializationError,
@@ -18,6 +24,7 @@ from app.features.learning.application.ft011_materialization_service import (
 from app.features.learning.application.ft011_materialization_status_service import (
     Ft011MaterializationStatusService,
 )
+from app.features.learning.domain import LessonEvidenceRelation
 
 router = APIRouter(prefix="/api/v1/learning", tags=["learning"])
 WORKSPACE_ID = UUID("00000000-0000-4000-8000-000000000001")
@@ -44,6 +51,44 @@ class Ft011MaterializationStatusResponse(BaseModel):
     materialized: bool
     learning_evidence_id: UUID | None
     exit_review_version_id: UUID | None
+
+
+class HistoricalLessonLinkResponse(BaseModel):
+    link_id: UUID
+    lesson_id: UUID
+    lesson_title: str
+    lesson_version_id: UUID
+    lesson_version: int
+    relation: LessonEvidenceRelation
+    is_current_version: bool
+
+
+class Ft011EvidenceHistoryResponse(BaseModel):
+    learning_evidence_id: UUID
+    evidence_type: str
+    materialized_at: datetime
+    trade_id: UUID
+    post_trade_observation_id: UUID
+    exit_review_id: UUID
+    exit_review_version_id: UUID
+    review_version: int | None
+    review_status: str | None
+    stored_review_currentness: str | None
+    source_currentness: str
+    superseded_by_version_id: UUID | None
+    checked_at: datetime
+    lesson_links: list[HistoricalLessonLinkResponse]
+
+
+@router.get(
+    "/trades/{trade_id}/ft011-evidence/history", response_model=list[Ft011EvidenceHistoryResponse]
+)
+async def get_ft011_evidence_history(
+    trade_id: UUID,
+    service: Annotated[Ft011EvidenceHistoryService, Depends(get_ft011_evidence_history_service)],
+) -> list[Ft011EvidenceHistoryResponse]:
+    items = await service.get(workspace_id=WORKSPACE_ID, trade_id=trade_id)
+    return [Ft011EvidenceHistoryResponse.model_validate(asdict(item)) for item in items]
 
 
 @router.get(

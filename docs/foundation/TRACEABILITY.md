@@ -442,3 +442,23 @@ Tests: `test_journal_commands.py`, `test_journal_api.py`, `test_journal_source_i
 `post-trade-journal-postgres.spec.ts`. These are trace links, not independent status
 or proof that a test has run. FT-011 remains the source-currentness owner; Performance
 and Governance only read exact version/source/inspection-time boundaries. M0–M11 unchanged.
+
+## FT-011/FT-012 consistency and historical inventory — 2026-10-16
+
+[PB-019 Materialisierung](../planning/PRODUCT_BACKLOG.md#pb-019-materialization) →
+[DoR](../implementation/FT011_MATERIALIZATION_CONSISTENCY_DOR.md) →
+[ADR-007](../decisions/ADR-POST-FT012-007-MATERIALIZATION-CONSISTENCY.md) →
+`post_trade/persistence/materialization_guard.py`,
+`post_trade/application/materialization_handoff.py`,
+`learning/application/ft011_evidence_history_service.py`,
+`learning/api/materialization_router.py`, `Ft011EvidenceHistory.tsx`.
+Historical links select the concrete `lesson_version_id` in the existing Lesson
+detail. Tests: `test_ft011_consistency_postgres.py`,
+`test_materialization_handoff.py`, `test_ft011_evidence_history.py`,
+`post-trade-evidence-history-postgres.spec.ts` and matching React regressions.
+These are trace links, not a second status register or a claim of completed runs.
+No migration, provider, automated interpretation or new financial owner.
+
+Qualification of the defined FT-011/FT-012 consistency/inventory slice:
+[exact code/test commit, PostgreSQL races, browser and full-gate evidence](../implementation/FT011_MATERIALIZATION_CONSISTENCY_QUALIFICATION.md).
+This trace extends the existing PB-019 link; no second status or human acceptance.
