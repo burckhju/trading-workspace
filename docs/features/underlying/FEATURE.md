@@ -83,3 +83,23 @@ Die Anlage erfolgt als geführter Ablauf mit Grunddaten und primärer Notierung.
 ## Freigabestatus
 
 Alle fachlichen Grund- und Detailentscheidungen sind akzeptiert. FT-001 wurde in Sprint 2 vollständig über Backend, REST API, React-Frontend, Tests und Dokumentation umgesetzt. Die Implementierung bleibt an die akzeptierten ADRs und die Feature-Book-Verträge gebunden.
+
+## Sicheres Formular bei Navigation und Ladefehlern
+
+Beim Wechsel des Basiswerts oder des Anlagevorschlags erhält das Formular einen
+eigenen Zustand. Eingaben, Fehlermeldungen und verspätete Ladeantworten des
+vorherigen Formulars werden nicht übernommen. Während des Ladens sind keine alten
+Eingaben speicherbar; nach einem Ladefehler bleiben Eingaben und Speichern gesperrt.
+Der Benutzer kann zurückgehen oder die Seite neu laden.
+
+Bearbeiten setzt erfolgreich geladene Daten mit der Identität der aktuellen
+Bearbeitungsadresse voraus. Fehlende Bearbeitungsdaten lösen niemals eine Neuanlage
+aus. Die geladene Version bleibt Bestandteil des bestehenden Update-Vertrags.
+Während eines Speichervorgangs sind die Eingaben gesperrt und doppelte
+Formularübermittlungen werden abgefangen. Schlägt das aktuelle Speichern fehl,
+bleiben die Eingaben für eine bewusste erneute Übermittlung erhalten.
+
+Ein bereits abgesendeter Schreibauftrag kann nach Verlassen des Formulars auf dem
+Server noch abgeschlossen werden. Seine Antwort darf jedoch weder das neue
+Formular verändern noch eine nachträgliche Navigation auslösen. Navigation ist
+kein Abbruch oder Rückgängigmachen des ursprünglichen Schreibauftrags.
