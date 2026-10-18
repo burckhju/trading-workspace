@@ -506,3 +506,25 @@ explicit corrections may change subsequent responses. Currency declarations are
 append-only owner data, not a second execution ledger or report-generated fact.
 The definition is gross realized SELL output, not full M8/portfolio performance.
 Current status stays only in the linked backlog; no release or PC claim follows.
+
+## Realized gross report publication boundary — 2026-10-18
+
+The later explicit instruction to merge after successful checks and make the
+result available for the PC authorizes the bounded release continuation.
+The exact recovered implementation tree is
+`fc12f0f7fa8d8e8157be3a9dc3818169301c48ec`, published as recovery commit
+`d8dc36f5f891a6dd29cb0a0a8dba41d485201f76`; the historical qualification commits
+above keep their original test meaning.
+
+[PB-019 period output](../planning/PRODUCT_BACKLOG.md#pb-019-performance-evaluations)
+→ separate current-main integration of the priority integrity fix #249
+→ `scripts/run-realized-gross-e2e.sh`
+→ additional `End-to-End / realized gross owner` job in the existing workflow
+→ unchanged guarded PostgreSQL/browser report scenario, with exactly one passing
+case and no skip, retry or flaky result
+→ [1.5.9 release and managed PC update contract](../releases/V1.5.9-REALIZED-GROSS-REPORT.md).
+
+The existing publication workflow also requires successful actual main-push
+Backend, Frontend and End-to-End workflows for the precise tagged commit.
+Published software, migration 0047 and real target installation remain separate
+evidence; this trace neither invents historical execution currencies nor closes M8.

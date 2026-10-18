@@ -1,5 +1,11 @@
 # Realisierte Bruttoergebnisse nach Zeitraum — vertikale Qualifikation
 
+Die lokalen Code- und Laufnachweise vom 17.10.2026 bleiben unten unverändert
+zugeordnet. Die anschließende Veröffentlichungsfreigabe und erneute
+Integrationsqualifikation sind im [Nachtrag vom 18.10.2026](#integrations--und-auslieferungsfortsetzung-18102026)
+getrennt dokumentiert; frühere Aussagen über einen nur lokalen Branch sind
+historischer Stand.
+
 ## Lieferumfang und Prüfgrenze
 
 Der enge Bericht `realized-gross-sell-v1` und der dafür benötigte additive
@@ -304,8 +310,56 @@ im ursprünglichen Backlog. Netto-/FX-/Equity-/Drawdown-/TWR-/IRR- und weitere
 Kennzahlen benötigen ihre eigenen Daten- und Methodenverträge. Es wurden keine
 Handelsentscheidungen automatisiert, Modelle aktiviert oder Livekurse abgerufen.
 
-**Genau nächster sinnvoller Schritt:** den konkret fertiggestellten engen
-Währungs-/Brutto-SELL-Schnitt fachlich abnehmen. Die bereits erteilte Vertrags- und
-Umsetzungsfreigabe wird nicht erneut angefordert. PR #249 behält seine Priorität
-vor weiterer betrieblicher Ausweitung; Veröffentlichung und Installation bleiben
-eigenständig autorisierte Vorgänge.
+Der nächste Schritt der damaligen lokalen Übergabe war die Entscheidung über den
+fertigen Schnitt. Die darauf folgende ausdrückliche Veröffentlichungsanweisung
+ist im nachstehenden Nachtrag berücksichtigt.
+
+## Integrations- und Auslieferungsfortsetzung 18.10.2026
+
+Der Nutzer hat ausdrücklich beauftragt: **„wenn prüfungen grün mergen und für den
+pc verfügbar machen“**. Damit sind Veröffentlichung, normaler geschützter Merge
+und Bereitstellung über den vorhandenen PC-Updateweg nach erfolgreichen Prüfungen
+autorisiert. Diese Freigabe erweitert weder den Kennzahlenvertrag noch M8 und
+belegt keine Installation oder fachliche Beobachtung auf JMBbot.
+
+Der erneut gelesene Remote-Ausgangspunkt blieb `e9aac2bfaadeb9133a6ed07e42d1dec39836b156`
+/ 1.5.8. Nach Wiederherstellung des lokalen Arbeitsbereichs wurden der erhaltene
+Vollpatch und sämtliche 102 manifestierten Evidence-Dateien unabhängig geprüft.
+Der rekonstruierte gesamte Git-Tree ist exakt
+`fc12f0f7fa8d8e8157be3a9dc3818169301c48ec`; alle 84 geänderten Dateien stimmen mit
+dem ausgelieferten SHA-256-Manifest überein. Der veröffentlichte Recovery-Commit
+`d8dc36f5f891a6dd29cb0a0a8dba41d485201f76` auf
+`feat/realized-gross-report-20261018` bindet diesen unveränderten Tree. Er ersetzt
+nicht die historischen Commitkennungen der tatsächlich ausgeführten lokalen Tests.
+
+PR #249 wurde am 18.10.2026 separat als
+`79c5e0f44c055e2bfaf526db7c3841ab92018ff8` gemergt. Sein geprüfter Integrations-Head
+`5b6a877e5610176a81e99aa5c39833c1b402ea63` enthält das erneut gelesene main;
+die vier ursprünglichen Fix-Dateien sind bytegleich mit dessen geprüftem Head
+`1ad81344a66be9e70c772828081b2ff7ac13ef1c`. Backend-Run `39129318977`, Frontend
+`39129318998`, End-to-End `39129318963` und publication guards `39129318893`
+wurden unmittelbar vor dem Merge erfolgreich gelesen. Der Performance-PR
+übernimmt diesen Integrationsstand und ändert selbst kein Basiswertformular.
+
+Die ergänzte CI-Grenze ist `End-to-End / realized gross owner` im vorhandenen
+End-to-End-Workflow. `scripts/run-realized-gross-e2e.sh` erzeugt ausschließlich
+einen eigenen synthetischen Compose-Stack, eine neue markierte PostgreSQL-17-
+Datenbank und leere Testkonfiguration. Der vorhandene Berichtstest und sein
+Datenbankguard bleiben unverändert. Ein erfolgreich beendeter Prozess genügt
+nicht: Der JSON-Bericht muss genau einen bestandenen Fall, keine übersprungenen
+oder instabilen Fälle und keinen Wiederholungsversuch ausweisen. Der bestehende
+Smoke-Job bleibt erhalten; dessen getrennte Tests ersetzen diesen Owner-Lauf nicht.
+
+Die neue Softwareversion ist [1.5.9](../releases/V1.5.9-REALIZED-GROSS-REPORT.md).
+PR-Checks und danach die vollständigen Backend-, Frontend- und End-to-End-
+Workflows des tatsächlichen main-Pushs sind getrennte Veröffentlichungsgates.
+Erst deren Erfolg auf genau dem aktuellen main-Commit erlaubt dem unveränderten
+Version-Workflow, den neuen Tag zu erzeugen. Tatsächlich abgerufene Runs und
+Commitbindungen stehen im Auslieferungs-PR; der geprüfte Tag bestimmt den
+konkreten Update-Commit. Ein vorhandener Tag wird nicht verschoben.
+
+**Genau nächster sinnvoller Schritt nach dieser Bereitstellung:** die bestehende
+PC-Installation mit dem veröffentlichten Tag und seinem geprüften vollständigen
+Commit über den vorhandenen Launcher aktualisieren und den Zustand anschließend
+lesend prüfen. Echte Bestandskorrekturen oder Währungsbestätigungen erfolgen
+weiterhin ausschließlich durch die bewusste zuständige Nutzeraktion.

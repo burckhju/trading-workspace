@@ -11,6 +11,8 @@
 
 > Fortschreibung 17.10.2026 auf `e9aac2bfaadeb9133a6ed07e42d1dec39836b156` / 1.5.8: Vollständiger Checkout für PB-017 Brutto-PnL und PB-019 Performance geprüft; [Quellenvertrag und V1-Entscheidungsvorschlag](../implementation/PERIOD_REALIZED_GROSS_READINESS.md) und [Owner-Trace-Qualifikation](../implementation/PERIOD_REALIZED_GROSS_QUALIFICATION.md). Die darunter erhaltene Konsolidierungsbasis beschreibt ihren damaligen Prüfstand. Die anschließende Nutzeranweisung „Ok, umsetzen“ gibt den konkreten Währungs-/Periodenvertrag zur Umsetzung frei ([ADR-S10-008](../decisions/ADR-S10-008-EXECUTION-CURRENCY-AND-PERIOD-REALIZED-GROSS.md)); die [Berichtsqualifikation](../implementation/PERIOD_REALIZED_GROSS_REPORT_QUALIFICATION.md) dokumentiert die Fortsetzung. Nur ausdrücklich ergänzte Teilfähigkeiten werden fortgeschrieben; keine fertige Fachabnahme, Veröffentlichung oder PC-Abnahme.
 
+> Fortschreibung 18.10.2026: Der Nutzer hat mit „wenn prüfungen grün mergen und für den pc verfügbar machen“ die geschützte Integration und PC-Bereitstellung des konkret gelieferten Schnitts ausdrücklich autorisiert. [Version 1.5.9 und Updateweg](../releases/V1.5.9-REALIZED-GROSS-REPORT.md) verbinden diese Freigabe mit erneuter aktueller PR-/main-CI, dem getrennt vorgezogenen Integritätsfix #249 und dem tatsächlich veröffentlichten Tag. Die Aussagen vom 17.10. über fehlende Veröffentlichungsfreigabe sind damit historisch; eine PC-Installation oder vollständige M8-Abnahme wird weiterhin nicht behauptet.
+
 ## Pflegevertrag und Statusbedeutung
 
 Nur die **Arbeitsstatus-Felder der Teilfähigkeiten** unten sind maßgeblich. PB-001 bis PB-020 bleiben erhalten; ihre Überschriften sind Container, keine zweite aggregierte Statusliste. Die unnummerierten Fähigkeiten bleiben unnummeriert. Beschreibende HTML-Anker sind lediglich Sprungziele innerhalb dieses Dokuments, keine neuen FT-/PB-IDs. Die Originalzuordnung und die Sichten sind statusfreie Ansichten auf dieselben Einträge.
@@ -1031,7 +1033,7 @@ Die Felder „Soll“ und „Nicht-Soll“ sind die vor einer Umsetzung zu prüf
 | Implementierung / Consumer | [PositionProjector.project/project_with_trace](../../backend/app/features/trade_position/domain/projector.py) behält eine Schleife und exakte Decimal-Reihenfolge. ExecutionCurrencyConfirmationService besitzt append-only Herkunft, Migration 0047 und alle bestehenden Capture-Handoffs. Der neue V1-Periodenreader ist lesender Consumer, kein zweiter Rechenowner. |
 | Test / Commit | [Berichtsqualifikation](../implementation/PERIOD_REALIZED_GROSS_REPORT_QUALIFICATION.md) mit exaktem Code-/Testbezug; vorausgehende [Trace-Qualifikation](../implementation/PERIOD_REALIZED_GROSS_QUALIFICATION.md) bleibt historisch getrennt. Synthetische Bestätigungen belegen keine Nutzerdatenwährung. |
 | Fachliche Abnahme | Average-Cost/Brutto durch ADR-S10-004 entschieden. Additiver Währungs-/V1-Periodenvertrag nach konkretem Vorschlag am 17.10.2026 ausdrücklich zur Umsetzung freigegeben (ADR-S10-008); Endabnahme und M8 bleiben getrennt. |
-| Software-Auslieferung | Bestehender FT-010-Owner in 1.5.8 enthalten; Trace, Währungsbestätigung und Bericht im lokalen Aufgabenbranch. Kein neuer Release oder produktiver Migrationslauf. |
+| Software-Auslieferung | Bestehender FT-010-Owner in 1.5.8; Trace, Währungsbestätigung und Bericht gehören zum autorisierten [Auslieferungsstand 1.5.9](../releases/V1.5.9-REALIZED-GROSS-REPORT.md). Tag und erfolgreiche aktuelle main-CI bestimmen die Veröffentlichung; kein produktiver Migrationslauf beobachtet. |
 | Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
 | Restarbeit / nächste Abhängigkeit | Fertigen Currency-/Berichtsschnitt fachlich abnehmen. Legacy-Buchungen werden ausschließlich durch bewusste Owner-Aktion bestätigt, ohne Menge/Preis/Datum/Sortierung zu ändern. **Nächste Abhängigkeit:** tatsächliche Quellenbestätigung in separat autorisiertem Nutzerbetrieb, keine automatische Rückbefüllung. |
 | Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
@@ -1271,8 +1273,8 @@ Die Felder „Soll“ und „Nicht-Soll“ sind die vor einer Umsetzung zu prüf
 | Vorhandenseinsnachweis | Ausgangssuche auf e9aac2bf fand keinen passenden registrierten Consumer. Die neue registrierte Strecke zeigt vollständige SELL-Beiträge, Quellen, Perioden-/Währungsqualifikation und Datenabdeckung aus einem konsistenten Read. |
 | Implementierung / Consumer | Execution-Owner bestätigt tatsächliche Preiswährung additiv; bestehender PositionProjector liefert direkte SELL-Deltas. Neuer reiner performance-Reader, GET /api/v1/performance/realized-gross und Frontendroute /performance/realized-gross. [Freigegebener Vertrag](../implementation/PERIOD_REALIZED_GROSS_READINESS.md), [Implementierung und Grenzen](../implementation/PERIOD_REALIZED_GROSS_REPORT_QUALIFICATION.md). |
 | Test / Commit | [Berichtsqualifikation](../implementation/PERIOD_REALIZED_GROSS_REPORT_QUALIFICATION.md) mit exaktem Code-/Testbezug; vorausgehende [Trace-Qualifikation](../implementation/PERIOD_REALIZED_GROSS_QUALIFICATION.md) bleibt historisch getrennt. Synthetische Bestätigungen belegen keine Nutzerdatenwährung. |
-| Fachliche Abnahme | Währungs-/V1-Perioden-/Ausgabevorschlag am 17.10.2026 mit „Ok, umsetzen“ zur Implementierung bestätigt; keine Endabnahme des fertigen Codes oder vollständige M8-Abnahme. |
-| Software-Auslieferung | Überprüfbarer lokaler Aufgabenbranch, Version 1.5.8 unverändert. Keine Veröffentlichung, kein Merge, Tag oder Deployment dieses Schnitts. |
+| Fachliche Abnahme | Konkreter Währungs-/V1-Perioden-/Ausgabevorschlag am 17.10.2026 mit „Ok, umsetzen“ bestätigt; am 18.10.2026 ausdrücklich Merge und PC-Bereitstellung unter der Bedingung grüner Prüfungen beauftragt. Keine vollständige M8- oder PC-Fachabnahme daraus abgeleitet. |
+| Software-Auslieferung | [Version 1.5.9](../releases/V1.5.9-REALIZED-GROSS-REPORT.md) ist der autorisierte Auslieferungsstand dieses engen Schnitts. Der bestehende Version-Workflow veröffentlicht den Tag erst nach den erfolgreichen aktuellen main-Workflows; der Tag bindet den konkreten PC-Update-Commit. Kein Installationsnachweis. |
 | Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
 | Restarbeit / nächste Abhängigkeit | Fertigen V1-Schnitt fachlich abnehmen; bestehende reale Buchungen bleiben ohne explizite Preiswährungsbestätigung unbekannt. Erweiterte Kennzahlen sind eigenständige nächste Vorhaben. **Nächste Abhängigkeit:** Abnahme des konkreten gelieferten V1-Vertrags und echte Quellenabdeckung, keine Journalpflicht. |
 | Umfangsentscheidung | Der enge erste Brutto-SELL-Schnitt erfüllt keinen vollständigen M8-Umfang. Statistik-/Kohorten-/Diagramm-/Exportanforderungen bleiben erhalten; weitere Kennzahlen behalten ihre eigenen offenen Fachverträge. |
@@ -1311,8 +1313,8 @@ Die Felder „Soll“ und „Nicht-Soll“ sind die vor einer Umsetzung zu prüf
 | Vorhandenseinsnachweis | Ausgangssuche auf e9aac2bf fand keinen passenden registrierten Consumer. Die neue registrierte Strecke zeigt vollständige SELL-Beiträge, Quellen, Perioden-/Währungsqualifikation und Datenabdeckung aus einem konsistenten Read. |
 | Implementierung / Consumer | Execution-Owner bestätigt tatsächliche Preiswährung additiv; bestehender PositionProjector liefert direkte SELL-Deltas. Neuer reiner performance-Reader, GET /api/v1/performance/realized-gross und Frontendroute /performance/realized-gross. [Freigegebener Vertrag](../implementation/PERIOD_REALIZED_GROSS_READINESS.md), [Implementierung und Grenzen](../implementation/PERIOD_REALIZED_GROSS_REPORT_QUALIFICATION.md). |
 | Test / Commit | [Berichtsqualifikation](../implementation/PERIOD_REALIZED_GROSS_REPORT_QUALIFICATION.md) mit exaktem Code-/Testbezug; vorausgehende [Trace-Qualifikation](../implementation/PERIOD_REALIZED_GROSS_QUALIFICATION.md) bleibt historisch getrennt. Synthetische Bestätigungen belegen keine Nutzerdatenwährung. |
-| Fachliche Abnahme | Währungs-/V1-Perioden-/Ausgabevorschlag am 17.10.2026 mit „Ok, umsetzen“ zur Implementierung bestätigt; keine Endabnahme des fertigen Codes oder vollständige M8-Abnahme. |
-| Software-Auslieferung | Überprüfbarer lokaler Aufgabenbranch, Version 1.5.8 unverändert. Keine Veröffentlichung, kein Merge, Tag oder Deployment dieses Schnitts. |
+| Fachliche Abnahme | Konkreter Währungs-/V1-Perioden-/Ausgabevorschlag am 17.10.2026 mit „Ok, umsetzen“ bestätigt; am 18.10.2026 ausdrücklich Merge und PC-Bereitstellung unter der Bedingung grüner Prüfungen beauftragt. Keine vollständige M8- oder PC-Fachabnahme daraus abgeleitet. |
+| Software-Auslieferung | [Version 1.5.9](../releases/V1.5.9-REALIZED-GROSS-REPORT.md) ist der autorisierte Auslieferungsstand dieses engen Schnitts. Der bestehende Version-Workflow veröffentlicht den Tag erst nach den erfolgreichen aktuellen main-Workflows; der Tag bindet den konkreten PC-Update-Commit. Kein Installationsnachweis. |
 | Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
 | Restarbeit / nächste Abhängigkeit | Die erste Zeitraum-/Quellenansicht besitzt vollständige lokale Pagination und Schutz gegen verspätete Antworten. Weitergehende Dashboards, Diagramme und Export bleiben eigene Restanforderungen. **Nächste Abhängigkeit:** fachliche Abnahme dieser Ansicht und separater Umfang der Erweiterungen. |
 | Umfangsentscheidung | Der enge erste Brutto-SELL-Schnitt erfüllt keinen vollständigen M8-Umfang. Statistik-/Kohorten-/Diagramm-/Exportanforderungen bleiben erhalten; weitere Kennzahlen behalten ihre eigenen offenen Fachverträge. |
@@ -1331,10 +1333,10 @@ Die Felder „Soll“ und „Nicht-Soll“ sind die vor einer Umsetzung zu prüf
 | Vorhandenseinsnachweis | Ausgangssuche auf e9aac2bf fand keinen passenden registrierten Consumer. Die neue registrierte Strecke zeigt vollständige SELL-Beiträge, Quellen, Perioden-/Währungsqualifikation und Datenabdeckung aus einem konsistenten Read. |
 | Implementierung / Consumer | Execution-Owner bestätigt tatsächliche Preiswährung additiv; bestehender PositionProjector liefert direkte SELL-Deltas. Neuer reiner performance-Reader, GET /api/v1/performance/realized-gross und Frontendroute /performance/realized-gross. [Freigegebener Vertrag](../implementation/PERIOD_REALIZED_GROSS_READINESS.md), [Implementierung und Grenzen](../implementation/PERIOD_REALIZED_GROSS_REPORT_QUALIFICATION.md). |
 | Test / Commit | [Berichtsqualifikation](../implementation/PERIOD_REALIZED_GROSS_REPORT_QUALIFICATION.md) mit exaktem Code-/Testbezug; vorausgehende [Trace-Qualifikation](../implementation/PERIOD_REALIZED_GROSS_QUALIFICATION.md) bleibt historisch getrennt. Synthetische Bestätigungen belegen keine Nutzerdatenwährung. |
-| Fachliche Abnahme | Währungs-/V1-Perioden-/Ausgabevorschlag am 17.10.2026 mit „Ok, umsetzen“ zur Implementierung bestätigt; keine Endabnahme des fertigen Codes oder vollständige M8-Abnahme. |
-| Software-Auslieferung | Überprüfbarer lokaler Aufgabenbranch, Version 1.5.8 unverändert. Keine Veröffentlichung, kein Merge, Tag oder Deployment dieses Schnitts. |
+| Fachliche Abnahme | Konkreter Währungs-/V1-Perioden-/Ausgabevorschlag am 17.10.2026 mit „Ok, umsetzen“ bestätigt; am 18.10.2026 ausdrücklich Merge und PC-Bereitstellung unter der Bedingung grüner Prüfungen beauftragt. Keine vollständige M8- oder PC-Fachabnahme daraus abgeleitet. |
+| Software-Auslieferung | [Version 1.5.9](../releases/V1.5.9-REALIZED-GROSS-REPORT.md) ist der autorisierte Auslieferungsstand dieses engen Schnitts. Der bestehende Version-Workflow veröffentlicht den Tag erst nach den erfolgreichen aktuellen main-Workflows; der Tag bindet den konkreten PC-Update-Commit. Kein Installationsnachweis. |
 | Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
-| Restarbeit / nächste Abhängigkeit | Fachliche Endabnahme anhand der gelieferten Referenz-/Korrektur-/Lückenfälle; Zielinstallation und reale Datenabdeckung gesondert nach autorisierter Integration prüfen. **Nächste Abhängigkeit:** abgenommener V1-Schnitt; #249 bleibt vor betrieblicher Ausweitung prioritär. |
+| Restarbeit / nächste Abhängigkeit | Zielinstallation und tatsächliche Quellenabdeckung anhand der gelieferten Referenz-/Korrektur-/Lückenfälle gesondert prüfen. **Nächste Abhängigkeit:** veröffentlichter Tag 1.5.9 nach erfolgreicher aktueller CI und getrennt vorgezogener Integration von #249; keine erneute pauschale Veröffentlichungsfreigabe erforderlich. |
 | Umfangsentscheidung | Der enge erste Brutto-SELL-Schnitt erfüllt keinen vollständigen M8-Umfang. Statistik-/Kohorten-/Diagramm-/Exportanforderungen bleiben erhalten; weitere Kennzahlen behalten ihre eigenen offenen Fachverträge. |
 
 </details>
@@ -1830,19 +1832,25 @@ Die Felder „Soll“ und „Nicht-Soll“ sind die vor einer Umsetzung zu prüf
 <a id="naechster-schnitt"></a>
 ## Genau nächster sinnvoller Umsetzungsschritt
 
-**Den fertig implementierten engen PB-019-/PB-017-Schnitt fachlich abnehmen.**
-Die [Berichtsqualifikation](../implementation/PERIOD_REALIZED_GROSS_REPORT_QUALIFICATION.md)
-verbindet konkreten Code, Migration, Referenz/Korrektur, Herkunft, Datenlücken,
-PostgreSQL-Rennen und echten Browserweg. Die Freigabe des vorgelegten Währungs-/
-Periodenvertrags wurde bereits mit „Ok, umsetzen“ erteilt; sie wird nicht erneut
-angefordert. Diese jetzt mögliche Endabnahme prüft das fertige Ergebnis.
+**Nach der freigegebenen Bereitstellung Version 1.5.9 über den vorhandenen
+PC-Launcher aktualisieren und den installierten Zustand lesend prüfen.**
+Die [Release-Notiz](../releases/V1.5.9-REALIZED-GROSS-REPORT.md) beschreibt den
+gepinnten Updateweg mit dem tatsächlich veröffentlichten Tag-Commit und Migration
+0047. Die [Berichtsqualifikation](../implementation/PERIOD_REALIZED_GROSS_REPORT_QUALIFICATION.md)
+verbindet Quellen, Referenz/Korrektur, PostgreSQL-Rennen und den echten Browserweg.
 
-Die frühere Journalentwurfsarbeit ist durch #260/#261 fortgeschritten, #263 liefert
-die vorhandene Materialisierungs-/Historienstrecke. Ihre Restanforderungen bleiben
-in ihren Einträgen. #249 bleibt separat offener Draft und vor weiterer
-betrieblicher Ausweitung prioritär. Kein Basiswertformular wurde hier geändert.
-Publikation, Merge, Versionierung und PC-Installation benötigen ihren gesonderten
-Arbeitsmodus; die Implementierungsfreigabe ersetzt ihn nicht.
+Die Nutzeranweisungen „Ok, umsetzen“ und „wenn prüfungen grün mergen und für den pc
+verfügbar machen“ liegen vor. Aktuelle PR-Prüfungen, normale geschützte Integration
+und erfolgreiche main-Prüfungen vor der Tag-Erzeugung setzen diese Bedingung um.
+PR #249 wird als eigener Integritätsfix vorgezogen; der Performance-Diff ändert
+kein Basiswertformular. Die neue obligatorische Owner-Browserqualifikation liegt
+zusätzlich im bestehenden End-to-End-Workflow und akzeptiert keinen Skip oder Retry.
+
+Reale Nutzerbestände und ihre Währungsabdeckung wurden dabei nicht geprüft oder
+verändert. Deren bewusste Bestätigung und die fachliche Beobachtung des installierten
+Ergebnisses bleiben getrennt. Die durch #260/#261/#263 vorhandene Journal-/Lesson-/
+Evidence-Strecke und sämtliche ursprünglichen M8-Restanforderungen bleiben in
+ihren maßgeblichen Einträgen erhalten.
 
 ### Definition of Ready der ausgeführten Fortsetzung
 
