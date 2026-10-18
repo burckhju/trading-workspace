@@ -111,3 +111,36 @@ it('corrects an exact execution identity and announces changes only after succes
     window.removeEventListener('trade-timeline-changed', listener);
   }
 });
+
+it('reads currency history without a write and submits an exact pinned owner confirmation', async () => {
+  requestJsonMock.mockReset();
+  requestJsonMock.mockResolvedValue({} as never);
+  const signal = new AbortController().signal;
+  const listener = vi.fn();
+  window.addEventListener('trade-timeline-changed', listener);
+  try {
+    await tradeManagementApiClient.executionCurrencyHistory('trade-1', 'execution-1', signal);
+    expect(requestJsonMock).toHaveBeenLastCalledWith(
+      'http://localhost:8000/api/v1/trade-position/trades/trade-1/executions/execution-1/currency-confirmations',
+      { signal },
+    );
+    expect(listener).not.toHaveBeenCalled();
+    const payload = {
+      currency_code: 'USD',
+      source: 'USER_CONFIRMED' as const,
+      note: 'Abrechnung',
+      supersedes_confirmation_id: 'prior-confirmation',
+      request_id: 'once',
+    };
+    await tradeManagementApiClient.confirmExecutionCurrency('trade-1', 'execution-1', payload);
+    expect(requestJsonMock).toHaveBeenLastCalledWith(
+      'http://localhost:8000/api/v1/trade-position/trades/trade-1/executions/execution-1/currency-confirmations',
+      { method: 'POST', body: payload },
+    );
+    expect(listener).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ detail: { tradeId: 'trade-1' } }),
+    );
+  } finally {
+    window.removeEventListener('trade-timeline-changed', listener);
+  }
+});

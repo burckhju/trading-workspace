@@ -66,7 +66,9 @@ class ExternalObservationTradeLinkService:
         external_observation_id: UUID,
         trade_id: UUID,
         actor_id: UUID,
+        commit: bool = True,
     ) -> ExternalObservationTradeLinkVersion:
+        """Create a link; composed owner commands may retain the shared transaction."""
         async with self._uow:
             observation = await self._lock_observation(
                 workspace_id=workspace_id,
@@ -107,7 +109,10 @@ class ExternalObservationTradeLinkService:
 
             await self._uow.external_observation_trade_links.add(link)
             await self._uow.external_observation_trade_link_versions.add(version)
-            await self._uow.commit()
+            if commit:
+                await self._uow.commit()
+            else:
+                await self._uow.flush()
             return version
 
     async def correct_target(

@@ -13,6 +13,7 @@ on:
       - "frontend/**"
       - "docker/**"
       - "tests/e2e/**"
+      - "scripts/run-realized-gross-e2e.sh"
       - ".github/workflows/e2e.yml"
 
 permissions:
@@ -86,3 +87,42 @@ jobs:
       - name: Stop stack
         if: always()
         run: docker compose -f docker/compose.yml down --volumes --remove-orphans
+
+  realized-gross-owner:
+    name: End-to-End / realized gross owner
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version-file: backend/.python-version
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - name: Verify existing release prerequisites
+        run: bash scripts/verify-release-readiness.sh
+      - name: Install pinned frontend and database-guard dependencies
+        run: |
+          npm --prefix frontend ci
+          python -m pip install --requirement backend/requirements.txt
+      - name: Use reliable Ubuntu apt mirror
+        run: |
+          sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' /etc/apt/sources.list.d/ubuntu.sources
+          sudo apt-get update
+      - name: Install Chromium
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+      - name: Qualify actual report writes and reads on an isolated Compose stack
+        run: bash scripts/run-realized-gross-e2e.sh
+      - name: Upload report browser, migration and cleanup evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: realized-gross-owner-e2e
+          path: frontend/test-results/realized-gross-*/
+          if-no-files-found: warn

@@ -462,3 +462,69 @@ No migration, provider, automated interpretation or new financial owner.
 Qualification of the defined FT-011/FT-012 consistency/inventory slice:
 [exact code/test commit, PostgreSQL races, browser and full-gate evidence](../implementation/FT011_MATERIALIZATION_CONSISTENCY_QUALIFICATION.md).
 This trace extends the existing PB-019 link; no second status or human acceptance.
+
+## Realized gross SELL arithmetic and period readiness — 2026-10-17
+
+[PB-017 Brutto-PnL](../planning/PRODUCT_BACKLOG.md#pb-017-gross-pnl) and
+[PB-019 Periodenauswertung](../planning/PRODUCT_BACKLOG.md#pb-019-performance-evaluations)
+→ [source matrix, DoR and decisions still required](../implementation/PERIOD_REALIZED_GROSS_READINESS.md)
+→ accepted ADR-S10-002/004 and the existing FT-010 owner
+→ `trade_position/domain/projector.py::PositionProjector.project_with_trace`
+→ `test_projector_trace.py`, `test_realized_gross_trace_postgres.py`
+→ [exact qualification and code references](../implementation/PERIOD_REALIZED_GROSS_QUALIFICATION.md).
+
+This additive trace preserves one arithmetic loop and the existing Position
+contract. The complete effective execution prefix explains each SELL's cost
+basis, including earlier sales. Synthetic EUR assumptions do not establish user
+execution currencies. Monetary report API/UI, the proposed report snapshot,
+currency capture/confirmation and domain acceptance remain separate requirements.
+No new FT-ID, migration, release, automatic evidence or target-installation claim.
+
+## Explicit currency and period report continuation — 2026-10-17
+
+The preceding trace-only entry remains the historical first-stage evidence. The
+later explicit user instruction “Ok, umsetzen” accepts the concrete follow-up
+contract in [ADR-S10-008](../decisions/ADR-S10-008-EXECUTION-CURRENCY-AND-PERIOD-REALIZED-GROSS.md).
+
+[PB-017 currency/position owner](../planning/PRODUCT_BACKLOG.md#pb-017-gross-pnl)
+and [PB-019 period report](../planning/PRODUCT_BACKLOG.md#pb-019-performance-evaluations)
+→ approved [source/period contract](../implementation/PERIOD_REALIZED_GROSS_READINESS.md)
+→ `trade_position/service/currency_confirmations.py`, migration `20261017_0047`
+and all existing actual capture commands, including Learning `execute-as-trade`
+→ existing `PositionProjector.project_with_trace()`
+→ `performance/service/reader.py`, `performance/domain/report.py`,
+`GET /api/v1/performance/realized-gross`
+→ `frontend/src/features/performance/pages/RealizedGrossPage.tsx` and the existing
+trade/selection capture and booking-history UI
+→ `test_execution_currency_confirmations_postgres.py`,
+`test_realized_gross_report_postgres.py`, period/API/domain/frontend unit contracts
+and `tests/e2e/realized-gross-report-postgres.spec.ts`
+→ [exact code and qualification record](../implementation/PERIOD_REALIZED_GROSS_REPORT_QUALIFICATION.md).
+
+One response's summary, counts, rows and provenance share a bounded read snapshot;
+explicit corrections may change subsequent responses. Currency declarations are
+append-only owner data, not a second execution ledger or report-generated fact.
+The definition is gross realized SELL output, not full M8/portfolio performance.
+Current status stays only in the linked backlog; no release or PC claim follows.
+
+## Realized gross report publication boundary — 2026-10-18
+
+The later explicit instruction to merge after successful checks and make the
+result available for the PC authorizes the bounded release continuation.
+The exact recovered implementation tree is
+`fc12f0f7fa8d8e8157be3a9dc3818169301c48ec`, published as recovery commit
+`d8dc36f5f891a6dd29cb0a0a8dba41d485201f76`; the historical qualification commits
+above keep their original test meaning.
+
+[PB-019 period output](../planning/PRODUCT_BACKLOG.md#pb-019-performance-evaluations)
+→ separate current-main integration of the priority integrity fix #249
+→ `scripts/run-realized-gross-e2e.sh`
+→ additional `End-to-End / realized gross owner` job in the existing workflow
+→ unchanged guarded PostgreSQL/browser report scenario, with exactly one passing
+case and no skip, retry or flaky result
+→ [1.5.9 release and managed PC update contract](../releases/V1.5.9-REALIZED-GROSS-REPORT.md).
+
+The existing publication workflow also requires successful actual main-push
+Backend, Frontend and End-to-End workflows for the precise tagged commit.
+Published software, migration 0047 and real target installation remain separate
+evidence; this trace neither invents historical execution currencies nor closes M8.

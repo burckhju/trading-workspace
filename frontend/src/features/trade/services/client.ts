@@ -3,7 +3,10 @@ import { requestJson } from '../../market/services/http';
 import type {
   CancellationPreview,
   CancellationRequest,
+  ConfirmExecutionCurrencyRequest,
   ExecutionCorrectionRequest,
+  ExecutionCurrencyConfirmation,
+  ExecutionCurrencyHistory,
   InitialPurchaseRequest,
   InitialPurchaseResponse,
   PositionResponse,
@@ -41,6 +44,27 @@ function notifyTimelineChanged(tradeId: string): void {
 }
 
 export const tradeManagementApiClient = {
+  executionCurrencyHistory: (
+    tradeId: string,
+    executionId: string,
+    signal?: AbortSignal,
+  ): Promise<ExecutionCurrencyHistory> =>
+    requestJson<ExecutionCurrencyHistory>(
+      tradeUrl(tradeId, `/executions/${encodeURIComponent(executionId)}/currency-confirmations`),
+      { signal },
+    ),
+  confirmExecutionCurrency: async (
+    tradeId: string,
+    executionId: string,
+    request: ConfirmExecutionCurrencyRequest,
+  ): Promise<ExecutionCurrencyConfirmation> => {
+    const result = await requestJson<ExecutionCurrencyConfirmation>(
+      tradeUrl(tradeId, `/executions/${encodeURIComponent(executionId)}/currency-confirmations`),
+      { method: 'POST', body: request },
+    );
+    notifyTimelineChanged(tradeId);
+    return result;
+  },
   correctExecution: async (
     tradeId: string,
     executionId: string,

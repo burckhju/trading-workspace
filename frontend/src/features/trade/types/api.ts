@@ -3,6 +3,30 @@ export type IsoDateTime = string;
 
 export type ExecutionSide = 'BUY' | 'SELL';
 export type TradeOrigin = 'WORKSPACE_SELECTION' | 'EXTERNAL';
+export interface ExecutionCurrencyDeclaration {
+  currency_code: string;
+  source: 'USER_CONFIRMED';
+  note?: string | null;
+}
+
+export interface ExecutionCurrencyConfirmation extends ExecutionCurrencyDeclaration {
+  id: Uuid;
+  execution_id: Uuid;
+  note: string | null;
+  confirmed_at: IsoDateTime;
+  confirmed_by: Uuid;
+  supersedes_confirmation_id: Uuid | null;
+}
+
+export interface ExecutionCurrencyHistory {
+  current: ExecutionCurrencyConfirmation | null;
+  history: ExecutionCurrencyConfirmation[];
+}
+
+export interface ConfirmExecutionCurrencyRequest extends ExecutionCurrencyDeclaration {
+  request_id: Uuid;
+  supersedes_confirmation_id: Uuid | null;
+}
 export type TradeManagementEventType =
   | 'STOP_CHANGED'
   | 'TARGET_CHANGED'
@@ -40,6 +64,7 @@ export interface TradeResponse {
 }
 
 export interface ExecutionResponse {
+  currency_confirmation?: ExecutionCurrencyConfirmation | null;
   id: Uuid;
   trade_id: Uuid;
   product_id: Uuid;
@@ -138,6 +163,7 @@ export interface ProductPositionValuationResponse {
 }
 
 export interface InitialPurchaseRequest {
+  currency_confirmation?: ExecutionCurrencyDeclaration;
   product_selection_id: Uuid;
   quantity: number;
   price_per_unit: string;
@@ -184,6 +210,7 @@ export interface TradeManagementStateResponse {
 }
 
 export interface TradeTimelineEntryResponse {
+  currency_confirmation?: ExecutionCurrencyConfirmation | null;
   price_binding?: PriceBinding | null;
   id: Uuid;
   trade_id: Uuid;
@@ -202,6 +229,7 @@ export interface TradeTimelineEntryResponse {
 }
 
 export interface SaleRequest {
+  currency_confirmation?: ExecutionCurrencyDeclaration;
   quantity: number;
   price_per_unit: string;
   executed_at?: IsoDateTime | null;
@@ -256,6 +284,7 @@ export interface CancellationRequest {
 
 /** Date corrections reference an existing execution, not a new capture request. */
 export type ExecutionCorrectionRequest = {
+  currency_confirmation?: ExecutionCurrencyDeclaration;
   side: ExecutionSide;
   quantity: number;
   price_per_unit: string;

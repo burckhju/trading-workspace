@@ -6,8 +6,12 @@ from typing import Self
 from uuid import UUID
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from pydantic import AwareDatetime, BaseModel, Field, model_validator
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from app.features.trade_position.domain.currency import (
+    ExecutionCurrencyDeclaration,
+    ExecutionCurrencySource,
+)
 from app.features.trade_position.domain.enums import (
     ExecutionSide,
     TradeManagementEventType,
@@ -16,7 +20,51 @@ from app.features.trade_position.domain.enums import (
 from app.features.trade_position.domain.price_binding import PriceBinding
 
 
+class ExecutionCurrencyDeclarationRequest(BaseModel):
+    currency_code: str = Field(min_length=3, max_length=3)
+    source: ExecutionCurrencySource
+    note: str | None = Field(default=None, min_length=1, max_length=1000)
+
+    @field_validator("currency_code", mode="before")
+    @classmethod
+    def normalize_code(cls, value: object) -> object:
+        return value.strip().upper() if isinstance(value, str) else value
+
+    @model_validator(mode="after")
+    def validate_declaration(self) -> Self:
+        self.to_domain()
+        return self
+
+    def to_domain(self) -> ExecutionCurrencyDeclaration:
+        return ExecutionCurrencyDeclaration(
+            currency_code=self.currency_code, source=self.source, note=self.note
+        )
+
+
+class ExecutionCurrencyConfirmationRequest(ExecutionCurrencyDeclarationRequest):
+    request_id: UUID
+    supersedes_confirmation_id: UUID | None = None
+
+
+class ExecutionCurrencyConfirmationResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: UUID
+    execution_id: UUID
+    currency_code: str
+    source: ExecutionCurrencySource
+    note: str | None
+    confirmed_at: datetime
+    confirmed_by: UUID
+    supersedes_confirmation_id: UUID | None
+
+
+class ExecutionCurrencyHistoryResponse(BaseModel):
+    current: ExecutionCurrencyConfirmationResponse | None
+    history: list[ExecutionCurrencyConfirmationResponse]
+
+
 class CaptureTimeRequest(BaseModel):
+    currency_confirmation: ExecutionCurrencyDeclarationRequest | None = None
     executed_at: AwareDatetime | None = None
     executed_on: date | None = None
     execution_timezone: str | None = Field(default=None, max_length=64)
@@ -110,6 +158,7 @@ class TradeResponse(BaseModel):
 
 
 class ExecutionResponse(BaseModel):
+    currency_confirmation: ExecutionCurrencyConfirmationResponse | None = None
     id: UUID
     trade_id: UUID
     product_id: UUID
@@ -176,6 +225,7 @@ class TradeManagementStateResponse(BaseModel):
 
 
 class TradeTimelineEntryResponse(BaseModel):
+    currency_confirmation: ExecutionCurrencyConfirmationResponse | None = None
     price_binding: PriceBinding | None = None
     id: UUID
     trade_id: UUID

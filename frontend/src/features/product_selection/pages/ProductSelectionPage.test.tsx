@@ -281,6 +281,13 @@ describe('ProductSelectionPage', () => {
 
     await user.type(screen.getByLabelText('Kaufmenge'), '10');
     await user.type(screen.getByLabelText('Kaufpreis'), '2,35');
+    await user.type(screen.getByLabelText('Ausführungswährung (Code)'), 'EUR');
+    expect(
+      screen.getByRole('checkbox', { name: /als tatsächliche Währung dieser Ausführung/ }),
+    ).not.toBeChecked();
+    await user.click(
+      screen.getByRole('checkbox', { name: /als tatsächliche Währung dieser Ausführung/ }),
+    );
     await user.click(screen.getByRole('button', { name: 'BUY erfassen und Position eröffnen' }));
 
     expect(await screen.findByRole('heading', { name: 'TR-12345678' })).toBeInTheDocument();
@@ -301,5 +308,11 @@ describe('ProductSelectionPage', () => {
       return url.url.includes('/purchases/from-selection');
     });
     expect(purchaseCall).toBeDefined();
+    const purchaseBody = purchaseCall?.[1]?.body;
+    if (typeof purchaseBody !== 'string') throw new Error('Expected a JSON purchase request');
+    expect(JSON.parse(purchaseBody)).toMatchObject({
+      price_per_unit: '2.35',
+      currency_confirmation: { currency_code: 'EUR', source: 'USER_CONFIRMED', note: null },
+    });
   });
 });

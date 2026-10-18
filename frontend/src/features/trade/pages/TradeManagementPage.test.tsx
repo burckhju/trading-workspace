@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -188,6 +188,36 @@ describe('TradeManagementPage', () => {
     ).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Teilverkauf erfassen' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Nachbeobachtung starten' })).toBeInTheDocument();
+  });
+
+  it('uses a deliberately confirmed execution currency for a full SELL, without treating a listing as evidence', async () => {
+    render(
+      <MemoryRouter initialEntries={['/trade-management?trade_id=trade-1']}>
+        <TradeManagementPage />
+      </MemoryRouter>,
+    );
+    await screen.findByRole('heading', { name: 'OPEN' });
+    const form = within(screen.getByRole('form', { name: 'Verkauf erfassen' }));
+    fireEvent.change(form.getByLabelText('Verkaufspreis'), { target: { value: '2.5000000001' } });
+    fireEvent.change(form.getByLabelText('Ausführungswährung (Code)'), {
+      target: { value: 'EUR' },
+    });
+    expect(form.getByRole('checkbox', { name: /als tatsächliche Währung/ })).not.toBeChecked();
+    fireEvent.click(form.getByRole('checkbox', { name: /als tatsächliche Währung/ }));
+    fireEvent.click(form.getByRole('button', { name: 'Position vollständig schließen' }));
+    await waitFor(() =>
+      expect(api.sell).toHaveBeenCalledWith(
+        'trade-1',
+        expect.objectContaining({
+          quantity: 10,
+          price_per_unit: '2.5000000001',
+          currency_confirmation: { currency_code: 'EUR', source: 'USER_CONFIRMED', note: null },
+        }),
+      ),
+    );
+    await waitFor(() =>
+      expect(form.getByRole('checkbox', { name: /als tatsächliche Währung/ })).not.toBeChecked(),
+    );
   });
 
   it('does not show the post-trade start action for an open position', async () => {

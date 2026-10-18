@@ -8,6 +8,12 @@ import {
   todayInZone,
 } from '../services/executionDateCorrection';
 import type { TradeTimelineEntryResponse } from '../types/api';
+import {
+  emptyExecutionCurrency,
+  executionCurrencyDeclaration,
+} from '../services/executionCurrency';
+import { ExecutionCurrencyInput } from './ExecutionCurrencyInput';
+import { ExecutionCurrencyPanel } from './ExecutionCurrencyPanel';
 
 function dateLabel(entry: TradeTimelineEntryResponse) {
   return entry.execution_side === 'SELL' ? 'Verkaufsdatum' : 'Kaufdatum';
@@ -29,6 +35,7 @@ export function ExecutionDatesPanel({
   const [date, setDate] = useState('');
   const [keepTime, setKeepTime] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
+  const [currency, setCurrency] = useState(emptyExecutionCurrency);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const lock = useRef(false);
@@ -82,6 +89,7 @@ export function ExecutionDatesPanel({
       setDate(context.date);
       setKeepTime(context.hasTime);
       setConfirmed(false);
+      setCurrency(emptyExecutionCurrency());
       setMessage(null);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Buchung bitte prüfen.');
@@ -99,7 +107,10 @@ export function ExecutionDatesPanel({
     setMessage(null);
     let saved = false;
     try {
-      const payload = executionDateCorrection(selected, date, keepTime);
+      const payload = {
+        ...executionDateCorrection(selected, date, keepTime),
+        ...executionCurrencyDeclaration(currency),
+      };
       await tradeManagementApiClient.correctExecution(tradeId, selected.id, payload);
       saved = true;
       if (!mounted.current) return;
@@ -194,6 +205,12 @@ export function ExecutionDatesPanel({
                 {dateLabel(entry)} korrigieren
               </button>
             )}
+            <ExecutionCurrencyPanel
+              tradeId={tradeId}
+              executionId={entry.id}
+              confirmation={entry.currency_confirmation}
+              readOnly={cancelled}
+            />
           </article>
         ))}
       </div>
@@ -267,6 +284,12 @@ export function ExecutionDatesPanel({
             />{' '}
             Ich bestätige das tatsächliche Ausführungsdatum dieser Buchung.
           </label>
+          <ExecutionCurrencyInput
+            value={currency}
+            onChange={setCurrency}
+            disabled={busy || !!stale}
+            replacement
+          />
           <button
             type="submit"
             disabled={
