@@ -350,6 +350,28 @@ nicht: Der JSON-Bericht muss genau einen bestandenen Fall, keine übersprungenen
 oder instabilen Fälle und keinen Wiederholungsversuch ausweisen. Der bestehende
 Smoke-Job bleibt erhalten; dessen getrennte Tests ersetzen diesen Owner-Lauf nicht.
 
+Der erste neue Compose-Owner-Lauf auf PR-Head
+`7414062ea289ef710b9175737500c38fdc26b224` beziehungsweise CI-Merge-Commit
+`059f4c5de67ca8865b5fd7bfd92eedbfe2933276` ist ausdrücklich **fehlgeschlagen**:
+[Run 39130432449, Job 117684304391](https://github.com/burckhju/trading-workspace/actions/runs/39130432449/job/117684304391)
+meldet einen fehlgeschlagenen Fall ohne Skip oder Retry. Images, Migration auf
+`20261017_0047`, PostgreSQL 17.11 und die Container-Healthchecks waren erfolgreich.
+Der Datenbankguard konnte danach `127.0.0.1:35432` nicht erreichen. Der Fehler trat
+vor der ersten synthetischen Owner-Buchung auf; der eigene Teststack wurde entfernt.
+Das ausschließlich interne Docker-Netz hatte die benötigte Host-Portverbindung
+nicht hergestellt. Dieser Lauf ist kein fachlicher Browsernachweis.
+
+Die Korrektur bleibt im neuen CI-Runner: Das Backend ist ausschließlich mit dem
+internen Projektnetz verbunden und hat keinen veröffentlichten Hostport.
+PostgreSQL und Frontend besitzen zusätzlich eine eigene Ingress-Bridge für die
+an `127.0.0.1` gebundenen Testports. Der vorhandene Frontend-Proxy erreicht das
+Backend über das interne Netz. Preflight, Prüfung der tatsächlichen Container-
+Netzmitgliedschaften und Portbindungen sowie Cleanup umfassen beide eigenen
+Netze. Die Laufzeitevidenz wird als `network-and-ports.json` archiviert.
+Produktions-Compose, Browserfall, Datenbankguard und regulärer Smoke-Job bleiben
+unverändert. Der korrigierte Runner benötigt einen neuen erfolgreichen aktuellen
+CI-Lauf; statische Konfigurationsprüfungen ersetzen diesen Nachweis nicht.
+
 Die neue Softwareversion ist [1.5.9](../releases/V1.5.9-REALIZED-GROSS-REPORT.md).
 PR-Checks und danach die vollständigen Backend-, Frontend- und End-to-End-
 Workflows des tatsächlichen main-Pushs sind getrennte Veröffentlichungsgates.
