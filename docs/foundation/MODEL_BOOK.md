@@ -48,3 +48,17 @@ FT-007 ist **kein automatisches Handels-, Scoring- oder Positionsgrößenmodell*
 `CandidateEvaluation → TradePlanVersion → spätere Risk/Product/Execution-Entscheidungen`
 
 V1 ist LONG-only. Entry, Invalidation, Targets und Risk Assumptions sind Planparameter; sie erzeugen keine Order- oder Execution-Entscheidung. Eine spätere Candidate-Re-Evaluation verändert keine bestehende TradePlanVersion.
+
+## Realisierte Bruttoergebnisse — Auswertungsdefinition
+
+`realized-gross-sell-v1` ist eine versionierte lesende Auswertungsdefinition
+tatsächlicher wirksamer SELLs. Sie verwendet die bestehende FT-010-Average-Cost-
+Formel und ausdrücklich belegte Ausführungswährungen. Sie ist kein neues Handels-,
+Scoring- oder Positionsgrößenmodell und aktiviert keine Modellversion.
+
+[ADR-S10-008](../decisions/ADR-S10-008-EXECUTION-CURRENCY-AND-PERIOD-REALIZED-GROSS.md)
+und der [freigegebene Quellen-/Periodenvertrag](../implementation/PERIOD_REALIZED_GROSS_READINESS.md)
+definieren Population, Zeitraum/Zeitzone, korrigierten heutigen Wissensstand,
+Kostenbasisquellen, unbekannte Werte und Decimal-/Anzeigenpräzision. Die
+[technische Qualifikation](../implementation/PERIOD_REALIZED_GROSS_REPORT_QUALIFICATION.md)
+bleibt von Fachabnahme, Veröffentlichung und Zielbetrieb getrennt.

@@ -26,6 +26,7 @@ from app.features.learning.domain import (
 from app.features.learning.persistence.unit_of_work import (
     LearningTradeLinkUnitOfWork,
 )
+from app.features.trade_position.domain.currency import ExecutionCurrencyDeclaration
 
 COMMAND_TYPE = "EXECUTE_AS_TRADE"
 RESULT_TYPE = "TRADE"
@@ -67,13 +68,16 @@ def request_fingerprint(
     quantity: int,
     price_per_unit: Decimal,
     executed_at: datetime,
+    currency_confirmation: ExecutionCurrencyDeclaration | None = None,
 ) -> str:
-    payload = {
+    payload: dict[str, object] = {
         "observation_id": str(observation_id),
         "quantity": quantity,
         "price_per_unit": format(price_per_unit, "f"),
         "executed_at": executed_at.isoformat(),
     }
+    if currency_confirmation is not None:
+        payload["currency_confirmation"] = currency_confirmation.payload()
     encoded = json.dumps(
         payload,
         sort_keys=True,
@@ -110,12 +114,40 @@ class ExecuteExternalObservationAsTradeService:
         executed_at: datetime,
         actor_id: UUID,
         idempotency_key: str,
+        currency_confirmation: ExecutionCurrencyDeclaration | None = None,
+    ) -> ExecuteAsTradeResult:
+        # Trade, execution, optional declaration, link and receipt form one command.
+        # In particular the nested link writer must not commit an IN_PROGRESS receipt.
+        async with self._uow:
+            return await self._execute(
+                workspace_id=workspace_id,
+                observation_id=observation_id,
+                quantity=quantity,
+                price_per_unit=price_per_unit,
+                executed_at=executed_at,
+                actor_id=actor_id,
+                idempotency_key=idempotency_key,
+                currency_confirmation=currency_confirmation,
+            )
+
+    async def _execute(
+        self,
+        *,
+        workspace_id: UUID,
+        observation_id: UUID,
+        quantity: int,
+        price_per_unit: Decimal,
+        executed_at: datetime,
+        actor_id: UUID,
+        idempotency_key: str,
+        currency_confirmation: ExecutionCurrencyDeclaration | None,
     ) -> ExecuteAsTradeResult:
         fingerprint = request_fingerprint(
             observation_id=observation_id,
             quantity=quantity,
             price_per_unit=price_per_unit,
             executed_at=executed_at,
+            currency_confirmation=currency_confirmation,
         )
 
         existing = await self._uow.idempotency_records.get(
@@ -195,6 +227,7 @@ class ExecuteExternalObservationAsTradeService:
             price_per_unit=price_per_unit,
             executed_at=executed_at,
             actor_id=actor_id,
+            currency_confirmation=currency_confirmation,
         )
 
         link_version = await self._trade_link_service.create(
@@ -202,6 +235,7 @@ class ExecuteExternalObservationAsTradeService:
             external_observation_id=observation_id,
             trade_id=trade.id,
             actor_id=actor_id,
+            commit=False,
         )
 
         await self._uow.idempotency_records.mark_succeeded(
@@ -210,7 +244,7 @@ class ExecuteExternalObservationAsTradeService:
             result_id=trade.id,
             completed_at=self._clock.now(),
         )
-        await self._session.flush()
+        await self._uow.commit()
 
         return ExecuteAsTradeResult(
             trade_id=trade.id,

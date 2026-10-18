@@ -2,6 +2,11 @@ import { useRef, useState } from 'react';
 
 import { captureRequest, executionTime, finishCapture, localToday } from '../services/capture';
 import { tradeManagementApiClient } from '../services/client';
+import {
+  emptyExecutionCurrency,
+  executionCurrencyDeclaration,
+} from '../services/executionCurrency';
+import { ExecutionCurrencyInput } from './ExecutionCurrencyInput';
 import { ExecutionDateInput } from './ExecutionDateInput';
 
 export function AdditionalPurchasePanel({
@@ -15,6 +20,7 @@ export function AdditionalPurchasePanel({
   const [price, setPrice] = useState('');
   const [date, setDate] = useState(localToday);
   const [time, setTime] = useState('');
+  const [currency, setCurrency] = useState(emptyExecutionCurrency);
   const [busy, setBusy] = useState(false);
   const lock = useRef(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -31,6 +37,7 @@ export function AdditionalPurchasePanel({
         quantity: amount,
         price_per_unit: price.trim().replace(',', '.'),
         ...executionTime(date, time),
+        ...executionCurrencyDeclaration(currency),
       };
       await tradeManagementApiClient.purchaseAdditional(tradeId, {
         ...payload,
@@ -40,6 +47,7 @@ export function AdditionalPurchasePanel({
       setQuantity('');
       setPrice('');
       setTime('');
+      setCurrency(emptyExecutionCurrency());
       await onChanged();
       setMessage('Nachkauf beim bestehenden Trade erfasst.');
     } catch (error) {
@@ -97,6 +105,7 @@ export function AdditionalPurchasePanel({
           onTime={setTime}
         />
       </div>
+      <ExecutionCurrencyInput value={currency} onChange={setCurrency} disabled={busy} />
       <button disabled={busy} className="mt-3 rounded border p-2">
         Nachkauf speichern
       </button>

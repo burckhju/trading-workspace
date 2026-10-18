@@ -10,6 +10,7 @@ from uuid import UUID, uuid4
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.features.product.service.application import WarrantService
+from app.features.trade_position.domain.currency import ExecutionCurrencyDeclaration
 from app.features.trade_position.domain.enums import TradeOrigin
 from app.features.trade_position.domain.models import (
     ExecutionRecord,
@@ -20,6 +21,9 @@ from app.features.trade_position.persistence.repositories import (
     SqlAlchemyExecutionRecordRepository,
     SqlAlchemyPositionRepository,
     SqlAlchemyTradeRepository,
+)
+from app.features.trade_position.service.currency_confirmations import (
+    ExecutionCurrencyConfirmationService,
 )
 from app.features.trade_position.service.resolvers import WarrantProductResolver
 
@@ -34,6 +38,7 @@ class ExternalTradeCreator(Protocol):
         price_per_unit: Decimal,
         executed_at: datetime,
         actor_id: UUID,
+        currency_confirmation: ExecutionCurrencyDeclaration | None = None,
     ) -> tuple[Trade, ExecutionRecord, Position]: ...
 
 
@@ -46,6 +51,7 @@ class SqlAlchemyExternalTradeCreator:
         self._trades = SqlAlchemyTradeRepository(session)
         self._executions = SqlAlchemyExecutionRecordRepository(session)
         self._positions = SqlAlchemyPositionRepository(session)
+        self._currency_confirmations = ExecutionCurrencyConfirmationService(session)
 
     async def create(
         self,
@@ -56,6 +62,7 @@ class SqlAlchemyExternalTradeCreator:
         price_per_unit: Decimal,
         executed_at: datetime,
         actor_id: UUID,
+        currency_confirmation: ExecutionCurrencyDeclaration | None = None,
     ) -> tuple[Trade, ExecutionRecord, Position]:
         product = await self._products.resolve(workspace_id, product_id)
         if product is None:
@@ -97,5 +104,13 @@ class SqlAlchemyExternalTradeCreator:
 
         await self._positions.add(position)
         await self._session.flush()
+
+        if currency_confirmation is not None:
+            execution = await self._currency_confirmations.capture(
+                workspace_id=workspace_id,
+                execution=execution,
+                declaration=currency_confirmation,
+                actor=actor_id,
+            )
 
         return trade, execution, position

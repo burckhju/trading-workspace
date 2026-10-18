@@ -15,6 +15,11 @@ import { TradeCancellationPanel } from '../components/TradeCancellationPanel';
 import { AdditionalPurchasePanel } from '../components/AdditionalPurchasePanel';
 import { TradeTimelinePanel } from '../components/TradeTimelinePanel';
 import { ExecutionDateInput } from '../components/ExecutionDateInput';
+import { ExecutionCurrencyInput } from '../components/ExecutionCurrencyInput';
+import {
+  emptyExecutionCurrency,
+  executionCurrencyDeclaration,
+} from '../services/executionCurrency';
 import { captureRequest, executionTime, finishCapture, localToday } from '../services/capture';
 import type { PositionResponse, TradeManagementStateResponse, TradeResponse } from '../types/api';
 
@@ -66,6 +71,7 @@ function TradeManagementContext({ tradeId, onReload }: { tradeId: string; onRelo
   const [salePrice, setSalePrice] = useState('');
   const [saleDate, setSaleDate] = useState(localToday);
   const [saleTime, setSaleTime] = useState('');
+  const [saleCurrency, setSaleCurrency] = useState(emptyExecutionCurrency);
   const saleLock = useRef(false);
   const [stopPrice, setStopPrice] = useState('');
   const [stopBinding, setStopBinding] = useState<PriceBinding | null>(null);
@@ -181,6 +187,7 @@ function TradeManagementContext({ tradeId, onReload }: { tradeId: string; onRelo
         quantity,
         price_per_unit: salePrice.trim().replace(',', '.'),
         ...executionTime(saleDate, saleTime),
+        ...executionCurrencyDeclaration(saleCurrency),
       };
       await tradeManagementApiClient.sell(tradeId, {
         ...payload,
@@ -190,6 +197,7 @@ function TradeManagementContext({ tradeId, onReload }: { tradeId: string; onRelo
       setSaleQuantity('');
       setSalePrice('');
       setSaleTime('');
+      setSaleCurrency(emptyExecutionCurrency());
       await refresh(tradeId);
       setMessage(successMessage);
     } catch (error) {
@@ -454,6 +462,12 @@ function TradeManagementContext({ tradeId, onReload }: { tradeId: string; onRelo
                     onTime={setSaleTime}
                   />
                 </div>
+
+                <ExecutionCurrencyInput
+                  value={saleCurrency}
+                  onChange={setSaleCurrency}
+                  disabled={busy}
+                />
 
                 <div className="grid gap-3 sm:grid-cols-2">
                   <button

@@ -7,12 +7,14 @@ from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 
+from app.features.trade_position.api.currency_confirmations import router as currency_router
 from app.features.trade_position.api.dependencies import get_trade_position_service
 from app.features.trade_position.api.dtos import (
     AdditionalPurchaseRequest,
     AdditionalPurchaseResponse,
     CaptureTimeRequest,
     ExecutionCorrectionRequest,
+    ExecutionCurrencyConfirmationResponse,
     ExecutionResponse,
     ExternalPurchaseRequest,
     Ft011EligibilityResponse,
@@ -42,6 +44,7 @@ router = APIRouter(
     prefix="/api/v1/trade-position",
     tags=["trade-position"],
 )
+router.include_router(currency_router)
 
 WORKSPACE_ID = UUID("00000000-0000-4000-8000-000000000001")
 LOCAL_ACTOR_ID = UUID("00000000-0000-4000-8000-000000000002")
@@ -66,6 +69,11 @@ def _trade(value: Trade) -> TradeResponse:
 
 def _execution(value: ExecutionRecord) -> ExecutionResponse:
     return ExecutionResponse(
+        currency_confirmation=(
+            ExecutionCurrencyConfirmationResponse.model_validate(value.currency_confirmation)
+            if value.currency_confirmation is not None
+            else None
+        ),
         id=value.id,
         trade_id=value.trade_id,
         product_id=value.product_id,
@@ -129,6 +137,11 @@ def _management_state(value: TradeManagementState) -> TradeManagementStateRespon
 
 def _timeline_entry(value: TradeTimelineEntry) -> TradeTimelineEntryResponse:
     return TradeTimelineEntryResponse(
+        currency_confirmation=(
+            ExecutionCurrencyConfirmationResponse.model_validate(value.currency_confirmation)
+            if value.currency_confirmation is not None
+            else None
+        ),
         id=value.id,
         trade_id=value.trade_id,
         occurred_at=value.occurred_at,
@@ -174,6 +187,8 @@ def _capture_time(request: CaptureTimeRequest) -> dict[str, Any]:
     result["executed_at"] = at
     if request.request_id is not None:
         result["request_id"] = request.request_id
+    if request.currency_confirmation is not None:
+        result["currency_confirmation"] = request.currency_confirmation.to_domain()
     return result
 
 

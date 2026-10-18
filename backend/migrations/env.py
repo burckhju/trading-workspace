@@ -12,19 +12,30 @@ from app.database import Base
 from app.features.alert.persistence import models as alert_models  # noqa: F401
 from app.features.analysis.persistence import models as analysis_models  # noqa: F401
 from app.features.candidate.persistence import models as candidate_models  # noqa: F401
-from app.features.learning.persistence import bulk_import_models as learning_bulk_import_models  # noqa: F401
+from app.features.learning.persistence import (
+    bulk_import_models as learning_bulk_import_models,  # noqa: F401
+)
 from app.features.learning.persistence import models as learning_models  # noqa: F401
 from app.features.market.persistence import currency_catalog as currency_models  # noqa: F401
 from app.features.market.persistence import models as market_models  # noqa: F401
 from app.features.market.persistence import top_down_models as market_top_down_models  # noqa: F401
-from app.features.market_data.persistence import instruments as market_data_instrument_models  # noqa: F401
+from app.features.market_data.persistence import (
+    instruments as market_data_instrument_models,  # noqa: F401
+)
 from app.features.market_data.persistence import models as market_data_models  # noqa: F401
 from app.features.model.persistence import models as model_governance_models  # noqa: F401
 from app.features.notification.persistence import models as notification_models  # noqa: F401
-from app.features.position_monitoring.persistence import models as position_monitoring_models  # noqa: F401
+from app.features.position_monitoring.persistence import (
+    models as position_monitoring_models,  # noqa: F401
+)
 from app.features.product.persistence import models as product_models  # noqa: F401
-from app.features.product_selection.persistence import models as product_selection_models  # noqa: F401
+from app.features.product_selection.persistence import (
+    models as product_selection_models,  # noqa: F401
+)
 from app.features.trade_plan.persistence import models as trade_plan_models  # noqa: F401
+from app.features.trade_position.persistence import (
+    currency_models as execution_currency_models,  # noqa: F401
+)
 from app.features.trade_position.persistence import models as trade_position_models  # noqa: F401
 from app.features.user_preferences.persistence import models as user_preference_models  # noqa: F401
 

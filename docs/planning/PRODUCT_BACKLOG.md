@@ -9,6 +9,8 @@
 | Funktion | Einzige maßgebliche Quelle des aktuellen Arbeitsstatus |
 | Prüfgrenze | Statische Quellen- und CI-Prüfung; kein vollständiger lokaler Checkout, keine neue Fach- oder Liveabnahme |
 
+> Fortschreibung 17.10.2026 auf `e9aac2bfaadeb9133a6ed07e42d1dec39836b156` / 1.5.8: Vollständiger Checkout für PB-017 Brutto-PnL und PB-019 Performance geprüft; [Quellenvertrag und V1-Entscheidungsvorschlag](../implementation/PERIOD_REALIZED_GROSS_READINESS.md) und [Owner-Trace-Qualifikation](../implementation/PERIOD_REALIZED_GROSS_QUALIFICATION.md). Die darunter erhaltene Konsolidierungsbasis beschreibt ihren damaligen Prüfstand. Die anschließende Nutzeranweisung „Ok, umsetzen“ gibt den konkreten Währungs-/Periodenvertrag zur Umsetzung frei ([ADR-S10-008](../decisions/ADR-S10-008-EXECUTION-CURRENCY-AND-PERIOD-REALIZED-GROSS.md)); die [Berichtsqualifikation](../implementation/PERIOD_REALIZED_GROSS_REPORT_QUALIFICATION.md) dokumentiert die Fortsetzung. Nur ausdrücklich ergänzte Teilfähigkeiten werden fortgeschrieben; keine fertige Fachabnahme, Veröffentlichung oder PC-Abnahme.
+
 ## Pflegevertrag und Statusbedeutung
 
 Nur die **Arbeitsstatus-Felder der Teilfähigkeiten** unten sind maßgeblich. PB-001 bis PB-020 bleiben erhalten; ihre Überschriften sind Container, keine zweite aggregierte Statusliste. Die unnummerierten Fähigkeiten bleiben unnummeriert. Beschreibende HTML-Anker sind lediglich Sprungziele innerhalb dieses Dokuments, keine neuen FT-/PB-IDs. Die Originalzuordnung und die Sichten sind statusfreie Ansichten auf dieselben Einträge.
@@ -879,15 +881,15 @@ Die Felder „Soll“ und „Nicht-Soll“ sind die vor einer Umsetzung zu prüf
 | Nachweisfeld | Einordnung |
 |---|---|
 | Zuordnung | M5: Trade eröffnen. Bereich/Querschnitt: 5. Bestehender Bezug: FT-009. Lieferziel: A, B. |
-| Arbeitsstatus | Released (historischer FT-009-Teilscope) |
+| Arbeitsstatus | Released (historischer FT-009-Teilscope); additive Execution-Währungsbestätigung in Technical Review, siehe PB-017-/PB-019-Qualifikation. |
 | Soll / Nicht-Soll | **Soll:** Bestätigte Erst-/Nachkäufe als immutable Ausführungsfakten erfassen, Herkunft exakt behalten. **Nicht-Soll:** Keine Brokerorder, autonome Produktauswahl oder Mengenempfehlung. |
 | Vorhandenseinsnachweis | Dokument- und/oder Routing-Nachweis vorhanden; Details, historische Grenzen und nicht erneut geprüfte Implementierung im Eintrag. |
-| Implementierung / Consumer | [FT-009 record_initial_purchase / record_additional_purchase, Migration 0014](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/foundation/TRACEABILITY.md); [trade_position-API](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/backend/app/main.py) / [Trade-Management-UI](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/frontend/src/app/router.tsx). |
-| Test / Commit | Historische PR-18-CI und Merge 1f98a4a2f4568dbe3e1352c0ae5e5e0c93034c2a; aktuelle Basis-CI. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Implementierung / Consumer | Bestehende Erst-/Nachkauf- und EXTERNAL-Captures bleiben erhalten. Additive [Execution-Währungsbestätigung](../../backend/app/features/trade_position/service/currency_confirmations.py) in derselben Owner-Transaktion; einschließlich Learning execute-as-trade. Kein EUR-Default und keine rückwirkende Änderung wirtschaftlicher Werte. [Konkrete Qualifikation](../implementation/PERIOD_REALIZED_GROSS_REPORT_QUALIFICATION.md). |
+| Test / Commit | Historische PR-18-CI und Merge 1f98a4a2f4568dbe3e1352c0ae5e5e0c93034c2a bleiben getrennt. Neue atomare Currency-Capture-/Learning-Replay-/Rollback-Fälle und aktuelles vollständiges Backend-Gate sind in der [Berichtsqualifikation mit Codebezug](../implementation/PERIOD_REALIZED_GROSS_REPORT_QUALIFICATION.md) nachgewiesen. |
 | Fachliche Abnahme | Historische Release-/Abnahmehinweise; keine neue menschliche Abnahme. |
 | Software-Auslieferung | v1.1.0-trade-position laut historischer Traceability. |
 | Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
-| Restarbeit / nächste Abhängigkeit | Aktuelle Execution-Verträge bei Folgearbeit gezielt prüfen; ursprüngliche Kaufhistorie nicht umschreiben. **Nächste Abhängigkeit:** PB-011; Workspace-Ursprung zusätzlich PB-014/015. |
+| Restarbeit / nächste Abhängigkeit | Additiven Currency-Capture zusammen mit PB-017/PB-019 fachlich abnehmen; ursprüngliche Kaufhistorie nicht umschreiben. Separater bestehender Learning-Randfall: gleichzeitige erstmalige execute-as-trade-Requests mit identischem Key können am Unique-Constraint generisch 422 statt Replay liefern (statischer Befund, keine neue PostgreSQL-Reproduktion); keine Doppelanlage. Sequenzieller Replay und atomarer Currency-Handoff sind im neuen Nachweis qualifiziert. **Nächste Abhängigkeit:** PB-011; Workspace-Ursprung zusätzlich PB-014/015. |
 | Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
 
 </details>
@@ -1025,13 +1027,13 @@ Die Felder „Soll“ und „Nicht-Soll“ sind die vor einer Umsetzung zu prüf
 | Zuordnung | M5: abgeleitetes Positionsergebnis; Vorleistung für M8. Bereich/Querschnitt: 5, 8. Bestehender Bezug: FT-010 auf FT-009 Execution-/Position-Vertrag. Lieferziel: C. |
 | Arbeitsstatus | Technical Review |
 | Soll / Nicht-Soll | **Soll:** Realisiertes Brutto-PnL und Einstand aus effektiven BUY-/SELL-Fakten nach bestehender Average-Cost-Semantik ableiten. **Nicht-Soll:** Keine Gebühren, Steuern, Nettoerträge, Depot-Equity oder tradeübergreifende Performance erfinden. |
-| Vorhandenseinsnachweis | Dokument- und/oder Routing-Nachweis vorhanden; Details, historische Grenzen und nicht erneut geprüfte Implementierung im Eintrag. |
-| Implementierung / Consumer | [Position projection / Realized P&L](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/features/FT-010_TRADE_MANAGEMENT.md); [domain/projector.py und Migration 0017](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/foundation/TRACEABILITY.md); [FT-010-Lieferumfang](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/releases/V1.2.0-TRADE-MANAGEMENT.md). |
-| Test / Commit | Historische Projektor-/Korrekturtests; aktuelle Basis-CI. Rechenpfad nicht vollständig neu lokal ausgeführt. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
-| Fachliche Abnahme | Historische FT-010-Nachweise; keine vollständige M8-Abnahme. |
-| Software-Auslieferung | FT-010-Implementierung im Basisstand; Releasevorbereitungsbeleg separat. |
+| Vorhandenseinsnachweis | Bestehender FT-010-Average-Cost-Owner und additiver SELL-Trace bleiben erhalten. Neue explizite Bestätigung je Execution schließt den Erfassungsvertrag; alte unbestätigte Quellen bleiben unbekannt. |
+| Implementierung / Consumer | [PositionProjector.project/project_with_trace](../../backend/app/features/trade_position/domain/projector.py) behält eine Schleife und exakte Decimal-Reihenfolge. ExecutionCurrencyConfirmationService besitzt append-only Herkunft, Migration 0047 und alle bestehenden Capture-Handoffs. Der neue V1-Periodenreader ist lesender Consumer, kein zweiter Rechenowner. |
+| Test / Commit | [Berichtsqualifikation](../implementation/PERIOD_REALIZED_GROSS_REPORT_QUALIFICATION.md) mit exaktem Code-/Testbezug; vorausgehende [Trace-Qualifikation](../implementation/PERIOD_REALIZED_GROSS_QUALIFICATION.md) bleibt historisch getrennt. Synthetische Bestätigungen belegen keine Nutzerdatenwährung. |
+| Fachliche Abnahme | Average-Cost/Brutto durch ADR-S10-004 entschieden. Additiver Währungs-/V1-Periodenvertrag nach konkretem Vorschlag am 17.10.2026 ausdrücklich zur Umsetzung freigegeben (ADR-S10-008); Endabnahme und M8 bleiben getrennt. |
+| Software-Auslieferung | Bestehender FT-010-Owner in 1.5.8 enthalten; Trace, Währungsbestätigung und Bericht im lokalen Aufgabenbranch. Kein neuer Release oder produktiver Migrationslauf. |
 | Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
-| Restarbeit / nächste Abhängigkeit | Als Vorleistung für C qualifizieren; nicht als Fertigstellung von M8 zählen. **Nächste Abhängigkeit:** Effektive Execution-Historie; keine neue Kennzahlenbedeutung. |
+| Restarbeit / nächste Abhängigkeit | Fertigen Currency-/Berichtsschnitt fachlich abnehmen. Legacy-Buchungen werden ausschließlich durch bewusste Owner-Aktion bestätigt, ohne Menge/Preis/Datum/Sortierung zu ändern. **Nächste Abhängigkeit:** tatsächliche Quellenbestätigung in separat autorisiertem Nutzerbetrieb, keine automatische Rückbefüllung. |
 | Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
 
 </details>
@@ -1264,16 +1266,16 @@ Die Felder „Soll“ und „Nicht-Soll“ sind die vor einer Umsetzung zu prüf
 | Nachweisfeld | Einordnung |
 |---|---|
 | Zuordnung | M8: Performancekennzahlen. Bereich/Querschnitt: 8. Bestehender Bezug: FT-012; vorhandener Evaluation-Owner. Lieferziel: C. |
-| Arbeitsstatus | Analysis; P1 – Fokus C |
+| Arbeitsstatus | Technical Review; P1 – Fokus C. Enger V1-SELL-Bericht und additive Währungsbestätigung zur Umsetzung freigegeben und implementiert; technische Nachweise, fertige Fachabnahme und Zielbetrieb bleiben getrennt. |
 | Soll / Nicht-Soll | **Soll:** Kennzahlen besitzen explizite Bedeutung, Daten-/Währungsgrenzen, Nenner und Behandlung unbekannter Werte. **Nicht-Soll:** Keine erfundene Equity, Nullgebühren, FX-Historie oder Netto-Performance. |
-| Vorhandenseinsnachweis | Vollständige Teilfähigkeit nicht verifiziert. Vorhandene Nachbarfunktionen/Dokumente sind im Implementierungsfeld benannt; daraus folgt kein Abwesenheitsbeweis. |
-| Implementierung / Consumer | [registrierte UI-Routen](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/frontend/src/app/router.tsx) und [Learning-Consumer](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/frontend/src/features/post_trade/pages/PostTradeLearningPage.tsx) gelesen; [Positions-Brutto-PnL](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/features/FT-010_TRADE_MANAGEMENT.md)/[Chart-Renditen](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/implementation/MARKET_CHARTS.md) sind Nachbarfähigkeiten. Eigener vollständiger Performance-Consumer nicht verifiziert. |
-| Test / Commit | Kein diesen M8-Zuschnitt eindeutig belegender Test-/Abnahmebeleg verifiziert; Suite-Erfolg ist kein Ersatz. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
-| Fachliche Abnahme | Keine eigenständige fachliche Abnahme für diesen vollständigen Zuschnitt verifiziert. |
-| Software-Auslieferung | Kein gesonderter Release-Nachweis für den vollständigen Zuschnitt verifiziert; ein allgemeiner Softwaretag ersetzt ihn nicht. |
+| Vorhandenseinsnachweis | Ausgangssuche auf e9aac2bf fand keinen passenden registrierten Consumer. Die neue registrierte Strecke zeigt vollständige SELL-Beiträge, Quellen, Perioden-/Währungsqualifikation und Datenabdeckung aus einem konsistenten Read. |
+| Implementierung / Consumer | Execution-Owner bestätigt tatsächliche Preiswährung additiv; bestehender PositionProjector liefert direkte SELL-Deltas. Neuer reiner performance-Reader, GET /api/v1/performance/realized-gross und Frontendroute /performance/realized-gross. [Freigegebener Vertrag](../implementation/PERIOD_REALIZED_GROSS_READINESS.md), [Implementierung und Grenzen](../implementation/PERIOD_REALIZED_GROSS_REPORT_QUALIFICATION.md). |
+| Test / Commit | [Berichtsqualifikation](../implementation/PERIOD_REALIZED_GROSS_REPORT_QUALIFICATION.md) mit exaktem Code-/Testbezug; vorausgehende [Trace-Qualifikation](../implementation/PERIOD_REALIZED_GROSS_QUALIFICATION.md) bleibt historisch getrennt. Synthetische Bestätigungen belegen keine Nutzerdatenwährung. |
+| Fachliche Abnahme | Währungs-/V1-Perioden-/Ausgabevorschlag am 17.10.2026 mit „Ok, umsetzen“ zur Implementierung bestätigt; keine Endabnahme des fertigen Codes oder vollständige M8-Abnahme. |
+| Software-Auslieferung | Überprüfbarer lokaler Aufgabenbranch, Version 1.5.8 unverändert. Keine Veröffentlichung, kein Merge, Tag oder Deployment dieses Schnitts. |
 | Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
-| Restarbeit / nächste Abhängigkeit | Konkreten ersten Kennzahlensatz fachlich entscheiden; belegte Ausführungsfakten und verfügbare Daten als Grenze festhalten. **Nächste Abhängigkeit:** PB-017 Brutto-PnL; fachliche Kennzahlendefinition, nicht Journalentwurf. |
-| Umfangsentscheidung | Ursprüngliches M8 bleibt sichtbar und geplant. Konkrete Kennzahlen-/Periodenentscheidungen offen; weder bewusst verschoben noch entfernt. |
+| Restarbeit / nächste Abhängigkeit | Fertigen V1-Schnitt fachlich abnehmen; bestehende reale Buchungen bleiben ohne explizite Preiswährungsbestätigung unbekannt. Erweiterte Kennzahlen sind eigenständige nächste Vorhaben. **Nächste Abhängigkeit:** Abnahme des konkreten gelieferten V1-Vertrags und echte Quellenabdeckung, keine Journalpflicht. |
+| Umfangsentscheidung | Der enge erste Brutto-SELL-Schnitt erfüllt keinen vollständigen M8-Umfang. Statistik-/Kohorten-/Diagramm-/Exportanforderungen bleiben erhalten; weitere Kennzahlen behalten ihre eigenen offenen Fachverträge. |
 
 </details>
 
@@ -1292,7 +1294,7 @@ Die Felder „Soll“ und „Nicht-Soll“ sind die vor einer Umsetzung zu prüf
 | Fachliche Abnahme | Keine eigenständige fachliche Abnahme für diesen vollständigen Zuschnitt verifiziert. |
 | Software-Auslieferung | Kein gesonderter Release-Nachweis für den vollständigen Zuschnitt verifiziert; ein allgemeiner Softwaretag ersetzt ihn nicht. |
 | Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
-| Restarbeit / nächste Abhängigkeit | Population und Aggregationsregeln festlegen; alternative vorhandene Consumer im vollständigen Checkout ausschließen. **Nächste Abhängigkeit:** Freigegebene Kennzahlen, Datenverfügbarkeit und Korrektursemantik. |
+| Restarbeit / nächste Abhängigkeit | Ursprüngliche Statistik-/Kohortenanforderungen bleiben erhalten. Der enge SELL-Zeitraumschnitt ([Quellenvertrag und V1-Entscheidungsvorschlag](../implementation/PERIOD_REALIZED_GROSS_READINESS.md)) erfüllt weder Gewinner/Verlierer/neutral, Trefferquote, Durchschnitt/Median noch Profit-Faktor. **Nächste Abhängigkeit:** eigene fachlich freigegebene Statistik-/Populationsdefinition auf qualifizierten Fakten. |
 | Umfangsentscheidung | Ursprüngliches M8 bleibt sichtbar und geplant. Konkrete Kennzahlen-/Periodenentscheidungen offen; weder bewusst verschoben noch entfernt. |
 
 </details>
@@ -1304,16 +1306,16 @@ Die Felder „Soll“ und „Nicht-Soll“ sind die vor einer Umsetzung zu prüf
 | Nachweisfeld | Einordnung |
 |---|---|
 | Zuordnung | M8: Dashboards. Bereich/Querschnitt: 8. Bestehender Bezug: FT-012; vorhandener Evaluation-Owner. Lieferziel: C. |
-| Arbeitsstatus | Analysis; P1 – Fokus C |
+| Arbeitsstatus | Technical Review; P1 – Fokus C. Enger V1-SELL-Bericht und additive Währungsbestätigung zur Umsetzung freigegeben und implementiert; technische Nachweise, fertige Fachabnahme und Zielbetrieb bleiben getrennt. |
 | Soll / Nicht-Soll | **Soll:** Lesende Auswertung zeigt Kennzahlen, Grenzen, Datenlücken und Herkunft verständlich. **Nicht-Soll:** Operational Workspace und Marktcharts sind kein Performance-Dashboard; keine Frontend-Zweitberechnung. |
-| Vorhandenseinsnachweis | Vollständige Teilfähigkeit nicht verifiziert. Vorhandene Nachbarfunktionen/Dokumente sind im Implementierungsfeld benannt; daraus folgt kein Abwesenheitsbeweis. |
-| Implementierung / Consumer | [registrierte UI-Routen](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/frontend/src/app/router.tsx) und [Learning-Consumer](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/frontend/src/features/post_trade/pages/PostTradeLearningPage.tsx) gelesen; [Positions-Brutto-PnL](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/features/FT-010_TRADE_MANAGEMENT.md)/[Chart-Renditen](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/implementation/MARKET_CHARTS.md) sind Nachbarfähigkeiten. Eigener vollständiger Performance-Consumer nicht verifiziert. |
-| Test / Commit | Kein diesen M8-Zuschnitt eindeutig belegender Test-/Abnahmebeleg verifiziert; Suite-Erfolg ist kein Ersatz. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
-| Fachliche Abnahme | Keine eigenständige fachliche Abnahme für diesen vollständigen Zuschnitt verifiziert. |
-| Software-Auslieferung | Kein gesonderter Release-Nachweis für den vollständigen Zuschnitt verifiziert; ein allgemeiner Softwaretag ersetzt ihn nicht. |
+| Vorhandenseinsnachweis | Ausgangssuche auf e9aac2bf fand keinen passenden registrierten Consumer. Die neue registrierte Strecke zeigt vollständige SELL-Beiträge, Quellen, Perioden-/Währungsqualifikation und Datenabdeckung aus einem konsistenten Read. |
+| Implementierung / Consumer | Execution-Owner bestätigt tatsächliche Preiswährung additiv; bestehender PositionProjector liefert direkte SELL-Deltas. Neuer reiner performance-Reader, GET /api/v1/performance/realized-gross und Frontendroute /performance/realized-gross. [Freigegebener Vertrag](../implementation/PERIOD_REALIZED_GROSS_READINESS.md), [Implementierung und Grenzen](../implementation/PERIOD_REALIZED_GROSS_REPORT_QUALIFICATION.md). |
+| Test / Commit | [Berichtsqualifikation](../implementation/PERIOD_REALIZED_GROSS_REPORT_QUALIFICATION.md) mit exaktem Code-/Testbezug; vorausgehende [Trace-Qualifikation](../implementation/PERIOD_REALIZED_GROSS_QUALIFICATION.md) bleibt historisch getrennt. Synthetische Bestätigungen belegen keine Nutzerdatenwährung. |
+| Fachliche Abnahme | Währungs-/V1-Perioden-/Ausgabevorschlag am 17.10.2026 mit „Ok, umsetzen“ zur Implementierung bestätigt; keine Endabnahme des fertigen Codes oder vollständige M8-Abnahme. |
+| Software-Auslieferung | Überprüfbarer lokaler Aufgabenbranch, Version 1.5.8 unverändert. Keine Veröffentlichung, kein Merge, Tag oder Deployment dieses Schnitts. |
 | Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
-| Restarbeit / nächste Abhängigkeit | Einen Consumer gegen den freigegebenen Backend-Auswertungsvertrag definieren; unbekannte Werte explizit anzeigen. **Nächste Abhängigkeit:** Backend-Auswertung von PB-019; keine neue schreibende Wahrheit. |
-| Umfangsentscheidung | Ursprüngliches M8 bleibt sichtbar und geplant. Konkrete Kennzahlen-/Periodenentscheidungen offen; weder bewusst verschoben noch entfernt. |
+| Restarbeit / nächste Abhängigkeit | Die erste Zeitraum-/Quellenansicht besitzt vollständige lokale Pagination und Schutz gegen verspätete Antworten. Weitergehende Dashboards, Diagramme und Export bleiben eigene Restanforderungen. **Nächste Abhängigkeit:** fachliche Abnahme dieser Ansicht und separater Umfang der Erweiterungen. |
+| Umfangsentscheidung | Der enge erste Brutto-SELL-Schnitt erfüllt keinen vollständigen M8-Umfang. Statistik-/Kohorten-/Diagramm-/Exportanforderungen bleiben erhalten; weitere Kennzahlen behalten ihre eigenen offenen Fachverträge. |
 
 </details>
 
@@ -1324,16 +1326,16 @@ Die Felder „Soll“ und „Nicht-Soll“ sind die vor einer Umsetzung zu prüf
 | Nachweisfeld | Einordnung |
 |---|---|
 | Zuordnung | M8: Auswertungen. Bereich/Querschnitt: 8. Bestehender Bezug: FT-012; vorhandener Evaluation-Owner. Lieferziel: C. |
-| Arbeitsstatus | Analysis; P1 – Fokus C |
+| Arbeitsstatus | Technical Review; P1 – Fokus C. Enger V1-SELL-Bericht und additive Währungsbestätigung zur Umsetzung freigegeben und implementiert; technische Nachweise, fertige Fachabnahme und Zielbetrieb bleiben getrennt. |
 | Soll / Nicht-Soll | **Soll:** Explizite Zeit-/Tradeauswahl, Stichtag und nachvollziehbare Berechnungsgrenzen. **Nicht-Soll:** Keine stillen historischen Rekonstruktionen eines damals unbekannten Datenstands. |
-| Vorhandenseinsnachweis | Vollständige Teilfähigkeit nicht verifiziert. Vorhandene Nachbarfunktionen/Dokumente sind im Implementierungsfeld benannt; daraus folgt kein Abwesenheitsbeweis. |
-| Implementierung / Consumer | [registrierte UI-Routen](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/frontend/src/app/router.tsx) und [Learning-Consumer](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/frontend/src/features/post_trade/pages/PostTradeLearningPage.tsx) gelesen; [Positions-Brutto-PnL](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/features/FT-010_TRADE_MANAGEMENT.md)/[Chart-Renditen](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/implementation/MARKET_CHARTS.md) sind Nachbarfähigkeiten. Eigener vollständiger Performance-Consumer nicht verifiziert. |
-| Test / Commit | Kein diesen M8-Zuschnitt eindeutig belegender Test-/Abnahmebeleg verifiziert; Suite-Erfolg ist kein Ersatz. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
-| Fachliche Abnahme | Keine eigenständige fachliche Abnahme für diesen vollständigen Zuschnitt verifiziert. |
-| Software-Auslieferung | Kein gesonderter Release-Nachweis für den vollständigen Zuschnitt verifiziert; ein allgemeiner Softwaretag ersetzt ihn nicht. |
+| Vorhandenseinsnachweis | Ausgangssuche auf e9aac2bf fand keinen passenden registrierten Consumer. Die neue registrierte Strecke zeigt vollständige SELL-Beiträge, Quellen, Perioden-/Währungsqualifikation und Datenabdeckung aus einem konsistenten Read. |
+| Implementierung / Consumer | Execution-Owner bestätigt tatsächliche Preiswährung additiv; bestehender PositionProjector liefert direkte SELL-Deltas. Neuer reiner performance-Reader, GET /api/v1/performance/realized-gross und Frontendroute /performance/realized-gross. [Freigegebener Vertrag](../implementation/PERIOD_REALIZED_GROSS_READINESS.md), [Implementierung und Grenzen](../implementation/PERIOD_REALIZED_GROSS_REPORT_QUALIFICATION.md). |
+| Test / Commit | [Berichtsqualifikation](../implementation/PERIOD_REALIZED_GROSS_REPORT_QUALIFICATION.md) mit exaktem Code-/Testbezug; vorausgehende [Trace-Qualifikation](../implementation/PERIOD_REALIZED_GROSS_QUALIFICATION.md) bleibt historisch getrennt. Synthetische Bestätigungen belegen keine Nutzerdatenwährung. |
+| Fachliche Abnahme | Währungs-/V1-Perioden-/Ausgabevorschlag am 17.10.2026 mit „Ok, umsetzen“ zur Implementierung bestätigt; keine Endabnahme des fertigen Codes oder vollständige M8-Abnahme. |
+| Software-Auslieferung | Überprüfbarer lokaler Aufgabenbranch, Version 1.5.8 unverändert. Keine Veröffentlichung, kein Merge, Tag oder Deployment dieses Schnitts. |
 | Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
-| Restarbeit / nächste Abhängigkeit | Perioden-, Trade-, Currentness- und Provenienzvertrag entscheiden und mit synthetischen Fällen qualifizieren. **Nächste Abhängigkeit:** Kennzahlenbedeutung und qualifizierte Execution-/Datenbasis. |
-| Umfangsentscheidung | Ursprüngliches M8 bleibt sichtbar und geplant. Konkrete Kennzahlen-/Periodenentscheidungen offen; weder bewusst verschoben noch entfernt. |
+| Restarbeit / nächste Abhängigkeit | Fachliche Endabnahme anhand der gelieferten Referenz-/Korrektur-/Lückenfälle; Zielinstallation und reale Datenabdeckung gesondert nach autorisierter Integration prüfen. **Nächste Abhängigkeit:** abgenommener V1-Schnitt; #249 bleibt vor betrieblicher Ausweitung prioritär. |
+| Umfangsentscheidung | Der enge erste Brutto-SELL-Schnitt erfüllt keinen vollständigen M8-Umfang. Statistik-/Kohorten-/Diagramm-/Exportanforderungen bleiben erhalten; weitere Kennzahlen behalten ihre eigenen offenen Fachverträge. |
 
 </details>
 
@@ -1826,14 +1828,39 @@ Die Felder „Soll“ und „Nicht-Soll“ sind die vor einer Umsetzung zu prüf
 </details>
 
 <a id="naechster-schnitt"></a>
-## Genau nächster sinnvoller Umsetzungsschnitt
+## Genau nächster sinnvoller Umsetzungsschritt
 
-**PB-019 / FT-012: Journalentwurf ohne Performancevoraussetzung.** Zuerst im vollständigen Checkout die vorhandenen FT-012-Consumer und mögliche Umbenennungen verifizieren, damit kein paralleler Ersatz entsteht. Der einzeln umsetzbare Schnitt dokumentiert einen Entwurf mit exakten Trade-/Review-Referenzen und nachvollziehbarer Korrektur-/Currentnessbehandlung. Inputfelder, Entwurfs-/Abschlussregeln und schreibender Owner müssen im bestehenden FT-012-Vertrag ausdrücklich geklärt werden. Ein fehlender Journal-Consumer wird nicht allein aus Ordnern oder aus dieser eingeschränkten Suche behauptet.
+**Den fertig implementierten engen PB-019-/PB-017-Schnitt fachlich abnehmen.**
+Die [Berichtsqualifikation](../implementation/PERIOD_REALIZED_GROSS_REPORT_QUALIFICATION.md)
+verbindet konkreten Code, Migration, Referenz/Korrektur, Herkunft, Datenlücken,
+PostgreSQL-Rennen und echten Browserweg. Die Freigabe des vorgelegten Währungs-/
+Periodenvertrags wurde bereits mit „Ok, umsetzen“ erteilt; sie wird nicht erneut
+angefordert. Diese jetzt mögliche Endabnahme prüft das fertige Ergebnis.
 
-### Definition of Ready für diesen Schnitt
+Die frühere Journalentwurfsarbeit ist durch #260/#261 fortgeschritten, #263 liefert
+die vorhandene Materialisierungs-/Historienstrecke. Ihre Restanforderungen bleiben
+in ihren Einträgen. #249 bleibt separat offener Draft und vor weiterer
+betrieblicher Ausweitung prioritär. Kein Basiswertformular wurde hier geändert.
+Publikation, Merge, Versionierung und PC-Installation benötigen ihren gesonderten
+Arbeitsmodus; die Implementierungsfreigabe ersetzt ihn nicht.
 
-Vor der Änderung sind vorhandener Owner und Consumer geprüft, die zulässigen Journalfelder entschieden sowie folgende Akzeptanzgrenzen testbar: Entwurf ohne vorhandene Performance; unveränderte reale Trade-/Review-Fakten; konkrete historische Versionen; sichtbare veraltete Herkunft; keine automatische Lesson-/Modellerzeugung. Fehlende fachliche Entscheidungen blockieren nur diese noch ungeklärten Felder, nicht belegte unabhängige Arbeit. Keine zusätzlichen Kennzahlen oder Gebühren werden eingeführt.
+### Definition of Ready der ausgeführten Fortsetzung
 
-### Definition of Done
+[ADR-S10-008](../decisions/ADR-S10-008-EXECUTION-CURRENCY-AND-PERIOD-REALIZED-GROSS.md)
+hält die ausdrückliche Umsetzungsfreigabe des konkreten Währungs-/Periodenvertrags
+fest. Der vorhandene Average-Cost-Owner wurde wiederverwendet; der additive
+Execution-Währungsowner wurde auf PostgreSQL separat qualifiziert. API und UI
+verwenden ausschließlich bestätigte Quellen für monetäre Beiträge. Synthetische
+EUR-Fixtures und Berichtswährung belegen weiterhin keine Währung alter Nutzerdaten.
 
-Der konkrete Entwurf-Vertrag ist implementiert und mit positiven, negativen, Wiederholungs-, Herkunfts- und Korrekturfällen nachgewiesen; Persistenz-/Nebenläufigkeitsverträge werden bei Relevanz in echter Wegwerf-PostgreSQL geprüft; relevante Benutzerübergänge im Browser. Erforderliche Gates, Fachabnahme und Betriebsgrenzen bleiben getrennt. Backlog/Traceability werden auf dem tatsächlichen Liefercommit aktualisiert. Das schließt weder alle Journalfunktionen noch den gesamten Bereich 7 oder Ziel C automatisch ab.
+### Definition of Done und erhaltene Restanforderungen
+
+Der enge technische Lieferumfang umfasst vollständige SELL-Beiträge, belegte
+Kostenbasis, explizite Berichtswährung, Summe/Teilsumme, Datenabdeckung und dieselbe
+Quellenbasis innerhalb einer Antwort. Testbefunde und verbleibende Gate-/
+Betriebsgrenzen sind im [Qualifikationsnachweis](../implementation/PERIOD_REALIZED_GROSS_REPORT_QUALIFICATION.md)
+konkret bezeichnet. Fertige Fachabnahme, Veröffentlichung und beobachteter Betrieb
+bleiben eigenständig. Gewinner-/Verliererkohorten, Trefferquote, Durchschnitt/
+Median, Profit-Faktor, Prozessbewertung, Diagramme und Export bleiben geplant;
+Netto/FX/Equity/Drawdown und weitere Methoden benötigen eigene Verträge. Der
+vorliegende Schnitt erklärt weder ursprüngliches M8 noch Bereich 7/8 als erledigt.

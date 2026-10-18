@@ -2,6 +2,11 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 
 import { ExecutionDateInput } from '../../trade/components/ExecutionDateInput';
+import { ExecutionCurrencyInput } from '../../trade/components/ExecutionCurrencyInput';
+import {
+  emptyExecutionCurrency,
+  executionCurrencyDeclaration,
+} from '../../trade/services/executionCurrency';
 import {
   captureRequest,
   executionTime,
@@ -217,9 +222,14 @@ export function ProductSelectionPage() {
   const [purchasePrice, setPurchasePrice] = useState('');
   const [purchaseDate, setPurchaseDate] = useState(localToday);
   const [purchaseTime, setPurchaseTime] = useState('');
+  const [purchaseCurrency, setPurchaseCurrency] = useState(emptyExecutionCurrency);
   const [existingTradeId, setExistingTradeId] = useState<string | null>(null);
   const purchaseLock = useRef(false);
   const [purchase, setPurchase] = useState<InitialPurchaseResponse | null>(null);
+
+  useEffect(() => {
+    setPurchaseCurrency(emptyExecutionCurrency());
+  }, [detail?.selection?.id]);
 
   const counts = useMemo(() => {
     const evaluations = detail?.evaluations ?? [];
@@ -376,6 +386,7 @@ export function ProductSelectionPage() {
         quantity,
         price_per_unit: purchasePrice.trim().replace(',', '.'),
         ...executionTime(purchaseDate, purchaseTime),
+        ...executionCurrencyDeclaration(purchaseCurrency),
       };
       const created = await tradeManagementApiClient.purchaseFromSelection({
         ...payload,
@@ -383,6 +394,7 @@ export function ProductSelectionPage() {
       });
       finishCapture(scope);
       setPurchase(created);
+      setPurchaseCurrency(emptyExecutionCurrency());
       setMessage(
         `Kauf wurde als BUY erfasst. Trade ${tradeReference(created.trade.id)} und offene Position wurden erstellt.`,
       );
@@ -654,6 +666,11 @@ export function ProductSelectionPage() {
                           />
                         </label>
                       </div>
+                      <ExecutionCurrencyInput
+                        value={purchaseCurrency}
+                        onChange={setPurchaseCurrency}
+                        disabled={busy}
+                      />
                       <button
                         type="submit"
                         disabled={

@@ -579,3 +579,18 @@ Diese Trennung macht den Trading Workspace zu einem lernenden Entscheidungsunter
 - DOC-010 – MODEL_BOOK
 - DOC-017 – MODULE_DEPENDENCIES
 - DOC-019 – DECISIONS
+
+## Präzisierung 17.10.2026: finanzielle Auswertung und Lernprozess
+
+Die lesende Realisationsauswertung konsumiert tatsächliche wirksame Ausführungen
+und die Average-Cost-Projektion ihres bestehenden Owners. Die explizite
+Ausführungswährungsbestätigung gehört zu demselben Owner. Eine heutige
+Stammdatenanzeige, Reflexion oder Evidence ersetzt keinen wirtschaftlichen Fakt.
+Journal-, Review- und Lesson-Abschluss sind keine Voraussetzung für diesen
+finanziellen Bericht. Lesen erzeugt keine dieser Objekte und keine Livekursabfrage.
+
+Der [entschiedene Quellen-/Periodenvertrag](../decisions/ADR-S10-008-EXECUTION-CURRENCY-AND-PERIOD-REALIZED-GROSS.md)
+verwendet eine kurze lokale Snapshotgrenze für eine vollständige Antwort. Die
+globale Anwendungstransaktion, schreibende Zuständigkeiten und historischen
+Korrekturbeziehungen bleiben erhalten. Die Frontenddarstellung übernimmt
+qualifizierte Backendwerte und führt keine zweite Geldberechnung ein.

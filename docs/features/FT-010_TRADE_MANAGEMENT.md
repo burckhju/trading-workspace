@@ -339,3 +339,74 @@ The UI must explain that the original record remains in history and that a corre
 ## Explicit price basis correction (2026-09-14)
 
 Automatic stop/target checks require a confirmed instrument and currency binding in the immutable management history. The former unconditional underlying-price interpretation is superseded. Legacy unbound rules remain blocked; legacy open alerts without provenance are quarantined. Product rules reuse the existing product valuation source and retain indicative-data warnings. See [Monitoring price basis](../monitoring-price-basis.md) for the binding contract, migration and local validation.
+
+## Additive arithmetic provenance for realized SELLs (2026-10-17)
+
+`PositionProjector.project_with_trace()` exposes the already accepted ADR-S10-004
+arithmetic without changing `project()` or its Position result. Both calls use
+one calculation loop and the existing `(executed_at, recorded_at, id)` ordering.
+The trace contains the complete ordered immutable effective ExecutionRecord
+snapshots once, plus a SELL index, applicable average cost, direct gross delta,
+and quantity/cost basis before and after each SELL. The prefix before that index
+contains all previous BUYs **and SELLs** needed to explain the remaining basis.
+The SELL snapshot itself supplies the exact ID, quantity, price and time precision.
+
+The trace does not select effective records or qualify trade cancellation,
+reporting periods or execution currency. Callers must use the existing owner
+contracts for those inputs. Date-only anchors remain internal ordering values;
+the original calendar date and timezone stay in the source snapshot.
+
+Decimal operations and precision are unchanged. At a full exit,
+`cost_basis_before_close_reset` exposes any remainder before the existing reset
+to zero; this is not an additional realized-PnL adjustment. SQL Numeric values
+and unquantized domain results must not silently be equated.
+
+There is no verified execution-currency capture contract in the current BUY/SELL
+paths. Historical selection, current listings, quote-source decisions and
+stop/target price bindings do not establish the currency of actual execution
+prices. This arithmetic trace therefore makes no monetary reporting claim for
+existing user records. The [source/period readiness contract](../implementation/PERIOD_REALIZED_GROSS_READINESS.md)
+contains the separately decidable minimum capture extension and V1 report proposal;
+[qualification](../implementation/PERIOD_REALIZED_GROSS_QUALIFICATION.md) distinguishes
+synthetic arithmetic and actual owner/database checks from the still absent report
+API/UI and human acceptance. Status remains exclusively in
+[PB-017](../planning/PRODUCT_BACKLOG.md#pb-017-gross-pnl) and
+[PB-019](../planning/PRODUCT_BACKLOG.md#pb-019-performance-metrics).
+
+## 2026-10-17 follow-up: explicit execution currency and period consumer
+
+The later user instruction **“Ok, umsetzen”** approves the concrete additive
+currency and narrow V1 report proposal; see
+[ADR-S10-008](../decisions/ADR-S10-008-EXECUTION-CURRENCY-AND-PERIOD-REALIZED-GROSS.md).
+It supersedes the preceding readiness limitation as an implementation decision,
+without turning historical unknown prices into confirmed currency facts.
+
+`ExecutionCurrencyConfirmationService` is part of this execution owner. The
+append-only `execution_currency_confirmations` relation binds one explicit
+`USER_CONFIRMED` currency declaration to an exact execution, with actor/time,
+note, request identity and optional superseded confirmation. All existing capture
+commands and Learning `execute-as-trade` accept an optional declaration in their
+own atomic transaction. Omission remains unknown; there is no default or backfill.
+An economic correction needs a separate declaration for the replacement execution.
+
+The existing booking/date history offers explicit confirmation and replacement
+of a previous declaration. A confirmation changes no quantity, price, execution
+date, recording timestamp or ordering key. Its GET history is pure and returns
+current/history from one materialized query result. Commands retain the bounded
+per-trade lock. Database constraints enforce workspace/execution identity, root
+and successor uniqueness, request identity and immutability.
+
+`performance.service.reader.RealizedGrossSnapshotReader` is a new read consumer of these
+facts and `PositionProjector.project_with_trace()`. It takes a short dedicated
+PostgreSQL `REPEATABLE READ READ ONLY` snapshot, materializes all sources, closes
+the transaction and builds period SELL rows and summary from the same inputs.
+It does not own executions or copy the average-cost calculation. Journal, review,
+quotes and learned evidence are not inputs. Exact contract, limits, qualification
+and migration consequences are in the
+[report delivery record](../implementation/PERIOD_REALIZED_GROSS_REPORT_QUALIFICATION.md).
+
+Migration `20261017_0047` is additive above `20261014_0046`. It does not alter old
+economic records or infer currencies. Its downgrade explicitly refuses to remove
+the relation once confirmations exist. This development change is not a release
+or target migration, and the existing cumulative position display is not thereby
+relabelled as a historically qualified monetary period report.

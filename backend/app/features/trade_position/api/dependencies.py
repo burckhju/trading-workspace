@@ -19,6 +19,9 @@ from app.features.trade_position.persistence.unit_of_work import (
     SqlAlchemyTradePositionUnitOfWork,
 )
 from app.features.trade_position.service.application import TradePositionService
+from app.features.trade_position.service.currency_confirmations import (
+    ExecutionCurrencyConfirmationService,
+)
 from app.features.trade_position.service.resolvers import (
     SqlAlchemyWorkspaceSelectionResolver,
     WarrantProductResolver,
@@ -34,8 +37,15 @@ def get_trade_position_service(
         uow=SqlAlchemyTradePositionUnitOfWork(session),
         workspace_selections=SqlAlchemyWorkspaceSelectionResolver(session),
         products=WarrantProductResolver(WarrantService(session)),
+        currency_confirmations=ExecutionCurrencyConfirmationService(session),
         quote_source_selector=PositionQuoteSourceSelector(
             PositionQuoteSourceSelectionRepository(session),
             allowed_providers,
         ),
     )
+
+
+def get_execution_currency_confirmation_service(
+    session: Annotated[AsyncSession, Depends(get_database_session)],
+) -> ExecutionCurrencyConfirmationService:
+    return ExecutionCurrencyConfirmationService(session)

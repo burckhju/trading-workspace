@@ -459,6 +459,11 @@ async def execute_external_observation_as_trade(
             executed_at=request.executed_at,
             actor_id=_actor(actor_id),
             idempotency_key=idempotency_key,
+            currency_confirmation=(
+                request.currency_confirmation.to_domain()
+                if request.currency_confirmation is not None
+                else None
+            ),
         )
     except Exception as error:
         raise translate_execute_as_trade_error(error) from error

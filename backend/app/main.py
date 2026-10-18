@@ -29,6 +29,7 @@ from app.features.market_data.service.refresh import MarketDataRefreshRuntime
 from app.features.market_data.service.refresh_runner import run_refresh_forever
 from app.features.model.api import router as model_governance_router
 from app.features.operational_workspace.api import router as operational_workspace_router
+from app.features.performance.api.router import router as performance_router
 from app.features.position_monitoring.api import router as position_monitoring_router
 from app.features.position_monitoring.bootstrap import build_position_monitoring_runtime
 from app.features.position_monitoring.service.product_valuation import (
@@ -139,6 +140,7 @@ def create_application(settings: Settings | None = None) -> FastAPI:
     application.include_router(alert_router)
     application.include_router(post_trade_router)
     application.include_router(operational_workspace_router)
+    application.include_router(performance_router)
     application.include_router(learning_router)
     application.include_router(model_governance_router)
     application.include_router(user_preferences_router)

@@ -200,3 +200,51 @@ Check exact product identity, quantity and dates each time. Do not save or submi
 a transaction for this check. Failed-read and pending-write scenarios are covered
 by synthetic component tests and the disposable-stack browser regression; do not
 interrupt the production provider or create test bookings in the real depot.
+
+## Explicit execution currency and realized results — 2026-10-17
+
+For an actual purchase, additional purchase, sale or execution-date correction,
+the existing capture form now has **Tatsächliche Ausführungswährung**. Enter the
+currency of the actual per-unit price, optionally describe the source, and check
+the explicit confirmation. A code entered without confirmation remains unknown.
+No currency is inferred from product listings, the report filter or location.
+An economic correction starts with its own unconfirmed declaration.
+
+For an existing booking, open **Kauf- und Verkaufsdaten**, then
+**Währung prüfen / bestätigen** on that exact booking. Read its current provenance,
+enter and explicitly confirm the actual currency, then choose
+**Währungsbestätigung speichern**. To correct a declaration, load its current
+history and choose **Währungsbestätigung ersetzen**. A concurrent change requires
+reloading and reviewing the current confirmation; an uncertain network response
+can repeat the same unchanged request identity. The old declaration remains in
+the history. A cancelled trade does not accept new confirmations.
+
+The API accepts the same optional `currency_confirmation` object on every existing
+actual capture path, including own EXTERNAL purchases and the Learning
+`execute-as-trade` handoff. Missing declaration remains compatible and unknown.
+The latter command now commits trade, BUY, optional declaration, link and completed
+idempotency receipt together. Its previously reproducible first-201/replay-409
+transaction defect is qualified in the
+[delivery record](implementation/PERIOD_REALIZED_GROSS_REPORT_QUALIFICATION.md).
+
+**Realisierte Ergebnisse** opens the new period view. Choose inclusive from/to
+dates, report currency and report timezone, then **Bericht lesen**. Each usable
+SELL opens **Quellen und Berechnung** with the complete previous BUY/SELL history,
+average cost, remaining costs, exact identifiers and currency confirmations.
+Table pages use the same complete answer and do not change its total. A newly
+read corrected source state replaces the whole answer and is visibly marked.
+
+The view distinguishes no relevant sales, measured zero, known subtotal with
+remaining gaps and no computable amount. A sale requires currency evidence for
+its own price and all purchase components of the applicable cost basis. Known
+other currencies and definitely outside-period sales are visible exclusions.
+Date-only retains its actual stored date and zone; a timezone overlap can remain
+ambiguous. Brutto means before fees, commissions and taxes. No quote retrieval or
+learning completion is needed.
+
+This extension requires additive schema `20261017_0047` after deployment is
+separately authorized; older schema statements above are historical section
+context. No old execution is automatically confirmed. Downgrade with stored
+confirmations is refused to protect provenance. The user instruction authorizes
+implementation and isolated synthetic qualification, not a production migration,
+real booking, provider call, release or PC update.

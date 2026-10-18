@@ -84,7 +84,11 @@ it('requires a changed value plus confirmation and supports cancelling without a
   fireEvent.change(screen.getByLabelText('Kaufdatum korrigieren'), {
     target: { value: '2026-08-16' },
   });
-  expect(screen.getByRole('checkbox')).not.toBeChecked();
+  expect(
+    screen.getByRole('checkbox', {
+      name: 'Ich bestätige das tatsächliche Ausführungsdatum dieser Buchung.',
+    }),
+  ).not.toBeChecked();
   fireEvent.click(screen.getByRole('button', { name: 'Abbrechen' }));
   expect(screen.queryByRole('form')).not.toBeInTheDocument();
   expect(api.correctExecution).not.toHaveBeenCalled();
@@ -95,6 +99,50 @@ it('keeps cancelled history read-only', async () => {
   await screen.findByText(/Kaufdatum · 10 Stück/);
   expect(screen.getByText(/schreibgeschützt/)).toBeVisible();
   expect(screen.queryByRole('button', { name: /korrigieren/ })).not.toBeInTheDocument();
+});
+
+it('requires a fresh optional currency declaration for a date correction and never inherits the original currency fact', async () => {
+  api.timeline.mockResolvedValue([
+    {
+      ...buy,
+      currency_confirmation: {
+        id: 'old-confirmation',
+        execution_id: buy.id,
+        currency_code: 'EUR',
+        source: 'USER_CONFIRMED',
+        note: 'Old evidence',
+        confirmed_at: '2026-08-17T10:00:00Z',
+        confirmed_by: 'test',
+        supersedes_confirmation_id: null,
+      },
+    },
+  ]);
+  render(<ExecutionDatesPanel tradeId="trade" onChanged={onChanged} />);
+  const form = await open();
+  expect(within(form).getByLabelText('Ausführungswährung (Code)')).toHaveValue('');
+  expect(
+    within(form).getByRole('checkbox', { name: /als tatsächliche Währung dieser Ausführung/ }),
+  ).not.toBeChecked();
+  fireEvent.change(within(form).getByLabelText('Kaufdatum korrigieren'), {
+    target: { value: '2026-08-16' },
+  });
+  fireEvent.change(within(form).getByLabelText('Ausführungswährung (Code)'), {
+    target: { value: 'EUR' },
+  });
+  fireEvent.click(
+    within(form).getByRole('checkbox', { name: /als tatsächliche Währung dieser Ausführung/ }),
+  );
+  confirm();
+  fireEvent.click(within(form).getByRole('button', { name: 'Datumsänderung speichern' }));
+  await screen.findByText(/Datum korrigiert/);
+  expect(api.correctExecution).toHaveBeenCalledWith(
+    'trade',
+    'buy',
+    expect.objectContaining({
+      executed_on: '2026-08-16',
+      currency_confirmation: { currency_code: 'EUR', source: 'USER_CONFIRMED', note: null },
+    }),
+  );
 });
 
 it('retains precise time by default and makes changing to date-only explicit', async () => {

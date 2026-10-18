@@ -8,6 +8,7 @@ from decimal import Decimal
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
+from app.features.trade_position.domain.currency import ExecutionCurrencyConfirmation
 from app.features.trade_position.domain.enums import (
     ExecutionSide,
     TradeManagementEventType,
@@ -66,10 +67,17 @@ class ExecutionRecord:
     request_fingerprint: str | None = None
     executed_on: date | None = None
     execution_timezone: str | None = None
+    # Read enrichment only; the separate append-only owner relation stores this provenance.
+    currency_confirmation: ExecutionCurrencyConfirmation | None = None
 
     def __post_init__(self) -> None:
         if self.executed_at.tzinfo is None or self.recorded_at.tzinfo is None:
             raise ValueError("execution and recording timestamps must be timezone-aware")
+        if self.currency_confirmation is not None and (
+            self.currency_confirmation.execution_id != self.id
+            or self.currency_confirmation.trade_id != self.trade_id
+        ):
+            raise ValueError("currency confirmation does not belong to execution")
         if (self.request_key is None) != (self.request_fingerprint is None):
             raise ValueError("request identity must be complete")
         if (self.executed_on is None) != (self.execution_timezone is None):

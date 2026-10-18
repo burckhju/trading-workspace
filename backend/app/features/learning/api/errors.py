@@ -61,6 +61,8 @@ def translate_trade_link_error(error: Exception) -> ApplicationError:
 
 
 def translate_execute_as_trade_error(error: Exception) -> ApplicationError:
+    if isinstance(error, ApplicationError):
+        return error
     if not isinstance(error, ExecuteAsTradeError):
         return ApplicationError(
             code="EXECUTE_AS_TRADE_VALIDATION_ERROR",
