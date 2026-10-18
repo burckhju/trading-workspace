@@ -1,5 +1,6 @@
 """Unit tests for FT-011 observation application service."""
 
+from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from unittest.mock import AsyncMock, MagicMock
@@ -343,7 +344,8 @@ async def test_refresh_keeps_active_before_twenty_points() -> None:
 
 
 @pytest.mark.asyncio
-async def test_refresh_completes_at_twenty_points() -> None:
+@pytest.mark.parametrize("start_delay_days", [0, 60])
+async def test_refresh_completes_at_twenty_points(start_delay_days: int) -> None:
     workspace_id = uuid4()
     trade_id = uuid4()
     observation = _observation(
@@ -351,6 +353,13 @@ async def test_refresh_completes_at_twenty_points() -> None:
         trade_id=trade_id,
     )
 
+    observation = replace(
+        observation,
+        started_at=NOW + timedelta(days=start_delay_days),
+        created_at=NOW + timedelta(days=start_delay_days),
+        updated_at=NOW + timedelta(days=start_delay_days),
+    )
+    checked_at = NOW + timedelta(days=90)
     uow = _uow()
     uow.observations.get = AsyncMock(return_value=observation)
 
@@ -396,7 +405,7 @@ async def test_refresh_completes_at_twenty_points() -> None:
         product_reader=MagicMock(),
         listing_resolver=MagicMock(),
         market_data_reader=market,
-        clock=lambda: NOW + timedelta(days=40),
+        clock=lambda: checked_at,
     )
 
     updated, evidence = await service.refresh(
@@ -406,8 +415,19 @@ async def test_refresh_completes_at_twenty_points() -> None:
 
     assert evidence.horizon_complete is True
     assert updated.status is PostTradeObservationStatus.COMPLETED
-    assert updated.completed_at is not None
+    assert updated.completed_at == checked_at
+    assert evidence.final_close is not None
+    assert evidence.final_close.trading_date == date(2026, 9, 7)
     uow.observations.replace.assert_awaited_once_with(updated)
+    uow.commit.assert_awaited_once()
+
+    # Re-reading an already completed observation never rewrites its history.
+    uow.observations.get.return_value = updated
+    repeated, repeated_evidence = await service.refresh(
+        workspace_id=workspace_id, observation_id=observation.id
+    )
+    assert repeated == updated
+    assert repeated_evidence == evidence
     uow.commit.assert_awaited_once()
 
 

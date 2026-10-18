@@ -8,6 +8,7 @@ from enum import StrEnum
 from typing import Protocol
 from uuid import UUID
 
+from app.features.learning.application.command_transaction import committed_command
 from app.features.learning.domain import (
     Lesson,
     LessonEvidenceLink,
@@ -57,6 +58,12 @@ class CreateLessonResult:
     lesson: Lesson
     version: LessonVersion
     evidence_links: tuple[LessonEvidenceLink, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class CreateLessonWithTagsResult:
+    created: CreateLessonResult
+    tags: tuple[LessonTag, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -144,6 +151,10 @@ class LessonService:
         expected_current_state: LessonState,
         actor_id: UUID,
     ) -> CreateLessonVersionResult:
+        if len({item.learning_evidence_id for item in evidence}) != len(evidence):
+            raise LessonServiceError(LessonErrorCode.LESSON_INVALID, "Duplicate evidence IDs")
+        if not main_category.strip() or not content.strip():
+            raise LessonServiceError(LessonErrorCode.LESSON_INVALID, "Interpretation is required")
         if not evidence:
             raise LessonServiceError(
                 LessonErrorCode.LESSON_EVIDENCE_REQUIRED,
@@ -176,6 +187,11 @@ class LessonService:
             raise LessonServiceError(
                 LessonErrorCode.CONCURRENT_MODIFICATION,
                 "lesson current projection changed",
+            )
+
+        if await self._uow.lesson_review_signals.get_open_for_lesson(lesson_id):
+            raise LessonServiceError(
+                LessonErrorCode.CONCURRENT_MODIFICATION, "Resolve the open review signal first"
             )
 
         seen: set[UUID] = set()
@@ -223,6 +239,7 @@ class LessonService:
         )
 
         await self._uow.lesson_versions.add(version)
+        await self._uow.flush()
         await self._uow.lesson_evidence_links.add_snapshot(version_id, links)
 
         advanced = await self._uow.lessons.advance_current(
@@ -310,6 +327,17 @@ class LessonService:
                 "lesson current state changed",
             )
 
+        if await self._uow.lesson_review_signals.get_open_for_lesson(lesson_id):
+            raise LessonServiceError(
+                LessonErrorCode.CONCURRENT_MODIFICATION, "Resolve the open review signal first"
+            )
+        if related_lesson_version_id is not None:
+            related = await self._uow.lesson_versions.get(related_lesson_version_id)
+            if related is None or related.lesson_id != lesson_id:
+                raise LessonServiceError(LessonErrorCode.LESSON_INVALID, "Wrong version owner")
+        if not reason.strip():
+            raise LessonServiceError(LessonErrorCode.LESSON_INVALID, "Review reason is required")
+
         now = self._clock.now()
         transition = LessonStateTransition(
             id=self._id_factory.new_uuid(),
@@ -393,6 +421,9 @@ class LessonService:
                 await self._uow.lesson_tags.add(tag)
             requested_tags.append(tag)
 
+        # Production sessions disable autoflush. Persist newly created tag parents
+        # before adding assignment rows with immediate foreign keys; no commit here.
+        await self._uow.flush()
         existing = tuple(await self._uow.lesson_tags.list_for_lesson(lesson_id))
         existing_ids = {tag.id for tag in existing}
         requested_ids = {tag.id for tag in requested_tags}
@@ -416,6 +447,40 @@ class LessonService:
         await self._uow.flush()
         return tuple(requested_tags)
 
+    async def create_with_tags(
+        self,
+        *,
+        workspace_id: UUID,
+        title: str,
+        main_category: str,
+        content: str,
+        evidence: tuple[LessonEvidenceInput, ...],
+        tags: tuple[str, ...],
+        actor_id: UUID,
+    ) -> CreateLessonWithTagsResult:
+        """Own the public create command's complete transaction, including tags.
+
+        The lower-level operations remain composable for suggestion/review owners;
+        committing inside either would prematurely commit those callers' work.
+        """
+        async with self._uow:
+            created = await self.create(
+                workspace_id=workspace_id,
+                title=title,
+                main_category=main_category,
+                content=content,
+                evidence=evidence,
+                actor_id=actor_id,
+            )
+            assigned_tags = await self.replace_tags(
+                workspace_id=workspace_id,
+                lesson_id=created.lesson.id,
+                tags=tags,
+                actor_id=actor_id,
+            )
+            await self._uow.commit()
+            return CreateLessonWithTagsResult(created=created, tags=assigned_tags)
+
     async def create(
         self,
         *,
@@ -426,6 +491,10 @@ class LessonService:
         evidence: tuple[LessonEvidenceInput, ...],
         actor_id: UUID,
     ) -> CreateLessonResult:
+        if len({item.learning_evidence_id for item in evidence}) != len(evidence):
+            raise LessonServiceError(LessonErrorCode.LESSON_INVALID, "Duplicate evidence IDs")
+        if not main_category.strip() or not content.strip():
+            raise LessonServiceError(LessonErrorCode.LESSON_INVALID, "Interpretation is required")
         if not evidence:
             raise LessonServiceError(
                 LessonErrorCode.LESSON_EVIDENCE_REQUIRED,
@@ -500,3 +569,7 @@ class LessonService:
             version=version,
             evidence_links=links,
         )
+
+    # The public API owns the command transaction. Composition uses the methods above.
+    create_new_version_command = committed_command(create_new_version)
+    transition_state_command = committed_command(transition_state)

@@ -36,7 +36,7 @@ class ReviewService:
             resulting_lesson_version_id=None,
         )
 
-    async def open_signal(self, **kwargs):
+    async def open_signal_command(self, **kwargs):
         self.signal.lesson_id = kwargs["lesson_id"]
         return SimpleNamespace(signal=self.signal)
 

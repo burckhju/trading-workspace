@@ -9,6 +9,7 @@ from typing import Any
 from uuid import UUID
 
 from sqlalchemy import (
+    JSON,
     CheckConstraint,
     Date,
     DateTime,
@@ -187,3 +188,30 @@ class WarrantListingModel(Base):
             "version_id_generator": False,
         }
     )
+
+
+class WarrantValuationEvidenceModel(Base):
+    """Append-only, user-attested terms evidence; never inferred from a product label."""
+
+    __tablename__ = "warrant_valuation_evidence"
+    __table_args__ = (
+        UniqueConstraint("warrant_id", "revision", name="uq_warrant_valuation_evidence_revision"),
+        CheckConstraint("revision > 0", name="revision_positive"),
+        Index(
+            "ix_warrant_valuation_evidence_product_time",
+            "workspace_id",
+            "warrant_id",
+            "recorded_at",
+        ),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    workspace_id: Mapped[UUID] = mapped_column(ForeignKey("workspaces.id", ondelete="RESTRICT"))
+    warrant_id: Mapped[UUID] = mapped_column(ForeignKey("warrants.id", ondelete="RESTRICT"))
+    terms_id: Mapped[UUID] = mapped_column(
+        ForeignKey("warrant_terms_versions.id", ondelete="RESTRICT")
+    )
+    revision: Mapped[int] = mapped_column(Integer)
+    identity_key: Mapped[str] = mapped_column(String(64))
+    recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    actor_id: Mapped[UUID] = mapped_column()
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON)

@@ -13,15 +13,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.dependencies import get_database_session
 from app.features.product.api.errors import translate_product_error
+from app.features.product.api.valuation_evidence import router as valuation_evidence_router
 from app.features.product.domain.models import (
     OptionDirection,
     ProductFamily,
     WarrantLifecycle,
 )
-from app.features.product.service.application import WarrantService
+from app.features.product.service.application import InitialWarrantListing, WarrantService
 from app.features.product.service.hard_delete import WarrantHardDeleteService
 
 router = APIRouter(prefix="/api/v1/warrants", tags=["warrants"])
+router.include_router(valuation_evidence_router)
 WORKSPACE_ID = UUID("00000000-0000-4000-8000-000000000001")
 StrikeCurrencyCode = Annotated[
     str,
@@ -43,6 +45,12 @@ class ResponseModel(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class ListingRequest(Request):
+    trading_venue_id: UUID
+    symbol: str | None = Field(default=None, max_length=64)
+    quotation_currency_code: str = Field(min_length=3, max_length=3, pattern=r"^[A-Za-z]{3}$")
+
+
 class CreateWarrantRequest(Request):
     issuer_id: UUID
     underlying_id: UUID
@@ -57,6 +65,10 @@ class CreateWarrantRequest(Request):
     )
     maturity_date: date
     ratio: Decimal = Field(gt=0)
+    initial_listing: ListingRequest | None = Field(
+        default=None,
+        description="Optional first product listing; saved atomically with identity and terms.",
+    )
 
 
 class VersionRequest(Request):
@@ -80,12 +92,6 @@ class TermsRequest(Request):
     )
     maturity_date: date
     ratio: Decimal = Field(gt=0)
-
-
-class ListingRequest(Request):
-    trading_venue_id: UUID
-    symbol: str | None = Field(default=None, max_length=64)
-    quotation_currency_code: str = Field(min_length=3, max_length=3, pattern=r"^[A-Za-z]{3}$")
 
 
 class ListingLifecycleRequest(Request):
@@ -169,7 +175,12 @@ async def create_warrant(
     payload: CreateWarrantRequest, svc: Annotated[WarrantService, Depends(service)]
 ) -> WarrantResponse:
     try:
-        model = await svc.create(WORKSPACE_ID, **payload.model_dump())
+        values = payload.model_dump(exclude={"initial_listing"})
+        if payload.initial_listing is not None:
+            values["initial_listing"] = InitialWarrantListing(
+                **payload.initial_listing.model_dump()
+            )
+        model = await svc.create(WORKSPACE_ID, **values)
         return WarrantResponse.model_validate(model)
     except Exception as error:
         raise translate_product_error(error) from error

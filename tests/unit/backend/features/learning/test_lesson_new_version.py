@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
 from uuid import UUID, uuid4
 
 import pytest
@@ -81,6 +83,9 @@ class Links:
 class Uow:
     def __init__(self, lesson: Lesson) -> None:
         self.lessons = LessonRepo(lesson)
+        self.lesson_review_signals = SimpleNamespace(
+            get_open_for_lesson=AsyncMock(return_value=None)
+        )
         self.lesson_versions = VersionRepo()
         self.lesson_evidence_links = Links()
         self.learning_evidence = EvidenceRepo()

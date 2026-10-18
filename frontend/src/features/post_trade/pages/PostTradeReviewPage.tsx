@@ -1,4 +1,4 @@
-import { FormEvent, useCallback, useEffect, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 import { ft011MaterializationClient } from '../../learning/services/materializationClient';
@@ -29,10 +29,30 @@ function formatDateTime(value: string | null): string {
   return value ? new Date(value).toLocaleString('de-DE') : '—';
 }
 
-export function PostTradeReviewPage() {
+interface PostTradeReviewPageProps {
+  onLearningStateChanged?: () => void;
+  externalRefreshVersion?: number;
+  showMaterializationAction?: boolean;
+}
+
+export function PostTradeReviewPage(props: PostTradeReviewPageProps) {
+  const [searchParams] = useSearchParams();
+  return <PostTradeReviewContent key={searchParams.get('trade_id') ?? ''} {...props} />;
+}
+
+function PostTradeReviewContent({
+  onLearningStateChanged,
+  externalRefreshVersion = 0,
+  showMaterializationAction = true,
+}: PostTradeReviewPageProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const [lookupId, setLookupId] = useState(searchParams.get('trade_id') ?? '');
-  const [tradeId, setTradeId] = useState(searchParams.get('trade_id') ?? '');
+  const tradeId = searchParams.get('trade_id') ?? '';
+  const mounted = useRef(false);
+  const refreshSequence = useRef(0);
+  const mutationPending = useRef(false);
+  const formVersion = useRef<string | null>(null);
+  const formEdited = useRef(false);
 
   const [observation, setObservation] = useState<ObservationResponse | null>(null);
   const [evidence, setEvidence] = useState<ObservationEvidenceResponse | null>(null);
@@ -53,8 +73,27 @@ export function PostTradeReviewPage() {
   const [error, setError] = useState<unknown>(null);
   const [message, setMessage] = useState<string | null>(null);
 
-  function hydrateReviewForm(nextReview: ExitReviewResponse | null) {
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      refreshSequence.current += 1;
+    };
+  }, []);
+
+  function hydrateReviewForm(nextReview: ExitReviewResponse | null, saved = false) {
     if (!nextReview) return;
+    // Readback is not a user's decision to discard unsaved interpretation.
+    // A genuinely new version or a finalized owner state still replaces the form.
+    if (
+      !saved &&
+      nextReview.status === 'DRAFT' &&
+      formVersion.current === nextReview.current_version_id &&
+      formEdited.current
+    )
+      return;
+    formVersion.current = nextReview.current_version_id;
+    formEdited.current = false;
 
     setTiming(nextReview.timing ?? 'GOOD');
     setProcessAdherence(nextReview.process_adherence ?? 'GOOD');
@@ -64,7 +103,13 @@ export function PostTradeReviewPage() {
   }
 
   const refresh = useCallback(async (id: string, signal?: AbortSignal) => {
+    if (!mounted.current) return;
+    const sequence = ++refreshSequence.current;
+    const isCurrentRead = () =>
+      mounted.current && !signal?.aborted && sequence === refreshSequence.current;
+    setMaterializationStatus(null);
     const nextObservation = await postTradeApiClient.observation(id, signal);
+    if (!isCurrentRead()) return;
 
     setObservation(nextObservation);
 
@@ -75,6 +120,7 @@ export function PostTradeReviewPage() {
       ft011MaterializationClient.status(id, signal),
     ]);
 
+    if (!isCurrentRead()) return;
     setEvidence(nextEvidence);
     setHandoff(nextHandoff);
     setHistory(nextHistory);
@@ -82,10 +128,11 @@ export function PostTradeReviewPage() {
 
     try {
       const nextReview = await postTradeApiClient.review(id, signal);
+      if (!isCurrentRead()) return;
       setReview(nextReview);
       hydrateReviewForm(nextReview);
     } catch {
-      setReview(null);
+      if (isCurrentRead()) setReview(null);
     }
   }, []);
 
@@ -105,7 +152,7 @@ export function PostTradeReviewPage() {
       });
 
     return () => controller.abort();
-  }, [refresh, tradeId]);
+  }, [refresh, tradeId, externalRefreshVersion]);
 
   function lookupTrade(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -113,13 +160,28 @@ export function PostTradeReviewPage() {
     const id = lookupId.trim();
     if (!id) return;
 
-    setSearchParams({ trade_id: id });
-    setTradeId(id);
+    if (id === tradeId) {
+      setLoading(true);
+      setError(null);
+      void refresh(id)
+        .catch((nextError: unknown) => {
+          if (mounted.current) setError(new Error(postTradeErrorMessage(nextError)));
+        })
+        .finally(() => {
+          if (mounted.current) {
+            setLoading(false);
+            onLearningStateChanged?.();
+          }
+        });
+    } else {
+      setSearchParams({ trade_id: id });
+    }
   }
 
   async function startObservation() {
-    if (!tradeId) return;
+    if (!tradeId || mutationPending.current) return;
 
+    mutationPending.current = true;
     setLoading(true);
     setError(null);
     setMessage(null);
@@ -131,13 +193,18 @@ export function PostTradeReviewPage() {
     } catch (nextError: unknown) {
       setError(new Error(postTradeErrorMessage(nextError)));
     } finally {
-      setLoading(false);
+      mutationPending.current = false;
+      if (mounted.current) {
+        setLoading(false);
+        onLearningStateChanged?.();
+      }
     }
   }
 
   async function createDraft() {
-    if (!tradeId) return;
+    if (!tradeId || mutationPending.current) return;
 
+    mutationPending.current = true;
     setLoading(true);
     setError(null);
     setMessage(null);
@@ -145,19 +212,24 @@ export function PostTradeReviewPage() {
     try {
       const nextReview = await postTradeApiClient.createReviewDraft(tradeId);
       setReview(nextReview);
-      hydrateReviewForm(nextReview);
+      hydrateReviewForm(nextReview, true);
       await refresh(tradeId);
       setMessage('Exit-Review-Entwurf wurde angelegt.');
     } catch (nextError: unknown) {
       setError(new Error(postTradeErrorMessage(nextError)));
     } finally {
-      setLoading(false);
+      mutationPending.current = false;
+      if (mounted.current) {
+        setLoading(false);
+        onLearningStateChanged?.();
+      }
     }
   }
 
   async function saveDraft() {
-    if (!tradeId || !review) return;
+    if (!tradeId || !review || mutationPending.current) return;
 
+    mutationPending.current = true;
     setLoading(true);
     setError(null);
     setMessage(null);
@@ -171,18 +243,23 @@ export function PostTradeReviewPage() {
         rationale,
       });
       setReview(nextReview);
-      hydrateReviewForm(nextReview);
+      hydrateReviewForm(nextReview, true);
       setMessage('Exit-Review-Entwurf wurde gespeichert.');
     } catch (nextError: unknown) {
       setError(new Error(postTradeErrorMessage(nextError)));
     } finally {
-      setLoading(false);
+      mutationPending.current = false;
+      if (mounted.current) {
+        setLoading(false);
+        onLearningStateChanged?.();
+      }
     }
   }
 
   async function finalizeReview() {
-    if (!tradeId || !review || rationale.trim() === '') return;
+    if (!tradeId || !review || rationale.trim() === '' || mutationPending.current) return;
 
+    mutationPending.current = true;
     setLoading(true);
     setError(null);
     setMessage(null);
@@ -198,19 +275,24 @@ export function PostTradeReviewPage() {
 
       const nextReview = await postTradeApiClient.finalizeReview(tradeId);
       setReview(nextReview);
-      hydrateReviewForm(nextReview);
+      hydrateReviewForm(nextReview, true);
       await refresh(tradeId);
       setMessage('Exit Review wurde finalisiert.');
     } catch (nextError: unknown) {
       setError(new Error(postTradeErrorMessage(nextError)));
     } finally {
-      setLoading(false);
+      mutationPending.current = false;
+      if (mounted.current) {
+        setLoading(false);
+        onLearningStateChanged?.();
+      }
     }
   }
 
   async function revalidateReview() {
-    if (!tradeId) return;
+    if (!tradeId || mutationPending.current) return;
 
+    mutationPending.current = true;
     setLoading(true);
     setError(null);
     setMessage(null);
@@ -218,31 +300,54 @@ export function PostTradeReviewPage() {
     try {
       const nextReview = await postTradeApiClient.revalidateReview(tradeId);
       setReview(nextReview);
-      hydrateReviewForm(nextReview);
+      hydrateReviewForm(nextReview, true);
       await refresh(tradeId);
       setMessage('Review wurde erneut geprüft.');
     } catch (nextError: unknown) {
       setError(new Error(postTradeErrorMessage(nextError)));
     } finally {
-      setLoading(false);
+      mutationPending.current = false;
+      if (mounted.current) {
+        setLoading(false);
+        onLearningStateChanged?.();
+      }
     }
   }
 
   async function materializeLearningEvidence() {
-    if (!tradeId || !handoff?.ready || materializationStatus?.materialized) return;
+    if (
+      !tradeId ||
+      !handoff?.ready ||
+      !materializationStatus?.ready ||
+      materializationStatus.materialized ||
+      !materializationStatus.exit_review_version_id ||
+      mutationPending.current
+    ) {
+      return;
+    }
 
+    mutationPending.current = true;
     setLoading(true);
     setError(null);
     setMessage(null);
 
     try {
-      await ft011MaterializationClient.materialize(tradeId, `post-trade-${tradeId}-${Date.now()}`);
+      const versionId = materializationStatus.exit_review_version_id;
+      await ft011MaterializationClient.materialize(
+        tradeId,
+        `ft011-to-ft012:v2:${tradeId}:${versionId}`,
+        versionId,
+      );
       await refresh(tradeId);
       setMessage('FT-011 LearningEvidence wurde in FT-012 materialisiert.');
     } catch (nextError: unknown) {
       setError(new Error(postTradeErrorMessage(nextError)));
     } finally {
-      setLoading(false);
+      mutationPending.current = false;
+      if (mounted.current) {
+        setLoading(false);
+        onLearningStateChanged?.();
+      }
     }
   }
 
@@ -526,12 +631,13 @@ export function PostTradeReviewPage() {
                     <span className="text-slate-400">{label as string}</span>
                     <select
                       value={value as ExitReviewAssessment}
-                      disabled={reviewReadOnly || loading}
-                      onChange={(event) =>
+                      disabled={reviewReadOnly || loading || mutationPending.current}
+                      onChange={(event) => {
+                        formEdited.current = true;
                         (setter as (value: ExitReviewAssessment) => void)(
                           event.target.value as ExitReviewAssessment,
-                        )
-                      }
+                        );
+                      }}
                       className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2"
                     >
                       <option value="GOOD">GOOD</option>
@@ -548,16 +654,45 @@ export function PostTradeReviewPage() {
                 <textarea
                   aria-label="Review-Begründung"
                   value={rationale}
-                  disabled={reviewReadOnly || loading}
-                  onChange={(event) => setRationale(event.target.value)}
+                  disabled={reviewReadOnly || loading || mutationPending.current}
+                  onChange={(event) => {
+                    formEdited.current = true;
+                    setRationale(event.target.value);
+                  }}
                   className="mt-1 min-h-32 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2"
                 />
               </label>
 
               {reviewReadOnly ? (
-                <p className="mt-4 text-sm text-slate-400">
-                  Finalisierte Reviews sind schreibgeschützt.
-                </p>
+                <div className="mt-4 space-y-3">
+                  <p className="text-sm text-slate-400">
+                    Finalisierte Reviews sind schreibgeschützt.
+                  </p>
+                  <p className="text-sm text-slate-400">
+                    Ein neuer Entwurf erhält eine eigene Version; bisherige Bewertungen bleiben
+                    bestehen.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {review.currentness === 'CURRENT' && (
+                      <button
+                        type="button"
+                        onClick={() => void revalidateReview()}
+                        disabled={loading}
+                        className="rounded-lg border border-slate-600 px-3 py-2 disabled:opacity-50"
+                      >
+                        Review-Quellenstand prüfen
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => void createDraft()}
+                      disabled={loading}
+                      className="rounded-lg border border-slate-600 px-3 py-2 disabled:opacity-50"
+                    >
+                      Neue Review-Version vorbereiten
+                    </button>
+                  </div>
+                </div>
               ) : (
                 <div className="mt-4 flex flex-wrap gap-2">
                   <button
@@ -624,6 +759,13 @@ export function PostTradeReviewPage() {
             )}
           </div>
 
+          {!materializationStatus?.materialized && showMaterializationAction && (
+            <p className="mt-3 break-all text-xs text-slate-400">
+              ExitReviewVersion:{' '}
+              {materializationStatus?.exit_review_version_id ?? 'Nicht verfügbar'}
+            </p>
+          )}
+
           {materializationStatus?.materialized ? (
             <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
               <div>
@@ -639,16 +781,21 @@ export function PostTradeReviewPage() {
                 </dd>
               </div>
             </dl>
-          ) : (
+          ) : showMaterializationAction ? (
             <button
               type="button"
               onClick={() => void materializeLearningEvidence()}
-              disabled={loading || !handoff.ready || materializationStatus?.ready !== true}
+              disabled={
+                loading ||
+                !handoff.ready ||
+                materializationStatus?.ready !== true ||
+                !materializationStatus.exit_review_version_id
+              }
               className="mt-4 rounded-lg border border-emerald-700 px-4 py-2 disabled:opacity-50"
             >
               Als LearningEvidence materialisieren
             </button>
-          )}
+          ) : null}
         </section>
       )}
     </main>

@@ -72,6 +72,7 @@ from app.features.learning.persistence.models import (
     LessonModel,
     LessonReviewSignalEvidenceRecordModel,
     LessonReviewSignalRecordModel,
+    LessonStateTransitionRecordModel,
     LessonSuggestionRecordModel,
     LessonTagAssignmentRecordModel,
     LessonTagRecordModel,
@@ -219,6 +220,8 @@ class LessonEvidenceLinkRepository(Protocol):
 
 
 class LessonStateTransitionRepository(Protocol):
+    async def list_for_lesson(self, lesson_id: UUID) -> Sequence[LessonStateTransition]: ...
+
     async def add(
         self,
         transition: LessonStateTransition,
@@ -720,6 +723,31 @@ class SqlAlchemyLessonEvidenceLinkRepository:
 
 
 class SqlAlchemyLessonStateTransitionRepository:
+    async def list_for_lesson(self, lesson_id: UUID) -> Sequence[LessonStateTransition]:
+        values = (
+            await self._session.scalars(
+                select(LessonStateTransitionRecordModel)
+                .where(LessonStateTransitionRecordModel.lesson_id == lesson_id)
+                .order_by(
+                    LessonStateTransitionRecordModel.occurred_at,
+                    LessonStateTransitionRecordModel.id,
+                )
+            )
+        ).all()
+        return tuple(
+            LessonStateTransition(
+                id=v.id,
+                lesson_id=v.lesson_id,
+                from_state=LessonState(v.from_state) if v.from_state else None,
+                to_state=LessonState(v.to_state),
+                reason=v.reason,
+                related_lesson_version_id=v.related_lesson_version_id,
+                occurred_at=v.occurred_at,
+                occurred_by=v.actor,
+            )
+            for v in values
+        )
+
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
@@ -778,6 +806,7 @@ class SqlAlchemyLessonReviewSignalRepository:
         trigger_links: Sequence[LessonReviewSignalEvidence],
     ) -> None:
         self._session.add(lesson_review_signal_to_model(signal))
+        await self._session.flush()
         for link in trigger_links:
             self._session.add(lesson_review_signal_evidence_to_model(link))
 

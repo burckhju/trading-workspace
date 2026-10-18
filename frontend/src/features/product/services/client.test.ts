@@ -122,3 +122,28 @@ describe('warrantApiClient', () => {
     expect(JSON.parse(requestBodyText(calls[3][1]?.body))).toMatchObject({ symbol: 'ABC123' });
   });
 });
+
+it('sends a normalized first listing in the one create request without inventing a symbol', async () => {
+  vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(jsonResponse({ id: WARRANT_ID }, 201));
+  await warrantApiClient.create({
+    issuer_id: 'issuer',
+    underlying_id: 'underlying',
+    display_name: 'Synthetic',
+    option_direction: 'CALL',
+    strike: '100,5',
+    strike_currency_code: 'USD',
+    maturity_date: '2099-12-31',
+    ratio: '0,1',
+    initial_listing: { trading_venue_id: 'venue', quotation_currency_code: ' eur ', symbol: '  ' },
+  });
+  expect(fetch).toHaveBeenCalledTimes(1);
+  const [input, options] = vi.mocked(fetch).mock.calls[0];
+  expect(requestInputUrl(input)).toBe('http://localhost:8000/api/v1/warrants');
+  expect(options?.method).toBe('POST');
+  expect(JSON.parse(requestBodyText(options?.body))).toMatchObject({
+    strike: '100.5',
+    strike_currency_code: 'USD',
+    ratio: '0.1',
+    initial_listing: { trading_venue_id: 'venue', quotation_currency_code: 'EUR', symbol: null },
+  });
+});

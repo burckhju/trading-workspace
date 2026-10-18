@@ -17,6 +17,7 @@ from app.features.position_monitoring.api.dtos import (
     StuttgartDelayedSourceHealthResponse,
     VontobelMarketsSourceHealthResponse,
 )
+from app.features.position_monitoring.api.iv import router as iv_router
 from app.features.position_monitoring.api.risk import router as risk_router
 from app.features.position_monitoring.service.alert_projection import (
     PositionAlertProjectionService,
@@ -43,6 +44,7 @@ from app.features.position_monitoring.service.source_diagnostics import (
 )
 
 router = APIRouter(prefix="/api/v1/position-monitoring", tags=["position-monitoring"])
+router.include_router(iv_router)
 
 
 @router.get("/runtime/status", response_model=MonitoringRuntimeStatusResponse)

@@ -1,3 +1,62 @@
+# Traceability – aktueller Nachweiseinstieg
+
+> Nachweisergänzung 2026-10-14: [integrierter Handoff-Teilschnitt, PostgreSQL-/Browserbelege und offene Journalstrecke](../implementation/POST_TRADE_LEARNING_HANDOFF_REVIEW.md). Die Fortschreibung trennt Prüfcommits, echte DB-Transaktionen und abgefangenes Browser-HTTP. Arbeitsstatus ausschließlich im [zentralen Backlog](../planning/PRODUCT_BACKLOG.md#pb-019-materialization); keine Fach-/Betriebsabnahme.
+> Maßgeblich bleiben [PB-019 Materialisierung](../planning/PRODUCT_BACKLOG.md#pb-019-materialization), [PB-019 Journal](../planning/PRODUCT_BACKLOG.md#pb-019-journal) und [PB-018 Currentness](../planning/PRODUCT_BACKLOG.md#pb-018-currentness); der historische Bestand unten bleibt unverändert.
+
+> Nachweisfortschreibung 2026-10-15: [Journal-V1 mit echter PostgreSQL-/Browser-Korrekturstrecke](../implementation/FT012_JOURNAL_WRITE_QUALIFICATION.md) verbindet gespeicherten Entwurf, Finalisierung, Folgeversion und explizite Journal-Evidence/Lesson. Prüfcommit `666e8ab…`, Befehle, Artefakte und verbleibender Lesson-Review-Scope im Bericht. Arbeitsstatus ausschließlich [PB-019 Journal](../planning/PRODUCT_BACKLOG.md#pb-019-journal); kein Release-/Fachabnahmenachweis.
+
+> Ergänzung 2026-10-15: [explizite Lesson-Prüfung und Folgeversion](../implementation/FT012_LESSON_REVIEW_DOR.md), [ADR zum Quellen-/Widerspruchs- und Transaktionsvertrag](../decisions/ADR-POST-FT012-006-EXPLICIT-LESSON-REVIEW.md). Maßgeblicher Arbeitsstatus ausschließlich [PB-019 Lessons](../planning/PRODUCT_BACKLOG.md#pb-019-lessons). Neuer Prüfstand separat; historische Journalqualifikation ist kein Ersatz.
+
+> Fortschreibung 2026-10-16: [Lesson-Review mit echter versionierter Evidenzkorrektur](../implementation/FT012_LESSON_REVIEW_QUALIFICATION.md), geprüfter Code `4081563…`, getrennte Currentness-/Relations-/Transaktionsgrenzen und alle drei Gesamtgates. #259/#260 normal integriert; finale #261-Prüfungen/Mergebeleg in dessen PR. Status ausschließlich [PB-019 Lessons](../planning/PRODUCT_BACKLOG.md#pb-019-lessons), keine Fachabnahme/Release-/Zielbetriebsbehauptung.
+
+## Revision und Verantwortlichkeit
+
+Konsolidiert am 2026-10-13 anhand von `main` / `a78288ad38610656480d0363abe657b567c7ba94` / Softwaretag `v1.5.5`. Diese Ergänzung ist ein Dokumentations-/Nachweisstand zur fachlichen Prüfung, keine neue menschliche Abnahme oder Betriebsfreigabe.
+
+**Nur das [Product Backlog](../planning/PRODUCT_BACKLOG.md#abnahmematrix) führt aktuellen Arbeitsstatus.** Dieses Dokument führt zu Nachweisen und erhält deren Historie. Die unten unverändert erhaltenen Approved-, Accepted-, RC- oder Released-Aussagen gelten für ihre damaligen Umfänge, Daten und Commits, nicht als konkurrierende heutige Statusliste.
+
+## Verbindliche Kette
+
+```text
+Ursprüngliches Soll / spätere belegte Präzisierung
+→ Umfangsentscheidung bzw. ausdrücklich offene Entscheidung
+→ tatsächliche Implementierung und Consumer
+→ Testquelle und Ausführung auf identifiziertem Commit
+→ fachliche Abnahme
+→ Software-Auslieferung und gesonderter Betriebsnachweis
+```
+
+Jeder Schritt kann einen eigenen fehlenden Nachweis haben. Ein vorhandener Router, Testquelltext, grüner Workflow oder Softwaretag ersetzt keinen nachfolgenden Schritt. Model-Approval und Runtime-Aktivierung bleiben getrennt. „Nicht geprüft“ ist ein zulässiger Nachweisstand, kein Nullwert oder Funktionsbeweis.
+
+## Einstieg in den aktuellen Nachweisgraphen
+
+| Soll / Entscheidungskontext | Implementierungs-/Consumerquelle | Test-/Abnahme-/Betriebsfelder |
+|---|---|---|
+| [Alle M0–M11-Inhaltsziele](../planning/PRODUCT_BACKLOG.md#originalzuordnung) und [unveränderte Baseline](archive/ROADMAP_2026-07-22.md) | Bestehende FT-/Owner-Zuordnung im [Katalog](../planning/MODULE_AND_FEATURE_CATALOG.md#ownership) | [Einzige Abnahmematrix](../planning/PRODUCT_BACKLOG.md#abnahmematrix) |
+| S1/S2-Referenzdatenverträge; spätere ETF-Präzisierung | [API-Komposition](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/backend/app/main.py); [UI-Komposition](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/frontend/src/app/router.tsx); [Chart-/ETF-Nachtrag](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/implementation/MARKET_CHARTS.md) | [FT-001](../planning/PRODUCT_BACKLOG.md#pb-006-underlying), [FT-004](../planning/PRODUCT_BACKLOG.md#pb-011-warrants) |
+| S5-/S6-/S8-Übergaben; genaue Versionen statt latest | [Golden-Path-Nähte](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/implementation/POST_D01_GOLDEN_PATH_CLOSEOUT.md); [konkrete APPROVED-Planversion](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/backend/app/features/product_selection/service/application.py); [Evaluation versus Selection](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/backend/app/features/product_selection/domain/models.py) | [Candidate](../planning/PRODUCT_BACKLOG.md#pb-012-candidate), [Plan](../planning/PRODUCT_BACKLOG.md#pb-014-assumptions), [Vergleich/Scoregrenze](../planning/PRODUCT_BACKLOG.md#pb-015-comparison) |
+| FT-010 SELL/Supersession/Average Cost; Produktwechsel-V1-Abgrenzung | [FT-010-Vertrag und Sep-14-Nachtrag](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/features/FT-010_TRADE_MANAGEMENT.md); [Releasevorbereitung / PR #22 / 18fe1df90e4f63529867fc32b5b6441d90738ff4](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/releases/V1.2.0-TRADE-MANAGEMENT.md) | [Execution-/Management-Historie](../planning/PRODUCT_BACKLOG.md#pb-017-history), [Produktwechsel](../planning/PRODUCT_BACKLOG.md#pb-017-product-change) |
+| FT-011 nach realem Vollverkauf; COMPLETED/FINALIZED/CURRENT | [Observation-Service](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/backend/app/features/post_trade/application/observation_service.py); [Handoff-Service](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/backend/app/features/post_trade/application/handoff_service.py) | [Gelesene Handoff-Tests](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/tests/unit/backend/features/post_trade/test_handoff_service.py); [Review-Nachweise](../planning/PRODUCT_BACKLOG.md#pb-018-review) |
+| FT-012 besitzt materialisierte Evidence, nicht FT-011 | [Extension 09](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/implementation/POST_D01_GOLDEN_PATH_EXTENSION_09.md); [tatsächlicher UI-Aufruf und Evidence-Readback](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/frontend/src/features/post_trade/pages/PostTradeLearningPage.tsx) | [Materialisierung](../planning/PRODUCT_BACKLOG.md#pb-019-materialization), [Lessons](../planning/PRODUCT_BACKLOG.md#pb-019-lessons) |
+| Ursprüngliche Journal-/Performance-Zusage bleibt eigenständig | [Prozessmodell](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/domain/TRADING_PROCESS_MODEL.md); Review/Evidence/Lesson ist kein Ersatzbeleg | [Journal](../planning/PRODUCT_BACKLOG.md#pb-019-journal), [Performance](../planning/PRODUCT_BACKLOG.md#pb-019-performance-metrics) |
+| FT-013-Freigabe versus spätere getrennte Runtime-Aktivierung | [V1-Governancevertrag](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/features/FT-013_CONTROLLED_MODEL_GOVERNANCE.md); [FT-020-Präzisierung](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/features/FT-020_CANDIDATE_MODEL_CONFIGURATION_UX.md); [RuntimeActivationService](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/backend/app/features/model/service/runtime_activation_service.py) | [Governance](../planning/PRODUCT_BACKLOG.md#pb-020-governance), [Aktivierung/Rückkehr](../planning/PRODUCT_BACKLOG.md#pb-020-activation), [konkrete Kandidatenfamilie](../planning/PRODUCT_BACKLOG.md#pb-020-candidate-family) |
+| Qualität/Zeitsemantik statt erfundener Live-Daten | [IV-/Kursbelege 1.5.4](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/releases/V1.5.4-IV-DATA-AND-RISK.md); [Abrufdiagnose 1.5.5](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/releases/V1.5.5-ISSUER-COVERAGE.md) | [Datenbelege](../planning/PRODUCT_BACKLOG.md#market-data-evidence), [JMBbot](../planning/PRODUCT_BACKLOG.md#operations-installation) |
+
+## Historische Präzisierung statt rückwirkender Umschreibung
+
+Der [Konfliktabgleich](../planning/PRODUCT_BACKLOG.md#konfliktaufloesung) ordnet ältere Aussagen den späteren Quellen zu. Insbesondere wird der Golden-Path-Closeout nicht gelöscht: Seine damaligen offenen Materialisierungs-/Aktivierungslücken werden über spätere Quellen erläutert. Auch frühere V1-Nicht-Scope-Aussagen, S6-Reviewstände, STOCK-only-Angaben und historische RC-Notizen werden nicht nachträglich umformuliert.
+
+## Prüf- und Zugriffsschranken
+
+Aktuelle Basis-CI, gelesene Einzelschritte, nicht ausgeführte lokale Befehle und fehlende Quellen-/Betriebszugriffe stehen ausschließlich im [Nachweisregister](../planning/PRODUCT_BACKLOG.md#nachweisregister). Konkrete neue Fachabnahmen, vollständige Live-E2E und eine aktuelle JMBbot-Installation werden nicht behauptet. Die fünf Ausgangsdokumente wurden vor Bearbeitung mit ihren Git-Blob-Hashes abgeglichen; die folgende historische Traceability bleibt bytegenau erhalten (Quellblob `d0cb63972ad37e8644a2f55537e9a3c1702061e1`).
+
+<a id="historische-nachweise"></a>
+## Unverändert erhaltener historischer Bestand
+
+<details>
+<summary>Historische Traceability am Basiscommit öffnen – keine zweite aktuelle Statusquelle</summary>
+
+<!-- BEGIN UNCHANGED TRACEABILITY BASELINE a78288ad -->
 # Traceability
 
 ## Dokumentinformationen
@@ -366,3 +425,40 @@ Scope and acceptance criteria: [implementation report](../implementation/DYNAMIC
 | Safely update the already canonical stack | Existing prepare/apply helper with fresh private state | Second real Docker deployment, DB/consent retention and sandbox checks |
 
 Scope and acceptance criteria: [implementation report](../implementation/JPMORGAN_PRICE_BINDING.md).
+
+<!-- END UNCHANGED TRACEABILITY BASELINE a78288ad -->
+
+</details>
+
+## FT-012 Journal write continuation — 2026-10-14
+
+[PB-019 Journal](../planning/PRODUCT_BACKLOG.md#pb-019-journal) →
+[DoR](../implementation/FT012_JOURNAL_WRITE_DOR.md) →
+[ADR-POST-FT012-005](../decisions/ADR-POST-FT012-005-JOURNAL-WRITE-LIFECYCLE.md) →
+`learning/application/journal_service.py`, `learning/persistence/journal_repository.py`,
+`learning/api/journal_router.py`, `TradeJournalPanel.tsx`, `JournalEvidenceOrigin.tsx`.
+Tests: `test_journal_commands.py`, `test_journal_api.py`, `test_journal_source_inspection.py`,
+`test_journal_write_postgres.py`, `TradeJournalPanel.test.tsx`, `journalClient.test.ts`,
+`post-trade-journal-postgres.spec.ts`. These are trace links, not independent status
+or proof that a test has run. FT-011 remains the source-currentness owner; Performance
+and Governance only read exact version/source/inspection-time boundaries. M0–M11 unchanged.
+
+## FT-011/FT-012 consistency and historical inventory — 2026-10-16
+
+[PB-019 Materialisierung](../planning/PRODUCT_BACKLOG.md#pb-019-materialization) →
+[DoR](../implementation/FT011_MATERIALIZATION_CONSISTENCY_DOR.md) →
+[ADR-007](../decisions/ADR-POST-FT012-007-MATERIALIZATION-CONSISTENCY.md) →
+`post_trade/persistence/materialization_guard.py`,
+`post_trade/application/materialization_handoff.py`,
+`learning/application/ft011_evidence_history_service.py`,
+`learning/api/materialization_router.py`, `Ft011EvidenceHistory.tsx`.
+Historical links select the concrete `lesson_version_id` in the existing Lesson
+detail. Tests: `test_ft011_consistency_postgres.py`,
+`test_materialization_handoff.py`, `test_ft011_evidence_history.py`,
+`post-trade-evidence-history-postgres.spec.ts` and matching React regressions.
+These are trace links, not a second status register or a claim of completed runs.
+No migration, provider, automated interpretation or new financial owner.
+
+Qualification of the defined FT-011/FT-012 consistency/inventory slice:
+[exact code/test commit, PostgreSQL races, browser and full-gate evidence](../implementation/FT011_MATERIALIZATION_CONSISTENCY_QUALIFICATION.md).
+This trace extends the existing PB-019 link; no second status or human acceptance.

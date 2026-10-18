@@ -51,6 +51,13 @@ class TradeJournalModel(Base):
 class TradeJournalVersionModel(Base):
     __tablename__ = "trade_journal_versions"
     __table_args__ = (
+        CheckConstraint("edit_revision >= 1", name="ck_journal_edit_revision_positive"),
+        ForeignKeyConstraint(
+            ["source_exit_review_version_id"],
+            ["exit_review_versions.id"],
+            ondelete="RESTRICT",
+            name="fk_journal_review_source",
+        ),
         CheckConstraint("version >= 1", name="ck_trade_journal_versions_version_positive"),
         CheckConstraint(
             "status IN ('DRAFT','FINALIZED')", name="ck_trade_journal_versions_status_valid"
@@ -91,6 +98,8 @@ class TradeJournalVersionModel(Base):
             postgresql_where=text("status = 'DRAFT'"),
         ),
     )
+    edit_revision: Mapped[int] = mapped_column(Integer(), nullable=False, server_default="1")
+    source_exit_review_version_id: Mapped[UUID | None] = mapped_column(Uuid(), nullable=True)
     id: Mapped[UUID] = mapped_column(Uuid(), primary_key=True)
     trade_journal_id: Mapped[UUID] = mapped_column(Uuid(), nullable=False)
     version: Mapped[int] = mapped_column(Integer(), nullable=False)

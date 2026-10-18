@@ -1,134 +1,24 @@
 # Trading Workspace
 
-Produktionsnahes Referenzrepository für den **Trading Workspace**.
+Trading Workspace unterstützt einen benutzergesteuerten Tradingprozess: Referenzdaten und Marktanalysen, Tradevorbereitung und Produktauswahl, Erfassung tatsächlicher Ausführungen, Positionsmanagement sowie Nachbeobachtung und Lernen. Das System trifft und vollzieht keine autonomen Kauf-, Verkaufs-, Halte-, Produktwahl- oder Positionsgrößenentscheidungen. Tatsächliche Ausführungen sind vom Benutzer bestätigte Fakten, keine Brokerorders.
 
-Version 1.5.2 isoliert fehlerhafte gettex-Zeilen pro ISIN. Gültige Kurse anderer
-Produkte aus derselben Datei bleiben verfügbar; ungültige Produkte behalten
-ihren Fehlerstatus und gegebenenfalls ausdrücklich gekennzeichnete historische
-Kurse. [Umfang und Prüfung](docs/releases/V1.5.2-GETTEX-ROW-ISOLATION.md).
+## Softwarestand und Planung
 
-Version 1.5.1 verbessert die Diagrammbedienung und fasst Risikoindikationen
-kompakt zusammen. Darstellung, Linienauswahl und Einzelserie bleiben beim
-Datenneuladen erhalten. [Bedienung und Umfang](docs/releases/V1.5.1-CHARTS-AND-RISK-USABILITY.md).
+Die versionierte Software ist in [VERSION](VERSION) festgehalten. Der am 13.10.2026 geprüfte Stand ist `v1.5.5` / `a78288ad38610656480d0363abe657b567c7ba94`; Einzelheiten und Betriebsgrenzen stehen in der [Release-Notiz](docs/releases/V1.5.5-ISSUER-COVERAGE.md). Ein Softwaretag belegt weder die aktuelle Installation auf dem Nutzer-PC noch die vollständige Erfüllung sämtlicher ursprünglicher Roadmap-Ziele.
 
-Version 1.5.0 ergänzt interaktive Markt-, Sektor- und Aktiendiagramme sowie
-qualifizierte Risiko-/Trendanzeigen für bestehende Positionen. Vergleiche werden
-im Backend berechnet; Datenlücken, Quellen und Preisgrundlagen bleiben sichtbar.
-Neue Risikowarnungen bleiben bis zur expliziten Konfiguration deaktiviert.
-Die bisherigen Emittenten-, Zustimmungs- und Ausführungsgrenzen gelten weiter.
-Umfang, Migrationen und offene Live-Abnahme:
-[Release-Dokumentation](docs/releases/V1.5.0-MARKET-CHARTS-AND-POSITION-RISK.md).
+**Aktueller Arbeitsstatus und Abnahmematrix:** [Product Backlog](docs/planning/PRODUCT_BACKLOG.md). Es ist die einzige maßgebliche Aufgabenstatusquelle. Hier steht bewusst keine zweite vollständige Feature-Statusliste.
 
-## Status
+| Orientierung | Maßgebliche Quelle |
+|---|---|
+| Ursprüngliche Zusagen M0–M11 und Lieferziele A–D | [Roadmap](docs/foundation/ROADMAP.md) |
+| Acht dauerhafte Funktionsbereiche, drei Querschnittsthemen, bestehende FT-IDs und Ownership | [Module and Feature Catalog](docs/planning/MODULE_AND_FEATURE_CATALOG.md) |
+| Implementierung, Tests, Abnahme und Betrieb mit getrennten Nachweisen | [Traceability](docs/foundation/TRACEABILITY.md) |
+| Fachliche Grundlagen und Architektur | [Project](docs/foundation/PROJECT.md), [Architecture](docs/foundation/ARCHITECTURE.md) |
 
-- Sprint 0 – technische Basis: abgeschlossen
-- Sprint 1 – fachliche Architektur: abgeschlossen und freigegeben
-- Sprint 2 – FT-001 Basiswertverwaltung: released
-- Sprint 3 – Market Data / EODHD / Provider-Abstraktion: released
-- Sprint 4 – FT-006 Market Analysis: released
-- Sprint 5 – FT-005 Candidate Qualification V1: released
-- Sprint 6 – FT-007 TradePlan: released als `v0.6.0-trade-plan`
-- Sprint 7A – FT-002 Trading Venues: released
-- Sprint 7B – FT-003 Issuers: released
+Journal, Lessons, Positions-Brutto-PnL, tradeübergreifende Performance und Modellgovernance sind unterschiedliche Fähigkeiten. Fehlende Nachweise und offene ursprüngliche Anforderungen bleiben im Backlog sichtbar. Marktcharts oder eine vorhandene Kandidatenstrecke erklären keine benachbarten Funktionen für fertig.
 
-Die Repository-Implementierung und die akzeptierten ADRs/Feature Books bilden die verbindliche Architektur-Baseline. Sprint-7A erweitert die bestehende TradingVenue-Identität und führt keine parallele Venue-Stammdatenwelt ein. Sprint-7B ergänzt eine globale, provider-neutrale Issuer-Identität als eigenständige Reference-Data-Basis.
+## Entwicklung und Betrieb
 
-## Implementierter Umfang FT-001
+Die [Entwicklungsanleitung](docs/technical/DEVELOPMENT_GUIDE.md) beschreibt die bestehenden Schichten, Versionen und Prüfeinstiege. Werkzeuge und Abhängigkeiten aus den aktuellen Manifesten/Lockdateien ermitteln; keine Gate-Absenkung. Tests mit Schreibzugriff nur in einer eindeutig identifizierten Wegwerfumgebung mit synthetischen Daten und abgefangenen externen Aufrufen ausführen.
 
-- Basiswerte mit primärer Notierung anlegen
-- Basiswerte suchen und nach Lifecycle, Handelsplatz und Währung filtern
-- Details, Notierungen, Verwendungen und Änderungshistorie anzeigen
-- Stammdaten und Listings ändern
-- Primärnotierung atomar wechseln
-- Basiswerte verifizieren, deaktivieren und reaktivieren
-- unreferenzierte Fehleinträge physisch löschen
-- kontrollierte Handelsplätze und Währungen verwenden
-- Optimistic Locking und append-only Audit-Historie
-
-## Struktur
-
-- `backend/` – FastAPI, SQLAlchemy Async, Alembic und FT-001-Backend
-- `frontend/` – React-/TypeScript-Anwendung und FT-001-Oberflächen
-- `docs/` – verbindliche Projekt-, Architektur-, Feature- und Betriebsdokumentation
-- `tests/` – projektweite Integrations- und E2E-Tests
-- `scripts/` – lokale Qualitäts- und Ausführungsskripte
-- `docker/` – PostgreSQL-, Backend- und Frontend-Stack
-
-## Lokale Qualitätsprüfung
-
-```bash
-./scripts/check-backend.sh
-./scripts/check-frontend.sh
-./scripts/run-e2e.sh
-```
-
-`check-backend.sh` verwendet eine vorhandene Python-Umgebung oder richtet bei fehlenden Entwicklungswerkzeugen eine lokale `backend/.venv` aus `requirements-dev.txt` ein.
-
-## Anwendung mit Docker unter Linux starten
-
-Für die bereits verwaltete Installation im festen Ordner
-`~/Boerse/trading-workspace-app` gibt es den einfachen
-[Linux-Starter](docs/technical/LINUX_LAUNCHER.md): nach einmaliger Installation
-im Anwendungsmenü **Trading Workspace** wählen oder `trading-workspace` ausführen.
-Start, Status, Stop und ein explizites Release-Update verwenden automatisch den
-gespeicherten Installationszustand einschließlich Emittenten- und privater
-Konfiguration. Der tägliche Start baut keine Images und legt keine neuen
-Programmordner an.
-
-Für eine neue, noch nicht verwaltete Compose-Installation ist der Startpfad:
-
-```bash
-bash scripts/start-linux.sh
-```
-
-Beim ersten Aufruf erzeugt der Helper bei Bedarf `docker/.env` aus dem Template und stoppt vor dem Containerstart. Danach `docker/.env` konfigurieren und denselben Befehl erneut ausführen. Eine bestehende `docker/.env` darf nicht erneut mit `docker/.env.example` überschrieben werden.
-
-Der Helper baut die Images, startet PostgreSQL, führt ausstehende Alembic-Migrationen aus und startet anschließend Backend und Frontend. Details: `README_LINUX_DEPLOYMENT.md` und `docs/technical/LINUX_DEPLOYMENT.md`.
-
-- Frontend: `http://localhost:8080`
-- Backend direkt: `http://localhost:8000`
-- Backend über Nginx: `http://localhost:8080/api`
-- Liveness: `GET /health`
-- Readiness: `GET /health/ready`
-- FT-001 REST API: `/api/v1`
-
-## Backend lokal starten
-
-```bash
-cd backend
-python3 -m venv .venv
-. .venv/bin/activate
-python -m pip install --requirement requirements-dev.txt
-python -m alembic upgrade head
-python -m uvicorn app.main:app --reload
-```
-
-## Frontend lokal starten
-
-```bash
-cd frontend
-npm ci
-npm run dev
-```
-
-Erforderlich sind die in `.nvmrc` und `package.json` festgelegten Node-/npm-Versionen.
-
-## Verbindliche Dokumentation
-
-- Feature Book: `docs/features/underlying/FEATURE.md`
-- Architekturentscheidungen: `docs/decisions/`
-- physisches Datenmodell: `docs/features/underlying/PHYSICAL_DATA_MODEL.md`
-- REST API: `docs/features/underlying/REST_API.md`
-- Betriebs- und Entwicklungsanleitung: `docs/technical/DEVELOPMENT_GUIDE.md`
-- Sprint-2-Abschluss: `docs/planning/SPRINT_2_CLOSEOUT.md`
-- vollständige Traceability: `docs/foundation/TRACEABILITY.md`
-
-## Emittentenkurse und Monitoring (1.4.0)
-
-- [Versionsumfang und offene Live-Abnahmen](docs/releases/V1.4.0-ISSUER-MONITORING.md)
-- [Aktuelle Betriebsanleitung und automatische Kursquellenwahl](docs/technical/ISSUER_MONITORING_OPERATIONS.md)
-
-Für bestehendes Emittentenmonitoring ab 1.4.1: `bash scripts/start-linux.sh --issuer-monitoring`.
-Vorab prüft derselbe Aufruf mit `--check` die Konfiguration ohne Deployment.
-Weitere bestehende Overlays mit `--overlay DATEI` erhalten; die vollständige Anleitung
-steht in [Linux Deployment](docs/technical/LINUX_DEPLOYMENT.md#issuer-monitoring-and-existing-overlay-chains-141).
+Für vorhandene Installationen gelten die [Linux-Betriebsunterlagen](README_LINUX_DEPLOYMENT.md) und die jeweilige Release-Notiz. Bestehende Konfiguration, Compose-Kette, Consent-/Datenbestände und Sicherungen erhalten. Ein Monitoring-Einmallauf ist keine automatisch lesende Diagnose. Keine Modellaktivierung, echte Nachricht oder Providerzustimmung folgt aus einer Installation oder aus dieser Planung.

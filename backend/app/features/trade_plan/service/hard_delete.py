@@ -8,6 +8,8 @@ from uuid import UUID
 from sqlalchemy import bindparam, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.features.learning.application.journal_retention import JournalHistoryProtectedError
+
 
 @dataclass(frozen=True, slots=True)
 class TradePlanDeletionSummary:
@@ -57,8 +59,17 @@ class TradePlanHardDeleteService:
             "SELECT id FROM product_selections WHERE run_id IN :ids", run_ids
         )
         trade_ids = await self._ids(
-            "SELECT id FROM trades WHERE trade_plan_id = :id", trade_plan_id
+            "SELECT id FROM trades WHERE trade_plan_id = :id ORDER BY id FOR UPDATE", trade_plan_id
         )
+        protected = await self._ids_for_parent(
+            "SELECT j.id FROM trade_journals j JOIN trade_journal_versions v "
+            "ON v.trade_journal_id = j.id WHERE j.trade_id IN :ids AND v.status='FINALIZED'",
+            trade_ids,
+        )
+        if protected:
+            raise JournalHistoryProtectedError(
+                "Finalisiertes Journal vorhanden; TradePlan-Historie bleibt erhalten."
+            )
         position_ids = await self._ids_for_parent(
             "SELECT id FROM positions WHERE trade_id IN :ids", trade_ids
         )
@@ -115,12 +126,12 @@ class TradePlanHardDeleteService:
         )
         await self._delete_in("learning_evidence", "id", learning_evidence_ids)
 
+        await self._delete_in("trade_journal_versions", "id", journal_version_ids)
+        await self._delete_in("trade_journals", "id", journal_ids)
+
         await self._delete_in("exit_review_versions", "id", exit_review_version_ids)
         await self._delete_in("exit_reviews", "id", exit_review_ids)
         await self._delete_in("post_trade_observations", "id", observation_ids)
-
-        await self._delete_in("trade_journal_versions", "id", journal_version_ids)
-        await self._delete_in("trade_journals", "id", journal_ids)
 
         await self._delete_in(
             "external_observation_trade_link_versions",

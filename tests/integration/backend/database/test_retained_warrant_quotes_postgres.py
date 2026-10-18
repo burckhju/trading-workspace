@@ -10,6 +10,7 @@ from uuid import uuid4
 
 import pytest
 from sqlalchemy import select, text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from tests.integration.backend.database.test_frankfurt_setup_postgres import (
     current_database_url,  # noqa: F401
@@ -28,6 +29,7 @@ from app.features.market_data.service.errors import MarketDataNotFoundError
 from app.features.market_data.service.retained_quotes import RetainedWarrantQuoteProvider
 from app.features.market_data.service.types import MarketDataResult, WarrantQuoteRequest
 from app.features.product.service.application import WarrantService
+from app.features.product.service.valuation_evidence import ValuationEvidenceService, ValuationFacts
 
 
 @pytest.mark.asyncio
@@ -135,15 +137,105 @@ async def test_durable_round_trip_and_audited_correction_invalidates_old_quote(
                 )
                 provider = AsyncMock()
                 provider.get_warrant_listing_quote.return_value = original
-                first = RetainedWarrantQuoteProvider(database, provider, original.provider)
+                first = RetainedWarrantQuoteProvider(
+                    database, provider, original.provider, capture_clock=lambda: now
+                )
                 assert await first.get_warrant_listing_quote(request) == original
                 provider.get_warrant_listing_quote.side_effect = TimeoutError()
-                restarted = RetainedWarrantQuoteProvider(database, provider, original.provider)
+                restarted = RetainedWarrantQuoteProvider(
+                    database, provider, original.provider, capture_clock=lambda: now
+                )
                 held = await restarted.get_warrant_listing_quote(
                     replace(request, correlation_id=uuid4())
                 )
                 assert held.data.retained and held.data.bid == Decimal("0.24")
                 assert held.retrieved_at == now and held.data.observed_at == now
+                # Qualify the new immutable journal against actual migrated PostgreSQL.
+                journal = (
+                    await connection.execute(
+                        text(
+                            "SELECT id, captured_at, payload FROM warrant_quote_samples "
+                            "WHERE warrant_id=:warrant"
+                        ),
+                        params,
+                    )
+                ).one()
+                assert journal.payload["quote"]["bid"] == "0.24"
+                assert journal.payload["quote"]["observed_at"] is not None
+                terms_id = uuid4()
+                await connection.execute(
+                    text(
+                        "INSERT INTO warrant_terms_versions (id,warrant_id,version_no,"
+                        "effective_from,option_direction,strike,strike_currency_code,"
+                        "maturity_date,ratio,created_at) VALUES (:id,:warrant,1,:now,"
+                        "'CALL',100,'EUR','2099-12-31',0.1,:now)"
+                    ),
+                    {**params, "id": terms_id},
+                )
+                async with session_context() as session:
+                    evidence = await ValuationEvidenceService(session).record(
+                        workspace_id=ids["workspace"],
+                        warrant_id=ids["warrant"],
+                        terms_id=terms_id,
+                        expected_version=1,
+                        expected_revision=0,
+                        actor_id=uuid4(),
+                        now=now,
+                        facts=ValuationFacts(
+                            product_type="VANILLA_WARRANT",
+                            exercise_style="EUROPEAN",
+                            quanto=False,
+                            ratio_convention="UNDERLYING_UNITS_PER_WARRANT",
+                            expiry_at=None,
+                            reviewed_at=now,
+                            document_reference="Synthetic PostgreSQL fixture",
+                            note="Test only",
+                        ),
+                    )
+                    assert evidence.current.facts.quanto is False
+                for table in ("warrant_quote_samples", "warrant_valuation_evidence"):
+                    for operation in (
+                        f"UPDATE {table} SET payload=payload",
+                        f"DELETE FROM {table}",
+                    ):
+                        savepoint = await connection.begin_nested()
+                        try:
+                            with pytest.raises(IntegrityError, match="append-only"):
+                                await connection.execute(
+                                    text(operation + " WHERE warrant_id=:warrant"), params
+                                )
+                        finally:
+                            await savepoint.rollback()
+                    columns = (
+                        "id,workspace_id,warrant_id,warrant_listing_id,provider,identity_key,isin,"
+                        "slot_at,day_utc,captured_at,status,reason,quote_fingerprint,payload"
+                        if table == "warrant_quote_samples"
+                        else (
+                            "id,workspace_id,warrant_id,terms_id,revision,identity_key,"
+                            "recorded_at,actor_id,payload"
+                        )
+                    )
+                    for wrong_owner in (False, True):
+                        values = columns.replace("id,workspace_id,", ":new_id,:owner,", 1)
+                        savepoint = await connection.begin_nested()
+                        try:
+                            with pytest.raises(
+                                IntegrityError,
+                                match="workspace mismatch" if wrong_owner else "duplicate key",
+                            ):
+                                await connection.execute(
+                                    text(
+                                        f"INSERT INTO {table} ({columns}) SELECT {values} "
+                                        f"FROM {table} WHERE warrant_id=:warrant"
+                                    ),
+                                    {
+                                        **params,
+                                        "new_id": uuid4(),
+                                        "owner": uuid4() if wrong_owner else ids["workspace"],
+                                    },
+                                )
+                        finally:
+                            await savepoint.rollback()
                 async with session_context() as session:
                     await WarrantService(session).correct_identifiers(
                         ids["workspace"],

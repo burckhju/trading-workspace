@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Collection, Sequence
+from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from decimal import Decimal
 from uuid import UUID, uuid4
@@ -55,6 +56,15 @@ from app.features.product.service.errors import (
 from app.features.product.service.identities import WarrantIdentity
 
 
+@dataclass(frozen=True, slots=True)
+class InitialWarrantListing:
+    """Explicit product quotation, never inferred from the underlying or strike."""
+
+    trading_venue_id: UUID
+    quotation_currency_code: str
+    symbol: str | None = None
+
+
 class WarrantService:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
@@ -99,6 +109,7 @@ class WarrantService:
         maturity_date: date,
         ratio: Decimal,
         strike_currency_code: str | None = None,
+        initial_listing: InitialWarrantListing | None = None,
     ) -> WarrantModel:
         normalized_name = display_name.strip()
         if not normalized_name:
@@ -136,8 +147,22 @@ class WarrantService:
             created_at=now,
         )
         self._validate_terms(strike, ratio)
-        self._session.add_all([model, terms])
-        await self._commit()
+        # Validate all references before staging anything. The existing commit/rollback
+        # boundary persists the identity, terms and optional listing atomically.
+        listing = (
+            await self._prepare_listing(
+                workspace_id,
+                model.id,
+                underlying_id=underlying_id,
+                trading_venue_id=initial_listing.trading_venue_id,
+                symbol=initial_listing.symbol,
+                quotation_currency_code=initial_listing.quotation_currency_code,
+            )
+            if initial_listing is not None
+            else None
+        )
+        self._session.add_all([model, terms] if listing is None else [model, terms, listing])
+        await self._commit(new_warrant=model if listing is not None else None)
         return model
 
     async def change_status(
@@ -318,6 +343,29 @@ class WarrantService:
         quotation_currency_code: str,
     ) -> WarrantListingModel:
         warrant = await self.get(workspace_id, warrant_id)
+        listing = await self._prepare_listing(
+            workspace_id,
+            warrant_id,
+            underlying_id=warrant.underlying_id,
+            trading_venue_id=trading_venue_id,
+            symbol=symbol,
+            quotation_currency_code=quotation_currency_code,
+        )
+        self._session.add(listing)
+        await self._commit()
+        return listing
+
+    async def _prepare_listing(
+        self,
+        workspace_id: UUID,
+        warrant_id: UUID,
+        *,
+        underlying_id: UUID,
+        trading_venue_id: UUID,
+        symbol: str | None,
+        quotation_currency_code: str,
+    ) -> WarrantListingModel:
+        """One validation path for creation and later additional listings; no writes."""
         if symbol is not None and not symbol.strip():
             raise WarrantServiceError("symbol must not be blank", field="symbol")
         normalized_symbol = _up(symbol)
@@ -341,7 +389,7 @@ class WarrantService:
             underlying_listing = await self._session.scalar(
                 select(ListingModel.id).where(
                     ListingModel.workspace_id == workspace_id,
-                    ListingModel.underlying_id == warrant.underlying_id,
+                    ListingModel.underlying_id == underlying_id,
                     ListingModel.trading_venue_id == trading_venue_id,
                     ListingModel.ticker == normalized_symbol,
                 )
@@ -384,8 +432,6 @@ class WarrantService:
             created_at=now,
             updated_at=now,
         )
-        self._session.add(listing)
-        await self._commit()
         return listing
 
     async def deactivate_listing(
@@ -500,8 +546,12 @@ class WarrantService:
         if ratio <= 0:
             raise WarrantServiceError("ratio must be greater than zero")
 
-    async def _commit(self) -> None:
+    async def _commit(self, *, new_warrant: WarrantModel | None = None) -> None:
         try:
+            if new_warrant is not None:
+                # These owner models intentionally have no ORM relationship. Flush the
+                # parent first so listing FKs are valid, without committing it separately.
+                await self._session.flush([new_warrant])
             await self._session.commit()
         except StaleDataError as error:
             await self._session.rollback()

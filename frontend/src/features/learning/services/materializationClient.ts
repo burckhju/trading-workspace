@@ -2,6 +2,7 @@ import { environment } from '../../../services/environment';
 import { requestJson } from '../../market/services/http';
 import type {
   Ft011MaterializationStatus,
+  Ft011EvidenceHistoryItem,
   MaterializeFt011LearningEvidenceResponse,
 } from '../types/materialization';
 
@@ -12,6 +13,11 @@ function tradeUrl(tradeId: string, path: string): string {
 }
 
 export const ft011MaterializationClient = {
+  history: (tradeId: string, signal?: AbortSignal): Promise<Ft011EvidenceHistoryItem[]> =>
+    requestJson<Ft011EvidenceHistoryItem[]>(tradeUrl(tradeId, '/ft011-evidence/history'), {
+      signal,
+    }),
+
   status: (tradeId: string, signal?: AbortSignal): Promise<Ft011MaterializationStatus> =>
     requestJson<Ft011MaterializationStatus>(
       tradeUrl(tradeId, '/ft011-evidence/materialization-status'),
@@ -21,12 +27,20 @@ export const ft011MaterializationClient = {
   materialize: (
     tradeId: string,
     idempotencyKey: string,
+    expectedExitReviewVersionId?: string,
   ): Promise<MaterializeFt011LearningEvidenceResponse> =>
     requestJson<MaterializeFt011LearningEvidenceResponse>(
       tradeUrl(tradeId, '/ft011-evidence/materialize'),
       {
         method: 'POST',
         headers: { 'Idempotency-Key': idempotencyKey },
+        ...(expectedExitReviewVersionId === undefined
+          ? {}
+          : {
+              body: {
+                expected_exit_review_version_id: expectedExitReviewVersionId,
+              },
+            }),
       },
     ),
 };

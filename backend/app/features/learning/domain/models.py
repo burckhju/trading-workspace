@@ -54,8 +54,12 @@ class TradeJournalVersion:
     finalized_at: datetime | None = None
     finalized_by: UUID | None = None
     supersedes_version_id: UUID | None = None
+    edit_revision: int = 1
+    source_exit_review_version_id: UUID | None = None
 
     def __post_init__(self) -> None:
+        if self.edit_revision < 1:
+            raise ValueError("journal edit revision must be positive")
         if self.version < 1:
             raise ValueError("trade journal version must be positive")
         if self.supersedes_version_id == self.id:
@@ -82,8 +86,8 @@ class TradeJournalVersion:
     ) -> TradeJournalVersion:
         if self.status is not JournalVersionStatus.DRAFT:
             raise ValueError("only DRAFT trade journal version may be edited")
-        if updated_at < self.created_at:
-            raise ValueError("updated_at must not precede created_at")
+        if updated_at < self.updated_at:
+            raise ValueError("updated_at must not precede the last saved draft")
         return replace(
             self,
             what_went_well=what_went_well,
@@ -91,13 +95,14 @@ class TradeJournalVersion:
             additional_notes=additional_notes,
             updated_at=updated_at,
             updated_by=updated_by,
+            edit_revision=self.edit_revision + 1,
         )
 
     def finalize(self, *, finalized_at: datetime, finalized_by: UUID) -> TradeJournalVersion:
         if self.status is not JournalVersionStatus.DRAFT:
             raise ValueError("only DRAFT trade journal version may be finalized")
-        if finalized_at < self.created_at:
-            raise ValueError("finalized_at must not precede created_at")
+        if finalized_at < self.updated_at:
+            raise ValueError("finalized_at must not precede the last saved draft")
         return replace(
             self,
             status=JournalVersionStatus.FINALIZED,
@@ -105,6 +110,7 @@ class TradeJournalVersion:
             finalized_by=finalized_by,
             updated_at=max(self.updated_at, finalized_at),
             updated_by=finalized_by,
+            edit_revision=self.edit_revision + 1,
         )
 
 
