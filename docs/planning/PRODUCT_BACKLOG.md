@@ -13,6 +13,8 @@
 
 > Fortschreibung 18.10.2026: Der Nutzer hat mit „wenn prüfungen grün mergen und für den pc verfügbar machen“ die geschützte Integration und PC-Bereitstellung des konkret gelieferten Schnitts ausdrücklich autorisiert. [Version 1.5.9 und Updateweg](../releases/V1.5.9-REALIZED-GROSS-REPORT.md) verbinden diese Freigabe mit erneuter aktueller PR-/main-CI, dem getrennt vorgezogenen Integritätsfix #249 und dem tatsächlich veröffentlichten Tag. Die Aussagen vom 17.10. über fehlende Veröffentlichungsfreigabe sind damit historisch; eine PC-Installation oder vollständige M8-Abnahme wird weiterhin nicht behauptet.
 
+> Nachweisfortschreibung 20.10.2026 auf `5e9ede2dc29f52eaff601d30614df6bc9c25c426` / **v1.5.11**: `main`, Tag und Tree im vollständigen sauberen Checkout erneut abgeglichen. [PR #267](https://github.com/burckhju/trading-workspace/pull/267) belegt die Veröffentlichung, die vom Nutzer um 13:00 MESZ gemeldete technische PC-Installation und den anschließend begrenzt bestätigten Formular-Bediencheck. [Auslieferungsnachweis und konkrete Abnahmecheckliste](../releases/V1.5.11-UNDERLYING-FORM-ISOLATION.md#bestätigte-auslieferung-und-begrenzte-abnahme--20102026) trennen diese Aussagen. Die früheren Auslieferungs-/Installationsvorbehalte gelten für ihre damaligen Stände; neue Kohorten-/Statistiksemantik und weitere Fachabnahmen folgen daraus nicht.
+
 ## Pflegevertrag und Statusbedeutung
 
 Nur die **Arbeitsstatus-Felder der Teilfähigkeiten** unten sind maßgeblich. PB-001 bis PB-020 bleiben erhalten; ihre Überschriften sind Container, keine zweite aggregierte Statusliste. Die unnummerierten Fähigkeiten bleiben unnummeriert. Beschreibende HTML-Anker sind lediglich Sprungziele innerhalb dieses Dokuments, keine neuen FT-/PB-IDs. Die Originalzuordnung und die Sichten sind statusfreie Ansichten auf dieselben Einträge.
@@ -174,7 +176,7 @@ Vergleichsbasis ist die [unveränderte Roadmap vom 2026-07-22](../foundation/arc
 
 Alle unten verlinkten Quellbelege sind auf den Basiscommit gepinnt. Historische Dateien können frühere Commitstände beschreiben; deren Zahlen und Freigaben sind keine heutigen Vollnachweise.
 
-| Aktueller Basisnachweis | Erreichbares Ergebnis | Aussagegrenze |
+| Historischer Basisnachweis vom 13.10.2026 | Erreichbares Ergebnis | Aussagegrenze |
 |---|---|---|
 | [Backend Run 38433996217](https://github.com/burckhju/trading-workspace/actions/runs/38433996217) | 2026-10-13, success; quality inkl. Ruff, Black, mypy, PostgreSQL-Migration, Tests/Coverage; restrictive-umask image; issuer renderer sandbox/isolierte Migrations- und Compose-Prüfung | Run-/Job-/Step-Ergebnisse gelesen; Rohlogs, Assertions und komplette Testreports nicht vollständig geprüft |
 | [Frontend Run 38433996560](https://github.com/burckhju/trading-workspace/actions/runs/38433996560) | 2026-10-13, success; TypeScript, ESLint, Prettier, Unit/Coverage, Build | Kein lokaler neuer Lauf und keine menschliche Benutzerabnahme |
@@ -183,11 +185,23 @@ Alle unten verlinkten Quellbelege sind auf den Basiscommit gepinnt. Historische 
 
 Die dokumentierten 2.567/445/48 Tests der Release-Notiz betreffen deren Nachweisstand und werden hier nicht als eigenständig nachgezählte Ergebnisse ausgegeben. Ebenso bleiben ältere 839-/274-/89-Testzahlen historische Belege.
 
-**Zielinstallation:** JMBbot ist durch die 1.5.5-Release-Notiz identifiziert. Ihr dort genannter früher bestätigter PC-Stand ist v1.5.4 / `ab4730885b91fd954f3494434ff3d1f4734397db`. Aktuell installierte Revision, Schema, Compose-Kette, Providerrechte, Datenhistorie, reale Regeln und Zustellung wurden hier nicht beobachtet. Der in Release-Dokumenten genannte Schema-Head `20261012_0045` ist ein Dokument-/CI-Kontext, kein hier ausgeführtes `alembic heads/current` auf JMBbot.
+### Aktuell zugeordneter Liefer- und Installationsnachweis — 20.10.2026
 
-**Nicht lokal ausgeführt:** `bash scripts/check-backend.sh`, `bash scripts/check-frontend.sh`, `bash scripts/run-e2e.sh`, gezielte Anwendungs-/DB-/Browserprüfungen. Ursache: nur eine hashgeprüfte Dokument-Arbeitskopie, kein vollständiger Checkout bzw. identifizierter lokaler Anwendungs-Teststack. Die drei Skripte wurden gelesen. Insbesondere löscht der E2E-Cleanup seine Testvolumes; er wurde nicht gegen unbekannte Ressourcen gestartet. Keine Provideraufrufe, echten Nachrichten oder Nutzerbestandsänderungen.
+| Nachweis | Zuordnung | Aussagegrenze |
+|---|---|---|
+| Frischer vollständiger Checkout | `main` und aufgelöster `v1.5.11` = `5e9ede2dc29f52eaff601d30614df6bc9c25c426`, Tree `303e56c078efd578e6e147edcf2ebac6accf6ba5`; Versionsdateien 1.5.11, Arbeitsbaum zu Beginn sauber. | Eigene aktuelle Git-/Quellenprüfung; keine neue Anwendungsausführung. |
+| Veröffentlichung und Main-Prüfungen | [PR #267](https://github.com/burckhju/trading-workspace/pull/267), [Backend 39401940375](https://github.com/burckhju/trading-workspace/actions/runs/39401940375), [Frontend 39401940365](https://github.com/burckhju/trading-workspace/actions/runs/39401940365), [E2E 39401940362](https://github.com/burckhju/trading-workspace/actions/runs/39401940362), [Version 39403873723](https://github.com/burckhju/trading-workspace/actions/runs/39403873723). | Historische Main-Nachweise laut vollständig gelesenem PR: Backend 2.889/87,30 %, Frontend 576, Smoke 63 + 3 geschützte Skips, separater Performance-Owner 1/1. Keine in dieser Dokumentationssitzung erneut ausgeführten Tests; Infrastruktur-Rerun und Testretry getrennt im Release-Nachtrag. |
+| PC-Installation / Bereitschaft | Vom Nutzer am 20.10.2026, 13:00 MESZ / 11:00 UTC übermittelte Statusausgabe, in #267 dokumentiert: **1.5.11 / vollständiger obiger Commit**, vier Dienste `running / healthy`, `ready`. | Berichteter PC-Nachweis, kein eigener PC-Zugriff. Die enthaltenen #260/#261/#263/#265/#266/#267 benötigen kein erneutes Update allein für diese Fortschreibung. Reale Datenabdeckung, Schema-/Compose-/Wiederherstellungsprüfung nicht neu ausgeführt. |
+| Begrenzte Formularbedienung | In #267 dokumentierte Rückmeldung vom 20.10.2026 **„funktioniert!“** zu Liste → bestehenden Basiswert bearbeiten → Abbrechen → anderen Basiswert mit passenden Daten öffnen. | Dieser konkrete Bediencheck abgeschlossen; keine vollständige PB-007-, Währungs-, Performance- oder Journalabnahme. |
+| Noch ausführbare Fachprüfung | [Kleine lesende Prüfliste](../releases/V1.5.11-UNDERLYING-FORM-ISOLATION.md#kleine-fachliche-abnahme-ausgeführt-versus-noch-offen): belegter Kauf/SELL, unbelegter Altbestand, Kostenbasis, Herkunft und Verständlichkeit. | Nur vorhandene reale Fälle lesen. Keine künstlichen Buchungen/Bestätigungen, keine wiederholte Installationsanforderung. Fehlende menschliche Rückmeldung blockiert unabhängige Entwicklung nicht. |
 
-**Quellenzugriffsgrenzen:** Git-Klon/Archivzugriff im lokalen Laufzeitraum nicht verfügbar; GitHub-Datei-/Tree-/CI-Lesezugriff verfügbar. Code-Suche lieferte unvollständige Ergebnisse und wurde nicht als Abwesenheitsbeleg genutzt. Root/docs/foundation/docs/planning wurden auf anwendbare Anweisungsdateien geprüft; keine dortige AGENTS.md gefunden. Kein Zugriff auf nicht veröffentlichte Nutzer-Arbeitsbäume. Nicht sämtliche ADR-Volltexte, Feature Books, Backendservices, Migrationen, Lockdateien, Workflowdefinitionen, CI-Rohlogs und historischen Abnahmedokumente wurden vollständig neu geprüft. Diese Grenzen sind kein Grund, belegte Funktionen als Not Started zu führen.
+Die folgenden Zugriffsangaben bleiben als **historischer Prüfstand vom 13.10.2026** erhalten und beschreiben nicht die nun bestätigte technische Installation.
+
+**Historische Zielinstallation am Konsolidierungsstand 13.10.2026:** JMBbot ist durch die 1.5.5-Release-Notiz identifiziert. Ihr dort genannter früher bestätigter PC-Stand ist v1.5.4 / `ab4730885b91fd954f3494434ff3d1f4734397db`. Aktuell installierte Revision, Schema, Compose-Kette, Providerrechte, Datenhistorie, reale Regeln und Zustellung wurden hier nicht beobachtet. Der in Release-Dokumenten genannte Schema-Head `20261012_0045` ist ein Dokument-/CI-Kontext, kein hier ausgeführtes `alembic heads/current` auf JMBbot.
+
+**Nicht lokal ausgeführt am Konsolidierungsstand 13.10.2026:** `bash scripts/check-backend.sh`, `bash scripts/check-frontend.sh`, `bash scripts/run-e2e.sh`, gezielte Anwendungs-/DB-/Browserprüfungen. Ursache: nur eine hashgeprüfte Dokument-Arbeitskopie, kein vollständiger Checkout bzw. identifizierter lokaler Anwendungs-Teststack. Die drei Skripte wurden gelesen. Insbesondere löscht der E2E-Cleanup seine Testvolumes; er wurde nicht gegen unbekannte Ressourcen gestartet. Keine Provideraufrufe, echten Nachrichten oder Nutzerbestandsänderungen.
+
+**Quellenzugriffsgrenzen am Konsolidierungsstand 13.10.2026:** Git-Klon/Archivzugriff im lokalen Laufzeitraum nicht verfügbar; GitHub-Datei-/Tree-/CI-Lesezugriff verfügbar. Code-Suche lieferte unvollständige Ergebnisse und wurde nicht als Abwesenheitsbeleg genutzt. Root/docs/foundation/docs/planning wurden auf anwendbare Anweisungsdateien geprüft; keine dortige AGENTS.md gefunden. Kein Zugriff auf nicht veröffentlichte Nutzer-Arbeitsbäume. Nicht sämtliche ADR-Volltexte, Feature Books, Backendservices, Migrationen, Lockdateien, Workflowdefinitionen, CI-Rohlogs und historischen Abnahmedokumente wurden vollständig neu geprüft. Diese Grenzen sind kein Grund, belegte Funktionen als Not Started zu führen.
 
 <a id="konfliktaufloesung"></a>
 ## Statusdrift und Auflösung
@@ -203,9 +217,9 @@ Die dokumentierten 2.567/445/48 Tests der Release-Notiz betreffen deren Nachweis
 | Alter S8-Selektionshinweis versus begründeter NOT_EVALUABLE-Ausnahmeweg im aktuellen Domainvertrag | Ausnahme nicht als bestätigte Eignung darstellen; tatsächlichen aktuellen API-/UI-Vertrag vor fachlicher Behauptung prüfen |
 | Alter Monitoringtext: unbedingte Underlying-Preisbasis | FT-010-Nachtrag 2026-09-14 verlangt explizite Instrument-/Währungsbindung; Legacy-ungebundene Regeln nicht als gültig behaupten |
 | Alte README-Version/Checklisten versus aktuelle Manifeste/Tag | README führt zu VERSION, Release-Notiz und diesem Backlog; keine zweite vollständige Statusliste |
-| Softwaretag 1.5.5 versus historisch genannter PC-Stand 1.5.4 | Aktueller JMBbot-Betriebsbeleg fehlt; kein erfundener Installationsstatus |
+| Softwaretag 1.5.5 versus historisch genannter PC-Stand 1.5.4 | Damalige Lücke durch den oben zugeordneten technischen v1.5.11-PC-Nachweis begrenzt fortgeschrieben; weitere reale Betriebs-/Fachnachweise bleiben getrennt. |
 
-Offene PRs werden nicht dem Basiscommit zugerechnet: #249 Formularintegrität, #235/#225 Scheduler, #90 Learning-Navigation und die bereits gelesenen weiteren offenen Recherche-/Regel-/Historienentwürfe (#220/#207/#205/#204/#197/#187). Sie sind fremde/offene Änderungen; kein Merge, keine Übernahme und keine daraus abgeleitete neue Freigabe in diesem Auftrag.
+Am Konsolidierungsstand 13.10.2026 offene PRs wurden nicht dem damaligen Basiscommit zugerechnet: #249 Formularintegrität, #235/#225 Scheduler, #90 Learning-Navigation und die bereits gelesenen weiteren offenen Recherche-/Regel-/Historienentwürfe (#220/#207/#205/#204/#197/#187). Dies ist die historische Abgrenzung. #249 und dessen Nachfolger #267 sind inzwischen in v1.5.11 enthalten; die übrigen PRs sind vor einer Umsetzung anhand ihres aktuellen Restdiffs gesondert zu prüfen. Keine pauschale Merge-/Schließungsfreigabe.
 
 <a id="abnahmematrix"></a>
 ## Abnahmematrix – maßgebliche Teilfähigkeiten
@@ -461,11 +475,11 @@ der Layout-Phase, getrennt vom weiterhin passiven Ladeeffekt.
 | Soll / Nicht-Soll | **Soll:** Suchen, anlegen, ändern und deaktivieren über denselben fachlichen Owner. **Nicht-Soll:** Kein konkurrierender Stammdatenbestand in UI oder Workspace. |
 | Vorhandenseinsnachweis | Dokument- und/oder Routing-Nachweis vorhanden; Details, historische Grenzen und nicht erneut geprüfte Implementierung im Eintrag. |
 | Implementierung / Consumer | [UnderlyingFormPage](../../frontend/src/features/market/pages/UnderlyingFormPage.tsx) und [Formularvertrag](../features/underlying/FEATURE.md#sicheres-formular-bei-navigation-und-ladefehlern); ursprüngliche [Underlying-Routen](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/frontend/src/app/router.tsx) sowie historische UI-Verträge und Tests in [historischer Traceability](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/foundation/TRACEABILITY.md). |
-| Test / Commit | [Unit-Regressionen](../../frontend/src/features/market/pages/UnderlyingFormIsolation.test.tsx) und [Browserregressionen](../../tests/e2e/underlying-form-isolation.spec.ts) sichern Formularidentität, Lade-/Speicherreihenfolge, Eingabenerhalt und Doppelübermittlung einschließlich der beiden Randfälle. Exakter Prüfhead, tatsächlich ausgeführte Ergebnisse, Browserartefakte und CI-Läufe werden im zugehörigen Folge-PR zugeordnet; frühere Läufe von #249 sind kein Nachweis für die Ergänzung. |
-| Fachliche Abnahme | Historischer PB-007: Done; aktuelle vollständige Benutzerabnahme nicht neu geprüft. |
-| Software-Auslieferung | Kein gesonderter Release-Nachweis für den vollständigen Zuschnitt verifiziert; ein allgemeiner Softwaretag ersetzt ihn nicht. |
-| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
-| Restarbeit / nächste Abhängigkeit | Folgekorrektur mit den unveränderten Gates und auf dem zugehörigen Prüfhead reviewen; keine Mergefreigabe aus dem Arbeitsauftrag ableiten. [PR #204](https://github.com/burckhju/trading-workspace/pull/204) bleibt als offener Draft für Listen-Rückkehrnavigation separat: Überschneidung in Formular und Feature-Dokument, eigener dokumentierter [Fixture-/CI-Befund](https://github.com/burckhju/trading-workspace/pull/204#issuecomment-5654574060). Eine spätere Integration muss dessen Rückkehrziel mit dem Aktivitätsschutz verbinden und erneut qualifizieren. **Nächste Abhängigkeit:** PB-006; tatsächlicher PR-Mergestand vor Umsetzung. |
+| Test / Commit | [Unit-Regressionen](../../frontend/src/features/market/pages/UnderlyingFormIsolation.test.tsx) und [Browserregressionen](../../tests/e2e/underlying-form-isolation.spec.ts) mit Herkunft in [PR #267](https://github.com/burckhju/trading-workspace/pull/267): auf Main `5e9ede2d…`/Tree `303e56c0…` 39 Isolationstests + sieben allgemeine Formularfälle im Frontend-Gate und 12 Browserfälle im Smoke bestanden. Historische Vorqualifikation bleibt separat; kein neuer Lauf durch diese Dokumentfortschreibung. |
+| Fachliche Abnahme | Historischer PB-007: Done. Am 20.10.2026 in #267 dokumentiertes „funktioniert!“ für Liste → bestehenden Basiswert bearbeiten → Abbrechen → anderen Basiswert mit passenden Daten öffnen. Dieser begrenzte Bediencheck abgeschlossen; keine neue vollständige PB-007-Abnahme. |
+| Software-Auslieferung | [PR #267](https://github.com/burckhju/trading-workspace/pull/267) gemergt und v1.5.11 auf `5e9ede2dc29f52eaff601d30614df6bc9c25c426` nach erfolgreichen Main-Prüfungen veröffentlicht; [Nachtrag zur Release-Notiz](../releases/V1.5.11-UNDERLYING-FORM-ISOLATION.md#bestätigte-auslieferung-und-begrenzte-abnahme--20102026). |
+| Betriebsnachweis | Technische PC-Installation und Bereitschaft laut Nutzerausgabe vom 20.10.2026, 13:00 MESZ / 11:00 UTC, anschließend begrenzter Formularcheck bestätigt; genauer Umfang im [zentralen Nachweisregister](#nachweisregister). Kein eigener neuer PC-Zugriff. |
+| Restarbeit / nächste Abhängigkeit | Formularfolgefix #267 ist geliefert; dessen Veröffentlichung/Installation nicht erneut beauftragen. [PR #204](https://github.com/burckhju/trading-workspace/pull/204) bleibt separat für Listen-Rückkehrkontext und muss auf aktuellem Formularschutz integriert und gemeinsam qualifiziert werden. **Nächste Abhängigkeit:** vorhandener PR-Branch/Restdiff, Rücksprungvalidierung und aktuelle Formular-Isolationsregressionen; weitergehende Fachabnahme getrennt. |
 | Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
 
 </details>
@@ -1037,15 +1051,15 @@ der Layout-Phase, getrennt vom weiterhin passiven Ladeeffekt.
 | Nachweisfeld | Einordnung |
 |---|---|
 | Zuordnung | M5: abgeleitetes Positionsergebnis; Vorleistung für M8. Bereich/Querschnitt: 5, 8. Bestehender Bezug: FT-010 auf FT-009 Execution-/Position-Vertrag. Lieferziel: C. |
-| Arbeitsstatus | Technical Review; enger SELL-Zeitraumbericht vorhanden. Kaufwährungs-Wiederverwendung und Eingabevereinfachung am 20.10.2026 ausdrücklich entschieden und implementiert; neue Qualifikation und Zielupdate gesondert belegen. |
+| Arbeitsstatus | Technical Review; enger SELL-Zeitraumbericht `realized-gross-sell-v2` vorhanden. Die am 20.10.2026 entschiedene Kaufwährungs-Wiederverwendung ist in v1.5.11 veröffentlicht und technisch am PC installiert; gesonderte fachliche Quellen-/Bedienprüfung offen. |
 | Soll / Nicht-Soll | **Soll:** Realisiertes Brutto-PnL und Einstand aus effektiven BUY-/SELL-Fakten nach bestehender Average-Cost-Semantik ableiten. **Nicht-Soll:** Keine Gebühren, Steuern, Nettoerträge, Depot-Equity oder tradeübergreifende Performance erfinden. |
 | Vorhandenseinsnachweis | Bestehender FT-010-Average-Cost-Owner und SELL-Trace bleiben erhalten. Ein gemeinsamer reiner Resolver verwendet direkte Kaufbestätigungen, gleichseitige Korrekturherkunft und vollständige vorherige BUY-Basis; keine gespeicherte Zweitwahrheit. |
 | Implementierung / Consumer | [PositionProjector.project/project_with_trace](../../backend/app/features/trade_position/domain/projector.py) behält eine Schleife und exakte Decimal-Reihenfolge. [Owner-Währungsresolver](../../backend/app/features/trade_position/domain/currency_resolution.py) ergänzt `currency_resolution` an Capture, Timeline, History und Report; eigene Bestätigungen bleiben append-only. Schema unverändert 0047. |
 | Test / Commit | [Kaufwährungs-Wiederverwendung: Quellen, Vertrag und neue Qualifikation](../implementation/EXECUTION_CURRENCY_REUSE_QUALIFICATION.md). Die [V1.5.9-Berichtsqualifikation](../implementation/PERIOD_REALIZED_GROSS_REPORT_QUALIFICATION.md) und vorherige Trace-Qualifikation bleiben historische Nachweise mit eigenem Codebezug. Synthetische Bestätigungen belegen keine Nutzerdatenwährung. |
 | Fachliche Abnahme | V1-Vertrag am 17.10.2026 zur Umsetzung freigegeben. Am 20.10.2026 ausdrücklich präzisiert: Kaufwährung auch für Verkauf nutzen, so wenig zusätzliche Eingaben wie möglich (ADR-S10-008-Nachtrag). Merge und PC-Bereitstellung nach grünen Prüfungen bereits autorisiert. Keine vollständige M8- oder abschließende PC-Fachabnahme daraus abgeleitet. |
-| Software-Auslieferung | V1.5.9 auf `254fe35b76027b72cd989715e17bd0ae55af55eb` veröffentlicht. [V1.5.10](../releases/V1.5.10-EXECUTION-CURRENCY-REUSE.md) ergänzt reine Owner-Währungsableitung ohne Migration; Veröffentlichung erst nach erfolgreichen aktuellen PR- und main-Prüfungen durch vorhandenen Version-Workflow. |
-| Betriebsnachweis | Am 20.10.2026 meldet der Nutzer vier gesunde Dienste, `ready` und installiert 1.5.9 / `254fe35b76027b72cd989715e17bd0ae55af55eb`; lesende Berichtsansicht beobachtet. Kein Installations- oder Fachabnahmenachweis für 1.5.10 und keine Aussage über vollständige reale Währungsabdeckung. |
-| Restarbeit / nächste Abhängigkeit | Kaufwährungs-Wiederverwendung auf geprüftem Stand ausliefern und am PC lesend prüfen. Fehlende echte Kaufbelege bleiben eine Datenlücke; keine neue Bestätigung je SELL nötig. **Nächste Abhängigkeit:** qualifizierter 1.5.10-Stand und tatsächliche Quellenabdeckung. |
+| Software-Auslieferung | [v1.5.11](../releases/V1.5.11-UNDERLYING-FORM-ISOLATION.md#bestätigte-auslieferung-und-begrenzte-abnahme--20102026) veröffentlicht auf `5e9ede2dc29f52eaff601d30614df6bc9c25c426`; enthält #266 (`814fb808…`) und damit die Kaufwährungs-Wiederverwendung aus v1.5.10. Historischer v1.5.9-Stand bleibt `254fe35b…`; keine neue Migration durch #266/#267. |
+| Betriebsnachweis | In [PR #267](https://github.com/burckhju/trading-workspace/pull/267) dokumentierte Nutzerausgabe vom 20.10.2026, 13:00 MESZ / 11:00 UTC: **1.5.11 / `5e9ede2dc29f52eaff601d30614df6bc9c25c426`**, vier gesunde Dienste, `ready`. Technische Installation einschließlich Währungswiederverwendung belegt; keine vollständige reale Währungsabdeckung oder Performance-Fachabnahme daraus abgeleitet. |
+| Restarbeit / nächste Abhängigkeit | Kaufwährungs-Wiederverwendung im bereits installierten Stand anhand der [kleinen lesenden Prüfliste](../releases/V1.5.11-UNDERLYING-FORM-ISOLATION.md#kleine-fachliche-abnahme-ausgeführt-versus-noch-offen) fachlich prüfen. Fehlende echte Kaufbelege bleiben Datenlücken; keine neue Bestätigung je SELL. **Nächste Abhängigkeit:** tatsächliche Quellenabdeckung und Rückmeldung, kein erneuter Release/PC-Update. |
 | Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
 
 </details>
@@ -1177,9 +1191,9 @@ der Layout-Phase, getrennt vom weiterhin passiven Ladeeffekt.
 | Implementierung / Consumer | [Guard/Handoff](../../backend/app/features/post_trade/application/materialization_handoff.py) bleibt FT-011; [FT-012-Inventar](../../backend/app/features/learning/application/ft011_evidence_history_service.py) und bestehende Materialisierung → [Bisherige Review-Evidence](../../frontend/src/features/learning/components/Ft011EvidenceHistory.tsx) im PostTradeLearningPage; genauer historischer Lesson-Detail-Link. Öffentlicher Handoff und Materialisierungsstatus verwenden denselben inspizierenden Owner. |
 | Test / Commit | [Gemeinsame Qualifikation](../implementation/FT011_MATERIALIZATION_CONSISTENCY_QUALIFICATION.md), `0863248b0c44e7c36d41b29acbef56b451d2592f`, Lauf `38957166870`: Backend 2736, Frontend 500, Browser 53 bestanden; 92 gezielte Fälle einschließlich 11 echter PostgreSQL-Fälle und zwei retryfreie Wiederholungen des neuen Browserfalls. Keine Doppelzählung; rote Zwischenstände und Commitgrenzen dokumentiert. |
 | Fachliche Abnahme | Keine eigenständige fachliche Abnahme für diesen vollständigen Zuschnitt verifiziert. |
-| Software-Auslieferung | Definierter Code-/Testschnitt technisch qualifiziert. Aktuelle Pflichtprüfungen und tatsächlicher Integrations-/Mergebeleg werden in [PR #263](https://github.com/burckhju/trading-workspace/pull/263) nachgewiesen; nicht aus früherer CI abgeleitet. Keine neue Veröffentlichungsversion oder PC-Installation durch diesen Schnitt. |
-| Betriebsnachweis | Das vom Nutzer bestätigte v1.5.7-Installationsprotokoll enthält den neuen Konsistenz-/Inventarschnitt noch nicht. Dessen Zielinstallations- und Lastnachweis bleibt offen. |
-| Restarbeit / nächste Abhängigkeit | Die zwei benannten V1-Race-/Inventarlücken sind innerhalb [ADR-007](../decisions/ADR-POST-FT012-007-MATERIALIZATION-CONSISTENCY.md) technisch geschlossen. Historische Reads bleiben as-of-read; gleicher Listing-Kontext kann kurz SOURCE_BUSY liefern. **Nächste Abhängigkeit:** abgeschlossene aktuelle PR-Prüfungen/normaler Merge, danach gesondert freigegebener Release-/PC-Updateweg; große Historien, Mobil-/Barrierefreiheits- und Fachabnahme separat. |
+| Software-Auslieferung | In v1.5.11 / `5e9ede2dc29f52eaff601d30614df6bc9c25c426` enthalten; Git-Ancestry auf aktuellem Checkout geprüft. Historischer jeweiliger Qualifikationscommit bleibt eigener Testbezug; [aktueller Liefernachweis](../releases/V1.5.11-UNDERLYING-FORM-ISOLATION.md#bestätigte-auslieferung-und-begrenzte-abnahme--20102026). |
+| Betriebsnachweis | Technische Installation des enthaltenen Codes durch die am 20.10.2026 um 13:00 MESZ in #267 dokumentierte v1.5.11-Statusausgabe belegt. Kein eigener PC-Zugriff und keine fachliche Ausführung/Abnahme dieses Lernwegs auf Nutzerdaten. Journal-/FT011-Gesamtfälle bleiben im Standard-Main-Smoke geschützt übersprungen. |
+| Restarbeit / nächste Abhängigkeit | Die zwei V1-Race-/Inventarlücken sind durch #263 innerhalb [ADR-007](../decisions/ADR-POST-FT012-007-MATERIALIZATION-CONSISTENCY.md) technisch geschlossen und enthalten. Historische Reads bleiben as-of-read; gleicher Listing-Kontext kann kurz SOURCE_BUSY liefern. **Nächste Abhängigkeit:** vorhandenen geschützten FT011-Gesamtfall regelmäßig im eigenen verifizierten Teststack ausführen; große Historien, Mobil-/Barrierefreiheits- und Fachabnahme separat. |
 | Umfangsentscheidung | Kein paralleler Owner, keine geänderte 20-EOD- oder Journal-Schreibregel. Ältere offene Race-/Inventarhinweise gelten für deren damalige Baselines; der neue Nachweis ist kein pauschaler Abschluss von M6/M7 oder aller PB-019-Fähigkeiten. |
 
 </details>
@@ -1204,9 +1218,9 @@ der Layout-Phase, getrennt vom weiterhin passiven Ladeeffekt.
 | Implementierung / Consumer | [JournalService](../../backend/app/features/learning/application/journal_service.py), bestehende Persistenz/UOW und [Journal-API](../../backend/app/features/learning/api/journal_router.py) → [TradeJournalPanel](../../frontend/src/features/learning/components/TradeJournalPanel.tsx) im PostTradeLearningPage. JournalEvidenceOrigin zeigt die genaue Quellenversion im Lesson-Detail. |
 | Test / Commit | [Gemeinsamer Qualifikationsnachweis](../implementation/FT012_JOURNAL_WRITE_QUALIFICATION.md) auf `666e8ab07d4fd509e316eadfa9b31d57ce3d48c3`, Lauf `38683089292`: Backend 2645, Frontend 472, Browser 52 bestanden. Echte BUY/SELL-, 19/20-Beobachtungs-, Journal-/Lesson-/Korrekturstrecke und parallele PostgreSQL-Commands; keine Hochrechnung von Basis-CI. |
 | Fachliche Abnahme | Keine eigenständige fachliche Abnahme für diesen vollständigen Zuschnitt verifiziert. |
-| Software-Auslieferung | PR #260 nach erneuten grünen Current-main-Prüfungen auf `9da6a809…` als `708d4bf6…` integriert. Kein neuer Release; additive Migration 20261014_0046 nur im Teststack ausgeführt, keine Nutzerinstallation. |
-| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
-| Restarbeit / nächste Abhängigkeit | Fachreview (insbesondere leerer Abschluss/Historienerhalt), Installationsfreigabe, externe Journale und Mobil-/Barrierefreiheitsabnahme bleiben offen. Allgemeiner Lesson-Review-/Folgeversionsdialog ist [separat qualifiziert](../implementation/FT012_LESSON_REVIEW_QUALIFICATION.md); FT011-Handoff-Race bleibt eigener Restscope. **Nächste Abhängigkeit:** bestehende Owner-/Versionsverträge, nicht Performance. |
+| Software-Auslieferung | In v1.5.11 / `5e9ede2dc29f52eaff601d30614df6bc9c25c426` enthalten; Git-Ancestry auf aktuellem Checkout geprüft. Historischer jeweiliger Qualifikationscommit bleibt eigener Testbezug; [aktueller Liefernachweis](../releases/V1.5.11-UNDERLYING-FORM-ISOLATION.md#bestätigte-auslieferung-und-begrenzte-abnahme--20102026). |
+| Betriebsnachweis | Technische Installation des enthaltenen Codes durch die am 20.10.2026 um 13:00 MESZ in #267 dokumentierte v1.5.11-Statusausgabe belegt. Kein eigener PC-Zugriff und keine fachliche Ausführung/Abnahme dieses Lernwegs auf Nutzerdaten. Journal-/FT011-Gesamtfälle bleiben im Standard-Main-Smoke geschützt übersprungen. |
+| Restarbeit / nächste Abhängigkeit | Fachreview (insbesondere leerer Abschluss/Historienerhalt), externe Journale und Mobil-/Barrierefreiheitsabnahme bleiben offen. Lesson-Review/Folgeversion (#261) und FT011-Quellkonsistenz/Historie (#263) sind bereits geliefert; ältere Resthinweise nicht neu implementieren. **Nächste Abhängigkeit:** vorhandenen geschützten Journal-Gesamtfall im eigenen verifizierten Teststack wiederholbar ausführen; keine Performancepflicht. |
 | Umfangsentscheidung | M7 bleibt ursprüngliche Referenz. Journal-V1 ist kein pauschaler Abschluss von M7 oder des ganzen Lernbereichs; keine neuen Scores, Pflichtbewertungen, Importquellen oder Modellaktivierungen. |
 
 </details>
@@ -1238,15 +1252,15 @@ der Layout-Phase, getrennt vom weiterhin passiven Ladeeffekt.
 | Nachweisfeld | Einordnung |
 |---|---|
 | Zuordnung | M7: Lessons Learned. Bereich/Querschnitt: 7. Bestehender Bezug: FT-012. Lieferziel: B, D. |
-| Arbeitsstatus | Technical Review — explizite Lesson-Prüfung/Folgeversion technisch qualifiziert; keine fachliche Abnahme oder Zielinstallation. |
+| Arbeitsstatus | Technical Review — explizite Lesson-Prüfung/Folgeversion technisch qualifiziert und in v1.5.11 enthalten; fachliche Abnahme offen. |
 | Soll / Nicht-Soll | **Soll:** Eine bewusste Interpretation referenziert konkrete LearningEvidence und eine unveränderliche LessonVersion. **Nicht-Soll:** Evidence-Transport erzeugt keine Lesson; Lesson erzeugt kein automatisches Modellapproval. |
 | Vorhandenseinsnachweis | Bestehende Lesson-Erstellung und Journal-Evidence-Strecke um expliziten Quellen-/Widerspruchsreview und kontrollierte neue LessonVersion ergänzt. Tatsächlicher Browser-/PostgreSQL-Korrekturweg und unveränderte alte Inhalte/Relationen geprüft. |
 | Implementierung / Consumer | LessonReviewCommands komponiert bestehende Lesson-/Review-Services mit exaktem Versions-/Status-/Signalpin und idempotentem Commit. LessonReviewPanel bietet Quellen-/Widerspruchsprüfung, ausdrückliche Auflösung und neue Snapshots.  Bestehendes LessonDraftFromEvidence und LessonDetailPage; FT-012 LessonService.create_with_tags schließt den expliziten Erstellungsbefehl atomar ab. JournalEvidenceOrigin liest konkrete Journalversion und heutige Quellenprüfung getrennt; keine automatische Neuinterpretation. |
 | Test / Commit | [Qualifikation](../implementation/FT012_LESSON_REVIEW_QUALIFICATION.md), Code-/Testcommit `4081563509cb4ad4e765de499765a1759b59cdd3`, Lauf `38824269518`: drei unveränderte Gesamtgates erfolgreich, echter Journal→Lesson-V2-Browserweg zusätzlich zweimal ohne Retry. Historische Fehlversuche bleiben getrennt; finale Current-main-Prüfungen und Mergebeleg in PR #261. |
 | Fachliche Abnahme | Keine eigenständige fachliche Abnahme für diesen vollständigen Zuschnitt verifiziert. |
-| Software-Auslieferung | Code in PR #261; normaler Merge nur nach grünen finalen Current-main-Prüfungen gemäß ausdrücklicher Nutzerfreigabe. Aktueller Mergebeleg in PR #261. Keine neue Migration oder Release-/Zielbetriebsbehauptung. |
-| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
-| Restarbeit / nächste Abhängigkeit | FT011-Materialisierungsrennen und historisches NOT_READY-Evidence-Inventar, allgemeine RETIRED-Reaktivierung, Titel-/Tag-Editor und vollständige Mobil-/Barrierefreiheitsabnahme bleiben getrennt. Fachliche Abnahme und Zielinstallation offen. PR #90 nicht als main-Funktion zählen. **Nächste Abhängigkeit:** bestehende FT-011-/FT-012-Quellenverträge; Journal ist keine neue Pflicht für die FT011-Lesson-Strecke. |
+| Software-Auslieferung | In v1.5.11 / `5e9ede2dc29f52eaff601d30614df6bc9c25c426` enthalten; Git-Ancestry auf aktuellem Checkout geprüft. Historischer jeweiliger Qualifikationscommit bleibt eigener Testbezug; [aktueller Liefernachweis](../releases/V1.5.11-UNDERLYING-FORM-ISOLATION.md#bestätigte-auslieferung-und-begrenzte-abnahme--20102026). |
+| Betriebsnachweis | Technische Installation des enthaltenen Codes durch die am 20.10.2026 um 13:00 MESZ in #267 dokumentierte v1.5.11-Statusausgabe belegt. Kein eigener PC-Zugriff und keine fachliche Ausführung/Abnahme dieses Lernwegs auf Nutzerdaten. Journal-/FT011-Gesamtfälle bleiben im Standard-Main-Smoke geschützt übersprungen. |
+| Restarbeit / nächste Abhängigkeit | FT011-Materialisierungsrennen und historisches NOT_READY-Evidence-Inventar sind durch #263 geschlossen. Allgemeine RETIRED-Reaktivierung, Titel-/Tag-Editor sowie vollständige Mobil-/Barrierefreiheits- und Fachabnahme bleiben separat. #90 gegen aktuelle Erstellungs-/Readback-/Navigationsconsumer triagieren; kein pauschaler Neubau. **Nächste Abhängigkeit:** wiederholbarer vorhandener Gesamtweg mit exakten Versionen; Journal bleibt keine Pflicht für FT011-Lessons. |
 | Umfangsentscheidung | Vorhandene Lesson-Strecke erhalten, nicht neu bauen. Journal bleibt daneben eigener ursprünglicher Anspruch. |
 
 </details>
@@ -1278,15 +1292,15 @@ der Layout-Phase, getrennt vom weiterhin passiven Ladeeffekt.
 | Nachweisfeld | Einordnung |
 |---|---|
 | Zuordnung | M8: Performancekennzahlen. Bereich/Querschnitt: 8. Bestehender Bezug: FT-012; vorhandener Evaluation-Owner. Lieferziel: C. |
-| Arbeitsstatus | Technical Review; enger SELL-Zeitraumbericht vorhanden. Kaufwährungs-Wiederverwendung und Eingabevereinfachung am 20.10.2026 ausdrücklich entschieden und implementiert; neue Qualifikation und Zielupdate gesondert belegen. |
+| Arbeitsstatus | Technical Review; enger SELL-Zeitraumbericht `realized-gross-sell-v2` vorhanden. Die am 20.10.2026 entschiedene Kaufwährungs-Wiederverwendung ist in v1.5.11 veröffentlicht und technisch am PC installiert; gesonderte fachliche Quellen-/Bedienprüfung offen. |
 | Soll / Nicht-Soll | **Soll:** Kennzahlen besitzen explizite Bedeutung, Daten-/Währungsgrenzen, Nenner und Behandlung unbekannter Werte. **Nicht-Soll:** Keine erfundene Equity, Nullgebühren, FX-Historie oder Netto-Performance. |
 | Vorhandenseinsnachweis | Ausgangssuche auf e9aac2bf fand keinen passenden registrierten Consumer. Die neue registrierte Strecke zeigt vollständige SELL-Beiträge, Quellen, Perioden-/Währungsqualifikation und Datenabdeckung aus einem konsistenten Read. |
 | Implementierung / Consumer | Bestehender Execution-Owner liefert gemeinsame nachvollziehbare Währungsableitung; PositionProjector liefert unveränderte SELL-Deltas. Vorhandener konsistenter performance-Reader, GET /api/v1/performance/realized-gross und Frontendroute /performance/realized-gross nutzen Definition `realized-gross-sell-v2`. [Präzisierter Vertrag und Herkunft](../implementation/EXECUTION_CURRENCY_REUSE_QUALIFICATION.md). |
 | Test / Commit | [Kaufwährungs-Wiederverwendung: Quellen, Vertrag und neue Qualifikation](../implementation/EXECUTION_CURRENCY_REUSE_QUALIFICATION.md). Die [V1.5.9-Berichtsqualifikation](../implementation/PERIOD_REALIZED_GROSS_REPORT_QUALIFICATION.md) und vorherige Trace-Qualifikation bleiben historische Nachweise mit eigenem Codebezug. Synthetische Bestätigungen belegen keine Nutzerdatenwährung. |
 | Fachliche Abnahme | V1-Vertrag am 17.10.2026 zur Umsetzung freigegeben. Am 20.10.2026 ausdrücklich präzisiert: Kaufwährung auch für Verkauf nutzen, so wenig zusätzliche Eingaben wie möglich (ADR-S10-008-Nachtrag). Merge und PC-Bereitstellung nach grünen Prüfungen bereits autorisiert. Keine vollständige M8- oder abschließende PC-Fachabnahme daraus abgeleitet. |
-| Software-Auslieferung | V1.5.9 auf `254fe35b76027b72cd989715e17bd0ae55af55eb` veröffentlicht. [V1.5.10](../releases/V1.5.10-EXECUTION-CURRENCY-REUSE.md) ergänzt reine Owner-Währungsableitung ohne Migration; Veröffentlichung erst nach erfolgreichen aktuellen PR- und main-Prüfungen durch vorhandenen Version-Workflow. |
-| Betriebsnachweis | Am 20.10.2026 meldet der Nutzer vier gesunde Dienste, `ready` und installiert 1.5.9 / `254fe35b76027b72cd989715e17bd0ae55af55eb`; lesende Berichtsansicht beobachtet. Kein Installations- oder Fachabnahmenachweis für 1.5.10 und keine Aussage über vollständige reale Währungsabdeckung. |
-| Restarbeit / nächste Abhängigkeit | Neuen Wiederverwendungsschnitt fachlich am vorhandenen Bestand prüfen. Unbelegte historische Kaufwährungen bleiben unbekannt; eine belegte Kaufwährung qualifiziert die nachfolgenden gleichartigen Buchungen. Erweiterte Kennzahlen bleiben eigene Vorhaben. **Nächste Abhängigkeit:** geprüfte Auslieferung und reale Quellenabdeckung, keine Journalpflicht. |
+| Software-Auslieferung | [v1.5.11](../releases/V1.5.11-UNDERLYING-FORM-ISOLATION.md#bestätigte-auslieferung-und-begrenzte-abnahme--20102026) veröffentlicht auf `5e9ede2dc29f52eaff601d30614df6bc9c25c426`; enthält #266 (`814fb808…`) und damit die Kaufwährungs-Wiederverwendung aus v1.5.10. Historischer v1.5.9-Stand bleibt `254fe35b…`; keine neue Migration durch #266/#267. |
+| Betriebsnachweis | In [PR #267](https://github.com/burckhju/trading-workspace/pull/267) dokumentierte Nutzerausgabe vom 20.10.2026, 13:00 MESZ / 11:00 UTC: **1.5.11 / `5e9ede2dc29f52eaff601d30614df6bc9c25c426`**, vier gesunde Dienste, `ready`. Technische Installation einschließlich Währungswiederverwendung belegt; keine vollständige reale Währungsabdeckung oder Performance-Fachabnahme daraus abgeleitet. |
+| Restarbeit / nächste Abhängigkeit | Wiederverwendung und Herkunft am vorhandenen Bestand fachlich prüfen; unbelegte historische Käufe bleiben unbekannt. Weitere Kennzahlen besitzen eigene offene Verträge. **Nächste Abhängigkeit:** reale Quellenabdeckung und getrennte Fachabnahme, keine Journalpflicht oder ausstehende v1.5.10-Auslieferung. |
 | Umfangsentscheidung | Der enge erste Brutto-SELL-Schnitt erfüllt keinen vollständigen M8-Umfang. Statistik-/Kohorten-/Diagramm-/Exportanforderungen bleiben erhalten; weitere Kennzahlen behalten ihre eigenen offenen Fachverträge. |
 
 </details>
@@ -1318,15 +1332,15 @@ der Layout-Phase, getrennt vom weiterhin passiven Ladeeffekt.
 | Nachweisfeld | Einordnung |
 |---|---|
 | Zuordnung | M8: Dashboards. Bereich/Querschnitt: 8. Bestehender Bezug: FT-012; vorhandener Evaluation-Owner. Lieferziel: C. |
-| Arbeitsstatus | Technical Review; enger SELL-Zeitraumbericht vorhanden. Kaufwährungs-Wiederverwendung und Eingabevereinfachung am 20.10.2026 ausdrücklich entschieden und implementiert; neue Qualifikation und Zielupdate gesondert belegen. |
+| Arbeitsstatus | Technical Review; enger SELL-Zeitraumbericht `realized-gross-sell-v2` vorhanden. Die am 20.10.2026 entschiedene Kaufwährungs-Wiederverwendung ist in v1.5.11 veröffentlicht und technisch am PC installiert; gesonderte fachliche Quellen-/Bedienprüfung offen. |
 | Soll / Nicht-Soll | **Soll:** Lesende Auswertung zeigt Kennzahlen, Grenzen, Datenlücken und Herkunft verständlich. **Nicht-Soll:** Operational Workspace und Marktcharts sind kein Performance-Dashboard; keine Frontend-Zweitberechnung. |
 | Vorhandenseinsnachweis | Ausgangssuche auf e9aac2bf fand keinen passenden registrierten Consumer. Die neue registrierte Strecke zeigt vollständige SELL-Beiträge, Quellen, Perioden-/Währungsqualifikation und Datenabdeckung aus einem konsistenten Read. |
 | Implementierung / Consumer | Bestehender Execution-Owner liefert gemeinsame nachvollziehbare Währungsableitung; PositionProjector liefert unveränderte SELL-Deltas. Vorhandener konsistenter performance-Reader, GET /api/v1/performance/realized-gross und Frontendroute /performance/realized-gross nutzen Definition `realized-gross-sell-v2`. [Präzisierter Vertrag und Herkunft](../implementation/EXECUTION_CURRENCY_REUSE_QUALIFICATION.md). |
 | Test / Commit | [Kaufwährungs-Wiederverwendung: Quellen, Vertrag und neue Qualifikation](../implementation/EXECUTION_CURRENCY_REUSE_QUALIFICATION.md). Die [V1.5.9-Berichtsqualifikation](../implementation/PERIOD_REALIZED_GROSS_REPORT_QUALIFICATION.md) und vorherige Trace-Qualifikation bleiben historische Nachweise mit eigenem Codebezug. Synthetische Bestätigungen belegen keine Nutzerdatenwährung. |
 | Fachliche Abnahme | V1-Vertrag am 17.10.2026 zur Umsetzung freigegeben. Am 20.10.2026 ausdrücklich präzisiert: Kaufwährung auch für Verkauf nutzen, so wenig zusätzliche Eingaben wie möglich (ADR-S10-008-Nachtrag). Merge und PC-Bereitstellung nach grünen Prüfungen bereits autorisiert. Keine vollständige M8- oder abschließende PC-Fachabnahme daraus abgeleitet. |
-| Software-Auslieferung | V1.5.9 auf `254fe35b76027b72cd989715e17bd0ae55af55eb` veröffentlicht. [V1.5.10](../releases/V1.5.10-EXECUTION-CURRENCY-REUSE.md) ergänzt reine Owner-Währungsableitung ohne Migration; Veröffentlichung erst nach erfolgreichen aktuellen PR- und main-Prüfungen durch vorhandenen Version-Workflow. |
-| Betriebsnachweis | Am 20.10.2026 meldet der Nutzer vier gesunde Dienste, `ready` und installiert 1.5.9 / `254fe35b76027b72cd989715e17bd0ae55af55eb`; lesende Berichtsansicht beobachtet. Kein Installations- oder Fachabnahmenachweis für 1.5.10 und keine Aussage über vollständige reale Währungsabdeckung. |
-| Restarbeit / nächste Abhängigkeit | Bestehende Zeitraum-/Quellenansicht mit direkt eingegebener und wiederverwendeter Währung am PC prüfen. Vollständige lokale Pagination und Schutz gegen verspätete Antworten erhalten. Weitergehende Dashboards, Diagramme und Export bleiben eigene Restanforderungen. **Nächste Abhängigkeit:** neuer geprüfter Schnitt und getrennte Abnahme. |
+| Software-Auslieferung | [v1.5.11](../releases/V1.5.11-UNDERLYING-FORM-ISOLATION.md#bestätigte-auslieferung-und-begrenzte-abnahme--20102026) veröffentlicht auf `5e9ede2dc29f52eaff601d30614df6bc9c25c426`; enthält #266 (`814fb808…`) und damit die Kaufwährungs-Wiederverwendung aus v1.5.10. Historischer v1.5.9-Stand bleibt `254fe35b…`; keine neue Migration durch #266/#267. |
+| Betriebsnachweis | In [PR #267](https://github.com/burckhju/trading-workspace/pull/267) dokumentierte Nutzerausgabe vom 20.10.2026, 13:00 MESZ / 11:00 UTC: **1.5.11 / `5e9ede2dc29f52eaff601d30614df6bc9c25c426`**, vier gesunde Dienste, `ready`. Technische Installation einschließlich Währungswiederverwendung belegt; keine vollständige reale Währungsabdeckung oder Performance-Fachabnahme daraus abgeleitet. |
+| Restarbeit / nächste Abhängigkeit | Bestehende Zeitraum-/Quellenansicht des installierten v1.5.11 mit direkt erklärter und wiederverwendeter Währung lesend prüfen. Pagination und Schutz gegen verspätete Antworten erhalten. Diagramme, weitergehende Dashboards und Export bleiben eigene Reste. **Nächste Abhängigkeit:** getrennte fachliche Bedienabnahme, nicht erneute Installation. |
 | Umfangsentscheidung | Der enge erste Brutto-SELL-Schnitt erfüllt keinen vollständigen M8-Umfang. Statistik-/Kohorten-/Diagramm-/Exportanforderungen bleiben erhalten; weitere Kennzahlen behalten ihre eigenen offenen Fachverträge. |
 
 </details>
@@ -1338,15 +1352,15 @@ der Layout-Phase, getrennt vom weiterhin passiven Ladeeffekt.
 | Nachweisfeld | Einordnung |
 |---|---|
 | Zuordnung | M8: Auswertungen. Bereich/Querschnitt: 8. Bestehender Bezug: FT-012; vorhandener Evaluation-Owner. Lieferziel: C. |
-| Arbeitsstatus | Technical Review; enger SELL-Zeitraumbericht vorhanden. Kaufwährungs-Wiederverwendung und Eingabevereinfachung am 20.10.2026 ausdrücklich entschieden und implementiert; neue Qualifikation und Zielupdate gesondert belegen. |
+| Arbeitsstatus | Technical Review; enger SELL-Zeitraumbericht `realized-gross-sell-v2` vorhanden. Die am 20.10.2026 entschiedene Kaufwährungs-Wiederverwendung ist in v1.5.11 veröffentlicht und technisch am PC installiert; gesonderte fachliche Quellen-/Bedienprüfung offen. |
 | Soll / Nicht-Soll | **Soll:** Explizite Zeit-/Tradeauswahl, Stichtag und nachvollziehbare Berechnungsgrenzen. **Nicht-Soll:** Keine stillen historischen Rekonstruktionen eines damals unbekannten Datenstands. |
 | Vorhandenseinsnachweis | Ausgangssuche auf e9aac2bf fand keinen passenden registrierten Consumer. Die neue registrierte Strecke zeigt vollständige SELL-Beiträge, Quellen, Perioden-/Währungsqualifikation und Datenabdeckung aus einem konsistenten Read. |
 | Implementierung / Consumer | Bestehender Execution-Owner liefert gemeinsame nachvollziehbare Währungsableitung; PositionProjector liefert unveränderte SELL-Deltas. Vorhandener konsistenter performance-Reader, GET /api/v1/performance/realized-gross und Frontendroute /performance/realized-gross nutzen Definition `realized-gross-sell-v2`. [Präzisierter Vertrag und Herkunft](../implementation/EXECUTION_CURRENCY_REUSE_QUALIFICATION.md). |
 | Test / Commit | [Kaufwährungs-Wiederverwendung: Quellen, Vertrag und neue Qualifikation](../implementation/EXECUTION_CURRENCY_REUSE_QUALIFICATION.md). Die [V1.5.9-Berichtsqualifikation](../implementation/PERIOD_REALIZED_GROSS_REPORT_QUALIFICATION.md) und vorherige Trace-Qualifikation bleiben historische Nachweise mit eigenem Codebezug. Synthetische Bestätigungen belegen keine Nutzerdatenwährung. |
 | Fachliche Abnahme | V1-Vertrag am 17.10.2026 zur Umsetzung freigegeben. Am 20.10.2026 ausdrücklich präzisiert: Kaufwährung auch für Verkauf nutzen, so wenig zusätzliche Eingaben wie möglich (ADR-S10-008-Nachtrag). Merge und PC-Bereitstellung nach grünen Prüfungen bereits autorisiert. Keine vollständige M8- oder abschließende PC-Fachabnahme daraus abgeleitet. |
-| Software-Auslieferung | V1.5.9 auf `254fe35b76027b72cd989715e17bd0ae55af55eb` veröffentlicht. [V1.5.10](../releases/V1.5.10-EXECUTION-CURRENCY-REUSE.md) ergänzt reine Owner-Währungsableitung ohne Migration; Veröffentlichung erst nach erfolgreichen aktuellen PR- und main-Prüfungen durch vorhandenen Version-Workflow. |
-| Betriebsnachweis | Am 20.10.2026 meldet der Nutzer vier gesunde Dienste, `ready` und installiert 1.5.9 / `254fe35b76027b72cd989715e17bd0ae55af55eb`; lesende Berichtsansicht beobachtet. Kein Installations- oder Fachabnahmenachweis für 1.5.10 und keine Aussage über vollständige reale Währungsabdeckung. |
-| Restarbeit / nächste Abhängigkeit | Nach Auslieferung die vorhandene Zeitraumauswahl erneut lesend prüfen: qualifizierte Käufe benötigen keine Einzelbestätigung ihrer Verkäufe. **Nächste Abhängigkeit:** v1.5.10 auf erfolgreich geprüftem main-Commit; danach technischer PC-Status und gesonderte fachliche Quellenkontrolle. Keine erneute pauschale Veröffentlichungsfreigabe erforderlich. |
+| Software-Auslieferung | [v1.5.11](../releases/V1.5.11-UNDERLYING-FORM-ISOLATION.md#bestätigte-auslieferung-und-begrenzte-abnahme--20102026) veröffentlicht auf `5e9ede2dc29f52eaff601d30614df6bc9c25c426`; enthält #266 (`814fb808…`) und damit die Kaufwährungs-Wiederverwendung aus v1.5.10. Historischer v1.5.9-Stand bleibt `254fe35b…`; keine neue Migration durch #266/#267. |
+| Betriebsnachweis | In [PR #267](https://github.com/burckhju/trading-workspace/pull/267) dokumentierte Nutzerausgabe vom 20.10.2026, 13:00 MESZ / 11:00 UTC: **1.5.11 / `5e9ede2dc29f52eaff601d30614df6bc9c25c426`**, vier gesunde Dienste, `ready`. Technische Installation einschließlich Währungswiederverwendung belegt; keine vollständige reale Währungsabdeckung oder Performance-Fachabnahme daraus abgeleitet. |
+| Restarbeit / nächste Abhängigkeit | Vorhandene Zeitraumauswahl im installierten v1.5.11 fachlich lesend prüfen; qualifizierte Käufe benötigen keine Einzelbestätigung ihrer Verkäufe. **Nächste Abhängigkeit:** tatsächliche Quellenkontrolle sowie eigenständiger Kohortenvertrag für Trades mit Vollabschluss; die Auslieferung/technische Installation ist belegt. |
 | Umfangsentscheidung | Der enge erste Brutto-SELL-Schnitt erfüllt keinen vollständigen M8-Umfang. Statistik-/Kohorten-/Diagramm-/Exportanforderungen bleiben erhalten; weitere Kennzahlen behalten ihre eigenen offenen Fachverträge. |
 
 </details>
@@ -1809,12 +1823,12 @@ der Layout-Phase, getrennt vom weiterhin passiven Ladeeffekt.
 | Arbeitsstatus | Technical Review |
 | Soll / Nicht-Soll | **Soll:** Versionierte Software und nachvollziehbare Release-/CI-Bindung. **Nicht-Soll:** Keine Produktionsmutation, keine Gate-Absenkung und keine Gleichsetzung von Software-Release mit installierter Zielumgebung. |
 | Vorhandenseinsnachweis | Dokument- und/oder Routing-Nachweis vorhanden; Details, historische Grenzen und nicht erneut geprüfte Implementierung im Eintrag. |
-| Implementierung / Consumer | VERSION, backend/pyproject.toml und frontend/package.json nennen 1.5.5. Git-Tag v1.5.5 zeigt auf a78288ad; drei Main-Push-CI-Läufe erfolgreich. |
-| Test / Commit | Siehe CI-/Prüfregister mit exaktem Basiscommit; lokale Anwendungsgates nicht ausgeführt. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Implementierung / Consumer | VERSION, Backend-/Frontend-Manifeste und beide Root-Versionen der npm-Lockdatei nennen 1.5.11; aufgelöster Tag und main zeigen auf `5e9ede2dc29f52eaff601d30614df6bc9c25c426`. |
+| Test / Commit | Main-Runbezüge von Backend, Frontend, E2E und Version in [PR #267](https://github.com/burckhju/trading-workspace/pull/267) und dem [Nachweisregister](#nachweisregister). Historische Resultate zu diesem Tree, keine neuen lokalen Vollgates. |
 | Fachliche Abnahme | Keine eigenständige fachliche Abnahme für diesen vollständigen Zuschnitt verifiziert. |
-| Software-Auslieferung | Software v1.5.5 mit verifiziertem Git-Tag auf Basiscommit; das sagt nichts über vollständige M0–M11-Erfüllung. |
-| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
-| Restarbeit / nächste Abhängigkeit | Bei Integration dieses reinen Dokumentdiffs geltenden Releaseprozess beachten; keine Tagverschiebung oder Veröffentlichung durch diesen Auftrag. **Nächste Abhängigkeit:** Geeigneter isolierter Prüfstack bzw. autorisierter Releaseprozess. |
+| Software-Auslieferung | v1.5.11 auf obigem Commit durch den vorhandenen Version-Workflow veröffentlicht; keine neue Version für diese Dokumentfortschreibung. |
+| Betriebsnachweis | Technische v1.5.11-PC-Installation mit vollständigem Commit und `ready` vom Nutzer am 20.10.2026 bestätigt; [getrennter Installationseintrag](#operations-installation). |
+| Restarbeit / nächste Abhängigkeit | Künftige Änderungen getrennt auf Entwicklungsbranches prüfen und nur mit passender tatsächlicher Merge-/Releasefreigabe integrieren. **Nächste Abhängigkeit:** konkrete aktuelle Änderungen und ihre unveränderten Gates; kein erneuter v1.5.11-Release. |
 | Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
 
 </details>
@@ -1828,13 +1842,13 @@ der Layout-Phase, getrennt vom weiterhin passiven Ladeeffekt.
 | Zuordnung | M11: Betrieb; Ziel A. Bereich/Querschnitt: Querschnitt: technische Qualität/Betrieb. Bestehender Bezug: bestehende Betriebs-/Releaseverantwortung. Lieferziel: A. |
 | Arbeitsstatus | Analysis |
 | Soll / Nicht-Soll | **Soll:** JMBbot mit tatsächlich installierter Version/Commit, Schema, Compose-Provenienz, Daten-/Monitoring-/Zustellzuständen und Nachweiszeitpunkt identifizieren. **Nicht-Soll:** Keine Diagnoseanleitung als erfolgreichen Lauf ausgeben; kein Monitoring-Einmallauf, Deployment oder Nachricht. |
-| Vorhandenseinsnachweis | Vollständige Teilfähigkeit nicht verifiziert. Vorhandene Nachbarfunktionen/Dokumente sind im Implementierungsfeld benannt; daraus folgt kein Abwesenheitsbeweis. |
-| Implementierung / Consumer | [Release-Notiz 1.5.5](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/releases/V1.5.5-ISSUER-COVERAGE.md) nennt zuvor bestätigten PC-Stand v1.5.4 / ab4730885b91fd954f3494434ff3d1f4734397db. Dies ist ein historischer Dokumentbeleg, keine aktuelle Beobachtung. |
-| Test / Commit | CI-Wegwerfinstallationen qualifiziert; aktuelle JMBbot-Installation und Wiederherstellung nicht geprüft. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
-| Fachliche Abnahme | Keine eigenständige fachliche Abnahme für diesen vollständigen Zuschnitt verifiziert. |
-| Software-Auslieferung | Softwaretag 1.5.5 getrennt vom historisch genannten PC-Stand 1.5.4. |
-| Betriebsnachweis | JMBbot identifiziert; aktueller Zustand nicht geprüft. Historischer PC-Stand nur laut Release-Notiz. |
-| Restarbeit / nächste Abhängigkeit | Bei autorisiertem lesendem Zugriff Installation und Zustände mit vorhandenen sicheren Diagnosewegen belegen; keine Nutzerbestände ändern. **Nächste Abhängigkeit:** Erreichbare identifizierte Zielinstallation / zulässiger lesender Zugang. |
+| Vorhandenseinsnachweis | Identifizierter verwalteter PC mit dokumentierter Nutzerrückmeldung zu Version/Commit, vier gesunden Diensten und Bereitschaft. Der weitergehende Betriebsumfang bleibt gesondert zu prüfen. |
+| Implementierung / Consumer | Vorhandener [Linux-Launcher](../technical/LINUX_LAUNCHER.md); [PR #267](https://github.com/burckhju/trading-workspace/pull/267) dokumentiert das vom Nutzer ausgeführte Update und die Statusausgabe. Frühere 1.5.4-/1.5.9-Angaben sind historische Vorstände. |
+| Test / Commit | Nutzerbericht vom 20.10.2026, 13:00 MESZ / 11:00 UTC: installierter Commit `5e9ede2dc29f52eaff601d30614df6bc9c25c426`. Kein neuer eigener PC-, Wiederherstellungs-, Schema- oder Compose-Provenienztest. |
+| Fachliche Abnahme | Begrenzter Formularcheck vom Nutzer mit „funktioniert!“ bestätigt; keine vollständige fachliche Betriebsabnahme aller Funktionen. |
+| Software-Auslieferung | Veröffentlichter Tag v1.5.11 wurde im frischen Checkout auf denselben vollständigen Commit aufgelöst; Softwareauslieferung und Nutzerrückmeldung bleiben verschiedene Nachweise. |
+| Betriebsnachweis | **Technisch installiert und ready:** v1.5.11, vollständiger Zielcommit, Backend/Frontend/Issuer-Renderer/Datenbank `running / healthy`, laut dokumentierter Nutzerausgabe. Keine neue eigene Beobachtung von Beständen, Monitoring, Providern oder Zustellung. |
+| Restarbeit / nächste Abhängigkeit | Keinen erneuten Installationsnachweis für denselben Stand verlangen. Noch fehlende Fach-/Quellen-, Wiederherstellungs- oder konkrete Betriebsnachweise nur im jeweils autorisierten Umfang erheben. **Nächste Abhängigkeit:** konkrete lesende Fachprüfung vorhandener Daten; keine Seeds, Testtrades oder echten Nachrichten. |
 | Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
 
 </details>
@@ -1842,43 +1856,33 @@ der Layout-Phase, getrennt vom weiterhin passiven Ladeeffekt.
 <a id="naechster-schnitt"></a>
 ## Genau nächster sinnvoller Umsetzungsschritt
 
-**Nach der freigegebenen Bereitstellung Version 1.5.9 über den vorhandenen
-PC-Launcher aktualisieren und den installierten Zustand lesend prüfen.**
-Die [Release-Notiz](../releases/V1.5.9-REALIZED-GROSS-REPORT.md) beschreibt den
-gepinnten Updateweg mit dem tatsächlich veröffentlichten Tag-Commit und Migration
-0047. Die [Berichtsqualifikation](../implementation/PERIOD_REALIZED_GROSS_REPORT_QUALIFICATION.md)
-verbindet Quellen, Referenz/Korrektur, PostgreSQL-Rennen und den echten Browserweg.
+**Den engen Vertrag für Trades mit Vollabschluss entscheidungsfähig machen und
+bei belegter Fachfreigabe umsetzen.** Der vorhandene SELL-Bericht ist bereits
+veröffentlicht und technisch installiert. Sein [ADR-S10-008](../decisions/ADR-S10-008-EXECUTION-CURRENCY-AND-PERIOD-REALIZED-GROSS.md)
+entscheidet keine vollständige Trade-Kohorte oder Gewinner-/Verliererklassifikation.
+Vorgeschlagen sind Abschluss durch die wirksame letzte SELL-Quelle, das gesamte
+qualifizierte Ergebnis aller Verkäufe des Trades und Klassifikation nach exaktem
+ungerundetem Vorzeichen. Diese neue Semantik bleibt bis zu einer ausdrücklichen
+Entscheidung ein Vorschlag; keine API oder Kennzahl als bereits geliefert ausgeben.
 
-Die Nutzeranweisungen „Ok, umsetzen“ und „wenn prüfungen grün mergen und für den pc
-verfügbar machen“ liegen vor. Aktuelle PR-Prüfungen, normale geschützte Integration
-und erfolgreiche main-Prüfungen vor der Tag-Erzeugung setzen diese Bedingung um.
-PR #249 wird als eigener Integritätsfix vorgezogen; der Performance-Diff ändert
-kein Basiswertformular. Die neue obligatorische Owner-Browserqualifikation liegt
-zusätzlich im bestehenden End-to-End-Workflow und akzeptiert keinen Skip oder Retry.
+### Begrenzte Auftragsmatrix nach v1.5.11
 
-Reale Nutzerbestände und ihre Währungsabdeckung wurden dabei nicht geprüft oder
-verändert. Deren bewusste Bestätigung und die fachliche Beobachtung des installierten
-Ergebnisses bleiben getrennt. Die durch #260/#261/#263 vorhandene Journal-/Lesson-/
-Evidence-Strecke und sämtliche ursprünglichen M8-Restanforderungen bleiben in
-ihren maßgeblichen Einträgen erhalten.
+Diese Matrix hält die vier konkreten Arbeitszuschnitte am geprüften Ausgangsstand
+fest. Sie vergibt keine neuen Meilensteine/IDs und führt keinen zweiten
+Arbeitsstatus neben den oben verlinkten Teilfähigkeiten.
 
-### Definition of Ready der ausgeführten Fortsetzung
+| Ziel | Vorhandener Owner / Consumer | Tatsächlicher Testnachweis | Restlücke | Offene Fachentscheidung | Auslieferung / Betrieb | Nächster bearbeitbarer Teil |
+|---|---|---|---|---|---|---|
+| Gelieferten Stand abnehmen | FT-001-Formular; Execution-Owner und SELL-Bericht | Main-Nachweise in #267; enger Formular-Bediencheck bestätigt | Reale Währungs-/Quellen-/Verständlichkeitsabnahme | Keine neue Währungsregel erforderlich | v1.5.11 technisch am PC bestätigt | [Kleine lesende Prüfliste](../releases/V1.5.11-UNDERLYING-FORM-ISOLATION.md#kleine-fachliche-abnahme-ausgeführt-versus-noch-offen), soweit reale Fälle vorhanden |
+| Abgeschlossene Trades / erste Statistik | PositionProjector, Währungsresolver, begrenzter Performance-Snapshot | Bestehende SELL-/Owner-Qualifikation; kein neuer Kohortentest als Produktnachweis | Lesender Abschlussbericht noch nicht geliefert | Kohorte, Vollständigkeit und Vorzeichenklassifikation ausdrücklich entscheiden | Bestehender SELL-Bericht installiert; keine neue Statistik veröffentlicht | Entscheidungsvertrag und unabhängige T1-/Kohorten-Sollfälle; produktiver Schnitt erst nach Freigabe |
+| Journal-/Evidence-Gesamtweg | FT-011 und FT-012, vorhandene zwei PostgreSQL-Browserfälle | Eigene historische Qualifikationen #260/#261/#263; im aktuellen Standard-Smoke geschützt übersprungen | Eigener regelmäßig ausgeführter, sicherer Job und exakte Ergebnisprüfung | Keine neue Journal-/Lesson-Semantik | Fachcode enthalten und technisch installiert; reale Fachabnahme offen | Vorhandene Fälle im eigenen neuen Stack mit Identitätsprüfung, Egress-Sperre und Cleanup qualifizieren |
+| Listenrückkehr / alte PRs | FT-001-Liste/Detail/Formular; vorhandener PR #204 | Formularschutz in #267 qualifiziert; alter #204-Browserbefund kein neuer Erfolg | Navigationsrest auf aktuelles Formular übertragen; #225/#235/#90 nach Restdiff einordnen | Keine neue Stammdatenfachregel; Schließen/Mergen nur mit passender Freigabe | #204 nicht Bestandteil von v1.5.11 | Eigener Navigationsbranch, gemeinsame Navigations-/Isolationsregressionen, konkrete Triage |
 
-[ADR-S10-008](../decisions/ADR-S10-008-EXECUTION-CURRENCY-AND-PERIOD-REALIZED-GROSS.md)
-hält die ausdrückliche Umsetzungsfreigabe des konkreten Währungs-/Periodenvertrags
-fest. Der vorhandene Average-Cost-Owner wurde wiederverwendet; der additive
-Execution-Währungsowner wurde auf PostgreSQL separat qualifiziert. API und UI
-verwenden ausschließlich bestätigte Quellen für monetäre Beiträge. Synthetische
-EUR-Fixtures und Berichtswährung belegen weiterhin keine Währung alter Nutzerdaten.
-
-### Definition of Done und erhaltene Restanforderungen
-
-Der enge technische Lieferumfang umfasst vollständige SELL-Beiträge, belegte
-Kostenbasis, explizite Berichtswährung, Summe/Teilsumme, Datenabdeckung und dieselbe
-Quellenbasis innerhalb einer Antwort. Testbefunde und verbleibende Gate-/
-Betriebsgrenzen sind im [Qualifikationsnachweis](../implementation/PERIOD_REALIZED_GROSS_REPORT_QUALIFICATION.md)
-konkret bezeichnet. Fertige Fachabnahme, Veröffentlichung und beobachteter Betrieb
-bleiben eigenständig. Gewinner-/Verliererkohorten, Trefferquote, Durchschnitt/
-Median, Profit-Faktor, Prozessbewertung, Diagramme und Export bleiben geplant;
-Netto/FX/Equity/Drawdown und weitere Methoden benötigen eigene Verträge. Der
-vorliegende Schnitt erklärt weder ursprüngliches M8 noch Bereich 7/8 als erledigt.
+Fehlende menschliche Rückmeldung oder Kohortenfreigabe blockiert die unabhängige
+Journal-Testsicherung und die getrennte Navigation nicht. Die bisherigen
+Journal-/Lesson-/Evidence-Implementierungen werden erhalten, nicht neu gebaut.
+Gewinner-/Verliererkohorten, Trefferquote, Durchschnitt/Median, Profit-Faktor,
+Prozessbewertung, Diagramme und Export behalten ihre konkreten offenen Verträge.
+Netto/FX/Equity/Drawdown und weitere Methoden sind keine stillen Erweiterungen.
+Der erste SELL-Bericht und der vorgeschlagene Abschlussbericht schließen weder
+ursprüngliches M8 noch Bereich 7/8 pauschal ab.
