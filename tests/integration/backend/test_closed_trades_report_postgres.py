@@ -240,10 +240,28 @@ def test_real_t1_to_t6_complete_trade_results_exclusions_and_read_only_sources(
             await _closed_report(client)
             assert await _state(database.engine) == after_correction
 
+            # T6 remains open. The owner permits only one open trade per product;
+            # the cancellation example therefore receives its own real product.
+            existing_product = await client.get(f"/api/v1/warrants/{product_id}")
+            assert existing_product.status_code == 200, existing_product.text
+            cancellation_product = await client.post(
+                "/api/v1/warrants",
+                json={
+                    "issuer_id": existing_product.json()["issuer_id"],
+                    "underlying_id": existing_product.json()["underlying_id"],
+                    "display_name": "Synthetic independent cancellation product",
+                    "option_direction": "CALL",
+                    "strike": "501",
+                    "maturity_date": "2099-12-31",
+                    "ratio": "0.1",
+                },
+            )
+            assert cancellation_product.status_code == 201, cancellation_product.text
+            cancellation_product_id = cancellation_product.json()["id"]
             mistaken = await client.post(
                 BASE + "/purchases/external",
                 json={
-                    "product_id": product_id,
+                    "product_id": cancellation_product_id,
                     "quantity": 1,
                     "price_per_unit": "5.00",
                     "executed_on": "2026-10-05",
@@ -259,7 +277,7 @@ def test_real_t1_to_t6_complete_trade_results_exclusions_and_read_only_sources(
             cancelled = await client.post(
                 f"{BASE}/trades/{cancelled_id}/cancel",
                 json={
-                    "expected_product_id": product_id,
+                    "expected_product_id": cancellation_product_id,
                     "expected_state_token": preview.json()["state_token"],
                     "reason": "Synthetic mistaken capture, not an economic exit",
                     "confirmed": True,

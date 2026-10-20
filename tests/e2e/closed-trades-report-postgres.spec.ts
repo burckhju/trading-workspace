@@ -106,24 +106,30 @@ test("real PostgreSQL: full-close cohort, lifetime result, gaps and current corr
       currency_code: "EUR",
     },
   });
-  const product = await post("/warrants", {
-    issuer_id: issuer.id,
-    underlying_id: underlying.id,
-    display_name: "Gleiches Produkt · getrennte Trade-Identitäten",
-    option_direction: "CALL",
-    strike: "500",
-    strike_currency_code: "USD",
-    maturity_date: "2099-12-31",
-    ratio: "0.1",
-  });
+  const createProduct = (name: string, strike: string) =>
+    post("/warrants", {
+      issuer_id: issuer.id,
+      underlying_id: underlying.id,
+      display_name: name,
+      option_direction: "CALL",
+      strike,
+      strike_currency_code: "USD",
+      maturity_date: "2099-12-31",
+      ratio: "0.1",
+    });
+  const product = await createProduct(
+    "Gleiches Produkt · getrennte Trade-Identitäten",
+    "500",
+  );
   const buy = async (
     quantity: number,
     price: string,
     day: string,
     currency?: string,
+    productId = product.id,
   ) =>
     post("/trade-position/purchases/external", {
-      product_id: product.id,
+      product_id: productId,
       ...capture(quantity, price, day, currency),
     });
   const simple = async (
@@ -131,8 +137,9 @@ test("real PostgreSQL: full-close cohort, lifetime result, gaps and current corr
     currency?: string,
     quantity = 10,
     day = "2026-10-04",
+    productId = product.id,
   ) => {
-    const bought = await buy(10, "5.00", "2026-06-01", currency);
+    const bought = await buy(10, "5.00", "2026-06-01", currency, productId);
     const sold = await post(
       `/trade-position/trades/${bought.trade.id}/sales`,
       capture(quantity, price, day),
@@ -448,8 +455,15 @@ test("real PostgreSQL: full-close cohort, lifetime result, gaps and current corr
   ).toBe(true);
 
   // Local pagination across stable IDs neither rereads nor writes the source.
-  for (let index = 0; index < 21; index += 1)
-    await buy(1, "1.00", "2026-06-01", "EUR");
+  for (let index = 0; index < 21; index += 1) {
+    // The capture owner permits one open trade per product. These independent
+    // open rows therefore use independently created synthetic products.
+    const pageProduct = await createProduct(
+      `Synthetische Seitenquelle ${index + 1}`,
+      String(501 + index),
+    );
+    await buy(1, "1.00", "2026-06-01", "EUR", pageProduct.id);
+  }
   const paged = await read();
   expect(paged.counts).toMatchObject({
     examined: 27,
@@ -488,8 +502,12 @@ test("real PostgreSQL: full-close cohort, lifetime result, gaps and current corr
   expect(databaseState().fingerprint).toBe(beforePaging.fingerprint);
 
   // Separate periods distinguish genuine exact zero, unknown, and empty.
-  await simple("5.00", "EUR", 10, "2026-06-02");
-  await simple("6.00", undefined, 10, "2026-07-02");
+  const stateProduct = await createProduct(
+    "Synthetische Null- und Lückenauswahl",
+    "550",
+  );
+  await simple("5.00", "EUR", 10, "2026-06-02", stateProduct.id);
+  await simple("6.00", undefined, 10, "2026-07-02", stateProduct.id);
   await select("2026-06-01", "2026-06-30");
   const zero = await read();
   expect(zero.summary).toMatchObject({
