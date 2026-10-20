@@ -2,6 +2,8 @@
 
 from uuid import UUID
 
+from app.features.performance.domain.closed_models import ClosedTradeReport
+from app.features.performance.domain.closed_report import build_closed_report
 from app.features.performance.domain.models import RealizedGrossReport, ReportFilters
 from app.features.performance.domain.periods import report_interval
 from app.features.performance.domain.report import build_report
@@ -16,3 +18,13 @@ class RealizedGrossReportService:
         report_interval(filters)
         snapshot = await self._reader.read(workspace_id, filters.report_currency)
         return build_report(snapshot, filters)
+
+
+class ClosedTradeReportService:
+    def __init__(self, reader: RealizedGrossSnapshotReader) -> None:
+        self._reader = reader
+
+    async def report(self, workspace_id: UUID, filters: ReportFilters) -> ClosedTradeReport:
+        report_interval(filters)
+        snapshot = await self._reader.read(workspace_id, filters.report_currency)
+        return build_closed_report(snapshot, filters)

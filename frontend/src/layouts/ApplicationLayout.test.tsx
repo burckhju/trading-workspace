@@ -35,10 +35,14 @@ describe('ApplicationLayout', () => {
 
     const navigation = screen.getByRole('navigation', { name: 'Hauptnavigation' });
     const links = within(navigation).getAllByRole('link');
-    expect(links).toHaveLength(12);
+    expect(links).toHaveLength(13);
+    expect(within(navigation).getByRole('link', { name: 'Verkäufe im Zeitraum' })).toHaveAttribute(
+      'href',
+      '/performance/realized-gross',
+    );
     expect(
-      within(navigation).getByRole('link', { name: 'Realisierte Ergebnisse' }),
-    ).toHaveAttribute('href', '/performance/realized-gross');
+      within(navigation).getByRole('link', { name: 'Trades mit Vollabschluss im Zeitraum' }),
+    ).toHaveAttribute('href', '/performance/closed-trades');
     expect(within(navigation).getByRole('link', { name: 'Diagramme' })).toHaveAttribute(
       'href',
       '/market-charts',

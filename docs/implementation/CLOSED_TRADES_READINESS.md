@@ -1,4 +1,4 @@
-# Abgeschlossene Trades — Entscheidungsvorschlag und Readiness
+# Abgeschlossene Trades — entschiedener Vertrag und Readiness
 
 Prüfstand: **20.10.2026**, `main` und Tag `v1.5.11` auf
 `5e9ede2dc29f52eaff601d30614df6bc9c25c426`, Tree
@@ -10,44 +10,44 @@ und [Tradeübergreifende Statistiken](../planning/PRODUCT_BACKLOG.md#pb-019-perf
 sowie [Periodenauswertungen](../planning/PRODUCT_BACKLOG.md#pb-019-performance-evaluations).
 Dieses Dokument schafft weder eine Feature-ID noch ein zweites Statusregister.
 
-## Entscheidungslage und konkret zu bestätigender Umfang
+## Entscheidung vom 20.10.2026 und bestätigter Umfang
 
-**Die neue Abschlusskohorte ist entscheidungsreif, aber noch nicht zur
-Fachimplementierung freigegeben.** Der Startauftrag vom 20.10.2026, Abschnitt 5,
-kennzeichnet ihre Semantik ausdrücklich als Vorschlag. Die genehmigte
-[ADR-S10-008 samt Währungsnachtrag](../decisions/ADR-S10-008-EXECUTION-CURRENCY-AND-PERIOD-REALIZED-GROSS.md)
-und die [bisherige Readiness](PERIOD_REALIZED_GROSS_READINESS.md) erlauben den
-SELL-Bericht; Letztere lässt Gewinner-/Verliererkohorten ausdrücklich offen.
-Die am Prüftag seit 19.10. aktualisierten PRs
-[#266](https://github.com/burckhju/trading-workspace/pull/266) und
-[#267](https://github.com/burckhju/trading-workspace/pull/267) betreffen
-Währungswiederverwendung beziehungsweise Formularwechsel und deren Veröffentlichung.
-Die gelesenen Diskussionen zu #265/#266 enthalten keine zusätzlichen Kommentare.
-In diesen geprüften Quellen ist keine spätere ausdrückliche Kohortenentscheidung
-nachgewiesen. Alte Mergefreigaben werden nicht erweitert.
+**Die drei unten beschriebenen Regeln sind zur Umsetzung freigegeben.** Der
+Startauftrag vom 20.10.2026, Abschnitt 5, enthielt zunächst einen Vorschlag.
+Nach dessen prüfbarer Ausarbeitung in PR #270 fragte der Nutzer nach den
+jeweiligen Auswirkungen für die Bedienung. Anschließend bestätigte er den
+erläuterten Umfang mit **„ok, umsetzen“**. Diese spätere Entscheidung umfasst
+Vollabschlusskohorte, vollständige monetäre Qualifikation mit sichtbaren Lücken
+und Klassifikation nach ungerundetem Vorzeichen.
+[ADR-S10-009](../decisions/ADR-S10-009-CLOSED-TRADE-COHORT-AND-GROSS-RESULT.md)
+hält diese neue Entscheidung getrennt vom weiterhin gültigen
+[SELL-Vertrag](../decisions/ADR-S10-008-EXECUTION-CURRENCY-AND-PERIOD-REALIZED-GROSS.md)
+fest. Sie ist keine Abnahme der fertigen Umsetzung und erweitert keine frühere
+Merge-, Release- oder PC-Freigabe für andere Änderungen.
 
-**Vorgeschlagene Gesamtentscheidung:** Ein rein lesender Bericht wählt eigene
+**Bestätigte Gesamtentscheidung:** Ein rein lesender Bericht wählt eigene
 Trades nach ihrem heute wirksamen tatsächlichen Vollabschluss im Zeitraum aus,
 zeigt je Trade das gesamte qualifizierte Bruttoergebnis und zählt vollständig
 qualifizierte positive, negative und exakt neutrale Ergebnisse. Ungeklärte
 potenziell relevante Trades bleiben sichtbar und verhindern eine vollständige
 Gesamtsumme. Trefferquote, Durchschnitt, Median und Profit-Faktor gehören nicht
 zum ersten Schnitt. Dafür werden keine neue Eingabe, Migration oder dauerhafte
-Trade-Währung benötigt. API-Pfad und neue Definitionskennung werden erst nach
-der Fachentscheidung im tatsächlichen Schnittentwurf festgelegt.
+Trade-Währung benötigt. Der konkrete Schnitt verwendet
+`GET /api/v1/performance/closed-trades`, die Frontendroute
+`/performance/closed-trades` und die Definition `closed-trade-gross-v1`.
 
-| Zu entscheidender Vorschlag | Beispiel und Nutzerwirkung | Offene Alternative / Konsequenz |
+| Bestätigte Regel | Beispiel und Nutzerwirkung | Abgrenzung / Konsequenz |
 |---|---|---|
 | Vollabschlusskohorte: stabile Trade-ID einmal; aktuell wirksamer Abschluss-SELL bestimmt den Zeitraum; alle wirksamen SELL-Beiträge dieses Trades gehören zum Ergebnis. Eigene ausdrücklich erfasste EXTERNAL-Trades zählen mit. | T1 wird im Oktober einmal mit **50 EUR** ausgewertet, obwohl der Oktober-SELL allein **30 EUR** beiträgt. Im September ist T1 kein abgeschlossener Trade. | Nur Verkäufe im Zeitraum auszuwerten ist bereits der bestehende Bericht. Eine Kohorte anhand des damaligen Wissensstands würde einen gesonderten historischen Quellenvertrag benötigen. |
 | Vollständige Qualifikation je Trade und konservative Abdeckung: alle benötigten Kaufkosten und sämtliche Erlösbeiträge müssen in derselben belegten Währung vorliegen. Ungeklärte Historie/Abschlusszuordnung verhindert Vollständigkeit. | Ein früherer abweichender USD-SELL macht ein vollständiges EUR-Tradeergebnis unberechenbar, auch wenn der letzte EUR-SELL einzeln verwendbar bleibt. T4 zählt als Lücke, nicht als Gewinner oder neutral. | Nur vollständig bekannte Trades auszuwählen und den Rest getrennt zu melden wäre eine Auswertung einer bekannten Teilmenge; sie dürfte nicht als vollständige Abschlusskohorte bezeichnet werden. Eine vollständige Summe trotz potenziell relevanter Lücken wird nicht vorgeschlagen. |
 | Vorzeichen des vollständigen **ungerundeten Owner-Ergebnisses**; neutral nur bei exakt null. Zähler nur für qualifizierte Trades; keine Quote im ersten Schnitt. | `+0.004 EUR` ist positiv und `-0.004 EUR` negativ, obwohl beide mit zwei Nachkommastellen als `0,00 EUR` erscheinen. Rohwert und Erklärung werden zugänglich. | Eine wirtschaftliche Break-even-Schwelle oder Klassifikation nach Anzeige wäre eine andere Kennzahl mit ausdrücklich zu definierender Währungs-/Präzisionsregel. Ohne Signumfreigabe können die neuen Zähler nicht geliefert werden. |
 
-Die bestätigte Ausführungswährungswiederverwendung wird nicht erneut zur
-Entscheidung gestellt. Es fehlt allein die neue fachliche Berichtsauswahl samt
-Trade-Gesamtqualifikation, Abdeckung und Klassifikation. Diese Grenze blockiert
-die unabhängige Journal-Testsicherung nicht.
+Die bereits bestätigte Ausführungswährungswiederverwendung gilt unverändert.
+Die neue Entscheidung ergänzt ausschließlich Berichtsauswahl,
+Trade-Gesamtqualifikation, Abdeckung und Klassifikation. Journal-Testsicherung
+und Listennavigation behalten ihre eigenständigen Entwicklungs-PRs.
 
-## Vorgeschlagener Vertrag
+## Bestätigter Vertrag
 
 ### Identität, Abschluss und Wissensstand
 
@@ -105,8 +105,9 @@ bereits qualifizierten endlichen Decimalpräzision. Keine versteckte Toleranz.
 
 ### Disjunkte Zähler und Vollständigkeit
 
-Die folgenden Bezeichnungen sind fachliche Gruppen des **Vorschlags**, keine
-bereits vorhandenen DTO-Felder. Alle Zähler zählen Trade-IDs. Pro untersuchtem
+Die folgenden Bezeichnungen sind fachliche Gruppen des **bestätigten Vertrags**.
+Die konkreten DTO-Zähler sind in der neuen Qualifikation zugeordnet. Alle Zähler
+zählen Trade-IDs. Pro untersuchtem
 Workspace-Trade gilt die erste zutreffende Gruppe; zusätzliche Gründe dürfen
 erklärt werden, erhöhen aber keinen Zähler:
 
@@ -129,7 +130,7 @@ Gruppen 7 + 8; dieser Zähler wird getrennt von zeitlich/historisch unklaren
 Kandidaten ausgewiesen. Reine Beobachtungen und fremde Workspace-IDs sind
 keine untersuchten tatsächlichen Trades dieses Readers.
 
-**Bewusste Folge des konservativen Vorschlags:** Eine nicht zuverlässig
+**Bewusste Folge der bestätigten Abdeckungsregel:** Eine nicht zuverlässig
 projektierbare eigene Historie kann ohne belegbare Abschlusszuordnung auch
 einen ansonsten bekannten Monatsbericht unvollständig machen. Sie wird weder
 durch vermeintlich alten Zeitstempel noch durch letzten SELL-Code versteckt.
@@ -150,8 +151,9 @@ im Quellendetail mit ihrer eigenen Bedeutung nachvollziehbar.
 
 ## Unabhängige synthetische Sollfälle
 
-Die folgenden Werte sind vorab festgelegte Erwartungen unter dem Vorschlag;
-sie sind kein fertiger Abschlussbericht und kein Nachweis realer Nutzerwährungen.
+Die folgenden Werte wurden vor der Umsetzung unabhängig festgelegt und sind
+nun Erwartungen des bestätigten Vertrags. Sie beweisen keine Währung realer
+Nutzerdaten; ihre tatsächliche Ausführung ist gesondert nachzuweisen.
 T1 erhält genau eine synthetische EUR-BUY-Erklärung, danach die bestehende
 v2-Wiederverwendung. Alle hier datierten Buchungen verwenden Europe/Berlin.
 
@@ -168,8 +170,8 @@ v2-Wiederverwendung. Alle hier datierten Buchungen verwenden Europe/Berlin.
 |---|---|---|
 | Bestehender September-SELL-Bericht | +10,00 EUR | +30,00 EUR |
 | Bestehender Oktober-SELL-Bericht | +30,00 EUR | +30,00 EUR |
-| Vorgeschlagene September-Abschlusskohorte | `EMPTY`, kein Abschluss | Weiterhin kein Abschluss |
-| Vorgeschlagene Oktober-Abschlusskohorte | 1 positiver Trade, vollständig +50,00 EUR | Derselbe Trade einmal, vollständig +70,00 EUR |
+| September-Abschlusskohorte | `EMPTY`, kein Abschluss | Weiterhin kein Abschluss |
+| Oktober-Abschlusskohorte | 1 positiver Trade, vollständig +50,00 EUR | Derselbe Trade einmal, vollständig +70,00 EUR |
 
 Vor dem letzten SELL bleibt T1 offen; seine September-SELLs sind weiterhin
 auswertbar. Die alte korrigierte Execution-ID bleibt Quelle, zählt aber nicht
@@ -178,7 +180,7 @@ vollständige Trade in die Septemberkohorte. Wird seine Menge zulässig von 60
 auf 59 korrigiert, bleibt eine Einheit offen und T1 gehört aktuell in keine
 Abschlusskohorte.
 
-| Ergänzung mit eigener Trade-ID | Vorgeschlagenes Oktober-Ergebnis bei EUR-Auswahl |
+| Ergänzung mit eigener Trade-ID | Erwartetes Oktober-Ergebnis bei EUR-Auswahl |
 |---|---|
 | T2: BUY 10 × 5,00; Voll-SELL 10 × 4,00 im Oktober, EUR belegt | −10,00 EUR; negativ. |
 | T3: BUY 10 × 5,00; Voll-SELL 10 × 5,00 im Oktober, EUR belegt | Exakt 0,00 EUR; neutral. |
@@ -201,9 +203,14 @@ Grenzen; `0`, `+0.004` und `-0.004`; fehlende Position/BUY-Historie; mehrere
 Seiten; gleiche Produktnamen bei unterschiedlichen IDs; Preis-, Datums-,
 Mengen- und Währungskorrektur mit unverändert erhaltenen Originalquellen.
 
-## Vorhandene Quellen, Wiederverwendung und konkrete Restlücken
+## Quellenstand vor der Umsetzung und festgelegte Prüfpflichten
 
-| Vertrag / vorhandener Owner oder Consumer | Gelesene Quellen und vorhandene Tests | Rest für den freigegebenen Folgeschnitt |
+Die folgende Matrix hält den vor der Fachimplementierung gelesenen Bestand und
+die daraus abgeleiteten Ergänzungen fest. Der konkrete neue Consumer und seine
+Prüfdateien sind in der [Umsetzungsqualifikation](CLOSED_TRADES_REPORT_QUALIFICATION.md)
+zugeordnet; die historischen Nachweise werden dadurch nicht umdatiert.
+
+| Vertrag / vorhandener Owner oder Consumer | Gelesene Quellen und vorhandene Tests | Ergänzung und erforderlicher Nachweis |
 |---|---|---|
 | Identität, Storno, wirksame Historie, Replay | [Trade-/Execution-/Position-Modell](../../backend/app/features/trade_position/domain/models.py), [Repositories](../../backend/app/features/trade_position/persistence/repositories.py), [Owner-Service](../../backend/app/features/trade_position/service/application.py), [Capturevertrag](../trade-capture-safety.md); `test_trade_read.py`, `test_corrections_timeline.py`, `test_capture_safety.py` unter `tests/unit/backend/features/trade_position/` | Vollabschlussquelle aus wirksamem Trace binden; ungültige Historien im neuen Tradezähler sichtbar erhalten. Bestehende Commands nicht ändern. |
 | Einzige Average-Cost-Rechnung | [Projector](../../backend/app/features/trade_position/domain/projector.py), [Trace-Tests](../../tests/unit/backend/features/trade_position/test_projector_trace.py), [PG-Trace](../../tests/integration/backend/test_realized_gross_trace_postgres.py) | Trace konsumieren; keine zweite Berechnung aus gespeicherter Positionssumme oder UI. |
@@ -236,7 +243,12 @@ Der erste Schnitt erfüllt weder alle ursprünglichen
 [M8-Anforderungen](../foundation/archive/ROADMAP_2026-07-22.md#m8--performance)
 noch fachliche Abnahme, Release, Installation oder Modellaktivierung.
 
-## Tatsächliche Prüfung dieses Dokumentationsschnitts
+## Historische Prüfung des ursprünglichen Dokumentationsschnitts
+
+Dieser Abschnitt beschreibt ausschließlich den ursprünglichen Proposal-Head
+`59d9de576b7ec53bed4f6ef7eeeef64324b1b426`. Die nachfolgende Umsetzungsfreigabe
+und neue Anwendungstests machen diese damaligen Tests nicht rückwirkend zu
+Nachweisen der Abschlussübersicht.
 
 Auf dem genannten unveränderten Anwendungscode wurden am 20.10.2026 mit Python
 **3.12.14** sechs eng begrenzte synthetische In-Memory-Prüfungen ausgeführt:
@@ -284,9 +296,8 @@ Alle darin verlinkten lokalen Dateien existieren.
 bestand für die neue Datei. Es wurden nur diese Vorschlagsdatei und keine
 Anwendungs-, Migrations-, Test- oder Gate-Dateien geändert.
 
-**Nächster konkreter Schritt:** den oben abgegrenzten Kohorten-, Abdeckungs-
-und Signumvorschlag ausdrücklich entscheiden. Nach Zustimmung die neue
-Definition/API/UI beim vorhandenen Performance-Consumer umsetzen und genau
-die hier vorab festgelegten Goldens, disjunkten Zähler, Korrekturraces,
-Lesefenster und Browserfälle qualifizieren. Kein erneutes allgemeines
-Quelleninventar und keine erneute Freigabe der bestehenden Währungsableitung.
+Die spätere Zustimmung ist im Entscheidungsabschnitt dokumentiert. Die
+Fortsetzung verwendet denselben Entwicklungsbranch und PR #270 für den
+konkreten Performance-Consumer. Neue Goldens, Zähler-, Korrektur-, Lesefenster-
+und Browsernachweise werden an den jeweils tatsächlich geprüften Code gebunden;
+die alten 123 Tests sind kein Ersatz dafür.

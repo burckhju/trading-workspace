@@ -14,6 +14,7 @@ on:
       - "docker/**"
       - "tests/e2e/**"
       - "scripts/run-realized-gross-e2e.sh"
+      - "scripts/check-performance-e2e-report.py"
       - ".github/workflows/e2e.yml"
 
 permissions:
@@ -117,12 +118,15 @@ jobs:
       - name: Install Chromium
         working-directory: frontend
         run: npx playwright install --with-deps chromium
-      - name: Qualify actual report writes and reads on an isolated Compose stack
+      - name: Qualify actual SELL report writes and reads on an isolated Compose stack
         run: bash scripts/run-realized-gross-e2e.sh
+      - name: Qualify full-close cohort on its own fresh isolated Compose stack
+        run: bash scripts/run-realized-gross-e2e.sh closed-trades
       - name: Upload report browser, migration and cleanup evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: realized-gross-owner-e2e
           path: frontend/test-results/realized-gross-*/
-          if-no-files-found: warn
+          if-no-files-found: error
+          include-hidden-files: true
