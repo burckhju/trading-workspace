@@ -398,3 +398,130 @@ def test_runner_refuses_non_ci_context_before_any_command(tmp_path):
     )
     assert result.returncode == 1
     assert "requires its disposable GitHub Actions checkout" in result.stderr
+
+
+def global_issuer_audit():
+    issuer = {
+        "id": "00000000-0000-4000-8000-000000000456",
+        "legal_name": f"Journal CI {RUN} 00000000-0000-4000-8000-000000000789",
+        "display_name": "Synthetic journal CI",
+        "country_code": None,
+        "lei": None,
+        "is_active": True,
+        "version": 1,
+    }
+    return {
+        "id": UUID("00000000-0000-4000-8000-000000000987"),
+        "workspace_id": None,
+        "aggregate_type": "ISSUER",
+        "aggregate_id": UUID(issuer["id"]),
+        "actor_type": "SYSTEM_USER",
+        "actor_id": f"journal-evidence:{RUN}",
+        "actor_display_name": "Synthetic journal CI",
+        "data_origin": "MANUAL",
+        "change_type": "CREATED",
+        "version_before": None,
+        "version_after": 1,
+        "issuer": issuer,
+        "audit_timestamp_matches": True,
+        "warrant_ids": [UUID("00000000-0000-4000-8000-000000000654")],
+        "field_changes": {
+            key: {"old": None, "new": issuer[key]}
+            for key in (
+                "legal_name",
+                "display_name",
+                "country_code",
+                "lei",
+                "is_active",
+            )
+        },
+    }
+
+
+def test_global_issuer_audit_requires_actual_run_owner_and_entity_references():
+    row = global_issuer_audit()
+    assert DATABASE.verify_global_issuer_audits([], RUN) == []
+    evidence = DATABASE.verify_global_issuer_audits([row], RUN)
+    assert evidence == [
+        {
+            "audit_id": str(row["id"]),
+            "issuer_id": str(row["aggregate_id"]),
+            "warrant_id": str(row["warrant_ids"][0]),
+            "actor_id": f"journal-evidence:{RUN}",
+            "legal_name": row["issuer"]["legal_name"],
+        }
+    ]
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("workspace_id", UUID("00000000-0000-4000-8000-000000000999")),
+        ("aggregate_type", "UNDERLYING"),
+        ("aggregate_type", "LISTING"),
+        ("aggregate_type", "TRADE"),
+        ("aggregate_type", "WARRANT"),
+        ("aggregate_type", "PROVIDER_MAPPING"),
+        ("aggregate_type", "TRADING_VENUE"),
+        ("aggregate_type", "CURRENCY"),
+        ("aggregate_type", "CURRENCY_CATALOG"),
+        ("actor_type", "PROVIDER"),
+        ("actor_id", None),
+        ("actor_id", "journal-evidence:00000000-0000-4000-8000-000000000999"),
+        ("actor_display_name", "Trading Workspace User"),
+        ("data_origin", "EXTERNAL"),
+        ("change_type", "UPDATED"),
+        ("version_before", 1),
+        ("version_after", 2),
+        ("issuer", None),
+        ("aggregate_id", UUID("00000000-0000-4000-8000-000000000999")),
+        ("audit_timestamp_matches", False),
+        ("warrant_ids", []),
+        ("warrant_ids", [UUID(RUN), UUID(RUN)]),
+        ("field_changes", {}),
+    ],
+)
+def test_global_audit_exception_rejects_other_owners_or_missing_references(field, value):
+    row = global_issuer_audit()
+    row[field] = value
+    with pytest.raises(RuntimeError):
+        DATABASE.verify_global_issuer_audits([row], RUN)
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("legal_name", "Unrelated issuer"),
+        ("legal_name", f"Journal CI {RUN} not-a-uuid"),
+        (
+            "legal_name",
+            "Journal CI 00000000-0000-4000-8000-000000000999 "
+            "00000000-0000-4000-8000-000000000789",
+        ),
+        ("display_name", "Real issuer"),
+        ("country_code", "DE"),
+        ("lei", "SOME_FOREIGN_REFERENCE"),
+        ("is_active", False),
+        ("version", 2),
+    ],
+)
+def test_global_issuer_audit_rejects_foreign_or_changed_entity(field, value):
+    row = global_issuer_audit()
+    row["issuer"][field] = value
+    with pytest.raises(RuntimeError):
+        DATABASE.verify_global_issuer_audits([row], RUN)
+
+
+def test_global_issuer_audit_rejects_duplicate_or_additional_creations():
+    row = global_issuer_audit()
+    with pytest.raises(RuntimeError, match="unique"):
+        DATABASE.verify_global_issuer_audits([row, copy.deepcopy(row)], RUN)
+    with pytest.raises(RuntimeError, match="number"):
+        DATABASE.verify_global_issuer_audits([row, row, row], RUN)
+
+
+def test_global_issuer_audit_rejects_incorrect_owner_snapshot():
+    row = global_issuer_audit()
+    row["field_changes"]["legal_name"]["old"] = "Former issuer"
+    with pytest.raises(RuntimeError, match="content"):
+        DATABASE.verify_global_issuer_audits([row], RUN)

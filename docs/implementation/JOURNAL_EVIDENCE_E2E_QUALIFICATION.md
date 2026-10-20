@@ -74,8 +74,16 @@ diesen äußeren Guard im Nutzerbetrieb zu umgehen.
   laufgebundenen Datenbanknamen und Benutzer `tw_journal_e2e`, identische konfigurierte
   Test-/App-Ziele, passenden DB-Kommentar, PostgreSQL 17 und genau Head `20261017_0047`.
   Die tatsächliche `workspaces`-Menge muss genau den vorhandenen synthetischen Workspace
-  `00000000-0000-4000-8000-000000000001` enthalten; sämtliche gefundenen `workspace_id`-
-  Spalten müssen ebenfalls zu ihm gehören. Der erste Laufbestand enthält
+  `00000000-0000-4000-8000-000000000001` enthalten; workspacegebundene Zeilen müssen
+  ebenfalls zu ihm gehören. Ausschließlich die höchstens zwei bewusst globalen
+  `ISSUER`-Erstellungs-Audits der beiden Fälle dürfen `workspace_id = NULL` haben.
+  Dafür prüft der Guard den laufgebundenen `journal-evidence:<run-id>`-Actor, den genauen
+  synthetischen Issuer-Namen, den tatsächlichen Issuer-Datensatz, unveränderte Version 1,
+  identische Erstellungs-/Auditzeit, den vollständigen `CREATED`-Feldsnapshot sowie genau
+  einen zugehörigen Warrant im eigenen Workspace. Audit-, Issuer- und Warrant-ID werden
+  im Beleg ausgegeben. Andere globale Aggregattypen, fehlende Referenzen, fremde Actors,
+  fremde Workspace-IDs und `NULL` bei workspacegebundenen Entitäten bleiben verboten.
+  Der erste Laufbestand enthält
   keine Trades, Executions, Journale, Evidence oder Lessons. Ein Container-Healthcheck
   allein ersetzt weder diesen Host-Verbindungsnachweis noch den Host-API-Readiness-Aufruf.
 
@@ -100,6 +108,10 @@ Der neue Job archiviert unter `frontend/test-results/journal-evidence-<run>/`:
 - synthetische Journal-/Evidence-/Lesson-Antworten mit exakten Quell-IDs und DB-Fingerprints;
 - Containerlog, Cleanup-Log, maschinenlesbares `cleanup.json`, Ergebniscode und `SHA256SUMS`.
 
+Nur dieser Upload schließt innerhalb seines eigenen Evidence-Verzeichnisses auch
+versteckte Dateien ein, damit etwa `playwright/.last-run.json` und das Hashmanifest
+dieselbe vollständige Dateimenge beschreiben.
+
 Fingerprints entstehen in kurzen `REPEATABLE READ READ ONLY`-Transaktionen. Verglichen
 werden ausschließlich die dedizierten lesenden Journal-/Evidence-/Lesson-API-Fenster am
 Ende der Fälle. Absichtliche Owner-Buchungen, Korrekturen und Preisfixtures liegen außerhalb
@@ -121,10 +133,12 @@ Neue Runner-/Verifier-/Guardtest-Pfade sind ausdrücklich im Main-Push-Filter en
 `tests/e2e/**` erfasst beide Fälle und ihre Helfer. Bestehender Smoke und Performance-Job
 behalten ihre Gates und Schreibgrenzen. Ein PR ist noch keine Workflow-Auslieferung auf Main.
 
-Lokal auf Python 3.12.14 wurden **57 gezielte Guard-/Reporttests** erfolgreich ausgeführt,
+Lokal auf Python 3.12.14 wurden zunächst **57 gezielte Guard-/Reporttests** erfolgreich ausgeführt,
 einschließlich negativer Laufidentitäts-, Port-, Netz-, Credential- und Ergebnisfälle.
-Diese Unitfälle simulieren Konfiguration und Reportdaten; die tatsächlichen SQL-Marker-,
-Schema- und Workspace-Prüfungen benötigen weiterhin den nativen Job.
+Nach dem ersten nativen Befund wurden **91 Guard-/Reporttests** erfolgreich ausgeführt,
+einschließlich der engen Issuer-Audit-Prüfung und ihrer negativen Owner-/Referenzfälle.
+Diese Unitfälle simulieren Konfiguration, Report- und Auditdaten; sie ersetzen nicht
+die tatsächlichen SQL-Marker-, Schema-, Workspace- und Joinprüfungen im nativen Job.
 Ruff 0.15.1, Black 26.1.0, Bash-Syntax und `git diff --check` wurden gezielt geprüft.
 Mit Node 22.16.0/npm 10.9.2 und unverändertem Lockfile wurden beide tatsächlichen
 Playwright-Testidentitäten erfolgreich entdeckt und durch den Verifier gepinnt;
@@ -133,9 +147,49 @@ Das ist ein Discovery-Nachweis, keine Browserausführung. Ein vorheriger lokaler
 scheiterte an einer unvollständigen Tool-Runtime vor Testbeginn; die reparierte, verifizierte
 Runtime wurde für den genannten erfolgreichen Discovery-Lauf verwendet.
 
-**Der native Gesamtabschluss dieses neuen Jobs ist noch nicht nachgewiesen.** Lokal fehlen
-Docker/PostgreSQL. Bis ein konkreter CI-Lauf beide Fälle ohne Skip/Flaky/Retry sowie
-erfolgreichen Cleanup belegt, bleibt Paket 3 in technischer Qualifikation. Die alten
+### Erster nativer PR-Lauf: konkreter Fehler und erfolgreicher Cleanup
+
+Draft-[PR #269](https://github.com/burckhju/trading-workspace/pull/269), Head
+`d92eae1386242863fb9442ec358e22aa21cdf032`, wurde im
+[E2E-Run 39424168865](https://github.com/burckhju/trading-workspace/actions/runs/39424168865),
+Job `118632372145`, tatsächlich ausgeführt. Der PR-Checkout
+`83c0f6adab40e50fac002e957b14786de2fa2852` hat Tree
+`626a6fe9bb3ec1ba6a2de611589a5100df806813`, identisch mit dem Tree des PR-Heads.
+Pins, Contracttests, eigener Stack, Migration, tatsächliche Netz-/Portidentitäten und
+initialer Host-DB-/API-Nachweis bestanden. PostgreSQL meldete `170011`, Schemahead
+`20261017_0047` und den erwarteten Workspace.
+
+Beide festgelegten Fälle wurden genau einmal gestartet; der Report enthält **0 bestanden,
+2 fehlgeschlagen, 0 übersprungen, 0 flaky**, keine globalen Reportfehler. FT-011 scheiterte
+im Vorguard des Preisfixtures mit `Unexpected workspace data in audit_events`, der
+Journalfall anschließend an demselben Zustand in seinem initialen Guard. Die Traces
+zeigen zuvor den erfolgreichen eigenen Issuer-POST (HTTP 201, Issuer
+`413a620d-29a1-4df4-ba76-b6bd00baa583`) und den zugehörigen Warrant
+`f3b3a34f-4528-4483-aa95-9e70b9231a54`. Der vorhandene Issuer-Owner schreibt dafür
+ausdrücklich globale Audits; der ursprüngliche zusätzliche Guard hatte diese irrtümlich
+abgewiesen. Die eng geprüfte, laufgebundene Ausnahme oben korrigiert den Testguard;
+der Produktowner und alle fachlichen Assertions bleiben unverändert. Im Erstlauf
+wurde noch kein Browserbild der fachlichen Strecke erreicht.
+
+Der heruntergeladene [Erstlauf-Artefakt 12264778985](https://github.com/burckhju/trading-workspace/actions/runs/39424168865/artifacts/12264778985)
+hat exakt den von GitHub ausgewiesenen ZIP-SHA256
+`42a3ae997ca15b247e73dc9eeb3788012469cd5cf2bcc8b9d0f5bfb4dc5c7706`.
+Alle 23 vorhandenen Manifestdateien stimmten intern überein; ausschließlich
+`playwright/.last-run.json` fehlte wegen des Upload-Defaults. Der auf diesen Job begrenzte
+Uploadfix oben beseitigt diese Kongruenzlücke für den Folgelauf. Das Erstlauf-Artefakt
+wird daher nicht als vollständig qualifizierter Beleg ausgegeben.
+
+Cleanup war erfolgreich: `removed: true`, verbleibende Container/Netze/Volumes jeweils
+`0`, `cleanup_status=0`; der Runner blieb wegen der Testfehler bei `exit_status=1`.
+Projekt `tw-journal-evidence-e2e-40358e35538e412383088b73521f6a70`, Laufmarkierung
+`40358e35-538e-4123-8308-8b73521f6a70`. Der Resultverifier lehnte den fehlgeschlagenen
+Report korrekt ab. Der grüne Artefaktupload wurde nicht als grüner Browserlauf gewertet.
+
+**Der native Gesamtabschluss dieses neuen Jobs ist weiterhin nicht nachgewiesen.**
+Der Folgelauf muss die korrigierten Guards und den vollständigen Upload tatsächlich
+ausführen. Lokal fehlen Docker/PostgreSQL. Bis ein konkreter CI-Lauf beide Fälle ohne
+Skip/Flaky/Retry sowie erfolgreichen Cleanup belegt, bleibt Paket 3 in technischer
+Qualifikation. Die alten
 Journal-/FT-011-Erfolge und die neuen Unit-Erfolge werden nicht als neue Gesamtzahl addiert.
 Auch vollständige aktuelle Backend-/Frontend-/Smoke-Gates sind getrennt nachzuweisen.
 

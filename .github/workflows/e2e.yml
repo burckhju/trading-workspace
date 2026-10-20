@@ -176,3 +176,4 @@ jobs:
           name: journal-evidence-owner-e2e
           path: frontend/test-results/journal-evidence-*/
           if-no-files-found: error
+          include-hidden-files: true

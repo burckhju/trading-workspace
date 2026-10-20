@@ -27,16 +27,28 @@ test("real PostgreSQL: captured full exit, review, journal, lesson and stale cor
   );
   const request = localLearningRequest(rawRequest);
   const api = `${baseURL}/api/api/v1`;
-  const post = async (path: string, data?: object) => {
-    const response = await request.post(api + path, { data });
+  const post = async (
+    path: string,
+    data?: object,
+    headers?: Record<string, string>,
+  ) => {
+    const response = await request.post(api + path, { data, headers });
     expect(response.ok(), await response.text()).toBeTruthy();
     return response.json();
   };
   const suffix = crypto.randomUUID();
-  const issuer = await post("/market-reference-data/issuers", {
-    legal_name: `Journal CI ${suffix}`,
-    display_name: "Synthetic journal CI",
-  });
+  const runId = process.env.JOURNAL_E2E_RUN_ID!;
+  const issuer = await post(
+    "/market-reference-data/issuers",
+    {
+      legal_name: `Journal CI ${runId} ${suffix}`,
+      display_name: "Synthetic journal CI",
+    },
+    {
+      "X-Actor-ID": `journal-evidence:${runId}`,
+      "X-Actor-Name": "Synthetic journal CI",
+    },
+  );
   const venue = (
     await (
       await request.get(api + "/market-reference-data/trading-venues")
