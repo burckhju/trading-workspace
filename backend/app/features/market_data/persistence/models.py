@@ -8,6 +8,7 @@ from typing import Any
 from uuid import UUID
 
 from sqlalchemy import (
+    JSON,
     CheckConstraint,
     Date,
     DateTime,
@@ -18,6 +19,7 @@ from sqlalchemy import (
     Numeric,
     String,
     UniqueConstraint,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -144,6 +146,9 @@ class WarrantProviderMappingModel(Base):
     status: Mapped[MappingStatus] = mapped_column(_enum(MappingStatus, length=20), nullable=False)
     validated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     validation_message: Mapped[str | None] = mapped_column(String(500))
+    identity_evidence: Mapped[dict[str, Any] | None] = mapped_column(
+        JSON(none_as_null=True), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     version: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -152,6 +157,128 @@ class WarrantProviderMappingModel(Base):
         "version_id_col": version,
         "version_id_generator": False,
     }
+
+
+class PositionQuoteSourceSelectionModel(Base):
+    """One auditable source decision for a position; health is derived separately."""
+
+    __tablename__ = "position_quote_source_selections"
+    __table_args__ = (
+        CheckConstraint(
+            "selection_status IN ('SELECTED','NO_VERIFIED_QUOTE_SOURCE','AMBIGUOUS_SOURCE')",
+            name="selection_status_valid",
+        ),
+        CheckConstraint(
+            "(selection_status = 'SELECTED' "
+            "AND warrant_listing_id IS NOT NULL "
+            "AND warrant_provider_mapping_id IS NOT NULL "
+            "AND provider IS NOT NULL "
+            "AND identity_key IS NOT NULL "
+            "AND mapping_version IS NOT NULL) "
+            "OR "
+            "(selection_status <> 'SELECTED' "
+            "AND warrant_listing_id IS NULL "
+            "AND warrant_provider_mapping_id IS NULL "
+            "AND provider IS NULL "
+            "AND identity_key IS NULL "
+            "AND mapping_version IS NULL)",
+            name="selected_route_consistent",
+        ),
+        CheckConstraint(
+            "(warrant_provider_mapping_id IS NULL AND mapping_version IS NULL) "
+            "OR "
+            "(warrant_provider_mapping_id IS NOT NULL AND mapping_version IS NOT NULL)",
+            name="mapping_version_consistent",
+        ),
+        CheckConstraint(
+            "superseded_at IS NULL OR superseded_at >= selected_at",
+            name="superseded_not_before_selected",
+        ),
+        Index(
+            "ix_position_quote_source_selections_workspace_position",
+            "workspace_id",
+            "position_id",
+        ),
+        Index(
+            "uq_position_quote_source_selections_active_position",
+            "workspace_id",
+            "position_id",
+            unique=True,
+            postgresql_where=text("superseded_at IS NULL"),
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    workspace_id: Mapped[UUID] = mapped_column(
+        ForeignKey("workspaces.id", ondelete="RESTRICT"), nullable=False
+    )
+    position_id: Mapped[UUID] = mapped_column(
+        ForeignKey("positions.id", ondelete="RESTRICT"), nullable=False
+    )
+    warrant_listing_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("warrant_listings.id", ondelete="RESTRICT"), nullable=True
+    )
+    warrant_provider_mapping_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("warrant_provider_mappings.id", ondelete="RESTRICT"), nullable=True
+    )
+    provider: Mapped[str | None] = mapped_column(String(30))
+    identity_key: Mapped[str | None] = mapped_column(String(64))
+    mapping_version: Mapped[int | None] = mapped_column(Integer)
+    selection_status: Mapped[str] = mapped_column(String(32), nullable=False)
+    selection_reason: Mapped[str] = mapped_column(String(100), nullable=False)
+    policy_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    evidence: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    selected_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    superseded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class WarrantQuoteObservationModel(Base):
+    """Last validated observation per workspace, listing and provider; no expiry."""
+
+    __tablename__ = "warrant_quote_observations"
+
+    workspace_id: Mapped[UUID] = mapped_column(
+        ForeignKey("workspaces.id", ondelete="RESTRICT"), primary_key=True
+    )
+    warrant_listing_id: Mapped[UUID] = mapped_column(
+        ForeignKey("warrant_listings.id", ondelete="CASCADE"), primary_key=True
+    )
+    provider: Mapped[str] = mapped_column(String(30), primary_key=True)
+    identity_key: Mapped[str] = mapped_column(String(64), nullable=False)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+
+
+class WarrantQuoteSampleModel(Base):
+    """First completed capture per UTC five-minute slot and verified source identity."""
+
+    __tablename__ = "warrant_quote_samples"
+    __table_args__ = (
+        UniqueConstraint(
+            "workspace_id",
+            "warrant_listing_id",
+            "provider",
+            "identity_key",
+            "slot_at",
+            name="uq_warrant_quote_sample_slot",
+        ),
+        Index("ix_warrant_quote_sample_product_time", "workspace_id", "warrant_id", "captured_at"),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    workspace_id: Mapped[UUID] = mapped_column(ForeignKey("workspaces.id", ondelete="RESTRICT"))
+    warrant_id: Mapped[UUID] = mapped_column(ForeignKey("warrants.id", ondelete="RESTRICT"))
+    warrant_listing_id: Mapped[UUID] = mapped_column(
+        ForeignKey("warrant_listings.id", ondelete="RESTRICT")
+    )
+    provider: Mapped[str] = mapped_column(String(30))
+    identity_key: Mapped[str] = mapped_column(String(64))
+    isin: Mapped[str] = mapped_column(String(12))
+    slot_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    day_utc: Mapped[date] = mapped_column(Date)
+    captured_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    status: Mapped[str] = mapped_column(String(40))
+    reason: Mapped[str | None] = mapped_column(String(140))
+    quote_fingerprint: Mapped[str | None] = mapped_column(String(64))
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON)
 
 
 class DailyPriceModel(Base):

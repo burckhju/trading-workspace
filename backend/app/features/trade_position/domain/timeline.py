@@ -8,12 +8,17 @@ from decimal import Decimal
 from enum import StrEnum
 from uuid import UUID
 
+from app.features.trade_position.domain.currency import (
+    ExecutionCurrencyConfirmation,
+    ExecutionCurrencyResolution,
+)
 from app.features.trade_position.domain.enums import ExecutionSide, TradeManagementEventType
 from app.features.trade_position.domain.models import (
     ExecutionRecord,
     Position,
     TradeManagementEvent,
 )
+from app.features.trade_position.domain.price_binding import PriceBinding
 
 
 class TradeTimelineEntryKind(StrEnum):
@@ -36,8 +41,11 @@ class TradeTimelineEntry:
     numeric_value: Decimal | None = None
     text_value: str | None = None
     supersedes_id: UUID | None = None
+    price_binding: PriceBinding | None = None
     executed_on: date | None = None
     execution_timezone: str | None = None
+    currency_confirmation: ExecutionCurrencyConfirmation | None = None
+    currency_resolution: ExecutionCurrencyResolution | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -71,6 +79,8 @@ def compose_trade_timeline(
                 supersedes_id=execution.supersedes_execution_id,
                 executed_on=execution.executed_on,
                 execution_timezone=execution.execution_timezone,
+                currency_confirmation=execution.currency_confirmation,
+                currency_resolution=execution.currency_resolution,
             )
         )
 
@@ -86,6 +96,7 @@ def compose_trade_timeline(
                 kind=TradeTimelineEntryKind.MANAGEMENT_EVENT,
                 management_event_type=event.event_type,
                 numeric_value=event.numeric_value,
+                price_binding=event.price_binding,
                 text_value=event.text_value,
                 supersedes_id=event.supersedes_event_id,
             )

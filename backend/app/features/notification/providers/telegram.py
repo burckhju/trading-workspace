@@ -70,18 +70,37 @@ class TelegramDeliveryAdapter:
                     error_message="Telegram rejected delivery request",
                 )
             payload = response.json()
-            message_id = payload.get("result", {}).get("message_id")
+            message = payload.get("result") if isinstance(payload, dict) else None
+            message_id = message.get("message_id") if isinstance(message, dict) else None
+            if (
+                not isinstance(payload, dict)
+                or payload.get("ok") is not True
+                or (type(message_id) is not int or message_id <= 0)
+            ):
+                return DeliveryResult(
+                    status=DeliveryStatus.FAILED,
+                    retryable=False,
+                    error_code="TELEGRAM_RESPONSE_UNCONFIRMED",
+                    error_message="Telegram did not confirm a sent message",
+                )
             return DeliveryResult(
                 status=DeliveryStatus.DELIVERED,
                 retryable=False,
                 provider_message_id=str(message_id) if message_id is not None else None,
             )
-        except (httpx.TimeoutException, httpx.NetworkError):
+        except httpx.HTTPError:
             return DeliveryResult(
                 status=DeliveryStatus.FAILED,
                 retryable=True,
                 error_code="TELEGRAM_TRANSPORT_ERROR",
                 error_message="Telegram transport failed",
+            )
+        except ValueError:
+            return DeliveryResult(
+                status=DeliveryStatus.FAILED,
+                retryable=False,
+                error_code="TELEGRAM_RESPONSE_INVALID",
+                error_message="Telegram returned an invalid response",
             )
         finally:
             if owns_client:

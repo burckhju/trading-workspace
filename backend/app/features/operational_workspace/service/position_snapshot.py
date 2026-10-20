@@ -64,6 +64,7 @@ class PositionOperationalSnapshot:
     product_isin: str | None = None
     product_wkn: str | None = None
     underlying_name: str | None = None
+    underlying_id: UUID | None = None
     opened_on: date | None = None
     analysis_warning: str | None = None
     quote_source: str | None = None
@@ -146,6 +147,7 @@ class OperationalPositionSnapshotService:
                     product_isin=warrant.isin,
                     product_wkn=warrant.wkn,
                     underlying_name=underlying_name,
+                    underlying_id=warrant.underlying_id,
                     opened_at=position.opened_at,
                     opened_on=position.opened_on,
                     open_quantity=position.open_quantity,

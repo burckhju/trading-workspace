@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -54,6 +55,14 @@ class CreateSectorReferenceRequest(RequestDto):
 
 class ActiveStateRequest(RequestDto):
     active: bool
+
+
+class ConfirmSeriesBasisRequest(RequestDto):
+    mapping_id: UUID
+    mapping_version: int = Field(ge=1)
+    return_basis: Literal["PRICE_INDEX", "TOTAL_RETURN_INDEX"]
+    source_url: str = Field(min_length=10, max_length=500)
+    confirmed: Literal[True]
 
 
 class AssignmentRequest(RequestDto):

@@ -26,6 +26,20 @@ const sections: Array<{ priority: OperationalPriority; title: string; descriptio
   },
 ];
 
+const productActionTypes = new Set([
+  'POSITION_ALERT',
+  'POSITION_DATA_HEALTH',
+  'NOTIFICATION_DELIVERY_FAILURE',
+  'INITIAL_PURCHASE',
+  'OPEN_POSITION_MANAGEMENT',
+  'POST_TRADE_OBSERVATION',
+  'EXIT_REVIEW',
+]);
+
+function productText(value: string | null | undefined, missing = '—'): string {
+  return value?.replace(/\s+/g, ' ').trim() || missing;
+}
+
 function ActionCard({ action }: { action: OperationalAction }) {
   return (
     <li className="rounded-xl border border-slate-800 bg-slate-900/60 p-5">
@@ -38,6 +52,16 @@ function ActionCard({ action }: { action: OperationalAction }) {
           {action.state === 'BLOCKED' ? 'Blockiert' : 'Handlungsbereit'}
         </span>
       </div>
+      {(action.product_id || productActionTypes.has(action.action_type)) && (
+        <div className="mt-3 min-w-0 break-words text-sm">
+          <p className="font-semibold text-slate-100">
+            Optionsschein: {productText(action.product_name, 'Name nicht verfügbar')}
+          </p>
+          <p className="mt-1 text-slate-400">
+            WKN: {productText(action.product_wkn)} · ISIN: {productText(action.product_isin)}
+          </p>
+        </div>
+      )}
       <p className="mt-3 text-sm leading-6 text-slate-300">{action.detail}</p>
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-slate-400">Nächster Schritt: {action.next_action}</p>

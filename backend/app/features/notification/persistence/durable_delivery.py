@@ -37,6 +37,7 @@ class SqlAlchemyDurableNotificationDeliveryStore:
                 .join(TradeModel, TradeModel.id == AlertModel.trade_id)
                 .where(
                     NotificationModel.status == NotificationStatus.PENDING.value,
+                    AlertModel.status != "INVALIDATED",
                     TradeModel.cancelled_at.is_(None),
                 )
                 .order_by(NotificationModel.created_at, NotificationModel.id)
@@ -70,6 +71,21 @@ class SqlAlchemyDurableNotificationDeliveryStore:
             if model is None:
                 raise LookupError("notification not found")
             notification = self._notification(model)
+            alert_status = await session.scalar(
+                select(AlertModel.status).where(AlertModel.id == model.alert_id).with_for_update()
+            )
+            if alert_status == "INVALIDATED":
+                model.status = NotificationStatus.FAILED.value
+                await session.commit()
+                return DeliveryPreparation(
+                    notification=self._notification(model),
+                    terminal_result=DeliveryResult(
+                        status=DeliveryStatus.FAILED,
+                        retryable=False,
+                        error_code="ALERT_INVALIDATED",
+                        error_message="Rule price basis was unconfirmed; delivery suppressed",
+                    ),
+                )
             if cancelled_at is not None:
                 return DeliveryPreparation(
                     notification=notification,

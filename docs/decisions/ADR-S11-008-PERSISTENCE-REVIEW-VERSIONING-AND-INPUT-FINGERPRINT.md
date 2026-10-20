@@ -429,3 +429,23 @@ Vor FT-012-Handoff wird die Aktualität des finalisierten Reviews revalidiert.
 
 ### INV-S11-070
 FT-011 persistiert keine zweite vollständige DailyPrice-Zeitreihe.
+
+
+## Nachtrag 2026-10-14 — Abschluss bei später Nachbeobachtung
+
+Die reale Journal-Qualifikation auf `fadef8c1` reproduzierte den Fehler
+`completed_at must not precede started_at`: Start erst im Oktober, bereits
+vorhandene 20 geeignete EOD-Beobachtungen aus August/September. Der bisherige
+Service leitete den technischen Abschlusszeitpunkt als UTC-Mitternacht nach
+dem letzten Handelstag ab. Das ist weder der tatsächliche Zustandswechsel
+noch ein Nachweis damaliger Datenkenntnis.
+
+Für neue ACTIVE -> COMPLETED-Übergänge ist `completed_at` daher die Uhrzeit
+des erfolgreichen Refresh-Vorgangs (vorhandene injizierte Service-Uhr), nicht
+ein aus Kalendertagen abgeleiteter Zeitpunkt. Der fachliche Horizont bleibt
+bei den ersten 20 geeigneten abgeschlossenen EOD-Beobachtungen nach dem Exit;
+deren Handelstage bleiben im Evidence-Readmodel. Fehlende Punkte werden nicht
+aufgefüllt. Wiederholter Refresh ändert einen gespeicherten Abschluss nicht.
+Bestehende Abschlusszeitstempel bleiben unverändert und sind ohne Kenntnis
+ihres Erfassungswegs kein verlässlicher Nachweis des damaligen Wissensstands.
+Keine Backfill-Migration, keine Änderung der Handels-/Sessionsemantik.

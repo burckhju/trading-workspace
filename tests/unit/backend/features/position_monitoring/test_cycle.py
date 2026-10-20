@@ -1,6 +1,6 @@
 from datetime import UTC, date, datetime
 from decimal import Decimal
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 
@@ -20,6 +20,9 @@ from app.features.position_monitoring.service.subjects import (
     MonitoringSubject,
     MonitoringSubjectResolution,
 )
+from app.features.trade_position.domain.price_binding import PriceBasis, PriceBinding
+
+BINDING = PriceBinding(PriceBasis.UNDERLYING, UUID("00000000-0000-4000-8000-000000000099"), "EUR")
 
 
 class Subjects:
@@ -65,16 +68,22 @@ def subject() -> MonitoringSubject:
         workspace_id=uuid4(),
         position_id=uuid4(),
         trade_id=uuid4(),
-        listing_id=uuid4(),
+        listing_id=BINDING.instrument_id,
         mapping_id=uuid4(),
         symbol="SAP",
-        rules=(MonitoringRule("stop", MonitoringRuleType.STOP_REACHED, Decimal("100")),),
+        underlying_id=BINDING.instrument_id,
+        listing_currency="EUR",
+        rules=(
+            MonitoringRule(
+                "stop", MonitoringRuleType.STOP_REACHED, Decimal("100"), price_binding=BINDING
+            ),
+        ),
     )
 
 
 def price(*, trading_date: date) -> DailyPrice:
     return DailyPrice(
-        listing_id=uuid4(),
+        listing_id=BINDING.instrument_id,
         trading_date=trading_date,
         open=Decimal("105"),
         high=Decimal("110"),

@@ -1,6 +1,18 @@
 # Linux quick start
 
+Already installed in `~/Boerse/trading-workspace-app` with a saved
+`trading-workspace-state/current-state`? Use the
+[simple Linux launcher](docs/technical/LINUX_LAUNCHER.md): install once, then select
+**Trading Workspace** in the application menu or run `trading-workspace`.
+It keeps the existing issuer/private Compose configuration and separates daily
+start/stop from a release update. The generic build commands below apply to an
+unmanaged Compose installation.
+
 See `docs/technical/LINUX_DEPLOYMENT.md` for the supported ZIP download, Docker Compose configuration, migration, monitoring/Telegram setup, verification and smoke-test procedure.
+
+For version 1.5.0 on an existing migrated issuer-monitoring stack, use the
+[qualified update and read-only inventory](docs/technical/LINUX_DEPLOYMENT.md#market-charts-and-position-risk-150).
+Retain the actual private state and complete Compose chain.
 
 For deployment-near qualification of the already implemented open-position operating loop, use `docs/technical/DAILY_POSITION_LOOP_VALIDATION.md` and `bash scripts/validate-daily-position-loop.sh`.
 
@@ -67,3 +79,8 @@ to the ordinary Compose file. The helper prints matching status/log commands.
 Aktive Basiswerte und Optionsscheine können automatisch geprüft und in getrennten
 Intervallen aktualisiert werden. Einrichtung, Provider-Grenzen und Diagnose:
 [Automatischer Kursabruf](docs/automatic-market-data.md).
+
+Für bestehendes Emittentenmonitoring ab 1.4.1: `bash scripts/start-linux.sh --issuer-monitoring`.
+Vorab prüft derselbe Aufruf mit `--check` die Konfiguration ohne Deployment.
+Weitere bestehende Overlays mit `--overlay DATEI` erhalten; die vollständige Anleitung
+steht in [Linux Deployment](docs/technical/LINUX_DEPLOYMENT.md#issuer-monitoring-and-existing-overlay-chains-141).

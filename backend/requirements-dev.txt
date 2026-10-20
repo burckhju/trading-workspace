@@ -6,3 +6,6 @@ pytest==9.0.2
 pytest-cov==7.0.0
 ruff==0.15.1
 pytest-asyncio==1.4.0
+
+# SDK only for renderer contract tests and strict type checking.
+playwright==1.63.0

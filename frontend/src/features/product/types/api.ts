@@ -39,7 +39,7 @@ export interface WarrantListingResponse {
   workspace_id: Uuid;
   warrant_id: Uuid;
   trading_venue_id: Uuid;
-  symbol: string;
+  symbol: string | null;
   quotation_currency_code: string;
   lifecycle_status: WarrantLifecycle;
   version: number;
@@ -48,6 +48,7 @@ export interface WarrantListingResponse {
 }
 
 export interface CreateWarrantRequest {
+  initial_listing?: AddWarrantListingRequest | null;
   issuer_id: Uuid;
   underlying_id: Uuid;
   display_name: string;
@@ -71,6 +72,6 @@ export interface AddWarrantTermsRequest {
 
 export interface AddWarrantListingRequest {
   trading_venue_id: Uuid;
-  symbol: string;
+  symbol?: string | null;
   quotation_currency_code: string;
 }

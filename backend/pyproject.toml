@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "trading-workspace-backend"
-version = "0.1.0"
+version = "1.5.11"
 description = "Backend application for the Trading Workspace"
 requires-python = ">=3.12"
 dependencies = [
@@ -22,6 +22,7 @@ dependencies = [
 [project.scripts]
 monitor-positions-once = "app.features.position_monitoring.cli:main"
 seed-xstu-open-position = "app.tools.seed_xstu_open_position:main"
+configure-gettex-warrant = "app.tools.configure_gettex_warrant:main"
 
 [project.optional-dependencies]
 dev = [
@@ -30,6 +31,7 @@ dev = [
   "pytest==9.0.2",
   "pytest-cov==7.0.0",
   "ruff==0.15.1",
+  "playwright==1.63.0",
 ]
 
 [tool.hatch.build.targets.wheel]

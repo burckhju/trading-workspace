@@ -16,6 +16,7 @@ from app.core.middleware import RequestContextMiddleware
 from app.database import DatabaseManager
 from app.features.alert.api import router as alert_router
 from app.features.analysis.api import router as analysis_router
+from app.features.analysis.api.charts import router as charts_router
 from app.features.candidate.api import router as candidate_router
 from app.features.learning.api import router as learning_router
 from app.features.market.api import reference_data_router, underlying_router
@@ -28,8 +29,13 @@ from app.features.market_data.service.refresh import MarketDataRefreshRuntime
 from app.features.market_data.service.refresh_runner import run_refresh_forever
 from app.features.model.api import router as model_governance_router
 from app.features.operational_workspace.api import router as operational_workspace_router
+from app.features.performance.api.router import router as performance_router
 from app.features.position_monitoring.api import router as position_monitoring_router
 from app.features.position_monitoring.bootstrap import build_position_monitoring_runtime
+from app.features.position_monitoring.service.product_valuation import (
+    ProductPositionValuationService,
+)
+from app.features.position_monitoring.service.quote_runtime import build_warrant_quote_resolver
 from app.features.position_monitoring.service.runner import PositionMonitoringRunner
 from app.features.post_trade.api import router as post_trade_router
 from app.features.product.api import router as product_router
@@ -69,12 +75,17 @@ def create_application(settings: Settings | None = None) -> FastAPI:
                 runtime = build_position_monitoring_runtime(
                     settings=resolved_settings,
                     database=container.database,
-                    market_data=container.require_eodhd_adapter(),
+                    market_data=container.eodhd.adapter if container.eodhd else None,
+                    products=ProductPositionValuationService(
+                        database=container.database,
+                        quote_resolver=build_warrant_quote_resolver(container),
+                    ),
                 )
                 runner = PositionMonitoringRunner(
                     runtime=runtime,
                     interval_seconds=resolved_settings.position_monitoring.interval_seconds,
                 )
+                application.state.position_monitoring_runner = runner
                 monitoring_task = asyncio.create_task(
                     runner.run_forever(),
                     name="position-monitoring",
@@ -110,6 +121,7 @@ def create_application(settings: Settings | None = None) -> FastAPI:
     )
     application.state.container = container
     application.state.market_data_refresh = refresh_runtime
+    application.state.position_monitoring_runner = None
     application.add_middleware(RequestContextMiddleware)
     register_exception_handlers(application)
     application.include_router(underlying_router)
@@ -120,6 +132,7 @@ def create_application(settings: Settings | None = None) -> FastAPI:
     application.include_router(product_router)
     application.include_router(product_selection_router)
     application.include_router(analysis_router)
+    application.include_router(charts_router)
     application.include_router(candidate_router)
     application.include_router(trade_plan_router)
     application.include_router(trade_position_router)
@@ -127,6 +140,7 @@ def create_application(settings: Settings | None = None) -> FastAPI:
     application.include_router(alert_router)
     application.include_router(post_trade_router)
     application.include_router(operational_workspace_router)
+    application.include_router(performance_router)
     application.include_router(learning_router)
     application.include_router(model_governance_router)
     application.include_router(user_preferences_router)

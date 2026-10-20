@@ -15,6 +15,7 @@ from app.providers.vontobel_markets.adapter import (
     VontobelIdentity,
     VontobelMarketsWarrantQuoteAdapter,
 )
+from app.providers.vontobel_markets.issuer import supports_issuer_probe
 
 
 async def configure_warrant(
@@ -33,7 +34,7 @@ async def configure_warrant(
     if warrant is None or warrant.lifecycle_status != WarrantLifecycle.ACTIVE or not warrant.isin:
         raise ValueError("ACTIVE_WARRANT_ISIN_REQUIRED")
     issuer = await session.get(IssuerModel, warrant.issuer_id)
-    if issuer is None or not issuer.is_active or "vontobel" not in issuer.legal_name.lower():
+    if issuer is None or not issuer.is_active or not supports_issuer_probe(issuer.legal_name):
         raise ValueError("ISSUER_NOT_SUPPORTED_BY_VONTOBEL")
     listings = list(
         await session.scalars(

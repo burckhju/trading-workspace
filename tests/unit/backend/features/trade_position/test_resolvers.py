@@ -27,6 +27,7 @@ async def test_workspace_selection_resolver_returns_exact_historical_context() -
     selection_id = uuid4()
     evaluation_id = uuid4()
     warrant_id = uuid4()
+    warrant_listing_id = uuid4()
     trade_plan_id = uuid4()
     trade_plan_version_id = uuid4()
 
@@ -45,12 +46,20 @@ async def test_workspace_selection_resolver_returns_exact_historical_context() -
         id=evaluation_id,
         run_id=run_id,
         warrant_id=warrant_id,
+        warrant_listing_id=warrant_listing_id,
+    )
+    listing = SimpleNamespace(
+        id=warrant_listing_id,
+        workspace_id=workspace_id,
+        warrant_id=warrant_id,
+        quotation_currency_code="EUR",
     )
 
     session.scalar.side_effect = [
         selection,
         run,
         evaluation,
+        listing,
     ]
 
     result = await resolver.resolve(
@@ -64,6 +73,8 @@ async def test_workspace_selection_resolver_returns_exact_historical_context() -
     assert result.trade_plan_version_id == trade_plan_version_id
     assert result.product_selection_id == selection_id
     assert result.product_evaluation_id == evaluation_id
+    assert result.warrant_listing_id == warrant_listing_id
+    assert result.quotation_currency_code == "EUR"
 
 
 @pytest.mark.asyncio
@@ -126,6 +137,7 @@ async def test_product_resolver_returns_existing_warrant_identity() -> None:
     service.get.return_value = SimpleNamespace(
         id=warrant_id,
         workspace_id=workspace_id,
+        underlying_id=uuid4(),
     )
 
     result = await resolver.resolve(

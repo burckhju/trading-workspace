@@ -1,5 +1,6 @@
 import { useState } from 'react';
 
+import type { SelectionRepairContext } from '../services/selectionRepairContext';
 import { warrantApiClient } from '../services/client';
 import type { WarrantResponse } from '../types/api';
 import { WarrantAdminPage as WarrantAdminCorePage } from './WarrantAdminPage';
@@ -8,7 +9,9 @@ const LOAD_ERROR = 'Optionsscheine konnten nicht geladen werden.';
 const DELETE_ERROR =
   'Optionsschein konnte nicht gelöscht werden. Historische Verwendungen bleiben geschützt.';
 
-export function WarrantAdminPageWithDelete() {
+export function WarrantAdminPageWithDelete({
+  selectionContext,
+}: { selectionContext?: SelectionRepairContext } = {}) {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [warrants, setWarrants] = useState<WarrantResponse[]>([]);
   const [selectedId, setSelectedId] = useState('');
@@ -59,6 +62,8 @@ export function WarrantAdminPageWithDelete() {
       setBusy(false);
     }
   }
+
+  if (selectionContext) return <WarrantAdminCorePage selectionContext={selectionContext} />;
 
   return (
     <div className="space-y-8">

@@ -459,6 +459,11 @@ async def execute_external_observation_as_trade(
             executed_at=request.executed_at,
             actor_id=_actor(actor_id),
             idempotency_key=idempotency_key,
+            currency_confirmation=(
+                request.currency_confirmation.to_domain()
+                if request.currency_confirmation is not None
+                else None
+            ),
         )
     except Exception as error:
         raise translate_execute_as_trade_error(error) from error
@@ -776,7 +781,7 @@ async def create_lesson_version(
     actor_id: Annotated[UUID | None, Header(alias="X-Actor-ID")] = None,
 ) -> LessonVersionCreateResponse:
     try:
-        result = await service.create_new_version(
+        result = await service.create_new_version_command(
             workspace_id=WORKSPACE_ID,
             lesson_id=lesson_id,
             main_category=request.main_category,
@@ -829,7 +834,7 @@ async def transition_lesson_state(
     actor_id: Annotated[UUID | None, Header(alias="X-Actor-ID")] = None,
 ) -> LessonStateTransitionResponse:
     try:
-        result = await service.transition_state(
+        result = await service.transition_state_command(
             workspace_id=WORKSPACE_ID,
             lesson_id=lesson_id,
             expected_state=request.expected_state,
@@ -959,7 +964,7 @@ async def open_lesson_review_signal(
     actor_id: Annotated[UUID | None, Header(alias="X-Actor-ID")] = None,
 ) -> LessonReviewSignalContractResponse:
     try:
-        result = await service.open_signal(
+        result = await service.open_signal_command(
             workspace_id=WORKSPACE_ID,
             lesson_id=lesson_id,
             contradiction_link_ids=tuple(request.contradiction_link_ids),
@@ -988,7 +993,7 @@ async def resolve_lesson_review_unchanged(
     actor_id: Annotated[UUID | None, Header(alias="X-Actor-ID")] = None,
 ) -> LessonReviewSignalResponse:
     try:
-        signal = await service.resolve_unchanged(
+        signal = await service.resolve_unchanged_command(
             workspace_id=WORKSPACE_ID,
             lesson_id=lesson_id,
             signal_id=signal_id,
@@ -1016,7 +1021,7 @@ async def resolve_lesson_review_new_version(
     actor_id: Annotated[UUID | None, Header(alias="X-Actor-ID")] = None,
 ) -> LessonReviewNewVersionResponse:
     try:
-        result = await service.resolve_with_new_version(
+        result = await service.resolve_with_new_version_command(
             workspace_id=WORKSPACE_ID,
             lesson_id=lesson_id,
             signal_id=signal_id,
@@ -1069,7 +1074,7 @@ async def resolve_lesson_review_retired(
     actor_id: Annotated[UUID | None, Header(alias="X-Actor-ID")] = None,
 ) -> LessonReviewSignalResponse:
     try:
-        signal = await service.resolve_retired(
+        signal = await service.resolve_retired_command(
             workspace_id=WORKSPACE_ID,
             lesson_id=lesson_id,
             signal_id=signal_id,
@@ -1262,7 +1267,7 @@ async def create_lesson(
     actor = _actor(actor_id)
 
     try:
-        result = await service.create(
+        command = await service.create_with_tags(
             workspace_id=WORKSPACE_ID,
             title=request.title,
             main_category=request.main_category,
@@ -1274,15 +1279,10 @@ async def create_lesson(
                 )
                 for item in request.evidence_links
             ),
-            actor_id=actor,
-        )
-
-        tags = await service.replace_tags(
-            workspace_id=WORKSPACE_ID,
-            lesson_id=result.lesson.id,
             tags=tuple(request.tags),
             actor_id=actor,
         )
+        result, tags = command.created, command.tags
     except Exception as error:
         raise translate_lesson_error(error) from error
 

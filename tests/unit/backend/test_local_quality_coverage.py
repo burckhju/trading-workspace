@@ -92,6 +92,9 @@ async def test_alert_repository_maps_add_get_resolve_and_missing() -> None:
         detected_at=alert.detected_at,
         status=AlertStatus.OPEN.value,
         resolved_at=None,
+        price_context=None,
+        invalidated_at=None,
+        invalidation_reason=None,
     )
 
     session = MagicMock()
@@ -129,9 +132,11 @@ async def test_monitoring_rule_state_repository_covers_insert_update_and_read() 
         active_alert_id=active_alert_id,
     )
     existing = SimpleNamespace(
+        time_basis="SOURCE_TIMESTAMP",
         position_id=position_id,
         rule_key="target",
         triggered=False,
+        price_binding_key=None,
         first_seen_at=None,
         last_seen_at=now,
         last_observed_value=Decimal("11.0"),
@@ -155,6 +160,7 @@ async def test_monitoring_rule_state_repository_covers_insert_update_and_read() 
         position_id=position_id,
         rule_key="target",
         triggered=False,
+        price_binding_key=None,
         first_seen_at=None,
         last_seen_at=now,
         last_observed_value=Decimal("11.0"),

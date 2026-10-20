@@ -31,6 +31,7 @@ def runtime(**settings):
     config = Settings(environment="test", market_data={"refresh": {"enabled": True, **settings}})
     result = MarketDataRefreshRuntime(ApplicationContainer.build(config), timer=lambda: 1000)
     result._pace = AsyncMock()
+    result._pace_underlying = AsyncMock()
     return result
 
 
@@ -43,7 +44,7 @@ async def session_context(session):
 async def test_catalog_schedule_rechecks_new_instruments_and_keeps_independent_intervals(
     monkeypatch,
 ):
-    value = runtime()
+    value = runtime(auto_configure=True)
     first = RefreshInstrument(uuid4(), "One", "DE000VH2LU21")
     second = RefreshInstrument(uuid4(), "Two", "DE000VV00123")
     stock = RefreshInstrument(uuid4(), "Stock", "US91324P1021", listing_id=uuid4())
@@ -175,6 +176,7 @@ async def test_frankfurt_cache_preserves_retrieval_time_and_global_budget():
 
 @pytest.mark.asyncio
 async def test_no_secret_or_provider_enabling_from_scheduler_settings():
+    assert MarketDataRefreshSettings().auto_configure is False
     with pytest.raises(ValidationError):
         MarketDataRefreshSettings(warrants_interval_seconds=0)
     value = runtime()
@@ -275,7 +277,8 @@ async def test_background_scheduler_releases_leader_lock_on_shutdown():
 
     called = asyncio.Event()
 
-    async def run():
+    async def run(*, wait_for_completion):
+        assert wait_for_completion is False
         called.set()
 
     connection = SimpleNamespace(
@@ -290,6 +293,7 @@ async def test_background_scheduler_releases_leader_lock_on_shutdown():
             )
         ),
         run_once=run,
+        stop=AsyncMock(),
         wake=asyncio.Event(),
         last_error=None,
     )
@@ -370,6 +374,7 @@ async def test_open_positions_are_first_and_entire_queue_is_visible_before_netwo
 
     async def daily(item):
         order.append(item.name)
+        await release.wait()
         return {"status": "BLOCKED", "reason": "EODHD_DISABLED"}
 
     value._warrant = quote

@@ -7,6 +7,7 @@ from decimal import Decimal
 from uuid import UUID
 
 from sqlalchemy import (
+    JSON,
     CheckConstraint,
     Date,
     DateTime,
@@ -27,6 +28,7 @@ from app.database.base import Base
 class TradeModel(Base):
     __tablename__ = "trades"
     __table_args__ = (
+        UniqueConstraint("workspace_id", "id", name="uq_trades_workspace_id_id"),
         CheckConstraint(
             "(cancelled_at IS NULL AND cancelled_by IS NULL AND cancellation_reason "
             "IS NULL AND duplicate_of_trade_id IS NULL) OR "
@@ -122,6 +124,7 @@ class TradeModel(Base):
 class ExecutionRecordModel(Base):
     __tablename__ = "execution_records"
     __table_args__ = (
+        UniqueConstraint("trade_id", "id", name="uq_execution_records_trade_id_id"),
         UniqueConstraint("request_key", name="uq_execution_records_request_key"),
         CheckConstraint(
             "(executed_on IS NULL) = (execution_timezone IS NULL)",
@@ -331,6 +334,9 @@ class TradeManagementEventModel(Base):
     effective_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     recorded_by: Mapped[UUID] = mapped_column(Uuid(), nullable=False)
+    price_binding: Mapped[dict[str, str] | None] = mapped_column(
+        JSON(none_as_null=True), nullable=True
+    )
     numeric_value: Mapped[Decimal | None] = mapped_column(Numeric(24, 10), nullable=True)
     text_value: Mapped[str | None] = mapped_column(String(4000), nullable=True)
     supersedes_event_id: Mapped[UUID | None] = mapped_column(Uuid(), nullable=True)

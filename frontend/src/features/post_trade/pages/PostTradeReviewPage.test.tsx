@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -412,9 +412,160 @@ describe('PostTradeReviewPage', () => {
     await waitFor(() => expect(materializationApi.materialize).toHaveBeenCalledTimes(1));
     expect(materializationApi.materialize).toHaveBeenCalledWith(
       'trade-1',
-      expect.stringMatching(/^post-trade-trade-1-/),
+      'ft011-to-ft012:v2:trade-1:version-1',
+      'version-1',
     );
     expect(await screen.findByText('MATERIALIZED')).toBeInTheDocument();
     expect(screen.getByText('learning-evidence-1')).toBeInTheDocument();
+  });
+
+  it('notifies the Learning consumer after finalization without materializing evidence', async () => {
+    const onLearningStateChanged = vi.fn();
+    api.observation.mockResolvedValue({
+      ...observation,
+      status: 'COMPLETED',
+      available_observation_count: 20,
+      missing_observation_count: 0,
+      is_complete: true,
+    });
+    api.review.mockResolvedValue(draft);
+    render(
+      <MemoryRouter initialEntries={['/post-trade?trade_id=trade-1']}>
+        <PostTradeReviewPage onLearningStateChanged={onLearningStateChanged} />
+      </MemoryRouter>,
+    );
+    const button = await screen.findByRole('button', { name: 'Review finalisieren' });
+    await waitFor(() => expect(button).toBeEnabled());
+    fireEvent.click(button);
+    await waitFor(() => expect(onLearningStateChanged).toHaveBeenCalledTimes(1));
+    expect(api.finalizeReview).toHaveBeenCalledWith('trade-1');
+    expect(materializationApi.materialize).not.toHaveBeenCalled();
+  });
+
+  it('checks a finalized review explicitly and creates a successor only on a separate action', async () => {
+    api.observation.mockResolvedValue({
+      ...observation,
+      status: 'COMPLETED',
+      available_observation_count: 20,
+      missing_observation_count: 0,
+      is_complete: true,
+    });
+    const final: ExitReviewResponse = {
+      ...draft,
+      status: 'FINALIZED',
+      finalized_at: '2026-09-15T12:00:00Z',
+      finalized_by: 'actor-1',
+    };
+    api.review.mockResolvedValue(final);
+    renderPage();
+    const check = await screen.findByRole('button', { name: 'Review-Quellenstand prüfen' });
+    await waitFor(() => expect(check).toBeEnabled());
+    expect(api.revalidateReview).not.toHaveBeenCalled();
+    expect(api.createReviewDraft).not.toHaveBeenCalled();
+    const stale: ExitReviewResponse = {
+      ...final,
+      currentness: 'STALE',
+      stale_reason: 'INPUT_CHANGED',
+    };
+    api.revalidateReview.mockResolvedValue(stale);
+    api.review.mockResolvedValue(stale);
+    fireEvent.click(check);
+    await screen.findByText('Dieser Review ist STALE und muss erneut geprüft werden.');
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Neue Review-Version vorbereiten' })).toBeEnabled(),
+    );
+    expect(api.createReviewDraft).not.toHaveBeenCalled();
+    const successor = {
+      ...draft,
+      current_version_id: 'version-2',
+      version: 2,
+      supersedes_version_id: 'version-1',
+    };
+    api.createReviewDraft.mockResolvedValue(successor);
+    api.review.mockResolvedValue(successor);
+    fireEvent.click(screen.getByRole('button', { name: 'Neue Review-Version vorbereiten' }));
+    await waitFor(() => expect(api.createReviewDraft).toHaveBeenCalledOnce());
+    await waitFor(() => expect(screen.getByLabelText('Review-Begründung')).toBeEnabled());
+    expect(api.revalidateReview).toHaveBeenCalledWith('trade-1');
+    expect(api.createReviewDraft).toHaveBeenCalledWith('trade-1');
+    expect(api.finalizeReview).not.toHaveBeenCalled();
+    expect(materializationApi.materialize).not.toHaveBeenCalled();
+  });
+
+  it('does not render a second materialization action when embedded', async () => {
+    render(
+      <MemoryRouter initialEntries={['/post-trade?trade_id=trade-1']}>
+        <PostTradeReviewPage showMaterializationAction={false} />
+      </MemoryRouter>,
+    );
+    expect(await screen.findByText('FT-012 Handoff')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Als LearningEvidence materialisieren' }),
+    ).toBeNull();
+    expect(materializationApi.materialize).not.toHaveBeenCalled();
+  });
+
+  it('reloads the same trade explicitly instead of relying on a URL change', async () => {
+    renderPage();
+    expect(await screen.findByText('13/20')).toBeInTheDocument();
+    const button = screen.getByRole('button', { name: 'Laden' });
+    await waitFor(() => expect(button).toBeEnabled());
+    const before = api.observation.mock.calls.length;
+    fireEvent.click(button);
+    await waitFor(() => expect(api.observation).toHaveBeenCalledTimes(before + 1));
+    expect(api.startObservation).not.toHaveBeenCalled();
+    expect(api.revalidateReview).not.toHaveBeenCalled();
+  });
+
+  it('preserves unsaved draft text and assessments through an external owner refresh', async () => {
+    api.observation.mockResolvedValue({
+      ...observation,
+      status: 'COMPLETED',
+      is_complete: true,
+      available_observation_count: 20,
+      missing_observation_count: 0,
+    });
+    api.review.mockResolvedValue(draft);
+    const view = render(
+      <MemoryRouter initialEntries={['/post-trade?trade_id=trade-1']}>
+        <PostTradeReviewPage externalRefreshVersion={0} />
+      </MemoryRouter>,
+    );
+    const rationale = await screen.findByLabelText('Review-Begründung');
+    await waitFor(() => expect(rationale).toBeEnabled());
+    fireEvent.change(rationale, { target: { value: 'Meine noch nicht gespeicherte Begründung.' } });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Timing' }), {
+      target: { value: 'NOT_ASSESSABLE' },
+    });
+    let resolve!: (value: ExitReviewResponse) => void;
+    api.review.mockImplementationOnce(
+      () =>
+        new Promise((done) => {
+          resolve = done;
+        }),
+    );
+    view.rerender(
+      <MemoryRouter initialEntries={['/post-trade?trade_id=trade-1']}>
+        <PostTradeReviewPage externalRefreshVersion={1} />
+      </MemoryRouter>,
+    );
+    await waitFor(() => expect(api.review).toHaveBeenCalledTimes(2));
+    await act(async () => {
+      resolve(draft);
+      await Promise.resolve();
+    });
+    await waitFor(() => expect(rationale).toBeEnabled());
+    expect(rationale).toHaveValue('Meine noch nicht gespeicherte Begründung.');
+    expect(screen.getByRole('combobox', { name: 'Timing' })).toHaveValue('NOT_ASSESSABLE');
+    fireEvent.click(screen.getByRole('button', { name: 'Review finalisieren' }));
+    await waitFor(() =>
+      expect(api.updateReviewDraft).toHaveBeenCalledWith(
+        'trade-1',
+        expect.objectContaining({
+          rationale: 'Meine noch nicht gespeicherte Begründung.',
+          timing: 'NOT_ASSESSABLE',
+        }),
+      ),
+    );
   });
 });

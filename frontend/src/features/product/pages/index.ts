@@ -1,1 +1,1 @@
-export { WarrantAdminPageWithDelete as WarrantAdminPage } from './WarrantAdminPageWithDelete';
+export { WarrantAdminRoutePage as WarrantAdminPage } from './WarrantAdminRoutePage';

@@ -6,6 +6,7 @@ from enum import StrEnum
 from typing import Protocol
 from uuid import UUID
 
+from app.features.learning.application.command_transaction import committed_command
 from app.features.learning.application.lesson_service import (
     LessonEvidenceInput,
 )
@@ -60,6 +61,16 @@ class OpenReviewSignalResult:
     signal: LessonReviewSignal
 
 
+def _reason(code: str, note: str | None) -> str:
+    if note is None:
+        return code
+    if not note.strip():
+        raise LessonReviewServiceError(
+            LessonReviewErrorCode.INVALID_REVIEW_TRIGGER, "Review reason must be nonblank"
+        )
+    return f"{code}: {note}"
+
+
 class LessonReviewService:
     def __init__(
         self,
@@ -79,6 +90,7 @@ class LessonReviewService:
         lesson_id: UUID,
         contradiction_link_ids: tuple[UUID, ...],
         actor_id: UUID,
+        review_note: str | None = None,
     ) -> OpenReviewSignalResult:
         locked = await self._uow.lessons.lock(workspace_id, lesson_id)
         if not locked:
@@ -94,6 +106,14 @@ class LessonReviewService:
                 "lesson not found",
             )
 
+        if lesson.current_state is not LessonState.CURRENT:
+            raise LessonReviewServiceError(
+                LessonReviewErrorCode.CONCURRENT_MODIFICATION, "Lesson is not CURRENT"
+            )
+        if len(set(contradiction_link_ids)) != len(contradiction_link_ids):
+            raise LessonReviewServiceError(
+                LessonReviewErrorCode.INVALID_REVIEW_TRIGGER, "Duplicate trigger link"
+            )
         if await self._uow.lesson_review_signals.get_open_for_lesson(lesson_id):
             raise LessonReviewServiceError(
                 LessonReviewErrorCode.REVIEW_SIGNAL_ALREADY_OPEN,
@@ -149,7 +169,7 @@ class LessonReviewService:
                 lesson_id=lesson_id,
                 from_state=LessonState.CURRENT,
                 to_state=LessonState.REVIEW_RECOMMENDED,
-                reason="REVIEW_SIGNAL_OPENED",
+                reason=_reason("REVIEW_SIGNAL_OPENED", review_note),
                 related_lesson_version_id=lesson.current_version_id,
                 occurred_at=now,
                 occurred_by=actor_id,
@@ -178,6 +198,7 @@ class LessonReviewService:
         lesson_id: UUID,
         signal_id: UUID,
         actor_id: UUID,
+        review_note: str | None = None,
     ) -> LessonReviewSignal:
         locked = await self._uow.lessons.lock(workspace_id, lesson_id)
         if not locked:
@@ -198,7 +219,11 @@ class LessonReviewService:
                 LessonReviewErrorCode.REVIEW_SIGNAL_NOT_OPEN,
                 "review signal is not open",
             )
-        if lesson is None or lesson.current_version_id != signal.lesson_version_id:
+        if (
+            lesson is None
+            or lesson.current_version_id != signal.lesson_version_id
+            or lesson.current_state is not LessonState.REVIEW_RECOMMENDED
+        ):
             raise LessonReviewServiceError(
                 LessonReviewErrorCode.CONCURRENT_MODIFICATION,
                 "lesson current version changed",
@@ -225,7 +250,7 @@ class LessonReviewService:
                 lesson_id=lesson_id,
                 from_state=LessonState.REVIEW_RECOMMENDED,
                 to_state=LessonState.CURRENT,
-                reason="REVIEW_UNCHANGED_CONFIRMED",
+                reason=_reason("REVIEW_UNCHANGED_CONFIRMED", review_note),
                 related_lesson_version_id=lesson.current_version_id,
                 occurred_at=now,
                 occurred_by=actor_id,
@@ -268,6 +293,7 @@ class LessonReviewService:
         content: str,
         evidence: tuple[LessonEvidenceInput, ...],
         actor_id: UUID,
+        review_note: str | None = None,
     ) -> ResolveReviewWithNewVersionResult:
         locked = await self._uow.lessons.lock(workspace_id, lesson_id)
         if not locked:
@@ -297,6 +323,14 @@ class LessonReviewService:
                 "lesson current projection changed",
             )
 
+        if len({item.learning_evidence_id for item in evidence}) != len(evidence):
+            raise LessonReviewServiceError(
+                LessonReviewErrorCode.INVALID_REVIEW_TRIGGER, "Duplicate evidence IDs"
+            )
+        if not main_category.strip() or not content.strip():
+            raise LessonReviewServiceError(
+                LessonReviewErrorCode.INVALID_REVIEW_TRIGGER, "Interpretation is required"
+            )
         if not evidence or not any(
             item.relation is LessonEvidenceRelation.SUPPORTS for item in evidence
         ):
@@ -350,6 +384,7 @@ class LessonReviewService:
         )
 
         await self._uow.lesson_versions.add(version)
+        await self._uow.flush()
         await self._uow.lesson_evidence_links.add_snapshot(
             new_version_id,
             links,
@@ -360,7 +395,7 @@ class LessonReviewService:
             lesson_id=lesson_id,
             from_state=LessonState.REVIEW_RECOMMENDED,
             to_state=LessonState.CURRENT,
-            reason="REVIEW_NEW_VERSION_CREATED",
+            reason=_reason("REVIEW_NEW_VERSION_CREATED", review_note),
             related_lesson_version_id=new_version_id,
             occurred_at=now,
             occurred_by=actor_id,
@@ -423,6 +458,7 @@ class LessonReviewService:
         lesson_id: UUID,
         signal_id: UUID,
         actor_id: UUID,
+        review_note: str | None = None,
     ) -> LessonReviewSignal:
         locked = await self._uow.lessons.lock(workspace_id, lesson_id)
         if not locked:
@@ -458,7 +494,7 @@ class LessonReviewService:
             lesson_id=lesson_id,
             from_state=LessonState.REVIEW_RECOMMENDED,
             to_state=LessonState.RETIRED,
-            reason="REVIEW_LESSON_RETIRED",
+            reason=_reason("REVIEW_LESSON_RETIRED", review_note),
             related_lesson_version_id=lesson.current_version_id,
             occurred_at=now,
             occurred_by=actor_id,
@@ -505,3 +541,8 @@ class LessonReviewService:
             resolved_by=actor_id,
             resulting_lesson_version_id=None,
         )
+
+    open_signal_command = committed_command(open_signal)
+    resolve_unchanged_command = committed_command(resolve_unchanged)
+    resolve_with_new_version_command = committed_command(resolve_with_new_version)
+    resolve_retired_command = committed_command(resolve_retired)

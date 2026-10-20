@@ -4,128 +4,96 @@
 
 | Feld | Wert |
 |---|---|
-| Dokument | MODULE_AND_FEATURE_CATALOG.md |
-| Dokumenttyp | Product Architecture |
-| Version | 1.5 |
-| Status | 🟢 Approved |
-| Letzte Änderung | 2026-09-05 |
+| Dokumenttyp | Product Architecture / Planungssichten |
+| Revision | Konsolidierung 2026-10-13; zur fachlichen Prüfung |
+| Aufgabenstatus | Nur im [Product Backlog](PRODUCT_BACKLOG.md#abnahmematrix) |
+| Baseline | [Ursprüngliche Roadmap und Übergang](../foundation/ROADMAP.md#historische-baseline) |
 
-## Zweck
+## Zweck und Grenzen
 
-Dieses Dokument ist die zentrale Zuordnung zwischen Roadmap-Meilensteinen, fachlichen Modulen und implementierbaren Features. Es verhindert parallele Definitionen und bildet die Grundlage für Backlog, Traceability und Releaseplanung.
+Dieser Katalog ordnet bestehende Features und Querschnittsfähigkeiten acht dauerhaften Planungssichten zu. Er erfindet keine FT-IDs, keine neue technische Paketstruktur und keine neue schreibende Ownership. Fachliches Feature, technischer Paketname, Modellfamilie und Planungssicht bleiben unterschiedliche Begriffe. Die historische Modulgliederung in ARCHITECTURE wird dadurch nicht still umgebaut.
 
-## Abgrenzung
+<a id="planungssichten"></a>
+## Acht dauerhafte Funktionsbereiche
 
-- **Meilenstein:** fachlicher Zielzustand der Roadmap.
-- **Modul:** zusammengehöriger Verantwortungsbereich der Anwendung.
-- **Feature:** einzeln spezifizierbare, testbare und abnehmbare Fähigkeit.
-- **Modell:** versionierte Berechnungs- oder Bewertungslogik innerhalb eines Features.
-
-## Feature-Katalog
-
-| ID | Feature | Primäres Modul | Roadmap | Fachliches Ergebnis | Abhängigkeiten |
-|---|---|---|---|---|---|
-| FT-001 | Basiswertverwaltung (`underlying`) | Reference Data | M1 | Aktien als Basiswerte inklusive Notierungen zentral erfassen, ändern, deaktivieren und suchen | Fundament |
-| FT-002 | Börsen und Handelsplätze | Reference Data | M1 | Provider-neutrale Handelsplätze zentral verwalten und mit möglichst wenig Nutzereingabe konsumieren | FT-001 |
-| FT-003 | Emittenten | Reference Data | M1 | Emittenten als eigenständige Referenzobjekte verwalten | Fundament |
-| FT-004 | Optionsscheinverwaltung | Reference Data | M1/M4 | Optionsscheine eindeutig einem Basiswert und Emittenten zuordnen | FT-001–FT-003 |
-| FT-005 | Watchlisten und Kandidaten | Market Discovery | M2 | Top-down-Kandidaten qualifizieren, nachvollziehbar bewerten und Benutzerstatus verwalten; Watchlist-Vollausbau bleibt eigener Restscope | FT-001, FT-006 |
-| FT-006 | Marktanalyse | Market Discovery | M2 | Markt- und Basiswertanalysen nachvollziehbar dokumentieren | FT-001, FT-003, Governance |
-| FT-007 | TradePlan | Trade Preparation | M3 | produktneutralen LONG-TradePlan versioniert planen und konkrete Version explizit freigeben | FT-001; FT-005/FT-006 optional als Candidate-Ursprung |
-| FT-008 | Produktauswahl | Product Selection | M4 | Optionsscheine vergleichen und Benutzerwahl dokumentieren | FT-004, FT-007, Governance |
-| FT-009 | Trade und Position / Purchase Execution Capture | Execution Record | M5 | Tatsächliche Erst- und Nachkäufe low-input erfassen und daraus die offene Position ableiten; kein Verkauf/Trade-Management in V1 | FT-004, FT-007, FT-008 |
-| FT-010 | Trade Management | Trade Management | M5 | Stops, Teilverkäufe, Produktwechsel und Events dokumentieren | FT-009 |
-| FT-011 | Nachbeobachtung und Exit Review | Post Trade Learning | M6 | geschlossene Trades virtuell weiterverfolgen und Ausstieg bewerten | FT-009, FT-010 |
-| FT-012 | Journal, Lessons Learned und Performance | Evaluation | M7/M8 | Entscheidungen, Regelabweichungen und Ergebnisse auswerten | FT-009–FT-011 |
-| FT-013 | Modellkatalog und Modellbewertung | Model Governance | M9 | Modelle versionieren, vergleichen, freigeben und historischen Ergebnissen zuordnen | MODEL_BOOK, TRACEABILITY |
-
-## Technische Querschnittsfähigkeiten
-
-| Kennung | Fähigkeit | Verantwortung | Konsumierende Features |
+| Sicht | Gegenstand und Grenze | Bestehende FT-/Capability-Bezüge | Maßgebliche Backlog-Einstiege |
 |---|---|---|---|
-| TC-001 | Marktdaten-Infrastruktur (`market_data`) | Providerunabhängiger Abruf, Qualitätsprüfung, Herkunft, Cache und Persistenz von Marktdaten; keine Handelsentscheidung | FT-004, FT-006, FT-008, FT-013 sowie spätere Analysefähigkeiten |
-| unnummeriert | Operational Workspace | Read-only, ephemere Projektion bereits autoritativer Owner-Zustände in priorisierte nächste Benutzeraktionen; keine eigene fachliche Schreib-Ownership | FT-005/FT-020, FT-007–FT-011, Position Monitoring, Notification Delivery |
+| **1. Stammdaten und Instrumente** | Stabile Identitäten, Listings, Terms, Referenzdaten; Kursdaten sind kein Stammdateneigentum. | FT-001–FT-004; separates Providerfeature noch ohne neue Nummer. | [Basiswerte, Listings und Identitäten im Backend](PRODUCT_BACKLOG.md#pb-006-underlying); [Börsen und Handelsplätze](PRODUCT_BACKLOG.md#pb-009-venues); [Emittenten](PRODUCT_BACKLOG.md#pb-010-issuers); [Instrumente und Optionsscheine](PRODUCT_BACKLOG.md#pb-011-warrants); [Datenprovider und benutzerverwaltete Konfiguration](PRODUCT_BACKLOG.md#provider-configuration) |
+| **2. Marktdaten und Datenqualität** | Providerneutrale Datenbereitschaft, Qualität, Herkunft, erlaubte Aktualisierung und Kursbelege. | TC-001; vorhandene Daten-/Produktbelegfähigkeit, Consumer bleiben fachliche Owner. | [Marktdatenbereitschaft, Qualität und Herkunft](PRODUCT_BACKLOG.md#market-data-quality); [Datenaktualisierung und Schedulerzustände](PRODUCT_BACKLOG.md#market-data-refresh); [Kursprotokoll und versionierte Produktbelege](PRODUCT_BACKLOG.md#market-data-evidence) |
+| **3. Marktanalyse und Kandidaten** | Markt-/Sektor-/Underlying-Analyse und Kandidaten; Watchlist, Scanner und Marktbreite getrennt. | FT-005/FT-006; vorhandene FT-019/FT-020-Kandidaten-Erweiterungen. | [Marktübersicht](PRODUCT_BACKLOG.md#pb-013-overview); [Marktbreite](PRODUCT_BACKLOG.md#pb-013-breadth); [Watchlist](PRODUCT_BACKLOG.md#pb-012-watchlist); [Scanner und Scanner-Modell](PRODUCT_BACKLOG.md#pb-012-scanner); [Kandidatenqualifikation](PRODUCT_BACKLOG.md#pb-012-candidate) |
+| **4. Tradevorbereitung und Produktauswahl** | Produktneutraler Plan, explizite Freigabe, Produktsuche/-vergleich/-wahl; Produktscore separat. | FT-007/FT-008; FT-004/TC-001 als Quellen. | [Annahmen, Freigabe und Herkunft des Plans](PRODUCT_BACKLOG.md#pb-014-assumptions); [Produktsuche und Suchuniversum](PRODUCT_BACKLOG.md#pb-015-search); [Produktvergleich und bewusste Auswahl](PRODUCT_BACKLOG.md#pb-015-comparison); [Produktscore und fachliche Modellfamilie](PRODUCT_BACKLOG.md#pb-015-score) |
+| **5. Tradeerfassung und Management** | Tatsächliche bestätigte Ausführungen, Position und eigene Managementhistorie; Produktwechsel benötigt eigenen Fachentscheid. | FT-009/FT-010; keine zweite Ausführungswahrheit. | [Trade eröffnen und tatsächliche Käufe erfassen](PRODUCT_BACKLOG.md#pb-016-opening); [Depot und abgeleitete offene Positionen](PRODUCT_BACKLOG.md#pb-016-positions); [Vollverkauf und Abschluss](PRODUCT_BACKLOG.md#pb-017-close); [Event-Historie und historische Korrekturen](PRODUCT_BACKLOG.md#pb-017-history); [Produktwechsel](PRODUCT_BACKLOG.md#pb-017-product-change) |
+| **6. Monitoring und Benachrichtigungen** | Regelprüfung, fachliche Alerts, getrennte Notifications und DeliveryAttempts; keine Handelsausführung. | Bestehende unnummerierte Monitoring-/Alert-/Notification-Fähigkeiten; TC-001 und FT-013 als Consumerbezüge. | [Regelüberwachung und fachliche Alerts](PRODUCT_BACKLOG.md#monitoring-rules); [Benachrichtigungen und Zustellzustände](PRODUCT_BACKLOG.md#notification-delivery); [Erinnerungen](PRODUCT_BACKLOG.md#reminders); [Modellüberwachung](PRODUCT_BACKLOG.md#model-monitoring) |
+| **7. Nachbeobachtung, Journal und Lernen** | Nachbeobachtung, Review, Journal, Evidence und Lesson; jede Fähigkeit mit eigener Grenze. | FT-011/FT-012; Korrekturen lesen FT-009/010. | [Zulässige Nachbeobachtung](PRODUCT_BACKLOG.md#pb-018-observation); [Exit Review und Handoff](PRODUCT_BACKLOG.md#pb-018-review); [Journalentwurf und Journalabschluss](PRODUCT_BACKLOG.md#pb-019-journal); [Exit-Review-Evidence bewusst materialisieren](PRODUCT_BACKLOG.md#pb-019-materialization); [Belegte Lessons Learned](PRODUCT_BACKLOG.md#pb-019-lessons) |
+| **8. Performance und Auswertung** | Explizit definierte Kennzahlen, Statistiken und Perioden-/Tradeauswertungen. Brutto-PnL und Charts sind nur abgegrenzte Vorleistungen. | FT-012 / Evaluation als bestehende fachliche Zuordnung; FT-009/010/TC-001 als Datenquellen. | [Positionsbezogenes realisiertes Brutto-PnL](PRODUCT_BACKLOG.md#pb-017-gross-pnl); [Performancekennzahlen](PRODUCT_BACKLOG.md#pb-019-performance-metrics); [Tradeübergreifende Statistiken](PRODUCT_BACKLOG.md#pb-019-performance-statistics); [Performance-Dashboards](PRODUCT_BACKLOG.md#pb-019-performance-dashboards); [Perioden- und Tradeauswertungen](PRODUCT_BACKLOG.md#pb-019-performance-evaluations) |
 
-TC-001 verändert die fachliche Feature-Nummerierung nicht. Eine benutzerverwaltete Providerkonfiguration bleibt ein separates, später zu spezifizierendes Feature.
+## Drei Querschnittsthemen
 
-Der **Operational Workspace** verändert die fachliche Feature-Nummerierung ebenfalls nicht. Er ist keine neue Wahrheitsschicht und persistiert keine eigenen Done-, Acknowledge- oder Assignment-Zustände. Actions verschwinden ausschließlich durch Änderungen im jeweils schreibenden Owner-Feature. Die Scope- und Ownership-Dokumentation liegt unter `docs/features/OPERATIONAL_WORKSPACE.md`.
-
-## Noch nicht nummerierte Capability in Technical Review
-
-Die Capability **Position Monitoring, Alerting and Outbound Notifications** ist auf dem Feature-Branch `feat/position-monitoring-alert-notification` implementiert und befindet sich im Technical Review. Im aktuell freigegebenen Katalog ist dafür keine FT-Nummer reserviert; deshalb wird hier bewusst keine Nummer erfunden.
-
-Der fachlich saubere Zuschnitt bleibt:
-
-- **Position Monitoring & Alert Domain:** konsumiert bestehende Position-, TradePlan- und Trade-Management-Zustände sowie providerneutrale Marktdaten; persistiert deterministische, deduplizierte Alerts.
-- **Notification Delivery & Telegram Adapter:** erzeugt providerneutrale Notifications und persistente Delivery Attempts; Telegram bleibt austauschbarer outbound-only Adapter.
-
-Die endgültige FT-Zuordnung ist eine separate Produktplanungsentscheidung. Die Implementierungs- und Scope-Dokumentation liegt unter `docs/features/POSITION_MONITORING_ALERT_NOTIFICATION.md`.
-
-## Ownership der Kernobjekte
-
-| Domänenobjekt | Schreibender Owner | Lesende Features |
+| Thema | Bestehende Verantwortung und Grenze | Maßgeblicher Verweis |
 |---|---|---|
-| Basiswert (Aktie) und Listing-Zuordnung | FT-001 | FT-004–FT-008, FT-012 |
-| Börse/Handelsplatz | FT-002 | FT-004, FT-008, FT-009 |
-| Emittent | FT-003 | FT-004, FT-008 |
-| Datenprovider/Datenquelle | separates Providerfeature | FT-004, FT-006, FT-008, FT-013 |
-| Instrument/Optionsschein | FT-004 | FT-008–FT-010, FT-012 |
-| Watchlist/Kandidat | FT-005 | FT-007, Operational Workspace |
-| Analyse | FT-006 | FT-005, FT-007, FT-012, FT-013 |
-| TradePlan / TradePlanVersion | FT-007 | FT-008–FT-012, Operational Workspace |
-| Produktauswahl | FT-008 | FT-009, FT-012, Operational Workspace |
-| Trade / Execution Record / Position | FT-009 | FT-010–FT-012, Position Monitoring, Operational Workspace |
-| Trade Event | FT-010 | FT-011, FT-012, Position Monitoring, Operational Workspace |
-| Alert / Monitoring Rule State | Position Monitoring & Alert Capability (FT noch offen) | Notification Capability, Operational Workspace, spätere UI |
-| Notification / Delivery Attempt | Notification Capability (FT noch offen) | Delivery Adapter, Operational Workspace, spätere UI |
-| Nachbeobachtung/Exit Review | FT-011 | FT-012, FT-013, Operational Workspace |
-| Journal/Performance Record | FT-012 | FT-013 |
-| Modell/Modellversion | FT-013 | alle berechnenden Features |
+| **Modelle/Regelgovernance** | FT-013 verwaltet Modell-/Freigabe-/Aktivierungsartefakte; fachliche Berechnung und Anwendung bleiben beim jeweiligen Consumer. Jede Modellfamilie wird gesondert nachgewiesen. Freigabe und Aktivierung sind getrennte Benutzeraktionen. | [Governance](PRODUCT_BACKLOG.md#pb-020-governance), [Aktivierung](PRODUCT_BACKLOG.md#pb-020-activation), [Modellfamilien](PRODUCT_BACKLOG.md#pb-020-candidate-family) |
+| **durchgängiger Arbeitsablauf/Bedienbarkeit** | Bestehende API-/UI-Consumer und Operational Workspace verbinden den Arbeitsablauf; der Workspace ist ausschließlich ephemerer Leser und speichert keine konkurrierenden Aufgabenwahrheiten. | [Prozessmodell](PRODUCT_BACKLOG.md#pb-002-process), [Workspace](PRODUCT_BACKLOG.md#operational-workspace) |
+| **technische Qualität/Betrieb** | Bestehende Schichten, Versionen, Migrationen, Fehler-/Transaktionsmuster und Gates; Release, Installation und beobachteter Betrieb bleiben verschieden. Begleitet jeden Lieferschnitt. | [Governance-Baselines](PRODUCT_BACKLOG.md#pb-004-standards), [Regression](PRODUCT_BACKLOG.md#operations-regression), [JMBbot-Nachweis](PRODUCT_BACKLOG.md#operations-installation) |
 
-Der Operational Workspace ist in dieser Tabelle ausschließlich Leser. Er besitzt keine Schreib-Ownership über die aufgeführten Kernobjekte.
+Keines dieser Themen ist eine erst nach M8 oder nach allen Features beginnende Phase.
 
-## Statusmodell für Features
+<a id="feature-katalog"></a>
+## Bestehender Feature-Katalog – keine Statusliste
 
-```text
-Idea → Analysis → Specified → Approved for Build → In Development
-     → Technical Review → Business Review → Accepted → Released → Observed
-```
+| Bestehende ID | Feature / fachliche Zuordnung | Originalbezug und wichtige Grenze |
+|---|---|---|
+| FT-001 | Basiswertverwaltung (`underlying` als logische Kennung; tatsächlicher Code in `market`) / Reference Data | M1; Basiswert und Listing getrennt. Ursprünglich STOCK; ETF-Stammdaten durch späteren Chart-/Analyse-Nachtrag gesondert beachten. |
+| FT-002 | Börsen und Handelsplätze / Reference Data | M1; stabile Venue-Identität, Low-input-Consumer, keine Provider-ID als fachliche ID. |
+| FT-003 | Emittenten / Reference Data | M1; globale Issuer-Identität, kein Underlying-Unternehmen als Ersatz. |
+| FT-004 | Optionsscheinverwaltung / Reference Data | M1/M4; Warrant, TermsVersion und Listing getrennt; keine implizite neue Produktfamilie. |
+| FT-005 | Watchlisten und Kandidaten / Market Discovery | M2; generische Watchlist und Scanneranspruch nicht mit bestehender Kandidatenqualifikation gleichsetzen. |
+| FT-006 | Marktanalyse / Market Discovery | M2/M3/M9; persistierte, reproduzierbare beschreibende Analyse und lesende Charts unterscheiden. Marktbreite bleibt sichtbar. |
+| FT-007 | TradePlan / Trade Preparation | M3; produktneutral, versionsgenaue bewusste Freigabe, Candidate-Ursprung optional und konkret. |
+| FT-008 | Produktauswahl / Product Selection | M4; Evaluation/Comparison, Nutzerwahl und Produktscore getrennt. |
+| FT-009 | Trade und Position / Purchase Execution Capture | M5; Eigentum an Trade/ExecutionRecord/Position, von FT-010 im selben Vertrag erweitert. |
+| FT-010 | Trade Management | M5; Ausführungen und Managementevents getrennt. Produktwechsel steht zwar im alten Zielbild, ist aber ausdrücklich kein V1-Managementevent. Offener M4-Anspruch bleibt referenziert. |
+| FT-011 | Nachbeobachtung und Exit Review / Post Trade Learning | M6; realer Vollverkauf als Eignungsgrundlage; virtuelle Beobachtung nicht als reale Ausführung darstellen. |
+| FT-012 | Journal, Lessons Learned und Performance / Evaluation | M7/M8; bestehende Ownership auch für LearningEvidence und Lessons. Materialisierung/Lesson ersetzen weder Journal noch Performance. |
+| FT-013 | Modellkatalog und Modellbewertung / Model Governance | M9; allgemeine Governance, separate Runtime-Aktivierung und jede fachliche Familie getrennt. |
+| FT-019 / FT-020 | Bereits referenzierte Kandidaten-Erweiterungen / Candidate Model Configuration UX | Spätere Präzisierung von FT-005/FT-013; keine neue Vergabe dieser Kennungen. FT-020 verweist auf FT-019 als Vorgänger; keine Umnummerierung oder neue Paketownership. |
 
-Der Status wird im Product Backlog gepflegt. Ein Feature darf nicht den Status `Approved for Build` erhalten, solange fachliche Entscheidungen oder Abhängigkeiten offen sind.
+Die bisherigen PB-001–PB-020 bleiben im [Backlog](PRODUCT_BACKLOG.md#abnahmematrix) bestehen. Kein Feature wird durch seine Zuordnung zu einer Sicht als vollständig fertig erklärt. Nicht gelesene Detailverträge und fehlende Freigaben sind dort benannt.
 
-## Regeln für Featurezuschnitt
+## Bestehende Querschnittsfähigkeiten
 
-1. Ein Feature besitzt genau eine primäre fachliche Verantwortung.
-2. Stammdatenobjekte werden nicht in mehreren Features parallel gepflegt.
-3. Berechnungsmodelle sind keine implizite Service-Logik, sondern versionierte Artefakte.
-4. Ein Feature kann ohne UI umgesetzt werden, wenn es ausschließlich eine technische oder Governance-Verantwortung besitzt; dies muss begründet werden.
-5. Jedes Benutzerergebnis muss auf seine Eingaben und Quellen zurückführbar sein.
-6. Produktvorschläge oder Scores bleiben Entscheidungshilfen; die endgültige Auswahl ist eine Benutzeraktion.
+**TC-001 / `market_data`** verantwortet die technische providerneutrale Datenversorgung, Qualitäts-/Herkunftszustände, Cache und Persistenz. Consumer sind insbesondere FT-004, FT-006, FT-008, FT-011, FT-013 sowie bestehende Monitoring-/Analysefähigkeiten. Die benutzerverwaltete Providerkonfiguration bleibt laut bisherigem Katalog ein separat zu spezifizierender fachlicher Zuschnitt; kein neues FT und keine Eigentumsübernahme durch TC-001 werden erfunden.
 
-## Referenzfeature
+**Operational Workspace** bleibt eine lesende, ephemere Projektion bestehender Owner-Zustände. Er konsumiert unter anderem FT-005/FT-020, FT-007–FT-011, Position Monitoring und Notification Delivery. Benutzeraktionen gehen an den jeweiligen schreibenden Fachowner. Es gibt keine zusätzlichen persistierten Done-, Acknowledge- oder Assignment-Fakten.
 
-`FT-001 Basiswertverwaltung` mit der technischen Kennung `underlying` ist das Referenzfeature für:
+**Position Monitoring & Alert Capability** besitzt MonitoringRuleState und Alert. **Notification Capability** besitzt Notification und DeliveryAttempt. Die noch offene Nummerierungsentscheidung wird nicht vorweggenommen. Der historische rein tägliche Underlying-Scope darf nicht spätere dokumentierte Preisbindungs-/Produktdaten-Erweiterungen verdecken. Aktuelle Arbeits-/Nachweisstände stehen nur im Backlog.
 
-- Feature-Dokumentation,
-- CRUD-API-Konventionen,
-- Persistenz und Migration,
-- Validierung und Konfliktbehandlung,
-- Listen, Filter und Suche,
-- Frontend-Formulare und Tabellen,
-- Audit-Metadaten,
-- Tests und Traceability.
+<a id="ownership"></a>
+## Ein schreibender fachlicher Owner je Objekt
 
+| Objekt | Bestehender schreibender Owner | Wesentliche lesende Consumer / Grenze |
+|---|---|---|
+| Basiswert / Listing | FT-001; tatsächliche Implementierung `market` | FT-004–FT-008, FT-012; Referenzen/Charts lesen denselben Identitätskontext. |
+| Börse / Handelsplatz | FT-002 | FT-004, FT-008, FT-009. |
+| Emittent | FT-003 | FT-004, FT-008. |
+| Provider / Datenquelle | Separates Providerfeature gemäß bestehendem Katalog | FT-004/006/008/013; technische Adapter/Mapping-Infrastruktur nicht mit neuer fachlicher Ownership verwechseln. |
+| Instrument / Warrant / TermsVersion / WarrantListing | FT-004 | FT-008–FT-012; konkrete Terms-/Listing-Identität bleibt historisch. |
+| Watchlist / Candidate / CandidateEvaluation | FT-005 | FT-007 und Workspace; Watchlist-Zuordnung ist keine Implementierungsbehauptung. |
+| Analyse / Analyseversion | FT-006 | FT-005, FT-007, FT-012, FT-013; Fachberechnung nicht im Frontend duplizieren. |
+| TradePlan / TradePlanVersion | FT-007 | FT-008–FT-012, Workspace; spätere Managemententscheidung verändert keine historische Planversion. |
+| ProductSelectionRun / ProductEvaluation / ProductSelection | FT-008 | FT-009, FT-012, Workspace; Berechnung und Benutzerwahl sind verschiedene Objekte. |
+| Trade / ExecutionRecord / Position | FT-009, durch FT-010 erweiterter gemeinsamer Vertrag in `trade_position` | FT-010–FT-012, Monitoring, Workspace; kein zweiter Verkauf/Positionsowner. |
+| TradeManagementEvent | FT-010 | FT-011, FT-012, Monitoring, Workspace; ein SELL bleibt ExecutionRecord. |
+| MonitoringRuleState / Alert | Bestehende Position Monitoring & Alert Capability | Notification, Workspace; keine implizite Ausführung. |
+| Notification / DeliveryAttempt | Bestehende Notification Capability | Delivery-Adapter, Workspace; Zustellung ist nicht der fachliche Alert. |
+| PostTradeObservation / ExitReview / ExitReviewVersion | FT-011 in `post_trade` | FT-012 über freigegebenen Handoff; FT-013 und Workspace als nachgelagerte Consumer. |
+| LearningEvidence / Lesson / LessonVersion | FT-012 in `learning` | FT-013, Learning-UI; Evidence-Transport ist keine Interpretation. |
+| Journal / Performance Record | FT-012 gemäß bestehender fachlicher Zuordnung | FT-013 und lesende Auswertung; kein Schluss auf vorhandene vollständige Implementierung. |
+| Model / ModelVersion / Freigabe-/Aktivierungsartefakte | FT-013 in `model` | Jeweiliger fachlicher Modellconsumer; freigegeben ist nicht automatisch aktiv. |
 
-## Verbindliche Entscheidungen für FT-001
+Die Tabelle bewahrt vorhandene fachliche Zuständigkeiten; sie ist kein Auftrag zur Paketverschiebung. Für später dokumentierte IV-/Produktbeleg-Erweiterungen wird ohne vollständige Vertragsprüfung keine zusätzliche Code-Ownership erfunden. Das [Backlog](PRODUCT_BACKLOG.md#market-data-evidence) benennt diese Nachweisgrenze.
 
-- Version 1 unterstützt Aktien als Basiswerte und Optionsscheine als getrennte Produkte.
-- Basiswert und Notierung sind getrennte fachliche Objekte.
-- FT-001 besitzt das technische Feature `underlying`.
-- Version 1 ist Single-User/Single-Workspace.
-- Referenzierte Basiswerte werden deaktiviert, nicht gelöscht.
-- UUID ist die interne Identität; ISIN/WKN sind optional und bei Angabe eindeutig; Ticker ist nur mit Markt eindeutig.
+## Verbindliche Auslegungsregeln
 
+FT-001 bleibt Referenzfeature für Feature-Dokumentation, CRUD-/Konflikt-/Auditkonventionen und Traceability. Basiswert/Listing-Trennung, stabile UUIDs, Eindeutigkeit bei vorhandenen ISIN/WKN, Deaktivierung referenzierter Objekte und bestehende Workspace-Grenzen bleiben erhalten. Der spätere ETF-Stammdaten-Nachtrag ist keine Erweiterung auf beliebige Instrumente oder SHORT-Prozesse; direkte Indexreferenzen erhalten weiterhin keine erfundenen Listings.
 
-## Sprint-6 Implementierungsstatus
-
-FT-007 ist funktional umgesetzt: Domain, Persistence/Migration, Repository/UoW, Application Services, versionsgenaue CandidateEvaluation-Provenance, Lifecycle/Approval, Amendment-Lineage, REST API, Frontend und E2E. Status vor Closeout: **Implemented – Architecture Review Pending**.
+Die Originalanforderungen für Watchlist, Marktbreite, Produktscore, Produktwechsel und alle Modellfamilien bleiben über die Matrix auffindbar. Eine neue Bereichsdefinition darf keinen alten Anspruch verdecken. Scopeänderungen benötigen belegte Entscheidungen. Historische „Not Started“, „Review Pending“ oder „Released“-Angaben werden nicht hier repliziert; [Konflikte und ihre Auflösung](PRODUCT_BACKLOG.md#konfliktaufloesung) stehen beim maßgeblichen Arbeitsstand.

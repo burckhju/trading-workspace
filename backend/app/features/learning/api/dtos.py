@@ -20,6 +20,7 @@ from app.features.learning.domain import (
     TradeLinkChangeReason,
     TradeLinkStatus,
 )
+from app.features.trade_position.api.dtos import ExecutionCurrencyDeclarationRequest
 
 
 class TradeLinkCreateRequest(BaseModel):
@@ -77,6 +78,7 @@ class TradeLinkHistoryEntryResponse(BaseModel):
 
 
 class ExecuteAsTradeRequest(BaseModel):
+    currency_confirmation: ExecutionCurrencyDeclarationRequest | None = None
     quantity: int
     price_per_unit: Decimal
     executed_at: datetime

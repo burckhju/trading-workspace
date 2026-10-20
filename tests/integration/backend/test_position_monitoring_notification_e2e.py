@@ -25,7 +25,9 @@ from app.features.position_monitoring.domain.models import (
     PriceObservation,
 )
 from app.features.position_monitoring.service.application import PositionMonitoringService
+from app.features.trade_position.domain.price_binding import PriceBasis, PriceBinding
 
+BINDING = PriceBinding(PriceBasis.UNDERLYING, UUID("00000000-0000-4000-8000-000000000099"), "EUR")
 NOW = datetime(2026, 9, 3, 10, 0, tzinfo=UTC)
 
 
@@ -124,8 +126,10 @@ async def test_trigger_creates_exactly_one_alert_notification_and_delivery() -> 
     alerts = MemoryAlerts()
     notifications = MemoryNotifications()
     monitor = monitoring_service(states, alerts)
-    rule = MonitoringRule("target-1", MonitoringRuleType.TARGET_REACHED, Decimal("120"))
-    observation = PriceObservation(Decimal("121"), NOW)
+    rule = MonitoringRule(
+        "target-1", MonitoringRuleType.TARGET_REACHED, Decimal("120"), price_binding=BINDING
+    )
+    observation = PriceObservation(Decimal("121"), NOW, price_binding=BINDING)
 
     first = await monitor.evaluate(
         position_id=position_id,
@@ -180,8 +184,10 @@ async def test_delivery_failure_keeps_alert_and_retry_does_not_recreate_it() -> 
     alerts = MemoryAlerts()
     notifications = MemoryNotifications()
     monitor = monitoring_service(states, alerts)
-    rule = MonitoringRule("stop", MonitoringRuleType.STOP_REACHED, Decimal("100"))
-    observation = PriceObservation(Decimal("99"), NOW)
+    rule = MonitoringRule(
+        "stop", MonitoringRuleType.STOP_REACHED, Decimal("100"), price_binding=BINDING
+    )
+    observation = PriceObservation(Decimal("99"), NOW, price_binding=BINDING)
 
     first = await monitor.evaluate(
         position_id=position_id,

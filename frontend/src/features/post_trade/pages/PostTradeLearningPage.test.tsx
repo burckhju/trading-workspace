@@ -1,15 +1,32 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { Link, MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { journalClient } from '../../learning/services/journalClient';
 import { lessonReadbackClient } from '../../learning/services/lessonReadbackClient';
 import { ft011MaterializationClient } from '../../learning/services/materializationClient';
 import { warrantApiClient } from '../../product/services/client';
 import { tradeManagementApiClient } from '../../trade/services/client';
 import { PostTradeLearningPage } from './PostTradeLearningPage';
 
+vi.mock('../../learning/services/journalClient', () => ({
+  journalClient: { history: vi.fn() },
+}));
+
 vi.mock('./PostTradeReviewPage', () => ({
-  PostTradeReviewPage: () => <div>review</div>,
+  PostTradeReviewPage: ({
+    onLearningStateChanged,
+    showMaterializationAction,
+  }: {
+    onLearningStateChanged?: () => void;
+    showMaterializationAction?: boolean;
+  }) => (
+    <div>
+      <p>review</p>
+      <button onClick={onLearningStateChanged}>Review-Änderung simulieren</button>
+      {showMaterializationAction !== false && <button>Als LearningEvidence materialisieren</button>}
+    </div>
+  ),
 }));
 
 vi.mock('../../learning/components/LessonDraftFromEvidence', () => ({
@@ -17,7 +34,7 @@ vi.mock('../../learning/components/LessonDraftFromEvidence', () => ({
 }));
 
 vi.mock('../../learning/services/materializationClient', () => ({
-  ft011MaterializationClient: { status: vi.fn(), materialize: vi.fn() },
+  ft011MaterializationClient: { status: vi.fn(), materialize: vi.fn(), history: vi.fn() },
 }));
 
 vi.mock('../../learning/services/lessonReadbackClient', () => ({
@@ -70,6 +87,17 @@ const warrant = {
 describe('PostTradeLearningPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(ft011MaterializationClient.history).mockResolvedValue([]);
+    vi.mocked(journalClient.history).mockResolvedValue({
+      trade_id: 'trade-1',
+      journal_id: null,
+      handoff: {
+        ready: false,
+        reason: 'POST_TRADE_OBSERVATION_MISSING',
+        exit_review_version_id: null,
+      },
+      versions: [],
+    });
     tradeGet.mockResolvedValue(trade);
     warrantGet.mockResolvedValue(warrant);
     status.mockResolvedValue({
@@ -109,13 +137,21 @@ describe('PostTradeLearningPage', () => {
   });
 
   it('hands a ready finalized review to FT-012 before showing the Lesson form', async () => {
-    status.mockResolvedValue({
-      ready: true,
-      reason: 'READY',
-      materialized: false,
-      learning_evidence_id: null,
-      exit_review_version_id: 'version-1',
-    });
+    status
+      .mockResolvedValueOnce({
+        ready: true,
+        reason: 'READY',
+        materialized: false,
+        learning_evidence_id: null,
+        exit_review_version_id: 'version-1',
+      })
+      .mockResolvedValue({
+        ready: true,
+        reason: 'READY',
+        materialized: true,
+        learning_evidence_id: 'evidence-1',
+        exit_review_version_id: 'version-1',
+      });
     listForEvidence.mockResolvedValue([]);
 
     render(
@@ -130,9 +166,14 @@ describe('PostTradeLearningPage', () => {
     fireEvent.click(handoff);
 
     await waitFor(() =>
-      expect(materialize).toHaveBeenCalledWith('trade-1', 'ft011-to-ft012:trade-1:version-1'),
+      expect(materialize).toHaveBeenCalledWith(
+        'trade-1',
+        'ft011-to-ft012:v2:trade-1:version-1',
+        'version-1',
+      ),
     );
     expect(await screen.findByText('lesson-form')).toBeInTheDocument();
+    expect(status).toHaveBeenCalledTimes(2);
     expect(
       screen.queryByRole('button', { name: 'An Lessons Learned übergeben' }),
     ).not.toBeInTheDocument();
@@ -174,7 +215,7 @@ describe('PostTradeLearningPage', () => {
     await waitFor(() =>
       expect(listForEvidence).toHaveBeenCalledWith('evidence-1', expect.anything()),
     );
-    expect(screen.getByText('lesson-form')).toBeInTheDocument();
+    expect(await screen.findByText('lesson-form')).toBeInTheDocument();
   });
 
   it('does not block review or learning when optional visible context cannot be loaded', async () => {
@@ -191,5 +232,176 @@ describe('PostTradeLearningPage', () => {
     expect(screen.getByText('review')).toBeInTheDocument();
     expect(await screen.findByText('lesson-form')).toBeInTheDocument();
     expect(screen.queryByText('Post-Trade-Kontext')).not.toBeInTheDocument();
+  });
+
+  it('refreshes owner readiness after a child review change without auto-materialization', async () => {
+    status.mockResolvedValue({
+      ready: false,
+      reason: 'EXIT_REVIEW_NOT_FINALIZED',
+      materialized: false,
+      learning_evidence_id: null,
+      exit_review_version_id: 'version-1',
+    });
+    render(
+      <MemoryRouter initialEntries={['/post-trade?trade_id=trade-1']}>
+        <PostTradeLearningPage />
+      </MemoryRouter>,
+    );
+    await waitFor(() => expect(status).toHaveBeenCalledTimes(1));
+    expect(screen.queryByRole('button', { name: 'An Lessons Learned übergeben' })).toBeNull();
+    status.mockResolvedValue({
+      ready: true,
+      reason: 'READY',
+      materialized: false,
+      learning_evidence_id: null,
+      exit_review_version_id: 'version-1',
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Review-Änderung simulieren' }));
+    expect(
+      await screen.findByRole('button', { name: 'An Lessons Learned übergeben' }),
+    ).toBeEnabled();
+    expect(
+      screen.queryByRole('button', { name: 'Als LearningEvidence materialisieren' }),
+    ).toBeNull();
+    expect(materialize).not.toHaveBeenCalled();
+  });
+
+  it('does not confirm an unpinned READY response', async () => {
+    status.mockResolvedValue({
+      ready: true,
+      reason: 'READY',
+      materialized: false,
+      learning_evidence_id: null,
+      exit_review_version_id: null,
+    });
+    render(
+      <MemoryRouter initialEntries={['/post-trade?trade_id=trade-1']}>
+        <PostTradeLearningPage />
+      </MemoryRouter>,
+    );
+    const button = await screen.findByRole('button', { name: 'An Lessons Learned übergeben' });
+    expect(button).toBeDisabled();
+    fireEvent.click(button);
+    expect(materialize).not.toHaveBeenCalled();
+  });
+
+  it('uses the owner status after a successful command instead of inventing CURRENT', async () => {
+    status
+      .mockResolvedValueOnce({
+        ready: true,
+        reason: 'READY',
+        materialized: false,
+        learning_evidence_id: null,
+        exit_review_version_id: 'version-1',
+      })
+      .mockResolvedValue({
+        ready: false,
+        reason: 'EXIT_REVIEW_STALE',
+        materialized: false,
+        learning_evidence_id: null,
+        exit_review_version_id: 'version-1',
+      });
+    render(
+      <MemoryRouter initialEntries={['/post-trade?trade_id=trade-1']}>
+        <PostTradeLearningPage />
+      </MemoryRouter>,
+    );
+    fireEvent.click(await screen.findByRole('button', { name: 'An Lessons Learned übergeben' }));
+    await waitFor(() => expect(status).toHaveBeenCalledTimes(2));
+    expect(screen.queryByText('lesson-form')).toBeNull();
+    expect(listForEvidence).not.toHaveBeenCalled();
+    expect(screen.queryByText('LearningEvidence materialisiert')).toBeNull();
+  });
+
+  it('does not treat a failed Lesson readback as an empty evidence relation', async () => {
+    listForEvidence.mockRejectedValueOnce(new Error('synthetic read error'));
+    render(
+      <MemoryRouter initialEntries={['/post-trade?trade_id=trade-1']}>
+        <PostTradeLearningPage />
+      </MemoryRouter>,
+    );
+    expect(
+      await screen.findByText('Lesson-Verweise konnten nicht geladen werden.'),
+    ).toBeInTheDocument();
+    expect(screen.queryByText('lesson-form')).toBeNull();
+    listForEvidence.mockResolvedValue([]);
+    fireEvent.click(screen.getByRole('button', { name: 'Lesson-Verweise erneut laden' }));
+    expect(await screen.findByText('lesson-form')).toBeInTheDocument();
+  });
+
+  it('ignores a late status response after navigating to another trade', async () => {
+    let finishOld!: (value: Awaited<ReturnType<typeof status>>) => void;
+    const oldStatus = new Promise<Awaited<ReturnType<typeof status>>>((resolve) => {
+      finishOld = resolve;
+    });
+    status.mockImplementation((id) =>
+      id === 'trade-1'
+        ? oldStatus
+        : Promise.resolve({
+            ready: false,
+            reason: 'POST_TRADE_OBSERVATION_INCOMPLETE',
+            materialized: false,
+            learning_evidence_id: null,
+            exit_review_version_id: null,
+          }),
+    );
+    render(
+      <MemoryRouter initialEntries={['/post-trade?trade_id=trade-1']}>
+        <Link to="/post-trade?trade_id=trade-2">Anderer Trade</Link>
+        <PostTradeLearningPage />
+      </MemoryRouter>,
+    );
+    await waitFor(() => expect(status).toHaveBeenCalledWith('trade-1', expect.any(AbortSignal)));
+    fireEvent.click(screen.getByRole('link', { name: 'Anderer Trade' }));
+    await waitFor(() => expect(status).toHaveBeenCalledWith('trade-2', expect.any(AbortSignal)));
+    await act(async () => {
+      finishOld({
+        ready: true,
+        reason: 'READY',
+        materialized: true,
+        learning_evidence_id: 'old-evidence',
+        exit_review_version_id: 'old-version',
+      });
+      await oldStatus;
+    });
+    expect(screen.queryByText('lesson-form')).toBeNull();
+    expect(listForEvidence).not.toHaveBeenCalled();
+    expect(materialize).not.toHaveBeenCalled();
+  });
+
+  it('keeps historical evidence visible even when the current handoff cannot be read', async () => {
+    vi.clearAllMocks();
+    status.mockRejectedValueOnce(new Error('owner offline'));
+    vi.mocked(ft011MaterializationClient.history).mockResolvedValue([
+      {
+        learning_evidence_id: 'old-e',
+        evidence_type: 'FT011',
+        materialized_at: '2026-09-01',
+        trade_id: 'trade-1',
+        post_trade_observation_id: 'obs',
+        exit_review_id: 'review',
+        exit_review_version_id: 'old-version',
+        review_version: 1,
+        review_status: 'FINALIZED',
+        stored_review_currentness: 'CURRENT',
+        source_currentness: 'STALE',
+        superseded_by_version_id: null,
+        checked_at: '2026-10-16',
+        lesson_links: [],
+      },
+    ]);
+    render(
+      <MemoryRouter initialEntries={['/post-trade?trade_id=trade-1']}>
+        <PostTradeLearningPage />
+      </MemoryRouter>,
+    );
+    expect(await screen.findByText(/Quellenprüfung: STALE/)).toBeInTheDocument();
+    expect(
+      await screen.findByText('Der Learning-Übergabestatus konnte nicht geladen werden.'),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'An Lessons Learned übergeben' }),
+    ).not.toBeInTheDocument();
+    expect(materialize).not.toHaveBeenCalled();
   });
 });

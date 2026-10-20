@@ -11,7 +11,10 @@ from app.features.market_data.domain.enums import (
     QualityStatus,
 )
 from app.features.market_data.domain.models import WarrantQuoteSnapshot
-from app.features.market_data.service.errors import MarketDataConfigurationError
+from app.features.market_data.service.errors import (
+    MarketDataConfigurationError,
+    MarketDataInvalidResponseError,
+)
 from app.features.market_data.service.types import MarketDataResult, WarrantQuoteRequest
 from app.features.position_monitoring.service.quote_sources import (
     MultiSourceWarrantQuoteResolver,
@@ -20,6 +23,26 @@ from app.features.position_monitoring.service.quote_sources import (
 )
 
 NOW = datetime(2026, 9, 6, 18, 30, tzinfo=UTC)
+
+
+@pytest.mark.parametrize(
+    ("message", "expected"),
+    [
+        ("FRANKFURT_REQUEST_THROTTLED", "FRANKFURT_REQUEST_THROTTLED"),
+        ("FRANKFURT_HTTP_404", "FRANKFURT_HTTP_404"),
+        ("https://provider.example/?token=SECRET", "MarketDataInvalidResponseError"),
+        ("FRANKFURT_HTTP_503\nSECRET", "MarketDataInvalidResponseError"),
+    ],
+)
+async def test_source_diagnostics_preserve_machine_codes_without_raw_exception_text(
+    message, expected
+):
+    source = _Provider(error=MarketDataInvalidResponseError(message))
+    resolved = await MultiSourceWarrantQuoteResolver(
+        (NamedWarrantQuoteSource("FRANKFURT_QUOTES", source),)
+    ).resolve(_request(uuid4()))
+    assert resolved.result is None
+    assert resolved.attempts[0].reason == expected
 
 
 class _Provider:
@@ -173,3 +196,47 @@ async def test_unconfigured_placeholder_is_not_reported_as_executed_attempt() ->
     assert provider.calls == 1
     assert resolved.selected_source == "ACTIVE"
     assert [attempt.source for attempt in resolved.attempts] == ["ACTIVE"]
+
+
+@pytest.mark.asyncio
+async def test_persisted_source_resolution_never_falls_back() -> None:
+    listing_id = uuid4()
+    selected = _Provider(result=_result(listing_id))
+    fallback = _Provider(result=_result(listing_id, bid=Decimal("2.44")))
+    resolver = MultiSourceWarrantQuoteResolver(
+        (
+            NamedWarrantQuoteSource("EODHD", selected),
+            NamedWarrantQuoteSource("FALLBACK", fallback),
+        )
+    )
+
+    resolved = await resolver.resolve_selected("EODHD", _request(listing_id))
+
+    assert resolved.selected_source == "EODHD"
+    assert selected.calls == 1
+    assert fallback.calls == 0
+
+
+@pytest.mark.asyncio
+async def test_persisted_disabled_source_is_unavailable_without_fallback() -> None:
+    listing_id = uuid4()
+    fallback = _Provider(result=_result(listing_id))
+    resolver = MultiSourceWarrantQuoteResolver(
+        (
+            NamedWarrantQuoteSource(
+                "GETTEX_DELAYED",
+                None,
+                delayed=True,
+                unavailable_reason="GETTEX_DELAYED_DISABLED",
+            ),
+            NamedWarrantQuoteSource("FALLBACK", fallback),
+        )
+    )
+
+    resolved = await resolver.resolve_selected("GETTEX_DELAYED", _request(listing_id))
+
+    assert resolved.result is None
+    assert resolved.selected_source is None
+    assert resolved.attempts[0].status is QuoteSourceAttemptStatus.UNAVAILABLE
+    assert resolved.attempts[0].reason == "GETTEX_DELAYED_DISABLED"
+    assert fallback.calls == 0

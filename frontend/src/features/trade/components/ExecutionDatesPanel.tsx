@@ -8,6 +8,13 @@ import {
   todayInZone,
 } from '../services/executionDateCorrection';
 import type { TradeTimelineEntryResponse } from '../types/api';
+import {
+  emptyExecutionCurrency,
+  executionCurrencyDeclaration,
+  executionCurrencyText,
+} from '../services/executionCurrency';
+import { ExecutionCurrencyOverride } from './ExecutionCurrencyOverride';
+import { ExecutionCurrencyPanel } from './ExecutionCurrencyPanel';
 
 function dateLabel(entry: TradeTimelineEntryResponse) {
   return entry.execution_side === 'SELL' ? 'Verkaufsdatum' : 'Kaufdatum';
@@ -29,6 +36,7 @@ export function ExecutionDatesPanel({
   const [date, setDate] = useState('');
   const [keepTime, setKeepTime] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
+  const [currency, setCurrency] = useState(emptyExecutionCurrency);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const lock = useRef(false);
@@ -82,6 +90,7 @@ export function ExecutionDatesPanel({
       setDate(context.date);
       setKeepTime(context.hasTime);
       setConfirmed(false);
+      setCurrency(emptyExecutionCurrency());
       setMessage(null);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Buchung bitte prüfen.');
@@ -99,7 +108,10 @@ export function ExecutionDatesPanel({
     setMessage(null);
     let saved = false;
     try {
-      const payload = executionDateCorrection(selected, date, keepTime);
+      const payload = {
+        ...executionDateCorrection(selected, date, keepTime),
+        ...executionCurrencyDeclaration(currency),
+      };
       await tradeManagementApiClient.correctExecution(tradeId, selected.id, payload);
       saved = true;
       if (!mounted.current) return;
@@ -128,6 +140,7 @@ export function ExecutionDatesPanel({
   const context = selected ? executionDateContext(selected) : null;
   const unchanged = context && date === context.date && (keepTime || !context.hasTime);
   const stale = selected && !entries.some((entry) => entry.id === selected.id);
+  const selectedCurrency = entries.find((entry) => entry.id === selected?.id) ?? selected;
 
   return (
     <section
@@ -194,6 +207,14 @@ export function ExecutionDatesPanel({
                 {dateLabel(entry)} korrigieren
               </button>
             )}
+            <ExecutionCurrencyPanel
+              tradeId={tradeId}
+              executionId={entry.id}
+              confirmation={entry.currency_confirmation}
+              resolution={entry.currency_resolution}
+              readOnly={cancelled}
+              onChanged={() => load()}
+            />
           </article>
         ))}
       </div>
@@ -208,6 +229,13 @@ export function ExecutionDatesPanel({
         >
           <p>
             Buchung {selected.id} · {selected.quantity} Stück · Preis {selected.price_per_unit}
+          </p>
+          <p className="text-sm text-slate-400">
+            Währung:{' '}
+            {executionCurrencyText(
+              selectedCurrency?.currency_resolution,
+              selectedCurrency?.currency_confirmation,
+            )}
           </p>
           <label className="block">
             {dateLabel(selected)} korrigieren
@@ -267,6 +295,13 @@ export function ExecutionDatesPanel({
             />{' '}
             Ich bestätige das tatsächliche Ausführungsdatum dieser Buchung.
           </label>
+          <ExecutionCurrencyOverride
+            key={selected.id}
+            value={currency}
+            onChange={setCurrency}
+            disabled={busy || !!stale}
+            correction
+          />
           <button
             type="submit"
             disabled={

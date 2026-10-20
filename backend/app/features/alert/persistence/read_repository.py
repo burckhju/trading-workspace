@@ -115,6 +115,9 @@ class SqlAlchemyAlertReadRepository:
                 detected_at=alert.detected_at,
                 status=AlertStatus(alert.status),
                 resolved_at=alert.resolved_at,
+                price_context=alert.price_context,
+                invalidated_at=alert.invalidated_at,
+                invalidation_reason=alert.invalidation_reason,
                 notifications=tuple(notifications_by_alert.get(alert.id, [])),
             )
             for alert in alert_models

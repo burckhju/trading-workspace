@@ -10,6 +10,8 @@ from decimal import Decimal
 from typing import Protocol
 from uuid import UUID, uuid4
 
+from app.features.trade_position.domain.currency import ExecutionCurrencyDeclaration
+from app.features.trade_position.domain.currency_resolution import resolve_execution_currencies
 from app.features.trade_position.domain.enums import (
     ExecutionSide,
     TradeManagementEventType,
@@ -25,6 +27,7 @@ from app.features.trade_position.domain.models import (
     Trade,
     TradeManagementEvent,
 )
+from app.features.trade_position.domain.price_binding import PriceBasis, PriceBinding
 from app.features.trade_position.domain.projector import PositionProjector
 from app.features.trade_position.domain.timeline import (
     Ft011Eligibility,
@@ -34,6 +37,9 @@ from app.features.trade_position.domain.timeline import (
     ft011_eligibility,
 )
 from app.features.trade_position.persistence.unit_of_work import TradePositionUnitOfWork
+from app.features.trade_position.service.currency_confirmations import (
+    ExecutionCurrencyConfirmationService,
+)
 from app.features.trade_position.service.errors import capture_conflict
 from app.features.trade_position.service.resolvers import (
     ResolvedProduct,
@@ -57,6 +63,19 @@ class ProductResolver(Protocol):
     ) -> ResolvedProduct | None: ...
 
 
+class PositionQuoteSourceSelector(Protocol):
+    async def select_once(
+        self,
+        *,
+        workspace_id: UUID,
+        position_id: UUID,
+        warrant_id: UUID,
+        preferred_listing_id: UUID | None = None,
+        expected_currency: str | None = None,
+        selected_at: datetime | None = None,
+    ) -> object: ...
+
+
 class TradePositionService:
     @staticmethod
     def _request_identity(
@@ -68,11 +87,12 @@ class TradePositionService:
         executed_at: datetime,
         executed_on: date | None = None,
         execution_timezone: str | None = None,
+        currency_confirmation: ExecutionCurrencyDeclaration | None = None,
     ) -> tuple[str | None, str | None]:
         if request_id is None:
             return None, None
         key = hashlib.sha256(f"{workspace_id}:{request_id}".encode()).hexdigest()
-        payload = [
+        payload: list[object] = [
             scope,
             quantity,
             str(price.normalize()),
@@ -80,6 +100,9 @@ class TradePositionService:
             str(executed_on),
             execution_timezone,
         ]
+        # Omission keeps historical capture fingerprints unchanged.
+        if currency_confirmation is not None:
+            payload.append(currency_confirmation.payload())
         return key, hashlib.sha256(json.dumps(payload).encode()).hexdigest()
 
     async def _replay(
@@ -102,6 +125,7 @@ class TradePositionService:
         position = await self._uow.positions.get_for_trade(workspace_id, trade.id)
         if position is None:
             raise ValueError("position not found")
+        original = await self._enrich_execution(trade, original)
         return trade, original, position
 
     @staticmethod
@@ -119,10 +143,67 @@ class TradePositionService:
         uow: TradePositionUnitOfWork,
         workspace_selections: WorkspaceSelectionResolver,
         products: ProductResolver | None = None,
+        quote_source_selector: PositionQuoteSourceSelector | None = None,
+        currency_confirmations: ExecutionCurrencyConfirmationService | None = None,
     ) -> None:
         self._uow = uow
         self._workspace_selections = workspace_selections
         self._products = products
+        self._quote_source_selector = quote_source_selector
+        self._currency_confirmations = currency_confirmations
+
+    async def _capture_currency(
+        self,
+        workspace_id: UUID,
+        execution: ExecutionRecord,
+        declaration: ExecutionCurrencyDeclaration | None,
+        actor: UUID,
+    ) -> ExecutionRecord:
+        if declaration is None:
+            return execution
+        if self._currency_confirmations is None:
+            raise ValueError("execution currency confirmation owner is required")
+        return await self._currency_confirmations.capture(
+            workspace_id=workspace_id, execution=execution, declaration=declaration, actor=actor
+        )
+
+    async def _enrich_currencies(
+        self, trade: Trade, executions: list[ExecutionRecord]
+    ) -> list[ExecutionRecord]:
+        # The caller holds the existing per-trade UoW/command lock. No read writes
+        # confirmations; all enrichment is derived from this same source state.
+        current = (
+            await self._currency_confirmations.current_for_trade(trade.workspace_id, trade.id)
+            if self._currency_confirmations is not None
+            else {}
+        )
+        resolutions = resolve_execution_currencies(
+            trade=trade, executions=executions, current=current
+        )
+        return [
+            replace(
+                item,
+                currency_confirmation=current.get(item.id),
+                currency_resolution=resolutions[item.id],
+            )
+            for item in executions
+        ]
+
+    async def _enrich_execution(
+        self,
+        trade: Trade,
+        execution: ExecutionRecord,
+        history: list[ExecutionRecord] | None = None,
+    ) -> ExecutionRecord:
+        if self._currency_confirmations is None:
+            return execution
+        if history is None:
+            history = await self._uow.executions.list_for_trade(trade.id)
+        # Include a just-created fact even before its surrounding UoW flushes.
+        facts = {item.id: item for item in history}
+        facts[execution.id] = execution
+        enriched = await self._enrich_currencies(trade, list(facts.values()))
+        return next(item for item in enriched if item.id == execution.id)
 
     async def record_initial_purchase(
         self,
@@ -136,6 +217,7 @@ class TradePositionService:
         executed_on: date | None = None,
         execution_timezone: str | None = None,
         request_id: UUID | None = None,
+        currency_confirmation: ExecutionCurrencyDeclaration | None = None,
     ) -> tuple[Trade, ExecutionRecord, Position]:
         request_key, request_fingerprint = self._request_identity(
             workspace_id,
@@ -146,6 +228,7 @@ class TradePositionService:
             executed_at,
             executed_on,
             execution_timezone,
+            currency_confirmation,
         )
         replay = await self._replay(workspace_id, request_key, request_fingerprint)
         if replay is not None:
@@ -193,10 +276,26 @@ class TradePositionService:
             execution=execution,
         )
 
+        if self._quote_source_selector is None:
+            raise ValueError("quote source selector is required")
+
         async with self._uow as uow:
             await uow.trades.add(trade)
             await uow.executions.add(execution)
             await uow.positions.add(position)
+            execution = await self._capture_currency(
+                workspace_id, execution, currency_confirmation, actor
+            )
+            execution = await self._enrich_execution(trade, execution, [execution])
+            await uow.flush()
+            await self._quote_source_selector.select_once(
+                workspace_id=workspace_id,
+                position_id=position.id,
+                warrant_id=trade.product_id,
+                preferred_listing_id=selection.warrant_listing_id,
+                expected_currency=selection.quotation_currency_code,
+                selected_at=now,
+            )
             await uow.commit()
 
         return trade, execution, position
@@ -213,6 +312,7 @@ class TradePositionService:
         executed_on: date | None = None,
         execution_timezone: str | None = None,
         request_id: UUID | None = None,
+        currency_confirmation: ExecutionCurrencyDeclaration | None = None,
     ) -> tuple[Trade, ExecutionRecord, Position]:
         request_key, request_fingerprint = self._request_identity(
             workspace_id,
@@ -223,6 +323,7 @@ class TradePositionService:
             executed_at,
             executed_on,
             execution_timezone,
+            currency_confirmation,
         )
         replay = await self._replay(workspace_id, request_key, request_fingerprint)
         if replay is not None:
@@ -269,10 +370,24 @@ class TradePositionService:
             execution=execution,
         )
 
+        if self._quote_source_selector is None:
+            raise ValueError("quote source selector is required")
+
         async with self._uow as uow:
             await uow.trades.add(trade)
             await uow.executions.add(execution)
             await uow.positions.add(position)
+            execution = await self._capture_currency(
+                workspace_id, execution, currency_confirmation, actor
+            )
+            execution = await self._enrich_execution(trade, execution, [execution])
+            await uow.flush()
+            await self._quote_source_selector.select_once(
+                workspace_id=workspace_id,
+                position_id=position.id,
+                warrant_id=trade.product_id,
+                selected_at=now,
+            )
             await uow.commit()
 
         return trade, execution, position
@@ -289,6 +404,7 @@ class TradePositionService:
         executed_on: date | None = None,
         execution_timezone: str | None = None,
         request_id: UUID | None = None,
+        currency_confirmation: ExecutionCurrencyDeclaration | None = None,
     ) -> tuple[ExecutionRecord, Position]:
         request_key, request_fingerprint = self._request_identity(
             workspace_id,
@@ -299,6 +415,7 @@ class TradePositionService:
             executed_at,
             executed_on,
             execution_timezone,
+            currency_confirmation,
         )
         replay = await self._replay(workspace_id, request_key, request_fingerprint)
         if replay is not None:
@@ -347,6 +464,10 @@ class TradePositionService:
 
             await uow.executions.add(execution)
             await uow.positions.replace(updated)
+            execution = await self._capture_currency(
+                workspace_id, execution, currency_confirmation, actor
+            )
+            execution = await self._enrich_execution(trade, execution)
             await uow.commit()
 
         return execution, updated
@@ -363,6 +484,7 @@ class TradePositionService:
         executed_on: date | None = None,
         execution_timezone: str | None = None,
         request_id: UUID | None = None,
+        currency_confirmation: ExecutionCurrencyDeclaration | None = None,
     ) -> tuple[ExecutionRecord, Position]:
         request_key, request_fingerprint = self._request_identity(
             workspace_id,
@@ -373,6 +495,7 @@ class TradePositionService:
             executed_at,
             executed_on,
             execution_timezone,
+            currency_confirmation,
         )
         replay = await self._replay(workspace_id, request_key, request_fingerprint)
         if replay is not None:
@@ -423,9 +546,29 @@ class TradePositionService:
 
             await uow.executions.add(execution)
             await uow.positions.replace(updated)
+            execution = await self._capture_currency(
+                workspace_id, execution, currency_confirmation, actor
+            )
+            execution = await self._enrich_execution(trade, execution)
             await uow.commit()
 
         return execution, updated
+
+    async def _validate_price_binding(self, trade: Trade, binding: PriceBinding | None) -> None:
+        if binding is None:
+            return  # Legacy callers can record intent, but cannot activate monitoring.
+        if self._products is None:
+            raise ValueError("Product identity cannot be verified")
+        product = await self._products.resolve(trade.workspace_id, trade.product_id)
+        expected = (
+            None
+            if product is None
+            else (
+                product.product_id if binding.basis is PriceBasis.WARRANT else product.underlying_id
+            )
+        )
+        if expected is None or expected != binding.instrument_id:
+            raise ValueError("Price binding does not match this trade's instrument")
 
     async def record_management_event(
         self,
@@ -435,6 +578,7 @@ class TradePositionService:
         event_type: TradeManagementEventType,
         effective_at: datetime,
         actor: UUID,
+        price_binding: PriceBinding | None = None,
         numeric_value: Decimal | None = None,
         text_value: str | None = None,
         supersedes_event_id: UUID | None = None,
@@ -446,6 +590,7 @@ class TradePositionService:
             self._require_active(trade)
 
             now = datetime.now(UTC)
+            await self._validate_price_binding(trade, price_binding)
             event = TradeManagementEvent(
                 id=uuid4(),
                 trade_id=trade.id,
@@ -454,6 +599,7 @@ class TradePositionService:
                 recorded_at=max(now, effective_at),
                 recorded_by=actor,
                 numeric_value=numeric_value,
+                price_binding=price_binding,
                 text_value=text_value,
                 supersedes_event_id=supersedes_event_id,
             )
@@ -468,6 +614,7 @@ class TradePositionService:
         workspace_id: UUID,
         trade_id: UUID,
         stop_price: Decimal,
+        price_binding: PriceBinding | None = None,
         effective_at: datetime,
         actor: UUID,
     ) -> TradeManagementEvent:
@@ -478,6 +625,7 @@ class TradePositionService:
             effective_at=effective_at,
             actor=actor,
             numeric_value=stop_price,
+            price_binding=price_binding,
         )
 
     async def change_target(
@@ -486,6 +634,7 @@ class TradePositionService:
         workspace_id: UUID,
         trade_id: UUID,
         target_price: Decimal,
+        price_binding: PriceBinding | None = None,
         effective_at: datetime,
         actor: UUID,
     ) -> TradeManagementEvent:
@@ -496,6 +645,7 @@ class TradePositionService:
             effective_at=effective_at,
             actor=actor,
             numeric_value=target_price,
+            price_binding=price_binding,
         )
 
     async def update_thesis(
@@ -580,6 +730,7 @@ class TradePositionService:
         actor: UUID,
         executed_on: date | None = None,
         execution_timezone: str | None = None,
+        currency_confirmation: ExecutionCurrencyDeclaration | None = None,
     ) -> tuple[ExecutionRecord, Position]:
         async with self._uow as uow:
             trade = await uow.trades.get(workspace_id, trade_id)
@@ -628,6 +779,10 @@ class TradePositionService:
 
             await uow.executions.add(replacement)
             await uow.positions.replace(updated)
+            replacement = await self._capture_currency(
+                workspace_id, replacement, currency_confirmation, actor
+            )
+            replacement = await self._enrich_execution(trade, replacement, history)
             await uow.commit()
 
         return replacement, updated
@@ -640,6 +795,7 @@ class TradePositionService:
         event_id: UUID,
         effective_at: datetime,
         actor: UUID,
+        price_binding: PriceBinding | None = None,
         numeric_value: Decimal | None = None,
         text_value: str | None = None,
     ) -> TradeManagementEvent:
@@ -657,6 +813,7 @@ class TradePositionService:
                 raise ValueError("management event is already superseded")
 
             now = datetime.now(UTC)
+            await self._validate_price_binding(trade, price_binding)
             replacement = TradeManagementEvent(
                 id=uuid4(),
                 trade_id=trade.id,
@@ -665,6 +822,7 @@ class TradePositionService:
                 recorded_at=max(now, effective_at),
                 recorded_by=actor,
                 numeric_value=numeric_value,
+                price_binding=price_binding,
                 text_value=text_value,
                 supersedes_event_id=target.id,
             )
@@ -685,6 +843,7 @@ class TradePositionService:
                 raise ValueError("trade not found")
             executions = await uow.executions.list_for_trade(trade.id)
             management_events = await uow.management_events.list_for_trade(trade.id)
+            executions = await self._enrich_currencies(trade, executions)
 
         timeline = compose_trade_timeline(
             trade_id=trade.id,

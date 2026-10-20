@@ -10,6 +10,8 @@ from uuid import UUID
 class AlertType(StrEnum):
     STOP_REACHED = "STOP_REACHED"
     TARGET_REACHED = "TARGET_REACHED"
+    RISK_TREND_CHANGED = "RISK_TREND_CHANGED"
+    RISK_VOLATILITY_HIGH = "RISK_VOLATILITY_HIGH"
 
 
 class AlertSeverity(StrEnum):
@@ -20,6 +22,7 @@ class AlertSeverity(StrEnum):
 class AlertStatus(StrEnum):
     OPEN = "OPEN"
     RESOLVED = "RESOLVED"
+    INVALIDATED = "INVALIDATED"
 
 
 @dataclass(frozen=True, slots=True)
@@ -33,7 +36,10 @@ class Alert:
     reason: str
     observed_value: Decimal
     threshold_value: Decimal
-    market_data_observed_at: datetime
+    market_data_observed_at: datetime | None
     detected_at: datetime
     status: AlertStatus = AlertStatus.OPEN
     resolved_at: datetime | None = None
+    price_context: dict[str, str | None] | None = None
+    invalidated_at: datetime | None = None
+    invalidation_reason: str | None = None

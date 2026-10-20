@@ -2,20 +2,80 @@
 
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Self
+from typing import Literal, Self
 from uuid import UUID
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from pydantic import AwareDatetime, BaseModel, Field, model_validator
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from app.features.trade_position.domain.currency import (
+    ExecutionCurrencyDeclaration,
+    ExecutionCurrencySource,
+)
 from app.features.trade_position.domain.enums import (
     ExecutionSide,
     TradeManagementEventType,
     TradeOrigin,
 )
+from app.features.trade_position.domain.price_binding import PriceBinding
+
+
+class ExecutionCurrencyDeclarationRequest(BaseModel):
+    currency_code: str = Field(min_length=3, max_length=3)
+    source: ExecutionCurrencySource
+    note: str | None = Field(default=None, min_length=1, max_length=1000)
+
+    @field_validator("currency_code", mode="before")
+    @classmethod
+    def normalize_code(cls, value: object) -> object:
+        return value.strip().upper() if isinstance(value, str) else value
+
+    @model_validator(mode="after")
+    def validate_declaration(self) -> Self:
+        self.to_domain()
+        return self
+
+    def to_domain(self) -> ExecutionCurrencyDeclaration:
+        return ExecutionCurrencyDeclaration(
+            currency_code=self.currency_code, source=self.source, note=self.note
+        )
+
+
+class ExecutionCurrencyConfirmationRequest(ExecutionCurrencyDeclarationRequest):
+    request_id: UUID
+    supersedes_confirmation_id: UUID | None = None
+
+
+class ExecutionCurrencyConfirmationResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: UUID
+    execution_id: UUID
+    currency_code: str
+    source: ExecutionCurrencySource
+    note: str | None
+    confirmed_at: datetime
+    confirmed_by: UUID
+    supersedes_confirmation_id: UUID | None
+
+
+class ExecutionCurrencyResolutionResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    currency_code: str | None = None
+    source: Literal["USER_CONFIRMED", "PRIOR_BUYS", "REPLACED_EXECUTION", "UNKNOWN", "MIXED"] = (
+        "UNKNOWN"
+    )
+    source_execution_ids: tuple[UUID, ...] = ()
+    confirmation_ids: tuple[UUID, ...] = ()
+
+
+class ExecutionCurrencyHistoryResponse(BaseModel):
+    current: ExecutionCurrencyConfirmationResponse | None
+    history: list[ExecutionCurrencyConfirmationResponse]
+    currency_resolution: ExecutionCurrencyResolutionResponse
 
 
 class CaptureTimeRequest(BaseModel):
+    currency_confirmation: ExecutionCurrencyDeclarationRequest | None = None
     executed_at: AwareDatetime | None = None
     executed_on: date | None = None
     execution_timezone: str | None = Field(default=None, max_length=64)
@@ -60,6 +120,7 @@ class SaleRequest(CaptureTimeRequest):
 
 
 class PriceManagementRequest(BaseModel):
+    price_binding: PriceBinding | None = None
     price: Decimal = Field(gt=0)
     effective_at: datetime | None = None
 
@@ -86,6 +147,7 @@ class ExecutionCorrectionRequest(CaptureTimeRequest):
 
 
 class ManagementEventCorrectionRequest(BaseModel):
+    price_binding: PriceBinding | None = None
     effective_at: datetime
     numeric_value: Decimal | None = Field(default=None, gt=0)
     text_value: str | None = Field(default=None, min_length=1, max_length=4000)
@@ -107,6 +169,10 @@ class TradeResponse(BaseModel):
 
 
 class ExecutionResponse(BaseModel):
+    currency_confirmation: ExecutionCurrencyConfirmationResponse | None = None
+    currency_resolution: ExecutionCurrencyResolutionResponse = Field(
+        default_factory=ExecutionCurrencyResolutionResponse
+    )
     id: UUID
     trade_id: UUID
     product_id: UUID
@@ -150,6 +216,7 @@ class AdditionalPurchaseResponse(BaseModel):
 
 
 class TradeManagementEventResponse(BaseModel):
+    price_binding: PriceBinding | None = None
     id: UUID
     trade_id: UUID
     event_type: TradeManagementEventType
@@ -161,6 +228,8 @@ class TradeManagementEventResponse(BaseModel):
 
 
 class TradeManagementStateResponse(BaseModel):
+    stop_price_binding: PriceBinding | None = None
+    target_price_binding: PriceBinding | None = None
     trade_id: UUID
     stop_price: Decimal | None
     target_price: Decimal | None
@@ -170,6 +239,9 @@ class TradeManagementStateResponse(BaseModel):
 
 
 class TradeTimelineEntryResponse(BaseModel):
+    currency_confirmation: ExecutionCurrencyConfirmationResponse | None = None
+    currency_resolution: ExecutionCurrencyResolutionResponse | None = None
+    price_binding: PriceBinding | None = None
     id: UUID
     trade_id: UUID
     occurred_at: datetime

@@ -7,12 +7,15 @@ from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 
+from app.features.trade_position.api.currency_confirmations import router as currency_router
 from app.features.trade_position.api.dependencies import get_trade_position_service
 from app.features.trade_position.api.dtos import (
     AdditionalPurchaseRequest,
     AdditionalPurchaseResponse,
     CaptureTimeRequest,
     ExecutionCorrectionRequest,
+    ExecutionCurrencyConfirmationResponse,
+    ExecutionCurrencyResolutionResponse,
     ExecutionResponse,
     ExternalPurchaseRequest,
     Ft011EligibilityResponse,
@@ -42,6 +45,7 @@ router = APIRouter(
     prefix="/api/v1/trade-position",
     tags=["trade-position"],
 )
+router.include_router(currency_router)
 
 WORKSPACE_ID = UUID("00000000-0000-4000-8000-000000000001")
 LOCAL_ACTOR_ID = UUID("00000000-0000-4000-8000-000000000002")
@@ -66,6 +70,14 @@ def _trade(value: Trade) -> TradeResponse:
 
 def _execution(value: ExecutionRecord) -> ExecutionResponse:
     return ExecutionResponse(
+        currency_confirmation=(
+            ExecutionCurrencyConfirmationResponse.model_validate(value.currency_confirmation)
+            if value.currency_confirmation is not None
+            else None
+        ),
+        currency_resolution=ExecutionCurrencyResolutionResponse.model_validate(
+            value.currency_resolution
+        ),
         id=value.id,
         trade_id=value.trade_id,
         product_id=value.product_id,
@@ -108,6 +120,7 @@ def _management_event(value: TradeManagementEvent) -> TradeManagementEventRespon
         effective_at=value.effective_at,
         recorded_at=value.recorded_at,
         numeric_value=value.numeric_value,
+        price_binding=value.price_binding,
         text_value=value.text_value,
         supersedes_event_id=value.supersedes_event_id,
     )
@@ -117,6 +130,8 @@ def _management_state(value: TradeManagementState) -> TradeManagementStateRespon
     return TradeManagementStateResponse(
         trade_id=value.trade_id,
         stop_price=value.stop_price,
+        stop_price_binding=value.stop_price_binding,
+        target_price_binding=value.target_price_binding,
         target_price=value.target_price,
         thesis=value.thesis,
         notes=value.notes,
@@ -126,6 +141,16 @@ def _management_state(value: TradeManagementState) -> TradeManagementStateRespon
 
 def _timeline_entry(value: TradeTimelineEntry) -> TradeTimelineEntryResponse:
     return TradeTimelineEntryResponse(
+        currency_confirmation=(
+            ExecutionCurrencyConfirmationResponse.model_validate(value.currency_confirmation)
+            if value.currency_confirmation is not None
+            else None
+        ),
+        currency_resolution=(
+            ExecutionCurrencyResolutionResponse.model_validate(value.currency_resolution)
+            if value.currency_resolution is not None
+            else None
+        ),
         id=value.id,
         trade_id=value.trade_id,
         occurred_at=value.occurred_at,
@@ -136,6 +161,7 @@ def _timeline_entry(value: TradeTimelineEntry) -> TradeTimelineEntryResponse:
         quantity=value.quantity,
         price_per_unit=value.price_per_unit,
         numeric_value=value.numeric_value,
+        price_binding=value.price_binding,
         text_value=value.text_value,
         supersedes_id=value.supersedes_id,
         executed_on=value.executed_on,
@@ -170,6 +196,8 @@ def _capture_time(request: CaptureTimeRequest) -> dict[str, Any]:
     result["executed_at"] = at
     if request.request_id is not None:
         result["request_id"] = request.request_id
+    if request.currency_confirmation is not None:
+        result["currency_confirmation"] = request.currency_confirmation.to_domain()
     return result
 
 
@@ -324,6 +352,7 @@ async def change_stop(
             workspace_id=WORKSPACE_ID,
             trade_id=trade_id,
             stop_price=request.price,
+            price_binding=request.price_binding,
             effective_at=_effective_at(request.effective_at),
             actor=actor_id or LOCAL_ACTOR_ID,
         )
@@ -348,6 +377,7 @@ async def change_target(
             workspace_id=WORKSPACE_ID,
             trade_id=trade_id,
             target_price=request.price,
+            price_binding=request.price_binding,
             effective_at=_effective_at(request.effective_at),
             actor=actor_id or LOCAL_ACTOR_ID,
         )
@@ -491,6 +521,7 @@ async def correct_management_event(
             effective_at=request.effective_at,
             actor=actor_id or LOCAL_ACTOR_ID,
             numeric_value=request.numeric_value,
+            price_binding=request.price_binding,
             text_value=request.text_value,
         )
     except ValueError as error:

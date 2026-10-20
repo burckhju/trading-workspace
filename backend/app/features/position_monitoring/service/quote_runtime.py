@@ -1,4 +1,6 @@
 from app.core.di import ApplicationContainer
+from app.features.market_data.domain.enums import MarketDataProvider
+from app.features.market_data.service.retained_quotes import RetainedWarrantQuoteProvider
 from app.features.position_monitoring.service.quote_sources import (
     MultiSourceWarrantQuoteResolver,
     NamedWarrantQuoteSource,
@@ -10,20 +12,73 @@ def build_warrant_quote_resolver(
 ) -> MultiSourceWarrantQuoteResolver:
     """Build the shared runtime quote resolver for held-product valuation reads."""
 
-    vontobel_provider = container.vontobel
+    vontobel_provider = (
+        RetainedWarrantQuoteProvider(
+            container.database, container.vontobel, MarketDataProvider.VONTOBEL_MARKETS
+        )
+        if container.vontobel is not None
+        else None
+    )
     stuttgart_settings = container.settings.market_data.stuttgart_delayed
-    stuttgart_provider = container.stuttgart
+    stuttgart_provider = (
+        RetainedWarrantQuoteProvider(
+            container.database, container.stuttgart, MarketDataProvider.BOERSE_STUTTGART_DELAYED
+        )
+        if container.stuttgart is not None
+        else None
+    )
     stuttgart_reason = (
         "STUTTGART_DELAYED_DISABLED"
         if not stuttgart_settings.enabled
         else "STUTTGART_DELAYED_SCHEMA_NOT_VERIFIED"
     )
+    gettex_provider = (
+        RetainedWarrantQuoteProvider(
+            container.database, container.gettex, MarketDataProvider.GETTEX_DELAYED
+        )
+        if container.gettex is not None
+        else None
+    )
+    gettex_reason = (
+        "GETTEX_DELAYED_DISABLED"
+        if not container.settings.market_data.gettex_delayed.enabled
+        else "GETTEX_DELAYED_MAPPING_REQUIRED"
+    )
     frankfurt_settings = container.settings.market_data.frankfurt
+    morganstanley = getattr(container, "morganstanley", None)
     return MultiSourceWarrantQuoteResolver(
         (
             NamedWarrantQuoteSource(
+                "MORGAN_STANLEY",
+                (
+                    RetainedWarrantQuoteProvider(
+                        container.database, morganstanley, MarketDataProvider.MORGAN_STANLEY
+                    )
+                    if morganstanley is not None
+                    else None
+                ),
+                unavailable_reason="MORGAN_STANLEY_DISABLED" if morganstanley is None else None,
+            ),
+            NamedWarrantQuoteSource(
+                "JPMORGAN",
+                (
+                    RetainedWarrantQuoteProvider(
+                        container.database, container.jpmorgan, MarketDataProvider.JPMORGAN
+                    )
+                    if container.jpmorgan is not None
+                    else None
+                ),
+                unavailable_reason="JPMORGAN_DISABLED" if container.jpmorgan is None else None,
+            ),
+            NamedWarrantQuoteSource(
                 "FRANKFURT_QUOTES",
-                container.frankfurt,
+                (
+                    RetainedWarrantQuoteProvider(
+                        container.database, container.frankfurt, MarketDataProvider.FRANKFURT_QUOTES
+                    )
+                    if container.frankfurt is not None
+                    else None
+                ),
                 delayed=frankfurt_settings.feed_delay_seconds > 0,
                 unavailable_reason="FRANKFURT_DISABLED",
             ),
@@ -40,12 +95,9 @@ def build_warrant_quote_resolver(
             ),
             NamedWarrantQuoteSource(
                 "GETTEX_DELAYED",
-                None,
+                gettex_provider,
                 delayed=True,
-                unavailable_reason=(
-                    "Official MUND/MUNC delayed pre-trade source is reserved but not enabled until "
-                    "payload schema, usage terms, and listing identity are verified"
-                ),
+                unavailable_reason=gettex_reason,
             ),
         )
     )

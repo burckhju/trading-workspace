@@ -3,6 +3,37 @@ export type IsoDateTime = string;
 
 export type ExecutionSide = 'BUY' | 'SELL';
 export type TradeOrigin = 'WORKSPACE_SELECTION' | 'EXTERNAL';
+export interface ExecutionCurrencyResolution {
+  currency_code: string | null;
+  source: 'USER_CONFIRMED' | 'PRIOR_BUYS' | 'REPLACED_EXECUTION' | 'UNKNOWN' | 'MIXED';
+  source_execution_ids: Uuid[];
+  confirmation_ids: Uuid[];
+}
+export interface ExecutionCurrencyDeclaration {
+  currency_code: string;
+  source: 'USER_CONFIRMED';
+  note?: string | null;
+}
+
+export interface ExecutionCurrencyConfirmation extends ExecutionCurrencyDeclaration {
+  id: Uuid;
+  execution_id: Uuid;
+  note: string | null;
+  confirmed_at: IsoDateTime;
+  confirmed_by: Uuid;
+  supersedes_confirmation_id: Uuid | null;
+}
+
+export interface ExecutionCurrencyHistory {
+  current: ExecutionCurrencyConfirmation | null;
+  history: ExecutionCurrencyConfirmation[];
+  currency_resolution?: ExecutionCurrencyResolution;
+}
+
+export interface ConfirmExecutionCurrencyRequest extends ExecutionCurrencyDeclaration {
+  request_id: Uuid;
+  supersedes_confirmation_id: Uuid | null;
+}
 export type TradeManagementEventType =
   | 'STOP_CHANGED'
   | 'TARGET_CHANGED'
@@ -40,6 +71,8 @@ export interface TradeResponse {
 }
 
 export interface ExecutionResponse {
+  currency_confirmation?: ExecutionCurrencyConfirmation | null;
+  currency_resolution?: ExecutionCurrencyResolution;
   id: Uuid;
   trade_id: Uuid;
   product_id: Uuid;
@@ -121,7 +154,12 @@ export interface ProductPositionValuationResponse {
   source_mode?: string | null;
   trading_status?: string | null;
   quote_retrieved_at?: IsoDateTime | null;
+  quote_time_text?: string | null;
+  quote_time_basis?: string | null;
+  bid_volume?: number | null;
+  ask_volume?: number | null;
   quote_refresh_error?: string | null;
+  quote_retained?: boolean;
   quote_assessed_at?: IsoDateTime | null;
   quote_delay_seconds?: number | null;
   quote_venue_mic?: string | null;
@@ -133,6 +171,7 @@ export interface ProductPositionValuationResponse {
 }
 
 export interface InitialPurchaseRequest {
+  currency_confirmation?: ExecutionCurrencyDeclaration;
   product_selection_id: Uuid;
   quantity: number;
   price_per_unit: string;
@@ -154,6 +193,7 @@ export interface SaleResponse {
 }
 
 export interface TradeManagementEventResponse {
+  price_binding?: PriceBinding | null;
   id: Uuid;
   trade_id: Uuid;
   event_type: TradeManagementEventType;
@@ -167,6 +207,8 @@ export interface TradeManagementEventResponse {
 }
 
 export interface TradeManagementStateResponse {
+  stop_price_binding?: PriceBinding | null;
+  target_price_binding?: PriceBinding | null;
   trade_id: Uuid;
   stop_price: string | null;
   target_price: string | null;
@@ -176,6 +218,9 @@ export interface TradeManagementStateResponse {
 }
 
 export interface TradeTimelineEntryResponse {
+  currency_confirmation?: ExecutionCurrencyConfirmation | null;
+  currency_resolution?: ExecutionCurrencyResolution | null;
+  price_binding?: PriceBinding | null;
   id: Uuid;
   trade_id: Uuid;
   occurred_at: IsoDateTime;
@@ -193,6 +238,7 @@ export interface TradeTimelineEntryResponse {
 }
 
 export interface SaleRequest {
+  currency_confirmation?: ExecutionCurrencyDeclaration;
   quantity: number;
   price_per_unit: string;
   executed_at?: IsoDateTime | null;
@@ -202,6 +248,7 @@ export interface SaleRequest {
 }
 
 export interface PriceManagementRequest {
+  price_binding?: PriceBinding | null;
   price: string;
   effective_at?: IsoDateTime | null;
 }
@@ -246,7 +293,14 @@ export interface CancellationRequest {
 
 /** Date corrections reference an existing execution, not a new capture request. */
 export type ExecutionCorrectionRequest = {
+  currency_confirmation?: ExecutionCurrencyDeclaration;
   side: ExecutionSide;
   quantity: number;
   price_per_unit: string;
 } & ({ executed_at: IsoDateTime } | { executed_on: string; execution_timezone: string });
+
+export interface PriceBinding {
+  basis: 'UNDERLYING' | 'WARRANT';
+  instrument_id: string;
+  currency: string;
+}

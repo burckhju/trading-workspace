@@ -2,6 +2,12 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 
 import { ExecutionDateInput } from '../../trade/components/ExecutionDateInput';
+import { ExecutionCurrencyInput } from '../../trade/components/ExecutionCurrencyInput';
+import {
+  emptyExecutionCurrency,
+  executionCurrencyDeclaration,
+  executionCurrencyText,
+} from '../../trade/services/executionCurrency';
 import {
   captureRequest,
   executionTime,
@@ -11,6 +17,7 @@ import {
 import { MarketApiError } from '../../market/services/http';
 import { tradeManagementApiClient } from '../../trade/services/client';
 import type { InitialPurchaseResponse } from '../../trade/types/api';
+import { selectionRepairUrl } from '../../product/services/selectionRepairContext';
 import { SelectionProductIdentity } from '../components/SelectionProductIdentity';
 import { useSelectionReferenceData } from '../services/useSelectionReferenceData';
 import { productSelectionApiClient } from '../services/client';
@@ -216,9 +223,14 @@ export function ProductSelectionPage() {
   const [purchasePrice, setPurchasePrice] = useState('');
   const [purchaseDate, setPurchaseDate] = useState(localToday);
   const [purchaseTime, setPurchaseTime] = useState('');
+  const [purchaseCurrency, setPurchaseCurrency] = useState(emptyExecutionCurrency);
   const [existingTradeId, setExistingTradeId] = useState<string | null>(null);
   const purchaseLock = useRef(false);
   const [purchase, setPurchase] = useState<InitialPurchaseResponse | null>(null);
+
+  useEffect(() => {
+    setPurchaseCurrency(emptyExecutionCurrency());
+  }, [detail?.selection?.id]);
 
   const counts = useMemo(() => {
     const evaluations = detail?.evaluations ?? [];
@@ -375,6 +387,7 @@ export function ProductSelectionPage() {
         quantity,
         price_per_unit: purchasePrice.trim().replace(',', '.'),
         ...executionTime(purchaseDate, purchaseTime),
+        ...executionCurrencyDeclaration(purchaseCurrency),
       };
       const created = await tradeManagementApiClient.purchaseFromSelection({
         ...payload,
@@ -382,6 +395,7 @@ export function ProductSelectionPage() {
       });
       finishCapture(scope);
       setPurchase(created);
+      setPurchaseCurrency(emptyExecutionCurrency());
       setMessage(
         `Kauf wurde als BUY erfasst. Trade ${tradeReference(created.trade.id)} und offene Position wurden erstellt.`,
       );
@@ -653,6 +667,11 @@ export function ProductSelectionPage() {
                           />
                         </label>
                       </div>
+                      <ExecutionCurrencyInput
+                        value={purchaseCurrency}
+                        onChange={setPurchaseCurrency}
+                        disabled={busy}
+                      />
                       <button
                         type="submit"
                         disabled={
@@ -679,6 +698,15 @@ export function ProductSelectionPage() {
                         <div>
                           <dt className="text-slate-500">Kaufpreis</dt>
                           <dd>{purchase.execution.price_per_unit}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-slate-500">Ausführungswährung</dt>
+                          <dd>
+                            {executionCurrencyText(
+                              purchase.execution.currency_resolution,
+                              purchase.execution.currency_confirmation,
+                            )}
+                          </dd>
                         </div>
                         <div>
                           <dt className="text-slate-500">Cost Basis</dt>
@@ -726,8 +754,22 @@ export function ProductSelectionPage() {
                         key={`${item.warrant_id}-${item.reason}`}
                         className="rounded border border-slate-800 p-3"
                       >
-                        <span className="font-medium">{item.reason}</span>
+                        <span className="font-medium">
+                          {item.reason === 'NO_LISTING'
+                            ? 'Notierung fehlt'
+                            : item.reason === 'NO_EFFECTIVE_TERMS'
+                              ? 'Gültige Produktbedingungen fehlen'
+                              : item.reason}
+                        </span>
                         <p className="mt-1 text-slate-400">{item.explanation}</p>
+                        <Link
+                          to={selectionRepairUrl(detail.run.id, item.warrant_id)}
+                          className="mt-2 inline-block text-sky-300 underline"
+                        >
+                          {item.reason === 'NO_LISTING'
+                            ? 'Notierung ergänzen'
+                            : 'Produktstammdaten prüfen'}
+                        </Link>
                         <SelectionProductIdentity
                           productId={item.warrant_id}
                           product={references.products[item.warrant_id]}
@@ -760,9 +802,26 @@ export function ProductSelectionPage() {
                   ))}
                 </div>
                 {detail.evaluations.length === 0 && (
-                  <p className="rounded-xl border border-slate-800 p-5 text-sm text-slate-400">
-                    Dieser Run enthält keine bewertbaren Listing-Kontexte.
-                  </p>
+                  <div className="space-y-3 rounded-xl border border-amber-800 p-5 text-sm">
+                    <p>
+                      {detail.universe_omissions.length > 0
+                        ? 'Die oben genannten Stammdaten fehlen in diesem Bewertungslauf. Ein fehlender Kurs ist nicht die Ursache dieser Auslassungen.'
+                        : 'In diesem Bewertungslauf ist kein Optionsschein enthalten. Produktidentität und Zuordnung zum Plan-Basiswert in den vorhandenen Stammdaten prüfen.'}
+                    </p>
+                    <p>
+                      Nach der Pflege „Produkte neu bewerten“ wählen. Dieser historische Lauf bleibt
+                      unverändert. Fehlende Bewertungsdaten können anschließend über die bestehende
+                      Begründung und Bestätigung behandelt werden.
+                    </p>
+                    {detail.universe_omissions.length === 0 && (
+                      <Link
+                        to={selectionRepairUrl(detail.run.id)}
+                        className="inline-block text-sky-300 underline"
+                      >
+                        Optionsscheinstammdaten prüfen
+                      </Link>
+                    )}
+                  </div>
                 )}
               </section>
             </div>

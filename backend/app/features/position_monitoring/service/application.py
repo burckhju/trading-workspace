@@ -18,13 +18,24 @@ from app.features.position_monitoring.domain.transitions import (
     TriggerTransition,
     decide_transition,
 )
-from app.features.position_monitoring.persistence.repositories import MonitoringRuleStateRepository
+from app.features.position_monitoring.persistence.repositories import (
+    MonitoringRuleStateRepository,
+)
 
 
 @dataclass(frozen=True, slots=True)
 class MonitoringEvaluationResult:
     transition: TriggerTransition
     alert: Alert | None
+
+
+class OutOfOrderRuleObservation(ValueError):
+    """An older quote must not rewind a persisted rule or resolve its alert."""
+
+    def __init__(self, previous_seen_at: datetime, time_basis: str) -> None:
+        super().__init__("OUT_OF_ORDER_RULE_OBSERVATION")
+        self.previous_seen_at = previous_seen_at
+        self.time_basis = time_basis
 
 
 class PositionMonitoringService:
@@ -53,12 +64,25 @@ class PositionMonitoringService:
     ) -> MonitoringEvaluationResult:
         current = await self._states.get(position_id=position_id, rule_key=rule.rule_key)
         evaluation = PositionRuleEvaluator.evaluate(rule=rule, observation=observation)
+        ordering_at = observation.ordering_at
+        time_basis = observation.ordering_time_basis
         detected_at = self._now()
 
-        if current is not None and current.threshold_value != rule.threshold:
+        assert rule.price_binding is not None  # validated before any write
+        if current is not None and (
+            current.threshold_value != rule.threshold
+            or current.price_binding_key != rule.price_binding.key
+        ):
             if current.active_alert_id is not None:
                 await self._alerts.resolve(current.active_alert_id, resolved_at=detected_at)
             current = None
+
+        if (
+            current is not None
+            and current.time_basis == time_basis
+            and ordering_at < current.last_seen_at
+        ):
+            raise OutOfOrderRuleObservation(current.last_seen_at, time_basis)
 
         decision = decide_transition(current=current, evaluation=evaluation)
         alert: Alert | None = None
@@ -86,6 +110,7 @@ class PositionMonitoringService:
                 threshold_value=rule.threshold,
                 market_data_observed_at=observation.observed_at,
                 detected_at=detected_at,
+                price_context={**(observation.context or {}), **rule.price_binding.as_dict()},
             )
             await self._alerts.add(alert)
             active_alert_id = alert.id
@@ -97,8 +122,8 @@ class PositionMonitoringService:
         if evaluation.triggered:
             first_seen_at = (
                 current.first_seen_at
-                if current is not None and current.triggered
-                else observation.observed_at
+                if current is not None and current.triggered and current.time_basis == time_basis
+                else ordering_at
             )
 
         await self._states.put(
@@ -107,10 +132,12 @@ class PositionMonitoringService:
                 rule_key=rule.rule_key,
                 triggered=evaluation.triggered,
                 first_seen_at=first_seen_at,
-                last_seen_at=observation.observed_at,
+                last_seen_at=ordering_at,
                 last_observed_value=observation.value,
                 threshold_value=rule.threshold,
                 active_alert_id=active_alert_id,
+                price_binding_key=rule.price_binding.key,
+                time_basis=time_basis,
             )
         )
         return MonitoringEvaluationResult(transition=decision.transition, alert=alert)

@@ -14,8 +14,10 @@ from app.features.market.persistence.models import (
     TradingVenueModel,
     UnderlyingModel,
 )
+from app.features.market_data.domain.enums import MappingStatus, MarketDataProvider
+from app.features.market_data.persistence.models import WarrantProviderMappingModel
 from app.features.product.domain.models import WarrantLifecycle
-from app.features.product.persistence.models import WarrantModel
+from app.features.product.persistence.models import WarrantListingModel, WarrantModel
 from app.features.trade_position.persistence.models import PositionModel, TradeModel
 
 
@@ -27,6 +29,39 @@ class RefreshInstrument:
     issuer: str | None = None
     listing_id: UUID | None = None
     held: bool = False
+
+
+ISSUER_PROVIDERS = frozenset({MarketDataProvider.JPMORGAN, MarketDataProvider.MORGAN_STANLEY})
+
+
+async def read_issuer_route_groups(
+    database: DatabaseManager, workspace_id: UUID
+) -> tuple[set[UUID], set[UUID]]:
+    """Scheduling hints only; adapters revalidate each route before fetching/storing.
+
+    Products with both kinds of mappings keep both refresh jobs. This query
+    neither creates mappings nor changes the position's selected source.
+    """
+    async with database.session_context() as session:
+        rows = (
+            await session.execute(
+                select(WarrantListingModel.warrant_id, WarrantProviderMappingModel.provider)
+                .join(
+                    WarrantProviderMappingModel,
+                    WarrantProviderMappingModel.warrant_listing_id == WarrantListingModel.id,
+                )
+                .where(
+                    WarrantListingModel.workspace_id == workspace_id,
+                    WarrantListingModel.lifecycle_status == WarrantLifecycle.ACTIVE,
+                    WarrantProviderMappingModel.workspace_id == workspace_id,
+                    WarrantProviderMappingModel.status == MappingStatus.ACTIVE,
+                    WarrantProviderMappingModel.validated_at.is_not(None),
+                )
+            )
+        ).all()
+    issuers = {warrant_id for warrant_id, provider in rows if provider in ISSUER_PROVIDERS}
+    others = {warrant_id for warrant_id, provider in rows if provider not in ISSUER_PROVIDERS}
+    return issuers, issuers - others
 
 
 async def read_catalog(

@@ -48,13 +48,35 @@ describe('underlying list URL state', () => {
     '/underlyings/test',
     'javascript:alert(1)',
     '/underlyings\\evil',
+    '/underlyings?offset=25#//evil.invalid',
+    '/underlyings?returnTo=%2Funderlyings%3Foffset%3D50',
+    '/underlyings?query=Test&offset=25&returnTo=https://evil.invalid',
+    '/underlyings?offset=25&offset=50',
+    '/underlyings?offset=25%26returnTo%3D%2Ftrades',
+    '/underlyings?offset=-25',
+    '/underlyings?lifecycle=UNKNOWN',
+    '/underlyings?unknown=1',
+    '/underlyings?%6Fffset=25',
+    '/underlyings?query=%ZZ',
+    '/underlyings?query=%C3',
+    '/underlyings?offset=25\n',
+    '%2Funderlyings%3Foffset%3D25',
+    '/%75nderlyings?offset=25',
+    '/underlyings%3Foffset%3D25',
   ])('rejects non-list return target %s', (returnTo) => {
     expect(underlyingListReturnTo(new URLSearchParams({ returnTo }))).toBeUndefined();
   });
-  it('strips nested return targets and unknown parameters, keeping only the list view', () => {
-    const returnTo = '/underlyings?query=Test&offset=25&returnTo=https://evil.invalid&unknown=1';
+  it('rejects repeated outer return targets instead of choosing one', () => {
+    expect(
+      underlyingListReturnTo(
+        new URLSearchParams('returnTo=%2Funderlyings%3Foffset%3D25&returnTo=%2Ftrades'),
+      ),
+    ).toBeUndefined();
+  });
+  it('canonicalizes equivalent value encoding and keeps encoded search punctuation as data', () => {
+    const returnTo = '/underlyings?query=Test%20%26%20%C3%96l%20%23&offset=25';
     expect(underlyingListReturnTo(new URLSearchParams({ returnTo }))).toBe(
-      '/underlyings?query=Test&offset=25',
+      '/underlyings?query=Test+%26+%C3%96l+%23&offset=25',
     );
   });
   it('retains provider prefill parameters and leaves standalone links unchanged', () => {

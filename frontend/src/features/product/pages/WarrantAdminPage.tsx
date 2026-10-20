@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { marketApiClient } from '../../market/services/client';
 import type {
@@ -7,6 +7,11 @@ import type {
   UnderlyingSummaryResponse,
 } from '../../market/types/api';
 import { StrikeCurrencyInput } from '../components/StrikeCurrencyInput';
+import { WarrantListingFields } from '../components/WarrantListingFields';
+import { WarrantIdentifierCorrection } from '../components/WarrantIdentifierCorrection';
+import { WarrantValuationEvidence } from '../components/WarrantValuationEvidence';
+import { WarrantQuoteHistory } from '../components/WarrantQuoteHistory';
+import type { SelectionRepairContext } from '../services/selectionRepairContext';
 import { warrantApiClient } from '../services/client';
 import type {
   OptionDirection,
@@ -36,7 +41,9 @@ const EMPTY_TERMS = {
 };
 const EMPTY_LISTING = { trading_venue_id: '', symbol: '', quotation_currency_code: 'EUR' };
 
-export function WarrantAdminPage() {
+export function WarrantAdminPage({
+  selectionContext,
+}: { selectionContext?: SelectionRepairContext } = {}) {
   const [warrants, setWarrants] = useState<WarrantResponse[]>([]);
   const [issuers, setIssuers] = useState<IssuerResponse[]>([]);
   const [underlyings, setUnderlyings] = useState<UnderlyingSummaryResponse[]>([]);
@@ -44,10 +51,23 @@ export function WarrantAdminPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [terms, setTerms] = useState<WarrantTermsResponse[]>([]);
   const [listings, setListings] = useState<WarrantListingResponse[]>([]);
-  const [productForm, setProductForm] = useState(EMPTY_PRODUCT);
+  const initialProduct = { ...EMPTY_PRODUCT, underlying_id: selectionContext?.underlying.id ?? '' };
+  const initialListing = {
+    ...EMPTY_LISTING,
+    quotation_currency_code: selectionContext ? '' : 'EUR',
+  };
+  const [productForm, setProductForm] = useState(initialProduct);
   const [termsForm, setTermsForm] = useState(EMPTY_TERMS);
-  const [listingForm, setListingForm] = useState(EMPTY_LISTING);
+  const [listingForm, setListingForm] = useState(initialListing);
+  const [creationListing, setCreationListing] = useState({
+    ...EMPTY_LISTING,
+    quotation_currency_code: '',
+  });
+  const [createdProduct, setCreatedProduct] = useState<WarrantResponse | null>(null);
+  const creating = useRef(false);
+  const repairMode = Boolean(selectionContext);
   const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const selected = useMemo(
@@ -58,30 +78,53 @@ export function WarrantAdminPage() {
   const underlyingName = (id: string) => underlyings.find((item) => item.id === id)?.name ?? id;
   const venueName = (id: string) => venues.find((item) => item.id === id)?.name ?? id;
 
-  async function loadReferenceData() {
+  const loadReferenceData = useCallback(async () => {
     const [issuerResponse, underlyingResponse, venueResponse] = await Promise.all([
       marketApiClient.listIssuers(),
       marketApiClient.searchUnderlyings({ lifecycleStatus: 'ACTIVE', limit: 100 }),
       marketApiClient.listTradingVenues(),
     ]);
     setIssuers(issuerResponse.items);
-    setUnderlyings(underlyingResponse.items);
+    const items = underlyingResponse.items;
+    setUnderlyings(
+      selectionContext && !items.some((item) => item.id === selectionContext.underlying.id)
+        ? [...items, selectionContext.underlying]
+        : items,
+    );
     setVenues(venueResponse.items);
-  }
+  }, [selectionContext]);
 
-  async function loadWarrants(preferredId?: string) {
-    const response = await warrantApiClient.list();
-    setWarrants(response);
-    setSelectedId((current) => preferredId ?? current ?? response[0]?.id ?? null);
-  }
+  const loadWarrants = useCallback(
+    async (preferredId?: string) => {
+      const catalogue = await warrantApiClient.list();
+      const response = selectionContext
+        ? catalogue.filter(
+            (item) =>
+              item.underlying_id === selectionContext.underlying.id &&
+              (!selectionContext.warrantId || item.id === selectionContext.warrantId),
+          )
+        : catalogue;
+      setWarrants(response);
+      if (selectionContext?.warrantId && response.length === 0) {
+        setSelectedId(null);
+        throw new Error(
+          'Das angeforderte Produkt ist im passenden Basiswertkontext nicht verfügbar. Keine automatische Ersatzauswahl.',
+        );
+      }
+      setSelectedId((current) => preferredId ?? current ?? response[0]?.id ?? null);
+    },
+    [selectionContext],
+  );
 
-  async function loadDetail(id: string) {
+  async function loadDetail(id: string, signal?: AbortSignal) {
     const [termsResponse, listingsResponse] = await Promise.all([
-      warrantApiClient.terms(id),
-      warrantApiClient.listings(id),
+      warrantApiClient.terms(id, signal),
+      warrantApiClient.listings(id, signal),
     ]);
-    setTerms(termsResponse);
-    setListings(listingsResponse);
+    if (!signal?.aborted) {
+      setTerms(termsResponse);
+      setListings(listingsResponse);
+    }
   }
 
   useEffect(() => {
@@ -90,7 +133,7 @@ export function WarrantAdminPage() {
         value instanceof Error ? value.message : 'Optionsscheine konnten nicht geladen werden.',
       ),
     );
-  }, []);
+  }, [loadReferenceData, loadWarrants]);
 
   useEffect(() => {
     if (!selectedId) {
@@ -98,40 +141,80 @@ export function WarrantAdminPage() {
       setListings([]);
       return;
     }
-    void loadDetail(selectedId).catch((value: unknown) =>
-      setError(
-        value instanceof Error ? value.message : 'Produktdetails konnten nicht geladen werden.',
-      ),
-    );
+    const controller = new AbortController();
+    setTerms([]);
+    setListings([]);
+    setMessage(null);
+    void loadDetail(selectedId, controller.signal).catch((value: unknown) => {
+      if (!controller.signal.aborted)
+        setError(
+          value instanceof Error ? value.message : 'Produktdetails konnten nicht geladen werden.',
+        );
+    });
+    return () => controller.abort();
   }, [selectedId]);
+
+  useEffect(() => {
+    setListingForm({ ...EMPTY_LISTING, quotation_currency_code: repairMode ? '' : 'EUR' });
+  }, [selectedId, repairMode]);
 
   async function createProduct(event: FormEvent) {
     event.preventDefault();
+    if (busy || creating.current || createdProduct) return;
+    if (
+      !venues.some((venue) => venue.id === creationListing.trading_venue_id) ||
+      !/^[A-Z]{3}$/.test(creationListing.quotation_currency_code)
+    ) {
+      setError('Bitte Handelsplatz und Handelswährung dieses Optionsscheins angeben.');
+      return;
+    }
+    creating.current = true;
     setBusy(true);
     setError(null);
+    setMessage(null);
+    let saved = false;
     try {
       const created = await warrantApiClient.create({
         ...productForm,
         isin: productForm.isin || null,
         wkn: productForm.wkn || null,
         strike_currency_code: productForm.strike_currency_code || null,
+        initial_listing: { ...creationListing, symbol: creationListing.symbol.trim() || null },
       });
-      setProductForm(EMPTY_PRODUCT);
+      saved = true;
+      setCreatedProduct(created);
+      // Retain the server-confirmed identity even if the subsequent catalogue read fails.
+      setWarrants((current) => [...current.filter((item) => item.id !== created.id), created]);
+      setSelectedId(created.id);
       await loadWarrants(created.id);
     } catch (value: unknown) {
       setError(
-        value instanceof Error ? value.message : 'Optionsschein konnte nicht angelegt werden.',
+        saved
+          ? 'Optionsschein und Notierung sind bereits gespeichert. Die Anzeige konnte nicht aktualisiert werden. Nicht erneut anlegen; Ansicht neu laden.'
+          : value instanceof Error
+            ? value.message
+            : 'Optionsschein und Notierung konnten nicht gespeichert werden.',
       );
     } finally {
+      if (!saved) creating.current = false;
       setBusy(false);
     }
   }
 
+  function startAnotherProduct() {
+    setProductForm(initialProduct);
+    setCreationListing({ ...EMPTY_LISTING, quotation_currency_code: '' });
+    setCreatedProduct(null);
+    creating.current = false;
+    setError(null);
+  }
+
   async function addTerms(event: FormEvent) {
     event.preventDefault();
-    if (!selected) return;
+    if (!selected || busy) return;
     setBusy(true);
     setError(null);
+    setMessage(null);
     try {
       await warrantApiClient.addTerms(selected.id, {
         ...termsForm,
@@ -151,24 +234,38 @@ export function WarrantAdminPage() {
 
   async function addListing(event: FormEvent) {
     event.preventDefault();
-    if (!selected) return;
+    if (!selected || busy) return;
     setBusy(true);
     setError(null);
+    setMessage(null);
+    let saved = false;
     try {
-      await warrantApiClient.addListing(selected.id, listingForm);
-      setListingForm(EMPTY_LISTING);
+      const created = await warrantApiClient.addListing(selected.id, listingForm);
+      saved = true;
+      setListings((current) => [...current, created]);
+      setListingForm(initialListing);
+      setMessage(
+        'Notierung gespeichert. Zur Produktauswahl zurückkehren und neu bewerten; Auswahlbestätigung und Kauf bleiben separate Schritte.',
+      );
       await loadDetail(selected.id);
     } catch (value: unknown) {
-      setError(value instanceof Error ? value.message : 'Notierung konnte nicht ergänzt werden.');
+      setError(
+        saved
+          ? 'Notierung wurde gespeichert, aber die Anzeige konnte nicht aktualisiert werden. Nicht erneut hinzufügen; Ansicht neu laden.'
+          : value instanceof Error
+            ? value.message
+            : 'Notierung konnte nicht ergänzt werden.',
+      );
     } finally {
       setBusy(false);
     }
   }
 
   async function toggleStatus() {
-    if (!selected) return;
+    if (!selected || busy) return;
     setBusy(true);
     setError(null);
+    setMessage(null);
     try {
       const updated =
         selected.lifecycle_status === 'ACTIVE'
@@ -193,153 +290,206 @@ export function WarrantAdminPage() {
         </p>
       </header>
       {error && (
-        <p className="rounded-lg border border-rose-800 p-3 text-sm text-rose-200">{error}</p>
+        <p role="alert" className="rounded-lg border border-rose-800 p-3 text-sm text-rose-200">
+          {error}
+        </p>
       )}
 
-      <section className="grid gap-6 lg:grid-cols-[1fr_1.5fr]">
-        <form
-          onSubmit={(event) => void createProduct(event)}
-          className="rounded-xl border border-slate-800 p-5"
-        >
-          <h2 className="text-lg font-medium">Optionsschein anlegen</h2>
-          <p className="mt-1 text-xs text-slate-500">
-            Emittent und Basiswert werden aus bestehenden Stammdaten referenziert; technische IDs
-            müssen nicht eingegeben werden.
-          </p>
-          <div className="mt-4 grid gap-3">
-            <label className="text-sm">
-              Anzeigename *
-              <input
-                required
-                value={productForm.display_name}
-                onChange={(e) => setProductForm({ ...productForm, display_name: e.target.value })}
-                className="mt-1 w-full rounded border border-slate-700 bg-slate-950 p-2"
-              />
-            </label>
-            <label className="text-sm">
-              Emittent *
-              <select
-                required
-                value={productForm.issuer_id}
-                onChange={(e) => setProductForm({ ...productForm, issuer_id: e.target.value })}
-                className="mt-1 w-full rounded border border-slate-700 bg-slate-950 p-2"
+      {message && (
+        <p role="status" className="rounded-lg border border-sky-800 p-3 text-sm">
+          {message}
+        </p>
+      )}
+      <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)]">
+        {!selectionContext?.warrantId &&
+          (createdProduct ? (
+            <section role="status" className="min-w-0 rounded-xl border border-sky-800 p-5">
+              <h2 className="font-semibold">Optionsschein und Notierung gespeichert</h2>
+              <p className="mt-2 break-words">{createdProduct.display_name}</p>
+              <p className="mt-2 text-sm text-slate-300">
+                Handelsplatz und Handelswährung sind hinterlegt und werden bei der Produktauswahl
+                verwendet. Ein Kauf wurde noch nicht erfasst. Bestehende Bewertungsläufe bleiben
+                unverändert.
+              </p>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={startAnotherProduct}
+                className="mt-4 rounded border border-slate-700 px-3 py-2 text-sm disabled:opacity-50"
               >
-                <option value="">Bitte wählen</option>
-                {issuers.map((x) => (
-                  <option key={x.id} value={x.id}>
-                    {x.display_name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="text-sm">
-              Basiswert *
-              <select
-                required
-                value={productForm.underlying_id}
-                onChange={(e) => setProductForm({ ...productForm, underlying_id: e.target.value })}
-                className="mt-1 w-full rounded border border-slate-700 bg-slate-950 p-2"
-              >
-                <option value="">Bitte wählen</option>
-                {underlyings.map((x) => (
-                  <option key={x.id} value={x.id}>
-                    {x.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <div className="grid grid-cols-2 gap-3">
-              <label className="text-sm">
-                ISIN
-                <input
-                  maxLength={12}
-                  value={productForm.isin}
-                  onChange={(e) =>
-                    setProductForm({ ...productForm, isin: e.target.value.toUpperCase() })
-                  }
-                  className="mt-1 w-full rounded border border-slate-700 bg-slate-950 p-2 font-mono"
-                />
-              </label>
-              <label className="text-sm">
-                WKN
-                <input
-                  maxLength={16}
-                  value={productForm.wkn}
-                  onChange={(e) =>
-                    setProductForm({ ...productForm, wkn: e.target.value.toUpperCase() })
-                  }
-                  className="mt-1 w-full rounded border border-slate-700 bg-slate-950 p-2 font-mono"
-                />
-              </label>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <label className="text-sm">
-                Richtung *
-                <select
-                  value={productForm.option_direction}
-                  onChange={(e) =>
-                    setProductForm({
-                      ...productForm,
-                      option_direction: e.target.value as OptionDirection,
-                    })
-                  }
-                  className="mt-1 w-full rounded border border-slate-700 bg-slate-950 p-2"
+                Weiteren Optionsschein anlegen
+              </button>
+            </section>
+          ) : (
+            <form
+              onSubmit={(event) => void createProduct(event)}
+              className="rounded-xl border border-slate-800 p-5"
+            >
+              <fieldset disabled={busy} className="min-w-0">
+                <h2 className="text-lg font-medium">Optionsschein anlegen</h2>
+                <p className="mt-1 text-xs text-slate-500">
+                  Emittent und Basiswert werden aus bestehenden Stammdaten referenziert; technische
+                  IDs müssen nicht eingegeben werden. Produkt und erste Notierung werden gemeinsam
+                  gespeichert.
+                </p>
+                <div className="mt-4 grid gap-3">
+                  <label className="text-sm">
+                    Anzeigename *
+                    <input
+                      required
+                      value={productForm.display_name}
+                      onChange={(e) =>
+                        setProductForm({ ...productForm, display_name: e.target.value })
+                      }
+                      className="mt-1 w-full rounded border border-slate-700 bg-slate-950 p-2"
+                    />
+                  </label>
+                  <label className="text-sm">
+                    Emittent *
+                    <select
+                      required
+                      value={productForm.issuer_id}
+                      onChange={(e) =>
+                        setProductForm({ ...productForm, issuer_id: e.target.value })
+                      }
+                      className="mt-1 w-full rounded border border-slate-700 bg-slate-950 p-2"
+                    >
+                      <option value="">Bitte wählen</option>
+                      {issuers.map((x) => (
+                        <option key={x.id} value={x.id}>
+                          {x.display_name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="text-sm">
+                    Basiswert *
+                    <select
+                      required
+                      disabled={Boolean(selectionContext)}
+                      value={productForm.underlying_id}
+                      onChange={(e) =>
+                        setProductForm({ ...productForm, underlying_id: e.target.value })
+                      }
+                      className="mt-1 w-full rounded border border-slate-700 bg-slate-950 p-2"
+                    >
+                      <option value="">Bitte wählen</option>
+                      {underlyings.map((x) => (
+                        <option key={x.id} value={x.id}>
+                          {x.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <label className="text-sm">
+                      ISIN
+                      <input
+                        maxLength={12}
+                        value={productForm.isin}
+                        onChange={(e) =>
+                          setProductForm({ ...productForm, isin: e.target.value.toUpperCase() })
+                        }
+                        className="mt-1 w-full rounded border border-slate-700 bg-slate-950 p-2 font-mono"
+                      />
+                    </label>
+                    <label className="text-sm">
+                      WKN
+                      <input
+                        maxLength={16}
+                        value={productForm.wkn}
+                        onChange={(e) =>
+                          setProductForm({ ...productForm, wkn: e.target.value.toUpperCase() })
+                        }
+                        className="mt-1 w-full rounded border border-slate-700 bg-slate-950 p-2 font-mono"
+                      />
+                    </label>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <label className="text-sm">
+                      Richtung *
+                      <select
+                        value={productForm.option_direction}
+                        onChange={(e) =>
+                          setProductForm({
+                            ...productForm,
+                            option_direction: e.target.value as OptionDirection,
+                          })
+                        }
+                        className="mt-1 w-full rounded border border-slate-700 bg-slate-950 p-2"
+                      >
+                        <option>CALL</option>
+                        <option>PUT</option>
+                      </select>
+                    </label>
+                    <label className="text-sm">
+                      Strike *
+                      <input
+                        required
+                        inputMode="decimal"
+                        value={productForm.strike}
+                        onChange={(e) => setProductForm({ ...productForm, strike: e.target.value })}
+                        className="mt-1 w-full rounded border border-slate-700 bg-slate-950 p-2"
+                      />
+                    </label>
+                  </div>
+                  <StrikeCurrencyInput
+                    label="Strike-Währung"
+                    value={productForm.strike_currency_code}
+                    onChange={(value) =>
+                      setProductForm({ ...productForm, strike_currency_code: value })
+                    }
+                  />
+                  <div className="grid grid-cols-2 gap-3">
+                    <label className="text-sm">
+                      Fälligkeit *
+                      <input
+                        required
+                        type="date"
+                        value={productForm.maturity_date}
+                        onChange={(e) =>
+                          setProductForm({ ...productForm, maturity_date: e.target.value })
+                        }
+                        className="mt-1 w-full rounded border border-slate-700 bg-slate-950 p-2"
+                      />
+                    </label>
+                    <label className="text-sm">
+                      Bezugsverhältnis *
+                      <input
+                        required
+                        inputMode="decimal"
+                        value={productForm.ratio}
+                        onChange={(e) => setProductForm({ ...productForm, ratio: e.target.value })}
+                        className="mt-1 w-full rounded border border-slate-700 bg-slate-950 p-2"
+                      />
+                      <span className="mt-1 block text-xs text-slate-500">
+                        z. B. 0,1 = 0,1 Basiswert-Einheiten je Optionsschein
+                      </span>
+                    </label>
+                  </div>
+                </div>
+                <section className="mt-5 rounded-lg border border-slate-700 p-3">
+                  <h3 className="mb-3 font-medium">Notierung dieses Optionsscheins</h3>
+                  <WarrantListingFields
+                    value={creationListing}
+                    onChange={setCreationListing}
+                    venues={venues}
+                    creation
+                  />
+                  <p className="mt-3 text-xs text-slate-400">
+                    Diese Angaben nur einmal eintragen. Kein aktueller Kurs erforderlich. Nicht aus
+                    der Notierung der Aktie oder der Strike-Währung ableiten.
+                  </p>
+                </section>
+                <button
+                  disabled={busy}
+                  className="mt-5 rounded-lg bg-sky-700 px-4 py-2 text-sm disabled:opacity-50"
                 >
-                  <option>CALL</option>
-                  <option>PUT</option>
-                </select>
-              </label>
-              <label className="text-sm">
-                Strike *
-                <input
-                  required
-                  inputMode="decimal"
-                  value={productForm.strike}
-                  onChange={(e) => setProductForm({ ...productForm, strike: e.target.value })}
-                  className="mt-1 w-full rounded border border-slate-700 bg-slate-950 p-2"
-                />
-              </label>
-            </div>
-            <StrikeCurrencyInput
-              label="Strike-Währung"
-              value={productForm.strike_currency_code}
-              onChange={(value) => setProductForm({ ...productForm, strike_currency_code: value })}
-            />
-            <div className="grid grid-cols-2 gap-3">
-              <label className="text-sm">
-                Fälligkeit *
-                <input
-                  required
-                  type="date"
-                  value={productForm.maturity_date}
-                  onChange={(e) =>
-                    setProductForm({ ...productForm, maturity_date: e.target.value })
-                  }
-                  className="mt-1 w-full rounded border border-slate-700 bg-slate-950 p-2"
-                />
-              </label>
-              <label className="text-sm">
-                Bezugsverhältnis *
-                <input
-                  required
-                  inputMode="decimal"
-                  value={productForm.ratio}
-                  onChange={(e) => setProductForm({ ...productForm, ratio: e.target.value })}
-                  className="mt-1 w-full rounded border border-slate-700 bg-slate-950 p-2"
-                />
-                <span className="mt-1 block text-xs text-slate-500">
-                  z. B. 0,1 = 0,1 Basiswert-Einheiten je Optionsschein
-                </span>
-              </label>
-            </div>
-          </div>
-          <button
-            disabled={busy}
-            className="mt-5 rounded-lg bg-sky-700 px-4 py-2 text-sm disabled:opacity-50"
-          >
-            Optionsschein anlegen
-          </button>
-        </form>
+                  Optionsschein anlegen
+                </button>
+              </fieldset>
+            </form>
+          ))}
 
         <section className="rounded-xl border border-slate-800">
           <div className="border-b border-slate-800 px-5 py-4">
@@ -353,6 +503,7 @@ export function WarrantAdminPage() {
               <button
                 type="button"
                 key={w.id}
+                disabled={busy}
                 onClick={() => setSelectedId(w.id)}
                 className={`block w-full px-5 py-4 text-left ${selectedId === w.id ? 'bg-slate-900' : ''}`}
               >
@@ -380,6 +531,13 @@ export function WarrantAdminPage() {
 
       {selected && (
         <section className="space-y-6 rounded-xl border border-slate-800 p-5">
+          <WarrantIdentifierCorrection
+            key={selected.id}
+            warrant={selected}
+            onSaved={(updated) =>
+              setWarrants((items) => items.map((item) => (item.id === updated.id ? updated : item)))
+            }
+          />
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <p className="text-xs uppercase tracking-wide text-slate-500">Ausgewähltes Produkt</p>
@@ -398,6 +556,16 @@ export function WarrantAdminPage() {
             </button>
           </div>
           <div className="grid gap-6 lg:grid-cols-2">
+            {terms
+              .filter((t) => t.warrant_id === selected.id && !t.effective_to)
+              .map((t) => (
+                <WarrantValuationEvidence
+                  key={`${selected.id}:${selected.version}:${t.id}`}
+                  warrant={selected}
+                  terms={t}
+                />
+              ))}
+            <WarrantQuoteHistory key={selected.id} warrantId={selected.id} />
             <div>
               <h3 className="font-medium">Produktbedingungen / Historie</h3>
               <p className="mt-1 text-xs text-slate-500">
@@ -423,64 +591,73 @@ export function WarrantAdminPage() {
                   </div>
                 ))}
               </div>
-              <form
-                onSubmit={(e) => void addTerms(e)}
-                className="mt-4 grid gap-2 rounded border border-slate-800 p-3"
-              >
-                <div className="grid grid-cols-2 gap-2">
-                  <select
-                    aria-label="Neue Richtung"
-                    value={termsForm.option_direction}
-                    onChange={(e) =>
-                      setTermsForm({
-                        ...termsForm,
-                        option_direction: e.target.value as OptionDirection,
-                      })
-                    }
-                    className="rounded border border-slate-700 bg-slate-950 p-2 text-sm"
-                  >
-                    <option>CALL</option>
-                    <option>PUT</option>
-                  </select>
-                  <input
-                    aria-label="Neuer Strike"
-                    required
-                    placeholder="Strike"
-                    value={termsForm.strike}
-                    onChange={(e) => setTermsForm({ ...termsForm, strike: e.target.value })}
-                    className="rounded border border-slate-700 bg-slate-950 p-2 text-sm"
-                  />
-                </div>
-                <StrikeCurrencyInput
-                  label="Neue Strike-Währung"
-                  value={termsForm.strike_currency_code}
-                  onChange={(value) => setTermsForm({ ...termsForm, strike_currency_code: value })}
-                />
-                <div className="grid grid-cols-2 gap-2">
-                  <input
-                    aria-label="Neue Fälligkeit"
-                    required
-                    type="date"
-                    value={termsForm.maturity_date}
-                    onChange={(e) => setTermsForm({ ...termsForm, maturity_date: e.target.value })}
-                    className="rounded border border-slate-700 bg-slate-950 p-2 text-sm"
-                  />
-                  <input
-                    aria-label="Neues Bezugsverhältnis"
-                    required
-                    placeholder="Ratio"
-                    value={termsForm.ratio}
-                    onChange={(e) => setTermsForm({ ...termsForm, ratio: e.target.value })}
-                    className="rounded border border-slate-700 bg-slate-950 p-2 text-sm"
-                  />
-                </div>
-                <button
-                  disabled={busy}
-                  className="justify-self-start rounded bg-slate-800 px-3 py-2 text-sm"
+              <details className="mt-4" key={`terms-${selected.id}`}>
+                <summary className="cursor-pointer text-sm text-sky-300">
+                  Produktbedingungen ändern
+                </summary>
+                <form
+                  onSubmit={(e) => void addTerms(e)}
+                  className="mt-4 grid gap-2 rounded border border-slate-800 p-3"
                 >
-                  Neue Terms-Version
-                </button>
-              </form>
+                  <div className="grid grid-cols-2 gap-2">
+                    <select
+                      aria-label="Neue Richtung"
+                      value={termsForm.option_direction}
+                      onChange={(e) =>
+                        setTermsForm({
+                          ...termsForm,
+                          option_direction: e.target.value as OptionDirection,
+                        })
+                      }
+                      className="rounded border border-slate-700 bg-slate-950 p-2 text-sm"
+                    >
+                      <option>CALL</option>
+                      <option>PUT</option>
+                    </select>
+                    <input
+                      aria-label="Neuer Strike"
+                      required
+                      placeholder="Strike"
+                      value={termsForm.strike}
+                      onChange={(e) => setTermsForm({ ...termsForm, strike: e.target.value })}
+                      className="rounded border border-slate-700 bg-slate-950 p-2 text-sm"
+                    />
+                  </div>
+                  <StrikeCurrencyInput
+                    label="Neue Strike-Währung"
+                    value={termsForm.strike_currency_code}
+                    onChange={(value) =>
+                      setTermsForm({ ...termsForm, strike_currency_code: value })
+                    }
+                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      aria-label="Neue Fälligkeit"
+                      required
+                      type="date"
+                      value={termsForm.maturity_date}
+                      onChange={(e) =>
+                        setTermsForm({ ...termsForm, maturity_date: e.target.value })
+                      }
+                      className="rounded border border-slate-700 bg-slate-950 p-2 text-sm"
+                    />
+                    <input
+                      aria-label="Neues Bezugsverhältnis"
+                      required
+                      placeholder="Ratio"
+                      value={termsForm.ratio}
+                      onChange={(e) => setTermsForm({ ...termsForm, ratio: e.target.value })}
+                      className="rounded border border-slate-700 bg-slate-950 p-2 text-sm"
+                    />
+                  </div>
+                  <button
+                    disabled={busy}
+                    className="justify-self-start rounded bg-slate-800 px-3 py-2 text-sm"
+                  >
+                    Neue Terms-Version
+                  </button>
+                </form>
+              </details>
             </div>
             <div>
               <h3 className="font-medium">Handelbare Notierungen</h3>
@@ -490,59 +667,28 @@ export function WarrantAdminPage() {
               <div className="mt-3 space-y-2">
                 {listings.map((l) => (
                   <div key={l.id} className="rounded border border-slate-800 p-3 text-sm">
-                    <strong>{l.symbol}</strong>
+                    <strong>{l.symbol ?? 'Ohne Börsensymbol'}</strong>
                     <p className="mt-1 text-slate-400">
                       {venueName(l.trading_venue_id)} · {l.quotation_currency_code}
                     </p>
                   </div>
                 ))}
                 {listings.length === 0 && (
-                  <p className="text-sm text-slate-500">Noch keine Notierung hinterlegt.</p>
+                  <p className="text-sm text-slate-500">
+                    Noch keine Notierung hinterlegt. Für die Produktauswahl werden ein belegter
+                    Handelsplatz und die Handelswährung benötigt, kein aktueller Kurs.
+                  </p>
                 )}
               </div>
               <form
                 onSubmit={(e) => void addListing(e)}
                 className="mt-4 grid gap-2 rounded border border-slate-800 p-3"
               >
-                <select
-                  aria-label="Handelsplatz"
-                  required
-                  value={listingForm.trading_venue_id}
-                  onChange={(e) =>
-                    setListingForm({ ...listingForm, trading_venue_id: e.target.value })
-                  }
-                  className="rounded border border-slate-700 bg-slate-950 p-2 text-sm"
-                >
-                  <option value="">Handelsplatz wählen</option>
-                  {venues.map((v) => (
-                    <option key={v.id} value={v.id}>
-                      {v.name} ({v.mic})
-                    </option>
-                  ))}
-                </select>
-                <div className="grid grid-cols-2 gap-2">
-                  <input
-                    aria-label="Symbol"
-                    required
-                    placeholder="Symbol"
-                    value={listingForm.symbol}
-                    onChange={(e) => setListingForm({ ...listingForm, symbol: e.target.value })}
-                    className="rounded border border-slate-700 bg-slate-950 p-2 text-sm"
-                  />
-                  <input
-                    aria-label="Handelswährung"
-                    required
-                    maxLength={3}
-                    value={listingForm.quotation_currency_code}
-                    onChange={(e) =>
-                      setListingForm({
-                        ...listingForm,
-                        quotation_currency_code: e.target.value.toUpperCase(),
-                      })
-                    }
-                    className="rounded border border-slate-700 bg-slate-950 p-2 text-sm font-mono"
-                  />
-                </div>
+                <WarrantListingFields
+                  value={listingForm}
+                  onChange={setListingForm}
+                  venues={venues}
+                />
                 <button
                   disabled={busy}
                   className="justify-self-start rounded bg-slate-800 px-3 py-2 text-sm"

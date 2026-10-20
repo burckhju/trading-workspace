@@ -21,6 +21,14 @@ export const warrantApiClient = {
   list: (signal?: AbortSignal) => requestJson<WarrantResponse[]>(warrantUrl(), { signal }),
   get: (id: string, signal?: AbortSignal) =>
     requestJson<WarrantResponse>(warrantUrl(`/${id}`), { signal }),
+  correctIdentifiers: (
+    id: string,
+    request: { expected_version: number; isin: string; wkn: string | null; evidence: string },
+  ) =>
+    requestJson<WarrantResponse>(warrantUrl(`/${id}/identifiers`), {
+      method: 'PATCH',
+      body: request,
+    }),
   create: (request: CreateWarrantRequest) =>
     requestJson<WarrantResponse>(warrantUrl(), {
       method: 'POST',
@@ -28,6 +36,15 @@ export const warrantApiClient = {
         ...request,
         strike: normalizeDecimalInput(request.strike),
         ratio: normalizeDecimalInput(request.ratio),
+        ...(request.initial_listing && {
+          initial_listing: {
+            ...request.initial_listing,
+            symbol: request.initial_listing.symbol?.trim() || null,
+            quotation_currency_code: request.initial_listing.quotation_currency_code
+              .trim()
+              .toUpperCase(),
+          },
+        }),
       },
     }),
   delete: (id: string, version: number) =>
@@ -58,6 +75,6 @@ export const warrantApiClient = {
   addListing: (id: string, request: AddWarrantListingRequest) =>
     requestJson<WarrantListingResponse>(warrantUrl(`/${id}/listings`), {
       method: 'POST',
-      body: request,
+      body: { ...request, symbol: request.symbol?.trim() || null },
     }),
 };

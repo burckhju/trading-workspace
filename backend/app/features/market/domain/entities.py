@@ -95,8 +95,8 @@ class Underlying:
     data_origin: DataOrigin = DataOrigin.MANUAL
 
     def __post_init__(self) -> None:
-        if self.type is not UnderlyingType.STOCK:
-            raise UnsupportedUnderlyingType("Only stocks are supported", field="type")
+        if self.type not in (UnderlyingType.STOCK, UnderlyingType.ETF):
+            raise UnsupportedUnderlyingType("Only stocks and ETFs are supported", field="type")
         object.__setattr__(self, "name", normalize_name(self.name))
         object.__setattr__(self, "isin", normalize_isin(self.isin))
         object.__setattr__(self, "wkn", normalize_wkn(self.wkn))

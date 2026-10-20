@@ -311,10 +311,17 @@ Lokale Dateien wie `.env` dürfen nicht eingecheckt werden.
 
 ## Docker-Umgebung anlegen
 
+Die folgenden Template-Schritte gelten ausschließlich für eine Erstinstallation.
+Eine vorhandene `docker/.env` niemals überschreiben. Für Installation und Updates
+ist [Linux Deployment](LINUX_DEPLOYMENT.md) mit `scripts/start-linux.sh` maßgeblich;
+Emittentenbetrieb benötigt `--issuer-monitoring` und alle bisherigen Börsen-Overlays.
+Der Helper prüft die frühere Compose-Dateikette vor Änderungen und migriert ohne
+impliziten Start von Abhängigkeiten. `--check` bleibt rein prüfend.
+
 Im Repository-Stamm:
 
 ```bash
-cp docker/.env.example docker/.env
+test -f docker/.env || (umask 077; cp docker/.env.example docker/.env)
 ```
 
 Vor Verwendung müssen insbesondere Passwörter und lokale Ports geprüft werden.
@@ -394,9 +401,8 @@ Manuelle Schemaänderungen ohne Migration sind nicht zulässig.
 Im Repository-Stamm:
 
 ```bash
-cp docker/.env.example docker/.env
-docker compose --env-file docker/.env -f docker/compose.yml config
-docker compose --env-file docker/.env -f docker/compose.yml up --build -d
+test -f docker/.env || (umask 077; cp docker/.env.example docker/.env)
+bash scripts/start-linux.sh
 ```
 
 Status:
@@ -740,7 +746,7 @@ nvm use
 ## Docker-Variablen fehlen
 
 ```bash
-cp docker/.env.example docker/.env
+test -f docker/.env || (umask 077; cp docker/.env.example docker/.env)
 ```
 
 Danach `docker/.env` prüfen.

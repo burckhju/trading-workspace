@@ -1,0 +1,49 @@
+# Explicit opt-in. Use alongside compose.yml and existing exchange-provider overlays.
+services:
+  backend:
+    environment:
+      TRADING_WORKSPACE_MARKET_DATA__JPMORGAN__ENABLED: "true"
+      TRADING_WORKSPACE_MARKET_DATA__MORGANSTANLEY__ENABLED: "true"
+      TRADING_WORKSPACE_MARKET_DATA__REFRESH__ENABLED: "true"
+      TRADING_WORKSPACE_MARKET_DATA__REFRESH__AUTO_SELECT_POSITION_SOURCES: "true"
+      TRADING_WORKSPACE_MARKET_DATA__REFRESH__AUTO_DISCOVER_ISSUER_ROUTES: "true"
+      TRADING_WORKSPACE_MARKET_DATA__REFRESH__ISSUER_RENDERER_ENABLED: "true"
+      TRADING_WORKSPACE_POSITION_MONITORING__ENABLED: "true"
+      TRADING_WORKSPACE_POSITION_MONITORING__PARALLEL_POSITIONS: ${TRADING_WORKSPACE_POSITION_MONITORING__PARALLEL_POSITIONS:-4}
+      TRADING_WORKSPACE_NOTIFICATION__TELEGRAM__ENABLED: ${TRADING_WORKSPACE_NOTIFICATION__TELEGRAM__ENABLED:-false}
+    networks:
+      default:
+      issuer-discovery:
+    depends_on:
+      issuer-renderer:
+        condition: service_healthy
+
+  issuer-renderer:
+    build:
+      context: ..
+      dockerfile: docker/issuer-renderer/Dockerfile
+    init: true
+    user: pwuser
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+      - seccomp=${ISSUER_RENDERER_SECCOMP_PATH:?Set absolute path to docker/issuer-renderer/seccomp_profile.json}
+    shm_size: 256mb
+    tmpfs:
+      - /tmp:size=256m,mode=1777
+    mem_limit: 1g
+    cpus: 1.0
+    pids_limit: 256
+    networks:
+      issuer-discovery:
+    volumes:
+      - issuer-consent-state:/state
+    restart: unless-stopped
+
+networks:
+  issuer-discovery:
+    driver: bridge
+
+volumes:
+  issuer-consent-state:

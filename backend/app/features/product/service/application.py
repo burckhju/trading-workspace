@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
+from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from decimal import Decimal
 from uuid import UUID, uuid4
@@ -13,20 +14,31 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.exc import StaleDataError
 from sqlalchemy.sql.elements import ColumnElement
 
-from app.features.market.domain.enums import LifecycleStatus
+from app.features.market.domain.enums import (
+    ActorType,
+    AggregateType,
+    ChangeType,
+    DataOrigin,
+    LifecycleStatus,
+)
+from app.features.market.domain.normalization import normalize_isin, normalize_wkn
 from app.features.market.persistence.models import (
+    AuditEventModel,
     CurrencyModel,
     IssuerModel,
     ListingModel,
     TradingVenueModel,
     UnderlyingModel,
 )
+from app.features.market_data.domain.enums import MappingStatus
+from app.features.market_data.persistence.models import WarrantProviderMappingModel
 from app.features.product.domain.models import (
     OptionDirection,
     ProductFamily,
     WarrantLifecycle,
     normalize_strike_currency,
 )
+from app.features.product.persistence.identity_reader import read_identities
 from app.features.product.persistence.models import (
     WarrantListingModel,
     WarrantModel,
@@ -41,11 +53,29 @@ from app.features.product.service.errors import (
     WarrantNotFound,
     WarrantServiceError,
 )
+from app.features.product.service.identities import WarrantIdentity
+
+
+@dataclass(frozen=True, slots=True)
+class InitialWarrantListing:
+    """Explicit product quotation, never inferred from the underlying or strike."""
+
+    trading_venue_id: UUID
+    quotation_currency_code: str
+    symbol: str | None = None
 
 
 class WarrantService:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
+
+    async def read_identities(
+        self, *, workspace_id: UUID, warrant_ids: Collection[UUID]
+    ) -> dict[UUID, WarrantIdentity]:
+        """Return current labels for exact IDs in one batch, without resolving similar names."""
+        return await read_identities(
+            self._session, workspace_id=workspace_id, warrant_ids=warrant_ids
+        )
 
     async def list(self, workspace_id: UUID) -> list[WarrantModel]:
         rows = await self._session.scalars(
@@ -79,6 +109,7 @@ class WarrantService:
         maturity_date: date,
         ratio: Decimal,
         strike_currency_code: str | None = None,
+        initial_listing: InitialWarrantListing | None = None,
     ) -> WarrantModel:
         normalized_name = display_name.strip()
         if not normalized_name:
@@ -116,8 +147,22 @@ class WarrantService:
             created_at=now,
         )
         self._validate_terms(strike, ratio)
-        self._session.add_all([model, terms])
-        await self._commit()
+        # Validate all references before staging anything. The existing commit/rollback
+        # boundary persists the identity, terms and optional listing atomically.
+        listing = (
+            await self._prepare_listing(
+                workspace_id,
+                model.id,
+                underlying_id=underlying_id,
+                trading_venue_id=initial_listing.trading_venue_id,
+                symbol=initial_listing.symbol,
+                quotation_currency_code=initial_listing.quotation_currency_code,
+            )
+            if initial_listing is not None
+            else None
+        )
+        self._session.add_all([model, terms] if listing is None else [model, terms, listing])
+        await self._commit(new_warrant=model if listing is not None else None)
         return model
 
     async def change_status(
@@ -133,6 +178,80 @@ class WarrantService:
         model.lifecycle_status = status
         model.version += 1
         model.updated_at = datetime.now(UTC)
+        await self._commit()
+        return model
+
+    async def correct_identifiers(
+        self,
+        workspace_id: UUID,
+        warrant_id: UUID,
+        *,
+        expected_version: int,
+        isin: str,
+        wkn: str | None,
+        evidence: str,
+    ) -> WarrantModel:
+        """Correct reference data without recreating the held product or its history."""
+        model = await self.get(workspace_id, warrant_id)
+        if model.version != expected_version:
+            raise WarrantConcurrentModification(
+                "Warrant changed; reload before correcting identifiers"
+            )
+        normalized_isin, normalized_wkn = normalize_isin(isin), normalize_wkn(wkn)
+        if normalized_isin is None or not evidence.strip():
+            raise WarrantServiceError("Verified ISIN and correction evidence are required")
+        if (model.isin, model.wkn) == (normalized_isin, normalized_wkn):
+            return model
+        await self._require_unique_identifiers(
+            workspace_id,
+            normalized_isin if normalized_isin != model.isin else None,
+            normalized_wkn if normalized_wkn != model.wkn else None,
+        )
+        now = datetime.now(UTC)
+        before = {"isin": model.isin, "wkn": model.wkn}
+        mappings = await self._session.scalars(
+            select(WarrantProviderMappingModel)
+            .join(
+                WarrantListingModel,
+                WarrantListingModel.id == WarrantProviderMappingModel.warrant_listing_id,
+            )
+            .where(
+                WarrantListingModel.warrant_id == warrant_id,
+                WarrantListingModel.workspace_id == workspace_id,
+                WarrantProviderMappingModel.workspace_id == workspace_id,
+                WarrantProviderMappingModel.status == MappingStatus.ACTIVE,
+            )
+        )
+        for mapping in mappings:
+            mapping.status = MappingStatus.INVALID
+            mapping.validated_at = None
+            mapping.validation_message = "WARRANT_IDENTIFIERS_CORRECTED_REVALIDATION_REQUIRED"
+            mapping.version += 1
+            mapping.updated_at = now
+        self._session.add(
+            AuditEventModel(
+                id=uuid4(),
+                workspace_id=workspace_id,
+                aggregate_type=AggregateType.WARRANT,
+                aggregate_id=model.id,
+                occurred_at=now,
+                actor_type=ActorType.SYSTEM_USER,
+                actor_id=None,
+                actor_display_name="Workspace user",
+                data_origin=DataOrigin.MANUAL,
+                change_type=ChangeType.UPDATED,
+                version_before=model.version,
+                version_after=model.version + 1,
+                field_changes={
+                    "isin": {"old": before["isin"], "new": normalized_isin},
+                    "wkn": {"old": before["wkn"], "new": normalized_wkn},
+                    "correction_evidence": {"old": None, "new": evidence.strip()},
+                },
+            )
+        )
+        model.isin, model.wkn = normalized_isin, normalized_wkn
+        model.version += 1
+        model.updated_at = now
         await self._commit()
         return model
 
@@ -224,6 +343,29 @@ class WarrantService:
         quotation_currency_code: str,
     ) -> WarrantListingModel:
         warrant = await self.get(workspace_id, warrant_id)
+        listing = await self._prepare_listing(
+            workspace_id,
+            warrant_id,
+            underlying_id=warrant.underlying_id,
+            trading_venue_id=trading_venue_id,
+            symbol=symbol,
+            quotation_currency_code=quotation_currency_code,
+        )
+        self._session.add(listing)
+        await self._commit()
+        return listing
+
+    async def _prepare_listing(
+        self,
+        workspace_id: UUID,
+        warrant_id: UUID,
+        *,
+        underlying_id: UUID,
+        trading_venue_id: UUID,
+        symbol: str | None,
+        quotation_currency_code: str,
+    ) -> WarrantListingModel:
+        """One validation path for creation and later additional listings; no writes."""
         if symbol is not None and not symbol.strip():
             raise WarrantServiceError("symbol must not be blank", field="symbol")
         normalized_symbol = _up(symbol)
@@ -247,7 +389,7 @@ class WarrantService:
             underlying_listing = await self._session.scalar(
                 select(ListingModel.id).where(
                     ListingModel.workspace_id == workspace_id,
-                    ListingModel.underlying_id == warrant.underlying_id,
+                    ListingModel.underlying_id == underlying_id,
                     ListingModel.trading_venue_id == trading_venue_id,
                     ListingModel.ticker == normalized_symbol,
                 )
@@ -290,8 +432,6 @@ class WarrantService:
             created_at=now,
             updated_at=now,
         )
-        self._session.add(listing)
-        await self._commit()
         return listing
 
     async def deactivate_listing(
@@ -406,8 +546,12 @@ class WarrantService:
         if ratio <= 0:
             raise WarrantServiceError("ratio must be greater than zero")
 
-    async def _commit(self) -> None:
+    async def _commit(self, *, new_warrant: WarrantModel | None = None) -> None:
         try:
+            if new_warrant is not None:
+                # These owner models intentionally have no ORM relationship. Flush the
+                # parent first so listing FKs are valid, without committing it separately.
+                await self._session.flush([new_warrant])
             await self._session.commit()
         except StaleDataError as error:
             await self._session.rollback()

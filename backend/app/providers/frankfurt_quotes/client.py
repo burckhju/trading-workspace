@@ -5,8 +5,11 @@ import json
 import re
 from collections import OrderedDict
 from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
+from email.utils import parsedate_to_datetime
+from math import isfinite
 from pathlib import Path
 from time import monotonic
 from typing import Any, NoReturn
@@ -38,6 +41,30 @@ TRANSIENT_ERRORS = frozenset(
 
 
 ACCESS_ERRORS = frozenset({"FRANKFURT_HTTP_401", "FRANKFURT_HTTP_403"})
+
+
+@dataclass(frozen=True, slots=True)
+class _CachedFailure:
+    reason: str
+    retry_at: float
+    instrument_scoped: bool
+
+
+def _retry_after_seconds(value: str | None, now: datetime) -> float:
+    if value is None:
+        return 0.0
+    try:
+        value = value.strip()
+        if value.isascii() and value.isdecimal():
+            seconds = float(value)
+        else:
+            retry_at = parsedate_to_datetime(value)
+            if retry_at.tzinfo is None:
+                return 0.0
+            seconds = (retry_at - now).total_seconds()
+    except (TypeError, ValueError, OverflowError):
+        return 0.0
+    return max(0.0, seconds) if isfinite(seconds) else 0.0
 
 
 def utc_now() -> datetime:
@@ -76,7 +103,7 @@ class FrankfurtSnapshotClient:
         self._cached: OrderedDict[
             str, tuple[FrankfurtSnapshot | FrankfurtPublicPrice, datetime, float]
         ] = OrderedDict()
-        self._errors: OrderedDict[str, str] = OrderedDict()
+        self._errors: OrderedDict[str, _CachedFailure] = OrderedDict()
         self._next_fetch = 0.0
         self.last_error: str | None = None
         self.last_success_at: datetime | None = None
@@ -84,6 +111,13 @@ class FrankfurtSnapshotClient:
     def request_delay_seconds(self) -> float:
         """Expose the remaining shared cooldown to the background scheduler."""
         return max(0.0, self._next_fetch - self._timer())
+
+    def instrument_backoff_count(self) -> int:
+        now = self._timer()
+        return sum(
+            failure.instrument_scoped and now < failure.retry_at
+            for failure in self._errors.values()
+        )
 
     async def load(self) -> tuple[FrankfurtSnapshot, datetime, bool]:
         if self.settings.source_mode is FrankfurtSourceMode.PUBLIC_WEBSITE:
@@ -109,6 +143,13 @@ class FrankfurtSnapshotClient:
             raise FrankfurtSourceError(reason)
         async with self._lock:
             key = isin or "snapshot"
+            failure = self._errors.get(key)
+            # Source-wide access errors take precedence over a cached product miss.
+            if self._timer() < self._next_fetch and self.last_error in ACCESS_ERRORS:
+                raise FrankfurtSourceError(self.last_error)
+            if failure is not None and self._timer() < failure.retry_at:
+                # Repeated UI/discovery reads neither retry nor extend a cooldown.
+                raise FrankfurtSourceError(failure.reason)
             cached = self._cached.get(key)
             if (
                 self.cache_seconds is not None
@@ -118,11 +159,8 @@ class FrankfurtSnapshotClient:
             ):
                 return cached[0], cached[1], True
             if self._timer() < self._next_fetch:
-                error = self._errors.get(key)
-                if self.last_error in ACCESS_ERRORS:
-                    error = self.last_error
-                if error is not None:
-                    raise FrankfurtSourceError(error)
+                if failure is not None:
+                    raise FrankfurtSourceError(failure.reason)
                 cached = self._cached.get(key)
                 if cached is not None and self._timer() < cached[2]:
                     return cached[0], cached[1], True
@@ -177,13 +215,30 @@ class FrankfurtSnapshotClient:
             self._cached.clear()
         elif reason not in TRANSIENT_ERRORS:
             self._cached.pop(key, None)
-        self._errors[key] = reason
+        # Only a public per-ISIN 404 is known to be an instrument-scoped miss.
+        # A 404 of a bulk endpoint, schema errors and access/rate-limit failures
+        # retain the source-wide backoff. Never infer an exchange delisting.
+        instrument_scoped = (
+            self.settings.source_mode is FrankfurtSourceMode.PUBLIC_WEBSITE
+            and reason == "FRANKFURT_HTTP_404"
+        )
+        now = self._timer()
+        source_delay = (
+            self.settings.refresh_interval_seconds
+            if instrument_scoped
+            else max(60, self.settings.refresh_interval_seconds)
+        )
+        # Preserve a longer Retry-After deadline set by the HTTP transport.
+        self._next_fetch = max(self._next_fetch, now + source_delay)
+        retry_at = (
+            now + self.settings.instrument_retry_seconds if instrument_scoped else self._next_fetch
+        )
+        self._errors[key] = _CachedFailure(reason, retry_at, instrument_scoped)
         self._errors.move_to_end(key)
         if len(self._errors) > 256:
             evicted, _ = self._errors.popitem(last=False)
             self._cached.pop(evicted, None)
         self.last_error = reason
-        self._next_fetch = self._timer() + max(60, self.settings.refresh_interval_seconds)
         raise FrankfurtSourceError(reason) from None
 
     def cached_after_error(
@@ -199,9 +254,9 @@ class FrankfurtSnapshotClient:
         if reason not in TRANSIENT_ERRORS and reason != "FRANKFURT_REQUEST_THROTTLED":
             return None
         key = isin or "snapshot"
-        error = self._errors.get(key)
+        failure = self._errors.get(key)
         if self.last_error in ACCESS_ERRORS or (
-            error is not None and error not in TRANSIENT_ERRORS
+            failure is not None and failure.reason not in TRANSIENT_ERRORS
         ):
             return None
         cached = self._cached.get(key)
@@ -246,6 +301,11 @@ class FrankfurtSnapshotClient:
                 timeout=self.settings.timeout_seconds,
             ) as response:
                 if response.status_code != 200:
+                    if response.status_code in {429, 503}:
+                        delay = _retry_after_seconds(
+                            response.headers.get("retry-after"), self._clock()
+                        )
+                        self._next_fetch = max(self._next_fetch, self._timer() + delay)
                     raise FrankfurtSourceError(f"FRANKFURT_HTTP_{response.status_code}")
                 mime = response.headers.get("content-type", "").split(";")[0].strip().lower()
                 if mime != "application/json":

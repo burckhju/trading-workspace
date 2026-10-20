@@ -281,6 +281,19 @@ describe('ProductSelectionPage', () => {
 
     await user.type(screen.getByLabelText('Kaufmenge'), '10');
     await user.type(screen.getByLabelText('Kaufpreis'), '2,35');
+    await user.type(screen.getByLabelText('Ausführungswährung (Code)'), 'EU');
+    await user.click(screen.getByRole('button', { name: 'BUY erfassen und Position eröffnen' }));
+    expect(await screen.findByText(/dreistelligen Währungscode/)).toBeVisible();
+    expect(
+      fetchMock.mock.calls.some(([url]) => {
+        const address = typeof url === 'string' ? url : url instanceof URL ? url.href : url.url;
+        return address.includes('/purchases/from-selection');
+      }),
+    ).toBe(false);
+    await user.type(screen.getByLabelText('Ausführungswährung (Code)'), 'R');
+    expect(
+      screen.queryByRole('checkbox', { name: /als tatsächliche Währung/ }),
+    ).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'BUY erfassen und Position eröffnen' }));
 
     expect(await screen.findByRole('heading', { name: 'TR-12345678' })).toBeInTheDocument();
@@ -301,5 +314,11 @@ describe('ProductSelectionPage', () => {
       return url.url.includes('/purchases/from-selection');
     });
     expect(purchaseCall).toBeDefined();
+    const purchaseBody = purchaseCall?.[1]?.body;
+    if (typeof purchaseBody !== 'string') throw new Error('Expected a JSON purchase request');
+    expect(JSON.parse(purchaseBody)).toMatchObject({
+      price_per_unit: '2.35',
+      currency_confirmation: { currency_code: 'EUR', source: 'USER_CONFIRMED', note: null },
+    });
   });
 });

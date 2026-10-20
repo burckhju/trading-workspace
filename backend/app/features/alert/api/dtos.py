@@ -42,8 +42,11 @@ class AlertResponse(BaseModel):
     reason: str
     observed_value: Decimal
     threshold_value: Decimal
-    market_data_observed_at: datetime
+    market_data_observed_at: datetime | None
     detected_at: datetime
     status: AlertStatus
     resolved_at: datetime | None
+    price_context: dict[str, str | None] | None = None
+    invalidated_at: datetime | None = None
+    invalidation_reason: str | None = None
     notifications: list[NotificationResponse]

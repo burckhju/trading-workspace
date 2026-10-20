@@ -32,6 +32,10 @@ export interface OperationalAction {
   next_action: string;
   target: string;
   occurred_at: string | null;
+  product_id?: string | null;
+  product_name?: string | null;
+  product_isin?: string | null;
+  product_wkn?: string | null;
 }
 
 export interface OperationalWorkspaceResponse {
@@ -46,6 +50,7 @@ export interface OperationalPosition {
   product_isin?: string | null;
   product_wkn?: string | null;
   underlying_name?: string | null;
+  underlying_id?: string | null;
   opened_at: string;
   opened_on?: string | null;
   open_quantity: number;

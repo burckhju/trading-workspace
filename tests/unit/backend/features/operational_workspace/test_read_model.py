@@ -123,7 +123,7 @@ async def test_open_alert_projection_uses_existing_alert_state() -> None:
         detected_at=now + timedelta(seconds=1),
     )
     session = AsyncMock(spec=AsyncSession)
-    session.scalars.return_value = _Rows([stop_alert, target_alert])
+    session.execute.return_value = _Rows([(stop_alert, uuid4()), (target_alert, uuid4())])
     model = OperationalWorkspaceReadModel(cast(AsyncSession, session))
 
     actions = await model._alert_actions(workspace_id)
@@ -151,7 +151,9 @@ async def test_terminal_notification_failure_projection_links_to_trade_managemen
     trade_id = uuid4()
     created_at = datetime.now(UTC)
     session = AsyncMock(spec=AsyncSession)
-    session.execute.return_value = _Rows([(notification_id, "TELEGRAM", created_at, trade_id)])
+    session.execute.return_value = _Rows(
+        [(notification_id, "TELEGRAM", created_at, trade_id, uuid4())]
+    )
     model = OperationalWorkspaceReadModel(cast(AsyncSession, session))
 
     actions = await model._notification_failure_actions(workspace_id)
@@ -265,7 +267,7 @@ async def test_initial_purchase_projection_requires_selection_without_trade() ->
     run_id = uuid4()
     selected_at = datetime.now(UTC)
     session = AsyncMock(spec=AsyncSession)
-    session.execute.return_value = _Rows([(selection_id, run_id, selected_at)])
+    session.execute.return_value = _Rows([(selection_id, run_id, selected_at, uuid4())])
     model = OperationalWorkspaceReadModel(cast(AsyncSession, session))
 
     actions = await model._initial_purchase_actions(workspace_id)
@@ -296,7 +298,7 @@ async def test_open_position_projection_only_links_to_trade_management() -> None
     trade_id = uuid4()
     opened_at = datetime.now(UTC)
     session = AsyncMock(spec=AsyncSession)
-    session.execute.return_value = _Rows([(trade_id, opened_at)])
+    session.execute.return_value = _Rows([(trade_id, opened_at, uuid4())])
     model = OperationalWorkspaceReadModel(cast(AsyncSession, session))
 
     actions = await model._open_position_actions(workspace_id)
@@ -314,7 +316,7 @@ async def test_post_trade_projection_follows_existing_review_lifecycle() -> None
     now = datetime.now(UTC)
     trades = [uuid4() for _ in range(6)]
     session = AsyncMock(spec=AsyncSession)
-    session.execute.return_value = _Rows([(trade_id, now) for trade_id in trades])
+    session.execute.return_value = _Rows([(trade_id, now, uuid4()) for trade_id in trades])
 
     completed_a = SimpleNamespace(id=uuid4(), status="COMPLETED", completed_at=now)
     completed_b = SimpleNamespace(id=uuid4(), status="COMPLETED", completed_at=now)

@@ -1,0 +1,195 @@
+# Betrieb der Emittentenkurse ab Version 1.4.0
+
+Diese Anleitung ersetzt die Installationsbefehle der früheren Einzelpakete.
+Ein GitHub-Merge aktualisiert den laufenden Server nicht automatisch. Ein bereits
+laufender JMBbot bleibt bis zu einem gesonderten Deployment auf seinem installierten
+Stand. Bestehende Konfiguration, Datenbank und Zustimmungsspeicher erhalten.
+
+## Quellenwahl bei neuen Optionsscheinen
+
+1. Kanonische ISIN, Emittent und eine eindeutige aktive EUR-Notierung müssen in
+   den Stammdaten vorhanden sein. Discovery erfindet oder repariert diese nicht.
+2. Bei aktivierter Emittentensuche prüft die Hintergrund-Lane die offizielle
+   Produktseite von JPMorgan oder Morgan Stanley. Nur exakte Produktidentität,
+   Produkttyp, Bewertungstag, Währung und DOM-Streamkennung ergeben einen Nachweis.
+3. Wenn die HTTP-Seite unvollständig ist, darf der private Renderer sie darstellen.
+   Zugangssperren, Rate Limits und geänderte Bedingungen werden nicht umgangen.
+4. Registrierung und spätere Auswahl prüfen die Stammdaten erneut unter Sperren.
+   Der dedizierte Streamadapter holt Kurse; der Quellenabgleich bindet nur geeignete
+   verifizierte Routen. Zulässige bestehende Quellen werden erhalten.
+5. Bewertungsansicht und Monitoring zeigen Anbieter, Qualität, Kurszeittext und
+   Empfangszeit. Ohne verifiziertes Datum/Zeitzone bleibt `quote_observed_at=null`.
+   Indikative Regeln folgen ausschließlich der bestätigten Indikations-Policy.
+
+Aktivierung erfolgt ausdrücklich über das optionale Compose-Overlay. Ohne diese
+Konfiguration bleiben neue Provider, automatische Auswahl und Discovery aus.
+Das Discovery-Intervall beträgt standardmäßig eine Stunde; Diagnose-GETs erzwingen
+keinen sofortigen Wiederholungsabruf. `SELECTED` beweist keine neue oder handelbare Quote.
+
+### JPMorgan-Produktseiten ohne DOM-Uhrzeitfeld (ab 1.4.5)
+
+Die Routenerkennung verlangt Geld- und Briefbindung im `staticgrid` mit
+`data-source=lightstreamer` und derselben exakten, ISIN-bezogenen Streamkennung.
+Das JPMorgan-DOM-Feld `quotetime` ist optional: Ein am 04.10.2026 zurückgemeldeter
+Serverlauf enthielt beide Preisbindungen, aber kein solches Zeitfeld. Ist eine
+passende Zeitbindung vorhanden, darf sie der Preiskennung weiterhin nicht
+widersprechen. Produktmetadaten, Währung und alle übrigen Identitätsgrenzen gelten
+unverändert. Morgan Stanley verlangt weiterhin `lastquotetimestamp`.
+
+Dies ist ausschließlich ein Seitennachweis für die technische Route, keine
+Kursprüfung. Der Streamadapter behält sein eigenes Schema und seine Prüfungen.
+Fehlende Kurszeit bleibt unbekannt; weder Empfangszeit, Bewertungstag noch
+Basiswertzeit werden eingesetzt. `execution_usable=false` bleibt erhalten.
+
+Auf älteren Ständen kann das Zustimmungs-Setup nach erfolgreicher Formularbedienung
+mit `JPMORGAN_CONSENT_NOT_VERIFIED_NO_STATE_SAVED` und der Ursache
+`ISSUER_STREAM_BINDING_UNVERIFIED` abbrechen. Erst die konkreten DOM-Bindungen
+unterscheiden diesen Fehler von fehlenden oder widersprüchlichen Preisbindungen.
+Keine Speicherung erzwingen, keine Zeitfelder synthetisch ergänzen und keine
+Wartezeiten pauschal erhöhen. Backend und Renderer auf denselben korrigierten
+Release-Stand bringen; ein neuer Diagnose-Checkout allein ersetzt deren Parser
+nicht. Danach den bestehenden freigegebenen Setup-Ablauf mit weiterhin identischem
+Bedingungshash erneut ausführen und die Wiederverwendung separat nachweisen.
+
+## Reguläre Konfiguration
+
+`docker/compose.issuer-monitoring.yml` bündelt die bisherigen Emittenten-,
+Performance-, Auswahl-, Renderer- und Monitoring-Overlays. Bestehende Frankfurt-,
+gettex- und Stuttgart-Konfiguration zusätzlich erhalten. Die neuen Dateien nicht
+mit alten Paket-Overlays mischen, die dieselben Werte erneut überschreiben.
+
+Ab 1.4.1 unterstützt der kanonische Starthelfer das Overlay ausdrücklich:
+
+```bash
+bash scripts/start-linux.sh --issuer-monitoring --check
+bash scripts/start-linux.sh --issuer-monitoring
+```
+
+Der erste Aufruf ist rein prüfend; der zweite führt das Deployment aus. Vorhandenes
+`docker/frankfurt.env` wird automatisch berücksichtigt. Weitere tatsächlich benötigte
+Börsen-Overlays auf beiden Aufrufen in bisheriger Reihenfolge mit `--overlay DATEI`
+angeben. Weggelassene oder umsortierte frühere Compose-Dateien führen vor Änderungen
+zum Abbruch. Alte Paket-Overlays erst nach bewusster manueller Migrationsprüfung
+ablösen, nicht zusätzlich mit dem kanonischen Overlay mischen. Details und Grenzen:
+[Linux Deployment](LINUX_DEPLOYMENT.md#issuer-monitoring-and-existing-overlay-chains-141).
+
+Der Helper baut auch den Renderer und verlangt dessen Sandbox-Healthcheck vor
+Migration/Backend-Neustart. Der Migrationscontainer startet keine Abhängigkeiten.
+Für manuelle Compose-Aufrufe im Projektverzeichnis weiterhin:
+
+```bash
+export ISSUER_RENDERER_SECCOMP_PATH="$PWD/docker/issuer-renderer/seccomp_profile.json"
+```
+
+Den Telegram-Schalter `TRADING_WORKSPACE_NOTIFICATION__TELEGRAM__ENABLED=true`
+in der bestehenden privaten `docker/.env` beibehalten, wenn der Versand bereits
+freigegeben und eingerichtet ist. Bot-Token und Chat-ID bleiben ausschließlich dort.
+Das Overlay versendet selbst keine Testnachricht. Vor einem Deployment die effektive
+Compose-Konfiguration prüfen, ohne deren Geheimniswerte öffentlich auszugeben.
+
+Die folgenden Diagnosebeispiele verwenden die Basiskonfiguration zur Auswahl des
+bereits laufenden Containers; `exec` rekonstruiert oder ersetzt keinen Dienst:
+
+```bash
+docker compose --env-file docker/.env -f docker/compose.yml exec -T backend \
+  python -m app.tools.audit_monitoring_performance --wait-seconds 0
+```
+
+Zusätzliche Prüfwerkzeuge: `audit_position_source_selection`,
+`audit_issuer_route_discovery`, `audit_new_issuer_routes` und `monitoring_resume`.
+Die jeweilige `--help`-Ausgabe zeigt Pflichtparameter. Die beiden Runtime-Hash-Audits
+benötigen die Hashliste des tatsächlich deployten Commitstands, keine alten
+Paket-Hashes. `audit_issuer_monitoring` kann über die normalen Bewertungs-GETs Kurse
+aktualisieren; es verändert keine Regeln und versendet keine Meldungen.
+
+Ab 1.4.2 zählt `audit_monitoring_performance` alle aktuellen `ISSUER_QUOTES`-Jobs,
+auch für neu entdeckte Produkte. Eine historische ISIN-Liste begrenzt diese
+Diagnose nicht mehr. Ein Regelcheck wird anhand seines expliziten Providers oder,
+bei fehlender Providerangabe, seiner Instrument-ID in einem solchen Job zugeordnet.
+Eine ausdrücklich andere Kursquelle bleibt maßgeblich. Diese Zuordnung ist keine
+Änderung oder Bestätigung der benutzergebundenen Quellenentscheidung.
+
+`issuer_refresh_success_isins` erfordert je Produkt einen verfügbaren Job mit
+positivem endlichem Geldkurs eines unterstützten Emittenten, Empfangszeit und ohne
+Retention/Abruffehler. `issuer_refresh_unverified_isins` nennt die übrigen Produkte.
+Die Jobliste zeigt `positive_bid_evidenced` und kompakte Original-Kursfelder, damit
+ein verfügbares Ergebnis ohne diesen Nachweis erklärbar bleibt. Empfangszeit ist
+weiterhin keine Kurszeit; ein positiver Geldkurs beweist weder Aktualität noch
+Ausführbarkeit. `rule_issues` umfasst auch indikative Regelchecks mit Abruffehlern
+und erhält deren ursprünglichen Status.
+
+`wait_completed=true` bestätigt Schedulerfortschritt und erfolgte Erstprüfungen
+aller aktuellen Emittentenjobs, keine vollständige Kursabdeckung. Monitoring- und
+Refresh-Status werden nacheinander gelesen. Ein späterer erfolgreicher Abruf kann
+deshalb neben einem noch fehlgeschlagenen Check des letzten Monitoring-Zyklus
+stehen. Der nächste reguläre Zyklus liefert den neuen Bewertungsnachweis.
+
+## JPMorgan-Zustimmung
+
+Der Renderer verwendet ausschließlich seinen eigenen privaten Zustand im Volume
+`issuer-consent-state`. Eine Zustimmung im Cloud-Browser ist nicht dieser Zustand.
+Die unbeaufsichtigte Discovery klickt keine rechtlichen Erklärungen an.
+
+Zur Vorbereitung im laufenden Renderer:
+
+```bash
+docker compose --env-file docker/.env -f docker/compose.yml \
+  -f docker/compose.issuer-monitoring.yml exec -T issuer-renderer \
+  python -m app.tools.setup_jpmorgan_consent
+```
+
+Der Betreiber prüft den ausgegebenen aktuellen Text, Hash und seine Erklärungen.
+Der explizite Zustimmungslauf benötigt `--accept-current-jpmorgan-terms`,
+`--confirm-sha256`, `--confirm-de-at-residence-and-non-us-person` und bei gewünschter
+Speicherung `--remember-30-days`. Er läuft unter der vorhandenen Setup-Sperre.
+Ein geänderter Hash wird nicht automatisch freigegeben.
+
+Vor erneuter Zustimmung wird ein vorhandener gültiger Zustand mit passendem Hash
+in einem frischen Kontext produktgeprüft. Erfolg:
+`EXISTING_CONSENT_REUSE_VERIFIED`, `new_acceptance_performed=false`.
+Ohne gespeicherten Zustand wird der bestätigte Formularlauf ausgeführt; erst nach
+verifizierter Wiederverwendung darf gespeichert werden. Erfolg:
+`CONSENT_STORED_PRODUCT_VERIFIED`, `new_acceptance_performed=true`.
+Ungültige oder nicht mehr verwendbare vorhandene Zustände werden nicht stillschweigend
+überschrieben. Die Größenbegrenzung bleibt bestehen; eine kleinere Variante nur
+mit den erfassten Cookies benötigt eine erneute Produktprüfung.
+
+`setup_diagnostics` nennt Phasen, Laufzeiten, begrenzte Fehlerketten und reine
+Speichermetadaten. Keine Cookies/Storage-Werte in Berichte kopieren. Wenn Speichern
+bereits gelang und nur die Browserbereinigung fehlschlug, macht der Bericht dies
+sichtbar; der nächste Lauf prüft die gespeicherte Zustimmung zuerst.
+
+Der Setup-Erfolg erzeugt weder ein Mapping noch eine Testposition. Neue Routen
+werden weiterhin durch die Hintergrund-Lane und deren Identitätsprüfungen angelegt.
+
+## Release und Deployment auseinanderhalten
+
+Git-Tag und Paketversion kennzeichnen den Quellstand; Schema, Image und geladene
+Konfiguration sind separate Betriebsnachweise. Vor Deployment sichern, beide
+Migrationen prüfen, zuerst Renderer-Health bestätigen und anschließend die
+vollständige bestehende Stack-Konfiguration verwenden. Keine Löschung von Volumes,
+kein Datenbank-Stamp und kein stiller Rollback.
+
+Der Release-PR enthält lokale Prüfergebnisse und GitHub-CI. Die noch offene
+JPMorgan-Liveabnahme und fehlende neue Produktabdeckung sind dort ausdrücklich
+aufgeführt und dürfen nicht aus grünen Unit-Tests abgeleitet werden.
+
+## Git-Versionierung
+
+`VERSION`, `backend/pyproject.toml`, `frontend/package.json` und dessen Lockdatei
+werden im Release-PR gemeinsam fortgeschrieben. Der Workflow `Version tag` setzt
+`v<VERSION>` erst, wenn Backend, Frontend und End-to-End am selben aktuellen
+`main`-Commit vollständig erfolgreich sind. Vorhandene Tags werden niemals
+verschoben. Der Workflow übernimmt keine PRs und führt kein Deployment aus.
+
+## Umstieg alter Paket-Overlays (1.4.3)
+
+Ein bestehender Paket-Stack darf nicht allein durch Austausch seiner Compose-Liste
+aktualisiert werden: Laufzeitwerte können von `.env` abweichen. Für die geprüfte
+Vier-Service-Topologie beschreibt [Linux Deployment](LINUX_DEPLOYMENT.md#reviewed-legacy-issuer-migration-143)
+die getrennte Vorbereitung und den Wechsel mit Erhalt tatsächlicher Einstellungen,
+Volumes, absolutem Stuttgart-Pfad, Sicherungen und Sandbox. Der ursprüngliche
+Checkout bleibt bestehen. Der private Erhaltungs-Overlay gehört anschließend zur
+vollständigen Betriebskonfiguration; ihn nicht ins Repository oder Support kopieren.
+Ein erfolgreicher Wechsel ersetzt keine JPMorgan-Produktprüfung und keinen
+Nachweis vollständiger Monitoring-Zyklen nach dem Cacheaufbau.

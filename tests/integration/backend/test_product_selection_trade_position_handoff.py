@@ -73,6 +73,8 @@ class ExactSelectionResolver:
             trade_plan_version_id=self._run.trade_plan_version_id,
             product_selection_id=self._selection.id,
             product_evaluation_id=self._evaluation.id,
+            warrant_listing_id=self._evaluation.warrant_listing_id,
+            quotation_currency_code="EUR",
         )
 
 
@@ -135,7 +137,12 @@ async def test_product_selection_handoff_pins_trade_and_position_provenance() ->
 
     resolver = ExactSelectionResolver(run=run, evaluation=evaluation, selection=selection)
     uow = TradePositionUow()
-    service = TradePositionService(uow=uow, workspace_selections=resolver)
+    quote_sources = SimpleNamespace(select_once=AsyncMock())
+    service = TradePositionService(
+        uow=uow,
+        workspace_selections=resolver,
+        quote_source_selector=quote_sources,
+    )
 
     trade, execution, position = await service.record_initial_purchase(
         workspace_id=workspace_id,
@@ -173,6 +180,15 @@ async def test_product_selection_handoff_pins_trade_and_position_provenance() ->
     uow.trades.add.assert_awaited_once_with(trade)
     uow.executions.add.assert_awaited_once_with(execution)
     uow.positions.add.assert_awaited_once_with(position)
+    uow.flush.assert_awaited_once()
+    quote_sources.select_once.assert_awaited_once_with(
+        workspace_id=workspace_id,
+        position_id=position.id,
+        warrant_id=warrant_id,
+        preferred_listing_id=evaluation.warrant_listing_id,
+        expected_currency="EUR",
+        selected_at=trade.created_at,
+    )
     uow.commit.assert_awaited_once()
 
     # Later FT-008 activity must not retarget the already recorded real-world trade.

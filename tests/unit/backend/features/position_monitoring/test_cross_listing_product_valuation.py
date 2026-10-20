@@ -34,7 +34,7 @@ class _Session:
     def __init__(self, *, trade, position, evaluation, listing, siblings):
         self._trade = trade
         self._position = position
-        self._scalars = [evaluation, listing]
+        self._scalars = [None, evaluation, listing]
         self._siblings = siblings
 
     async def execute(self, _statement):

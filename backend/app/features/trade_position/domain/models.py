@@ -2,17 +2,22 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from datetime import UTC, date, datetime, time
 from decimal import Decimal
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
+from app.features.trade_position.domain.currency import (
+    ExecutionCurrencyConfirmation,
+    ExecutionCurrencyResolution,
+)
 from app.features.trade_position.domain.enums import (
     ExecutionSide,
     TradeManagementEventType,
     TradeOrigin,
 )
+from app.features.trade_position.domain.price_binding import PriceBinding
 
 
 @dataclass(frozen=True, slots=True)
@@ -65,10 +70,20 @@ class ExecutionRecord:
     request_fingerprint: str | None = None
     executed_on: date | None = None
     execution_timezone: str | None = None
+    # Read enrichment only; the separate append-only owner relation stores this provenance.
+    currency_confirmation: ExecutionCurrencyConfirmation | None = None
+    currency_resolution: ExecutionCurrencyResolution = field(
+        default_factory=ExecutionCurrencyResolution
+    )
 
     def __post_init__(self) -> None:
         if self.executed_at.tzinfo is None or self.recorded_at.tzinfo is None:
             raise ValueError("execution and recording timestamps must be timezone-aware")
+        if self.currency_confirmation is not None and (
+            self.currency_confirmation.execution_id != self.id
+            or self.currency_confirmation.trade_id != self.trade_id
+        ):
+            raise ValueError("currency confirmation does not belong to execution")
         if (self.request_key is None) != (self.request_fingerprint is None):
             raise ValueError("request identity must be complete")
         if (self.executed_on is None) != (self.execution_timezone is None):
@@ -196,6 +211,7 @@ class TradeManagementEvent:
     numeric_value: Decimal | None = None
     text_value: str | None = None
     supersedes_event_id: UUID | None = None
+    price_binding: PriceBinding | None = None
 
     def __post_init__(self) -> None:
         if self.recorded_at < self.effective_at:
@@ -212,6 +228,8 @@ class TradeManagementEvent:
             if self.text_value is not None:
                 raise ValueError("price management event must not carry text_value")
         else:
+            if self.price_binding is not None:
+                raise ValueError("Only price events may carry a price binding")
             if self.text_value is None or not self.text_value.strip():
                 raise ValueError("text management event requires non-empty text_value")
             if self.numeric_value is not None:

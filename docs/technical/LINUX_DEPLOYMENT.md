@@ -2,6 +2,13 @@
 
 This runbook describes the supported local Linux deployment path for the Trading Workspace using Docker Compose.
 
+For an existing managed installation in `~/Boerse/trading-workspace-app` with a
+sealed `trading-workspace-state/current-state`, use the
+[daily Linux launcher](LINUX_LAUNCHER.md). It provides Start, Status, Stop and an
+explicit pinned Update while retaining the complete private Compose configuration.
+The generic `start-linux.sh` instructions below are not the daily start command
+for that managed deployment.
+
 ## Prerequisites
 
 - 64-bit Linux host
@@ -89,20 +96,25 @@ The helper performs these steps in order:
 1. validates Docker and Docker Compose v2,
 2. refuses the unchanged example PostgreSQL password,
 3. validates the Compose model,
-4. builds backend and frontend images,
-5. starts PostgreSQL and waits for database readiness,
-6. runs `python -m alembic upgrade head` in the backend image,
-7. starts backend and frontend.
+4. verifies that the requested Compose file order preserves every existing project
+   container’s recorded chain, including stopped containers,
+5. builds backend/frontend and, when opted in, the issuer renderer,
+6. starts the opted-in renderer with a bounded sandbox health check,
+7. starts PostgreSQL and waits for database readiness,
+8. runs `python -m alembic upgrade head` with `--no-deps` in the backend image,
+9. starts backend and frontend.
 
 This ordering prevents the application from being treated as ready before required database migrations have been applied.
 
-Equivalent manual operation, if needed for diagnostics, is:
+Equivalent manual operation for a **base-only** installation is shown below.
+Retain the complete reviewed overlay chain for any enabled quote providers; a
+manual operation does not perform the helper’s existing-container provenance check:
 
 ```bash
-docker compose --env-file docker/.env -f docker/compose.yml config
+docker compose --env-file docker/.env -f docker/compose.yml config --quiet
 docker compose --env-file docker/.env -f docker/compose.yml build backend frontend
 docker compose --env-file docker/.env -f docker/compose.yml up -d database
-docker compose --env-file docker/.env -f docker/compose.yml run --rm backend python -m alembic upgrade head
+docker compose --env-file docker/.env -f docker/compose.yml run --rm --no-deps backend python -m alembic upgrade head
 docker compose --env-file docker/.env -f docker/compose.yml up -d backend frontend
 ```
 
@@ -185,7 +197,7 @@ Before updating, back up `docker/.env` and the PostgreSQL data. Never overwrite 
 For a Git checkout:
 
 ```bash
-git pull origin main
+git pull --ff-only
 bash scripts/start-linux.sh
 ```
 
@@ -220,3 +232,307 @@ to the ordinary Compose file. The helper prints matching status/log commands.
 Aktive Basiswerte und Optionsscheine können automatisch geprüft und in getrennten
 Intervallen aktualisiert werden. Einrichtung, Provider-Grenzen und Diagnose:
 [Automatischer Kursabruf](../automatic-market-data.md).
+
+## Issuer monitoring and existing overlay chains (1.4.1)
+
+For an installation intentionally using the canonical issuer integration:
+
+```bash
+bash scripts/start-linux.sh --issuer-monitoring --check
+bash scripts/start-linux.sh --issuer-monitoring
+```
+
+`--check` validates Compose and reads existing container labels without creating
+configuration, refreshing provider files, building images, migrating, or starting
+containers. The second command deploys and resumes the configured background work;
+it does not send a separate test message or accept provider terms. Retain existing
+monitoring/Telegram settings. The renderer uses the existing private consent volume.
+
+`docker/frankfurt.env` is still included automatically when present. For any other
+required existing exchange/custom overlay, repeat `--overlay FILE` in its original
+order on both commands. Relative paths are resolved from the repository, even when
+the helper is invoked elsewhere. The canonical issuer overlay is appended last;
+use `--issuer-monitoring`, not `--overlay`, for that file. The helper supplies the
+absolute repository sandbox-profile path unless an explicit shell value is set.
+
+The helper refuses to omit or reorder a file recorded on an existing project
+container. This includes stopped containers. An unavailable Docker inspection or
+missing provenance stops deployment. No existing overlay is inferred, activated,
+deleted or silently replaced. A routine issuer update therefore needs the issuer
+flag again. Printed status/log commands contain the complete shell-quoted chain.
+
+Container labels prove paths/order, not unchanged file contents or environment
+values. Review private configuration locally; never post full `compose config`
+output. Old package overlays must not be combined with the canonical issuer overlay.
+An intentional migration away from old packages or a relocated ZIP checkout needs
+a reviewed manual deployment with the complete intended chain, preserved project
+name/volumes and existing environment. There is no force/bypass option in the helper.
+
+Renderer failure stops before database migration and backend recreation. Migration
+failure also stops before backend recreation. Built images and a restarted renderer
+may already exist; no automatic rollback or data deletion is attempted. Verify
+readiness, loaded runtime settings, complete refresh/monitoring cycles and source
+coverage after deployment using the [issuer operations guide](ISSUER_MONITORING_OPERATIONS.md).
+A healthy sandbox does not prove provider access or consent reuse.
+
+## Reviewed legacy issuer migration (1.4.3)
+
+The normal startup helper intentionally refuses removing/reordering old package
+files or relocating a checkout. For the reviewed four-service legacy issuer
+installation, use `scripts/migrate-legacy-issuer.sh` from a **separate, clean release
+checkout pinned to a qualified commit**. This is an explicit migration, not a
+provenance bypass. Other topologies stop for review. Requires Bash, Git, Docker
+Compose v2, coreutils and tar; Python runs offline in the existing backend image.
+No host Python/Node installation is needed. Plan build disk space and backup space.
+
+After `v1.4.3` is published and its commit/CI verified, the following concrete
+example creates a detached sibling worktree without changing the existing checkout:
+
+```bash
+cd ~/Boerse/trading-workspace
+git fetch origin tag v1.4.3
+git worktree add --detach ../trading-workspace-v1.4.3 v1.4.3
+bash ../trading-workspace-v1.4.3/scripts/migrate-legacy-issuer.sh prepare \
+  "$PWD" "$HOME/Boerse/trading-workspace-deploy-v1.4.3"
+```
+
+The preparation never restarts a running service. It retains `.env` byte-for-byte
+in a new directory (0700, files 0600), reads actual container settings, validates
+the proposed model and builds separate commit-tagged images. Existing database
+and consent volumes are external references and cannot silently become new empty
+volumes. The Stuttgart bind remains at its original absolute source. The overlay
+is last so actual false values stay false despite the canonical opt-in defaults.
+Unexpected overrides, mounts, ports, restrictions or extra services cause refusal.
+
+The private directory contains secrets, inspection data and eventually backups.
+Do not publish it. Review its local `operation.log` on failure; share only the
+phase/error summary after redaction. Do not edit prepared inputs: they and their
+resolved model are checked again at apply. If preparation fails, services remain
+running; use a **new** private directory after resolving the cause. Never delete an
+old private directory that already contains an applied configuration or backups.
+
+The successful preparation prints the exact apply command. In a maintenance
+window (API/frontend requests can fail while backend is stopped), for this example:
+
+```bash
+bash ~/Boerse/trading-workspace-v1.4.3/scripts/migrate-legacy-issuer.sh apply \
+  "$HOME/Boerse/trading-workspace-deploy-v1.4.3"
+```
+
+The sequence revalidates images/configuration/containers; stops backend and
+renderer; creates and checks listings of a custom PostgreSQL dump and a consent
+archive; starts/health-checks the sandboxed renderer; runs Alembic; starts the
+application; checks actual images, mounts/settings and the unchanged DB container.
+The database is not recreated. Ensure no independent writer/setup process is
+running during this maintenance window. A readable archive listing is not proof
+of a tested restore. Keep backups privately according to the operator's policy.
+
+A failure leaves its last reached phase visible and prevents a repeated apply.
+There is **no automatic rollback**. Before `migration-started` exists, if no
+container replacement occurred (check `operation.log`/Docker IDs), the original
+stopped backend/renderer can be started by their saved IDs. After replacement or
+migration has begun, inspect the phase, schema and image compatibility before
+choosing recovery; do not stamp, blindly downgrade or restore over a live database.
+Preserve the original checkout, images, private state and backup files for review.
+Do not remove phase markers just to retry.
+
+For subsequent diagnosis use the same immutable chain:
+
+```bash
+bash ~/Boerse/trading-workspace-v1.4.3/scripts/migrate-legacy-issuer.sh compose \
+  "$HOME/Boerse/trading-workspace-deploy-v1.4.3" ps
+bash ~/Boerse/trading-workspace-v1.4.3/scripts/migrate-legacy-issuer.sh compose \
+  "$HOME/Boerse/trading-workspace-deploy-v1.4.3" exec -T backend \
+  python -m app.tools.audit_monitoring_performance
+```
+
+The wrapper permits `ps`, `logs` and `exec`; it does not provide a generic update or
+rollback command. Keep the release worktree and private directory at their prepared
+paths. Future updates need deliberate review of the complete base + canonical +
+preservation chain. The normal base-only start remains intentionally blocked.
+
+A successful apply proves image identity, loaded environment/bindings, readiness,
+renderer sandbox health and completion of the migration command. It does not prove
+fresh provider quotes, product-level consent reuse, a complete post-restart
+monitoring cycle or Telegram delivery. Use the issuer operations runbook for those
+separate live checks; test messages and changed consent remain separately approved.
+
+
+### Diagnose an existing prepared deployment with 1.4.4 tooling
+
+Version 1.4.3 used a byte comparison for rendered Compose JSON. Different whitespace
+or object-field order could therefore reject an unchanged effective model with
+`Effective Compose configuration changed`. Version 1.4.4 compares parsed content
+while retaining exact input seals, scalar types, array order and all existing
+release/configuration guards. Do not edit/reseal `candidate.json`, remove phase
+markers or repeat `apply` to repair this diagnostic failure.
+
+Once tag `v1.4.4` and its final-commit checks are published, obtain its tool in a
+separate clean checkout. Keep the original v1.4.3 checkout and private state in
+place. This example uses the prepared paths from the v1.4.3 example above:
+
+```bash
+git -C "$HOME/Boerse/trading-workspace" fetch origin tag v1.4.4
+git -C "$HOME/Boerse/trading-workspace" worktree add --detach \
+  "$HOME/Boerse/trading-workspace-tools-v1.4.4" v1.4.4
+bash "$HOME/Boerse/trading-workspace-tools-v1.4.4/scripts/migrate-legacy-issuer.sh" \
+  compose "$HOME/Boerse/trading-workspace-deploy-v1.4.3" ps </dev/null
+```
+
+Only `compose` supports an older prepared release. It checks the tool checkout,
+sealed inputs, original release commit/cleanliness and effective model, then uses
+that original release for Compose files and the seccomp path. It does not substitute
+new images or change the loaded application version. The pinned helper image from
+preparation is still required; retain the original images as already required by
+the migration procedure. `prepare`/`apply` remain bound to their own release root.
+Actual content changes or unavailable inputs/images stop the command for review.
+
+For the pending read-only diagnostics, stdin is closed inside the wrapper so
+`docker compose exec -T` cannot consume the remaining shell command block:
+
+```bash
+bash <<'SH'
+tw_diag() {
+  bash "$HOME/Boerse/trading-workspace-tools-v1.4.4/scripts/migrate-legacy-issuer.sh" compose \
+    "$HOME/Boerse/trading-workspace-deploy-v1.4.3" "$@" </dev/null
+}
+tw_diag exec -T backend python -m app.tools.audit_monitoring_performance --wait-seconds 60
+tw_diag exec -T backend python -m app.tools.monitoring_resume preflight
+tw_diag exec -T issuer-renderer python -c 'import json, urllib.request; print(json.dumps(json.load(urllib.request.urlopen("http://127.0.0.1:8091/health", timeout=10)), indent=2))'
+SH
+```
+
+These queries do not send a test notification or accept consent. Renderer health
+can identify stored state; product access in a fresh context is still needed to
+prove its reuse. Report tool version and actually deployed image revision separately.
+
+### Update an already migrated four-service deployment (1.4.5)
+
+The JPMorgan parser correction must run in both backend and renderer images. A
+new tool checkout inspecting old containers cannot supply that application fix.
+For the same reviewed four-service topology, the existing migration helper can
+prepare a new release from the currently inspected containers. The disposable
+Docker CI also exercises this second deployment from a canonical stack, retaining
+the database container, database data, consent state, settings and sandbox.
+
+Keep the original checkout/configuration and every earlier release/private state
+directory in place. Do not edit a sealed preservation file, reuse an `apply`
+directory, inject patched Python into a running service or drop volumes. The
+original `docker/.env` must still match all runtime settings outside the twelve
+explicitly preserved keys; any drift or unsupported topology blocks preparation.
+The new preparation validates the complete current runtime against the new
+effective model and pins new image revisions. It does not execute old overlays.
+
+After `v1.4.5` is published by the version workflow, use these paths for the
+previously documented installation. Check the tag commit against the qualified
+release PR before continuing:
+
+```bash
+git -C "$HOME/Boerse/trading-workspace" fetch origin tag v1.4.5 </dev/null
+git -C "$HOME/Boerse/trading-workspace" rev-parse 'v1.4.5^{commit}'
+git -C "$HOME/Boerse/trading-workspace" worktree add --detach \
+  "$HOME/Boerse/trading-workspace-v1.4.5" v1.4.5 </dev/null
+bash "$HOME/Boerse/trading-workspace-v1.4.5/scripts/migrate-legacy-issuer.sh" prepare \
+  "$HOME/Boerse/trading-workspace" \
+  "$HOME/Boerse/trading-workspace-deploy-v1.4.5" </dev/null
+```
+
+Only after successful preparation, apply in the maintenance window:
+
+```bash
+bash "$HOME/Boerse/trading-workspace-v1.4.5/scripts/migrate-legacy-issuer.sh" apply \
+  "$HOME/Boerse/trading-workspace-deploy-v1.4.5" </dev/null
+```
+
+The helper stops backend/renderer for consistent backups, leaves the database
+running, verifies renderer sandbox health before migration and restarts the
+application with the preserved full configuration. There is no automatic rollback.
+On failure keep the private logs/backups and inspect the exact failed phase;
+do not delete markers or blindly rerun apply. On success, use the new checkout
+and private directory together for all subsequent `compose` diagnostics.
+
+Then rerun the existing consent setup against the updated renderer with the
+operator's reviewed hash and explicit declarations. Previously confirmed terms
+need no redundant approval while their hash and approved scope remain unchanged;
+changed terms require fresh review. Require product access and stored-state reuse,
+then independently check discovery and a completed monitoring cycle. This update
+does not authorize a Telegram test message or prove provider availability.
+
+### Market charts and position risk (1.5.0)
+
+Version 1.5.0 adds charts and qualified risk/trend views; it does not activate new
+risk warnings. The additive schema chain is `0042 -> 0043 -> 0044`, with one head
+`20261004_0044`. Both new histories and ETF master data have downgrade guards.
+[Release scope and limits](../releases/V1.5.0-MARKET-CHARTS-AND-POSITION-RISK.md)
+separate source qualification from live acceptance.
+
+These commands apply to the already reviewed, migrated four-service issuer stack.
+For an unmigrated or different topology use the earlier migration procedure first;
+do not guess an old private state directory or substitute a base-only startup.
+The current JMBbot release/configuration paths are not known from GitHub.
+
+After the version workflow has published the tag, run the following on the host
+as its deployment owner. Supply the actual existing configuration checkout and
+private state directory. The new versioned paths below must not already exist.
+The commands fetch and inspect source and live state; they do not deploy:
+
+```bash
+read -r -p 'Existing configuration checkout containing docker/.env: ' TW_CONFIG_ROOT
+read -r -p 'Existing private deployment state directory: ' TW_CURRENT_STATE
+git -C "$TW_CONFIG_ROOT" fetch origin tag v1.5.0 </dev/null
+git -C "$TW_CONFIG_ROOT" rev-parse 'v1.5.0^{commit}'
+TW_RELEASE_ROOT="$HOME/Boerse/trading-workspace-v1.5.0"
+TW_RELEASE_STATE="$HOME/Boerse/trading-workspace-deploy-v1.5.0"
+git -C "$TW_CONFIG_ROOT" worktree add --detach "$TW_RELEASE_ROOT" v1.5.0 </dev/null
+bash "$TW_RELEASE_ROOT/scripts/migrate-legacy-issuer.sh" compose "$TW_CURRENT_STATE" ps </dev/null
+bash "$TW_RELEASE_ROOT/scripts/migrate-legacy-issuer.sh" compose "$TW_CURRENT_STATE" \
+  exec -T backend python -m alembic current </dev/null
+bash "$TW_RELEASE_ROOT/scripts/migrate-legacy-issuer.sh" compose "$TW_CURRENT_STATE" \
+  exec -T backend python -c 'import urllib.request; print(urllib.request.urlopen("http://127.0.0.1:8000/health/ready", timeout=10).status)' </dev/null
+```
+
+Compare the printed tag SHA with the qualified 1.5.0 release PR. The diagnostic
+wrapper retains the old state's sealed release root and full Compose chain, so a
+new tool version is not mistaken for a newly deployed application. Keep private
+configuration, logs, database contents and consent data off GitHub and chat.
+
+If this inventory matches the reviewed topology and the existing `.env` still
+matches the runtime outside the explicitly preserved settings, prepare the new
+release. This validates the complete candidate configuration and builds isolated
+images while existing services remain running:
+
+```bash
+bash "$TW_RELEASE_ROOT/scripts/migrate-legacy-issuer.sh" prepare \
+  "$TW_CONFIG_ROOT" "$TW_RELEASE_STATE" </dev/null
+```
+
+Only after successful preparation, apply in a maintenance window:
+
+```bash
+bash "$TW_RELEASE_ROOT/scripts/migrate-legacy-issuer.sh" apply "$TW_RELEASE_STATE" </dev/null
+bash "$TW_RELEASE_ROOT/scripts/migrate-legacy-issuer.sh" compose "$TW_RELEASE_STATE" ps </dev/null
+bash "$TW_RELEASE_ROOT/scripts/migrate-legacy-issuer.sh" compose "$TW_RELEASE_STATE" \
+  exec -T backend python -m alembic current </dev/null
+bash "$TW_RELEASE_ROOT/scripts/migrate-legacy-issuer.sh" compose "$TW_RELEASE_STATE" \
+  exec -T backend python -m alembic heads </dev/null
+bash "$TW_RELEASE_ROOT/scripts/migrate-legacy-issuer.sh" compose "$TW_RELEASE_STATE" \
+  exec -T backend python -c 'import urllib.request; print(urllib.request.urlopen("http://127.0.0.1:8000/health/ready", timeout=10).status)' </dev/null
+bash "$TW_RELEASE_ROOT/scripts/migrate-legacy-issuer.sh" compose "$TW_RELEASE_STATE" \
+  exec -T backend python -m app.tools.monitoring_resume preflight </dev/null
+```
+
+The helper backs up database and consent state, verifies the renderer sandbox,
+applies migrations and retains actual settings and data bindings. Existing
+release/state directories remain intact. If a phase fails, inspect its private
+log and backups; do not erase markers, blindly repeat `apply`, stamp the database
+or force a downgrade. A restore needs its own reviewed recovery procedure.
+
+For live acceptance, `current` and `heads` must each report `20261004_0044` and
+readiness must return 200. Then inspect **Diagramme** with real existing data:
+benchmark identity/basis, full sector coverage and explicit missing history;
+confirm any bounded imports individually. Inspect an existing position's risk
+panel and parameter preview. New warning configurations remain disabled until
+explicitly reviewed; a running scheduler may still store qualified snapshots.
+Missing product history or unverified synchronized timestamps must stay visibly
+unavailable. Recheck existing consent reuse and normal monitoring without sending
+a test notification or inventing a test trade in the production portfolio.

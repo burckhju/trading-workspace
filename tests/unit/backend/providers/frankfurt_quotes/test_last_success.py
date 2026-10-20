@@ -2,7 +2,7 @@
 
 import importlib
 from dataclasses import replace
-from datetime import timedelta
+from datetime import datetime, timedelta
 from decimal import Decimal
 
 import httpx
@@ -11,6 +11,7 @@ from fastapi import FastAPI
 
 from app.core.di import get_container
 from app.features.market_data.service.errors import MarketDataInvalidResponseError
+from app.features.position_monitoring.backend_valuations import BackendProductValuations
 from app.features.position_monitoring.service.product_valuation import (
     ProductPositionValuationService,
 )
@@ -90,6 +91,10 @@ async def test_outage_preserves_indicative_api_provenance_and_recovers(monkeypat
             url = f"/api/v1/position-monitoring/trades/{trade.id}/product-valuation"
             original = (await api.get(url)).json()
             assert original["analysis_usable"] is True
+            cli_reader = BackendProductValuations(api)
+            from_backend = await cli_reader.for_trade(trade.id)
+            assert from_backend.monitoring_usable is True
+            assert len(calls) == 1  # The CLI port reads the already warm backend provider cache.
             failures[0], timer[0] = True, 30.0
             for moment in (30.0, 45.0):
                 timer[0] = moment
@@ -129,6 +134,14 @@ async def test_outage_preserves_indicative_api_provenance_and_recovers(monkeypat
                     value["source_attempts"][0]["reason"] == "LAST_SUCCESSFUL_QUOTE_REFRESH_FAILED"
                 )
                 assert "SECRET" not in response.text
+                from_backend = await cli_reader.for_trade(trade.id)
+                assert from_backend.quote_refresh_error == "FRANKFURT_HTTP_503"
+                assert from_backend.monitoring_usable and not from_backend.execution_usable
+                assert from_backend.quote_observed_at == (
+                    None
+                    if original["quote_observed_at"] is None
+                    else datetime.fromisoformat(original["quote_observed_at"])
+                )
             assert len(calls) == 2  # Backoff and historical reads do not perform requests.
             assert client.last_success_at == NOW
             observation, hit = await adapter.inspect(request)

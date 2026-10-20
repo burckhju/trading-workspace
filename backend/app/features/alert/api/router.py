@@ -30,6 +30,9 @@ def _response(value: AlertView) -> AlertResponse:
         detected_at=value.detected_at,
         status=value.status,
         resolved_at=value.resolved_at,
+        price_context=value.price_context,
+        invalidated_at=value.invalidated_at,
+        invalidation_reason=value.invalidation_reason,
         notifications=[
             NotificationResponse(
                 id=notification.id,

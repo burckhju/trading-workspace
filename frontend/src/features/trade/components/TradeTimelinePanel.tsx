@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import { tradeManagementApiClient, tradeTimelineChangedEvent } from '../services/client';
+import { executionCurrencyText } from '../services/executionCurrency';
 import type { TradeTimelineEntryResponse } from '../types/api';
 
 function formatDateTime(value: string): string {
@@ -102,6 +103,21 @@ export function TradeTimelinePanel({ tradeId }: { tradeId: string }) {
                 <div>
                   <p className="font-medium">{entryTitle(entry)}</p>
                   <p className="mt-1 text-sm text-slate-400">{entryDetail(entry)}</p>
+                  {entry.kind === 'EXECUTION' && (
+                    <p className="text-xs text-slate-400">
+                      Ausführungswährung:{' '}
+                      {executionCurrencyText(
+                        entry.currency_resolution,
+                        entry.currency_confirmation,
+                      )}
+                    </p>
+                  )}
+                  {entry.price_binding && (
+                    <p className="text-xs text-slate-400">
+                      {entry.price_binding.basis === 'WARRANT' ? 'Optionsschein' : 'Basiswert'} ·{' '}
+                      {entry.price_binding.currency} · {entry.price_binding.instrument_id}
+                    </p>
+                  )}
                 </div>
                 <span className="rounded-full border border-slate-700 px-2.5 py-1 text-xs">
                   {entry.kind === 'EXECUTION'

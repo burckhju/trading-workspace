@@ -51,6 +51,10 @@ def configure_logging(log_level: str) -> None:
         },
         "root": {"handlers": ["console"], "level": log_level},
         "loggers": {
+            # Bot API credentials are part of request URLs. Do not log HTTP
+            # request lines/headers even when application DEBUG is enabled.
+            "httpx": {"level": "WARNING"},
+            "httpcore": {"level": "WARNING"},
             "uvicorn": {
                 "handlers": ["console"],
                 "level": log_level,

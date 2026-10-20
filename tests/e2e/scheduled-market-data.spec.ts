@@ -19,9 +19,16 @@ test('workspace shows automatic refresh coverage and indicative Frankfurt valuat
       }],
     };
     else if (path.endsWith('/market-data/refresh/status')) body = {
-      enabled: true, running: true, leader: true, last_error: null, current_job: null, pending_jobs: 1,
+      enabled: true, running: true, leader: true, last_error: null, current_job: 'WARRANT_QUOTES:three', pending_jobs: 3,
+      current_jobs: { WARRANTS: 'WARRANT_QUOTES:three', UNDERLYINGS: 'UNDERLYING_EOD:one' },
+      lanes: {
+        WARRANTS: { running: true, current_job: 'WARRANT_QUOTES:three', pending_jobs: 2, last_error: null },
+        UNDERLYINGS: { running: true, current_job: 'UNDERLYING_EOD:one', pending_jobs: 1, last_error: null },
+      },
       settings: { warrants_interval_seconds: 300, underlyings_interval_seconds: 3600, discovery_interval_seconds: 3600 },
-      jobs: [{ job: 'WARRANT_QUOTES:one', name: 'BNP Call', isin: 'DE000BN00012', status: 'AVAILABLE', reason: 'QUOTE_OBSERVATIONS_AVAILABLE', next_run_at: '2026-09-12T12:05:00Z' }, { job: 'WARRANT_QUOTES:two', name: 'Vontobel Call', isin: 'DE000VV00123', held: true, status: 'PENDING', reason: 'AWAITING_FIRST_REFRESH', next_run_at: null }],
+      jobs: [{ job: 'WARRANT_QUOTES:one', name: 'BNP Call', isin: 'DE000BN00012', status: 'AVAILABLE', reason: 'QUOTE_OBSERVATIONS_AVAILABLE', next_run_at: '2026-09-12T12:05:00Z' }, { job: 'WARRANT_QUOTES:two', name: 'Vontobel Call', isin: 'DE000VV00123', held: true, status: 'PENDING', reason: 'AWAITING_FIRST_REFRESH', next_run_at: null },
+        { job: 'WARRANT_QUOTES:three', name: 'Running Call', isin: null, held: true, status: 'PENDING', reason: 'AWAITING_FIRST_REFRESH', next_run_at: null },
+        { job: 'UNDERLYING_EOD:one', name: 'Running Stock', isin: null, held: true, status: 'PENDING', reason: 'AWAITING_FIRST_REFRESH', next_run_at: null }],
     };
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
   });
@@ -36,6 +43,9 @@ test('workspace shows automatic refresh coverage and indicative Frankfurt valuat
   await expect(page.getByText(/Erfolgreich · Nächste Prüfung/)).toBeVisible();
   await expect(page.getByText(/Vontobel Call.*Offene Position/)).toBeVisible();
   await expect(page.getByText('Erster Abruf steht aus', { exact: true })).toBeVisible();
+  await expect(page.getByText('Abruf läuft', { exact: true })).toHaveCount(2);
+  await expect(page.getByText(/Basiswerte: Abruf läuft · 1 Aufgabe/)).toBeVisible();
+  await expect(page.getByText(/Optionsscheine: Abruf läuft · 2 Aufgaben/)).toBeVisible();
   await expect(page.getByText('Invalid Date')).toHaveCount(0);
   expect(writes).toBe(0);
 });

@@ -12,6 +12,9 @@ from app.features.position_monitoring.domain.models import (
     PriceObservation,
 )
 from app.features.position_monitoring.service.application import PositionMonitoringService
+from app.features.trade_position.domain.price_binding import PriceBasis, PriceBinding
+
+BINDING = PriceBinding(PriceBasis.UNDERLYING, UUID("00000000-0000-4000-8000-000000000099"), "EUR")
 
 
 class StateRepo:
@@ -61,19 +64,23 @@ async def test_trigger_is_edge_deduplicated_and_can_retrigger_after_reset() -> N
     now = datetime(2026, 9, 3, 10, tzinfo=UTC)
     service = PositionMonitoringService(states=states, alerts=alerts, new_id=uuid4, now=lambda: now)
     position_id, trade_id = uuid4(), uuid4()
-    rule = MonitoringRule("target", MonitoringRuleType.TARGET_REACHED, Decimal("120"))
+    rule = MonitoringRule(
+        "target", MonitoringRuleType.TARGET_REACHED, Decimal("120"), price_binding=BINDING
+    )
 
     first = await service.evaluate(
         position_id=position_id,
         trade_id=trade_id,
         rule=rule,
-        observation=PriceObservation(Decimal("121"), now),
+        observation=PriceObservation(Decimal("121"), now, price_binding=BINDING),
     )
     repeated = await service.evaluate(
         position_id=position_id,
         trade_id=trade_id,
         rule=rule,
-        observation=PriceObservation(Decimal("122"), now + timedelta(minutes=1)),
+        observation=PriceObservation(
+            Decimal("122"), now + timedelta(minutes=1), price_binding=BINDING
+        ),
     )
     assert first.alert is not None
     assert repeated.alert is None
@@ -83,7 +90,9 @@ async def test_trigger_is_edge_deduplicated_and_can_retrigger_after_reset() -> N
         position_id=position_id,
         trade_id=trade_id,
         rule=rule,
-        observation=PriceObservation(Decimal("119"), now + timedelta(minutes=2)),
+        observation=PriceObservation(
+            Decimal("119"), now + timedelta(minutes=2), price_binding=BINDING
+        ),
     )
     assert alerts.values[first.alert.id].status is AlertStatus.RESOLVED
 
@@ -91,7 +100,9 @@ async def test_trigger_is_edge_deduplicated_and_can_retrigger_after_reset() -> N
         position_id=position_id,
         trade_id=trade_id,
         rule=rule,
-        observation=PriceObservation(Decimal("120"), now + timedelta(minutes=3)),
+        observation=PriceObservation(
+            Decimal("120"), now + timedelta(minutes=3), price_binding=BINDING
+        ),
     )
     assert retriggered.alert is not None
     assert retriggered.alert.id != first.alert.id
@@ -109,14 +120,20 @@ async def test_threshold_change_is_a_new_rule_state_transition() -> None:
     first = await service.evaluate(
         position_id=position_id,
         trade_id=trade_id,
-        rule=MonitoringRule("stop", MonitoringRuleType.STOP_REACHED, Decimal("100")),
-        observation=PriceObservation(Decimal("99"), now),
+        rule=MonitoringRule(
+            "stop", MonitoringRuleType.STOP_REACHED, Decimal("100"), price_binding=BINDING
+        ),
+        observation=PriceObservation(Decimal("99"), now, price_binding=BINDING),
     )
     changed = await service.evaluate(
         position_id=position_id,
         trade_id=trade_id,
-        rule=MonitoringRule("stop", MonitoringRuleType.STOP_REACHED, Decimal("101")),
-        observation=PriceObservation(Decimal("99"), now + timedelta(minutes=1)),
+        rule=MonitoringRule(
+            "stop", MonitoringRuleType.STOP_REACHED, Decimal("101"), price_binding=BINDING
+        ),
+        observation=PriceObservation(
+            Decimal("99"), now + timedelta(minutes=1), price_binding=BINDING
+        ),
     )
 
     assert first.alert is not None

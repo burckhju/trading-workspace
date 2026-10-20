@@ -5,6 +5,7 @@ from enum import StrEnum
 
 class UnderlyingType(StrEnum):
     STOCK = "STOCK"
+    ETF = "ETF"
 
 
 class LifecycleStatus(StrEnum):
@@ -31,6 +32,7 @@ class AggregateType(StrEnum):
     CURRENCY = "CURRENCY"
     CURRENCY_CATALOG = "CURRENCY_CATALOG"
     TRADE = "TRADE"
+    WARRANT = "WARRANT"
 
 
 class ActorType(StrEnum):

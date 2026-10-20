@@ -172,9 +172,22 @@ class ListingService:
                 if before.is_primary == desired:
                     continue
                 after = before.with_changes(now=now, is_primary=desired)
-                apply_listing(model, after)
                 changed.append((model, before, after))
-            ensure_operational_listing_invariant(tuple(listing_to_domain(item) for item in models))
+            final_values = {after.id: after for _, _, after in changed}
+            ensure_operational_listing_invariant(
+                tuple(final_values.get(item.id, listing_to_domain(item)) for item in models)
+            )
+            # The partial unique index is immediate. SQLAlchemy can order updates
+            # by UUID and promote the target first. Flush demotions first within
+            # this transaction; promotion/audit failures roll the whole change back.
+            for model, _, after in changed:
+                if not after.is_primary:
+                    apply_listing(model, after)
+            if changed:
+                await self._uow.listings.flush()
+            for model, _, after in changed:
+                if after.is_primary:
+                    apply_listing(model, after)
             for _, before, after in changed:
                 await self._audit(
                     after,

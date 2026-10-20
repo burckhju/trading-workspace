@@ -1,6 +1,14 @@
-import { render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import {
+  createMemoryRouter,
+  MemoryRouter,
+  Route,
+  RouterProvider,
+  Routes,
+  useLocation,
+  useNavigate,
+} from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { marketApiClient } from '../services/client';
 import type { UnderlyingDetailResponse } from '../types/api';
@@ -25,6 +33,13 @@ vi.mock('../services/client', () => ({
 
 const venueId = '00000000-0000-4000-8001-000000000001';
 let items: UnderlyingDetailResponse[];
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+}
 function HistoryControls() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -142,6 +157,69 @@ beforeEach(() => {
 });
 
 describe('underlying list return context', () => {
+  it('never shows or edits late detail A after switching to detail B with another list context', async () => {
+    const pending = deferred<UnderlyingDetailResponse>();
+    vi.mocked(marketApiClient.getUnderlying).mockImplementation((id) =>
+      id === items[0].id ? pending.promise : Promise.resolve(items[1]),
+    );
+    const path = (index: number) =>
+      `/underlyings/${items[index].id}?${new URLSearchParams({ returnTo: `/underlyings?offset=${index ? 50 : 25}` })}`;
+    const router = createMemoryRouter(
+      [{ path: '/underlyings/:underlyingId', element: <UnderlyingDetailPage /> }],
+      { initialEntries: [path(0)] },
+    );
+    render(<RouterProvider router={router} />);
+    await act(async () => {
+      await router.navigate(path(1));
+    });
+    await screen.findByRole('heading', { name: itemName(2) });
+    await act(async () => {
+      pending.resolve(items[0]);
+      await pending.promise;
+    });
+    expect(screen.getByRole('heading', { name: itemName(2) })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: itemName(1) })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Bearbeiten' })).toHaveAttribute(
+      'href',
+      `/underlyings/${items[1].id}/edit?returnTo=%2Funderlyings%3Foffset%3D50`,
+    );
+    expect(marketApiClient.updateUnderlying).not.toHaveBeenCalled();
+  });
+
+  it('submits one delete and ignores its old completion after navigating to detail B', async () => {
+    const pending = deferred<void>();
+    vi.mocked(marketApiClient.deleteUnderlying).mockReturnValue(pending.promise);
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const firstPath = `/underlyings/${items[0].id}?returnTo=%2Funderlyings%3Foffset%3D25`;
+    const secondPath = `/underlyings/${items[1].id}?returnTo=%2Funderlyings%3Foffset%3D50`;
+    const router = createMemoryRouter(
+      [
+        { path: '/underlyings/:underlyingId', element: <UnderlyingDetailPage /> },
+        { path: '/underlyings', element: <h1>Liste</h1> },
+      ],
+      { initialEntries: [firstPath] },
+    );
+    render(<RouterProvider router={router} />);
+    await screen.findByRole('heading', { name: itemName(1) });
+    const button = screen.getByRole('button', { name: 'Löschen' });
+    act(() => {
+      fireEvent.click(button);
+      fireEvent.click(button);
+    });
+    expect(marketApiClient.deleteUnderlying).toHaveBeenCalledExactlyOnceWith(items[0].id, 1);
+    await act(async () => {
+      await router.navigate(secondPath);
+    });
+    await screen.findByRole('heading', { name: itemName(2) });
+    await act(async () => {
+      pending.resolve();
+      await pending.promise;
+    });
+    expect(router.state.location.pathname + router.state.location.search).toBe(secondPath);
+    expect(screen.getByRole('heading', { name: itemName(2) })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Löschen' })).toBeEnabled();
+  });
+
   it.each([2, 3])(
     'returns directly to the original page %s after a successful edit, with fresh data',
     async (page) => {

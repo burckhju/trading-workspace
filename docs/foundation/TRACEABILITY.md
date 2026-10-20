@@ -1,3 +1,62 @@
+# Traceability – aktueller Nachweiseinstieg
+
+> Nachweisergänzung 2026-10-14: [integrierter Handoff-Teilschnitt, PostgreSQL-/Browserbelege und offene Journalstrecke](../implementation/POST_TRADE_LEARNING_HANDOFF_REVIEW.md). Die Fortschreibung trennt Prüfcommits, echte DB-Transaktionen und abgefangenes Browser-HTTP. Arbeitsstatus ausschließlich im [zentralen Backlog](../planning/PRODUCT_BACKLOG.md#pb-019-materialization); keine Fach-/Betriebsabnahme.
+> Maßgeblich bleiben [PB-019 Materialisierung](../planning/PRODUCT_BACKLOG.md#pb-019-materialization), [PB-019 Journal](../planning/PRODUCT_BACKLOG.md#pb-019-journal) und [PB-018 Currentness](../planning/PRODUCT_BACKLOG.md#pb-018-currentness); der historische Bestand unten bleibt unverändert.
+
+> Nachweisfortschreibung 2026-10-15: [Journal-V1 mit echter PostgreSQL-/Browser-Korrekturstrecke](../implementation/FT012_JOURNAL_WRITE_QUALIFICATION.md) verbindet gespeicherten Entwurf, Finalisierung, Folgeversion und explizite Journal-Evidence/Lesson. Prüfcommit `666e8ab…`, Befehle, Artefakte und verbleibender Lesson-Review-Scope im Bericht. Arbeitsstatus ausschließlich [PB-019 Journal](../planning/PRODUCT_BACKLOG.md#pb-019-journal); kein Release-/Fachabnahmenachweis.
+
+> Ergänzung 2026-10-15: [explizite Lesson-Prüfung und Folgeversion](../implementation/FT012_LESSON_REVIEW_DOR.md), [ADR zum Quellen-/Widerspruchs- und Transaktionsvertrag](../decisions/ADR-POST-FT012-006-EXPLICIT-LESSON-REVIEW.md). Maßgeblicher Arbeitsstatus ausschließlich [PB-019 Lessons](../planning/PRODUCT_BACKLOG.md#pb-019-lessons). Neuer Prüfstand separat; historische Journalqualifikation ist kein Ersatz.
+
+> Fortschreibung 2026-10-16: [Lesson-Review mit echter versionierter Evidenzkorrektur](../implementation/FT012_LESSON_REVIEW_QUALIFICATION.md), geprüfter Code `4081563…`, getrennte Currentness-/Relations-/Transaktionsgrenzen und alle drei Gesamtgates. #259/#260 normal integriert; finale #261-Prüfungen/Mergebeleg in dessen PR. Status ausschließlich [PB-019 Lessons](../planning/PRODUCT_BACKLOG.md#pb-019-lessons), keine Fachabnahme/Release-/Zielbetriebsbehauptung.
+
+## Revision und Verantwortlichkeit
+
+Konsolidiert am 2026-10-13 anhand von `main` / `a78288ad38610656480d0363abe657b567c7ba94` / Softwaretag `v1.5.5`. Diese Ergänzung ist ein Dokumentations-/Nachweisstand zur fachlichen Prüfung, keine neue menschliche Abnahme oder Betriebsfreigabe.
+
+**Nur das [Product Backlog](../planning/PRODUCT_BACKLOG.md#abnahmematrix) führt aktuellen Arbeitsstatus.** Dieses Dokument führt zu Nachweisen und erhält deren Historie. Die unten unverändert erhaltenen Approved-, Accepted-, RC- oder Released-Aussagen gelten für ihre damaligen Umfänge, Daten und Commits, nicht als konkurrierende heutige Statusliste.
+
+## Verbindliche Kette
+
+```text
+Ursprüngliches Soll / spätere belegte Präzisierung
+→ Umfangsentscheidung bzw. ausdrücklich offene Entscheidung
+→ tatsächliche Implementierung und Consumer
+→ Testquelle und Ausführung auf identifiziertem Commit
+→ fachliche Abnahme
+→ Software-Auslieferung und gesonderter Betriebsnachweis
+```
+
+Jeder Schritt kann einen eigenen fehlenden Nachweis haben. Ein vorhandener Router, Testquelltext, grüner Workflow oder Softwaretag ersetzt keinen nachfolgenden Schritt. Model-Approval und Runtime-Aktivierung bleiben getrennt. „Nicht geprüft“ ist ein zulässiger Nachweisstand, kein Nullwert oder Funktionsbeweis.
+
+## Einstieg in den aktuellen Nachweisgraphen
+
+| Soll / Entscheidungskontext | Implementierungs-/Consumerquelle | Test-/Abnahme-/Betriebsfelder |
+|---|---|---|
+| [Alle M0–M11-Inhaltsziele](../planning/PRODUCT_BACKLOG.md#originalzuordnung) und [unveränderte Baseline](archive/ROADMAP_2026-07-22.md) | Bestehende FT-/Owner-Zuordnung im [Katalog](../planning/MODULE_AND_FEATURE_CATALOG.md#ownership) | [Einzige Abnahmematrix](../planning/PRODUCT_BACKLOG.md#abnahmematrix) |
+| S1/S2-Referenzdatenverträge; spätere ETF-Präzisierung | [API-Komposition](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/backend/app/main.py); [UI-Komposition](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/frontend/src/app/router.tsx); [Chart-/ETF-Nachtrag](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/implementation/MARKET_CHARTS.md) | [FT-001](../planning/PRODUCT_BACKLOG.md#pb-006-underlying), [FT-004](../planning/PRODUCT_BACKLOG.md#pb-011-warrants) |
+| S5-/S6-/S8-Übergaben; genaue Versionen statt latest | [Golden-Path-Nähte](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/implementation/POST_D01_GOLDEN_PATH_CLOSEOUT.md); [konkrete APPROVED-Planversion](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/backend/app/features/product_selection/service/application.py); [Evaluation versus Selection](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/backend/app/features/product_selection/domain/models.py) | [Candidate](../planning/PRODUCT_BACKLOG.md#pb-012-candidate), [Plan](../planning/PRODUCT_BACKLOG.md#pb-014-assumptions), [Vergleich/Scoregrenze](../planning/PRODUCT_BACKLOG.md#pb-015-comparison) |
+| FT-010 SELL/Supersession/Average Cost; Produktwechsel-V1-Abgrenzung | [FT-010-Vertrag und Sep-14-Nachtrag](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/features/FT-010_TRADE_MANAGEMENT.md); [Releasevorbereitung / PR #22 / 18fe1df90e4f63529867fc32b5b6441d90738ff4](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/releases/V1.2.0-TRADE-MANAGEMENT.md) | [Execution-/Management-Historie](../planning/PRODUCT_BACKLOG.md#pb-017-history), [Produktwechsel](../planning/PRODUCT_BACKLOG.md#pb-017-product-change) |
+| FT-011 nach realem Vollverkauf; COMPLETED/FINALIZED/CURRENT | [Observation-Service](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/backend/app/features/post_trade/application/observation_service.py); [Handoff-Service](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/backend/app/features/post_trade/application/handoff_service.py) | [Gelesene Handoff-Tests](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/tests/unit/backend/features/post_trade/test_handoff_service.py); [Review-Nachweise](../planning/PRODUCT_BACKLOG.md#pb-018-review) |
+| FT-012 besitzt materialisierte Evidence, nicht FT-011 | [Extension 09](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/implementation/POST_D01_GOLDEN_PATH_EXTENSION_09.md); [tatsächlicher UI-Aufruf und Evidence-Readback](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/frontend/src/features/post_trade/pages/PostTradeLearningPage.tsx) | [Materialisierung](../planning/PRODUCT_BACKLOG.md#pb-019-materialization), [Lessons](../planning/PRODUCT_BACKLOG.md#pb-019-lessons) |
+| Ursprüngliche Journal-/Performance-Zusage bleibt eigenständig | [Prozessmodell](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/domain/TRADING_PROCESS_MODEL.md); Review/Evidence/Lesson ist kein Ersatzbeleg | [Journal](../planning/PRODUCT_BACKLOG.md#pb-019-journal), [Performance](../planning/PRODUCT_BACKLOG.md#pb-019-performance-metrics) |
+| FT-013-Freigabe versus spätere getrennte Runtime-Aktivierung | [V1-Governancevertrag](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/features/FT-013_CONTROLLED_MODEL_GOVERNANCE.md); [FT-020-Präzisierung](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/features/FT-020_CANDIDATE_MODEL_CONFIGURATION_UX.md); [RuntimeActivationService](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/backend/app/features/model/service/runtime_activation_service.py) | [Governance](../planning/PRODUCT_BACKLOG.md#pb-020-governance), [Aktivierung/Rückkehr](../planning/PRODUCT_BACKLOG.md#pb-020-activation), [konkrete Kandidatenfamilie](../planning/PRODUCT_BACKLOG.md#pb-020-candidate-family) |
+| Qualität/Zeitsemantik statt erfundener Live-Daten | [IV-/Kursbelege 1.5.4](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/releases/V1.5.4-IV-DATA-AND-RISK.md); [Abrufdiagnose 1.5.5](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/releases/V1.5.5-ISSUER-COVERAGE.md) | [Datenbelege](../planning/PRODUCT_BACKLOG.md#market-data-evidence), [JMBbot](../planning/PRODUCT_BACKLOG.md#operations-installation) |
+
+## Historische Präzisierung statt rückwirkender Umschreibung
+
+Der [Konfliktabgleich](../planning/PRODUCT_BACKLOG.md#konfliktaufloesung) ordnet ältere Aussagen den späteren Quellen zu. Insbesondere wird der Golden-Path-Closeout nicht gelöscht: Seine damaligen offenen Materialisierungs-/Aktivierungslücken werden über spätere Quellen erläutert. Auch frühere V1-Nicht-Scope-Aussagen, S6-Reviewstände, STOCK-only-Angaben und historische RC-Notizen werden nicht nachträglich umformuliert.
+
+## Prüf- und Zugriffsschranken
+
+Aktuelle Basis-CI, gelesene Einzelschritte, nicht ausgeführte lokale Befehle und fehlende Quellen-/Betriebszugriffe stehen ausschließlich im [Nachweisregister](../planning/PRODUCT_BACKLOG.md#nachweisregister). Konkrete neue Fachabnahmen, vollständige Live-E2E und eine aktuelle JMBbot-Installation werden nicht behauptet. Die fünf Ausgangsdokumente wurden vor Bearbeitung mit ihren Git-Blob-Hashes abgeglichen; die folgende historische Traceability bleibt bytegenau erhalten (Quellblob `d0cb63972ad37e8644a2f55537e9a3c1702061e1`).
+
+<a id="historische-nachweise"></a>
+## Unverändert erhaltener historischer Bestand
+
+<details>
+<summary>Historische Traceability am Basiscommit öffnen – keine zweite aktuelle Statusquelle</summary>
+
+<!-- BEGIN UNCHANGED TRACEABILITY BASELINE a78288ad -->
 # Traceability
 
 ## Dokumentinformationen
@@ -318,3 +377,197 @@ Architecture review: `docs/implementation/SPRINT_10_ARCHITECTURE_REVIEW.md`.
 Technical closeout: `docs/implementation/SPRINT_10_TECHNICAL_CLOSEOUT.md`.
 
 Release readiness: `docs/implementation/SPRINT_10_FT010_RELEASE_READINESS.md`.
+
+## Issuer deployment stabilization (1.4.1)
+
+| Requirement | Implementation | Verification |
+|---|---|---|
+| Preserve the complete existing Compose chain before mutation | `scripts/start-linux.sh` provenance preflight / `--overlay` | `tests/unit/backend/test_start_linux_script.py` |
+| Explicit issuer opt-in, renderer health before migration/app recreation | `--issuer-monitoring`, bounded health wait, Alembic `--no-deps` | startup regression tests; existing renderer sandbox CI |
+| Read-only preparation and unchanged private configuration | `--check` | startup regression tests |
+
+Scope, acceptance criteria and operational limits: [implementation report](../implementation/ISSUER_DEPLOYMENT_STARTUP.md).
+
+## Dynamic issuer monitoring diagnostics (1.4.2)
+
+| Requirement | Implementation | Verification |
+|---|---|---|
+| Current issuer jobs, including discovered products, remain visible | `app/tools/audit_monitoring_performance.py` runtime-catalogue scope | `tests/unit/backend/tools/test_audit_monitoring_performance.py` |
+| Scheduler completion and positive-bid evidence stay distinct | Per-job evidence, unverified-product list, unchanged quote-time boundaries | Synthetic pending, failed, retained and nonpositive quote regressions |
+| Indicative refresh errors remain visible without changing rule status | `rule_issues` includes `refresh_error` | Indicative-error regression; existing concurrency tests |
+
+Scope and acceptance criteria: [implementation report](../implementation/DYNAMIC_ISSUER_MONITORING_AUDIT.md).
+
+## Reviewed legacy issuer migration (1.4.3)
+
+| Requirement | Implementation | Verification |
+|---|---|---|
+| Preserve effective settings/data during explicit package replacement | `migrate-legacy-issuer.sh`, offline `legacy_issuer_deployment` validator | Validator and shell regression suites |
+| Backups and sandbox health precede schema/application replacement | Separate prepare/apply phases; immutable input/image checks | Failure regressions; disposable Docker/PostgreSQL migration in renderer workflow |
+| Keep operational evidence distinct from provider/live acceptance | Private state and explicit post-deployment checks | [Implementation/acceptance criteria](../implementation/LEGACY_ISSUER_DEPLOYMENT_MIGRATION.md) |
+
+
+## Compose integrity correction (1.4.4)
+
+| Requirement | Implementation | Verification |
+|---|---|---|
+| Identical JSON configuration must tolerate presentation differences | Offline `verify_configuration`; byte-level seals retained | Strict scalar/array/duplicate-key tests; real shell failure reproduction |
+| Diagnose an existing prepared release without replacing it | `compose` uses its sealed release root and validates both checkouts | Cross-checkout drift tests; real Docker CI checks unchanged container IDs |
+| Keep tool and deployed versions distinct | [Runbook](../technical/LINUX_DEPLOYMENT.md#diagnose-an-existing-prepared-deployment-with-144-tooling) | [Acceptance criteria](../implementation/LEGACY_ISSUER_DEPLOYMENT_MIGRATION.md#compose-integrity-correction-144) |
+
+## JPMorgan price-binding correction (1.4.5)
+
+| Requirement | Implementation | Verification |
+|---|---|---|
+| Exact route identity without requiring an undisplayed JPMorgan clock | Shared `issuer_pages.parse_product_page`; both price bindings remain mandatory | Missing-clock reproduction and negative binding regressions |
+| Consent and route discovery share the same provider evidence | Existing setup, renderer and backend call the same parser | Actual-parser setup/renderer tests; SQL discovery/selection/adapter tests |
+| Unknown timestamps and non-executable indications remain explicit | Unchanged quote adapter and indicative policies | Missing-time stream result and retention assertions; full regression suite |
+| Safely update the already canonical stack | Existing prepare/apply helper with fresh private state | Second real Docker deployment, DB/consent retention and sandbox checks |
+
+Scope and acceptance criteria: [implementation report](../implementation/JPMORGAN_PRICE_BINDING.md).
+
+<!-- END UNCHANGED TRACEABILITY BASELINE a78288ad -->
+
+</details>
+
+## FT-012 Journal write continuation — 2026-10-14
+
+[PB-019 Journal](../planning/PRODUCT_BACKLOG.md#pb-019-journal) →
+[DoR](../implementation/FT012_JOURNAL_WRITE_DOR.md) →
+[ADR-POST-FT012-005](../decisions/ADR-POST-FT012-005-JOURNAL-WRITE-LIFECYCLE.md) →
+`learning/application/journal_service.py`, `learning/persistence/journal_repository.py`,
+`learning/api/journal_router.py`, `TradeJournalPanel.tsx`, `JournalEvidenceOrigin.tsx`.
+Tests: `test_journal_commands.py`, `test_journal_api.py`, `test_journal_source_inspection.py`,
+`test_journal_write_postgres.py`, `TradeJournalPanel.test.tsx`, `journalClient.test.ts`,
+`post-trade-journal-postgres.spec.ts`. These are trace links, not independent status
+or proof that a test has run. FT-011 remains the source-currentness owner; Performance
+and Governance only read exact version/source/inspection-time boundaries. M0–M11 unchanged.
+
+## FT-011/FT-012 consistency and historical inventory — 2026-10-16
+
+[PB-019 Materialisierung](../planning/PRODUCT_BACKLOG.md#pb-019-materialization) →
+[DoR](../implementation/FT011_MATERIALIZATION_CONSISTENCY_DOR.md) →
+[ADR-007](../decisions/ADR-POST-FT012-007-MATERIALIZATION-CONSISTENCY.md) →
+`post_trade/persistence/materialization_guard.py`,
+`post_trade/application/materialization_handoff.py`,
+`learning/application/ft011_evidence_history_service.py`,
+`learning/api/materialization_router.py`, `Ft011EvidenceHistory.tsx`.
+Historical links select the concrete `lesson_version_id` in the existing Lesson
+detail. Tests: `test_ft011_consistency_postgres.py`,
+`test_materialization_handoff.py`, `test_ft011_evidence_history.py`,
+`post-trade-evidence-history-postgres.spec.ts` and matching React regressions.
+These are trace links, not a second status register or a claim of completed runs.
+No migration, provider, automated interpretation or new financial owner.
+
+Qualification of the defined FT-011/FT-012 consistency/inventory slice:
+[exact code/test commit, PostgreSQL races, browser and full-gate evidence](../implementation/FT011_MATERIALIZATION_CONSISTENCY_QUALIFICATION.md).
+This trace extends the existing PB-019 link; no second status or human acceptance.
+
+## Realized gross SELL arithmetic and period readiness — 2026-10-17
+
+[PB-017 Brutto-PnL](../planning/PRODUCT_BACKLOG.md#pb-017-gross-pnl) and
+[PB-019 Periodenauswertung](../planning/PRODUCT_BACKLOG.md#pb-019-performance-evaluations)
+→ [source matrix, DoR and decisions still required](../implementation/PERIOD_REALIZED_GROSS_READINESS.md)
+→ accepted ADR-S10-002/004 and the existing FT-010 owner
+→ `trade_position/domain/projector.py::PositionProjector.project_with_trace`
+→ `test_projector_trace.py`, `test_realized_gross_trace_postgres.py`
+→ [exact qualification and code references](../implementation/PERIOD_REALIZED_GROSS_QUALIFICATION.md).
+
+This additive trace preserves one arithmetic loop and the existing Position
+contract. The complete effective execution prefix explains each SELL's cost
+basis, including earlier sales. Synthetic EUR assumptions do not establish user
+execution currencies. Monetary report API/UI, the proposed report snapshot,
+currency capture/confirmation and domain acceptance remain separate requirements.
+No new FT-ID, migration, release, automatic evidence or target-installation claim.
+
+## Explicit currency and period report continuation — 2026-10-17
+
+The preceding trace-only entry remains the historical first-stage evidence. The
+later explicit user instruction “Ok, umsetzen” accepts the concrete follow-up
+contract in [ADR-S10-008](../decisions/ADR-S10-008-EXECUTION-CURRENCY-AND-PERIOD-REALIZED-GROSS.md).
+
+[PB-017 currency/position owner](../planning/PRODUCT_BACKLOG.md#pb-017-gross-pnl)
+and [PB-019 period report](../planning/PRODUCT_BACKLOG.md#pb-019-performance-evaluations)
+→ approved [source/period contract](../implementation/PERIOD_REALIZED_GROSS_READINESS.md)
+→ `trade_position/service/currency_confirmations.py`, migration `20261017_0047`
+and all existing actual capture commands, including Learning `execute-as-trade`
+→ existing `PositionProjector.project_with_trace()`
+→ `performance/service/reader.py`, `performance/domain/report.py`,
+`GET /api/v1/performance/realized-gross`
+→ `frontend/src/features/performance/pages/RealizedGrossPage.tsx` and the existing
+trade/selection capture and booking-history UI
+→ `test_execution_currency_confirmations_postgres.py`,
+`test_realized_gross_report_postgres.py`, period/API/domain/frontend unit contracts
+and `tests/e2e/realized-gross-report-postgres.spec.ts`
+→ [exact code and qualification record](../implementation/PERIOD_REALIZED_GROSS_REPORT_QUALIFICATION.md).
+
+One response's summary, counts, rows and provenance share a bounded read snapshot;
+explicit corrections may change subsequent responses. Currency declarations are
+append-only owner data, not a second execution ledger or report-generated fact.
+The definition is gross realized SELL output, not full M8/portfolio performance.
+Current status stays only in the linked backlog; no release or PC claim follows.
+
+## Realized gross report publication boundary — 2026-10-18
+
+The later explicit instruction to merge after successful checks and make the
+result available for the PC authorizes the bounded release continuation.
+The exact recovered implementation tree is
+`fc12f0f7fa8d8e8157be3a9dc3818169301c48ec`, published as recovery commit
+`d8dc36f5f891a6dd29cb0a0a8dba41d485201f76`; the historical qualification commits
+above keep their original test meaning.
+
+[PB-019 period output](../planning/PRODUCT_BACKLOG.md#pb-019-performance-evaluations)
+→ separate current-main integration of the priority integrity fix #249
+→ `scripts/run-realized-gross-e2e.sh`
+→ additional `End-to-End / realized gross owner` job in the existing workflow
+→ unchanged guarded PostgreSQL/browser report scenario, with exactly one passing
+case and no skip, retry or flaky result
+→ [1.5.9 release and managed PC update contract](../releases/V1.5.9-REALIZED-GROSS-REPORT.md).
+
+The existing publication workflow also requires successful actual main-push
+Backend, Frontend and End-to-End workflows for the precise tagged commit.
+Published software, migration 0047 and real target installation remain separate
+evidence; this trace neither invents historical execution currencies nor closes M8.
+
+## FT-001 Formularintegrität nach PR #249 — 2026-10-20
+
+[PB-007 Basiswertverwaltung](../planning/PRODUCT_BACKLOG.md#pb-007-underlying-ui)
+→ [FT-001 U-R-002/013/015/018](../features/underlying/REQUIREMENTS.md)
+→ [Formularvertrag](../features/underlying/FEATURE.md#sicheres-formular-bei-navigation-und-ladefehlern)
+→ `frontend/src/features/market/pages/UnderlyingFormPage.tsx`
+→ `UnderlyingFormIsolation.test.tsx` und
+`tests/e2e/underlying-form-isolation.spec.ts`.
+
+Der ursprüngliche Schutz aus [PR #249](https://github.com/burckhju/trading-workspace/pull/249)
+ist seit 18.10.2026 gemergt. Die Ergänzung auf Basis von
+`254fe35b76027b72cd989715e17bd0ae55af55eb` bindet gleichwertige Querykodierungen
+an denselben stabilen Parametersnapshot und deaktiviert verlassene Formulare
+bereits in der Layout-Phase. Die Regressionen prüfen Eingabenerhalt bei gleicher
+Formularidentität und alte Speicherantworten zwischen Ziel-Commit und passivem
+Cleanup; der Ladeeffekt behält sein eigenes Abbruchkennzeichen. UUID, geladene
+Version, kontrollierte Referenzen sowie STOCK-/ETF-Verträge bleiben erhalten.
+
+Die exakten Prüfheads, ausgeführten Ergebnisse, Browserartefakte und CI-Läufe
+stehen im zugehörigen Folge-PR. Diese Zuordnung übernimmt keine historischen
+Testerfolge als Nachweis für den neuen Stand. Der Aufgabenstatus bleibt allein in
+PB-007; [PR #204](https://github.com/burckhju/trading-workspace/pull/204) und dessen
+Listen-Navigation bleiben separat. Daraus folgen weder Mergefreigabe noch neue
+fachliche Abnahme, Release- oder Betriebsnachweise.
+
+## Purchase currency reuse — 2026-10-20
+
+[PB-017 execution owner](../planning/PRODUCT_BACKLOG.md#pb-017-gross-pnl) and
+[PB-019 period output](../planning/PRODUCT_BACKLOG.md#pb-019-performance-evaluations)
+→ user's explicit instruction to reuse the entered purchase currency for sales
+→ [ADR-S10-008 amendment](../decisions/ADR-S10-008-EXECUTION-CURRENCY-AND-PERIOD-REALIZED-GROSS.md)
+→ shared pure execution-owner currency resolution with exact source IDs
+→ additive capture/timeline/history/report read fields, unchanged direct confirmations
+→ existing capture forms without repeated SELL entry or an extra currency checkbox
+→ backend resolver and API tests, real PostgreSQL owner/report correction cases,
+and the existing isolated browser scenario extended to actual BUY/SELL entry
+→ [precise source inventory, contract and qualification](../implementation/EXECUTION_CURRENCY_REUSE_QUALIFICATION.md).
+
+Definition `realized-gross-sell-v2` changes currency qualification only; owner
+arithmetic and bounded report snapshot remain unchanged. There is no migration,
+automatic historical currency backfill or new feature ID. The historical V1.5.9
+test references above do not serve as tests for this amendment.

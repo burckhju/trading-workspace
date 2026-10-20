@@ -127,6 +127,12 @@ beforeEach(() => {
 });
 
 function fillProduct() {
+  fireEvent.change(screen.getByLabelText('Handelsplatz des Optionsscheins'), {
+    target: { value: 'venue-1' },
+  });
+  fireEvent.change(screen.getByLabelText('Handelswährung des Optionsscheins'), {
+    target: { value: 'EUR' },
+  });
   fireEvent.change(screen.getByLabelText('Anzeigename *'), { target: { value: 'Test Call' } });
   fireEvent.change(screen.getByLabelText('Emittent *'), { target: { value: warrant.issuer_id } });
   fireEvent.change(screen.getByLabelText('Basiswert *'), {
@@ -165,7 +171,15 @@ it.each(['USD', 'CHF'])('posts %s independently of EUR', async (code) => {
   fireEvent.click(screen.getByRole('button', { name: 'Optionsschein anlegen' }));
   await waitFor(() =>
     expect(warrants.create).toHaveBeenCalledWith(
-      expect.objectContaining({ strike: '500', strike_currency_code: code }),
+      expect.objectContaining({
+        strike: '500',
+        strike_currency_code: code,
+        initial_listing: {
+          trading_venue_id: 'venue-1',
+          quotation_currency_code: 'EUR',
+          symbol: null,
+        },
+      }),
     ),
   );
 });
@@ -180,6 +194,7 @@ it.each(['USD', 'CHF'])('adds %s terms and retains history', async (code) => {
   warrants.addTerms.mockResolvedValue(next);
   render(<WarrantAdminPage />);
   await screen.findByText(/Strike 500 \(Währung ungeklärt\)/);
+  fireEvent.click(screen.getByText('Produktbedingungen ändern'));
   const selector = screen.getByRole('combobox', { name: 'Neue Strike-Währung' });
   await within(selector).findByRole('option', { name: new RegExp(`^${code}`) });
 

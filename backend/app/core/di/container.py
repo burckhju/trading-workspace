@@ -36,6 +36,9 @@ from app.providers.eodhd.persistence import (
 )
 from app.providers.frankfurt_quotes.adapter import FrankfurtWarrantQuoteAdapter
 from app.providers.frankfurt_quotes.client import FrankfurtSnapshotClient
+from app.providers.gettex_delayed.adapter import GettexDelayedWarrantQuoteAdapter
+from app.providers.jpmorgan.adapter import JPMorganWarrantQuoteAdapter
+from app.providers.morganstanley.adapter import MorganStanleyWarrantQuoteAdapter
 from app.providers.shared.budget import DailyCallBudget
 from app.providers.shared.cache import InMemoryTtlCache
 from app.providers.shared.clock import AsyncioSleeper, SystemClock
@@ -73,6 +76,9 @@ class ApplicationContainer:
     frankfurt: FrankfurtWarrantQuoteAdapter | None = None
     vontobel: VontobelMarketsWarrantQuoteAdapter | None = None
     stuttgart: StuttgartDelayedWarrantQuoteAdapter | None = None
+    gettex: GettexDelayedWarrantQuoteAdapter | None = None
+    jpmorgan: JPMorganWarrantQuoteAdapter | None = None
+    morganstanley: MorganStanleyWarrantQuoteAdapter | None = None
 
     @classmethod
     def build(cls, settings: Settings) -> ApplicationContainer:
@@ -114,6 +120,14 @@ class ApplicationContainer:
             if settings.market_data.stuttgart_delayed.enabled
             else None
         )
+        gettex = (
+            GettexDelayedWarrantQuoteAdapter(
+                database=database,
+                settings=settings.market_data.gettex_delayed,
+            )
+            if settings.market_data.gettex_delayed.enabled
+            else None
+        )
         return cls(
             settings=settings,
             database=database,
@@ -121,6 +135,21 @@ class ApplicationContainer:
             frankfurt=frankfurt,
             vontobel=vontobel,
             stuttgart=stuttgart,
+            gettex=gettex,
+            jpmorgan=(
+                JPMorganWarrantQuoteAdapter(
+                    database=database, settings=settings.market_data.jpmorgan
+                )
+                if settings.market_data.jpmorgan.enabled
+                else None
+            ),
+            morganstanley=(
+                MorganStanleyWarrantQuoteAdapter(
+                    database=database, settings=settings.market_data.morganstanley
+                )
+                if settings.market_data.morganstanley.enabled
+                else None
+            ),
         )
 
     @staticmethod
@@ -282,6 +311,8 @@ class ApplicationContainer:
 
     async def close(self) -> None:
         """Release resources owned by the container in dependency order."""
+        if self.gettex is not None:
+            await self.gettex.close()
         if self.eodhd is not None:
             await self.eodhd.close()
         await self.database.dispose()

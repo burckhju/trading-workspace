@@ -175,7 +175,7 @@ describe('ProductValuationPanel', () => {
     expect(await screen.findByText('Produktkurs veraltet')).toBeInTheDocument();
     const staleMessage = screen.getByText(/zu alt für eine belastbare aktuelle Depotbewertung/);
     expect(staleMessage).toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent('120 Min.');
+    expect(screen.getByRole('status')).toHaveTextContent('2 Std. 0 Min.');
     expect(screen.getByRole('status')).toHaveTextContent('Kursdaten veraltet');
     expect(screen.getByRole('status')).toHaveTextContent('Kursstand:');
     expect(screen.getByText('Indikativer Wert (letzter Bid)')).toBeInTheDocument();
@@ -270,6 +270,7 @@ describe('ProductValuationPanel', () => {
           ? 'QUOTE_REFRESH_FAILED_INDICATIVE_ANALYSIS_ONLY'
           : 'QUOTE_TIMESTAMP_UNKNOWN_INDICATIVE_ANALYSIS_ONLY',
         quote_refresh_error: refreshFailed ? 'FRANKFURT_HTTP_503' : null,
+        quote_retained: refreshFailed,
         analysis_market_value: '462.00',
         analysis_unrealized_gross_pnl: '-558.00',
         freshness_policy: 'REFERENCE_PRICE_DISCLOSURE_V1',
@@ -288,7 +289,10 @@ describe('ProductValuationPanel', () => {
       expect(screen.getByRole('status')).toHaveTextContent(
         refreshFailed ? 'letzter erfolgreicher Abruf' : 'Kurszeitpunkt unbekannt',
       );
-      if (refreshFailed) expect(screen.getByRole('status')).toHaveTextContent('FRANKFURT_HTTP_503');
+      if (refreshFailed) {
+        expect(screen.getByRole('status')).toHaveTextContent('FRANKFURT_HTTP_503');
+        expect(screen.getByText(/Gespeicherter Kurs:/)).toBeInTheDocument();
+      }
       expect(screen.getByRole('status')).toHaveTextContent('Sie entscheiden');
       expect(screen.getByText('0,231 EUR')).toBeInTheDocument();
       expect(screen.getByText('462 EUR')).toBeInTheDocument();

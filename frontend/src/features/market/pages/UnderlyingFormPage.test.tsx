@@ -98,6 +98,7 @@ describe('UnderlyingFormPage', () => {
     await user.click(screen.getByRole('button', { name: 'Speichern' }));
 
     expect(marketApiClient.createUnderlying).toHaveBeenCalledWith({
+      type: 'STOCK',
       name: 'Siemens AG',
       isin: 'DE0007236101',
       wkn: '723610',
@@ -109,6 +110,70 @@ describe('UnderlyingFormPage', () => {
       },
     });
     expect(await screen.findByRole('heading', { name: 'Detail' })).toBeInTheDocument();
+  });
+
+  it('creates a reviewed ETF with its exact MIC and currency, independent of venue ordering', async () => {
+    const user = userEvent.setup();
+    const venue = {
+      id: '00000000-0000-4000-8001-000000000002',
+      mic: 'ARCX',
+      name: 'NYSE Arca',
+      country_code: 'US',
+      timezone: 'America/New_York',
+      reference_version: 'TEST',
+    };
+    const original = await marketApiClient.listTradingVenues();
+    vi.mocked(marketApiClient.listTradingVenues).mockResolvedValue({
+      items: [...original.items, venue],
+    });
+    render(
+      <MemoryRouter
+        initialEntries={[
+          '/underlyings/new?type=ETF&name=TEST+Energy+ETF&isin=US81369Y5069&ticker=XLE&mic=ARCX&currency=USD',
+        ]}
+      >
+        <Routes>
+          <Route path="/underlyings/new" element={<UnderlyingFormPage />} />
+          <Route path="/underlyings/:underlyingId" element={<h1>Detail</h1>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    expect(await screen.findByRole('combobox', { name: 'Basiswertart' })).toHaveValue('ETF');
+    expect(screen.getByRole('combobox', { name: 'Markt *' })).toHaveValue(venue.id);
+    expect(screen.getByRole('combobox', { name: 'Währung *' })).toHaveValue('USD');
+    expect(marketApiClient.createUnderlying).not.toHaveBeenCalled();
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Währung *' }), 'EUR');
+    expect(screen.getByRole('button', { name: 'Speichern' })).toBeDisabled();
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Währung *' }), 'USD');
+    await user.click(screen.getByRole('button', { name: 'Speichern' }));
+    expect(marketApiClient.createUnderlying).toHaveBeenCalledWith({
+      type: 'ETF',
+      name: 'TEST Energy ETF',
+      isin: 'US81369Y5069',
+      wkn: null,
+      primary_listing: {
+        trading_venue_id: venue.id,
+        ticker: 'XLE',
+        currency_code: 'USD',
+        is_primary: true,
+      },
+    });
+    expect(await screen.findByRole('heading', { name: 'Detail' })).toBeInTheDocument();
+  });
+
+  it('blocks a listing proposal when its exact venue is unavailable instead of using the default venue', async () => {
+    render(
+      <MemoryRouter
+        initialEntries={[
+          '/underlyings/new?type=ETF&name=TEST+ETF&ticker=XLE&mic=ARCX&currency=USD',
+        ]}
+      >
+        <UnderlyingFormPage />
+      </MemoryRouter>,
+    );
+    expect(await screen.findByRole('alert')).toHaveTextContent('ARCX / USD');
+    expect(screen.getByRole('button', { name: 'Speichern' })).toBeDisabled();
+    expect(marketApiClient.createUnderlying).not.toHaveBeenCalled();
   });
 
   it('prefills a new stock from an EODHD suggestion but still requires user confirmation', async () => {

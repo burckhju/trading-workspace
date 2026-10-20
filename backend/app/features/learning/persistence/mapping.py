@@ -52,6 +52,8 @@ def trade_journal_to_model(value: TradeJournal) -> TradeJournalModel:
 
 def trade_journal_version_to_model(value: TradeJournalVersion) -> TradeJournalVersionModel:
     return TradeJournalVersionModel(
+        edit_revision=value.edit_revision,
+        source_exit_review_version_id=value.source_exit_review_version_id,
         id=value.id,
         trade_journal_id=value.trade_journal_id,
         version=value.version,

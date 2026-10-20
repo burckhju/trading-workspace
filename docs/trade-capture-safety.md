@@ -178,3 +178,112 @@ rule is included in this UI follow-up. Deploy the new frontend/backend build nor
 `20260912_0036` remains the required backend schema. The regression browser test covers
 an actual UI BUY-date correction, a backdated full sale through the sale form, a SELL-date
 correction after closure, reload persistence and unchanged original execution history.
+
+## Trade Management: one URL, one transaction context
+
+`trade_id` in the current URL owns the page's complete trade context. Changing it
+through the lookup, an application link or browser back/forward discards the old
+position, management data and unsent form drafts before the new reads complete.
+If any required read fails, no previous trade's capture/management controls remain
+visible. **Laden** can retry that same failed context without a write. Navigating
+to a section anchor within the same trade does not reset its draft.
+
+An obsolete read cannot replace the current trade. An already submitted action
+continues to refer only to its original trade; navigation neither cancels a real
+execution nor replays it for the new trade. Its late completion cannot update the
+new page or redirect it into the old trade's post-trade observation. Existing
+request identities, execution dates, corrections and backend guards are unchanged.
+
+Read-only check after separately approved deployment: open one known trade, then
+another through the existing lookup/navigation, and use browser back/forward.
+Check exact product identity, quantity and dates each time. Do not save or submit
+a transaction for this check. Failed-read and pending-write scenarios are covered
+by synthetic component tests and the disposable-stack browser regression; do not
+interrupt the production provider or create test bookings in the real depot.
+
+## Explicit execution currency and realized results — 2026-10-17
+
+Historical V1.5.9 behavior. The 2026-10-20 section below supersedes its repeated
+currency-entry and checkbox requirements.
+
+For an actual purchase, additional purchase, sale or execution-date correction,
+the existing capture form now has **Tatsächliche Ausführungswährung**. Enter the
+currency of the actual per-unit price, optionally describe the source, and check
+the explicit confirmation. A code entered without confirmation remains unknown.
+No currency is inferred from product listings, the report filter or location.
+An economic correction starts with its own unconfirmed declaration.
+
+For an existing booking, open **Kauf- und Verkaufsdaten**, then
+**Währung prüfen / bestätigen** on that exact booking. Read its current provenance,
+enter and explicitly confirm the actual currency, then choose
+**Währungsbestätigung speichern**. To correct a declaration, load its current
+history and choose **Währungsbestätigung ersetzen**. A concurrent change requires
+reloading and reviewing the current confirmation; an uncertain network response
+can repeat the same unchanged request identity. The old declaration remains in
+the history. A cancelled trade does not accept new confirmations.
+
+The API accepts the same optional `currency_confirmation` object on every existing
+actual capture path, including own EXTERNAL purchases and the Learning
+`execute-as-trade` handoff. Missing declaration remains compatible and unknown.
+The latter command now commits trade, BUY, optional declaration, link and completed
+idempotency receipt together. Its previously reproducible first-201/replay-409
+transaction defect is qualified in the
+[delivery record](implementation/PERIOD_REALIZED_GROSS_REPORT_QUALIFICATION.md).
+
+**Realisierte Ergebnisse** opens the new period view. Choose inclusive from/to
+dates, report currency and report timezone, then **Bericht lesen**. Each usable
+SELL opens **Quellen und Berechnung** with the complete previous BUY/SELL history,
+average cost, remaining costs, exact identifiers and currency confirmations.
+Table pages use the same complete answer and do not change its total. A newly
+read corrected source state replaces the whole answer and is visibly marked.
+
+The view distinguishes no relevant sales, measured zero, known subtotal with
+remaining gaps and no computable amount. A sale requires currency evidence for
+its own price and all purchase components of the applicable cost basis. Known
+other currencies and definitely outside-period sales are visible exclusions.
+Date-only retains its actual stored date and zone; a timezone overlap can remain
+ambiguous. Brutto means before fees, commissions and taxes. No quote retrieval or
+learning completion is needed.
+
+This extension requires additive schema `20261017_0047` after deployment is
+separately authorized; older schema statements above are historical section
+context. No old execution is automatically confirmed. Downgrade with stored
+confirmations is refused to protect provenance. The user instruction authorizes
+implementation and isolated synthetic qualification, not a production migration,
+real booking, provider call, release or PC update.
+
+## Reuse purchase currency — 2026-10-20
+
+Enter the actual purchase price currency once with the purchase. Saving the
+actual BUY also saves the entered currency; there is no additional currency
+checkbox. A nonempty invalid currency code is an error, not a silently omitted
+input. A blank initial currency still means no recorded evidence.
+
+For sales and additional purchases, the owner reuses the complete preceding
+effective BUY currency when it is known and uniform. There is no normal currency
+re-entry. **Abweichende Währung angeben** opens the optional explicit exception.
+A same-side execution-date/price correction reuses the exact confirmed predecessor
+when available. The existing correction confirmation remains necessary for the
+date change itself. No product listing, plan currency or report filter is used as
+execution evidence.
+
+The booking history and **Quellen und Berechnung** show whether the currency was
+entered directly or reused, with its exact purchase/execution and confirmation
+IDs. Direct conflicting declarations remain visible. A missing purchase source
+or mixed cost basis remains unresolved; there is no automatic FX conversion.
+Existing sales can become usable from an already confirmed purchase without any
+new sale confirmation or change to their execution records.
+
+If an older purchase has no recorded execution-currency evidence, confirm that
+purchase once through **Kauf- und Verkaufsdaten**. This can qualify later
+same-currency purchases and sales. Do not repeatedly confirm every sale. The
+application cannot restore a code that an earlier form never sent or stored.
+The existing explicit confirmation/replacement command, pinned predecessor,
+retry identity and fresh history read remain in use.
+
+This amendment is defined in
+[ADR-S10-008](decisions/ADR-S10-008-EXECUTION-CURRENCY-AND-PERIOD-REALIZED-GROSS.md)
+and [its qualification record](implementation/EXECUTION_CURRENCY_REUSE_QUALIFICATION.md).
+Report definition `realized-gross-sell-v2` exposes the changed currency rule;
+calculation, periods and read consistency are unchanged. There is no new migration
+above `20261017_0047`, no backfill and no report-generated confirmation.

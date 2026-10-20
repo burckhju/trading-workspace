@@ -5,12 +5,23 @@ from typing import Annotated
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.di import ApplicationContainer, get_container
 from app.database.dependencies import get_database_session
+from app.features.market_data.persistence.position_quote_source import (
+    PositionQuoteSourceSelectionRepository,
+)
+from app.features.market_data.service.position_quote_source import PositionQuoteSourceSelector
+from app.features.market_data.service.provider_eligibility import (
+    allowed_warrant_quote_providers as _allowed_warrant_quote_providers,
+)
 from app.features.product.service.application import WarrantService
 from app.features.trade_position.persistence.unit_of_work import (
     SqlAlchemyTradePositionUnitOfWork,
 )
 from app.features.trade_position.service.application import TradePositionService
+from app.features.trade_position.service.currency_confirmations import (
+    ExecutionCurrencyConfirmationService,
+)
 from app.features.trade_position.service.resolvers import (
     SqlAlchemyWorkspaceSelectionResolver,
     WarrantProductResolver,
@@ -19,9 +30,22 @@ from app.features.trade_position.service.resolvers import (
 
 def get_trade_position_service(
     session: Annotated[AsyncSession, Depends(get_database_session)],
+    container: Annotated[ApplicationContainer, Depends(get_container)],
 ) -> TradePositionService:
+    allowed_providers = _allowed_warrant_quote_providers(container)
     return TradePositionService(
         uow=SqlAlchemyTradePositionUnitOfWork(session),
         workspace_selections=SqlAlchemyWorkspaceSelectionResolver(session),
         products=WarrantProductResolver(WarrantService(session)),
+        currency_confirmations=ExecutionCurrencyConfirmationService(session),
+        quote_source_selector=PositionQuoteSourceSelector(
+            PositionQuoteSourceSelectionRepository(session),
+            allowed_providers,
+        ),
     )
+
+
+def get_execution_currency_confirmation_service(
+    session: Annotated[AsyncSession, Depends(get_database_session)],
+) -> ExecutionCurrencyConfirmationService:
+    return ExecutionCurrencyConfirmationService(session)

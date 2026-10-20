@@ -1,3 +1,4 @@
+import { PositionRiskPanel } from '../../alert/components/PositionRiskPanel';
 import { Link } from 'react-router-dom';
 import type { OperationalPosition } from '../types';
 import { dateLabel, money, numberLabel, purchaseDate, timeLabel } from '../services/positionsView';
@@ -17,6 +18,16 @@ export function PositionDetails({ position: p }: { position: OperationalPosition
         <div>
           <dt className="text-slate-400">Basiswert</dt>
           <dd>{p.underlying_name ?? p.underlying_symbol ?? 'Nicht verfügbar'}</dd>
+          {p.underlying_id && (
+            <dd>
+              <Link
+                className="text-sky-300 underline"
+                to={`/market-charts?underlying=${p.underlying_id}`}
+              >
+                Basiswertdiagramm
+              </Link>
+            </dd>
+          )}
         </div>
         <div>
           <dt className="text-slate-400">Kaufdatum / erster Kauf</dt>
@@ -70,6 +81,7 @@ export function PositionDetails({ position: p }: { position: OperationalPosition
         Optionsscheinpreis. Nachkäufe, Teilverkäufe und deren tatsächliche Daten stehen in der
         Trade-Historie.
       </p>
+      <PositionRiskPanel tradeId={p.trade_id} readOnly />
       <Link
         to={`${p.target}#execution-dates`}
         className="inline-block rounded border border-slate-600 px-3 py-2 text-sky-200 focus-visible:outline-2 focus-visible:outline-sky-300"

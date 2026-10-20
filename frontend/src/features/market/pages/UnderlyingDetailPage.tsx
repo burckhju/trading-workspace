@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ErrorNotice, LoadingNotice } from '../components/ApiFeedback';
 import { StatusBadge } from '../components/StatusBadge';
@@ -15,17 +15,42 @@ import type {
 
 export function UnderlyingDetailPage() {
   const { underlyingId = '' } = useParams();
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const returnTo = underlyingListReturnTo(searchParams);
+  return <UnderlyingDetail key={underlyingId} underlyingId={underlyingId} returnTo={returnTo} />;
+}
+
+function UnderlyingDetail({
+  underlyingId,
+  returnTo,
+}: {
+  underlyingId: string;
+  returnTo: string | undefined;
+}) {
+  const navigate = useNavigate();
   const listUrl = returnTo ?? '/underlyings';
   const [item, setItem] = useState<UnderlyingDetailResponse | null>(null);
   const [audit, setAudit] = useState<AuditEventResponse[]>([]);
   const [usages, setUsages] = useState<UnderlyingUsageResponse[]>([]);
   const [error, setError] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
+  const active = useRef(false);
+  const actionPending = useRef(false);
+  const currentListUrl = useRef(listUrl);
+
+  useLayoutEffect(() => {
+    currentListUrl.current = listUrl;
+  }, [listUrl]);
+
+  useLayoutEffect(() => {
+    active.current = true;
+    return () => {
+      active.current = false;
+    };
+  }, []);
 
   const load = useCallback(async () => {
+    if (!active.current) return;
     setError(null);
     try {
       const [detail, auditResult, usageResult] = await Promise.all([
@@ -33,11 +58,15 @@ export function UnderlyingDetailPage() {
         marketApiClient.getUnderlyingAuditEvents(underlyingId, { limit: 50 }),
         marketApiClient.getUnderlyingUsages(underlyingId),
       ]);
+      if (!active.current) return;
+      if (detail.id !== underlyingId) {
+        throw new Error('The loaded underlying does not match the detail route.');
+      }
       setItem(detail);
       setAudit(auditResult.items);
       setUsages(usageResult.items);
     } catch (reason) {
-      setError(reason);
+      if (active.current) setError(reason);
     }
   }, [underlyingId]);
 
@@ -46,7 +75,7 @@ export function UnderlyingDetailPage() {
   }, [load]);
 
   async function runAction(action: 'verify' | 'deactivate' | 'reactivate' | 'delete') {
-    if (!item) return;
+    if (!active.current || actionPending.current || !item || item.id !== underlyingId) return;
     if (
       action === 'delete' &&
       !window.confirm('Basiswert endgültig löschen? Die Historie bleibt erhalten.')
@@ -57,6 +86,7 @@ export function UnderlyingDetailPage() {
       !window.confirm('Basiswert deaktivieren? Er wird in neuen Auswahllisten verborgen.')
     )
       return;
+    actionPending.current = true;
     setBusy(true);
     setError(null);
     try {
@@ -68,14 +98,15 @@ export function UnderlyingDetailPage() {
         await marketApiClient.reactivateUnderlying(item.id, { version: item.version });
       if (action === 'delete') {
         await marketApiClient.deleteUnderlying(item.id, item.version);
-        void navigate(listUrl, { replace: true });
+        if (active.current) void navigate(currentListUrl.current, { replace: true });
         return;
       }
       await load();
     } catch (reason) {
-      setError(reason);
+      if (active.current) setError(reason);
     } finally {
-      setBusy(false);
+      actionPending.current = false;
+      if (active.current) setBusy(false);
     }
   }
 
@@ -101,6 +132,12 @@ export function UnderlyingDetailPage() {
           <h1 id="underlying-title" className="mt-3 text-3xl font-semibold">
             {item.name}
           </h1>
+          <Link
+            className="mt-2 inline-block text-sky-300 underline"
+            to={`/market-charts?underlying=${item.id}`}
+          >
+            Kursdiagramm und Vergleich
+          </Link>
           <div className="mt-3 flex gap-2">
             <StatusBadge status={item.lifecycle_status} />
             <StatusBadge status={item.quality_status} />

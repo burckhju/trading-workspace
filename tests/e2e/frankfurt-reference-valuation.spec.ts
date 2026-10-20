@@ -50,6 +50,7 @@ for (const [kind, refreshError] of [
           execution_usable: false,
           analysis_warning: refreshError ? "QUOTE_REFRESH_FAILED_INDICATIVE_ANALYSIS_ONLY" : "QUOTE_TIMESTAMP_UNKNOWN_INDICATIVE_ANALYSIS_ONLY",
           quote_refresh_error: refreshError,
+          quote_retained: Boolean(refreshError),
           selected_source: "FRANKFURT_QUOTES",
           provider_identity: "DE000VH2LU21",
           provider_exchange_code: "XSC",
@@ -114,7 +115,10 @@ for (const [kind, refreshError] of [
     await expect(
       panel.getByText(/keine Freigabe zur Orderausführung/),
     ).toBeVisible();
-    if (refreshError) await expect(panel.getByRole("status")).toContainText(refreshError);
+    if (refreshError) {
+      await expect(panel.getByRole("status")).toContainText(refreshError);
+      await expect(panel.getByText(/Gespeicherter Kurs:/)).toBeVisible();
+    }
     expect(writes).toBe(0);
   });
 }

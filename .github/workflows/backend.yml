@@ -8,6 +8,7 @@ on:
   push:
     branches: [main]
     paths:
+      - 'VERSION'
       - 'backend/**'
       - 'tests/unit/backend/**'
       - 'tests/integration/backend/**'
@@ -146,3 +147,85 @@ jobs:
           docker run --rm --network host \
             --env TRADING_WORKSPACE_DATABASE_URL \
             trading-workspace-permissions:test python -m alembic upgrade head
+
+  issuer-renderer:
+    name: Backend / issuer renderer sandbox
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the optional issuer renderer
+        run: docker build -f docker/issuer-renderer/Dockerfile -t issuer-renderer:test .
+      - name: Qualify legacy migration against disposable containers and PostgreSQL
+        run: bash tests/deployment/legacy-issuer-migration.sh
+      - name: Verify issuer startup preflight with real Compose provenance
+        run: |
+          # Synthetic CI configuration and a stopped, network-isolated container.
+          # No database, provider request, consent or notification is created.
+          cat > docker/.env <<'EOF'
+          POSTGRES_DB=trading_workspace_test
+          POSTGRES_USER=trading_workspace
+          POSTGRES_PASSWORD=startup-check-only
+          TRADING_WORKSPACE_DATABASE_URL=postgresql+asyncpg://trading_workspace:startup-check-only@database/trading_workspace_test
+          EOF
+          docker create --name issuer-startup-provenance --network none \
+            --label com.docker.compose.project=trading-workspace \
+            --label com.docker.compose.service=backend \
+            --label com.docker.compose.container-number=1 \
+            --label com.docker.compose.config-hash=synthetic-startup-check \
+            --label "com.docker.compose.project.config_files=$PWD/docker/compose.yml,$PWD/docker/compose.issuer-monitoring.yml" \
+            issuer-renderer:test
+          if bash scripts/start-linux.sh --check > startup-check.log 2>&1; then
+            echo 'A base-only start must refuse the existing issuer configuration.'
+            exit 1
+          fi
+          grep -q 'omits or reorders' startup-check.log
+          bash scripts/start-linux.sh --issuer-monitoring --check
+          test "$(docker inspect --format '{{.State.Status}}' issuer-startup-provenance)" = created
+      - name: Verify Chromium starts with the production sandbox
+        run: |
+          docker run -d --name issuer-renderer-ci --network none --init \
+            --read-only --cap-drop ALL --security-opt no-new-privileges:true \
+            --security-opt "seccomp=$PWD/docker/issuer-renderer/seccomp_profile.json" \
+            --shm-size 256m --tmpfs /tmp:size=256m,mode=1777 \
+            --mount type=volume,source=issuer-consent-ci,target=/state \
+            --memory 1g --cpus 1 --pids-limit 256 issuer-renderer:test
+          ready=false
+          for attempt in $(seq 1 60); do
+            health=$(docker inspect --format '{{.State.Health.Status}}' issuer-renderer-ci)
+            if [ "$health" = healthy ]; then
+              ready=true
+              break
+            fi
+            if [ "$health" = unhealthy ]; then
+              break
+            fi
+            sleep 2
+          done
+          if [ "$ready" != true ]; then
+            docker logs issuer-renderer-ci
+            exit 1
+          fi
+          docker exec -i issuer-renderer-ci python - <<'PY'
+          import json
+          import os
+          import urllib.request
+          from pathlib import Path
+
+          assert os.geteuid() != 0
+          assert not os.access('/app/app', os.W_OK)
+          assert os.access('/state', os.W_OK)
+          assert not Path('/state/jpmorgan-consent.json').exists()
+          with urllib.request.urlopen('http://127.0.0.1:8091/health', timeout=5) as response:
+              health = json.load(response)
+          assert health['ready'] is True
+          assert health['chromium_sandbox'] is True
+          assert health['jpmorgan_consent'] == 'NOT_CONFIGURED'
+          PY
+      - name: Remove test renderer
+        if: always()
+        run: |
+          docker rm -f issuer-startup-provenance || true
+          rm -f docker/.env
+          docker rm -f issuer-renderer-ci || true
+          docker volume rm issuer-consent-ci || true

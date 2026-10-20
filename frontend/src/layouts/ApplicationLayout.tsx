@@ -20,6 +20,9 @@ export function ApplicationLayout() {
             <NavLink to="/workspace" className={navigationLinkClass}>
               Arbeitsbereich
             </NavLink>
+            <NavLink to="/performance/realized-gross" className={navigationLinkClass}>
+              Realisierte Ergebnisse
+            </NavLink>
             <NavLink to="/underlyings" className={navigationLinkClass}>
               Stammdaten · Basiswerte
             </NavLink>
@@ -46,6 +49,9 @@ export function ApplicationLayout() {
             </NavLink>
             <NavLink to="/market-analyses" className={navigationLinkClass}>
               Marktanalyse
+            </NavLink>
+            <NavLink to="/market-charts" className={navigationLinkClass}>
+              Diagramme
             </NavLink>
           </nav>
         </div>

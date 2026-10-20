@@ -38,6 +38,8 @@ class SqlAlchemyMonitoringRuleStateRepository:
             last_observed_value=model.last_observed_value,
             threshold_value=model.threshold_value,
             active_alert_id=model.active_alert_id,
+            price_binding_key=model.price_binding_key,
+            time_basis=model.time_basis,
         )
 
     async def put(self, state: MonitoringRuleState) -> None:
@@ -59,9 +61,13 @@ class SqlAlchemyMonitoringRuleStateRepository:
                     last_observed_value=state.last_observed_value,
                     threshold_value=state.threshold_value,
                     active_alert_id=state.active_alert_id,
+                    price_binding_key=state.price_binding_key,
+                    time_basis=state.time_basis,
                 )
             )
             return
+        model.price_binding_key = state.price_binding_key
+        model.time_basis = state.time_basis
         model.triggered = state.triggered
         model.first_seen_at = state.first_seen_at
         model.last_seen_at = state.last_seen_at

@@ -39,6 +39,9 @@ class SqlAlchemyAlertRepository:
                 detected_at=alert.detected_at,
                 status=alert.status.value,
                 resolved_at=alert.resolved_at,
+                price_context=alert.price_context,
+                invalidated_at=alert.invalidated_at,
+                invalidation_reason=alert.invalidation_reason,
             )
         )
 
@@ -50,6 +53,8 @@ class SqlAlchemyAlertRepository:
         model = await self._session.scalar(select(AlertModel).where(AlertModel.id == alert_id))
         if model is None:
             raise LookupError("alert not found")
+        if model.status == AlertStatus.INVALIDATED.value:
+            return
         model.status = AlertStatus.RESOLVED.value
         model.resolved_at = resolved_at
 
@@ -69,4 +74,7 @@ class SqlAlchemyAlertRepository:
             detected_at=model.detected_at,
             status=AlertStatus(model.status),
             resolved_at=model.resolved_at,
+            price_context=model.price_context,
+            invalidated_at=model.invalidated_at,
+            invalidation_reason=model.invalidation_reason,
         )

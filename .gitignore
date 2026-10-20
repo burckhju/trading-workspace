@@ -61,3 +61,5 @@ docker/stuttgart-data/
 # Frankfurt credentials and runtime snapshots
 docker/frankfurt.env
 docker/frankfurt-data/
+# Local operator previews/results contain portfolio identities and thresholds.
+docker/rule-confirmations/
