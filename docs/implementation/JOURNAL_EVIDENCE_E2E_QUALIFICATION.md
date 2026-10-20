@@ -185,9 +185,59 @@ Projekt `tw-journal-evidence-e2e-40358e35538e412383088b73521f6a70`, Laufmarkieru
 `40358e35-538e-4123-8308-8b73521f6a70`. Der Resultverifier lehnte den fehlgeschlagenen
 Report korrekt ab. Der grüne Artefaktupload wurde nicht als grüner Browserlauf gewertet.
 
+### Zweiter nativer PR-Lauf: Journal bestanden, FT-011 meldet Source-Busy
+
+Head `1b8b4329be6ac14e04b4796ef3994f88468a6392` lief im
+[E2E-Run 39425493112](https://github.com/burckhju/trading-workspace/actions/runs/39425493112),
+Journal-/Evidence-Job `118636874803`. Der tatsächliche Checkout
+`20f60736948f54cbb4137312d9a60ec89686a74d` hat den zum Head identischen Tree
+`70bcf5ae1ed899e9d1a52ce9c4183f7060cbd8ad`. Die enge Issuer-Prüfung bestand auch nach
+den Owner-Schreibvorgängen mit zwei real gelesenen Audit-/Issuer-/Warrant-Verweisen.
+Der Journalfall bestand **einmal ohne Retry** in 17,4 Sekunden; der FT-011-Fall scheiterte
+einmal. Gesamt: **1 bestanden, 1 fehlgeschlagen, 0 übersprungen, 0 flaky**.
+
+Die native Fehlerantwort ist `409 SOURCE_BUSY` vom ersten Materialize-POST. Der Trace
+zeigt dessen Start um `12:53:12.961Z`, während nach der Finalisierung gestartete
+Owner-Readbacks noch liefen, darunter der Handoff-GET von `12:53:12.874Z` bis
+`12:53:12.972607Z`. Der Screenshot zeigt die ausdrückliche Busy-Meldung und keine neue
+Evidence. Review-Version 1 war korrekt finalisiert; der vorhandene History-/Version-
+Assert wird deshalb nicht durch eine weichere Auswahl ersetzt. Der bestehende
+`NOWAIT`-Sourceguard weist konkurrierende Quellenzugriffe ausdrücklich sicher ab;
+ein einzelner blockierender SQL-Aufruf wurde aus dem HTTP-Trace nicht bestimmt.
+
+Die gezielte Testsynchronisierung registriert die Response-Promises **vor** dem
+Finalisierungsklick. Sie prüft die vollständige HTTP-200-Finalisierungsantwort und
+wartet auf beide abschließenden, exakt auf dieselbe finalisierte Review-Version
+gebundenen Review-GETs: den unmittelbaren Child-Refresh und den anschließenden externen
+Refresh. Diese Reihenfolge folgt aus `PostTradeReviewPage.finalizeReview`: Erst nach
+`await refresh(tradeId)` ruft sein `finally` den Parent-Callback auf; dessen
+`refreshVersion` löst den zweiten Child-Effekt aus. Beide `refresh`-Aufrufe warten auf
+ihre parallelen Ownerabfragen, bevor sie den abschließenden Review-GET senden.
+Zusätzlich zeichnet sie sämtliche in diesem Fenster gestarteten GETs der
+beiden konkreten Trade-Ownerpfade auf und wartet auf deren vollständige HTTP-200-Bodys,
+einschließlich der parallelen Parent-Status-, Journal- und Evidence-History-Abfragen.
+Diese Antworten werden archiviert. Erst dann erfolgt je Review genau ein Übergabeklick;
+die Antwort muss HTTP 200, `created: true`, `replayed: false` und den exakten Review-Pin
+enthalten. Es gibt keinen Sleep, globalen Network-Idle-Wait, automatischen Retry,
+größeren Timeout oder gelockerten fachlichen Assert. Der produktive Busy-Vertrag bleibt
+unverändert; der Folgelauf muss diese Synchronisierung tatsächlich qualifizieren.
+
+[Artefakt 12264629736](https://github.com/burckhju/trading-workspace/actions/runs/39425493112/artifacts/12264629736)
+wurde heruntergeladen: ZIP-SHA256
+`5e48cbd5b0a8a1323c6f7e6e3250ff57837954d406162090021215d10f4cdc24` stimmt exakt mit
+GitHub überein; **alle 26 Manifestdateien**, einschließlich `playwright/.last-run.json`,
+sind vorhanden und intern hashverifiziert. Die drei Journal-Erfolgsbilder und das
+FT-011-Fehlerbild wurden tatsächlich angesehen. Das dedizierte Journal-/Lesson-Lesefenster
+hat vor und nach den Reads denselben Fingerprint
+`95a0e701be0fafb320e82e1854a902daccf424eae8bc456f120df5d52f7dbf89`.
+Cleanup: `removed: true`, Container/Netze/Volumes jeweils `0`, `cleanup_status=0`,
+Runner `exit_status=1`. Projekt `tw-journal-evidence-e2e-b496366a997e4bd1b77413626c0d2d52`,
+Laufmarkierung `b496366a-997e-4bd1-b774-13626c0d2d52`. Der neue Job bleibt trotz
+bestandenem Journalfall und vollständigem Artefakt rot.
+
 **Der native Gesamtabschluss dieses neuen Jobs ist weiterhin nicht nachgewiesen.**
-Der Folgelauf muss die korrigierten Guards und den vollständigen Upload tatsächlich
-ausführen. Lokal fehlen Docker/PostgreSQL. Bis ein konkreter CI-Lauf beide Fälle ohne
+Der Folgelauf muss die konkrete FT-011-Synchronisierung tatsächlich ausführen.
+Lokal fehlen Docker/PostgreSQL. Bis ein konkreter CI-Lauf beide Fälle ohne
 Skip/Flaky/Retry sowie erfolgreichen Cleanup belegt, bleibt Paket 3 in technischer
 Qualifikation. Die alten
 Journal-/FT-011-Erfolge und die neuen Unit-Erfolge werden nicht als neue Gesamtzahl addiert.
