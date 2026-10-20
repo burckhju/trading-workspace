@@ -157,6 +157,52 @@ beforeEach(() => {
 });
 
 describe('underlying list return context', () => {
+  it('composes successive search and filter actions before a transition render', async () => {
+    const router = createMemoryRouter([{ path: '/underlyings', element: <UnderlyingListPage /> }], {
+      initialEntries: ['/underlyings?query=Original&offset=50'],
+    });
+    render(<RouterProvider router={router} />);
+    await screen.findByRole('link', { name: itemName(51) });
+    const query = screen.getByRole('textbox', { name: 'Suche' });
+    fireEvent.change(query, { target: { value: 'Test' } });
+
+    // Match rapid browser actions while the data router's previous transition
+    // has not rendered. Every action must build on the preceding confirmed URL.
+    await act(async () => {
+      fireEvent.submit(query.closest('form')!);
+      fireEvent.change(screen.getByRole('combobox', { name: 'Status' }), {
+        target: { value: 'ACTIVE' },
+      });
+      fireEvent.change(screen.getByRole('combobox', { name: 'Markt' }), {
+        target: { value: venueId },
+      });
+      fireEvent.change(screen.getByRole('combobox', { name: 'Währung' }), {
+        target: { value: 'EUR' },
+      });
+      await Promise.resolve();
+    });
+
+    expect(Object.fromEntries(new URLSearchParams(router.state.location.search))).toEqual({
+      query: 'Test',
+      lifecycle: 'ACTIVE',
+      venue: venueId,
+      currency: 'EUR',
+    });
+    await screen.findByRole('link', { name: itemName(1) });
+    expect(marketApiClient.searchUnderlyings).toHaveBeenLastCalledWith(
+      {
+        query: 'Test',
+        lifecycleStatus: 'ACTIVE',
+        tradingVenueId: venueId,
+        currencyCode: 'EUR',
+        offset: 0,
+        limit: 25,
+      },
+      expect.any(AbortSignal),
+    );
+    expect(query).toHaveValue('Test');
+  });
+
   it('never shows or edits late detail A after switching to detail B with another list context', async () => {
     const pending = deferred<UnderlyingDetailResponse>();
     vi.mocked(marketApiClient.getUnderlying).mockImplementation((id) =>

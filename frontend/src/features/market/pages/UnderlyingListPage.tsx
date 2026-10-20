@@ -45,7 +45,9 @@ export function UnderlyingListPage() {
   useEffect(() => setQuery(submittedQuery), [submittedQuery]);
 
   function updateView(patch: Partial<UnderlyingListView>) {
-    setSearchParams(underlyingListParams({ ...view, ...patch }));
+    // Commit this URL before another user action can patch a stale render's view.
+    // The data router otherwise defers its render through startTransition.
+    setSearchParams(underlyingListParams({ ...view, ...patch }), { flushSync: true });
   }
 
   const [result, setResult] = useState<UnderlyingSearchResponse | null>(null);

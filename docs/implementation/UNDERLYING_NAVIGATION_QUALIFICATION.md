@@ -2,10 +2,11 @@
 
 Prüfdatum: 20.10.2026. Gegenstand ist die begrenzte Weiterführung von
 [PR #204](https://github.com/burckhju/trading-workspace/pull/204) auf v1.5.11.
-Die dokumentierten Ergebnisse sind lokale synthetische Entwicklungsnachweise
-vor der anschließenden Aktualisierung des bestehenden PRs. Dieser Bericht erhebt
-keinen neuen GitHub-PR-/Main-Lauf, Merge, Release, PC-Update oder menschliche
-Fachabnahme als Nachweis. Der Aufgabenstatus bleibt im
+Die ursprünglichen Ergebnisse bis einschließlich „Sitzungsartefakte und weitere
+Freigabe“ sind lokale synthetische Entwicklungsnachweise vor der anschließenden
+PR-Aktualisierung. Der Nachtrag trennt davon den ersten tatsächlichen PR-Lauf
+und seinen gezielten Folgefix. Dieser Bericht erhebt keinen Main-Lauf, Main-Merge,
+Release, PC-Update oder menschliche Fachabnahme als Nachweis. Der Aufgabenstatus bleibt im
 [Product Backlog](../planning/PRODUCT_BACKLOG.md).
 
 ## Geprüfte Grundlage und Integration
@@ -182,3 +183,109 @@ nachfolgenden tatsächlich erforderlichen Checks am exakten neuen PR- beziehungs
 Testmerge-Head sind gesondert im bestehenden PR #204 zu ergänzen; die lokalen
 Nachweise ersetzen sie nicht. Ein späterer Main-Push-/Release-/Installationsnachweis
 bleibt ein eigener Schritt.
+
+## Nachtrag: erster PR-Lauf und reproduziertes URL-Rennen
+
+Der geprüfte Integrationsstand wurde anschließend als echter Zwei-Eltern-Commit
+[`d908747b5b8d9b4a9f714926d74ebe77a23b6e29`](https://github.com/burckhju/trading-workspace/commit/d908747b5b8d9b4a9f714926d74ebe77a23b6e29)
+auf dem vorhandenen PR-Branch veröffentlicht. Sein vollständiger Tree ist
+`47bb0d614d904c271ed42a2f49ea313fa434db55`. Die GitHub-Checks verwendeten den
+synthetischen Testmerge `17f584f428e4a291292598704b1eb0f5cef187ef` mit demselben
+Tree; dessen Eltern sind Main `5e9ede2…` und PR-Head `d908747…`. Das ist kein
+Merge nach Main.
+
+Der [Frontend-Lauf 39425063492](https://github.com/burckhju/trading-workspace/actions/runs/39425063492)
+bestand mit 632 Tests in 113 Dateien und unveränderten Gates. Der
+[E2E-Lauf 39425063545](https://github.com/burckhju/trading-workspace/actions/runs/39425063545)
+hat zwar einen erfolgreichen Jobstatus, aber der Smoke-Report enthält
+**68 erwartete Erfolge, einen Flaky-Fall und drei deklarierte Skips bei
+72 Testidentitäten**. Der separat verantwortete PostgreSQL-Reportfall bestand
+im selben Workflow einmal ohne Retry; er wird nicht dem Smoke-Ergebnis
+zugerechnet.
+
+Der Flaky-Fall ist der Navigationsfall für Seite 2: Versuch 0 scheiterte am
+fehlenden Suchwert `Test`, Retry 1 bestand. Die übrigen fünf Navigationsfälle
+und alle zwölf Formularisolationsfälle bestanden jeweils ohne Retry.
+Dieser erste Head ist damit ausdrücklich **kein Nachweis für 0 Flaky/Retry**.
+
+Der fehlgeschlagene Erstversuch liefert Video, Screenshot und Fehlerkontext,
+aber keinen Trace. Das Video zeigt den Suchtext noch nach Status-, Markt- und
+Währungsauswahl sowie dem Wechsel auf Seite 2; nach dem ersten Listen-Reload
+fehlt er bereits. Die dortigen Rücksprung-Links enthalten keinen `query`-Wert.
+Der vorhandene Trace `8759ee4ceb1858b0236da45b52419802b8322ec4.zip` gehört nur
+zu Retry 1. Die genaue fehlerhafte Request-/URL-Reihenfolge von Versuch 0 lässt
+sich daraus nicht rückwirkend ableiten.
+
+Der daraufhin ergänzte deterministische Komponententest sendet Suche und drei
+unterschiedliche Filteraktionen, bevor der zuvor gestartete Transition-Render
+abgeschlossen ist. Ohne Fix ergibt der Test `query=Original&currency=EUR`:
+Der neue bestätigte Suchwert sowie Status und Markt gehen verloren. Der
+Rotnachweis enthält 13 bestandene und genau diesen einen fehlgeschlagenen Test.
+Damit ist der Fehler unabhängig vom flüchtigen CI-Zeitverhalten reproduziert.
+
+Die gepinnte React-Router-7.6.0-Implementierung verwendet in `useSearchParams`
+auch beim funktionalen Setter den Suchparameterstand des jeweiligen Renders;
+der Setter besitzt keine React-State-Update-Warteschlange. Der vorhandene
+DOM-`RouterProvider` unterstützt hingegen `flushSync`. Deshalb setzt allein
+`UnderlyingListPage.updateView` seine bewusst ausgelöste URL-Navigation mit
+`{ flushSync: true }`: Die folgende Aktion liest dann den bereits bestätigten
+URL-Stand. Die URL bleibt Eigentümer des bestätigten Listenfilters. Es entsteht
+keine zweite globale oder sessionweite Ablage.
+
+Der Browserfall prüft zusätzlich unmittelbar nach der schnellen Aktionsfolge
+und vor dem ersten Reload alle fünf URL-Werte. Es gibt keine zusätzliche
+Wartepause zwischen den Aktionen. Formular-/Detaildateien, Hilfsparser,
+Workflow-, Runtime- und Dependency-Pins werden durch diesen Folgefix nicht
+geändert.
+
+| Erstes CI-Artefakt | Kennung und SHA256 |
+|---|---|
+| Smoke-ZIP | Artefakt `12265840827`, `bc45bcbcb9370c86317e7792f5fc90a26b47f77eac32caa15c531cf6d4beb19b` |
+| Extrahierter Smoke-Report | `ci-smoke-report.json`, `275e22643a2afe45b170620e61e6ebb7217ed4de3920717300cc22491c5702fa` |
+| Separates PostgreSQL-Owner-ZIP | Artefakt `12265526428`, `8eae848a06c265a046b27aa3a65c71249ec953619aae9da0572c9f376de19793` |
+
+## Nachtrag: lokale Qualifikation des Folgefixes
+
+Der Folgefix basiert auf `d908747b5b8d9b4a9f714926d74ebe77a23b6e29` und erhält
+dessen Integrationshistorie. Er ändert genau die Listenaktion, einen
+Komponententest, die frühe URL-Prüfung im bestehenden Browserfall und diesen
+Bericht. Die ausführbaren Quellen sind durch folgende gestagete Trees gebunden:
+
+| Quelle | Geprüfter Tree |
+|---|---|
+| `frontend/` | `ea50a583e0a0ba5760dde0b1ca9561e62d96481f` |
+| `tests/e2e/` | `599387b99c663df74393b21610038add8089b14c` |
+
+Der fokussierte gemeinsame Lauf bestand mit **115/115 Tests in sieben Dateien**,
+einschließlich nun 14 Navigations- und unverändert 43 Formularisolationsfällen.
+Zwei frühe Gateversuche fanden ausschließlich Fehler im neuen Test: zunächst
+vier nicht unterstützte RTL-`exact`-Optionen, danach die Formatierung der
+verkürzten Aufrufe. Beide Logs bleiben erhalten. Nach deren Korrektur bestand
+das unveränderte `scripts/check-frontend.sh` vollständig mit **633/633 Tests in
+113 Dateien**, ohne Skips/Fehler. TypeScript, ESLint, Prettier und Build bestanden;
+Coverage: **92,86 % Lines/Statements, 85,10 % Branches, 85,42 % Functions**.
+Runtime und Schwellen sind unverändert.
+
+Danach lief dieselbe gemeinsame synthetische Browsermenge einmal mit
+`--workers=1 --retries=0 --trace=on`: **22/22 bestanden in 17,3 Sekunden,
+0 Skips, 0 Flaky, 0 Fehler, 0 Retries**. Die Reportprüfung bestätigt 22 eindeutige
+Testidentitäten mit jeweils genau einem erfolgreichen Versuch: sechs Navigation,
+zwölf Formularisolation, vier FT-001. Alle 19 API-Verträge haben weiterhin
+`apiPrefix=/api/api/v1` und `unexpected=[]`; sie sind inhaltlich identisch zum
+ersten lokalen Lauf. Der neue Screenshot der Rückkehr auf Seite 2 wurde
+zusätzlich angesehen. Alle 22 Traces und 16 Screenshots bleiben im Sitzungsreport.
+Der eigene Previewprozess ist beendet; beide lokalen Loopback-Adressen auf
+Port 8080 antworten danach mit „connection refused“.
+
+| Folgefix-Artefakt | SHA256 |
+|---|---|
+| `list-transition-before.json` | `2e583df5ec1d9d975afe96845fdad95006bcc1600238cf34ea36f670d3186fed` |
+| `list-transition-fixed.json` | `98f019866712f3310014558f9ec611be001fff6eb88ac93619186910a1277ac1` |
+| `frontend-gate-transition-fix.log` | `27c1fac4aed10a61cd5c0fc68f0a3e319cf1a0028c987cbd247cd0c996bd8e8f` |
+| `browser-report-transition-fix.json` | `13ed5127a2099c27616d3da67fda1b32cd61505a740da98afb536b7b9a471c70` |
+| `browser-api-contracts-transition-fix.json` | `f61e974914f0e3a347c2491b80a1996095073c65e808fb9db482c482ed77dd09` |
+
+Diese neuen grünen Ergebnisse sind lokale Nachweise des Folgefixes. Sie ersetzen
+weder den dokumentierten Flaky-Befund des ersten PR-Heads noch die anschließend
+erforderliche Prüfung des neuen veröffentlichten Heads und seines Testmerge-Trees.
+Die nachfolgende CI-Evidenz wird im bestehenden PR separat ergänzt.

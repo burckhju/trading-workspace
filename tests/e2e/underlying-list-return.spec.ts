@@ -191,6 +191,9 @@ for (const pageNumber of [2, 3]) {
         }),
       ).toBeVisible();
     }
+    await expect(page).toHaveURL(
+      `/underlyings?query=Test&lifecycle=ACTIVE&venue=${venueId}&currency=EUR&offset=${(pageNumber - 1) * 25}`,
+    );
     const listUrl = page.url();
     await page.reload();
     const firstIndex = (pageNumber - 1) * 25;
