@@ -4,7 +4,11 @@ import { beforeEach, expect, it, vi } from 'vitest';
 import { currencyConfirmation } from '../../../test/realizedGrossFixtures';
 import { MarketApiError } from '../../market/services/http';
 import { tradeManagementApiClient } from '../services/client';
-import type { ExecutionCurrencyConfirmation, ExecutionCurrencyHistory } from '../types/api';
+import type {
+  ExecutionCurrencyConfirmation,
+  ExecutionCurrencyHistory,
+  ExecutionCurrencyResolution,
+} from '../types/api';
 import { ExecutionCurrencyPanel } from './ExecutionCurrencyPanel';
 
 vi.mock('../services/client', () => ({
@@ -27,9 +31,6 @@ async function open() {
 }
 function affirm(code = 'EUR') {
   fireEvent.change(screen.getByLabelText('Ausführungswährung (Code)'), { target: { value: code } });
-  fireEvent.click(
-    screen.getByRole('checkbox', { name: /als tatsächliche Währung dieser Ausführung/ }),
-  );
 }
 beforeEach(() => {
   vi.resetAllMocks();
@@ -71,19 +72,19 @@ it('reads on demand and saves only an explicit confirmation for the exact execut
     await pending.promise;
   });
   expect(screen.getByText(/Währung bestätigt. Eine erneute Auswertung/)).toBeVisible();
-  expect(screen.getByRole('checkbox')).not.toBeChecked();
+  expect(screen.getByLabelText('Ausführungswährung (Code)')).toHaveValue('');
   expect(screen.getByText('EUR · ausdrücklich bestätigt')).toBeVisible();
   expect(api.executionCurrencyHistory).toHaveBeenCalledTimes(2);
 });
 
-it('pins the read current confirmation, preserves a lost-response retry key and does not inherit a previous affirmation', async () => {
+it('pins the read current confirmation, preserves a lost-response retry key and requires a newly entered replacement code', async () => {
   const current = currencyConfirmation('buy');
   api.executionCurrencyHistory.mockResolvedValue({ current, history: [current] });
   api.confirmExecutionCurrency.mockRejectedValue(new Error('Antwort verloren'));
   render(<ExecutionCurrencyPanel tradeId="trade" executionId="buy" confirmation={current} />);
   await open();
   expect(screen.getByLabelText('Ausführungswährung (Code)')).toHaveValue('');
-  expect(screen.getByRole('checkbox')).not.toBeChecked();
+  expect(screen.getByLabelText('Ausführungswährung (Code)')).toHaveValue('');
   affirm('USD');
   fireEvent.click(screen.getByRole('button', { name: 'Währungsbestätigung ersetzen' }));
   await screen.findByRole('alert');
@@ -95,7 +96,7 @@ it('pins the read current confirmation, preserves a lost-response retry key and 
   expect(api.executionCurrencyHistory).toHaveBeenCalledOnce();
 });
 
-it('requires a deliberate reload and fresh affirmation after a concurrent confirmation instead of silently changing the pinned source', async () => {
+it('requires a deliberate reload and a new explicit save after a concurrent confirmation instead of silently changing the pinned source', async () => {
   const current = currencyConfirmation('buy');
   api.executionCurrencyHistory.mockResolvedValue({ current, history: [current] });
   api.confirmExecutionCurrency.mockRejectedValue(
@@ -122,7 +123,7 @@ it('requires a deliberate reload and fresh affirmation after a concurrent confir
   api.executionCurrencyHistory.mockResolvedValue({ current: next, history: [current, next] });
   fireEvent.click(screen.getByRole('button', { name: 'Währungsherkunft neu laden' }));
   await screen.findByText(/Gelesene Bestätigung: CHF/);
-  expect(screen.getByRole('checkbox')).not.toBeChecked();
+  expect(screen.getByLabelText('Ausführungswährung (Code)')).toHaveValue('');
   expect(api.confirmExecutionCurrency).toHaveBeenCalledOnce();
   affirm('USD');
   fireEvent.click(screen.getByRole('button', { name: 'Währungsbestätigung ersetzen' }));
@@ -236,7 +237,7 @@ it('uses the history GET current after a lost-response retry returns an already 
   expect(screen.getByText('USD · ausdrücklich bestätigt')).toBeVisible();
   expect(screen.getByText(/Inzwischen gilt ein anderer Bestätigungsstand/)).toBeVisible();
   expect(screen.queryByText('EUR · ausdrücklich bestätigt')).not.toBeInTheDocument();
-  expect(screen.getByRole('checkbox')).not.toBeChecked();
+  expect(screen.getByLabelText('Ausführungswährung (Code)')).toHaveValue('');
   fireEvent.click(screen.getByText('Bisherige Bestätigungen (2)'));
   expect(
     screen.getByText('EUR · historisch ersetzt · ausdrücklich vom Nutzer bestätigt'),
@@ -271,7 +272,7 @@ it('keeps a saved receipt and stale timeline confirmation out of the current dis
   expect(api.confirmExecutionCurrency).toHaveBeenCalledOnce();
   fireEvent.click(screen.getByRole('button', { name: 'Währungsherkunft neu laden' }));
   expect(await screen.findByText('USD · ausdrücklich bestätigt')).toBeVisible();
-  expect(screen.getByRole('checkbox')).not.toBeChecked();
+  expect(screen.getByLabelText('Ausführungswährung (Code)')).toHaveValue('');
   expect(api.confirmExecutionCurrency).toHaveBeenCalledOnce();
   expect(api.executionCurrencyHistory).toHaveBeenCalledTimes(3);
 });
@@ -304,4 +305,105 @@ it('does not apply a late post-save history refresh to another trade or executio
   expect(screen.queryByText('EUR · ausdrücklich bestätigt')).not.toBeInTheDocument();
   expect(screen.queryByText(/Währung bestätigt. Eine erneute Auswertung/)).not.toBeInTheDocument();
   expect(api.confirmExecutionCurrency).toHaveBeenCalledOnce();
+});
+
+it.each([
+  ['PRIOR_BUYS', 'EUR · aus vorherigen Käufen übernommen'],
+  ['REPLACED_EXECUTION', 'EUR · aus der ursprünglichen Buchung übernommen'],
+] as const)(
+  'shows %s owner provenance without asking for another confirmation and keeps an override explicit',
+  async (source, label) => {
+    const resolution: ExecutionCurrencyResolution = {
+      currency_code: 'EUR',
+      source,
+      source_execution_ids: ['original-buy'],
+      confirmation_ids: ['buy-evidence'],
+    };
+    const override = { ...currencyConfirmation('sell'), currency_code: 'USD' };
+    api.executionCurrencyHistory
+      .mockResolvedValueOnce({ current: null, history: [], currency_resolution: resolution })
+      .mockResolvedValue({
+        current: override,
+        history: [override],
+        currency_resolution: {
+          currency_code: 'USD',
+          source: 'USER_CONFIRMED',
+          source_execution_ids: ['sell'],
+          confirmation_ids: [override.id],
+        },
+      });
+    api.confirmExecutionCurrency.mockResolvedValue(override);
+    render(<ExecutionCurrencyPanel tradeId="trade" executionId="sell" resolution={resolution} />);
+    expect(screen.getByText(label)).toBeVisible();
+    expect(
+      screen.queryByRole('button', { name: 'Währung prüfen / bestätigen' }),
+    ).not.toBeInTheDocument();
+    expect(api.confirmExecutionCurrency).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Währungsherkunft ansehen' }));
+    await screen.findByText(/keine zusätzliche Bestätigung nötig/);
+    expect(screen.queryByRole('form')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText('Verwendete Währungsherkunft'));
+    expect(screen.getByText('Buchung original-buy')).toBeVisible();
+    expect(screen.getByText('Bestätigung buy-evidence')).toBeVisible();
+    expect(api.confirmExecutionCurrency).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Abweichende Währung angeben' }));
+    affirm('USD');
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Währungsbestätigung speichern' }));
+    await screen.findByText('USD · ausdrücklich bestätigt');
+    expect(api.confirmExecutionCurrency).toHaveBeenCalledExactlyOnceWith('trade', 'sell', {
+      currency_code: 'USD',
+      source: 'USER_CONFIRMED',
+      note: null,
+      supersedes_confirmation_id: null,
+      request_id: expect.any(String),
+    });
+    expect(api.executionCurrencyHistory).toHaveBeenCalledTimes(2);
+  },
+);
+
+it.each(['UNKNOWN', 'MIXED'] as const)(
+  'replaces a stale inherited hint with the fresh %s result without inventing or writing a currency',
+  async (source) => {
+    api.executionCurrencyHistory.mockResolvedValue({
+      current: null,
+      history: [],
+      currency_resolution: {
+        currency_code: null,
+        source,
+        source_execution_ids: ['buy-with-gap'],
+        confirmation_ids: [],
+      },
+    });
+    render(
+      <ExecutionCurrencyPanel
+        tradeId="trade"
+        executionId="sell"
+        resolution={{
+          currency_code: 'EUR',
+          source: 'PRIOR_BUYS',
+          source_execution_ids: ['old-buy'],
+          confirmation_ids: ['old-confirmation'],
+        }}
+      />,
+    );
+    expect(screen.getByText('EUR · aus vorherigen Käufen übernommen')).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Währungsherkunft ansehen' }));
+    await screen.findByRole('form', { name: 'Ausführungswährung bestätigen' });
+    expect(screen.queryByText('EUR · aus vorherigen Käufen übernommen')).not.toBeInTheDocument();
+    expect(
+      screen.getByText(source === 'UNKNOWN' ? 'unbekannt' : 'widersprüchliche Kaufwährungen'),
+    ).toBeVisible();
+    expect(screen.getByLabelText('Ausführungswährung (Code)')).toHaveValue('');
+    expect(api.confirmExecutionCurrency).not.toHaveBeenCalled();
+  },
+);
+
+it('does not save an invalid explicitly entered replacement code', async () => {
+  render(<ExecutionCurrencyPanel tradeId="trade" executionId="buy" />);
+  await open();
+  affirm('EU');
+  fireEvent.click(screen.getByRole('button', { name: 'Währungsbestätigung speichern' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('dreistelligen Währungscode');
+  expect(api.confirmExecutionCurrency).not.toHaveBeenCalled();
 });

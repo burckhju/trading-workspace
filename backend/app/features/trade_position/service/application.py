@@ -11,6 +11,7 @@ from typing import Protocol
 from uuid import UUID, uuid4
 
 from app.features.trade_position.domain.currency import ExecutionCurrencyDeclaration
+from app.features.trade_position.domain.currency_resolution import resolve_execution_currencies
 from app.features.trade_position.domain.enums import (
     ExecutionSide,
     TradeManagementEventType,
@@ -99,7 +100,7 @@ class TradePositionService:
             str(executed_on),
             execution_timezone,
         ]
-        # Omission keeps historical UNKNOWN-capture fingerprints unchanged.
+        # Omission keeps historical capture fingerprints unchanged.
         if currency_confirmation is not None:
             payload.append(currency_confirmation.payload())
         return key, hashlib.sha256(json.dumps(payload).encode()).hexdigest()
@@ -124,9 +125,7 @@ class TradePositionService:
         position = await self._uow.positions.get_for_trade(workspace_id, trade.id)
         if position is None:
             raise ValueError("position not found")
-        if self._currency_confirmations is not None:
-            current = await self._currency_confirmations.current_for_trade(workspace_id, trade.id)
-            original = replace(original, currency_confirmation=current.get(original.id))
+        original = await self._enrich_execution(trade, original)
         return trade, original, position
 
     @staticmethod
@@ -167,6 +166,44 @@ class TradePositionService:
         return await self._currency_confirmations.capture(
             workspace_id=workspace_id, execution=execution, declaration=declaration, actor=actor
         )
+
+    async def _enrich_currencies(
+        self, trade: Trade, executions: list[ExecutionRecord]
+    ) -> list[ExecutionRecord]:
+        # The caller holds the existing per-trade UoW/command lock. No read writes
+        # confirmations; all enrichment is derived from this same source state.
+        current = (
+            await self._currency_confirmations.current_for_trade(trade.workspace_id, trade.id)
+            if self._currency_confirmations is not None
+            else {}
+        )
+        resolutions = resolve_execution_currencies(
+            trade=trade, executions=executions, current=current
+        )
+        return [
+            replace(
+                item,
+                currency_confirmation=current.get(item.id),
+                currency_resolution=resolutions[item.id],
+            )
+            for item in executions
+        ]
+
+    async def _enrich_execution(
+        self,
+        trade: Trade,
+        execution: ExecutionRecord,
+        history: list[ExecutionRecord] | None = None,
+    ) -> ExecutionRecord:
+        if self._currency_confirmations is None:
+            return execution
+        if history is None:
+            history = await self._uow.executions.list_for_trade(trade.id)
+        # Include a just-created fact even before its surrounding UoW flushes.
+        facts = {item.id: item for item in history}
+        facts[execution.id] = execution
+        enriched = await self._enrich_currencies(trade, list(facts.values()))
+        return next(item for item in enriched if item.id == execution.id)
 
     async def record_initial_purchase(
         self,
@@ -249,6 +286,7 @@ class TradePositionService:
             execution = await self._capture_currency(
                 workspace_id, execution, currency_confirmation, actor
             )
+            execution = await self._enrich_execution(trade, execution, [execution])
             await uow.flush()
             await self._quote_source_selector.select_once(
                 workspace_id=workspace_id,
@@ -342,6 +380,7 @@ class TradePositionService:
             execution = await self._capture_currency(
                 workspace_id, execution, currency_confirmation, actor
             )
+            execution = await self._enrich_execution(trade, execution, [execution])
             await uow.flush()
             await self._quote_source_selector.select_once(
                 workspace_id=workspace_id,
@@ -428,6 +467,7 @@ class TradePositionService:
             execution = await self._capture_currency(
                 workspace_id, execution, currency_confirmation, actor
             )
+            execution = await self._enrich_execution(trade, execution)
             await uow.commit()
 
         return execution, updated
@@ -509,6 +549,7 @@ class TradePositionService:
             execution = await self._capture_currency(
                 workspace_id, execution, currency_confirmation, actor
             )
+            execution = await self._enrich_execution(trade, execution)
             await uow.commit()
 
         return execution, updated
@@ -741,6 +782,7 @@ class TradePositionService:
             replacement = await self._capture_currency(
                 workspace_id, replacement, currency_confirmation, actor
             )
+            replacement = await self._enrich_execution(trade, replacement, history)
             await uow.commit()
 
         return replacement, updated
@@ -801,13 +843,7 @@ class TradePositionService:
                 raise ValueError("trade not found")
             executions = await uow.executions.list_for_trade(trade.id)
             management_events = await uow.management_events.list_for_trade(trade.id)
-            if self._currency_confirmations is not None:
-                current = await self._currency_confirmations.current_for_trade(
-                    workspace_id, trade.id
-                )
-                executions = [
-                    replace(item, currency_confirmation=current.get(item.id)) for item in executions
-                ]
+            executions = await self._enrich_currencies(trade, executions)
 
         timeline = compose_trade_timeline(
             trade_id=trade.id,

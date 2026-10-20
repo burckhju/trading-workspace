@@ -6,6 +6,7 @@ from decimal import Decimal
 from typing import Literal
 from uuid import UUID
 
+from app.features.trade_position.domain.currency import ExecutionCurrencyResolution
 from app.features.trade_position.domain.enums import ExecutionSide
 from app.features.trade_position.domain.models import ExecutionRecord, Trade
 
@@ -122,6 +123,7 @@ class ExecutionSource(ExecutionTime):
     is_effective: bool
     currency_confirmation: Confirmation | None
     currency_history: tuple[Confirmation, ...]
+    currency_resolution: ExecutionCurrencyResolution
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

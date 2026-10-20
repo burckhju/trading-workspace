@@ -23,17 +23,15 @@ function Capture({ submit }: { submit: (value: unknown) => void }) {
   );
 }
 
-it('does not turn a suggested or typed code into a fact and resets the affirmation when its evidence changes', () => {
+it('confirms the entered actual currency only through the explicit save action without another checkbox', () => {
   const submit = vi.fn();
   render(<Capture submit={submit} />);
-  expect(screen.getByRole('checkbox')).not.toBeChecked();
-  expect(screen.getByRole('checkbox')).toBeDisabled();
+  expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+  expect(screen.getByLabelText('Ausführungswährung (Code)')).toHaveValue('');
   fireEvent.change(screen.getByLabelText('Ausführungswährung (Code)'), {
     target: { value: 'eur' },
   });
-  fireEvent.click(screen.getByRole('button', { name: 'Speichern' }));
-  expect(submit).toHaveBeenLastCalledWith({});
-  fireEvent.click(screen.getByRole('checkbox'));
+  expect(submit).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('button', { name: 'Speichern' }));
   expect(submit).toHaveBeenLastCalledWith({
     currency_confirmation: { currency_code: 'EUR', source: 'USER_CONFIRMED', note: null },
@@ -41,33 +39,35 @@ it('does not turn a suggested or typed code into a fact and resets the affirmati
   fireEvent.change(screen.getByLabelText('Beleg / Erläuterung (optional)'), {
     target: { value: 'Abrechnung geprüft' },
   });
-  expect(screen.getByRole('checkbox')).not.toBeChecked();
   expect(screen.getByLabelText('Beleg / Erläuterung (optional)')).toHaveAttribute(
     'maxlength',
     '1000',
   );
-  fireEvent.click(screen.getByRole('checkbox'));
   fireEvent.change(screen.getByLabelText('Ausführungswährung (Code)'), {
     target: { value: 'USD' },
   });
-  expect(screen.getByRole('checkbox')).not.toBeChecked();
   fireEvent.click(screen.getByRole('button', { name: 'Speichern' }));
-  expect(submit).toHaveBeenLastCalledWith({});
+  expect(submit).toHaveBeenLastCalledWith({
+    currency_confirmation: {
+      currency_code: 'USD',
+      source: 'USER_CONFIRMED',
+      note: 'Abrechnung geprüft',
+    },
+  });
 });
 
-it('rejects invalid affirmed codes, preserves no confirmation on legacy requests, and describes replacement identity', () => {
+it('rejects a nonempty invalid currency instead of silently dropping it and keeps an omitted declaration absent', () => {
   expect(executionCurrencyDeclaration(emptyExecutionCurrency())).toEqual({});
-  expect(() => executionCurrencyDeclaration({ code: 'EU', note: '', confirmed: true })).toThrow(
+  expect(() => executionCurrencyDeclaration({ code: 'EU', note: '' })).toThrow(
     'dreistelligen Währungscode',
   );
-  expect(
-    executionCurrencyDeclaration({ code: ' usd ', note: '  Abrechnung  ', confirmed: true }),
-  ).toEqual({
+  expect(() => executionCurrencyDeclaration({ code: '', note: 'Abrechnung' })).toThrow(
+    'dreistelligen Währungscode',
+  );
+  expect(executionCurrencyDeclaration({ code: ' usd ', note: '  Abrechnung  ' })).toEqual({
     currency_confirmation: { currency_code: 'USD', source: 'USER_CONFIRMED', note: 'Abrechnung' },
   });
-  render(
-    <ExecutionCurrencyInput value={emptyExecutionCurrency()} onChange={vi.fn()} replacement />,
-  );
-  expect(screen.getByText(/Ersatzbuchung braucht eine eigene Währungsbestätigung/)).toBeVisible();
-  expect(screen.getByRole('checkbox')).not.toBeChecked();
+  render(<ExecutionCurrencyInput value={emptyExecutionCurrency()} onChange={vi.fn()} />);
+  expect(screen.getByText(/Mit dem Speichern bestätigen Sie diese Angabe/)).toBeVisible();
+  expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
 });

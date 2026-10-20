@@ -63,7 +63,7 @@ def test_response_transmits_complete_exact_strings_sources_and_definition() -> N
             body["sources"][0]["currency_history"][0]["id"]
             == body["sources"][0]["currency_confirmation"]["id"]
         )
-        assert body["definition_version"] == "realized-gross-sell-v1"
+        assert body["definition_version"] == "realized-gross-sell-v2"
         assert body["basis"]["knowledge"] == "CURRENT_EFFECTIVE_FACTS"
         assert len(body["basis"]["id"]) == 64
         assert body["currency"] == {

@@ -15,7 +15,7 @@ import { TradeCancellationPanel } from '../components/TradeCancellationPanel';
 import { AdditionalPurchasePanel } from '../components/AdditionalPurchasePanel';
 import { TradeTimelinePanel } from '../components/TradeTimelinePanel';
 import { ExecutionDateInput } from '../components/ExecutionDateInput';
-import { ExecutionCurrencyInput } from '../components/ExecutionCurrencyInput';
+import { ExecutionCurrencyOverride } from '../components/ExecutionCurrencyOverride';
 import {
   emptyExecutionCurrency,
   executionCurrencyDeclaration,
@@ -463,7 +463,7 @@ function TradeManagementContext({ tradeId, onReload }: { tradeId: string; onRelo
                   />
                 </div>
 
-                <ExecutionCurrencyInput
+                <ExecutionCurrencyOverride
                   value={saleCurrency}
                   onChange={setSaleCurrency}
                   disabled={busy}

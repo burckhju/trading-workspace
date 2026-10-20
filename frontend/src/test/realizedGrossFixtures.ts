@@ -33,6 +33,10 @@ export function reportSource(
   executionId: string,
   overrides: Partial<RealizedGrossSource> = {},
 ): RealizedGrossSource {
+  const confirmation =
+    overrides.currency_confirmation === undefined
+      ? currencyConfirmation(executionId)
+      : overrides.currency_confirmation;
   return {
     execution_id: executionId,
     trade_id: 'trade-1',
@@ -51,7 +55,13 @@ export function reportSource(
     supersedes_execution_id: null,
     superseded_by_execution_id: null,
     is_effective: true,
-    currency_confirmation: currencyConfirmation(executionId),
+    currency_confirmation: confirmation,
+    currency_resolution: {
+      currency_code: confirmation?.currency_code ?? null,
+      source: confirmation ? 'USER_CONFIRMED' : 'UNKNOWN',
+      source_execution_ids: confirmation ? [executionId] : [],
+      confirmation_ids: confirmation ? [confirmation.id] : [],
+    },
     currency_history: [currencyConfirmation(executionId)],
     ...overrides,
   };
@@ -118,7 +128,7 @@ export function realizedGrossReport(
     cost_basis_execution_ids: ['buy-august', 'sell-august', 'sell-september-1', 'buy-september'],
   });
   return {
-    definition_version: 'realized-gross-sell-v1',
+    definition_version: 'realized-gross-sell-v2',
     filters: { ...reportFilters },
     interval_start_at: '2026-08-31T22:00:00Z',
     interval_end_at: '2026-09-30T22:00:00Z',

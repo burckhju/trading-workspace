@@ -6,6 +6,7 @@ import { ExecutionCurrencyInput } from '../../trade/components/ExecutionCurrency
 import {
   emptyExecutionCurrency,
   executionCurrencyDeclaration,
+  executionCurrencyText,
 } from '../../trade/services/executionCurrency';
 import {
   captureRequest,
@@ -697,6 +698,15 @@ export function ProductSelectionPage() {
                         <div>
                           <dt className="text-slate-500">Kaufpreis</dt>
                           <dd>{purchase.execution.price_per_unit}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-slate-500">Ausführungswährung</dt>
+                          <dd>
+                            {executionCurrencyText(
+                              purchase.execution.currency_resolution,
+                              purchase.execution.currency_confirmation,
+                            )}
+                          </dd>
                         </div>
                         <div>
                           <dt className="text-slate-500">Cost Basis</dt>

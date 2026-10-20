@@ -11,8 +11,9 @@ import type { TradeTimelineEntryResponse } from '../types/api';
 import {
   emptyExecutionCurrency,
   executionCurrencyDeclaration,
+  executionCurrencyText,
 } from '../services/executionCurrency';
-import { ExecutionCurrencyInput } from './ExecutionCurrencyInput';
+import { ExecutionCurrencyOverride } from './ExecutionCurrencyOverride';
 import { ExecutionCurrencyPanel } from './ExecutionCurrencyPanel';
 
 function dateLabel(entry: TradeTimelineEntryResponse) {
@@ -139,6 +140,7 @@ export function ExecutionDatesPanel({
   const context = selected ? executionDateContext(selected) : null;
   const unchanged = context && date === context.date && (keepTime || !context.hasTime);
   const stale = selected && !entries.some((entry) => entry.id === selected.id);
+  const selectedCurrency = entries.find((entry) => entry.id === selected?.id) ?? selected;
 
   return (
     <section
@@ -209,7 +211,9 @@ export function ExecutionDatesPanel({
               tradeId={tradeId}
               executionId={entry.id}
               confirmation={entry.currency_confirmation}
+              resolution={entry.currency_resolution}
               readOnly={cancelled}
+              onChanged={() => load()}
             />
           </article>
         ))}
@@ -225,6 +229,13 @@ export function ExecutionDatesPanel({
         >
           <p>
             Buchung {selected.id} · {selected.quantity} Stück · Preis {selected.price_per_unit}
+          </p>
+          <p className="text-sm text-slate-400">
+            Währung:{' '}
+            {executionCurrencyText(
+              selectedCurrency?.currency_resolution,
+              selectedCurrency?.currency_confirmation,
+            )}
           </p>
           <label className="block">
             {dateLabel(selected)} korrigieren
@@ -284,11 +295,12 @@ export function ExecutionDatesPanel({
             />{' '}
             Ich bestätige das tatsächliche Ausführungsdatum dieser Buchung.
           </label>
-          <ExecutionCurrencyInput
+          <ExecutionCurrencyOverride
+            key={selected.id}
             value={currency}
             onChange={setCurrency}
             disabled={busy || !!stale}
-            replacement
+            correction
           />
           <button
             type="submit"

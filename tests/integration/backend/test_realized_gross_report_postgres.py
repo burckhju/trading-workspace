@@ -119,7 +119,7 @@ async def _state(engine: AsyncEngine) -> dict[str, list[dict[str, object]]]:
 
 
 async def _capture_reference(
-    client: AsyncClient, *, currency: bool = True
+    client: AsyncClient, *, currency: bool = True, initial_currency_only: bool = False
 ) -> tuple[str, str, list[str]]:
     product_id = await product(client)
     body = {
@@ -150,7 +150,7 @@ async def _capture_reference(
             "execution_timezone": "Europe/Berlin",
             "request_id": str(uuid4()),
         }
-        if currency:
+        if currency and not initial_currency_only:
             body["currency_confirmation"] = DECLARATION
         response = await client.post(f"{BASE}/trades/{trade_id}/{action}", json=body)
         assert response.status_code == 201, response.text
@@ -387,7 +387,7 @@ def test_repeatable_read_allows_committed_owner_corrections_without_mixed_respon
     asyncio.run(exercise())
 
 
-def test_legacy_unknown_listing_changes_explicit_confirmation_and_partial_coverage(
+def test_legacy_unknown_listing_changes_and_one_explicit_purchase_confirmation(
     report_database: str,
 ) -> None:
     _migrate(report_database, "head")
@@ -413,35 +413,30 @@ def test_legacy_unknown_listing_changes_explicit_confirmation_and_partial_covera
             assert listed.status_code == 201, listed.text
             assert (await _report(client))["summary"] == first["summary"]
             before = await _state(database.engine)
-            for index in (0, 2):
-                confirmation = await client.post(
-                    f"{BASE}/trades/{trade_id}/executions/{ids[index]}/currency-confirmations",
-                    json=DECLARATION | {"request_id": str(uuid4())},
-                )
-                assert confirmation.status_code == 201, confirmation.text
-            partial = await _report(client)
-            assert partial["summary"]["status"] == "PARTIAL"
-            assert partial["summary"]["total"] is None
-            assert partial["summary"]["subtotal_display"] == "30.00"
-            assert partial["counts"]["usable"] == partial["counts"]["unresolved"] == 1
-            for index in (3, 4):
-                confirmation = await client.post(
-                    f"{BASE}/trades/{trade_id}/executions/{ids[index]}/currency-confirmations",
-                    json=DECLARATION | {"request_id": str(uuid4())},
-                )
-                assert confirmation.status_code == 201, confirmation.text
+            confirmation = await client.post(
+                f"{BASE}/trades/{trade_id}/executions/{ids[0]}/currency-confirmations",
+                json=DECLARATION | {"request_id": str(uuid4())},
+            )
+            assert confirmation.status_code == 201, confirmation.text
             qualified = await _report(client)
             assert qualified["summary"]["status"] == "COMPLETE"
             assert qualified["summary"]["total_display"] == "10.00"
             assert qualified["counts"]["usable"] == 2
-            # Outside SELL revenue currencies are still unknown; earlier sale amounts
-            # never establish or obstruct the remaining EUR BUY cost basis.
-            assert qualified["sources"][1]["currency_confirmation"] is None
-            assert qualified["sources"][5]["currency_confirmation"] is None
+            # The confirmed historical BUY now qualifies later same-currency facts.
+            # No inherited value is persisted or presented as a direct SELL declaration.
+            assert all(
+                source["currency_confirmation"] is None for source in qualified["sources"][1:]
+            )
+            assert all(
+                source["currency_resolution"]["currency_code"] == "EUR"
+                and source["currency_resolution"]["source"] == "PRIOR_BUYS"
+                and source["currency_resolution"]["confirmation_ids"] == [confirmation.json()["id"]]
+                for source in qualified["sources"][1:]
+            )
             after = await _state(database.engine)
             assert after["execution_records"] == before["execution_records"]
             assert after["positions"] == before["positions"]
-            assert len(after["execution_currency_confirmations"]) == 4
+            assert len(after["execution_currency_confirmations"]) == 1
             assert (await _report(client))["basis"]["id"] == qualified["basis"]["id"]
             assert await _state(database.engine) == after
 

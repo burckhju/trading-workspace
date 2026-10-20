@@ -4,7 +4,7 @@ import { expect, test } from "@playwright/test";
 
 // Explicit qualification only: the marked disposable PostgreSQL database is
 // independently verified before the first owner write. No HTTP result fixtures.
-test("real PostgreSQL: period SELL contributions, sources, correction and currency confirmation", async ({
+test("real PostgreSQL: purchase currency once, inherited sales, sources and correction", async ({
   page,
   request,
   baseURL,
@@ -79,7 +79,7 @@ test("real PostgreSQL: period SELL contributions, sources, correction and curren
     display_name: "Synthetischer Referenztrade · Bruttoergebnis",
     option_direction: "CALL",
     strike: "500",
-    strike_currency_code: "EUR",
+    strike_currency_code: "USD",
     maturity_date: "2099-12-31",
     ratio: "0.1",
   });
@@ -96,33 +96,117 @@ test("real PostgreSQL: period SELL contributions, sources, correction and curren
     request_id: crypto.randomUUID(),
     ...(currency ? { currency_confirmation: confirmed } : {}),
   });
-  const buy = await post("/trade-position/purchases/external", {
-    product_id: product.id,
-    ...capture(100, "2.00", "2026-08-05"),
+  // Prepare a real workspace selection through its owners. Its USD listing and
+  // strike do not supply the explicitly entered EUR execution currency.
+  await post(`/warrants/${product.id}/listings`, {
+    trading_venue_id: venue.id,
+    quotation_currency_code: "USD",
   });
+  const plan = await post("/trade-plans", {
+    origin_type: "MANUAL",
+    underlying_id: underlying.id,
+    thesis: "Synthetic currency reuse qualification",
+    entry: { type: "PRICE", currency: "EUR", price: "100" },
+    invalidation: { stop_price: "95" },
+    targets: [{ sequence: 1, price: "110" }],
+    risk_assumptions: {
+      thesis_risk: "Synthetic test, not a trading recommendation",
+    },
+  });
+  const versionPath = `/trade-plans/${plan.plan.id}/versions/${plan.latest_version.id}`;
+  await post(versionPath + "/submit-review");
+  await post(versionPath + "/approve");
+  const selection = await post("/product-selection-runs", {
+    trade_plan_id: plan.plan.id,
+    trade_plan_version_id: plan.latest_version.id,
+  });
+  expect(selection.evaluations).toHaveLength(1);
+  await post(`/product-selection-runs/${selection.run.id}/selection`, {
+    product_evaluation_id: selection.evaluations[0].id,
+    rationale:
+      "Synthetic actual execution; missing market quotes remain missing.",
+  });
+  await page.goto(`/product-selection?run_id=${selection.run.id}`);
+  await page.getByLabel("Kaufmenge", { exact: true }).fill("100");
+  await page.getByLabel("Kaufpreis", { exact: true }).fill("2.00");
+  await page.getByLabel("Kaufdatum", { exact: true }).fill("2026-08-05");
+  await page
+    .getByLabel("Ausführungswährung (Code)", { exact: true })
+    .fill("EUR");
+  await expect(
+    page.getByRole("checkbox", {
+      name: /Ich bestätige EUR als tatsächliche Währung/,
+    }),
+  ).toHaveCount(0);
+  const purchaseWrite = page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" &&
+      response.url().endsWith("/purchases/from-selection"),
+  );
+  await page
+    .getByRole("button", {
+      name: "BUY erfassen und Position eröffnen",
+      exact: true,
+    })
+    .click();
+  const purchaseResponse = await purchaseWrite;
+  expect(purchaseResponse.status(), await purchaseResponse.text()).toBe(201);
+  const buy = await purchaseResponse.json();
+  expect(buy.trade.origin).toBe("WORKSPACE_SELECTION");
+  expect(buy.execution.currency_confirmation.currency_code).toBe("EUR");
   const tid = buy.trade.id;
   const tradePath = `/trade-position/trades/${tid}`;
   const august = await post(
     tradePath + "/sales",
-    capture(20, "2.50", "2026-08-12"),
+    capture(20, "2.50", "2026-08-12", false),
   );
-  const septemberFirst = await post(
-    tradePath + "/sales",
-    capture(30, "3.00", "2026-09-02"),
+  await page.goto(`/trade-management?trade_id=${tid}#sale-capture`);
+  const saleForm = page.getByRole("form", {
+    name: "Verkauf erfassen",
+    exact: true,
+  });
+  await saleForm.getByLabel("Verkaufsmenge", { exact: true }).fill("30");
+  await saleForm.getByLabel("Verkaufspreis", { exact: true }).fill("3.00");
+  await saleForm
+    .getByLabel("Verkaufsdatum", { exact: true })
+    .fill("2026-09-02");
+  await expect(
+    saleForm.getByLabel("Ausführungswährung (Code)"),
+  ).not.toBeVisible();
+  const saleWrite = page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" &&
+      response.url().endsWith(tradePath + "/sales"),
   );
+  await saleForm
+    .getByRole("button", { name: "Teilverkauf erfassen", exact: true })
+    .click();
+  const saleResponse = await saleWrite;
+  expect(saleResponse.status(), await saleResponse.text()).toBe(201);
+  expect(saleResponse.request().postDataJSON()).not.toHaveProperty(
+    "currency_confirmation",
+  );
+  const septemberFirst = await saleResponse.json();
+  expect(septemberFirst.execution.currency_confirmation).toBeNull();
+  expect(septemberFirst.execution.currency_resolution).toMatchObject({
+    currency_code: "EUR",
+    source: "PRIOR_BUYS",
+    source_execution_ids: [buy.execution.id],
+    confirmation_ids: [buy.execution.currency_confirmation.id],
+  });
   const added = await post(
     tradePath + "/purchases",
-    capture(50, "4.00", "2026-09-06"),
+    capture(50, "4.00", "2026-09-06", false),
   );
   const septemberLast = await post(
     tradePath + "/sales",
-    capture(40, "2.50", "2026-09-12"),
+    capture(40, "2.50", "2026-09-12", false),
   );
   expect(septemberLast.position.open_quantity).toBe(60);
   expect(septemberLast.position.cost_basis).toBe("180.0000000000");
   const october = await post(
     tradePath + "/sales",
-    capture(60, "3.50", "2026-10-03"),
+    capture(60, "3.50", "2026-10-03", false),
   );
   expect(october.position.is_closed).toBe(true);
   expect(october.position.realized_gross_pnl).toBe("50.0000000000");
@@ -153,10 +237,12 @@ test("real PostgreSQL: period SELL contributions, sources, correction and curren
     await page.getByLabel("Berichtszeitzone (IANA)").fill("Europe/Berlin");
   };
   const beforeRead = databaseState();
+  expect(beforeRead.tables.execution_currency_confirmations.count).toBe(1);
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto("/performance/realized-gross");
   await select("2026-09-01", "2026-09-30");
   const original = await read();
+  expect(original.definition_version).toBe("realized-gross-sell-v2");
   expect(original.summary.status).toBe("COMPLETE");
   expect(original.summary.total).toBe("10.0000000000");
   expect(original.counts).toMatchObject({
@@ -230,6 +316,19 @@ test("real PostgreSQL: period SELL contributions, sources, correction and curren
   ]);
   await expect(provenance).toContainText("3.0000000000");
   await expect(provenance).toContainText("180.0000000000");
+  const saleSource = original.sources.find(
+    (source: { execution_id: string }) =>
+      source.execution_id === septemberLast.execution.id,
+  );
+  expect(saleSource.currency_confirmation).toBeNull();
+  expect(saleSource.currency_resolution).toMatchObject({
+    currency_code: "EUR",
+    source: "PRIOR_BUYS",
+    confirmation_ids: [buy.execution.currency_confirmation.id],
+  });
+  await expect(provenance).toContainText(
+    buy.execution.currency_confirmation.id,
+  );
   await page.screenshot({
     path: testInfo.outputPath("september-desktop.png"),
     fullPage: true,
@@ -244,10 +343,12 @@ test("real PostgreSQL: period SELL contributions, sources, correction and curren
       price_per_unit: "3.00",
       executed_on: "2026-09-12",
       execution_timezone: "Europe/Berlin",
-      currency_confirmation: confirmed,
     },
   );
   expect(replacement.position.realized_gross_pnl).toBe("70.0000000000");
+  expect(replacement.execution.currency_confirmation).toBeNull();
+  expect(replacement.execution.currency_resolution.currency_code).toBe("EUR");
+  expect(databaseState().tables.execution_currency_confirmations.count).toBe(1);
   const corrected = await read();
   expect(corrected.summary.total).toBe("30.0000000000");
   expect(corrected.basis.id).not.toBe(original.basis.id);
@@ -284,11 +385,11 @@ test("real PostgreSQL: period SELL contributions, sources, correction and curren
   ).json();
   expect(all.summary.total).toBe("70.0000000000");
 
-  // A compatible capture with no declaration remains unknown until this user's
-  // explicit owner action. Product/listing/report EUR must not fill it silently.
+  // A compatible BUY with no evidence remains unknown. One explicit purchase
+  // confirmation then qualifies its SELL; no sale confirmation is written.
   const unknownBuy = await post("/trade-position/purchases/external", {
     product_id: product.id,
-    ...capture(1, "2.00", "2026-07-01"),
+    ...capture(1, "2.00", "2026-07-01", false),
   });
   const unknownSell = await post(
     `/trade-position/trades/${unknownBuy.trade.id}/sales`,
@@ -314,7 +415,7 @@ test("real PostgreSQL: period SELL contributions, sources, correction and curren
     `/trade-management?trade_id=${unknownBuy.trade.id}#execution-dates`,
   );
   const booking = page.getByRole("article", {
-    name: `Buchung ${unknownSell.execution.id}`,
+    name: `Buchung ${unknownBuy.execution.id}`,
     exact: true,
   });
   await booking
@@ -325,18 +426,14 @@ test("real PostgreSQL: period SELL contributions, sources, correction and curren
     exact: true,
   });
   await form.getByLabel("Ausführungswährung (Code)").fill("EUR");
-  await form
-    .getByRole("checkbox", {
-      name: /Ich bestätige EUR als tatsächliche Währung/,
-    })
-    .check();
+  await expect(form.getByRole("checkbox")).toHaveCount(0);
   const confirmedWrite = page.waitForResponse(
     (response) =>
       response.request().method() === "POST" &&
       response
         .url()
         .endsWith(
-          `/executions/${unknownSell.execution.id}/currency-confirmations`,
+          `/executions/${unknownBuy.execution.id}/currency-confirmations`,
         ),
   );
   await form
@@ -353,6 +450,16 @@ test("real PostgreSQL: period SELL contributions, sources, correction and curren
     status: "COMPLETE",
     total: "0.0000000000",
   });
+  expect(
+    measuredZero.sources.find(
+      (source: { execution_id: string }) =>
+        source.execution_id === unknownSell.execution.id,
+    ),
+  ).toMatchObject({
+    currency_confirmation: null,
+    currency_resolution: { currency_code: "EUR", source: "PRIOR_BUYS" },
+  });
+  expect(databaseState().tables.execution_currency_confirmations.count).toBe(2);
   await expect(page.getByTestId("realized-gross-total")).toHaveText("0,00 EUR");
   await expect(
     page.getByRole("heading", {

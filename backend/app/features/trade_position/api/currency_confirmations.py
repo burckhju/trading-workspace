@@ -10,6 +10,7 @@ from app.features.trade_position.api.dtos import (
     ExecutionCurrencyConfirmationRequest,
     ExecutionCurrencyConfirmationResponse,
     ExecutionCurrencyHistoryResponse,
+    ExecutionCurrencyResolutionResponse,
 )
 from app.features.trade_position.service.currency_confirmations import (
     ExecutionCurrencyConfirmationService,
@@ -29,7 +30,9 @@ async def currency_history(
         ExecutionCurrencyConfirmationService, Depends(get_execution_currency_confirmation_service)
     ],
 ) -> ExecutionCurrencyHistoryResponse:
-    current, history = await service.history(WORKSPACE_ID, trade_id, execution_id)
+    current, history, resolution = await service.history_with_resolution(
+        WORKSPACE_ID, trade_id, execution_id
+    )
     return ExecutionCurrencyHistoryResponse(
         current=(
             ExecutionCurrencyConfirmationResponse.model_validate(current)
@@ -37,6 +40,7 @@ async def currency_history(
             else None
         ),
         history=[ExecutionCurrencyConfirmationResponse.model_validate(item) for item in history],
+        currency_resolution=ExecutionCurrencyResolutionResponse.model_validate(resolution),
     )
 
 

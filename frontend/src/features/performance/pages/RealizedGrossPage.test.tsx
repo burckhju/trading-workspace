@@ -77,6 +77,104 @@ it('requires an explicit currency, keeps the visible reporting zone, and display
   expect(api.realizedGross).toHaveBeenCalledOnce();
 });
 
+it('shows a sale currency inherited from BUY evidence without claiming a new manual SELL confirmation', async () => {
+  const report = realizedGrossReport();
+  const sell = report.sources.find((source) => source.execution_id === 'sell-september-2')!;
+  sell.currency_confirmation = null;
+  sell.currency_history = [];
+  sell.currency_resolution = {
+    currency_code: 'EUR',
+    source: 'PRIOR_BUYS',
+    source_execution_ids: ['buy-august', 'buy-september'],
+    confirmation_ids: ['currency-buy-august', 'currency-buy-september'],
+  };
+  report.items[1].currency_confirmation_ids = ['currency-buy-august', 'currency-buy-september'];
+  api.realizedGross.mockResolvedValue(report);
+  renderPage();
+  chooseSeptember();
+  read();
+  await screen.findByTestId('realized-gross-total');
+  fireEvent.click(
+    within(screen.getByRole('article', { name: 'Verkauf sell-september-2' })).getByRole('button', {
+      name: 'Quellen und Berechnung',
+    }),
+  );
+  const source = within(screen.getByRole('listitem', { name: 'Buchungsquelle sell-september-2' }));
+  expect(source.getByText('Gespeicherter Stückpreis:', { exact: false })).toHaveTextContent(
+    '2.5000000000 EUR',
+  );
+  expect(
+    source.getByText('Ausführungswährung: EUR · aus vorherigen Käufen übernommen'),
+  ).toBeVisible();
+  expect(source.queryByText(/ausdrücklich vom Nutzer bestätigt/)).not.toBeInTheDocument();
+  expect(source.queryByText(/Ausführungswährung unbekannt/)).not.toBeInTheDocument();
+  fireEvent.click(source.getByText('Verwendete Währungsherkunft'));
+  expect(source.getByText('Buchung buy-august')).toBeVisible();
+  expect(source.getByText('Buchung buy-september')).toBeVisible();
+  expect(source.getByText('Bestätigung currency-buy-september')).toBeVisible();
+  expect(screen.getByTestId('realized-gross-total')).toHaveTextContent('10,00 EUR');
+  expect(api.realizedGross).toHaveBeenCalledOnce();
+});
+
+it.each(['UNKNOWN', 'MIXED'] as const)(
+  'keeps an owner %s currency source visibly unresolved in the report',
+  async (sourceType) => {
+    const unknown = reportItem('unknown-sale', {
+      status: 'NOT_COMPUTABLE',
+      reasons: [sourceType === 'UNKNOWN' ? 'CURRENCY_UNKNOWN' : 'CURRENCY_MIXED'],
+      currency_code: null,
+      realized_gross_pnl_delta: null,
+      realized_gross_pnl_delta_display: null,
+      average_cost_per_unit: null,
+      cost_basis_before: null,
+      cost_basis_after: null,
+      cost_basis_execution_ids: [],
+    });
+    api.realizedGross.mockResolvedValue(
+      realizedGrossReport({
+        items: [unknown],
+        sources: [
+          reportSource(unknown.execution_id, {
+            side: 'SELL',
+            currency_confirmation: null,
+            currency_history: [],
+            currency_resolution: {
+              currency_code: null,
+              source: sourceType,
+              source_execution_ids: [],
+              confirmation_ids: [],
+            },
+          }),
+        ],
+        summary: {
+          status: 'NOT_COMPUTABLE',
+          total: null,
+          total_display: null,
+          subtotal: null,
+          subtotal_display: null,
+          rounding_difference: null,
+          rounding_difference_display: null,
+        },
+      }),
+    );
+    renderPage();
+    chooseSeptember();
+    read();
+    await screen.findByTestId('realized-gross-total');
+    fireEvent.click(screen.getByRole('button', { name: 'Quellen und Berechnung' }));
+    const source = within(screen.getByRole('listitem', { name: 'Buchungsquelle unknown-sale' }));
+    expect(
+      source.getByText(
+        sourceType === 'UNKNOWN'
+          ? 'Ausführungswährung: unbekannt'
+          : 'Ausführungswährung: widersprüchliche Kaufwährungen',
+      ),
+    ).toBeVisible();
+    expect(screen.getByTestId('realized-gross-total')).toHaveTextContent('Nicht berechenbar');
+    expect(source.queryByText(/ausdrücklich vom Nutzer bestätigt/)).not.toBeInTheDocument();
+  },
+);
+
 it('keeps an empty reviewed set distinct from entirely unresolved facts and from a measured rounded zero', async () => {
   const unknown = reportItem('unknown', {
     status: 'NOT_COMPUTABLE',

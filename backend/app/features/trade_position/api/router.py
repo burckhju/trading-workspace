@@ -15,6 +15,7 @@ from app.features.trade_position.api.dtos import (
     CaptureTimeRequest,
     ExecutionCorrectionRequest,
     ExecutionCurrencyConfirmationResponse,
+    ExecutionCurrencyResolutionResponse,
     ExecutionResponse,
     ExternalPurchaseRequest,
     Ft011EligibilityResponse,
@@ -73,6 +74,9 @@ def _execution(value: ExecutionRecord) -> ExecutionResponse:
             ExecutionCurrencyConfirmationResponse.model_validate(value.currency_confirmation)
             if value.currency_confirmation is not None
             else None
+        ),
+        currency_resolution=ExecutionCurrencyResolutionResponse.model_validate(
+            value.currency_resolution
         ),
         id=value.id,
         trade_id=value.trade_id,
@@ -140,6 +144,11 @@ def _timeline_entry(value: TradeTimelineEntry) -> TradeTimelineEntryResponse:
         currency_confirmation=(
             ExecutionCurrencyConfirmationResponse.model_validate(value.currency_confirmation)
             if value.currency_confirmation is not None
+            else None
+        ),
+        currency_resolution=(
+            ExecutionCurrencyResolutionResponse.model_validate(value.currency_resolution)
+            if value.currency_resolution is not None
             else None
         ),
         id=value.id,

@@ -15,7 +15,9 @@ from app.features.market.persistence.repositories import SqlAlchemyReferenceData
 from app.features.trade_position.domain.currency import (
     ExecutionCurrencyConfirmation,
     ExecutionCurrencyDeclaration,
+    ExecutionCurrencyResolution,
 )
+from app.features.trade_position.domain.currency_resolution import resolve_execution_currencies
 from app.features.trade_position.domain.models import ExecutionRecord
 from app.features.trade_position.persistence.currency_repository import (
     SqlAlchemyExecutionCurrencyConfirmationRepository,
@@ -91,6 +93,30 @@ class ExecutionCurrencyConfirmationService:
         superseded = {item.supersedes_confirmation_id for item in history}
         current = next((item for item in history if item.id not in superseded), None)
         return current, history
+
+    async def history_with_resolution(
+        self, workspace_id: UUID, trade_id: UUID, execution_id: UUID
+    ) -> tuple[
+        ExecutionCurrencyConfirmation | None,
+        tuple[ExecutionCurrencyConfirmation, ...],
+        ExecutionCurrencyResolution,
+    ]:
+        # Capture, correction and confirmation commands already lock this trade.
+        # This short owner read uses that same boundary so history and derivation
+        # cannot observe different confirmation/correction states. No commit/write.
+        async with SqlAlchemyTradePositionUnitOfWork(self._session) as uow:
+            trade = await uow.trades.get(workspace_id, trade_id)
+            if trade is None:
+                raise ApplicationError(
+                    code="EXECUTION_NOT_FOUND", message="Trade nicht gefunden.", status_code=404
+                )
+            current, history = await self.history(workspace_id, trade_id, execution_id)
+            executions = await uow.executions.list_for_trade(trade_id)
+            confirmations = await self.current_for_trade(workspace_id, trade_id)
+            resolutions = resolve_execution_currencies(
+                trade=trade, executions=executions, current=confirmations
+            )
+            return current, history, resolutions[execution_id]
 
     async def capture(
         self,

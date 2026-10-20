@@ -40,7 +40,7 @@ def test_reference_september_uses_sell_contributions_with_full_prefix(closed: bo
     basis = snapshot(facts)
     report = build_report(basis, SEPTEMBER)
     _identities(report)
-    assert report.definition_version == "realized-gross-sell-v1"
+    assert report.definition_version == "realized-gross-sell-v2"
     assert report.summary.status == "COMPLETE"
     assert report.summary.total == "10.00"
     assert report.summary.total_display == "10.00"
@@ -111,7 +111,7 @@ def test_price_correction_keeps_old_source_and_counts_replacement_once() -> None
     assert build_report(basis, all_months).summary.total == "70.00"
 
 
-def test_replacement_does_not_inherit_original_currency_confirmation() -> None:
+def test_same_side_replacement_reuses_exact_ancestor_without_fabricating_a_confirmation() -> None:
     original = reference()
     replacement = replace(original[4], id=UUID(int=201), supersedes_execution_id=original[4].id)
     report = build_report(
@@ -120,12 +120,104 @@ def test_replacement_does_not_inherit_original_currency_confirmation() -> None:
         ),
         SEPTEMBER,
     )
-    assert report.summary.status == "PARTIAL"
-    assert report.summary.total is None
-    assert report.summary.subtotal == "30.00"
+    assert report.summary.status == "COMPLETE"
+    assert report.summary.total == "10.00"
+    assert report.summary.subtotal is None
     new_item = next(item for item in report.items if item.execution_id == replacement.id)
-    assert new_item.reasons == ("CURRENCY_UNKNOWN",)
-    assert new_item.realized_gross_pnl_delta is None
+    assert new_item.reasons == ()
+    assert new_item.realized_gross_pnl_delta == "-20.00"
+    new_source = next(source for source in report.sources if source.execution_id == replacement.id)
+    assert new_source.currency_confirmation is None
+    assert new_source.currency_history == ()
+    assert new_source.currency_resolution.source == "REPLACED_EXECUTION"
+    assert new_source.currency_resolution.source_execution_ids == (original[4].id,)
+    assert new_source.currency_resolution.confirmation_ids == (confirmed(original[4]).id,)
+
+
+def test_initial_buy_only_declaration_qualifies_reference_rebuy_and_sell_correction() -> None:
+    facts = reference()
+    declaration = confirmed(facts[0])
+    basis = snapshot(facts, confirmations=(declaration,))
+    report = build_report(basis, SEPTEMBER)
+    _identities(report)
+    assert report.summary.status == "COMPLETE"
+    assert report.summary.total == "10.00"
+    assert [item.realized_gross_pnl_delta for item in report.items if item.status == "USABLE"] == [
+        "30.00",
+        "-20.00",
+    ]
+    assert all(item.currency_confirmation_ids == (declaration.id,) for item in report.items)
+    assert all(source.currency_confirmation is None for source in report.sources[1:])
+    assert all(source.currency_resolution.source == "PRIOR_BUYS" for source in report.sources[1:])
+    assert report.sources[3].currency_resolution.source_execution_ids == (facts[0].id,)
+    assert report.sources[4].currency_resolution.source_execution_ids == (facts[0].id, facts[3].id)
+    all_months = replace(SEPTEMBER, from_date=date(2026, 8, 1), to_date=date(2026, 10, 31))
+    assert build_report(basis, all_months).summary.total == "50.00"
+    replacement = replace(
+        facts[4],
+        id=UUID(int=201),
+        price_per_unit=Decimal("3.00"),
+        supersedes_execution_id=facts[4].id,
+    )
+    corrected = replace(basis, executions=(*facts, replacement))
+    after = build_report(corrected, SEPTEMBER)
+    assert after.summary.total == "30.00"
+    assert build_report(corrected, all_months).summary.total == "70.00"
+    assert after.basis.id != report.basis.id
+    source = next(item for item in after.sources if item.execution_id == replacement.id)
+    assert source.currency_confirmation is None
+    assert source.currency_resolution.source == "PRIOR_BUYS"
+    assert source.currency_resolution.confirmation_ids == (declaration.id,)
+    assert corrected.confirmations == (declaration,)
+
+
+def test_buy_price_and_date_correction_reuse_ancestor_and_expose_exact_cost_sources() -> None:
+    facts = reference()
+    replacement = replace(
+        facts[0],
+        id=UUID(int=201),
+        price_per_unit=Decimal("2.10"),
+        supersedes_execution_id=facts[0].id,
+    )
+    replacement = replace(
+        replacement,
+        executed_at=replacement.executed_at - timedelta(days=1),
+        executed_on=replacement.executed_on - timedelta(days=1),
+    )
+    basis = snapshot((*facts, replacement), confirmations=(confirmed(facts[0]),))
+    report = build_report(basis, SEPTEMBER)
+    assert report.summary.status == "COMPLETE"
+    assert report.summary.total == "5.00"
+    assert [item.realized_gross_pnl_delta for item in report.items if item.status == "USABLE"] == [
+        "27.00",
+        "-22.00",
+    ]
+    item = next(item for item in report.items if item.execution_id == facts[4].id)
+    assert item.currency_confirmation_ids == (confirmed(facts[0]).id,)
+    assert item.cost_basis_execution_ids == (replacement.id, facts[1].id, facts[2].id, facts[3].id)
+    source = next(source for source in report.sources if source.execution_id == replacement.id)
+    assert source.currency_confirmation is None
+    assert source.currency_resolution.source == "REPLACED_EXECUTION"
+    assert source.currency_resolution.source_execution_ids == (facts[0].id,)
+
+
+def test_mixed_buy_basis_and_explicit_sale_override_do_not_become_valid_money():
+    facts = reference()
+    declarations = (confirmed(facts[0]), confirmed(facts[3], "USD"))
+    report = build_report(snapshot(facts, confirmations=declarations), SEPTEMBER)
+    assert report.summary.status == "PARTIAL"
+    assert report.summary.subtotal == "30.00"
+    item = next(item for item in report.items if item.execution_id == facts[4].id)
+    assert item.reasons == ("CURRENCY_MIXED",)
+    assert item.realized_gross_pnl_delta is None
+    assert report.sources[4].currency_resolution.source == "MIXED"
+    explicit = build_report(
+        snapshot(facts, confirmations=(*declarations, confirmed(facts[4]))), SEPTEMBER
+    )
+    explicit_item = next(item for item in explicit.items if item.execution_id == facts[4].id)
+    assert explicit_item.currency_code == "EUR"
+    assert explicit_item.reasons == ("CURRENCY_MIXED",)
+    assert explicit_item.realized_gross_pnl_delta is None
 
 
 def test_unconfirmed_real_facts_are_not_a_zero_or_an_empty_selection() -> None:
@@ -176,13 +268,16 @@ def test_completely_examined_empty_selection_is_explicit(kind: str) -> None:
 
 
 def test_partial_known_zero_and_complete_zero_remain_measured_results() -> None:
+    unresolved_trade = trade_fact(2)
     facts = (
         execution(101, "BUY", 2, "2", "2026-08-01"),
         execution(102, "SELL", 1, "2", "2026-09-02"),
-        execution(103, "SELL", 1, "2", "2026-09-03"),
+        execution(201, "BUY", 1, "2", "2026-08-01", trade=unresolved_trade),
+        execution(202, "SELL", 1, "2", "2026-09-03", trade=unresolved_trade),
     )
+    trades = (trade_fact(), unresolved_trade)
     partial = build_report(
-        snapshot(facts, confirmations=tuple(confirmed(fact) for fact in facts[:2])), SEPTEMBER
+        snapshot(facts, confirmations=(confirmed(facts[0]),), trades=trades), SEPTEMBER
     )
     assert partial.summary.status == "PARTIAL"
     assert partial.summary.total is None
@@ -190,7 +285,7 @@ def test_partial_known_zero_and_complete_zero_remain_measured_results() -> None:
     assert partial.summary.subtotal_display == "0.00"
     assert partial.items[0].realized_gross_pnl_delta == "0"
     assert partial.items[1].realized_gross_pnl_delta is None
-    complete = build_report(snapshot(facts), SEPTEMBER)
+    complete = build_report(snapshot(facts, trades=trades), SEPTEMBER)
     assert complete.summary.status == "COMPLETE"
     assert complete.summary.total == "0"
     assert complete.counts.usable == 2
@@ -223,9 +318,9 @@ def test_previous_sale_revenue_currency_does_not_poison_later_cost_basis(
         assert report.summary.status == "COMPLETE"
         assert report.summary.total == "5.00"
     else:
-        assert report.items[0].status == "NOT_COMPUTABLE"
-        assert report.summary.status == "PARTIAL"
-        assert report.summary.subtotal == "5.00"
+        assert report.items[0].status == "USABLE"
+        assert report.summary.status == "COMPLETE"
+        assert report.summary.total == "25.00"
 
 
 def test_all_prior_buy_prices_require_confirmed_same_currency() -> None:
