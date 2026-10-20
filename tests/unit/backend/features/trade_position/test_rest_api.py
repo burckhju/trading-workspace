@@ -648,6 +648,7 @@ def test_trade_timeline_keeps_sale_as_execution_only() -> None:
             "management_event_type": None,
             "price_binding": None,
             "currency_confirmation": None,
+            "currency_resolution": None,
             "quantity": 5,
             "price_per_unit": "2.50",
             "numeric_value": None,

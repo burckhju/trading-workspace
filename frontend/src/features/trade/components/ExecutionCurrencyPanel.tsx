@@ -6,15 +6,23 @@ import { tradeManagementApiClient } from '../services/client';
 import {
   emptyExecutionCurrency,
   executionCurrencyDeclaration,
+  executionCurrencyText,
 } from '../services/executionCurrency';
-import type { ExecutionCurrencyConfirmation, ExecutionCurrencyHistory } from '../types/api';
+import type {
+  ExecutionCurrencyConfirmation,
+  ExecutionCurrencyHistory,
+  ExecutionCurrencyResolution,
+} from '../types/api';
 import { ExecutionCurrencyInput } from './ExecutionCurrencyInput';
+import { ExecutionCurrencySources } from './ExecutionCurrencySources';
 
 interface Props {
   tradeId: string;
   executionId: string;
   confirmation?: ExecutionCurrencyConfirmation | null;
+  resolution?: ExecutionCurrencyResolution | null;
   readOnly?: boolean;
+  onChanged?: () => Promise<void>;
 }
 
 export function ExecutionCurrencyPanel(props: Props) {
@@ -38,7 +46,14 @@ async function readHistory(tradeId: string, executionId: string, signal: AbortSi
   return result;
 }
 
-function ExecutionCurrencyContext({ tradeId, executionId, confirmation, readOnly = false }: Props) {
+function ExecutionCurrencyContext({
+  tradeId,
+  executionId,
+  confirmation,
+  resolution,
+  readOnly = false,
+  onChanged,
+}: Props) {
   const [opened, setOpened] = useState(false);
   const [history, setHistory] = useState<ExecutionCurrencyHistory | null>(null);
   const [draft, setDraft] = useState(emptyExecutionCurrency);
@@ -47,10 +62,13 @@ function ExecutionCurrencyContext({ tradeId, executionId, confirmation, readOnly
   const [needsReload, setNeedsReload] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
   const active = useRef(true);
   const generation = useRef(0);
   const controller = useRef<AbortController | null>(null);
   const lock = useRef(false);
+  const parentBasis = JSON.stringify([confirmation?.id ?? null, resolution ?? null]);
+  const previousParentBasis = useRef(parentBasis);
 
   useEffect(() => {
     active.current = true;
@@ -60,6 +78,29 @@ function ExecutionCurrencyContext({ tradeId, executionId, confirmation, readOnly
       controller.current?.abort();
     };
   }, []);
+
+  useEffect(() => {
+    if (previousParentBasis.current === parentBasis || saving) return;
+    previousParentBasis.current = parentBasis;
+    if (
+      !opened ||
+      (history &&
+        parentBasis ===
+          JSON.stringify([history.current?.id ?? null, history.currency_resolution ?? null]))
+    )
+      return;
+    // Another BUY confirmation can change an already opened SELL's provenance.
+    // Keep the write pin unavailable until the user reads that changed basis.
+    generation.current += 1;
+    controller.current?.abort();
+    setHistory(null);
+    setLoading(false);
+    setNeedsReload(true);
+    setMessage(null);
+    setError(
+      'Die Währungsquellen dieser Buchung haben sich geändert. Bitte die Währungsherkunft neu laden.',
+    );
+  }, [parentBasis, history, opened, saving]);
 
   async function load() {
     if (lock.current) return;
@@ -71,6 +112,7 @@ function ExecutionCurrencyContext({ tradeId, executionId, confirmation, readOnly
     setLoading(true);
     setHistory(null);
     setDraft(emptyExecutionCurrency());
+    setEditing(false);
     setError(null);
     setMessage(null);
     try {
@@ -93,8 +135,15 @@ function ExecutionCurrencyContext({ tradeId, executionId, confirmation, readOnly
   }
 
   async function save() {
-    if (lock.current || !history || !draft.confirmed || loading || needsReload || readOnly) return;
-    const declaration = executionCurrencyDeclaration(draft).currency_confirmation;
+    if (lock.current || !history || !draft.code.trim() || loading || needsReload || readOnly)
+      return;
+    let declaration;
+    try {
+      declaration = executionCurrencyDeclaration(draft).currency_confirmation;
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Bitte die Währungsangabe prüfen.');
+      return;
+    }
     if (!declaration) return;
     lock.current = true;
     setSaving(true);
@@ -127,6 +176,7 @@ function ExecutionCurrencyContext({ tradeId, executionId, confirmation, readOnly
       // Only a new history read establishes the currently effective confirmation.
       setHistory(null);
       setDraft(emptyExecutionCurrency());
+      setEditing(false);
       setNeedsReload(true);
       setLoading(true);
       const refreshed = await readHistory(tradeId, executionId, requestController.signal);
@@ -139,6 +189,15 @@ function ExecutionCurrencyContext({ tradeId, executionId, confirmation, readOnly
           ? 'Währung bestätigt. Eine erneute Auswertung berücksichtigt den dann wirksamen Quellenstand.'
           : 'Speicherung bestätigt. Inzwischen gilt ein anderer Bestätigungsstand; angezeigt wird die neu gelesene Herkunft.',
       );
+      try {
+        await onChanged?.();
+      } catch {
+        if (active.current && !requestController.signal.aborted && current === generation.current) {
+          setMessage(
+            'Währung gespeichert. Die übrigen Buchungen konnten noch nicht aktualisiert werden. Bitte die Buchungsdaten neu laden.',
+          );
+        }
+      }
     } catch (cause) {
       if (!active.current || requestController.signal.aborted || current !== generation.current)
         return;
@@ -151,7 +210,7 @@ function ExecutionCurrencyContext({ tradeId, executionId, confirmation, readOnly
         );
       } else if (cause instanceof MarketApiError && cause.status === 409) {
         setNeedsReload(true);
-        setDraft((value) => ({ ...value, confirmed: false }));
+        setDraft(emptyExecutionCurrency());
         setError(
           'Der Buchungs- oder Bestätigungsstand hat sich geändert. Herkunft neu laden und vor einer weiteren Bestätigung prüfen.',
         );
@@ -172,6 +231,10 @@ function ExecutionCurrencyContext({ tradeId, executionId, confirmation, readOnly
   }
 
   const current = opened ? history?.current : confirmation;
+  const currentResolution = opened ? history?.currency_resolution : resolution;
+  const inherited =
+    currentResolution?.source === 'PRIOR_BUYS' ||
+    currentResolution?.source === 'REPLACED_EXECUTION';
   return (
     <section
       aria-label="Ausführungswährung und Herkunft"
@@ -184,9 +247,7 @@ function ExecutionCurrencyContext({ tradeId, executionId, confirmation, readOnly
             ? loading
               ? 'Bestätigungsstand wird gelesen…'
               : 'Aktueller Bestätigungsstand nicht verfügbar'
-            : current
-              ? `${current.currency_code} · ausdrücklich bestätigt`
-              : 'unbekannt'}
+            : executionCurrencyText(currentResolution, current)}
         </strong>
       </p>
       <button
@@ -197,7 +258,7 @@ function ExecutionCurrencyContext({ tradeId, executionId, confirmation, readOnly
       >
         {opened
           ? 'Währungsherkunft neu laden'
-          : readOnly
+          : readOnly || inherited
             ? 'Währungsherkunft ansehen'
             : 'Währung prüfen / bestätigen'}
       </button>
@@ -219,9 +280,21 @@ function ExecutionCurrencyContext({ tradeId, executionId, confirmation, readOnly
               <p className="text-sm text-slate-400">
                 {history.current
                   ? `Gelesene Bestätigung: ${history.current.currency_code}, bestätigt am ${new Date(history.current.confirmed_at).toLocaleString('de-DE')}. Eine Änderung ersetzt genau diese Bestätigung; sie bleibt historisch erhalten.`
-                  : 'Für diese konkrete Buchung ist bislang keine Ausführungswährung belegt.'}
+                  : inherited
+                    ? 'Für diese Buchung gilt die übernommene Währung. Es ist keine zusätzliche Bestätigung nötig.'
+                    : 'Für diese konkrete Buchung liegt keine eigene Währungsbestätigung vor.'}
               </p>
-              {!readOnly && (
+              <ExecutionCurrencySources resolution={currentResolution} />
+              {!readOnly && inherited && !editing && (
+                <button
+                  type="button"
+                  onClick={() => setEditing(true)}
+                  className="rounded border border-slate-700 px-3 py-2 text-sm"
+                >
+                  Abweichende Währung angeben
+                </button>
+              )}
+              {!readOnly && (!inherited || editing) && (
                 <form
                   aria-label="Ausführungswährung bestätigen"
                   onSubmit={(event) => {
@@ -236,7 +309,7 @@ function ExecutionCurrencyContext({ tradeId, executionId, confirmation, readOnly
                   />
                   <button
                     type="submit"
-                    disabled={saving || needsReload || !draft.confirmed}
+                    disabled={saving || needsReload || !draft.code.trim()}
                     className="mt-3 rounded border border-sky-700 p-2 text-sm disabled:opacity-50"
                   >
                     {saving

@@ -203,6 +203,9 @@ interrupt the production provider or create test bookings in the real depot.
 
 ## Explicit execution currency and realized results — 2026-10-17
 
+Historical V1.5.9 behavior. The 2026-10-20 section below supersedes its repeated
+currency-entry and checkbox requirements.
+
 For an actual purchase, additional purchase, sale or execution-date correction,
 the existing capture form now has **Tatsächliche Ausführungswährung**. Enter the
 currency of the actual per-unit price, optionally describe the source, and check
@@ -248,3 +251,39 @@ context. No old execution is automatically confirmed. Downgrade with stored
 confirmations is refused to protect provenance. The user instruction authorizes
 implementation and isolated synthetic qualification, not a production migration,
 real booking, provider call, release or PC update.
+
+## Reuse purchase currency — 2026-10-20
+
+Enter the actual purchase price currency once with the purchase. Saving the
+actual BUY also saves the entered currency; there is no additional currency
+checkbox. A nonempty invalid currency code is an error, not a silently omitted
+input. A blank initial currency still means no recorded evidence.
+
+For sales and additional purchases, the owner reuses the complete preceding
+effective BUY currency when it is known and uniform. There is no normal currency
+re-entry. **Abweichende Währung angeben** opens the optional explicit exception.
+A same-side execution-date/price correction reuses the exact confirmed predecessor
+when available. The existing correction confirmation remains necessary for the
+date change itself. No product listing, plan currency or report filter is used as
+execution evidence.
+
+The booking history and **Quellen und Berechnung** show whether the currency was
+entered directly or reused, with its exact purchase/execution and confirmation
+IDs. Direct conflicting declarations remain visible. A missing purchase source
+or mixed cost basis remains unresolved; there is no automatic FX conversion.
+Existing sales can become usable from an already confirmed purchase without any
+new sale confirmation or change to their execution records.
+
+If an older purchase has no recorded execution-currency evidence, confirm that
+purchase once through **Kauf- und Verkaufsdaten**. This can qualify later
+same-currency purchases and sales. Do not repeatedly confirm every sale. The
+application cannot restore a code that an earlier form never sent or stored.
+The existing explicit confirmation/replacement command, pinned predecessor,
+retry identity and fresh history read remain in use.
+
+This amendment is defined in
+[ADR-S10-008](decisions/ADR-S10-008-EXECUTION-CURRENCY-AND-PERIOD-REALIZED-GROSS.md)
+and [its qualification record](implementation/EXECUTION_CURRENCY_REUSE_QUALIFICATION.md).
+Report definition `realized-gross-sell-v2` exposes the changed currency rule;
+calculation, periods and read consistency are unchanged. There is no new migration
+above `20261017_0047`, no backfill and no report-generated confirmation.

@@ -471,7 +471,7 @@ def test_parallel_commands_have_one_winner_or_exact_retry_receipt(journal_databa
 
 def test_migration_preserves_unknown_legacy_final_and_blocks_source_reassignment(journal_database):
     url = journal_database
-    _migrate(url, "20261012_0045")
+    _migrate(url, "head")
 
     async def exercise():
         async with _client(url) as client:
@@ -479,23 +479,48 @@ def test_migration_preserves_unknown_legacy_final_and_blocks_source_reassignment
             response = await client.post(BASE + "/purchases/external", json=purchase(pid))
             assert response.status_code == 201, response.text
             tid = response.json()["trade"]["id"]
-            jid = uuid4()
-            vid = uuid4()
-            await sql(
-                url,
-                """INSERT INTO trade_journals(id,workspace_id,trade_id,created_at,created_by)
+        economic_tables = ("trades", "execution_records", "positions")
+        before = {
+            table: await sql(url, f"SELECT * FROM {table} ORDER BY id") for table in economic_tables
+        }
+        for table in (
+            "execution_currency_confirmations",
+            "trade_journals",
+            "trade_journal_versions",
+            "trade_journal_version_evidence",
+        ):
+            assert await sql(url, f"SELECT * FROM {table}") == []
+
+        # Current capture responses require schema0047 for currency resolution.
+        # Create the economic fact through the real owner first; only empty
+        # currency/journal additions are downgraded, with no app connection open.
+        # The legacy FINALIZED journal is still inserted on0045 and migrated.
+        await asyncio.to_thread(_migrate, url, "20261012_0045", action="downgrade")
+        assert await sql(url, "SELECT version_num FROM alembic_version") == [
+            {"version_num": "20261012_0045"}
+        ]
+        for table in economic_tables:
+            assert await sql(url, f"SELECT * FROM {table} ORDER BY id") == before[table]
+        jid = uuid4()
+        vid = uuid4()
+        await sql(
+            url,
+            """INSERT INTO trade_journals(id,workspace_id,trade_id,created_at,created_by)
               VALUES(:id,:workspace,:trade,now(),:actor)""",
-                dict(id=jid, workspace=WORKSPACE, trade=tid, actor=ACTOR),
-            )
-            await sql(
-                url,
-                """INSERT INTO trade_journal_versions(id,trade_journal_id,version,status,
+            dict(id=jid, workspace=WORKSPACE, trade=tid, actor=ACTOR),
+        )
+        await sql(
+            url,
+            """INSERT INTO trade_journal_versions(id,trade_journal_id,version,status,
                 what_went_well,created_at,created_by,updated_at,updated_by,finalized_at,finalized_by)
               VALUES(:id,:journal,1,'FINALIZED','Legacy original',
                      now(),:actor,now(),:actor,now(),:actor)""",
-                dict(id=vid, journal=jid, actor=ACTOR),
-            )
+            dict(id=vid, journal=jid, actor=ACTOR),
+        )
         await asyncio.to_thread(_migrate, url, "head")
+        for table in economic_tables:
+            assert await sql(url, f"SELECT * FROM {table} ORDER BY id") == before[table]
+        assert await sql(url, "SELECT * FROM execution_currency_confirmations") == []
         async with _client(url) as client:
             h = await history(client, tid)
             v = h["versions"][0]

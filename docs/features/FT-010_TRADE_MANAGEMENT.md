@@ -410,3 +410,29 @@ economic records or infer currencies. Its downgrade explicitly refuses to remove
 the relation once confirmations exist. This development change is not a release
 or target migration, and the existing cumulative position display is not thereby
 relabelled as a historically qualified monetary period report.
+
+## 2026-10-20 amendment: purchase currency reuse
+
+The user expressly removed repeated currency entry for the same-currency sale.
+The [ADR amendment](../decisions/ADR-S10-008-EXECUTION-CURRENCY-AND-PERIOD-REALIZED-GROSS.md)
+and [reuse contract](../implementation/EXECUTION_CURRENCY_REUSE_QUALIFICATION.md)
+supersede the separate SELL/replacement declaration rule above. One pure owner
+resolver first uses a direct current declaration, then a confirmed same-side
+execution predecessor, then the complete preceding effective BUY prefix if all
+its currencies are known and equal. The last rule applies to sales and additional
+purchases. Unknown earlier BUYs are not repaired from later entries.
+
+`currency_confirmation` remains the actual direct declaration. Additive
+`currency_resolution` supplies the reused currency and concrete execution and
+confirmation IDs on capture/replay, timeline, currency-history and report reads.
+No derived declaration is written, including on GET. An explicit conflicting
+currency is preserved and prevents a same-currency monetary contribution when
+the required cost basis differs. The shared PositionProjector arithmetic remains
+unchanged. The report definition becomes `realized-gross-sell-v2`.
+
+Saving a typed actual BUY currency is its explicit confirmation; a second
+checkbox is removed. Existing same-currency SELL, additional-purchase and date
+correction forms need no repeated code. Actual exceptions remain deliberate
+actions. This change needs no migration and fabricates no missing historical
+currency. Tests and release evidence are linked from the reuse qualification;
+the Product Backlog remains the sole work-status source.

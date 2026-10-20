@@ -111,6 +111,21 @@ test("correct existing BUY and SELL dates through UI, preserving quantities and 
   const initialSale = before.find(
     (row: { execution_side: string }) => row.execution_side === "SELL",
   );
+  const correctedBuy = before.find(
+    (row: { execution_side: string; supersedes_id: string | null }) =>
+      row.execution_side === "BUY" &&
+      row.supersedes_id === original.execution.id,
+  );
+  expect(correctedBuy).toBeDefined();
+  expect(initialSale).toBeDefined();
+  expect(correctedBuy.currency_confirmation).toBeNull();
+  expect(initialSale.currency_confirmation).toBeNull();
+  expect(initialSale.currency_resolution).toEqual({
+    currency_code: null,
+    source: "UNKNOWN",
+    source_execution_ids: [correctedBuy.id],
+    confirmation_ids: [],
+  });
 
   // A closed position must still offer correction of its historical sale date.
   await panel
@@ -142,7 +157,32 @@ test("correct existing BUY and SELL dates through UI, preserving quantities and 
   expect(oldBuy.occurred_at).toBe(original.execution.executed_at);
   expect(
     executions.find((row: { id: string }) => row.id === initialSale.id),
-  ).toEqual(initialSale);
+  ).toEqual({
+    ...initialSale,
+    // All recorded facts remain exact. A superseded row no longer receives
+    // the current effective BUY prefix; no former prefix is reconstructed.
+    currency_resolution: {
+      currency_code: null,
+      source: "UNKNOWN",
+      source_execution_ids: [],
+      confirmation_ids: [],
+    },
+  });
+  const correctedSale = executions.find(
+    (row: { supersedes_id: string | null }) =>
+      row.supersedes_id === initialSale.id,
+  );
+  expect(correctedSale).toBeDefined();
+  expect(correctedSale.execution_side).toBe("SELL");
+  expect(correctedSale.quantity).toBe(initialSale.quantity);
+  expect(correctedSale.price_per_unit).toBe(initialSale.price_per_unit);
+  expect(correctedSale.currency_confirmation).toBeNull();
+  expect(correctedSale.currency_resolution).toEqual({
+    currency_code: null,
+    source: "UNKNOWN",
+    source_execution_ids: [correctedBuy.id],
+    confirmation_ids: [],
+  });
   expect(
     executions.filter(
       (row: { supersedes_id: string | null }) => row.supersedes_id,

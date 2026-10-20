@@ -190,7 +190,7 @@ describe('TradeManagementPage', () => {
     expect(screen.getByRole('button', { name: 'Nachbeobachtung starten' })).toBeInTheDocument();
   });
 
-  it('uses a deliberately confirmed execution currency for a full SELL, without treating a listing as evidence', async () => {
+  it('allows a deliberately opened currency exception for a full SELL without another affirmation', async () => {
     render(
       <MemoryRouter initialEntries={['/trade-management?trade_id=trade-1']}>
         <TradeManagementPage />
@@ -198,12 +198,15 @@ describe('TradeManagementPage', () => {
     );
     await screen.findByRole('heading', { name: 'OPEN' });
     const form = within(screen.getByRole('form', { name: 'Verkauf erfassen' }));
+    expect(form.queryByLabelText('Ausführungswährung (Code)')).not.toBeInTheDocument();
     fireEvent.change(form.getByLabelText('Verkaufspreis'), { target: { value: '2.5000000001' } });
+    fireEvent.click(form.getByRole('button', { name: 'Abweichende Währung angeben' }));
     fireEvent.change(form.getByLabelText('Ausführungswährung (Code)'), {
       target: { value: 'EUR' },
     });
-    expect(form.getByRole('checkbox', { name: /als tatsächliche Währung/ })).not.toBeChecked();
-    fireEvent.click(form.getByRole('checkbox', { name: /als tatsächliche Währung/ }));
+    expect(
+      form.queryByRole('checkbox', { name: /als tatsächliche Währung/ }),
+    ).not.toBeInTheDocument();
     fireEvent.click(form.getByRole('button', { name: 'Position vollständig schließen' }));
     await waitFor(() =>
       expect(api.sell).toHaveBeenCalledWith(
@@ -215,10 +218,33 @@ describe('TradeManagementPage', () => {
         }),
       ),
     );
-    await waitFor(() =>
-      expect(form.getByRole('checkbox', { name: /als tatsächliche Währung/ })).not.toBeChecked(),
-    );
+    await waitFor(() => expect(form.getByLabelText('Ausführungswährung (Code)')).toHaveValue(''));
   });
+
+  it.each(['WORKSPACE_SELECTION', 'EXTERNAL'] as const)(
+    'submits a normal full SELL for %s without re-entering its purchase currency',
+    async (origin) => {
+      api.trade.mockResolvedValue({ ...trade, origin });
+      render(
+        <MemoryRouter initialEntries={['/trade-management?trade_id=trade-1']}>
+          <TradeManagementPage />
+        </MemoryRouter>,
+      );
+      await screen.findByRole('heading', { name: 'OPEN' });
+      const form = within(screen.getByRole('form', { name: 'Verkauf erfassen' }));
+      expect(form.queryByLabelText('Ausführungswährung (Code)')).not.toBeInTheDocument();
+      expect(form.queryByRole('checkbox')).not.toBeInTheDocument();
+      expect(form.getByText(/Die Währung wird aus den vorherigen Käufen übernommen/)).toBeVisible();
+      fireEvent.change(form.getByLabelText('Verkaufspreis'), { target: { value: '2.5000000001' } });
+      fireEvent.click(form.getByRole('button', { name: 'Position vollständig schließen' }));
+      await waitFor(() => expect(api.sell).toHaveBeenCalledOnce());
+      expect(api.sell.mock.calls[0][1]).toMatchObject({
+        quantity: 10,
+        price_per_unit: '2.5000000001',
+      });
+      expect(api.sell.mock.calls[0][1]).not.toHaveProperty('currency_confirmation');
+    },
+  );
 
   it('does not show the post-trade start action for an open position', async () => {
     render(

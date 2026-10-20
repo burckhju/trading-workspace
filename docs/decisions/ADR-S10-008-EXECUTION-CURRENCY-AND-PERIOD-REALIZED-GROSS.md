@@ -123,3 +123,30 @@ PR #249 remains a separate prioritised integrity fix before operational expansio
 it does not prevent implementation or isolated qualification of this slice. No
 part of this decision completes original M8, accepts target operation or permits
 publication, merge, tagging or deployment.
+
+## 2026-10-20 amendment: reuse the entered purchase currency
+
+The user explicitly instructed that the currency entered with the purchase also
+applies to the sale and must not require repeated entry. Existing inputs should
+be reused with the minimum necessary input. This supersedes the separate SELL
+declaration and repeated same-side replacement declaration requirements above.
+The precise contract, source inventory and acceptance cases are recorded in
+[purchase currency reuse](../implementation/EXECUTION_CURRENCY_REUSE_QUALIFICATION.md).
+
+One pure resolver at the execution owner gives priority to a direct current
+confirmation, then a confirmed same-side execution predecessor, then the complete
+preceding effective BUY prefix when all its resolved currencies are known and
+equal. The last rule applies to sales and additional purchases. Later BUYs never
+retroactively qualify an earlier unknown BUY. Explicit conflicting declarations
+are preserved; mixed costs/proceeds are not converted. Reuse is reported with
+the exact source execution and confirmation IDs, without manufacturing or
+persisting a new `USER_CONFIRMED` declaration on the derived execution.
+
+Definition `realized-gross-sell-v2` retains arithmetic, periods and snapshot
+boundaries, and makes this changed qualification rule explicit. The actual
+capture action confirms a typed currency code; a second checkbox is unnecessary.
+A nonempty invalid code is rejected instead of silently omitted. Existing
+immutable confirmations and their correction command remain authoritative.
+No migration, default EUR backfill, current-listing inference or report GET
+write is introduced. The user's separate authorization to merge after green
+checks and make the release available for the PC continues to apply.
