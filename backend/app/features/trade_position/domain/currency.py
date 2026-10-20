@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
+from typing import Literal
 from uuid import UUID
 
 
@@ -47,3 +48,15 @@ class ExecutionCurrencyConfirmation:
     supersedes_confirmation_id: UUID | None
     request_id: UUID
     request_fingerprint: str
+
+
+@dataclass(frozen=True, slots=True)
+class ExecutionCurrencyResolution:
+    """Read-only derivation; never an invented confirmation of an execution."""
+
+    currency_code: str | None = None
+    source: Literal["USER_CONFIRMED", "PRIOR_BUYS", "REPLACED_EXECUTION", "UNKNOWN", "MIXED"] = (
+        "UNKNOWN"
+    )
+    source_execution_ids: tuple[UUID, ...] = ()
+    confirmation_ids: tuple[UUID, ...] = ()

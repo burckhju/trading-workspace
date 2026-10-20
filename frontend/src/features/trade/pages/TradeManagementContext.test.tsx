@@ -225,6 +225,10 @@ describe('Trade Management transaction context', () => {
     openPage();
     await loaded(a.trade.id);
     saleDraft();
+    fireEvent.click(screen.getByRole('button', { name: 'Abweichende Währung angeben' }));
+    fireEvent.change(screen.getByLabelText('Ausführungswährung (Code)'), {
+      target: { value: 'USD' },
+    });
     fireEvent.change(screen.getByLabelText('Verkaufsdatum'), { target: { value: '2026-08-20' } });
     fireEvent.change(screen.getByLabelText('Neue Management-Notiz'), {
       target: { value: 'Only for A' },
@@ -232,6 +236,7 @@ describe('Trade Management transaction context', () => {
     lookup(b.trade.id);
     await loaded(b.trade.id);
     expect(screen.getByLabelText('Verkaufsmenge')).toHaveValue(null);
+    expect(screen.queryByLabelText('Ausführungswährung (Code)')).not.toBeInTheDocument();
     expect(screen.getByLabelText('Verkaufspreis')).toHaveValue(null);
     expect(screen.getByLabelText('Verkaufsdatum')).toHaveValue(localToday());
     expect(screen.getByLabelText('Neue Management-Notiz')).toHaveValue('');
@@ -251,6 +256,7 @@ describe('Trade Management transaction context', () => {
         }),
       ),
     );
+    expect(api.sell.mock.calls[0][1]).not.toHaveProperty('currency_confirmation');
   });
 
   it('uses the URL for SPA navigation and browser back/forward', async () => {

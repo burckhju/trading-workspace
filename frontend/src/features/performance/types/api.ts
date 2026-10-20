@@ -1,4 +1,8 @@
-import type { ExecutionCurrencyConfirmation, TradeOrigin } from '../../trade/types/api';
+import type {
+  ExecutionCurrencyConfirmation,
+  ExecutionCurrencyResolution,
+  TradeOrigin,
+} from '../../trade/types/api';
 
 export interface RealizedGrossFilters {
   from_date: string;
@@ -35,6 +39,7 @@ export interface RealizedGrossSource extends ReportExecutionTime {
   superseded_by_execution_id: string | null;
   is_effective: boolean;
   currency_confirmation: ReportCurrencyConfirmation | null;
+  currency_resolution?: ExecutionCurrencyResolution;
   currency_history: ReportCurrencyConfirmation[];
 }
 

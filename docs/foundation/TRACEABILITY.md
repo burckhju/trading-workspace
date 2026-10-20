@@ -528,3 +528,21 @@ The existing publication workflow also requires successful actual main-push
 Backend, Frontend and End-to-End workflows for the precise tagged commit.
 Published software, migration 0047 and real target installation remain separate
 evidence; this trace neither invents historical execution currencies nor closes M8.
+
+## Purchase currency reuse — 2026-10-20
+
+[PB-017 execution owner](../planning/PRODUCT_BACKLOG.md#pb-017-gross-pnl) and
+[PB-019 period output](../planning/PRODUCT_BACKLOG.md#pb-019-performance-evaluations)
+→ user's explicit instruction to reuse the entered purchase currency for sales
+→ [ADR-S10-008 amendment](../decisions/ADR-S10-008-EXECUTION-CURRENCY-AND-PERIOD-REALIZED-GROSS.md)
+→ shared pure execution-owner currency resolution with exact source IDs
+→ additive capture/timeline/history/report read fields, unchanged direct confirmations
+→ existing capture forms without repeated SELL entry or an extra currency checkbox
+→ backend resolver and API tests, real PostgreSQL owner/report correction cases,
+and the existing isolated browser scenario extended to actual BUY/SELL entry
+→ [precise source inventory, contract and qualification](../implementation/EXECUTION_CURRENCY_REUSE_QUALIFICATION.md).
+
+Definition `realized-gross-sell-v2` changes currency qualification only; owner
+arithmetic and bounded report snapshot remain unchanged. There is no migration,
+automatic historical currency backfill or new feature ID. The historical V1.5.9
+test references above do not serve as tests for this amendment.

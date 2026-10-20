@@ -8,7 +8,10 @@ from decimal import Decimal
 from enum import StrEnum
 from uuid import UUID
 
-from app.features.trade_position.domain.currency import ExecutionCurrencyConfirmation
+from app.features.trade_position.domain.currency import (
+    ExecutionCurrencyConfirmation,
+    ExecutionCurrencyResolution,
+)
 from app.features.trade_position.domain.enums import ExecutionSide, TradeManagementEventType
 from app.features.trade_position.domain.models import (
     ExecutionRecord,
@@ -42,6 +45,7 @@ class TradeTimelineEntry:
     executed_on: date | None = None
     execution_timezone: str | None = None
     currency_confirmation: ExecutionCurrencyConfirmation | None = None
+    currency_resolution: ExecutionCurrencyResolution | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -76,6 +80,7 @@ def compose_trade_timeline(
                 executed_on=execution.executed_on,
                 execution_timezone=execution.execution_timezone,
                 currency_confirmation=execution.currency_confirmation,
+                currency_resolution=execution.currency_resolution,
             )
         )
 

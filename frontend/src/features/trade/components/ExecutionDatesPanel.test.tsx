@@ -1,12 +1,18 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, expect, it, vi } from 'vitest';
+import { currencyConfirmation } from '../../../test/realizedGrossFixtures';
 import { tradeManagementApiClient } from '../services/client';
-import type { TradeTimelineEntryResponse } from '../types/api';
+import type { ExecutionCurrencyResolution, TradeTimelineEntryResponse } from '../types/api';
 import { ExecutionDatesPanel } from './ExecutionDatesPanel';
 
 vi.mock('../services/client', () => ({
   tradeTimelineChangedEvent: 'trade-timeline-changed',
-  tradeManagementApiClient: { timeline: vi.fn(), correctExecution: vi.fn() },
+  tradeManagementApiClient: {
+    timeline: vi.fn(),
+    correctExecution: vi.fn(),
+    executionCurrencyHistory: vi.fn(),
+    confirmExecutionCurrency: vi.fn(),
+  },
 }));
 const api = vi.mocked(tradeManagementApiClient);
 const buy: TradeTimelineEntryResponse = {
@@ -101,7 +107,7 @@ it('keeps cancelled history read-only', async () => {
   expect(screen.queryByRole('button', { name: /korrigieren/ })).not.toBeInTheDocument();
 });
 
-it('requires a fresh optional currency declaration for a date correction and never inherits the original currency fact', async () => {
+it('retains the evidenced original currency through the owner when only the date is corrected', async () => {
   api.timeline.mockResolvedValue([
     {
       ...buy,
@@ -119,30 +125,44 @@ it('requires a fresh optional currency declaration for a date correction and nev
   ]);
   render(<ExecutionDatesPanel tradeId="trade" onChanged={onChanged} />);
   const form = await open();
-  expect(within(form).getByLabelText('Ausführungswährung (Code)')).toHaveValue('');
-  expect(
-    within(form).getByRole('checkbox', { name: /als tatsächliche Währung dieser Ausführung/ }),
-  ).not.toBeChecked();
+  expect(within(form).queryByLabelText('Ausführungswährung (Code)')).not.toBeInTheDocument();
+  expect(within(form).getByText('Währung: EUR · ausdrücklich bestätigt')).toBeVisible();
   fireEvent.change(within(form).getByLabelText('Kaufdatum korrigieren'), {
     target: { value: '2026-08-16' },
   });
-  fireEvent.change(within(form).getByLabelText('Ausführungswährung (Code)'), {
-    target: { value: 'EUR' },
-  });
-  fireEvent.click(
-    within(form).getByRole('checkbox', { name: /als tatsächliche Währung dieser Ausführung/ }),
-  );
   confirm();
   fireEvent.click(within(form).getByRole('button', { name: 'Datumsänderung speichern' }));
   await screen.findByText(/Datum korrigiert/);
-  expect(api.correctExecution).toHaveBeenCalledWith(
-    'trade',
-    'buy',
-    expect.objectContaining({
-      executed_on: '2026-08-16',
-      currency_confirmation: { currency_code: 'EUR', source: 'USER_CONFIRMED', note: null },
-    }),
-  );
+  expect(api.correctExecution).toHaveBeenCalledWith('trade', 'buy', {
+    side: 'BUY',
+    quantity: buy.quantity,
+    price_per_unit: buy.price_per_unit,
+    executed_on: '2026-08-16',
+    execution_timezone: 'Europe/Berlin',
+  });
+});
+
+it('can deliberately state a different correction currency while preserving the separate date confirmation', async () => {
+  render(<ExecutionDatesPanel tradeId="trade" onChanged={onChanged} />);
+  const form = within(await open());
+  fireEvent.change(form.getByLabelText('Kaufdatum korrigieren'), {
+    target: { value: '2026-08-16' },
+  });
+  fireEvent.click(form.getByRole('button', { name: 'Abweichende Währung angeben' }));
+  fireEvent.change(form.getByLabelText('Ausführungswährung (Code)'), { target: { value: 'USD' } });
+  expect(form.getAllByRole('checkbox')).toHaveLength(1);
+  expect(form.getByRole('button', { name: 'Datumsänderung speichern' })).toBeDisabled();
+  confirm();
+  fireEvent.click(form.getByRole('button', { name: 'Datumsänderung speichern' }));
+  await screen.findByText(/Datum korrigiert/);
+  expect(api.correctExecution).toHaveBeenCalledExactlyOnceWith('trade', buy.id, {
+    side: 'BUY',
+    quantity: buy.quantity,
+    price_per_unit: buy.price_per_unit,
+    executed_on: '2026-08-16',
+    execution_timezone: 'Europe/Berlin',
+    currency_confirmation: { currency_code: 'USD', source: 'USER_CONFIRMED', note: null },
+  });
 });
 
 it('retains precise time by default and makes changing to date-only explicit', async () => {
@@ -220,4 +240,88 @@ it('reports missing data, supports reload and never supplies placeholder executi
   api.timeline.mockResolvedValue([]);
   fireEvent.click(screen.getByRole('button', { name: 'Buchungsdaten neu laden' }));
   await screen.findByText(/Keine Kauf-\/Verkaufsbuchungen vorhanden/);
+});
+
+it('refreshes dependent sale and additional BUY currency after a BUY confirmation, marks an opened stale source and preserves an unsaved date', async () => {
+  let stored = false;
+  const confirmation = currencyConfirmation(buy.id);
+  const unknown: ExecutionCurrencyResolution = {
+    currency_code: null,
+    source: 'UNKNOWN',
+    source_execution_ids: [],
+    confirmation_ids: [],
+  };
+  const direct: ExecutionCurrencyResolution = {
+    currency_code: 'EUR',
+    source: 'USER_CONFIRMED',
+    source_execution_ids: [buy.id],
+    confirmation_ids: [confirmation.id],
+  };
+  const inherited: ExecutionCurrencyResolution = { ...direct, source: 'PRIOR_BUYS' };
+  api.timeline.mockImplementation(() =>
+    Promise.resolve([
+      {
+        ...buy,
+        currency_confirmation: stored ? confirmation : null,
+        currency_resolution: stored ? direct : unknown,
+      },
+      { ...sale, currency_confirmation: null, currency_resolution: stored ? inherited : unknown },
+      {
+        ...buy,
+        id: 'additional-buy',
+        executed_on: '2026-08-25',
+        currency_confirmation: null,
+        currency_resolution: stored ? inherited : unknown,
+      },
+    ]),
+  );
+  api.executionCurrencyHistory.mockImplementation((_tradeId, executionId) =>
+    Promise.resolve({
+      current: stored && executionId === buy.id ? confirmation : null,
+      history: stored && executionId === buy.id ? [confirmation] : [],
+      currency_resolution: stored ? (executionId === buy.id ? direct : inherited) : unknown,
+    }),
+  );
+  api.confirmExecutionCurrency.mockImplementation(() => {
+    stored = true;
+    return Promise.resolve(confirmation);
+  });
+  render(<ExecutionDatesPanel tradeId="trade" onChanged={onChanged} />);
+  const buyRow = within(await screen.findByRole('article', { name: 'Buchung buy' }));
+  const saleRow = within(screen.getByRole('article', { name: 'Buchung sale' }));
+  fireEvent.click(saleRow.getByRole('button', { name: 'Währung prüfen / bestätigen' }));
+  await saleRow.findByRole('form', { name: 'Ausführungswährung bestätigen' });
+  fireEvent.click(saleRow.getByRole('button', { name: 'Verkaufsdatum korrigieren' }));
+  const dateForm = within(screen.getByRole('form', { name: 'Ausführungsdatum korrigieren' }));
+  fireEvent.change(dateForm.getByLabelText('Verkaufsdatum korrigieren'), {
+    target: { value: '2026-08-23' },
+  });
+  confirm();
+  fireEvent.click(buyRow.getByRole('button', { name: 'Währung prüfen / bestätigen' }));
+  await buyRow.findByRole('form', { name: 'Ausführungswährung bestätigen' });
+  fireEvent.change(buyRow.getByLabelText('Ausführungswährung (Code)'), {
+    target: { value: 'EUR' },
+  });
+  fireEvent.click(buyRow.getByRole('button', { name: 'Währungsbestätigung speichern' }));
+  const additionalRow = within(screen.getByRole('article', { name: 'Buchung additional-buy' }));
+  expect(await additionalRow.findByText('EUR · aus vorherigen Käufen übernommen')).toBeVisible();
+  expect(
+    additionalRow.queryByRole('button', { name: 'Währung prüfen / bestätigen' }),
+  ).not.toBeInTheDocument();
+  expect(await saleRow.findByRole('alert')).toHaveTextContent(
+    'Währungsquellen dieser Buchung haben sich geändert',
+  );
+  expect(saleRow.queryByText('unbekannt')).not.toBeInTheDocument();
+  expect(saleRow.queryByRole('form')).not.toBeInTheDocument();
+  expect(dateForm.getByLabelText('Verkaufsdatum korrigieren')).toHaveValue('2026-08-23');
+  expect(
+    dateForm.getByRole('checkbox', { name: /Ich bestätige das tatsächliche Ausführungsdatum/ }),
+  ).toBeChecked();
+  expect(dateForm.getByText('Währung: EUR · aus vorherigen Käufen übernommen')).toBeVisible();
+  fireEvent.click(saleRow.getByRole('button', { name: 'Währungsherkunft neu laden' }));
+  expect(await saleRow.findByText('EUR · aus vorherigen Käufen übernommen')).toBeVisible();
+  expect(saleRow.queryByRole('form')).not.toBeInTheDocument();
+  expect(api.confirmExecutionCurrency).toHaveBeenCalledOnce();
+  expect(api.confirmExecutionCurrency.mock.calls[0][1]).toBe(buy.id);
+  expect(api.correctExecution).not.toHaveBeenCalled();
 });

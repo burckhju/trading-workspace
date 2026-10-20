@@ -2,7 +2,7 @@
 
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Self
+from typing import Literal, Self
 from uuid import UUID
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -58,9 +58,20 @@ class ExecutionCurrencyConfirmationResponse(BaseModel):
     supersedes_confirmation_id: UUID | None
 
 
+class ExecutionCurrencyResolutionResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    currency_code: str | None = None
+    source: Literal["USER_CONFIRMED", "PRIOR_BUYS", "REPLACED_EXECUTION", "UNKNOWN", "MIXED"] = (
+        "UNKNOWN"
+    )
+    source_execution_ids: tuple[UUID, ...] = ()
+    confirmation_ids: tuple[UUID, ...] = ()
+
+
 class ExecutionCurrencyHistoryResponse(BaseModel):
     current: ExecutionCurrencyConfirmationResponse | None
     history: list[ExecutionCurrencyConfirmationResponse]
+    currency_resolution: ExecutionCurrencyResolutionResponse
 
 
 class CaptureTimeRequest(BaseModel):
@@ -159,6 +170,9 @@ class TradeResponse(BaseModel):
 
 class ExecutionResponse(BaseModel):
     currency_confirmation: ExecutionCurrencyConfirmationResponse | None = None
+    currency_resolution: ExecutionCurrencyResolutionResponse = Field(
+        default_factory=ExecutionCurrencyResolutionResponse
+    )
     id: UUID
     trade_id: UUID
     product_id: UUID
@@ -226,6 +240,7 @@ class TradeManagementStateResponse(BaseModel):
 
 class TradeTimelineEntryResponse(BaseModel):
     currency_confirmation: ExecutionCurrencyConfirmationResponse | None = None
+    currency_resolution: ExecutionCurrencyResolutionResponse | None = None
     price_binding: PriceBinding | None = None
     id: UUID
     trade_id: UUID

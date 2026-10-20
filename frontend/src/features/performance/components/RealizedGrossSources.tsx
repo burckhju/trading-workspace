@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 
+import { ExecutionCurrencySources } from '../../trade/components/ExecutionCurrencySources';
+import { executionCurrencyText } from '../../trade/services/executionCurrency';
 import { executionTimeText, moneyText } from '../services/presentation';
 import type { RealizedGrossItem, RealizedGrossReport, RealizedGrossSource } from '../types/api';
 
@@ -22,7 +24,9 @@ function SourceEntry({ source, timezone }: { source: RealizedGrossSource; timezo
       <p className="mt-1 text-sm">Ausgeführt: {executionTimeText(source, timezone)}</p>
       <p className="mt-1 text-sm">
         Gespeicherter Stückpreis: <code>{source.price_per_unit ?? 'unbekannt'}</code>{' '}
-        {confirmation ? confirmation.currency_code : '· Ausführungswährung unbekannt'}
+        {source.currency_resolution?.currency_code ??
+          confirmation?.currency_code ??
+          '· Ausführungswährung unbekannt'}
       </p>
       <p className="mt-1 text-xs text-slate-400">
         Erfasst: {source.recorded_at} · durch {source.recorded_by}
@@ -51,10 +55,9 @@ function SourceEntry({ source, timezone }: { source: RealizedGrossSource; timezo
             <p className="break-all text-xs text-slate-400">Bestätigung {confirmation.id}</p>
           </>
         ) : (
-          <p className="text-amber-300">
-            Keine qualifizierte Währungsbestätigung für diese Buchung.
-          </p>
+          <p>Ausführungswährung: {executionCurrencyText(source.currency_resolution)}</p>
         )}
+        <ExecutionCurrencySources resolution={source.currency_resolution} />
         {source.currency_history.length > 0 && (
           <details className="mt-2">
             <summary className="cursor-pointer">

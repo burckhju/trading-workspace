@@ -6,7 +6,7 @@ import {
   emptyExecutionCurrency,
   executionCurrencyDeclaration,
 } from '../services/executionCurrency';
-import { ExecutionCurrencyInput } from './ExecutionCurrencyInput';
+import { ExecutionCurrencyOverride } from './ExecutionCurrencyOverride';
 import { ExecutionDateInput } from './ExecutionDateInput';
 
 export function AdditionalPurchasePanel({
@@ -105,7 +105,7 @@ export function AdditionalPurchasePanel({
           onTime={setTime}
         />
       </div>
-      <ExecutionCurrencyInput value={currency} onChange={setCurrency} disabled={busy} />
+      <ExecutionCurrencyOverride value={currency} onChange={setCurrency} disabled={busy} />
       <button disabled={busy} className="mt-3 rounded border p-2">
         Nachkauf speichern
       </button>

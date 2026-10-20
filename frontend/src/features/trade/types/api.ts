@@ -3,6 +3,12 @@ export type IsoDateTime = string;
 
 export type ExecutionSide = 'BUY' | 'SELL';
 export type TradeOrigin = 'WORKSPACE_SELECTION' | 'EXTERNAL';
+export interface ExecutionCurrencyResolution {
+  currency_code: string | null;
+  source: 'USER_CONFIRMED' | 'PRIOR_BUYS' | 'REPLACED_EXECUTION' | 'UNKNOWN' | 'MIXED';
+  source_execution_ids: Uuid[];
+  confirmation_ids: Uuid[];
+}
 export interface ExecutionCurrencyDeclaration {
   currency_code: string;
   source: 'USER_CONFIRMED';
@@ -21,6 +27,7 @@ export interface ExecutionCurrencyConfirmation extends ExecutionCurrencyDeclarat
 export interface ExecutionCurrencyHistory {
   current: ExecutionCurrencyConfirmation | null;
   history: ExecutionCurrencyConfirmation[];
+  currency_resolution?: ExecutionCurrencyResolution;
 }
 
 export interface ConfirmExecutionCurrencyRequest extends ExecutionCurrencyDeclaration {
@@ -65,6 +72,7 @@ export interface TradeResponse {
 
 export interface ExecutionResponse {
   currency_confirmation?: ExecutionCurrencyConfirmation | null;
+  currency_resolution?: ExecutionCurrencyResolution;
   id: Uuid;
   trade_id: Uuid;
   product_id: Uuid;
@@ -211,6 +219,7 @@ export interface TradeManagementStateResponse {
 
 export interface TradeTimelineEntryResponse {
   currency_confirmation?: ExecutionCurrencyConfirmation | null;
+  currency_resolution?: ExecutionCurrencyResolution | null;
   price_binding?: PriceBinding | null;
   id: Uuid;
   trade_id: Uuid;

@@ -281,13 +281,19 @@ describe('ProductSelectionPage', () => {
 
     await user.type(screen.getByLabelText('Kaufmenge'), '10');
     await user.type(screen.getByLabelText('Kaufpreis'), '2,35');
-    await user.type(screen.getByLabelText('Ausführungswährung (Code)'), 'EUR');
+    await user.type(screen.getByLabelText('Ausführungswährung (Code)'), 'EU');
+    await user.click(screen.getByRole('button', { name: 'BUY erfassen und Position eröffnen' }));
+    expect(await screen.findByText(/dreistelligen Währungscode/)).toBeVisible();
     expect(
-      screen.getByRole('checkbox', { name: /als tatsächliche Währung dieser Ausführung/ }),
-    ).not.toBeChecked();
-    await user.click(
-      screen.getByRole('checkbox', { name: /als tatsächliche Währung dieser Ausführung/ }),
-    );
+      fetchMock.mock.calls.some(([url]) => {
+        const address = typeof url === 'string' ? url : url instanceof URL ? url.href : url.url;
+        return address.includes('/purchases/from-selection');
+      }),
+    ).toBe(false);
+    await user.type(screen.getByLabelText('Ausführungswährung (Code)'), 'R');
+    expect(
+      screen.queryByRole('checkbox', { name: /als tatsächliche Währung/ }),
+    ).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'BUY erfassen und Position eröffnen' }));
 
     expect(await screen.findByRole('heading', { name: 'TR-12345678' })).toBeInTheDocument();

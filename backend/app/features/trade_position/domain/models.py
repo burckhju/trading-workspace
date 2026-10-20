@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from datetime import UTC, date, datetime, time
 from decimal import Decimal
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
-from app.features.trade_position.domain.currency import ExecutionCurrencyConfirmation
+from app.features.trade_position.domain.currency import (
+    ExecutionCurrencyConfirmation,
+    ExecutionCurrencyResolution,
+)
 from app.features.trade_position.domain.enums import (
     ExecutionSide,
     TradeManagementEventType,
@@ -69,6 +72,9 @@ class ExecutionRecord:
     execution_timezone: str | None = None
     # Read enrichment only; the separate append-only owner relation stores this provenance.
     currency_confirmation: ExecutionCurrencyConfirmation | None = None
+    currency_resolution: ExecutionCurrencyResolution = field(
+        default_factory=ExecutionCurrencyResolution
+    )
 
     def __post_init__(self) -> None:
         if self.executed_at.tzinfo is None or self.recorded_at.tzinfo is None:

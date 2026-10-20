@@ -64,18 +64,35 @@ async def confirmations(url):
 
 
 def test_migration_preserves_unknown_history_and_capture_failure_rolls_back(confirmation_database):
-    _migrate(confirmation_database, "20261014_0046")
+    _migrate(confirmation_database, "head")
 
-    async def exercise():
+    async def capture_unknown():
         async with _client(confirmation_database) as client:
             pid = await product(client)
             body = purchase(pid)
             bought = await client.post(BASE + "/purchases/external", json=body)
             assert bought.status_code == 201, bought.text
             trade_id, execution_id = bought.json()["trade"]["id"], bought.json()["execution"]["id"]
-            old_executions = await sql(confirmation_database, "SELECT * FROM execution_records")
-            old_positions = await sql(confirmation_database, "SELECT * FROM positions")
-            await asyncio.to_thread(_migrate, confirmation_database, "head")
+        old_executions = await sql(confirmation_database, "SELECT * FROM execution_records")
+        old_positions = await sql(confirmation_database, "SELECT * FROM positions")
+        assert await confirmations(confirmation_database) == []
+        return pid, body, trade_id, execution_id, old_executions, old_positions
+
+    pid, body, trade_id, execution_id, old_executions, old_positions = asyncio.run(
+        capture_unknown()
+    )
+    # Current API responses resolve provenance and therefore require schema0047.
+    # Create the unconfirmed fact through that real owner, then use the permitted
+    # empty-evidence downgrade to reproduce legacy0046 without inserting SQL facts.
+    # Application connections are closed during migration, as in actual startup.
+    _migrate(confirmation_database, "20261014_0046", action="downgrade")
+    assert asyncio.run(sql(confirmation_database, "SELECT version_num FROM alembic_version")) == [
+        {"version_num": "20261014_0046"}
+    ]
+    _migrate(confirmation_database, "head")
+
+    async def exercise():
+        async with _client(confirmation_database) as client:
             assert await confirmations(confirmation_database) == []
             assert (
                 await sql(confirmation_database, "SELECT * FROM execution_records")
@@ -83,7 +100,16 @@ def test_migration_preserves_unknown_history_and_capture_failure_rolls_back(conf
             )
             assert await sql(confirmation_database, "SELECT * FROM positions") == old_positions
             history = await client.get(confirmation_url(trade_id, execution_id))
-            assert history.status_code == 200 and history.json() == {"current": None, "history": []}
+            assert history.status_code == 200 and history.json() == {
+                "current": None,
+                "history": [],
+                "currency_resolution": {
+                    "currency_code": None,
+                    "source": "UNKNOWN",
+                    "source_execution_ids": [],
+                    "confirmation_ids": [],
+                },
+            }
             replay = await client.post(BASE + "/purchases/external", json=body)
             assert (
                 replay.status_code == 201
@@ -103,11 +129,6 @@ def test_migration_preserves_unknown_history_and_capture_failure_rolls_back(conf
             )
             assert await sql(confirmation_database, "SELECT * FROM positions") == old_positions
 
-            # Empty additive rollback is supported, without rewriting old facts.
-            await asyncio.to_thread(
-                _migrate, confirmation_database, "20261014_0046", action="downgrade"
-            )
-            await asyncio.to_thread(_migrate, confirmation_database, "head")
             posted = await client.post(
                 confirmation_url(trade_id, execution_id),
                 json={**DECLARATION, "request_id": str(uuid4())},
@@ -215,6 +236,12 @@ def test_capture_retry_correction_and_read_enrichment_use_exact_execution(confir
                 assert (await client.get(confirmation_url(trade_id, replacement_id))).json() == {
                     "current": None,
                     "history": [],
+                    "currency_resolution": {
+                        "currency_code": "EUR",
+                        "source": "REPLACED_EXECUTION",
+                        "source_execution_ids": [sale_id],
+                        "confirmation_ids": [sale_fact["id"]],
+                    },
                 }
                 second = await client.post(
                     BASE + f"/trades/{trade_id}/executions/{replacement_id}/corrections",
@@ -426,6 +453,12 @@ def test_workspace_capture_and_learning_handoff_confirm_in_the_owner_transaction
             )
             assert closed.status_code == 201, closed.text
             assert closed.json()["execution"]["currency_confirmation"] is None
+            assert closed.json()["execution"]["currency_resolution"] == {
+                "currency_code": "EUR",
+                "source": "PRIOR_BUYS",
+                "source_execution_ids": [execution["id"]],
+                "confirmation_ids": [execution["currency_confirmation"]["id"]],
+            }
 
             underlying_id = (await client.get(f"/api/v1/warrants/{pid}")).json()["underlying_id"]
             engine = create_async_engine(confirmation_database, poolclass=NullPool)
@@ -508,6 +541,30 @@ def test_workspace_capture_and_learning_handoff_confirm_in_the_owner_transaction
                     await client.get(confirmation_url(created.json()["trade_id"], rows[0]["id"]))
                 ).json()
                 assert history["current"]["currency_code"] == "EUR" and len(history["history"]) == 1
+                assert history["currency_resolution"] == {
+                    "currency_code": "EUR",
+                    "source": "USER_CONFIRMED",
+                    "source_execution_ids": [str(rows[0]["id"])],
+                    "confirmation_ids": [history["current"]["id"]],
+                }
+                confirmations_before_sale = await confirmations(confirmation_database)
+                sold = await client.post(
+                    f"{BASE}/trades/{created.json()['trade_id']}/sales",
+                    json={
+                        "quantity": 2,
+                        "price_per_unit": "12.25",
+                        "executed_at": "2026-08-24T08:00:00Z",
+                    },
+                )
+                assert sold.status_code == 201, sold.text
+                assert sold.json()["execution"]["currency_confirmation"] is None
+                assert sold.json()["execution"]["currency_resolution"] == {
+                    "currency_code": "EUR",
+                    "source": "PRIOR_BUYS",
+                    "source_execution_ids": [str(rows[0]["id"])],
+                    "confirmation_ids": [history["current"]["id"]],
+                }
+                assert await confirmations(confirmation_database) == confirmations_before_sale
             finally:
                 await engine.dispose()
 

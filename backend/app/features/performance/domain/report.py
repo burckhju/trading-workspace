@@ -31,9 +31,14 @@ from app.features.performance.domain.periods import (
     report_interval,
     time_fields,
 )
+from app.features.trade_position.domain.currency import ExecutionCurrencyResolution
+from app.features.trade_position.domain.currency_resolution import (
+    CurrencyResolutionLimitExceeded,
+    resolve_execution_currencies,
+)
 from app.features.trade_position.domain.projector import PositionProjector, SellProjectionTrace
 
-DEFINITION_VERSION = "realized-gross-sell-v1"
+DEFINITION_VERSION = "realized-gross-sell-v2"
 MAX_PROVENANCE_LINKS = 100_000
 
 
@@ -91,6 +96,7 @@ def _source(
     replacements: dict[UUID, UUID],
     current: dict[UUID, Confirmation],
     histories: dict[UUID, tuple[Confirmation, ...]],
+    resolutions: dict[UUID, ExecutionCurrencyResolution],
 ) -> ExecutionSource:
     return ExecutionSource(
         **time_fields(execution),
@@ -106,6 +112,7 @@ def _source(
         is_effective=execution.id not in replacements,
         currency_confirmation=current.get(execution.id),
         currency_history=histories.get(execution.id, ()),
+        currency_resolution=resolutions[execution.id],
     )
 
 
@@ -114,25 +121,24 @@ def _item(
     prefix: list[ExecutionFact],
     trade: TradeFact,
     trace: SellProjectionTrace | None,
-    current: dict[UUID, Confirmation],
+    resolutions: dict[UUID, ExecutionCurrencyResolution],
     filters: ReportFilters,
     interval: tuple[datetime, datetime],
     minor_unit: int,
 ) -> SellItem:
     period = classify_period(execution_time(execution), *interval)
-    confirmation = current.get(execution.id)
-    sale_currency = confirmation.currency_code if confirmation else None
+    sale_currency = resolutions[execution.id].currency_code
     required = [fact for fact in prefix if fact.side == "BUY"] + [execution]
-    available = [current[fact.id] for fact in required if fact.id in current]
-    currencies = {c.currency_code for c in available}
+    available = [resolutions[fact.id] for fact in required]
+    currencies = {value.currency_code for value in available if value.currency_code is not None}
     reasons: list[str] = []
     if period != "IN_PERIOD":
         reasons.append(period)
     if sale_currency is not None and sale_currency != filters.report_currency:
         reasons.append("OTHER_CURRENCY")
-    if len(available) != len(required):
+    if any(value.source == "UNKNOWN" for value in available):
         reasons.append("CURRENCY_UNKNOWN")
-    if len(currencies) > 1:
+    if len(currencies) > 1 or any(value.source == "MIXED" for value in available):
         reasons.append("CURRENCY_MIXED")
     if trace is None:
         reasons.append("HISTORY_INVALID")
@@ -173,7 +179,9 @@ def _item(
         ),
         open_quantity_before=trace.open_quantity_before if trace else None,
         open_quantity_after=trace.open_quantity_after if trace else None,
-        currency_confirmation_ids=tuple(c.id for c in available),
+        currency_confirmation_ids=tuple(
+            dict.fromkeys(id for value in available for id in value.confirmation_ids)
+        ),
         cost_basis_execution_ids=tuple(fact.id for fact in prefix),
     )
 
@@ -236,7 +244,20 @@ def build_report(snapshot: ReportSnapshot, filters: ReportFilters) -> RealizedGr
         replacements = {
             e.supersedes_execution_id: e.id for e in history if e.supersedes_execution_id
         }
-        sources.extend(_source(e, replacements, current, histories) for e in history)
+        try:
+            resolutions = resolve_execution_currencies(
+                trade=trade.trade,
+                executions=history,
+                current=current,
+                max_provenance_links=MAX_PROVENANCE_LINKS - links,
+            )
+        except CurrencyResolutionLimitExceeded as error:
+            raise ReportLimitExceeded("Report exceeds the complete provenance limit") from error
+        links += sum(
+            len(value.source_execution_ids) + len(value.confirmation_ids)
+            for value in resolutions.values()
+        )
+        sources.extend(_source(e, replacements, current, histories, resolutions) for e in history)
         if trade.trade.cancelled_at is not None:
             excluded_trades.append(
                 ExcludedTrade(
@@ -276,7 +297,7 @@ def build_report(snapshot: ReportSnapshot, filters: ReportFilters) -> RealizedGr
                     effective[:index],
                     trade,
                     sell_traces.get(execution.id),
-                    current,
+                    resolutions,
                     filters,
                     interval,
                     snapshot.currency.minor_unit,
