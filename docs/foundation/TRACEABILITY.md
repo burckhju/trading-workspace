@@ -528,3 +528,28 @@ The existing publication workflow also requires successful actual main-push
 Backend, Frontend and End-to-End workflows for the precise tagged commit.
 Published software, migration 0047 and real target installation remain separate
 evidence; this trace neither invents historical execution currencies nor closes M8.
+
+## FT-001 Formularintegrität nach PR #249 — 2026-10-20
+
+[PB-007 Basiswertverwaltung](../planning/PRODUCT_BACKLOG.md#pb-007-underlying-ui)
+→ [FT-001 U-R-002/013/015/018](../features/underlying/REQUIREMENTS.md)
+→ [Formularvertrag](../features/underlying/FEATURE.md#sicheres-formular-bei-navigation-und-ladefehlern)
+→ `frontend/src/features/market/pages/UnderlyingFormPage.tsx`
+→ `UnderlyingFormIsolation.test.tsx` und
+`tests/e2e/underlying-form-isolation.spec.ts`.
+
+Der ursprüngliche Schutz aus [PR #249](https://github.com/burckhju/trading-workspace/pull/249)
+ist seit 18.10.2026 gemergt. Die Ergänzung auf Basis von
+`254fe35b76027b72cd989715e17bd0ae55af55eb` bindet gleichwertige Querykodierungen
+an denselben stabilen Parametersnapshot und deaktiviert verlassene Formulare
+bereits in der Layout-Phase. Die Regressionen prüfen Eingabenerhalt bei gleicher
+Formularidentität und alte Speicherantworten zwischen Ziel-Commit und passivem
+Cleanup; der Ladeeffekt behält sein eigenes Abbruchkennzeichen. UUID, geladene
+Version, kontrollierte Referenzen sowie STOCK-/ETF-Verträge bleiben erhalten.
+
+Die exakten Prüfheads, ausgeführten Ergebnisse, Browserartefakte und CI-Läufe
+stehen im zugehörigen Folge-PR. Diese Zuordnung übernimmt keine historischen
+Testerfolge als Nachweis für den neuen Stand. Der Aufgabenstatus bleibt allein in
+PB-007; [PR #204](https://github.com/burckhju/trading-workspace/pull/204) und dessen
+Listen-Navigation bleiben separat. Daraus folgen weder Mergefreigabe noch neue
+fachliche Abnahme, Release- oder Betriebsnachweise.

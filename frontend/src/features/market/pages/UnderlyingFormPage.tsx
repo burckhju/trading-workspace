@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useRef, useState } from 'react';
+import { FormEvent, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ErrorNotice, LoadingNotice } from '../components/ApiFeedback';
 import { marketApiClient } from '../services/client';
@@ -12,23 +12,26 @@ import type {
 export function UnderlyingFormPage() {
   const { underlyingId } = useParams();
   const [searchParams] = useSearchParams();
+  const search = searchParams.toString();
   // A different record or creation proposal must never inherit another form's state.
   return (
     <UnderlyingForm
-      key={JSON.stringify([underlyingId, searchParams.toString()])}
+      key={JSON.stringify([underlyingId, search])}
       underlyingId={underlyingId}
-      searchParams={searchParams}
+      search={search}
     />
   );
 }
 
 function UnderlyingForm({
   underlyingId,
-  searchParams,
+  search,
 }: {
   underlyingId: string | undefined;
-  searchParams: URLSearchParams;
+  search: string;
 }) {
+  // Keep the proposal snapshot stable for this keyed form, including equivalent URL encodings.
+  const [searchParams] = useState(() => new URLSearchParams(search));
   const editing = Boolean(underlyingId);
   const navigate = useNavigate();
   const [existing, setExisting] = useState<UnderlyingDetailResponse | null>(null);
@@ -59,8 +62,15 @@ function UnderlyingForm({
         (requiredCurrency && currency !== requiredCurrency)),
   );
 
-  useEffect(() => {
+  // Invalidate old saves during commit, before passive cleanup can run after a response.
+  useLayoutEffect(() => {
     active.current = true;
+    return () => {
+      active.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
     let cancelled = false;
     void Promise.all([
       marketApiClient.listTradingVenues(),
@@ -117,7 +127,6 @@ function UnderlyingForm({
       });
     return () => {
       cancelled = true;
-      active.current = false;
     };
   }, [editing, underlyingId, searchParams]);
 
