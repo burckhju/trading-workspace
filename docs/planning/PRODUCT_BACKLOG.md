@@ -444,18 +444,28 @@ Die Felder „Soll“ und „Nicht-Soll“ sind die vor einer Umsetzung zu prüf
 <details>
 <summary>PB-007 — Basiswertverwaltung in der Oberfläche</summary>
 
+**Nachweisfortschreibung 2026-10-20:** Der ursprüngliche Formularschutz aus
+[PR #249](https://github.com/burckhju/trading-workspace/pull/249) wurde am
+18.10.2026 gemergt. Die Folgekorrektur auf Basis von
+`254fe35b76027b72cd989715e17bd0ae55af55eb` behandelt zwei verbliebene Randfälle:
+gleichwertige Querykodierungen dürfen bewusst bearbeitete Eingaben derselben
+Formularinstanz nicht durch erneutes Laden überschreiben; alte Speicherantworten
+dürfen bereits nach dem Commit der Zielansicht nicht mehr navigieren. Dazu gehören
+ein stabiler Querysnapshot je Formularinstanz und eine Aktivitätsbereinigung in
+der Layout-Phase, getrennt vom weiterhin passiven Ladeeffekt.
+
 | Nachweisfeld | Einordnung |
 |---|---|
 | Zuordnung | M1: Basiswerte. Bereich/Querschnitt: 1; Querschnitt: durchgängiger Arbeitsablauf/Bedienbarkeit. Bestehender Bezug: FT-001. Lieferziel: A. |
 | Arbeitsstatus | Technical Review |
 | Soll / Nicht-Soll | **Soll:** Suchen, anlegen, ändern und deaktivieren über denselben fachlichen Owner. **Nicht-Soll:** Kein konkurrierender Stammdatenbestand in UI oder Workspace. |
 | Vorhandenseinsnachweis | Dokument- und/oder Routing-Nachweis vorhanden; Details, historische Grenzen und nicht erneut geprüfte Implementierung im Eintrag. |
-| Implementierung / Consumer | [Underlying-Routen](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/frontend/src/app/router.tsx); historische UI-Verträge und Tests in [historische Traceability](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/foundation/TRACEABILITY.md). |
-| Test / Commit | Aktuelle Frontend-CI erfolgreich; kein lokaler Browsernachweis. Offene PR #249 bleibt separat. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Implementierung / Consumer | [UnderlyingFormPage](../../frontend/src/features/market/pages/UnderlyingFormPage.tsx) und [Formularvertrag](../features/underlying/FEATURE.md#sicheres-formular-bei-navigation-und-ladefehlern); ursprüngliche [Underlying-Routen](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/frontend/src/app/router.tsx) sowie historische UI-Verträge und Tests in [historischer Traceability](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/foundation/TRACEABILITY.md). |
+| Test / Commit | [Unit-Regressionen](../../frontend/src/features/market/pages/UnderlyingFormIsolation.test.tsx) und [Browserregressionen](../../tests/e2e/underlying-form-isolation.spec.ts) sichern Formularidentität, Lade-/Speicherreihenfolge, Eingabenerhalt und Doppelübermittlung einschließlich der beiden Randfälle. Exakter Prüfhead, tatsächlich ausgeführte Ergebnisse, Browserartefakte und CI-Läufe werden im zugehörigen Folge-PR zugeordnet; frühere Läufe von #249 sind kein Nachweis für die Ergänzung. |
 | Fachliche Abnahme | Historischer PB-007: Done; aktuelle vollständige Benutzerabnahme nicht neu geprüft. |
 | Software-Auslieferung | Kein gesonderter Release-Nachweis für den vollständigen Zuschnitt verifiziert; ein allgemeiner Softwaretag ersetzt ihn nicht. |
 | Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
-| Restarbeit / nächste Abhängigkeit | Formular-Datenintegrität und Navigation aus offenen PRs getrennt reviewen; keine fremden Änderungen übernehmen. **Nächste Abhängigkeit:** PB-006; tatsächlicher PR-Mergestand vor Umsetzung. |
+| Restarbeit / nächste Abhängigkeit | Folgekorrektur mit den unveränderten Gates und auf dem zugehörigen Prüfhead reviewen; keine Mergefreigabe aus dem Arbeitsauftrag ableiten. [PR #204](https://github.com/burckhju/trading-workspace/pull/204) bleibt als offener Draft für Listen-Rückkehrnavigation separat: Überschneidung in Formular und Feature-Dokument, eigener dokumentierter [Fixture-/CI-Befund](https://github.com/burckhju/trading-workspace/pull/204#issuecomment-5654574060). Eine spätere Integration muss dessen Rückkehrziel mit dem Aktivitätsschutz verbinden und erneut qualifizieren. **Nächste Abhängigkeit:** PB-006; tatsächlicher PR-Mergestand vor Umsetzung. |
 | Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
 
 </details>
