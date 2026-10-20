@@ -1,16 +1,18 @@
 import { execFileSync } from "node:child_process";
 import { resolve } from "node:path";
 import { expect, test } from "@playwright/test";
+import { prepareLearningQualification } from "./support/journal-evidence";
+import { localLearningRequest } from "./support/journal-request-guard.mjs";
 
 // Match the canonical origin used by the existing real-write browser cases.
-test.use({ baseURL: "http://localhost:8080" });
+test.use({ baseURL: "http://localhost:8080", serviceWorkers: "block" });
 
 // Requires the separately identified CI Compose stack + Python fixtures. Never a user stack.
 test("real PostgreSQL: FT011 history survives correction and opens the exact Lesson version", async ({
   page,
-  request,
+  request: rawRequest,
   baseURL,
-}) => {
+}, testInfo) => {
   test.skip(
     process.env.FT011_E2E_WRITES_ALLOWED !== "1",
     "Explicit disposable PostgreSQL FT011 evidence browser qualification required",
@@ -18,6 +20,12 @@ test("real PostgreSQL: FT011 history survives correction and opens the exact Les
   test.setTimeout(120_000);
   expect(process.env.CI).toBe("true");
   expect(baseURL).toBe("http://localhost:8080");
+  const qualification = await prepareLearningQualification(
+    page,
+    baseURL,
+    testInfo,
+  );
+  const request = localLearningRequest(rawRequest);
   const api = `${baseURL}/api/api/v1`;
   const post = async (path: string, data?: object) => {
     const response = await request.post(api + path, { data });
@@ -79,7 +87,7 @@ test("real PostgreSQL: FT011 history survives correction and opens the exact Les
   const observation = await post(`/post-trade/trades/${tid}/observation`);
   const root = resolve(process.cwd(), "..");
   execFileSync(
-    "python",
+    process.env.JOURNAL_E2E_PYTHON ?? "python",
     [
       resolve(root, "tests/e2e/support/seed_journal_prices.py"),
       observation.underlying_listing_id,
@@ -189,7 +197,7 @@ test("real PostgreSQL: FT011 history survives correction and opens the exact Les
     originalInventory[0].lesson_links,
   );
   await page.screenshot({
-    path: "test-results/ft011-history-not-ready.png",
+    path: testInfo.outputPath("ft011-history-not-ready.png"),
     fullPage: true,
   });
   await oldLink.click();
@@ -241,10 +249,13 @@ test("real PostgreSQL: FT011 history survives correction and opens the exact Les
     });
     expect(response.status(), await response.text()).toBe(200);
   };
-  const getContext = async () =>
-    await (
-      await request.get(api + `/learning/lessons/${lid}/review-context`)
-    ).json();
+  const getContext = async () => {
+    const response = await request.get(
+      api + `/learning/lessons/${lid}/review-context`,
+    );
+    expect(response.status(), await response.text()).toBe(200);
+    return response.json();
+  };
   const pinned = (c: {
     lesson: { current_version_id: string; current_state: string };
   }) => ({
@@ -299,7 +310,26 @@ test("real PostgreSQL: FT011 history survives correction and opens the exact Les
   ).toHaveCount(0);
   expect((await getContext()).history[1]).toEqual(originalLesson.history[0]);
   await page.screenshot({
-    path: "test-results/ft011-exact-lesson-history.png",
+    path: testInfo.outputPath("ft011-exact-lesson-history.png"),
     fullPage: true,
   });
+  await page.goto(
+    `/lessons/${lid}?lesson_version_id=${crypto.randomUUID()}#lesson-history`,
+  );
+  await expect(
+    page.getByText(/Die angeforderte Lesson-Version wurde nicht gefunden/),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("article", { name: /Lesson-Snapshot Version/ }),
+  ).toHaveCount(0);
+  await qualification.readWindow(
+    "ft011-exact-history-read-only-sources",
+    async () => ({
+      trade_id: tid,
+      initial_execution_ids: [buy.execution.id, sale.execution.id],
+      evidence: await getInventory(),
+      lesson: await getContext(),
+    }),
+  );
+  qualification.assertNoUnexpectedRequests();
 });
