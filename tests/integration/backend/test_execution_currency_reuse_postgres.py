@@ -28,7 +28,7 @@ from tests.integration.backend.test_realized_gross_report_postgres import (
     _state,
 )
 from tests.integration.backend.test_trade_capture_safety import BASE, product
-from tests.integration.backend.test_usd_chf_currency_references import _migrate
+from tests.integration.backend.test_usd_chf_currency_references import _migrate, _product_payload
 
 from app.features.performance.domain.models import ExecutionFact
 from app.features.performance.service.reader import RealizedGrossSnapshotReader
@@ -69,11 +69,15 @@ async def _post(client: AsyncClient, path: str, payload: dict) -> dict:
     return response.json()
 
 
-async def _buy(client: AsyncClient, currency: str | None = "EUR") -> tuple[str, dict]:
+async def _buy(
+    client: AsyncClient, currency: str | None = "EUR", *, product_id: str | None = None
+) -> tuple[str, dict]:
+    if product_id is None:
+        product_id = await product(client)
     captured = await _post(
         client,
         BASE + "/purchases/external",
-        {"product_id": await product(client)} | _payload(100, "2.00", "2026-08-05", currency),
+        {"product_id": product_id} | _payload(100, "2.00", "2026-08-05", currency),
     )
     return captured["trade"]["id"], captured["execution"]
 
@@ -256,10 +260,23 @@ def test_mixed_costs_and_explicit_conflicting_sales_preserve_facts_and_partial_c
 
     async def exercise() -> None:
         async with _client(reuse_database) as (client, database):
-            complete_trade, _ = await _buy(client)
+            # One shared underlying/listing, three distinct owner-created products.
+            # Repeating product() would recreate its fixed venue/ticker pair.
+            product_payload = await _product_payload(client)
+            product_ids = []
+            for scenario in ("complete", "mixed", "conflicting"):
+                created = await _post(
+                    client,
+                    "/api/v1/warrants",
+                    product_payload | {"display_name": f"Currency reuse {scenario}"},
+                )
+                product_ids.append(created["id"])
+            assert len(set(product_ids)) == 3
+
+            complete_trade, _ = await _buy(client, product_id=product_ids[0])
             await _book(client, complete_trade, "sales", _payload(10, "3.00", "2026-09-01"))
 
-            mixed_trade, first = await _buy(client)
+            mixed_trade, first = await _buy(client, product_id=product_ids[1])
             additional = await _book(
                 client, mixed_trade, "purchases", _payload(100, "4.00", "2026-08-20", "USD")
             )
@@ -274,7 +291,7 @@ def test_mixed_costs_and_explicit_conflicting_sales_preserve_facts_and_partial_c
                 [first["currency_confirmation"]["id"], additional["currency_confirmation"]["id"]],
             )
 
-            conflicting_trade, conflicting_buy = await _buy(client)
+            conflicting_trade, conflicting_buy = await _buy(client, product_id=product_ids[2])
             conflicting_sale = await _book(
                 client, conflicting_trade, "sales", _payload(30, "4.00", "2026-09-03", "USD")
             )

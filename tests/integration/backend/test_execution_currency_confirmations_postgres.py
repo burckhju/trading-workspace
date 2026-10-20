@@ -315,7 +315,16 @@ def test_confirmation_concurrency_scope_and_native_append_only_integrity(confirm
             rejected = next(r.json() for r in results if r.status_code == 409)
             assert rejected["code"] == "EXECUTION_CURRENCY_CONFLICT"
             history = (await client.get(url)).json()
-            assert history == {"current": winner, "history": [first, winner]}
+            assert history == {
+                "current": winner,
+                "history": [first, winner],
+                "currency_resolution": {
+                    "currency_code": winner["currency_code"],
+                    "source": "USER_CONFIRMED",
+                    "source_execution_ids": [execution_id],
+                    "confirmation_ids": [winner["id"]],
+                },
+            }
             assert (
                 await client.post(url, json=body)
             ).json() == first  # Historical receipt, not currentness.

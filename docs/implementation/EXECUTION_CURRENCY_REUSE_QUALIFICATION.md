@@ -102,6 +102,36 @@ nicht erforderlich. Es gibt keine Vorbelegung aus heutigen Listings oder Plänen
   Zusatzhaken, Verkauf ohne Währungseingabe, Ergebnis, Herkunft und Korrektur.
   Bestehende Race-, Retry-, Abbruch- und Herkunftsgates bleiben bestehen.
 
+## Zuordnung zu Akzeptanzkriterien 1–10
+
+Die Zuordnung gilt für den Teststand `a31551733bb86ff3cfda1cee5beb20eb6d1e6759`
+(derselbe Tree wie PR #266, Head `7737f29b`). Die unten dokumentierten **2690
+Backend-Unit- und 558 Frontend-Tests sind lokal bestanden**. Die tatsächlichen
+CI-Ergebnisse, ihre exakten Commitbezüge und die anschließend präzisierte
+Smoke-Assertion stehen im Prüfabschnitt; die Existenz eines Tests allein ist
+kein bestandener Lauf.
+
+| Nr. / ursprüngliches Kriterium | Konkrete Zuordnung und Prüfgrenze |
+|---|---|
+| **1. Referenz und Korrektur** | [Owner-Trace](../../tests/unit/backend/features/trade_position/test_projector_trace.py): `test_reference_contributions_and_full_cost_basis_provenance` und `test_explicit_effective_correction_preserves_original_and_changes_only_current_trace`. [PG-Wiederverwendung](../../tests/integration/backend/test_execution_currency_reuse_postgres.py): `test_one_confirmed_purchase_qualifies_sales_additional_purchase_and_price_correction` prüft **10/50 → 30/70 EUR**, einmal bestätigten BUY, Nachkauf und SELL-Korrektur ohne zusätzliche Erklärung. Browserzuordnung unter Nr. 9. |
+| **2. Offene Position, BUY und Ausschlüsse** | [Owner-Trace](../../tests/unit/backend/features/trade_position/test_projector_trace.py): `test_reference_september_sales_already_exist_while_trade_is_open`, `test_buy_only_has_no_sell_contributions`. [Report-Units](../../tests/unit/backend/features/performance/test_report.py): `test_completely_examined_empty_selection_is_explicit` mit `buy_only`/`cancelled`. Eigene EXTERNAL-Ausführungen werden in den PG-Fällen erfasst. Reine externe Beobachtungen sind durch die [Reader-Quellen](../../backend/app/features/performance/service/reader.py) ausgeschlossen; dafür besteht kein eigener isolierter negativer Berichtstest. |
+| **3. Belegte Währung und Herkunft** | [Resolver-Units](../../tests/unit/backend/features/trade_position/test_currency_resolution.py): `test_later_buy_cannot_fill_earlier_unknown_costs_or_seed_an_incomplete_prefix`, `test_same_side_correction_chain_preserves_exact_nearest_confirmed_ancestor` sowie Scope-/Mischwährungsfälle. [PG-Report](../../tests/integration/backend/test_realized_gross_report_postgres.py): `test_legacy_unknown_listing_changes_and_one_explicit_purchase_confirmation`. [Report-Units](../../tests/unit/backend/features/performance/test_report.py): `test_eur_and_usd_are_explicit_separate_selections_without_fx`, `test_previous_sale_revenue_currency_does_not_poison_later_cost_basis`. Der Browserfall verwendet USD-Listing/Strike bei tatsächlicher EUR-Kaufbestätigung. |
+| **4. Leer, unbekannt, Null und Teilbetrag** | [Report-Units](../../tests/unit/backend/features/performance/test_report.py): `test_unconfirmed_real_facts_are_not_a_zero_or_an_empty_selection`, `test_partial_known_zero_and_complete_zero_remain_measured_results`. [PG-Wiederverwendung](../../tests/integration/backend/test_execution_currency_reuse_postgres.py): `test_mixed_costs_and_explicit_conflicting_sales_preserve_facts_and_partial_coverage`. [UI](../../frontend/src/features/performance/pages/RealizedGrossPage.test.tsx): `keeps an empty reviewed set distinct from entirely unresolved facts and from a measured rounded zero`. |
+| **5. Datum, Zeitzone und Korrektur** | [Perioden-Units](../../tests/unit/backend/features/performance/test_periods.py): `test_calendar_days_use_separate_local_boundaries`, `test_precise_instants_obey_half_open_month`, `test_date_only_possible_day_is_preserved` und ungültige Quellenzeiten. Konkret Berlin **29.03.2026 (23 Stunden)**, **25.10.2026 (25 Stunden)**, Jahresgrenze, beide Herbst-Offsets sowie Date-only-Überlappungen aus Tokyo/New York. Die [Referenzfixtures](../../tests/unit/backend/features/performance/fixtures.py) erfassen wirtschaftliche Fakten von 2026 erst 2031. [PG-Report](../../tests/integration/backend/test_realized_gross_report_postgres.py): `test_repeatable_read_allows_committed_owner_corrections_without_mixed_response[date]`. DST ist hier ein Domain-Nachweis, keine behauptete vollständige Browser-DST-Abdeckung. |
+| **6. Gemeinsame Basis, Zähler und UI-Rennen** | [API-Units](../../tests/unit/backend/features/performance/test_api.py): `test_service_uses_only_one_snapshot_and_validates_first`. [Report-Units](../../tests/unit/backend/features/performance/test_report.py): `test_sort_and_source_fingerprint_are_stable_between_unchanged_reads` und Rundungsdifferenzen. [UI](../../frontend/src/features/performance/pages/RealizedGrossPage.test.tsx): `does not derive totals from the visible page or convert high-precision money through a float`; `invalidates visible results immediately and ignores older success and failure responses after filter changes`; gesonderter Test für falsche Filter und markierten Basiswechsel. PG-Report prüft Zählidentitäten und vollständige Quellen. |
+| **7. Konkurrierende Korrektur** | [PG-Report](../../tests/integration/backend/test_realized_gross_report_postgres.py): `test_repeatable_read_allows_committed_owner_corrections_without_mixed_response`, parametrisiert mit `price`, `date`, `currency`. [PG-Wiederverwendung](../../tests/integration/backend/test_execution_currency_reuse_postgres.py): `test_repeatable_read_keeps_all_inherited_currencies_on_one_committed_basis`. Tatsächlicher Writer-Commit zwischen Reader-Abfragen, vollständiger Alt-/Neustand und Writer-Fortschritt; keine globale Serializable-Zusage. |
+| **8. Lernen unabhängig, GET ohne Nebenwirkungen** | [PG-Report](../../tests/integration/backend/test_realized_gross_report_postgres.py): `test_real_captures_qualified_report_complete_sources_and_no_get_side_effects` prüft Tabellen-Fingerprints und abgefangene externe Transporte. [PG-Lernunabhängigkeit](../../tests/integration/backend/test_realized_gross_learning_independence_postgres.py): `test_report_ignores_persisted_incomplete_observation_and_stale_review`. Tatsächlich gespeichertes `ACTIVE` mit `ready=False`/`POST_TRADE_OBSERVATION_INCOMPLETE`, danach gespeichertes `STALE` mit `EXIT_REVIEW_STALE`; kein erfundenes persistiertes `NOT_READY`-Enum. Lerninhalte bleiben durch den Bericht unverändert. |
+| **9. Backend-Owner und echter Browserweg** | [API-Units](../../tests/unit/backend/features/performance/test_api.py): `test_response_transmits_complete_exact_strings_sources_and_definition`. [Echter Browserfall](../../tests/e2e/realized-gross-report-postgres.spec.ts): `real PostgreSQL: purchase currency once, inherited sales, sources and correction` verbindet Workspace-Selection, BUY/SELL über UI, Bericht, Einzelbeiträge, Herkunft, Korrektur und einmalige historische BUY-Bestätigung mit Owner-API und PostgreSQL. Der bestandene echte CI-Lauf ist unten dokumentiert; UI-Mocks ersetzen ihn nicht. |
+| **10. Gates und begrenzter Abschluss** | Unverändert: [Backend-Gate](../../scripts/check-backend.sh), [Frontend-Gate](../../scripts/check-frontend.sh), [E2E-Gate](../../scripts/run-e2e.sh) und [Owner-Browserrunner](../../scripts/run-realized-gross-e2e.sh). Vertrags-/Backlogkonsistenz wird durch Dokumentreview geprüft, nicht durch einen einzelnen Unit-Test bewiesen. Vollständige aktuelle CI-Ergebnisse werden unten ergänzt. |
+
+`PositionProjector` und Snapshotreader sind gegenüber dem Ausgangscommit
+unverändert. Ein Snapshot gilt für eine vollständige Antwort; ein neuer GET darf
+eine neue, sichtbar markierte Basis liefern. Unbekannte frühere BUY-Währungen,
+gemischte Kosten und ausdrücklich widersprüchliche Erlöswährungen bleiben echte
+Datenlücken. **Reale Nutzerbestandsabdeckung, PC-Installation und PC-Abnahme sind
+nicht beobachtet.** Weder diese Zuordnung noch ein später grüner CI-Lauf erklärt
+den gesamten ursprünglichen M8-Umfang für abgeschlossen.
+
 ## Prüfungen und Auslieferung
 
 ### Lokale Qualifikation am 20.10.2026
@@ -138,7 +168,7 @@ erster Frontend-Gatelauf fand vier Lintfehler im neuen Testcode; diese sind
 behoben und das vollständige Gate wurde danach bestanden. Hängende
 Standard-Sandbox-Versuche wurden abgebrochen und zählen nicht als Nachweis.
 
-### Noch erforderlicher vollständiger Integrationsnachweis
+### Lokale Werkzeuggrenze und tatsächlicher CI-Nachweis
 
 Lokal fehlen Docker und PostgreSQL-Werkzeuge. Der vorhandene Vorprüfbefehl
 `bash scripts/verify-release-readiness.sh` meldet deshalb mit Exit 1
@@ -149,8 +179,92 @@ synthetischen Daten erfolgreich sein. Der separate Owner-Browserrunner prüft
 weiterhin genau einen bestandenen Test, keine Skips, Flaky-Ergebnisse oder
 Retries, keine externen Browseraufrufe und die begrenzte Stackbereinigung.
 
-Der endgültige PR-/Commitbezug und diese aktuellen CI-Ergebnisse werden nach
-Ausführung ergänzt. Vorhandene grüne V1.5.9-Läufe gelten nicht als Nachweis
-dieser Änderung. Keine Schemaänderung oder automatische Änderung vorhandener
-Bestände ist nötig. Ein veröffentlichter Tag ist weiterhin kein Nachweis einer
-aktualisierten PC-Installation.
+Der veröffentlichte Umsetzungskommit ist
+**`7737f29b35b9a1f8dc1a68c0a88a684ed73aafc4`** in
+[PR #266](https://github.com/burckhju/trading-workspace/pull/266). Der lokale
+Commit `a31551733bb86ff3cfda1cee5beb20eb6d1e6759` und der tatsächliche
+CI-Merge-Commit **`a124fa73e0aeba3e01a5c25405db3c332579e786`** besitzen denselben
+vollständigen Tree **`116dce899c6bdc65b84a6dbe845dead9b30eed98`**. Damit sind
+lokale und CI-Codebasis exakt gebunden.
+
+| CI-Prüfung auf diesem Code | Ergebnis und Nachweis |
+|---|---|
+| Erster vollständiger Backend-Lauf einschließlich PostgreSQL | **2886 bestanden, 3 fehlgeschlagen**, eine bestehende Warnung, 830,73 s; Coverage **87,30 %** bei unverändertem Minimum 85 %. Ruff, Black, Mypy und Migration bestanden; **kein grünes Gesamtgate**. [Job 118476943159](https://github.com/burckhju/trading-workspace/actions/runs/39376893297/job/118476943159). Die drei Testkorrekturen sind unten getrennt benannt. |
+| Frontend | **558 Tests / 111 Dateien bestanden**, Coverage und Build erfolgreich; [Run 39376893203](https://github.com/burckhju/trading-workspace/actions/runs/39376893203). |
+| Owner-Browser auf echtem PostgreSQL | **1 bestanden, 0 übersprungen, 0 flaky, 0 Retries**, 6,0 s; [Job 118476943101](https://github.com/burckhju/trading-workspace/actions/runs/39376893295/job/118476943101). |
+| Produktionsimage und Renderer | `Backend / restrictive-umask image` und `Backend / issuer renderer sandbox` bestanden; [Backend-Run](https://github.com/burckhju/trading-workspace/actions/runs/39376893297). |
+| Veröffentlichungsgrenzen | bestanden; [Run 39376893286](https://github.com/burckhju/trading-workspace/actions/runs/39376893286). Der Tag-Job ist auf einem PR absichtlich nicht ausgeführt. |
+| Erster allgemeiner Smoke-Lauf | **54 bestanden, 1 fehlgeschlagen, 3 bestehende Sicherheits-Skips**; kein grüner Gesamt-E2E-Nachweis. Die einzige fehlgeschlagene Assertion und die erforderliche Wiederholung sind nachfolgend erklärt. |
+
+Das Owner-Artefakt `realized-gross-owner-e2e`, ID **12243423173**, wurde
+heruntergeladen und gegen SHA-256
+`f0871200fa2df103cae00074c7444d97bf45843e13bd72260bd96ee100f1fe21` geprüft.
+Es belegt PostgreSQL **17.11**, Schema **`20261017_0047`**, den nur für diesen
+Lauf erzeugten Compose-/Datenbanknamen und unveränderte Fingerprints aller
+**103 öffentlichen Tabellen** während des Lesens. Sechs Ausführungen benötigen
+nur **eine** tatsächliche Kaufwährungsbestätigung. Die beigefügten API-Antworten
+unterscheiden **10 EUR**, korrigierte **30 EUR**, `NOT_COMPUTABLE` mit
+`total=null`, einen gemessenen Nullbeitrag und `EMPTY`. Die Desktop-/Mobilbilder
+wurden gelesen; Quellenanzeige und markierter Basiswechsel stimmen mit diesen
+Antworten überein. Die Bereinigung entfernte ausschließlich den eigenen
+UUID-Stack samt Test-Volume und Netzwerken.
+
+### Gezielte Testkorrekturen und Freigabegrenze
+
+Der erste vollständige PostgreSQL-Lauf fand drei Fehler im Testaufbau bzw.
+in bestehenden exakten Response-Erwartungen:
+
+- Der Legacy-Journal-Migrationstest verwendete die aktuelle Capture-API erst
+  nach einem Downgrade auf Schema 0045. Die neue reine Herkunftsableitung liest
+  dann eine absichtlich noch nicht vorhandene 0047-Tabelle. Die wirtschaftliche
+  Buchung wird deshalb vor dem Downgrade auf aktuellem Schema durch ihren Owner
+  erfasst. Nach geschlossenem Client wird der leere neue Journal-/Currency-Stand
+  zurückgenommen; der alte FINAL-Fakt wird weiterhin auf 0045 angelegt und
+  anschließend vorwärts migriert. Die Herkunft bleibt unbekannt und alle
+  bisherigen Integritätsassertions bleiben bestehen. Kein Produktionsfallback
+  auf ein veraltetes Schema und kein `alembic stamp`.
+- Eine weitere vollständige Currency-History-GET-Erwartung enthielt nur
+  `current`/`history`. Die zusätzliche `currency_resolution` wird nun ebenfalls
+  exakt geprüft, einschließlich tatsächlicher Execution-/Confirmation-IDs.
+- Der neue Mixed-/Conflict-Test legte seinen zweiten Trade über einen zweiten
+  Produktaufbau mit demselben Test-Ticker an und scheiterte bereits an der
+  bestehenden Listing-Eindeutigkeit. Der Testaufbau verwendet ein gemeinsames
+  Underlying/Listing und drei ausdrücklich getrennte Owner-Produkte; die
+  Trade-, Mischwährungs- und
+  Teilabdeckungsassertions bleiben erhalten. Der Constraint bleibt unverändert.
+
+Der erste Smoke-Lauf verglich in
+[`trade-execution-dates.spec.ts`](../../tests/e2e/trade-execution-dates.spec.ts)
+die komplette alte SELL-Timelinezeile vor/nach Ersetzung. Die neu hinzugefügte
+`currency_resolution` ist jedoch eine aktuelle Ableitung: Ein wirksamer,
+unbekannter SELL nennt den vorherigen BUY als ungeklärte Quelle; ein ersetzter
+historischer SELL erhält ausdrücklich keinen erfundenen früheren BUY-Präfix.
+Alle gespeicherten Ausführungsfakten blieben gleich.
+
+Der Test prüft nun den exakten unbekannten BUY-Präfix vor der Korrektur, die
+**vollständige** alte Zeile mit ausdrücklich leerer historischer Ableitung und
+den richtigen Präfix am neuen wirksamen SELL. Menge, Preis, Datum, Bestände,
+Ergebnis und Supersession bleiben ausdrücklich geprüft. Keine Assertion wurde
+gestrichen, kein Skip hinzugefügt und kein Runner/Gate geändert. Der geänderte
+E2E-Teilbaum ist **`85b2d129284cf2df5e01963fec6ab463a604ded7`**. Anwendung,
+Frontend und Backend-Unit-Testbaum bleiben exakt wie oben. Die drei beschriebenen
+PostgreSQL-Testkorrekturen verändern ausschließlich ihren Integrationstestbaum.
+Dieser ist nun **`3b5f9d1ff6629d77c9346e7911a899f0a6a09035`**.
+Ruff, Black, gezielte Collection und Diffprüfung wurden erneut bestanden;
+Collection ist weiterhin kein PostgreSQL-Pass.
+
+Die drei vorhandenen Smoke-Skips betreffen die eigens abgesicherten Journal-,
+FT-011-Historien- und Realisations-Browserfälle. Der hier erforderliche
+Realisationsfall wird im getrennten Owner-Job tatsächlich ausgeführt und darf
+dort nicht übersprungen werden. Die beiden Lernprozess-Browserfälle sind durch
+diesen Auftrag nicht neu qualifiziert; ihre Backend-Gates bleiben enthalten.
+
+Nach diesen Testkorrekturen müssen **sämtliche Gates auf dem aktuellen
+PR-Head erneut erfolgreich sein**. Die exakten abschließenden Run-/Headbezüge
+und danach der tatsächlich veröffentlichte main-/Tag-Commit werden im
+[PR #266](https://github.com/burckhju/trading-workspace/pull/266) festgehalten.
+Nur dieser erfolgreiche aktuelle Stand erlaubt den bereits autorisierten
+normalen Merge. Der bestehende Version-Workflow veröffentlicht `v1.5.10` erst
+nach grünen Backend-, Frontend- und End-to-End-Push-Läufen auf genau dem
+aktuellen main-Commit. Vorhandene grüne V1.5.9-Läufe gelten nicht als Nachweis
+dieser Änderung. Ein Tag ist weiterhin kein Nachweis einer PC-Installation.
