@@ -5,6 +5,25 @@ Dieser Bericht liefert begrenzte technische Nachweise für Planungssicht 2,
 [Product Backlog](../planning/PRODUCT_BACKLOG.md#market-data-refresh), ergänzt um
 [Datenqualität](../planning/PRODUCT_BACKLOG.md#market-data-quality).
 
+## Aktueller Releaseauftrag: v1.5.12
+
+Der Nutzer hat Merge und PC-Bereitstellung unter der Bedingung grüner Prüfungen
+ausdrücklich autorisiert. Die [Release-Notiz](../releases/V1.5.12-SNAPSHOT-QUOTE-PACING.md)
+begrenzt den Umfang auf den gewählten Snapshot-Pacing-Fix samt qualifizierten
+Tests und Dokumentation, ausgehend von v1.5.11 / Main
+`5e9ede2dc29f52eaff601d30614df6bc9c25c426`. Frühere Hinweise auf einen noch nicht
+beauftragten Merge oder Release dokumentieren den damaligen Arbeitsauftrag.
+
+Die grüne PR-CI auf `25a59069efc2016e4cd5139589bb1bac4aea6716` ist die vorherige
+Codequalifikation. Der finale Versionsstand muss erneut grün geprüft werden;
+anschließend verlangt der unveränderte Autotag-Workflow erfolgreiche Backend-,
+Frontend- und End-to-End-Läufe auf dem tatsächlichen aktuellen Main-Push.
+Neue Prüfungen, Tag und PC-Installation werden hier nicht vorweggenommen.
+Die vollständigen finalen SHA-/Run-/Tagbezüge werden in
+[PR #271](https://github.com/burckhju/trading-workspace/pull/271) und der
+abschließenden Übergabe nachgetragen. Aufgabenstatus und fachliche Restgrenzen
+bleiben im Backlog; die nachfolgende Entscheidungshistorie bleibt erhalten.
+
 ## Nachtrag: Variante 2 entschieden
 
 **Aktuelle Entscheidung vom 21.10.2026:** Mit „wie vorgeschlagen gezielt ändern“

@@ -474,6 +474,15 @@ finalen PR-Head zugeordnet werden. Ihr Einstieg bleibt gegenüber `5e9ede2` und
 `bade0e33` unverändert. Der Arbeitsstatus bleibt bis zur Integration
 **Technical Review** im Backlog; keine neue CI-, Release- oder Betriebsabnahme.
 
+Mit „Wenn alles grün mergen und für den PC bereitstellen“ hat der Nutzer den
+anschließenden Integrations- und Release-Schritt ausdrücklich freigegeben.
+Die [Release-Notiz v1.5.12](../releases/V1.5.12-SNAPSHOT-QUOTE-PACING.md) verbindet
+diesen begrenzten TC-001-Schnitt mit dem vorhandenen PC-Updateweg. Der finale
+PR-Stand und danach der tatsächliche Main-Push müssen unverändert alle Gates
+bestehen. Commit-, Run- und veröffentlichter Tagbezug werden in
+[PR #271](https://github.com/burckhju/trading-workspace/pull/271) festgehalten;
+die technische Installation auf dem PC bleibt ein gesonderter Nachweis.
+
 ## FT-012 Journal write continuation — 2026-10-14
 
 [PB-019 Journal](../planning/PRODUCT_BACKLOG.md#pb-019-journal) →
