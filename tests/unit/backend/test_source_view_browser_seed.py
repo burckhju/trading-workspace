@@ -22,9 +22,7 @@ def seed_module(monkeypatch):
     return importlib.import_module("seed_source_view_prices")
 
 
-def test_seed_does_not_open_connection_when_report_guard_rejects(
-    seed_module, monkeypatch
-):
+def test_seed_does_not_open_connection_when_report_guard_rejects(seed_module, monkeypatch):
     guard = AsyncMock(side_effect=RuntimeError("Unmarked or non-disposable database"))
     engine = Mock(side_effect=AssertionError("Must not connect"))
     monkeypatch.setattr(seed_module, "verify", guard)
@@ -35,18 +33,12 @@ def test_seed_does_not_open_connection_when_report_guard_rejects(
     engine.assert_not_called()
 
 
-def setup_engine(
-    seed_module, monkeypatch, *, database=DATABASE, marker=None, relation=1, count=0
-):
+def setup_engine(seed_module, monkeypatch, *, database=DATABASE, marker=None, relation=1, count=0):
     connection = Mock()
     connection.scalar = AsyncMock(
         side_effect=[
             database,
-            (
-                marker
-                if marker is not None
-                else f"synthetic realized-gross browser {RUN_ID}"
-            ),
+            (marker if marker is not None else f"synthetic realized-gross browser {RUN_ID}"),
             relation,
             count,
         ]
@@ -63,9 +55,7 @@ def setup_engine(
         "verify",
         AsyncMock(return_value={"database": DATABASE, "run_id": RUN_ID}),
     )
-    monkeypatch.setenv(
-        "TRADING_WORKSPACE_TEST_DATABASE_URL", "unused-after-mocked-guard"
-    )
+    monkeypatch.setenv("TRADING_WORKSPACE_TEST_DATABASE_URL", "unused-after-mocked-guard")
     return connection, engine
 
 
