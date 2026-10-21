@@ -1,0 +1,34 @@
+name: Export pinned closed report source
+on:
+  push:
+    branches: [transport/closed-source-integration-20261021]
+    paths: [.github/workflows/closed-source-export.yml]
+permissions:
+  contents: read
+jobs:
+  export:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: de413843a814ac6a1016f474f3e5366cd81ea96a
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify and export only repository source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = de413843a814ac6a1016f474f3e5366cd81ea96a
+          test "$(git rev-parse HEAD^{tree})" = 48c79ad82ed8df23e261f4ea8c7f14df7e46a7b8
+          mkdir "$RUNNER_TEMP/closed-source-export"
+          git bundle create "$RUNNER_TEMP/closed-source-export/source.bundle" HEAD
+          git log -1 --format='%H %T' > "$RUNNER_TEMP/closed-source-export/identity.txt"
+          git ls-tree -r --name-only HEAD | grep -E '(^|/)AGENTS.md$' > "$RUNNER_TEMP/closed-source-export/agent-paths.txt" || test "$?" -eq 1
+          cd "$RUNNER_TEMP/closed-source-export"
+          sha256sum source.bundle identity.txt agent-paths.txt > SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pinned-closed-report-source
+          path: ${{ runner.temp }}/closed-source-export/
+          retention-days: 14
