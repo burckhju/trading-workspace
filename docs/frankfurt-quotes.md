@@ -609,8 +609,12 @@ Last-only provenance is exported separately. Production bid/ask data access and
 ## Source-mode pacing qualification (2026-10-21)
 
 The [TC-001 qualification report](reviews/MARKET_DATA_SOURCE_MODE_PACING_2026-10-21.md)
-binds the current behavior to `main` `5e9ede2` and a separate test commit. It does
-not activate a source or change production pacing. Task status remains in the
+preserves the historical C decision at documentation head `bade0e33`, with
+production base `5e9ede2` and characterization test commit `3d477326`. The later
+user decision selects variant 2: normalized snapshot quote calls omit the
+additional scheduler pause. The report's decision addendum separates that new
+contract and its implementation evidence from the earlier results.
+Task status remains in the
 [existing refresh backlog entry](planning/PRODUCT_BACKLOG.md#market-data-refresh).
 
 One application container shares a Frankfurt client across discovery, scheduled
@@ -630,14 +634,44 @@ size, schema, source, declared-delay and error-backoff boundaries; they make no
 HTTP request. Public instrument 404s remain distinct from a complete snapshot
 endpoint's 404, and longer Retry-After deadlines remain intact.
 
-The scheduler currently also calls `_pace()` before every selected, active,
-validated `FRANKFURT_QUOTES` route in all three modes. Public discovery uses the
-same pacer and client. Direct interactive cache reads do not use that scheduler
-pacer. A controlled two-listing example records one 14-second scheduler pause
-even when the second HTTPS/file read is a hit and total transport access remains
-one. The relevant contract does not explicitly settle whether this extra pause
-must apply to normalized snapshot cache readers. Its removal therefore remains
-a specific policy decision; no speedup or changed access rate is claimed here.
+At the historical C baseline, the scheduler called `_pace()` before every selected,
+active, validated `FRANKFURT_QUOTES` route in all three modes. Its controlled
+two-listing example recorded one 14-second scheduler pause even when the second
+HTTPS/file read was a hit and total transport access remained one. Those
+characterization results remain evidence of the earlier behavior.
+
+### Decision addendum: normalized quote calls
+
+The user instruction "wie vorgeschlagen gezielt ändern" resolves the previous
+policy question. Scheduled `HTTPS_JSON` and `LOCAL_FILE` quote calls now use the
+existing resolver without the extra `_pace()` call. This rule covers both cache
+hits and misses. Public quote calls and Public discovery retain their scheduler
+pacing. Route eligibility still follows the selected active, validated provider
+mapping; no MIC filter or new source selection rule is introduced.
+
+The shared client remains responsible for every actual download or file read.
+Its lock, cache TTL, source permissions, request budget and error deadlines still
+apply. A cache miss during cooldown can therefore return the existing throttle
+error; skipping the scheduler pause creates no new retry or automatic wait. The
+existing retention path may expose an older observation with its original times
+and explicit refresh error. Direct interactive reads retain their existing path.
+
+The new acceptance case proves no scheduler sleep for the normalized second
+listing read at time 101 after the initial read at 100: two resolver calls still
+share one HTTP fetch or one file read, with the original retrieval timestamp.
+Public retains the 14-second wait and two exact-ISIN HTTP requests. The new
+implementation commit and executed test count are recorded separately in the
+report; the earlier successful tests do not establish this changed behavior.
+Job intervals and defaults remain unchanged, but an earlier completion can shift
+subsequent due times and cache reloads. Identical access totals over arbitrary
+long catalog runs are not guaranteed.
+
+Recovery can also happen later than in the earlier waiting scheduler path. For
+example, HTTP 429 at monotonic time 400 with `Retry-After: 120` keeps the client
+blocked until 520. Jobs finishing at 400/401 with disclosed historical fallback become due at
+700/701 under a 300-second interval. Client cooldown expiry does not wake them
+or add a retry. The report records the real `_job()` qualification of this case
+separately from the original cache-hit characterization.
 
 The tests preserve the existing limits and separately count resolver calls,
 pacing calls, actual waits and HTTP/file accesses. They cover cache expiry,

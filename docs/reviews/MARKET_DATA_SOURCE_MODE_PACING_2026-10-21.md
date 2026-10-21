@@ -5,15 +5,104 @@ Dieser Bericht liefert begrenzte technische Nachweise für Planungssicht 2,
 [Product Backlog](../planning/PRODUCT_BACKLOG.md#market-data-refresh), ergänzt um
 [Datenqualität](../planning/PRODUCT_BACKLOG.md#market-data-quality).
 
-## Entscheidung und Prüfidentität
+## Nachtrag: Variante 2 entschieden
 
-**Ergebnis C: gezielt offene Entscheidung, keine Produktionsänderung.** Public-
-Pacing bleibt erhalten. Die zusätzliche Schedulerpause vor zulässigen HTTPS-/
-Datei-Cachetreffern ist reproduziert, aber durch die gelesenen Verträge weder
-ausdrücklich ausgeschlossen noch als separat notwendige Regel bestätigt.
-Deshalb wird sie nicht als bewiesener Fehler entfernt. Die unabhängige Prüfung,
-synthetische Charakterisierung und Dokumentation sind durchgeführt; die
-beabsichtigte Snapshot-Schedulerregel bleibt offen.
+**Aktuelle Entscheidung vom 21.10.2026:** Mit „wie vorgeschlagen gezielt ändern“
+hat der Nutzer Variante 2 ausdrücklich gewählt. Normalisierte
+`HTTPS_JSON`-/`LOCAL_FILE`-Quoteaufrufe lassen die zusätzliche Schedulerpause
+entfallen. Die frühere offene C-Entscheidung ist damit abgelöst. Ihre Prüfung auf
+Testcommit `3d477326` und Dokumentationshead `bade0e33` bleibt unten als
+Vorherstand erhalten. Die begrenzte Umsetzung bleibt bis zur Integration im
+Arbeitsstatus **Technical Review**; dies ist keine vollständige fachliche
+Abnahme, Veröffentlichung oder Betriebsabnahme.
+
+### Beschlossener Vertrag und Auswirkungen
+
+`_warrant()` ruft `_pace()` für eine ausgewählte aktive, validierte
+`FRANKFURT_QUOTES`-Providerroute nur noch im Modus `PUBLIC_WEBSITE` auf.
+Normalisierte Quoteaufrufe gehen unmittelbar an den vorhandenen Resolver; die
+Ausnahme gilt für Cachehits und Cachemisses. Publicquote und Publicdiscovery
+bleiben beim bisherigen Pacing. Die Providerroute bestimmt weiter den Aufruf;
+es entsteht kein neuer MIC-Filter und kein alternativer Resolverpfad.
+
+Clientlock, tatsächliches Ladebudget, TTL, positive und negative Caches,
+Retry-After, Rechte und Zeitstempelregeln bleiben unverändert. Ein zulässiger
+Snapshot-Hit benötigt keine Schedulerpause. Ein Miss oder Fehler während eines
+gesperrten Clientslots umgeht weder die Sperre noch den vorhandenen
+Resolver-/Retentionpfad. Ohne frühere Beobachtung bleibt der geprüfte
+Throttlingpfad ein Fehler/MISSING; vorhandene Historie kann mit ursprünglichen
+Zeiten und explizitem `refresh_error` als Analysebeobachtung verfügbar bleiben.
+Es wird weder eine automatische Warte-/Wiederholungsschleife noch eine neue
+Recovery-Fälligkeit eingeführt.
+
+Die Jobintervalle beginnen weiterhin nach dem Jobabschluss. Ein früherer
+Abschluss verschiebt daher spätere Fälligkeiten und möglicherweise Reloads;
+identische Gesamtzugriffszahlen über beliebige lange Katalogläufe werden nicht
+zugesagt. Besonders an Fehlergrenzen kann die tatsächliche Erholung **später**
+erfolgen als im früheren, im Scheduler wartenden Ablauf: Erhält der Snapshot-
+Client bei monotoner Testzeit 400 eine HTTP 429 mit `Retry-After: 120`, bleibt
+seine Deadline 520.
+Jobs bei 400 und 401 können sofort vorhandene Historie mit `refresh_error`
+zurückgeben und werden bei 300 s Jobintervall regulär erst bei 700 bzw. 701
+wieder fällig. Das Ende des Clientcooldowns bei 520 weckt diese Jobs nicht.
+Diese Folge gehört zur gewählten Variante und wird mit dem echten `_job()`-
+Pfad qualifiziert; sie ist keine neue Recovery-Retrylogik.
+
+### Neuer Prüfstand und Abnahmenachweis
+
+| Nachweis | Identität / Aussage |
+|---|---|
+| Historische Charakterisierung | `3d47732665c8b66984923d88a65cf99e74d96791`, 322 gezielte Tests; Produktionsbasis `5e9ede2`. Die damaligen Ergebnisse werden nicht auf den neuen Code übertragen. |
+| Historischer C-Dokumentationshead | `bade0e33a67e21b9d2a7e504a798e95ba619dcd0`, Tree `563776df6a6103cb66e2411ace53297416f5722b`; Vorherstand von Draft-PR #271. |
+| Neuer Implementierungscommit | `187c16b63e0d4dc16b2204f80aec4533c34173e6`, Tree `57da8170fab57f8ea8f45618fd40b2555ad05ae3`; der lokal geprüfte Code-/Testbestand ist darin unverändert festgehalten. |
+| Vorher-/Nachher-Matrix | Dieselbe neue Drei-Modus-Matrix auf dem Produktionscode von `bade0e33`: 2 fehlgeschlagen (`HTTPS_JSON`/`LOCAL_FILE`: 115 statt 101), 1 bestanden (Public), 3 bewusst deselektiert. Nach der begrenzten Modusbedingung: 3 bestanden, 3 bewusst deselektiert. Der Hash der Matrixdatei ist zwischen diesen beiden Läufen identisch. Dies ist der gezielte Rot/Grün-Nachweis, kein vollständiger Lauf der Schedulerdatei oder Gesamtsuite. |
+| Neue gezielte Gesamtsuite | **344 bestanden, 0 Fehler/Skips/Deselektionen**, 1 bestehender Starlette/AnyIO-Deprecationhinweis, 10.90 s; keine automatischen Testretries. Die beiden neu angelegten Testdateien enthalten jetzt 35 Fälle (25 Client-/10 Kompositionsfälle). Gegenüber dem historischen 322er-Lauf: vier ergänzte Fälle und 18 bereits vorhandene Tests zur automatischen Quellenwahl zusätzlich ausgeführt. |
+| Vollständige statische Backendprüfungen | Ruff bestanden; Black: 968 Dateien unverändert; mypy: 552 Quelldateien ohne Befund. `git diff --check` bestanden. Keine Dependencies, Prüfeinstiege oder Assertions abgeschwächt. |
+| Vollständige Gates | Bestehende Einstiege unverändert gegenüber `5e9ede2` und `bade0e33`; neue finale PR-Checks am neuen Head nachweisen. Frühere grüne Runs belegen ausschließlich ihren damaligen Head. |
+
+Die neue Drei-Modus-Abnahme verwendet weiter echte Runtime, Resolver,
+Retained-Provider, Adapter und Client mit synthetischem Transport und eigener
+temporärer SQLite. Bei monoton 100/101 und Cache-TTL 300 s ist folgendes Verhalten nachgewiesen:
+
+| Modus | Resolver / `_pace()` | Tatsächliches Warten / zweiter Read | HTTP / Datei | Hit-Zeit |
+|---|---|---|---|---|
+| `PUBLIC_WEBSITE` | 2 / 2 | 14 s / 115 | 2 / 0 | Zwei verschiedene ISIN-Misses; zweiter Abruf `NOW+15` |
+| `HTTPS_JSON` | 2 / 0 | 0 s / 101 | 1 / 0 | Snapshot-Hit behält `retrieved_at=NOW` |
+| `LOCAL_FILE` | 2 / 0 | 0 s / 101 | 0 / 1 | Snapshot-Hit behält `retrieved_at=NOW` |
+
+Originalkurszeiten bleiben in allen Modi erhalten. Die Aufruf-, Sleep- und
+HTTP-/Dateizähler werden getrennt bewertet; keine neue Produktionsinjektion ist
+dafür erforderlich. Der Client-/Fehlervertrag und die unveränderten Lane-,
+Same-Cycle-, Konkurrenz- und Lifecyclefälle werden in der neuen gezielten Suite
+erneut erfolgreich geprüft. Ein vorhandenes Public-Testdouble erhält dafür ausdrücklich
+`settings.source_mode`; seine fachliche Assertion bleibt erhalten.
+
+Die Rot/Grün-Matrixdatei hatte in beiden gezielten Läufen SHA256
+`1bc948fd2d6d0cdaa45d47a062515d0668da7f28ee2160947fd4145814a18cfb`.
+Anschließend kamen die vier zusätzlichen Ablauf-/Fehlerfälle hinzu. Der lokale
+Dateifehlerfall belegt per direktem `_warrant()`-Aufruf die erneute
+Clientzugriffsbereitschaft bei 460/461, keine automatische Jobfälligkeit dort.
+Die normale automatische Fälligkeit ist separat im HTTPS-`_job()`-Fall geprüft.
+
+Die Fortschreibung der unten historisch erhaltenen Kriterien ist damit:
+
+| Kriterien | Aktuelle Einordnung |
+|---|---|
+| A01 | Die zuvor offene Snapshot-Semantik ist durch die ausdrückliche Nutzerentscheidung geklärt. |
+| A05 / A12 | Begrenzte Produktionsänderung mit identischem Drei-Modus-Test vor/nach Änderung; neuer Commit und Gesamtlauf sind oben getrennt zugeordnet. Die Aussage „keine Produktionsänderung“ gilt ausschließlich für den C-Vorherstand. |
+| A02–A04 / A06–A11 | Bestehende Route-, Client-, Datenqualitäts-, Fehler- und Lifecyclegrenzen bleiben maßgeblich. Ihre erneute erfolgreiche Ausführung am neuen Stand ist oben nachgewiesen; die 400/401→700/701-Fälligkeiten werden ausdrücklich geprüft. |
+| A13 / A14 | Eigener bestehender Aufgabenbranch, betroffene Dokumentationsfelder und unveränderte Gates; finale CI muss den neuen Head prüfen. Keine Integration, Release-, Liveprovider- oder PC-Abnahme daraus ableiten. |
+
+<a id="entscheidung-und-prüfidentität"></a>
+## Historischer C-Stand: Entscheidung und Prüfidentität
+
+**Damals Ergebnis C: gezielt offene Entscheidung, keine Produktionsänderung.**
+Public-Pacing blieb erhalten. Die zusätzliche Schedulerpause vor zulässigen
+HTTPS-/Datei-Cachetreffern war reproduziert, aber durch die gelesenen Verträge
+weder ausdrücklich ausgeschlossen noch als separat notwendige Regel bestätigt.
+Deshalb wurde sie in diesem ersten Schnitt nicht als bewiesener Fehler entfernt.
+Die unabhängige Prüfung, synthetische Charakterisierung und Dokumentation waren
+durchgeführt; die Snapshot-Schedulerregel war bis zur obigen Entscheidung offen.
 
 | Identität | Geprüfter Stand |
 |---|---|
@@ -23,13 +112,14 @@ beabsichtigte Snapshot-Schedulerregel bleibt offen.
 | Eigener Arbeitsbranch | `fix/market-data-source-mode-pacing`, eigener frischer Checkout |
 | Code-/Testcommit | `3d47732665c8b66984923d88a65cf99e74d96791` |
 | Code-/Test-Tree | `1b8dd1badb32e9a9d017ffd44656065f1021ac4b` |
-| Produktionsdiff | Kein Produktionscode geändert; zwei neue Testdateien, anschließend dieser Dokumentationsschnitt |
+| Dokumentationshead des C-Stands | `bade0e33a67e21b9d2a7e504a798e95ba619dcd0`, Tree `563776df6a6103cb66e2411ace53297416f5722b` |
+| Produktionsdiff im C-Stand | Kein Produktionscode geändert; zwei neue Testdateien, anschließend der damalige Dokumentationsschnitt |
 | Integration | Aufgabenbranch/Draft-PR; kein Merge, Release, Tag oder PC-Update beauftragt |
 
 `main` wurde vor dem Anlegen des Remote-Arbeitsbranches erneut auf denselben
-Commit geprüft. Der finale Dokumentationscommit und die dazugehörigen aktuellen
-PR-Checks werden in der Übergabe getrennt vom obigen lokalen Code-/Testnachweis
-benannt. Ein Dokumentationscommit ist kein zusätzlicher Testlauf.
+Commit geprüft. Der damalige Dokumentationshead `bade0e33` und seine PR-Checks
+sind vom lokalen Code-/Testnachweis `3d477326` sowie vom neuen Prüfstand getrennt
+zu lesen. Ein Dokumentationscommit ist kein zusätzlicher Testlauf.
 
 Gelesen: README, Development Guide, relevante Architektur-/Roadmap-/Katalog-/
 Backlog-/Traceabilityabschnitte, Frankfurt- und Schedulerbetriebsvertrag,
@@ -70,7 +160,7 @@ aus Parallelsträngen sind übernommen.
 
 ## Getrennte Verantwortungsebenen
 
-| Ebene | Heutige Verantwortung und Zeitbasis |
+| Ebene | Verantwortung und Zeitbasis im C-Vorherstand |
 |---|---|
 | Jobintervall | `_job()` setzt `_due` nach Abschluss mit monotoner Uhr. Warrant-, Discovery- und Underlyingintervalle sind getrennt; keine Startzeitgarantie. |
 | Schedulerpacing | `_pace()` wartet auf das Maximum aus eigener Restfrist und `request_delay_seconds()`. Danach setzt es den eigenen nächsten Slot auf `now + max(request_spacing_seconds, refresh_interval_seconds)`. |
@@ -82,13 +172,15 @@ aus Parallelsträngen sind übernommen.
 Die technischen Rechte-/Cache-/Fehlerregeln stehen im
 [Frankfurtvertrag](../frankfurt-quotes.md), die Intervall-/Pacing-/Leaderregeln in
 [Automatic market-data refresh](../automatic-market-data.md). Die dortige
-Beschreibung eigener Queue-Pacinguhren entscheidet die Ausnahme für
-Snapshot-Cacheleser nicht explizit. Der ältere
+Beschreibung eigener Queue-Pacinguhren entschied die Ausnahme für
+Snapshot-Cacheleser damals nicht explizit; der Nachtrag klärt sie jetzt. Der ältere
 [ADR-S3-006](../decisions/ADR-S3-006-RESILIENCE.md) gehört zum damaligen
 EODHD-Resilienzschnitt; seine drei Versuche und 30-s-Retry-After-Grenze werden
 nicht auf Frankfurts späteren Vertrag übertragen.
 
 ## Aufrufinventar
+
+Die folgende Tabelle beschreibt den C-Vorherstand.
 
 | Aufruf → Owner | Modus → Cache-Schlüssel | Tatsächlicher Zugriff | Limit / Zeitquelle | Fehler-/Wiederholung / Nachweisgrenze |
 |---|---|---|---|---|
@@ -107,6 +199,9 @@ Discovery-Throttle-Deferral in `_job()`, die Healthanzeige und
 
 ## Soll–Ist und Entscheidung je Modus
 
+Diese Tabelle hält den C-Stand fest. Die Snapshot-Entscheidungen in der letzten
+Spalte sind durch den obigen Nachtrag abgelöst.
+
 | Modus | Belegter Sollvertrag | Code / Ist | Echte Zugriffe im Zweilisting-Szenario | Erforderliche Wartebedingung | Entscheidung |
 |---|---|---|---|---|---|
 | `PUBLIC_WEBSITE` | Exakte ISIN/XSC, Freigaben, gemeinsame Quellgrenze; Cachehit ist kein Providerabruf | Publiccache je ISIN, gemeinsamer Lock/Cooldown; Scheduler wartet vor Frankfurtquote und Discovery | 2 HTTP, 0 Datei | Neuer uncached Abruf erst nach gemeinsamem Budget; Instrument-/Quellsperren zusätzlich | **No-change:** kein belegter Korrekturbedarf am Public-Pacing. |
@@ -114,6 +209,9 @@ Discovery-Throttle-Deferral in `_job()`, die Healthanzeige und
 | `LOCAL_FILE` | Explizite lokale JSON-Datei, begrenztes Lesen und identische Snapshot-/Frischeregeln; kein öffentlicher HTTP-Zugriff | Schlüssel `snapshot`, `to_thread(_read_file)`, höchstens `max_response_bytes + 1`; gleiche Zusatzpause | 0 HTTP, 1 Datei, zweiter Read HIT | Neuer Dateiread erst bei Cacheablauf und freiem Clientbudget; Dateifehler mindestens 60 s Backoff | **Gezielt offen:** dieselbe Schedulerregel entscheiden; lokale Datei begründet keine unbegrenzten Reads. |
 
 ### Entscheidungsfähige Varianten
+
+Die folgenden Varianten wurden im C-Stand vorbereitet. Variante 2 ist
+inzwischen ausdrücklich gewählt; Variante 1 wird nicht umgesetzt.
 
 1. **Bestehende Zusatzpause beibehalten und ausdrücklich bestätigen.** Sie gilt
    dann auch für Snapshot-Cacheleser. Abwärtskompatibilität ist vollständig;
@@ -125,19 +223,21 @@ Discovery-Throttle-Deferral in `_job()`, die Healthanzeige und
    Retry-After, Rechte und Datenqualität bleiben zwingend. Die beiden Leser des
    Tests könnten den vorhandenen Snapshot ohne die zusätzliche 14-s-Pause
    verarbeiten; der direkte Clienttest belegt dabei einen tatsächlichen Read.
-   Das ist keine bereits implementierte oder genehmigte Änderung. Schnellere
-   Jobabschlüsse können spätere Fälligkeiten und Reloadzeitpunkte verschieben;
+   Im C-Stand war dies noch keine implementierte oder genehmigte Änderung.
+   Schnellere Jobabschlüsse können spätere Fälligkeiten und Reloadzeitpunkte verschieben;
    gleiche Gesamtzugriffszahlen über beliebige lange Katalogläufe werden nicht
    zugesagt. An Cache-/Fehlergrenzen wäre dieser gewählte Pfad separat vor/nach
    zu qualifizieren.
 
-Die offene Frage ist genau die Semantik von `REQUEST_SPACING_SECONDS` für
-Snapshotresolver einschließlich Cachehits. Es fehlt keine pauschale erneute
+Die damals offene, nun entschiedene Frage war genau die Semantik von
+`REQUEST_SPACING_SECONDS` für Snapshotresolver einschließlich Cachehits.
+Es fehlt keine pauschale erneute
 Freigabe bereits erlaubter Quellen; aus Konfigurationsdefaults wird aber auch
 keine zusätzliche externe Nutzungsberechtigung abgeleitet.
 
 ## Synthetische, reproduzierbare Ergebnisse
 
+Die folgenden Ergebnisse gelten für den historischen Testcommit `3d477326`.
 Alle Zahlen sind Testparameter, keine Providerempfehlung. Monotone Startzeit
 100, Clientintervall und Schedulerabstand 15 s, Scheduler-Cache-TTL 300 s:
 
@@ -165,6 +265,9 @@ Wallclock; getestet sind relative `next_run_at`-Abstände und die separat
 injizierten monotonen Deadlines. Alle Grenzen sind prozesslokal.
 
 ## Ausgeführte lokale Prüfungen und Grenzen
+
+Dieser Abschnitt bewahrt die lokalen Ergebnisse des C-Vorherstands. Ergebnisse
+der anschließenden Produktionsänderung werden ausschließlich im Nachtrag ergänzt.
 
 | Prüfung | Tatsächliches Ergebnis |
 |---|---|
@@ -249,8 +352,9 @@ TRADING_WORKSPACE_NOTIFICATION__TELEGRAM__ENABLED=false \
 Die Zuordnung wurde vor Ergänzung der Tests festgelegt. `SM` bezeichnet
 `tests/unit/backend/features/market_data/test_refresh_source_modes.py`, `SC`
 bezeichnet `tests/unit/backend/providers/frankfurt_quotes/test_source_mode_contract.py`.
-Diese Tabelle bewertet diesen Prüfauftrag, nicht den Fertigstellungsgrad von
-Bereich 2. Übergreifender Aufgabenstatus bleibt im Backlog.
+Diese Tabelle bewahrt die Bewertung des ursprünglichen C-Prüfauftrags auf
+`3d477326`/`bade0e33`, nicht den Fertigstellungsgrad von Bereich 2. Die aktuelle
+Fortschreibung steht im Entscheidungsnachtrag; Aufgabenstatus bleibt im Backlog.
 
 | ID | Ergebnis / konkreter Nachweis |
 |---|---|
@@ -280,6 +384,6 @@ Lane wird nicht als vollständig unabhängige Ausführung aller Quellen bezeichn
 Reale Bestände, Providerzugänge, Zustimmungen, Benachrichtigungen, Modelle,
 Releases und PC-Installation wurden **nicht verändert**. Die vorhandenen
 Seiteneffekte von Refresh/Discovery/Retention wurden inventarisiert und im Test
-ausschließlich mit synthetischen Ressourcen ausgeführt. Eine spätere
-Verhaltensänderung, Integration oder Livebeobachtung benötigt ihre jeweils
-passende Entscheidung beziehungsweise Freigabe.
+ausschließlich mit synthetischen Ressourcen ausgeführt. Die begrenzte
+Verhaltensänderung ist inzwischen durch den obigen Nachtrag beauftragt.
+Integration und Livebeobachtung bleiben davon getrennte Schritte.
