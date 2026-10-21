@@ -232,3 +232,13 @@ Keine globale Snapshotgarantie, kein Merge/Release/Tag/Deployment und kein PC-Up
 Der Product Backlog bleibt die Aufgabenstatusquelle; der PR enthält die genaue
 nachfolgende Run-/Head-/Checkoutbindung, damit historische Ergebnisse nicht als
 Erfolge eines späteren Commits erscheinen.
+
+## 21.10.2026 — getrennte Integrationsfortschreibung
+
+Die oben als offen ausgewiesene Abschlusslisten-/Geldverbindung gehört zum
+historischen Stand von #272. Der gesondert beauftragte [Integrationsschnitt mit
+#270](CLOSED_TRADE_SOURCE_INTEGRATION_QUALIFICATION.md) ergänzt den vorhandenen
+Ownerbetrag, seinen vollständigen Quellenvertrag, erlaubten Rückkontext und
+Basiswechselanzeige. Dies ändert weder alte Nachweise noch deren Codebindung.
+Neue gemeinsame Tests und tatsächliche native Ausführung sind separat zu belegen;
+kein Merge nach main oder vollständiger M7/M8-Abschluss folgt aus dieser Ergänzung.

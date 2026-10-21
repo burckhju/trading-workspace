@@ -16,9 +16,11 @@ const periodText: Record<ClosedTradeSellContribution['period_status'], string> =
 export function ClosedTradeSources({
   item,
   report,
+  showEditorLink = true,
 }: {
   item: ClosedTradeItem;
   report: ClosedTradeReport;
+  showEditorLink?: boolean;
 }) {
   const [showHistory, setShowHistory] = useState(false);
   const tradeSources = report.sources.filter((source) => source.trade_id === item.trade_id);
@@ -221,12 +223,14 @@ export function ClosedTradeSources({
           ))}
         </ul>
       </details>
-      <Link
-        className="inline-block rounded text-sm text-sky-300 underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400"
-        to={`/trade-management?trade_id=${encodeURIComponent(item.trade_id)}#execution-dates`}
-      >
-        Buchungen und Währungsbestätigungen im Trade prüfen
-      </Link>
+      {showEditorLink && (
+        <Link
+          className="inline-block rounded text-sm text-sky-300 underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400"
+          to={`/trade-management?trade_id=${encodeURIComponent(item.trade_id)}#execution-dates`}
+        >
+          Buchungen und Währungsbestätigungen im Trade prüfen
+        </Link>
+      )}
     </section>
   );
 }

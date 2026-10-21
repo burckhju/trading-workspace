@@ -157,3 +157,20 @@ date-only boundaries, disjoint counts, coherent PostgreSQL correction races,
 unchanged read fingerprints and real browser → owner API → PostgreSQL journeys.
 Existing gates remain required. A completed development PR and synthetic proof
 remain separate from human acceptance, publication and target operation.
+
+## 2026-10-21 integration amendment: existing report → exact single-trade sources
+
+The user authorized the separate integration follow-up. The monetary definition,
+owner projection, complete currency qualification and snapshot reader do not change.
+The source view reads the existing closed report with explicit original filters,
+checks definition/filter/trade/product identity, and renders the selected item and
+its monetary sources from that single response. Optional plan/review/journal/lesson
+reads remain separate and labelled; they do not confirm this financial snapshot.
+
+Navigation carries only a validated flat allowlist and an optional whole-report
+fingerprint. That fingerprint may change because of another trade or reference
+metadata: it is not a per-trade change assertion, a signed URL or an old report
+store. Return reads anew, preserving the supported row filter and local page;
+an unavailable original page is announced. No generic `returnTo`, URL money,
+additional financial arithmetic, persistence or new methodology is accepted.
+See the [integration qualification map](../implementation/CLOSED_TRADE_SOURCE_INTEGRATION_QUALIFICATION.md).

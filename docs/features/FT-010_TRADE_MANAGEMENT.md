@@ -456,3 +456,20 @@ amount is not presented as a qualified total.
 [Source contract, native source-path evidence and explicit remaining integration limits](../implementation/TRADE_SOURCE_VIEW_QUALIFICATION.md)
 document this local development slice. This amendment does not establish release,
 installation, complete A1–A16 acceptance or a general trade-quality methodology.
+
+## 2026-10-21: closed-report integration follow-up
+
+The independent source-view boundary above is historical to PR #272. On the
+separate integration branch, the existing closed report from PR #270 now supplies
+one complete qualified trade item and its monetary provenance in one response.
+The source mode reuses `ClosedTradeSources`; it adds no financial endpoint,
+calculation, write owner or migration. Optional source sections remain independent
+read windows, never a claimed global snapshot or automatic assessment.
+
+A list link carries allowlisted filters, local row view/page and the whole-report
+fingerprint, not money. Exact journal/review pins retain that context. Return is a
+fixed internal closed-report route and a fresh read; changed report basis and
+unavailable old pages are explicit. Invalid/duplicate context is not silently
+repaired. Direct source entry without financial context stays usable without an
+unqualified replacement amount. See the [integration contract and qualification
+map](../implementation/CLOSED_TRADE_SOURCE_INTEGRATION_QUALIFICATION.md).

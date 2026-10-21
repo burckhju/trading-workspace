@@ -21,6 +21,7 @@ from tests.integration.backend.learning.test_journal_write_postgres import (
     first,
     ready,
 )
+from tests.integration.backend.test_closed_trades_report_postgres import OCTOBER, URL
 from tests.integration.backend.test_realized_gross_report_postgres import (
     BASE,
     QUERY,
@@ -103,6 +104,13 @@ def test_real_reference_sources_correction_and_optional_absence_are_read_only(
             assert Decimal((await _report(client))["summary"]["total"]) == Decimal("10")
             all_months = QUERY | {"from_date": "2026-08-01", "to_date": "2026-10-31"}
             assert Decimal((await _report(client, all_months))["summary"]["total"]) == Decimal("50")
+            closed_response = await client.get(URL, params=OCTOBER)
+            assert closed_response.status_code == 200, closed_response.text
+            closed_original = closed_response.json()
+            assert closed_original["definition_version"] == "closed-trade-gross-v1"
+            assert Decimal(closed_original["items"][0]["realized_gross_pnl"]) == Decimal("50")
+            assert closed_original["items"][0]["trade_id"] == tid
+            assert {e["execution_id"] for e in closed_original["sources"]} == set(ids)
             for section in ("reviews", "journal"):
                 response = await client.get(
                     f"{BASE}/trades/{tid}/sources/{section}?version_id={uuid4()}"
@@ -134,6 +142,18 @@ def test_real_reference_sources_correction_and_optional_absence_are_read_only(
             assert len(new["currency_history"]) == 1
             assert Decimal((await _report(client))["summary"]["total"]) == Decimal("30")
             assert Decimal((await _report(client, all_months))["summary"]["total"]) == Decimal("70")
+            closed_response = await client.get(URL, params=OCTOBER)
+            assert closed_response.status_code == 200, closed_response.text
+            closed_new = closed_response.json()
+            assert Decimal(closed_new["items"][0]["realized_gross_pnl"]) == Decimal("70")
+            assert closed_new["basis"]["id"] != closed_original["basis"]["id"]
+            assert len(closed_new["sources"]) == 7
+            assert (
+                next(e for e in closed_new["sources"] if e["execution_id"] == ids[4])[
+                    "is_effective"
+                ]
+                is False
+            )
             assert await _state(database.engine) == after_write
 
     asyncio.run(exercise())

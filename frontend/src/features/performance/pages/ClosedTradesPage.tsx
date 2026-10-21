@@ -1,10 +1,20 @@
-import { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 
 import { todayInZone } from '../../trade/services/executionDateCorrection';
 import { ClosedTradeSources } from '../components/ClosedTradeSources';
 import { ClosedTradeSummary } from '../components/ClosedTradeSummary';
 import { performanceApiClient } from '../services/client';
+import {
+  CLOSED_REPORT_PAGE_SIZE,
+  closedContextQuery,
+  closedFiltersError,
+  closedTradeSourceLink,
+  parseClosedContext,
+  verifyClosedReport,
+  type ClosedReportContext,
+  type ClosedReportView,
+} from '../services/closedReportContext';
 import {
   classificationText,
   closedTradeGroupText,
@@ -17,7 +27,7 @@ const inputClass =
   'mt-1 block w-full min-w-0 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2';
 const buttonClass =
   'rounded-lg border border-slate-600 px-3 py-2 text-sm disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400';
-const PAGE_SIZE = 20;
+const PAGE_SIZE = CLOSED_REPORT_PAGE_SIZE;
 
 function initialFilters(): RealizedGrossFilters {
   const today = todayInZone('Europe/Berlin');
@@ -29,9 +39,24 @@ function initialFilters(): RealizedGrossFilters {
   };
 }
 
-function ReportContent({ report }: { report: ClosedTradeReport }) {
-  const [view, setView] = useState('candidates');
-  const [page, setPage] = useState(0);
+function ReportContent({
+  report,
+  context,
+  onContext,
+}: {
+  report: ClosedTradeReport;
+  context: ClosedReportContext | null;
+  onContext: (context: ClosedReportContext) => void;
+}) {
+  const view = context?.view ?? 'candidates';
+  const requestedPage = context?.page ?? 0;
+  const navigateView = (nextView: ClosedReportView, nextPage: number) =>
+    onContext({
+      filters: report.filters,
+      basis: report.basis.id,
+      view: nextView,
+      page: nextPage,
+    });
   const [expanded, setExpanded] = useState<string | null>(null);
   const { counts, filters } = report;
   const items = report.items.filter((item) => {
@@ -42,6 +67,7 @@ function ReportContent({ report }: { report: ClosedTradeReport }) {
     return true;
   });
   const pages = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
+  const page = Math.min(requestedPage, pages - 1);
   const visible = items.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
   return (
     <div className="space-y-6" aria-label="Abschlussbericht">
@@ -63,8 +89,7 @@ function ReportContent({ report }: { report: ClosedTradeReport }) {
               className={inputClass}
               value={view}
               onChange={(event) => {
-                setView(event.target.value);
-                setPage(0);
+                navigateView(event.target.value as ClosedReportView, 0);
                 setExpanded(null);
               }}
             >
@@ -80,6 +105,12 @@ function ReportContent({ report }: { report: ClosedTradeReport }) {
             </select>
           </label>
         </div>
+        {requestedPage !== page && (
+          <p role="status">
+            Die ursprüngliche Seite {requestedPage + 1} ist im neu gelesenen Stand nicht mehr
+            verfügbar. Angezeigt wird Seite {page + 1}; Zeitraum und Zeilenfilter bleiben erhalten.
+          </p>
+        )}
         {items.length === 0 && (
           <p className="rounded-lg border border-slate-800 p-4 text-sm">
             Keine Trades in diesem Zeilenfilter. Die Berichtssumme und Datenabdeckung oben bleiben
@@ -100,7 +131,12 @@ function ReportContent({ report }: { report: ClosedTradeReport }) {
                   </h3>
                   <Link
                     className="mt-1 inline-block break-all rounded text-xs text-sky-300 underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400"
-                    to={`/trade-management?trade_id=${encodeURIComponent(item.trade_id)}#execution-dates`}
+                    to={closedTradeSourceLink(item.trade_id, {
+                      filters: report.filters,
+                      basis: report.basis.id,
+                      view,
+                      page,
+                    })}
                   >
                     Trade {item.trade_id} prüfen
                   </Link>
@@ -174,7 +210,7 @@ function ReportContent({ report }: { report: ClosedTradeReport }) {
                 className={buttonClass}
                 disabled={page === 0}
                 onClick={() => {
-                  setPage((value) => value - 1);
+                  navigateView(view, page - 1);
                   setExpanded(null);
                 }}
               >
@@ -185,7 +221,7 @@ function ReportContent({ report }: { report: ClosedTradeReport }) {
                 className={buttonClass}
                 disabled={page + 1 >= pages}
                 onClick={() => {
-                  setPage((value) => value + 1);
+                  navigateView(view, page + 1);
                   setExpanded(null);
                 }}
               >
@@ -241,22 +277,39 @@ function ReportContent({ report }: { report: ClosedTradeReport }) {
 }
 
 export function ClosedTradesPage() {
-  const [filters, setFilters] = useState(initialFilters);
+  const [query, setQuery] = useSearchParams();
+  const parsed = parseClosedContext(query);
+  // Only monetary filter changes create a new read lifetime. Local pagination
+  // and row filters retain this exact response, including browser history.
+  const key = parsed.error ?? (parsed.context ? filterKey(parsed.context.filters) : 'unselected');
+  return (
+    <ClosedTradesSession
+      key={key}
+      context={parsed.context}
+      contextError={parsed.error}
+      setContext={(value, replace = false) => setQuery(closedContextQuery(value), { replace })}
+    />
+  );
+}
+
+function ClosedTradesSession({
+  context,
+  contextError,
+  setContext,
+}: {
+  context: ClosedReportContext | null;
+  contextError: string | null;
+  setContext: (context: ClosedReportContext, replace?: boolean) => void;
+}) {
+  const [initialContext] = useState(context);
+  const [filters, setFilters] = useState(() => context?.filters ?? initialFilters());
   const [report, setReport] = useState<ClosedTradeReport | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(contextError);
   const [changedBasis, setChangedBasis] = useState(false);
   const generation = useRef(0);
   const controller = useRef<AbortController | null>(null);
   const lastBasis = useRef(new Map<string, string>());
-
-  useEffect(
-    () => () => {
-      generation.current += 1;
-      controller.current?.abort();
-    },
-    [],
-  );
 
   function change(field: keyof RealizedGrossFilters, value: string) {
     generation.current += 1;
@@ -268,50 +321,58 @@ export function ClosedTradesPage() {
     setChangedBasis(false);
   }
 
-  async function read() {
+  const read = useCallback(
+    async (requested: RealizedGrossFilters, entryBasis: string | null = null) => {
+      setError(null);
+      setReport(null);
+      setChangedBasis(false);
+      const current = ++generation.current;
+      controller.current?.abort();
+      const requestController = new AbortController();
+      controller.current = requestController;
+      setLoading(true);
+      try {
+        const result = await performanceApiClient.closedTrades(requested, requestController.signal);
+        if (requestController.signal.aborted || current !== generation.current) return;
+        const key = filterKey(requested);
+        verifyClosedReport(result, requested);
+        const previous = lastBasis.current.get(key) ?? entryBasis;
+        setChangedBasis(previous !== null && previous !== result.basis.id);
+        lastBasis.current.set(key, result.basis.id);
+        setReport(result);
+      } catch (cause) {
+        if (requestController.signal.aborted || current !== generation.current) return;
+        setError(cause instanceof Error ? cause.message : 'Bericht konnte nicht gelesen werden.');
+      } finally {
+        if (!requestController.signal.aborted && current === generation.current) setLoading(false);
+      }
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (initialContext) void read(initialContext.filters, initialContext.basis);
+    return () => {
+      generation.current += 1;
+      controller.current?.abort();
+    };
+  }, [initialContext, read]);
+
+  function submit() {
     const requested = {
       ...filters,
       report_currency: filters.report_currency.trim().toUpperCase(),
       report_timezone: filters.report_timezone.trim(),
     };
-    setError(null);
-    setReport(null);
-    setChangedBasis(false);
-    if (!requested.from_date || !requested.to_date || requested.from_date > requested.to_date) {
-      setError('Bitte einen gültigen Zeitraum angeben: Von darf nicht nach Bis liegen.');
+    const invalid = closedFiltersError(requested);
+    if (invalid) {
+      setError(invalid);
       return;
     }
-    if (!/^[A-Z]{3}$/.test(requested.report_currency) || !requested.report_timezone) {
-      setError('Bitte Berichtswährung und Berichtszeitzone ausdrücklich auswählen.');
-      return;
-    }
-    const current = ++generation.current;
-    controller.current?.abort();
-    const requestController = new AbortController();
-    controller.current = requestController;
-    setLoading(true);
-    try {
-      const result = await performanceApiClient.closedTrades(requested, requestController.signal);
-      if (requestController.signal.aborted || current !== generation.current) return;
-      const key = filterKey(requested);
-      if (
-        filterKey(result.filters) !== key ||
-        result.currency.code !== requested.report_currency ||
-        result.definition_version !== 'closed-trade-gross-v1'
-      ) {
-        throw new Error(
-          'Die Antwort gehört nicht zur gewählten Abschlussauswertung, Periode, Währung oder Zeitzone. Bitte erneut lesen.',
-        );
-      }
-      const previous = lastBasis.current.get(key);
-      setChangedBasis(previous !== undefined && previous !== result.basis.id);
-      lastBasis.current.set(key, result.basis.id);
-      setReport(result);
-    } catch (cause) {
-      if (requestController.signal.aborted || current !== generation.current) return;
-      setError(cause instanceof Error ? cause.message : 'Bericht konnte nicht gelesen werden.');
-    } finally {
-      if (!requestController.signal.aborted && current === generation.current) setLoading(false);
+    if (context && filterKey(context.filters) === filterKey(requested)) {
+      void read(requested, context.basis);
+    } else {
+      setContext({ filters: requested, view: 'candidates', page: 0, basis: null });
     }
   }
 
@@ -343,7 +404,7 @@ export function ClosedTradesPage() {
         className="rounded-xl border border-slate-800 p-4 sm:p-5"
         onSubmit={(event) => {
           event.preventDefault();
-          void read();
+          submit();
         }}
       >
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -432,7 +493,12 @@ export function ClosedTradesPage() {
         </p>
       )}
       {report && (
-        <ReportContent key={`${filterKey(report.filters)}:${report.basis.id}`} report={report} />
+        <ReportContent
+          key={`${filterKey(report.filters)}:${report.basis.id}`}
+          report={report}
+          context={context}
+          onContext={(value) => setContext(value, true)}
+        />
       )}
     </div>
   );

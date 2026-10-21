@@ -51,17 +51,48 @@ export async function qualifyTradeSources(
     expect(response.ok(), await response.text()).toBeTruthy();
     return response.json();
   };
-  const pageUrl = (id: string, review?: string, journal?: string) =>
-    "/trade-management?" +
+  const listPath =
+    "/performance/closed-trades?" +
     new URLSearchParams({
-      trade_id: id,
-      view: "sources",
-      ...(review ? { review_version_id: review } : {}),
-      ...(journal ? { journal_version_id: journal } : {}),
+      report_context: "closed-trades",
+      from_date: "2026-08-01",
+      to_date: "2026-10-31",
+      report_currency: "EUR",
+      report_timezone: "Europe/Berlin",
+      report_view: "all",
+      report_page: "1",
     });
+  const entryLinks = new Map<string, string>();
+  const enterFromList = async (id: string) => {
+    await page.goto(listPath);
+    const link = page.getByRole("link", {
+      name: `Trade ${id} prüfen`,
+      exact: true,
+    });
+    await expect(link).toBeVisible();
+    const href = await link.getAttribute("href");
+    expect(href).toContain("report_basis=");
+    entryLinks.set(id, href!);
+    await link.focus();
+    await page.keyboard.press("Enter");
+  };
+  const pageUrl = (id: string, review?: string, journal?: string) => {
+    const entry = entryLinks.get(id);
+    if (!entry)
+      throw new Error(
+        "The real list entry must be visited before pinning sources",
+      );
+    const url = new URL(entry, "http://127.0.0.1");
+    if (review) url.searchParams.set("review_version_id", review);
+    if (journal) url.searchParams.set("journal_version_id", journal);
+    return url.pathname + url.search;
+  };
   const region = (name: string) =>
     page.getByRole("region", { name, exact: true });
   const settled = async () => {
+    await expect(region("Wirtschaftliches Gesamtergebnis")).toContainText(
+      "Vollständiges Tradeergebnis und Buchungshistorie",
+    );
     await expect(region("Evidence und Lesson-Versionen")).toContainText(
       "Eigenes Lesefenster",
     );
@@ -97,16 +128,18 @@ export async function qualifyTradeSources(
   const firstBefore = databaseState();
   readWindow = true;
   await page.setViewportSize({ width: 1440, height: 1000 });
-  await page.goto(pageUrl(tradeId));
+  await enterFromList(tradeId);
   await settled();
   await expect(page.getByRole("heading", { level: 1 })).toContainText(
     `TR-${tradeId.slice(0, 8).toUpperCase()}`,
   );
+  await expect(
+    region("Wirtschaftliches Gesamtergebnis").getByText("70,00 EUR", {
+      exact: true,
+    }),
+  ).toBeVisible();
   await expect(region("Wirtschaftliches Gesamtergebnis")).toContainText(
-    "noch nicht angebunden",
-  );
-  await expect(region("Wirtschaftliches Gesamtergebnis")).not.toContainText(
-    "70,00",
+    "Berichtsgrundlage stimmt",
   );
   await expect(region("Ursprünglicher Plan")).toContainText(
     originalPlan.data.version.thesis,
@@ -227,10 +260,17 @@ export async function qualifyTradeSources(
   expect(draft.data.selected.edit_revision).toBe(2);
   const draftBefore = databaseState();
   readWindow = true;
+  await enterFromList(tid);
   await page.goto(pageUrl(tid, rid, jid));
   await settled();
   await expect(region("Journal")).toContainText("Bearbeitungsrevision 2");
   await expect(region("Journal")).toContainText("DRAFT");
+  await expect(
+    region("Wirtschaftliches Gesamtergebnis").getByText("-10,00 EUR", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(region("Dokumentierte Exit-Bewertung")).toContainText("GOOD");
   await page.reload();
   await settled();
   const draftAfter = databaseState();
@@ -305,6 +345,14 @@ export async function qualifyTradeSources(
   await expect(region("Journal")).toContainText(
     "<script>never executed</script>",
   );
+  await expect(
+    region("Wirtschaftliches Gesamtergebnis").getByText("-11,00 EUR", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(region("Wirtschaftliches Gesamtergebnis")).toContainText(
+    "Berichtsgrundlage hat sich",
+  );
   const correctedReview = await source(tid, "reviews", rid);
   const correctedJournal = await source(tid, "journal", jid);
   expect(correctedReview.data.selected).toEqual(originalReview.data.selected);
@@ -356,6 +404,9 @@ export async function qualifyTradeSources(
     ),
   ).toBe(true);
 
+  await region("Wirtschaftliches Gesamtergebnis").screenshot({
+    path: testInfo.outputPath("source-view-result-mobile.png"),
+  });
   await region("Journal").screenshot({
     path: testInfo.outputPath("source-view-journal-mobile.png"),
   });
@@ -386,8 +437,102 @@ export async function qualifyTradeSources(
     "Synthetic exact journal source",
   );
   await settled();
+  // An optional transport error and its retry cannot erase the qualified amount.
+  await expect(
+    region("Wirtschaftliches Gesamtergebnis").getByText("-11,00 EUR", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await page
+    .getByRole("link", {
+      name: "Zur ursprünglichen Abschlussauswahl",
+      exact: true,
+    })
+    .click();
+  await expect(page.getByLabel("Von (einschließlich)")).toHaveValue(
+    "2026-08-01",
+  );
+  await expect(page.getByLabel("Bis (einschließlich)")).toHaveValue(
+    "2026-10-31",
+  );
+  await expect(page.getByLabel("Berichtswährung", { exact: true })).toHaveValue(
+    "EUR",
+  );
+  await expect(page.getByLabel("Berichtszeitzone (IANA)")).toHaveValue(
+    "Europe/Berlin",
+  );
+  await expect(page.getByLabel("Zeilen anzeigen")).toHaveValue("all");
+  await expect(
+    page.getByRole("article", { name: `Trade ${tid}`, exact: true }),
+  ).toContainText("-11,00 EUR");
+  await page.reload();
+  await expect(page.getByLabel("Zeilen anzeigen")).toHaveValue("all");
   const secondAfter = databaseState();
   expect(secondAfter.fingerprint).toBe(secondBefore.fingerprint);
+  readWindow = false;
+  // A separately labelled older gain permits a real completed observation horizon.
+  // The October 50/70 reference keeps its actual dates and has no fabricated future prices.
+  const positivePurchase = await command("/trade-position/purchases/external", {
+    product_id: input.productId,
+    ...capture(10, "2.00", "2026-08-17"),
+    currency_confirmation: {
+      currency_code: "EUR",
+      source: "USER_CONFIRMED",
+      note: "Synthetic independent positive review",
+    },
+  });
+  const positiveId = positivePurchase.trade.id;
+  await command(
+    `/trade-position/trades/${positiveId}/sales`,
+    capture(10, "7.00", "2026-08-18"),
+  );
+  await command(`/post-trade/trades/${positiveId}/observation`);
+  databaseState();
+  const positiveObservation = await request.get(
+    `${api}/post-trade/trades/${positiveId}/observation`,
+  );
+  expect(positiveObservation.status(), await positiveObservation.text()).toBe(
+    200,
+  );
+  expect((await positiveObservation.json()).is_complete).toBe(true);
+  await command(`/post-trade/trades/${positiveId}/exit-review`);
+  await command(
+    `/post-trade/trades/${positiveId}/exit-review/draft`,
+    {
+      timing: "ACCEPTABLE",
+      process_adherence: "IMPROVABLE",
+      risk_decision: "NOT_ASSESSABLE",
+      overall_exit_decision: "IMPROVABLE",
+      rationale: "A gain does not improve this stored synthetic exit judgment.",
+    },
+    "PUT",
+  );
+  await command(`/post-trade/trades/${positiveId}/exit-review/finalize`);
+  const positiveBefore = databaseState();
+  readWindow = true;
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await enterFromList(positiveId);
+  await settled();
+  await expect(
+    region("Wirtschaftliches Gesamtergebnis").getByText("50,00 EUR", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(region("Dokumentierte Exit-Bewertung")).toContainText(
+    "IMPROVABLE",
+  );
+  await expect(region("Dokumentierte Exit-Bewertung")).toContainText(
+    "FINALIZED",
+  );
+  await expect(region("Journal")).toContainText("Journal nicht dokumentiert");
+  await page.screenshot({
+    path: testInfo.outputPath("source-view-positive-improvable-desktop.png"),
+    fullPage: true,
+  });
+  await page.reload();
+  await settled();
+  const positiveAfter = databaseState();
+  expect(positiveAfter.fingerprint).toBe(positiveBefore.fingerprint);
   readWindow = false;
   expect(observed.length).toBeGreaterThan(20);
   expect(observed.every((entry) => entry.method === "GET")).toBe(true);
@@ -414,6 +559,9 @@ export async function qualifyTradeSources(
         draftAfter,
         secondBefore,
         secondAfter,
+        positiveBefore,
+        positiveAfter,
+        entryLinks: Object.fromEntries(entryLinks),
         observed,
       },
       null,

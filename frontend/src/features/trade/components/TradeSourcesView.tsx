@@ -1,3 +1,5 @@
+import { ClosedTradeResult } from '../../performance/components/ClosedTradeResult';
+import { closedListUrl, parseClosedContext } from '../../performance/services/closedReportContext';
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 
@@ -268,6 +270,8 @@ function Journal({ data, query }: { data: JournalSources; query: URLSearchParams
   const v = data.selected;
   if (!v) return <p>Journal nicht dokumentiert.</p>;
   const empty = !v.what_went_well && !v.would_do_differently && !v.additional_notes;
+  const exactJournalQuery = new URLSearchParams(query);
+  exactJournalQuery.set('journal_version_id', v.id);
   return (
     <>
       <p>
@@ -293,11 +297,7 @@ function Journal({ data, query }: { data: JournalSources; query: URLSearchParams
       {v.source_exit_review_version_id && (
         <Link
           className={linkClass}
-          to={sourceLink(
-            new URLSearchParams({ ...Object.fromEntries(query), journal_version_id: v.id }),
-            'review_version_id',
-            v.source_exit_review_version_id,
-          )}
+          to={sourceLink(exactJournalQuery, 'review_version_id', v.source_exit_review_version_id)}
         >
           Exakte Journal-Reviewquelle lesen
         </Link>
@@ -398,16 +398,13 @@ function Core({
         {data.product_name ?? 'Trade'} · TR-{tradeId.slice(0, 8).toUpperCase()}
       </h1>
       <p>
-        Aktueller Zustand: {data.state}; offene Menge: {data.open_quantity ?? 'Nicht verfügbar'}.
+        Zustand im Ausführungs-Lesefenster: {data.state}; offene Menge:{' '}
+        {data.open_quantity ?? 'Nicht verfügbar'}.
       </p>
       <p>Produktname ist heutige Stammdatenanzeige, keine historische Entscheidungsgrundlage.</p>
       <section className={sectionClass} aria-label="Wirtschaftliches Gesamtergebnis">
         <h2 className="text-lg font-semibold">Wirtschaftliches Gesamtergebnis</h2>
-        <p>
-          In diesem unabhängigen Quellenweg noch nicht angebunden. Die qualifizierte
-          Abschlussstatistik bleibt eine getrennte Integration. Kein Rohpositionswert und keine
-          Summe von Zeitraumszeilen ersetzt das vollständige Tradeergebnis.
-        </p>
+        <ClosedTradeResult tradeId={tradeId} productId={data.trade.product_id} query={query} />
       </section>
       <SourceDetails>
         <p>
@@ -460,9 +457,15 @@ function Core({
 
 export function TradeSourcesView({ query }: { query: URLSearchParams }) {
   const error = sourceQueryError(query);
+  const reportContext = parseClosedContext(query).context;
   const tradeId = (query.get('trade_id') ?? '').toLowerCase();
   return (
     <main className="min-w-0 w-full space-y-6 [overflow-wrap:anywhere]">
+      {reportContext && (
+        <Link className={linkClass} to={closedListUrl(reportContext)}>
+          Zur ursprünglichen Abschlussauswahl
+        </Link>
+      )}
       <Link className={linkClass} to={`/trade-management?trade_id=${encodeURIComponent(tradeId)}`}>
         Zur Tradeverwaltung
       </Link>

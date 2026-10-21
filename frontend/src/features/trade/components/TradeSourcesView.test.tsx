@@ -195,9 +195,7 @@ describe('read-only trade sources', () => {
     mount();
     await screen.findByText('Eine eigene Reflexion');
     expect(fetchMock).toHaveBeenCalledTimes(5);
-    expect(
-      screen.getByText(/In diesem unabhängigen Quellenweg noch nicht angebunden/),
-    ).toBeVisible();
+    expect(screen.getByText(/Kein Abschlussberichtskontext ausgewählt/)).toBeVisible();
     expect(screen.queryByText(/987654/)).not.toBeInTheDocument();
     expect(
       screen.queryByRole('button', { name: /speichern|finalisieren|revalidieren/i }),

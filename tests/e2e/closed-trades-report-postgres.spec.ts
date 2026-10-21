@@ -38,8 +38,17 @@ test("real PostgreSQL: full-close cohort, lifetime result, gaps and current corr
   const api = `${baseURL}/api/api/v1`;
   const failures: string[] = [];
   const financialReads: string[] = [];
+  let integrationReadWindow = false;
+  const integrationRequests: Array<{ method: string; url: string }> = [];
+  const integrationWindows: Array<{
+    before: unknown;
+    after: unknown;
+    entry: string;
+  }> = [];
   page.on("pageerror", (error) => failures.push(error.message));
   page.on("request", (sent) => {
+    if (integrationReadWindow && sent.url().startsWith(api))
+      integrationRequests.push({ method: sent.method(), url: sent.url() });
     if (sent.method() === "GET" && sent.url().startsWith(api + "/performance/"))
       financialReads.push(sent.url());
   });
@@ -58,6 +67,7 @@ test("real PostgreSQL: full-close cohort, lifetime result, gaps and current corr
     return url.href;
   };
   const post = async (path: string, data: object) => {
+    databaseState(); // verify the isolated marked target before every synthetic write
     const response = await request.post(address(path), {
       data,
       maxRedirects: 0,
@@ -303,6 +313,63 @@ test("real PostgreSQL: full-close cohort, lifetime result, gaps and current corr
     fullPage: true,
   });
 
+  const resultRegion = () =>
+    page.getByRole("region", {
+      name: "Wirtschaftliches Gesamtergebnis",
+      exact: true,
+    });
+  const returnLink = () =>
+    page.getByRole("link", {
+      name: "Zur ursprünglichen Abschlussauswahl",
+      exact: true,
+    });
+  const firstEntry = (await page
+    .getByRole("link", { name: `Trade ${t1.trade.id} prüfen`, exact: true })
+    .getAttribute("href"))!;
+  const beforeEntry = databaseState();
+  integrationReadWindow = true;
+  await page
+    .getByRole("link", { name: `Trade ${t1.trade.id} prüfen`, exact: true })
+    .press("Enter");
+  await expect(
+    resultRegion().getByText("50,00 EUR", { exact: true }),
+  ).toBeVisible();
+  await expect(resultRegion()).toContainText("Berichtsgrundlage stimmt");
+  await expect(
+    page.getByRole("region", { name: "Journal", exact: true }),
+  ).toContainText("Journal nicht dokumentiert");
+  await expect(
+    page.getByRole("region", {
+      name: "Dokumentierte Exit-Bewertung",
+      exact: true,
+    }),
+  ).toContainText("Exit-Bewertung nicht dokumentiert");
+  await expect(page.getByRole("form")).toHaveCount(0);
+  await page.screenshot({
+    path: testInfo.outputPath("closed-source-reference-50-desktop.png"),
+    fullPage: true,
+  });
+  await page.reload();
+  await expect(
+    resultRegion().getByText("50,00 EUR", { exact: true }),
+  ).toBeVisible();
+  await returnLink().click();
+  await expect(page.getByTestId("closed-trades-total")).toHaveText("50,00 EUR");
+  await expect(page.getByLabel("Von (einschließlich)")).toHaveValue(
+    "2026-10-01",
+  );
+  await expect(page.getByLabel("Bis (einschließlich)")).toHaveValue(
+    "2026-10-31",
+  );
+  const afterEntry = databaseState();
+  expect(afterEntry.fingerprint).toBe(beforeEntry.fingerprint);
+  integrationReadWindow = false;
+  integrationWindows.push({
+    before: beforeEntry,
+    after: afterEntry,
+    entry: firstEntry,
+  });
+
   const t2 = await simple("4.00", "EUR");
   const t3 = await simple("5.00", "EUR");
   const complete = await read();
@@ -381,6 +448,9 @@ test("real PostgreSQL: full-close cohort, lifetime result, gaps and current corr
   expect(financialReads).toHaveLength(readsBeforeSources);
   expect(databaseState().fingerprint).toBe(beforeReads.fingerprint);
 
+  const staleEntry = (await page
+    .getByRole("link", { name: `Trade ${t1.trade.id} prüfen`, exact: true })
+    .getAttribute("href"))!;
   const corrected = await post(
     tradePath + `/executions/${septemberLast.execution.id}/corrections`,
     {
@@ -454,6 +524,46 @@ test("real PostgreSQL: full-close cohort, lifetime result, gaps and current corr
     ),
   ).toBe(true);
 
+  const beforeChangedEntry = databaseState();
+  integrationReadWindow = true;
+  await page.goto(staleEntry);
+  await expect(
+    resultRegion().getByText("70,00 EUR", { exact: true }),
+  ).toBeVisible();
+  await expect(resultRegion()).toContainText("Berichtsgrundlage hat sich");
+  await expect(resultRegion()).toContainText("auch andere Trades");
+  await expect(
+    page.getByRole("article", {
+      name: `Quelle ${septemberLast.execution.id}`,
+      exact: true,
+    }),
+  ).toContainText("Historisch ersetzt");
+  await page.screenshot({
+    path: testInfo.outputPath("closed-source-reference-70-mobile.png"),
+    fullPage: true,
+  });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
+  await returnLink().click();
+  await expect(page.getByTestId("closed-trades-subtotal")).toHaveText(
+    "60,00 EUR",
+  );
+  await expect(page.getByLabel("Zeilen anzeigen")).toHaveValue("candidates");
+  await expect(
+    page.getByText(/Der Quellenstand hat sich seit dem letzten Lesen/),
+  ).toBeVisible();
+  const afterChangedEntry = databaseState();
+  expect(afterChangedEntry.fingerprint).toBe(beforeChangedEntry.fingerprint);
+  integrationReadWindow = false;
+  integrationWindows.push({
+    before: beforeChangedEntry,
+    after: afterChangedEntry,
+    entry: staleEntry,
+  });
+
   // Local pagination across stable IDs neither rereads nor writes the source.
   for (let index = 0; index < 21; index += 1) {
     // The capture owner permits one open trade per product. These independent
@@ -500,6 +610,54 @@ test("real PostgreSQL: full-close cohort, lifetime result, gaps and current corr
   await expect(page.getByRole("article", { name: /^Trade / })).toHaveCount(1);
   expect(financialReads).toHaveLength(readsBeforePaging);
   expect(databaseState().fingerprint).toBe(beforePaging.fingerprint);
+
+  // The actual drill-down may reread; returning restores the supported local view/page.
+  const beforeReturn = databaseState();
+  integrationReadWindow = true;
+  await page.getByLabel("Zeilen anzeigen").selectOption("all");
+  await nextPage.click();
+  const pageTwoLink = page
+    .getByRole("link", { name: /^Trade .* prüfen$/ })
+    .first();
+  const pageTwoEntry = (await pageTwoLink.getAttribute("href"))!;
+  expect(new URL(pageTwoEntry, baseURL).searchParams.get("report_page")).toBe(
+    "2",
+  );
+  await pageTwoLink.focus();
+  await page.keyboard.press("Enter");
+  await expect(resultRegion()).toContainText(
+    "Vollständiges Tradeergebnis und Buchungshistorie",
+  );
+  await returnLink().click();
+  await expect(page.getByLabel("Zeilen anzeigen")).toHaveValue("all");
+  await expect(
+    page.getByRole("navigation", { name: "Berichtsseiten", exact: true }),
+  ).toContainText("Seite 2 von 2");
+  await expect(page.getByRole("article", { name: /^Trade / })).toHaveCount(7);
+  await page.reload();
+  await expect(
+    page.getByRole("navigation", { name: "Berichtsseiten", exact: true }),
+  ).toContainText("Seite 2 von 2");
+  await expect(page.getByLabel("Berichtswährung", { exact: true })).toHaveValue(
+    "EUR",
+  );
+  await expect(page.getByLabel("Berichtszeitzone (IANA)")).toHaveValue(
+    "Europe/Berlin",
+  );
+  const afterReturn = databaseState();
+  expect(afterReturn.fingerprint).toBe(beforeReturn.fingerprint);
+  integrationReadWindow = false;
+  integrationWindows.push({
+    before: beforeReturn,
+    after: afterReturn,
+    entry: pageTwoEntry,
+  });
+  expect(integrationRequests.length).toBeGreaterThan(20);
+  expect(integrationRequests.every((r) => r.method === "GET")).toBe(true);
+  await testInfo.attach("closed-source-integration-read-windows", {
+    body: JSON.stringify({ integrationWindows, integrationRequests }, null, 2),
+    contentType: "application/json",
+  });
 
   // Separate periods distinguish genuine exact zero, unknown, and empty.
   const stateProduct = await createProduct(

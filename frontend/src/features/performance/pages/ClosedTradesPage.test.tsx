@@ -10,6 +10,7 @@ import {
 } from '../../../test/closedTradesFixtures';
 import { reportSource } from '../../../test/realizedGrossFixtures';
 import { performanceApiClient } from '../services/client';
+import { closedTradeSourceLink } from '../services/closedReportContext';
 import type { ClosedTradeGroup, ClosedTradeReport } from '../types/api';
 import { ClosedTradesPage } from './ClosedTradesPage';
 
@@ -181,7 +182,12 @@ it('keeps identical product names as distinct trade IDs and never turns known pi
   expect(unknownRow.getByText('Keine Klassifikation')).toBeVisible();
   expect(unknownRow.getByRole('link', { name: 'Trade trade-unknown prüfen' })).toHaveAttribute(
     'href',
-    '/trade-management?trade_id=trade-unknown#execution-dates',
+    closedTradeSourceLink('trade-unknown', {
+      filters: closedTradeFilters,
+      view: 'candidates',
+      page: 0,
+      basis: report.basis.id,
+    }),
   );
   const detail = openSources('trade-unknown');
   expect(detail.getByText(/keinen Trade-Teilbetrag/)).toBeVisible();
@@ -458,7 +464,7 @@ it('replaces an entire corrected basis, closes old source detail, and preserves 
   await screen.findByTestId('closed-trades-total');
   openSources();
   const corrected = closedTradeReport();
-  corrected.basis.id = 'closed-basis-corrected';
+  corrected.basis.id = 'b'.repeat(64);
   corrected.summary = { ...corrected.summary, total: '70', total_display: '70.00' };
   corrected.items[0] = {
     ...corrected.items[0],

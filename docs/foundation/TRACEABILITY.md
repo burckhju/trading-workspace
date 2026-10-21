@@ -595,3 +595,19 @@ final full CI, human acceptance and publication remain distinct. Publication as
 [Draft-PR #272](https://github.com/burckhju/trading-workspace/pull/272) and the first
 real source browser run are now evidenced in the qualification addendum. Earlier
 local-only limits above are historical; no closed-report integration is inferred.
+
+## 2026-10-21 — separate closed-report/source-view integration
+
+The follow-up combines pinned #270 (`de413843`) and #272 (`95086541`) on
+`integration/closed-trade-result-sources`, not main. It adds the approved list →
+qualified result/exact sources → original filter/page return. No new FT/PB or
+monetary/quality owner is introduced. `ClosedTradeResult` and validated context
+reuse `closed-trade-gross-v1` and the existing exact source readers. Financial
+and optional read windows remain separate. The whole-report fingerprint is not
+claimed to identify a particular trade change or restore a historical report.
+
+[Integration inventory, contract and A1–A16 test map](../implementation/CLOSED_TRADE_SOURCE_INTEGRATION_QUALIFICATION.md)
+links the new UI tests, augmented guarded native browser journeys and unchanged
+PostgreSQL concurrency contracts. Actual full-gate runs, final checkout/tree and
+visual review are bound in the integration PR; earlier dependency CI is not reused
+as a new integration success. Human acceptance and M7/M8 completion remain separate.

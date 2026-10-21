@@ -172,7 +172,7 @@ export function closedTradeReport(overrides: Partial<ClosedTradeReport> = {}): C
     filters: { ...closedTradeFilters },
     interval_start_at: '2026-09-30T22:00:00Z',
     interval_end_at: '2026-10-31T23:00:00Z',
-    basis: { ...existing.basis, id: 'closed-basis-original' },
+    basis: { ...existing.basis, id: 'a'.repeat(64) },
     currency: existing.currency,
     summary: {
       status: 'COMPLETE',

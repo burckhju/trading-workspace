@@ -1,3 +1,4 @@
+import { preserveClosedContext } from '../../performance/services/closedReportContext';
 import { environment } from '../../../services/environment';
 import { requestJson } from '../../market/services/http';
 import type { JournalVersion } from '../../learning/services/journalClient';
@@ -79,6 +80,7 @@ export function sourceLink(query: URLSearchParams, key?: PinKey, value?: string)
     const selected = pin === key ? value : query.get(pin);
     if (selected) next.set(pin, selected);
   }
+  preserveClosedContext(query, next);
   return `/trade-management?${next.toString()}`;
 }
 export function sourceUrl(tradeId: string, section = '', pin?: string | null): string {
