@@ -89,6 +89,10 @@ export async function qualifyTradeSources(
   };
   const region = (name: string) =>
     page.getByRole("region", { name, exact: true });
+  const totalAmount = () =>
+    region("Wirtschaftliches Gesamtergebnis")
+      .getByText("Vollständiges Tradeergebnis · Anzeige", { exact: true })
+      .locator("..");
   const settled = async () => {
     await expect(region("Wirtschaftliches Gesamtergebnis")).toContainText(
       "Vollständiges Tradeergebnis und Buchungshistorie",
@@ -134,7 +138,7 @@ export async function qualifyTradeSources(
     `TR-${tradeId.slice(0, 8).toUpperCase()}`,
   );
   await expect(
-    region("Wirtschaftliches Gesamtergebnis").getByText("70,00 EUR", {
+    totalAmount().getByText("70,00 EUR", {
       exact: true,
     }),
   ).toBeVisible();
@@ -266,7 +270,7 @@ export async function qualifyTradeSources(
   await expect(region("Journal")).toContainText("Bearbeitungsrevision 2");
   await expect(region("Journal")).toContainText("DRAFT");
   await expect(
-    region("Wirtschaftliches Gesamtergebnis").getByText("-10,00 EUR", {
+    totalAmount().getByText("-10,00 EUR", {
       exact: true,
     }),
   ).toBeVisible();
@@ -346,7 +350,7 @@ export async function qualifyTradeSources(
     "<script>never executed</script>",
   );
   await expect(
-    region("Wirtschaftliches Gesamtergebnis").getByText("-11,00 EUR", {
+    totalAmount().getByText("-11,00 EUR", {
       exact: true,
     }),
   ).toBeVisible();
@@ -439,7 +443,7 @@ export async function qualifyTradeSources(
   await settled();
   // An optional transport error and its retry cannot erase the qualified amount.
   await expect(
-    region("Wirtschaftliches Gesamtergebnis").getByText("-11,00 EUR", {
+    totalAmount().getByText("-11,00 EUR", {
       exact: true,
     }),
   ).toBeVisible();
@@ -514,7 +518,7 @@ export async function qualifyTradeSources(
   await enterFromList(positiveId);
   await settled();
   await expect(
-    region("Wirtschaftliches Gesamtergebnis").getByText("50,00 EUR", {
+    totalAmount().getByText("50,00 EUR", {
       exact: true,
     }),
   ).toBeVisible();
