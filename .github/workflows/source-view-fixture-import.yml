@@ -1,0 +1,59 @@
+name: Import verified native fixture corrections
+on:
+  push:
+    branches: [transport/trade-source-import-7b8ab34]
+    paths: [.github/workflows/source-view-fixture-import.yml]
+permissions:
+  contents: read
+jobs:
+  import:
+    if: github.repository == 'burckhju/trading-workspace'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify patch and exact commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import base64, hashlib, lzma, os, pathlib, subprocess
+          payload = base64.b64decode('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')
+          assert len(payload) == 1556 and hashlib.sha256(payload).hexdigest() == 'ed06c31c34d0e495335a65baeb552ff00685e42d549953d2210f86c8291445bf'
+          d = lzma.LZMADecompressor()
+          patch = d.decompress(payload, max_length=4918)
+          assert d.eof and not d.unused_data and len(patch) == 4917
+          assert hashlib.sha256(patch).hexdigest() == '909f4150aaa990bf130724fce9a1970c592fb8d4fb852a3ec01b46b510c98c03'
+          base = '5e90a180db268abfe82dc1b12b9f6c098ba79fc4'
+          tree = '6edfd4628e671890f1a340efffc46dd04ce55cfc'
+          head = '8cc68f65d9b32d8337cfb32c468f0deeaa41b32a'
+          root = pathlib.Path(os.environ['RUNNER_TEMP'])
+          work = root / 'fixture-import'
+          subprocess.run(['git', 'worktree', 'add', '--detach', str(work), base], check=True)
+          def git(*args, data=None):
+              return subprocess.check_output(['git','-C',str(work),*args], input=data).decode().strip()
+          git('apply','--check','--index','-', data=patch)
+          git('apply','--index','-', data=patch)
+          assert set(git('diff','--cached','--name-only').splitlines()) == {'tests/e2e/support/trade_source_journey.ts','tests/integration/backend/test_trade_source_view_postgres.py'}
+          git('diff','--cached','--check')
+          assert git('write-tree') == tree
+          raw = (f'tree {tree}\nparent {base}\nauthor AI development assistant <noreply@example.invalid> 1792607693 +0000\ncommitter AI development assistant <noreply@example.invalid> 1792607739 +0000\n\ntest(trade): honor existing currency and lesson contracts in native fixtures\n').encode()
+          assert git('hash-object','-t','commit','-w','--stdin',data=raw) == head
+          print('Verified exact fixture correction', head, tree)
+          PY
+      - name: Publish new staging reference only
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          repo=https://github.com/burckhju/trading-workspace.git
+          target=refs/heads/transport/source-fixtures-ready
+          test -z "$(git ls-remote "$repo" "$target")"
+          git -c credential.helper='!f() { echo username=x-access-token; echo "password=$GH_TOKEN"; }; f' push "$repo" "8cc68f65d9b32d8337cfb32c468f0deeaa41b32a:$target"
+          test "$(git ls-remote "$repo" "$target" | cut -f1)" = 8cc68f65d9b32d8337cfb32c468f0deeaa41b32a
