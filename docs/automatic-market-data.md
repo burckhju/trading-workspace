@@ -314,3 +314,69 @@ To obtain new prices, leave the already authorized scheduler running; this butto
 intentionally does not bypass its due times. No migration is introduced. Paid
 feeds, new source transports, persisted user preference/priority overrides and
 historical price series remain outside this diagnostic slice.
+
+## Current lanes and source-mode pacing qualification (2026-10-21)
+
+At the qualified `main` revision `5e9ede2`, the existing workers are `WARRANTS`,
+`ISSUER_QUOTES`, `WARRANT_DISCOVERY`, `ISSUER_DISCOVERY` and `UNDERLYINGS`.
+The current status value is
+`INDEPENDENT_ISSUER_EXCHANGE_DISCOVERY_UNDERLYING_LANES`; the dated two-queue
+example above describes an earlier implementation. Discovery separation and the
+bounded same-cycle quote retry already exist, including a quote that starts
+before successful discovery but finishes afterwards. This qualification adds no
+worker, lane, scheduler or parallel requests within a lane.
+
+Job intervals, scheduler pauses, actual transport budgets, cache lifetime and
+failure backoff are distinct. The user has selected variant 2 with "wie
+vorgeschlagen gezielt ändern": selected, active, validated Frankfurt quote routes
+call `_pace()` only in `PUBLIC_WEBSITE` mode. `HTTPS_JSON` and `LOCAL_FILE` quote
+calls proceed to the existing resolver without this additional pause. Public
+discovery continues to use `_pace()` and the same client. The remaining Public
+scheduler deadline is combined with the shared client's cooldown. A different
+instrument does not receive a new request budget.
+
+The [source-mode report](reviews/MARKET_DATA_SOURCE_MODE_PACING_2026-10-21.md)
+preserves the earlier C baseline at documentation head `bade0e33` and test commit
+`3d477326`: the real runtime/resolver/retention/adapter/client composition with
+synthetic transport and disposable SQLite produced a 14-second scheduler wait
+for all three modes when reads were requested at 100 and 101. Public made two
+exact-ISIN HTTP requests; HTTPS and local-file modes reused one snapshot and its
+original retrieval time. Those historical results remain separately identified.
+
+### Decision addendum: omit the normalized quote pause
+
+For the new contract, the same normalized two-listing case finishes its second
+read at 101 without a scheduler sleep and still uses only one HTTP/file access.
+Public keeps its second read at 115 after a 14-second wait. The report records
+the new implementation commit and test result separately; its previous 322
+successful targeted tests do not prove the changed behavior. Current task status
+remains in the [refresh backlog entry](planning/PRODUCT_BACKLOG.md#market-data-refresh).
+
+This applies to normalized quote calls on both cache hits and misses. The shared
+client still checks permissions, errors, cache and its actual I/O budget under
+the existing lock. An expired cache during cooldown can return the existing
+throttle/error outcome through the resolver and retention path. No immediate
+retry is added, and a cache hit changes neither the original quote/retrieval
+timestamps nor a client deadline. Job intervals, configuration defaults, lanes,
+leader and shutdown behavior stay the same. Because intervals begin after job
+completion, removing a wait can move later due times and cache reloads; the
+change does not promise identical access counts over arbitrary long runs.
+
+That timing difference includes errors: HTTP 429 at monotonic time 400 with
+`Retry-After: 120` sets a client deadline of 520. With existing history, jobs at
+400/401 can finish
+immediately with an observation carrying `refresh_error`; a 300-second job
+interval makes them due at 700/701. No new run is scheduled merely because the
+cooldown ends at 520. Actual recovery can therefore happen later than with the
+previous scheduler wait. The new real `_job()` qualification includes this
+explicit limit; no recovery retry policy is added.
+
+If an interactive request consumes the Public slot after `_pace()`, the client
+still checks its budget under the lock. In the tested case without a prior observation,
+discovery reports `DEFERRED` with a bounded next due time; the quote job reports
+`MISSING` with `ERROR / FRANKFURT_REQUEST_THROTTLED` in its source attempt and
+retains its existing job interval. Neither path loops immediately. Existing
+historical retention can separately provide an available analysis observation
+with its original timestamps and explicit `refresh_error`; that observation and
+a successful job do not prove a fresh market price. The tested lifecycle and
+shared budget are process-local; SQLite tests do not prove PostgreSQL leader locks.
