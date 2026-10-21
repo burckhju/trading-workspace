@@ -1,0 +1,47 @@
+name: Inspect source-view CI failure
+on:
+  push:
+    branches: [transport/trade-source-import-7b8ab34]
+    paths: [.github/workflows/source-view-ci-inspect.yml]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  inspect:
+    if: github.repository == 'burckhju/trading-workspace'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - name: Download existing job log and extract failure evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/source-ci-inspection"
+          curl --fail --silent --show-error --location \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H 'Accept: application/vnd.github+json' \
+            https://api.github.com/repos/burckhju/trading-workspace/actions/jobs/119396389531/logs \
+            -o "$RUNNER_TEMP/source-ci-inspection/backend-quality.log"
+          python - <<'PY'
+          import hashlib, os, pathlib, re
+          folder = pathlib.Path(os.environ['RUNNER_TEMP']) / 'source-ci-inspection'
+          raw = (folder / 'backend-quality.log').read_bytes()
+          lines = raw.decode('utf-8', errors='replace').splitlines()
+          selected = set(range(max(0, len(lines)-140), len(lines)))
+          for i, line in enumerate(lines):
+              if re.search(r'FAILURES|ERRORS|short test summary|^.*FAILED |AssertionError|Error:|E   |Required test coverage|TOTAL ', line):
+                  selected.update(range(max(0,i-5), min(len(lines),i+10)))
+          text = '\n'.join(f'{i+1}: {lines[i]}' for i in sorted(selected))
+          (folder / 'failure-extract.txt').write_text(text)
+          (folder / 'identity.txt').write_text('run=39650248171\njob=119396389531\nhead=7b8ab3489ec5c5fe22f9230ce874830dbd34b6b7\nsha256='+hashlib.sha256(raw).hexdigest()+'\n')
+          print('Downloaded log bytes:', len(raw), 'lines:', len(lines))
+          print(text[-35000:])
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: source-ci-failure-evidence
+          path: ${{ runner.temp }}/source-ci-inspection/
+          if-no-files-found: error
+          retention-days: 14
