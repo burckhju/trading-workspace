@@ -1,0 +1,34 @@
+name: Export current main for integration review
+on:
+  push:
+    branches: [transport/closed-source-integration-20261021]
+    paths: [.github/workflows/closed-source-main-update-export.yml]
+permissions:
+  contents: read
+jobs:
+  export:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 5c76ff495b0797c4de00666ee358219858e33afd
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify and retain the actual advanced main
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = 5c76ff495b0797c4de00666ee358219858e33afd
+          test "$(git rev-parse HEAD^{tree})" = c897bc1250d659226f27cc00df495aa9b79280e7
+          mkdir "$RUNNER_TEMP/main-export"
+          git bundle create "$RUNNER_TEMP/main-export/main.bundle" HEAD
+          git diff --binary 5e9ede2dc29f52eaff601d30614df6bc9c25c426..HEAD > "$RUNNER_TEMP/main-export/actual-main-delta.patch"
+          git log -1 --format='%H %T' > "$RUNNER_TEMP/main-export/identity.txt"
+          cd "$RUNNER_TEMP/main-export"
+          sha256sum main.bundle actual-main-delta.patch identity.txt > SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: advanced-main-source
+          path: ${{ runner.temp }}/main-export/
+          retention-days: 14
