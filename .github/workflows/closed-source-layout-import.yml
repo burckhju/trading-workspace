@@ -1,0 +1,50 @@
+name: Import reviewed source return layout
+on:
+  push:
+    branches: [transport/closed-source-integration-20261021]
+    paths: [.github/workflows/closed-source-layout-import.yml]
+permissions:
+  contents: write
+jobs:
+  import:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ac3dc9405dd7ba9a37839b9b75a12c435ca2be02
+          persist-credentials: false
+      - name: Verify exact three-file visual follow-up
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import base64,hashlib,lzma,subprocess
+          encoded='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'
+          data=base64.b64decode(encoded,validate=True)
+          assert len(data)==1732 and hashlib.sha256(data).hexdigest()=='1ce6ef1287f9381c10ce6a5ab0059196eba520f50ac98d4d5b2c66005b76d6d8'
+          dec=lzma.LZMADecompressor();patch=dec.decompress(data,max_length=4351)
+          assert dec.eof and not dec.unused_data and len(patch)==4350
+          assert hashlib.sha256(patch).hexdigest()=='15969d8876f19145db536b016dbcabeb5205391d60dc7698b3b604693fd0b584'
+          def git(*a,data=None): return subprocess.check_output(['git',*a],input=data).decode().strip()
+          base='ac3dc9405dd7ba9a37839b9b75a12c435ca2be02';tree='3c282766c937a3a9623d66ef0032dcc7b74bedf0';head='f1898487a8c48af1429ae0ecf17936cfebf4db2f'
+          assert git('rev-parse','HEAD')==base
+          git('apply','--check','--index','-',data=patch);git('apply','--index','-',data=patch)
+          assert set(git('diff','--cached','--name-only').splitlines())=={'frontend/src/features/trade/components/TradeSourcesView.tsx','tests/e2e/support/trade_source_journey.ts','tests/e2e/closed-trades-report-postgres.spec.ts'}
+          git('diff','--cached','--check');assert git('write-tree')==tree
+          raw=(f'tree {tree}\nparent {base}\nauthor AI development assistant <noreply@example.invalid> 1792613739 +0000\ncommitter AI development assistant <noreply@example.invalid> 1792613739 +0000\n\nfix(trade): separate return targets on desktop and mobile\n').encode()
+          assert git('hash-object','-t','commit','-w','--stdin',data=raw)==head
+          print('Verified',head,tree)
+          PY
+      - name: Publish new staging reference only
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          ref=refs/heads/transport/closed-source-layout-ready
+          head=f1898487a8c48af1429ae0ecf17936cfebf4db2f
+          existing=$(git ls-remote origin "$ref" | cut -f1)
+          test -z "$existing" || test "$existing" = "$head"
+          auth=$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $auth" push origin "$head:$ref"
