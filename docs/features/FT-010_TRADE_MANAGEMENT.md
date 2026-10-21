@@ -436,3 +436,23 @@ correction forms need no repeated code. Actual exceptions remain deliberate
 actions. This change needs no migration and fabricates no missing historical
 currency. Tests and release evidence are linked from the reuse qualification;
 the Product Backlog remains the sole work-status source.
+
+
+## 2026-10-21: additive read-only single-trade sources
+
+The existing trade-management page has an independent `view=sources` mode and a
+new-tab entry that does not unmount an in-progress capture form. Five pure GETs
+under `/api/v1/trade-position/trades/{trade_id}/sources` compose existing owner
+facts, exact original planning, review/journal versions and historical evidence
+relations. An explicit invalid version never falls back to latest.
+
+A lock-free `TradeReader` is injected only into this read composition; command
+repositories retain their existing locks. Each section materializes a separate
+bounded read-only transaction and displays its own read window. No global
+snapshot, new write owner, migration, provider access or monetary recomputation
+is introduced. The closed-trade-report integration remains open; a raw position
+amount is not presented as a qualified total.
+
+[Source contract, fresh local tests and explicit native/browser gaps](../implementation/TRADE_SOURCE_VIEW_QUALIFICATION.md)
+document this local development slice. This amendment does not establish release,
+installation, complete A1–A16 acceptance or a general trade-quality methodology.

@@ -30,14 +30,16 @@ from app.features.trade_position.persistence.models import (
 from app.features.trade_position.service.errors import OpenTradeExists
 
 
-class TradeRepository(Protocol):
-    async def add(self, trade: Trade) -> None: ...
-
+class TradeReader(Protocol):
     async def get(
         self,
         workspace_id: UUID,
         trade_id: UUID,
     ) -> Trade | None: ...
+
+
+class TradeRepository(TradeReader, Protocol):
+    async def add(self, trade: Trade) -> None: ...
 
 
 class ExecutionRecordRepository(Protocol):
@@ -144,9 +146,10 @@ class SqlAlchemyTradeRepository:
             .with_for_update()
             .execution_options(populate_existing=True)
         )
-        if model is None:
-            return None
+        return self.to_domain(model) if model is not None else None
 
+    @staticmethod
+    def to_domain(model: TradeModel) -> Trade:
         return Trade(
             id=model.id,
             workspace_id=model.workspace_id,
@@ -163,6 +166,21 @@ class SqlAlchemyTradeRepository:
             cancellation_reason=model.cancellation_reason,
             duplicate_of_trade_id=model.duplicate_of_trade_id,
         )
+
+
+class SqlAlchemyReadOnlyTradeRepository:
+    """Scoped trade facts without the command repository's FOR UPDATE lock."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def get(self, workspace_id: UUID, trade_id: UUID) -> Trade | None:
+        model = await self._session.scalar(
+            select(TradeModel).where(
+                TradeModel.workspace_id == workspace_id, TradeModel.id == trade_id
+            )
+        )
+        return SqlAlchemyTradeRepository.to_domain(model) if model is not None else None
 
 
 class SqlAlchemyExecutionRecordRepository:

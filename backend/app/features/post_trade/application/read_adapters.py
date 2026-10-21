@@ -43,12 +43,13 @@ from app.features.trade_position.persistence.repositories import (
     SqlAlchemyPositionRepository,
     SqlAlchemyTradeManagementEventRepository,
     SqlAlchemyTradeRepository,
+    TradeReader,
 )
 
 
 class SqlAlchemyTradeExitContextReader:
-    def __init__(self, session: AsyncSession) -> None:
-        self._trades = SqlAlchemyTradeRepository(session)
+    def __init__(self, session: AsyncSession, *, trades: TradeReader | None = None) -> None:
+        self._trades = trades if trades is not None else SqlAlchemyTradeRepository(session)
         self._executions = SqlAlchemyExecutionRecordRepository(session)
         self._positions = SqlAlchemyPositionRepository(session)
         self._management_events = SqlAlchemyTradeManagementEventRepository(session)
@@ -116,8 +117,8 @@ class SqlAlchemyTradeExitContextReader:
 
 
 class SqlAlchemyHistoricalPlanningContextReader:
-    def __init__(self, session: AsyncSession) -> None:
-        self._trades = SqlAlchemyTradeRepository(session)
+    def __init__(self, session: AsyncSession, *, trades: TradeReader | None = None) -> None:
+        self._trades = trades if trades is not None else SqlAlchemyTradeRepository(session)
         self._plans = SqlAlchemyTradePlanRepository(session)
         self._versions = SqlAlchemyTradePlanVersionRepository(
             session,
@@ -161,9 +162,9 @@ class SqlAlchemyHistoricalPlanningContextReader:
 
 
 class SqlAlchemyHistoricalProductContextReader:
-    def __init__(self, session: AsyncSession) -> None:
+    def __init__(self, session: AsyncSession, *, trades: TradeReader | None = None) -> None:
         self._session = session
-        self._trades = SqlAlchemyTradeRepository(session)
+        self._trades = trades if trades is not None else SqlAlchemyTradeRepository(session)
 
     async def get(
         self,

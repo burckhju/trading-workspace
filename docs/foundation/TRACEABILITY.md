@@ -571,3 +571,21 @@ Definition `realized-gross-sell-v2` changes currency qualification only; owner
 arithmetic and bounded report snapshot remain unchanged. There is no migration,
 automatic historical currency backfill or new feature ID. The historical V1.5.9
 test references above do not serve as tests for this amendment.
+
+
+## Read-only trade-source composition — 2026-10-21
+
+[PB-018 historical currentness](../planning/PRODUCT_BACKLOG.md#pb-018-currentness) and
+[PB-019 separation of decision quality and result](../planning/PRODUCT_BACKLOG.md#pb-019-decision-quality)
+→ [bounded source/read contract](../implementation/TRADE_SOURCE_VIEW_QUALIFICATION.md)
+→ `trade_position/service/source_view.py` and `api/source_router.py`
+→ existing TradeManagementPage source mode / `TradeSourcesView.tsx`
+→ `test_source_view.py` (33 executed cases), `TradeSourcesView.test.tsx` (22 executed cases)
+→ five prepared native cases in `test_trade_source_view_postgres.py` (collection only).
+
+Fresh local regressions cover 680 unit cases in affected backend areas and the
+unchanged full frontend gate (598 tests). This is not the full backend gate or
+a Browser→API→PostgreSQL qualification. The final delivery receipt binds the new
+reconstruction to a concrete local commit/tree; no identity with the previously
+claimed unretained implementation is asserted. Closed-report #270 integration,
+real database/browser checks, human acceptance and publication remain distinct.

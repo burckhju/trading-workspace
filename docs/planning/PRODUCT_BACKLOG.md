@@ -1138,6 +1138,9 @@ der Layout-Phase, getrennt vom weiterhin passiven Ladeeffekt.
 <details>
 <summary>PB-018 — Korrekturen, Review-Currentness und historische Herkunft</summary>
 
+> Fortschreibung 21.10.2026: Die unabhängige [lesende Einzeltrade-Quellenansicht](../implementation/TRADE_SOURCE_VIEW_QUALIFICATION.md) verbindet konkrete Review-/Journalversionen mit getrennt ausgewiesener heutiger Quellenprüfung. Neu rekonstruierter lokaler Entwicklungsstand mit Unit-/UI-Nachweisen; echte PostgreSQL-/Browserqualifikation, PR und Integration der Abschlussstatistik sind offen. Keine automatische Revalidierung und kein neuer Release.
+
+
 | Nachweisfeld | Einordnung |
 |---|---|
 | Zuordnung | M5/M6/M7: historische Korrekturen als durchgängiger Vertrag. Bereich/Querschnitt: 7; Querschnitt: technische Qualität/Betrieb. Bestehender Bezug: FT-010 → FT-011 → FT-012. Lieferziel: B, D. |
@@ -1254,6 +1257,9 @@ der Layout-Phase, getrennt vom weiterhin passiven Ladeeffekt.
 <a id="pb-019-decision-quality"></a>
 <details>
 <summary>PB-019 — Entscheidungsbewertung getrennt vom Ergebnis</summary>
+
+> Fortschreibung 21.10.2026: [Quellenansicht und A1–A16-Prüfgrenzen](../implementation/TRADE_SOURCE_VIEW_QUALIFICATION.md) ergänzen ausschließlich die Anzeige gespeicherter Exit-Bewertung, genauer Journal-/Evidence-/Lessonbeziehungen und Originalplanung. 598 Frontendtests und 680 betroffene Backend-Unitfälle bestanden; fünf neue native Fälle nur gesammelt. Gesamtergebnis/Abschlusslisten-Einstieg, vollständige native Benutzerreise und menschliche Fachabnahme bleiben offen. Der allgemeine Bewertungsumfang bleibt **Analysis**, nicht durch reine Quellenanzeige erledigt.
+
 
 | Nachweisfeld | Einordnung |
 |---|---|

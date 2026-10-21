@@ -1,5 +1,8 @@
 import { FormEvent, useEffect, useRef, useState } from 'react';
-import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+
+import { TradeSourcesView } from '../components/TradeSourcesView';
+import { sourceLink } from '../services/sourceView';
 
 import { PositionRiskPanel } from '../../alert/components/PositionRiskPanel';
 import { TradeAlertsPanel } from '../../alert/components/TradeAlertsPanel';
@@ -45,6 +48,10 @@ export function TradeManagementPage() {
   const [searchParams] = useSearchParams();
   const tradeId = searchParams.get('trade_id') ?? '';
   const [readAttempt, setReadAttempt] = useState(0);
+  const location = useLocation();
+  if (searchParams.get('view') === 'sources') {
+    return <TradeSourcesView key={`${location.key}:${location.search}`} query={searchParams} />;
+  }
 
   // URL identity owns the entire transaction context, including child forms.
   // Reset synchronously on trade changes, not after a render of stale holdings.
@@ -237,6 +244,17 @@ function TradeManagementContext({ tradeId, onReload }: { tradeId: string; onRelo
           fachliche Fakten.
         </p>
       </header>
+
+      {trade && (
+        <Link
+          className="text-sky-400 underline"
+          target="_blank"
+          rel="noopener noreferrer"
+          to={sourceLink(new URLSearchParams({ trade_id: trade.id }))}
+        >
+          Quellen und dokumentierte Reflexion lesen (neuer Tab)
+        </Link>
+      )}
 
       <form onSubmit={lookupTrade} className="rounded-xl border border-slate-800 p-5">
         <label className="block text-sm font-medium" htmlFor="trade-id">
