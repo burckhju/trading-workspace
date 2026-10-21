@@ -314,3 +314,42 @@ To obtain new prices, leave the already authorized scheduler running; this butto
 intentionally does not bypass its due times. No migration is introduced. Paid
 feeds, new source transports, persisted user preference/priority overrides and
 historical price series remain outside this diagnostic slice.
+
+## Current lanes and source-mode pacing qualification (2026-10-21)
+
+At the qualified `main` revision `5e9ede2`, the existing workers are `WARRANTS`,
+`ISSUER_QUOTES`, `WARRANT_DISCOVERY`, `ISSUER_DISCOVERY` and `UNDERLYINGS`.
+The current status value is
+`INDEPENDENT_ISSUER_EXCHANGE_DISCOVERY_UNDERLYING_LANES`; the dated two-queue
+example above describes an earlier implementation. Discovery separation and the
+bounded same-cycle quote retry already exist, including a quote that starts
+before successful discovery but finishes afterwards. This qualification adds no
+worker, lane, scheduler or parallel requests within a lane.
+
+Job intervals, scheduler pauses, actual transport budgets, cache lifetime and
+failure backoff are distinct. `_pace()` currently waits before each selected
+Frankfurt quote route in every source mode, as well as before Public discovery.
+Its remaining deadline is combined with the shared client's cooldown. A different
+instrument does not receive a new request budget. Snapshot cache hits can still
+wait in the scheduler even though they issue no HTTP/file access.
+
+The [source-mode report](reviews/MARKET_DATA_SOURCE_MODE_PACING_2026-10-21.md)
+records a real runtime/resolver/retention/adapter/client composition with
+synthetic transport and disposable SQLite. At test times 100 and 101, two routes
+produce a 14-second scheduler wait; Public makes two exact-ISIN HTTP requests,
+whereas HTTPS and local-file modes reuse one snapshot and its original retrieval
+time. These are characterization results, not an external rate recommendation.
+Whether normalized snapshot quote calls should omit the additional scheduler
+pause remains an explicit decision in the
+[refresh backlog entry](planning/PRODUCT_BACKLOG.md#market-data-refresh).
+Production defaults and behavior are unchanged.
+
+If an interactive request consumes the slot after `_pace()`, the client still
+checks its budget under the lock. In the tested case without a prior observation,
+discovery reports `DEFERRED` with a bounded next due time; the quote job reports
+`MISSING` with `ERROR / FRANKFURT_REQUEST_THROTTLED` in its source attempt and
+retains its existing job interval. Neither path loops immediately. Existing
+historical retention can separately provide an available analysis observation
+with its original timestamps and explicit `refresh_error`; that observation and
+a successful job do not prove a fresh market price. The tested lifecycle and
+shared budget are process-local; SQLite tests do not prove PostgreSQL leader locks.

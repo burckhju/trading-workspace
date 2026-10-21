@@ -430,6 +430,30 @@ Scope and acceptance criteria: [implementation report](../implementation/JPMORGA
 
 </details>
 
+## TC-001 Quellenmodus-/Pacing-Qualifikation — 2026-10-21
+
+[Datenaktualisierung](../planning/PRODUCT_BACKLOG.md#market-data-refresh) und
+[Datenqualität](../planning/PRODUCT_BACKLOG.md#market-data-quality) →
+[Qualifikationsbericht mit A01–A14](../reviews/MARKET_DATA_SOURCE_MODE_PACING_2026-10-21.md).
+Basis `5e9ede2dc29f52eaff601d30614df6bc9c25c426` / v1.5.11;
+Code-/Testcommit `3d47732665c8b66984923d88a65cf99e74d96791`, Tree
+`1b8dd1badb32e9a9d017ffd44656065f1021ac4b`.
+
+| Gegenstand | Implementierungs-/Vertragsbezug | Neuer begrenzter Nachweis |
+|---|---|---|
+| Quellenmodus und Zusatzpause | Unveränderte `refresh.py`, Frankfurt-Client/Adapter, `quote_runtime.py`; [Schedulervertrag](../automatic-market-data.md#current-lanes-and-source-mode-pacing-qualification-2026-10-21) | `test_refresh_source_modes.py`: drei Modi mit echtem Resolver/Retention/Adapter/Client und getrennten Warte-/Zugriffszählern; Public zwei HTTP, Snapshots ein Zugriff im Referenzfall |
+| Cache, Fehler, Originalzeiten | [Frankfurtvertrag](../frankfurt-quotes.md#source-mode-pacing-qualification-2026-10-21), gemeinsamer prozesslokaler Lock/Cache/Backoff | `test_source_mode_contract.py`: TTL, Retry-After 120 s, koordinierte Leser, alte Datei trotz mtime, fünf Dateifehler und Freigabeschranken |
+| Konkurrenz und Lifecycle | Bestehendes Budget nach `_pace()`, Discovery-Deferral, Quote-Fehler, Stop/Join | Zwei echte Budgetkonkurrenzen und Pacing-Cancellation; vorhandene Lane-/Same-Cycle-/Leadergrenztests bleiben erhalten |
+
+322 gezielte Tests auf dem benannten Code-/Testcommit bestanden; keine Skips oder
+automatischen Retries. Vollständige statische Backendprüfungen bestanden.
+Lokale vollständige PostgreSQL-/Container-/Frontend-/Browsergates nicht
+ausgeführt; aktuelle finale PR-CI separat nachweisen. Die Sandbox-
+Executorstörung und der korrigierte Ruff-Importbefund sind im Bericht erhalten.
+**Keine Produktionsänderung:** Public No-change, zusätzliche Snapshot-
+Schedulerpause als gezielt offene fachliche Entscheidung. Kein Merge, Release,
+Providerzugriff, Nutzerbestands- oder PC-Nachweis folgt aus diesen Tests.
+
 ## FT-012 Journal write continuation — 2026-10-14
 
 [PB-019 Journal](../planning/PRODUCT_BACKLOG.md#pb-019-journal) →

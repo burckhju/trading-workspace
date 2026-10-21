@@ -605,3 +605,43 @@ tradability. Tests use synthetic payloads and HTTP mocks, not live-market claims
 In public mode each exact ISIN is requested within the shared rate budget and
 Last-only provenance is exported separately. Production bid/ask data access and
 135-WKN bid/ask coverage remain unverified prerequisites.
+
+## Source-mode pacing qualification (2026-10-21)
+
+The [TC-001 qualification report](reviews/MARKET_DATA_SOURCE_MODE_PACING_2026-10-21.md)
+binds the current behavior to `main` `5e9ede2` and a separate test commit. It does
+not activate a source or change production pacing. Task status remains in the
+[existing refresh backlog entry](planning/PRODUCT_BACKLOG.md#market-data-refresh).
+
+One application container shares a Frankfurt client across discovery, scheduled
+quotes, valuation and interactive listing diagnostics. Public responses are
+cached by exact ISIN; HTTPS JSON and local files share the key `snapshot` across
+listings. With refresh enabled, the container supplies the warrant job interval
+as the positive cache TTL (default 300 seconds). Without refresh, the standalone
+client's default cache lifetime follows its configured request interval. These
+are technical implementation values, not external source entitlements.
+
+The client checks source permissions before I/O, then failures, cache and its
+shared request budget under one process-local lock. A valid hit preserves the
+original retrieval and quote timestamps. File mtime never becomes a market
+timestamp. A new file read can change retrieval time while the original quote
+remains stale. Local reads retain
+size, schema, source, declared-delay and error-backoff boundaries; they make no
+HTTP request. Public instrument 404s remain distinct from a complete snapshot
+endpoint's 404, and longer Retry-After deadlines remain intact.
+
+The scheduler currently also calls `_pace()` before every selected, active,
+validated `FRANKFURT_QUOTES` route in all three modes. Public discovery uses the
+same pacer and client. Direct interactive cache reads do not use that scheduler
+pacer. A controlled two-listing example records one 14-second scheduler pause
+even when the second HTTPS/file read is a hit and total transport access remains
+one. The relevant contract does not explicitly settle whether this extra pause
+must apply to normalized snapshot cache readers. Its removal therefore remains
+a specific policy decision; no speedup or changed access rate is claimed here.
+
+The tests preserve the existing limits and separately count resolver calls,
+pacing calls, actual waits and HTTP/file accesses. They cover cache expiry,
+Retry-After, concurrent readers, cancellation and unchanged old files. They do
+not establish a distributed request budget or real provider coverage. Separate
+CLI processes continue to have separate clients and must not be treated as
+sharing the API process's budget.
