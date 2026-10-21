@@ -1,0 +1,60 @@
+name: Verify qualification transport padding
+on:
+  push:
+    branches: [transport/trade-source-import-7b8ab34]
+    paths: [.github/workflows/source-view-qualification-import-repair.yml]
+permissions:
+  contents: read
+jobs:
+  import:
+    if: github.repository == 'burckhju/trading-workspace'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify unchanged payload hashes, paths, tree and commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import base64, hashlib, lzma, os, pathlib, re, subprocess
+          source = pathlib.Path('.github/workflows/source-view-qualification-import.yml').read_text()
+          encoded = re.search(r"payload = base64.b64decode\('([^']+)'\)", source).group(1)
+          payload = base64.b64decode(encoded + '=' * (-len(encoded) % 4), validate=True)
+          assert len(payload) == 7012 and hashlib.sha256(payload).hexdigest() == 'bb7d12ab050a79d740df3fe81bfb775c1a7b01cb4ab7679c8c631cf20a475282'
+          d = lzma.LZMADecompressor()
+          patch = d.decompress(payload, max_length=17543)
+          assert d.eof and not d.unused_data and len(patch) == 17542
+          assert hashlib.sha256(patch).hexdigest() == '0efad9320889fbf1350d886b2c9bc0318ffc5aac0b988ea27819baf7e32e7de3'
+          base = '8cc68f65d9b32d8337cfb32c468f0deeaa41b32a'
+          tree = 'd45d47c273aa691e1aa63d1e9c3a17f601b51a29'
+          head = 'e32c15e7986e08c22de5fddda46de16551acfa66'
+          work = pathlib.Path(os.environ['RUNNER_TEMP']) / 'qualification-import'
+          subprocess.run(['git','worktree','add','--detach',str(work),base], check=True)
+          def git(*args,data=None):
+              return subprocess.check_output(['git','-C',str(work),*args],input=data).decode().strip()
+          git('apply','--check','--index','-',data=patch)
+          git('apply','--index','-',data=patch)
+          assert set(git('diff','--cached','--name-only').splitlines()) == {'docs/features/FT-010_TRADE_MANAGEMENT.md','docs/foundation/TRACEABILITY.md','docs/implementation/TRADE_SOURCE_VIEW_QUALIFICATION.md','docs/planning/PRODUCT_BACKLOG.md','scripts/run-realized-gross-e2e.sh','tests/e2e/support/trade_source_journey.ts'}
+          git('diff','--cached','--check')
+          assert git('write-tree') == tree
+          raw = (f'tree {tree}\nparent {base}\nauthor AI development assistant <noreply@example.invalid> 1792608350 +0000\ncommitter AI development assistant <noreply@example.invalid> 1792608350 +0000\n\ntest(trade): retain loaded mobile sources and trace; record native qualification\n').encode()
+          assert git('hash-object','-t','commit','-w','--stdin',data=raw) == head
+          print('Verified exact qualification commit', head, tree)
+          PY
+      - name: Publish new staging reference only
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          repo=https://github.com/burckhju/trading-workspace.git
+          target=refs/heads/transport/source-qualified-ready
+          test -z "$(git ls-remote "$repo" "$target")"
+          git -c credential.helper='!f() { echo username=x-access-token; echo "password=$GH_TOKEN"; }; f' push "$repo" "e32c15e7986e08c22de5fddda46de16551acfa66:$target"
+          test "$(git ls-remote "$repo" "$target" | cut -f1)" = e32c15e7986e08c22de5fddda46de16551acfa66
