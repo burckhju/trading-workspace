@@ -1,0 +1,60 @@
+name: Collect final source-view CI evidence
+on:
+  push:
+    branches: [transport/trade-source-import-7b8ab34]
+    paths: [.github/workflows/source-view-final-ci-evidence.yml]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  collect:
+    if: github.repository == 'burckhju/trading-workspace'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - name: Await the specific final job and capture its actual result
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib, json, os, pathlib, re, subprocess, time, urllib.request
+          root = pathlib.Path(os.environ['RUNNER_TEMP']) / 'final-source-ci'
+          root.mkdir()
+          repo = 'https://api.github.com/repos/burckhju/trading-workspace'
+          jobs = {'backend': (119420177824,39657105737), 'frontend': (119420176057,39657105520), 'native': (119420175532,39657105539)}
+          headers = {'Authorization': 'Bearer '+os.environ['GH_TOKEN'], 'Accept':'application/vnd.github+json'}
+          summaries = []
+          for name, (jobid, runid) in jobs.items():
+              for attempt in range(75):
+                  request=urllib.request.Request(f'{repo}/actions/jobs/{jobid}', headers=headers)
+                  with urllib.request.urlopen(request,timeout=30) as response:
+                      job=json.load(response)
+                  assert job['id']==jobid and job['run_id']==runid
+                  if job['status']=='completed': break
+                  time.sleep(10)
+              else: raise RuntimeError(f'Exact job {jobid} still incomplete; no success claimed')
+              (root/f'{name}-job.json').write_text(json.dumps(job,indent=2))
+              output=root/f'{name}.log'
+              subprocess.run(['curl','--fail','--silent','--show-error','--location','--max-time','90','-H','Authorization: Bearer '+os.environ['GH_TOKEN'],'-H','Accept: application/vnd.github+json',f'{repo}/actions/jobs/{jobid}/logs','-o',str(output)],check=True)
+              raw=output.read_bytes()
+              clean=re.sub(r'\x1b\[[0-?]*[ -/]*[@-~]','',raw.decode('utf-8',errors='replace'))
+              lines=clean.splitlines()
+              patterns=r'Test Files|Tests\s+\d|\d+ passed|\d+ failed|total coverage|Total coverage|TOTAL |All files|source_view|source-view|554 source|would be left unchanged|DeprecationWarning|chunks are larger|CI gate|\bFAILED\b|AssertionError|git log -1|dc45207d48b0b6abeb21e353e1ea85e4b1b26db9'
+              selected=[line for line in lines if re.search(patterns,line,re.I)]
+              # Full log is retained; the display is deliberately bounded.
+              summary={'name':name,'job_id':jobid,'run_id':runid,'status':job['status'],'conclusion':job['conclusion'],'log_bytes':len(raw),'log_sha256':hashlib.sha256(raw).hexdigest(),'selected_lines':selected}
+              summaries.append(summary)
+              (root/f'{name}-summary.txt').write_text(json.dumps(summary,indent=2))
+              print(json.dumps({k:v for k,v in summary.items() if k!='selected_lines'}))
+              print('\n'.join(selected)[-12000:])
+          (root/'summaries.json').write_text(json.dumps(summaries,indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: final-source-ci-evidence
+          path: ${{ runner.temp }}/final-source-ci/
+          if-no-files-found: error
+          retention-days: 30
