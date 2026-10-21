@@ -1,6 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { resolve } from "node:path";
 import { expect, test } from "@playwright/test";
+import { assertSourceExitNavigation } from "./support/trade_source_journey";
 
 test.use({ serviceWorkers: "block", trace: "on" });
 
@@ -345,6 +346,7 @@ test("real PostgreSQL: full-close cohort, lifetime result, gaps and current corr
     }),
   ).toContainText("Exit-Bewertung nicht dokumentiert");
   await expect(page.getByRole("form")).toHaveCount(0);
+  await assertSourceExitNavigation(page);
   await page.screenshot({
     path: testInfo.outputPath("closed-source-reference-50-desktop.png"),
     fullPage: true,
@@ -538,6 +540,7 @@ test("real PostgreSQL: full-close cohort, lifetime result, gaps and current corr
       exact: true,
     }),
   ).toContainText("Historisch ersetzt");
+  await assertSourceExitNavigation(page);
   await page.screenshot({
     path: testInfo.outputPath("closed-source-reference-70-mobile.png"),
     fullPage: true,

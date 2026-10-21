@@ -461,14 +461,19 @@ export function TradeSourcesView({ query }: { query: URLSearchParams }) {
   const tradeId = (query.get('trade_id') ?? '').toLowerCase();
   return (
     <main className="min-w-0 w-full space-y-6 [overflow-wrap:anywhere]">
-      {reportContext && (
-        <Link className={linkClass} to={closedListUrl(reportContext)}>
-          Zur ursprünglichen Abschlussauswahl
+      <nav aria-label="Quellenansicht verlassen" className="flex flex-wrap gap-x-4 gap-y-2">
+        {reportContext && (
+          <Link className={linkClass} to={closedListUrl(reportContext)}>
+            Zur ursprünglichen Abschlussauswahl
+          </Link>
+        )}
+        <Link
+          className={linkClass}
+          to={`/trade-management?trade_id=${encodeURIComponent(tradeId)}`}
+        >
+          Zur Tradeverwaltung
         </Link>
-      )}
-      <Link className={linkClass} to={`/trade-management?trade_id=${encodeURIComponent(tradeId)}`}>
-        Zur Tradeverwaltung
-      </Link>
+      </nav>
       <p>
         Lesende Quellenansicht. Keine automatische Bewertung, Reparatur, Materialisierung oder
         Revalidierung. Abschnitte werden getrennt gelesen.

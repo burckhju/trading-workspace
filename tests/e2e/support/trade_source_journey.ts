@@ -7,6 +7,23 @@ import {
   type TestInfo,
 } from "@playwright/test";
 
+// Keep the two distinct return targets visually separate on desktop and mobile.
+export async function assertSourceExitNavigation(page: Page) {
+  const nav = page.getByRole("navigation", {
+    name: "Quellenansicht verlassen",
+    exact: true,
+  });
+  const links = nav.getByRole("link");
+  await expect(links).toHaveCount(2);
+  const first = await links.nth(0).boundingBox();
+  const second = await links.nth(1).boundingBox();
+  expect(first).not.toBeNull();
+  expect(second).not.toBeNull();
+  const separateRows = second!.y >= first!.y + first!.height + 4;
+  const separateColumns = second!.x >= first!.x + first!.width + 8;
+  expect(separateRows || separateColumns).toBe(true);
+}
+
 // Added to the existing protected owner journey, not a mocked UI test. All setup
 // writes happen outside the fingerprinted read windows and after the DB guard.
 export async function qualifyTradeSources(
@@ -94,6 +111,7 @@ export async function qualifyTradeSources(
       .getByText("Vollständiges Tradeergebnis · Anzeige", { exact: true })
       .locator("..");
   const settled = async () => {
+    await assertSourceExitNavigation(page);
     await expect(region("Wirtschaftliches Gesamtergebnis")).toContainText(
       "Vollständiges Tradeergebnis und Buchungshistorie",
     );
