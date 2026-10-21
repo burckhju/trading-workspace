@@ -273,7 +273,7 @@ export async function qualifyTradeSources(
     expected_current_state: "CURRENT",
     evidence_links: [
       { learning_evidence_id: jeid, relation: "CONTEXTUAL" },
-      { learning_evidence_id: feid, relation: "CONTRADICTS" },
+      { learning_evidence_id: feid, relation: "SUPPORTS" },
     ],
   });
   expect(successor.current_version_id).not.toBe(l1);

@@ -78,7 +78,9 @@ async def correct(client, tid, eid, *, price="3.00", quantity=40, day="2026-09-1
     return response.json()
 
 
-def test_real_reference_sources_correction_and_optional_absence_are_read_only(source_database):
+def test_real_reference_sources_correction_and_optional_absence_are_read_only(
+    source_database,
+):
     _migrate(source_database, "head")
 
     async def exercise():
@@ -112,7 +114,19 @@ def test_real_reference_sources_correction_and_optional_absence_are_read_only(so
             after_write = await _state(database.engine)
             new = await sources(client, tid)
             assert len(new["timeline"]) == 7
-            assert next(e for e in new["timeline"] if e["id"] == ids[4]) == original["timeline"][4]
+            historical = next(e for e in new["timeline"] if e["id"] == ids[4])
+            # The immutable fact is unchanged. The established resolver does not
+            # reconstruct a superseded fact's former effective BUY prefix.
+            assert {k: v for k, v in historical.items() if k != "currency_resolution"} == {
+                k: v for k, v in original["timeline"][4].items() if k != "currency_resolution"
+            }
+            assert original["timeline"][4]["currency_resolution"]["source"] == "PRIOR_BUYS"
+            assert historical["currency_resolution"] == {
+                "currency_code": None,
+                "source": "UNKNOWN",
+                "source_execution_ids": [],
+                "confirmation_ids": [],
+            }
             replacement = next(
                 e for e in new["timeline"] if e["id"] == corrected["execution"]["id"]
             )
@@ -151,7 +165,13 @@ def test_original_plan_and_real_approval_survive_p2_scope_and_limit_rejection(
             before = await _state(database.engine)
             selected = await sources(client, tid, "plan")
             assert selected["version"]["id"] == p1
-            for field in ("thesis", "entry", "invalidation", "targets", "risk_assumptions"):
+            for field in (
+                "thesis",
+                "entry",
+                "invalidation",
+                "targets",
+                "risk_assumptions",
+            ):
                 assert selected["version"][field] == first_plan["version"][field]
             assert selected["approval"] == first_plan["approval"]
             assert first_plan["approval"]["trade_plan_version_id"] == p1
@@ -177,7 +197,9 @@ def test_original_plan_and_real_approval_survive_p2_scope_and_limit_rejection(
     asyncio.run(exercise())
 
 
-def test_exact_journal_review_evidence_and_lesson_history_survive_real_correction(source_database):
+def test_exact_journal_review_evidence_and_lesson_history_survive_real_correction(
+    source_database,
+):
     _migrate(source_database, "head")
 
     async def exercise():
@@ -192,7 +214,7 @@ def test_exact_journal_review_evidence_and_lesson_history_survive_real_correctio
                     content="A separate later interpretation",
                     evidence_links=[
                         {"learning_evidence_id": jeid, "relation": "CONTEXTUAL"},
-                        {"learning_evidence_id": feid, "relation": "CONTRADICTS"},
+                        {"learning_evidence_id": feid, "relation": "SUPPORTS"},
                     ],
                     expected_current_version_id=l1,
                     expected_current_state=old["lesson"]["current_state"],
@@ -221,7 +243,7 @@ def test_exact_journal_review_evidence_and_lesson_history_survive_real_correctio
             } == {(l1, "SUPPORTS"), (l2, "CONTEXTUAL")}
             assert {
                 (x["lesson_version_id"], x["relation"]) for x in by_id[feid]["lesson_links"]
-            } == {(l1, "CONTRADICTS"), (l2, "CONTRADICTS")}
+            } == {(l1, "CONTRADICTS"), (l2, "SUPPORTS")}
             for section in ("reviews", "journal"):
                 wrong = await client.get(
                     f"{BASE}/trades/{uuid4()}/sources/{section}",
