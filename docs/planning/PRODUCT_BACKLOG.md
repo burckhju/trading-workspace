@@ -1138,7 +1138,7 @@ der Layout-Phase, getrennt vom weiterhin passiven Ladeeffekt.
 <details>
 <summary>PB-018 — Korrekturen, Review-Currentness und historische Herkunft</summary>
 
-> Fortschreibung 21.10.2026: Die unabhängige [lesende Einzeltrade-Quellenansicht](../implementation/TRADE_SOURCE_VIEW_QUALIFICATION.md) verbindet konkrete Review-/Journalversionen mit getrennt ausgewiesener heutiger Quellenprüfung. Neu rekonstruierter lokaler Entwicklungsstand mit Unit-/UI-Nachweisen; echte PostgreSQL-/Browserqualifikation, PR und Integration der Abschlussstatistik sind offen. Keine automatische Revalidierung und kein neuer Release.
+> Fortschreibung 21.10.2026: Die unabhängige [lesende Einzeltrade-Quellenansicht](../implementation/TRADE_SOURCE_VIEW_QUALIFICATION.md) verbindet konkrete Review-/Journalversionen mit getrennt ausgewiesener heutiger Quellenprüfung. Veröffentlicht in Draft-PR #272; echte Quellenreise über Browser/API/PostgreSQL auf 8cc68f6 bestanden, einschließlich unveränderter historischer Inhalte bei separat berechnetem STALE. Vollständige finale CI-/Mobilnachweise sind checkoutgebunden im PR zu prüfen; die Abschlussstatistik-Integration bleibt offen. Keine automatische Revalidierung und kein neuer Release.
 
 
 | Nachweisfeld | Einordnung |
@@ -1258,7 +1258,7 @@ der Layout-Phase, getrennt vom weiterhin passiven Ladeeffekt.
 <details>
 <summary>PB-019 — Entscheidungsbewertung getrennt vom Ergebnis</summary>
 
-> Fortschreibung 21.10.2026: [Quellenansicht und A1–A16-Prüfgrenzen](../implementation/TRADE_SOURCE_VIEW_QUALIFICATION.md) ergänzen ausschließlich die Anzeige gespeicherter Exit-Bewertung, genauer Journal-/Evidence-/Lessonbeziehungen und Originalplanung. 598 Frontendtests und 680 betroffene Backend-Unitfälle bestanden; fünf neue native Fälle nur gesammelt. Gesamtergebnis/Abschlusslisten-Einstieg, vollständige native Benutzerreise und menschliche Fachabnahme bleiben offen. Der allgemeine Bewertungsumfang bleibt **Analysis**, nicht durch reine Quellenanzeige erledigt.
+> Fortschreibung 21.10.2026: [Quellenansicht und A1–A16-Prüfgrenzen](../implementation/TRADE_SOURCE_VIEW_QUALIFICATION.md) ergänzen ausschließlich die Anzeige gespeicherter Exit-Bewertung, genauer Journal-/Evidence-/Lessonbeziehungen und Originalplanung. 598 Frontendtests und 680 betroffene Backend-Unitfälle bestanden; Quellen-Browserreise mit exakten L1-/Journalpins und Nichtmutation jetzt tatsächlich bestanden (Draft-PR #272). Der erste Backend-Volllauf fand zwei korrigierte Fixturefehler; sein Ergebnis wird nicht als grüner Abschluss gewertet. Finale Vollgate-/Mobilnachweise bleiben im PR getrennt gebunden. Gesamtergebnis/Abschlusslisten-Einstieg und menschliche Fachabnahme bleiben offen. Der allgemeine Bewertungsumfang bleibt **Analysis**, nicht durch reine Quellenanzeige erledigt.
 
 
 | Nachweisfeld | Einordnung |

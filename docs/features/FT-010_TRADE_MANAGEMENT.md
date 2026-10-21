@@ -453,6 +453,6 @@ snapshot, new write owner, migration, provider access or monetary recomputation
 is introduced. The closed-trade-report integration remains open; a raw position
 amount is not presented as a qualified total.
 
-[Source contract, fresh local tests and explicit native/browser gaps](../implementation/TRADE_SOURCE_VIEW_QUALIFICATION.md)
+[Source contract, native source-path evidence and explicit remaining integration limits](../implementation/TRADE_SOURCE_VIEW_QUALIFICATION.md)
 document this local development slice. This amendment does not establish release,
 installation, complete A1–A16 acceptance or a general trade-quality methodology.

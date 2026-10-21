@@ -244,7 +244,7 @@ cd "${repository_root}/frontend"
   "TRADING_WORKSPACE_TEST_DATABASE_URL=${host_database_url}" \
   "PLAYWRIGHT_JSON_OUTPUT_FILE=${artifact_dir}/results.json" \
   ./node_modules/.bin/playwright test realized-gross-report-postgres.spec.ts \
-    --project=chromium --workers=1 --retries=0 --reporter=list,json \
+    --project=chromium --workers=1 --retries=0 --trace=on --reporter=list,json \
     --output="${artifact_dir}/playwright" | tee "${artifact_dir}/playwright.log"
 "${clean_environment[@]}" "${python_bin}" -I - "${artifact_dir}/results.json" <<'PY'
 import json

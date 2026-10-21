@@ -1,10 +1,13 @@
 # Lesende Einzeltrade-Quellenansicht — Entwicklungsnachweis
 
-Stand: 21.10.2026. **Lokaler, teilweise geprüfter Entwicklungsschnitt; keine technische Merge-Reife.**
+Stand: 21.10.2026. **Veröffentlichter Draft-PR; unabhängiger Quellenweg nativ geprüft,
+Abschlussreport-Integration weiterhin offen.** Der Nachtrag am Ende trennt den
+ursprünglichen lokalen Nachweisstand vom späteren CI-/Browsernachweis. Die dort
+verlinkte PR-Qualifikation bindet nachfolgende vollständige Läufe an ihren Checkout.
 Der Product Backlog bleibt die einzige maßgebliche Aufgabenstatusquelle. Diese Datei
 beschreibt den Quellenvertrag und den konkreten Nachweis, keine neue FT-/PB-ID.
 
-## Ausgangslage und Sicherungsgrenze
+## Ursprüngliche Ausgangslage und Sicherungsgrenze vor Veröffentlichung
 
 Erneut gelesener Main: `5e9ede2dc29f52eaff601d30614df6bc9c25c426` / v1.5.11.
 Der Remote-Arbeitsbranch `feature/trade-result-source-view` steht auf
@@ -72,7 +75,7 @@ trennt auch A→B→A und Versionswechsel. Jeder Abschnitt besitzt eigenen Abbru
 und einen bewusst ausgelösten Wiederholungsweg. Rückkehr ist ein festes internes
 Tradeziel, kein frei übernommenes `returnTo`. Abschlusslisten-Kontext ist noch nicht integriert.
 
-## Tatsächlich ausgeführte lokale Prüfungen
+## Historischer lokaler Prüfstand vor Veröffentlichung
 
 Werkzeuge: Python 3.12.15, Node 22.16.0, npm 10.9.2; versionierte Abhängigkeiten/Lockdateien,
 Gates, Retries und Schutzvariablen wurden nicht gelockert. Offline-Toolchain: alle 51
@@ -107,7 +110,7 @@ Writer vor. +50/+70 und September +10/+30 werden unabhängig als Decimal-Sollwer
 den **bestehenden SELL-Report** geprüft; das ist nicht die hier fehlende neue Gesamtergebnis-UI.
 Diese Tests wurden nur gesammelt. Ihre Assertions sind kein behaupteter Laufnachweis.
 
-## Akzeptanz A1–A16 — kein pauschales Grün
+## Historische Akzeptanzmatrix vor CI — durch Nachtrag präzisiert
 
 Abkürzungen: U = `tests/unit/backend/features/trade_position/test_source_view.py`;
 UI = `frontend/src/features/trade/components/TradeSourcesView.test.tsx`;
@@ -132,7 +135,7 @@ PG = `tests/integration/backend/test_trade_source_view_postgres.py` (nur gesamme
 | A15 | Scoped Reader vor Kindauflösung; U Fehlerfälle/DB-Details bereinigt | Native fremde Workspace-/Relationsfälle nur vorbereitet |
 | A16 | 598 Frontendtests und 680 betroffene Backend-Unitfälle bestanden | Vollständige Backend-CI, neue native Browserreise und Desktop/Mobil-Sichtprüfung offen |
 
-## Liefer- und Befugnisgrenze
+## Historische Liefergrenze der lokalen Wiederaufnahme
 
 Container hat kein Docker, PostgreSQL-Binary oder konfiguriertes Testdatenbankziel.
 Git-Remotezugriff scheitert an DNS; der GitHub-Leseconnector bestätigt den Remotezustand,
@@ -145,3 +148,87 @@ Nächster zusammenhängender Schritt: das verifizierte Bundle auf einen eigenen 
 Entwicklungsbranch übernehmen und im bestehenden geprüften Wegwerf-/CI-Stack die vollständigen
 Backend- sowie neuen PostgreSQL-/Browsernachweise ausführen; erst danach technische Merge-Reife
 beurteilen. Die Integration von #270 bleibt eine ausdrücklich separate Abhängigkeit.
+
+
+## Nachtrag: Veröffentlichung und native Quellenreise am 21.10.2026
+
+[Draft-PR #272](https://github.com/burckhju/trading-workspace/pull/272) ist offen.
+Der gesicherte Anwendungscommit `7b8ab3489ec5c5fe22f9230ce874830dbd34b6b7`
+wurde über einen temporären, hash-/pfadgebundenen Import ohne Force-Push unverändert
+veröffentlicht. Der ursprüngliche Recovery-Transportworkflow ist aus dem Anwendungs-PR
+entfernt. Import-/Diagnoseworkflows bleiben ausschließlich auf Transportbranches.
+Keine Änderung von main, Version, Lockdateien, Fachregeln oder Datenmodell.
+
+Der neue Browserfall erweitert `realized-gross-report-postgres.spec.ts` über
+`support/trade_source_journey.ts`, statt einen parallelen Teststack einzuführen.
+Die vorherigen Geld-Assertions, Test-ID, Zeitgrenze und Retry 0 bleiben bestehen.
+Jeder zusätzliche schreibende Owneraufruf prüft vorher das markierte UUID-Wegwerfziel.
+`seed_source_view_prices.py` ergänzt ausschließlich zwanzig ausdrücklich synthetische
+vergangene EOD-Zeilen nach Datenbank-/Marker-/Relationsprüfung; sechs Unitfälle prüfen
+seine Positiv-/Negativgrenzen. Kein SQL-Umschreiben von Handelsfakten und kein Providerabruf.
+
+### Tatsächlicher erster Browsernachweis
+
+Codehead `8cc68f65d9b32d8337cfb32c468f0deeaa41b32a`, Tree
+`6edfd4628e671890f1a340efffc46dd04ce55cfc`; tatsächlicher Testmerge-Checkout
+`dbe9819632881cdc7cf14e9863acf4038ba8ce0e`.
+[Run 39654378046](https://github.com/burckhju/trading-workspace/actions/runs/39654378046),
+Job 119410647987: genau ein erfolgreicher Chromium-Versuch, Retry 0,
+0 Skip/Flaky/globale Fehler; Fall 34,640 s, gesamter Browserlauf 35,798 s.
+Test-ID `bafadc4ef6213b62375d-e7b379ddd7f6cba6769e`.
+
+Artefakt `realized-gross-owner-e2e`, ID 12370816885, 1.228.874 Bytes, SHA-256
+`a49f94f9a651cc0543f9ae58cd8f5306a5e8da7bf27ce1c3c2692c1f8cfae7f1`
+wurde heruntergeladen und geprüft. UUID `0a53dd01-821c-4a46-838f-2edebc6edfef`,
+PostgreSQL 17.11, Schema `20261017_0047`; Backend intern, DB und Frontend Loopback.
+Echte Quellen-DTOs und Vorher-/Nachher-Fingerprints sind im Report eingebettet.
+Die Lesefenster erhalten sämtliche fachlichen Tabellen; Setup/Korrekturen sind getrennt.
+Das vorhandene Cleanup prüft nach dem Entfernen eigene Container, Volumes und Netze.
+
+Bestanden: P1 trotz P2, fehlende optionale Quellen, unveränderte historische Executions,
+DRAFT-Revision/Reload, EXTERNAL ohne Plan, gespeichertes GOOD trotz Verlust sowie
+NOT_ASSESSABLE, R1/J1 nach Korrektur unverändert bei separat berechnetem STALE,
+exakter L1-Link per Tastatur/Reload, erhaltenes CONTRADICTS, exakter Journalpin,
+invalides Pinning ohne Fallback und technischer Fehler mit bewusstem erneutem Read.
+Die neue Quellenansicht zeigt weiterhin ausdrücklich **kein** unqualifiziertes Gesamtergebnis.
+
+Die Desktopaufnahme wurde tatsächlich gesichtet. Die erste Mobilaufnahme erfasste
+nur den Kopfbereich; sie ist kein vollständiger Mobil-Sichtnachweis.
+Der nachfolgende Teststand wartet deshalb auf geladene Quellen und nimmt zusätzlich
+Journal und Evidence separat auf. Er aktiviert nur die Trace-Aufzeichnung des bestehenden
+nativen Laufs; keine Assertion, Zeitgrenze, Schutzbedingung oder Wiederholungszahl sinkt.
+Sein neuer Ausführungs-/Sichtnachweis ist getrennt in der PR-Qualifikation festzuhalten.
+
+### Roter Backend-Erstlauf und Testkorrektur
+
+[Backend-Run 39650248171](https://github.com/burckhju/trading-workspace/actions/runs/39650248171)
+auf 7b: 2.925 bestanden, 2 neue native Fälle fehlgeschlagen, 0 Skips,
+1 bestehende DeprecationWarning; 87,16 % Coverage, 85-%-Gate erreicht.
+Drei der fünf neuen nativen Fälle bestanden, darunter beide kontrollierten Writer-Races.
+Der vollständige Fehlerlog bleibt im Diagnoseartefakt 12370139421 erhalten.
+
+Der Test hatte eine heutige Währungsableitung mit dem unveränderlichen Executionfakt
+verwechselt. Der bestehende Resolver rekonstruiert für ersetzte Fakten keinen alten
+wirksamen BUY-Präfix. Die Korrektur vergleicht sämtliche unveränderlichen Felder und
+prüft die dokumentierte UNKNOWN-Ableitung separat. Die zweite Fixture benötigte gemäß
+bestehendem Owner mindestens einen SUPPORTS-Link in L2; L1/CONTRADICTS bleibt erhalten.
+Commit 8cc korrigiert ausschließlich diese Tests. +50/+70, September +10/+30 und
+historische Relationen werden nicht gelockert. Der vollständige neue Backendlauf ist
+erst nach tatsächlichem Abschluss ein Nachweis; sein Ergebnis steht checkoutgebunden im PR.
+
+### Fortschreibung A1–A16 und verbleibender Umfang
+
+A4/A5/A8/A9/A11/A14 sind durch die echte Quellenreise wesentlich ergänzt; A12 bleibt
+zusätzlich durch kontrollierte UI-Promises belegt. A13 hat beide PostgreSQL-Writerfälle
+im Erstlauf bestanden, aber noch keinen Abschlusslisten-Basiswechsel. A15 besitzt
+neben Unitfällen den nativen P1/P2-/Scope-/Limitfall. A16 besitzt jetzt die tatsächliche
+Browser→API→PostgreSQL-Quellenreise, nicht nur Mocktests; vollständiges Backendgate und
+finaler Mobil-/Trace-Nachweis sind jeweils separat anhand der neuen Runs zu prüfen.
+
+A1/A2/A3/A6/A10 bleiben hinsichtlich des integrierten qualifizierten Gesamtergebnisses
+und des Einstiegs/Rückwegs aus #270 offen. Die vorhandene rein lesende Darstellung
+schließt weder allgemeine Regelabweichungsbewertung (A7) noch M7/M8 oder Fachabnahme.
+Keine globale Snapshotgarantie, kein Merge/Release/Tag/Deployment und kein PC-Update.
+Der Product Backlog bleibt die Aufgabenstatusquelle; der PR enthält die genaue
+nachfolgende Run-/Head-/Checkoutbindung, damit historische Ergebnisse nicht als
+Erfolge eines späteren Commits erscheinen.

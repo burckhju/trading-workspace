@@ -233,7 +233,8 @@ export async function qualifyTradeSources(
   await expect(region("Journal")).toContainText("DRAFT");
   await page.reload();
   await settled();
-  expect(databaseState().fingerprint).toBe(draftBefore.fingerprint);
+  const draftAfter = databaseState();
+  expect(draftAfter.fingerprint).toBe(draftBefore.fingerprint);
   readWindow = false;
   await command(journalPath, {
     operation: "FINALIZE",
@@ -342,6 +343,9 @@ export async function qualifyTradeSources(
   await expect(page).toHaveURL(new RegExp(`journal_version_id=${jid}`));
   await expect(region("Journal")).toContainText("Journalversion 1 · FINALIZED");
   await page.setViewportSize({ width: 390, height: 844 });
+  // Navigation can remount sections; record loaded sources, not a transient header.
+  await settled();
+  await region("Evidence und Lesson-Versionen").scrollIntoViewIfNeeded();
   await page.screenshot({
     path: testInfo.outputPath("source-view-historical-mobile.png"),
     fullPage: true,
@@ -351,6 +355,13 @@ export async function qualifyTradeSources(
       () => document.documentElement.scrollWidth <= window.innerWidth,
     ),
   ).toBe(true);
+
+  await region("Journal").screenshot({
+    path: testInfo.outputPath("source-view-journal-mobile.png"),
+  });
+  await region("Evidence und Lesson-Versionen").screenshot({
+    path: testInfo.outputPath("source-view-evidence-mobile.png"),
+  });
 
   const invalid = crypto.randomUUID();
   await page.goto(pageUrl(tid, rid, invalid));
@@ -400,6 +411,7 @@ export async function qualifyTradeSources(
         firstBefore,
         firstAfter,
         draftBefore,
+        draftAfter,
         secondBefore,
         secondAfter,
         observed,

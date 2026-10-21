@@ -581,11 +581,17 @@ test references above do not serve as tests for this amendment.
 → `trade_position/service/source_view.py` and `api/source_router.py`
 → existing TradeManagementPage source mode / `TradeSourcesView.tsx`
 → `test_source_view.py` (33 executed cases), `TradeSourcesView.test.tsx` (22 executed cases)
-→ five prepared native cases in `test_trade_source_view_postgres.py` (collection only).
+→ five native cases in `test_trade_source_view_postgres.py`: first full run 3 passed /
+2 fixture failures, corrected without changing owner rules; final run tracked in PR #272
+→ actual protected browser path in `support/trade_source_journey.ts`, first passed on
+8cc68f6 / checkout dbe9819, plus six guarded EOD-seed contract tests.
 
 Fresh local regressions cover 680 unit cases in affected backend areas and the
 unchanged full frontend gate (598 tests). This is not the full backend gate or
 a Browser→API→PostgreSQL qualification. The final delivery receipt binds the new
 reconstruction to a concrete local commit/tree; no identity with the previously
 claimed unretained implementation is asserted. Closed-report #270 integration,
-real database/browser checks, human acceptance and publication remain distinct.
+final full CI, human acceptance and publication remain distinct. Publication as
+[Draft-PR #272](https://github.com/burckhju/trading-workspace/pull/272) and the first
+real source browser run are now evidenced in the qualification addendum. Earlier
+local-only limits above are historical; no closed-report integration is inferred.
