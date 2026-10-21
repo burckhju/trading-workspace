@@ -1,0 +1,100 @@
+name: Import exact closed-report source integration
+on:
+  push:
+    branches: [transport/closed-source-integration-20261021]
+    paths: [.github/workflows/closed-source-import.yml]
+permissions:
+  contents: write
+jobs:
+  import:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify bounded payloads and reproduce exact commits
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import base64, hashlib, lzma, os, pathlib, subprocess
+          root = pathlib.Path.cwd()
+          temp = pathlib.Path(os.environ['RUNNER_TEMP'])
+          def digest(data): return hashlib.sha256(data).hexdigest()
+          hashes = ['328a5109525ec767c4e3f6cc1d21088d135c4383de005c3c2e7ae4f4aba35fc5', '52050296f5b29a12fbe038a151688d9cbabb72707265348eed381d8ea0e39a34', 'b1bb0f4647ee8555a5930b152279fb00aec88646be6677c29594fb69eda54783', 'c32b84e72074eaa9feb0276edf3a7efe607edc98eebecb62be7b0af159083f51', '23a03757a4ed866e7a15a48978ffe25f466aa9c5f547791a6ca3b34f588bdc7e']
+          parts = []
+          for i, expected in enumerate(hashes, 1):
+              data = (root / f'.transport/closed-source/part-{i}.txt').read_bytes()
+              print('Part', i, len(data), digest(data))
+              assert digest(data) == expected, f'Part {i} differs'
+              parts.append(data)
+          def decode(encoded, size, compressed_hash, length, patch_hash):
+              data = base64.b64decode(encoded, validate=True)
+              assert len(data) == size and digest(data) == compressed_hash
+              dec = lzma.LZMADecompressor()
+              patch = dec.decompress(data, max_length=length+1)
+              assert dec.eof and not dec.unused_data and len(patch) == length
+              assert digest(patch) == patch_hash
+              return patch
+          patch = decode(b''.join(parts), 25756, 'c3ee24155241c8abdafae8270fa83e254adc8d2005a493bca33bdace1eded7f3', 102911, '674f5bb2339fdacb67449b49ee01756500d973e8c79ef5875792a7efd18cf017')
+          fix = decode((root / '.transport/closed-source/selector-fix.txt').read_bytes(), 768, '85508c88aa3bf4d024147804512a127eb1f6703acbf20362ea7798e6f7af3595', 2356, 'cdc579e5e5e06a945a1349ef43bc6a8eed9dae9f49007e575ddd7fa47c8ab350')
+          def git(work, *args, data=None):
+              return subprocess.check_output(['git', '-C', str(work), *args], input=data).decode().strip()
+          def commit(work, tree, parents, timestamp, message, expected):
+              raw = ('tree '+tree+'\n'+''.join('parent '+p+'\n' for p in parents)+f'author AI development assistant <noreply@example.invalid> {timestamp} +0000\ncommitter AI development assistant <noreply@example.invalid> {timestamp} +0000\n\n'+message+'\n').encode()
+              assert git(work, 'hash-object', '-t', 'commit', '-w', '--stdin', data=raw) == expected
+              print('Verified commit', expected, tree)
+          source = '950865415598c04338fdafb9f78d9222d9f53a3f'
+          closed = 'de413843a814ac6a1016f474f3e5366cd81ea96a'
+          merged = 'b5a6d90acb3ecf7b456285f3e02ce8eb3e3e2964'
+          merge_tree = '2e4e52e33c66cf33baa44ce4ab426f8841a1a572'
+          work = temp / 'closed-source-dependencies'
+          git(root, 'worktree', 'add', '--detach', str(work), source)
+          git(work, 'config', 'user.name', 'AI development assistant')
+          git(work, 'config', 'user.email', 'noreply@example.invalid')
+          result = subprocess.run(['git', '-C', str(work), 'merge', '--no-commit', '--no-ff', closed])
+          assert result.returncode in (0,1)
+          conflicts = git(work, 'diff', '--name-only', '--diff-filter=U').splitlines()
+          assert conflicts == ['scripts/run-realized-gross-e2e.sh']
+          path = 'scripts/run-realized-gross-e2e.sh'
+          (work / path).write_bytes(subprocess.check_output(['git', '-C', str(work), 'show', closed+':'+path]))
+          git(work, 'add', path)
+          git(work, 'diff', '--cached', '--check')
+          assert git(work, 'write-tree') == merge_tree
+          commit(work, merge_tree, [source,closed], 1792610945, 'integrate: combine pinned closed-report #270 and source-view #272 dependencies', merged)
+          app = temp / 'closed-source-implementation'
+          git(root, 'worktree', 'add', '--detach', str(app), merged)
+          git(app, 'apply', '--check', '--index', '-', data=patch)
+          git(app, 'apply', '--index', '-', data=patch)
+          allowed = {'docs/decisions/ADR-S10-009-CLOSED-TRADE-COHORT-AND-GROSS-RESULT.md','docs/features/FT-010_TRADE_MANAGEMENT.md','docs/foundation/TRACEABILITY.md','docs/implementation/CLOSED_TRADE_SOURCE_INTEGRATION_QUALIFICATION.md','docs/implementation/TRADE_SOURCE_VIEW_QUALIFICATION.md','docs/planning/PRODUCT_BACKLOG.md','frontend/src/features/performance/components/ClosedTradeResult.test.tsx','frontend/src/features/performance/components/ClosedTradeResult.tsx','frontend/src/features/performance/components/ClosedTradeSources.tsx','frontend/src/features/performance/pages/ClosedTradeSourceJourney.test.tsx','frontend/src/features/performance/pages/ClosedTradesPage.test.tsx','frontend/src/features/performance/pages/ClosedTradesPage.tsx','frontend/src/features/performance/services/closedReportContext.test.ts','frontend/src/features/performance/services/closedReportContext.ts','frontend/src/features/trade/components/TradeSourcesView.test.tsx','frontend/src/features/trade/components/TradeSourcesView.tsx','frontend/src/features/trade/services/sourceView.ts','frontend/src/test/closedTradesFixtures.ts','tests/e2e/closed-trades-report-postgres.spec.ts','tests/e2e/support/trade_source_journey.ts','tests/integration/backend/test_trade_source_view_postgres.py'}
+          assert set(git(app, 'diff', '--cached', '--name-only').splitlines()) == allowed
+          git(app, 'diff', '--cached', '--check')
+          tree = '7ebc700d6de6b81b82fad01a847a9bde41c6dda5'
+          head = '7b3dc9e9360ffc7328ae516405775a12bfde602c'
+          assert git(app, 'write-tree') == tree
+          commit(app, tree, [merged], 1792612440, 'feat(trade): connect qualified closed results to exact sources and safe return context', head)
+          final = temp / 'closed-source-selector-review'
+          git(root, 'worktree', 'add', '--detach', str(final), head)
+          git(final, 'apply', '--check', '--index', '-', data=fix)
+          git(final, 'apply', '--index', '-', data=fix)
+          assert git(final, 'diff', '--cached', '--name-only') == 'tests/e2e/support/trade_source_journey.ts'
+          git(final, 'diff', '--cached', '--check')
+          final_tree = '695f2eb2a8d8e75a3d3f585af323ef2df48af846'
+          final_head = 'ac3dc9405dd7ba9a37839b9b75a12c435ca2be02'
+          assert git(final, 'write-tree') == final_tree
+          commit(final, final_tree, [head], 1792613103, 'test(trade): bind native amount assertions to the labelled total', final_head)
+          PY
+      - name: Publish only a new staging ref
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          ref=refs/heads/transport/closed-source-ready-20261021
+          head=ac3dc9405dd7ba9a37839b9b75a12c435ca2be02
+          existing=$(git ls-remote origin "$ref" | cut -f1)
+          test -z "$existing" || test "$existing" = "$head"
+          auth=$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $auth" push origin "$head:$ref"
