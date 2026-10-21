@@ -593,6 +593,8 @@ class MarketDataRefreshRuntime:
                 if (
                     provider == MarketDataProvider.FRANKFURT_QUOTES
                     and self.container.frankfurt is not None
+                    and self.container.frankfurt.settings.source_mode
+                    is FrankfurtSourceMode.PUBLIC_WEBSITE
                 ):
                     await self._pace()
                 elif (

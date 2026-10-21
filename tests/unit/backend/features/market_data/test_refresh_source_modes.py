@@ -1,4 +1,4 @@
-"""Characterize current pacing, without authorizing a different source policy.
+"""Exercise source-specific scheduler pacing through real provider composition.
 
 The runtime builds its real resolver, retained provider, Frankfurt adapter and
 client. Only the catalog and test clock are injected; SQL uses disposable SQLite,
@@ -108,7 +108,7 @@ def add_second_listing(context, mode):
 
 
 @asynccontextmanager
-async def source_runtime(context, tmp_path, monkeypatch, mode):
+async def source_runtime(context, tmp_path, monkeypatch, mode, *, http_failures=None):
     clock = Clock()
     data = payload()
     data["records"].append({**data["records"][0], "isin": SECOND, "wkn": "VH7S65"})
@@ -127,6 +127,8 @@ async def source_runtime(context, tmp_path, monkeypatch, mode):
     def respond(request):
         assert mode is not FrankfurtSourceMode.LOCAL_FILE, "Local files must not use HTTP"
         calls.append((clock.value, request))
+        if http_failures and len(calls) in http_failures:
+            return http_failures[len(calls)]
         body = (
             wire(isin=request.url.params["isin"])
             if mode is FrankfurtSourceMode.PUBLIC_WEBSITE
@@ -188,6 +190,7 @@ async def source_runtime(context, tmp_path, monkeypatch, mode):
                 clock=clock,
                 calls=calls,
                 file_reads=file_reads,
+                path=path,
                 pace=pace,
                 resolver=resolver,
                 resolutions=resolutions,
@@ -200,23 +203,27 @@ async def source_runtime(context, tmp_path, monkeypatch, mode):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("mode", list(FrankfurtSourceMode))
-async def test_current_scheduler_paces_each_selected_route_even_for_shared_snapshot(
+async def test_only_public_quotes_use_scheduler_pacing_for_selected_routes(
     durable_database, tmp_path, monkeypatch, mode  # noqa: F811
 ):
     async with source_runtime(durable_database, tmp_path, monkeypatch, mode) as c:
+        public = mode is FrankfurtSourceMode.PUBLIC_WEBSITE
+        scheduler_deadline = c.runtime._next_request
         first = await c.runtime._warrant(c.items[0])
         assert first["status"] == "AVAILABLE"
         assert c.clock.value == 100 and c.clock.waits == []
+        assert c.client.request_delay_seconds() == 15
         c.clock.value = 101
         second = await c.runtime._warrant(c.items[1])
         assert second["status"] == "AVAILABLE"
-        assert c.clock.value == 115 and c.clock.waits == [14]
-        assert c.pace.await_count == c.resolver.await_count == 2
+        assert c.clock.value == (115 if public else 101)
+        assert c.clock.waits == ([14] if public else [])
+        assert c.pace.await_count == (2 if public else 0)
+        assert c.resolver.await_count == 2
         assert [entry[:2] for entry in c.resolutions] == [
             (100, "FRANKFURT_QUOTES"),
-            (115, "FRANKFURT_QUOTES"),
+            (115 if public else 101, "FRANKFURT_QUOTES"),
         ]
-        public = mode is FrankfurtSourceMode.PUBLIC_WEBSITE
         assert len(c.calls) == (2 if public else int(mode is FrankfurtSourceMode.HTTPS_JSON))
         assert c.file_reads.call_count == int(mode is FrankfurtSourceMode.LOCAL_FILE)
         quotes = [entry[2].result for entry in c.resolutions]
@@ -233,9 +240,153 @@ async def test_current_scheduler_paces_each_selected_route_even_for_shared_snaps
         assert all(
             quote.data.currency == "EUR" and quote.data.refresh_error is None for quote in quotes
         )
-        assert quotes[1].data.assessed_at == NOW + timedelta(seconds=15)
-        assert c.runtime._next_request == 130
-        assert c.client.request_delay_seconds() == (15 if public else 0)
+        assert quotes[1].data.assessed_at == NOW + timedelta(seconds=15 if public else 1)
+        assert c.runtime._next_request == (130 if public else scheduler_deadline)
+        assert c.client.request_delay_seconds() == (15 if public else 14)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("mode", [FrankfurtSourceMode.HTTPS_JSON, FrankfurtSourceMode.LOCAL_FILE])
+async def test_shared_snapshot_expiry_keeps_client_budget_without_scheduler_pause(
+    durable_database, tmp_path, monkeypatch, mode  # noqa: F811
+):
+    async with source_runtime(durable_database, tmp_path, monkeypatch, mode) as c:
+        scheduler_deadline = c.runtime._next_request
+        for current, index, reads, hit, retrieved_seconds, delay in (
+            (100, 0, 1, False, 0, 15),
+            (399.999, 1, 1, True, 0, 0),
+            (400, 0, 2, False, 300, 15),
+            (401, 1, 2, True, 300, 14),
+        ):
+            c.clock.value = current
+            result = await c.runtime._warrant(c.items[index])
+            assert result["status"] == "AVAILABLE" and c.clock.value == current
+            assert len(c.calls) == (reads if mode is FrankfurtSourceMode.HTTPS_JSON else 0)
+            assert c.file_reads.call_count == (
+                reads if mode is FrankfurtSourceMode.LOCAL_FILE else 0
+            )
+            quote = c.resolutions[-1][2].result
+            assert quote is not None and quote.data is not None
+            assert quote.cache_status is (CacheStatus.HIT if hit else CacheStatus.MISS)
+            assert quote.retrieved_at == NOW + timedelta(seconds=retrieved_seconds)
+            assert quote.data.observed_at == NOW
+            assert quote.data.assessed_at == c.clock.now()
+            assert quote.data.isin == (FIRST, SECOND)[index]
+            assert quote.data.refresh_error is None and not quote.data.retained
+            assert c.client.last_success_at == quote.retrieved_at
+            assert c.client.request_delay_seconds() == delay
+            assert c.runtime._next_request == scheduler_deadline
+        assert c.pace.await_count == 0 and c.clock.waits == []
+        assert c.resolver.await_count == 4
+
+
+@pytest.mark.asyncio
+async def test_https_retry_after_preserves_original_quotes_and_regular_job_due_times(
+    durable_database, tmp_path, monkeypatch  # noqa: F811
+):
+    async with source_runtime(
+        durable_database,
+        tmp_path,
+        monkeypatch,
+        FrankfurtSourceMode.HTTPS_JSON,
+        http_failures={2: httpx.Response(429, headers={"Retry-After": "120"})},
+    ) as c:
+        scheduler_deadline = c.runtime._next_request
+        keys = [f"WARRANT_QUOTES:{item.id}" for item in c.items]
+
+        async def run_job(index, current):
+            c.clock.value = current
+            item = c.items[index]
+            await c.runtime._job(keys[index], item, 300, lambda: c.runtime._warrant(item))
+            assert c.clock.value == current
+
+        for index in range(2):
+            await run_job(index, 100 + index)
+        assert [c.runtime._due[key] for key in keys] == [400, 401]
+        assert len(c.calls) == 1 and c.resolver.await_count == 2
+
+        for index, current in enumerate((400, 401)):
+            await run_job(index, current)
+            quote = c.runtime.jobs[keys[index]]["quotes"][0]
+            assert quote["retrieved_at"] == quote["observed_at"] == NOW
+            assert quote["refresh_error"] == "FRANKFURT_HTTP_429" and quote["retained"]
+            assert c.client.last_success_at == NOW
+            assert c.client.request_delay_seconds() == 520 - current
+            assert len(c.calls) == 2
+            assert c.runtime._due[keys[index]] == current + 300
+        assert [c.runtime._due[key] for key in keys] == [700, 701]
+
+        # The client cooldown ending does not introduce an earlier scheduled retry.
+        for current in (519, 520, 699):
+            for index in range(2):
+                await run_job(index, current)
+            assert c.client.request_delay_seconds() == max(0, 520 - current)
+            assert c.client.last_success_at == NOW
+            assert len(c.calls) == 2 and c.resolver.await_count == 4
+            assert [c.runtime._due[key] for key in keys] == [700, 701]
+
+        for index, current in enumerate((700, 701)):
+            await run_job(index, current)
+            quote = c.resolutions[-1][2].result
+            assert quote is not None and quote.data is not None
+            assert quote.cache_status is (CacheStatus.MISS if index == 0 else CacheStatus.HIT)
+            assert quote.retrieved_at == NOW + timedelta(seconds=600)
+            assert quote.data.observed_at == NOW
+            assert quote.data.refresh_error is None and not quote.data.retained
+            assert c.client.request_delay_seconds() == 15 - index
+        assert [current for current, _ in c.calls] == [100, 400, 700]
+        assert c.file_reads.call_count == 0 and c.resolver.await_count == 6
+        assert c.client.last_success_at == NOW + timedelta(seconds=600)
+        assert c.client.last_error is None
+        assert [c.runtime._due[key] for key in keys] == [1000, 1001]
+        assert c.runtime._next_request == scheduler_deadline
+        assert c.pace.await_count == 0 and c.clock.waits == []
+
+
+@pytest.mark.asyncio
+async def test_local_file_error_backoff_keeps_original_quotes_without_scheduler_pause(
+    durable_database, tmp_path, monkeypatch  # noqa: F811
+):
+    async with source_runtime(
+        durable_database, tmp_path, monkeypatch, FrankfurtSourceMode.LOCAL_FILE
+    ) as c:
+        scheduler_deadline = c.runtime._next_request
+        original_file = c.path.read_text(encoding="utf-8")
+        for index in range(2):
+            c.clock.value = 100 + index
+            assert (await c.runtime._warrant(c.items[index]))["status"] == "AVAILABLE"
+        assert c.file_reads.call_count == 1
+        c.path.unlink()
+
+        for current, index in ((400, 0), (401, 1), (459.999, 0)):
+            c.clock.value = current
+            result = await c.runtime._warrant(c.items[index])
+            quote = result["quotes"][0]
+            assert quote["retrieved_at"] == quote["observed_at"] == NOW
+            assert quote["refresh_error"] == "FRANKFURT_LOCAL_FILE_UNAVAILABLE"
+            assert quote["retained"]
+            assert c.client.last_success_at == NOW
+            assert c.client.request_delay_seconds() == pytest.approx(460 - current)
+            assert c.file_reads.call_count == 2 and c.clock.value == current
+            if current == 400:
+                c.path.write_text(original_file, encoding="utf-8")
+
+        for index, current in enumerate((460, 461)):
+            c.clock.value = current
+            await c.runtime._warrant(c.items[index])
+            quote = c.resolutions[-1][2].result
+            assert quote is not None and quote.data is not None
+            assert quote.cache_status is (CacheStatus.MISS if index == 0 else CacheStatus.HIT)
+            assert quote.retrieved_at == NOW + timedelta(seconds=360)
+            assert quote.data.observed_at == NOW
+            assert quote.data.refresh_error is None and not quote.data.retained
+            assert c.client.request_delay_seconds() == 15 - index
+            assert c.file_reads.call_count == 3 and c.clock.value == current
+        assert c.client.last_success_at == NOW + timedelta(seconds=360)
+        assert c.client.last_error is None
+        assert c.calls == [] and c.resolver.await_count == 7
+        assert c.runtime._next_request == scheduler_deadline
+        assert c.pace.await_count == 0 and c.clock.waits == []
 
 
 @pytest.mark.asyncio
