@@ -1,0 +1,85 @@
+name: Collect final integration CI evidence
+on:
+  push:
+    branches: [transport/closed-source-integration-20261021]
+    paths: [.github/workflows/closed-source-final-ci-evidence.yml]
+permissions:
+  actions: read
+  contents: read
+jobs:
+  collect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Record specified final runs and exact checkout without rerunning tests
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          python - <<'PY'
+          import hashlib, json, os, pathlib, re, time, urllib.request
+          root = pathlib.Path('evidence')
+          base = 'https://api.github.com/repos/burckhju/trading-workspace'
+          headers = {'Authorization': 'Bearer '+os.environ['GH_TOKEN'], 'Accept':'application/vnd.github+json'}
+          class StripAuth(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self, req, fp, code, msg, hdrs, newurl):
+                  request = super().redirect_request(req, fp, code, msg, hdrs, newurl)
+                  if request is not None: request.remove_header('Authorization')
+                  return request
+          opener = urllib.request.build_opener(StripAuth())
+          def read(path):
+              with opener.open(urllib.request.Request(base+path, headers=headers), timeout=60) as response:
+                  data = response.read(32*1024*1024+1)
+                  assert len(data) <= 32*1024*1024
+                  return data
+          def get(path): return json.loads(read(path))
+          def save(name,data): (root/name).write_text(json.dumps(data,indent=2))
+          runs = [39668944404,39668944531,39668944516,39668944527]
+          head = 'f1898487a8c48af1429ae0ecf17936cfebf4db2f'
+          deadline = time.monotonic()+1200
+          pending = set(runs)
+          while pending:
+              for run_id in list(pending):
+                  data = get(f'/actions/runs/{run_id}')
+                  assert data['head_sha'] == head and data['event'] == 'pull_request'
+                  if data['status'] != 'completed': continue
+                  save(f'run-{run_id}.json',data)
+                  jobs = get(f'/actions/runs/{run_id}/jobs?per_page=100')
+                  assert jobs['total_count'] == len(jobs['jobs'])
+                  save(f'jobs-{run_id}.json',jobs)
+                  artifacts = get(f'/actions/runs/{run_id}/artifacts?per_page=100')
+                  assert artifacts['total_count'] == len(artifacts['artifacts'])
+                  save(f'artifacts-{run_id}.json',artifacts)
+                  for job in jobs['jobs']:
+                      if job['conclusion'] == 'skipped': continue
+                      (root/f"job-{job['id']}.log").write_bytes(read(f"/actions/jobs/{job['id']}/logs"))
+                  print('Recorded',run_id,data['conclusion'],flush=True)
+                  pending.remove(run_id)
+              if pending:
+                  if time.monotonic() >= deadline: raise RuntimeError('Pinned runs still incomplete: '+str(pending))
+                  time.sleep(15)
+          pr=get('/pulls/273'); save('pull-273.json',pr)
+          assert pr['head']['sha']==head
+          main=get('/git/ref/heads/main'); save('main-ref.json',main)
+          commit=get('/git/commits/'+head);save('head-commit.json',commit)
+          testmerge=get('/git/commits/'+pr['merge_commit_sha']);save('testmerge-commit.json',testmerge)
+          assert commit['tree']['sha']==testmerge['tree']['sha']=='3c282766c937a3a9623d66ef0032dcc7b74bedf0'
+          assert [p['sha'] for p in testmerge['parents']]==[pr['base']['sha'],head]
+          checks=get('/commits/'+head+'/check-runs?per_page=100');save('head-check-runs.json',checks)
+          assert checks['total_count']==len(checks['check_runs'])
+          summary=[]
+          for path in sorted(root.glob('*.log')):
+              summary += [path.name]+[line for line in path.read_text(errors='replace').splitlines() if re.search(r'passed|failed|skipped|coverage|Coverage|files would|source files|Test Files|Tests |HEAD is now|[0-9a-f]{40}$',line) and len(line)<1200]
+          (root/'bounded-summary.txt').write_text('\n'.join(summary)+'\n')
+          manifest=[{'path':p.name,'bytes':p.stat().st_size,'sha256':hashlib.sha256(p.read_bytes()).hexdigest()} for p in sorted(root.iterdir())]
+          save('manifest.json',manifest)
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: final-integration-ci-evidence
+          path: evidence/
+          retention-days: 30
+          if-no-files-found: error
