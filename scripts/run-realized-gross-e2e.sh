@@ -2,6 +2,16 @@
 set -euo pipefail
 
 # CI-only writer qualification. It never adopts a configured application stack.
+if [[ $# -gt 1 ]]; then
+  echo 'Choose exactly one known native performance qualification.' >&2
+  exit 2
+fi
+qualification="${1:-realized-gross}"
+case "${qualification}" in
+  realized-gross) spec_file=realized-gross-report-postgres.spec.ts ;;
+  closed-trades) spec_file=closed-trades-report-postgres.spec.ts ;;
+  *) echo 'Unknown native performance qualification.' >&2; exit 2 ;;
+esac
 repository_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 if [[ "${CI:-}" != true || "${GITHUB_ACTIONS:-}" != true \
    || "${GITHUB_WORKSPACE:-}" != "${repository_root}" ]]; then
@@ -24,7 +34,7 @@ postgres_password=synthetic-report-ci-only
 host_database_url="postgresql+asyncpg://${postgres_user}:${postgres_password}@127.0.0.1:35432/${database_name}"
 container_database_url="postgresql+asyncpg://${postgres_user}:${postgres_password}@database:5432/${database_name}"
 artifact_root="${repository_root}/frontend/test-results"
-artifact_dir="${artifact_root}/realized-gross-${run_hex}"
+artifact_dir="${artifact_root}/realized-gross-${qualification}-${run_hex}"
 mkdir -p "${artifact_dir}"
 runtime_dir="$(mktemp -d "${artifact_root}/report-runtime.XXXXXXXX")"
 mkdir -p "${runtime_dir}/source" "${runtime_dir}/docker-config"
@@ -92,6 +102,41 @@ cleanup() {
       result=1
     fi
   fi
+  "${clean_environment[@]}" "${python_bin}" -I - "${artifact_dir}" "${result}" \
+    "${compose_project}" "${database_name}" "${run_id}" "${qualification}" \
+    "${remaining_containers}" "${remaining_volumes}" "${remaining_networks}" \
+    "${stack_started}" <<'PY' || result=1
+import hashlib
+import json
+import pathlib
+import sys
+
+root, result, project, database, run_id, qualification, containers, volumes, networks, started = sys.argv[1:]
+directory = pathlib.Path(root)
+cleanup = {
+    "qualification": qualification,
+    "project": project,
+    "database": database,
+    "run_id": run_id,
+    "stack_started": started == "true",
+    "exit_code": int(result),
+    "remaining_containers": containers.split(),
+    "remaining_volumes": volumes.split(),
+    "remaining_networks": networks.split(),
+}
+(directory / "cleanup.json").write_text(json.dumps(cleanup, indent=2) + "\n")
+manifest = {}
+for path in sorted(directory.rglob("*")):
+    if path.is_symlink():
+        raise RuntimeError("Evidence must not include a symlink")
+    if path.is_file() and path != directory / "manifest.json":
+        manifest[str(path.relative_to(directory))] = {
+            "bytes": path.stat().st_size,
+            "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+        }
+(directory / "manifest.json").write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
+print(json.dumps(cleanup, sort_keys=True))
+PY
   rm -rf -- "${runtime_dir}"
   exit "${result}"
 }
@@ -231,9 +276,10 @@ for container in actual_containers:
     }
 print(json.dumps(evidence, indent=2, sort_keys=True))
 PY
-printf 'commit=%s\nproject=%s\ndatabase=%s\nrun_id=%s\n' \
+printf 'commit=%s\nproject=%s\ndatabase=%s\nrun_id=%s\nqualification=%s\nspec=%s\n' \
   "$(git -C "${repository_root}" rev-parse HEAD)" "${compose_project}" \
-  "${database_name}" "${run_id}" > "${artifact_dir}/code-and-stack.txt"
+  "${database_name}" "${run_id}" "${qualification}" "${spec_file}" \
+  > "${artifact_dir}/code-and-stack.txt"
 
 cd "${repository_root}/frontend"
 "${clean_environment[@]}" "NODE_PATH=${repository_root}/frontend/node_modules" \
@@ -243,29 +289,11 @@ cd "${repository_root}/frontend"
   "TRADING_WORKSPACE_DATABASE_URL=${host_database_url}" \
   "TRADING_WORKSPACE_TEST_DATABASE_URL=${host_database_url}" \
   "PLAYWRIGHT_JSON_OUTPUT_FILE=${artifact_dir}/results.json" \
-  ./node_modules/.bin/playwright test realized-gross-report-postgres.spec.ts \
-    --project=chromium --workers=1 --retries=0 --trace=on --reporter=list,json \
+  ./node_modules/.bin/playwright test "${spec_file}" \
+    --project=chromium --workers=1 --retries=0 --reporter=list,json \
+    --trace=on \
     --output="${artifact_dir}/playwright" | tee "${artifact_dir}/playwright.log"
-"${clean_environment[@]}" "${python_bin}" -I - "${artifact_dir}/results.json" <<'PY'
-import json
-import sys
-
-with open(sys.argv[1], encoding="utf-8") as stream:
-    result = json.load(stream)
-stats = result["stats"]
-assert (stats["expected"], stats["unexpected"], stats["skipped"], stats["flaky"]) == (1, 0, 0, 0)
-assert not result.get("errors")
-tests = []
-def collect(suites):
-    for suite in suites:
-        for spec in suite.get("specs", []):
-            tests.extend(spec["tests"])
-        collect(suite.get("suites", []))
-collect(result["suites"])
-assert len(tests) == 1
-assert tests[0]["status"] == "expected"
-assert len(tests[0]["results"]) == 1
-assert tests[0]["results"][0]["status"] == "passed"
-assert tests[0]["results"][0]["retry"] == 0
-print("Real report browser: exactly one pass, zero skipped/flaky tests, zero retries")
-PY
+"${clean_environment[@]}" "${python_bin}" -I \
+  "${repository_root}/scripts/check-performance-e2e-report.py" \
+  "${artifact_dir}/results.json" "${qualification}" \
+  | tee "${artifact_dir}/verified-native-journey.json"
