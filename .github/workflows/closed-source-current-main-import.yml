@@ -1,0 +1,100 @@
+name: Import reviewed current-main integration
+on:
+  push:
+    branches: [transport/closed-source-integration-20261021]
+    paths: [.github/workflows/closed-source-current-main-import.yml]
+permissions:
+  contents: write
+jobs:
+  import:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: f1898487a8c48af1429ae0ecf17936cfebf4db2f
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Reproduce exact conflict-free merge and bounded provenance notes
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse refs/remotes/origin/main)" = 5c76ff495b0797c4de00666ee358219858e33afd
+          git config user.name 'AI development assistant'
+          git config user.email 'noreply@example.invalid'
+          git merge --no-ff --no-commit 5c76ff495b0797c4de00666ee358219858e33afd
+          test -z "$(git diff --name-only --diff-filter=U)"
+          python - <<'PY'
+          from pathlib import Path
+          import subprocess
+          p=Path('docs/implementation/CLOSED_TRADE_SOURCE_INTEGRATION_QUALIFICATION.md')
+          s=p.read_text()
+          old='kein Merge nach main. #268/#269/#271/#204 werden nicht übernommen.'
+          new='kein Merge nach main. #268/#269/#204 werden nicht übernommen. #271 war zunächst\ngetrennt; sein späterer Main-Merge gehört ausschließlich zur unten belegten\nBasisfortschreibung, nicht zu einer neuen Alt-PR-Mergeserie.'
+          assert s.count(old)==1
+          s=s.replace(old,new)
+          s+='''
+          ## Parallele Main-Fortschreibung und erneute Qualifikation
+
+          Während der ersten vollständigen Integrationsprüfung wurde main außerhalb dieses
+          Arbeitspakets am 21.10.2026 um 20:27:52 UTC auf
+          `5c76ff495b0797c4de00666ee358219858e33afd` fortgeschrieben: #271 samt bestehenden
+          v1.5.12-Metadaten. Die vorherige Integrationsprüfung auf `f1898487` / Tree
+          `3c282766c937a3a9623d66ef0032dcc7b74bedf0` war tatsächlich grün (3.034 Backendtests,
+          670 Frontendtests, beide nativen Fälle und 63 Smoke-Erfolge), verwendete aber noch
+          main `5e9ede2d`. Der unabhängige Abschlussabgleich erkannte diesen Basiswechsel;
+          diese Erfolge wurden nicht als aktuelle Main-Kompatibilität umgedeutet.
+
+          Die neue Main-Basis wird mit eigenem zweiten Elterncommit in den Integrationsbranch
+          übernommen. Der tatsächliche Merge ist konfliktfrei; beide getrennten Änderungen
+          an Traceability und Backlog bleiben erhalten. Der Main-Delta enthält zwei bereits
+          freigegebene Pacing-Bedingungszeilen, seine Regressionen/Dokumentation und die
+          konsistenten 1.5.12-Versionsfelder; keine Dependencyversion wurde dabei geändert.
+          Die finanzielle Integration und ihre Tests werden nicht angepasst oder gelockert.
+          Es wird weder main geändert noch eine weitere Version, ein Tag oder Deployment
+          für die Quellenintegration erzeugt. Die Version 1.5.12 bezeichnet die übernommene
+          Basis, nicht eine Veröffentlichung dieses noch offenen Integrations-PRs.
+
+          Alle regulären Gates und beide isolierten nativen Browserwege werden auf dem
+          neuen gemeinsamen Head erneut ausgeführt. Ihre tatsächlichen Ergebnisse und
+          exakten Head-/Tree-/Testcheckout-Identitäten stehen anschließend in PR #273;
+          der vorherige komplette Lauf bleibt ein getrennt datierter Nachweis.
+          '''
+          p.write_text(s)
+          p=Path('docs/foundation/TRACEABILITY.md')
+          p.write_text(p.read_text()+'''
+          ### 2026-10-21 — concurrent main advance retained in source integration
+
+          Main advanced separately through #271 to `5c76ff49` (existing v1.5.12 metadata)
+          while the integration's `f1898487` full gates were running. The final audit detected
+          the different base and did not promote those passing results to current-main
+          readiness. The integration branch incorporates that exact main as a separate
+          parent, preserving both documentation histories and the already merged pacing
+          change. No main write, new release or dependency upgrade is performed here.
+          Fresh whole-tree CI and both native journeys are required on the combined head;
+          PR #273 binds the new results separately from the genuine earlier successes.
+          ''')
+          def git(*a,data=None): return subprocess.check_output(['git',*a],input=data).decode().strip()
+          git('add','docs/implementation/CLOSED_TRADE_SOURCE_INTEGRATION_QUALIFICATION.md','docs/foundation/TRACEABILITY.md')
+          expected={'VERSION','backend/app/features/market_data/service/refresh.py','backend/pyproject.toml','docs/automatic-market-data.md','docs/foundation/TRACEABILITY.md','docs/frankfurt-quotes.md','docs/implementation/CLOSED_TRADE_SOURCE_INTEGRATION_QUALIFICATION.md','docs/planning/PRODUCT_BACKLOG.md','docs/releases/V1.5.12-SNAPSHOT-QUOTE-PACING.md','docs/reviews/MARKET_DATA_SOURCE_MODE_PACING_2026-10-21.md','frontend/package-lock.json','frontend/package.json','tests/unit/backend/features/market_data/test_issuer_refresh_lane.py','tests/unit/backend/features/market_data/test_refresh_source_modes.py','tests/unit/backend/providers/frankfurt_quotes/test_source_mode_contract.py'}
+          assert set(git('diff','--cached','--name-only').splitlines())==expected
+          git('diff','--cached','--check')
+          tree='1c27e310ed47a1c57beb82a9cb3e4e0aaa6ea9de'
+          assert git('write-tree')==tree
+          raw=(f'tree {tree}\nparent f1898487a8c48af1429ae0ecf17936cfebf4db2f\nparent 5c76ff495b0797c4de00666ee358219858e33afd\nauthor AI development assistant <noreply@example.invalid> 1792615365 +0000\ncommitter AI development assistant <noreply@example.invalid> 1792615365 +0000\n\nintegrate: retain current main v1.5.12 and requalify the read-only trade journey\n').encode()
+          head='550ebfc9c90662cc51bef08f4e34c5d2057d21e7'
+          assert git('hash-object','-t','commit','-w','--stdin',data=raw)==head
+          print('Verified',head,tree)
+          PY
+      - name: Publish only a new staging ref
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          ref=refs/heads/transport/closed-source-current-main-ready
+          head=550ebfc9c90662cc51bef08f4e34c5d2057d21e7
+          existing=$(git ls-remote origin "$ref" | cut -f1)
+          test -z "$existing" || test "$existing" = "$head"
+          auth=$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $auth" push origin "$head:$ref"
