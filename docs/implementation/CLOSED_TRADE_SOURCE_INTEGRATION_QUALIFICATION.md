@@ -17,7 +17,9 @@ Die beiden vollständigen Abhängigkeiten werden auf dem eigenen Branch mit zwei
 Eltern nachvollziehbar verbunden. Nur der gemeinsame native Runner erforderte
 Konfliktauflösung: dynamische Auswahl beider Spec-Dateien aus #270 **und**
 Trace-Aufzeichnung aus #272 bleiben erhalten. Das ist keine Alt-PR-Mergeserie und
-kein Merge nach main. #268/#269/#271/#204 werden nicht übernommen.
+kein Merge nach main. #268/#269/#204 werden nicht übernommen. #271 war zunächst
+getrennt; sein späterer Main-Merge gehört ausschließlich zur unten belegten
+Basisfortschreibung, nicht zu einer neuen Alt-PR-Mergeserie.
 
 Frühere grüne Abhängigkeitsläufe sind historische Nachweise, keine Qualifikation
 dieses integrierten Trees. Die genaue neue Head-/Tree-/CI-Checkoutbindung,
@@ -146,3 +148,29 @@ die ausdrücklich gewollte Navigation, nicht finanzielle Sollwerte.
 
 Technische Qualifikation ersetzt keine menschliche Fachabnahme, Installation,
 allgemeine Regelabweichungsbewertung oder den vollständigen M7-/M8-Umfang.
+
+## Parallele Main-Fortschreibung und erneute Qualifikation
+
+Während der ersten vollständigen Integrationsprüfung wurde main außerhalb dieses
+Arbeitspakets am 21.10.2026 um 20:27:52 UTC auf
+`5c76ff495b0797c4de00666ee358219858e33afd` fortgeschrieben: #271 samt bestehenden
+v1.5.12-Metadaten. Die vorherige Integrationsprüfung auf `f1898487` / Tree
+`3c282766c937a3a9623d66ef0032dcc7b74bedf0` war tatsächlich grün (3.034 Backendtests,
+670 Frontendtests, beide nativen Fälle und 63 Smoke-Erfolge), verwendete aber noch
+main `5e9ede2d`. Der unabhängige Abschlussabgleich erkannte diesen Basiswechsel;
+diese Erfolge wurden nicht als aktuelle Main-Kompatibilität umgedeutet.
+
+Die neue Main-Basis wird mit eigenem zweiten Elterncommit in den Integrationsbranch
+übernommen. Der tatsächliche Merge ist konfliktfrei; beide getrennten Änderungen
+an Traceability und Backlog bleiben erhalten. Der Main-Delta enthält zwei bereits
+freigegebene Pacing-Bedingungszeilen, seine Regressionen/Dokumentation und die
+konsistenten 1.5.12-Versionsfelder; keine Dependencyversion wurde dabei geändert.
+Die finanzielle Integration und ihre Tests werden nicht angepasst oder gelockert.
+Es wird weder main geändert noch eine weitere Version, ein Tag oder Deployment
+für die Quellenintegration erzeugt. Die Version 1.5.12 bezeichnet die übernommene
+Basis, nicht eine Veröffentlichung dieses noch offenen Integrations-PRs.
+
+Alle regulären Gates und beide isolierten nativen Browserwege werden auf dem
+neuen gemeinsamen Head erneut ausgeführt. Ihre tatsächlichen Ergebnisse und
+exakten Head-/Tree-/Testcheckout-Identitäten stehen anschließend in PR #273;
+der vorherige komplette Lauf bleibt ein getrennt datierter Nachweis.

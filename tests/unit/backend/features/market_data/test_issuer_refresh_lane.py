@@ -1,4 +1,4 @@
-"""Issuer streams progress independently; only mapped Frankfurt routes are paced."""
+"""Issuer streams progress independently; only mapped public Frankfurt routes are paced."""
 
 import asyncio
 from dataclasses import replace
@@ -10,6 +10,7 @@ from uuid import uuid4
 import pytest
 from tests.unit.backend.features.market_data.test_refresh import runtime, session_context
 
+from app.core.config.frankfurt import FrankfurtSourceMode
 from app.features.market_data.domain.enums import MappingStatus
 from app.features.market_data.domain.enums import MarketDataProvider as P
 from app.features.market_data.service import refresh as module
@@ -112,7 +113,12 @@ async def test_unmapped_routes_are_skipped_and_issuer_routes_are_isolated():
     value._resolver = SimpleNamespace(
         resolve_selected=AsyncMock(return_value=SimpleNamespace(attempts=(), result=None))
     )
-    value.container = replace(value.container, frankfurt=object())
+    value.container = replace(
+        value.container,
+        frankfurt=SimpleNamespace(
+            settings=SimpleNamespace(source_mode=FrankfurtSourceMode.PUBLIC_WEBSITE)
+        ),
+    )
     value._pace_other = AsyncMock()
     issuer = await value._warrant(item, issuers_only=True)
     assert issuer["attempted_route_count"] == 1
