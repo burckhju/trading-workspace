@@ -1,4 +1,4 @@
-name: Import verified single-trade source commit
+name: Import verified single-trade source tests
 
 on:
   push:
@@ -22,25 +22,25 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      - name: Verify transport bytes and recreate the exact saved commit
+      - name: Verify exact test-only patch and recreate saved commit
         shell: bash
         run: |
           set -euo pipefail
           test -z "$(git status --porcelain)"
-          git cat-file -e d0c6d34ae876f1a550f37acafd016766220517ee^{commit}
+          git cat-file -e 7b8ab3489ec5c5fe22f9230ce874830dbd34b6b7^{commit}
           mkdir -p "$RUNNER_TEMP/source-import-evidence"
           python - <<'PY'
           import hashlib, lzma, os, pathlib, subprocess
-          base = 'd0c6d34ae876f1a550f37acafd016766220517ee'
-          expected_tree = 'a73c0561a312e1eccd892dd9febee57fb8fab875'
-          expected_commit = '7b8ab3489ec5c5fe22f9230ce874830dbd34b6b7'
-          payload = b''.join(pathlib.Path(f'source-view-import/part-{i}').read_bytes() for i in range(3))
-          assert len(payload) == 28996
-          assert hashlib.sha256(payload).hexdigest() == '4596b650f081f7d801a82b53e47aefbfae1ca56a13735503a77d36d753f9fd2d'
+          base = '7b8ab3489ec5c5fe22f9230ce874830dbd34b6b7'
+          expected_tree = '759d4259619caa2722814d347d7da34aee2f26e5'
+          expected_commit = '5e90a180db268abfe82dc1b12b9f6c098ba79fc4'
+          payload = pathlib.Path('source-view-import/part-0').read_bytes()
+          assert len(payload) == 8312
+          assert hashlib.sha256(payload).hexdigest() == '7be9dd431ea11346d4f9a9ce6daed545a75f7b1703e81db06a0c92d230bd489f'
           decoder = lzma.LZMADecompressor()
-          patch = decoder.decompress(payload, max_length=125924)
-          assert decoder.eof and not decoder.unused_data and len(patch) == 125923
-          assert hashlib.sha256(patch).hexdigest() == '733bd058ef9dc95243b93c0030a0d40bbc93574f08ccd455b39d7da84b815bf9'
+          patch = decoder.decompress(payload, max_length=29397)
+          assert decoder.eof and not decoder.unused_data and len(patch) == 29396
+          assert hashlib.sha256(patch).hexdigest() == '5ccb20d88894391a8118e221d3702596a867ceb62cd5f699f606d46c2def798f'
           temporary = pathlib.Path(os.environ['RUNNER_TEMP'])
           patch_path = temporary / 'verified-source.patch'
           patch_path.write_bytes(patch)
@@ -51,39 +51,29 @@ jobs:
           git('apply', '--check', '--index', str(patch_path))
           git('apply', '--index', str(patch_path))
           expected_paths = {
-              'backend/app/features/post_trade/application/read_adapters.py',
-              'backend/app/features/trade_position/api/__init__.py',
-              'backend/app/features/trade_position/api/source_router.py',
-              'backend/app/features/trade_position/persistence/repositories.py',
-              'backend/app/features/trade_position/service/source_view.py',
-              'docs/features/FT-010_TRADE_MANAGEMENT.md',
-              'docs/foundation/TRACEABILITY.md',
-              'docs/implementation/TRADE_SOURCE_VIEW_QUALIFICATION.md',
-              'docs/planning/PRODUCT_BACKLOG.md',
-              'frontend/src/features/trade/components/TradeSourcesView.test.tsx',
-              'frontend/src/features/trade/components/TradeSourcesView.tsx',
-              'frontend/src/features/trade/pages/TradeManagementPage.tsx',
-              'frontend/src/features/trade/services/sourceView.ts',
-              'tests/integration/backend/test_trade_source_view_postgres.py',
-              'tests/unit/backend/features/trade_position/test_source_view.py',
+              '.github/workflows/source-view-recovery-transport.yml',
+              'tests/e2e/realized-gross-report-postgres.spec.ts',
+              'tests/e2e/support/seed_source_view_prices.py',
+              'tests/e2e/support/trade_source_journey.ts',
+              'tests/unit/backend/test_source_view_browser_seed.py',
           }
           assert set(git('diff', '--cached', '--name-only').splitlines()) == expected_paths
           git('diff', '--cached', '--check')
           assert git('write-tree') == expected_tree
           raw_commit = (
               f'tree {expected_tree}\nparent {base}\n'
-              'author AI development assistant <noreply@example.invalid> 1792604286 +0000\n'
-              'committer AI development assistant <noreply@example.invalid> 1792604286 +0000\n\n'
-              'feat(trade): restore bounded read-only single-trade source view\n'
+              'author AI development assistant <noreply@example.invalid> 1792606984 +0000\n'
+              'committer AI development assistant <noreply@example.invalid> 1792606984 +0000\n\n'
+              'test(trade): qualify real source navigation and historical read-only links\n'
           ).encode()
           assert git('hash-object', '-t', 'commit', '-w', '--stdin', data=raw_commit) == expected_commit
           git('merge-base', '--is-ancestor', base, expected_commit)
           evidence = temporary / 'source-import-evidence'
           (evidence / 'identity.txt').write_text(f'base={base}\ncommit={expected_commit}\ntree={expected_tree}\n')
           (evidence / 'changed-files.txt').write_text('\n'.join(sorted(expected_paths)) + '\n')
-          print(f'Verified exact saved commit {expected_commit}; tree {expected_tree}; 15 allowed files.')
+          print(f'Verified exact test commit {expected_commit}; tree {expected_tree}; 5 allowed files.')
           PY
-      - name: Fast-forward only the existing development branch
+      - name: Publish only a new transport staging reference
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -91,19 +81,19 @@ jobs:
           set -euo pipefail
           test "$GITHUB_REPOSITORY" = burckhju/trading-workspace
           test "$GITHUB_REF" = refs/heads/transport/trade-source-import-7b8ab34
-          target=refs/heads/feature/trade-result-source-view
+          target=refs/heads/transport/source-tests-ready
           repo=https://github.com/burckhju/trading-workspace.git
           before=$(git ls-remote "$repo" "$target" | cut -f1)
-          test "$before" = d0c6d34ae876f1a550f37acafd016766220517ee
+          test -z "$before"
           git -c credential.helper='!f() { echo username=x-access-token; echo "password=$GH_TOKEN"; }; f' \
-            push "$repo" "7b8ab3489ec5c5fe22f9230ce874830dbd34b6b7:$target"
+            push "$repo" "5e90a180db268abfe82dc1b12b9f6c098ba79fc4:$target"
           after=$(git ls-remote "$repo" "$target" | cut -f1)
-          test "$after" = 7b8ab3489ec5c5fe22f9230ce874830dbd34b6b7
-          printf 'before=%s\nafter=%s\nforce=false\n' "$before" "$after" > "$RUNNER_TEMP/source-import-evidence/publication.txt"
+          test "$after" = 5e90a180db268abfe82dc1b12b9f6c098ba79fc4
+          printf 'target=%s\nafter=%s\nforce=false\n' "$target" "$after" > "$RUNNER_TEMP/source-import-evidence/publication.txt"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: verified-source-import
+          name: verified-source-test-import
           path: ${{ runner.temp }}/source-import-evidence/
           if-no-files-found: warn
           retention-days: 7
