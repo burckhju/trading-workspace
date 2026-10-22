@@ -1,5 +1,7 @@
 # Traceability – aktueller Nachweiseinstieg
 
+> Nachweisfortschreibung 2026-10-20: [v1.5.11-Auslieferung, technische PC-Installation und begrenzter Formular-Bediencheck](../releases/V1.5.11-UNDERLYING-FORM-ISOLATION.md#bestätigte-auslieferung-und-begrenzte-abnahme--20102026) sind in PR #267 belegt. `main`/Tag `5e9ede2dc29f52eaff601d30614df6bc9c25c426`, Tree `303e56c078efd578e6e147edcf2ebac6accf6ba5` erneut im vollständigen Checkout geprüft. Der Nutzerbericht ist kein eigener PC-Zugriff; fachliche Währungs-/Performance-/Lernabnahme bleibt getrennt. Aktueller Arbeitsstatus ausschließlich im zentralen Backlog.
+
 > Nachweisergänzung 2026-10-14: [integrierter Handoff-Teilschnitt, PostgreSQL-/Browserbelege und offene Journalstrecke](../implementation/POST_TRADE_LEARNING_HANDOFF_REVIEW.md). Die Fortschreibung trennt Prüfcommits, echte DB-Transaktionen und abgefangenes Browser-HTTP. Arbeitsstatus ausschließlich im [zentralen Backlog](../planning/PRODUCT_BACKLOG.md#pb-019-materialization); keine Fach-/Betriebsabnahme.
 > Maßgeblich bleiben [PB-019 Materialisierung](../planning/PRODUCT_BACKLOG.md#pb-019-materialization), [PB-019 Journal](../planning/PRODUCT_BACKLOG.md#pb-019-journal) und [PB-018 Currentness](../planning/PRODUCT_BACKLOG.md#pb-018-currentness); der historische Bestand unten bleibt unverändert.
 
@@ -48,7 +50,7 @@ Der [Konfliktabgleich](../planning/PRODUCT_BACKLOG.md#konfliktaufloesung) ordnet
 
 ## Prüf- und Zugriffsschranken
 
-Aktuelle Basis-CI, gelesene Einzelschritte, nicht ausgeführte lokale Befehle und fehlende Quellen-/Betriebszugriffe stehen ausschließlich im [Nachweisregister](../planning/PRODUCT_BACKLOG.md#nachweisregister). Konkrete neue Fachabnahmen, vollständige Live-E2E und eine aktuelle JMBbot-Installation werden nicht behauptet. Die fünf Ausgangsdokumente wurden vor Bearbeitung mit ihren Git-Blob-Hashes abgeglichen; die folgende historische Traceability bleibt bytegenau erhalten (Quellblob `d0cb63972ad37e8644a2f55537e9a3c1702061e1`).
+Basis-CI, gelesene Einzelschritte, nicht ausgeführte lokale Befehle und fehlende Quellen-/Betriebszugriffe des Konsolidierungsstands 13.10.2026 stehen im [Nachweisregister](../planning/PRODUCT_BACKLOG.md#nachweisregister). Damals wurden keine neue Fachabnahme, vollständige Live-E2E oder aktuelle JMBbot-Installation behauptet. Die dort separat ergänzte Fortschreibung vom 20.10.2026 ordnet nun die berichtete technische v1.5.11-Installation und den begrenzten Bediencheck zu. Die fünf Ausgangsdokumente wurden vor der Konsolidierung mit ihren Git-Blob-Hashes abgeglichen; die folgende historische Traceability bleibt bytegenau erhalten (Quellblob `d0cb63972ad37e8644a2f55537e9a3c1702061e1`).
 
 <a id="historische-nachweise"></a>
 ## Unverändert erhaltener historischer Bestand
@@ -624,3 +626,33 @@ Definition `realized-gross-sell-v2` changes currency qualification only; owner
 arithmetic and bounded report snapshot remain unchanged. There is no migration,
 automatic historical currency backfill or new feature ID. The historical V1.5.9
 test references above do not serve as tests for this amendment.
+
+## v1.5.11: zugeordnete Auslieferung und begrenzte Abnahme — 2026-10-20
+
+[PB-007](../planning/PRODUCT_BACKLOG.md#pb-007-underlying-ui),
+[PB-017 Brutto-PnL](../planning/PRODUCT_BACKLOG.md#pb-017-gross-pnl) und
+[PB-019 Periodenauswertung](../planning/PRODUCT_BACKLOG.md#pb-019-performance-evaluations)
+→ integrierte Formular-/Währungsänderungen #266/#267
+→ [tatsächliche PR-, Main-, Merge- und Tagbezüge in PR #267](https://github.com/burckhju/trading-workspace/pull/267)
+→ veröffentlichter und erneut aufgelöster Tag `v1.5.11` /
+`5e9ede2dc29f52eaff601d30614df6bc9c25c426`
+→ Nutzerausgabe vom 20.10.2026, 13:00 MESZ / 11:00 UTC mit genau diesem Commit,
+vier gesunden Diensten und `ready`
+→ anschließend dokumentiertes „funktioniert!“ für Liste → bestehenden Basiswert
+bearbeiten → Abbrechen → anderen Basiswert mit passenden Daten öffnen.
+
+Die [fortgeschriebene Release-Notiz](../releases/V1.5.11-UNDERLYING-FORM-ISOLATION.md#bestätigte-auslieferung-und-begrenzte-abnahme--20102026)
+enthält die kleine ausführbare Abnahmecheckliste samt verfügbaren beziehungsweise
+noch offenen Nachweisen. Der technische Installationserfolg umfasst den in der
+Git-Historie enthaltenen Journal-/Lesson-/Evidence-Code aus #260/#261/#263. Er
+belegt keine neue reale Ausführung oder menschliche Abnahme dieses Lernwegs.
+
+Die historischen Main-Testergebnisse werden dem dokumentierten Commit
+zugeordnet, nicht als neue Läufe gezählt. Die zwei geschützten Journal-/FT011-
+Browserfälle fehlen weiterhin im regelmäßigen Standardlauf; nur der separate
+Performance-Owner-Fall ist dort tatsächlich ausgeführt. Eine spätere eigene
+Testsicherung benötigt einen neuen echten Lauf mit exakter Test-/Stackidentität.
+Der [zentrale Installationseintrag](../planning/PRODUCT_BACKLOG.md#operations-installation)
+und die vorhandenen Teilfähigkeiten bleiben die einzigen Arbeitsstatusfelder.
+Die neue Abschlusskohorten-/Vorzeichenregel ist ein gesonderter Vorschlag;
+die bereits entschiedene Währungswiederverwendung wird nicht erneut freigegeben.
