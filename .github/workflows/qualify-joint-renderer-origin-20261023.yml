@@ -1,0 +1,141 @@
+name: Joint renderer checkout qualification 20261023
+
+on:
+  push:
+    branches: [qualification/closed-source-journal-20261023]
+    paths: [.github/workflows/qualify-joint-renderer-origin-20261023.yml]
+
+# A targeted repeat of the failed temporary checkout, not a product change.
+# No Git database, branch, PR, tag or release writes.
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  issuer-renderer:
+    name: Backend / issuer renderer sandbox (correct origin)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: exact-joint-source
+          path: ${{ runner.temp }}/joint-source
+          run-id: 40030194587
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Verify exact source history and restore the real repository origin
+        run: |
+          set -euo pipefail
+          (cd "$RUNNER_TEMP/joint-source" && sha256sum -c SHA256SUMS)
+          git clone --no-checkout "$RUNNER_TEMP/joint-source/source.bundle" "$GITHUB_WORKSPACE"
+          git checkout --detach 9e6aca1aa3bacefd41e63ab1cfaa3fb1d7dd425c
+          test "$(git rev-parse HEAD^{tree})" = 287e760a8773f04c821533db1334880225b9a18b
+          test "$(git show -s --format=%P HEAD)" = '550ebfc9c90662cc51bef08f4e34c5d2057d21e7 58c842c367b0ce75fa8e445e908fd3e78ff8477c'
+          test -z "$(git status --porcelain)"
+          # Cloning an archive gives origin its local path. The existing launcher
+          # correctly rejects that path. Restore canonical repository metadata;
+          # do not modify or disable its origin check and do not push anything.
+          test "$(git remote get-url origin)" = "$RUNNER_TEMP/joint-source/source.bundle"
+          git remote set-url origin https://github.com/burckhju/trading-workspace.git
+          test "$(git remote get-url origin)" = https://github.com/burckhju/trading-workspace.git
+          git show -s --format='checkout=%H tree=%T parents=%P'
+          printf 'origin=%s\n' "$(git remote get-url origin)"
+      - name: Build the optional issuer renderer
+        run: docker build -f docker/issuer-renderer/Dockerfile -t issuer-renderer:test .
+      - name: Qualify legacy migration against disposable containers and PostgreSQL
+        run: bash tests/deployment/legacy-issuer-migration.sh
+      - name: Verify issuer startup preflight with real Compose provenance
+        run: |
+          cat > docker/.env <<'EOF'
+          POSTGRES_DB=trading_workspace_test
+          POSTGRES_USER=trading_workspace
+          POSTGRES_PASSWORD=startup-check-only
+          TRADING_WORKSPACE_DATABASE_URL=postgresql+asyncpg://trading_workspace:startup-check-only@database/trading_workspace_test
+          EOF
+          docker create --name issuer-startup-provenance --network none \
+            --label com.docker.compose.project=trading-workspace \
+            --label com.docker.compose.service=backend \
+            --label com.docker.compose.container-number=1 \
+            --label com.docker.compose.config-hash=synthetic-startup-check \
+            --label "com.docker.compose.project.config_files=$PWD/docker/compose.yml,$PWD/docker/compose.issuer-monitoring.yml" \
+            issuer-renderer:test
+          if bash scripts/start-linux.sh --check > startup-check.log 2>&1; then
+            echo 'A base-only start must refuse the existing issuer configuration.'
+            exit 1
+          fi
+          grep -q 'omits or reorders' startup-check.log
+          bash scripts/start-linux.sh --issuer-monitoring --check
+          test "$(docker inspect --format '{{.State.Status}}' issuer-startup-provenance)" = created
+      - name: Verify Chromium starts with the production sandbox
+        run: |
+          docker run -d --name issuer-renderer-ci --network none --init \
+            --read-only --cap-drop ALL --security-opt no-new-privileges:true \
+            --security-opt "seccomp=$PWD/docker/issuer-renderer/seccomp_profile.json" \
+            --shm-size 256m --tmpfs /tmp:size=256m,mode=1777 \
+            --mount type=volume,source=issuer-consent-ci,target=/state \
+            --memory 1g --cpus 1 --pids-limit 256 issuer-renderer:test
+          ready=false
+          for attempt in $(seq 1 60); do
+            health=$(docker inspect --format '{{.State.Health.Status}}' issuer-renderer-ci)
+            if [ "$health" = healthy ]; then
+              ready=true
+              break
+            fi
+            if [ "$health" = unhealthy ]; then
+              break
+            fi
+            sleep 2
+          done
+          if [ "$ready" != true ]; then
+            docker logs issuer-renderer-ci
+            exit 1
+          fi
+          docker exec -i issuer-renderer-ci python - <<'PY'
+          import json
+          import os
+          import urllib.request
+          from pathlib import Path
+          assert os.geteuid() != 0
+          assert not os.access('/app/app', os.W_OK)
+          assert os.access('/state', os.W_OK)
+          assert not Path('/state/jpmorgan-consent.json').exists()
+          with urllib.request.urlopen('http://127.0.0.1:8091/health', timeout=5) as response:
+              health = json.load(response)
+          assert health['ready'] is True
+          assert health['chromium_sandbox'] is True
+          assert health['jpmorgan_consent'] == 'NOT_CONFIGURED'
+          print(json.dumps(health, sort_keys=True))
+          PY
+      - name: Remove test renderer
+        if: always()
+        run: |
+          docker rm -f issuer-startup-provenance || true
+          rm -f docker/.env
+          docker rm -f issuer-renderer-ci || true
+          docker volume rm issuer-consent-ci || true
+      - name: Verify absence of only this disposable job's resources
+        if: always()
+        run: |
+          set -euo pipefail
+          test -z "$(docker ps -aq --filter label=com.docker.compose.project=trading-workspace)"
+          for container in issuer-startup-provenance issuer-renderer-ci; do
+            if docker container inspect "$container" >/dev/null 2>&1; then exit 1; fi
+          done
+          for volume in trading-workspace_postgres-data trading-workspace_issuer-consent-state issuer-consent-ci; do
+            if docker volume inspect "$volume" >/dev/null 2>&1; then exit 1; fi
+          done
+          test -z "$(docker network ls -q --filter label=com.docker.compose.project=trading-workspace)"
+          test "$(git rev-parse HEAD)" = 9e6aca1aa3bacefd41e63ab1cfaa3fb1d7dd425c
+          test "$(git rev-parse HEAD^{tree})" = 287e760a8773f04c821533db1334880225b9a18b
+          mkdir "$RUNNER_TEMP/renderer-receipt"
+          {
+            printf 'trigger_sha=%s\nrun_id=%s\nrun_attempt=%s\n' "$GITHUB_SHA" "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT"
+            git show -s --format='checkout=%H%ntree=%T%nparents=%P'
+            printf 'origin=%s\nremaining_owned_resources=0\n' "$(git remote get-url origin)"
+          } > "$RUNNER_TEMP/renderer-receipt/identity-and-cleanup.txt"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: renderer-checkout-and-cleanup
+          path: ${{ runner.temp }}/renderer-receipt/
+          if-no-files-found: error
