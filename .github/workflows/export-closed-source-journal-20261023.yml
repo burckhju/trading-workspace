@@ -1,0 +1,60 @@
+name: Export pinned integration sources 20261023
+
+on:
+  push:
+    branches: [qualification/closed-source-journal-20261023]
+    paths: [.github/workflows/export-closed-source-journal-20261023.yml]
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 550ebfc9c90662cc51bef08f4e34c5d2057d21e7
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Export only the three exact public source histories
+        shell: bash
+        run: |
+          set -euo pipefail
+          main=5c76ff495b0797c4de00666ee358219858e33afd
+          integrated=550ebfc9c90662cc51bef08f4e34c5d2057d21e7
+          journal=58c842c367b0ce75fa8e445e908fd3e78ff8477c
+          test "$(git rev-parse HEAD)" = "$integrated"
+          test -z "$(git status --porcelain)"
+          test "$(git ls-remote origin refs/heads/main | cut -f1)" = "$main"
+          test "$(git ls-remote origin refs/heads/integration/closed-trade-result-sources | cut -f1)" = "$integrated"
+          test "$(git ls-remote origin refs/heads/ci/journal-evidence-owner-e2e | cut -f1)" = "$journal"
+          git cat-file -e "$journal^{commit}"
+          git merge-base --is-ancestor "$main" "$integrated"
+          git merge-base --is-ancestor de413843a814ac6a1016f474f3e5366cd81ea96a "$integrated"
+          git merge-base --is-ancestor 950865415598c04338fdafb9f78d9222d9f53a3f "$integrated"
+          git update-ref refs/heads/export-main-20261023 "$main"
+          git update-ref refs/heads/export-journal-20261023 "$journal"
+          mkdir -p "$RUNNER_TEMP/pinned-integration-sources"
+          out="$RUNNER_TEMP/pinned-integration-sources"
+          git bundle create "$out/sources.bundle" HEAD refs/heads/export-main-20261023 refs/heads/export-journal-20261023
+          git bundle verify "$out/sources.bundle"
+          {
+            printf 'trigger_sha=%s\nrun_id=%s\nrun_attempt=%s\n' "$GITHUB_SHA" "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT"
+            for sha in "$main" "$integrated" "$journal"; do
+              git show -s --format='commit=%H%ntree=%T%nparents=%P' "$sha"
+            done
+          } > "$out/identity.txt"
+          for sha in "$main" "$integrated" "$journal"; do
+            git ls-tree -r --name-only "$sha" | grep -E '(^|/)(AGENTS\.md|CLAUDE\.md|CONTRIBUTING[^/]*|copilot-instructions\.md)$' > "$out/instructions-$sha.txt" || test "$?" = 1
+          done
+          cd "$out"
+          sha256sum sources.bundle identity.txt instructions-*.txt > SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pinned-integration-sources-20261023
+          path: ${{ runner.temp }}/pinned-integration-sources/
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 14
