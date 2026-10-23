@@ -1,0 +1,517 @@
+name: Joint development qualification 20261023
+
+on:
+  push:
+    branches: [qualification/closed-source-journal-20261023]
+    paths: [.github/workflows/qualify-joint-readonly-20261023.yml]
+
+# No Git database, branch, PR, tag or release writes. This is not a PR check.
+permissions:
+  contents: read
+
+jobs:
+  source:
+    name: Reproduce exact local integration commit
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 550ebfc9c90662cc51bef08f4e34c5d2057d21e7
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Reuse only the previously successful local reconstruction step
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import os, pathlib, subprocess, textwrap
+          ref='c4d013c2f9cad2ea5a759bf84946dec9cb97e848'
+          file='.github/workflows/prepare-joint-tree-20261023.yml'
+          raw=subprocess.check_output(['git','show',ref+':'+file])
+          actual=subprocess.check_output(['git','hash-object','--stdin'],input=raw).decode().strip()
+          assert actual=='96a7b5ba38427f518a9404e8d604efde6dea6490'
+          section=raw.decode().split('      - name: Reproduce only the reviewed merge and documentation delta\n',1)[1].split('      - name: Store only reviewed Git objects;',1)[0]
+          script=textwrap.dedent(section.split('        run: |\n',1)[1])
+          placeholder="assert git('hash-object',str(p)) == 'cc2d1d33a550abf8b04708be9a6235f3cf9721a1' if False else True"
+          assert script.count(placeholder)==1
+          script=script.replace(placeholder,"assert git('hash-object',str(p)) == 'cc2d1d335009946f6b2841597fbcd87309d29144'")
+          assert 'github.rest' not in script and 'git push' not in script and 'GH_TOKEN' not in script
+          pathlib.Path(os.environ['RUNNER_TEMP'],'reproduce-local-only.sh').write_text(script)
+          PY
+          bash "$RUNNER_TEMP/reproduce-local-only.sh"
+          GIT_AUTHOR_DATE=2026-10-23T21:52:55Z GIT_COMMITTER_DATE=2026-10-23T21:52:55Z git commit -m 'integrate: preserve closed-source and journal evidence qualification on current main'
+          test "$(git rev-parse HEAD)" = 9e6aca1aa3bacefd41e63ab1cfaa3fb1d7dd425c
+          test "$(git rev-parse HEAD^{tree})" = 287e760a8773f04c821533db1334880225b9a18b
+          test -z "$(git status --porcelain)"
+          mkdir "$RUNNER_TEMP/joint-source"
+          git bundle create "$RUNNER_TEMP/joint-source/source.bundle" HEAD
+          git bundle verify "$RUNNER_TEMP/joint-source/source.bundle"
+          {
+            printf 'trigger_sha=%s\nrun_id=%s\nrun_attempt=%s\n' "$GITHUB_SHA" "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT"
+            git show -s --format='checkout=%H%ntree=%T%nparents=%P' HEAD
+            printf 'main=5c76ff495b0797c4de00666ee358219858e33afd\npr273_head=550ebfc9c90662cc51bef08f4e34c5d2057d21e7\npr269_head=58c842c367b0ce75fa8e445e908fd3e78ff8477c\nrepository_refs_changed=false\n'
+          } > "$RUNNER_TEMP/joint-source/identity.txt"
+          cd "$RUNNER_TEMP/joint-source"
+          sha256sum source.bundle identity.txt > SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: exact-joint-source
+          path: ${{ runner.temp }}/joint-source/
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 14
+
+  backend:
+    name: Backend / quality
+    needs: source
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: trading_workspace
+          POSTGRES_PASSWORD: trading_workspace_ci
+          POSTGRES_DB: trading_workspace_test
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -U trading_workspace -d trading_workspace_test"
+          --health-interval 10s --health-timeout 5s --health-retries 10
+    env:
+      TRADING_WORKSPACE_DATABASE_URL: postgresql+asyncpg://trading_workspace:trading_workspace_ci@localhost:5432/trading_workspace_test
+      TRADING_WORKSPACE_TEST_DATABASE_URL: postgresql+asyncpg://trading_workspace:trading_workspace_ci@localhost:5432/trading_workspace_test
+    steps:
+      - uses: actions/download-artifact@v4
+        with: {name: exact-joint-source, path: '${{ runner.temp }}/joint-source'}
+      - name: Checkout exact qualified tree, not the workflow trigger
+        run: |
+          set -euo pipefail
+          (cd "$RUNNER_TEMP/joint-source" && sha256sum -c SHA256SUMS)
+          git clone --no-checkout "$RUNNER_TEMP/joint-source/source.bundle" "$GITHUB_WORKSPACE"
+          git checkout --detach 9e6aca1aa3bacefd41e63ab1cfaa3fb1d7dd425c
+          test "$(git rev-parse HEAD^{tree})" = 287e760a8773f04c821533db1334880225b9a18b
+          test -z "$(git status --porcelain)"
+          git show -s --format='checkout=%H tree=%T parents=%P'
+      - uses: actions/setup-python@v5
+        with:
+          python-version-file: backend/.python-version
+          cache: pip
+          cache-dependency-path: |
+            backend/requirements.txt
+            backend/requirements-dev.txt
+      - name: Install unchanged development pins
+        run: python -m pip install --upgrade pip && python -m pip install --requirement backend/requirements-dev.txt
+      - name: Verify fresh PostgreSQL service and migrate
+        working-directory: backend
+        env:
+          PYTHONPATH: ${{ github.workspace }}/backend:${{ github.workspace }}
+        run: |
+          set -euo pipefail
+          docker inspect '${{ job.services.postgres.id }}' > "$RUNNER_TEMP/backend-service.json"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          obj=json.loads(Path(os.environ['RUNNER_TEMP'],'backend-service.json').read_text())[0]
+          assert obj['Config']['Image']=='postgres:17-alpine'
+          assert obj['State']['Running']
+          assert {'POSTGRES_DB=trading_workspace_test','POSTGRES_USER=trading_workspace'} <= set(obj['Config']['Env'])
+          assert all(m['Type']=='volume' for m in obj['Mounts'])
+          PY
+          alembic upgrade head
+      - name: Existing complete backend entry point
+        run: bash scripts/check-backend.sh
+      - name: Upload backend coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: backend/coverage.xml
+          if-no-files-found: error
+
+  frontend:
+    name: Frontend / quality
+    needs: source
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with: {name: exact-joint-source, path: '${{ runner.temp }}/joint-source'}
+      - name: Checkout exact qualified tree, not the workflow trigger
+        run: |
+          set -euo pipefail
+          (cd "$RUNNER_TEMP/joint-source" && sha256sum -c SHA256SUMS)
+          git clone --no-checkout "$RUNNER_TEMP/joint-source/source.bundle" "$GITHUB_WORKSPACE"
+          git checkout --detach 9e6aca1aa3bacefd41e63ab1cfaa3fb1d7dd425c
+          test "$(git rev-parse HEAD^{tree})" = 287e760a8773f04c821533db1334880225b9a18b
+          test -z "$(git status --porcelain)"
+          git show -s --format='checkout=%H tree=%T parents=%P'
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend dependencies
+        run: npm --prefix frontend ci
+      - name: Existing complete frontend entry point
+        run: bash scripts/check-frontend.sh
+      - name: Upload frontend coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-coverage
+          path: frontend/coverage
+          if-no-files-found: error
+
+  financial:
+    name: End-to-End / realized gross owner
+    needs: source
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/download-artifact@v4
+        with: {name: exact-joint-source, path: '${{ runner.temp }}/joint-source'}
+      - name: Checkout exact qualified tree, not the workflow trigger
+        run: |
+          set -euo pipefail
+          (cd "$RUNNER_TEMP/joint-source" && sha256sum -c SHA256SUMS)
+          git clone --no-checkout "$RUNNER_TEMP/joint-source/source.bundle" "$GITHUB_WORKSPACE"
+          git checkout --detach 9e6aca1aa3bacefd41e63ab1cfaa3fb1d7dd425c
+          test "$(git rev-parse HEAD^{tree})" = 287e760a8773f04c821533db1334880225b9a18b
+          test -z "$(git status --porcelain)"
+          git show -s --format='checkout=%H tree=%T parents=%P'
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version-file: backend/.python-version
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - name: Verify existing release prerequisites
+        run: bash scripts/verify-release-readiness.sh
+      - name: Install pinned frontend and database-guard dependencies
+        run: |
+          npm --prefix frontend ci
+          python -m pip install --requirement backend/requirements.txt
+      - name: Use reliable Ubuntu apt mirror
+        run: |
+          sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' /etc/apt/sources.list.d/ubuntu.sources
+          sudo apt-get update
+      - name: Install Chromium
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+      - name: Qualify actual SELL report writes and reads on an isolated Compose stack
+        run: bash scripts/run-realized-gross-e2e.sh
+      - name: Qualify full-close cohort on its own fresh isolated Compose stack
+        run: bash scripts/run-realized-gross-e2e.sh closed-trades
+      - name: Upload report browser, migration and cleanup evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: realized-gross-owner-e2e
+          path: frontend/test-results/realized-gross-*/
+          if-no-files-found: error
+          include-hidden-files: true
+
+  journal:
+    name: End-to-End / journal and evidence owner
+    needs: source
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/download-artifact@v4
+        with: {name: exact-joint-source, path: '${{ runner.temp }}/joint-source'}
+      - name: Checkout exact qualified tree, not the workflow trigger
+        run: |
+          set -euo pipefail
+          (cd "$RUNNER_TEMP/joint-source" && sha256sum -c SHA256SUMS)
+          git clone --no-checkout "$RUNNER_TEMP/joint-source/source.bundle" "$GITHUB_WORKSPACE"
+          git checkout --detach 9e6aca1aa3bacefd41e63ab1cfaa3fb1d7dd425c
+          test "$(git rev-parse HEAD^{tree})" = 287e760a8773f04c821533db1334880225b9a18b
+          test -z "$(git status --porcelain)"
+          git show -s --format='checkout=%H tree=%T parents=%P'
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version-file: backend/.python-version
+          cache: pip
+          cache-dependency-path: |
+            backend/requirements.txt
+            backend/requirements-dev.txt
+      - name: Verify existing release prerequisites
+        run: bash scripts/verify-release-readiness.sh
+      - name: Install pinned frontend and fixture dependencies
+        run: |
+          npm --prefix frontend ci
+          python -m pip install --requirement backend/requirements-dev.txt
+      - name: Verify fail-closed target and result contracts
+        run: |
+          python -m pytest -c backend/pyproject.toml tests/unit/backend/test_journal_e2e_contracts.py
+          node --test scripts/test-journal-api-guard.mjs
+      - name: Use reliable Ubuntu apt mirror
+        run: |
+          sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' /etc/apt/sources.list.d/ubuntu.sources
+          sudo apt-get update
+      - name: Install Chromium
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+      - name: Qualify both existing learning journeys on their own verified stack
+        run: bash scripts/run-journal-evidence-e2e.sh
+      - name: Upload learning test IDs, traces, source snapshots and cleanup evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: journal-evidence-owner-e2e
+          path: frontend/test-results/journal-evidence-*/
+          if-no-files-found: error
+          include-hidden-files: true
+
+  smoke:
+    name: End-to-End / smoke
+    needs: source
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      POSTGRES_DB: trading_workspace
+      POSTGRES_USER: trading_workspace
+      POSTGRES_PASSWORD: ci-only-password
+      POSTGRES_PORT: '5432'
+      BACKEND_PORT: '8000'
+      FRONTEND_PORT: '8080'
+      TRADING_WORKSPACE_DATABASE_URL: postgresql+asyncpg://trading_workspace:ci-only-password@database:5432/trading_workspace
+      VITE_API_BASE_URL: http://localhost:8080/api
+      PLAYWRIGHT_BASE_URL: http://127.0.0.1:8080
+      CURRENCY_E2E_WRITES_ALLOWED: '1'
+      TRADE_E2E_WRITES_ALLOWED: '1'
+    steps:
+      - uses: actions/download-artifact@v4
+        with: {name: exact-joint-source, path: '${{ runner.temp }}/joint-source'}
+      - name: Checkout exact qualified tree, not the workflow trigger
+        run: |
+          set -euo pipefail
+          (cd "$RUNNER_TEMP/joint-source" && sha256sum -c SHA256SUMS)
+          git clone --no-checkout "$RUNNER_TEMP/joint-source/source.bundle" "$GITHUB_WORKSPACE"
+          git checkout --detach 9e6aca1aa3bacefd41e63ab1cfaa3fb1d7dd425c
+          test "$(git rev-parse HEAD^{tree})" = 287e760a8773f04c821533db1334880225b9a18b
+          test -z "$(git status --porcelain)"
+          git show -s --format='checkout=%H tree=%T parents=%P'
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+      - name: Use reliable Ubuntu apt mirror
+        run: |
+          sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' /etc/apt/sources.list.d/ubuntu.sources
+          sudo apt-get update
+      - name: Install Chromium
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+      - name: Build and start stack
+        run: docker compose -f docker/compose.yml up --build --wait --wait-timeout 180
+      - name: Migrate disposable E2E database
+        run: docker compose -f docker/compose.yml run --rm --no-deps -T backend python -m alembic upgrade head
+      - name: Run Playwright smoke tests
+        working-directory: frontend
+        env:
+          NODE_PATH: ${{ github.workspace }}/frontend/node_modules
+        run: npm run e2e
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: frontend/playwright-report
+          if-no-files-found: ignore
+      - name: Capture container logs
+        if: failure()
+        run: docker compose -f docker/compose.yml logs --no-color > docker-compose.log
+      - name: Upload container logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-compose-logs
+          path: docker-compose.log
+          if-no-files-found: ignore
+      - name: Stop stack
+        if: always()
+        run: docker compose -f docker/compose.yml down --volumes --remove-orphans
+
+  image-permissions:
+    name: Backend / restrictive-umask image
+    needs: source
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: trading_workspace
+          POSTGRES_PASSWORD: trading_workspace_ci
+          POSTGRES_DB: trading_workspace_test
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -U trading_workspace -d trading_workspace_test"
+          --health-interval 10s --health-timeout 5s --health-retries 10
+    env:
+      TRADING_WORKSPACE_DATABASE_URL: postgresql+asyncpg://trading_workspace:trading_workspace_ci@localhost:5432/trading_workspace_test
+    steps:
+      - uses: actions/download-artifact@v4
+        with: {name: exact-joint-source, path: '${{ runner.temp }}/joint-source'}
+      - name: Checkout exact qualified tree, not the workflow trigger
+        run: |
+          set -euo pipefail
+          (cd "$RUNNER_TEMP/joint-source" && sha256sum -c SHA256SUMS)
+          git clone --no-checkout "$RUNNER_TEMP/joint-source/source.bundle" "$GITHUB_WORKSPACE"
+          git checkout --detach 9e6aca1aa3bacefd41e63ab1cfaa3fb1d7dd425c
+          test "$(git rev-parse HEAD^{tree})" = 287e760a8773f04c821533db1334880225b9a18b
+          test -z "$(git status --porcelain)"
+          git show -s --format='checkout=%H tree=%T parents=%P'
+      - name: Reproduce restrictive local checkout modes
+        run: |
+          find backend/app backend/migrations -type d -exec chmod 0700 {} +
+          find backend/app backend/migrations -type f -exec chmod 0600 {} +
+          chmod 0600 backend/alembic.ini backend/requirements.txt
+      - name: Build production backend from restricted sources
+        run: docker build --tag trading-workspace-permissions:test backend
+      - name: Verify non-root imports, read-only code and Frankfurt route
+        run: |
+          docker run --rm --network none -i trading-workspace-permissions:test python - <<'PY'
+          import os
+          from pathlib import Path
+          from fastapi.testclient import TestClient
+          from app.main import app
+          assert os.geteuid() != 0, 'Runtime must not run as root'
+          paths = [Path('/app'), Path('/app/alembic.ini'), Path('/app/requirements.txt')]
+          for root in (Path('/app/app'), Path('/app/migrations')):
+              paths.extend([root, *root.rglob('*')])
+          for path in paths:
+              assert path.stat().st_uid == 0, f'Source ownership changed: {path}'
+              assert not os.access(path, os.W_OK), f'Runtime can modify source: {path}'
+              if path.is_dir():
+                  assert os.access(path, os.R_OK | os.X_OK), f'Unreadable directory: {path}'
+              else:
+                  path.read_bytes()
+          response = TestClient(app).get('/api/v1/position-monitoring/quote-sources/frankfurt/health')
+          assert response.status_code == 200, response.text
+          assert response.json()['reason'] == 'FRANKFURT_DISABLED', response.text
+          print('Restricted-source image: non-root imports and Frankfurt health passed')
+          PY
+      - name: Run Alembic migrations as the image default user
+        run: |
+          docker run --rm --network host --env TRADING_WORKSPACE_DATABASE_URL \
+            trading-workspace-permissions:test python -m alembic upgrade head
+
+  issuer-renderer:
+    name: Backend / issuer renderer sandbox
+    needs: source
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/download-artifact@v4
+        with: {name: exact-joint-source, path: '${{ runner.temp }}/joint-source'}
+      - name: Checkout exact qualified tree, not the workflow trigger
+        run: |
+          set -euo pipefail
+          (cd "$RUNNER_TEMP/joint-source" && sha256sum -c SHA256SUMS)
+          git clone --no-checkout "$RUNNER_TEMP/joint-source/source.bundle" "$GITHUB_WORKSPACE"
+          git checkout --detach 9e6aca1aa3bacefd41e63ab1cfaa3fb1d7dd425c
+          test "$(git rev-parse HEAD^{tree})" = 287e760a8773f04c821533db1334880225b9a18b
+          test -z "$(git status --porcelain)"
+          git show -s --format='checkout=%H tree=%T parents=%P'
+      - name: Build the optional issuer renderer
+        run: docker build -f docker/issuer-renderer/Dockerfile -t issuer-renderer:test .
+      - name: Qualify legacy migration against disposable containers and PostgreSQL
+        run: bash tests/deployment/legacy-issuer-migration.sh
+      - name: Verify issuer startup preflight with real Compose provenance
+        run: |
+          cat > docker/.env <<'EOF'
+          POSTGRES_DB=trading_workspace_test
+          POSTGRES_USER=trading_workspace
+          POSTGRES_PASSWORD=startup-check-only
+          TRADING_WORKSPACE_DATABASE_URL=postgresql+asyncpg://trading_workspace:startup-check-only@database/trading_workspace_test
+          EOF
+          docker create --name issuer-startup-provenance --network none \
+            --label com.docker.compose.project=trading-workspace \
+            --label com.docker.compose.service=backend \
+            --label com.docker.compose.container-number=1 \
+            --label com.docker.compose.config-hash=synthetic-startup-check \
+            --label "com.docker.compose.project.config_files=$PWD/docker/compose.yml,$PWD/docker/compose.issuer-monitoring.yml" \
+            issuer-renderer:test
+          if bash scripts/start-linux.sh --check > startup-check.log 2>&1; then
+            echo 'A base-only start must refuse the existing issuer configuration.'
+            exit 1
+          fi
+          grep -q 'omits or reorders' startup-check.log
+          bash scripts/start-linux.sh --issuer-monitoring --check
+          test "$(docker inspect --format '{{.State.Status}}' issuer-startup-provenance)" = created
+      - name: Verify Chromium starts with the production sandbox
+        run: |
+          docker run -d --name issuer-renderer-ci --network none --init \
+            --read-only --cap-drop ALL --security-opt no-new-privileges:true \
+            --security-opt "seccomp=$PWD/docker/issuer-renderer/seccomp_profile.json" \
+            --shm-size 256m --tmpfs /tmp:size=256m,mode=1777 \
+            --mount type=volume,source=issuer-consent-ci,target=/state \
+            --memory 1g --cpus 1 --pids-limit 256 issuer-renderer:test
+          ready=false
+          for attempt in $(seq 1 60); do
+            health=$(docker inspect --format '{{.State.Health.Status}}' issuer-renderer-ci)
+            if [ "$health" = healthy ]; then
+              ready=true
+              break
+            fi
+            if [ "$health" = unhealthy ]; then
+              break
+            fi
+            sleep 2
+          done
+          if [ "$ready" != true ]; then
+            docker logs issuer-renderer-ci
+            exit 1
+          fi
+          docker exec -i issuer-renderer-ci python - <<'PY'
+          import json
+          import os
+          import urllib.request
+          from pathlib import Path
+          assert os.geteuid() != 0
+          assert not os.access('/app/app', os.W_OK)
+          assert os.access('/state', os.W_OK)
+          assert not Path('/state/jpmorgan-consent.json').exists()
+          with urllib.request.urlopen('http://127.0.0.1:8091/health', timeout=5) as response:
+              health = json.load(response)
+          assert health['ready'] is True
+          assert health['chromium_sandbox'] is True
+          assert health['jpmorgan_consent'] == 'NOT_CONFIGURED'
+          PY
+      - name: Remove test renderer
+        if: always()
+        run: |
+          docker rm -f issuer-startup-provenance || true
+          rm -f docker/.env
+          docker rm -f issuer-renderer-ci || true
+          docker volume rm issuer-consent-ci || true
+
+  publication-guards:
+    name: Version / publication guards
+    needs: source
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with: {name: exact-joint-source, path: '${{ runner.temp }}/joint-source'}
+      - name: Checkout exact qualified tree, not the workflow trigger
+        run: |
+          set -euo pipefail
+          (cd "$RUNNER_TEMP/joint-source" && sha256sum -c SHA256SUMS)
+          git clone --no-checkout "$RUNNER_TEMP/joint-source/source.bundle" "$GITHUB_WORKSPACE"
+          git checkout --detach 9e6aca1aa3bacefd41e63ab1cfaa3fb1d7dd425c
+          test "$(git rev-parse HEAD^{tree})" = 287e760a8773f04c821533db1334880225b9a18b
+          test -z "$(git status --porcelain)"
+          git show -s --format='checkout=%H tree=%T parents=%P'
+      - name: Test version publication boundaries
+        run: node --test .github/tests/version-tag.test.cjs
