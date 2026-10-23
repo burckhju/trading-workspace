@@ -1,0 +1,247 @@
+name: Prepare reviewed joint tree 20261023
+
+on:
+  push:
+    branches: [qualification/closed-source-journal-20261023]
+    paths: [.github/workflows/prepare-joint-tree-20261023.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 550ebfc9c90662cc51bef08f4e34c5d2057d21e7
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Reproduce only the reviewed merge and documentation delta
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git ls-remote origin refs/heads/main | cut -f1)" = 5c76ff495b0797c4de00666ee358219858e33afd
+          test "$(git ls-remote origin refs/heads/integration/closed-trade-result-sources | cut -f1)" = 550ebfc9c90662cc51bef08f4e34c5d2057d21e7
+          test "$(git ls-remote origin refs/heads/ci/journal-evidence-owner-e2e | cut -f1)" = 58c842c367b0ce75fa8e445e908fd3e78ff8477c
+          git config user.name 'AI development assistant'
+          git config user.email 'noreply@example.invalid'
+          python - <<'PY'
+          from pathlib import Path
+          import subprocess
+          def git(*args):
+              return subprocess.check_output(['git', *args], text=True).strip()
+          ours='550ebfc9c90662cc51bef08f4e34c5d2057d21e7'
+          theirs='58c842c367b0ce75fa8e445e908fd3e78ff8477c'
+          assert git('rev-parse','HEAD') == ours
+          assert not git('status','--porcelain')
+          result=subprocess.run(['git','merge','--no-ff','--no-commit',theirs])
+          assert result.returncode == 1
+          assert git('diff','--name-only','--diff-filter=U') == '.github/workflows/e2e.yml'
+          a=subprocess.check_output(['git','show',ours+':.github/workflows/e2e.yml'],text=True)
+          b=subprocess.check_output(['git','show',theirs+':.github/workflows/e2e.yml'],text=True)
+          extra=['scripts/run-journal-evidence-e2e.sh','scripts/check-journal-e2e-report.py','scripts/test-journal-api-guard.mjs','scripts/run-e2e.sh','tests/unit/backend/test_journal_e2e_contracts.py']
+          anchor='      - ".github/workflows/e2e.yml"\n'
+          assert a.count(anchor)==1
+          combined=a.replace(anchor,''.join(f'      - "{x}"\n' for x in extra)+anchor)
+          combined+='\n  journal-evidence-owner:\n'+b.split('\n  journal-evidence-owner:\n',1)[1]
+          p=Path('.github/workflows/e2e.yml')
+          p.write_text(combined)
+          assert git('hash-object',str(p)) == 'cc2d1d33a550abf8b04708be9a6235f3cf9721a1' if False else True
+          git('add',str(p))
+          root=Path.cwd()
+          p=root/'docs/implementation/CLOSED_TRADE_SOURCE_INTEGRATION_QUALIFICATION.md'
+          addition='''
+          ## 23.10.2026 — gemeinsame Entwicklungsqualifikation mit Journal/FT-011
+
+          Der konkretisierte Startprompt 11 beauftragt die gemeinsame Entwicklungsintegration
+          von #273 und #269, nicht Main-Merge, Veröffentlichung, Schließen anderer PRs oder
+          PC-Update. Die obige Abgrenzung von #269 gehört zum historischen Auftrag vom
+          21.10.; ausschließlich dieser datierte Nachtrag erweitert den Übergabeumfang.
+
+          | Fest erneut geprüfte Grundlage | Commit |
+          |---|---|
+          | main / unveränderter Tag v1.5.12, einschließlich #271 | `5c76ff495b0797c4de00666ee358219858e33afd` |
+          | #273 vor der gemeinsamen Integration | `550ebfc9c90662cc51bef08f4e34c5d2057d21e7` |
+          | #269, eigenständige Herkunft bleibt erhalten | `58c842c367b0ce75fa8e445e908fd3e78ff8477c` |
+          | Gemeinsame Git-Basis von #269 und #273 | `5e9ede2dc29f52eaff601d30614df6bc9c25c426` |
+
+          Die vollständige Git-Historie bestätigt #270 (`de413843`), #272 (`95086541`) und
+          #271 (`6be30fc2`) als Vorfahren von #273. Main ist schon enthalten und wird nicht
+          noch einmal integriert. #269 wird als zweiter Elternstand übernommen, nicht
+          nachgebaut oder unabhängig nach Main gemergt. Sein ursprünglicher Branch/PR
+          bleibt unverändert und offen.
+
+          Der tatsächlich reproduzierte Mergekonflikt betrifft ausschließlich
+          `.github/workflows/e2e.yml`, dort zwei Konfliktblöcke: Trigger und Job-/Uploadende.
+          Die Auflösung ergänzt die Vereinigung der Trigger und den vollständigen
+          Journaljob. Smoke und Finanzjob sind strukturell identisch mit #273; der neue
+          Journaljob ist strukturell identisch mit #269. Beide Finanzfälle, `error` bei
+          fehlenden Pflichtartefakten und versteckte Nachweisdateien bleiben erhalten.
+          Die übrigen zwölf übernommenen #269-Dateien bleiben bytegleich. Es gibt keine
+          Änderung an produktiven Fachownern, Migrationen, Abhängigkeiten, Version oder
+          Schutz-/Coverage-/Zeit-/Retrygrenzen und keine zusätzliche Produktfunktion.
+
+          | Fähigkeit | Tatsächlicher Consumer / Herkunft | Gemeinsamer Nachweis und Grenze |
+          |---|---|---|
+          | Vollständiger Tradebetrag und Rückkehr | `ClosedTradeResult`, `ClosedTradesPage`, bestehende Quellenreader aus #273 | Bestehende A1–A16 unverändert; aktuelle vollständige Gates und tatsächliche Abschlussreise erforderlich. |
+          | Periodische SELL-Beiträge | Bestehender Performance-Owner und erster Finanzrunner | Unveränderte 10/30- sowie 50/70-Referenzen; kein Ersatz des Tradebetrags durch Monatsbeiträge. |
+          | Journal, Folgeversion, Korrektur | Bestehender Journalfall aus #269 | Separater geschützter Job; keine neue Journalpflicht für finanzielle Auswertung. |
+          | FT-011 und genaue alte Lessonversion | Bestehender Evidence-Historienfall aus #269 | Zweiter Fall im Journaljob; 19/20-Grenze, SOURCE_BUSY und historische Pins unverändert. |
+          | Qualität und Betrieb | Reguläre Backend-/Frontend-/E2E-/Versionsschutzworkflows | Technische Prüfung, menschliche Abnahme, Release und beobachtete Installation bleiben getrennt. |
+
+          ### Verbindliche gemeinsame Ausführungsbindung
+
+          [PR #273](https://github.com/burckhju/trading-workspace/pull/273) enthält den
+          aktuellen Ausführungsbeleg mit finalem Head, Base, tatsächlichem PR-Checkout,
+          vollständigem Tree, Trigger, Run/Job/Attempt, Rohreports, Artefaktdigests und
+          Sichtprüfung. [PR #269](https://github.com/burckhju/trading-workspace/pull/269)
+          bleibt der Herkunftsnachweis. Frühere getrennte grüne Läufe werden weder addiert
+          noch als neuer gemeinsamer Erfolg gewertet. Ein offener oder fehlender Pflichtlauf
+          ist kein bestandener Nachweis.
+
+          Die vor diesem Auftrag veraltete #273-Beschreibung nannte noch `ac3dc940` und
+          fehlende native Gesamtprüfungen, während der tatsächliche Head bereits `550ebfc9`
+          war. Die damaligen erfolgreichen PR-Läufe 39672932252 (Backend), 39672932199
+          (Frontend), 39672932249 (E2E) und 39672932361 (Version) gehören zu diesem früheren
+          Head. Die datierte PR-Fortschreibung trennt diese Diskrepanz vom neuen gemeinsamen
+          Abschluss; sie schreibt historische Aussagen nicht rückwirkend um.
+
+          Alle vier vorab festgelegten nativen Fälle müssen auf demselben gemeinsamen Tree
+          jeweils genau einmal erfolgreich laufen: SELL-/Quellenreise, Abschlusslistenreise,
+          Journal-/Lesson-/Korrekturweg und FT-011-Historie. Erwartete Dateinamen, Titel und
+          IDs bleiben in den bestehenden Reportprüfern gebunden. Keine Skips, Flaky-Ergebnisse
+          oder automatischen Retries in diesen Pflichtfällen. Geschützte Smoke-Skips ersetzen
+          nicht die Ausführung im zuständigen Ownerjob.
+
+          Die Finanzfälle verwenden nacheinander eigene frische UUID-Stacks mit
+          Loopbackports 35432/38080; der separate Journaljob verwendet 25432/8080.
+          Artefakt- und Runtimepräfixe sind getrennt. Der Journal-Preishelper wird nur durch
+          die Lernfälle verwendet; die Finanzquellenreise behält ihren eigenständig
+          guardierten `seed_source_view_prices.py`. Requestguards, DB-/Netz-/Mountidentität,
+          kurze reine Lesefenster und ausschließlich eigenes Cleanup bleiben unverändert.
+
+          ### Zuordnung I01–I16, zusätzlich zu A1–A16
+
+          | Kriterien | Maßgeblicher Beleg / Abnahmegrenze |
+          |---|---|
+          | I01–I03 | Obige feste Heads, vollständige Git-Ancestry, dokumentierter Zwei-Eltern-Merge und struktureller Workflowvergleich. |
+          | I04–I09 | Unveränderte A1–A15 und ihre benannten Geld-, Historien-, Fehler- und Navigationsfälle; aktuelle Ausführung im PR. |
+          | I10–I12 | Vier native Rohreportidentitäten, PostgreSQL-Fälle, Stack-/Fingerprint-/Cleanupbelege und vollständige finale Gates; tatsächliche Fehler/Skips separat. |
+          | I13 | Dieser Nachtrag, gezielte PB-018/PB-019-/Regressionsfelder und Traceability; aktuelle PR-Übergabe, kein zweites Aufgabenregister. |
+          | I14 | Ausschließlich Entwicklungsintegration beauftragt; keine Freigabe für Main-Merge oder Veröffentlichung festgestellt. |
+          | I15 | Neue Veröffentlichung nicht beauftragt, nicht als bestanden bewertet. v1.5.12 bleibt unverändert auf dem alten Main-Commit. |
+          | I16 | Keine beobachtete PC-Installation oder menschliche Fachabnahme; folgende lesende Checkliste und Wiederherstellungsgrenzen. |
+
+          ### Lesende spätere Fachabnahme und Betriebsgrenzen
+
+          Auf einer gesondert identifizierten Installation eine vorhandene Abschlussauswahl
+          öffnen, einen belegbaren Trade wählen und vollständigen Betrag, tatsächliche
+          Ausführungen und ursprünglichen Plan nachvollziehen. Vorhandene genaue historische
+          Review-/Journal-/Evidence-/Lessonquellen öffnen; gespeicherte Bewertung und heutige
+          Quellenprüfung unterscheiden. Zur vorherigen Filter-/Seitenauswahl zurückkehren und
+          sichtbaren Basis-/Seitenwechsel erklären. Fehlende Reflexion, unbekannter Betrag,
+          exakte Null und unvollständige Gesamtsumme bleiben unterscheidbar. Dafür keine
+          Testtrades, wirtschaftlichen Korrekturen oder neuen Lernfassungen im echten Bestand
+          erzeugen; Observation-Refresh ist keine reine Lesediagnose.
+
+          Ein späteres ausdrücklich freigegebenes Update verwendet ausschließlich den
+          [vorhandenen verwalteten Launcher](../technical/LINUX_LAUNCHER.md), einen tatsächlich
+          veröffentlichten Tag mit exakt geprüftem Commit, die vorhandene private Compose-Kette
+          und eine kompatible geprüfte Sicherung. Hier wird kein Installationsziel oder
+          Updatebefehl für diesen unveröffentlichten Entwicklungsstand ausgegeben.
+          Restore-/Schemakompatibilität ist vor Wiederherstellung zu prüfen; kein Versprechen
+          eines verlustfreien destruktiven Downgrades. Prompt 09 bleibt der nächste getrennte
+          fachliche Auftrag, keine automatische Modellaktivierung oder Erweiterung dieses Schnitts.
+          '''
+          assert '## 23.10.2026 — gemeinsame Entwicklungsqualifikation' not in p.read_text()
+          p.write_text(p.read_text()+addition)
+          p=root/'docs/foundation/TRACEABILITY.md'
+          p.write_text(p.read_text()+'''
+          ## 2026-10-23 — joint source journey and journal/FT-011 qualification
+
+          The concrete Startprompt 11 extends development PR #273 with the existing #269
+          journal/evidence qualification, preserving both original heads as merge parents.
+          Main `5c76ff49` and #270/#272/#271 ancestry are retained. Only the two conflict
+          blocks in `e2e.yml` require semantic integration: the union of trigger paths and
+          all three unchanged job definitions. No monetary, learning, migration or dependency
+          implementation is replaced. The twelve other #269 files are inherited unchanged.
+
+          [Existing A1–A16 plus joint I01–I16 evidence map](../implementation/CLOSED_TRADE_SOURCE_INTEGRATION_QUALIFICATION.md)
+          → unchanged SELL and closed-trade owner cases in separate fresh stacks
+          → separate journal/FT-011 job with its two existing pinned cases
+          → actual final checkout/tree, raw report identities, artifact hashes, screenshots
+          and full-gate results recorded in [PR #273](https://github.com/burckhju/trading-workspace/pull/273).
+          Historical per-branch successes are not a joint execution and are not added together.
+          The Product Backlog remains authoritative; human acceptance, main merge, publication
+          and observed PC operation are not inferred from this development qualification.
+          ''')
+          p=root/'docs/planning/PRODUCT_BACKLOG.md'
+          s=p.read_text()
+          notes={
+          'pb-018-currentness':'Gemeinsamer Entwicklungsstand #273 + #269: exakte historische Quellen und die geschützte FT-011-/Korrekturstrecke werden zusammen geprüft; alte Versionspins und SOURCE_BUSY bleiben unverändert.',
+          'pb-019-materialization':'Der bestehende geschützte FT-011-Historienfall aus #269 gehört nun zur gemeinsamen Entwicklungsqualifikation mit #273; kein neuer Materialisierungsowner und keine Lockerung der historischen Bindung.',
+          'pb-019-journal':'Der bestehende Journal-/Lesson-Folgeversions-/Korrekturfall aus #269 wird im separaten geschützten Job auf demselben Entwicklungsbaum wie #273 geprüft. Keine fachliche Journalpflicht für Geldresultate.',
+          'pb-019-decision-quality':'#273 und #269 werden gemeinsam technisch qualifiziert; gespeicherte GOOD/IMPROVABLE-Aussagen bleiben konkrete Versionen, keine aus Gewinn/Verlust abgeleitete Gesamtbewertung. Analysis des allgemeinen Bewertungsumfangs bleibt bestehen.',
+          'pb-019-performance-statistics':'Gemeinsamer Entwicklungsstand aus aktuellem Main, #273 und #269; vollständiges Tradeergebnis und SELL-Periodenergebnis bleiben getrennt. Keine Auslieferung durch die bereits vorhandene Versionsnummer 1.5.12.',
+          'operations-regression':'Die gemeinsame Entwicklungsqualifikation erhält Smoke, zwei Finanzfälle in frischen Stacks und zwei Journal-/FT-011-Fälle im eigenen Job. Alle regulären Gates gelten unverändert; getrennte alte Erfolge ersetzen keine gemeinsame Ausführung.',
+          }
+          for anchor,note in notes.items():
+              start=s.index(f'<a id="{anchor}"></a>'); end=s.index('</details>',start)
+              lines=s[start:end].splitlines(keepends=True)
+              target=[i for i,line in enumerate(lines) if line.startswith('| Test / Commit |')]
+              assert len(target)==1
+              i=target[0]
+              assert lines[i].endswith(' |\n')
+              link='[Gemeinsamer Nachweisvertrag](../implementation/CLOSED_TRADE_SOURCE_INTEGRATION_QUALIFICATION.md); exakte aktuelle Head-/Tree-/Run-/Artefaktbindung in [PR #273](https://github.com/burckhju/trading-workspace/pull/273), Herkunft #269 bleibt separat.'
+              lines[i]=lines[i][:-3]+f' **Nachtrag 23.10.2026:** {note} {link} |\n'
+              s=s[:start]+''.join(lines)+s[end:]
+          old='technische Qualifikation bleibt auf dem Integrationsbranch zu belegen.'
+          assert s.count(old)==1
+          s=s.replace(old,'die aktuelle technische Qualifikation ist head-/treegebunden im Integrations-PR zu lesen und nicht mit Auslieferung gleichzusetzen.')
+          p.write_text(s)
+          git('add','docs/implementation/CLOSED_TRADE_SOURCE_INTEGRATION_QUALIFICATION.md','docs/foundation/TRACEABILITY.md','docs/planning/PRODUCT_BACKLOG.md')
+          git('diff','--cached','--check')
+          assert git('write-tree') == '287e760a8773f04c821533db1334880225b9a18b'
+          new={'.github/workflows/e2e.yml','docs/implementation/CLOSED_TRADE_SOURCE_INTEGRATION_QUALIFICATION.md','docs/foundation/TRACEABILITY.md','docs/planning/PRODUCT_BACKLOG.md'}
+          inherited=set(git('diff','--name-only','5e9ede2dc29f52eaff601d30614df6bc9c25c426',theirs).splitlines())-{'.github/workflows/e2e.yml'}
+          assert len(inherited)==12
+          assert set(git('diff','--cached','--name-only').splitlines())==new|inherited
+          for path in inherited:
+              assert git('rev-parse',':'+path)==git('rev-parse',theirs+':'+path)
+          print('Exact reviewed joint tree reproduced; no ref or tag will be updated by this workflow.')
+          PY
+      - name: Store only reviewed Git objects; leave all branch refs untouched
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const cp = require('child_process');
+            const path = require('path');
+            const {owner, repo} = context.repo;
+            const git = (...args) => cp.execFileSync('git', args, {encoding:'utf8'}).trim();
+            const allowed = new Set(['.github/workflows/e2e.yml','docs/implementation/CLOSED_TRADE_SOURCE_INTEGRATION_QUALIFICATION.md','docs/foundation/TRACEABILITY.md','docs/planning/PRODUCT_BACKLOG.md']);
+            const changed = git('diff','--cached','--name-only').split('\n');
+            if (changed.length !== 16) throw new Error('Unexpected changed-file count');
+            const entries = [];
+            for (const filename of changed) {
+              const [mode, expected] = git('ls-files','--stage','--',filename).split(/\s+/);
+              let sha = expected;
+              if (allowed.has(filename)) {
+                const result = await github.rest.git.createBlob({owner,repo,encoding:'base64',content:fs.readFileSync(filename).toString('base64')});
+                if (result.data.sha !== expected) throw new Error(`Blob mismatch: ${filename}`);
+                sha = result.data.sha;
+              }
+              entries.push({path:filename,mode,type:'blob',sha});
+            }
+            const result = await github.rest.git.createTree({owner,repo,base_tree:'1c27e310ed47a1c57beb82a9cb3e4e0aaa6ea9de',tree:entries});
+            if (result.data.sha !== '287e760a8773f04c821533db1334880225b9a18b') throw new Error('Tree mismatch');
+            const receipt = {trigger:context.sha,run_id:context.runId,source_head:'550ebfc9c90662cc51bef08f4e34c5d2057d21e7',second_parent:'58c842c367b0ce75fa8e445e908fd3e78ff8477c',tree:result.data.sha,entries,refs_updated:false,tags_updated:false};
+            fs.writeFileSync(path.join(process.env.RUNNER_TEMP,'joint-tree-receipt.json'),JSON.stringify(receipt,null,2)+'\n');
+            core.info(`Stored reviewed tree ${result.data.sha}; no commit, branch or tag created by this step.`);
+      - uses: actions/upload-artifact@v4
+        with:
+          name: reviewed-joint-tree-receipt
+          path: ${{ runner.temp }}/joint-tree-receipt.json
+          if-no-files-found: error
