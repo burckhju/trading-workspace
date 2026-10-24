@@ -1,0 +1,49 @@
+name: Prepare v1.5.13 metadata objects
+
+on:
+  push:
+    branches: [qualification/closed-source-journal-20261023]
+    paths: [.github/workflows/prepare-v1513-metadata-20261024.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 174835d2bb3eed97b69d61b754e7cf38f666bee1
+          persist-credentials: false
+      - name: Store only four exact release metadata blobs
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const crypto = require('crypto');
+            const cp = require('child_process');
+            const git = (...args) => cp.execFileSync('git', args, {encoding:'utf8'}).trim();
+            if (git('rev-parse','HEAD') !== '174835d2bb3eed97b69d61b754e7cf38f666bee1') throw new Error('Unexpected source');
+            if (git('rev-parse','HEAD^{tree}') !== '287e760a8773f04c821533db1334880225b9a18b') throw new Error('Unexpected tree');
+            if (git('status','--porcelain')) throw new Error('Dirty source');
+            const files = [
+              ['VERSION',1,'41336a1c0b68b5184b8c0bb47d72c676c6dea940','fa85d4d1d234e30a6fef30b18ac4241b130d9913'],
+              ['backend/pyproject.toml',1,'de66e6aab56f44b3706ed515ce4b96a83cd430a0','604f40da300f6835e14b7fa09cb6249052ca6ec0'],
+              ['frontend/package.json',1,'c525b4709e24fe806c45aa9df1b6161603356203','9470401fabc496677db57c8f7e6e46ffeecec7bd'],
+              ['frontend/package-lock.json',2,'d1c3c19477b0b69fb8e2bc41741164d37bd7a75c','f89650e9a3b2a5132c1dbf88c0843926fb5ca44b'],
+            ];
+            const blobHash = data => crypto.createHash('sha1').update(Buffer.from(`blob ${data.length}\0`)).update(data).digest('hex');
+            for (const [filename,count,oldHash,newHash] of files) {
+              const before = fs.readFileSync(filename);
+              if (blobHash(before) !== oldHash) throw new Error(`Old blob mismatch ${filename}`);
+              const text = before.toString('utf8');
+              if (text.split('1.5.12').length - 1 !== count) throw new Error(`Unexpected version count ${filename}`);
+              const after = Buffer.from(text.replaceAll('1.5.12','1.5.13'));
+              if (blobHash(after) !== newHash) throw new Error(`New blob mismatch ${filename}`);
+              const {data} = await github.rest.git.createBlob({...context.repo,encoding:'base64',content:after.toString('base64')});
+              if (data.sha !== newHash) throw new Error(`Stored blob mismatch ${filename}`);
+              core.info(`${filename}: ${data.sha}`);
+            }
+            core.info('Four exact version-only blobs stored; no tree, commit, branch, tag or release changed.');
