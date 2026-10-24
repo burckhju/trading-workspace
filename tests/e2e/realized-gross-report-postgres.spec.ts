@@ -1,6 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { resolve } from "node:path";
 import { expect, test } from "@playwright/test";
+import { qualifyTradeSources } from "./support/trade_source_journey";
 
 // Explicit qualification only: the marked disposable PostgreSQL database is
 // independently verified before the first owner write. No HTTP result fixtures.
@@ -44,6 +45,7 @@ test("real PostgreSQL: purchase currency once, inherited sales, sources and corr
     return route.abort();
   });
   const post = async (path: string, data?: object) => {
+    databaseState();
     const response = await request.post(api + path, { data });
     expect(response.ok(), await response.text()).toBeTruthy();
     return response.json();
@@ -143,6 +145,7 @@ test("real PostgreSQL: purchase currency once, inherited sales, sources and corr
       response.request().method() === "POST" &&
       response.url().endsWith("/purchases/from-selection"),
   );
+  databaseState();
   await page
     .getByRole("button", {
       name: "BUY erfassen und Position eröffnen",
@@ -178,6 +181,7 @@ test("real PostgreSQL: purchase currency once, inherited sales, sources and corr
       response.request().method() === "POST" &&
       response.url().endsWith(tradePath + "/sales"),
   );
+  databaseState();
   await saleForm
     .getByRole("button", { name: "Teilverkauf erfassen", exact: true })
     .click();
@@ -436,6 +440,7 @@ test("real PostgreSQL: purchase currency once, inherited sales, sources and corr
           `/executions/${unknownBuy.execution.id}/currency-confirmations`,
         ),
   );
+  databaseState();
   await form
     .getByRole("button", { name: "Währungsbestätigung speichern", exact: true })
     .click();
@@ -476,6 +481,17 @@ test("real PostgreSQL: purchase currency once, inherited sales, sources and corr
       exact: true,
     }),
   ).toBeVisible();
+  await qualifyTradeSources(page, request, testInfo, {
+    api,
+    root,
+    tradeId: tid,
+    productId: product.id,
+    planId: plan.plan.id,
+    planVersionId: plan.latest_version.id,
+    replacedExecutionId: septemberLast.execution.id,
+    replacementExecutionId: replacement.execution.id,
+    databaseState,
+  });
   expect(failures).toEqual([]);
   await testInfo.attach("actual-owner-api-reports", {
     body: JSON.stringify(

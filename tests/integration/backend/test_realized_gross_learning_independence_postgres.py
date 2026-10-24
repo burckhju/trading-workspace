@@ -27,6 +27,7 @@ from tests.integration.backend.learning.test_journal_write_postgres import (
 from tests.integration.backend.learning.test_journal_write_postgres import (
     journal_database as guarded_database,
 )
+from tests.integration.backend.test_closed_trades_report_postgres import _closed_report
 from tests.integration.backend.test_realized_gross_report_postgres import (
     DECLARATION,
     QUERY,
@@ -96,6 +97,10 @@ def test_report_ignores_persisted_incomplete_observation_and_stale_review(
             assert financial["summary"]["total_display"] == "1.00"
             assert financial["counts"]["usable"] == 1
             assert financial["items"][0]["execution_id"] == sale_id
+            closed_financial = await _closed_report(client, AUGUST)
+            assert closed_financial["summary"]["total_display"] == "1.00"
+            assert closed_financial["counts"]["qualified"] == 1
+            assert closed_financial["items"][0]["trade_id"] == trade_id
             assert await _state(database.engine) == incomplete
 
             # Existing synthetic EOD fixture plus explicit existing owner actions.
@@ -151,6 +156,7 @@ def test_report_ignores_persisted_incomplete_observation_and_stale_review(
             assert len(populated["lesson_evidence_links"]) == 2
             assert populated["exit_review_versions"][0]["currentness"] == "CURRENT"
             _same_financial_response(financial, await _report(client, AUGUST))
+            _same_financial_response(closed_financial, await _closed_report(client, AUGUST))
             assert await _state(database.engine) == populated
 
             correction = await client.post(
@@ -169,6 +175,13 @@ def test_report_ignores_persisted_incomplete_observation_and_stale_review(
             assert corrected["summary"]["status"] == "COMPLETE"
             assert corrected["summary"]["total_display"] == "0.50"
             assert corrected["items"][0]["execution_id"] == correction.json()["execution"]["id"]
+            closed_corrected = await _closed_report(client, AUGUST)
+            assert closed_corrected["summary"]["total_display"] == "0.50"
+            assert closed_corrected["counts"]["qualified"] == 1
+            assert (
+                closed_corrected["items"][0]["closing_execution_id"]
+                == correction.json()["execution"]["id"]
+            )
             assert (await _state(database.engine))["exit_review_versions"][0][
                 "currentness"
             ] == "CURRENT"
@@ -200,6 +213,7 @@ def test_report_ignores_persisted_incomplete_observation_and_stale_review(
             # GET cannot revalidate, materialize, duplicate linked SELLs or rewrite
             # old interpretation/evidence. Exact corrected economic source is stable.
             _same_financial_response(corrected, await _report(client, AUGUST))
+            _same_financial_response(closed_corrected, await _closed_report(client, AUGUST))
             assert await _state(database.engine) == stale
 
     asyncio.run(exercise())

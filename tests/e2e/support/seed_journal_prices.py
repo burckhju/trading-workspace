@@ -4,15 +4,17 @@ import asyncio
 import os
 import sys
 from uuid import UUID
-from sqlalchemy.engine import make_url
+
+from journal_database_guard import verify
+
 from tests.integration.backend.learning.test_journal_write_postgres import seed_prices
 
 if __name__ == "__main__":
-    assert os.environ.get("CI") == "true"
-    assert os.environ.get("JOURNAL_E2E_WRITES_ALLOWED") == "1"
+    # Independent host read verifies this run's exact database before fixture writes.
+    asyncio.run(verify())
     url = os.environ["TRADING_WORKSPACE_TEST_DATABASE_URL"]
-    target = make_url(url)
-    assert target.database == "trading_workspace_test"
-    assert target.host in ("127.0.0.1", "localhost") and target.port == 25432
     listing = UUID(sys.argv[1])
-    asyncio.run(seed_prices(url, listing))
+    start, stop = (int(value) for value in sys.argv[2:]) if len(sys.argv) == 4 else (0, 20)
+    if not 0 <= start < stop <= 20:
+        raise ValueError("Synthetic fixture range must remain within its 20 defined observations")
+    asyncio.run(seed_prices(url, listing, start=start, stop=stop))

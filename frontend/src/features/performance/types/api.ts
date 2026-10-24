@@ -117,3 +117,62 @@ export interface RealizedGrossReport {
     execution_ids: string[];
   }[];
 }
+
+export type ClosedTradeGroup =
+  | 'CANCELLED'
+  | 'HISTORY_UNRESOLVED'
+  | 'OPEN'
+  | 'OUTSIDE_PERIOD'
+  | 'OTHER_CURRENCY'
+  | 'PERIOD_UNRESOLVED'
+  | 'MONETARY_UNRESOLVED'
+  | 'QUALIFIED';
+
+export interface ClosedTradeSellContribution
+  extends Omit<RealizedGrossItem, 'trade_id' | 'product_id' | 'product_name' | 'origin'> {
+  is_closing: boolean;
+  open_quantity_before: number;
+  open_quantity_after: number;
+}
+
+export interface ClosedTradeItem {
+  trade_id: string;
+  product_id: string;
+  product_name: string | null;
+  origin: TradeOrigin;
+  group: ClosedTradeGroup;
+  status: 'USABLE' | 'NOT_COMPUTABLE' | 'EXCLUDED';
+  reasons: string[];
+  period_status: RealizedGrossItem['period_status'] | null;
+  closing_execution_id: string | null;
+  closing_time: ReportExecutionTime | null;
+  currency_code: string | null;
+  realized_gross_pnl: string | null;
+  realized_gross_pnl_display: string | null;
+  classification: 'POSITIVE' | 'NEGATIVE' | 'NEUTRAL' | null;
+  execution_ids: string[];
+  effective_execution_ids: string[];
+  currency_confirmation_ids: string[];
+  sell_contributions: ClosedTradeSellContribution[];
+}
+
+export interface ClosedTradeReport
+  extends Omit<RealizedGrossReport, 'counts' | 'items' | 'excluded_trades'> {
+  counts: {
+    examined: number;
+    cancelled: number;
+    history_unresolved: number;
+    open: number;
+    outside_period: number;
+    other_currency: number;
+    period_unresolved: number;
+    monetary_unresolved: number;
+    qualified: number;
+    in_period: number;
+    unresolved: number;
+    positive: number;
+    negative: number;
+    neutral: number;
+  };
+  items: ClosedTradeItem[];
+}

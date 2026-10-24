@@ -624,3 +624,72 @@ Definition `realized-gross-sell-v2` changes currency qualification only; owner
 arithmetic and bounded report snapshot remain unchanged. There is no migration,
 automatic historical currency backfill or new feature ID. The historical V1.5.9
 test references above do not serve as tests for this amendment.
+
+
+## Read-only trade-source composition — 2026-10-21
+
+[PB-018 historical currentness](../planning/PRODUCT_BACKLOG.md#pb-018-currentness) and
+[PB-019 separation of decision quality and result](../planning/PRODUCT_BACKLOG.md#pb-019-decision-quality)
+→ [bounded source/read contract](../implementation/TRADE_SOURCE_VIEW_QUALIFICATION.md)
+→ `trade_position/service/source_view.py` and `api/source_router.py`
+→ existing TradeManagementPage source mode / `TradeSourcesView.tsx`
+→ `test_source_view.py` (33 executed cases), `TradeSourcesView.test.tsx` (22 executed cases)
+→ five native cases in `test_trade_source_view_postgres.py`: first full run 3 passed /
+2 fixture failures, corrected without changing owner rules; final run tracked in PR #272
+→ actual protected browser path in `support/trade_source_journey.ts`, first passed on
+8cc68f6 / checkout dbe9819, plus six guarded EOD-seed contract tests.
+
+Fresh local regressions cover 680 unit cases in affected backend areas and the
+unchanged full frontend gate (598 tests). This is not the full backend gate or
+a Browser→API→PostgreSQL qualification. The final delivery receipt binds the new
+reconstruction to a concrete local commit/tree; no identity with the previously
+claimed unretained implementation is asserted. Closed-report #270 integration,
+final full CI, human acceptance and publication remain distinct. Publication as
+[Draft-PR #272](https://github.com/burckhju/trading-workspace/pull/272) and the first
+real source browser run are now evidenced in the qualification addendum. Earlier
+local-only limits above are historical; no closed-report integration is inferred.
+
+## 2026-10-21 — separate closed-report/source-view integration
+
+The follow-up combines pinned #270 (`de413843`) and #272 (`95086541`) on
+`integration/closed-trade-result-sources`, not main. It adds the approved list →
+qualified result/exact sources → original filter/page return. No new FT/PB or
+monetary/quality owner is introduced. `ClosedTradeResult` and validated context
+reuse `closed-trade-gross-v1` and the existing exact source readers. Financial
+and optional read windows remain separate. The whole-report fingerprint is not
+claimed to identify a particular trade change or restore a historical report.
+
+[Integration inventory, contract and A1–A16 test map](../implementation/CLOSED_TRADE_SOURCE_INTEGRATION_QUALIFICATION.md)
+links the new UI tests, augmented guarded native browser journeys and unchanged
+PostgreSQL concurrency contracts. Actual full-gate runs, final checkout/tree and
+visual review are bound in the integration PR; earlier dependency CI is not reused
+as a new integration success. Human acceptance and M7/M8 completion remain separate.
+
+### 2026-10-21 — concurrent main advance retained in source integration
+
+Main advanced separately through #271 to `5c76ff49` (existing v1.5.12 metadata)
+while the integration's `f1898487` full gates were running. The final audit detected
+the different base and did not promote those passing results to current-main
+readiness. The integration branch incorporates that exact main as a separate
+parent, preserving both documentation histories and the already merged pacing
+change. No main write, new release or dependency upgrade is performed here.
+Fresh whole-tree CI and both native journeys are required on the combined head;
+PR #273 binds the new results separately from the genuine earlier successes.
+
+## 2026-10-23 — joint source journey and journal/FT-011 qualification
+
+The concrete Startprompt 11 extends development PR #273 with the existing #269
+journal/evidence qualification, preserving both original heads as merge parents.
+Main `5c76ff49` and #270/#272/#271 ancestry are retained. Only the two conflict
+blocks in `e2e.yml` require semantic integration: the union of trigger paths and
+all three unchanged job definitions. No monetary, learning, migration or dependency
+implementation is replaced. The twelve other #269 files are inherited unchanged.
+
+[Existing A1–A16 plus joint I01–I16 evidence map](../implementation/CLOSED_TRADE_SOURCE_INTEGRATION_QUALIFICATION.md)
+→ unchanged SELL and closed-trade owner cases in separate fresh stacks
+→ separate journal/FT-011 job with its two existing pinned cases
+→ actual final checkout/tree, raw report identities, artifact hashes, screenshots
+and full-gate results recorded in [PR #273](https://github.com/burckhju/trading-workspace/pull/273).
+Historical per-branch successes are not a joint execution and are not added together.
+The Product Backlog remains authoritative; human acceptance, main merge, publication
+and observed PC operation are not inferred from this development qualification.
