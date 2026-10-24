@@ -251,5 +251,5 @@ test('keeps a deactivated underlying discoverable so it can be deleted and recre
   );
   await page.getByRole('button', { name: 'Speichern' }).click();
   expect((await createRequest).postDataJSON()).toMatchObject({ name: 'Siemens AG' });
-  await expect(page).toHaveURL(`/underlyings/${underlyingId}`);
+  await expect(page).toHaveURL(`/underlyings/${underlyingId}?returnTo=%2Funderlyings`);
 });

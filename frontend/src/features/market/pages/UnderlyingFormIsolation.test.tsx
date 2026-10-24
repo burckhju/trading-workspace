@@ -460,26 +460,77 @@ describe('Underlying form request isolation', () => {
     },
   );
 
-  it.each(['resolve', 'reject'] as const)(
-    'ignores a late save %s after navigating from A to B',
-    async (outcome) => {
+  it.each(['create', 'edit'] as const)(
+    'preserves edited %s inputs and the pending save when only the return context changes',
+    async (mode) => {
+      const user = userEvent.setup();
+      const pending = deferred<UnderlyingDetailResponse>();
+      vi.mocked(marketApiClient.createUnderlying).mockReturnValue(pending.promise);
+      vi.mocked(marketApiClient.updateUnderlying).mockReturnValue(pending.promise);
+      const formPath =
+        mode === 'create' ? '/underlyings/new?name=Neuer+Vorschlag&ticker=TEST' : edit(first);
+      const separator = mode === 'create' ? '&' : '?';
+      const oldReturn = '/underlyings?query=Alt&offset=25';
+      const currentReturn = '/underlyings?query=Neu&offset=50';
+      const router = mount(`${formPath}${separator}returnTo=${encodeURIComponent(oldReturn)}`);
+      const name = await screen.findByLabelText('Name *');
+      await user.clear(name);
+      await user.type(name, 'Bewusst bearbeiteter Name');
+      await user.click(screen.getByRole('button', { name: 'Speichern' }));
+
+      await navigate(
+        router,
+        `${formPath}${separator}returnTo=${encodeURIComponent(currentReturn)}`,
+      );
+      expect(screen.getByLabelText('Name *')).toHaveValue('Bewusst bearbeiteter Name');
+      expect(screen.getByRole('button', { name: 'Speichern …' })).toBeDisabled();
+      expect(marketApiClient.listCurrencies).toHaveBeenCalledTimes(1);
+      expect(marketApiClient.listTradingVenues).toHaveBeenCalledTimes(1);
+      expect(marketApiClient.getUnderlying).toHaveBeenCalledTimes(mode === 'edit' ? 1 : 0);
+      fireEvent.submit(screen.getByLabelText('Name *').closest('form')!);
+      expect(marketApiClient.createUnderlying).toHaveBeenCalledTimes(mode === 'create' ? 1 : 0);
+      expect(marketApiClient.updateUnderlying).toHaveBeenCalledTimes(mode === 'edit' ? 1 : 0);
+
+      await settle(() => pending.resolve(first));
+      expect(router.state.location.pathname + router.state.location.search).toBe(
+        mode === 'edit'
+          ? currentReturn
+          : `/underlyings/${first.id}?${new URLSearchParams({ returnTo: currentReturn })}`,
+      );
+    },
+  );
+
+  it.each([
+    ['resolve', false],
+    ['reject', false],
+    ['resolve', true],
+    ['reject', true],
+  ] as const)(
+    'ignores a late save %s after navigating from A to B (list context: %s)',
+    async (outcome, withContext) => {
       const user = userEvent.setup();
       const pendingA = deferred<UnderlyingDetailResponse>();
       const pendingB = deferred<UnderlyingDetailResponse>();
       vi.mocked(marketApiClient.updateUnderlying)
         .mockReturnValueOnce(pendingA.promise)
         .mockReturnValueOnce(pendingB.promise);
-      const router = mount();
+      const firstPath = withContext
+        ? `${edit(first)}?returnTo=${encodeURIComponent('/underlyings?offset=25')}`
+        : edit(first);
+      const secondPath = withContext
+        ? `${edit(second)}?returnTo=${encodeURIComponent('/underlyings?offset=50')}`
+        : edit(second);
+      const router = mount(firstPath);
       await screen.findByDisplayValue(first.name);
       await user.click(screen.getByRole('button', { name: 'Speichern' }));
-      await navigate(router, edit(second));
+      await navigate(router, secondPath);
       await screen.findByDisplayValue(second.name);
       await user.click(screen.getByRole('button', { name: 'Speichern' }));
       await settle(() => {
         if (outcome === 'resolve') pendingA.resolve(first);
         else pendingA.reject(new Error('Old save failed'));
       });
-      expect(router.state.location.pathname).toBe(edit(second));
+      expect(router.state.location.pathname + router.state.location.search).toBe(secondPath);
       expect(screen.getByLabelText('Name *')).toHaveValue(second.name);
       expect(screen.getByLabelText('Name *')).toBeDisabled();
       expect(screen.queryByRole('alert')).not.toBeInTheDocument();
@@ -494,7 +545,9 @@ describe('Underlying form request isolation', () => {
       });
       expect(marketApiClient.createUnderlying).not.toHaveBeenCalled();
       await settle(() => pendingB.resolve(second));
-      expect(router.state.location.pathname).toBe(`/underlyings/${second.id}`);
+      expect(router.state.location.pathname + router.state.location.search).toBe(
+        withContext ? '/underlyings?offset=50' : `/underlyings/${second.id}`,
+      );
     },
   );
 
