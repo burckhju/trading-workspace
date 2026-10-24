@@ -43,6 +43,27 @@ A valid V2 base can propose the other supported policy while remaining schema 2.
 
 > Candidates in a CAUTIOUS market context will become eligible to satisfy the required market-context criterion.
 
+## Context-bound proposal entry
+
+The existing proposal form binds a hypothesis visit, a model/version load and an
+explicit submission separately. Returning to the same hypothesis or model ID does
+not authorize an earlier response to update the new visit. The handler requires a
+successful current load and an existing APPROVED base belonging to the selected
+model; mixed model identities or ambiguous version IDs fail closed.
+
+Changing model or base resets the bound definition, policy and rationale. An
+equivalent selection or normal rerender preserves deliberate input. While a save
+is pending, these fields are locked synchronously; navigating away remains
+possible, and the old server request may still finish. Its response cannot update
+another form instance or unlock a later save. A successful response must match the
+submitted hypothesis/model/base identities and report DRAFT before it is shown.
+
+Current errors preserve the draft. There is no automatic POST retry or serverwide
+exactly-once claim. Reopening the existing Lesson page provides conscious readback
+after an uncertain network completion. See the bounded
+[Strang B qualification](../implementation/MODEL_PROPOSAL_CONTEXT_QUALIFICATION.md)
+for reproduced regressions, preserved protections and separate native evidence.
+
 ## Non-scope
 
 No new Candidate trading rule, schema 3.0, generic rule builder, JSON editor for Candidate configuration, DSL, activation engine, automatic activation, automatic model selection, validation algorithm, backtest, navigation redesign or unrelated cleanup is introduced.
