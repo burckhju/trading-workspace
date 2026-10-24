@@ -693,3 +693,24 @@ and full-gate results recorded in [PR #273](https://github.com/burckhju/trading-
 Historical per-branch successes are not a joint execution and are not added together.
 The Product Backlog remains authoritative; human acceptance, main merge, publication
 and observed PC operation are not inferred from this development qualification.
+
+## 2026-10-24 — Strang B: Proposal-Kontextintegrität
+
+[PB-020 Governance](../planning/PRODUCT_BACKLOG.md#pb-020-governance) und
+[bestehende Candidate-Familie](../planning/PRODUCT_BACKLOG.md#pb-020-candidate-family)
+→ [FT-020-Kontextvertrag](../features/FT-020_CANDIDATE_MODEL_CONFIGURATION_UX.md#context-bound-proposal-entry)
+→ `HypothesisProposalPanel.tsx`: gebundene Hypotheseninstanz, aktuelle Modell-/
+Versionsgeneration, vollständiger Handler-Guard und synchron gesperrter Submit-Snapshot
+→ 46 kontrollierte Component-/Parent-/Candidatefälle plus fünf unveränderte FT-020-Fälle
+→ sieben synthetische Browserfälle über den vorhandenen Lesson-Router, einschließlich
+Desktop/Mobil und altem Save bei echtem Unmount
+→ zusätzliche native Fehlzuordnungs-/DRAFT-Regression auf der bestehenden
+`ModelGovernanceService`-/PostgreSQL-Grenze
+→ [Reproduktion, erhaltene Schutzmechanismen und B01–B14-Nachweismatrix](../implementation/MODEL_PROPOSAL_CONTEXT_QUALIFICATION.md).
+
+Mock-HTTP, native Transaktion und vollständige CI bleiben getrennte Nachweise.
+Head, tatsächlicher PR-Testmerge/Tree, aktuelle Jobs und Versuche werden im
+Entwicklungs-PR des Branches `fix/model-proposal-context-isolation` festgehalten.
+Strang A/#204, Backend-Produktionslogik, Runtime-Semantik, Versionen und Workflows
+bleiben unverändert. Der Product Backlog bleibt die einzige Aufgabenstatusquelle;
+dieser Nachtrag erklärt weder Fachabnahme noch Merge, Release oder PC-Installation.

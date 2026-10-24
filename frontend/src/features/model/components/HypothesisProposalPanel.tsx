@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 
 import { ErrorNotice, LoadingNotice } from '../../market/components/ApiFeedback';
@@ -23,37 +23,86 @@ interface HypothesisProposalPanelProps {
   hypothesisId: string;
 }
 
+interface ModelSelection {
+  modelId: string;
+}
+
+interface ProposalBase {
+  selection: ModelSelection;
+  version: GovernedModelVersion;
+}
+
+function isDefinition(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
 export function HypothesisProposalPanel({ hypothesisId }: HypothesisProposalPanelProps) {
+  // Returning to the same ID is a new visit, not the previous hypothesis instance.
+  return <HypothesisProposalForm key={hypothesisId} hypothesisId={hypothesisId} />;
+}
+
+function HypothesisProposalForm({ hypothesisId }: HypothesisProposalPanelProps) {
   const [proposals, setProposals] = useState<ModelChangeProposalSummary[]>([]);
   const [models, setModels] = useState<GovernedModelSummary[]>([]);
   const [versions, setVersions] = useState<GovernedModelVersion[]>([]);
-  const [modelId, setModelId] = useState('');
-  const [baseVersionId, setBaseVersionId] = useState('');
+  const [selection, setSelection] = useState<ModelSelection>({ modelId: '' });
+  const selectionRef = useRef(selection);
+  const [loadedSelection, setLoadedSelection] = useState<ModelSelection | null>(null);
+  const [base, setBase] = useState<ProposalBase | null>(null);
+  const baseRef = useRef(base);
   const [definition, setDefinition] = useState('');
   const [candidatePolicy, setCandidatePolicy] = useState<CandidateMarketContextPolicy | ''>('');
   const [rationale, setRationale] = useState('');
   const [loading, setLoading] = useState(true);
+  const [ready, setReady] = useState(false);
   const [loadingVersions, setLoadingVersions] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<unknown>(null);
+  const instanceRef = useRef<object | null>(null);
+  const saveRef = useRef<object | null>(null);
+  const modelId = selection.modelId;
+  const selectedVersion = base?.version;
+  const baseVersionId = selectedVersion?.id ?? '';
+
+  useLayoutEffect(() => {
+    instanceRef.current = {};
+    return () => {
+      // Invalidate before passive cleanup; an already completed transport can still settle.
+      instanceRef.current = null;
+    };
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
+    const instance = instanceRef.current;
+    const isCurrent = () =>
+      instance !== null && instanceRef.current === instance && !controller.signal.aborted;
     setLoading(true);
+    setReady(false);
     setError(null);
+    if (!hypothesisId.trim()) {
+      setError(new Error('Für einen Proposal fehlt die aktuelle Hypothese.'));
+      setLoading(false);
+      return () => controller.abort();
+    }
     Promise.all([
       hypothesisProposalClient.listForHypothesis(hypothesisId, controller.signal),
       hypothesisProposalClient.listModels(controller.signal),
     ])
       .then(([nextProposals, nextModels]) => {
+        if (!isCurrent()) return;
+        if (nextProposals.some((proposal) => proposal.hypothesis_id !== hypothesisId)) {
+          throw new Error('Die geladenen Proposals gehören nicht zur aktuellen Hypothese.');
+        }
         setProposals(nextProposals);
         setModels(nextModels);
+        setReady(true);
       })
       .catch((nextError: unknown) => {
-        if (!controller.signal.aborted) setError(nextError);
+        if (isCurrent()) setError(nextError);
       })
       .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
+        if (isCurrent()) setLoading(false);
       });
     return () => controller.abort();
   }, [hypothesisId]);
@@ -65,40 +114,53 @@ export function HypothesisProposalPanel({ hypothesisId }: HypothesisProposalPane
   const isCandidateModel = selectedModel?.model_key === CANDIDATE_MODEL_KEY;
 
   useEffect(() => {
-    if (!modelId || proposals.length > 0) {
-      setVersions([]);
-      setBaseVersionId('');
-      return;
-    }
+    if (!ready || !modelId || proposals.length > 0) return;
     const controller = new AbortController();
+    const instance = instanceRef.current;
+    const isCurrent = () =>
+      instance !== null &&
+      instanceRef.current === instance &&
+      selectionRef.current === selection &&
+      !controller.signal.aborted;
     setLoadingVersions(true);
     setError(null);
     hypothesisProposalClient
       .listVersions(modelId, controller.signal)
       .then((nextVersions) => {
+        if (!isCurrent()) return;
+        if (
+          nextVersions.some((version) => version.model_id !== modelId) ||
+          new Set(nextVersions.map((version) => version.id)).size !== nextVersions.length
+        ) {
+          throw new Error(
+            'Die geladenen Basisversionen passen nicht eindeutig zum gewählten Model.',
+          );
+        }
         const approved = nextVersions.filter((version) => version.status === 'APPROVED');
-        setVersions(approved);
         const latest = approved.at(-1);
-        setBaseVersionId(latest?.id ?? '');
+        const nextBase = latest ? { selection, version: latest } : null;
+        const config =
+          latest && isDefinition(latest.definition)
+            ? readCandidateConfiguration(latest.definition)
+            : null;
+        setVersions(approved);
+        setLoadedSelection(selection);
+        baseRef.current = nextBase;
+        setBase(nextBase);
         setDefinition(latest ? JSON.stringify(latest.definition, null, 2) : '');
-        const config = latest ? readCandidateConfiguration(latest.definition) : null;
         setCandidatePolicy(config?.policy ?? '');
       })
       .catch((nextError: unknown) => {
-        if (!controller.signal.aborted) setError(nextError);
+        if (isCurrent()) setError(nextError);
       })
       .finally(() => {
-        if (!controller.signal.aborted) setLoadingVersions(false);
+        if (isCurrent()) setLoadingVersions(false);
       });
     return () => controller.abort();
-  }, [modelId, proposals.length]);
+  }, [modelId, selection, ready, proposals.length]);
 
-  const selectedVersion = useMemo(
-    () => versions.find((version) => version.id === baseVersionId),
-    [versions, baseVersionId],
-  );
   const candidateCurrent =
-    isCandidateModel && selectedVersion
+    isCandidateModel && selectedVersion && isDefinition(selectedVersion.definition)
       ? readCandidateConfiguration(selectedVersion.definition)
       : null;
   const candidateImpact =
@@ -108,29 +170,120 @@ export function HypothesisProposalPanel({ hypothesisId }: HypothesisProposalPane
   const candidateNoOp = candidateCurrent !== null && candidatePolicy === candidateCurrent.policy;
   const candidateUnsupported =
     isCandidateModel && selectedVersion !== undefined && candidateCurrent === null;
+  const versionsReady = ready && loadedSelection === selection && !loadingVersions;
+  const baseReady =
+    versionsReady &&
+    selectedModel !== undefined &&
+    base?.selection === selection &&
+    selectedVersion !== undefined &&
+    versions.includes(selectedVersion) &&
+    selectedVersion.model_id === modelId &&
+    selectedVersion.status === 'APPROVED' &&
+    isDefinition(selectedVersion.definition);
+  const submitDisabled =
+    saving ||
+    !hypothesisId.trim() ||
+    !modelId ||
+    !baseVersionId ||
+    !baseReady ||
+    proposals.length > 0 ||
+    !rationale.trim() ||
+    (isCandidateModel
+      ? !candidateCurrent || !candidatePolicy || candidateNoOp
+      : !definition.trim());
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (isCandidateModel && (!candidateCurrent || !candidatePolicy || candidateNoOp)) return;
+    const instance = instanceRef.current;
+    if (
+      submitDisabled ||
+      instance === null ||
+      selectionRef.current !== selection ||
+      baseRef.current !== base ||
+      saveRef.current !== null
+    )
+      return;
+    const operation = {};
+    saveRef.current = operation;
+    const ownsOperation = () =>
+      instanceRef.current === instance &&
+      selectionRef.current === selection &&
+      baseRef.current === base &&
+      saveRef.current === operation;
     setSaving(true);
     setError(null);
     try {
       const proposedDefinition = isCandidateModel
         ? proposedCandidateDefinition(candidatePolicy as CandidateMarketContextPolicy)
-        : (JSON.parse(definition) as Record<string, unknown>);
-      const created = await hypothesisProposalClient.create({
+        : (JSON.parse(definition) as unknown);
+      if (!isDefinition(proposedDefinition)) {
+        throw new Error('Die vorgeschlagene Definition muss ein JSON-Objekt sein.');
+      }
+      const snapshot = {
         model_id: modelId,
         base_model_version_id: baseVersionId,
         hypothesis_id: hypothesisId,
         proposed_definition: proposedDefinition,
         rationale,
-      });
+      };
+      const created = await hypothesisProposalClient.create(snapshot);
+      if (!ownsOperation()) return;
+      if (
+        created.hypothesis_id !== snapshot.hypothesis_id ||
+        created.model_id !== snapshot.model_id ||
+        created.base_model_version_id !== snapshot.base_model_version_id ||
+        created.status !== 'DRAFT'
+      ) {
+        throw new Error('Die Speicherantwort passt nicht zum abgesendeten DRAFT-Proposal.');
+      }
       setProposals([created]);
     } catch (nextError: unknown) {
-      setError(nextError);
+      if (ownsOperation()) setError(nextError);
     } finally {
-      setSaving(false);
+      if (ownsOperation()) {
+        saveRef.current = null;
+        setSaving(false);
+      }
     }
+  }
+
+  function changeModel(nextId: string) {
+    if (saveRef.current !== null || !ready || nextId === selectionRef.current.modelId) return;
+    // Invalidate synchronously, including M1 -> M2 -> M1 before the next effect runs.
+    const nextSelection = { modelId: nextId };
+    selectionRef.current = nextSelection;
+    baseRef.current = null;
+    setSelection(nextSelection);
+    setLoadedSelection(null);
+    setVersions([]);
+    setBase(null);
+    setDefinition('');
+    setCandidatePolicy('');
+    setRationale('');
+    setLoadingVersions(Boolean(nextId));
+    setError(null);
+  }
+
+  function changeBase(nextId: string) {
+    if (
+      saveRef.current !== null ||
+      !versionsReady ||
+      selectionRef.current !== selection ||
+      nextId === (baseRef.current?.version.id ?? '')
+    )
+      return;
+    const version = versions.find((item) => item.id === nextId);
+    const nextBase = version ? { selection, version } : null;
+    baseRef.current = nextBase;
+    setBase(nextBase);
+    setDefinition(version ? JSON.stringify(version.definition, null, 2) : '');
+    setCandidatePolicy(
+      version && isDefinition(version.definition)
+        ? (readCandidateConfiguration(version.definition)?.policy ?? '')
+        : '',
+    );
+    setRationale('');
+    setError(null);
   }
 
   if (loading) return <LoadingNotice label="FT-013-Proposals werden geladen …" />;
@@ -153,17 +306,15 @@ export function HypothesisProposalPanel({ hypothesisId }: HypothesisProposalPane
     );
   }
 
-  const submitDisabled =
-    saving ||
-    !modelId ||
-    !baseVersionId ||
-    (isCandidateModel && (!candidateCurrent || !candidatePolicy || candidateNoOp));
-
   return (
     <div className="mt-4 rounded-lg border border-slate-800 p-4">
       <h4 className="font-medium">ModelChangeProposal erstellen</h4>
       <p className="mt-1 text-sm text-slate-400">
         Erstellt nur einen DRAFT. Validation, Approval und Aktivierung erfolgen nicht automatisch.
+      </p>
+      <p className="mt-1 text-sm text-slate-400">
+        Ein Wechsel von Model oder Basisversion setzt Definition, Policy und Rationale zurück.
+        Während des Speicherns sind die Eingaben gesperrt.
       </p>
       {error !== null && (
         <div className="mt-3">
@@ -177,11 +328,9 @@ export function HypothesisProposalPanel({ hypothesisId }: HypothesisProposalPane
           <select
             className="mt-1 w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2"
             value={modelId}
-            onChange={(event) => {
-              setModelId(event.target.value);
-              setCandidatePolicy('');
-            }}
+            onChange={(event) => changeModel(event.target.value)}
             required
+            disabled={!ready || saving}
           >
             <option value="">Model auswählen</option>
             {models.map((model) => (
@@ -197,19 +346,9 @@ export function HypothesisProposalPanel({ hypothesisId }: HypothesisProposalPane
           <select
             className="mt-1 w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2"
             value={baseVersionId}
-            onChange={(event) => {
-              const nextId = event.target.value;
-              setBaseVersionId(nextId);
-              const nextVersion = versions.find((version) => version.id === nextId);
-              if (nextVersion) {
-                setDefinition(JSON.stringify(nextVersion.definition, null, 2));
-                setCandidatePolicy(
-                  readCandidateConfiguration(nextVersion.definition)?.policy ?? '',
-                );
-              }
-            }}
+            onChange={(event) => changeBase(event.target.value)}
             required
-            disabled={!modelId || loadingVersions}
+            disabled={!versionsReady || saving}
           >
             <option value="">
               {loadingVersions ? 'Versionen werden geladen …' : 'Version auswählen'}
@@ -222,7 +361,10 @@ export function HypothesisProposalPanel({ hypothesisId }: HypothesisProposalPane
           </select>
         </label>
 
-        {modelId && !loadingVersions && versions.length === 0 && (
+        {ready && models.length === 0 && (
+          <p className="text-sm text-amber-300">Keine Governed Models verfügbar.</p>
+        )}
+        {modelId && versionsReady && versions.length === 0 && (
           <p className="text-sm text-amber-300">Dieses Model hat keine APPROVED Version.</p>
         )}
 
@@ -253,7 +395,7 @@ export function HypothesisProposalPanel({ hypothesisId }: HypothesisProposalPane
                     </p>
                   )}
                 </div>
-                <fieldset className="rounded-md border border-slate-700 p-3">
+                <fieldset className="rounded-md border border-slate-700 p-3" disabled={saving}>
                   <legend className="px-1 text-sm font-medium">
                     Proposed Candidate Policy · Schema 2.0
                   </legend>
@@ -263,7 +405,9 @@ export function HypothesisProposalPanel({ hypothesisId }: HypothesisProposalPane
                       name="candidate-policy"
                       value="FAVORABLE_AND_CAUTIOUS"
                       checked={candidatePolicy === 'FAVORABLE_AND_CAUTIOUS'}
-                      onChange={() => setCandidatePolicy('FAVORABLE_AND_CAUTIOUS')}
+                      onChange={() => {
+                        if (saveRef.current === null) setCandidatePolicy('FAVORABLE_AND_CAUTIOUS');
+                      }}
                     />
                     FAVORABLE + CAUTIOUS
                   </label>
@@ -273,7 +417,9 @@ export function HypothesisProposalPanel({ hypothesisId }: HypothesisProposalPane
                       name="candidate-policy"
                       value="FAVORABLE_ONLY"
                       checked={candidatePolicy === 'FAVORABLE_ONLY'}
-                      onChange={() => setCandidatePolicy('FAVORABLE_ONLY')}
+                      onChange={() => {
+                        if (saveRef.current === null) setCandidatePolicy('FAVORABLE_ONLY');
+                      }}
                     />
                     FAVORABLE only
                   </label>
@@ -304,8 +450,11 @@ export function HypothesisProposalPanel({ hypothesisId }: HypothesisProposalPane
             <textarea
               className="mt-1 min-h-48 w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 font-mono text-xs"
               value={definition}
-              onChange={(event) => setDefinition(event.target.value)}
+              onChange={(event) => {
+                if (saveRef.current === null) setDefinition(event.target.value);
+              }}
               required
+              disabled={!baseReady || saving}
             />
           </label>
         )}
@@ -320,8 +469,11 @@ export function HypothesisProposalPanel({ hypothesisId }: HypothesisProposalPane
           <textarea
             className="mt-1 min-h-24 w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2"
             value={rationale}
-            onChange={(event) => setRationale(event.target.value)}
+            onChange={(event) => {
+              if (saveRef.current === null) setRationale(event.target.value);
+            }}
             required
+            disabled={!baseReady || saving}
           />
         </label>
         <button
