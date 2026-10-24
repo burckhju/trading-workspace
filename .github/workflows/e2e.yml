@@ -15,6 +15,11 @@ on:
       - "tests/e2e/**"
       - "scripts/run-realized-gross-e2e.sh"
       - "scripts/check-performance-e2e-report.py"
+      - "scripts/run-journal-evidence-e2e.sh"
+      - "scripts/check-journal-e2e-report.py"
+      - "scripts/test-journal-api-guard.mjs"
+      - "scripts/run-e2e.sh"
+      - "tests/unit/backend/test_journal_e2e_contracts.py"
       - ".github/workflows/e2e.yml"
 
 permissions:
@@ -128,5 +133,51 @@ jobs:
         with:
           name: realized-gross-owner-e2e
           path: frontend/test-results/realized-gross-*/
+          if-no-files-found: error
+          include-hidden-files: true
+
+  journal-evidence-owner:
+    name: End-to-End / journal and evidence owner
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version-file: backend/.python-version
+          cache: pip
+          cache-dependency-path: |
+            backend/requirements.txt
+            backend/requirements-dev.txt
+      - name: Verify existing release prerequisites
+        run: bash scripts/verify-release-readiness.sh
+      - name: Install pinned frontend and fixture dependencies
+        run: |
+          npm --prefix frontend ci
+          python -m pip install --requirement backend/requirements-dev.txt
+      - name: Verify fail-closed target and result contracts
+        run: |
+          python -m pytest -c backend/pyproject.toml tests/unit/backend/test_journal_e2e_contracts.py
+          node --test scripts/test-journal-api-guard.mjs
+      - name: Use reliable Ubuntu apt mirror
+        run: |
+          sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' /etc/apt/sources.list.d/ubuntu.sources
+          sudo apt-get update
+      - name: Install Chromium
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+      - name: Qualify both existing learning journeys on their own verified stack
+        run: bash scripts/run-journal-evidence-e2e.sh
+      - name: Upload learning test IDs, traces, source snapshots and cleanup evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: journal-evidence-owner-e2e
+          path: frontend/test-results/journal-evidence-*/
           if-no-files-found: error
           include-hidden-files: true

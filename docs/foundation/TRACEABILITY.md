@@ -675,3 +675,21 @@ parent, preserving both documentation histories and the already merged pacing
 change. No main write, new release or dependency upgrade is performed here.
 Fresh whole-tree CI and both native journeys are required on the combined head;
 PR #273 binds the new results separately from the genuine earlier successes.
+
+## 2026-10-23 — joint source journey and journal/FT-011 qualification
+
+The concrete Startprompt 11 extends development PR #273 with the existing #269
+journal/evidence qualification, preserving both original heads as merge parents.
+Main `5c76ff49` and #270/#272/#271 ancestry are retained. Only the two conflict
+blocks in `e2e.yml` require semantic integration: the union of trigger paths and
+all three unchanged job definitions. No monetary, learning, migration or dependency
+implementation is replaced. The twelve other #269 files are inherited unchanged.
+
+[Existing A1–A16 plus joint I01–I16 evidence map](../implementation/CLOSED_TRADE_SOURCE_INTEGRATION_QUALIFICATION.md)
+→ unchanged SELL and closed-trade owner cases in separate fresh stacks
+→ separate journal/FT-011 job with its two existing pinned cases
+→ actual final checkout/tree, raw report identities, artifact hashes, screenshots
+and full-gate results recorded in [PR #273](https://github.com/burckhju/trading-workspace/pull/273).
+Historical per-branch successes are not a joint execution and are not added together.
+The Product Backlog remains authoritative; human acceptance, main merge, publication
+and observed PC operation are not inferred from this development qualification.

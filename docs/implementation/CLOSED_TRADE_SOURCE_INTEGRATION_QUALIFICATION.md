@@ -174,3 +174,105 @@ Alle regulären Gates und beide isolierten nativen Browserwege werden auf dem
 neuen gemeinsamen Head erneut ausgeführt. Ihre tatsächlichen Ergebnisse und
 exakten Head-/Tree-/Testcheckout-Identitäten stehen anschließend in PR #273;
 der vorherige komplette Lauf bleibt ein getrennt datierter Nachweis.
+
+## 23.10.2026 — gemeinsame Entwicklungsqualifikation mit Journal/FT-011
+
+Der konkretisierte Startprompt 11 beauftragt die gemeinsame Entwicklungsintegration
+von #273 und #269, nicht Main-Merge, Veröffentlichung, Schließen anderer PRs oder
+PC-Update. Die obige Abgrenzung von #269 gehört zum historischen Auftrag vom
+21.10.; ausschließlich dieser datierte Nachtrag erweitert den Übergabeumfang.
+
+| Fest erneut geprüfte Grundlage | Commit |
+|---|---|
+| main / unveränderter Tag v1.5.12, einschließlich #271 | `5c76ff495b0797c4de00666ee358219858e33afd` |
+| #273 vor der gemeinsamen Integration | `550ebfc9c90662cc51bef08f4e34c5d2057d21e7` |
+| #269, eigenständige Herkunft bleibt erhalten | `58c842c367b0ce75fa8e445e908fd3e78ff8477c` |
+| Gemeinsame Git-Basis von #269 und #273 | `5e9ede2dc29f52eaff601d30614df6bc9c25c426` |
+
+Die vollständige Git-Historie bestätigt #270 (`de413843`), #272 (`95086541`) und
+#271 (`6be30fc2`) als Vorfahren von #273. Main ist schon enthalten und wird nicht
+noch einmal integriert. #269 wird als zweiter Elternstand übernommen, nicht
+nachgebaut oder unabhängig nach Main gemergt. Sein ursprünglicher Branch/PR
+bleibt unverändert und offen.
+
+Der tatsächlich reproduzierte Mergekonflikt betrifft ausschließlich
+`.github/workflows/e2e.yml`, dort zwei Konfliktblöcke: Trigger und Job-/Uploadende.
+Die Auflösung ergänzt die Vereinigung der Trigger und den vollständigen
+Journaljob. Smoke und Finanzjob sind strukturell identisch mit #273; der neue
+Journaljob ist strukturell identisch mit #269. Beide Finanzfälle, `error` bei
+fehlenden Pflichtartefakten und versteckte Nachweisdateien bleiben erhalten.
+Die übrigen zwölf übernommenen #269-Dateien bleiben bytegleich. Es gibt keine
+Änderung an produktiven Fachownern, Migrationen, Abhängigkeiten, Version oder
+Schutz-/Coverage-/Zeit-/Retrygrenzen und keine zusätzliche Produktfunktion.
+
+| Fähigkeit | Tatsächlicher Consumer / Herkunft | Gemeinsamer Nachweis und Grenze |
+|---|---|---|
+| Vollständiger Tradebetrag und Rückkehr | `ClosedTradeResult`, `ClosedTradesPage`, bestehende Quellenreader aus #273 | Bestehende A1–A16 unverändert; aktuelle vollständige Gates und tatsächliche Abschlussreise erforderlich. |
+| Periodische SELL-Beiträge | Bestehender Performance-Owner und erster Finanzrunner | Unveränderte 10/30- sowie 50/70-Referenzen; kein Ersatz des Tradebetrags durch Monatsbeiträge. |
+| Journal, Folgeversion, Korrektur | Bestehender Journalfall aus #269 | Separater geschützter Job; keine neue Journalpflicht für finanzielle Auswertung. |
+| FT-011 und genaue alte Lessonversion | Bestehender Evidence-Historienfall aus #269 | Zweiter Fall im Journaljob; 19/20-Grenze, SOURCE_BUSY und historische Pins unverändert. |
+| Qualität und Betrieb | Reguläre Backend-/Frontend-/E2E-/Versionsschutzworkflows | Technische Prüfung, menschliche Abnahme, Release und beobachtete Installation bleiben getrennt. |
+
+### Verbindliche gemeinsame Ausführungsbindung
+
+[PR #273](https://github.com/burckhju/trading-workspace/pull/273) enthält den
+aktuellen Ausführungsbeleg mit finalem Head, Base, tatsächlichem PR-Checkout,
+vollständigem Tree, Trigger, Run/Job/Attempt, Rohreports, Artefaktdigests und
+Sichtprüfung. [PR #269](https://github.com/burckhju/trading-workspace/pull/269)
+bleibt der Herkunftsnachweis. Frühere getrennte grüne Läufe werden weder addiert
+noch als neuer gemeinsamer Erfolg gewertet. Ein offener oder fehlender Pflichtlauf
+ist kein bestandener Nachweis.
+
+Die vor diesem Auftrag veraltete #273-Beschreibung nannte noch `ac3dc940` und
+fehlende native Gesamtprüfungen, während der tatsächliche Head bereits `550ebfc9`
+war. Die damaligen erfolgreichen PR-Läufe 39672932252 (Backend), 39672932199
+(Frontend), 39672932249 (E2E) und 39672932361 (Version) gehören zu diesem früheren
+Head. Die datierte PR-Fortschreibung trennt diese Diskrepanz vom neuen gemeinsamen
+Abschluss; sie schreibt historische Aussagen nicht rückwirkend um.
+
+Alle vier vorab festgelegten nativen Fälle müssen auf demselben gemeinsamen Tree
+jeweils genau einmal erfolgreich laufen: SELL-/Quellenreise, Abschlusslistenreise,
+Journal-/Lesson-/Korrekturweg und FT-011-Historie. Erwartete Dateinamen, Titel und
+IDs bleiben in den bestehenden Reportprüfern gebunden. Keine Skips, Flaky-Ergebnisse
+oder automatischen Retries in diesen Pflichtfällen. Geschützte Smoke-Skips ersetzen
+nicht die Ausführung im zuständigen Ownerjob.
+
+Die Finanzfälle verwenden nacheinander eigene frische UUID-Stacks mit
+Loopbackports 35432/38080; der separate Journaljob verwendet 25432/8080.
+Artefakt- und Runtimepräfixe sind getrennt. Der Journal-Preishelper wird nur durch
+die Lernfälle verwendet; die Finanzquellenreise behält ihren eigenständig
+guardierten `seed_source_view_prices.py`. Requestguards, DB-/Netz-/Mountidentität,
+kurze reine Lesefenster und ausschließlich eigenes Cleanup bleiben unverändert.
+
+### Zuordnung I01–I16, zusätzlich zu A1–A16
+
+| Kriterien | Maßgeblicher Beleg / Abnahmegrenze |
+|---|---|
+| I01–I03 | Obige feste Heads, vollständige Git-Ancestry, dokumentierter Zwei-Eltern-Merge und struktureller Workflowvergleich. |
+| I04–I09 | Unveränderte A1–A15 und ihre benannten Geld-, Historien-, Fehler- und Navigationsfälle; aktuelle Ausführung im PR. |
+| I10–I12 | Vier native Rohreportidentitäten, PostgreSQL-Fälle, Stack-/Fingerprint-/Cleanupbelege und vollständige finale Gates; tatsächliche Fehler/Skips separat. |
+| I13 | Dieser Nachtrag, gezielte PB-018/PB-019-/Regressionsfelder und Traceability; aktuelle PR-Übergabe, kein zweites Aufgabenregister. |
+| I14 | Ausschließlich Entwicklungsintegration beauftragt; keine Freigabe für Main-Merge oder Veröffentlichung festgestellt. |
+| I15 | Neue Veröffentlichung nicht beauftragt, nicht als bestanden bewertet. v1.5.12 bleibt unverändert auf dem alten Main-Commit. |
+| I16 | Keine beobachtete PC-Installation oder menschliche Fachabnahme; folgende lesende Checkliste und Wiederherstellungsgrenzen. |
+
+### Lesende spätere Fachabnahme und Betriebsgrenzen
+
+Auf einer gesondert identifizierten Installation eine vorhandene Abschlussauswahl
+öffnen, einen belegbaren Trade wählen und vollständigen Betrag, tatsächliche
+Ausführungen und ursprünglichen Plan nachvollziehen. Vorhandene genaue historische
+Review-/Journal-/Evidence-/Lessonquellen öffnen; gespeicherte Bewertung und heutige
+Quellenprüfung unterscheiden. Zur vorherigen Filter-/Seitenauswahl zurückkehren und
+sichtbaren Basis-/Seitenwechsel erklären. Fehlende Reflexion, unbekannter Betrag,
+exakte Null und unvollständige Gesamtsumme bleiben unterscheidbar. Dafür keine
+Testtrades, wirtschaftlichen Korrekturen oder neuen Lernfassungen im echten Bestand
+erzeugen; Observation-Refresh ist keine reine Lesediagnose.
+
+Ein späteres ausdrücklich freigegebenes Update verwendet ausschließlich den
+[vorhandenen verwalteten Launcher](../technical/LINUX_LAUNCHER.md), einen tatsächlich
+veröffentlichten Tag mit exakt geprüftem Commit, die vorhandene private Compose-Kette
+und eine kompatible geprüfte Sicherung. Hier wird kein Installationsziel oder
+Updatebefehl für diesen unveröffentlichten Entwicklungsstand ausgegeben.
+Restore-/Schemakompatibilität ist vor Wiederherstellung zu prüfen; kein Versprechen
+eines verlustfreien destruktiven Downgrades. Prompt 09 bleibt der nächste getrennte
+fachliche Auftrag, keine automatische Modellaktivierung oder Erweiterung dieses Schnitts.
