@@ -819,3 +819,26 @@ API-Filter, sichtbare Abweisung eines Nicht-EUR-Abschlusslistenlinks ohne Ersatz
 Die bisherigen fünf nativen Ownerfälle und ihre Runner bleiben erhalten. Reale
 Quellenlücken sind keine Nullbeträge und werden durch die feste Berichtsauswahl
 nicht bestätigt. Keine neue Kennzahl, Migration oder vollständige M8-Abnahme.
+
+## 2026-10-25 — begrenzte Basisstatistiken für vollständige Abschlussberichte
+
+[PB-019 Tradeübergreifende Statistiken](../planning/PRODUCT_BACKLOG.md#pb-019-performance-statistics)
+→ neuer ausdrücklicher Nutzerauftrag vom 25.10.2026, getrennt von ADR-S10-009
+→ [Vertrag `closed-trade-statistics-v1` und vorab festgelegte Sollwerte](../implementation/CLOSED_TRADE_STATISTICS_V1.md)
+→ reine Backendaggregation bereits qualifizierter vollständiger Ownerergebnisse
+und der vorhandenen Berichtsgesamtsumme
+→ additiver Statistikbereich desselben GET mit eigener Definition und exakter
+`report.basis.id`, ohne Änderung des Finanz-/Quellenfingerprints
+→ bestehende Abschlussübersicht mit Backendwerten, Gründen und Population des
+gesamten Berichts, unabhängig von lokaler Tabellenansicht und Seite
+→ gezielte Domain-/API-/UI-Referenzen und ergänzte Assertions im unveränderten
+nativen Abschlussberichtfall, unter den bestehenden regulären PR-Gates.
+
+Der neue Schnitt umfasst ausschließlich Trefferquote, Durchschnitt, Median und
+Profit-Faktor brutto bei `COMPLETE` mit N > 0. Nullgründe bei unvollständiger
+oder leerer Auswahl und fehlendem Verlustnenner bleiben ausdrücklich sichtbar.
+Die ursprünglichen Quellen-, Korrektur-, Read-only- und Navigationsverträge
+gelten weiter. Tatsächliche Head-/Tree-/Run- und Bildnachweise werden im
+Statistik-Draft-PR gebunden; die älteren Erfolge anderer PRs ersetzen sie nicht.
+Keine neue Feature-ID, allgemeine Backlogbereinigung, Fachgesamtabnahme,
+Merge-, Release- oder PC-Freigabe.

@@ -22,6 +22,7 @@ from app.features.performance.domain.closed_models import (
     ClosedTradeSellContribution,
     TradeClassification,
 )
+from app.features.performance.domain.closed_statistics import build_closed_statistics
 from app.features.performance.domain.models import (
     ExecutionFact,
     ExecutionSource,
@@ -430,6 +431,9 @@ def build_closed_report(snapshot: ReportSnapshot, filters: ReportFilters) -> Clo
     fingerprint = hashlib.sha256(
         json.dumps(canonical, default=_json_value, sort_keys=True, separators=(",", ":")).encode()
     ).hexdigest()
+    summary = _summary(items, snapshot.currency.minor_unit)
+    counts = _counts(items)
+    report_items = tuple(items)
     return ClosedTradeReport(
         definition_version=DEFINITION_VERSION,
         filters=filters,
@@ -442,8 +446,15 @@ def build_closed_report(snapshot: ReportSnapshot, filters: ReportFilters) -> Clo
             calculated_at=datetime.now(UTC),
         ),
         currency=snapshot.currency,
-        summary=_summary(items, snapshot.currency.minor_unit),
-        counts=_counts(items),
-        items=tuple(items),
+        summary=summary,
+        counts=counts,
+        items=report_items,
         sources=tuple(sources),
+        statistics=build_closed_statistics(
+            summary=summary,
+            counts=counts,
+            items=report_items,
+            minor_unit=snapshot.currency.minor_unit,
+            report_basis_id=fingerprint,
+        ),
     )

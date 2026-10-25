@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 
 import { todayInZone } from '../../trade/services/executionDateCorrection';
 import { ClosedTradeSources } from '../components/ClosedTradeSources';
+import { ClosedTradeStatistics } from '../components/ClosedTradeStatistics';
 import { ClosedTradeSummary } from '../components/ClosedTradeSummary';
 import { performanceApiClient } from '../services/client';
 import {
@@ -12,6 +13,7 @@ import {
   closedTradeSourceLink,
   parseClosedContext,
   verifyClosedReport,
+  verifyClosedStatistics,
   type ClosedReportContext,
   type ClosedReportView,
 } from '../services/closedReportContext';
@@ -73,6 +75,7 @@ function ReportContent({
   return (
     <div className="space-y-6" aria-label="Abschlussbericht">
       <ClosedTradeSummary report={report} />
+      <ClosedTradeStatistics report={report} />
       <section aria-labelledby="closed-trades-items-title" className="space-y-4">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
@@ -114,8 +117,8 @@ function ReportContent({
         )}
         {items.length === 0 && (
           <p className="rounded-lg border border-slate-800 p-4 text-sm">
-            Keine Trades in diesem Zeilenfilter. Die Berichtssumme und Datenabdeckung oben bleiben
-            unverändert.
+            Keine Trades in diesem Zeilenfilter. Die Berichtssumme, Kennzahlen und Datenabdeckung
+            oben bleiben unverändert.
           </p>
         )}
         <div className="space-y-3">
@@ -202,8 +205,8 @@ function ReportContent({
             className="flex flex-wrap items-center justify-between gap-3 text-sm"
           >
             <p>
-              Seite {page + 1} von {pages} · {items.length} Trades in diesem Filter · Summen und
-              Zähler gelten für die gesamte Auswahl.
+              Seite {page + 1} von {pages} · {items.length} Trades in diesem Filter · Summen, Zähler
+              und Kennzahlen gelten für die gesamte Auswahl.
             </p>
             <div className="flex gap-2">
               <button
@@ -267,9 +270,9 @@ function ReportContent({
             Quellenstand: <code>{report.basis.id}</code>
           </p>
           <p>
-            Summen, Zähler, Zeilen und Quellen gehören zu dieser einen Antwort. Lokale Seiten und
-            Quelldetails lesen keine neuen Daten. Ein erneutes Lesen oder der Sprung in die
-            Trade-Historie kann einen neueren Stand zeigen.
+            Summen, Kennzahlen, Zähler, Zeilen und Quellen gehören zu dieser einen Antwort. Lokale
+            Seiten und Quelldetails lesen keine neuen Daten. Ein erneutes Lesen oder der Sprung in
+            die Trade-Historie kann einen neueren Stand zeigen.
           </p>
         </div>
       </details>
@@ -343,6 +346,7 @@ function ClosedTradesSession({
         if (requestController.signal.aborted || current !== generation.current) return;
         const key = filterKey(requested);
         verifyClosedReport(result, requested);
+        verifyClosedStatistics(result);
         const previous = lastBasis.current.get(key) ?? entryBasis;
         setChangedBasis(previous !== null && previous !== result.basis.id);
         lastBasis.current.set(key, result.basis.id);
@@ -481,8 +485,8 @@ function ClosedTradesSession({
       {changedBasis && report && (
         <p role="status" className="rounded-lg border border-sky-800 p-4 text-sm">
           Der Quellenstand hat sich seit dem letzten Lesen dieser Auswahl geändert. Summen,
-          Klassifikation, Abschlusszuordnung und Herkunft wurden gemeinsam durch den neu gelesenen
-          Stand ersetzt.
+          Kennzahlen, Klassifikation, Abschlusszuordnung und Herkunft wurden gemeinsam durch den neu
+          gelesenen Stand ersetzt.
         </p>
       )}
       {!report && !loading && !error && (

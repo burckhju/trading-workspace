@@ -186,6 +186,52 @@ test("real PostgreSQL: full-close cohort, lifetime result, gaps and current corr
       report_currency: "EUR",
       report_timezone: "Europe/Berlin",
     });
+  const noLosses = {
+    raw: null,
+    display: null,
+    reason: "Nicht definiert: keine Verlusttrades",
+  };
+  const unavailableStatistics = (population: number | null, reason: string) => {
+    const unavailable = { raw: null, display: null, reason };
+    return {
+      population,
+      win_rate: unavailable,
+      average_gross_pnl: unavailable,
+      median_gross_pnl: unavailable,
+      gross_profit_factor: unavailable,
+    };
+  };
+  const incompleteStatistics = unavailableStatistics(
+    null,
+    "Berichtsgrundlage unvollständig",
+  );
+  const emptyStatistics = unavailableStatistics(
+    0,
+    "Keine abgeschlossenen Trades in der Auswahl",
+  );
+  const expectStatisticsDisplay = async (
+    winRate: string,
+    average: string,
+    median: string,
+    profitFactor: string,
+  ) => {
+    const statistics = page.getByRole("region", {
+      name: "Basisstatistiken des Abschlussberichts",
+      exact: true,
+    });
+    await expect(statistics.getByTestId("closed-trades-win-rate")).toHaveText(
+      winRate,
+    );
+    await expect(
+      statistics.getByTestId("closed-trades-average-gross-pnl"),
+    ).toHaveText(average);
+    await expect(
+      statistics.getByTestId("closed-trades-median-gross-pnl"),
+    ).toHaveText(median);
+    await expect(
+      statistics.getByTestId("closed-trades-gross-profit-factor"),
+    ).toHaveText(profitFactor);
+  };
   await page.setViewportSize({ width: 1440, height: 1050 });
   await page.goto("/performance/closed-trades");
   await expect(
@@ -206,6 +252,13 @@ test("real PostgreSQL: full-close cohort, lifetime result, gaps and current corr
     total: "0",
     subtotal: null,
   });
+  expect(emptyInitial.statistics).toMatchObject(emptyStatistics);
+  await expectStatisticsDisplay(
+    "Keine abgeschlossenen Trades in der Auswahl",
+    "Keine abgeschlossenen Trades in der Auswahl",
+    "Keine abgeschlossenen Trades in der Auswahl",
+    "Keine abgeschlossenen Trades in der Auswahl",
+  );
 
   const t1 = await buy(100, "2.00", "2026-08-05", "EUR");
   const tradePath = `/trade-position/trades/${t1.trade.id}`;
@@ -230,6 +283,7 @@ test("real PostgreSQL: full-close cohort, lifetime result, gaps and current corr
   const stillOpen = await read();
   expect(stillOpen.summary.status).toBe("EMPTY");
   expect(stillOpen.counts.open).toBe(1);
+  expect(stillOpen.statistics).toMatchObject(emptyStatistics);
   expect(
     (await get(reportPath("realized-gross", "2026-09-01", "2026-09-30")))
       .summary.total_display,
@@ -242,6 +296,7 @@ test("real PostgreSQL: full-close cohort, lifetime result, gaps and current corr
   const september = await read();
   expect(september.summary.status).toBe("EMPTY");
   expect(september.counts.outside_period).toBe(1);
+  expect(september.statistics).toMatchObject(emptyStatistics);
   await select("2026-10-01", "2026-10-31");
   const original = await read();
   expect(original.definition_version).toBe("closed-trade-gross-v1");
@@ -258,6 +313,28 @@ test("real PostgreSQL: full-close cohort, lifetime result, gaps and current corr
     neutral: 0,
     unresolved: 0,
   });
+  // Independently declared native goldens: lifetime T1 = 10 + 30 - 20 + 30 = 50.
+  expect(original.statistics).toMatchObject({
+    population: 1,
+    win_rate: { raw: "100", display: "100.00", reason: null },
+    average_gross_pnl: {
+      raw: expect.stringMatching(/^50(?:\.0+)?$/),
+      display: "50.00",
+      reason: null,
+    },
+    median_gross_pnl: {
+      raw: expect.stringMatching(/^50(?:\.0+)?$/),
+      display: "50.00",
+      reason: null,
+    },
+    gross_profit_factor: noLosses,
+  });
+  await expectStatisticsDisplay(
+    "100,00 %",
+    "50,00 EUR",
+    "50,00 EUR",
+    noLosses.reason,
+  );
   expect(original.items[0]).toMatchObject({
     trade_id: t1.trade.id,
     closing_execution_id: october.execution.id,
@@ -388,6 +465,34 @@ test("real PostgreSQL: full-close cohort, lifetime result, gaps and current corr
     negative: 1,
     neutral: 1,
   });
+  // T1/T2/T3 = [50, -10, 0]: one win among all three, total 40, median zero.
+  expect(complete.statistics).toMatchObject({
+    population: 3,
+    win_rate: {
+      raw: "33.33333333333333333333333333",
+      display: "33.33",
+      reason: null,
+    },
+    average_gross_pnl: {
+      raw: "13.33333333333333333333333333",
+      display: "13.33",
+      reason: null,
+    },
+    median_gross_pnl: {
+      raw: expect.stringMatching(/^0(?:\.0+)?$/),
+      display: "0.00",
+      reason: null,
+    },
+    gross_profit_factor: { raw: "5", display: "5.00", reason: null },
+  });
+  await expectStatisticsDisplay("33,33 %", "13,33 EUR", "0,00 EUR", "5,00");
+  await expect(
+    page.getByTestId("closed-trades-statistics-population"),
+  ).toContainText("Population N = 3");
+  await page.screenshot({
+    path: testInfo.outputPath("closed-statistics-complete-desktop.png"),
+    fullPage: true,
+  });
   expect(
     new Set(
       complete.items.map((entry: { trade_id: string }) => entry.trade_id),
@@ -417,6 +522,13 @@ test("real PostgreSQL: full-close cohort, lifetime result, gaps and current corr
     negative: 1,
     neutral: 1,
   });
+  expect(partial.statistics).toMatchObject(incompleteStatistics);
+  await expectStatisticsDisplay(
+    "Berichtsgrundlage unvollständig",
+    "Berichtsgrundlage unvollständig",
+    "Berichtsgrundlage unvollständig",
+    "Berichtsgrundlage unvollständig",
+  );
   const byTrade = new Map(
     partial.items.map(
       (entry: {
@@ -444,6 +556,7 @@ test("real PostgreSQL: full-close cohort, lifetime result, gaps and current corr
   expect(beforeReads.tables.execution_currency_confirmations.count).toBe(5);
   const repeat = await read();
   expect(repeat.basis.id).toBe(partial.basis.id);
+  expect(repeat.statistics).toEqual(partial.statistics);
   const readsBeforeSources = financialReads.length;
   await t1Row
     .getByRole("button", { name: "Quellen und Gesamtverlauf", exact: true })
@@ -474,6 +587,8 @@ test("real PostgreSQL: full-close cohort, lifetime result, gaps and current corr
   });
   expect(changed.counts).toEqual(partial.counts);
   expect(changed.basis.id).not.toBe(partial.basis.id);
+  // Corrected T1 = 70; the unresolved T4 still prevents all cohort statistics.
+  expect(changed.statistics).toMatchObject(incompleteStatistics);
   expect(
     changed.sources.find(
       (entry: { execution_id: string }) =>
@@ -587,6 +702,7 @@ test("real PostgreSQL: full-close cohort, lifetime result, gaps and current corr
     unresolved: 1,
   });
   expect(paged.summary.subtotal_display).toBe("60.00");
+  expect(paged.statistics).toMatchObject(incompleteStatistics);
   const beforePaging = databaseState();
   const readsBeforePaging = financialReads.length;
   await page.getByLabel("Zeilen anzeigen").selectOption("all");
@@ -613,6 +729,12 @@ test("real PostgreSQL: full-close cohort, lifetime result, gaps and current corr
     page.getByRole("article", { name: `Trade ${t4.id}`, exact: true }),
   ).toBeVisible();
   await expect(page.getByRole("article", { name: /^Trade / })).toHaveCount(1);
+  await expectStatisticsDisplay(
+    "Berichtsgrundlage unvollständig",
+    "Berichtsgrundlage unvollständig",
+    "Berichtsgrundlage unvollständig",
+    "Berichtsgrundlage unvollständig",
+  );
   expect(financialReads).toHaveLength(readsBeforePaging);
   expect(databaseState().fingerprint).toBe(beforePaging.fingerprint);
 
@@ -669,6 +791,80 @@ test("real PostgreSQL: full-close cohort, lifetime result, gaps and current corr
     contentType: "application/json",
   });
 
+  // The full 27-row snapshot is COMPLETE on 3 October: only corrected T1 closes
+  // that day. All 4 October closures (including unknown-currency T4) are safely
+  // outside the period. Local pages and exclusions must keep N=1 and all values.
+  const beforeCompletePaging = databaseState();
+  await select("2026-10-03", "2026-10-03");
+  const completeAfterCorrection = await read();
+  expect(completeAfterCorrection.summary).toMatchObject({
+    status: "COMPLETE",
+    total_display: "70.00",
+    subtotal: null,
+  });
+  expect(completeAfterCorrection.counts).toMatchObject({
+    examined: 27,
+    open: 22,
+    outside_period: 4,
+    qualified: 1,
+    unresolved: 0,
+  });
+  expect(completeAfterCorrection.statistics).toMatchObject({
+    population: 1,
+    win_rate: { raw: "100", display: "100.00", reason: null },
+    average_gross_pnl: {
+      raw: expect.stringMatching(/^70(?:\.0+)?$/),
+      display: "70.00",
+      reason: null,
+    },
+    median_gross_pnl: {
+      raw: expect.stringMatching(/^70(?:\.0+)?$/),
+      display: "70.00",
+      reason: null,
+    },
+    gross_profit_factor: noLosses,
+  });
+  const completeRepeat = await read();
+  expect(completeRepeat.basis.id).toBe(completeAfterCorrection.basis.id);
+  expect(completeRepeat.statistics).toEqual(completeAfterCorrection.statistics);
+  const readsBeforeCompletePaging = financialReads.length;
+  await page.getByLabel("Zeilen anzeigen").selectOption("all");
+  await expect(page.getByRole("article", { name: /^Trade / })).toHaveCount(20);
+  await nextPage.click();
+  await expect(page.getByRole("article", { name: /^Trade / })).toHaveCount(7);
+  await expectStatisticsDisplay(
+    "100,00 %",
+    "70,00 EUR",
+    "70,00 EUR",
+    noLosses.reason,
+  );
+  for (const view of ["qualified", "excluded", "unresolved"]) {
+    await page.getByLabel("Zeilen anzeigen").selectOption(view);
+    await expectStatisticsDisplay(
+      "100,00 %",
+      "70,00 EUR",
+      "70,00 EUR",
+      noLosses.reason,
+    );
+    await expect(
+      page.getByTestId("closed-trades-statistics-population"),
+    ).toContainText("Population N = 1");
+  }
+  expect(financialReads).toHaveLength(readsBeforeCompletePaging);
+  const afterCompletePaging = databaseState();
+  expect(afterCompletePaging.fingerprint).toBe(
+    beforeCompletePaging.fingerprint,
+  );
+  await page.screenshot({
+    path: testInfo.outputPath("closed-statistics-corrected-mobile.png"),
+    fullPage: true,
+  });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
+
   // Separate periods distinguish genuine exact zero, unknown, and empty.
   const stateProduct = await createProduct(
     "Synthetische Null- und Lückenauswahl",
@@ -688,6 +884,27 @@ test("real PostgreSQL: full-close cohort, lifetime result, gaps and current corr
     neutral: 1,
     unresolved: 0,
   });
+  expect(zero.statistics).toMatchObject({
+    population: 1,
+    win_rate: { raw: "0", display: "0.00", reason: null },
+    average_gross_pnl: {
+      raw: expect.stringMatching(/^0(?:\.0+)?$/),
+      display: "0.00",
+      reason: null,
+    },
+    median_gross_pnl: {
+      raw: expect.stringMatching(/^0(?:\.0+)?$/),
+      display: "0.00",
+      reason: null,
+    },
+    gross_profit_factor: noLosses,
+  });
+  await expectStatisticsDisplay(
+    "0,00 %",
+    "0,00 EUR",
+    "0,00 EUR",
+    noLosses.reason,
+  );
   await expect(page.getByTestId("closed-trades-total")).toHaveText("0,00 EUR");
   await select("2026-07-01", "2026-07-31");
   const unknown = await read();
@@ -700,6 +917,13 @@ test("real PostgreSQL: full-close cohort, lifetime result, gaps and current corr
     qualified: 0,
     monetary_unresolved: 1,
   });
+  expect(unknown.statistics).toMatchObject(incompleteStatistics);
+  await expectStatisticsDisplay(
+    "Berichtsgrundlage unvollständig",
+    "Berichtsgrundlage unvollständig",
+    "Berichtsgrundlage unvollständig",
+    "Berichtsgrundlage unvollständig",
+  );
   await expect(page.getByTestId("closed-trades-total")).toHaveText(
     "Nicht berechenbar",
   );
@@ -710,6 +934,35 @@ test("real PostgreSQL: full-close cohort, lifetime result, gaps and current corr
     total: "0",
     subtotal: null,
   });
+  expect(empty.statistics).toMatchObject(emptyStatistics);
+  await expectStatisticsDisplay(
+    "Keine abgeschlossenen Trades in der Auswahl",
+    "Keine abgeschlossenen Trades in der Auswahl",
+    "Keine abgeschlossenen Trades in der Auswahl",
+    "Keine abgeschlossenen Trades in der Auswahl",
+  );
+  for (const report of [
+    emptyInitial,
+    stillOpen,
+    september,
+    original,
+    complete,
+    partial,
+    repeat,
+    changed,
+    paged,
+    completeAfterCorrection,
+    completeRepeat,
+    zero,
+    unknown,
+    empty,
+  ]) {
+    expect(report.statistics).toMatchObject({
+      definition_version: "closed-trade-statistics-v1",
+      report_basis_id: report.basis.id,
+      report_status: report.summary.status,
+    });
+  }
   expect(failures).toEqual([]);
   const finalState = databaseState();
   await read();
@@ -725,6 +978,8 @@ test("real PostgreSQL: full-close cohort, lifetime result, gaps and current corr
         partial,
         changed,
         paged,
+        completeAfterCorrection,
+        completeRepeat,
         zero,
         unknown,
         empty,
@@ -736,7 +991,14 @@ test("real PostgreSQL: full-close cohort, lifetime result, gaps and current corr
   });
   await testInfo.attach("postgres-closed-report-read-only-proof", {
     body: JSON.stringify(
-      { initial, beforeReads, beforePaging, finalState },
+      {
+        initial,
+        beforeReads,
+        beforePaging,
+        beforeCompletePaging,
+        afterCompletePaging,
+        finalState,
+      },
       null,
       2,
     ),

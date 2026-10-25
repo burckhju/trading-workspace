@@ -156,8 +156,26 @@ export interface ClosedTradeItem {
   sell_contributions: ClosedTradeSellContribution[];
 }
 
+export interface ClosedTradeStatistic {
+  raw: string | null;
+  display: string | null;
+  reason: string | null;
+}
+
+export interface ClosedTradeStatistics {
+  definition_version: string;
+  report_basis_id: string;
+  report_status: RealizedGrossReport['summary']['status'];
+  population: number | null;
+  win_rate: ClosedTradeStatistic;
+  average_gross_pnl: ClosedTradeStatistic;
+  median_gross_pnl: ClosedTradeStatistic;
+  gross_profit_factor: ClosedTradeStatistic;
+}
+
 export interface ClosedTradeReport
   extends Omit<RealizedGrossReport, 'counts' | 'items' | 'excluded_trades'> {
+  statistics: ClosedTradeStatistics;
   counts: {
     examined: number;
     cancelled: number;

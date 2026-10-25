@@ -2,6 +2,7 @@ import type {
   ClosedTradeItem,
   ClosedTradeReport,
   ClosedTradeSellContribution,
+  ClosedTradeStatistics,
   RealizedGrossFilters,
 } from '../features/performance/types/api';
 import { realizedGrossReport, reportSource } from './realizedGrossFixtures';
@@ -12,6 +13,48 @@ export const closedTradeFilters: RealizedGrossFilters = {
   report_currency: 'EUR',
   report_timezone: 'Europe/Berlin',
 };
+
+/** Explicit backend examples; no metric is reconstructed from frontend rows. */
+export function closedTradeStatistics(
+  overrides: Partial<ClosedTradeStatistics> = {},
+): ClosedTradeStatistics {
+  return {
+    definition_version: 'closed-trade-statistics-v1',
+    report_basis_id: 'a'.repeat(64),
+    report_status: 'COMPLETE',
+    population: 1,
+    win_rate: { raw: '100', display: '100.00', reason: null },
+    average_gross_pnl: { raw: '50.0000000000', display: '50.00', reason: null },
+    median_gross_pnl: { raw: '50.0000000000', display: '50.00', reason: null },
+    gross_profit_factor: {
+      raw: null,
+      display: null,
+      reason: 'Nicht definiert: keine Verlusttrades',
+    },
+    ...overrides,
+  };
+}
+
+export function unavailableClosedTradeStatistics(
+  status: 'EMPTY' | 'PARTIAL' | 'NOT_COMPUTABLE',
+): ClosedTradeStatistics {
+  const unavailable = {
+    raw: null,
+    display: null,
+    reason:
+      status === 'EMPTY'
+        ? 'Keine abgeschlossenen Trades in der Auswahl'
+        : 'Berichtsgrundlage unvollständig',
+  };
+  return closedTradeStatistics({
+    report_status: status,
+    population: status === 'EMPTY' ? 0 : null,
+    win_rate: { ...unavailable },
+    average_gross_pnl: { ...unavailable },
+    median_gross_pnl: { ...unavailable },
+    gross_profit_factor: { ...unavailable },
+  });
+}
 
 export function closedTradeContribution(
   executionId = 'sell-october',
@@ -174,6 +217,7 @@ export function closedTradeReport(overrides: Partial<ClosedTradeReport> = {}): C
     interval_end_at: '2026-10-31T23:00:00Z',
     basis: { ...existing.basis, id: 'a'.repeat(64) },
     currency: existing.currency,
+    statistics: closedTradeStatistics(),
     summary: {
       status: 'COMPLETE',
       total: '50.0000000000',
