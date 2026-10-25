@@ -138,6 +138,141 @@ test("real PostgreSQL: FT011 history survives correction and opens the exact Les
       page.off("request", recordOwnerRequest);
     }
   };
+  const transitionReviewAndReadBack = async (
+    tradeId: string,
+    predecessor: { exit_review_id: string; current_version_id: string },
+    transition: "revalidate" | "new-draft",
+  ) => {
+    const reviewUrl = `${api}/post-trade/trades/${tradeId}/exit-review`;
+    const commandUrl =
+      transition === "revalidate" ? `${reviewUrl}/revalidate` : reviewUrl;
+    const expected =
+      transition === "revalidate"
+        ? {
+            exit_review_id: predecessor.exit_review_id,
+            current_version_id: predecessor.current_version_id,
+            version: 1,
+            status: "FINALIZED",
+            currentness: "STALE",
+            supersedes_version_id: null,
+          }
+        : {
+            exit_review_id: predecessor.exit_review_id,
+            version: 2,
+            status: "DRAFT",
+            currentness: "CURRENT",
+            supersedes_version_id: predecessor.current_version_id,
+          };
+    const commands: Request[] = [];
+    const ownerRequests: Request[] = [];
+    const recordOwnerRequest = (sent: Request) => {
+      if (sent.method() === "POST" && sent.url() === commandUrl)
+        commands.push(sent);
+      if (
+        commands.length > 0 &&
+        sent.method() === "GET" &&
+        [
+          `${api}/post-trade/trades/${tradeId}/`,
+          `${api}/learning/trades/${tradeId}/`,
+        ].some((prefix) => sent.url().startsWith(prefix))
+      )
+        ownerRequests.push(sent);
+    };
+    page.on("request", recordOwnerRequest);
+    try {
+      // Bind the explicit action and both existing refresh passes before the
+      // click. A completed POST alone does not complete its owner readbacks.
+      const changed = page
+        .waitForResponse(
+          (response) =>
+            response.url() === commandUrl &&
+            response.request().method() === "POST",
+        )
+        .then(async (response) => {
+          expect(await response.finished()).toBeNull();
+          expect(response.status(), await response.text()).toBe(
+            transition === "revalidate" ? 200 : 201,
+          );
+          const value = await response.json();
+          expect(value).toMatchObject(expected);
+          if (transition === "new-draft")
+            expect(value.current_version_id).not.toBe(
+              predecessor.current_version_id,
+            );
+          return value;
+        });
+      const readbacks: object[] = [];
+      const ownerReadsFinished = page.waitForResponse(async (response) => {
+        if (
+          response.url() !== reviewUrl ||
+          response.request().method() !== "GET" ||
+          !ownerRequests.includes(response.request())
+        )
+          return false;
+        const pinned = await changed;
+        expect(await response.finished()).toBeNull();
+        expect(response.status(), await response.text()).toBe(200);
+        const value = await response.json();
+        expect(value).toMatchObject({
+          ...expected,
+          current_version_id: pinned.current_version_id,
+        });
+        readbacks.push(value);
+        return readbacks.length === 2;
+      });
+      const [review] = await Promise.all([
+        changed,
+        ownerReadsFinished,
+        page
+          .getByRole("button", {
+            name:
+              transition === "revalidate"
+                ? "Review-Quellenstand prüfen"
+                : "Neue Review-Version vorbereiten",
+            exact: true,
+          })
+          .click(),
+      ]);
+      const ownerReadbacks = await Promise.all(
+        ownerRequests.map(async (sent) => {
+          const response = await sent.response();
+          expect(
+            response,
+            `Owner read did not respond: ${sent.url()}`,
+          ).not.toBeNull();
+          expect(await response!.finished()).toBeNull();
+          expect(response!.status(), await response!.text()).toBe(200);
+          return {
+            url: sent.url(),
+            status: response!.status(),
+            body: await response!.json(),
+          };
+        }),
+      );
+      expect(commands).toHaveLength(1);
+      expect(readbacks).toHaveLength(2);
+      expect(ownerRequests).toHaveLength(ownerReadbacks.length);
+      if (transition === "revalidate")
+        await expect(
+          page.getByRole("button", {
+            name: "Neue Review-Version vorbereiten",
+            exact: true,
+          }),
+        ).toBeEnabled();
+      else await expect(page.getByLabel("Review-Begründung")).toBeEditable();
+      await testInfo.attach(`ft011-${transition}-completed-owner-reads`, {
+        body: JSON.stringify(
+          { predecessor, command: review, readbacks, ownerReadbacks },
+          null,
+          2,
+        ),
+        contentType: "application/json",
+      });
+      return review;
+    } finally {
+      page.off("request", recordOwnerRequest);
+    }
+  };
   const materializeOnce = async (
     tradeId: string,
     review: { current_version_id: string },
@@ -356,19 +491,26 @@ test("real PostgreSQL: FT011 history survives correction and opens the exact Les
   ).toEqual(originalLesson.history);
   // New review and materialization are explicit, never a side effect of history reads.
   await page.goto(`/post-trade?trade_id=${tid}`);
-  await page
-    .getByRole("button", { name: "Review-Quellenstand prüfen", exact: true })
-    .click();
-  await page
-    .getByRole("button", {
-      name: "Neue Review-Version vorbereiten",
-      exact: true,
-    })
-    .click();
+  const staleReview = await transitionReviewAndReadBack(
+    tid,
+    firstReview,
+    "revalidate",
+  );
+  const successorDraft = await transitionReviewAndReadBack(
+    tid,
+    staleReview,
+    "new-draft",
+  );
   await page
     .getByLabel("Review-Begründung")
     .fill("Explicit new review after confirmed execution correction.");
   const secondReview = await finalizeAndReadBack(tid, 2);
+  expect(secondReview.current_version_id).toBe(
+    successorDraft.current_version_id,
+  );
+  expect(secondReview.supersedes_version_id).toBe(
+    firstReview.current_version_id,
+  );
   const secondMaterialization = await materializeOnce(tid, secondReview);
   await expect(history.getByRole("article")).toHaveCount(2);
   const newInventory = await getInventory();
