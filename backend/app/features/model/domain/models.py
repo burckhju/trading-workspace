@@ -108,6 +108,7 @@ class ModelValidation:
     notes: str | None
     created_at: datetime
     created_by: UUID
+    evidence_ids: tuple[UUID, ...] = ()
 
     def __post_init__(self) -> None:
         if self.method is not ValidationMethod.RETROSPECTIVE:

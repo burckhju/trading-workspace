@@ -145,14 +145,16 @@ async def test_governance_activation_changes_candidate_semantics_with_truthful_p
     )
 
     permissive_readiness = await readiness._runtime_step(workspace_id)
+    sources = _sources()
     first = await candidate_service.evaluate(
         workspace_id,
         candidate_id,
         _candidate_input(),
-        _sources(),
+        sources,
     )
 
     assert permissive_readiness.status == "COMPLETE"
+    assert permissive_readiness.resource_id == permissive_version.id
     assert first.version == 1
     assert first.qualification == "QUALIFIED"
     assert first.model_id == "TOP_DOWN_CANDIDATE"
@@ -216,7 +218,7 @@ async def test_governance_activation_changes_candidate_semantics_with_truthful_p
         workspace_id,
         candidate_id,
         _candidate_input(),
-        _sources(),
+        sources,
     )
 
     assert strict_readiness.status == "COMPLETE"
@@ -246,7 +248,7 @@ async def test_governance_activation_changes_candidate_semantics_with_truthful_p
         workspace_id,
         candidate_id,
         _candidate_input(),
-        _sources(),
+        sources,
     )
 
     assert third.version == 3
@@ -261,3 +263,12 @@ async def test_governance_activation_changes_candidate_semantics_with_truthful_p
     assert by_version[2].model_version == "2"
     assert by_version[3].qualification == "QUALIFIED"
     assert by_version[3].model_version == "1"
+    for evaluation in (first, second, third):
+        stored_sources = await candidate_service.list_sources(evaluation.id)
+        assert {
+            item.role: (item.source_id, item.source_version, item.model_id, item.model_version)
+            for item in stored_sources
+        } == {
+            role: (ref.analysis_id, ref.version, ref.model_id, ref.model_version)
+            for role, ref in sources.items()
+        }

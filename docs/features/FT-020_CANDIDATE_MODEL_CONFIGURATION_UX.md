@@ -76,3 +76,35 @@ No new Candidate trading rule, schema 3.0, generic rule builder, JSON editor for
 - Governance authority: `backend/app/features/model/service/application.py`
 - Runtime activation authority: `backend/app/features/model/service/runtime_activation_service.py`
 - Configuration UX: `frontend/src/features/model/components/HypothesisProposalPanel.tsx`
+
+## 2026-10-25 — Existing governance journey continuation
+
+The [Candidate governance qualification](../implementation/CANDIDATE_GOVERNANCE_JOURNEY_QUALIFICATION.md)
+extends the existing Lesson/Governance/Candidate consumers. The actual viewed
+Lesson snapshot supplies the hypothesis source, including historical L1 after L2
+exists. Proposal model, hypothesis and approved base are explicit. Validation
+readback exposes its stored Evidence IDs, exact cutoff, conclusion, metrics and
+notes; Approval exposes its ID and the predecessor version. These additions retain
+the released #274 proposal-entry context protection.
+
+The existing RuntimeActivationPanel separates the current runtime, latest version
+and deliberately selected compatible APPROVED target. This permits explicit return
+to retained A through the same activation command. It does not automatically select
+or activate the latest version. Follow-up command controls bind responses to their
+current instance and prevent synchronous duplicate submissions. Uncertain command
+completion requires deliberate readback; client locks are no serverwide exactly-once
+guarantee. Failed reads remain visible instead of implying absent saved facts.
+
+The 115 targeted local UI cases, including 18 new cases, are a bounded development
+result. The unchanged complete local frontend gate subsequently passed 734 tests
+in 121 files and its build on the combined working copy. The first complete native
+S2–S6 journey passed on head `1109f047` in run `40166152063`, job `121087501390`:
+one pass, no retry/skip/flaky, exact historical readback and complete cleanup.
+All six actual desktop/mobile images were inspected. They exposed a remaining
+parent hypothesis-status readback gap after child commands; the narrow follow-up
+reads the existing owner state instead of inferring a business status. The mobile
+governance cards remain narrow but expose complete IDs and controls. The final PR
+binds the complete CI of its last head separately. The report records the FT-006
+VALID→LIMITED quality boundary; B07's GOOD reference is not satisfied by a LIMITED
+run. No SUPPORTS-only approval rule, validation algorithm, backtest or economic
+policy recommendation is introduced, and no acceptance status is raised.

@@ -21,6 +21,7 @@ import type {
 
 interface HypothesisProposalPanelProps {
   hypothesisId: string;
+  onHypothesisChanged?: () => void;
 }
 
 interface ModelSelection {
@@ -36,12 +37,15 @@ function isDefinition(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-export function HypothesisProposalPanel({ hypothesisId }: HypothesisProposalPanelProps) {
+export function HypothesisProposalPanel(props: HypothesisProposalPanelProps) {
   // Returning to the same ID is a new visit, not the previous hypothesis instance.
-  return <HypothesisProposalForm key={hypothesisId} hypothesisId={hypothesisId} />;
+  return <HypothesisProposalForm key={props.hypothesisId} {...props} />;
 }
 
-function HypothesisProposalForm({ hypothesisId }: HypothesisProposalPanelProps) {
+function HypothesisProposalForm({
+  hypothesisId,
+  onHypothesisChanged,
+}: HypothesisProposalPanelProps) {
   const [proposals, setProposals] = useState<ModelChangeProposalSummary[]>([]);
   const [models, setModels] = useState<GovernedModelSummary[]>([]);
   const [versions, setVersions] = useState<GovernedModelVersion[]>([]);
@@ -237,6 +241,7 @@ function HypothesisProposalForm({ hypothesisId }: HypothesisProposalPanelProps) 
         throw new Error('Die Speicherantwort passt nicht zum abgesendeten DRAFT-Proposal.');
       }
       setProposals([created]);
+      onHypothesisChanged?.();
     } catch (nextError: unknown) {
       if (ownsOperation()) setError(nextError);
     } finally {
@@ -298,8 +303,30 @@ function HypothesisProposalForm({ hypothesisId }: HypothesisProposalPanelProps) 
               Status: <span className="font-medium">{proposal.status}</span>
             </p>
             <p className="mt-1 break-all text-slate-500">Proposal {proposal.id}</p>
+            <p className="mt-1 break-all text-slate-400">Hypothese {proposal.hypothesis_id}</p>
+            <p className="mt-1 break-all text-slate-400">Modell {proposal.model_id}</p>
+            <p className="mt-1 break-all text-slate-400">
+              Genehmigte Proposal-Basis {proposal.base_model_version_id}
+            </p>
+            <details className="mt-2">
+              <summary>Gespeicherte vorgeschlagene Definition</summary>
+              <pre className="mt-2 whitespace-pre-wrap break-all text-xs">
+                {JSON.stringify(proposal.proposed_definition, null, 2)}
+              </pre>
+            </details>
             <p className="mt-2 whitespace-pre-wrap text-slate-300">{proposal.rationale}</p>
-            <ProposalValidationPanel proposalId={proposal.id} proposalStatus={proposal.status} />
+            <ProposalValidationPanel
+              proposalId={proposal.id}
+              proposalStatus={proposal.status}
+              modelKey={models.find((model) => model.id === proposal.model_id)?.model_key}
+              onStatusChange={(status) => {
+                if (instanceRef.current === null) return;
+                setProposals((current) =>
+                  current.map((item) => (item.id === proposal.id ? { ...item, status } : item)),
+                );
+                if (status === 'APPROVED') onHypothesisChanged?.();
+              }}
+            />
           </div>
         ))}
       </div>
@@ -381,7 +408,7 @@ function HypothesisProposalForm({ hypothesisId }: HypothesisProposalPanelProps) 
             ) : candidateCurrent && selectedVersion ? (
               <>
                 <div className="rounded-md border border-slate-700 p-3 text-sm">
-                  <p className="font-medium">Current / Base</p>
+                  <p className="font-medium">Current / Base · genehmigte Proposal-Basis</p>
                   <p className="mt-1">
                     Model-Version {selectedVersion.version} · {candidateCurrent.schema}
                   </p>

@@ -29,6 +29,14 @@ export type CandidateEvaluation = {
   warnings: string[];
   evaluated_at: string;
   criteria: CandidateCriterion[];
+  sources?: Array<{
+    role: string;
+    source_type: string;
+    source_id: string;
+    source_version: number;
+    model_id: string;
+    model_version: string;
+  }>;
 };
 
 export type CandidateLiveWorkflowStep = {

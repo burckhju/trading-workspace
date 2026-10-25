@@ -61,6 +61,8 @@ class CandidateService:
             created_by=actor,
         )
         self._repo.add(candidate)
+        # Flush the parent before its FK-dependent event; both share one commit.
+        await self._repo.flush()
         self._repo.add(
             CandidateEventModel(
                 id=uuid4(),
@@ -236,3 +238,6 @@ class CandidateService:
 
     async def list_criteria(self, evaluation_id: UUID) -> tuple[CandidateCriterionModel, ...]:
         return await self._repo.list_criteria(evaluation_id)
+
+    async def list_sources(self, evaluation_id: UUID) -> tuple[CandidateEvaluationSourceModel, ...]:
+        return await self._repo.list_sources(evaluation_id)

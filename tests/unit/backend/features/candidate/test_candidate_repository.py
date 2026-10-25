@@ -37,6 +37,7 @@ async def test_candidate_repository_crud_query_helpers():
     assert await repo.list(workspace) == (marker,)
     assert await repo.list_evaluations(candidate) == (marker,)
     assert await repo.list_criteria(evaluation) == (marker,)
+    assert await repo.list_sources(evaluation) == (marker,)
 
     session.scalar.return_value = None
     assert await repo.next_evaluation_version(candidate) == 1

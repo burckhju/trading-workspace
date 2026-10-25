@@ -61,8 +61,18 @@ class CandidateCriterionResponse(BaseModel):
     explanation: str
 
 
+class CandidateEvaluationSourceResponse(BaseModel):
+    role: str
+    source_type: str
+    source_id: UUID
+    source_version: int
+    model_id: str
+    model_version: str
+
+
 class CandidateEvaluationDetailResponse(CandidateEvaluationResponse):
     criteria: list[CandidateCriterionResponse]
+    sources: list[CandidateEvaluationSourceResponse]
 
 
 class ChangeCandidateStatusRequest(BaseModel):
