@@ -1,5 +1,7 @@
-import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { FormEvent, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { Link, UNSAFE_DataRouterContext, useSearchParams } from 'react-router-dom';
+
+import { PendingNavigationGuard } from '../../../components/PendingNavigationGuard';
 
 import { ExecutionDateInput } from '../../trade/components/ExecutionDateInput';
 import { ExecutionCurrencyInput } from '../../trade/components/ExecutionCurrencyInput';
@@ -21,6 +23,12 @@ import { selectionRepairUrl } from '../../product/services/selectionRepairContex
 import { SelectionProductIdentity } from '../components/SelectionProductIdentity';
 import { useSelectionReferenceData } from '../services/useSelectionReferenceData';
 import { productSelectionApiClient } from '../services/client';
+import {
+  assertRunContext,
+  loadSelectionPlanContext,
+  selectionRoute,
+  type SelectionPlanContext,
+} from '../services/planContext';
 import type {
   CriterionResultResponse,
   EligibilityStatus,
@@ -207,21 +215,60 @@ function EvaluationCard({
 
 export function ProductSelectionPage() {
   const references = useSelectionReferenceData();
-  const [searchParams] = useSearchParams();
-  const initialTradePlanId = searchParams.get('trade_plan_id') ?? '';
-  const initialVersionId = searchParams.get('trade_plan_version_id') ?? '';
-  const initialRunId = searchParams.get('run_id')?.trim() ?? '';
-  const [tradePlanId, setTradePlanId] = useState(initialTradePlanId);
-  const [tradePlanVersionId, setTradePlanVersionId] = useState(initialVersionId);
+  const dataRouter = useContext(UNSAFE_DataRouterContext);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const contextKey = searchParams.toString();
+  const currentContext = useRef({ key: contextKey, revision: 0 });
+  if (currentContext.current.key !== contextKey) {
+    currentContext.current = { key: contextKey, revision: currentContext.current.revision + 1 };
+  }
+  const contextRevision = currentContext.current.revision;
+  const [loadedContext, setContext] = useState<
+    (SelectionPlanContext & { routeKey: string; revision: number }) | null
+  >(null);
+  const context =
+    loadedContext?.routeKey === contextKey && loadedContext.revision === contextRevision
+      ? loadedContext
+      : null;
+  const [contextLoading, setContextLoading] = useState(true);
+  const [readRevision, setReadRevision] = useState(0);
+  const [contextError, setContextError] = useState<string | null>(null);
+  // Carry only a confirmed POST result through its canonical run URL. A failed
+  // history refresh must never discard that receipt or repeat the write.
+  const confirmedNavigation = useRef<{
+    routeKey: string;
+    detail: ProductSelectionRunDetailResponse;
+    context: SelectionPlanContext;
+  } | null>(null);
+  const interactionLock = useRef(false);
+  const mounted = useRef(true);
+  const tradePlanId = context?.detail.plan.id ?? '';
+  const tradePlanVersionId = context?.version.id ?? '';
+  const canStart = context?.version.status === 'APPROVED';
   const [runs, setRuns] = useState<ProductSelectionRunSummaryResponse[]>([]);
-  const [detail, setDetail] = useState<ProductSelectionRunDetailResponse | null>(null);
+  const [loadedRun, setLoadedRun] = useState<{
+    routeKey: string;
+    revision: number;
+    value: ProductSelectionRunDetailResponse;
+  } | null>(null);
+  const detail =
+    loadedRun?.routeKey === contextKey && loadedRun.revision === contextRevision
+      ? loadedRun.value
+      : null;
+  const setDetail = useCallback(
+    (value: ProductSelectionRunDetailResponse | null) => {
+      setLoadedRun(value ? { routeKey: contextKey, revision: contextRevision, value } : null);
+    },
+    [contextKey, contextRevision],
+  );
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [pendingSelection, setPendingSelection] = useState<ProductEvaluationResponse | null>(null);
   const [rationale, setRationale] = useState('');
   const [purchaseQuantity, setPurchaseQuantity] = useState('');
   const [purchasePrice, setPurchasePrice] = useState('');
-  const [purchaseDate, setPurchaseDate] = useState(localToday);
+  const initialPurchaseDate = useRef(localToday());
+  const [purchaseDate, setPurchaseDate] = useState(initialPurchaseDate.current);
   const [purchaseTime, setPurchaseTime] = useState('');
   const [purchaseCurrency, setPurchaseCurrency] = useState(emptyExecutionCurrency);
   const [existingTradeId, setExistingTradeId] = useState<string | null>(null);
@@ -252,108 +299,279 @@ export function ProductSelectionPage() {
   }, [detail]);
 
   useEffect(() => {
-    if (!initialRunId) return;
-    const controller = new AbortController();
-    setBusy(true);
-    setMessage(null);
-    setPendingSelection(null);
-    setPurchase(null);
-    productSelectionApiClient
-      .get(initialRunId, controller.signal)
-      .then(async (loaded) => {
-        setDetail(loaded);
-        setTradePlanId(loaded.run.trade_plan_id);
-        setTradePlanVersionId(loaded.run.trade_plan_version_id);
-        const items = await productSelectionApiClient.listForTradePlanVersion(
-          loaded.run.trade_plan_version_id,
-          controller.signal,
-        );
-        setRuns(items);
-      })
-      .catch((error: unknown) => {
-        if (!(error instanceof DOMException && error.name === 'AbortError')) {
-          setMessage(
-            error instanceof Error ? error.message : 'Selection Run konnte nicht geladen werden.',
-          );
-        }
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setBusy(false);
-      });
-    return () => controller.abort();
-  }, [initialRunId]);
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+
+  const hasUnsavedInputs = Boolean(
+    pendingSelection ||
+      rationale ||
+      (!purchase &&
+        (purchaseQuantity ||
+          purchasePrice ||
+          purchaseDate !== initialPurchaseDate.current ||
+          purchaseTime ||
+          purchaseCurrency.code ||
+          purchaseCurrency.note)),
+  );
 
   useEffect(() => {
-    if (!initialVersionId || initialRunId) return;
     const controller = new AbortController();
-    productSelectionApiClient
-      .listForTradePlanVersion(initialVersionId, controller.signal)
-      .then(setRuns)
-      .catch((error: unknown) => {
-        if (!(error instanceof DOMException && error.name === 'AbortError')) {
-          setMessage(
-            error instanceof Error ? error.message : 'Selection Runs konnten nicht geladen werden.',
-          );
+    const route = selectionRoute(new URLSearchParams(contextKey));
+    const receipt =
+      confirmedNavigation.current?.routeKey === contextKey ? confirmedNavigation.current : null;
+    confirmedNavigation.current = null;
+    setContext(null);
+    setContextError(null);
+    setDetail(null);
+    setRuns([]);
+    setMessage(
+      receipt ? 'Produktsuche wurde als neuer historischer Selection Run durchgeführt.' : null,
+    );
+    setPendingSelection(null);
+    setRationale('');
+    setPurchase(null);
+    setPurchaseQuantity('');
+    setPurchasePrice('');
+    setPurchaseTime('');
+    initialPurchaseDate.current = localToday();
+    setPurchaseDate(initialPurchaseDate.current);
+    setPurchaseCurrency(emptyExecutionCurrency());
+    setExistingTradeId(null);
+    interactionLock.current = false;
+    purchaseLock.current = false;
+    setBusy(false);
+    if (route.kind === 'invalid') {
+      setContextLoading(false);
+      setContextError(route.message);
+      return () => controller.abort();
+    }
+    setContextLoading(true);
+    async function load() {
+      try {
+        let planId = route.kind === 'invalid' ? '' : route.planId;
+        let versionId = route.kind === 'invalid' ? '' : route.versionId;
+        let loadedRun: ProductSelectionRunDetailResponse | null = receipt?.detail ?? null;
+        if (route.kind === 'run') {
+          loadedRun =
+            loadedRun ?? (await productSelectionApiClient.get(route.runId, controller.signal));
+          assertRunContext(loadedRun, {
+            runId: route.runId,
+            planId: route.planId || undefined,
+            versionId: route.versionId || undefined,
+          });
+          if (controller.signal.aborted) return;
+          planId = loadedRun.run.trade_plan_id;
+          versionId = loadedRun.run.trade_plan_version_id;
+          // A saved run stays readable even when its plan cannot currently be reloaded.
+          setDetail(loadedRun);
         }
-      });
+        const loaded =
+          receipt?.context ??
+          (await loadSelectionPlanContext(planId, versionId, controller.signal));
+        if (loadedRun)
+          assertRunContext(loadedRun, {
+            planId,
+            versionId,
+            underlyingId: loaded.detail.plan.underlying_id,
+          });
+        if (controller.signal.aborted) return;
+        setContext({ ...loaded, routeKey: contextKey, revision: contextRevision });
+        try {
+          const items = await productSelectionApiClient.listForTradePlanVersion(
+            versionId,
+            controller.signal,
+          );
+          if (controller.signal.aborted) return;
+          if (
+            items.some(
+              (item) => item.trade_plan_id !== planId || item.trade_plan_version_id !== versionId,
+            )
+          ) {
+            throw new Error('Die geladenen Runs gehören nicht zur ausgewählten Planversion.');
+          }
+          setRuns(items);
+        } catch (error: unknown) {
+          if (!controller.signal.aborted)
+            setMessage(
+              receipt
+                ? `Selection Run wurde gespeichert. Nur das Neuladen der Historie ist fehlgeschlagen: ${error instanceof Error ? error.message : 'Unbekannter Lesefehler'}`
+                : error instanceof Error
+                  ? error.message
+                  : 'Historische Runs konnten nicht geladen werden.',
+            );
+        }
+      } catch (error: unknown) {
+        if (!controller.signal.aborted)
+          setContextError(
+            error instanceof Error
+              ? error.message
+              : 'Die angeforderte Planversion konnte nicht geladen werden.',
+          );
+      } finally {
+        if (!controller.signal.aborted) setContextLoading(false);
+      }
+    }
+    void load();
     return () => controller.abort();
-  }, [initialRunId, initialVersionId]);
+  }, [contextKey, contextRevision, readRevision, setDetail]);
 
-  async function refreshRuns(versionId: string) {
+  function isCurrent(key: string) {
+    return (
+      mounted.current &&
+      currentContext.current.key === key &&
+      currentContext.current.revision === contextRevision
+    );
+  }
+
+  function mayLeaveContext(navigation = false) {
+    if (interactionLock.current || busy) return false;
+    if (navigation && dataRouter) return true;
+    return (
+      !hasUnsavedInputs ||
+      window.confirm('Ungespeicherte Eingaben verwerfen und den Kontext wechseln?')
+    );
+  }
+
+  async function refreshRuns(versionId: string, key = contextKey) {
     const items = await productSelectionApiClient.listForTradePlanVersion(versionId);
+    if (!isCurrent(key)) return;
+    if (
+      items.some(
+        (item) => item.trade_plan_id !== tradePlanId || item.trade_plan_version_id !== versionId,
+      )
+    ) {
+      throw new Error('Die geladenen Runs gehören nicht zur ausgewählten Planversion.');
+    }
     setRuns(items);
-    return items;
+  }
+
+  async function reloadRuns() {
+    if (interactionLock.current || !tradePlanVersionId) return;
+    const key = contextKey;
+    interactionLock.current = true;
+    setBusy(true);
+    try {
+      await refreshRuns(tradePlanVersionId, key);
+    } catch (error: unknown) {
+      if (isCurrent(key))
+        setMessage(
+          error instanceof Error ? error.message : 'Historische Runs konnten nicht geladen werden.',
+        );
+    } finally {
+      if (isCurrent(key)) {
+        interactionLock.current = false;
+        setBusy(false);
+      }
+    }
   }
 
   async function startRun(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!tradePlanId.trim() || !tradePlanVersionId.trim()) return;
+    if (!context || !canStart || contextLoading || interactionLock.current) return;
+    if (!mayLeaveContext()) return;
+    const key = contextKey;
+    interactionLock.current = true;
     setBusy(true);
     setMessage(null);
-    setPendingSelection(null);
-    setPurchase(null);
     try {
       const created = await productSelectionApiClient.start({
-        trade_plan_id: tradePlanId.trim(),
-        trade_plan_version_id: tradePlanVersionId.trim(),
+        trade_plan_id: tradePlanId,
+        trade_plan_version_id: tradePlanVersionId,
+      });
+      if (!isCurrent(key)) return;
+      assertRunContext(created, {
+        planId: tradePlanId,
+        versionId: tradePlanVersionId,
+        underlyingId: context.detail.plan.underlying_id,
       });
       setDetail(created);
-      await refreshRuns(tradePlanVersionId.trim());
+      setPendingSelection(null);
+      setRationale('');
+      setPurchase(null);
+      setPurchaseQuantity('');
+      setPurchasePrice('');
+      setPurchaseTime('');
+      initialPurchaseDate.current = localToday();
+      setPurchaseDate(initialPurchaseDate.current);
+      setPurchaseCurrency(emptyExecutionCurrency());
+      setExistingTradeId(null);
       setMessage('Produktsuche wurde als neuer historischer Selection Run durchgeführt.');
+      const runSearch = new URLSearchParams({ run_id: created.run.id });
+      if (runSearch.toString() !== contextKey) {
+        confirmedNavigation.current = {
+          routeKey: runSearch.toString(),
+          detail: created,
+          context: { detail: context.detail, version: context.version },
+        };
+        interactionLock.current = false;
+        setBusy(false);
+        setSearchParams(runSearch, { replace: true });
+        return;
+      }
+      try {
+        await refreshRuns(tradePlanVersionId, key);
+      } catch (error: unknown) {
+        if (isCurrent(key))
+          setMessage(
+            `Selection Run wurde gespeichert. Nur das Neuladen der Historie ist fehlgeschlagen: ${error instanceof Error ? error.message : 'Unbekannter Lesefehler'}`,
+          );
+      }
     } catch (error: unknown) {
-      setMessage(
-        error instanceof Error ? error.message : 'Produktsuche konnte nicht gestartet werden.',
-      );
+      if (isCurrent(key))
+        setMessage(
+          error instanceof Error ? error.message : 'Produktsuche konnte nicht gestartet werden.',
+        );
     } finally {
-      setBusy(false);
+      if (isCurrent(key)) {
+        interactionLock.current = false;
+        setBusy(false);
+      }
     }
   }
 
-  async function loadRun(runId: string) {
-    setBusy(true);
-    setMessage(null);
-    setPendingSelection(null);
-    setPurchase(null);
-    try {
-      setDetail(await productSelectionApiClient.get(runId));
-    } catch (error: unknown) {
-      setMessage(
-        error instanceof Error ? error.message : 'Selection Run konnte nicht geladen werden.',
-      );
-    } finally {
-      setBusy(false);
+  function loadRun(runId: string) {
+    const next = new URLSearchParams({ run_id: runId });
+    const sameContext = next.toString() === contextKey;
+    // Reloading this URL does not invoke the router's navigation blocker.
+    if (!mayLeaveContext(!sameContext)) return;
+    if (sameContext) {
+      interactionLock.current = true;
+      setBusy(true);
+      setReadRevision((revision) => revision + 1);
+    } else {
+      setSearchParams(next);
     }
   }
 
   async function confirmSelection() {
-    if (!detail || !pendingSelection || busy) return;
+    if (
+      !detail ||
+      !pendingSelection ||
+      busy ||
+      contextLoading ||
+      contextError ||
+      interactionLock.current
+    )
+      return;
     if (pendingSelection.eligibility_status === 'NOT_EVALUABLE' && rationale.trim() === '') return;
+    const key = contextKey;
+    interactionLock.current = true;
     setBusy(true);
     setMessage(null);
     try {
       const updated = await productSelectionApiClient.select(detail.run.id, {
         product_evaluation_id: pendingSelection.id,
         rationale: rationale.trim() || null,
+      });
+      if (!isCurrent(key)) return;
+      assertRunContext(updated, {
+        runId: detail.run.id,
+        planId: detail.run.trade_plan_id,
+        versionId: detail.run.trade_plan_version_id,
+        underlyingId: detail.run.underlying_id,
       });
       setDetail(updated);
       setPendingSelection(null);
@@ -363,20 +581,37 @@ export function ProductSelectionPage() {
         'Produktauswahl wurde dokumentiert. Nächster Schritt: tatsächlichen Kauf als BUY erfassen.',
       );
     } catch (error: unknown) {
-      setMessage(
-        error instanceof Error ? error.message : 'Produktauswahl konnte nicht gespeichert werden.',
-      );
+      if (isCurrent(key))
+        setMessage(
+          error instanceof Error
+            ? error.message
+            : 'Produktauswahl konnte nicht gespeichert werden.',
+        );
     } finally {
-      setBusy(false);
+      if (isCurrent(key)) {
+        interactionLock.current = false;
+        setBusy(false);
+      }
     }
   }
 
   async function recordPurchase(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!detail?.selection || busy || purchaseLock.current || purchase) return;
+    if (
+      !detail?.selection ||
+      busy ||
+      contextLoading ||
+      contextError ||
+      interactionLock.current ||
+      purchaseLock.current ||
+      purchase
+    )
+      return;
     const quantity = Number(purchaseQuantity);
     if (!Number.isInteger(quantity) || quantity <= 0 || purchasePrice.trim() === '') return;
 
+    const key = contextKey;
+    interactionLock.current = true;
     purchaseLock.current = true;
     setBusy(true);
     setMessage(null);
@@ -394,12 +629,14 @@ export function ProductSelectionPage() {
         request_id: captureRequest(scope, payload),
       });
       finishCapture(scope);
+      if (!isCurrent(key)) return;
       setPurchase(created);
       setPurchaseCurrency(emptyExecutionCurrency());
       setMessage(
         `Kauf wurde als BUY erfasst. Trade ${tradeReference(created.trade.id)} und offene Position wurden erstellt.`,
       );
     } catch (error: unknown) {
+      if (!isCurrent(key)) return;
       if (error instanceof MarketApiError && error.response.code === 'OPEN_TRADE_EXISTS') {
         const id = error.response.details.find(
           (item) => typeof item.context?.existing_trade_id === 'string',
@@ -408,13 +645,34 @@ export function ProductSelectionPage() {
       }
       setMessage(error instanceof Error ? error.message : 'Kauf konnte nicht erfasst werden.');
     } finally {
-      setBusy(false);
-      purchaseLock.current = false;
+      if (isCurrent(key)) {
+        setBusy(false);
+        purchaseLock.current = false;
+        interactionLock.current = false;
+      }
     }
   }
 
   return (
-    <div className="w-full space-y-8">
+    <div
+      className="w-full space-y-8"
+      onClickCapture={(event) => {
+        const target = event.target;
+        if (
+          target instanceof Element &&
+          target.closest('a') &&
+          !dataRouter &&
+          !mayLeaveContext(true)
+        )
+          event.preventDefault();
+      }}
+    >
+      <PendingNavigationGuard
+        shouldBlock={() =>
+          !confirmedNavigation.current && (interactionLock.current || hasUnsavedInputs)
+        }
+        busy={busy}
+      />
       <div>
         <p className="text-xs uppercase tracking-wide text-slate-500">FT-008</p>
         <h1 className="mt-1 text-2xl font-semibold">Produktauswahl</h1>
@@ -425,7 +683,11 @@ export function ProductSelectionPage() {
         </p>
       </div>
 
-      {message && <p className="rounded-lg border border-slate-700 p-3 text-sm">{message}</p>}
+      {message && !pendingSelection && (
+        <p role="status" className="rounded-lg border border-slate-700 p-3 text-sm">
+          {message}
+        </p>
+      )}
       <p className="text-xs text-slate-500">
         Produktnamen, WKN, ISIN und Basiswertnamen stammen aus den aktuellen Stammdaten. Die
         historische Bewertung und die dokumentierte Produktauswahl bleiben unverändert.
@@ -445,39 +707,63 @@ export function ProductSelectionPage() {
             onSubmit={(event) => void startRun(event)}
             className="rounded-xl border border-slate-800 p-5"
           >
-            <h2 className="font-semibold">Neuen Selection Run starten</h2>
-            <p className="mt-1 text-xs text-slate-500">
-              Nur APPROVED TradePlanVersionen sind zulässig.
-            </p>
-            {tradePlanId.trim() && (
-              <p className="mt-3 break-words font-medium">
-                TradePlan für{' '}
-                {references.plans[tradePlanId.trim()]?.underlying_name ||
-                  (references.loading
-                    ? 'Basiswert wird geladen …'
-                    : 'Basiswertname nicht verfügbar')}
+            <h2 className="font-semibold">Planversion für die Produktauswahl</h2>
+            {contextLoading && (
+              <p role="status" className="mt-3 text-sm">
+                Planversion wird geladen …
               </p>
             )}
-            <label className="mt-4 block text-sm">
-              <span className="text-slate-400">TradePlan-ID</span>
-              <input
-                required
-                value={tradePlanId}
-                onChange={(event) => setTradePlanId(event.target.value)}
-                className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 p-2"
-              />
-            </label>
-            <label className="mt-3 block text-sm">
-              <span className="text-slate-400">TradePlanVersion-ID</span>
-              <input
-                required
-                value={tradePlanVersionId}
-                onChange={(event) => setTradePlanVersionId(event.target.value)}
-                className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 p-2"
-              />
-            </label>
+            {contextError && (
+              <p role="alert" className="mt-3 text-sm text-rose-200">
+                {contextError}
+              </p>
+            )}
+            {context && (
+              <>
+                <p className="mt-3 break-words font-medium">
+                  TradePlan für{' '}
+                  {references.plans[tradePlanId]?.underlying_name ||
+                    'Basiswertname nicht verfügbar'}
+                </p>
+                <p className="mt-2 text-sm">
+                  Version {context.version.version} · {context.version.status}
+                </p>
+                <p className="mt-1 text-xs text-slate-400">
+                  {context.detail.plan.origin_type === 'MANUAL'
+                    ? 'Manueller Ursprung'
+                    : 'Ursprung aus gespeicherter Kandidatenbewertung'}
+                </p>
+                {!canStart && (
+                  <p className="mt-3 text-sm text-amber-200">
+                    Diese Version ist nicht mehr APPROVED. Historische Runs bleiben lesbar. Für eine
+                    neue Bewertung eine freigegebene Version auswählen.
+                  </p>
+                )}
+                <Link
+                  className="mt-3 inline-block text-sm text-sky-300 underline"
+                  to={`/trade-plans?${new URLSearchParams({ trade_plan_id: tradePlanId, trade_plan_version_id: tradePlanVersionId })}`}
+                >
+                  Ausgewählte Planversion ansehen
+                </Link>
+                <details className="mt-3 break-all text-xs text-slate-500">
+                  <summary className="cursor-pointer">Technische Planreferenzen</summary>
+                  <p>TradePlan-ID {tradePlanId}</p>
+                  <p>TradePlanVersion-ID {tradePlanVersionId}</p>
+                </details>
+              </>
+            )}
             <button
+              type="button"
               disabled={busy}
+              className="mt-4 text-sm text-sky-300 underline disabled:opacity-40"
+              onClick={() => {
+                if (mayLeaveContext(true)) setSearchParams({});
+              }}
+            >
+              Anderen Plan auswählen
+            </button>
+            <button
+              disabled={busy || contextLoading || !canStart}
               type="submit"
               className="mt-4 w-full rounded-lg border border-sky-700 px-3 py-2 text-sm disabled:opacity-40"
             >
@@ -492,7 +778,8 @@ export function ProductSelectionPage() {
                 <button
                   type="button"
                   className="text-xs text-sky-400"
-                  onClick={() => void refreshRuns(tradePlanVersionId.trim())}
+                  disabled={busy || contextLoading}
+                  onClick={() => void reloadRuns()}
                 >
                   Aktualisieren
                 </button>
@@ -503,7 +790,8 @@ export function ProductSelectionPage() {
                 <button
                   type="button"
                   key={run.id}
-                  onClick={() => void loadRun(run.id)}
+                  disabled={busy}
+                  onClick={() => loadRun(run.id)}
                   className={`w-full rounded-lg border p-3 text-left text-sm ${
                     detail?.run.id === run.id ? 'border-sky-600 bg-sky-950/20' : 'border-slate-800'
                   }`}
@@ -541,11 +829,14 @@ export function ProductSelectionPage() {
                   <Link
                     to={{
                       pathname: '/trade-plans',
-                      search: new URLSearchParams({}).toString(),
+                      search: new URLSearchParams({
+                        trade_plan_id: detail.run.trade_plan_id,
+                        trade_plan_version_id: detail.run.trade_plan_version_id,
+                      }).toString(),
                     }}
                     className="rounded-lg border border-slate-700 px-3 py-2 text-xs"
                   >
-                    Zu TradePlans
+                    Ursprüngliche Planversion ansehen
                   </Link>
                 </div>
                 <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-4">
@@ -609,78 +900,84 @@ export function ProductSelectionPage() {
                       onSubmit={(event) => void recordPurchase(event)}
                       className="mt-5 rounded-lg border border-slate-700 bg-slate-950/50 p-4"
                     >
-                      <h3 className="font-medium">Nächster Schritt: tatsächlichen Kauf erfassen</h3>
-                      {selectedEvaluation && (
-                        <p className="mt-2 break-words text-sm font-medium">
-                          Kauf für:{' '}
-                          {references.products[selectedEvaluation.warrant_id]?.display_name ||
-                            'Produktname nicht verfügbar'}
+                      <fieldset disabled={busy || contextLoading || Boolean(contextError)}>
+                        <h3 className="font-medium">
+                          Nächster Schritt: tatsächlichen Kauf erfassen
+                        </h3>
+                        {selectedEvaluation && (
+                          <p className="mt-2 break-words text-sm font-medium">
+                            Kauf für:{' '}
+                            {references.products[selectedEvaluation.warrant_id]?.display_name ||
+                              'Produktname nicht verfügbar'}
+                          </p>
+                        )}
+                        {existingTradeId && (
+                          <p role="alert">
+                            Offener Trade vorhanden.{' '}
+                            <Link
+                              className="underline"
+                              to={`/trade-management?trade_id=${encodeURIComponent(existingTradeId)}`}
+                            >
+                              Bestehenden Trade öffnen und Nachkauf erfassen
+                            </Link>
+                            . Es wurde nichts zusätzlich gebucht.
+                          </p>
+                        )}
+                        <ExecutionDateInput
+                          label="Kaufdatum"
+                          date={purchaseDate}
+                          time={purchaseTime}
+                          onDate={setPurchaseDate}
+                          onTime={setPurchaseTime}
+                        />
+                        <p className="mt-1 text-xs text-slate-400">
+                          Erst dieser BUY erzeugt den Trade und die offene Position. Die
+                          Produktauswahl allein ist noch keine Ausführung.
                         </p>
-                      )}
-                      {existingTradeId && (
-                        <p role="alert">
-                          Offener Trade vorhanden.{' '}
-                          <Link
-                            className="underline"
-                            to={`/trade-management?trade_id=${encodeURIComponent(existingTradeId)}`}
-                          >
-                            Bestehenden Trade öffnen und Nachkauf erfassen
-                          </Link>
-                          . Es wurde nichts zusätzlich gebucht.
-                        </p>
-                      )}
-                      <ExecutionDateInput
-                        label="Kaufdatum"
-                        date={purchaseDate}
-                        time={purchaseTime}
-                        onDate={setPurchaseDate}
-                        onTime={setPurchaseTime}
-                      />
-                      <p className="mt-1 text-xs text-slate-400">
-                        Erst dieser BUY erzeugt den Trade und die offene Position. Die
-                        Produktauswahl allein ist noch keine Ausführung.
-                      </p>
-                      <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                        <label className="text-sm">
-                          <span className="text-slate-400">Kaufmenge</span>
-                          <input
-                            aria-label="Kaufmenge"
-                            type="number"
-                            min="1"
-                            step="1"
-                            required
-                            value={purchaseQuantity}
-                            onChange={(event) => setPurchaseQuantity(event.target.value)}
-                            className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 p-2"
-                          />
-                        </label>
-                        <label className="text-sm">
-                          <span className="text-slate-400">Tatsächlicher Kaufpreis je Einheit</span>
-                          <input
-                            aria-label="Kaufpreis"
-                            inputMode="decimal"
-                            required
-                            value={purchasePrice}
-                            onChange={(event) => setPurchasePrice(event.target.value)}
-                            placeholder="z. B. 2,35"
-                            className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 p-2"
-                          />
-                        </label>
-                      </div>
-                      <ExecutionCurrencyInput
-                        value={purchaseCurrency}
-                        onChange={setPurchaseCurrency}
-                        disabled={busy}
-                      />
-                      <button
-                        type="submit"
-                        disabled={
-                          busy || purchaseQuantity.trim() === '' || purchasePrice.trim() === ''
-                        }
-                        className="mt-4 rounded-lg border border-sky-700 px-4 py-2 text-sm disabled:opacity-40"
-                      >
-                        BUY erfassen und Position eröffnen
-                      </button>
+                        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                          <label className="text-sm">
+                            <span className="text-slate-400">Kaufmenge</span>
+                            <input
+                              aria-label="Kaufmenge"
+                              type="number"
+                              min="1"
+                              step="1"
+                              required
+                              value={purchaseQuantity}
+                              onChange={(event) => setPurchaseQuantity(event.target.value)}
+                              className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 p-2"
+                            />
+                          </label>
+                          <label className="text-sm">
+                            <span className="text-slate-400">
+                              Tatsächlicher Kaufpreis je Einheit
+                            </span>
+                            <input
+                              aria-label="Kaufpreis"
+                              inputMode="decimal"
+                              required
+                              value={purchasePrice}
+                              onChange={(event) => setPurchasePrice(event.target.value)}
+                              placeholder="z. B. 2,35"
+                              className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 p-2"
+                            />
+                          </label>
+                        </div>
+                        <ExecutionCurrencyInput
+                          value={purchaseCurrency}
+                          onChange={setPurchaseCurrency}
+                          disabled={busy}
+                        />
+                        <button
+                          type="submit"
+                          disabled={
+                            busy || purchaseQuantity.trim() === '' || purchasePrice.trim() === ''
+                          }
+                          className="mt-4 rounded-lg border border-sky-700 px-4 py-2 text-sm disabled:opacity-40"
+                        >
+                          BUY erfassen und Position eröffnen
+                        </button>
+                      </fieldset>
                     </form>
                   ) : (
                     <div className="mt-5 rounded-lg border border-sky-800 bg-sky-950/30 p-4">
@@ -796,8 +1093,13 @@ export function ProductSelectionPage() {
                       evaluation={evaluation}
                       references={references}
                       selected={detail.selection?.product_evaluation_id === evaluation.id}
-                      disabled={busy || detail.selection !== null}
-                      onChoose={setPendingSelection}
+                      disabled={
+                        busy || contextLoading || Boolean(contextError) || detail.selection !== null
+                      }
+                      onChoose={(evaluation) => {
+                        setMessage(null);
+                        setPendingSelection(evaluation);
+                      }}
                     />
                   ))}
                 </div>
@@ -840,7 +1142,28 @@ export function ProductSelectionPage() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="selection-confirm-title"
-            className="w-full max-w-lg rounded-xl border border-slate-700 bg-slate-950 p-6 shadow-2xl"
+            onKeyDown={(event) => {
+              if (event.key === 'Escape' && !busy) {
+                setPendingSelection(null);
+                setRationale('');
+              }
+              if (event.key !== 'Tab') return;
+              const controls = [
+                ...event.currentTarget.querySelectorAll<HTMLButtonElement | HTMLTextAreaElement>(
+                  'button:not(:disabled), textarea:not(:disabled)',
+                ),
+              ];
+              const first = controls[0];
+              const last = controls.at(-1);
+              if (event.shiftKey && document.activeElement === first && last) {
+                event.preventDefault();
+                last.focus();
+              } else if (!event.shiftKey && document.activeElement === last && first) {
+                event.preventDefault();
+                first.focus();
+              }
+            }}
+            className="max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto rounded-xl border border-slate-700 bg-slate-950 p-6 shadow-2xl"
           >
             <p className="text-xs uppercase tracking-wide text-slate-500">
               Explizite Benutzerentscheidung
@@ -848,6 +1171,14 @@ export function ProductSelectionPage() {
             <h2 id="selection-confirm-title" className="mt-1 text-lg font-semibold">
               Produkt wirklich auswählen?
             </h2>
+            {message && (
+              <p
+                role="alert"
+                className="mt-3 rounded-lg border border-rose-800 p-3 text-sm text-rose-200"
+              >
+                {message}
+              </p>
+            )}
             <p className="mt-3 text-sm text-slate-400">
               Die Auswahl wird historisch für genau diesen Selection Run dokumentiert und kann nicht
               still überschrieben werden.
@@ -889,6 +1220,8 @@ export function ProductSelectionPage() {
                   : ' (optional)'}
               </span>
               <textarea
+                autoFocus
+                disabled={busy}
                 rows={3}
                 maxLength={2000}
                 required={pendingSelection.eligibility_status === 'NOT_EVALUABLE'}
@@ -913,6 +1246,8 @@ export function ProductSelectionPage() {
                 type="button"
                 disabled={
                   busy ||
+                  contextLoading ||
+                  Boolean(contextError) ||
                   (pendingSelection.eligibility_status === 'NOT_EVALUABLE' &&
                     rationale.trim() === '')
                 }

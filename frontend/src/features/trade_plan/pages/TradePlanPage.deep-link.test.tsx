@@ -11,6 +11,7 @@ vi.mock('../services/client', () => ({
     create: vi.fn(),
     get: vi.fn(),
     versions: vi.fn(),
+    version: vi.fn(),
     submitForReview: vi.fn(),
     approve: vi.fn(),
     returnToDraft: vi.fn(),
@@ -18,6 +19,9 @@ vi.mock('../services/client', () => ({
   },
 }));
 
+vi.mock('../../market/services/client', () => ({
+  marketApiClient: { getUnderlying: vi.fn().mockRejectedValue(new Error('No current labels')) },
+}));
 const mockedClient = vi.mocked(tradePlanApiClient);
 const planId = '11111111-1111-4111-8111-111111111111';
 
@@ -78,10 +82,15 @@ describe('TradePlanPage deep link', () => {
       </MemoryRouter>,
     );
 
-    await waitFor(() => expect(mockedClient.get).toHaveBeenCalledWith(planId));
-    expect(mockedClient.versions).toHaveBeenCalledWith(planId);
+    await waitFor(() =>
+      expect(mockedClient.get).toHaveBeenCalledWith(planId, expect.any(AbortSignal)),
+    );
+    expect(mockedClient.versions).toHaveBeenCalledWith(planId, expect.any(AbortSignal));
     expect(await screen.findByRole('heading', { name: 'TP-11111111' })).toBeInTheDocument();
-    expect(screen.getByLabelText('TradePlan-ID')).toHaveValue(planId);
-    expect(screen.getAllByText('READY_FOR_REVIEW').length).toBeGreaterThan(0);
+    expect(screen.queryByLabelText('TradePlan-ID')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Trade Thesis')).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'Version 1 · READY_FOR_REVIEW' }),
+    ).toBeInTheDocument();
   });
 });

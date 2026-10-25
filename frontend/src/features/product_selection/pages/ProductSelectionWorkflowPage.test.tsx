@@ -1,7 +1,9 @@
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 
+import { tradePlanApiClient } from '../../trade_plan/services/client';
+import { selectionPlanFixture } from '../test/planContextFixtures';
 import { ProductSelectionWorkflowPage } from './ProductSelectionWorkflowPage';
 
 const approvedPlan = {
@@ -34,6 +36,22 @@ const underlying = {
     ticker: 'DAX',
   },
 };
+
+beforeEach(() => {
+  vi.spyOn(tradePlanApiClient, 'versions').mockImplementation((id) =>
+    Promise.resolve([
+      id === approvedPlan.id
+        ? selectionPlanFixture.latest_version
+        : {
+            ...selectionPlanFixture.latest_version,
+            id: draftPlan.latest_version_id,
+            trade_plan_id: draftPlan.id,
+            status: 'DRAFT',
+          },
+    ]),
+  );
+});
+afterEach(() => vi.restoreAllMocks());
 
 describe('ProductSelectionWorkflowPage', () => {
   afterEach(() => vi.restoreAllMocks());
@@ -133,6 +151,48 @@ it('shows explicit no-selection for the current version and never inherits anoth
   expect(
     await screen.findByText('Für diese Version wurde noch kein Produkt ausgewählt.'),
   ).toBeInTheDocument();
+  expect(
+    screen.queryByRole('link', { name: 'Ausgewähltes Produkt öffnen' }),
+  ).not.toBeInTheDocument();
+});
+
+it('offers the earlier approved version explicitly while latest is a draft, without inheriting latest product labels', async () => {
+  vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+    new Response(
+      JSON.stringify([
+        {
+          ...approvedPlan,
+          latest_version_id: 'new-draft',
+          latest_version: 4,
+          status: 'DRAFT',
+          underlying_name: 'DAX',
+          selected_product: null,
+        },
+      ]),
+      { status: 200 },
+    ),
+  );
+  vi.mocked(tradePlanApiClient.versions).mockResolvedValue([
+    selectionPlanFixture.latest_version,
+    { ...selectionPlanFixture.latest_version, id: 'new-draft', version: 4, status: 'DRAFT' },
+  ]);
+  render(
+    <MemoryRouter>
+      <ProductSelectionWorkflowPage />
+    </MemoryRouter>,
+  );
+  expect(await screen.findByRole('heading', { name: 'DAX' })).toBeInTheDocument();
+  expect(
+    screen.getByRole('link', { name: 'Produktauswahl für diesen TradePlan öffnen' }),
+  ).toHaveAttribute(
+    'href',
+    `/product-selection?trade_plan_id=${approvedPlan.id}&trade_plan_version_id=${approvedPlan.latest_version_id}`,
+  );
+  expect(screen.getByRole('link', { name: 'Planversion ansehen' })).toHaveAttribute(
+    'href',
+    `/trade-plans?trade_plan_id=${approvedPlan.id}&trade_plan_version_id=${approvedPlan.latest_version_id}`,
+  );
+  expect(screen.getByText('3')).toBeInTheDocument();
   expect(
     screen.queryByRole('link', { name: 'Ausgewähltes Produkt öffnen' }),
   ).not.toBeInTheDocument();

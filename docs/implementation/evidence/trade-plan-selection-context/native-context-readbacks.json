@@ -1,0 +1,693 @@
+{
+  "planId": "ebcc5c66-2f0e-46d6-ab3b-06f963f16e5d",
+  "original": {
+    "id": "0386e01f-f13b-45de-ba77-ead691434af1",
+    "trade_plan_id": "ebcc5c66-2f0e-46d6-ab3b-06f963f16e5d",
+    "version": 1,
+    "direction": "LONG",
+    "thesis": "Synthetic original trigger thesis; no investment recommendation",
+    "entry": {
+      "type": "TRIGGER",
+      "currency": "USD",
+      "price": null,
+      "price_from": null,
+      "price_to": null,
+      "trigger": "Confirmed close above the daily breakout level",
+      "reference_price": "100.1234567890",
+      "valid_until": "2027-12-31T15:45:00Z",
+      "rationale": "Original complete entry explanation"
+    },
+    "invalidation": {
+      "stop_price": "95.1234567890",
+      "invalidation_rule": "Confirmed close below support",
+      "rationale": "Original complete invalidation explanation"
+    },
+    "targets": [
+      {
+        "sequence": 1,
+        "price": "110.1234567890",
+        "rationale": "First original target explanation"
+      },
+      {
+        "sequence": 2,
+        "price": "120.1234567890",
+        "rationale": "Second original target explanation"
+      },
+      {
+        "sequence": 3,
+        "price": "130.1234567890",
+        "rationale": "Third original target explanation"
+      }
+    ],
+    "risk_assumptions": {
+      "thesis_risk": "Synthetic failed-breakout risk",
+      "max_loss_assumption": "Explicit original loss assumption",
+      "notes": "All original risk notes, without position-sizing instructions"
+    },
+    "status": "APPROVED",
+    "created_at": "2026-10-25T16:46:06.915262Z",
+    "created_by": "00000000-0000-4000-8000-000000000002",
+    "previous_version_id": null,
+    "change_reason": null,
+    "candidate_evaluation": null,
+    "approval": {
+      "approval_id": "001b4d0f-96f4-48ad-886a-70c3333115ec",
+      "trade_plan_version_id": "0386e01f-f13b-45de-ba77-ead691434af1",
+      "version": 1,
+      "actor": "00000000-0000-4000-8000-000000000002",
+      "approved_at": "2026-10-25T16:46:06.994070Z",
+      "correlation_id": null
+    },
+    "events": [
+      {
+        "id": "a5f4195f-032b-418e-9165-c91947a72ddc",
+        "event_type": "TRADE_PLAN_CREATED",
+        "from_status": null,
+        "to_status": "DRAFT",
+        "reason": null,
+        "actor": "00000000-0000-4000-8000-000000000002",
+        "correlation_id": null,
+        "occurred_at": "2026-10-25T16:46:06.924279Z"
+      },
+      {
+        "id": "ee81d93c-5861-4d53-a95a-0546998ff60b",
+        "event_type": "TRADE_PLAN_VERSION_CREATED",
+        "from_status": null,
+        "to_status": "DRAFT",
+        "reason": null,
+        "actor": "00000000-0000-4000-8000-000000000002",
+        "correlation_id": null,
+        "occurred_at": "2026-10-25T16:46:06.924618Z"
+      },
+      {
+        "id": "1aa32787-2613-45f2-a4d0-539d205b6063",
+        "event_type": "TRADE_PLAN_READY_FOR_REVIEW",
+        "from_status": "DRAFT",
+        "to_status": "READY_FOR_REVIEW",
+        "reason": null,
+        "actor": "00000000-0000-4000-8000-000000000002",
+        "correlation_id": null,
+        "occurred_at": "2026-10-25T16:46:06.965060Z"
+      },
+      {
+        "id": "680a374b-9740-4d89-9de6-cf25c15bf115",
+        "event_type": "TRADE_PLAN_APPROVED",
+        "from_status": "READY_FOR_REVIEW",
+        "to_status": "APPROVED",
+        "reason": null,
+        "actor": "00000000-0000-4000-8000-000000000002",
+        "correlation_id": null,
+        "occurred_at": "2026-10-25T16:46:06.994070Z"
+      }
+    ]
+  },
+  "amendmentRequest": {
+    "thesis": "Only the synthetic thesis is clarified",
+    "entry": {
+      "type": "TRIGGER",
+      "currency": "USD",
+      "price": null,
+      "price_from": null,
+      "price_to": null,
+      "trigger": "Confirmed close above the daily breakout level",
+      "reference_price": "100.1234567890",
+      "valid_until": "2027-12-31T15:45:00Z",
+      "rationale": "Original complete entry explanation"
+    },
+    "invalidation": {
+      "stop_price": "95.1234567890",
+      "invalidation_rule": "Confirmed close below support",
+      "rationale": "Original complete invalidation explanation"
+    },
+    "targets": [
+      {
+        "sequence": 1,
+        "price": "110.1234567890",
+        "rationale": "First original target explanation"
+      },
+      {
+        "sequence": 2,
+        "price": "120.1234567890",
+        "rationale": "Second original target explanation"
+      },
+      {
+        "sequence": 3,
+        "price": "130.1234567890",
+        "rationale": "Third original target explanation"
+      }
+    ],
+    "risk_assumptions": {
+      "thesis_risk": "Synthetic failed-breakout risk",
+      "max_loss_assumption": "Explicit original loss assumption",
+      "notes": "All original risk notes, without position-sizing instructions"
+    },
+    "change_reason": "Explicit thesis-only amendment"
+  },
+  "draft": {
+    "id": "8a5d6d9a-990a-4e6a-9d22-488f9e6a0450",
+    "trade_plan_id": "ebcc5c66-2f0e-46d6-ab3b-06f963f16e5d",
+    "version": 2,
+    "direction": "LONG",
+    "thesis": "Only the synthetic thesis is clarified",
+    "entry": {
+      "type": "TRIGGER",
+      "currency": "USD",
+      "price": null,
+      "price_from": null,
+      "price_to": null,
+      "trigger": "Confirmed close above the daily breakout level",
+      "reference_price": "100.1234567890",
+      "valid_until": "2027-12-31T15:45:00Z",
+      "rationale": "Original complete entry explanation"
+    },
+    "invalidation": {
+      "stop_price": "95.1234567890",
+      "invalidation_rule": "Confirmed close below support",
+      "rationale": "Original complete invalidation explanation"
+    },
+    "targets": [
+      {
+        "sequence": 1,
+        "price": "110.1234567890",
+        "rationale": "First original target explanation"
+      },
+      {
+        "sequence": 2,
+        "price": "120.1234567890",
+        "rationale": "Second original target explanation"
+      },
+      {
+        "sequence": 3,
+        "price": "130.1234567890",
+        "rationale": "Third original target explanation"
+      }
+    ],
+    "risk_assumptions": {
+      "thesis_risk": "Synthetic failed-breakout risk",
+      "max_loss_assumption": "Explicit original loss assumption",
+      "notes": "All original risk notes, without position-sizing instructions"
+    },
+    "status": "DRAFT",
+    "created_at": "2026-10-25T16:46:08.948398Z",
+    "created_by": "00000000-0000-4000-8000-000000000002",
+    "previous_version_id": "0386e01f-f13b-45de-ba77-ead691434af1",
+    "change_reason": "Explicit thesis-only amendment",
+    "candidate_evaluation": null,
+    "approval": null,
+    "events": [
+      {
+        "id": "5a13d387-9b33-4b30-b1b6-ba6f93290380",
+        "event_type": "TRADE_PLAN_AMENDED",
+        "from_status": null,
+        "to_status": "DRAFT",
+        "reason": "Explicit thesis-only amendment",
+        "actor": "00000000-0000-4000-8000-000000000002",
+        "correlation_id": null,
+        "occurred_at": "2026-10-25T16:46:08.955945Z"
+      }
+    ]
+  },
+  "oldVersion": {
+    "id": "0386e01f-f13b-45de-ba77-ead691434af1",
+    "trade_plan_id": "ebcc5c66-2f0e-46d6-ab3b-06f963f16e5d",
+    "version": 1,
+    "direction": "LONG",
+    "thesis": "Synthetic original trigger thesis; no investment recommendation",
+    "entry": {
+      "type": "TRIGGER",
+      "currency": "USD",
+      "price": null,
+      "price_from": null,
+      "price_to": null,
+      "trigger": "Confirmed close above the daily breakout level",
+      "reference_price": "100.1234567890",
+      "valid_until": "2027-12-31T15:45:00Z",
+      "rationale": "Original complete entry explanation"
+    },
+    "invalidation": {
+      "stop_price": "95.1234567890",
+      "invalidation_rule": "Confirmed close below support",
+      "rationale": "Original complete invalidation explanation"
+    },
+    "targets": [
+      {
+        "sequence": 1,
+        "price": "110.1234567890",
+        "rationale": "First original target explanation"
+      },
+      {
+        "sequence": 2,
+        "price": "120.1234567890",
+        "rationale": "Second original target explanation"
+      },
+      {
+        "sequence": 3,
+        "price": "130.1234567890",
+        "rationale": "Third original target explanation"
+      }
+    ],
+    "risk_assumptions": {
+      "thesis_risk": "Synthetic failed-breakout risk",
+      "max_loss_assumption": "Explicit original loss assumption",
+      "notes": "All original risk notes, without position-sizing instructions"
+    },
+    "status": "SUPERSEDED",
+    "created_at": "2026-10-25T16:46:06.915262Z",
+    "created_by": "00000000-0000-4000-8000-000000000002",
+    "previous_version_id": null,
+    "change_reason": null,
+    "candidate_evaluation": null,
+    "approval": {
+      "approval_id": "001b4d0f-96f4-48ad-886a-70c3333115ec",
+      "trade_plan_version_id": "0386e01f-f13b-45de-ba77-ead691434af1",
+      "version": 1,
+      "actor": "00000000-0000-4000-8000-000000000002",
+      "approved_at": "2026-10-25T16:46:06.994070Z",
+      "correlation_id": null
+    },
+    "events": [
+      {
+        "id": "a5f4195f-032b-418e-9165-c91947a72ddc",
+        "event_type": "TRADE_PLAN_CREATED",
+        "from_status": null,
+        "to_status": "DRAFT",
+        "reason": null,
+        "actor": "00000000-0000-4000-8000-000000000002",
+        "correlation_id": null,
+        "occurred_at": "2026-10-25T16:46:06.924279Z"
+      },
+      {
+        "id": "ee81d93c-5861-4d53-a95a-0546998ff60b",
+        "event_type": "TRADE_PLAN_VERSION_CREATED",
+        "from_status": null,
+        "to_status": "DRAFT",
+        "reason": null,
+        "actor": "00000000-0000-4000-8000-000000000002",
+        "correlation_id": null,
+        "occurred_at": "2026-10-25T16:46:06.924618Z"
+      },
+      {
+        "id": "1aa32787-2613-45f2-a4d0-539d205b6063",
+        "event_type": "TRADE_PLAN_READY_FOR_REVIEW",
+        "from_status": "DRAFT",
+        "to_status": "READY_FOR_REVIEW",
+        "reason": null,
+        "actor": "00000000-0000-4000-8000-000000000002",
+        "correlation_id": null,
+        "occurred_at": "2026-10-25T16:46:06.965060Z"
+      },
+      {
+        "id": "680a374b-9740-4d89-9de6-cf25c15bf115",
+        "event_type": "TRADE_PLAN_APPROVED",
+        "from_status": "READY_FOR_REVIEW",
+        "to_status": "APPROVED",
+        "reason": null,
+        "actor": "00000000-0000-4000-8000-000000000002",
+        "correlation_id": null,
+        "occurred_at": "2026-10-25T16:46:06.994070Z"
+      },
+      {
+        "id": "0efa9f9c-9b04-4331-8844-5ae2a1f9a61a",
+        "event_type": "TRADE_PLAN_SUPERSEDED",
+        "from_status": "APPROVED",
+        "to_status": "SUPERSEDED",
+        "reason": null,
+        "actor": "00000000-0000-4000-8000-000000000002",
+        "correlation_id": null,
+        "occurred_at": "2026-10-25T16:46:10.162339Z"
+      }
+    ]
+  },
+  "runBefore": {
+    "run": {
+      "id": "c44bf741-9061-45ac-a661-ed3f85dbb0f2",
+      "trade_plan_id": "ebcc5c66-2f0e-46d6-ab3b-06f963f16e5d",
+      "trade_plan_version_id": "0386e01f-f13b-45de-ba77-ead691434af1",
+      "trade_plan_version_status": "APPROVED",
+      "underlying_id": "60b8ba2f-8eb1-479f-a217-21f739058ea4",
+      "evaluated_at": "2026-10-25T16:46:07.036171Z",
+      "universe_model": {
+        "model_id": "ft008-product-universe",
+        "model_version": "1.0.0"
+      },
+      "eligibility_model": {
+        "model_id": "ft008-reference-eligibility",
+        "model_version": "1.0.0"
+      },
+      "evaluation_model": {
+        "model_id": "ft008-product-evaluation",
+        "model_version": "1.0.0"
+      },
+      "created_at": "2026-10-25T16:46:07.036171Z",
+      "created_by": "00000000-0000-4000-8000-000000000002"
+    },
+    "evaluations": [
+      {
+        "id": "43d5580a-d8b7-4c6d-95ae-59444bd98e5d",
+        "run_id": "c44bf741-9061-45ac-a661-ed3f85dbb0f2",
+        "warrant_id": "1e94cf0f-56c2-468e-9336-74800579dff2",
+        "warrant_terms_version_id": "d25910ff-1f86-45f7-a4d9-5c81090de252",
+        "warrant_listing_id": "ee84ca36-5259-49a1-8c1c-99721e6fa92b",
+        "evaluated_at": "2026-10-25T16:46:07.036171Z",
+        "eligibility_model": {
+          "model_id": "ft008-reference-eligibility",
+          "model_version": "1.0.0"
+        },
+        "evaluation_model": {
+          "model_id": "ft008-product-evaluation",
+          "model_version": "1.0.0"
+        },
+        "inputs": [
+          {
+            "name": "warrant_terms_version_id",
+            "value": "d25910ff-1f86-45f7-a4d9-5c81090de252",
+            "availability": "AVAILABLE",
+            "source": "FT-004 WarrantTermsVersion",
+            "observed_at": "2026-10-25T16:46:07.036171Z",
+            "quality": "historically resolved effective version"
+          },
+          {
+            "name": "warrant_listing_id",
+            "value": "ee84ca36-5259-49a1-8c1c-99721e6fa92b",
+            "availability": "AVAILABLE",
+            "source": "FT-004 WarrantListing",
+            "observed_at": "2026-10-25T16:46:07.036171Z",
+            "quality": "concrete listing context"
+          },
+          {
+            "name": "market_data_snapshot",
+            "value": null,
+            "availability": "MISSING",
+            "source": "TC-001 WarrantListing quote boundary",
+            "observed_at": null,
+            "quality": "provider not configured"
+          }
+        ],
+        "criteria": [
+          {
+            "criterion_id": "warrant-lifecycle-usable",
+            "outcome": "FULFILLED",
+            "explanation": "Reference is active",
+            "actual_value": "ACTIVE",
+            "expected_value": "ACTIVE",
+            "data_availability": "AVAILABLE"
+          },
+          {
+            "criterion_id": "terms-effective",
+            "outcome": "FULFILLED",
+            "explanation": "Terms version is effective at evaluation time",
+            "actual_value": "1",
+            "expected_value": "effective at evaluated_at",
+            "data_availability": "AVAILABLE"
+          },
+          {
+            "criterion_id": "maturity-valid",
+            "outcome": "FULFILLED",
+            "explanation": "Product has not matured",
+            "actual_value": "2099-12-31",
+            "expected_value": ">= 2026-10-25",
+            "data_availability": "AVAILABLE"
+          },
+          {
+            "criterion_id": "listing-lifecycle-usable",
+            "outcome": "FULFILLED",
+            "explanation": "Reference is active",
+            "actual_value": "ACTIVE",
+            "expected_value": "ACTIVE",
+            "data_availability": "AVAILABLE"
+          },
+          {
+            "criterion_id": "direction-compatible",
+            "outcome": "NOT_EVALUABLE",
+            "explanation": "Direction compatibility model rule is not approved/configured",
+            "actual_value": "CALL",
+            "expected_value": null,
+            "data_availability": "INSUFFICIENT"
+          },
+          {
+            "criterion_id": "warrant-market-data-contract-available",
+            "outcome": "NOT_EVALUABLE",
+            "explanation": "Provider-neutral WarrantListing market-data provider is not configured; quote-dependent V1 evaluation cannot be completed",
+            "actual_value": null,
+            "expected_value": null,
+            "data_availability": "MISSING"
+          }
+        ],
+        "metrics": [],
+        "eligibility_status": "NOT_EVALUABLE",
+        "reasons": [
+          "Direction compatibility model rule is not approved/configured",
+          "Provider-neutral WarrantListing market-data provider is not configured; quote-dependent V1 evaluation cannot be completed"
+        ]
+      }
+    ],
+    "universe_omissions": [],
+    "selection": {
+      "id": "24aa8625-b5c3-4366-a9c3-92f786918627",
+      "run_id": "c44bf741-9061-45ac-a661-ed3f85dbb0f2",
+      "product_evaluation_id": "43d5580a-d8b7-4c6d-95ae-59444bd98e5d",
+      "selected_at": "2026-10-25T16:46:07.128090Z",
+      "selected_by": "00000000-0000-4000-8000-000000000002",
+      "rationale": "Synthetic explicit selection with incomplete quote evidence"
+    }
+  },
+  "runAfter": {
+    "run": {
+      "id": "c44bf741-9061-45ac-a661-ed3f85dbb0f2",
+      "trade_plan_id": "ebcc5c66-2f0e-46d6-ab3b-06f963f16e5d",
+      "trade_plan_version_id": "0386e01f-f13b-45de-ba77-ead691434af1",
+      "trade_plan_version_status": "APPROVED",
+      "underlying_id": "60b8ba2f-8eb1-479f-a217-21f739058ea4",
+      "evaluated_at": "2026-10-25T16:46:07.036171Z",
+      "universe_model": {
+        "model_id": "ft008-product-universe",
+        "model_version": "1.0.0"
+      },
+      "eligibility_model": {
+        "model_id": "ft008-reference-eligibility",
+        "model_version": "1.0.0"
+      },
+      "evaluation_model": {
+        "model_id": "ft008-product-evaluation",
+        "model_version": "1.0.0"
+      },
+      "created_at": "2026-10-25T16:46:07.036171Z",
+      "created_by": "00000000-0000-4000-8000-000000000002"
+    },
+    "evaluations": [
+      {
+        "id": "43d5580a-d8b7-4c6d-95ae-59444bd98e5d",
+        "run_id": "c44bf741-9061-45ac-a661-ed3f85dbb0f2",
+        "warrant_id": "1e94cf0f-56c2-468e-9336-74800579dff2",
+        "warrant_terms_version_id": "d25910ff-1f86-45f7-a4d9-5c81090de252",
+        "warrant_listing_id": "ee84ca36-5259-49a1-8c1c-99721e6fa92b",
+        "evaluated_at": "2026-10-25T16:46:07.036171Z",
+        "eligibility_model": {
+          "model_id": "ft008-reference-eligibility",
+          "model_version": "1.0.0"
+        },
+        "evaluation_model": {
+          "model_id": "ft008-product-evaluation",
+          "model_version": "1.0.0"
+        },
+        "inputs": [
+          {
+            "name": "warrant_terms_version_id",
+            "value": "d25910ff-1f86-45f7-a4d9-5c81090de252",
+            "availability": "AVAILABLE",
+            "source": "FT-004 WarrantTermsVersion",
+            "observed_at": "2026-10-25T16:46:07.036171Z",
+            "quality": "historically resolved effective version"
+          },
+          {
+            "name": "warrant_listing_id",
+            "value": "ee84ca36-5259-49a1-8c1c-99721e6fa92b",
+            "availability": "AVAILABLE",
+            "source": "FT-004 WarrantListing",
+            "observed_at": "2026-10-25T16:46:07.036171Z",
+            "quality": "concrete listing context"
+          },
+          {
+            "name": "market_data_snapshot",
+            "value": null,
+            "availability": "MISSING",
+            "source": "TC-001 WarrantListing quote boundary",
+            "observed_at": null,
+            "quality": "provider not configured"
+          }
+        ],
+        "criteria": [
+          {
+            "criterion_id": "warrant-lifecycle-usable",
+            "outcome": "FULFILLED",
+            "explanation": "Reference is active",
+            "actual_value": "ACTIVE",
+            "expected_value": "ACTIVE",
+            "data_availability": "AVAILABLE"
+          },
+          {
+            "criterion_id": "terms-effective",
+            "outcome": "FULFILLED",
+            "explanation": "Terms version is effective at evaluation time",
+            "actual_value": "1",
+            "expected_value": "effective at evaluated_at",
+            "data_availability": "AVAILABLE"
+          },
+          {
+            "criterion_id": "maturity-valid",
+            "outcome": "FULFILLED",
+            "explanation": "Product has not matured",
+            "actual_value": "2099-12-31",
+            "expected_value": ">= 2026-10-25",
+            "data_availability": "AVAILABLE"
+          },
+          {
+            "criterion_id": "listing-lifecycle-usable",
+            "outcome": "FULFILLED",
+            "explanation": "Reference is active",
+            "actual_value": "ACTIVE",
+            "expected_value": "ACTIVE",
+            "data_availability": "AVAILABLE"
+          },
+          {
+            "criterion_id": "direction-compatible",
+            "outcome": "NOT_EVALUABLE",
+            "explanation": "Direction compatibility model rule is not approved/configured",
+            "actual_value": "CALL",
+            "expected_value": null,
+            "data_availability": "INSUFFICIENT"
+          },
+          {
+            "criterion_id": "warrant-market-data-contract-available",
+            "outcome": "NOT_EVALUABLE",
+            "explanation": "Provider-neutral WarrantListing market-data provider is not configured; quote-dependent V1 evaluation cannot be completed",
+            "actual_value": null,
+            "expected_value": null,
+            "data_availability": "MISSING"
+          }
+        ],
+        "metrics": [],
+        "eligibility_status": "NOT_EVALUABLE",
+        "reasons": [
+          "Direction compatibility model rule is not approved/configured",
+          "Provider-neutral WarrantListing market-data provider is not configured; quote-dependent V1 evaluation cannot be completed"
+        ]
+      }
+    ],
+    "universe_omissions": [],
+    "selection": {
+      "id": "24aa8625-b5c3-4366-a9c3-92f786918627",
+      "run_id": "c44bf741-9061-45ac-a661-ed3f85dbb0f2",
+      "product_evaluation_id": "43d5580a-d8b7-4c6d-95ae-59444bd98e5d",
+      "selected_at": "2026-10-25T16:46:07.128090Z",
+      "selected_by": "00000000-0000-4000-8000-000000000002",
+      "rationale": "Synthetic explicit selection with incomplete quote evidence"
+    }
+  },
+  "tradeBefore": {
+    "id": "5ff34824-3565-457d-99a3-c6e44b8d6ccf",
+    "product_id": "1e94cf0f-56c2-468e-9336-74800579dff2",
+    "origin": "WORKSPACE_SELECTION",
+    "trade_plan_id": "ebcc5c66-2f0e-46d6-ab3b-06f963f16e5d",
+    "trade_plan_version_id": "0386e01f-f13b-45de-ba77-ead691434af1",
+    "product_selection_id": "24aa8625-b5c3-4366-a9c3-92f786918627",
+    "product_evaluation_id": "43d5580a-d8b7-4c6d-95ae-59444bd98e5d",
+    "created_at": "2026-10-25T16:46:07.172116Z",
+    "cancelled_at": null,
+    "cancelled_by": null,
+    "cancellation_reason": null,
+    "duplicate_of_trade_id": null
+  },
+  "tradeAfter": {
+    "id": "5ff34824-3565-457d-99a3-c6e44b8d6ccf",
+    "product_id": "1e94cf0f-56c2-468e-9336-74800579dff2",
+    "origin": "WORKSPACE_SELECTION",
+    "trade_plan_id": "ebcc5c66-2f0e-46d6-ab3b-06f963f16e5d",
+    "trade_plan_version_id": "0386e01f-f13b-45de-ba77-ead691434af1",
+    "product_selection_id": "24aa8625-b5c3-4366-a9c3-92f786918627",
+    "product_evaluation_id": "43d5580a-d8b7-4c6d-95ae-59444bd98e5d",
+    "created_at": "2026-10-25T16:46:07.172116Z",
+    "cancelled_at": null,
+    "cancelled_by": null,
+    "cancellation_reason": null,
+    "duplicate_of_trade_id": null
+  },
+  "timelineBefore": [
+    {
+      "currency_confirmation": {
+        "id": "ad967578-83bf-4296-893d-8361fc47999a",
+        "execution_id": "ae890c34-be24-40a8-85bb-6de38b4cbb10",
+        "currency_code": "EUR",
+        "source": "USER_CONFIRMED",
+        "note": "Explicit synthetic execution currency, separate from USD plan",
+        "confirmed_at": "2026-10-25T16:46:07.191850Z",
+        "confirmed_by": "00000000-0000-4000-8000-000000000002",
+        "supersedes_confirmation_id": null
+      },
+      "currency_resolution": {
+        "currency_code": "EUR",
+        "source": "USER_CONFIRMED",
+        "source_execution_ids": [
+          "ae890c34-be24-40a8-85bb-6de38b4cbb10"
+        ],
+        "confirmation_ids": [
+          "ad967578-83bf-4296-893d-8361fc47999a"
+        ]
+      },
+      "price_binding": null,
+      "id": "ae890c34-be24-40a8-85bb-6de38b4cbb10",
+      "trade_id": "5ff34824-3565-457d-99a3-c6e44b8d6ccf",
+      "occurred_at": "2026-10-23T22:00:00Z",
+      "recorded_at": "2026-10-25T16:46:07.172116Z",
+      "kind": "EXECUTION",
+      "execution_side": "BUY",
+      "management_event_type": null,
+      "quantity": 10,
+      "price_per_unit": "2.3500000000",
+      "numeric_value": null,
+      "text_value": null,
+      "supersedes_id": null,
+      "executed_on": "2026-10-24",
+      "execution_timezone": "Europe/Berlin"
+    }
+  ],
+  "timelineAfter": [
+    {
+      "currency_confirmation": {
+        "id": "ad967578-83bf-4296-893d-8361fc47999a",
+        "execution_id": "ae890c34-be24-40a8-85bb-6de38b4cbb10",
+        "currency_code": "EUR",
+        "source": "USER_CONFIRMED",
+        "note": "Explicit synthetic execution currency, separate from USD plan",
+        "confirmed_at": "2026-10-25T16:46:07.191850Z",
+        "confirmed_by": "00000000-0000-4000-8000-000000000002",
+        "supersedes_confirmation_id": null
+      },
+      "currency_resolution": {
+        "currency_code": "EUR",
+        "source": "USER_CONFIRMED",
+        "source_execution_ids": [
+          "ae890c34-be24-40a8-85bb-6de38b4cbb10"
+        ],
+        "confirmation_ids": [
+          "ad967578-83bf-4296-893d-8361fc47999a"
+        ]
+      },
+      "price_binding": null,
+      "id": "ae890c34-be24-40a8-85bb-6de38b4cbb10",
+      "trade_id": "5ff34824-3565-457d-99a3-c6e44b8d6ccf",
+      "occurred_at": "2026-10-23T22:00:00Z",
+      "recorded_at": "2026-10-25T16:46:07.172116Z",
+      "kind": "EXECUTION",
+      "execution_side": "BUY",
+      "management_event_type": null,
+      "quantity": 10,
+      "price_per_unit": "2.3500000000",
+      "numeric_value": null,
+      "text_value": null,
+      "supersedes_id": null,
+      "executed_on": "2026-10-24",
+      "execution_timezone": "Europe/Berlin"
+    }
+  ]
+}

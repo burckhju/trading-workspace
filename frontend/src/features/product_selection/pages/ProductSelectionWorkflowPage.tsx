@@ -3,11 +3,18 @@ import { Link, useSearchParams } from 'react-router-dom';
 
 import { marketApiClient } from '../../market/services/client';
 import type { UnderlyingDetailResponse } from '../../market/types/api';
+import { tradePlanApiClient } from '../../trade_plan/services/client';
+import type { TradePlanVersionResponse } from '../../trade_plan/types/api';
 import {
   tradePlanOverviewApiClient,
   type TradePlanOverviewItem,
 } from '../../trade_plan/services/overviewClient';
 import { ProductSelectionPage } from './ProductSelectionPage';
+
+interface ApprovedPlanOption {
+  plan: TradePlanOverviewItem;
+  version: Pick<TradePlanVersionResponse, 'id' | 'version' | 'status'>;
+}
 
 function tradePlanReference(id: string): string {
   return `TP-${id.slice(0, 8).toUpperCase()}`;
@@ -15,11 +22,10 @@ function tradePlanReference(id: string): string {
 
 export function ProductSelectionWorkflowPage() {
   const [searchParams] = useSearchParams();
-  const hasContext =
-    Boolean(searchParams.get('run_id')?.trim()) ||
-    (Boolean(searchParams.get('trade_plan_id')?.trim()) &&
-      Boolean(searchParams.get('trade_plan_version_id')?.trim()));
-  const [plans, setPlans] = useState<TradePlanOverviewItem[]>([]);
+  const hasContext = ['run_id', 'trade_plan_id', 'trade_plan_version_id'].some((key) =>
+    searchParams.has(key),
+  );
+  const [plans, setPlans] = useState<ApprovedPlanOption[]>([]);
   const [underlyings, setUnderlyings] = useState<Record<string, UnderlyingDetailResponse>>({});
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(!hasContext);
@@ -35,7 +41,20 @@ export function ProductSelectionWorkflowPage() {
     async function load() {
       try {
         const items = await tradePlanOverviewApiClient.list(controller.signal);
-        const approved = items.filter((item) => item.status === 'APPROVED');
+        // The overview describes only the latest version. An earlier APPROVED
+        // version remains eligible while an amendment is still DRAFT.
+        const options = await Promise.all(
+          items.map(async (item) => {
+            const versions = await tradePlanApiClient.versions(item.id, controller.signal);
+            if (versions.some((version) => version.trade_plan_id !== item.id)) {
+              throw new Error('Die Versionshistorie gehört nicht zum angeforderten TradePlan.');
+            }
+            return versions
+              .filter((version) => version.status === 'APPROVED')
+              .map((version) => ({ plan: item, version }));
+          }),
+        );
+        const approved = options.flat();
         if (controller.signal.aborted) return;
         setPlans(approved);
 
@@ -44,8 +63,8 @@ export function ProductSelectionWorkflowPage() {
         const uniqueUnderlyingIds = [
           ...new Set(
             approved
-              .filter((item) => item.underlying_name === undefined)
-              .map((item) => item.underlying_id),
+              .filter((item) => item.plan.underlying_name === undefined)
+              .map((item) => item.plan.underlying_id),
           ),
         ];
         const resolved = await Promise.all(
@@ -83,11 +102,11 @@ export function ProductSelectionWorkflowPage() {
   }, [hasContext]);
 
   const sortedPlans = useMemo(
-    () => [...plans].sort((a, b) => b.created_at.localeCompare(a.created_at)),
+    () => [...plans].sort((a, b) => b.plan.created_at.localeCompare(a.plan.created_at)),
     [plans],
   );
 
-  if (hasContext) return <ProductSelectionPage key={searchParams.toString()} />;
+  if (hasContext) return <ProductSelectionPage />;
 
   return (
     <main className="w-full space-y-6">
@@ -95,8 +114,8 @@ export function ProductSelectionWorkflowPage() {
         <p className="text-xs uppercase tracking-wide text-slate-500">FT-008 · Einstieg</p>
         <h1 className="mt-1 text-2xl font-semibold">Produktauswahl starten</h1>
         <p className="mt-2 max-w-3xl text-sm text-slate-400">
-          Wähle einen freigegebenen TradePlan. Technische IDs werden automatisch übernommen und
-          müssen nicht mehr manuell eingegeben werden.
+          Wähle eine konkrete freigegebene Planversion. Auch bei einem neueren Entwurf bleibt die
+          bisherige Freigabe gezielt auswählbar.
         </p>
       </header>
 
@@ -125,21 +144,23 @@ export function ProductSelectionWorkflowPage() {
       )}
 
       <div className="grid gap-4 lg:grid-cols-2">
-        {sortedPlans.map((plan) => {
+        {sortedPlans.map(({ plan, version }) => {
           const underlying = underlyings[plan.underlying_id];
           const identifiers = [
             underlying?.primary_listing?.ticker,
             plan.underlying_isin ?? underlying?.isin,
             plan.underlying_wkn ?? underlying?.wkn,
           ].filter(Boolean);
-          const selectedProduct = plan.selected_product;
+          // Overview product labels belong to latest, never implicitly to this version.
+          const selectedProduct =
+            version.id === plan.latest_version_id ? plan.selected_product : undefined;
           const underlyingName = plan.underlying_name ?? underlying?.name;
           const target = new URLSearchParams({
             trade_plan_id: plan.id,
-            trade_plan_version_id: plan.latest_version_id,
+            trade_plan_version_id: version.id,
           });
           return (
-            <article key={plan.id} className="rounded-xl border border-slate-800 p-5">
+            <article key={version.id} className="rounded-xl border border-slate-800 p-5">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <p className="text-xs uppercase tracking-wide text-slate-500">
@@ -177,7 +198,7 @@ export function ProductSelectionWorkflowPage() {
                   </>
                 ) : (
                   <p className="text-slate-400">
-                    {plan.selected_product === undefined
+                    {selectedProduct === undefined
                       ? 'Produktauswahl-Status nicht verfügbar – Bewertungslauf öffnen.'
                       : 'Für diese Version wurde noch kein Produkt ausgewählt.'}
                   </p>
@@ -187,11 +208,11 @@ export function ProductSelectionWorkflowPage() {
               <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
                 <div>
                   <dt className="text-slate-500">Version</dt>
-                  <dd className="mt-1">{plan.latest_version}</dd>
+                  <dd className="mt-1">{version.version}</dd>
                 </div>
                 <div>
                   <dt className="text-slate-500">Freigabe-Kontext</dt>
-                  <dd className="mt-1">Aktuell freigegebene Version</dd>
+                  <dd className="mt-1">Explizit diese freigegebene Version</dd>
                 </div>
               </dl>
 
@@ -211,10 +232,10 @@ export function ProductSelectionWorkflowPage() {
                   Produktauswahl für diesen TradePlan öffnen
                 </Link>
                 <Link
-                  to={`/trade-plans?trade_plan_id=${encodeURIComponent(plan.id)}`}
+                  to={`/trade-plans?${target.toString()}`}
                   className="rounded-lg border border-slate-700 px-4 py-2 text-sm"
                 >
-                  TradePlan ansehen
+                  Planversion ansehen
                 </Link>
               </div>
             </article>

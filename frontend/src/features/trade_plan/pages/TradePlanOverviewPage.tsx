@@ -165,13 +165,13 @@ export function TradePlanOverviewPage() {
                     </p>
                   </div>
                   <span className="rounded-full border border-slate-700 px-3 py-1 text-xs">
-                    <span className="text-slate-400">Planfreigabe: </span>
+                    <span className="text-slate-400">Neueste Version: </span>
                     {item.status}
                   </span>
                 </div>
                 <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-3">
                   <div>
-                    <dt className="text-slate-500">Version</dt>
+                    <dt className="text-slate-500">Neueste Version</dt>
                     <dd className="mt-1">{item.latest_version}</dd>
                   </div>
                   <div>
@@ -194,6 +194,14 @@ export function TradePlanOverviewPage() {
                   >
                     Öffnen
                   </Link>
+                  {item.status === 'DRAFT' && (
+                    <Link
+                      to="/product-selection"
+                      className="inline-flex rounded-lg border border-slate-600 px-4 py-2 text-sm"
+                    >
+                      Freigegebene Planversion auswählen
+                    </Link>
+                  )}
                   {item.status === 'APPROVED' && (
                     <Link
                       to={`/product-selection?${selectionSearch}`}

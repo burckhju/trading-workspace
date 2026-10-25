@@ -4,6 +4,8 @@ import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 
 import { warrantApiClient } from '../../product/services/client';
 import { tradePlanOverviewApiClient } from '../../trade_plan/services/overviewClient';
+import { tradePlanApiClient } from '../../trade_plan/services/client';
+import { selectionPlanFixture } from '../test/planContextFixtures';
 import { ProductSelectionPage } from './ProductSelectionPage';
 
 const runDetail = {
@@ -49,6 +51,8 @@ function requestUrl(value: RequestInfo | URL | undefined): string {
 
 describe('ProductSelectionPage run deep link', () => {
   beforeEach(() => {
+    vi.spyOn(tradePlanApiClient, 'get').mockResolvedValue(selectionPlanFixture);
+    vi.spyOn(tradePlanApiClient, 'version').mockResolvedValue(selectionPlanFixture.latest_version);
     vi.spyOn(warrantApiClient, 'list').mockResolvedValue([]);
     vi.spyOn(tradePlanOverviewApiClient, 'list').mockResolvedValue([]);
   });
@@ -80,9 +84,12 @@ describe('ProductSelectionPage run deep link', () => {
     );
 
     expect(await screen.findByText('Produktvergleich')).toBeInTheDocument();
-    expect(screen.getByLabelText('TradePlan-ID')).toHaveValue(runDetail.run.trade_plan_id);
-    expect(screen.getByLabelText('TradePlanVersion-ID')).toHaveValue(
-      runDetail.run.trade_plan_version_id,
+    expect(screen.queryByLabelText('TradePlan-ID')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('TradePlanVersion-ID')).not.toBeInTheDocument();
+    expect(await screen.findByText('Version 3 · APPROVED')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Ursprüngliche Planversion ansehen' })).toHaveAttribute(
+      'href',
+      `/trade-plans?trade_plan_id=${runDetail.run.trade_plan_id}&trade_plan_version_id=${runDetail.run.trade_plan_version_id}`,
     );
     expect(screen.getAllByText(runDetail.run.id).length).toBeGreaterThan(0);
 

@@ -1,7 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import { expect, test, type APIResponse } from '@playwright/test';
 
-test.use({ baseURL: 'http://localhost:8080', timezoneId: 'Europe/Berlin' });
+test.use({
+  baseURL: process.env.TRADE_E2E_UI_URL ?? 'http://localhost:8080',
+  timezoneId: 'Europe/Berlin',
+});
 test.skip(
   process.env.TRADE_E2E_WRITES_ALLOWED !== '1',
   'Requires an explicitly disposable test stack; never enable on a user depot',
@@ -13,7 +16,7 @@ async function body(response: APIResponse, status = 201) {
 }
 
 test('existing administration records a symbol-less listing and unblocks the existing confirmation and BUY', async ({ page, request }) => {
-  const root = 'http://127.0.0.1:8000/api/v1';
+  const root = process.env.TRADE_E2E_API_URL ?? 'http://127.0.0.1:8000/api/v1';
   const token = randomUUID().slice(0, 8);
   const issuer = await body(await request.post(`${root}/market-reference-data/issuers`, {
     data: { legal_name: `Synthetic symbol-less ${randomUUID()}`, display_name: 'Synthetic symbol-less' },
@@ -95,6 +98,7 @@ test('existing administration records a symbol-less listing and unblocks the exi
   );
   await page.getByRole('button', { name: 'Produkte neu bewerten', exact: true }).click();
   const after = await body(await reevaluated);
+  await expect(page).toHaveURL(`/product-selection?run_id=${after.run.id}`);
   expect(after.run).toMatchObject({ trade_plan_id: plan.plan.id, trade_plan_version_id: plan.latest_version.id });
   expect(after.universe_omissions).toEqual([]);
   expect(after.evaluations).toHaveLength(1);
@@ -130,7 +134,7 @@ for (const viewport of [
     request,
   }) => {
     await page.setViewportSize(viewport);
-    const root = "http://127.0.0.1:8000/api/v1";
+    const root = process.env.TRADE_E2E_API_URL ?? "http://127.0.0.1:8000/api/v1";
     const token = randomUUID().slice(0, 8);
     const issuer = await body(
       await request.post(`${root}/market-reference-data/issuers`, {
@@ -344,6 +348,7 @@ for (const viewport of [
       .getByRole("button", { name: "Produkte neu bewerten", exact: true })
       .click();
     const evaluated = await body(await evaluatedResponse);
+    await expect(page).toHaveURL(`/product-selection?run_id=${evaluated.run.id}`);
     expect(evaluated.universe_omissions).toEqual([]);
     expect(evaluated.evaluations).toHaveLength(1);
     expect(evaluated.evaluations[0]).toMatchObject({
