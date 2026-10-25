@@ -196,11 +196,21 @@ describe('existing warrant administration from a blocked selection', () => {
     vi.mocked(warrantApiClient.addListing).mockRejectedValue(new Error('Speichern fehlgeschlagen'));
     route();
     const currency = await screen.findByLabelText('Handelswährung');
-    fireEvent.change(screen.getByLabelText('Handelsplatz'), { target: { value: id(601) } });
+    // The form can render before the independently loaded venue options.
+    await screen.findByRole('option', { name: 'Synthetic venue (TEST)' });
+    const venue = screen.getByLabelText('Handelsplatz');
+    fireEvent.change(venue, { target: { value: id(601) } });
     fireEvent.change(currency, { target: { value: 'USD' } });
+    expect(venue).toHaveValue(id(601));
+    expect(currency).toHaveValue('USD');
     fireEvent.click(screen.getByRole('button', { name: 'Notierung hinzufügen' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Speichern fehlgeschlagen');
     expect(currency).toHaveValue('USD');
+    expect(warrantApiClient.addListing).toHaveBeenCalledWith(target.id, {
+      trading_venue_id: id(601),
+      symbol: '',
+      quotation_currency_code: 'USD',
+    });
     expect(warrantApiClient.addListing).toHaveBeenCalledTimes(1);
     expect(productSelectionApiClient.start).not.toHaveBeenCalled();
     expect(screen.getByRole('link', { name: 'Zurück zur Produktauswahl' })).toBeInTheDocument();
