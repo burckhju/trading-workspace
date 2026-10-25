@@ -1,12 +1,323 @@
 # B — Candidate-Governance: Benutzerweg und Qualifikationsgrenzen
 
-> **Datierter Nachtrag 25.10.2026, #278 (vor neuer nativer Ausführung):** Die
-> [FT-006-Fortsetzung](FT006_SOURCE_QUALITY_QUALIFICATION.md) bindet den
-> versionierten Quellenvertrag 1.0.1 an neue Listing- und echte Referenzruns.
-> Der vorhandene Browserfall wird mit drei GOOD-Quellen, gleichen A/A/B/A-Inputs,
-> separater Legacy-Reproduktion und LIMITED-/INSUFFICIENT-Negativen fortgeführt.
-> Neue native Artefakte stehen noch aus; **B07 ist in diesem Zwischenstand offen**.
-> Sämtliche unten datierten LIMITED-Läufe bleiben ihre ursprünglichen Nachweise.
+> **Datierter Nachtrag 25.10.2026, #278: GOOD-B07 nativ belegt.** Der unten exakt
+> gebundene Lauf auf Entwicklungskopf `18e3e1411b98d54812850ce006ce24c5ceab874d`
+> erfüllt die bisher offene GOOD-Referenz: echte MARKET-/SECTOR-Referenzowner und
+> ein Listingowner erzeugen FT-006-1.0.1-Quellen für denselben A/A/B/A-Benutzerweg.
+> Die Legacy-1.0.0-Reproduktion und getrennte LIMITED-/INSUFFICIENT-Gegenproben
+> bestehen ebenfalls. **Die Gesamt-CI dieses Kopfes ist nicht vollständig grün:
+> Ein Frontendtest ist fehlgeschlagen, der Backendlauf mit bereits sichtbarem
+> FT-006-Fehler wurde abgebrochen. Die vollständige CI-Bindung des Folgekopfes
+> steht aus.** Die historischen LIMITED-Läufe unterhalb
+> dieses Nachtrags bleiben unverändert und werden nicht zu GOOD umetikettiert.
+
+## 25.10.2026 — erster nativer GOOD-B07-Nachweis in #278
+
+Die [FT-006-Fortsetzung](FT006_SOURCE_QUALITY_QUALIFICATION.md) qualifiziert den
+versionierten Quellenvertrag. Dieser Nachtrag bindet dessen tatsächlich
+ausgeführte Candidate-Governance-Reise an konkrete persistierte Fakten und das
+heruntergeladene CI-Artefakt. Die Ergebnisse beziehen sich ausschließlich auf
+den folgenden getesteten Tree. Der endgültige Gesamtstand wird im
+[Entwicklungs-PR #278](https://github.com/burckhju/trading-workspace/pull/278)
+an dessen letzten tatsächlichen Head und CI-Checkout gebunden; ein späterer
+Dokumentationscommit übernimmt keinen älteren grünen Lauf als eigenen Nachweis.
+
+### Getesteter Kopf, Lauf und unverwechselbares Artefakt
+
+| Gegenstand | Primärbeleg / exakter Wert |
+|---|---|
+| Entwicklungskopf | [18e3e1411b98d54812850ce006ce24c5ceab874d](https://github.com/burckhju/trading-workspace/commit/18e3e1411b98d54812850ce006ce24c5ceab874d) |
+| Getesteter Tree | [4c0abfea18cc6fbe48dd647f25ceeb3f37d4a2f6](https://api.github.com/repos/burckhju/trading-workspace/git/trees/4c0abfea18cc6fbe48dd647f25ceeb3f37d4a2f6) |
+| Tatsächlicher CI-Checkout | PR-Testmerge [71f167371e35e6ba5c5dc6432270c1fa3d259245](https://github.com/burckhju/trading-workspace/commit/71f167371e35e6ba5c5dc6432270c1fa3d259245), derselbe Tree; Eltern [7b70f0dfd5cbb81518c73d68d09bbad0c6a9ac2b](https://github.com/burckhju/trading-workspace/commit/7b70f0dfd5cbb81518c73d68d09bbad0c6a9ac2b) und der obige Entwicklungskopf |
+| E2E-Run / Governance-Job | [40182968277](https://github.com/burckhju/trading-workspace/actions/runs/40182968277) / [121137734172](https://github.com/burckhju/trading-workspace/actions/runs/40182968277/job/121137734172), Workflowversuch **1** |
+| Artefakt | [12594962453](https://github.com/burckhju/trading-workspace/actions/runs/40182968277/artifacts/12594962453); ZIP-SHA256 `de432118369859eaf47807e033811f56522ed7e702ae46ac5d6d34d025aaac02` |
+| Isolierter Laufmarker | `d07815cb-e423-404f-9387-43513a6e7979` |
+| Exakte Testidentität | `candidate-governance-journey-postgres.spec.ts` → `candidate governance: exact Lesson source, explicit A-B-A and immutable evaluations`; Projekt `chromium`; ID `e89dce19b56b71e4abc8-2c07670ff21949ff44a4` |
+| Tatsächliches Ergebnis | Start `2026-10-25T10:02:28.176Z`, Dauer `44808.863 ms`; **1 passed**, 0 skipped, 0 unexpected, 0 flaky, `retry=0`; strikter Discovery-/Reportcheck erfolgreich |
+| Toolchain / Datenbank | Python `3.12.15`, Node `v22.16.0`, npm `10.9.2`; PostgreSQL `170011` (17.11), unveränderter Schema-Head `20261017_0047` |
+| Frontendgrenze auf diesem Kopf | Frontend-[Run 40182968177](https://github.com/burckhju/trading-workspace/actions/runs/40182968177), [Job 121137733384](https://github.com/burckhju/trading-workspace/actions/runs/40182968177/job/121137733384), Versuch 1: 805 bestanden, 1 fehlgeschlagen in 124 Dateien. Betroffen ist `WarrantSelectionRepair.test.tsx`, Fall `retains the entered listing on a failed save, with no automatic evaluation`; die Gesamtqualifikation benötigt einen Folgekopf mit dem gesonderten Fix und dessen vollständiger CI. |
+| Backendgrenze auf diesem Kopf | Backend-[Run 40182968208](https://github.com/burckhju/trading-workspace/actions/runs/40182968208), [Job 121137733478](https://github.com/burckhju/trading-workspace/actions/runs/40182968208/job/121137733478), Versuch 1: `cancelled`, Abschluss `2026-10-25T10:10:07Z`. Das Teilprotokoll zeigt bereits einen fehlgeschlagenen Fall in `test_ft006_versioned_quality_postgres.py`; wegen des Abbruchs fehlt der abschließende pytest-Fehlerbericht. Weder Backendpass noch abgeschlossene Fehlerdiagnose werden aus diesem Lauf abgeleitet. |
+
+Die nachfolgende kontrollierte Reproduktion mit den tatsächlichen Mappern
+belegt eine nichtkanonische Symbolschreibweise in der neuen PostgreSQL-Fixture:
+Legacy normalisiert den Providerschlüssel groß, der neue Reader bewahrt den
+gespeicherten Text. Die Fixturekorrektur und der parallel eingegangene, als
+Vorgänger erhaltene Frontendcommit `3efe5a94…` sind im
+[FT-006-Nachweis](FT006_SOURCE_QUALITY_QUALIFICATION.md) getrennt dokumentiert.
+Diese lokale Reproduktion ersetzt keinen nativen Backendabschluss; dieser
+Nachtrag behauptet weiterhin ausschließlich den exakt bezeichneten B07-Pass.
+
+Alle folgenden Artefaktpfade sind relativ zum Archivverzeichnis
+`candidate-governance-d07815cbe423404f938743513a6e7979/` des oben verlinkten
+Artefakts. `code-and-stack.txt` bindet Checkout, Tree, Eltern, Run und Versuch.
+`results.json` enthält die benannten JSON-Attachments als Base64-`body` unter
+den Ergebnissen des exakten Tests (`suites` → `specs` → `tests` → `results` →
+`attachments`; verschachtelte `suites` berücksichtigen). Die unten genannten
+Attachmentnamen bezeichnen diese Originaleinträge, keine separat hochgeladenen
+Auswertungsdateien. Alle Zeitangaben dieses Nachtrags sind UTC.
+
+### Drei echte GOOD-Quellen mit unveränderten Parametern und Originalflags
+
+`S0-analysis-owner-source-chain`, `S0-synthetic-analyses-prices` und
+`B-CG-001-complete-source-version-chain` binden die folgenden Quellen. Alle drei
+GOOD-Runs tragen `model_id=EOD_TREND_MOMENTUM`, ausdrücklich angeforderte
+`model_version=1.0.1`, `status=COMPLETED`, `quality_status=GOOD` und je 200
+gespeicherte Beobachtungen. MARKET und SECTOR gehören echten
+`MARKET_REFERENCE`-Instrumenten; ihre Analyseowner haben `listing_id=null` und
+`underlying_id=null`. Der Referenzbefehl lautet jeweils
+`POST /top-down-reference-data/market-reference-analyses/{analysis_id}/runs`;
+der Listingbefehl `POST /market-analyses/{analysis_id}/runs`, relativ zu `/api/v1`.
+
+| Rolle | Tatsächlicher Owner / Instrument | Analyse-ID und festgehaltene Runversion |
+|---|---|---|
+| MARKET | DAX, `INDEX` / `BROAD_MARKET`; Referenz `ef80f899-d61c-4838-8218-390cdf9654c9`; Instrument `88f4d2fe-41b1-4af8-a653-6df0ef39a410` | `acd0570a-9038-4158-850c-307e8a729d20`, **v2**, `2026-10-25T10:02:33.200910Z` |
+| SECTOR | `SECTOR_INDEX` / `SECTOR_REFERENCE`; Referenz `9fa9dc4e-ab77-4847-86d3-c4f64e06445a`; Instrument `ab3de3f9-4071-43c7-96c4-afb34e0b798c` | `4eae4ad6-22fb-4d59-a895-4e9be0506f16`, **v2**, `2026-10-25T10:02:36.600037Z` |
+| UNDERLYING | Underlying `67f1215b-2a70-4ecc-a309-671de5660b1d`; Listing `ab329dcb-532f-45e1-9527-68808ed26e17`; Instrument `692b6e46-1259-44fc-9416-63c37f24805e` | `b5343556-7513-4c27-acad-dcd37e0f1bcb`, **v6**, `2026-10-25T10:02:44.767729Z` |
+
+Alle drei Quellen und ihre zuerst ausgeführten Legacy-v1-Runs verwenden genau
+diese expliziten Parameter:
+
+```json
+{
+  "price_field": "ADJUSTED_CLOSE",
+  "short_window": 20,
+  "medium_window": 50,
+  "long_window": 200,
+  "momentum_windows": [20, 60, 120],
+  "volatility_window": 20,
+  "range_window": 52,
+  "minimum_required_observations": 200,
+  "maximum_data_age_days": 7,
+  "annualization_factor": "252",
+  "rounding_scale": 6
+}
+```
+
+Die Fixture setzt ausschließlich synthetische vergangene Preise: 600 Zeilen für
+diese drei Quellen, `2026-01-19` bis `2026-10-23`,
+`retrieved_at=2026-10-25T10:02:31.878077+00:00`,
+`source_updated_at=null`. Alle gespeicherten Quellflags bleiben `VALID`, alle
+Warningsammlungen bleiben leer. Der jüngste Preistag liegt bei allen drei
+GOOD-Runs zwei Kalendertage zurück und erfüllt damit die unveränderte Grenze
+von sieben Tagen. Die Zeitreihe umfasst 200 abgeschlossene Wochentage; sie
+belegt keine zertifizierte Börsenkalenderabdeckung.
+
+Die synthetische Herkunft bleibt durch den Laufmarker, die Referenzbezeichnung,
+`created_by=candidate-governance:d07815cb-e423-404f-9387-43513a6e7979` der
+Analyseanlage und die Symbole `SYNTHETIC-CG-MARKET-acd0570a`,
+`SYNTHETIC-CG-SECTOR-4eae4ad6` und `SYNTHETIC-CG-UNDERLYING-237C7531`
+prüfbar. Die beiden Referenzquellen besitzen kein Listing-Mapping; für das
+Underlying ist Mapping `f62821f0-2a15-40f1-9c16-7291676d0a7d` administrativ
+`ACTIVE`. Die Fixture meldet für alle drei `provider_verification=false`.
+Ein solcher Herkunftsmarker wird nicht als fachliche Preiswarnung eingesetzt.
+Die eigenständige echte Warnungsgegenprobe folgt unten.
+
+Pro Owner wurde zunächst `1.0.0` ausdrücklich ausgeführt und als LIMITED-v1
+persistiert, danach `1.0.1`. Der Test vergleicht die vollständigen gespeicherten
+Snapshots, Parameter, Kennzahlen und Kriterien beider Versionen auf Gleichheit;
+auch der erneute Readback des alten Runs bleibt unverändert. Die Inputhashes
+unterscheiden sich mit der gebundenen Runtimeversion:
+
+| Rolle | Inputhash des erhaltenen Legacy-v1-Runs (`1.0.0`, LIMITED) | Inputhash des verwendeten GOOD-Runs (`1.0.1`) |
+|---|---|---|
+| MARKET | `992f13faf5f118b9571484ac2d604176f0a291296e2ac65d1007c2876418a610` | `e9ec803ae343e096e039d02df349e3e58a50d30747223958c7062548494220b7` |
+| SECTOR | `c6f32d11e1d5e41bd72fd97a1ce79e36129a39f5703ad2c310aae57ab24c2db5` | `7a78ce0eccb35e7c836d9b3d8643f73be2ca662ad3285afa856059fc94e6f365` |
+| UNDERLYING | `e520ace8e69304e2559ebc9598b3a712b117a28806066fde5be5ece8c77baa91` | `e095395579874fa9edaefeaf7a137e4b29d4dd8a0106a4ef06c98a8dd855d9fd` |
+
+Analysen, Runs, Governancefakten und Candidate-Evaluationen entstehen über die
+realen Ownerbefehle. Es gibt keinen Analyse-SQL-Seed und keinen Clientmock in
+diesem nativen Fall. Die Candidate-Auswertung liest die oben festgehaltenen
+Runs in allen vier Schritten; sie erzeugt keine Ersatzreferenz und verändert
+keine gespeicherten Quellflags.
+
+### Exakte Learning-, Governance- und A/A/B/A-Kette
+
+`S0-learning-owner-source-chain` und `B-CG-001-complete-source-version-chain`
+halten die vollständigen Antwortobjekte fest. Die historische Lessonversion L1
+bleibt die gewählte Hypothesenquelle, obwohl L2 bereits existiert.
+
+| Fakt | Persistierte Identität / Bindung |
+|---|---|
+| Ausgangstrade / Observation | `ec842ad3-23d2-43bb-882b-4084adc5b0b4` / `fe718c04-c455-4c2b-b597-b0f35552e394` |
+| ExitReview / exakte Reviewversion | `a153c671-9de9-4b62-8d9c-773a60f5af85` / `637a9f1d-6a65-47a5-bee5-d708169ad1de` |
+| E1 | `a625f168-858c-4841-9c47-23dc42b76ed6`, Quelle FT011, erstellt `2026-10-25T10:02:30.934099Z` |
+| Lesson / betrachtete L1 / spätere L2 | `f2daf2d6-4d05-44b7-83dc-726df4c28ab9` / `8b32d2cb-4150-40f9-92fb-1da8b3cc9165` / `a2445492-79c4-4eb5-ad80-286d528bd38e` |
+| Hypothese H | `ebe282d2-b8f1-434e-9db7-1b484910bd6f`, `source_lesson_version_id=L1` |
+| Governed Model | `e0be9c57-de7e-49e0-a634-09f1e4205857`, Schlüssel `TOP_DOWN_CANDIDATE` |
+| A | Modellversion 1, `9ba4b8de-5f59-418b-b6e7-f091b6b91deb`, APPROVED, `TOP_DOWN_CANDIDATE/2.0`, LONG, `market_context_allowed=[FAVORABLE, CAUTIOUS]` |
+| Proposal P | `764f87e7-2d04-4c13-8f3b-65cfab0cfa80`, exakt H und `base_model_version_id=A.id` |
+| Validation | `2c351a93-08b2-4a60-abdb-f584998275ca`, exakt E1, Cutoff `2026-10-25T10:02:58Z`, RETROSPECTIVE, INCONCLUSIVE, `metrics={}` |
+| Approval | `d9d38932-965f-4d51-81bd-444ff14084ed`, bindet P an B; `2026-10-25T10:03:00.368515Z` |
+| B | Modellversion 2, `20f96298-f907-4881-9f12-df5377f8ec5d`, APPROVED, `previous_version_id=A.id`, dieselbe Definition mit `market_context_allowed=[FAVORABLE]` |
+| Candidate | `b6c4467b-32d6-4f92-aa72-dfd93a1781fa`, oben identifiziertes Underlying |
+
+Die Notes der Validation erklären den Befund ausdrücklich als synthetisch und
+wirtschaftlich INCONCLUSIVE. Die zunächst versuchte Validation mit Cutoff
+`2026-10-25T10:02:29.000Z` liegt vor E1 und wird mit HTTP 422 /
+`MODEL_GOVERNANCE_VALIDATION_ERROR` abgewiesen. Attachment
+`S3-reject-Evidence-after-cutoff-without-partial-facts` hält genau einen
+Browsercommand und identische Vorher-/Nachher-Fingerprints
+`6c1c5e21b365ce99db1b0f8aa1f2a9a26271e84fee7f3c23ca203968eca91254`
+fest; der folgende bewusste Readback findet keine partielle Validation.
+
+| Aktivierung | Persistierte Aktivierungs-ID | Ziel / Zeitpunkt |
+|---|---|---|
+| S1: initial A | `743c5ac1-5a45-4e25-9d84-3d9ba95cc4af` | A, `2026-10-25T10:02:49.288723Z` |
+| S5: ausdrücklich B | `2d32bb3a-4353-41d1-bc21-abe20f8cf256` | B, `2026-10-25T10:03:04.649639Z` |
+| S6: ausdrücklich zurück zu A | `f975a740-3ea5-48fe-af56-c6d0dbc7311c` | A, `2026-10-25T10:03:07.386654Z` |
+
+| Schritt / persistierte Evaluation | Candidate-Modellversion | Ergebnis / Datenqualität | Zeitpunkt |
+|---|---|---|---|
+| S1, v1: `6c6d71e6-3c0f-4031-94e2-521ade89d26e` | `TOP_DOWN_CANDIDATE/1` (A) | QUALIFIED / GOOD | `2026-10-25T10:02:50.544601Z` |
+| S4, v2 nach Approval von B: `431933f9-5799-4750-a8bb-e121f8bec9d8` | `TOP_DOWN_CANDIDATE/1` (weiterhin A) | QUALIFIED / GOOD | `2026-10-25T10:03:03.278223Z` |
+| S5, v3 nach Aktivierung von B: `d853f8cb-8292-41a6-8d58-0765c376a6a8` | `TOP_DOWN_CANDIDATE/2` (B) | NOT_QUALIFIED / GOOD | `2026-10-25T10:03:05.880656Z` |
+| S6, v4 nach Rückkehr zu A: `d0026fd0-ab11-4f89-bd50-586aecc5ac18` | `TOP_DOWN_CANDIDATE/1` (A) | QUALIFIED / GOOD | `2026-10-25T10:03:08.593340Z` |
+
+Jede Evaluation speichert dieselben drei `sources[]`-Tupel aus Rolle,
+`source_type=ANALYSIS`, obiger Analyse-ID, Runversion **2/2/6** und
+`EOD_TREND_MOMENTUM/1.0.1`. Die vollständigen Quellen und Kriterien stehen in
+`S1-evaluation-A-persisted-sources-and-criteria`,
+`S4-approval-alone-still-evaluates-A-persisted-sources-and-criteria`,
+`S5-evaluation-B-after-A-readiness-persisted-sources-and-criteria` und
+`S6-evaluation-returned-A-persisted-sources-and-criteria`.
+
+`TD-MARKET-001` hat jedes Mal denselben Istwert `CAUTIOUS`. A erlaubt diesen
+Wert; B verlangt `FAVORABLE` und liefert ausschließlich für dieses Pflichtkriterium
+`NOT_FULFILLED`. Die übrigen fünf Pflichtkriterien `TD-SECTOR-001`,
+`TD-SECTOR-002`, `TD-UNDERLYING-001`, `TD-UNDERLYING-002` und
+`TD-UNDERLYING-003` bleiben erfüllt. Auch die übrigen Kriterien und Zahlen
+bleiben gleich, darunter Volatilität `0.001646000000` und Rangeposition
+`0.990385000000`. Die unmittelbar vor B gelesene Readiness verweist noch auf A;
+der spätere Evaluationscommand löst die dann aktivierte B-Version neu auf.
+Approval allein aktiviert B nicht. S7 lädt die gespeicherten Evaluationen und
+genauen historischen Links erneut, einschließlich B/v3 bei aktuell aktivem A
+und A/v4 als neuerer Evaluation.
+
+### Erhaltene Legacy- und unabhängige Negativnachweise
+
+`S0-independent-LIMITED-INSUFFICIENT-and-legacy-regressions` hält die drei
+ursprünglichen LIMITED-v1-Runs und die folgenden Gegenproben getrennt vom
+GOOD-Candidate fest. Die Retrybefehle sind ausdrückliche fachliche
+Snapshot-Reproduktionsprüfungen; der Playwrightlauf selbst hat `retry=0`.
+
+| Gegenprobe | Tatsächlicher gespeicherter Befund |
+|---|---|
+| Unvollständiger Snapshot unter `1.0.0` | UNDERLYING-Analyse `b5343556-7513-4c27-acad-dcd37e0f1bcb`, v2 und ausdrücklicher Retry v3: je 19 Beobachtungen, NOT_EVALUABLE / INSUFFICIENT, Inputhash beide `36cbe51f1e46131f7a27c95d8f0da431f7c64cd99ca19a3841f2d09f216228ff` |
+| Unvollständiger Snapshot unter `1.0.1` | Dieselbe Analyse, v4 und ausdrücklicher Retry v5: je 19 Beobachtungen, NOT_EVALUABLE / INSUFFICIENT, Inputhash beide `2d22fc060bc58bdadc04c62205000dcee1c8d53914aef847f5ae9721c7e1677b` |
+| Eigene Warnungsquelle unter `1.0.1` | Analyse `a9b9009d-0a9b-474f-96ea-10f56b7d1fb6`, v1: 200 Beobachtungen, COMPLETED_WITH_WARNINGS / LIMITED, Inputhash `0653d7ae10320bb317c7ad0172291b10729a7e6ad1bcda62b3e1e689b8b0ed1d` |
+
+Bei beiden INSUFFICIENT-Paaren liegen beim Owner bereits 200 aktuelle Preiszeilen
+vor. Der Retry reproduziert dennoch exakt die 19 gespeicherten Snapshotzeilen,
+Parameter, Kennzahlen, Kriterien und Notes. Er lädt die inzwischen verfügbare
+vollständige Reihe nicht nach. Die eigene Warnungsquelle behält in ihrem letzten
+Snapshot den Originaltext `Synthetic qualification: source warning must remain visible`;
+die Analyse enthält exakt die Note
+`2026-10-23: source warning: Synthetic qualification: source warning must remain visible`.
+Sie wird nicht als eine der drei Candidate-Quellen gewählt.
+
+### Verify und Lesefenster ohne persistierte Änderung
+
+Alle **14** Attachments `S0-read-only-verification-1` bis
+`S0-read-only-verification-14` enthalten einen nativen Verify-Aufruf und einen
+identischen Vorher-/Nachher-Datenbankfingerprint. In jedem Ergebnis sind
+`verified`, `model_available`, `input_hash_matches`, `metrics_match`,
+`criteria_match`, `quality_status_match` und `notes_match` jeweils `true`.
+Die Nummern in der folgenden Tabelle sind die exakten Attachment-Suffixe;
+mehrere Nummern teilen sich nur dann eine Zeile, wenn auch ihr Fingerprint
+identisch ist.
+
+| Verify-Nr. | Exakter Run innerhalb der oben benannten Analyse | Fingerprint vor = nach |
+|---|---|---|
+| 1 | MARKET v1, `1.0.0` | `0ceaca7dc0efb22dd44589eee8c38edf6c69f0708c22ebbdccdcd95eb601fb59` |
+| 2 / 3 | MARKET v2, `1.0.1` / danach erneut v1, `1.0.0` | `a06fe8364c41d8f5efc6ae11d53a3842bafffea36c27193dafd26bd0ff9e4408` |
+| 4 | SECTOR v1, `1.0.0` | `e00a07435d02f763aabda93561884a0558d95bc09d5b524a8f45e76f0bebbcde` |
+| 5 / 6 | SECTOR v2, `1.0.1` / danach erneut v1, `1.0.0` | `c1089afd1cc66a61c226a3236b99596194950916fb74710c6cc6f3b5653326e6` |
+| 7 | UNDERLYING v1, `1.0.0` | `f9bbd38482ee06f7de2cab024831522ba45ece05cdcc0637fb371777bb851be7` |
+| 8 / 9 | UNDERLYING v2 / Retry v3, beide `1.0.0` | `2312053b75a62e0425f259cc8e3a7960df3636d445851e4bbbefca50988b71b2` |
+| 10 / 11 | UNDERLYING v4 / Retry v5, beide `1.0.1` | `f80ae805ec8eb445e665bc01abd35a58370568a1129d7e98a5398e57cca368b5` |
+| 12 / 13 | UNDERLYING v6, `1.0.1` / danach erneut v1, `1.0.0` | `d1f8fd59a472856987360e768e9b7f33b0cae75877159625b0390c4ebbc42c02` |
+| 14 | Eigene Warnungsanalyse v1, `1.0.1` | `eb8f1babf4270a524a0122f08a74250f162d090fa0dada4f73df2176ddc93ebe` |
+
+Die vier vorgesehenen Browserlesefenster enthalten ausschließlich beobachtete
+GET-Requests. Die Attachments tragen genau die folgenden Namen und halten
+ebenfalls gleiche Vorher-/Nachher-Fingerprints fest:
+
+| Attachment / Lesefenster | GETs | Fingerprint vor = nach |
+|---|---|---|
+| `S2-opening-exact-L1-is-read-only` | 7 | `fc96a8b8f94ba5c62db47ae7a8d14e4126f462852baa5f8c35589eca06386a21` |
+| `S3-conscious-readback-after-rejected-validation` | 3 | `6c1c5e21b365ce99db1b0f8aa1f2a9a26271e84fee7f3c23ca203968eca91254` |
+| `S4-approved-B-and-still-active-A-readback` | 5 | `7b5d51ad292a2e89636654fa13c5864968a07bf20da80eff9e0e0a2da79746c4` |
+| `S7-reload-and-exact-historical-links-read-only` | 25 | `85d63e1eb06b630b5b53844022acdabfd52e969c1e3f40bdcf945e09b2b3a448` |
+
+Diese Fingerprints rahmen die ausgewiesenen Aufrufe des isolierten Laufs ein.
+Sie sind kein allgemeiner Nachweis globaler Serialisierung oder einer
+Exactly-once-Garantie.
+
+### Isolation, Artefaktprüfung, Sichtprüfung und Cleanup
+
+Der Lauf verwendet das eigene Composeprojekt
+`tw-candidate-governance-e2e-d07815cbe423404f938743513a6e7979`, die Datenbank
+`trading_workspace_test_cg_d07815cbe423404f938743513a6e7979`, Datenbanknutzer
+`tw_candidate_e2e` und Workspace `00000000-0000-4000-8000-000000000001`.
+`initial-database.json` bindet den Marker
+`synthetic candidate-governance browser d07815cb-e423-404f-9387-43513a6e7979`
+und initialen Fingerprint
+`6d883e5790bf8bdb46c2d4ccf952f5c74a085362da75d0f2ab0c1d1980196cf8`.
+`configuration-check.txt` und `network-and-ports.json` bestätigen den eigenen
+Stack: Backend ausschließlich im internen Netz und ohne publizierten Port;
+Datenbank `127.0.0.1:25432`, Frontend `127.0.0.1:8080`.
+Die bestehenden Provider-, Scheduler-, Notification-, Origin-, Redirect-,
+Serviceworker- und Websocketgrenzen sowie Runner-/Reportguards bleiben erhalten.
+`B-CG-001-all-observed-requests` enthält 168 beobachtete API-Requests, 58
+Setupcommands und 11 Browsercommands, `failures=[]`. Die Setupcommandzählung
+umfasst auch die lesenden Verify-POSTs und ist keine Anzahl von Mutationen.
+
+Das heruntergeladene Archiv wurde gegen `manifest.json` geprüft: **26
+manifestierte Dateien**, einschließlich der sechs PNGs und des Traces. Die
+folgenden Pfade ermöglichen den direkten Abgleich mit den Rohbelegen:
+
+| Artefaktpfad unter dem oben genannten Archivverzeichnis | Aussage / SHA256 |
+|---|---|
+| `code-and-stack.txt` | Kopf-/Tree-/Laufbindung; `73ba681dffc9bef9aee80f4f6e696010821f0ca08276843dc75f07a85eda8479` |
+| `results.json` | Originalreport und alle benannten JSON-Attachments; `dbb8e3b61935511ad8bfdd4b7f5db0a388eb40c01b45a2102257b461ff6d86d2` |
+| `discovery.json`, `expected-tests.json`, `report-verification.txt` | Exakter entdeckter und erwarteter Test; genau einmal bestanden, keine Skips, Flaky-Ergebnisse oder Retries |
+| `toolchain.json`, `database-before-migration.json`, `migration.log`, `initial-database.json` | Tatsächliche Toolchain, frische Datenbank, Schema und initialer Fingerprint |
+| `configuration-check.txt`, `network-and-ports.json`, `compose.log` | Tatsächliche Stackkonfiguration, Netz-/Portgrenzen und Laufprotokoll |
+| `playwright/candidate-governance-journ-ff5df-A-and-immutable-evaluations-chromium/trace.zip` | Nativer Browsertrace; `9f6e6482c35862229c547bb66d0e29985e0575a53256ea91387f0c84803c1079` |
+| `cleanup.json`, `cleanup.log`, `outcome.txt` | Geprüftes Ownership-Cleanup, `removed=true`, verbleibende Container/Netze/Volumes **0/0/0**, `exit_status=0`, `cleanup_status=0` |
+
+Alle sechs Screenshots wurden tatsächlich geöffnet und inhaltlich geprüft. Sie
+liegen im selben Verzeichnis wie `trace.zip`:
+
+| PNG-Datei | Konkret geprüfter sichtbarer Zustand |
+|---|---|
+| `S2-policy-base-desktop.png` | Exakte historische L1 als Quelle und A als sichtbare Policybasis |
+| `S4-approved-B-active-A-desktop.png` | Genehmigte B bei weiterhin aktivem A; Approval und Aktivierung getrennt |
+| `S5-active-B-mobile.png` | Mobilansicht der ausdrücklich aktivierten B |
+| `S7-historical-B-desktop.png` | Historische Evaluation B/v3 mit drei nativen GOOD-Quellen unter 1.0.1, während die aktuelle Readiness wieder A betrifft |
+| `S7-historical-B-mobile.png` | Derselbe historische B/v3-Zustand mobil, getrennt von der neueren A/v4-Evaluation |
+| `S7-returned-A-governance-mobile.png` | Bewusste Rückkehr zur genehmigten A in der mobilen Governanceansicht |
+
+Die sichtbaren Aussagen und historischen v3-/v4-Auswahlzustände stimmen mit den
+Roh-JSONs überein; im geprüften Viewport waren keine Controls verdeckt. Diese
+Sichtprüfung beansprucht keine vollständige Prüfung aller Viewports oder
+Barrierefreiheitsanforderungen.
+
+**B07 ist damit für diesen exakt gebundenen Kopf nativ mit GOOD belegt.**
+Die Qualifikation umfasst die technische Quellen-, Governance-, Aktivierungs-
+und A/A/B/A-Kette in einem isolierten synthetischen Stack. Sie erklärt weder
+wirtschaftliche Überlegenheit noch Backtestgüte, Providerbestätigung,
+Produktivfreigabe oder M9-Abschluss. Die im Test genehmigten und aktivierten
+Candidate-Versionen sind isolierte Testfakten; daraus folgt keine produktive
+Aktivierung. Die ausdrücklich offene Gesamt-CI bleibt an den Folgekopf und
+den späteren PR-Abschluss gebunden.
+
+## Historischer Nachweis #276 — ursprünglicher LIMITED-Stand unverändert
+
+Die folgenden Abschnitte dokumentieren den damaligen Stand und seine vier
+nativen Versuche. Ihre Aussagen zu einem noch offenen GOOD-B07 beziehen sich
+auf diese historische Qualifikation; der neue GOOD-Nachweis steht ausschließlich
+im oben datierten #278-Nachtrag.
 
 Stand: **2026-10-25, erster erfolgreicher nativer Gesamtweg und datierte Laufhistorie.**
 Der jeweils abschließende Head-/Tree-/Run-/Job-Nachweis steht im

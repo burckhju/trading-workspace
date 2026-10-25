@@ -1,6 +1,6 @@
 # FT-006: versionierte Quellenqualität — Runtimeanbindung und B07
 
-## Fortsetzung 25.10.2026: vollständiger Checkout und verbleibende Ownerstrecke
+## Fortsetzung 25.10.2026: vollständige Ownerstrecke und ausgeführter GOOD-B07
 
 Aktualisierte Ausgangsbasis: Main und Tag `v1.5.16` zeigen unverändert auf
 `7b70f0dfd5cbb81518c73d68d09bbad0c6a9ac2b`, Tree
@@ -103,6 +103,9 @@ und npm-Lockdatei. Kein neuer Schema-/Dependency-/Versions-/Workflowstand.
 - Strikte B07-TypeScript-Prüfung, Seederformat/-syntax, Bashsyntax, exakt eine
   unveränderte Playwright-Testidentität und strikter Discoveryprüfer bestanden.
   Collection ist kein nativer Testpass.
+- Anschließend die vollständigen Analyse-/Candidate-Units samt bestehenden
+  Referenz-HTTP-Fällen: **271 passed / 1 bestehende Warnung**. Diese überlappenden
+  Prüfungen werden nicht zu einer künstlichen Gesamtzahl addiert.
 
 Vier erste lokale HTTP-/Vitest-Ausführungen hingen in der eingeschränkten
 Prozesssandbox und wurden abgebrochen. Ihre unvollständigen Logs bleiben
@@ -110,7 +113,7 @@ erhalten. Die danach genehmigt ausgeführten identischen Prüfungen liefern die
 oben genannten vollständigen Ergebnisse; keine längeren Testtimeouts oder
 Erfolgs-Retries wurden eingeführt.
 
-### Neuer nativer B07-Fall und noch ausstehende Ausführung
+### Tatsächlich ausgeführter nativer GOOD-B07 vom 25.10.2026
 
 Der vorhandene geschützte Browserfall ist erweitert: zwei echte Referenzowner
 und ein Listingowner, jeweils zunächst ein echter 1.0.0-LIMITED-Run, dann
@@ -122,13 +125,121 @@ Warnungsquelle mit LIMITED. Jeder Verify-POST ist mit vollständigen
 DB-Fingerprints eingerahmt. Herkunftsmarker stehen außerhalb der positiven
 Warnungsfelder; Kalenderabdeckung wird nicht aus 200 Werktagen abgeleitet.
 
-Der erste vollständige Lauf dieses erweiterten Falls ist noch ausstehend.
-**B07 bleibt bis zum tatsächlich geprüften neuen Browser-/PostgreSQL-Artefakt
-offen.** Lokal fehlen Docker und PostgreSQL. Dafür werden die unveränderten
-regulären GitHub-Actions-Jobs verwendet; CI-Flags werden lokal nicht fingiert.
-Endgültiger Head/Tree/Checkout, Lauf-/Job-/Attemptzuordnung und echte Rohartefakte
-werden im bestehenden [PR #278](https://github.com/burckhju/trading-workspace/pull/278)
-und im datierten Nachtrag dieses Berichts ausgewiesen.
+Der erste vollständige Lauf des erweiterten Falls ist **bestanden**. B07 ist für
+den technischen GOOD-Referenzumfang mit folgendem neuen Nachweis geschlossen:
+
+| Identität | Geprüfter Wert |
+| --- | --- |
+| Entwicklungshead | [`18e3e1411b98d54812850ce006ce24c5ceab874d`](https://github.com/burckhju/trading-workspace/commit/18e3e1411b98d54812850ce006ce24c5ceab874d) |
+| Vollständiger Tree | `4c0abfea18cc6fbe48dd647f25ceeb3f37d4a2f6` |
+| Tatsächlicher PR-Testmerge | `71f167371e35e6ba5c5dc6432270c1fa3d259245`; Eltern `7b70f0df…` und `18e3e141…`, gleicher Tree |
+| Event / Lauf / Job / Versuch | `pull_request` / [`40182968277`](https://github.com/burckhju/trading-workspace/actions/runs/40182968277) / [`121137734172`](https://github.com/burckhju/trading-workspace/actions/runs/40182968277/job/121137734172) / `1` |
+| Native Toolchain | Python `3.12.15`, Node `22.16.0`, npm `10.9.2` gemäß unveränderten Projektpins |
+| Ergebnis | Genau der erwartete Governancefall: **1 passed**, Retry `0`, Skip `0`, Flaky `0` |
+| Rohartefakt | [`12594962453`](https://github.com/burckhju/trading-workspace/actions/runs/40182968277/artifacts/12594962453), ZIP SHA-256 `de432118369859eaf47807e033811f56522ed7e702ae46ac5d6d34d025aaac02` |
+| Manifest | Alle 26 Inhaltsdateien mit Prüfsummen geprüft, einschließlich Rohantworten, Report, Trace, sechs Screenshots und Cleanup |
+
+Die drei getrennten Analysen sind `acd0570a-9038-4158-850c-307e8a729d20` v2
+(MARKET), `4eae4ad6-22fb-4d59-a895-4e9be0506f16` v2 (SECTOR) und
+`b5343556-7513-4c27-acad-dcd37e0f1bcb` v6 (UNDERLYING). Alle verwenden tatsächlich
+`EOD_TREND_MOMENTUM/1.0.1`, Status COMPLETED, Qualität GOOD und je 200 VALID-
+Snapshotzeilen ohne Warnung. Markt und Sektor besitzen verschiedene eigene
+MARKET_REFERENCE-Instrumente; `listing_id` und `underlying_id` sind jeweils NULL.
+Nur die Basiswertquelle besitzt ein Listing. Letzter Preistag ist `2026-10-23`,
+Analysezeit `2026-10-25`: zwei Tage bei unverändert maximal sieben Tagen.
+Die tatsächlichen aufgelösten Parameter, Owner-UUIDs und versionsgetrennten
+Hashes sind im [datierten B07-Nachtrag](CANDIDATE_GOVERNANCE_JOURNEY_QUALIFICATION.md)
+und in `S0-analysis-owner-source-chain`/`B-CG-001-complete-source-version-chain`
+des Originalreports vollständig gebunden. 200 abgeschlossene Werktage sind
+ausdrücklich kein zertifizierter Börsenkalender- oder Providerqualitätsnachweis.
+
+Vier Evaluationen auf denselben konkreten drei Quellen ergeben unter CAUTIOUS
+**A/A/B/A → QUALIFIED / QUALIFIED / NOT_QUALIFIED / QUALIFIED**, jeweils GOOD.
+Nur `TD-MARKET-001` wechselt entsprechend der bereits vorhandenen Policy;
+die fünf anderen Required-Kriterien bleiben exakt gleich und erfüllt. Approval
+von B lässt A zunächst aktiv; B und die Rückkehr zu A sind eigene ausdrückliche
+Aktivierungen. Historische Evaluationen und die drei alten 1.0.0-LIMITED-Runs
+bleiben unverändert; Snapshot, Parameter, Kennzahlen und Kriterien sind zwischen
+den Runtimeversionen identisch, die Hashes absichtlich versionsgetrennt.
+
+Alle **14 Verify-Fenster** haben sieben erfolgreiche Prüffelder und identische
+DB-Fingerprints davor/danach; auch die vier reinen GET-Fenster sind unverändert.
+Die separaten 19-Zeilen-Runs und Retries beider Versionen bleiben INSUFFICIENT,
+die eigene Quelle mit echter Warnung bleibt LIMITED. 168 Requests, darunter
+11 Browsercommands, sind protokolliert; keine Requestfailures. Der verifizierte
+synthetische Stack wurde vollständig entfernt: **0 Container / 0 Netze / 0 Volumes**.
+Alle sechs relevanten Desktop-/Mobilbilder wurden tatsächlich angesehen: exakte
+L1-Basis, APPROVED-B bei aktivem A, aktives B, historisches B bei erneut aktivem A
+und explizite A-Rückkehr. Sichtbare Modelle, Quellen, Qualität und Historie stimmen
+mit den Rohantworten überein.
+
+### Erster kombinierter CI-Stand und eng belegte Frontend-Testkorrektur
+
+Der GOOD-B07-Pass ist kein pauschaler grüner Gesamthead: Im ersten Frontendlauf
+[`40182968177` / Job `121137733384`](https://github.com/burckhju/trading-workspace/actions/runs/40182968177/job/121137733384)
+auf `18e3e141…` bestanden 805 Tests; ein bisher unveränderter Test in
+`WarrantSelectionRepair.test.tsx` scheiterte. Handelswährungsformular und
+Handelsplatzoptionen laden unabhängig. Der Test wählte vor Eintreffen der Option
+einen erforderlichen Selectwert; die native Formularvalidierung verhinderte den
+Submit, daher fehlte der erwartete API-Fehleralert. Dies ist ein tatsächlicher
+Fehlversuch und bleibt als solcher erhalten.
+
+Eine kontrolliert zurückgehaltene Venue-Antwort reproduziert auf unverändertem
+Produktcode exakt diese Reihenfolge und den ursprünglichen fehlgeschlagenen
+Alert-Assert (**1 failed**, 11 nicht ausgewählte Fälle). Der enge Testfix wartet
+auf dieselbe konkrete Antwort/Option und prüft den gewählten Wert sowie zusätzlich
+den genauen POST-Payload. Auch der benachbarte Refreshfehlerfall erhält die
+Optionsbarriere. Fehler-, Eingabeerhalt- und Keine-Autobewertung-Assertions bleiben
+erhalten. Keine Sleeps, Erfolgs-Retries, Timeoutverlängerungen, Produktivänderungen
+oder Gateabsenkungen. Mit dem Fix: **12/12 passed**, TypeScript, ESLint, Prettier
+und `git diff --check` bestanden. Anschließend besteht auch das unveränderte
+vollständige Frontendgate erneut mit **806/806 Tests in 124 Dateien**,
+TypeScript, ESLint, Prettier und Produktionsbuild; Coverage Statements/Lines
+93,87 %, Branches 86,34 %, Functions 86,53 %.
+
+Während dieser Qualifikation ging parallel der normale Folgecommit
+[`3efe5a94d68820f052db4408886d84cb2d46ad02`](https://github.com/burckhju/trading-workspace/commit/3efe5a94d68820f052db4408886d84cb2d46ad02)
+mit der Optionsbarriere, den beiden Eingabewertprüfungen und dem genauen
+POST-Payload ein. Er wird vollständig als Vorgänger erhalten; die kontrolliert
+verspätete Antwort und die Barriere im benachbarten Refreshfall ergänzen ihn.
+Sein Frontend-[Lauf `40183630489` / Job `121139703505`](https://github.com/burckhju/trading-workspace/actions/runs/40183630489/job/121139703505)
+bestand ebenfalls mit 806 Tests / 124 Dateien und Build. Der erste Backendlauf
+[`40182968208` / Job `121137733478`](https://github.com/burckhju/trading-workspace/actions/runs/40182968208/job/121137733478)
+wurde durch den neuen Branchhead entsprechend der unveränderten
+`cancel-in-progress`-Regel abgebrochen. Er ist **kein Backendpass**. Sein
+Teilprotokoll zeigt für die 38 FT-006-PostgreSQL-Fälle 37 Erfolgsmeldungen und
+einen Fehler beim ersten Listingfall; die beiden neuen nativen Candidatefälle
+sind erfolgreich gemeldet. Wegen des Abbruchs fehlt der pytest-Abschluss mit
+vollständigem Fehlertrace.
+
+Der Snapshotvergleich des Listingfalls ließ sich anschließend mit den echten
+Projektmappern kontrolliert reproduzieren: Die neue Testfixture verwendete
+`SYNTHETIC-FT006-` mit kleingeschriebenen UUID-Buchstaben als Providersymbol.
+Der unveränderte Legacy-Listingreader normalisiert diesen Code groß; der neue
+Reader bewahrt den gespeicherten Originaltext. Der einzige Unterschied zwischen
+beiden so erzeugten Snapshots ist daher `provider_symbol`. Mit einem von Anfang
+an kanonischen synthetischen Providerschlüssel, wie ihn der reguläre TC-001-
+Owner erzeugt, besteht dieselbe vollständige Gleichheitsassertion. Die Fixture
+erhält ausschließlich `.upper()` für den UUID-Symbolteil; Originalflags,
+Warnungen, numerische Inputs, sämtliche Assertions und Produktcode bleiben
+erhalten. Ruff und Black bestehen. Dieser lokale Mappernachweis ist ausdrücklich
+kein PostgreSQL-Testlauf; der native Abschluss gehört zum folgenden regulären
+CI-Head mit diesem eng begründeten Fixturefix.
+
+Die vier bisherigen Finanz-/Lernownerfälle sind auf `18e3e141…` ebenfalls nativ
+bestanden, jeweils einmal ohne Retry/Skip/Flaky. Ihre drei vollständigen Manifeste
+(16/20/25 Inhaltsdateien), neun weiteren Lesefenster und vollständigen Cleanups
+sind geprüft. Finance-Artefakt `12595172144`, ZIP SHA-256
+`487470ca3870356ffc29dd6ab3afe4df3d7ae2c01fe3d9cfdc8e14718e934266`;
+Learning-Artefakt `12594593087`, ZIP SHA-256
+`b79fae5a2ca5223d2a0282bbe80ad073eba534e5457aaee92b52ebad1226f798`.
+Der abschließende reguläre CI-Lauf des Folgecommits wird mit seinem eigenen
+Head/Tree/Checkout und seinen eigenen Rohartefakten im bestehenden
+[PR #278](https://github.com/burckhju/trading-workspace/pull/278) gebunden;
+das hier bezeichnete erste Artefakt wird keinem späteren Head zugeschrieben.
+Lokal fehlen Docker/PostgreSQL; dafür werden echte reguläre Actions verwendet,
+keine fingierten lokalen CI-Flags. B07-Abschluss, Fachabnahme, Merge, Release,
+PC-Installation und produktive Modellaktivierung bleiben getrennte Aussagen.
 
 ## Historischer Zwischenstand: explizite Runtime-Anbindung am Vorhead
 

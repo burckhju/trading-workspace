@@ -108,7 +108,9 @@ async def create_source(
     missing_adjusted=False,
 ):
     session, workspace, now = context.session, context.workspace, context.now
-    symbol = f"SYNTHETIC-FT006-{uuid4().hex[:12]}"
+    # Match the canonical provider code produced by the regular TC-001 owner.
+    # The legacy listing reader normalizes codes; 1.0.1 preserves stored text.
+    symbol = f"SYNTHETIC-FT006-{uuid4().hex[:12].upper()}"
     listing = None
     if owner == "listing":
         venue = await session.scalar(

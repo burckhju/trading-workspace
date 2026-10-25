@@ -1,6 +1,6 @@
 # Traceability – aktueller Nachweiseinstieg
 
-> Nachweisfortschreibung 25.10.2026, #278: [FT-006 Runtime-/Quellenqualität](../implementation/FT006_SOURCE_QUALITY_QUALIFICATION.md) verbindet feste neue Analyseversion 1.0.1, historische 1.0.0-Reproduktion, Snapshot/Hash/Provenienz und den bestehenden Candidate-Consumer mit echten Markt-/Sektorreferenzidentitäten. Die neue GOOD-B07-Browserausführung ist gesondert am tatsächlichen CI-Head zu belegen; der historische LIMITED-Nachweis bleibt erhalten. Arbeitsstatus ausschließlich [PB-013 Analyse](../planning/PRODUCT_BACKLOG.md#pb-013-analysis) und [PB-020 Candidate](../planning/PRODUCT_BACKLOG.md#pb-020-candidate-family). Kein Abschluss weiterer M0–M11-Ziele.
+> Nachweisfortschreibung 25.10.2026, #278: [FT-006 Runtime-/Quellenqualität](../implementation/FT006_SOURCE_QUALITY_QUALIFICATION.md) verbindet feste neue Analyseversion 1.0.1, historische 1.0.0-Reproduktion, Snapshot/Hash/Provenienz und den bestehenden Candidate-Consumer mit echten Markt-/Sektorreferenzidentitäten. Die neue GOOD-B07-Browserausführung ist auf Head `18e3e141`, Tree `4c0abfea`, Testmerge `71f16737` in [Run `40182968277` / Job `121137734172`, Versuch 1](https://github.com/burckhju/trading-workspace/actions/runs/40182968277/job/121137734172) tatsächlich bestanden; [vollständiger datierter B07-Nachweis](../implementation/CANDIDATE_GOVERNANCE_JOURNEY_QUALIFICATION.md). Der historische LIMITED-Nachweis bleibt erhalten. Die Gesamt-CI des Folgecommits einschließlich der eng reproduzierten Frontend-Testkorrektur wird im bestehenden PR #278 mit eigenen Identitäten gebunden. Arbeitsstatus ausschließlich [PB-013 Analyse](../planning/PRODUCT_BACKLOG.md#pb-013-analysis) und [PB-020 Candidate](../planning/PRODUCT_BACKLOG.md#pb-020-candidate-family). Kein Abschluss weiterer M0–M11-Ziele.
 
 > Nachweisergänzung 2026-10-14: [integrierter Handoff-Teilschnitt, PostgreSQL-/Browserbelege und offene Journalstrecke](../implementation/POST_TRADE_LEARNING_HANDOFF_REVIEW.md). Die Fortschreibung trennt Prüfcommits, echte DB-Transaktionen und abgefangenes Browser-HTTP. Arbeitsstatus ausschließlich im [zentralen Backlog](../planning/PRODUCT_BACKLOG.md#pb-019-materialization); keine Fach-/Betriebsabnahme.
 > Maßgeblich bleiben [PB-019 Materialisierung](../planning/PRODUCT_BACKLOG.md#pb-019-materialization), [PB-019 Journal](../planning/PRODUCT_BACKLOG.md#pb-019-journal) und [PB-018 Currentness](../planning/PRODUCT_BACKLOG.md#pb-018-currentness); der historische Bestand unten bleibt unverändert.
@@ -780,3 +780,28 @@ ausgewiesen, auch wenn ein späterer LIMITED-A→B→A-Lauf besteht; dieser Schn
 bleiben unabhängig erhalten. Keine Statushochsetzung, neue Fachregel, Backtest-/
 Überlegenheitsbehauptung, M9-Gesamtabnahme, Veröffentlichung oder PC-Beobachtung
 wird aus dieser Entwicklungsqualifikation abgeleitet.
+
+## 2026-10-25 — #278: ausgeführter GOOD-B07-Nachtrag
+
+Die zuvor ausdrücklich offene GOOD-Referenz ist nun eigenständig nachgewiesen:
+[FT-006-Ownerintegration und Qualifikation](../implementation/FT006_SOURCE_QUALITY_QUALIFICATION.md)
+→ zwei echte MARKET_REFERENCE-Owner und ein Listingowner mit expliziter
+Analyse-Runtime 1.0.1, Originalflags/-warnungen, Snapshot/Hash und unveränderter
+Legacy-Reproduktion
+→ bestehender Candidate-Resolver und unveränderte Policies
+→ [nativer GOOD-A/A/B/A-Beleg](../implementation/CANDIDATE_GOVERNANCE_JOURNEY_QUALIFICATION.md)
+auf `18e3e141` / Tree `4c0abfea` / PR-Testmerge `71f16737`, Run `40182968277`,
+Job `121137734172`, Versuch 1, Artefakt `12594962453`. Genau ein erwarteter
+Governancefall ohne Retry/Skip/Flaky, drei konkrete GOOD-Quellen, unveränderte
+Historie, 14 Verify- und vier GET-Fingerprintfenster, sechs gesichtete Bilder
+und vollständiger Cleanup sind belegt. Die vier Finanz-/Lernownerfälle sind
+auf demselben Stand ebenfalls bestanden.
+
+Der historische LIMITED-Bericht oben bleibt unverändert. Der erste kombinierte
+Frontendlauf hatte einen kontrolliert reproduzierten Select-Laderace in einem
+bestehenden Test; die Korrektur wartet auf die tatsächliche Option und erhält
+alle ursprünglichen Assertions. Der aktuelle PR bindet den Folgecommit und
+seine vollständigen regulären Gates separat. B07-Abschluss ist keine
+Fachabnahme, Main-Integration, Veröffentlichung, PC-Beobachtung oder
+Gesamtabnahme der offenen M0–M11-Modellziele. Arbeitsstatus bleibt ausschließlich
+in den betroffenen PB-013-/PB-020-Einträgen.
