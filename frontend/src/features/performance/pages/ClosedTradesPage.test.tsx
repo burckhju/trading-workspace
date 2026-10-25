@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { createMemoryRouter, MemoryRouter, RouterProvider } from 'react-router-dom';
 import { beforeEach, expect, it, vi } from 'vitest';
 
 import {
@@ -10,7 +10,7 @@ import {
 } from '../../../test/closedTradesFixtures';
 import { reportSource } from '../../../test/realizedGrossFixtures';
 import { performanceApiClient } from '../services/client';
-import { closedTradeSourceLink } from '../services/closedReportContext';
+import { closedListUrl, closedTradeSourceLink } from '../services/closedReportContext';
 import type { ClosedTradeGroup, ClosedTradeReport } from '../types/api';
 import { ClosedTradesPage } from './ClosedTradesPage';
 
@@ -42,7 +42,6 @@ function chooseOctober() {
   fireEvent.change(screen.getByLabelText('Bis (einschließlich)'), {
     target: { value: '2026-10-31' },
   });
-  fireEvent.change(screen.getByLabelText('Berichtswährung'), { target: { value: 'EUR' } });
 }
 function read() {
   fireEvent.click(screen.getByRole('button', { name: 'Bericht lesen' }));
@@ -70,10 +69,11 @@ beforeEach(() => {
   api.closedTrades.mockResolvedValue(closedTradeReport());
 });
 
-it('reads an explicitly selected currency and shows one full trade result with all earlier SELL contributions', async () => {
+it('reads fixed EUR and shows one full trade result with all earlier SELL contributions', async () => {
   renderPage();
   expect(api.closedTrades).not.toHaveBeenCalled();
-  expect(screen.getByLabelText('Berichtswährung')).toHaveValue('');
+  expect(screen.getByLabelText('Berichtswährung')).toHaveValue('EUR');
+  expect(screen.getByLabelText('Berichtswährung')).toHaveAttribute('readonly');
   expect(screen.getByLabelText('Berichtszeitzone (IANA)')).toHaveValue('Europe/Berlin');
   expect(
     screen.getByRole('heading', { name: 'Trades mit Vollabschluss im Zeitraum' }),
@@ -576,7 +576,7 @@ it.each(['filters', 'currency', 'definition'] as const)(
   },
 );
 
-it('validates periods and currency and retains filter inputs after read errors', async () => {
+it('validates periods and timezones and retains filter inputs after read errors', async () => {
   renderPage();
   chooseOctober();
   fireEvent.change(screen.getByLabelText('Von (einschließlich)'), {
@@ -586,18 +586,54 @@ it('validates periods and currency and retains filter inputs after read errors',
   expect(screen.getByRole('alert')).toHaveTextContent('Von darf nicht nach Bis liegen');
   expect(api.closedTrades).not.toHaveBeenCalled();
   chooseOctober();
-  fireEvent.change(screen.getByLabelText('Berichtswährung'), { target: { value: 'EU' } });
+  fireEvent.change(screen.getByLabelText('Berichtszeitzone (IANA)'), {
+    target: { value: 'Not/A_Zone' },
+  });
   read();
-  expect(screen.getByRole('alert')).toHaveTextContent(
-    'Berichtswährung und Berichtszeitzone ausdrücklich',
-  );
+  expect(screen.getByRole('alert')).toHaveTextContent('gültige Berichtszeitzone');
   expect(api.closedTrades).not.toHaveBeenCalled();
   chooseOctober();
+  fireEvent.change(screen.getByLabelText('Berichtszeitzone (IANA)'), {
+    target: { value: 'Europe/Berlin' },
+  });
   api.closedTrades.mockRejectedValueOnce(new Error('Quellenstand nicht verfügbar'));
   read();
   expect(await screen.findByRole('alert')).toHaveTextContent('Quellenstand nicht verfügbar');
   expect(screen.getByLabelText('Von (einschließlich)')).toHaveValue('2026-10-01');
   expect(screen.getByLabelText('Berichtswährung')).toHaveValue('EUR');
+});
+
+it('does not read or silently retarget a non-EUR URL context before an explicit new EUR selection', async () => {
+  const original = closedListUrl({
+    filters: { ...closedTradeFilters, report_currency: 'USD' },
+    view: 'all',
+    page: 2,
+    basis: 'a'.repeat(64),
+  });
+  const router = createMemoryRouter(
+    [{ path: '/performance/closed-trades', element: <ClosedTradesPage /> }],
+    { initialEntries: [original] },
+  );
+  render(<RouterProvider router={router} />);
+  expect(screen.getByRole('alert')).toHaveTextContent('Abschlussbericht verwendet USD');
+  expect(screen.getByLabelText('Berichtswährung')).toHaveValue('EUR');
+  expect(screen.getByLabelText('Berichtswährung')).toHaveAttribute('readonly');
+  expect(api.closedTrades).not.toHaveBeenCalled();
+  expect(router.state.location.pathname + router.state.location.search).toBe(original);
+  expect(screen.queryByTestId('closed-trades-total')).not.toBeInTheDocument();
+
+  chooseOctober();
+  read();
+  expect(await screen.findByTestId('closed-trades-total')).toHaveTextContent('50,00 EUR');
+  expect(api.closedTrades).toHaveBeenCalledExactlyOnceWith(
+    closedTradeFilters,
+    expect.any(AbortSignal),
+  );
+  const current = new URLSearchParams(router.state.location.search);
+  expect(current.get('report_currency')).toBe('EUR');
+  expect(current.get('report_view')).toBe('candidates');
+  expect(current.get('report_page')).toBe('1');
+  expect(current.has('report_basis')).toBe(false);
 });
 
 it('aborts an outstanding read when the report page is unmounted', async () => {

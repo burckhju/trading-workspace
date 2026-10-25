@@ -1,5 +1,53 @@
 # FT-006: versionierte Quellenqualität — Runtimeanbindung und B07
 
+## 25.10.2026: qualifizierter Vorhead und erneute Aufnahme des aktuellen Main
+
+Der vollständige Folgehead
+[`b1a3deb408cd868e5001577fb61c26b183f39643`](https://github.com/burckhju/trading-workspace/commit/b1a3deb408cd868e5001577fb61c26b183f39643),
+Tree `873d3cede71a388e9617505a24bcc7d17bb90a68`, ist auf dem tatsächlichen
+PR-Testmerge `785af46af8d495cca3e1ba6aedeee5ed93008991` vollständig qualifiziert:
+
+- [Backend `40184070104` / quality `121141070094`](https://github.com/burckhju/trading-workspace/actions/runs/40184070104/job/121141070094),
+  Versuch 1: **3377 passed, 1 bestehende Warnung, 797,33 Sekunden**, Coverage
+  **87,56 %** bei unverändert 85 % Mindestwert. Alle **38** FT-006- und beide
+  neuen nativen Candidate-PostgreSQL-Fälle sind vollständig bestanden.
+  Damit ist auch der zuvor fehlerhafte Listing-Snapshotvergleich nach dem
+  kanonischen Fixturefix nativ belegt. Ruff, Black, mypy und Migration bestanden.
+- [Frontend `40184070110`](https://github.com/burckhju/trading-workspace/actions/runs/40184070110):
+  **806 Tests / 124 Dateien**, vollständiges Gate und Produktionsbuild bestanden.
+- [E2E `40184070115`](https://github.com/burckhju/trading-workspace/actions/runs/40184070115):
+  Smoke **78 passed / 5 geschützte Skips**, dieselben fünf Testidentitäten in
+  den separaten Finanz-/Lern-/Governanceownerfällen tatsächlich bestanden,
+  jeweils ohne Retry/Skip/Flaky. Image, Renderer und Publikationsguards bestanden;
+  der Tagjob ist beim PR erwartungsgemäß übersprungen.
+- Das eigene GOOD-B07-Artefakt dieses Heads ist
+  [`12595306781`](https://github.com/burckhju/trading-workspace/actions/runs/40184070115/artifacts/12595306781),
+  ZIP-SHA256 `e9b0c56d52b566c11318f60f0ff1d627fd20e056fea6d6aa090304bee1045024`.
+  Alle 26 Manifestdateien, drei echten GOOD-Quellen, A/A/B/A, Legacy-/Negativfälle,
+  14 Verify-/vier GET-Fenster, sechs tatsächlich gesichteten Bilder und Cleanup
+  sind erneut geprüft. Auch die vier anderen Ownerfälle besitzen vollständig
+  geprüfte eigene Rohartefakte und unveränderte Lesefenster ohne Restressourcen.
+
+Während dieses CI-Laufs wurde jedoch #279 in Main integriert. Beim Schlussabgleich
+stand Main bereits auf
+[`656cd84eb79831888db2d9b5301b95f43d901251`](https://github.com/burckhju/trading-workspace/commit/656cd84eb79831888db2d9b5301b95f43d901251),
+Tree `bd0cb575eb3e10f4f4c53e3514e7abf281c0b940`. Der normale Zwei-Eltern-Merge
+in den bestehenden #278-Branch erhält daher sowohl `b1a3deb4…` als auch diesen
+neuen Main. Die feste EUR-Berichtswährung, ihre beiden bestehenden nativen
+Ownerfälle, PB-019 und der bereits in Main enthaltene Versionsstand **1.5.17**
+werden unverändert übernommen. Der einzige inhaltliche Mergekonflikt betrifft
+zwei angehängte Traceability-Abschnitte; beide Nachträge bleiben vollständig
+erhalten. PB-013/PB-020 und PB-019 werden nicht gegeneinander überschrieben.
+
+Dies reserviert keine FT-006-Softwareversion, verändert keinen Dependency-Pin,
+keinen Runner, Checker oder Workflow und führt keinen Main-Merge, Tag oder
+PC-Schritt für #278 aus. Die gesonderte #279-Freigabe ist keine #278-Freigabe.
+Der aktuelle [PR #278](https://github.com/burckhju/trading-workspace/pull/278)
+bindet den neuen gemeinsamen Mergehead, seinen vollständigen Tree, tatsächlichen
+CI-Checkout, sämtliche regulären Gates und eigene neue native Artefakte.
+Die oben vollständig bestandene CI bleibt genau dem vorherigen Head und seiner
+damaligen Main-Basis `7b70f0df…` zugeordnet.
+
 ## Fortsetzung 25.10.2026: vollständige Ownerstrecke und ausgeführter GOOD-B07
 
 Aktualisierte Ausgangsbasis: Main und Tag `v1.5.16` zeigen unverändert auf

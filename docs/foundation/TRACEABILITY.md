@@ -805,3 +805,17 @@ seine vollständigen regulären Gates separat. B07-Abschluss ist keine
 Fachabnahme, Main-Integration, Veröffentlichung, PC-Beobachtung oder
 Gesamtabnahme der offenen M0–M11-Modellziele. Arbeitsstatus bleibt ausschließlich
 in den betroffenen PB-013-/PB-020-Einträgen.
+
+## 2026-10-25 — Berichtswährung fest EUR
+
+[PB-019 Perioden- und Tradeauswertungen](../planning/PRODUCT_BACKLOG.md#pb-019-performance-evaluations)
+→ ausdrücklicher Nutzerwunsch nach fester Euro-Berichtswährung
+→ [ADR-S10-008-Nachtrag](../decisions/ADR-S10-008-EXECUTION-CURRENCY-AND-PERIOD-REALIZED-GROSS.md)
+→ zwei bestehende Berichtsformulare mit schreibgeschütztem EUR und explizitem
+API-Filter, sichtbare Abweisung eines Nicht-EUR-Abschlusslistenlinks ohne Ersatzread
+→ erhaltene Ownerrechnung, Währungsbestätigungen und Quellen-/Antwortbindung
+→ [enger Schnitt und neue Qualifikation](../implementation/REPORT_EUR_UI_QUALIFICATION.md).
+
+Die bisherigen fünf nativen Ownerfälle und ihre Runner bleiben erhalten. Reale
+Quellenlücken sind keine Nullbeträge und werden durch die feste Berichtsauswahl
+nicht bestätigt. Keine neue Kennzahl, Migration oder vollständige M8-Abnahme.
