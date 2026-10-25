@@ -430,6 +430,59 @@ Scope and acceptance criteria: [implementation report](../implementation/JPMORGA
 
 </details>
 
+## TC-001 Quellenmodus-/Pacing-Qualifikation — 2026-10-21
+
+[Datenaktualisierung](../planning/PRODUCT_BACKLOG.md#market-data-refresh) und
+[Datenqualität](../planning/PRODUCT_BACKLOG.md#market-data-quality) →
+[Qualifikationsbericht mit A01–A14](../reviews/MARKET_DATA_SOURCE_MODE_PACING_2026-10-21.md).
+Basis `5e9ede2dc29f52eaff601d30614df6bc9c25c426` / v1.5.11;
+historischer Code-/Testcommit `3d47732665c8b66984923d88a65cf99e74d96791`, Tree
+`1b8dd1badb32e9a9d017ffd44656065f1021ac4b`; Dokumentationshead des C-Stands
+`bade0e33a67e21b9d2a7e504a798e95ba619dcd0`. Die folgende Tabelle beschreibt
+diesen Vorherstand; die anschließend getroffene Entscheidung steht im Nachtrag.
+
+| Gegenstand | Implementierungs-/Vertragsbezug | Neuer begrenzter Nachweis |
+|---|---|---|
+| Quellenmodus und Zusatzpause | Unveränderte `refresh.py`, Frankfurt-Client/Adapter, `quote_runtime.py`; [Schedulervertrag](../automatic-market-data.md#current-lanes-and-source-mode-pacing-qualification-2026-10-21) | `test_refresh_source_modes.py`: drei Modi mit echtem Resolver/Retention/Adapter/Client und getrennten Warte-/Zugriffszählern; Public zwei HTTP, Snapshots ein Zugriff im Referenzfall |
+| Cache, Fehler, Originalzeiten | [Frankfurtvertrag](../frankfurt-quotes.md#source-mode-pacing-qualification-2026-10-21), gemeinsamer prozesslokaler Lock/Cache/Backoff | `test_source_mode_contract.py`: TTL, Retry-After 120 s, koordinierte Leser, alte Datei trotz mtime, fünf Dateifehler und Freigabeschranken |
+| Konkurrenz und Lifecycle | Bestehendes Budget nach `_pace()`, Discovery-Deferral, Quote-Fehler, Stop/Join | Zwei echte Budgetkonkurrenzen und Pacing-Cancellation; vorhandene Lane-/Same-Cycle-/Leadergrenztests bleiben erhalten |
+
+322 gezielte Tests auf dem benannten Code-/Testcommit bestanden; keine Skips oder
+automatischen Retries. Vollständige statische Backendprüfungen bestanden.
+Lokale vollständige PostgreSQL-/Container-/Frontend-/Browsergates nicht
+ausgeführt; aktuelle finale PR-CI separat nachweisen. Die Sandbox-
+Executorstörung und der korrigierte Ruff-Importbefund sind im Bericht erhalten.
+**Historisches Ergebnis C:** Damals keine Produktionsänderung; die zusätzliche
+Snapshot-Schedulerpause war noch nicht entschieden. Kein Merge, Release,
+Providerzugriff, Nutzerbestands- oder PC-Nachweis folgt aus diesen Tests.
+
+### Nachtrag: Variante 2 entschieden
+
+Die Nutzeranweisung „wie vorgeschlagen gezielt ändern“ entscheidet die zuvor
+offene Frage: `_warrant` lässt die zusätzliche `_pace()`-Pause für normalisierte
+`HTTPS_JSON`-/`LOCAL_FILE`-Quoteaufrufe entfallen. Publicquote und Publicdiscovery
+behalten ihr Pacing; Clientlock/-budget, TTL, Backoff, Rechte, Originalzeiten und
+Jobintervalle bleiben erhalten. Implementierungsbezug ist die vorhandene
+Providerroute in `refresh.py`, ohne neue MIC- oder Quellenwahlregel.
+
+Neuer Prüfcommit: `187c16b63e0d4dc16b2204f80aec4533c34173e6`; gezielter Prüfumfang/-ausgang:
+`344 bestanden, 0 Fehler/Skips/Deselektionen`. Der [Entscheidungsnachtrag mit Abnahmenachweis und
+Nachweisgrenzen](../reviews/MARKET_DATA_SOURCE_MODE_PACING_2026-10-21.md#nachtrag-variante-2-entschieden)
+führt neue Ergebnisse getrennt von den 322 historischen Tests. Die frühere
+C-Entscheidung ist damit abgelöst; die vollständigen Gates müssen dem neuen
+finalen PR-Head zugeordnet werden. Ihr Einstieg bleibt gegenüber `5e9ede2` und
+`bade0e33` unverändert. Der Arbeitsstatus bleibt bis zur Integration
+**Technical Review** im Backlog; keine neue CI-, Release- oder Betriebsabnahme.
+
+Mit „Wenn alles grün mergen und für den PC bereitstellen“ hat der Nutzer den
+anschließenden Integrations- und Release-Schritt ausdrücklich freigegeben.
+Die [Release-Notiz v1.5.12](../releases/V1.5.12-SNAPSHOT-QUOTE-PACING.md) verbindet
+diesen begrenzten TC-001-Schnitt mit dem vorhandenen PC-Updateweg. Der finale
+PR-Stand und danach der tatsächliche Main-Push müssen unverändert alle Gates
+bestehen. Commit-, Run- und veröffentlichter Tagbezug werden in
+[PR #271](https://github.com/burckhju/trading-workspace/pull/271) festgehalten;
+die technische Installation auf dem PC bleibt ein gesonderter Nachweis.
+
 ## FT-012 Journal write continuation — 2026-10-14
 
 [PB-019 Journal](../planning/PRODUCT_BACKLOG.md#pb-019-journal) →
@@ -529,6 +582,32 @@ Backend, Frontend and End-to-End workflows for the precise tagged commit.
 Published software, migration 0047 and real target installation remain separate
 evidence; this trace neither invents historical execution currencies nor closes M8.
 
+## A: Navigation — 2026-10-25
+
+[PB-007 Basiswertverwaltung](../planning/PRODUCT_BACKLOG.md#pb-007-underlying-ui)
+→ bestehender [PR #204](https://github.com/burckhju/trading-workspace/pull/204)
+→ [FT-001 Listen-/Formularvertrag](../features/underlying/FEATURE.md)
+→ `UnderlyingListPage`, `UnderlyingDetailPage`, `UnderlyingFormPage` und
+`underlyingListNavigation`
+→ [aktuelle Navigationsqualifikation A01–A14](../implementation/UNDERLYING_NAVIGATION_QUALIFICATION.md).
+
+Der bestehende Branch integriert Main `fbd77fb94947a1fdbfc0aeb90811353fae655a59`
+/ v1.5.14 ohne Konflikte und bewahrt #249/#267, #269/#271/#273 sowie #274/#275.
+Die aktuelle Ergänzung ändert keine zusätzliche Produktivlogik: kontrollierte
+Detail-/DELETE-Antworten nach A→B→A, falsche Detail-ID, reine Rückzieländerung
+während offenem PATCH auf Desktop/Mobil und strengere vollständige FT-001-
+API-/Mutationsverträge werden neu qualifiziert. Der vorhandene deterministische
+`flushSync`-Nachweis bleibt erhalten.
+
+122 fokussierte Tests, das vollständige Frontend-Gate mit 780 Tests und 24
+synthetische Browserfälle sind den im Bericht genannten Quelltrees zugeordnet.
+Die vollständige reguläre PR-CI einschließlich der vier vorhandenen Ownerfälle
+wird mit finalem Head, tatsächlichem Checkout/Tree, Run/Job und Versuch im PR
+dokumentiert; alte grüne Läufe ersetzen sie nicht. Mock-HTTP, PostgreSQL-Nachweis,
+Main-Merge, Veröffentlichung und beobachteter PC-Betrieb bleiben getrennt.
+Dieser Abschnitt betrifft nur A; bestehende und spätere B-Nachweise bleiben
+unverändert erhalten.
+
 ## FT-001 Formularintegrität nach PR #249 — 2026-10-20
 
 [PB-007 Basiswertverwaltung](../planning/PRODUCT_BACKLOG.md#pb-007-underlying-ui)
@@ -571,3 +650,93 @@ Definition `realized-gross-sell-v2` changes currency qualification only; owner
 arithmetic and bounded report snapshot remain unchanged. There is no migration,
 automatic historical currency backfill or new feature ID. The historical V1.5.9
 test references above do not serve as tests for this amendment.
+
+
+## Read-only trade-source composition — 2026-10-21
+
+[PB-018 historical currentness](../planning/PRODUCT_BACKLOG.md#pb-018-currentness) and
+[PB-019 separation of decision quality and result](../planning/PRODUCT_BACKLOG.md#pb-019-decision-quality)
+→ [bounded source/read contract](../implementation/TRADE_SOURCE_VIEW_QUALIFICATION.md)
+→ `trade_position/service/source_view.py` and `api/source_router.py`
+→ existing TradeManagementPage source mode / `TradeSourcesView.tsx`
+→ `test_source_view.py` (33 executed cases), `TradeSourcesView.test.tsx` (22 executed cases)
+→ five native cases in `test_trade_source_view_postgres.py`: first full run 3 passed /
+2 fixture failures, corrected without changing owner rules; final run tracked in PR #272
+→ actual protected browser path in `support/trade_source_journey.ts`, first passed on
+8cc68f6 / checkout dbe9819, plus six guarded EOD-seed contract tests.
+
+Fresh local regressions cover 680 unit cases in affected backend areas and the
+unchanged full frontend gate (598 tests). This is not the full backend gate or
+a Browser→API→PostgreSQL qualification. The final delivery receipt binds the new
+reconstruction to a concrete local commit/tree; no identity with the previously
+claimed unretained implementation is asserted. Closed-report #270 integration,
+final full CI, human acceptance and publication remain distinct. Publication as
+[Draft-PR #272](https://github.com/burckhju/trading-workspace/pull/272) and the first
+real source browser run are now evidenced in the qualification addendum. Earlier
+local-only limits above are historical; no closed-report integration is inferred.
+
+## 2026-10-21 — separate closed-report/source-view integration
+
+The follow-up combines pinned #270 (`de413843`) and #272 (`95086541`) on
+`integration/closed-trade-result-sources`, not main. It adds the approved list →
+qualified result/exact sources → original filter/page return. No new FT/PB or
+monetary/quality owner is introduced. `ClosedTradeResult` and validated context
+reuse `closed-trade-gross-v1` and the existing exact source readers. Financial
+and optional read windows remain separate. The whole-report fingerprint is not
+claimed to identify a particular trade change or restore a historical report.
+
+[Integration inventory, contract and A1–A16 test map](../implementation/CLOSED_TRADE_SOURCE_INTEGRATION_QUALIFICATION.md)
+links the new UI tests, augmented guarded native browser journeys and unchanged
+PostgreSQL concurrency contracts. Actual full-gate runs, final checkout/tree and
+visual review are bound in the integration PR; earlier dependency CI is not reused
+as a new integration success. Human acceptance and M7/M8 completion remain separate.
+
+### 2026-10-21 — concurrent main advance retained in source integration
+
+Main advanced separately through #271 to `5c76ff49` (existing v1.5.12 metadata)
+while the integration's `f1898487` full gates were running. The final audit detected
+the different base and did not promote those passing results to current-main
+readiness. The integration branch incorporates that exact main as a separate
+parent, preserving both documentation histories and the already merged pacing
+change. No main write, new release or dependency upgrade is performed here.
+Fresh whole-tree CI and both native journeys are required on the combined head;
+PR #273 binds the new results separately from the genuine earlier successes.
+
+## 2026-10-23 — joint source journey and journal/FT-011 qualification
+
+The concrete Startprompt 11 extends development PR #273 with the existing #269
+journal/evidence qualification, preserving both original heads as merge parents.
+Main `5c76ff49` and #270/#272/#271 ancestry are retained. Only the two conflict
+blocks in `e2e.yml` require semantic integration: the union of trigger paths and
+all three unchanged job definitions. No monetary, learning, migration or dependency
+implementation is replaced. The twelve other #269 files are inherited unchanged.
+
+[Existing A1–A16 plus joint I01–I16 evidence map](../implementation/CLOSED_TRADE_SOURCE_INTEGRATION_QUALIFICATION.md)
+→ unchanged SELL and closed-trade owner cases in separate fresh stacks
+→ separate journal/FT-011 job with its two existing pinned cases
+→ actual final checkout/tree, raw report identities, artifact hashes, screenshots
+and full-gate results recorded in [PR #273](https://github.com/burckhju/trading-workspace/pull/273).
+Historical per-branch successes are not a joint execution and are not added together.
+The Product Backlog remains authoritative; human acceptance, main merge, publication
+and observed PC operation are not inferred from this development qualification.
+
+## 2026-10-24 — Strang B: Proposal-Kontextintegrität
+
+[PB-020 Governance](../planning/PRODUCT_BACKLOG.md#pb-020-governance) und
+[bestehende Candidate-Familie](../planning/PRODUCT_BACKLOG.md#pb-020-candidate-family)
+→ [FT-020-Kontextvertrag](../features/FT-020_CANDIDATE_MODEL_CONFIGURATION_UX.md#context-bound-proposal-entry)
+→ `HypothesisProposalPanel.tsx`: gebundene Hypotheseninstanz, aktuelle Modell-/
+Versionsgeneration, vollständiger Handler-Guard und synchron gesperrter Submit-Snapshot
+→ 46 kontrollierte Component-/Parent-/Candidatefälle plus fünf unveränderte FT-020-Fälle
+→ sieben synthetische Browserfälle über den vorhandenen Lesson-Router, einschließlich
+Desktop/Mobil und altem Save bei echtem Unmount
+→ zusätzliche native Fehlzuordnungs-/DRAFT-Regression auf der bestehenden
+`ModelGovernanceService`-/PostgreSQL-Grenze
+→ [Reproduktion, erhaltene Schutzmechanismen und B01–B14-Nachweismatrix](../implementation/MODEL_PROPOSAL_CONTEXT_QUALIFICATION.md).
+
+Mock-HTTP, native Transaktion und vollständige CI bleiben getrennte Nachweise.
+Head, tatsächlicher PR-Testmerge/Tree, aktuelle Jobs und Versuche werden im
+Entwicklungs-PR des Branches `fix/model-proposal-context-isolation` festgehalten.
+Strang A/#204, Backend-Produktionslogik, Runtime-Semantik, Versionen und Workflows
+bleiben unverändert. Der Product Backlog bleibt die einzige Aufgabenstatusquelle;
+dieser Nachtrag erklärt weder Fachabnahme noch Merge, Release oder PC-Installation.

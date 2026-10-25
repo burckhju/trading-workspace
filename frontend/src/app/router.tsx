@@ -17,6 +17,7 @@ import {
 import { OperationalWorkspacePage } from '../features/operational_workspace/pages/OperationalWorkspacePage';
 import { PostTradeLearningPage } from '../features/post_trade/pages/PostTradeLearningPage';
 import { RealizedGrossPage } from '../features/performance/pages/RealizedGrossPage';
+import { ClosedTradesPage } from '../features/performance/pages/ClosedTradesPage';
 import { ProductSelectionWorkflowPage } from '../features/product_selection/pages';
 import { WarrantAdminPage } from '../features/product/pages';
 import { TradeManagementPage } from '../features/trade/pages';
@@ -53,6 +54,7 @@ export function createApplicationRouter() {
         { path: 'trade-management', element: <TradeManagementPage /> },
         { path: 'post-trade', element: <PostTradeLearningPage /> },
         { path: 'performance/realized-gross', element: <RealizedGrossPage /> },
+        { path: 'performance/closed-trades', element: <ClosedTradesPage /> },
         { path: 'product-selection', element: <ProductSelectionWorkflowPage /> },
         { path: 'learning-imports', element: <BulkImportPage /> },
         { path: 'lessons/:lessonId', element: <LessonDetailPage /> },

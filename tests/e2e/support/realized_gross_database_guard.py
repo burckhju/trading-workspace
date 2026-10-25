@@ -30,7 +30,7 @@ async def verify() -> dict[str, object]:
     app_url = make_url(os.environ["TRADING_WORKSPACE_DATABASE_URL"])
     if app_url != url:
         raise RuntimeError("Application and qualification database targets differ")
-    engine = create_async_engine(url, poolclass=NullPool)
+    engine = create_async_engine(url, poolclass=NullPool, isolation_level="REPEATABLE READ")
     try:
         async with engine.connect() as connection:
             await connection.execute(text("SET TRANSACTION READ ONLY"))
@@ -44,6 +44,8 @@ async def verify() -> dict[str, object]:
                 raise RuntimeError("Disposable database marker does not match this run")
             version = await connection.scalar(text("SELECT version()"))
             revision = await connection.scalar(text("SELECT version_num FROM alembic_version"))
+            if not str(version).startswith("PostgreSQL 17.") or revision != "20261017_0047":
+                raise RuntimeError("The qualification requires PostgreSQL 17 and schema 0047")
             tables = (
                 await connection.scalars(
                     text("SELECT tablename FROM pg_tables WHERE schemaname='public' ORDER BY 1")

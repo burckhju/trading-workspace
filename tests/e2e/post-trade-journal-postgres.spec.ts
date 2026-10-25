@@ -1,16 +1,18 @@
 import { execFileSync } from "node:child_process";
 import { resolve } from "node:path";
 import { expect, test } from "@playwright/test";
+import { prepareLearningQualification } from "./support/journal-evidence";
+import { localLearningRequest } from "./support/journal-request-guard.mjs";
 
 // Match the canonical origin used by the existing real-write browser cases.
-test.use({ baseURL: "http://localhost:8080" });
+test.use({ baseURL: "http://localhost:8080", serviceWorkers: "block" });
 
 // Requires the separately identified CI Compose stack + Python fixtures. Never a user stack.
 test("real PostgreSQL: captured full exit, review, journal, lesson and stale correction", async ({
   page,
-  request,
+  request: rawRequest,
   baseURL,
-}) => {
+}, testInfo) => {
   test.skip(
     process.env.JOURNAL_E2E_WRITES_ALLOWED !== "1",
     "Explicit disposable PostgreSQL journal browser qualification required",
@@ -18,17 +20,35 @@ test("real PostgreSQL: captured full exit, review, journal, lesson and stale cor
   test.setTimeout(120_000);
   expect(process.env.CI).toBe("true");
   expect(baseURL).toBe("http://localhost:8080");
+  const qualification = await prepareLearningQualification(
+    page,
+    baseURL,
+    testInfo,
+  );
+  const request = localLearningRequest(rawRequest);
   const api = `${baseURL}/api/api/v1`;
-  const post = async (path: string, data?: object) => {
-    const response = await request.post(api + path, { data });
+  const post = async (
+    path: string,
+    data?: object,
+    headers?: Record<string, string>,
+  ) => {
+    const response = await request.post(api + path, { data, headers });
     expect(response.ok(), await response.text()).toBeTruthy();
     return response.json();
   };
   const suffix = crypto.randomUUID();
-  const issuer = await post("/market-reference-data/issuers", {
-    legal_name: `Journal CI ${suffix}`,
-    display_name: "Synthetic journal CI",
-  });
+  const runId = process.env.JOURNAL_E2E_RUN_ID!;
+  const issuer = await post(
+    "/market-reference-data/issuers",
+    {
+      legal_name: `Journal CI ${runId} ${suffix}`,
+      display_name: "Synthetic journal CI",
+    },
+    {
+      "X-Actor-ID": `journal-evidence:${runId}`,
+      "X-Actor-Name": "Synthetic journal CI",
+    },
+  );
   const venue = (
     await (
       await request.get(api + "/market-reference-data/trading-venues")
@@ -79,10 +99,31 @@ test("real PostgreSQL: captured full exit, review, journal, lesson and stale cor
   const observation = await post(`/post-trade/trades/${tid}/observation`);
   const root = resolve(process.cwd(), "..");
   execFileSync(
-    "python",
+    process.env.JOURNAL_E2E_PYTHON ?? "python",
     [
       resolve(root, "tests/e2e/support/seed_journal_prices.py"),
       observation.underlying_listing_id,
+      "0",
+      "19",
+    ],
+    {
+      cwd: root,
+      env: { ...process.env, PYTHONPATH: `${root}/backend:${root}` },
+      stdio: "pipe",
+    },
+  );
+  const incomplete = await (
+    await request.get(api + `/post-trade/trades/${tid}/observation`)
+  ).json();
+  expect(incomplete.available_observation_count).toBe(19);
+  expect(incomplete.is_complete).toBe(false);
+  execFileSync(
+    process.env.JOURNAL_E2E_PYTHON ?? "python",
+    [
+      resolve(root, "tests/e2e/support/seed_journal_prices.py"),
+      observation.underlying_listing_id,
+      "19",
+      "20",
     ],
     {
       cwd: root,
@@ -140,8 +181,11 @@ test("real PostgreSQL: captured full exit, review, journal, lesson and stale cor
     .getByRole("button", { name: "Journalaktion bestätigen", exact: true })
     .click();
   await expect(journal.getByLabel("Was lief gut?")).toHaveCount(0);
-  const getHistory = async () =>
-    (await request.get(api + `/learning/trades/${tid}/journal`)).json();
+  const getHistory = async () => {
+    const response = await request.get(api + `/learning/trades/${tid}/journal`);
+    expect(response.status(), await response.text()).toBe(200);
+    return response.json();
+  };
   const original = (await getHistory()).versions[0].version;
   await journal
     .getByRole("button", {
@@ -200,7 +244,7 @@ test("real PostgreSQL: captured full exit, review, journal, lesson and stale cor
   ).json();
   expect(after).toEqual(before);
   await page.screenshot({
-    path: "test-results/journal-real-postgres-stale.png",
+    path: testInfo.outputPath("journal-real-postgres-stale.png"),
     fullPage: true,
   });
   // Explicit FT-011 owner actions make a controlled new journal possible.
@@ -256,7 +300,7 @@ test("real PostgreSQL: captured full exit, review, journal, lesson and stale cor
     await (await request.get(api + `/learning/lessons/${lessonId}`)).json(),
   ).toEqual(before);
   await page.screenshot({
-    path: "test-results/journal-real-postgres-successor.png",
+    path: testInfo.outputPath("journal-real-postgres-successor.png"),
     fullPage: true,
   });
 
@@ -449,7 +493,17 @@ test("real PostgreSQL: captured full exit, review, journal, lesson and stale cor
   expect((await getHistory()).versions[1].version).toEqual(original);
   expect(reviewWrites).toHaveLength(2); // Reload/history/source reads generate nothing.
   await page.screenshot({
-    path: "test-results/lesson-review-historical-source.png",
+    path: testInfo.outputPath("lesson-review-historical-source.png"),
     fullPage: true,
   });
+  await qualification.readWindow(
+    "journal-lesson-read-only-sources",
+    async () => ({
+      trade_id: tid,
+      initial_execution_ids: [buy.execution.id, sale.execution.id],
+      journal: await getHistory(),
+      lesson: await reviewContext(),
+    }),
+  );
+  qualification.assertNoUnexpectedRequests();
 });

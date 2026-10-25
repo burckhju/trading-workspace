@@ -35,10 +35,12 @@ const venueId = '00000000-0000-4000-8001-000000000001';
 let items: UnderlyingDetailResponse[];
 function deferred<T>() {
   let resolve!: (value: T) => void;
-  const promise = new Promise<T>((done) => {
+  let reject!: (reason: Error) => void;
+  const promise = new Promise<T>((done, fail) => {
     resolve = done;
+    reject = fail;
   });
-  return { promise, resolve };
+  return { promise, resolve, reject };
 }
 function HistoryControls() {
   const navigate = useNavigate();
@@ -203,67 +205,128 @@ describe('underlying list return context', () => {
     expect(query).toHaveValue('Test');
   });
 
-  it('never shows or edits late detail A after switching to detail B with another list context', async () => {
-    const pending = deferred<UnderlyingDetailResponse>();
-    vi.mocked(marketApiClient.getUnderlying).mockImplementation((id) =>
-      id === items[0].id ? pending.promise : Promise.resolve(items[1]),
-    );
-    const path = (index: number) =>
-      `/underlyings/${items[index].id}?${new URLSearchParams({ returnTo: `/underlyings?offset=${index ? 50 : 25}` })}`;
-    const router = createMemoryRouter(
-      [{ path: '/underlyings/:underlyingId', element: <UnderlyingDetailPage /> }],
-      { initialEntries: [path(0)] },
-    );
-    render(<RouterProvider router={router} />);
-    await act(async () => {
-      await router.navigate(path(1));
-    });
-    await screen.findByRole('heading', { name: itemName(2) });
-    await act(async () => {
-      pending.resolve(items[0]);
-      await pending.promise;
-    });
-    expect(screen.getByRole('heading', { name: itemName(2) })).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: itemName(1) })).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Bearbeiten' })).toHaveAttribute(
-      'href',
-      `/underlyings/${items[1].id}/edit?returnTo=%2Funderlyings%3Foffset%3D50`,
-    );
-    expect(marketApiClient.updateUnderlying).not.toHaveBeenCalled();
-  });
+  it.each([
+    { outcome: 'resolve', revisit: false },
+    { outcome: 'reject', revisit: false },
+    { outcome: 'resolve', revisit: true },
+    { outcome: 'reject', revisit: true },
+  ])(
+    'ignores old detail $outcome after A to B with return to A=$revisit',
+    async ({ outcome, revisit }) => {
+      const pending = deferred<UnderlyingDetailResponse>();
+      const freshA = { ...items[0], name: 'Aktuelles A', version: 9 };
+      vi.mocked(marketApiClient.getUnderlying)
+        .mockImplementation((id) => Promise.resolve(id === items[0].id ? freshA : items[1]))
+        .mockReturnValueOnce(pending.promise);
+      const path = (index: number) =>
+        `/underlyings/${items[index].id}?${new URLSearchParams({ returnTo: `/underlyings?offset=${index ? 50 : 25}` })}`;
+      const router = createMemoryRouter(
+        [{ path: '/underlyings/:underlyingId', element: <UnderlyingDetailPage /> }],
+        { initialEntries: [path(0)] },
+      );
+      render(<RouterProvider router={router} />);
+      await act(async () => {
+        await router.navigate(path(1));
+      });
+      await screen.findByRole('heading', { name: itemName(2) });
+      if (revisit) {
+        await act(async () => {
+          await router.navigate(path(0));
+        });
+        await screen.findByRole('heading', { name: freshA.name });
+      }
+      await act(async () => {
+        if (outcome === 'resolve') pending.resolve(items[0]);
+        else pending.reject(new Error('Old A detail failed'));
+        await pending.promise.catch(() => undefined);
+      });
+      const current = revisit ? freshA : items[1];
+      expect(screen.getByRole('heading', { name: current.name })).toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: itemName(1) })).not.toBeInTheDocument();
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Bearbeiten' })).toHaveAttribute(
+        'href',
+        `/underlyings/${current.id}/edit?returnTo=%2Funderlyings%3Foffset%3D${revisit ? 25 : 50}`,
+      );
+      expect(marketApiClient.getUnderlying).toHaveBeenCalledTimes(revisit ? 3 : 2);
+      expect(marketApiClient.updateUnderlying).not.toHaveBeenCalled();
+    },
+  );
 
-  it('submits one delete and ignores its old completion after navigating to detail B', async () => {
-    const pending = deferred<void>();
-    vi.mocked(marketApiClient.deleteUnderlying).mockReturnValue(pending.promise);
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
-    const firstPath = `/underlyings/${items[0].id}?returnTo=%2Funderlyings%3Foffset%3D25`;
-    const secondPath = `/underlyings/${items[1].id}?returnTo=%2Funderlyings%3Foffset%3D50`;
-    const router = createMemoryRouter(
-      [
-        { path: '/underlyings/:underlyingId', element: <UnderlyingDetailPage /> },
-        { path: '/underlyings', element: <h1>Liste</h1> },
-      ],
-      { initialEntries: [firstPath] },
+  it.each([
+    { outcome: 'resolve', revisit: false },
+    { outcome: 'reject', revisit: false },
+    { outcome: 'resolve', revisit: true },
+    { outcome: 'reject', revisit: true },
+  ])(
+    'submits one delete and ignores its old $outcome with return to A=$revisit',
+    async ({ outcome, revisit }) => {
+      const pending = deferred<void>();
+      vi.mocked(marketApiClient.deleteUnderlying).mockReturnValue(pending.promise);
+      vi.spyOn(window, 'confirm').mockReturnValue(true);
+      const firstPath = `/underlyings/${items[0].id}?returnTo=%2Funderlyings%3Foffset%3D25`;
+      const secondPath = `/underlyings/${items[1].id}?returnTo=%2Funderlyings%3Foffset%3D50`;
+      const router = createMemoryRouter(
+        [
+          { path: '/underlyings/:underlyingId', element: <UnderlyingDetailPage /> },
+          { path: '/underlyings', element: <h1>Liste</h1> },
+        ],
+        { initialEntries: [firstPath] },
+      );
+      render(<RouterProvider router={router} />);
+      await screen.findByRole('heading', { name: itemName(1) });
+      const button = screen.getByRole('button', { name: 'Löschen' });
+      act(() => {
+        fireEvent.click(button);
+        fireEvent.click(button);
+      });
+      expect(marketApiClient.deleteUnderlying).toHaveBeenCalledExactlyOnceWith(items[0].id, 1);
+      await act(async () => {
+        await router.navigate(secondPath);
+      });
+      await screen.findByRole('heading', { name: itemName(2) });
+      if (revisit) {
+        vi.mocked(marketApiClient.getUnderlying).mockResolvedValue({
+          ...items[0],
+          name: 'Aktuelles A',
+          version: 9,
+        });
+        await act(async () => {
+          await router.navigate(firstPath);
+        });
+        await screen.findByRole('heading', { name: 'Aktuelles A' });
+      }
+      await act(async () => {
+        if (outcome === 'resolve') pending.resolve();
+        else pending.reject(new Error('Old A delete failed'));
+        await pending.promise.catch(() => undefined);
+      });
+      expect(router.state.location.pathname + router.state.location.search).toBe(
+        revisit ? firstPath : secondPath,
+      );
+      expect(
+        screen.getByRole('heading', { name: revisit ? 'Aktuelles A' : itemName(2) }),
+      ).toBeInTheDocument();
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Löschen' })).toBeEnabled();
+      expect(marketApiClient.deleteUnderlying).toHaveBeenCalledExactlyOnceWith(items[0].id, 1);
+    },
+  );
+
+  it('rejects a wrong detail identity before offering any edit or mutation and retains the list context', async () => {
+    vi.mocked(marketApiClient.getUnderlying).mockResolvedValue(items[1]);
+    const list = `/underlyings?query=Test&lifecycle=ACTIVE&venue=${venueId}&currency=EUR&offset=25`;
+    renderFlow(`/underlyings/${items[0].id}?${new URLSearchParams({ returnTo: list })}`);
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Die Daten konnten nicht geladen werden.',
     );
-    render(<RouterProvider router={router} />);
-    await screen.findByRole('heading', { name: itemName(1) });
-    const button = screen.getByRole('button', { name: 'Löschen' });
-    act(() => {
-      fireEvent.click(button);
-      fireEvent.click(button);
-    });
-    expect(marketApiClient.deleteUnderlying).toHaveBeenCalledExactlyOnceWith(items[0].id, 1);
-    await act(async () => {
-      await router.navigate(secondPath);
-    });
-    await screen.findByRole('heading', { name: itemName(2) });
-    await act(async () => {
-      pending.resolve();
-      await pending.promise;
-    });
-    expect(router.state.location.pathname + router.state.location.search).toBe(secondPath);
-    expect(screen.getByRole('heading', { name: itemName(2) })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Löschen' })).toBeEnabled();
+    expect(screen.queryByRole('heading', { name: itemName(2) })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Bearbeiten' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Löschen' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Zurück zur Liste' })).toHaveAttribute('href', list);
+    expect(marketApiClient.updateUnderlying).not.toHaveBeenCalled();
+    expect(marketApiClient.createUnderlying).not.toHaveBeenCalled();
+    expect(marketApiClient.deleteUnderlying).not.toHaveBeenCalled();
   });
 
   it.each([2, 3])(

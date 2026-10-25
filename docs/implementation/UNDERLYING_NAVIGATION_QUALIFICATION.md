@@ -1,5 +1,156 @@
 # Basiswert-Listennavigation: gemeinsame Qualifikation mit Formularschutz
 
+## A: Navigation — Fortschreibung 25.10.2026 auf aktuellem Main
+
+Dieser Abschnitt qualifiziert den vorhandenen #204-Fix erneut auf v1.5.14.
+Die folgenden Abschnitte ab „Historischer Prüfstand 20.10.2026“ bleiben datierte
+Vorgeschichte; ihre grünen Zahlen werden nicht als neuer Integrationslauf gezählt.
+Der veröffentlichte finale PR-Head, sein vollständiger Tree, der tatsächliche
+CI-Checkout, Run-/Jobkennungen, Workflowversuch und Ergebnis werden im
+[bestehenden PR #204](https://github.com/burckhju/trading-workspace/pull/204)
+zugeordnet. Ein PR-Testmerge ist weder Main-Merge noch Veröffentlichung.
+
+### Grundlage, Integration und enger Restdiff
+
+| Bezug | Erneut gelesener beziehungsweise geprüfter Wert |
+|---|---|
+| Bestehender Aufgabenbranch / vorheriger Head | `fix/underlying-list-return` / `d279db33716ff0070c12ccd44f02036f137fa566` |
+| Mergebase mit aktuellem Main | `5e9ede2dc29f52eaff601d30614df6bc9c25c426` |
+| Integriertes Main / Tree | `fbd77fb94947a1fdbfc0aeb90811353fae655a59` / `027e1d0546f4c09d761ac10d1f59e87d613aff41` |
+| Unveränderte Projektversion / Schema-Dateihead | `1.5.14` / `20261017_0047` (keine lokale DB-Migration behauptet) |
+| Geprüfter Frontend-Quelltree | `c8589dc5b212cc7afd7c186935a8977f8cb826f5` |
+| Geprüfter Browser-Quelltree `tests/e2e/` | `7ad8b33abd417afb8dc0d4ba0b6ae7c3ad2d9598` |
+| Runtime | Node `22.16.0`, npm `10.9.2`; Playwright `1.55.0`, Chromium `140.0.7339.16` / Build `1187` |
+
+Der eigene frische Clone enthielt keine fremden Änderungen. #204 war erneut
+`open`, `draft=true`, `merged=false`, `mergeable=true`, `mergeable_state=behind`.
+Reviews und Review-Threads waren leer. Die tatsächliche Dateiliste enthielt die
+14 erwarteten Dateien. Der einzige alte Kommentar beschreibt die frühere,
+bereits korrigierte API-Präfix-Fixture. Ein konkurrierender Navigations-PR war
+nicht sichtbar; daraus folgt keine Aussage über unveröffentlichte fremde Arbeit.
+
+`git merge --no-ff --no-commit origin/main` hat Main **ohne Konflikte** integriert.
+Es gab diesmal keine manuelle Konfliktauflösung. Die früheren Konflikte im
+historischen Abschnitt gehören zum 20.10.2026. Beide Eltern bleiben erhalten;
+kein Rebase, Force-Push, Reset oder Datei-Overlay wird verwendet.
+
+Die vier produktiven Navigationsdateien entsprechen unverändert dem bisherigen
+#204-Head. Auch der deterministische `flushSync`-Fix und sein Regressionstest
+bleiben erhalten. Der neue Entwicklungsanteil besteht ausschließlich aus
+Testverschärfungen und diesem datierten Nachweis. Gegenüber Main bleibt der
+Produktivdiff auf diese vier Dateien begrenzt. Backend, Migrationen, API-Client,
+Modell-/Performance-/Trade-/Learningcode, Router/Layout, Versionen, Abhängigkeiten,
+Lockfile, sämtliche Workflows, Owner-Runner und der bestehende Browser-
+Formisolationstest sind bytegleich mit Main. Damit bleiben #269/#271/#273 und
+der v1.5.14-Proposal-Kontextschutz #274/#275 erhalten. Der neue Parallelstrang B
+wird weder implementiert noch verändert. Backlog und Traceability erhalten nur
+den eigenen Abschnitt „A: Navigation“.
+
+### Neue Qualifikation und Abnahmematrix
+
+| Kriterium | Konkreter gemeinsamer Nachweis |
+|---|---|
+| A01 | Konfliktfreie normale Main-Integration; vollständiger Diff und unveränderte ausgeschlossene Pfade geprüft. |
+| A02 | Beide Browserfälle Seite 2/3: alle fünf URL-Werte vor Reload, Detail → Edit → Save, genaue ID/Version/gesamte PATCH-Payload, aktuelle Anzeige und vollständiger neuer Listenrequest. |
+| A03 | Abbrechen, Formular-Zurück und Detail-Zurück; zwei Tabs mit vollständigen unterschiedlichen Such-/Filter-/Seitenkontexten und null Mutationen. |
+| A04 | Listen-/Formular-Reload, echtes Back/Forward sowie unabhängig erneut geladene Tabs; kein sessionweiter Store. |
+| A05 | Bestehende deterministische Sofortaktionsregression und `flushSync: true` unverändert; keine Wartezeit zwischen den schnellen Browseraktionen ergänzt. |
+| A06 | 39 Helperfälle einschließlich Duplikaten, verschachtelten/externalen Zielen, Kodierungsfehlern und gültigen äquivalenten Kodierungen. Die fünf Browser-Negativfälle prüfen jetzt zusätzlich die vollständige PATCH-Folge mit Versionen 1–5. |
+| A07 | Direkter Edit-/Create-Rückweg, vorhandene validierte Vorschlags-/STOCK-/ETF-/MIC-/Währungsfälle; FT-001-CREATE prüft jetzt alle Payloadfelder und genau einen Auftrag. |
+| A08 | Synthetisches DELETE des einzigen Eintrags auf Seite 3, Version 1, identische Filter, genau Offsets `50, 50, 25`, Seite 2 von 2 und gesperrtes Weiter. |
+| A09 | Bestehende kontrollierte CREATE-/UPDATE-Formtests und zwei neue Desktop-/Mobilbrowserfälle: PATCH bleibt offen, nur `returnTo` ändert sich, Eingaben und Sperre bleiben erhalten, keine erneuten GETs, trotz zusätzlicher Submit-Ereignisse genau ein Auftrag; freigegebener Erfolg liest das aktuelle gültige Listenziel neu. |
+| A10 | Vorhandene 43 Formularisolationsfälle; erweiterte Detailtests für verspäteten Erfolg/Fehler nach A→B und A→B→A sowie explizite Ablehnung falscher Detail-ID ohne Edit-/Mutationsangebot. |
+| A11 | Synchrone Submit-Sperre, aktueller Fehler mit erhaltener Payload/Version, bewusste Wiederholung, kein automatischer Retry oder blindes Konfliktüberschreiben. |
+| A12 | Ergänzte DELETE-Erfolgs-/Fehlerfälle nach A→B und A→B→A prüfen ursprüngliche ID/Version, genau einen Auftrag und unveränderte aktuelle Route/Anzeige; bestehende späte Save-Fälle bleiben enthalten. |
+| A13 | 24 gemeinsam ausgeführte Browserfälle, 25 API-Vertragsanhänge mit exaktem `/api/api/v1` und `unexpected=[]`; vollständige Payloads/Mutationsfolgen. Tatsächliche Desktop- und Mobilbilder geprüft. |
+| A14 | Alle aktuellen Main-Workflows und die beiden Finanz-/beiden Lernfälle bleiben unverändert. Ihre aktuelle vollständige Ausführung einschließlich Checkout/Tree und Rohreportprüfung wird separat im PR gebunden; lokale UI-Erfolge ersetzen sie nicht. |
+
+Die FT-001-Fixture lässt jetzt ausschließlich eigene statische GET-Ressourcen
+durch. Alle API-, Fetch/XHR-, Mutations- und Fremdrequests werden kontrolliert
+abgefangen; falscher Origin, falsches Präfix und unbekannte Pfade scheitern auch
+in der automatischen Fixture-Abschlussprüfung. Sie prüft CREATE, Verifizieren,
+Deaktivieren und DELETE mit vollständigen Methoden, Pfaden, Querywerten,
+Payloads und Mutationszahlen. Der Produktionsproxy bleibt unverändert.
+
+| Neuer lokaler Lauf | Tatsächliches Ergebnis |
+|---|---|
+| Bestehende gemeinsame Suite nach Main-Integration | **115/115**, sieben Dateien |
+| Erweiterte gemeinsame Suite | **122/122**, sieben Dateien, davon 21 Navigation und 43 Formularisolation |
+| Unverändertes `bash scripts/check-frontend.sh` | **780/780**, 119 Dateien; TypeScript, ESLint, Prettier, Coverage und Produktionsbuild bestanden |
+| Coverage Statements/Lines / Functions / Branches | **93,49 / 86,38 / 85,95 %**, alle Schwellen unverändert |
+| Gemeinsamer Browserlauf | **24/24**, 8 Navigation + 12 Formularisolation + 4 FT-001; ein Worker, je genau ein erfolgreicher Versuch, `retry=0`, kein Skip/Flaky/Reporterfehler |
+| Browserartefakte | 24 Traces, 20 Screenshotanhänge und 25 geprüfte API-Verträge |
+| Diff / ausgeschlossene Pfade | `git diff --check` und Indexprüfung erfolgreich; keine zusätzlichen Produktivänderungen |
+
+Der erste lokale Sandbox-Testprozess lieferte keinen Report und wurde gezielt
+beendet. Er zählt nicht als Testlauf mit Erfolg. Die dokumentierten Ergebnisse
+stammen aus der funktionsfähigen isolierten Werkzeugumgebung. Der vollständige
+Frontend-Gatelauf und der Browserlauf bestanden jeweils beim ersten beendeten
+Versuch. Der normale Playwright-Download-Fallback nach defektem CDN-Archiv fand
+vor Testbeginn statt und ist kein Testretry. Es gab keinen neuen Produktivfehler
+und daher keinen künstlich erzeugten Rotnachweis oder neuen Produktivfix.
+
+Der eigene Browserbuild verwendete explizit
+`VITE_API_BASE_URL=http://127.0.0.1:31804/api`; derselbe Wert war
+`E2E_VITE_API_BASE_URL`, das eigene Frontend lief auf `127.0.0.1:31804`.
+Es war kein Backend oder Datenbankziel angeschlossen. Der Previewprozess ist
+beendet; die Loopback-Verbindung wurde danach mit `ECONNREFUSED` geprüft.
+Die Bilder zeigen gefilterte Seite 2/3, den erhaltenen Speicherzustand auf
+Desktop/Mobil, die mobile Rückkehrliste und den gesperrten Ladefehlerzustand.
+Der eigene Mobilfall prüft zusätzlich fehlenden horizontalen Seitenüberlauf.
+
+Docker ist lokal nicht vorhanden. `scripts/check-backend.sh` und
+`scripts/run-e2e.sh` wurden deshalb hier nicht als vollständige lokale Gates
+ausgeführt. Die unveränderten regulären CI-Jobs müssen den veröffentlichten
+gemeinsamen Tree prüfen: Backend einschließlich PostgreSQL, Produktionsimage,
+Renderer, Frontend, Smoke, beide Finanz- und beide Lern-Ownerfälle sowie
+Veröffentlichungsschutz. Der tag-Job bleibt beim PR vorgesehen übersprungen.
+Die Owner-Runner behalten ihre expliziten frischen UUID-Ziele, Zielprüfungen,
+Netzgrenzen und Cleanup-Nachweise. Der bestehende Smokejob verwendet seinen
+eigenen frischen Hosted Runner; ihm werden keine zusätzlichen Owner-Guards
+zugeschrieben. A verändert keine dieser Infrastrukturen.
+
+### Neue lokale Artefaktbindung
+
+| Artefakt | SHA256 |
+|---|---|
+| `navigation-integrated-before.json` | `16b586e00f043c82fcde2cb0bc1cdd1153d5690ecc0475515cfa26c29b702f16` |
+| `navigation-integrated-expanded.json` | `3e700bd84237b0041d5153ebdef22eaa07bd4411eb65cd4d95ca38df10c80f95` |
+| `frontend-gate.log` | `ed5c34dd88816db38fdabfcf318a7e6b16f188ee351de5eee8a8001ee5acd5fa` |
+| `browser-integrated.json` | `00af3a64cfebc514d3a4a6471835d7f7161a0d0335aaa83af988d0f726adff85` |
+| `browser-api-contracts.json` | `4ab6b8d12f434f777b40b818d13c2f652d9a3bf814a97e6df1f25a23145c0019` |
+
+Diese Rohartefakte sind Sitzungsnachweise; die neuen unveränderlichen CI-Artefakte
+werden nach ihrem tatsächlichen Lauf im PR referenziert. Große Rohberichte oder
+private Daten werden nicht in das Repository übernommen.
+
+### Grenzen und späterer lesender PC-Abnahmeweg
+
+Mock-HTTP belegt Clientverhalten, keine PostgreSQL-Persistenz oder Veränderung
+von Nutzerstammdaten. Ein abgesendeter Serverauftrag wird durch das Ignorieren
+seiner alten Antwort nicht rückgängig gemacht. Der historisch dokumentierte
+gleiche-ID-StrictMode-Doppelladerandfall bleibt ausdrücklich von der hier
+geprüften Isolation verschiedener Datensatzinstanzen getrennt; seine Behebung
+wird nicht behauptet. Der unabhängige Lesereview der Ergänzungen fand keinen
+weiteren Produktivdefekt oder Testblocker.
+
+Nach späterer gesondert freigegebener Auslieferung kann der Nutzer rein lesend:
+
+1. Installierte Version/Commit getrennt feststellen; eine vorhandene gefilterte
+   Auswahl mit mindestens zwei Seiten öffnen und deren vollständige URL notieren.
+2. Auf Seite 2 beziehungsweise 3 einen Basiswert öffnen, „Bearbeiten“ wählen und
+   ausschließlich „Abbrechen“ beziehungsweise „Zurück“ verwenden. URL, alle Filter
+   und Seite müssen übereinstimmen; keine Speicher-/Löschaktion ausführen.
+3. Liste und Formular erneut laden, Browser-Zurück/-Vorwärts sowie einen zweiten
+   Tab mit anderer Auswahl prüfen. Jeder Tab muss seinen eigenen Kontext behalten.
+
+Speichern, DELETE, Fehler-/Antwortreihenfolgen und aktuelle Daten nach Mutation
+bleiben zunächst den synthetischen Tests zugeordnet. Keine PC-Prüfung wurde hier
+ausgeführt. Main-Merge, Release, Tag, Installation und menschliche Fachabnahme
+benötigen ihre eigenen Nachweise beziehungsweise Freigaben.
+
+## Historischer Prüfstand 20.10.2026
+
 Prüfdatum: 20.10.2026. Gegenstand ist die begrenzte Weiterführung von
 [PR #204](https://github.com/burckhju/trading-workspace/pull/204) auf v1.5.11.
 Die ursprünglichen Ergebnisse bis einschließlich „Sitzungsartefakte und weitere

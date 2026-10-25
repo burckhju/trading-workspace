@@ -1,5 +1,26 @@
 # Begrenzte Restprüfung der PRs #204, #225, #235 und #90
 
+## Datierte Fortschreibung — 25.10.2026, A: Navigation
+
+Der folgende Bericht beschreibt weiterhin ausschließlich den Prüfstand vom
+20.10.2026. Inzwischen enthält Main `fbd77fb94947a1fdbfc0aeb90811353fae655a59`
+(v1.5.14) den Quellenmodus-/Pacing-Schnitt **#271** sowie die gemeinsame
+Finanz-/Journalqualifikation **#273 einschließlich #269/#270/#272** und den
+Proposal-Kontextschutz **#274/#275**. Der unten als offen beschriebene
+Quellenmodus-/Pacing-Anteil von #225 ist damit zeitlich überholt; seine alte
+CI-Aufteilung wird durch diese Feststellung weder übernommen noch freigegeben.
+Die [Pacing-Nachprüfung vom 21.10.2026](MARKET_DATA_SOURCE_MODE_PACING_2026-10-21.md)
+und die aktuellen Releasebelege bleiben die passenden Quellen.
+
+#204 bleibt der bestehende Navigationsbranch. Die aktuelle konfliktfreie
+Main-Integration, erhaltenen Formularinvarianten und neuen Nachweise stehen in
+der [Fortschreibung der Navigationsqualifikation](../implementation/UNDERLYING_NAVIGATION_QUALIFICATION.md).
+Die historischen Konflikt- und Testaussagen weiter unten sind keine Aussagen
+über den neuen Integrationslauf. #225, #235 und #90 wurden durch A weder
+geschlossen noch gemergt. Der neue Candidate-Governance-Strang B bleibt getrennt.
+
+## Historischer Bericht vom 20.10.2026
+
 Prüfdatum: 20.10.2026. Vergleichsbasis ist `main` bei
 `5e9ede2dc29f52eaff601d30614df6bc9c25c426` (Tree
 `303e56c078efd578e6e147edcf2ebac6accf6ba5`, veröffentlichter Stand v1.5.11).

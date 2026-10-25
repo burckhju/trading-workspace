@@ -1,16 +1,18 @@
 import { execFileSync } from "node:child_process";
 import { resolve } from "node:path";
-import { expect, test } from "@playwright/test";
+import { expect, test, type Request } from "@playwright/test";
+import { prepareLearningQualification } from "./support/journal-evidence";
+import { localLearningRequest } from "./support/journal-request-guard.mjs";
 
 // Match the canonical origin used by the existing real-write browser cases.
-test.use({ baseURL: "http://localhost:8080" });
+test.use({ baseURL: "http://localhost:8080", serviceWorkers: "block" });
 
 // Requires the separately identified CI Compose stack + Python fixtures. Never a user stack.
 test("real PostgreSQL: FT011 history survives correction and opens the exact Lesson version", async ({
   page,
-  request,
+  request: rawRequest,
   baseURL,
-}) => {
+}, testInfo) => {
   test.skip(
     process.env.FT011_E2E_WRITES_ALLOWED !== "1",
     "Explicit disposable PostgreSQL FT011 evidence browser qualification required",
@@ -18,17 +20,165 @@ test("real PostgreSQL: FT011 history survives correction and opens the exact Les
   test.setTimeout(120_000);
   expect(process.env.CI).toBe("true");
   expect(baseURL).toBe("http://localhost:8080");
+  const qualification = await prepareLearningQualification(
+    page,
+    baseURL,
+    testInfo,
+  );
+  const request = localLearningRequest(rawRequest);
   const api = `${baseURL}/api/api/v1`;
-  const post = async (path: string, data?: object) => {
-    const response = await request.post(api + path, { data });
+  const post = async (
+    path: string,
+    data?: object,
+    headers?: Record<string, string>,
+  ) => {
+    const response = await request.post(api + path, { data, headers });
     expect(response.ok(), await response.text()).toBeTruthy();
     return response.json();
   };
+  const finalizeAndReadBack = async (tradeId: string, version: number) => {
+    const reviewUrl = `${api}/post-trade/trades/${tradeId}/exit-review`;
+    const ownerRequests: Request[] = [];
+    const recordOwnerRequest = (request: Request) => {
+      if (
+        request.method() === "GET" &&
+        [
+          `${api}/post-trade/trades/${tradeId}/`,
+          `${api}/learning/trades/${tradeId}/`,
+        ].some((prefix) => request.url().startsWith(prefix))
+      )
+        ownerRequests.push(request);
+    };
+    page.on("request", recordOwnerRequest);
+    try {
+      // Register before the action. finalizeReview refreshes its child first,
+      // then onLearningStateChanged triggers the parent's external child refresh.
+      // Both end in this exact review GET, after their owner reads have finished.
+      const finalized = page
+        .waitForResponse(
+          (response) =>
+            response.url() === `${reviewUrl}/finalize` &&
+            response.request().method() === "POST",
+        )
+        .then(async (response) => {
+          expect(await response.finished()).toBeNull();
+          expect(response.status(), await response.text()).toBe(200);
+          const value = await response.json();
+          expect(value).toMatchObject({
+            version,
+            status: "FINALIZED",
+            currentness: "CURRENT",
+          });
+          return value;
+        });
+      const readbacks: object[] = [];
+      const ownerReadsFinished = page.waitForResponse(async (response) => {
+        if (
+          response.url() !== reviewUrl ||
+          response.request().method() !== "GET" ||
+          !ownerRequests.includes(response.request())
+        )
+          return false;
+        const pinned = await finalized;
+        expect(await response.finished()).toBeNull();
+        expect(response.status(), await response.text()).toBe(200);
+        const value = await response.json();
+        if (
+          value.current_version_id !== pinned.current_version_id ||
+          value.status !== "FINALIZED"
+        )
+          return false;
+        expect(value).toMatchObject({ version, currentness: "CURRENT" });
+        readbacks.push(value);
+        return readbacks.length === 2;
+      });
+      const [review] = await Promise.all([
+        finalized,
+        ownerReadsFinished,
+        page
+          .getByRole("button", { name: "Review finalisieren", exact: true })
+          .click(),
+      ]);
+      // The sibling parent status, journal and evidence-history reads are not
+      // part of the child's Promise.all. Finish their bodies as well before the
+      // single materialization, since owner reads may briefly lock source rows.
+      const ownerReadbacks = await Promise.all(
+        ownerRequests.map(async (request) => {
+          const response = await request.response();
+          expect(
+            response,
+            `Owner read did not respond: ${request.url()}`,
+          ).not.toBeNull();
+          expect(await response!.finished()).toBeNull();
+          expect(response!.status(), await response!.text()).toBe(200);
+          return {
+            url: request.url(),
+            status: response!.status(),
+            body: await response!.json(),
+          };
+        }),
+      );
+      expect(ownerRequests).toHaveLength(ownerReadbacks.length);
+      await expect(
+        page.getByRole("button", {
+          name: "Review-Quellenstand prüfen",
+          exact: true,
+        }),
+      ).toBeEnabled();
+      await testInfo.attach(`ft011-review-${version}-completed-owner-reads`, {
+        body: JSON.stringify(
+          { finalized: review, readbacks, ownerReadbacks },
+          null,
+          2,
+        ),
+        contentType: "application/json",
+      });
+      return review;
+    } finally {
+      page.off("request", recordOwnerRequest);
+    }
+  };
+  const materializeOnce = async (
+    tradeId: string,
+    review: { current_version_id: string },
+  ) => {
+    const button = page.getByRole("button", {
+      name: "An Lessons Learned übergeben",
+      exact: true,
+    });
+    await expect(button).toBeEnabled();
+    const [response] = await Promise.all([
+      page.waitForResponse(
+        (value) =>
+          value.url() ===
+            `${api}/learning/trades/${tradeId}/ft011-evidence/materialize` &&
+          value.request().method() === "POST",
+      ),
+      button.click(),
+    ]);
+    expect(await response.finished()).toBeNull();
+    expect(response.status(), await response.text()).toBe(200);
+    const receipt = await response.json();
+    expect(receipt).toMatchObject({
+      created: true,
+      replayed: false,
+      exit_review_version_id: review.current_version_id,
+    });
+    return receipt;
+  };
   const suffix = crypto.randomUUID();
-  const issuer = await post("/market-reference-data/issuers", {
-    legal_name: `Journal CI ${suffix}`,
-    display_name: "Synthetic journal CI",
-  });
+  const runId = process.env.JOURNAL_E2E_RUN_ID!;
+  const issuer = await post(
+    "/market-reference-data/issuers",
+    {
+      legal_name: `Journal CI ${runId} ${suffix}`,
+      display_name: "Synthetic journal CI",
+    },
+    {
+      "X-Actor-ID": `journal-evidence:${runId}`,
+      "X-Actor-Name": "Synthetic journal CI",
+    },
+  );
   const venue = (
     await (
       await request.get(api + "/market-reference-data/trading-venues")
@@ -79,7 +229,7 @@ test("real PostgreSQL: FT011 history survives correction and opens the exact Les
   const observation = await post(`/post-trade/trades/${tid}/observation`);
   const root = resolve(process.cwd(), "..");
   execFileSync(
-    "python",
+    process.env.JOURNAL_E2E_PYTHON ?? "python",
     [
       resolve(root, "tests/e2e/support/seed_journal_prices.py"),
       observation.underlying_listing_id,
@@ -101,9 +251,7 @@ test("real PostgreSQL: FT011 history survives correction and opens the exact Les
     .fill(
       "Bewusstes synthetisches Review – kein handelbarer Underlying-Vergleich.",
     );
-  await page
-    .getByRole("button", { name: "Review finalisieren", exact: true })
-    .click();
+  const firstReview = await finalizeAndReadBack(tid, 1);
   const history = page.getByRole("region", {
     name: "Bisherige Review-Evidence",
     exact: true,
@@ -113,9 +261,7 @@ test("real PostgreSQL: FT011 history survives correction and opens the exact Les
       "Noch keine Review-Evidence für diesen Trade gespeichert.",
     ),
   ).toBeVisible();
-  await page
-    .getByRole("button", { name: "An Lessons Learned übergeben", exact: true })
-    .click();
+  const firstMaterialization = await materializeOnce(tid, firstReview);
   await expect(
     history.getByText("Review-Evidence · Review-Version 1", { exact: true }),
   ).toBeVisible();
@@ -155,6 +301,8 @@ test("real PostgreSQL: FT011 history survives correction and opens the exact Les
   const originalInventory = await getInventory();
   const oldEvidence = originalInventory[0].learning_evidence_id;
   const oldReview = originalInventory[0].exit_review_version_id;
+  expect(oldEvidence).toBe(firstMaterialization.learning_evidence_id);
+  expect(oldReview).toBe(firstReview.current_version_id);
   expect(originalInventory[0].lesson_links[0].lesson_version_id).toBe(lvid);
   await post(
     `/trade-position/trades/${tid}/executions/${sale.execution.id}/corrections`,
@@ -189,7 +337,7 @@ test("real PostgreSQL: FT011 history survives correction and opens the exact Les
     originalInventory[0].lesson_links,
   );
   await page.screenshot({
-    path: "test-results/ft011-history-not-ready.png",
+    path: testInfo.outputPath("ft011-history-not-ready.png"),
     fullPage: true,
   });
   await oldLink.click();
@@ -220,18 +368,15 @@ test("real PostgreSQL: FT011 history survives correction and opens the exact Les
   await page
     .getByLabel("Review-Begründung")
     .fill("Explicit new review after confirmed execution correction.");
-  await page
-    .getByRole("button", { name: "Review finalisieren", exact: true })
-    .click();
-  await page
-    .getByRole("button", { name: "An Lessons Learned übergeben", exact: true })
-    .click();
+  const secondReview = await finalizeAndReadBack(tid, 2);
+  const secondMaterialization = await materializeOnce(tid, secondReview);
   await expect(history.getByRole("article")).toHaveCount(2);
   const newInventory = await getInventory();
   const newEvidence = newInventory.find(
     (v: { learning_evidence_id: string }) =>
       v.learning_evidence_id !== oldEvidence,
   ).learning_evidence_id;
+  expect(newEvidence).toBe(secondMaterialization.learning_evidence_id);
   // Explicit Lesson owner commands deliberately choose a different relation for V2.
   const commands = `/learning/lessons/${lid}/review-commands`;
   const command = async (data: object) => {
@@ -241,10 +386,13 @@ test("real PostgreSQL: FT011 history survives correction and opens the exact Les
     });
     expect(response.status(), await response.text()).toBe(200);
   };
-  const getContext = async () =>
-    await (
-      await request.get(api + `/learning/lessons/${lid}/review-context`)
-    ).json();
+  const getContext = async () => {
+    const response = await request.get(
+      api + `/learning/lessons/${lid}/review-context`,
+    );
+    expect(response.status(), await response.text()).toBe(200);
+    return response.json();
+  };
   const pinned = (c: {
     lesson: { current_version_id: string; current_state: string };
   }) => ({
@@ -299,7 +447,26 @@ test("real PostgreSQL: FT011 history survives correction and opens the exact Les
   ).toHaveCount(0);
   expect((await getContext()).history[1]).toEqual(originalLesson.history[0]);
   await page.screenshot({
-    path: "test-results/ft011-exact-lesson-history.png",
+    path: testInfo.outputPath("ft011-exact-lesson-history.png"),
     fullPage: true,
   });
+  await page.goto(
+    `/lessons/${lid}?lesson_version_id=${crypto.randomUUID()}#lesson-history`,
+  );
+  await expect(
+    page.getByText(/Die angeforderte Lesson-Version wurde nicht gefunden/),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("article", { name: /Lesson-Snapshot Version/ }),
+  ).toHaveCount(0);
+  await qualification.readWindow(
+    "ft011-exact-history-read-only-sources",
+    async () => ({
+      trade_id: tid,
+      initial_execution_ids: [buy.execution.id, sale.execution.id],
+      evidence: await getInventory(),
+      lesson: await getContext(),
+    }),
+  );
+  qualification.assertNoUnexpectedRequests();
 });
