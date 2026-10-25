@@ -171,6 +171,7 @@ async def run_reference_analysis(
             end_date=body.end_date,
             parameters=body.parameters.to_domain(),
             correlation_id=correlation_id,
+            model_version=body.model_version,
         )
     except AnalysisError as error:
         raise translate_analysis_error(error) from error

@@ -10,6 +10,7 @@ from uuid import UUID
 from sqlalchemy import Select, and_, asc, desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.features.analysis.domain.models import SnapshotRow
 from app.features.analysis.persistence.models import (
     MarketAnalysisCriterionModel,
     MarketAnalysisEventModel,
@@ -25,6 +26,31 @@ from app.features.market.persistence.models import (
 from app.features.market_data.domain.models import DailyPrice
 from app.features.market_data.persistence.mapping import daily_price_to_domain
 from app.features.market_data.persistence.models import DailyPriceModel
+
+
+def snapshot_from_price(price: DailyPriceModel) -> SnapshotRow:
+    """Copy the persisted source, including every stored warning entry.
+
+    TC-001 stores a warning tuple as newline-separated text. The empty string
+    encodes an empty tuple; a nonempty string is split without trimming or
+    filtering. Thus blank entries in a malformed nonempty representation remain
+    visible and cannot certify warning-free 1.0.1 input. Entries already lost
+    before persistence cannot be reconstructed by this reader.
+    """
+    return SnapshotRow(
+        price.trading_date,
+        price.open,
+        price.high,
+        price.low,
+        price.close,
+        price.adjusted_close,
+        price.volume,
+        price.currency,
+        price.provider.value,
+        price.provider_symbol,
+        price.quality_status.value,
+        () if price.warnings == "" else tuple(price.warnings.split("\n")),
+    )
 
 
 @dataclass(frozen=True)
@@ -79,6 +105,22 @@ class SqlAlchemyAnalysisMarketDataReader:
     async def list_daily_prices(
         self, workspace_id: UUID, listing_id: UUID, start_date: date, end_date: date
     ) -> tuple[DailyPrice, ...]:
+        rows = await self._list_price_models(workspace_id, listing_id, start_date, end_date)
+        return tuple(daily_price_to_domain(row) for row in rows)
+
+    async def list_snapshot_rows(
+        self, workspace_id: UUID, listing_id: UUID, start_date: date, end_date: date
+    ) -> tuple[SnapshotRow, ...]:
+        rows = await self._list_price_models(workspace_id, listing_id, start_date, end_date)
+        for row in rows:
+            # Keep the existing TC-001 identity/currency/value validation while
+            # copying warnings before its read-time normalization can drop them.
+            daily_price_to_domain(row)
+        return tuple(snapshot_from_price(row) for row in rows)
+
+    async def _list_price_models(
+        self, workspace_id: UUID, listing_id: UUID, start_date: date, end_date: date
+    ) -> tuple[DailyPriceModel, ...]:
         rows = (
             await self._session.scalars(
                 select(DailyPriceModel)
@@ -90,7 +132,7 @@ class SqlAlchemyAnalysisMarketDataReader:
                 .order_by(DailyPriceModel.trading_date)
             )
         ).all()
-        return tuple(daily_price_to_domain(row) for row in rows)
+        return tuple(rows)
 
 
 class SqlAlchemyAnalysisRepository:

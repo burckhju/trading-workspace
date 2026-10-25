@@ -11,7 +11,7 @@ from uuid import uuid4
 import pytest
 
 from app.features.analysis.domain.calculator import MODEL_ID
-from app.features.analysis.domain.errors import AnalysisConflict
+from app.features.analysis.domain.errors import AnalysisConflict, AnalysisExecutionFailed
 from app.features.analysis.domain.models import (
     AnalysisParameters,
     SnapshotRow,
@@ -86,6 +86,7 @@ async def execute(owner, source_rows, version):
         rows=source_rows,
         correlation_id="synthetic-ft006",
         source_version=None,
+        model_id=MODEL_ID,
         model_version=version,
     )
 
@@ -118,10 +119,13 @@ async def test_execute_persists_exact_contract_and_verifies_it(owner, version, q
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("version,quality", [(None, "LIMITED"), ("1.0.1", "GOOD")])
-async def test_listing_run_preserves_default_and_accepts_explicit_version(owner, version, quality):
+@pytest.mark.parametrize(
+    "version,quality", [(None, "GOOD"), ("1.0.0", "LIMITED"), ("1.0.1", "GOOD")]
+)
+async def test_listing_new_run_uses_fixed_version_and_accepts_exact_legacy(owner, version, quality):
     source_rows = rows()
     owner._market_data.list_daily_prices.return_value = prices(source_rows)
+    owner._market_data.list_snapshot_rows.return_value = source_rows
     options = {} if version is None else {"model_version": version}
     run = await owner.run(
         uuid4(),
@@ -132,7 +136,7 @@ async def test_listing_run_preserves_default_and_accepts_explicit_version(owner,
         None,
         **options,
     )
-    assert run.model_version == (version or "1.0.0")
+    assert run.model_version == (version or "1.0.1")
     assert run.quality_status == quality
 
 
@@ -199,10 +203,12 @@ async def test_unknown_listing_version_does_not_read_prices_or_write(owner):
 
 
 @pytest.mark.asyncio
-async def test_verify_unknown_identity_never_uses_another_calculator(owner):
+@pytest.mark.parametrize("model_id,version", [("OTHER", "1.0.1"), (MODEL_ID, "future-unsupported")])
+async def test_verify_unknown_identity_never_uses_another_calculator(owner, model_id, version):
     run = await execute(owner, rows(), "1.0.1")
     install_readback(owner, run)
-    run.model_version = "future-unsupported"
+    run.model_id = model_id
+    run.model_version = version
     owner._session.reset_mock()
     result = await owner.verify_reproducibility(uuid4(), run.analysis_id, 1)
     assert result["model_available"] is False
@@ -304,3 +310,115 @@ async def test_verify_rejects_changed_criterion_fields_and_multiplicity(owner, f
     result = await owner.verify_reproducibility(uuid4(), run.analysis_id, 1)
     assert result["criteria_match"] is False
     assert result["verified"] is False
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("version", ["1.0.0", "1.0.1"])
+@pytest.mark.parametrize(
+    "field,check",
+    [
+        ("input_hash", "input_hash_matches"),
+        ("metrics", "metrics_match"),
+        ("quality_status", "quality_status_match"),
+        ("notes", "notes_match"),
+    ],
+)
+async def test_verify_reports_each_changed_fact_independently(owner, version, field, check):
+    run = await execute(owner, rows(), version)
+    install_readback(owner, run)
+    if field == "metrics":
+        run.metrics = {**run.metrics, "unexpected-synthetic-metric": "1"}
+    elif field == "notes":
+        run.notes = [*run.notes, "changed synthetic note"]
+    else:
+        setattr(run, field, "corrupted-synthetic-value")
+    owner._session.reset_mock()
+    result = await owner.verify_reproducibility(uuid4(), run.analysis_id, 1)
+    assert result["verified"] is False
+    assert result[check] is False
+    assert all(value for key, value in result.items() if key not in {"verified", check})
+    owner._session.commit.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("version", ["1.0.0", "1.0.1"])
+async def test_verify_uses_original_time_after_today_and_new_prices_change(
+    owner, monkeypatch, version
+):
+    run = await execute(owner, rows(), version)
+    install_readback(owner, run)
+    original = (run.analysis_time, run.input_hash, deepcopy(run.metrics), list(run.notes))
+
+    class LaterClock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return NOW + timedelta(days=365)
+
+    monkeypatch.setattr(application, "datetime", LaterClock)
+    owner._market_data.list_daily_prices.side_effect = AssertionError("Only saved inputs")
+    owner._market_data.list_snapshot_rows.side_effect = AssertionError("Only saved inputs")
+    result = await owner.verify_reproducibility(uuid4(), run.analysis_id, 1)
+    assert all(result.values())
+    assert (run.analysis_time, run.input_hash, run.metrics, run.notes) == original
+    owner._market_data.list_daily_prices.assert_not_awaited()
+    owner._market_data.list_snapshot_rows.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("version", ["1.0.0", "1.0.1"])
+async def test_failed_retry_reuses_exact_saved_version_and_snapshot(owner, monkeypatch, version):
+    calculate = application.calculate_for_version
+    monkeypatch.setattr(
+        application, "calculate_for_version", Mock(side_effect=RuntimeError("synthetic failure"))
+    )
+    with pytest.raises(AnalysisExecutionFailed, match="synthetic failure"):
+        await execute(owner, rows(), version)
+    source = owner._repo.add_run.await_args.args[0]
+    assert source.status == "FAILED"
+    owner._repo.get_run.return_value = source
+    owner._repo.list_snapshot.return_value = owner._repo.add_snapshot_rows.await_args.args[0]
+    source_rows = tuple(
+        owner._snapshot_to_domain(row) for row in owner._repo.list_snapshot.return_value
+    )
+    original = (source.status, source.input_hash, source.error_message, source.model_version)
+    monkeypatch.setattr(application, "calculate_for_version", calculate)
+    owner._repo.next_version.return_value = 2
+    owner._market_data.list_daily_prices.side_effect = AssertionError("Retry cannot reload prices")
+    owner._market_data.list_snapshot_rows.side_effect = AssertionError("Retry cannot reload prices")
+    replacement = await owner.retry(uuid4(), source.analysis_id, 1, "synthetic-retry", None)
+    assert (replacement.model_id, replacement.model_version) == (MODEL_ID, version)
+    assert replacement.input_hash == source.input_hash
+    assert replacement.quality_status == ("LIMITED" if version == "1.0.0" else "GOOD")
+    replacement_rows = tuple(
+        owner._snapshot_to_domain(row) for row in owner._repo.add_snapshot_rows.await_args.args[0]
+    )
+    assert replacement_rows == source_rows
+    assert (
+        source.status,
+        source.input_hash,
+        source.error_message,
+        source.model_version,
+    ) == original
+    owner._market_data.list_daily_prices.assert_not_awaited()
+    owner._market_data.list_snapshot_rows.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("model_id,version", [("OTHER", "1.0.1"), (MODEL_ID, "future-unsupported")])
+async def test_retry_unknown_saved_contract_leaves_no_partial_facts(owner, model_id, version):
+    source = await execute(owner, rows(1), "1.0.0")
+    install_readback(owner, source)
+    source.model_id = model_id
+    source.model_version = version
+    owner._repo.reset_mock()
+    owner._session.reset_mock()
+    with pytest.raises(AnalysisConflict, match="not available for retry"):
+        await owner.retry(uuid4(), source.analysis_id, 1, "synthetic-rejected-retry", None)
+    owner._repo.add_run.assert_not_awaited()
+    owner._repo.add_snapshot_rows.assert_not_awaited()
+    owner._repo.add_criteria.assert_not_awaited()
+    owner._repo.add_event.assert_not_awaited()
+    owner._session.flush.assert_not_awaited()
+    owner._session.commit.assert_not_awaited()
+    owner._market_data.list_daily_prices.assert_not_awaited()
+    owner._market_data.list_snapshot_rows.assert_not_awaited()

@@ -1,9 +1,9 @@
 """Semantic resolution of top-down analysis sources.
 
 The resolver follows historized reference assignments instead of trusting source
-IDs supplied by a client.  It deliberately reuses the existing MarketAnalysis
-persistence model: market and sector references are bridged to ordinary listings,
-so provider-specific symbol handling remains in the market-data layer.
+IDs supplied by a client. Native MARKET_REFERENCE instruments retain their exact
+analysis owner. The historical listing bridge is used only when no native
+instrument exists; resolving a source never materializes market data.
 """
 
 from __future__ import annotations
@@ -13,7 +13,7 @@ from datetime import UTC, date, datetime
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import or_, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.elements import ColumnElement
 
@@ -21,6 +21,7 @@ from app.features.analysis.domain.enums import AnalysisStatus
 from app.features.analysis.persistence.models import (
     MarketAnalysisModel,
     MarketAnalysisRunModel,
+    MarketAnalysisSnapshotRowModel,
 )
 from app.features.candidate.service.orchestration import StoredAnalysisReference
 from app.features.market.domain.top_down import BenchmarkRole
@@ -31,6 +32,7 @@ from app.features.market.persistence.top_down_models import (
     UnderlyingBenchmarkAssignmentModel,
     UnderlyingSectorAssignmentModel,
 )
+from app.features.market_data.persistence.instruments import MarketDataInstrumentModel
 
 
 @dataclass(frozen=True, slots=True)
@@ -104,19 +106,12 @@ class SemanticTopDownSourceResolver:
         if sector_reference is None:
             raise ValueError("assigned sector market reference is missing or inactive")
 
-        benchmark_listing = await self._listing_for_reference(
-            workspace_id, benchmark.id, valid_on, "broad-market"
-        )
-        sector_listing = await self._listing_for_reference(
-            workspace_id, sector_reference.id, valid_on, "sector"
-        )
-
         return ResolvedTopDownSources(
-            market=await self._latest_completed_for_listing(
-                workspace_id, benchmark_listing, cutoff, "broad-market"
+            market=await self._source_for_reference(
+                workspace_id, benchmark.id, cutoff, "broad-market"
             ),
-            sector=await self._latest_completed_for_listing(
-                workspace_id, sector_listing, cutoff, "sector"
+            sector=await self._source_for_reference(
+                workspace_id, sector_reference.id, cutoff, "sector"
             ),
             underlying=await self._latest_completed_for_underlying(
                 workspace_id, underlying_id, cutoff
@@ -126,6 +121,69 @@ class SemanticTopDownSourceResolver:
             sector_reference_id=sector_reference.id,
             as_of=cutoff,
         )
+
+    async def native_reference_source(
+        self, workspace_id: UUID, reference_id: UUID, cutoff: datetime
+    ) -> StoredAnalysisReference | None:
+        """Read one exact native owner, or report absence for the legacy bridge.
+
+        An existing native identity without a complete persisted source fails
+        closed. Readiness uses this same lookup, including owner shape, cutoff
+        and snapshot completeness; it cannot silently choose a listing instead.
+        """
+        instruments = (
+            await self._session.scalars(
+                select(MarketDataInstrumentModel).where(
+                    MarketDataInstrumentModel.market_reference_id == reference_id,
+                )
+            )
+        ).all()
+        if not instruments:
+            return None
+        if len(instruments) != 1:
+            raise ValueError("multiple native market-reference instruments found")
+        instrument = instruments[0]
+        if (
+            instrument.workspace_id != workspace_id
+            or instrument.kind != "MARKET_REFERENCE"
+            or instrument.market_reference_id != reference_id
+            or instrument.listing_id is not None
+        ):
+            raise ValueError("native market-reference instrument has an incompatible owner")
+
+        row = await self._latest_completed(
+            workspace_id=workspace_id,
+            cutoff=cutoff,
+            predicate=and_(
+                MarketAnalysisModel.market_data_instrument_id == instrument.id,
+                MarketAnalysisModel.listing_id.is_(None),
+                MarketAnalysisModel.underlying_id.is_(None),
+            ),
+        )
+        if row is None:
+            raise ValueError(
+                "no completed native reference analysis available as of evaluation time"
+            )
+        analysis, run = row
+        snapshot_count = await self._session.scalar(
+            select(func.count(MarketAnalysisSnapshotRowModel.id)).where(
+                MarketAnalysisSnapshotRowModel.run_id == run.id,
+            )
+        )
+        if not snapshot_count or snapshot_count != run.observation_count:
+            raise ValueError("native reference analysis has no complete persisted snapshot")
+        return StoredAnalysisReference(analysis.id, run.version)
+
+    async def _source_for_reference(
+        self, workspace_id: UUID, reference_id: UUID, cutoff: datetime, label: str
+    ) -> StoredAnalysisReference:
+        native = await self.native_reference_source(workspace_id, reference_id, cutoff)
+        if native is not None:
+            return native
+        listing_id = await self._listing_for_reference(
+            workspace_id, reference_id, cutoff.date(), label
+        )
+        return await self._latest_completed_for_listing(workspace_id, listing_id, cutoff, label)
 
     async def _listing_for_reference(
         self, workspace_id: UUID, reference_id: UUID, valid_on: date, label: str

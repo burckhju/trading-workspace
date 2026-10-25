@@ -10,9 +10,9 @@ from app.features.analysis.domain.governed_provenance import (
 )
 
 
-def test_omitted_version_remains_legacy():
+def test_new_run_without_override_uses_fixed_corrected_contract():
     request = RunAnalysisRequest(start_date="2026-01-01", end_date="2026-10-23")
-    assert request.model_version == "1.0.0"
+    assert request.model_version == "1.0.1"
 
 
 @pytest.mark.parametrize("version", ["1.0.0", "1.0.1"])

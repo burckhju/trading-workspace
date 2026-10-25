@@ -1,6 +1,137 @@
-# FT-006: versionierte Quellenqualitaet — isolierter Kernnachweis
+# FT-006: versionierte Quellenqualität — Runtimeanbindung und B07
 
-## Fortschreibung 25.10.2026: explizite Runtime-Anbindung
+## Fortsetzung 25.10.2026: vollständiger Checkout und verbleibende Ownerstrecke
+
+Aktualisierte Ausgangsbasis: Main und Tag `v1.5.16` zeigen unverändert auf
+`7b70f0dfd5cbb81518c73d68d09bbad0c6a9ac2b`, Tree
+`53ef549f7710508cbb14365b36a03a26d2843562`. Der gelesene offene Draft #278
+stand bereits auf `cd395c9b8a1a864a2c91fd352343eaf3c4e94f7e`, Tree
+`97d6fb647494ce3c1ffb8ff73c5d665ff609e667`. Sein Integrationscommit
+`1e73a170f993138b0555b8d87f934aca66cd57ed` erhält den ursprünglichen Kernhead
+`122224e3…` und den aktuellen Main als Eltern. Diese Fortsetzung erhält alle
+Vorleistungen, #204/#274/#276 und die unveränderten fünf nativen Ownerfälle.
+Kein neuer konkurrierender PR, Rebase, Main-Schreiben oder Release.
+
+Der vollständige Clone gelang über den genehmigten Netzwerkzugang. Der eigene
+Aufgabenbranch war sauber; der Vorhead ist zusätzlich in einem getrennten
+detached Worktree als Rotreferenz vorhanden. Im Repository wurde kein
+`AGENTS.md` gefunden. Entwicklungsleitfaden, Roadmap, PB-013/PB-020, FT-006,
+ADR-S4-005, FT-019/020 und die bestehenden Qualifikationsverträge wurden gelesen.
+Aktuelle PR-Kommentare enthalten keine zusätzliche Merge-/Releasefreigabe.
+
+### Explizite Modellwahl und tatsächliche Integrationslücken
+
+Der Entwicklungsauftrag legt für künftig bewusst gestartete neue Analysen den
+festen Vertrag `EOD_TREND_MOMENTUM/1.0.1` fest. Maßgeblich sind
+`NEW_RUN_MODEL_ID` und `NEW_RUN_MODEL_VERSION` im vorhandenen Dispatcher;
+API und beide Services verwenden diese Auswahl auch ohne Requestoverride.
+Die bestehende UI sendet die Version ausdrücklich und zeigt das gespeicherte
+Analysemodell getrennt von der Runnummer. Explizites `1.0.0` bleibt verfügbar.
+Diese Codeentscheidung ist keine produktive Modellaktivierung oder Fachabnahme.
+
+Der Vorhead hatte bereits den Executor angebunden, aber vier Restlücken:
+
+1. Normale neue Runs blieben beim alten Importdefault; die Referenz-HTTP-Route
+   verwarf sogar das ausdrücklich übermittelte `model_version`.
+2. Generische Detailantworten verlangten Listing-/Basiswert-UUIDs und konnten
+   echte Referenzanalysen mit NULL-Ownerfeldern nicht ausgeben.
+3. Warnungseinträge wurden beim Referenzreader gefiltert, beim Listingreader
+   zusätzlich im TC-001-Domainobjekt getrimmt. Der neue Vertrag bewahrt den
+   tatsächlichen nichtleeren Persistenztext einschließlich leerer Einträge.
+4. Der bestehende Candidate-Resolver und dessen Readiness fanden Referenzquellen
+   nur über die ältere Listing-Bridge. Sie lesen nun zuerst ein vorhandenes
+   exaktes MARKET_REFERENCE-Instrument und dessen vollständigen abgeschlossenen
+   Snapshot bis zum Cutoff. Fehlt eine native Identität, bleibt die historische
+   Bridge erhalten; ein vorhandener unvollständiger nativer Owner fällt nicht
+   still darauf zurück. Kein Read legt Identitäten oder Runs an.
+
+Die [Consumer-/Vertragsmatrix](../features/FT-006_MARKET_ANALYSIS.md) benennt
+Listing-Run, Referenz-Run, Retry, Verify, Snapshot/Hash, Provenienz und Handoff
+mit ihren tatsächlichen Einstiegen. Alle Runs verwenden denselben
+`_execute_snapshot`; Modell-ID und -Version sind dort zwingende Argumente.
+Referenz-Retry und Verify bleiben die geerbten Methoden. Keine Verdopplung der
+Ausführung, keine neue Candidate-Policy oder Aktivierungsengine.
+
+### Originalquelle, Historie und Provenienz
+
+`calculator.py`, seine Kennzahlen/Kriterien und der vorhandene 1.0.1-Kern bleiben
+bytegleich. `VALID` wird nie in `GOOD` umgeschrieben. Neue 1.0.1-Reader verwenden
+den gespeicherten Preistext: `""` ist die regulär serialisierte leere Sammlung;
+jeder nichtleere Text wird nur an Newlines getrennt, ohne Filter oder Trimming.
+Bereits vor der Persistenz verlorene Einträge sind nicht rekonstruierbar; eine
+pauschal verlustfreie Ingestbehauptung wird nicht erhoben. Explizite neue Legacy-
+Runs behalten ihre bisherigen Reader. Historische Retry-/Verify-Aufrufe lesen
+in beiden Versionen ausschließlich den gespeicherten JSON-Snapshot.
+
+Verify vergleicht Hash, numerische Ergebnisse, Kriterien einschließlich ihrer
+Multiplizität, Qualität und Notes separat und mit ursprünglicher `analysis_time`.
+Retry von FAILED/NOT_EVALUABLE ist kein Upgrade und lädt keine Preise nach.
+Neue versionierte Hashes unterscheiden sich bei denselben Originalinputs;
+historische Fakten und Hashes werden nicht geändert.
+
+Die vorhandene exakte Provenienzauflösung wird erhalten und mit beiden Versionen
+für 0/1/mehrere Treffer, DRAFT, fremden Workspace, falschen Modellschlüssel und
+abweichenden Implementierungsbezug qualifiziert. Registrierungen/Genehmigungen
+im isolierten Test verwenden bestehende Ownerbefehle. Neue 1.0.1-Provenienz
+verweist auf den vorhandenen Commit `541fcad…`; beide Rechenartefakte sind dort
+mit den aktuellen Blobs identisch. Der alte festgeschriebene Legacyref
+`8dcead…` war beim exakten erneuten Abruf nicht auflösbar (GitHub 404); er wird
+nicht erfunden oder nachträglich ersetzt. Details und Blobs stehen im
+[Provenienzvertrag](../features/FT-006_GOVERNED_MODEL_PROVENANCE.md).
+
+### Lokale Ausführung dieser Fortsetzung
+
+Projektpins: Python 3.12.14, Node 22.16.0, npm 10.9.2; unveränderte Requirements
+und npm-Lockdatei. Kein neuer Schema-/Dependency-/Versions-/Workflowstand.
+
+- Gegen vollständigen Vorhead `cd395c9b…`: die neun neuen HTTP-Vertragsfälle
+  ergeben **5 failed / 4 passed**. Es fehlen neue Defaultwahl, durchgereichte
+  Referenzversionen und nullable Referenzreadback. Gegen die Integration:
+  **15 passed**, einschließlich sechs bestehender Lifecycle-/Referenzfälle.
+- Derselbe neue UI-Testinhalt gegen Vorhead: **2 failed / 6 passed**;
+  mit Integration und Clientfällen **10 passed**.
+- Erweiterte Service-/Versionsfälle: **52 passed**. Candidate-Resolverfälle:
+  **22 passed**, darunter 13 neue. Bestehende native Runner-/Manifestguards:
+  **62 passed**, Node-Requestguards **21 passed**.
+- Repositoryweite Ruff-/Black-/mypy-Prüfung bestanden (995 formatierte
+  Pythondateien geprüft, 558 mypy-Quellen). Der anfängliche Importformatfehler
+  ist behoben; keine fachlichen Assertions wurden dafür geändert.
+- Das unveränderte vollständige Frontendgate (`bash scripts/check-frontend.sh`)
+  ist bestanden: **806 Tests / 124 Dateien**, TypeScript, ESLint, Prettier,
+  Coverage und Produktionsbuild. Coverage Statements/Lines 93,87 %, Branches
+  86,29 %, Functions 86,53 %. Bestehende React-act-/Chunkhinweise bleiben sichtbar.
+- Strikte B07-TypeScript-Prüfung, Seederformat/-syntax, Bashsyntax, exakt eine
+  unveränderte Playwright-Testidentität und strikter Discoveryprüfer bestanden.
+  Collection ist kein nativer Testpass.
+
+Vier erste lokale HTTP-/Vitest-Ausführungen hingen in der eingeschränkten
+Prozesssandbox und wurden abgebrochen. Ihre unvollständigen Logs bleiben
+erhalten. Die danach genehmigt ausgeführten identischen Prüfungen liefern die
+oben genannten vollständigen Ergebnisse; keine längeren Testtimeouts oder
+Erfolgs-Retries wurden eingeführt.
+
+### Neuer nativer B07-Fall und noch ausstehende Ausführung
+
+Der vorhandene geschützte Browserfall ist erweitert: zwei echte Referenzowner
+und ein Listingowner, jeweils zunächst ein echter 1.0.0-LIMITED-Run, dann
+1.0.1-GOOD mit gleichen Originalinputs, Zahlen und Kriterien. Alle vier
+Candidatephasen verwenden dieselben drei neuen Quellen und Parameter.
+Zusätzlich prüft der Fall getrennte 19-Zeilen-INSUFFICIENT-Snapshots samt
+versionsgenauem Retry trotz 200 vorhandener aktueller Preise und eine eigene
+Warnungsquelle mit LIMITED. Jeder Verify-POST ist mit vollständigen
+DB-Fingerprints eingerahmt. Herkunftsmarker stehen außerhalb der positiven
+Warnungsfelder; Kalenderabdeckung wird nicht aus 200 Werktagen abgeleitet.
+
+Der erste vollständige Lauf dieses erweiterten Falls ist noch ausstehend.
+**B07 bleibt bis zum tatsächlich geprüften neuen Browser-/PostgreSQL-Artefakt
+offen.** Lokal fehlen Docker und PostgreSQL. Dafür werden die unveränderten
+regulären GitHub-Actions-Jobs verwendet; CI-Flags werden lokal nicht fingiert.
+Endgültiger Head/Tree/Checkout, Lauf-/Job-/Attemptzuordnung und echte Rohartefakte
+werden im bestehenden [PR #278](https://github.com/burckhju/trading-workspace/pull/278)
+und im datierten Nachtrag dieses Berichts ausgewiesen.
+
+## Historischer Zwischenstand: explizite Runtime-Anbindung am Vorhead
+
 
 Der folgende Kernbericht bleibt als historischer Nachweis erhalten. Die aktuelle
 Fortsetzung nimmt Main `7b70f0dfd5cbb81518c73d68d09bbad0c6a9ac2b` / 1.5.16

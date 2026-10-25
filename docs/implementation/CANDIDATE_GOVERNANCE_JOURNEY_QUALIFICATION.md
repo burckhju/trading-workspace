@@ -1,5 +1,13 @@
 # B — Candidate-Governance: Benutzerweg und Qualifikationsgrenzen
 
+> **Datierter Nachtrag 25.10.2026, #278 (vor neuer nativer Ausführung):** Die
+> [FT-006-Fortsetzung](FT006_SOURCE_QUALITY_QUALIFICATION.md) bindet den
+> versionierten Quellenvertrag 1.0.1 an neue Listing- und echte Referenzruns.
+> Der vorhandene Browserfall wird mit drei GOOD-Quellen, gleichen A/A/B/A-Inputs,
+> separater Legacy-Reproduktion und LIMITED-/INSUFFICIENT-Negativen fortgeführt.
+> Neue native Artefakte stehen noch aus; **B07 ist in diesem Zwischenstand offen**.
+> Sämtliche unten datierten LIMITED-Läufe bleiben ihre ursprünglichen Nachweise.
+
 Stand: **2026-10-25, erster erfolgreicher nativer Gesamtweg und datierte Laufhistorie.**
 Der jeweils abschließende Head-/Tree-/Run-/Job-Nachweis steht im
 [Entwicklungs-PR #276](https://github.com/burckhju/trading-workspace/pull/276).

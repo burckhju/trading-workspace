@@ -10,6 +10,7 @@ from uuid import UUID
 from pydantic import BaseModel, Field
 
 from app.features.analysis.domain.enums import PriceField
+from app.features.analysis.domain.model_versions import NEW_RUN_MODEL_VERSION
 from app.features.analysis.domain.models import AnalysisParameters
 
 
@@ -50,8 +51,8 @@ class AnalysisParametersRequest(BaseModel):
 class RunAnalysisRequest(BaseModel):
     start_date: date
     end_date: date
-    # Omission retains the historical contract; 1.0.1 is an explicit choice.
-    model_version: Literal["1.0.0", "1.0.1"] = "1.0.0"
+    # New commands use one fixed contract; historical retry/verify ignore this.
+    model_version: Literal["1.0.0", "1.0.1"] = NEW_RUN_MODEL_VERSION
     parameters: AnalysisParametersRequest = Field(
         default_factory=lambda: AnalysisParametersRequest()
     )
@@ -59,8 +60,9 @@ class RunAnalysisRequest(BaseModel):
 
 class AnalysisSummaryResponse(BaseModel):
     id: UUID
-    underlying_id: UUID
-    listing_id: UUID
+    underlying_id: UUID | None
+    listing_id: UUID | None
+    market_data_instrument_id: UUID | None = None
     created_at: datetime
     created_by: str
 

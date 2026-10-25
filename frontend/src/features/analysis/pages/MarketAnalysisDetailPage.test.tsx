@@ -10,6 +10,7 @@ vi.mock('../services/client', () => ({
   analysisApiClient: {
     get: vi.fn(),
     run: vi.fn(),
+    runReference: vi.fn(),
     getRun: vi.fn(),
     getSnapshot: vi.fn(),
     events: vi.fn(),
@@ -169,6 +170,33 @@ describe('MarketAnalysisDetailPage', () => {
     const [calledAnalysisId, request] = lastCall!;
     expect(calledAnalysisId).toBe(analysisId);
     expect(request.parameters.short_window).toBe(15);
+    expect(request.model_version).toBe('1.0.1');
+    expect(screen.getByText('EOD_TREND_MOMENTUM / 1.0.0')).toBeInTheDocument();
+  });
+
+  it('runs a native reference through its owner while retaining its stored identity', async () => {
+    const user = userEvent.setup();
+    const reference = {
+      ...analysis,
+      underlying_id: null,
+      listing_id: null,
+      market_data_instrument_id: '55555555-5555-4555-8555-555555555555',
+    };
+    vi.mocked(analysisApiClient.get).mockResolvedValue({ analysis: reference, runs: [] });
+    vi.mocked(analysisApiClient.runReference).mockResolvedValue({
+      ...run2,
+      model_version: '1.0.1',
+    });
+    renderPage();
+    await screen.findByText(/Marktreferenz · Dateninstrument/);
+    await user.click(screen.getByRole('button', { name: 'Analyse ausführen' }));
+    await waitFor(() =>
+      expect(analysisApiClient.runReference).toHaveBeenCalledWith(
+        analysisId,
+        expect.objectContaining({ model_version: '1.0.1' }),
+      ),
+    );
+    expect(analysisApiClient.run).not.toHaveBeenCalled();
   });
 
   it('loads the persisted snapshot on demand', async () => {

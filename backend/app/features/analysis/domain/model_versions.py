@@ -6,9 +6,16 @@ verification use the same registry; unknown identities never select a fallback.
 
 from __future__ import annotations
 
+from typing import Final, Literal
+
 from app.features.analysis.domain import calculator, calculator_v1_0_1
 from app.features.analysis.domain.errors import AnalysisConflict
 from app.features.analysis.domain.models import AnalysisComputation, AnalysisParameters, SnapshotRow
+
+# Deliberate contract for newly requested analyses, independent of calculator
+# import defaults, governed approvals and Candidate runtime activation.
+NEW_RUN_MODEL_ID: Final = "EOD_TREND_MOMENTUM"
+NEW_RUN_MODEL_VERSION: Final[Literal["1.0.0", "1.0.1"]] = "1.0.1"
 
 
 def model_is_available(*, model_id: str, model_version: str) -> bool:

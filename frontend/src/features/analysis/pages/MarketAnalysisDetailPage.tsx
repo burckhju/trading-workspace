@@ -5,6 +5,7 @@ import { AnalysisStatusBadge } from '../components/AnalysisStatusBadge';
 import { analysisApiClient } from '../services/client';
 import {
   defaultAnalysisParameters,
+  newAnalysisModelVersion,
   type AnalysisDetail,
   type AnalysisEvent,
   type AnalysisParameters,
@@ -137,9 +138,14 @@ export function MarketAnalysisDetailPage() {
     event.preventDefault();
     setMessage(null);
     try {
-      const created = await analysisApiClient.run(analysisId, {
+      const runCommand =
+        detail?.analysis.listing_id === null
+          ? analysisApiClient.runReference
+          : analysisApiClient.run;
+      const created = await runCommand(analysisId, {
         start_date: startDate,
         end_date: endDate,
+        model_version: newAnalysisModelVersion,
         parameters,
       });
       await refresh();
@@ -211,7 +217,9 @@ export function MarketAnalysisDetailPage() {
         <h1 className="mt-3 text-3xl font-semibold">Marktanalyse</h1>
         <p className="mt-2 font-mono text-xs text-slate-500">{detail.analysis.id}</p>
         <p className="mt-2 text-sm text-slate-400">
-          Basiswert {detail.analysis.underlying_id} · Listing {detail.analysis.listing_id}
+          {detail.analysis.listing_id === null
+            ? `Marktreferenz · Dateninstrument ${detail.analysis.market_data_instrument_id}`
+            : `Basiswert ${detail.analysis.underlying_id} · Listing ${detail.analysis.listing_id}`}
         </p>
       </header>
 
@@ -220,6 +228,10 @@ export function MarketAnalysisDetailPage() {
         className="space-y-4 rounded-xl border border-slate-800 p-5"
       >
         <h2 className="text-xl font-semibold">Neue Analyseversion</h2>
+        <p className="text-sm text-slate-400">
+          Neues Analysemodell: EOD_TREND_MOMENTUM / {newAnalysisModelVersion}. Retry und
+          Reproduktion verwenden die gespeicherte Modellversion.
+        </p>
         <div className="grid gap-4 md:grid-cols-4">
           <label className="text-sm">
             Von
@@ -396,6 +408,12 @@ export function MarketAnalysisDetailPage() {
               </button>
             </div>
             <dl className="grid gap-3 md:grid-cols-2">
+              <div className="rounded-lg border border-slate-800 p-3">
+                <dt className="text-xs text-slate-500">Gespeichertes Analysemodell</dt>
+                <dd className="mt-1 break-all font-mono text-xs">
+                  {runDetail.run.model_id} / {runDetail.run.model_version}
+                </dd>
+              </div>
               <div className="rounded-lg border border-slate-800 p-3">
                 <dt className="text-xs text-slate-500">Eingabe-Hash</dt>
                 <dd className="mt-1 break-all font-mono text-xs">{runDetail.run.input_hash}</dd>

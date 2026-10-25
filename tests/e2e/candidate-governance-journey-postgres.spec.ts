@@ -28,7 +28,7 @@ test("candidate governance: exact Lesson source, explicit A-B-A and immutable ev
     q.allowLesson(lessonId, [l1, l2], evidenceId);
     q.allowModel(modelId);
     q.allowCandidate(candidateId);
-    for (const analysis of setup.analyses)
+    for (const analysis of [...setup.analyses, ...setup.legacyAnalyses])
       q.allowRead(
         `/market-analyses/${analysis.analysis.id}/runs/${analysis.run.version}`,
       );
@@ -58,6 +58,12 @@ test("candidate governance: exact Lesson source, explicit A-B-A and immutable ev
         (step: { code: string }) => step.code === "CANDIDATE_RUNTIME_MODEL",
       ),
     ).toMatchObject({ status: "COMPLETE", resource_id: versionA.id });
+    for (const owner of setup.sourceOwners)
+      expect(
+        originalReadiness.steps.find(
+          (step: { code: string }) => step.code === `${owner.role}_ANALYSIS`,
+        ),
+      ).toMatchObject({ status: "COMPLETE", resource_id: owner.analysis_id });
 
     const evaluate = async (
       label: string,
@@ -87,9 +93,9 @@ test("candidate governance: exact Lesson source, explicit A-B-A and immutable ev
         model_id: "TOP_DOWN_CANDIDATE",
         model_version: String(version),
         qualification: qualified ? "QUALIFIED" : "NOT_QUALIFIED",
-        // Existing FT006 maps VALID prices to LIMITED. Do not seed false GOOD
-        // snapshots or silently change the released analysis model for this test.
-        quality_status: "LIMITED",
+        // All three persisted source runs were explicitly executed as 1.0.1.
+        // Legacy LIMITED and real-warning LIMITED remain independent regressions.
+        quality_status: "GOOD",
       });
       expect(
         stored.criteria.find(
@@ -128,6 +134,9 @@ test("candidate governance: exact Lesson source, explicit A-B-A and immutable ev
         "TD-UNDERLYING-003",
       ]);
       expect(stored.sources).toHaveLength(3);
+      expect(
+        stored.sources.map((source: { role: string }) => source.role).sort(),
+      ).toEqual(["MARKET", "SECTOR", "UNDERLYING"]);
       for (const source of stored.sources) {
         const reference =
           setup.analysisRefs[source.role as keyof typeof setup.analysisRefs];
@@ -136,7 +145,7 @@ test("candidate governance: exact Lesson source, explicit A-B-A and immutable ev
           source_id: reference.analysis_id,
           source_version: reference.version,
           model_id: "EOD_TREND_MOMENTUM",
-          model_version: "1.0.0",
+          model_version: "1.0.1",
         });
       }
       await q.record(`${label}-persisted-sources-and-criteria`, stored);
@@ -647,7 +656,7 @@ test("candidate governance: exact Lesson source, explicit A-B-A and immutable ev
           source_lesson_version_id: l1,
           status: "CLOSED",
         });
-        for (const analysis of setup.analyses)
+        for (const analysis of [...setup.analyses, ...setup.legacyAnalyses])
           expect(
             await q.getJson(
               `/market-analyses/${analysis.analysis.id}/runs/${analysis.run.version}`,
@@ -671,8 +680,11 @@ test("candidate governance: exact Lesson source, explicit A-B-A and immutable ev
       activations: [setup.initialActivation, activationB, returnA],
       readinessBeforeSwitch,
       evaluations: [firstA, approvedOnlyA, secondB, thirdA],
+      sourceOwners: setup.sourceOwners,
+      analyses: setup.analyses,
+      legacyAnalyses: setup.legacyAnalyses,
       qualificationBoundary:
-        "Native source prices VALID; existing FT006 result LIMITED. No GOOD, backtest or economic superiority claim.",
+        "GOOD A/A/B/A uses the same three FT006 1.0.1 owner-created sources and parameters, with real market/sector references. Legacy 1.0.0 LIMITED is unchanged. No backtest, exchange-calendar or economic superiority claim.",
     });
   } finally {
     await q.finish();

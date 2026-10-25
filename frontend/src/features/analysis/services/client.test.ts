@@ -103,6 +103,17 @@ describe('analysisApiClient', () => {
       body: runRequest,
     });
 
+    await analysisApiClient.runReference('reference-analysis-1', {
+      ...runRequest,
+      model_version: '1.0.1',
+    });
+    expect(requestJsonMock).toHaveBeenLastCalledWith(
+      expect.stringContaining(
+        '/top-down-reference-data/market-reference-analyses/reference-analysis-1/runs',
+      ),
+      { method: 'POST', body: { ...runRequest, model_version: '1.0.1' } },
+    );
+
     await analysisApiClient.getRun('analysis-1', 3, signal);
     expect(requestJsonMock).toHaveBeenLastCalledWith(
       expect.stringContaining('/analysis-1/runs/3?include_snapshot=false'),

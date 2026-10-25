@@ -1,5 +1,7 @@
 # Traceability – aktueller Nachweiseinstieg
 
+> Nachweisfortschreibung 25.10.2026, #278: [FT-006 Runtime-/Quellenqualität](../implementation/FT006_SOURCE_QUALITY_QUALIFICATION.md) verbindet feste neue Analyseversion 1.0.1, historische 1.0.0-Reproduktion, Snapshot/Hash/Provenienz und den bestehenden Candidate-Consumer mit echten Markt-/Sektorreferenzidentitäten. Die neue GOOD-B07-Browserausführung ist gesondert am tatsächlichen CI-Head zu belegen; der historische LIMITED-Nachweis bleibt erhalten. Arbeitsstatus ausschließlich [PB-013 Analyse](../planning/PRODUCT_BACKLOG.md#pb-013-analysis) und [PB-020 Candidate](../planning/PRODUCT_BACKLOG.md#pb-020-candidate-family). Kein Abschluss weiterer M0–M11-Ziele.
+
 > Nachweisergänzung 2026-10-14: [integrierter Handoff-Teilschnitt, PostgreSQL-/Browserbelege und offene Journalstrecke](../implementation/POST_TRADE_LEARNING_HANDOFF_REVIEW.md). Die Fortschreibung trennt Prüfcommits, echte DB-Transaktionen und abgefangenes Browser-HTTP. Arbeitsstatus ausschließlich im [zentralen Backlog](../planning/PRODUCT_BACKLOG.md#pb-019-materialization); keine Fach-/Betriebsabnahme.
 > Maßgeblich bleiben [PB-019 Materialisierung](../planning/PRODUCT_BACKLOG.md#pb-019-materialization), [PB-019 Journal](../planning/PRODUCT_BACKLOG.md#pb-019-journal) und [PB-018 Currentness](../planning/PRODUCT_BACKLOG.md#pb-018-currentness); der historische Bestand unten bleibt unverändert.
 

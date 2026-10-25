@@ -15,16 +15,25 @@ type Role = "MARKET" | "SECTOR" | "UNDERLYING";
 type Identified = { id: string };
 
 export interface SeededPrices {
-  mode: "learning" | "analyses";
+  mode: "learning" | "analyses" | "warning";
   start_date: string;
   end_date: string;
   row_count: number;
   listing_ids: string[];
+  warning_rows: number;
+  sources: Array<{
+    analysis_id: string | null;
+    listing_id: string | null;
+    market_reference_id: string | null;
+    instrument_id: string;
+    provider_symbol: string;
+  }>;
   synthetic: boolean;
 }
 
 export interface GovernanceSetupApi {
   runId: string;
+  databaseState(): { fingerprint: string; [key: string]: unknown };
   command<T = Record<string, unknown>>(
     path: string,
     data?: object,
@@ -33,7 +42,7 @@ export interface GovernanceSetupApi {
   ): Promise<T>;
   getJson<T = Record<string, unknown>>(path: string): Promise<T>;
   seedPrices(
-    mode: "learning" | "analyses",
+    mode: "learning" | "analyses" | "warning",
     ...ids: string[]
   ): SeededPrices | Promise<SeededPrices>;
   record(name: string, body: unknown): void | Promise<void>;
@@ -103,11 +112,20 @@ interface AnalysisRun {
   model_version: string;
   observation_count: number;
   input_hash: string;
+  analysis_time: string;
 }
 
 export interface GovernanceAnalysis {
-  analysis: { id: string; underlying_id: string; listing_id: string };
+  analysis: {
+    id: string;
+    underlying_id: string | null;
+    listing_id: string | null;
+    market_data_instrument_id: string;
+  };
   run: AnalysisRun;
+  parameters: Record<string, unknown>;
+  metrics: Record<string, string | null>;
+  notes: string[];
   criteria: Array<{ code: string; classification: string }>;
   snapshot: Array<{
     trading_date: string;
@@ -115,8 +133,33 @@ export interface GovernanceAnalysis {
     adjusted_close: string | null;
     quality_status: string;
     provider_symbol: string;
+    warnings: string[];
   }>;
 }
+
+const analysisParameters = {
+  price_field: "ADJUSTED_CLOSE",
+  short_window: 20,
+  medium_window: 50,
+  long_window: 200,
+  momentum_windows: [20, 60, 120],
+  volatility_window: 20,
+  range_window: 52,
+  minimum_required_observations: 200,
+  maximum_data_age_days: 7,
+  annualization_factor: "252",
+  rounding_scale: 6,
+};
+
+const completeVerification = {
+  verified: true,
+  model_available: true,
+  input_hash_matches: true,
+  metrics_match: true,
+  criteria_match: true,
+  quality_status_match: true,
+  notes_match: true,
+};
 
 export const candidatePolicyA = {
   schema: "TOP_DOWN_CANDIDATE/2.0",
@@ -392,119 +435,6 @@ export async function createGovernanceSetup(api: GovernanceSetupApi) {
   };
   await api.record("S0-learning-owner-source-chain", sourceChain);
 
-  const roles: Role[] = ["MARKET", "SECTOR", "UNDERLYING"];
-  const underlyings: Underlying[] = [];
-  const mappings = [];
-  for (const [index, role] of roles.entries()) {
-    const createdUnderlying = await api.command<Identified>(
-      "/underlyings",
-      underlyingInput(role, `CG${index}${suffix.slice(0, 8)}`),
-    );
-    const underlying = await api.getJson<Underlying>(
-      `/underlyings/${createdUnderlying.id}`,
-    );
-    expect(underlying.primary_listing.currency_code).toBe("EUR");
-    underlyings.push(underlying);
-    const mapping = await api.command<Identified>(
-      "/market-data/provider-mappings",
-      {
-        listing_id: underlying.primary_listing.id,
-        provider: "EODHD",
-        provider_symbol: `SYNTHETIC-CG-${role}-${suffix.slice(0, 8)}`,
-        provider_exchange_code: "XETRA",
-        actor_id: actor["X-Actor-ID"],
-        actor_name: actor["X-Actor-Name"],
-      },
-      "PUT",
-    );
-    // Existing administrative state command only. The provider validate/import
-    // endpoints are never used and all market prices remain explicitly synthetic.
-    const activeMapping = await api.command<Record<string, unknown>>(
-      `/market-data/provider-mappings/${mapping.id}/state`,
-      {
-        enabled: true,
-        actor_id: actor["X-Actor-ID"],
-        actor_name: actor["X-Actor-Name"],
-      },
-      "PATCH",
-    );
-    expect(activeMapping).toMatchObject({
-      id: mapping.id,
-      status: "ACTIVE",
-      validation_message: "Activated administratively",
-    });
-    mappings.push(activeMapping);
-  }
-  const prices = await api.seedPrices(
-    "analyses",
-    ...underlyings.map((item) => item.primary_listing.id),
-  );
-  expect(prices).toMatchObject({
-    mode: "analyses",
-    row_count: 600,
-    synthetic: true,
-  });
-  const analyses: GovernanceAnalysis[] = [];
-  const analysisRefs = {} as Record<
-    Role,
-    { analysis_id: string; version: number }
-  >;
-  for (const [index, underlying] of underlyings.entries()) {
-    const analysis = await api.command<Identified>("/market-analyses", {
-      underlying_id: underlying.id,
-      listing_id: underlying.primary_listing.id,
-    });
-    const run = await api.command<AnalysisRun>(
-      `/market-analyses/${analysis.id}/runs`,
-      {
-        start_date: prices.start_date,
-        end_date: prices.end_date,
-      },
-    );
-    const details = await api.getJson<GovernanceAnalysis>(
-      `/market-analyses/${analysis.id}/runs/${run.version}`,
-    );
-    expect(details.analysis).toMatchObject({
-      id: analysis.id,
-      underlying_id: underlying.id,
-      listing_id: underlying.primary_listing.id,
-    });
-    // Existing FT006 maps DailyPrice VALID into SnapshotRow; calculator currently
-    // treats that as LIMITED. Do not invent GOOD or weaken an assertion to hide it.
-    expect(details.run).toMatchObject({
-      version: run.version,
-      status: "COMPLETED_WITH_WARNINGS",
-      quality_status: "LIMITED",
-      model_id: "EOD_TREND_MOMENTUM",
-      model_version: "1.0.0",
-      observation_count: 200,
-      input_hash: run.input_hash,
-    });
-    expect(details.run.input_hash).toMatch(/^[0-9a-f]{64}$/);
-    expect(details.snapshot).toHaveLength(200);
-    expect(
-      details.snapshot.every((row) => row.quality_status === "VALID"),
-    ).toBe(true);
-    expect(details.snapshot[0].trading_date).toBe(prices.start_date);
-    expect(details.snapshot[199].trading_date).toBe(prices.end_date);
-    for (const code of ["SHORT_TREND", "MEDIUM_TREND", "LONG_TREND"]) {
-      expect(
-        details.criteria.find((item) => item.code === code)?.classification,
-      ).toBe(index === 0 && code === "SHORT_TREND" ? "NEGATIVE" : "POSITIVE");
-    }
-    analyses.push(details);
-    analysisRefs[roles[index]] = {
-      analysis_id: analysis.id,
-      version: run.version,
-    };
-  }
-  expect(new Set(analyses.map((item) => item.analysis.id)).size).toBe(3);
-  for (const analysis of analyses.slice(1)) {
-    expect(analysis.snapshot.map((row) => row.trading_date)).toEqual(
-      analyses[0].snapshot.map((row) => row.trading_date),
-    );
-  }
-
   const referenceBase = "/top-down-reference-data";
   const references = await api.command<Reference[]>(
     `${referenceBase}/bootstrap-v1`,
@@ -531,30 +461,355 @@ export async function createGovernanceSetup(api: GovernanceSetupApi) {
     classification_system: "SYNTHETIC-CANDIDATE-GOVERNANCE",
     classification_version: "1",
   });
+  const analysisActor = { "X-Actor-Name": `candidate-governance:${api.runId}` };
+  const sourceOwners: Array<{
+    role: Role;
+    analysis_id: string;
+    run_path: string;
+    market_data_instrument_id: string;
+    market_reference_id: string | null;
+    underlying_id: string | null;
+    listing_id: string | null;
+  }> = [];
+  for (const [role, reference] of [
+    ["MARKET", broadMarket],
+    ["SECTOR", sectorReference],
+  ] as const) {
+    const created = await api.command<{
+      analysis_id: string;
+      market_reference_id: string;
+      market_data_instrument_id: string;
+    }>(
+      `${referenceBase}/market-references/${reference.id}/analyses`,
+      undefined,
+      "POST",
+      analysisActor,
+    );
+    expect(created.market_reference_id).toBe(reference.id);
+    expect(created.market_data_instrument_id).toBeTruthy();
+    sourceOwners.push({
+      role,
+      ...created,
+      run_path: `${referenceBase}/market-reference-analyses/${created.analysis_id}/runs`,
+      underlying_id: null,
+      listing_id: null,
+    });
+  }
+  const createListingSource = async (role: string) => {
+    const createdUnderlying = await api.command<Identified>(
+      "/underlyings",
+      underlyingInput(role, `CG${role.slice(0, 1)}${suffix.slice(0, 8)}`),
+    );
+    const underlying = await api.getJson<Underlying>(
+      `/underlyings/${createdUnderlying.id}`,
+    );
+    expect(underlying.primary_listing.currency_code).toBe("EUR");
+    const mapping = await api.command<
+      Identified & { market_data_instrument_id: string }
+    >(
+      "/market-data/provider-mappings",
+      {
+        listing_id: underlying.primary_listing.id,
+        provider: "EODHD",
+        provider_symbol: `SYNTHETIC-CG-${role}-${suffix.slice(0, 8)}`,
+        provider_exchange_code: "XETRA",
+        actor_id: actor["X-Actor-ID"],
+        actor_name: actor["X-Actor-Name"],
+      },
+      "PUT",
+    );
+    // No provider validate/import endpoint is called. This existing state command
+    // is only for the real underlying listing, never a market/sector substitute.
+    const activeMapping = await api.command<Record<string, unknown>>(
+      `/market-data/provider-mappings/${mapping.id}/state`,
+      {
+        enabled: true,
+        actor_id: actor["X-Actor-ID"],
+        actor_name: actor["X-Actor-Name"],
+      },
+      "PATCH",
+    );
+    expect(activeMapping).toMatchObject({
+      id: mapping.id,
+      status: "ACTIVE",
+      validation_message: "Activated administratively",
+    });
+    const analysis = await api.command<Identified>(
+      "/market-analyses",
+      {
+        underlying_id: underlying.id,
+        listing_id: underlying.primary_listing.id,
+      },
+      "POST",
+      analysisActor,
+    );
+    return { underlying, mapping, activeMapping, analysis };
+  };
+  const underlyingSource = await createListingSource("UNDERLYING");
+  sourceOwners.push({
+    role: "UNDERLYING",
+    analysis_id: underlyingSource.analysis.id,
+    run_path: `/market-analyses/${underlyingSource.analysis.id}/runs`,
+    market_data_instrument_id:
+      underlyingSource.mapping.market_data_instrument_id,
+    market_reference_id: null,
+    underlying_id: underlyingSource.underlying.id,
+    listing_id: underlyingSource.underlying.primary_listing.id,
+  });
+  const prices = await api.seedPrices(
+    "analyses",
+    ...sourceOwners.map((item) => item.analysis_id),
+  );
+  expect(prices).toMatchObject({
+    mode: "analyses",
+    row_count: 600,
+    warning_rows: 0,
+    synthetic: true,
+  });
+  expect(prices.sources).toHaveLength(3);
+  expect(prices.listing_ids).toEqual([
+    underlyingSource.underlying.primary_listing.id,
+  ]);
+  const analyses: GovernanceAnalysis[] = [];
+  const legacyAnalyses: GovernanceAnalysis[] = [];
+  const analysisRefs = {} as Record<
+    Role,
+    { analysis_id: string; version: number }
+  >;
+  const detailsFor = (analysisId: string, version: number) =>
+    api.getJson<GovernanceAnalysis>(
+      `/market-analyses/${analysisId}/runs/${version}`,
+    );
+  let verificationCount = 0;
+  const verify = async (details: GovernanceAnalysis) => {
+    const before = api.databaseState();
+    const result = await api.command(
+      `/market-analyses/${details.analysis.id}/runs/${details.run.version}/verify`,
+    );
+    expect(result).toEqual(completeVerification);
+    const after = api.databaseState();
+    expect(after.fingerprint).toBe(before.fingerprint);
+    await api.record(`S0-read-only-verification-${++verificationCount}`, {
+      analysis_id: details.analysis.id,
+      run_version: details.run.version,
+      model_id: details.run.model_id,
+      model_version: details.run.model_version,
+      before,
+      result,
+      after,
+    });
+    return result;
+  };
+  const insufficientCases = [];
+  for (const [index, owner] of sourceOwners.entries()) {
+    expect(prices.sources[index]).toMatchObject({
+      analysis_id: owner.analysis_id,
+      instrument_id: owner.market_data_instrument_id,
+      market_reference_id: owner.market_reference_id,
+      listing_id: owner.listing_id,
+    });
+    const runInput = {
+      start_date: prices.start_date,
+      end_date: prices.end_date,
+      parameters: analysisParameters,
+    };
+    // The legacy object is genuinely executed first, before the new runtime is
+    // selected, and is retained unchanged after all four Candidate evaluations.
+    const legacyRun = await api.command<AnalysisRun>(owner.run_path, {
+      ...runInput,
+      model_version: "1.0.0",
+    });
+    const legacy = await detailsFor(owner.analysis_id, legacyRun.version);
+    expect(legacy.run).toMatchObject({
+      status: "COMPLETED_WITH_WARNINGS",
+      quality_status: "LIMITED",
+      model_id: "EOD_TREND_MOMENTUM",
+      model_version: "1.0.0",
+      observation_count: 200,
+    });
+    expect(legacy.parameters).toEqual(analysisParameters);
+    expect(legacy.snapshot.every((row) => row.quality_status === "VALID")).toBe(
+      true,
+    );
+    expect(legacy.snapshot.every((row) => row.warnings.length === 0)).toBe(
+      true,
+    );
+    await verify(legacy);
+    legacyAnalyses.push(legacy);
+
+    if (owner.role === "UNDERLYING") {
+      // Both runtime contracts must keep a truly incomplete saved snapshot
+      // incomplete even though the owner already stores all 200 current prices.
+      for (const modelVersion of ["1.0.0", "1.0.1"]) {
+        const incompleteRun = await api.command<AnalysisRun>(owner.run_path, {
+          ...runInput,
+          start_date: legacy.snapshot[181].trading_date,
+          model_version: modelVersion,
+        });
+        const incomplete = await detailsFor(
+          owner.analysis_id,
+          incompleteRun.version,
+        );
+        expect(incomplete.run).toMatchObject({
+          status: "NOT_EVALUABLE",
+          quality_status: "INSUFFICIENT",
+          model_version: modelVersion,
+          observation_count: 19,
+        });
+        const retry = await api.command<AnalysisRun>(
+          `/market-analyses/${owner.analysis_id}/runs/${incompleteRun.version}/retry`,
+          {
+            reason:
+              "Synthetic qualification of the exact saved incomplete snapshot",
+          },
+        );
+        const retried = await detailsFor(owner.analysis_id, retry.version);
+        expect(retried.run).toMatchObject({
+          status: "NOT_EVALUABLE",
+          quality_status: "INSUFFICIENT",
+          model_version: modelVersion,
+          observation_count: 19,
+          input_hash: incomplete.run.input_hash,
+        });
+        expect(retried.snapshot).toEqual(incomplete.snapshot);
+        expect(retried.parameters).toEqual(incomplete.parameters);
+        expect(retried.metrics).toEqual(incomplete.metrics);
+        expect(retried.criteria).toEqual(incomplete.criteria);
+        expect(retried.notes).toEqual(incomplete.notes);
+        await verify(incomplete);
+        await verify(retried);
+        insufficientCases.push({ incomplete, retried });
+      }
+    }
+    const run = await api.command<AnalysisRun>(owner.run_path, {
+      ...runInput,
+      model_version: "1.0.1",
+    });
+    const details = await detailsFor(owner.analysis_id, run.version);
+    expect(details.analysis).toMatchObject({
+      id: owner.analysis_id,
+      underlying_id: owner.underlying_id,
+      listing_id: owner.listing_id,
+      market_data_instrument_id: owner.market_data_instrument_id,
+    });
+    expect(details.run).toMatchObject({
+      version: run.version,
+      status: "COMPLETED",
+      quality_status: "GOOD",
+      model_id: "EOD_TREND_MOMENTUM",
+      model_version: "1.0.1",
+      observation_count: 200,
+      input_hash: run.input_hash,
+    });
+    expect(details.run.input_hash).toMatch(/^[0-9a-f]{64}$/);
+    expect(details.run.input_hash).not.toBe(legacy.run.input_hash);
+    expect(details.parameters).toEqual(analysisParameters);
+    expect(details.snapshot).toEqual(legacy.snapshot);
+    expect(details.metrics).toEqual(legacy.metrics);
+    expect(details.criteria).toEqual(legacy.criteria);
+    expect(details.notes).toEqual([]);
+    expect(details.snapshot).toHaveLength(200);
+    expect(
+      details.snapshot.every((row) => row.quality_status === "VALID"),
+    ).toBe(true);
+    expect(details.snapshot.every((row) => row.warnings.length === 0)).toBe(
+      true,
+    );
+    expect(
+      details.snapshot.every(
+        (row) => row.provider_symbol === prices.sources[index].provider_symbol,
+      ),
+    ).toBe(true);
+    expect(details.snapshot[0].trading_date).toBe(prices.start_date);
+    expect(details.snapshot[199].trading_date).toBe(prices.end_date);
+    const ageDays = Math.floor(
+      Date.parse(details.run.analysis_time.slice(0, 10)) / 86_400_000 -
+        Date.parse(prices.end_date) / 86_400_000,
+    );
+    expect(ageDays).toBeGreaterThanOrEqual(1);
+    expect(ageDays).toBeLessThanOrEqual(
+      analysisParameters.maximum_data_age_days,
+    );
+    for (const code of ["SHORT_TREND", "MEDIUM_TREND", "LONG_TREND"]) {
+      expect(
+        details.criteria.find((item) => item.code === code)?.classification,
+      ).toBe(index === 0 && code === "SHORT_TREND" ? "NEGATIVE" : "POSITIVE");
+    }
+    await verify(details);
+    expect(await detailsFor(owner.analysis_id, legacy.run.version)).toEqual(
+      legacy,
+    );
+    await verify(legacy);
+    analyses.push(details);
+    analysisRefs[owner.role] = {
+      analysis_id: owner.analysis_id,
+      version: run.version,
+    };
+  }
+  expect(new Set(analyses.map((item) => item.analysis.id)).size).toBe(3);
+  for (const analysis of analyses.slice(1)) {
+    expect(analysis.snapshot.map((row) => row.trading_date)).toEqual(
+      analyses[0].snapshot.map((row) => row.trading_date),
+    );
+    expect(analysis.parameters).toEqual(analyses[0].parameters);
+  }
+
+  // A distinct source preserves the independent LIMITED negative contract; its
+  // actual saved warning is never removed from the price or snapshot.
+  const warningSource = await createListingSource("WARNING");
+  const warningPrices = await api.seedPrices(
+    "warning",
+    warningSource.analysis.id,
+  );
+  expect(warningPrices).toMatchObject({
+    row_count: 200,
+    warning_rows: 1,
+    synthetic: true,
+  });
+  const warningRun = await api.command<AnalysisRun>(
+    `/market-analyses/${warningSource.analysis.id}/runs`,
+    {
+      start_date: warningPrices.start_date,
+      end_date: warningPrices.end_date,
+      model_version: "1.0.1",
+      parameters: analysisParameters,
+    },
+  );
+  const warningAnalysis = await detailsFor(
+    warningSource.analysis.id,
+    warningRun.version,
+  );
+  expect(warningAnalysis.run).toMatchObject({
+    status: "COMPLETED_WITH_WARNINGS",
+    quality_status: "LIMITED",
+    model_version: "1.0.1",
+    observation_count: 200,
+  });
+  const warning = "Synthetic qualification: source warning must remain visible";
+  expect(warningAnalysis.snapshot[199].warnings).toEqual([warning]);
+  expect(warningAnalysis.notes).toContain(
+    `${warningPrices.end_date}: source warning: ${warning}`,
+  );
+  await verify(warningAnalysis);
+  await api.record(
+    "S0-independent-LIMITED-INSUFFICIENT-and-legacy-regressions",
+    {
+      legacyAnalyses,
+      insufficientCases,
+      warningSource,
+      warningPrices,
+      warningAnalysis,
+    },
+  );
   const assignment = {
     valid_from: prices.start_date,
     source: "SYNTHETIC_CANDIDATE_GOVERNANCE",
     source_reference: `candidate-governance:${api.runId}`,
     quality_status: "GOOD",
   };
-  const assignments = [];
-  for (const [reference, underlying] of [
-    [broadMarket, underlyings[0]],
-    [sectorReference, underlyings[1]],
-  ] as const) {
-    assignments.push(
-      await api.command(
-        `${referenceBase}/market-references/${reference.id}/listing-assignments`,
-        {
-          ...assignment,
-          listing_id: underlying.primary_listing.id,
-        },
-      ),
-    );
-  }
-  assignments.push(
+  const assignments = [
     await api.command(
-      `${referenceBase}/underlyings/${underlyings[2].id}/benchmark-assignments`,
+      `${referenceBase}/underlyings/${underlyingSource.underlying.id}/benchmark-assignments`,
       {
         ...assignment,
         market_reference_id: broadMarket.id,
@@ -562,27 +817,21 @@ export async function createGovernanceSetup(api: GovernanceSetupApi) {
       },
     ),
     await api.command(
-      `${referenceBase}/underlyings/${underlyings[2].id}/sector-assignments`,
-      {
-        ...assignment,
-        sector_id: sector.id,
-      },
+      `${referenceBase}/underlyings/${underlyingSource.underlying.id}/sector-assignments`,
+      { ...assignment, sector_id: sector.id },
     ),
     await api.command(
       `${referenceBase}/sectors/${sector.id}/reference-assignments`,
-      {
-        ...assignment,
-        market_reference_id: sectorReference.id,
-      },
+      { ...assignment, market_reference_id: sectorReference.id },
     ),
-  );
+  ];
   const candidate = await api.command<Identified>("/candidates", {
-    underlying_id: underlyings[2].id,
+    underlying_id: underlyingSource.underlying.id,
   });
   await api.record("S0-analysis-owner-source-chain", {
     synthetic: true,
-    underlyings,
-    mappings,
+    sourceOwners,
+    underlyingSource,
     prices,
     analysisRefs,
     analyses,
@@ -593,7 +842,7 @@ export async function createGovernanceSetup(api: GovernanceSetupApi) {
     assignments,
     candidate,
     quality_boundary:
-      "Owner-created VALID prices currently produce FT006 LIMITED, not GOOD.",
+      "Explicit FT006 1.0.1: VALID original sources with no warnings produce GOOD. Real reference identities; 200 completed weekdays, not certified exchange-calendar coverage.",
   });
 
   expect(await api.getJson("/model-governance/models")).toEqual([]);
@@ -685,6 +934,8 @@ export async function createGovernanceSetup(api: GovernanceSetupApi) {
     candidateId: candidate.id,
     analysisRefs,
     analyses,
+    legacyAnalyses,
+    sourceOwners,
     sourceChain,
   };
 }

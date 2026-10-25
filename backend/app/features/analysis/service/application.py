@@ -9,7 +9,7 @@ from uuid import UUID, uuid4
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.features.analysis.domain.calculator import MODEL_ID, MODEL_VERSION
+from app.features.analysis.domain.calculator import MODEL_VERSION as LEGACY_MODEL_VERSION
 from app.features.analysis.domain.enums import (
     AnalysisQualityStatus,
     AnalysisStatus,
@@ -27,6 +27,8 @@ from app.features.analysis.domain.lifecycle import (
     validate_transition,
 )
 from app.features.analysis.domain.model_versions import (
+    NEW_RUN_MODEL_ID,
+    NEW_RUN_MODEL_VERSION,
     calculate_for_version,
     model_is_available,
     require_model,
@@ -107,38 +109,46 @@ class MarketAnalysisService:
         parameters: AnalysisParameters,
         correlation_id: str | None,
         *,
-        model_version: str = MODEL_VERSION,
+        model_version: str = NEW_RUN_MODEL_VERSION,
     ) -> MarketAnalysisRunModel:
         analysis = await self._require_analysis(workspace_id, analysis_id)
-        require_model(model_id=MODEL_ID, model_version=model_version)
-        prices = await self._market_data.list_daily_prices(
-            workspace_id, analysis.listing_id, start_date, end_date
-        )
-        if not prices:
-            raise AnalysisDataUnavailable("no persisted market data in requested range")
-        rows = tuple(
-            SnapshotRow(
-                p.trading_date,
-                p.open,
-                p.high,
-                p.low,
-                p.close,
-                p.adjusted_close,
-                p.volume,
-                p.currency,
-                p.provider.value,
-                p.provider_symbol,
-                p.quality_status.value,
-                p.warnings,
+        require_model(model_id=NEW_RUN_MODEL_ID, model_version=model_version)
+        if analysis.listing_id is None:
+            raise AnalysisDataUnavailable("analysis is not listing owned")
+        if model_version == LEGACY_MODEL_VERSION:
+            prices = await self._market_data.list_daily_prices(
+                workspace_id, analysis.listing_id, start_date, end_date
             )
-            for p in prices
-        )
+            rows = tuple(
+                SnapshotRow(
+                    p.trading_date,
+                    p.open,
+                    p.high,
+                    p.low,
+                    p.close,
+                    p.adjusted_close,
+                    p.volume,
+                    p.currency,
+                    p.provider.value,
+                    p.provider_symbol,
+                    p.quality_status.value,
+                    p.warnings,
+                )
+                for p in prices
+            )
+        else:
+            rows = await self._market_data.list_snapshot_rows(
+                workspace_id, analysis.listing_id, start_date, end_date
+            )
+        if not rows:
+            raise AnalysisDataUnavailable("no persisted market data in requested range")
         return await self._execute_snapshot(
             analysis_id=analysis_id,
             parameters=parameters,
             rows=rows,
             correlation_id=correlation_id,
             source_version=None,
+            model_id=NEW_RUN_MODEL_ID,
             model_version=model_version,
         )
 
@@ -352,8 +362,8 @@ class MarketAnalysisService:
         rows: tuple[SnapshotRow, ...],
         correlation_id: str | None,
         source_version: int | None,
-        model_id: str = MODEL_ID,
-        model_version: str = MODEL_VERSION,
+        model_id: str,
+        model_version: str,
     ) -> MarketAnalysisRunModel:
         require_model(model_id=model_id, model_version=model_version)
         latest = await self._repo.get_latest_run(analysis_id)

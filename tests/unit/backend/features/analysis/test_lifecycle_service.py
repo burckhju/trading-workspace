@@ -273,6 +273,8 @@ async def test_execute_snapshot_flushes_run_before_snapshot_and_started_event() 
             rows=rows,
             correlation_id=None,
             source_version=None,
+            model_id="EOD_TREND_MOMENTUM",
+            model_version="1.0.0",
         )
 
     assert order == ["run", "flush", "snapshot", "event"]

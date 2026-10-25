@@ -166,6 +166,8 @@ async def test_ft006_service_persists_lifecycle_and_governed_provenance_postgres
         rows=rows,
         correlation_id="ft006-provenance-integration-test",
         source_version=None,
+        model_id="EOD_TREND_MOMENTUM",
+        model_version="1.0.0",
     )
 
     persisted_run = await learning_session.get(
