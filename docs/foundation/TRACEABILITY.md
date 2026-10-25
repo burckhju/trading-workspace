@@ -582,6 +582,32 @@ Backend, Frontend and End-to-End workflows for the precise tagged commit.
 Published software, migration 0047 and real target installation remain separate
 evidence; this trace neither invents historical execution currencies nor closes M8.
 
+## A: Navigation — 2026-10-25
+
+[PB-007 Basiswertverwaltung](../planning/PRODUCT_BACKLOG.md#pb-007-underlying-ui)
+→ bestehender [PR #204](https://github.com/burckhju/trading-workspace/pull/204)
+→ [FT-001 Listen-/Formularvertrag](../features/underlying/FEATURE.md)
+→ `UnderlyingListPage`, `UnderlyingDetailPage`, `UnderlyingFormPage` und
+`underlyingListNavigation`
+→ [aktuelle Navigationsqualifikation A01–A14](../implementation/UNDERLYING_NAVIGATION_QUALIFICATION.md).
+
+Der bestehende Branch integriert Main `fbd77fb94947a1fdbfc0aeb90811353fae655a59`
+/ v1.5.14 ohne Konflikte und bewahrt #249/#267, #269/#271/#273 sowie #274/#275.
+Die aktuelle Ergänzung ändert keine zusätzliche Produktivlogik: kontrollierte
+Detail-/DELETE-Antworten nach A→B→A, falsche Detail-ID, reine Rückzieländerung
+während offenem PATCH auf Desktop/Mobil und strengere vollständige FT-001-
+API-/Mutationsverträge werden neu qualifiziert. Der vorhandene deterministische
+`flushSync`-Nachweis bleibt erhalten.
+
+122 fokussierte Tests, das vollständige Frontend-Gate mit 780 Tests und 24
+synthetische Browserfälle sind den im Bericht genannten Quelltrees zugeordnet.
+Die vollständige reguläre PR-CI einschließlich der vier vorhandenen Ownerfälle
+wird mit finalem Head, tatsächlichem Checkout/Tree, Run/Job und Versuch im PR
+dokumentiert; alte grüne Läufe ersetzen sie nicht. Mock-HTTP, PostgreSQL-Nachweis,
+Main-Merge, Veröffentlichung und beobachteter PC-Betrieb bleiben getrennt.
+Dieser Abschnitt betrifft nur A; bestehende und spätere B-Nachweise bleiben
+unverändert erhalten.
+
 ## FT-001 Formularintegrität nach PR #249 — 2026-10-20
 
 [PB-007 Basiswertverwaltung](../planning/PRODUCT_BACKLOG.md#pb-007-underlying-ui)

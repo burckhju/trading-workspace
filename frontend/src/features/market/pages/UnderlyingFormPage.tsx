@@ -2,6 +2,10 @@ import { FormEvent, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ErrorNotice, LoadingNotice } from '../components/ApiFeedback';
 import { marketApiClient } from '../services/client';
+import {
+  underlyingListReturnTo,
+  withUnderlyingListReturnTo,
+} from '../services/underlyingListNavigation';
 import type {
   CurrencyResponse,
   TradingVenueResponse,
@@ -12,13 +16,17 @@ import type {
 export function UnderlyingFormPage() {
   const { underlyingId } = useParams();
   const [searchParams] = useSearchParams();
-  const search = searchParams.toString();
+  const proposalParams = new URLSearchParams(searchParams);
+  proposalParams.delete('returnTo');
+  const search = proposalParams.toString();
+  const returnTo = underlyingListReturnTo(searchParams);
   // A different record or creation proposal must never inherit another form's state.
   return (
     <UnderlyingForm
       key={JSON.stringify([underlyingId, search])}
       underlyingId={underlyingId}
       search={search}
+      returnTo={returnTo}
     />
   );
 }
@@ -26,14 +34,18 @@ export function UnderlyingFormPage() {
 function UnderlyingForm({
   underlyingId,
   search,
+  returnTo,
 }: {
   underlyingId: string | undefined;
   search: string;
+  returnTo: string | undefined;
 }) {
   // Keep the proposal snapshot stable for this keyed form, including equivalent URL encodings.
   const [searchParams] = useState(() => new URLSearchParams(search));
   const editing = Boolean(underlyingId);
   const navigate = useNavigate();
+  const backTo =
+    returnTo ?? (editing && underlyingId ? `/underlyings/${underlyingId}` : '/underlyings');
   const [existing, setExisting] = useState<UnderlyingDetailResponse | null>(null);
   const [venues, setVenues] = useState<TradingVenueResponse[]>([]);
   const [currencies, setCurrencies] = useState<CurrencyResponse[]>([]);
@@ -50,6 +62,13 @@ function UnderlyingForm({
   const [ready, setReady] = useState(false);
   const active = useRef(false);
   const savePending = useRef(false);
+  const currentReturnTo = useRef(returnTo);
+
+  // A list-context change is navigation, not a new creation proposal. Keep the
+  // form and pending write intact while its completion uses the current safe target.
+  useLayoutEffect(() => {
+    currentReturnTo.current = returnTo;
+  }, [returnTo]);
 
   const providerSource = !editing ? searchParams.get('source') : null;
   const providerExchange = !editing ? searchParams.get('exchange')?.trim().toUpperCase() : null;
@@ -145,7 +164,10 @@ function UnderlyingForm({
           isin: isin || null,
           wkn: wkn || null,
         });
-        if (active.current) void navigate(`/underlyings/${updated.id}`);
+        if (active.current)
+          void navigate(currentReturnTo.current ?? `/underlyings/${updated.id}`, {
+            replace: Boolean(currentReturnTo.current),
+          });
       } else if (!editing) {
         const created = await marketApiClient.createUnderlying({
           name,
@@ -159,7 +181,10 @@ function UnderlyingForm({
             is_primary: true,
           },
         });
-        if (active.current) void navigate(`/underlyings/${created.id}`);
+        if (active.current)
+          void navigate(
+            withUnderlyingListReturnTo(`/underlyings/${created.id}`, currentReturnTo.current),
+          );
       }
     } catch (reason) {
       if (active.current) setError(reason);
@@ -173,10 +198,7 @@ function UnderlyingForm({
   return (
     <section className="w-full max-w-3xl space-y-6">
       <div>
-        <Link
-          to={editing && underlyingId ? `/underlyings/${underlyingId}` : '/underlyings'}
-          className="text-sm text-sky-300"
-        >
+        <Link to={backTo} className="text-sm text-sky-300">
           ← Zurück
         </Link>
         <h1 className="mt-3 text-3xl font-semibold">
@@ -354,10 +376,7 @@ function UnderlyingForm({
           </fieldset>
         )}
         <div className="flex justify-end gap-3">
-          <Link
-            to={editing && underlyingId ? `/underlyings/${underlyingId}` : '/underlyings'}
-            className="rounded-lg border border-slate-700 px-4 py-2"
-          >
+          <Link to={backTo} className="rounded-lg border border-slate-700 px-4 py-2">
             Abbrechen
           </Link>
           <button
