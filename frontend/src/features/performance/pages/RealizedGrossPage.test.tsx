@@ -39,7 +39,6 @@ function chooseSeptember() {
   fireEvent.change(screen.getByLabelText('Bis (einschließlich)'), {
     target: { value: '2026-09-30' },
   });
-  fireEvent.change(screen.getByLabelText('Berichtswährung'), { target: { value: 'EUR' } });
 }
 function read() {
   fireEvent.click(screen.getByRole('button', { name: 'Bericht lesen' }));
@@ -50,10 +49,11 @@ beforeEach(() => {
   api.realizedGross.mockResolvedValue(realizedGrossReport());
 });
 
-it('requires an explicit currency, keeps the visible reporting zone, and displays independent September contributions with all preceding sources', async () => {
+it('uses fixed EUR, keeps the visible reporting zone, and displays independent September contributions with all preceding sources', async () => {
   renderPage();
   expect(api.realizedGross).not.toHaveBeenCalled();
-  expect(screen.getByLabelText('Berichtswährung')).toHaveValue('');
+  expect(screen.getByLabelText('Berichtswährung')).toHaveValue('EUR');
+  expect(screen.getByLabelText('Berichtswährung')).toHaveAttribute('readonly');
   expect(screen.getByLabelText('Berichtszeitzone (IANA)')).toHaveValue('Europe/Berlin');
   chooseSeptember();
   read();
@@ -387,7 +387,9 @@ it('invalidates visible results immediately and ignores older success and failur
   const failed = deferred<RealizedGrossReport>();
   api.realizedGross.mockReturnValueOnce(failed.promise);
   read();
-  fireEvent.change(screen.getByLabelText('Berichtswährung'), { target: { value: 'USD' } });
+  fireEvent.change(screen.getByLabelText('Berichtszeitzone (IANA)'), {
+    target: { value: 'Etc/UTC' },
+  });
   expect(screen.queryByTestId('realized-gross-total')).not.toBeInTheDocument();
   await act(async () => {
     failed.reject(new Error('Veralteter Fehler'));

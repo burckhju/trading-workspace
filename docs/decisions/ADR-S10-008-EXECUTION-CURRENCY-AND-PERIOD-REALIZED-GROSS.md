@@ -150,3 +150,21 @@ immutable confirmations and their correction command remain authoritative.
 No migration, default EUR backfill, current-listing inference or report GET
 write is introduced. The user's separate authorization to merge after green
 checks and make the release available for the PC continues to apply.
+
+## 2026-10-25 amendment: fixed EUR in the two report forms
+
+The user requested that the report-currency input be fixed to Euro. The existing
+SELL-period and full-close report forms therefore display read-only EUR and send
+that explicit filter without requiring currency entry. This is a UI selection,
+not evidence that an execution price was denominated in EUR.
+
+The general API and exact source-context currency contracts remain unchanged.
+An existing non-EUR full-close list URL is rejected visibly at that page without
+an automatic replacement read or URL rewrite. A conscious new submission starts
+a new EUR selection without reusing the previous page, row filter or basis.
+Money calculations, source confirmations, unknown/mixed-currency handling and
+both report definitions are unchanged. No default execution-currency backfill
+or FX conversion is authorized by this UI instruction.
+
+Scope and current qualification are recorded in
+[fixed-EUR report UI qualification](../implementation/REPORT_EUR_UI_QUALIFICATION.md).
