@@ -284,7 +284,10 @@ test("candidate governance: exact Lesson source, explicit A-B-A and immutable ev
       page.evaluate((value) => {
         const d = new Date(value);
         const p = (n: number) => String(n).padStart(2, "0");
-        return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+        // Chromium's datetime-local value omits zero seconds. Use its canonical
+        // spelling without changing the represented cutoff instant.
+        const seconds = d.getSeconds();
+        return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}${seconds === 0 ? "" : `:${p(seconds)}`}`;
       }, iso);
     const tooEarly = new Date(
       Date.parse(setup.evidence.created_at) - 1000,

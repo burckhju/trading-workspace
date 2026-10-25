@@ -334,3 +334,27 @@ entfernt; Eigentum bestätigt, 0 Container/Netze/Volumes, `exit_status=1` und
 Stand grün; sie werden nicht auf den folgenden Commit übertragen. Die finale
 Gesamt-CI und gegebenenfalls erfolgreiche retryfreie Hauptausführung werden mit
 ihren tatsächlichen Rohartefakten im oben verlinkten PR getrennt nachgetragen.
+
+## Dritter nativer Lauf — 2026-10-25, kanonischer Cutoff-Testwert
+
+[Run 40165742033](https://github.com/burckhju/trading-workspace/actions/runs/40165742033),
+Job `121086302804`, Versuch 1, bindet Head
+`ae931e44c82950cef37bd7887d8cbf19f5bea6aa`, Checkout
+`a4305128c9436b30ad705e1c0fdb31dac3d90c0e` und Tree
+`db52241cbfbb969b4bd61b666a008f78b6665de9`. S2 einschließlich echter
+DRAFT-Erzeugung gegen A ist durchlaufen. Vor dem ersten Validation-POST scheiterte
+der Testwert `2026-10-25T06:32:00` an `locator.fill: Malformed value`.
+Chromium normalisiert `datetime-local` mit Sekunden null auf `YYYY-MM-DDTHH:mm`;
+der gepinnte Playwright-Fill prüft den gesetzten String auf exakte Gleichheit.
+Der Testformatter lässt deshalb nur in diesem Fall `:00` weg. Zeitpunkt,
+Zeitzone, Cutoff-Prüfung und echte Bedienung per `fill()` bleiben unverändert.
+Weder Produktlogik noch Timeout, Retries oder Assertions werden gelockert.
+
+Ein fehlgeschlagener Versuch, retry=0; noch kein Approval-/Aktivierungs-/Rückkehr-
+Gesamtnachweis. Artefakt `12588786077`, ZIP-SHA-256
+`034433811c216caf7d70b1abaf5601e22447d681643ef082ec578da1fc53fef1`, vollständig
+geprüftes Manifest mit 26 Inhaltsdateien. Eigener Stack
+`tw-candidate-governance-e2e-e6a7f7ca7d5244f6bd612b401f6a90f3` nach verifizierter
+Eigentumsprüfung vollständig entfernt, 0 Container/Netze/Volumes,
+`exit_status=1`, `cleanup_status=0`. Der folgende Commit benötigt wieder den
+vollständigen eigenen Lauf und die regulären Gates.
