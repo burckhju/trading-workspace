@@ -27,6 +27,7 @@ vi.mock('../../product_selection/services/client', () => ({
 vi.mock('../services/client', () => ({
   warrantApiClient: {
     list: vi.fn(),
+    get: vi.fn(),
     terms: vi.fn(),
     listings: vi.fn(),
     create: vi.fn(),
@@ -73,6 +74,13 @@ const route = (suffix = `selection_run_id=${id(101)}&warrant_id=${target.id}`) =
     </MemoryRouter>,
   );
 };
+
+async function openListingEditor() {
+  const button = await screen.findByRole('button', { name: 'Notierung hinzufügen' });
+  await waitFor(() => expect(button).toBeEnabled());
+  fireEvent.click(button);
+}
+
 beforeEach(() => {
   vi.resetAllMocks();
   detail = {
@@ -130,6 +138,9 @@ beforeEach(() => {
     items: [{ code: 'EUR', name: 'Euro', minor_unit: 2, reference_version: 'test' }],
   });
   vi.mocked(warrantApiClient.list).mockResolvedValue([other, target]);
+  vi.mocked(warrantApiClient.get).mockImplementation((warrantId) =>
+    Promise.resolve(warrantId === other.id ? other : target),
+  );
   vi.mocked(warrantApiClient.terms).mockResolvedValue([]);
   vi.mocked(warrantApiClient.listings).mockResolvedValue([]);
 });
@@ -143,10 +154,13 @@ describe('existing warrant administration from a blocked selection', () => {
     );
     expect(screen.queryByRole('button', { name: /Unrelated warrant/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Optionsschein anlegen' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Neues Produkt' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Endgültig löschen' })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Zurück zur Produktauswahl' })).toHaveAttribute(
       'href',
       `/product-selection?run_id=${id(101)}`,
     );
+    await openListingEditor();
     expect(screen.getByLabelText('Handelswährung')).toHaveValue('');
     expect(warrantApiClient.create).not.toHaveBeenCalled();
     expect(warrantApiClient.addListing).not.toHaveBeenCalled();
@@ -156,6 +170,7 @@ describe('existing warrant administration from a blocked selection', () => {
     detail.universe_omissions = [];
     vi.mocked(warrantApiClient.list).mockResolvedValue([other]);
     route(`selection_run_id=${id(101)}&underlying_id=${other.underlying_id}`);
+    fireEvent.click(await screen.findByRole('button', { name: 'Neues Produkt' }));
     const field = await screen.findByRole('combobox', { name: 'Basiswert *' });
     await waitFor(() => expect(field).toHaveValue(underlying.id));
     expect(field).toBeDisabled();
@@ -207,6 +222,7 @@ describe('existing warrant administration from a blocked selection', () => {
     vi.mocked(marketApiClient.listTradingVenues).mockReturnValueOnce(pendingVenues);
     vi.mocked(warrantApiClient.addListing).mockRejectedValue(new Error('Speichern fehlgeschlagen'));
     route();
+    await openListingEditor();
     const currency = await screen.findByLabelText('Handelswährung');
     // The product form can arrive before its independently loaded venue options.
     expect(
@@ -223,13 +239,13 @@ describe('existing warrant administration from a blocked selection', () => {
     expect(venue).toHaveValue(id(601));
     fireEvent.change(currency, { target: { value: 'USD' } });
     expect(currency).toHaveValue('USD');
-    fireEvent.click(screen.getByRole('button', { name: 'Notierung hinzufügen' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent('Speichern fehlgeschlagen');
+    fireEvent.click(screen.getByRole('button', { name: 'Notierung speichern' }));
+    expect(await screen.findByText('Speichern fehlgeschlagen')).toHaveAttribute('role', 'alert');
     expect(currency).toHaveValue('USD');
     expect(warrantApiClient.addListing).toHaveBeenCalledTimes(1);
     expect(warrantApiClient.addListing).toHaveBeenCalledWith(target.id, {
       trading_venue_id: id(601),
-      symbol: '',
+      symbol: null,
       quotation_currency_code: 'USD',
     });
     expect(productSelectionApiClient.start).not.toHaveBeenCalled();
@@ -249,6 +265,7 @@ describe('existing warrant administration from a blocked selection', () => {
       updated_at: underlying.updated_at,
     });
     route();
+    await openListingEditor();
     await screen.findByLabelText('Handelswährung');
     await waitFor(() => expect(warrantApiClient.listings).toHaveBeenCalledTimes(1));
     await screen.findByRole('option', { name: 'Synthetic venue (TEST)' });
@@ -257,9 +274,13 @@ describe('existing warrant administration from a blocked selection', () => {
     fireEvent.change(venue, { target: { value: id(601) } });
     expect(venue).toHaveValue(id(601));
     fireEvent.change(screen.getByLabelText('Handelswährung'), { target: { value: 'EUR' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Notierung hinzufügen' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent('Notierung wurde gespeichert');
-    expect(screen.getByRole('alert')).toHaveTextContent('Nicht erneut hinzufügen');
+    fireEvent.click(screen.getByRole('button', { name: 'Notierung speichern' }));
+    expect(
+      await screen.findByText(/Anzeige konnte nicht aktualisiert werden: Lesefehler/),
+    ).toHaveAttribute('role', 'alert');
+    expect(
+      await screen.findByText(/Notierung gespeichert.*Nicht erneut speichern/),
+    ).toHaveAttribute('role', 'status');
     expect(warrantApiClient.addListing).toHaveBeenCalledTimes(1);
     expect(productSelectionApiClient.select).not.toHaveBeenCalled();
   });

@@ -281,6 +281,17 @@ Anforderung → Entscheidung → Implementierung → Test → Abnahme
 | konkurrierende Änderungen überschreiben nicht still | FT-004 Service/API | expected-version Contract, `WARRANT_CONCURRENT_MODIFICATION` |
 | Duplicate-Identifiers/Listing werden fachlich behandelt | FT-004 Service/API | stabile 409-Fehlercodes + DB-Constraints/Race-Tests |
 | FT-008 bleibt außerhalb FT-004 | ADR-S7-003/006 | keine Ranking-, Scoring-, Selection- oder TradePlan-Änderung |
+| ein geöffneter Produktkontext für Anzeige und Aktionen | ADR-S7-004, UI-Konsolidierung 25.10.2026 | `WarrantAdminPage`, gemeinsames Produktdetail; `WarrantAdminPageWithDelete.test.tsx` prüft Löschen von Produkt B mit dessen Version, obwohl A zuerst im Katalog steht |
+| Terms-Editor übernimmt exakt den aktuellen Stand und hält seine Ausgangsversion | ADR-S7-005, `warrant-strike-currency.md` | `WarrantAdminConsolidation.test.tsx` für PUT, Decimal-Strings, Strike 0, unbekannte Währung, vollständigen `addTerms`-Request und sichtbaren Versionskonflikt; keine historische Mutation |
+| Entwürfe und verspätete Antworten bleiben im ursprünglichen Produktkontext | ADR-S7-004, Frontend-Zustandsregeln | Produktseiten-Regressionen sowie `WarrantIdentifierCorrection.test.tsx` und `WarrantValuationEvidence.test.tsx`: unveränderliche Edit-Basis, synchroner Save-Lock, Dirty-/Abbruchpfad, keine veralteten Callbacks auch zwischen Ziel-Commit und passiver Bereinigung |
+| ungespeicherte Änderungen bleiben bei abgebrochener Navigation erhalten | Frontend-Formular-/Routingregeln | `useProductNavigationGuard.test.tsx` mit echtem MemoryRouter: Route-Wechsel, Zurück-Navigation mit genauem Ziel, Abbrechen/Verwerfen, laufende Speicherung und `beforeunload`; der native Dialog bindet die Tastaturbedienung an die Entscheidung |
+| atomare Anlage und exakter Reparaturrücksprung bleiben erhalten | ADR-S7-004, ADR-S8-002 | `WarrantCreateWithListing.test.tsx`, `WarrantSelectionRepair.test.tsx`, bestehende ProductSelection-Reparatur-/Deep-Link-Tests und `warrant-listing-without-symbol.spec.ts` für tatsächliche Persistenz, historische Runs und Desktop-/Mobilbedienung |
+| Produktwechsel, Terms-Änderung und Löschziel sind im Browser bedienbar | ADR-S7-004, Frontend-Barrierefreiheit | `tests/e2e/warrant-admin-consolidation.spec.ts`: Chromium mit synthetischen API-Antworten, 1440/390 Pixel, Tastaturaktionen, Request-Prüfung und Screenshots; dies ersetzt keine native Backend-/Persistenzprüfung |
+
+Die neuen Zeilen bezeichnen die vorgesehenen bzw. ergänzten Regressionen, keine
+zusätzliche Fach- oder Releaseabnahme. Der tatsächliche Prüfstand dieses Schnitts
+wird ausschließlich im [PB-011-Eintrag](../planning/PRODUCT_BACKLOG.md#pb-011-warrants)
+fortgeschrieben; die folgenden Sprint-7C-Ergebnisse bleiben historische Nachweise.
 
 ### Sprint-7C Local Release-Candidate Evidence
 
