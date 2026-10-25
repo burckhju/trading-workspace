@@ -1,5 +1,62 @@
 # FT-006: versionierte Quellenqualitaet — isolierter Kernnachweis
 
+## Fortschreibung 25.10.2026: explizite Runtime-Anbindung
+
+Der folgende Kernbericht bleibt als historischer Nachweis erhalten. Die aktuelle
+Fortsetzung nimmt Main `7b70f0dfd5cbb81518c73d68d09bbad0c6a9ac2b` / 1.5.16
+mit einem normalen Zwei-Eltern-Integrationscommit in #278 auf. #276 und die
+Navigation aus #204 bleiben erhalten; kein Main-Schreiben oder Force-Push.
+
+Erstellung, Retry und Verify verwenden nun denselben exakten Modellvertrag.
+Der bestehende Run-Request erhaelt die optionale ausdrueckliche Auswahl
+`model_version: "1.0.1"`; weggelassen bleibt sie kompatibel auf **1.0.0**.
+Unbekannte Versionen werden vor Run-/Snapshot-Schreiben abgewiesen. Listing-
+und Marktreferenzowner delegieren an denselben Executor. Retry liest weiterhin
+nur den gespeicherten Snapshot und nimmt dessen gespeicherte Modell-ID/-Version;
+Verify berechnet mit derselben Version und dem urspruenglichen Analysezeitpunkt.
+Keine bestehende Auswahl wird automatisch auf 1.0.1 umgestellt.
+
+Die Provenienzaufloesung verlangt fuer 1.0.1 genau deren eigenen unveraenderlichen
+Vertrag und Implementation-Ref. Nur genau eine passende APPROVED-Definition im
+Workspace wird verknuepft. Fehlend, DRAFT oder mehrdeutig bleibt NULL; eine alte
+1.0.0-Genehmigung ist kein Ersatz. Es entsteht keine Genehmigung oder Aktivierung.
+
+Zusaetzlicher reproduzierter Verify-Befund: Der Repositoryreader sortiert
+Kriterien nach Code, der Rechner liefert Modellreihenfolge. Verify vergleicht nun
+kanonisch nach Code, weiterhin alle vier Felder und die volle Multiplizitaet.
+Fehlende, doppelte oder veraenderte Kriterien bleiben Fehler. Weder gespeicherte
+Kriterien noch Hashes werden umgeschrieben.
+
+### Lokaler Nachweis dieser Fortsetzung
+
+Der lokale Quellbestand ist weiterhin eine anhand von Git-Blob-SHAs gepruefte
+Teilmenge, kein vollstaendiger Checkout. Python 3.13.5 / pytest 9.0.2:
+
+- 31 vorhandene Kernfaelle plus 12 neue Transport-/Vertragsfaelle: **43 passed**.
+- 24 neue Servicefaelle im isolierten Import-Port-Harness: gegen unveraenderte
+  Application-/Reference-Dateien **14 failed / 10 passed**, mit Fix **24 passed**.
+  Derselbe Testinhalt und dieselben Assertions, keine Sleeps oder Retries.
+- Der Harness fuehrt die tatsaechlichen Service-/Domainquellen aus, ersetzt aber
+  nicht lokal verfuegbare Repository-/ORM-Importports. Er ist daher ausdruecklich
+  **kein vollstaendiger Paketimport, SQLAlchemy- oder PostgreSQL-Nachweis**.
+- AST- und Whitespacepruefung bestanden. Ruff/Black/mypy sowie Docker/PostgreSQL
+  stehen lokal nicht zur Verfuegung; die unveraenderten Projektgates laufen in CI.
+
+13 neue PostgreSQL-Faelle fuer beide Owner, exakte Provenienz, historische
+Verifikation, Retry, negative Qualitaet und den echten HTTP-Runweg sind ergaenzt.
+Sie verwenden nur die streng gepruefte `trading_workspace_test`, eigene UUIDs und
+eine rueckgerollte aeussere Transaktion mit Savepoints. Kein externer Provider.
+Ihr tatsaechliches Ergebnis wird erst nach dem aktuellen CI-Abruf berichtet.
+
+**B07 ist in diesem Zwischenstand noch offen:** Der bestehende Governance-
+Browserfall verwendet weiterhin 1.0.0 und markierte Warnungen. Die neue
+GOOD-Referenz muss auf dem kombinierten Stand nativ nachgewiesen werden.
+Keine Merge-, Release-, PC-, Fach- oder wirtschaftliche Freigabe aus diesem
+Zwischenstand ableiten. Aktuelle Head-/Tree-/Checkout-/Runbelege stehen in #278.
+
+---
+
+
 25.10.2026. Dieser Bericht ist ein technischer Nachweis, kein zweites Backlog.
 Aufgabenstatus bleiben im [Product Backlog](../planning/PRODUCT_BACKLOG.md).
 Der abhaengige Gesamtweg ist [PR #276](https://github.com/burckhju/trading-workspace/pull/276).

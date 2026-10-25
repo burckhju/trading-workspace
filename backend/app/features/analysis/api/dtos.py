@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from decimal import Decimal
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -49,6 +50,8 @@ class AnalysisParametersRequest(BaseModel):
 class RunAnalysisRequest(BaseModel):
     start_date: date
     end_date: date
+    # Omission retains the historical contract; 1.0.1 is an explicit choice.
+    model_version: Literal["1.0.0", "1.0.1"] = "1.0.0"
     parameters: AnalysisParametersRequest = Field(
         default_factory=lambda: AnalysisParametersRequest()
     )

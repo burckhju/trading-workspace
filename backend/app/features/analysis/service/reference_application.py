@@ -14,8 +14,10 @@ from uuid import UUID, uuid4
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.features.analysis.domain.calculator import MODEL_ID, MODEL_VERSION
 from app.features.analysis.domain.enums import AnalysisStatus
 from app.features.analysis.domain.errors import AnalysisDataUnavailable
+from app.features.analysis.domain.model_versions import require_model
 from app.features.analysis.domain.models import AnalysisParameters, SnapshotRow
 from app.features.analysis.persistence.models import (
     MarketAnalysisEventModel,
@@ -90,8 +92,10 @@ class MarketReferenceAnalysisService(MarketAnalysisService):
         end_date: date,
         parameters: AnalysisParameters,
         correlation_id: str | None,
+        model_version: str = MODEL_VERSION,
     ) -> MarketAnalysisRunModel:
         analysis = await self._require_analysis(workspace_id, analysis_id)
+        require_model(model_id=MODEL_ID, model_version=model_version)
         instrument_id = analysis.market_data_instrument_id
         if instrument_id is None or analysis.listing_id is not None:
             raise AnalysisDataUnavailable("analysis is not market-reference owned")
@@ -145,6 +149,7 @@ class MarketReferenceAnalysisService(MarketAnalysisService):
             rows=rows,
             correlation_id=correlation_id,
             source_version=None,
+            model_version=model_version,
         )
 
     async def _active_reference(

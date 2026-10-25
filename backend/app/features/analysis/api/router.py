@@ -286,6 +286,7 @@ async def run_analysis(
                 request.end_date,
                 request.parameters.to_domain(),
                 correlation_id,
+                model_version=request.model_version,
             )
         )
     except AnalysisError as exc:
