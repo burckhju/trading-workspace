@@ -70,8 +70,15 @@ function PostTradeReviewContent({
   const [rationale, setRationale] = useState('');
 
   const [loading, setLoading] = useState(false);
+  const [completedExternalRefreshVersion, setCompletedExternalRefreshVersion] = useState<
+    number | null
+  >(null);
   const [error, setError] = useState<unknown>(null);
   const [message, setMessage] = useState<string | null>(null);
+  // A parent's new refresh is pending already in this render, before its effect
+  // runs. Its completion must not release an independently pending command.
+  const busy =
+    loading || (tradeId !== '' && completedExternalRefreshVersion !== externalRefreshVersion);
 
   useEffect(() => {
     mounted.current = true;
@@ -140,7 +147,6 @@ function PostTradeReviewContent({
     if (!tradeId) return undefined;
 
     const controller = new AbortController();
-    setLoading(true);
     setError(null);
 
     refresh(tradeId, controller.signal)
@@ -148,7 +154,7 @@ function PostTradeReviewContent({
         if (!controller.signal.aborted) setError(new Error(postTradeErrorMessage(nextError)));
       })
       .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
+        if (!controller.signal.aborted) setCompletedExternalRefreshVersion(externalRefreshVersion);
       });
 
     return () => controller.abort();
@@ -380,7 +386,7 @@ function PostTradeReviewContent({
 
           <button
             type="submit"
-            disabled={loading || lookupId.trim() === ''}
+            disabled={busy || lookupId.trim() === ''}
             className="rounded-lg border border-slate-600 px-4 py-2 disabled:opacity-50"
           >
             Laden
@@ -388,7 +394,7 @@ function PostTradeReviewContent({
         </div>
       </form>
 
-      {loading && <LoadingNotice label="Post-Trade-Daten werden geladen …" />}
+      {busy && <LoadingNotice label="Post-Trade-Daten werden geladen …" />}
       {error !== null && <ErrorNotice error={error} />}
 
       {message && (
@@ -397,7 +403,7 @@ function PostTradeReviewContent({
         </div>
       )}
 
-      {tradeId && observation === null && !loading && error !== null && (
+      {tradeId && observation === null && !busy && error !== null && (
         <section className="rounded-xl border border-slate-800 p-5">
           <h2 className="text-lg font-semibold">Nachbeobachtung</h2>
           <p className="mt-2 text-sm text-slate-400">
@@ -599,7 +605,7 @@ function PostTradeReviewContent({
             <button
               type="button"
               onClick={() => void createDraft()}
-              disabled={loading}
+              disabled={busy}
               className="mt-4 rounded-lg border border-slate-600 px-4 py-2 disabled:opacity-50"
             >
               Exit Review anlegen
@@ -612,7 +618,7 @@ function PostTradeReviewContent({
                   <button
                     type="button"
                     onClick={() => void revalidateReview()}
-                    disabled={loading}
+                    disabled={busy}
                     className="mt-3 rounded-lg border border-amber-700 px-3 py-2 disabled:opacity-50"
                   >
                     Review erneut prüfen
@@ -631,7 +637,7 @@ function PostTradeReviewContent({
                     <span className="text-slate-400">{label as string}</span>
                     <select
                       value={value as ExitReviewAssessment}
-                      disabled={reviewReadOnly || loading || mutationPending.current}
+                      disabled={reviewReadOnly || busy || mutationPending.current}
                       onChange={(event) => {
                         formEdited.current = true;
                         (setter as (value: ExitReviewAssessment) => void)(
@@ -654,7 +660,7 @@ function PostTradeReviewContent({
                 <textarea
                   aria-label="Review-Begründung"
                   value={rationale}
-                  disabled={reviewReadOnly || loading || mutationPending.current}
+                  disabled={reviewReadOnly || busy || mutationPending.current}
                   onChange={(event) => {
                     formEdited.current = true;
                     setRationale(event.target.value);
@@ -677,7 +683,7 @@ function PostTradeReviewContent({
                       <button
                         type="button"
                         onClick={() => void revalidateReview()}
-                        disabled={loading}
+                        disabled={busy}
                         className="rounded-lg border border-slate-600 px-3 py-2 disabled:opacity-50"
                       >
                         Review-Quellenstand prüfen
@@ -686,7 +692,7 @@ function PostTradeReviewContent({
                     <button
                       type="button"
                       onClick={() => void createDraft()}
-                      disabled={loading}
+                      disabled={busy}
                       className="rounded-lg border border-slate-600 px-3 py-2 disabled:opacity-50"
                     >
                       Neue Review-Version vorbereiten
@@ -698,7 +704,7 @@ function PostTradeReviewContent({
                   <button
                     type="button"
                     onClick={() => void saveDraft()}
-                    disabled={loading}
+                    disabled={busy}
                     className="rounded-lg border border-slate-600 px-4 py-2 disabled:opacity-50"
                   >
                     Entwurf speichern
@@ -707,7 +713,7 @@ function PostTradeReviewContent({
                   <button
                     type="button"
                     onClick={() => void finalizeReview()}
-                    disabled={loading || rationale.trim() === ''}
+                    disabled={busy || rationale.trim() === ''}
                     className="rounded-lg border border-emerald-700 px-4 py-2 disabled:opacity-50"
                   >
                     Review finalisieren
@@ -786,7 +792,7 @@ function PostTradeReviewContent({
               type="button"
               onClick={() => void materializeLearningEvidence()}
               disabled={
-                loading ||
+                busy ||
                 !handoff.ready ||
                 materializationStatus?.ready !== true ||
                 !materializationStatus.exit_review_version_id

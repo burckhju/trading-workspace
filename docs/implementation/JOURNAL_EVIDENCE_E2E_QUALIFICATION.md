@@ -4,6 +4,11 @@ Stand: 20.10.2026. Aufgabenstatus bleibt im [Product Backlog](../planning/PRODUC
 Basis: `main`/`v1.5.11`, Commit `5e9ede2dc29f52eaff601d30614df6bc9c25c426`,
 Tree `303e56c078efd578e6e147edcf2ebac6accf6ba5`.
 
+Die am 25.10.2026 autorisierte, begrenzte Folgekorrektur der Review-Refresh-Sperre
+und ihre zusätzliche Revalidierungs-/Nachfolgequalifikation stehen in
+[FT011_REVIEW_REFRESH_QUALIFICATION.md](FT011_REVIEW_REFRESH_QUALIFICATION.md).
+Die folgenden historischen Nachweise und der Runnervertrag bleiben erhalten.
+
 Dieser Schnitt ergänzt ausschließlich die wiederholbare Qualifikation der vorhandenen
 FT-012-Journal-/Lesson- und FT-011-Evidence-Strecken. Die fachlichen Owner, API-Verträge,
 Migrationen, Gate-Grenzen und der vorhandene Performance-Owner-Job bleiben unverändert.
