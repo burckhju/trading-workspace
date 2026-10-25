@@ -137,7 +137,7 @@ describe('Lesson hypothesis owner status after explicit child commands', () => {
 
     await createProposal();
 
-    expect(mocks.hypotheses.listForLessonVersion).toHaveBeenCalledTimes(2);
+    await waitFor(() => expect(mocks.hypotheses.listForLessonVersion).toHaveBeenCalledTimes(2));
     expect(mocks.hypotheses.listForLessonVersion).toHaveBeenLastCalledWith(
       'lesson-version-1',
       expect.any(AbortSignal),
@@ -167,7 +167,7 @@ describe('Lesson hypothesis owner status after explicit child commands', () => {
 
     await approveProposal();
 
-    expect(mocks.hypotheses.listForLessonVersion).toHaveBeenCalledTimes(2);
+    await waitFor(() => expect(mocks.hypotheses.listForLessonVersion).toHaveBeenCalledTimes(2));
     expect(screen.queryByText('PROPOSED', { exact: true })).toBeNull();
     expect(screen.getByText('Status wird geprüft …')).toBeInTheDocument();
     expect(screen.getByText('Proposal approved')).toBeInTheDocument();
@@ -211,7 +211,7 @@ describe('Lesson hypothesis owner status after explicit child commands', () => {
       .mockReturnValueOnce(approvalRead.promise);
     render(<LessonHypothesisPanel lessonVersionId="lesson-version-1" />);
     await createProposal();
-    expect(mocks.hypotheses.listForLessonVersion).toHaveBeenCalledTimes(2);
+    await waitFor(() => expect(mocks.hypotheses.listForLessonVersion).toHaveBeenCalledTimes(2));
     const proposalSignal = mocks.hypotheses.listForLessonVersion.mock.calls[1][1] as AbortSignal;
     fireEvent.change(await screen.findByLabelText('LearningEvidence IDs'), {
       target: { value: 'evidence-1' },
@@ -222,7 +222,7 @@ describe('Lesson hypothesis owner status after explicit child commands', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Proposal retrospektiv validieren' }));
     await approveProposal();
 
-    expect(mocks.hypotheses.listForLessonVersion).toHaveBeenCalledTimes(3);
+    await waitFor(() => expect(mocks.hypotheses.listForLessonVersion).toHaveBeenCalledTimes(3));
     expect(proposalSignal.aborted).toBe(true);
     await act(async () => {
       approvalRead.resolve([{ ...hypothesis, status: 'CLOSED' }]);
@@ -257,7 +257,7 @@ describe('Lesson hypothesis owner status after explicit child commands', () => {
       .mockResolvedValueOnce([{ ...hypothesis, status: 'CLOSED' }]);
     const view = render(<LessonHypothesisPanel lessonVersionId="lesson-version-1" />);
     await createProposal();
-    expect(mocks.hypotheses.listForLessonVersion).toHaveBeenCalledTimes(2);
+    await waitFor(() => expect(mocks.hypotheses.listForLessonVersion).toHaveBeenCalledTimes(2));
     const oldSignal = mocks.hypotheses.listForLessonVersion.mock.calls[1][1] as AbortSignal;
 
     view.rerender(<LessonHypothesisPanel lessonVersionId="lesson-version-2" />);
