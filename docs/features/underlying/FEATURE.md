@@ -90,6 +90,44 @@ Die Anlage erfolgt als geführter Ablauf mit Grunddaten und primärer Notierung.
 
 Alle fachlichen Grund- und Detailentscheidungen sind akzeptiert. FT-001 wurde in Sprint 2 vollständig über Backend, REST API, React-Frontend, Tests und Dokumentation umgesetzt. Die Implementierung bleibt an die akzeptierten ADRs und die Feature-Book-Verträge gebunden.
 
+## Rückkehr nach der Stammdatenpflege
+
+Die Basiswertliste hält ihre bestätigte Suche, Status-/Markt-/Währungsfilter und
+25er-Paginierung in der URL. Beim Öffnen von Details oder Bearbeitung wird dieser
+Listenkontext als auf `/underlyings` begrenztes `returnTo` weitergegeben. Nach
+**erfolgreichem Speichern**, **Abbrechen** oder dem Formular-Zurücklink geht es
+direkt auf die ursprüngliche Listenseite; der Detail-Zurücklink erhält sie ebenfalls.
+Die Liste lädt ihre Daten dort erneut. Ein Speicherfehler bleibt mit den Eingaben
+im Formular. Direkte Bearbeitungslinks ohne Listenkontext führen wie bisher zur
+Detailansicht; Neuanlage führt weiterhin zum neu angelegten Basiswert.
+
+Reload und Browser-Zurück/Vorwärts erhalten den URL-Kontext, getrennt je Tab.
+Neue Suche oder Filteränderungen beginnen auf Seite 1. Existiert die gemerkte
+letzte Seite nach einer Änderung/Löschung nicht mehr, wird die letzte vorhandene
+Seite derselben gefilterten Liste geladen. Ungültige Seitenwerte fallen auf
+Seite 1 zurück; externe oder fremde Rücksprungziele werden nicht verwendet.
+Keine Backend-, Datenmodell-, Stammdatenvalidierungs- oder Provideränderung.
+
+Ein Rücksprungziel enthält ausschließlich den Pfad `/underlyings` und die
+bekannten, eindeutigen Listenparameter. Protokollrelative, verschachtelte,
+doppelte oder missverständlich kodierte Ziele werden verworfen; korrekt kodierte
+Suchzeichen bleiben normale Suchdaten. Ein verworfenes Ziel verwendet den
+bestehenden Direktaufruf ohne Listenherkunft.
+
+Die Detailansicht bindet Laden und Aktionen an die aktuelle Basiswertidentität.
+Verspätete Daten oder die Antwort einer früher abgesendeten Löschung dürfen nach
+einem Datensatzwechsel weder den neuen Basiswert ersetzen noch zurücknavigieren.
+Zwei synchrone Auslösungen derselben Aktion senden nur einen Auftrag. Eine bereits
+abgesendete Löschung kann serverseitig trotzdem abgeschlossen werden.
+
+Prüfweg: Liste auf Seite 2/3 öffnen, Basiswert → Bearbeiten → Abbrechen oder
+Detail → Basiswerte: Rückkehr zu derselben Seite mit denselben Filtern (lesend).
+Speichern/Löschen und Fehlerfälle nur mit synthetischen Daten in der Testumgebung
+prüfen; diese Aktionen verändern Stammdaten. Regressionen: `UnderlyingNavigation.test.tsx`,
+`underlyingListNavigation.test.ts`, `tests/e2e/underlying-list-return.spec.ts`.
+Die neuen Browserfälle verwenden vollständig abgefangene synthetische API-Antworten;
+sie sind kein zusätzlicher Datenbank-Schreibnachweis.
+
 ## Sicheres Formular bei Navigation und Ladefehlern
 
 Beim Wechsel des Basiswerts oder des Anlagevorschlags erhält das Formular einen
@@ -118,6 +156,13 @@ Schutz wird um zwei zeitliche Randfälle ergänzt. Gleichwertige Suchparameter w
 keinen erneuten Ladevorgang auslösen, der bereits bearbeitete Eingaben während
 eines Speicherns überschreibt. Der Formularschlüssel und der einmalig erzeugte
 Parameter-Snapshot verwenden deshalb dieselbe serialisierte Suchzeichenfolge.
+
+`returnTo` ist davon getrennte Navigation und gehört nicht zur fachlichen
+Vorschlagsidentität. Ändert sich nur dieses gültige Rücksprungziel, bleiben
+bewusste Eingaben, geladene Identität/Version und ein laufender Schreibauftrag
+erhalten. Ein erfolgreicher noch aktiver Auftrag verwendet das aktuelle
+validierte Ziel. Ein tatsächlicher Datensatz- oder Vorschlagswechsel deaktiviert
+weiterhin die alte Formularinstanz.
 
 Beim Verlassen wird die alte Formularinstanz bereits in der React-Commit-Phase
 deaktiviert. Eine Speicherantwort zwischen dem Einhängen der Zielansicht und dem
@@ -152,7 +197,9 @@ synthetisch abgefangenen Requests. Das belegt keine Datenbankschreibvorgänge au
 dem Nutzer-PC. Exakte Prüfstände, Ergebnisse, Screenshots und CI-Läufe gehören in
 den zugehörigen Folge-PR; frühere Läufe sind kein Nachweis für einen neueren Head.
 
-Der getrennte Listen-Navigations-PR #204 bleibt eigenständig. Bei einer späteren
-Zusammenführung muss auch dessen Rückkehrnavigation hinter der Aktivitätsprüfung
-bleiben und erneut qualifiziert werden. Diese Ergänzung erklärt weder PB-007
-insgesamt für abgenommen noch eine Installation oder Veröffentlichung für erfolgt.
+Der getrennte Listen-Navigations-PR #204 führt diesen Schutz mit dem Rücksprung
+zusammen. Die gemeinsame Prüfung einschließlich alter Schreibantworten mit
+Listenkontext ist in der
+[Navigationsqualifikation](../../implementation/UNDERLYING_NAVIGATION_QUALIFICATION.md)
+belegt. Diese Ergänzung erklärt weder PB-007 insgesamt für abgenommen noch eine
+Installation oder Veröffentlichung für erfolgt.

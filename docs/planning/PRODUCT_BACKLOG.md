@@ -444,6 +444,20 @@ Die Felder „Soll“ und „Nicht-Soll“ sind die vor einer Umsetzung zu prüf
 <details>
 <summary>PB-007 — Basiswertverwaltung in der Oberfläche</summary>
 
+**A: Navigation — Nachweisfortschreibung 2026-10-25:** Der bestehende
+[PR #204](https://github.com/burckhju/trading-workspace/pull/204) integriert Main
+`fbd77fb94947a1fdbfc0aeb90811353fae655a59` / v1.5.14 konfliktfrei und erhält seine
+veröffentlichte Historie. Die vorhandene URL-Navigation und der Formularschutz
+bleiben unverändert; ergänzt werden gezielte Testverträge und aktuelle
+Nachweise. Die [Navigationsqualifikation](../implementation/UNDERLYING_NAVIGATION_QUALIFICATION.md)
+bindet A01–A14, die ausführbaren Quelltrees, 122 fokussierte Tests,
+780 vollständige Frontendtests sowie 24 synthetische Browserfälle ohne Retry.
+Die vollständigen aktuellen CI-Ergebnisse einschließlich beider Finanz- und
+beider Lern-Ownerfälle werden im PR an den tatsächlichen Checkout/Tree gebunden.
+Historische v1.5.11-Erfolge sind kein neuer Integrationsnachweis. Main-Merge,
+Veröffentlichung, menschliche Abnahme und PC-Betrieb werden nicht vorweggenommen;
+der neue Candidate-Governance-Auftrag B bleibt unberührt.
+
 **Nachweisfortschreibung 2026-10-20:** Der ursprüngliche Formularschutz aus
 [PR #249](https://github.com/burckhju/trading-workspace/pull/249) wurde am
 18.10.2026 gemergt. Die Folgekorrektur auf Basis von
