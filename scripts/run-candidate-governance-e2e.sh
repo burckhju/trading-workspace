@@ -220,7 +220,9 @@ compose config --format json > "${runtime_dir}/compose.json"
 printf 'checkout=%s\ntree=%s\ncheckout_parents=%s\nworkflow_sha=%s\nworkflow_run=%s\nworkflow_attempt=%s\nproject=%s\ndatabase=%s\nrun_id=%s\n' \
   "$(git -C "${repository_root}" rev-parse HEAD)" \
   "$(git -C "${repository_root}" rev-parse HEAD^{tree})" \
-  "$(git -C "${repository_root}" show -s --format=%P HEAD)" "${GITHUB_SHA:-}" \
+  "$(git -C "${repository_root}" cat-file -p HEAD | "${python_bin}" -I -c \
+    'import sys; print(" ".join(line.split()[1] for line in sys.stdin.read().split("\n\n", 1)[0].splitlines() if line.startswith("parent ")))')" \
+  "${GITHUB_SHA:-}" \
   "${GITHUB_RUN_ID}" "${GITHUB_RUN_ATTEMPT:-1}" "${compose_project}" "${database_name}" "${run_id}" \
   > "${artifact_dir}/code-and-stack.txt"
 "${clean_environment[@]}" "${python_bin}" -I - > "${artifact_dir}/toolchain.json" <<'PY'

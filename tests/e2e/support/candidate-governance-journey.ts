@@ -67,6 +67,15 @@ export async function prepareGovernanceJourney(
   const observed: Observed[] = [];
   const failures: string[] = [];
   const pending = new Set<Promise<void>>();
+  // The production build needs no socket. Do not let an unreviewed WebSocket
+  // bypass the HTTP origin/command guard; interception never connects upstream.
+  await context.routeWebSocket("**/*", async (socket) => {
+    failures.push(`Unexpected browser WebSocket: ${socket.url()}`);
+    await socket.close({
+      code: 1008,
+      reason: "No WebSockets in this qualification",
+    });
+  });
   context.on("page", (page) =>
     page.on("pageerror", (error) => failures.push(error.message)),
   );

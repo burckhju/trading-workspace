@@ -1,6 +1,6 @@
 from datetime import UTC, date, datetime
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import ANY, AsyncMock, Mock, call
 from uuid import uuid4
 
 import pytest
@@ -22,6 +22,7 @@ def _session():
     session.execute = AsyncMock()
     session.get = AsyncMock()
     session.add = Mock()
+    session.flush = AsyncMock()
     session.commit = AsyncMock()
     return session
 
@@ -33,6 +34,7 @@ async def test_candidate_service_create_get_list_status_and_history_paths():
     repo = Mock()
     repo.underlying_exists = AsyncMock(return_value=True)
     repo.get_by_underlying = AsyncMock(return_value=None)
+    repo.flush = AsyncMock()
     repo.commit = AsyncMock()
     repo.add = Mock()
     repo.list = AsyncMock(return_value=(SimpleNamespace(id=uuid4()),))
@@ -79,6 +81,30 @@ async def test_candidate_service_create_get_list_status_and_history_paths():
     assert (await service.list_evaluations(created.id))[0].version == 1
     assert (await service.list_criteria(uuid4()))[0].criterion_id == "X"
     assert (await service.list_sources(uuid4()))[0].role == "MARKET"
+
+
+@pytest.mark.asyncio
+async def test_candidate_creation_flushes_parent_before_event_without_an_extra_commit():
+    session = _session()
+    workspace, underlying = uuid4(), uuid4()
+    session.scalar.side_effect = [underlying, None]
+
+    candidate = await CandidateService(session).create(workspace, underlying, "synthetic-owner")
+
+    event = session.add.call_args_list[1].args[0]
+    assert event.candidate_id == candidate.id
+    assert event.event_type == "CREATED"
+    # With no ORM relationship between these mappers, one implicit commit flush
+    # can insert the event first. The parent flush must precede adding the child,
+    # while the command still commits their shared transaction exactly once.
+    assert session.mock_calls == [
+        call.scalar(ANY),
+        call.scalar(ANY),
+        call.add(candidate),
+        call.flush(),
+        call.add(event),
+        call.commit(),
+    ]
 
 
 @pytest.mark.asyncio

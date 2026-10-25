@@ -254,3 +254,43 @@ diese Qualifikation aktiviert. Main-Merge, Release, Tagging, Installation,
 PC-Beobachtung, wirtschaftliche Wirksamkeit und menschliche Fachabnahme sind
 separate, hier nicht nachgewiesene Schritte. Zusätzliche Performancestatistiken,
 neue Regeln/Schwellen und andere Modellfamilien sind nicht Teil dieses Schnitts.
+
+## Nativer Erstlauf — 2026-10-25, bestätigter Candidate-Anlagefehler
+
+Der erste tatsächliche Lauf auf [PR #276](https://github.com/burckhju/trading-workspace/pull/276)
+ist **fehlgeschlagen**, nicht übersprungen und nicht wiederholt worden:
+
+| Identität | Beobachteter Wert |
+|---|---|
+| Branch-Head | `a41128d1d0b2fc64637bef02b816004ec75adc27` |
+| Tatsächlicher PR-Testmerge | `bd329d0493b53440f10e60930854c49579d71b70` gegen Ausgangs-Main `fbd77fb9…` |
+| Tatsächlicher Tree | `7edaf2c02ada4ead3976c3f7d0368e61a2066924` |
+| E2E-Run / Job / Workflowversuch | [40164849586](https://github.com/burckhju/trading-workspace/actions/runs/40164849586) / `121083689500` / 1 |
+| Hauptfall | 1 failed, 0 passed, 0 skipped, 0 flaky; ein Ergebnis mit `retry=0`; S2 nicht erreicht |
+| Stack-/Run-ID | `tw-candidate-governance-e2e-16a141c6b924405c8a9c1726afb445cd` / `16a141c6-b924-405c-8a9c-1726afb445cd` |
+| Artefakt | `12587584487`, ZIP-SHA-256 `57db4fa9343e9886554858d6c2141903fb35c0f073e036cd93f3e3994ae818f1` |
+| Tatsächliche Artefaktprüfung | ZIP-Hash und vollständiges Manifest mit 22 Inhaltsdateien geprüft; 49 tatsächliche Setup-Requests aufgezeichnet, keine Guardverletzung |
+| Cleanup | Eigentum verifiziert, `removed=true`, 0 Container/Netze/Volumes; `exit_status=1`, `cleanup_status=0` |
+
+Die Ownerkette erzeugte bereits Trade/Observation/Review/E1/L1/L2 und alle drei
+realen gespeicherten Analyseversionen. `POST /candidates` brach dann mit HTTP 500 ab:
+PostgreSQL meldete `fk_candidate_events_candidate_id_candidates`, weil der
+CREATED-Event beim gemeinsamen Flush vor seinem neuen Candidate eingefügt wurde.
+Dies ist ein bestätigter Ownerfehler; der vorhandene FT-019-Servicefall hatte den
+Candidate direkt als Fixture gesetzt und diesen Anlagepfad nicht ausgeführt.
+
+Die begrenzte Korrektur flusht ausschließlich den neuen Candidate vor seinem
+CREATED-Event innerhalb derselben bestehenden Transaktion. Es bleibt bei einem
+gemeinsamen Commit; Schema, Constraints und Geschäftsregeln werden nicht geändert.
+Die neue PostgreSQL-Regression prüft echte Owneranlage, genau einen gespeicherten
+Candidate/CREATED-Event und den erneuten Read desselben Candidate. Der identische
+native Hauptfall bleibt die Vorher-/Nachher-Regression. `evaluate()` besitzt seinen
+Parent-Flush bereits; dort ist kein weiterer Reihenfolgenpatch begründet.
+
+Der erste Checkout war shallow: sein `git show --format=%P` lieferte keine
+Eltern-IDs. Die Eltern wurden unabhängig über den GitHub-Commitread verifiziert;
+der Runner liest sie künftig direkt aus dem vorhandenen Commitobjekt. Der
+Browserguard schließt zusätzlich WebSockets, ohne eine Gegenstelle zu verbinden.
+Der Fehlversuch ist kein B12-Erfolg. Weitere tatsächliche Ausführungen und der
+finale Head/Checkout/Tree werden getrennt im PR-Nachweis gebunden; kein Workflow-
+oder Testretry wird aus einem späteren neuen Commit abgeleitet oder verschwiegen.

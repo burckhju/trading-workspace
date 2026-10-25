@@ -61,6 +61,8 @@ class CandidateService:
             created_by=actor,
         )
         self._repo.add(candidate)
+        # Flush the parent before its FK-dependent event; both share one commit.
+        await self._repo.flush()
         self._repo.add(
             CandidateEventModel(
                 id=uuid4(),
