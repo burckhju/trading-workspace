@@ -12,13 +12,14 @@ const inputClass =
 const buttonClass =
   'rounded-lg border border-slate-600 px-3 py-2 text-sm disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400';
 const PAGE_SIZE = 20;
+const REPORT_CURRENCY = 'EUR';
 
 function initialFilters(): RealizedGrossFilters {
   const today = todayInZone('Europe/Berlin');
   return {
     from_date: `${today.slice(0, 8)}01`,
     to_date: today,
-    report_currency: '',
+    report_currency: REPORT_CURRENCY,
     report_timezone: 'Europe/Berlin',
   };
 }
@@ -396,7 +397,7 @@ export function RealizedGrossPage() {
     [],
   );
 
-  function change(field: keyof RealizedGrossFilters, value: string) {
+  function change(field: Exclude<keyof RealizedGrossFilters, 'report_currency'>, value: string) {
     generation.current += 1;
     controller.current?.abort();
     setFilters((current) => ({ ...current, [field]: value }));
@@ -409,7 +410,7 @@ export function RealizedGrossPage() {
   async function read() {
     const requested = {
       ...filters,
-      report_currency: filters.report_currency.trim().toUpperCase(),
+      report_currency: REPORT_CURRENCY,
       report_timezone: filters.report_timezone.trim(),
     };
     setError(null);
@@ -419,8 +420,8 @@ export function RealizedGrossPage() {
       setError('Bitte einen gültigen Zeitraum angeben: Von darf nicht nach Bis liegen.');
       return;
     }
-    if (!/^[A-Z]{3}$/.test(requested.report_currency) || !requested.report_timezone) {
-      setError('Bitte Berichtswährung und Berichtszeitzone ausdrücklich auswählen.');
+    if (!requested.report_timezone) {
+      setError('Bitte eine Berichtszeitzone (IANA) angeben.');
       return;
     }
     const current = ++generation.current;
@@ -497,16 +498,7 @@ export function RealizedGrossPage() {
           </label>
           <label className="text-sm">
             Berichtswährung
-            <input
-              required
-              value={filters.report_currency}
-              maxLength={3}
-              autoCapitalize="characters"
-              autoComplete="off"
-              placeholder="z. B. EUR"
-              onChange={(event) => change('report_currency', event.target.value.toUpperCase())}
-              className={inputClass}
-            />
+            <input readOnly value={REPORT_CURRENCY} className={inputClass} />
           </label>
           <label className="text-sm">
             Berichtszeitzone (IANA)
@@ -529,8 +521,8 @@ export function RealizedGrossPage() {
         </datalist>
         <p className="mt-3 text-xs text-slate-400">
           Vorgeschlagene Berichtszone: Europe/Berlin. Die gewählte Zone bestimmt die
-          Periodengrenzen. Die Berichtswährung filtert bereits belegte Währungen; sie bestätigt
-          keine Buchung und rechnet nichts um.
+          Periodengrenzen. Die Berichtswährung ist fest Euro (EUR). Sie filtert bereits belegte
+          Währungen; sie bestätigt keine Buchung und rechnet nichts um.
         </p>
         <button type="submit" disabled={loading} className={`${buttonClass} mt-4 border-sky-700`}>
           {loading ? 'Bericht wird gelesen…' : 'Bericht lesen'}
@@ -555,7 +547,7 @@ export function RealizedGrossPage() {
       )}
       {!report && !loading && !error && (
         <p className="text-sm text-slate-400">
-          Zeitraum, Berichtswährung und Berichtszone prüfen und „Bericht lesen“ wählen.
+          Zeitraum und Berichtszone prüfen und „Bericht lesen“ wählen. Die Berichtswährung ist EUR.
         </p>
       )}
       {report && (

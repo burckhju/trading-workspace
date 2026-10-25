@@ -1355,6 +1355,13 @@ der Layout-Phase, getrennt vom weiterhin passiven Ladeeffekt.
 <details>
 <summary>PB-019 — Perioden- und Tradeauswertungen</summary>
 
+**UI-Nachtrag 25.10.2026:** Auf ausdrücklichen Nutzerwunsch ist die
+Berichtswährung in Verkaufs- und Abschlussübersicht fest EUR. Vorhandene
+Nicht-EUR-Listenlinks werden ohne stillen Ersatzread erklärt; Buchungswährungen,
+Quellen und Definitionen bleiben unverändert. [Umfang und neue
+Qualifikation](../implementation/REPORT_EUR_UI_QUALIFICATION.md). Dies ist kein
+Nachweis vollständiger realer Währungsabdeckung oder einer neuen Auslieferung.
+
 | Nachweisfeld | Einordnung |
 |---|---|
 | Zuordnung | M8: Auswertungen. Bereich/Querschnitt: 8. Bestehender Bezug: FT-012; vorhandener Evaluation-Owner. Lieferziel: C. |

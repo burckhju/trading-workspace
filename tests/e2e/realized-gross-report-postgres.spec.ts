@@ -237,7 +237,9 @@ test("real PostgreSQL: purchase currency once, inherited sales, sources and corr
   const select = async (from: string, to: string) => {
     await page.getByLabel("Von (einschließlich)").fill(from);
     await page.getByLabel("Bis (einschließlich)").fill(to);
-    await page.getByLabel("Berichtswährung", { exact: true }).fill("EUR");
+    const currency = page.getByLabel("Berichtswährung", { exact: true });
+    await expect(currency).toHaveValue("EUR");
+    await expect(currency).not.toBeEditable();
     await page.getByLabel("Berichtszeitzone (IANA)").fill("Europe/Berlin");
   };
   const beforeRead = databaseState();
