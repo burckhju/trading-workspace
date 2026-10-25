@@ -621,6 +621,11 @@ test("real PostgreSQL: full-close cohort, lifetime result, gaps and current corr
   integrationReadWindow = true;
   await page.getByLabel("Zeilen anzeigen").selectOption("all");
   await nextPage.click();
+  // Observe the local router render before reading the source link, as above.
+  await expect(page.getByRole("article", { name: /^Trade / })).toHaveCount(7);
+  await expect(
+    page.getByRole("navigation", { name: "Berichtsseiten", exact: true }),
+  ).toContainText("Seite 2 von 2");
   const pageTwoLink = page
     .getByRole("link", { name: /^Trade .* prüfen$/ })
     .first();

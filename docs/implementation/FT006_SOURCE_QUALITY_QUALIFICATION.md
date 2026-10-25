@@ -1,5 +1,58 @@
 # FT-006: versionierte Quellenqualität — Runtimeanbindung und B07
 
+## 25.10.2026: zweiter vollständiger Kombinationsnachweis und Main-Fortschreibung
+
+Der kombinierte Head
+[`0aee2908c5e99c4aee22d2e81eb2639f5643c5b7`](https://github.com/burckhju/trading-workspace/commit/0aee2908c5e99c4aee22d2e81eb2639f5643c5b7),
+Tree `d3bc64dd611f3abda3e49274147887267939afee`, ist ebenfalls vollständig
+qualifiziert. Tatsächlicher PR-Checkout war
+`4466f3db57ef04a6d1b285763154b2988cd488b8`, mit Eltern Main `656cd84e…`
+und diesem Head. Alle Läufe gehören zu `pull_request`, Versuch 1:
+
+- [Backend `40185426893` / quality `121145089987`](https://github.com/burckhju/trading-workspace/actions/runs/40185426893/job/121145089987):
+  **3377 passed, 1 bestehende Warnung in 1020,20 Sekunden**, Coverage
+  **87,56 %** bei unverändert 85 % Mindestwert. Die vollständigen Originalzeilen
+  bestätigen erneut alle **38** FT-006- und beide Candidate-PostgreSQL-Fälle.
+  Ruff, Black, mypy, Migration, Produktionsimage und Renderer bestanden.
+- [Frontend `40185426868` / `121145089892`](https://github.com/burckhju/trading-workspace/actions/runs/40185426868/job/121145089892):
+  **807 Tests / 124 Dateien**, sämtliche Qualitätsprüfungen und Build bestanden.
+- [E2E `40185426872`](https://github.com/burckhju/trading-workspace/actions/runs/40185426872):
+  **78 Smoke-Passes / fünf geschützte Skips**; dieselben fünf Testidentitäten
+  jeweils einmal im nativen Finanz-/Lern-/Governanceowner bestanden,
+  Retry/Skip/Flaky jeweils 0. Neun Publikationsguardtests bestanden;
+  der PR-Tagjob ist erwartungsgemäß übersprungen.
+- [Governance-Artefakt `12595772772`](https://github.com/burckhju/trading-workspace/actions/runs/40185426872/artifacts/12595772772),
+  Original-ZIP-SHA256
+  `efe104c416b447470c0f4d278bc4d6abb997ab0d32e74a88d8d8ae1d432cd8eb`:
+  alle 26 Manifestdateien, aktuelle GOOD-A/A/B/A-Quellen, Legacy-/Negativfälle,
+  14 Verify-/vier GET-Fenster und Cleanup erneut vollständig geprüft.
+  Alle sechs aktuellen B07-Desktop-/Mobilbilder wurden tatsächlich angesehen.
+  Auch Finance/Learning besitzen eigene vollständig geprüfte Artefakte,
+  neun unveränderte Lesefenster und drei restlos entfernte Stacks.
+
+Der anschließende Schlussabgleich zeigte erneut weitergerücktes Main:
+[`3b8c59e54445dc39f9f84c8eeab2b11137bdde6c`](https://github.com/burckhju/trading-workspace/commit/3b8c59e54445dc39f9f84c8eeab2b11137bdde6c),
+Tree `b1f54f03d192cd38de45c73e134aeada41d5ccf7`. Der inzwischen integrierte
+#280 ergänzt eine ereignisbezogene Beobachtungsbarriere im vorhandenen
+CLOSED-Finanzfall vor dessen unveränderter exakter Quellenlinkprüfung.
+Er erhält die feste EUR-Anzeige und alle Guards. Hinzu kommen seine eigenen
+Qualifikations-/Releasenotizen und der bereits in Main vorhandene
+Paketversionsstand **1.5.18**; kein Produktivcode, Dependency-Pin, Schema,
+Runner oder Workflow ändert sich dadurch.
+
+Dieser aktuelle Main wird erneut mit beiden Eltern normal in den bestehenden
+#278-Branch aufgenommen. Die lokale Mergeprüfung ist konfliktfrei. Alle sieben
+hinzukommenden Main-Dateien bleiben bytegleich; die FT-006-Implementierung,
+ihre Tests und die bisherigen Nachweise bleiben erhalten. Der grüne Nachweis
+von `0aee2908…` wird nicht auf den neuen vollständigen Tree übertragen.
+Der aktuelle [PR #278](https://github.com/burckhju/trading-workspace/pull/278)
+bindet den neuen Mergehead an seine eigene reguläre CI und neue Rohartefakte.
+
+Die im separaten EUR-Releaseweg dokumentierte Merge-/PC-Freigabe gilt weiterhin
+nicht für #278. Dessen Auftrag bleibt Entwicklung, Branchintegration und
+technische Qualifikation; keine Main-, Release-, PC- oder produktive
+Modellaktivierungsaktion wird daraus abgeleitet.
+
 ## 25.10.2026: qualifizierter Vorhead und erneute Aufnahme des aktuellen Main
 
 Der vollständige Folgehead

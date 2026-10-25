@@ -103,3 +103,53 @@ Docker ist lokal nicht verfügbar; die vollständigen Backend-/PostgreSQL- und
 nativen Browsergates werden über die bestehenden regulären PR-Jobs qualifiziert.
 Deren genaue aktuelle Run-/Checkout-/Artefaktbindung steht im PR, nicht in den
 historischen lokalen Ergebnissen dieser Tabelle.
+
+### Tatsächlicher Main-Fehler und enge Testkorrektur — 25.10.2026
+
+PR #279 wurde nach vollständiger grüner PR-Qualifikation regulär gemergt.
+Finaler PR-Head war `721ed92fca5a13611e7a5217acff4e1372ea5975`, tatsächlicher
+Testmerge `cf1bc40087d15131486a25ff1a2fd1bb98c48bb4`. Der tatsächliche Main-Merge
+`656cd84eb79831888db2d9b5301b95f43d901251` besitzt denselben vollständigen Tree
+`bd0cb575eb3e10f4f4c53e3514e7abf281c0b940`. Der neue Main-E2E-Lauf
+`40184606268`, Versuch 1, ist dennoch fehlgeschlagen und bleibt als solcher
+erhalten. Er ist kein erfolgreicher Gesamtbeleg und kein Auslieferungsnachweis.
+
+Im Finanzjob `121142625247` bestand der SELL-Fall. Der CLOSED-Fall scheiterte
+beim unmittelbaren Lesen des Quellenlink-Attributes nach dem zweiten lokalen
+Seitenwechsel: `report_page=2` erwartet, `report_page=1` gelesen. Die feste
+EUR-Anzeige und ihre Nichteditierbarkeit waren nicht die Fehlerstelle.
+
+Originaltrace, DOM-Snapshots und Screencast grenzen die Ursache ein:
+
+- Der zweite Next-Klick endet bei 33333,574 ms. Der nachfolgende
+  `getAttribute`-Aufruf beginnt 3,258 ms später und liefert noch Seite 1.
+- Die URL enthält bereits Seite 2; die damaligen DOM-Snapshots zeigen
+  konsistent Seite 1, 20 Zeilen und ausschließlich Seite-1-Quellenlinks.
+- Der Screencast zeigt bei 33369,907 ms Seite 2 ohne weitere Benutzeraktion.
+  Der Fehlerkontext enthält sieben Zeilen und sieben passende Seite-2-Links.
+- Seit dem letzten Report-GET bei 31830,391 ms gibt es keine weiteren
+  HTTP-Requests. Die lokale Pagination liest oder schreibt keine Quelle.
+
+Der bestehende Router übernimmt die Suchparameter über eine React-Transition.
+Ein abgeschlossener Klick beweist deshalb noch keinen abgeschlossenen
+DOM-Render. Sichtbare Zeilen, Seitentext und Quellenlinks werden im selben
+`ReportContent`-Render aus derselben lokalen `page` abgeleitet. Ein getrennt
+veralteter Linkzustand oder ein Produktionsfehler ist damit nicht belegt.
+
+Die Korrektur ergänzt vor dem zweiten Linklesen genau die bereits im ersten
+Paging-Abschnitt vorhandene Beobachtungsbarriere: sieben Artikel und sichtbares
+„Seite 2 von 2“. Die ursprüngliche genaue `href`-/`report_page`-Assertion,
+Quellenrückkehr, Reload, Readfenster, Fallidentität und sämtliche Guards bleiben
+erhalten. Keine feste Wartezeit, kein Testretry, keine Timeoutverlängerung und
+keine Produktiv-, API-, Schema- oder Workflowänderung.
+
+Die vollständigen Fehlerartefakte und das Cleanup bleiben nachvollziehbar.
+Der reparierte Fall benötigt neue native PR- und Main-Ausführungen; deren
+genaue Bezüge werden im Folge-PR dokumentiert. Ein unveränderter Wiederholungslauf
+würde die nachgewiesene fehlende Beobachtungsbarriere nicht beheben.
+
+v1.5.17 war bei diesem Befund noch nicht veröffentlicht. Der vorhandene
+Publisher verlangt weiterhin alle drei erfolgreichen Workflows desselben
+Main-Pushs. Die vorbereitete Folgeversion
+[v1.5.18](../releases/V1.5.18-EUR-REPORT-QUALIFICATION.md) durchläuft diesen
+unveränderten Releaseweg erneut; vorhandene Tags werden nicht verschoben.
