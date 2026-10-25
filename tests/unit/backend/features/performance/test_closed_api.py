@@ -1,6 +1,7 @@
 """New GET response, exact monetary strings and complete-source error contract."""
 
 import asyncio
+from dataclasses import replace
 from unittest.mock import AsyncMock
 
 import pytest
@@ -9,6 +10,7 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy.exc import DBAPIError
 from tests.unit.backend.features.performance.fixtures import (
     WORKSPACE,
+    closed_statistics_snapshot,
     confirmed,
     reference,
     snapshot,
@@ -105,6 +107,20 @@ def test_response_is_one_full_trade_with_exact_owner_total_and_all_lifetime_sour
         assert body["basis"]["knowledge"] == "CURRENT_EFFECTIVE_FACTS"
         assert len(body["basis"]["id"]) == 64
         assert body["currency"]["rounding"] == "ROUND_HALF_EVEN"
+        assert body["statistics"] == {
+            "definition_version": "closed-trade-statistics-v1",
+            "report_basis_id": body["basis"]["id"],
+            "report_status": "COMPLETE",
+            "population": 1,
+            "win_rate": {"raw": "100", "display": "100.00", "reason": None},
+            "average_gross_pnl": {"raw": "50.00", "display": "50.00", "reason": None},
+            "median_gross_pnl": {"raw": "50.00", "display": "50.00", "reason": None},
+            "gross_profit_factor": {
+                "raw": None,
+                "display": None,
+                "reason": "Nicht definiert: keine Verlusttrades",
+            },
+        }
 
     asyncio.run(exercise())
     reader.read.assert_awaited_once_with(WORKSPACE_ID, "EUR")
@@ -126,6 +142,7 @@ def test_existing_sell_response_remains_separate_on_the_same_router() -> None:
         assert sells.json()["definition_version"] == "realized-gross-sell-v2"
         assert sells.json()["summary"]["total"] == "30.00"
         assert len(sells.json()["items"]) == 4
+        assert "statistics" not in sells.json()
         assert forbidden_write.status_code == 405
 
     asyncio.run(exercise())
@@ -195,4 +212,61 @@ def test_service_materializes_one_reader_snapshot_only() -> None:
     reader.read.return_value = snapshot()
     report = asyncio.run(ClosedTradeReportService(reader).report(WORKSPACE, OCTOBER))
     assert report.summary.total == "50.00"
+    assert report.statistics.report_basis_id == report.basis.id
+    assert report.statistics.population == 1
+    assert report.statistics.average_gross_pnl.raw == "50.00"
     reader.read.assert_awaited_once_with(WORKSPACE, "EUR")
+
+
+@pytest.mark.parametrize("status", ["COMPLETE", "PARTIAL", "NOT_COMPUTABLE", "EMPTY"])
+def test_additive_statistics_contract_serializes_strings_or_explicit_unavailable_reasons(
+    status: str,
+) -> None:
+    reader = AsyncMock(spec=RealizedGrossSnapshotReader)
+    basis = closed_statistics_snapshot()
+    query = QUERY.copy()
+    if status == "PARTIAL":
+        basis = replace(basis, confirmations=basis.confirmations[:1])
+    elif status == "NOT_COMPUTABLE":
+        basis = replace(basis, confirmations=())
+    elif status == "EMPTY":
+        query.update(from_date="2026-09-01", to_date="2026-09-30")
+    reader.read.return_value = basis
+
+    async def exercise() -> None:
+        async with AsyncClient(
+            transport=ASGITransport(app=application(reader)), base_url="http://test"
+        ) as client:
+            response = await client.get(URL, params=query)
+        assert response.status_code == 200, response.text
+        body = response.json()
+        stats = body["statistics"]
+        assert body["definition_version"] == "closed-trade-gross-v1"
+        assert stats["definition_version"] == "closed-trade-statistics-v1"
+        assert stats["report_basis_id"] == body["basis"]["id"]
+        assert stats["report_status"] == body["summary"]["status"] == status
+        names = ("win_rate", "average_gross_pnl", "median_gross_pnl", "gross_profit_factor")
+        if status == "COMPLETE":
+            assert stats["population"] == 4
+            assert body["summary"]["total"] == "250"
+            for name, raw, display in zip(
+                names, ("50.0", "62.5", "50", "6"), ("50.00", "62.50", "50.00", "6.00"), strict=True
+            ):
+                assert stats[name] == {"raw": raw, "display": display, "reason": None}
+        else:
+            assert stats["population"] == (0 if status == "EMPTY" else None)
+            reason = (
+                "Keine abgeschlossenen Trades in der Auswahl"
+                if status == "EMPTY"
+                else "Berichtsgrundlage unvollständig"
+            )
+            for name in names:
+                assert stats[name] == {"raw": None, "display": None, "reason": reason}
+            if status == "PARTIAL":
+                assert body["summary"]["subtotal"] == "100"
+                assert body["counts"]["positive"] == body["counts"]["qualified"] == 1
+            elif status == "EMPTY":
+                assert body["summary"]["total"] == "0"
+
+    asyncio.run(exercise())
+    reader.read.assert_awaited_once_with(WORKSPACE_ID, "EUR")

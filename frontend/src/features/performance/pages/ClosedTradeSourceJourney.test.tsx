@@ -231,6 +231,7 @@ it('announces an unavailable return page after a source change instead of preten
   const value = report();
   value.items = value.items.slice(0, 1);
   value.basis.id = 'b'.repeat(64);
+  value.statistics.report_basis_id = value.basis.id;
   api.closedTrades.mockResolvedValue(value);
   mount();
   expect(await screen.findByText(/Die ursprüngliche Seite 2/)).toBeVisible();

@@ -571,7 +571,7 @@ der Layout-Phase, getrennt vom weiterhin passiven Ladeeffekt.
 | Soll / Nicht-Soll | **Soll:** Providerneutrale, stabile Identität und Lifecycle; historische Referenzen bleiben gültig. **Nicht-Soll:** Stammdaten sind weder Kursquelle noch Produktscore oder Benutzerwahl. |
 | Vorhandenseinsnachweis | Dokument- und/oder Routing-Nachweis vorhanden; Details, historische Grenzen und nicht erneut geprüfte Implementierung im Eintrag. |
 | Implementierung / Consumer | Product-Router registriert; [FT-008 konsumiert konkrete Warrant-/Terms-/Listing-IDs](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/backend/app/features/product_selection/domain/models.py). [UI-Konsolidierung](../decisions/ADR-S7-004-WARRANT-LISTING-BOUNDARY.md#implementation-note-one-product-context-for-administration): ein Produktdetail für bestehende Aktionen, ausdrücklich geöffnete atomare Anlage, vorausgefüllter Terms-Editor mit unveränderlicher Versionsbasis, gezielte Historie und erhaltene Reparaturroute. [Aktuelle Traceability](../foundation/TRACEABILITY.md#ft-004--sprint-7c-warrant-traceability). |
-| Test / Commit | Ausgangsstand der UI-Konsolidierung: `6c98f7357066c6db5a364370d6dbde637902c4df`, Version 1.5.19; #283 war vor dem Checkout bereits integriert, der Checkout war sauber und die offenen PRs enthielten keine parallele Produktverwaltung. [Arbeitsbranch und zugehöriger PR](https://github.com/burckhju/trading-workspace/tree/refactor/product-admin-consolidation): vollständiger Frontend-Check mit 858 Tests, 105 Backend-Produkttests, zwei echte PostgreSQL-Transaktionstests und zehn Chromium-Abläufe erfolgreich; Befehle und Trennung der Nachweise unten. Historische Nachweise bleiben separat. |
+| Test / Commit | Ausgangsstand der UI-Konsolidierung: `6c98f7357066c6db5a364370d6dbde637902c4df`, Version 1.5.19; #283 war vor dem Checkout bereits integriert, der Checkout war sauber und die offenen PRs enthielten keine parallele Produktverwaltung. [Draft-PR #285](https://github.com/burckhju/trading-workspace/pull/285): vollständiger Frontend-Check nach Main-Integration mit 863 Tests, 105 Backend-Produkttests, zwei echte PostgreSQL-Transaktionstests und zehn Chromium-Abläufe erfolgreich; Befehle und Trennung der Nachweise unten. Historische Nachweise bleiben separat. |
 | Fachliche Abnahme | Historischer FT-004-Umfang laut PB-011 und Traceability; keine neue Gesamtfreigabe. |
 | Software-Auslieferung | Historisch v0.9.0-warrants / PR #13 laut PB-011. |
 | Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
@@ -580,14 +580,22 @@ der Layout-Phase, getrennt vom weiterhin passiven Ladeeffekt.
 
 #### Lokale Qualifikation der UI-Konsolidierung am 25.10.2026
 
-Die folgenden Prüfungen wurden auf dem Arbeitsstand dieses Branches ausgeführt.
-Die abschließende Diffprüfung war sauber. Produkt-API, Datenbankverträge und
-Releaseversion 1.5.19 blieben unverändert. Der CI-Nachweis gehört zum tatsächlichen
-PR-Head und wird mit dessen Workflow- und Artefaktlinks im PR ausgewiesen.
+Der Implementierungsstand `2a743463b381276baa291c27829709d74ae0b1e4` wurde
+anschließend konfliktfrei mit dem zwischenzeitlich integrierten Main
+`17d5891e0ff6e89ced73d587addb28589f5a292f` (#282) zusammengeführt. Produktcode
+und zugehörige Browserfälle blieben dabei bytegleich. Die bereits auf Main
+vorhandene Version 1.5.20 wurde unverändert übernommen; gegenüber Main gibt es
+keine Änderung an Versionsdateien, Produkt-API oder Datenbankverträgen.
+
+Die fokussierten und nativen lokalen Produktprüfungen unten wurden auf dem
+unveränderten Implementierungsstand durchgeführt; der vollständige Frontend-Check
+wurde nach der Main-Integration nochmals erfolgreich ausgeführt. Die abschließende
+Diffprüfung war sauber. CI gehört zum tatsächlichen PR-Head und wird mit dessen
+Workflow- und Artefaktlinks im PR ausgewiesen.
 
 | Ebene | Ausgeführter Befehl / Umgebung | Ergebnis |
 |---|---|---|
-| Vollständiges Frontend | `bash scripts/check-frontend.sh`, Node 22.16.0 / npm 10.9.2 | Exit 0: Typecheck, ESLint, Prettier, 858 Tests in 126 Dateien, Coverage-Gates und Produktionsbuild erfolgreich. Statements/Lines 93,83 %, Branches 86,43 %, Functions 86,71 %. |
+| Vollständiges Frontend | `bash scripts/check-frontend.sh`, Node 22.16.0 / npm 10.9.2 | Exit 0: Typecheck, ESLint, Prettier, 863 Tests in 126 Dateien, Coverage-Gates und Produktionsbuild erfolgreich. Statements/Lines 93,89 %, Branches 86,58 %, Functions 86,73 %. |
 | Fokussierte simulierte UI | `npm run test -- src/features/product/pages --maxWorkers=1 --minWorkers=1`; zusätzlich Identifier-, Evidence- und NavigationGuard-Tests | 59 Seitentests und 26 Komponenten-/Guard-Tests erfolgreich; im vollständigen Frontendlauf enthalten, keine zusätzlichen nativen Persistenznachweise. |
 | Backend-Verträge | `PYTHONPATH=backend:. python -m pytest -c backend/pyproject.toml tests/unit/backend/features/product -q`, Python 3.12.14 | 105 Tests erfolgreich; umfasst atomare Anlage, Bedingungen, Kennungskorrektur, Strike-Währung und geschützte Löschung. |
 | Native PostgreSQL-Transaktion | Mit ausschließlich lokalem `TRADING_WORKSPACE_TEST_DATABASE_URL`: `PYTHONPATH=backend:. python -m pytest -c backend/pyproject.toml tests/integration/backend/database/test_warrant_creation_listing_postgres.py -q` | 2 Tests erfolgreich: gemeinsamer Commit und vollständiger Rollback nach Parent-Insert. Zufälliges isoliertes Testschema, anschließend entfernt. |
@@ -1347,6 +1355,18 @@ Node-24/jsdom-Kompatibilitätsfehler werden nicht als bestandene Läufe gewertet
 <details>
 <summary>PB-019 — Tradeübergreifende Statistiken</summary>
 
+**Begrenzter Statistiknachtrag 25.10.2026:** Der neue Nutzerauftrag gibt
+Trefferquote, durchschnittliches Bruttoergebnis, Median und Profit-Faktor brutto
+als `closed-trade-statistics-v1` zur Umsetzung und Qualifikation bis zum
+Draft-PR frei. Diese vier Kennzahlen waren im ursprünglichen ADR-S10-009 noch
+ausgeschlossen. Sie verwenden ausschließlich vollständige Abschlussberichte
+mit positiver Population, dieselben ungerundeten Ownerergebnisse und dieselbe
+Berichtsbasis; Teilberichte liefern verständlich begründete Nullwerte.
+[Neuer Vertrag, vorab bestimmte Referenzfälle und Qualifikation](../implementation/CLOSED_TRADE_STATISTICS_V1.md).
+Die bisherigen Kohorten-/Quellennachweise bleiben erhalten. Dieser Auftrag
+autorisiert keinen Merge, Release, Tag oder PC-Update; insbesondere wird die
+frühere Freigabe für #278 nicht übertragen.
+
 | Nachweisfeld | Einordnung |
 |---|---|
 | Zuordnung | M8: Statistiken. Bereich/Querschnitt: 8. Bestehender Bezug: FT-012; vorhandener Evaluation-Owner. Lieferziel: C. |
@@ -1358,7 +1378,7 @@ Node-24/jsdom-Kompatibilitätsfehler werden nicht als bestandene Läufe gewertet
 | Fachliche Abnahme | Nach Erläuterung der drei Nutzerwirkungen am 20.10.2026 mit „ok, umsetzen“ zur Implementierung freigegeben (ADR-S10-009). Keine Abnahme der fertig installierten Abschlussübersicht oder des vollständigen M8-Umfangs daraus abgeleitet. |
 | Software-Auslieferung | Neuer Abschlussbericht als Entwicklungs-PR; kein neuer Merge-/Release- oder Versionsnachweis. Vorhandener SELL-Bericht bleibt eigenständig `realized-gross-sell-v2`. |
 | Betriebsnachweis | Keine PC-Installation oder Bedienabnahme der neuen Abschlussübersicht nachgewiesen. Synthetische Bestätigungen sind keine Aussage über reale Nutzerwährungen. |
-| Restarbeit / nächste Abhängigkeit | Technische PR-Prüfung und gesonderte fachliche Bedienabnahme. Trefferquote, Durchschnitt, Median, Profit-Faktor, Diagramme und Export bleiben mit eigenen Nenner-/Null-/Vollständigkeitsverträgen offen. **Nächste Abhängigkeit:** aktuelle vollständige PR-Nachweise und passende tatsächliche Freigabe für Integration/Auslieferung. |
+| Restarbeit / nächste Abhängigkeit | Technische PR-Prüfung und gesonderte fachliche Bedienabnahme. Trefferquote, Durchschnitt, Median und Profit-Faktor besitzen seit dem begrenzten Auftrag vom 25.10.2026 ihren eigenen [V1-Vertrag](../implementation/CLOSED_TRADE_STATISTICS_V1.md); deren neue Nachweise sind headgebunden im Statistik-PR zu prüfen. Diagramme, Export und breitere M8-Anforderungen bleiben offen. **Nächste Abhängigkeit:** aktuelle vollständige PR-Nachweise und passende tatsächliche Freigabe für Integration/Auslieferung. |
 | Umfangsentscheidung | Die drei engen Kohortenregeln sind entschieden; ursprüngliches M8 bleibt sichtbar. Kein Netto-/FX-/Equity-Modell, keine Modellaktivierung und keine pauschale Erledigung weiterer Statistikanforderungen. |
 
 </details>

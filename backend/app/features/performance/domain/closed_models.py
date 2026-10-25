@@ -14,6 +14,7 @@ from app.features.performance.domain.models import (
     ReportBasis,
     ReportFilters,
     ReportSummary,
+    SummaryStatus,
 )
 
 ClosedTradeGroup = Literal[
@@ -96,6 +97,29 @@ class ClosedTradeCounts:
 
 
 @dataclass(frozen=True, slots=True)
+class ClosedTradeStatistic:
+    """A backend calculation, its display value, or an explicit unavailable reason."""
+
+    raw: str | None
+    display: str | None
+    reason: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class ClosedTradeStatistics:
+    """Versioned statistics of the entire complete report, bound to its source basis."""
+
+    definition_version: str
+    report_basis_id: str
+    report_status: SummaryStatus
+    population: int | None
+    win_rate: ClosedTradeStatistic
+    average_gross_pnl: ClosedTradeStatistic
+    median_gross_pnl: ClosedTradeStatistic
+    gross_profit_factor: ClosedTradeStatistic
+
+
+@dataclass(frozen=True, slots=True)
 class ClosedTradeReport:
     definition_version: str
     filters: ReportFilters
@@ -107,3 +131,4 @@ class ClosedTradeReport:
     counts: ClosedTradeCounts
     items: tuple[ClosedTradeItem, ...]
     sources: tuple[ExecutionSource, ...]
+    statistics: ClosedTradeStatistics
