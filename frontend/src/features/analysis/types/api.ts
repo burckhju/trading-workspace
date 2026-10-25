@@ -2,8 +2,9 @@ export type Uuid = string;
 
 export type AnalysisSummary = {
   id: Uuid;
-  underlying_id: Uuid;
-  listing_id: Uuid;
+  underlying_id: Uuid | null;
+  listing_id: Uuid | null;
+  market_data_instrument_id?: Uuid | null;
   created_at: string;
   created_by: string;
 };
@@ -60,8 +61,12 @@ export type AnalysisParameters = {
 export type RunAnalysisRequest = {
   start_date: string;
   end_date: string;
+  model_version?: '1.0.0' | '1.0.1';
   parameters: AnalysisParameters;
 };
+
+// Explicit UI choice for new commands; historical retry/verify send no override.
+export const newAnalysisModelVersion = '1.0.1' as const;
 
 export type CriterionResult = {
   code: string;

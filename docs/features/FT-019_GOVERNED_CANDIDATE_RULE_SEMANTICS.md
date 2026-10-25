@@ -1,5 +1,22 @@
 # FT-019 – Governed Candidate Rule Semantics
 
+## 2026-10-25 — FT-006 native reference handoff in #278
+
+The existing semantic benchmark/sector assignments remain authoritative. The
+same source resolver and readiness reader now accept an exact persisted
+`MARKET_REFERENCE` instrument with a completed FT-006 run and complete snapshot
+at the evaluation cutoff. Workspace and native owner shape are checked. Reads
+do not create an instrument, import prices or execute an analysis. When a native
+identity exists without an eligible source, resolution fails closed; the
+historical listing bridge remains available only when that identity is absent.
+
+This adapts source identity only. Both Candidate policies, thresholds, rule
+aggregation and explicit activation remain unchanged. The bounded
+[FT-006 qualification](../implementation/FT006_SOURCE_QUALITY_QUALIFICATION.md)
+separately records implementation, legacy/negative regression and the required
+new GOOD A/A/B/A execution. The LIMITED evidence below remains historical;
+neither new test source nor a prior green run alone closes B07.
+
 ## Status
 
 Implementation – 2026-09-02.

@@ -43,6 +43,7 @@ def _analysis(model: Any) -> AnalysisSummaryResponse:
         id=model.id,
         underlying_id=model.underlying_id,
         listing_id=model.listing_id,
+        market_data_instrument_id=getattr(model, "market_data_instrument_id", None),
         created_at=model.created_at,
         created_by=model.created_by,
     )
@@ -286,6 +287,7 @@ async def run_analysis(
                 request.end_date,
                 request.parameters.to_domain(),
                 correlation_id,
+                model_version=request.model_version,
             )
         )
     except AnalysisError as exc:

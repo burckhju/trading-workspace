@@ -71,6 +71,12 @@ export const analysisApiClient = {
   run: (id: string, request: RunAnalysisRequest): Promise<AnalysisRun> =>
     requestJson<AnalysisRun>(`${baseUrl}/${id}/runs`, { method: 'POST', body: request }),
 
+  runReference: (id: string, request: RunAnalysisRequest): Promise<AnalysisRun> =>
+    requestJson<AnalysisRun>(
+      `${environment.apiBaseUrl}/api/v1/top-down-reference-data/market-reference-analyses/${id}/runs`,
+      { method: 'POST', body: request },
+    ),
+
   getRun: (id: string, version: number, signal?: AbortSignal): Promise<AnalysisRunDetail> =>
     requestJson<AnalysisRunDetail>(`${baseUrl}/${id}/runs/${version}?include_snapshot=false`, {
       signal,

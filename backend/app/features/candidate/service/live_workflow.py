@@ -21,6 +21,9 @@ from app.features.analysis.persistence.models import (
     MarketAnalysisRunModel,
 )
 from app.features.candidate.persistence.models import CandidateModel
+from app.features.candidate.service.source_resolution import (
+    SemanticTopDownSourceResolver,
+)
 from app.features.market.domain.top_down import BenchmarkRole
 from app.features.market.persistence.models import ListingModel
 from app.features.market.persistence.top_down_models import (
@@ -266,6 +269,42 @@ class CandidateLiveWorkflowService:
         if reference is None:
             return
         prefix = role.upper()
+        try:
+            native = await SemanticTopDownSourceResolver(self._session).native_reference_source(
+                workspace_id, reference.id, cutoff
+            )
+        except ValueError as exc:
+            steps.append(
+                WorkflowStep(
+                    f"{prefix}_ANALYSIS",
+                    f"{role.title()} FT-006 reference analysis",
+                    "BLOCKED",
+                    f"Stored native reference source is unavailable: {exc}.",
+                    resource_id=reference.id,
+                )
+            )
+            return
+        if native is not None:
+            steps.extend(
+                (
+                    WorkflowStep(
+                        f"{prefix}_REFERENCE",
+                        f"{role.title()} reference source",
+                        "COMPLETE",
+                        f"{reference.code} uses its own MARKET_REFERENCE instrument.",
+                        resource_id=reference.id,
+                    ),
+                    WorkflowStep(
+                        f"{prefix}_ANALYSIS",
+                        f"{role.title()} FT-006 reference analysis",
+                        "COMPLETE",
+                        f"Completed analysis {native.analysis_id} v{native.version} "
+                        "and its complete stored snapshot are available.",
+                        resource_id=native.analysis_id,
+                    ),
+                )
+            )
+            return
         assignment = await self._one_active(
             MarketReferenceListingAssignmentModel,
             workspace_id,

@@ -34,3 +34,27 @@ def matches_governed_baseline(definition: dict[str, object]) -> bool:
     """Return whether a governed definition represents the released runtime."""
     expected = governed_baseline_definition()
     return all(definition.get(key) == value for key, value in expected.items())
+
+
+def governed_runtime_definition(*, model_id: str, model_version: str) -> dict[str, object] | None:
+    """Describe an exact code artifact, never an active or latest version.
+
+    A new calculation has no governed link unless its workspace has exactly one
+    APPROVED version with this contract. This function creates no such approval.
+    """
+    if model_id != MODEL_ID:
+        return None
+    if model_version == MODEL_VERSION:
+        return governed_baseline_definition()
+    if model_version != "1.0.1":
+        return None
+    return {
+        "runtime_contract": "FT-006:EOD_TREND_MOMENTUM:1.0.1",
+        "runtime_model_id": MODEL_ID,
+        "runtime_model_version": "1.0.1",
+        "implementation_ref": (
+            "backend/app/features/analysis/domain/calculator_v1_0_1.py@"
+            "541fcadfd77bde314e774b19a50af2ed61900d0c"
+        ),
+        "rule_representation": RULE_REPRESENTATION,
+    }

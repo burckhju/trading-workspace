@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { marketApiClient } from '../../market/services/client';
@@ -193,15 +193,45 @@ describe('existing warrant administration from a blocked selection', () => {
     expect(screen.queryByRole('button', { name: 'Notierung hinzufügen' })).not.toBeInTheDocument();
   });
   it('retains the entered listing on a failed save, with no automatic evaluation', async () => {
+    const venueResponse = await vi
+      .mocked(marketApiClient.listTradingVenues)
+      .getMockImplementation()!();
+    let releaseVenues!: (
+      value: Awaited<ReturnType<typeof marketApiClient.listTradingVenues>>,
+    ) => void;
+    const pendingVenues = new Promise<
+      Awaited<ReturnType<typeof marketApiClient.listTradingVenues>>
+    >((resolve) => {
+      releaseVenues = resolve;
+    });
+    vi.mocked(marketApiClient.listTradingVenues).mockReturnValueOnce(pendingVenues);
     vi.mocked(warrantApiClient.addListing).mockRejectedValue(new Error('Speichern fehlgeschlagen'));
     route();
     const currency = await screen.findByLabelText('Handelswährung');
-    fireEvent.change(screen.getByLabelText('Handelsplatz'), { target: { value: id(601) } });
+    // The product form can arrive before its independently loaded venue options.
+    expect(
+      screen.queryByRole('option', { name: 'Synthetic venue (TEST)' }),
+    ).not.toBeInTheDocument();
+    expect(warrantApiClient.addListing).not.toHaveBeenCalled();
+    await act(async () => {
+      releaseVenues(venueResponse);
+      await pendingVenues;
+    });
+    await screen.findByRole('option', { name: 'Synthetic venue (TEST)' });
+    const venue = screen.getByLabelText('Handelsplatz');
+    fireEvent.change(venue, { target: { value: id(601) } });
+    expect(venue).toHaveValue(id(601));
     fireEvent.change(currency, { target: { value: 'USD' } });
+    expect(currency).toHaveValue('USD');
     fireEvent.click(screen.getByRole('button', { name: 'Notierung hinzufügen' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Speichern fehlgeschlagen');
     expect(currency).toHaveValue('USD');
     expect(warrantApiClient.addListing).toHaveBeenCalledTimes(1);
+    expect(warrantApiClient.addListing).toHaveBeenCalledWith(target.id, {
+      trading_venue_id: id(601),
+      symbol: '',
+      quotation_currency_code: 'USD',
+    });
     expect(productSelectionApiClient.start).not.toHaveBeenCalled();
     expect(screen.getByRole('link', { name: 'Zurück zur Produktauswahl' })).toBeInTheDocument();
   });
@@ -221,8 +251,11 @@ describe('existing warrant administration from a blocked selection', () => {
     route();
     await screen.findByLabelText('Handelswährung');
     await waitFor(() => expect(warrantApiClient.listings).toHaveBeenCalledTimes(1));
+    await screen.findByRole('option', { name: 'Synthetic venue (TEST)' });
     vi.mocked(warrantApiClient.listings).mockRejectedValueOnce(new Error('Lesefehler'));
-    fireEvent.change(screen.getByLabelText('Handelsplatz'), { target: { value: id(601) } });
+    const venue = screen.getByLabelText('Handelsplatz');
+    fireEvent.change(venue, { target: { value: id(601) } });
+    expect(venue).toHaveValue(id(601));
     fireEvent.change(screen.getByLabelText('Handelswährung'), { target: { value: 'EUR' } });
     fireEvent.click(screen.getByRole('button', { name: 'Notierung hinzufügen' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Notierung wurde gespeichert');

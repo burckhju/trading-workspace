@@ -9,7 +9,7 @@ from uuid import UUID, uuid4
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.features.analysis.domain.calculator import MODEL_ID, MODEL_VERSION, calculate
+from app.features.analysis.domain.calculator import MODEL_VERSION as LEGACY_MODEL_VERSION
 from app.features.analysis.domain.enums import (
     AnalysisQualityStatus,
     AnalysisStatus,
@@ -25,6 +25,13 @@ from app.features.analysis.domain.lifecycle import (
     ensure_retryable,
     ensure_supersedeable,
     validate_transition,
+)
+from app.features.analysis.domain.model_versions import (
+    NEW_RUN_MODEL_ID,
+    NEW_RUN_MODEL_VERSION,
+    calculate_for_version,
+    model_is_available,
+    require_model,
 )
 from app.features.analysis.domain.models import (
     AnalysisParameters,
@@ -101,36 +108,48 @@ class MarketAnalysisService:
         end_date: date,
         parameters: AnalysisParameters,
         correlation_id: str | None,
+        *,
+        model_version: str = NEW_RUN_MODEL_VERSION,
     ) -> MarketAnalysisRunModel:
         analysis = await self._require_analysis(workspace_id, analysis_id)
-        prices = await self._market_data.list_daily_prices(
-            workspace_id, analysis.listing_id, start_date, end_date
-        )
-        if not prices:
-            raise AnalysisDataUnavailable("no persisted market data in requested range")
-        rows = tuple(
-            SnapshotRow(
-                p.trading_date,
-                p.open,
-                p.high,
-                p.low,
-                p.close,
-                p.adjusted_close,
-                p.volume,
-                p.currency,
-                p.provider.value,
-                p.provider_symbol,
-                p.quality_status.value,
-                p.warnings,
+        require_model(model_id=NEW_RUN_MODEL_ID, model_version=model_version)
+        if analysis.listing_id is None:
+            raise AnalysisDataUnavailable("analysis is not listing owned")
+        if model_version == LEGACY_MODEL_VERSION:
+            prices = await self._market_data.list_daily_prices(
+                workspace_id, analysis.listing_id, start_date, end_date
             )
-            for p in prices
-        )
+            rows = tuple(
+                SnapshotRow(
+                    p.trading_date,
+                    p.open,
+                    p.high,
+                    p.low,
+                    p.close,
+                    p.adjusted_close,
+                    p.volume,
+                    p.currency,
+                    p.provider.value,
+                    p.provider_symbol,
+                    p.quality_status.value,
+                    p.warnings,
+                )
+                for p in prices
+            )
+        else:
+            rows = await self._market_data.list_snapshot_rows(
+                workspace_id, analysis.listing_id, start_date, end_date
+            )
+        if not rows:
+            raise AnalysisDataUnavailable("no persisted market data in requested range")
         return await self._execute_snapshot(
             analysis_id=analysis_id,
             parameters=parameters,
             rows=rows,
             correlation_id=correlation_id,
             source_version=None,
+            model_id=NEW_RUN_MODEL_ID,
+            model_version=model_version,
         )
 
     async def retry(
@@ -152,7 +171,7 @@ class MarketAnalysisService:
             raise AnalysisDataUnavailable("retry requires a persisted source snapshot")
         rows = tuple(self._snapshot_to_domain(item) for item in snapshot)
         parameters = self._parameters_from_dict(source.parameters)
-        if source.model_id != MODEL_ID or source.model_version != MODEL_VERSION:
+        if not model_is_available(model_id=source.model_id, model_version=source.model_version):
             raise AnalysisConflict(
                 f"analysis model {source.model_id} {source.model_version} "
                 "is not available for retry"
@@ -223,7 +242,7 @@ class MarketAnalysisService:
             )
         rows = tuple(self._snapshot_to_domain(item) for item in snapshot)
         parameters = self._parameters_from_dict(run.parameters)
-        model_available = run.model_id == MODEL_ID and run.model_version == MODEL_VERSION
+        model_available = model_is_available(model_id=run.model_id, model_version=run.model_version)
         hash_matches = (
             calculate_input_hash(run.model_id, run.model_version, parameters, rows)
             == run.input_hash
@@ -238,7 +257,9 @@ class MarketAnalysisService:
                 "quality_status_match": False,
                 "notes_match": False,
             }
-        computation = calculate(parameters, rows)
+        computation = calculate_for_version(
+            parameters, rows, model_id=run.model_id, model_version=run.model_version
+        )
         quality = computation.quality_status
         notes = list(computation.notes)
         stale = (
@@ -249,13 +270,21 @@ class MarketAnalysisService:
             if quality is AnalysisQualityStatus.GOOD:
                 quality = AnalysisQualityStatus.LIMITED
         stored_criteria = await self._repo.list_criteria(run.id)
-        expected_criteria = tuple(
-            (item.code, item.classification.value, item.value, item.explanation)
-            for item in computation.criteria
+        # Persistence orders by code, whereas the calculator emits model order.
+        # Compare every field and multiplicity, without treating row order as data.
+        expected_criteria = sorted(
+            [
+                (item.code, item.classification.value, item.value, item.explanation)
+                for item in computation.criteria
+            ],
+            key=lambda item: item[0],
         )
-        actual_criteria = tuple(
-            (item.code, item.classification, item.value, item.explanation)
-            for item in stored_criteria
+        actual_criteria = sorted(
+            [
+                (item.code, item.classification, item.value, item.explanation)
+                for item in stored_criteria
+            ],
+            key=lambda item: item[0],
         )
         checks = {
             "model_available": True,
@@ -333,9 +362,10 @@ class MarketAnalysisService:
         rows: tuple[SnapshotRow, ...],
         correlation_id: str | None,
         source_version: int | None,
-        model_id: str = MODEL_ID,
-        model_version: str = MODEL_VERSION,
+        model_id: str,
+        model_version: str,
     ) -> MarketAnalysisRunModel:
+        require_model(model_id=model_id, model_version=model_version)
         latest = await self._repo.get_latest_run(analysis_id)
         if latest is not None and AnalysisStatus(latest.status) is AnalysisStatus.RUNNING:
             raise AnalysisConflict("another analysis execution is already running")
@@ -400,7 +430,9 @@ class MarketAnalysisService:
         await self._session.commit()
 
         try:
-            computation = calculate(parameters, rows)
+            computation = calculate_for_version(
+                parameters, rows, model_id=run.model_id, model_version=run.model_version
+            )
             stale = (
                 run.analysis_time.date() - rows[-1].trading_date
             ).days > parameters.maximum_data_age_days

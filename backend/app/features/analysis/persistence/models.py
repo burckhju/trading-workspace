@@ -26,7 +26,7 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.orm import Mapped, Mapper, mapped_column
 
 from app.database.base import Base
-from app.features.analysis.domain.governed_provenance import governed_baseline_definition
+from app.features.analysis.domain.governed_provenance import governed_runtime_definition
 from app.features.market_data.persistence.instruments import MarketDataInstrumentModel
 from app.features.model.persistence.models import GovernedModelRecord, ModelVersionRecord
 
@@ -198,7 +198,7 @@ def attach_governed_model_provenance(
     connection: Connection,
     target: MarketAnalysisRunModel,
 ) -> None:
-    """Attach an exact approved legacy baseline when one exists.
+    """Attach exactly one approved definition for this immutable runtime contract.
 
     This is intentionally not activation. Runtime behavior still comes from
     the released code identified by ``model_id``/``model_version``. The
@@ -215,7 +215,11 @@ def attach_governed_model_provenance(
     if workspace_id is None:
         return
 
-    expected = governed_baseline_definition()
+    expected = governed_runtime_definition(
+        model_id=target.model_id, model_version=target.model_version
+    )
+    if expected is None:
+        return
     definition = ModelVersionRecord.definition
     candidates = tuple(
         connection.execute(

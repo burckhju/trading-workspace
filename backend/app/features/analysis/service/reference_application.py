@@ -14,14 +14,21 @@ from uuid import UUID, uuid4
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.features.analysis.domain.calculator import MODEL_VERSION as LEGACY_MODEL_VERSION
 from app.features.analysis.domain.enums import AnalysisStatus
 from app.features.analysis.domain.errors import AnalysisDataUnavailable
+from app.features.analysis.domain.model_versions import (
+    NEW_RUN_MODEL_ID,
+    NEW_RUN_MODEL_VERSION,
+    require_model,
+)
 from app.features.analysis.domain.models import AnalysisParameters, SnapshotRow
 from app.features.analysis.persistence.models import (
     MarketAnalysisEventModel,
     MarketAnalysisModel,
     MarketAnalysisRunModel,
 )
+from app.features.analysis.persistence.repositories import snapshot_from_price
 from app.features.analysis.service.application import MarketAnalysisService
 from app.features.market.persistence.top_down_models import MarketReferenceModel
 from app.features.market_data.persistence.models import DailyPriceModel
@@ -90,8 +97,10 @@ class MarketReferenceAnalysisService(MarketAnalysisService):
         end_date: date,
         parameters: AnalysisParameters,
         correlation_id: str | None,
+        model_version: str = NEW_RUN_MODEL_VERSION,
     ) -> MarketAnalysisRunModel:
         analysis = await self._require_analysis(workspace_id, analysis_id)
+        require_model(model_id=NEW_RUN_MODEL_ID, model_version=model_version)
         instrument_id = analysis.market_data_instrument_id
         if instrument_id is None or analysis.listing_id is not None:
             raise AnalysisDataUnavailable("analysis is not market-reference owned")
@@ -123,19 +132,23 @@ class MarketReferenceAnalysisService(MarketAnalysisService):
             raise AnalysisDataUnavailable("no persisted market data in requested range")
 
         rows = tuple(
-            SnapshotRow(
-                price.trading_date,
-                price.open,
-                price.high,
-                price.low,
-                price.close,
-                price.adjusted_close,
-                price.volume,
-                price.currency,
-                price.provider.value,
-                price.provider_symbol,
-                price.quality_status.value,
-                tuple(filter(None, price.warnings.split("\n"))),
+            (
+                SnapshotRow(
+                    price.trading_date,
+                    price.open,
+                    price.high,
+                    price.low,
+                    price.close,
+                    price.adjusted_close,
+                    price.volume,
+                    price.currency,
+                    price.provider.value,
+                    price.provider_symbol,
+                    price.quality_status.value,
+                    tuple(filter(None, price.warnings.split("\n"))),
+                )
+                if model_version == LEGACY_MODEL_VERSION
+                else snapshot_from_price(price)
             )
             for price in prices
         )
@@ -145,6 +158,8 @@ class MarketReferenceAnalysisService(MarketAnalysisService):
             rows=rows,
             correlation_id=correlation_id,
             source_version=None,
+            model_id=NEW_RUN_MODEL_ID,
+            model_version=model_version,
         )
 
     async def _active_reference(

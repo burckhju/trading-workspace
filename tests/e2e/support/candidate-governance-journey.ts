@@ -277,7 +277,10 @@ export async function prepareGovernanceJourney(
     setPhase(value: string) {
       phase = value;
     },
-    async seedPrices(mode: "learning" | "analyses", ...ids: string[]) {
+    async seedPrices(
+      mode: "learning" | "analyses" | "warning",
+      ...ids: string[]
+    ) {
       expect(phase).toBe("S0-setup");
       const seeded = pythonJson(
         "tests/e2e/support/seed_candidate_governance_prices.py",
