@@ -1,6 +1,10 @@
 # B — Candidate-Governance: Benutzerweg und Qualifikationsgrenzen
 
-Stand: **2026-10-25, Entwicklungsqualifikation; nativer Gesamtweg und finale CI noch offen.**
+Stand: **2026-10-25, Entwicklungsqualifikation und datierte Laufhistorie.**
+Der jeweils abschließende Head-/Tree-/Run-/Job-Nachweis steht im
+[Entwicklungs-PR #276](https://github.com/burckhju/trading-workspace/pull/276).
+Die nachfolgenden lokalen Vorbelege und Fehlversuche werden dadurch nicht
+rückwirkend als erfolgreiche Gesamtqualifikation umgedeutet.
 Dieser Bericht ergänzt [PB-020 Governance](../planning/PRODUCT_BACKLOG.md#pb-020-governance),
 [Aktivierung/Rückkehr](../planning/PRODUCT_BACKLOG.md#pb-020-activation) und die
 [bestehende Candidate-Familie](../planning/PRODUCT_BACKLOG.md#pb-020-candidate-family).
@@ -222,7 +226,7 @@ keinen davon um. Produktionsimage, Renderer, reguläre Backend-/Frontend-/Smoke-
 und Veröffentlichungsschutz bleiben verbindlich; neue globale Schreibflags,
 erhöhte Berechtigungen oder ein allgemeiner CI-Umbau gehören nicht zum Schnitt.
 
-## B01–B16: aktueller Nachweisstand
+## B01–B16: Stand vor dem ersten nativen Lauf
 
 | ID | Vorhandener Beleg / aktueller Stand | Noch erforderlich |
 |---|---|---|
@@ -294,3 +298,39 @@ Browserguard schließt zusätzlich WebSockets, ohne eine Gegenstelle zu verbinde
 Der Fehlversuch ist kein B12-Erfolg. Weitere tatsächliche Ausführungen und der
 finale Head/Checkout/Tree werden getrennt im PR-Nachweis gebunden; kein Workflow-
 oder Testretry wird aus einem späteren neuen Commit abgeleitet oder verschwiegen.
+
+## Zweiter nativer Lauf — 2026-10-25, enger Testselektorfehler
+
+[E2E-Run 40165257766](https://github.com/burckhju/trading-workspace/actions/runs/40165257766),
+Job `121084880081`, Workflowversuch 1, prüfte Head
+`4e3665504aa497ebbbf0220602791e0ae8937839` als tatsächlichen Testmerge
+`b911b95bdac965ede1c5d05f8f80745d1be8ffac`, Tree
+`2b3d561ae8d832528ccf3af407be2754d03076ef`.
+
+Candidate-Anlage und CREATED-Event, initiale separate A-Freigabe/-Aktivierung,
+echte A-Evaluation und Hypothese aus L1 waren erfolgreich. Die gespeicherte
+A-Evaluation `da87f962-0eef-42b7-8dcf-b524539ce216` verwendet Modellversion 1,
+ist `QUALIFIED` bei wahrheitsgemäßem `LIMITED`, und enthält alle fünf übrigen
+REQUIRED-Kriterien als `FULFILLED`. Die drei echten Analysequellen und das reine
+L1-Öffnungsfenster sind in den Requests und DB-Fingerprints enthalten.
+
+Der Test lief anschließend beim exakten Labelselektor „Governed Model“ in seinen
+unveränderten Timeout. Die tatsächlich gesichtete Browseransicht und erfolgreiche
+GET-Readbacks zeigen das korrekt geladene Auswahlfeld. Der Labelselektor enthält
+bei verschachtelten Select-/Textarea-Elementen Kindtext; die vorhandenen #274-Fälle
+verwenden dafür bereits exakte Combobox-/Textbox-Rollen. Der Hauptfall übernimmt
+diese eindeutigen Selektoren, einschließlich der anfänglich mit `{}` gefüllten
+Metrics-Textarea. Kein Produktpatch und keine Timeout-/Assertionlockerung.
+Die Basis A wird zusätzlich ausdrücklich ausgewählt; die vollständige Menge der
+fünf übrigen REQUIRED-Kriterien wird vor dem Erfülltheitsvergleich geprüft.
+
+Der Lauf bleibt **ein fehlgeschlagener Testversuch mit retry=0**, kein B12-Pass.
+Artefakt `12587852368`, ZIP-SHA-256
+`3f62e6e3710661c0f90e62e28bb29f5a2f677f640f6caf5ff68a4140664a52d0`:
+Hash und vollständiges Manifest mit 25 Inhaltsdateien lokal geprüft. Eigener
+Stack `tw-candidate-governance-e2e-92732182beff4cbaa52ed50648e0d541` vollständig
+entfernt; Eigentum bestätigt, 0 Container/Netze/Volumes, `exit_status=1` und
+`cleanup_status=0`. Smoke, Frontend und die vier alten Ownerfälle waren auf diesem
+Stand grün; sie werden nicht auf den folgenden Commit übertragen. Die finale
+Gesamt-CI und gegebenenfalls erfolgreiche retryfreie Hauptausführung werden mit
+ihren tatsächlichen Rohartefakten im oben verlinkten PR getrennt nachgetragen.

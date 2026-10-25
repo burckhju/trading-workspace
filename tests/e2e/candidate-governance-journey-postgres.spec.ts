@@ -111,6 +111,22 @@ test("candidate governance: exact Lesson source, explicit A-B-A and immutable ev
             (item: { evaluation: string }) => item.evaluation === "FULFILLED",
           ),
       ).toBe(true);
+      expect(
+        stored.criteria
+          .filter(
+            (item: { severity: string; criterion_id: string }) =>
+              item.severity === "REQUIRED" &&
+              item.criterion_id !== "TD-MARKET-001",
+          )
+          .map((item: { criterion_id: string }) => item.criterion_id)
+          .sort(),
+      ).toEqual([
+        "TD-SECTOR-001",
+        "TD-SECTOR-002",
+        "TD-UNDERLYING-001",
+        "TD-UNDERLYING-002",
+        "TD-UNDERLYING-003",
+      ]);
       expect(stored.sources).toHaveLength(3);
       for (const source of stored.sources) {
         const reference =
@@ -162,10 +178,10 @@ test("candidate governance: exact Lesson source, explicit A-B-A and immutable ev
       };
     });
     await page
-      .getByLabel("Titel", { exact: true })
+      .getByRole("textbox", { name: "Titel", exact: true })
       .fill("Synthetische Candidate-Steuerbarkeit ab L1");
     await page
-      .getByLabel("Hypothese", { exact: true })
+      .getByRole("textbox", { name: "Hypothese", exact: true })
       .fill(
         "Bewusste Hypothese aus genau L1/E1: Die vorhandene V2-Policy lässt sich ausdrücklich wechseln und zurückstellen. Keine Aussage über wirtschaftliche Überlegenheit.",
       );
@@ -187,13 +203,19 @@ test("candidate governance: exact Lesson source, explicit A-B-A and immutable ev
     expect(hypothesis.source_lesson_version_id).toBe(l1);
     expect(hypothesis.source_lesson_version_id).not.toBe(l2);
     await page
-      .getByLabel("Governed Model", { exact: true })
+      .getByRole("combobox", { name: "Governed Model", exact: true })
       .selectOption(modelId);
     await expect(
-      page.getByLabel("APPROVED Base-Version", { exact: true }),
+      page.getByRole("combobox", {
+        name: "APPROVED Base-Version",
+        exact: true,
+      }),
     ).toHaveValue(versionA.id);
     await page
-      .getByLabel("Rationale", { exact: true })
+      .getByRole("combobox", { name: "APPROVED Base-Version", exact: true })
+      .selectOption(versionA.id);
+    await page
+      .getByRole("textbox", { name: "Rationale", exact: true })
       .fill(
         "Synthetischer A-B-A-Nachweis; keine Regel- oder Performanceempfehlung.",
       );
@@ -247,15 +269,17 @@ test("candidate governance: exact Lesson source, explicit A-B-A and immutable ev
     // A selected Evidence is not an interpretation. Deliberately enter the
     // synthetic conclusion and rationale; Metrics stays the existing optional {}.
     await page
-      .getByLabel("LearningEvidence IDs", { exact: true })
+      .getByRole("textbox", { name: "LearningEvidence IDs", exact: true })
       .fill(evidenceId);
     await page
-      .getByLabel("Conclusion", { exact: true })
+      .getByRole("combobox", { name: "Conclusion", exact: true })
       .selectOption("INCONCLUSIVE");
-    await page.getByLabel("Metrics (JSON)", { exact: true }).fill("{}");
+    await page
+      .getByRole("textbox", { name: "Metrics (JSON)", exact: true })
+      .fill("{}");
     const notes =
       "Ausdrücklich synthetischer technischer Befund: INCONCLUSIVE zur wirtschaftlichen Wirkung. Kein Backtest, keine Performanceprognose und keine Empfehlung gegen CAUTIOUS.";
-    await page.getByLabel("Notes", { exact: true }).fill(notes);
+    await page.getByRole("textbox", { name: "Notes", exact: true }).fill(notes);
     const localTimestamp = async (iso: string) =>
       page.evaluate((value) => {
         const d = new Date(value);
@@ -441,7 +465,7 @@ test("candidate governance: exact Lesson source, explicit A-B-A and immutable ev
       ),
     ).toBeVisible();
     await page
-      .getByLabel("Genehmigte Zielversion", { exact: true })
+      .getByRole("combobox", { name: "Genehmigte Zielversion", exact: true })
       .selectOption(versionB.id);
     const activationB = (
       await q.uiCommand(
@@ -469,7 +493,7 @@ test("candidate governance: exact Lesson source, explicit A-B-A and immutable ev
     });
 
     await page
-      .getByLabel("Genehmigte Zielversion", { exact: true })
+      .getByRole("combobox", { name: "Genehmigte Zielversion", exact: true })
       .selectOption(versionA.id);
     const returnA = (
       await q.uiCommand(
