@@ -4,6 +4,7 @@ import { useSearchParams } from 'react-router-dom';
 import { marketApiClient } from '../../market/services/client';
 import type { UnderlyingSummaryResponse } from '../../market/types/api';
 import { ExistingTradePlanPage } from './ExistingTradePlanPage';
+import { HebeltraderPanel } from './HebeltraderPanel';
 import { TradePlanPage as BaseTradePlanPage } from './TradePlanPage';
 
 function underlyingLabel(item: UnderlyingSummaryResponse): string {
@@ -123,6 +124,17 @@ export function TradePlanWorkflowPage() {
         </section>
       )}
 
+      {!candidateOrigin && selectedUnderlyingId && (
+        <HebeltraderPanel
+          key={selectedUnderlyingId}
+          underlyingId={selectedUnderlyingId}
+          onCreated={(tradePlanId) => {
+            const next = new URLSearchParams(searchParams);
+            next.set('trade_plan_id', tradePlanId);
+            setSearchParams(next);
+          }}
+        />
+      )}
       <BaseTradePlanPage key={searchParams.toString()} />
     </div>
   );
