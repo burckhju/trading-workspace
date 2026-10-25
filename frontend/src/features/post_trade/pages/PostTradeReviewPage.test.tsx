@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { useLayoutEffect, useState } from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -144,6 +145,16 @@ function renderPage() {
       <PostTradeReviewPage />
     </MemoryRouter>,
   );
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason: Error) => void;
+  const promise = new Promise<T>((yes, no) => {
+    resolve = yes;
+    reject = no;
+  });
+  return { promise, resolve, reject };
 }
 
 describe('PostTradeReviewPage', () => {
@@ -490,6 +501,162 @@ describe('PostTradeReviewPage', () => {
     expect(api.createReviewDraft).toHaveBeenCalledWith('trade-1');
     expect(api.finalizeReview).not.toHaveBeenCalled();
     expect(materializationApi.materialize).not.toHaveBeenCalled();
+  });
+
+  it('keeps the successor action disabled at the parent refresh commit and accepts one later click', async () => {
+    api.observation.mockResolvedValue({ ...observation, status: 'COMPLETED', is_complete: true });
+    const final: ExitReviewResponse = { ...draft, status: 'FINALIZED' };
+    const stale: ExitReviewResponse = { ...final, currentness: 'STALE' };
+    const successor: ExitReviewResponse = {
+      ...draft,
+      current_version_id: 'version-2',
+      version: 2,
+      supersedes_version_id: 'version-1',
+    };
+    const parentRead = deferred<ExitReviewResponse>();
+    api.review
+      .mockResolvedValueOnce(final)
+      .mockResolvedValueOnce(stale)
+      .mockReturnValueOnce(parentRead.promise)
+      .mockResolvedValue(successor);
+    api.revalidateReview.mockResolvedValue(stale);
+    api.createReviewDraft.mockResolvedValue(successor);
+
+    const disabledAtParentCommit: boolean[] = [];
+    function EmbeddedReview() {
+      const [version, setVersion] = useState(0);
+      useLayoutEffect(() => {
+        if (version === 1) {
+          // Observe the actual DOM before passive effects can disable it again.
+          // This is the interaction window from the native lost-click trace.
+          const button = screen.getByRole('button', {
+            name: 'Neue Review-Version vorbereiten',
+          });
+          disabledAtParentCommit.push(button.hasAttribute('disabled'));
+        }
+      }, [version]);
+      return (
+        <PostTradeReviewPage
+          externalRefreshVersion={version}
+          onLearningStateChanged={() => setVersion((current) => current + 1)}
+        />
+      );
+    }
+
+    render(
+      <MemoryRouter initialEntries={['/post-trade?trade_id=trade-1']}>
+        <EmbeddedReview />
+      </MemoryRouter>,
+    );
+    const check = await screen.findByRole('button', { name: 'Review-Quellenstand prüfen' });
+    await waitFor(() => expect(check).toBeEnabled());
+    fireEvent.click(check);
+    await waitFor(() => expect(api.review).toHaveBeenCalledTimes(3));
+    expect(disabledAtParentCommit).toEqual([true]);
+    const prepare = screen.getByRole('button', { name: 'Neue Review-Version vorbereiten' });
+    expect(prepare).toBeDisabled();
+    expect(screen.getByLabelText('Review-Begründung')).toBeDisabled();
+    fireEvent.click(prepare);
+    expect(api.createReviewDraft).not.toHaveBeenCalled();
+
+    await act(async () => {
+      parentRead.resolve(stale);
+      await parentRead.promise;
+    });
+    await waitFor(() => expect(prepare).toBeEnabled());
+    fireEvent.click(prepare);
+    await waitFor(() => expect(screen.getByLabelText('Review-Begründung')).toBeEnabled());
+    expect(screen.getByRole('heading', { name: 'Version 2' })).toBeVisible();
+    expect(api.createReviewDraft).toHaveBeenCalledExactlyOnceWith('trade-1');
+    expect(api.revalidateReview).toHaveBeenCalledExactlyOnceWith('trade-1');
+    expect(api.finalizeReview).not.toHaveBeenCalled();
+    expect(materializationApi.materialize).not.toHaveBeenCalled();
+  });
+
+  it('does not let a completed external read enable actions while a review command is pending', async () => {
+    api.observation.mockResolvedValue({ ...observation, status: 'COMPLETED', is_complete: true });
+    const final: ExitReviewResponse = { ...draft, status: 'FINALIZED' };
+    const stale: ExitReviewResponse = { ...final, currentness: 'STALE' };
+    api.review.mockResolvedValue(final);
+    const command = deferred<ExitReviewResponse>();
+    const externalRead = deferred<ExitReviewResponse>();
+    api.revalidateReview.mockReturnValue(command.promise);
+    const view = (version: number) => (
+      <MemoryRouter initialEntries={['/post-trade?trade_id=trade-1']}>
+        <PostTradeReviewPage externalRefreshVersion={version} />
+      </MemoryRouter>
+    );
+    const mounted = render(view(0));
+    const check = await screen.findByRole('button', { name: 'Review-Quellenstand prüfen' });
+    await waitFor(() => expect(check).toBeEnabled());
+    fireEvent.click(check);
+    expect(check).toBeDisabled();
+    api.review.mockReturnValueOnce(externalRead.promise);
+    mounted.rerender(view(1));
+    await waitFor(() => expect(api.review).toHaveBeenCalledTimes(2));
+    await act(async () => {
+      externalRead.resolve(final);
+      await externalRead.promise;
+    });
+    expect(check).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Neue Review-Version vorbereiten' })).toBeDisabled();
+    expect(api.createReviewDraft).not.toHaveBeenCalled();
+
+    api.review.mockResolvedValue(stale);
+    await act(async () => {
+      command.resolve(stale);
+      await command.promise;
+    });
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Neue Review-Version vorbereiten' })).toBeEnabled(),
+    );
+    expect(
+      screen.getByText('Dieser Review ist STALE und muss erneut geprüft werden.'),
+    ).toBeVisible();
+    expect(api.revalidateReview).toHaveBeenCalledExactlyOnceWith('trade-1');
+  });
+
+  it('ignores an aborted refresh completion and releases the latest failed refresh with its error visible', async () => {
+    const complete: ObservationResponse = {
+      ...observation,
+      status: 'COMPLETED',
+      is_complete: true,
+    };
+    const obsolete = deferred<ObservationResponse>();
+    const current = deferred<ObservationResponse>();
+    api.observation
+      .mockResolvedValueOnce(complete)
+      .mockReturnValueOnce(obsolete.promise)
+      .mockReturnValueOnce(current.promise);
+    api.review.mockResolvedValue({ ...draft, status: 'FINALIZED' });
+    const view = (version: number) => (
+      <MemoryRouter initialEntries={['/post-trade?trade_id=trade-1']}>
+        <PostTradeReviewPage externalRefreshVersion={version} />
+      </MemoryRouter>
+    );
+    const mounted = render(view(0));
+    const prepare = await screen.findByRole('button', { name: 'Neue Review-Version vorbereiten' });
+    await waitFor(() => expect(prepare).toBeEnabled());
+    mounted.rerender(view(1));
+    await waitFor(() => expect(api.observation).toHaveBeenCalledTimes(2));
+    const obsoleteSignal = api.observation.mock.calls[1][1]!;
+    mounted.rerender(view(2));
+    await waitFor(() => expect(api.observation).toHaveBeenCalledTimes(3));
+    expect(obsoleteSignal.aborted).toBe(true);
+    await act(async () => {
+      obsolete.reject(new Error('Obsolete read error'));
+      await obsolete.promise.catch(() => undefined);
+    });
+    expect(prepare).toBeDisabled();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    await act(async () => {
+      current.reject(new Error('Current read unavailable'));
+      await current.promise.catch(() => undefined);
+    });
+    await waitFor(() => expect(prepare).toBeEnabled());
+    expect(screen.getByRole('alert')).toHaveTextContent('Die Daten konnten nicht geladen werden.');
+    expect(screen.queryByText('Post-Trade-Daten werden geladen …')).not.toBeInTheDocument();
+    expect(api.createReviewDraft).not.toHaveBeenCalled();
   });
 
   it('does not render a second materialization action when embedded', async () => {
