@@ -119,3 +119,23 @@ def snapshot(
         read_started_at=RECORDED,
         read_completed_at=RECORDED,
     )
+
+
+def closed_statistics_snapshot(
+    sell_prices: tuple[str, ...] = ("1100", "950", "1000", "1200"),
+) -> ReportSnapshot:
+    """Buy one at 1000 each; the default independent results are 100/-50/0/200."""
+    trades = tuple(trade_fact(index + 1) for index in range(len(sell_prices)))
+    facts = tuple(
+        fact
+        for index, (trade, price) in enumerate(zip(trades, sell_prices, strict=True))
+        for fact in (
+            execution(101 + index * 100, "BUY", 1, "1000", "2026-08-01", trade=trade),
+            execution(102 + index * 100, "SELL", 1, price, "2026-10-03", trade=trade),
+        )
+    )
+    return snapshot(
+        facts,
+        confirmations=tuple(confirmed(fact) for fact in facts if fact.side == "BUY"),
+        trades=trades,
+    )

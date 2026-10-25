@@ -7,6 +7,8 @@ import {
   closedTradeFilters,
   closedTradeItem,
   closedTradeReport,
+  closedTradeStatistics,
+  unavailableClosedTradeStatistics,
 } from '../../../test/closedTradesFixtures';
 import { reportSource } from '../../../test/realizedGrossFixtures';
 import { performanceApiClient } from '../services/client';
@@ -94,6 +96,15 @@ it('reads fixed EUR and shows one full trade result with all earlier SELL contri
   expect(screen.getByTestId('closed-trades-positive')).toHaveTextContent('1');
   expect(screen.getByTestId('closed-trades-negative')).toHaveTextContent('0');
   expect(screen.getByTestId('closed-trades-neutral')).toHaveTextContent('0');
+  expect(screen.getByTestId('closed-trades-statistics-population')).toHaveTextContent(
+    'Population N = 1',
+  );
+  expect(screen.getByTestId('closed-trades-win-rate')).toHaveTextContent('100,00 %');
+  expect(screen.getByTestId('closed-trades-average-gross-pnl')).toHaveTextContent('50,00 EUR');
+  expect(screen.getByTestId('closed-trades-median-gross-pnl')).toHaveTextContent('50,00 EUR');
+  expect(screen.getByTestId('closed-trades-gross-profit-factor')).toHaveTextContent(
+    'Nicht definiert: keine Verlusttrades',
+  );
   const detail = openSources();
   expect(detail.getByText('50.0000000000')).toBeVisible();
   expect(detail.getAllByText(/Verkauf außerhalb des Berichtszeitraums/)).toHaveLength(3);
@@ -171,6 +182,7 @@ it('keeps identical product names as distinct trade IDs and never turns known pi
     monetary_unresolved: 1,
     unresolved: 1,
   };
+  report.statistics = unavailableClosedTradeStatistics('PARTIAL');
   api.closedTrades.mockResolvedValue(report);
   renderPage();
   chooseOctober();
@@ -196,6 +208,10 @@ it('keeps identical product names as distinct trade IDs and never turns known pi
   expect(screen.getAllByRole('article')).toHaveLength(1);
   expect(screen.getByTestId('closed-trades-subtotal')).toHaveTextContent('50,00 EUR');
   expect(screen.getByTestId('closed-trades-positive')).toHaveTextContent('1');
+  for (const metric of ['win-rate', 'average-gross-pnl', 'median-gross-pnl', 'gross-profit-factor'])
+    expect(screen.getByTestId(`closed-trades-${metric}`)).toHaveTextContent(
+      'Berichtsgrundlage unvollständig',
+    );
   expect(api.closedTrades).toHaveBeenCalledOnce();
 });
 
@@ -243,6 +259,14 @@ it.each([
       negative: 0,
       neutral: status === 'COMPLETE' ? 1 : 0,
     };
+    report.statistics =
+      status === 'COMPLETE'
+        ? closedTradeStatistics({
+            win_rate: { raw: '0', display: '0.00', reason: null },
+            average_gross_pnl: { raw: '0', display: '0.00', reason: null },
+            median_gross_pnl: { raw: '0', display: '0.00', reason: null },
+          })
+        : unavailableClosedTradeStatistics(status);
     api.closedTrades.mockResolvedValue(report);
     renderPage();
     chooseOctober();
@@ -253,7 +277,27 @@ it.each([
     expect(screen.getByTestId('closed-trades-neutral')).toHaveTextContent(
       status === 'COMPLETE' ? '1' : '0',
     );
-    if (status === 'COMPLETE') expect(screen.getByText('Neutral · exakt null')).toBeVisible();
+    if (status === 'COMPLETE') {
+      expect(screen.getByText('Neutral · exakt null')).toBeVisible();
+      expect(screen.getByTestId('closed-trades-win-rate')).toHaveTextContent('0,00 %');
+      expect(screen.getByTestId('closed-trades-average-gross-pnl')).toHaveTextContent('0,00 EUR');
+      expect(screen.getByTestId('closed-trades-median-gross-pnl')).toHaveTextContent('0,00 EUR');
+      expect(screen.getByTestId('closed-trades-gross-profit-factor')).toHaveTextContent(
+        'Nicht definiert: keine Verlusttrades',
+      );
+    } else {
+      for (const metric of [
+        'win-rate',
+        'average-gross-pnl',
+        'median-gross-pnl',
+        'gross-profit-factor',
+      ])
+        expect(screen.getByTestId(`closed-trades-${metric}`)).toHaveTextContent(
+          status === 'EMPTY'
+            ? 'Keine abgeschlossenen Trades in der Auswahl'
+            : 'Berichtsgrundlage unvollständig',
+        );
+    }
     if (status === 'NOT_COMPUTABLE')
       expect(
         screen.getByText(/weder einen Nullbetrag noch eine neutrale Klassifikation/),
@@ -296,6 +340,21 @@ it('preserves the server sign for rounded zero and all exact decimal digits with
     total: '9007199254740993.0000000001',
     total_display: '9007199254740993.00',
   };
+  report.statistics = closedTradeStatistics({
+    population: 3,
+    win_rate: { raw: '66.66666666666666666666666667', display: '66.67', reason: null },
+    average_gross_pnl: {
+      raw: '3002399751580331.000000000033',
+      display: '3002399751580331.00',
+      reason: null,
+    },
+    median_gross_pnl: { raw: '0.004', display: '0.00', reason: null },
+    gross_profit_factor: {
+      raw: '2251799813685248251.000000025',
+      display: '2251799813685248251.00',
+      reason: null,
+    },
+  });
   api.closedTrades.mockResolvedValue(report);
   renderPage();
   chooseOctober();
@@ -313,6 +372,21 @@ it('preserves the server sign for rounded zero and all exact decimal digits with
   expect(screen.getByText(/Neutral bedeutet exakt null/)).toBeVisible();
   fireEvent.click(screen.getByText('Alle acht Fallgruppen, präzise Summen und Rundung'));
   expect(screen.getByText('9007199254740993.0000000001')).toBeVisible();
+  expect(screen.getByTestId('closed-trades-win-rate')).toHaveTextContent('66,67 %');
+  expect(screen.getByTestId('closed-trades-average-gross-pnl')).toHaveTextContent(
+    '3002399751580331,00 EUR',
+  );
+  expect(screen.getByTestId('closed-trades-median-gross-pnl')).toHaveTextContent('0,00 EUR');
+  expect(screen.getByTestId('closed-trades-gross-profit-factor')).toHaveTextContent(
+    '2251799813685248251,00',
+  );
+  fireEvent.click(screen.getByText('Präzise Kennzahlen und Herkunft'));
+  const statistics = within(
+    screen.getByRole('region', { name: 'Basisstatistiken des Abschlussberichts' }),
+  );
+  expect(statistics.getByText('3002399751580331.000000000033')).toBeVisible();
+  expect(statistics.getByText('2251799813685248251.000000025')).toBeVisible();
+  expect(statistics.getByText('0.004')).toBeVisible();
 });
 
 it('pages and filters trade IDs locally without changing report-wide money, counts, or source basis', async () => {
@@ -322,11 +396,14 @@ it('pages and filters trade IDs locally without changing report-wide money, coun
   );
   report.counts = { ...report.counts, examined: 21, in_period: 21, qualified: 21, positive: 21 };
   report.summary = { ...report.summary, total: '1050', total_display: '1050.00' };
+  report.statistics = closedTradeStatistics({ population: 21 });
   api.closedTrades.mockResolvedValue(report);
   renderPage();
   chooseOctober();
   read();
   expect(await screen.findByTestId('closed-trades-total')).toHaveTextContent('1050,00 EUR');
+  const statistics = screen.getByRole('region', { name: 'Basisstatistiken des Abschlussberichts' });
+  const unchangedStatistics = statistics.textContent;
   expect(screen.getAllByRole('article')).toHaveLength(20);
   openSources('trade-0');
   fireEvent.click(screen.getByRole('button', { name: 'Nächste Seite' }));
@@ -335,13 +412,114 @@ it('pages and filters trade IDs locally without changing report-wide money, coun
   expect(screen.queryByRole('region', { name: 'Herkunft Trade trade-0' })).not.toBeInTheDocument();
   expect(screen.getByTestId('closed-trades-positive')).toHaveTextContent('21');
   expect(screen.getByTestId('closed-trades-total')).toHaveTextContent('1050,00 EUR');
+  expect(statistics.textContent).toBe(unchangedStatistics);
+  expect(screen.getByTestId('closed-trades-statistics-population')).toHaveTextContent(
+    'Population N = 21',
+  );
+  expect(screen.getByTestId('closed-trades-win-rate')).toHaveTextContent('100,00 %');
   fireEvent.click(screen.getByRole('button', { name: 'Vorherige Seite' }));
   fireEvent.change(screen.getByLabelText('Zeilen anzeigen'), { target: { value: 'qualified' } });
   expect(screen.getAllByRole('article')).toHaveLength(20);
   fireEvent.change(screen.getByLabelText('Zeilen anzeigen'), { target: { value: 'unresolved' } });
   expect(screen.queryAllByRole('article')).toHaveLength(0);
   expect(screen.getByTestId('closed-trades-total')).toHaveTextContent('1050,00 EUR');
+  expect(statistics.textContent).toBe(unchangedStatistics);
+  fireEvent.change(screen.getByLabelText('Zeilen anzeigen'), { target: { value: 'excluded' } });
+  expect(screen.queryAllByRole('article')).toHaveLength(0);
+  expect(statistics.textContent).toBe(unchangedStatistics);
   expect(api.closedTrades).toHaveBeenCalledOnce();
+});
+
+it('shows the four-trade reference and replaces all statistics together after a correction', async () => {
+  // Declared independent V1 reference: [100, -50, 0, 200], then 200 -> 50.
+  const reference = closedTradeReport({
+    items: [
+      closedTradeItem('win-1', {
+        realized_gross_pnl: '100',
+        realized_gross_pnl_display: '100.00',
+      }),
+      closedTradeItem('loss', {
+        realized_gross_pnl: '-50',
+        realized_gross_pnl_display: '-50.00',
+        classification: 'NEGATIVE',
+      }),
+      closedTradeItem('neutral', {
+        realized_gross_pnl: '0',
+        realized_gross_pnl_display: '0.00',
+        classification: 'NEUTRAL',
+      }),
+      closedTradeItem('win-2', {
+        realized_gross_pnl: '200',
+        realized_gross_pnl_display: '200.00',
+      }),
+    ],
+    statistics: closedTradeStatistics({
+      population: 4,
+      win_rate: { raw: '50', display: '50.00', reason: null },
+      average_gross_pnl: { raw: '62.5', display: '62.50', reason: null },
+      median_gross_pnl: { raw: '50', display: '50.00', reason: null },
+      gross_profit_factor: { raw: '6', display: '6.00', reason: null },
+    }),
+  });
+  reference.summary = { ...reference.summary, total: '250', total_display: '250.00' };
+  reference.counts = {
+    ...reference.counts,
+    examined: 4,
+    in_period: 4,
+    qualified: 4,
+    positive: 2,
+    negative: 1,
+    neutral: 1,
+  };
+  api.closedTrades.mockResolvedValueOnce(reference);
+  renderPage();
+  chooseOctober();
+  read();
+  expect(await screen.findByTestId('closed-trades-total')).toHaveTextContent('250,00 EUR');
+  expect(screen.getByTestId('closed-trades-statistics-population')).toHaveTextContent(
+    'Population N = 4',
+  );
+  expect(screen.getByTestId('closed-trades-win-rate')).toHaveTextContent('50,00 %');
+  expect(screen.getByTestId('closed-trades-average-gross-pnl')).toHaveTextContent('62,50 EUR');
+  expect(screen.getByTestId('closed-trades-median-gross-pnl')).toHaveTextContent('50,00 EUR');
+  expect(screen.getByTestId('closed-trades-gross-profit-factor')).toHaveTextContent('6,00');
+  expect(screen.getByText(/Neutrale Trades zählen im Nenner/)).toBeVisible();
+  fireEvent.click(screen.getByText('Präzise Kennzahlen und Herkunft'));
+  const statistics = within(
+    screen.getByRole('region', { name: 'Basisstatistiken des Abschlussberichts' }),
+  );
+  expect(statistics.getByText('62.5')).toBeVisible();
+  expect(statistics.getByText('closed-trade-statistics-v1')).toBeVisible();
+  expect(statistics.getByText(reference.basis.id)).toBeVisible();
+
+  const corrected = structuredClone(reference);
+  corrected.basis.id = 'b'.repeat(64);
+  corrected.summary = { ...corrected.summary, total: '100', total_display: '100.00' };
+  corrected.items[3].realized_gross_pnl = '50';
+  corrected.items[3].realized_gross_pnl_display = '50.00';
+  corrected.statistics = {
+    ...corrected.statistics,
+    report_basis_id: corrected.basis.id,
+    average_gross_pnl: { raw: '25', display: '25.00', reason: null },
+    median_gross_pnl: { raw: '25', display: '25.00', reason: null },
+    gross_profit_factor: { raw: '3', display: '3.00', reason: null },
+  };
+  const next = deferred<ClosedTradeReport>();
+  api.closedTrades.mockReturnValueOnce(next.promise);
+  read();
+  expect(screen.queryByTestId('closed-trades-win-rate')).not.toBeInTheDocument();
+  expect(screen.getByRole('status')).toHaveTextContent('Ein konsistenter Quellenstand');
+  await act(async () => {
+    next.resolve(corrected);
+    await next.promise;
+  });
+  expect(await screen.findByTestId('closed-trades-total')).toHaveTextContent('100,00 EUR');
+  expect(screen.getByTestId('closed-trades-win-rate')).toHaveTextContent('50,00 %');
+  expect(screen.getByTestId('closed-trades-average-gross-pnl')).toHaveTextContent('25,00 EUR');
+  expect(screen.getByTestId('closed-trades-median-gross-pnl')).toHaveTextContent('25,00 EUR');
+  expect(screen.getByTestId('closed-trades-gross-profit-factor')).toHaveTextContent('3,00');
+  expect(screen.queryByText('62,50 EUR')).not.toBeInTheDocument();
+  expect(api.closedTrades).toHaveBeenCalledTimes(2);
 });
 
 it('shows all eight disjoint groups while keeping exclusions outside result and sign counts', async () => {
@@ -391,6 +569,7 @@ it('shows all eight disjoint groups while keeping exclusions outside result and 
     neutral: 0,
   };
   report.summary = { ...nullSummary, status: 'PARTIAL', subtotal: '50', subtotal_display: '50.00' };
+  report.statistics = unavailableClosedTradeStatistics('PARTIAL');
   api.closedTrades.mockResolvedValue(report);
   renderPage();
   chooseOctober();
@@ -443,6 +622,7 @@ it('keeps a date-only closing date and its ambiguous period visible without inve
     ],
     sources: [reportSource('ambiguous-close', { ...time, trade_id: 'ambiguous', side: 'SELL' })],
     summary: nullSummary,
+    statistics: unavailableClosedTradeStatistics('NOT_COMPUTABLE'),
   });
   api.closedTrades.mockResolvedValue(report);
   renderPage();
@@ -465,6 +645,11 @@ it('replaces an entire corrected basis, closes old source detail, and preserves 
   openSources();
   const corrected = closedTradeReport();
   corrected.basis.id = 'b'.repeat(64);
+  corrected.statistics = closedTradeStatistics({
+    report_basis_id: corrected.basis.id,
+    average_gross_pnl: { raw: '70', display: '70.00', reason: null },
+    median_gross_pnl: { raw: '70', display: '70.00', reason: null },
+  });
   corrected.summary = { ...corrected.summary, total: '70', total_display: '70.00' };
   corrected.items[0] = {
     ...corrected.items[0],
@@ -501,6 +686,8 @@ it('replaces an entire corrected basis, closes old source detail, and preserves 
   read();
   expect(await screen.findByTestId('closed-trades-total')).toHaveTextContent('70,00 EUR');
   expect(screen.getByText(/Der Quellenstand hat sich/)).toBeVisible();
+  expect(screen.getByTestId('closed-trades-average-gross-pnl')).toHaveTextContent('70,00 EUR');
+  expect(screen.getByTestId('closed-trades-median-gross-pnl')).toHaveTextContent('70,00 EUR');
   expect(screen.queryByRole('region', { name: 'Herkunft Trade trade-1' })).not.toBeInTheDocument();
   const detail = openSources();
   expect(detail.getByRole('listitem', { name: 'Buchungsquelle replacement' })).toBeVisible();
@@ -537,15 +724,22 @@ it('invalidates visible results and ignores stale success and failure after any 
     filters: { ...closedTradeFilters, from_date: '2026-09-01', to_date: '2026-09-30' },
     items: [],
     summary: { ...nullSummary, status: 'EMPTY', total: '0', total_display: '0.00' },
+    statistics: unavailableClosedTradeStatistics('EMPTY'),
   });
   api.closedTrades.mockResolvedValueOnce(newer);
   read();
   expect(await screen.findByTestId('closed-trades-total')).toHaveTextContent('0,00 EUR');
+  expect(screen.getByTestId('closed-trades-win-rate')).toHaveTextContent(
+    'Keine abgeschlossenen Trades in der Auswahl',
+  );
   await act(async () => {
     old.resolve(closedTradeReport());
     await old.promise;
   });
   expect(screen.getByText('Keine abgeschlossenen Trades in dieser Auswahl')).toBeVisible();
+  expect(screen.getByTestId('closed-trades-win-rate')).toHaveTextContent(
+    'Keine abgeschlossenen Trades in der Auswahl',
+  );
   const failed = deferred<ClosedTradeReport>();
   api.closedTrades.mockReturnValueOnce(failed.promise);
   read();
@@ -553,6 +747,9 @@ it('invalidates visible results and ignores stale success and failure after any 
     target: { value: 'Etc/UTC' },
   });
   expect(screen.queryByTestId('closed-trades-total')).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole('region', { name: 'Basisstatistiken des Abschlussberichts' }),
+  ).not.toBeInTheDocument();
   await act(async () => {
     failed.reject(new Error('Veralteter Fehler'));
     await failed.promise.catch(() => undefined);
@@ -573,6 +770,26 @@ it.each(['filters', 'currency', 'definition'] as const)(
     read();
     expect(await screen.findByRole('alert')).toHaveTextContent('Die Antwort gehört nicht');
     expect(screen.queryByTestId('closed-trades-total')).not.toBeInTheDocument();
+  },
+);
+
+it.each(['basis', 'definition', 'status', 'missing'] as const)(
+  'rejects mismatched statistics %s without displaying a mixed report',
+  async (mismatch) => {
+    const report = closedTradeReport();
+    if (mismatch === 'basis') report.statistics.report_basis_id = 'b'.repeat(64);
+    if (mismatch === 'definition') report.statistics.definition_version = 'unknown-statistics';
+    if (mismatch === 'status') report.statistics.report_status = 'PARTIAL';
+    if (mismatch === 'missing') Reflect.deleteProperty(report, 'statistics');
+    api.closedTrades.mockResolvedValue(report);
+    renderPage();
+    chooseOctober();
+    read();
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Die Kennzahlen gehören nicht zu dieser Berichtsgrundlage oder Statistikdefinition',
+    );
+    expect(screen.queryByTestId('closed-trades-total')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('closed-trades-win-rate')).not.toBeInTheDocument();
   },
 );
 
