@@ -6,16 +6,21 @@ import { RuntimeActivationPanel } from './RuntimeActivationPanel';
 const mocks = vi.hoisted(() => ({
   getCurrent: vi.fn(),
   activate: vi.fn(),
+  listVersions: vi.fn(),
 }));
 
 vi.mock('../services/runtimeActivationClient', () => ({
   runtimeActivationClient: mocks,
 }));
+vi.mock('../services/hypothesisProposalClient', () => ({ hypothesisProposalClient: mocks }));
 
 describe('RuntimeActivationPanel', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.getCurrent.mockResolvedValue(null);
+    mocks.listVersions.mockResolvedValue([
+      { id: 'version-2', model_id: 'model-1', version: 2, status: 'APPROVED', definition: {} },
+    ]);
   });
 
   it('shows approved version as not active and offers explicit activation', async () => {

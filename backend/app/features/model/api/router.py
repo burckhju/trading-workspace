@@ -124,6 +124,7 @@ def _validation(value: ModelValidation) -> ValidationResponse:
         notes=value.notes,
         created_at=value.created_at,
         created_by=value.created_by,
+        evidence_ids=list(value.evidence_ids),
     )
 
 

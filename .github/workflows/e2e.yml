@@ -18,8 +18,12 @@ on:
       - "scripts/run-journal-evidence-e2e.sh"
       - "scripts/check-journal-e2e-report.py"
       - "scripts/test-journal-api-guard.mjs"
+      - "scripts/run-candidate-governance-e2e.sh"
+      - "scripts/check-candidate-governance-e2e-report.py"
+      - "scripts/test-candidate-governance-api-guard.mjs"
       - "scripts/run-e2e.sh"
       - "tests/unit/backend/test_journal_e2e_contracts.py"
+      - "tests/unit/backend/test_candidate_governance_e2e_contracts.py"
       - ".github/workflows/e2e.yml"
 
 permissions:
@@ -133,6 +137,53 @@ jobs:
         with:
           name: realized-gross-owner-e2e
           path: frontend/test-results/realized-gross-*/
+          if-no-files-found: error
+          include-hidden-files: true
+
+  candidate-governance-owner:
+    name: End-to-End / candidate governance owner
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version-file: backend/.python-version
+          cache: pip
+          cache-dependency-path: |
+            backend/requirements.txt
+            backend/requirements-dev.txt
+      - name: Verify existing release prerequisites
+        run: bash scripts/verify-release-readiness.sh
+      - name: Install pinned frontend and fixture dependencies
+        run: |
+          npm --prefix frontend ci
+          python -m pip install --requirement backend/requirements-dev.txt
+      - name: Verify target, exact result and complete artifact contracts
+        run: |
+          python -m pytest -c backend/pyproject.toml tests/unit/backend/test_candidate_governance_e2e_contracts.py tests/unit/backend/test_journal_e2e_contracts.py
+          node --test scripts/test-journal-api-guard.mjs
+          node --test scripts/test-candidate-governance-api-guard.mjs
+      - name: Use reliable Ubuntu apt mirror
+        run: |
+          sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' /etc/apt/sources.list.d/ubuntu.sources
+          sudo apt-get update
+      - name: Install Chromium
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+      - name: Qualify the explicit Lesson to Candidate A-B-A journey on its own verified stack
+        run: bash scripts/run-candidate-governance-e2e.sh
+      - name: Upload exact governance sources, versions, requests, traces and cleanup evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: candidate-governance-owner-e2e
+          path: frontend/test-results/candidate-governance-*/
           if-no-files-found: error
           include-hidden-files: true
 

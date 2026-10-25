@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 
 import { ErrorNotice, LoadingNotice } from '../../market/components/ApiFeedback';
@@ -10,34 +10,94 @@ interface LessonHypothesisPanelProps {
   lessonVersionId: string;
 }
 
-export function LessonHypothesisPanel({ lessonVersionId }: LessonHypothesisPanelProps) {
+export function LessonHypothesisPanel(props: LessonHypothesisPanelProps) {
+  return <LessonHypothesisForm key={props.lessonVersionId} {...props} />;
+}
+
+function LessonHypothesisForm({ lessonVersionId }: LessonHypothesisPanelProps) {
   const [hypotheses, setHypotheses] = useState<LessonHypothesis[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const [title, setTitle] = useState('');
   const [statement, setStatement] = useState('');
+  const [ready, setReady] = useState(false);
+  const [refresh, setRefresh] = useState(0);
+  const instance = useRef<object | null>(null);
+  const operation = useRef<object | null>(null);
+  const read = useRef<AbortController | null>(null);
+  const requiredHypothesisIds = useRef(new Set<string>());
+
+  useLayoutEffect(() => {
+    instance.current = {};
+    return () => {
+      instance.current = null;
+      read.current?.abort();
+    };
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
+    const visit = instance.current;
+    read.current = controller;
+    const isCurrent = () =>
+      visit !== null &&
+      instance.current === visit &&
+      read.current === controller &&
+      !controller.signal.aborted;
     setLoading(true);
+    setReady(false);
     setError(null);
 
     lessonHypothesisClient
       .listForLessonVersion(lessonVersionId, controller.signal)
-      .then(setHypotheses)
+      .then((items) => {
+        if (!isCurrent()) return;
+        if (items.some((item) => item.source_lesson_version_id !== lessonVersionId))
+          throw new Error('Die Hypothesen gehören nicht zur gewählten Lesson-Version.');
+        if ([...requiredHypothesisIds.current].some((id) => !items.some((item) => item.id === id)))
+          throw new Error('Die bestätigte Hypothese fehlt im aktuellen Lesestand.');
+        setHypotheses(items);
+        requiredHypothesisIds.current.clear();
+        setReady(true);
+      })
       .catch((nextError: unknown) => {
-        if (!controller.signal.aborted) setError(nextError);
+        if (isCurrent()) setError(nextError);
       })
       .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
+        if (isCurrent()) setLoading(false);
       });
 
     return () => controller.abort();
-  }, [lessonVersionId]);
+  }, [lessonVersionId, refresh]);
+
+  function reloadHypotheses(hypothesisId?: string) {
+    if (instance.current === null || operation.current !== null) return;
+    if (hypothesisId) requiredHypothesisIds.current.add(hypothesisId);
+    // Invalidate synchronously; a completed transport may settle before effect cleanup.
+    read.current?.abort();
+    setReady(false);
+    setLoading(true);
+    setError(null);
+    setRefresh((n) => n + 1);
+  }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const visit = instance.current;
+    if (
+      !ready ||
+      loading ||
+      !title.trim() ||
+      !statement.trim() ||
+      hypotheses.length > 0 ||
+      visit === null ||
+      operation.current !== null
+    )
+      return;
+    const pending = {};
+    operation.current = pending;
+    const ownsCommand = () => instance.current === visit && operation.current === pending;
     setSaving(true);
     setError(null);
     try {
@@ -45,13 +105,22 @@ export function LessonHypothesisPanel({ lessonVersionId }: LessonHypothesisPanel
         title,
         statement,
       });
+      if (!ownsCommand()) return;
+      if (created.source_lesson_version_id !== lessonVersionId || !created.id)
+        throw new Error('Die Hypothesenantwort gehört nicht zur gewählten Lesson-Version.');
       setHypotheses((current) => [...current, created]);
       setTitle('');
       setStatement('');
     } catch (nextError: unknown) {
-      setError(nextError);
+      if (ownsCommand()) {
+        setError(nextError);
+        setReady(false);
+      }
     } finally {
-      setSaving(false);
+      if (ownsCommand()) {
+        operation.current = null;
+        setSaving(false);
+      }
     }
   }
 
@@ -59,7 +128,8 @@ export function LessonHypothesisPanel({ lessonVersionId }: LessonHypothesisPanel
     void submit(event);
   }
 
-  if (loading) return <LoadingNotice label="FT-013-Hypothesen werden geladen …" />;
+  if (loading && hypotheses.length === 0)
+    return <LoadingNotice label="FT-013-Hypothesen werden geladen …" />;
 
   return (
     <section className="rounded-xl border border-slate-800 p-5">
@@ -68,10 +138,18 @@ export function LessonHypothesisPanel({ lessonVersionId }: LessonHypothesisPanel
         Eine Hypothese ist eine explizite Interpretation dieser Lesson-Version. Sie aktiviert keine
         Modelländerung und startet keine Validierung automatisch.
       </p>
+      <p className="mt-2 break-all text-xs">Quell-LessonVersion {lessonVersionId}</p>
 
       {error !== null && (
         <div className="mt-4">
           <ErrorNotice error={error} />
+          <button type="button" disabled={saving} onClick={() => reloadHypotheses()}>
+            Hypothesenstand neu laden
+          </button>
+          <p className="mt-2 text-sm">
+            Befehlsabschluss vor einer weiteren Übermittlung bewusst prüfen. Keine automatische
+            Wiederholung.
+          </p>
         </div>
       )}
 
@@ -82,13 +160,25 @@ export function LessonHypothesisPanel({ lessonVersionId }: LessonHypothesisPanel
             <article key={hypothesis.id} className="rounded-lg border border-slate-800 p-4">
               <div className="flex items-center justify-between gap-4">
                 <h3 className="font-medium">{hypothesis.title}</h3>
-                <span className="text-xs text-slate-400">{hypothesis.status}</span>
+                <span className="text-xs text-slate-400">
+                  {loading
+                    ? 'Status wird geprüft …'
+                    : ready
+                      ? hypothesis.status
+                      : 'Status nicht verifiziert'}
+                </span>
               </div>
               <p className="mt-2 whitespace-pre-wrap text-sm text-slate-300">
                 {hypothesis.statement}
               </p>
               <p className="mt-2 break-all text-xs text-slate-500">{hypothesis.id}</p>
-              <HypothesisProposalPanel hypothesisId={hypothesis.id} />
+              <p className="mt-1 break-all text-xs text-slate-500">
+                Gebundene Quellversion {hypothesis.source_lesson_version_id}
+              </p>
+              <HypothesisProposalPanel
+                hypothesisId={hypothesis.id}
+                onHypothesisChanged={() => reloadHypotheses(hypothesis.id)}
+              />
             </article>
           ))}
         </div>
@@ -101,6 +191,7 @@ export function LessonHypothesisPanel({ lessonVersionId }: LessonHypothesisPanel
               value={title}
               onChange={(event) => setTitle(event.target.value)}
               required
+              disabled={saving || !ready}
               maxLength={240}
             />
           </label>
@@ -111,11 +202,12 @@ export function LessonHypothesisPanel({ lessonVersionId }: LessonHypothesisPanel
               value={statement}
               onChange={(event) => setStatement(event.target.value)}
               required
+              disabled={saving || !ready}
             />
           </label>
           <button
             type="submit"
-            disabled={saving}
+            disabled={saving || !ready}
             className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium disabled:opacity-50"
           >
             {saving ? 'Wird übergeben …' : 'Hypothese für FT-013 anlegen'}
