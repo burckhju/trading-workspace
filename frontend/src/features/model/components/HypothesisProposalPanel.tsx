@@ -21,6 +21,7 @@ import type {
 
 interface HypothesisProposalPanelProps {
   hypothesisId: string;
+  onHypothesisChanged?: () => void;
 }
 
 interface ModelSelection {
@@ -36,12 +37,15 @@ function isDefinition(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-export function HypothesisProposalPanel({ hypothesisId }: HypothesisProposalPanelProps) {
+export function HypothesisProposalPanel(props: HypothesisProposalPanelProps) {
   // Returning to the same ID is a new visit, not the previous hypothesis instance.
-  return <HypothesisProposalForm key={hypothesisId} hypothesisId={hypothesisId} />;
+  return <HypothesisProposalForm key={props.hypothesisId} {...props} />;
 }
 
-function HypothesisProposalForm({ hypothesisId }: HypothesisProposalPanelProps) {
+function HypothesisProposalForm({
+  hypothesisId,
+  onHypothesisChanged,
+}: HypothesisProposalPanelProps) {
   const [proposals, setProposals] = useState<ModelChangeProposalSummary[]>([]);
   const [models, setModels] = useState<GovernedModelSummary[]>([]);
   const [versions, setVersions] = useState<GovernedModelVersion[]>([]);
@@ -237,6 +241,7 @@ function HypothesisProposalForm({ hypothesisId }: HypothesisProposalPanelProps) 
         throw new Error('Die Speicherantwort passt nicht zum abgesendeten DRAFT-Proposal.');
       }
       setProposals([created]);
+      onHypothesisChanged?.();
     } catch (nextError: unknown) {
       if (ownsOperation()) setError(nextError);
     } finally {
@@ -314,11 +319,13 @@ function HypothesisProposalForm({ hypothesisId }: HypothesisProposalPanelProps) 
               proposalId={proposal.id}
               proposalStatus={proposal.status}
               modelKey={models.find((model) => model.id === proposal.model_id)?.model_key}
-              onStatusChange={(status) =>
+              onStatusChange={(status) => {
+                if (instanceRef.current === null) return;
                 setProposals((current) =>
                   current.map((item) => (item.id === proposal.id ? { ...item, status } : item)),
-                )
-              }
+                );
+                if (status === 'APPROVED') onHypothesisChanged?.();
+              }}
             />
           </div>
         ))}

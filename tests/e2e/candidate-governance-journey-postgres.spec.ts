@@ -261,6 +261,12 @@ test("candidate governance: exact Lesson source, explicit A-B-A and immutable ev
       hypothesis_id: hypothesis.id,
       base_model_version_id: versionA.id,
     });
+    await expect(page.getByText("PROPOSED", { exact: true })).toBeVisible();
+    expect(
+      await q.getJson(`/model-governance/lesson-versions/${l1}/hypotheses`),
+    ).toEqual([
+      expect.objectContaining({ id: hypothesis.id, status: "PROPOSED" }),
+    ]);
     expect(
       await q.getJson(`/model-governance/proposals/${proposal.id}/validations`),
     ).toEqual([]);
@@ -411,6 +417,7 @@ test("candidate governance: exact Lesson source, explicit A-B-A and immutable ev
       proposal_id: proposal.id,
       model_version_id: versionB.id,
     });
+    await expect(page.getByText("CLOSED", { exact: true })).toBeVisible();
     await expect(runtimeRegion()).toContainText(
       `Aktuell aktiv: Version ${versionA.version}`,
     );
@@ -432,6 +439,12 @@ test("candidate governance: exact Lesson source, explicit A-B-A and immutable ev
             `/model-governance/proposals/${proposal.id}/validations`,
           ),
         ).toEqual([validation]);
+        const hypotheses = await q.getJson(
+          `/model-governance/lesson-versions/${l1}/hypotheses`,
+        );
+        expect(hypotheses).toEqual([
+          expect.objectContaining({ id: hypothesis.id, status: "CLOSED" }),
+        ]);
         await page.screenshot({
           path: testInfo.outputPath("S4-approved-B-active-A-desktop.png"),
           fullPage: true,
@@ -440,6 +453,7 @@ test("candidate governance: exact Lesson source, explicit A-B-A and immutable ev
           versions,
           approval,
           validation,
+          hypotheses,
           active: await currentActivation(),
         };
       },
@@ -631,6 +645,7 @@ test("candidate governance: exact Lesson source, explicit A-B-A and immutable ev
         expect(l1Hypotheses[0]).toMatchObject({
           id: hypothesis.id,
           source_lesson_version_id: l1,
+          status: "CLOSED",
         });
         for (const analysis of setup.analyses)
           expect(

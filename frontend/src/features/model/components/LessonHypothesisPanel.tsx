@@ -25,16 +25,26 @@ function LessonHypothesisForm({ lessonVersionId }: LessonHypothesisPanelProps) {
   const [refresh, setRefresh] = useState(0);
   const instance = useRef<object | null>(null);
   const operation = useRef<object | null>(null);
+  const read = useRef<AbortController | null>(null);
+  const requiredHypothesisIds = useRef(new Set<string>());
 
   useLayoutEffect(() => {
     instance.current = {};
     return () => {
       instance.current = null;
+      read.current?.abort();
     };
   }, []);
 
   useEffect(() => {
     const controller = new AbortController();
+    const visit = instance.current;
+    read.current = controller;
+    const isCurrent = () =>
+      visit !== null &&
+      instance.current === visit &&
+      read.current === controller &&
+      !controller.signal.aborted;
     setLoading(true);
     setReady(false);
     setError(null);
@@ -42,21 +52,35 @@ function LessonHypothesisForm({ lessonVersionId }: LessonHypothesisPanelProps) {
     lessonHypothesisClient
       .listForLessonVersion(lessonVersionId, controller.signal)
       .then((items) => {
-        if (controller.signal.aborted) return;
+        if (!isCurrent()) return;
         if (items.some((item) => item.source_lesson_version_id !== lessonVersionId))
           throw new Error('Die Hypothesen gehören nicht zur gewählten Lesson-Version.');
+        if ([...requiredHypothesisIds.current].some((id) => !items.some((item) => item.id === id)))
+          throw new Error('Die bestätigte Hypothese fehlt im aktuellen Lesestand.');
         setHypotheses(items);
+        requiredHypothesisIds.current.clear();
         setReady(true);
       })
       .catch((nextError: unknown) => {
-        if (!controller.signal.aborted) setError(nextError);
+        if (isCurrent()) setError(nextError);
       })
       .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
+        if (isCurrent()) setLoading(false);
       });
 
     return () => controller.abort();
   }, [lessonVersionId, refresh]);
+
+  function reloadHypotheses(hypothesisId?: string) {
+    if (instance.current === null || operation.current !== null) return;
+    if (hypothesisId) requiredHypothesisIds.current.add(hypothesisId);
+    // Invalidate synchronously; a completed transport may settle before effect cleanup.
+    read.current?.abort();
+    setReady(false);
+    setLoading(true);
+    setError(null);
+    setRefresh((n) => n + 1);
+  }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -104,7 +128,8 @@ function LessonHypothesisForm({ lessonVersionId }: LessonHypothesisPanelProps) {
     void submit(event);
   }
 
-  if (loading) return <LoadingNotice label="FT-013-Hypothesen werden geladen …" />;
+  if (loading && hypotheses.length === 0)
+    return <LoadingNotice label="FT-013-Hypothesen werden geladen …" />;
 
   return (
     <section className="rounded-xl border border-slate-800 p-5">
@@ -118,13 +143,7 @@ function LessonHypothesisForm({ lessonVersionId }: LessonHypothesisPanelProps) {
       {error !== null && (
         <div className="mt-4">
           <ErrorNotice error={error} />
-          <button
-            type="button"
-            disabled={saving}
-            onClick={() => {
-              if (operation.current === null) setRefresh((n) => n + 1);
-            }}
-          >
+          <button type="button" disabled={saving} onClick={() => reloadHypotheses()}>
             Hypothesenstand neu laden
           </button>
           <p className="mt-2 text-sm">
@@ -141,7 +160,13 @@ function LessonHypothesisForm({ lessonVersionId }: LessonHypothesisPanelProps) {
             <article key={hypothesis.id} className="rounded-lg border border-slate-800 p-4">
               <div className="flex items-center justify-between gap-4">
                 <h3 className="font-medium">{hypothesis.title}</h3>
-                <span className="text-xs text-slate-400">{hypothesis.status}</span>
+                <span className="text-xs text-slate-400">
+                  {loading
+                    ? 'Status wird geprüft …'
+                    : ready
+                      ? hypothesis.status
+                      : 'Status nicht verifiziert'}
+                </span>
               </div>
               <p className="mt-2 whitespace-pre-wrap text-sm text-slate-300">
                 {hypothesis.statement}
@@ -150,7 +175,10 @@ function LessonHypothesisForm({ lessonVersionId }: LessonHypothesisPanelProps) {
               <p className="mt-1 break-all text-xs text-slate-500">
                 Gebundene Quellversion {hypothesis.source_lesson_version_id}
               </p>
-              <HypothesisProposalPanel hypothesisId={hypothesis.id} />
+              <HypothesisProposalPanel
+                hypothesisId={hypothesis.id}
+                onHypothesisChanged={() => reloadHypotheses(hypothesis.id)}
+              />
             </article>
           ))}
         </div>

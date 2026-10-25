@@ -731,14 +731,19 @@ Basis ist `fbd77fb94947a1fdbfc0aeb90811353fae655a59`, Tree
 `027e1d0546f4c09d761ac10d1f59e87d613aff41`, v1.5.14, Schema `20261017_0047`.
 59 Backend- und 115 UI-Fälle sind die gezielten Ergebnisse der getrennten
 Arbeitskopien. Anschließend bestanden auf der zusammengeführten Arbeitskopie
-80 Model-/Candidate-Unitfälle, die vollständige Backend-Statik, das unveränderte
+80 Model-/Candidate-Unitfälle (81 nach dem nativen Candidate-Anlagefix), die vollständige Backend-Statik, das unveränderte
 Frontendgate mit 121 Dateien / 734 Tests und Build sowie 153 reine Python- und
 21 Node-Guardfälle. Diese Ergebnisse werden nicht zu einer Suite addiert.
-Der neue geschützte Browser→API→PostgreSQL-Gesamtfall,
-die nativen Grenzfälle auf dem neuen Stand, Desktop-/Mobil-Sichtprüfung, Cleanup
-und finale kombinierte CI sind an diesem Dokumentationsstand noch nicht ausgeführt.
-Der Entwicklungs-PR muss finalen Head, tatsächlichen Checkout/Tree und Runs/Versuche
-gesondert binden; frühere v1.5.14-Reports ersetzen diese nicht.
+Der neue geschützte Browser→API→PostgreSQL-Gesamtfall bestand erstmals in Run
+`40166152063`, Job `121087501390`, Head `1109f047`, tatsächlicher Checkout
+`1b31f411`, Tree `7c5d25da`: genau ein Pass ohne Retry/Skip/Flaky. Konkrete
+L1/E1-/Entscheidungs-/Versionsketten, vier historische Evaluationen, vier unveränderte
+Lesefenster, sechs tatsächlich gesichtete Bilder und vollständiger Cleanup sind
+im Bericht gebunden. Drei vorherige Fehlversuche bleiben sichtbar. Die Sichtprüfung
+begründet den engen Parent-Hypothesenstatus-Readback nach Proposal/Approval.
+Der Entwicklungs-PR bindet abschließend die native Grenzfallsuite und sämtliche
+Gates am letzten Head, tatsächlichen Checkout/Tree und Run/Versuch; ein früherer
+grüner Head oder v1.5.14-Report ersetzt diesen Gesamtnachweis nicht.
 
 Die reale FT-006-Abbildung von Preisqualität VALID zu Analysequalität LIMITED
 verhindert die verlangte GOOD-Referenz von B07. Sie bleibt als konkrete Restarbeit

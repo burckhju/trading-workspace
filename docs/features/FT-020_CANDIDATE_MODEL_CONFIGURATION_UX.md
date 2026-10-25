@@ -97,9 +97,14 @@ guarantee. Failed reads remain visible instead of implying absent saved facts.
 
 The 115 targeted local UI cases, including 18 new cases, are a bounded development
 result. The unchanged complete local frontend gate subsequently passed 734 tests
-in 121 files and its build on the combined working copy. The new native S2–S6
-journey, desktop/mobile inspection, final combined CI
-and cleanup have **not yet run** at this checkpoint. The report records the separate
-FT-006 VALID→LIMITED quality boundary; B07's GOOD reference is not satisfied by a
-LIMITED run. No SUPPORTS-only approval rule, validation algorithm, backtest or
-economic policy recommendation is introduced, and no acceptance status is raised.
+in 121 files and its build on the combined working copy. The first complete native
+S2–S6 journey passed on head `1109f047` in run `40166152063`, job `121087501390`:
+one pass, no retry/skip/flaky, exact historical readback and complete cleanup.
+All six actual desktop/mobile images were inspected. They exposed a remaining
+parent hypothesis-status readback gap after child commands; the narrow follow-up
+reads the existing owner state instead of inferring a business status. The mobile
+governance cards remain narrow but expose complete IDs and controls. The final PR
+binds the complete CI of its last head separately. The report records the FT-006
+VALID→LIMITED quality boundary; B07's GOOD reference is not satisfied by a LIMITED
+run. No SUPPORTS-only approval rule, validation algorithm, backtest or economic
+policy recommendation is introduced, and no acceptance status is raised.

@@ -1,10 +1,14 @@
 # B — Candidate-Governance: Benutzerweg und Qualifikationsgrenzen
 
-Stand: **2026-10-25, Entwicklungsqualifikation und datierte Laufhistorie.**
+Stand: **2026-10-25, erster erfolgreicher nativer Gesamtweg und datierte Laufhistorie.**
 Der jeweils abschließende Head-/Tree-/Run-/Job-Nachweis steht im
 [Entwicklungs-PR #276](https://github.com/burckhju/trading-workspace/pull/276).
-Die nachfolgenden lokalen Vorbelege und Fehlversuche werden dadurch nicht
-rückwirkend als erfolgreiche Gesamtqualifikation umgedeutet.
+Der unten ausgewertete vierte Lauf belegt S0–S7 mit realer PostgreSQL-Persistenz,
+getrennten Browsercommands und A→B→A. Die drei vorherigen Fehlversuche bleiben
+Fehlversuche. **B07 ist für die GOOD-Referenz weiterhin offen**; die tatsächlich
+erzeugten Analyseinputs haben LIMITED-Qualität. Die finale vollständige CI wird
+im PR separat an dessen letzten Head gebunden. Ein neuer Dokumentationscommit
+übernimmt keinen älteren grünen Lauf als Nachweis seines eigenen Trees.
 Dieser Bericht ergänzt [PB-020 Governance](../planning/PRODUCT_BACKLOG.md#pb-020-governance),
 [Aktivierung/Rückkehr](../planning/PRODUCT_BACKLOG.md#pb-020-activation) und die
 [bestehende Candidate-Familie](../planning/PRODUCT_BACKLOG.md#pb-020-candidate-family).
@@ -20,9 +24,10 @@ Er setzt keinen Arbeitsstatus auf Accepted/Observed und erklärt M9 nicht für a
 | Schema-Head | `20261017_0047`; keine neue Migration oder Schemaänderung |
 | Erhaltener Vorgänger | #274, ausgeliefert über #275; [Proposal-Kontextqualifikation](MODEL_PROPOSAL_CONTEXT_QUALIFICATION.md) bleibt ein eigener abgeschlossener Nachweis |
 | Parallelarbeit | A/#204 ist unabhängig; `features/market/pages/Underlying*` und dessen Navigationshelper bleiben unberührt |
-| Aktueller Entwicklungsnachweis | Gezielte Prüfungen auf getrennten Arbeitskopien sowie unten getrennt ausgewiesene lokale Prüfungen der zusammengeführten Arbeitskopie; noch kein unveränderlicher finaler PR-Tree/CI-Lauf nachgewiesen |
-| Finaler PR-Head / tatsächlicher Checkout / Tree | **Offen.** Im Entwicklungs-PR an den final geprüften Stand zu binden; ein PR-Testmerge ist nicht der Branch-Head oder ein Main-Merge |
-| CI-Run / Job / Workflowversuch / Testversuch | **Offen.** Für diesen neuen Schnitt noch kein nativer Browserlauf und keine finale Gesamt-CI ausgeführt |
+| Erster erfolgreicher nativer Head / Tree | `1109f047f56e2a3804041c27d4f649f06fb9f9eb` / `7c5d25da0dcd65bf5d1cc5076665d1d2f1cfa230` |
+| Tatsächlicher erfolgreicher Checkout | PR-Testmerge `1b31f4111c29b66f91cfe44b2694ae0a0f59f5f6` gegen den obigen Main; derselbe Tree |
+| Erfolgreicher nativer Run / Job / Versuche | `40166152063` / `121087501390`; Workflowversuch 1, genau ein Ergebnis mit `retry=0`, 1 passed, 0 skipped/flaky/unexpected |
+| Abschließender PR-Head und reguläre Gesamt-CI | Im oben verlinkten PR ausdrücklich an den letzten tatsächlichen Checkout/Tree gebunden. Der erfolgreiche Lauf unten ist ein unveränderlicher Entwicklungsbeleg, kein Main-Merge oder Ersatz für spätere Headprüfungen. |
 
 Die aktuellen [FT-013](../features/FT-013_CONTROLLED_MODEL_GOVERNANCE.md),
 [FT-019](../features/FT-019_GOVERNED_CANDIDATE_RULE_SEMANTICS.md),
@@ -37,9 +42,12 @@ Die gezielte Prüfung der vorhandenen Tests und tatsächlichen Parent-/Routerpfa
 hat für diesen Schnitt keinen bereits qualifizierten S2–S6-Gesamtfall identifiziert;
 das ist kein repositoryweiter Abwesenheitsbeweis durch eine leere Textsuche.
 
-## Übergangsmatrix
+## Gezielte Ausgangs-Übergangsmatrix
 
-**Vorhanden und geprüft** bezeichnet ausschließlich die jeweils genannte lokale
+Diese Matrix hält den **Ausgangsstand vor dem ersten nativen Lauf** fest.
+Die ausgeführte Nachher-Kette mit konkreten IDs und der aktualisierte B01–B16-Stand
+stehen im Abschnitt „Vierter nativer Lauf“. **Vorhanden und geprüft** bezeichnet
+hier ausschließlich die jeweils genannte lokale
 Prüfung. **Vorhanden, Gesamtnachweis fehlt** trennt implementierte Ownerbefehle von
 der ausstehenden nativen Reise. **Nachweislich fehlend** bezeichnet die belegte
 Ausgangslücke vor der hier beschriebenen Ergänzung. **Nicht verifiziert** bezeichnet
@@ -108,7 +116,8 @@ rekonstruiert weder damaligen Wissensstand noch historische Marktdaten.
 Der vorhandene Approvalvertrag prüft Status, Validation und veraltete Basis.
 Er enthält keine allgemeine Sperre für CONTRADICTS/INCONCLUSIVE. Der neue native
 Grenzfall hält ausdrücklich einen CONTRADICTS-Befund fest, um keine zusätzliche
-SUPPORTS-only-Geschäftsregel einzuführen. Seine Ausführung ist noch offen.
+SUPPORTS-only-Geschäftsregel einzuführen. Sein finaler PostgreSQL-Suitenlauf wird
+gesondert im PR gebunden. Der ausgeführte Browserfall verwendet INCONCLUSIVE.
 
 ### Harte Grenze: Preisqualität VALID wird im Analyseowner LIMITED
 
@@ -119,7 +128,8 @@ Preisqualität heißt `VALID`; der vorhandene
 stuft Zeilen mit `quality_status != "GOOD"` als LIMITED ein. Damit liefern auch
 vollständige ownererzeugte Analysen der vorgesehenen synthetischen VALID-Preise
 `LIMITED` / `COMPLETED_WITH_WARNINGS`. Der gezielte Code-/Berechnungsabgleich
-bestätigt diese Abbildung; ein neuer nativer Ownerlauf wird dadurch nicht behauptet.
+bestätigt diese Abbildung; der vierte native Lauf weist sie zusätzlich an drei
+echten ownererzeugten Analyseversionen mit jeweils 200 Preiszeilen nach.
 
 Der Browserfall verlangt deshalb wahrheitsgemäß LIMITED und überprüft CAUTIOUS
 sowie erfüllte übrige Pflichtkriterien. Ein erfolgreicher A→B→A-Lauf unter dieser
@@ -143,11 +153,11 @@ anschließende erneute GOOD-Referenzreise benötigen einen eigenen abgegrenzten
 Auftrag. Die vorhandenen V1-/V2-Regeldefinitionen,
 Aggregation und Fail-closed-Grenzen bleiben bestehen.
 
-## Ausgeführte lokale Prüfungen und offene native Nachweise
+## Historischer Prüfstand vor dem ersten nativen Lauf
 
-Diese Ergebnisse gehören zu gezielten Entwicklungsprüfungen, nicht zur noch
-fehlenden Gesamtprüfung des final integrierten Trees. Die Fallzahlen sind aktuelle
-Beobachtungen, keine künftig festgeschriebenen Suitegrößen.
+Diese Tabelle dokumentiert bewusst den damaligen Entwicklungsstand. Die späteren
+nativen Läufe und der neue Candidate-Anlagefix folgen in datierter Reihenfolge.
+Die Fallzahlen sind Beobachtungen, keine künftig festgeschriebenen Suitegrößen.
 
 | Prüfung | Tatsächlich beobachtetes Ergebnis / Grenze |
 |---|---|
@@ -185,13 +195,13 @@ drei Evaluationen und prüft deren unveränderten gespeicherten Readback. Diese
 Servicefixtures bleiben ausdrücklich vom neuen API-Setup mit real existierenden
 Analysefakten getrennt.
 
-## Vorgesehene native Ausführung und Artefaktbindung
+## Reproduzierbare native Ausführung und Artefaktbindung
 
 Der neue [geschützte Hauptfall](../../tests/e2e/candidate-governance-journey-postgres.spec.ts)
 heißt `candidate governance: exact Lesson source, explicit A-B-A and immutable evaluations`.
 Der [Runner](../../scripts/run-candidate-governance-e2e.sh) und der additive Job
 `candidate-governance-owner` in [.github/workflows/e2e.yml](../../.github/workflows/e2e.yml)
-sind für seine tatsächliche Ausführung vorgesehen. Der
+sind der reguläre Einstieg für seine tatsächliche Ausführung. Der
 [Reportprüfer](../../scripts/check-candidate-governance-e2e-report.py) bindet die
 vorab entdeckte Test-ID und verlangt genau ein Passed-Ergebnis mit `retry=0`,
 ohne Skip, Flaky oder erwarteten Fehler. Geschützte Skips im allgemeinen Smoke
@@ -214,8 +224,8 @@ Die native Ausführung muss Quellen-/Versionsketten, Payloads, gespeicherte
 API-Readbacks, Mutationserwartungen, Desktop-/Mobilbilder, Report, Netz-/DB- und
 Migrationsidentität sowie Cleanup an den tatsächlichen Checkout binden. Das
 SHA-256-Manifest umfasst die vollständige Artefaktdateimenge einschließlich
-versteckter/nestierter Dateien und Cleanup. Noch gibt es hierfür keine neu
-ausgeführten nativen Artefakte.
+versteckter/nestierter Dateien und Cleanup. Die tatsächlich geprüften Artefakte
+der vier Läufe sind unten jeweils an ihren eigenen Checkout gebunden.
 
 Unverändert zu erhalten und auf dem finalen Stand tatsächlich auszuführen sind
 die beiden Finanzfälle `realized-gross-report-postgres.spec.ts` und
@@ -247,13 +257,12 @@ erhöhte Berechtigungen oder ein allgemeiner CI-Umbau gehören nicht zum Schnitt
 | B15 | **Teilbelegt:** vollständiges lokales Frontendgate und Backend-Statik bestanden; vorhandene vier Ownerfälle und reguläre Gates erhalten. Keine aktuelle gemeinsame Gesamt-CI behauptet. | Vollständige finale CI mit Head/Checkout/Tree, Runs/Jobs/Versuchen; vier Ownerfälle wirklich ausführen. |
 | B16 | **Dokumentiert:** GOOD-Grenze, fehlende native/finale Ausführung und getrennte Fach-/Betriebsabnahme ausdrücklich genannt. | Ergebnisse und verbleibende Restarbeit nach finalen Läufen präzisieren, ohne Abnahmegrenzen aufzuheben. |
 
-## Übergabegrenze
+## Unveränderte Übergabegrenze
 
-Der nächste technische Handoff muss finalen PR-Head, tatsächlichen Checkout/Tree,
-Run/Job, Workflowversuch, Testversuch und Artefaktmanifest nachtragen. Bis dahin
-ist dieser Stand implementiert und gezielt lokal geprüft, **nicht vollständig
-technisch abgenommen**. B07 bleibt auch bei bestandenem LIMITED-Hauptlauf in der
-oben genannten GOOD-Referenz offen. Kein realer Nutzermodelleintrag wurde für
+Der technische Handoff im PR bindet finalen PR-Head, tatsächlichen Checkout/Tree,
+Run/Job, Workflowversuch, Testversuch und Artefaktmanifest. Der inzwischen bestandene
+LIMITED-Hauptlauf macht **B01–B16 nicht pauschal vollständig abgenommen**: B07 bleibt
+in der oben genannten GOOD-Referenz offen. Kein realer Nutzermodelleintrag wurde für
 diese Qualifikation aktiviert. Main-Merge, Release, Tagging, Installation,
 PC-Beobachtung, wirtschaftliche Wirksamkeit und menschliche Fachabnahme sind
 separate, hier nicht nachgewiesene Schritte. Zusätzliche Performancestatistiken,
@@ -358,3 +367,152 @@ geprüftes Manifest mit 26 Inhaltsdateien. Eigener Stack
 Eigentumsprüfung vollständig entfernt, 0 Container/Netze/Volumes,
 `exit_status=1`, `cleanup_status=0`. Der folgende Commit benötigt wieder den
 vollständigen eigenen Lauf und die regulären Gates.
+
+## Vierter nativer Lauf — 2026-10-25, erfolgreicher Gesamtweg
+
+[Run 40166152063](https://github.com/burckhju/trading-workspace/actions/runs/40166152063),
+Governance-Job `121087501390`, Workflowversuch 1, prüfte Head
+`1109f047f56e2a3804041c27d4f649f06fb9f9eb` als tatsächlichen PR-Testmerge
+`1b31f4111c29b66f91cfe44b2694ae0a0f59f5f6`. Der verifizierte Tree ist
+`7c5d25da0dcd65bf5d1cc5076665d1d2f1cfa230`; die rohen Commiteltern sind Main
+`fbd77fb94947a1fdbfc0aeb90811353fae655a59` und der genannte Head.
+
+Der entdeckte Hauptfall `e89dce19b56b71e4abc8-2c07670ff21949ff44a4` lief genau
+einmal erfolgreich: **1 passed, 0 unexpected, 0 skipped, 0 flaky, retry=0**.
+Die Reportdauer beträgt 26,676 Sekunden. Der identische strikte Reportprüfer wurde
+im Runner und anschließend lokal gegen das heruntergeladene Rohartefakt ausgeführt.
+Das ist der erste erfolgreiche neue Headlauf nach den drei dokumentierten Fehlern,
+kein Workflow-Rerun und keine nach Retry grüne Testausführung.
+
+### Konkrete Quellen und gespeicherte Entscheidungen
+
+| Objekt | Tatsächlich gespeicherte Identität dieses Laufs |
+|---|---|
+| Lesson / gewählte L1 | `14866a24-6248-469e-847a-ea5b00da148e` / `a9b34f84-3b35-4bcb-bc85-eb597a59fb7a` |
+| Spätere aktuelle L2 | `80482825-092e-4f89-b0c9-76a3be462d6c`; ersetzt die Hypothesenquelle L1 nicht |
+| E1 | `3a7b1a4b-000a-4ba8-aab9-d4837a8896b2`, erstellt `2026-10-25T05:38:40.245972Z` |
+| FT011-Quellversion | ExitReview `58e6efde-b9ca-41f1-b5b4-b9b319c6ee50`, Version `bc0ee8c5-f367-4222-aa37-c9a4dc2d57a7`; Trade/Observation-IDs bleiben im vollständigen Ownerkettenattachment erhalten |
+| Hypothese / Proposal | `ccc9ea93-0a7a-4a66-b98f-7ff3b7ef380c` / `73f83420-ab8c-47bc-83ce-14c793225245` |
+| Modell / genehmigte Basis A | `43a02c22-3031-4483-bcdf-a751dc775d41` / `f042d952-7926-4efc-9d60-3a3c175a8c73` (Version 1, V2-Schema, FAVORABLE + CAUTIOUS) |
+| Validation | `75264fc0-f8d0-4792-bcb9-950697e34e03`; exakte E1, Cutoff `2026-10-25T05:38:49Z`, INCONCLUSIVE, Metrics `{}`, ausdrücklich synthetische Notes |
+| Approval / B | `0e365bbc-9e41-44e1-bc39-4430c34ce97f` / `d67a1ba4-51ba-4957-997d-ba28d6790625` (Version 2, FAVORABLE only, Vorgänger A) |
+| Aktivierung A / B / Rückkehr A | `5ba71473-0fec-4e95-819a-c3cddcf3ae87` / `526991d5-0731-4e9c-8e67-7f28d9e08548` / `1a2e0594-39ec-48cf-a78c-eb30bde667ab` |
+
+S0 und die initiale A-Freigabe/-Aktivierung waren markiertes API-Setup. Die
+Hypothese, der DRAFT, die abgewiesene und die gespeicherte Validation, Approval,
+B-Aktivierung und Rückkehr wurden tatsächlich über die UI ausgelöst. Jede dieser
+Aktionen erzeugte genau den geplanten Browsercommand. Der negative Cutoffversuch
+antwortete 422 ohne irgendeine Fingerprintänderung; die anschließende bewusste
+Lesefunktion bestätigte weiterhin null Validierungen. Der spätere gültige Command
+speicherte einen Befund und genau einen Evidence-Link.
+
+Approval erzeugte B und den Approvaldatensatz, aber **keine** Runtimeaktivierung.
+Eine zusätzliche echte Evaluation unmittelbar nach Approval verwendete weiter A.
+Der Candidate-Tab zeigte noch A-Readiness, als der andere Tab B aktivierte; erst
+die tatsächliche nächste Ausführung löste B auf und persistierte dessen Version.
+
+| Phase / Evaluation-ID | Tatsächlich verwendete Modellversion | TD-MARKET-001 | Gesamtergebnis |
+|---|---|---|---|
+| S1 `74eda143-3bff-4fbe-a854-b6f2be4941be` | A / 1 | FULFILLED | QUALIFIED |
+| S4 nach Approval `ae0bc86d-1875-4397-af9d-707d1b4bb4b3` | A / 1 | FULFILLED | QUALIFIED |
+| S5 `ed5fa1a4-aa98-4e83-866f-8c21c988017a` | B / 2 | NOT_FULFILLED | NOT_QUALIFIED |
+| S6 `2dd8643b-7ed8-4b84-8493-0c632fff3239` | A / 1 | FULFILLED | QUALIFIED |
+
+Alle vier Ergebnisse haben wahrheitsgemäß Qualität **LIMITED**. Die übrigen fünf
+REQUIRED-Kriterien sind jeweils FULFILLED. Alle sonstigen Kriterien und die drei
+Quellreferenzen bleiben identisch: MARKET `809596ae-9ef6-4c88-8095-de6bcd819af3`,
+SECTOR `a2789d46-c0ac-4a94-a14a-3b0dd4e2a5f8`, UNDERLYING
+`f85de620-3c99-477c-be6b-8c73cbe91417`, jeweils Analyseversion 1 und
+`EOD_TREND_MOMENTUM/1.0.0`. S7 vergleicht alle gespeicherten Evaluationen mit ihren
+ursprünglichen vollständigen Responses, beide ModelVersion-Definitionen und die
+ursprünglichen Analyse-Runs. B und seine Ergebnisse bleiben nach der Rückkehr
+unverändert über genaue historische Links erreichbar.
+
+### Tatsächlich geprüfte Lesefenster, Isolation, Bilder und Cleanup
+
+Vier reine Lesefenster beobachteten **7 / 3 / 4 / 22 GET-Requests**. In jedem
+Fenster sind vollständiger DB-Fingerprint vor/nach identisch und keine schreibende
+Browseraktion erlaubt. Der gesamte Requestbeleg enthält 133 API-Requests und
+keine Guardverletzung. Observation-Refresh, Materialisierung, Hypothese, Proposal,
+Validation, Approval, Aktivierung und alle vier Evaluationen liegen außerhalb
+dieser Lesefenster.
+
+Der Lauf verwendete ausschließlich Projekt
+`tw-candidate-governance-e2e-d74e5df37268463c8383af63e5adcd31` und DB
+`trading_workspace_test_cg_d74e5df37268463c8383af63e5adcd31`, PostgreSQL 17.11,
+Schema `20261017_0047`, den synthetischen Defaultworkspace und den exakten
+Runmarker. Backend nur im internen Netz, ohne veröffentlichten Port; DB und
+Frontend nur auf `127.0.0.1:25432` beziehungsweise `127.0.0.1:8080`. Guardartefakte
+binden Container-, Image-, Netz-, Volume- und Mountidentitäten vor Schreibfreigabe.
+Die tatsächliche Browserherkunft ist `http://localhost:8080`, API-Präfix
+`/api/api/v1`. Provider, Scheduler und Versand bleiben ausgeschaltet; keine
+Redirect-/Serviceworker-/WebSocket-Ausweichwege werden zugelassen.
+
+Die sechs nativen PNGs wurden tatsächlich geöffnet und gesichtet: S2 Policy/Basis
+Desktop; S4 genehmigte B bei aktivem A Desktop; S5 aktives B Mobil; S7 Rückkehr-A-
+Governance Mobil sowie historische B-Auswertung Desktop/Mobil. IDs, gespeicherter
+Cutoff/Befund, aktive/neueste/gewählte genehmigte Version und historische
+Analysequellen sind erkennbar. Die Mobilansichten sind 390 px breit; die mehrfach
+verschachtelten bestehenden Karten führen zu schmalen Textspalten und zahlreichen
+Umbrüchen. Controls und vollständige IDs sind erreichbar; eine allgemeine
+Layoutmodernisierung oder pixelperfekte Mobilabnahme wird daraus nicht abgeleitet.
+
+Die Sichtprüfung fand zugleich eine weitere konkrete Übergangslücke: Der
+Hypothesen-Badge zeigte nach den Childcommands noch den alten OPEN-Stand;
+S7 zeigte erst nach Reload CLOSED. Der bestehende Owner setzt bei Proposalanlage
+PROPOSED und bei Approval CLOSED. Die enge Folgeänderung
+stößt nach bestätigtem Proposal-/Approvalcommand den bereits autorisierten
+`listForLessonVersion`-Read an. Währenddessen wird der Status als in Prüfung,
+bei Lesefehler als nicht verifiziert angezeigt; die bestätigten Childpanels bleiben
+gemountet. Weder Geschäftsstatus noch Commands werden clientseitig rekonstruiert
+oder automatisch wiederholt. Überholte und fremde Antworten werden verworfen.
+Sieben identische deterministische Componentregressionen waren auf dem unveränderten
+Head `1109f047` rot und mit dieser Ergänzung grün, ohne Skips. Sie prüfen PROPOSED,
+CLOSED, Lesefehler/bewussten Readretry, überholte Antwort, L1→L2→L1, fremde
+Lessonversion und fehlende bestätigte Hypothese. Der Hauptfall fordert diese
+Statusreadbacks nun zusätzlich unmittelbar nach DRAFT/Approval, einschließlich
+der echten gespeicherten Werte. Sein Nachfolgerlauf und die vollständige CI werden
+am neuen Head im PR gebunden; der vierte Pass wird nicht rückwirkend erweitert.
+
+[Artefakt 12588676982](https://github.com/burckhju/trading-workspace/actions/runs/40166152063/artifacts/12588676982),
+5.385.956 Bytes, ZIP-SHA-256
+`6ad5e35576cd7569bf3a8fb69daf87e864cfe410e65537356630dda22f49b3bf`:
+Downloadhash und gesamtes Manifest mit 26 Inhaltsdateien lokal geprüft, einschließlich
+aller Bilder, Trace, Rohreport, Quellenketten, Netz-/DB-Identität und Cleanup.
+Das ursprüngliche Artefakt wurde für die Sichtprüfung nicht verändert.
+Cleanup bestätigt `ownership_verified=true`, `removed=true`, **0 Container,
+0 Netze, 0 Volumes**, `exit_status=0`, `cleanup_status=0`.
+
+### Aktualisierter B01–B16-Nachweisstand
+
+| ID | Durch den ausgeführten Schnitt belegter Teil | Verbleibende Bindung / Grenze |
+|---|---|---|
+| B01 | Gezielte Ausgangsmatrix, bestehende FT-013/019/020-Owner und #274 erhalten; nur bestätigte Lücken ergänzt. | Abschließender Diff/Head im PR. |
+| B02 | E1 aus echter FT011-Ownerkette; historische L1 trotz L2; eine Hypothese an L1 und keine an L2; S7 unverändert. | Exakte UUIDs und Responses oben/im Artefakt. |
+| B03 | Modell/Hypothese/A im POST; genehmigte Basis, neueste B und aktive A sichtbar getrennt. | Aktueller Kontextschutz zusätzlich durch bestehende Component-/Browserfälle. |
+| B04 | V1 und beide V2-Verträge unverändert; No-op und unbekannte Definitionen bleiben geschlossen. | Vollständige Regression des letzten Heads gesondert im PR. |
+| B05 | Echter 422-Cutoffversuch ohne Änderung; gespeicherte E1, UTC-Cutoff, INCONCLUSIVE, Notes und Metrics exakt. | Breitere PostgreSQL-Cutoff-/Scopefälle im finalen Backendgate; kein Backtest. |
+| B06 | Browserapproval B verändert Aktivierung nicht; weitere echte Evaluation verwendet A; B-Aktivierung folgt separat. | Keine neue Conclusion-Sperre. |
+| B07 | LIMITED-A→B→A mit identischen Quellen, fünf erfüllten übrigen Pflichtkriterien und richtigen gespeicherten Versionen tatsächlich bestanden. | **GOOD-Referenz weiterhin nicht erfüllt**; gesonderte FT-006-Qualitätsklärung. |
+| B08 | Explizite Auswahl und Aktivierung von A; neue Aktivierungs-ID; B und alle vier Evaluationen unverändert. | Keine Löschung/Retargetierung/automatische Auswahl. |
+| B09 | Owner-Scopefix gezielt rot/grün; Cutoffcommand nativ ohne Teilfakten; weitere native Scope-/Stale-/Pair-Grenzfälle vorhanden. | Maßgeblich für die vollständige aktuelle PostgreSQL-Suite ist der finale Runbeleg im PR. |
+| B10 | A-Readiness vor Aktivierungswechsel, Ausführung danach korrekt mit B; historische Ergebnisse unverändert. | Fehlende/INSUFFICIENT-/unbekannte Definitionsgrenzen zusätzlich in bestehenden Ownerregressionen. |
+| B11 | #274 erhalten; lokale Doppel-/Spätantwort-/Unmountfälle; im nativen Weg jeweils genau ein geplanter Command und bewusster Fehlerreadback. Die anschließende Parent-Statuskorrektur ist oben mit sieben roten/grünen Fällen abgegrenzt. | Ihr eigener finaler nativer Runbeleg steht im PR; keine globale Exactly-once- oder allgemeine Serialisierungszusage. |
+| B12 | Ein vollständiger echter S2–S6-Browser→API→PostgreSQL-Lauf einschließlich Rückkehr, retry=0/skip=0/flaky=0. | Nachfolgende Heads brauchen ihren eigenen Nachweis; Setup ist explizit getrennt. |
+| B13 | Vier fingerprintgleiche Lesefenster und beobachtete Requests; verifizierte Isolation, keine unerwarteten Requests. | Schreibende Refresh-/Owneraktionen ausdrücklich außerhalb. |
+| B14 | Eigener frischer Stack, strikter Report, vollständiges Hashmanifest, sechs Bilder gesichtet, Cleanup ohne Reste. | Mobile Textspalten eng; keine allgemeine Layoutabnahme. |
+| B15 | Bestehende Smoke-/Finanz-/Lernjobs, Permissions und Concurrency strukturell identisch; nur eigener Governancejob ergänzt. | Maßgeblich ist die finale CI-Tabelle im PR einschließlich vier alter Ownerfälle, Image, Renderer und Veröffentlichungsschutz. |
+| B16 | Fehlversuche, Qualitätsgrenze, noch getrennte CI-/Fach-/Betriebsabnahmen konkret ausgewiesen. | Kein Backtest, wirtschaftlicher Nutzen, PC-Nachweis oder M9-Gesamtabschluss. |
+
+Nach dem Candidate-Anlagefix bestanden lokal **81 Model-/Candidate-Unitfälle**.
+Nach der Parent-Statuskorrektur bestanden **83 gezielte Componentfälle**, darunter
+die 46 unveränderten #274-Kontextfälle, fünf Candidate-Editorfälle und die sieben
+neuen Statusfälle. Anschließend bestand auf der zusammengeführten Arbeitskopie
+das vollständige unveränderte `bash scripts/check-frontend.sh`: **122 Dateien /
+741 Tests**, Typecheck, Lint, Format und Build; Coverage 93,81 % Statements/Lines,
+85,76 % Branches und 86,32 % Functions. Das ist ein aktueller lokaler Gesamtbeleg,
+keine Vorwegnahme der folgenden PR-CI.
+Die früheren Tabellen bleiben die historischen Vorbelege. Die endgültigen
+Backend-/Frontend-/Smoke-/Ownerzahlen werden aus den tatsächlich abgeschlossenen
+Reports des letzten Heads übernommen, nicht aus Collection, Zwischenfortschritt
+oder automatisch abgebrochenen Vorgängerläufen.

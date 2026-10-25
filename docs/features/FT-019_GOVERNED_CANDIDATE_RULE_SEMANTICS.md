@@ -166,10 +166,15 @@ the latest result. Re-activation of an earlier compatible APPROVED version uses
 the existing activation owner. No definition, criterion or aggregation semantics
 change, and no migration is introduced.
 
-The new protected Browser→API→PostgreSQL journey and additional native boundary
-cases are implemented but **not yet executed** at this documentation checkpoint.
-Targeted local tests do not establish final-tree CI, desktop/mobile inspection or
-cleanup of that journey. The final PR must bind its actual checkout/tree and runs.
+The protected Browser→API→PostgreSQL journey first passed in
+[run 40166152063](https://github.com/burckhju/trading-workspace/actions/runs/40166152063),
+job `121087501390`, on head `1109f047`: one actual pass, retry=0, no skip/flaky.
+Exact owner-created sources, A→B→A, four immutable evaluations, four read-only
+fingerprint windows, six inspected desktop/mobile images and complete cleanup are
+recorded in the qualification report. Three preceding failed head runs remain
+documented. The final PR separately binds the last checkout/tree and complete CI,
+including the PostgreSQL boundary cases; this earlier pass is not transferred to
+a later head.
 
 There is a concrete limit to the requested GOOD-quality reference: the existing
 FT-006 owner copies DailyPrice `VALID` into analysis snapshots, while its calculator
