@@ -108,9 +108,10 @@ def test_numerics_criteria_inputs_and_legacy_hash_are_unchanged() -> None:
     assert new.criteria == old.criteria
     assert tuple(row.canonical() for row in rows) == before
     assert calculate_input_hash(legacy.MODEL_ID, legacy.MODEL_VERSION, parameters, rows) == old_hash
-    assert calculate_input_hash(
-        corrected.MODEL_ID, corrected.MODEL_VERSION, parameters, rows
-    ) != old_hash
+    assert (
+        calculate_input_hash(corrected.MODEL_ID, corrected.MODEL_VERSION, parameters, rows)
+        != old_hash
+    )
     assert legacy.calculate(parameters, rows) == old
 
 
@@ -137,9 +138,10 @@ def test_dispatch_preserves_the_explicit_version(version: str, source_status: st
     parameters = AnalysisParameters()
     rows = tuple(replace(row, quality_status=source_status) for row in sample_rows())
     selected = legacy if version == "1.0.0" else corrected
-    assert calculate_for_version(
-        parameters, rows, model_id=legacy.MODEL_ID, model_version=version
-    ) == selected.calculate(parameters, rows)
+    assert (
+        calculate_for_version(parameters, rows, model_id=legacy.MODEL_ID, model_version=version)
+        == selected.calculate(parameters, rows)
+    )
 
 
 @pytest.mark.parametrize("version", ["", "latest", "1.0", "1.0.2", "2.0.0"])
