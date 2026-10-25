@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 
 import { ErrorNotice, LoadingNotice } from '../../market/components/ApiFeedback';
@@ -10,22 +10,44 @@ interface LessonHypothesisPanelProps {
   lessonVersionId: string;
 }
 
-export function LessonHypothesisPanel({ lessonVersionId }: LessonHypothesisPanelProps) {
+export function LessonHypothesisPanel(props: LessonHypothesisPanelProps) {
+  return <LessonHypothesisForm key={props.lessonVersionId} {...props} />;
+}
+
+function LessonHypothesisForm({ lessonVersionId }: LessonHypothesisPanelProps) {
   const [hypotheses, setHypotheses] = useState<LessonHypothesis[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const [title, setTitle] = useState('');
   const [statement, setStatement] = useState('');
+  const [ready, setReady] = useState(false);
+  const [refresh, setRefresh] = useState(0);
+  const instance = useRef<object | null>(null);
+  const operation = useRef<object | null>(null);
+
+  useLayoutEffect(() => {
+    instance.current = {};
+    return () => {
+      instance.current = null;
+    };
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
     setLoading(true);
+    setReady(false);
     setError(null);
 
     lessonHypothesisClient
       .listForLessonVersion(lessonVersionId, controller.signal)
-      .then(setHypotheses)
+      .then((items) => {
+        if (controller.signal.aborted) return;
+        if (items.some((item) => item.source_lesson_version_id !== lessonVersionId))
+          throw new Error('Die Hypothesen gehören nicht zur gewählten Lesson-Version.');
+        setHypotheses(items);
+        setReady(true);
+      })
       .catch((nextError: unknown) => {
         if (!controller.signal.aborted) setError(nextError);
       })
@@ -34,10 +56,24 @@ export function LessonHypothesisPanel({ lessonVersionId }: LessonHypothesisPanel
       });
 
     return () => controller.abort();
-  }, [lessonVersionId]);
+  }, [lessonVersionId, refresh]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const visit = instance.current;
+    if (
+      !ready ||
+      loading ||
+      !title.trim() ||
+      !statement.trim() ||
+      hypotheses.length > 0 ||
+      visit === null ||
+      operation.current !== null
+    )
+      return;
+    const pending = {};
+    operation.current = pending;
+    const ownsCommand = () => instance.current === visit && operation.current === pending;
     setSaving(true);
     setError(null);
     try {
@@ -45,13 +81,22 @@ export function LessonHypothesisPanel({ lessonVersionId }: LessonHypothesisPanel
         title,
         statement,
       });
+      if (!ownsCommand()) return;
+      if (created.source_lesson_version_id !== lessonVersionId || !created.id)
+        throw new Error('Die Hypothesenantwort gehört nicht zur gewählten Lesson-Version.');
       setHypotheses((current) => [...current, created]);
       setTitle('');
       setStatement('');
     } catch (nextError: unknown) {
-      setError(nextError);
+      if (ownsCommand()) {
+        setError(nextError);
+        setReady(false);
+      }
     } finally {
-      setSaving(false);
+      if (ownsCommand()) {
+        operation.current = null;
+        setSaving(false);
+      }
     }
   }
 
@@ -68,10 +113,24 @@ export function LessonHypothesisPanel({ lessonVersionId }: LessonHypothesisPanel
         Eine Hypothese ist eine explizite Interpretation dieser Lesson-Version. Sie aktiviert keine
         Modelländerung und startet keine Validierung automatisch.
       </p>
+      <p className="mt-2 break-all text-xs">Quell-LessonVersion {lessonVersionId}</p>
 
       {error !== null && (
         <div className="mt-4">
           <ErrorNotice error={error} />
+          <button
+            type="button"
+            disabled={saving}
+            onClick={() => {
+              if (operation.current === null) setRefresh((n) => n + 1);
+            }}
+          >
+            Hypothesenstand neu laden
+          </button>
+          <p className="mt-2 text-sm">
+            Befehlsabschluss vor einer weiteren Übermittlung bewusst prüfen. Keine automatische
+            Wiederholung.
+          </p>
         </div>
       )}
 
@@ -88,6 +147,9 @@ export function LessonHypothesisPanel({ lessonVersionId }: LessonHypothesisPanel
                 {hypothesis.statement}
               </p>
               <p className="mt-2 break-all text-xs text-slate-500">{hypothesis.id}</p>
+              <p className="mt-1 break-all text-xs text-slate-500">
+                Gebundene Quellversion {hypothesis.source_lesson_version_id}
+              </p>
               <HypothesisProposalPanel hypothesisId={hypothesis.id} />
             </article>
           ))}
@@ -101,6 +163,7 @@ export function LessonHypothesisPanel({ lessonVersionId }: LessonHypothesisPanel
               value={title}
               onChange={(event) => setTitle(event.target.value)}
               required
+              disabled={saving || !ready}
               maxLength={240}
             />
           </label>
@@ -111,11 +174,12 @@ export function LessonHypothesisPanel({ lessonVersionId }: LessonHypothesisPanel
               value={statement}
               onChange={(event) => setStatement(event.target.value)}
               required
+              disabled={saving || !ready}
             />
           </label>
           <button
             type="submit"
-            disabled={saving}
+            disabled={saving || !ready}
             className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium disabled:opacity-50"
           >
             {saving ? 'Wird übergeben …' : 'Hypothese für FT-013 anlegen'}

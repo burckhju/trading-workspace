@@ -154,3 +154,27 @@ No new frontend schema logic is introduced. FT-018 remains driven by backend rea
 ## Non-scope
 
 FT-019 does not add a generic rule DSL, relative-strength threshold parameter, volatility/range-position trading rule, new runtime resolver, new activation engine, automatic activation, automatic model selection, governance UI redesign, rule editor, backtesting, broker integration or database migration.
+
+## 2026-10-25 — Candidate governance journey qualification
+
+The bounded [Candidate governance qualification](../implementation/CANDIDATE_GOVERNANCE_JOURNEY_QUALIFICATION.md)
+reuses this rule and both existing V2 policies. Candidate evaluation readback now
+projects the exact already persisted analysis sources, including role, source
+ID/version and analysis model ID/version. The existing consumer offers historical
+evaluation links; an invalid requested evaluation is not silently replaced with
+the latest result. Re-activation of an earlier compatible APPROVED version uses
+the existing activation owner. No definition, criterion or aggregation semantics
+change, and no migration is introduced.
+
+The new protected Browser→API→PostgreSQL journey and additional native boundary
+cases are implemented but **not yet executed** at this documentation checkpoint.
+Targeted local tests do not establish final-tree CI, desktop/mobile inspection or
+cleanup of that journey. The final PR must bind its actual checkout/tree and runs.
+
+There is a concrete limit to the requested GOOD-quality reference: the existing
+FT-006 owner copies DailyPrice `VALID` into analysis snapshots, while its calculator
+treats values other than `GOOD` as `LIMITED`. The new journey asserts this actual
+LIMITED state. Even a passing LIMITED A→B→A run does not satisfy the GOOD-reference
+part of B07. FT-006 quality semantics remain unchanged; the dependent correction
+and requalification require a separate bounded task. This qualification makes no
+backtest, financial-superiority, M9-acceptance, release or observed-PC claim.

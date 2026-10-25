@@ -714,3 +714,36 @@ Entwicklungs-PR des Branches `fix/model-proposal-context-isolation` festgehalten
 Strang A/#204, Backend-Produktionslogik, Runtime-Semantik, Versionen und Workflows
 bleiben unverändert. Der Product Backlog bleibt die einzige Aufgabenstatusquelle;
 dieser Nachtrag erklärt weder Fachabnahme noch Merge, Release oder PC-Installation.
+
+## 2026-10-25 — B: Candidate-Governance
+
+[PB-020 Governance](../planning/PRODUCT_BACKLOG.md#pb-020-governance),
+[Aktivierung/Rückkehr](../planning/PRODUCT_BACKLOG.md#pb-020-activation) und
+[Candidate-Familie](../planning/PRODUCT_BACKLOG.md#pb-020-candidate-family)
+→ bestehende FT-013/019/020-Owner und unveränderter #274-Erfassungsschutz
+→ verifizierter Lesson-Snapshot als Hypothesenquelle, additive gespeicherte
+Validation-Evidence- und Candidate-Analysequellenprojektion
+→ bewusste Auswahl einer erhaltenen APPROVED-Version im bestehenden
+Runtime-Aktivierungsconsumer und genaue historische Evaluationslinks
+→ [Übergangsmatrix, B01–B16 und Qualifikationsgrenzen](../implementation/CANDIDATE_GOVERNANCE_JOURNEY_QUALIFICATION.md).
+
+Basis ist `fbd77fb94947a1fdbfc0aeb90811353fae655a59`, Tree
+`027e1d0546f4c09d761ac10d1f59e87d613aff41`, v1.5.14, Schema `20261017_0047`.
+59 Backend- und 115 UI-Fälle sind die gezielten Ergebnisse der getrennten
+Arbeitskopien. Anschließend bestanden auf der zusammengeführten Arbeitskopie
+80 Model-/Candidate-Unitfälle, die vollständige Backend-Statik, das unveränderte
+Frontendgate mit 121 Dateien / 734 Tests und Build sowie 153 reine Python- und
+21 Node-Guardfälle. Diese Ergebnisse werden nicht zu einer Suite addiert.
+Der neue geschützte Browser→API→PostgreSQL-Gesamtfall,
+die nativen Grenzfälle auf dem neuen Stand, Desktop-/Mobil-Sichtprüfung, Cleanup
+und finale kombinierte CI sind an diesem Dokumentationsstand noch nicht ausgeführt.
+Der Entwicklungs-PR muss finalen Head, tatsächlichen Checkout/Tree und Runs/Versuche
+gesondert binden; frühere v1.5.14-Reports ersetzen diese nicht.
+
+Die reale FT-006-Abbildung von Preisqualität VALID zu Analysequalität LIMITED
+verhindert die verlangte GOOD-Referenz von B07. Sie bleibt als konkrete Restarbeit
+ausgewiesen, auch wenn ein späterer LIMITED-A→B→A-Lauf besteht; dieser Schnitt
+ändert keine FT-006-Semantik. A/#204 und die vier vorhandenen Finanz-/Lernownerfälle
+bleiben unabhängig erhalten. Keine Statushochsetzung, neue Fachregel, Backtest-/
+Überlegenheitsbehauptung, M9-Gesamtabnahme, Veröffentlichung oder PC-Beobachtung
+wird aus dieser Entwicklungsqualifikation abgeleitet.

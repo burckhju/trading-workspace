@@ -236,3 +236,6 @@ class CandidateService:
 
     async def list_criteria(self, evaluation_id: UUID) -> tuple[CandidateCriterionModel, ...]:
         return await self._repo.list_criteria(evaluation_id)
+
+    async def list_sources(self, evaluation_id: UUID) -> tuple[CandidateEvaluationSourceModel, ...]:
+        return await self._repo.list_sources(evaluation_id)

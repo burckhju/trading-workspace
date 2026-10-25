@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 
 import { candidateApiClient } from '../services/client';
@@ -80,19 +80,27 @@ function Criterion({ item }: { item: CandidateCriterion }) {
 
 function EvaluationDetail({ evaluation }: { evaluation: CandidateEvaluation }) {
   return (
-    <section className="space-y-5">
+    <section className="min-w-0 space-y-5" aria-label={`Evaluation ${evaluation.id}`}>
       <div className={`rounded-xl border p-5 ${resultClasses(evaluation.qualification)}`}>
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-xs uppercase tracking-wide text-slate-400">Systemqualifikation</p>
             <h2 className="mt-1 text-2xl font-semibold">{evaluation.qualification}</h2>
           </div>
-          <div className="text-right text-sm text-slate-300">
+          <div className="break-all text-sm text-slate-300">
             <div>{evaluation.model_id}</div>
             <div>Version {evaluation.model_version}</div>
             <div>Qualität {evaluation.quality_status}</div>
           </div>
         </div>
+        <p className="mt-3 break-all text-xs">
+          Evaluation {evaluation.id} · Bewertungsstand {evaluation.version} ·{' '}
+          {evaluation.evaluated_at}
+        </p>
+        <p className="mt-2 text-xs">
+          Die angezeigte Modellversion wurde bei dieser Ausführung verwendet. Eine spätere
+          Aktivierung verändert dieses Ergebnis nicht.
+        </p>
         {evaluation.warnings.length > 0 && (
           <div className="mt-4 rounded-lg border border-amber-800 bg-amber-950/30 p-3 text-sm">
             {evaluation.warnings.map((warning) => (
@@ -101,6 +109,20 @@ function EvaluationDetail({ evaluation }: { evaluation: CandidateEvaluation }) {
           </div>
         )}
       </div>
+
+      <details className="min-w-0 rounded-lg border border-slate-800 p-3 text-sm">
+        <summary>Gespeicherte Analysequellen dieser Evaluation</summary>
+        {evaluation.sources ? (
+          evaluation.sources.map((source) => (
+            <p className="mt-2 break-all" key={source.role}>
+              {source.role} · {source.source_type} · {source.source_id} · Quellversion{' '}
+              {source.source_version} · Modell {source.model_id} / {source.model_version}
+            </p>
+          ))
+        ) : (
+          <p className="mt-2">Konkrete Quellen sind in diesem Lesestand nicht enthalten.</p>
+        )}
+      </details>
 
       {groups.map((group, index) => {
         const criteria = evaluation.criteria.filter((item) => item.group === group);
@@ -129,8 +151,9 @@ function EvaluationDetail({ evaluation }: { evaluation: CandidateEvaluation }) {
 }
 
 export function CandidatePage() {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const requestedCandidateId = searchParams.get('candidate') ?? '';
+  const requestedEvaluationId = searchParams.get('evaluation') ?? '';
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [selectedId, setSelectedId] = useState('');
   const [evaluations, setEvaluations] = useState<CandidateEvaluation[]>([]);
@@ -139,20 +162,36 @@ export function CandidatePage() {
   const [workflowError, setWorkflowError] = useState<unknown>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [evaluating, setEvaluating] = useState(false);
+  const evaluationOperation = useRef<object | null>(null);
+  const instance = useRef<object | null>(null);
+  const selectedRef = useRef('');
+
+  useLayoutEffect(() => {
+    instance.current = {};
+    return () => {
+      instance.current = null;
+    };
+  }, []);
+  useLayoutEffect(() => {
+    if (requestedCandidateId) selectedRef.current = requestedCandidateId;
+  }, [requestedCandidateId]);
 
   useEffect(() => {
     const controller = new AbortController();
     candidateApiClient
       .list(controller.signal)
       .then((items) => {
+        if (controller.signal.aborted) return;
         setCandidates(items);
-        setSelectedId(
-          (current) =>
-            current ||
-            (requestedCandidateId && items.some((item) => item.id === requestedCandidateId)
+        setSelectedId((current) => {
+          const next = requestedCandidateId
+            ? items.some((item) => item.id === requestedCandidateId)
               ? requestedCandidateId
-              : items[0]?.id || ''),
-        );
+              : ''
+            : current || items[0]?.id || '';
+          selectedRef.current = next;
+          return next;
+        });
       })
       .catch((error: unknown) => {
         if (!(error instanceof DOMException && error.name === 'AbortError')) {
@@ -174,13 +213,16 @@ export function CandidatePage() {
     }
 
     const controller = new AbortController();
+    setEvaluations([]);
     setWorkflow(null);
     setWorkflowLoading(true);
     setWorkflowError(null);
 
     candidateApiClient
       .evaluations(selectedId, controller.signal)
-      .then(setEvaluations)
+      .then((value) => {
+        if (!controller.signal.aborted) setEvaluations(value);
+      })
       .catch((error: unknown) => {
         if (!(error instanceof DOMException && error.name === 'AbortError')) {
           setMessage(
@@ -193,7 +235,9 @@ export function CandidatePage() {
 
     candidateApiClient
       .liveWorkflow(selectedId, controller.signal)
-      .then(setWorkflow)
+      .then((value) => {
+        if (!controller.signal.aborted) setWorkflow(value);
+      })
       .catch((error: unknown) => {
         if (!(error instanceof DOMException && error.name === 'AbortError')) {
           setWorkflowError(error);
@@ -207,29 +251,53 @@ export function CandidatePage() {
   }, [selectedId]);
 
   async function refreshWorkflow() {
-    if (!selectedId) return;
+    const visit = instance.current;
+    if (!selectedId || visit === null || selectedRef.current !== selectedId) return;
+    const ownsRead = () => instance.current === visit && selectedRef.current === selectedId;
     setWorkflow(null);
     setWorkflowLoading(true);
     setWorkflowError(null);
     try {
-      setWorkflow(await candidateApiClient.liveWorkflow(selectedId));
+      const value = await candidateApiClient.liveWorkflow(selectedId);
+      if (ownsRead()) setWorkflow(value);
     } catch (error: unknown) {
-      setWorkflowError(error);
+      if (ownsRead()) setWorkflowError(error);
     } finally {
-      setWorkflowLoading(false);
+      if (ownsRead()) setWorkflowLoading(false);
     }
   }
 
   async function evaluateSelected() {
-    if (!selectedId || evaluating || workflowLoading || workflow?.can_evaluate !== true) return;
+    const visit = instance.current;
+    if (
+      !selectedId ||
+      selectedRef.current !== selectedId ||
+      evaluating ||
+      workflowLoading ||
+      workflowError !== null ||
+      workflow?.can_evaluate !== true ||
+      visit === null ||
+      evaluationOperation.current !== null
+    )
+      return;
+    const pending = {};
+    evaluationOperation.current = pending;
+    const ownsCommand = () =>
+      instance.current === visit &&
+      evaluationOperation.current === pending &&
+      selectedRef.current === selectedId;
     setEvaluating(true);
     setMessage(null);
     try {
       await candidateApiClient.evaluateAuto(selectedId);
+      if (!ownsCommand()) return;
       const evaluationItems = await candidateApiClient.evaluations(selectedId);
+      if (!ownsCommand()) return;
       setEvaluations(evaluationItems);
+      setSearchParams({ candidate: selectedId });
       await refreshWorkflow();
     } catch (error: unknown) {
+      if (!ownsCommand()) return;
       setMessage(
         error instanceof Error
           ? `${error.message} Voraussetzungen werden neu geprüft.`
@@ -237,7 +305,10 @@ export function CandidatePage() {
       );
       await refreshWorkflow();
     } finally {
-      setEvaluating(false);
+      if (instance.current === visit && evaluationOperation.current === pending) {
+        evaluationOperation.current = null;
+        setEvaluating(false);
+      }
     }
   }
 
@@ -246,7 +317,14 @@ export function CandidatePage() {
     [candidates, selectedId],
   );
   const latest = evaluations[0] ?? null;
-  const canEvaluate = workflow?.can_evaluate === true && !workflowLoading && workflowError === null;
+  const viewed = requestedEvaluationId
+    ? (evaluations.find((evaluation) => evaluation.id === requestedEvaluationId) ?? null)
+    : latest;
+  const canEvaluate =
+    workflow?.can_evaluate === true &&
+    !workflowLoading &&
+    workflowError === null &&
+    (!requestedCandidateId || requestedCandidateId === selectedId);
 
   return (
     <div className="grid w-full gap-8 lg:grid-cols-[20rem_1fr]">
@@ -261,14 +339,20 @@ export function CandidatePage() {
             <button
               key={candidate.id}
               type="button"
-              onClick={() => setSelectedId(candidate.id)}
+              disabled={evaluating}
+              onClick={() => {
+                if (evaluationOperation.current !== null) return;
+                selectedRef.current = candidate.id;
+                setSelectedId(candidate.id);
+                setSearchParams({ candidate: candidate.id });
+              }}
               className={`w-full rounded-lg border p-3 text-left ${
                 candidate.id === selectedId
                   ? 'border-sky-600 bg-sky-950/30'
                   : 'border-slate-800 bg-slate-900 hover:border-slate-700'
               }`}
             >
-              <div className="font-medium">{candidate.underlying_id}</div>
+              <div className="break-all font-medium">{candidate.underlying_id}</div>
               <div className="mt-1 text-xs text-slate-400">Benutzerstatus: {candidate.status}</div>
             </button>
           ))}
@@ -278,13 +362,15 @@ export function CandidatePage() {
         </div>
       </aside>
 
-      <div>
+      <div className="min-w-0">
         {message && <p className="mb-4 rounded-lg border border-rose-800 p-3 text-sm">{message}</p>}
         {selected ? (
           <>
             <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
               <div>
-                <p className="text-sm text-slate-400">Basiswert {selected.underlying_id}</p>
+                <p className="break-all text-sm text-slate-400">
+                  Basiswert {selected.underlying_id}
+                </p>
                 <Link
                   className="text-sm text-sky-300 underline"
                   to={`/market-charts?underlying=${selected.underlying_id}`}
@@ -413,7 +499,7 @@ export function CandidatePage() {
               )}
             </section>
 
-            {latest ? (
+            {viewed ? (
               <>
                 <div className="mb-5 flex justify-end">
                   <Link
@@ -421,7 +507,7 @@ export function CandidatePage() {
                       pathname: '/trade-plans',
                       search: new URLSearchParams({
                         candidate_id: selected.id,
-                        candidate_evaluation_id: latest.id,
+                        candidate_evaluation_id: viewed.id,
                       }).toString(),
                     }}
                     className="rounded-lg border border-sky-700 px-3 py-2 text-sm"
@@ -429,21 +515,36 @@ export function CandidatePage() {
                     TradePlan aus dieser Evaluation erstellen
                   </Link>
                 </div>
-                <EvaluationDetail evaluation={latest} />
+                <EvaluationDetail evaluation={viewed} />
               </>
             ) : (
               <p className="rounded-xl border border-slate-800 p-5 text-slate-400">
-                Für diesen Kandidaten liegt noch keine Evaluation vor.
+                {requestedEvaluationId
+                  ? 'Die angeforderte Evaluation ist für diesen Kandidaten nicht im Lesestand vorhanden. Keine andere Evaluation wurde eingesetzt.'
+                  : 'Für diesen Kandidaten liegt noch keine Evaluation vor.'}
               </p>
             )}
-            {evaluations.length > 1 && (
+            {evaluations.length > 0 && (
               <div className="mt-8">
                 <h3 className="font-semibold">Bewertungshistorie</h3>
                 <ul className="mt-3 space-y-2 text-sm text-slate-300">
                   {evaluations.map((evaluation) => (
-                    <li key={evaluation.id} className="rounded-lg border border-slate-800 p-3">
-                      Version {evaluation.version} · {evaluation.qualification} ·{' '}
-                      {new Date(evaluation.evaluated_at).toLocaleString('de-DE')}
+                    <li
+                      key={evaluation.id}
+                      className="break-all rounded-lg border border-slate-800 p-3"
+                    >
+                      <Link
+                        className="text-sky-300 underline"
+                        to={`/candidates?candidate=${selected.id}&evaluation=${evaluation.id}`}
+                      >
+                        Bewertungsstand {evaluation.version} · {evaluation.qualification} ·{' '}
+                        {new Date(evaluation.evaluated_at).toLocaleString('de-DE')}
+                      </Link>
+                      <p className="mt-1">
+                        Verwendetes Modell {evaluation.model_id} · Version{' '}
+                        {evaluation.model_version}
+                      </p>
+                      <p className="mt-1 text-xs">Evaluation {evaluation.id}</p>
                     </li>
                   ))}
                 </ul>

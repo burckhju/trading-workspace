@@ -3,6 +3,7 @@ export type ValidationConclusion = 'SUPPORTS' | 'INCONCLUSIVE' | 'CONTRADICTS';
 export interface ModelValidationSummary {
   id: string;
   proposal_id: string;
+  evidence_ids: string[];
   method: 'RETROSPECTIVE';
   evidence_cutoff_at: string;
   conclusion: ValidationConclusion;

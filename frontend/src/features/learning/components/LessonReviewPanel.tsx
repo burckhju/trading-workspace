@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from 'react';
 import { ErrorNotice } from '../../market/components/ApiFeedback';
 import { MarketApiError } from '../../market/services/http';
 import { EvidenceSourceStatus } from './EvidenceSourceStatus';
@@ -30,9 +38,11 @@ export function LessonReviewPanel({
   lessonId,
   onChanged,
   initialVersionId,
+  renderVersionActions,
 }: {
   lessonId: string;
   initialVersionId?: string;
+  renderVersionActions?: (snapshot: LessonVersionSnapshot) => ReactNode;
   onChanged: () => void;
 }) {
   const fieldPrefix = useId();
@@ -207,7 +217,7 @@ export function LessonReviewPanel({
       }
     }
   };
-  return (
+  const review = (
     <section
       id="lesson-history"
       aria-label="Lesson-Prüfung und Historie"
@@ -546,6 +556,12 @@ export function LessonReviewPanel({
         </details>
       )}
     </section>
+  );
+  return (
+    <>
+      {review}
+      {!loading && readError === null && viewed && renderVersionActions?.(viewed)}
+    </>
   );
 }
 

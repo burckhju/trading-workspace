@@ -106,9 +106,25 @@ function LessonDetail({ lessonId, versionId }: { lessonId: string; versionId?: s
         </ul>
       </section>
 
-      <LessonReviewPanel lessonId={lessonId} initialVersionId={versionId} onChanged={onChanged} />
-
-      <LessonHypothesisPanel lessonVersionId={lesson.current_version_id} />
+      <LessonReviewPanel
+        lessonId={lessonId}
+        initialVersionId={versionId}
+        onChanged={onChanged}
+        renderVersionActions={(snapshot) => (
+          <div key={snapshot.version.id} className="min-w-0 space-y-3">
+            <p className="break-all text-sm">
+              Governance-Quelle: Lesson-Version {snapshot.version.version} · {snapshot.version.id}
+            </p>
+            <Link
+              to={`/lessons/${lessonId}?lesson_version_id=${snapshot.version.id}#lesson-history`}
+              className="text-sm text-emerald-300 underline"
+            >
+              Genau diese Lesson-Version öffnen
+            </Link>
+            <LessonHypothesisPanel lessonVersionId={snapshot.version.id} />
+          </div>
+        )}
+      />
 
       <Link to="/post-trade" className="inline-block text-sm text-emerald-300 underline">
         Zurück zum Post-Trade Review

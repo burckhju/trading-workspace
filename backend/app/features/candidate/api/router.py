@@ -16,6 +16,7 @@ from app.features.candidate.api.dtos import (
     CandidateCriterionResponse,
     CandidateEvaluationDetailResponse,
     CandidateEvaluationResponse,
+    CandidateEvaluationSourceResponse,
     CandidateLiveWorkflowResponse,
     CandidateLiveWorkflowStepResponse,
     CandidateResponse,
@@ -173,6 +174,7 @@ async def list_candidate_evaluations(
     output: list[CandidateEvaluationDetailResponse] = []
     for model in await service.list_evaluations(candidate_id):
         criteria = await service.list_criteria(model.id)
+        sources = await service.list_sources(model.id)
         output.append(
             CandidateEvaluationDetailResponse(
                 **_evaluation(model).model_dump(),
@@ -191,6 +193,17 @@ async def list_candidate_evaluations(
                         explanation=item.explanation,
                     )
                     for item in criteria
+                ],
+                sources=[
+                    CandidateEvaluationSourceResponse(
+                        role=item.role,
+                        source_type=item.source_type,
+                        source_id=item.source_id,
+                        source_version=item.source_version,
+                        model_id=item.model_id,
+                        model_version=item.model_version,
+                    )
+                    for item in sources
                 ],
             )
         )

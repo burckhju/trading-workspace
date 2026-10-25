@@ -102,6 +102,7 @@ class ValidationResponse(BaseModel):
     notes: str | None = None
     created_at: datetime
     created_by: UUID
+    evidence_ids: list[UUID]
 
 
 class ApprovalResponse(BaseModel):

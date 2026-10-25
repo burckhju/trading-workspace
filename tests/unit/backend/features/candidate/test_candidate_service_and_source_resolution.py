@@ -39,6 +39,7 @@ async def test_candidate_service_create_get_list_status_and_history_paths():
     repo.get = AsyncMock()
     repo.list_evaluations = AsyncMock(return_value=(SimpleNamespace(version=1),))
     repo.list_criteria = AsyncMock(return_value=(SimpleNamespace(criterion_id="X"),))
+    repo.list_sources = AsyncMock(return_value=(SimpleNamespace(role="MARKET"),))
     service._repo = repo
 
     workspace, underlying = uuid4(), uuid4()
@@ -77,6 +78,7 @@ async def test_candidate_service_create_get_list_status_and_history_paths():
 
     assert (await service.list_evaluations(created.id))[0].version == 1
     assert (await service.list_criteria(uuid4()))[0].criterion_id == "X"
+    assert (await service.list_sources(uuid4()))[0].role == "MARKET"
 
 
 @pytest.mark.asyncio

@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.features.learning.persistence.models import (
     LearningEvidenceModel,
+    LessonModel,
     LessonVersionModel,
 )
 from app.features.model.domain.enums import (
@@ -145,8 +146,11 @@ class ModelGovernanceService:
             raise ValueError("hypothesis requires evidence or a lesson version")
         if source_lesson_version_id is not None:
             lesson_exists = await self._session.scalar(
-                select(LessonVersionModel.id).where(
-                    LessonVersionModel.id == source_lesson_version_id
+                select(LessonVersionModel.id)
+                .join(LessonModel, LessonModel.id == LessonVersionModel.lesson_id)
+                .where(
+                    LessonVersionModel.id == source_lesson_version_id,
+                    LessonModel.workspace_id == workspace_id,
                 )
             )
             if lesson_exists is None:
@@ -270,6 +274,7 @@ class ModelGovernanceService:
             notes=notes,
             created_at=utc_now(),
             created_by=actor,
+            evidence_ids=tuple(sorted(set(evidence_ids))),
         )
         self._session.add(
             ModelValidationRecord(
@@ -285,7 +290,7 @@ class ModelGovernanceService:
             )
         )
         await self._session.flush()
-        for evidence_id in dict.fromkeys(evidence_ids):
+        for evidence_id in validation.evidence_ids:
             self._session.add(
                 ModelValidationEvidenceRecord(
                     validation_id=validation.id,

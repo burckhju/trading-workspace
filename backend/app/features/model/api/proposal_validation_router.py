@@ -13,7 +13,7 @@ from app.database.dependencies import get_database_session
 from app.features.model.api.dtos import ValidationResponse
 from app.features.model.api.errors import translate_model_governance_error
 from app.features.model.domain.enums import ValidationConclusion, ValidationMethod
-from app.features.model.persistence.models import ModelValidationRecord
+from app.features.model.domain.models import ModelValidation
 from app.features.model.service.proposal_validation_read_service import (
     ProposalValidationReadService,
 )
@@ -32,7 +32,7 @@ def _raise(error: ValueError) -> NoReturn:
     raise translate_model_governance_error(error) from error
 
 
-def _response(value: ModelValidationRecord) -> ValidationResponse:
+def _response(value: ModelValidation) -> ValidationResponse:
     return ValidationResponse(
         id=value.id,
         proposal_id=value.proposal_id,
@@ -43,6 +43,7 @@ def _response(value: ModelValidationRecord) -> ValidationResponse:
         notes=value.notes,
         created_at=value.created_at,
         created_by=value.created_by,
+        evidence_ids=list(value.evidence_ids),
     )
 
 

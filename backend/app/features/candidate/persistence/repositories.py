@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.features.candidate.persistence.models import (
     CandidateCriterionModel,
     CandidateEvaluationModel,
+    CandidateEvaluationSourceModel,
     CandidateModel,
 )
 from app.features.market.persistence.models import UnderlyingModel
@@ -91,6 +92,17 @@ class SqlAlchemyCandidateRepository:
                         CandidateCriterionModel.criterion_group,
                         CandidateCriterionModel.criterion_id,
                     )
+                )
+            ).all()
+        )
+
+    async def list_sources(self, evaluation_id: UUID) -> tuple[CandidateEvaluationSourceModel, ...]:
+        return tuple(
+            (
+                await self._session.scalars(
+                    select(CandidateEvaluationSourceModel)
+                    .where(CandidateEvaluationSourceModel.evaluation_id == evaluation_id)
+                    .order_by(CandidateEvaluationSourceModel.role)
                 )
             ).all()
         )
