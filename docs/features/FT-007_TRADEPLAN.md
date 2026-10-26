@@ -4,6 +4,13 @@
 
 Approved for Build – Sprint 6, 2026-08-11.
 
+**UI-Fortschreibung 25.10.2026:** Der begrenzte Auftrag konsolidiert Ursprung,
+zentrale Planansicht und den versionsgenauen FT-008-Einstieg sowie den vorhandenen
+Approved-Amendment-Weg. [Umfang, Referenzfälle und Integrationsgrenzen](../implementation/TRADE_PLAN_SELECTION_CONTEXT.md).
+Die folgenden historischen Fachregeln gelten weiter. Eine allgemeine
+Inhaltsrevision bereits gespeicherter DRAFT-Versionen ist weiterhin ein eigener,
+noch nicht implementierter Vertrags- und Backlogpunkt.
+
 ## Nutzerproblem und Ziel
 
 Der Benutzer benötigt zwischen Candidate Qualification beziehungsweise manueller Underlying-Auswahl und späterer Product Selection einen reproduzierbaren, produktneutralen Planungsstand. FT-007 ermöglicht, einen TradePlan zu erstellen, fachlich zu prüfen, versioniert zu ändern und eine konkrete Version explizit freizugeben.
@@ -115,7 +122,9 @@ FT-007 V1 ist vollständig LONG-only, auch für manuell angelegte TradePlans. `d
 
 V1 verwendet folgende Zustände je fachlichem Versionsstand:
 
-- `DRAFT` – bearbeitbarer Planungsstand;
+- `DRAFT` – noch nicht freigegebener Planungsstand; das Erstellungsformular ist vor
+  Speicherung bearbeitbar. Für eine nachträgliche Inhaltsrevision eines bereits
+  gespeicherten DRAFT besteht derzeit kein allgemeiner API-Vertrag;
 - `READY_FOR_REVIEW` – alle Approval-Pflichtfelder sind vorhanden und der Benutzer hat Review angefordert;
 - `APPROVED` – konkrete immutable Version explizit freigegeben;
 - `ABANDONED` – Planung wird bewusst nicht weiterverfolgt;
@@ -174,6 +183,26 @@ Ein Approved-Snapshot wird nie editiert. Änderungen an Thesis, Entry, Stop/Inva
 - neuem Actor-/Zeitnachweis.
 
 Die neue Version benötigt ein eigenes Approval. Ein späteres Product-Selection-Objekt referenziert die konkrete Approved-Version und verändert sie nicht.
+
+### Bedienweg nach UI-Konsolidierung
+
+„Neue Planversion erstellen“ bindet den vorbefüllten Editor an die ausdrücklich
+ausgewählte APPROVED-Version. Gespeichert wird ausschließlich über
+`POST /api/v1/trade-plans/{planId}/versions/{baseVersionId}/amendments` mit
+`thesis`, `entry`, `invalidation`, allen `targets`, `risk_assumptions` und einem
+nichtleeren `change_reason`. Hintergrundabfragen wechseln diese Basis nicht.
+
+Anlage und Amendment verwenden dasselbe typisierte Inhaltsformular. Es bildet
+PRICE, PRICE_RANGE und TRIGGER einschließlich Referenzpreis, Planwährung,
+Gültigkeitszeitpunkt, sämtlichen Begründungen und Risikoangaben ab. Nicht
+geänderte Decimalstrings, Nullwerte und optionale Inhalte bleiben erhalten.
+Planwährung und tatsächliche Ausführungswährung bleiben getrennte Eingaben.
+
+Nach erfolgreichem Amendment wird die neue DRAFT-Version in derselben zentralen
+Ansicht geöffnet. Die frühere Version bleibt APPROVED und kann ausdrücklich für
+eine Produktauswahl gewählt werden, solange der bestehende Backendvertrag sie
+zulässt. Erst eine separate Freigabe der Folgeversion löst die vorherige Freigabe
+ab. Run-, Produktentscheidungs- und Trade-Referenzen bleiben historisch gebunden.
 
 ## Entry-Modell V1
 
@@ -294,6 +323,25 @@ V1 benötigt mindestens:
 - sichtbare Provenance bei Candidate-Ursprung;
 - Amendment-Aktion von Approved;
 - klare Kennzeichnung, dass keine Handelsentscheidung oder Order erfolgt.
+
+### Aktueller begrenzter UI-Vertrag
+
+- Der manuelle Ursprung wird einmal über Name, Ticker, ISIN oder WKN gewählt.
+  Candidate-Ursprünge laden genau die übergebene gespeicherte Evaluation und
+  prüfen ihre Zugehörigkeit. Technische IDs sind keine konkurrierenden Eingaben.
+- `/trade-plans?trade_plan_id=…` bleibt bestehen; `trade_plan_version_id=…`
+  öffnet einen genauen Versionsstand. Eine ausdrücklich fehlende Version wird
+  als Fehler angezeigt und nicht durch den neuesten Stand ersetzt.
+- Nach Plananlage und beim späteren Öffnen gilt dieselbe zentrale Planansicht.
+  Ein vollständiges Anlageformular bleibt nicht als zweiter Planblock stehen.
+- Die Versionsauswahl steuert Inhalt und zulässige Aktionen gemeinsam.
+  Historie, Herkunft und technische Referenzen sind gezielt erreichbar.
+- FT-008 bindet `trade_plan_id` und `trade_plan_version_id` gemeinsam. Der
+  Auswahlschritt berücksichtigt weiterhin APPROVED-Versionen, wenn die neueste
+  Version bereits DRAFT ist. Ein `run_id` öffnet den gespeicherten Run mit
+  seinen ursprünglichen Referenzen; reine Navigation erzeugt keinen neuen Run.
+- Die vorhandene Aktion READY_FOR_REVIEW → DRAFT ist eine Statusänderung.
+  Sie stellt keinen fehlenden Inhaltsrevisionsvertrag bereit.
 
 ## Akzeptanzkriterien
 

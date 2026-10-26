@@ -1,0 +1,213 @@
+{
+  "evidence_kind": "Final local browser qualification; all records are synthetic in an explicitly disposable isolated database.",
+  "date_utc": "2026-10-25",
+  "extracted_at_utc": "2026-10-25T16:47:08.878185+00:00",
+  "base_commit": "17d5891e0ff6e89ced73d587addb28589f5a292f",
+  "repository_version": "1.5.20",
+  "source_state": "Uncommitted UI diff on this main base; commit association is recorded in the accompanying draft PR. Asset and spec hashes below identify the executed sources.",
+  "source_trace": "frontend/test-results/plan-context-main1520-final-native/ft007-plan-context-postgre-cfd0a--the-historical-run-and-BUY-chromium/trace.zip",
+  "source_trace_sha256": "8cf6808d8df52dcb0b2e8c14a06e9fc52158a9521c00f5a075d157a0ec7671c6",
+  "data_scope": "Owner APIs created every record used by the native test; no user depot or external account. JSON responses and original PNG attachment bytes are copied without alteration.",
+  "runtime": {
+    "node": "22.16.0",
+    "python": "3.12.14",
+    "playwright": "1.55.0",
+    "chromium": "140.0.7339.16",
+    "postgresql": "16.2",
+    "postgresql_distribution": "pgserver 0.1.4, workspace-local",
+    "schema_revision": "20261017_0047"
+  },
+  "database_precision": "Existing backend stores plan prices as Numeric(24, 10). Native comparison uses the exact persisted GET response. Separate mocked browser fixtures verify longer decimal strings remain unchanged in frontend requests; no additional database precision is claimed.",
+  "native_environment": {
+    "TRADE_E2E_UI_URL": "http://127.0.0.1:5189",
+    "TRADE_E2E_API_URL": "http://127.0.0.1:8187/api/v1",
+    "TRADE_E2E_WRITES_ALLOWED": "1",
+    "PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH": "/workspace/scratch/59da26c5711e/browser-shell/chromium_headless_shell-1187/chrome-linux/headless_shell"
+  },
+  "fixture_environment": {
+    "PLAYWRIGHT_BASE_URL": "http://127.0.0.1:5188"
+  },
+  "final_results": {
+    "fixtures": {
+      "passed": 17,
+      "failed": 0,
+      "skipped": 0,
+      "retries": 0,
+      "workers": 2,
+      "seconds": 11.7,
+      "output": "frontend/test-results/plan-context-main1520-final-fixtures",
+      "api_mode": "page.route fixtures"
+    },
+    "native": {
+      "passed": 5,
+      "failed": 0,
+      "skipped": 0,
+      "retries": 0,
+      "workers": 1,
+      "seconds": 17.6,
+      "output": "frontend/test-results/plan-context-main1520-final-native",
+      "api_mode": "real existing APIs, no route mocks, no concurrent DB tests"
+    }
+  },
+  "readback_checks": {
+    "original_was_approved": true,
+    "amendment_exact_full_request": true,
+    "draft_content_has_only_thesis_change": true,
+    "draft_links_exact_original_version": true,
+    "new_version_was_saved_as_draft": true,
+    "three_targets_preserved": true,
+    "original_version_later_superseded": true,
+    "original_content_unchanged": true,
+    "original_approval_unchanged": true,
+    "full_run_readback_unchanged": true,
+    "full_trade_readback_unchanged": true,
+    "full_timeline_readback_unchanged": true
+  },
+  "artifacts": [
+    {
+      "file": "native-trigger-390.png",
+      "source_attachment": "native full TRIGGER amendment 390px",
+      "content_type": "image/png",
+      "bytes": 252751,
+      "sha256": "58133d7c4aa54b7f3cde6875c94412c3e62933622b48fdd4d7ca83117f408859",
+      "pixels": {
+        "width": 390,
+        "height": 3982
+      }
+    },
+    {
+      "file": "native-historical-run-1280.png",
+      "source_attachment": "native historical run after separate approval 1280px",
+      "content_type": "image/png",
+      "bytes": 297562,
+      "sha256": "ebe9d49b4bf658de8949eaaf7e77c447c4bba5860607a29584caecd39e740cb7",
+      "pixels": {
+        "width": 1280,
+        "height": 2141
+      }
+    },
+    {
+      "file": "native-context-readbacks.json",
+      "source_attachment": "native exact versions and unchanged historical sources",
+      "content_type": "application/json",
+      "bytes": 25055,
+      "sha256": "e7cd79f37f1f40ba29b4cd56eb54f7f13a377af0b2f9724060da28420a77ef0e"
+    }
+  ],
+  "builds": [
+    {
+      "name": "plan-context-static",
+      "vite_api_base_url": "http://127.0.0.1:5188/api",
+      "assets": [
+        {
+          "file": "index.html",
+          "bytes": 462,
+          "sha256": "b1f679e568f489f876dcb5faca6eaddeb7ce7f108a7f458243e0f0211675c2e8"
+        },
+        {
+          "file": "assets/ChartSetupPage-ANj6QjUz.js",
+          "bytes": 14042,
+          "sha256": "9e023bb82a9d4b73dc8f0a60a48cc71b05b643d21e3c23a68990b9233d5e80f7"
+        },
+        {
+          "file": "assets/MarketChartsPage-C32wvrzn.js",
+          "bytes": 383093,
+          "sha256": "4473ea624c2119f1547885bca59e4cb465bc4f60c29f09b135f450f9c70c72fd"
+        },
+        {
+          "file": "assets/chartClient-DoCyKubO.js",
+          "bytes": 640,
+          "sha256": "567566a80dac5fa89da79e9e419351afa0c6b3af2252efa2f30eb3be669efa42"
+        },
+        {
+          "file": "assets/index-DnZ2CSW0.js",
+          "bytes": 845936,
+          "sha256": "4024d346e5ad335340977867f658357af586a9e499a9deac3d17382c1523ad1f"
+        },
+        {
+          "file": "assets/index-T7VW96AZ.css",
+          "bytes": 35748,
+          "sha256": "ac45027bd9d808c2aa16805f06a27471aa9ea031bccead04f8ad9cd66ed81a24"
+        }
+      ]
+    },
+    {
+      "name": "plan-context-native-static",
+      "vite_api_base_url": "http://127.0.0.1:5189/api",
+      "assets": [
+        {
+          "file": "index.html",
+          "bytes": 462,
+          "sha256": "2926c1b21d80f03d550abc111eabebe7828c0cb042501c7f99aa32fe0cf96ad9"
+        },
+        {
+          "file": "assets/ChartSetupPage-Bw4bu1Zr.js",
+          "bytes": 14042,
+          "sha256": "23a3cce86aa9158736e1efb75cf25294d3049a8151b2787c40002af5a92c2165"
+        },
+        {
+          "file": "assets/MarketChartsPage-BD8z3VJS.js",
+          "bytes": 383093,
+          "sha256": "76bcf7929c289c7c179d7711eb951d5a91d79f31582c3ca176ec611acae8a254"
+        },
+        {
+          "file": "assets/chartClient-CFhU8SfA.js",
+          "bytes": 640,
+          "sha256": "b415864dd86d9812800ac0ab7be18feacf6ca29ce43ed2c8581f360ca37cf529"
+        },
+        {
+          "file": "assets/index-Dqn72ugO.js",
+          "bytes": 845936,
+          "sha256": "c1815cf2b5a67671682e56ae839c3001b4ae259ffe34f4db455b7676ac23432e"
+        },
+        {
+          "file": "assets/index-T7VW96AZ.css",
+          "bytes": 35748,
+          "sha256": "ac45027bd9d808c2aa16805f06a27471aa9ea031bccead04f8ad9cd66ed81a24"
+        }
+      ]
+    }
+  ],
+  "test_sources": [
+    {
+      "file": "tests/e2e/ft007-plan-context-postgres.spec.ts",
+      "sha256": "494ac6df5d862767bc0f4663c37fe4ac2046e6ec46df0ebc8d2d670e852de5c3"
+    },
+    {
+      "file": "tests/e2e/product-selection-confirmation-capture.spec.ts",
+      "sha256": "ac58734b713c7dfd7b695322b3184830575fc9e9a2e5b1d262058a6c150253be"
+    },
+    {
+      "file": "tests/e2e/warrant-listing-without-symbol.spec.ts",
+      "sha256": "5b0d8493192d211ac7147d8cb7833a79f769b2322e558c5fe974b90a5a1f7750"
+    },
+    {
+      "file": "tests/e2e/ft007-trade-plan.spec.ts",
+      "sha256": "526bfcaaab7cf1f13e226d96f602ead50ab55dd3eaec3b400c14ae2985e049f8"
+    },
+    {
+      "file": "tests/e2e/ft007-trade-plan-hard-delete.spec.ts",
+      "sha256": "91bb71da1b16a6e2bc8e24a4dbe5787088a3e9cce434bb95aa1848521db1b20f"
+    },
+    {
+      "file": "tests/e2e/ft008-product-selection.spec.ts",
+      "sha256": "4a66334df4a2055dcb8699689197d656ac32716cc53608e1d069012d0fe333e7"
+    },
+    {
+      "file": "tests/e2e/trade-plan-warrant-identity.spec.ts",
+      "sha256": "e5433ce994081a46a52d10eebd867923f26d6bde031c4fc7083965fcb277f513"
+    },
+    {
+      "file": "tests/e2e/trade-plan-purchase-status.spec.ts",
+      "sha256": "62d9278ec88cca59862cdf065fd8208c1ab6fa86132e6c5b4b6c8f20ccb065ef"
+    },
+    {
+      "file": "tests/e2e/purchase-workspace-handoff.spec.ts",
+      "sha256": "6990697a77e909a3eb6d89fe92859333431ca63db98ae08ae3ef0537d638a333"
+    },
+    {
+      "file": "tests/e2e/support/plan-context-fixtures.ts",
+      "sha256": "130b07f577d5be5737391b7ba0d086ce12a64242b8a99f3483b15e8af16812bc"
+    }
+  ]
+}

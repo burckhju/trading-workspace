@@ -169,6 +169,31 @@ Anforderung → Entscheidung → Implementierung → Test → Abnahme
 
 ## FT-007 / Sprint-6 TradePlan Specification Traceability
 
+### UI-Fortschreibung 2026-10-25: gebundener Kontext und Approved-Amendment
+
+[PB-014 Planinhalte und Herkunft](../planning/PRODUCT_BACKLOG.md#pb-014-entry)
+und [PB-015 bewusste Produktauswahl](../planning/PRODUCT_BACKLOG.md#pb-015-comparison)
+→ [begrenzter UI-Auftrag und Qualifikation](../implementation/TRADE_PLAN_SELECTION_CONTEXT.md)
+→ einmalige manuelle Basiswertauswahl oder konkrete gespeicherte CandidateEvaluation
+→ eine zentrale Planansicht mit genauer Versionsauswahl
+→ gemeinsames vollständiges Inhaltsformular für Anlage und Approved-Amendment
+→ vorhandener Amendment-Endpunkt mit fester Basis und explizitem Änderungsgrund
+→ neue DRAFT-Version bei weiterhin ausdrücklicher Auswahl der bisherigen Freigabe
+→ FT-008-Plan-/Versionsbindung und gespeicherter Run ohne neue Schreibaktion.
+
+Der TRIGGER-Referenzfall enthält Referenzpreis, Gültigkeit, sämtliche Begründungen,
+drei Targets und alle Risikoangaben; nur These und Änderungsgrund ändern sich im
+einzigen Amendment-Request. PRICE und PRICE_RANGE, historische Runs/Trades,
+Kontext-/Mutationsschutz, Reparaturrückkehr und Tastatur/390 px werden im aktuellen
+UI-Testumfang getrennt nach React-Mocks, Browserfixtures und nativer Umgebung
+qualifiziert. Ergebnisse gelten ausschließlich für ihren tatsächlichen Prüfstand.
+
+Die bestehende DRAFT-Rückkehr bleibt eine Statusaktion. Ein allgemeiner
+Inhaltsrevisionsvertrag für bereits gespeicherte Entwürfe bleibt offen. Kein
+Überschreiben historischer Inhalte, kein Produkteditor-/API-Umbau und keine
+unintegrierte Regelübernahme aus #187. Die historische S6-Qualifikation unten
+bleibt erhalten und ersetzt den neuen Nachweis nicht.
+
 | Ebene | Verbindliche Quellen |
 |---|---|
 | Transition Baseline | `docs/planning/SPRINT_6_TRANSITION_BASELINE.md` |

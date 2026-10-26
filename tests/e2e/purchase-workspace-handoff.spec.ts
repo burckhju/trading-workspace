@@ -1,4 +1,5 @@
 import { expect, test, type Route } from '@playwright/test';
+import { planContextFixture } from './support/plan-context-fixtures';
 
 test.use({ timezoneId: 'Europe/Berlin' });
 
@@ -102,6 +103,12 @@ const purchaseResponse = {
 test('successful BUY hands off to the operational workspace without a hard reload', async ({ page }) => {
   let purchased = false;
   let purchasePosts = 0;
+
+  const planContext = planContextFixture(tradePlanId, versionId, underlyingId);
+  await page.route(`**/trade-plans/${tradePlanId}`, route => json(route, planContext));
+  await page.route(`**/trade-plans/${tradePlanId}/versions/${versionId}`, route =>
+    json(route, planContext.latest_version),
+  );
 
   await page.route(/\/api\/api\/v1\/product-selection-runs(?:\/.*)?(?:\?.*)?$/, async (route) => {
     const request = route.request();

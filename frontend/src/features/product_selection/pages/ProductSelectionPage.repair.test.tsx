@@ -3,6 +3,8 @@ import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { productSelectionApiClient } from '../services/client';
 import type { ProductSelectionRunDetailResponse } from '../types/api';
+import { tradePlanApiClient } from '../../trade_plan/services/client';
+import { selectionPlanFixture } from '../test/planContextFixtures';
 import { ProductSelectionPage } from './ProductSelectionPage';
 
 vi.mock('../services/client', () => ({
@@ -26,6 +28,8 @@ const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')
 let detail: ProductSelectionRunDetailResponse;
 beforeEach(() => {
   vi.resetAllMocks();
+  vi.spyOn(tradePlanApiClient, 'get').mockResolvedValue(selectionPlanFixture);
+  vi.spyOn(tradePlanApiClient, 'version').mockResolvedValue(selectionPlanFixture.latest_version);
   detail = {
     run: {
       id: id(101),
