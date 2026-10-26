@@ -1,6 +1,7 @@
 import { chartRangeStart } from '../services/chartRanges';
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { withChartSetupContext } from '../../administration/services/referenceDataContext';
 import { UnderlyingSearchCombobox } from '../components/UnderlyingSearchCombobox';
 import { TimeSeriesChart } from '../components/TimeSeriesChart';
 import { chartDate, chartMessage } from '../components/chartLabels';
@@ -254,7 +255,10 @@ export function MarketChartsPage() {
             </button>
             <Link
               className="ml-3 text-sky-300 underline"
-              to={`/chart-setup?underlying_id=${context.underlying_id}`}
+              to={withChartSetupContext(
+                `/chart-setup?underlying_id=${context.underlying_id}`,
+                params,
+              )}
             >
               Zuordnungen einrichten
             </Link>
@@ -281,7 +285,10 @@ export function MarketChartsPage() {
       {!effectiveKeys && !loading && (
         <p className="rounded border border-amber-700 p-4">
           Keine passende Marktserie eingerichtet.{' '}
-          <Link to="/chart-setup" className="text-sky-300 underline">
+          <Link
+            to={withChartSetupContext('/chart-setup', params)}
+            className="text-sky-300 underline"
+          >
             Markt und Datenbasis einrichten
           </Link>
         </p>
@@ -289,7 +296,10 @@ export function MarketChartsPage() {
       <section className="rounded-xl border border-slate-700 p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-xl font-semibold">Sektor-Abdeckungsmatrix</h2>
-          <Link to="/chart-setup" className="text-sm text-sky-300 underline">
+          <Link
+            to={withChartSetupContext('/chart-setup', params)}
+            className="text-sm text-sky-300 underline"
+          >
             Sektoren und Referenzen einrichten
           </Link>
         </div>
@@ -390,7 +400,10 @@ export function MarketChartsPage() {
                             </button>
                           </div>
                         )}
-                        <Link className="block text-sky-300 underline" to={sector.setup_url}>
+                        <Link
+                          className="block text-sky-300 underline"
+                          to={withChartSetupContext(sector.setup_url, params)}
+                        >
                           Einrichten
                         </Link>
                       </td>

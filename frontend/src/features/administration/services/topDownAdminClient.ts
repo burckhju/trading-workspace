@@ -15,10 +15,18 @@ export type MarketReference = {
 export type Sector = { id: string; code: string; name: string; active: boolean };
 export type ProviderMapping = {
   id: string;
-  listing_id: string;
+  workspace_id: string;
+  listing_id: string | null;
+  market_data_instrument_id: string | null;
+  provider: string;
   status: string;
   provider_symbol: string;
   provider_exchange_code: string;
+  validated_at: string | null;
+  validation_message: string | null;
+  created_at: string;
+  updated_at: string;
+  version: number;
 };
 export type VenueReconciliation = {
   status: 'MATCHED' | 'CONFLICT' | 'AMBIGUOUS' | 'UNRESOLVED';
@@ -37,11 +45,12 @@ const assignmentDefaults = () => ({
 });
 
 export const topDownAdminClient = {
-  references: (): Promise<MarketReference[]> =>
-    requestJson<MarketReference[]>(`${referenceUrl}/market-references`),
-  sectors: (): Promise<Sector[]> => requestJson<Sector[]>(`${referenceUrl}/sectors`),
-  mappings: (): Promise<ProviderMapping[]> =>
-    requestJson<ProviderMapping[]>(`${marketDataUrl}/provider-mappings`),
+  references: (signal?: AbortSignal): Promise<MarketReference[]> =>
+    requestJson<MarketReference[]>(`${referenceUrl}/market-references`, { method: 'GET', signal }),
+  sectors: (signal?: AbortSignal): Promise<Sector[]> =>
+    requestJson<Sector[]>(`${referenceUrl}/sectors`, { method: 'GET', signal }),
+  mappings: (signal?: AbortSignal): Promise<ProviderMapping[]> =>
+    requestJson<ProviderMapping[]>(`${marketDataUrl}/provider-mappings`, { method: 'GET', signal }),
 
   assignBenchmark: (underlyingId: string, referenceId: string) =>
     requestJson<unknown>(`${referenceUrl}/underlyings/${underlyingId}/benchmark-assignments`, {
@@ -56,7 +65,14 @@ export const topDownAdminClient = {
   assignSectorReference: (sectorId: string, referenceId: string) =>
     requestJson<unknown>(`${referenceUrl}/sectors/${sectorId}/reference-assignments`, {
       method: 'POST',
-      body: { ...assignmentDefaults(), market_reference_id: referenceId },
+      // This owner deliberately does not persist source_reference.
+      body: {
+        valid_from: assignmentDefaults().valid_from,
+        valid_to: null,
+        source: 'MANUAL_ADMIN',
+        quality_status: 'GOOD',
+        market_reference_id: referenceId,
+      },
     }),
   assignReferenceListing: (referenceId: string, listingId: string) =>
     requestJson<unknown>(`${referenceUrl}/market-references/${referenceId}/listing-assignments`, {
@@ -79,9 +95,10 @@ export const topDownAdminClient = {
       method: 'POST',
       body: { enabled: true, actor_name: 'Trading Workspace User' },
     }),
-  venueReconciliation: (mappingId: string) =>
+  venueReconciliation: (mappingId: string, signal?: AbortSignal) =>
     requestJson<VenueReconciliation>(
       `${marketDataUrl}/provider-mappings/${mappingId}/venue-reconciliation`,
+      { method: 'GET', signal },
     ),
   activateReference: (referenceId: string) =>
     requestJson<MarketReference>(`${referenceUrl}/market-references/${referenceId}/active`, {
