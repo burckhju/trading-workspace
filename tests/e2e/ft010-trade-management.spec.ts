@@ -188,7 +188,7 @@ test("manages partial/full exit and explicit management decisions without provid
   await expect(page.getByRole("heading", { name: "OPEN" })).toBeVisible();
   await expect(page.getByRole("heading", { name: /TR-10000000 · DAX Call 19000/ })).toBeVisible();
   await expect(page.getByText("TP-10000000")).toBeVisible();
-  await expect(page.getByText("100 offen", { exact: true })).toBeVisible();
+  await expect(page.getByText("Offene Menge", { exact: true }).locator("..").locator("dd")).toHaveText("100");
   await expect(page.getByRole("form", { name: "Verkauf erfassen" }).getByText(/keine Broker-Order/i)).toBeVisible();
 
   await page.getByLabel("Verkaufsmenge").fill("40");
@@ -197,7 +197,7 @@ test("manages partial/full exit and explicit management decisions without provid
   await page.getByLabel("Verkaufsdatum Uhrzeit").fill("09:30");
   await page.getByRole("button", { name: "Teilverkauf erfassen" }).click();
   await expect.poll(() => salePosts).toBe(1);
-  await expect(page.getByText("60 offen", { exact: true })).toBeVisible();
+  await expect(page.getByText("Offene Menge", { exact: true }).locator("..").locator("dd")).toHaveText("60");
   await expect(page.getByText("20", { exact: true })).toBeVisible();
 
   await page.getByLabel("Stop", { exact: true }).fill("1.90");

@@ -1,13 +1,30 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { tradeManagementApiClient } from '../services/client';
 import { localToday } from '../services/capture';
 import { AdditionalPurchasePanel } from './AdditionalPurchasePanel';
+import { TradePendingChangesProvider, useTradePendingChanges } from './TradePendingChanges';
 
 vi.mock('../services/client', () => ({
   tradeManagementApiClient: { purchaseAdditional: vi.fn() },
 }));
-beforeEach(() => vi.resetAllMocks());
+beforeEach(() => {
+  vi.resetAllMocks();
+  sessionStorage.clear();
+});
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((yes) => {
+    resolve = yes;
+  });
+  return { promise, resolve };
+}
+function prepare(quantity = '5', price = '0.5') {
+  fireEvent.change(screen.getByLabelText('Nachkaufmenge'), { target: { value: quantity } });
+  fireEvent.change(screen.getByLabelText('Nachkaufpreis'), { target: { value: price } });
+}
 it('defaults to today, preserves backdated inputs and reuses key after failed response', async () => {
   vi.mocked(tradeManagementApiClient.purchaseAdditional).mockRejectedValue(
     new Error('Antwort verloren'),
@@ -86,4 +103,142 @@ it('rejects an invalid currency exception before booking and can discard it to u
   expect(
     vi.mocked(tradeManagementApiClient.purchaseAdditional).mock.calls[0][1],
   ).not.toHaveProperty('currency_confirmation');
+});
+
+it('guards its dirty route context and forbids discard until the actual BUY and readback finish', async () => {
+  const write = deferred<Awaited<ReturnType<typeof tradeManagementApiClient.purchaseAdditional>>>();
+  const read = deferred<void>();
+  vi.mocked(tradeManagementApiClient.purchaseAdditional).mockReturnValue(write.promise);
+  const changed = vi.fn(() => read.promise);
+  const router = createMemoryRouter(
+    [
+      {
+        path: '/',
+        element: (
+          <TradePendingChangesProvider>
+            <AdditionalPurchasePanel tradeId="existing" onChanged={changed} />
+          </TradePendingChangesProvider>
+        ),
+      },
+      { path: '/away', element: <p>Anderer Kontext</p> },
+    ],
+    { initialEntries: ['/'] },
+  );
+  render(<RouterProvider router={router} />);
+  prepare();
+  await act(() => router.navigate('/away'));
+  expect(screen.getByRole('alertdialog', { name: 'Ungespeicherte Änderungen' })).toBeVisible();
+  fireEvent.click(screen.getByRole('button', { name: 'Hier bleiben' }));
+  expect(screen.getByLabelText('Nachkaufmenge')).toHaveValue(5);
+  fireEvent.submit(screen.getByRole('form', { name: 'Nachkauf erfassen' }));
+  fireEvent.submit(screen.getByRole('form', { name: 'Nachkauf erfassen' }));
+  expect(tradeManagementApiClient.purchaseAdditional).toHaveBeenCalledOnce();
+  await act(() => router.navigate('/away'));
+  let dialog = screen.getByRole('alertdialog', { name: 'Speicherung läuft' });
+  expect(within(dialog).queryByText('Eingaben verwerfen und wechseln')).not.toBeInTheDocument();
+  await act(async () => {
+    write.resolve({} as never);
+    await write.promise;
+  });
+  expect(changed).toHaveBeenCalledOnce();
+  dialog = screen.getByRole('alertdialog', { name: 'Speicherung läuft' });
+  expect(within(dialog).queryByText('Eingaben verwerfen und wechseln')).not.toBeInTheDocument();
+  await act(async () => {
+    read.resolve();
+    await read.promise;
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Hier bleiben' }));
+  await act(() => router.navigate('/away'));
+  expect(screen.getByText('Anderer Kontext')).toBeVisible();
+  expect(tradeManagementApiClient.purchaseAdditional).toHaveBeenCalledOnce();
+});
+
+it('does not let a late first A write clear a second A capture key after A to B to A', async () => {
+  const old = deferred<Awaited<ReturnType<typeof tradeManagementApiClient.purchaseAdditional>>>();
+  const changed = vi.fn().mockResolvedValue(undefined);
+  const api = vi.mocked(tradeManagementApiClient.purchaseAdditional);
+  api.mockReturnValueOnce(old.promise).mockRejectedValue(new Error('Antwort verloren'));
+  const { rerender } = render(<AdditionalPurchasePanel tradeId="A" onChanged={changed} />);
+  prepare();
+  fireEvent.click(screen.getByRole('button', { name: 'Nachkauf speichern' }));
+  rerender(<AdditionalPurchasePanel tradeId="B" onChanged={changed} />);
+  expect(screen.getByLabelText('Nachkaufmenge')).toHaveValue(null);
+  rerender(<AdditionalPurchasePanel tradeId="A" onChanged={changed} />);
+  prepare('3', '0.7');
+  fireEvent.click(screen.getByRole('button', { name: 'Nachkauf speichern' }));
+  await screen.findByText('Antwort verloren');
+  const newAttempt = api.mock.calls[1];
+  await act(async () => {
+    old.resolve({} as never);
+    await old.promise;
+  });
+  expect(changed).not.toHaveBeenCalled();
+  expect(screen.getByLabelText('Nachkaufmenge')).toHaveValue(3);
+  expect(screen.queryByText('Nachkauf beim bestehenden Trade erfasst.')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Nachkauf speichern' }));
+  await waitFor(() => expect(api).toHaveBeenCalledTimes(3));
+  expect(api.mock.calls[2]).toEqual(newAttempt);
+});
+
+it('reports a confirmed BUY separately from a failed projection read without resubmitting it', async () => {
+  vi.mocked(tradeManagementApiClient.purchaseAdditional).mockResolvedValue({} as never);
+  render(
+    <AdditionalPurchasePanel
+      tradeId="existing"
+      onChanged={vi.fn().mockRejectedValue(new Error('Position nicht verfügbar'))}
+    />,
+  );
+  prepare();
+  fireEvent.click(screen.getByRole('button', { name: 'Nachkauf speichern' }));
+  expect(await screen.findByRole('status')).toHaveTextContent(
+    'Nachkauf gespeichert, Ansicht noch nicht aktualisiert',
+  );
+  expect(screen.getByLabelText('Nachkaufmenge')).toHaveValue(null);
+  fireEvent.submit(screen.getByRole('form', { name: 'Nachkauf erfassen' }));
+  expect(tradeManagementApiClient.purchaseAdditional).toHaveBeenCalledOnce();
+});
+
+it('consults another participant lock before a BUY even without another render', () => {
+  let otherWrite = false;
+  function OtherWrite() {
+    useTradePendingChanges('other', {
+      isBusy: () => otherWrite,
+      isDirty: () => false,
+      onDiscard: () => undefined,
+    });
+    return null;
+  }
+  const router = createMemoryRouter([
+    {
+      path: '/',
+      element: (
+        <TradePendingChangesProvider>
+          <OtherWrite />
+          <AdditionalPurchasePanel tradeId="existing" onChanged={vi.fn()} />
+        </TradePendingChangesProvider>
+      ),
+    },
+  ]);
+  render(<RouterProvider router={router} />);
+  prepare();
+  otherWrite = true;
+  fireEvent.submit(screen.getByRole('form', { name: 'Nachkauf erfassen' }));
+  expect(tradeManagementApiClient.purchaseAdditional).not.toHaveBeenCalled();
+  expect(screen.getByLabelText('Nachkaufmenge')).toHaveValue(5);
+});
+
+it('checks a booking recovery lock before posting even if the fieldset has not rerendered', () => {
+  let bookingNeedsReview = false;
+  render(
+    <AdditionalPurchasePanel
+      tradeId="existing"
+      onChanged={vi.fn()}
+      isWriteBlocked={() => bookingNeedsReview}
+    />,
+  );
+  prepare();
+  bookingNeedsReview = true;
+  fireEvent.submit(screen.getByRole('form', { name: 'Nachkauf erfassen' }));
+  expect(tradeManagementApiClient.purchaseAdditional).not.toHaveBeenCalled();
+  expect(screen.getByLabelText('Nachkaufmenge')).toHaveValue(5);
 });

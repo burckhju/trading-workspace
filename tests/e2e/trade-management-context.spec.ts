@@ -133,6 +133,8 @@ test("failed trade switch cannot reuse another position; retry and history prese
     .fill("Draft belongs to A");
   await page.getByLabel("Trade-ID", { exact: true }).fill(b.trade.id);
   await page.getByRole("button", { name: "Laden", exact: true }).click();
+  await page.getByRole("alertdialog", { name: "Ungespeicherte Änderungen" })
+    .getByRole("button", { name: "Eingaben verwerfen und wechseln" }).click();
   // The separate product-valuation panel may report the same failed read.
   // Assert the management page's status, not a duplicate text anywhere on the page.
   await expect(
@@ -206,11 +208,11 @@ test("failed trade switch cannot reuse another position; retry and history prese
   await expect(
     page.getByRole("heading", { name: new RegExp(a.warrant.display_name) }),
   ).toBeVisible();
-  await expect(page.getByText("10 offen", { exact: true })).toBeVisible();
+  await expect(page.getByText("Offene Menge", { exact: true }).locator("..").locator("dd")).toHaveText("10");
   await page.goForward();
   await expect(
     page.getByRole("heading", { name: new RegExp(b.warrant.display_name) }),
   ).toBeVisible();
-  await expect(page.getByText("18 offen", { exact: true })).toBeVisible();
+  await expect(page.getByText("Offene Menge", { exact: true }).locator("..").locator("dd")).toHaveText("18");
   expect(writes).toHaveLength(1);
 });

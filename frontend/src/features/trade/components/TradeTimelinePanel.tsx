@@ -1,7 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
-
-import { tradeManagementApiClient, tradeTimelineChangedEvent } from '../services/client';
 import { executionCurrencyText } from '../services/executionCurrency';
+import { ExecutionCurrencySources } from './ExecutionCurrencySources';
 import type { TradeTimelineEntryResponse } from '../types/api';
 
 function formatDateTime(value: string): string {
@@ -25,54 +23,19 @@ function entryTitle(entry: TradeTimelineEntryResponse): string {
 
 function entryDetail(entry: TradeTimelineEntryResponse): string {
   if (entry.kind === 'EXECUTION') {
-    const quantity = entry.quantity ?? 0;
-    const price = entry.price_per_unit ? formatNumber(entry.price_per_unit) : '—';
+    const quantity = entry.quantity ?? '—';
+    const price = entry.price_per_unit ?? '—';
     return `${quantity} Stück · ${price} je Einheit`;
   }
   if (entry.numeric_value !== null) return formatNumber(entry.numeric_value);
   return entry.text_value ?? '—';
 }
 
-export function TradeTimelinePanel({ tradeId }: { tradeId: string }) {
-  const [entries, setEntries] = useState<TradeTimelineEntryResponse[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const load = useCallback(
-    async (signal?: AbortSignal) => {
-      setLoading(true);
-      setError(null);
-      try {
-        setEntries(await tradeManagementApiClient.timeline(tradeId, signal));
-      } catch (reason: unknown) {
-        if (!signal?.aborted) {
-          setError(
-            reason instanceof Error ? reason.message : 'Timeline konnte nicht geladen werden.',
-          );
-        }
-      } finally {
-        if (!signal?.aborted) setLoading(false);
-      }
-    },
-    [tradeId],
+/** Read-only presentation of the booking area's single timeline read. */
+export function TradeTimelinePanel({ entries }: { entries: TradeTimelineEntryResponse[] }) {
+  const replacements = new Map(
+    entries.filter((entry) => entry.supersedes_id).map((entry) => [entry.supersedes_id, entry.id]),
   );
-
-  useEffect(() => {
-    const controller = new AbortController();
-    void load(controller.signal);
-    return () => controller.abort();
-  }, [load]);
-
-  useEffect(() => {
-    function refresh(event: Event) {
-      const detail = (event as CustomEvent<{ tradeId?: string }>).detail;
-      if (detail?.tradeId === tradeId) void load();
-    }
-
-    window.addEventListener(tradeTimelineChangedEvent, refresh);
-    return () => window.removeEventListener(tradeTimelineChangedEvent, refresh);
-  }, [load, tradeId]);
-
   return (
     <section className="rounded-xl border border-slate-800 p-5" aria-labelledby="timeline-title">
       <div>
@@ -86,19 +49,17 @@ export function TradeTimelinePanel({ tradeId }: { tradeId: string }) {
         </p>
       </div>
 
-      {loading && <p className="mt-4 text-sm text-slate-400">Timeline wird geladen…</p>}
-      {error && (
-        <p role="alert" className="mt-4 rounded-lg border border-slate-700 p-3 text-sm">
-          {error}
-        </p>
-      )}
-      {!loading && !error && entries.length === 0 && (
+      {entries.length === 0 && (
         <p className="mt-4 text-sm text-slate-400">Noch keine Timeline-Einträge vorhanden.</p>
       )}
-      {!loading && !error && entries.length > 0 && (
+      {entries.length > 0 && (
         <ol className="mt-4 space-y-3">
           {entries.map((entry) => (
-            <li key={entry.id} className="rounded-lg border border-slate-800 p-4">
+            <li
+              key={entry.id}
+              aria-label={`Historischer Eintrag ${entry.id}`}
+              className="rounded-lg border border-slate-800 p-4"
+            >
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <p className="font-medium">{entryTitle(entry)}</p>
@@ -131,20 +92,40 @@ export function TradeTimelinePanel({ tradeId }: { tradeId: string }) {
                 <div>
                   <dt className="text-slate-500">Wirksam / ausgeführt</dt>
                   <dd className="mt-1">
-                    {entry.executed_on
-                      ? `${entry.executed_on} (Uhrzeit unbekannt, ${entry.execution_timezone})`
-                      : formatDateTime(entry.occurred_at)}
+                    {entry.executed_on ? (
+                      `${entry.executed_on} (Uhrzeit unbekannt, ${entry.execution_timezone})`
+                    ) : (
+                      <time dateTime={entry.occurred_at}>
+                        {formatDateTime(entry.occurred_at)} · {entry.occurred_at}
+                      </time>
+                    )}
                   </dd>
                 </div>
                 <div>
                   <dt className="text-slate-500">Erfasst</dt>
-                  <dd className="mt-1">{formatDateTime(entry.recorded_at)}</dd>
+                  <dd className="mt-1">
+                    <time dateTime={entry.recorded_at}>
+                      {formatDateTime(entry.recorded_at)} · {entry.recorded_at}
+                    </time>
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-slate-500">Eintrag</dt>
+                  <dd className="mt-1 break-all">{entry.id}</dd>
                 </div>
               </dl>
               {entry.supersedes_id && (
                 <p className="mt-3 text-xs text-amber-300">
-                  Korrektur eines früheren Eintrags · ersetzt {entry.supersedes_id.slice(0, 8)}…
+                  Korrektur eines früheren Eintrags · ersetzt {entry.supersedes_id}
                 </p>
+              )}
+              {replacements.has(entry.id) && (
+                <p className="mt-2 break-all text-xs text-slate-400">
+                  Ersetzt durch {replacements.get(entry.id)} · nur als historische Quelle erhalten
+                </p>
+              )}
+              {entry.kind === 'EXECUTION' && (
+                <ExecutionCurrencySources resolution={entry.currency_resolution} />
               )}
             </li>
           ))}

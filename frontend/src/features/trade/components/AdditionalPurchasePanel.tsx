@@ -1,64 +1,137 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { captureRequest, executionTime, finishCapture, localToday } from '../services/capture';
 import { tradeManagementApiClient } from '../services/client';
 import {
   emptyExecutionCurrency,
   executionCurrencyDeclaration,
+  type ExecutionCurrencyDraft,
 } from '../services/executionCurrency';
 import { ExecutionCurrencyOverride } from './ExecutionCurrencyOverride';
 import { ExecutionDateInput } from './ExecutionDateInput';
+import { useTradePendingChanges } from './TradePendingChanges';
 
-export function AdditionalPurchasePanel({
-  tradeId,
-  onChanged,
-}: {
+interface Props {
   tradeId: string;
   onChanged: () => Promise<void>;
-}) {
-  const [quantity, setQuantity] = useState('');
-  const [price, setPrice] = useState('');
-  const [date, setDate] = useState(localToday);
-  const [time, setTime] = useState('');
-  const [currency, setCurrency] = useState(emptyExecutionCurrency);
+  isWriteBlocked?: () => boolean;
+}
+interface Draft {
+  quantity: string;
+  price: string;
+  date: string;
+  time: string;
+  currency: ExecutionCurrencyDraft;
+}
+
+export function AdditionalPurchasePanel(props: Props) {
+  return <AdditionalPurchaseContext key={props.tradeId} {...props} />;
+}
+
+function AdditionalPurchaseContext({ tradeId, onChanged, isWriteBlocked }: Props) {
+  const [draft, setDraft] = useState<Draft>(() => ({
+    quantity: '',
+    price: '',
+    date: localToday(),
+    time: '',
+    currency: emptyExecutionCurrency(),
+  }));
+  const draftRef = useRef(draft);
+  const initialDate = useRef(draft.date);
+  const { quantity, price, date, time, currency } = draft;
   const [busy, setBusy] = useState(false);
   const lock = useRef(false);
+  const active = useRef(true);
   const [message, setMessage] = useState<string | null>(null);
-  async function submit() {
+  const { notify, isBusy } = useTradePendingChanges('additional-purchase', {
+    isBusy: () => lock.current,
+    isDirty: () => {
+      const value = draftRef.current;
+      return Boolean(
+        value.quantity ||
+          value.price ||
+          value.date !== initialDate.current ||
+          value.time ||
+          value.currency.code ||
+          value.currency.note,
+      );
+    },
+    onDiscard: () => resetDraft(),
+  });
+
+  useEffect(() => {
+    active.current = true;
+    return () => {
+      active.current = false;
+    };
+  }, []);
+
+  function changeDraft(value: Partial<Draft>) {
     if (lock.current) return;
-    const amount = Number(quantity);
-    if (!Number.isInteger(amount) || amount <= 0 || !price.trim()) return;
+    draftRef.current = { ...draftRef.current, ...value };
+    setDraft(draftRef.current);
+    notify();
+  }
+  function resetDraft() {
+    draftRef.current = {
+      quantity: '',
+      price: '',
+      date: initialDate.current,
+      time: '',
+      currency: emptyExecutionCurrency(),
+    };
+    setDraft(draftRef.current);
+  }
+
+  async function submit() {
+    if (lock.current || isBusy() || isWriteBlocked?.()) return;
+    const submitted = draftRef.current;
+    const amount = Number(submitted.quantity);
+    if (!Number.isInteger(amount) || amount <= 0 || !submitted.price.trim()) return;
     lock.current = true;
+    notify();
     setBusy(true);
     setMessage(null);
     const scope = `additional:${tradeId}`;
+    let saved = false;
     try {
       const payload = {
         quantity: amount,
-        price_per_unit: price.trim().replace(',', '.'),
-        ...executionTime(date, time),
-        ...executionCurrencyDeclaration(currency),
+        price_per_unit: submitted.price.trim().replace(',', '.'),
+        ...executionTime(submitted.date, submitted.time),
+        ...executionCurrencyDeclaration(submitted.currency),
       };
       await tradeManagementApiClient.purchaseAdditional(tradeId, {
         ...payload,
         request_id: captureRequest(scope, payload),
       });
+      if (!active.current) return;
       finishCapture(scope);
-      setQuantity('');
-      setPrice('');
-      setTime('');
-      setCurrency(emptyExecutionCurrency());
+      saved = true;
+      initialDate.current = submitted.date;
+      resetDraft();
       await onChanged();
-      setMessage('Nachkauf beim bestehenden Trade erfasst.');
+      if (active.current) setMessage('Nachkauf beim bestehenden Trade erfasst.');
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Nachkauf fehlgeschlagen.');
+      if (active.current) {
+        const detail = error instanceof Error ? error.message : 'Nachkauf bitte prüfen.';
+        setMessage(
+          saved
+            ? `Nachkauf gespeichert, Ansicht noch nicht aktualisiert. Bitte neu laden. ${detail}`
+            : detail,
+        );
+      }
     } finally {
-      setBusy(false);
       lock.current = false;
+      if (active.current) {
+        setBusy(false);
+        notify();
+      }
     }
   }
   return (
     <form
+      aria-label="Nachkauf erfassen"
       onSubmit={(event) => {
         event.preventDefault();
         void submit();
@@ -70,7 +143,7 @@ export function AdditionalPurchasePanel({
         Ein tatsächlicher weiterer Kauf wird diesem offenen Trade zugeordnet. Kein zweiter Trade und
         keine Broker-Order.
       </p>
-      <div className="mt-4 grid gap-3 sm:grid-cols-3">
+      <fieldset disabled={busy} className="mt-4 grid min-w-0 gap-3 sm:grid-cols-3">
         <label>
           Nachkaufmenge
           <input
@@ -80,7 +153,7 @@ export function AdditionalPurchasePanel({
             min="1"
             step="1"
             value={quantity}
-            onChange={(e) => setQuantity(e.target.value)}
+            onChange={(e) => changeDraft({ quantity: e.target.value })}
             className="block w-full rounded border bg-slate-950 p-2"
           />
         </label>
@@ -93,7 +166,7 @@ export function AdditionalPurchasePanel({
             min="0"
             step="any"
             value={price}
-            onChange={(e) => setPrice(e.target.value)}
+            onChange={(e) => changeDraft({ price: e.target.value })}
             className="block w-full rounded border bg-slate-950 p-2"
           />
         </label>
@@ -101,12 +174,16 @@ export function AdditionalPurchasePanel({
           label="Nachkaufdatum"
           date={date}
           time={time}
-          onDate={setDate}
-          onTime={setTime}
+          onDate={(value) => changeDraft({ date: value })}
+          onTime={(value) => changeDraft({ time: value })}
         />
-      </div>
-      <ExecutionCurrencyOverride value={currency} onChange={setCurrency} disabled={busy} />
-      <button disabled={busy} className="mt-3 rounded border p-2">
+      </fieldset>
+      <ExecutionCurrencyOverride
+        value={currency}
+        onChange={(value) => changeDraft({ currency: value })}
+        disabled={busy}
+      />
+      <button disabled={busy || isBusy() || isWriteBlocked?.()} className="mt-3 rounded border p-2">
         Nachkauf speichern
       </button>
       {message && (

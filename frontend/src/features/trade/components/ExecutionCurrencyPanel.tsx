@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { MarketApiError } from '../../market/services/http';
 import { captureRequest, finishCapture } from '../services/capture';
@@ -7,6 +7,7 @@ import {
   emptyExecutionCurrency,
   executionCurrencyDeclaration,
   executionCurrencyText,
+  type ExecutionCurrencyDraft,
 } from '../services/executionCurrency';
 import type {
   ExecutionCurrencyConfirmation,
@@ -22,6 +23,13 @@ interface Props {
   confirmation?: ExecutionCurrencyConfirmation | null;
   resolution?: ExecutionCurrencyResolution | null;
   readOnly?: boolean;
+  disabled?: boolean;
+  isWriteBlocked?: () => boolean;
+  /** The bookings list owns selection; this mode opens only the selected editor. */
+  editor?: boolean;
+  onPendingChange?: (pending: { dirty: boolean; busy: boolean; writeBlocked?: boolean }) => void;
+  requestChange?: (action: () => void) => void;
+  onClose?: () => void;
   onChanged?: () => Promise<void>;
 }
 
@@ -52,6 +60,12 @@ function ExecutionCurrencyContext({
   confirmation,
   resolution,
   readOnly = false,
+  disabled = false,
+  isWriteBlocked,
+  editor = false,
+  onPendingChange,
+  requestChange,
+  onClose,
   onChanged,
 }: Props) {
   const [opened, setOpened] = useState(false);
@@ -63,12 +77,39 @@ function ExecutionCurrencyContext({
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
+  const [retryOnly, setRetryOnly] = useState(false);
   const active = useRef(true);
   const generation = useRef(0);
   const controller = useRef<AbortController | null>(null);
   const lock = useRef(false);
+  const draftRef = useRef(draft);
+  const retryOnlyRef = useRef(false);
+  const writeBlocked = useRef(false);
+  const refreshRequired = useRef(false);
+  const receiptConfirmed = useRef(false);
+  const callbacks = useRef({ onPendingChange, onChanged });
+  callbacks.current = { onPendingChange, onChanged };
+  const panel = useRef<HTMLElement>(null);
   const parentBasis = JSON.stringify([confirmation?.id ?? null, resolution ?? null]);
   const previousParentBasis = useRef(parentBasis);
+
+  const publishPending = useCallback(() => {
+    if (!active.current) return;
+    callbacks.current.onPendingChange?.({
+      dirty: Boolean(draftRef.current.code || draftRef.current.note || retryOnlyRef.current),
+      busy: lock.current,
+      writeBlocked: lock.current || writeBlocked.current || retryOnlyRef.current,
+    });
+  }, []);
+
+  const updateDraft = useCallback(
+    (next: ExecutionCurrencyDraft) => {
+      draftRef.current = next;
+      setDraft(next);
+      publishPending();
+    },
+    [publishPending],
+  );
 
   useEffect(() => {
     active.current = true;
@@ -96,13 +137,15 @@ function ExecutionCurrencyContext({
     setHistory(null);
     setLoading(false);
     setNeedsReload(true);
+    writeBlocked.current = true;
+    publishPending();
     setMessage(null);
     setError(
       'Die Währungsquellen dieser Buchung haben sich geändert. Bitte die Währungsherkunft neu laden.',
     );
-  }, [parentBasis, history, opened, saving]);
+  }, [parentBasis, history, opened, saving, publishPending]);
 
-  async function load() {
+  const load = useCallback(async () => {
     if (lock.current) return;
     const current = ++generation.current;
     controller.current?.abort();
@@ -111,7 +154,9 @@ function ExecutionCurrencyContext({
     setOpened(true);
     setLoading(true);
     setHistory(null);
-    setDraft(emptyExecutionCurrency());
+    retryOnlyRef.current = false;
+    setRetryOnly(false);
+    updateDraft(emptyExecutionCurrency());
     setEditing(false);
     setError(null);
     setMessage(null);
@@ -121,31 +166,69 @@ function ExecutionCurrencyContext({
         return;
       setHistory(result);
       setNeedsReload(false);
+      if (refreshRequired.current) {
+        await callbacks.current.onChanged?.();
+        if (!active.current || requestController.signal.aborted || current !== generation.current)
+          return;
+        refreshRequired.current = false;
+        setMessage(
+          receiptConfirmed.current
+            ? 'Gespeicherte Bestätigung und Buchungsstand wurden neu gelesen.'
+            : 'Währungsherkunft und Buchungsstand wurden neu gelesen. Bitte vor einer neuen Bestätigung prüfen.',
+        );
+      }
+      writeBlocked.current = false;
+      publishPending();
     } catch (cause) {
       if (!active.current || requestController.signal.aborted || current !== generation.current)
         return;
+      setNeedsReload(true);
+      writeBlocked.current = writeBlocked.current || refreshRequired.current;
+      publishPending();
       setError(
-        cause instanceof Error ? cause.message : 'Währungsherkunft konnte nicht geladen werden.',
+        refreshRequired.current && receiptConfirmed.current
+          ? 'Speicherung bestätigt, der aktuelle Gesamtstand konnte noch nicht gelesen werden. Bitte erneut laden.'
+          : cause instanceof Error
+            ? cause.message
+            : 'Währungsherkunft konnte nicht geladen werden.',
       );
     } finally {
       if (active.current && !requestController.signal.aborted && current === generation.current) {
         setLoading(false);
       }
     }
-  }
+  }, [executionId, tradeId, updateDraft, publishPending]);
+
+  useEffect(() => {
+    if (!editor) return;
+    panel.current?.focus();
+    void load();
+  }, [editor, load]);
 
   async function save() {
-    if (lock.current || !history || !draft.code.trim() || loading || needsReload || readOnly)
+    const currentDraft = draftRef.current;
+    if (
+      lock.current ||
+      !history ||
+      !currentDraft.code.trim() ||
+      loading ||
+      needsReload ||
+      readOnly ||
+      disabled ||
+      isWriteBlocked?.()
+    )
       return;
     let declaration;
     try {
-      declaration = executionCurrencyDeclaration(draft).currency_confirmation;
+      declaration = executionCurrencyDeclaration(currentDraft).currency_confirmation;
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Bitte die Währungsangabe prüfen.');
       return;
     }
     if (!declaration) return;
     lock.current = true;
+    receiptConfirmed.current = false;
+    publishPending();
     setSaving(true);
     setError(null);
     setMessage(null);
@@ -168,35 +251,43 @@ function ExecutionCurrencyContext({
         throw new Error(
           'Die Antwort gehört nicht zu dieser Buchung. Den aktuellen Stand vor einer weiteren Bestätigung prüfen.',
         );
-      finishCapture(scope);
-      persisted = true;
       if (!active.current || requestController.signal.aborted || current !== generation.current)
         return;
+      finishCapture(scope);
+      persisted = true;
+      receiptConfirmed.current = true;
+      refreshRequired.current = true;
+      writeBlocked.current = true;
       // A successful idempotent replay can return an already superseded receipt.
       // Only a new history read establishes the currently effective confirmation.
       setHistory(null);
-      setDraft(emptyExecutionCurrency());
+      retryOnlyRef.current = false;
+      setRetryOnly(false);
+      updateDraft(emptyExecutionCurrency());
       setEditing(false);
       setNeedsReload(true);
       setLoading(true);
-      const refreshed = await readHistory(tradeId, executionId, requestController.signal);
+      const [historyRead, pageRead] = await Promise.allSettled([
+        readHistory(tradeId, executionId, requestController.signal),
+        Promise.resolve().then(() => callbacks.current.onChanged?.()),
+      ]);
       if (!active.current || requestController.signal.aborted || current !== generation.current)
         return;
+      if (historyRead.status === 'rejected') throw historyRead.reason;
+      const refreshed = historyRead.value;
       setHistory(refreshed);
-      setNeedsReload(false);
+      setNeedsReload(pageRead.status === 'rejected');
+      refreshRequired.current = pageRead.status === 'rejected';
+      writeBlocked.current = pageRead.status === 'rejected';
       setMessage(
         refreshed.current?.id === result.id
           ? 'Währung bestätigt. Eine erneute Auswertung berücksichtigt den dann wirksamen Quellenstand.'
           : 'Speicherung bestätigt. Inzwischen gilt ein anderer Bestätigungsstand; angezeigt wird die neu gelesene Herkunft.',
       );
-      try {
-        await onChanged?.();
-      } catch {
-        if (active.current && !requestController.signal.aborted && current === generation.current) {
-          setMessage(
-            'Währung gespeichert. Die übrigen Buchungen konnten noch nicht aktualisiert werden. Bitte die Buchungsdaten neu laden.',
-          );
-        }
+      if (pageRead.status === 'rejected') {
+        setMessage(
+          'Währung gespeichert. Die übrigen Buchungen konnten noch nicht aktualisiert werden. Bitte die Währungsherkunft neu laden, bevor eine weitere Bestätigung erfolgt.',
+        );
       }
     } catch (cause) {
       if (!active.current || requestController.signal.aborted || current !== generation.current)
@@ -210,20 +301,32 @@ function ExecutionCurrencyContext({
         );
       } else if (cause instanceof MarketApiError && cause.status === 409) {
         setNeedsReload(true);
-        setDraft(emptyExecutionCurrency());
+        writeBlocked.current = true;
+        refreshRequired.current = true;
+        retryOnlyRef.current = false;
+        setRetryOnly(false);
+        updateDraft(emptyExecutionCurrency());
         setError(
           'Der Buchungs- oder Bestätigungsstand hat sich geändert. Herkunft neu laden und vor einer weiteren Bestätigung prüfen.',
         );
       } else {
+        const uncertain = !(cause instanceof MarketApiError) || cause.status >= 500;
+        writeBlocked.current = uncertain;
+        refreshRequired.current = uncertain;
+        retryOnlyRef.current = uncertain;
+        setRetryOnly(uncertain);
         setError(
-          cause instanceof Error
-            ? cause.message
-            : 'Bestätigung nicht bestätigt. Derselbe unveränderte Versuch kann erneut gesendet werden.',
+          `${cause instanceof Error ? cause.message : 'Bestätigung nicht bestätigt.'}${
+            uncertain
+              ? ' Der Abschluss ist unklar. Nur derselbe unveränderte Versuch kann erneut gesendet werden; für andere Angaben zuerst die Währungsherkunft neu laden.'
+              : ''
+          }`,
         );
       }
     } finally {
       lock.current = false;
       if (active.current && !requestController.signal.aborted && current === generation.current) {
+        publishPending();
         setSaving(false);
         setLoading(false);
       }
@@ -237,6 +340,8 @@ function ExecutionCurrencyContext({
     currentResolution?.source === 'REPLACED_EXECUTION';
   return (
     <section
+      ref={panel}
+      tabIndex={editor ? -1 : undefined}
       aria-label="Ausführungswährung und Herkunft"
       className="mt-3 border-t border-slate-800 pt-3"
     >
@@ -253,7 +358,11 @@ function ExecutionCurrencyContext({
       <button
         type="button"
         disabled={saving}
-        onClick={() => void load()}
+        onClick={() => {
+          if (lock.current) return;
+          if (requestChange) requestChange(() => void load());
+          else void load();
+        }}
         className="mt-2 rounded border border-slate-700 p-2 text-sm disabled:opacity-50"
       >
         {opened
@@ -304,12 +413,15 @@ function ExecutionCurrencyContext({
                 >
                   <ExecutionCurrencyInput
                     value={draft}
-                    onChange={setDraft}
-                    disabled={saving || needsReload}
+                    onChange={(next) => {
+                      if (lock.current || retryOnlyRef.current) return;
+                      updateDraft(next);
+                    }}
+                    disabled={saving || needsReload || retryOnly}
                   />
                   <button
                     type="submit"
-                    disabled={saving || needsReload || !draft.code.trim()}
+                    disabled={saving || needsReload || disabled || !draft.code.trim()}
                     className="mt-3 rounded border border-sky-700 p-2 text-sm disabled:opacity-50"
                   >
                     {saving
@@ -356,6 +468,18 @@ function ExecutionCurrencyContext({
             </>
           )}
         </div>
+      )}
+      {onClose && (
+        <button
+          type="button"
+          disabled={saving}
+          onClick={() => {
+            if (!lock.current) onClose();
+          }}
+          className="mt-3 rounded border border-slate-700 px-3 py-2 text-sm disabled:opacity-50"
+        >
+          Buchungseditor schließen
+        </button>
       )}
     </section>
   );

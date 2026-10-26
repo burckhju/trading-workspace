@@ -3,13 +3,21 @@
 Datum: 26.10.2026. Umfang: gemeinsamer administrativer Eingabeweg, gezielte Tests und Draft-PR.
 Keine Versionsanhebung, Veröffentlichung, Bereitstellung oder fachliche Liveabnahme.
 
-## Ausgangsstand und Prüfbindung
+## Integration des inzwischen aktualisierten Main
 
-- Tatsächliche Main-Basis: `eb443bdf7569b5a187b4be97dba1e1fcb7a0ed0f`, VERSION **1.5.21**.
+Während der regulären UI5-CI wurde UI4 / PR #287 separat nach Main integriert. Der UI5-Draft übernimmt deshalb jetzt Main **`36db3910eae714d0cb0ad0ae16169955006a5976`** mit dem bestehenden Main-Tree `a905af1a0908cb4eac233474a024e2dd683a64d3`. Die dort bereits enthaltene Version **1.5.22** wird unverändert übernommen; UI5 führt keine eigene Versionsanhebung oder Veröffentlichung aus.
+
+Die Zusammenführung war konfliktfrei. Ein unabhängiger Git-Objektvergleich bestätigt: Alle **27 UI5-Code-/Testdateien** sind gegenüber dem unten dokumentierten Implementierungscommit `50b3aea9…` in Inhalt und Dateimodus unverändert. Die 28 von UI4/Main übernommenen Pfade überschneiden sich mit keinem UI5-Pfad. Guard, Router und Versions-/Manifestdateien entsprechen vollständig dem neuen Main. Vor diesem Dokumentationsnachtrag war auch der gesamte UI5-Diff gegenüber der neuen Main-Basis bytegleich zum ursprünglichen UI5-Diff.
+
+Das unveränderte vollständige Frontend-Gate wird auf diesem integrierten Stand erneut ausgeführt. Dessen tatsächliche Ergebnisse sowie die erneut ausgelösten regulären PR-Gates werden mit **aktuellem Integrations-Head, Gesamtbaum und Testmerge in der PR-Beschreibung** gebunden. Die nachstehenden früheren lokalen Qualifikationen bleiben ausdrücklich dem ursprünglichen Implementierungsbaum zugeordnet. Sie werden nicht als neue vollständige Integrationsläufe ausgegeben. Die exakte lokale SQL-Zeile belegt weiterhin denselben unveränderten UI5-Eingabeweg.
+
+## Ausgangsstand und erste Prüfbindung
+
+- Main-Basis bei Arbeitsbeginn: `eb443bdf7569b5a187b4be97dba1e1fcb7a0ed0f`, VERSION **1.5.21**.
 - Der Startprompt nannte noch `f8f61a11…`. Bei Arbeitsbeginn war UI3 / PR #286 bereits als `eb443bdf…` integriert. Diese Änderungen sind enthalten und bleiben unverändert.
-- UI4 / Draft-PR #287 war beim erneuten Remote-Abgleich weiterhin offen. Sein ursprünglicher Head `c293a6778b7c9ab80c366329041096d97984757f` wurde inzwischen separat auf `c8844b931388b28e72759a3ec46936b656887c43` fortgeführt; dessen Basis ist ebenfalls `eb443bdf…`. UI5 benötigt die vorgezogene Integration dieses parallelen Releaseumfangs nicht und ändert selbst keine Version.
+- UI4 / Draft-PR #287 war vor dem Erstellen des UI5-PR noch offen. Sein ursprünglicher Head `c293a6778b7c9ab80c366329041096d97984757f` wurde separat auf `c8844b931388b28e72759a3ec46936b656887c43` fortgeführt; dessen Basis war ebenfalls `eb443bdf…`. UI5 zog diesen parallelen Releaseumfang nicht vor. Nach dessen eigenständiger Integration wurde der neue Main wie oben beschrieben übernommen.
 - Implementierungs- und Testcommit: [`50b3aea94e4bc80aef1dd44e440eea21c016f13c`](https://github.com/burckhju/trading-workspace/commit/50b3aea94e4bc80aef1dd44e440eea21c016f13c).
-- Vollständiger lokal geprüfter und auf GitHub identischer Implementierungsbaum: **`26c18c5fba198ddb0e4b3b48a56b1a48e741fa9b`**. 27 Code-/Testdateien geändert. Der anschließende Dokumentationscommit ergänzt ausschließlich dieses Dokument; endgültiger PR-Head und Gesamtbaum stehen in der PR-Beschreibung.
+- Vollständiger lokal geprüfter und auf GitHub identischer erster Implementierungsbaum: **`26c18c5fba198ddb0e4b3b48a56b1a48e741fa9b`**. 27 Code-/Testdateien geändert. Der erste anschließende Dokumentationscommit ergänzte ausschließlich dieses Dokument; aktueller Integrations-Head und Gesamtbaum stehen in der PR-Beschreibung.
 - Arbeitsbranch: `refactor/reference-data-ui-consolidation`.
 
 Die hier genannten Ergebnisse wurden auf den neuen Dateiinhalten ausgeführt. Frühere grüne UI3-/UI4- oder Release-Checks werden nicht als UI5-Nachweise verwendet.
@@ -105,7 +113,9 @@ Der Receipt-Validator prüft nur Felder der tatsächlich vorhandenen Response-DT
 
 Candidate-Rückwege werden intern als `/candidates?candidate=…` erzeugt. Chartlinks erhalten ihre bestehenden erlaubten Queryfelder über `chart_context`; der Rückweg bleibt intern unter `/market-charts`. Freie externe Rücksprungadressen werden nicht verarbeitet. Die minimalen Änderungen an `MarketChartsPage` und `TimeSeriesChart` betreffen ausschließlich diese Links. Reihen, Berechnungen, Detailwerte und gespeicherte Chartansichten bleiben unverändert.
 
-## Tatsächlich abgeschlossene lokale Prüfungen
+## Erste abgeschlossene lokale Prüfungen
+
+Diese konkreten Zahlen und Laufzeitangaben gehören zum ersten Implementierungsbaum `26c18c5f…`. Die erneute Qualifikation nach Übernahme des inzwischen integrierten Main wird separat am aktuellen PR-Head ausgewiesen.
 
 | Prüfung | Ergebnis und Grenze |
 |---|---|

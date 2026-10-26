@@ -1,68 +1,143 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { tradeManagementApiClient } from '../services/client';
 import type { CancellationPreview, TradeResponse } from '../types/api';
+import { useTradePendingChanges } from './TradePendingChanges';
 
-export function TradeCancellationPanel({
-  trade,
-  productName,
-  onChanged,
-}: {
+interface Props {
   trade: TradeResponse;
   productName: string;
   onChanged: () => Promise<void>;
-}) {
+  isWriteBlocked?: () => boolean;
+}
+interface Draft {
+  reason: string;
+  retained: string;
+  confirmed: boolean;
+}
+const emptyDraft = (): Draft => ({ reason: '', retained: '', confirmed: false });
+
+export function TradeCancellationPanel(props: Props) {
+  return <TradeCancellationContext key={props.trade.id} {...props} />;
+}
+
+function TradeCancellationContext({ trade, productName, onChanged, isWriteBlocked }: Props) {
   const [preview, setPreview] = useState<CancellationPreview | null>(null);
-  const [reason, setReason] = useState('');
-  const [retained, setRetained] = useState('');
-  const [confirmed, setConfirmed] = useState(false);
+  const [draft, setDraft] = useState(emptyDraft);
+  const draftRef = useRef(draft);
+  const { reason, retained, confirmed } = draft;
   const [busy, setBusy] = useState(false);
   const lock = useRef(false);
+  const writing = useRef(false);
+  const active = useRef(true);
+  const generation = useRef(0);
   const [message, setMessage] = useState<string | null>(null);
+  const { notify, isBusy, requestChange } = useTradePendingChanges('trade-cancellation', {
+    isBusy: () => writing.current,
+    isDirty: () =>
+      Boolean(draftRef.current.reason || draftRef.current.retained || draftRef.current.confirmed),
+    onDiscard: () => resetDraft(),
+  });
+
+  useEffect(() => {
+    active.current = true;
+    return () => {
+      active.current = false;
+      generation.current += 1;
+    };
+  }, []);
+
+  function changeDraft(value: Partial<Draft>) {
+    if (writing.current) return;
+    draftRef.current = { ...draftRef.current, ...value };
+    setDraft(draftRef.current);
+    notify();
+  }
+  function resetDraft() {
+    draftRef.current = emptyDraft();
+    setDraft(draftRef.current);
+  }
 
   async function inspect() {
-    if (lock.current) return;
+    if (lock.current || isBusy() || trade.cancelled_at) return;
     lock.current = true;
+    const operation = ++generation.current;
+    const current = () => active.current && operation === generation.current;
     setBusy(true);
     setMessage(null);
     setPreview(null);
-    setConfirmed(false);
-    setRetained('');
+    resetDraft();
     try {
-      setPreview(await tradeManagementApiClient.cancellationPreview(trade.id));
+      const next = await tradeManagementApiClient.cancellationPreview(trade.id);
+      if (!current()) return;
+      if (next.trade_id !== trade.id || next.product_id !== trade.product_id)
+        throw new Error('Die Stornovorschau gehört nicht zu diesem Trade. Bitte erneut prüfen.');
+      setPreview(next);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Stornovorschau nicht verfügbar.');
+      if (current())
+        setMessage(error instanceof Error ? error.message : 'Stornovorschau nicht verfügbar.');
     } finally {
-      setBusy(false);
       lock.current = false;
+      if (current()) setBusy(false);
     }
   }
   async function cancel() {
-    if (!preview || !confirmed || !reason.trim() || lock.current) return;
+    const submitted = draftRef.current;
+    if (
+      !preview ||
+      !preview.can_cancel ||
+      !submitted.confirmed ||
+      !submitted.reason.trim() ||
+      lock.current ||
+      isBusy() ||
+      isWriteBlocked?.() ||
+      trade.cancelled_at
+    )
+      return;
     lock.current = true;
+    writing.current = true;
+    notify();
+    const operation = ++generation.current;
+    const current = () => active.current && operation === generation.current;
     setBusy(true);
     setMessage(null);
+    let saved = false;
     try {
       await tradeManagementApiClient.cancel(trade.id, {
         expected_product_id: preview.product_id,
         expected_state_token: preview.state_token,
-        reason: reason.trim(),
+        reason: submitted.reason.trim(),
         confirmed: true,
-        duplicate_of_trade_id: retained || null,
+        duplicate_of_trade_id: submitted.retained || null,
       });
+      if (!current()) return;
+      saved = true;
       setPreview(null);
-      setConfirmed(false);
+      resetDraft();
       await onChanged();
-      setMessage(
-        'Fehleingabe storniert. Kein Verkauf, keine Broker-Order. Die Historie bleibt erhalten.',
-      );
+      if (current())
+        setMessage(
+          'Fehleingabe storniert. Kein Verkauf, keine Broker-Order. Die Historie bleibt erhalten.',
+        );
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Stornierung fehlgeschlagen.');
-      setPreview(null);
-      setConfirmed(false);
+      if (current()) {
+        const detail = error instanceof Error ? error.message : 'Stornierung bitte prüfen.';
+        setMessage(
+          saved
+            ? `Stornierung gespeichert, Ansicht noch nicht aktualisiert. Bitte neu laden. ${detail}`
+            : detail,
+        );
+        setPreview(null);
+        draftRef.current = { ...draftRef.current, confirmed: false };
+        setDraft(draftRef.current);
+      }
     } finally {
-      setBusy(false);
       lock.current = false;
+      writing.current = false;
+      if (current()) {
+        setBusy(false);
+        notify();
+      }
     }
   }
   return (
@@ -84,8 +159,8 @@ export function TradeCancellationPanel({
       ) : (
         <button
           type="button"
-          disabled={busy}
-          onClick={() => void inspect()}
+          disabled={busy || isBusy()}
+          onClick={() => requestChange(() => void inspect())}
           className="mt-3 rounded border border-rose-700 p-2"
         >
           Stornierung prüfen
@@ -123,8 +198,9 @@ export function TradeCancellationPanel({
                 <textarea
                   aria-label="Stornogrund"
                   value={reason}
+                  disabled={busy}
                   maxLength={1000}
-                  onChange={(e) => setReason(e.target.value)}
+                  onChange={(e) => changeDraft({ reason: e.target.value })}
                   className="mt-1 block w-full rounded border bg-slate-950 p-2"
                 />
               </label>
@@ -134,7 +210,8 @@ export function TradeCancellationPanel({
                   <select
                     aria-label="Beizubehaltender Trade"
                     value={retained}
-                    onChange={(e) => setRetained(e.target.value)}
+                    disabled={busy}
+                    onChange={(e) => changeDraft({ retained: e.target.value })}
                     className="mt-1 block w-full rounded border bg-slate-950 p-2"
                   >
                     <option value="">Keine Dubletten-Zuordnung</option>
@@ -150,13 +227,14 @@ export function TradeCancellationPanel({
                 <input
                   type="checkbox"
                   checked={confirmed}
-                  onChange={(e) => setConfirmed(e.target.checked)}
+                  disabled={busy}
+                  onChange={(e) => changeDraft({ confirmed: e.target.checked })}
                 />{' '}
                 Ich bestätige, dass genau dieser Trade eine Fehleingabe ist.
               </label>
               <button
                 type="button"
-                disabled={busy || !confirmed || !reason.trim()}
+                disabled={busy || isBusy() || isWriteBlocked?.() || !confirmed || !reason.trim()}
                 onClick={() => void cancel()}
                 className="rounded border border-rose-700 p-2 disabled:opacity-50"
               >
@@ -167,10 +245,12 @@ export function TradeCancellationPanel({
           <button
             type="button"
             disabled={busy}
-            onClick={() => {
-              setPreview(null);
-              setConfirmed(false);
-            }}
+            onClick={() =>
+              requestChange(() => {
+                setPreview(null);
+                resetDraft();
+              })
+            }
             className="ml-3 rounded border p-2"
           >
             Abbrechen
