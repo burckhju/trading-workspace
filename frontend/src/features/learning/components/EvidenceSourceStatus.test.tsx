@@ -58,3 +58,45 @@ it('late old-source response cannot populate another evidence identity', async (
   });
   expect(screen.queryByText('Konkrete Quellversion: v-e1')).not.toBeInTheDocument();
 });
+
+it('leaves shared source identity to the enclosing provenance block without dropping currentness', async () => {
+  vi.mocked(lessonReviewClient.source).mockResolvedValue(source('e1'));
+  const view = render(
+    <EvidenceSourceStatus
+      evidenceId="e1"
+      showSourceIdentity={false}
+      expectedSource={{ type: 'TRADE_JOURNAL_VERSION', versionId: 'v-e1' }}
+    />,
+  );
+  await screen.findByText('Quellversion jetzt: SUPERSEDED');
+  expect(screen.getByText('Review-Quelle jetzt: STALE')).toBeVisible();
+  expect(screen.queryByText(/Quellentyp:/)).not.toBeInTheDocument();
+  expect(screen.queryByText(/Konkrete Quellversion:/)).not.toBeInTheDocument();
+  view.rerender(
+    <EvidenceSourceStatus
+      evidenceId="e1"
+      showSourceIdentity={false}
+      expectedSource={{ type: 'TRADE_JOURNAL_VERSION', versionId: 'v-e1' }}
+    />,
+  );
+  expect(screen.getByText('Review-Quelle jetzt: STALE')).toBeVisible();
+  expect(lessonReviewClient.source).toHaveBeenCalledTimes(1);
+});
+
+it.each([
+  { ...source('other') },
+  { ...source('e1'), source_type: 'EXTERNAL_OBSERVATION' },
+  { ...source('e1'), source_version_id: 'foreign-version' },
+  { ...source('e1'), source_version_id: '' },
+])('rejects currentness for a different or missing exact source', async (inspection) => {
+  vi.mocked(lessonReviewClient.source).mockResolvedValue(inspection);
+  render(
+    <EvidenceSourceStatus
+      evidenceId="e1"
+      expectedSource={{ type: 'TRADE_JOURNAL_VERSION', versionId: 'v-e1' }}
+    />,
+  );
+  await screen.findByText(/Quellenprüfung nicht verfügbar/);
+  expect(screen.queryByText(/Quellversion jetzt:/)).not.toBeInTheDocument();
+  expect(screen.queryByText(/Review-Quelle jetzt:/)).not.toBeInTheDocument();
+});
