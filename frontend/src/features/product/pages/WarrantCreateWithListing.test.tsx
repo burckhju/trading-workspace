@@ -116,6 +116,9 @@ beforeEach(() => {
 
 async function fillCreation() {
   await screen.findByText('Aktuelle Produktbedingungen');
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'Produktbedingungen ändern' })).toBeEnabled(),
+  );
   fireEvent.click(screen.getByRole('button', { name: 'Neues Produkt' }));
   fireEvent.change(screen.getByLabelText('Anzeigename *'), {
     target: { value: 'Synthetic new Call' },
@@ -248,9 +251,16 @@ it('keeps the created identity open after a failed detail read and retries only 
   render(<WarrantAdminPage />);
   await fillCreation();
   warrants.list.mockResolvedValue([warrant, created]);
-  warrants.get.mockRejectedValueOnce(new Error('Produktdetails nicht erreichbar'));
+  warrants.get.mockImplementation((id) =>
+    id === created.id
+      ? Promise.reject(new Error('Produktdetails nicht erreichbar'))
+      : Promise.resolve({ ...warrant, id }),
+  );
   fireEvent.click(screen.getByRole('button', { name: 'Optionsschein anlegen' }));
 
+  await waitFor(() =>
+    expect(warrants.get).toHaveBeenCalledWith(created.id, expect.any(AbortSignal)),
+  );
   expect(await screen.findByRole('alert')).toHaveTextContent(
     /Anzeige konnte nicht aktualisiert werden/,
   );
