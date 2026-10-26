@@ -21,11 +21,39 @@ Backlogergänzungen bleiben in den getrennten Trade-Abschnitten; die UI4-Traceab
 steht neben der vorhandenen Kaufwährungs-/Tradequellenzuordnung außerhalb des
 unveränderten historischen Baselineblocks.
 
-Die Übergabe ist ein **geprüfter Implementierungsstand als Draft-PR**. Der
+Die erste Übergabe war ein **geprüfter Implementierungsstand als Draft-PR**. Der
 abschließende PR bindet Implementierungscommit, tatsächlich geprüften Tree,
 lokale Ergebnisse und reguläre CI-Läufe. Die Basis-SHA oben ist kein Testnachweis
 für die Änderung. Arbeitsstatus bleibt ausschließlich im
 [Product Backlog](../planning/PRODUCT_BACKLOG.md#pb-017-history).
+
+## Nachtrag 26.10.2026: freigegebene Integration und PC-Bereitstellung
+
+Die anschließende Nutzeranweisung „wenn grün mergen und für den pc bereitstellen“
+erweitert die ursprüngliche Draft-Grenze um Integration und versionierte
+Bereitstellung. UI3 wurde inzwischen mit
+`eb443bdf7569b5a187b4be97dba1e1fcb7a0ed0f` nach `main` integriert. Dieser Main-Stand
+wird konfliktfrei in den bestehenden UI4-Branch übernommen; die oben dokumentierte
+getrennte Erstübergabe bleibt als historischer Nachweis erhalten.
+
+Die Codeprüfung des gemeinsamen Stands bestätigt unveränderte UI3-/UI4-Inhalte,
+den unveränderten gemeinsamen Navigationsguard sowie passende Trade-, Journal-
+und Lesson-Quellenparameter. Der kombinierte Stand erhält eigene vollständige
+Frontend- und reguläre PR-Prüfungen. Erfolge vor dieser Zusammenführung werden
+nicht als dessen Testnachweis ausgegeben. Die abschließenden Commit-, Tree- und
+Workflowbezüge werden in [PR #287](https://github.com/burckhju/trading-workspace/pull/287)
+fortgeschrieben.
+
+Die freigegebene Patchversion **1.5.22** umfasst zusätzlich zu UI4 die seit
+`v1.5.21` bereits integrierten Produkt- und Lesson-Konsolidierungen #285 und #286.
+Die [Release-Notiz](../releases/V1.5.22-UI-CONSOLIDATION.md) beschreibt den
+gemeinsamen Lieferumfang und den unveränderten PC-Updateweg.
+Der bestehende Publisher darf ihren unveränderlichen Tag erst nach erfolgreichen
+Backend-, Frontend- und End-to-End-Push-Läufen am tatsächlichen Main-Mergecommit
+erzeugen. Der verwaltete PC-Updateweg verwendet anschließend diesen Tag und dessen
+vollständigen Commit. Eine erfolgte Installation oder Fachabnahme auf JMBbot wird
+dadurch nicht vorweggenommen. Backendmigrationen, Launcher, Updatehelfer und
+Veröffentlichungsregeln bleiben unverändert.
 
 ## Zuständigkeiten und Datenfluss
 

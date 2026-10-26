@@ -1,5 +1,7 @@
 # Traceability – aktueller Nachweiseinstieg
 
+> Nachweisfortschreibung 26.10.2026, UI3: [Lesson-Ansicht, Quellen und vorbefüllte Prüfung](../implementation/UI_LESSON_CONSOLIDATION.md) verbindet den vorhandenen FT-012-Review-Kontext mit genau einer ausgewählten Inhaltsversion, kompakten exakten Quellen, vollständig vorbefülltem Folgeversionseditor und dem bestehenden Navigationsschutz für Review- und Hypotheseneingaben. Basis ist Main `f8f61a11` / VERSION 1.5.21 einschließlich der integrierten #284/#285; der ältere Tag `v1.5.21` auf `059860ea` ist davon getrennt. Implementierungscommit `986f20a2` / Tree `014efb38`, vollständiger Frontend-Check mit 1.009 Tests, gezielte lokale Nachweise und der lokal nicht ausführbare geschützte PostgreSQL-Ownerlauf sind im Bericht getrennt gebunden; die regulären CI-Nachweise gehören zum tatsächlichen neuen PR-Head. Arbeitsstatus ausschließlich [PB-019 Lessons](../planning/PRODUCT_BACKLOG.md#pb-019-lessons); kein neuer Release-, Fachabnahme- oder PC-Betriebsnachweis. Historische Qualifikationen und der markierte Baselinebestand unten bleiben unverändert.
+
 > Nachweisfortschreibung 25.10.2026, #278: [FT-006 Runtime-/Quellenqualität](../implementation/FT006_SOURCE_QUALITY_QUALIFICATION.md) verbindet feste neue Analyseversion 1.0.1, historische 1.0.0-Reproduktion, Snapshot/Hash/Provenienz und den bestehenden Candidate-Consumer mit echten Markt-/Sektorreferenzidentitäten. Die neue GOOD-B07-Browserausführung ist auf Head `18e3e141`, Tree `4c0abfea`, Testmerge `71f16737` in [Run `40182968277` / Job `121137734172`, Versuch 1](https://github.com/burckhju/trading-workspace/actions/runs/40182968277/job/121137734172) tatsächlich bestanden; [vollständiger datierter B07-Nachweis](../implementation/CANDIDATE_GOVERNANCE_JOURNEY_QUALIFICATION.md). Der historische LIMITED-Nachweis bleibt erhalten. Die Gesamt-CI des Folgecommits einschließlich der eng reproduzierten Frontend-Testkorrektur wird im bestehenden PR #278 mit eigenen Identitäten gebunden. Arbeitsstatus ausschließlich [PB-013 Analyse](../planning/PRODUCT_BACKLOG.md#pb-013-analysis) und [PB-020 Candidate](../planning/PRODUCT_BACKLOG.md#pb-020-candidate-family). Kein Abschluss weiterer M0–M11-Ziele.
 
 > Nachweisergänzung 2026-10-14: [integrierter Handoff-Teilschnitt, PostgreSQL-/Browserbelege und offene Journalstrecke](../implementation/POST_TRADE_LEARNING_HANDOFF_REVIEW.md). Die Fortschreibung trennt Prüfcommits, echte DB-Transaktionen und abgefangenes Browser-HTTP. Arbeitsstatus ausschließlich im [zentralen Backlog](../planning/PRODUCT_BACKLOG.md#pb-019-materialization); keine Fach-/Betriebsabnahme.
@@ -724,6 +726,14 @@ bleiben getrennte Nachweise. Keine neuen Backendformeln, Migrationen,
 Mengen-/Preiskorrektur-Oberflächen, Review-Neufinalisierung, Release- oder
 Betriebsabnahme werden aus dieser UI-Konsolidierung abgeleitet. Die historischen
 FT-009-/FT-010- und Währungsqualifikationen oben bleiben unverändert erhalten.
+
+**Anschließende Integrationsfreigabe vom 26.10.2026:** Nach dem UI3-Merge auf
+`eb443bdf7569b5a187b4be97dba1e1fcb7a0ed0f` ist die gemeinsame Qualifikation von
+UI3 und UI4 sowie bei grünen Prüfungen die Integration und PC-Bereitstellung als
+**1.5.22** beauftragt. Der [Integrationsnachtrag](../implementation/UI_TRADE_BOOKINGS_CONSOLIDATION.md#nachtrag-26102026-freigegebene-integration-und-pc-bereitstellung)
+trennt den ursprünglichen UI4-Prüfstand von den neuen PR-/Main- und Tag-Nachweisen.
+Die Freigabe ändert keinen fachlichen Backlogstatus und belegt keine bereits
+erfolgte Installation auf dem Ziel-PC.
 
 ## Read-only trade-source composition — 2026-10-21
 

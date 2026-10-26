@@ -2,14 +2,15 @@ import {
   useCallback,
   useEffect,
   useId,
+  useLayoutEffect,
   useRef,
   useState,
   type FormEvent,
   type ReactNode,
 } from 'react';
+import { Link } from 'react-router-dom';
 import { ErrorNotice } from '../../market/components/ApiFeedback';
 import { MarketApiError } from '../../market/services/http';
-import { EvidenceSourceStatus } from './EvidenceSourceStatus';
 import { JournalEvidenceOrigin } from './JournalEvidenceOrigin';
 import {
   evidenceLabel,
@@ -34,22 +35,103 @@ const actions: Record<ReviewOperation, string> = {
 const inputClass = 'w-full rounded border border-slate-600 bg-slate-900 p-2';
 
 type Preparation = { operation: ReviewOperation; context: ReviewContext };
+export interface LessonReviewNavigationState {
+  dirty: boolean;
+  busy: boolean;
+}
+export interface LessonVersionActionsState {
+  actionsDisabled: boolean;
+  isActionsDisabled: () => boolean;
+}
+
+function openSignalId(value: ReviewContext) {
+  return value.signals.find((s) => s.signal.status === 'OPEN')?.signal.id ?? null;
+}
+
+function allowedOperations(context: ReviewContext): ReviewOperation[] {
+  const current = context.history.find((v) => v.version.id === context.lesson.current_version_id);
+  if (context.lesson.current_state === 'CURRENT' && openSignalId(context) === null)
+    return [
+      ...(current?.evidence_links.length ? ['OPEN_SOURCE_REVIEW' as const] : []),
+      ...(current?.evidence_links.some((v) => v.relation === 'CONTRADICTS')
+        ? ['OPEN_CONTRADICTION_REVIEW' as const]
+        : []),
+    ];
+  return context.lesson.current_state === 'REVIEW_RECOMMENDED'
+    ? ['CONFIRM_UNCHANGED', 'NEW_VERSION', 'RETIRE']
+    : [];
+}
+
+function assertContext(value: ReviewContext, lessonId: string) {
+  const versions = new Set(value.history.map((snapshot) => snapshot.version.id));
+  if (
+    value.lesson.id !== lessonId ||
+    !versions.has(value.lesson.current_version_id) ||
+    versions.size !== value.history.length ||
+    value.history.some(
+      ({ version, evidence_links: links }) =>
+        version.lesson_id !== lessonId ||
+        links.some((link) => link.lesson_version_id !== version.id) ||
+        new Set(links.map((link) => link.id)).size !== links.length ||
+        new Set(links.map((link) => link.learning_evidence_id)).size !== links.length,
+    ) ||
+    value.signals.some(({ signal, trigger_link_ids }) => {
+      const source = value.history.find((v) => v.version.id === signal.lesson_version_id);
+      return (
+        !source ||
+        trigger_link_ids.some(
+          (id) =>
+            !source.evidence_links.some(
+              (link) => link.id === id && link.relation === 'CONTRADICTS',
+            ),
+        )
+      );
+    }) ||
+    value.signals.filter(({ signal }) => signal.status === 'OPEN').length > 1
+  )
+    throw new Error(
+      'Der gelesene Lesson-Kontext ist unvollständig oder nicht eindeutig zugeordnet.',
+    );
+}
+
+function basis(value: ReviewContext) {
+  return JSON.stringify([
+    value.lesson.current_state,
+    openSignalId(value),
+    value.history.find((v) => v.version.id === value.lesson.current_version_id),
+  ]);
+}
+
 export function LessonReviewPanel({
   lessonId,
   onChanged,
-  initialVersionId,
+  versionId,
+  onSelectVersion,
+  onNavigationStateChange,
+  actionsDisabled = false,
+  isActionsDisabled,
   renderVersionActions,
 }: {
   lessonId: string;
-  initialVersionId?: string;
-  renderVersionActions?: (snapshot: LessonVersionSnapshot) => ReactNode;
-  onChanged: () => void;
+  versionId?: string;
+  onSelectVersion?: (id: string) => void;
+  onNavigationStateChange?: (state: LessonReviewNavigationState) => void;
+  actionsDisabled?: boolean;
+  isActionsDisabled?: () => boolean;
+  renderVersionActions?: (
+    snapshot: LessonVersionSnapshot,
+    state: LessonVersionActionsState,
+  ) => ReactNode;
+  onChanged?: () => void;
 }) {
   const fieldPrefix = useId();
   const [context, setContext] = useState<ReviewContext | null>(null);
   const [readError, setReadError] = useState<unknown>(null);
   const [loading, setLoading] = useState(true);
-  const [selectedVersion, setSelectedVersion] = useState(initialVersionId ?? '');
+  const [selection, setSelection] = useState({ requested: versionId, chosen: versionId });
+  // A query change is a version selection within the same Lesson owner. Never
+  // remount the owner (and its receipt) merely to synchronize the URL.
+  if (selection.requested !== versionId) setSelection({ requested: versionId, chosen: versionId });
   const [preparation, setPreparation] = useState<Preparation | null>(null);
   const [reason, setReason] = useState('');
   const [category, setCategory] = useState('');
@@ -63,41 +145,62 @@ export function LessonReviewPanel({
   const [busy, setBusy] = useState(false);
   const [writeError, setWriteError] = useState<unknown>(null);
   const [receipt, setReceipt] = useState<ReviewReceipt | null>(null);
+  const [conflict, setConflict] = useState(false);
   const active = useRef(false);
+  const lifetime = useRef(0);
   const locked = useRef(false);
+  const reliable = useRef(false);
+  const visibleSnapshot = useRef<LessonVersionSnapshot | undefined>(undefined);
+  const navigationListener = useRef(onNavigationStateChange);
+  navigationListener.current = onNavigationStateChange;
   const readSequence = useRef(0);
   const retryCommand = useRef<{ json: string; key: string } | null>(null);
   const reasonInput = useRef<HTMLTextAreaElement>(null);
 
   const load = useCallback(async () => {
     const sequence = ++readSequence.current;
+    reliable.current = false;
     setLoading(true);
     setReadError(null);
     try {
       const value = await lessonReviewClient.context(lessonId);
+      assertContext(value, lessonId);
       if (
-        value.lesson.id !== lessonId ||
-        !value.history.some((v) => v.version.id === value.lesson.current_version_id)
+        visibleSnapshot.current &&
+        !value.history.some(
+          (snapshot) => snapshot.version.id === visibleSnapshot.current?.version.id,
+        )
       )
-        throw new Error('Der gelesene Lesson-Kontext ist nicht vollständig.');
-      if (active.current && sequence === readSequence.current) setContext(value);
+        throw new Error('Die bereits sichtbare Lesson-Version fehlt im aktualisierten Kontext.');
+      if (active.current && sequence === readSequence.current) {
+        setContext(value);
+        reliable.current = true;
+      }
     } catch (error) {
       if (active.current && sequence === readSequence.current) setReadError(error);
     } finally {
       if (active.current && sequence === readSequence.current) setLoading(false);
     }
   }, [lessonId]);
-  useEffect(() => {
+  useLayoutEffect(() => {
     active.current = true;
+    const visits = lifetime;
+    ++visits.current;
     void load();
     // Capture the stable counter object, not its value: invalidate every read
     // from this effect lifetime, including reads begun by explicit refreshes.
     const requests = readSequence;
     return () => {
       active.current = false;
+      ++visits.current;
+      reliable.current = false;
       ++requests.current;
     };
   }, [load]);
+  useEffect(() => {
+    if (context && selection.chosen === undefined)
+      setSelection((old) => ({ ...old, chosen: context.lesson.current_version_id }));
+  }, [context, selection.chosen]);
   useEffect(() => {
     if (preparation) reasonInput.current?.focus();
   }, [preparation]);
@@ -117,22 +220,41 @@ export function LessonReviewPanel({
     return () => controller.abort();
   }, [preparation?.operation, catalogRetry]);
 
+  const selectedVersion = selection.chosen ?? context?.lesson.current_version_id;
   const current = context?.history.find((v) => v.version.id === context.lesson.current_version_id);
-  const viewed = context?.history.find(
-    (v) => v.version.id === (selectedVersion || context.lesson.current_version_id),
-  );
-  const currentView = viewed?.version.id === context?.lesson.current_version_id;
-  const openSignalId = (value: ReviewContext) =>
-    value.signals.find((s) => s.signal.status === 'OPEN')?.signal.id ?? null;
-  const contextChanged = !!(
-    preparation &&
-    context &&
-    (preparation.context.lesson.current_version_id !== context.lesson.current_version_id ||
-      preparation.context.lesson.current_state !== context.lesson.current_state ||
-      openSignalId(preparation.context) !== openSignalId(context))
-  );
+  const viewed = context?.history.find((v) => v.version.id === selectedVersion);
+  visibleSnapshot.current = viewed;
+  const contextUnavailable = loading || readError !== null || !reliable.current;
+  const currentView = !!viewed && viewed.version.id === context?.lesson.current_version_id;
+  const contextChanged =
+    conflict || !!(preparation && context && basis(preparation.context) !== basis(context));
+  const previousSelection = useRef(selectedVersion);
+  useLayoutEffect(() => {
+    if (previousSelection.current === selectedVersion) return;
+    previousSelection.current = selectedVersion;
+    setPreparation(null);
+    setWriteError(null);
+    setConflict(false);
+    retryCommand.current = null;
+    navigationListener.current?.({ dirty: false, busy: locked.current });
+  }, [selectedVersion]);
+  const commandBlocked = () =>
+    !reliable.current || locked.current || conflict || actionsDisabled || !!isActionsDisabled?.();
+  const selectVersion = (id: string) => {
+    if (id === selectedVersion || locked.current || isActionsDisabled?.()) return;
+    if (onSelectVersion) onSelectVersion(id);
+    else setSelection((old) => ({ ...old, chosen: id }));
+  };
   const prepare = (operation: ReviewOperation) => {
-    if (!context || !current || loading || readError || locked.current) return;
+    if (
+      !context ||
+      !current ||
+      !currentView ||
+      commandBlocked() ||
+      !allowedOperations(context).includes(operation)
+    )
+      return;
+    navigationListener.current?.({ dirty: true, busy: false });
     setPreparation({ operation, context });
     setReason('');
     setCategory(current.version.main_category);
@@ -146,6 +268,8 @@ export function LessonReviewPanel({
     setTriggers([]);
     setWriteError(null);
     setReceipt(null);
+    setConflict(false);
+    setSelectedEvidence('');
     retryCommand.current = null;
   };
   const valid =
@@ -160,7 +284,7 @@ export function LessonReviewPanel({
     (preparation.operation !== 'OPEN_CONTRADICTION_REVIEW' || triggers.length > 0);
   const submit = async (event: FormEvent) => {
     event.preventDefault();
-    if (!preparation || !valid || locked.current || contextChanged || loading || readError) return;
+    if (!preparation || !valid || commandBlocked() || contextChanged || !currentView) return;
     const pinned = preparation.context;
     const base = {
       expected_current_version_id: pinned.lesson.current_version_id,
@@ -175,7 +299,9 @@ export function LessonReviewPanel({
         command = {
           ...base,
           operation: preparation.operation,
-          reviewed_evidence_ids: current!.evidence_links.map((v) => v.learning_evidence_id),
+          reviewed_evidence_ids: pinned.history
+            .find((v) => v.version.id === pinned.lesson.current_version_id)!
+            .evidence_links.map((v) => v.learning_evidence_id),
         };
         break;
       case 'OPEN_CONTRADICTION_REVIEW':
@@ -198,24 +324,54 @@ export function LessonReviewPanel({
       retryCommand.current = { json, key: crypto.randomUUID() };
     const key = retryCommand.current.key;
     locked.current = true;
+    navigationListener.current?.({ dirty: true, busy: true });
     setBusy(true);
     setWriteError(null);
+    const commandLifetime = lifetime.current;
+    let saved: ReviewReceipt | null = null;
     try {
       const result = await lessonReviewClient.execute(lessonId, command, key);
-      if (!active.current) return;
+      if (!active.current || commandLifetime !== lifetime.current) return;
+      const expectedResultType =
+        command.operation === 'NEW_VERSION'
+          ? 'LESSON_VERSION'
+          : command.operation === 'OPEN_CONTRADICTION_REVIEW' ||
+              command.expected_open_signal_id !== null
+            ? 'LESSON_REVIEW_SIGNAL'
+            : 'LESSON_STATE_TRANSITION';
+      if (
+        result.lesson_id !== lessonId ||
+        !result.result_id ||
+        result.result_type !== expectedResultType
+      )
+        throw new Error('Der Befehlsabschluss ist nicht eindeutig dieser Lesson zugeordnet.');
       setReceipt(result);
       setPreparation(null);
-      setSelectedVersion('');
-      await load();
-      if (active.current) onChanged();
+      saved = result;
     } catch (error) {
-      if (active.current) setWriteError(error);
+      if (active.current && commandLifetime === lifetime.current) {
+        setWriteError(error);
+        if (
+          error instanceof MarketApiError &&
+          ['LESSON_REVIEW_CONFLICT', 'CONCURRENT_MODIFICATION'].includes(error.response.code)
+        ) {
+          reliable.current = false;
+          setConflict(true);
+        }
+      }
     } finally {
-      if (active.current) {
+      if (active.current && commandLifetime === lifetime.current) {
         locked.current = false;
         setBusy(false);
+        navigationListener.current?.({ dirty: saved === null, busy: false });
       }
     }
+    if (!saved || !active.current || commandLifetime !== lifetime.current) return;
+    // A receipt completes the write. Readback and deliberate result navigation
+    // happen afterwards and cannot turn the confirmed command into a retry.
+    void load();
+    onChanged?.();
+    if (saved.result_type === 'LESSON_VERSION') selectVersion(saved.result_id);
   };
   const review = (
     <section
@@ -236,7 +392,13 @@ export function LessonReviewPanel({
           : {receipt.result_id}. Der Lesestand wird gesondert geladen.
         </p>
       )}
-      <button type="button" disabled={busy || loading} onClick={() => void load()}>
+      <button
+        type="button"
+        disabled={busy || loading || actionsDisabled}
+        onClick={() => {
+          if (!locked.current && !isActionsDisabled?.()) void load();
+        }}
+      >
         Lesson-Prüfstand neu laden
       </button>
       {loading && <p role="status">Prüfkontext wird geladen …</p>}
@@ -249,25 +411,26 @@ export function LessonReviewPanel({
           </p>
         </>
       )}
-      {context && selectedVersion && !viewed && (
+      {context && selectedVersion !== undefined && !viewed && !loading && (
         <p role="alert">
           Die angeforderte Lesson-Version wurde nicht gefunden. Keine andere Version wurde dafür
           eingesetzt.
         </p>
       )}
-      {context && viewed && (
+      {context && (
         <>
-          <p>
-            Lesestand: {context.read_at} · Lesson-Status: {context.lesson.current_state}
-          </p>
+          <p className="text-sm">Lesestand: {context.read_at}</p>
           <label className="block">
             Lesson-Version ansehen
             <select
               className={inputClass}
-              value={selectedVersion || context.lesson.current_version_id}
-              disabled={busy || !!preparation}
-              onChange={(e) => setSelectedVersion(e.target.value)}
+              value={selectedVersion ?? ''}
+              disabled={busy || actionsDisabled}
+              onChange={(e) => selectVersion(e.target.value)}
             >
+              {!viewed && (
+                <option value={selectedVersion ?? ''}>Angeforderte Version nicht verfügbar</option>
+              )}
               {context.history.map((v) => (
                 <option key={v.version.id} value={v.version.id}>
                   Version {v.version.version} · {v.version.created_at}
@@ -278,45 +441,81 @@ export function LessonReviewPanel({
               ))}
             </select>
           </label>
-          <article
-            aria-label={`Lesson-Snapshot Version ${viewed.version.version}`}
-            className="space-y-2 border-l-2 border-slate-700 pl-3"
-          >
-            <h3>
-              Version {viewed.version.version}
-              {!currentView && ' — schreibgeschützte Historie'}
-            </h3>
-            <p>Kategorie: {viewed.version.main_category}</p>
-            <p className="whitespace-pre-wrap">{viewed.version.content}</p>
-            <p className="break-all text-xs">
-              Version-ID: {viewed.version.id} · Vorgänger:{' '}
-              {viewed.version.supersedes_version_id ?? 'keiner'} · Erfasst:{' '}
-              {viewed.version.created_at} · Actor: {viewed.version.created_by}
+          {viewed && (
+            <Link
+              to={`/lessons/${lessonId}?lesson_version_id=${viewed.version.id}#lesson-history`}
+              onClick={(event) => {
+                // The href remains exact and copyable. Opening the version already
+                // on screen does not rebind forms or manufacture a history entry.
+                if (
+                  event.button === 0 &&
+                  !event.metaKey &&
+                  !event.ctrlKey &&
+                  !event.shiftKey &&
+                  !event.altKey
+                ) {
+                  event.preventDefault();
+                  document.getElementById('lesson-history')?.scrollIntoView?.();
+                }
+              }}
+              className="inline-block text-sm text-emerald-300 underline"
+            >
+              Genau diese Lesson-Version öffnen
+            </Link>
+          )}
+          {viewed && !currentView && (
+            <p className="text-sm">
+              Historische Lesson-Inhalte sind schreibgeschützt. Eine ausdrücklich angelegte
+              Hypothese darf genau diese Quelle verwenden.{' '}
+              <button
+                type="button"
+                disabled={busy || actionsDisabled}
+                onClick={() => selectVersion(context.lesson.current_version_id)}
+                className="underline"
+              >
+                Zum aktuellen Stand wechseln
+              </button>
             </p>
-            {viewed.evidence_links.map((link) => (
-              <EvidenceLinkDetails key={`${link.id}:${context.read_at}`} link={link} />
-            ))}
-          </article>
-          {currentView && !preparation && !receipt && (
+          )}
+          {viewed && preparation?.operation !== 'NEW_VERSION' && (
+            <article
+              aria-label={`Lesson-Snapshot Version ${viewed.version.version}`}
+              className="space-y-2 border-l-2 border-slate-700 pl-3"
+            >
+              <h3>
+                Version {viewed.version.version}
+                {!currentView && ' — schreibgeschützte Historie'}
+              </h3>
+              <p>Kategorie: {viewed.version.main_category}</p>
+              <p className="whitespace-pre-wrap">{viewed.version.content}</p>
+              <details className="text-xs">
+                <summary>Herkunft der Inhaltsversion</summary>
+                <p className="break-all">
+                  Version-ID: {viewed.version.id} · Vorgänger:{' '}
+                  {viewed.version.supersedes_version_id ?? 'keiner'} · Erfasst:{' '}
+                  {viewed.version.created_at} · Actor: {viewed.version.created_by}
+                </p>
+              </details>
+              <h3 className="font-semibold">Quellen der gewählten Version</h3>
+              <ul className="space-y-2">
+                {viewed.evidence_links.map((link) => (
+                  <li key={link.id}>
+                    <EvidenceLinkDetails link={link} readAt={context.read_at} />
+                  </li>
+                ))}
+              </ul>
+            </article>
+          )}
+          {viewed && currentView && !preparation && !receipt && (
             <div className="flex flex-wrap gap-3">
-              {(context.lesson.current_state === 'CURRENT'
-                ? [
-                    'OPEN_SOURCE_REVIEW',
-                    ...(current?.evidence_links.some((v) => v.relation === 'CONTRADICTS')
-                      ? ['OPEN_CONTRADICTION_REVIEW']
-                      : []),
-                  ]
-                : context.lesson.current_state === 'REVIEW_RECOMMENDED'
-                  ? ['CONFIRM_UNCHANGED', 'NEW_VERSION', 'RETIRE']
-                  : []
-              ).map((op) => (
+              {allowedOperations(context).map((op) => (
                 <button
                   type="button"
                   key={op}
-                  disabled={loading || readError !== null || busy}
-                  onClick={() => prepare(op as ReviewOperation)}
+                  disabled={contextUnavailable || busy || actionsDisabled || conflict}
+                  onClick={() => prepare(op)}
                 >
-                  {actions[op as ReviewOperation]}
+                  {actions[op]}
                 </button>
               ))}
               {context.lesson.current_state === 'RETIRED' && (
@@ -324,8 +523,14 @@ export function LessonReviewPanel({
               )}
             </div>
           )}
-          {receipt && !loading && !readError && (
-            <button type="button" disabled={busy} onClick={() => setReceipt(null)}>
+          {receipt && !contextUnavailable && currentView && (
+            <button
+              type="button"
+              disabled={busy || actionsDisabled}
+              onClick={() => {
+                if (!commandBlocked()) setReceipt(null);
+              }}
+            >
               Weitere ausdrückliche Prüfung vorbereiten
             </button>
           )}
@@ -348,7 +553,7 @@ export function LessonReviewPanel({
               Entwurf ab und bereiten Sie die Entscheidung erneut vor.
             </p>
           )}
-          <fieldset disabled={busy} className="space-y-4">
+          <fieldset disabled={busy || actionsDisabled} className="space-y-4">
             <label className="block">
               Begründung der Prüfentscheidung (Pflichtfeld, höchstens 200 Zeichen)
               <textarea
@@ -362,8 +567,9 @@ export function LessonReviewPanel({
             {preparation.operation === 'OPEN_CONTRADICTION_REVIEW' && (
               <fieldset>
                 <legend>Konkrete widersprechende Links auswählen</legend>
-                {current?.evidence_links
-                  .filter((v) => v.relation === 'CONTRADICTS')
+                {preparation.context.history
+                  .find((v) => v.version.id === preparation.context.lesson.current_version_id)
+                  ?.evidence_links.filter((v) => v.relation === 'CONTRADICTS')
                   .map((v) => (
                     <label key={v.id} className="block break-all">
                       <input
@@ -433,7 +639,7 @@ export function LessonReviewPanel({
                       <option value="CONTRADICTS">CONTRADICTS — widerspricht</option>
                       <option value="CONTEXTUAL">CONTEXTUAL — Kontext</option>
                     </select>
-                    <EvidenceSourceStatus evidenceId={choice.learning_evidence_id} />
+                    <JournalEvidenceOrigin evidenceId={choice.learning_evidence_id} />
                     <button
                       type="button"
                       onClick={() => setChoices((old) => old.filter((_, index) => index !== i))}
@@ -518,16 +724,27 @@ export function LessonReviewPanel({
           <div className="flex flex-wrap gap-3">
             <button
               type="submit"
-              disabled={!valid || busy || loading || readError !== null || contextChanged}
+              disabled={
+                !valid ||
+                busy ||
+                contextUnavailable ||
+                contextChanged ||
+                actionsDisabled ||
+                !currentView
+              }
             >
               Prüfentscheidung verbindlich bestätigen
             </button>
             <button
               type="button"
-              disabled={busy}
+              disabled={busy || actionsDisabled}
               onClick={() => {
+                if (locked.current || isActionsDisabled?.()) return;
                 setPreparation(null);
                 setWriteError(null);
+                setConflict(false);
+                retryCommand.current = null;
+                navigationListener.current?.({ dirty: false, busy: false });
               }}
             >
               Prüfentwurf abbrechen
@@ -559,13 +776,41 @@ export function LessonReviewPanel({
   );
   return (
     <>
+      {context && (
+        <header className="space-y-2">
+          <p className="text-xs uppercase tracking-wide text-slate-500">FT-012 Lesson</p>
+          <h1 className="text-2xl font-semibold">{context.lesson.title}</h1>
+          {viewed && (
+            <p>
+              Gewählte Inhaltsversion: Version {viewed.version.version} ·{' '}
+              {currentView ? 'aktueller Stand' : 'historisch'}
+            </p>
+          )}
+          <p>Heutiger Lesson-Status: {context.lesson.current_state}</p>
+          {contextUnavailable && (
+            <p className="text-sm text-amber-300">
+              Zuletzt bestätigter Lesestand; der aktuelle Kontext ist noch ungeklärt.
+            </p>
+          )}
+        </header>
+      )}
       {review}
-      {!loading && readError === null && viewed && renderVersionActions?.(viewed)}
+      {viewed &&
+        renderVersionActions?.(viewed, {
+          actionsDisabled: contextUnavailable || busy || conflict || actionsDisabled,
+          isActionsDisabled: commandBlocked,
+        })}
     </>
   );
 }
 
-function EvidenceLinkDetails({ link }: { link: LessonVersionSnapshot['evidence_links'][number] }) {
+function EvidenceLinkDetails({
+  link,
+  readAt,
+}: {
+  link: LessonVersionSnapshot['evidence_links'][number];
+  readAt: string;
+}) {
   const [opened, setOpened] = useState(false);
   return (
     <details
@@ -578,8 +823,10 @@ function EvidenceLinkDetails({ link }: { link: LessonVersionSnapshot['evidence_l
       {opened && (
         <>
           <p className="break-all text-xs">Unveränderlicher Link: {link.id}</p>
-          <EvidenceSourceStatus evidenceId={link.learning_evidence_id} />
-          <JournalEvidenceOrigin evidenceId={link.learning_evidence_id} />
+          <JournalEvidenceOrigin
+            key={`${link.learning_evidence_id}:${readAt}`}
+            evidenceId={link.learning_evidence_id}
+          />
         </>
       )}
     </details>

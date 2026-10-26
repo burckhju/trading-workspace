@@ -1026,6 +1026,12 @@ und erhält die Positionsrechnung des Owners. Der Draft-PR bindet den finalen
 Implementierungscommit und die tatsächlich abgeschlossenen Prüfungen. Kein neuer
 Depot-/Performanceumfang, keine Statushochsetzung oder Auslieferung durch UI4.
 
+**Nachfolgende Freigabe vom 26.10.2026:** Der gemeinsame Stand nach UI3 soll bei
+grünen Prüfungen integriert und als **1.5.22** für den PC bereitgestellt werden.
+Der [Integrationsnachtrag](../implementation/UI_TRADE_BOOKINGS_CONSOLIDATION.md#nachtrag-26102026-freigegebene-integration-und-pc-bereitstellung)
+bindet diesen Folgeauftrag getrennt von der ursprünglichen Draft-Übergabe.
+Fachlicher Arbeitsstatus und ausstehender Zielbetriebsnachweis bleiben erhalten.
+
 </details>
 
 ### PB-017
@@ -1124,6 +1130,15 @@ getrennt ausgewiesen. Die historischen Nachweise oben behalten ihren Codebezug.
 Keine allgemeine Mengen-/Preis-/Seiten- oder historische Managementkorrektur-UI,
 keine automatische Review-/Journal-/Lesson-Neubindung und kein Merge/Release
 werden mit diesem begrenzten Schnitt behauptet.
+
+**Nachfolgende Freigabe vom 26.10.2026:** Die Nutzeranweisung zur Integration bei
+grünen Prüfungen und zur PC-Bereitstellung erweitert die ursprüngliche
+Übergabegrenze. **1.5.22** erhält einen neuen Nachweis des gemeinsamen Stands mit
+UI3, anschließend die regulären Main-Gates und den bestehenden Tag-Publisher.
+Commit-, Tree- und Workflowbezüge werden in
+[PR #287](https://github.com/burckhju/trading-workspace/pull/287) festgehalten;
+Softwarebereitstellung, fachliche Abnahme und tatsächlich installierter PC-Stand
+bleiben getrennt. Die ursprünglichen historischen Nachweise oben bleiben erhalten.
 
 </details>
 
@@ -1358,16 +1373,16 @@ werden mit diesem begrenzten Schnitt behauptet.
 | Nachweisfeld | Einordnung |
 |---|---|
 | Zuordnung | M7: Lessons Learned. Bereich/Querschnitt: 7. Bestehender Bezug: FT-012. Lieferziel: B, D. |
-| Arbeitsstatus | Technical Review — explizite Lesson-Prüfung/Folgeversion technisch qualifiziert; keine fachliche Abnahme oder Zielinstallation. |
+| Arbeitsstatus | Technical Review — bestehende explizite Lesson-Prüfung/Folgeversion historisch technisch qualifiziert; UI3-Konsolidierung auf integriertem Main in `986f20a2` umgesetzt und lokal mit vollständigem Frontend-Gate geprüft; separate Übergabe als Draft-PR. Keine fachliche Abnahme oder Zielinstallation. |
 | Soll / Nicht-Soll | **Soll:** Eine bewusste Interpretation referenziert konkrete LearningEvidence und eine unveränderliche LessonVersion. **Nicht-Soll:** Evidence-Transport erzeugt keine Lesson; Lesson erzeugt kein automatisches Modellapproval. |
-| Vorhandenseinsnachweis | Bestehende Lesson-Erstellung und Journal-Evidence-Strecke um expliziten Quellen-/Widerspruchsreview und kontrollierte neue LessonVersion ergänzt. Tatsächlicher Browser-/PostgreSQL-Korrekturweg und unveränderte alte Inhalte/Relationen geprüft. |
-| Implementierung / Consumer | LessonReviewCommands komponiert bestehende Lesson-/Review-Services mit exaktem Versions-/Status-/Signalpin und idempotentem Commit. LessonReviewPanel bietet Quellen-/Widerspruchsprüfung, ausdrückliche Auflösung und neue Snapshots.  Bestehendes LessonDraftFromEvidence und LessonDetailPage; FT-012 LessonService.create_with_tags schließt den expliziten Erstellungsbefehl atomar ab. JournalEvidenceOrigin liest konkrete Journalversion und heutige Quellenprüfung getrennt; keine automatische Neuinterpretation. |
-| Test / Commit | [Qualifikation](../implementation/FT012_LESSON_REVIEW_QUALIFICATION.md), Code-/Testcommit `4081563509cb4ad4e765de499765a1759b59cdd3`, Lauf `38824269518`: drei unveränderte Gesamtgates erfolgreich, echter Journal→Lesson-V2-Browserweg zusätzlich zweimal ohne Retry. Historische Fehlversuche bleiben getrennt; finale Current-main-Prüfungen und Mergebeleg in PR #261. |
+| Vorhandenseinsnachweis | Bestehende Lesson-Erstellung, expliziter Quellen-/Widerspruchsreview und kontrollierte Folgeversion bleiben erhalten. **UI3, 26.10.2026:** genau ein ausgewählter vollständiger Snapshot beziehungsweise ersetzender vorbefüllter Editor; eine zugeordnete Quellenliste ohne kopierte Journal-Volltexte; heutiger Lifecycle und historische Inhalte getrennt. Historischer Browser-/PostgreSQL-Korrekturweg und neue lokale UI-Prüfungen besitzen getrennte Nachweise. |
+| Implementierung / Consumer | LessonReviewCommands behält vorhandene Services, exakten Versions-/Status-/Signalpin und idempotenten Commit. LessonDetailPage isoliert nach Lesson-ID; LessonReviewPanel verwendet einen zentralen Review-Kontext für Kopf, Versionswahl, Inhalt, Quellen, Änderung und Audit. PendingNavigationGuard schützt Review- und eingebettete Hypotheseneingaben; deren Quelle bleibt die sichtbare exakte LessonVersion. JournalEvidenceOrigin bündelt kompakte Herkunft und getrennte Currentness-Abfrage. Bestehendes LessonDraftFromEvidence und FT-012 LessonService.create_with_tags bleiben erhalten. [UI3-Vertrag und Grenzen](../implementation/UI_LESSON_CONSOLIDATION.md). |
+| Test / Commit | Historische [Qualifikation](../implementation/FT012_LESSON_REVIEW_QUALIFICATION.md), Code-/Testcommit `4081563509cb4ad4e765de499765a1759b59cdd3`, Lauf `38824269518`: damalige drei Gesamtgates und echter Journal→Lesson-V2-Browserweg; kein Nachweis für UI3. **UI3:** [neuer Bericht](../implementation/UI_LESSON_CONSOLIDATION.md) auf Basis `f8f61a11f65e9b36735704a2fabc3e4e953d4a77` bindet Implementierungscommit `986f20a2f7be7c2b38822cc3dbe3049f7c266029` und Tree `014efb3830e3865cc140ffcf51d0386f2801024b` an das vollständige Frontend-Gate (1.009 Tests), gezielte Backend-Vertragstests und echte Chromium-Fälle mit synthetischem HTTP. Reguläre PR-CI und ihre PostgreSQL-Nachweise werden separat am tatsächlichen PR-Head ausgewiesen. Der geschützte echte PostgreSQL-Ownerlauf ist lokal mangels Docker/GitHub-Actions-Umgebung nicht ausgeführt. |
 | Fachliche Abnahme | Keine eigenständige fachliche Abnahme für diesen vollständigen Zuschnitt verifiziert. |
-| Software-Auslieferung | Code in PR #261; normaler Merge nur nach grünen finalen Current-main-Prüfungen gemäß ausdrücklicher Nutzerfreigabe. Aktueller Mergebeleg in PR #261. Keine neue Migration oder Release-/Zielbetriebsbehauptung. |
+| Software-Auslieferung | UI3 ist eine separate Entwicklungsänderung bis zum Draft-PR; kein Merge-/Releaseauftrag. Main `f8f61a11` enthält #284 und #285 bei unveränderter VERSION 1.5.21; Tag `v1.5.21` auf `059860ea` enthält #284, aber nicht den späteren #285-Merge. Diese Basis-/Integrationsbelege bestätigen keine PC-Installation und keine UI3-Auslieferung. Historischer Lesson-Mergebeleg bleibt in PR #261. |
 | Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
-| Restarbeit / nächste Abhängigkeit | FT011-Materialisierungsrennen und historisches NOT_READY-Evidence-Inventar, allgemeine RETIRED-Reaktivierung, Titel-/Tag-Editor und vollständige Mobil-/Barrierefreiheitsabnahme bleiben getrennt. Fachliche Abnahme und Zielinstallation offen. PR #90 nicht als main-Funktion zählen. **Nächste Abhängigkeit:** bestehende FT-011-/FT-012-Quellenverträge; Journal ist keine neue Pflicht für die FT011-Lesson-Strecke. |
-| Umfangsentscheidung | Vorhandene Lesson-Strecke erhalten, nicht neu bauen. Journal bleibt daneben eigener ursprünglicher Anspruch. |
+| Restarbeit / nächste Abhängigkeit | UI3-Draft gemäß regulären PR-Gates fachlich prüfen; allgemeine RETIRED-Reaktivierung, Titel-/Tag-Editor, vollständige Mobil-/Barrierefreiheitsabnahme, fachliche Abnahme und Zielinstallation bleiben getrennt. FT011-Konsistenz und historisches NOT_READY-Inventar besitzen eigene spätere Belege in [PB-019 Materialisierung](#pb-019-materialization); aus älteren Lesson-Berichten keine erneute offene Implementierung ableiten. #90 und #187 bleiben separate offene Arbeiten. **Nächste Abhängigkeit:** bestehende FT-011-/FT-012-Quellenverträge; Journal ist keine neue Pflicht für die FT011-Lesson-Strecke. |
+| Umfangsentscheidung | Vorhandene Lesson-/Review-Verträge konsolidiert; kein neuer Backend-Lifecycle oder automatischer Governance-Befehl. Produkt-/Plankonsolidierungen #284/#285 sind bereits integriert und werden hier nicht erneut bearbeitet. Journal bleibt eigener ursprünglicher Anspruch. |
 
 </details>
 

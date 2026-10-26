@@ -3,6 +3,7 @@ import { StrictMode } from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { LessonReviewPanel } from './LessonReviewPanel';
+import { MarketApiError } from '../../market/services/http';
 import {
   lessonReviewClient,
   type ReviewContext,
@@ -98,7 +99,18 @@ beforeEach(() => {
       created_at: at,
     },
   ]);
-  vi.mocked(lessonReviewClient.execute).mockResolvedValue(receipt);
+  vi.mocked(lessonReviewClient.execute).mockImplementation((_id, command) =>
+    Promise.resolve({
+      ...receipt,
+      result_type:
+        command.operation === 'NEW_VERSION'
+          ? 'LESSON_VERSION'
+          : command.operation === 'OPEN_CONTRADICTION_REVIEW' ||
+              command.expected_open_signal_id !== null
+            ? 'LESSON_REVIEW_SIGNAL'
+            : 'LESSON_STATE_TRANSITION',
+    }),
+  );
 });
 
 it('read and prepare never write; confirms exact complete source snapshot with nonblank reason', async () => {
@@ -288,7 +300,7 @@ it('historical snapshot is read-only and does not borrow current evidence links'
   details.open = true;
   fireEvent(details, new Event('toggle'));
   await screen.findByText('Unveränderlicher Link: link1');
-  await screen.findByText('Review-Quelle jetzt: STALE');
+  await screen.findByText('Exact journal origin: e1');
   expect(lessonReviewClient.execute).not.toHaveBeenCalled();
 });
 
@@ -397,6 +409,7 @@ it('relation selects have exact accessible names independent of their option tex
   expect(screen.getByLabelText('Bezug 1', { exact: true })).toBe(relation);
   expect(relation).toHaveValue('SUPPORTS');
   expect(screen.getByRole('combobox', { name: 'Bezug 2' })).toHaveValue('CONTRADICTS');
+  await waitFor(() => expect(screen.getByLabelText('Vorhandene Evidence ergänzen')).toBeEnabled());
   expect(lessonReviewClient.execute).not.toHaveBeenCalled();
 });
 
@@ -438,7 +451,7 @@ it('a historical version deep link selects that exact snapshot without a write a
   vi.mocked(lessonReviewClient.context).mockResolvedValue(value);
   render(
     <MemoryRouter>
-      <LessonReviewPanel lessonId="A" initialVersionId="v1" onChanged={onChanged} />
+      <LessonReviewPanel lessonId="A" versionId="v1" onChanged={onChanged} />
     </MemoryRouter>,
   );
   const historical = await screen.findByRole('article', { name: 'Lesson-Snapshot Version 1' });
@@ -453,7 +466,7 @@ it('a historical version deep link selects that exact snapshot without a write a
 it('never substitutes the current snapshot for an unknown requested version', async () => {
   render(
     <MemoryRouter>
-      <LessonReviewPanel lessonId="A" initialVersionId="missing" onChanged={onChanged} />
+      <LessonReviewPanel lessonId="A" versionId="missing" onChanged={onChanged} />
     </MemoryRouter>,
   );
   expect(await screen.findByRole('alert')).toHaveTextContent(
@@ -461,4 +474,228 @@ it('never substitutes the current snapshot for an unknown requested version', as
   );
   expect(screen.queryByRole('article')).not.toBeInTheDocument();
   expect(lessonReviewClient.execute).not.toHaveBeenCalled();
+});
+
+it('replaces the only read snapshot with a complete prefilled editor and cancels without writing', async () => {
+  const value = context('REVIEW_RECOMMENDED');
+  value.history[0].evidence_links.push({
+    id: 'link-context',
+    lesson_version_id: 'v1',
+    learning_evidence_id: 'e-context',
+    relation: 'CONTEXTUAL',
+  });
+  vi.mocked(lessonReviewClient.context).mockResolvedValue(value);
+  mount();
+  expect(await screen.findAllByText('Original interpretation')).toHaveLength(1);
+  expect(screen.getAllByRole('article')).toHaveLength(1);
+  click('Neue Lesson-Version vorbereiten');
+  expect(screen.queryByRole('article')).toBeNull();
+  expect(screen.queryByText('Original interpretation', { selector: 'p' })).toBeNull();
+  expect(screen.getByLabelText('Kategorie der neuen Lesson-Version')).toHaveValue('Process');
+  expect(
+    screen.getByLabelText('Ausdrückliche Interpretation der neuen Lesson-Version'),
+  ).toHaveValue('Original interpretation');
+  expect(screen.getByLabelText('Bezug 1')).toHaveValue('SUPPORTS');
+  expect(screen.getByLabelText('Bezug 2')).toHaveValue('CONTRADICTS');
+  expect(screen.getByLabelText('Bezug 3')).toHaveValue('CONTEXTUAL');
+  expect(reason()).toHaveValue('');
+  await waitFor(() => expect(screen.getByLabelText('Vorhandene Evidence ergänzen')).toBeEnabled());
+  fireEvent.change(screen.getByLabelText('Ausdrückliche Interpretation der neuen Lesson-Version'), {
+    target: { value: 'Only the interpretation changes.' },
+  });
+  click('Prüfentwurf abbrechen');
+  expect(screen.getAllByText('Original interpretation')).toHaveLength(1);
+  expect(lessonReviewClient.execute).not.toHaveBeenCalled();
+  click('Neue Lesson-Version vorbereiten');
+  fireEvent.change(screen.getByLabelText('Ausdrückliche Interpretation der neuen Lesson-Version'), {
+    target: { value: 'Only the interpretation changes.' },
+  });
+  fireEvent.change(reason(), { target: { value: 'A fresh, explicit reason.' } });
+  fireEvent.click(confirm());
+  await waitFor(() => expect(lessonReviewClient.execute).toHaveBeenCalledTimes(1));
+  expect(vi.mocked(lessonReviewClient.execute).mock.calls[0][1]).toEqual({
+    operation: 'NEW_VERSION',
+    expected_current_version_id: 'v1',
+    expected_current_state: 'REVIEW_RECOMMENDED',
+    expected_open_signal_id: null,
+    reason: 'A fresh, explicit reason.',
+    confirmed: true,
+    main_category: 'Process',
+    content: 'Only the interpretation changes.',
+    evidence: [
+      { learning_evidence_id: 'e1', relation: 'SUPPORTS' },
+      { learning_evidence_id: 'e2', relation: 'CONTRADICTS' },
+      { learning_evidence_id: 'e-context', relation: 'CONTEXTUAL' },
+    ],
+  });
+  expect(value.history[0].version.content).toBe('Original interpretation');
+  expect(value.history[0].evidence_links.map((link) => link.relation)).toEqual([
+    'SUPPORTS',
+    'CONTRADICTS',
+    'CONTEXTUAL',
+  ]);
+});
+
+it('preserves a same-basis draft through refresh and requires a new reason within the existing limit', async () => {
+  vi.mocked(lessonReviewClient.context).mockResolvedValue(context('REVIEW_RECOMMENDED'));
+  mount();
+  await screen.findByRole('button', { name: 'Neue Lesson-Version vorbereiten' });
+  click('Neue Lesson-Version vorbereiten');
+  await waitFor(() => expect(screen.getByLabelText('Vorhandene Evidence ergänzen')).toBeEnabled());
+  fireEvent.change(screen.getByLabelText('Ausdrückliche Interpretation der neuen Lesson-Version'), {
+    target: { value: 'Unsaved interpretation' },
+  });
+  fireEvent.change(reason(), { target: { value: 'x'.repeat(201) } });
+  expect(confirm()).toBeDisabled();
+  fireEvent.change(reason(), { target: { value: 'x'.repeat(200) } });
+  expect(confirm()).toBeEnabled();
+  click('Lesson-Prüfstand neu laden');
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'Lesson-Prüfstand neu laden' })).toBeEnabled(),
+  );
+  expect(
+    screen.getByLabelText('Ausdrückliche Interpretation der neuen Lesson-Version'),
+  ).toHaveValue('Unsaved interpretation');
+  expect(reason()).toHaveValue('x'.repeat(200));
+  expect(confirm()).toBeEnabled();
+  expect(lessonReviewClient.execute).not.toHaveBeenCalled();
+});
+
+it('keeps a changed-base draft visible and blocks confirmation without silently adopting new sources', async () => {
+  const value = context('REVIEW_RECOMMENDED');
+  vi.mocked(lessonReviewClient.context).mockResolvedValue(value);
+  mount();
+  await screen.findByRole('button', { name: 'Neue Lesson-Version vorbereiten' });
+  click('Neue Lesson-Version vorbereiten');
+  await waitFor(() => expect(screen.getByLabelText('Vorhandene Evidence ergänzen')).toBeEnabled());
+  fireEvent.change(reason(), { target: { value: 'Keep my reason' } });
+  fireEvent.change(screen.getByLabelText('Ausdrückliche Interpretation der neuen Lesson-Version'), {
+    target: { value: 'Keep my interpretation' },
+  });
+  const next = structuredClone(value);
+  next.lesson.current_version_id = 'v2';
+  next.history.unshift({
+    version: { ...next.history[0].version, id: 'v2', version: 2, content: 'Concurrent content' },
+    evidence_links: [],
+  });
+  vi.mocked(lessonReviewClient.context).mockResolvedValue(next);
+  click('Lesson-Prüfstand neu laden');
+  await screen.findByText(/Der Lesson-Stand hat sich geändert/);
+  expect(reason()).toHaveValue('Keep my reason');
+  expect(
+    screen.getByLabelText('Ausdrückliche Interpretation der neuen Lesson-Version'),
+  ).toHaveValue('Keep my interpretation');
+  expect(screen.getByLabelText('Bezug 1')).toHaveValue('SUPPORTS');
+  expect(screen.getByLabelText('Bezug 2')).toHaveValue('CONTRADICTS');
+  expect(confirm()).toBeDisabled();
+  expect(screen.getByLabelText('Lesson-Version ansehen')).toHaveValue('v1');
+  expect(screen.queryByText('Concurrent content')).toBeNull();
+  expect(lessonReviewClient.execute).not.toHaveBeenCalled();
+});
+
+it.each([
+  'foreign-version-owner',
+  'foreign-evidence-link',
+  'duplicate-version',
+  'duplicate-evidence',
+])('rejects an unreliable context: %s', async (problem) => {
+  const value = context();
+  if (problem === 'foreign-version-owner') value.history[0].version.lesson_id = 'foreign';
+  if (problem === 'foreign-evidence-link')
+    value.history[0].evidence_links[0].lesson_version_id = 'foreign';
+  if (problem === 'duplicate-version') value.history.push(structuredClone(value.history[0]));
+  if (problem === 'duplicate-evidence')
+    value.history[0].evidence_links[1].learning_evidence_id = 'e1';
+  vi.mocked(lessonReviewClient.context).mockResolvedValue(value);
+  const governance = vi.fn();
+  render(
+    <MemoryRouter>
+      <LessonReviewPanel lessonId="A" renderVersionActions={governance} />
+    </MemoryRouter>,
+  );
+  await screen.findByText(/Keine neue Bestätigung bis zum erfolgreichen Neuladen/);
+  expect(screen.queryByRole('article')).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Quellenbezogene Prüfung beginnen' })).toBeNull();
+  expect(governance).not.toHaveBeenCalled();
+});
+
+it('a conflict preserves inputs and requires explicit re-preparation even after a verified refresh', async () => {
+  vi.mocked(lessonReviewClient.execute).mockRejectedValueOnce(
+    new MarketApiError(409, {
+      code: 'LESSON_REVIEW_CONFLICT',
+      message: 'Changed pins',
+      details: [],
+      timestamp: at,
+    }),
+  );
+  mount();
+  await screen.findByRole('button', { name: 'Quellenbezogene Prüfung beginnen' });
+  click('Quellenbezogene Prüfung beginnen');
+  fireEvent.change(reason(), { target: { value: 'Retain my explicit reason' } });
+  fireEvent.click(confirm());
+  await screen.findByText(/Lesson-Version, Status oder offenes Review/);
+  expect(reason()).toHaveValue('Retain my explicit reason');
+  expect(confirm()).toBeDisabled();
+  click('Lesson-Prüfstand neu laden');
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'Lesson-Prüfstand neu laden' })).toBeEnabled(),
+  );
+  expect(confirm()).toBeDisabled();
+  click('Prüfentwurf abbrechen');
+  click('Quellenbezogene Prüfung beginnen');
+  expect(reason()).toHaveValue('');
+  expect(confirm()).toBeDisabled();
+  expect(lessonReviewClient.execute).toHaveBeenCalledTimes(1);
+});
+
+it('cancelling a conflicted draft cannot make an unverified context appear actionable', async () => {
+  vi.mocked(lessonReviewClient.execute).mockRejectedValueOnce(
+    new MarketApiError(409, {
+      code: 'LESSON_REVIEW_CONFLICT',
+      message: 'Changed pins',
+      details: [],
+      timestamp: at,
+    }),
+  );
+  mount();
+  await screen.findByRole('button', { name: 'Quellenbezogene Prüfung beginnen' });
+  click('Quellenbezogene Prüfung beginnen');
+  fireEvent.change(reason(), { target: { value: 'Confirm explicit source inspection' } });
+  fireEvent.click(confirm());
+  await screen.findByText(/Lesson-Version, Status oder offenes Review/);
+  click('Prüfentwurf abbrechen');
+  expect(screen.getByRole('button', { name: 'Quellenbezogene Prüfung beginnen' })).toBeDisabled();
+  expect(screen.getByText(/Zuletzt bestätigter Lesestand/)).toBeVisible();
+  click('Lesson-Prüfstand neu laden');
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'Quellenbezogene Prüfung beginnen' })).toBeEnabled(),
+  );
+  expect(lessonReviewClient.execute).toHaveBeenCalledTimes(1);
+});
+
+it('retired Lessons expose no review command or implicit reactivation', async () => {
+  vi.mocked(lessonReviewClient.context).mockResolvedValue(context('RETIRED'));
+  mount();
+  await screen.findByText(/Außer Gebrauch. Reaktivierung/);
+  expect(screen.queryByRole('button', { name: 'Quellenbezogene Prüfung beginnen' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Neue Lesson-Version vorbereiten' })).toBeNull();
+  expect(lessonReviewClient.execute).not.toHaveBeenCalled();
+});
+
+it.each([
+  { ...receipt, lesson_id: 'foreign' },
+  { ...receipt, result_id: '' },
+  { ...receipt, result_type: 'LESSON_VERSION' },
+])('does not accept a receipt inconsistent with the confirmed command: %j', async (response) => {
+  vi.mocked(lessonReviewClient.execute).mockResolvedValue(response);
+  mount();
+  await screen.findByRole('button', { name: 'Quellenbezogene Prüfung beginnen' });
+  click('Quellenbezogene Prüfung beginnen');
+  fireEvent.change(reason(), { target: { value: 'Keep the uncertain command' } });
+  fireEvent.click(confirm());
+  await screen.findByText(/Die Prüfentscheidung ist nicht bestätigt/);
+  expect(reason()).toHaveValue('Keep the uncertain command');
+  expect(screen.queryByText(/Prüfentscheidung gespeichert/)).toBeNull();
+  expect(onChanged).not.toHaveBeenCalled();
+  expect(lessonReviewClient.context).toHaveBeenCalledTimes(1);
 });
