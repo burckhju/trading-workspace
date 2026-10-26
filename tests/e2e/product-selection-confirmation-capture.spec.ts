@@ -1,7 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import { expect, test, type APIResponse, type Request } from '@playwright/test';
 
-test.use({ baseURL: 'http://localhost:8080', timezoneId: 'Europe/Berlin' });
+test.use({
+  baseURL: process.env.TRADE_E2E_UI_URL ?? 'http://localhost:8080',
+  timezoneId: 'Europe/Berlin',
+});
 test.skip(
   process.env.TRADE_E2E_WRITES_ALLOWED !== '1',
   'Requires an explicitly disposable test stack; never enable on a user depot',
@@ -16,7 +19,7 @@ test('existing incomplete-evaluation confirmation leads to one persisted BUY wit
   page,
   request,
 }) => {
-  const root = 'http://127.0.0.1:8000/api/v1';
+  const root = process.env.TRADE_E2E_API_URL ?? 'http://127.0.0.1:8000/api/v1';
   const token = randomUUID().slice(0, 8);
   const issuer = await body(await request.post(`${root}/market-reference-data/issuers`, {
     data: { legal_name: `Synthetic confirmation ${randomUUID()}`, display_name: 'Synthetic confirmation' },

@@ -1,0 +1,42 @@
+import type { TradePlanDetailResponse } from '../../trade_plan/types/api';
+
+export const selectionPlanFixture: TradePlanDetailResponse = {
+  plan: {
+    id: '00000000-0000-4000-8000-000000000201',
+    underlying_id: '00000000-0000-4000-8000-000000000301',
+    origin_type: 'MANUAL',
+    candidate_id: null,
+    candidate_evaluation_id: null,
+    created_at: '2026-08-16T09:00:00Z',
+    created_by: '00000000-0000-4000-8000-000000000002',
+  },
+  latest_version: {
+    id: '00000000-0000-4000-8000-000000000202',
+    trade_plan_id: '00000000-0000-4000-8000-000000000201',
+    version: 3,
+    direction: 'LONG',
+    thesis: 'Saved plan thesis',
+    entry: {
+      type: 'PRICE',
+      currency: 'USD',
+      price: '100.00',
+      price_from: null,
+      price_to: null,
+      trigger: null,
+      reference_price: null,
+      valid_until: null,
+      rationale: null,
+    },
+    invalidation: { stop_price: '90.00', invalidation_rule: null, rationale: null },
+    targets: [{ sequence: 1, price: '120.00', rationale: null }],
+    risk_assumptions: { thesis_risk: 'Saved risk', max_loss_assumption: null, notes: null },
+    status: 'APPROVED',
+    created_at: '2026-08-16T09:00:00Z',
+    created_by: '00000000-0000-4000-8000-000000000002',
+    previous_version_id: null,
+    change_reason: null,
+    candidate_evaluation: null,
+    approval: null,
+    events: [],
+  },
+};

@@ -732,6 +732,16 @@ der Layout-Phase, getrennt vom weiterhin passiven Ladeeffekt.
 
 [Einstieg planen](#pb-014-entry) · [Stopstrategie im TradePlan](#pb-014-stop) · [Kursziele im TradePlan](#pb-014-targets) · [Risikoannahmen im TradePlan](#pb-014-risk) · [Annahmen, Freigabe und Herkunft des Plans](#pb-014-assumptions)
 
+**Begrenzter UI-Nachtrag 25.10.2026:** Der Nutzerauftrag konsolidiert einmalige
+Basiswert-/CandidateEvaluation-Auswahl, zentrale versionsgenaue Planansicht und
+den vorbefüllten Approved-Amendment-Weg bis zum prüfbaren Draft-PR.
+[Vertrag, vollständiger TRIGGER-Referenzfall und Qualifikationsgrenzen](../implementation/TRADE_PLAN_SELECTION_CONTEXT.md).
+Die historische Auslieferung unten bleibt historisch; neue Ergebnisse sind an
+den aktuellen UI-Commit zu binden. **Offener Folgepunkt:** eigener fachlicher/API-
+Vertrag für die Inhaltsrevision bereits gespeicherter DRAFT-Versionen; Rückkehr
+von READY_FOR_REVIEW nach DRAFT ist nur eine Statusaktion. Keine Versions-, Merge-,
+Release- oder PC-Freigabe aus diesem UI-Auftrag.
+
 <a id="pb-014-entry"></a>
 <details>
 <summary>PB-014 — Einstieg planen</summary>
@@ -835,6 +845,15 @@ der Layout-Phase, getrennt vom weiterhin passiven Ladeeffekt.
 ### PB-015
 
 [Produktsuche und Suchuniversum](#pb-015-search) · [Produktvergleich und bewusste Auswahl](#pb-015-comparison) · [Produktscore und fachliche Modellfamilie](#pb-015-score)
+
+**Kontextnachtrag 25.10.2026:** Der begrenzte [FT-007-/FT-008-UI-Schnitt](../implementation/TRADE_PLAN_SELECTION_CONTEXT.md)
+bindet eine ausdrücklich ausgewählte APPROVED-Version gemeinsam mit ihrem Plan.
+Eine weiterhin freigegebene frühere Version bleibt auch bei neuestem DRAFT
+wählbar. Gespeicherte Runs werden über ihre ursprünglichen Referenzen geöffnet;
+Lesen und Reparaturrückkehr starten keine neue Bewertung oder Ausführung.
+Produkteditor und Produkt-API bleiben beim parallelen Produktverwaltungsauftrag.
+Die bestehenden Reparatur-/Rückkehrrouten sowie NOT_EVALUABLE-Bestätigung und
+Erstkaufstrecke sind beim Zusammenführen beider Branches erneut zu prüfen.
 
 <a id="pb-015-search"></a>
 <details>

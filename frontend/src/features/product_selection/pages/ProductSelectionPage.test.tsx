@@ -6,6 +6,9 @@ import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { warrantApiClient } from '../../product/services/client';
 import { tradePlanOverviewApiClient } from '../../trade_plan/services/overviewClient';
 
+import { productSelectionApiClient } from '../services/client';
+import { tradePlanApiClient } from '../../trade_plan/services/client';
+import { selectionPlanFixture } from '../test/planContextFixtures';
 import { ProductSelectionPage } from './ProductSelectionPage';
 
 const runDetail = {
@@ -120,6 +123,9 @@ const purchaseResponse = {
 };
 
 beforeEach(() => {
+  vi.spyOn(productSelectionApiClient, 'listForTradePlanVersion').mockResolvedValue([]);
+  vi.spyOn(tradePlanApiClient, 'get').mockResolvedValue(selectionPlanFixture);
+  vi.spyOn(tradePlanApiClient, 'version').mockResolvedValue(selectionPlanFixture.latest_version);
   vi.spyOn(warrantApiClient, 'list').mockResolvedValue(
     runDetail.evaluations.map((e, i) => ({
       id: e.warrant_id,
@@ -148,16 +154,20 @@ describe('ProductSelectionPage', () => {
     );
     const user = userEvent.setup();
     render(
-      <MemoryRouter>
+      <MemoryRouter
+        initialEntries={[
+          `/product-selection?trade_plan_id=${runDetail.run.trade_plan_id}&trade_plan_version_id=${runDetail.run.trade_plan_version_id}`,
+        ]}
+      >
         <ProductSelectionPage />
       </MemoryRouter>,
     );
 
-    await user.type(screen.getByLabelText('TradePlan-ID'), runDetail.run.trade_plan_id);
-    await user.type(
-      screen.getByLabelText('TradePlanVersion-ID'),
-      runDetail.run.trade_plan_version_id,
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Produkte neu bewerten' })).toBeEnabled(),
     );
+    expect(screen.queryByLabelText('TradePlan-ID')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('TradePlanVersion-ID')).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Produkte neu bewerten' }));
 
     await waitFor(() => expect(screen.getByText('Produktvergleich')).toBeInTheDocument());
@@ -172,20 +182,23 @@ describe('ProductSelectionPage', () => {
     const fetchMock = vi
       .spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce(new Response(JSON.stringify(runDetail), { status: 201 }))
-      .mockResolvedValueOnce(new Response(JSON.stringify([]), { status: 200 }))
       .mockResolvedValueOnce(new Response(JSON.stringify(selectedNotEvaluable), { status: 201 }));
     const user = userEvent.setup();
     render(
-      <MemoryRouter>
+      <MemoryRouter
+        initialEntries={[
+          `/product-selection?trade_plan_id=${runDetail.run.trade_plan_id}&trade_plan_version_id=${runDetail.run.trade_plan_version_id}`,
+        ]}
+      >
         <ProductSelectionPage />
       </MemoryRouter>,
     );
 
-    await user.type(screen.getByLabelText('TradePlan-ID'), runDetail.run.trade_plan_id);
-    await user.type(
-      screen.getByLabelText('TradePlanVersion-ID'),
-      runDetail.run.trade_plan_version_id,
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Produkte neu bewerten' })).toBeEnabled(),
     );
+    expect(screen.queryByLabelText('TradePlan-ID')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('TradePlanVersion-ID')).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Produkte neu bewerten' }));
     await screen.findByText('Produktvergleich');
     await user.click(screen.getAllByRole('button', { name: 'Dieses Produkt auswählen' })[1]);
@@ -215,20 +228,23 @@ describe('ProductSelectionPage', () => {
     const fetchMock = vi
       .spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce(new Response(JSON.stringify(runDetail), { status: 201 }))
-      .mockResolvedValueOnce(new Response(JSON.stringify([]), { status: 200 }))
       .mockResolvedValueOnce(new Response(JSON.stringify(selected), { status: 201 }));
     const user = userEvent.setup();
     render(
-      <MemoryRouter>
+      <MemoryRouter
+        initialEntries={[
+          `/product-selection?trade_plan_id=${runDetail.run.trade_plan_id}&trade_plan_version_id=${runDetail.run.trade_plan_version_id}`,
+        ]}
+      >
         <ProductSelectionPage />
       </MemoryRouter>,
     );
 
-    await user.type(screen.getByLabelText('TradePlan-ID'), runDetail.run.trade_plan_id);
-    await user.type(
-      screen.getByLabelText('TradePlanVersion-ID'),
-      runDetail.run.trade_plan_version_id,
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Produkte neu bewerten' })).toBeEnabled(),
     );
+    expect(screen.queryByLabelText('TradePlan-ID')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('TradePlanVersion-ID')).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Produkte neu bewerten' }));
     await screen.findByText('Produktvergleich');
     await user.click(screen.getAllByRole('button', { name: 'Dieses Produkt auswählen' })[0]);
@@ -258,21 +274,24 @@ describe('ProductSelectionPage', () => {
     const fetchMock = vi
       .spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce(new Response(JSON.stringify(runDetail), { status: 201 }))
-      .mockResolvedValueOnce(new Response(JSON.stringify([]), { status: 200 }))
       .mockResolvedValueOnce(new Response(JSON.stringify(selected), { status: 201 }))
       .mockResolvedValueOnce(new Response(JSON.stringify(purchaseResponse), { status: 201 }));
     const user = userEvent.setup();
     render(
-      <MemoryRouter>
+      <MemoryRouter
+        initialEntries={[
+          `/product-selection?trade_plan_id=${runDetail.run.trade_plan_id}&trade_plan_version_id=${runDetail.run.trade_plan_version_id}`,
+        ]}
+      >
         <ProductSelectionPage />
       </MemoryRouter>,
     );
 
-    await user.type(screen.getByLabelText('TradePlan-ID'), runDetail.run.trade_plan_id);
-    await user.type(
-      screen.getByLabelText('TradePlanVersion-ID'),
-      runDetail.run.trade_plan_version_id,
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Produkte neu bewerten' })).toBeEnabled(),
     );
+    expect(screen.queryByLabelText('TradePlan-ID')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('TradePlanVersion-ID')).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Produkte neu bewerten' }));
     await screen.findByText('Produktvergleich');
     await user.click(screen.getAllByRole('button', { name: 'Dieses Produkt auswählen' })[0]);

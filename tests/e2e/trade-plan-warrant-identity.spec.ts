@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import type { TradePlanOverviewItem } from "../../frontend/src/features/trade_plan/services/overviewClient";
 import type { ProductSelectionRunDetailResponse } from "../../frontend/src/features/product_selection/types/api";
+import { planContextFixture } from "./support/plan-context-fixtures";
 
 // Synthetic read-only API fixtures, not a browser-to-database booking test.
 const selected = {
@@ -106,6 +107,25 @@ for (const width of [1280, 390]) {
         });
       }
       requests.push(pathname);
+      const plan = planContextFixture(
+        item.id,
+        item.latest_version_id,
+        item.underlying_id,
+        { version: 2 },
+      );
+      if (
+        pathname.endsWith(
+          `/trade-plans/${item.id}/versions/${item.latest_version_id}`,
+        )
+      ) {
+        return route.fulfill({ json: plan.latest_version });
+      }
+      if (pathname.endsWith(`/trade-plans/${item.id}/versions`)) {
+        return route.fulfill({ json: [plan.latest_version] });
+      }
+      if (pathname.endsWith(`/trade-plans/${item.id}`)) {
+        return route.fulfill({ json: plan });
+      }
       if (pathname.endsWith("/trade-plans")) {
         return route.fulfill({
           json: [
