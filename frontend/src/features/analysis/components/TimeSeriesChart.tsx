@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
+import { withChartSetupContext } from '../../administration/services/referenceDataContext';
 import {
   CartesianGrid,
   Line,
@@ -63,6 +64,7 @@ export function TimeSeriesChart({
   display?: ChartDisplayState;
   onDisplayChange?: (value: ChartDisplayState) => void;
 }) {
+  const location = useLocation();
   const [localDisplay, setLocalDisplay] = useState<ChartDisplayState>({
     mode: null,
     singleKey: null,
@@ -279,7 +281,13 @@ export function TimeSeriesChart({
                 {chartMessage(issue)}
               </p>
             ))}
-            <Link className="mt-2 inline-block text-sky-300 underline" to={item.identity.setup_url}>
+            <Link
+              className="mt-2 inline-block text-sky-300 underline"
+              to={withChartSetupContext(
+                item.identity.setup_url,
+                new URLSearchParams(location.search),
+              )}
+            >
               Datenbasis / Historie einrichten
             </Link>
           </article>

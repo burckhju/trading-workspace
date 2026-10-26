@@ -1,643 +1,614 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { PendingNavigationGuard } from '../../../components/PendingNavigationGuard';
+import { ExistingUnderlyingSelector } from '../../administration/components/ExistingUnderlyingSelector';
+import { MappingEditor, MappingStatus } from '../../administration/components/MappingEditor';
+import { SetupDiscardDialog } from '../../administration/components/SetupDiscardDialog';
+import { SetupProposals } from '../../administration/components/SetupProposals';
+import { useReferenceSetup } from '../../administration/components/useReferenceSetup';
 import {
-  topDownAdminClient,
-  type VenueReconciliation,
-} from '../../administration/services/topDownAdminClient';
-import { marketApiClient } from '../../market/services/client';
-import type { ListingResponse } from '../../market/types/api';
-import { UnderlyingSearchCombobox } from '../components/UnderlyingSearchCombobox';
-import { chartClient } from '../services/chartClient';
-import { chartSetupClient, type SectorProposal } from '../services/chartSetupClient';
-import type { ChartCatalog } from '../types/charts';
+  parseReferenceDataContext,
+  type ReferenceDataContext,
+  type SetupAction,
+} from '../../administration/services/referenceDataContext';
+import {
+  editsMapping,
+  importsHistory,
+  isAssignment,
+  needsListing,
+  needsReference,
+  needsSector,
+  needsUnderlying,
+  selectionForAction,
+  setupActions,
+} from '../../administration/services/referenceSetup';
 
-const inputClass = 'mt-1 w-full rounded border border-slate-600 bg-slate-950 p-2';
-const actions = [
-  ['bootstrap', 'Marktreferenzen DAX / S&P 500 / Nasdaq 100 anlegen'],
-  ['sector', 'Sektor anlegen'],
-  ['reference', 'Sektor-Benchmark anlegen'],
-  ['sectorReference', 'Sektor einer Benchmark zuordnen'],
-  ['proxy', 'ETF-Listing als Benchmark-Proxy zuordnen'],
-  ['stockSector', 'Basiswert einem Sektor zuordnen'],
-  ['stockMarket', 'Basiswert einem Markt zuordnen'],
-  ['referenceMapping', 'Index: Provider-Mapping speichern (deaktiviert)'],
-  ['referenceValidate', 'Index: Mapping prüfen und aktivieren'],
-  ['basis', 'Index: Renditegrundlage bestätigen'],
-  ['referenceImport', 'Index: Historie importieren'],
-  ['listingMapping', 'Aktie / ETF: Provider-Mapping speichern (deaktiviert)'],
-  ['listingValidate', 'Aktie / ETF: Mapping prüfen und aktivieren'],
-  ['listingImport', 'Aktie / ETF: Historie importieren'],
-] as const;
-type Action = (typeof actions)[number][0];
-const today = () => new Date().toISOString().slice(0, 10);
+const inputClass = 'mt-1 w-full min-w-0 rounded border border-slate-600 bg-slate-950 p-2';
+const buttonClass = 'rounded border border-slate-600 px-3 py-2 disabled:opacity-50';
 
 export function ChartSetupPage() {
   const [params] = useSearchParams();
-  const [catalog, setCatalog] = useState<ChartCatalog | null>(null);
-  const [proposals, setProposals] = useState<SectorProposal[]>([]);
-  const [action, setAction] = useState<Action>(
-    params.has('reference_id')
-      ? 'referenceImport'
-      : params.has('listing_id')
-        ? 'listingImport'
-        : params.has('sector_id')
-          ? 'sectorReference'
-          : params.has('underlying_id')
-            ? 'stockSector'
-            : 'bootstrap',
-  );
-  const [reference, setReference] = useState(params.get('reference_id') ?? '');
-  const [sector, setSector] = useState(params.get('sector_id') ?? '');
-  const [underlying, setUnderlying] = useState(params.get('underlying_id') ?? '');
-  const [listing, setListing] = useState(params.get('listing_id') ?? '');
-  const [listings, setListings] = useState<ListingResponse[]>([]);
-  const [code, setCode] = useState('');
-  const [name, setName] = useState('');
-  const [system, setSystem] = useState('');
-  const [version, setVersion] = useState('');
-  const [symbol, setSymbol] = useState('');
-  const [exchange, setExchange] = useState('');
-  const [source, setSource] = useState('');
-  const [basis, setBasis] = useState('PRICE_INDEX');
-  const [start, setStart] = useState(`${new Date().getUTCFullYear() - 1}-01-01`);
-  const [end, setEnd] = useState(today());
-  const [confirmed, setConfirmed] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
-  const [revision, setRevision] = useState(0);
-  const [venueEvidence, setVenueEvidence] = useState<VenueReconciliation | null>(null);
-  const identity = catalog?.references.find(
-    (item) => item.identity.reference_id === reference,
-  )?.identity;
-  const assignment = ['sectorReference', 'proxy', 'stockSector', 'stockMarket'].includes(action);
-  const needsReference = [
-    'sectorReference',
-    'proxy',
-    'stockMarket',
-    'referenceMapping',
-    'referenceValidate',
-    'basis',
-    'referenceImport',
-  ].includes(action);
-  const needsSector = ['sectorReference', 'stockSector'].includes(action);
-  const needsListing = ['proxy', 'listingMapping', 'listingValidate', 'listingImport'].includes(
-    action,
-  );
-  const needsUnderlying = needsListing || ['stockSector', 'stockMarket'].includes(action);
-  const importing = action.endsWith('Import');
-
-  useEffect(() => {
-    const abort = new AbortController();
-    Promise.all([chartClient.catalog(today(), abort.signal), chartSetupClient.proposals()])
-      .then(([values, hints]) => {
-        if (!abort.signal.aborted) {
-          setCatalog(values);
-          setProposals(hints);
-        }
-      })
-      .catch((reason: unknown) => {
-        if (!abort.signal.aborted)
-          setError(reason instanceof Error ? reason.message : 'Einrichtung nicht verfügbar.');
-      });
-    return () => abort.abort();
-  }, [revision]);
-  useEffect(() => {
-    if (!underlying) return;
-    let current = true;
-    marketApiClient
-      .getUnderlying(underlying)
-      .then((value) => {
-        if (!current) return;
-        setListings(value.listings);
-        setListing(value.listings.find((item) => item.is_primary)?.id ?? '');
-      })
-      .catch((reason: unknown) => {
-        if (current) setError(reason instanceof Error ? reason.message : 'Notierungen fehlen.');
-      });
-    return () => {
-      current = false;
-    };
-  }, [underlying]);
-
-  async function submit(event: FormEvent) {
-    event.preventDefault();
-    if (!confirmed || busy) return;
-    setBusy(true);
-    setError('');
-    setMessage('');
-    setVenueEvidence(null);
-    const evidence = {
-      valid_from: start,
-      valid_to: null,
-      source: 'CHART_SETUP',
-      source_reference: source,
-      quality_status: 'GOOD',
-    };
-    let result: unknown;
+  const candidateId = params.get('candidate_id');
+  const query = params.toString();
+  const parsed = useMemo(() => {
     try {
-      switch (action) {
-        case 'bootstrap':
-          result = await chartSetupClient.write('bootstrap-v1');
-          break;
-        case 'sector':
-          result = await chartSetupClient.write('sectors', {
-            code,
-            name,
-            classification_system: system,
-            classification_version: version,
-          });
-          break;
-        case 'reference':
-          result = await chartSetupClient.write('sector-references', {
-            code,
-            name,
-            region: 'US',
-            reference_version: version,
-          });
-          break;
-        case 'sectorReference':
-          result = await chartSetupClient.write(`sectors/${sector}/reference-assignments`, {
-            ...evidence,
-            market_reference_id: reference,
-          });
-          break;
-        case 'proxy':
-          result = await chartSetupClient.write(
-            `market-references/${reference}/listing-assignments`,
-            { ...evidence, listing_id: listing },
-          );
-          break;
-        case 'stockSector':
-          result = await chartSetupClient.write(`underlyings/${underlying}/sector-assignments`, {
-            ...evidence,
-            sector_id: sector,
-          });
-          break;
-        case 'stockMarket':
-          result = await chartSetupClient.write(`underlyings/${underlying}/benchmark-assignments`, {
-            ...evidence,
-            market_reference_id: reference,
-            role: 'BROAD_MARKET',
-          });
-          break;
-        case 'referenceMapping':
-          result = await chartSetupClient.write(
-            `market-references/${reference}/provider-mapping/eodhd`,
-            { provider_symbol: symbol, provider_exchange_code: exchange },
-            'PUT',
-          );
-          break;
-        case 'referenceValidate':
-          result = await chartSetupClient.write(
-            `market-references/${reference}/provider-mapping/eodhd/validate`,
-          );
-          break;
-        case 'basis':
-          if (!identity?.mapping_id || !identity.mapping_version)
-            throw new Error('Aktives Mapping zuerst prüfen.');
-          result = await chartSetupClient.write(`market-references/${reference}/series-basis`, {
-            mapping_id: identity.mapping_id,
-            mapping_version: identity.mapping_version,
-            return_basis: basis,
-            source_url: source,
-            confirmed: true,
-          });
-          break;
-        case 'referenceImport':
-          result = await chartSetupClient.write(
-            `market-references/${reference}/daily-prices/import`,
-            { start_date: start, end_date: end },
-          );
-          break;
-        case 'listingMapping':
-          result = await topDownAdminClient.createMapping(listing, symbol, exchange);
-          break;
-        case 'listingValidate':
-        case 'listingImport': {
-          const mappings = await topDownAdminClient.mappings();
-          const mapping = mappings.find((item) => item.listing_id === listing);
-          if (!mapping) throw new Error('Für diese Notierung fehlt ein Mapping.');
-          if (action === 'listingValidate') {
-            result = await topDownAdminClient.validateMapping(mapping.id);
-            setVenueEvidence(await topDownAdminClient.venueReconciliation(mapping.id));
-          } else {
-            result = await topDownAdminClient.importHistory(listing, mapping.id, start, end);
-          }
-          break;
-        }
-      }
-      chartClient.clear();
-      setConfirmed(false);
-      setRevision((value) => value + 1);
-      if (result && typeof result === 'object' && 'inserted' in result) {
-        const counts = result as { inserted: number; updated: number; unchanged: number };
-        setMessage(
-          `Import abgeschlossen: ${counts.inserted} neu, ${counts.updated} aktualisiert, ${counts.unchanged} unverändert.`,
-        );
-      } else if (result && typeof result === 'object' && 'status' in result) {
-        const status = (result as { status: string }).status;
-        setMessage(`Mappingstatus: ${status}. Historie wird separat importiert.`);
-      } else
-        setMessage(
-          'Schritt gespeichert. Weitere Zuordnungen und Datenimporte bleiben separate Schritte.',
-        );
+      return { context: parseReferenceDataContext(new URLSearchParams(query)), error: '' };
     } catch (reason: unknown) {
-      setError(reason instanceof Error ? reason.message : 'Schritt fehlgeschlagen.');
-    } finally {
-      setBusy(false);
+      return {
+        context: null,
+        error:
+          reason instanceof Error ? reason.message : 'Der Einrichtungskontext ist nicht lesbar.',
+      };
     }
-  }
+  }, [query]);
+  return parsed.context ? (
+    <SetupEditor key={parsed.context.key} context={parsed.context} />
+  ) : (
+    <div className="mx-auto max-w-3xl space-y-4">
+      <h1 className="text-2xl font-semibold">Einrichtung gesperrt</h1>
+      <p role="alert">{parsed.error}</p>
+      <Link
+        className="text-sky-300 underline"
+        to={
+          candidateId
+            ? `/candidates?candidate=${encodeURIComponent(candidateId)}`
+            : '/market-charts'
+        }
+      >
+        {candidateId ? 'Zurück zum Kandidaten' : 'Zurück zu den Diagrammen'}
+      </Link>
+    </div>
+  );
+}
+
+function SetupEditor({ context }: { context: ReferenceDataContext }) {
+  const editor = useReferenceSetup(context);
+  const { selection, draft, snapshot, busy, loading } = editor;
+  const action = selection.action;
+  const pinned = Boolean(context.workflowAction);
+  const candidate = Boolean(context.candidateId);
+  const actionLabel = setupActions.find((item) => item.value === action)?.label;
+  const lockUnderlying = pinned && action !== 'proxy';
+  const lockReference = pinned && (action === 'proxy' || Boolean(context.referenceId));
+  const lockSector = pinned && (action === 'sectorReference' || Boolean(context.sectorId));
+  const lockListing = pinned && action !== 'proxy';
+  const disabled = busy || loading || !editor.resolved;
 
   return (
-    <div className="min-w-0 w-full space-y-6">
-      <header>
-        <Link className="text-sky-300" to="/market-charts">
-          ← Diagramme
+    <div className="mx-auto min-w-0 w-full max-w-5xl space-y-5">
+      <PendingNavigationGuard
+        shouldBlock={editor.shouldBlock}
+        busy={busy}
+        onDiscard={editor.discardForRoute}
+      />
+      {editor.pending && !busy && (
+        <SetupDiscardDialog onStay={editor.stay} onDiscard={editor.discard} />
+      )}
+      <header className="min-w-0">
+        <Link className="text-sky-300 underline" to={editor.resolved?.returnTo ?? context.returnTo}>
+          {candidate ? '← Zurück zum Kandidaten' : '← Zurück zu den Diagrammen'}
         </Link>
         <h1 className="mt-3 text-3xl font-semibold">Diagramm-Datenbasis einrichten</h1>
         <p className="mt-2 text-slate-300">
-          Vorhandene Sektoren und Referenzen bleiben maßgeblich. Jeder Schritt wird einzeln geprüft
-          und bestätigt. Chartauswahl ändert keine Zuordnung.
+          Referenzdaten und Mappings an einem Eingabeort. Wähle ein vorhandenes Objekt und bestätige
+          jeweils einen Schritt.
         </p>
       </header>
-      {error && (
-        <p role="alert" className="rounded border border-rose-700 p-3">
-          {error}
+      {editor.error && (
+        <p role="alert" className="break-words rounded border border-rose-700 p-3">
+          {editor.error}
         </p>
       )}
-      {message && (
+      {editor.message && (
         <p role="status" className="rounded border border-emerald-700 p-3">
-          {message}
+          {editor.message}
         </p>
       )}
-      {venueEvidence && (
-        <p className="rounded border border-amber-700 p-3 text-sm">
-          Handelsplatzabgleich: {venueEvidence.status}. {venueEvidence.explanation}{' '}
-          {venueEvidence.status !== 'MATCHED' &&
-            'Technische Mappingaktivierung allein belegt keine eindeutige Handelsplatzzuordnung. Bitte vor dem Import klären.'}
-        </p>
-      )}
-      <section className="space-y-3 rounded border border-slate-700 p-4">
-        <h2 className="text-xl font-semibold">Vollständige Sektor-Vorschläge zur Prüfung</h2>
-        <p className="text-sm text-slate-300">
-          Elf GICS-Sektoren, Quellenstand 04.10.2026. ETF-Kurse sind Stellvertreter ihrer
-          Select-Sector-Benchmark. Die Vorschläge enthalten keine Kursdaten; Providerzugang und
-          verfügbare Historie sind nicht nachgewiesen. Bestehende Systematik verwenden; neue
-          Sektoren nur gezielt ergänzen.
-        </p>
-        <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="Sektor-Vorschläge">
-          <table className="w-full text-left text-sm">
-            <thead>
-              <tr>
-                {['Sektor', 'Benchmark / ETF', 'Identität / Quelle', 'Einrichtung'].map((label) => (
-                  <th scope="col" className="p-2" key={label}>
-                    {label}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {proposals.map((hint) => (
-                <tr key={hint.code} className="border-t border-slate-700 align-top">
-                  <th className="p-2" scope="row">
-                    {hint.code} · {hint.sector}
-                  </th>
-                  <td className="p-2">
-                    {hint.benchmark}
-                    <span className="block">{hint.ticker} · ETF-Proxy</span>
-                  </td>
-                  <td className="p-2">
-                    {hint.isin}
-                    <span className="block">
-                      NYSE Arca / {hint.mic} / {hint.currency}
-                    </span>
-                    <a
-                      className="text-sky-300 underline"
-                      href={hint.source_url}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      Emittentenbeleg
-                    </a>
-                  </td>
-                  <td className="space-y-2 p-2">
-                    <button
-                      className="block text-sky-300 underline"
-                      onClick={() => {
-                        setAction('sector');
-                        setCode(hint.code);
-                        setName(hint.sector);
-                        setSystem(hint.classification_system);
-                        setVersion(hint.classification_version);
-                        setConfirmed(false);
-                      }}
-                    >
-                      Sektorformular vorbereiten
-                    </button>
-                    <button
-                      className="block text-sky-300 underline"
-                      onClick={() => {
-                        setAction('reference');
-                        setCode(`SELECT_${hint.ticker}`);
-                        setName(hint.benchmark);
-                        setVersion(hint.reviewed_on);
-                        setSource(hint.source_url);
-                        setConfirmed(false);
-                      }}
-                    >
-                      Benchmarkformular vorbereiten
-                    </button>
-                    <Link
-                      className="block text-sky-300 underline"
-                      to={`/underlyings/new?${new URLSearchParams({ type: 'ETF', name: `State Street ${hint.benchmark.replace(' Index', '')} SPDR ETF`, isin: hint.isin, ticker: hint.ticker, mic: hint.mic, currency: hint.currency })}`}
-                    >
-                      ETF-Stammdaten prüfen / anlegen
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {editor.readError && (
+        <div role="alert" className="space-y-2 rounded border border-amber-700 p-3">
+          <p>
+            {editor.outcome === 'complete'
+              ? 'Der Schreibauftrag ist abgeschlossen; das Nachlesen ist gestört. '
+              : ''}
+            {editor.readError}
+          </p>
+          <button
+            type="button"
+            className={buttonClass}
+            disabled={busy || loading}
+            onClick={editor.reload}
+          >
+            Nur Lesestand erneut laden
+          </button>
         </div>
-        <p className="text-sm">
-          <a className="text-sky-300 underline" href={proposals[0]?.taxonomy_source}>
-            GICS-Systematik
-          </a>{' '}
-          ·{' '}
-          <a className="text-sky-300 underline" href={proposals[0]?.venue_source}>
-            MIC-Verzeichnis
-          </a>{' '}
-          ·{' '}
-          <Link className="text-sky-300 underline" to="/trading-venues-admin">
-            Handelsplatzverwaltung
-          </Link>
-        </p>
-      </section>
+      )}
+      {editor.reviewRequired && (
+        <div className="space-y-2 rounded border border-amber-700 p-3">
+          <p>
+            Der aktuelle Lesestand ist sichtbar. Offene Eingaben wurden erhalten. Die erneute
+            Prüfung ersetzt keine atomare Sperre gegen Änderungen in anderen Tabs.
+          </p>
+          <button
+            type="button"
+            className={buttonClass}
+            disabled={disabled}
+            onClick={editor.acknowledge}
+          >
+            Aktuellen Stand prüfen und Entwurf beibehalten
+          </button>
+        </div>
+      )}
+      {editor.outcome === 'unknown' && !editor.readError && (
+        <button
+          type="button"
+          className={buttonClass}
+          disabled={busy || loading}
+          onClick={editor.reload}
+        >
+          Nur Lesestand erneut laden
+        </button>
+      )}
+      {loading && <p role="status">Der gespeicherte Kontext wird gelesen …</p>}
+
       <form
-        className="max-w-3xl space-y-4 rounded border border-slate-700 p-4"
-        onSubmit={(event) => void submit(event)}
-        onChange={(event) => {
-          if (!(event.target instanceof HTMLInputElement && event.target.type === 'checkbox'))
-            setConfirmed(false);
+        aria-label="Gemeinsamer Referenzdaten-Editor"
+        className="min-w-0 space-y-5 rounded-xl border border-slate-700 p-4 sm:p-6"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void editor.submit();
         }}
       >
-        <h2 className="text-xl font-semibold">Administrationsschritt</h2>
-        <label className="block">
-          Aktion
-          <select
-            className={inputClass}
-            value={action}
-            onChange={(event) => {
-              setAction(event.target.value as Action);
-              setConfirmed(false);
+        <div className="space-y-3">
+          <h2 className="text-xl font-semibold">{pinned ? actionLabel : 'Objekt und Aktion'}</h2>
+          {pinned ? (
+            <p className="text-sm text-slate-400">
+              Aktion und Ausgangsobjekt sind an diesen Workflow-Schritt gebunden.
+            </p>
+          ) : (
+            <label className="block">
+              Aktion
+              <select
+                className={inputClass}
+                value={action}
+                disabled={busy || !editor.resolved}
+                onChange={(event) =>
+                  editor.changeContext(
+                    selectionForAction(selection, event.target.value as SetupAction),
+                  )
+                }
+              >
+                {['Basiswert / Listing', 'Sektor', 'Referenz', 'Stammdaten ergänzen'].map(
+                  (group) => (
+                    <optgroup key={group} label={group}>
+                      {setupActions
+                        .filter((item) => item.group === group)
+                        .map((item) => (
+                          <option key={item.value} value={item.value}>
+                            {item.label}
+                          </option>
+                        ))}
+                    </optgroup>
+                  ),
+                )}
+              </select>
+            </label>
+          )}
+        </div>
+
+        {needsUnderlying(action) && !lockUnderlying && (
+          <ExistingUnderlyingSelector
+            value={selection.underlyingId}
+            label={snapshot?.underlying?.name}
+            disabled={busy || !editor.resolved}
+            onChange={(underlyingId) => {
+              const next = { ...selection, underlyingId, listingId: '', mappingId: '' };
+              if (action === 'proxy') editor.changeTarget(next);
+              else editor.changeContext(next);
             }}
-          >
-            {actions.map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </label>
-        {['sector', 'reference'].includes(action) && (
-          <div className="grid gap-3 sm:grid-cols-2">
-            <label>
-              Code
-              <input
-                required
-                maxLength={50}
-                className={inputClass}
-                value={code}
-                onChange={(event) => setCode(event.target.value)}
-              />
-            </label>
-            <label>
-              Name
-              <input
-                required
-                maxLength={200}
-                className={inputClass}
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-              />
-            </label>
-            <label>
-              Version
-              <input
-                required
-                maxLength={50}
-                className={inputClass}
-                value={version}
-                onChange={(event) => setVersion(event.target.value)}
-              />
-            </label>
-            {action === 'sector' && (
-              <label>
-                Klassifikationssystem
-                <input
-                  required
-                  className={inputClass}
-                  maxLength={100}
-                  value={system}
-                  onChange={(event) => setSystem(event.target.value)}
-                />
-              </label>
-            )}
-          </div>
+          />
         )}
-        {needsReference && (
+        {needsReference(action) && !lockReference && (
           <label className="block">
-            Markt- / Sektor-Benchmark
+            {action === 'sectorReference'
+              ? 'Geeignete Sektorreferenz'
+              : 'Markt- / Sektor-Benchmark'}
             <select
               required
               className={inputClass}
-              value={reference}
+              disabled={disabled}
+              value={selection.referenceId}
               onChange={(event) => {
-                setReference(event.target.value);
-                setConfirmed(false);
+                const referenceId = event.target.value;
+                if (action === 'stockMarket' || action === 'sectorReference')
+                  editor.changeTarget({ referenceId });
+                else editor.changeContext({ ...selection, referenceId, mappingId: '' });
               }}
             >
               <option value="">Bitte wählen</option>
-              {catalog?.references
-                .filter((item) => item.identity.active)
-                .map(({ identity: item }) => (
-                  <option key={item.key} value={item.reference_id ?? ''}>
-                    {item.name} · {item.reference_code}
+              {snapshot?.references
+                .filter(
+                  (item) =>
+                    item.active &&
+                    (action !== 'sectorReference' || item.reference_type === 'SECTOR_INDEX'),
+                )
+                .map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.name} · {item.code}
                   </option>
                 ))}
             </select>
-            <span className="text-sm text-slate-400">
-              {identity?.provider_identity ?? 'Kein Mapping'} · {identity?.mapping_status} ·{' '}
-              {identity?.return_basis}
-            </span>
           </label>
         )}
-        {needsSector && (
+        {needsSector(action) && !lockSector && (
           <label className="block">
             Administrierter Sektor
             <select
               required
               className={inputClass}
-              value={sector}
-              onChange={(event) => setSector(event.target.value)}
+              disabled={disabled}
+              value={selection.sectorId}
+              onChange={(event) => {
+                const sectorId = event.target.value;
+                if (action === 'stockSector') editor.changeTarget({ sectorId });
+                else editor.changeContext({ ...selection, sectorId });
+              }}
             >
               <option value="">Bitte wählen</option>
-              {catalog?.sectors.map(({ context }) => (
-                <option key={context.id} value={context.id}>
-                  {context.classification_system} · {context.code} · {context.name}
+              {snapshot?.sectors
+                .filter((item) => item.active)
+                .map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.name} · {item.code}
+                  </option>
+                ))}
+            </select>
+          </label>
+        )}
+        {needsListing(action) && !lockListing && (
+          <label className="block">
+            Eindeutige Notierung
+            <select
+              required
+              className={inputClass}
+              disabled={disabled || !snapshot?.underlying}
+              value={selection.listingId || snapshot?.listing?.id || ''}
+              onChange={(event) => {
+                const listingId = event.target.value;
+                if (action === 'proxy') editor.changeTarget({ listingId });
+                else editor.changeContext({ ...selection, listingId, mappingId: '' });
+              }}
+            >
+              <option value="">Bitte wählen</option>
+              {snapshot?.underlying?.listings.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.ticker} · {item.trading_venue_mic} · {item.currency_code}
+                  {item.is_primary ? ' · primär' : ''}
                 </option>
               ))}
             </select>
           </label>
         )}
-        {needsUnderlying && (
-          <UnderlyingSearchCombobox
-            value={underlying}
-            onChange={setUnderlying}
-            selectLabel="Basiswert / ETF"
+
+        {snapshot && (snapshot.underlying || snapshot.reference || snapshot.sector) && (
+          <section
+            aria-label="Gewählter Kontext"
+            className="min-w-0 space-y-2 break-words rounded border border-slate-700 bg-slate-900/50 p-3 text-sm"
+          >
+            <h3 className="font-semibold">Gewählter Kontext</h3>
+            {snapshot.underlying && (
+              <p>
+                <strong>{snapshot.underlying.name}</strong> ·{' '}
+                {snapshot.underlying.type === 'ETF' ? 'Echtes ETF-Wertpapier' : 'Aktie'}
+                {snapshot.underlying.isin ? ` · ISIN ${snapshot.underlying.isin}` : ''}
+                <span className="block text-xs text-slate-400">
+                  Basiswert-ID: {snapshot.underlying.id}
+                </span>
+              </p>
+            )}
+            {snapshot.listing && (
+              <p>
+                {snapshot.listing.ticker} ·{' '}
+                {snapshot.listing.trading_venue_name ?? snapshot.listing.trading_venue_mic} · MIC{' '}
+                {snapshot.listing.trading_venue_mic} · {snapshot.listing.currency_code}
+                {!snapshot.listing.is_primary && ' · nichtprimäre Notierung'}
+                <span className="block text-xs text-slate-400">
+                  Listing-ID: {snapshot.listing.id}
+                </span>
+              </p>
+            )}
+            {snapshot.reference && (
+              <p>
+                <strong>{snapshot.reference.name}</strong> · {snapshot.reference.code} ·{' '}
+                {snapshot.reference.reference_type}
+                <span className="block text-xs text-slate-400">
+                  Referenz-ID: {snapshot.reference.id}
+                  {editor.isMappingContext && !needsListing(action)
+                    ? ' · direkter Index ohne Listing'
+                    : ''}
+                </span>
+              </p>
+            )}
+            {snapshot.sector && (
+              <p>
+                <strong>{snapshot.sector.name}</strong> · {snapshot.sector.code}
+                <span className="block text-xs text-slate-400">
+                  Sektor-ID: {snapshot.sector.id}
+                </span>
+              </p>
+            )}
+            {snapshot.mapping && (
+              <p className="text-xs text-slate-400">
+                Mapping-ID: {snapshot.mapping.id} · Instrument-ID:{' '}
+                {snapshot.mapping.market_data_instrument_id ?? 'im API-Datensatz nicht vorhanden'}
+              </p>
+            )}
+            {action === 'proxy' && snapshot.underlying?.type === 'ETF' && (
+              <p className="text-amber-200">
+                Die ausgewählte Referenz wird ausdrücklich diesem echten ETF-Listing zugeordnet.
+                ETF-Kurse sind ein gekennzeichneter Proxy; die direkte Indexidentität bleibt
+                eigenständig.
+              </p>
+            )}
+          </section>
+        )}
+
+        {editor.isMappingContext && snapshot && (
+          <MappingStatus
+            mapping={snapshot.mapping}
+            venue={snapshot.venue}
+            referenceIdentity={needsListing(action) ? null : snapshot.identity}
           />
         )}
-        {needsListing && (
-          <label className="block">
-            Eindeutige Notierung
-            {listings.length ? (
-              <select
-                required
-                className={inputClass}
-                value={listing}
-                onChange={(event) => setListing(event.target.value)}
-              >
-                <option value="">Bitte wählen</option>
-                {listings.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.ticker} · {item.trading_venue_mic} · {item.currency_code}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <input
-                required
-                className={inputClass}
-                value={listing}
-                onChange={(event) => setListing(event.target.value)}
-                placeholder="Listing-ID oder Basiswert oben wählen"
-              />
-            )}
-          </label>
-        )}
-        {action.endsWith('Mapping') && (
-          <div className="grid gap-3 sm:grid-cols-2">
-            <label>
-              Geprüftes EODHD-Symbol
-              <input
-                required
-                className={inputClass}
-                value={symbol}
-                onChange={(event) => setSymbol(event.target.value)}
-              />
-            </label>
-            <label>
-              Geprüfter EODHD-Exchange-Code
-              <input
-                required
-                className={inputClass}
-                value={exchange}
-                onChange={(event) => setExchange(event.target.value)}
-              />
-            </label>
-            <p className="text-sm text-slate-400 sm:col-span-2">
-              Ticker und MIC sind kein bestätigtes Provider-Mapping. Index direkt als Referenz; ETF
-              über seine echte Notierung.
+        <fieldset disabled={disabled || editor.outcome === 'unknown'} className="min-w-0 space-y-4">
+          <legend className="sr-only">Eingaben für diesen Schritt</legend>
+          {action === 'bootstrap' && (
+            <p>
+              Die vorhandene Bootstrap-Aktion ergänzt die freigegebenen semantischen
+              Marktreferenzen. Sie erzeugt keine Provider-Mappings oder Notierungen.
             </p>
-          </div>
-        )}
-        {action === 'basis' && (
-          <label className="block">
-            Belegte Indexserie
-            <select
-              className={inputClass}
-              value={basis}
-              onChange={(event) => setBasis(event.target.value)}
-            >
-              <option value="PRICE_INDEX">Kursindex</option>
-              <option value="TOTAL_RETURN_INDEX">Total-Return-Index</option>
-            </select>
-          </label>
-        )}
-        {(assignment || action === 'basis') && (
-          <label className="block">
-            Quellenbeleg (HTTPS)
-            <input
-              type="url"
-              pattern="https://.*"
-              required
-              maxLength={assignment ? 200 : 500}
-              className={inputClass}
-              value={source}
-              onChange={(event) => setSource(event.target.value)}
+          )}
+          {(action === 'sector' || action === 'reference') && (
+            <div className="grid min-w-0 gap-4 sm:grid-cols-2">
+              <label>
+                Code
+                <input
+                  required
+                  maxLength={50}
+                  className={inputClass}
+                  value={draft.code}
+                  onChange={(event) => editor.changeDraft({ code: event.target.value })}
+                />
+              </label>
+              <label>
+                Name
+                <input
+                  required
+                  maxLength={200}
+                  className={inputClass}
+                  value={draft.name}
+                  onChange={(event) => editor.changeDraft({ name: event.target.value })}
+                />
+              </label>
+              <label>
+                Version
+                <input
+                  required
+                  maxLength={50}
+                  className={inputClass}
+                  value={draft.version}
+                  onChange={(event) => editor.changeDraft({ version: event.target.value })}
+                />
+              </label>
+              {action === 'sector' ? (
+                <label>
+                  Klassifikationssystem
+                  <input
+                    required
+                    maxLength={100}
+                    className={inputClass}
+                    value={draft.system}
+                    onChange={(event) => editor.changeDraft({ system: event.target.value })}
+                  />
+                </label>
+              ) : (
+                <label>
+                  Region
+                  <input
+                    required
+                    maxLength={50}
+                    className={inputClass}
+                    value={draft.region}
+                    onChange={(event) => editor.changeDraft({ region: event.target.value })}
+                  />
+                </label>
+              )}
+              <p className="text-sm text-slate-400 sm:col-span-2">
+                Dieser Vorgang legt einen neuen Datensatz an. Name, Code und Klassifikation
+                bestehender Objekte werden hier nicht geändert.
+              </p>
+            </div>
+          )}
+          {editsMapping(action) && snapshot && (
+            <MappingEditor
+              mapping={snapshot.mapping}
+              symbol={draft.symbol}
+              exchange={draft.exchange}
+              onSymbolChange={(symbol) => editor.changeDraft({ symbol })}
+              onExchangeChange={(exchange) => editor.changeDraft({ exchange })}
+              disabled={disabled}
             />
-          </label>
-        )}
-        {(assignment || importing) && (
-          <label className="block">
-            {assignment ? 'Zuordnung gültig ab' : 'Import von'}
-            <input
-              required
-              className={inputClass}
-              type="date"
-              value={start}
-              max={end}
-              onChange={(event) => setStart(event.target.value)}
-            />
-          </label>
-        )}
-        {importing && (
-          <>
+          )}
+          {action.endsWith('Validate') && (
+            <p className="text-sm text-amber-200">
+              Diese ausdrückliche Prüfung kann Providerdaten abrufen und erhöht die Mappingrevision
+              auch bei erneuter Validierung. Eine bisherige Index-Renditegrundlage gilt nicht für
+              die neue Revision. Ein Import wird dadurch nicht gestartet.
+            </p>
+          )}
+          {action === 'basis' && (
             <label className="block">
-              Import bis
+              Belegte Indexserie
+              <select
+                className={inputClass}
+                value={draft.basis}
+                onChange={(event) => editor.changeDraft({ basis: event.target.value })}
+              >
+                <option value="PRICE_INDEX">Kursindex</option>
+                <option value="TOTAL_RETURN_INDEX">Total-Return-Index</option>
+              </select>
+            </label>
+          )}
+          {isAssignment(action) && (
+            <div className="space-y-2 rounded border border-amber-900 p-3 text-sm">
+              <h3 className="font-semibold">Neue zeitlich gültige Zuordnung</h3>
+              <p>
+                Bestehende Zuordnungen werden nicht umgebunden. Zeitüberschneidungen weist der
+                Server zurück; Änderung oder Beendigung vorhandener Zuordnungen benötigen einen
+                eigenen Backend-Vertrag.
+              </p>
+              <p>
+                Herkunft: <strong>{candidate ? 'MANUAL_ADMIN' : 'CHART_SETUP'}</strong> · Gültig ab:{' '}
+                {draft.start} · Gültig bis: offen · Qualität: GOOD
+              </p>
+              {action === 'sectorReference' ? (
+                <p>
+                  Für Sektor→Referenz speichert der bestehende Vertrag keinen zusätzlichen
+                  Quellenbeleg.
+                </p>
+              ) : (
+                candidate && <p>Quellenbeleg: Candidate live workflow</p>
+              )}
+              <p className="text-slate-400">
+                Ein Chart-Lesestand zu einem Stichtag ist keine vollständige administrative
+                Zuordnungshistorie.
+              </p>
+            </div>
+          )}
+          {((isAssignment(action) && action !== 'sectorReference' && !candidate) ||
+            action === 'basis') && (
+            <label className="block">
+              Quellenbeleg (HTTPS)
+              <input
+                required
+                type="url"
+                pattern="https://.*"
+                maxLength={action === 'basis' ? 500 : 200}
+                className={inputClass}
+                value={draft.source}
+                onChange={(event) => editor.changeDraft({ source: event.target.value })}
+              />
+            </label>
+          )}
+          {isAssignment(action) && !candidate && (
+            <label className="block">
+              Zuordnung gültig ab
               <input
                 required
                 type="date"
                 className={inputClass}
-                value={end}
-                max={today()}
-                min={start}
-                onChange={(event) => setEnd(event.target.value)}
+                value={draft.start}
+                onChange={(event) => editor.changeDraft({ start: event.target.value })}
               />
             </label>
-            <p className="text-sm text-slate-400">
-              Ein kontrollierter Import, maximal 10 Jahre pro Anfrage. Abrufkosten und Zugriff
-              richten sich nach der vorhandenen Provider-Konfiguration. Keine automatischen
-              Wiederholungen.
-            </p>
-          </>
-        )}
-        {assignment && (
-          <p className="text-sm text-slate-400">
-            Vorhandene gültige Zuordnungen zuerst in der Abdeckungsmatrix prüfen. Überschneidungen
-            werden vom Backend abgewiesen.
+          )}
+          {importsHistory(action) && (
+            <div className="grid min-w-0 gap-4 sm:grid-cols-2">
+              <label>
+                Import von
+                <input
+                  required
+                  type="date"
+                  className={inputClass}
+                  max={draft.end}
+                  value={draft.start}
+                  onChange={(event) => editor.changeDraft({ start: event.target.value })}
+                />
+              </label>
+              <label>
+                Import bis
+                <input
+                  required
+                  type="date"
+                  className={inputClass}
+                  min={draft.start}
+                  value={draft.end}
+                  onChange={(event) => editor.changeDraft({ end: event.target.value })}
+                />
+              </label>
+              <p className="text-sm text-slate-400 sm:col-span-2">
+                Genau dieser Zeitraum wird für das angezeigte Listing/Mapping beziehungsweise die
+                direkte Indexreferenz importiert. Providerfehler führen zu keinem Proxywechsel.
+              </p>
+            </div>
+          )}
+          {editor.problem && <p className="text-sm text-amber-200">{editor.problem}</p>}
+          <label className="flex items-start gap-3">
+            <input
+              type="checkbox"
+              className="mt-1"
+              checked={editor.confirmed}
+              disabled={
+                busy ||
+                loading ||
+                editor.reviewRequired ||
+                editor.outcome !== 'none' ||
+                Boolean(editor.problem) ||
+                editor.unchanged
+              }
+              onChange={(event) => editor.confirm(event.target.checked)}
+            />
+            <span>Ich bestätige den angezeigten Kontext und diesen einzelnen Schritt.</span>
+          </label>
+          <div className="flex flex-wrap gap-3">
+            <button
+              type="submit"
+              disabled={!editor.canSubmit}
+              className="rounded border border-sky-600 bg-sky-950 px-4 py-2 disabled:opacity-50"
+            >
+              {busy ? 'Schritt läuft …' : 'Geprüften Schritt ausführen'}
+            </button>
+            <button
+              type="button"
+              disabled={busy || loading}
+              className={buttonClass}
+              onClick={editor.cancel}
+            >
+              Abbrechen / Eingaben zurücksetzen
+            </button>
+            <button
+              type="button"
+              disabled={busy || loading}
+              className={buttonClass}
+              onClick={editor.reload}
+            >
+              Lesestand aktualisieren
+            </button>
+          </div>
+        </fieldset>
+        {editor.isMappingContext && (
+          <p className="text-xs text-slate-400">
+            Vor dem Schreiben wird die sichtbare Revision erneut gelesen. Die API bietet keine
+            atomare Versionssperre und keine Replaygarantie; eine Änderung unmittelbar nach diesem
+            Read kann damit nicht ausgeschlossen werden.
           </p>
         )}
-        <label className="flex gap-2">
-          <input
-            required
-            type="checkbox"
-            checked={confirmed}
-            onChange={(event) => setConfirmed(event.target.checked)}
-          />
-          Ich habe Identität, Quellenbeleg und den gewählten Schritt geprüft.
-        </label>
-        <button
-          disabled={!confirmed || busy}
-          className="rounded border border-sky-600 px-4 py-2 disabled:opacity-40"
-        >
-          {busy ? 'Schritt wird ausgeführt …' : 'Geprüften Schritt ausführen'}
-        </button>
-        <Link className="ml-4 text-sky-300 underline" to="/market-charts">
-          Abdeckung prüfen
-        </Link>
       </form>
+      {editor.workflow && editor.outcome !== 'none' && (
+        <p className="text-sm text-slate-300">
+          Kandidaten-Readiness erneut gelesen:{' '}
+          {editor.workflow.ready ? 'bereit laut aktuellem Workflow' : 'weitere Schritte offen'}. Der
+          technische Mappingstatus und der Handelsplatzabgleich bleiben eigenständige Angaben. Eine
+          Evaluation oder Folgeaktion wurde nicht gestartet.
+        </p>
+      )}
+      {!pinned && (
+        <SetupProposals
+          busy={busy || !editor.resolved}
+          onPrepare={(action, values) =>
+            editor.changeContext(selectionForAction(selection, action), values)
+          }
+        />
+      )}
     </div>
   );
 }

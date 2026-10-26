@@ -19,7 +19,8 @@ export interface SectorProposal {
   provider_coverage: string;
 }
 export const chartSetupClient = {
-  proposals: () => requestJson<SectorProposal[]>(`${base}/sector-proposals`),
+  proposals: (signal?: AbortSignal) =>
+    requestJson<SectorProposal[]>(`${base}/sector-proposals`, { method: 'GET', signal }),
   write: (path: string, body?: unknown, method: 'POST' | 'PUT' = 'POST') =>
-    requestJson<Record<string, unknown>>(`${base}/${path}`, { method, body }),
+    requestJson<unknown>(`${base}/${path}`, { method, body }),
 };
