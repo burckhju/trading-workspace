@@ -1,11 +1,21 @@
 # UI5 – Referenzdaten- und Mapping-Eingaben konsolidieren
 
-Datum: 26.10.2026. Umfang: gemeinsamer administrativer Eingabeweg, gezielte Tests und Draft-PR.
-Keine Versionsanhebung, Veröffentlichung, Bereitstellung oder fachliche Liveabnahme.
+Datum: 26.10.2026. Ursprünglicher Umfang: gemeinsamer administrativer Eingabeweg, gezielte Tests und Draft-PR.
+Die ursprüngliche Freigabe umfasste keine Versionsanhebung oder Veröffentlichung; der folgende ausdrückliche Nutzerauftrag erweitert diese Grenze.
 
-## Integration des inzwischen aktualisierten Main
+## Nachträgliche Freigabe für Merge und PC-Bereitstellung
 
-Während der regulären UI5-CI wurde UI4 / PR #287 separat nach Main integriert. Der UI5-Draft übernimmt deshalb jetzt Main **`36db3910eae714d0cb0ad0ae16169955006a5976`** mit dem bestehenden Main-Tree `a905af1a0908cb4eac233474a024e2dd683a64d3`. Die dort bereits enthaltene Version **1.5.22** wird unverändert übernommen; UI5 führt keine eigene Versionsanhebung oder Veröffentlichung aus.
+Nach der vollständigen Qualifikation des integrierten UI5-Heads `a6b29c2a4e7b0d65a6d50c4def8623e91baa331e` hat der Nutzer ausdrücklich beauftragt: **„Wenn grün mergen und für den pc bereitstellen“**. Damit sind die erneute Prüfung des tatsächlichen Release-Heads, der reguläre Merge und die versionierte Bereitstellung über den bestehenden PC-Updateweg freigegeben. Eine tatsächliche Installation oder fachliche Liveabnahme am Nutzer-PC wird damit nicht behauptet.
+
+Der enge Releasezusatz bereitet **1.5.23** vor. Er passt die fünf Versionswerte in vier Dateien an und ergänzt die [Release-Notiz und den vorhandenen PC-Updateweg](../releases/V1.5.23-REFERENCE-DATA-CONSOLIDATION.md). Dependencies, Lockauflösung, Backendverträge, Migrationen, Launcher, Prüfsummenbindung und Veröffentlichungsgates bleiben erhalten.
+
+Beim Release-Abgleich war der bisherige Main-Push-Frontendlauf `40352178360` wegen eines Bestandsfalls in `WarrantCreateWithListing.test.tsx` fehlgeschlagen. Dessen Testaufbau wartete nur auf eine statische Überschrift und band einen Fehler an den nächsten beliebigen GET. Ein noch auslaufender alter Leseablauf konnte dadurch die für das neu angelegte Produkt gedachte Antwort verbrauchen. Der gesondert ausgewiesene Testzusatz wartet auf den abgeschlossenen Initialread und bindet den Fehler an die angelegte Produkt-ID; sämtliche fachlichen Assertions bleiben bestehen. Produktivcode und Timeouts werden dadurch nicht geändert.
+
+Der neue Release-Head muss die regulären PR-Gates bestehen. Danach müssen Backend, Frontend und End-to-End auf dem tatsächlichen aktuellen Main-Push erfolgreich abschließen, bevor der unveränderte Publisher den neuen Tag anlegt. Genaue Head-/Tree-/Run-/Merge-/Tagbezüge und der tatsächlich geprüfte Updatebefehl stehen nach ihrem Readback in PR #288 und der Übergabe. Frühere grüne Läufe ersetzen diesen neuen Nachweis nicht.
+
+## Integration des inzwischen aktualisierten Main vor dem Releasezusatz
+
+Während der regulären UI5-CI wurde UI4 / PR #287 separat nach Main integriert. Der UI5-Draft übernahm deshalb Main **`36db3910eae714d0cb0ad0ae16169955006a5976`** mit dem bestehenden Main-Tree `a905af1a0908cb4eac233474a024e2dd683a64d3`. Bei dieser damaligen Integration vor dem Releasezusatz wurde die dort bereits enthaltene Version **1.5.22** unverändert übernommen. Die ursprüngliche UI5-Implementierung führte keine eigene Versionsanhebung oder Veröffentlichung aus.
 
 Die Zusammenführung war konfliktfrei. Ein unabhängiger Git-Objektvergleich bestätigt: Alle **27 UI5-Code-/Testdateien** sind gegenüber dem unten dokumentierten Implementierungscommit `50b3aea9…` in Inhalt und Dateimodus unverändert. Die 28 von UI4/Main übernommenen Pfade überschneiden sich mit keinem UI5-Pfad. Guard, Router und Versions-/Manifestdateien entsprechen vollständig dem neuen Main. Vor diesem Dokumentationsnachtrag war auch der gesamte UI5-Diff gegenüber der neuen Main-Basis bytegleich zum ursprünglichen UI5-Diff.
 
@@ -223,10 +233,10 @@ Frühe Entwicklungsversuche mit blockiertem Sandbox-Teardown, provisorischem Vit
 
 Offen bleiben eigenständige Backendumfänge für Update/Beendigung vorhandener Zuordnungen samt vollständiger administrativer Historie; Änderungen bestehender Sektor-/Referenzstammdaten; atomare Mapping-Versionsprüfung beziehungsweise Request-/Replaygarantien; sowie ein gegebenenfalls revisionsgebundener Venue-Read. UI5 simuliert diese Verträge nicht.
 
-UI3 besitzt weiterhin Learning und seine Hypothesenanbindung. UI4 besitzt weiterhin Trade und die Alert-Timeline-Anbindung. Keine dieser Dateien oder Browserfälle wird hier geändert. `CandidatePage`, Router, globale Guard-API, Backend-Domain/DTOs/Persistenz, Migrationen, Scheduler, Modell-/Tradingregeln, Finanzberechnungen, VERSION und CI-Workflows bleiben unverändert.
+UI3 besitzt weiterhin Learning und seine Hypothesenanbindung. UI4 besitzt weiterhin Trade und die Alert-Timeline-Anbindung. Keine dieser Dateien oder Browserfälle wird hier geändert. `CandidatePage`, Router, globale Guard-API, Backend-Domain/DTOs/Persistenz, Migrationen, Scheduler, Modell-/Tradingregeln, Finanzberechnungen und CI-Workflows bleiben unverändert. VERSION wird ausschließlich durch den oben beschriebenen Releasezusatz angehoben.
 
 Gemeinsame Integrationsstellen sind die beiden bestehenden Chart-Komponenten ausschließlich mit ihren Einrichtung-/Rücklinks sowie die vorhandenen Administrations-/Chart-Setup-Clients. Die aktuelle UI4-Dateiliste überschneidet sich nicht mit den geänderten UI5-Anwendungsdateien. `PRODUCT_BACKLOG.md` und `TRACEABILITY.md` werden in diesem Schnitt bewusst nicht parallel fortgeschrieben; dieses Dokument liefert den UI5-Nachweis für eine spätere gezielte Einordnung in PB-013 „Sektoren und Referenzen“. Historische Nachweise und fremde Statusabschnitte bleiben erhalten.
 
 Maßgebliche bestehende Verträge: [MARKET_CHARTS](MARKET_CHARTS.md), [D01-B](D01B_PROVIDER_MAPPING_INSTRUMENT_BOUNDARY.md), [D01-E](D01E_MARKET_REFERENCE_LIVE_PATHS.md), [ADR-S5-008](../decisions/ADR-S5-008-TOP-DOWN-REFERENCE-ADMINISTRATION.md), [ADR-S5-012](../decisions/ADR-S5-012-ACTIONABLE-LIVE-WORKFLOW.md) und [ADR-CHARTS-001](../decisions/ADR-CHARTS-001-EOD-COMPARISON-AND-ETF-IDENTITY.md). Die späteren listingfreien Indexverträge begrenzen die älteren Listingannahmen ausdrücklich.
 
-Die Übergabe endet mit dem geprüften **Draft-PR**. Merge, Release, Versionserhöhung und Deployment bleiben getrennte spätere Schritte.
+Der ursprüngliche UI5-Auftrag endete mit dem geprüften **Draft-PR**. Der oben dokumentierte anschließende Nutzerauftrag gibt Merge bei erfolgreichen Prüfungen und die versionierte PC-Bereitstellung frei. Eine tatsächlich ausgeführte PC-Installation bleibt ein eigener Betriebsnachweis.
