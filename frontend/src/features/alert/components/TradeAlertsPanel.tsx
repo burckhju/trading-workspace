@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 
-import { TradeTimelinePanel } from '../../trade/components/TradeTimelinePanel';
 import { riskPercent } from '../services/riskLabels';
 import { alertApiClient } from '../services/client';
 import type {
@@ -328,8 +327,6 @@ export function TradeAlertsPanel({ tradeId }: { tradeId: string }) {
           </ol>
         )}
       </section>
-
-      <TradeTimelinePanel tradeId={tradeId} />
     </>
   );
 }

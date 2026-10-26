@@ -89,6 +89,7 @@ describe('TradeAlertsPanel', () => {
       screen.getByText('Kursbezug ungeklärt · historische Meldung nicht belastbar'),
     ).toBeInTheDocument();
     expect(screen.getByText('Automatische Prüfung deaktiviert')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Trade Timeline' })).not.toBeInTheDocument();
   });
 
   it('renders delivery failure without changing the alert state', async () => {

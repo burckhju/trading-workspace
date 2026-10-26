@@ -407,3 +407,320 @@ it('does not save an invalid explicitly entered replacement code', async () => {
   expect(await screen.findByRole('alert')).toHaveTextContent('dreistelligen Währungscode');
   expect(api.confirmExecutionCurrency).not.toHaveBeenCalled();
 });
+
+it('opens the selected editor with blank new evidence and publishes dirty and pending state synchronously through both readbacks', async () => {
+  const current = { ...currencyConfirmation('buy'), note: 'Alter Beleg' };
+  const receipt = { ...current, id: 'usd-receipt', currency_code: 'USD', note: null };
+  const saved = deferred<ExecutionCurrencyConfirmation>();
+  const historyRead = deferred<ExecutionCurrencyHistory>();
+  const pageRead = deferred<void>();
+  const pending = vi.fn();
+  const close = vi.fn();
+  const onChanged = vi.fn(() => pageRead.promise);
+  api.executionCurrencyHistory
+    .mockResolvedValueOnce({ current, history: [current] })
+    .mockReturnValueOnce(historyRead.promise);
+  api.confirmExecutionCurrency.mockImplementation(() => {
+    expect(pending).toHaveBeenLastCalledWith({ dirty: true, busy: true, writeBlocked: true });
+    return saved.promise;
+  });
+  render(
+    <ExecutionCurrencyPanel
+      tradeId="trade"
+      executionId="buy"
+      editor
+      confirmation={current}
+      onPendingChange={pending}
+      onChanged={onChanged}
+      onClose={close}
+    />,
+  );
+  await screen.findByRole('form', { name: 'Ausführungswährung bestätigen' });
+  expect(screen.getByLabelText('Ausführungswährung (Code)')).toHaveValue('');
+  expect(screen.getByLabelText('Beleg / Erläuterung (optional)')).toHaveValue('');
+  affirm('USD');
+  expect(pending).toHaveBeenLastCalledWith({ dirty: true, busy: false, writeBlocked: false });
+  fireEvent.submit(screen.getByRole('form', { name: 'Ausführungswährung bestätigen' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Buchungseditor schließen' }));
+  expect(close).not.toHaveBeenCalled();
+  await act(async () => {
+    saved.resolve(receipt);
+    await saved.promise;
+  });
+  expect(onChanged).toHaveBeenCalledOnce();
+  expect(pending).toHaveBeenLastCalledWith({ dirty: false, busy: true, writeBlocked: true });
+  await act(async () => {
+    historyRead.resolve({ current: receipt, history: [current, receipt] });
+    await historyRead.promise;
+  });
+  expect(screen.getByRole('button', { name: 'Buchungseditor schließen' })).toBeDisabled();
+  expect(pending).toHaveBeenLastCalledWith({ dirty: false, busy: true, writeBlocked: true });
+  await act(async () => {
+    pageRead.resolve();
+    await pageRead.promise;
+  });
+  expect(pending).toHaveBeenLastCalledWith({ dirty: false, busy: false, writeBlocked: false });
+  fireEvent.click(screen.getByRole('button', { name: 'Buchungseditor schließen' }));
+  expect(close).toHaveBeenCalledOnce();
+  expect(api.confirmExecutionCurrency).toHaveBeenCalledOnce();
+});
+
+it('asks the owning guard before dropping an explicit draft to reload a changed BUY source', async () => {
+  const prior: ExecutionCurrencyResolution = {
+    currency_code: 'EUR',
+    source: 'PRIOR_BUYS',
+    source_execution_ids: ['original-buy'],
+    confirmation_ids: ['eur-evidence'],
+  };
+  const next = { ...prior, currency_code: 'CHF', confirmation_ids: ['chf-evidence'] };
+  api.executionCurrencyHistory.mockResolvedValue({
+    current: null,
+    history: [],
+    currency_resolution: prior,
+  });
+  const pending = vi.fn();
+  const requestChange = vi.fn<(action: () => void) => void>();
+  const { rerender } = render(
+    <ExecutionCurrencyPanel
+      tradeId="trade"
+      executionId="sell"
+      editor
+      resolution={prior}
+      requestChange={requestChange}
+      onPendingChange={pending}
+    />,
+  );
+  fireEvent.click(await screen.findByRole('button', { name: 'Abweichende Währung angeben' }));
+  affirm('USD');
+  rerender(
+    <ExecutionCurrencyPanel
+      tradeId="trade"
+      executionId="sell"
+      editor
+      resolution={next}
+      requestChange={requestChange}
+      onPendingChange={pending}
+    />,
+  );
+  expect(await screen.findByRole('alert')).toHaveTextContent('Währungsquellen dieser Buchung');
+  expect(pending).toHaveBeenLastCalledWith({ dirty: true, busy: false, writeBlocked: true });
+  expect(screen.queryByRole('form')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Währungsherkunft neu laden' }));
+  expect(requestChange).toHaveBeenCalledOnce();
+  expect(api.executionCurrencyHistory).toHaveBeenCalledOnce();
+  expect(pending).toHaveBeenLastCalledWith({ dirty: true, busy: false, writeBlocked: true });
+  api.executionCurrencyHistory.mockResolvedValue({
+    current: null,
+    history: [],
+    currency_resolution: next,
+  });
+  act(() => requestChange.mock.calls[0][0]());
+  await screen.findByText('CHF · aus vorherigen Käufen übernommen');
+  expect(pending).toHaveBeenLastCalledWith({ dirty: false, busy: false, writeBlocked: false });
+  fireEvent.click(screen.getByRole('button', { name: 'Abweichende Währung angeben' }));
+  expect(screen.getByLabelText('Ausführungswährung (Code)')).toHaveValue('');
+  expect(api.confirmExecutionCurrency).not.toHaveBeenCalled();
+});
+
+it('freezes an uncertain currency declaration and permits only its identical explicit retry until a conscious reload', async () => {
+  const pending = vi.fn();
+  const onChanged = vi.fn().mockResolvedValue(undefined);
+  api.confirmExecutionCurrency.mockRejectedValue(new Error('Antwort verloren'));
+  render(
+    <ExecutionCurrencyPanel
+      tradeId="trade"
+      executionId="buy"
+      editor
+      onPendingChange={pending}
+      onChanged={onChanged}
+    />,
+  );
+  await screen.findByRole('form', { name: 'Ausführungswährung bestätigen' });
+  affirm('USD');
+  fireEvent.change(screen.getByLabelText('Beleg / Erläuterung (optional)'), {
+    target: { value: 'Abrechnung USD' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Währungsbestätigung speichern' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('Nur derselbe unveränderte Versuch');
+  expect(screen.getByLabelText('Ausführungswährung (Code)')).toBeDisabled();
+  expect(screen.getByLabelText('Beleg / Erläuterung (optional)')).toBeDisabled();
+  expect(pending).toHaveBeenLastCalledWith({ dirty: true, busy: false, writeBlocked: true });
+  // Even a dispatched change cannot alter the uncertain command's payload.
+  affirm('CHF');
+  expect(screen.getByLabelText('Ausführungswährung (Code)')).toHaveValue('USD');
+  fireEvent.click(screen.getByRole('button', { name: 'Währungsbestätigung speichern' }));
+  await waitFor(() => expect(api.confirmExecutionCurrency).toHaveBeenCalledTimes(2));
+  expect(api.confirmExecutionCurrency.mock.calls[1]).toEqual(
+    api.confirmExecutionCurrency.mock.calls[0],
+  );
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'Währungsherkunft neu laden' })).toBeEnabled(),
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Währungsherkunft neu laden' }));
+  await waitFor(() => expect(onChanged).toHaveBeenCalledOnce());
+  expect(screen.getByLabelText('Ausführungswährung (Code)')).toHaveValue('');
+  expect(screen.getByText(/Währungsherkunft und Buchungsstand wurden neu gelesen/)).toBeVisible();
+  expect(screen.queryByText(/Gespeicherte Bestätigung und Buchungsstand/)).not.toBeInTheDocument();
+  expect(pending).toHaveBeenLastCalledWith({ dirty: false, busy: false, writeBlocked: false });
+  expect(api.confirmExecutionCurrency).toHaveBeenCalledTimes(2);
+});
+
+it('refreshes dependent bookings after a confirmed write even if its own history read fails and recovers without another POST', async () => {
+  const receipt = currencyConfirmation('buy');
+  const onChanged = vi.fn().mockResolvedValue(undefined);
+  const pending = vi.fn();
+  api.executionCurrencyHistory
+    .mockResolvedValueOnce({ current: null, history: [] })
+    .mockRejectedValueOnce(new Error('History unavailable'))
+    .mockResolvedValue({ current: receipt, history: [receipt] });
+  render(
+    <ExecutionCurrencyPanel
+      tradeId="trade"
+      executionId="buy"
+      editor
+      onChanged={onChanged}
+      onPendingChange={pending}
+    />,
+  );
+  await screen.findByRole('form', { name: 'Ausführungswährung bestätigen' });
+  affirm();
+  fireEvent.click(screen.getByRole('button', { name: 'Währungsbestätigung speichern' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('Speicherung bestätigt');
+  expect(onChanged).toHaveBeenCalledOnce();
+  expect(pending).toHaveBeenLastCalledWith({ dirty: false, busy: false, writeBlocked: true });
+  fireEvent.click(screen.getByRole('button', { name: 'Währungsherkunft neu laden' }));
+  await screen.findByText('Gespeicherte Bestätigung und Buchungsstand wurden neu gelesen.');
+  expect(onChanged).toHaveBeenCalledTimes(2);
+  expect(api.confirmExecutionCurrency).toHaveBeenCalledOnce();
+  expect(pending).toHaveBeenLastCalledWith({ dirty: false, busy: false, writeBlocked: false });
+});
+
+it('keeps further confirmation blocked when the page projection read fails after a successful history read', async () => {
+  const receipt = currencyConfirmation('buy');
+  const onChanged = vi
+    .fn()
+    .mockRejectedValueOnce(new Error('Position unavailable'))
+    .mockResolvedValue(undefined);
+  const pending = vi.fn();
+  api.executionCurrencyHistory
+    .mockResolvedValueOnce({ current: null, history: [] })
+    .mockResolvedValue({ current: receipt, history: [receipt] });
+  render(
+    <ExecutionCurrencyPanel
+      tradeId="trade"
+      executionId="buy"
+      editor
+      onChanged={onChanged}
+      onPendingChange={pending}
+    />,
+  );
+  await screen.findByRole('form', { name: 'Ausführungswährung bestätigen' });
+  affirm();
+  fireEvent.click(screen.getByRole('button', { name: 'Währungsbestätigung speichern' }));
+  await screen.findByText(/Die übrigen Buchungen konnten noch nicht aktualisiert/);
+  expect(screen.getByLabelText('Ausführungswährung (Code)')).toBeDisabled();
+  expect(pending).toHaveBeenLastCalledWith({ dirty: false, busy: false, writeBlocked: true });
+  fireEvent.click(screen.getByRole('button', { name: 'Währungsherkunft neu laden' }));
+  await screen.findByText('Gespeicherte Bestätigung und Buchungsstand wurden neu gelesen.');
+  expect(screen.getByLabelText('Ausführungswährung (Code)')).toBeEnabled();
+  expect(api.confirmExecutionCurrency).toHaveBeenCalledOnce();
+});
+
+it('does not clear a new A attempt key when a prior A write returns after A to B to A navigation', async () => {
+  const oldWrite = deferred<ExecutionCurrencyConfirmation>();
+  const pending = vi.fn();
+  api.confirmExecutionCurrency
+    .mockReturnValueOnce(oldWrite.promise)
+    .mockRejectedValue(new Error('Neue Antwort verloren'));
+  const { rerender } = render(
+    <ExecutionCurrencyPanel tradeId="A" executionId="buy" editor onPendingChange={pending} />,
+  );
+  await screen.findByRole('form', { name: 'Ausführungswährung bestätigen' });
+  affirm();
+  fireEvent.click(screen.getByRole('button', { name: 'Währungsbestätigung speichern' }));
+  rerender(<ExecutionCurrencyPanel tradeId="B" executionId="other-buy" editor />);
+  await screen.findByRole('form', { name: 'Ausführungswährung bestätigen' });
+  rerender(
+    <ExecutionCurrencyPanel tradeId="A" executionId="buy" editor onPendingChange={pending} />,
+  );
+  await screen.findByRole('form', { name: 'Ausführungswährung bestätigen' });
+  affirm('USD');
+  fireEvent.click(screen.getByRole('button', { name: 'Währungsbestätigung speichern' }));
+  await screen.findByRole('alert');
+  const currentAttempt = api.confirmExecutionCurrency.mock.calls[1];
+  await act(async () => {
+    oldWrite.resolve(currencyConfirmation('buy'));
+    await oldWrite.promise;
+  });
+  expect(screen.queryByText(/Währung bestätigt. Eine erneute/)).not.toBeInTheDocument();
+  expect(pending).toHaveBeenLastCalledWith({ dirty: true, busy: false, writeBlocked: true });
+  fireEvent.click(screen.getByRole('button', { name: 'Währungsbestätigung speichern' }));
+  await waitFor(() => expect(api.confirmExecutionCurrency).toHaveBeenCalledTimes(3));
+  expect(api.confirmExecutionCurrency.mock.calls[2]).toEqual(currentAttempt);
+});
+
+it('keeps the draft pinned through a temporary timeline write block and removes writes when its execution is replaced', async () => {
+  const { rerender } = render(<ExecutionCurrencyPanel tradeId="trade" executionId="buy" editor />);
+  await screen.findByRole('form', { name: 'Ausführungswährung bestätigen' });
+  affirm('USD');
+  rerender(<ExecutionCurrencyPanel tradeId="trade" executionId="buy" editor disabled />);
+  expect(screen.getByLabelText('Ausführungswährung (Code)')).toHaveValue('USD');
+  expect(screen.getByRole('button', { name: 'Währungsbestätigung speichern' })).toBeDisabled();
+  fireEvent.submit(screen.getByRole('form', { name: 'Ausführungswährung bestätigen' }));
+  expect(api.confirmExecutionCurrency).not.toHaveBeenCalled();
+  rerender(<ExecutionCurrencyPanel tradeId="trade" executionId="buy" editor />);
+  expect(screen.getByLabelText('Ausführungswährung (Code)')).toHaveValue('USD');
+  expect(screen.getByRole('button', { name: 'Währungsbestätigung speichern' })).toBeEnabled();
+  rerender(<ExecutionCurrencyPanel tradeId="trade" executionId="buy" editor readOnly />);
+  expect(screen.queryByRole('form')).not.toBeInTheDocument();
+  expect(screen.getByText('Keine Bestätigungen gespeichert.')).toBeInTheDocument();
+  expect(api.executionCurrencyHistory).toHaveBeenCalledOnce();
+  expect(api.confirmExecutionCurrency).not.toHaveBeenCalled();
+});
+
+it('allows closing after an initial read failure without declaring an uncertain write', async () => {
+  api.executionCurrencyHistory.mockRejectedValue(new Error('History unavailable'));
+  const pending = vi.fn();
+  const close = vi.fn();
+  render(
+    <ExecutionCurrencyPanel
+      tradeId="trade"
+      executionId="buy"
+      editor
+      onClose={close}
+      onPendingChange={pending}
+    />,
+  );
+  expect(await screen.findByRole('alert')).toHaveTextContent('History unavailable');
+  expect(pending).toHaveBeenLastCalledWith({ dirty: false, busy: false, writeBlocked: false });
+  fireEvent.click(screen.getByRole('button', { name: 'Buchungseditor schließen' }));
+  expect(close).toHaveBeenCalledOnce();
+  expect(api.confirmExecutionCurrency).not.toHaveBeenCalled();
+});
+
+it('checks the shared write lock synchronously even before disabled props can render', async () => {
+  let anotherWritePending = false;
+  const pending = vi.fn();
+  render(
+    <ExecutionCurrencyPanel
+      tradeId="trade"
+      executionId="buy"
+      editor
+      isWriteBlocked={() => anotherWritePending}
+      onPendingChange={pending}
+    />,
+  );
+  await screen.findByRole('form', { name: 'Ausführungswährung bestätigen' });
+  affirm('USD');
+  anotherWritePending = true;
+  // The old rendered button still appears enabled; the synchronous predicate owns safety.
+  expect(screen.getByRole('button', { name: 'Währungsbestätigung speichern' })).toBeEnabled();
+  fireEvent.submit(screen.getByRole('form', { name: 'Ausführungswährung bestätigen' }));
+  expect(api.confirmExecutionCurrency).not.toHaveBeenCalled();
+  expect(screen.getByLabelText('Ausführungswährung (Code)')).toHaveValue('USD');
+  expect(pending).toHaveBeenLastCalledWith({ dirty: true, busy: false, writeBlocked: false });
+  anotherWritePending = false;
+  fireEvent.submit(screen.getByRole('form', { name: 'Ausführungswährung bestätigen' }));
+  await waitFor(() => expect(api.confirmExecutionCurrency).toHaveBeenCalledOnce());
+  expect(api.confirmExecutionCurrency.mock.calls[0][2]).toMatchObject({ currency_code: 'USD' });
+});

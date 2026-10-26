@@ -138,6 +138,6 @@ test('captures a partial sale from the operational depot without manual trade id
   await page.getByRole('button', { name: 'Teilverkauf erfassen' }).click();
 
   await expect.poll(() => salePosts).toBe(1);
-  await expect(page.getByText('5 offen', { exact: true })).toBeVisible();
+  await expect(page.getByText('Offene Menge', { exact: true }).locator('..').locator('dd')).toHaveText('5');
   await expect(page.getByRole('status')).toContainText('Teilverkauf wurde erfasst');
 });

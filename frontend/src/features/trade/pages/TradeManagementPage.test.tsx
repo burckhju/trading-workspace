@@ -124,7 +124,14 @@ describe('TradeManagementPage', () => {
     expect(screen.getByText('Workspace-Produktauswahl')).toBeInTheDocument();
     expect(screen.getByText('TP-PLAN-123')).toBeInTheDocument();
     expect(screen.getByText('Alerts prüfen und Stop/Target aktiv managen')).toBeInTheDocument();
-    expect(screen.getByText('10 offen')).toBeInTheDocument();
+    const overview = within(screen.getByRole('region', { name: 'Trade und Position' }));
+    expect(overview.getAllByText('OPEN')).toHaveLength(1);
+    expect(overview.getAllByText('Offene Menge')).toHaveLength(1);
+    expect(overview.getByText('10')).toBeInTheDocument();
+    expect(overview.getByText('Cost Basis')).toBeInTheDocument();
+    expect(overview.getByText('Average Entry')).toBeInTheDocument();
+    expect(overview.getByText('Realized gross P&L')).toBeInTheDocument();
+    expect(screen.queryByText('10 offen')).not.toBeInTheDocument();
     expect(screen.getByDisplayValue('1.80')).toBeInTheDocument();
     expect(screen.getByDisplayValue('2.80')).toBeInTheDocument();
     expect(screen.getByDisplayValue('Trend intact')).toBeInTheDocument();
@@ -282,5 +289,30 @@ describe('TradeManagementPage', () => {
     fireEvent.click(button);
 
     await waitFor(() => expect(postTradeApi.startObservation).toHaveBeenCalledWith('trade-1'));
+  });
+
+  it('preserves date-only precision and does not turn unavailable projection amounts into zero', async () => {
+    api.position.mockResolvedValue({
+      ...position,
+      opened_on: '2026-08-17',
+      closed_on: '2026-08-18',
+      cost_basis: '',
+      average_entry_price: '',
+      realized_gross_pnl: '',
+      closed_at: '2026-08-18T00:00:00Z',
+      is_closed: true,
+      open_quantity: 0,
+    });
+    render(
+      <MemoryRouter initialEntries={['/trade-management?trade_id=trade-1']}>
+        <TradeManagementPage />
+      </MemoryRouter>,
+    );
+    await screen.findByRole('heading', { name: 'CLOSED' });
+    const overview = within(screen.getByRole('region', { name: 'Trade und Position' }));
+    expect(overview.getByText('2026-08-17 (Uhrzeit unbekannt)')).toBeInTheDocument();
+    expect(overview.getByText('2026-08-18 (Uhrzeit unbekannt)')).toBeInTheDocument();
+    expect(overview.getAllByText('Nicht verfügbar')).toHaveLength(3);
+    expect(overview.getAllByText('0')).toHaveLength(1);
   });
 });

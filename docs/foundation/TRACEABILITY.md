@@ -690,6 +690,41 @@ automatic historical currency backfill or new feature ID. The historical V1.5.9
 test references above do not serve as tests for this amendment.
 
 
+## 2026-10-26 — UI4: Tradeübersicht und Buchungsansicht
+
+[PB-016 Positionsübersicht](../planning/PRODUCT_BACKLOG.md#pb-016-positions) und
+[PB-017 Event-Historie](../planning/PRODUCT_BACKLOG.md#pb-017-history)
+→ bestehende ADR-S10-002-/007-/008-Verträge und S11-005-Currentness
+→ eine zusammenhängende `TradeManagementPage`-Übersicht mit Backendwerten
+→ `ExecutionDatesPanel` als gemeinsamer Timeline-Read für aktuelle Buchungen,
+Historie und einen exakt gebundenen Datum-/Währungseditor
+→ rein darstellende `TradeTimelinePanel`, aus `TradeAlertsPanel` herausgelöst
+→ unveränderte Korrektur- und Currency-Confirmation-Endpunkte mit getrennten
+Retry-/Replayverträgen
+→ vorhandener `PendingNavigationGuard`, geteilt über den tradebezogenen Kontext,
+und Refresh ohne Verlust paralleler Managemententwürfe
+→ [UI4-Akzeptanzmatrix, konkrete Prüfeinstiege und Nachweisgrenzen](../implementation/UI_TRADE_BOOKINGS_CONSOLIDATION.md).
+
+Ausgangsbasis ist `f8f61a11f65e9b36735704a2fabc3e4e953d4a77`, Version 1.5.21.
+Der eigenständige Branch `refactor/trade-bookings-consolidation` enthält weder
+UI3-Learning-/Hypothesenänderungen noch eine Versionserhöhung. Die UI3-Implementierung `986f20a2` und der vor Übergabe erneut gelesene
+[UI3-Draft-PR #286](https://github.com/burckhju/trading-workspace/pull/286)
+mit Head `89bad2a4ecfb5915c78dacde150edea533f6b0f0` bleiben getrennt. Dessen
+Lesson-Backlog-/Traceability-Fortschreibung und gemeinsame Journal-Browserfälle
+werden von UI4 nicht verändert. Ursprüngliche Fakten, vollständige Supersession-IDs, getrennte
+Ausführungs-/Erfassungszeiten und belegte beziehungsweise unbekannte
+Währungsherkunft bleiben nachvollziehbar.
+
+Die Seiten-/Editorregressionen, bestehenden Backend-Ownerfälle und ausgewählten
+Browserfälle werden am finalen Implementierungsstand im Draft-PR gebunden.
+Geroutete UI-Mocks belegen keine finanzielle Persistenz; dafür stehen die echten
+BUY-/SELL-Korrektur- und Währungsherkunftsfälle auf einem isolierten synthetischen
+PostgreSQL-Stack. Lokales PostgreSQL 16.15 und reguläres PostgreSQL-17-PR-Gate
+bleiben getrennte Nachweise. Keine neuen Backendformeln, Migrationen,
+Mengen-/Preiskorrektur-Oberflächen, Review-Neufinalisierung, Release- oder
+Betriebsabnahme werden aus dieser UI-Konsolidierung abgeleitet. Die historischen
+FT-009-/FT-010- und Währungsqualifikationen oben bleiben unverändert erhalten.
+
 ## Read-only trade-source composition — 2026-10-21
 
 [PB-018 historical currentness](../planning/PRODUCT_BACKLOG.md#pb-018-currentness) and

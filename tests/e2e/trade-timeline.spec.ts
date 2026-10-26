@@ -154,6 +154,7 @@ test("refreshes immutable timeline after a captured partial sale", async ({ page
   });
 
   await page.goto(`/trade-management?trade_id=${tradeId}`);
+  await page.getByRole("tab", { name: "Historie", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Trade Timeline" })).toBeVisible();
   await expect(page.getByText("Kauf erfasst", { exact: true })).toBeVisible();
 
@@ -162,6 +163,6 @@ test("refreshes immutable timeline after a captured partial sale", async ({ page
   await page.getByRole("button", { name: "Teilverkauf erfassen" }).click();
 
   await expect(page.getByText("Verkauf erfasst", { exact: true })).toBeVisible();
-  await expect(page.getByText("40 Stück · 2,5 je Einheit", { exact: true })).toBeVisible();
-  await expect(page.getByText("60 offen", { exact: true })).toBeVisible();
+  await expect(page.getByText("40 Stück · 2.50 je Einheit", { exact: true })).toBeVisible();
+  await expect(page.getByText("Offene Menge", { exact: true }).locator("..").locator("dd")).toHaveText("60");
 });

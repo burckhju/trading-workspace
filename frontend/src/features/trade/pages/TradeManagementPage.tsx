@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useRef, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 
 import { TradeSourcesView } from '../components/TradeSourcesView';
@@ -16,7 +16,10 @@ import type { PriceBinding } from '../types/api';
 import { ExecutionDatesPanel } from '../components/ExecutionDatesPanel';
 import { TradeCancellationPanel } from '../components/TradeCancellationPanel';
 import { AdditionalPurchasePanel } from '../components/AdditionalPurchasePanel';
-import { TradeTimelinePanel } from '../components/TradeTimelinePanel';
+import {
+  TradePendingChangesProvider,
+  useTradePendingChanges,
+} from '../components/TradePendingChanges';
 import { ExecutionDateInput } from '../components/ExecutionDateInput';
 import { ExecutionCurrencyOverride } from '../components/ExecutionCurrencyOverride';
 import {
@@ -26,7 +29,9 @@ import {
 import { captureRequest, executionTime, finishCapture, localToday } from '../services/capture';
 import type { PositionResponse, TradeManagementStateResponse, TradeResponse } from '../types/api';
 
-function formatNumber(value: string): string {
+function formatNumber(value: string | null | undefined): string {
+  if (value == null || value.trim() === '' || !Number.isFinite(Number(value)))
+    return 'Nicht verfügbar';
   return new Intl.NumberFormat('de-DE', {
     maximumFractionDigits: 10,
   }).format(Number(value));
@@ -44,10 +49,32 @@ function tradePlanReference(id: string): string {
   return `TP-${id.slice(0, 8).toUpperCase()}`;
 }
 
+/** Input and navigation handlers share the same value before React renders again. */
+function useDraft<T>(initial: T | (() => T)) {
+  const [value, setValue] = useState(initial);
+  const current = useRef(value);
+  const update = useCallback((next: T) => {
+    current.current = next;
+    setValue(next);
+  }, []);
+  return [value, update, current] as const;
+}
+
+function sameBinding(left: PriceBinding | null, right: PriceBinding | null) {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
+class SupersededTradeReadError extends Error {
+  constructor() {
+    super(
+      'Ein neuerer Trade-Leseversuch hat diesen Readback ersetzt. Bitte den Buchungsstand erneut prüfen.',
+    );
+  }
+}
+
 export function TradeManagementPage() {
   const [searchParams] = useSearchParams();
   const tradeId = searchParams.get('trade_id') ?? '';
-  const [readAttempt, setReadAttempt] = useState(0);
   const location = useLocation();
   if (searchParams.get('view') === 'sources') {
     return <TradeSourcesView key={`${location.key}:${location.search}`} query={searchParams} />;
@@ -56,15 +83,13 @@ export function TradeManagementPage() {
   // URL identity owns the entire transaction context, including child forms.
   // Reset synchronously on trade changes, not after a render of stale holdings.
   return (
-    <TradeManagementContext
-      key={`${tradeId}:${readAttempt}`}
-      tradeId={tradeId}
-      onReload={() => setReadAttempt((attempt) => attempt + 1)}
-    />
+    <TradePendingChangesProvider key={tradeId}>
+      <TradeManagementContext tradeId={tradeId} />
+    </TradePendingChangesProvider>
   );
 }
 
-function TradeManagementContext({ tradeId, onReload }: { tradeId: string; onReload: () => void }) {
+function TradeManagementContext({ tradeId }: { tradeId: string }) {
   const navigate = useNavigate();
   const { hash } = useLocation();
   const [, setSearchParams] = useSearchParams();
@@ -74,48 +99,163 @@ function TradeManagementContext({ tradeId, onReload }: { tradeId: string; onRelo
   const [warrant, setWarrant] = useState<WarrantResponse | null>(null);
   const [position, setPosition] = useState<PositionResponse | null>(null);
   const [management, setManagement] = useState<TradeManagementStateResponse | null>(null);
-  const [saleQuantity, setSaleQuantity] = useState('');
-  const [salePrice, setSalePrice] = useState('');
-  const [saleDate, setSaleDate] = useState(localToday);
-  const [saleTime, setSaleTime] = useState('');
-  const [saleCurrency, setSaleCurrency] = useState(emptyExecutionCurrency);
+  const [saleQuantity, setSaleQuantity, saleQuantityRef] = useDraft('');
+  const [salePrice, setSalePrice, salePriceRef] = useDraft('');
+  const [saleDate, setSaleDate, saleDateRef] = useDraft(localToday);
+  const initialSaleDate = useRef(saleDate);
+  const [saleTime, setSaleTime, saleTimeRef] = useDraft('');
+  const [saleCurrency, setSaleCurrency, saleCurrencyRef] = useDraft(emptyExecutionCurrency);
   const saleLock = useRef(false);
-  const [stopPrice, setStopPrice] = useState('');
-  const [stopBinding, setStopBinding] = useState<PriceBinding | null>(null);
-  const [targetBinding, setTargetBinding] = useState<PriceBinding | null>(null);
-  const [targetPrice, setTargetPrice] = useState('');
-  const [thesis, setThesis] = useState('');
-  const [note, setNote] = useState('');
+  const writeLock = useRef(false);
+  const readGeneration = useRef(0);
+  const readController = useRef<AbortController | null>(null);
+  const [reloadToken, setReloadToken] = useState(0);
+  const [stopPrice, setStopPrice, stopPriceRef] = useDraft('');
+  const [stopBinding, setStopBinding, stopBindingRef] = useDraft<PriceBinding | null>(null);
+  const [targetBinding, setTargetBinding, targetBindingRef] = useDraft<PriceBinding | null>(null);
+  const [targetPrice, setTargetPrice, targetPriceRef] = useDraft('');
+  const [thesis, setThesis, thesisRef] = useDraft('');
+  const [note, setNote, noteRef] = useDraft('');
+  const managementBasis = useRef<TradeManagementStateResponse | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [pageBusy, setBusy] = useState(false);
+  const [bookingBlocked, setBookingBlocked] = useState(false);
+  const bookingBlockedRef = useRef(false);
+  const isBookingWriteBlocked = useCallback(() => bookingBlockedRef.current, []);
+  const onWriteBlockedChange = useCallback((blocked: boolean) => {
+    bookingBlockedRef.current = blocked;
+    setBookingBlocked(blocked);
+  }, []);
+  const { notify, isBusy: isContextBusy } = useTradePendingChanges('trade-management', {
+    isBusy: () => writeLock.current || saleLock.current,
+    isDirty: () => {
+      const basis = managementBasis.current;
+      return Boolean(
+        saleQuantityRef.current ||
+          salePriceRef.current ||
+          saleDateRef.current !== initialSaleDate.current ||
+          saleTimeRef.current ||
+          saleCurrencyRef.current.code ||
+          saleCurrencyRef.current.note ||
+          noteRef.current ||
+          (basis &&
+            (stopPriceRef.current !== (basis.stop_price ?? '') ||
+              !sameBinding(stopBindingRef.current, basis.stop_price_binding ?? null) ||
+              targetPriceRef.current !== (basis.target_price ?? '') ||
+              !sameBinding(targetBindingRef.current, basis.target_price_binding ?? null) ||
+              thesisRef.current !== (basis.thesis ?? ''))),
+      );
+    },
+    onDiscard: () => {
+      setSaleQuantity('');
+      setSalePrice('');
+      setSaleDate(initialSaleDate.current);
+      setSaleTime('');
+      setSaleCurrency(emptyExecutionCurrency());
+      setNote('');
+      const basis = managementBasis.current;
+      setStopPrice(basis?.stop_price ?? '');
+      setStopBinding(basis?.stop_price_binding ?? null);
+      setTargetPrice(basis?.target_price ?? '');
+      setTargetBinding(basis?.target_price_binding ?? null);
+      setThesis(basis?.thesis ?? '');
+    },
+  });
+  const busy = pageBusy || bookingBlocked || isContextBusy();
 
   useEffect(() => {
     active.current = true;
     return () => {
       active.current = false;
+      readGeneration.current += 1;
+      readController.current?.abort();
     };
   }, []);
 
-  async function refresh(id: string, signal?: AbortSignal) {
-    if (!active.current || signal?.aborted) return;
-    const [nextTrade, nextPosition, nextManagement] = await Promise.all([
-      tradeManagementApiClient.trade(id, signal),
-      tradeManagementApiClient.position(id, signal),
-      tradeManagementApiClient.managementState(id, signal),
-    ]);
-    if (!active.current || signal?.aborted) return;
-    const nextWarrant = await warrantApiClient.get(nextTrade.product_id, signal);
-    if (!active.current || signal?.aborted) return;
-    setTrade(nextTrade);
-    setWarrant(nextWarrant);
-    setPosition(nextPosition);
-    setManagement(nextManagement);
-    setStopPrice(nextManagement.stop_price ?? '');
-    setStopBinding(nextManagement.stop_price_binding ?? null);
-    setTargetBinding(nextManagement.target_price_binding ?? null);
-    setTargetPrice(nextManagement.target_price ?? '');
-    setThesis(nextManagement.thesis ?? '');
-  }
+  const refresh = useCallback(
+    async (id: string, signal?: AbortSignal) => {
+      if (!active.current) return;
+      if (signal?.aborted) throw new SupersededTradeReadError();
+      const generation = ++readGeneration.current;
+      readController.current?.abort();
+      const controller = new AbortController();
+      readController.current = controller;
+      const abort = () => controller.abort();
+      signal?.addEventListener('abort', abort, { once: true });
+      const assertCurrent = () => {
+        if (controller.signal.aborted || generation !== readGeneration.current)
+          throw new SupersededTradeReadError();
+      };
+      try {
+        const [nextTrade, nextPosition, nextManagement] = await Promise.all([
+          tradeManagementApiClient.trade(id, controller.signal),
+          tradeManagementApiClient.position(id, controller.signal),
+          tradeManagementApiClient.managementState(id, controller.signal),
+        ]);
+        if (!active.current) return;
+        assertCurrent();
+        if (
+          nextTrade.id !== id ||
+          nextPosition.trade_id !== id ||
+          nextManagement.trade_id !== id ||
+          nextPosition.product_id !== nextTrade.product_id
+        )
+          throw new Error('Der gelesene Stand gehört nicht zu diesem Trade. Bitte erneut laden.');
+        const nextWarrant = await warrantApiClient.get(nextTrade.product_id, controller.signal);
+        if (!active.current) return;
+        assertCurrent();
+        if (nextWarrant.id !== nextTrade.product_id)
+          throw new Error('Das gelesene Produkt gehört nicht zu diesem Trade. Bitte erneut laden.');
+        setTrade(nextTrade);
+        setWarrant(nextWarrant);
+        setPosition(nextPosition);
+        setManagement(nextManagement);
+        const basis = managementBasis.current;
+        // A booking refresh must not reset another form's unfinished management input.
+        // Treat price and its binding as one draft so their instrument context stays together.
+        if (
+          !basis ||
+          (stopPriceRef.current === (basis.stop_price ?? '') &&
+            sameBinding(stopBindingRef.current, basis.stop_price_binding ?? null))
+        ) {
+          setStopPrice(nextManagement.stop_price ?? '');
+          setStopBinding(nextManagement.stop_price_binding ?? null);
+        }
+        if (
+          !basis ||
+          (targetPriceRef.current === (basis.target_price ?? '') &&
+            sameBinding(targetBindingRef.current, basis.target_price_binding ?? null))
+        ) {
+          setTargetPrice(nextManagement.target_price ?? '');
+          setTargetBinding(nextManagement.target_price_binding ?? null);
+        }
+        if (!basis || thesisRef.current === (basis.thesis ?? ''))
+          setThesis(nextManagement.thesis ?? '');
+        managementBasis.current = nextManagement;
+      } catch (error) {
+        if (active.current) {
+          // A booking readback must not count an aborted/superseded projection
+          // as success, even if a newer attempt subsequently fails.
+          assertCurrent();
+          throw error;
+        }
+      } finally {
+        signal?.removeEventListener('abort', abort);
+      }
+    },
+    [
+      setStopPrice,
+      setStopBinding,
+      setTargetPrice,
+      setTargetBinding,
+      setThesis,
+      stopPriceRef,
+      stopBindingRef,
+      targetPriceRef,
+      targetBindingRef,
+      thesisRef,
+    ],
+  );
 
   useEffect(() => {
     if (!tradeId) return undefined;
@@ -124,7 +264,7 @@ function TradeManagementContext({ tradeId, onReload }: { tradeId: string; onRelo
     setMessage(null);
     refresh(tradeId, controller.signal)
       .catch((error: unknown) => {
-        if (!controller.signal.aborted) {
+        if (!controller.signal.aborted && !(error instanceof SupersededTradeReadError)) {
           setMessage(error instanceof Error ? error.message : 'Trade konnte nicht geladen werden.');
         }
       })
@@ -132,7 +272,7 @@ function TradeManagementContext({ tradeId, onReload }: { tradeId: string; onRelo
         if (!controller.signal.aborted) setBusy(false);
       });
     return () => controller.abort();
-  }, [tradeId]);
+  }, [tradeId, refresh]);
 
   useEffect(() => {
     if (!trade || !position || !['#sale-capture', '#execution-dates'].includes(hash)) return;
@@ -145,50 +285,142 @@ function TradeManagementContext({ tradeId, onReload }: { tradeId: string; onRelo
     event.preventDefault();
     const id = lookupId.trim();
     if (!id) return;
-    if (busy) return;
-    if (id === tradeId) onReload();
-    else setSearchParams({ trade_id: id });
+    if (pageBusy || isContextBusy()) return;
+    if (id === tradeId) {
+      setReloadToken((token) => token + 1);
+      setBusy(true);
+      setMessage(null);
+      void refresh(id)
+        .catch((error: unknown) => {
+          if (active.current && !(error instanceof SupersededTradeReadError))
+            setMessage(
+              error instanceof Error ? error.message : 'Trade konnte nicht geladen werden.',
+            );
+        })
+        .finally(() => {
+          if (active.current) setBusy(false);
+        });
+    } else setSearchParams({ trade_id: id });
   }
 
-  async function mutate(action: () => Promise<unknown>, successMessage: string) {
-    if (!tradeId || trade?.cancelled_at || busy) return;
+  async function mutate(
+    action: () => Promise<unknown>,
+    successMessage: string,
+    field: 'stop' | 'target' | 'thesis' | 'note',
+  ) {
+    if (
+      !tradeId ||
+      trade?.cancelled_at ||
+      busy ||
+      bookingBlockedRef.current ||
+      isContextBusy() ||
+      writeLock.current ||
+      saleLock.current
+    )
+      return;
+    writeLock.current = true;
+    notify();
     setBusy(true);
     setMessage(null);
+    const submitted = {
+      stop_price: stopPriceRef.current,
+      stop_price_binding: stopBindingRef.current,
+      target_price: targetPriceRef.current,
+      target_price_binding: targetBindingRef.current,
+      thesis: thesisRef.current,
+      note: noteRef.current,
+    };
+    let saved = false;
     try {
       await action();
+      saved = true;
+      if (!active.current) return;
+      const basis = managementBasis.current;
+      if (basis) {
+        if (field === 'stop')
+          managementBasis.current = {
+            ...basis,
+            stop_price: submitted.stop_price,
+            stop_price_binding: submitted.stop_price_binding,
+          };
+        if (field === 'target')
+          managementBasis.current = {
+            ...basis,
+            target_price: submitted.target_price,
+            target_price_binding: submitted.target_price_binding,
+          };
+        if (field === 'thesis') managementBasis.current = { ...basis, thesis: submitted.thesis };
+      }
+      if (field === 'note' && noteRef.current === submitted.note) setNote('');
       await refresh(tradeId);
-      setMessage(successMessage);
+      if (active.current) setMessage(successMessage);
     } catch (error: unknown) {
-      setMessage(
-        error instanceof Error ? error.message : 'Änderung konnte nicht gespeichert werden.',
-      );
+      if (active.current) {
+        const detail = error instanceof Error ? error.message : 'Ansicht bitte prüfen.';
+        setMessage(
+          saved ? `Änderung gespeichert, Ansicht noch nicht aktualisiert. ${detail}` : detail,
+        );
+      }
     } finally {
-      setBusy(false);
+      writeLock.current = false;
+      if (active.current) {
+        setBusy(false);
+        notify();
+      }
     }
   }
 
   async function startPostTradeObservation() {
-    if (!tradeId || !position?.is_closed || trade?.cancelled_at) return;
+    if (
+      !tradeId ||
+      !position?.is_closed ||
+      trade?.cancelled_at ||
+      bookingBlockedRef.current ||
+      isContextBusy() ||
+      writeLock.current
+    )
+      return;
 
+    writeLock.current = true;
+    notify();
     setBusy(true);
     setMessage(null);
 
     try {
       await postTradeApiClient.startObservation(tradeId);
-      if (active.current) void navigate(`/post-trade?trade_id=${encodeURIComponent(tradeId)}`);
+      if (active.current) {
+        writeLock.current = false;
+        notify();
+        void navigate(`/post-trade?trade_id=${encodeURIComponent(tradeId)}`);
+      }
     } catch (error: unknown) {
-      setMessage(postTradeErrorMessage(error));
+      if (active.current) setMessage(postTradeErrorMessage(error));
     } finally {
-      setBusy(false);
+      writeLock.current = false;
+      if (active.current) {
+        setBusy(false);
+        notify();
+      }
     }
   }
 
   async function submitSale(quantity: number, successMessage: string) {
-    if (!tradeId || !salePrice || saleLock.current || trade?.cancelled_at) return;
+    if (
+      !tradeId ||
+      !salePrice ||
+      saleLock.current ||
+      writeLock.current ||
+      isContextBusy() ||
+      bookingBlockedRef.current ||
+      trade?.cancelled_at
+    )
+      return;
     saleLock.current = true;
+    notify();
     setBusy(true);
     setMessage(null);
     const scope = `sale:${tradeId}`;
+    let saved = false;
     try {
       const payload = {
         quantity,
@@ -200,20 +432,29 @@ function TradeManagementContext({ tradeId, onReload }: { tradeId: string; onRelo
         ...payload,
         request_id: captureRequest(scope, payload),
       });
+      saved = true;
+      if (!active.current) return;
       finishCapture(scope);
       setSaleQuantity('');
       setSalePrice('');
       setSaleTime('');
       setSaleCurrency(emptyExecutionCurrency());
+      initialSaleDate.current = saleDateRef.current;
       await refresh(tradeId);
-      setMessage(successMessage);
+      if (active.current) setMessage(successMessage);
     } catch (error) {
-      setMessage(
-        error instanceof Error ? error.message : 'Verkauf konnte nicht gespeichert werden.',
-      );
+      if (active.current) {
+        const detail = error instanceof Error ? error.message : 'Verkauf bitte prüfen.';
+        setMessage(
+          saved ? `Verkauf gespeichert, Ansicht noch nicht aktualisiert. ${detail}` : detail,
+        );
+      }
     } finally {
       saleLock.current = false;
-      setBusy(false);
+      if (active.current) {
+        setBusy(false);
+        notify();
+      }
     }
   }
 
@@ -270,7 +511,7 @@ function TradeManagementContext({ tradeId, onReload }: { tradeId: string; onRelo
           />
           <button
             type="submit"
-            disabled={busy || lookupId.trim() === ''}
+            disabled={pageBusy || isContextBusy() || lookupId.trim() === ''}
             className="rounded-lg border border-slate-600 px-4 py-2 disabled:opacity-50"
           >
             Laden
@@ -285,16 +526,13 @@ function TradeManagementContext({ tradeId, onReload }: { tradeId: string; onRelo
       )}
 
       {trade && warrant && position && (
-        <section className="rounded-xl border border-sky-900 bg-sky-950/20 p-5">
+        <section
+          aria-label="Trade und Position"
+          className="rounded-xl border border-sky-900 bg-sky-950/20 p-5"
+        >
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <p className="text-xs uppercase tracking-wide text-sky-400">
-                {trade.cancelled_at
-                  ? 'Stornierter Trade'
-                  : position.is_closed
-                    ? 'Geschlossener Trade'
-                    : 'Aktiver Trade'}
-              </p>
+              <p className="text-xs uppercase tracking-wide text-sky-400">Trade und Position</p>
               <h2 className="mt-1 text-xl font-semibold">
                 {tradeReference(trade.id)} · {warrant.display_name}
               </h2>
@@ -303,9 +541,9 @@ function TradeManagementContext({ tradeId, onReload }: { tradeId: string; onRelo
                 {warrant.wkn ? ` · WKN ${warrant.wkn}` : ''}
               </p>
             </div>
-            <span className="rounded-full border border-sky-800 px-3 py-1 text-xs">
+            <h3 className="rounded-full border border-sky-800 px-3 py-1 text-xs">
               {trade.cancelled_at ? 'CANCELLED' : position.is_closed ? 'CLOSED' : 'OPEN'}
-            </span>
+            </h3>
           </div>
           <dl className="mt-5 grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
             <div>
@@ -323,7 +561,9 @@ function TradeManagementContext({ tradeId, onReload }: { tradeId: string; onRelo
             <div>
               <dt className="text-slate-500">Offene Menge</dt>
               <dd className="mt-1 font-medium">
-                {trade.cancelled_at ? 'Storniert – kein Bestand' : position.open_quantity}
+                {trade.cancelled_at
+                  ? 'Storniert – kein Bestand'
+                  : (position.open_quantity ?? 'Nicht verfügbar')}
               </dd>
             </div>
             <div>
@@ -335,6 +575,34 @@ function TradeManagementContext({ tradeId, onReload }: { tradeId: string; onRelo
                     ? 'Nachbeobachtung starten'
                     : 'Alerts prüfen und Stop/Target aktiv managen'}
               </dd>
+            </div>
+            <div>
+              <dt className="text-slate-500">Kaufdatum / eröffnet</dt>
+              <dd className="mt-1 font-medium">
+                {position.opened_on
+                  ? `${position.opened_on} (Uhrzeit unbekannt)`
+                  : formatDateTime(position.opened_at)}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-slate-500">Verkaufsdatum / geschlossen</dt>
+              <dd className="mt-1 font-medium">
+                {position.closed_on
+                  ? `${position.closed_on} (Uhrzeit unbekannt)`
+                  : formatDateTime(position.closed_at)}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-slate-500">Cost Basis</dt>
+              <dd className="mt-1 font-medium">{formatNumber(position.cost_basis)}</dd>
+            </div>
+            <div>
+              <dt className="text-slate-500">Average Entry</dt>
+              <dd className="mt-1 font-medium">{formatNumber(position.average_entry_price)}</dd>
+            </div>
+            <div>
+              <dt className="text-slate-500">Realized gross P&amp;L</dt>
+              <dd className="mt-1 font-medium">{formatNumber(position.realized_gross_pnl)}</dd>
             </div>
           </dl>
           <details className="mt-4 text-xs text-slate-500">
@@ -359,58 +627,25 @@ function TradeManagementContext({ tradeId, onReload }: { tradeId: string; onRelo
           key={`dates-${trade.id}`}
           tradeId={trade.id}
           cancelled={Boolean(trade.cancelled_at)}
+          reloadToken={reloadToken}
+          onWriteBlockedChange={onWriteBlockedChange}
           onChanged={() => refresh(trade.id)}
         />
       )}
 
       {position && trade && !trade.cancelled_at && (
         <>
-          <section className="rounded-xl border border-slate-800 p-5">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <p className="text-xs uppercase tracking-wide text-slate-500">Position</p>
-                <h2 className="mt-1 text-lg font-semibold">
-                  {trade.cancelled_at ? 'CANCELLED' : position.is_closed ? 'CLOSED' : 'OPEN'}
-                </h2>
-              </div>
-              <span className="rounded-full border border-slate-700 px-3 py-1 text-xs">
-                {position.open_quantity} offen
-              </span>
-            </div>
-            <dl className="mt-5 grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
-              <div>
-                <dt className="text-slate-500">Kaufdatum / eröffnet</dt>
-                <dd>{position.opened_on ?? formatDateTime(position.opened_at)}</dd>
-              </div>
-              <div>
-                <dt className="text-slate-500">Cost Basis</dt>
-                <dd className="mt-1 font-medium">{formatNumber(position.cost_basis)}</dd>
-              </div>
-              <div>
-                <dt className="text-slate-500">Average Entry</dt>
-                <dd className="mt-1 font-medium">{formatNumber(position.average_entry_price)}</dd>
-              </div>
-              <div>
-                <dt className="text-slate-500">Realized gross P&amp;L</dt>
-                <dd className="mt-1 font-medium">{formatNumber(position.realized_gross_pnl)}</dd>
-              </div>
-              <div>
-                <dt className="text-slate-500">Verkaufsdatum / geschlossen</dt>
-                <dd className="mt-1 font-medium">
-                  {position.closed_on ?? formatDateTime(position.closed_at)}
-                </dd>
-              </div>
-            </dl>
-          </section>
-
           <PositionRiskPanel tradeId={tradeId} />
           <TradeAlertsPanel tradeId={tradeId} />
           {!position.is_closed && (
-            <AdditionalPurchasePanel
-              key={trade.id}
-              tradeId={tradeId}
-              onChanged={() => refresh(tradeId)}
-            />
+            <fieldset disabled={bookingBlocked} className="min-w-0">
+              <AdditionalPurchasePanel
+                key={trade.id}
+                tradeId={tradeId}
+                isWriteBlocked={isBookingWriteBlocked}
+                onChanged={() => refresh(tradeId)}
+              />
+            </fieldset>
           )}
 
           <form
@@ -442,7 +677,7 @@ function TradeManagementContext({ tradeId, onReload }: { tradeId: string; onRelo
                 </button>
               </div>
             ) : (
-              <div className="mt-4 space-y-4">
+              <fieldset disabled={busy} className="mt-4 min-w-0 space-y-4">
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   <label className="text-sm">
                     <span className="text-slate-400">Verkaufte Stückzahl</span>
@@ -509,7 +744,7 @@ function TradeManagementContext({ tradeId, onReload }: { tradeId: string; onRelo
                   {position.open_quantity} offenen Stück. Die Reststückzahl muss nicht manuell
                   eingegeben werden.
                 </p>
-              </div>
+              </fieldset>
             )}
           </form>
         </>
@@ -534,6 +769,7 @@ function TradeManagementContext({ tradeId, onReload }: { tradeId: string; onRelo
                       price_binding: stopBinding,
                     }),
                   'Stop wurde aktualisiert.',
+                  'stop',
                 );
               }}
               className="space-y-2"
@@ -578,6 +814,7 @@ function TradeManagementContext({ tradeId, onReload }: { tradeId: string; onRelo
                       price_binding: targetBinding,
                     }),
                   'Target wurde aktualisiert.',
+                  'target',
                 );
               }}
               className="space-y-2"
@@ -618,6 +855,7 @@ function TradeManagementContext({ tradeId, onReload }: { tradeId: string; onRelo
                 void mutate(
                   () => tradeManagementApiClient.updateThesis(tradeId, { text: thesis }),
                   'These wurde aktualisiert.',
+                  'thesis',
                 );
               }}
               className="space-y-2 lg:col-span-2"
@@ -646,7 +884,8 @@ function TradeManagementContext({ tradeId, onReload }: { tradeId: string; onRelo
                 void mutate(
                   () => tradeManagementApiClient.addNote(tradeId, { text }),
                   'Management-Notiz wurde hinzugefügt.',
-                ).then(() => setNote(''));
+                  'note',
+                );
               }}
               className="space-y-2 lg:col-span-2"
             >
@@ -687,14 +926,16 @@ function TradeManagementContext({ tradeId, onReload }: { tradeId: string; onRelo
         </section>
       )}
       {trade && warrant && (
-        <TradeCancellationPanel
-          key={trade.id}
-          trade={trade}
-          productName={warrant.display_name}
-          onChanged={() => refresh(tradeId)}
-        />
+        <div className="min-w-0">
+          <TradeCancellationPanel
+            key={trade.id}
+            trade={trade}
+            productName={warrant.display_name}
+            isWriteBlocked={isBookingWriteBlocked}
+            onChanged={() => refresh(tradeId)}
+          />
+        </div>
       )}
-      {trade?.cancelled_at && <TradeTimelinePanel key={`timeline-${tradeId}`} tradeId={tradeId} />}
     </main>
   );
 }
