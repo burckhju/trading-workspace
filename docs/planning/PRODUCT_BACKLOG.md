@@ -567,16 +567,75 @@ der Layout-Phase, getrennt vom weiterhin passiven Ladeeffekt.
 | Nachweisfeld | Einordnung |
 |---|---|
 | Zuordnung | M1: Instrumente; Optionsscheine. Bereich/Querschnitt: 1. Bestehender Bezug: FT-004. Lieferziel: A. |
-| Arbeitsstatus | Released (belegter historischer Teilscope) |
+| Arbeitsstatus | Technical Review (UI-Konsolidierung und gemeinsame technische Vorabprüfung mit #284 abgeschlossen; Mergefolge #284 → #285 am 26.10.2026 ausdrücklich freigegeben); Released bleibt der belegte historische Teilscope. |
 | Soll / Nicht-Soll | **Soll:** Providerneutrale, stabile Identität und Lifecycle; historische Referenzen bleiben gültig. **Nicht-Soll:** Stammdaten sind weder Kursquelle noch Produktscore oder Benutzerwahl. |
 | Vorhandenseinsnachweis | Dokument- und/oder Routing-Nachweis vorhanden; Details, historische Grenzen und nicht erneut geprüfte Implementierung im Eintrag. |
-| Implementierung / Consumer | Product-Router registriert; [FT-008 konsumiert konkrete Warrant-/Terms-/Listing-IDs](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/backend/app/features/product_selection/domain/models.py). [historische Traceability](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/foundation/TRACEABILITY.md) |
-| Test / Commit | Historische Vertrags-/API-/DB-Nachweise; aktuelle CI auf Basiscommit. Nicht jeder Einzeltest neu gelesen. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Implementierung / Consumer | Product-Router registriert; [FT-008 konsumiert konkrete Warrant-/Terms-/Listing-IDs](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/backend/app/features/product_selection/domain/models.py). [UI-Konsolidierung](../decisions/ADR-S7-004-WARRANT-LISTING-BOUNDARY.md#implementation-note-one-product-context-for-administration): ein Produktdetail für bestehende Aktionen, ausdrücklich geöffnete atomare Anlage, vorausgefüllter Terms-Editor mit unveränderlicher Versionsbasis, gezielte Historie und erhaltene Reparaturroute. [Aktuelle Traceability](../foundation/TRACEABILITY.md#ft-004--sprint-7c-warrant-traceability). |
+| Test / Commit | Ausgangsstand der UI-Konsolidierung: `6c98f7357066c6db5a364370d6dbde637902c4df`, Version 1.5.19; #283 war vor dem Checkout bereits integriert, der Checkout war sauber und die offenen PRs enthielten keine parallele Produktverwaltung. [PR #285](https://github.com/burckhju/trading-workspace/pull/285): vollständiger Frontend-Check nach Main-Integration mit 863 Tests, 105 Backend-Produkttests, zwei echte PostgreSQL-Transaktionstests und zehn Chromium-Abläufe erfolgreich; Befehle und Trennung der Nachweise unten. Historische Nachweise bleiben separat. |
 | Fachliche Abnahme | Historischer FT-004-Umfang laut PB-011 und Traceability; keine neue Gesamtfreigabe. |
 | Software-Auslieferung | Historisch v0.9.0-warrants / PR #13 laut PB-011. |
 | Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
-| Restarbeit / nächste Abhängigkeit | Spätere Erweiterungen und aktueller Betrieb separat qualifizieren; keine pauschale Vollständigkeit der ursprünglichen Planung ableiten. **Nächste Abhängigkeit:** PB-009/010 und FT-001; Produktbelege separat. |
+| Restarbeit / nächste Abhängigkeit | Für den freigegebenen Merge von #285 gelten die regulären Gates auf dem tatsächlichen Head nach Übernahme des neuen Main; finale CI-, Browserartefakt- und Integrationsbezüge werden im PR belegt. Die Mergefreigabe ist keine PC-/Betriebsabnahme. Kein eigener Versionssprung für #285; spätere Erweiterungen und aktueller Betrieb bleiben separat zu qualifizieren. **Nächste Abhängigkeit:** PB-009/010 und FT-001; Produktbelege separat. |
 | Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
+
+#### Lokale Qualifikation der UI-Konsolidierung am 25.10.2026
+
+Der Implementierungsstand `2a743463b381276baa291c27829709d74ae0b1e4` wurde
+anschließend konfliktfrei mit dem zwischenzeitlich integrierten Main
+`17d5891e0ff6e89ced73d587addb28589f5a292f` (#282) zusammengeführt. Produktcode
+und zugehörige Browserfälle blieben dabei bytegleich. Die bereits auf Main
+vorhandene Version 1.5.20 wurde unverändert übernommen; gegenüber Main gibt es
+keine Änderung an Versionsdateien, Produkt-API oder Datenbankverträgen.
+
+Die fokussierten und nativen lokalen Produktprüfungen unten wurden auf dem
+unveränderten Implementierungsstand durchgeführt; der vollständige Frontend-Check
+wurde nach der Main-Integration nochmals erfolgreich ausgeführt. Die abschließende
+Diffprüfung war sauber. CI gehört zum tatsächlichen PR-Head und wird mit dessen
+Workflow- und Artefaktlinks im PR ausgewiesen.
+
+| Ebene | Ausgeführter Befehl / Umgebung | Ergebnis |
+|---|---|---|
+| Vollständiges Frontend | `bash scripts/check-frontend.sh`, Node 22.16.0 / npm 10.9.2 | Exit 0: Typecheck, ESLint, Prettier, 863 Tests in 126 Dateien, Coverage-Gates und Produktionsbuild erfolgreich. Statements/Lines 93,89 %, Branches 86,58 %, Functions 86,73 %. |
+| Fokussierte simulierte UI | `npm run test -- src/features/product/pages --maxWorkers=1 --minWorkers=1`; zusätzlich Identifier-, Evidence- und NavigationGuard-Tests | 59 Seitentests und 26 Komponenten-/Guard-Tests erfolgreich; im vollständigen Frontendlauf enthalten, keine zusätzlichen nativen Persistenznachweise. |
+| Backend-Verträge | `PYTHONPATH=backend:. python -m pytest -c backend/pyproject.toml tests/unit/backend/features/product -q`, Python 3.12.14 | 105 Tests erfolgreich; umfasst atomare Anlage, Bedingungen, Kennungskorrektur, Strike-Währung und geschützte Löschung. |
+| Native PostgreSQL-Transaktion | Mit ausschließlich lokalem `TRADING_WORKSPACE_TEST_DATABASE_URL`: `PYTHONPATH=backend:. python -m pytest -c backend/pyproject.toml tests/integration/backend/database/test_warrant_creation_listing_postgres.py -q` | 2 Tests erfolgreich: gemeinsamer Commit und vollständiger Rollback nach Parent-Insert. Zufälliges isoliertes Testschema, anschließend entfernt. |
+| Tatsächlicher Browser | Aus `frontend`: `npm run e2e -- warrant-admin-consolidation.spec.ts warrant-listing-without-symbol.spec.ts iv-data-evidence.spec.ts ft008-product-selection.spec.ts trade-plan-warrant-identity.spec.ts --workers=1 --reporter=list,html` | 10/10 Chromium-Tests, kein Skip/Retry/Flaky: sechs mit synthetischen API-Antworten, vier über echtes Backend und PostgreSQL. Desktop 1440 und schmal 390 Pixel; bestehender Belegtest zusätzlich 320/768. 18 Bildanhänge; repräsentative Ansichten visuell geprüft. |
+
+Die native Browserprüfung verwendete eine eigens erzeugte lokale Datenbank mit
+PostgreSQL 17.6 und den vorhandenen Alembic-Migrationen bis `20261017_0047`,
+Playwright 1.55.0 / Chromium 140 unter Node 24.22.1 / npm 11.9.0 und
+`TRADE_E2E_WRITES_ALLOWED=1`. Der vollständige Frontend-Check lief getrennt
+unter der projektgepinnten Node-Version 22.16.0. Externe
+Marktdaten-, Monitoring- und Benachrichtigungsjobs waren ausgeschaltet. Die
+Datenbank und Dienste wurden ausschließlich für diese synthetische Prüfung
+verwendet. Das ist kein Nachweis einer Installation auf dem Benutzer-PC.
+
+Der erste vollständige Frontendlauf zeigte zwei Tests, die auf noch gesperrte
+Ladebuttons klickten; die Tests warten jetzt ausdrücklich auf Bedienbereitschaft.
+Der Browserlauf belegte zusätzlich eine Lücke im Tab-Umlauf des nativen
+Verwerfungsdialogs; ein expliziter Fokusumlauf schließt sie. Die vollständigen
+Prüfungen wurden anschließend erfolgreich wiederholt. Keine Fachassertion wurde
+hierfür entfernt. Vorherige in der Prozess-Sandbox hängende Teststarts und der
+Node-24/jsdom-Kompatibilitätsfehler werden nicht als bestandene Läufe gewertet.
+
+#### Gemeinsame Vorabprüfung und Mergefreigabe
+
+Die gemeinsame lokale Vorabprüfung von #284
+(`a3e6e4450d0003c05eb181c65d377c48ec600ed6`) und #285
+(`e58ac0e4d1448bbba9f296d77e98965e508d1366`), Tree
+`ff8137ffaac87e2c7adf665f93707497ca5bb5ea`, bestand den vollständigen
+Frontend-Check mit 952 Tests in 128 Dateien sowie elf Browserfälle ohne Skip,
+Retry oder Flaky-Ergebnis: acht mit API-Fixtures, drei über echtes Backend und
+PostgreSQL. Der gemeinsame Reparatur-/Rückkehr-/Neubewertungs-/Auswahl-/BUY-Ablauf
+und der unabhängige Code-/Dokumentationsabgleich waren erfolgreich. Die genauen
+Heads, Befehle und Nachweise stehen in
+[PR #285](https://github.com/burckhju/trading-workspace/pull/285).
+
+Der Nutzer hat am 26.10.2026 die Reihenfolge #284 mergen, #285 auf den neuen
+Main bringen und nach erfolgreicher finaler CI ebenfalls mergen ausdrücklich
+freigegeben. Der lokale Vorabnachweis ersetzt die CI auf diesem tatsächlichen
+Integrationsstand nicht. Die übernommene Main-Version bleibt unverändert;
+eine PC-Installation oder fachliche Gesamtfreigabe wird damit nicht behauptet.
 
 </details>
 

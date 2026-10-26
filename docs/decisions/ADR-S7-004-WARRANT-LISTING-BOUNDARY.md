@@ -41,8 +41,9 @@ UUID or name-based matching is needed. Unknown product identities are not create
 
 The administration reuses its existing forms and services. When completing a named
 existing product, the creation and deletion sections are not offered. When checking
-an empty run, the create form retains the exact underlying and shows only products
-from that underlying. The repair context does not default the quotation currency.
+an empty run, **Neues Produkt** explicitly opens creation with the exact underlying
+already bound; the catalogue shows only products from that underlying. All repair
+contexts omit deletion. The repair context does not default the quotation currency.
 The optional symbol remains `null` when unknown; venue and currency still require
 verified facts. No copied underlying ticker, invented venue or backdated terms.
 
@@ -97,8 +98,8 @@ substituted with the underlying ticker, ISIN or WKN. Neither quotation currency
 nor venue is inferred from the underlying or strike. HTTP success still returns
 the existing Warrant response; listings remain readable through their owner API.
 
-After a successful creation, the UI confirms the combined save and offers a
-separate **Weiteren Optionsschein anlegen** action. A failed follow-up read is
+After a successful creation, the UI confirms the combined save, opens the actual
+created product and offers a separate **Neues Produkt** action. A failed follow-up read is
 reported as a display error, not as a failed write: the confirmed identity remains
 visible and the user is warned not to recreate it. Double submissions are guarded
 synchronously. Server-side requests already sent are not cancelled or rolled back
@@ -107,10 +108,11 @@ by leaving a page; no network-ambiguity idempotency guarantee is claimed.
 Existing saved listings are reused by new Product Selection runs, including after
 reload; no second entry of venue/currency is needed. Additional listings for an
 existing product remain a separate explicit command with visibly labelled fields.
-The new terms editor is collapsed under **Produktbedingungen ändern**, so its
-empty currency warning is not confused with the saved terms. Draft listing input
-is reset when selecting a different existing product and is never silently moved
-to a different product's creation form.
+**Produktbedingungen ändern** explicitly opens an editor populated from the loaded
+current terms and replaces that section's normal value display. The catalogue
+contains selection information, not another complete terms card. Draft listing
+input is never moved to a different product or to its creation form; leaving a
+changed editor requires an explicit discard decision.
 
 Previously omitted products are not repaired by guessing: the old creation
 contract did not persist venue/currency on the Warrant itself. Without a stored
@@ -133,3 +135,67 @@ CHECK failure is injected after the product INSERT; a fresh transaction must see
 no product, terms or listing. The successful case must retain all three with their
 explicit identities and independent strike/quotation currencies. This complements
 the migrated REST/browser tests and never operates on a user installation.
+
+## Implementation note: one product context for administration
+
+The existing `/warrants-admin` route provides a catalogue for finding and selecting
+a product, plus one responsible detail view. Creation starts only through
+**Neues Produkt**. Its first-listing inputs start empty for each explicitly begun
+product; the atomic create contract above is unchanged.
+
+The detail view groups identity/status, current terms and listings. Valuation
+evidence, retained quote observations and historical terms remain available on
+demand. The normal read view shows one complete current terms block. A historical
+version is selected deliberately and labelled historical; it is never the edit
+baseline. ISIN/WKN correction retains its separate document-evidence requirement
+and remains limited to recording errors of the same instrument.
+
+All product commands belong to the opened product. The separate deletion
+catalogue and its independent selected ID are removed. **Endgültig löschen** is a further
+action on that product; confirmation names its identity and the request uses its
+loaded version. Backend guards for historical or operational use remain
+authoritative. Repair mode never gains a deletion command.
+
+Opening the terms editor requires exactly one consistent current terms version
+belonging to the loaded product. Its product ID, terms ID and product version form
+the immutable edit baseline. Direction, strike, strike currency, maturity and
+ratio are copied as stored, including PUT, strike `0`, decimal strings and an
+unknown strike currency. No value comes from listing currency or the underlying.
+The existing `addTerms` command receives all five terms fields and the baseline
+`expected_version`; it creates a full immutable version and preserves the existing
+effective-dated history. A missing or contradictory baseline disables the change
+and explains the problem. No additional reason field is required for this command.
+
+Only one product editor is active at a time, including identifier correction and
+valuation evidence. Drafts remain bound to their original product and version.
+A background read does not replace their inputs or baseline. Leaving a changed
+editor offers an explicit discard decision; cancelling that decision retains the
+draft. A version conflict keeps the inputs and offers deliberate reload and review;
+there is no silent rebase or automatic resubmission with a newer version. Opening,
+cancelling, navigating and reading issue no product write.
+
+Inputs and resubmission are locked synchronously while their command is pending.
+Late responses from a departed product cannot change another product's view or
+feedback. Failed saves preserve inputs. Confirmed writes followed by failed reads
+remain visibly successful with an outstanding display refresh. A known created
+identity is retained, and retrying its read does not repeat the create POST. A
+transport error does not prove whether a write committed; the UI never retries
+writes automatically and its local lock is not a server-wide exactly-once guarantee.
+
+The administration uses the existing product, reference-data and saved-run APIs.
+ProductEvaluation keeps its exact `warrant_id`, `warrant_terms_version_id` and
+`warrant_listing_id` references. Returning to `/product-selection?run_id=…` keeps
+the saved run; re-evaluation, selection confirmation and BUY remain separate
+explicit actions. No API, database, pricing, provider or release-version contract
+is changed by this UI consolidation.
+
+The current work status and executed qualification results belong only to
+[PB-011](../planning/PRODUCT_BACKLOG.md#pb-011-warrants). The
+[FT-004 traceability](../foundation/TRACEABILITY.md#ft-004--sprint-7c-warrant-traceability)
+maps the invariants to focused UI regressions and the existing native browser flow.
+`WarrantAdminConsolidation.test.tsx` exercises the context and version failure paths
+with mocked services. `warrant-admin-consolidation.spec.ts` adds actual Chromium
+interaction at desktop and narrow widths with synthetic API responses and
+screenshots. Those checks are distinct from the disposable PostgreSQL/browser
+journey in `warrant-listing-without-symbol.spec.ts` and from CI evidence on a
+specific PR commit; none is an observed deployment on a user's installation.

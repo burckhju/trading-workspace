@@ -62,11 +62,14 @@ test('existing administration records a symbol-less listing and unblocks the exi
   await page.getByRole('link', { name: 'Notierung ergänzen' }).click();
   await expect(page.getByRole('heading', { name: warrant.display_name, exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Optionsschein anlegen', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Neues Produkt', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Endgültig löschen', exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Notierung hinzufügen', exact: true }).click();
   const symbol = page.getByLabel('Symbol', { exact: true });
   await expect(symbol).not.toHaveAttribute('required');
   await expect(symbol).toHaveAttribute('maxlength', '64');
   await expect(page.getByText(/Veröffentlicht der Handelsplatz kein Börsensymbol/)).toBeVisible();
-  const add = page.getByRole('button', { name: 'Notierung hinzufügen' });
+  const add = page.getByRole('button', { name: 'Notierung speichern', exact: true });
   // Venue is still mandatory. Navigation and an incomplete form create no listing.
   await add.click();
   expect(await body(await request.get(`${root}/warrants/${warrant.id}/listings`), 200)).toEqual([]);
@@ -80,7 +83,7 @@ test('existing administration records a symbol-less listing and unblocks the exi
   expect(added).toMatchObject({ warrant_id: warrant.id, trading_venue_id: venueId, symbol: null, quotation_currency_code: 'EUR' });
   await expect(page.getByText('Ohne Börsensymbol', { exact: true })).toBeVisible();
   await page.reload();
-  await page.getByRole('button', { name: new RegExp(warrant.display_name) }).click();
+  await expect(page.getByRole('heading', { name: warrant.display_name, exact: true })).toBeVisible();
   await expect(page.getByText('Ohne Börsensymbol', { exact: true })).toBeVisible();
   const persisted = await body(await request.get(`${root}/warrants/${warrant.id}/listings`), 200);
   expect(persisted).toHaveLength(1);
@@ -198,6 +201,8 @@ for (const viewport of [
     await page
       .getByRole("link", { name: "Optionsscheinstammdaten prüfen" })
       .click();
+    await expect(page.getByLabel("Anzeigename *", { exact: true })).toHaveCount(0);
+    await page.getByRole("button", { name: "Neues Produkt", exact: true }).click();
     const underlyingField = page.getByRole("combobox", {
       name: "Basiswert *",
       exact: true,
@@ -205,6 +210,8 @@ for (const viewport of [
     await expect(underlyingField).toHaveValue(underlying.id);
     await expect(underlyingField).toBeDisabled();
     await page.reload();
+    await expect(page.getByLabel("Anzeigename *", { exact: true })).toHaveCount(0);
+    await page.getByRole("button", { name: "Neues Produkt", exact: true }).click();
     await expect(underlyingField).toHaveValue(underlying.id);
     expect(writes).toEqual([]);
     await page
@@ -254,8 +261,8 @@ for (const viewport of [
       page.getByRole("heading", { name: created.display_name, exact: true }),
     ).toBeVisible();
     await expect(
-      page.getByRole("heading", {
-        name: "Optionsschein und Notierung gespeichert",
+      page.getByRole("status").filter({
+        hasText: "Optionsschein und Notierung gespeichert",
       }),
     ).toBeVisible();
     const persisted = await body(

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { MarketApiError } from '../../market/services/http';
 import { dataEvidenceApi } from '../services/dataEvidence';
 import type { WarrantResponse, WarrantTermsResponse } from '../types/api';
@@ -20,85 +20,147 @@ const cls = 'block w-full min-w-0 rounded border border-slate-600 bg-slate-950 p
 export function WarrantValuationEvidence({
   warrant,
   terms,
+  embedded = false,
+  disabled = false,
+  onCancel,
+  onDirtyChange,
+  onBusyChange,
+  onReload,
 }: {
   warrant: WarrantResponse;
   terms: WarrantTermsResponse;
+  embedded?: boolean;
+  disabled?: boolean;
+  onCancel?: () => void;
+  onDirtyChange?: (dirty: boolean) => void;
+  onBusyChange?: (busy: boolean) => void;
+  onReload?: () => void;
 }) {
+  const [basis] = useState(() => ({ warrant: { ...warrant }, terms: { ...terms } }));
   const [view, setView] = useState<ValuationEvidenceView | null>(null);
   const [facts, setFacts] = useState<ValuationFacts>(empty);
   const [confirmed, setConfirmed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [conflict, setConflict] = useState(false);
   const active = useRef<AbortController | null>(null);
-  useEffect(() => () => active.current?.abort(), []);
+  const inFlight = useRef(false);
+  const initialFacts = useRef<ValuationFacts>(empty);
+  const dirty = useRef(false);
+  useLayoutEffect(() => () => active.current?.abort(), []);
+
+  function markDirty(value: boolean) {
+    dirty.current = value;
+    onDirtyChange?.(value);
+  }
+  function hasChanges(next: ValuationFacts) {
+    return (Object.keys(empty) as (keyof ValuationFacts)[]).some(
+      (key) => next[key] !== initialFacts.current[key],
+    );
+  }
   function change(next: ValuationFacts) {
+    if (inFlight.current || disabled) return;
     setFacts(next);
     setConfirmed(false);
     setMessage('');
+    markDirty(hasChanges(next));
   }
   async function run(save: boolean) {
+    if (inFlight.current || disabled || (save && (!view || !confirmed || !basis.warrant.isin)))
+      return;
+    if (
+      !save &&
+      dirty.current &&
+      !window.confirm('Ungespeicherte Belegangaben verwerfen und gespeicherte Belege neu laden?')
+    )
+      return;
+    inFlight.current = true;
     active.current?.abort();
     const controller = new AbortController();
     active.current = controller;
     setBusy(true);
+    onBusyChange?.(true);
     setMessage('');
     setError('');
+    setConflict(false);
     try {
       const next =
         save && view
           ? await dataEvidenceApi.recordFacts(
-              warrant.id,
+              basis.warrant.id,
               {
-                terms_id: terms.id,
-                expected_version: warrant.version,
+                terms_id: basis.terms.id,
+                expected_version: basis.warrant.version,
                 expected_revision: view.revision,
                 facts,
                 confirmation: 'CONFIRM_DOCUMENT_REVIEW',
               },
               controller.signal,
             )
-          : await dataEvidenceApi.facts(warrant.id, controller.signal);
+          : await dataEvidenceApi.facts(basis.warrant.id, controller.signal);
       if (!controller.signal.aborted) {
         setView(next);
-        setFacts(next.current?.facts ?? { ...empty });
+        initialFacts.current = { ...(next.current?.facts ?? empty) };
+        setFacts(initialFacts.current);
         setConfirmed(false);
+        markDirty(false);
         if (save)
           setMessage(
             `Belegrevision ${next.revision} gespeichert. Eine Live-IV ist dadurch noch nicht freigeschaltet.`,
           );
       }
     } catch (cause) {
-      if (!controller.signal.aborted)
+      if (!controller.signal.aborted) {
         setError(
           cause instanceof MarketApiError
             ? `${cause.message} Bitte Produkt/Belege neu laden oder die Angaben einschließlich Zeitzonen prüfen.`
             : 'Belege nicht erreichbar. Ein Speichererfolg ist nicht bestätigt; bitte neu laden.',
         );
+        setConflict(cause instanceof MarketApiError && cause.status === 409);
+      }
     } finally {
-      if (!controller.signal.aborted) setBusy(false);
+      inFlight.current = false;
+      if (!controller.signal.aborted) {
+        setBusy(false);
+        onBusyChange?.(false);
+      }
     }
   }
-  return (
-    <details className="min-w-0 space-y-3 break-words rounded border border-slate-700 p-3">
-      <summary className="cursor-pointer font-semibold">
-        Produktmerkmale für IV mit Beleg erfassen
-      </summary>
+  const content = (
+    <>
       <p>
         Manuell geprüfte Produktbedingungen, keine Anbieterprüfung durch die Anwendung. Belege
-        gelten für ISIN {warrant.isin ?? 'unbekannt'} und Bedingungsversion {terms.version_no}:{' '}
-        {terms.option_direction}, Strike {terms.strike}, Verhältnis {terms.ratio}, Fälligkeit{' '}
-        {terms.maturity_date}.
+        gelten für ISIN {basis.warrant.isin ?? 'unbekannt'} und Bedingungsversion{' '}
+        {basis.terms.version_no}.
       </p>
       <button
         type="button"
-        disabled={busy}
+        disabled={busy || disabled}
         className="rounded border px-3 py-2"
         onClick={() => void run(false)}
       >
         Produktbelege laden
       </button>
       {error && <p role="alert">{error}</p>}
+      {conflict && (
+        <div className="space-y-2 text-sm">
+          <p>
+            Die Eingaben bleiben erhalten. Produkt und Belege bewusst neu laden und vor einer
+            weiteren Speicherung erneut prüfen.
+          </p>
+          {onReload && (
+            <button
+              type="button"
+              disabled={busy || disabled}
+              onClick={onReload}
+              className="rounded border px-3 py-2"
+            >
+              Produkt neu laden und prüfen
+            </button>
+          )}
+        </div>
+      )}
       {message && <p role="status">{message}</p>}
       {view && (
         <>
@@ -118,7 +180,7 @@ export function WarrantValuationEvidence({
               if (confirmed) void run(true);
             }}
           >
-            <fieldset disabled={busy} className="grid min-w-0 gap-3 sm:grid-cols-2">
+            <fieldset disabled={busy || disabled} className="grid min-w-0 gap-3 sm:grid-cols-2">
               <label>
                 Produktart
                 <select
@@ -249,8 +311,12 @@ export function WarrantValuationEvidence({
               <input
                 type="checkbox"
                 checked={confirmed}
-                disabled={busy}
-                onChange={(e) => setConfirmed(e.target.checked)}
+                disabled={busy || disabled}
+                onChange={(e) => {
+                  if (inFlight.current || disabled) return;
+                  setConfirmed(e.target.checked);
+                  markDirty(e.target.checked || hasChanges(facts));
+                }}
               />
               <span>
                 Ich habe die genannten Angaben am Beleg für diese ISIN und Bedingungsversion
@@ -258,7 +324,7 @@ export function WarrantValuationEvidence({
               </span>
             </label>
             <button
-              disabled={busy || !confirmed || !warrant.isin}
+              disabled={busy || disabled || !confirmed || !basis.warrant.isin}
               className="rounded border px-3 py-2 disabled:opacity-50"
             >
               Belegrevision speichern
@@ -300,6 +366,29 @@ export function WarrantValuationEvidence({
           </details>
         </>
       )}
+      {onCancel && (
+        <button
+          type="button"
+          disabled={busy || disabled}
+          onClick={onCancel}
+          className="rounded border px-3 py-2"
+        >
+          Belegeditor schließen
+        </button>
+      )}
+    </>
+  );
+  return embedded ? (
+    <section aria-label="Bewertungsbelege" className="min-w-0 space-y-3 break-words">
+      <h3 className="font-semibold">Produktmerkmale für IV mit Beleg erfassen</h3>
+      {content}
+    </section>
+  ) : (
+    <details className="min-w-0 space-y-3 break-words rounded border border-slate-700 p-3">
+      <summary className="cursor-pointer font-semibold">
+        Produktmerkmale für IV mit Beleg erfassen
+      </summary>
+      {content}
     </details>
   );
 }

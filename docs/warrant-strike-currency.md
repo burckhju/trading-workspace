@@ -23,9 +23,19 @@ messages and a reload action. A selected code is retained on failure or deactiva
 not silently changed to EUR or null; native form validation blocks unavailable codes.
 The backend remains authoritative and revalidates active references on every write.
 
-To correct existing reference data, create a new terms version with the verified
-currency and retain the other verified contractual terms. Historical currency values
-are not rewritten. Optimistic concurrency still uses `expected_version` of the warrant.
+To correct existing reference data, open **Produktbedingungen ändern** on the selected
+product. The editor replaces the current terms display and starts with its loaded
+direction, strike, strike currency, maturity and ratio. PUT remains PUT, strike `0`
+remains present, and decimal values stay API strings. An unknown historic currency
+stays unknown; listing currency, underlying and EUR are never used as substitutes.
+
+The draft pins the product ID, current terms ID and loaded product version. A background
+refresh cannot replace the draft or silently advance its `expected_version`. Saving
+sends the full new terms version through the existing contract, including fields the
+user did not change. Historical currency values are not rewritten. Missing or
+contradictory current terms block editing with an explanation. A concurrency conflict
+retains input and requires deliberate reload and review before a fresh edit; it never
+automatically retries with a newer version. Cancelling does not write a version.
 
 ## Migrations and reference data
 
@@ -93,6 +103,10 @@ rejected by the API. No configured application database is migrated or dropped b
 
 Frontend tests cover both currency selectors, USD/CHF submission, legacy history,
 loading/failure/retry, empty references, unavailable selections and aborted requests.
+The consolidated administration regressions additionally pin unchanged PUT/strike/USD/
+ratio when only maturity changes, unknown currency with a zero strike, and the original
+product version through conflicts and refreshed props. Executed qualification results
+are recorded in [PB-011](planning/PRODUCT_BACKLOG.md#pb-011-warrants).
 
 ## Local deployment
 

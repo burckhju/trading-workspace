@@ -16,6 +16,7 @@ vi.mock('../../market/services/client', () => ({
 vi.mock('../services/client', () => ({
   warrantApiClient: {
     list: vi.fn(),
+    get: vi.fn(),
     create: vi.fn(),
     deactivate: vi.fn(),
     reactivate: vi.fn(),
@@ -92,36 +93,48 @@ beforeEach(() => {
     ],
   });
   warrants.list.mockResolvedValue([warrant]);
-  warrants.terms.mockResolvedValue([
-    {
-      id: 't1',
-      warrant_id: warrant.id,
-      version_no: 1,
-      effective_from: warrant.created_at,
-      effective_to: null,
-      option_direction: 'CALL',
-      strike: '180',
-      maturity_date: '2026-12-18',
-      ratio: '0.1',
-      created_at: warrant.created_at,
-    },
-  ]);
+  warrants.get.mockImplementation((id) => Promise.resolve({ ...warrant, id }));
+  warrants.terms.mockImplementation((id) =>
+    Promise.resolve([
+      {
+        id: 't1',
+        warrant_id: id,
+        version_no: 1,
+        effective_from: warrant.created_at,
+        effective_to: null,
+        option_direction: 'CALL',
+        strike: '180',
+        maturity_date: '2026-12-18',
+        ratio: '0.1',
+        created_at: warrant.created_at,
+      },
+    ]),
+  );
   warrants.listings.mockResolvedValue([]);
   warrants.deactivate.mockResolvedValue({ ...warrant, lifecycle_status: 'INACTIVE', version: 2 });
 });
+
+async function clickReadyAction(name: string) {
+  const button = await screen.findByRole('button', { name });
+  await waitFor(() => expect(button).toBeEnabled());
+  fireEvent.click(button);
+}
 
 describe('WarrantAdminPage', () => {
   it('shows product, terms history and listings as separate user concepts', async () => {
     render(<WarrantAdminPage />);
     expect((await screen.findAllByText('Siemens Call 180 12/2026')).length).toBeGreaterThan(0);
-    expect(screen.getByText('Produktbedingungen / Historie')).toBeInTheDocument();
+    expect(await screen.findByText('Aktuelle Produktbedingungen')).toBeInTheDocument();
+    expect(screen.getByText('Änderungshistorie')).toBeInTheDocument();
     expect(screen.getByText('Handelbare Notierungen')).toBeInTheDocument();
-    expect(screen.getByText(/technische IDs müssen nicht eingegeben werden/)).toBeInTheDocument();
+    expect(screen.queryByLabelText('Anzeigename *')).not.toBeInTheDocument();
   });
 
   it('uses the stored version for lifecycle changes', async () => {
     render(<WarrantAdminPage />);
-    fireEvent.click(await screen.findByRole('button', { name: 'Deaktivieren' }));
+    await screen.findByText('Aktuelle Produktbedingungen');
+    fireEvent.click(screen.getByText('Weitere Aktionen'));
+    await clickReadyAction('Deaktivieren');
     await waitFor(() => expect(warrants.deactivate).toHaveBeenCalledWith(warrant.id, 1));
   });
 });
@@ -134,6 +147,8 @@ it('creates a warrant and refreshes selection', async () => {
 
   render(<WarrantAdminPage />);
   await screen.findByText('Keine Optionsscheine vorhanden.');
+  fireEvent.click(screen.getByRole('button', { name: 'Neues Produkt' }));
+  expect(screen.getByText(/technische IDs müssen nicht eingegeben werden/)).toBeInTheDocument();
 
   fireEvent.change(screen.getByLabelText('Anzeigename *'), { target: { value: 'Neuer Call' } });
   fireEvent.change(screen.getByLabelText('Emittent *'), { target: { value: warrant.issuer_id } });
@@ -193,8 +208,8 @@ it('adds a terms version and a listing', async () => {
   });
 
   render(<WarrantAdminPage />);
-  await screen.findByText('Produktbedingungen / Historie');
-  fireEvent.click(screen.getByText('Produktbedingungen ändern'));
+  await screen.findByText('Aktuelle Produktbedingungen');
+  await clickReadyAction('Produktbedingungen ändern');
 
   fireEvent.change(screen.getByLabelText('Neue Richtung'), { target: { value: 'PUT' } });
   fireEvent.change(screen.getByLabelText('Neuer Strike'), { target: { value: '170' } });
@@ -208,12 +223,14 @@ it('adds a terms version and a listing', async () => {
     ),
   );
 
+  await waitFor(() => expect(screen.queryByLabelText('Neuer Strike')).not.toBeInTheDocument());
+  await clickReadyAction('Notierung hinzufügen');
   fireEvent.change(screen.getByLabelText('Handelsplatz'), {
     target: { value: '00000000-0000-4000-8001-000000000501' },
   });
   fireEvent.change(screen.getByLabelText('Symbol'), { target: { value: 'SIECALL' } });
   fireEvent.change(screen.getByLabelText('Handelswährung'), { target: { value: 'usd' } });
-  fireEvent.click(screen.getByRole('button', { name: 'Notierung hinzufügen' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Notierung speichern' }));
   await waitFor(() =>
     expect(warrants.addListing).toHaveBeenCalledWith(
       warrant.id,
@@ -225,10 +242,13 @@ it('adds a terms version and a listing', async () => {
 it('reactivates an inactive warrant and surfaces load errors', async () => {
   const inactive = { ...warrant, lifecycle_status: 'INACTIVE' as const, version: 2 };
   warrants.list.mockResolvedValue([inactive]);
+  warrants.get.mockResolvedValue(inactive);
   warrants.reactivate.mockResolvedValue({ ...warrant, version: 3 });
 
   render(<WarrantAdminPage />);
-  fireEvent.click(await screen.findByRole('button', { name: 'Reaktivieren' }));
+  await screen.findByText('Aktuelle Produktbedingungen');
+  fireEvent.click(screen.getByText('Weitere Aktionen'));
+  await clickReadyAction('Reaktivieren');
   await waitFor(() => expect(warrants.reactivate).toHaveBeenCalledWith(warrant.id, 2));
 
   vi.clearAllMocks();
@@ -237,5 +257,7 @@ it('reactivates an inactive warrant and surfaces load errors', async () => {
   market.listTradingVenues.mockResolvedValue({ items: [] });
   warrants.list.mockResolvedValue([]);
   render(<WarrantAdminPage />);
-  expect(await screen.findByText('Referenzdaten nicht verfügbar')).toBeInTheDocument();
+  expect(await screen.findByRole('alert')).toHaveTextContent(
+    'Referenzdaten konnten nicht vollständig geladen werden',
+  );
 });

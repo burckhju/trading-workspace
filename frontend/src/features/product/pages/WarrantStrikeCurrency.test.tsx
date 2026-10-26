@@ -17,6 +17,7 @@ vi.mock('../../market/services/client', () => ({
 vi.mock('../services/client', () => ({
   warrantApiClient: {
     list: vi.fn(),
+    get: vi.fn(),
     create: vi.fn(),
     terms: vi.fn(),
     addTerms: vi.fn(),
@@ -108,6 +109,7 @@ beforeEach(() => {
     ],
   });
   warrants.list.mockResolvedValue([warrant]);
+  warrants.get.mockResolvedValue(warrant);
   warrants.terms.mockResolvedValue([legacyTerms]);
   warrants.listings.mockResolvedValue([
     {
@@ -145,10 +147,13 @@ function fillProduct() {
 
 it('does not infer a legacy strike currency from an EUR quotation', async () => {
   render(<WarrantAdminPage />);
-  expect(await screen.findByText(/Strike 500 \(Währung ungeklärt\)/)).toBeInTheDocument();
-  expect(screen.getByLabelText('Strike-Währung')).toHaveValue('');
+  expect(await screen.findByText(/500 \(Währung ungeklärt\)/)).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Produktbedingungen ändern' }));
   expect(screen.getByLabelText('Neue Strike-Währung')).toHaveValue('');
   expect(screen.getByText(/Test Venue · EUR/)).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Bedingungen abbrechen' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Neues Produkt' }));
+  expect(screen.getByLabelText('Strike-Währung')).toHaveValue('');
 
   fillProduct();
   fireEvent.click(screen.getByRole('button', { name: 'Optionsschein anlegen' }));
@@ -161,13 +166,14 @@ it('does not infer a legacy strike currency from an EUR quotation', async () => 
 
 it.each(['USD', 'CHF'])('posts %s independently of EUR', async (code) => {
   render(<WarrantAdminPage />);
-  await screen.findByText(/Strike 500 \(Währung ungeklärt\)/);
+  await screen.findByText(/500 \(Währung ungeklärt\)/);
+  fireEvent.click(screen.getByRole('button', { name: 'Neues Produkt' }));
   const selector = screen.getByRole('combobox', { name: 'Strike-Währung' });
   await within(selector).findByRole('option', { name: new RegExp(`^${code}`) });
   fillProduct();
   fireEvent.change(selector, { target: { value: code } });
   expect(selector).toHaveValue(code);
-  expect(screen.getByLabelText('Handelswährung')).toHaveValue('EUR');
+  expect(screen.getByLabelText('Handelswährung des Optionsscheins')).toHaveValue('EUR');
   fireEvent.click(screen.getByRole('button', { name: 'Optionsschein anlegen' }));
   await waitFor(() =>
     expect(warrants.create).toHaveBeenCalledWith(
@@ -193,7 +199,7 @@ it.each(['USD', 'CHF'])('adds %s terms and retains history', async (code) => {
   };
   warrants.addTerms.mockResolvedValue(next);
   render(<WarrantAdminPage />);
-  await screen.findByText(/Strike 500 \(Währung ungeklärt\)/);
+  await screen.findByText(/500 \(Währung ungeklärt\)/);
   fireEvent.click(screen.getByText('Produktbedingungen ändern'));
   const selector = screen.getByRole('combobox', { name: 'Neue Strike-Währung' });
   await within(selector).findByRole('option', { name: new RegExp(`^${code}`) });
@@ -203,6 +209,8 @@ it.each(['USD', 'CHF'])('adds %s terms and retains history', async (code) => {
   fireEvent.change(screen.getByLabelText('Neue Fälligkeit'), { target: { value: '2027-01-15' } });
   fireEvent.change(screen.getByLabelText('Neues Bezugsverhältnis'), { target: { value: '0.1' } });
   warrants.terms.mockResolvedValue([{ ...legacyTerms, effective_to: warrant.updated_at }, next]);
+  warrants.get.mockResolvedValue({ ...warrant, version: 2 });
+  warrants.list.mockResolvedValue([{ ...warrant, version: 2 }]);
   fireEvent.click(screen.getByRole('button', { name: 'Neue Terms-Version' }));
 
   await waitFor(() =>
@@ -215,8 +223,13 @@ it.each(['USD', 'CHF'])('adds %s terms and retains history', async (code) => {
       }),
     ),
   );
-  expect(await screen.findByText(new RegExp(`Strike 500 ${code}`))).toBeInTheDocument();
-  expect(screen.getByText(/Strike 500 \(Währung ungeklärt\)/)).toBeInTheDocument();
+  expect(await screen.findByText(new RegExp(`500 ${code}`))).toBeInTheDocument();
+  expect(screen.queryByText(/500 \(Währung ungeklärt\)/)).not.toBeInTheDocument();
+  fireEvent.click(screen.getByText('Änderungshistorie'));
+  fireEvent.change(screen.getByLabelText('Historische Bedingungsversion'), {
+    target: { value: legacyTerms.id },
+  });
+  expect(screen.getByText(/500 \(Währung ungeklärt\)/)).toBeInTheDocument();
   expect(screen.getByText(/Test Venue · EUR/)).toBeInTheDocument();
   expect(warrants.addListing).not.toHaveBeenCalled();
 });
