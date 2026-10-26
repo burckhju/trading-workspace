@@ -1016,6 +1016,22 @@ Erstkaufstrecke sind beim Zusammenführen beider Branches erneut zu prüfen.
 | Restarbeit / nächste Abhängigkeit | Daten-/Berechnungsgrenzen der Positionssicht von tradeübergreifender Performance getrennt abnehmen. **Nächste Abhängigkeit:** Effektive Execution-Historie; PB-019 Performance liest nur. |
 | Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
 
+**UI4-Fortschreibung vom 26.10.2026:** Die
+[Konsolidierung von Tradeübersicht und Buchungen](../implementation/UI_TRADE_BOOKINGS_CONSOLIDATION.md)
+führt Produktbezug, Trade-Status, offene Menge, Datumsangaben und bestehende
+Backendpositionsergebnisse in einer Übersicht zusammen. Status und offene Menge
+erscheinen im Überblick jeweils einmal; unbekannte Werte werden nicht zu Null.
+Die Änderung arbeitet auf `f8f61a11f65e9b36735704a2fabc3e4e953d4a77` / 1.5.21
+und erhält die Positionsrechnung des Owners. Der Draft-PR bindet den finalen
+Implementierungscommit und die tatsächlich abgeschlossenen Prüfungen. Kein neuer
+Depot-/Performanceumfang, keine Statushochsetzung oder Auslieferung durch UI4.
+
+**Nachfolgende Freigabe vom 26.10.2026:** Der gemeinsame Stand nach UI3 soll bei
+grünen Prüfungen integriert und als **1.5.22** für den PC bereitgestellt werden.
+Der [Integrationsnachtrag](../implementation/UI_TRADE_BOOKINGS_CONSOLIDATION.md#nachtrag-26102026-freigegebene-integration-und-pc-bereitstellung)
+bindet diesen Folgeauftrag getrennt von der ursprünglichen Draft-Übergabe.
+Fachlicher Arbeitsstatus und ausstehender Zielbetriebsnachweis bleiben erhalten.
+
 </details>
 
 ### PB-017
@@ -1099,6 +1115,30 @@ Erstkaufstrecke sind beim Zusammenführen beider Branches erneut zu prüfen.
 | Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
 | Restarbeit / nächste Abhängigkeit | Auswirkungen auf bestehende Observation/Review/LearningEvidence gezielt durchprüfen. **Nächste Abhängigkeit:** PB-016; für Übergabe PB-018-Currentness-Vertrag. |
 | Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
+
+**UI4-Fortschreibung vom 26.10.2026:** Ein gemeinsamer Timeline-Read versorgt
+„Aktuelle Buchungen“, die ersetzende schreibgeschützte Historie und genau einen
+an die ausgewählte wirksame Execution gebundenen Datum-/Währungseditor.
+Die bisherige zweite Timeline unter Alerts und der zusätzliche Stornierungszweig
+entfallen. Originale, Korrekturverknüpfungen, Erfassungszeiten und Währungsquellen
+bleiben erhalten. Der gemeinsame Navigationsschutz, die gesonderten Retry-/Replay-
+Verträge und der Erhalt paralleler Managemententwürfe sind im
+[UI4-Implementierungs- und Qualifikationsnachweis](../implementation/UI_TRADE_BOOKINGS_CONSOLIDATION.md)
+mit Akzeptanzfällen und konkreten Tests dokumentiert. Abschließender Prüfstand im
+Draft-PR mit Commit-/Treebezug; native PostgreSQL- und geroutete UI-Mockbelege werden
+getrennt ausgewiesen. Die historischen Nachweise oben behalten ihren Codebezug.
+Keine allgemeine Mengen-/Preis-/Seiten- oder historische Managementkorrektur-UI,
+keine automatische Review-/Journal-/Lesson-Neubindung und kein Merge/Release
+werden mit diesem begrenzten Schnitt behauptet.
+
+**Nachfolgende Freigabe vom 26.10.2026:** Die Nutzeranweisung zur Integration bei
+grünen Prüfungen und zur PC-Bereitstellung erweitert die ursprüngliche
+Übergabegrenze. **1.5.22** erhält einen neuen Nachweis des gemeinsamen Stands mit
+UI3, anschließend die regulären Main-Gates und den bestehenden Tag-Publisher.
+Commit-, Tree- und Workflowbezüge werden in
+[PR #287](https://github.com/burckhju/trading-workspace/pull/287) festgehalten;
+Softwarebereitstellung, fachliche Abnahme und tatsächlich installierter PC-Stand
+bleiben getrennt. Die ursprünglichen historischen Nachweise oben bleiben erhalten.
 
 </details>
 

@@ -1,5 +1,12 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter, useLocation, useNavigate } from 'react-router-dom';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { useRef, useState } from 'react';
+import {
+  createMemoryRouter,
+  MemoryRouter,
+  RouterProvider,
+  useLocation,
+  useNavigate,
+} from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { postTradeApiClient } from '../../post_trade/services/client';
@@ -7,6 +14,7 @@ import { warrantApiClient } from '../../product/services/client';
 import type { WarrantResponse } from '../../product/types/api';
 import { tradeManagementApiClient } from '../services/client';
 import { localToday } from '../services/capture';
+import { useTradePendingChanges } from '../components/TradePendingChanges';
 import type {
   PositionResponse,
   SaleResponse,
@@ -21,10 +29,75 @@ vi.mock('../../alert/components/TradeAlertsPanel', () => ({
   TradeAlertsPanel: ({ tradeId }: { tradeId: string }) => <div>Alerts {tradeId}</div>,
 }));
 vi.mock('../components/ExecutionDatesPanel', () => ({
-  ExecutionDatesPanel: ({ tradeId }: { tradeId: string }) => <div>Dates {tradeId}</div>,
+  ExecutionDatesPanel: ({
+    tradeId,
+    onChanged,
+    reloadToken,
+    onWriteBlockedChange,
+  }: {
+    tradeId: string;
+    onChanged: () => Promise<void>;
+    reloadToken: number;
+    onWriteBlockedChange: (blocked: boolean) => void;
+  }) => {
+    const [readbacks, setReadbacks] = useState<string[]>([]);
+    return (
+      <div>
+        Dates {tradeId}
+        <button
+          onClick={() => {
+            void onChanged().then(
+              () => setReadbacks((previous) => [...previous, 'Booking read succeeded']),
+              (error: unknown) =>
+                setReadbacks((previous) => [
+                  ...previous,
+                  `Booking read failed: ${error instanceof Error ? error.message : 'Unknown'}`,
+                ]),
+            );
+          }}
+        >
+          Booking refresh
+        </button>
+        <button onClick={() => onWriteBlockedChange(true)}>Booking write begins</button>
+        <button onClick={() => onWriteBlockedChange(false)}>Booking checked</button>
+        <output aria-label="Booking reload">{reloadToken}</output>
+        {readbacks.map((result, index) => (
+          <p key={index}>{result}</p>
+        ))}
+      </div>
+    );
+  },
 }));
 vi.mock('../components/AdditionalPurchasePanel', () => ({
-  AdditionalPurchasePanel: ({ tradeId }: { tradeId: string }) => <div>Additional {tradeId}</div>,
+  AdditionalPurchasePanel: ({ tradeId }: { tradeId: string }) => {
+    const pending = useRef(false);
+    const { notify } = useTradePendingChanges('additional-purchase-test', {
+      isBusy: () => pending.current,
+      isDirty: () => false,
+      onDiscard: () => undefined,
+    });
+    return (
+      <div>
+        Additional {tradeId}
+        <button
+          onClick={() => {
+            pending.current = true;
+            notify();
+          }}
+        >
+          Additional write begins
+        </button>
+        <button
+          onClick={() => {
+            pending.current = false;
+            notify();
+          }}
+        >
+          Additional write ends
+        </button>
+      </div>
+    );
+  },
 }));
 vi.mock('../components/TradeCancellationPanel', () => ({
   TradeCancellationPanel: ({ trade }: { trade: TradeResponse }) => (
@@ -146,6 +219,27 @@ function openPage() {
       <TradeManagementPage />
     </MemoryRouter>,
   );
+}
+function openGuardedPage() {
+  const router = createMemoryRouter(
+    [
+      {
+        path: '*',
+        element: (
+          <>
+            <Navigation />
+            <TradeManagementPage />
+          </>
+        ),
+      },
+    ],
+    {
+      initialEntries: ['/trade-management?trade_id=trade-b', '/trade-management?trade_id=trade-a'],
+      initialIndex: 1,
+    },
+  );
+  render(<RouterProvider router={router} />);
+  return router;
 }
 async function loaded(id: string) {
   await screen.findByRole('heading', { name: new RegExp(`Synthetic warrant ${id}`) });
@@ -356,6 +450,37 @@ describe('Trade Management transaction context', () => {
     },
   );
 
+  it('keeps the new A retry key when a detached older A sale succeeds late', async () => {
+    const oldSale = deferred<SaleResponse>();
+    const newSale = deferred<SaleResponse>();
+    api.sell.mockReturnValueOnce(oldSale.promise).mockReturnValueOnce(newSale.promise);
+    // This isolation harness intentionally permits forced detachment while a write
+    // is pending; the data-router cases separately verify normal navigation blocks.
+    openPage();
+    await loaded(a.trade.id);
+    saleDraft();
+    fireEvent.click(screen.getByRole('button', { name: 'Teilverkauf erfassen' }));
+    await waitFor(() => expect(api.sell).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByRole('button', { name: 'Go B' }));
+    await loaded(b.trade.id);
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    await loaded(a.trade.id);
+    saleDraft('2', '3.25');
+    fireEvent.click(screen.getByRole('button', { name: 'Teilverkauf erfassen' }));
+    await waitFor(() => expect(api.sell).toHaveBeenCalledTimes(2));
+    const currentKey = api.sell.mock.calls[1][1].request_id;
+    expect(currentKey).not.toBe(api.sell.mock.calls[0][1].request_id);
+    await act(() => {
+      oldSale.resolve({} as SaleResponse);
+      newSale.reject(new Error('New A response lost'));
+      return Promise.resolve();
+    });
+    await screen.findByText('New A response lost');
+    fireEvent.click(screen.getByRole('button', { name: 'Teilverkauf erfassen' }));
+    await waitFor(() => expect(api.sell).toHaveBeenCalledTimes(3));
+    expect(api.sell.mock.calls[2][1].request_id).toBe(currentKey);
+  });
+
   it('saves a management change only for the loaded B instrument binding', async () => {
     api.changeStop.mockResolvedValue({} as never);
     openPage();
@@ -386,7 +511,7 @@ describe('Trade Management transaction context', () => {
     saleDraft();
     lookup(b.trade.id);
     await loaded(b.trade.id);
-    expect(screen.getByText('Stornierter Trade')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'CANCELLED' })).toBeInTheDocument();
     expect(screen.queryByRole('form', { name: 'Verkauf erfassen' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Stop speichern' })).not.toBeInTheDocument();
     expect(screen.queryByText('Additional trade-b')).not.toBeInTheDocument();
@@ -418,5 +543,232 @@ describe('Trade Management transaction context', () => {
       '/trade-management?trade_id=trade-b',
     );
     expect(screen.getByRole('heading', { name: /Synthetic warrant trade-b/ })).toBeInTheDocument();
+  });
+
+  it('preserves parallel management and sale drafts when bookings refresh the backend projection', async () => {
+    openGuardedPage();
+    await loaded(a.trade.id);
+    saleDraft();
+    fireEvent.change(screen.getByLabelText('Stop'), { target: { value: '1.95' } });
+    fireEvent.change(screen.getByLabelText('Instrument für Stop'), {
+      target: { value: 'UNDERLYING' },
+    });
+    fireEvent.change(screen.getByLabelText('Währung für Stop'), { target: { value: 'USD' } });
+    fireEvent.change(screen.getByLabelText('Aktuelle These'), {
+      target: { value: 'Prepared thesis' },
+    });
+    fireEvent.change(screen.getByLabelText('Neue Management-Notiz'), {
+      target: { value: 'Prepared note' },
+    });
+    api.managementState.mockResolvedValueOnce({
+      ...a.management,
+      stop_price: '1.70',
+      target_price: '3.10',
+      target_price_binding: {
+        basis: 'UNDERLYING',
+        instrument_id: a.warrant.underlying_id,
+        currency: 'CHF',
+      },
+      thesis: 'Fresh backend thesis',
+    });
+    api.position.mockResolvedValueOnce({ ...a.position, open_quantity: 7 });
+    fireEvent.click(screen.getByRole('button', { name: 'Booking refresh' }));
+    await waitFor(() => expect(screen.getByLabelText('Target')).toHaveValue(3.1));
+    expect(screen.getByLabelText('Instrument für Target')).toHaveValue('UNDERLYING');
+    expect(screen.getByLabelText('Währung für Target')).toHaveValue('CHF');
+    expect(screen.getByLabelText('Stop')).toHaveValue(1.95);
+    expect(screen.getByLabelText('Instrument für Stop')).toHaveValue('UNDERLYING');
+    expect(screen.getByLabelText('Währung für Stop')).toHaveValue('USD');
+    expect(screen.getByLabelText('Aktuelle These')).toHaveValue('Prepared thesis');
+    expect(screen.getByLabelText('Neue Management-Notiz')).toHaveValue('Prepared note');
+    expect(screen.getByLabelText('Verkaufsmenge')).toHaveValue(3);
+    expect(screen.getByLabelText('Verkaufspreis')).toHaveValue(2.5);
+    expect(
+      within(screen.getByRole('region', { name: 'Trade und Position' })).getByText('7'),
+    ).toBeInTheDocument();
+    expectNoWrites();
+  });
+
+  it('reloads the same trade without remounting drafts or replacing the booking editor', async () => {
+    openGuardedPage();
+    await loaded(a.trade.id);
+    saleDraft();
+    fireEvent.change(screen.getByLabelText('Target'), { target: { value: '3.25' } });
+    fireEvent.change(screen.getByLabelText('Instrument für Target'), {
+      target: { value: 'UNDERLYING' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Laden' }));
+    await waitFor(() => expect(api.position).toHaveBeenCalledTimes(2));
+    await loaded(a.trade.id);
+    expect(screen.getByLabelText('Booking reload')).toHaveTextContent('1');
+    expect(screen.getByLabelText('Verkaufsmenge')).toHaveValue(3);
+    expect(screen.getByLabelText('Verkaufspreis')).toHaveValue(2.5);
+    expect(screen.getByLabelText('Target')).toHaveValue(3.25);
+    expect(screen.getByLabelText('Instrument für Target')).toHaveValue('UNDERLYING');
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    expectNoWrites();
+  });
+
+  it('keeps the most recent same-trade projection when an older refresh finishes last', async () => {
+    const oldPosition = deferred<PositionResponse>();
+    openGuardedPage();
+    await loaded(a.trade.id);
+    api.position
+      .mockReturnValueOnce(oldPosition.promise)
+      .mockResolvedValueOnce({ ...a.position, open_quantity: 7 });
+    fireEvent.click(screen.getByRole('button', { name: 'Booking refresh' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Booking refresh' }));
+    const overview = within(screen.getByRole('region', { name: 'Trade und Position' }));
+    await overview.findByText('7');
+    await act(() => {
+      oldPosition.resolve({ ...a.position, open_quantity: 99 });
+      return Promise.resolve();
+    });
+    expect(overview.getByText('7')).toBeInTheDocument();
+    expect(overview.queryByText('99')).not.toBeInTheDocument();
+  });
+
+  it('does not acknowledge a superseded booking readback when the newer projection read fails', async () => {
+    const older = deferred<PositionResponse>();
+    const newer = deferred<PositionResponse>();
+    openGuardedPage();
+    await loaded(a.trade.id);
+    api.position.mockReturnValueOnce(older.promise).mockReturnValueOnce(newer.promise);
+    fireEvent.click(screen.getByRole('button', { name: 'Booking refresh' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Booking refresh' }));
+    await act(() => {
+      newer.reject(new Error('Current projection unavailable'));
+      return Promise.resolve();
+    });
+    await screen.findByText('Booking read failed: Current projection unavailable');
+    await act(() => {
+      older.resolve({ ...a.position, open_quantity: 99 });
+      return Promise.resolve();
+    });
+    await screen.findByText(/Booking read failed: Ein neuerer Trade-Leseversuch/);
+    expect(screen.queryByText('Booking read succeeded')).not.toBeInTheDocument();
+    const overview = within(screen.getByRole('region', { name: 'Trade und Position' }));
+    expect(overview.getByText('10')).toBeInTheDocument();
+    expect(overview.queryByText('99')).not.toBeInTheDocument();
+  });
+
+  it('guards lookup, query and browser navigation with one page guard and keeps hash drafts', async () => {
+    const router = openGuardedPage();
+    await loaded(a.trade.id);
+    saleDraft();
+    lookup(b.trade.id);
+    const dialog = await screen.findByRole('alertdialog');
+    expect(screen.getAllByRole('alertdialog')).toHaveLength(1);
+    expect(within(dialog).getByRole('button', { name: 'Hier bleiben' })).toHaveFocus();
+    fireEvent.keyDown(dialog, { key: 'Escape' });
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Verkaufspreis')).toHaveValue(2.5);
+
+    await act(() =>
+      router.navigate('/trade-management?trade_id=trade-a&view=sources&review_id=exact-review'),
+    );
+    await screen.findByRole('alertdialog');
+    fireEvent.click(screen.getByRole('button', { name: 'Hier bleiben' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sale anchor' }));
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Verkaufspreis')).toHaveValue(2.5);
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Verkaufspreis')).toHaveValue(2.5);
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    await screen.findByRole('alertdialog');
+    fireEvent.click(screen.getByRole('button', { name: 'Hier bleiben' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Go B' }));
+    await screen.findByRole('alertdialog');
+    fireEvent.click(screen.getByRole('button', { name: 'Eingaben verwerfen und wechseln' }));
+    await loaded(b.trade.id);
+    expect(screen.getByLabelText('Verkaufspreis')).toHaveValue(null);
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    await loaded(a.trade.id);
+    fireEvent.click(screen.getByRole('button', { name: 'Forward' }));
+    await loaded(b.trade.id);
+    expectNoWrites();
+  });
+
+  it('blocks discard navigation and duplicate submits while the page write is pending', async () => {
+    const sale = deferred<SaleResponse>();
+    api.sell.mockReturnValueOnce(sale.promise);
+    openGuardedPage();
+    await loaded(a.trade.id);
+    saleDraft();
+    const form = screen.getByRole('form', { name: 'Verkauf erfassen' });
+    fireEvent.submit(form);
+    fireEvent.submit(form);
+    expect(api.sell).toHaveBeenCalledTimes(1);
+    expect(screen.getByLabelText('Verkaufspreis')).toBeDisabled();
+    expect(screen.getByLabelText('Verkaufsdatum')).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Go B' }));
+    const dialog = await screen.findByRole('alertdialog');
+    expect(within(dialog).getByRole('heading', { name: 'Speicherung läuft' })).toBeInTheDocument();
+    expect(
+      within(dialog).queryByRole('button', { name: 'Eingaben verwerfen und wechseln' }),
+    ).not.toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Hier bleiben' }));
+    await act(() => {
+      sale.resolve({} as SaleResponse);
+      return Promise.resolve();
+    });
+    await screen.findByText('Teilverkauf wurde erfasst und die Position neu projiziert.');
+    fireEvent.click(screen.getByRole('button', { name: 'Go B' }));
+    await loaded(b.trade.id);
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+  });
+
+  it('prevents page writes until an uncertain booking result has been consciously checked', async () => {
+    openGuardedPage();
+    await loaded(a.trade.id);
+    saleDraft();
+    fireEvent.click(screen.getByRole('button', { name: 'Booking write begins' }));
+    expect(screen.getByRole('button', { name: 'Teilverkauf erfassen' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Position vollständig schließen' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Stop speichern' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Laden' })).toBeEnabled();
+    fireEvent.submit(screen.getByRole('form', { name: 'Verkauf erfassen' }));
+    expectNoWrites();
+    fireEvent.click(screen.getByRole('button', { name: 'Booking checked' }));
+    expect(screen.getByRole('button', { name: 'Teilverkauf erfassen' })).toBeEnabled();
+  });
+
+  it('reads another page participant lock synchronously before sale or management writes', async () => {
+    openGuardedPage();
+    await loaded(a.trade.id);
+    saleDraft();
+    fireEvent.click(screen.getByRole('button', { name: 'Additional write begins' }));
+    expect(screen.getByRole('button', { name: 'Teilverkauf erfassen' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Stop speichern' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Laden' })).toBeDisabled();
+    fireEvent.submit(screen.getByRole('form', { name: 'Verkauf erfassen' }));
+    fireEvent.submit(screen.getByRole('button', { name: 'Stop speichern' }).closest('form')!);
+    expectNoWrites();
+    fireEvent.click(screen.getByRole('button', { name: 'Additional write ends' }));
+    expect(screen.getByRole('button', { name: 'Teilverkauf erfassen' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Laden' })).toBeEnabled();
+  });
+
+  it('ignores the first A read after a complete A to B to A round trip', async () => {
+    const firstA = deferred<TradeResponse>();
+    api.trade.mockReturnValueOnce(firstA.promise);
+    openGuardedPage();
+    await waitFor(() =>
+      expect(api.trade).toHaveBeenCalledWith(a.trade.id, expect.any(AbortSignal)),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Go B' }));
+    await loaded(b.trade.id);
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    await loaded(a.trade.id);
+    saleDraft('2', '3.75');
+    await act(() => {
+      firstA.resolve({ ...a.trade, product_id: 'obsolete-product-a' });
+      return Promise.resolve();
+    });
+    expect(screen.getByRole('heading', { name: /Synthetic warrant trade-a/ })).toBeInTheDocument();
+    expect(screen.getByLabelText('Verkaufspreis')).toHaveValue(3.75);
+    expect(warrantApi.get).not.toHaveBeenCalledWith('obsolete-product-a', expect.anything());
+    expectNoWrites();
   });
 });
