@@ -71,6 +71,7 @@ interface MappingStatusProps {
   mapping: ProviderMapping | null;
   venue?: VenueReconciliation | null;
   referenceIdentity?: ChartIdentity | null;
+  showProviderIdentity?: boolean;
 }
 
 const venueMeaning: Record<VenueReconciliation['status'], string> = {
@@ -80,12 +81,23 @@ const venueMeaning: Record<VenueReconciliation['status'], string> = {
   UNRESOLVED: 'Der Handelsplatz ist nicht aufgelöst.',
 };
 
-export function MappingStatus({ mapping, venue, referenceIdentity }: MappingStatusProps) {
+export function MappingStatus({
+  mapping,
+  venue,
+  referenceIdentity,
+  showProviderIdentity = false,
+}: MappingStatusProps) {
   const basis = referenceBasisForMapping(referenceIdentity ?? null, mapping);
   return (
     <div className="min-w-0 space-y-2 break-words text-sm" aria-label="Mappingstand">
       {mapping ? (
         <>
+          {showProviderIdentity && (
+            <p>
+              Gelesene Providerkennung: {mapping.provider} · Symbol: {mapping.provider_symbol} ·
+              Exchange-Code: {mapping.provider_exchange_code}
+            </p>
+          )}
           <p>
             Mappingrevision: {mapping.version} · Technischer Mappingstatus: {mapping.status}
           </p>

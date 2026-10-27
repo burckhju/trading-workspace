@@ -506,6 +506,9 @@ test("successful validation and failed venue read are separated; retry reads onl
   const state = await installMappingApi(page);
   await page.goto(mappingUrl("listingValidate"));
   await expect(page.getByText(/Mappingrevision: 3/)).toBeVisible();
+  await expect(page.getByText(/^Gelesene Providerkennung:/)).toHaveText(
+    "Gelesene Providerkennung: EODHD · Symbol: REVIEWED · Exchange-Code: US",
+  );
   state.failVenueAfterWrite = true;
   await page.getByRole("checkbox", { name: confirmation }).check();
   await page
@@ -539,10 +542,88 @@ test("successful validation and failed venue read are separated; retry reads onl
   await expect(
     page.getByText(/Vor dem Import muss der Handelsplatz eindeutig/),
   ).toBeVisible();
+  await expect(page.getByText(/^Gelesene Providerkennung:/)).toHaveText(
+    "Gelesene Providerkennung: EODHD · Symbol: REVIEWED · Exchange-Code: US",
+  );
   await expect(
     page.getByRole("button", { name: "Geprüften Schritt ausführen" }),
   ).toBeDisabled();
   expect(state.writes).toHaveLength(1);
+});
+
+test("changed mapping values are visible for review while the single editor preserves the local draft", async ({
+  page,
+}, testInfo) => {
+  const state = await installMappingApi(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(mappingUrl("listingMapping"));
+  const symbol = page.getByLabel("Geprüftes EODHD-Symbol", { exact: true });
+  const exchange = page.getByLabel("Geprüfter EODHD-Exchange-Code");
+  await expect(symbol).toHaveValue("REVIEWED");
+  await expect(page.getByText(/^Gelesene Providerkennung:/)).toHaveCount(0);
+  await symbol.fill("REVIEWED_LOCAL");
+  const externalSymbol = `OTHER_TAB_${"X".repeat(48)}`;
+  state.mapping = {
+    ...state.mapping,
+    provider_symbol: externalSymbol,
+    provider_exchange_code: "XETRA",
+    version: 4,
+  };
+  const confirm = page.getByRole("checkbox", { name: confirmation });
+  const submit = page.getByRole("button", {
+    name: "Geprüften Schritt ausführen",
+  });
+  await confirm.check();
+  await submit.click();
+  const review = page.getByRole("button", {
+    name: "Aktuellen Stand prüfen und Entwurf beibehalten",
+  });
+  await expect(review).toBeVisible();
+  await expect(page.getByText(/^Gelesene Providerkennung:/)).toHaveText(
+    `Gelesene Providerkennung: EODHD · Symbol: ${externalSymbol} · Exchange-Code: XETRA`,
+  );
+  await expect(page.getByText(/Mappingrevision: 4/)).toBeVisible();
+  await expect(symbol).toHaveValue("REVIEWED_LOCAL");
+  await expect(exchange).toHaveValue("US");
+  await expect(page.getByRole("form")).toHaveCount(1);
+  await expect(confirm).not.toBeChecked();
+  await expect(submit).toBeDisabled();
+  expect(state.writes).toEqual([]);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth > innerWidth,
+    ),
+  ).toBe(false);
+  await testInfo.attach("mapping-conflict-review-mobile", {
+    body: await page.screenshot({
+      fullPage: true,
+      path: testInfo.outputPath("mapping-conflict-review-mobile.png"),
+    }),
+    contentType: "image/png",
+  });
+  await review.focus();
+  await page.keyboard.press("Enter");
+  await expect(confirm).not.toBeChecked();
+  await confirm.focus();
+  await page.keyboard.press("Space");
+  await submit.focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByText(/Schritt gespeichert\./)).toBeVisible();
+  expect(state.writes).toEqual([
+    {
+      method: "PUT",
+      path: "/api/v1/market-data/provider-mappings",
+      body: {
+        listing_id: chosenListing,
+        provider: "EODHD",
+        provider_symbol: "REVIEWED_LOCAL",
+        provider_exchange_code: "US",
+        actor_name: "Trading Workspace User",
+      },
+    },
+  ]);
+  await expect(page.getByText(/Mappingrevision: 5/)).toBeVisible();
+  await expect(page.getByText(/^Gelesene Providerkennung:/)).toHaveCount(0);
 });
 
 test("explicit provider rejection preserves the correction context without a follow-up write", async ({

@@ -407,6 +407,7 @@ it('prefills exact nonprimary mapping fields and suppresses normalized unchanged
   expect(screen.getByLabelText('Eindeutige Notierung')).toHaveValue('secondary');
   expect(screen.getByLabelText('Geprüftes EODHD-Symbol')).toHaveValue('STORED_SYMBOL');
   expect(screen.getByLabelText('Geprüfter EODHD-Exchange-Code')).toHaveValue('XETRA');
+  expect(screen.queryByText(/^Gelesene Providerkennung:/)).not.toBeInTheDocument();
   await user.clear(screen.getByLabelText('Geprüftes EODHD-Symbol'));
   await user.type(screen.getByLabelText('Geprüftes EODHD-Symbol'), ' stored_symbol ');
   expect(screen.getByRole('checkbox')).toBeDisabled();
@@ -414,6 +415,28 @@ it('prefills exact nonprimary mapping fields and suppresses normalized unchanged
   expect(topDownAdminClient.createMapping).not.toHaveBeenCalled();
   expect(marketApiClient.searchProviderInstruments).not.toHaveBeenCalled();
 });
+
+it.each([
+  ['listingValidate', 'underlying_id=stock&listing_id=secondary', 'STORED_SYMBOL', 'XETRA'],
+  ['listingImport', 'underlying_id=stock&listing_id=secondary', 'STORED_SYMBOL', 'XETRA'],
+  ['referenceValidate', 'reference_id=sp500', 'STORED_INDEX', 'INDX'],
+  ['referenceImport', 'reference_id=sp500', 'STORED_INDEX', 'INDX'],
+  ['basis', 'reference_id=sp500', 'STORED_INDEX', 'INDX'],
+])(
+  'shows the exact read provider identity before confirming %s',
+  async (action, ids, symbol, exchange) => {
+    show(`action=${action}&${ids}`);
+    await loaded();
+    expect(screen.getByText(/^Gelesene Providerkennung:/)).toHaveTextContent(
+      `Gelesene Providerkennung: EODHD · Symbol: ${symbol} · Exchange-Code: ${exchange}`,
+    );
+    expect(screen.queryByLabelText('Geprüftes EODHD-Symbol')).not.toBeInTheDocument();
+    expect(screen.queryByText(/DO_NOT_PARSE/)).not.toBeInTheDocument();
+    expect(chartSetupClient.write).not.toHaveBeenCalled();
+    expect(topDownAdminClient.validateMapping).not.toHaveBeenCalled();
+    expect(topDownAdminClient.importHistory).not.toHaveBeenCalled();
+  },
+);
 
 it('saves an explicitly changed mapping, reads its disabled revision and never chains validation/import', async () => {
   const user = userEvent.setup();
@@ -645,6 +668,9 @@ it('reads after unknown transport but never treats matching state as its own rec
   await screen.findByText(/Ein passender Wert beweist nicht den Abschluss dieses Requests/);
   await loaded();
   expect(screen.getByLabelText('Geprüftes EODHD-Symbol')).toHaveValue('STORED_SYMBOL2');
+  expect(screen.getByText(/^Gelesene Providerkennung:/)).toHaveTextContent(
+    'Gelesene Providerkennung: EODHD · Symbol: STORED_SYMBOL2 · Exchange-Code: XETRA',
+  );
   await user.click(screen.getByRole('button', { name: 'Nur Lesestand erneut laden' }));
   await loaded();
   expect(topDownAdminClient.createMapping).toHaveBeenCalledTimes(1);
@@ -656,17 +682,30 @@ it('requires a new review of changed revision while preserving the intended symb
   show('action=listingMapping&underlying_id=stock&listing_id=secondary');
   await loaded();
   await user.type(screen.getByLabelText('Geprüftes EODHD-Symbol'), '_DRAFT');
-  updateMapping('listing-mapping', { provider_symbol: 'OTHER_TAB' });
+  updateMapping('listing-mapping', {
+    provider_symbol: 'OTHER_TAB',
+    provider_exchange_code: 'OTHER_EXCHANGE',
+  });
   await confirm(user);
   await screen.findByRole('button', { name: 'Aktuellen Stand prüfen und Entwurf beibehalten' });
   expect(topDownAdminClient.createMapping).not.toHaveBeenCalled();
   expect(screen.getByLabelText('Geprüftes EODHD-Symbol')).toHaveValue('STORED_SYMBOL_DRAFT');
+  expect(screen.getByLabelText('Geprüfter EODHD-Exchange-Code')).toHaveValue('XETRA');
+  expect(screen.getByText(/^Gelesene Providerkennung:/)).toHaveTextContent(
+    'Gelesene Providerkennung: EODHD · Symbol: OTHER_TAB · Exchange-Code: OTHER_EXCHANGE',
+  );
+  expect(screen.getByText(/Dein Entwurf ist noch nicht gespeichert/)).toBeInTheDocument();
   await user.click(
     screen.getByRole('button', { name: 'Aktuellen Stand prüfen und Entwurf beibehalten' }),
   );
   await confirm(user);
   await screen.findByText(/Schritt gespeichert/);
   expect(topDownAdminClient.createMapping).toHaveBeenCalledTimes(1);
+  expect(topDownAdminClient.createMapping).toHaveBeenCalledWith(
+    'secondary',
+    'STORED_SYMBOL_DRAFT',
+    'XETRA',
+  );
 });
 
 it('prefills direct index fields from the DTO without provider text parsing or a fabricated listing', async () => {
@@ -675,6 +714,7 @@ it('prefills direct index fields from the DTO without provider text parsing or a
   await loaded();
   expect(screen.getByLabelText('Geprüftes EODHD-Symbol')).toHaveValue('STORED_INDEX');
   expect(screen.getByLabelText('Geprüfter EODHD-Exchange-Code')).toHaveValue('INDX');
+  expect(screen.queryByText(/^Gelesene Providerkennung:/)).not.toBeInTheDocument();
   expect(screen.queryByLabelText('Basiswert / ETF')).not.toBeInTheDocument();
   await user.type(screen.getByLabelText('Geprüftes EODHD-Symbol'), '2');
   await confirm(user);
