@@ -82,6 +82,25 @@ test("real PostgreSQL: captured full exit, review, journal, lesson and stale cor
     request_id: crypto.randomUUID(),
   });
   const tid = buy.trade.id;
+  const journalWrites: {
+    body: Record<string, unknown>;
+    key: string | undefined;
+  }[] = [];
+  page.on("request", (req) => {
+    if (
+      req.method() === "POST" &&
+      req.url().endsWith(`/learning/trades/${tid}/journal/commands`)
+    )
+      journalWrites.push({
+        body: req.postDataJSON(),
+        key: req.headers()["idempotency-key"],
+      });
+  });
+  const getHistory = async () => {
+    const response = await request.get(api + `/learning/trades/${tid}/journal`);
+    expect(response.status(), await response.text()).toBe(200);
+    return response.json();
+  };
   const rejected = await request.post(
     api + `/post-trade/trades/${tid}/observation`,
   );
@@ -159,6 +178,9 @@ test("real PostgreSQL: captured full exit, review, journal, lesson and stale cor
     .getByLabel("Was lief gut?")
     .fill("Exit und Reflexion getrennt dokumentiert.");
   await journal
+    .getByLabel("Was würde ich anders machen?")
+    .fill("Zeitpunkt des Ausstiegs zuerst prüfen.");
+  await journal
     .getByLabel("Weitere Notizen")
     .fill("Kein virtueller Gewinn wurde als realisiert erfasst.");
   await expect(
@@ -170,10 +192,34 @@ test("real PostgreSQL: captured full exit, review, journal, lesson and stale cor
   await expect(
     journal.getByRole("button", { name: "Journal finalisieren", exact: true }),
   ).toBeEnabled();
+  const saved = (await getHistory()).versions[0].version;
+  const firstTextFields = [
+    ["Was lief gut?", saved.what_went_well],
+    ["Was würde ich anders machen?", saved.would_do_differently],
+    ["Weitere Notizen", saved.additional_notes],
+  ];
   await page.reload();
-  await expect(journal.getByLabel("Was lief gut?")).toHaveValue(
-    "Exit und Reflexion getrennt dokumentiert.",
-  );
+  for (const [label, value] of firstTextFields) {
+    await expect(journal.getByLabel(label)).toHaveCount(0);
+    await expect(journal.getByText(value, { exact: true })).toHaveCount(1);
+  }
+  await journal
+    .getByRole("button", { name: "Journal bearbeiten", exact: true })
+    .click();
+  for (const [label, value] of firstTextFields)
+    await expect(journal.getByLabel(label)).toHaveValue(value);
+  const writesBeforeConfirmation = journalWrites.length;
+  await journal
+    .getByRole("button", { name: "Journal finalisieren", exact: true })
+    .click();
+  // Confirmation replaces the editor; it displays the saved text exactly once.
+  for (const [label, value] of firstTextFields) {
+    await expect(journal.getByLabel(label)).toHaveCount(0);
+    await expect(journal.getByText(value, { exact: true })).toHaveCount(1);
+  }
+  expect(journalWrites).toHaveLength(writesBeforeConfirmation);
+  await journal.getByRole("button", { name: "Abbrechen", exact: true }).click();
+  expect(journalWrites).toHaveLength(writesBeforeConfirmation);
   await journal
     .getByRole("button", { name: "Journal finalisieren", exact: true })
     .click();
@@ -181,11 +227,19 @@ test("real PostgreSQL: captured full exit, review, journal, lesson and stale cor
     .getByRole("button", { name: "Journalaktion bestätigen", exact: true })
     .click();
   await expect(journal.getByLabel("Was lief gut?")).toHaveCount(0);
-  const getHistory = async () => {
-    const response = await request.get(api + `/learning/trades/${tid}/journal`);
-    expect(response.status(), await response.text()).toBe(200);
-    return response.json();
-  };
+  await expect(
+    journal.getByRole("heading", {
+      name: "Journal V1 · Finalisiert (unveränderlich)",
+      exact: true,
+    }),
+  ).toBeVisible();
+  expect(journalWrites.at(-1)?.body).toMatchObject({
+    operation: "FINALIZE",
+    version_id: saved.id,
+    expected_edit_revision: saved.edit_revision,
+    expected_exit_review_version_id: saved.source_exit_review_version_id,
+    confirmed: true,
+  });
   const original = (await getHistory()).versions[0].version;
   await journal
     .getByRole("button", {
@@ -203,6 +257,17 @@ test("real PostgreSQL: captured full exit, review, journal, lesson and stale cor
     .fill(
       "Meine ausdrückliche Interpretation: Dokumentation prüfen, keine automatische Handelsregel.",
     );
+  const writesBeforeLessonRefresh = journalWrites.length;
+  await journal
+    .getByRole("button", { name: "Quellenstand neu laden", exact: true })
+    .click();
+  await expect(journal.getByLabel("Lesson-Titel")).toHaveValue(
+    "Synthetische Journal-Lesson",
+  );
+  await expect(journal.getByLabel("Lesson-Inhalt")).toHaveValue(
+    "Meine ausdrückliche Interpretation: Dokumentation prüfen, keine automatische Handelsregel.",
+  );
+  expect(journalWrites).toHaveLength(writesBeforeLessonRefresh);
   await journal
     .getByRole("button", { name: "Lesson anlegen", exact: true })
     .click();
@@ -291,6 +356,23 @@ test("real PostgreSQL: captured full exit, review, journal, lesson and stale cor
   await journal
     .getByLabel("Was würde ich anders machen?")
     .fill("Ausführungsbeleg vor dem Review prüfen.");
+  const successorDraft = (await getHistory()).versions[0].version;
+  const writesBeforeBlockedNavigation = journalWrites.length;
+  await journal.getByLabel("Journalversion ansehen").selectOption(original.id);
+  const navigation = page.getByRole("alertdialog");
+  const stay = navigation.getByRole("button", {
+    name: "Hier bleiben",
+    exact: true,
+  });
+  await expect(stay).toBeFocused();
+  await stay.click();
+  await expect(journal.getByLabel("Journalversion ansehen")).toHaveValue(
+    successorDraft.id,
+  );
+  await expect(journal.getByLabel("Was würde ich anders machen?")).toHaveValue(
+    "Ausführungsbeleg vor dem Review prüfen.",
+  );
+  expect(journalWrites).toHaveLength(writesBeforeBlockedNavigation);
   await journal
     .getByRole("button", { name: "Journalentwurf speichern", exact: true })
     .click();
@@ -301,6 +383,12 @@ test("real PostgreSQL: captured full exit, review, journal, lesson and stale cor
     .getByRole("button", { name: "Journalaktion bestätigen", exact: true })
     .click();
   await expect(journal.getByLabel("Was lief gut?")).toHaveCount(0);
+  await expect(
+    journal.getByRole("heading", {
+      name: "Journal V2 · Finalisiert (unveränderlich)",
+      exact: true,
+    }),
+  ).toBeVisible();
   const corrected = await getHistory();
   expect(corrected.versions).toHaveLength(2);
   expect(corrected.versions[0].version.status).toBe("FINALIZED");
@@ -559,13 +647,108 @@ test("real PostgreSQL: captured full exit, review, journal, lesson and stale cor
   ).toBeVisible();
   await expect(
     journal.getByText(original.what_went_well, { exact: true }),
-  ).toBeVisible();
+  ).toHaveCount(1);
   await expect(
     journal.getByText("Ausführungsbeleg vor dem Review prüfen.", {
       exact: true,
     }),
   ).toHaveCount(0);
   expect(reviewWrites).toHaveLength(2);
+  const writesBeforeNavigation = journalWrites.length;
+  const selectedJournalId = () =>
+    new URL(page.url()).searchParams.get("journal_version_id");
+  expect(selectedJournalId()).toBe(original.id);
+  await journal
+    .getByRole("button", { name: "Quellenstand neu laden", exact: true })
+    .click();
+  await expect(journal.getByLabel("Journalversion ansehen")).toHaveValue(
+    original.id,
+  );
+  expect(selectedJournalId()).toBe(original.id);
+  await page.reload();
+  await expect(journal.getByLabel("Journalversion ansehen")).toHaveValue(
+    original.id,
+  );
+  await expect(
+    journal.getByText(original.what_went_well, { exact: true }),
+  ).toHaveCount(1);
+
+  // Selection and browser history share the exact URL identity within this trade.
+  const finalSuccessor = corrected.versions[0].version;
+  await journal
+    .getByLabel("Journalversion ansehen")
+    .selectOption(finalSuccessor.id);
+  await expect(journal.getByLabel("Journalversion ansehen")).toHaveValue(
+    finalSuccessor.id,
+  );
+  expect(selectedJournalId()).toBe(finalSuccessor.id);
+  await expect(
+    journal.getByText(finalSuccessor.would_do_differently, { exact: true }),
+  ).toHaveCount(1);
+  await page.goBack();
+  await expect(journal.getByLabel("Journalversion ansehen")).toHaveValue(
+    original.id,
+  );
+  expect(selectedJournalId()).toBe(original.id);
+  await expect(
+    journal.getByText(finalSuccessor.would_do_differently, { exact: true }),
+  ).toHaveCount(0);
+  await page.goForward();
+  await expect(journal.getByLabel("Journalversion ansehen")).toHaveValue(
+    finalSuccessor.id,
+  );
+  expect(selectedJournalId()).toBe(finalSuccessor.id);
+  await page.reload();
+  await expect(journal.getByLabel("Journalversion ansehen")).toHaveValue(
+    finalSuccessor.id,
+  );
+
+  // Invalid explicit links never silently display the latest final version.
+  for (const versionQuery of [
+    `journal_version_id=${crypto.randomUUID()}`,
+    "journal_version_id=",
+    `journal_version_id=${original.id}&journal_version_id=${finalSuccessor.id}`,
+  ]) {
+    await page.goto(`/post-trade?trade_id=${tid}&${versionQuery}`);
+    await expect(
+      journal
+        .getByRole("alert")
+        .filter({ hasText: /Journalversion|Journalaufruf/ }),
+    ).toBeVisible();
+    await expect(
+      journal.getByText(finalSuccessor.would_do_differently, { exact: true }),
+    ).toHaveCount(0);
+    await expect(
+      journal.getByRole("button", {
+        name: "Folgeversion vorbereiten",
+        exact: true,
+      }),
+    ).toHaveCount(0);
+  }
+  await page.goto(
+    `/post-trade?trade_id=${tid}&journal_version_id=${original.id}`,
+  );
+  await expect(journal.getByLabel("Journalversion ansehen")).toHaveValue(
+    original.id,
+  );
+  expect(journalWrites).toHaveLength(writesBeforeNavigation);
+  expect(journalWrites.every((write) => Boolean(write.key))).toBe(true);
+  expect(new Set(journalWrites.map((write) => write.key)).size).toBe(
+    journalWrites.length,
+  );
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(
+    journal.getByText(original.what_went_well, { exact: true }),
+  ).toHaveCount(1);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
+  await page.screenshot({
+    path: testInfo.outputPath("journal-ui6-exact-version-mobile.png"),
+    fullPage: true,
+  });
   await qualification.readWindow(
     "journal-lesson-read-only-sources",
     async () => ({

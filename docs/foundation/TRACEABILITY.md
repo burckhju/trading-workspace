@@ -536,6 +536,28 @@ Tests: `test_journal_commands.py`, `test_journal_api.py`, `test_journal_source_i
 or proof that a test has run. FT-011 remains the source-currentness owner; Performance
 and Governance only read exact version/source/inspection-time boundaries. M0–M11 unchanged.
 
+### UI6 — Journalansicht und exakte Quellenaufrufe, 2026-10-27
+
+[PB-019 Journal](../planning/PRODUCT_BACKLOG.md#pb-019-journal) und der bestehende
+ADR-POST-FT012-005-Vertrag → exakter
+`/post-trade?trade_id=…&journal_version_id=…`-Aufruf aus `JournalEvidenceOrigin`
+→ `TradeJournalPanel` mit einem ausgewählten Textbereich, vorbefüllter Bearbeitung
+und fest gebundener Bestätigung → bestehende History-/Versionsreads und
+Journalcommands mit getrenntem Receipt und aktuellem Readback.
+`PostTradeLearningPage` koordiniert genau einen `PendingNavigationGuard`;
+optionale Statusadapter in `LessonDraftFromEvidence` und `PostTradeReviewPage`
+erhalten Eingaben und ihre Quelle bei Refresh und schützen laufende Writes.
+Der eigenständige FT-011-Evidenceweg und der normale Lesson-POST behalten ihre
+eigenen Verträge. Die von UI3 geprüften Journalquellenlinks bleiben kompakt.
+
+Basis ist Main `eff24912ebfc1499fcea2cbf32dc1dbf8b0975e4` / `v1.5.23` einschließlich
+UI1–UI5. Der [eigene UI6-Nachweis](../implementation/UI_JOURNAL_CONSOLIDATION.md)
+ordnet Abnahmefälle, tatsächlich ausgeführte Prüfungen, Commit/Tree,
+PR-#90-Dateikollision und verbleibende Grenzen getrennt zu. Die Übergabe endet
+mit einem separaten Draft-PR; daraus folgen keine Statushochsetzung, fachliche
+Abnahme, Veröffentlichung oder nachgewiesene PC-Installation. Historische
+Journalqualifikationen und vorhandene UI1–UI5-Nachweise bleiben unverändert.
+
 ## FT-011/FT-012 consistency and historical inventory — 2026-10-16
 
 [PB-019 Materialisierung](../planning/PRODUCT_BACKLOG.md#pb-019-materialization) →
