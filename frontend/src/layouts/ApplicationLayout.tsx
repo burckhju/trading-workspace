@@ -20,11 +20,8 @@ export function ApplicationLayout() {
             <NavLink to="/workspace" className={navigationLinkClass}>
               Arbeitsbereich
             </NavLink>
-            <NavLink to="/performance/realized-gross" className={navigationLinkClass}>
-              Verkäufe im Zeitraum
-            </NavLink>
-            <NavLink to="/performance/closed-trades" className={navigationLinkClass}>
-              Trades mit Vollabschluss im Zeitraum
+            <NavLink to="/performance" className={navigationLinkClass}>
+              Performance
             </NavLink>
             <NavLink to="/underlyings" className={navigationLinkClass}>
               Stammdaten · Basiswerte

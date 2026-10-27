@@ -80,9 +80,9 @@ it('reads fixed EUR and shows one full trade result with all earlier SELL contri
   expect(
     screen.getByRole('heading', { name: 'Trades mit Vollabschluss im Zeitraum' }),
   ).toBeVisible();
-  expect(screen.getByRole('link', { name: 'Verkäufe im Zeitraum ansehen' })).toHaveAttribute(
-    'href',
-    '/performance/realized-gross',
+  expect(screen.getByRole('button', { name: 'Verkäufe im Zeitraum' })).toHaveAttribute(
+    'aria-pressed',
+    'false',
   );
   chooseOctober();
   read();

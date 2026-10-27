@@ -178,6 +178,49 @@ test("real PostgreSQL: full-close cohort, lifetime result, gaps and current corr
     expect(response.status(), await response.text()).toBe(200);
     return response.json();
   };
+  const switchReport = async (kind: "realized-gross" | "closed-trades") => {
+    const before = financialReads.length;
+    const pending = page.waitForResponse(
+      (response) =>
+        response.request().method() === "GET" &&
+        response.url().startsWith(api + `/performance/${kind}?`),
+    );
+    const button = page.getByRole("button", {
+      name:
+        kind === "closed-trades"
+          ? "Trades mit Vollabschluss im Zeitraum"
+          : "Verkäufe im Zeitraum",
+      exact: true,
+    });
+    await button.focus();
+    await expect(button).toBeFocused();
+    await button.press("Enter");
+    const response = await pending;
+    expect(response.status(), await response.text()).toBe(200);
+    const body = await response.json();
+    await expect(
+      page.getByTestId(
+        kind === "closed-trades"
+          ? "closed-trades-total"
+          : "realized-gross-total",
+      ),
+    ).toBeVisible();
+    expect(financialReads.slice(before)).toEqual([response.url()]);
+    await expect(button).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByRole("form")).toHaveCount(1);
+    await expect(
+      page.getByRole("region", {
+        name: "Ergebnis und Datenabdeckung",
+        exact: true,
+      }),
+    ).toHaveCount(1);
+    const query = new URL(page.url()).searchParams;
+    expect(query.get("report_context")).toBe(kind);
+    expect(query.get("report_view")).toBe("candidates");
+    expect(query.get("report_page")).toBe("1");
+    expect(query.has("report_basis")).toBe(false);
+    return body;
+  };
   const reportPath = (kind: string, from: string, to: string) =>
     `/performance/${kind}?` +
     new URLSearchParams({
@@ -242,9 +285,22 @@ test("real PostgreSQL: full-close cohort, lifetime result, gaps and current corr
   ).toBeVisible();
   await expect(
     page
-      .getByRole("link", { name: "Verkäufe im Zeitraum", exact: true })
-      .first(),
+      .getByRole("navigation", { name: "Hauptnavigation", exact: true })
+      .getByRole("link", { name: "Performance", exact: true }),
   ).toBeVisible();
+  await expect(
+    page.getByRole("button", {
+      name: "Verkäufe im Zeitraum",
+      exact: true,
+    }),
+  ).toHaveAttribute("aria-pressed", "false");
+  await expect(
+    page.getByRole("form", {
+      name: "Performance-Zeitraum auswählen",
+      exact: true,
+    }),
+  ).toHaveCount(1);
+  expect(financialReads).toHaveLength(0);
   await select("2026-10-01", "2026-10-31");
   const emptyInitial = await read();
   expect(emptyInitial.summary).toMatchObject({
@@ -352,6 +408,55 @@ test("real PostgreSQL: full-close cohort, lifetime result, gaps and current corr
     ),
   ).toEqual(["10.00", "30.00", "-20.00", "30.00"]);
   await expect(page.getByTestId("closed-trades-total")).toHaveText("50,00 EUR");
+
+  // The same native October context has two different, independently read
+  // financial meanings: SELL contribution 30, complete trade result 50.
+  const beforeSwitches = databaseState();
+  const originalContextUrl = page.url();
+  integrationReadWindow = true;
+  const readsBeforeView = financialReads.length;
+  await page.getByLabel("Zeilen anzeigen").selectOption("qualified");
+  await expect(page).toHaveURL(/report_view=qualified/);
+  expect(financialReads).toHaveLength(readsBeforeView);
+  const octoberSales = await switchReport("realized-gross");
+  expect(octoberSales.definition_version).toBe("realized-gross-sell-v2");
+  expect(octoberSales.filters).toEqual(original.filters);
+  expect(octoberSales.summary.total_display).toBe("30.00");
+  await expect(page.getByTestId("realized-gross-total")).toHaveText(
+    "30,00 EUR",
+  );
+  await expect(page.getByTestId("closed-trades-total")).toHaveCount(0);
+  await expect(
+    page.getByRole("region", {
+      name: "Basisstatistiken des Abschlussberichts",
+      exact: true,
+    }),
+  ).toHaveCount(0);
+  const octoberClosedAgain = await switchReport("closed-trades");
+  expect(octoberClosedAgain.filters).toEqual(original.filters);
+  expect(octoberClosedAgain.summary).toEqual(original.summary);
+  expect(octoberClosedAgain.statistics).toEqual(original.statistics);
+  await expect(page.getByTestId("realized-gross-total")).toHaveCount(0);
+  await expect(page.getByTestId("closed-trades-total")).toHaveText("50,00 EUR");
+  await expectStatisticsDisplay(
+    "100,00 %",
+    "50,00 EUR",
+    "50,00 EUR",
+    noLosses.reason,
+  );
+  const afterSwitches = databaseState();
+  expect(afterSwitches.fingerprint).toBe(beforeSwitches.fingerprint);
+  integrationReadWindow = false;
+  integrationWindows.push({
+    before: beforeSwitches,
+    after: afterSwitches,
+    entry: originalContextUrl,
+  });
+  await testInfo.attach("performance-workspace-independent-october-reports", {
+    body: JSON.stringify({ octoberSales, octoberClosedAgain }, null, 2),
+    contentType: "application/json",
+  });
+
   const t1Row = page.getByRole("article", {
     name: `Trade ${t1.trade.id}`,
     exact: true,
@@ -776,6 +881,33 @@ test("real PostgreSQL: full-close cohort, lifetime result, gaps and current corr
   await expect(page.getByLabel("Berichtszeitzone (IANA)")).toHaveValue(
     "Europe/Berlin",
   );
+  const fullPageTwoUrl = page.url();
+  expect(new URL(fullPageTwoUrl).searchParams.get("report_basis")).toBe(
+    paged.basis.id,
+  );
+  await switchReport("realized-gross");
+  const readsBeforeHistory = financialReads.length;
+  await page.goBack();
+  await expect(page).toHaveURL(fullPageTwoUrl);
+  await expect(page.getByLabel("Zeilen anzeigen")).toHaveValue("all");
+  await expect(
+    page.getByRole("navigation", {
+      name: "Berichtsseiten",
+      exact: true,
+    }),
+  ).toContainText("Seite 2 von 2");
+  await expect(page.getByTestId("closed-trades-subtotal")).toHaveText(
+    "60,00 EUR",
+  );
+  expect(financialReads.slice(readsBeforeHistory)).toHaveLength(1);
+  expect(financialReads.at(-1)).toContain("/performance/closed-trades?");
+  await expect(page.getByRole("form")).toHaveCount(1);
+  await expect(
+    page.getByRole("region", {
+      name: "Ergebnis und Datenabdeckung",
+      exact: true,
+    }),
+  ).toHaveCount(1);
   const afterReturn = databaseState();
   expect(afterReturn.fingerprint).toBe(beforeReturn.fingerprint);
   integrationReadWindow = false;
