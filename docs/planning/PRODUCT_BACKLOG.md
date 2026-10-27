@@ -1485,6 +1485,19 @@ frühere Freigabe für #278 nicht übertragen.
 <details>
 <summary>PB-019 — Perioden- und Tradeauswertungen</summary>
 
+**UI-Nachtrag 27.10.2026 (UI8):** Die vorhandenen Verkaufs- und
+Abschlussberichte verwenden einen gemeinsamen Performance-Einstieg, genau einen
+Filterbereich und dieselbe ausdrücklich übernommene Zeitraum-/Zeitzonenauswahl.
+Ihre Finanzdefinitionen, Quellenstände und Antworten bleiben getrennt; die
+Abschlussstatistiken behalten ihre bestehende Bindung an den Abschlussbericht.
+[Bedien-, URL-, Quellen- und Prüfnachweis](../implementation/UI_PERFORMANCE_CONSOLIDATION.md)
+führt die neue Qualifikation einschließlich der beiden gezielt erweiterten
+nativen Journeys mit unveränderten Testidentitäten. UI8 ist die Arbeitsbezeichnung
+dieses Bedienumfangs, keine neue FT-/PB-Nummer oder Statusquelle. Übergabe als
+geprüfter Draft-PR; Merge, Version, Veröffentlichung, PC-Installation und fachliche
+Bedienabnahme bleiben eigenständige nachfolgende Schritte. UI6/Journal und
+UI7/Ausführungskorrektur sind getrennte Umfänge.
+
 **UI-Nachtrag 25.10.2026:** Auf ausdrücklichen Nutzerwunsch ist die
 Berichtswährung in Verkaufs- und Abschlussübersicht fest EUR. Vorhandene
 Nicht-EUR-Listenlinks werden ohne stillen Ersatzread erklärt; Buchungswährungen,
