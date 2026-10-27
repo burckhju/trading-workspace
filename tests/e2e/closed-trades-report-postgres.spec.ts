@@ -715,7 +715,11 @@ test("real PostgreSQL: full-close cohort, lifetime result, gaps and current corr
     "60,00 EUR",
   );
   await expect(
-    page.getByText(/Der Quellenstand hat sich seit dem letzten Lesen/),
+    page.getByText(
+      "Der Quellenstand hat sich gegenüber dem mitgegebenen oder zuletzt gelesenen Stand dieser Auswahl geändert. " +
+        "Ergebnis, Zähler, Zeilen, Herkunft und gegebenenfalls Abschlusskennzahlen wurden gemeinsam durch den neu gelesenen Stand ersetzt.",
+      { exact: true },
+    ),
   ).toBeVisible();
   expect(
     (await get(reportPath("realized-gross", "2026-09-01", "2026-09-30")))
@@ -778,7 +782,11 @@ test("real PostgreSQL: full-close cohort, lifetime result, gaps and current corr
   );
   await expect(page.getByLabel("Zeilen anzeigen")).toHaveValue("candidates");
   await expect(
-    page.getByText(/Der Quellenstand hat sich seit dem letzten Lesen/),
+    page.getByText(
+      "Der Quellenstand hat sich gegenüber dem mitgegebenen oder zuletzt gelesenen Stand dieser Auswahl geändert. " +
+        "Ergebnis, Zähler, Zeilen, Herkunft und gegebenenfalls Abschlusskennzahlen wurden gemeinsam durch den neu gelesenen Stand ersetzt.",
+      { exact: true },
+    ),
   ).toBeVisible();
   const afterChangedEntry = databaseState();
   expect(afterChangedEntry.fingerprint).toBe(beforeChangedEntry.fingerprint);

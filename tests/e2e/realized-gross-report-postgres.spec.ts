@@ -507,7 +507,11 @@ test("real PostgreSQL: purchase currency once, inherited sales, sources and corr
     superseded_by_execution_id: replacement.execution.id,
   });
   await expect(
-    page.getByText(/Der Quellenstand hat sich seit dem letzten Lesen/),
+    page.getByText(
+      "Der Quellenstand hat sich gegenüber dem mitgegebenen oder zuletzt gelesenen Stand dieser Auswahl geändert. " +
+        "Ergebnis, Zähler, Zeilen, Herkunft und gegebenenfalls Abschlusskennzahlen wurden gemeinsam durch den neu gelesenen Stand ersetzt.",
+      { exact: true },
+    ),
   ).toBeVisible();
   await expect(page.getByTestId("realized-gross-total")).toHaveText(
     "30,00 EUR",
