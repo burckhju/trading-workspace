@@ -7,6 +7,7 @@ import { journalClient, type JournalHistory } from '../../learning/services/jour
 import { lessonDraftClient } from '../../learning/services/lessonDraftClient';
 import { lessonReadbackClient } from '../../learning/services/lessonReadbackClient';
 import { ft011MaterializationClient } from '../../learning/services/materializationClient';
+import { MarketApiError } from '../../market/services/http';
 import { warrantApiClient } from '../../product/services/client';
 import { tradeManagementApiClient } from '../../trade/services/client';
 import { postTradeApiClient } from '../services/client';
@@ -484,6 +485,52 @@ describe('PostTradeLearningPage with real forms and a data router', () => {
     fireEvent.click(screen.getByRole('link', { name: 'Andere Seite' }));
     expect(await screen.findByRole('alertdialog')).toHaveTextContent('Ungespeicherte Änderungen');
     fireEvent.click(screen.getByRole('button', { name: 'Hier bleiben' }));
+    expect(journalClient.command).not.toHaveBeenCalled();
+    expect(lessonDraftClient.createFromEvidence).not.toHaveBeenCalled();
+  });
+
+  it('retains a materialization source mismatch after the fresh owner version has finished loading', async () => {
+    const readyStatus = { ...ownerStatus, materialized: false, learning_evidence_id: null };
+    const nextReviewId = '40000000-0000-4000-8000-000000000002';
+    vi.mocked(ft011MaterializationClient.status).mockResolvedValue(readyStatus);
+    vi.mocked(postTradeApiClient.review).mockResolvedValue({ ...review, status: 'FINALIZED' });
+    mountPage();
+    await screen.findByLabelText('Review-Begründung');
+    const handoff = await screen.findByRole('button', { name: 'An Lessons Learned übergeben' });
+    await waitFor(() => expect(handoff).toBeEnabled());
+
+    const freshRead = deferred<Awaited<ReturnType<typeof ft011MaterializationClient.status>>>();
+    vi.mocked(ft011MaterializationClient.status).mockReturnValue(freshRead.promise);
+    vi.mocked(ft011MaterializationClient.materialize).mockRejectedValue(
+      new MarketApiError(409, {
+        code: 'SOURCE_VERSION_MISMATCH',
+        message: 'Changed source',
+        details: [],
+        timestamp: '2026-10-26T12:00:00Z',
+      }),
+    );
+    fireEvent.click(handoff);
+    expect(await screen.findByText(/Die Review-Version hat sich geändert/)).toBeVisible();
+    expect(handoff).toBeDisabled();
+
+    vi.mocked(postTradeApiClient.review).mockResolvedValue({
+      ...review,
+      current_version_id: nextReviewId,
+      version: 2,
+      status: 'FINALIZED',
+    });
+    await act(async () => {
+      freshRead.resolve({ ...readyStatus, exit_review_version_id: nextReviewId });
+      await freshRead.promise;
+    });
+    await waitFor(() => expect(handoff).toBeEnabled());
+    expect(screen.getByText(`ExitReviewVersion: ${nextReviewId}`, { exact: true })).toBeVisible();
+    expect(screen.getByText(/Die Review-Version hat sich geändert/)).toBeVisible();
+    expect(ft011MaterializationClient.materialize).toHaveBeenCalledExactlyOnceWith(
+      tradeId,
+      `ft011-to-ft012:v2:${tradeId}:${reviewId}`,
+      reviewId,
+    );
     expect(journalClient.command).not.toHaveBeenCalled();
     expect(lessonDraftClient.createFromEvidence).not.toHaveBeenCalled();
   });

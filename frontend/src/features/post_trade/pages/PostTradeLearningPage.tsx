@@ -198,7 +198,6 @@ function PostTradeLearningContent({
           setStatus(nextStatus);
           setStatusValid(true);
           setCompletedRefreshVersion(refreshVersion);
-          setMaterializationError(null);
         }
       })
       .catch(() => {
