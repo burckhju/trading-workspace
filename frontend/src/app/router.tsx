@@ -4,6 +4,7 @@ import { CurrencyAdminPage } from '../features/market/pages/CurrencyAdminPage';
 
 import { TopDownWorkflowActionPage } from '../features/administration/pages';
 import { MarketAnalysisDetailPage, MarketAnalysisPage } from '../features/analysis/pages';
+import { AnalysisSetupPage } from '../features/analysis/pages/AnalysisSetupPage';
 import { CandidatePage } from '../features/candidate/pages';
 import { LessonDetailPage } from '../features/learning/pages/LessonDetailPage';
 import { BulkImportPage } from '../features/learning/pages';
@@ -35,6 +36,7 @@ export function createApplicationRouter() {
         { path: 'workspace', element: <OperationalWorkspacePage /> },
         { path: 'underlyings', element: <UnderlyingListPage /> },
         { path: 'market-analyses', element: <MarketAnalysisPage /> },
+        { path: 'market-analyses/setup', element: <AnalysisSetupPage /> },
         {
           path: 'market-charts',
           lazy: async () => ({

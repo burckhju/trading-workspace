@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 
 import { candidateApiClient } from '../services/client';
+import { analysisDetailUrl } from '../../analysis/services/analysisWorkflowContext';
 import type {
   Candidate,
   CandidateCriterion,
@@ -78,7 +79,13 @@ function Criterion({ item }: { item: CandidateCriterion }) {
   );
 }
 
-function EvaluationDetail({ evaluation }: { evaluation: CandidateEvaluation }) {
+function EvaluationDetail({
+  evaluation,
+  candidateId,
+}: {
+  evaluation: CandidateEvaluation;
+  candidateId: string;
+}) {
   return (
     <section className="min-w-0 space-y-5" aria-label={`Evaluation ${evaluation.id}`}>
       <div className={`rounded-xl border p-5 ${resultClasses(evaluation.qualification)}`}>
@@ -117,6 +124,20 @@ function EvaluationDetail({ evaluation }: { evaluation: CandidateEvaluation }) {
             <p className="mt-2 break-all" key={source.role}>
               {source.role} · {source.source_type} · {source.source_id} · Quellversion{' '}
               {source.source_version} · Modell {source.model_id} / {source.model_version}
+              {source.source_type === 'ANALYSIS' &&
+                /^[A-Za-z0-9][A-Za-z0-9_.:-]*$/.test(source.source_id) &&
+                Number.isSafeInteger(source.source_version) &&
+                source.source_version > 0 && (
+                  <Link
+                    className="ml-3 inline-block underline text-sky-300"
+                    to={analysisDetailUrl(source.source_id, source.source_version, {
+                      candidateId,
+                      evaluationId: evaluation.id,
+                    })}
+                  >
+                    {source.role}: Analyseversion {source.source_version} öffnen
+                  </Link>
+                )}
             </p>
           ))
         ) : (
@@ -481,6 +502,9 @@ export function CandidatePage() {
                                 pathname: '/top-down-admin',
                                 search: new URLSearchParams({
                                   action: step.action,
+                                  ...(step.action === 'RUN_MARKET_ANALYSIS'
+                                    ? { step_code: step.code }
+                                    : {}),
                                   candidate_id: selected.id,
                                   resource_id: step.resource_id ?? '',
                                   ...Object.fromEntries(Object.entries(step.action_params ?? {})),
@@ -515,7 +539,7 @@ export function CandidatePage() {
                     TradePlan aus dieser Evaluation erstellen
                   </Link>
                 </div>
-                <EvaluationDetail evaluation={viewed} />
+                <EvaluationDetail evaluation={viewed} candidateId={selected.id} />
               </>
             ) : (
               <p className="rounded-xl border border-slate-800 p-5 text-slate-400">

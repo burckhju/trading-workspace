@@ -8,7 +8,6 @@ vi.mock('../../market/services/http', () => ({ requestJson: vi.fn() }));
 const mockedRequestJson = vi.mocked(requestJson);
 const references = `${environment.apiBaseUrl}/api/v1/top-down-reference-data`;
 const marketData = `${environment.apiBaseUrl}/api/v1/market-data`;
-const analyses = `${environment.apiBaseUrl}/api/v1/market-analyses`;
 const evidence = {
   valid_from: '2026-10-26',
   valid_to: null,
@@ -120,27 +119,6 @@ describe('topDownAdminClient', () => {
             start_date: '2026-01-01',
             end_date: '2026-08-01',
           },
-        },
-      ],
-    ]);
-  });
-
-  it('preserves the separate analysis owner and command payload', async () => {
-    mockedRequestJson
-      .mockResolvedValueOnce({ id: 'a1', underlying_id: 'u1', listing_id: 'l1' } as never)
-      .mockResolvedValueOnce({} as never);
-
-    const analysis = await topDownAdminClient.createAnalysis('u1', 'l1');
-    await topDownAdminClient.runAnalysis(analysis.id, '2026-01-01', '2026-08-01');
-
-    expect(analysis.id).toBe('a1');
-    expect(mockedRequestJson.mock.calls).toEqual([
-      [analyses, { method: 'POST', body: { underlying_id: 'u1', listing_id: 'l1' } }],
-      [
-        `${analyses}/a1/runs`,
-        {
-          method: 'POST',
-          body: { start_date: '2026-01-01', end_date: '2026-08-01', parameters: {} },
         },
       ],
     ]);

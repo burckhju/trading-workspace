@@ -3,7 +3,6 @@ import { requestJson } from '../../market/services/http';
 
 const referenceUrl = `${environment.apiBaseUrl}/api/v1/top-down-reference-data`;
 const marketDataUrl = `${environment.apiBaseUrl}/api/v1/market-data`;
-const analysisUrl = `${environment.apiBaseUrl}/api/v1/market-analyses`;
 
 export type MarketReference = {
   id: string;
@@ -34,7 +33,6 @@ export type VenueReconciliation = {
   evidence_venue_ids: string[];
   explanation: string;
 };
-export type AnalysisSummary = { id: string; underlying_id: string; listing_id: string };
 
 const assignmentDefaults = () => ({
   valid_from: new Date().toISOString().slice(0, 10),
@@ -119,15 +117,5 @@ export const topDownAdminClient = {
         start_date: startDate,
         end_date: endDate,
       },
-    }),
-  createAnalysis: (underlyingId: string, listingId: string): Promise<AnalysisSummary> =>
-    requestJson<AnalysisSummary>(analysisUrl, {
-      method: 'POST',
-      body: { underlying_id: underlyingId, listing_id: listingId },
-    }),
-  runAnalysis: (analysisId: string, startDate: string, endDate: string) =>
-    requestJson<unknown>(`${analysisUrl}/${analysisId}/runs`, {
-      method: 'POST',
-      body: { start_date: startDate, end_date: endDate, parameters: {} },
     }),
 };

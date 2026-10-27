@@ -3,6 +3,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createMemoryRouter, RouterProvider, useLocation } from 'react-router-dom';
 
 import {
+  resolveAnalysisSetupContext,
+  type AnalysisSetupContext,
+  type ResolvedAnalysisSetupContext,
+} from '../../analysis/services/analysisWorkflowContext';
+import {
   resolveReferenceDataContext,
   type ReferenceDataContext,
   type ResolvedReferenceDataContext,
@@ -13,6 +18,10 @@ import { TopDownWorkflowActionPage } from './TopDownWorkflowActionPage';
 vi.mock('../services/referenceDataContext', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../services/referenceDataContext')>()),
   resolveReferenceDataContext: vi.fn(),
+}));
+vi.mock('../../analysis/services/analysisWorkflowContext', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../analysis/services/analysisWorkflowContext')>()),
+  resolveAnalysisSetupContext: vi.fn(),
 }));
 vi.mock('../services/topDownAdminClient', () => ({
   topDownAdminClient: {
@@ -25,12 +34,23 @@ vi.mock('../services/topDownAdminClient', () => ({
     importHistory: vi.fn(),
     activateReference: vi.fn(),
     activateSector: vi.fn(),
-    createAnalysis: vi.fn(),
-    runAnalysis: vi.fn(),
   },
 }));
 const client = vi.mocked(topDownAdminClient);
 const resolve = vi.mocked(resolveReferenceDataContext);
+const resolveAnalysis = vi.mocked(resolveAnalysisSetupContext);
+function resolvedAnalysis(context: AnalysisSetupContext): ResolvedAnalysisSetupContext {
+  return {
+    context,
+    detail: null,
+    underlying: null,
+    listing: null,
+    source: null,
+    workflow: null,
+    workflowStep: null,
+    returnTo: context.returnTo,
+  };
+}
 function resolved(context: ReferenceDataContext): ResolvedReferenceDataContext {
   return {
     ...context,
@@ -57,6 +77,7 @@ function renderPage(search: string) {
     [
       { path: '/top-down-admin', element: <TopDownWorkflowActionPage /> },
       { path: '/chart-setup', element: <Destination /> },
+      { path: '/market-analyses/setup', element: <Destination /> },
       { path: '/candidates', element: <Destination /> },
       { path: '/underlyings/:id', element: <Destination /> },
     ],
@@ -69,8 +90,7 @@ function renderPage(search: string) {
 beforeEach(() => {
   vi.clearAllMocks();
   resolve.mockImplementation((context) => Promise.resolve(resolved(context)));
-  client.createAnalysis.mockResolvedValue({ id: 'a1', underlying_id: 'u1', listing_id: 'l1' });
-  client.runAnalysis.mockResolvedValue({});
+  resolveAnalysis.mockImplementation((context) => Promise.resolve(resolvedAnalysis(context)));
   client.activateReference.mockResolvedValue({
     id: 'r1',
     code: 'SPX',
@@ -188,22 +208,91 @@ describe('TopDownWorkflowActionPage canonical forwarding', () => {
   });
 });
 
-describe('remaining unique workflow actions', () => {
-  it('runs the existing explicit market analysis with exact identities once on double submit', async () => {
+describe('analysis workflow forwarding', () => {
+  it('opens the checked canonical analysis editor without a date form or mutation', async () => {
     const router = renderPage(
-      '?action=RUN_MARKET_ANALYSIS&candidate_id=c1&underlying_id=u1&listing_id=l1',
+      '?action=RUN_MARKET_ANALYSIS&candidate_id=c1&underlying_id=market-owner&listing_id=nonprimary&resource_id=nonprimary&step_code=MARKET_ANALYSIS',
     );
-    fireEvent.change(screen.getByLabelText('Von'), { target: { value: '2026-01-01' } });
-    fireEvent.change(screen.getByLabelText('Bis'), { target: { value: '2026-10-26' } });
-    const button = screen.getByRole('button', { name: 'Aktion ausführen' });
-    fireEvent.click(button);
-    fireEvent.click(button);
-    await waitFor(() => expect(client.createAnalysis).toHaveBeenCalledWith('u1', 'l1'));
-    expect(client.createAnalysis).toHaveBeenCalledTimes(1);
-    expect(client.runAnalysis).toHaveBeenCalledWith('a1', '2026-01-01', '2026-10-26');
-    await waitFor(() => expect(router.state.location.search).toBe('?candidate=c1'));
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Von')).not.toBeInTheDocument();
+    await waitFor(() => expect(router.state.location.pathname).toBe('/market-analyses/setup'));
+    expect(router.state.historyAction).toBe('REPLACE');
+    expect(new URLSearchParams(router.state.location.search).get('listing_id')).toBe('nonprimary');
+    expect(resolveAnalysis).toHaveBeenCalledWith(
+      expect.objectContaining({
+        workflowAction: 'RUN_MARKET_ANALYSIS',
+        underlyingId: 'market-owner',
+        listingId: 'nonprimary',
+        stepCode: 'MARKET_ANALYSIS',
+      }),
+      expect.any(AbortSignal),
+    );
+    expect(resolve).not.toHaveBeenCalled();
+    for (const method of Object.values(client)) expect(method).not.toHaveBeenCalled();
   });
 
+  it('blocks conflicting analysis targets before reading or forwarding', async () => {
+    const router = renderPage(
+      '?action=RUN_MARKET_ANALYSIS&candidate_id=c1&listing_id=l1&resource_id=l2',
+    );
+    expect(await screen.findByRole('alert')).toHaveTextContent('Widersprüchliche');
+    expect(resolveAnalysis).not.toHaveBeenCalled();
+    expect(router.state.location.pathname).toBe('/top-down-admin');
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+  });
+
+  it('shows a fresh workflow failure without starting an analysis', async () => {
+    resolveAnalysis.mockRejectedValue(
+      new Error('Dieser konkrete Analyse-Schritt hat sich geändert.'),
+    );
+    renderPage('?action=RUN_MARKET_ANALYSIS&candidate_id=c1&resource_id=l2');
+    expect(await screen.findByRole('alert')).toHaveTextContent('konkrete Analyse-Schritt');
+    expect(screen.getByRole('link', { name: 'Zurück zum Kandidaten' })).toHaveAttribute(
+      'href',
+      '/candidates?candidate=c1',
+    );
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+  });
+
+  it('ignores stale A and B completions after A→B→A', async () => {
+    const pending: Array<{
+      context: AnalysisSetupContext;
+      signal?: AbortSignal;
+      complete: (value: ResolvedAnalysisSetupContext) => void;
+      fail: (reason: Error) => void;
+    }> = [];
+    resolveAnalysis.mockImplementation(
+      (context, signal) =>
+        new Promise((complete, fail) => {
+          pending.push({ context, signal, complete, fail });
+        }),
+    );
+    const route = (id: string) =>
+      `/top-down-admin?action=RUN_MARKET_ANALYSIS&candidate_id=c1&listing_id=${id}`;
+    const router = renderPage(route('a').slice('/top-down-admin'.length));
+    await waitFor(() => expect(pending).toHaveLength(1));
+    await act(() => router.navigate(route('b')));
+    await waitFor(() => expect(pending).toHaveLength(2));
+    await act(() => router.navigate(route('a')));
+    await waitFor(() => expect(pending).toHaveLength(3));
+    expect(pending[0].signal?.aborted).toBe(true);
+    await act(async () => {
+      pending[0].fail(new Error('Stale A failure'));
+      pending[1].complete(resolvedAnalysis(pending[1].context));
+      await Promise.resolve();
+    });
+    expect(router.state.location.pathname).toBe('/top-down-admin');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    await act(async () => {
+      pending[2].complete(resolvedAnalysis(pending[2].context));
+      await Promise.resolve();
+    });
+    expect(router.state.location.pathname).toBe('/market-analyses/setup');
+    expect(new URLSearchParams(router.state.location.search).get('listing_id')).toBe('a');
+  });
+});
+
+describe('remaining unique workflow actions', () => {
   it.each([
     ['ACTIVATE_OR_REASSIGN_BENCHMARK', 'market_reference_id=r1', 'activateReference'],
     ['ACTIVATE_OR_REASSIGN_SECTOR_REFERENCE', 'resource_id=r1', 'activateReference'],
@@ -226,28 +315,15 @@ describe('remaining unique workflow actions', () => {
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
 
-  it('uses the real route guard for a dirty analysis period, with focused stay and explicit discard', async () => {
-    const router = renderPage(
-      '?action=RUN_MARKET_ANALYSIS&candidate_id=c1&underlying_id=u1&listing_id=l1',
-    );
-    fireEvent.change(screen.getByLabelText('Von'), { target: { value: '2026-01-01' } });
-    fireEvent.click(screen.getByRole('link', { name: 'Abbrechen' }));
-    await screen.findByRole('alertdialog');
-    expect(screen.getByRole('button', { name: 'Hier bleiben' })).toHaveFocus();
-    expect(router.state.location.pathname).toBe('/top-down-admin');
-    fireEvent.click(screen.getByRole('button', { name: 'Eingaben verwerfen und wechseln' }));
-    await waitFor(() => expect(router.state.location.pathname).toBe('/candidates'));
-  });
-
   it('does not offer discard or a second mutation while the existing write is pending', async () => {
-    let finish!: (value: { id: string; underlying_id: string; listing_id: string }) => void;
-    client.createAnalysis.mockReturnValue(
+    let finish!: (value: Awaited<ReturnType<typeof topDownAdminClient.activateReference>>) => void;
+    client.activateReference.mockReturnValue(
       new Promise((done) => {
         finish = done;
       }),
     );
     const router = renderPage(
-      '?action=RUN_MARKET_ANALYSIS&candidate_id=c1&underlying_id=u1&listing_id=l1',
+      '?action=ACTIVATE_OR_REASSIGN_BENCHMARK&candidate_id=c1&market_reference_id=r1',
     );
     fireEvent.click(screen.getByRole('button', { name: 'Aktion ausführen' }));
     fireEvent.click(screen.getByRole('link', { name: 'Abbrechen' }));
@@ -255,10 +331,16 @@ describe('remaining unique workflow actions', () => {
     expect(
       screen.queryByRole('button', { name: 'Eingaben verwerfen und wechseln' }),
     ).not.toBeInTheDocument();
-    expect(client.createAnalysis).toHaveBeenCalledTimes(1);
+    expect(client.activateReference).toHaveBeenCalledTimes(1);
     fireEvent.click(screen.getByRole('button', { name: 'Hier bleiben' }));
     await act(async () => {
-      finish({ id: 'a1', underlying_id: 'u1', listing_id: 'l1' });
+      finish({
+        id: 'r1',
+        code: 'SPX',
+        name: 'Synthetic reference',
+        reference_type: 'INDEX',
+        active: true,
+      });
       await Promise.resolve();
     });
     await waitFor(() => expect(router.state.location.pathname).toBe('/candidates'));
