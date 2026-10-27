@@ -19,7 +19,7 @@ export function ExecutionCurrencyOverride({
     <div className="space-y-2 text-sm">
       <p className="text-slate-400">
         {correction
-          ? 'Die belegte Währung der ursprünglichen Buchung bleibt bei dieser Datumsänderung erhalten.'
+          ? 'Die belegte Währung der ursprünglichen Buchung bleibt bei dieser Korrektur erhalten.'
           : 'Die Währung wird aus den vorherigen Käufen übernommen, sofern sie vollständig und einheitlich belegt ist.'}{' '}
         Sie müssen die Währung nicht erneut eingeben. Fehlende oder widersprüchliche Herkunft bleibt
         in der Buchung sichtbar.

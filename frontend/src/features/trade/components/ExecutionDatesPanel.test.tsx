@@ -53,6 +53,8 @@ function corrected(tradeId: string, id: string, payload: ExecutionCorrectionRequ
     ...original,
     id: 'corrected-' + id,
     supersedes_id: id,
+    quantity: payload.quantity,
+    price_per_unit: payload.price_per_unit,
     executed_on: 'executed_on' in payload ? payload.executed_on : null,
     execution_timezone: 'execution_timezone' in payload ? payload.execution_timezone : null,
     occurred_at:
@@ -98,13 +100,17 @@ beforeEach(() => {
   onChanged.mockResolvedValue(undefined);
 });
 async function open(side = 'Kaufdatum') {
-  fireEvent.click(await screen.findByRole('button', { name: side + ' korrigieren' }));
-  return screen.getByRole('form', { name: 'Ausführungsdatum korrigieren' });
+  fireEvent.click(
+    await screen.findByRole('button', {
+      name: (side === 'Verkaufsdatum' ? 'Verkauf' : 'Kauf') + ' korrigieren',
+    }),
+  );
+  return screen.getByRole('form', { name: 'Buchung korrigieren' });
 }
 function confirm() {
   fireEvent.click(
     screen.getByRole('checkbox', {
-      name: 'Ich bestätige das tatsächliche Ausführungsdatum dieser Buchung.',
+      name: 'Ich bestätige die geänderten Buchungsdaten dieser Buchung.',
     }),
   );
 }
@@ -112,7 +118,7 @@ function changeDate(value = '2026-08-16', side = 'Kaufdatum') {
   fireEvent.change(screen.getByLabelText(side + ' korrigieren'), { target: { value } });
 }
 function save() {
-  fireEvent.click(screen.getByRole('button', { name: 'Datumsänderung speichern' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Korrektur speichern' }));
 }
 function changed() {
   act(() => {
@@ -142,11 +148,11 @@ it.each([
         /^Ausgeführt:/,
       ),
     ).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Datumsänderung speichern' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Korrektur speichern' })).toBeDisabled();
     changeDate(date, label);
     confirm();
     save();
-    await screen.findByText(/Datum korrigiert/);
+    await screen.findByText(/^Buchung korrigiert\./);
     expect(api.correctExecution).toHaveBeenCalledExactlyOnceWith('trade', row.id, {
       side: row.execution_side,
       quantity: row.quantity,
@@ -205,7 +211,7 @@ it('requires a changed date plus explicit confirmation and guards cancellation w
   render(<ExecutionDatesPanel tradeId="trade" onChanged={onChanged} />);
   await open();
   confirm();
-  expect(screen.getByRole('button', { name: 'Datumsänderung speichern' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Korrektur speichern' })).toBeDisabled();
   changeDate();
   expect(screen.getByRole('checkbox', { name: /Ich bestätige/ })).not.toBeChecked();
   fireEvent.click(screen.getByRole('button', { name: 'Abbrechen' }));
@@ -223,7 +229,7 @@ it('guards booking, editor and history changes and only mounts one editor', asyn
   render(<ExecutionDatesPanel tradeId="trade" onChanged={onChanged} />);
   await open();
   changeDate();
-  fireEvent.click(screen.getByRole('button', { name: 'Verkaufsdatum korrigieren' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Verkauf korrigieren' }));
   await discard();
   expect(screen.getAllByRole('form')).toHaveLength(1);
   expect(screen.getByLabelText('Verkaufsdatum korrigieren')).toHaveValue(sale.executed_on);
@@ -231,9 +237,7 @@ it('guards booking, editor and history changes and only mounts one editor', asyn
   fireEvent.click(saleRow.getByRole('button', { name: 'Währung prüfen / bestätigen' }));
   const currency = await screen.findByRole('form', { name: 'Ausführungswährung bestätigen' });
   expect(screen.getAllByRole('form')).toHaveLength(1);
-  expect(
-    screen.queryByRole('form', { name: 'Ausführungsdatum korrigieren' }),
-  ).not.toBeInTheDocument();
+  expect(screen.queryByRole('form', { name: 'Buchung korrigieren' })).not.toBeInTheDocument();
   fireEvent.change(within(currency).getByLabelText('Ausführungswährung (Code)'), {
     target: { value: 'EUR' },
   });
@@ -271,7 +275,7 @@ it('reuses the evidenced original currency without copying an old note or confir
   changeDate();
   confirm();
   save();
-  await screen.findByText(/Datum korrigiert/);
+  await screen.findByText(/^Buchung korrigiert\./);
   expect(api.correctExecution.mock.calls[0][2]).not.toHaveProperty('currency_confirmation');
   expect(api.confirmExecutionCurrency).not.toHaveBeenCalled();
 });
@@ -282,10 +286,10 @@ it('uses one correction POST for changed date with an explicitly different curre
   changeDate();
   fireEvent.click(form.getByRole('button', { name: 'Abweichende Währung angeben' }));
   fireEvent.change(form.getByLabelText('Ausführungswährung (Code)'), { target: { value: 'USD' } });
-  expect(form.getByRole('button', { name: 'Datumsänderung speichern' })).toBeDisabled();
+  expect(form.getByRole('button', { name: 'Korrektur speichern' })).toBeDisabled();
   confirm();
   save();
-  await screen.findByText(/Datum korrigiert/);
+  await screen.findByText(/^Buchung korrigiert\./);
   expect(api.correctExecution).toHaveBeenCalledExactlyOnceWith('trade', buy.id, {
     side: 'BUY',
     quantity: buy.quantity,
@@ -312,7 +316,7 @@ it('keeps every fractional second by default and makes date-only conversion expl
   changeDate('2026-08-18');
   confirm();
   save();
-  await screen.findByText(/Datum korrigiert/);
+  await screen.findByText(/^Buchung korrigiert\./);
   const precisePayload = api.correctExecution.mock.calls[0][2];
   expect('executed_at' in precisePayload && precisePayload.executed_at).toMatch(
     /T08:30:01\.123456Z$/,
@@ -322,7 +326,7 @@ it('keeps every fractional second by default and makes date-only conversion expl
   expect(screen.getByText(/genaue Uhrzeit gilt als unbekannt/)).toBeVisible();
   confirm();
   save();
-  await screen.findByText(/Datum korrigiert/);
+  await screen.findByText(/^Buchung korrigiert\./);
   expect(api.correctExecution.mock.calls[1][2]).toHaveProperty('executed_on', '2026-08-18');
   expect(api.correctExecution.mock.calls[1][2]).not.toHaveProperty('executed_at');
 });
@@ -339,7 +343,7 @@ it('retains a replaced date editor as stale without counting it as a current exe
   expect(screen.queryByRole('article', { name: 'Buchung buy' })).not.toBeInTheDocument();
   expect(screen.getByRole('article', { name: 'Ersetzte Bearbeitungsbasis' })).toBeVisible();
   expect(screen.getByRole('article', { name: 'Buchung new' })).toBeVisible();
-  expect(screen.getByRole('button', { name: 'Datumsänderung speichern' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Korrektur speichern' })).toBeDisabled();
   expect(api.correctExecution).not.toHaveBeenCalled();
 });
 
@@ -382,13 +386,13 @@ it('blocks a date draft when its BUY currency source changes and retains the ent
   changed();
   await screen.findByText(/Die Währungsquellen haben sich geändert/);
   expect(screen.getByLabelText('Verkaufsdatum korrigieren')).toHaveValue('2026-08-23');
-  expect(screen.getByRole('button', { name: 'Datumsänderung speichern' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Korrektur speichern' })).toBeDisabled();
   fireEvent.click(screen.getByRole('button', { name: 'Neu gelesene Währungsherkunft geprüft' }));
   expect(screen.getByRole('checkbox', { name: /Ich bestätige/ })).not.toBeChecked();
   expect(screen.getByText('Währung: EUR · aus vorherigen Käufen übernommen')).toBeVisible();
   confirm();
   save();
-  await screen.findByText(/Datum korrigiert/);
+  await screen.findByText(/^Buchung korrigiert\./);
   expect(api.correctExecution.mock.calls[0][2]).not.toHaveProperty('currency_confirmation');
 });
 
@@ -487,7 +491,7 @@ it('locks double submits and navigation synchronously while the correction is pe
     pending.resolve(corrected('trade', buy.id, api.correctExecution.mock.calls[0][2]));
     return pending.promise;
   });
-  await screen.findByText(/Datum korrigiert/);
+  await screen.findByText(/^Buchung korrigiert\./);
   expect(blocked).toHaveBeenLastCalledWith(false);
 });
 
@@ -513,7 +517,7 @@ it('reads after uncertain transport and requires a deliberate check before anoth
   expect(screen.getByRole('checkbox', { name: /Ich bestätige/ })).not.toBeChecked();
   confirm();
   save();
-  await screen.findByText(/Datum korrigiert/);
+  await screen.findByText(/^Buchung korrigiert\./);
   expect(api.correctExecution.mock.calls.map((call) => call[1])).toEqual([buy.id, buy.id]);
   expect(api.correctExecution.mock.calls[0][2]).not.toHaveProperty('request_id');
 });
@@ -534,9 +538,9 @@ it('never retries or switches targets when an uncertain POST actually created a 
   );
   fireEvent.click(screen.getByRole('button', { name: 'Buchungsstand prüfen' }));
   await screen.findByText(/Buchungsstand neu gelesen/);
-  expect(screen.getByRole('button', { name: 'Datumsänderung speichern' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Korrektur speichern' })).toBeDisabled();
   expect(api.correctExecution).toHaveBeenCalledOnce();
-  expect(screen.queryByText(/Datum korrigiert/)).not.toBeInTheDocument();
+  expect(screen.queryByText(/^Buchung korrigiert\./)).not.toBeInTheDocument();
 });
 
 it('separates confirmed write from failed projection readback and recovers without another POST', async () => {
@@ -546,12 +550,12 @@ it('separates confirmed write from failed projection readback and recovers witho
   changeDate();
   confirm();
   save();
-  await screen.findByText(/Datum gespeichert, Ansicht noch nicht aktualisiert/);
+  await screen.findByText(/Buchungskorrektur gespeichert, Ansicht noch nicht aktualisiert/);
   expect(screen.queryByRole('form')).not.toBeInTheDocument();
-  expect(screen.getByRole('button', { name: 'Kaufdatum korrigieren' })).toBeDisabled();
-  fireEvent.click(screen.getByRole('button', { name: 'Buchungsstand prüfen' }));
+  expect(screen.getByRole('button', { name: 'Kauf korrigieren' })).toBeDisabled();
+  fireEvent.click(screen.getByRole('button', { name: 'Lesestand erneut laden' }));
   await screen.findByText(/Gespeicherte Korrektur und aktueller Positionsstand/);
-  expect(screen.getByRole('button', { name: 'Kaufdatum korrigieren' })).toBeEnabled();
+  expect(screen.getByRole('button', { name: 'Kauf korrigieren' })).toBeEnabled();
   expect(api.correctExecution).toHaveBeenCalledOnce();
 });
 
@@ -565,10 +569,10 @@ it('checks the timeline supersession link rather than assuming a response-only f
   confirm();
   save();
   await screen.findByText(/Verknüpfung zur ursprünglichen Buchung/);
-  expect(screen.queryByText(/Datum korrigiert/)).not.toBeInTheDocument();
+  expect(screen.queryByText(/^Buchung korrigiert\./)).not.toBeInTheDocument();
   expect(screen.queryByRole('form')).not.toBeInTheDocument();
   timeline = [buy, sale, { ...buy, id: 'unlinked', supersedes_id: buy.id }];
-  fireEvent.click(screen.getByRole('button', { name: 'Buchungsstand prüfen' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Lesestand erneut laden' }));
   await screen.findByText(/Gespeicherte Korrektur/);
   expect(api.correctExecution).toHaveBeenCalledOnce();
 });
@@ -580,23 +584,23 @@ it('keeps recovery locked until both timeline and projection reads finish, inclu
   changeDate();
   confirm();
   save();
-  await screen.findByText(/Datum gespeichert, Ansicht noch nicht aktualisiert/);
+  await screen.findByText(/Buchungskorrektur gespeichert, Ansicht noch nicht aktualisiert/);
   const projection = deferred<void>();
   onChanged.mockReturnValueOnce(projection.promise);
-  const review = screen.getByRole('button', { name: 'Buchungsstand prüfen' });
+  const review = screen.getByRole('button', { name: 'Lesestand erneut laden' });
   fireEvent.click(review);
   await waitFor(() => expect(api.timeline).toHaveBeenCalledTimes(3));
   expect(review).toBeDisabled();
   fireEvent.click(review);
   expect(onChanged).toHaveBeenCalledTimes(2);
-  expect(screen.getByRole('button', { name: 'Kaufdatum korrigieren' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Kauf korrigieren' })).toBeDisabled();
   await act(() => {
     projection.reject(new Error('Still offline'));
     return projection.promise.catch(() => undefined);
   });
   await screen.findByText(/Buchungsstand noch nicht vollständig geprüft: Still offline/);
   expect(review).toBeEnabled();
-  expect(screen.getByRole('button', { name: 'Kaufdatum korrigieren' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Kauf korrigieren' })).toBeDisabled();
   expect(api.correctExecution).toHaveBeenCalledOnce();
 });
 
@@ -616,7 +620,7 @@ it('checks another page writer synchronously before submitting an already opened
   expect(api.correctExecution).not.toHaveBeenCalled();
   writer.busy = false;
   fireEvent.submit(form);
-  await screen.findByText(/Datum korrigiert/);
+  await screen.findByText(/^Buchung korrigiert\./);
   expect(api.correctExecution).toHaveBeenCalledOnce();
 });
 
@@ -635,7 +639,7 @@ it('preserves the date draft on same-trade reload and never shows a foreign time
   expect(
     screen.queryByRole('article', { name: 'Buchung foreign-booking' }),
   ).not.toBeInTheDocument();
-  expect(screen.getByRole('button', { name: 'Datumsänderung speichern' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Korrektur speichern' })).toBeDisabled();
 });
 
 it('ignores late A responses after A→B→A including an obsolete successful write', async () => {
@@ -658,7 +662,9 @@ it('ignores late A responses after A→B→A including an obsolete successful wr
     return pending.promise;
   });
   expect(screen.getByLabelText('Kaufdatum korrigieren')).toHaveValue('2026-08-15');
-  expect(screen.queryByText(/^Datum korrigiert|^Datum gespeichert/)).not.toBeInTheDocument();
+  expect(
+    screen.queryByText(/^Buchung korrigiert|^Buchungskorrektur gespeichert/),
+  ).not.toBeInTheDocument();
   expect(onChanged).not.toHaveBeenCalled();
 });
 
@@ -675,7 +681,7 @@ it('reports missing data, supports reload and never supplies placeholder executi
 it('reports an incomplete stored date basis before opening an editor', async () => {
   timeline = [{ ...buy, execution_timezone: null }];
   render(<ExecutionDatesPanel tradeId="trade" onChanged={onChanged} />);
-  fireEvent.click(await screen.findByRole('button', { name: 'Kaufdatum korrigieren' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Kauf korrigieren' }));
   expect(screen.getByRole('status')).toHaveTextContent(
     'Die Zeitzone der gespeicherten Ausführung fehlt.',
   );
@@ -694,4 +700,335 @@ it('supports keyboard tab navigation and focus without fetching another history'
   fireEvent.keyDown(screen.getByRole('tab', { name: 'Historie' }), { key: 'Home' });
   expect(current).toHaveFocus();
   expect(api.timeline).toHaveBeenCalledOnce();
+});
+
+it.each(['BUY', 'SELL'] as const)(
+  'corrects only the %s quantity with the complete stored price and exact instant',
+  async (side) => {
+    const entry = {
+      ...buy,
+      execution_side: side,
+      executed_on: null,
+      execution_timezone: null,
+      occurred_at: '2026-08-17T08:30:01.123456789+00:00',
+    };
+    timeline = [entry];
+    render(<ExecutionDatesPanel tradeId="trade" onChanged={onChanged} />);
+    const form = within(await open(side === 'BUY' ? 'Kaufdatum' : 'Verkaufsdatum'));
+    expect(form.getByLabelText('Menge')).toHaveValue('10');
+    expect(form.getByLabelText('Preis je Einheit')).toHaveValue(entry.price_per_unit);
+    expect(screen.getAllByRole('form')).toHaveLength(1);
+    expect(form.queryByRole('combobox')).not.toBeInTheDocument();
+    expect(form.queryByLabelText(/Trade|Produkt|Richtung/)).not.toBeInTheDocument();
+    fireEvent.change(form.getByLabelText('Menge'), { target: { value: '12' } });
+    const summary = within(form.getByRole('table', { name: 'Geänderte Buchungsdaten' }));
+    expect(summary.getAllByRole('row')).toHaveLength(2);
+    expect(summary.getByRole('rowheader', { name: 'Menge' })).toBeVisible();
+    expect(summary.getAllByRole('cell').map((cell) => cell.textContent)).toEqual(['10', '12']);
+    confirm();
+    save();
+    await screen.findByText(/^Buchung korrigiert\./);
+    expect(api.correctExecution).toHaveBeenCalledExactlyOnceWith('trade', entry.id, {
+      side,
+      quantity: 12,
+      price_per_unit: entry.price_per_unit,
+      executed_at: entry.occurred_at,
+    });
+    expect(api.confirmExecutionCurrency).not.toHaveBeenCalled();
+    expect(onChanged).toHaveBeenCalledOnce();
+    expect(timeline[0]).toEqual(entry);
+  },
+);
+
+it.each(['BUY', 'SELL'] as const)(
+  'corrects only the %s price as a decimal string and retains the date-only source',
+  async (side) => {
+    const entry = { ...buy, execution_side: side, price_per_unit: '0.5500000000' };
+    timeline = [entry];
+    render(<ExecutionDatesPanel tradeId="trade" onChanged={onChanged} />);
+    const form = within(await open(side === 'BUY' ? 'Kaufdatum' : 'Verkaufsdatum'));
+    fireEvent.change(form.getByLabelText('Preis je Einheit'), {
+      target: { value: '0002,500000000000' },
+    });
+    const summary = within(form.getByRole('table', { name: 'Geänderte Buchungsdaten' }));
+    expect(summary.getAllByRole('row')).toHaveLength(2);
+    expect(summary.getByRole('rowheader', { name: 'Preis je Einheit' })).toBeVisible();
+    expect(summary.getAllByRole('cell').map((cell) => cell.textContent)).toEqual([
+      '0.5500000000',
+      '2.5',
+    ]);
+    confirm();
+    save();
+    await screen.findByText(/^Buchung korrigiert\./);
+    expect(api.correctExecution).toHaveBeenCalledExactlyOnceWith('trade', entry.id, {
+      side,
+      quantity: 10,
+      price_per_unit: '2.5',
+      executed_on: entry.executed_on,
+      execution_timezone: entry.execution_timezone,
+    });
+    expect(api.confirmExecutionCurrency).not.toHaveBeenCalled();
+  },
+);
+
+it('does not POST equal quantity and price spellings even on a direct form submit', async () => {
+  timeline = [{ ...buy, price_per_unit: '0.5500000000' }];
+  render(<ExecutionDatesPanel tradeId="trade" onChanged={onChanged} />);
+  const form = await open();
+  fireEvent.change(screen.getByLabelText('Menge'), { target: { value: '0010' } });
+  fireEvent.change(screen.getByLabelText('Preis je Einheit'), { target: { value: '0,55' } });
+  confirm();
+  expect(screen.getByRole('button', { name: 'Korrektur speichern' })).toBeDisabled();
+  expect(screen.queryByRole('table')).not.toBeInTheDocument();
+  fireEvent.submit(form);
+  expect(api.correctExecution).not.toHaveBeenCalled();
+  // A pure currency declaration must still use its own endpoint/editor.
+  fireEvent.click(screen.getByRole('button', { name: 'Abweichende Währung angeben' }));
+  fireEvent.change(screen.getByLabelText('Ausführungswährung (Code)'), {
+    target: { value: 'EUR' },
+  });
+  confirm();
+  fireEvent.submit(form);
+  expect(screen.getByText(/Für eine reine Währungsbestätigung/)).toBeVisible();
+  expect(api.correctExecution).not.toHaveBeenCalled();
+  expect(api.confirmExecutionCurrency).not.toHaveBeenCalled();
+});
+
+it.each([
+  ['Menge', '0', /größer als 0/],
+  ['Menge', '1.5', /positive ganze Menge/],
+  ['Menge', '12units', /positive ganze Menge/],
+  ['Menge', '1e2', /positive ganze Menge/],
+  ['Menge', '2147483648', /speicherbarer Ganzzahlbereich/],
+  ['Preis je Einheit', '0', /größer als 0/],
+  ['Preis je Einheit', '1,234.56', /vollständigen Preis/],
+  ['Preis je Einheit', '1.000.000', /vollständigen Preis/],
+  ['Preis je Einheit', '2,', /vollständigen Preis/],
+  ['Preis je Einheit', '100000000000000', /nicht gerundet/],
+  ['Preis je Einheit', '1.12345678901', /nicht gerundet/],
+] as const)('rejects %s %s with a linked field error and no write', async (field, value, error) => {
+  render(<ExecutionDatesPanel tradeId="trade" onChanged={onChanged} />);
+  const form = await open();
+  const input = screen.getByLabelText(field);
+  fireEvent.change(input, { target: { value } });
+  expect(input).toHaveAttribute('aria-invalid', 'true');
+  expect(input).toHaveAccessibleDescription(error);
+  expect(screen.getByRole('alert')).toHaveTextContent(error);
+  expect(screen.getByRole('button', { name: 'Korrektur speichern' })).toBeDisabled();
+  fireEvent.submit(form);
+  expect(api.correctExecution).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Abbrechen' }));
+  expect(screen.getByRole('alertdialog')).toBeVisible();
+  fireEvent.click(screen.getByRole('button', { name: 'Hier bleiben' }));
+  expect(input).toHaveValue(value);
+});
+
+it('binds confirmation to all edits and submits one atomic facts-and-currency snapshot', async () => {
+  render(<ExecutionDatesPanel tradeId="trade" onChanged={onChanged} />);
+  await open();
+  fireEvent.change(screen.getByLabelText('Menge'), { target: { value: '12' } });
+  confirm();
+  fireEvent.change(screen.getByLabelText('Preis je Einheit'), { target: { value: '2,50' } });
+  expect(screen.getByRole('checkbox', { name: /Ich bestätige/ })).not.toBeChecked();
+  confirm();
+  changeDate();
+  expect(screen.getByRole('checkbox', { name: /Ich bestätige/ })).not.toBeChecked();
+  confirm();
+  fireEvent.click(screen.getByRole('button', { name: 'Abweichende Währung angeben' }));
+  fireEvent.change(screen.getByLabelText('Ausführungswährung (Code)'), {
+    target: { value: 'USD' },
+  });
+  expect(screen.getByRole('checkbox', { name: /Ich bestätige/ })).not.toBeChecked();
+  const summary = within(screen.getByRole('table', { name: 'Geänderte Buchungsdaten' }));
+  expect(summary.getAllByRole('rowheader').map((cell) => cell.textContent)).toEqual([
+    'Menge',
+    'Preis je Einheit',
+    'Ausführung',
+    'Währungsbestätigung',
+  ]);
+  confirm();
+  save();
+  await screen.findByText(/^Buchung korrigiert\./);
+  expect(api.correctExecution).toHaveBeenCalledExactlyOnceWith('trade', buy.id, {
+    side: 'BUY',
+    quantity: 12,
+    price_per_unit: '2.5',
+    executed_on: '2026-08-16',
+    execution_timezone: 'Europe/Berlin',
+    currency_confirmation: { currency_code: 'USD', source: 'USER_CONFIRMED', note: null },
+  });
+  expect(api.confirmExecutionCurrency).not.toHaveBeenCalled();
+});
+
+it('keeps the submitted amount snapshot pinned while writes and delayed refresh are pending', async () => {
+  const pending = deferred<SaleResponse>();
+  api.correctExecution.mockReturnValueOnce(pending.promise);
+  render(<ExecutionDatesPanel tradeId="trade" onChanged={onChanged} />);
+  const form = await open();
+  fireEvent.change(screen.getByLabelText('Menge'), { target: { value: '12' } });
+  fireEvent.change(screen.getByLabelText('Preis je Einheit'), { target: { value: '2,50' } });
+  confirm();
+  fireEvent.submit(form);
+  fireEvent.submit(form);
+  expect(api.correctExecution).toHaveBeenCalledOnce();
+  expect(screen.getByLabelText('Menge')).toBeDisabled();
+  expect(screen.getByLabelText('Preis je Einheit')).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Abbrechen' })).toBeDisabled();
+  // Even a synthetic late input event cannot mutate the captured request object.
+  fireEvent.change(screen.getByLabelText('Menge'), { target: { value: '99' } });
+  expect(api.correctExecution.mock.calls[0][1]).toBe(buy.id);
+  expect(api.correctExecution.mock.calls[0][2]).toMatchObject({
+    quantity: 12,
+    price_per_unit: '2.5',
+  });
+  await act(() => {
+    pending.resolve(corrected('trade', buy.id, api.correctExecution.mock.calls[0][2]));
+    return pending.promise;
+  });
+  await screen.findByText(/^Buchung korrigiert\./);
+  expect(api.correctExecution).toHaveBeenCalledOnce();
+  expect(timeline.at(-1)).toMatchObject({
+    quantity: 12,
+    price_per_unit: '2.5',
+    supersedes_id: buy.id,
+  });
+});
+
+it('retains amount inputs after backend oversell rejection without reporting a partial success', async () => {
+  api.correctExecution.mockRejectedValueOnce(
+    new MarketApiError(422, {
+      code: 'INVALID',
+      message: 'SELL quantity exceeds current open quantity',
+      details: [],
+      timestamp: '2026-10-26T10:00:00Z',
+    }),
+  );
+  render(<ExecutionDatesPanel tradeId="trade" onChanged={onChanged} />);
+  await open();
+  fireEvent.change(screen.getByLabelText('Menge'), { target: { value: '7' } });
+  confirm();
+  save();
+  await screen.findByText(/Korrektur nicht bestätigt: SELL quantity/);
+  expect(screen.getByLabelText('Menge')).toHaveValue('7');
+  expect(screen.getByLabelText('Preis je Einheit')).toHaveValue(buy.price_per_unit);
+  expect(timeline).toEqual([buy, sale]);
+  expect(onChanged).not.toHaveBeenCalled();
+  expect(screen.queryByText(/^Buchung korrigiert\./)).not.toBeInTheDocument();
+  expect(screen.getByRole('checkbox', { name: /Ich bestätige/ })).not.toBeChecked();
+});
+
+it('retains amount edits and exposes changed currency source IDs even if the currency text stays equal', async () => {
+  const basis: ExecutionCurrencyResolution = {
+    currency_code: 'EUR',
+    source: 'PRIOR_BUYS',
+    source_execution_ids: ['source-buy-old'],
+    confirmation_ids: ['source-confirmation-old'],
+  };
+  timeline = [{ ...sale, currency_resolution: basis }];
+  render(<ExecutionDatesPanel tradeId="trade" onChanged={onChanged} />);
+  await open('Verkaufsdatum');
+  fireEvent.change(screen.getByLabelText('Menge'), { target: { value: '8' } });
+  fireEvent.change(screen.getByLabelText('Preis je Einheit'), { target: { value: '3,50' } });
+  confirm();
+  timeline = [
+    {
+      ...sale,
+      currency_resolution: {
+        ...basis,
+        source_execution_ids: ['source-buy-new'],
+        confirmation_ids: ['source-confirmation-new'],
+      },
+    },
+  ];
+  changed();
+  const warning = await screen.findByRole('alert');
+  expect(warning).toHaveTextContent('Die Währungsquellen haben sich geändert');
+  fireEvent.click(within(warning).getByText('Verwendete Währungsherkunft'));
+  expect(within(warning).getByText('Buchung source-buy-new')).toBeVisible();
+  expect(within(warning).getByText('Bestätigung source-confirmation-new')).toBeVisible();
+  expect(screen.getByRole('button', { name: 'Korrektur speichern' })).toBeDisabled();
+  expect(screen.getByLabelText('Menge')).toHaveValue('8');
+  expect(screen.getByLabelText('Preis je Einheit')).toHaveValue('3,50');
+  fireEvent.click(screen.getByRole('button', { name: 'Neu gelesene Währungsherkunft geprüft' }));
+  expect(screen.getByRole('checkbox', { name: /Ich bestätige/ })).not.toBeChecked();
+  confirm();
+  save();
+  await screen.findByText(/^Buchung korrigiert\./);
+  expect(api.correctExecution).toHaveBeenCalledExactlyOnceWith('trade', sale.id, {
+    side: 'SELL',
+    quantity: 8,
+    price_per_unit: '3.5',
+    executed_on: sale.executed_on,
+    execution_timezone: sale.execution_timezone,
+  });
+});
+
+it('recovers an amount-only confirmed write by reading again without another POST', async () => {
+  onChanged.mockRejectedValueOnce(new Error('Position offline'));
+  render(<ExecutionDatesPanel tradeId="trade" onChanged={onChanged} />);
+  await open();
+  fireEvent.change(screen.getByLabelText('Menge'), { target: { value: '12' } });
+  confirm();
+  save();
+  await screen.findByText(/Buchungskorrektur gespeichert, Ansicht noch nicht aktualisiert/);
+  expect(screen.queryByRole('form')).not.toBeInTheDocument();
+  const reload = screen.getByRole('button', { name: 'Lesestand erneut laden' });
+  await waitFor(() => expect(reload).toBeEnabled());
+  fireEvent.click(reload);
+  await screen.findByText(/Gespeicherte Korrektur und aktueller Positionsstand/);
+  expect(api.correctExecution).toHaveBeenCalledOnce();
+  expect(api.timeline).toHaveBeenCalledTimes(3);
+  expect(onChanged).toHaveBeenCalledTimes(2);
+  expect(timeline.at(-1)).toMatchObject({ quantity: 12, supersedes_id: buy.id });
+});
+
+it('keeps a price-only uncertain write on its original target without assuming a saved success', async () => {
+  api.correctExecution.mockImplementationOnce((tradeId, id, payload) => {
+    corrected(tradeId, id, payload);
+    return Promise.reject(new Error('Response lost'));
+  });
+  render(<ExecutionDatesPanel tradeId="trade" onChanged={onChanged} />);
+  await open();
+  fireEvent.change(screen.getByLabelText('Preis je Einheit'), { target: { value: '2,50' } });
+  confirm();
+  save();
+  await screen.findByText(/Diese Buchung wurde bereits ersetzt/);
+  expect(screen.getByLabelText('Preis je Einheit')).toHaveValue('2,50');
+  const review = screen.getByRole('button', { name: 'Buchungsstand prüfen' });
+  await waitFor(() => expect(review).toBeEnabled());
+  fireEvent.click(review);
+  await screen.findByText(/Buchungsstand neu gelesen/);
+  expect(screen.getByRole('article', { name: 'Ersetzte Bearbeitungsbasis' })).toHaveTextContent(
+    'Buchung buy',
+  );
+  expect(screen.getByLabelText('Preis je Einheit')).toHaveValue('2,50');
+  fireEvent.submit(screen.getByRole('form'));
+  expect(api.correctExecution).toHaveBeenCalledOnce();
+  expect(api.correctExecution.mock.calls[0][1]).toBe(buy.id);
+  expect(screen.queryByText(/^Buchung korrigiert\./)).not.toBeInTheDocument();
+});
+
+it('ignores an obsolete A read after A→B→A while preserving the new amount draft', async () => {
+  const late = deferred<TradeTimelineEntryResponse[]>();
+  const { rerender } = render(<ExecutionDatesPanel tradeId="trade" onChanged={onChanged} />);
+  await open();
+  api.timeline.mockReturnValueOnce(late.promise);
+  changed();
+  timeline = [{ ...buy, trade_id: 'trade-b', id: 'b-buy' }];
+  rerender(<ExecutionDatesPanel tradeId="trade-b" onChanged={onChanged} />);
+  await screen.findByRole('article', { name: 'Buchung b-buy' });
+  timeline = [buy];
+  rerender(<ExecutionDatesPanel tradeId="trade" onChanged={onChanged} />);
+  await open();
+  fireEvent.change(screen.getByLabelText('Menge'), { target: { value: '12' } });
+  fireEvent.change(screen.getByLabelText('Preis je Einheit'), { target: { value: '2,50' } });
+  await act(() => {
+    late.resolve([buy, { ...buy, id: 'obsolete', supersedes_id: buy.id }]);
+    return late.promise;
+  });
+  expect(screen.getByLabelText('Menge')).toHaveValue('12');
+  expect(screen.getByLabelText('Preis je Einheit')).toHaveValue('2,50');
+  expect(screen.queryByRole('article', { name: 'Buchung obsolete' })).not.toBeInTheDocument();
+  expect(screen.queryByText(/Diese Buchung wurde bereits ersetzt/)).not.toBeInTheDocument();
+  expect(api.correctExecution).not.toHaveBeenCalled();
 });
