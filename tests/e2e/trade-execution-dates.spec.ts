@@ -69,9 +69,9 @@ test("correct existing BUY and SELL dates through UI, preserving quantities and 
   const tradeUrl = `${root}/trade-position/trades/${tid}`;
   await page.goto(`/trade-management?trade_id=${tid}`);
   const panel = page.getByRole("region", { name: "Kauf- und Verkaufsdaten" });
-  await panel.getByRole("button", { name: "Kaufdatum korrigieren" }).click();
+  await panel.getByRole("button", { name: "Kauf korrigieren" }).click();
   const form = panel.getByRole("form", {
-    name: "Ausführungsdatum korrigieren",
+    name: "Buchung korrigieren",
   });
   await expect(
     form.getByLabel("Kaufdatum korrigieren", { exact: true }),
@@ -84,11 +84,11 @@ test("correct existing BUY and SELL dates through UI, preserving quantities and 
   ).toBeChecked();
   await form
     .getByRole("checkbox", {
-      name: /Ich bestätige das tatsächliche Ausführungsdatum/,
+      name: /Ich bestätige die geänderten Buchungsdaten/,
     })
     .check();
-  await form.getByRole("button", { name: "Datumsänderung speichern" }).click();
-  await expect(panel.getByRole("status")).toHaveText(/Datum korrigiert/);
+  await form.getByRole("button", { name: "Korrektur speichern" }).click();
+  await expect(panel.getByRole("status")).toHaveText(/Buchung korrigiert/);
   const opened = await (await request.get(`${tradeUrl}/position`)).json();
   expect(opened.trade_id).toBe(tid);
   expect(opened.open_quantity).toBe(10);
@@ -129,18 +129,18 @@ test("correct existing BUY and SELL dates through UI, preserving quantities and 
 
   // A closed position must still offer correction of its historical sale date.
   await panel
-    .getByRole("button", { name: "Verkaufsdatum korrigieren" })
+    .getByRole("button", { name: "Verkauf korrigieren" })
     .click();
   await form
     .getByLabel("Verkaufsdatum korrigieren", { exact: true })
     .fill("2026-08-23");
   await form
     .getByRole("checkbox", {
-      name: /Ich bestätige das tatsächliche Ausführungsdatum/,
+      name: /Ich bestätige die geänderten Buchungsdaten/,
     })
     .check();
-  await form.getByRole("button", { name: "Datumsänderung speichern" }).click();
-  await expect(panel.getByRole("status")).toHaveText(/Datum korrigiert/);
+  await form.getByRole("button", { name: "Korrektur speichern" }).click();
+  await expect(panel.getByRole("status")).toHaveText(/Buchung korrigiert/);
   closed = await (await request.get(`${tradeUrl}/position`)).json();
   expect(closed.closed_on).toBe("2026-08-23");
   expect(closed.open_quantity).toBe(0);
@@ -191,6 +191,6 @@ test("correct existing BUY and SELL dates through UI, preserving quantities and 
   await page.reload();
   await expect(panel.getByText(/Ausgeführt: 2026-08-23/)).toBeVisible();
   await expect(
-    panel.getByRole("button", { name: "Verkaufsdatum korrigieren" }),
+    panel.getByRole("button", { name: "Verkauf korrigieren" }),
   ).toHaveCount(1);
 });
