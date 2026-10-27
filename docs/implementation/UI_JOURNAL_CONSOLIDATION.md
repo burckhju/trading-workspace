@@ -4,6 +4,27 @@ Umsetzungsstand vom 27.10.2026. Technische Entwicklungsqualifikation; keine
 fachliche Abnahme, Veröffentlichung oder nachgewiesene Installation am Nutzer-PC.
 Arbeitsstatus bleibt ausschließlich in [PB-019 Journal](../planning/PRODUCT_BACKLOG.md#pb-019-journal).
 
+## Nachträglicher Releaseauftrag vom 27.10.2026
+
+Nach Abschluss der unten dokumentierten Entwicklungsqualifikation und des
+Draft-PRs hat der Nutzer beauftragt: **„wenn grün mergen und auf dem pc
+implementieren“**. Dieser Folgeauftrag erweitert den ursprünglichen Umfang um
+den regulären Merge, die dafür erforderliche versionierte Bereitstellung und
+das Update über den bestehenden Linux-Starter. Er ist kein Nachweis einer schon
+erfolgten PC-Installation.
+
+Inzwischen wurde die eigenständige Analysekonsolidierung #292 in Main
+`28ebea47207fee3154f5e98dadc334929d0abe18` integriert und als `v1.5.24`
+veröffentlicht. UI6 übernimmt diesen Stand; dessen Tag und Verhalten bleiben
+erhalten. Der anschließende Release-Schnitt ergänzt die Versionsmetadaten für
+**1.5.25** und die [Release-Notiz](../releases/V1.5.25-JOURNAL-UI-CONSOLIDATION.md).
+Diese Ergänzung ändert keine UI6-Anwendungs-/Testlogik, Abhängigkeiten,
+Deploymenthelfer oder Workflows. Die ursprünglichen Angaben zu Basis 1.5.23,
+Dateigrenzen, Draft-Status und Prüfungen in den folgenden Abschnitten bleiben
+historische Entwicklungsnachweise. Die Kombination mit dem neueren Main und
+den Release-Metadaten benötigt eigene aktuelle PR- und Main-Push-Prüfungen;
+deren exakte Commit-, Tree-, Run- und Tagbindung wird im PR-Abschluss ausgewiesen.
+
 ## Basis, Dateigrenzen und Prüfbindung
 
 - Vor Beginn erneut gelesener Main:
