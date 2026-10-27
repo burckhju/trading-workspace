@@ -227,6 +227,12 @@ test("real PostgreSQL: captured full exit, review, journal, lesson and stale cor
     .getByRole("button", { name: "Journalaktion bestätigen", exact: true })
     .click();
   await expect(journal.getByLabel("Was lief gut?")).toHaveCount(0);
+  await expect(
+    journal.getByRole("heading", {
+      name: "Journal V1 · Finalisiert (unveränderlich)",
+      exact: true,
+    }),
+  ).toBeVisible();
   expect(journalWrites.at(-1)?.body).toMatchObject({
     operation: "FINALIZE",
     version_id: saved.id,
@@ -377,6 +383,12 @@ test("real PostgreSQL: captured full exit, review, journal, lesson and stale cor
     .getByRole("button", { name: "Journalaktion bestätigen", exact: true })
     .click();
   await expect(journal.getByLabel("Was lief gut?")).toHaveCount(0);
+  await expect(
+    journal.getByRole("heading", {
+      name: "Journal V2 · Finalisiert (unveränderlich)",
+      exact: true,
+    }),
+  ).toBeVisible();
   const corrected = await getHistory();
   expect(corrected.versions).toHaveLength(2);
   expect(corrected.versions[0].version.status).toBe("FINALIZED");

@@ -13,8 +13,10 @@ Arbeitsstatus bleibt ausschließlich in [PB-019 Journal](../planning/PRODUCT_BAC
   (#285/#284/#286/#287/#288) sind integriert und werden nicht erneut implementiert.
 - Eigener Branch: `refactor/journal-ui-consolidation`.
 - Implementierungs-/Testcommit: `15810e5995bb164af0dade8adca2e13c3b74c27c`; vollständiger Tree:
-  `94d592e91c825f53e862980eeb03050ec8d1f128`. Die lokalen Prüfungen unten wurden auf genau diesen Code- und
-  Testdateien ausgeführt. Nachfolgende Dokumentationscommits ändern diese Dateien nicht.
+  `94d592e91c825f53e862980eeb03050ec8d1f128`. Die lokalen Prüfungen unten wurden auf genau diesen
+  Anwendungsdateien und lokalen Testfällen ausgeführt; sie bleiben unverändert.
+  Die anschließend ergänzte ausdrückliche FINALIZED-Wartebedingung der nativen
+  Journey wird im regulären CI-Lauf des endgültigen PR-Heads qualifiziert.
 - [Draft-PR UI6](https://github.com/burckhju/trading-workspace/pull/289) bindet den endgültigen PR-Head, dessen Tree und die
   regulären PR-Workflows separat. Ein grüner Basislauf ist kein Nachweis für UI6.
 
@@ -263,7 +265,10 @@ den separaten Job **End-to-End / journal and evidence owner** aus. Dessen zwei
 Testtitel und Identitäten bleiben unverändert; nur die passende bestehende
 Journaljourney erhält neue Schritte. `check-journal-e2e-report.py` bleibt
 unverändert und verlangt weiterhin genau diese zwei tatsächlichen Erfolge ohne
-Skip/Retry. Der endgültige PR-Bericht führt Run, Checkout/Tree und Ergebnis als
+Skip/Retry. Nach FINALIZE wartet die Journaljourney ausdrücklich auf den im
+Readback angezeigten FINALIZED-Stand von V1 beziehungsweise V2. Das bloße Fehlen
+der Eingabefelder genügt dafür nicht, weil schon die Bestätigung den Editor ersetzt.
+Der endgültige PR-Bericht führt Run, Checkout/Tree und Ergebnis als
 eigenständigen CI-Nachweis. Die lokale Mock-HTTP-Prüfung ersetzt diesen nicht.
 
 Die technische Qualifikation behauptet keine neue fachliche FT-011-Freigabe,
