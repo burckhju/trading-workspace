@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { createMemoryRouter, MemoryRouter, RouterProvider } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CandidatePage } from './CandidatePage';
 
@@ -90,5 +90,56 @@ describe('exact persisted Candidate history', () => {
       fireEvent.click(button);
     });
     expect(mocks.evaluateAuto).toHaveBeenCalledTimes(1);
+  });
+  it('opens exactly the persisted analysis source with a return to this historical evaluation', async () => {
+    mocks.evaluations.mockResolvedValue([
+      {
+        id: 'eval-a',
+        version: 1,
+        direction: 'LONG',
+        model_id: 'TOP_DOWN_CANDIDATE',
+        model_version: '1.0',
+        qualification: 'QUALIFIED',
+        quality_status: 'GOOD',
+        warnings: [],
+        evaluated_at: '2026-10-25T10:00:00Z',
+        criteria: [],
+        sources: [
+          {
+            role: 'MARKET',
+            source_type: 'ANALYSIS',
+            source_id: 'analysis-1',
+            source_version: 3,
+            model_id: 'EOD_TREND_MOMENTUM',
+            model_version: '1.0.0',
+          },
+        ],
+      },
+    ]);
+    const router = createMemoryRouter(
+      [
+        { path: '/candidates', element: <CandidatePage /> },
+        { path: '/market-analyses/:analysisId', element: <h1>Exakte Analysequelle</h1> },
+      ],
+      { initialEntries: ['/candidates?candidate=candidate-1&evaluation=eval-a'] },
+    );
+    render(<RouterProvider router={router} />);
+    const source = await screen.findByRole('link', { name: 'MARKET: Analyseversion 3 öffnen' });
+    fireEvent.click(source);
+    await screen.findByRole('heading', { name: 'Exakte Analysequelle' });
+    const params = new URLSearchParams(router.state.location.search);
+    expect(router.state.location.pathname).toBe('/market-analyses/analysis-1');
+    expect(params.get('version')).toBe('3');
+    expect(params.get('candidate_id')).toBe('candidate-1');
+    expect(params.get('evaluation_id')).toBe('eval-a');
+    expect(mocks.evaluateAuto).not.toHaveBeenCalled();
+  });
+
+  it('does not reinterpret a legacy source type as an analysis link', async () => {
+    renderHistory();
+    await screen.findByRole('region', { name: 'Evaluation eval-a' });
+    expect(
+      screen.queryByRole('link', { name: /Analyseversion .* öffnen/ }),
+    ).not.toBeInTheDocument();
   });
 });

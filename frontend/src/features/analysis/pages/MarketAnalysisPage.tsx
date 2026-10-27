@@ -1,11 +1,10 @@
-import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 
-import { marketApiClient } from '../../market/services/client';
-import type { UnderlyingDetailResponse } from '../../market/types/api';
 import { AnalysisStatusBadge } from '../components/AnalysisStatusBadge';
 import { UnderlyingSearchCombobox } from '../components/UnderlyingSearchCombobox';
 import { analysisApiClient } from '../services/client';
+import { analysisDetailUrl, canonicalAnalysisSetupUrl } from '../services/analysisWorkflowContext';
 import type { AnalysisOverviewView } from '../services/savedViews';
 import { analysisPreferenceClient } from '../services/preferencesClient';
 import type { AnalysisOverview } from '../types/api';
@@ -52,10 +51,6 @@ export function MarketAnalysisPage() {
   const [savedViewName, setSavedViewName] = useState('');
   const [selectedSavedViewId, setSelectedSavedViewId] = useState('');
   const analysisLimit = 20;
-  const [selectedUnderlyingId, setSelectedUnderlyingId] = useState('');
-  const [selectedUnderlyingLabel, setSelectedUnderlyingLabel] = useState('');
-  const [underlyingDetail, setUnderlyingDetail] = useState<UnderlyingDetailResponse | null>(null);
-  const [listingId, setListingId] = useState('');
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -142,41 +137,6 @@ export function MarketAnalysisPage() {
       .finally(() => setLoading(false));
     return () => controller.abort();
   }, [loadAnalyses]);
-
-  useEffect(() => {
-    if (selectedUnderlyingId === '') {
-      setUnderlyingDetail(null);
-      setListingId('');
-      return;
-    }
-    const controller = new AbortController();
-    marketApiClient
-      .getUnderlying(selectedUnderlyingId, controller.signal)
-      .then((detail) => {
-        setUnderlyingDetail(detail);
-        const primary = detail.listings.find(
-          (listing) => listing.is_primary && listing.lifecycle_status === 'ACTIVE',
-        );
-        const firstActive = detail.listings.find(
-          (listing) => listing.lifecycle_status === 'ACTIVE',
-        );
-        setListingId(primary?.id ?? firstActive?.id ?? '');
-      })
-      .catch((error: unknown) => {
-        if (!(error instanceof DOMException && error.name === 'AbortError')) {
-          setMessage(
-            error instanceof Error ? error.message : 'Listings konnten nicht geladen werden.',
-          );
-        }
-      });
-    return () => controller.abort();
-  }, [selectedUnderlyingId]);
-
-  const activeListings = useMemo(
-    () =>
-      underlyingDetail?.listings.filter((listing) => listing.lifecycle_status === 'ACTIVE') ?? [],
-    [underlyingDetail],
-  );
 
   const activeFilters = [
     overviewUnderlyingId
@@ -276,23 +236,6 @@ export function MarketAnalysisPage() {
     }
   }
 
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setMessage(null);
-    try {
-      await analysisApiClient.create(selectedUnderlyingId, listingId);
-      setSelectedUnderlyingId('');
-      setSelectedUnderlyingLabel('');
-      setUnderlyingDetail(null);
-      setListingId('');
-      await loadAnalyses();
-    } catch (error) {
-      setMessage(
-        error instanceof Error ? error.message : 'Marktanalyse konnte nicht angelegt werden.',
-      );
-    }
-  }
-
   return (
     <section className="w-full space-y-8">
       <header>
@@ -304,54 +247,15 @@ export function MarketAnalysisPage() {
         </p>
       </header>
 
-      <form
-        onSubmit={(event) => void submit(event)}
-        className="grid gap-4 rounded-xl border border-slate-800 p-5 md:grid-cols-3"
+      <Link
+        to={canonicalAnalysisSetupUrl({
+          underlyingId: overviewUnderlyingId,
+          overviewContext: searchParams.toString(),
+        })}
+        className="inline-block rounded-lg border border-sky-700 px-4 py-2"
       >
-        <label className="text-sm">
-          Basiswert suchen
-          <div className="mt-2">
-            <UnderlyingSearchCombobox
-              value={selectedUnderlyingId}
-              selectedLabel={selectedUnderlyingLabel}
-              selectLabel="Basiswert"
-              emptyOptionLabel="Basiswert auswählen"
-              required
-              onChange={(id, label) => {
-                setSelectedUnderlyingId(id);
-                setSelectedUnderlyingLabel(label);
-              }}
-            />
-          </div>
-        </label>
-        <label className="text-sm">
-          Listing
-          <select
-            required
-            aria-label="Listing"
-            value={listingId}
-            disabled={selectedUnderlyingId === '' || activeListings.length === 0}
-            onChange={(event) => setListingId(event.target.value)}
-            className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 disabled:opacity-50"
-          >
-            <option value="">Listing auswählen</option>
-            {activeListings.map((listing) => (
-              <option key={listing.id} value={listing.id}>
-                {listing.ticker} ·{' '}
-                {listing.trading_venue_name ?? listing.trading_venue_mic ?? 'Markt'} ·{' '}
-                {listing.currency_code}
-                {listing.is_primary ? ' · Primär' : ''}
-              </option>
-            ))}
-          </select>
-        </label>
-        <button
-          disabled={selectedUnderlyingId === '' || listingId === ''}
-          className="self-end rounded-lg bg-slate-100 px-4 py-2 text-slate-950 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          Analyse anlegen
-        </button>
-      </form>
+        Neue Analyse vorbereiten
+      </Link>
 
       {message ? (
         <p role="alert" className="rounded-lg border border-amber-700 p-3 text-amber-200">
@@ -597,7 +501,12 @@ export function MarketAnalysisPage() {
             {items.map((item) => (
               <tr key={item.id} className="border-t border-slate-800">
                 <td className="p-3">
-                  <Link className="font-medium underline" to={`/market-analyses/${item.id}`}>
+                  <Link
+                    className="font-medium underline"
+                    to={analysisDetailUrl(item.id, item.latest_version, {
+                      overviewContext: searchParams.toString(),
+                    })}
+                  >
                     Details öffnen
                   </Link>
                   <div className="font-mono text-xs text-slate-500">{item.id}</div>
