@@ -1344,7 +1344,7 @@ bleiben getrennt. Die ursprünglichen historischen Nachweise oben bleiben erhalt
 | Restarbeit / nächste Abhängigkeit | Fachreview (insbesondere leerer Abschluss/Historienerhalt), Installationsfreigabe, externe Journale und Mobil-/Barrierefreiheitsabnahme bleiben offen. Allgemeiner Lesson-Review-/Folgeversionsdialog ist [separat qualifiziert](../implementation/FT012_LESSON_REVIEW_QUALIFICATION.md); FT011-Handoff-Race bleibt eigener Restscope. **Nächste Abhängigkeit:** bestehende Owner-/Versionsverträge, nicht Performance. |
 | Umfangsentscheidung | M7 bleibt ursprüngliche Referenz. Journal-V1 ist kein pauschaler Abschluss von M7 oder des ganzen Lernbereichs; keine neuen Scores, Pflichtbewertungen, Importquellen oder Modellaktivierungen. |
 
-**UI6-Fortschreibung vom 26.10.2026:** Die
+**UI6-Fortschreibung vom 27.10.2026:** Die
 [Konsolidierung der Journalansicht und exakten Quellenaufrufe](../implementation/UI_JOURNAL_CONSOLIDATION.md)
 baut auf Main `eff24912ebfc1499fcea2cbf32dc1dbf8b0975e4` / `v1.5.23` mit den
 integrierten UI1–UI5 auf. Unter `/post-trade?trade_id=…&journal_version_id=…`

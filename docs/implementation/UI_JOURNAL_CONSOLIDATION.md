@@ -1,6 +1,6 @@
 # UI6 — Journalansicht und exakte Quellenaufrufe konsolidieren
 
-Arbeitsauftrag vom 26.10.2026. Technische Entwicklungsqualifikation; keine
+Umsetzungsstand vom 27.10.2026. Technische Entwicklungsqualifikation; keine
 fachliche Abnahme, Veröffentlichung oder nachgewiesene Installation am Nutzer-PC.
 Arbeitsstatus bleibt ausschließlich in [PB-019 Journal](../planning/PRODUCT_BACKLOG.md#pb-019-journal).
 
@@ -12,11 +12,12 @@ Arbeitsstatus bleibt ausschließlich in [PB-019 Journal](../planning/PRODUCT_BAC
 - `VERSION` 1.5.23 und Tag `v1.5.23` zeigen auf diesen Stand. UI1–UI5
   (#285/#284/#286/#287/#288) sind integriert und werden nicht erneut implementiert.
 - Eigener Branch: `refactor/journal-ui-consolidation`.
-- Implementierungs-/Testcommit: `15810e5995bb164af0dade8adca2e13c3b74c27c`; vollständiger Tree:
-  `94d592e91c825f53e862980eeb03050ec8d1f128`. Die lokalen Prüfungen unten wurden auf genau diesen
-  Anwendungsdateien und lokalen Testfällen ausgeführt; sie bleiben unverändert.
-  Die anschließend ergänzte ausdrückliche FINALIZED-Wartebedingung der nativen
-  Journey wird im regulären CI-Lauf des endgültigen PR-Heads qualifiziert.
+- Qualifizierter Implementierungs-/Testcommit:
+  `3ed591ccee1f576c635655f3c90a83cce3f0c56d`; vollständiger Tree:
+  `e4bc00d82b003df1547f43209f2b93656f10f701`. Die abschließenden lokalen
+  Frontend-/Browserprüfungen unten wurden auf genau diesen Anwendungsdateien und
+  lokalen Testfällen ausgeführt. Der folgende Dokumentationscommit ändert sie nicht.
+  Die native Journey wird im regulären CI-Lauf des endgültigen PR-Heads qualifiziert.
 - [Draft-PR UI6](https://github.com/burckhju/trading-workspace/pull/289) bindet den endgültigen PR-Head, dessen Tree und die
   regulären PR-Workflows separat. Ein grüner Basislauf ist kein Nachweis für UI6.
 
@@ -206,14 +207,14 @@ Prüfschwellen, Runner oder Workflows verändert.
 
 | Prüfung | Ergebnis und Aussage |
 |---|---|
-| Unverändertes `bash scripts/check-frontend.sh` | 138 Dateien / 1.311 Tests bestanden. Coverage: Statements/Lines 95,26 %, Branches 89,07 %, Functions 89,93 %. Typecheck, ESLint ohne Warnungen, Prettier, komplette Coverage-Suite und Produktionsbuild erfolgreich. |
+| Unverändertes `bash scripts/check-frontend.sh` | 138 Dateien / 1.312 Tests bestanden, Exitcode 0. Coverage: Statements/Lines 95,29 %, Branches 89,08 %, Functions 90,00 %. Typecheck, ESLint ohne Warnungen, Prettier, komplette Coverage-Suite und Produktionsbuild erfolgreich. |
 | `TradeJournalPanel.test.tsx` | 33 Komponenten-/Routerregressionen. `createMemoryRouter`/`RouterProvider`, kein MemoryRouter als Guardnachweis. |
 | `journalClient.test.ts` und `journalViewState.test.ts` | 14 + 22 Tests zu Identität, Actor/Key/Command, Receipts, Query und fest gebundener Bestätigung. |
-| Lesson-, bestehende Parent-, Review- und neue Parentintegration | 55 Tests (6 + 11 + 22 + 16). Die 16 Integrationen verwenden echte Parent-, Journal-, Lesson- und Reviewkomponenten; nur I/O ist gemockt. |
+| Lesson-, bestehende Parent-, Review- und neue Parentintegration | 56 Tests (6 + 11 + 22 + 17). Die 17 Integrationen verwenden echte Parent-, Journal-, Lesson- und Reviewkomponenten; nur I/O ist gemockt. |
 | `JournalEvidenceOrigin.test.tsx` und bestehende Learning-Tests | Im vollständigen Frontend-Gate enthalten; UI3-Consumer unverändert. |
 | `test_journal_commands.py`, `test_journal_api.py`, `test_journal_source_inspection.py` | 40 bestanden; bestehende Backendverträge, kein PostgreSQL-Nachweis. |
 | `test_journal_e2e_contracts.py` und `test-journal-api-guard.mjs` | 91 Python- und 1 Node-Schutztest bestanden. |
-| Isolierte Chromium-UI- und Handoff-Specs | 6/6 bestanden: drei neue UI6- und drei bestehende Handoff-Fälle, Node 22.16.0, Chromium, ein Worker, keine Skips/Retry; 12,6 s. Echte Oberfläche/Router mit synthetischem HTTP, keine echte API oder PostgreSQL-Persistenz. |
+| Isolierte Chromium-UI- und Handoff-Specs | 6/6 bestanden: drei neue UI6- und drei bestehende Handoff-Fälle, Node 22.16.0, Chromium, ein Worker, keine Skips/Retry; 16,4 s. Echte Oberfläche/Router mit synthetischem HTTP, keine echte API oder PostgreSQL-Persistenz. |
 | Owner-Discovery und unveränderter Reportchecker | Genau zwei vorhandene, unverändert benannte Journeys erkannt; Discovery ist kein Ausführungsnachweis. |
 | Diff-/Scopeprüfung | Keine Backend-/API-/Migrations-/Versions-/Workflow-/Runneränderung; gezielte Dokumenteinfügungen erhalten alle vorhandenen historischen Zeilen. |
 
@@ -224,10 +225,19 @@ Abgleich bei bestätigter neuer Quelle möglich bleibt. Der vollständige Abschl
 oben qualifiziert die Korrektur. Die Browserprüfung fand außerdem den fehlenden
 Fokusrücksprung nach Escape; Rückfokus und Tab-/ShiftTab-Trap sind jetzt explizit geprüft.
 
+Der erste vollständige CI-Smoke-Lauf auf dem Zwischenstand `ac50ce48` zeigte zudem
+eine sporadisch fehlende SOURCE_VERSION_MISMATCH-Meldung im vorhandenen
+FT011-Handoff-Fall. Ein erfolgreicher Statusread löschte den konkreten
+Commandfehler zu früh. Eine neue echte Parentintegration reproduzierte dies
+deterministisch nach abgeschlossenem V2-Read. Die unbedingte Fehlerlöschung wurde
+entfernt; nur bewusstes erneutes Laden oder ein neuer Command löscht die Meldung.
+Die Regression, das Vollgate und die unveränderten sechs Browserfälle prüfen die
+Korrektur. Es wurde kein Timeout erhöht und kein zusätzlicher Retry eingeführt.
+
 ### Zuordnung der 18 Abnahmefälle
 
 `J` bezeichnet die direkten Journaltests; `S` die Client-/Zustandstests; `P` die
-16 echten Parentintegrationen und Adaptertests; `B` die tatsächlich ausgeführte
+17 echten Parentintegrationen und Adaptertests; `B` die tatsächlich ausgeführte
 synthetische Chromium-Spec. `N` bezeichnet Schritte der erweiterten nativen
 PostgreSQL-Journey, deren Ausführungsbeleg separat im PR geführt wird.
 

@@ -536,7 +536,7 @@ Tests: `test_journal_commands.py`, `test_journal_api.py`, `test_journal_source_i
 or proof that a test has run. FT-011 remains the source-currentness owner; Performance
 and Governance only read exact version/source/inspection-time boundaries. M0–M11 unchanged.
 
-### UI6 — Journalansicht und exakte Quellenaufrufe, 2026-10-26
+### UI6 — Journalansicht und exakte Quellenaufrufe, 2026-10-27
 
 [PB-019 Journal](../planning/PRODUCT_BACKLOG.md#pb-019-journal) und der bestehende
 ADR-POST-FT012-005-Vertrag → exakter
