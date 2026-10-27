@@ -609,10 +609,13 @@ test("changed mapping values are visible for review while the single editor pres
   await submit.focus();
   await page.keyboard.press("Enter");
   await expect(page.getByText(/Schritt gespeichert\./)).toBeVisible();
+  const apiPrefix = new URL(
+    process.env.VITE_API_BASE_URL ?? browserBase.origin,
+  ).pathname.replace(/\/$/, "");
   expect(state.writes).toEqual([
     {
       method: "PUT",
-      path: "/api/v1/market-data/provider-mappings",
+      path: `${apiPrefix}/api/v1/market-data/provider-mappings`,
       body: {
         listing_id: chosenListing,
         provider: "EODHD",
