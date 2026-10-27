@@ -3,6 +3,8 @@ import { TradeJournalPanel } from '../../learning/components/TradeJournalPanel';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 
+import { PendingNavigationGuard } from '../../../components/PendingNavigationGuard';
+
 import { LessonDraftFromEvidence } from '../../learning/components/LessonDraftFromEvidence';
 import { lessonReadbackClient } from '../../learning/services/lessonReadbackClient';
 import { ft011MaterializationClient } from '../../learning/services/materializationClient';
@@ -27,16 +29,94 @@ function materializationKey(tradeId: string, exitReviewVersionId: string): strin
   return `ft011-to-ft012:v2:${tradeId}:${exitReviewVersionId}`;
 }
 
+type NavigationState = { dirty: boolean; pending: boolean };
+type NavigationParticipant = 'journal' | 'review' | 'lesson' | 'materialization';
+
 export function PostTradeLearningPage() {
   const [searchParams] = useSearchParams();
-  const tradeId = searchParams.get('trade_id') ?? '';
-  return <PostTradeLearningContent key={tradeId} tradeId={tradeId} />;
+  const tradeIds = searchParams.getAll('trade_id');
+  const tradeId = tradeIds[0] ?? '';
+  const invalidSourceTrade =
+    searchParams.has('journal_version_id') && (tradeIds.length !== 1 || !tradeId.trim());
+  const states = useRef(new Map<NavigationParticipant, NavigationState>());
+  const [busy, setBusy] = useState(false);
+  const [discardVersion, setDiscardVersion] = useState(0);
+  const report = useCallback((participant: NavigationParticipant, state: NavigationState) => {
+    states.current.set(participant, state);
+    setBusy([...states.current.values()].some((value) => value.pending));
+  }, []);
+  const isContextPending = useCallback(
+    () => [...states.current.values()].some((value) => value.pending),
+    [],
+  );
+  const shouldBlock = useCallback(
+    () => [...states.current.values()].some((value) => value.dirty || value.pending),
+    [],
+  );
+  const discard = useCallback(() => {
+    if ([...states.current.values()].some((value) => value.pending)) return;
+    states.current.clear();
+    setDiscardVersion((version) => version + 1);
+  }, []);
+  return (
+    <>
+      <PendingNavigationGuard shouldBlock={shouldBlock} busy={busy} onDiscard={discard} />
+      {invalidSourceTrade ? (
+        <section role="alert" className="space-y-3 rounded-xl border border-amber-700 p-5">
+          <h1 className="text-xl font-semibold">Journalquelle nicht eindeutig</h1>
+          <p>
+            Die angefragte Journalversion benötigt genau eine nichtleere Trade-ID. Bitte den
+            Quellenlink prüfen und mit seinem ursprünglichen Trade öffnen.
+          </p>
+        </section>
+      ) : (
+        <PostTradeLearningContent
+          key={tradeId}
+          tradeId={tradeId}
+          report={report}
+          discardVersion={discardVersion}
+          isContextPending={isContextPending}
+        />
+      )}
+    </>
+  );
 }
 
-function PostTradeLearningContent({ tradeId }: { tradeId: string }) {
+function PostTradeLearningContent({
+  tradeId,
+  report,
+  discardVersion,
+  isContextPending,
+}: {
+  tradeId: string;
+  report: (participant: NavigationParticipant, state: NavigationState) => void;
+  discardVersion: number;
+  isContextPending: () => boolean;
+}) {
   const [trade, setTrade] = useState<TradeResponse | null>(null);
   const [warrant, setWarrant] = useState<WarrantResponse | null>(null);
   const [status, setStatus] = useState<Ft011MaterializationStatus | null>(null);
+  const [statusValid, setStatusValid] = useState(false);
+  const [completedRefreshVersion, setCompletedRefreshVersion] = useState<number | null>(null);
+  const [lessonFormSourceId, setLessonFormSourceId] = useState<string | null>(null);
+  const directLessonState = useRef<NavigationState>({ dirty: false, pending: false });
+  const lessonResolution = useRef<{
+    sourceId: string | null;
+    references: LessonEvidenceReference[] | null;
+  }>({ sourceId: null, references: null });
+  const reportJournal = useCallback((state: NavigationState) => report('journal', state), [report]);
+  const reportReview = useCallback((state: NavigationState) => report('review', state), [report]);
+  const reportLesson = useCallback(
+    (state: NavigationState) => {
+      directLessonState.current = state;
+      report('lesson', state);
+      const resolved = lessonResolution.current;
+      if (!state.dirty && !state.pending && resolved.references !== null) {
+        setLessonFormSourceId(resolved.references.length === 0 ? resolved.sourceId : null);
+      }
+    },
+    [report],
+  );
   const [lessonReferences, setLessonReferences] = useState<LessonEvidenceReference[] | null>(null);
   const [lessonSourceId, setLessonSourceId] = useState<string | null>(null);
   const [lessonReadbackError, setLessonReadbackError] = useState<string | null>(null);
@@ -60,10 +140,21 @@ function PostTradeLearningContent({ tradeId }: { tradeId: string }) {
     mounted.current = true;
     return () => {
       mounted.current = false;
+      report('materialization', { dirty: false, pending: false });
     };
-  }, []);
+  }, [report]);
 
   const learningEvidenceId = status?.materialized ? status.learning_evidence_id : null;
+  lessonResolution.current = {
+    sourceId: learningEvidenceId,
+    references:
+      statusValid &&
+      completedRefreshVersion === refreshVersion &&
+      lessonSourceId === learningEvidenceId &&
+      !lessonReadbackError
+        ? lessonReferences
+        : null,
+  };
 
   useEffect(() => {
     if (!tradeId) {
@@ -96,14 +187,19 @@ function PostTradeLearningContent({ tradeId }: { tradeId: string }) {
   }, [tradeId]);
 
   useEffect(() => {
-    setStatus(null);
+    setStatusValid(false);
     if (!tradeId) return undefined;
 
     const controller = new AbortController();
     ft011MaterializationClient
       .status(tradeId, controller.signal)
       .then((nextStatus) => {
-        if (!controller.signal.aborted) setStatus(nextStatus);
+        if (!controller.signal.aborted) {
+          setStatus(nextStatus);
+          setStatusValid(true);
+          setCompletedRefreshVersion(refreshVersion);
+          setMaterializationError(null);
+        }
       })
       .catch(() => {
         if (!controller.signal.aborted) {
@@ -124,7 +220,12 @@ function PostTradeLearningContent({ tradeId }: { tradeId: string }) {
     lessonReadbackClient
       .listForEvidence(learningEvidenceId, controller.signal)
       .then((references) => {
-        if (!controller.signal.aborted) setLessonReferences(references);
+        if (!controller.signal.aborted) {
+          setLessonReferences(references);
+          if (!directLessonState.current.dirty && !directLessonState.current.pending) {
+            setLessonFormSourceId(references.length === 0 ? learningEvidenceId : null);
+          }
+        }
       })
       .catch(() => {
         if (!controller.signal.aborted) {
@@ -133,7 +234,7 @@ function PostTradeLearningContent({ tradeId }: { tradeId: string }) {
       });
 
     return () => controller.abort();
-  }, [learningEvidenceId, lessonRefreshVersion]);
+  }, [learningEvidenceId, lessonRefreshVersion, refreshVersion]);
 
   const handleMaterialize = useCallback(async () => {
     if (
@@ -141,12 +242,15 @@ function PostTradeLearningContent({ tradeId }: { tradeId: string }) {
       !status?.ready ||
       status.materialized ||
       !status.exit_review_version_id ||
-      mutationPending.current
+      mutationPending.current ||
+      !statusValid ||
+      completedRefreshVersion !== refreshVersion
     ) {
       return;
     }
 
     mutationPending.current = true;
+    report('materialization', { dirty: false, pending: true });
     setMaterializing(true);
     setMaterializationError(null);
     try {
@@ -163,12 +267,21 @@ function PostTradeLearningContent({ tradeId }: { tradeId: string }) {
       mutationPending.current = false;
       if (mounted.current) {
         // A response/replay is not a fresh READY or CURRENT assessment.
-        setStatus(null);
+        setStatusValid(false);
         setMaterializing(false);
+        report('materialization', { dirty: false, pending: false });
         refreshLearningState();
       }
     }
-  }, [refreshLearningState, status, tradeId]);
+  }, [
+    completedRefreshVersion,
+    refreshLearningState,
+    refreshVersion,
+    report,
+    status,
+    statusValid,
+    tradeId,
+  ]);
 
   return (
     <div className="min-w-0 w-full space-y-6">
@@ -208,7 +321,7 @@ function PostTradeLearningContent({ tradeId }: { tradeId: string }) {
             <div>
               <dt className="text-slate-500">Learning-Übergang</dt>
               <dd className="mt-1 font-medium">
-                {status === null
+                {status === null || !statusValid || completedRefreshVersion !== refreshVersion
                   ? 'Übergabestatus wird geprüft'
                   : status.materialized
                     ? 'LearningEvidence materialisiert'
@@ -236,10 +349,20 @@ function PostTradeLearningContent({ tradeId }: { tradeId: string }) {
         onLearningStateChanged={refreshLearningState}
         externalRefreshVersion={refreshVersion}
         showMaterializationAction={false}
+        onNavigationStateChange={reportReview}
+        isContextPending={isContextPending}
+        discardVersion={discardVersion}
       />
 
       {tradeId && (
-        <TradeJournalPanel key={tradeId} tradeId={tradeId} refreshVersion={refreshVersion} />
+        <TradeJournalPanel
+          key={tradeId}
+          tradeId={tradeId}
+          refreshVersion={refreshVersion}
+          onNavigationStateChange={reportJournal}
+          isContextPending={isContextPending}
+          discardVersion={discardVersion}
+        />
       )}
 
       {tradeId && (
@@ -277,7 +400,12 @@ function PostTradeLearningContent({ tradeId }: { tradeId: string }) {
           <button
             type="button"
             className="mt-4 rounded-lg bg-amber-500 px-4 py-2 text-sm font-medium text-slate-950 disabled:opacity-50"
-            disabled={materializing || !status.exit_review_version_id}
+            disabled={
+              materializing ||
+              !statusValid ||
+              completedRefreshVersion !== refreshVersion ||
+              !status.exit_review_version_id
+            }
             onClick={() => void handleMaterialize()}
           >
             {materializing ? 'Wird übergeben…' : 'An Lessons Learned übergeben'}
@@ -288,7 +416,7 @@ function PostTradeLearningContent({ tradeId }: { tradeId: string }) {
         </section>
       )}
 
-      {status?.materialized && learningEvidenceId && (
+      {(learningEvidenceId || lessonFormSourceId) && (
         <section className="mt-6 rounded-xl border border-slate-800 p-5">
           <h2 className="text-lg font-semibold">FT-012 Learning</h2>
           <p className="mt-2 text-sm text-slate-400">
@@ -327,9 +455,27 @@ function PostTradeLearningContent({ tradeId }: { tradeId: string }) {
                 ))}
               </ul>
             </div>
-          ) : (
+          ) : null}
+          {!learningEvidenceId && lessonFormSourceId && (
+            <p role="status" className="mt-3 text-sm text-amber-200">
+              Die Eingaben bleiben an der bisherigen Evidence {lessonFormSourceId} gebunden. Die
+              aktuelle Übergabe ist noch nicht als Lessonquelle bestätigt.
+            </p>
+          )}
+          {lessonFormSourceId && (
             <LessonDraftFromEvidence
-              learningEvidenceId={learningEvidenceId}
+              learningEvidenceId={learningEvidenceId ?? lessonFormSourceId}
+              disabled={
+                !statusValid ||
+                completedRefreshVersion !== refreshVersion ||
+                !learningEvidenceId ||
+                lessonSourceId !== learningEvidenceId ||
+                lessonReferences === null ||
+                lessonReadbackError !== null
+              }
+              onNavigationStateChange={reportLesson}
+              isContextPending={isContextPending}
+              discardVersion={discardVersion}
               onCreated={refreshLessonReferences}
             />
           )}
