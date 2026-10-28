@@ -1,6 +1,6 @@
 {
   "name": "trading-workspace-frontend",
-  "version": "1.5.23",
+  "version": "1.5.27",
   "private": true,
   "type": "module",
   "scripts": {

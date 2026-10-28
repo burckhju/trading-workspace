@@ -1,6 +1,6 @@
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
+import { createMemoryRouter, MemoryRouter, RouterProvider } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { marketApiClient } from '../../market/services/client';
@@ -122,32 +122,72 @@ beforeEach(() => {
 });
 
 describe('MarketAnalysisPage', () => {
-  it('creates an analysis using selected domain references instead of UUID inputs', async () => {
+  it('opens the shared editor with the selected overview context without creating an analysis', async () => {
     const user = userEvent.setup();
+    const router = createMemoryRouter(
+      [
+        { path: '/market-analyses', element: <MarketAnalysisPage /> },
+        { path: '/market-analyses/setup', element: <h1>Gemeinsamer Analyseeditor</h1> },
+      ],
+      {
+        initialEntries: [
+          `/market-analyses?underlying_id=${underlyingId}&status=COMPLETED&offset=20`,
+        ],
+      },
+    );
+    render(<RouterProvider router={router} />);
+    const link = await screen.findByRole('link', { name: 'Neue Analyse vorbereiten' });
+    await waitFor(() => expect(analysisApiClient.listPage).toHaveBeenCalled());
+    expect(screen.queryByRole('button', { name: 'Analyse anlegen' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('combobox', { name: 'Listing' })).not.toBeInTheDocument();
+    await user.click(link);
+    const params = new URLSearchParams(router.state.location.search);
+    expect(router.state.location.pathname).toBe('/market-analyses/setup');
+    expect(params.get('underlying_id')).toBe(underlyingId);
+    expect(new URLSearchParams(params.get('overview_context') ?? '').get('status')).toBe(
+      'COMPLETED',
+    );
+    expect(new URLSearchParams(params.get('overview_context') ?? '').get('offset')).toBe('20');
+    expect(analysisApiClient.create).not.toHaveBeenCalled();
+    expect(marketApiClient.getUnderlying).not.toHaveBeenCalled();
+  });
+
+  it('pins the displayed run version and preserves the overview on its detail link', async () => {
+    vi.mocked(analysisApiClient.listPage).mockResolvedValue({
+      items: [
+        {
+          id: '33333333-3333-4333-8333-333333333333',
+          underlying_id: underlyingId,
+          listing_id: listingId,
+          created_at: '2026-08-06T10:00:00Z',
+          created_by: 'Tester',
+          underlying_name: 'Siemens AG',
+          ticker: 'SIE',
+          trading_venue_mic: 'XETR',
+          trading_venue_name: 'Xetra',
+          currency_code: 'EUR',
+          latest_version: 4,
+          latest_status: 'COMPLETED',
+          latest_quality_status: 'GOOD',
+          latest_analysis_time: '2026-08-06T10:00:00Z',
+        },
+      ],
+      total: 1,
+      offset: 0,
+      limit: 20,
+    });
     render(
-      <MemoryRouter>
+      <MemoryRouter initialEntries={['/market-analyses?quality_status=GOOD']}>
         <MarketAnalysisPage />
       </MemoryRouter>,
     );
-
-    await user.selectOptions(
-      await screen.findByRole('combobox', { name: 'Basiswert' }),
-      underlyingId,
-    );
-    await waitFor(() =>
-      expect(marketApiClient.getUnderlying).toHaveBeenCalledWith(
-        underlyingId,
-        expect.any(AbortSignal),
-      ),
-    );
+    const link = await screen.findByRole('link', { name: 'Details öffnen' });
+    const url = new URL(link.getAttribute('href') ?? '', 'https://workspace.invalid');
+    expect(url.pathname).toBe('/market-analyses/33333333-3333-4333-8333-333333333333');
+    expect(url.searchParams.get('version')).toBe('4');
     expect(
-      await screen.findByRole('option', { name: 'SIE · Xetra · EUR · Primär' }),
-    ).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Analyse anlegen' }));
-
-    await waitFor(() =>
-      expect(analysisApiClient.create).toHaveBeenCalledWith(underlyingId, listingId),
-    );
+      new URLSearchParams(url.searchParams.get('overview_context') ?? '').get('quality_status'),
+    ).toBe('GOOD');
   });
 
   it('persists date filters, renders removable chips and resets all overview filters', async () => {

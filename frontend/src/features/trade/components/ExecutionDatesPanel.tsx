@@ -9,6 +9,12 @@ import {
   todayInZone,
 } from '../services/executionDateCorrection';
 import {
+  executionAmountChanges,
+  executionAmountCorrection,
+  executionPrice,
+  executionQuantity,
+} from '../services/executionAmountCorrection';
+import {
   emptyExecutionCurrency,
   executionCurrencyDeclaration,
   executionCurrencyText,
@@ -29,10 +35,12 @@ interface Props {
   onWriteBlockedChange?: (blocked: boolean) => void;
 }
 interface Editor {
-  kind: 'date' | 'currency';
+  kind: 'facts' | 'currency';
   entry: TradeTimelineEntryResponse;
 }
-interface DateDraft {
+interface CorrectionDraft {
+  quantity: string;
+  price: string;
   date: string;
   keepTime: boolean;
   confirmed: boolean;
@@ -48,7 +56,9 @@ interface CurrencyPending {
   busy: boolean;
   writeBlocked?: boolean;
 }
-const emptyDraft = (): DateDraft => ({
+const emptyDraft = (): CorrectionDraft => ({
+  quantity: '',
+  price: '',
   date: '',
   keepTime: false,
   confirmed: false,
@@ -63,12 +73,29 @@ function currencyBasis(entry: TradeTimelineEntryResponse) {
     entry.currency_resolution ?? null,
   ]);
 }
-function initialDraft(entry: TradeTimelineEntryResponse): DateDraft {
+function initialDraft(entry: TradeTimelineEntryResponse): CorrectionDraft {
   const context = executionDateContext(entry);
-  return { ...emptyDraft(), date: context.date, keepTime: context.hasTime };
+  if (entry.quantity === null || entry.price_per_unit === null || !entry.execution_side) {
+    throw new Error('Die gespeicherte Kauf-/Verkaufsbuchung ist unvollständig.');
+  }
+  return {
+    ...emptyDraft(),
+    quantity: String(entry.quantity),
+    price: entry.price_per_unit,
+    date: context.date,
+    keepTime: context.hasTime,
+  };
 }
 function errorText(cause: unknown) {
   return cause instanceof Error ? cause.message : 'Der aktuelle Buchungsstand ist nicht verfügbar.';
+}
+function validationError(validate: () => unknown): string | null {
+  try {
+    validate();
+    return null;
+  } catch (cause) {
+    return errorText(cause);
+  }
 }
 
 /** One read owner for current executions, immutable history and the single pinned editor. */
@@ -124,10 +151,17 @@ function ExecutionDatesContext({
   function isDirty() {
     if (recoveryRef.current && !recoveryRef.current.confirmed) return true;
     if (editorRef.current?.kind === 'currency') return currencyPendingRef.current.dirty;
-    if (editorRef.current?.kind !== 'date') return false;
+    if (editorRef.current?.kind !== 'facts') return false;
     const original = initialDraft(editorRef.current.entry);
     const current = draftRef.current;
+    const amounts = executionAmountChanges(
+      editorRef.current.entry,
+      current.quantity,
+      current.price,
+    );
     return (
+      amounts.quantity ||
+      amounts.price ||
       current.date !== original.date ||
       current.keepTime !== original.keepTime ||
       current.confirmed ||
@@ -143,7 +177,7 @@ function ExecutionDatesContext({
       currencyPendingRef.current = { ...currencyPendingRef.current, dirty: false };
       setCurrencyPending(currencyPendingRef.current);
       const next =
-        editorRef.current?.kind === 'date' ? initialDraft(editorRef.current.entry) : emptyDraft();
+        editorRef.current?.kind === 'facts' ? initialDraft(editorRef.current.entry) : emptyDraft();
       draftRef.current = next;
       setDraft(next);
     },
@@ -158,7 +192,7 @@ function ExecutionDatesContext({
     );
     notify();
   }, [notify]);
-  function changeDraft(next: DateDraft) {
+  function changeDraft(next: CorrectionDraft) {
     draftRef.current = next;
     setDraft(next);
     notify();
@@ -245,7 +279,7 @@ function ExecutionDatesContext({
     return () => window.removeEventListener(tradeTimelineChangedEvent, changed);
   }, [load, tradeId]);
   useEffect(() => {
-    if (editor?.kind === 'date')
+    if (editor?.kind === 'facts')
       region.current?.querySelector<HTMLInputElement>('input[type="date"]')?.focus();
     else if (!editor && previousEditor.current && view === 'current')
       region.current?.focus({ preventScroll: true });
@@ -327,7 +361,7 @@ function ExecutionDatesContext({
           );
           return;
         }
-        const nextDraft = kind === 'date' ? initialDraft(entry) : emptyDraft();
+        const nextDraft = kind === 'facts' ? initialDraft(entry) : emptyDraft();
         const next = { kind, entry };
         editorRef.current = next;
         setEditor(next);
@@ -346,7 +380,7 @@ function ExecutionDatesContext({
     const currentDraft = draftRef.current;
     if (
       !selected ||
-      selected.kind !== 'date' ||
+      selected.kind !== 'facts' ||
       !currentDraft.confirmed ||
       cancelled ||
       lock.current ||
@@ -359,7 +393,18 @@ function ExecutionDatesContext({
     )
       return;
     const original = initialDraft(selected.entry);
-    if (currentDraft.date === original.date && currentDraft.keepTime === original.keepTime) return;
+    const amounts = executionAmountChanges(
+      selected.entry,
+      currentDraft.quantity,
+      currentDraft.price,
+    );
+    if (
+      !amounts.quantity &&
+      !amounts.price &&
+      currentDraft.date === original.date &&
+      currentDraft.keepTime === original.keepTime
+    )
+      return;
     const effective = effectiveExecutions(entriesRef.current).find(
       (entry) => entry.id === selected.entry.id,
     );
@@ -372,7 +417,13 @@ function ExecutionDatesContext({
     let payload;
     try {
       payload = {
-        ...executionDateCorrection(selected.entry, currentDraft.date, currentDraft.keepTime),
+        ...executionAmountCorrection(
+          selected.entry,
+          currentDraft.date,
+          currentDraft.keepTime,
+          currentDraft.quantity,
+          currentDraft.price,
+        ),
         ...executionCurrencyDeclaration(currentDraft.currency),
       };
     } catch (cause) {
@@ -410,12 +461,12 @@ function ExecutionDatesContext({
       if (!isCurrent() || !history) return;
       assertReplacement(history, receipt);
       changeRecovery(null);
-      setMessage('Datum korrigiert. Die ursprüngliche Buchung bleibt in der Historie erhalten.');
+      setMessage('Buchung korrigiert. Die ursprüngliche Buchung bleibt in der Historie erhalten.');
     } catch (cause) {
       if (!isCurrent()) return;
       if (receipt) {
         setMessage(
-          'Datum gespeichert, Ansicht noch nicht aktualisiert. Bitte den Buchungsstand prüfen. ' +
+          'Buchungskorrektur gespeichert, Ansicht noch nicht aktualisiert. Bitte den Buchungsstand prüfen. ' +
             errorText(cause),
         );
       } else {
@@ -454,12 +505,29 @@ function ExecutionDatesContext({
     : undefined;
   const stale = Boolean(editor && !selectedCurrent);
   const sourceChanged = Boolean(
-    editor?.kind === 'date' &&
+    editor?.kind === 'facts' &&
       selectedCurrent &&
       currencyBasis(selectedCurrent) !== currencyBasis(editor.entry),
   );
-  const context = editor?.kind === 'date' ? executionDateContext(editor.entry) : null;
-  const unchanged = context && draft.date === context.date && (draft.keepTime || !context.hasTime);
+  const context = editor?.kind === 'facts' ? executionDateContext(editor.entry) : null;
+  const amountChanges =
+    editor?.kind === 'facts'
+      ? executionAmountChanges(editor.entry, draft.quantity, draft.price)
+      : { quantity: false, price: false };
+  const timeChanged = Boolean(
+    context && (draft.date !== context.date || draft.keepTime !== context.hasTime),
+  );
+  const unchanged = !timeChanged && !amountChanges.quantity && !amountChanges.price;
+  const quantityError = context ? validationError(() => executionQuantity(draft.quantity)) : null;
+  const priceError =
+    context && editor
+      ? validationError(() => executionPrice(draft.price, editor.entry.price_per_unit!))
+      : null;
+  const timeError =
+    context && editor
+      ? validationError(() => executionDateCorrection(editor.entry, draft.date, draft.keepTime))
+      : null;
+  const invalid = Boolean(quantityError || priceError || timeError);
   const writeBlocked =
     isBusy() ||
     busy ||
@@ -486,11 +554,53 @@ function ExecutionDatesContext({
   function renderEditor() {
     if (!editor) return null;
     const selected = editor.entry;
+    const changes: { field: string; previous: string; next: string }[] = [];
+    if (context && !invalid) {
+      if (amountChanges.quantity)
+        changes.push({
+          field: 'Menge',
+          previous: String(selected.quantity),
+          next: String(executionQuantity(draft.quantity)),
+        });
+      if (amountChanges.price)
+        changes.push({
+          field: 'Preis je Einheit',
+          previous: selected.price_per_unit!,
+          next: executionPrice(draft.price, selected.price_per_unit!),
+        });
+      if (timeChanged) {
+        const time = executionDateCorrection(selected, draft.date, draft.keepTime);
+        changes.push({
+          field: 'Ausführung',
+          previous: context.hasTime
+            ? selected.occurred_at
+            : `${context.date} · ${context.timezone} (Uhrzeit unbekannt)`,
+          next:
+            'executed_at' in time
+              ? time.executed_at
+              : `${time.executed_on} · ${time.execution_timezone} (Uhrzeit unbekannt)`,
+        });
+      }
+      if (draft.currency.code.trim())
+        changes.push({
+          field: 'Währungsbestätigung',
+          previous: executionCurrencyText(
+            selected.currency_resolution,
+            selected.currency_confirmation,
+          ),
+          next: draft.currency.code.trim().toUpperCase() + ' · ausdrücklich bestätigen',
+        });
+    }
     return (
       <div className="space-y-3">
         <p className="break-all font-medium">
-          Buchung {selected.id} · {selected.execution_side} · {selected.quantity} Stück · Preis{' '}
-          {selected.price_per_unit}
+          Buchung {selected.id} · {selected.execution_side}
+          {editor.kind === 'currency' && (
+            <>
+              {' '}
+              · {selected.quantity} Stück · Preis {selected.price_per_unit}
+            </>
+          )}
         </p>
         {stale && (
           <p role="alert">
@@ -522,7 +632,7 @@ function ExecutionDatesContext({
           />
         ) : context && !cancelled ? (
           <form
-            aria-label="Ausführungsdatum korrigieren"
+            aria-label="Buchung korrigieren"
             className="space-y-3"
             onSubmit={(event) => {
               event.preventDefault();
@@ -530,9 +640,15 @@ function ExecutionDatesContext({
             }}
           >
             <p className="text-sm text-slate-400">
+              Diese Korrektur berichtigt die bestehende Buchung. Das Original bleibt in der
+              Historie; es wird kein zusätzlicher Kauf oder Verkauf erfasst. Trade, Produkt und
+              Richtung bleiben fest zugeordnet.
+            </p>
+            <p className="text-sm text-slate-400">
               Währung:{' '}
               {executionCurrencyText(selected.currency_resolution, selected.currency_confirmation)}
             </p>
+            <ExecutionCurrencySources resolution={selected.currency_resolution} />
             {sourceChanged && (
               <div role="alert" className="space-y-2 text-amber-300">
                 <p>
@@ -546,6 +662,7 @@ function ExecutionDatesContext({
                     selectedCurrent?.currency_confirmation,
                   )}
                 </p>
+                <ExecutionCurrencySources resolution={selectedCurrent?.currency_resolution} />
                 <button
                   type="button"
                   disabled={writeBlocked || loading || Boolean(loadError)}
@@ -569,6 +686,81 @@ function ExecutionDatesContext({
                 </button>
               </div>
             )}
+            <div className="grid min-w-0 gap-3 sm:grid-cols-2">
+              <div className="min-w-0">
+                <label htmlFor="execution-correction-quantity" className="block">
+                  Menge
+                </label>
+                <input
+                  id="execution-correction-quantity"
+                  type="text"
+                  inputMode="numeric"
+                  required
+                  value={draft.quantity}
+                  disabled={writeBlocked || stale}
+                  aria-invalid={Boolean(quantityError)}
+                  aria-describedby={
+                    quantityError ? 'execution-correction-quantity-error' : undefined
+                  }
+                  onChange={(event) =>
+                    changeDraft({
+                      ...draftRef.current,
+                      quantity: event.target.value,
+                      confirmed: false,
+                    })
+                  }
+                  className="mt-1 block w-full min-w-0 rounded border bg-slate-950 p-2"
+                />
+                {quantityError && (
+                  <p
+                    id="execution-correction-quantity-error"
+                    role="alert"
+                    className="mt-1 text-sm text-amber-300"
+                  >
+                    {quantityError}
+                  </p>
+                )}
+              </div>
+              <div className="min-w-0">
+                <label htmlFor="execution-correction-price" className="block">
+                  Preis je Einheit
+                </label>
+                <input
+                  id="execution-correction-price"
+                  type="text"
+                  inputMode="decimal"
+                  required
+                  value={draft.price}
+                  disabled={writeBlocked || stale}
+                  aria-invalid={Boolean(priceError)}
+                  aria-describedby={
+                    priceError
+                      ? 'execution-correction-price-error'
+                      : 'execution-correction-price-help'
+                  }
+                  onChange={(event) =>
+                    changeDraft({
+                      ...draftRef.current,
+                      price: event.target.value,
+                      confirmed: false,
+                    })
+                  }
+                  className="mt-1 block w-full min-w-0 rounded border bg-slate-950 p-2"
+                />
+                <p id="execution-correction-price-help" className="mt-1 text-xs text-slate-400">
+                  Dezimalpunkt oder Dezimalkomma, ohne Tausendertrennzeichen.
+                </p>
+                {priceError && (
+                  <p
+                    id="execution-correction-price-error"
+                    role="alert"
+                    className="mt-1 text-sm text-amber-300"
+                  >
+                    {priceError}
+                  </p>
+                )}
+              </div>
+            </div>
             <label className="block">
               {dateLabel(selected)} korrigieren
               <input
@@ -578,12 +770,23 @@ function ExecutionDatesContext({
                 max={todayInZone(context.timezone)}
                 value={draft.date}
                 disabled={writeBlocked || stale}
+                aria-invalid={Boolean(timeError)}
+                aria-describedby={timeError ? 'execution-correction-time-error' : undefined}
                 onChange={(event) =>
                   changeDraft({ ...draftRef.current, date: event.target.value, confirmed: false })
                 }
                 className="mt-1 block max-w-full rounded border bg-slate-950 p-2"
               />
             </label>
+            {timeError && (
+              <p
+                id="execution-correction-time-error"
+                role="alert"
+                className="text-sm text-amber-300"
+              >
+                {timeError}
+              </p>
+            )}
             <p className="text-sm text-slate-400">
               Zeitzone: {context.timezone}. Maßgeblich ist die tatsächliche Ausführung, nicht das
               Eingabedatum.
@@ -614,21 +817,6 @@ function ExecutionDatesContext({
                 Es wird nur das bestätigte Datum gespeichert. Die genaue Uhrzeit gilt als unbekannt.
               </p>
             )}
-            <p className="text-sm text-slate-400">
-              Es entsteht kein weiterer Kauf oder Verkauf. Die Korrektur erhält einen eigenen
-              Erfassungszeitpunkt; der alte Eintrag bleibt sichtbar.
-            </p>
-            <label className="block">
-              <input
-                type="checkbox"
-                checked={draft.confirmed}
-                disabled={writeBlocked || stale || sourceChanged}
-                onChange={(event) =>
-                  changeDraft({ ...draftRef.current, confirmed: event.target.checked })
-                }
-              />{' '}
-              Ich bestätige das tatsächliche Ausführungsdatum dieser Buchung.
-            </label>
             <ExecutionCurrencyOverride
               key={selected.id}
               value={draft.currency}
@@ -638,6 +826,51 @@ function ExecutionDatesContext({
               disabled={writeBlocked || stale || sourceChanged}
               correction
             />
+            {!invalid && changes.length > 0 && !unchanged && (
+              <table className="w-full table-fixed text-left text-sm">
+                <caption className="mb-2 text-left font-medium">Geänderte Buchungsdaten</caption>
+                <thead>
+                  <tr>
+                    <th scope="col" className="w-1/4 p-1">
+                      Feld
+                    </th>
+                    <th scope="col" className="p-1">
+                      Alt
+                    </th>
+                    <th scope="col" className="p-1">
+                      Neu
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {changes.map((change) => (
+                    <tr key={change.field}>
+                      <th scope="row" className="break-words p-1 align-top font-normal">
+                        {change.field}
+                      </th>
+                      <td className="break-all p-1 align-top">{change.previous}</td>
+                      <td className="break-all p-1 align-top">{change.next}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+            {unchanged && Boolean(draft.currency.code || draft.currency.note) && (
+              <p className="text-sm text-amber-300">
+                Für eine reine Währungsbestätigung bitte „Währung prüfen / bestätigen“ öffnen.
+              </p>
+            )}
+            <label className="block">
+              <input
+                type="checkbox"
+                checked={draft.confirmed}
+                disabled={writeBlocked || stale || sourceChanged || invalid}
+                onChange={(event) =>
+                  changeDraft({ ...draftRef.current, confirmed: event.target.checked })
+                }
+              />{' '}
+              Ich bestätige die geänderten Buchungsdaten dieser Buchung.
+            </label>
             <div className="flex flex-wrap gap-3">
               <button
                 type="submit"
@@ -647,13 +880,14 @@ function ExecutionDatesContext({
                   Boolean(loadError) ||
                   stale ||
                   sourceChanged ||
+                  invalid ||
                   Boolean(unchanged) ||
                   !draft.confirmed ||
                   !draft.date
                 }
                 className="rounded border border-sky-700 p-2 disabled:opacity-50"
               >
-                Datumsänderung speichern
+                Korrektur speichern
               </button>
               <button
                 type="button"
@@ -689,9 +923,9 @@ function ExecutionDatesContext({
     >
       <h2 className="text-lg font-semibold">Buchungen</h2>
       <p className="mt-2 text-sm text-slate-400">
-        Kauf-, Nachkauf- und Verkaufsbuchungen mit ihren Ausführungsdaten und Währungsquellen. Datum
-        und Währung werden direkt an der gewählten aktuellen Buchung bearbeitet; Stückzahl und Preis
-        bleiben erhalten.
+        Kauf-, Nachkauf- und Verkaufsbuchungen mit ihren Ausführungsdaten und Währungsquellen.
+        Menge, Preis und Datum lassen sich direkt an der gewählten aktuellen Buchung berichtigen.
+        Die Währungsbestätigung bleibt ein eigener Vorgang.
       </p>
       {cancelled && (
         <p className="mt-3">
@@ -760,7 +994,11 @@ function ExecutionDatesContext({
         onClick={() => void reviewStand()}
         className="mt-3 rounded border p-2"
       >
-        {recovery ? 'Buchungsstand prüfen' : 'Buchungsdaten neu laden'}
+        {recovery?.confirmed
+          ? 'Lesestand erneut laden'
+          : recovery
+            ? 'Buchungsstand prüfen'
+            : 'Buchungsdaten neu laden'}
       </button>
       <div
         role="tabpanel"
@@ -797,7 +1035,7 @@ function ExecutionDatesContext({
                   renderEditor()
                 ) : (
                   <>
-                    <p className="font-medium">
+                    <p className="break-words font-medium">
                       {dateLabel(entry)} · {entry.quantity ?? '—'} Stück · Preis{' '}
                       {entry.price_per_unit ?? '—'}
                     </p>
@@ -831,10 +1069,10 @@ function ExecutionDatesContext({
                         <button
                           type="button"
                           disabled={writeBlocked || loading || Boolean(loadError)}
-                          onClick={() => openEditor(entry, 'date')}
+                          onClick={() => openEditor(entry, 'facts')}
                           className="rounded border p-2"
                         >
-                          {dateLabel(entry)} korrigieren
+                          {entry.execution_side === 'SELL' ? 'Verkauf' : 'Kauf'} korrigieren
                         </button>
                         <button
                           type="button"
