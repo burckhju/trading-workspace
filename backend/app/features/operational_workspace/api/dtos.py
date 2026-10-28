@@ -6,6 +6,8 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
+from app.features.trade_position.service.valuation_basis import PositionValuationBasis
+
 
 class OperationalActionResponse(BaseModel):
     id: str
@@ -49,6 +51,9 @@ class OperationalPositionResponse(BaseModel):
     valuation_currency: str | None
     market_value: Decimal | None
     unrealized_gross_pnl: Decimal | None
+    unrealized_pnl_usable: bool = False
+    unrealized_pnl_reason: str = "VALUATION_UNAVAILABLE"
+    position_basis: PositionValuationBasis | None = None
     open_alert_count: int
     open_alert_types: tuple[str, ...]
     attention_state: str

@@ -23,6 +23,8 @@ export function position(overrides: Partial<OperationalPosition> = {}): Operatio
     valuation_currency: 'EUR',
     market_value: '25',
     unrealized_gross_pnl: '5',
+    unrealized_pnl_usable: true,
+    unrealized_pnl_reason: 'COST_BASIS_CURRENCY_MATCHED',
     quote_observed_at: '2026-09-08T08:00:00Z',
     quote_source: 'TEST_PROVIDER',
     open_alert_count: 0,

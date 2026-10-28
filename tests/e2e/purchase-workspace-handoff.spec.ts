@@ -198,6 +198,8 @@ test('successful BUY hands off to the operational workspace without a hard reloa
               valuation_currency: 'EUR',
               market_value: null,
               unrealized_gross_pnl: null,
+              unrealized_pnl_usable: false,
+              unrealized_pnl_reason: 'NO_USABLE_WARRANT_QUOTE',
               open_alert_count: 0,
               open_alert_types: [],
               attention_state: 'NORMAL',

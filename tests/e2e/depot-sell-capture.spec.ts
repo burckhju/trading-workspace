@@ -44,6 +44,8 @@ test('captures a partial sale from the operational depot without manual trade id
                 valuation_currency: 'EUR',
                 market_value: null,
                 unrealized_gross_pnl: null,
+                unrealized_pnl_usable: false,
+                unrealized_pnl_reason: 'WARRANT_QUOTE_STALE',
                 open_alert_count: 0,
                 open_alert_types: [],
                 attention_state: 'DATA_HEALTH',

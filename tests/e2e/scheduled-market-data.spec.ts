@@ -11,6 +11,7 @@ test('workspace shows automatic refresh coverage and indicative Frankfurt valuat
       generated_at: '2026-09-12T12:00:00Z', positions: [{
         trade_id: 'trade-1', position_id: 'position-1', product_name: 'BNP Call', product_symbol: null,
         open_quantity: 2000, average_entry_price: '0.51', market_value: '462', unrealized_gross_pnl: '-558',
+        unrealized_pnl_usable: true, unrealized_pnl_reason: 'COST_BASIS_CURRENCY_MATCHED',
         realized_gross_pnl: '0', stop_price: null, target_price: null, underlying_symbol: null,
         valuation_currency: 'EUR', valuation_status: 'INDICATIVE', monitoring_status: 'MISSING',
         analysis_warning: 'OUTDATED_QUOTE_INDICATIVE_ANALYSIS_ONLY', quote_source: 'FRANKFURT_QUOTES',

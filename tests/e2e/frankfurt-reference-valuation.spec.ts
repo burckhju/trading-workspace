@@ -3,8 +3,10 @@ import { expect, test } from "@playwright/test";
 const tradeId = "dd8338bd-a092-42c0-94c0-c068a9094f77";
 
 for (const [kind, refreshError] of [
-  ["LAST_TRADE", null], ["PREVIOUS_CLOSE", null],
-  ["LAST_TRADE", "FRANKFURT_HTTP_503"], ["PREVIOUS_CLOSE", "FRANKFURT_REQUEST_THROTTLED"],
+  ["LAST_TRADE", null],
+  ["PREVIOUS_CLOSE", null],
+  ["LAST_TRADE", "FRANKFURT_HTTP_503"],
+  ["PREVIOUS_CLOSE", "FRANKFURT_REQUEST_THROTTLED"],
 ] as const) {
   test(`shows Frankfurt ${kind} ${refreshError ?? "success"} analysis and provenance without permitting an order`, async ({
     page,
@@ -32,7 +34,9 @@ for (const [kind, refreshError] of [
         body = {
           trade_id: tradeId,
           status: "INDICATIVE",
-          reason: refreshError ? "LAST_SUCCESSFUL_QUOTE_REFRESH_FAILED" : "REFERENCE_PRICE_AVAILABLE_FOR_ANALYSIS",
+          reason: refreshError
+            ? "LAST_SUCCESSFUL_QUOTE_REFRESH_FAILED"
+            : "REFERENCE_PRICE_AVAILABLE_FOR_ANALYSIS",
           bid: null,
           ask: null,
           currency: "EUR",
@@ -42,13 +46,19 @@ for (const [kind, refreshError] of [
           reference_price_type: kind,
           market_value: null,
           unrealized_gross_pnl: null,
+          unrealized_pnl_usable: false,
+          unrealized_pnl_reason: "REFERENCE_PRICE_AVAILABLE_FOR_ANALYSIS",
           analysis_market_value: "462.000",
           analysis_unrealized_gross_pnl: "-558.000",
+          analysis_unrealized_pnl_usable: true,
+          analysis_unrealized_pnl_reason: "COST_BASIS_CURRENCY_MATCHED",
           analysis_usable: true,
           monitoring_usable: true,
           valuation_usable: false,
           execution_usable: false,
-          analysis_warning: refreshError ? "QUOTE_REFRESH_FAILED_INDICATIVE_ANALYSIS_ONLY" : "QUOTE_TIMESTAMP_UNKNOWN_INDICATIVE_ANALYSIS_ONLY",
+          analysis_warning: refreshError
+            ? "QUOTE_REFRESH_FAILED_INDICATIVE_ANALYSIS_ONLY"
+            : "QUOTE_TIMESTAMP_UNKNOWN_INDICATIVE_ANALYSIS_ONLY",
           quote_refresh_error: refreshError,
           quote_retained: Boolean(refreshError),
           selected_source: "FRANKFURT_QUOTES",

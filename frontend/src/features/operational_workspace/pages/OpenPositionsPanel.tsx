@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import type { OperationalPosition } from '../types';
 import { PositionDetails } from '../components/PositionDetails';
 import { PositionStatus, QuoteStatus } from '../components/PositionStatus';
+import { unrealizedPnlReason } from '../../trade/services/valuationQualification';
 import {
   dateLabel,
   defaultPositionsView,
@@ -12,6 +13,7 @@ import {
   money,
   numberLabel,
   pnlClass,
+  positionPnl,
   portfolioTotals,
   positionFilters,
   positionSorts,
@@ -303,9 +305,14 @@ export function OpenPositionsPanel({
                     {money(p.market_value, p.valuation_currency)}
                   </td>
                   <td
-                    className={`whitespace-nowrap border-b border-slate-800 p-3 text-right font-medium tabular-nums ${pnlClass(p.unrealized_gross_pnl)}`}
+                    className={`whitespace-nowrap border-b border-slate-800 p-3 text-right font-medium tabular-nums ${pnlClass(positionPnl(p))}`}
                   >
-                    {money(p.unrealized_gross_pnl, p.valuation_currency, true)}
+                    {money(positionPnl(p), p.valuation_currency, true)}
+                    {positionPnl(p) === null && (
+                      <span className="mt-1 block max-w-64 whitespace-normal text-xs font-normal text-slate-400">
+                        {unrealizedPnlReason(p.unrealized_pnl_reason)}
+                      </span>
+                    )}
                   </td>
                   <td className="min-w-40 border-b border-slate-800 p-3">
                     <QuoteStatus position={p} />

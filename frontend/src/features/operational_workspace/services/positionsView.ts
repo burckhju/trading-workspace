@@ -1,4 +1,5 @@
 import type { OperationalPosition } from '../types';
+import { qualifiedUnrealizedPnl } from '../../trade/services/valuationQualification';
 
 export const positionFilters = {
   all: 'Alle offenen Positionen',
@@ -113,6 +114,13 @@ export function pnlClass(value: string | null): string {
       ? 'text-emerald-300'
       : 'text-rose-300';
 }
+export function positionPnl(p: OperationalPosition): string | null {
+  return qualifiedUnrealizedPnl(
+    p.unrealized_gross_pnl,
+    p.unrealized_pnl_usable,
+    p.valuation_currency,
+  );
+}
 export function hasAlert(p: OperationalPosition): boolean {
   return (
     p.open_alert_count > 0 ||
@@ -127,7 +135,7 @@ export function hasDataProblem(p: OperationalPosition): boolean {
     p.valuation_status !== 'AVAILABLE' ||
     Boolean(p.analysis_warning) ||
     p.market_value === null ||
-    p.unrealized_gross_pnl === null ||
+    positionPnl(p) === null ||
     !p.valuation_currency ||
     p.position_signal?.quality_status !== 'AVAILABLE' ||
     !p.position_signal.alert_level
@@ -191,7 +199,7 @@ export function visiblePositions(
       if (!words.every((word) => text.includes(word))) return false;
       if (view.filter === 'alerts') return hasAlert(p);
       if (view.filter === 'data') return hasDataProblem(p);
-      const pnl = decimalUnits(p.unrealized_gross_pnl);
+      const pnl = decimalUnits(positionPnl(p));
       if (view.filter === 'gains') return pnl !== null && pnl > 0n;
       if (view.filter === 'losses') return pnl !== null && pnl < 0n;
       return true;
@@ -217,9 +225,8 @@ export function visiblePositions(
           view.descending,
         );
       if (view.sort === 'value' || view.sort === 'pnl') {
-        const field = view.sort === 'value' ? 'market_value' : 'unrealized_gross_pnl';
-        const av = decimalUnits(a[field]);
-        const bv = decimalUnits(b[field]);
+        const av = decimalUnits(view.sort === 'value' ? a.market_value : positionPnl(a));
+        const bv = decimalUnits(view.sort === 'value' ? b.market_value : positionPnl(b));
         if (av === null || bv === null) order = compare(av, bv, view.descending);
         else
           order =
@@ -261,7 +268,7 @@ export function portfolioTotals(positions: OperationalPosition[]) {
     };
     group.count++;
     const value = decimalUnits(p.market_value);
-    const pnl = decimalUnits(p.unrealized_gross_pnl);
+    const pnl = decimalUnits(positionPnl(p));
     if (value !== null && p.valuation_currency) {
       group.valued++;
       group.value += value;

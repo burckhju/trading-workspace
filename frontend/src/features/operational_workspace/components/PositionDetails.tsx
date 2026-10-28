@@ -3,6 +3,9 @@ import { Link } from 'react-router-dom';
 import type { OperationalPosition } from '../types';
 import { dateLabel, money, numberLabel, purchaseDate, timeLabel } from '../services/positionsView';
 import { signalLabel, statusLabel } from '../services/statusLabels';
+import { positionPnl } from '../services/positionsView';
+import { unrealizedPnlReason } from '../../trade/services/valuationQualification';
+import { PositionValuationBasisDetails } from '../../trade/components/PositionValuationBasisDetails';
 
 export function PositionDetails({ position: p }: { position: OperationalPosition }) {
   return (
@@ -57,7 +60,15 @@ export function PositionDetails({ position: p }: { position: OperationalPosition
           <dt className="text-slate-400">Marktwert</dt>
           <dd>{money(p.market_value, p.valuation_currency)}</dd>
         </div>
+        <div>
+          <dt className="text-slate-400">Nicht realisierter Brutto-G/V</dt>
+          <dd>{money(positionPnl(p), p.valuation_currency, true)}</dd>
+        </div>
       </dl>
+      {positionPnl(p) === null && (
+        <p className="text-amber-200">{unrealizedPnlReason(p.unrealized_pnl_reason)}</p>
+      )}
+      <PositionValuationBasisDetails basis={p.position_basis} />
       <p>{signalLabel(p)}</p>
       <p>
         {p.open_alert_count} offene Hinweise

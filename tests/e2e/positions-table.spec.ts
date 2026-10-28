@@ -21,6 +21,9 @@ async function setup(page: Page) {
     target_price: "0.9",
     market_value: i === 98 ? null : `${55 + i}`,
     unrealized_gross_pnl: i === 98 ? null : `${i - 50}`,
+    unrealized_pnl_usable: i !== 98,
+    unrealized_pnl_reason:
+      i === 98 ? "WARRANT_QUOTE_MISSING" : "COST_BASIS_CURRENCY_MATCHED",
     valuation_currency: i % 2 ? "CHF" : "EUR",
     valuation_status: i === 98 ? "MISSING" : i % 3 ? "INDICATIVE" : "AVAILABLE",
     monitoring_status: "OK",
