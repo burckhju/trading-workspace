@@ -126,6 +126,64 @@ async def test_same_cycle_discovery_retries_quote_that_missed_before_mapping(
 
 
 @pytest.mark.asyncio
+async def test_rescan_during_discovery_retry_keeps_quote_work_serial_and_pending(monkeypatch):
+    value = runtime(auto_configure=True)
+    first = RefreshInstrument(uuid4(), "Initially unmapped", "DE000TEST456")
+    added = RefreshInstrument(uuid4(), "Added during retry", "DE000TEST789")
+    catalog = AsyncMock(return_value=([first], []))
+    monkeypatch.setattr(module, "read_catalog", catalog)
+    value.container = SimpleNamespace(
+        database=object(),
+        frankfurt=SimpleNamespace(
+            settings=SimpleNamespace(source_mode=FrankfurtSourceMode.PUBLIC_WEBSITE)
+        ),
+        vontobel=None,
+    )
+    first_quote_finished = asyncio.Event()
+    retry_started = asyncio.Event()
+    release_retry = asyncio.Event()
+    calls = []
+
+    async def discover(_item):
+        await first_quote_finished.wait()
+        return {"reason": "FRANKFURT_IDENTITY_VERIFIED"}
+
+    async def quote(item):
+        calls.append(item.id)
+        if len(calls) == 1:
+            first_quote_finished.set()
+            return {"status": "MISSING", "reason": "NO_USABLE_WARRANT_QUOTE"}
+        if len(calls) == 2:
+            retry_started.set()
+            await release_retry.wait()
+        return {"status": "AVAILABLE", "reason": "QUOTE_OBSERVATIONS_AVAILABLE"}
+
+    value._configure_frankfurt = discover
+    value._warrant = quote
+    try:
+        await value.run_once(wait_for_completion=False)
+        await asyncio.wait_for(retry_started.wait(), timeout=1)
+        # The discovery worker owns this quote retry after the original quote
+        # worker has finished. A rescan must not start parallel quote reads.
+        catalog.return_value = ([first, added], [])
+        await value.run_once(wait_for_completion=False)
+        await value._lane_tasks[RefreshLane.WARRANTS]
+        assert calls == [first.id, first.id]
+        assert value.current_job == f"WARRANT_QUOTES:{first.id}"
+        assert value.jobs[f"WARRANT_QUOTES:{added.id}"]["status"] == "PENDING"
+
+        release_retry.set()
+        await value._lane_tasks[RefreshLane.WARRANT_DISCOVERY]
+        await value.run_once()
+        assert calls == [first.id, first.id, added.id]
+        assert all(job["status"] == "AVAILABLE" for job in value.jobs.values())
+        assert value.current_job is None
+    finally:
+        release_retry.set()
+        await value.stop()
+
+
+@pytest.mark.asyncio
 async def test_all_52_held_underlyings_start_and_refresh_again_while_first_warrant_is_blocked(
     monkeypatch,
 ):
