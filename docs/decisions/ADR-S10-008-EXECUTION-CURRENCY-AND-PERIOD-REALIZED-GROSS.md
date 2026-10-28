@@ -168,3 +168,39 @@ or FX conversion is authorized by this UI instruction.
 
 Scope and current qualification are recorded in
 [fixed-EUR report UI qualification](../implementation/REPORT_EUR_UI_QUALIFICATION.md).
+
+## 2026-10-28 amendment: qualify unrealized position results
+
+The user explicitly requests applying evidenced purchase-cost currency to live
+position valuation, including depot and trade-management consumers. This extends
+the existing qualification boundary without changing average-cost arithmetic,
+currency reuse, correction semantics or the two performance-report definitions.
+The narrow pre-implementation contract and acceptance cases are in
+[position valuation currency qualification](../implementation/POSITION_VALUATION_CURRENCY_QUALIFICATION.md).
+
+Definition `position-unrealized-gross-v1` permits a monetary unrealized result
+only when every required effective BUY cost component resolves through the
+existing execution-owner resolver to the same currency as the used quote.
+Partial SELL quantities remain projection sources; their proceeds currencies
+do not establish purchase costs. Later BUYs never repair earlier unknown BUYs.
+No new financial decision, FX convention or lot-allocation rule is introduced.
+
+Market-value and PnL usability are separate. A qualified market value survives
+an unknown, mixed or mismatching cost currency. Both current and analysis PnL
+are absent with explicit reasons when unqualified, and cannot contribute to
+winner/loser filters, sign highlights, PnL totals or their coverage. A measured
+zero remains distinct from missing. Existing quote freshness and source rules
+continue to apply independently.
+
+A fresh short `REPEATABLE READ READ ONLY` transaction materializes the position,
+effective history, corrections, confirmations and source bindings before quote
+resolution outside that transaction. The shared projector and pure currency
+resolver use that same materialized basis. Exact execution/confirmation IDs,
+definition and basis identity accompany the result; depot position values use
+that basis too. Reading writes no declarations and makes no extra provider calls
+to repair currency evidence. No migration, default EUR or historical backfill.
+
+This instruction authorizes implementation and a reviewable PR. Historical
+merge/release authorizations above belong to their earlier delivered scopes;
+they do not authorize merging, releasing or installing this new fix. Current
+work status remains solely in the existing Product Backlog entries.

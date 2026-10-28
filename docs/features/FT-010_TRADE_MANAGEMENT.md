@@ -473,3 +473,27 @@ unavailable old pages are explicit. Invalid/duplicate context is not silently
 repaired. Direct source entry without financial context stays usable without an
 unqualified replacement amount. See the [integration contract and qualification
 map](../implementation/CLOSED_TRADE_SOURCE_INTEGRATION_QUALIFICATION.md).
+
+## 2026-10-28: qualified unrealized position valuation
+
+The existing position projector and execution-currency resolver also qualify the
+cost basis used by live product valuation. All effective BUY components of an
+open position need one evidenced currency matching the quote. Average-cost
+partial sales and effective corrections retain their existing semantics;
+previous SELL proceeds and later BUYs do not supply missing earlier BUY evidence.
+
+Current and analysis unrealized gross PnL have separate usability and reason
+fields from quote/market-value quality. An unknown, mixed or mismatching cost
+currency produces no monetary PnL, while an independently valid market value
+remains usable. Depot rows, trade-management panels, filters, sign highlights,
+sorting, PnL totals and coverage consume the same qualification.
+
+A short read-only consistent snapshot binds projected quantity/cost basis,
+effective execution IDs, correction ancestry and exact currency-confirmation
+sources. The depot does not combine an older separately read position with a
+newer valuation basis. Owner arithmetic and immutable facts remain unchanged;
+valuation creates neither confirmations nor additional currency-repair provider
+requests. The exact `position-unrealized-gross-v1` contract and verification
+boundaries are recorded in
+[position valuation currency qualification](../implementation/POSITION_VALUATION_CURRENCY_QUALIFICATION.md).
+Work status remains in the existing PB-016/PB-017/Operational Workspace entries.
