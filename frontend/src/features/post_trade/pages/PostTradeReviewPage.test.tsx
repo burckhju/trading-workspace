@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ft011MaterializationClient } from '../../learning/services/materializationClient';
 import { postTradeApiClient } from '../services/client';
+import { MarketApiError } from '../../market/services/http';
 import type {
   ExitReviewResponse,
   HandoffResponse,
@@ -165,7 +166,14 @@ describe('PostTradeReviewPage', () => {
     api.evidence.mockResolvedValue(evidence);
     api.handoff.mockResolvedValue(handoff);
     api.reviewHistory.mockResolvedValue([]);
-    api.review.mockRejectedValue(new Error('not found'));
+    api.review.mockRejectedValue(
+      new MarketApiError(404, {
+        code: 'EXIT_REVIEW_NOT_FOUND',
+        message: 'not found',
+        details: [],
+        timestamp: '2026-10-26',
+      }),
+    );
 
     materializationApi.status.mockResolvedValue({
       ready: false,
@@ -616,7 +624,7 @@ describe('PostTradeReviewPage', () => {
     expect(api.revalidateReview).toHaveBeenCalledExactlyOnceWith('trade-1');
   });
 
-  it('ignores an aborted refresh completion and releases the latest failed refresh with its error visible', async () => {
+  it('ignores an aborted refresh completion and keeps failed-read actions blocked until a fresh read', async () => {
     const complete: ObservationResponse = {
       ...observation,
       status: 'COMPLETED',
@@ -653,10 +661,13 @@ describe('PostTradeReviewPage', () => {
       current.reject(new Error('Current read unavailable'));
       await current.promise.catch(() => undefined);
     });
-    await waitFor(() => expect(prepare).toBeEnabled());
+    await waitFor(() => expect(prepare).toBeDisabled());
     expect(screen.getByRole('alert')).toHaveTextContent('Die Daten konnten nicht geladen werden.');
     expect(screen.queryByText('Post-Trade-Daten werden geladen …')).not.toBeInTheDocument();
     expect(api.createReviewDraft).not.toHaveBeenCalled();
+    api.observation.mockResolvedValueOnce(complete);
+    fireEvent.click(screen.getByRole('button', { name: 'Laden' }));
+    await waitFor(() => expect(prepare).toBeEnabled());
   });
 
   it('does not render a second materialization action when embedded', async () => {
@@ -734,5 +745,122 @@ describe('PostTradeReviewPage', () => {
         }),
       ),
     );
+  });
+
+  it('reports dirty input and pending writes synchronously, and only clears its completed draft', async () => {
+    api.observation.mockResolvedValue({ ...observation, is_complete: true });
+    api.review.mockResolvedValue(draft);
+    const report = vi.fn();
+    const writing = deferred<ExitReviewResponse>();
+    api.updateReviewDraft.mockImplementation(() => {
+      expect(report).toHaveBeenLastCalledWith({ dirty: true, pending: true });
+      return writing.promise;
+    });
+    render(
+      <MemoryRouter initialEntries={['/post-trade?trade_id=trade-1']}>
+        <PostTradeReviewPage onNavigationStateChange={report} />
+      </MemoryRouter>,
+    );
+    const rationale = await screen.findByLabelText('Review-Begründung');
+    await waitFor(() => expect(rationale).toBeEnabled());
+    fireEvent.change(rationale, { target: { value: 'New interpretation' } });
+    expect(report).toHaveBeenLastCalledWith({ dirty: true, pending: false });
+    const save = screen.getByRole('button', { name: 'Entwurf speichern' });
+    fireEvent.click(save);
+    fireEvent.click(save);
+    expect(api.updateReviewDraft).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      writing.resolve({ ...draft, rationale: 'New interpretation' });
+      await writing.promise;
+    });
+    expect(report).toHaveBeenLastCalledWith({ dirty: false, pending: false });
+    expect(rationale).toHaveValue('New interpretation');
+  });
+
+  it('retains dirty Review input on a new server version until explicit reconciliation', async () => {
+    api.observation.mockResolvedValue({ ...observation, is_complete: true });
+    api.review.mockResolvedValue(draft);
+    const report = vi.fn();
+    const element = (refresh: number) => (
+      <MemoryRouter initialEntries={['/post-trade?trade_id=trade-1']}>
+        <PostTradeReviewPage externalRefreshVersion={refresh} onNavigationStateChange={report} />
+      </MemoryRouter>
+    );
+    const view = render(element(0));
+    const rationale = await screen.findByLabelText('Review-Begründung');
+    await waitFor(() => expect(rationale).toBeEnabled());
+    fireEvent.change(rationale, { target: { value: 'My unsubmitted review' } });
+    api.review.mockResolvedValue({
+      ...draft,
+      current_version_id: 'new-version',
+      version: 2,
+      rationale: 'Server revision',
+    });
+    view.rerender(element(1));
+    expect(await screen.findByText(/Der Reviewstand hat sich geändert/)).toBeVisible();
+    expect(rationale).toHaveValue('My unsubmitted review');
+    expect(screen.getByRole('button', { name: 'Entwurf speichern' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Review finalisieren' })).toBeDisabled();
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'Revieweingaben verwerfen und gespeicherten Stand laden',
+      }),
+    );
+    expect(rationale).toHaveValue('Server revision');
+    expect(report).toHaveBeenLastCalledWith({ dirty: false, pending: false });
+    expect(api.updateReviewDraft).not.toHaveBeenCalled();
+  });
+
+  it('keeps the Review form mounted on read failure and never unlocks writes from an old cache', async () => {
+    api.observation.mockResolvedValue({ ...observation, is_complete: true });
+    api.review.mockResolvedValue(draft);
+    const element = (refresh: number) => (
+      <MemoryRouter initialEntries={['/post-trade?trade_id=trade-1']}>
+        <PostTradeReviewPage externalRefreshVersion={refresh} />
+      </MemoryRouter>
+    );
+    const view = render(element(0));
+    const rationale = await screen.findByLabelText('Review-Begründung');
+    await waitFor(() => expect(rationale).toBeEnabled());
+    fireEvent.change(rationale, { target: { value: 'Local review survives' } });
+    api.review.mockRejectedValue(new Error('read unavailable'));
+    view.rerender(element(1));
+    expect(await screen.findByText(/Der Reviewstand hat sich geändert/)).toBeVisible();
+    expect(rationale).toHaveValue('Local review survives');
+    const reload = screen.getByRole('button', {
+      name: 'Revieweingaben verwerfen und gespeicherten Stand laden',
+    });
+    expect(reload).toBeDisabled();
+    fireEvent.click(reload);
+    expect(screen.getByRole('button', { name: 'Review finalisieren' })).toBeDisabled();
+    expect(api.finalizeReview).not.toHaveBeenCalled();
+  });
+
+  it('does not discard a pending Review or report a late completion into a different mounted context', async () => {
+    api.observation.mockResolvedValue({ ...observation, is_complete: true });
+    api.review.mockResolvedValue(draft);
+    const report = vi.fn();
+    const writing = deferred<ExitReviewResponse>();
+    api.updateReviewDraft.mockReturnValue(writing.promise);
+    const element = (discard: number) => (
+      <MemoryRouter initialEntries={['/post-trade?trade_id=trade-1']}>
+        <PostTradeReviewPage discardVersion={discard} onNavigationStateChange={report} />
+      </MemoryRouter>
+    );
+    const view = render(element(0));
+    const rationale = await screen.findByLabelText('Review-Begründung');
+    await waitFor(() => expect(rationale).toBeEnabled());
+    fireEvent.change(rationale, { target: { value: 'Pending review' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Entwurf speichern' }));
+    view.rerender(element(1));
+    expect(rationale).toHaveValue('Pending review');
+    expect(report).toHaveBeenLastCalledWith({ dirty: true, pending: true });
+    view.unmount();
+    report.mockClear();
+    await act(async () => {
+      writing.resolve({ ...draft, rationale: 'Old response' });
+      await writing.promise;
+    });
+    expect(report).not.toHaveBeenCalled();
   });
 });

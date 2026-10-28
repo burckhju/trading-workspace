@@ -3,18 +3,17 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 
 import { PendingNavigationGuard } from '../../../components/PendingNavigationGuard';
 import {
+  canonicalAnalysisSetupUrl,
+  parseAnalysisSetupContext,
+  resolveAnalysisSetupContext,
+} from '../../analysis/services/analysisWorkflowContext';
+import {
   canonicalSetupUrl,
   isWorkflowSetupAction,
   parseReferenceDataContext,
   resolveReferenceDataContext,
 } from '../services/referenceDataContext';
 import { topDownAdminClient } from '../services/topDownAdminClient';
-
-function dateOffset(days: number) {
-  const date = new Date();
-  date.setUTCDate(date.getUTCDate() + days);
-  return date.toISOString().slice(0, 10);
-}
 
 function SetupForwarding({ search }: { search: string }) {
   const navigate = useNavigate();
@@ -64,12 +63,62 @@ function SetupForwarding({ search }: { search: string }) {
   );
 }
 
+function AnalysisSetupForwarding({ search }: { search: string }) {
+  const navigate = useNavigate();
+  const [failure, setFailure] = useState<{ search: string; message: string } | null>(null);
+  const candidateId = new URLSearchParams(search).get('candidate_id');
+
+  useEffect(() => {
+    const abort = new AbortController();
+    async function forward() {
+      try {
+        const context = parseAnalysisSetupContext(new URLSearchParams(search));
+        const resolved = await resolveAnalysisSetupContext(context, abort.signal);
+        if (!abort.signal.aborted)
+          void navigate(canonicalAnalysisSetupUrl(resolved.context), { replace: true });
+      } catch (reason: unknown) {
+        if (!abort.signal.aborted)
+          setFailure({
+            search,
+            message:
+              reason instanceof Error ? reason.message : 'Der Analysekontext ist nicht lesbar.',
+          });
+      }
+    }
+    void forward();
+    return () => abort.abort();
+  }, [navigate, search]);
+
+  const error = failure?.search === search ? failure.message : null;
+  return (
+    <section className="mx-auto max-w-2xl space-y-4">
+      <h1 className="text-2xl font-semibold">Analyse vorbereiten</h1>
+      {error ? (
+        <p role="alert" className="rounded-lg border border-rose-800 p-3">
+          Kontext gesperrt: {error}
+        </p>
+      ) : (
+        <p role="status">
+          Der konkrete Workflow-Schritt wird geprüft und im Analyseeditor geöffnet …
+        </p>
+      )}
+      <Link
+        className="inline-block rounded border border-slate-700 px-4 py-2"
+        to={
+          candidateId ? `/candidates?candidate=${encodeURIComponent(candidateId)}` : '/candidates'
+        }
+      >
+        Zurück zum Kandidaten
+      </Link>
+    </section>
+  );
+}
+
 const remainingActions = new Set([
   'ACTIVATE_OR_REASSIGN_BENCHMARK',
   'ACTIVATE_OR_REASSIGN_SECTOR_REFERENCE',
   'ACTIVATE_OR_REASSIGN_SECTOR',
   'CREATE_OR_SELECT_PRIMARY_LISTING',
-  'RUN_MARKET_ANALYSIS',
 ]);
 
 function RemainingWorkflowAction({ params }: { params: URLSearchParams }) {
@@ -78,12 +127,9 @@ function RemainingWorkflowAction({ params }: { params: URLSearchParams }) {
   const candidateId = params.get('candidate_id') ?? '';
   const resourceId = params.get('resource_id') ?? '';
   const underlyingId = params.get('underlying_id') ?? '';
-  const listingId = params.get('listing_id') ?? resourceId;
   const sectorId = params.get('sector_id') ?? resourceId;
   const referenceId = params.get('market_reference_id') ?? resourceId;
   const returnTo = `/candidates?candidate=${encodeURIComponent(candidateId)}`;
-  const [startDate, setStartDate] = useState(dateOffset(-400));
-  const [endDate, setEndDate] = useState(dateOffset(0));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const submitLock = useRef(false);
@@ -106,12 +152,6 @@ function RemainingWorkflowAction({ params }: { params: URLSearchParams }) {
           if (!sectorId) throw new Error('Die Sektorkennung fehlt.');
           await topDownAdminClient.activateSector(sectorId);
           break;
-        case 'RUN_MARKET_ANALYSIS': {
-          if (!underlyingId || !listingId) throw new Error('Underlying- oder Listing-ID fehlt.');
-          const analysis = await topDownAdminClient.createAnalysis(underlyingId, listingId);
-          await topDownAdminClient.runAnalysis(analysis.id, startDate, endDate);
-          break;
-        }
         default:
           throw new Error('Für diese Aktion fehlt ein eindeutiger Eingabeweg.');
       }
@@ -168,43 +208,10 @@ function RemainingWorkflowAction({ params }: { params: URLSearchParams }) {
           onSubmit={(event) => void submit(event)}
           className="mt-6 space-y-5 rounded-xl border border-slate-800 p-5"
         >
-          {action === 'RUN_MARKET_ANALYSIS' ? (
-            <div className="grid gap-4 sm:grid-cols-2">
-              <label className="text-sm">
-                Von
-                <input
-                  type="date"
-                  required
-                  value={startDate}
-                  disabled={busy}
-                  onChange={(event) => {
-                    dirty.current = true;
-                    setStartDate(event.target.value);
-                  }}
-                  className="mt-2 w-full rounded border border-slate-700 bg-slate-950 p-2"
-                />
-              </label>
-              <label className="text-sm">
-                Bis
-                <input
-                  type="date"
-                  required
-                  value={endDate}
-                  disabled={busy}
-                  onChange={(event) => {
-                    dirty.current = true;
-                    setEndDate(event.target.value);
-                  }}
-                  className="mt-2 w-full rounded border border-slate-700 bg-slate-950 p-2"
-                />
-              </label>
-            </div>
-          ) : (
-            <p className="text-sm text-slate-300">
-              Die aktuell zugeordnete Referenz wird wieder aktiviert. Eine fachliche Neuzuordnung
-              bleibt eine separate, historisierte Admin-Aktion.
-            </p>
-          )}
+          <p className="text-sm text-slate-300">
+            Die aktuell zugeordnete Referenz wird wieder aktiviert. Eine fachliche Neuzuordnung
+            bleibt eine separate, historisierte Admin-Aktion.
+          </p>
           <div className="flex flex-wrap gap-3">
             <button
               disabled={busy}
@@ -222,11 +229,13 @@ function RemainingWorkflowAction({ params }: { params: URLSearchParams }) {
   );
 }
 
-/** The seven shared actions have no editor here: checked context goes to /chart-setup. */
+/** Shared actions have no editor here: only checked context is forwarded to its owner. */
 export function TopDownWorkflowActionPage() {
   const [params] = useSearchParams();
   const action = params.get('action') ?? '';
   if (isWorkflowSetupAction(action)) return <SetupForwarding search={params.toString()} />;
+  if (action === 'RUN_MARKET_ANALYSIS')
+    return <AnalysisSetupForwarding search={params.toString()} />;
   if (remainingActions.has(action))
     return <RemainingWorkflowAction key={params.toString()} params={params} />;
   return (

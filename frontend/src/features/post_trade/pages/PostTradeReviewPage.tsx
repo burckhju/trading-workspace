@@ -4,6 +4,7 @@ import { useSearchParams } from 'react-router-dom';
 import { ft011MaterializationClient } from '../../learning/services/materializationClient';
 import type { Ft011MaterializationStatus } from '../../learning/types/materialization';
 import { ErrorNotice, LoadingNotice } from '../../market/components/ApiFeedback';
+import { MarketApiError } from '../../market/services/http';
 import { postTradeApiClient } from '../services/client';
 import { postTradeErrorMessage } from '../services/errors';
 import type {
@@ -33,6 +34,9 @@ interface PostTradeReviewPageProps {
   onLearningStateChanged?: () => void;
   externalRefreshVersion?: number;
   showMaterializationAction?: boolean;
+  onNavigationStateChange?: (state: { dirty: boolean; pending: boolean }) => void;
+  discardVersion?: number;
+  isContextPending?: () => boolean;
 }
 
 export function PostTradeReviewPage(props: PostTradeReviewPageProps) {
@@ -44,6 +48,9 @@ function PostTradeReviewContent({
   onLearningStateChanged,
   externalRefreshVersion = 0,
   showMaterializationAction = true,
+  onNavigationStateChange,
+  discardVersion = 0,
+  isContextPending,
 }: PostTradeReviewPageProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const [lookupId, setLookupId] = useState(searchParams.get('trade_id') ?? '');
@@ -51,8 +58,18 @@ function PostTradeReviewContent({
   const mounted = useRef(false);
   const refreshSequence = useRef(0);
   const mutationPending = useRef(false);
-  const formVersion = useRef<string | null>(null);
   const formEdited = useRef(false);
+  const formBase = useRef<ExitReviewResponse | null>(null);
+  const latestReview = useRef<ExitReviewResponse | null>(null);
+  const [reviewConflict, setReviewConflict] = useState(false);
+  const [reviewReadValid, setReviewReadValid] = useState(false);
+  const reviewReadCurrent = useRef(false);
+  const reporter = useRef(onNavigationStateChange);
+  reporter.current = onNavigationStateChange;
+  const discardSeen = useRef(discardVersion);
+  const reportNavigation = useCallback(() => {
+    reporter.current?.({ dirty: formEdited.current, pending: mutationPending.current });
+  }, []);
 
   const [observation, setObservation] = useState<ObservationResponse | null>(null);
   const [evidence, setEvidence] = useState<ObservationEvidenceResponse | null>(null);
@@ -77,6 +94,7 @@ function PostTradeReviewContent({
   const [message, setMessage] = useState<string | null>(null);
   // A parent's new refresh is pending already in this render, before its effect
   // runs. Its completion must not release an independently pending command.
+  const contextPending = isContextPending?.() ?? false;
   const busy =
     loading || (tradeId !== '' && completedExternalRefreshVersion !== externalRefreshVersion);
 
@@ -85,63 +103,102 @@ function PostTradeReviewContent({
     return () => {
       mounted.current = false;
       refreshSequence.current += 1;
+      reporter.current?.({ dirty: false, pending: false });
     };
   }, []);
 
-  function hydrateReviewForm(nextReview: ExitReviewResponse | null, saved = false) {
-    if (!nextReview) return;
-    // Readback is not a user's decision to discard unsaved interpretation.
-    // A genuinely new version or a finalized owner state still replaces the form.
-    if (
-      !saved &&
-      nextReview.status === 'DRAFT' &&
-      formVersion.current === nextReview.current_version_id &&
-      formEdited.current
-    )
-      return;
-    formVersion.current = nextReview.current_version_id;
-    formEdited.current = false;
-
-    setTiming(nextReview.timing ?? 'GOOD');
-    setProcessAdherence(nextReview.process_adherence ?? 'GOOD');
-    setRiskDecision(nextReview.risk_decision ?? 'GOOD');
-    setOverallExitDecision(nextReview.overall_exit_decision ?? 'GOOD');
-    setRationale(nextReview.rationale ?? '');
-  }
-
-  const refresh = useCallback(async (id: string, signal?: AbortSignal) => {
-    if (!mounted.current) return;
-    const sequence = ++refreshSequence.current;
-    const isCurrentRead = () =>
-      mounted.current && !signal?.aborted && sequence === refreshSequence.current;
-    setMaterializationStatus(null);
-    const nextObservation = await postTradeApiClient.observation(id, signal);
-    if (!isCurrentRead()) return;
-
-    setObservation(nextObservation);
-
-    const [nextEvidence, nextHandoff, nextHistory, nextMaterializationStatus] = await Promise.all([
-      postTradeApiClient.evidence(id, signal),
-      postTradeApiClient.handoff(id, signal),
-      postTradeApiClient.reviewHistory(id, signal),
-      ft011MaterializationClient.status(id, signal),
-    ]);
-
-    if (!isCurrentRead()) return;
-    setEvidence(nextEvidence);
-    setHandoff(nextHandoff);
-    setHistory(nextHistory);
-    setMaterializationStatus(nextMaterializationStatus);
-
-    try {
-      const nextReview = await postTradeApiClient.review(id, signal);
-      if (!isCurrentRead()) return;
+  const hydrateReviewForm = useCallback(
+    (nextReview: ExitReviewResponse | null, saved = false) => {
+      if (!nextReview) return;
+      latestReview.current = nextReview;
+      if (!saved && formEdited.current) {
+        const base = formBase.current;
+        if (
+          base &&
+          (base.current_version_id !== nextReview.current_version_id ||
+            base.status !== nextReview.status ||
+            base.currentness !== nextReview.currentness ||
+            base.timing !== nextReview.timing ||
+            base.process_adherence !== nextReview.process_adherence ||
+            base.risk_decision !== nextReview.risk_decision ||
+            base.overall_exit_decision !== nextReview.overall_exit_decision ||
+            base.rationale !== nextReview.rationale)
+        ) {
+          setReviewConflict(true);
+        }
+        return;
+      }
       setReview(nextReview);
-      hydrateReviewForm(nextReview);
-    } catch {
-      if (isCurrentRead()) setReview(null);
-    }
-  }, []);
+      formBase.current = nextReview;
+      formEdited.current = false;
+      setReviewConflict(false);
+      reportNavigation();
+
+      setTiming(nextReview.timing ?? 'GOOD');
+      setProcessAdherence(nextReview.process_adherence ?? 'GOOD');
+      setRiskDecision(nextReview.risk_decision ?? 'GOOD');
+      setOverallExitDecision(nextReview.overall_exit_decision ?? 'GOOD');
+      setRationale(nextReview.rationale ?? '');
+    },
+    [reportNavigation],
+  );
+
+  useEffect(() => {
+    if (discardSeen.current === discardVersion || mutationPending.current || isContextPending?.())
+      return;
+    discardSeen.current = discardVersion;
+    hydrateReviewForm(latestReview.current, true);
+    // Only an explicitly confirmed navigation discards this form's edits.
+  }, [discardVersion, hydrateReviewForm, isContextPending]);
+
+  const refresh = useCallback(
+    async (id: string, signal?: AbortSignal) => {
+      if (!mounted.current) return;
+      const sequence = ++refreshSequence.current;
+      const isCurrentRead = () =>
+        mounted.current && !signal?.aborted && sequence === refreshSequence.current;
+      setMaterializationStatus(null);
+      reviewReadCurrent.current = false;
+      setReviewReadValid(false);
+      const nextObservation = await postTradeApiClient.observation(id, signal);
+      if (!isCurrentRead()) return;
+
+      setObservation(nextObservation);
+
+      const [nextEvidence, nextHandoff, nextHistory, nextMaterializationStatus] = await Promise.all(
+        [
+          postTradeApiClient.evidence(id, signal),
+          postTradeApiClient.handoff(id, signal),
+          postTradeApiClient.reviewHistory(id, signal),
+          ft011MaterializationClient.status(id, signal),
+        ],
+      );
+
+      if (!isCurrentRead()) return;
+      setEvidence(nextEvidence);
+      setHandoff(nextHandoff);
+      setHistory(nextHistory);
+      setMaterializationStatus(nextMaterializationStatus);
+
+      try {
+        const nextReview = await postTradeApiClient.review(id, signal);
+        if (!isCurrentRead()) return;
+        hydrateReviewForm(nextReview);
+        reviewReadCurrent.current = true;
+        setReviewReadValid(true);
+      } catch (nextError) {
+        if (!isCurrentRead()) return;
+        if (nextError instanceof MarketApiError && nextError.status === 404 && !formBase.current) {
+          reviewReadCurrent.current = true;
+          setReviewReadValid(true);
+        } else {
+          if (formBase.current) setReviewConflict(true);
+          throw nextError;
+        }
+      }
+    },
+    [hydrateReviewForm],
+  );
 
   useEffect(() => {
     if (!tradeId) return undefined;
@@ -180,7 +237,12 @@ function PostTradeReviewContent({
           }
         });
     } else {
-      setSearchParams({ trade_id: id });
+      setSearchParams((previous) => {
+        const next = new URLSearchParams(previous);
+        next.set('trade_id', id);
+        next.delete('journal_version_id');
+        return next;
+      });
     }
   }
 
@@ -188,19 +250,23 @@ function PostTradeReviewContent({
     if (!tradeId || mutationPending.current) return;
 
     mutationPending.current = true;
+    reportNavigation();
     setLoading(true);
     setError(null);
     setMessage(null);
 
     try {
       await postTradeApiClient.startObservation(tradeId);
+      if (!mounted.current) return;
       await refresh(tradeId);
+      if (!mounted.current) return;
       setMessage('Nachbeobachtung wurde gestartet.');
     } catch (nextError: unknown) {
       setError(new Error(postTradeErrorMessage(nextError)));
     } finally {
       mutationPending.current = false;
       if (mounted.current) {
+        reportNavigation();
         setLoading(false);
         onLearningStateChanged?.();
       }
@@ -208,24 +274,29 @@ function PostTradeReviewContent({
   }
 
   async function createDraft() {
-    if (!tradeId || mutationPending.current) return;
+    if (!tradeId || !reviewReadCurrent.current || busy || reviewConflict || mutationPending.current)
+      return;
 
     mutationPending.current = true;
+    reportNavigation();
     setLoading(true);
     setError(null);
     setMessage(null);
 
     try {
       const nextReview = await postTradeApiClient.createReviewDraft(tradeId);
+      if (!mounted.current) return;
       setReview(nextReview);
       hydrateReviewForm(nextReview, true);
       await refresh(tradeId);
+      if (!mounted.current) return;
       setMessage('Exit-Review-Entwurf wurde angelegt.');
     } catch (nextError: unknown) {
       setError(new Error(postTradeErrorMessage(nextError)));
     } finally {
       mutationPending.current = false;
       if (mounted.current) {
+        reportNavigation();
         setLoading(false);
         onLearningStateChanged?.();
       }
@@ -233,9 +304,18 @@ function PostTradeReviewContent({
   }
 
   async function saveDraft() {
-    if (!tradeId || !review || mutationPending.current) return;
+    if (
+      !tradeId ||
+      !review ||
+      !reviewReadCurrent.current ||
+      busy ||
+      reviewConflict ||
+      mutationPending.current
+    )
+      return;
 
     mutationPending.current = true;
+    reportNavigation();
     setLoading(true);
     setError(null);
     setMessage(null);
@@ -248,6 +328,9 @@ function PostTradeReviewContent({
         overall_exit_decision: overallExitDecision,
         rationale,
       });
+      if (!mounted.current) return;
+      reviewReadCurrent.current = true;
+      setReviewReadValid(true);
       setReview(nextReview);
       hydrateReviewForm(nextReview, true);
       setMessage('Exit-Review-Entwurf wurde gespeichert.');
@@ -256,6 +339,7 @@ function PostTradeReviewContent({
     } finally {
       mutationPending.current = false;
       if (mounted.current) {
+        reportNavigation();
         setLoading(false);
         onLearningStateChanged?.();
       }
@@ -263,9 +347,19 @@ function PostTradeReviewContent({
   }
 
   async function finalizeReview() {
-    if (!tradeId || !review || rationale.trim() === '' || mutationPending.current) return;
+    if (
+      !tradeId ||
+      !review ||
+      !reviewReadCurrent.current ||
+      busy ||
+      reviewConflict ||
+      rationale.trim() === '' ||
+      mutationPending.current
+    )
+      return;
 
     mutationPending.current = true;
+    reportNavigation();
     setLoading(true);
     setError(null);
     setMessage(null);
@@ -278,17 +372,21 @@ function PostTradeReviewContent({
         overall_exit_decision: overallExitDecision,
         rationale,
       });
+      if (!mounted.current) return;
 
       const nextReview = await postTradeApiClient.finalizeReview(tradeId);
+      if (!mounted.current) return;
       setReview(nextReview);
       hydrateReviewForm(nextReview, true);
       await refresh(tradeId);
+      if (!mounted.current) return;
       setMessage('Exit Review wurde finalisiert.');
     } catch (nextError: unknown) {
       setError(new Error(postTradeErrorMessage(nextError)));
     } finally {
       mutationPending.current = false;
       if (mounted.current) {
+        reportNavigation();
         setLoading(false);
         onLearningStateChanged?.();
       }
@@ -296,24 +394,29 @@ function PostTradeReviewContent({
   }
 
   async function revalidateReview() {
-    if (!tradeId || mutationPending.current) return;
+    if (!tradeId || !reviewReadCurrent.current || busy || reviewConflict || mutationPending.current)
+      return;
 
     mutationPending.current = true;
+    reportNavigation();
     setLoading(true);
     setError(null);
     setMessage(null);
 
     try {
       const nextReview = await postTradeApiClient.revalidateReview(tradeId);
+      if (!mounted.current) return;
       setReview(nextReview);
       hydrateReviewForm(nextReview, true);
       await refresh(tradeId);
+      if (!mounted.current) return;
       setMessage('Review wurde erneut geprüft.');
     } catch (nextError: unknown) {
       setError(new Error(postTradeErrorMessage(nextError)));
     } finally {
       mutationPending.current = false;
       if (mounted.current) {
+        reportNavigation();
         setLoading(false);
         onLearningStateChanged?.();
       }
@@ -333,6 +436,7 @@ function PostTradeReviewContent({
     }
 
     mutationPending.current = true;
+    reportNavigation();
     setLoading(true);
     setError(null);
     setMessage(null);
@@ -344,13 +448,16 @@ function PostTradeReviewContent({
         `ft011-to-ft012:v2:${tradeId}:${versionId}`,
         versionId,
       );
+      if (!mounted.current) return;
       await refresh(tradeId);
+      if (!mounted.current) return;
       setMessage('FT-011 LearningEvidence wurde in FT-012 materialisiert.');
     } catch (nextError: unknown) {
       setError(new Error(postTradeErrorMessage(nextError)));
     } finally {
       mutationPending.current = false;
       if (mounted.current) {
+        reportNavigation();
         setLoading(false);
         onLearningStateChanged?.();
       }
@@ -579,7 +686,7 @@ function PostTradeReviewContent({
         </>
       )}
 
-      {observation?.is_complete && (
+      {(observation?.is_complete || review) && (
         <section className="rounded-xl border border-slate-800 p-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
@@ -601,11 +708,37 @@ function PostTradeReviewContent({
             )}
           </div>
 
+          {reviewConflict && (
+            <div role="alert" className="mt-4 space-y-2 text-sm text-amber-200">
+              <p>
+                Der Reviewstand hat sich geändert oder konnte nicht bestätigt werden. Die lokalen
+                Eingaben bleiben erhalten; vor einem Schreibbefehl ist ein bewusster Abgleich nötig.
+              </p>
+              <button
+                type="button"
+                disabled={busy || !reviewReadValid || mutationPending.current || contextPending}
+                onClick={() => {
+                  if (
+                    mutationPending.current ||
+                    isContextPending?.() ||
+                    !reviewReadCurrent.current ||
+                    busy
+                  )
+                    return;
+                  hydrateReviewForm(latestReview.current, true);
+                }}
+                className="rounded-lg border border-amber-700 px-3 py-2 disabled:opacity-50"
+              >
+                Revieweingaben verwerfen und gespeicherten Stand laden
+              </button>
+            </div>
+          )}
+
           {!review ? (
             <button
               type="button"
               onClick={() => void createDraft()}
-              disabled={busy}
+              disabled={busy || !reviewReadValid || reviewConflict}
               className="mt-4 rounded-lg border border-slate-600 px-4 py-2 disabled:opacity-50"
             >
               Exit Review anlegen
@@ -618,7 +751,7 @@ function PostTradeReviewContent({
                   <button
                     type="button"
                     onClick={() => void revalidateReview()}
-                    disabled={busy}
+                    disabled={busy || !reviewReadValid || reviewConflict}
                     className="mt-3 rounded-lg border border-amber-700 px-3 py-2 disabled:opacity-50"
                   >
                     Review erneut prüfen
@@ -637,9 +770,12 @@ function PostTradeReviewContent({
                     <span className="text-slate-400">{label as string}</span>
                     <select
                       value={value as ExitReviewAssessment}
-                      disabled={reviewReadOnly || busy || mutationPending.current}
+                      disabled={
+                        reviewReadOnly || busy || !reviewReadValid || mutationPending.current
+                      }
                       onChange={(event) => {
                         formEdited.current = true;
+                        reportNavigation();
                         (setter as (value: ExitReviewAssessment) => void)(
                           event.target.value as ExitReviewAssessment,
                         );
@@ -660,9 +796,10 @@ function PostTradeReviewContent({
                 <textarea
                   aria-label="Review-Begründung"
                   value={rationale}
-                  disabled={reviewReadOnly || busy || mutationPending.current}
+                  disabled={reviewReadOnly || busy || !reviewReadValid || mutationPending.current}
                   onChange={(event) => {
                     formEdited.current = true;
+                    reportNavigation();
                     setRationale(event.target.value);
                   }}
                   className="mt-1 min-h-32 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2"
@@ -683,7 +820,7 @@ function PostTradeReviewContent({
                       <button
                         type="button"
                         onClick={() => void revalidateReview()}
-                        disabled={busy}
+                        disabled={busy || !reviewReadValid || reviewConflict}
                         className="rounded-lg border border-slate-600 px-3 py-2 disabled:opacity-50"
                       >
                         Review-Quellenstand prüfen
@@ -692,7 +829,7 @@ function PostTradeReviewContent({
                     <button
                       type="button"
                       onClick={() => void createDraft()}
-                      disabled={busy}
+                      disabled={busy || !reviewReadValid || reviewConflict}
                       className="rounded-lg border border-slate-600 px-3 py-2 disabled:opacity-50"
                     >
                       Neue Review-Version vorbereiten
@@ -704,7 +841,7 @@ function PostTradeReviewContent({
                   <button
                     type="button"
                     onClick={() => void saveDraft()}
-                    disabled={busy}
+                    disabled={busy || !reviewReadValid || reviewConflict}
                     className="rounded-lg border border-slate-600 px-4 py-2 disabled:opacity-50"
                   >
                     Entwurf speichern
@@ -713,7 +850,7 @@ function PostTradeReviewContent({
                   <button
                     type="button"
                     onClick={() => void finalizeReview()}
-                    disabled={busy || rationale.trim() === ''}
+                    disabled={busy || !reviewReadValid || reviewConflict || rationale.trim() === ''}
                     className="rounded-lg border border-emerald-700 px-4 py-2 disabled:opacity-50"
                   >
                     Review finalisieren
