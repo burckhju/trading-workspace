@@ -1,4 +1,5 @@
 import { FormEvent, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 
 import { MarketApiError } from '../../market/services/http';
 import { lessonDraftClient } from '../services/lessonDraftClient';
@@ -176,9 +177,21 @@ export function LessonDraftFromEvidence({
       )}
 
       {createdLessonId ? (
-        <p role="status" className="mt-4 text-sm text-emerald-300">
-          Lesson angelegt: <span className="break-all">{createdLessonId}</span>
-        </p>
+        <div className="mt-4 rounded-lg border border-emerald-800 p-4">
+          <p role="status" className="text-sm text-emerald-300">
+            Lesson angelegt: LS-{createdLessonId.slice(0, 8).toUpperCase()}
+          </p>
+          <Link
+            to={`/lessons/${encodeURIComponent(createdLessonId)}`}
+            className="mt-3 inline-block rounded-lg border border-emerald-700 px-4 py-2 text-sm text-emerald-300"
+          >
+            Lesson öffnen
+          </Link>
+          <details className="mt-3 text-xs text-slate-400">
+            <summary className="cursor-pointer">Technische Lesson-ID anzeigen</summary>
+            <p className="mt-2 break-all">{createdLessonId}</p>
+          </details>
+        </div>
       ) : (
         <form onSubmit={handleSubmit} className="mt-4 space-y-3">
           <label className="block text-sm">

@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
 
 import type { JournalEntry } from '../services/journalClient';
 import { JournalDialog, JournalTextsView, journalButton as button } from './JournalContent';
@@ -98,9 +97,6 @@ function JournalContext(props: JournalPanelProps) {
   const journal = useTradeJournal({ ...props, onNavigationStateChange: journalChanged });
   const { state, entry, dirty, conflict, canAct } = journal;
   const [localDecision, setLocalDecision] = useState<'discard' | 'load' | null>(null);
-  const [createdLesson, setCreatedLesson] = useState<{ id: string; evidenceId: string } | null>(
-    null,
-  );
   const [boundEvidence, setBoundEvidence] = useState<string | null>(null);
   const [lessonDiscard, setLessonDiscard] = useState(0);
   const evidenceId = entry?.learning_evidence_id ?? null;
@@ -514,7 +510,6 @@ function JournalContext(props: JournalPanelProps) {
             discardVersion={discardVersion + lessonDiscard}
             onNavigationStateChange={lessonChanged}
             isContextPending={props.isContextPending}
-            onCreated={(id) => setCreatedLesson({ id, evidenceId: boundEvidence })}
           />
           {evidenceId !== boundEvidence && !evidenceId && (
             <div role="alert">
@@ -533,11 +528,6 @@ function JournalContext(props: JournalPanelProps) {
                 Lessonentwurf verwerfen
               </button>
             </div>
-          )}
-          {createdLesson?.evidenceId === boundEvidence && evidenceId === boundEvidence && (
-            <Link className="text-emerald-300 underline" to={`/lessons/${createdLesson.id}`}>
-              Angelegte Lesson öffnen
-            </Link>
           )}
         </div>
       )}

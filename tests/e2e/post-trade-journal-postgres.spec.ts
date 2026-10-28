@@ -272,12 +272,16 @@ test("real PostgreSQL: captured full exit, review, journal, lesson and stale cor
     .getByRole("button", { name: "Lesson anlegen", exact: true })
     .click();
   const lessonLink = journal.getByRole("link", {
-    name: "Angelegte Lesson öffnen",
+    name: "Lesson öffnen",
     exact: true,
   });
   await expect(lessonLink).toBeVisible();
+  await expect(lessonLink).toHaveCount(1);
   const lessonPath = (await lessonLink.getAttribute("href"))!;
   const lessonId = lessonPath.split("/").at(-1)!;
+  await expect(
+    journal.getByRole("status").filter({ hasText: "Lesson angelegt:" }),
+  ).toContainText(`LS-${lessonId.slice(0, 8).toUpperCase()}`);
   const persisted = await request.get(api + `/learning/lessons/${lessonId}`);
   expect(persisted.status(), await persisted.text()).toBe(200);
   const before = await persisted.json();

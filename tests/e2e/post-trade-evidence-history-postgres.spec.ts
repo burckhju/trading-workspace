@@ -410,6 +410,20 @@ test("real PostgreSQL: FT011 history survives correction and opens the exact Les
   await page
     .getByRole("button", { name: "Lesson anlegen", exact: true })
     .click();
+  const createdLesson = page.getByRole("link", {
+    name: "Lesson öffnen",
+    exact: true,
+  });
+  await expect(createdLesson).toHaveCount(1);
+  const createdHref = (await createdLesson.getAttribute("href"))!;
+  await createdLesson.click();
+  await expect(page).toHaveURL(new URL(createdHref, baseURL).href);
+  await expect(
+    page.getByText("My original interpretation of this exact exit review.", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await page.goBack();
   await expect(
     page.getByText("Bereits interpretiert", { exact: true }),
   ).toBeVisible();
@@ -422,6 +436,7 @@ test("real PostgreSQL: FT011 history survives correction and opens the exact Les
   await expect(oldLink).toBeVisible();
   const oldHref = (await oldLink.getAttribute("href"))!;
   const lid = new URL(oldHref, baseURL).pathname.split("/").at(-1)!;
+  expect(createdHref).toBe(`/lessons/${lid}`);
   const lvid = new URL(oldHref, baseURL).searchParams.get("lesson_version_id");
   const originalLesson = await (
     await request.get(api + `/learning/lessons/${lid}/review-context`)
