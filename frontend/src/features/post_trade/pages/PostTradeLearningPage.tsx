@@ -99,6 +99,7 @@ function PostTradeLearningContent({
   const [statusValid, setStatusValid] = useState(false);
   const [completedRefreshVersion, setCompletedRefreshVersion] = useState<number | null>(null);
   const [lessonFormSourceId, setLessonFormSourceId] = useState<string | null>(null);
+  const createdLessonSourceId = useRef<string | null>(null);
   const directLessonState = useRef<NavigationState>({ dirty: false, pending: false });
   const lessonResolution = useRef<{
     sourceId: string | null;
@@ -112,7 +113,11 @@ function PostTradeLearningContent({
       report('lesson', state);
       const resolved = lessonResolution.current;
       if (!state.dirty && !state.pending && resolved.references !== null) {
-        setLessonFormSourceId(resolved.references.length === 0 ? resolved.sourceId : null);
+        setLessonFormSourceId(
+          resolved.references.length === 0 || createdLessonSourceId.current === resolved.sourceId
+            ? resolved.sourceId
+            : null,
+        );
       }
     },
     [report],
@@ -213,6 +218,7 @@ function PostTradeLearningContent({
     setLessonReferences(null);
     setLessonReadbackError(null);
     setLessonSourceId(learningEvidenceId);
+    if (createdLessonSourceId.current !== learningEvidenceId) createdLessonSourceId.current = null;
     if (!learningEvidenceId) return undefined;
 
     const controller = new AbortController();
@@ -222,7 +228,12 @@ function PostTradeLearningContent({
         if (!controller.signal.aborted) {
           setLessonReferences(references);
           if (!directLessonState.current.dirty && !directLessonState.current.pending) {
-            setLessonFormSourceId(references.length === 0 ? learningEvidenceId : null);
+            // Keep the confirmed creation result available while its references refresh.
+            setLessonFormSourceId(
+              references.length === 0 || createdLessonSourceId.current === learningEvidenceId
+                ? learningEvidenceId
+                : null,
+            );
           }
         }
       })
@@ -475,7 +486,10 @@ function PostTradeLearningContent({
               onNavigationStateChange={reportLesson}
               isContextPending={isContextPending}
               discardVersion={discardVersion}
-              onCreated={refreshLessonReferences}
+              onCreated={() => {
+                createdLessonSourceId.current = lessonFormSourceId;
+                refreshLessonReferences();
+              }}
             />
           )}
         </section>

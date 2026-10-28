@@ -394,11 +394,13 @@ class MarketDataRefreshRuntime:
         *,
         catalog_job: bool = False,
     ) -> None:
-        if self.timer() < self._due.get(key, 0):
+        lane = _job_lane(key)
+        # Discovery can retry a quote after its original lane worker finishes.
+        # Rescans must leave new work due while that retry owns the quote lane.
+        if self._current_jobs[lane] is not None or self.timer() < self._due.get(key, 0):
             return
         previous = self.jobs.get(key, {})
         retry_delay: float = interval
-        lane = _job_lane(key)
         self._current_jobs[lane] = key
         started = self.timer()
         started_at = datetime.now(UTC)
