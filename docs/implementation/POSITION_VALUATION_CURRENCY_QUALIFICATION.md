@@ -348,7 +348,7 @@ Frühere Versuche werden nicht als grüne Gates angerechnet:
   Wiederholungslauf mit dem tatsächlichen erzeugten Artefakt zählt als bestandene
   Gleichheitsprüfung. Es wurde kein gewünschter Geldwert von Hand eingesetzt.
 
-## Übergabegrenze
+## Ursprüngliche Übergabegrenze
 
 Die Implementierung und die genannten lokalen Prüfungen sind abgeschlossen.
 Aktuelle headgebundene CI-Ergebnisse und Reviewbereitschaft stehen in
@@ -359,7 +359,35 @@ keine neue zweite Aufgabenliste. Eine menschliche
 Fachabnahme des Ergebnisses sowie tatsächliche Quellenabdeckung und beobachteter
 Nutzerbetrieb sind nicht belegt.
 
-Der aktuelle Auftrag umfasst Implementierung, Tests, Dokumentation und einen
-überprüfbaren Pull Request. Er erlaubt keinen Merge, Release, Tag, Deployment
-oder Installation. Frühere Freigaben zu PR #295/#296 übertragen sich nicht auf
-#297. Reale Nutzerbestände wurden nicht geprüft oder verändert.
+Der ursprüngliche Auftrag umfasste Implementierung, Tests, Dokumentation und
+einen überprüfbaren Pull Request. Er erlaubte keinen Merge, Release, Tag,
+Deployment oder Installation. Frühere Freigaben zu PR #295/#296 übertrugen sich
+nicht auf #297. Reale Nutzerbestände wurden nicht geprüft oder verändert.
+
+## Nachtrag 28.10.2026 — freigegebene Integration und PC-Bereitstellung
+
+Nach der überprüfbaren PR-Übergabe hat der Nutzer ausdrücklich ergänzt:
+**„wenn grün mergen und für den PC bereitstellen“**. Das ist eine neue Freigabe
+für den vorhandenen Integrations-/Releaseweg; die ursprüngliche Grenze oben
+bleibt als historischer Auftragsstand erhalten.
+
+[PR #297](https://github.com/burckhju/trading-workspace/pull/297) wurde nach
+vollständig grüner aktueller CI als
+`1f6ca802df25b2d508338ac837fdfb39ac79eca2` integriert. Sein vollständiger Tree
+`93de00ad0e5bd8e66c666e5cd4efcb3f23c59781` entspricht dem geprüften Head
+`73da7e076c5d9236e9f9aabb0f5e86c309dad5b4` und tatsächlichen CI-Testmerge
+`7d58ec6e5fd6dcb6b5bec2958c283c5ec97830cd`. Die Head-CI und die nachfolgenden
+Main-Läufe dieses Implementierungsmerges bleiben getrennt in PR #297 gebunden.
+
+Der eng begrenzte Release [v1.5.30](../releases/V1.5.30-POSITION-PNL-CURRENCY.md)
+führt die fünf Versionswerte fort und dokumentiert den bestehenden PC-Updateweg.
+Anwendungs-/Testcode, Finanzvertrag, Dependencies, Migrationen, Workflows,
+Guards und Updatehelfer werden dabei nicht geändert. Die tatsächlichen neuen
+Release-PR-/Main-Prüfungen, der Publisherlauf und der veröffentlichte Tag-SHA
+werden am zugehörigen Release-PR nachgetragen; die alten grünen Läufe ersetzen
+sie nicht. Bei dieser Nachtragsanlage war v1.5.30 noch nicht veröffentlicht.
+
+Versionierte Bereitstellung ist beauftragt; eine Installation auf dem echten PC
+wird hier nicht ausgeführt oder behauptet. Fachabnahme und echte
+Kaufwährungsbelege bleiben offen. Der Arbeitsstatus steht weiterhin allein im
+bestehenden Backlog, einschließlich der gesonderten Liefer- und Betriebsfelder.
