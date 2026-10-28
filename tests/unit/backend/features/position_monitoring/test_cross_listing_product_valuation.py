@@ -5,6 +5,12 @@ from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
+from tests.unit.backend.features.position_monitoring.test_product_valuation import (
+    _context,
+)
+from tests.unit.backend.features.position_monitoring.test_product_valuation import (
+    _Session as CurrencySession,
+)
 
 from app.features.market_data.domain.enums import (
     CacheStatus,
@@ -30,21 +36,34 @@ class _ExecuteResult:
         return self._value
 
 
-class _Session:
-    def __init__(self, *, trade, position, evaluation, listing, siblings):
-        self._trade = trade
-        self._position = position
-        self._scalars = [None, evaluation, listing]
+class _Session(CurrencySession):
+    def __init__(
+        self,
+        *,
+        trade,
+        position,
+        evaluation,
+        listing,
+        siblings,
+        execution_quantity=10,
+        execution_price="2.00",
+    ):
+        super().__init__(
+            trade=trade,
+            position=position,
+            evaluation=evaluation,
+            listing=listing,
+            execution_quantity=execution_quantity,
+            execution_price=execution_price,
+        )
         self._siblings = siblings
 
-    async def execute(self, _statement):
-        return _ExecuteResult((self._trade, self._position))
+    async def scalars(self, statement):
+        from app.features.product.persistence.models import WarrantListingModel
 
-    async def scalar(self, _statement):
-        return self._scalars.pop(0)
-
-    async def scalars(self, _statement):
-        return self._siblings
+        if statement.column_descriptions[0]["entity"] is WarrantListingModel:
+            return self._siblings
+        return await super().scalars(statement)
 
 
 class _Database:
@@ -99,9 +118,10 @@ async def test_uses_only_active_quote_listing_and_preserves_historical_provenanc
     active_id = uuid4()
     workspace_id = uuid4()
     evaluation_id = uuid4()
-    trade = SimpleNamespace(
-        id=uuid4(), workspace_id=workspace_id, product_evaluation_id=evaluation_id
-    )
+    trade, _, _, _ = _context()
+    trade.workspace_id = workspace_id
+    trade.product_id = warrant_id
+    trade.product_evaluation_id = evaluation_id
     position = SimpleNamespace(id=uuid4(), open_quantity=10, cost_basis=Decimal("20.00"))
     evaluation = SimpleNamespace(id=evaluation_id, warrant_listing_id=historical_id)
     historical = SimpleNamespace(

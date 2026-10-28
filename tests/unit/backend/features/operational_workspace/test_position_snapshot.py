@@ -94,6 +94,8 @@ async def test_composes_alert_first_snapshot_with_plan_rules_and_current_valuati
             currency="EUR",
             market_value=Decimal("25.00"),
             unrealized_gross_pnl=Decimal("5.00"),
+            unrealized_pnl_usable=True,
+            unrealized_pnl_reason="COST_BASIS_CURRENCY_MATCHED",
         )
 
     service = OperationalPositionSnapshotService(
@@ -248,6 +250,8 @@ async def test_workspace_shows_frankfurt_analysis_values_with_warning_and_proven
         analysis_warning="OUTDATED_QUOTE_INDICATIVE_ANALYSIS_ONLY",
         analysis_market_value=Decimal("462"),
         analysis_unrealized_gross_pnl=Decimal("-558"),
+        analysis_unrealized_pnl_usable=True,
+        analysis_unrealized_pnl_reason="COST_BASIS_CURRENCY_MATCHED",
         selected_source="FRANKFURT_QUOTES",
         quote_observed_at=datetime(2026, 9, 11, 17, 43, tzinfo=UTC),
     )

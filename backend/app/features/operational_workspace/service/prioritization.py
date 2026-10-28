@@ -63,6 +63,8 @@ def _stuttgart_quote_missing(value: ProductPositionValuation) -> bool:
 
 
 def _product_title(value: ProductPositionValuation) -> str:
+    if _currency_problem_detail(value) is not None:
+        return "Kaufwährung der Position prüfen"
     if value.analysis_usable:
         return "Indikative Produktbewertung"
     if _stuttgart_quote_missing(value):
@@ -76,7 +78,30 @@ def _product_title(value: ProductPositionValuation) -> str:
     return "Produktbewertung prüfen"
 
 
+def _currency_problem_detail(value: ProductPositionValuation) -> str | None:
+    reason = (
+        value.analysis_unrealized_pnl_reason
+        if value.analysis_usable
+        else value.unrealized_pnl_reason
+    )
+    return {
+        "COST_BASIS_CURRENCY_UNKNOWN": (
+            "Die Kaufwährung ist für mindestens einen wirksamen Kauf nicht belegt. "
+            "Gewinn/Verlust ist nicht berechenbar."
+        ),
+        "COST_BASIS_CURRENCY_MIXED": (
+            "Die Kostenbasis enthält unterschiedliche Kaufwährungen. "
+            "Gewinn/Verlust ist nicht berechenbar."
+        ),
+        "COST_BASIS_CURRENCY_MISMATCH": (
+            "Kaufkostenwährung und Kurswährung stimmen nicht überein. "
+            "Gewinn/Verlust ist nicht berechenbar."
+        ),
+    }.get(reason)
+
+
 def _product_detail(value: ProductPositionValuation) -> str:
+    currency_problem = _currency_problem_detail(value)
     if value.analysis_usable:
         price_type = {
             "LAST_TRADE": "Letzter Handelspreis",
@@ -87,11 +112,20 @@ def _product_detail(value: ProductPositionValuation) -> str:
             if value.quote_age_seconds is not None
             else "Kurszeitpunkt unbekannt"
         )
+        availability = (
+            "Indikative Auswertung und Wert-/P&L-Überwachung sind verfügbar; "
+            if value.analysis_unrealized_pnl_usable
+            else "Indikative Marktwertanalyse ist verfügbar. "
+            + (currency_problem or "Gewinn/Verlust ist nicht berechenbar.")
+            + " "
+        )
         return (
             f"{price_type} von {value.selected_source or 'unbekannter Quelle'} ({age}). "
-            "Indikative Auswertung und Wert-/P&L-Überwachung sind verfügbar; "
+            f"{availability}"
             "Quelle und Aktualität beurteilen Sie selbst. Keine automatische Orderfreigabe."
         )
+    if currency_problem is not None:
+        return currency_problem
     if _stuttgart_quote_missing(value):
         return (
             "Das dokumentierte WarrantListing wurde im aktuellen Börse-Stuttgart-Delayed-Feed "
@@ -160,10 +194,14 @@ async def prioritize_position_monitoring(
 
         product_problem = False
         if valuation is not None:
-            product_problem = valuation.status not in {
-                ProductValuationStatus.AVAILABLE,
-                ProductValuationStatus.LAST_AVAILABLE,
-            }
+            product_problem = (
+                valuation.status
+                not in {
+                    ProductValuationStatus.AVAILABLE,
+                    ProductValuationStatus.LAST_AVAILABLE,
+                }
+                or _currency_problem_detail(valuation) is not None
+            )
 
         if not underlying_problem and not product_problem:
             prioritized.append(action)

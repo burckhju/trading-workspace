@@ -379,31 +379,29 @@ async def test_real_mapping_identity_and_null_snapshot_replace_old_quote(route):
 
 
 async def test_unknown_timestamp_valuation_exposes_price_and_time_but_no_executable_value():
-    req = request()
-    trade, position, evaluation = (
-        SimpleNamespace(id=uuid4(), workspace_id=req.workspace_id, product_evaluation_id=uuid4()),
-        SimpleNamespace(id=uuid4(), open_quantity=10, cost_basis=Decimal("2")),
-        SimpleNamespace(warrant_listing_id=req.warrant_listing_id),
-    )
-    listing = SimpleNamespace(id=req.warrant_listing_id, symbol=None, quotation_currency_code="EUR")
-    s = SimpleNamespace(
-        execute=AsyncMock(return_value=SimpleNamespace(one_or_none=lambda: (trade, position))),
-        scalar=AsyncMock(side_effect=[None, evaluation, listing]),
+    from tests.unit.backend.features.position_monitoring.test_product_valuation import (
+        _context,
+        _Database,
+        _Session,
     )
 
-    class DB:
-        @asynccontextmanager
-        async def session_context(self):
-            yield s
+    req = request()
+    trade, position, evaluation, listing = _context()
+    trade.workspace_id = req.workspace_id
+    listing.id = req.warrant_listing_id
+    evaluation.warrant_listing_id = req.warrant_listing_id
+    database = _Database(
+        _Session(trade=trade, position=position, evaluation=evaluation, listing=listing)
+    )
 
     provider = SimpleNamespace(
         get_warrant_listing_quote=AsyncMock(
             return_value=result(parse_item(stream_item(), req, identity()))
         )
     )
-    value = await ProductPositionValuationService(database=DB(), quote_provider=provider).for_trade(
-        trade.id
-    )
+    value = await ProductPositionValuationService(
+        database=database, quote_provider=provider
+    ).for_trade(trade.id)
     assert value.status == "INDICATIVE" and value.analysis_usable
     assert value.quote_time_text == "19:35:17" and value.quote_observed_at is None
     assert value.quote_age_seconds is None and value.quote_age_limit_exceeded is None

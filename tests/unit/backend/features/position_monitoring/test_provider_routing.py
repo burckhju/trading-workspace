@@ -196,7 +196,9 @@ async def test_real_adapters_preserve_bid_and_frankfurt_alternative_without_rout
             settings=VontobelMarketsSettings(enabled=True),
             client=http,
         )
-        trade = SimpleNamespace(id=uuid4(), workspace_id=uuid4(), product_evaluation_id=uuid4())
+        from tests.unit.backend.features.position_monitoring.test_product_valuation import _context
+
+        trade, _, _, _ = _context()
         position = SimpleNamespace(id=uuid4(), open_quantity=2000, cost_basis=Decimal("1020"))
         evaluation = SimpleNamespace(warrant_listing_id=historical.id)
         result = await ProductPositionValuationService(
@@ -207,6 +209,8 @@ async def test_real_adapters_preserve_bid_and_frankfurt_alternative_without_rout
                     evaluation=evaluation,
                     listing=historical,
                     siblings=[xstu, xfra],
+                    execution_quantity=2000,
+                    execution_price="0.51",
                 )
             ),
             quote_resolver=MultiSourceWarrantQuoteResolver(

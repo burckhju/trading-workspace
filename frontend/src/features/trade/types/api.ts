@@ -119,6 +119,16 @@ export interface QuoteSourceAttemptResponse {
   refresh_error?: string | null;
 }
 
+export interface PositionValuationBasis {
+  definition_version: string;
+  basis_id: string;
+  position: Omit<PositionResponse, 'is_closed' | 'is_cancelled'>;
+  cost_basis_currency: string | null;
+  currency_status: 'KNOWN' | 'UNKNOWN' | 'MIXED';
+  effective_execution_ids: Uuid[];
+  buy_currency_evidence: (ExecutionCurrencyResolution & { execution_id: Uuid })[];
+}
+
 export interface ProductPositionValuationResponse {
   trade_id: Uuid;
   position_id: Uuid;
@@ -134,6 +144,8 @@ export interface ProductPositionValuationResponse {
   max_quote_age_seconds: number | null;
   market_value: string | null;
   unrealized_gross_pnl: string | null;
+  unrealized_pnl_usable: boolean;
+  unrealized_pnl_reason: string;
   selected_source: string | null;
   valuation_usable: boolean;
   execution_usable: boolean;
@@ -141,6 +153,9 @@ export interface ProductPositionValuationResponse {
   analysis_warning: string | null;
   analysis_market_value: string | null;
   analysis_unrealized_gross_pnl: string | null;
+  analysis_unrealized_pnl_usable: boolean;
+  analysis_unrealized_pnl_reason: string;
+  position_basis?: PositionValuationBasis | null;
   freshness_policy: string | null;
   source_attempts: QuoteSourceAttemptResponse[];
   monitoring_usable?: boolean;

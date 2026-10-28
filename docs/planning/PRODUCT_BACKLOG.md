@@ -1005,15 +1005,15 @@ Erstkaufstrecke sind beim Zusammenführen beider Branches erneut zu prüfen.
 | Nachweisfeld | Einordnung |
 |---|---|
 | Zuordnung | M5: Depot. Bereich/Querschnitt: 5. Bestehender Bezug: FT-009, durch FT-010 weiterentwickelter gemeinsamer Execution-/Position-Vertrag. Lieferziel: A, C. |
-| Arbeitsstatus | Technical Review |
+| Arbeitsstatus | Technical Review — enger Währungsfix der laufenden Bewertung implementiert und lokal qualifiziert auf Basis Main `dc89dfa65758dfc1258a8fab657257f6598b0179` / 1.5.29. Aktuelle headgebundene CI-Ergebnisse und Reviewbereitschaft: [PR #297](https://github.com/burckhju/trading-workspace/pull/297). Historische Teilfähigkeiten bleiben gesondert nachgewiesen. |
 | Soll / Nicht-Soll | **Soll:** Offene Mengen und Einstand aus effektiven Ausführungsfakten reproduzierbar darstellen. **Nicht-Soll:** Positionsübersicht ist weder Brokerdepot-Synchronisation noch vollständige Depot-Equity. |
-| Vorhandenseinsnachweis | Dokument- und/oder Routing-Nachweis vorhanden; Details, historische Grenzen und nicht erneut geprüfte Implementierung im Eintrag. |
-| Implementierung / Consumer | [Position-Owner und Projektion](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/foundation/TRACEABILITY.md); [FT-010 Average-Cost-/Korrekturvertrag](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/features/FT-010_TRADE_MANAGEMENT.md); Trade-UI registriert. |
-| Test / Commit | Historische Projektor-/Korrekturtests und aktuelle Basis-CI; keine Nutzerbestandsprüfung. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
-| Fachliche Abnahme | Historische FT-009/010-Nachweise betreffen definierte Teilsichten, nicht alle denkbaren Depotfunktionen. |
-| Software-Auslieferung | FT-009-Release und FT-010-Releasevorbereitungsdokument; kein Beleg einer Brokerintegration. |
+| Vorhandenseinsnachweis | Vorhandener Execution-/Position-Owner, neuer konsistenter Bewertungsread und alle unmittelbar betroffenen API-/UI-Consumer sind durch die unten gebundenen Regressionen geprüft. Das ist kein Nachweis vollständiger Depot-Equity oder realer Nutzerbestände. |
+| Implementierung / Consumer | [Position-Owner und Projektion](../../backend/app/features/trade_position/domain/projector.py) sowie [Währungsresolver](../../backend/app/features/trade_position/domain/currency_resolution.py) bleiben maßgeblich. [Lesebasis](../../backend/app/features/trade_position/service/valuation_basis.py) bindet effektive Executions, Bestätigungsherkunft, Menge und Kosten konsistent. Aktuelle/indikative PnL-Werte sind getrennt vom Marktwert qualifiziert; Depot, Details, Trade-Management, Filter, Sortierung, Farbe, Summen und Abdeckung verwenden dieselben Backendflags. [Vertrag und Nachweis](../implementation/POSITION_VALUATION_CURRENCY_QUALIFICATION.md). |
+| Test / Commit | [Rot-/Grün- und Gesamtbelege einschließlich exakter lokaler/Remote-Commit-/Treezuordnung](../implementation/POSITION_VALUATION_CURRENCY_QUALIFICATION.md#prüfbelege-vom-28102026): ursprünglich 32 unzulässige monetäre Währungsfälle plus eine inkonsistente Projektionsbasis; vollständiges Backendgate 3.463 Tests, Frontend 1.726 Tests, gezieltes Chromium 11/11, Smoke 115 Erfolge/fünf reguläre native Skips und zwei native Performancefälle separat bestanden. Acht neue PostgreSQL-Fälle sichern Ownerhistorien und parallele Writes; API-Fixture und Browser sichern 135 EUR Marktwert/6 von 6 gegenüber 0 EUR PnL/3 von 6. Drei strikt CI-native Fälle lokal nicht ausgeführt; aktuelle Head-CI in [PR #297](https://github.com/burckhju/trading-workspace/pull/297). Keine Nutzerbestandsprüfung. |
+| Fachliche Abnahme | Der Auftrag vom 28.10.2026 entscheidet den engen Gleichwährungsvertrag zur Umsetzung. Implementierung und lokale technische Qualifikation sind belegt; menschliche Fachabnahme des Ergebnisses und vollständige Depotabnahme bleiben offen. Historische FT-009/010-Nachweise betreffen ihre damaligen Teilsichten. |
+| Software-Auslieferung | Basis 1.5.29 enthält die integrierten PRs #295/#296. Der neue Währungsfix ist nicht ausgeliefert; dieser Auftrag autorisiert ausschließlich einen überprüfbaren PR, keinen Merge/Release oder Installation. Historische FT-009-/FT-010-Liefernachweise bleiben erhalten. |
 | Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
-| Restarbeit / nächste Abhängigkeit | Daten-/Berechnungsgrenzen der Positionssicht von tradeübergreifender Performance getrennt abnehmen. **Nächste Abhängigkeit:** Effektive Execution-Historie; PB-019 Performance liest nur. |
+| Restarbeit / nächste Abhängigkeit | Konkreten [PR #297](https://github.com/burckhju/trading-workspace/pull/297) einschließlich aktueller headgebundener CI technisch/fachlich reviewen; Integration/Auslieferung nur mit gesonderter Freigabe. Echte Kaufbelege und lesende Zielbeobachtung bleiben eigenständig. Keine Wiederholung der bereits integrierten Lesson-/Scheduleränderungen aus #295. **Nächste Abhängigkeit:** Review und tatsächliche Quellenabdeckung; unabhängige Folgeoptimierungen blockieren den engen Fix nicht. |
 | Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
 
 **UI4-Fortschreibung vom 26.10.2026:** Die
@@ -1169,16 +1169,30 @@ bleiben getrennt. Die ursprünglichen historischen Nachweise oben bleiben erhalt
 | Nachweisfeld | Einordnung |
 |---|---|
 | Zuordnung | M5: abgeleitetes Positionsergebnis; Vorleistung für M8. Bereich/Querschnitt: 5, 8. Bestehender Bezug: FT-010 auf FT-009 Execution-/Position-Vertrag. Lieferziel: C. |
-| Arbeitsstatus | Technical Review; enger SELL-Zeitraumbericht vorhanden. Kaufwährungs-Wiederverwendung und Eingabevereinfachung am 20.10.2026 ausdrücklich entschieden und implementiert; neue Qualifikation und Zielupdate gesondert belegen. |
+| Arbeitsstatus | Technical Review — Währungsqualifikation laufender Bewertungen vom 28.10.2026 implementiert und lokal geprüft; aktueller Head-/Reviewnachweis in [PR #297](https://github.com/burckhju/trading-workspace/pull/297). Historischer Realisationsumfang und Kaufwährungs-Wiederverwendung bleiben mit ihren eigenen Nachweis-/Auslieferungsgrenzen erhalten. |
 | Soll / Nicht-Soll | **Soll:** Realisiertes Brutto-PnL und Einstand aus effektiven BUY-/SELL-Fakten nach bestehender Average-Cost-Semantik ableiten. **Nicht-Soll:** Keine Gebühren, Steuern, Nettoerträge, Depot-Equity oder tradeübergreifende Performance erfinden. |
 | Vorhandenseinsnachweis | Bestehender FT-010-Average-Cost-Owner und SELL-Trace bleiben erhalten. Ein gemeinsamer reiner Resolver verwendet direkte Kaufbestätigungen, gleichseitige Korrekturherkunft und vollständige vorherige BUY-Basis; keine gespeicherte Zweitwahrheit. |
 | Implementierung / Consumer | [PositionProjector.project/project_with_trace](../../backend/app/features/trade_position/domain/projector.py) behält eine Schleife und exakte Decimal-Reihenfolge. [Owner-Währungsresolver](../../backend/app/features/trade_position/domain/currency_resolution.py) ergänzt `currency_resolution` an Capture, Timeline, History und Report; eigene Bestätigungen bleiben append-only. Schema unverändert 0047. |
-| Test / Commit | [Kaufwährungs-Wiederverwendung: Quellen, Vertrag und neue Qualifikation](../implementation/EXECUTION_CURRENCY_REUSE_QUALIFICATION.md). Die [V1.5.9-Berichtsqualifikation](../implementation/PERIOD_REALIZED_GROSS_REPORT_QUALIFICATION.md) und vorherige Trace-Qualifikation bleiben historische Nachweise mit eigenem Codebezug. Synthetische Bestätigungen belegen keine Nutzerdatenwährung. |
+| Test / Commit | [Kaufwährungs-Wiederverwendung: Quellen, Vertrag und Qualifikation](../implementation/EXECUTION_CURRENCY_REUSE_QUALIFICATION.md). Die [V1.5.9-Berichtsqualifikation](../implementation/PERIOD_REALIZED_GROSS_REPORT_QUALIFICATION.md) und vorherige Trace-Qualifikation bleiben historische Nachweise mit eigenem Codebezug. Der [laufende Bewertungsfix](../implementation/POSITION_VALUATION_CURRENCY_QUALIFICATION.md#prüfbelege-vom-28102026) ergänzt belegte rote Ausgangsregressionen, vollständige lokale Gates und acht native PostgreSQL-Fälle ohne Änderung der Finanzformel. Synthetische Bestätigungen belegen keine Nutzerdatenwährung. |
 | Fachliche Abnahme | V1-Vertrag am 17.10.2026 zur Umsetzung freigegeben. Am 20.10.2026 ausdrücklich präzisiert: Kaufwährung auch für Verkauf nutzen, so wenig zusätzliche Eingaben wie möglich (ADR-S10-008-Nachtrag). Merge und PC-Bereitstellung nach grünen Prüfungen bereits autorisiert. Keine vollständige M8- oder abschließende PC-Fachabnahme daraus abgeleitet. |
 | Software-Auslieferung | V1.5.9 auf `254fe35b76027b72cd989715e17bd0ae55af55eb` veröffentlicht. [V1.5.10](../releases/V1.5.10-EXECUTION-CURRENCY-REUSE.md) ergänzt reine Owner-Währungsableitung ohne Migration; Veröffentlichung erst nach erfolgreichen aktuellen PR- und main-Prüfungen durch vorhandenen Version-Workflow. |
 | Betriebsnachweis | Am 20.10.2026 meldet der Nutzer vier gesunde Dienste, `ready` und installiert 1.5.9 / `254fe35b76027b72cd989715e17bd0ae55af55eb`; lesende Berichtsansicht beobachtet. Kein Installations- oder Fachabnahmenachweis für 1.5.10 und keine Aussage über vollständige reale Währungsabdeckung. |
-| Restarbeit / nächste Abhängigkeit | Kaufwährungs-Wiederverwendung auf geprüftem Stand ausliefern und am PC lesend prüfen. Fehlende echte Kaufbelege bleiben eine Datenlücke; keine neue Bestätigung je SELL nötig. **Nächste Abhängigkeit:** qualifizierter 1.5.10-Stand und tatsächliche Quellenabdeckung. |
+| Restarbeit / nächste Abhängigkeit | Historische Kaufwährungs-Wiederverwendung und tatsächliche Quellenabdeckung am PC lesend fachlich prüfen; ein Release ersetzt diesen Nachweis nicht. Den engen laufenden Bewertungsfix in [PR #297](https://github.com/burckhju/trading-workspace/pull/297) mit seiner aktuellen Head-CI reviewen. Fehlende echte Kaufbelege bleiben eine Datenlücke; keine neue Bestätigung je SELL nötig. **Nächste Abhängigkeit:** Review sowie echte Quellen-/Zielbeobachtung; keine Integrations- oder Installationsfreigabe aus diesem Auftrag. |
 | Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
+
+**Fortschreibung 28.10.2026:** Der [enge laufende Bewertungsvertrag samt tatsächlicher Qualifikation](../implementation/POSITION_VALUATION_CURRENCY_QUALIFICATION.md)
+verwendet denselben Ownerprojektor und Resolver auf Basis Main `dc89dfa65758dfc1258a8fab657257f6598b0179`
+/ 1.5.29. Marktwert und PnL sind getrennt qualifiziert; unbekannte, gemischte
+oder abweichende Kaufkostenwährungen liefern fehlendes PnL mit Grund.
+Der Vertrag wurde vor der Implementierung festgelegt; Rot-/Grünnachweise und
+die lokalen regulären Gates sind inzwischen erbracht. Die Nachweisdokumentation
+bindet die tatsächlich geprüften lokalen Commits und die identischen
+veröffentlichten Trees. Aktuelle headgebundene CI-Ergebnisse und Reviewbereitschaft:
+[PR #297](https://github.com/burckhju/trading-workspace/pull/297).
+Historische Nachweise und Freigaben oben beziehen sich auf ihre früheren Schnitte;
+der neue Auftrag erlaubt keine Integration, Veröffentlichung oder Installation.
+Fachabnahme und reale Quellenabdeckung bleiben offen; Consumerstatus in
+[PB-016](#pb-016-positions).
 
 </details>
 
@@ -1401,6 +1415,20 @@ eigenständigen Folgeauftrag.
 | Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
 | Restarbeit / nächste Abhängigkeit | UI3-Draft gemäß regulären PR-Gates fachlich prüfen; allgemeine RETIRED-Reaktivierung, Titel-/Tag-Editor, vollständige Mobil-/Barrierefreiheitsabnahme, fachliche Abnahme und Zielinstallation bleiben getrennt. FT011-Konsistenz und historisches NOT_READY-Inventar besitzen eigene spätere Belege in [PB-019 Materialisierung](#pb-019-materialization); aus älteren Lesson-Berichten keine erneute offene Implementierung ableiten. #90 und #187 bleiben separate offene Arbeiten. **Nächste Abhängigkeit:** bestehende FT-011-/FT-012-Quellenverträge; Journal ist keine neue Pflicht für die FT011-Lesson-Strecke. |
 | Umfangsentscheidung | Vorhandene Lesson-/Review-Verträge konsolidiert; kein neuer Backend-Lifecycle oder automatischer Governance-Befehl. Produkt-/Plankonsolidierungen #284/#285 sind bereits integriert und werden hier nicht erneut bearbeitet. Journal bleibt eigener ursprünglicher Anspruch. |
+
+**Aktueller Integrationsabgleich 28.10.2026:** [PR #295](https://github.com/burckhju/trading-workspace/pull/295)
+ist am 28.10.2026 mit Merge `13e8d5331abab32d4998118e83aaecbc231dea31`
+integriert; dessen Head war `36e846cf9bcdaeb47981328597cb05335fe83d1f`.
+Die gemeinsame Lesson-Erfolgsnavigation und der Erhalt bestätigter Ergebnisse
+bei Verwerfen im gleichen Evidence-Kontext sind Bestandteil der aktuellen
+Basis `dc89dfa65758dfc1258a8fab657257f6598b0179` / 1.5.29.
+Der frühere Draft-/Übergabestand oben bleibt historischer Nachweis.
+[Reviewbeleg](../reviews/REMAINING_WORK_INTEGRATION_2026-10-28.md) und
+[PR #296](https://github.com/burckhju/trading-workspace/pull/296) trennen technische
+Qualifikation und anschließende Softwarebereitstellung. Keine neue menschliche
+Fachabnahme oder PC-Installation wird daraus abgeleitet. Diese Änderungen werden
+im Währungsfix erhalten und nicht erneut implementiert; #90 bleibt als
+historischer PR von diesem Auftrag unberührt.
 
 </details>
 
@@ -1785,6 +1813,17 @@ Nachweis vollständiger realer Währungsabdeckung oder einer neuen Auslieferung.
 | Restarbeit / nächste Abhängigkeit | Begrenzte Umsetzung und ergänzte Cache-/Fehler-/Job-Fälligkeitstests sind am neuen Code-/Testbestand nachgewiesen; finale PR-Gates headgebunden im PR dokumentieren und Integration getrennt behandeln. Der [Entscheidungsnachtrag](../reviews/MARKET_DATA_SOURCE_MODE_PACING_2026-10-21.md#nachtrag-variante-2-entschieden) hält auch mögliche spätere Erholung bei unveränderten Jobintervallen fest; keine neue Recovery-Retrylogik. Technical Review bleibt bis zur Integration; aktuelle Betriebszustände auf JMBbot weiterhin separat prüfen. |
 | Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
 
+**Aktueller Integrationsabgleich 28.10.2026:** [PR #295](https://github.com/burckhju/trading-workspace/pull/295)
+ist mit `13e8d5331abab32d4998118e83aaecbc231dea31` in Main integriert.
+Der Guard gegen erneuten Quote-Lane-Start während des laufenden Discovery-Retry
+ist in der aktuellen Basis `dc89dfa65758dfc1258a8fab657257f6598b0179` / 1.5.29
+enthalten. [Reviewnachweis](../reviews/REMAINING_WORK_INTEGRATION_2026-10-28.md)
+und [anschließender Release-PR #296](https://github.com/burckhju/trading-workspace/pull/296)
+bleiben getrennt von einer beobachteten Scheduler-/PC-Abnahme. Der Währungsfix
+übernimmt keine historischen #225/#235-Änderungen erneut und verändert diese
+Schedulerkorrektur nicht. Die früheren Übergabegrenzen oben bleiben datierte
+historische Nachweise, keine erneute Implementierungsabhängigkeit.
+
 </details>
 
 <a id="market-data-evidence"></a>
@@ -1914,15 +1953,15 @@ Nachweis vollständiger realer Währungsabdeckung oder einer neuen Auslieferung.
 | Nachweisfeld | Einordnung |
 |---|---|
 | Zuordnung | Spätere Querschnittsfähigkeit zu M2–M10. Bereich/Querschnitt: Querschnitt: durchgängiger Arbeitsablauf/Bedienbarkeit. Bestehender Bezug: Operational Workspace; nur lesend. Lieferziel: A. |
-| Arbeitsstatus | Technical Review |
+| Arbeitsstatus | Technical Review — Währungsqualifikation für Depotzeile/Details, Trade-Management, Aktionen, Filter, Sortierung und Summen implementiert und lokal geprüft. Aktuelle headgebundene CI-Ergebnisse und Reviewbereitschaft: [PR #297](https://github.com/burckhju/trading-workspace/pull/297). Sonstige Technical-Review-Grenzen unverändert. |
 | Soll / Nicht-Soll | **Soll:** Nächste Aufgaben, Datenbereitschaft, offene Positionen, Monitoring und Zustellung aus autoritativen Quellen verständlich zusammenführen. **Nicht-Soll:** Keine eigenen Done-/Acknowledge-/Assignment-Zustände und keine konkurrierende fachliche Schreibwahrheit. |
-| Vorhandenseinsnachweis | Dokument- und/oder Routing-Nachweis vorhanden; Details, historische Grenzen und nicht erneut geprüfte Implementierung im Eintrag. |
-| Implementierung / Consumer | [Operational-Workspace-API](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/backend/app/main.py) / [/workspace](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/frontend/src/app/router.tsx) registriert; [ephemerer Read-model-Vertrag](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/planning/MODULE_AND_FEATURE_CATALOG.md). |
-| Test / Commit | Aktuelle Basis-CI; vollständiger Aufgaben-/Fehler-/Readiness-Consumer hier nicht neu durchlaufen. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
+| Vorhandenseinsnachweis | Bestehende lesende API und UI; der enge Währungsschnitt ist durch API-/Komponenten-/Browserregressionen belegt. Vollständige fachliche Workspace-Abnahme und beobachteter Nutzerbetrieb bleiben offen. |
+| Implementierung / Consumer | Operational-Workspace-API und `/workspace` bleiben ephemere Leser. [Bewertungsvertrag](../implementation/POSITION_VALUATION_CURRENCY_QUALIFICATION.md): Position und Währungsbelege aus derselben Materialisierung, fehlendes PnL mit Grund, unabhängig erhaltener Marktwert und getrennte Abdeckung. Depot, Details, Trade-Management und Priorisierungsgründe verwenden die Backendqualifikation; keine eigene Finanzrechnung, Bestätigung oder Providerreparatur. |
+| Test / Commit | [Exakte lokale/Remote-Commit-/Tree- und Gatebezüge](../implementation/POSITION_VALUATION_CURRENCY_QUALIFICATION.md#prüfbelege-vom-28102026). Der native Owner-/API-Fall erzeugt die im Chromium-Test verwendete Antwort: 135 EUR Marktwert bei 6 von 6, nur drei qualifizierte PnL-Beiträge mit Summe 0 EUR. Unbekannte/gemischte/abweichende Kostenwährungen bleiben aus Gewinn-/Verlustfilter, Farbe und PnL-Abdeckung ausgeschlossen. Backend 3.463, Frontend 1.726, gezielt Chromium 11/11; Smoke 115 Erfolge/fünf reguläre native Skips, zwei Performancefälle separat bestanden. Drei CI-native Gates lokal nicht ausgeführt; aktuelle CI in [PR #297](https://github.com/burckhju/trading-workspace/pull/297). |
 | Fachliche Abnahme | Keine eigenständige fachliche Abnahme für diesen vollständigen Zuschnitt verifiziert. |
-| Software-Auslieferung | Kein gesonderter Release-Nachweis für den vollständigen Zuschnitt verifiziert; ein allgemeiner Softwaretag ersetzt ihn nicht. |
+| Software-Auslieferung | Kein Release des neuen Währungsfixes; der Auftrag endet beim überprüfbaren PR. Historische Softwarestände sind kein vollständiger Workspace-Abnahmenachweis. |
 | Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
-| Restarbeit / nächste Abhängigkeit | End-to-End-Lesbarkeit der konkreten täglichen Aufgaben in einer identifizierten Installation abnehmen. **Nächste Abhängigkeit:** Vorhandene Ownerzustände; fehlende Journal-/Performance-Funktionen nicht als erledigt anzeigen. |
+| Restarbeit / nächste Abhängigkeit | Konkreten PR mit aktueller Head-CI technisch/fachlich reviewen; Integration erst nach eigener Freigabe. End-to-End-Lesbarkeit der täglichen Aufgaben in einer identifizierten Installation bleibt eigenständige Abnahme. **Nächste Abhängigkeit:** Review und vorhandene Ownerzustände; keine neue Bestätigungs-/Aufgabenwahrheit. |
 | Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
 
 </details>
@@ -1944,6 +1983,13 @@ Nachweis vollständiger realer Währungsabdeckung oder einer neuen Auslieferung.
 | Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
 | Restarbeit / nächste Abhängigkeit | Engpass, Lastprofil und messbaren Zielwert erst nach Beleg bestimmen; keine erfundene Fertigstellungsquote. **Nächste Abhängigkeit:** Geeigneter isolierter Prüfstack bzw. autorisierter Releaseprozess. |
 | Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
+
+**Begrenzung zum Währungsfix vom 28.10.2026:** Abfragebündelung der
+Positions-/Quote-Leser und eine mögliche Bundleaufteilung bleiben begründete
+Folgearbeiten, weil sie keine Voraussetzung für die fachliche Währungsqualifikation
+sind und einen eigenen Last-/Ladezeitnachweis benötigen. Neue Performancefunktionen
+und zusätzliche Modellfamilien verbleiben in ihren vorhandenen PB-019-/PB-020-
+Einträgen; ihre Fachverträge werden nicht durch diesen Integritätsfix erweitert.
 
 </details>
 

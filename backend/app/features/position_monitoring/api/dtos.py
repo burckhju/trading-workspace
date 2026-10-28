@@ -22,6 +22,7 @@ from app.features.position_monitoring.service.quote_sources import (
 from app.features.position_monitoring.service.source_diagnostics import (
     StuttgartDelayedSourceStatus,
 )
+from app.features.trade_position.service.valuation_basis import PositionValuationBasis
 
 
 class MonitoringBasisResponse(BaseModel):
@@ -184,6 +185,11 @@ class ProductPositionValuationResponse(BaseModel):
     max_quote_age_seconds: int | None
     market_value: Decimal | None
     unrealized_gross_pnl: Decimal | None
+    unrealized_pnl_usable: bool = False
+    unrealized_pnl_reason: str = "VALUATION_UNAVAILABLE"
+    analysis_unrealized_pnl_usable: bool = False
+    analysis_unrealized_pnl_reason: str = "VALUATION_UNAVAILABLE"
+    position_basis: PositionValuationBasis | None = None
     selected_source: str | None
     quote_provider: MarketDataProvider | None
     provider_identity: str | None

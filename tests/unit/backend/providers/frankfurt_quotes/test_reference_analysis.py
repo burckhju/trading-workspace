@@ -83,7 +83,14 @@ def test_reference_price_reaches_trade_api_without_invented_bid_or_timestamp(
     listing.symbol = None
     service = ProductPositionValuationService(
         database=_Database(
-            _Session(trade=trade, position=position, evaluation=evaluation, listing=listing)
+            _Session(
+                trade=trade,
+                position=position,
+                evaluation=evaluation,
+                listing=listing,
+                execution_quantity=position.open_quantity,
+                execution_price="0.51",
+            )
         ),
         quote_resolver=MultiSourceWarrantQuoteResolver(
             (NamedWarrantQuoteSource("FRANKFURT_QUOTES", adapter),)

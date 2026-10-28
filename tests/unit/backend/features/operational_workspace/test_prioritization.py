@@ -27,6 +27,8 @@ def test_indicative_price_is_disclosed_as_available_analysis():
         status=ProductValuationStatus.INDICATIVE,
         reason="REFERENCE_PRICE_AVAILABLE_FOR_ANALYSIS",
         analysis_usable=True,
+        analysis_unrealized_pnl_usable=True,
+        analysis_unrealized_pnl_reason="COST_BASIS_CURRENCY_MATCHED",
         reference_price_type="PREVIOUS_CLOSE",
         selected_source="FRANKFURT_QUOTES",
     )
@@ -35,6 +37,47 @@ def test_indicative_price_is_disclosed_as_available_analysis():
     assert "Schlusskurs von FRANKFURT_QUOTES" in detail
     assert "Kurszeitpunkt unbekannt" in detail
     assert "Auswertung und Wert-/P&L-Überwachung sind verfügbar" in detail
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("status", ["AVAILABLE", "INDICATIVE", "STALE"])
+@pytest.mark.parametrize(
+    "reason",
+    [
+        "COST_BASIS_CURRENCY_UNKNOWN",
+        "COST_BASIS_CURRENCY_MIXED",
+        "COST_BASIS_CURRENCY_MISMATCH",
+    ],
+)
+async def test_workspace_action_does_not_promise_unqualified_pnl(status, reason):
+    action = _action(action_type="OPEN_POSITION_MANAGEMENT")
+
+    async def health_reader(trade_id):
+        return _health(trade_id, MonitoringHealthStatus.OK)
+
+    async def valuation_reader(trade_id):
+        return ProductPositionValuation(
+            trade_id=trade_id,
+            position_id=uuid4(),
+            status=ProductValuationStatus(status),
+            reason="QUOTE_AVAILABLE",
+            analysis_usable=True,
+            analysis_unrealized_pnl_reason=reason,
+            unrealized_pnl_reason=reason,
+            selected_source="SYNTHETIC",
+            quote_age_seconds=0,
+        )
+
+    (result,) = await prioritize_position_monitoring(
+        (action,),
+        health_reader=health_reader,
+        valuation_reader=valuation_reader,
+    )
+    assert result.title == "Kaufwährung der Position prüfen"
+    assert "Marktwertanalyse ist verfügbar" in result.detail
+    assert "Gewinn/Verlust ist nicht berechenbar" in result.detail
+    assert "P&L-Überwachung sind verfügbar" not in result.detail
+    assert "SYNTHETIC" in result.detail
 
 
 NOW = datetime(2026, 9, 6, 12, 0, tzinfo=UTC)

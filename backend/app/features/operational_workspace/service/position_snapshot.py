@@ -33,6 +33,7 @@ from app.features.trade_position.persistence.models import PositionModel, TradeM
 from app.features.trade_position.persistence.repositories import (
     SqlAlchemyTradeManagementEventRepository,
 )
+from app.features.trade_position.service.valuation_basis import PositionValuationBasis
 
 PositionHealthReader = Callable[[UUID], Awaitable[PositionMonitoringHealth | None]]
 ProductValuationReader = Callable[[UUID], Awaitable[ProductPositionValuation | None]]
@@ -69,6 +70,9 @@ class PositionOperationalSnapshot:
     analysis_warning: str | None = None
     quote_source: str | None = None
     quote_observed_at: datetime | None = None
+    unrealized_pnl_usable: bool = False
+    unrealized_pnl_reason: str = "VALUATION_UNAVAILABLE"
+    position_basis: PositionValuationBasis | None = None
 
 
 class OperationalPositionSnapshotService:
@@ -129,6 +133,17 @@ class OperationalPositionSnapshotService:
             ).all()
             health = await self._health_reader(trade.id)
             valuation = await self._valuation_reader(trade.id)
+            basis = valuation.position_basis if valuation is not None else None
+            # The valuation materializes its own short owner snapshot. Reuse its
+            # projection so a concurrent capture cannot mix old row quantities
+            # or costs with the newer currency proof and monetary values.
+            source_position = basis.position if basis is not None else position
+            analysis = valuation is not None and valuation.analysis_usable
+            pnl_usable = valuation is not None and (
+                valuation.analysis_unrealized_pnl_usable
+                if analysis
+                else valuation.unrealized_pnl_usable
+            )
 
             monitoring_status = health.status.value if health is not None else "ERROR"
             valuation_status = valuation.status.value if valuation is not None else "ERROR"
@@ -148,12 +163,12 @@ class OperationalPositionSnapshotService:
                     product_wkn=warrant.wkn,
                     underlying_name=underlying_name,
                     underlying_id=warrant.underlying_id,
-                    opened_at=position.opened_at,
-                    opened_on=position.opened_on,
-                    open_quantity=position.open_quantity,
-                    average_entry_price=position.average_entry_price,
-                    cost_basis=position.cost_basis,
-                    realized_gross_pnl=position.realized_gross_pnl,
+                    opened_at=source_position.opened_at,
+                    opened_on=source_position.opened_on,
+                    open_quantity=source_position.open_quantity,
+                    average_entry_price=source_position.average_entry_price,
+                    cost_basis=source_position.cost_basis,
+                    realized_gross_pnl=source_position.realized_gross_pnl,
                     stop_price=stop_price,
                     target_price=target_price,
                     monitoring_status=monitoring_status,
@@ -176,19 +191,25 @@ class OperationalPositionSnapshotService:
                         )
                     ),
                     unrealized_gross_pnl=(
-                        valuation.analysis_unrealized_gross_pnl
-                        if valuation is not None and valuation.analysis_usable
-                        else (
-                            valuation.unrealized_gross_pnl
-                            if valuation is not None
-                            and valuation.status
-                            in {
-                                ProductValuationStatus.AVAILABLE,
-                                ProductValuationStatus.LAST_AVAILABLE,
-                            }
-                            else None
+                        (
+                            valuation.analysis_unrealized_gross_pnl
+                            if analysis
+                            else valuation.unrealized_gross_pnl
                         )
+                        if valuation is not None and pnl_usable
+                        else None
                     ),
+                    unrealized_pnl_usable=pnl_usable,
+                    unrealized_pnl_reason=(
+                        (
+                            valuation.analysis_unrealized_pnl_reason
+                            if analysis
+                            else valuation.unrealized_pnl_reason
+                        )
+                        if valuation is not None
+                        else "VALUATION_UNAVAILABLE"
+                    ),
+                    position_basis=basis,
                     analysis_warning=valuation.analysis_warning if valuation is not None else None,
                     quote_source=valuation.selected_source if valuation is not None else None,
                     quote_observed_at=(

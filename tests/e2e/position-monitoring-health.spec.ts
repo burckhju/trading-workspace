@@ -112,6 +112,8 @@ for (const valuationStatus of ["STALE", "LAST_AVAILABLE"] as const) {
           max_quote_age_seconds: 3600,
           market_value: valuationStatus === "STALE" ? null : "250.00",
           unrealized_gross_pnl: valuationStatus === "STALE" ? null : "50.00",
+          unrealized_pnl_usable: valuationStatus === "LAST_AVAILABLE",
+          unrealized_pnl_reason: valuationStatus === "STALE" ? "WARRANT_QUOTE_STALE" : "COST_BASIS_CURRENCY_MATCHED",
           selected_source: "VONTOBEL_MARKETS",
           valuation_usable: valuationStatus === "LAST_AVAILABLE",
           execution_usable: false,
@@ -119,6 +121,8 @@ for (const valuationStatus of ["STALE", "LAST_AVAILABLE"] as const) {
           analysis_warning: "OUTDATED_QUOTE_INDICATIVE_ANALYSIS_ONLY",
           analysis_market_value: "250.00",
           analysis_unrealized_gross_pnl: "50.00",
+          analysis_unrealized_pnl_usable: true,
+          analysis_unrealized_pnl_reason: "COST_BASIS_CURRENCY_MATCHED",
           source_attempts: [],
         });
       }

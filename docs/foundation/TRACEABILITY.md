@@ -946,3 +946,33 @@ gelten weiter. Tatsächliche Head-/Tree-/Run- und Bildnachweise werden im
 Statistik-Draft-PR gebunden; die älteren Erfolge anderer PRs ersetzen sie nicht.
 Keine neue Feature-ID, allgemeine Backlogbereinigung, Fachgesamtabnahme,
 Merge-, Release- oder PC-Freigabe.
+
+## 2026-10-28 — Währungsqualifikation der laufenden Positionsbewertung
+
+[PB-016 Positionen](../planning/PRODUCT_BACKLOG.md#pb-016-positions),
+[PB-017 Brutto-PnL](../planning/PRODUCT_BACKLOG.md#pb-017-gross-pnl) und
+[Operational Workspace](../planning/PRODUCT_BACKLOG.md#operational-workspace)
+→ ausdrücklicher Auftrag, monetäres nicht realisiertes PnL an belegte gleiche
+Kaufkosten-/Quote-Währung zu binden
+→ [ADR-S10-008-Nachtrag](../decisions/ADR-S10-008-EXECUTION-CURRENCY-AND-PERIOD-REALIZED-GROSS.md)
+und [vorab festgelegter Vertrag mit Akzeptanzfällen](../implementation/POSITION_VALUATION_CURRENCY_QUALIFICATION.md)
+→ bestehender Execution-Owner, `PositionProjector` und reiner Währungsresolver
+→ getrennte aktuelle/indikative PnL-Qualifikation, konsistente Lesebasis und
+unabhängig nutzbarer Marktwert bis zu Depot, Trade-Management, Filtern und Summen.
+
+Ausgangsbasis ist `dc89dfa65758dfc1258a8fab657257f6598b0179` / 1.5.29 mit dem
+bereits integrierten PR #295. Dessen Lesson-/Schedulerkorrekturen bleiben erhalten.
+Der [Bewertungsnachweis](../implementation/POSITION_VALUATION_CURRENCY_QUALIFICATION.md#prüfbelege-vom-28102026)
+bindet den vorab festgelegten Vertrag, 32 rote Währungsfälle plus eine rote
+Projektionsregression und die erfolgreichen lokalen Gates an ihre tatsächlichen
+Commits sowie identische veröffentlichte Trees: Backend 3.463, Frontend 1.726,
+gezielt Chromium 11/11, Smoke 115 Erfolge/fünf reguläre native Skips und zwei
+native Performancefälle separat. Acht neue PostgreSQL-Fälle prüfen echte
+Ownerhistorien, parallele Korrekturen, Nichtmutation und die genaue gemeinsame
+API-Fixture. Dieselbe Fixture belegt im Browser Filter, Sortierung, Farbe,
+Navigation, 135 EUR Marktwert/6 von 6 und 0 EUR PnL/3 von 6. Die drei strikt
+CI-nativen Gates sind lokal nicht ausgeführt; aktuelle headgebundene CI-Ergebnisse
+und Reviewbereitschaft stehen in [PR #297](https://github.com/burckhju/trading-workspace/pull/297).
+Historische Erfolge ersetzen diese Nachweise nicht. Kein neuer Ausführungsowner,
+keine FX-Annahme, Migration, Fachgesamtabnahme, Merge-, Release- oder PC-Freigabe.
+Der Arbeitsstatus bleibt allein im Backlog; Nutzerbetrieb ist nicht belegt.

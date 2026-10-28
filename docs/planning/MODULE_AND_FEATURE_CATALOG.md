@@ -65,6 +65,14 @@ Die bisherigen PB-001–PB-020 bleiben im [Backlog](PRODUCT_BACKLOG.md#abnahmema
 
 **Operational Workspace** bleibt eine lesende, ephemere Projektion bestehender Owner-Zustände. Er konsumiert unter anderem FT-005/FT-020, FT-007–FT-011, Position Monitoring und Notification Delivery. Benutzeraktionen gehen an den jeweiligen schreibenden Fachowner. Es gibt keine zusätzlichen persistierten Done-, Acknowledge- oder Assignment-Fakten.
 
+Für die laufende Positionsbewertung qualifiziert derselbe FT-009/010-Owner die
+wirksame Kaufkostenbasis über seine bestehende Projektion und Währungsauflösung.
+Marktwert und nicht realisiertes Brutto-PnL bleiben getrennte Aussagen. Depot,
+Trade-Management, Filter und Summen konsumieren diese Backendqualifikation ohne
+zweite Kostenrechnung oder Bestätigungswahrheit. Quellen- und Versionsbezug
+stehen im [engen Bewertungsvertrag](../implementation/POSITION_VALUATION_CURRENCY_QUALIFICATION.md);
+Arbeitsstatus weiterhin ausschließlich in PB-016, PB-017 und Operational Workspace.
+
 **Position Monitoring & Alert Capability** besitzt MonitoringRuleState und Alert. **Notification Capability** besitzt Notification und DeliveryAttempt. Die noch offene Nummerierungsentscheidung wird nicht vorweggenommen. Der historische rein tägliche Underlying-Scope darf nicht spätere dokumentierte Preisbindungs-/Produktdaten-Erweiterungen verdecken. Aktuelle Arbeits-/Nachweisstände stehen nur im Backlog.
 
 <a id="ownership"></a>

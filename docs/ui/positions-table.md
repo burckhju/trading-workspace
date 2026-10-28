@@ -47,6 +47,25 @@ zuerst nach Währung. Fehlende Werte bleiben in beiden Sortierrichtungen zuletzt
 Summen und Geldsortierung nutzen exakte skalierte Ganzzahlen statt binärer Gleitkommazahlen;
 Anzeige von Geldsummen mit zwei Dezimalstellen, gespeicherte Einzelwerte bleiben unverändert.
 
+### Währungsqualifikation des nicht realisierten G/V
+
+Der [Vertrag vom 28.10.2026](../implementation/POSITION_VALUATION_CURRENCY_QUALIFICATION.md)
+trennt die Aussagequalität von Marktwert und G/V. Die Quote-Währung allein
+qualifiziert keinen Kostenabzug. Nur ein vom Backend ausdrücklich nutzbares
+G/V mit vollständig belegter gleicher Kaufkostenwährung erscheint als Geldwert,
+Gewinner/Verlierer, positive/negative Zahl oder PnL-Summenbeitrag. Dies gilt auch
+für indikative Analysewerte und zuletzt verfügbare Quotes. Ein exakt neutrales
+qualifiziertes Ergebnis bleibt von einem fehlenden Wert unterscheidbar.
+
+Unbekannte, gemischte oder von der Quote abweichende Kaufkostenwährungen werden
+mit ihrem verständlichen Grund in Zeile/Details bzw. Trade-Management sichtbar.
+Ein solcher G/V bleibt beim Sortieren fehlend und erhöht weder PnL-Summe noch
+PnL-Abdeckung. Ein unabhängig gültiger Marktwert und seine Abdeckung bleiben
+erhalten. Beide Abdeckungen sind getrennt ausgewiesen. Herkunft, Preisbindung,
+Zeitstempel und Frischekennzeichnung bleiben zugänglich. Die konkrete
+Projektions-/Währungsbasis verhindert, dass Kosten und Menge aus einem anderen
+Korrekturstand in dieselbe Positionsbewertung geraten.
+
 Das Kaufdatum ist `opened_on`, sonst der lokale Kalendertag von `opened_at`, nicht das
 Erfassungsdatum. Es beschreibt den ersten effektiven Kauf. Nachkäufe/Teilverkäufe und
 Datumskorrekturen bleiben im Trade-Bereich. Unbekannte Datumsangaben werden nicht erfunden.

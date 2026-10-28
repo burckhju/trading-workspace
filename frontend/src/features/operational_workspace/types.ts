@@ -69,6 +69,9 @@ export interface OperationalPosition {
   valuation_currency: string | null;
   market_value: string | null;
   unrealized_gross_pnl: string | null;
+  unrealized_pnl_usable: boolean;
+  unrealized_pnl_reason: string;
+  position_basis?: PositionValuationBasis | null;
   open_alert_count: number;
   open_alert_types: string[];
   attention_state: PositionAttentionState;
@@ -80,3 +83,4 @@ export interface OperationalPositionsResponse {
   generated_at: string;
   positions: OperationalPosition[];
 }
+import type { PositionValuationBasis } from '../trade/types/api';

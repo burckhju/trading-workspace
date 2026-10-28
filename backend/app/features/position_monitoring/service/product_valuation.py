@@ -6,7 +6,7 @@ from decimal import Decimal
 from enum import StrEnum
 from uuid import UUID, uuid4
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 
 from app.database import DatabaseManager
 from app.features.market_data.domain.enums import (
@@ -36,6 +36,11 @@ from app.features.product.domain.models import WarrantLifecycle
 from app.features.product.persistence.models import WarrantListingModel
 from app.features.product_selection.persistence.models import ProductEvaluationModel
 from app.features.trade_position.persistence.models import PositionModel, TradeModel
+from app.features.trade_position.persistence.repositories import SqlAlchemyTradeRepository
+from app.features.trade_position.service.valuation_basis import (
+    PositionValuationBasis,
+    read_position_valuation_basis,
+)
 
 DEFAULT_MAX_PRODUCT_QUOTE_AGE_SECONDS = 3600
 
@@ -68,6 +73,11 @@ class ProductPositionValuation:
     max_quote_age_seconds: int | None = None
     market_value: Decimal | None = None
     unrealized_gross_pnl: Decimal | None = None
+    unrealized_pnl_usable: bool = False
+    unrealized_pnl_reason: str = "VALUATION_UNAVAILABLE"
+    analysis_unrealized_pnl_usable: bool = False
+    analysis_unrealized_pnl_reason: str = "VALUATION_UNAVAILABLE"
+    position_basis: PositionValuationBasis | None = None
     selected_source: str | None = None
     quote_provider: MarketDataProvider | None = None
     provider_identity: str | None = None
@@ -105,6 +115,30 @@ class ProductPositionValuation:
     source_attempts: tuple[QuoteSourceAttempt, ...] = ()
 
 
+@dataclass(frozen=True, slots=True)
+class _ValuationListing:
+    id: UUID
+    symbol: str | None
+    quotation_currency_code: str
+
+    @classmethod
+    def from_model(cls, listing: WarrantListingModel) -> _ValuationListing:
+        return cls(listing.id, listing.symbol, listing.quotation_currency_code)
+
+
+@dataclass(frozen=True, slots=True)
+class _ValuationContext:
+    workspace_id: UUID
+    basis: PositionValuationBasis
+    listing: _ValuationListing
+    candidate_listings: tuple[_ValuationListing, ...]
+    provenance_listing_id: UUID | None
+    bound_source_name: str | None
+    selection_status: str | None
+    selection_reason: str | None
+    selection_policy_version: str | None
+
+
 class ProductPositionValuationService:
     """Read current held-product valuation without changing trading or alert state."""
 
@@ -130,7 +164,25 @@ class ProductPositionValuationService:
             )
 
     async def for_trade(self, trade_id: UUID) -> ProductPositionValuation | None:
+        context = await self._read_context(trade_id)
+        if context is None:
+            return None
+        if isinstance(context, ProductPositionValuation):
+            return replace(
+                context,
+                unrealized_pnl_reason=context.reason,
+                analysis_unrealized_pnl_reason=context.reason,
+            )
+        # Database snapshots are short and finish before any existing quote read.
+        value = await self._value_quotes(trade_id, context)
+        return self._qualify_pnl(value, context.basis)
+
+    async def _read_context(
+        self, trade_id: UUID
+    ) -> _ValuationContext | ProductPositionValuation | None:
         async with self._database.session_context() as session:
+            await session.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY"))
+            await session.execute(text("SET LOCAL statement_timeout = '10000ms'"))
             row = (
                 await session.execute(
                     select(TradeModel, PositionModel)
@@ -146,6 +198,11 @@ class ProductPositionValuationService:
             if row is None:
                 return None
             trade, position = row
+            basis = await read_position_valuation_basis(
+                session, trade=SqlAlchemyTradeRepository.to_domain(trade), position_id=position.id
+            )
+            if basis.position.is_closed:
+                return None
 
             source_selection = await session.scalar(
                 select(PositionQuoteSourceSelectionModel).where(
@@ -169,6 +226,7 @@ class ProductPositionValuationService:
             if source_selection is not None:
                 if source_selection.selection_status != "SELECTED":
                     return ProductPositionValuation(
+                        position_basis=basis,
                         trade_id=trade_id,
                         position_id=position.id,
                         status=ProductValuationStatus.UNAVAILABLE,
@@ -185,6 +243,7 @@ class ProductPositionValuationService:
                     or source_selection.mapping_version is None
                 ):
                     return ProductPositionValuation(
+                        position_basis=basis,
                         trade_id=trade_id,
                         position_id=position.id,
                         status=ProductValuationStatus.ERROR,
@@ -203,6 +262,7 @@ class ProductPositionValuationService:
                 )
                 if listing is None:
                     return ProductPositionValuation(
+                        position_basis=basis,
                         trade_id=trade_id,
                         position_id=position.id,
                         status=ProductValuationStatus.UNAVAILABLE,
@@ -216,6 +276,7 @@ class ProductPositionValuationService:
                     bound_provider = MarketDataProvider(source_selection.provider)
                 except ValueError:
                     return ProductPositionValuation(
+                        position_basis=basis,
                         trade_id=trade_id,
                         position_id=position.id,
                         status=ProductValuationStatus.ERROR,
@@ -240,6 +301,7 @@ class ProductPositionValuationService:
                 )
                 if mapping is None:
                     return ProductPositionValuation(
+                        position_basis=basis,
                         trade_id=trade_id,
                         position_id=position.id,
                         status=ProductValuationStatus.UNAVAILABLE,
@@ -263,6 +325,7 @@ class ProductPositionValuationService:
                 identity = await read_quote_identity(session, request, bound_provider)
                 if identity is None or identity.key != source_selection.identity_key:
                     return ProductPositionValuation(
+                        position_basis=basis,
                         trade_id=trade_id,
                         position_id=position.id,
                         status=ProductValuationStatus.UNAVAILABLE,
@@ -286,6 +349,7 @@ class ProductPositionValuationService:
                     )
                     if evaluation is None:
                         return ProductPositionValuation(
+                            position_basis=basis,
                             trade_id=trade_id,
                             position_id=position.id,
                             status=ProductValuationStatus.ERROR,
@@ -299,6 +363,7 @@ class ProductPositionValuationService:
             else:
                 if trade.product_evaluation_id is None:
                     return ProductPositionValuation(
+                        position_basis=basis,
                         trade_id=trade_id,
                         position_id=position.id,
                         status=ProductValuationStatus.UNAVAILABLE,
@@ -312,6 +377,7 @@ class ProductPositionValuationService:
                 )
                 if evaluation is None:
                     return ProductPositionValuation(
+                        position_basis=basis,
                         trade_id=trade_id,
                         position_id=position.id,
                         status=ProductValuationStatus.ERROR,
@@ -325,6 +391,7 @@ class ProductPositionValuationService:
                 )
                 if listing is None:
                     return ProductPositionValuation(
+                        position_basis=basis,
                         trade_id=trade_id,
                         position_id=position.id,
                         status=ProductValuationStatus.ERROR,
@@ -361,6 +428,7 @@ class ProductPositionValuationService:
 
             if self._quote_resolver is None:
                 return ProductPositionValuation(
+                    position_basis=basis,
                     trade_id=trade_id,
                     position_id=position.id,
                     warrant_listing_id=listing.id,
@@ -373,111 +441,109 @@ class ProductPositionValuationService:
                     source_selection_policy_version=selection_policy_version,
                 )
 
-            all_attempts: list[QuoteSourceAttempt] = []
-            selected_listing = None
-            selected_result = None
-            selected_source = None
-            selected_priority = 99
-            rejected_result = None
-            rejected_listing = None
-            rejected_source = None
-            for candidate in candidate_listings:
-                quote_request = WarrantQuoteRequest(
-                    workspace_id=trade.workspace_id,
-                    warrant_listing_id=candidate.id,
-                    correlation_id=uuid4(),
-                    as_of=datetime.now(UTC),
-                    max_quote_age_seconds=self._max_quote_age_seconds,
-                    expected_currency=candidate.quotation_currency_code,
-                )
-                resolution = (
-                    await self._quote_resolver.resolve_selected(bound_source_name, quote_request)
-                    if bound_source_name is not None
-                    else await self._quote_resolver.resolve(quote_request)
-                )
-                all_attempts.extend(resolution.attempts)
-                if rejected_result is None and resolution.rejected_result is not None:
-                    rejected_result = resolution.rejected_result
-                    rejected_listing = candidate
-                    rejected_source = resolution.rejected_source
-                if resolution.result is not None and resolution.result.data is not None:
-                    candidate_quote = resolution.result.data
-                    priority = quote_priority(
-                        candidate_quote,
-                        candidate_quote.assessed_at or resolution.result.retrieved_at,
-                        self._max_quote_age_seconds,
-                    )
-                    if priority >= selected_priority:
-                        continue
-                    selected_listing = candidate
-                    selected_result = resolution.result
-                    selected_source = resolution.selected_source
-                    selected_priority = priority
-                    if priority == 0:
-                        break
+            return _ValuationContext(
+                workspace_id=trade.workspace_id,
+                basis=basis,
+                listing=_ValuationListing.from_model(listing),
+                candidate_listings=tuple(
+                    _ValuationListing.from_model(item) for item in candidate_listings
+                ),
+                provenance_listing_id=provenance_listing_id,
+                bound_source_name=bound_source_name,
+                selection_status=selection_status,
+                selection_reason=selection_reason,
+                selection_policy_version=selection_policy_version,
+            )
 
-            attempts = tuple(all_attempts)
-            if selected_result is None and rejected_result is not None:
-                selected_result, selected_listing, selected_source = (
-                    rejected_result,
-                    rejected_listing,
-                    rejected_source,
+    async def _value_quotes(
+        self, trade_id: UUID, context: _ValuationContext
+    ) -> ProductPositionValuation:
+        assert self._quote_resolver is not None
+        position = context.basis.position
+        listing = context.listing
+        candidate_listings = context.candidate_listings
+        provenance_listing_id = context.provenance_listing_id
+        bound_source_name = context.bound_source_name
+        selection_status = context.selection_status
+        selection_reason = context.selection_reason
+        selection_policy_version = context.selection_policy_version
+        all_attempts: list[QuoteSourceAttempt] = []
+        selected_listing = None
+        selected_result = None
+        selected_source = None
+        selected_priority = 99
+        rejected_result = None
+        rejected_listing = None
+        rejected_source = None
+        for candidate in candidate_listings:
+            quote_request = WarrantQuoteRequest(
+                workspace_id=context.workspace_id,
+                warrant_listing_id=candidate.id,
+                correlation_id=uuid4(),
+                as_of=datetime.now(UTC),
+                max_quote_age_seconds=self._max_quote_age_seconds,
+                expected_currency=candidate.quotation_currency_code,
+            )
+            resolution = (
+                await self._quote_resolver.resolve_selected(bound_source_name, quote_request)
+                if bound_source_name is not None
+                else await self._quote_resolver.resolve(quote_request)
+            )
+            all_attempts.extend(resolution.attempts)
+            if rejected_result is None and resolution.rejected_result is not None:
+                rejected_result = resolution.rejected_result
+                rejected_listing = candidate
+                rejected_source = resolution.rejected_source
+            if resolution.result is not None and resolution.result.data is not None:
+                candidate_quote = resolution.result.data
+                priority = quote_priority(
+                    candidate_quote,
+                    candidate_quote.assessed_at or resolution.result.retrieved_at,
+                    self._max_quote_age_seconds,
                 )
-            if selected_result is None or selected_listing is None:
-                if (
-                    self._legacy_single_source
-                    and len(candidate_listings) == 1
-                    and len(attempts) == 1
-                ):
-                    attempt = attempts[0]
-                    if attempt.status is QuoteSourceAttemptStatus.MISSING:
+                if priority >= selected_priority:
+                    continue
+                selected_listing = candidate
+                selected_result = resolution.result
+                selected_source = resolution.selected_source
+                selected_priority = priority
+                if priority == 0:
+                    break
+
+        attempts = tuple(all_attempts)
+        if selected_result is None and rejected_result is not None:
+            selected_result, selected_listing, selected_source = (
+                rejected_result,
+                rejected_listing,
+                rejected_source,
+            )
+        if selected_result is None or selected_listing is None:
+            if self._legacy_single_source and len(candidate_listings) == 1 and len(attempts) == 1:
+                attempt = attempts[0]
+                if attempt.status is QuoteSourceAttemptStatus.MISSING:
+                    status = ProductValuationStatus.MISSING
+                    reason = "WARRANT_QUOTE_MISSING"
+                elif attempt.status is QuoteSourceAttemptStatus.INSUFFICIENT:
+                    if attempt.reason == "BID_MISSING":
                         status = ProductValuationStatus.MISSING
-                        reason = "WARRANT_QUOTE_MISSING"
-                    elif attempt.status is QuoteSourceAttemptStatus.INSUFFICIENT:
-                        if attempt.reason == "BID_MISSING":
-                            status = ProductValuationStatus.MISSING
-                            reason = "WARRANT_BID_MISSING"
-                        else:
-                            status = ProductValuationStatus.ERROR
-                            reason = f"WARRANT_QUOTE_{attempt.reason}"
-                    elif attempt.status is QuoteSourceAttemptStatus.UNAVAILABLE:
-                        status = ProductValuationStatus.UNAVAILABLE
-                        reason = "WARRANT_QUOTE_CAPABILITY_NOT_CONFIGURED"
+                        reason = "WARRANT_BID_MISSING"
                     else:
                         status = ProductValuationStatus.ERROR
-                        reason = (
-                            "WARRANT_QUOTE_LISTING_MISMATCH"
-                            if attempt.reason == "WARRANT_LISTING_MISMATCH"
-                            else (
-                                "WARRANT_QUOTE_TIME_INCONSISTENT"
-                                if attempt.reason == "WARRANT_QUOTE_TIME_INCONSISTENT"
-                                else "WARRANT_QUOTE_REQUEST_FAILED"
-                            )
-                        )
-                    return ProductPositionValuation(
-                        trade_id=trade_id,
-                        position_id=position.id,
-                        warrant_listing_id=listing.id,
-                        provenance_listing_id=provenance_listing_id,
-                        symbol=listing.symbol,
-                        status=status,
-                        reason=reason,
-                        source_selection_status=selection_status,
-                        source_selection_reason=selection_reason,
-                        source_selection_policy_version=selection_policy_version,
-                        source_attempts=attempts,
-                    )
-
-                statuses = {attempt.status for attempt in attempts}
-                if statuses & {
-                    QuoteSourceAttemptStatus.MISSING,
-                    QuoteSourceAttemptStatus.INSUFFICIENT,
-                }:
-                    status = ProductValuationStatus.MISSING
-                elif statuses == {QuoteSourceAttemptStatus.ERROR}:
-                    status = ProductValuationStatus.ERROR
-                else:
+                        reason = f"WARRANT_QUOTE_{attempt.reason}"
+                elif attempt.status is QuoteSourceAttemptStatus.UNAVAILABLE:
                     status = ProductValuationStatus.UNAVAILABLE
+                    reason = "WARRANT_QUOTE_CAPABILITY_NOT_CONFIGURED"
+                else:
+                    status = ProductValuationStatus.ERROR
+                    reason = (
+                        "WARRANT_QUOTE_LISTING_MISMATCH"
+                        if attempt.reason == "WARRANT_LISTING_MISMATCH"
+                        else (
+                            "WARRANT_QUOTE_TIME_INCONSISTENT"
+                            if attempt.reason == "WARRANT_QUOTE_TIME_INCONSISTENT"
+                            else "WARRANT_QUOTE_REQUEST_FAILED"
+                        )
+                    )
                 return ProductPositionValuation(
                     trade_id=trade_id,
                     position_id=position.id,
@@ -485,145 +551,121 @@ class ProductPositionValuationService:
                     provenance_listing_id=provenance_listing_id,
                     symbol=listing.symbol,
                     status=status,
-                    reason="NO_USABLE_WARRANT_QUOTE",
+                    reason=reason,
                     source_selection_status=selection_status,
                     source_selection_reason=selection_reason,
                     source_selection_policy_version=selection_policy_version,
                     source_attempts=attempts,
                 )
 
-            quote = selected_result.data
-            assert quote is not None
-            if quote.warrant_listing_id != selected_listing.id:
-                return ProductPositionValuation(
-                    trade_id=trade_id,
-                    position_id=position.id,
-                    warrant_listing_id=selected_listing.id,
-                    provenance_listing_id=provenance_listing_id,
-                    quote_listing_id=selected_listing.id,
-                    symbol=selected_listing.symbol,
-                    status=ProductValuationStatus.ERROR,
-                    reason="WARRANT_QUOTE_LISTING_MISMATCH",
-                    selected_source=selected_source,
-                    source_selection_status=selection_status,
-                    source_selection_reason=selection_reason,
-                    source_selection_policy_version=selection_policy_version,
-                    source_attempts=attempts,
-                )
-            if quote.currency != selected_listing.quotation_currency_code:
-                return ProductPositionValuation(
-                    trade_id=trade_id,
-                    position_id=position.id,
-                    warrant_listing_id=selected_listing.id,
-                    provenance_listing_id=provenance_listing_id,
-                    quote_listing_id=selected_listing.id,
-                    symbol=selected_listing.symbol,
-                    status=ProductValuationStatus.ERROR,
-                    reason="WARRANT_QUOTE_CURRENCY_MISMATCH",
-                    bid=quote.bid,
-                    ask=quote.ask,
-                    currency=quote.currency,
-                    quote_observed_at=quote.observed_at,
-                    selected_source=selected_source,
-                    source_selection_status=selection_status,
-                    source_selection_reason=selection_reason,
-                    source_selection_policy_version=selection_policy_version,
-                    source_attempts=attempts,
-                )
-            if selected_result.quality_status is not QualityStatus.VALID or (
-                quote.bid is None and quote.reference_price is None
-            ):
-                return ProductPositionValuation(
-                    trade_id=trade_id,
-                    position_id=position.id,
-                    warrant_listing_id=selected_listing.id,
-                    provenance_listing_id=provenance_listing_id,
-                    quote_listing_id=selected_listing.id,
-                    symbol=selected_listing.symbol,
-                    status=ProductValuationStatus.ERROR,
-                    reason="SELECTED_WARRANT_QUOTE_INVALID",
-                    bid=quote.bid,
-                    ask=quote.ask,
-                    currency=quote.currency,
-                    quote_observed_at=quote.observed_at,
-                    selected_source=selected_source,
-                    source_selection_status=selection_status,
-                    source_selection_reason=selection_reason,
-                    source_selection_policy_version=selection_policy_version,
-                    source_attempts=attempts,
-                )
+            statuses = {attempt.status for attempt in attempts}
+            if statuses & {
+                QuoteSourceAttemptStatus.MISSING,
+                QuoteSourceAttemptStatus.INSUFFICIENT,
+            }:
+                status = ProductValuationStatus.MISSING
+            elif statuses == {QuoteSourceAttemptStatus.ERROR}:
+                status = ProductValuationStatus.ERROR
+            else:
+                status = ProductValuationStatus.UNAVAILABLE
+            return ProductPositionValuation(
+                trade_id=trade_id,
+                position_id=position.id,
+                warrant_listing_id=listing.id,
+                provenance_listing_id=provenance_listing_id,
+                symbol=listing.symbol,
+                status=status,
+                reason="NO_USABLE_WARRANT_QUOTE",
+                source_selection_status=selection_status,
+                source_selection_reason=selection_reason,
+                source_selection_policy_version=selection_policy_version,
+                source_attempts=attempts,
+            )
 
-            assessed_at = quote.assessed_at or selected_result.retrieved_at
-            if (
-                quote.observed_at is not None and quote.observed_at > selected_result.retrieved_at
-            ) or assessed_at < selected_result.retrieved_at:
-                return ProductPositionValuation(
-                    trade_id=trade_id,
-                    position_id=position.id,
-                    warrant_listing_id=selected_listing.id,
-                    provenance_listing_id=provenance_listing_id,
-                    quote_listing_id=selected_listing.id,
-                    symbol=selected_listing.symbol,
-                    status=ProductValuationStatus.ERROR,
-                    reason="WARRANT_QUOTE_TIME_INCONSISTENT",
-                    bid=quote.bid,
-                    ask=quote.ask,
-                    currency=quote.currency,
-                    quote_observed_at=quote.observed_at,
-                    quote_retrieved_at=selected_result.retrieved_at,
-                    quote_time_text=quote.quote_time_text,
-                    quote_time_basis=quote.quote_time_basis,
-                    bid_volume=quote.bid_volume,
-                    ask_volume=quote.ask_volume,
-                    quote_assessed_at=assessed_at,
-                    selected_source=selected_source,
-                    quote_provider=selected_result.provider,
-                    provider_identity=quote.provider_symbol,
-                    provider_exchange_code=quote.provider_exchange_code,
-                    isin=quote.isin,
-                    wkn=quote.wkn,
-                    source_mode=quote.source_mode,
-                    trading_status=quote.trading_status,
-                    source_selection_status=selection_status,
-                    source_selection_reason=selection_reason,
-                    source_selection_policy_version=selection_policy_version,
-                    source_attempts=attempts,
-                )
-            max_age = min(
-                self._max_quote_age_seconds,
-                (
-                    quote.max_quote_age_seconds
-                    if quote.max_quote_age_seconds is not None
-                    else self._max_quote_age_seconds
-                ),
-            )
-            age = (
-                (assessed_at - quote.observed_at).total_seconds()
-                if quote.observed_at is not None
-                else None
-            )
-            reference_price = quote.bid if quote.bid is not None else quote.reference_price
-            assert reference_price is not None
-            reference_type = "BID" if quote.bid is not None else quote.reference_price_type
-            market_value = reference_price * Decimal(position.open_quantity)
-            spread = (
-                quote.ask - quote.bid if quote.bid is not None and quote.ask is not None else None
-            )
-            value = ProductPositionValuation(
+        quote = selected_result.data
+        assert quote is not None
+        if quote.warrant_listing_id != selected_listing.id:
+            return ProductPositionValuation(
                 trade_id=trade_id,
                 position_id=position.id,
                 warrant_listing_id=selected_listing.id,
                 provenance_listing_id=provenance_listing_id,
                 quote_listing_id=selected_listing.id,
                 symbol=selected_listing.symbol,
-                status=ProductValuationStatus.INDICATIVE,
-                reason="REFERENCE_PRICE_AVAILABLE_FOR_ANALYSIS",
+                status=ProductValuationStatus.ERROR,
+                reason="WARRANT_QUOTE_LISTING_MISMATCH",
+                selected_source=selected_source,
+                source_selection_status=selection_status,
+                source_selection_reason=selection_reason,
+                source_selection_policy_version=selection_policy_version,
+                source_attempts=attempts,
+            )
+        if quote.currency != selected_listing.quotation_currency_code:
+            return ProductPositionValuation(
+                trade_id=trade_id,
+                position_id=position.id,
+                warrant_listing_id=selected_listing.id,
+                provenance_listing_id=provenance_listing_id,
+                quote_listing_id=selected_listing.id,
+                symbol=selected_listing.symbol,
+                status=ProductValuationStatus.ERROR,
+                reason="WARRANT_QUOTE_CURRENCY_MISMATCH",
                 bid=quote.bid,
                 ask=quote.ask,
                 currency=quote.currency,
                 quote_observed_at=quote.observed_at,
-                quote_age_seconds=int(age) if age is not None else None,
-                max_quote_age_seconds=max_age,
+                selected_source=selected_source,
+                source_selection_status=selection_status,
+                source_selection_reason=selection_reason,
+                source_selection_policy_version=selection_policy_version,
+                source_attempts=attempts,
+            )
+        if selected_result.quality_status is not QualityStatus.VALID or (
+            quote.bid is None and quote.reference_price is None
+        ):
+            return ProductPositionValuation(
+                trade_id=trade_id,
+                position_id=position.id,
+                warrant_listing_id=selected_listing.id,
+                provenance_listing_id=provenance_listing_id,
+                quote_listing_id=selected_listing.id,
+                symbol=selected_listing.symbol,
+                status=ProductValuationStatus.ERROR,
+                reason="SELECTED_WARRANT_QUOTE_INVALID",
+                bid=quote.bid,
+                ask=quote.ask,
+                currency=quote.currency,
+                quote_observed_at=quote.observed_at,
+                selected_source=selected_source,
+                source_selection_status=selection_status,
+                source_selection_reason=selection_reason,
+                source_selection_policy_version=selection_policy_version,
+                source_attempts=attempts,
+            )
+
+        assessed_at = quote.assessed_at or selected_result.retrieved_at
+        if (
+            quote.observed_at is not None and quote.observed_at > selected_result.retrieved_at
+        ) or assessed_at < selected_result.retrieved_at:
+            return ProductPositionValuation(
+                trade_id=trade_id,
+                position_id=position.id,
+                warrant_listing_id=selected_listing.id,
+                provenance_listing_id=provenance_listing_id,
+                quote_listing_id=selected_listing.id,
+                symbol=selected_listing.symbol,
+                status=ProductValuationStatus.ERROR,
+                reason="WARRANT_QUOTE_TIME_INCONSISTENT",
+                bid=quote.bid,
+                ask=quote.ask,
+                currency=quote.currency,
+                quote_observed_at=quote.observed_at,
+                quote_retrieved_at=selected_result.retrieved_at,
+                quote_time_text=quote.quote_time_text,
+                quote_time_basis=quote.quote_time_basis,
+                bid_volume=quote.bid_volume,
+                ask_volume=quote.ask_volume,
+                quote_assessed_at=assessed_at,
                 selected_source=selected_source,
                 quote_provider=selected_result.provider,
                 provider_identity=quote.provider_symbol,
@@ -632,108 +674,189 @@ class ProductPositionValuationService:
                 wkn=quote.wkn,
                 source_mode=quote.source_mode,
                 trading_status=quote.trading_status,
-                analysis_usable=True,
-                monitoring_usable=True,
-                analysis_market_value=market_value,
-                analysis_unrealized_gross_pnl=market_value - position.cost_basis,
-                reference_price=reference_price,
-                reference_price_type=reference_type,
-                quote_retrieved_at=selected_result.retrieved_at,
-                quote_time_text=quote.quote_time_text,
-                quote_time_basis=quote.quote_time_basis,
-                bid_volume=quote.bid_volume,
-                ask_volume=quote.ask_volume,
-                quote_assessed_at=assessed_at,
-                quote_delay_seconds=quote.feed_delay_seconds,
-                quote_refresh_error=quote.refresh_error,
-                quote_retained=quote.retained,
-                quote_venue_mic=quote.venue_mic,
-                quote_age_limit_exceeded=(age > max_age if age is not None else None),
-                spread_absolute=spread,
-                spread_percent=(
-                    spread / quote.bid * 100 if spread is not None and quote.bid else None
-                ),
                 source_selection_status=selection_status,
                 source_selection_reason=selection_reason,
                 source_selection_policy_version=selection_policy_version,
                 source_attempts=attempts,
             )
-            # Temporal disclosure never assigns a reference trade/close to bid/ask.
-            # Missing timestamps remain unknown; retrieval time is separate evidence.
-            if quote.refresh_error:
-                return replace(
-                    value,
-                    reason="LAST_SUCCESSFUL_QUOTE_REFRESH_FAILED",
-                    analysis_warning="QUOTE_REFRESH_FAILED_INDICATIVE_ANALYSIS_ONLY",
-                    freshness_policy="LAST_SUCCESSFUL_QUOTE_DISCLOSURE_V1",
-                )
-            if quote.bid is None:
-                return replace(
-                    value,
-                    analysis_warning=(
-                        "QUOTE_TIMESTAMP_UNKNOWN_INDICATIVE_ANALYSIS_ONLY"
-                        if age is None
-                        else (
-                            "OUTDATED_QUOTE_INDICATIVE_ANALYSIS_ONLY"
-                            if age > max_age
-                            else "REFERENCE_PRICE_INDICATIVE_ANALYSIS_ONLY"
-                        )
-                    ),
-                    freshness_policy="REFERENCE_PRICE_DISCLOSURE_V1",
-                )
-
-            if quote.observed_at is None:
-                time_reason = (
-                    "QUOTE_TIMEZONE_UNKNOWN_INDICATIVE_ANALYSIS_ONLY"
-                    if quote.quote_time_basis == "LOCAL_DATETIME_TIMEZONE_UNKNOWN"
-                    else "QUOTE_TIMESTAMP_UNKNOWN_INDICATIVE_ANALYSIS_ONLY"
-                )
-                return replace(
-                    value,
-                    reason=time_reason,
-                    analysis_warning=time_reason,
-                    freshness_policy="UNKNOWN_TIMESTAMP_DISCLOSURE_V1",
-                )
-
-            assert quote.observed_at is not None
-            freshness = self._freshness_policy.classify(
-                observed_at=quote.observed_at,
-                retrieved_at=assessed_at,
-                max_age_seconds=max_age,
-                trading_status=quote.trading_status,
-            )
-            value = replace(value, freshness_policy=self._freshness_policy.policy_version)
-            if freshness is QuoteFreshness.STALE:
-                return replace(
-                    value,
-                    status=ProductValuationStatus.STALE,
-                    reason="WARRANT_QUOTE_STALE",
-                    analysis_warning="OUTDATED_QUOTE_INDICATIVE_ANALYSIS_ONLY",
-                )
-            if freshness is QuoteFreshness.LAST_AVAILABLE:
-                return replace(
-                    value,
-                    status=ProductValuationStatus.LAST_AVAILABLE,
-                    reason="MARKET_CLOSED_LAST_AVAILABLE_QUOTE",
-                    valuation_usable=True,
-                    market_value=market_value,
-                    unrealized_gross_pnl=market_value - position.cost_basis,
-                    analysis_warning="OUTDATED_QUOTE_INDICATIVE_ANALYSIS_ONLY",
-                )
+        max_age = min(
+            self._max_quote_age_seconds,
+            (
+                quote.max_quote_age_seconds
+                if quote.max_quote_age_seconds is not None
+                else self._max_quote_age_seconds
+            ),
+        )
+        age = (
+            (assessed_at - quote.observed_at).total_seconds()
+            if quote.observed_at is not None
+            else None
+        )
+        reference_price = quote.bid if quote.bid is not None else quote.reference_price
+        assert reference_price is not None
+        reference_type = "BID" if quote.bid is not None else quote.reference_price_type
+        market_value = reference_price * Decimal(position.open_quantity)
+        spread = quote.ask - quote.bid if quote.bid is not None and quote.ask is not None else None
+        value = ProductPositionValuation(
+            trade_id=trade_id,
+            position_id=position.id,
+            warrant_listing_id=selected_listing.id,
+            provenance_listing_id=provenance_listing_id,
+            quote_listing_id=selected_listing.id,
+            symbol=selected_listing.symbol,
+            status=ProductValuationStatus.INDICATIVE,
+            reason="REFERENCE_PRICE_AVAILABLE_FOR_ANALYSIS",
+            bid=quote.bid,
+            ask=quote.ask,
+            currency=quote.currency,
+            quote_observed_at=quote.observed_at,
+            quote_age_seconds=int(age) if age is not None else None,
+            max_quote_age_seconds=max_age,
+            selected_source=selected_source,
+            quote_provider=selected_result.provider,
+            provider_identity=quote.provider_symbol,
+            provider_exchange_code=quote.provider_exchange_code,
+            isin=quote.isin,
+            wkn=quote.wkn,
+            source_mode=quote.source_mode,
+            trading_status=quote.trading_status,
+            analysis_usable=True,
+            monitoring_usable=True,
+            analysis_market_value=market_value,
+            reference_price=reference_price,
+            reference_price_type=reference_type,
+            quote_retrieved_at=selected_result.retrieved_at,
+            quote_time_text=quote.quote_time_text,
+            quote_time_basis=quote.quote_time_basis,
+            bid_volume=quote.bid_volume,
+            ask_volume=quote.ask_volume,
+            quote_assessed_at=assessed_at,
+            quote_delay_seconds=quote.feed_delay_seconds,
+            quote_refresh_error=quote.refresh_error,
+            quote_retained=quote.retained,
+            quote_venue_mic=quote.venue_mic,
+            quote_age_limit_exceeded=(age > max_age if age is not None else None),
+            spread_absolute=spread,
+            spread_percent=(spread / quote.bid * 100 if spread is not None and quote.bid else None),
+            source_selection_status=selection_status,
+            source_selection_reason=selection_reason,
+            source_selection_policy_version=selection_policy_version,
+            source_attempts=attempts,
+        )
+        # Temporal disclosure never assigns a reference trade/close to bid/ask.
+        # Missing timestamps remain unknown; retrieval time is separate evidence.
+        if quote.refresh_error:
             return replace(
                 value,
-                status=ProductValuationStatus.AVAILABLE,
-                reason=(
-                    "WARRANT_BID_AVAILABLE"
-                    if selected_listing.id == listing.id
-                    else "WARRANT_BID_AVAILABLE_ON_ALTERNATE_LISTING"
-                ),
-                market_value=market_value,
-                unrealized_gross_pnl=market_value - position.cost_basis,
-                valuation_usable=True,
-                execution_usable=(
-                    quote.trading_status == "OPEN"
-                    and quote.source_mode != "OFFICIAL_ISSUER_INDICATION"
-                    and selected_result.provider != MarketDataProvider.FRANKFURT_QUOTES
-                ),
+                reason="LAST_SUCCESSFUL_QUOTE_REFRESH_FAILED",
+                analysis_warning="QUOTE_REFRESH_FAILED_INDICATIVE_ANALYSIS_ONLY",
+                freshness_policy="LAST_SUCCESSFUL_QUOTE_DISCLOSURE_V1",
             )
+        if quote.bid is None:
+            return replace(
+                value,
+                analysis_warning=(
+                    "QUOTE_TIMESTAMP_UNKNOWN_INDICATIVE_ANALYSIS_ONLY"
+                    if age is None
+                    else (
+                        "OUTDATED_QUOTE_INDICATIVE_ANALYSIS_ONLY"
+                        if age > max_age
+                        else "REFERENCE_PRICE_INDICATIVE_ANALYSIS_ONLY"
+                    )
+                ),
+                freshness_policy="REFERENCE_PRICE_DISCLOSURE_V1",
+            )
+
+        if quote.observed_at is None:
+            time_reason = (
+                "QUOTE_TIMEZONE_UNKNOWN_INDICATIVE_ANALYSIS_ONLY"
+                if quote.quote_time_basis == "LOCAL_DATETIME_TIMEZONE_UNKNOWN"
+                else "QUOTE_TIMESTAMP_UNKNOWN_INDICATIVE_ANALYSIS_ONLY"
+            )
+            return replace(
+                value,
+                reason=time_reason,
+                analysis_warning=time_reason,
+                freshness_policy="UNKNOWN_TIMESTAMP_DISCLOSURE_V1",
+            )
+
+        assert quote.observed_at is not None
+        freshness = self._freshness_policy.classify(
+            observed_at=quote.observed_at,
+            retrieved_at=assessed_at,
+            max_age_seconds=max_age,
+            trading_status=quote.trading_status,
+        )
+        value = replace(value, freshness_policy=self._freshness_policy.policy_version)
+        if freshness is QuoteFreshness.STALE:
+            return replace(
+                value,
+                status=ProductValuationStatus.STALE,
+                reason="WARRANT_QUOTE_STALE",
+                analysis_warning="OUTDATED_QUOTE_INDICATIVE_ANALYSIS_ONLY",
+            )
+        if freshness is QuoteFreshness.LAST_AVAILABLE:
+            return replace(
+                value,
+                status=ProductValuationStatus.LAST_AVAILABLE,
+                reason="MARKET_CLOSED_LAST_AVAILABLE_QUOTE",
+                valuation_usable=True,
+                market_value=market_value,
+                analysis_warning="OUTDATED_QUOTE_INDICATIVE_ANALYSIS_ONLY",
+            )
+        return replace(
+            value,
+            status=ProductValuationStatus.AVAILABLE,
+            reason=(
+                "WARRANT_BID_AVAILABLE"
+                if selected_listing.id == listing.id
+                else "WARRANT_BID_AVAILABLE_ON_ALTERNATE_LISTING"
+            ),
+            market_value=market_value,
+            valuation_usable=True,
+            execution_usable=(
+                quote.trading_status == "OPEN"
+                and quote.source_mode != "OFFICIAL_ISSUER_INDICATION"
+                and selected_result.provider != MarketDataProvider.FRANKFURT_QUOTES
+            ),
+        )
+
+    @staticmethod
+    def _qualify_pnl(
+        value: ProductPositionValuation, basis: PositionValuationBasis
+    ) -> ProductPositionValuation:
+        if value.currency is None or not (value.valuation_usable or value.analysis_usable):
+            reason = value.reason
+        elif basis.currency_status == "MIXED":
+            reason = "COST_BASIS_CURRENCY_MIXED"
+        elif basis.currency_status == "UNKNOWN":
+            reason = "COST_BASIS_CURRENCY_UNKNOWN"
+        elif basis.cost_basis_currency != value.currency:
+            reason = "COST_BASIS_CURRENCY_MISMATCH"
+        else:
+            reason = "COST_BASIS_CURRENCY_MATCHED"
+        matched = reason == "COST_BASIS_CURRENCY_MATCHED" and value.currency is not None
+        current_usable = matched and value.valuation_usable and value.market_value is not None
+        analysis_usable = (
+            matched and value.analysis_usable and value.analysis_market_value is not None
+        )
+        # Both variants use the same quote and owner basis. Subtract only after
+        # currency proof; a missing value must never become a monetary zero.
+        market_value = value.analysis_market_value if analysis_usable else value.market_value
+        pnl = (
+            market_value - basis.position.cost_basis
+            if (current_usable or analysis_usable) and market_value is not None
+            else None
+        )
+        return replace(
+            value,
+            position_basis=basis,
+            unrealized_gross_pnl=pnl if current_usable else None,
+            analysis_unrealized_gross_pnl=pnl if analysis_usable else None,
+            unrealized_pnl_usable=current_usable,
+            analysis_unrealized_pnl_usable=analysis_usable,
+            unrealized_pnl_reason=reason if current_usable or not matched else value.reason,
+            analysis_unrealized_pnl_reason=(
+                reason if analysis_usable or not matched else value.reason
+            ),
+        )

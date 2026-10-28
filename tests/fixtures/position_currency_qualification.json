@@ -1,0 +1,1111 @@
+{
+  "positions_response": {
+    "generated_at": "2026-10-28T12:00:00Z",
+    "positions": [
+      {
+        "trade_id": "00000000-0000-0000-0000-0000000003e8",
+        "position_id": "00000000-0000-0000-0000-0000000003e9",
+        "product_name": "Currency gain",
+        "opened_at": "2026-08-04T22:00:00Z",
+        "open_quantity": 10,
+        "average_entry_price": "2.0000000000",
+        "cost_basis": "20.0000000000",
+        "realized_gross_pnl": "0",
+        "stop_price": null,
+        "target_price": null,
+        "monitoring_status": "ERROR",
+        "underlying_symbol": null,
+        "valuation_status": "AVAILABLE",
+        "product_symbol": "CV00004",
+        "valuation_currency": "EUR",
+        "market_value": "25.00",
+        "unrealized_gross_pnl": "5.0000000000",
+        "unrealized_pnl_usable": true,
+        "unrealized_pnl_reason": "COST_BASIS_CURRENCY_MATCHED",
+        "position_basis": {
+          "definition_version": "position-unrealized-gross-v1",
+          "basis_id": "51cc1a24da9f0aade5100073bcac99aa132c15559d9971739e0b6adf06025b02",
+          "position": {
+            "id": "00000000-0000-0000-0000-0000000003e9",
+            "trade_id": "00000000-0000-0000-0000-0000000003e8",
+            "product_id": "00000000-0000-0000-0000-0000000003ea",
+            "open_quantity": 10,
+            "cost_basis": "20.0000000000",
+            "average_entry_price": "2.0000000000",
+            "opened_at": "2026-08-04T22:00:00Z",
+            "last_execution_at": "2026-08-04T22:00:00Z",
+            "realized_gross_pnl": "0",
+            "closed_at": null,
+            "is_cancelled": false,
+            "opened_on": "2026-08-05",
+            "last_execution_on": "2026-08-05",
+            "closed_on": null
+          },
+          "cost_basis_currency": "EUR",
+          "currency_status": "KNOWN",
+          "effective_execution_ids": [
+            "00000000-0000-0000-0000-0000000003eb"
+          ],
+          "buy_currency_evidence": [
+            {
+              "execution_id": "00000000-0000-0000-0000-0000000003eb",
+              "currency_code": "EUR",
+              "source": "USER_CONFIRMED",
+              "source_execution_ids": [
+                "00000000-0000-0000-0000-0000000003eb"
+              ],
+              "confirmation_ids": [
+                "00000000-0000-0000-0000-0000000003ec"
+              ]
+            }
+          ]
+        },
+        "open_alert_count": 0,
+        "open_alert_types": [],
+        "attention_state": "DATA_HEALTH",
+        "target": "/trade-management?trade_id=00000000-0000-0000-0000-0000000003e8",
+        "product_isin": "DE000CV00004",
+        "product_wkn": null,
+        "underlying_name": "Currency Reference Test Stock",
+        "underlying_id": "00000000-0000-0000-0000-0000000003ed",
+        "opened_on": "2026-08-05",
+        "analysis_warning": null,
+        "quote_source": "EODHD",
+        "quote_observed_at": "2026-10-28T12:00:00Z"
+      },
+      {
+        "trade_id": "00000000-0000-0000-0000-0000000003ee",
+        "position_id": "00000000-0000-0000-0000-0000000003ef",
+        "product_name": "Currency loss",
+        "opened_at": "2026-08-04T22:00:00Z",
+        "open_quantity": 10,
+        "average_entry_price": "2.0000000000",
+        "cost_basis": "20.0000000000",
+        "realized_gross_pnl": "0",
+        "stop_price": null,
+        "target_price": null,
+        "monitoring_status": "ERROR",
+        "underlying_symbol": null,
+        "valuation_status": "AVAILABLE",
+        "product_symbol": "CV00005",
+        "valuation_currency": "EUR",
+        "market_value": "15.00",
+        "unrealized_gross_pnl": "-5.0000000000",
+        "unrealized_pnl_usable": true,
+        "unrealized_pnl_reason": "COST_BASIS_CURRENCY_MATCHED",
+        "position_basis": {
+          "definition_version": "position-unrealized-gross-v1",
+          "basis_id": "f68964a4b4a256c3e6f5e490bf455b8493684824701d0e6154bda54017941332",
+          "position": {
+            "id": "00000000-0000-0000-0000-0000000003ef",
+            "trade_id": "00000000-0000-0000-0000-0000000003ee",
+            "product_id": "00000000-0000-0000-0000-0000000003f0",
+            "open_quantity": 10,
+            "cost_basis": "20.0000000000",
+            "average_entry_price": "2.0000000000",
+            "opened_at": "2026-08-04T22:00:00Z",
+            "last_execution_at": "2026-08-04T22:00:00Z",
+            "realized_gross_pnl": "0",
+            "closed_at": null,
+            "is_cancelled": false,
+            "opened_on": "2026-08-05",
+            "last_execution_on": "2026-08-05",
+            "closed_on": null
+          },
+          "cost_basis_currency": "EUR",
+          "currency_status": "KNOWN",
+          "effective_execution_ids": [
+            "00000000-0000-0000-0000-0000000003f1"
+          ],
+          "buy_currency_evidence": [
+            {
+              "execution_id": "00000000-0000-0000-0000-0000000003f1",
+              "currency_code": "EUR",
+              "source": "USER_CONFIRMED",
+              "source_execution_ids": [
+                "00000000-0000-0000-0000-0000000003f1"
+              ],
+              "confirmation_ids": [
+                "00000000-0000-0000-0000-0000000003f2"
+              ]
+            }
+          ]
+        },
+        "open_alert_count": 0,
+        "open_alert_types": [],
+        "attention_state": "DATA_HEALTH",
+        "target": "/trade-management?trade_id=00000000-0000-0000-0000-0000000003ee",
+        "product_isin": "DE000CV00005",
+        "product_wkn": null,
+        "underlying_name": "Currency Reference Test Stock",
+        "underlying_id": "00000000-0000-0000-0000-0000000003ed",
+        "opened_on": "2026-08-05",
+        "analysis_warning": null,
+        "quote_source": "EODHD",
+        "quote_observed_at": "2026-10-28T12:00:00Z"
+      },
+      {
+        "trade_id": "00000000-0000-0000-0000-0000000003f3",
+        "position_id": "00000000-0000-0000-0000-0000000003f4",
+        "product_name": "Currency mismatch",
+        "opened_at": "2026-08-04T22:00:00Z",
+        "open_quantity": 10,
+        "average_entry_price": "2.0000000000",
+        "cost_basis": "20.0000000000",
+        "realized_gross_pnl": "0",
+        "stop_price": null,
+        "target_price": null,
+        "monitoring_status": "ERROR",
+        "underlying_symbol": null,
+        "valuation_status": "AVAILABLE",
+        "product_symbol": "CV00002",
+        "valuation_currency": "EUR",
+        "market_value": "25.00",
+        "unrealized_gross_pnl": null,
+        "unrealized_pnl_usable": false,
+        "unrealized_pnl_reason": "COST_BASIS_CURRENCY_MISMATCH",
+        "position_basis": {
+          "definition_version": "position-unrealized-gross-v1",
+          "basis_id": "18128ccb6d13da6710e253b29395a80c627425b115e201e21eea091cdddb3920",
+          "position": {
+            "id": "00000000-0000-0000-0000-0000000003f4",
+            "trade_id": "00000000-0000-0000-0000-0000000003f3",
+            "product_id": "00000000-0000-0000-0000-0000000003f5",
+            "open_quantity": 10,
+            "cost_basis": "20.0000000000",
+            "average_entry_price": "2.0000000000",
+            "opened_at": "2026-08-04T22:00:00Z",
+            "last_execution_at": "2026-08-04T22:00:00Z",
+            "realized_gross_pnl": "0",
+            "closed_at": null,
+            "is_cancelled": false,
+            "opened_on": "2026-08-05",
+            "last_execution_on": "2026-08-05",
+            "closed_on": null
+          },
+          "cost_basis_currency": "USD",
+          "currency_status": "KNOWN",
+          "effective_execution_ids": [
+            "00000000-0000-0000-0000-0000000003f6"
+          ],
+          "buy_currency_evidence": [
+            {
+              "execution_id": "00000000-0000-0000-0000-0000000003f6",
+              "currency_code": "USD",
+              "source": "USER_CONFIRMED",
+              "source_execution_ids": [
+                "00000000-0000-0000-0000-0000000003f6"
+              ],
+              "confirmation_ids": [
+                "00000000-0000-0000-0000-0000000003f7"
+              ]
+            }
+          ]
+        },
+        "open_alert_count": 0,
+        "open_alert_types": [],
+        "attention_state": "DATA_HEALTH",
+        "target": "/trade-management?trade_id=00000000-0000-0000-0000-0000000003f3",
+        "product_isin": "DE000CV00002",
+        "product_wkn": null,
+        "underlying_name": "Currency Reference Test Stock",
+        "underlying_id": "00000000-0000-0000-0000-0000000003ed",
+        "opened_on": "2026-08-05",
+        "analysis_warning": null,
+        "quote_source": "EODHD",
+        "quote_observed_at": "2026-10-28T12:00:00Z"
+      },
+      {
+        "trade_id": "00000000-0000-0000-0000-0000000003f8",
+        "position_id": "00000000-0000-0000-0000-0000000003f9",
+        "product_name": "Currency mixed",
+        "opened_at": "2026-08-04T22:00:00Z",
+        "open_quantity": 10,
+        "average_entry_price": "2.0000000000",
+        "cost_basis": "20.0000000000",
+        "realized_gross_pnl": "0",
+        "stop_price": null,
+        "target_price": null,
+        "monitoring_status": "ERROR",
+        "underlying_symbol": null,
+        "valuation_status": "AVAILABLE",
+        "product_symbol": "CV00003",
+        "valuation_currency": "EUR",
+        "market_value": "25.00",
+        "unrealized_gross_pnl": null,
+        "unrealized_pnl_usable": false,
+        "unrealized_pnl_reason": "COST_BASIS_CURRENCY_MIXED",
+        "position_basis": {
+          "definition_version": "position-unrealized-gross-v1",
+          "basis_id": "6be4953bcfe55ae157bae2340f0bd2762e8484d7fb87fbd3d33251ede923aa8d",
+          "position": {
+            "id": "00000000-0000-0000-0000-0000000003f9",
+            "trade_id": "00000000-0000-0000-0000-0000000003f8",
+            "product_id": "00000000-0000-0000-0000-0000000003fa",
+            "open_quantity": 10,
+            "cost_basis": "20.0000000000",
+            "average_entry_price": "2.0000000000",
+            "opened_at": "2026-08-04T22:00:00Z",
+            "last_execution_at": "2026-08-05T22:00:00Z",
+            "realized_gross_pnl": "0",
+            "closed_at": null,
+            "is_cancelled": false,
+            "opened_on": "2026-08-05",
+            "last_execution_on": "2026-08-06",
+            "closed_on": null
+          },
+          "cost_basis_currency": null,
+          "currency_status": "MIXED",
+          "effective_execution_ids": [
+            "00000000-0000-0000-0000-0000000003fb",
+            "00000000-0000-0000-0000-0000000003fc"
+          ],
+          "buy_currency_evidence": [
+            {
+              "execution_id": "00000000-0000-0000-0000-0000000003fb",
+              "currency_code": "EUR",
+              "source": "USER_CONFIRMED",
+              "source_execution_ids": [
+                "00000000-0000-0000-0000-0000000003fb"
+              ],
+              "confirmation_ids": [
+                "00000000-0000-0000-0000-0000000003fd"
+              ]
+            },
+            {
+              "execution_id": "00000000-0000-0000-0000-0000000003fc",
+              "currency_code": "USD",
+              "source": "USER_CONFIRMED",
+              "source_execution_ids": [
+                "00000000-0000-0000-0000-0000000003fc"
+              ],
+              "confirmation_ids": [
+                "00000000-0000-0000-0000-0000000003fe"
+              ]
+            }
+          ]
+        },
+        "open_alert_count": 0,
+        "open_alert_types": [],
+        "attention_state": "DATA_HEALTH",
+        "target": "/trade-management?trade_id=00000000-0000-0000-0000-0000000003f8",
+        "product_isin": "DE000CV00003",
+        "product_wkn": null,
+        "underlying_name": "Currency Reference Test Stock",
+        "underlying_id": "00000000-0000-0000-0000-0000000003ed",
+        "opened_on": "2026-08-05",
+        "analysis_warning": null,
+        "quote_source": "EODHD",
+        "quote_observed_at": "2026-10-28T12:00:00Z"
+      },
+      {
+        "trade_id": "00000000-0000-0000-0000-0000000003ff",
+        "position_id": "00000000-0000-0000-0000-000000000400",
+        "product_name": "Currency neutral",
+        "opened_at": "2026-08-04T22:00:00Z",
+        "open_quantity": 10,
+        "average_entry_price": "2.0000000000",
+        "cost_basis": "20.0000000000",
+        "realized_gross_pnl": "0",
+        "stop_price": null,
+        "target_price": null,
+        "monitoring_status": "ERROR",
+        "underlying_symbol": null,
+        "valuation_status": "AVAILABLE",
+        "product_symbol": "CV00006",
+        "valuation_currency": "EUR",
+        "market_value": "20.00",
+        "unrealized_gross_pnl": "0E-10",
+        "unrealized_pnl_usable": true,
+        "unrealized_pnl_reason": "COST_BASIS_CURRENCY_MATCHED",
+        "position_basis": {
+          "definition_version": "position-unrealized-gross-v1",
+          "basis_id": "24426e4c5b23971f8f8ceace9026b6ed05b8235a27d0cad99c455e173f7a5bb1",
+          "position": {
+            "id": "00000000-0000-0000-0000-000000000400",
+            "trade_id": "00000000-0000-0000-0000-0000000003ff",
+            "product_id": "00000000-0000-0000-0000-000000000401",
+            "open_quantity": 10,
+            "cost_basis": "20.0000000000",
+            "average_entry_price": "2.0000000000",
+            "opened_at": "2026-08-04T22:00:00Z",
+            "last_execution_at": "2026-08-04T22:00:00Z",
+            "realized_gross_pnl": "0",
+            "closed_at": null,
+            "is_cancelled": false,
+            "opened_on": "2026-08-05",
+            "last_execution_on": "2026-08-05",
+            "closed_on": null
+          },
+          "cost_basis_currency": "EUR",
+          "currency_status": "KNOWN",
+          "effective_execution_ids": [
+            "00000000-0000-0000-0000-000000000402"
+          ],
+          "buy_currency_evidence": [
+            {
+              "execution_id": "00000000-0000-0000-0000-000000000402",
+              "currency_code": "EUR",
+              "source": "USER_CONFIRMED",
+              "source_execution_ids": [
+                "00000000-0000-0000-0000-000000000402"
+              ],
+              "confirmation_ids": [
+                "00000000-0000-0000-0000-000000000403"
+              ]
+            }
+          ]
+        },
+        "open_alert_count": 0,
+        "open_alert_types": [],
+        "attention_state": "DATA_HEALTH",
+        "target": "/trade-management?trade_id=00000000-0000-0000-0000-0000000003ff",
+        "product_isin": "DE000CV00006",
+        "product_wkn": null,
+        "underlying_name": "Currency Reference Test Stock",
+        "underlying_id": "00000000-0000-0000-0000-0000000003ed",
+        "opened_on": "2026-08-05",
+        "analysis_warning": null,
+        "quote_source": "EODHD",
+        "quote_observed_at": "2026-10-28T12:00:00Z"
+      },
+      {
+        "trade_id": "00000000-0000-0000-0000-000000000404",
+        "position_id": "00000000-0000-0000-0000-000000000405",
+        "product_name": "Currency unknown",
+        "opened_at": "2026-08-04T22:00:00Z",
+        "open_quantity": 10,
+        "average_entry_price": "2.0000000000",
+        "cost_basis": "20.0000000000",
+        "realized_gross_pnl": "0",
+        "stop_price": null,
+        "target_price": null,
+        "monitoring_status": "ERROR",
+        "underlying_symbol": null,
+        "valuation_status": "AVAILABLE",
+        "product_symbol": "CV00001",
+        "valuation_currency": "EUR",
+        "market_value": "25.00",
+        "unrealized_gross_pnl": null,
+        "unrealized_pnl_usable": false,
+        "unrealized_pnl_reason": "COST_BASIS_CURRENCY_UNKNOWN",
+        "position_basis": {
+          "definition_version": "position-unrealized-gross-v1",
+          "basis_id": "a2d9342900be8e046e3ba554bbcf6363df3e54a84c1244691e93cffa4bbb7b0d",
+          "position": {
+            "id": "00000000-0000-0000-0000-000000000405",
+            "trade_id": "00000000-0000-0000-0000-000000000404",
+            "product_id": "00000000-0000-0000-0000-000000000406",
+            "open_quantity": 10,
+            "cost_basis": "20.0000000000",
+            "average_entry_price": "2.0000000000",
+            "opened_at": "2026-08-04T22:00:00Z",
+            "last_execution_at": "2026-08-04T22:00:00Z",
+            "realized_gross_pnl": "0",
+            "closed_at": null,
+            "is_cancelled": false,
+            "opened_on": "2026-08-05",
+            "last_execution_on": "2026-08-05",
+            "closed_on": null
+          },
+          "cost_basis_currency": null,
+          "currency_status": "UNKNOWN",
+          "effective_execution_ids": [
+            "00000000-0000-0000-0000-000000000407"
+          ],
+          "buy_currency_evidence": [
+            {
+              "execution_id": "00000000-0000-0000-0000-000000000407",
+              "currency_code": null,
+              "source": "UNKNOWN",
+              "source_execution_ids": [],
+              "confirmation_ids": []
+            }
+          ]
+        },
+        "open_alert_count": 0,
+        "open_alert_types": [],
+        "attention_state": "DATA_HEALTH",
+        "target": "/trade-management?trade_id=00000000-0000-0000-0000-000000000404",
+        "product_isin": "DE000CV00001",
+        "product_wkn": null,
+        "underlying_name": "Currency Reference Test Stock",
+        "underlying_id": "00000000-0000-0000-0000-0000000003ed",
+        "opened_on": "2026-08-05",
+        "analysis_warning": null,
+        "quote_source": "EODHD",
+        "quote_observed_at": "2026-10-28T12:00:00Z"
+      }
+    ]
+  },
+  "valuations": {
+    "00000000-0000-0000-0000-0000000003e8": {
+      "trade_id": "00000000-0000-0000-0000-0000000003e8",
+      "position_id": "00000000-0000-0000-0000-0000000003e9",
+      "status": "AVAILABLE",
+      "reason": "WARRANT_BID_AVAILABLE",
+      "warrant_listing_id": "00000000-0000-0000-0000-000000000408",
+      "provenance_listing_id": null,
+      "quote_listing_id": "00000000-0000-0000-0000-000000000408",
+      "symbol": "CV00004",
+      "bid": "2.50",
+      "ask": "2.55",
+      "currency": "EUR",
+      "quote_observed_at": "2026-10-28T12:00:00Z",
+      "quote_age_seconds": 0,
+      "max_quote_age_seconds": 3600,
+      "market_value": "25.00",
+      "unrealized_gross_pnl": "5.0000000000",
+      "unrealized_pnl_usable": true,
+      "unrealized_pnl_reason": "COST_BASIS_CURRENCY_MATCHED",
+      "analysis_unrealized_pnl_usable": true,
+      "analysis_unrealized_pnl_reason": "COST_BASIS_CURRENCY_MATCHED",
+      "position_basis": {
+        "definition_version": "position-unrealized-gross-v1",
+        "basis_id": "51cc1a24da9f0aade5100073bcac99aa132c15559d9971739e0b6adf06025b02",
+        "position": {
+          "id": "00000000-0000-0000-0000-0000000003e9",
+          "trade_id": "00000000-0000-0000-0000-0000000003e8",
+          "product_id": "00000000-0000-0000-0000-0000000003ea",
+          "open_quantity": 10,
+          "cost_basis": "20.0000000000",
+          "average_entry_price": "2.0000000000",
+          "opened_at": "2026-08-04T22:00:00Z",
+          "last_execution_at": "2026-08-04T22:00:00Z",
+          "realized_gross_pnl": "0",
+          "closed_at": null,
+          "is_cancelled": false,
+          "opened_on": "2026-08-05",
+          "last_execution_on": "2026-08-05",
+          "closed_on": null
+        },
+        "cost_basis_currency": "EUR",
+        "currency_status": "KNOWN",
+        "effective_execution_ids": [
+          "00000000-0000-0000-0000-0000000003eb"
+        ],
+        "buy_currency_evidence": [
+          {
+            "execution_id": "00000000-0000-0000-0000-0000000003eb",
+            "currency_code": "EUR",
+            "source": "USER_CONFIRMED",
+            "source_execution_ids": [
+              "00000000-0000-0000-0000-0000000003eb"
+            ],
+            "confirmation_ids": [
+              "00000000-0000-0000-0000-0000000003ec"
+            ]
+          }
+        ]
+      },
+      "selected_source": "EODHD",
+      "quote_provider": "EODHD",
+      "provider_identity": "DE000CV00004",
+      "provider_exchange_code": "XETR",
+      "isin": "DE000CV00004",
+      "wkn": null,
+      "source_mode": null,
+      "trading_status": null,
+      "valuation_usable": true,
+      "execution_usable": false,
+      "analysis_usable": true,
+      "analysis_warning": null,
+      "analysis_market_value": "25.00",
+      "analysis_unrealized_gross_pnl": "5.0000000000",
+      "monitoring_usable": true,
+      "reference_price": "2.50",
+      "reference_price_type": "BID",
+      "quote_retrieved_at": "2026-10-28T12:00:00Z",
+      "quote_time_text": null,
+      "quote_time_basis": null,
+      "bid_volume": null,
+      "ask_volume": null,
+      "quote_refresh_error": null,
+      "quote_retained": false,
+      "quote_assessed_at": "2026-10-28T12:00:00Z",
+      "quote_delay_seconds": null,
+      "quote_venue_mic": null,
+      "quote_age_limit_exceeded": false,
+      "spread_absolute": "0.05",
+      "spread_percent": "2.00",
+      "freshness_policy": "DE_WARRANT_SESSION_FRESHNESS_V1",
+      "source_selection_status": "SELECTED",
+      "source_selection_reason": "UNIQUE_VERIFIED_ROUTE",
+      "source_selection_policy_version": "POSITION_QUOTE_SOURCE_POLICY_V1",
+      "source_attempts": [
+        {
+          "source": "EODHD",
+          "status": "AVAILABLE",
+          "reason": "VALID_BID_AVAILABLE",
+          "delayed": false,
+          "observed_at": "2026-10-28T12:00:00Z",
+          "bid_available": true,
+          "ask_available": true,
+          "warrant_listing_id": "00000000-0000-0000-0000-000000000408",
+          "reference_price": null,
+          "reference_price_type": null,
+          "currency": "EUR",
+          "refresh_error": null
+        }
+      ]
+    },
+    "00000000-0000-0000-0000-0000000003ee": {
+      "trade_id": "00000000-0000-0000-0000-0000000003ee",
+      "position_id": "00000000-0000-0000-0000-0000000003ef",
+      "status": "AVAILABLE",
+      "reason": "WARRANT_BID_AVAILABLE",
+      "warrant_listing_id": "00000000-0000-0000-0000-000000000409",
+      "provenance_listing_id": null,
+      "quote_listing_id": "00000000-0000-0000-0000-000000000409",
+      "symbol": "CV00005",
+      "bid": "1.50",
+      "ask": "1.55",
+      "currency": "EUR",
+      "quote_observed_at": "2026-10-28T12:00:00Z",
+      "quote_age_seconds": 0,
+      "max_quote_age_seconds": 3600,
+      "market_value": "15.00",
+      "unrealized_gross_pnl": "-5.0000000000",
+      "unrealized_pnl_usable": true,
+      "unrealized_pnl_reason": "COST_BASIS_CURRENCY_MATCHED",
+      "analysis_unrealized_pnl_usable": true,
+      "analysis_unrealized_pnl_reason": "COST_BASIS_CURRENCY_MATCHED",
+      "position_basis": {
+        "definition_version": "position-unrealized-gross-v1",
+        "basis_id": "f68964a4b4a256c3e6f5e490bf455b8493684824701d0e6154bda54017941332",
+        "position": {
+          "id": "00000000-0000-0000-0000-0000000003ef",
+          "trade_id": "00000000-0000-0000-0000-0000000003ee",
+          "product_id": "00000000-0000-0000-0000-0000000003f0",
+          "open_quantity": 10,
+          "cost_basis": "20.0000000000",
+          "average_entry_price": "2.0000000000",
+          "opened_at": "2026-08-04T22:00:00Z",
+          "last_execution_at": "2026-08-04T22:00:00Z",
+          "realized_gross_pnl": "0",
+          "closed_at": null,
+          "is_cancelled": false,
+          "opened_on": "2026-08-05",
+          "last_execution_on": "2026-08-05",
+          "closed_on": null
+        },
+        "cost_basis_currency": "EUR",
+        "currency_status": "KNOWN",
+        "effective_execution_ids": [
+          "00000000-0000-0000-0000-0000000003f1"
+        ],
+        "buy_currency_evidence": [
+          {
+            "execution_id": "00000000-0000-0000-0000-0000000003f1",
+            "currency_code": "EUR",
+            "source": "USER_CONFIRMED",
+            "source_execution_ids": [
+              "00000000-0000-0000-0000-0000000003f1"
+            ],
+            "confirmation_ids": [
+              "00000000-0000-0000-0000-0000000003f2"
+            ]
+          }
+        ]
+      },
+      "selected_source": "EODHD",
+      "quote_provider": "EODHD",
+      "provider_identity": "DE000CV00005",
+      "provider_exchange_code": "XETR",
+      "isin": "DE000CV00005",
+      "wkn": null,
+      "source_mode": null,
+      "trading_status": null,
+      "valuation_usable": true,
+      "execution_usable": false,
+      "analysis_usable": true,
+      "analysis_warning": null,
+      "analysis_market_value": "15.00",
+      "analysis_unrealized_gross_pnl": "-5.0000000000",
+      "monitoring_usable": true,
+      "reference_price": "1.50",
+      "reference_price_type": "BID",
+      "quote_retrieved_at": "2026-10-28T12:00:00Z",
+      "quote_time_text": null,
+      "quote_time_basis": null,
+      "bid_volume": null,
+      "ask_volume": null,
+      "quote_refresh_error": null,
+      "quote_retained": false,
+      "quote_assessed_at": "2026-10-28T12:00:00Z",
+      "quote_delay_seconds": null,
+      "quote_venue_mic": null,
+      "quote_age_limit_exceeded": false,
+      "spread_absolute": "0.05",
+      "spread_percent": "3.333333333333333333333333333",
+      "freshness_policy": "DE_WARRANT_SESSION_FRESHNESS_V1",
+      "source_selection_status": "SELECTED",
+      "source_selection_reason": "UNIQUE_VERIFIED_ROUTE",
+      "source_selection_policy_version": "POSITION_QUOTE_SOURCE_POLICY_V1",
+      "source_attempts": [
+        {
+          "source": "EODHD",
+          "status": "AVAILABLE",
+          "reason": "VALID_BID_AVAILABLE",
+          "delayed": false,
+          "observed_at": "2026-10-28T12:00:00Z",
+          "bid_available": true,
+          "ask_available": true,
+          "warrant_listing_id": "00000000-0000-0000-0000-000000000409",
+          "reference_price": null,
+          "reference_price_type": null,
+          "currency": "EUR",
+          "refresh_error": null
+        }
+      ]
+    },
+    "00000000-0000-0000-0000-0000000003f3": {
+      "trade_id": "00000000-0000-0000-0000-0000000003f3",
+      "position_id": "00000000-0000-0000-0000-0000000003f4",
+      "status": "AVAILABLE",
+      "reason": "WARRANT_BID_AVAILABLE",
+      "warrant_listing_id": "00000000-0000-0000-0000-00000000040a",
+      "provenance_listing_id": null,
+      "quote_listing_id": "00000000-0000-0000-0000-00000000040a",
+      "symbol": "CV00002",
+      "bid": "2.50",
+      "ask": "2.55",
+      "currency": "EUR",
+      "quote_observed_at": "2026-10-28T12:00:00Z",
+      "quote_age_seconds": 0,
+      "max_quote_age_seconds": 3600,
+      "market_value": "25.00",
+      "unrealized_gross_pnl": null,
+      "unrealized_pnl_usable": false,
+      "unrealized_pnl_reason": "COST_BASIS_CURRENCY_MISMATCH",
+      "analysis_unrealized_pnl_usable": false,
+      "analysis_unrealized_pnl_reason": "COST_BASIS_CURRENCY_MISMATCH",
+      "position_basis": {
+        "definition_version": "position-unrealized-gross-v1",
+        "basis_id": "18128ccb6d13da6710e253b29395a80c627425b115e201e21eea091cdddb3920",
+        "position": {
+          "id": "00000000-0000-0000-0000-0000000003f4",
+          "trade_id": "00000000-0000-0000-0000-0000000003f3",
+          "product_id": "00000000-0000-0000-0000-0000000003f5",
+          "open_quantity": 10,
+          "cost_basis": "20.0000000000",
+          "average_entry_price": "2.0000000000",
+          "opened_at": "2026-08-04T22:00:00Z",
+          "last_execution_at": "2026-08-04T22:00:00Z",
+          "realized_gross_pnl": "0",
+          "closed_at": null,
+          "is_cancelled": false,
+          "opened_on": "2026-08-05",
+          "last_execution_on": "2026-08-05",
+          "closed_on": null
+        },
+        "cost_basis_currency": "USD",
+        "currency_status": "KNOWN",
+        "effective_execution_ids": [
+          "00000000-0000-0000-0000-0000000003f6"
+        ],
+        "buy_currency_evidence": [
+          {
+            "execution_id": "00000000-0000-0000-0000-0000000003f6",
+            "currency_code": "USD",
+            "source": "USER_CONFIRMED",
+            "source_execution_ids": [
+              "00000000-0000-0000-0000-0000000003f6"
+            ],
+            "confirmation_ids": [
+              "00000000-0000-0000-0000-0000000003f7"
+            ]
+          }
+        ]
+      },
+      "selected_source": "EODHD",
+      "quote_provider": "EODHD",
+      "provider_identity": "DE000CV00002",
+      "provider_exchange_code": "XETR",
+      "isin": "DE000CV00002",
+      "wkn": null,
+      "source_mode": null,
+      "trading_status": null,
+      "valuation_usable": true,
+      "execution_usable": false,
+      "analysis_usable": true,
+      "analysis_warning": null,
+      "analysis_market_value": "25.00",
+      "analysis_unrealized_gross_pnl": null,
+      "monitoring_usable": true,
+      "reference_price": "2.50",
+      "reference_price_type": "BID",
+      "quote_retrieved_at": "2026-10-28T12:00:00Z",
+      "quote_time_text": null,
+      "quote_time_basis": null,
+      "bid_volume": null,
+      "ask_volume": null,
+      "quote_refresh_error": null,
+      "quote_retained": false,
+      "quote_assessed_at": "2026-10-28T12:00:00Z",
+      "quote_delay_seconds": null,
+      "quote_venue_mic": null,
+      "quote_age_limit_exceeded": false,
+      "spread_absolute": "0.05",
+      "spread_percent": "2.00",
+      "freshness_policy": "DE_WARRANT_SESSION_FRESHNESS_V1",
+      "source_selection_status": "SELECTED",
+      "source_selection_reason": "UNIQUE_VERIFIED_ROUTE",
+      "source_selection_policy_version": "POSITION_QUOTE_SOURCE_POLICY_V1",
+      "source_attempts": [
+        {
+          "source": "EODHD",
+          "status": "AVAILABLE",
+          "reason": "VALID_BID_AVAILABLE",
+          "delayed": false,
+          "observed_at": "2026-10-28T12:00:00Z",
+          "bid_available": true,
+          "ask_available": true,
+          "warrant_listing_id": "00000000-0000-0000-0000-00000000040a",
+          "reference_price": null,
+          "reference_price_type": null,
+          "currency": "EUR",
+          "refresh_error": null
+        }
+      ]
+    },
+    "00000000-0000-0000-0000-0000000003f8": {
+      "trade_id": "00000000-0000-0000-0000-0000000003f8",
+      "position_id": "00000000-0000-0000-0000-0000000003f9",
+      "status": "AVAILABLE",
+      "reason": "WARRANT_BID_AVAILABLE",
+      "warrant_listing_id": "00000000-0000-0000-0000-00000000040b",
+      "provenance_listing_id": null,
+      "quote_listing_id": "00000000-0000-0000-0000-00000000040b",
+      "symbol": "CV00003",
+      "bid": "2.50",
+      "ask": "2.55",
+      "currency": "EUR",
+      "quote_observed_at": "2026-10-28T12:00:00Z",
+      "quote_age_seconds": 0,
+      "max_quote_age_seconds": 3600,
+      "market_value": "25.00",
+      "unrealized_gross_pnl": null,
+      "unrealized_pnl_usable": false,
+      "unrealized_pnl_reason": "COST_BASIS_CURRENCY_MIXED",
+      "analysis_unrealized_pnl_usable": false,
+      "analysis_unrealized_pnl_reason": "COST_BASIS_CURRENCY_MIXED",
+      "position_basis": {
+        "definition_version": "position-unrealized-gross-v1",
+        "basis_id": "6be4953bcfe55ae157bae2340f0bd2762e8484d7fb87fbd3d33251ede923aa8d",
+        "position": {
+          "id": "00000000-0000-0000-0000-0000000003f9",
+          "trade_id": "00000000-0000-0000-0000-0000000003f8",
+          "product_id": "00000000-0000-0000-0000-0000000003fa",
+          "open_quantity": 10,
+          "cost_basis": "20.0000000000",
+          "average_entry_price": "2.0000000000",
+          "opened_at": "2026-08-04T22:00:00Z",
+          "last_execution_at": "2026-08-05T22:00:00Z",
+          "realized_gross_pnl": "0",
+          "closed_at": null,
+          "is_cancelled": false,
+          "opened_on": "2026-08-05",
+          "last_execution_on": "2026-08-06",
+          "closed_on": null
+        },
+        "cost_basis_currency": null,
+        "currency_status": "MIXED",
+        "effective_execution_ids": [
+          "00000000-0000-0000-0000-0000000003fb",
+          "00000000-0000-0000-0000-0000000003fc"
+        ],
+        "buy_currency_evidence": [
+          {
+            "execution_id": "00000000-0000-0000-0000-0000000003fb",
+            "currency_code": "EUR",
+            "source": "USER_CONFIRMED",
+            "source_execution_ids": [
+              "00000000-0000-0000-0000-0000000003fb"
+            ],
+            "confirmation_ids": [
+              "00000000-0000-0000-0000-0000000003fd"
+            ]
+          },
+          {
+            "execution_id": "00000000-0000-0000-0000-0000000003fc",
+            "currency_code": "USD",
+            "source": "USER_CONFIRMED",
+            "source_execution_ids": [
+              "00000000-0000-0000-0000-0000000003fc"
+            ],
+            "confirmation_ids": [
+              "00000000-0000-0000-0000-0000000003fe"
+            ]
+          }
+        ]
+      },
+      "selected_source": "EODHD",
+      "quote_provider": "EODHD",
+      "provider_identity": "DE000CV00003",
+      "provider_exchange_code": "XETR",
+      "isin": "DE000CV00003",
+      "wkn": null,
+      "source_mode": null,
+      "trading_status": null,
+      "valuation_usable": true,
+      "execution_usable": false,
+      "analysis_usable": true,
+      "analysis_warning": null,
+      "analysis_market_value": "25.00",
+      "analysis_unrealized_gross_pnl": null,
+      "monitoring_usable": true,
+      "reference_price": "2.50",
+      "reference_price_type": "BID",
+      "quote_retrieved_at": "2026-10-28T12:00:00Z",
+      "quote_time_text": null,
+      "quote_time_basis": null,
+      "bid_volume": null,
+      "ask_volume": null,
+      "quote_refresh_error": null,
+      "quote_retained": false,
+      "quote_assessed_at": "2026-10-28T12:00:00Z",
+      "quote_delay_seconds": null,
+      "quote_venue_mic": null,
+      "quote_age_limit_exceeded": false,
+      "spread_absolute": "0.05",
+      "spread_percent": "2.00",
+      "freshness_policy": "DE_WARRANT_SESSION_FRESHNESS_V1",
+      "source_selection_status": "SELECTED",
+      "source_selection_reason": "UNIQUE_VERIFIED_ROUTE",
+      "source_selection_policy_version": "POSITION_QUOTE_SOURCE_POLICY_V1",
+      "source_attempts": [
+        {
+          "source": "EODHD",
+          "status": "AVAILABLE",
+          "reason": "VALID_BID_AVAILABLE",
+          "delayed": false,
+          "observed_at": "2026-10-28T12:00:00Z",
+          "bid_available": true,
+          "ask_available": true,
+          "warrant_listing_id": "00000000-0000-0000-0000-00000000040b",
+          "reference_price": null,
+          "reference_price_type": null,
+          "currency": "EUR",
+          "refresh_error": null
+        }
+      ]
+    },
+    "00000000-0000-0000-0000-0000000003ff": {
+      "trade_id": "00000000-0000-0000-0000-0000000003ff",
+      "position_id": "00000000-0000-0000-0000-000000000400",
+      "status": "AVAILABLE",
+      "reason": "WARRANT_BID_AVAILABLE",
+      "warrant_listing_id": "00000000-0000-0000-0000-00000000040c",
+      "provenance_listing_id": null,
+      "quote_listing_id": "00000000-0000-0000-0000-00000000040c",
+      "symbol": "CV00006",
+      "bid": "2.00",
+      "ask": "2.05",
+      "currency": "EUR",
+      "quote_observed_at": "2026-10-28T12:00:00Z",
+      "quote_age_seconds": 0,
+      "max_quote_age_seconds": 3600,
+      "market_value": "20.00",
+      "unrealized_gross_pnl": "0E-10",
+      "unrealized_pnl_usable": true,
+      "unrealized_pnl_reason": "COST_BASIS_CURRENCY_MATCHED",
+      "analysis_unrealized_pnl_usable": true,
+      "analysis_unrealized_pnl_reason": "COST_BASIS_CURRENCY_MATCHED",
+      "position_basis": {
+        "definition_version": "position-unrealized-gross-v1",
+        "basis_id": "24426e4c5b23971f8f8ceace9026b6ed05b8235a27d0cad99c455e173f7a5bb1",
+        "position": {
+          "id": "00000000-0000-0000-0000-000000000400",
+          "trade_id": "00000000-0000-0000-0000-0000000003ff",
+          "product_id": "00000000-0000-0000-0000-000000000401",
+          "open_quantity": 10,
+          "cost_basis": "20.0000000000",
+          "average_entry_price": "2.0000000000",
+          "opened_at": "2026-08-04T22:00:00Z",
+          "last_execution_at": "2026-08-04T22:00:00Z",
+          "realized_gross_pnl": "0",
+          "closed_at": null,
+          "is_cancelled": false,
+          "opened_on": "2026-08-05",
+          "last_execution_on": "2026-08-05",
+          "closed_on": null
+        },
+        "cost_basis_currency": "EUR",
+        "currency_status": "KNOWN",
+        "effective_execution_ids": [
+          "00000000-0000-0000-0000-000000000402"
+        ],
+        "buy_currency_evidence": [
+          {
+            "execution_id": "00000000-0000-0000-0000-000000000402",
+            "currency_code": "EUR",
+            "source": "USER_CONFIRMED",
+            "source_execution_ids": [
+              "00000000-0000-0000-0000-000000000402"
+            ],
+            "confirmation_ids": [
+              "00000000-0000-0000-0000-000000000403"
+            ]
+          }
+        ]
+      },
+      "selected_source": "EODHD",
+      "quote_provider": "EODHD",
+      "provider_identity": "DE000CV00006",
+      "provider_exchange_code": "XETR",
+      "isin": "DE000CV00006",
+      "wkn": null,
+      "source_mode": null,
+      "trading_status": null,
+      "valuation_usable": true,
+      "execution_usable": false,
+      "analysis_usable": true,
+      "analysis_warning": null,
+      "analysis_market_value": "20.00",
+      "analysis_unrealized_gross_pnl": "0E-10",
+      "monitoring_usable": true,
+      "reference_price": "2.00",
+      "reference_price_type": "BID",
+      "quote_retrieved_at": "2026-10-28T12:00:00Z",
+      "quote_time_text": null,
+      "quote_time_basis": null,
+      "bid_volume": null,
+      "ask_volume": null,
+      "quote_refresh_error": null,
+      "quote_retained": false,
+      "quote_assessed_at": "2026-10-28T12:00:00Z",
+      "quote_delay_seconds": null,
+      "quote_venue_mic": null,
+      "quote_age_limit_exceeded": false,
+      "spread_absolute": "0.05",
+      "spread_percent": "2.500",
+      "freshness_policy": "DE_WARRANT_SESSION_FRESHNESS_V1",
+      "source_selection_status": "SELECTED",
+      "source_selection_reason": "UNIQUE_VERIFIED_ROUTE",
+      "source_selection_policy_version": "POSITION_QUOTE_SOURCE_POLICY_V1",
+      "source_attempts": [
+        {
+          "source": "EODHD",
+          "status": "AVAILABLE",
+          "reason": "VALID_BID_AVAILABLE",
+          "delayed": false,
+          "observed_at": "2026-10-28T12:00:00Z",
+          "bid_available": true,
+          "ask_available": true,
+          "warrant_listing_id": "00000000-0000-0000-0000-00000000040c",
+          "reference_price": null,
+          "reference_price_type": null,
+          "currency": "EUR",
+          "refresh_error": null
+        }
+      ]
+    },
+    "00000000-0000-0000-0000-000000000404": {
+      "trade_id": "00000000-0000-0000-0000-000000000404",
+      "position_id": "00000000-0000-0000-0000-000000000405",
+      "status": "AVAILABLE",
+      "reason": "WARRANT_BID_AVAILABLE",
+      "warrant_listing_id": "00000000-0000-0000-0000-00000000040d",
+      "provenance_listing_id": null,
+      "quote_listing_id": "00000000-0000-0000-0000-00000000040d",
+      "symbol": "CV00001",
+      "bid": "2.50",
+      "ask": "2.55",
+      "currency": "EUR",
+      "quote_observed_at": "2026-10-28T12:00:00Z",
+      "quote_age_seconds": 0,
+      "max_quote_age_seconds": 3600,
+      "market_value": "25.00",
+      "unrealized_gross_pnl": null,
+      "unrealized_pnl_usable": false,
+      "unrealized_pnl_reason": "COST_BASIS_CURRENCY_UNKNOWN",
+      "analysis_unrealized_pnl_usable": false,
+      "analysis_unrealized_pnl_reason": "COST_BASIS_CURRENCY_UNKNOWN",
+      "position_basis": {
+        "definition_version": "position-unrealized-gross-v1",
+        "basis_id": "a2d9342900be8e046e3ba554bbcf6363df3e54a84c1244691e93cffa4bbb7b0d",
+        "position": {
+          "id": "00000000-0000-0000-0000-000000000405",
+          "trade_id": "00000000-0000-0000-0000-000000000404",
+          "product_id": "00000000-0000-0000-0000-000000000406",
+          "open_quantity": 10,
+          "cost_basis": "20.0000000000",
+          "average_entry_price": "2.0000000000",
+          "opened_at": "2026-08-04T22:00:00Z",
+          "last_execution_at": "2026-08-04T22:00:00Z",
+          "realized_gross_pnl": "0",
+          "closed_at": null,
+          "is_cancelled": false,
+          "opened_on": "2026-08-05",
+          "last_execution_on": "2026-08-05",
+          "closed_on": null
+        },
+        "cost_basis_currency": null,
+        "currency_status": "UNKNOWN",
+        "effective_execution_ids": [
+          "00000000-0000-0000-0000-000000000407"
+        ],
+        "buy_currency_evidence": [
+          {
+            "execution_id": "00000000-0000-0000-0000-000000000407",
+            "currency_code": null,
+            "source": "UNKNOWN",
+            "source_execution_ids": [],
+            "confirmation_ids": []
+          }
+        ]
+      },
+      "selected_source": "EODHD",
+      "quote_provider": "EODHD",
+      "provider_identity": "DE000CV00001",
+      "provider_exchange_code": "XETR",
+      "isin": "DE000CV00001",
+      "wkn": null,
+      "source_mode": null,
+      "trading_status": null,
+      "valuation_usable": true,
+      "execution_usable": false,
+      "analysis_usable": true,
+      "analysis_warning": null,
+      "analysis_market_value": "25.00",
+      "analysis_unrealized_gross_pnl": null,
+      "monitoring_usable": true,
+      "reference_price": "2.50",
+      "reference_price_type": "BID",
+      "quote_retrieved_at": "2026-10-28T12:00:00Z",
+      "quote_time_text": null,
+      "quote_time_basis": null,
+      "bid_volume": null,
+      "ask_volume": null,
+      "quote_refresh_error": null,
+      "quote_retained": false,
+      "quote_assessed_at": "2026-10-28T12:00:00Z",
+      "quote_delay_seconds": null,
+      "quote_venue_mic": null,
+      "quote_age_limit_exceeded": false,
+      "spread_absolute": "0.05",
+      "spread_percent": "2.00",
+      "freshness_policy": "DE_WARRANT_SESSION_FRESHNESS_V1",
+      "source_selection_status": "SELECTED",
+      "source_selection_reason": "UNIQUE_VERIFIED_ROUTE",
+      "source_selection_policy_version": "POSITION_QUOTE_SOURCE_POLICY_V1",
+      "source_attempts": [
+        {
+          "source": "EODHD",
+          "status": "AVAILABLE",
+          "reason": "VALID_BID_AVAILABLE",
+          "delayed": false,
+          "observed_at": "2026-10-28T12:00:00Z",
+          "bid_available": true,
+          "ask_available": true,
+          "warrant_listing_id": "00000000-0000-0000-0000-00000000040d",
+          "reference_price": null,
+          "reference_price_type": null,
+          "currency": "EUR",
+          "refresh_error": null
+        }
+      ]
+    }
+  }
+}

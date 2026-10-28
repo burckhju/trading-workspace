@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { tradeManagementApiClient, tradeTimelineChangedEvent } from '../services/client';
 import type { ProductPositionValuationResponse } from '../types/api';
+import { qualifiedUnrealizedPnl, unrealizedPnlReason } from '../services/valuationQualification';
+import { PositionValuationBasisDetails } from './PositionValuationBasisDetails';
 
 function formatDecimal(value: string | null): string {
   if (value === null) return '—';
@@ -174,6 +176,15 @@ export function ProductValuationPanel({ tradeId }: { tradeId: string }) {
     );
   }
 
+  const pnl = qualifiedUnrealizedPnl(
+    value.analysis_usable ? value.analysis_unrealized_gross_pnl : value.unrealized_gross_pnl,
+    value.analysis_usable ? value.analysis_unrealized_pnl_usable : value.unrealized_pnl_usable,
+    value.currency,
+  );
+  const pnlReason = value.analysis_usable
+    ? value.analysis_unrealized_pnl_reason
+    : value.unrealized_pnl_reason;
+
   return (
     <section className="rounded-xl border border-slate-800 p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -278,15 +289,14 @@ export function ProductValuationPanel({ tradeId }: { tradeId: string }) {
                   : 'Unrealized gross P&L'}
               </dt>
               <dd className="mt-1 font-medium">
-                {formatDecimal(
-                  value.analysis_usable
-                    ? value.analysis_unrealized_gross_pnl
-                    : value.unrealized_gross_pnl,
-                )}{' '}
-                {value.currency}
+                {pnl === null ? '—' : `${formatDecimal(pnl)} ${value.currency}`}
               </dd>
+              {pnl === null && (
+                <dd className="mt-2 text-xs text-amber-300">{unrealizedPnlReason(pnlReason)}</dd>
+              )}
             </div>
           </dl>
+          <PositionValuationBasisDetails basis={value.position_basis} />
           {((value.bid !== null && value.bid_volume === 0) ||
             (value.ask !== null && value.ask_volume === 0)) && (
             <p className="mt-3 text-xs text-amber-700">

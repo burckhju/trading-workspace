@@ -24,6 +24,10 @@ from app.features.position_monitoring.service.quote_sources import (
     MultiSourceWarrantQuoteResolver,
     NamedWarrantQuoteSource,
 )
+from app.features.trade_position.persistence.currency_models import (
+    ExecutionCurrencyConfirmationModel,
+)
+from app.features.trade_position.persistence.models import ExecutionRecordModel
 
 NOW = datetime(2026, 9, 6, 12, 0, tzinfo=UTC)
 monitoring_api = import_module("app.features.position_monitoring.api.router")
@@ -38,6 +42,11 @@ class _ExecuteResult:
         return self._value
 
 
+class _Rows(list):
+    def all(self):
+        return self
+
+
 class _Session:
     def __init__(
         self,
@@ -48,11 +57,54 @@ class _Session:
         listing=None,
         source_selection=None,
         scalars=None,
+        execution_quantity=10,
+        execution_price="2.00",
     ):
         self._trade = trade
         self._position = position
         self._scalars = (
             list(scalars) if scalars is not None else [source_selection, evaluation, listing]
+        )
+        execution_id = uuid4()
+        self._executions = _Rows(
+            [
+                SimpleNamespace(
+                    id=execution_id,
+                    trade_id=trade.id,
+                    product_id=trade.product_id,
+                    side="BUY",
+                    quantity=execution_quantity,
+                    price_per_unit=Decimal(execution_price),
+                    executed_at=NOW - timedelta(days=1),
+                    recorded_at=NOW,
+                    recorded_by=trade.created_by,
+                    supersedes_execution_id=None,
+                    request_key=None,
+                    request_fingerprint=None,
+                    executed_on=None,
+                    execution_timezone=None,
+                )
+            ]
+        )
+        # Existing positive quote tests now carry explicit synthetic BUY proof.
+        # Unknown/mixed/corrected histories are separate currency regressions.
+        self._confirmations = _Rows(
+            [
+                SimpleNamespace(
+                    id=uuid4(),
+                    workspace_id=trade.workspace_id,
+                    trade_id=trade.id,
+                    execution_id=execution_id,
+                    currency_code="EUR",
+                    source="USER_CONFIRMED",
+                    note=None,
+                    confirmed_at=NOW,
+                    confirmed_by=trade.created_by,
+                    supersedes_confirmation_id=None,
+                    request_id=uuid4(),
+                    request_fingerprint="synthetic",
+                )
+            ]
         )
 
     async def execute(self, _statement):
@@ -60,6 +112,13 @@ class _Session:
 
     async def scalar(self, _statement):
         return self._scalars.pop(0)
+
+    async def scalars(self, statement):
+        entity = statement.column_descriptions[0]["entity"]
+        if entity is ExecutionRecordModel:
+            return self._executions
+        assert entity is ExecutionCurrencyConfirmationModel
+        return self._confirmations
 
 
 class _Database:
@@ -92,6 +151,16 @@ def _context(*, external: bool = False):
         workspace_id=uuid4(),
         product_id=product_id,
         product_evaluation_id=evaluation_id,
+        origin="EXTERNAL" if external else "WORKSPACE_SELECTION",
+        created_at=NOW - timedelta(days=1),
+        created_by=uuid4(),
+        trade_plan_id=None if external else uuid4(),
+        trade_plan_version_id=None if external else uuid4(),
+        product_selection_id=None if external else uuid4(),
+        cancelled_at=None,
+        cancelled_by=None,
+        cancellation_reason=None,
+        duplicate_of_trade_id=None,
     )
     position = SimpleNamespace(
         id=position_id,
