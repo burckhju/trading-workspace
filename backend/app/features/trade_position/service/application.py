@@ -36,6 +36,9 @@ from app.features.trade_position.domain.timeline import (
     compose_trade_timeline,
     ft011_eligibility,
 )
+from app.features.trade_position.persistence.currency_evidence import (
+    SqlAlchemyCurrencyEvidenceRepository,
+)
 from app.features.trade_position.persistence.unit_of_work import TradePositionUnitOfWork
 from app.features.trade_position.service.currency_confirmations import (
     ExecutionCurrencyConfirmationService,
@@ -145,12 +148,14 @@ class TradePositionService:
         products: ProductResolver | None = None,
         quote_source_selector: PositionQuoteSourceSelector | None = None,
         currency_confirmations: ExecutionCurrencyConfirmationService | None = None,
+        currency_evidence: SqlAlchemyCurrencyEvidenceRepository | None = None,
     ) -> None:
         self._uow = uow
         self._workspace_selections = workspace_selections
         self._products = products
         self._quote_source_selector = quote_source_selector
         self._currency_confirmations = currency_confirmations
+        self._currency_evidence = currency_evidence
 
     async def _capture_currency(
         self,
@@ -178,7 +183,14 @@ class TradePositionService:
             else {}
         )
         resolutions = resolve_execution_currencies(
-            trade=trade, executions=executions, current=current
+            trade=trade,
+            executions=executions,
+            current=current,
+            evidence=(
+                await self._currency_evidence.list_for_product(trade.workspace_id, trade.product_id)
+                if self._currency_evidence is not None
+                else ()
+            ),
         )
         return [
             replace(
@@ -195,7 +207,7 @@ class TradePositionService:
         execution: ExecutionRecord,
         history: list[ExecutionRecord] | None = None,
     ) -> ExecutionRecord:
-        if self._currency_confirmations is None:
+        if self._currency_confirmations is None and self._currency_evidence is None:
             return execution
         if history is None:
             history = await self._uow.executions.list_for_trade(trade.id)

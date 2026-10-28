@@ -24,6 +24,7 @@ from app.features.position_monitoring.service.quote_sources import (
     MultiSourceWarrantQuoteResolver,
     NamedWarrantQuoteSource,
 )
+from app.features.trade_position.persistence.currency_evidence import CurrencyEvidenceModel
 from app.features.trade_position.persistence.currency_models import (
     ExecutionCurrencyConfirmationModel,
 )
@@ -117,6 +118,8 @@ class _Session:
         entity = statement.column_descriptions[0]["entity"]
         if entity is ExecutionRecordModel:
             return self._executions
+        if entity is CurrencyEvidenceModel:
+            return _Rows([])
         assert entity is ExecutionCurrencyConfirmationModel
         return self._confirmations
 

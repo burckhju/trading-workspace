@@ -66,6 +66,9 @@ from app.features.trade_position.domain.timeline import (
     TradeTimelineEntryKind,
     compose_trade_timeline,
 )
+from app.features.trade_position.persistence.currency_evidence import (
+    SqlAlchemyCurrencyEvidenceRepository,
+)
 from app.features.trade_position.persistence.currency_models import (
     ExecutionCurrencyConfirmationModel,
 )
@@ -291,7 +294,12 @@ class TradeSourceReader:
             currency_repo = SqlAlchemyExecutionCurrencyConfirmationRepository(session)
             current = await currency_repo.current_for_trade(workspace_id, trade_id)
             resolution = resolve_execution_currencies(
-                trade=trade, executions=executions, current=current
+                trade=trade,
+                executions=executions,
+                current=current,
+                evidence=await SqlAlchemyCurrencyEvidenceRepository(session).list_for_product(
+                    workspace_id, trade.product_id, limit=MAX_FACTS
+                ),
             )
             executions = [
                 replace(

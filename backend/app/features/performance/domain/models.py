@@ -7,6 +7,7 @@ from typing import Literal
 from uuid import UUID
 
 from app.features.trade_position.domain.currency import ExecutionCurrencyResolution
+from app.features.trade_position.domain.currency_evidence import CurrencyEvidence
 from app.features.trade_position.domain.enums import ExecutionSide
 from app.features.trade_position.domain.models import ExecutionRecord, Trade
 
@@ -96,6 +97,7 @@ class ReportSnapshot:
     currency: CurrencyReference
     read_started_at: datetime
     read_completed_at: datetime
+    currency_evidence: tuple[CurrencyEvidence, ...] = ()
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

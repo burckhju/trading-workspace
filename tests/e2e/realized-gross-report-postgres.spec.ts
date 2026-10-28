@@ -30,7 +30,7 @@ test("real PostgreSQL: purchase currency once, inherited sales, sources and corr
       ),
     );
   const initial = databaseState();
-  expect(initial.schema_revision).toBe("20261017_0047");
+  expect(initial.schema_revision).toBe("20261028_0048");
   expect(initial.postgresql).toMatch(/^PostgreSQL 17\./);
   expect(initial.tables.execution_records.count).toBe(0);
   const api = `${baseURL}/api/api/v1`;

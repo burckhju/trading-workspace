@@ -310,6 +310,9 @@ it('does not apply a late post-save history refresh to another trade or executio
 it.each([
   ['PRIOR_BUYS', 'EUR · aus vorherigen Käufen übernommen'],
   ['REPLACED_EXECUTION', 'EUR · aus der ursprünglichen Buchung übernommen'],
+  ['EXECUTION_DOCUMENT', 'EUR · automatisch aus Ausführungsbeleg abgeleitet'],
+  ['HISTORICAL_LISTING', 'EUR · automatisch aus historischer Notierung abgeleitet'],
+  ['HISTORICAL_LISTINGS', 'EUR · automatisch aus historischen Notierungen abgeleitet'],
 ] as const)(
   'shows %s owner provenance without asking for another confirmation and keeps an override explicit',
   async (source, label) => {

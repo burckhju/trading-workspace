@@ -9,6 +9,8 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.features.trade_position.domain.currency import (
+    RESOLVER_VERSION,
+    CurrencyResolutionSource,
     ExecutionCurrencyDeclaration,
     ExecutionCurrencySource,
 )
@@ -58,14 +60,28 @@ class ExecutionCurrencyConfirmationResponse(BaseModel):
     supersedes_confirmation_id: UUID | None
 
 
+class CurrencyEvidenceReferenceResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: UUID
+    kind: Literal["EXECUTION_DOCUMENT", "HISTORICAL_LISTINGS"]
+    source_reference: str
+    recorded_at: datetime
+    valid_from: datetime | None
+    valid_to: datetime | None
+    source_fingerprint: str
+    verification: Literal["USER_VERIFIED_SOURCE"]
+
+
 class ExecutionCurrencyResolutionResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     currency_code: str | None = None
-    source: Literal["USER_CONFIRMED", "PRIOR_BUYS", "REPLACED_EXECUTION", "UNKNOWN", "MIXED"] = (
-        "UNKNOWN"
-    )
+    source: CurrencyResolutionSource = "UNKNOWN"
     source_execution_ids: tuple[UUID, ...] = ()
     confirmation_ids: tuple[UUID, ...] = ()
+    evidence_ids: tuple[UUID, ...] = ()
+    evidence: tuple[CurrencyEvidenceReferenceResponse, ...] = ()
+    reason: str | None = None
+    resolver_version: str = RESOLVER_VERSION
 
 
 class ExecutionCurrencyHistoryResponse(BaseModel):

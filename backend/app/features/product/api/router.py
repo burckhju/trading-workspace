@@ -21,9 +21,11 @@ from app.features.product.domain.models import (
 )
 from app.features.product.service.application import InitialWarrantListing, WarrantService
 from app.features.product.service.hard_delete import WarrantHardDeleteService
+from app.features.trade_position.api.currency_evidence import router as currency_evidence_router
 
 router = APIRouter(prefix="/api/v1/warrants", tags=["warrants"])
 router.include_router(valuation_evidence_router)
+router.include_router(currency_evidence_router)
 WORKSPACE_ID = UUID("00000000-0000-4000-8000-000000000001")
 StrikeCurrencyCode = Annotated[
     str,

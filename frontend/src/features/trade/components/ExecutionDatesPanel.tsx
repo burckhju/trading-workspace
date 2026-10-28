@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { MarketApiError } from '../../market/services/http';
+import { CurrencyEvidenceEditor } from '../../product/components/CurrencyEvidenceEditor';
 import { tradeManagementApiClient, tradeTimelineChangedEvent } from '../services/client';
 import {
   effectiveExecutions,
@@ -29,13 +30,14 @@ import { TradePendingChangesProvider, useTradePendingChanges } from './TradePend
 
 interface Props {
   tradeId: string;
+  productId?: string;
   cancelled?: boolean;
   onChanged: () => Promise<void>;
   reloadToken?: number;
   onWriteBlockedChange?: (blocked: boolean) => void;
 }
 interface Editor {
-  kind: 'facts' | 'currency';
+  kind: 'facts' | 'currency' | 'evidence';
   entry: TradeTimelineEntryResponse;
 }
 interface CorrectionDraft {
@@ -109,6 +111,7 @@ export function ExecutionDatesPanel(props: Props) {
 
 function ExecutionDatesContext({
   tradeId,
+  productId,
   cancelled = false,
   onChanged,
   reloadToken = 0,
@@ -150,7 +153,8 @@ function ExecutionDatesContext({
 
   function isDirty() {
     if (recoveryRef.current && !recoveryRef.current.confirmed) return true;
-    if (editorRef.current?.kind === 'currency') return currencyPendingRef.current.dirty;
+    if (editorRef.current?.kind === 'currency' || editorRef.current?.kind === 'evidence')
+      return currencyPendingRef.current.dirty;
     if (editorRef.current?.kind !== 'facts') return false;
     const original = initialDraft(editorRef.current.entry);
     const current = draftRef.current;
@@ -168,9 +172,12 @@ function ExecutionDatesContext({
       Boolean(current.currency.code || current.currency.note)
     );
   }
-  const { notify, requestChange, isBusy } = useTradePendingChanges('bookings', {
+  const { notify, requestChange, isBusy, isBusyExceptSelf } = useTradePendingChanges('bookings', {
     isDirty,
-    isBusy: () => lock.current || currencyPendingRef.current.busy,
+    isBusy: () =>
+      lock.current ||
+      currencyPendingRef.current.busy ||
+      Boolean(currencyPendingRef.current.writeBlocked),
     onDiscard: () => {
       // The requested action owns closing/switching. A currency reload must
       // keep that editor mounted until its own load clears the old draft.
@@ -313,7 +320,14 @@ function ExecutionDatesContext({
     }
   }
   async function reviewStand() {
-    if (isBusy() || reviewLock.current) return;
+    if (
+      isBusyExceptSelf() ||
+      lock.current ||
+      currencyPendingRef.current.busy ||
+      reviewLock.current ||
+      loadingRef.current
+    )
+      return;
     reviewLock.current = true;
     setReviewing(true);
     reportBlocked();
@@ -607,7 +621,22 @@ function ExecutionDatesContext({
             Diese Buchung wurde bereits ersetzt. Bitte den aktuellen Eintrag auswählen.
           </p>
         )}
-        {editor.kind === 'currency' ? (
+        {editor.kind === 'evidence' && productId ? (
+          <CurrencyEvidenceEditor
+            productId={productId}
+            execution={{ tradeId, executionId: selected.id }}
+            disabled={
+              cancelled || stale || loading || reviewing || Boolean(loadError) || Boolean(recovery)
+            }
+            readDisabled={loading || reviewing}
+            isWriteBlocked={() => isBusyExceptSelf() || lock.current || reviewLock.current}
+            onPendingChange={currencyStateChanged}
+            onChanged={async () => {
+              await readCurrentStand();
+            }}
+            onCancel={closeEditor}
+          />
+        ) : editor.kind === 'currency' ? (
           <ExecutionCurrencyPanel
             editor
             tradeId={tradeId}
@@ -622,12 +651,24 @@ function ExecutionDatesContext({
             }
             readOnly={cancelled || stale}
             disabled={loading || reviewing || Boolean(loadError) || Boolean(recovery)}
-            isWriteBlocked={isBusy}
+            isWriteBlocked={() => isBusyExceptSelf() || lock.current || reviewLock.current}
             onChanged={async () => {
               await readCurrentStand();
             }}
             onPendingChange={currencyStateChanged}
-            requestChange={requestChange}
+            requestChange={(action) => {
+              // Only the owner's explicit provenance read may resolve its recovery lock.
+              // Other participants and every context/navigation change remain blocked.
+              if (
+                currencyPendingRef.current.writeBlocked &&
+                !currencyPendingRef.current.busy &&
+                !isBusyExceptSelf() &&
+                !lock.current &&
+                !reviewLock.current
+              )
+                action();
+              else requestChange(action);
+            }}
             onClose={closeEditor}
           />
         ) : context && !cancelled ? (
@@ -990,7 +1031,7 @@ function ExecutionDatesContext({
       )}
       <button
         type="button"
-        disabled={isBusy() || busy || currencyPending.busy || loading || reviewing}
+        disabled={isBusyExceptSelf() || busy || currencyPending.busy || loading || reviewing}
         onClick={() => void reviewStand()}
         className="mt-3 rounded border p-2"
       >
@@ -1082,6 +1123,16 @@ function ExecutionDatesContext({
                         >
                           Währung prüfen / bestätigen
                         </button>
+                        {productId && (
+                          <button
+                            type="button"
+                            disabled={writeBlocked || loading || Boolean(loadError)}
+                            onClick={() => openEditor(entry, 'evidence')}
+                            className="rounded border p-2"
+                          >
+                            Ausführungsbeleg zuordnen
+                          </button>
+                        )}
                       </div>
                     )}
                   </>

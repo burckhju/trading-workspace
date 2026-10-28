@@ -486,3 +486,51 @@ it('validates reversed periods before a request and preserves entered filters on
   expect(screen.getByLabelText('Von (einschließlich)')).toHaveValue('2026-09-01');
   expect(screen.queryByTestId('realized-gross-total')).not.toBeInTheDocument();
 });
+
+it('shows computed amounts with automatic historical source provenance without claiming a user confirmation', async () => {
+  const report = realizedGrossReport();
+  const sell = report.sources.find((entry) => entry.execution_id === 'sell-september-2')!;
+  sell.currency_confirmation = null;
+  sell.currency_history = [];
+  sell.currency_resolution = {
+    currency_code: 'EUR',
+    source: 'HISTORICAL_LISTINGS',
+    source_execution_ids: [],
+    confirmation_ids: [],
+    evidence_ids: ['historical-listing-v2'],
+    resolver_version: 'historical-currency-v1',
+    evidence: [
+      {
+        id: 'historical-listing-v2',
+        kind: 'HISTORICAL_LISTINGS',
+        source_reference: 'Historical venue archive 2026',
+        recorded_at: '2026-10-28T12:00:00Z',
+        valid_from: '2026-08-01T00:00:00+02:00',
+        valid_to: '2026-11-01T00:00:00+01:00',
+      },
+    ],
+  };
+  api.realizedGross.mockResolvedValue(report);
+  renderPage();
+  chooseSeptember();
+  read();
+  await screen.findByTestId('realized-gross-total');
+  fireEvent.click(
+    within(screen.getByRole('article', { name: 'Verkauf sell-september-2' })).getByRole('button', {
+      name: 'Quellen und Berechnung',
+    }),
+  );
+  const source = within(screen.getByRole('listitem', { name: 'Buchungsquelle sell-september-2' }));
+  expect(
+    source.getByText(
+      'Ausführungswährung: EUR · automatisch aus historischen Notierungen abgeleitet',
+    ),
+  ).toBeVisible();
+  expect(source.queryByText(/ausdrücklich vom Nutzer bestätigt/)).not.toBeInTheDocument();
+  fireEvent.click(source.getByText('Verwendete Währungsherkunft'));
+  expect(source.getByText('Quelle: Historical venue archive 2026')).toBeVisible();
+  expect(source.getByText('Quellenversion historical-listing-v2')).toBeVisible();
+  expect(source.getByText('Zuordnungsregel historical-currency-v1')).toBeVisible();
+  expect(screen.getByTestId('realized-gross-total')).toHaveTextContent('10,00 EUR');
+  expect(api.realizedGross).toHaveBeenCalledOnce();
+});

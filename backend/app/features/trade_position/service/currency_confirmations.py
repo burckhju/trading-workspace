@@ -19,6 +19,9 @@ from app.features.trade_position.domain.currency import (
 )
 from app.features.trade_position.domain.currency_resolution import resolve_execution_currencies
 from app.features.trade_position.domain.models import ExecutionRecord
+from app.features.trade_position.persistence.currency_evidence import (
+    SqlAlchemyCurrencyEvidenceRepository,
+)
 from app.features.trade_position.persistence.currency_repository import (
     SqlAlchemyExecutionCurrencyConfirmationRepository,
 )
@@ -114,7 +117,12 @@ class ExecutionCurrencyConfirmationService:
             executions = await uow.executions.list_for_trade(trade_id)
             confirmations = await self.current_for_trade(workspace_id, trade_id)
             resolutions = resolve_execution_currencies(
-                trade=trade, executions=executions, current=confirmations
+                trade=trade,
+                executions=executions,
+                current=confirmations,
+                evidence=await SqlAlchemyCurrencyEvidenceRepository(self._session).list_for_product(
+                    workspace_id, trade.product_id
+                ),
             )
             return current, history, resolutions[execution_id]
 

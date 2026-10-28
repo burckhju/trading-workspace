@@ -31,7 +31,10 @@ from app.features.performance.domain.periods import (
     report_interval,
     time_fields,
 )
-from app.features.trade_position.domain.currency import ExecutionCurrencyResolution
+from app.features.trade_position.domain.currency import (
+    RESOLVER_VERSION,
+    ExecutionCurrencyResolution,
+)
 from app.features.trade_position.domain.currency_resolution import (
     CurrencyResolutionLimitExceeded,
     resolve_execution_currencies,
@@ -136,8 +139,13 @@ def _item(
         reasons.append(period)
     if sale_currency is not None and sale_currency != filters.report_currency:
         reasons.append("OTHER_CURRENCY")
-    if any(value.source == "UNKNOWN" for value in available):
+    if any(
+        value.currency_code is None and value.source not in {"MIXED", "CONFLICT"}
+        for value in available
+    ):
         reasons.append("CURRENCY_UNKNOWN")
+    if any(value.source == "CONFLICT" for value in available):
+        reasons.append("CURRENCY_CONFLICT")
     if len(currencies) > 1 or any(value.source == "MIXED" for value in available):
         reasons.append("CURRENCY_MIXED")
     if trace is None:
@@ -249,14 +257,12 @@ def build_report(snapshot: ReportSnapshot, filters: ReportFilters) -> RealizedGr
                 trade=trade.trade,
                 executions=history,
                 current=current,
+                evidence=snapshot.currency_evidence,
                 max_provenance_links=MAX_PROVENANCE_LINKS - links,
             )
         except CurrencyResolutionLimitExceeded as error:
             raise ReportLimitExceeded("Report exceeds the complete provenance limit") from error
-        links += sum(
-            len(value.source_execution_ids) + len(value.confirmation_ids)
-            for value in resolutions.values()
-        )
+        links += sum(value.provenance_links for value in resolutions.values())
         sources.extend(_source(e, replacements, current, histories, resolutions) for e in history)
         if trade.trade.cancelled_at is not None:
             excluded_trades.append(
@@ -320,6 +326,14 @@ def build_report(snapshot: ReportSnapshot, filters: ReportFilters) -> RealizedGr
     )
     material = asdict(snapshot)
     del material["read_started_at"], material["read_completed_at"]
+    # Empty new provenance preserves existing historical source fingerprints.
+    # Evidence-backed reports explicitly bind the source resolver definition.
+    if not snapshot.currency_evidence:
+        del material["currency_evidence"]
+    else:
+        material["currency_evidence"] = [
+            asdict(item) for item in sorted(snapshot.currency_evidence, key=lambda item: item.id)
+        ]
     canonical = {
         "definition": DEFINITION_VERSION,
         "filters": asdict(filters),
@@ -327,6 +341,7 @@ def build_report(snapshot: ReportSnapshot, filters: ReportFilters) -> RealizedGr
         "snapshot": material,
         "source_time_intervals": [asdict(execution_time(e)) for e in snapshot.executions],
         "decimal_context": [getcontext().prec, getcontext().rounding],
+        **({"currency_resolver": RESOLVER_VERSION} if snapshot.currency_evidence else {}),
     }
     fingerprint = hashlib.sha256(
         json.dumps(
