@@ -1,0 +1,106 @@
+name: Prepare UI5 release inputs
+
+on:
+  push:
+    branches: [chore/prepare-v1.5.27-ui5]
+
+permissions: {}
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: a85e71a47911ca382f24a21d8b5a7cb329911f12
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.16.0
+      - name: Export only pinned public source and PR files
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = a85e71a47911ca382f24a21d8b5a7cb329911f12
+          mkdir -p /tmp/ui5-inputs /tmp/ui5-pr
+          git archive --format=tar.gz HEAD > /tmp/ui5-inputs/main-source.tar.gz
+          git fetch --depth=1 https://github.com/burckhju/trading-workspace.git 7225e7736e8268581ee09256a6763a3181a5e73c
+          python - <<'PY'
+          import pathlib, subprocess
+          paths = [
+              'docs/implementation/UI_REFERENCE_DATA_CONSOLIDATION.md',
+              'frontend/src/features/administration/components/MappingEditor.test.tsx',
+              'frontend/src/features/administration/components/MappingEditor.tsx',
+              'frontend/src/features/analysis/pages/ChartSetupPage.test.tsx',
+              'frontend/src/features/analysis/pages/ChartSetupPage.tsx',
+              'tests/e2e/reference-data-consolidation.spec.ts',
+          ]
+          for name in paths:
+              data = subprocess.check_output(['git', 'show', '7225e7736e8268581ee09256a6763a3181a5e73c:' + name])
+              target = pathlib.Path('/tmp/ui5-pr') / name
+              target.parent.mkdir(parents=True, exist_ok=True)
+              target.write_bytes(data)
+              print(name, subprocess.check_output(['git', 'rev-parse', '7225e7736e8268581ee09256a6763a3181a5e73c:' + name], text=True).strip())
+          PY
+          tar -czf /tmp/ui5-inputs/pr291-files.tar.gz -C /tmp/ui5-pr .
+      - name: Prepare version metadata offline and verify exact scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          assert Path('VERSION').read_text() == '1.5.26\n'
+          Path('VERSION').write_text('1.5.27\n')
+          p = Path('backend/pyproject.toml')
+          old = p.read_text()
+          assert old.count('version = "1.5.26"') == 1
+          p.write_text(old.replace('version = "1.5.26"', 'version = "1.5.27"', 1))
+          PY
+          (cd frontend && npm version 1.5.27 --no-git-tag-version --ignore-scripts --offline)
+          python - <<'PY'
+          import json, pathlib, subprocess
+          expected = {'VERSION', 'backend/pyproject.toml', 'frontend/package.json', 'frontend/package-lock.json'}
+          changed = set(subprocess.check_output(['git', 'diff', '--name-only', 'HEAD'], text=True).splitlines())
+          assert changed == expected, changed
+          for name in ('frontend/package.json', 'frontend/package-lock.json'):
+              before = json.loads(subprocess.check_output(['git', 'show', 'HEAD:' + name]))
+              after = json.loads(pathlib.Path(name).read_text())
+              assert before['version'] == '1.5.26' and after['version'] == '1.5.27'
+              before['version'] = '1.5.27'
+              if name.endswith('package-lock.json'):
+                  assert before['packages']['']['version'] == '1.5.26'
+                  assert after['packages']['']['version'] == '1.5.27'
+                  before['packages']['']['version'] = '1.5.27'
+              assert before == after, 'Unexpected dependency or metadata change: ' + name
+          PY
+          git diff --check
+          git diff --stat
+          node --test .github/tests/version-tag.test.cjs
+          tar -czf /tmp/ui5-inputs/version-files.tar.gz VERSION backend/pyproject.toml frontend/package.json frontend/package-lock.json
+      - name: Store version file blobs only; no branch, main, tag or release write
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const { owner, repo } = context.repo;
+            for (const path of ['VERSION', 'backend/pyproject.toml', 'frontend/package.json', 'frontend/package-lock.json']) {
+              const content = fs.readFileSync(path, 'utf8');
+              const blob = await github.rest.git.createBlob({owner, repo, content, encoding: 'utf-8'});
+              core.info(JSON.stringify({path, sha: blob.data.sha, bytes: Buffer.byteLength(content)}));
+            }
+      - name: Collect dependencies from the unchanged public lock resolution
+        shell: bash
+        run: |
+          set -euo pipefail
+          (cd frontend && npm ci --no-audit --no-fund)
+          tar -czf /tmp/ui5-inputs/frontend-dependencies.tar.gz -C frontend node_modules
+          (cd /tmp/ui5-inputs && sha256sum *.tar.gz > SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ui5-release-inputs
+          path: /tmp/ui5-inputs/
+          retention-days: 1
+          if-no-files-found: error
