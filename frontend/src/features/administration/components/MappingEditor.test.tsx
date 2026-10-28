@@ -106,6 +106,17 @@ it('does not replace a failed or absent venue read with a successful reconciliat
   expect(screen.getByText(/aktives Mapping belegt allein keinen eindeutig/)).toBeInTheDocument();
 });
 
+it('shows the structured read provider identity only when requested and never invents missing values', () => {
+  const { rerender } = render(<MappingStatus mapping={mapping} />);
+  expect(screen.queryByText(/^Gelesene Providerkennung:/)).not.toBeInTheDocument();
+  rerender(<MappingStatus mapping={mapping} showProviderIdentity />);
+  expect(screen.getByText(/^Gelesene Providerkennung:/)).toHaveTextContent(
+    'Gelesene Providerkennung: EODHD · Symbol: SAP · Exchange-Code: XETRA',
+  );
+  rerender(<MappingStatus mapping={null} showProviderIdentity />);
+  expect(screen.queryByText(/^Gelesene Providerkennung:/)).not.toBeInTheDocument();
+});
+
 it('uses UNKNOWN after a mapping revision changes and does not show stale evidence', () => {
   const direct = {
     ...mapping,

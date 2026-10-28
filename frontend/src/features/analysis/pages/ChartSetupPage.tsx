@@ -125,8 +125,9 @@ function SetupEditor({ context }: { context: ReferenceDataContext }) {
       {editor.reviewRequired && (
         <div className="space-y-2 rounded border border-amber-700 p-3">
           <p>
-            Der aktuelle Lesestand ist sichtbar. Offene Eingaben wurden erhalten. Die erneute
-            Prüfung ersetzt keine atomare Sperre gegen Änderungen in anderen Tabs.
+            Der zuletzt gelesene Stand wird getrennt von deinen offenen Eingaben angezeigt. Dein
+            Entwurf ist noch nicht gespeichert. Die erneute Prüfung ersetzt keine atomare Sperre
+            gegen Änderungen in anderen Tabs.
           </p>
           <button
             type="button"
@@ -357,6 +358,9 @@ function SetupEditor({ context }: { context: ReferenceDataContext }) {
             mapping={snapshot.mapping}
             venue={snapshot.venue}
             referenceIdentity={needsListing(action) ? null : snapshot.identity}
+            showProviderIdentity={
+              !editsMapping(action) || editor.reviewRequired || editor.outcome === 'unknown'
+            }
           />
         )}
         <fieldset disabled={disabled || editor.outcome === 'unknown'} className="min-w-0 space-y-4">

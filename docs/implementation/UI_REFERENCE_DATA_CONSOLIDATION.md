@@ -240,3 +240,61 @@ Gemeinsame Integrationsstellen sind die beiden bestehenden Chart-Komponenten aus
 Maßgebliche bestehende Verträge: [MARKET_CHARTS](MARKET_CHARTS.md), [D01-B](D01B_PROVIDER_MAPPING_INSTRUMENT_BOUNDARY.md), [D01-E](D01E_MARKET_REFERENCE_LIVE_PATHS.md), [ADR-S5-008](../decisions/ADR-S5-008-TOP-DOWN-REFERENCE-ADMINISTRATION.md), [ADR-S5-012](../decisions/ADR-S5-012-ACTIONABLE-LIVE-WORKFLOW.md) und [ADR-CHARTS-001](../decisions/ADR-CHARTS-001-EOD-COMPARISON-AND-ETF-IDENTITY.md). Die späteren listingfreien Indexverträge begrenzen die älteren Listingannahmen ausdrücklich.
 
 Der ursprüngliche UI5-Auftrag endete mit dem geprüften **Draft-PR**. Der oben dokumentierte anschließende Nutzerauftrag gibt Merge bei erfolgreichen Prüfungen und die versionierte PC-Bereitstellung frei. Eine tatsächlich ausgeführte PC-Installation bleibt ein eigener Betriebsnachweis.
+
+## Folgeprüfung vom 27.10.2026: gelesene Mappingwerte sichtbar prüfen
+
+### Aktuelle Basis und enger verbleibender Befund
+
+Der erneut vorgelegte UI5-Startprompt nannte einen inzwischen überholten Ausgangsstand. Die aktuelle Basis ist **`eff24912ebfc1499fcea2cbf32dc1dbf8b0975e4`**, Tree **`a864274c4c050698e1fc61134a98dfb03dcf1441`**, VERSION **1.5.23**. UI3 / #286, UI4 / #287 und UI5 / #288 sind darin bereits integriert. Die sieben kanonischen Eingabewege werden deshalb übernommen; sie werden nicht erneut implementiert. Die Nachprüfung von Kontext, Herkunft, Listingowner, Guard, Revisionsbindung und Transportgrenzen ergab dort keinen weiteren belegten Fehler.
+
+Ein konkreter Bedienfehler blieb bei der Konkurrenzprüfung: Der Preflight erkannte eine neue Mappingrevision und erhielt den lokalen Entwurf. Die anschließend verlangte Prüfung zeigte jedoch nur die neue Revision und den Status. Das tatsächlich gelesene neue Symbol und der Exchange-Code waren unsichtbar. Auch bei der eigenständigen Validierung, beim Import und bei der Renditebestätigung fehlte diese kompakte Provideridentität.
+
+Der Folgefix ergänzt eine ausdrücklich als **„Gelesene Providerkennung“** bezeichnete Zeile aus `provider`, `provider_symbol` und `provider_exchange_code` des bereits vorhandenen vollständigen Mappingdatensatzes. Sie enthält keine aus Ticker, MIC oder `provider_identity` abgeleiteten Werte.
+
+| Bedienzustand | Anzeige nach dem Folgefix |
+|---|---|
+| Normales Listing-/Index-Mapping bearbeiten | Kennungen weiterhin ausschließlich in den vorausgefüllten Eingabefeldern; keine zusätzliche Datenkarte |
+| Geänderter Lesestand verlangt erneute Prüfung | Kompakte gelesene Kennung und Revision sichtbar; lokaler Symbol-/Exchange-Entwurf bleibt unverändert im einzigen Editor |
+| Unbekannter Schreibabschluss | Gelesene Kennung sichtbar; weder Receiptbehauptung noch automatischer erneuter Write |
+| Listing-/Index-Validierung, Import oder Index-Renditebestätigung | Gelesene Kennung vor der gesonderten ausdrücklichen Aktion sichtbar |
+
+Der Prüfhinweis stellt klar, dass der Entwurf noch nicht gespeichert ist. Reads, Bestätigung, Preflight, Guard, synchroner Submit-Lock und Write-/Readbackzustände bleiben unverändert. Insbesondere entsteht keine atomare Konkurrenzsperre: Die bestehenden Mappingbefehle besitzen weiterhin weder `expected_version` noch Request-/Replaygarantien. Die oben beschriebenen fehlenden Update-/Beendigungs-/Historienverträge für Zuordnungen und Stammdaten bleiben eigenständiger Backendumfang.
+
+### Neue lokale Prüfbindung
+
+- Implementierungs-/Testcommit: **`459f43bdbb832fb56390e63f017df8738d1f2dba`**.
+- Lokal und über die GitHub-Git-API identischer Code-/Test-Tree: **`566e4eaf1ababa64ee50ee4b05c9916e60f7d518`**. Der nachfolgende Dokumentationscommit ändert keine Anwendung oder Tests.
+- Laufzeit: Node **22.16.0**, npm **10.9.2**, Chromium **140.0.7339.16** (Playwright-Browserrevision **1187**, Playwright **1.55.0**); Installation aus unveränderter Frontend-Lockdatei.
+- Rot-/Grün-Nachweis: Mit den neuen Assertions und unverändertem Anwendungscode scheiterten **8** Prüfungen exakt an der fehlenden Providerkennung; **33** bestanden. Nach dem Fix bestanden die identischen beiden Testdateien mit **41/41** Fällen. Erhalten bleiben die bestehenden Assertions zu Quelle, Identität, Entwurf und exaktem Write.
+- Neuer kontrollierter Browserfall: externer Symbol- und Exchange-Wechsel, sichtbarer gelesener Vergleichswert, erhaltene lokale Eingaben, genau ein Formular, kein Write vor bewusster Neuprüfung, zurückgesetzte Bestätigung und anschließend genau ein exakter PUT per Tastatur. Ein langes Symbol wird bei **390 × 844** ohne horizontalen Dokumentüberlauf dargestellt; Screenshot visuell geprüft.
+- Lokaler Chromium-Lauf: **8 bestanden, 1 erwarteter Skip, 0 Fehler/Flaky, sämtliche ausgeführten Fälle mit Retry 0**. Ausgeführt wurden die sechs kontrollierten UI5-Fälle und beide unveränderten Marktchartfälle. Der bestehende echte administrative Browser/API/PostgreSQL-Fall blieb lokal ohne eigenen disponiblen Datenbankstack gesperrt. Diese acht UI-Fälle verwenden synthetische API-Antworten und sind ausdrücklich kein neuer PostgreSQL-Nachweis.
+
+Die fokussierten Befehle waren:
+
+```bash
+cd frontend
+npm test -- --run src/features/administration/components/MappingEditor.test.tsx src/features/analysis/pages/ChartSetupPage.test.tsx
+npx playwright test ../tests/e2e/reference-data-consolidation.spec.ts ../tests/e2e/market-charts.spec.ts --workers=1 --retries=0 --reporter=list,json
+```
+
+Der Browserlauf nutzte den vorhandenen konfigurierten Chromium-Pfad und einen eigenen Loopback-Testserver. Keine Providerkonten, produktiven Stammdaten, zusätzlichen fachlichen Aktionen oder vorgetäuschte CI-Identität wurden verwendet. Der eigene Testserver wurde danach beendet.
+
+Der erste neue vollständige Aufruf von **`bash scripts/check-frontend.sh`** bestand TypeScript, ESLint und Prettier; bei Vitest bestanden **1.231/1.233** Tests. Zwei unveränderte `ProductSelectionPage`-Fälle trafen das bereits in `UI_LESSON_CONSOLIDATION.md` dokumentierte Timingfenster beim Wechsel auf die kanonische Run-URL. Die Produktseite und ihre Tests sind bytegleich zur Main-Basis. Die unveränderte isolierte Datei bestand anschließend **4/4**; Tests, Timeouts, Worker-Konfiguration und Gates wurden nicht geändert. Der fehlgeschlagene Erstlauf wird nicht als grünes Gate ausgewiesen.
+
+Der anschließende **identische vollständige Aufruf** auf demselben Code-/Test-Tree endete mit **Exit 0**: TypeScript, ESLint, Prettier, **1.233 Tests in 136 Dateien**, unveränderte Coverage-Grenzen und Produktionsbuild bestanden. Coverage: Statements/Lines **95,18 %**, Branches **88,82 %**, Functions **89,54 %**. Vorhandene React-`act`-Hinweise und die Vite-Meldung zu großen Chunks bleiben sichtbar. Die fokussierten Testzahlen sind Teilmengen und werden nicht zur Gesamtzahl addiert. `git diff --check` sowie der unabhängige Code-/Dokumentationsreview ergaben keine Blocker.
+
+### Korrektur der neuen Browserassertion nach dem ersten CI-Lauf
+
+Der erste E2E-Lauf [40536476107](https://github.com/burckhju/trading-workspace/actions/runs/40536476107) auf Zwischenhead `09b40fed7bee01bf70d26900c44ded2fc83af1cb` endete mit **99 Smoke-Pässen, 5 erwarteten Owner-Skips und 1 Fehler**. Die drei separaten Owner-Jobs waren erfolgreich; dies macht den fehlgeschlagenen Gesamtworkflow nicht grün. Der neue Konflikttest erwartete fälschlich einen festen Browserpfad `/api/v1/market-data/provider-mappings`. Die unveränderte CI-Basis `VITE_API_BASE_URL=http://localhost:8080/api` führt jedoch korrekt über `/api/api/v1/market-data/provider-mappings` zum bestehenden Backend-Endpunkt. Methode, Anzahl, Identitäten, Payload und alle vorhergehenden UI-Assertions stimmten. Die unverändert konfigurierten Versuche 0/1/2 scheiterten ausschließlich an dieser neuen Pfaderwartung.
+
+Der enge Testcommit **`d7df15f01bd8ea11943c34b782a73916e1a644f1`**, Tree **`e51c50d92b9259d14908626ce5f662ae3295cf0d`**, leitet ausschließlich den erwarteten Präfix aus der konfigurierten API-Basis ab. Die Prüfung des vollständigen Endpunkts, der Methode, des einen Requests und sämtlicher Bodyfelder bleibt exakt. Anwendungsdateien, vorhandene Tests, Runner und Workflows ändern sich dadurch nicht.
+
+Nach der Testkorrektur wurden die sechs kontrollierten UI5-Fälle und beide Marktchartfälle mit der tatsächlichen Proxy-Pfadkonfiguration erneut erfolgreich ausgeführt: **8 bestanden, 1 ausdrücklich gesperrter lokaler PostgreSQL-Fall, 0 Fehler/Flaky und Retry 0**. Der korrigierte Konfliktfall bestand zusätzlich in der direkten Konfiguration ohne Proxy-Präfix **1/1**, ebenfalls ohne Skip/Retry. Dieser ergänzende Konfigurationsnachweis wird nicht als weiterer unterschiedlicher Browserfall gezählt. Beide lokalen Testserver wurden anschließend beendet. Der fehlgeschlagene Zwischenlauf und seine bestandenen Teilfälle werden nicht als finaler Nachweis verwendet; die reguläre CI wird vollständig am korrigierten Head neu gebunden.
+
+### Integration und aktuelle Auftragsgrenze
+
+Der Folgediff umfasst ausschließlich die beiden UI-Komponenten, deren direkte Tests, die gezielte Erweiterung des vorhandenen UI5-Browserfalls und diesen Nachtrag. Der echte administrative PostgreSQL-Browserfall und sein SQL-Reader bleiben unverändert. Alle elf bei Arbeitsbeginn offenen PR-Dateilisten wurden abgeglichen; es gibt keine Dateiüberschneidung mit diesem Folgediff. Insbesondere bleiben UI6 / #289 und UI8 / #290 eigenständig.
+
+`PRODUCT_BACKLOG.md`, `TRACEABILITY.md`, Router, `CandidatePage`, `MarketChartsPage`, globale Guard-API, Backendverträge, Migrationen, Scheduler, VERSION, Dependencies und CI-Workflows erhalten keinen Folgediff. Die im ursprünglichen UI5-Schnitt gemeinsam genutzten Chartlinks und Clients bleiben erhalten; PB-013 kann später anhand dieses Berichts gezielt ergänzt werden.
+
+Die reguläre neue PR-CI wird nach tatsächlichem Abschluss mit **finalem Head, vollständigem Tree, Testmerge und Run-IDs in der PR-Beschreibung** gebunden. Historische Main-/PR-Ergebnisse und der damalige lokale SQL-Zeilennachweis oben ersetzen keinen Lauf am neuen Stand. **Dieser Folgeauftrag endet mit dem geprüften Draft-PR; die historische Merge-/Releasefreigabe für #288 wird nicht auf den neuen PR übertragen.**
