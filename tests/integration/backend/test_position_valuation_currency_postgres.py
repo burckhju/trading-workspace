@@ -21,6 +21,26 @@ from uuid import UUID, uuid4
 
 import httpx
 import pytest
+from httpx import AsyncClient
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
+from tests.integration.backend.learning.test_journal_write_postgres import (
+    journal_database as guarded_database,
+)
+from tests.integration.backend.test_execution_currency_reuse_postgres import (
+    _book,
+    _correct,
+    _payload,
+    _post,
+)
+from tests.integration.backend.test_realized_gross_report_postgres import (
+    DECLARATION,
+    _client,
+    _state,
+)
+from tests.integration.backend.test_trade_capture_safety import BASE, WORKSPACE
+from tests.integration.backend.test_usd_chf_currency_references import _migrate, _product_payload
+
 from app.database import DatabaseManager
 from app.features.market_data.domain.enums import (
     CacheStatus,
@@ -42,26 +62,6 @@ from app.features.position_monitoring.service.quote_sources import (
 from app.features.trade_position.domain.models import Trade
 from app.features.trade_position.persistence.models import TradeModel
 from app.features.trade_position.service.valuation_basis import PositionValuationBasis
-from httpx import AsyncClient
-from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from tests.integration.backend.learning.test_journal_write_postgres import (
-    journal_database as guarded_database,
-)
-from tests.integration.backend.test_execution_currency_reuse_postgres import (
-    _book,
-    _correct,
-    _payload,
-    _post,
-)
-from tests.integration.backend.test_realized_gross_report_postgres import (
-    DECLARATION,
-    _client,
-    _state,
-)
-from tests.integration.backend.test_trade_capture_safety import BASE, WORKSPACE
-from tests.integration.backend.test_usd_chf_currency_references import _migrate, _product_payload
 
 valuation_module = import_module("app.features.position_monitoring.service.product_valuation")
 monitoring_api = import_module("app.features.position_monitoring.api.router")

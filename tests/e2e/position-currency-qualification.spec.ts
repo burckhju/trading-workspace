@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
+import { resolve } from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 import type { OperationalPositionsResponse } from "../../frontend/src/features/operational_workspace/types";
 import type { ProductPositionValuationResponse } from "../../frontend/src/features/trade/types/api";
@@ -10,12 +10,7 @@ import type { ProductPositionValuationResponse } from "../../frontend/src/featur
 function backendFixture() {
   return JSON.parse(
     readFileSync(
-      fileURLToPath(
-        new URL(
-          "../fixtures/position_currency_qualification.json",
-          import.meta.url,
-        ),
-      ),
+      resolve(__dirname, "../fixtures/position_currency_qualification.json"),
       "utf8",
     ),
   ) as {
