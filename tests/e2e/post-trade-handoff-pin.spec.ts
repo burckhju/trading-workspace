@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import type { JournalHistory } from '../../frontend/src/features/learning/services/journalClient';
 
 // Browser/HTTP boundary tests with intercepted synthetic API data, not database E2E.
 const tradeId = '11111111-1111-4111-8111-111111111111';
@@ -7,11 +8,14 @@ const version2 = '33333333-3333-4333-8333-333333333333';
 const evidenceId = '44444444-4444-4444-8444-444444444444';
 const lessonId = '55555555-5555-4555-8555-555555555555';
 const lessonVersionId = '66666666-6666-4666-8666-666666666666';
+const journalId = '88888888-8888-4888-8888-888888888888';
+const journalDraftId = '99999999-9999-4999-8999-999999999999';
+const journalFinalId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const at = '2026-08-18T12:00:00Z';
 
 async function setup(
   page: Page,
-  mode: 'draft' | 'ready' | 'changed' | 'stale-replay',
+  mode: 'draft' | 'ready' | 'changed' | 'stale-replay' | 'journal-navigation',
   failLessonReadback = false,
 ) {
   let finalized = mode !== 'draft';
@@ -61,6 +65,38 @@ async function setup(
       });
     }
     const json = (value: unknown, status = 200) => route.fulfill({ status, json: value });
+    if (mode === 'journal-navigation' && path.endsWith('/journal') && req.method() === 'GET') {
+      const history: JournalHistory = {
+        trade_id: tradeId,
+        journal_id: journalId,
+        handoff: { ready: true, reason: 'READY', exit_review_version_id: version1 },
+        versions: [2, 1].map((version) => ({
+          version: {
+            id: version === 2 ? journalDraftId : journalFinalId,
+            trade_journal_id: journalId,
+            version,
+            edit_revision: 1,
+            status: version === 2 ? 'DRAFT' : 'FINALIZED',
+            source_exit_review_version_id: version1,
+            supersedes_version_id: version === 2 ? journalFinalId : null,
+            created_at: at,
+            created_by: 'synthetic-actor',
+            updated_at: at,
+            updated_by: 'synthetic-actor',
+            finalized_at: version === 2 ? null : at,
+            finalized_by: version === 2 ? null : 'synthetic-actor',
+            what_went_well: version === 2 ? 'Gespeicherter Journalentwurf.' : 'Frühere Reflexion.',
+            would_do_differently: '',
+            additional_notes: '',
+          },
+          is_latest: version === 2,
+          source_currentness: 'CURRENT',
+          source_checked_at: at,
+          learning_evidence_id: null,
+        })),
+      };
+      return json(history);
+    }
     if (path.endsWith('/materialization-status')) {
       statusReads.push({ ready, version: currentVersion });
       return json({
@@ -344,6 +380,73 @@ test('a confirmed Lesson remains directly accessible when its reference readback
   ).toBeVisible();
   expect(writes.filter((write) => write.path === '/learning/lessons')).toHaveLength(1);
   expect(writes).toHaveLength(2);
+});
+
+test('discarding journal edits for a same-trade version change preserves the confirmed Lesson', async ({
+  page,
+}) => {
+  const { writes } = await setup(page, 'journal-navigation');
+  const journal = page.getByRole('region', { name: 'Trade-Journal', exact: true });
+  const directLesson = page.locator('section').filter({
+    has: page.getByRole('heading', { name: 'FT-012 Learning', exact: true }),
+  });
+  await page.getByRole('button', { name: 'An Lessons Learned übergeben', exact: true }).click();
+  await directLesson.getByLabel('Lesson-Titel').fill('Bewusste Interpretation');
+  await directLesson.getByLabel('Lesson-Kategorie').fill('Prozess');
+  await directLesson
+    .getByLabel('Lesson-Inhalt')
+    .fill('Die bestätigte Interpretation bleibt trotz verworfener Journaländerung erhalten.');
+  await directLesson.getByRole('button', { name: 'Lesson anlegen', exact: true }).click();
+  await expect(directLesson.getByText('Bereits interpretiert', { exact: true })).toBeVisible();
+  const open = directLesson.getByRole('link', { name: 'Lesson öffnen', exact: true });
+  await expect(open).toHaveAttribute('href', `/lessons/${lessonId}`);
+
+  await journal.getByRole('button', { name: 'Journal bearbeiten', exact: true }).click();
+  await journal.getByLabel('Was lief gut?').fill('Diese ungespeicherte Journaländerung verwerfen.');
+  const selection = journal.getByLabel('Journalversion ansehen');
+  await expect(selection).toHaveValue(journalDraftId);
+  await selection.selectOption(journalFinalId);
+  const guard = page.getByRole('alertdialog');
+  await expect(guard.getByRole('button', { name: 'Hier bleiben', exact: true })).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(journal.getByLabel('Was lief gut?')).toHaveValue(
+    'Diese ungespeicherte Journaländerung verwerfen.',
+  );
+  await expect(open).toBeVisible();
+
+  await selection.selectOption(journalFinalId);
+  await guard.getByRole('button', { name: 'Eingaben verwerfen und wechseln', exact: true }).click();
+  await expect(selection).toHaveValue(journalFinalId);
+  expect(new URL(page.url()).searchParams.get('trade_id')).toBe(tradeId);
+  expect(new URL(page.url()).searchParams.get('journal_version_id')).toBe(journalFinalId);
+  await expect(journal.getByText('Frühere Reflexion.', { exact: true })).toBeVisible();
+  await expect(journal.getByLabel('Was lief gut?')).toHaveCount(0);
+  await expect(
+    directLesson.getByText('Lesson angelegt: LS-55555555', { exact: true }),
+  ).toBeVisible();
+  await expect(open).toHaveCount(1);
+  await expect(open).toHaveAttribute('href', `/lessons/${lessonId}`);
+  await expect(directLesson.getByLabel('Lesson-Titel')).toHaveCount(0);
+  await expect(
+    directLesson.getByRole('button', { name: 'Lesson anlegen', exact: true }),
+  ).toHaveCount(0);
+
+  await open.click();
+  await expect(page).toHaveURL(new RegExp(`/lessons/${lessonId}$`));
+  await expect(
+    page.getByText(
+      'Die bestätigte Interpretation bleibt trotz verworfener Journaländerung erhalten.',
+      { exact: true },
+    ),
+  ).toBeVisible();
+  await expect(page.getByText(`SUPPORTS · Evidence ${evidenceId}`, { exact: true })).toBeVisible();
+  expect(writes.map((write) => write.path)).toEqual([
+    `/learning/trades/${tradeId}/ft011-evidence/materialize`,
+    '/learning/lessons',
+  ]);
+  expect(writes[1].body).toMatchObject({
+    evidence_links: [{ learning_evidence_id: evidenceId, relation: 'SUPPORTS' }],
+  });
 });
 
 test('changed review requires a fresh explicit confirmation without an automatic retry', async ({

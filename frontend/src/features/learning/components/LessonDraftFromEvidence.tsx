@@ -80,9 +80,11 @@ export function LessonDraftFromEvidence({
   useEffect(() => {
     if (discardSeen.current === discardVersion) return;
     discardSeen.current = discardVersion;
+    // A shared discard clears edits, not a confirmed creation for this evidence.
+    if (completed.current && learningEvidenceId === boundEvidenceId) return;
     reset(learningEvidenceId);
     // A discard is a deliberate parent decision, never a readback side effect.
-  }, [discardVersion, learningEvidenceId, reset]);
+  }, [discardVersion, learningEvidenceId, boundEvidenceId, reset]);
 
   useEffect(() => {
     if (learningEvidenceId !== boundEvidenceId) {

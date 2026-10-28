@@ -12,10 +12,24 @@ import { tradeManagementApiClient } from '../../trade/services/client';
 import { PostTradeLearningPage } from './PostTradeLearningPage';
 
 vi.mock('./PostTradeReviewPage', () => ({
-  PostTradeReviewPage: ({ onLearningStateChanged }: { onLearningStateChanged: () => void }) => (
-    <button type="button" onClick={onLearningStateChanged}>
-      Reviewstand erneut lesen
-    </button>
+  PostTradeReviewPage: ({
+    onLearningStateChanged,
+    onNavigationStateChange,
+  }: {
+    onLearningStateChanged: () => void;
+    onNavigationStateChange: (state: { dirty: boolean; pending: boolean }) => void;
+  }) => (
+    <>
+      <button type="button" onClick={onLearningStateChanged}>
+        Reviewstand erneut lesen
+      </button>
+      <button
+        type="button"
+        onClick={() => onNavigationStateChange({ dirty: true, pending: false })}
+      >
+        Review-Eingaben ändern
+      </button>
+    </>
   ),
 }));
 vi.mock('../../learning/components/TradeJournalPanel', () => ({
@@ -94,6 +108,9 @@ function show() {
         element: (
           <>
             <Link to="/post-trade?trade_id=trade-b">Anderen Trade öffnen</Link>
+            <Link to="/post-trade?trade_id=trade-a&journal_version_id=journal-b">
+              Andere Journalversion öffnen
+            </Link>
             <PostTradeLearningPage />
           </>
         ),
@@ -228,6 +245,39 @@ describe('PostTradeLearningPage confirmed Lesson creation', () => {
     expect(screen.queryByText(/Lesson angelegt:/)).not.toBeInTheDocument();
     expect(create).not.toHaveBeenCalled();
   });
+
+  it.each(['resolved', 'empty', 'failed'] as const)(
+    'keeps a confirmed Lesson after discarding another participant during a same-trade query change (%s readback)',
+    async (readback) => {
+      list.mockResolvedValueOnce([]);
+      if (readback === 'failed') list.mockRejectedValue(new Error('reference read failed'));
+      else list.mockResolvedValue(readback === 'resolved' ? [reference] : []);
+      const router = show();
+      await createLesson();
+      await waitFor(() => expect(list).toHaveBeenCalledTimes(2));
+      if (readback === 'resolved') await screen.findByText('Bereits interpretiert');
+      else if (readback === 'failed')
+        await screen.findByText('Lesson-Verweise konnten nicht geladen werden.');
+      expectCreatedAction();
+
+      await click(screen.getByRole('button', { name: 'Review-Eingaben ändern' }));
+      await click(screen.getByRole('link', { name: 'Andere Journalversion öffnen' }));
+      expect(await screen.findByRole('alertdialog')).toHaveTextContent('Ungespeicherte Änderungen');
+      expect(router.state.location.search).toBe('?trade_id=trade-a');
+      await click(screen.getByRole('button', { name: 'Eingaben verwerfen und wechseln' }));
+      await waitFor(() =>
+        expect(router.state.location.search).toBe('?trade_id=trade-a&journal_version_id=journal-b'),
+      );
+
+      expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+      await click(expectCreatedAction());
+      expect(
+        await screen.findByRole('heading', { name: `Geöffnete Lesson: ${lessonId}` }),
+      ).toBeInTheDocument();
+      expect(create).toHaveBeenCalledTimes(1);
+      expect(ft011MaterializationClient.materialize).not.toHaveBeenCalled();
+    },
+  );
 
   it('drops a completed action when the current review changes to a different evidence source', async () => {
     list.mockResolvedValueOnce([]).mockResolvedValueOnce([reference]).mockResolvedValue([]);

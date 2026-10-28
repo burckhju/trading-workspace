@@ -142,17 +142,57 @@ describe('LessonDraftFromEvidence', () => {
     expect(onCreated).toHaveBeenCalledExactlyOnceWith('lesson-1');
   });
 
-  it('does not carry a completed Lesson link into a different clean evidence context', async () => {
-    const view = render(<LessonDraftFromEvidence learningEvidenceId="evidence-1" />);
+  it('keeps a confirmed Lesson when another participant discards edits in the same evidence context', async () => {
+    const onCreated = vi.fn();
+    const report = vi.fn();
+    const view = render(
+      <LessonDraftFromEvidence
+        learningEvidenceId="evidence-1"
+        onCreated={onCreated}
+        onNavigationStateChange={report}
+      />,
+    );
     fillInterpretation();
     fireEvent.click(screen.getByRole('button', { name: 'Lesson anlegen' }));
-    expect(await screen.findByRole('link', { name: 'Lesson öffnen' })).toBeInTheDocument();
-    view.rerender(<LessonDraftFromEvidence learningEvidenceId="evidence-2" />);
-    expect(screen.queryByRole('link', { name: 'Lesson öffnen' })).not.toBeInTheDocument();
-    expect(screen.getByLabelText('Lesson-Titel')).toHaveValue('');
-    expect(screen.getByRole('button', { name: 'Lesson anlegen' })).toBeDisabled();
-    expect(client.createFromEvidence).toHaveBeenCalledTimes(1);
+    await screen.findByRole('link', { name: 'Lesson öffnen' });
+
+    for (const discardVersion of [1, 2]) {
+      view.rerender(
+        <LessonDraftFromEvidence
+          learningEvidenceId="evidence-1"
+          onCreated={onCreated}
+          onNavigationStateChange={report}
+          discardVersion={discardVersion}
+        />,
+      );
+      expect(screen.getByRole('link', { name: 'Lesson öffnen' })).toHaveAttribute(
+        'href',
+        '/lessons/lesson-1',
+      );
+      expect(screen.queryByLabelText('Lesson-Titel')).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Lesson anlegen' })).not.toBeInTheDocument();
+      expect(report).toHaveBeenLastCalledWith({ dirty: false, pending: false });
+      expect(client.createFromEvidence).toHaveBeenCalledTimes(1);
+      expect(onCreated).toHaveBeenCalledExactlyOnceWith('lesson-1');
+    }
   });
+
+  it.each([0, 1])(
+    'does not carry a completed Lesson into another evidence with discard version %i',
+    async (discardVersion) => {
+      const view = render(<LessonDraftFromEvidence learningEvidenceId="evidence-1" />);
+      fillInterpretation();
+      fireEvent.click(screen.getByRole('button', { name: 'Lesson anlegen' }));
+      expect(await screen.findByRole('link', { name: 'Lesson öffnen' })).toBeInTheDocument();
+      view.rerender(
+        <LessonDraftFromEvidence learningEvidenceId="evidence-2" discardVersion={discardVersion} />,
+      );
+      expect(screen.queryByRole('link', { name: 'Lesson öffnen' })).not.toBeInTheDocument();
+      expect(screen.getByLabelText('Lesson-Titel')).toHaveValue('');
+      expect(screen.getByRole('button', { name: 'Lesson anlegen' })).toBeDisabled();
+      expect(client.createFromEvidence).toHaveBeenCalledTimes(1);
+    },
+  );
 
   it('reports edits and submit start synchronously, and guards duplicate submission', async () => {
     const report = vi.fn();
