@@ -62,7 +62,10 @@ async function setup(page: Page, baseURL: string) {
         is_closed: false,
         is_cancelled: false,
       };
-    } else if (p && url.pathname.endsWith(`/trades/${p.trade_id}`)) {
+    } else if (
+      p &&
+      url.pathname.endsWith(`/trade-position/trades/${p.trade_id}`)
+    ) {
       body = {
         id: p.trade_id,
         product_id: p.position_basis!.position.product_id,
@@ -163,7 +166,7 @@ test("backend currency qualification reaches depot rows, filter, sort, EUR total
   await expect(rows).toHaveCount(1);
   await expect(rows.first()).toContainText("Currency loss");
   await page.getByRole("button", { name: "Alle offenen Positionen" }).click();
-  await page.getByLabel("Sortierung", { exact: true }).selectOption("pnl");
+  await page.getByLabel("Sortierung").selectOption("pnl");
   await expect(rows.first()).toContainText("Currency loss");
   await expect(rows.nth(1)).toContainText("Currency neutral");
   await expect(rows.nth(2)).toContainText("Currency gain");
