@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 
 import { warrantApiClient } from '../../product/services/client';
@@ -122,6 +122,21 @@ const purchaseResponse = {
   },
 };
 
+function CurrentRoute() {
+  const location = useLocation();
+  return <div data-testid="current-route">{location.search}</div>;
+}
+
+async function readyProductChoices() {
+  return waitFor(() => {
+    expect(screen.getByTestId('current-route').textContent).toBe(`?run_id=${runDetail.run.id}`);
+    const buttons = screen.getAllByRole('button', { name: 'Dieses Produkt auswählen' });
+    expect(buttons).toHaveLength(2);
+    buttons.forEach((button) => expect(button).toBeEnabled());
+    return buttons;
+  });
+}
+
 beforeEach(() => {
   vi.spyOn(productSelectionApiClient, 'listForTradePlanVersion').mockResolvedValue([]);
   vi.spyOn(tradePlanApiClient, 'get').mockResolvedValue(selectionPlanFixture);
@@ -159,6 +174,7 @@ describe('ProductSelectionPage', () => {
           `/product-selection?trade_plan_id=${runDetail.run.trade_plan_id}&trade_plan_version_id=${runDetail.run.trade_plan_version_id}`,
         ]}
       >
+        <CurrentRoute />
         <ProductSelectionPage />
       </MemoryRouter>,
     );
@@ -170,9 +186,9 @@ describe('ProductSelectionPage', () => {
     expect(screen.queryByLabelText('TradePlanVersion-ID')).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Produkte neu bewerten' }));
 
-    await waitFor(() => expect(screen.getByText('Produktvergleich')).toBeInTheDocument());
+    const buttons = await readyProductChoices();
+    expect(screen.getByText('Produktvergleich')).toBeInTheDocument();
     expect(screen.getByText('NOT_EVALUABLE')).toBeInTheDocument();
-    const buttons = screen.getAllByRole('button', { name: 'Dieses Produkt auswählen' });
     expect(buttons).toHaveLength(2);
     expect(buttons[0]).toBeEnabled();
     expect(buttons[1]).toBeEnabled();
@@ -190,6 +206,7 @@ describe('ProductSelectionPage', () => {
           `/product-selection?trade_plan_id=${runDetail.run.trade_plan_id}&trade_plan_version_id=${runDetail.run.trade_plan_version_id}`,
         ]}
       >
+        <CurrentRoute />
         <ProductSelectionPage />
       </MemoryRouter>,
     );
@@ -200,8 +217,9 @@ describe('ProductSelectionPage', () => {
     expect(screen.queryByLabelText('TradePlan-ID')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('TradePlanVersion-ID')).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Produkte neu bewerten' }));
-    await screen.findByText('Produktvergleich');
-    await user.click(screen.getAllByRole('button', { name: 'Dieses Produkt auswählen' })[1]);
+    const buttons = await readyProductChoices();
+    expect(screen.getByText('Produktvergleich')).toBeInTheDocument();
+    await user.click(buttons[1]);
 
     expect(screen.getByText('Bewertung unvollständig')).toBeInTheDocument();
     expect(screen.getByText('Quote missing')).toBeInTheDocument();
@@ -236,6 +254,7 @@ describe('ProductSelectionPage', () => {
           `/product-selection?trade_plan_id=${runDetail.run.trade_plan_id}&trade_plan_version_id=${runDetail.run.trade_plan_version_id}`,
         ]}
       >
+        <CurrentRoute />
         <ProductSelectionPage />
       </MemoryRouter>,
     );
@@ -246,8 +265,9 @@ describe('ProductSelectionPage', () => {
     expect(screen.queryByLabelText('TradePlan-ID')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('TradePlanVersion-ID')).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Produkte neu bewerten' }));
-    await screen.findByText('Produktvergleich');
-    await user.click(screen.getAllByRole('button', { name: 'Dieses Produkt auswählen' })[0]);
+    const buttons = await readyProductChoices();
+    expect(screen.getByText('Produktvergleich')).toBeInTheDocument();
+    await user.click(buttons[0]);
 
     expect(screen.getByRole('dialog')).toBeInTheDocument();
     await user.type(screen.getByLabelText('Begründung (optional)'), 'Nach Vergleich gewählt');
@@ -283,6 +303,7 @@ describe('ProductSelectionPage', () => {
           `/product-selection?trade_plan_id=${runDetail.run.trade_plan_id}&trade_plan_version_id=${runDetail.run.trade_plan_version_id}`,
         ]}
       >
+        <CurrentRoute />
         <ProductSelectionPage />
       </MemoryRouter>,
     );
@@ -293,8 +314,9 @@ describe('ProductSelectionPage', () => {
     expect(screen.queryByLabelText('TradePlan-ID')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('TradePlanVersion-ID')).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Produkte neu bewerten' }));
-    await screen.findByText('Produktvergleich');
-    await user.click(screen.getAllByRole('button', { name: 'Dieses Produkt auswählen' })[0]);
+    const buttons = await readyProductChoices();
+    expect(screen.getByText('Produktvergleich')).toBeInTheDocument();
+    await user.click(buttons[0]);
     await user.click(screen.getByRole('button', { name: 'Auswahl dokumentieren' }));
     await screen.findByRole('heading', { name: /tatsächlichen Kauf erfassen/i });
 

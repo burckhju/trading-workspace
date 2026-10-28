@@ -121,7 +121,7 @@ und [E2E](https://github.com/burckhju/trading-workspace/actions/runs/34690488455
 Das korrigiert die alte offene CI-Aussage in seiner Beschreibung, qualifiziert
 aber weder den heutigen Main-Testmerge noch die Strategie fachlich.
 
-### Lokal belegter Stand vor der PR-CI
+### Erster lokal belegter Stand (Head `77506c35`, vor der ersten PR-CI)
 
 - Backend: die fünf Scheduler-Suiten einschließlich neuer Regression bestehen mit
   **56 Tests**. Die neue Regression scheitert auf der ursprünglichen Implementierung
@@ -161,6 +161,52 @@ Entwicklungsserver zählte zusätzliche React-StrictMode-Lesezyklen. Der erfolgr
 Nachweis oben verwendet die tatsächliche lokale API-Basis und den Produktionsbuild.
 Keine Tests oder Assertions wurden dafür abgeschaltet. Docker ist lokal nicht
 vorhanden; der lokale Release-Voraussetzungscheck meldet dies ausdrücklich.
+
+### Review-Nachbesserung am 28.10.2026
+
+Die unabhängige Nachprüfung von PR #295 auf Head `77506c35` fand einen konkreten
+Lesson-Lifecycle-Fehler: Nach bestätigter Erstellung konnte der gemeinsame
+Discard beim Wechsel einer Journalversion innerhalb desselben Trades den Erfolg
+zurücksetzen. Der Elternmarker hielt die Komponente gleichzeitig offen; dadurch
+verschwand die Öffnen-Aktion und ein weiteres Erstellungsformular wurde freigegeben.
+Ein gezielter Reproduktionstest wies einen zweiten nicht idempotenten POST nach.
+
+Der Discard-Effekt erhält jetzt bestätigte Erstellungen, solange die gebundene
+Evidence unverändert ist. Ungespeicherte Eingaben, unbekannte Mutationsergebnisse,
+Pending-Sperren und echte Quellenwechsel behalten ihre bisherigen Regeln. Die
+Korrektur liegt ausschließlich in der gemeinsamen Lesson-Komponente; es gibt
+keinen zusätzlichen Elternzustand und keine neue Oberfläche.
+
+Der Fehler wurde vor der Korrektur sowohl im Komponententest als auch in drei
+DataRouter-Fällen (vorhandene, leere und fehlgeschlagene Referenzantwort) und im
+Browser gegen den alten Produktionsbuild nachgewiesen. Die Browserregression
+verwendet echte Journalbearbeitung, Versionsauswahl, Abbruch des Navigationsdialogs
+und anschließendes bewusstes Verwerfen. Sie verlangt den erhaltenen Erfolgslink,
+die unveränderte vollständige Lesson-ID und keinen weiteren POST.
+
+Mit der Korrektur bestehen die **65 gezielten Tests** der gemeinsamen Komponente,
+des Journals und beider Post-Trade-Seitensuiten. Wiederholtes Verwerfen bei gleicher
+Evidence sowie neue Evidence mit und ohne gleichzeitiges Verwerfen sind ausdrücklich
+abgesichert. Der neue Produktionsbuild besteht; **12 Browserfälle** aus Handoff,
+Journal und Lesson-Detail bestehen ohne Skips oder Wiederholungen.
+
+Der erste vollständige Frontend-Nachlauf hatte **1.700 bestandene Tests und einen
+Fehler** im vorhandenen Produktauswahl-Test. Die Ursache wurde getrennt geklärt:
+Nach einem bestätigten Selection Run konnte dessen Vergleich kurz vor dem Wechsel
+zur kanonischen Run-URL sichtbar sein. Der Test wartete nur auf diese Überschrift
+und griff im folgenden Kontextwechsel auf vorübergehend ausgeblendete Aktionen zu.
+Die Testkorrektur wartet gemeinsam auf die exakte Run-URL und beide bedienbaren
+Produktaktionen. Fachliche Assertions zu Warnstatus, Begründung, ausdrücklicher
+Auswahl und BUY-Erfassung bleiben erhalten; Produktlogik und Berechnungen werden
+dafür nicht geändert.
+
+Der anschließende vollständige Frontendlauf besteht mit **1.701 Tests in 145 Dateien**
+(55,14 s). Coverage bleibt bei **95,71 %** Zeilen/Statements, **90,70 %** Funktionen
+und **89,85 %** Branches; die unveränderten CI-Mindestgrenzen 80/80/80/70 wurden
+ausdrücklich mitgeprüft. Typecheck, ESLint und Prettier bestehen. Der neue CI-Nachweis
+wird mit dem neuen Commit und seinen Run-IDs in der PR-Beschreibung dokumentiert. Die grünen
+CI-Ergebnisse des vorherigen Commits werden nicht als Prüfung dieser Nachbesserung
+ausgegeben. Der Scheduler-Review ergab keinen zusätzlichen Korrekturbedarf.
 
 ### Statusgrenzen des Integrationsschnitts
 
