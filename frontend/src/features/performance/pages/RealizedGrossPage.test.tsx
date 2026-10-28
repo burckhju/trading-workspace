@@ -411,7 +411,7 @@ it('rejects a response for another filter and replaces the complete report while
   await screen.findByTestId('realized-gross-total');
   expect(screen.queryByText(/Der Quellenstand hat sich/)).not.toBeInTheDocument();
   const corrected = realizedGrossReport();
-  corrected.basis.id = 'basis-corrected';
+  corrected.basis.id = 'b'.repeat(64);
   corrected.summary.total = '30.0000000000';
   corrected.summary.total_display = '30.00';
   corrected.items[1] = {

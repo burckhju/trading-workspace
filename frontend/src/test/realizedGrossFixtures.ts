@@ -133,7 +133,7 @@ export function realizedGrossReport(
     interval_start_at: '2026-08-31T22:00:00Z',
     interval_end_at: '2026-09-30T22:00:00Z',
     basis: {
-      id: 'basis-original',
+      id: 'a'.repeat(64),
       read_started_at: '2026-10-17T11:00:00Z',
       read_completed_at: '2026-10-17T11:00:01Z',
       calculated_at: '2026-10-17T11:00:01Z',

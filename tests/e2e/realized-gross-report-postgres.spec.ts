@@ -35,7 +35,16 @@ test("real PostgreSQL: purchase currency once, inherited sales, sources and corr
   expect(initial.tables.execution_records.count).toBe(0);
   const api = `${baseURL}/api/api/v1`;
   const failures: string[] = [];
+  const financialReads: string[] = [];
+  let reportReadWindow = false;
+  const reportRequests: Array<{ method: string; url: string }> = [];
   page.on("pageerror", (error) => failures.push(error.message));
+  page.on("request", (sent) => {
+    if (reportReadWindow && sent.url().startsWith(api))
+      reportRequests.push({ method: sent.method(), url: sent.url() });
+    if (sent.method() === "GET" && sent.url().startsWith(api + "/performance/"))
+      financialReads.push(sent.url());
+  });
   await page.route("**/*", (route) => {
     if (new URL(route.request().url()).origin === baseURL)
       return route.continue();
@@ -244,8 +253,17 @@ test("real PostgreSQL: purchase currency once, inherited sales, sources and corr
   };
   const beforeRead = databaseState();
   expect(beforeRead.tables.execution_currency_confirmations.count).toBe(1);
+  reportReadWindow = true;
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto("/performance/realized-gross");
+  await expect(page.getByRole("form")).toHaveCount(1);
+  await expect(
+    page.getByRole("form", {
+      name: "Performance-Zeitraum auswählen",
+      exact: true,
+    }),
+  ).toBeVisible();
+  expect(financialReads).toHaveLength(0);
   await select("2026-09-01", "2026-09-30");
   const original = await read();
   expect(original.definition_version).toBe("realized-gross-sell-v2");
@@ -341,6 +359,124 @@ test("real PostgreSQL: purchase currency once, inherited sales, sources and corr
   });
   expect(databaseState().fingerprint).toBe(beforeRead.fingerprint);
 
+  // UI8 retains the same native facts while changing report perspective. Local
+  // row selection is part of this report URL, never a new financial read.
+  const readsBeforeView = financialReads.length;
+  await page.getByLabel("Zeilen anzeigen").selectOption("usable");
+  await expect(page.getByLabel("Zeilen anzeigen")).toHaveValue("usable");
+  await expect(page).toHaveURL(/report_view=usable/);
+  expect(financialReads).toHaveLength(readsBeforeView);
+  const salesContextUrl = page.url();
+  const switchTo = async (kind: "realized-gross" | "closed-trades") => {
+    const before = financialReads.length;
+    const pending = page.waitForResponse(
+      (response) =>
+        response.request().method() === "GET" &&
+        response.url().startsWith(api + `/performance/${kind}?`),
+    );
+    await page
+      .getByRole("button", {
+        name:
+          kind === "closed-trades"
+            ? "Trades mit Vollabschluss im Zeitraum"
+            : "Verkäufe im Zeitraum",
+        exact: true,
+      })
+      .click();
+    const response = await pending;
+    expect(response.status(), await response.text()).toBe(200);
+    const body = await response.json();
+    await expect(
+      page.getByTestId(
+        kind === "closed-trades"
+          ? "closed-trades-total"
+          : "realized-gross-total",
+      ),
+    ).toBeVisible();
+    expect(financialReads.slice(before)).toEqual([response.url()]);
+    await expect(page.getByRole("form")).toHaveCount(1);
+    await expect(
+      page.getByRole("region", {
+        name: "Ergebnis und Datenabdeckung",
+        exact: true,
+      }),
+    ).toHaveCount(1);
+    const query = new URL(page.url()).searchParams;
+    expect(query.get("report_context")).toBe(kind);
+    expect(query.get("report_view")).toBe("candidates");
+    expect(query.get("report_page")).toBe("1");
+    expect(query.has("report_basis")).toBe(false);
+    return body;
+  };
+  const samePeriodClosed = await switchTo("closed-trades");
+  expect(samePeriodClosed.definition_version).toBe("closed-trade-gross-v1");
+  expect(samePeriodClosed.filters).toEqual(original.filters);
+  expect(samePeriodClosed.summary.status).toBe("EMPTY");
+  expect(samePeriodClosed.counts.outside_period).toBe(1);
+  await expect(page.getByTestId("realized-gross-total")).toHaveCount(0);
+  await expect(
+    page.getByRole("region", {
+      name: "Basisstatistiken des Abschlussberichts",
+      exact: true,
+    }),
+  ).toHaveCount(1);
+  const closedContextUrl = page.url();
+  const beforeBack = financialReads.length;
+  await page.goBack();
+  await expect(page).toHaveURL(salesContextUrl);
+  await expect(page.getByLabel("Zeilen anzeigen")).toHaveValue("usable");
+  await expect(page.getByTestId("realized-gross-total")).toHaveText(
+    "10,00 EUR",
+  );
+  expect(financialReads.slice(beforeBack)).toHaveLength(1);
+  expect(financialReads.at(-1)).toContain("/performance/realized-gross?");
+  const beforeForward = financialReads.length;
+  await page.goForward();
+  await expect(page).toHaveURL(closedContextUrl);
+  await expect(page.getByTestId("closed-trades-total")).toBeVisible();
+  expect(financialReads.slice(beforeForward)).toHaveLength(1);
+  expect(financialReads.at(-1)).toContain("/performance/closed-trades?");
+  const samePeriodSales = await switchTo("realized-gross");
+  expect(samePeriodSales.filters).toEqual(original.filters);
+  expect(samePeriodSales.summary.total).toBe("10.0000000000");
+  await expect(
+    page.getByRole("region", {
+      name: "Basisstatistiken des Abschlussberichts",
+      exact: true,
+    }),
+  ).toHaveCount(0);
+  const beforeReload = financialReads.length;
+  await page.reload();
+  await expect(page.getByTestId("realized-gross-total")).toHaveText(
+    "10,00 EUR",
+  );
+  await expect(page.getByLabel("Von (einschließlich)")).toHaveValue(
+    "2026-09-01",
+  );
+  await expect(page.getByLabel("Bis (einschließlich)")).toHaveValue(
+    "2026-09-30",
+  );
+  await expect(page.getByLabel("Berichtszeitzone (IANA)")).toHaveValue(
+    "Europe/Berlin",
+  );
+  expect(financialReads.slice(beforeReload)).toHaveLength(1);
+  expect(
+    reportRequests.every(
+      (sent) =>
+        sent.method === "GET" && sent.url.startsWith(api + "/performance/"),
+    ),
+  ).toBe(true);
+  expect(databaseState().fingerprint).toBe(beforeRead.fingerprint);
+  reportReadWindow = false;
+  await testInfo.attach("performance-workspace-read-only-switches", {
+    body: JSON.stringify(
+      { samePeriodClosed, samePeriodSales, reportRequests },
+      null,
+      2,
+    ),
+    contentType: "application/json",
+  });
+
   const replacement = await post(
     tradePath + `/executions/${septemberLast.execution.id}/corrections`,
     {
@@ -371,7 +507,11 @@ test("real PostgreSQL: purchase currency once, inherited sales, sources and corr
     superseded_by_execution_id: replacement.execution.id,
   });
   await expect(
-    page.getByText(/Der Quellenstand hat sich seit dem letzten Lesen/),
+    page.getByText(
+      "Der Quellenstand hat sich gegenüber dem mitgegebenen oder zuletzt gelesenen Stand dieser Auswahl geändert. " +
+        "Ergebnis, Zähler, Zeilen, Herkunft und gegebenenfalls Abschlusskennzahlen wurden gemeinsam durch den neu gelesenen Stand ersetzt.",
+      { exact: true },
+    ),
   ).toBeVisible();
   await expect(page.getByTestId("realized-gross-total")).toHaveText(
     "30,00 EUR",
