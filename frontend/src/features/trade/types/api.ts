@@ -3,11 +3,35 @@ export type IsoDateTime = string;
 
 export type ExecutionSide = 'BUY' | 'SELL';
 export type TradeOrigin = 'WORKSPACE_SELECTION' | 'EXTERNAL';
+export interface ExecutionCurrencyEvidenceSource {
+  id: Uuid;
+  kind: string;
+  source_reference: string;
+  recorded_at: IsoDateTime;
+  valid_from?: IsoDateTime | null;
+  valid_to?: IsoDateTime | null;
+  supersedes_evidence_id?: Uuid | null;
+  source_fingerprint?: string;
+  verification?: string;
+}
 export interface ExecutionCurrencyResolution {
   currency_code: string | null;
-  source: 'USER_CONFIRMED' | 'PRIOR_BUYS' | 'REPLACED_EXECUTION' | 'UNKNOWN' | 'MIXED';
+  source:
+    | 'USER_CONFIRMED'
+    | 'PRIOR_BUYS'
+    | 'REPLACED_EXECUTION'
+    | 'EXECUTION_DOCUMENT'
+    | 'HISTORICAL_LISTING'
+    | 'HISTORICAL_LISTINGS'
+    | 'UNKNOWN'
+    | 'MIXED'
+    | 'CONFLICT';
   source_execution_ids: Uuid[];
   confirmation_ids: Uuid[];
+  evidence_ids?: Uuid[];
+  evidence?: ExecutionCurrencyEvidenceSource[];
+  reason?: string | null;
+  resolver_version?: string;
 }
 export interface ExecutionCurrencyDeclaration {
   currency_code: string;

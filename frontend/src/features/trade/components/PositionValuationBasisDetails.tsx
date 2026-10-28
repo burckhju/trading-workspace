@@ -1,12 +1,6 @@
-import type { ExecutionCurrencyResolution, PositionValuationBasis } from '../types/api';
-
-const sourceLabels: Record<ExecutionCurrencyResolution['source'], string> = {
-  USER_CONFIRMED: 'Direkt bestätigt',
-  PRIOR_BUYS: 'Aus vorherigen wirksamen Käufen belegt',
-  REPLACED_EXECUTION: 'Aus der korrigierten Ausführung belegt',
-  UNKNOWN: 'Nicht belegt',
-  MIXED: 'Unterschiedliche Kaufwährungen',
-};
+import { executionCurrencyText } from '../services/executionCurrency';
+import type { PositionValuationBasis } from '../types/api';
+import { ExecutionCurrencySources } from './ExecutionCurrencySources';
 
 export function PositionValuationBasisDetails({
   basis,
@@ -32,13 +26,11 @@ export function PositionValuationBasisDetails({
         <p>Wirksame Ausführungen: {basis.effective_execution_ids.join(', ') || 'Keine'}</p>
         <ul className="space-y-2">
           {basis.buy_currency_evidence.map((evidence) => (
-            <li key={evidence.execution_id}>
-              Kauf {evidence.execution_id}: {evidence.currency_code ?? 'Währung nicht belegt'} ·{' '}
-              {sourceLabels[evidence.source]}
-              <br />
-              Quellausführungen: {evidence.source_execution_ids.join(', ') || 'Keine'}
-              <br />
-              Bestätigungen: {evidence.confirmation_ids.join(', ') || 'Keine'}
+            <li key={evidence.execution_id} className="space-y-2">
+              <p>
+                Kauf {evidence.execution_id}: {executionCurrencyText(evidence)}
+              </p>
+              <ExecutionCurrencySources resolution={evidence} />
             </li>
           ))}
         </ul>

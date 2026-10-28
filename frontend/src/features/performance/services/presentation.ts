@@ -23,6 +23,7 @@ export function executionTimeText(time: ReportExecutionTime, reportTimezone: str
 const reasons: Record<string, string> = {
   CURRENCY_UNKNOWN: 'Ausführungswährung für Verkauf oder Kostenbasis nicht vollständig belegt',
   CURRENCY_MIXED: 'Unterschiedliche Währungen in Verkauf und Kostenbasis; keine Umrechnung',
+  CURRENCY_CONFLICT: 'Widersprüchliche Währungsbelege; Quellen gezielt prüfen',
   COST_BASIS_SOURCE_INCOMPLETE: 'Herkunft der Kostenbasis unvollständig',
   HISTORY_INVALID: 'Wirksame Ausführungshistorie nicht verwendbar',
   PERIOD_AMBIGUOUS: 'Periodenzugehörigkeit wegen der Datums- / Zeitzonenpräzision mehrdeutig',

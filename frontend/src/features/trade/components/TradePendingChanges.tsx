@@ -23,6 +23,7 @@ interface PendingChangesContext {
   requestChange: (key: string, action: () => void) => void;
   notify: () => void;
   isBusy: () => boolean;
+  isBusyExcept: (key: string) => boolean;
   revision: number;
 }
 
@@ -42,6 +43,13 @@ function PendingChangesOwner({ children }: { children: ReactNode }) {
   const notify = useCallback(() => setRevision((revision) => revision + 1), []);
   const isBusy = useCallback(
     () => [...participants.current.values()].some((participant) => participant.isBusy()),
+    [],
+  );
+  const isBusyExcept = useCallback(
+    (key: string) =>
+      [...participants.current].some(
+        ([owner, participant]) => owner !== key && participant.isBusy(),
+      ),
     [],
   );
   const shouldBlock = useCallback(
@@ -70,8 +78,8 @@ function PendingChangesOwner({ children }: { children: ReactNode }) {
     [isBusy],
   );
   const value = useMemo(
-    () => ({ register, requestChange, notify, isBusy, revision }),
-    [register, requestChange, notify, isBusy, revision],
+    () => ({ register, requestChange, notify, isBusy, isBusyExcept, revision }),
+    [register, requestChange, notify, isBusy, isBusyExcept, revision],
   );
 
   useEffect(() => {
@@ -171,6 +179,7 @@ export function useTradePendingChanges(key: string, participant: Participant) {
   const request = context?.requestChange;
   const announce = context?.notify;
   const checkBusy = context?.isBusy;
+  const checkBusyExcept = context?.isBusyExcept;
   const current = useRef(participant);
   current.current = participant;
   useLayoutEffect(
@@ -191,5 +200,9 @@ export function useTradePendingChanges(key: string, participant: Participant) {
   );
   const notify = useCallback(() => announce?.(), [announce]);
   const isBusy = useCallback(() => checkBusy?.() ?? false, [checkBusy]);
-  return { requestChange, notify, isBusy };
+  const isBusyExceptSelf = useCallback(
+    () => checkBusyExcept?.(key) ?? false,
+    [checkBusyExcept, key],
+  );
+  return { requestChange, notify, isBusy, isBusyExceptSelf };
 }

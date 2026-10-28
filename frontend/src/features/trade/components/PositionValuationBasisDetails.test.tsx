@@ -1,6 +1,6 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import type { PositionValuationBasis } from '../types/api';
+import type { ExecutionCurrencyEvidenceSource, PositionValuationBasis } from '../types/api';
 import { PositionValuationBasisDetails } from './PositionValuationBasisDetails';
 
 const basis: PositionValuationBasis = {
@@ -32,6 +32,17 @@ const basis: PositionValuationBasis = {
   ],
 };
 
+const historicalSource: ExecutionCurrencyEvidenceSource = {
+  id: 'historical-source-version',
+  kind: 'HISTORICAL_LISTINGS',
+  source_reference: 'Synthetisches Börsenarchiv, EUR-Notierungen Oktober 2026',
+  recorded_at: '2026-10-28T12:00:00Z',
+  valid_from: '2026-10-01T00:00:00Z',
+  valid_to: '2026-11-01T00:00:00Z',
+  source_fingerprint: 'historical-source-fingerprint',
+  verification: 'USER_VERIFIED_SOURCE',
+};
+
 it('exposes the exact backend basis, execution and confirmation references without a quote currency substitution', async () => {
   render(<PositionValuationBasisDetails basis={basis} />);
   await userEvent.click(screen.getByText('Kostenbasis und Währungsnachweise'));
@@ -42,10 +53,13 @@ it('exposes the exact backend basis, execution and confirmation references witho
   expect(screen.getByText(/Wirksame Ausführungen:/)).toHaveTextContent(
     'effective-buy, effective-sale',
   );
-  expect(screen.getByRole('listitem')).toHaveTextContent('Kauf effective-buy: USD');
-  expect(screen.getByRole('listitem')).toHaveTextContent('Aus der korrigierten Ausführung belegt');
-  expect(screen.getByRole('listitem')).toHaveTextContent('Quellausführungen: original-buy');
-  expect(screen.getByRole('listitem')).toHaveTextContent('Bestätigungen: exact-confirmation');
+  const buy = screen.getByText(/^Kauf effective-buy:/).closest('li')!;
+  expect(buy).toHaveTextContent(
+    'Kauf effective-buy: USD · aus der ursprünglichen Buchung übernommen',
+  );
+  await userEvent.click(within(buy).getByText('Verwendete Währungsherkunft'));
+  expect(within(buy).getByText('Buchung original-buy')).toBeVisible();
+  expect(within(buy).getByText('Bestätigung exact-confirmation')).toBeVisible();
 });
 
 it.each([
@@ -72,11 +86,108 @@ it.each([
   );
   await userEvent.click(screen.getByText('Kostenbasis und Währungsnachweise'));
   expect(screen.getByText(`Kostenbasiswährung: ${label}`)).toBeVisible();
-  expect(screen.getByRole('listitem')).toHaveTextContent('Währung nicht belegt');
-  expect(screen.getByRole('listitem')).toHaveTextContent('Bestätigungen: Keine');
+  expect(screen.getByRole('listitem')).toHaveTextContent(
+    currency_status === 'MIXED' ? 'widersprüchliche Kaufwährungen' : 'unbekannt',
+  );
+  expect(screen.queryByText('Bestätigung exact-confirmation')).not.toBeInTheDocument();
+  expect(screen.queryByText(/ausdrücklich bestätigt/)).not.toBeInTheDocument();
 });
 
 it('does not invent basis references when the backend could not provide them', () => {
   const { container } = render(<PositionValuationBasisDetails basis={null} />);
   expect(container).toBeEmptyDOMElement();
+});
+
+it('shows the historical BUY source, exact validity and resolver rule without requesting another confirmation', async () => {
+  render(
+    <PositionValuationBasisDetails
+      basis={{
+        ...basis,
+        cost_basis_currency: 'EUR',
+        buy_currency_evidence: [
+          {
+            execution_id: 'effective-buy',
+            currency_code: 'EUR',
+            source: 'HISTORICAL_LISTINGS',
+            source_execution_ids: ['effective-buy'],
+            confirmation_ids: [],
+            evidence_ids: [historicalSource.id],
+            evidence: [historicalSource],
+            reason: null,
+            resolver_version: 'execution-currency-v3',
+          },
+        ],
+      }}
+    />,
+  );
+  await userEvent.click(screen.getByText('Kostenbasis und Währungsnachweise'));
+  expect(screen.getByText('Kostenbasiswährung: EUR')).toBeVisible();
+  expect(
+    screen.getByText(
+      'Kauf effective-buy: EUR · automatisch aus historischen Notierungen abgeleitet',
+    ),
+  ).toBeVisible();
+  expect(screen.getByText(/Eine erneute Eingabe ist nicht nötig/)).toBeVisible();
+  await userEvent.click(screen.getByText('Verwendete Währungsherkunft'));
+  expect(screen.getByText(`Quelle: ${historicalSource.source_reference}`)).toBeVisible();
+  expect(
+    screen.getByText('Gültig von 2026-10-01T00:00:00Z bis ausschließlich 2026-11-01T00:00:00Z'),
+  ).toBeVisible();
+  expect(screen.getByText('Quellenversion historical-source-version')).toBeVisible();
+  expect(screen.getByText('Quellennachweis historical-source-fingerprint')).toBeVisible();
+  expect(screen.getByText('Originalquelle vom Nutzer geprüft')).toBeVisible();
+  expect(screen.getByText('Zuordnungsregel execution-currency-v3')).toBeVisible();
+  expect(screen.queryByText(/ausdrücklich bestätigt/)).not.toBeInTheDocument();
+  expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: /bestätigen|speichern/i })).not.toBeInTheDocument();
+});
+
+it('keeps a conflicting BUY unqualified and exposes both original documents with the specific review reason', async () => {
+  const documents = ['EUR', 'USD'].map((code) => ({
+    ...historicalSource,
+    id: `document-${code}`,
+    kind: 'EXECUTION_DOCUMENT',
+    source_reference: `Synthetische Kaufabrechnung ${code}`,
+    valid_from: null,
+    valid_to: null,
+    source_fingerprint: `document-fingerprint-${code}`,
+  }));
+  render(
+    <PositionValuationBasisDetails
+      basis={{
+        ...basis,
+        currency_status: 'UNKNOWN',
+        cost_basis_currency: null,
+        buy_currency_evidence: [
+          {
+            execution_id: 'effective-buy',
+            currency_code: null,
+            source: 'CONFLICT',
+            source_execution_ids: ['effective-buy'],
+            confirmation_ids: [],
+            evidence_ids: documents.map((document) => document.id),
+            evidence: documents,
+            reason: 'DOCUMENT_CONFLICT',
+            resolver_version: 'execution-currency-v3',
+          },
+        ],
+      }}
+    />,
+  );
+  await userEvent.click(screen.getByText('Kostenbasis und Währungsnachweise'));
+  expect(screen.getByText('Kostenbasiswährung: Nicht vollständig belegt')).toBeVisible();
+  expect(screen.getByText('Kauf effective-buy: widersprüchliche Währungsbelege')).toBeVisible();
+  expect(
+    screen.getByText(/Die zugeordneten Ausführungsbelege nennen unterschiedliche Währungen/),
+  ).toBeVisible();
+  await userEvent.click(screen.getByText('Verwendete Währungsherkunft'));
+  for (const document of documents) {
+    expect(screen.getByText(`Quelle: ${document.source_reference}`)).toBeVisible();
+    expect(screen.getByText(`Quellenversion ${document.id}`)).toBeVisible();
+    expect(screen.getByText(`Quellennachweis ${document.source_fingerprint}`)).toBeVisible();
+  }
+  expect(screen.getByText('Zuordnungsregel execution-currency-v3')).toBeVisible();
+  expect(screen.queryByText('Kostenbasiswährung: EUR')).not.toBeInTheDocument();
+  expect(screen.queryByText(/automatisch aus/)).not.toBeInTheDocument();
+  expect(screen.queryByText(/ausdrücklich bestätigt/)).not.toBeInTheDocument();
 });

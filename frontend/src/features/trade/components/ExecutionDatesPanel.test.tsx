@@ -1,6 +1,10 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, expect, it, vi } from 'vitest';
+import { createMemoryRouter, Link, RouterProvider } from 'react-router-dom';
 import { MarketApiError } from '../../market/services/http';
+import { marketApiClient } from '../../market/services/client';
+import { currencyEvidenceApi } from '../../product/services/currencyEvidence';
+import type { CurrencyEvidenceRequest } from '../../product/types/currencyEvidence';
 import { currencyConfirmation } from '../../../test/realizedGrossFixtures';
 import { tradeManagementApiClient, tradeTimelineChangedEvent } from '../services/client';
 import type {
@@ -11,6 +15,13 @@ import type {
 } from '../types/api';
 import { ExecutionDatesPanel } from './ExecutionDatesPanel';
 import { TradePendingChangesProvider, useTradePendingChanges } from './TradePendingChanges';
+
+vi.mock('../../product/services/currencyEvidence', () => ({
+  currencyEvidenceApi: { history: vi.fn(), record: vi.fn() },
+}));
+vi.mock('../../market/services/client', () => ({
+  marketApiClient: { listTradingVenues: vi.fn() },
+}));
 
 vi.mock('../services/client', () => ({
   tradeTimelineChangedEvent: 'trade-timeline-changed',
@@ -75,6 +86,34 @@ function deferred<T>() {
     reject = no;
   });
   return { promise, resolve, reject };
+}
+function documentReceipt(productId: string, request: CurrencyEvidenceRequest) {
+  return {
+    ...request,
+    id: 'document-receipt',
+    product_id: productId,
+    workspace_id: 'workspace',
+    recorded_at: '2026-10-28T12:00:00Z',
+    recorded_by: 'actor',
+    request_fingerprint: 'fingerprint',
+    verification: 'USER_VERIFIED_SOURCE' as const,
+  };
+}
+async function enterDocumentCurrency() {
+  fireEvent.click(
+    within(await screen.findByRole('article', { name: 'Buchung buy' })).getByRole('button', {
+      name: 'Ausführungsbeleg zuordnen',
+    }),
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Währungsquellen laden' }));
+  await screen.findByRole('form', { name: 'Währungsquelle prüfen und speichern' });
+  fireEvent.change(screen.getByLabelText('Quelle und Fundstelle'), {
+    target: { value: 'Document for selected BUY' },
+  });
+  fireEvent.change(screen.getByLabelText('Währung laut Ausführungsbeleg'), {
+    target: { value: 'EUR' },
+  });
+  fireEvent.click(screen.getByRole('checkbox', { name: /Originalquelle geprüft/ }));
 }
 function ExternalWriter({ state }: { state: { busy: boolean } }) {
   useTradePendingChanges('other-write', {
@@ -1032,3 +1071,311 @@ it('ignores an obsolete A read after A→B→A while preserving the new amount d
   expect(screen.queryByText(/Diese Buchung wurde bereits ersetzt/)).not.toBeInTheDocument();
   expect(api.correctExecution).not.toHaveBeenCalled();
 });
+
+it('records one document for the selected BUY and refreshes both BUY and SELL provenance without a second currency confirmation', async () => {
+  vi.mocked(currencyEvidenceApi.history).mockResolvedValue({ history: [] });
+  vi.mocked(marketApiClient.listTradingVenues).mockResolvedValue({ items: [] });
+  vi.mocked(currencyEvidenceApi.record).mockImplementation((productId, request) => {
+    timeline = timeline.map((entry) => ({
+      ...entry,
+      currency_resolution: {
+        currency_code: 'EUR',
+        source: entry.id === buy.id ? 'EXECUTION_DOCUMENT' : 'PRIOR_BUYS',
+        source_execution_ids: [buy.id],
+        confirmation_ids: [],
+        evidence_ids: ['document-source'],
+      },
+    }));
+    return Promise.resolve({
+      ...request,
+      id: 'document-source',
+      product_id: productId,
+      workspace_id: 'workspace',
+      recorded_at: '2026-10-28T12:00:00Z',
+      recorded_by: 'actor',
+      request_fingerprint: 'fingerprint',
+      verification: 'USER_VERIFIED_SOURCE' as const,
+    });
+  });
+  render(
+    <ExecutionDatesPanel tradeId="trade" productId="selected-product" onChanged={onChanged} />,
+  );
+  const row = within(await screen.findByRole('article', { name: 'Buchung buy' }));
+  fireEvent.click(row.getByRole('button', { name: 'Ausführungsbeleg zuordnen' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Währungsquellen laden' }));
+  await screen.findByRole('form', { name: 'Währungsquelle prüfen und speichern' });
+  fireEvent.change(screen.getByLabelText('Quelle und Fundstelle'), {
+    target: { value: 'Kaufabrechnung, Seite 1' },
+  });
+  fireEvent.change(screen.getByLabelText('Währung laut Ausführungsbeleg'), {
+    target: { value: 'EUR' },
+  });
+  fireEvent.click(screen.getByRole('checkbox', { name: /Originalquelle geprüft/ }));
+  fireEvent.click(screen.getByRole('button', { name: 'Geprüfte Quellenversion speichern' }));
+  await screen.findByText(/Quellenversion gespeichert/);
+  expect(currencyEvidenceApi.record).toHaveBeenCalledExactlyOnceWith(
+    'selected-product',
+    expect.objectContaining({
+      kind: 'EXECUTION_DOCUMENT',
+      trade_id: 'trade',
+      execution_id: buy.id,
+      currency_code: 'EUR',
+    }),
+    expect.any(AbortSignal),
+  );
+  expect(api.confirmExecutionCurrency).not.toHaveBeenCalled();
+  expect(api.correctExecution).not.toHaveBeenCalled();
+  await waitFor(() => expect(onChanged).toHaveBeenCalledOnce());
+  expect(
+    within(screen.getByRole('article', { name: 'Buchung sale' })).getByText(
+      'EUR · aus vorherigen Käufen übernommen',
+    ),
+  ).toBeVisible();
+  fireEvent.click(screen.getByRole('button', { name: 'Quellenbearbeitung schließen' }));
+  expect(
+    within(screen.getByRole('article', { name: 'Buchung buy' })).getByText(
+      'EUR · automatisch aus Ausführungsbeleg abgeleitet',
+    ),
+  ).toBeVisible();
+});
+
+it('blocks global route discard for an uncertain document request while preserving its exact retry and respecting other writers', async () => {
+  const writer = { busy: false };
+  vi.mocked(marketApiClient.listTradingVenues).mockResolvedValue({ items: [] });
+  vi.mocked(currencyEvidenceApi.history).mockResolvedValue({ history: [] });
+  vi.mocked(currencyEvidenceApi.record)
+    .mockRejectedValueOnce(new Error('document response lost'))
+    .mockImplementation((productId, request) =>
+      Promise.resolve({
+        ...request,
+        id: 'source-receipt',
+        product_id: productId,
+        workspace_id: 'workspace',
+        recorded_at: '2026-10-28T12:00:00Z',
+        recorded_by: 'actor',
+        request_fingerprint: 'fingerprint',
+        verification: 'USER_VERIFIED_SOURCE',
+      }),
+    );
+  const router = createMemoryRouter(
+    [
+      {
+        path: '/bookings',
+        element: (
+          <TradePendingChangesProvider>
+            <Link to="/next">Kontext wechseln</Link>
+            <ExternalWriter state={writer} />
+            <ExecutionDatesPanel tradeId="trade" productId="product" onChanged={onChanged} />
+          </TradePendingChangesProvider>
+        ),
+      },
+      { path: '/next', element: <h1>Nächster Kontext</h1> },
+    ],
+    { initialEntries: ['/bookings'] },
+  );
+  render(<RouterProvider router={router} />);
+  fireEvent.click(
+    within(await screen.findByRole('article', { name: 'Buchung buy' })).getByRole('button', {
+      name: 'Ausführungsbeleg zuordnen',
+    }),
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Währungsquellen laden' }));
+  await screen.findByRole('form', { name: 'Währungsquelle prüfen und speichern' });
+  fireEvent.change(screen.getByLabelText('Quelle und Fundstelle'), {
+    target: { value: 'Document for selected BUY' },
+  });
+  fireEvent.change(screen.getByLabelText('Währung laut Ausführungsbeleg'), {
+    target: { value: 'EUR' },
+  });
+  fireEvent.click(screen.getByRole('checkbox', { name: /Originalquelle geprüft/ }));
+  fireEvent.submit(screen.getByRole('form'));
+  await screen.findByText(/Speichererfolg unklar/);
+  const originalRequest = vi.mocked(currencyEvidenceApi.record).mock.calls[0][1];
+  fireEvent.click(screen.getByRole('link', { name: 'Kontext wechseln' }));
+  const dialog = await screen.findByRole('alertdialog');
+  expect(
+    within(dialog).queryByRole('button', { name: 'Eingaben verwerfen und wechseln' }),
+  ).not.toBeInTheDocument();
+  expect(router.state.location.pathname).toBe('/bookings');
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Hier bleiben' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Währungsquellen laden' }));
+  await screen.findByText(/fehlender Eintrag beim Lesen beweist nicht/);
+  fireEvent.click(screen.getByRole('link', { name: 'Kontext wechseln' }));
+  const secondDialog = await screen.findByRole('alertdialog');
+  expect(
+    within(secondDialog).queryByRole('button', { name: 'Eingaben verwerfen und wechseln' }),
+  ).not.toBeInTheDocument();
+  fireEvent.click(within(secondDialog).getByRole('button', { name: 'Hier bleiben' }));
+  writer.busy = true;
+  fireEvent.click(screen.getByRole('button', { name: 'Denselben Quellenauftrag erneut senden' }));
+  expect(currencyEvidenceApi.record).toHaveBeenCalledOnce();
+  writer.busy = false;
+  fireEvent.click(screen.getByRole('button', { name: 'Denselben Quellenauftrag erneut senden' }));
+  await screen.findByText(/Quellenversion gespeichert/);
+  await waitFor(() => expect(onChanged).toHaveBeenCalledOnce());
+  expect(vi.mocked(currencyEvidenceApi.record).mock.calls[1][1]).toEqual(originalRequest);
+  expect(api.confirmExecutionCurrency).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('link', { name: 'Kontext wechseln' }));
+  await screen.findByRole('heading', { name: 'Nächster Kontext' });
+  expect(router.state.location.pathname).toBe('/next');
+});
+
+it('keeps the existing manual confirmation exact retry available inside its own recovery lock', async () => {
+  api.confirmExecutionCurrency.mockRejectedValueOnce(new Error('confirmation response lost'));
+  const confirmation = { ...currencyConfirmation('buy'), trade_id: 'trade' };
+  api.confirmExecutionCurrency.mockResolvedValueOnce(confirmation);
+  render(<ExecutionDatesPanel tradeId="trade" onChanged={onChanged} />);
+  const row = within(await screen.findByRole('article', { name: 'Buchung buy' }));
+  fireEvent.click(row.getByRole('button', { name: 'Währung prüfen / bestätigen' }));
+  await screen.findByRole('form', { name: 'Ausführungswährung bestätigen' });
+  fireEvent.change(screen.getByLabelText('Ausführungswährung (Code)'), {
+    target: { value: 'EUR' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Währungsbestätigung speichern' }));
+  await screen.findByText(/Der Abschluss ist unklar/);
+  const first = api.confirmExecutionCurrency.mock.calls[0][2];
+  api.executionCurrencyHistory.mockResolvedValue({
+    current: confirmation,
+    history: [confirmation],
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Währungsbestätigung speichern' }));
+  await screen.findByText(/Währung bestätigt. Eine erneute Auswertung/);
+  expect(api.confirmExecutionCurrency).toHaveBeenCalledTimes(2);
+  expect(api.confirmExecutionCurrency.mock.calls[1][2]).toEqual(first);
+});
+
+it.each(['parent-first', 'source-direct'] as const)(
+  'recovers a confirmed document after the owner timeline read fails through %s without another POST',
+  async (path) => {
+    vi.mocked(marketApiClient.listTradingVenues).mockResolvedValue({ items: [] });
+    vi.mocked(currencyEvidenceApi.history).mockResolvedValue({ history: [] });
+    vi.mocked(currencyEvidenceApi.record).mockImplementation((productId, request) => {
+      const receipt = documentReceipt(productId, request);
+      vi.mocked(currencyEvidenceApi.history).mockResolvedValue({ history: [receipt] });
+      api.timeline.mockRejectedValueOnce(new Error('Owner timeline temporarily unavailable'));
+      return Promise.resolve(receipt);
+    });
+    render(<ExecutionDatesPanel tradeId="trade" productId="product" onChanged={onChanged} />);
+    await enterDocumentCurrency();
+    fireEvent.submit(screen.getByRole('form'));
+    await screen.findByText(/Quelle gespeichert; der Buchungsstand konnte noch nicht/);
+    expect(
+      screen.getByRole('button', { name: 'Geprüfte Quellenversion speichern' }),
+    ).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Buchungsdaten neu laden' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Währungsquellen laden' })).toBeEnabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Quellenbearbeitung schließen' }));
+    expect(screen.getByRole('form')).toBeVisible();
+    if (path === 'parent-first') {
+      fireEvent.click(screen.getByRole('button', { name: 'Buchungsdaten neu laden' }));
+      await waitFor(() =>
+        expect(
+          screen.queryByText(/Owner timeline temporarily unavailable/),
+        ).not.toBeInTheDocument(),
+      );
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: 'Währungsquellen laden' })).toBeEnabled(),
+      );
+      expect(
+        screen.getByRole('button', { name: 'Geprüfte Quellenversion speichern' }),
+      ).toBeDisabled();
+    }
+    fireEvent.click(screen.getByRole('button', { name: 'Währungsquellen laden' }));
+    await waitFor(() =>
+      expect(
+        screen.queryByText(/Quelle gespeichert; der Buchungsstand konnte noch nicht/),
+      ).not.toBeInTheDocument(),
+    );
+    await waitFor(() => expect(onChanged).toHaveBeenCalledTimes(path === 'parent-first' ? 3 : 2));
+    expect(screen.queryByText(/Owner timeline temporarily unavailable/)).not.toBeInTheDocument();
+    expect(currencyEvidenceApi.record).toHaveBeenCalledOnce();
+    expect(api.confirmExecutionCurrency).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Quellenbearbeitung schließen' }));
+    await waitFor(() => expect(screen.queryByRole('form')).not.toBeInTheDocument());
+  },
+);
+
+it('recovers a confirmed manual currency after the owner timeline read fails without another confirmation', async () => {
+  const confirmation = { ...currencyConfirmation('buy'), trade_id: 'trade' };
+  api.confirmExecutionCurrency.mockImplementation(() => {
+    api.executionCurrencyHistory.mockResolvedValue({
+      current: confirmation,
+      history: [confirmation],
+    });
+    api.timeline.mockRejectedValueOnce(new Error('Owner timeline temporarily unavailable'));
+    return Promise.resolve(confirmation);
+  });
+  render(<ExecutionDatesPanel tradeId="trade" onChanged={onChanged} />);
+  fireEvent.click(
+    within(await screen.findByRole('article', { name: 'Buchung buy' })).getByRole('button', {
+      name: 'Währung prüfen / bestätigen',
+    }),
+  );
+  await screen.findByRole('form', { name: 'Ausführungswährung bestätigen' });
+  fireEvent.change(screen.getByLabelText('Ausführungswährung (Code)'), {
+    target: { value: 'EUR' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Währungsbestätigung speichern' }));
+  await screen.findByText(/Währung gespeichert. Die übrigen Buchungen konnten noch nicht/);
+  expect(screen.getByRole('button', { name: 'Buchungsdaten neu laden' })).toBeEnabled();
+  fireEvent.click(screen.getByRole('button', { name: 'Buchungsdaten neu laden' }));
+  await waitFor(() =>
+    expect(screen.queryByText(/Owner timeline temporarily unavailable/)).not.toBeInTheDocument(),
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Währungsherkunft neu laden' }));
+  await screen.findByText(/Gespeicherte Bestätigung und Buchungsstand wurden neu gelesen/);
+  expect(api.confirmExecutionCurrency).toHaveBeenCalledOnce();
+  expect(currencyEvidenceApi.record).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Buchungseditor schließen' }));
+  await waitFor(() => expect(screen.queryByRole('form')).not.toBeInTheDocument());
+});
+
+it.each(['replaced', 'cancelled'] as const)(
+  'resolves an uncertain document through an exact read after its booking becomes %s and keeps new writes disabled',
+  async (change) => {
+    vi.mocked(marketApiClient.listTradingVenues).mockResolvedValue({ items: [] });
+    vi.mocked(currencyEvidenceApi.history).mockResolvedValue({ history: [] });
+    vi.mocked(currencyEvidenceApi.record).mockRejectedValueOnce(
+      new Error('Document response lost'),
+    );
+    const { rerender } = render(
+      <ExecutionDatesPanel tradeId="trade" productId="product" onChanged={onChanged} />,
+    );
+    await enterDocumentCurrency();
+    fireEvent.submit(screen.getByRole('form'));
+    await screen.findByText(/Speichererfolg unklar/);
+    const request = vi.mocked(currencyEvidenceApi.record).mock.calls[0][1];
+    if (change === 'replaced') {
+      timeline = [buy, sale, { ...buy, id: 'replacement-buy', supersedes_id: buy.id }];
+      fireEvent.click(screen.getByRole('button', { name: 'Buchungsdaten neu laden' }));
+      await screen.findByText(/Diese Buchung wurde bereits ersetzt/);
+    } else {
+      rerender(
+        <ExecutionDatesPanel tradeId="trade" productId="product" cancelled onChanged={onChanged} />,
+      );
+      await screen.findByText(/Stornierter Trade: Buchungen und Historie/);
+    }
+    expect(
+      screen.getByRole('button', { name: 'Denselben Quellenauftrag erneut senden' }),
+    ).toBeDisabled();
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Währungsquellen laden' })).toBeEnabled(),
+    );
+    vi.mocked(currencyEvidenceApi.history).mockResolvedValue({
+      history: [documentReceipt('product', request)],
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Währungsquellen laden' }));
+    await screen.findByText(/Die Speicherung ist durch die gelesene Quellenversion bestätigt/);
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Währungsquellen laden' })).toBeEnabled(),
+    );
+    expect(screen.getByLabelText('Quelle und Fundstelle')).toBeDisabled();
+    expect(
+      screen.getByRole('button', { name: 'Geprüfte Quellenversion speichern' }),
+    ).toBeDisabled();
+    expect(vi.mocked(currencyEvidenceApi.record).mock.calls[0][1].execution_id).toBe(buy.id);
+    expect(currencyEvidenceApi.record).toHaveBeenCalledOnce();
+    fireEvent.click(screen.getByRole('button', { name: 'Quellenbearbeitung schließen' }));
+    await waitFor(() => expect(screen.queryByRole('form')).not.toBeInTheDocument());
+  },
+);

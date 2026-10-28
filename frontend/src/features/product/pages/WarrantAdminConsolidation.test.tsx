@@ -4,8 +4,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { marketApiClient } from '../../market/services/client';
 import { MarketApiError, MarketTransportError } from '../../market/services/http';
 import { warrantApiClient } from '../services/client';
+import { currencyEvidenceApi } from '../services/currencyEvidence';
 import type { WarrantResponse, WarrantTermsResponse } from '../types/api';
 import { WarrantAdminPage } from './WarrantAdminPage';
+
+vi.mock('../services/currencyEvidence', () => ({
+  currencyEvidenceApi: { history: vi.fn(), record: vi.fn() },
+}));
 
 vi.mock('../../market/services/client', () => ({
   marketApiClient: {
@@ -616,4 +621,106 @@ describe('isolated reads, writes and error recovery', () => {
     expect(screen.getByLabelText('Handelswährung')).toHaveValue('');
     expect(warrants.addListing).not.toHaveBeenCalled();
   });
+});
+
+it('opens historical currency evidence for the exact selected product without copying current listings and guards unsaved source changes', async () => {
+  vi.mocked(currencyEvidenceApi.history).mockResolvedValue({ history: [] });
+  warrants.listings.mockResolvedValue([
+    {
+      id: 'listing-today',
+      workspace_id: warrantA.workspace_id,
+      warrant_id: warrantA.id,
+      trading_venue_id: 'venue-1',
+      symbol: 'TODAY',
+      quotation_currency_code: 'EUR',
+      lifecycle_status: 'ACTIVE',
+      version: 1,
+      created_at: warrantA.created_at,
+      updated_at: warrantA.updated_at,
+    },
+  ]);
+  render(<WarrantAdminPage />);
+  await readyForTerms();
+  expect(currencyEvidenceApi.history).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Historische Währungsquellen prüfen' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Währungsquellen laden' }));
+  await screen.findByRole('form', { name: 'Währungsquelle prüfen und speichern' });
+  expect(currencyEvidenceApi.history).toHaveBeenCalledExactlyOnceWith(
+    warrantA.id,
+    expect.any(AbortSignal),
+  );
+  expect(screen.getByLabelText('Historischer Handelsplatz 1')).toHaveValue('');
+  expect(screen.getByLabelText('Historische Währung 1')).toHaveValue('');
+  expect(screen.getByLabelText('Historisch gültig ab (einschließlich)')).toHaveValue('');
+  fireEvent.change(screen.getByLabelText('Quelle und Fundstelle'), {
+    target: { value: 'Historische Quelle' },
+  });
+  expect(screen.getByText('Ungespeicherte Änderungen')).toBeVisible();
+  vi.mocked(window.confirm).mockReturnValueOnce(false);
+  fireEvent.click(screen.getByRole('button', { name: 'Quellenbearbeitung schließen' }));
+  expect(screen.getByLabelText('Quelle und Fundstelle')).toHaveValue('Historische Quelle');
+  expect(currencyEvidenceApi.record).not.toHaveBeenCalled();
+});
+
+it('keeps an uncertain source request pinned across empty readback and blocks product reload, selection and discard until the exact receipt is known', async () => {
+  vi.mocked(currencyEvidenceApi.history).mockResolvedValue({ history: [] });
+  vi.mocked(currencyEvidenceApi.record).mockRejectedValueOnce(new Error('response lost'));
+  render(<WarrantAdminPage />);
+  await readyForTerms();
+  fireEvent.click(screen.getByRole('button', { name: 'Historische Währungsquellen prüfen' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Währungsquellen laden' }));
+  await screen.findByRole('form', { name: 'Währungsquelle prüfen und speichern' });
+  fireEvent.click(screen.getByRole('button', { name: 'Genaue Zeitpunkte mit Zeitzone verwenden' }));
+  for (const [label, value] of [
+    ['Quelle und Fundstelle', 'Archived listing source'],
+    ['Gültig ab, mit Zeitzone', '2026-08-01T00:00:00+02:00'],
+    ['Gültig bis ausschließlich, mit Zeitzone', '2026-11-01T00:00:00+01:00'],
+    ['Historischer Handelsplatz 1', 'venue-1'],
+    ['Historische Währung 1', 'EUR'],
+  ])
+    fireEvent.change(screen.getByLabelText(label), { target: { value } });
+  fireEvent.click(screen.getByRole('checkbox', { name: /Originalquelle geprüft/ }));
+  fireEvent.click(screen.getByRole('button', { name: 'Geprüfte Quellenversion speichern' }));
+  await screen.findByText(/Speichererfolg unklar/);
+  const request = vi.mocked(currencyEvidenceApi.record).mock.calls[0][1];
+  const reads = warrants.get.mock.calls.length;
+  const otherProduct = screen.getByRole('button', { name: new RegExp(warrantB.display_name) });
+  expect(otherProduct).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Produkt neu laden' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Quellenbearbeitung schließen' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Neues Produkt' })).toBeDisabled();
+  fireEvent.click(screen.getByRole('button', { name: 'Produkt neu laden' }));
+  fireEvent.click(otherProduct);
+  fireEvent.click(screen.getByRole('button', { name: 'Quellenbearbeitung schließen' }));
+  expect(warrants.get).toHaveBeenCalledTimes(reads);
+  expect(window.confirm).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Währungsquellen laden' }));
+  await screen.findByText(/fehlender Eintrag beim Lesen beweist nicht/);
+  expect(screen.getByRole('button', { name: 'Produkt neu laden' })).toBeDisabled();
+  expect(screen.getByLabelText('Quelle und Fundstelle')).toHaveValue('Archived listing source');
+  expect(currencyEvidenceApi.record).toHaveBeenCalledOnce();
+  vi.mocked(currencyEvidenceApi.history).mockResolvedValue({
+    history: [
+      {
+        ...request,
+        id: 'committed-source',
+        product_id: warrantA.id,
+        workspace_id: warrantA.workspace_id,
+        recorded_at: '2026-10-28T12:00:00Z',
+        recorded_by: 'actor',
+        request_fingerprint: 'fingerprint',
+        verification: 'USER_VERIFIED_SOURCE',
+      },
+    ],
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Währungsquellen laden' }));
+  await screen.findByText(/Speicherung ist durch die gelesene Quellenversion bestätigt/);
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'Produkt neu laden' })).toBeEnabled(),
+  );
+  expect(screen.getByRole('button', { name: new RegExp(warrantB.display_name) })).toBeEnabled();
+  expect(currencyEvidenceApi.record).toHaveBeenCalledOnce();
+  expect(
+    screen.queryByRole('button', { name: 'Denselben Quellenauftrag erneut senden' }),
+  ).not.toBeInTheDocument();
 });

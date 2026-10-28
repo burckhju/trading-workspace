@@ -16,8 +16,12 @@ from app.features.performance.domain.models import (
 )
 from app.features.performance.domain.report import ReportLimitExceeded
 from app.features.product.persistence.models import WarrantModel
+from app.features.trade_position.domain.currency_evidence import CurrencyEvidenceLimitExceeded
 from app.features.trade_position.domain.enums import TradeOrigin
 from app.features.trade_position.domain.models import Trade
+from app.features.trade_position.persistence.currency_evidence import (
+    SqlAlchemyCurrencyEvidenceRepository,
+)
 from app.features.trade_position.persistence.currency_models import (
     ExecutionCurrencyConfirmationModel,
 )
@@ -30,6 +34,7 @@ from app.features.trade_position.persistence.models import (
 MAX_TRADES = 2_000
 MAX_EXECUTIONS = 20_000
 MAX_CONFIRMATIONS = 40_000
+MAX_CURRENCY_EVIDENCE = 10_000
 
 
 class RealizedGrossSnapshotReader:
@@ -55,6 +60,14 @@ class RealizedGrossSnapshotReader:
             trades = await self._read_trades(session, workspace_id)
             executions = await self._read_executions(session, workspace_id)
             confirmations = await self._read_confirmations(session, workspace_id)
+            try:
+                evidence = await SqlAlchemyCurrencyEvidenceRepository(session).list_for_workspace(
+                    workspace_id, limit=MAX_CURRENCY_EVIDENCE
+                )
+            except CurrencyEvidenceLimitExceeded as error:
+                raise ReportLimitExceeded(
+                    "Report exceeds the complete source evidence limit"
+                ) from error
             result = ReportSnapshot(
                 workspace_id=workspace_id,
                 trades=trades,
@@ -63,6 +76,7 @@ class RealizedGrossSnapshotReader:
                 currency=reference,
                 read_started_at=started,
                 read_completed_at=datetime.now(UTC),
+                currency_evidence=evidence,
             )
         return result
 

@@ -337,7 +337,10 @@ function ExecutionCurrencyContext({
   const currentResolution = opened ? history?.currency_resolution : resolution;
   const inherited =
     currentResolution?.source === 'PRIOR_BUYS' ||
-    currentResolution?.source === 'REPLACED_EXECUTION';
+    currentResolution?.source === 'REPLACED_EXECUTION' ||
+    currentResolution?.source === 'EXECUTION_DOCUMENT' ||
+    currentResolution?.source === 'HISTORICAL_LISTING' ||
+    currentResolution?.source === 'HISTORICAL_LISTINGS';
   return (
     <section
       ref={panel}

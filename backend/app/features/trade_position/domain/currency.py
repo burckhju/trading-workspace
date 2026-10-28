@@ -6,6 +6,19 @@ from enum import StrEnum
 from typing import Literal
 from uuid import UUID
 
+CurrencyResolutionSource = Literal[
+    "USER_CONFIRMED",
+    "PRIOR_BUYS",
+    "REPLACED_EXECUTION",
+    "EXECUTION_DOCUMENT",
+    "HISTORICAL_LISTING",
+    "HISTORICAL_LISTINGS",
+    "UNKNOWN",
+    "MIXED",
+    "CONFLICT",
+]
+RESOLVER_VERSION = "execution-currency-v3"
+
 
 class ExecutionCurrencySource(StrEnum):
     USER_CONFIRMED = "USER_CONFIRMED"
@@ -51,12 +64,32 @@ class ExecutionCurrencyConfirmation:
 
 
 @dataclass(frozen=True, slots=True)
+class CurrencyEvidenceReference:
+    """The immutable reviewed source revision actually considered by the resolver."""
+
+    id: UUID
+    kind: Literal["EXECUTION_DOCUMENT", "HISTORICAL_LISTINGS"]
+    source_reference: str
+    recorded_at: datetime
+    valid_from: datetime | None
+    valid_to: datetime | None
+    source_fingerprint: str
+    verification: Literal["USER_VERIFIED_SOURCE"] = "USER_VERIFIED_SOURCE"
+
+
+@dataclass(frozen=True, slots=True)
 class ExecutionCurrencyResolution:
     """Read-only derivation; never an invented confirmation of an execution."""
 
     currency_code: str | None = None
-    source: Literal["USER_CONFIRMED", "PRIOR_BUYS", "REPLACED_EXECUTION", "UNKNOWN", "MIXED"] = (
-        "UNKNOWN"
-    )
+    source: CurrencyResolutionSource = "UNKNOWN"
     source_execution_ids: tuple[UUID, ...] = ()
     confirmation_ids: tuple[UUID, ...] = ()
+    evidence_ids: tuple[UUID, ...] = ()
+    evidence: tuple[CurrencyEvidenceReference, ...] = ()
+    reason: str | None = None
+    resolver_version: str = RESOLVER_VERSION
+
+    @property
+    def provenance_links(self) -> int:
+        return len(self.source_execution_ids) + len(self.confirmation_ids) + len(self.evidence_ids)

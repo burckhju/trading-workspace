@@ -44,8 +44,8 @@ async def verify() -> dict[str, object]:
                 raise RuntimeError("Disposable database marker does not match this run")
             version = await connection.scalar(text("SELECT version()"))
             revision = await connection.scalar(text("SELECT version_num FROM alembic_version"))
-            if not str(version).startswith("PostgreSQL 17.") or revision != "20261017_0047":
-                raise RuntimeError("The qualification requires PostgreSQL 17 and schema 0047")
+            if not str(version).startswith("PostgreSQL 17.") or revision != "20261028_0048":
+                raise RuntimeError("The qualification requires PostgreSQL 17 and schema 0048")
             tables = (
                 await connection.scalars(
                     text("SELECT tablename FROM pg_tables WHERE schemaname='public' ORDER BY 1")

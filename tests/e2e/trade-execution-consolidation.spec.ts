@@ -596,6 +596,10 @@ test.describe("real PostgreSQL owner boundary", () => {
       source: "PRIOR_BUYS",
       source_execution_ids: [correctedBuy.id],
       confirmation_ids: [ownConfirmation.id],
+      evidence_ids: [],
+      evidence: [],
+      reason: null,
+      resolver_version: "execution-currency-v3",
     });
     await expect(
       panel.getByRole("article", {

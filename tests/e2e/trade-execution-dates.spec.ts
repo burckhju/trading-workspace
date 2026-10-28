@@ -125,6 +125,10 @@ test("correct existing BUY and SELL dates through UI, preserving quantities and 
     source: "UNKNOWN",
     source_execution_ids: [correctedBuy.id],
     confirmation_ids: [],
+    evidence_ids: [],
+    evidence: [],
+    reason: null,
+    resolver_version: "execution-currency-v3",
   });
 
   // A closed position must still offer correction of its historical sale date.
@@ -166,6 +170,10 @@ test("correct existing BUY and SELL dates through UI, preserving quantities and 
       source: "UNKNOWN",
       source_execution_ids: [],
       confirmation_ids: [],
+      evidence_ids: [],
+      evidence: [],
+      reason: null,
+      resolver_version: "execution-currency-v3",
     },
   });
   const correctedSale = executions.find(
@@ -182,6 +190,10 @@ test("correct existing BUY and SELL dates through UI, preserving quantities and 
     source: "UNKNOWN",
     source_execution_ids: [correctedBuy.id],
     confirmation_ids: [],
+    evidence_ids: [],
+    evidence: [],
+    reason: null,
+    resolver_version: "execution-currency-v3",
   });
   expect(
     executions.filter(

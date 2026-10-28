@@ -126,6 +126,10 @@ test("real BUY and SELL amount corrections retain history, reopen the position, 
     source: "PRIOR_BUYS",
     source_execution_ids: [originalBuy.id],
     confirmation_ids: [confirmationId],
+    evidence_ids: [],
+    evidence: [],
+    reason: null,
+    resolver_version: "execution-currency-v3",
   });
 
   const writes: Array<{ path: string; body: Record<string, unknown> }> = [];

@@ -15,6 +15,9 @@ from app.features.market_data.service.provider_eligibility import (
     allowed_warrant_quote_providers as _allowed_warrant_quote_providers,
 )
 from app.features.product.service.application import WarrantService
+from app.features.trade_position.persistence.currency_evidence import (
+    SqlAlchemyCurrencyEvidenceRepository,
+)
 from app.features.trade_position.persistence.unit_of_work import (
     SqlAlchemyTradePositionUnitOfWork,
 )
@@ -38,6 +41,7 @@ def get_trade_position_service(
         workspace_selections=SqlAlchemyWorkspaceSelectionResolver(session),
         products=WarrantProductResolver(WarrantService(session)),
         currency_confirmations=ExecutionCurrencyConfirmationService(session),
+        currency_evidence=SqlAlchemyCurrencyEvidenceRepository(session),
         quote_source_selector=PositionQuoteSourceSelector(
             PositionQuoteSourceSelectionRepository(session),
             allowed_providers,

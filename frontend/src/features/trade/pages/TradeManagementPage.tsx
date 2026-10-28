@@ -626,6 +626,7 @@ function TradeManagementContext({ tradeId }: { tradeId: string }) {
         <ExecutionDatesPanel
           key={`dates-${trade.id}`}
           tradeId={trade.id}
+          productId={trade.product_id}
           cancelled={Boolean(trade.cancelled_at)}
           reloadToken={reloadToken}
           onWriteBlockedChange={onWriteBlockedChange}

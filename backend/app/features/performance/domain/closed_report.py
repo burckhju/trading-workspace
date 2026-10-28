@@ -51,7 +51,10 @@ from app.features.performance.domain.report import (
     decimal_string,
     displayed,
 )
-from app.features.trade_position.domain.currency import ExecutionCurrencyResolution
+from app.features.trade_position.domain.currency import (
+    RESOLVER_VERSION,
+    ExecutionCurrencyResolution,
+)
 from app.features.trade_position.domain.currency_resolution import (
     CurrencyResolutionLimitExceeded,
     resolve_execution_currencies,
@@ -129,8 +132,13 @@ def _currency(
     values = [resolutions[fact.id] for fact in facts]
     codes = {value.currency_code for value in values if value.currency_code is not None}
     reasons = []
-    if any(value.source == "UNKNOWN" for value in values):
+    if any(
+        value.currency_code is None and value.source not in {"MIXED", "CONFLICT"}
+        for value in values
+    ):
         reasons.append("CURRENCY_UNKNOWN")
+    if any(value.source == "CONFLICT" for value in values):
+        reasons.append("CURRENCY_CONFLICT")
     if len(codes) > 1 or any(value.source == "MIXED" for value in values):
         reasons.append("CURRENCY_MIXED")
     code = next(iter(codes)) if len(codes) == 1 and not reasons else None
@@ -390,16 +398,14 @@ def build_closed_report(snapshot: ReportSnapshot, filters: ReportFilters) -> Clo
                 trade=trade.trade,
                 executions=history,
                 current=current,
+                evidence=snapshot.currency_evidence,
                 max_provenance_links=MAX_PROVENANCE_LINKS - links,
             )
         except CurrencyResolutionLimitExceeded as error:
             raise ReportLimitExceeded("Report exceeds the complete provenance limit") from error
         links = _account(
             links,
-            sum(
-                len(value.source_execution_ids) + len(value.confirmation_ids)
-                for value in resolutions.values()
-            ),
+            sum(value.provenance_links for value in resolutions.values()),
         )
         sources.extend(
             _source(fact, replacements, current, histories, resolutions) for fact in history
@@ -420,6 +426,12 @@ def build_closed_report(snapshot: ReportSnapshot, filters: ReportFilters) -> Clo
     sources.sort(key=lambda source: order[source.execution_id])
     material = asdict(snapshot)
     del material["read_started_at"], material["read_completed_at"]
+    if not snapshot.currency_evidence:
+        del material["currency_evidence"]
+    else:
+        material["currency_evidence"] = [
+            asdict(item) for item in sorted(snapshot.currency_evidence, key=lambda item: item.id)
+        ]
     canonical = {
         "definition": DEFINITION_VERSION,
         "filters": asdict(filters),
@@ -427,6 +439,7 @@ def build_closed_report(snapshot: ReportSnapshot, filters: ReportFilters) -> Clo
         "snapshot": material,
         "source_time_intervals": [asdict(execution_time(fact)) for fact in snapshot.executions],
         "decimal_context": [getcontext().prec, getcontext().rounding],
+        **({"currency_resolver": RESOLVER_VERSION} if snapshot.currency_evidence else {}),
     }
     fingerprint = hashlib.sha256(
         json.dumps(canonical, default=_json_value, sort_keys=True, separators=(",", ":")).encode()

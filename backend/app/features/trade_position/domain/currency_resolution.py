@@ -9,11 +9,18 @@ without pretending to reconstruct their former effective purchase prefix.
 """
 
 from collections.abc import Mapping, Sequence
-from datetime import datetime
+from dataclasses import replace
+from datetime import date, datetime
 from typing import Protocol
 from uuid import UUID
 
 from app.features.trade_position.domain.currency import ExecutionCurrencyResolution
+from app.features.trade_position.domain.currency_evidence import (
+    CurrencyEvidence as ReviewedCurrencyEvidence,
+)
+from app.features.trade_position.domain.historical_currency_resolution import (
+    resolve_historical_currency,
+)
 from app.features.trade_position.domain.models import Trade
 
 
@@ -35,6 +42,12 @@ class CurrencyExecution(Protocol):
 
     @property
     def recorded_at(self) -> datetime: ...
+
+    @property
+    def executed_on(self) -> date | None: ...
+
+    @property
+    def execution_timezone(self) -> str | None: ...
 
     @property
     def supersedes_execution_id(self) -> UUID | None: ...
@@ -69,20 +82,35 @@ def resolve_execution_currencies(
     trade: Trade,
     executions: Sequence[CurrencyExecution],
     current: Mapping[UUID, CurrencyEvidence],
+    evidence: Sequence[ReviewedCurrencyEvidence] = (),
     max_provenance_links: int | None = None,
 ) -> dict[UUID, ExecutionCurrencyResolution]:
     """Resolve each fact without mutating inputs or borrowing cross-scope evidence.
 
-    Priority is own declaration, explicit same-side correction ancestor, then the
-    complete earlier effective BUY prefix. All actual BUYs in that prefix must
-    resolve to one currency. Earlier SELL proceeds do not enter that decision.
+    Priority is own declaration, exact execution document, evidenced venue, then
+    complete historical listings. Existing same-side confirmation ancestry and
+    confirmed-BUY reuse apply only without a competing source. A historical
+    derivation never seeds reuse outside its evidenced interval.
     """
     facts = {execution.id: execution for execution in executions}
     bases: dict[UUID, ExecutionCurrencyResolution] = {}
+    historical = []
+    documents: dict[UUID, list[ReviewedCurrencyEvidence]] = {}
+    for source_fact in evidence:
+        if (
+            source_fact.workspace_id != trade.workspace_id
+            or source_fact.product_id != trade.product_id
+        ):
+            continue
+        if source_fact.kind == "HISTORICAL_LISTINGS":
+            historical.append(source_fact)
+        elif source_fact.trade_id == trade.id and source_fact.execution_id is not None:
+            documents.setdefault(source_fact.execution_id, []).append(source_fact)
 
     def in_scope(execution: CurrencyExecution) -> bool:
         return execution.trade_id == trade.id and execution.product_id == trade.product_id
 
+    source_checks = 0
     for execution in executions:
         confirmation = current.get(execution.id)
         if (
@@ -99,8 +127,26 @@ def resolve_execution_currencies(
                 source_execution_ids=(execution.id,),
                 confirmation_ids=(confirmation.id,),
             )
+            continue
+        if in_scope(execution):
+            sources = [*historical, *documents.get(execution.id, ())]
+            source_checks += len(sources)
+            if max_provenance_links is not None and source_checks > max_provenance_links:
+                raise CurrencyResolutionLimitExceeded("Currency source checks exceed read bound")
+            automatic = resolve_historical_currency(
+                trade=trade, execution=execution, evidence=sources
+            )
+            if (
+                automatic.currency_code is not None
+                or automatic.source in {"CONFLICT", "MIXED"}
+                or automatic.evidence_ids
+                or automatic.reason not in {None, "NO_HISTORICAL_EVIDENCE"}
+            ):
+                bases[execution.id] = automatic
 
     # Memoized iterative ancestry avoids recursion depth and repeated chain walks.
+    # Every own source is known first: a later replacement cannot skip a reviewed
+    # source on its predecessor to resurrect an older, superseded declaration.
     for execution in executions:
         path: list[CurrencyExecution] = []
         visited: set[UUID] = set()
@@ -122,6 +168,23 @@ def resolve_execution_currencies(
                 break
             cursor = predecessor
         inherited = bases.get(cursor.id, ExecutionCurrencyResolution())
+        reusable = inherited.currency_code is not None and inherited.source in {
+            "USER_CONFIRMED",
+            "REPLACED_EXECUTION",
+        }
+        blocked = (
+            replace(
+                inherited,
+                currency_code=None,
+                source="UNKNOWN",
+                source_execution_ids=tuple(
+                    dict.fromkeys((cursor.id, *inherited.source_execution_ids))
+                ),
+                reason="CORRECTION_SOURCE_REVIEW_REQUIRED",
+            )
+            if not reusable and (inherited.evidence_ids or inherited.reason is not None)
+            else ExecutionCurrencyResolution()
+        )
         for item in reversed(path):
             bases[item.id] = (
                 ExecutionCurrencyResolution(
@@ -130,8 +193,8 @@ def resolve_execution_currencies(
                     source_execution_ids=inherited.source_execution_ids,
                     confirmation_ids=inherited.confirmation_ids,
                 )
-                if inherited.currency_code is not None
-                else ExecutionCurrencyResolution()
+                if reusable
+                else blocked
             )
 
     superseded = {
@@ -143,13 +206,23 @@ def resolve_execution_currencies(
     prior_codes: set[str] = set()
     has_unknown_buy = False
     has_mixed_buy = False
+    reusable_buy_prefix = True
     links = 0
     for execution in sorted(executions, key=lambda e: (e.executed_at, e.recorded_at, e.id)):
         resolution = bases[execution.id]
         effective = execution.id not in superseded
-        if resolution.currency_code is None and effective and in_scope(execution):
+        if (
+            resolution.currency_code is None
+            and resolution.source == "UNKNOWN"
+            and not resolution.evidence_ids
+            and resolution.reason in {None, "NO_HISTORICAL_EVIDENCE"}
+            and effective
+            and in_scope(execution)
+        ):
             mixed = has_mixed_buy or len(prior_codes) > 1
-            usable = bool(prior_buy_ids) and not has_unknown_buy and not mixed
+            usable = (
+                bool(prior_buy_ids) and not has_unknown_buy and not mixed and reusable_buy_prefix
+            )
             # Check before copying a potentially large repeated provenance prefix.
             size = len(prior_buy_ids) + len(prior_confirmation_ids)
             if max_provenance_links is not None and links + size > max_provenance_links:
@@ -160,7 +233,7 @@ def resolve_execution_currencies(
                 source_execution_ids=tuple(prior_buy_ids),
                 confirmation_ids=tuple(prior_confirmation_ids),
             )
-        links += len(resolution.source_execution_ids) + len(resolution.confirmation_ids)
+        links += resolution.provenance_links
         if max_provenance_links is not None and links > max_provenance_links:
             raise CurrencyResolutionLimitExceeded("Currency provenance exceeds read bound")
         result[execution.id] = resolution
@@ -168,9 +241,14 @@ def resolve_execution_currencies(
             prior_buy_ids[execution.id] = None
             prior_buy_ids.update(dict.fromkeys(resolution.source_execution_ids))
             prior_confirmation_ids.update(dict.fromkeys(resolution.confirmation_ids))
+            reusable_buy_prefix &= resolution.source in {
+                "USER_CONFIRMED",
+                "REPLACED_EXECUTION",
+                "PRIOR_BUYS",
+            }
             if resolution.currency_code is not None:
                 prior_codes.add(resolution.currency_code)
             else:
-                has_unknown_buy |= resolution.source == "UNKNOWN"
+                has_unknown_buy |= resolution.source in {"UNKNOWN", "CONFLICT"}
                 has_mixed_buy |= resolution.source == "MIXED"
     return result

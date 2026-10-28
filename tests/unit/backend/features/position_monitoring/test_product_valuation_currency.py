@@ -35,6 +35,9 @@ from app.features.trade_position.domain.currency import (
 )
 from app.features.trade_position.domain.enums import ExecutionSide
 from app.features.trade_position.domain.models import ExecutionRecord
+from app.features.trade_position.persistence.currency_evidence import (
+    SqlAlchemyCurrencyEvidenceRepository,
+)
 from app.features.trade_position.persistence.currency_repository import (
     SqlAlchemyExecutionCurrencyConfirmationRepository,
 )
@@ -105,6 +108,11 @@ def service(
         SqlAlchemyExecutionCurrencyConfirmationRepository,
         "current_for_trade",
         AsyncMock(return_value=current),
+    )
+    monkeypatch.setattr(
+        SqlAlchemyCurrencyEvidenceRepository,
+        "list_for_product",
+        AsyncMock(return_value=()),
     )
     result = _quote_result(
         listing_id=listing.id, bid=Decimal(bid), ask=Decimal(bid) + Decimal("0.05")

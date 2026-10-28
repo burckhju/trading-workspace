@@ -11,8 +11,9 @@ import { WarrantListingFields, type ListingFields } from './WarrantListingFields
 import { WarrantQuoteHistory } from './WarrantQuoteHistory';
 import { WarrantTermsEditor, WarrantTermsValues } from './WarrantTermsEditor';
 import { WarrantValuationEvidence } from './WarrantValuationEvidence';
+import { CurrencyEvidenceEditor } from './CurrencyEvidenceEditor';
 
-type Editor = 'terms' | 'listing' | 'identifiers' | 'evidence' | null;
+type Editor = 'terms' | 'listing' | 'identifiers' | 'evidence' | 'currency-evidence' | null;
 const EMPTY_LISTING: ListingFields = {
   trading_venue_id: '',
   symbol: '',
@@ -521,6 +522,43 @@ export function WarrantProductDetail({
                 className={buttonClass}
               >
                 Notierung hinzufügen
+              </button>
+            </>
+          )}
+        </section>
+        <section
+          data-active-editor={editor === 'currency-evidence' ? true : undefined}
+          aria-label="Historische Ausführungswährung"
+          className="space-y-3 border-t border-slate-800 pt-5"
+        >
+          <h3 className="font-semibold">Historische Währungsquellen</h3>
+          {editor === 'currency-evidence' ? (
+            <CurrencyEvidenceEditor
+              key={editorRevision}
+              productId={id}
+              venues={venues}
+              disabled={ownBusy || reading}
+              readDisabled={ownBusy || reading}
+              onCancel={cancelEditor}
+              onPendingChange={(state) => {
+                updateDirty(state.dirty);
+                updateChildBusy(state.busy || Boolean(state.writeBlocked));
+              }}
+            />
+          ) : (
+            <>
+              <p className="text-sm text-slate-400">
+                Eine geprüfte historische Quelle kann passende Käufe und Verkäufe automatisch
+                zuordnen. Aktuelle EUR-Notierungen allein sind kein historischer Nachweis.
+              </p>
+              <button
+                type="button"
+                disabled={!canAct || editor !== null}
+                data-editor-trigger="currency-evidence"
+                onClick={() => openEditor('currency-evidence')}
+                className={buttonClass}
+              >
+                Historische Währungsquellen prüfen
               </button>
             </>
           )}

@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.pool import NullPool
 
 WORKSPACE = "00000000-0000-4000-8000-000000000001"
-REVISION = "20261017_0047"
+REVISION = "20261028_0048"
 
 
 def verify_global_issuer_audits(rows, run_id):
