@@ -974,5 +974,26 @@ Navigation, 135 EUR Marktwert/6 von 6 und 0 EUR PnL/3 von 6. Die drei strikt
 CI-nativen Gates sind lokal nicht ausgeführt; aktuelle headgebundene CI-Ergebnisse
 und Reviewbereitschaft stehen in [PR #297](https://github.com/burckhju/trading-workspace/pull/297).
 Historische Erfolge ersetzen diese Nachweise nicht. Kein neuer Ausführungsowner,
-keine FX-Annahme, Migration, Fachgesamtabnahme, Merge-, Release- oder PC-Freigabe.
-Der Arbeitsstatus bleibt allein im Backlog; Nutzerbetrieb ist nicht belegt.
+keine FX-Annahme, Migration oder Fachgesamtabnahme. Der ursprüngliche PR-Auftrag
+enthielt keine Merge-, Release- oder PC-Freigabe. Der Arbeitsstatus bleibt allein
+im Backlog; Nutzerbetrieb ist nicht belegt.
+
+### Nachtrag 28.10.2026 — Integration und versionierte PC-Bereitstellung
+
+Neue ausdrückliche Nutzerfreigabe **„wenn grün mergen und für den PC bereitstellen“**
+→ vollständig grüner [PR #297](https://github.com/burckhju/trading-workspace/pull/297),
+Head `73da7e076c5d9236e9f9aabb0f5e86c309dad5b4`, tatsächlich geprüfter
+CI-Testmerge `7d58ec6e5fd6dcb6b5bec2958c283c5ec97830cd`
+→ tatsächlicher Implementierungsmerge
+`1f6ca802df25b2d508338ac837fdfb39ac79eca2` mit identischem Tree
+`93de00ad0e5bd8e66c666e5cd4efcb3f23c59781`
+→ [begrenzter Release v1.5.30](../releases/V1.5.30-POSITION-PNL-CURRENCY.md)
+mit gemeinsam fortgeschriebenen Versionsmetadaten und unverändertem Publisher
+→ neue Release-PR-/Main-Prüfungen sowie tatsächlich veröffentlichter Tag-SHA
+als eigener Nachweis im zugehörigen Release-PR
+→ vorhandener, auf Tag und vollständigen SHA gepinnter PC-Updateweg.
+
+Bei Anlage dieses Nachtrags war v1.5.30 noch nicht veröffentlicht. Die Freigabe
+belegt keine ausgeführte PC-Installation, menschliche Fachabnahme oder vollständige
+reale Währungsabdeckung. Die vorhandenen Backlogeinträge trennen weiterhin
+Implementierung, technische Prüfung, Softwarelieferung und beobachteten Betrieb.
