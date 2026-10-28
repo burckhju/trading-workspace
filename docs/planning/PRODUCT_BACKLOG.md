@@ -1178,15 +1178,15 @@ bleiben getrennt. Die ursprünglichen historischen Nachweise oben bleiben erhalt
 | Nachweisfeld | Einordnung |
 |---|---|
 | Zuordnung | M5: abgeleitetes Positionsergebnis; Vorleistung für M8. Bereich/Querschnitt: 5, 8. Bestehender Bezug: FT-010 auf FT-009 Execution-/Position-Vertrag. Lieferziel: C. |
-| Arbeitsstatus | Technical Review — Währungsqualifikation laufender Bewertungen vom 28.10.2026 implementiert, vollständig PR-qualifiziert und mit [PR #297](https://github.com/burckhju/trading-workspace/pull/297) integriert. Der folgende [v1.5.30-Release](../releases/V1.5.30-POSITION-PNL-CURRENCY.md) ist freigegeben. Historischer Realisationsumfang und Kaufwährungs-Wiederverwendung behalten ihre eigenen Nachweis-/Auslieferungsgrenzen. |
+| Arbeitsstatus | Technical Review — Währungsqualifikation laufender Bewertungen mit [PR #297](https://github.com/burckhju/trading-workspace/pull/297) und historische Quellen mit [PR #298](https://github.com/burckhju/trading-workspace/pull/298) am 28.10.2026 vollständig PR-qualifiziert und integriert. Die [Bereitstellung v1.5.31](../releases/V1.5.31-HISTORICAL-EXECUTION-CURRENCY.md) ist freigegeben; Veröffentlichung und PC-Installation sind noch keine belegten Ergebnisse dieses Nachtrags. Historische Realisations- und Wiederverwendungsnachweise behalten ihre eigenen Grenzen. |
 | Soll / Nicht-Soll | **Soll:** Realisiertes Brutto-PnL und Einstand aus effektiven BUY-/SELL-Fakten nach bestehender Average-Cost-Semantik ableiten. **Nicht-Soll:** Keine Gebühren, Steuern, Nettoerträge, Depot-Equity oder tradeübergreifende Performance erfinden. |
 | Vorhandenseinsnachweis | Bestehender FT-010-Average-Cost-Owner und SELL-Trace bleiben erhalten. Ein gemeinsamer reiner Resolver verwendet direkte Kaufbestätigungen, gleichseitige Korrekturherkunft und vollständige vorherige BUY-Basis; keine gespeicherte Zweitwahrheit. |
-| Implementierung / Consumer | [PositionProjector.project/project_with_trace](../../backend/app/features/trade_position/domain/projector.py) behält eine Schleife und exakte Decimal-Reihenfolge. [Owner-Währungsresolver](../../backend/app/features/trade_position/domain/currency_resolution.py) ergänzt `currency_resolution` an Capture, Timeline, History und Report; eigene Bestätigungen bleiben append-only. Schema unverändert 0047. |
+| Implementierung / Consumer | [PositionProjector.project/project_with_trace](../../backend/app/features/trade_position/domain/projector.py) behält eine Schleife und exakte Decimal-Reihenfolge. [Owner-Währungsresolver](../../backend/app/features/trade_position/domain/currency_resolution.py) liefert `currency_resolution` an Capture, Timeline, History, Report und Positionsbewertung; eigene Bestätigungen bleiben append-only. PR #298 ergänzt mit Schema `20261028_0048` separate unveränderliche Quellenhistorie ohne Backfill; die vorherige Kaufwährungs-Wiederverwendung benötigte keine Migration über 0047 hinaus. |
 | Test / Commit | [Kaufwährungs-Wiederverwendung: Quellen, Vertrag und Qualifikation](../implementation/EXECUTION_CURRENCY_REUSE_QUALIFICATION.md). Die [V1.5.9-Berichtsqualifikation](../implementation/PERIOD_REALIZED_GROSS_REPORT_QUALIFICATION.md) und vorherige Trace-Qualifikation bleiben historische Nachweise mit eigenem Codebezug. Der [laufende Bewertungsfix](../implementation/POSITION_VALUATION_CURRENCY_QUALIFICATION.md#prüfbelege-vom-28102026) ergänzt belegte rote Ausgangsregressionen, vollständige lokale Gates und acht native PostgreSQL-Fälle ohne Änderung der Finanzformel. Synthetische Bestätigungen belegen keine Nutzerdatenwährung. |
 | Fachliche Abnahme | V1-Vertrag am 17.10.2026 zur Umsetzung freigegeben. Am 20.10.2026 ausdrücklich präzisiert: Kaufwährung auch für Verkauf nutzen, so wenig zusätzliche Eingaben wie möglich (ADR-S10-008-Nachtrag). Merge und PC-Bereitstellung nach grünen Prüfungen bereits autorisiert. Keine vollständige M8- oder abschließende PC-Fachabnahme daraus abgeleitet. |
 | Software-Auslieferung | V1.5.9 auf `254fe35b76027b72cd989715e17bd0ae55af55eb` veröffentlicht. [V1.5.10](../releases/V1.5.10-EXECUTION-CURRENCY-REUSE.md) ergänzt reine Owner-Währungsableitung ohne Migration; Veröffentlichung erst nach erfolgreichen aktuellen PR- und main-Prüfungen durch vorhandenen Version-Workflow. |
 | Betriebsnachweis | Am 20.10.2026 meldet der Nutzer vier gesunde Dienste, `ready` und installiert 1.5.9 / `254fe35b76027b72cd989715e17bd0ae55af55eb`; lesende Berichtsansicht beobachtet. Kein Installations- oder Fachabnahmenachweis für 1.5.10 und keine Aussage über vollständige reale Währungsabdeckung. |
-| Restarbeit / nächste Abhängigkeit | Tatsächlicher Abschluss des freigegebenen v1.5.30-Releases und neue Release-PR-/Main-/Publisher-/Tagbezüge werden am zugehörigen Release-PR geführt. Anschließend bleiben historische Kaufwährungs-Wiederverwendung und echte Quellenabdeckung am PC lesend fachlich zu prüfen; ein Release ersetzt diesen Nachweis nicht. Fehlende echte Kaufbelege bleiben eine Datenlücke; keine neue Bestätigung je SELL nötig. **Nächste Abhängigkeit:** tag-/commitgebundener Release-Nachweis sowie echte Quellen-/Zielbeobachtung; keine ausgeführte PC-Installation oder Fachabnahme. |
+| Restarbeit / nächste Abhängigkeit | Freigegebene Bereitstellung v1.5.31 mit neuen Release-PR-/Main-/Publisher-/Tagbelegen abschließen. Echte Quellenabdeckung und Nutzerbetrieb bleiben anschließend gesondert zu prüfen; ein Release ersetzt diese Nachweise nicht. Fehlende historische Quellen bleiben eine Datenlücke; gesicherte Quellen verlangen keine neue Bestätigung je SELL. **Nächste Abhängigkeit:** tag-/commitgebundener Release-Nachweis; kein PC-Zugriff oder produktiver Datenänderungsauftrag in diesem Schnitt. |
 | Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
 
 **Fortschreibung 28.10.2026:** Der [enge laufende Bewertungsvertrag samt tatsächlicher Qualifikation](../implementation/POSITION_VALUATION_CURRENCY_QUALIFICATION.md)
@@ -1210,6 +1210,17 @@ ist auf `1f6ca802df25b2d508338ac837fdfb39ac79eca2` integriert.
 Veröffentlichungsqualifikation getrennt von den historischen Lieferbelegen oben.
 Bei Anlage des Nachtrags noch kein veröffentlichter v1.5.30-Tag und kein
 PC-Installationsnachweis; unveränderter Finanz-/Währungsvertrag.
+
+**Liefernachtrag 28.10.2026 zu v1.5.31:** [PR #298](https://github.com/burckhju/trading-workspace/pull/298)
+ist nach grüner CI auf `271d2abbad076c867352297b96e29b6aa4b19092` integriert.
+Der [historische Quellenvertrag mit Integrations- und Prüfbelegen](../implementation/HISTORICAL_EXECUTION_CURRENCY.md)
+ergänzt die automatische Wiederverwendung einmal geprüfter Quellen in
+Performanceberichten und laufender Positionsbewertung. Heutige EUR-Listings
+allein reichen weiterhin nicht. Der Auftrag **„Update für pc bereitstellen“**
+autorisiert den [engen Release v1.5.31](../releases/V1.5.31-HISTORICAL-EXECUTION-CURRENCY.md).
+Bei Anlage dieses Nachtrags steht dessen Veröffentlichung noch aus; Release-PR,
+Main, Publisher und tatsächlicher Tag-/Commitbezug erhalten eigene Belege.
+Keine PC-Installation, produktive Datenkorrektur oder vollständige M8-Abnahme.
 
 </details>
 
@@ -1571,7 +1582,7 @@ Nachweis vollständiger realer Währungsabdeckung oder einer neuen Auslieferung.
 | Nachweisfeld | Einordnung |
 |---|---|
 | Zuordnung | M8: Auswertungen. Bereich/Querschnitt: 8. Bestehender Bezug: FT-012; vorhandener Evaluation-Owner. Lieferziel: C. |
-| Arbeitsstatus | Technical Review; enger SELL-Zeitraumbericht vorhanden. Kaufwährungs-Wiederverwendung und Eingabevereinfachung am 20.10.2026 ausdrücklich entschieden und implementiert; neue Qualifikation und Zielupdate gesondert belegen. |
+| Arbeitsstatus | Technical Review; bestehende Verkaufs- und Abschlussberichte verwenden die mit [PR #298](https://github.com/burckhju/trading-workspace/pull/298) am 28.10.2026 qualifiziert integrierten historischen Währungsquellen. Die [Bereitstellung v1.5.31](../releases/V1.5.31-HISTORICAL-EXECUTION-CURRENCY.md) ist freigegeben; Veröffentlichung, reale Quellenabdeckung und PC-Installation bleiben gesonderte Nachweise. |
 | Soll / Nicht-Soll | **Soll:** Explizite Zeit-/Tradeauswahl, Stichtag und nachvollziehbare Berechnungsgrenzen. **Nicht-Soll:** Keine stillen historischen Rekonstruktionen eines damals unbekannten Datenstands. |
 | Vorhandenseinsnachweis | Ausgangssuche auf e9aac2bf fand keinen passenden registrierten Consumer. Die neue registrierte Strecke zeigt vollständige SELL-Beiträge, Quellen, Perioden-/Währungsqualifikation und Datenabdeckung aus einem konsistenten Read. |
 | Implementierung / Consumer | Bestehender Execution-Owner liefert gemeinsame nachvollziehbare Währungsableitung; PositionProjector liefert unveränderte SELL-Deltas. Vorhandener konsistenter performance-Reader, GET /api/v1/performance/realized-gross und Frontendroute /performance/realized-gross nutzen Definition `realized-gross-sell-v2`. [Präzisierter Vertrag und Herkunft](../implementation/EXECUTION_CURRENCY_REUSE_QUALIFICATION.md). |
@@ -1579,7 +1590,7 @@ Nachweis vollständiger realer Währungsabdeckung oder einer neuen Auslieferung.
 | Fachliche Abnahme | V1-Vertrag am 17.10.2026 zur Umsetzung freigegeben. Am 20.10.2026 ausdrücklich präzisiert: Kaufwährung auch für Verkauf nutzen, so wenig zusätzliche Eingaben wie möglich (ADR-S10-008-Nachtrag). Merge und PC-Bereitstellung nach grünen Prüfungen bereits autorisiert. Keine vollständige M8- oder abschließende PC-Fachabnahme daraus abgeleitet. |
 | Software-Auslieferung | V1.5.9 auf `254fe35b76027b72cd989715e17bd0ae55af55eb` veröffentlicht. [V1.5.10](../releases/V1.5.10-EXECUTION-CURRENCY-REUSE.md) ergänzt reine Owner-Währungsableitung ohne Migration; Veröffentlichung erst nach erfolgreichen aktuellen PR- und main-Prüfungen durch vorhandenen Version-Workflow. |
 | Betriebsnachweis | Am 20.10.2026 meldet der Nutzer vier gesunde Dienste, `ready` und installiert 1.5.9 / `254fe35b76027b72cd989715e17bd0ae55af55eb`; lesende Berichtsansicht beobachtet. Kein Installations- oder Fachabnahmenachweis für 1.5.10 und keine Aussage über vollständige reale Währungsabdeckung. |
-| Restarbeit / nächste Abhängigkeit | Nach Auslieferung die vorhandene Zeitraumauswahl erneut lesend prüfen: qualifizierte Käufe benötigen keine Einzelbestätigung ihrer Verkäufe. **Nächste Abhängigkeit:** v1.5.10 auf erfolgreich geprüftem main-Commit; danach technischer PC-Status und gesonderte fachliche Quellenkontrolle. Keine erneute pauschale Veröffentlichungsfreigabe erforderlich. |
+| Restarbeit / nächste Abhängigkeit | Freigegebene Bereitstellung v1.5.31 mit aktuellen Release-PR-/Main-/Publisherprüfungen und Tag-/Commitbezug abschließen. Einmal geprüfte historische Quellen werden für passende Buchungen automatisch wiederverwendet; unbelegte Fälle bleiben ungeklärt. **Nächste Abhängigkeit:** tatsächlicher Release-Nachweis, danach gesonderte reale Quellen- und Betriebsbeobachtung. Kein PC-Zugriff oder produktiver Datenänderungsauftrag in diesem Schnitt. |
 | Umfangsentscheidung | Der enge erste Brutto-SELL-Schnitt erfüllt keinen vollständigen M8-Umfang. Statistik-/Kohorten-/Diagramm-/Exportanforderungen bleiben erhalten; weitere Kennzahlen behalten ihre eigenen offenen Fachverträge. |
 
 </details>
@@ -2106,7 +2117,19 @@ Reale PC-Installation und menschliche Fachabnahme sind davon getrennt.
 <a id="naechster-schnitt"></a>
 ## Genau nächster sinnvoller Umsetzungsschritt
 
-**Aktueller Liefernachtrag 28.10.2026:** Der tatsächliche Abschluss des ausdrücklich
+**Aktueller Liefernachtrag 28.10.2026 zu v1.5.31:** Nach dem freigegebenen und
+erfolgten Merge von [PR #298](https://github.com/burckhju/trading-workspace/pull/298)
+auf `271d2abbad076c867352297b96e29b6aa4b19092` ist die
+[versionierte PC-Bereitstellung der historischen Währungsquellen](../releases/V1.5.31-HISTORICAL-EXECUTION-CURRENCY.md)
+der nächste beauftragte Lieferschritt. Der Release ist bei Anlage dieses
+Nachtrags noch nicht veröffentlicht; aktuelle Release-PR-, Main- und
+Publisherprüfungen sowie der veröffentlichte Tag-/Commitbezug werden im
+Release-PR belegt. Schema `20261028_0048` stammt bereits aus dem Feature und
+führt keinen historischen Backfill aus. PC-Zugriff, Installation und produktive
+Datenänderungen sind nicht beauftragt; reale Quellenabdeckung und vollständige
+M8-Abnahme werden nicht aus dem Release abgeleitet.
+
+**Historischer Liefernachtrag 28.10.2026 zu v1.5.30:** Der tatsächliche Abschluss des ausdrücklich
 freigegebenen [v1.5.30-Releases des integrierten Währungsfixes](../releases/V1.5.30-POSITION-PNL-CURRENCY.md)
 wird am zugehörigen Release-PR mit neuen PR-/Main-/Publisherbelegen und dem
 veröffentlichten Tag-/Commitbezug geführt. Eine PC-Installation wird in diesem

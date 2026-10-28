@@ -183,6 +183,42 @@ prüft diesen Fall einschließlich Herkunft und Basis-Hash.
 
 Die tatsächlichen lokalen Ergebnisse und CI-Läufe werden im zugehörigen PR an
 den geprüften Head gebunden. Vorherige grüne Läufe gelten nicht als Nachweis
-für einen nachträglich geänderten Head. Der Auftrag umfasst Featurebranch und PR;
-Merge, Release, Deployment, PC-Update und produktive Datenkorrektur sind nicht
-freigegeben und werden hier nicht durchgeführt.
+für einen nachträglich geänderten Head. **Ursprünglicher Auftragsstand vom
+28.10.2026, vor der nachfolgenden Freigabe:** Der Auftrag umfasste Featurebranch
+und PR; Merge, Release, Deployment, PC-Update und produktive Datenkorrektur waren
+zu diesem Zeitpunkt nicht freigegeben.
+
+## Nachtrag 28.10.2026 — Integration und Freigabe für die PC-Bereitstellung
+
+Die anschließenden Nutzeranweisungen **„Status und wenn grün mergen“** und
+**„Update für pc bereitstellen“** autorisieren die Integration nach grünen
+Prüfungen und die versionierte Bereitstellung. [PR #298](https://github.com/burckhju/trading-workspace/pull/298)
+wurde am **28.10.2026 um 22:00 MEZ** tatsächlich in Main gemergt:
+
+| Bindung | Nachweis |
+|---|---|
+| Feature-Head | `104e4e6f7200c97845a3e5a4b27d8ca4aa6a81d6` |
+| Geprüfter CI-Testmerge | `c0f1b4331027a139f0a710589327d230f1dd272f` |
+| Tatsächlicher Main-Merge | `271d2abbad076c867352297b96e29b6aa4b19092` |
+| Identischer vollständiger Tree | `14354d6ee6dd0b3f9cd7545a2001cef2a8f357cb` |
+
+Die regulären Prüfungen dieses Implementierungsstands sind abgeschlossen:
+
+| Prüfung | Ergebnis |
+|---|---|
+| [Backend 40765686391](https://github.com/burckhju/trading-workspace/actions/runs/40765686391) | 3.583 Tests bestanden, keine Skips; 87,79 % Coverage. Alle zehn neuen PostgreSQL-Fälle für Quellenowner und Positionsbewertung bestanden. |
+| [Frontend 40765686412](https://github.com/burckhju/trading-workspace/actions/runs/40765686412) | 1.775 Tests in 153 Dateien bestanden; Statements/Lines 95,81 % Coverage. |
+| [End-to-End 40765686440](https://github.com/burckhju/trading-workspace/actions/runs/40765686440) | 115 Smoke-Fälle und fünf separat ausgeführte native Ownerfälle bestanden. |
+| [Version 40765686463](https://github.com/burckhju/trading-workspace/actions/runs/40765686463) | Veröffentlichungsschutz erfolgreich; der PR-Lauf veröffentlicht keinen Release. |
+
+Der [begrenzte Release v1.5.31](../releases/V1.5.31-HISTORICAL-EXECUTION-CURRENCY.md)
+baut auf diesem Merge auf. Schema `20261028_0048` ist bereits Bestandteil des
+Features: additive Quellenhistorie ohne Backfill bestehender Buchungen oder
+heutiger Listings. Die obigen Ergebnisse qualifizieren den Implementierungsstand;
+die neuen Release-PR-, Main- und Publisherprüfungen sowie der veröffentlichte
+Tag-/Commitbezug werden separat im Release-PR belegt.
+
+**Bei Anlage dieses Nachtrags ist v1.5.31 noch nicht veröffentlicht.** Es wurde
+kein PC-Zugriff und keine Änderung produktiver Buchungen oder Nutzerbestände
+beauftragt. Eine PC-Installation, reale Währungsabdeckung oder vollständige
+M8-Fachabnahme wird nicht behauptet.

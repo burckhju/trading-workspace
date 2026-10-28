@@ -997,3 +997,28 @@ Bei Anlage dieses Nachtrags war v1.5.30 noch nicht veröffentlicht. Die Freigabe
 belegt keine ausgeführte PC-Installation, menschliche Fachabnahme oder vollständige
 reale Währungsabdeckung. Die vorhandenen Backlogeinträge trennen weiterhin
 Implementierung, technische Prüfung, Softwarelieferung und beobachteten Betrieb.
+
+## 2026-10-28 — historische Währungsquellen integriert, v1.5.31 zur Bereitstellung freigegeben
+
+[PB-017 Brutto-PnL](../planning/PRODUCT_BACKLOG.md#pb-017-gross-pnl) und
+[PB-019 Perioden-/Tradeauswertungen](../planning/PRODUCT_BACKLOG.md#pb-019-performance-evaluations)
+→ einmal geprüfte historische Notierungsquellen und exakt zugeordnete
+Ausführungsbelege, gemeinsame nachvollziehbare Währungsauflösung
+→ bestehende Average-Cost-, Berichts- und Positionsbewertungsowner
+→ [Quellenvertrag, Prüfbelege und datierter Integrationsnachtrag](../implementation/HISTORICAL_EXECUTION_CURRENCY.md)
+→ Nutzerfreigaben **„Status und wenn grün mergen“** und **„Update für pc bereitstellen“**
+→ tatsächlicher Merge von [PR #298](https://github.com/burckhju/trading-workspace/pull/298)
+am 28.10.2026 um 22:00 MEZ auf `271d2abbad076c867352297b96e29b6aa4b19092`
+→ [begrenzte Releasevorbereitung v1.5.31](../releases/V1.5.31-HISTORICAL-EXECUTION-CURRENCY.md).
+
+Der Implementierungsnachtrag bindet Feature-Head, grünen CI-Testmerge und
+identischen Merge-Tree an die vier regulären erfolgreichen CI-Läufe. Alle zehn
+neuen PostgreSQL-Fälle sind bestanden. Schema `20261028_0048` gehört bereits zum
+Feature und ergänzt Quellenhistorie ohne Backfill; heutige Listings allein
+entsperren weiterhin keine historische Währung.
+
+Bei Anlage dieses Nachtrags ist v1.5.31 noch nicht veröffentlicht. Release-PR-,
+Main- und Publisherprüfungen sowie der tatsächliche Tag-/Commitbezug werden
+gesondert im Release-PR belegt. Weder PC-Zugriff noch produktive Datenkorrekturen
+sind beauftragt; PC-Installation, reale Quellenabdeckung und vollständige
+M8-Abnahme bleiben eigenständige Nachweise.
