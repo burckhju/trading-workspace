@@ -1,0 +1,77 @@
+name: Prepare UI5 release inputs
+
+on:
+  push:
+    branches: [chore/prepare-v1.5.27-ui5]
+
+permissions: {}
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ca4258fd8606b7ac4a4b931c1946b1c529eafa18
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.16.0
+      - name: Export pinned public main and prepare version metadata offline
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = ca4258fd8606b7ac4a4b931c1946b1c529eafa18
+          mkdir -p /tmp/ui5-inputs
+          git archive --format=tar.gz HEAD > /tmp/ui5-inputs/main-source.tar.gz
+          python - <<'PY'
+          from pathlib import Path
+          assert Path('VERSION').read_text() == '1.5.27\n'
+          Path('VERSION').write_text('1.5.28\n')
+          p = Path('backend/pyproject.toml')
+          old = p.read_text()
+          assert old.count('version = "1.5.27"') == 1
+          p.write_text(old.replace('version = "1.5.27"', 'version = "1.5.28"', 1))
+          PY
+          (cd frontend && npm version 1.5.28 --no-git-tag-version --ignore-scripts --offline)
+          python - <<'PY'
+          import json, pathlib, subprocess
+          expected = {'VERSION', 'backend/pyproject.toml', 'frontend/package.json', 'frontend/package-lock.json'}
+          changed = set(subprocess.check_output(['git', 'diff', '--name-only', 'HEAD'], text=True).splitlines())
+          assert changed == expected, changed
+          for name in ('frontend/package.json', 'frontend/package-lock.json'):
+              before = json.loads(subprocess.check_output(['git', 'show', 'HEAD:' + name]))
+              after = json.loads(pathlib.Path(name).read_text())
+              assert before['version'] == '1.5.27' and after['version'] == '1.5.28'
+              before['version'] = '1.5.28'
+              if name.endswith('package-lock.json'):
+                  assert before['packages']['']['version'] == '1.5.27'
+                  assert after['packages']['']['version'] == '1.5.28'
+                  before['packages']['']['version'] = '1.5.28'
+              assert before == after, 'Unexpected dependency or metadata change: ' + name
+          PY
+          git diff --check
+          git diff --stat
+          node --test .github/tests/version-tag.test.cjs
+          tar -czf /tmp/ui5-inputs/version-files.tar.gz VERSION backend/pyproject.toml frontend/package.json frontend/package-lock.json
+          (cd /tmp/ui5-inputs && sha256sum *.tar.gz > SHA256SUMS)
+      - name: Store version blobs only; no main, branch, tag or release publication
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const { owner, repo } = context.repo;
+            for (const path of ['VERSION', 'backend/pyproject.toml', 'frontend/package.json', 'frontend/package-lock.json']) {
+              const content = fs.readFileSync(path, 'utf8');
+              const blob = await github.rest.git.createBlob({owner, repo, content, encoding: 'utf-8'});
+              core.info(JSON.stringify({path, sha: blob.data.sha, bytes: Buffer.byteLength(content)}));
+            }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ui5-release-inputs-v1.5.28
+          path: /tmp/ui5-inputs/
+          retention-days: 1
+          if-no-files-found: error
