@@ -116,6 +116,10 @@ def _resolution(
         "source": source,
         "source_execution_ids": execution_ids,
         "confirmation_ids": confirmation_ids,
+        "evidence_ids": [],
+        "evidence": [],
+        "reason": None,
+        "resolver_version": "execution-currency-v3",
     }
 
 

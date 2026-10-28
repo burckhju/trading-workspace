@@ -108,6 +108,10 @@ def test_migration_preserves_unknown_history_and_capture_failure_rolls_back(conf
                     "source": "UNKNOWN",
                     "source_execution_ids": [],
                     "confirmation_ids": [],
+                    "evidence_ids": [],
+                    "evidence": [],
+                    "reason": None,
+                    "resolver_version": "execution-currency-v3",
                 },
             }
             replay = await client.post(BASE + "/purchases/external", json=body)
@@ -241,6 +245,10 @@ def test_capture_retry_correction_and_read_enrichment_use_exact_execution(confir
                         "source": "REPLACED_EXECUTION",
                         "source_execution_ids": [sale_id],
                         "confirmation_ids": [sale_fact["id"]],
+                        "evidence_ids": [],
+                        "evidence": [],
+                        "reason": None,
+                        "resolver_version": "execution-currency-v3",
                     },
                 }
                 second = await client.post(
@@ -323,6 +331,10 @@ def test_confirmation_concurrency_scope_and_native_append_only_integrity(confirm
                     "source": "USER_CONFIRMED",
                     "source_execution_ids": [execution_id],
                     "confirmation_ids": [winner["id"]],
+                    "evidence_ids": [],
+                    "evidence": [],
+                    "reason": None,
+                    "resolver_version": "execution-currency-v3",
                 },
             }
             assert (
@@ -467,6 +479,10 @@ def test_workspace_capture_and_learning_handoff_confirm_in_the_owner_transaction
                 "source": "PRIOR_BUYS",
                 "source_execution_ids": [execution["id"]],
                 "confirmation_ids": [execution["currency_confirmation"]["id"]],
+                "evidence_ids": [],
+                "evidence": [],
+                "reason": None,
+                "resolver_version": "execution-currency-v3",
             }
 
             underlying_id = (await client.get(f"/api/v1/warrants/{pid}")).json()["underlying_id"]
@@ -555,6 +571,10 @@ def test_workspace_capture_and_learning_handoff_confirm_in_the_owner_transaction
                     "source": "USER_CONFIRMED",
                     "source_execution_ids": [str(rows[0]["id"])],
                     "confirmation_ids": [history["current"]["id"]],
+                    "evidence_ids": [],
+                    "evidence": [],
+                    "reason": None,
+                    "resolver_version": "execution-currency-v3",
                 }
                 confirmations_before_sale = await confirmations(confirmation_database)
                 sold = await client.post(
@@ -572,6 +592,10 @@ def test_workspace_capture_and_learning_handoff_confirm_in_the_owner_transaction
                     "source": "PRIOR_BUYS",
                     "source_execution_ids": [str(rows[0]["id"])],
                     "confirmation_ids": [history["current"]["id"]],
+                    "evidence_ids": [],
+                    "evidence": [],
+                    "reason": None,
+                    "resolver_version": "execution-currency-v3",
                 }
                 assert await confirmations(confirmation_database) == confirmations_before_sale
             finally:

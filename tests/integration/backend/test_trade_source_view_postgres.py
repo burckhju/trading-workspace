@@ -134,6 +134,10 @@ def test_real_reference_sources_correction_and_optional_absence_are_read_only(
                 "source": "UNKNOWN",
                 "source_execution_ids": [],
                 "confirmation_ids": [],
+                "evidence_ids": [],
+                "evidence": [],
+                "reason": None,
+                "resolver_version": "execution-currency-v3",
             }
             replacement = next(
                 e for e in new["timeline"] if e["id"] == corrected["execution"]["id"]
