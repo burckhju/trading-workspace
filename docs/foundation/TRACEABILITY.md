@@ -962,7 +962,17 @@ unabhängig nutzbarer Marktwert bis zu Depot, Trade-Management, Filtern und Summ
 
 Ausgangsbasis ist `dc89dfa65758dfc1258a8fab657257f6598b0179` / 1.5.29 mit dem
 bereits integrierten PR #295. Dessen Lesson-/Schedulerkorrekturen bleiben erhalten.
-Die neue Regressions- und Gatequalifikation wird mit dem tatsächlich geprüften
-Commit im Bewertungsnachweis ergänzt; historische grüne Läufe ersetzen sie nicht.
-Kein neuer Ausführungsowner, keine FX-Annahme, Migration, Fachgesamtabnahme,
-Merge-, Release- oder PC-Freigabe. Der Arbeitsstatus bleibt allein im Backlog.
+Der [Bewertungsnachweis](../implementation/POSITION_VALUATION_CURRENCY_QUALIFICATION.md#prüfbelege-vom-28102026)
+bindet den vorab festgelegten Vertrag, 32 rote Währungsfälle plus eine rote
+Projektionsregression und die erfolgreichen lokalen Gates an ihre tatsächlichen
+Commits sowie identische veröffentlichte Trees: Backend 3.463, Frontend 1.726,
+gezielt Chromium 11/11, Smoke 115 Erfolge/fünf reguläre native Skips und zwei
+native Performancefälle separat. Acht neue PostgreSQL-Fälle prüfen echte
+Ownerhistorien, parallele Korrekturen, Nichtmutation und die genaue gemeinsame
+API-Fixture. Dieselbe Fixture belegt im Browser Filter, Sortierung, Farbe,
+Navigation, 135 EUR Marktwert/6 von 6 und 0 EUR PnL/3 von 6. Die drei strikt
+CI-nativen Gates sind lokal nicht ausgeführt; aktuelle headgebundene CI-Ergebnisse
+und Reviewbereitschaft stehen in [PR #297](https://github.com/burckhju/trading-workspace/pull/297).
+Historische Erfolge ersetzen diese Nachweise nicht. Kein neuer Ausführungsowner,
+keine FX-Annahme, Migration, Fachgesamtabnahme, Merge-, Release- oder PC-Freigabe.
+Der Arbeitsstatus bleibt allein im Backlog; Nutzerbetrieb ist nicht belegt.
