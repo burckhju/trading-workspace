@@ -729,6 +729,28 @@ class TradePositionService:
 
         return replace(position, is_cancelled=trade.cancelled_at is not None)
 
+    async def get_price_history_context(
+        self, *, workspace_id: UUID, trade_id: UUID
+    ) -> tuple[Position, tuple[ExecutionRecord, ...]]:
+        """Read exact owner facts and existing currency provenance without valuation or writes."""
+        async with self._uow as uow:
+            trade = await uow.trades.get(workspace_id, trade_id)
+            if trade is None or trade.cancelled_at is not None:
+                raise ValueError("trade not found")
+            position = await uow.positions.get_for_trade(workspace_id, trade.id)
+            if position is None:
+                raise ValueError("position not found")
+            history = await uow.executions.list_for_trade(trade.id)
+            if position.product_id != trade.product_id or any(
+                fact.trade_id != trade.id or fact.product_id != trade.product_id for fact in history
+            ):
+                raise ValueError("position history identity mismatch")
+            history = await self._enrich_currencies(trade, history)
+        # Resolve corrections from this same materialized history, not a second
+        # read that could race with a new execution. Old facts remain auditable.
+        superseded = {fact.supersedes_execution_id for fact in history}
+        return position, tuple(fact for fact in history if fact.id not in superseded)
+
     async def correct_execution(
         self,
         *,

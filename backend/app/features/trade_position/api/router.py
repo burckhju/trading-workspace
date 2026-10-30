@@ -31,6 +31,7 @@ from app.features.trade_position.api.dtos import (
     TradeTimelineEntryResponse,
     WorkspacePurchaseRequest,
 )
+from app.features.trade_position.api.price_history import router as price_history_router
 from app.features.trade_position.domain.management import TradeManagementState
 from app.features.trade_position.domain.models import (
     ExecutionRecord,
@@ -46,6 +47,7 @@ router = APIRouter(
     tags=["trade-position"],
 )
 router.include_router(currency_router)
+router.include_router(price_history_router)
 
 WORKSPACE_ID = UUID("00000000-0000-4000-8000-000000000001")
 LOCAL_ACTOR_ID = UUID("00000000-0000-4000-8000-000000000002")

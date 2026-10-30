@@ -5,6 +5,7 @@ import json
 import re
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 from pydantic import TypeAdapter
@@ -16,6 +17,9 @@ from app.features.market_data.persistence.models import WarrantQuoteSampleModel
 from app.features.market_data.persistence.quote_identity import QuoteIdentity
 from app.features.market_data.service.types import MarketDataResult, WarrantQuoteRequest
 from app.features.product.persistence.models import WarrantModel
+
+if TYPE_CHECKING:
+    from app.features.market_data.service.warrant_price_history import WarrantPriceHistory
 
 POLICY = "FIRST_CAPTURE_PER_ROUTE_5_MIN_UTC_V1"
 STATUSES = (
@@ -179,6 +183,19 @@ class QuoteHistoryReport:
 class QuoteHistoryReader:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
+
+    async def prices(
+        self,
+        workspace_id: UUID,
+        warrant_id: UUID,
+        *,
+        now: datetime,
+        days: int | None = None,
+    ) -> "WarrantPriceHistory | None":
+        """Read existing price evidence on its original clock, including retained legacy data."""
+        from app.features.market_data.service.warrant_price_history import read_price_series
+
+        return await read_price_series(self.session, workspace_id, warrant_id, now=now, days=days)
 
     async def report(
         self,
