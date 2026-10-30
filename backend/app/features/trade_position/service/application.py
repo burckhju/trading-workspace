@@ -39,6 +39,7 @@ from app.features.trade_position.domain.timeline import (
 from app.features.trade_position.persistence.currency_evidence import (
     SqlAlchemyCurrencyEvidenceRepository,
 )
+from app.features.trade_position.persistence.repositories import TradeReader
 from app.features.trade_position.persistence.unit_of_work import TradePositionUnitOfWork
 from app.features.trade_position.service.currency_confirmations import (
     ExecutionCurrencyConfirmationService,
@@ -149,6 +150,7 @@ class TradePositionService:
         quote_source_selector: PositionQuoteSourceSelector | None = None,
         currency_confirmations: ExecutionCurrencyConfirmationService | None = None,
         currency_evidence: SqlAlchemyCurrencyEvidenceRepository | None = None,
+        trade_reader: TradeReader | None = None,
     ) -> None:
         self._uow = uow
         self._workspace_selections = workspace_selections
@@ -156,6 +158,7 @@ class TradePositionService:
         self._quote_source_selector = quote_source_selector
         self._currency_confirmations = currency_confirmations
         self._currency_evidence = currency_evidence
+        self._trade_reader = trade_reader
 
     async def _capture_currency(
         self,
@@ -733,8 +736,10 @@ class TradePositionService:
         self, *, workspace_id: UUID, trade_id: UUID
     ) -> tuple[Position, tuple[ExecutionRecord, ...]]:
         """Read exact owner facts and existing currency provenance without valuation or writes."""
+        if self._trade_reader is None:
+            raise ValueError("price history requires a read-only trade reader")
         async with self._uow as uow:
-            trade = await uow.trades.get(workspace_id, trade_id)
+            trade = await self._trade_reader.get(workspace_id, trade_id)
             if trade is None or trade.cancelled_at is not None:
                 raise ValueError("trade not found")
             position = await uow.positions.get_for_trade(workspace_id, trade.id)

@@ -85,7 +85,8 @@ def history(*, currency="EUR", series=True, **kwargs):
 
 def service_context(facts, *, trade=TRADE, position=POSITION, confirmations=(), evidence=()):
     uow = FakeUow()
-    uow.trades.get.return_value = trade
+    read_only = SimpleNamespace(get=AsyncMock(return_value=trade))
+    uow.trades.get.side_effect = AssertionError("History must not acquire a command lock")
     uow.positions.get_for_trade.return_value = position
     uow.executions.list_for_trade = AsyncMock(return_value=list(facts))
     declarations = SimpleNamespace(
@@ -103,8 +104,9 @@ def service_context(facts, *, trade=TRADE, position=POSITION, confirmations=(), 
         quote_source_selector=quotes,
         currency_confirmations=declarations,
         currency_evidence=sources,
+        trade_reader=read_only,
     )
-    return service, uow, declarations, sources, selection, quotes
+    return service, uow, declarations, sources, selection, quotes, read_only
 
 
 @pytest.mark.asyncio
@@ -121,7 +123,7 @@ async def test_effective_corrected_executions_use_existing_currency_resolver_wit
     sale = execution(15, "SELL")
     facts = (old, first_correction, correction, sale)
     original = tuple(asdict(fact) for fact in facts)
-    service, uow, declarations, sources, selection, quotes = service_context(
+    service, uow, declarations, sources, selection, quotes, read_only = service_context(
         facts, confirmations=(confirmed(old),)
     )
     position, effective = await service.get_price_history_context(
@@ -138,7 +140,8 @@ async def test_effective_corrected_executions_use_existing_currency_resolver_wit
     assert [event.id for event in chart.events] == [correction.id, sale.id]
     assert all(event.plottable for event in chart.events)
     assert tuple(asdict(fact) for fact in facts) == original
-    uow.trades.get.assert_awaited_once_with(TRADE.workspace_id, TRADE.id)
+    read_only.get.assert_awaited_once_with(TRADE.workspace_id, TRADE.id)
+    uow.trades.get.assert_not_awaited()
     uow.positions.get_for_trade.assert_awaited_once_with(TRADE.workspace_id, TRADE.id)
     uow.executions.list_for_trade.assert_awaited_once_with(TRADE.id)
     uow.executions.list_effective_for_trade.assert_not_awaited()
@@ -385,3 +388,16 @@ def test_missing_product_is_404_and_storage_failure_is_not_an_empty_success(monk
         assert client.get(url).status_code == 404
         reader.side_effect = RuntimeError("database unavailable")
         assert client.get(url).status_code == 500
+
+
+@pytest.mark.asyncio
+async def test_history_context_without_explicit_read_only_reader_fails_closed():
+    uow = FakeUow()
+    service = TradePositionService(
+        uow=uow, workspace_selections=SimpleNamespace(resolve=AsyncMock())
+    )
+    with pytest.raises(ValueError, match="read"):
+        await service.get_price_history_context(workspace_id=TRADE.workspace_id, trade_id=TRADE.id)
+    uow.trades.get.assert_not_awaited()
+    uow.positions.get_for_trade.assert_not_awaited()
+    uow.commit.assert_not_awaited()
