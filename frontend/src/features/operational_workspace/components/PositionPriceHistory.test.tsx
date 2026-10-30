@@ -41,6 +41,7 @@ it('loads existing-position history automatically and draws one original point w
   expect(screen.getByLabelText('Zeitraum')).toHaveValue('all');
   expect(rendered.container.querySelectorAll('.recharts-scatter-symbol')).toHaveLength(1);
   expect(rendered.container.querySelector('.recharts-scatter-line')).toBeNull();
+  expect(rendered.container.querySelector('.recharts-yAxis')).not.toHaveTextContent('EUR');
   expect(screen.getByText(/Zwischen den Punkten ist kein Kursverlauf belegt/)).toBeInTheDocument();
   await user.click(screen.getByText('Kursdaten und Quellen'));
   const table = screen.getByRole('region', { name: 'Historische Kursdaten' });
@@ -48,6 +49,9 @@ it('loads existing-position history automatically and draws one original point w
   expect(table.querySelector('time[datetime="2026-09-08T08:00:00Z"]')).toBeInTheDocument();
   expect(table.querySelector('time[datetime="2026-10-29T12:00:00Z"]')).toBeInTheDocument();
   expect(within(table).getByText(/Quellsegment: original-identity/)).toBeInTheDocument();
+  expect(within(table).getByText(/Handelsplatz: XSTU \(MIC\)/)).toHaveTextContent(
+    'Providersegment: _STU',
+  );
   expect(within(table).getByText('Zuletzt erfolgreich gespeicherter Kurs')).toBeInTheDocument();
   expect(within(table).getByText('Bei Erfassung veraltet')).toBeInTheDocument();
 });
@@ -119,6 +123,15 @@ it('keeps errors distinct from missing data and supports a read-only retry', asy
 });
 
 it('loads a chosen original-time window automatically and clears the previous points immediately', async () => {
+  vi.mocked(readPositionPriceHistory).mockResolvedValueOnce(
+    positionPriceHistory({
+      series: [
+        positionPriceSeries({
+          points: [{ ...positionPriceSeries().points[0], observed_at: '2026-10-29T08:00:00Z' }],
+        }),
+      ],
+    }),
+  );
   const rendered = show();
   await screen.findByText('Handelswährung: EUR');
   let finish!: (value: PositionPriceHistoryReport) => void;
@@ -140,6 +153,98 @@ it('loads a chosen original-time window automatically and clears the previous po
     await Promise.resolve();
   });
   expect(screen.getByText(/23.10.2026, 12:00:00 UTC bis/)).toBeInTheDocument();
+});
+
+it('only offers short windows containing proven original prices, including old closed-position evidence', async () => {
+  show();
+  await screen.findByText('Handelswährung: EUR');
+  expect(screen.getByRole('option', { name: 'Alle gespeicherten Kurse' })).toBeEnabled();
+  expect(screen.getByRole('option', { name: '7 Tage' })).toBeDisabled();
+  expect(screen.getByRole('option', { name: '31 Tage' })).toBeDisabled();
+  expect(screen.getByRole('option', { name: '90 Tage' })).toBeEnabled();
+  await userEvent.selectOptions(screen.getByLabelText('Zeitraum'), '7');
+  expect(readPositionPriceHistory).toHaveBeenCalledTimes(1);
+  expect(screen.getByLabelText('Zeitraum')).toHaveValue('all');
+});
+
+it('does not offer any short window for empty history or while the initial read is pending', async () => {
+  let finish!: (value: PositionPriceHistoryReport) => void;
+  vi.mocked(readPositionPriceHistory).mockReturnValueOnce(
+    new Promise((resolve) => {
+      finish = resolve;
+    }),
+  );
+  show();
+  for (const name of ['7 Tage', '31 Tage', '90 Tage'])
+    expect(screen.getByRole('option', { name })).toBeDisabled();
+  await act(async () => {
+    finish(positionPriceHistory({ series: [] }));
+    await Promise.resolve();
+  });
+  for (const name of ['7 Tage', '31 Tage', '90 Tage'])
+    expect(screen.getByRole('option', { name })).toBeDisabled();
+});
+
+it('retains known available windows across a narrow response and ignores its late result after refresh', async () => {
+  vi.mocked(readPositionPriceHistory).mockResolvedValueOnce(
+    positionPriceHistory({
+      series: [
+        positionPriceSeries({
+          points: [{ ...positionPriceSeries().points[0], observed_at: '2026-10-29T08:00:00Z' }],
+        }),
+      ],
+    }),
+  );
+  const rendered = show();
+  await screen.findByText('Handelswährung: EUR');
+  let finish!: (value: PositionPriceHistoryReport) => void;
+  vi.mocked(readPositionPriceHistory).mockReturnValueOnce(
+    new Promise((resolve) => {
+      finish = resolve;
+    }),
+  );
+  await userEvent.selectOptions(screen.getByLabelText('Zeitraum'), '7');
+  const narrowSignal = vi.mocked(readPositionPriceHistory).mock.calls[1][3]!;
+  expect(screen.getByRole('option', { name: '31 Tage' })).toBeEnabled();
+  vi.mocked(readPositionPriceHistory).mockResolvedValueOnce(positionPriceHistory({ series: [] }));
+  rendered.rerender(
+    <PositionPriceHistory tradeId="trade-1" positionId="position-1" reloadToken={1} />,
+  );
+  await screen.findByText('Keine zeitlich und fachlich zuordenbaren Kursdaten vorhanden.');
+  expect(narrowSignal.aborted).toBe(true);
+  expect(screen.getByLabelText('Zeitraum')).toHaveValue('all');
+  expect(screen.getByRole('option', { name: '31 Tage' })).toBeDisabled();
+  await act(async () => {
+    finish(positionPriceHistory());
+    await Promise.resolve();
+  });
+  expect(screen.queryByTestId('position-price-chart')).not.toBeInTheDocument();
+});
+
+it('labels original venues and unknown or issuer-only identities without inventing an exchange', async () => {
+  vi.mocked(readPositionPriceHistory).mockResolvedValueOnce(
+    positionPriceHistory({
+      series: [
+        positionPriceSeries(),
+        positionPriceSeries({ id: 'frankfurt', venue_mic: 'XFRA', provider_exchange_code: '_FRA' }),
+        positionPriceSeries({ id: 'issuer', venue_mic: null, provider_exchange_code: 'ISSUER' }),
+        positionPriceSeries({ id: 'unknown', venue_mic: null, provider_exchange_code: null }),
+      ],
+    }),
+  );
+  show();
+  const plot = await screen.findByRole('region', { name: 'Kursbeobachtungen EUR' });
+  expect(
+    within(plot).getByText('Handelsplatz: XSTU (MIC) · Providersegment: _STU'),
+  ).toBeInTheDocument();
+  expect(
+    within(plot).getByText('Handelsplatz: XFRA (MIC) · Providersegment: _FRA'),
+  ).toBeInTheDocument();
+  expect(
+    within(plot).getByText('Emittentenquelle · kein Börsenhandelsplatz · Providersegment: ISSUER'),
+  ).toBeInTheDocument();
+  expect(within(plot).getByText('Handelsplatz nicht belegt')).toBeInTheDocument();
+  expect(within(plot).queryByText('Handelsplatz: ISSUER (MIC)')).not.toBeInTheDocument();
 });
 
 it('aborts old-position reads and ignores their late results when another detail opens', async () => {
@@ -226,6 +331,39 @@ it('plots only qualified executions and lists date-only or unknown-currency hist
   expect(screen.getByText('Kein Diagrammmarker: Währung nicht belegt.')).toBeInTheDocument();
   expect(screen.getByText('Verkauf · 10 Stück · 0,26 Währung unbekannt')).toBeInTheDocument();
   expect(screen.getByText(/Buchung buy-known/)).toHaveTextContent('USER_CONFIRMED');
+});
+
+it('reserves the buy triangle and sell cross for executions even with five market series', async () => {
+  const point = positionPriceSeries().points[0];
+  vi.mocked(readPositionPriceHistory).mockResolvedValueOnce(
+    positionPriceHistory({
+      series: Array.from({ length: 5 }, (_, index) =>
+        positionPriceSeries({ id: `market-${index}` }),
+      ),
+      events: (['BUY', 'SELL'] as const).map((side) => ({
+        id: side,
+        side,
+        occurred_at: point.observed_at,
+        executed_on: null,
+        execution_timezone: 'UTC',
+        price: point.price,
+        currency: 'EUR',
+        currency_source: 'USER_CONFIRMED',
+        quantity: 1,
+        plottable: true,
+        reason: null,
+      })),
+    }),
+  );
+  const rendered = show();
+  await screen.findByText('Handelswährung: EUR');
+  const paths = [...rendered.container.querySelectorAll('.recharts-scatter-symbol path')];
+  expect(paths).toHaveLength(7);
+  for (const marketPoint of paths.slice(0, 5)) {
+    expect(marketPoint.getAttribute('d')).not.toBe(paths[5].getAttribute('d'));
+    expect(marketPoint.getAttribute('d')).not.toBe(paths[6].getAttribute('d'));
+  }
+  expect(screen.getByText(/Dreieck grün: Kauf. Kreuz rosa: Verkauf./)).toBeInTheDocument();
 });
 
 it('paginates full-precision evidence and resets the table when the window changes', async () => {

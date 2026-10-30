@@ -15,12 +15,15 @@ import type {
 import {
   historyPrice,
   historyTime,
+  historyVenue,
+  historyAxisTime,
   priceHistoryLabel,
   priceKindLabel,
 } from '../services/priceHistoryPresentation';
 
 const colors = ['#38bdf8', '#fbbf24', '#c084fc', '#34d399', '#fb7185', '#e2e8f0'];
-const shapes = ['circle', 'square', 'diamond', 'triangle', 'cross', 'star'] as const;
+// Execution markers keep their own shapes even when many market series exist.
+const shapes = ['circle', 'square', 'diamond', 'star'] as const;
 type PlotDatum = {
   time: number;
   value: number;
@@ -43,6 +46,7 @@ function PlotTooltip({ datum }: { datum: PlotDatum }) {
             <time dateTime={point.observed_at}>{historyTime(point.observed_at)}</time>
           </p>
           <p>Quelle: {series.provider}</p>
+          <p>{historyVenue(series)}</p>
           <p>{priceHistoryLabel(point.status)}</p>
           <p>{series.source_mode ?? 'Quellenmodus unbekannt'}</p>
         </>
@@ -72,6 +76,18 @@ export function PositionPricePlot({
   const markers = events.filter(
     (event) => event.plottable && event.currency === currency && event.occurred_at,
   );
+  const quoteTimes = series.flatMap((item) =>
+    item.points.map((point) => Date.parse(point.observed_at)),
+  );
+  const quoteStart = quoteTimes.reduce((earliest, time) => Math.min(earliest, time), Infinity);
+  const quoteEnd = quoteTimes.reduce((latest, time) => Math.max(latest, time), -Infinity);
+  const [axisStart, axisEnd] = markers.reduce(
+    ([start, end], event) => {
+      const time = Date.parse(event.occurred_at!);
+      return [Math.min(start, time), Math.max(end, time)];
+    },
+    [quoteStart, quoteEnd],
+  );
   return (
     <section aria-label={`Kursbeobachtungen ${currency}`} className="min-w-0 space-y-3">
       <h4 className="font-semibold">Handelswährung: {currency}</h4>
@@ -83,9 +99,16 @@ export function PositionPricePlot({
             </span>{' '}
             · {item.points.length} {item.points.length === 1 ? 'Kurspunkt' : 'Kurspunkte'} ·{' '}
             {item.source_mode ?? 'Quellenmodus unbekannt'}
+            <span className="block text-slate-400">{historyVenue(item)}</span>
           </li>
         ))}
       </ul>
+      {Number.isFinite(quoteStart) && Number.isFinite(quoteEnd) && (
+        <p className="text-xs text-slate-400">
+          Belegte Kurszeiten: {historyTime(new Date(quoteStart).toISOString())}
+          {quoteStart !== quoteEnd && ` bis ${historyTime(new Date(quoteEnd).toISOString())}`}.
+        </p>
+      )}
       <div className="h-72 w-full min-w-0" data-testid="position-price-chart">
         <ResponsiveContainer width="100%" height="100%" minWidth={0}>
           <ScatterChart
@@ -100,26 +123,25 @@ export function PositionPricePlot({
               name="Originalkurszeit (UTC)"
               type="number"
               domain={['dataMin', 'dataMax']}
-              tickFormatter={(value: number) =>
-                new Date(value).toLocaleDateString('de-DE', {
-                  timeZone: 'UTC',
-                  day: '2-digit',
-                  month: '2-digit',
-                })
-              }
-              minTickGap={40}
+              tickFormatter={(value: number) => historyAxisTime(value, axisStart, axisEnd)}
+              tick={{ fontSize: 11 }}
+              tickCount={4}
+              tickMargin={8}
+              minTickGap={28}
+              height={44}
               stroke="#cbd5e1"
             />
             <YAxis
               dataKey="value"
               name="Preis"
-              unit={` ${currency}`}
               type="number"
               domain={['auto', 'auto']}
               tickFormatter={(value: number) =>
                 value.toLocaleString('de-DE', { maximumFractionDigits: 4 })
               }
               width={64}
+              tick={{ fontSize: 12 }}
+              tickMargin={8}
               stroke="#cbd5e1"
             />
             <Tooltip
