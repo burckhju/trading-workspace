@@ -39,6 +39,7 @@ from app.features.trade_position.domain.timeline import (
 from app.features.trade_position.persistence.currency_evidence import (
     SqlAlchemyCurrencyEvidenceRepository,
 )
+from app.features.trade_position.persistence.repositories import TradeReader
 from app.features.trade_position.persistence.unit_of_work import TradePositionUnitOfWork
 from app.features.trade_position.service.currency_confirmations import (
     ExecutionCurrencyConfirmationService,
@@ -149,6 +150,7 @@ class TradePositionService:
         quote_source_selector: PositionQuoteSourceSelector | None = None,
         currency_confirmations: ExecutionCurrencyConfirmationService | None = None,
         currency_evidence: SqlAlchemyCurrencyEvidenceRepository | None = None,
+        trade_reader: TradeReader | None = None,
     ) -> None:
         self._uow = uow
         self._workspace_selections = workspace_selections
@@ -156,6 +158,7 @@ class TradePositionService:
         self._quote_source_selector = quote_source_selector
         self._currency_confirmations = currency_confirmations
         self._currency_evidence = currency_evidence
+        self._trade_reader = trade_reader
 
     async def _capture_currency(
         self,
@@ -728,6 +731,30 @@ class TradePositionService:
                 raise ValueError("position not found")
 
         return replace(position, is_cancelled=trade.cancelled_at is not None)
+
+    async def get_price_history_context(
+        self, *, workspace_id: UUID, trade_id: UUID
+    ) -> tuple[Position, tuple[ExecutionRecord, ...]]:
+        """Read exact owner facts and existing currency provenance without valuation or writes."""
+        if self._trade_reader is None:
+            raise ValueError("price history requires a read-only trade reader")
+        async with self._uow as uow:
+            trade = await self._trade_reader.get(workspace_id, trade_id)
+            if trade is None or trade.cancelled_at is not None:
+                raise ValueError("trade not found")
+            position = await uow.positions.get_for_trade(workspace_id, trade.id)
+            if position is None:
+                raise ValueError("position not found")
+            history = await uow.executions.list_for_trade(trade.id)
+            if position.product_id != trade.product_id or any(
+                fact.trade_id != trade.id or fact.product_id != trade.product_id for fact in history
+            ):
+                raise ValueError("position history identity mismatch")
+            history = await self._enrich_currencies(trade, history)
+        # Resolve corrections from this same materialized history, not a second
+        # read that could race with a new execution. Old facts remain auditable.
+        superseded = {fact.supersedes_execution_id for fact in history}
+        return position, tuple(fact for fact in history if fact.id not in superseded)
 
     async def correct_execution(
         self,

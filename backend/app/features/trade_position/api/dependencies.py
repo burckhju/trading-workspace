@@ -18,6 +18,7 @@ from app.features.product.service.application import WarrantService
 from app.features.trade_position.persistence.currency_evidence import (
     SqlAlchemyCurrencyEvidenceRepository,
 )
+from app.features.trade_position.persistence.repositories import SqlAlchemyReadOnlyTradeRepository
 from app.features.trade_position.persistence.unit_of_work import (
     SqlAlchemyTradePositionUnitOfWork,
 )
@@ -38,6 +39,7 @@ def get_trade_position_service(
     allowed_providers = _allowed_warrant_quote_providers(container)
     return TradePositionService(
         uow=SqlAlchemyTradePositionUnitOfWork(session),
+        trade_reader=SqlAlchemyReadOnlyTradeRepository(session),
         workspace_selections=SqlAlchemyWorkspaceSelectionResolver(session),
         products=WarrantProductResolver(WarrantService(session)),
         currency_confirmations=ExecutionCurrencyConfirmationService(session),

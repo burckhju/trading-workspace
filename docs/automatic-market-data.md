@@ -380,3 +380,19 @@ historical retention can separately provide an available analysis observation
 with its original timestamps and explicit `refresh_error`; that observation and
 a successful job do not prove a fresh market price. The tested lifecycle and
 shared budget are process-local; SQLite tests do not prove PostgreSQL leader locks.
+
+### Read-only position price history
+
+Expanded positions automatically read the existing `warrant_quote_samples` and
+`warrant_quote_observations` through `QuoteHistoryReader.prices()`. The endpoint
+`GET /api/v1/trade-position/trades/{trade_id}/price-history` performs no provider
+request, refresh, backfill or write. Sampling, retention, provider permissions,
+budgets and recovery remain unchanged. No new migration or configuration is required.
+
+Original quote times determine chart coordinates and optional windows; receipt and
+capture clocks remain separate. Unknown source clocks cannot become chart points.
+The last retained success may be the only historical evidence for an older position.
+Repeated cache reads are deduplicated, source identities and currencies are kept
+separate, and the 10,000-sample read budget is explicitly reported when exceeded.
+Neither an empty nor a populated chart establishes complete historical coverage.
+See [position price history](ui/position-price-history.md) for API, UI and evidence limits.

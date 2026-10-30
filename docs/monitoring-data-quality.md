@@ -25,6 +25,14 @@ baseline when inspected. Successful Backend, Frontend and End-to-End runs on
 `5f1b675e...` are earlier evidence and do not qualify this change. The integration
 PR records its own final head and actual CI results.
 
+During validation, the parallel position-history implementation was merged as
+[#302](https://github.com/burckhju/trading-workspace/pull/302), moving main to
+`e8703a65ce8c1ba48ed1c9be3a8b7b8ff4dac37f`. This monitoring branch incorporates
+that main commit without conflicts. The exact 24 changed paths in #302 and the
+eight monitoring paths have **no intersection**. Version 1.5.31 and migration
+head `20261028_0048` remain unchanged. The final integration CI must use the
+updated monitoring head; earlier runs against `d1108ae4...` are not sufficient.
+
 ## Existing functionality reused
 
 - Five independent scheduler lanes: `WARRANTS`, `ISSUER_QUOTES`,
@@ -132,8 +140,9 @@ Production changes are limited to:
 - `frontend/src/features/operational_workspace/pages/MarketDataRefreshPanel.tsx`:
   existing administration view only.
 
-The parallel #205 implementation must preserve the additive status fields if it
-also touches `refresh.py`. There is no dependency on its chart or history API.
+The implemented #205 scope, now merged through #302, does not touch `refresh.py`
+or any other file changed here. A future shared scheduler edit must preserve the
+additive status fields. There is no dependency on the chart or history API.
 Quote models, retained-provider logic, history readers, position details, chart
 components and provider discovery behavior are unchanged. #207's unpublished
 rule code is neither imported nor assumed to exist; #220 adds no runtime
