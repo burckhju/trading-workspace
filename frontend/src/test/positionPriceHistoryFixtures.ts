@@ -15,6 +15,8 @@ export function positionPriceSeries(
     currency: 'EUR',
     price_kind: 'BID',
     source_mode: 'DELAYED',
+    venue_mic: 'XSTU',
+    provider_exchange_code: '_STU',
     points: [
       {
         id: 'point-1',

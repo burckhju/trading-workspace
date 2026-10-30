@@ -231,6 +231,8 @@ def test_registered_history_get_preserves_evidence_and_corrected_position_facts(
             assert body["truncated"] is False
             assert len(body["series"]) == (2 if sampled else 1)
             euro = next(item for item in body["series"] if item["currency"] == "EUR")
+            assert euro["provider_exchange_code"] == "XETR"
+            assert euro["venue_mic"] == "XETR"
             assert len(euro["points"]) == 1
             point = euro["points"][0]
             assert point["observed_at"] == "2026-09-01T10:00:00Z"
@@ -262,5 +264,40 @@ def test_registered_history_get_preserves_evidence_and_corrected_position_facts(
             assert position.status_code == 200
             assert position.json()["open_quantity"] == 10
             assert Decimal(position.json()["realized_gross_pnl"]) == Decimal("0.08")
+
+            final_sale = await _book(
+                client,
+                trade,
+                "sales",
+                {
+                    "quantity": 10,
+                    "price_per_unit": "0.30",
+                    "executed_at": "2026-09-02T12:00:00Z",
+                    "request_id": str(uuid4()),
+                },
+            )
+            closed = await client.get(f"{BASE}/trades/{trade}/position")
+            assert closed.status_code == 200, closed.text
+            assert closed.json()["id"] == initial["position"]["id"]
+            assert closed.json()["open_quantity"] == 0
+            assert closed.json()["closed_at"] == "2026-09-02T12:00:00Z"
+            assert Decimal(closed.json()["realized_gross_pnl"]) == Decimal("0.98")
+            after_closing = await _state(database.engine)
+            response = await client.get(url)
+            assert response.status_code == 200, response.text
+            closed_history = response.json()
+            assert closed_history["trade_id"] == trade
+            assert closed_history["position_id"] == initial["position"]["id"]
+            assert closed_history["series"] == body["series"]
+            closed_events = {item["id"]: item for item in closed_history["events"]}
+            assert set(closed_events) == {corrected["id"], sale["id"], final_sale["id"]}
+            assert closed_events[final_sale["id"]]["side"] == "SELL"
+            assert closed_events[final_sale["id"]]["quantity"] == 10
+            assert Decimal(closed_events[final_sale["id"]]["price"]) == Decimal("0.30")
+            assert closed_events[final_sale["id"]]["currency"] == "EUR"
+            assert closed_events[final_sale["id"]]["currency_source"] == "PRIOR_BUYS"
+            assert closed_events[final_sale["id"]]["plottable"] is True
+            assert snapshots[-1] == ("repeatable read", "on")
+            assert await _state(database.engine) == after_closing
 
     asyncio.run(exercise())
