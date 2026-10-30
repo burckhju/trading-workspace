@@ -130,6 +130,9 @@ describe('MarketDataRefreshPanel', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Abrufstatus konnte nicht geladen werden.',
     );
+    expect(
+      screen.queryByText('Automatischer Kursabruf ist ausgeschaltet.'),
+    ).not.toBeInTheDocument();
   });
   it('shows overdue repeat checks even after every first check completed', async () => {
     request.mockResolvedValue({

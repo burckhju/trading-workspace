@@ -3,10 +3,12 @@
 from copy import deepcopy
 from dataclasses import asdict
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 from uuid import UUID, uuid4
 
 import pytest
 
+from app.features.market_data.domain.models import WarrantQuoteSnapshot
 from app.features.market_data.service.errors import (
     MarketDataAuthenticationError,
     MarketDataCurrencyConflictError,
@@ -41,6 +43,27 @@ def source_attempt(source="FRANKFURT_QUOTES", status="ERROR", **changes):
 
 def source_checks(value):
     return [check for check in value["checks"] if check["kind"] == "SOURCE"]
+
+
+def valid_quotes(at, *attempts):
+    return [
+        {
+            **asdict(
+                WarrantQuoteSnapshot(
+                    warrant_listing_id=attempt["warrant_listing_id"],
+                    bid=Decimal("2.40"),
+                    ask=Decimal("2.45"),
+                    currency="EUR",
+                    provider_symbol="DE000VH2LU21",
+                    provider_exchange_code="XSC",
+                    observed_at=at,
+                )
+            ),
+            "provider": attempt["source"],
+            "retrieved_at": at,
+        }
+        for attempt in attempts
+    ]
 
 
 @pytest.mark.parametrize(
@@ -203,7 +226,10 @@ def test_success_of_other_provider_or_listing_does_not_resolve_a_source_failure(
     first = job_diagnostics(
         None,
         "AVAILABLE",
-        {"source_attempts": [failed, healthy_provider, healthy_listing]},
+        {
+            "source_attempts": [failed, healthy_provider, healthy_listing],
+            "quotes": valid_quotes(NOW, healthy_provider, healthy_listing),
+        },
         NOW,
     )
     assert first["checks"][0]["category"] is None
@@ -212,7 +238,10 @@ def test_success_of_other_provider_or_listing_does_not_resolve_a_source_failure(
     second = job_diagnostics(
         first,
         "AVAILABLE",
-        {"source_attempts": [healthy_provider, healthy_listing]},
+        {
+            "source_attempts": [healthy_provider, healthy_listing],
+            "quotes": valid_quotes(second_at, healthy_provider, healthy_listing),
+        },
         second_at,
     )
     missing = next(
@@ -227,7 +256,10 @@ def test_success_of_other_provider_or_listing_does_not_resolve_a_source_failure(
     restored = job_diagnostics(
         second,
         "AVAILABLE",
-        {"source_attempts": [source_attempt(status="AVAILABLE")]},
+        {
+            "source_attempts": [source_attempt(status="AVAILABLE")],
+            "quotes": valid_quotes(second_at, source_attempt(status="AVAILABLE")),
+        },
         second_at,
     )
     recovered = next(check for check in source_checks(restored) if check["recovered_at"])
@@ -304,7 +336,8 @@ def test_retained_refresh_error_preserves_known_cause_and_requires_real_recovery
                 source_attempt(
                     status="AVAILABLE",
                 )
-            ]
+            ],
+            "quotes": valid_quotes(recovered_at, source_attempt(status="AVAILABLE")),
         },
         recovered_at,
     )
@@ -348,7 +381,9 @@ def test_unsafe_source_details_are_not_copied_to_diagnostics():
     assert source_checks(value)[1]["reason"] == "UNCLASSIFIED_PROVIDER_ERROR"
 
 
-def test_no_second_age_policy_and_process_local_scope_are_explicit():
+def test_existing_age_policy_qualifies_old_quotes_and_process_local_scope_is_explicit():
+    old_quote = valid_quotes(NOW - timedelta(days=20), source_attempt(status="AVAILABLE"))[0]
+    old_quote["max_quote_age_seconds"] = 1
     value = job_diagnostics(
         None,
         "AVAILABLE",
@@ -359,10 +394,13 @@ def test_no_second_age_policy_and_process_local_scope_are_explicit():
                     observed_at=NOW - timedelta(days=20),
                     max_quote_age_seconds=1,
                 )
-            ]
+            ],
+            "quotes": [old_quote],
         },
         NOW,
     )
     assert value["scope"] == "PROCESS_LOCAL"
-    assert source_checks(value)[0]["category"] is None
-    assert source_checks(value)[0]["consecutive_failures"] == 0
+    assert source_checks(value)[0]["category"] == "DATA_QUALITY"
+    assert source_checks(value)[0]["quote_status"] == "STALE"
+    assert source_checks(value)[0]["consecutive_failures"] == 1
+    assert source_checks(value)[0]["qualified_success"] is False
