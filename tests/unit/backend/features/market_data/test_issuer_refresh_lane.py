@@ -120,6 +120,7 @@ async def test_unmapped_routes_are_skipped_and_issuer_routes_are_isolated():
         ),
     )
     value._pace_other = AsyncMock()
+    value._quote_identity = AsyncMock(return_value=None)
     issuer = await value._warrant(item, issuers_only=True)
     assert issuer["attempted_route_count"] == 1
     value._pace.assert_not_awaited()
@@ -131,6 +132,14 @@ async def test_unmapped_routes_are_skipped_and_issuer_routes_are_isolated():
         "JPMORGAN",
         "FRANKFURT_QUOTES",
         "GETTEX_DELAYED",
+    ]
+    assert [c.args[1] for c in value._quote_identity.await_args_list] == [
+        P.JPMORGAN,
+        P.JPMORGAN,
+        P.FRANKFURT_QUOTES,
+        P.FRANKFURT_QUOTES,
+        P.GETTEX_DELAYED,
+        P.GETTEX_DELAYED,
     ]
 
 

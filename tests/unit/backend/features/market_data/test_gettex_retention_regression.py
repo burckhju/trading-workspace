@@ -35,6 +35,7 @@ from app.features.position_monitoring.service.quote_sources import (
     NamedWarrantQuoteSource,
     QuoteSourceAttemptStatus,
 )
+from app.providers.gettex_delayed import adapter as gettex_module
 from app.providers.gettex_delayed.adapter import GettexDelayedWarrantQuoteAdapter
 
 context = retained_fixtures.context
@@ -388,3 +389,86 @@ async def test_selected_gettex_transport_failure_preserves_evidence_without_fall
     with Session(c.database.engine) as session:
         after = session.scalar(select(WarrantQuoteObservationModel))
         assert (after.payload if after is not None else None) == original_payload
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("failure", ["rate_limit", "invalid_gzip"])
+@pytest.mark.parametrize("has_history", [False, True])
+async def test_selected_gettex_deferred_refresh_preserves_history_then_recovers(
+    gettex_context, monkeypatch, failure, has_history
+):
+    c = gettex_context
+    if has_history:
+        await RetainedWarrantQuoteProvider(
+            c.database, c.provider, PROVIDER
+        ).get_warrant_listing_quote(c.request)
+    with Session(c.database.engine) as session:
+        before = session.scalar(select(WarrantQuoteObservationModel))
+        original_payload = before.payload if before is not None else None
+
+    clock = [1000.0]
+    monkeypatch.setattr(gettex_module, "monotonic", lambda: clock[0])
+    calls = []
+    payload = gzip.compress(
+        f"{c.result.data.isin},19:10:00.000001,EUR,0.04,100,0.15,100\n".encode()
+    )
+
+    def handler(request):
+        calls.append(request)
+        if len(calls) == 1:
+            if failure == "rate_limit":
+                return httpx.Response(429, headers={"Retry-After": "120"})
+            return httpx.Response(200, content=payload[:-8])
+        return httpx.Response(200, content=payload)
+
+    fallback = AsyncMock()
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        adapter = missing_files_adapter(c, client, monkeypatch)
+        resolver = MultiSourceWarrantQuoteResolver(
+            (
+                NamedWarrantQuoteSource(
+                    PROVIDER.value,
+                    RetainedWarrantQuoteProvider(c.database, adapter, PROVIDER),
+                    delayed=True,
+                ),
+                NamedWarrantQuoteSource("FRANKFURT_QUOTES", fallback),
+            )
+        )
+        failed = await resolver.resolve_selected(PROVIDER.value, c.request)
+        clock[0] += 30
+        deferred = await resolver.resolve_selected(PROVIDER.value, c.request)
+        assert len(calls) == 1
+        for resolution in (failed, deferred):
+            if has_history:
+                assert resolution.result.data.retained is True
+                assert resolution.result.data.bid == c.result.data.bid
+                assert resolution.result.data.ask == c.result.data.ask
+                assert resolution.result.data.observed_at == c.result.data.observed_at
+                assert resolution.result.retrieved_at == c.result.retrieved_at
+            else:
+                assert resolution.result is None
+        attempt = deferred.attempts[0]
+        assert (attempt.refresh_error or attempt.reason) == "GETTEX_DELAYED_REQUEST_THROTTLED"
+        with Session(c.database.engine) as session:
+            after = session.scalar(select(WarrantQuoteObservationModel))
+            assert (after.payload if after is not None else None) == original_payload
+
+        clock[0] = 1120.0 if failure == "rate_limit" else 1060.0
+        recovered = await resolver.resolve_selected(PROVIDER.value, c.request)
+        assert len(calls) == 2
+        assert recovered.selected_source == PROVIDER.value
+        assert recovered.result.data.bid == Decimal("0.04")
+        assert recovered.result.data.ask == Decimal("0.15")
+        assert recovered.result.data.observed_at == SUNDAY - timedelta(minutes=5) + timedelta(
+            microseconds=1
+        )
+        assert recovered.result.data.isin == c.result.data.isin
+        assert recovered.result.data.currency == "EUR"
+        assert recovered.result.data.venue_mic == "MUND"
+        assert recovered.result.data.retained is False
+        assert recovered.result.data.refresh_error is None
+        with Session(c.database.engine) as session:
+            saved = session.scalar(select(WarrantQuoteObservationModel)).payload
+            assert saved["data"]["bid"] == "0.04"
+            assert saved["data"]["refresh_error"] is None
+    fallback.get_warrant_listing_quote.assert_not_awaited()

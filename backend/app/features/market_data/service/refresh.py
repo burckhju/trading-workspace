@@ -23,6 +23,7 @@ from app.features.market_data.persistence.models import (
     ProviderInstrumentMappingModel,
     WarrantProviderMappingModel,
 )
+from app.features.market_data.persistence.quote_identity import QuoteIdentity, read_quote_identity
 from app.features.market_data.service.issuer_discovery import discover_issuer_route
 from app.features.market_data.service.refresh_catalog import (
     ISSUER_PROVIDERS,
@@ -638,23 +639,37 @@ class MarketDataRefreshRuntime:
                 ):
                     await self._pace_other()
                 attempted_routes += 1
-                resolution = await self._resolver.resolve_selected(
-                    provider.value,
-                    WarrantQuoteRequest(
-                        self.workspace_id,
-                        listing.id,
-                        uuid4(),
-                        datetime.now(UTC),
-                        expected_currency=listing.quotation_currency_code,
-                    ),
+                request = WarrantQuoteRequest(
+                    self.workspace_id,
+                    listing.id,
+                    uuid4(),
+                    datetime.now(UTC),
+                    expected_currency=listing.quotation_currency_code,
                 )
-                observations.extend(asdict(attempt) for attempt in resolution.attempts)
+                identity = await self._quote_identity(request, provider)
+                resolution = await self._resolver.resolve_selected(provider.value, request)
+                current_identity = await self._quote_identity(request, provider)
+                # Reuse the persisted-price identity contract without changing a
+                # provider interface or holding a database lock over network I/O.
+                identity_details = {
+                    "identity_key": identity.key if identity is not None else None,
+                    "identity_verified": identity is not None and identity == current_identity,
+                    "identity_changed": identity != current_identity,
+                    "attempt_started_at": request.as_of,
+                    "attempt_completed_at": datetime.now(UTC),
+                }
+                observations.extend(
+                    {**asdict(attempt), **identity_details} for attempt in resolution.attempts
+                )
                 if resolution.result is not None and resolution.result.data is not None:
                     quotes.append(
                         {
                             **asdict(resolution.result.data),
                             "provider": resolution.result.provider,
                             "retrieved_at": resolution.result.retrieved_at,
+                            "quality_status": resolution.result.quality_status,
+                            "cache_status": resolution.result.cache_status,
+                            **identity_details,
                         }
                     )
         available = any(row["status"] == "AVAILABLE" for row in observations)
@@ -671,6 +686,12 @@ class MarketDataRefreshRuntime:
             "attempted_route_count": attempted_routes,
             "source_selection": selection,
         }
+
+    async def _quote_identity(
+        self, request: WarrantQuoteRequest, provider: MarketDataProvider
+    ) -> QuoteIdentity | None:
+        async with self.container.database.session_context() as session:
+            return await read_quote_identity(session, request, provider)
 
     async def _configure_underlying(self, item: RefreshInstrument) -> dict[str, Any]:
         assert item.listing_id is not None

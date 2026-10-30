@@ -16,6 +16,17 @@ type RefreshCheck = {
   last_failure_at: string | null;
   last_failure_reason?: string | null;
   last_failure_category?: string | null;
+  last_success_at?: string | null;
+  qualified_success?: boolean;
+  retained_quote?: boolean;
+  quote_status?: string;
+  quote_observed_at?: string | null;
+  quote_retrieved_at?: string | null;
+  quote_usable?: boolean | null;
+  provider_reachable?: boolean | null;
+  response_valid?: boolean | null;
+  identity_key?: string | null;
+  waiting?: boolean;
   recovered_at: string | null;
   last_checked_at: string | null;
   observed_in_latest_run: boolean;
@@ -89,24 +100,38 @@ const categoryLabels: Record<string, string> = {
   DATA_QUALITY: 'Kursqualität prüfen',
 };
 
+const quoteLabels: Record<string, string> = {
+  FRESH: 'Kurs innerhalb Altersgrenze',
+  LAST_AVAILABLE: 'Letzter verfügbarer Kurs gemäß Sitzungsbewertung',
+  STALE: 'Kurs veraltet',
+  REFERENCE_ONLY: 'Nur Referenzkurs',
+  MISSING: 'Kurs fehlt',
+  INVALID: 'Ungültige Kursdaten',
+  TIMESTAMP_UNKNOWN: 'Kurszeitpunkt nicht belegt',
+  UNASSESSED: 'Kursqualität nicht geprüft',
+};
+
 function date(value: string | null): string {
   return value ? new Date(value).toLocaleString('de-DE') : 'Unbekannt';
 }
 
+function evidence(value: boolean | null | undefined): string {
+  return value === true ? 'Ja' : value === false ? 'Nein' : 'Nicht belegt';
+}
+
 function RefreshDiagnostics({ reason, checks = [] }: { reason: string; checks?: RefreshCheck[] }) {
-  const findings = checks.filter((check) => check.consecutive_failures > 0 || check.recovered_at);
   return (
     <details className="mt-1 text-xs text-slate-400">
       <summary>
         Diagnose
-        {findings.length > 0 &&
-          ` · ${findings.length} ${findings.length === 1 ? 'Abrufnachweis' : 'Abrufnachweise'}`}
+        {checks.length > 0 &&
+          ` · ${checks.length} ${checks.length === 1 ? 'Abrufnachweis' : 'Abrufnachweise'}`}
       </summary>
       <p>{reason}</p>
-      {findings.map((check) => (
+      {checks.map((check) => (
         <div
-          key={`${check.kind}:${check.source}:${check.listing_id}`}
-          className="mt-2 border-l border-slate-700 pl-2"
+          key={`${check.kind}:${check.source}:${check.listing_id}:${check.identity_key ?? ''}`}
+          className="mt-2 break-words border-l border-slate-700 pl-2"
         >
           <p>{check.kind === 'JOB' ? 'Auftrag' : (check.source ?? 'Quelle unbekannt')}</p>
           {check.consecutive_failures > 0 ? (
@@ -123,15 +148,54 @@ function RefreshDiagnostics({ reason, checks = [] }: { reason: string; checks?: 
                 Seit: {date(check.first_failure_at)} · Zuletzt festgestellt:{' '}
                 {date(check.last_failure_at)}
               </p>
-              {check.status === 'DEFERRED' && (
-                <p>Wiederholung zurückgestellt · vorheriger Befund bleibt offen.</p>
-              )}
               {check.last_failure_reason && check.last_failure_reason !== check.reason && (
                 <p>Vorheriger Befund: {check.last_failure_reason}</p>
               )}
             </>
-          ) : (
-            <p>Abruf wieder erfolgreich: {date(check.recovered_at)}</p>
+          ) : check.recovered_at ? (
+            <p>
+              {check.kind === 'SOURCE'
+                ? 'Kursversorgung wiederhergestellt'
+                : 'Auftrag wieder abgeschlossen'}
+              : {date(check.recovered_at)}
+            </p>
+          ) : null}
+          {(check.waiting || check.status === 'DEFERRED') && (
+            <p>
+              {check.reason === 'WARRANT_QUOTE_RECOVERY_NOT_OBSERVED'
+                ? 'Kein neuer Erfolgsnachweis'
+                : 'Wiederholung zurückgestellt'}
+              {check.consecutive_failures > 0 && ' · vorheriger Befund bleibt offen'}.
+            </p>
+          )}
+          <p>
+            {check.kind === 'SOURCE'
+              ? 'Letzter qualifizierter Kursabruf'
+              : 'Letzter abgeschlossener Auftrag'}
+            : {date(check.last_success_at ?? null)}
+          </p>
+          {check.last_failure_at && (
+            <p>Letzter fehlgeschlagener Abruf: {date(check.last_failure_at)}</p>
+          )}
+          {check.kind === 'SOURCE' && (
+            <>
+              <p>Provider technisch erreichbar: {evidence(check.provider_reachable)}</p>
+              <p>Antwort gültig: {evidence(check.response_valid)}</p>
+              <p>Kurs verwendbar: {evidence(check.quote_usable)}</p>
+              <p>{quoteLabels[check.quote_status ?? 'UNASSESSED'] ?? check.quote_status}</p>
+              {check.retained_quote && (
+                <p className="text-amber-200">
+                  Gespeicherter Ersatzkurs vorhanden. Kein Nachweis eines aktuellen Providererfolgs.
+                </p>
+              )}
+              <p>
+                Kurszeit: {date(check.quote_observed_at ?? null)} · Abrufzeit des Kurses:{' '}
+                {date(check.quote_retrieved_at ?? null)}
+              </p>
+              {check.qualified_success !== undefined && (
+                <p>Qualifizierter Erfolg dieser Prüfung: {evidence(check.qualified_success)}</p>
+              )}
+            </>
           )}
           {!check.observed_in_latest_run && <p>In letzter Prüfung nicht erneut geprüft.</p>}
           <p>
@@ -139,6 +203,7 @@ function RefreshDiagnostics({ reason, checks = [] }: { reason: string; checks?: 
           </p>
           {check.reason && <p>Diagnosecode: {check.reason}</p>}
           {check.listing_id && <p>Notierung: {check.listing_id}</p>}
+          {check.identity_key && <p>Quellenidentität: {check.identity_key}</p>}
         </div>
       ))}
     </details>
@@ -149,7 +214,7 @@ function statusLabel(status: string): string {
   if (status === 'NEEDS_MASTER_DATA') return 'Stammdaten ergänzen oder prüfen';
   if (status === 'PENDING') return 'Erster Abruf steht aus';
   if (status === 'DEFERRED') return 'Abruflimit erreicht · Wiederholung eingeplant';
-  if (status === 'AVAILABLE') return 'Erfolgreich';
+  if (status === 'AVAILABLE') return 'Schedulerlauf abgeschlossen';
   if (status === 'MISSING') return 'Keine Kursdaten';
   if (status === 'BLOCKED') return 'Zuordnung oder Zugang fehlt';
   return 'Abruf prüfen';
@@ -201,6 +266,7 @@ export function MarketDataRefreshPanel() {
   async function load() {
     setLoading(true);
     setError(null);
+    setValue(null);
     try {
       setValue(
         await requestJson<RefreshStatus>(
@@ -256,7 +322,8 @@ export function MarketDataRefreshPanel() {
           </p>
           <p className="mt-2 text-slate-400">
             Basiswerte: abgeschlossene Tagesschlusskurse. Anbieterlimits können den nächsten Abruf
-            verzögern.
+            verzögern. Ein abgeschlossener Schedulerlauf bestätigt nicht den Erfolg jeder
+            Kursquelle.
           </p>
           {value.jobs.some((job) => job.diagnostics) && (
             <p className="mt-2 text-xs text-slate-400">
@@ -343,6 +410,14 @@ export function MarketDataRefreshPanel() {
                       <> · bisher {Math.floor(job.execution.elapsed_seconds)} Sek.</>
                     )}{' '}
                     · Stand der Statusabfrage
+                  </p>
+                )}
+                {job.diagnostics?.checks.some(
+                  (check) => check.kind === 'SOURCE' && check.consecutive_failures > 0,
+                ) && (
+                  <p className="mt-1 text-amber-200">
+                    Offene Quellenbefunde · Einzelne Providerabrufe sind nicht als behoben
+                    bestätigt. Details unter „Diagnose“.
                   </p>
                 )}
                 {discoveryReason(job.reason) && (

@@ -61,6 +61,8 @@ def history(*, currency="EUR", series=True, **kwargs):
                     currency=currency,
                     price_kind="BID",
                     source_mode="OFFICIAL_WEBSITE",
+                    provider_exchange_code="XSC",
+                    venue_mic="XFRA",
                     points=(
                         HistoricalPricePoint(
                             id="source-point",
@@ -323,6 +325,8 @@ def test_registered_get_autoloads_all_available_with_decimal_strings_and_origina
     assert body["trade_id"] == str(TRADE.id) and body["position_id"] == str(POSITION.id)
     assert body["window_start"] is None
     assert body["series"][0]["points"][0]["price"] == "2.25"
+    assert body["series"][0]["provider_exchange_code"] == "XSC"
+    assert body["series"][0]["venue_mic"] == "XFRA"
     assert body["series"][0]["points"][0]["observed_at"].startswith("2026-08-21T00:00:00")
     assert body["events"][0]["plottable"] is True
     assert body["events"][0]["price"] == "2"

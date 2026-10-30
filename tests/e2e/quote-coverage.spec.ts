@@ -160,7 +160,7 @@ test("issuer and exchange refresh evidence stays readable on mobile", async ({
     panel.getByText("Kurszeitpunkt nicht belegt", { exact: true }),
   ).toBeVisible();
   await expect(
-    panel.getByText("Emittentenabruf: Letzter Abruf erfolgreich", {
+    panel.getByText("Emittentenabruf: Schedulerlauf abgeschlossen", {
       exact: true,
     }),
   ).toBeVisible();

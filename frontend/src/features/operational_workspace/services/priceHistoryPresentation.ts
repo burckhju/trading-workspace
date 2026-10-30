@@ -1,4 +1,9 @@
-import type { PositionPriceKind } from '../positionPriceHistory';
+import type {
+  PositionPriceHistoryDays,
+  PositionPriceHistoryReport,
+  PositionPriceKind,
+  PositionPriceSeries,
+} from '../positionPriceHistory';
 
 export const priceKindLabel: Record<PositionPriceKind, string> = {
   BID: 'Geldkurs',
@@ -53,4 +58,61 @@ export function historyTime(value: string | null): string {
 // Only chart coordinates are converted to binary floating point.
 export function historyPrice(value: string): string {
   return value.replace('.', ',');
+}
+
+export function historyVenue(series: PositionPriceSeries): string {
+  const venue =
+    series.venue_mic === 'ISSUER' ||
+    (!series.venue_mic && series.provider_exchange_code === 'ISSUER')
+      ? 'Emittentenquelle · kein Börsenhandelsplatz'
+      : series.venue_mic
+        ? `Handelsplatz: ${series.venue_mic} (MIC)`
+        : 'Handelsplatz nicht belegt';
+  return series.provider_exchange_code
+    ? `${venue} · Providersegment: ${series.provider_exchange_code}`
+    : venue;
+}
+
+/** Short windows are offered only after the all-history read proves a price in them. */
+export function availableHistoryDays(
+  report: PositionPriceHistoryReport,
+): PositionPriceHistoryDays[] {
+  const end = Date.parse(report.window_end);
+  const times = report.series.flatMap((series) =>
+    series.points.map((point) => Date.parse(point.observed_at)),
+  );
+  return (['7', '31', '90'] as const).filter((days) =>
+    times.some((time) => time >= end - Number(days) * 86400000 && time <= end),
+  );
+}
+
+export function historyAxisTime(value: number, start: number, end: number): string {
+  if (![value, start, end].every(Number.isFinite)) return 'Unbekannt';
+  const date = new Date(value);
+  const first = new Date(start);
+  const last = new Date(end);
+  if (first.toISOString().slice(0, 10) === last.toISOString().slice(0, 10)) {
+    return date.toLocaleTimeString('de-DE', {
+      timeZone: 'UTC',
+      hour: '2-digit',
+      minute: '2-digit',
+      ...(end - start < 60000 ? { second: '2-digit' as const } : {}),
+    });
+  }
+  const day = date.toLocaleDateString('de-DE', {
+    timeZone: 'UTC',
+    day: '2-digit',
+    month: '2-digit',
+    ...(first.getUTCFullYear() !== last.getUTCFullYear() ? { year: 'numeric' as const } : {}),
+  });
+  if (end - start <= 7 * 86400000) {
+    const time = date.toLocaleTimeString('de-DE', {
+      timeZone: 'UTC',
+      hour: '2-digit',
+      minute: '2-digit',
+      ...(end - start < 60000 ? { second: '2-digit' as const } : {}),
+    });
+    return `${day} ${time}`;
+  }
+  return day;
 }

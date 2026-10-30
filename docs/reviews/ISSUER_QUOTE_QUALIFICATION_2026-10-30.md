@@ -1,6 +1,68 @@
 # MS, JPMorgan und UniCredit: erneute Quellenqualifikation
 
-## Prüfstand und Entscheidung
+## Nachqualifikation von PR #305 auf Main 1.5.33
+
+Erneut über GitHub verifiziert am 30.10.2026: Main und Tag `v1.5.33` zeigen auf
+`d161132c05666d43a324dcbcad0a0038c511a332`; die Quellversion ist **1.5.33**.
+#302, #303, #306 und #307 sind integriert. Ein separates GitHub-Releaseobjekt
+für `v1.5.33` existiert nicht; `releases/latest` nennt weiterhin
+`v1.0.0-product-selection`. Ein installierter PC-Stand wurde nicht geprüft.
+
+Der bisherige Head von #305, `5d56a0bd092a28395a52edb668662236ea53da18`, hat
+inzwischen alle vier GitHub-Workflows bestanden: Backend `41101193859`,
+Frontend `41101193861`, End-to-End `41101193924` und Veröffentlichungsschutz
+`41101193825`. Die Checkout-Logs belegen aber ausschließlich den Testmerge
+`0da149a977c17c5dfc4867c2cefa852fe10c7a28` gegen `4f70760c...`.
+Diese Ergebnisse ersetzen keine Prüfung des nachfolgend aktualisierten Heads.
+Reviews, Reviewthreads und Kommentare waren beim erneuten Abgleich leer.
+
+Der aktuelle Main wurde konfliktfrei ausschließlich in den bestehenden Branch
+`fix/gettex-qualified-coverage-20261030` übernommen. Die vorhandene Kursgeschichte,
+Retention, fünf Scheduler-Lanes, Retryplanung, API-Schemas und UI bleiben erhalten.
+Der vollständige PR-Diff betrifft sechs Pfade: zwei vorhandene Runtime-Dateien,
+drei Testdateien und diese Notiz. Dabei wurden drei belegte Restprobleme korrigiert:
+
+1. **Wiederholte große Fehlversuche:** Nach einem fehlgeschlagenen Dateidownload
+   sperrt das vorhandene `unavailable_retry_seconds`-Intervall weitere Downloads
+   derselben MIC/Datei, auch bei weiterhin erweiterter ISIN-Menge und anderen
+   Workspaces. Die Sperre wird nicht durch Wiederholungen verlängert; abgelaufene
+   Einträge werden entfernt. Der vorherige gültige Cache bleibt erhalten.
+   Andere MICs und neue Dateifenster bleiben unabhängig; nur HTTP 404 erlaubt
+   weiterhin den vorhandenen Rückgriff auf ein vorheriges Veröffentlichungsfenster.
+2. **Monitoring nach HTTP 429:** Der tatsächliche HTTP-Fehler bleibt
+   `GETTEX_DELAYED_RATE_LIMITED`. Ein lokal unterdrückter Aufruf erhält
+   `GETTEX_DELAYED_REQUEST_THROTTLED`, weiterhin als `MarketDataRateLimitError`
+   mit sinkendem `retry_after`. Die vorhandene Diagnostik aus #307 behandelt ihn
+   als Wartephase: kein weiterer Providerfehler, keine Änderung des letzten
+   Fehlerzeitpunkts und keine behauptete Wiederherstellung.
+3. **Erhaltene Fehlerkategorien:** Die bestehende Refreshdiagnostik ordnet
+   gettex-Zugriffs-/Mappingfehler als Konfiguration und ungültige Datei-/Kursdaten
+   als Datenqualität ein. Eine verworfene ungültige Antwort ohne angenommenen
+   Kurs erscheint als `INVALID`; ein gespeicherter Kurs behält seine eigenen
+   Zeitpunkte und Qualitätsbelege. Es entsteht kein zweites Monitoring.
+
+Die Regressionen reproduzieren die Download-/Sperrlücken mit dem alten Adapter
+(16 gezielte Fehler) sowie die Monitoringlücken vor der Korrektur (40 gezielte
+Fehler). Mit den Korrekturen bestehen die vollständigen gettex-Adapter-/Parsertests
+(73 Fälle) und die drei Diagnose-Suites (112 Fälle). Ergänzende echte
+SQL-/JSON-Retentionstests prüfen Fehler, lokale Sperre und erfolgreiche Erholung
+mit und ohne historischen Kurs; eine gebundene Route verwendet keine Alternativquelle.
+
+Die vollständigen lokalen Ergebnisse, der endgültige Head und Baum sowie die
+neuen GitHub-Läufe werden in [PR #305](https://github.com/burckhju/trading-workspace/pull/305)
+geführt. Erst erfolgreiche aktuelle Backend-, Frontend-, PostgreSQL-, E2E- und
+Veröffentlichungsschutzprüfungen qualifizieren diesen Integrationsstand.
+Die bestehenden Qualitätsgrenzen werden unverändert angewendet.
+
+#220 bleibt offen als historische Recherchegrundlage. #205, #207, #187 und #197
+sind ebenfalls offen und werden nicht geändert. Es gibt keinen neuen Liveabruf,
+keine belegte zusätzliche Providerberechtigung und keine Provideraktivierung.
+Die nachfolgenden Quellenbeobachtungen bleiben datierte historische Befunde,
+keine erneute Bestätigung heutiger Liveabdeckung. Main-Merge, Release, Tag,
+Deployment, PC-Installation und fachliche Abnahme sind nicht Teil dieser
+technischen PR-Qualifikation.
+
+## Ursprünglicher Prüfstand und Entscheidung
 
 Stand: 30.10.2026. Geprüfte Main-Basis:
 [`e8703a65ce8c1ba48ed1c9be3a8b7b8ff4dac37f`](https://github.com/burckhju/trading-workspace/commit/e8703a65ce8c1ba48ed1c9be3a8b7b8ff4dac37f).
@@ -200,12 +262,12 @@ Bereits abgerufene Basisergebnisse, ausdrücklich **kein Testbeleg neuer Änderu
 | Strang / geprüfter Head | Abgrenzung |
 |---|---|
 | #205 `ba7f442a027c55fd3bb15ed6f77271690c8a9055` | Tatsächlich Konzept und zwei Hilfsworkflows. Die Umsetzung #302 ist bereits Main. Keine Chart-, Reader- oder Historienänderung in diesem Schnitt. |
-| #303 `b95409ada22a731cd59785b7904cdfd72cea79e4` | Inzwischen als `4f70760c...` in Main integriert und unverändert in den Feature-Branch übernommen. Monitoringdiagnostik in `refresh.py`/`refresh_diagnostics.py`, UI und eigenen Tests; keine eigene Änderung an diesen Dateien. Bestehende Providerfehler bleiben konsumierbar. |
+| #303 `b95409ada22a731cd59785b7904cdfd72cea79e4` | Im ursprünglichen Schnitt als `4f70760c...` konfliktfrei übernommen. Die spätere Integration mit #307 ergänzt ausschließlich gettex-Fehlercodes und lokale Wartezustände in der bestehenden Diagnostik; siehe Nachqualifikation oben. |
 | #197 `08d2a5c9abe91ef518eb2c940eff9bbeceb073f8` | Historischer Forschungsworkflow und Kollektoren. Keine gemeinsamen geänderten Pfade und keine historischen Datenabrufe/-migrationen. |
 | #220 `40da0f23dea50cf6c70f1232f61ffd83f825dd19` | Bleibt getrennte Forschung. Dieses neue datierte Dokument überschreibt keinen der drei alten PR-Pfade. |
 
 Die vorhandenen Interfaces und geteilten Modelle werden lediglich verwendet,
-nicht verändert. Der Implementierungs-PR bleibt Draft. Recherchiert, historisch
+nicht verändert. Der aktuelle Freigabestatus wird in PR #305 geführt. Recherchiert, historisch
 technisch beobachtet, für eine konkrete Nutzung zulässig, implementiert, getestet,
 in Main integriert und produktiv aktiviert werden jeweils separat ausgewiesen.
 Insbesondere sind vorhandene Main-Adapter kein Nachweis heutiger Quellennutzung

@@ -1,7 +1,11 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
 import type { PositionPriceHistoryDays, PositionPriceHistoryReport } from '../positionPriceHistory';
 import { readPositionPriceHistory } from '../services/positionPriceHistory';
-import { historyTime, priceHistoryLabel } from '../services/priceHistoryPresentation';
+import {
+  availableHistoryDays,
+  historyTime,
+  priceHistoryLabel,
+} from '../services/priceHistoryPresentation';
 import { PositionPriceHistoryEvidence } from './PositionPriceHistoryEvidence';
 
 // Keep chart dependencies out of the initial workspace bundle. Evidence remains
@@ -27,14 +31,18 @@ const PositionPricePlot = lazy(async () => {
 interface Props {
   tradeId: string;
   positionId: string;
+  reloadToken?: number;
 }
 
 export function PositionPriceHistory(props: Props) {
-  return <History key={`${props.tradeId}:${props.positionId}`} {...props} />;
+  return (
+    <History key={`${props.tradeId}:${props.positionId}:${props.reloadToken ?? 0}`} {...props} />
+  );
 }
 
 function History({ tradeId, positionId }: Props) {
   const [days, setDays] = useState<PositionPriceHistoryDays>('all');
+  const [availableDays, setAvailableDays] = useState<PositionPriceHistoryDays[]>([]);
   const [attempt, setAttempt] = useState(0);
   const [state, setState] = useState<{
     report: PositionPriceHistoryReport | null;
@@ -44,7 +52,10 @@ function History({ tradeId, positionId }: Props) {
     const controller = new AbortController();
     readPositionPriceHistory(tradeId, positionId, days, controller.signal)
       .then((report) => {
-        if (!controller.signal.aborted) setState({ report, error: false });
+        if (!controller.signal.aborted) {
+          setState({ report, error: false });
+          if (days === 'all') setAvailableDays(availableHistoryDays(report));
+        }
       })
       .catch(() => {
         if (!controller.signal.aborted) setState({ report: null, error: true });
@@ -73,14 +84,19 @@ function History({ tradeId, positionId }: Props) {
             }}
           >
             <option value="all">Alle gespeicherten Kurse</option>
-            <option value="7">7 Tage</option>
-            <option value="31">31 Tage</option>
-            <option value="90">90 Tage</option>
+            {(['7', '31', '90'] as const).map((range) => (
+              <option key={range} value={range} disabled={!availableDays.includes(range)}>
+                {range} Tage
+              </option>
+            ))}
           </select>
         </label>
       </div>
       <p className="text-slate-300">
         Gespeicherte Einzelbeobachtungen. Zwischen den Punkten ist kein Kursverlauf belegt.
+      </p>
+      <p className="text-xs text-slate-400">
+        Kurze Zeiträume sind nur wählbar, wenn darin gespeicherte Originalkurse belegt sind.
       </p>
       {!report && !error && <p aria-live="polite">Gespeicherte Kurse werden geladen …</p>}
       {error && (

@@ -168,6 +168,7 @@ it('filters operational failures independently of observed bid age and aborts un
         warrant_id: 'normal',
         coverage: 'BID_WITHIN_AGE_BUDGET',
         refresh_status: 'AVAILABLE',
+        routes: [{ ...route, refresh_error: null }],
       },
     ],
   });
@@ -216,9 +217,75 @@ it('keeps separate issuer failures visible beside successful other sources and i
   await screen.findByText('Synthetic old bid');
   fireEvent.click(screen.getByLabelText('Nur Prüfbedarf'));
   expect(screen.getByText('Unterschiedliche Abrufstände – Details prüfen')).toBeInTheDocument();
-  expect(screen.getByText('Weitere Kursquellen: Letzter Abruf erfolgreich')).toBeInTheDocument();
+  expect(screen.getByText('Weitere Kursquellen: Schedulerlauf abgeschlossen')).toBeInTheDocument();
   expect(screen.getByText('Emittentenabruf: Letzter Abruf fehlgeschlagen')).toBeInTheDocument();
   expect(screen.getByText('ISSUER_TIMEOUT')).toBeInTheDocument();
   expect(screen.queryByText('Noch kein Abrufnachweis in dieser Laufzeit')).not.toBeInTheDocument();
   expect(request).toHaveBeenCalledTimes(1);
+});
+
+it('keeps a fresh retained quote with a failed provider in the gap filter despite AVAILABLE', async () => {
+  request.mockResolvedValue({
+    ...report,
+    items: [
+      {
+        ...item,
+        coverage: 'BID_WITHIN_AGE_BUDGET',
+        refresh_status: 'AVAILABLE',
+        routes: [{ ...route, observation_status: 'BID_WITHIN_AGE_BUDGET', age_seconds: 30 }],
+      },
+    ],
+  });
+  render(<QuoteCoveragePanel />);
+  fireEvent.click(screen.getByRole('button'));
+  await screen.findByText('Synthetic old bid');
+  fireEvent.click(screen.getByLabelText('Nur Prüfbedarf'));
+
+  expect(screen.getByText('Synthetic old bid')).toBeVisible();
+  expect(screen.getByText('Schedulerlauf abgeschlossen')).toBeVisible();
+  expect(screen.getByText(/Mindestens ein Providerabruf ohne bestätigten Erfolg/)).toBeVisible();
+  expect(screen.queryByText(/Letzter Abruf erfolgreich/)).not.toBeInTheDocument();
+  fireEvent.click(screen.getByText('Kurswege (1)'));
+  expect(
+    screen.getByText('Gespeicherter Ersatzkurs · aktueller Providererfolg nicht bestätigt.'),
+  ).toBeVisible();
+  expect(screen.getByText(/Kurszeit:.*14.9.2026/)).toBeVisible();
+});
+
+it('does not invent a substitute quote for a failed provider without stored prices', async () => {
+  request.mockResolvedValue({
+    ...report,
+    items: [{ ...item, routes: [{ ...route, bid: null, reference_price: null }] }],
+  });
+  render(<QuoteCoveragePanel />);
+  fireEvent.click(screen.getByRole('button'));
+  await screen.findByText('Synthetic old bid');
+  fireEvent.click(screen.getByText('Kurswege (1)'));
+
+  expect(screen.getByText(/Abrufhinweis: VONTOBEL_QUOTE_TIMEOUT/)).toBeVisible();
+  expect(screen.queryByText(/Gespeicherter Ersatzkurs/)).not.toBeInTheDocument();
+});
+
+it('does not label a locally deferred refresh as a failed provider attempt', async () => {
+  request.mockResolvedValue({
+    ...report,
+    items: [
+      {
+        ...item,
+        refresh_status: 'DEFERRED',
+        routes: [{ ...route, refresh_error: 'FRANKFURT_REQUEST_THROTTLED' }],
+      },
+    ],
+  });
+  render(<QuoteCoveragePanel />);
+  fireEvent.click(screen.getByRole('button'));
+  await screen.findByText('Synthetic old bid');
+  fireEvent.click(screen.getByText('Kurswege (1)'));
+
+  expect(screen.getByText('Wiederholung nach Abruflimit')).toBeVisible();
+  expect(screen.getByText(/Abrufhinweis: FRANKFURT_REQUEST_THROTTLED/)).toBeVisible();
+  expect(
+    screen.getByText('Gespeicherter Ersatzkurs · aktueller Providererfolg nicht bestätigt.'),
+  ).toBeVisible();
+  expect(screen.queryByText(/fehlgeschlagen/)).not.toBeInTheDocument();
 });

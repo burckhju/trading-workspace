@@ -29,6 +29,7 @@ from app.features.market_data.persistence.quote_identity import QuoteIdentity, r
 from app.features.market_data.service.errors import (
     MarketDataAuthenticationError,
     MarketDataAuthorizationError,
+    MarketDataError,
     MarketDataInvalidResponseError,
     MarketDataNotFoundError,
     MarketDataRateLimitError,
@@ -70,6 +71,7 @@ class GettexDelayedWarrantQuoteAdapter:
         self._lock = asyncio.Lock()
         self._cache: dict[tuple[UUID, str], _CacheEntry] = {}
         self._missing_until: dict[tuple[str, str], float] = {}
+        self._failed_until: dict[tuple[str, str], float] = {}
         self._rate_limited_until = 0.0
 
     async def close(self) -> None:
@@ -190,6 +192,9 @@ class GettexDelayedWarrantQuoteAdapter:
                 )
 
             cache_key = (workspace_id, mic)
+            self._failed_until = {
+                key: until for key, until in self._failed_until.items() if monotonic() < until
+            }
             for file_name in self._candidate_file_names(as_of, mic):
                 cached = self._cache.get(cache_key)
                 if (
@@ -202,11 +207,26 @@ class GettexDelayedWarrantQuoteAdapter:
                 missing_key = (mic, file_name)
                 if monotonic() < self._missing_until.get(missing_key, 0):
                     continue
+                if monotonic() < self._failed_until.get(missing_key, 0):
+                    raise self._rate_limit_error(
+                        max(self._failed_until[missing_key], self._rate_limited_until), local=True
+                    )
 
                 # Remember the complete scan scope, including absent/invalid rows.
                 # Never let a mutable caller set make an unscanned product a cache hit.
                 scanned_isins = frozenset(tracked_isins)
-                loaded = await self._download(file_name, set(scanned_isins))
+                try:
+                    loaded = await self._download(file_name, set(scanned_isins))
+                except MarketDataRateLimitError:
+                    # HTTP 429 has a provider-wide deadline, including Retry-After.
+                    raise
+                except MarketDataError:
+                    # One failed full-file scan must not be repeated for every listing.
+                    # Keep the verified cache and never fall back after a failed response.
+                    self._failed_until[missing_key] = (
+                        monotonic() + self._settings.unavailable_retry_seconds
+                    )
+                    raise
                 if loaded is None:
                     self._missing_until[missing_key] = (
                         monotonic() + self._settings.unavailable_retry_seconds
@@ -261,13 +281,13 @@ class GettexDelayedWarrantQuoteAdapter:
             return fallback
         return delay if delay > timedelta(0) else fallback
 
-    def _rate_limit_error(self) -> MarketDataRateLimitError:
+    def _rate_limit_error(self, until: float, *, local: bool = False) -> MarketDataRateLimitError:
         return MarketDataRateLimitError(
-            "GETTEX_DELAYED_RATE_LIMITED",
+            "GETTEX_DELAYED_REQUEST_THROTTLED" if local else "GETTEX_DELAYED_RATE_LIMITED",
             provider=MarketDataProvider.GETTEX_DELAYED,
             capability=MarketDataCapability.WARRANT_LISTING_QUOTE,
             retryable=True,
-            retry_after=timedelta(seconds=max(0.0, self._rate_limited_until - monotonic())),
+            retry_after=timedelta(seconds=max(0.0, until - monotonic())),
         )
 
     async def _download(
@@ -278,7 +298,7 @@ class GettexDelayedWarrantQuoteAdapter:
         # The retained-quote boundary may consume the typed exception. Enforce the
         # upstream pause here across all listings/MICs, without sleeping or retrying.
         if monotonic() < self._rate_limited_until:
-            raise self._rate_limit_error()
+            raise self._rate_limit_error(self._rate_limited_until, local=True)
         url = f"{self._settings.base_url.rstrip('/')}/{file_name}"
         try:
             async with self._client.stream(
@@ -305,7 +325,7 @@ class GettexDelayedWarrantQuoteAdapter:
                     self._rate_limited_until = max(
                         self._rate_limited_until, monotonic() + retry_after.total_seconds()
                     )
-                    raise self._rate_limit_error()
+                    raise self._rate_limit_error(self._rate_limited_until)
                 if response.status_code >= 500:
                     raise MarketDataUnavailableError(
                         "GETTEX_DELAYED_UPSTREAM_UNAVAILABLE",

@@ -324,14 +324,16 @@ async def test_scanned_missing_or_invalid_isin_does_not_trigger_repeat_downloads
 
 
 @pytest.mark.asyncio
-async def test_failed_expanded_scan_keeps_verified_cache_for_previously_scanned_isins(
+async def test_failed_expanded_scan_is_throttled_preserves_cache_and_recovers_at_deadline(
     monkeypatch,
 ) -> None:
+    clock = [1000.0]
+    monkeypatch.setattr(gettex_module, "monotonic", lambda: clock[0])
     calls = []
 
     def handler(request):
         calls.append(request)
-        return httpx.Response(200, content=_PAYLOAD if len(calls) == 1 else _PAYLOAD[:-8])
+        return httpx.Response(200, content=_PAYLOAD[:-8] if len(calls) == 2 else _PAYLOAD)
 
     async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
         adapter = _adapter(client=client)
@@ -342,12 +344,83 @@ async def test_failed_expanded_scan_keeps_verified_cache_for_previously_scanned_
         tracked.add(_ADDED_ISIN)
         with pytest.raises(MarketDataInvalidResponseError, match="GETTEX_GZIP_INVALID"):
             await adapter.get_warrant_listing_quote(added)
+
+        # The enlarged set remains active. Another listing and another workspace
+        # must not download the same damaged file again or extend its deadline.
+        for elapsed, request in (
+            (20, added),
+            (20, first),
+            (19, replace(added, workspace_id=uuid4())),
+        ):
+            clock[0] += elapsed
+            with pytest.raises(
+                MarketDataRateLimitError, match="GETTEX_DELAYED_REQUEST_THROTTLED"
+            ) as caught:
+                await adapter.get_warrant_listing_quote(request)
+            assert caught.value.retry_after == timedelta(seconds=1060 - clock[0])
+            assert caught.value.retryable is True
+        assert len(calls) == 2
+
         tracked.remove(_ADDED_ISIN)
         retained_cache = await adapter.get_warrant_listing_quote(first)
         assert retained_cache.cache_status is CacheStatus.HIT
         assert retained_cache.retrieved_at == original.retrieved_at
         assert retained_cache.data.observed_at == original.data.observed_at
         assert len(calls) == 2
+
+        tracked.add(_ADDED_ISIN)
+        clock[0] += 1
+        recovered = await adapter.get_warrant_listing_quote(added)
+        assert recovered.cache_status is CacheStatus.BYPASS
+        assert recovered.data.isin == _ADDED_ISIN
+        assert recovered.data.bid == Decimal("2.34")
+        assert recovered.data.ask == Decimal("2.35")
+        assert recovered.data.observed_at == datetime(2026, 9, 16, 20, 56, 0, 1, tzinfo=UTC)
+        assert recovered.data.currency == "EUR"
+        assert recovered.data.refresh_error is None and recovered.data.retained is False
+        cached = await adapter.get_warrant_listing_quote(added)
+        assert cached.cache_status is CacheStatus.HIT
+        assert cached.retrieved_at == recovered.retrieved_at
+        assert len(calls) == 3
+
+
+@pytest.mark.asyncio
+async def test_failed_file_backoff_does_not_block_another_mic_or_new_publication(
+    monkeypatch,
+):
+    monkeypatch.setattr(gettex_module, "monotonic", lambda: 1000.0)
+    calls = []
+
+    def handler(request):
+        calls.append(request)
+        if len(calls) == 1:
+            return httpx.Response(200, content=_PAYLOAD[:-8])
+        if str(request.url).endswith("pretrade.20260916.21.15.mund.csv.gz"):
+            return httpx.Response(
+                200,
+                content=gzip.compress(b"DE000UN37224,21:05:00.000001,EUR,1.25,100,1.26,100\n"),
+            )
+        return httpx.Response(200, content=_PAYLOAD)
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        adapter = _adapter(client=client)
+        monkeypatch.setattr(adapter, "_tracked_isins", AsyncMock(return_value={_ISIN}))
+        workspace = uuid4()
+        with pytest.raises(MarketDataInvalidResponseError, match="GETTEX_GZIP_INVALID"):
+            await adapter._quotes_for(workspace, "MUND", _AS_OF)
+
+        other_mic, _, hit = await adapter._quotes_for(workspace, "MUNC", _AS_OF)
+        assert hit is False
+        assert other_mic.quotes[_ISIN].mic == "MUNC"
+        assert other_mic.quotes[_ISIN].bid == Decimal("1.23")
+
+        new_file, _, hit = await adapter._quotes_for(
+            workspace, "MUND", _AS_OF + timedelta(minutes=15)
+        )
+        assert hit is False
+        assert new_file.quotes[_ISIN].observed_at == datetime(2026, 9, 16, 21, 5, 0, 1, tzinfo=UTC)
+        assert new_file.quotes[_ISIN].bid == Decimal("1.25")
+        assert len(calls) == 3
 
 
 @pytest.mark.asyncio
@@ -392,10 +465,8 @@ async def test_rate_limit_preserves_existing_error_contract_and_retry_after(
 
     async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
         adapter = _adapter(client=client)
-        for _ in range(2):
-            with pytest.raises(
-                MarketDataRateLimitError, match="GETTEX_DELAYED_RATE_LIMITED"
-            ) as caught:
+        for code in ("GETTEX_DELAYED_RATE_LIMITED", "GETTEX_DELAYED_REQUEST_THROTTLED"):
+            with pytest.raises(MarketDataRateLimitError, match=code) as caught:
                 await adapter._download(_FILE, {_ISIN})
             error = caught.value
             assert error.provider is MarketDataProvider.GETTEX_DELAYED
@@ -454,11 +525,13 @@ async def test_rate_limit_blocks_new_scans_across_workspace_mic_and_recovers_at_
         workspace = uuid4()
         batch, fetched_at, _ = await adapter._quotes_for(workspace, "MUND", _AS_OF)
         tracked.add(_ADDED_ISIN)
-        with pytest.raises(MarketDataRateLimitError):
+        with pytest.raises(MarketDataRateLimitError, match="GETTEX_DELAYED_RATE_LIMITED"):
             await adapter._quotes_for(workspace, "MUND", _AS_OF)
         clock[0] += 30
         for different_workspace, mic in ((uuid4(), "MUND"), (workspace, "MUNC")):
-            with pytest.raises(MarketDataRateLimitError) as caught:
+            with pytest.raises(
+                MarketDataRateLimitError, match="GETTEX_DELAYED_REQUEST_THROTTLED"
+            ) as caught:
                 await adapter._quotes_for(different_workspace, mic, _AS_OF)
             assert caught.value.retry_after == timedelta(seconds=90)
         assert len(calls) == 2
@@ -570,6 +643,7 @@ async def test_stream_without_content_length_still_requires_complete_bounded_gzi
 async def test_http_failures_preserve_provider_contract_and_never_try_an_older_window(
     monkeypatch, status, error_type, code, retryable
 ):
+    monkeypatch.setattr(gettex_module, "monotonic", lambda: 1000.0)
     calls = []
 
     def handler(request):
@@ -584,6 +658,11 @@ async def test_http_failures_preserve_provider_contract_and_never_try_an_older_w
         assert caught.value.retryable is retryable
         assert caught.value.provider is MarketDataProvider.GETTEX_DELAYED
         assert caught.value.capability is MarketDataCapability.WARRANT_LISTING_QUOTE
+        with pytest.raises(
+            MarketDataRateLimitError, match="GETTEX_DELAYED_REQUEST_THROTTLED"
+        ) as deferred:
+            await adapter._quotes_for(uuid4(), "MUND", _AS_OF)
+        assert deferred.value.retry_after == timedelta(seconds=60)
         assert len(calls) == 1
         assert not adapter._missing_until
 
@@ -599,6 +678,7 @@ async def test_http_failures_preserve_provider_contract_and_never_try_an_older_w
 async def test_transport_errors_are_retryable_and_do_not_fall_back(
     monkeypatch, transport_error, code
 ):
+    monkeypatch.setattr(gettex_module, "monotonic", lambda: 1000.0)
     calls = []
 
     def handler(request):
@@ -611,6 +691,11 @@ async def test_transport_errors_are_retryable_and_do_not_fall_back(
         with pytest.raises(MarketDataUnavailableError, match=code) as caught:
             await adapter._quotes_for(uuid4(), "MUND", _AS_OF)
         assert caught.value.retryable is True
+        with pytest.raises(
+            MarketDataRateLimitError, match="GETTEX_DELAYED_REQUEST_THROTTLED"
+        ) as deferred:
+            await adapter._quotes_for(uuid4(), "MUND", _AS_OF)
+        assert deferred.value.retry_after == timedelta(seconds=60)
         assert len(calls) == 1
 
 

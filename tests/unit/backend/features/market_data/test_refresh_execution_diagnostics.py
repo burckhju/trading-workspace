@@ -3,7 +3,7 @@
 import asyncio
 from copy import deepcopy
 from dataclasses import asdict, replace
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock
 from uuid import uuid4
 
@@ -15,6 +15,7 @@ from tests.unit.backend.features.position_monitoring.test_quote_sources import (
     _result,
 )
 
+from app.features.market_data.domain.enums import MarketDataProvider
 from app.features.market_data.service import refresh as module
 from app.features.market_data.service.errors import MarketDataUnavailableError
 from app.features.market_data.service.refresh_catalog import RefreshInstrument
@@ -25,6 +26,31 @@ from app.features.position_monitoring.service.quote_sources import (
 from app.providers.frankfurt_quotes.schema import FrankfurtSourceError
 
 pytestmark = pytest.mark.asyncio
+
+
+def current_result(listing, provider):
+    result = _result(listing)
+    now = datetime.now(UTC)
+    return replace(
+        result,
+        provider=MarketDataProvider(provider),
+        retrieved_at=now,
+        data=replace(result.data, observed_at=now),
+    )
+
+
+def result_quotes(resolved):
+    if resolved.result is None or resolved.result.data is None:
+        return []
+    return [
+        {
+            **asdict(resolved.result.data),
+            "provider": resolved.result.provider,
+            "retrieved_at": resolved.result.retrieved_at,
+            "quality_status": resolved.result.quality_status,
+            "cache_status": resolved.result.cache_status,
+        }
+    ]
 
 
 async def test_catalog_rescan_preserves_failure_streak_and_only_due_retry_can_recover(monkeypatch):
@@ -150,7 +176,7 @@ async def test_provider_outage_survives_successful_other_source_and_retained_quo
     item = RefreshInstrument(uuid4(), "Synthetic warrant", None)
     key = f"WARRANT_QUOTES:{item.id}"
     primary = _Provider(error=MarketDataUnavailableError("private transport URL"))
-    secondary = _Provider(result=_result(listing))
+    secondary = _Provider(result=current_result(listing, "GETTEX_DELAYED"))
     resolver = MultiSourceWarrantQuoteResolver(
         (
             NamedWarrantQuoteSource("FRANKFURT_QUOTES", primary),
@@ -164,6 +190,7 @@ async def test_provider_outage_survives_successful_other_source_and_retained_quo
             "status": "AVAILABLE" if resolved.result else "MISSING",
             "reason": "QUOTE_OBSERVATIONS_AVAILABLE",
             "source_attempts": [asdict(attempt) for attempt in resolved.attempts],
+            "quotes": result_quotes(resolved),
         }
 
     await value._job(key, item, 300, operation)
@@ -175,7 +202,7 @@ async def test_provider_outage_survives_successful_other_source_and_retained_quo
     assert failed["reason"] == "MARKET_DATA_UNAVAILABLE_ERROR"
 
     primary.error = None
-    result = _result(listing)
+    result = current_result(listing, "FRANKFURT_QUOTES")
     primary.result = replace(
         result, data=replace(result.data, retained=True, refresh_error="FRANKFURT_HTTP_503")
     )
@@ -190,7 +217,7 @@ async def test_provider_outage_survives_successful_other_source_and_retained_quo
     assert failed["consecutive_failures"] == 2
     assert failed["recovered_at"] is None
 
-    primary.result = result
+    primary.result = current_result(listing, "FRANKFURT_QUOTES")
     value.timer = lambda: 1600
     await value._job(key, item, 300, operation)
     recovered = next(
@@ -207,7 +234,7 @@ async def test_missing_or_old_quote_does_not_become_a_transport_outage(missing):
     value = runtime()
     listing = uuid4()
     item = RefreshInstrument(uuid4(), "Synthetic warrant", None)
-    result = _result(listing)
+    result = current_result(listing, "GETTEX_DELAYED")
     old_time = result.data.observed_at - timedelta(days=1)
     result = replace(result, data=replace(result.data, observed_at=old_time))
     provider = _Provider(result=None if missing else result)
@@ -224,6 +251,7 @@ async def test_missing_or_old_quote_does_not_become_a_transport_outage(missing):
                 "status": "MISSING" if missing else "AVAILABLE",
                 "reason": "NO_USABLE_WARRANT_QUOTE" if missing else "QUOTE_OBSERVATIONS_AVAILABLE",
                 "source_attempts": [asdict(attempt) for attempt in resolved.attempts],
+                "quotes": result_quotes(resolved),
             }
         ),
     )
@@ -232,8 +260,9 @@ async def test_missing_or_old_quote_does_not_become_a_transport_outage(missing):
         for check in value.status()["jobs"][0]["diagnostics"]["checks"]
         if check["kind"] == "SOURCE"
     )
-    assert check["category"] == ("NO_QUOTE" if missing else None)
-    assert check["consecutive_failures"] == (1 if missing else 0)
+    assert check["category"] == ("NO_QUOTE" if missing else "DATA_QUALITY")
+    assert check["consecutive_failures"] == 1
+    assert check["qualified_success"] is False
     if not missing:
         # A completed request is not evidence of fresh data. The original quote
         # remains old for the existing coverage/valuation freshness policies.

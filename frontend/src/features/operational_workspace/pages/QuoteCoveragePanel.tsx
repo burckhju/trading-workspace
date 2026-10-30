@@ -89,7 +89,7 @@ const labels: Record<string, string> = {
   NOT_SCHEDULED: 'Noch nicht eingeplant',
   PENDING: 'Erster Abruf steht aus',
   RUNNING: 'Abruf läuft',
-  AVAILABLE: 'Letzter Abruf erfolgreich',
+  AVAILABLE: 'Schedulerlauf abgeschlossen',
   MISSING: 'Letzter Abruf ohne Kurs',
   ERROR: 'Letzter Abruf fehlgeschlagen',
   DEFERRED: 'Wiederholung nach Abruflimit',
@@ -136,6 +136,7 @@ export function QuoteCoveragePanel() {
         (!issuer || issuer === item.issuer) &&
         (!onlyGaps ||
           item.coverage !== 'BID_WITHIN_AGE_BUDGET' ||
+          item.routes.some((route) => route.refresh_error) ||
           ['ERROR', 'MISSING', 'DISABLED', 'NOT_SCHEDULED', 'MIXED', 'DEFERRED'].includes(
             item.refresh_status,
           )),
@@ -292,7 +293,15 @@ export function QuoteCoveragePanel() {
                             </p>
                             <p>Handelsstatus: {route.trading_status ?? 'unbekannt'}</p>
                             {route.refresh_error && (
-                              <p className="text-amber-300">Abrufhinweis: {route.refresh_error}</p>
+                              <div className="text-amber-300">
+                                <p>Abrufhinweis: {route.refresh_error}</p>
+                                {(route.bid !== null || route.reference_price !== null) && (
+                                  <p>
+                                    Gespeicherter Ersatzkurs · aktueller Providererfolg nicht
+                                    bestätigt.
+                                  </p>
+                                )}
+                              </div>
                             )}
                             <p className="text-xs">
                               Zuordnung:{' '}
@@ -306,6 +315,12 @@ export function QuoteCoveragePanel() {
                     </td>
                     <td className="p-2">
                       <p>{label(item.refresh_status)}</p>
+                      {item.routes.some((route) => route.refresh_error) && (
+                        <p className="mt-1 text-amber-300">
+                          Mindestens ein Providerabruf ohne bestätigten Erfolg. Gespeicherte Kurse
+                          belegen keine Wiederherstellung.
+                        </p>
+                      )}
                       {item.refresh_jobs && item.refresh_jobs.length > 0 ? (
                         item.refresh_jobs.map((job) => (
                           <div key={job.lane} className="mt-2 break-words">
