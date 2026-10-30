@@ -12,6 +12,15 @@ Das GitHub-Release-API führt als jüngstes veröffentlichtes Release nur
 vom 16.08.2026. Git-Tag, Quellversion, GitHub Release und tatsächlich installierter
 Serverstand sind unterschiedliche Nachweise. Ein PC-/Produktionsstand wurde nicht geprüft.
 
+Während der PR-Erstellung wurde #303 unabhängig von diesem Auftrag nach Main
+integriert. Neuer Main-Stand:
+[`4f70760c0dcf0448e470eef85e79253d897189e5`](https://github.com/burckhju/trading-workspace/commit/4f70760c0dcf0448e470eef85e79253d897189e5).
+Die acht geänderten Monitoringpfade überschneiden sich nicht mit den vier Pfaden
+dieses Schnitts. Dieser Main wurde konfliktfrei ausschließlich in den Feature-Branch
+übernommen. Der separate [Draft-PR #305](https://github.com/burckhju/trading-workspace/pull/305)
+führt Tests und CI für den aktualisierten Integrationscommit; frühere grüne
+Ergebnisse werden nicht auf ihn übertragen. Quellversion und Tag bleiben unverändert.
+
 **Alle drei relevanten Providerpfade sind inzwischen implementiert.** Der
 verbleibende sichere Änderungsschnitt korrigiert eine reproduzierbare Abdeckungslücke
 im bestehenden gettex-Dateicache und dessen HTTP-Fehlerbehandlung. Es wird keine
@@ -191,7 +200,7 @@ Bereits abgerufene Basisergebnisse, ausdrücklich **kein Testbeleg neuer Änderu
 | Strang / geprüfter Head | Abgrenzung |
 |---|---|
 | #205 `ba7f442a027c55fd3bb15ed6f77271690c8a9055` | Tatsächlich Konzept und zwei Hilfsworkflows. Die Umsetzung #302 ist bereits Main. Keine Chart-, Reader- oder Historienänderung in diesem Schnitt. |
-| #303 `b95409ada22a731cd59785b7904cdfd72cea79e4` | Monitoringdiagnostik in `refresh.py`/`refresh_diagnostics.py`, UI und eigenen Tests. Keine dieser Dateien wird hier geändert; bestehende Providerfehler bleiben konsumierbar. |
+| #303 `b95409ada22a731cd59785b7904cdfd72cea79e4` | Inzwischen als `4f70760c...` in Main integriert und unverändert in den Feature-Branch übernommen. Monitoringdiagnostik in `refresh.py`/`refresh_diagnostics.py`, UI und eigenen Tests; keine eigene Änderung an diesen Dateien. Bestehende Providerfehler bleiben konsumierbar. |
 | #197 `08d2a5c9abe91ef518eb2c940eff9bbeceb073f8` | Historischer Forschungsworkflow und Kollektoren. Keine gemeinsamen geänderten Pfade und keine historischen Datenabrufe/-migrationen. |
 | #220 `40da0f23dea50cf6c70f1232f61ffd83f825dd19` | Bleibt getrennte Forschung. Dieses neue datierte Dokument überschreibt keinen der drei alten PR-Pfade. |
 

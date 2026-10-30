@@ -4,6 +4,23 @@ import { environment } from '../../../services/environment';
 import { requestJson } from '../../market/services/http';
 import { QuoteCoveragePanel } from './QuoteCoveragePanel';
 
+type RefreshCheck = {
+  kind: 'JOB' | 'SOURCE';
+  source: string | null;
+  listing_id: string | null;
+  status: string;
+  category: string | null;
+  reason: string | null;
+  consecutive_failures: number;
+  first_failure_at: string | null;
+  last_failure_at: string | null;
+  last_failure_reason?: string | null;
+  last_failure_category?: string | null;
+  recovered_at: string | null;
+  last_checked_at: string | null;
+  observed_in_latest_run: boolean;
+};
+
 type RefreshStatus = {
   enabled: boolean;
   running: boolean;
@@ -39,6 +56,15 @@ type RefreshStatus = {
     reason: string;
     next_run_at: string | null;
     held?: boolean;
+    execution?: {
+      running: boolean;
+      started_at: string | null;
+      elapsed_seconds: number | null;
+    };
+    diagnostics?: {
+      scope: 'PROCESS_LOCAL';
+      checks: RefreshCheck[];
+    };
     source_selection?: {
       positions_checked: number;
       decisions_changed: number;
@@ -46,6 +72,78 @@ type RefreshStatus = {
     } | null;
   }>;
 };
+
+const laneLabels = {
+  ISSUER_DISCOVERY: 'Neue Emittentenprodukte',
+  ISSUER_QUOTES: 'Emittentenkurse',
+  WARRANTS: 'Optionsscheine',
+  WARRANT_DISCOVERY: 'Weitere Kursquellen zuordnen',
+  UNDERLYINGS: 'Basiswerte',
+};
+
+const categoryLabels: Record<string, string> = {
+  JOB_ERROR: 'Auftragsfehler',
+  PROVIDER_ERROR: 'Providerfehler',
+  NO_QUOTE: 'Kein Kurs verfügbar',
+  CONFIGURATION: 'Konfiguration oder Zuordnung prüfen',
+  DATA_QUALITY: 'Kursqualität prüfen',
+};
+
+function date(value: string | null): string {
+  return value ? new Date(value).toLocaleString('de-DE') : 'Unbekannt';
+}
+
+function RefreshDiagnostics({ reason, checks = [] }: { reason: string; checks?: RefreshCheck[] }) {
+  const findings = checks.filter((check) => check.consecutive_failures > 0 || check.recovered_at);
+  return (
+    <details className="mt-1 text-xs text-slate-400">
+      <summary>
+        Diagnose
+        {findings.length > 0 &&
+          ` · ${findings.length} ${findings.length === 1 ? 'Abrufnachweis' : 'Abrufnachweise'}`}
+      </summary>
+      <p>{reason}</p>
+      {findings.map((check) => (
+        <div
+          key={`${check.kind}:${check.source}:${check.listing_id}`}
+          className="mt-2 border-l border-slate-700 pl-2"
+        >
+          <p>{check.kind === 'JOB' ? 'Auftrag' : (check.source ?? 'Quelle unbekannt')}</p>
+          {check.consecutive_failures > 0 ? (
+            <>
+              <p className="text-amber-200">
+                {categoryLabels[check.last_failure_category ?? check.category ?? ''] ??
+                  check.last_failure_category ??
+                  check.category ??
+                  'Abruf prüfen'}{' '}
+                · {check.consecutive_failures}{' '}
+                {check.consecutive_failures === 1 ? 'Prüfung' : 'Prüfungen'} in Folge mit Befund
+              </p>
+              <p>
+                Seit: {date(check.first_failure_at)} · Zuletzt festgestellt:{' '}
+                {date(check.last_failure_at)}
+              </p>
+              {check.status === 'DEFERRED' && (
+                <p>Wiederholung zurückgestellt · vorheriger Befund bleibt offen.</p>
+              )}
+              {check.last_failure_reason && check.last_failure_reason !== check.reason && (
+                <p>Vorheriger Befund: {check.last_failure_reason}</p>
+              )}
+            </>
+          ) : (
+            <p>Abruf wieder erfolgreich: {date(check.recovered_at)}</p>
+          )}
+          {!check.observed_in_latest_run && <p>In letzter Prüfung nicht erneut geprüft.</p>}
+          <p>
+            Letzte Quellen- oder Auftragsprüfung: {date(check.last_checked_at)} · {check.status}
+          </p>
+          {check.reason && <p>Diagnosecode: {check.reason}</p>}
+          {check.listing_id && <p>Notierung: {check.listing_id}</p>}
+        </div>
+      ))}
+    </details>
+  );
+}
 
 function statusLabel(status: string): string {
   if (status === 'NEEDS_MASTER_DATA') return 'Stammdaten ergänzen oder prüfen';
@@ -160,6 +258,12 @@ export function MarketDataRefreshPanel() {
             Basiswerte: abgeschlossene Tagesschlusskurse. Anbieterlimits können den nächsten Abruf
             verzögern.
           </p>
+          {value.jobs.some((job) => job.diagnostics) && (
+            <p className="mt-2 text-xs text-slate-400">
+              Abrufdiagnosen gelten nur für diese Backend-Laufzeit und werden bei einem Neustart
+              zurückgesetzt. Das Kursalter steht separat unter „Kursquellen im Depot“.
+            </p>
+          )}
           <p className="mt-2 text-slate-400">
             {value.settings.auto_select_position_sources
               ? 'Quellenauswahl aktiv: Fehlende Quellenbindungen werden beim Kursabruf erneut geprüft. Eine eindeutige, verifizierte und aktivierte Quelle wird automatisch zugeordnet. Bestehende Auswahlen bleiben erhalten; mehrere passende Quellen erfordern eine Klärung.'
@@ -172,44 +276,35 @@ export function MarketDataRefreshPanel() {
           </p>
           {value.enabled && value.lanes && (
             <ul className="mt-2 text-slate-400">
-              {(['ISSUER_DISCOVERY', 'ISSUER_QUOTES', 'WARRANTS', 'UNDERLYINGS'] as const).map(
-                (lane) => {
-                  const progress = value.lanes?.[lane];
-                  if (!progress) return null;
-                  return (
-                    <li key={lane}>
-                      {lane === 'ISSUER_DISCOVERY'
-                        ? 'Neue Emittentenprodukte'
-                        : lane === 'ISSUER_QUOTES'
-                          ? 'Emittentenkurse'
-                          : lane === 'WARRANTS'
-                            ? 'Optionsscheine'
-                            : 'Basiswerte'}
-                      : {progress.running ? 'Abruf läuft' : 'Wartet auf nächste Prüfung'} ·{' '}
-                      {progress.pending_jobs} {progress.pending_jobs === 1 ? 'Aufgabe' : 'Aufgaben'}{' '}
-                      ohne Erstprüfung
-                      {progress.due_jobs !== undefined && (
-                        <>
-                          {' '}
-                          · {progress.due_jobs} fällig
-                          {progress.overdue_jobs !== undefined && (
-                            <> · davon {progress.overdue_jobs} überfällig</>
-                          )}
-                          {!!progress.max_overdue_seconds && (
-                            <>
-                              {' '}
-                              · längster Rückstand {Math.ceil(
-                                progress.max_overdue_seconds / 60,
-                              )}{' '}
-                              Min.
-                            </>
-                          )}
-                        </>
-                      )}
-                    </li>
-                  );
-                },
-              )}
+              {Object.entries(laneLabels).map(([lane, label]) => {
+                const progress = value.lanes?.[lane];
+                if (!progress) return null;
+                return (
+                  <li key={lane}>
+                    {label}: {progress.running ? 'Abruf läuft' : 'Wartet auf nächste Prüfung'} ·{' '}
+                    {progress.pending_jobs} {progress.pending_jobs === 1 ? 'Aufgabe' : 'Aufgaben'}{' '}
+                    ohne Erstprüfung
+                    {progress.due_jobs !== undefined && (
+                      <>
+                        {' '}
+                        · {progress.due_jobs} fällig
+                        {progress.overdue_jobs !== undefined && (
+                          <> · davon {progress.overdue_jobs} überfällig</>
+                        )}
+                        {!!progress.max_overdue_seconds && (
+                          <>
+                            {' '}
+                            · längster Rückstand {Math.ceil(progress.max_overdue_seconds / 60)} Min.
+                          </>
+                        )}
+                      </>
+                    )}
+                    {progress.last_error && (
+                      <p className="text-amber-300">Letzter Fehler: {progress.last_error}</p>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           )}
           {value.pending_jobs !== undefined && value.pending_jobs > 0 && (
@@ -228,8 +323,9 @@ export function MarketDataRefreshPanel() {
                   {job.held && ' · Offene Position'}
                 </p>
                 <p>
-                  {Object.values(value.current_jobs ?? {}).includes(job.job) ||
-                  value.current_job === job.job
+                  {(job.execution?.running ??
+                  (Object.values(value.current_jobs ?? {}).includes(job.job) ||
+                    value.current_job === job.job))
                     ? 'Abruf läuft'
                     : statusLabel(job.status)}
                   {job.next_run_at && (
@@ -240,6 +336,15 @@ export function MarketDataRefreshPanel() {
                     </>
                   )}
                 </p>
+                {job.execution?.running && (
+                  <p className="text-xs text-slate-400">
+                    Aktueller Abruf · Start: {date(job.execution.started_at)}
+                    {job.execution.elapsed_seconds !== null && (
+                      <> · bisher {Math.floor(job.execution.elapsed_seconds)} Sek.</>
+                    )}{' '}
+                    · Stand der Statusabfrage
+                  </p>
+                )}
                 {discoveryReason(job.reason) && (
                   <p className="mt-1 text-amber-200">{discoveryReason(job.reason)}</p>
                 )}
@@ -252,10 +357,7 @@ export function MarketDataRefreshPanel() {
                     {job.source_selection.statuses.AMBIGUOUS_SOURCE ?? 0} mehrdeutig
                   </p>
                 )}
-                <details className="mt-1 text-xs text-slate-400">
-                  <summary>Diagnose</summary>
-                  {job.reason}
-                </details>
+                <RefreshDiagnostics reason={job.reason} checks={job.diagnostics?.checks} />
               </li>
             ))}
           </ul>
