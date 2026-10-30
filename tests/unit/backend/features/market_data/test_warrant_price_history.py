@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from tests.unit.backend.features.market_data import test_retained_quotes as retained_tests
 from tests.unit.backend.features.market_data.test_retained_quotes import ISIN, NOW, SqlDatabase
 
+from app.features.market.persistence.models import TradingVenueModel
 from app.features.market_data.domain.enums import MarketDataProvider, QualityStatus
 from app.features.market_data.persistence.models import (
     WarrantProviderMappingModel,
@@ -191,6 +192,65 @@ async def test_provider_mapping_currency_price_kind_and_mode_remain_distinct(con
         "STALE"
     }
     assert report.excluded == {}
+
+
+@pytest.mark.asyncio
+async def test_original_exchange_and_venue_partition_otherwise_identical_price_evidence(context):
+    c = context
+    sources = (("XSC", "XFRA"), ("XFRA", "XFRA"), ("XSTU", "XSTU"), ("XSTU", None))
+    for index, (exchange, mic) in enumerate(sources):
+        sample(
+            c,
+            minute=index * 5,
+            quote=replace(c.result.data, provider_exchange_code=exchange, venue_mic=mic),
+        )
+    report = await read(c)
+    assert len(report.series) == len(sources)
+    assert len({series.id for series in report.series}) == len(sources)
+    assert {(s.provider_exchange_code, s.venue_mic) for s in report.series} == set(sources)
+    assert all(len(s.points) == 1 and s.points[0].observed_at == NOW for s in report.series)
+    assert report.excluded == {}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("storage", ["SAMPLE", "RETAINED"])
+@pytest.mark.parametrize("mic", ["XFRA", None])
+async def test_original_venue_is_not_rewritten_or_filled_from_todays_mapping(context, storage, mic):
+    c = context
+    quote = replace(c.result.data, venue_mic=mic)
+    if storage == "SAMPLE":
+        sample(c, quote=quote)
+    else:
+        retained(c, result=replace(c.result, data=quote))
+    with Session(c.database.engine) as session:
+        session.get(WarrantProviderMappingModel, c.mapping).provider_exchange_code = "XFRA"
+        session.get(TradingVenueModel, c.venue).mic = "XSTU"
+        session.commit()
+    report = await read(c)
+    assert len(report.series) == 1
+    series = report.series[0]
+    assert series.provider_exchange_code == "XSC"
+    assert series.venue_mic == mic
+    assert series.points[0].storage == storage
+
+
+@pytest.mark.asyncio
+async def test_issuer_source_does_not_acquire_a_trading_venue(context):
+    c = context
+    sample(
+        c,
+        provider="VONTOBEL_MARKETS",
+        quote=replace(
+            c.result.data,
+            provider_exchange_code="ISSUER",
+            venue_mic=None,
+            source_mode="OFFICIAL_ISSUER_INDICATION",
+        ),
+    )
+    report = await read(c)
+    assert len(report.series) == 1
+    assert report.series[0].provider_exchange_code == "ISSUER"
+    assert report.series[0].venue_mic is None
 
 
 @pytest.mark.asyncio

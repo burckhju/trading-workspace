@@ -57,6 +57,8 @@ class HistoricalPriceSeries:
     price_kind: PriceKind
     source_mode: str | None
     points: tuple[HistoricalPricePoint, ...]
+    provider_exchange_code: str | None = None
+    venue_mic: str | None = None
 
 
 @dataclass(frozen=True)
@@ -174,9 +176,11 @@ def _series(
     now: datetime,
     excluded: Counter[str],
 ) -> tuple[HistoricalPriceSeries, ...]:
-    # Source mode and original identity remain separate even after provider switches.
+    # Preserve original venue evidence, including an unknown MIC. Today's listing
+    # or provider mapping must not rewrite the source of a historical price.
     groups: dict[
-        tuple[str, str, UUID, str, str, PriceKind, str | None], list[HistoricalPricePoint]
+        tuple[str, str, UUID, str, str, PriceKind, str | None, str, str | None],
+        list[HistoricalPricePoint],
     ] = {}
     seen: set[tuple[str, datetime, Decimal]] = set()
     for item in observations:
@@ -201,6 +205,8 @@ def _series(
                 q.currency,
                 kind,
                 q.source_mode,
+                q.provider_exchange_code,
+                q.venue_mic,
             )
             series_id = hashlib.sha256("|".join(map(str, key)).encode()).hexdigest()
             evidence = (series_id, q.observed_at, price)
@@ -224,9 +230,17 @@ def _series(
             excluded["DUPLICATE_OBSERVATION"] += 1
     return tuple(
         HistoricalPriceSeries(
-            hashlib.sha256("|".join(map(str, key)).encode()).hexdigest(),
-            *key,
-            tuple(sorted(points, key=lambda p: (p.observed_at, p.id))),
+            id=hashlib.sha256("|".join(map(str, key)).encode()).hexdigest(),
+            provider=key[0],
+            identity_key=key[1],
+            warrant_listing_id=key[2],
+            isin=key[3],
+            currency=key[4],
+            price_kind=key[5],
+            source_mode=key[6],
+            points=tuple(sorted(points, key=lambda p: (p.observed_at, p.id))),
+            provider_exchange_code=key[7],
+            venue_mic=key[8],
         )
         for key, points in sorted(groups.items(), key=lambda pair: tuple(map(str, pair[0])))
     )

@@ -10,6 +10,9 @@ import type { PositionResponse, TradeTimelineEntryResponse } from '../types/api'
 
 import { TradeManagementPage } from './TradeManagementPage';
 
+// History integration and its readback lifecycle have a dedicated page suite.
+vi.mock('../../operational_workspace', () => ({ PositionPriceHistory: () => null }));
+
 vi.mock('../../alert/components/TradeAlertsPanel', () => ({
   TradeAlertsPanel: ({ tradeId }: { tradeId: string }) => <div>Alerts for {tradeId}</div>,
 }));
@@ -275,6 +278,40 @@ describe('TradeManagementPage', () => {
     ).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Teilverkauf erfassen' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Nachbeobachtung starten' })).toBeInTheDocument();
+  });
+
+  it('preserves a pending booking-source read when its parallel position readback finishes first', async () => {
+    api.timeline.mockResolvedValue([buy]);
+    render(
+      <MemoryRouter initialEntries={['/trade-management?trade_id=trade-1']}>
+        <TradeManagementPage />
+      </MemoryRouter>,
+    );
+    await screen.findByRole('article', { name: 'Buchung buy-1' });
+    let finish!: (entries: TradeTimelineEntryResponse[]) => void;
+    api.timeline.mockReturnValueOnce(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Buchungsdaten neu laden' }));
+    await waitFor(() => expect(warrantApi.get).toHaveBeenCalledTimes(2));
+    const pendingSignal = api.timeline.mock.calls[1][1]!;
+    expect(api.timeline).toHaveBeenCalledTimes(2);
+    expect(pendingSignal.aborted).toBe(false);
+    await act(async () => {
+      finish([buy]);
+      await Promise.resolve();
+    });
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Buchungsdaten neu laden' })).toBeEnabled(),
+    );
+    expect(api.timeline).toHaveBeenCalledTimes(2);
+    expect(pendingSignal.aborted).toBe(false);
+    expect(
+      screen.queryByText(/Buchungsstand noch nicht vollständig geprüft/),
+    ).not.toBeInTheDocument();
+    expectNoOtherWrites();
   });
 
   it('allows a deliberately opened currency exception for a full SELL without another affirmation', async () => {
