@@ -36,6 +36,12 @@ Quelle, ursprünglicher Kurszeitpunkt, Monitoring, Positionssignal, Stop/Ziel un
 Buchungswerte sind unter **Details** erreichbar. Der allgemeine Warntext steht einmal
 über der Tabelle; die konkrete Kursqualität bleibt je Zeile sichtbar. Keine Orderfreigabe.
 
+Die Details laden außerdem den [historischen Positionskurs](position-price-history.md)
+automatisch aus vorhandenen Optionsscheinbelegen. Einzelpunkte, Lücken, Quellenwechsel
+und getrennte Währungen bleiben sichtbar. Es gibt keine zusätzliche Providerabfrage,
+Preisinterpolation oder FX-Umrechnung. Sichere Kauf-/Verkaufsmarker und eine
+Quellentabelle ergänzen die Grafik; fehlende Daten und Ladefehler sind explizit.
+
 ## Beträge und Zeitangaben
 
 Bewertungssummen sind einklappbar und gelten für den gesamten offenen Bestand, nicht

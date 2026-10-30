@@ -6,6 +6,7 @@ import { signalLabel, statusLabel } from '../services/statusLabels';
 import { positionPnl } from '../services/positionsView';
 import { unrealizedPnlReason } from '../../trade/services/valuationQualification';
 import { PositionValuationBasisDetails } from '../../trade/components/PositionValuationBasisDetails';
+import { PositionPriceHistory } from './PositionPriceHistory';
 
 export function PositionDetails({ position: p }: { position: OperationalPosition }) {
   return (
@@ -17,6 +18,7 @@ export function PositionDetails({ position: p }: { position: OperationalPosition
       <p className="text-slate-300">
         WKN {p.product_wkn ?? 'nicht hinterlegt'} · ISIN {p.product_isin ?? 'nicht hinterlegt'}
       </p>
+      <PositionPriceHistory tradeId={p.trade_id} positionId={p.position_id} />
       <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div>
           <dt className="text-slate-400">Basiswert</dt>
