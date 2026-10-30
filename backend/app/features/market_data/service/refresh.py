@@ -30,6 +30,11 @@ from app.features.market_data.service.refresh_catalog import (
     read_catalog,
     read_issuer_route_groups,
 )
+from app.features.market_data.service.refresh_diagnostics import (
+    exception_reason,
+    job_diagnostics,
+    safe_reason,
+)
 from app.features.market_data.service.refresh_discovery import discover_underlying
 from app.features.market_data.service.source_reconciliation import reconcile_warrant_positions
 from app.features.market_data.service.types import DailyPriceRequest, WarrantQuoteRequest
@@ -90,6 +95,7 @@ class MarketDataRefreshRuntime:
         self._lane_tasks: dict[RefreshLane, asyncio.Task[None]] = {}
         self._current_jobs: dict[RefreshLane, str | None] = dict.fromkeys(RefreshLane)
         self._lane_errors: dict[RefreshLane, str | None] = dict.fromkeys(RefreshLane)
+        self._active_jobs: dict[str, tuple[datetime, float]] = {}
         self.last_scan_at: datetime | None = None
         self.last_error: str | None = None
         self.leader = False
@@ -156,7 +162,24 @@ class MarketDataRefreshRuntime:
             },
             "pending_jobs": sum(job["status"] == "PENDING" for job in self.jobs.values()),
             **self._schedule_counts(self.jobs, now),
-            "jobs": list(self.jobs.values()),
+            "jobs": [
+                {
+                    **job,
+                    "execution": {
+                        "running": key in self._active_jobs,
+                        "started_at": (
+                            self._active_jobs[key][0] if key in self._active_jobs else None
+                        ),
+                        "elapsed_seconds": (
+                            round(max(0.0, now - self._active_jobs[key][1]), 3)
+                            if key in self._active_jobs
+                            else None
+                        ),
+                    },
+                    "diagnostics": job.get("diagnostics", {"scope": "PROCESS_LOCAL", "checks": []}),
+                }
+                for key, job in self.jobs.items()
+            ],
         }
 
     async def run_once(self, *, wait_for_completion: bool = True) -> None:
@@ -401,11 +424,13 @@ class MarketDataRefreshRuntime:
             return
         previous = self.jobs.get(key, {})
         retry_delay: float = interval
+        diagnostic_reason: str | None = None
         self._current_jobs[lane] = key
         started = self.timer()
         started_at = datetime.now(UTC)
+        self._active_jobs[key] = (started_at, started)
         try:
-            details = await operation()
+            details = dict(await operation())
             status = details.pop("status", "AVAILABLE")
             success_at = (
                 datetime.now(UTC) if status == "AVAILABLE" else previous.get("last_success_at")
@@ -414,9 +439,10 @@ class MarketDataRefreshRuntime:
             raise
         except Exception as exc:
             # Never expose transport URLs or credentials in operational diagnostics.
+            diagnostic_reason = exception_reason(exc)
             details = {
                 "reason": (
-                    str(exc)
+                    safe_reason(str(exc), type(exc).__name__)
                     if isinstance(exc, (ValueError, FrankfurtSourceError))
                     else type(exc).__name__
                 )
@@ -445,6 +471,7 @@ class MarketDataRefreshRuntime:
                 details["retry_after_seconds"] = retry_delay
         finally:
             self._current_jobs[lane] = None
+            self._active_jobs.pop(key, None)
         if catalog_job and key not in self.jobs:
             return
         completed = datetime.now(UTC)
@@ -464,6 +491,12 @@ class MarketDataRefreshRuntime:
             "last_success_at": success_at,
             "next_run_at": completed + timedelta(seconds=retry_delay),
             **details,
+            "diagnostics": job_diagnostics(
+                previous.get("diagnostics"),
+                status,
+                {**details, "reason": diagnostic_reason} if diagnostic_reason else details,
+                completed,
+            ),
         }
 
     async def _pace(self) -> None:
