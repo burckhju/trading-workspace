@@ -475,25 +475,116 @@ def test_each_source_uses_its_own_attempt_clock_for_failure_freshness_and_recove
 
 
 @pytest.mark.parametrize("retained", [False, True])
+@pytest.mark.parametrize(
+    ("source", "failure", "throttled"),
+    [
+        (SOURCE, "FRANKFURT_TRANSPORT_TIMEOUT", "FRANKFURT_REQUEST_THROTTLED"),
+        ("GETTEX_DELAYED", "GETTEX_DELAYED_RATE_LIMITED", "GETTEX_DELAYED_REQUEST_THROTTLED"),
+    ],
+)
 def test_source_local_throttle_preserves_failure_without_counting_an_unmade_request(
-    retained,
+    retained, source, failure, throttled
 ):
-    original = failed()
+    original = job_diagnostics(
+        None, "MISSING", details(status="ERROR", reason=failure, source=source), NOW
+    )
     if retained:
         evidence = details(
-            quote(retained=True, refresh_error="FRANKFURT_REQUEST_THROTTLED"),
+            quote(retained=True, refresh_error=throttled),
             cache_status="HIT",
+            source=source,
         )
     else:
-        evidence = details(status="ERROR", reason="FRANKFURT_REQUEST_THROTTLED")
-    result = job_diagnostics(original, "AVAILABLE" if retained else "MISSING", evidence, NOW)
-    check = source_check(result)
-    assert check["waiting"] is True
-    assert check["consecutive_failures"] == 1
+        evidence = details(status="ERROR", reason=throttled, source=source)
+    result = original
+    for seconds in (30, 60):
+        result = job_diagnostics(
+            result,
+            "AVAILABLE" if retained else "MISSING",
+            evidence,
+            NOW + timedelta(seconds=seconds),
+        )
+        check = source_check(result, source=source)
+        assert check["waiting"] is True
+        assert check["category"] is None
+        assert check["consecutive_failures"] == 1
+        assert check["last_failure_at"] == NOW
+        assert check["last_failure_reason"] == failure
+        assert check["last_success_at"] is None
+        assert check["recovered_at"] is None
+
+    recovered_at = NOW + timedelta(seconds=120)
+    recovered = job_diagnostics(
+        result,
+        "AVAILABLE",
+        details(quote(recovered_at), retrieved_at=recovered_at, source=source),
+        recovered_at,
+    )
+    check = source_check(recovered, source=source)
+    assert check["qualified_success"] is True
+    assert check["consecutive_failures"] == 0
     assert check["last_failure_at"] == NOW
-    assert check["last_failure_reason"] == "FRANKFURT_TRANSPORT_TIMEOUT"
-    assert check["last_success_at"] is None
-    assert check["recovered_at"] is None
+    assert check["last_failure_reason"] == failure
+    assert check["last_success_at"] == check["recovered_at"] == recovered_at
+
+
+@pytest.mark.parametrize("retained", [False, True])
+@pytest.mark.parametrize(
+    ("reason", "category"),
+    [
+        ("GETTEX_DELAYED_AUTHENTICATION_REQUIRED", "CONFIGURATION"),
+        ("GETTEX_DELAYED_ACCESS_FORBIDDEN", "CONFIGURATION"),
+        ("GETTEX_DELAYED_ACTIVE_MAPPING_NOT_FOUND", "CONFIGURATION"),
+        ("GETTEX_DELAYED_NO_TRACKED_ISINS", "CONFIGURATION"),
+        ("GETTEX_DELAYED_RATE_LIMITED", "PROVIDER_ERROR"),
+        ("GETTEX_DELAYED_RECENT_FILE_NOT_AVAILABLE", "PROVIDER_ERROR"),
+        ("GETTEX_DELAYED_UPSTREAM_UNAVAILABLE", "PROVIDER_ERROR"),
+        ("GETTEX_DELAYED_TIMEOUT", "PROVIDER_ERROR"),
+        ("GETTEX_DELAYED_NETWORK_ERROR", "PROVIDER_ERROR"),
+        ("GETTEX_DELAYED_CONTENT_LENGTH_INVALID", "DATA_QUALITY"),
+        ("GETTEX_DELAYED_CONTENT_LENGTH_MISMATCH", "DATA_QUALITY"),
+        ("GETTEX_DELAYED_FILE_TOO_LARGE", "DATA_QUALITY"),
+        ("GETTEX_DELAYED_REDIRECT_REJECTED", "DATA_QUALITY"),
+        ("GETTEX_DELAYED_UNEXPECTED_HTTP_206", "DATA_QUALITY"),
+        ("GETTEX_DELAYED_EXPECTED_CURRENCY_MISMATCH", "DATA_QUALITY"),
+        ("GETTEX_DELAYED_CURRENCY_MISMATCH", "DATA_QUALITY"),
+        ("GETTEX_GZIP_INVALID", "DATA_QUALITY"),
+        ("GETTEX_DUPLICATE_TIMESTAMP_CONFLICT", "DATA_QUALITY"),
+        ("GETTEX_ROW_CROSSED_QUOTE", "DATA_QUALITY"),
+        ("GETTEX_ROW_CURRENCY_INVALID", "DATA_QUALITY"),
+        ("GETTEX_ROW_TIME_OUTSIDE_FILE_WINDOW", "DATA_QUALITY"),
+        ("GETTEX_ROW_BID_NOT_POSITIVE", "DATA_QUALITY"),
+        ("GETTEX_ROW_ASK_INVALID", "DATA_QUALITY"),
+        ("GETTEX_ROW_BID_VOLUME_NEGATIVE", "DATA_QUALITY"),
+    ],
+)
+def test_gettex_failure_categories_survive_retention_without_asserting_recovery(
+    reason, category, retained
+):
+    source = "GETTEX_DELAYED"
+    evidence = (
+        details(quote(retained=True, refresh_error=reason), source=source, cache_status="HIT")
+        if retained
+        else details(status="ERROR", reason=reason, source=source)
+    )
+    result = job_diagnostics(None, "AVAILABLE" if retained else "MISSING", evidence, NOW)
+    check = source_check(result, source=source)
+    assert check["reason"] == reason
+    assert check["category"] == check["last_failure_category"] == category
+    assert check["consecutive_failures"] == 1
+    assert check["waiting"] is False
+    assert check["qualified_success"] is False
+    assert check["last_success_at"] is check["recovered_at"] is None
+    assert check["retained_quote"] is retained
+    if retained:
+        # The rejected refresh does not corrupt the original stored quote evidence.
+        assert check["quote_status"] == "FRESH"
+        assert check["quote_observed_at"] == NOW - timedelta(seconds=5)
+        assert check["quote_retrieved_at"] == NOW
+        assert check["response_valid"] is None
+    else:
+        assert check["quote_status"] == ("INVALID" if category == "DATA_QUALITY" else "MISSING")
+        assert check["response_valid"] is (False if category == "DATA_QUALITY" else None)
 
 
 @pytest.mark.asyncio

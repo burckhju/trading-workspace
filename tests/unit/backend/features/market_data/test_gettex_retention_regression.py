@@ -35,6 +35,7 @@ from app.features.position_monitoring.service.quote_sources import (
     NamedWarrantQuoteSource,
     QuoteSourceAttemptStatus,
 )
+from app.providers.gettex_delayed import adapter as gettex_module
 from app.providers.gettex_delayed.adapter import GettexDelayedWarrantQuoteAdapter
 
 context = retained_fixtures.context
@@ -304,3 +305,170 @@ async def test_invalid_product_keeps_original_history_and_explicit_row_error(
         assert payload["data"]["refresh_error"] is None
         assert payload["data"]["retained"] is False
         assert payload["retrieved_at"] == c.result.retrieved_at.isoformat().replace("+00:00", "Z")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("failure", "reason"),
+    [
+        ("rate_limit", "GETTEX_DELAYED_RATE_LIMITED"),
+        ("invalid_length", "GETTEX_DELAYED_CONTENT_LENGTH_INVALID"),
+        ("unavailable", "GETTEX_DELAYED_UPSTREAM_UNAVAILABLE"),
+        ("timeout", "GETTEX_DELAYED_TIMEOUT"),
+        ("invalid_gzip", "GETTEX_GZIP_INVALID"),
+        ("forbidden", "GETTEX_DELAYED_ACCESS_FORBIDDEN"),
+    ],
+)
+@pytest.mark.parametrize("has_history", [False, True])
+async def test_selected_gettex_transport_failure_preserves_evidence_without_fallback(
+    gettex_context: SimpleNamespace,
+    monkeypatch: pytest.MonkeyPatch,
+    failure: str,
+    reason: str,
+    has_history: bool,
+) -> None:
+    c = gettex_context
+    if has_history:
+        await RetainedWarrantQuoteProvider(
+            c.database, c.provider, PROVIDER
+        ).get_warrant_listing_quote(c.request)
+    with Session(c.database.engine) as session:
+        before = session.scalar(select(WarrantQuoteObservationModel))
+        original_payload = before.payload if before is not None else None
+
+    calls = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        if failure == "rate_limit":
+            return httpx.Response(429, headers={"Retry-After": "120"})
+        if failure == "invalid_length":
+            return httpx.Response(200, headers={"Content-Length": "invalid"}, content=b"x")
+        if failure == "unavailable":
+            return httpx.Response(503)
+        if failure == "timeout":
+            raise httpx.ReadTimeout("private upstream transport detail", request=request)
+        if failure == "forbidden":
+            return httpx.Response(403)
+        return httpx.Response(200, content=gzip.compress(b"synthetic data\n")[:-4])
+
+    fallback = AsyncMock()
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        adapter = missing_files_adapter(c, client, monkeypatch)
+        resolver = MultiSourceWarrantQuoteResolver(
+            (
+                NamedWarrantQuoteSource(
+                    PROVIDER.value,
+                    RetainedWarrantQuoteProvider(c.database, adapter, PROVIDER),
+                    delayed=True,
+                ),
+                NamedWarrantQuoteSource("FRANKFURT_QUOTES", fallback),
+            )
+        )
+        resolved = await resolver.resolve_selected(PROVIDER.value, c.request)
+
+    assert len(calls) == 1  # Failure is not permission to try an older feed window.
+    assert len(resolved.attempts) == 1
+    attempt = resolved.attempts[0]
+    if has_history:
+        assert resolved.result is not None and resolved.result.data is not None
+        quote = resolved.result.data
+        assert resolved.selected_source == PROVIDER.value
+        assert quote.bid == Decimal("0.030") and quote.ask == Decimal("0.140")
+        assert quote.observed_at == FRIDAY
+        assert resolved.result.retrieved_at == c.result.retrieved_at
+        assert quote.retained is True and quote.refresh_error == reason
+        assert quote.venue_mic == "MUND" and quote.currency == "EUR"
+        assert attempt.reason == "LAST_SUCCESSFUL_QUOTE_REFRESH_FAILED"
+        assert attempt.refresh_error == reason
+    else:
+        assert resolved.result is None and resolved.selected_source is None
+        assert attempt.status is QuoteSourceAttemptStatus.ERROR
+        assert attempt.reason == reason
+    fallback.get_warrant_listing_quote.assert_not_awaited()
+    with Session(c.database.engine) as session:
+        after = session.scalar(select(WarrantQuoteObservationModel))
+        assert (after.payload if after is not None else None) == original_payload
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("failure", ["rate_limit", "invalid_gzip"])
+@pytest.mark.parametrize("has_history", [False, True])
+async def test_selected_gettex_deferred_refresh_preserves_history_then_recovers(
+    gettex_context, monkeypatch, failure, has_history
+):
+    c = gettex_context
+    if has_history:
+        await RetainedWarrantQuoteProvider(
+            c.database, c.provider, PROVIDER
+        ).get_warrant_listing_quote(c.request)
+    with Session(c.database.engine) as session:
+        before = session.scalar(select(WarrantQuoteObservationModel))
+        original_payload = before.payload if before is not None else None
+
+    clock = [1000.0]
+    monkeypatch.setattr(gettex_module, "monotonic", lambda: clock[0])
+    calls = []
+    payload = gzip.compress(
+        f"{c.result.data.isin},19:10:00.000001,EUR,0.04,100,0.15,100\n".encode()
+    )
+
+    def handler(request):
+        calls.append(request)
+        if len(calls) == 1:
+            if failure == "rate_limit":
+                return httpx.Response(429, headers={"Retry-After": "120"})
+            return httpx.Response(200, content=payload[:-8])
+        return httpx.Response(200, content=payload)
+
+    fallback = AsyncMock()
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        adapter = missing_files_adapter(c, client, monkeypatch)
+        resolver = MultiSourceWarrantQuoteResolver(
+            (
+                NamedWarrantQuoteSource(
+                    PROVIDER.value,
+                    RetainedWarrantQuoteProvider(c.database, adapter, PROVIDER),
+                    delayed=True,
+                ),
+                NamedWarrantQuoteSource("FRANKFURT_QUOTES", fallback),
+            )
+        )
+        failed = await resolver.resolve_selected(PROVIDER.value, c.request)
+        clock[0] += 30
+        deferred = await resolver.resolve_selected(PROVIDER.value, c.request)
+        assert len(calls) == 1
+        for resolution in (failed, deferred):
+            if has_history:
+                assert resolution.result.data.retained is True
+                assert resolution.result.data.bid == c.result.data.bid
+                assert resolution.result.data.ask == c.result.data.ask
+                assert resolution.result.data.observed_at == c.result.data.observed_at
+                assert resolution.result.retrieved_at == c.result.retrieved_at
+            else:
+                assert resolution.result is None
+        attempt = deferred.attempts[0]
+        assert (attempt.refresh_error or attempt.reason) == "GETTEX_DELAYED_REQUEST_THROTTLED"
+        with Session(c.database.engine) as session:
+            after = session.scalar(select(WarrantQuoteObservationModel))
+            assert (after.payload if after is not None else None) == original_payload
+
+        clock[0] = 1120.0 if failure == "rate_limit" else 1060.0
+        recovered = await resolver.resolve_selected(PROVIDER.value, c.request)
+        assert len(calls) == 2
+        assert recovered.selected_source == PROVIDER.value
+        assert recovered.result.data.bid == Decimal("0.04")
+        assert recovered.result.data.ask == Decimal("0.15")
+        assert recovered.result.data.observed_at == SUNDAY - timedelta(minutes=5) + timedelta(
+            microseconds=1
+        )
+        assert recovered.result.data.isin == c.result.data.isin
+        assert recovered.result.data.currency == "EUR"
+        assert recovered.result.data.venue_mic == "MUND"
+        assert recovered.result.data.retained is False
+        assert recovered.result.data.refresh_error is None
+        with Session(c.database.engine) as session:
+            saved = session.scalar(select(WarrantQuoteObservationModel)).payload
+            assert saved["data"]["bid"] == "0.04"
+            assert saved["data"]["refresh_error"] is None
+    fallback.get_warrant_listing_quote.assert_not_awaited()
