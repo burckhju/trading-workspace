@@ -2,6 +2,8 @@
 
 import asyncio
 from copy import deepcopy
+from datetime import UTC, datetime
+from decimal import Decimal
 from unittest.mock import AsyncMock
 from uuid import uuid4
 
@@ -43,6 +45,7 @@ async def test_status_serializes_failures_retry_and_recovery_without_triggering_
     async def recover(_item):
         entered.set()
         await release.wait()
+        now = datetime.now(UTC)
         return {
             "status": "AVAILABLE",
             "reason": "QUOTE_OBSERVATIONS_AVAILABLE",
@@ -52,6 +55,19 @@ async def test_status_serializes_failures_retry_and_recovery_without_triggering_
                     "warrant_listing_id": listing_id,
                     "status": "AVAILABLE",
                     "reason": "VALID_BID_AVAILABLE",
+                }
+            ],
+            "quotes": [
+                {
+                    "provider": "GETTEX_DELAYED",
+                    "warrant_listing_id": listing_id,
+                    "bid": Decimal("2.40"),
+                    "ask": Decimal("2.45"),
+                    "currency": "EUR",
+                    "provider_symbol": "DE000VH2LU21",
+                    "provider_exchange_code": "MUND",
+                    "observed_at": now,
+                    "retrieved_at": now,
                 }
             ],
         }
@@ -103,6 +119,10 @@ async def test_status_serializes_failures_retry_and_recovery_without_triggering_
                 for c in recovered["diagnostics"]["checks"]
             )
             runtime._warrant.assert_awaited_once()
+            source = next(c for c in recovered["diagnostics"]["checks"] if c["kind"] == "SOURCE")
+            assert source["qualified_success"] is True
+            assert source["quote_status"] == "FRESH"
+            assert source["last_success_at"] == source["quote_retrieved_at"]
     finally:
         release.set()
         await runtime.stop()
