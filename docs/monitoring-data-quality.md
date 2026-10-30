@@ -1,6 +1,24 @@
 # Scheduler diagnostics and data-quality boundaries
 
-## Verified baseline (2026-10-30)
+## Authorized integration and PC release preparation (2026-10-30)
+
+After the implementation qualification, the user explicitly authorized merging
+green changes and making the update available for the PC. Parallel PR #306 and
+release PR #304 have since been integrated. The current preparation is based on
+main `22232189896dce1f06a427253245eff956c862b4`, which includes version 1.5.32
+preparation but does not yet contain the monitoring corrections from #307.
+The #307 candidate now also prepares **1.5.33** in the existing four version
+files and its [release note](releases/V1.5.33-MONITORING-DATA-QUALITY.md).
+The 17 implementation paths below therefore become 22 total release paths.
+
+The final PR records its exact head, test merge and new CI results. Publication
+still requires successful current main-push checks and the unchanged version-tag
+publisher. Existing tags are never moved. The PC handoff uses the existing
+launcher with the independently verified tag and full commit SHA; it does not
+assert an installed PC version. The baseline below records the earlier
+implementation-only qualification and its historical version/merge boundaries.
+
+## Historical qualification baseline (2026-10-30)
 
 This qualification began against main
 [`e8703a65ce8c1ba48ed1c9be3a8b7b8ff4dac37f`](https://github.com/burckhju/trading-workspace/commit/e8703a65ce8c1ba48ed1c9be3a8b7b8ff4dac37f),
@@ -12,8 +30,8 @@ and incorporated the newer main in its inspected head
 `b95409ada22a731cd59785b7904cdfd72cea79e4`.
 
 While the remaining defects were being qualified, `burckhju` merged that original
-#303 head at **2026-10-30 17:42:38 UTC (18:42:38 Europe/Berlin)**. The current main
-is therefore
+#303 head at **2026-10-30 17:42:38 UTC (18:42:38 Europe/Berlin)**. Main at that
+point was
 [`4f70760c0dcf0448e470eef85e79253d897189e5`](https://github.com/burckhju/trading-workspace/commit/4f70760c0dcf0448e470eef85e79253d897189e5),
 whose tree `88941a4499ed028f1447d8697c90f70e6fce155f` is exactly the original
 inspected #303 tree. The agent did not perform that merge. These later changes
@@ -21,7 +39,8 @@ are a separate follow-up containing only proven qualification/correctness gaps;
 they do not recreate the already integrated initial implementation. The same
 feature branch incorporates the current main before its follow-up review.
 
-`VERSION`, the backend project and the frontend package report **1.5.31**.
+At that initial qualification, `VERSION`, the backend project and the frontend
+package reported **1.5.31**.
 A fresh tag-ref inspection confirms that **v1.5.31** is still the newest version
 tag; its ref is a lightweight tag pointing directly to commit
 `5f1b675e09bd993da8e0576067e3e466c5b5bbdb`, with no annotated tag object to peel.
@@ -240,9 +259,11 @@ This document avoids rewriting shared `docs/automatic-market-data.md` or #205's
 design document. Any future runtime overlap must be reconciled additively against
 the actual peer head; do not replace peer files with an older snapshot.
 
-**No migration is added.** The inspected main migration head is
-`20261028_0048`. No version, tag, release, deployment, provider activation or
-production-data change is included.
+**No migration is added.** The inspected main migration head remains
+`20261028_0048`. The implementation-only qualification did not include a version
+or release change. The subsequently authorized 1.5.33 preparation is documented
+above and in its release note. No PC deployment, provider activation or
+production-data change is included in this repository preparation.
 
 ## Verification
 
