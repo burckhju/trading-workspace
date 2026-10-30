@@ -2,7 +2,7 @@
 
 ## Verified baseline (2026-10-30)
 
-The current audited main is
+This qualification began against main
 [`e8703a65ce8c1ba48ed1c9be3a8b7b8ff4dac37f`](https://github.com/burckhju/trading-workspace/commit/e8703a65ce8c1ba48ed1c9be3a8b7b8ff4dac37f),
 the merge of the position-history implementation in
 [#302](https://github.com/burckhju/trading-workspace/pull/302).
@@ -11,11 +11,21 @@ The original #303 implementation started from
 and incorporated the newer main in its inspected head
 `b95409ada22a731cd59785b7904cdfd72cea79e4`.
 
+While the remaining defects were being qualified, `burckhju` merged that original
+#303 head at **2026-10-30 17:42:38 UTC (18:42:38 Europe/Berlin)**. The current main
+is therefore
+[`4f70760c0dcf0448e470eef85e79253d897189e5`](https://github.com/burckhju/trading-workspace/commit/4f70760c0dcf0448e470eef85e79253d897189e5),
+whose tree `88941a4499ed028f1447d8697c90f70e6fce155f` is exactly the original
+inspected #303 tree. The agent did not perform that merge. These later changes
+are a separate follow-up containing only proven qualification/correctness gaps;
+they do not recreate the already integrated initial implementation. The same
+feature branch incorporates the current main before its follow-up review.
+
 `VERSION`, the backend project and the frontend package report **1.5.31**.
 A fresh tag-ref inspection confirms that **v1.5.31** is still the newest version
 tag; its ref is a lightweight tag pointing directly to commit
 `5f1b675e09bd993da8e0576067e3e466c5b5bbdb`, with no annotated tag object to peel.
-Main additionally contains #301 and #302. GitHub's latest formal
+Main additionally contains #301, #302 and the original #303. GitHub's latest formal
 [Release object](https://github.com/burckhju/trading-workspace/releases/tag/v1.0.0-product-selection)
 is still **v1.0.0-product-selection**, whose tag resolves to commit
 `773201bcc0605f89e0817a297ada45b41020ec3e`. Release objects, version tags and the
@@ -34,11 +44,12 @@ The inspected remote pull requests contain:
 The full published file lists and patches were read, not inferred from PR
 descriptions. All four remote PRs report `mergeable=true` at inspection; that is
 textual mergeability, not a qualification of their intended implementations.
-Their changes have **no file intersection** with the eight paths in the inspected
-#303 head. The 24 changed paths in merged #302 also have no intersection with
-those eight paths. Version 1.5.31 and migration head `20261028_0048` are unchanged.
-Final integration evidence must identify the final #303 head, current main and
-GitHub test merge; earlier runs cannot qualify later corrections.
+Their changes have **no file intersection** with the eight original #303 paths
+or the 17 paths in the qualified follow-up. The 24 changed paths in merged #302
+also have no intersection with those paths. Version 1.5.31 and migration head
+`20261028_0048` are unchanged. Final integration evidence must distinguish the
+merged #303 head from the follow-up head, current main and GitHub test merge;
+earlier green runs cannot qualify later corrections.
 
 ## Existing functionality reused
 
