@@ -1,8 +1,12 @@
 # Positionskursverlauf aus vorhandenen Kursbelegen
 
-Implementierung auf `main`-Basis `d1108ae4f7fba976f4771885e84b5b8662248edb`
-(Produktstand `v1.5.31`), auf Grundlage des Vorschlags in
-[PR #205](https://github.com/burckhju/trading-workspace/pull/205).
+Der Vorschlag in [PR #205](https://github.com/burckhju/trading-workspace/pull/205)
+wurde durch [PR #302](https://github.com/burckhju/trading-workspace/pull/302)
+bereits auf Main umgesetzt. Die Ergänzung für geschlossene Positionen, lesbare
+Handelsplätze und verfügbare Zeiträume basiert auf dem am **30.10.2026** geprüften
+Main `e8703a65ce8c1ba48ed1c9be3a8b7b8ff4dac37f`.
+Der erneut aufgelöste letzte Versionstag `v1.5.31` zeigt dagegen auf
+`5f1b675e09bd993da8e0576067e3e466c5b5bbdb` und enthält #302 noch nicht.
 Repository und Tests belegen keine produktive Kurshistorie auf dem Nutzer-PC.
 
 ## Anzeige
@@ -11,7 +15,20 @@ Beim Aufklappen einer bestehenden Position lädt **Historischer Positionskurs**
 automatisch die belegten Kurse des zugehörigen Optionsscheins. Standard ist
 **Alle gespeicherten Kurse**; dadurch bleibt auch ein einzelner alter Kurs einer
 Bestandsposition ohne zusätzliche Eingabe sichtbar. Optional sind 7, 31 und
-90 Tage auswählbar. Zeitfenster und Diagrammkoordinaten verwenden die Originalkurszeit.
+90 Tage auswählbar, sofern die erste Antwort für **Alle gespeicherten Kurse** einen
+Originalkurspunkt in diesem Fenster belegt. Die Fenster enden am Serverzeitpunkt
+der Antwort; eine aktuelle Abrufzeit macht einen alten Kurs nicht zu einem neuen.
+Nicht belegte Fenster bleiben deaktiviert. Ein begrenzter Leseausschnitt belegt
+dabei keine Verfügbarkeit außerhalb seines Budgets.
+Zeitfenster und Diagrammkoordinaten verwenden die Originalkurszeit. Die UTC-Achse
+zeigt innerhalb eines Tages Uhrzeiten und bei einem Jahreswechsel auch das Jahr.
+
+Dieselbe Komponente ist außerdem direkt in den bestehenden Bereich **Trade und
+Position** der Tradeverwaltung eingebettet. Damit erreichen auch bereits
+geschlossene Positionen ihre Historie ohne erneute Produkt- oder ISIN-Eingabe.
+Ein erfolgreicher Readback nach Buchungs-/Datums-/Währungsänderungen erneuert
+die Historie und verwirft die alten Marker. Stornierte Trades laden keinen
+Positionskursverlauf. Es entsteht keine zusätzliche Detailoberfläche.
 
 Die Grafik zeigt ausschließlich einzelne Punkte ohne Verbindungslinien. Zwischen
 zwei Punkten ist kein Kurs belegt. Es gibt weder Interpolation noch Fortschreibung
@@ -20,7 +37,13 @@ Das bereits vorhandene Basiswertdiagramm bleibt über seinen Link zugänglich.
 
 Währungen erhalten getrennte Diagramme. Geld, Brief, letzter Handel und vorheriger
 Schlusskurs bleiben eigene Serien; Provider, ursprüngliche Listing-/Quellidentität
-und Quellenmodus trennen die Serien zusätzlich. Quellenwechsel werden nicht
+und Quellenmodus trennen die Serien zusätzlich. Die ursprünglichen Kennungen
+`venue_mic` und `provider_exchange_code` bleiben ebenfalls erhalten und trennen
+Serien unterschiedlicher Handelsplätze. Die Anzeige bezeichnet eine belegte MIC
+als Handelsplatz und die Providerkennung als Providersegment. Fehlende MICs
+bleiben unbekannt; `ISSUER` ist eine Emittentenquelle, kein erfundener Börsenplatz.
+Heutige Stammdaten oder Provider-Mappings ersetzen keine historische Herkunft.
+Quellenwechsel werden nicht
 glatt verbunden. Die Quellentabelle erhält die ursprünglichen Dezimalwerte,
 Originalkurszeit, Empfangszeit, gegebenenfalls Stichprobenzeit, Erfassungsqualität
 und Zeitbasis. UTC ist ausdrücklich bezeichnet. Ein alter, zeitlich belegter
@@ -41,6 +64,15 @@ und Desktopbreiten an. Zeitraumwahl und Datenalternative sind per Tastatur nutzb
 | `WarrantQuoteSnapshot` | Unveränderte Preisart, Währung, genaue Listing-/ISIN-Zuordnung, Originalkurszeit und Quellenmodus. |
 | Effektive Execution Records und Währungsresolver aus #298 | Tatsächliche Kauf-/Verkaufspreise und bestehende Währungsherkunft, unabhängig von heutigen Listingwährungen. |
 | `daily_prices` / Marktcharts aus #243 | Basiswert-EOD bleibt im separaten Basiswertdiagramm. EOD-Handelstage sind keine Optionsschein-Originalzeitpunkte. |
+
+Die fachliche Datenverfügbarkeit wird dabei ausdrücklich getrennt:
+
+| Kategorie | Belegbarer Umfang und Grenze |
+| --- | --- |
+| Tatsächlich gespeicherte historische Kurse | Persistierte Samples mit gültiger Produkt-/Quellenidentität, Preisart, Währung und Originalzeit sind als einzelne Beobachtungen lesbar. Die reale Anzahl je Nutzerposition ist erst in deren Datenbank nachweisbar. |
+| Über vorhandene Quellen abrufbare Historie | Der bestehende EODHD-Import kann Basiswert-Tageskurse liefern. Das ist keine Optionsscheinhistorie und wird nicht durch diesen GET gestartet. Ein allgemeiner rückwirkender Produkthistorienabruf ist im hier wiederverwendeten Vertrag nicht belegt. |
+| Einzelne aktuelle oder zuletzt gespeicherte Kurse | Ein Retention-Wert liefert höchstens seinen tatsächlichen Originalpunkt. Ohne Originalzeit wird er nicht auf der Zeitachse platziert. Wiederholtes Lesen erzeugt keine Reihe. |
+| Nicht verfügbare historische Daten | Zeiträume vor der Erfassung, ausgefallene Abrufe und verworfene frühere Cachewerte bleiben Lücken. Die Anzeige berechnet daraus weder Zwischenwerte noch Ersatzkurse aus Basiswerten oder Ausführungen. |
 
 `QuoteHistoryReader.prices()` erweitert den bestehenden Market-Data-Lesevertrag.
 Das vorhandene Erfassungsprotokoll `QuoteHistoryReader.report()` bleibt unverändert:
@@ -104,6 +136,8 @@ Ein Marker benötigt die genaue tatsächliche Ausführungszeit und eine durch de
 vorhandenen Resolver belegte Währung, zu der auch ein Kurssegment existiert.
 Der Marker zeigt den erfassten Ausführungspreis, keinen geschätzten Marktkurs.
 Kauf und Verkauf sind in Form/Farbe und im Tooltip als Buchungen gekennzeichnet.
+Kaufdreieck und Verkaufskreuz sind ausschließlich Ausführungen vorbehalten;
+Marktserien verwenden andere Formen, auch bei mehreren Quellsegmenten.
 
 `executed_on` bleibt ein Datum: Der interne Mitternachtsanker wird niemals
 geplottet. Datumgenaue Buchungen, unbekannte Währungen und Buchungen ohne
@@ -120,7 +154,20 @@ Es erfolgt keine Ableitung aus dem heutigen Listing und keine FX-Umrechnung.
 - Frontend: automatische Requests, Zeitraumwechsel, Abbruch und A→B-Isolation,
   Dezimalwerte, Quellenangaben, Ereignisse, leere Daten und Wiederholung nach Fehler.
 - Browser: Desktop und Mobilgerät, Einzelpunkt und Lücken ohne Linien,
-  getrennte Währungen/Provider, Marker und Datumsbelege, Begrenzung und Fehler.
+  getrennte Währungen/Provider/Handelsplätze, Marker und Datumsbelege, Begrenzung und Fehler;
+  geschlossene Position im vorhandenen Detail, erneuter Readback, Storno und
+  tastaturbedienbare, datenabhängige Zeitraumwahl.
+
+## Abgrenzung der Ergänzung
+
+#205 bleibt als ursprünglicher Architekturvorschlag bestehen. Sein tatsächlicher
+Diff enthält neben dem Dokument zwei Entwicklungs-Exportworkflows; diese sind
+kein Teil des Historienfeatures. Die Ergänzung baut ausschließlich auf Main auf.
+Die parallelen Arbeiten #220 (Provider), #303 (Betriebsdiagnose) und #197
+(Hebeltrader-Forschung) werden nicht übernommen oder geändert. Neue historische
+Produktquellen müssen später echte Beobachtungen über die bestehenden geprüften
+Market-Data-Verträge bereitstellen; ihr Backfill ist keine Voraussetzung für die
+Anzeige bereits gespeicherter Belege.
 
 Alle Testdaten sind synthetisch. Reale Datenlücken, verloren gegangene frühere
 Cachewerte und unbekannte Quellzeiten lassen sich mit diesem Lesefeature nicht

@@ -20,6 +20,8 @@ export interface PositionPriceSeries {
   currency: string;
   price_kind: PositionPriceKind;
   source_mode: string | null;
+  venue_mic?: string | null;
+  provider_exchange_code?: string | null;
   points: PositionPricePoint[];
 }
 

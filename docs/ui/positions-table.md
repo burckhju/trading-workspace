@@ -41,6 +41,9 @@ automatisch aus vorhandenen Optionsscheinbelegen. Einzelpunkte, Lücken, Quellen
 und getrennte Währungen bleiben sichtbar. Es gibt keine zusätzliche Providerabfrage,
 Preisinterpolation oder FX-Umrechnung. Sichere Kauf-/Verkaufsmarker und eine
 Quellentabelle ergänzen die Grafik; fehlende Daten und Ladefehler sind explizit.
+Belegte Handelsplätze und Providersegmente bleiben sichtbar; Zeiträume ohne
+nachgewiesene Kurspunkte sind deaktiviert. Derselbe Kursbereich steht auch in den
+bestehenden Trade-/Positionsdetails geschlossener Positionen zur Verfügung.
 
 ## Beträge und Zeitangaben
 

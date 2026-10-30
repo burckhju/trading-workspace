@@ -6,6 +6,7 @@ import { sourceLink } from '../services/sourceView';
 
 import { PositionRiskPanel } from '../../alert/components/PositionRiskPanel';
 import { TradeAlertsPanel } from '../../alert/components/TradeAlertsPanel';
+import { PositionPriceHistory } from '../../operational_workspace';
 import { postTradeApiClient } from '../../post_trade/services/client';
 import { postTradeErrorMessage } from '../../post_trade/services/errors';
 import { warrantApiClient } from '../../product/services/client';
@@ -110,6 +111,7 @@ function TradeManagementContext({ tradeId }: { tradeId: string }) {
   const readGeneration = useRef(0);
   const readController = useRef<AbortController | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
+  const [historyReloadToken, setHistoryReloadToken] = useState(0);
   const [stopPrice, setStopPrice, stopPriceRef] = useDraft('');
   const [stopBinding, setStopBinding, stopBindingRef] = useDraft<PriceBinding | null>(null);
   const [targetBinding, setTargetBinding, targetBindingRef] = useDraft<PriceBinding | null>(null);
@@ -232,6 +234,9 @@ function TradeManagementContext({ tradeId }: { tradeId: string }) {
         if (!basis || thesisRef.current === (basis.thesis ?? ''))
           setThesis(nextManagement.thesis ?? '');
         managementBasis.current = nextManagement;
+        // Only the history view is invalidated by a successful readback. The
+        // booking editor owns its concurrent timeline read and recovery state.
+        if (basis) setHistoryReloadToken((token) => token + 1);
       } catch (error) {
         if (active.current) {
           // A booking readback must not count an aborted/superseded projection
@@ -619,6 +624,15 @@ function TradeManagementContext({ tradeId }: { tradeId: string }) {
               )}
             </div>
           </details>
+          {!trade.cancelled_at && (
+            <div className="mt-5 min-w-0">
+              <PositionPriceHistory
+                tradeId={trade.id}
+                positionId={position.id}
+                reloadToken={historyReloadToken}
+              />
+            </div>
+          )}
         </section>
       )}
 

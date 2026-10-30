@@ -3,6 +3,7 @@ import type { PositionPriceHistoryReport } from '../positionPriceHistory';
 import {
   historyPrice,
   historyTime,
+  historyVenue,
   priceHistoryLabel,
   priceKindLabel,
 } from '../services/priceHistoryPresentation';
@@ -57,6 +58,7 @@ export function PositionPriceHistoryEvidence({ report }: { report: PositionPrice
                     </td>
                     <td className="max-w-xs break-all p-2 align-top">
                       {series.provider} · {series.source_mode ?? 'Quellenmodus unbekannt'}
+                      <span className="block">{historyVenue(series)}</span>
                       <span className="block">ISIN {series.isin}</span>
                       <span className="block">Notierung: {series.warrant_listing_id}</span>
                       <span className="block">Quellsegment: {series.identity_key}</span>

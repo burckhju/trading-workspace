@@ -23,6 +23,8 @@ import type {
 } from '../types/api';
 import { TradeManagementPage } from './TradeManagementPage';
 
+vi.mock('../../operational_workspace', () => ({ PositionPriceHistory: () => null }));
+
 // Isolate page/route ownership. The real child workflows remain covered in their
 // existing suites and the disposable PostgreSQL browser regression.
 vi.mock('../../alert/components/TradeAlertsPanel', () => ({
