@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from email.utils import parsedate_to_datetime
 from tempfile import SpooledTemporaryFile
 from time import monotonic
 from typing import BinaryIO, cast
@@ -26,9 +27,11 @@ from app.features.market_data.domain.models import WarrantQuoteSnapshot
 from app.features.market_data.persistence.models import WarrantProviderMappingModel
 from app.features.market_data.persistence.quote_identity import QuoteIdentity, read_quote_identity
 from app.features.market_data.service.errors import (
+    MarketDataAuthenticationError,
     MarketDataAuthorizationError,
     MarketDataInvalidResponseError,
     MarketDataNotFoundError,
+    MarketDataRateLimitError,
     MarketDataUnavailableError,
 )
 from app.features.market_data.service.types import MarketDataResult, WarrantQuoteRequest
@@ -42,6 +45,7 @@ from app.providers.gettex_delayed.parser import (
 @dataclass(frozen=True, slots=True)
 class _CacheEntry:
     file_name: str
+    tracked_isins: frozenset[str]
     batch: GettexQuoteBatch
     retrieved_at: datetime
 
@@ -66,6 +70,7 @@ class GettexDelayedWarrantQuoteAdapter:
         self._lock = asyncio.Lock()
         self._cache: dict[tuple[UUID, str], _CacheEntry] = {}
         self._missing_until: dict[tuple[str, str], float] = {}
+        self._rate_limited_until = 0.0
 
     async def close(self) -> None:
         """Close the HTTP client owned by this adapter."""
@@ -187,14 +192,21 @@ class GettexDelayedWarrantQuoteAdapter:
             cache_key = (workspace_id, mic)
             for file_name in self._candidate_file_names(as_of, mic):
                 cached = self._cache.get(cache_key)
-                if cached is not None and cached.file_name == file_name:
+                if (
+                    cached is not None
+                    and cached.file_name == file_name
+                    and tracked_isins <= cached.tracked_isins
+                ):
                     return cached.batch, cached.retrieved_at, True
 
                 missing_key = (mic, file_name)
                 if monotonic() < self._missing_until.get(missing_key, 0):
                     continue
 
-                loaded = await self._download(file_name, tracked_isins)
+                # Remember the complete scan scope, including absent/invalid rows.
+                # Never let a mutable caller set make an unscanned product a cache hit.
+                scanned_isins = frozenset(tracked_isins)
+                loaded = await self._download(file_name, set(scanned_isins))
                 if loaded is None:
                     self._missing_until[missing_key] = (
                         monotonic() + self._settings.unavailable_retry_seconds
@@ -203,6 +215,7 @@ class GettexDelayedWarrantQuoteAdapter:
                 batch, retrieved_at = loaded
                 self._cache[cache_key] = _CacheEntry(
                     file_name=file_name,
+                    tracked_isins=scanned_isins,
                     batch=batch,
                     retrieved_at=retrieved_at,
                 )
@@ -230,11 +243,42 @@ class GettexDelayedWarrantQuoteAdapter:
             for offset in range(self._settings.fallback_windows)
         )
 
+    def _retry_after(self, value: str | None) -> timedelta:
+        """Interpret HTTP delay at receipt time; invalid/expired values use the existing budget."""
+        fallback = timedelta(seconds=self._settings.unavailable_retry_seconds)
+        if value is None:
+            return fallback
+        value = value.strip()
+        try:
+            if value.isascii() and value.isdecimal():
+                delay = timedelta(seconds=int(value))
+            else:
+                retry_at = parsedate_to_datetime(value)
+                if retry_at.tzinfo is None or retry_at.utcoffset() is None:
+                    return fallback
+                delay = retry_at - datetime.now(UTC)
+        except (ValueError, TypeError, OverflowError):
+            return fallback
+        return delay if delay > timedelta(0) else fallback
+
+    def _rate_limit_error(self) -> MarketDataRateLimitError:
+        return MarketDataRateLimitError(
+            "GETTEX_DELAYED_RATE_LIMITED",
+            provider=MarketDataProvider.GETTEX_DELAYED,
+            capability=MarketDataCapability.WARRANT_LISTING_QUOTE,
+            retryable=True,
+            retry_after=timedelta(seconds=max(0.0, self._rate_limited_until - monotonic())),
+        )
+
     async def _download(
         self,
         file_name: str,
         tracked_isins: set[str],
     ) -> tuple[GettexQuoteBatch, datetime] | None:
+        # The retained-quote boundary may consume the typed exception. Enforce the
+        # upstream pause here across all listings/MICs, without sleeping or retrying.
+        if monotonic() < self._rate_limited_until:
+            raise self._rate_limit_error()
         url = f"{self._settings.base_url.rstrip('/')}/{file_name}"
         try:
             async with self._client.stream(
@@ -244,12 +288,24 @@ class GettexDelayedWarrantQuoteAdapter:
             ) as response:
                 if response.status_code == 404:
                     return None
+                if response.status_code == 401:
+                    raise MarketDataAuthenticationError(
+                        "GETTEX_DELAYED_AUTHENTICATION_REQUIRED",
+                        provider=MarketDataProvider.GETTEX_DELAYED,
+                        capability=MarketDataCapability.WARRANT_LISTING_QUOTE,
+                    )
                 if response.status_code == 403:
                     raise MarketDataAuthorizationError(
                         "GETTEX_DELAYED_ACCESS_FORBIDDEN",
                         provider=MarketDataProvider.GETTEX_DELAYED,
                         capability=MarketDataCapability.WARRANT_LISTING_QUOTE,
                     )
+                if response.status_code == 429:
+                    retry_after = self._retry_after(response.headers.get("Retry-After"))
+                    self._rate_limited_until = max(
+                        self._rate_limited_until, monotonic() + retry_after.total_seconds()
+                    )
+                    raise self._rate_limit_error()
                 if response.status_code >= 500:
                     raise MarketDataUnavailableError(
                         "GETTEX_DELAYED_UPSTREAM_UNAVAILABLE",
@@ -270,10 +326,23 @@ class GettexDelayedWarrantQuoteAdapter:
                         capability=MarketDataCapability.WARRANT_LISTING_QUOTE,
                     )
 
-                content_length = response.headers.get("Content-Length")
+                raw_length = response.headers.get("Content-Length")
+                content_length = None
+                if raw_length is not None:
+                    try:
+                        raw_length = raw_length.strip()
+                        if not raw_length.isascii() or not raw_length.isdecimal():
+                            raise ValueError("Content-Length must contain ASCII digits")
+                        content_length = int(raw_length)
+                    except ValueError as exc:
+                        raise MarketDataInvalidResponseError(
+                            "GETTEX_DELAYED_CONTENT_LENGTH_INVALID",
+                            provider=MarketDataProvider.GETTEX_DELAYED,
+                            capability=MarketDataCapability.WARRANT_LISTING_QUOTE,
+                        ) from exc
                 if (
                     content_length is not None
-                    and int(content_length) > self._settings.max_download_bytes
+                    and content_length > self._settings.max_download_bytes
                 ):
                     raise MarketDataInvalidResponseError(
                         "GETTEX_DELAYED_FILE_TOO_LARGE",
@@ -292,6 +361,19 @@ class GettexDelayedWarrantQuoteAdapter:
                                 capability=MarketDataCapability.WARRANT_LISTING_QUOTE,
                             )
                         temporary.write(chunk)
+                    # Content-Length counts the HTTP representation, whereas
+                    # aiter_bytes decodes any outer HTTP Content-Encoding.
+                    if (
+                        content_length is not None
+                        and response.headers.get("Content-Encoding", "identity").lower().strip()
+                        == "identity"
+                        and total != content_length
+                    ):
+                        raise MarketDataInvalidResponseError(
+                            "GETTEX_DELAYED_CONTENT_LENGTH_MISMATCH",
+                            provider=MarketDataProvider.GETTEX_DELAYED,
+                            capability=MarketDataCapability.WARRANT_LISTING_QUOTE,
+                        )
                     temporary.seek(0)
                     try:
                         batch = await asyncio.to_thread(
