@@ -1909,7 +1909,7 @@ historische Nachweise, keine erneute Implementierungsabhängigkeit.
 | Fachliche Abnahme | Keine eigenständige fachliche Abnahme für diesen vollständigen Zuschnitt verifiziert. |
 | Software-Auslieferung | Kein gesonderter Release-Nachweis für den vollständigen Zuschnitt verifiziert; ein allgemeiner Softwaretag ersetzt ihn nicht. |
 | Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
-| Restarbeit / nächste Abhängigkeit | Qualität und Auswertungsstatus je Regel mit gebundener Basis, Legacy-Sperren und Zustellzustand verständlich abnehmen. **Nächste Abhängigkeit:** Effektive FT-009/010-Zustände und qualifizierte TC-001-Daten. |
+| Restarbeit / nächste Abhängigkeit | Qualität und Auswertungsstatus je Regel mit gebundener Basis, Legacy-Sperren und Zustellzustand verständlich abnehmen. **Nächste Abhängigkeit:** Effektive FT-009/010-Zustände und qualifizierte TC-001-Daten. **Ergänzung 30.10.2026:** Der [Integrationsvertrag zu #207](../features/HEBELTRADER_MONITORING_INTEGRATION_CONTRACT.md) erhält B01–B58 samt Ausschluss B08, ordnet den Stand an Main `46cb2693e38751ca330074e8606142d0c5e9d24b` zu und grenzt F207-2 bis F207-5 sowie #187/#197 ab. Dokumentation ersetzt keine Implementierungs- oder Fachabnahme; Arbeitsstatus unverändert. |
 | Umfangsentscheidung | Bestehende unnummerierte Fähigkeit behalten; keine FT-Nummer erfinden. Frühere reine Underlying-EOD-Aussage nicht auf sämtliche spätere Regeln verallgemeinern. |
 
 </details>
