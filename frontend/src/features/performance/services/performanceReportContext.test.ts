@@ -28,7 +28,18 @@ const context: RealizedReportContext = {
   basis: 'a'.repeat(64),
 };
 
-afterEach(() => vi.useRealTimers());
+afterEach(() => {
+  vi.useRealTimers();
+  vi.restoreAllMocks();
+});
+
+function browserTimezone(timeZone: string) {
+  const options = Intl.DateTimeFormat().resolvedOptions();
+  vi.spyOn(Intl.DateTimeFormat.prototype, 'resolvedOptions').mockReturnValue({
+    ...options,
+    timeZone,
+  });
+}
 
 it.each(realizedReportViews)('round-trips the SELL-specific %s view and baseline', (view) => {
   const selected = { ...context, view };
@@ -194,11 +205,58 @@ it.each([
   ['2026-09-30T22:30:00Z', '2026-10-01', '2026-10-01'],
   ['2026-10-26T23:30:00Z', '2026-10-01', '2026-10-27'],
 ])('suggests the Berlin calendar month through today at %s', (now, from, to) => {
-  vi.useFakeTimers();
+  vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(new Date(now));
+  browserTimezone('Europe/Berlin');
   expect(initialPerformanceFilters()).toEqual({
     from_date: from,
     to_date: to,
+    report_currency: 'EUR',
+    report_timezone: 'Europe/Berlin',
+  });
+});
+
+it.each([
+  ['America/Los_Angeles', '2026-10-01T00:30:00Z', '2026-09-01', '2026-09-30'],
+  ['Asia/Tokyo', '2026-09-30T22:30:00Z', '2026-10-01', '2026-10-01'],
+  ['Europe/Vienna', '2026-10-26T23:30:00Z', '2026-10-01', '2026-10-27'],
+  ['Etc/UTC', '2026-09-30T22:30:00Z', '2026-09-01', '2026-09-30'],
+])('uses browser zone %s for both suggested dates at %s', (zone, now, from, to) => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date(now));
+  browserTimezone(zone);
+  expect(initialPerformanceFilters()).toEqual({
+    from_date: from,
+    to_date: to,
+    report_currency: 'EUR',
+    report_timezone: zone,
+  });
+});
+
+it.each(['', 'Not/AZone', '+01:00', 'Europe/Berlin\n'])(
+  'uses the Berlin suggestion only when browser zone %s is invalid',
+  (zone) => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-09-30T22:30:00Z'));
+    browserTimezone(zone);
+    expect(initialPerformanceFilters()).toEqual({
+      from_date: '2026-10-01',
+      to_date: '2026-10-01',
+      report_currency: 'EUR',
+      report_timezone: 'Europe/Berlin',
+    });
+  },
+);
+
+it('retains an editable Berlin suggestion when the browser cannot expose a timezone', () => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date('2026-09-30T22:30:00Z'));
+  vi.spyOn(Intl.DateTimeFormat.prototype, 'resolvedOptions').mockImplementation(() => {
+    throw new Error('Browser timezone unavailable');
+  });
+  expect(initialPerformanceFilters()).toEqual({
+    from_date: '2026-10-01',
+    to_date: '2026-10-01',
     report_currency: 'EUR',
     report_timezone: 'Europe/Berlin',
   });

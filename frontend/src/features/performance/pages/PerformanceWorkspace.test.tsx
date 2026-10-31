@@ -117,6 +117,14 @@ function deferred<T>() {
   return { promise, resolve, reject };
 }
 
+function browserTimezone(timeZone: string) {
+  const options = Intl.DateTimeFormat().resolvedOptions();
+  vi.spyOn(Intl.DateTimeFormat.prototype, 'resolvedOptions').mockReturnValue({
+    ...options,
+    timeZone,
+  });
+}
+
 beforeEach(() => {
   vi.resetAllMocks();
   api.realizedGross.mockImplementation((filters) => Promise.resolve(sellReport(filters)));
@@ -126,13 +134,14 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks());
 
 it.each(kinds)('starts %s with one shared form, fixed EUR, and no implicit report read', (kind) => {
+  browserTimezone('Europe/Vienna');
   mount([`/performance/${kind}`]);
   expect(screen.getAllByRole('form')).toHaveLength(1);
   expect(screen.getByRole('form', { name: 'Performance-Zeitraum auswählen' })).toBeVisible();
   expect(screen.getAllByLabelText('Von (einschließlich)')).toHaveLength(1);
   expect(screen.getAllByLabelText('Bis (einschließlich)')).toHaveLength(1);
   expect(screen.getAllByLabelText('Berichtszeitzone (IANA)')).toHaveLength(1);
-  expect(screen.getByLabelText('Berichtszeitzone (IANA)')).toHaveValue('Europe/Berlin');
+  expect(screen.getByLabelText('Berichtszeitzone (IANA)')).toHaveValue('Europe/Vienna');
   expect(screen.getByLabelText('Berichtswährung')).toHaveAttribute('readonly');
   expect(screen.getByLabelText('Berichtswährung')).toHaveValue('EUR');
   expect(screen.getByRole('heading', { level: 1, name: names[kind] })).toBeVisible();
@@ -141,6 +150,42 @@ it.each(kinds)('starts %s with one shared form, fixed EUR, and no implicit repor
     'aria-pressed',
     'false',
   );
+  expect(api.realizedGross).not.toHaveBeenCalled();
+  expect(api.closedTrades).not.toHaveBeenCalled();
+});
+
+it.each(kinds)(
+  'prefers the explicit %s URL zone over the browser and retains a manual correction on switch',
+  async (kind) => {
+    browserTimezone('Asia/Tokyo');
+    const filters = { ...reportFilters, report_timezone: 'America/New_York' };
+    mount([reportUrl(kind, filters)]);
+    await screen.findByTestId(totalId(kind));
+    expectFilters(filters);
+    expect(client(kind)).toHaveBeenCalledExactlyOnceWith(filters, expect.any(AbortSignal));
+    const details = screen.getByText('Herkunft der Berichtsauswahl').closest('details')!;
+    expect(details).not.toHaveAttribute('open');
+    fireEvent.click(screen.getByText('Herkunft der Berichtsauswahl'));
+    expect(details).toHaveAttribute('open');
+    expect(details).toHaveTextContent('Ein eindeutiger Berichtskontext im Link');
+    const corrected = { ...filters, report_timezone: 'Europe/Vienna' };
+    fireEvent.change(screen.getByLabelText('Berichtszeitzone (IANA)'), {
+      target: { value: corrected.report_timezone },
+    });
+    expect(client(kind)).toHaveBeenCalledOnce();
+    expect(client(other(kind))).not.toHaveBeenCalled();
+    switchTo(other(kind));
+    await screen.findByTestId(totalId(other(kind)));
+    expectFilters(corrected);
+    expect(client(other(kind))).toHaveBeenCalledExactlyOnceWith(corrected, expect.any(AbortSignal));
+  },
+);
+
+it.each(kinds)('never repairs an invalid %s URL zone with the browser suggestion', (kind) => {
+  browserTimezone('Europe/Vienna');
+  mount([reportUrl(kind, { ...reportFilters, report_timezone: 'Not/AZone' })]);
+  expect(screen.getByLabelText('Berichtszeitzone (IANA)')).toHaveValue('Not/AZone');
+  expect(screen.getByRole('alert')).toBeVisible();
   expect(api.realizedGross).not.toHaveBeenCalled();
   expect(api.closedTrades).not.toHaveBeenCalled();
 });
