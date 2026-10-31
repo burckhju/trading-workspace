@@ -21,7 +21,7 @@ type ReadResult = {
   key: string;
 } & (
   | { resolution: ExecutionCurrencyResolution; error?: never }
-  | { resolution?: never; error: string }
+  | { resolution?: never; error: string; retryable: boolean }
 );
 
 /** A preview only displays owner evidence. It never writes into the user's draft. */
@@ -61,12 +61,25 @@ function PreviewContext({
   useEffect(() => {
     const controller = new AbortController();
     async function read() {
+      let executed: ReturnType<typeof executionTime>;
+      try {
+        executed = executionTime(date, time);
+      } catch {
+        // The capture form owns the precise date/time validation message.
+        // Retrying a read cannot resolve an incomplete or ambiguous local time.
+        setResult({
+          key,
+          error: 'Bitte zuerst Datum und gegebenenfalls Uhrzeit der Ausführung prüfen.',
+          retryable: false,
+        });
+        return;
+      }
       try {
         const queryContext: ExecutionCurrencyPreviewContext =
           tradeId !== null ? { tradeId, side } : { productId: productId!, side: 'BUY' };
         const next = await tradeManagementApiClient.executionCurrencyPreview(
           queryContext,
-          executionTime(date, time),
+          executed,
           controller.signal,
         );
         if (controller.signal.aborted) return;
@@ -86,6 +99,7 @@ function PreviewContext({
               error instanceof Error
                 ? error.message
                 : 'Die Währungsherkunft konnte nicht gelesen werden.',
+            retryable: true,
           });
       }
     }
@@ -125,14 +139,16 @@ function PreviewContext({
             {current?.error && (
               <div className="space-y-2 text-amber-300">
                 <p>Währungsherkunft derzeit nicht geprüft. {current.error}</p>
-                <button
-                  type="button"
-                  disabled={disabled}
-                  className="rounded border px-3 py-2"
-                  onClick={() => setRevision((value) => value + 1)}
-                >
-                  Währungsherkunft erneut prüfen
-                </button>
+                {current.retryable && (
+                  <button
+                    type="button"
+                    disabled={disabled}
+                    className="rounded border px-3 py-2"
+                    onClick={() => setRevision((value) => value + 1)}
+                  >
+                    Währungsherkunft erneut prüfen
+                  </button>
+                )}
               </div>
             )}
             {resolution && (

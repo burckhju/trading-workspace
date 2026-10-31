@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { beforeEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
 import {
   realizedGrossReport,
@@ -39,6 +39,10 @@ function chooseSeptember() {
   fireEvent.change(screen.getByLabelText('Bis (einschließlich)'), {
     target: { value: '2026-09-30' },
   });
+  // The historical report fixture uses Berlin, independently of the browser suggestion.
+  fireEvent.change(screen.getByLabelText('Berichtszeitzone (IANA)'), {
+    target: { value: reportFilters.report_timezone },
+  });
 }
 function read() {
   fireEvent.click(screen.getByRole('button', { name: 'Bericht lesen' }));
@@ -46,15 +50,22 @@ function read() {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  const browserOptions = Intl.DateTimeFormat().resolvedOptions();
+  vi.spyOn(Intl.DateTimeFormat.prototype, 'resolvedOptions').mockReturnValue({
+    ...browserOptions,
+    timeZone: 'America/New_York',
+  });
   api.realizedGross.mockResolvedValue(realizedGrossReport());
 });
+
+afterEach(() => vi.restoreAllMocks());
 
 it('uses fixed EUR, keeps the visible reporting zone, and displays independent September contributions with all preceding sources', async () => {
   renderPage();
   expect(api.realizedGross).not.toHaveBeenCalled();
   expect(screen.getByLabelText('Berichtswährung')).toHaveValue('EUR');
   expect(screen.getByLabelText('Berichtswährung')).toHaveAttribute('readonly');
-  expect(screen.getByLabelText('Berichtszeitzone (IANA)')).toHaveValue('Europe/Berlin');
+  expect(screen.getByLabelText('Berichtszeitzone (IANA)')).toHaveValue('America/New_York');
   chooseSeptember();
   read();
   expect(await screen.findByTestId('realized-gross-total')).toHaveTextContent('10,00 EUR');

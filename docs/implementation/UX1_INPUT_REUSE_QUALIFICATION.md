@@ -33,6 +33,13 @@ Offen sind #220, #207, #205, #197 und #187. #187 enthält Änderungen an
 `TradePlanWorkflowPage.tsx` und ein Hebeltrader-Panel; daraus wird nichts übernommen.
 #309 ist ausschließlich ein dokumentierter Monitoringvertrag, keine Runtimefreigabe.
 
+Während der Umsetzung wurde außerdem #311 (UX2-Navigation, Head `6782bc7a`)
+eröffnet. Gemeinsame Änderungsdatei ist `TradeManagementPage.tsx`; sein Patch lässt
+sich auf UX1-Head `74d29bb8` konfliktfrei rein lesend prüfen (`git apply --check`).
+Bei einer späteren gemeinsamen Integration müssen Währungsvorschau und
+`historyReloadToken` erhalten sowie die Navigationsjourneys gemeinsam geprüft
+werden. Aus #311 wurde nichts übernommen.
+
 ## Feldmatrix des geprüften Main
 
 Pfadkürzel: `FE` = `frontend/src/features`, `BE` = `backend/app/features`.
@@ -143,6 +150,15 @@ unzulässig. Details: [Trade-Capture-Vertrag](../trade-capture-safety.md#show-ex
 - Neue E2E-Datei `tests/e2e/execution-currency-reuse.spec.ts`: durch Playwright
   erfolgreich entdeckt. Der tatsächliche Browser-/PostgreSQL-Ablauf läuft in der
   vorhandenen Wegwerf-CI mit `TRADE_E2E_WRITES_ALLOWED=1`; kein Zugriff auf echte Bestände.
+
+Der erste PR-Testmerge `d5df27fe` qualifizierte bereits die neue Browserreise,
+deckte aber zwei Regressionen auf: eine doppelte Datums-/Zeitfehlermeldung in der
+Währungsvorschau sowie implizite Berlin-Annahmen in zwei Performance-Testdateien
+auf dem UTC-Runner. Die Vorschau überlässt die präzise Zeitvalidierung wieder dem
+Captureformular und bietet bei ungültiger Zeit keinen wirkungslosen Lese-Retry.
+Die Performance-Tests wählen ihren Berichtskontext ausdrücklich; die fachliche
+Antwortprüfung und Übernahme der Browserzone bleiben unverändert. Die bestehenden
+DST-End-to-End-Prüfungen bleiben vollständig erhalten.
 
 Das vollständige Frontend-Gate sowie exakte PR-Head-/Testmerge-/CI-Ergebnisse werden
 im Integrations-PR nach tatsächlichem Lauf nachgewiesen. Die oben genannten Main-Läufe

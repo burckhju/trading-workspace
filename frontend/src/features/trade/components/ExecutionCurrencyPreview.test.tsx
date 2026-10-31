@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, expect, it, vi } from 'vitest';
 
+import * as capture from '../services/capture';
 import { tradeManagementApiClient } from '../services/client';
 import { emptyExecutionCurrency } from '../services/executionCurrency';
 import type { ExecutionCurrencyPreviewContext, ExecutionCurrencyResolution } from '../types/api';
@@ -212,10 +213,40 @@ it('retains manual input through a failed read and its explicit read-only retry'
 
 it('does not read an invalid date or manufacture a time, price, quantity or currency', async () => {
   render(<Form date="" />);
-  await screen.findByText(/Bitte ein gültiges Kauf-\/Verkaufsdatum/);
+  await screen.findByText(/Bitte zuerst Datum und gegebenenfalls Uhrzeit/);
   expect(read).not.toHaveBeenCalled();
+  expect(
+    screen.queryByRole('button', { name: 'Währungsherkunft erneut prüfen' }),
+  ).not.toBeInTheDocument();
   expect(screen.getByLabelText('Manuelle Währungsangabe')).toHaveTextContent(
     '{"code":"","note":""}',
+  );
+});
+
+it('leaves precise ambiguous-time validation to the capture form and reads only after an explicit correction', async () => {
+  vi.spyOn(capture, 'executionTime').mockImplementationOnce(() => {
+    throw new Error('Die Uhrzeit ist wegen der Zeitumstellung nicht eindeutig.');
+  });
+  const view = render(<Form date="2025-10-26" time="02:30" />);
+  await screen.findByText(/Bitte zuerst Datum und gegebenenfalls Uhrzeit/);
+  expect(read).not.toHaveBeenCalled();
+  expect(screen.queryByText(/Die Uhrzeit ist wegen der Zeitumstellung/)).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole('button', { name: 'Währungsherkunft erneut prüfen' }),
+  ).not.toBeInTheDocument();
+  expect(screen.getByLabelText('Manuelle Währungsangabe')).toHaveTextContent(
+    '{"code":"","note":""}',
+  );
+
+  view.rerender(<Form date="2025-10-26" time="" />);
+  await screen.findByText(/Vorhandene Währung: EUR/);
+  expect(read).toHaveBeenCalledExactlyOnceWith(
+    { tradeId: 'trade-a', side: 'SELL' },
+    {
+      executed_on: '2025-10-26',
+      execution_timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    },
+    expect.any(AbortSignal),
   );
 });
 
