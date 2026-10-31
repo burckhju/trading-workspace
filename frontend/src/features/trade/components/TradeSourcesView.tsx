@@ -1,5 +1,4 @@
 import { ClosedTradeResult } from '../../performance/components/ClosedTradeResult';
-import { closedListUrl, parseClosedContext } from '../../performance/services/closedReportContext';
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 
@@ -13,8 +12,13 @@ import type {
   TradeSourceCore,
 } from '../services/sourceView';
 import type { TradeTimelineEntryResponse } from '../types/api';
-import { TradeWorkspaceNavigation } from './TradeWorkspaceNavigation';
-import { tradeLessonLink, tradeWorkspaceLink } from '../services/workspaceNavigation';
+import {
+  closedListUrl,
+  parseClosedContext,
+  TradeWorkspaceNavigation,
+  tradeLessonLink,
+  tradeWorkspaceLink,
+} from '../../../shared/trade-workspace-navigation';
 
 const sectionClass = 'space-y-3 rounded-xl border border-slate-800 p-4';
 const linkClass = 'text-sky-400 underline focus-visible:outline';

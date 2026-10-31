@@ -1,4 +1,8 @@
-import { preserveClosedContext } from '../../performance/services/closedReportContext';
+import {
+  pinKeys,
+  type PinKey,
+  preserveClosedContext,
+} from '../../../shared/trade-workspace-navigation/context';
 import { environment } from '../../../services/environment';
 import { requestJson } from '../../market/services/http';
 import type { JournalVersion } from '../../learning/services/journalClient';
@@ -59,8 +63,7 @@ export interface EvidenceSource {
   lesson_links: Ft011EvidenceHistoryItem['lesson_links'];
 }
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-export const pinKeys = ['review_version_id', 'journal_version_id'] as const;
-export type PinKey = (typeof pinKeys)[number];
+export { pinKeys, type PinKey } from '../../../shared/trade-workspace-navigation/context';
 export function sourceQueryError(query: URLSearchParams): string | null {
   for (const key of ['trade_id', ...pinKeys]) {
     const values = query.getAll(key);

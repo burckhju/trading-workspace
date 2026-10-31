@@ -23,7 +23,9 @@ Feature-Branch: `feat/ux2-a-trade-workspace-navigation`.
 
 ### Offene relevante PRs und parallele Arbeit
 
-Die vollständige Live-Abfrage ergab fünf offene PRs:
+Die erste vollständige Live-Abfrage ergab fünf offene PRs. Während der Prüfung wurden
+zusätzlich UX-1, die gemeinsame Koordination und der UX-3-Hinweisvertrag veröffentlicht.
+Der ergänzte Parallelstand ist:
 
 | PR | Head | Relevanz für UX2 |
 | --- | --- | --- |
@@ -32,11 +34,16 @@ Die vollständige Live-Abfrage ergab fünf offene PRs:
 | [#205](https://github.com/burckhju/trading-workspace/pull/205) | `ba7f442a027c55fd3bb15ed6f77271690c8a9055` | Alter Kursverlaufsentwurf, Draft mit Konflikt; #302/#306 sind bereits integriert |
 | [#197](https://github.com/burckhju/trading-workspace/pull/197) | `08d2a5c9abe91ef518eb2c940eff9bbeceb073f8` | Forschungsworkflow; kein produktiver Historienfeed |
 | [#187](https://github.com/burckhju/trading-workspace/pull/187) | `bad00a420f56994216ad1def6a580b00b0f5772f` | Draft mit Konflikt; Hebeltrader-Eingaben/Regeln, u. a. TradePlanWorkflowPage, nicht TradeManagementPage |
+| [#312](https://github.com/burckhju/trading-workspace/pull/312) | `8f67442daac6879d7dfb28416f2171f67aead0e5` | UX-1: Währungsvorschau, belegte Eingaben und Auswahlruns; einzige gemeinsame Produktionsdatei ist TradeManagementPage |
+| [#313](https://github.com/burckhju/trading-workspace/pull/313) | `2312abfe8834a1b652b100fc635c4d36172d5c32` | Fünf neue Koordinationsdokumente, keine Dateischnittmenge; weist auf die bestehende öffentliche Feature-Importgrenze hin |
+| [#314](https://github.com/burckhju/trading-workspace/pull/314) | `52a24266dce1ec048b23360b4b75d5b3f54d746b` | Zehn neue UX-3-Dokumentations-/Vertragsdateien, keine produktive Hinweisimplementierung und keine Dateischnittmenge |
 
 Die grünen alten PR-Läufe vom September qualifizieren keinen heutigen Testmerge. Keiner der
-fünf Diffs berührt TradeManagementPage. Alle 292 veröffentlichten Branches sowie aktuelle PRs
-wurden auf UX-1 geprüft; kein eindeutig aktueller UX-1-Branch/PR war identifizierbar.
-Unveröffentlichte Arbeit ist damit ausdrücklich nicht als konfliktfrei bestätigt.
+fünf älteren Diffs berührt TradeManagementPage. Beim ersten Abgleich aller 292 veröffentlichten
+Branches war UX-1 noch nicht identifizierbar; der später erschienene tatsächliche Diff von #312
+wurde deshalb erneut geprüft. Die eigene Umsetzung liegt in [#311](https://github.com/burckhju/trading-workspace/pull/311);
+maßgebliche finale Heads, Testmerge und CI stehen dort, ohne selbstreferenzierende Commitangaben
+in dieser Datei zu erzeugen.
 
 ## Navigations- und Komponentenmatrix des Ausgangsstands
 
@@ -173,8 +180,18 @@ nach dem Laden fokussierbar. Ein Nachladen darf den Tastaturfokus nicht wiederho
 einem aktiven Eingabefeld ziehen. Eine einfache Bereichsnavigation braucht keine zusätzlichen
 Tabrollen; die vorhandenen echten Buchungstabs behalten ihre Pfeiltastensteuerung.
 
-Die neue `TradeWorkspaceNavigation` und `workspaceNavigation.ts` enthalten ausschließlich
-Darstellung und URL-Zusammensetzung. Erlaubte bestehende Suchparameter bleiben innerhalb eines
+Die neue `TradeWorkspaceNavigation` und ihre Linkfunktionen liegen hinter der öffentlichen
+Schnittstelle `frontend/src/shared/trade-workspace-navigation`. Das gemeinsame Modul enthält
+ausschließlich Darstellung und reine URL-Verträge; es importiert keine internen Features.
+Die vorhandenen URL-Schlüssel, Berichtsauswahlfilter und Navigationsfunktionen werden genau
+einmal ausgegliedert. Die bisherigen Ownerimporte bleiben über kompatible Exporte gültig.
+`sourceQueryError`, `verifyClosedReport`, `verifyClosedStatistics`, API-Reader und Finanzlogik
+verbleiben bei ihren Fachownern. Die Ausgliederung ändert keine Filter- oder Quellenprüfung.
+Damit wird die bereits in `FRONTEND_ARCHITECTURE.md` festgelegte Featuregrenze eingehalten;
+der während der Prüfung erschienene Koordinations-Draft #313 hat diesen Integrationspunkt
+konkret benannt. Dies ist ein eigener, kontrollierter Architekturcommit.
+
+Erlaubte bestehende Suchparameter bleiben innerhalb eines
 Owners bytegenau erhalten; unbekannte Parameter wie `returnTo` oder Geldwerte werden nicht in
 erzeugte Links übernommen. Die Quellenansicht wird nur nach `location.search` gekeyt, sodass
 ein Hashwechsel keine Quellen neu lädt. Historische Pinwechsel bleiben neue Lesekontexte.
@@ -262,10 +279,19 @@ ein Reload verspricht keine dauerhafte Wiederherstellung ungespeicherter Texte.
 
 ## Abgrenzung und Integrationskonflikte mit UX-1
 
-Die parallele UX-1-Implementierung ist zum Zeitpunkt dieser Codebestandsaufnahme noch nicht
-als überprüfter aktueller PR-Diff verfügbar. Unveröffentlichte Änderungen können weder
-ausgeschlossen noch als kompatibel bestätigt werden. Vor Integration sind die tatsächlich
-veröffentlichten Branch-Heads und geänderten Dateien erneut zu vergleichen.
+UX-1 wurde nach Veröffentlichung von #312 am tatsächlichen Head
+`8f67442daac6879d7dfb28416f2171f67aead0e5` geprüft. Die gemeinsame Ausgangsbasis ist exakt
+`1883f7f330719453958f8be1dd51d48db816662e`. Nur `TradeManagementPage.tsx` wird von beiden
+Features verändert; die geänderten Zeilen überschneiden sich nicht. Ein rein rechnerischer
+Dreiwegevergleich verändert weder Branch-Referenzen noch Main und ersetzt keine gemeinsame CI.
+
+UX-1 ersetzt dort die Währungseingabe durch `ExecutionCurrencyPreview` und bindet den bestehenden
+`historyReloadToken` an Nachkauf- und Verkaufsvorschau. UX2 ergänzt Navigation und Bereichsanker.
+Bei Integration sind beide Änderungen zu erhalten, statt die gesamte Datei eines Branches
+zu übernehmen. Der UX-1-Readkey enthält keinen URL-Hash; Navigationswechsel dürfen daher keine
+zusätzliche Währungsvorschau oder Formularänderung auslösen. Die gemeinsame lokale Qualifikation
+und ihre genauen Heads werden im PR nachgehalten. Eine gemeinsame reale PostgreSQL-/GitHub-
+Qualifikation bleibt vor späterer Integration auf dem dann aktuellen Main erforderlich.
 
 UX2-A beschränkt gemeinsame Dateien auf Navigation, Bereichsanker und Darstellung. Besonders
 `TradeManagementPage.tsx` ist als gemeinsame Integrationsstelle zu behandeln: Navigation und
@@ -278,16 +304,16 @@ den anderen übernommen. Die gemeinsame Regression erfolgt später auf dem dann 
 
 | Prüfweg | Erwarteter Nachweis | Bereits vorhandene Regressionen / geplante Ergänzung |
 | --- | --- | --- |
-| Trade A aus Arbeitsbereich öffnen, zu Kursen und Buchungen wechseln | Gleiche `trade_id`, passende Identität, kein zweiter Trade-/Timeline-Read | `TradeManagementContext.test.tsx`, `trade-management-context.spec.ts`; neue Bereichsnavigation ergänzen |
-| Direkten Buchungs-/Verkaufslink kopieren und neu öffnen | Gültiger Kontext wird aus URL geladen, Ziel erhält Fokus | `TradeManagementPage.test.tsx`, `trade-execution-dates.spec.ts`; neue Bereichsanker ergänzen |
+| Trade A aus Arbeitsbereich öffnen, zu Kursen und Buchungen wechseln | Gleiche `trade_id`, passende Identität, kein zweiter Trade-/Timeline-Read | `TradeManagementContext.test.tsx`, `trade-management-context.spec.ts`; ergänzt durch `TradeWorkspaceNavigation.test.tsx` und `trade-workspace-navigation.spec.ts` |
+| Direkten Buchungs-/Verkaufslink kopieren und neu öffnen | Gültiger Kontext wird aus URL geladen, Ziel erhält Fokus | `TradeManagementPage.test.tsx`, `trade-execution-dates.spec.ts`; neue Anker und Reload in `trade-workspace-navigation.spec.ts` |
 | Verkaufsmenge oder Korrekturentwurf eingeben und Hashbereich wechseln | Eingabe bleibt erhalten; kein Verwerfendialog für bloßes Scrollen | `TradeManagementContext.test.tsx`, `trade-execution-consolidation.spec.ts` |
-| Mit ungespeicherten Daten zu Quellen, Plan, Post-Trade oder anderem Trade wechseln | Bestehender Guard; „Hier bleiben“ erhält Eingaben; während Schreiben kein Verwerfen | `TradeManagementContext.test.tsx`, `trade-capture-safety.spec.ts`; neue Links durch Guard prüfen |
+| Mit ungespeicherten Daten zu Quellen, Plan, Post-Trade oder anderem Trade wechseln | Bestehender Guard; „Hier bleiben“ erhält Eingaben; während Schreiben kein Verwerfen | `TradeManagementContext.test.tsx`, `trade-capture-safety.spec.ts`; neue Links und nativer Reloadschutz in `trade-workspace-navigation.spec.ts` |
 | A → B → A mit verspäteter A-Antwort | Alter Besuch überschreibt keine neue Identität oder Eingaben | `TradeManagementContext.test.tsx`, Plan-/Post-Trade-/Lesson-Kontexttests |
-| Fehlende Position, nicht vorhandener Trade oder stornierter Trade öffnen | Verständlicher Lade-/Fehler-/Leerzustand, keine alten Daten und keine erfundenen Schreibaktionen | Bestehende Trade-Kontexttests; neue Navigation bei unvollständigem Kontext prüfen |
+| Fehlende Position, nicht vorhandener Trade oder stornierter Trade öffnen | Verständlicher Lade-/Fehler-/Leerzustand, keine alten Daten und keine erfundenen Schreibaktionen | Bestehende Trade-Kontexttests; ergänzte Navigationsfälle für fehlende Position sowie geschlossen/storniert |
 | Geschlossenen Trade öffnen | Keine neue Verkaufsfreigabe; vorhandenes Post-Trade/Quellenziel erreichbar | `TradeManagementPage.test.tsx`, `PostTradeLearningPage.integration.test.tsx` |
 | Trade mit historischer Planversion öffnen, obwohl neuer Entwurf existiert | Exakt gespeicherte Version; kein Wechsel auf `latest` | `ExistingTradePlanPage.test.tsx`, `TradePlanPage.deep-link.test.tsx`, `ft007-plan-context-postgres.spec.ts` |
-| Abschlussliste → Quellen → Bereich → Quellen → Bericht | Filter, Seite und historische Pins bleiben erhalten; veränderter Bericht wird erneut qualifiziert | `ClosedTradeSourceJourney.test.tsx`, `ClosedTradeResult.test.tsx`; neuen Bereichs-Rundweg ergänzen |
-| Journal/Review → historische Lesson → Rückweg | Original-Trade und konkrete Quellpins bleiben erhalten | `LessonDetailPage.governance.test.tsx`, `lesson-detail-consolidation.spec.ts`; Trade-Rückkontext ergänzen |
+| Abschlussliste → Quellen → Bereich → Quellen → Bericht | Filter, Seite und historische Pins bleiben erhalten; veränderter Bericht wird erneut qualifiziert | `ClosedTradeSourceJourney.test.tsx`, `ClosedTradeResult.test.tsx`, `workspaceNavigation.test.ts`, realer Quellen-Rundweg in `trade_source_journey.ts` |
+| Journal/Review → historische Lesson → Rückweg | Original-Trade und konkrete Quellpins bleiben erhalten | Erweiterte `LessonDetailPage.governance.test.tsx`, `lesson-detail-consolidation.spec.ts` sowie Quellen-/Journal-E2E |
 | Navigation per Tastatur und schmalem Viewport | Sichtbarer Fokus, erreichbare Links, kein Layoutüberlauf; bestehende Buchungstabs weiterhin bedienbar | Fokussierter neuer Playwright-Nutzerweg sowie bestehende mobile UI-Tests |
 | Buchungs-/Finanzregression | Bestehende Mengen-, Storno-, Average-Cost-, Währungs- und Berichtsregeln bleiben erfolgreich | Backend-Suiten für Trade/Position, historische Währung und Performance; bestehende E2E-Nutzerwege |
 
@@ -310,6 +336,11 @@ Lokal erfolgreich am 31.10.2026:
   Die API-Fixtures blockieren alle Writes; diese Fälle ersetzen keine PostgreSQL-Owner-Suite.
 - Unabhängiges Review und `git diff --check` erfolgreich. Ein gefundener fremder Review-Pin
   nach Tradewechsel wurde behoben und mit einer eigenen Regression abgesichert.
+- Nach Ausgliederung der öffentlichen Navigationsschnittstelle erneut erfolgreich:
+  vollständiges Frontend-Coverage-Gate mit denselben 1.861 Tests und Coveragewerten,
+  TypeScript/ESLint/Prettier/Build sowie **13 Chromium-Fälle** (acht Navigation, fünf Handoff).
+  Ein unabhängiger strukturierter Vergleich bestätigt **35 unveränderte Deklarationen**,
+  einschließlich Finanz-/Quellenvalidatoren, URL-Parsern und Navigationskomponente.
 
 Die vorinstallierte Node-24-Laufzeit verursachte `AbortSignal`-Fehler auch auf einem separat
 geprüften, unveränderten Main. Die Tests wurden mit der festgeschriebenen Node-22-Laufzeit

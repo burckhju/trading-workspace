@@ -4,9 +4,9 @@ import { useState } from 'react';
 import { createMemoryRouter, MemoryRouter, RouterProvider, useLocation } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 
-import { PendingNavigationGuard } from '../../../components/PendingNavigationGuard';
-import { parseClosedContext } from '../../performance/services/closedReportContext';
-import type { TradeWorkspaceView } from '../services/workspaceNavigation';
+import { PendingNavigationGuard } from '../../components/PendingNavigationGuard';
+import { parseClosedContext } from './closedReportNavigation';
+import type { TradeWorkspaceView } from './links';
 import { TradeWorkspaceNavigation } from './TradeWorkspaceNavigation';
 
 const tradeId = '10000000-0000-4000-8000-000000000001';

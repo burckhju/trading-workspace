@@ -14,8 +14,10 @@ import { warrantApiClient } from '../../product/services/client';
 import type { WarrantResponse } from '../../product/types/api';
 import { tradeManagementApiClient } from '../../trade/services/client';
 import type { TradeResponse } from '../../trade/types/api';
-import { TradeWorkspaceNavigation } from '../../trade/components/TradeWorkspaceNavigation';
-import { tradeLessonLink } from '../../trade/services/workspaceNavigation';
+import {
+  TradeWorkspaceNavigation,
+  tradeLessonLink,
+} from '../../../shared/trade-workspace-navigation';
 import { postTradeErrorMessage } from '../services/errors';
 import { PostTradeReviewPage } from './PostTradeReviewPage';
 

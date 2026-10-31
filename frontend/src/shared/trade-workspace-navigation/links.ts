@@ -1,5 +1,4 @@
-import { preserveClosedContext } from '../../performance/services/closedReportContext';
-import { pinKeys } from './sourceView';
+import { pinKeys, preserveClosedContext } from './context';
 
 export type TradeWorkspaceView = 'management' | 'sources' | 'journal';
 

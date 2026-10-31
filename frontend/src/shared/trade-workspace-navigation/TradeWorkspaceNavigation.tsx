@@ -1,13 +1,9 @@
 import { useEffect } from 'react';
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
 
-import {
-  closedContextKeys,
-  closedListUrl,
-  parseClosedContext,
-} from '../../performance/services/closedReportContext';
-import { pinKeys } from '../services/sourceView';
-import { tradeWorkspaceLink, type TradeWorkspaceView } from '../services/workspaceNavigation';
+import { closedListUrl, parseClosedContext } from './closedReportNavigation';
+import { closedContextKeys, pinKeys } from './context';
+import { tradeWorkspaceLink, type TradeWorkspaceView } from './links';
 
 const areas: { label: string; view: TradeWorkspaceView; hash: string; activeOnly?: boolean }[] = [
   { label: 'Überblick', view: 'management', hash: '#trade-overview' },

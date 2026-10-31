@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { tradeLessonLink } from '../../trade/services/workspaceNavigation';
+import { tradeLessonLink } from '../../../shared/trade-workspace-navigation';
 
 import { ft011MaterializationClient } from '../services/materializationClient';
 import type { Ft011EvidenceHistoryItem } from '../types/materialization';

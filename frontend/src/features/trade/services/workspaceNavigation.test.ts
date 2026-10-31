@@ -2,16 +2,14 @@ import { describe, expect, it } from 'vitest';
 
 import {
   closedContextQuery,
-  parseClosedContext,
-  type ClosedReportContext,
-} from '../../performance/services/closedReportContext';
-import { sourceQueryError } from './sourceView';
-import {
   lessonTradeReturnLink,
+  parseClosedContext,
   tradeLessonLink,
   tradeWorkspaceLink,
+  type ClosedReportContext,
   type TradeWorkspaceView,
-} from './workspaceNavigation';
+} from '../../../shared/trade-workspace-navigation';
+import { sourceQueryError } from './sourceView';
 
 const tradeId = '10000000-0000-4000-8000-000000000001';
 const reviewId = '20000000-0000-4000-8000-000000000001';

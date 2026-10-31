@@ -2,8 +2,10 @@ import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 
 import { TradeSourcesView } from '../components/TradeSourcesView';
-import { TradeWorkspaceNavigation } from '../components/TradeWorkspaceNavigation';
-import { tradeWorkspaceLink } from '../services/workspaceNavigation';
+import {
+  TradeWorkspaceNavigation,
+  tradeWorkspaceLink,
+} from '../../../shared/trade-workspace-navigation';
 
 import { PositionRiskPanel } from '../../alert/components/PositionRiskPanel';
 import { TradeAlertsPanel } from '../../alert/components/TradeAlertsPanel';

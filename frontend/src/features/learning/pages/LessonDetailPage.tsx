@@ -2,7 +2,7 @@ import { useCallback, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import { PendingNavigationGuard } from '../../../components/PendingNavigationGuard';
-import { lessonTradeReturnLink } from '../../trade/services/workspaceNavigation';
+import { lessonTradeReturnLink } from '../../../shared/trade-workspace-navigation';
 import {
   LessonHypothesisPanel,
   type LessonHypothesisNavigationState,

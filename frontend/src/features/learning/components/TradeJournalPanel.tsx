@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { tradeLessonLink } from '../../trade/services/workspaceNavigation';
+import { tradeLessonLink } from '../../../shared/trade-workspace-navigation';
 
 import type { JournalEntry } from '../services/journalClient';
 import { JournalDialog, JournalTextsView, journalButton as button } from './JournalContent';
