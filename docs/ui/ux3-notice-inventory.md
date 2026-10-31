@@ -81,6 +81,58 @@ verständliche Darstellung. Die ausstehende Abstimmung ist im
 [Hinweisvertrag](ux3-notice-contract.md#10-offene-schnittstellenentscheidungen-und-abnahmefälle)
 und in den getrennten Folgeaufträgen konkretisiert.
 
+### Nachtrag zu während der Arbeit veröffentlichten Entwürfen
+
+**Stand 31.10.2026, 14:37 Uhr Europe/Vienna:** Die erneute Repositoryabfrage zeigt
+zwei zusätzliche Drafts und einen weiteren UX2-Head. Der frühere Snapshot oben
+bleibt ein datierter Nachweis, keine Aussage über den später veröffentlichten Stand.
+Main bleibt `1883f7f3`; keiner der folgenden Entwürfe ist darin integriert.
+
+| Ergänzender Parallelstand | Geprüfter Head | Konsequenz für diese Übergabe |
+| --- | --- | --- |
+| Gemeinsame Koordination, [#313](https://github.com/burckhju/trading-workspace/pull/313) | `2312abfe8834a1b652b100fc635c4d36172d5c32` | Alle fünf Koordinationsdokumente gelesen; UX2 alleiniger Hostintegrator, gemeinsame Importgrenze, vollständige Übergabe und vorgeschlagene Integrationsreihenfolge berücksichtigt |
+| Paralleler UX3-Entwurf, [#314](https://github.com/burckhju/trading-workspace/pull/314) | `52a24266dce1ec048b23360b4b75d5b3f54d746b` | Bestandsinventur, semantischer Vertrag, reine Dokumentationstypen und F1–F8 gelesen; Unterschiede und Ergänzungen im [Vertragsabgleich](ux3-notice-contract.md#11-abgleich-mit-dem-parallelen-ux3-entwurf) erfasst |
+| Aktualisierter UX2-Draft, [#311](https://github.com/burckhju/trading-workspace/pull/311) | `9c9c949c32f53eba7980cd8109bfa9f29e4d0bb5` | Delta zu `79e9b97e` geprüft: Navigation tatsächlich nach `frontend/src/shared/trade-workspace-navigation/` ausgegliedert; Featurevalidatoren bleiben bei ihren Ownern. Die neue Navigationsimportgrenze ist damit im Draft adressiert, noch nicht auf Main |
+
+Die Koordinationsquellen sind
+[Masterplan](https://github.com/burckhju/trading-workspace/blob/2312abfe8834a1b652b100fc635c4d36172d5c32/docs/coordination/UX_MASTER_PLAN.md),
+[Ownership](https://github.com/burckhju/trading-workspace/blob/2312abfe8834a1b652b100fc635c4d36172d5c32/docs/coordination/UX_OWNERSHIP.md),
+[gemeinsame Verträge](https://github.com/burckhju/trading-workspace/blob/2312abfe8834a1b652b100fc635c4d36172d5c32/docs/coordination/UX_SHARED_CONTRACTS.md),
+[Abhängigkeiten](https://github.com/burckhju/trading-workspace/blob/2312abfe8834a1b652b100fc635c4d36172d5c32/docs/coordination/UX_DEPENDENCIES.md)
+und [Integrationsstand](https://github.com/burckhju/trading-workspace/blob/2312abfe8834a1b652b100fc635c4d36172d5c32/docs/coordination/UX_INTEGRATION_STATUS.md).
+Damit liegt nun auch ein gemeinsamer UX4-Rahmen vor; ein eigener UX4-Implementierungshead
+wurde nicht identifiziert. UX1 bleibt beim oben geprüften Head. Die neue UX2-Dokumentation
+referenziert #314 als UX3-Übergabe; #315 ist eine zusätzliche Bestandsvertiefung und
+Konsolidierung, kein stillschweigend austauschbarer zweiter Implementierungsvertrag.
+
+#314s 80 Inventurzeilen und diese 79 Zeilen verwenden unterschiedliche Zuschnitte
+und werden nicht addiert. Sieben fachliche Familien hier sind mit fünf
+Darstellungsvarianten dort vereinbar. Präzisierungen betreffen vor allem
+Ursachenidentität vs. Reportbasis, reine Navigation vs. Owneraktionen, unbekannten
+Schreibausgang, unbestätigte Objektidentität und getrennte Governance-Reads. Vor B1
+werden ein kanonischer Vertrag und genau ein lesender B1/F1-Pilot konsolidiert.
+Vorgeschlagener Kandidat aus #314 ist `RealizedGrossSources`.
+
+**Eigene Übergabe:** Branch `docs/ux3-a-notice-inventory-contract`,
+[Draft-PR #315](https://github.com/burckhju/trading-workspace/pull/315), Basis `1883f7f3`,
+**kein Implementierungshead**. Der Dokumentationshead mit Testmerge und tatsächlichen
+CI-Run-/Joblinks steht im PR. Der vollständige eigene Dateiumfang ist:
+
+- `docs/ui/ux3-notice-inventory.md`
+- `docs/ui/ux3-notice-contract.md`
+- `docs/planning/UX3_FOLLOW_UP_ORDERS.md`
+- `docs/ui/workspace-statusmeldungen.md` — enger Querverweis
+- `docs/planning/PRODUCT_BACKLOG.md` — abgegrenzter UX3-Nachtrag
+
+Die betroffenen Produktkomponenten/Owner stehen in Abschnitt 15, Abhängigkeiten,
+Tests, erlaubte Teilschnitte und Abschlusskriterien in den Folgeaufträgen. Keine
+Datei eines fremden PRs wurde geändert; veröffentlichte Links beweisen keine
+Kenntnisnahme oder Freigabe anderer Leads. UX2 besitzt hostweiten Readback und
+Hostfokus; UX3 die Qualitätssprache und den Fokus innerhalb des Hinweises, UX4 die
+Visualisierung, der Domain-Owner die fachliche Qualitätsbedeutung. Integration
+gemäß #313 ist vorgeschlagen als Koordination → UX2-A → UX1 → UX3 → UX4 und bleibt
+von tatsächlicher Abstimmung sowie gesonderter Mergefreigabe abhängig.
+
 ## 2. Leseschlüssel, Ist-Stand und fachliche Grenzen
 
 - **Ist-Anzeige** nennt vorhandenen Code, Trigger und vorhandenen Wortlaut; Anführungszeichen kennzeichnen kurze Codebeispiele, keine neue Produkttexteinführung.
@@ -129,7 +181,7 @@ Alle Währungsentscheidungen stammen aus dem bestehenden Trade-/Execution-Owner.
 | C05 | `LISTING_HISTORY_INCOMPLETE`, `EXECUTION_TIME_UNKNOWN`, `CORRECTION_SOURCE_REVIEW_REQUIRED`. Bestehende Texte nennen unvollständigen Zeitraum/Handelsplätze, unbestimmtes Datum/Zone oder Beleg einer ersetzten Buchung. | Automatik hat keine ausreichende Grundlage oder Korrektur liegt außerhalb des belegten Zeitraums. Datum darf nicht geraten werden. Eine frühere historische Ableitung wird nicht blind auf neue Korrektur übertragen. | **R** exakte Buchung/Historie; **W** belegtes Datum oder exakten Nachweis korrigieren, nicht heutige Listings als Ersatz übernehmen. Automatik überprüft Zuordnung beim nächsten Lesen erneut. | [frontend/src/features/trade/services/executionCurrency.ts](../../frontend/src/features/trade/services/executionCurrency.ts) (Z. 65–70); [backend/app/features/trade_position/domain/historical_currency_resolution.py](../../backend/app/features/trade_position/domain/historical_currency_resolution.py) (Z. 199–255); [backend/app/features/trade_position/domain/currency_resolution.py](../../backend/app/features/trade_position/domain/currency_resolution.py) (Z. 170–198); [tests/unit/backend/features/performance/test_historical_currency_reports.py](../../tests/unit/backend/features/performance/test_historical_currency_reports.py) (Z. 222–263); [frontend/src/features/trade/components/ExecutionDatesPanel.test.tsx](../../frontend/src/features/trade/components/ExecutionDatesPanel.test.tsx) changed source. |
 | C06 | Manuelle Eingabe leer versus syntaktisch ungültig; lokal „Bitte den dreistelligen Währungscode der tatsächlichen Ausführung angeben“, serverseitig `CURRENCY_NOT_FOUND` / `EXECUTION_NOT_FOUND`. | Leere Eingabe behauptet keinen Nachweis. Nichtleere ungültige Eingabe darf nicht still weggelassen werden. Typisierte Erklärung wird nur durch bewusstes Buchen/Speichern `USER_CONFIRMED`; Vorschau ist keine Bestätigung. | **L** Code/Beleg prüfen; **W** bestehender Owner bestätigt genaue Buchung. Kein zusätzlicher pauschaler Bestätigungszwang neben bestehendem Capture. | [frontend/src/features/trade/services/executionCurrency.ts](../../frontend/src/features/trade/services/executionCurrency.ts) (Z. 16–31); [backend/app/features/trade_position/service/currency_confirmations.py](../../backend/app/features/trade_position/service/currency_confirmations.py) (Z. 53–83); [frontend/src/features/trade/components/AdditionalPurchasePanel.test.tsx](../../frontend/src/features/trade/components/AdditionalPurchasePanel.test.tsx) (Z. 60–107); [frontend/src/features/trade/components/ExecutionCurrencyPanel.test.tsx](../../frontend/src/features/trade/components/ExecutionCurrencyPanel.test.tsx) (Z. 405); [frontend/src/features/trade/components/ExecutionCurrencyInput.test.tsx](../../frontend/src/features/trade/components/ExecutionCurrencyInput.test.tsx). |
 | C07 | `EXECUTION_CURRENCY_CONFLICT`, `EXECUTION_CURRENCY_REQUEST_CONFLICT`, stale Herkunft oder unklarer Save. UI unterscheidet „Stand hat sich geändert“, „Abschluss ist unklar“ und „Speicherung bestätigt … aktueller Bestätigungsstand nicht verfügbar“. | Aktuell gepinnte Bestätigung darf nicht still auf neue Revision umgebunden werden. Ein idempotenter Retry-Receipt kann inzwischen ersetzt sein; erst der frische History-GET zeigt den aktuell wirksamen Stand. | **R** „Währungsherkunft neu laden“; nach 409 neu prüfen. Bei unklarem Transport nur expliziter **W** desselben unveränderten Versuchs mit derselben ID, oder **R** prüfen. Nach bestätigtem Speichern ausschließlich Readback-Recovery. | [backend/app/features/trade_position/service/currency_confirmations.py](../../backend/app/features/trade_position/service/currency_confirmations.py) (Z. 179–218); [frontend/src/features/trade/components/ExecutionCurrencyPanel.tsx](../../frontend/src/features/trade/components/ExecutionCurrencyPanel.tsx) (Z. 235–325); [frontend/src/features/trade/components/ExecutionCurrencyPanel.test.tsx](../../frontend/src/features/trade/components/ExecutionCurrencyPanel.test.tsx) (Z. 80–138,206–279,528–630); [frontend/src/features/trade/components/ExecutionDatesPanel.test.tsx](../../frontend/src/features/trade/components/ExecutionDatesPanel.test.tsx) (Z. 1223–1345). |
-| C08 | Quellenpflege: `CURRENCY_EVIDENCE_LIMIT`, `CURRENCY_EVIDENCE_INVALID`, `CURRENCY_EVIDENCE_CONFLICT`, `CURRENCY_EVIDENCE_REQUEST_CONFLICT`, `WARRANT_NOT_FOUND`, `EXECUTION_NOT_FOUND`, `CURRENCY_NOT_FOUND`, `TRADING_VENUE_NOT_FOUND`, `TRADE_CANCELLED`. „Quelle widerrufen … nächsten Lesen neu bewertet“ / „Quellenversion gespeichert … automatisch beim nächsten Lesen“. | Speicherung versioniert geprüfte Quelle; sie ist keine rückwirkende finanzielle Freigabe und kein sofortiger Beweis eines neu berechneten Reports. Quellengrenzen werden fail-closed abgewiesen statt Herkunft abzuschneiden. | **R** Quellenhistorie; **W** explizit geprüfte Quelle/Korrektur/Widerruf. Buchungsbeleg ist in `#execution-dates` an exakte Auswahl gebunden. Historische Listings liegen in `/warrants-admin` → Produkt auswählen → Historische Währungsquellen; Main besitzt **keinen belegten Produkt-Query-Deeplink** dafür. | [backend/app/features/trade_position/service/currency_evidence.py](../../backend/app/features/trade_position/service/currency_evidence.py); [frontend/src/features/product/components/CurrencyEvidenceEditor.tsx](../../frontend/src/features/product/components/CurrencyEvidenceEditor.tsx) (Z. 279–338); [frontend/src/features/product/components/WarrantProductDetail.tsx](../../frontend/src/features/product/components/WarrantProductDetail.tsx) (Z. 530–561); [frontend/src/features/product/pages/WarrantAdminPage.tsx](../../frontend/src/features/product/pages/WarrantAdminPage.tsx) lokale Auswahl; [frontend/src/features/product/components/CurrencyEvidenceEditor.test.tsx](../../frontend/src/features/product/components/CurrencyEvidenceEditor.test.tsx); [tests/integration/backend/test_currency_source_evidence_postgres.py](../../tests/integration/backend/test_currency_source_evidence_postgres.py). |
+| C08 | Quellenpflege: `CURRENCY_EVIDENCE_LIMIT`, `CURRENCY_EVIDENCE_INVALID`, `CURRENCY_EVIDENCE_CONFLICT`, `CURRENCY_EVIDENCE_REQUEST_CONFLICT`, `WARRANT_NOT_FOUND`, `EXECUTION_NOT_FOUND`, `CURRENCY_NOT_FOUND`, `TRADING_VENUE_NOT_FOUND`, `TRADE_CANCELLED`. „Quelle widerrufen … nächsten Lesen neu bewertet“ / „Quellenversion gespeichert … automatisch beim nächsten Lesen“. | Speicherung versioniert geprüfte Quelle; sie ist keine rückwirkende finanzielle Freigabe und kein sofortiger Beweis eines neu berechneten Reports. Quellengrenzen werden fail-closed abgewiesen statt Herkunft abzuschneiden. | **R** Quellenhistorie; **W** explizit geprüfte Quelle/Korrektur/Widerruf. Buchungsbeleg ist in `#execution-dates` an exakte Auswahl gebunden. Historische Listings liegen in `/warrants-admin` → Produkt auswählen → Historische Währungsquellen; Main besitzt keinen universellen Deep Link auf diesen Quelleneditor. Bei belegtem Auswahlrun existiert der gesonderte rungebundene Produktreparaturweg aus Abschnitt 12; er ersetzt keine Quellenversionsfokussierung. | [backend/app/features/trade_position/service/currency_evidence.py](../../backend/app/features/trade_position/service/currency_evidence.py); [frontend/src/features/product/components/CurrencyEvidenceEditor.tsx](../../frontend/src/features/product/components/CurrencyEvidenceEditor.tsx) (Z. 279–338); [frontend/src/features/product/components/WarrantProductDetail.tsx](../../frontend/src/features/product/components/WarrantProductDetail.tsx) (Z. 530–561); [frontend/src/features/product/pages/WarrantAdminPage.tsx](../../frontend/src/features/product/pages/WarrantAdminPage.tsx) lokale Auswahl; [frontend/src/features/product/components/CurrencyEvidenceEditor.test.tsx](../../frontend/src/features/product/components/CurrencyEvidenceEditor.test.tsx); [tests/integration/backend/test_currency_source_evidence_postgres.py](../../tests/integration/backend/test_currency_source_evidence_postgres.py). |
 
 
 ## 5. Performance und monetäre Positionsqualifikation
@@ -320,6 +372,7 @@ auf denselben Ownerweg zeigen, ohne dieselbe fachliche Ursache zu behaupten.
 | Lessonversion und eingebettete Governance | `/lessons/{lessonId}?lesson_version_id={lessonVersionId}#lesson-history` | R; Governance folgt der verifizierten Lessonversion. Aus einer Modell-/Proposal-ID keine Lessonbindung erraten |
 | Planversion | `/trade-plans?trade_plan_id={planId}&trade_plan_version_id={versionId}` | R; historische Version bleibt exakt, kein stilles Latest-Fallback |
 | Produktauswahlrun | `/product-selection?run_id={runId}` | R; nur echte Run-ID, keine ProductSelection-ID als Ersatz. Bewertung/Auswahl bleibt eigener W |
+| Produktreparatur aus Auswahlrun | `/warrants-admin?selection_run_id={runId}&warrant_id={warrantId}` | R öffnet vorhandene Pflege. `selectionRepairUrl` und `WarrantAdminRoutePage` prüfen/behalten Run-, Produkt- und Basiswertkontext; keine Run-ID aus Namen oder anderen IDs ableiten |
 | Risikodetails | `/trade-management?trade_id={tradeId}#risk-signals` | R; der Anker existiert in [frontend/src/features/alert/components/PositionRiskPanel.tsx](../../frontend/src/features/alert/components/PositionRiskPanel.tsx) |
 | Performance | `/performance/realized-gross` oder `/performance/closed-trades` | R; Main-Auswahl ist EUR. Ein ausdrücklich anderswährungsbezogener Quellenkontext bleibt als solcher erkennbar und darf nicht still umgeschrieben werden. Neue EUR-Auswertung verlangt bestehenden bewussten Leseschritt |
 | Abschlussbericht → Tradequellen | `closedTradeSourceLink` in [frontend/src/features/performance/services/closedReportContext.ts](../../frontend/src/features/performance/services/closedReportContext.ts) | R; erlaubte Filter/Zeitzone/Basis und Rückkontext, keine Geldwerte als URL-Wahrheit |
@@ -329,13 +382,16 @@ auf denselben Ownerweg zeigen, ohne dieselbe fachliche Ursache zu behaupten.
 | Unverbindliche Risikovorschau | POST `/api/v1/position-monitoring/trades/{tradeId}/risk/preview` | Fachlich lesende Rechenvorschau auf gespeicherten Inputs; nicht persistent. POST allein macht sie nicht zu W |
 | Risiko auswerten/speichern | POST `/api/v1/position-monitoring/trades/{tradeId}/risk/evaluations` | W; Snapshot/Zustandsarbeit, nur bestehender bewusster Command |
 | Risikokonfiguration ändern | PUT `/api/v1/position-monitoring/trades/{tradeId}/risk/configuration` | W; vorhandene `expected_revision` und Bestätigung erforderlich |
-| Produkt-/historische Listing-Währungsquellen | `/warrants-admin`, danach Produkt und Editor auswählen | R auf Übersicht, anschließend lokaler Auswahlweg; kein belegter universeller `?warrant_id`-/Produkt-Query-Consumer |
+| Produkt-/historische Listing-Währungsquellen | `/warrants-admin`, danach Produkt und Editor auswählen | R auf Übersicht, anschließend lokaler Auswahlweg; kein universeller `?warrant_id`-Consumer ohne Auswahlrun und kein allgemeiner Quellenversions-Deep-Link |
 | Candidate-Readiness | `/candidates?candidate={candidateId}` | R; Evaluation ist gesonderter W. Runtimeblocker hat keinen sicheren eigenständigen Aktivierungslink |
 | Governance-, Provider- oder Schedulerkonfiguration ohne belegte Kontextbindung | Vorhandene Anleitung im zuständigen Owner | Keine geratene `/governance`-Route, keine Umleitung eines Runtimeblockers auf `/top-down-admin`, kein allgemeiner „Problem beheben“-Link |
 
 Quellen: [frontend/src/app/router.tsx](../../frontend/src/app/router.tsx), [frontend/src/features/trade/services/sourceView.ts](../../frontend/src/features/trade/services/sourceView.ts),
 [frontend/src/features/performance/services/closedReportContext.ts](../../frontend/src/features/performance/services/closedReportContext.ts),
-[frontend/src/features/performance/pages/PerformanceWorkspace.tsx](../../frontend/src/features/performance/pages/PerformanceWorkspace.tsx), S17/S25/S30 und X2.
+[frontend/src/features/performance/pages/PerformanceWorkspace.tsx](../../frontend/src/features/performance/pages/PerformanceWorkspace.tsx),
+[selectionRepairContext](../../frontend/src/features/product/services/selectionRepairContext.ts),
+[WarrantAdminRoutePage](../../frontend/src/features/product/pages/WarrantAdminRoutePage.tsx),
+[Reparaturrouten-Regression](../../frontend/src/features/product/pages/WarrantSelectionRepair.test.tsx), S17/S25/S30 und X2.
 
 
 ## 13. Bestehende Verträge und gelesene Regressionen
@@ -403,7 +459,7 @@ genannten Komponenten.
 
 | Fläche / Komponentenbestand | Maßgeblicher fachlicher Owner | UX3-Aufgabe / Abstimmung |
 | --- | --- | --- |
-| TradeManagementPage, AdditionalPurchasePanel, ExecutionDatesPanel, TradeCancellationPanel | [backend/app/features/trade_position/service/application.py](../../backend/app/features/trade_position/service/application.py), [backend/app/features/trade_position/service/cancellation.py](../../backend/app/features/trade_position/service/cancellation.py), vorhandener Projektor und lokale Pending-Owner | Vorgang, Ablehnung, unklaren Abschluss und Readback einheitlich erklären; UX-2 erhält Kontext/Guards, UX-1 Eingabeableitungen |
+| TradeManagementPage, AdditionalPurchasePanel, ExecutionDatesPanel, TradeCancellationPanel | [backend/app/features/trade_position/service/application.py](../../backend/app/features/trade_position/service/application.py), [backend/app/features/trade_position/service/cancellation.py](../../backend/app/features/trade_position/service/cancellation.py), vorhandener Projektor und lokale Pending-Owner | Vorgang, Ablehnung, unklaren Abschluss und Readback einheitlich erklären; UX-2 ist einziger Hostintegrator für Kontext/Guards/Invalidierung, UX-1 liefert Eingabeableitungen |
 | ExecutionCurrencyPanel, ExecutionCurrencySources, ExecutionCurrencyOverride, CurrencyEvidenceEditor | [backend/app/features/trade_position/domain/currency_resolution.py](../../backend/app/features/trade_position/domain/currency_resolution.py), [backend/app/features/trade_position/domain/historical_currency_resolution.py](../../backend/app/features/trade_position/domain/historical_currency_resolution.py), [backend/app/features/trade_position/service/currency_confirmations.py](../../backend/app/features/trade_position/service/currency_confirmations.py), [backend/app/features/trade_position/service/currency_evidence.py](../../backend/app/features/trade_position/service/currency_evidence.py) | UX-1 liefert geprüfte Ableitung; UX-3 zeigt Herkunft/Auswirkung und verbleibende Aktion. Keine neue Bestätigung oder Defaultwährung |
 | ProductValuationPanel, PositionValuationBasisDetails, OpenPositionsPanel, PositionDetails | [backend/app/features/trade_position/service/valuation_basis.py](../../backend/app/features/trade_position/service/valuation_basis.py), [backend/app/features/position_monitoring/service/product_valuation.py](../../backend/app/features/position_monitoring/service/product_valuation.py) | Geldqualifikation separat von Kursqualität; Text/Fallback aus Ownerdaten. UX-2 Platzierung, UX-4 Datenqualität |
 | PerformanceWorkspace, RealizedGrossReportView, ClosedTradeSummary, ClosedTradeStatistics, ClosedTradeResult, Quellenkomponenten | [backend/app/features/performance/domain/report.py](../../backend/app/features/performance/domain/report.py), [backend/app/features/performance/domain/closed_report.py](../../backend/app/features/performance/domain/closed_report.py), [backend/app/features/performance/domain/closed_statistics.py](../../backend/app/features/performance/domain/closed_statistics.py) | Population, Abdeckung und aktuelle Basis verständlich halten; keine clientseitige Geldrechnung oder eigene Nenner |
@@ -433,6 +489,12 @@ historische Pins, den tatsächlichen Schedulerfeldnamen `next_run_at`, nicht
 vorhandene Objekt-IDs nach unklarem Create sowie Health-Nichtanwendbarkeit bei
 belegt geschlossener Position.
 
+Ein weiterer getrennter Gegenabgleich mit den später veröffentlichten #313/#314
+präzisierte Import-/Hostownership, reine Linkaktionen, Ursachenidentität und
+Reportbasis, den vorhandenen rungebundenen Produktreparaturweg sowie Recovery nach
+Aussagebereich. Der neue UX2-Deltahead wurde separat gelesen. Dies ist eine
+Repositoryprüfung, keine durch andere Leads bestätigte Vertragsfreigabe.
+
 Lokal werden ausschließlich Dokumente geprüft: Dateiverweise/Markdown-Anker,
 Tabellenstruktur, vollständige und eindeutige 79 Inventurkennungen, Diff-Whitespace
 und der zulässige Fünf-Dateien-Umfang. Backend, Frontend, Tests, VERSION, Workflows
@@ -450,3 +512,4 @@ Merge-/Releaseerlaubnis. UX3-B/C/D bleiben vorbereitete Folgeaufträge.
 | Revision | Datum | Änderung |
 | --- | --- | --- |
 | 0.1 | 31.10.2026 | Aktuelle Inventur mit 79 Katalogzeilen, Quellen, Redundanzen, Ownern und getrennten Parallelständen; ausschließlich UX3-A-Dokumentation |
+| 0.2 | 31.10.2026 | Datierter Abgleich mit #313/#314 und UX2-Head `9c9c949c`; eigene vollständige Dokumentationsübergabe, gemeinsame Kanonisierung und ein Pilot statt paralleler Verträge |

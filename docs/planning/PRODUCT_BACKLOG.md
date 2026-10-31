@@ -1988,6 +1988,11 @@ und Modellgovernance. Autorisiert ist ein eigenständiger Dokumentations-Draft-P
 Schnittstellen mit UX-1/2/4 sind vor produktiven Änderungen abzustimmen. Bestehende
 Domainzustände bleiben maßgeblich. Keine neuen Formulare, Workspace-Komponenten,
 Tradingaktionen, Merges, Releases oder fachliche Abnahme durch diesen Nachtrag.
+Der eigene [Draft #315](https://github.com/burckhju/trading-workspace/pull/315)
+gleicht die während der Arbeit veröffentlichten [Koordination #313](https://github.com/burckhju/trading-workspace/pull/313)
+und [UX3-Vertragsfassung #314](https://github.com/burckhju/trading-workspace/pull/314)
+ab. Vor B1 werden ein gemeinsamer Vertrag und ein lesender Pilot konsolidiert;
+es gibt noch keinen UX3-Implementierungshead und keine zweite produktive Typisierung.
 
 | Nachweisfeld | Einordnung |
 |---|---|

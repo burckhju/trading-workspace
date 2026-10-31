@@ -4,7 +4,7 @@
 
 | Feld | Wert |
 | --- | --- |
-| Dokumenttyp | Vorbereitete Umsetzungsaufträge, Entwurf 0.1 |
+| Dokumenttyp | Vorbereitete Umsetzungsaufträge, Entwurf 0.2 |
 | Datum | 31.10.2026, Europe/Vienna |
 | Geprüfte Basis | `main` / `1883f7f330719453958f8be1dd51d48db816662e`, v1.5.35 |
 | Vertragsgrundlage | [UX3-A Hinweisvertrag](../ui/ux3-notice-contract.md) |
@@ -35,16 +35,47 @@ Die nachfolgenden Akzeptanzfälle sind Anforderungen, keine bereits bestandenen 
 
 | Partner | Erforderliche Übergabe | Grenze |
 | --- | --- | --- |
-| UX-1, [Draft-PR #312](https://github.com/burckhju/trading-workspace/pull/312) | Tatsächlicher Head, Währungsvorschau, manuelle Eingabe, vorhandene Wiederverwendung und Readbackinvalidierung | Vorschau ist kein manuell bestätigter Beleg; keine Doppelableitung im Hinweisadapter |
-| UX-2, [Draft-PR #311](https://github.com/burckhju/trading-workspace/pull/311) | Anzeigeplätze, konkrete URL-/Pinhelper, Rückkontext, Reader-/Formularlebensdauer und Navigationguards | Draft-Verhalten nicht als Main-Bestand voraussetzen; keine parallele URLbibliothek |
-| UX-4 | Bedeutung vorhandener Verwendbarkeitsflags, Abdeckung, Zeitarten und zugänglicher Legenden | Zum Prüfzeitpunkt kein veröffentlichter UX-4-Vertrag identifiziert; keine UI-eigene Datenqualifikation |
+| UX-1, [Draft-PR #312](https://github.com/burckhju/trading-workspace/pull/312) | Tatsächlicher Head, Währungsvorschau, manuelle Eingabe, vorhandene Wiederverwendung und Preview-/Reload-Teilschnitt | Vorschau ist kein manuell bestätigter Beleg; keine Doppelableitung im Hinweisadapter. Hostinvalidierung gehört UX-2 |
+| UX-2, [Draft-PR #311](https://github.com/burckhju/trading-workspace/pull/311) | Als einziger `TradeManagementPage`-Integrator: Anzeigeplätze, öffentliche URL-/Pinhelper, Rückkontext, Hostfokus, Readback/Invalidierung, Reader-/Formularlebensdauer und Guards | Draft-Verhalten nicht als Main-Bestand voraussetzen; keine parallele URLbibliothek oder gleichzeitige Hoständerung durch UX-3 |
+| UX-4 | Visualisierung vorhandener Verwendbarkeitsflags, Abdeckung, Zeitarten und zugänglicher Legenden mit UX3-Qualitätssprache | Gemeinsamer Rahmen in #313 liegt vor; eigener UX4-Implementierungshead nicht identifiziert. Bedeutung liefert der Domain-Owner, keine UI-eigene Datenqualifikation |
 | Domain-/API-Owner | Genaue Ursache, Operationsscope, erlaubter Command, vorhandene Retry- und Recoveryfakten | Grobe Fehlercodes nicht durch Parsing englischer Fehlermeldungen verfeinern |
+| UX-MASTER, [Draft-PR #313](https://github.com/burckhju/trading-workspace/pull/313) | Gemeinsamer Vertrag, Dateiownership, Übergabe und Integrationsreihenfolge | Product Backlog bleibt einzige Arbeitsstatusquelle; veröffentlichter Vertrag beweist keine Kenntnisnahme anderer Leads |
+| Paralleler UX3-Entwurf, [Draft-PR #314](https://github.com/burckhju/trading-workspace/pull/314) | Ein gemeinsamer Begriff-/Typvertrag, Kanonisierung und ein B1/F1-Pilot | Fünf Darstellungsarten vs. sieben Inhaltsfamilien, stabile Identität vs. Snapshot sowie Link-API vs. Owneraktionen gemäß Vertragsabgleich konsolidieren |
 
 Vor jedem Schnitt den dann aktuellen Main und die betroffenen PR-Heads neu prüfen.
 Eine Dokumentation über einen Draft-PR ist kein Nachweis gemeinsamer Integration.
 Unveröffentlichte Arbeit bleibt eine offene Abhängigkeit; keine gegenseitigen
 Feature-Branch-Merges und keine Übernahme fremder produktiver Änderungen allein
 zur Vereinfachung dieses Auftrags.
+
+Der [Koordinationsvertrag](https://github.com/burckhju/trading-workspace/blob/2312abfe8834a1b652b100fc635c4d36172d5c32/docs/coordination/UX_SHARED_CONTRACTS.md)
+bevorzugt eine schmale öffentliche Grenze im bestehenden `frontend/src/shared/`.
+UX2 hat die Navigation am [Draft-Head `9c9c949c`](https://github.com/burckhju/trading-workspace/commit/9c9c949c32f53eba7980cd8109bfa9f29e4d0bb5)
+tatsächlich dort ausgegliedert; auf Main ist sie noch nicht vorhanden. Gemeinsame
+Komponenten dürfen weder Featureinternas importieren noch Finanz-/Quellenvalidatoren
+in Shared ziehen. Vorbereitete Ownerlinks über typisierte Props sind eine Alternative;
+ein Reexport-Barrel allein löst die Importgrenze nicht.
+
+Vorgeschlagene Integration aus #313: **Koordination → UX2-A → UX1 → UX3 → UX4**.
+MASTER entscheidet die tatsächliche Reihenfolge und Konflikte. Dies ist keine harte
+Codeabhängigkeit aller Einzel-PRs und keine Mergefreigabe: abgegrenzte autorisierte
+Komponentenarbeit kann parallel qualifiziert werden; Hoständerungen bleiben bei UX-2.
+
+### Einordnung der parallelen F1–F8-Aufträge
+
+Die [Rollout-Aufträge aus #314](https://github.com/burckhju/trading-workspace/blob/52a24266dce1ec048b23360b4b75d5b3f54d746b/docs/ui/ux-3/integration-and-rollout.md)
+und B/C/D sind alternative Zuschnitte derselben Arbeit, keine zwei gestarteten Programme.
+
+| Auftrag aus #314 | Bezug hier | Konsolidierungsgrenze |
+| --- | --- | --- |
+| F1 | B1 | Genau ein lesender Pilot; `RealizedGrossSources` als gemeinsamer Kandidat |
+| F2 | Zusätzliche Finanzowner-Abstimmung vor betroffener Migration | B2 korrigiert belegbar falsche Texte, autorisiert keine neue Zahlenqualifikation |
+| F3 | Gesonderte Vorbereitung für Refreshdiagnostik | Kein pauschaler Blocker für B3s bereits vorhandene Alert-/Health-DTOs |
+| F4 | B2 und Teile von D3 | Ein abgestimmter Kurs-/Recoveryzuschnitt |
+| F5 | D2 und Performancekontext | Jeweils eine Berichtsart mit eigenem Ownervertrag |
+| F6 | C1 und späterer Planadapter | Nicht mit B4s Kaufstatuskorrektur gleichsetzen |
+| F7 | C1/C3 und spätere Quellenadapter | Historische Pins und unterschiedliche Writegarantien erhalten |
+| F8 | D1–D3 | Genau eine vereinbarte Hinweisfläche im zuständigen UX2-Host |
 
 ## UX3-B — Wiederverwendbare Darstellung und gezielte Migration
 
@@ -60,7 +91,7 @@ Der bestehende `ErrorNotice` wird schrittweise und vorgangsbezogen behandelt.
 
 | Schnitt | Konkrete Aufgabe | Abschlussgrenze |
 | --- | --- | --- |
-| B1 | Reine Präsentationsbausteine für kompakten Hinweis, Ursachendetails, Quelle, sichere Folgeaktion und Status; genau ein lesender Pilot | Keine Datenbeschaffung oder Mutation im gemeinsamen Baustein; Pilot und Anzeigeplatz vorher gemeinsam benennen |
+| B1 | Reine Präsentationsbausteine für kompakten Hinweis, Ursachendetails, Quelle, sichere Navigation und Status; genau ein lesender B1/F1-Pilot, Kandidat `RealizedGrossSources` | Gemeinsamen Vertrag zuerst konsolidieren; keine Datenbeschaffung oder Mutation im Baustein. Pilot und Anzeigeplatz mit UX-2/Performanceowner abgrenzen |
 | B2 | Inventurbefund **Q12** in `ProductValuationPanel` und `PositionDetails`: falsche Ursachen in Auffangtexten korrigieren | Unbekannter Warningcode bedeutet nicht „veraltet“; MISSING/UNAVAILABLE/ERROR behauptet keinen vorhandenen Referenzkurs; LAST_AVAILABLE ist nicht pauschal STALE |
 | B3 | **M02/M06** in `TradeAlertsPanel`: fehlgeschlagenen Health-Teilread, belegte Nichtanwendbarkeit und Alertinvalidierung richtig erklären | Historische Alerts erhalten; bei autoritativ geschlossener Position ist aktuelle Health nicht anwendbar. Fehler/404 allein beweist keine Schließung; INVALIDATED nach tatsächlichem Grund |
 | B4 | `PlanPurchaseStatus`: fehlenden Kaufstatus und ungeklärte Trades präzise erklären | Fehlende Daten beweisen keinen veralteten Backendstand; UNKNOWN bleibt von NOT_STARTED getrennt; konkrete Trades lesend öffnen |
@@ -73,8 +104,9 @@ Die produktive Umsetzung eines Schnitts setzt die gemeinsame Schnittstellenfreig
 
 ### Abhängigkeiten
 
-UX-1 liefert die nachgewiesene Eingabe-/Quellenableitung, UX-2 die Einbaufläche und
-Lifecyclegrenze, UX-4 die bestehende Qualitätsbedeutung. B2/B3 benötigen zusätzlich
+UX-1 liefert die nachgewiesene Eingabe-/Quellenableitung, UX-2 die Einbaufläche,
+Hostfokus- und Lifecyclegrenze. Der Domain-Owner liefert die Qualitätsbedeutung;
+UX-3 formuliert sie, UX-4 verwendet sie für Visualisierung und Legende. B2/B3 benötigen zusätzlich
 die aktuellen Bewertungs-/Monitoringfelder; B4 den vorhandenen Kaufstatusprojektor.
 Fehlen strukturierte Details, dokumentiert der Adapter die Begrenzung, statt neue
 Domaincodes oder eine Ursache aus einem Freitext zu erzeugen.
@@ -83,7 +115,7 @@ Domaincodes oder eine Ursache aus einem Freitext zu erzeugen.
 
 1. Jede wichtige Meldung beantwortet die fünf Fragen des Hinweisvertrags mit belegten Angaben.
 2. Präsentationsbausteine führen beim Rendern, Aufklappen oder Aktivieren einer Quellennavigation keinen Fachcommand aus.
-3. Loading, fehlgeschlagener Read, bestätigter Leerstand und fachlich UNKNOWN bleiben unterscheidbar.
+3. Loading, Erfolg, fehlgeschlagener Read, bestätigter Leerstand, fachlich UNKNOWN und belegte fehlende Berechtigung bleiben unterscheidbar. Kein Berechtigungsgrund aus HTTP 404, Netzwerkausfall oder bloßem Providerzugangsfehler ableiten.
 4. Unbekannte Codes erhalten neutralen Vorgangsbezug; Code/UUID erscheinen nur sekundär und kopierbar.
 5. B2 erhält `valuation_usable`, `analysis_usable` und getrennte G/V-Verwendbarkeit unverändert.
 6. B3 zeigt einen echten Health-Lesefehler im offenen/ungeprüften Positionskontext auch bei leerer, erfolgreich geladener Alertliste. Bei autoritativ geschlossener Position ist die vom vorhandenen Health-Reader abgelehnte aktuelle Prüfung nicht anwendbar; historische Alerts bleiben sichtbar. Ein 404 allein beweist keine Schließung.
@@ -128,8 +160,8 @@ Serverwrite, bleibt aber eine ausdrückliche Entscheidung des Nutzers.
 
 | Schnitt | Konkrete Aufgabe | Abschlussgrenze |
 | --- | --- | --- |
-| C1 | Vorhandene genaue Trade-, Plan-, Run-, Analyse-, Journal- und Lessonlinks mit abgestimmten UX2-Helpern verwenden | Keine geratenen Objektbeziehungen; unterstützte Pins, Berichtsfilter und Rückwege erhalten |
-| C2 | Fehlende Fokussierung auf eine Ausführung, einen Warrant oder einen konkreten Diagnosevorfall separat vertraglich festlegen | Erst Consumer, Parameter, Identität und fehlendes Ziel klären; keine bereits funktionierende Detailroute behaupten |
+| C1 | Vorhandene genaue Trade-, Plan-, Run-, Analyse-, Journal- und Lessonlinks sowie rungebundene Produktreparatur mit abgestimmten öffentlichen Helpern verwenden | Keine geratenen Objektbeziehungen; unterstützte Pins, Berichtsfilter und Rückwege erhalten |
+| C2 | Fehlende Fokussierung auf eine Ausführung, einen Warrant ohne belegten Auswahlrun oder einen konkreten Diagnosevorfall separat vertraglich festlegen | Erst Consumer, Parameter, Identität und fehlendes Ziel klären; vorhandenen rungebundenen Reparaturweg nicht als fehlend ausgeben |
 | C3 | Bestehende Reader-, Editor-, Versions- und Command-Owner aus dem Hinweis sicher erreichbar machen | Keine generischen Writes oder neue Retryengine; Berechtigung/Guard/Bestätigung bleiben beim Owner |
 
 ### Abhängigkeiten und konkrete Navigationsgrenzen
@@ -145,7 +177,7 @@ Risikoauswertung und Konfigurationsänderung mutieren dagegen. Tests fangen exte
 Aufrufe ab und weisen die tatsächliche Ownerwirkung nach.
 
 - Buchungen: Main hat `#execution-dates`, aber keine allgemeine `execution_id`-Fokussierung.
-- Warrantquellen: `/warrants-admin` ist derzeit eine Übersicht mit lokaler Auswahl.
+- Warrantquellen: `/warrants-admin` ist eine Übersicht. Der vorhandene `selectionRepairUrl(runId, warrantId)` öffnet dagegen `/warrants-admin?selection_run_id=…&warrant_id=…`; `WarrantAdminRoutePage` prüft Run, Mitgliedschaft und Basiswert. Ohne belegten Run gibt es keinen universellen Warrantfokus.
 - Diagnose: `/workspace` ist kein objektgenauer Incidentlink; entsprechend beschriften.
 - Exakte Reviewquelle: Tradequellenansicht mit `view=sources&review_version_id=…`.
 - Exaktes Journal: `/post-trade?trade_id=…&journal_version_id=…`; nicht still zu latest wechseln.
@@ -171,6 +203,8 @@ Aufrufe ab und weisen die tatsächliche Ownerwirkung nach.
 
 - `frontend/src/features/trade/components/TradeSourcesView.test.tsx` und `frontend/src/features/performance/pages/ClosedTradeSourceJourney.test.tsx`: genaue Quellen und Rückkontext.
 - `frontend/src/features/trade/pages/TradeManagementPage.test.tsx`: vorhandene Buchungs-/Verkaufsanker und Kontextgrenzen.
+- `frontend/src/features/product/pages/WarrantSelectionRepair.test.tsx`: vorhandene rungebundene Produktreparatur, keine Ersatzzuordnung.
+- Nach Integration von UX2s neuer öffentlicher Grenze: `frontend/src/shared/trade-workspace-navigation/TradeWorkspaceNavigation.test.tsx`; dieser Pfad existiert am genannten Draft-Head, noch nicht auf Main.
 - `frontend/src/features/learning/components/TradeJournalPanel.test.tsx`, `journalViewState.test.ts`: Pins, Guard, Konflikt, identischer Retry und Receipt/Readback.
 - `frontend/src/features/learning/components/LessonDraftFromEvidence.test.tsx`, `LessonReviewPanel.test.tsx`: unterschiedliche Writegarantien, Quellenbindung und historische Auswahl.
 - `frontend/src/features/model/components/RuntimeActivationPanel.journey.test.tsx`, `GovernanceCommands.journey.test.tsx`: explizite Befehle und bewusster Readback.
@@ -188,8 +222,9 @@ Abstimmung und keine Datenbeschaffung aus einer nicht belegten Objektbeziehung.
 
 Die vorhandene Aufmerksamkeit innerhalb einer vereinbarten Hinweisfläche verständlich
 ordnen. UX-2 verantwortet die Platzierung; bestehende Workspaceprojektion und
-Domainprioritäten bleiben maßgeblich. UX-1 liefert konkrete Quellenbeziehungen,
-UX-4 die Bedeutung dargestellter Datenqualität. Fachliche Episoden/Recoverybelege
+Domainprioritäten bleiben maßgeblich. UX-1 liefert konkrete Quellenbeziehungen;
+die Domain-Owner liefern Qualitätsbedeutung, UX-3 ihre Sprache und UX-4 die Visualisierung.
+Fachliche Episoden/Recoverybelege
 kommen ausschließlich aus dem zuständigen Owner, nicht aus lokaler Renderzeit.
 
 | Schnitt | Konkrete Aufgabe | Abschlussgrenze |
@@ -205,15 +240,17 @@ kommen ausschließlich aus dem zuständigen Owner, nicht aus lokaler Renderzeit.
 3. Gleicher Text/Code allein dedupliziert nicht über verschiedene Objekte, Quellen oder Versionen.
 4. SELL-Periodenbeiträge und vollständig abgeschlossene Trades bleiben unterschiedliche Berichtspopulationen.
 5. Gruppenzahl und aufklappbare Objektliste erhalten jede tatsächliche Ursache und sichere Aktion.
-6. Mehrfachrendern und Polling erzeugen keine wiederholten identischen Alarmansagen oder springende Reihenfolge.
+6. Mehrfachrendern, Remount und neue Requestgeneration erzeugen keine wiederholten identischen Alarmansagen oder springende Reihenfolge. Ansagelebensdauer mit dem validierten Host-/Readkontext abstimmen.
 7. Keine Warnung aus Leseausfall wird ohne aktuellen positiven Ownerbeleg als behoben dargestellt.
-8. Ein neuer Anbieter-/Listingkontext behebt nicht rückwirkend die Störung der alten Quelle. Eine korrigierte wirksame Quelle kann eine neue aktuelle Ableitung mit sichtbarer neuer Version/Berichtsgrundlage liefern; historische Pins bleiben exakt.
+8. Ein anderer qualifizierter Kurs kann nach Ownerurteil die aktuelle Kursverwendbarkeit herstellen, behebt aber nicht die Störung der alten Providerquelle. Eine korrigierte wirksame Quelle kann neue aktuelle Ableitungen mit sichtbarer neuer Version/Berichtsgrundlage liefern; historische Pins bleiben exakt.
 9. Alert, Zustellstörung, Providerfehler und letzter Referenzkurs bleiben getrennte Aussagen.
 10. `RESOLVED`/`INVALIDATED` wird nach tatsächlich belegtem Grund erklärt; kein automatisches „Kurs erholt“.
 11. Lesson-CURRENT, Quellenlinie CURRENT/SUPERSEDED und Review-CURRENT/STALE/UNKNOWN bleiben getrennt.
 12. Lessonreview-RESOLVED/UNCHANGED_CONFIRMED repariert keine Quelle; Source-STALENESS ist kein Widerspruchsbeleg.
 13. Ein Receipt und ein fehlgeschlagener Readback dürfen zusammen sichtbar sein; sie sind keine Textduplikate.
 14. Eine belegte neue Episode oder relevante Ursache nach Recovery wird erneut sichtbar/zugänglich angekündigt.
+15. `basis.id` validiert Inhalt und Vergleich, ist aber kein stabiler Schlüssel einer unveränderten Ursache. Fachlich fremde Änderungen der Gesamtbasis ersetzen aktuelle Werte/Belege vollständig, ohne allein neuen Alarm oder Recovery auszulösen.
+16. Eine `EXCLUDED`-Zeile mit zusätzlichem `CURRENCY_UNKNOWN` erzeugt keine vom Owner nicht gelieferte Sperre der Summe. Gemeinsame BUY-Ursache nur aus belegten Quellbeziehungen, nicht allein aus `cost_basis_execution_ids`, ableiten; keine neue Resolverlogik.
 
 ### Zielgerichtete bestehende Tests und Nichtscope
 
@@ -255,6 +292,10 @@ Sie verlangen keine vorgezogene Gesamtmigration oder Wiederholung fachfremder Te
 | A18 | D3 | Gleicher Code in zwei Quellen/Versionen oder Berichtspopulationen | Getrennte Ursachen; nur passende Vorkommen konsolidiert |
 | A19 | D3 | Recovery einer Quelle, andere Quelle weiterhin gestört; später neue belegte Episode | Keine falsche Gesamtrecovery; neuer relevanter Hinweis bleibt sichtbar |
 | A20 | C3 | Candidate-Runtimestep COMPLETE, globales `can_evaluate=false` | Evaluation bleibt gesperrt; Teilstatus erzeugt keine Gesamtfreigabe |
+| A21 | D3 | Unveränderte Ursache, spätere Lesezeit, Remount oder fachlich fremde Änderung der Reportbasis | Keine neue Alarmidentität; gesamter neuer gültiger Inhalt übernommen, keine alten Werte/Belege/Links gemischt |
+| A22 | D2 | Gleicher Reason in zwei unabhängigen Ausführungen gegenüber belegter gemeinsamer BUY-Ursache | Keine falsche Ursachenzusammenführung; bei belegter Verbindung betroffene Beiträge erreichbar, Kohorten getrennt |
+| A23 | B1/C1 | Noch unbekannte Objekt-ID, belegte Berechtigungslücke oder Run/Produkt widersprüchlich | Keine erfundene ID/Rolle/Route; genaue Operation beziehungsweise vorhandenen Fehler erklären |
+| A24 | B1/D1 | Erstread oder Neustart ohne Vergleichshistorie | Nur aktueller Befund; kein unbelegtes „neu“, „verschlechtert“ oder „wiederhergestellt“ |
 
 ## Qualifikation und nächster Schritt
 
@@ -264,10 +305,25 @@ Projektgates am geprüften Head. „Test vorhanden“ ist von „Test ausgeführ
 HTTP-/Browsermocks ersetzen keinen PostgreSQL-Nachweis einer geänderten Fachmutation.
 UX3-A führt keine Produktänderung und keinen dieser zukünftigen Testläufe aus.
 
-**Nächster Schritt:** Den Hinweisvertrag gemeinsam anhand A02, A10, A12 und A15
-abstimmen: Ursachenbeleg, Anzeigeplatz, genaue Quelle, erlaubte Aktion und Recovery.
-Dabei aktuelle Heads von UX-1/#312 und UX-2/#311 sowie den UX-4-Ansprechpartner
-festhalten und genau einen lesenden B1-Piloten samt Akzeptanzfällen auswählen.
+Die Übergabe je Schnitt enthält Ziel/Nichtziele, Ausgangs-SHA, vollständige Dateiliste,
+vorhandenen Code, Owner/Consumer, Abhängigkeiten, Tests, erlaubten Teilschnitt und
+Abschlusskriterien. Vor Arbeit den konkreten Umfang im bestehenden Übergabebericht
+mit Pfaden/Owner/Integrationsreihenfolge zuordnen; danach Branch, PR, Head und
+Testmerge, tatsächlichen Diff, CI-Run-/Joblinks und offene Konflikte ergänzen.
+Keine zusätzliche Lock- oder Aufgabenstatusliste einführen.
+
+Bei tatsächlich berührten Hostflächen gemeinsam nachweisen: keine allein durch
+Bereichsnavigation ausgelösten Trade-/Positions-/Timeline-Reads, A→B→A-Isolation,
+Readback aktualisiert Preview/Historie nach Ownervertrag und erhält manuelle Entwürfe.
+`ExecutionDatesPanel` behält seinen Timeline-Read. Ein grüner Einzel-PR oder sauberer
+Textmerge ersetzt nicht diese Prüfung am vorgesehenen Integrationsstand. PR-CI,
+Main-Integration, Tag, PC-Installation und menschliche Fachabnahme bleiben getrennt.
+
+**Nächster Schritt:** #313/#314/#315 in genau einen gemeinsamen Hinweisvertrag
+konsolidieren: kanonischer Einstieg, fünf Darstellungsarten/sieben Inhaltsfamilien,
+stabile Identität vs. Snapshot, reine Link-API und Owneraktionen. Anhand A02, A10,
+A12, A15 und A21 die Grenzen abnehmen, aktuelle UX1/2/4-Übergaben festhalten und
+`RealizedGrossSources` als genau einen lesenden B1/F1-Piloten abgrenzen.
 Erst nach dieser Schnittstellenfreigabe B1 als eigenen kleinen Draft-PR beginnen.
 
 ## Änderungshistorie
@@ -275,3 +331,4 @@ Erst nach dieser Schnittstellenfreigabe B1 als eigenen kleinen Draft-PR beginnen
 | Revision | Datum | Änderung |
 | --- | --- | --- |
 | 0.1 | 31.10.2026 | Drei getrennte Folgeaufträge mit kleinen PR-Schnitten, Abhängigkeiten und 20 Abnahmefällen vorbereitet |
+| 0.2 | 31.10.2026 | #313/#314 und neuer UX2-Draft-Head abgeglichen; eine gemeinsame Pilot-/Auftragsfolge, vollständige Übergaben, sichere Import-/Hostgrenzen und vier zusätzliche Abnahmefälle |
