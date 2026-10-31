@@ -1,0 +1,85 @@
+name: Prepare v1.5.35 manifests only
+
+on:
+  push:
+    branches: [chore/prepare-v1.5.35-20261031]
+    paths: [.github/workflows/prepare-v1.5.35.yml]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: prepare-v1.5.35-20261031
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    if: github.repository == 'burckhju/trading-workspace' && github.ref == 'refs/heads/chore/prepare-v1.5.35-20261031'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.16.0
+      - name: Update only own version values and remove this temporary helper
+        env:
+          BASE_SHA: 3582d79e3947b470eec153d16c74c5a7c1d40a2b
+          PREPARATION_BRANCH: chore/prepare-v1.5.35-20261031
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = "$BASE_SHA"
+          test "$(git ls-remote origin refs/heads/main | cut -f1)" = "$BASE_SHA"
+          test -z "$(git ls-remote origin refs/tags/v1.5.35 'refs/tags/v1.5.35^{}')"
+          test "$(node --version)" = v22.16.0
+          test "$(npm --version)" = 10.9.2
+          python3 - <<'PY'
+          import os
+          import pathlib
+          import subprocess
+          base = os.environ['BASE_SHA']
+          allowed = {'.github/workflows/prepare-v1.5.35.yml', 'docs/releases/V1.5.35-HEBELTRADER-CONTRACT.md'}
+          actual = set(subprocess.check_output(['git', 'diff', '--name-only', base, 'HEAD'], text=True).splitlines())
+          assert actual == allowed, actual
+          p = pathlib.Path('VERSION')
+          assert p.read_text() == '1.5.34\n'
+          p.write_text('1.5.35\n')
+          p = pathlib.Path('backend/pyproject.toml')
+          content = p.read_text()
+          assert content.count('version = "1.5.34"') == 1
+          p.write_text(content.replace('version = "1.5.34"', 'version = "1.5.35"', 1))
+          PY
+          (cd frontend && npm version 1.5.35 --no-git-tag-version --ignore-scripts)
+          rm .github/workflows/prepare-v1.5.35.yml
+          python3 - <<'PY'
+          import os
+          import pathlib
+          import subprocess
+          base = os.environ['BASE_SHA']
+          replacements = {
+              'VERSION': (b'1.5.34\n', b'1.5.35\n', 1),
+              'backend/pyproject.toml': (b'version = "1.5.34"', b'version = "1.5.35"', 1),
+              'frontend/package.json': (b'"version": "1.5.34"', b'"version": "1.5.35"', 1),
+              'frontend/package-lock.json': (b'"version": "1.5.34"', b'"version": "1.5.35"', 2),
+          }
+          for name, (old, new, count) in replacements.items():
+              original = subprocess.check_output(['git', 'show', f'{base}:{name}'])
+              assert original.count(old) == count, name
+              assert pathlib.Path(name).read_bytes() == original.replace(old, new, count), name
+          allowed = set(replacements) | {'docs/releases/V1.5.35-HEBELTRADER-CONTRACT.md'}
+          actual = set(subprocess.check_output(['git', 'diff', '--name-only', base], text=True).splitlines())
+          assert actual == allowed, actual
+          assert not subprocess.check_output(['git', 'ls-files', '--others', '--exclude-standard']).strip()
+          assert not pathlib.Path('.github/workflows/prepare-v1.5.35.yml').exists()
+          PY
+          node --test .github/tests/version-tag.test.cjs
+          git diff --check
+          git add -- VERSION backend/pyproject.toml frontend/package.json frontend/package-lock.json docs/releases/V1.5.35-HEBELTRADER-CONTRACT.md .github/workflows/prepare-v1.5.35.yml
+          git diff --cached --check
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'chore: prepare v1.5.35 version values and remove preparation helper'
+          test "$(git ls-remote origin "refs/heads/$PREPARATION_BRANCH" | cut -f1)" = "$GITHUB_SHA"
+          git push origin "HEAD:refs/heads/$PREPARATION_BRANCH"
+          printf 'PREPARED_COMMIT=%s\nPREPARED_TREE=%s\n' "$(git rev-parse HEAD)" "$(git rev-parse 'HEAD^{tree}')"
