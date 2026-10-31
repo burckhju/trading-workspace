@@ -1978,10 +1978,21 @@ historische Nachweise, keine erneute Implementierungsabhängigkeit.
 <details>
 <summary>unnummeriert — Täglicher Operational Workspace</summary>
 
+**Abgegrenzter UX-3-Nachtrag 31.10.2026:** Auf dem tatsächlichen Main
+`1883f7f330719453958f8be1dd51d48db816662e` dokumentiert UX3-A die
+[Hinweisinventur](../ui/ux3-notice-inventory.md) und einen
+[fachlichen Hinweisvertrag](../ui/ux3-notice-contract.md) für Trade/Position,
+Währungsherkunft, Performance, TradePlan, Kursdaten, Monitoring, Journal/Lessons
+und Modellgovernance. Autorisiert ist ein eigenständiger Dokumentations-Draft-PR.
+[UX3-B bis UX3-D](UX3_FOLLOW_UP_ORDERS.md) sind getrennte Folgeaufträge; gemeinsame
+Schnittstellen mit UX-1/2/4 sind vor produktiven Änderungen abzustimmen. Bestehende
+Domainzustände bleiben maßgeblich. Keine neuen Formulare, Workspace-Komponenten,
+Tradingaktionen, Merges, Releases oder fachliche Abnahme durch diesen Nachtrag.
+
 | Nachweisfeld | Einordnung |
 |---|---|
 | Zuordnung | Spätere Querschnittsfähigkeit zu M2–M10. Bereich/Querschnitt: Querschnitt: durchgängiger Arbeitsablauf/Bedienbarkeit. Bestehender Bezug: Operational Workspace; nur lesend. Lieferziel: A. |
-| Arbeitsstatus | Technical Review — Währungsqualifikation für Depotzeile/Details, Trade-Management, Aktionen, Filter, Sortierung und Summen mit grüner CI in [PR #297](https://github.com/burckhju/trading-workspace/pull/297) integriert. Versionierte [PC-Bereitstellung v1.5.30](../releases/V1.5.30-POSITION-PNL-CURRENCY.md) ausdrücklich freigegeben. Sonstige Technical-Review-Grenzen unverändert. |
+| Arbeitsstatus | Technical Review — Währungsqualifikation für Depotzeile/Details, Trade-Management, Aktionen, Filter, Sortierung und Summen mit grüner CI in [PR #297](https://github.com/burckhju/trading-workspace/pull/297) integriert. Versionierte [PC-Bereitstellung v1.5.30](../releases/V1.5.30-POSITION-PNL-CURRENCY.md) ausdrücklich freigegeben. UX3-A: Dokumentationsentwurf in Technical Review; UX3-B bis UX3-D: Analysis, gemeinsame Schnittstellen und produktive Umsetzung noch nicht freigegeben. Sonstige Technical-Review-Grenzen unverändert. |
 | Soll / Nicht-Soll | **Soll:** Nächste Aufgaben, Datenbereitschaft, offene Positionen, Monitoring und Zustellung aus autoritativen Quellen verständlich zusammenführen. **Nicht-Soll:** Keine eigenen Done-/Acknowledge-/Assignment-Zustände und keine konkurrierende fachliche Schreibwahrheit. |
 | Vorhandenseinsnachweis | Bestehende lesende API und UI; der enge Währungsschnitt ist durch API-/Komponenten-/Browserregressionen belegt. Vollständige fachliche Workspace-Abnahme und beobachteter Nutzerbetrieb bleiben offen. |
 | Implementierung / Consumer | Operational-Workspace-API und `/workspace` bleiben ephemere Leser. [Bewertungsvertrag](../implementation/POSITION_VALUATION_CURRENCY_QUALIFICATION.md): Position und Währungsbelege aus derselben Materialisierung, fehlendes PnL mit Grund, unabhängig erhaltener Marktwert und getrennte Abdeckung. Depot, Details, Trade-Management und Priorisierungsgründe verwenden die Backendqualifikation; keine eigene Finanzrechnung, Bestätigung oder Providerreparatur. |
