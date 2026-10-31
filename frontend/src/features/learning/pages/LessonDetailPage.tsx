@@ -2,6 +2,7 @@ import { useCallback, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import { PendingNavigationGuard } from '../../../components/PendingNavigationGuard';
+import { lessonTradeReturnLink } from '../../trade/services/workspaceNavigation';
 import {
   LessonHypothesisPanel,
   type LessonHypothesisNavigationState,
@@ -21,6 +22,7 @@ function LessonDetail({ lessonId }: { lessonId: string }) {
   const location = useLocation();
   const navigate = useNavigate();
   const versionId = params.get('lesson_version_id') ?? undefined;
+  const tradeReturnLink = lessonTradeReturnLink(params);
   const navigation = useRef({
     review: { dirty: false, busy: false },
     hypothesis: { dirty: false, busy: false },
@@ -47,6 +49,11 @@ function LessonDetail({ lessonId }: { lessonId: string }) {
       <LessonReviewPanel
         lessonId={lessonId}
         versionId={versionId}
+        versionHref={(id) => {
+          const next = new URLSearchParams(params);
+          next.set('lesson_version_id', id);
+          return `${location.pathname}?${next}#lesson-history`;
+        }}
         onNavigationStateChange={onReviewNavigation}
         actionsDisabled={hypothesisBusy}
         isActionsDisabled={hypothesisPending}
@@ -73,8 +80,11 @@ function LessonDetail({ lessonId }: { lessonId: string }) {
           </div>
         )}
       />
-      <Link to="/post-trade" className="inline-block text-sm text-emerald-300 underline">
-        Zurück zum Post-Trade Review
+      <Link
+        to={tradeReturnLink ?? '/post-trade'}
+        className="inline-block text-sm text-emerald-300 underline"
+      >
+        {tradeReturnLink ? 'Zurück zum Trade-Arbeitsbereich' : 'Zurück zum Post-Trade Review'}
       </Link>
     </main>
   );

@@ -241,6 +241,7 @@ function PostTradeReviewContent({
         const next = new URLSearchParams(previous);
         next.set('trade_id', id);
         next.delete('journal_version_id');
+        next.delete('review_version_id');
         return next;
       });
     }

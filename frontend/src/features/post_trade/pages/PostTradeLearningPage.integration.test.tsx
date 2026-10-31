@@ -580,7 +580,7 @@ describe('PostTradeLearningPage with real forms and a data router', () => {
     await waitFor(() => expect(screen.queryByLabelText('Lesson-Titel')).toBeNull());
     expect(screen.getByRole('link', { name: /Existing new-source Lesson/ })).toHaveAttribute(
       'href',
-      '/lessons/existing-lesson',
+      `/lessons/existing-lesson?trade_id=${tradeId}&journal_version_id=${draftId}&trade_return_view=journal&lesson_version_id=lv#lesson-history`,
     );
     expect(lessonDraftClient.createFromEvidence).not.toHaveBeenCalled();
   });

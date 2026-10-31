@@ -60,7 +60,10 @@ it('reads exact historical IDs and relation without requiring ready or making a 
   expect(screen.getByText(/Späterer Reviewstand: review-v2/)).toBeInTheDocument();
   expect(
     screen.getByRole('link', { name: /Old interpretation · Version 1 · CONTRADICTS · historisch/ }),
-  ).toHaveAttribute('href', '/lessons/lesson1?lesson_version_id=lesson-v1#lesson-history');
+  ).toHaveAttribute(
+    'href',
+    '/lessons/lesson1?trade_id=trade-A&trade_return_view=journal&lesson_version_id=lesson-v1#lesson-history',
+  );
   expect(screen.getByText('ExitReviewVersion: review-v1')).toBeInTheDocument();
   expect(ft011MaterializationClient.materialize).not.toHaveBeenCalled();
 });

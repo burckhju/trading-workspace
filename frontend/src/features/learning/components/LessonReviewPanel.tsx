@@ -106,6 +106,7 @@ export function LessonReviewPanel({
   lessonId,
   onChanged,
   versionId,
+  versionHref,
   onSelectVersion,
   onNavigationStateChange,
   actionsDisabled = false,
@@ -114,6 +115,7 @@ export function LessonReviewPanel({
 }: {
   lessonId: string;
   versionId?: string;
+  versionHref?: (id: string) => string;
   onSelectVersion?: (id: string) => void;
   onNavigationStateChange?: (state: LessonReviewNavigationState) => void;
   actionsDisabled?: boolean;
@@ -443,7 +445,10 @@ export function LessonReviewPanel({
           </label>
           {viewed && (
             <Link
-              to={`/lessons/${lessonId}?lesson_version_id=${viewed.version.id}#lesson-history`}
+              to={
+                versionHref?.(viewed.version.id) ??
+                `/lessons/${lessonId}?lesson_version_id=${viewed.version.id}#lesson-history`
+              }
               onClick={(event) => {
                 // The href remains exact and copyable. Opening the version already
                 // on screen does not rebind forms or manufacture a history entry.

@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { useLayoutEffect, useState } from 'react';
-import { MemoryRouter } from 'react-router-dom';
+import { createMemoryRouter, MemoryRouter, RouterProvider } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ft011MaterializationClient } from '../../learning/services/materializationClient';
@@ -207,6 +207,56 @@ describe('PostTradeReviewPage', () => {
     expect(await screen.findByText('13/20')).toBeInTheDocument();
     expect(screen.getByText('Tatsächlicher Exit')).toBeInTheDocument();
     expect(screen.getByText('Underlying-Nachbeobachtung')).toBeInTheDocument();
+  });
+
+  it('clears both historical pins only when selecting another trade and preserves the report return context', async () => {
+    const reportContext = {
+      report_context: 'closed-trades',
+      from_date: '2026-08-01',
+      to_date: '2026-08-31',
+      report_currency: 'EUR',
+      report_timezone: 'Europe/Vienna',
+      report_view: 'qualified',
+      report_page: '2',
+      report_basis: 'a'.repeat(64),
+    };
+    const original = {
+      ...reportContext,
+      trade_id: 'trade-1',
+      journal_version_id: 'journal-version-1',
+      review_version_id: 'review-version-1',
+    };
+    api.observation.mockImplementation((id) => Promise.resolve({ ...observation, trade_id: id }));
+    api.evidence.mockImplementation((id) => Promise.resolve({ ...evidence, trade_id: id }));
+    const router = createMemoryRouter([{ path: '/post-trade', element: <PostTradeReviewPage /> }], {
+      initialEntries: [`/post-trade?${new URLSearchParams(original)}`],
+    });
+    render(<RouterProvider router={router} />);
+    expect(await screen.findByText('13/20')).toBeInTheDocument();
+    const load = screen.getByRole('button', { name: 'Laden' });
+    await waitFor(() => expect(load).toBeEnabled());
+
+    fireEvent.click(load);
+    await waitFor(() => expect(api.observation).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(load).toBeEnabled());
+    expect(Object.fromEntries(new URLSearchParams(router.state.location.search))).toEqual(original);
+
+    fireEvent.change(screen.getByLabelText('Trade-ID'), { target: { value: 'trade-2' } });
+    fireEvent.click(load);
+    await waitFor(() =>
+      expect(api.evidence).toHaveBeenLastCalledWith('trade-2', expect.any(AbortSignal)),
+    );
+    expect(router.state.location.pathname).toBe('/post-trade');
+    expect(Object.fromEntries(new URLSearchParams(router.state.location.search))).toEqual({
+      ...reportContext,
+      trade_id: 'trade-2',
+    });
+    expect(screen.getByLabelText('Trade-ID')).toHaveValue('trade-2');
+    expect(api.startObservation).not.toHaveBeenCalled();
+    expect(api.createReviewDraft).not.toHaveBeenCalled();
+    expect(api.updateReviewDraft).not.toHaveBeenCalled();
+    expect(api.finalizeReview).not.toHaveBeenCalled();
+    expect(materializationApi.materialize).not.toHaveBeenCalled();
   });
 
   it('shows COMPLETED at 20/20', async () => {

@@ -13,6 +13,8 @@ import type {
   TradeSourceCore,
 } from '../services/sourceView';
 import type { TradeTimelineEntryResponse } from '../types/api';
+import { TradeWorkspaceNavigation } from './TradeWorkspaceNavigation';
+import { tradeLessonLink, tradeWorkspaceLink } from '../services/workspaceNavigation';
 
 const sectionClass = 'space-y-3 rounded-xl border border-slate-800 p-4';
 const linkClass = 'text-sky-400 underline focus-visible:outline';
@@ -32,10 +34,12 @@ function SourceDetails({ children }: { children: ReactNode }) {
 function ReadSection<T>({
   title,
   url,
+  id,
   children,
 }: {
   title: string;
   url: string;
+  id?: string;
   children: (data: T) => ReactNode;
 }) {
   const [attempt, setAttempt] = useState(0);
@@ -60,7 +64,7 @@ function ReadSection<T>({
     };
   }, [url, attempt]);
   return (
-    <section className={sectionClass} aria-label={title}>
+    <section id={id} tabIndex={id ? -1 : undefined} className={sectionClass} aria-label={title}>
       <h2 className="text-lg font-semibold">{title}</h2>
       {error ? (
         <>
@@ -161,6 +165,14 @@ function Plan({ data }: { data: PlanSource | null }) {
         Ursprünglich referenzierte Planversion {v.version} · Status {v.status}. Keine Auswahl der
         heute neuesten Version.
       </p>
+      <Link
+        className={linkClass}
+        target="_blank"
+        rel="noopener noreferrer"
+        to={`/trade-plans?${new URLSearchParams({ trade_plan_id: data.plan.id, trade_plan_version_id: v.id })}`}
+      >
+        Gebundene Planversion öffnen (neuer Tab)
+      </Link>
       <p>These: {v.thesis}</p>
       <p>
         Einstieg: {v.entry.type};{' '}
@@ -363,7 +375,13 @@ function Evidence({ data, query }: { data: EvidenceSource[]; query: URLSearchPar
             <p key={l.link_id}>
               <Link
                 className={linkClass}
-                to={`/lessons/${encodeURIComponent(l.lesson_id)}?lesson_version_id=${encodeURIComponent(l.lesson_version_id)}#lesson-history`}
+                to={tradeLessonLink(
+                  l.lesson_id,
+                  l.lesson_version_id,
+                  query.get('trade_id') ?? '',
+                  query,
+                  'sources',
+                )}
               >
                 {l.lesson_title} · Version {l.lesson_version} · {l.relation} ·{' '}
                 {l.is_current_version ? 'heutige Version' : 'historische Version'}
@@ -402,6 +420,12 @@ function Core({
         {data.open_quantity ?? 'Nicht verfügbar'}.
       </p>
       <p>Produktname ist heutige Stammdatenanzeige, keine historische Entscheidungsgrundlage.</p>
+      <TradeWorkspaceNavigation
+        tradeId={tradeId}
+        view="sources"
+        cancelled={Boolean(data.trade.cancelled_at)}
+        showBackLinks={false}
+      />
       <section className={sectionClass} aria-label="Wirtschaftliches Gesamtergebnis">
         <h2 className="text-lg font-semibold">Wirtschaftliches Gesamtergebnis</h2>
         <ClosedTradeResult tradeId={tradeId} productId={data.trade.product_id} query={query} />
@@ -411,7 +435,11 @@ function Core({
           Trade: {data.trade.id}; Produkt: {data.trade.product_id}; Ursprung: {data.trade.origin}
         </p>
       </SourceDetails>
-      <ReadSection<PlanSource | null> title="Ursprünglicher Plan" url={sourceUrl(tradeId, 'plan')}>
+      <ReadSection<PlanSource | null>
+        id="trade-plan-sources"
+        title="Ursprünglicher Plan"
+        url={sourceUrl(tradeId, 'plan')}
+      >
         {(v) => <Plan data={v} />}
       </ReadSection>
       <section className={sectionClass} aria-label="Tatsächliche Ausführungen und Management">
@@ -440,12 +468,14 @@ function Core({
         {(v) => <Review data={v} query={query} />}
       </ReadSection>
       <ReadSection<JournalSources>
+        id="trade-journal-sources"
         title="Journal"
         url={sourceUrl(tradeId, 'journal', query.get('journal_version_id'))}
       >
         {(v) => <Journal data={v} query={query} />}
       </ReadSection>
       <ReadSection<EvidenceSource[]>
+        id="trade-evidence-sources"
         title="Evidence und Lesson-Versionen"
         url={sourceUrl(tradeId, 'evidence')}
       >
@@ -469,7 +499,7 @@ export function TradeSourcesView({ query }: { query: URLSearchParams }) {
         )}
         <Link
           className={linkClass}
-          to={`/trade-management?trade_id=${encodeURIComponent(tradeId)}`}
+          to={tradeWorkspaceLink('management', tradeId, query, '#trade-overview')}
         >
           Zur Tradeverwaltung
         </Link>

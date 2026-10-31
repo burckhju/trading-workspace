@@ -14,6 +14,8 @@ import { warrantApiClient } from '../../product/services/client';
 import type { WarrantResponse } from '../../product/types/api';
 import { tradeManagementApiClient } from '../../trade/services/client';
 import type { TradeResponse } from '../../trade/types/api';
+import { TradeWorkspaceNavigation } from '../../trade/components/TradeWorkspaceNavigation';
+import { tradeLessonLink } from '../../trade/services/workspaceNavigation';
 import { postTradeErrorMessage } from '../services/errors';
 import { PostTradeReviewPage } from './PostTradeReviewPage';
 
@@ -93,6 +95,7 @@ function PostTradeLearningContent({
   discardVersion: number;
   isContextPending: () => boolean;
 }) {
+  const [query] = useSearchParams();
   const [trade, setTrade] = useState<TradeResponse | null>(null);
   const [warrant, setWarrant] = useState<WarrantResponse | null>(null);
   const [status, setStatus] = useState<Ft011MaterializationStatus | null>(null);
@@ -296,6 +299,13 @@ function PostTradeLearningContent({
   return (
     <div className="min-w-0 w-full space-y-6">
       {trade && (
+        <TradeWorkspaceNavigation
+          tradeId={trade.id}
+          view="journal"
+          cancelled={Boolean(trade.cancelled_at)}
+        />
+      )}
+      {trade && (
         <section className="mb-6 rounded-xl border border-sky-900 bg-sky-950/20 p-5">
           <p className="text-xs uppercase tracking-wide text-sky-400">Post-Trade-Kontext</p>
           <div className="mt-1 flex flex-wrap items-start justify-between gap-3">
@@ -365,14 +375,21 @@ function PostTradeLearningContent({
       />
 
       {tradeId && (
-        <TradeJournalPanel
-          key={tradeId}
-          tradeId={tradeId}
-          refreshVersion={refreshVersion}
-          onNavigationStateChange={reportJournal}
-          isContextPending={isContextPending}
-          discardVersion={discardVersion}
-        />
+        <section
+          id="trade-journal"
+          tabIndex={-1}
+          aria-label="Journal und Lessons"
+          className="space-y-6"
+        >
+          <TradeJournalPanel
+            key={tradeId}
+            tradeId={tradeId}
+            refreshVersion={refreshVersion}
+            onNavigationStateChange={reportJournal}
+            isContextPending={isContextPending}
+            discardVersion={discardVersion}
+          />
+        </section>
       )}
 
       {tradeId && (
@@ -456,7 +473,12 @@ function PostTradeLearningContent({
                 {lessonReferences.map((lesson) => (
                   <li key={lesson.lesson_id}>
                     <Link
-                      to={`/lessons/${lesson.lesson_id}`}
+                      to={tradeLessonLink(
+                        lesson.lesson_id,
+                        lesson.current_version_id,
+                        tradeId,
+                        query,
+                      )}
                       className="text-emerald-300 underline"
                     >
                       {lesson.title} · {lesson.current_state}
@@ -474,6 +496,7 @@ function PostTradeLearningContent({
           )}
           {lessonFormSourceId && (
             <LessonDraftFromEvidence
+              lessonHref={(id) => tradeLessonLink(id, null, tradeId, query)}
               learningEvidenceId={learningEvidenceId ?? lessonFormSourceId}
               disabled={
                 !statusValid ||
