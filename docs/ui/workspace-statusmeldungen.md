@@ -1,5 +1,12 @@
 # Statusmeldungen im Arbeitsbereich
 
+**Querschnittlicher Nachtrag 31.10.2026:** Die [aktuelle UX3-A-Hinweisinventur](ux3-notice-inventory.md)
+prüft den Code auf `1883f7f330719453958f8be1dd51d48db816662e` über alle acht betroffenen
+Bereiche. Der [fachliche Hinweisvertrag](ux3-notice-contract.md) und die
+[getrennten Folgeaufträge UX3-B bis UX3-D](../planning/UX3_FOLLOW_UP_ORDERS.md) stehen zur
+Schnittstellenabstimmung. Dieser Nachtrag ändert keine produktiven Statusmodelle
+oder Anzeigen; der folgende historische Workspace-Katalog bleibt nachvollziehbar.
+
 Stand der Auswertung: `main` bei `3b344855d56e8add972d2459d5a15c32c8e9c230`
 (14.09.2026). Dies ist der Katalog möglicher Anzeigen, kein Befund über ein
 persönliches Depot oder einen tatsächlich aktualisierten Nutzerrechner.
