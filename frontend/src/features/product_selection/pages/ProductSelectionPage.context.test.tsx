@@ -74,6 +74,13 @@ function deferred<T>() {
 }
 
 beforeEach(() => {
+  vi.spyOn(tradeManagementApiClient, 'executionCurrencyPreview').mockResolvedValue({
+    currency_code: null,
+    source: 'UNKNOWN',
+    source_execution_ids: [],
+    confirmation_ids: [],
+    reason: 'NO_HISTORICAL_EVIDENCE',
+  });
   vi.spyOn(tradePlanApiClient, 'get').mockResolvedValue(plan);
   vi.spyOn(tradePlanApiClient, 'version').mockResolvedValue(version);
   vi.spyOn(productSelectionApiClient, 'get').mockResolvedValue(run);
@@ -316,6 +323,174 @@ describe('bound product-selection context', () => {
     expect(screen.getByText('Version 3 · APPROVED')).toBeInTheDocument();
     expect(screen.queryByText('Produktvergleich')).not.toBeInTheDocument();
     expect(productSelectionApiClient.start).not.toHaveBeenCalled();
+  });
+});
+
+describe('reuse of a single saved selection run', () => {
+  it('opens the single run for the exact historical version without creating an evaluation or selection', async () => {
+    vi.mocked(tradePlanApiClient.get).mockResolvedValue({
+      ...plan,
+      latest_version: { ...version, id: 'new-draft', version: 4, status: 'DRAFT' },
+    });
+    vi.mocked(productSelectionApiClient.listForTradePlanVersion).mockResolvedValue([run.run]);
+    const purchase = vi.spyOn(tradeManagementApiClient, 'purchaseFromSelection');
+    renderContext();
+    expect(
+      await screen.findByText(
+        'Einziger gespeicherter Bewertungslauf dieser Planversion automatisch geöffnet.',
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Produktvergleich')).toBeInTheDocument();
+    expect(screen.getByText('Version 3 · APPROVED')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Ursprüngliche Planversion ansehen' })).toHaveAttribute(
+      'href',
+      `/trade-plans?trade_plan_id=${plan.plan.id}&trade_plan_version_id=${version.id}`,
+    );
+    expect(productSelectionApiClient.get).toHaveBeenCalledExactlyOnceWith(
+      run.run.id,
+      expect.any(AbortSignal),
+    );
+    expect(productSelectionApiClient.start).not.toHaveBeenCalled();
+    expect(productSelectionApiClient.select).not.toHaveBeenCalled();
+    expect(purchase).not.toHaveBeenCalled();
+  });
+
+  it('reuses the saved explicit selection without pre-filling purchase quantity or execution price', async () => {
+    const savedSelection: ProductSelectionRunDetailResponse = {
+      ...run,
+      selection: {
+        id: 'saved-selection',
+        run_id: run.run.id,
+        product_evaluation_id: run.evaluations[0].id,
+        selected_at: run.run.evaluated_at,
+        selected_by: 'actor',
+        rationale: 'Bereits ausdrücklich ausgewählt',
+      },
+    };
+    vi.mocked(productSelectionApiClient.get).mockResolvedValue(savedSelection);
+    vi.mocked(productSelectionApiClient.listForTradePlanVersion).mockResolvedValue([run.run]);
+    const purchase = vi.spyOn(tradeManagementApiClient, 'purchaseFromSelection');
+    const user = userEvent.setup();
+    renderContext();
+    expect(await screen.findByText('Bereits ausdrücklich ausgewählt')).toBeInTheDocument();
+    await ready();
+    expect(screen.getByLabelText('Kaufmenge')).toHaveValue(null);
+    expect(screen.getByLabelText('Kaufpreis')).toHaveValue('');
+    await user.type(screen.getByLabelText('Kaufmenge'), '12');
+    await user.type(screen.getByLabelText('Kaufpreis'), '2,35');
+    await user.click(screen.getByRole('button', { name: 'Aktualisieren' }));
+    await waitFor(() =>
+      expect(productSelectionApiClient.listForTradePlanVersion).toHaveBeenCalledTimes(2),
+    );
+    expect(screen.getByLabelText('Kaufmenge')).toHaveValue(12);
+    expect(screen.getByLabelText('Kaufpreis')).toHaveValue('2,35');
+    expect(productSelectionApiClient.get).toHaveBeenCalledOnce();
+    expect(productSelectionApiClient.start).not.toHaveBeenCalled();
+    expect(productSelectionApiClient.select).not.toHaveBeenCalled();
+    expect(purchase).not.toHaveBeenCalled();
+  });
+
+  it('leaves multiple historical runs for an explicit choice', async () => {
+    vi.mocked(productSelectionApiClient.listForTradePlanVersion).mockResolvedValue([
+      run.run,
+      { ...run.run, id: 'second-run' },
+    ]);
+    renderContext();
+    await ready();
+    expect(screen.getByRole('button', { name: new RegExp(run.run.id) })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /second-run/ })).toBeInTheDocument();
+    expect(screen.queryByText('Produktvergleich')).not.toBeInTheDocument();
+    expect(productSelectionApiClient.get).not.toHaveBeenCalled();
+    expect(productSelectionApiClient.start).not.toHaveBeenCalled();
+    expect(productSelectionApiClient.select).not.toHaveBeenCalled();
+  });
+
+  it.each(['id', 'trade_plan_id', 'trade_plan_version_id', 'underlying_id'] as const)(
+    'rejects a single run response with conflicting %s while retaining the manual read path',
+    async (field) => {
+      vi.mocked(productSelectionApiClient.listForTradePlanVersion).mockResolvedValue([run.run]);
+      vi.mocked(productSelectionApiClient.get).mockResolvedValue({
+        ...run,
+        run: { ...run.run, [field]: 'foreign-context' },
+      });
+      renderContext();
+      expect(await screen.findByText(/konnte nicht automatisch geöffnet werden/)).toHaveTextContent(
+        'Der gespeicherte Run passt nicht',
+      );
+      expect(screen.getByRole('button', { name: new RegExp(run.run.id) })).toBeInTheDocument();
+      expect(screen.queryByText('Produktvergleich')).not.toBeInTheDocument();
+      expect(productSelectionApiClient.start).not.toHaveBeenCalled();
+      expect(productSelectionApiClient.select).not.toHaveBeenCalled();
+    },
+  );
+
+  it('allows an explicit read retry after the automatic read fails without creating a new run', async () => {
+    vi.mocked(productSelectionApiClient.listForTradePlanVersion).mockResolvedValue([run.run]);
+    vi.mocked(productSelectionApiClient.get)
+      .mockRejectedValueOnce(new Error('Lesedienst vorübergehend nicht verfügbar'))
+      .mockResolvedValueOnce(run);
+    const user = userEvent.setup();
+    renderContext();
+    expect(await screen.findByText(/konnte nicht automatisch geöffnet werden/)).toHaveTextContent(
+      'Lesedienst vorübergehend nicht verfügbar',
+    );
+    await ready();
+    await user.click(screen.getByRole('button', { name: new RegExp(run.run.id) }));
+    expect(await screen.findByText('Produktvergleich')).toBeInTheDocument();
+    expect(screen.getByTestId('current-route')).toHaveTextContent(`?run_id=${run.run.id}`);
+    expect(productSelectionApiClient.get).toHaveBeenCalledTimes(2);
+    expect(productSelectionApiClient.start).not.toHaveBeenCalled();
+    expect(productSelectionApiClient.select).not.toHaveBeenCalled();
+  });
+
+  it('ignores the late automatic read after leaving and returning to the same plan context', async () => {
+    const pending = deferred<ProductSelectionRunDetailResponse>();
+    vi.mocked(productSelectionApiClient.listForTradePlanVersion).mockResolvedValue([run.run]);
+    vi.mocked(productSelectionApiClient.get)
+      .mockReturnValueOnce(pending.promise)
+      .mockResolvedValueOnce(run);
+    function Harness() {
+      const navigate = useNavigate();
+      return (
+        <>
+          <button onClick={() => void navigate('/product-selection?trade_plan_id=incomplete')}>
+            Different context
+          </button>
+          <button onClick={() => void navigate(planRoute)}>Original context</button>
+          <ProductSelectionPage />
+        </>
+      );
+    }
+    render(
+      <MemoryRouter initialEntries={[planRoute]}>
+        <Harness />
+      </MemoryRouter>,
+    );
+    await waitFor(() => expect(productSelectionApiClient.get).toHaveBeenCalledOnce());
+    fireEvent.click(screen.getByRole('button', { name: 'Different context' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('unvollständig');
+    fireEvent.click(screen.getByRole('button', { name: 'Original context' }));
+    await ready();
+    expect(await screen.findByText('Produktvergleich')).toBeInTheDocument();
+    await act(async () => {
+      pending.resolve({
+        ...run,
+        selection: {
+          id: 'late-selection',
+          run_id: run.run.id,
+          product_evaluation_id: run.evaluations[0].id,
+          selected_at: run.run.evaluated_at,
+          selected_by: 'actor',
+          rationale: 'Veraltete Antwort',
+        },
+      });
+      await pending.promise;
+    });
+    expect(screen.queryByText('Veraltete Antwort')).not.toBeInTheDocument();
+    expect(screen.queryByText('Produkt ausgewählt')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Dieses Produkt auswählen' })).toBeInTheDocument();
+    expect(productSelectionApiClient.start).not.toHaveBeenCalled();
+    expect(productSelectionApiClient.select).not.toHaveBeenCalled();
   });
 });
 

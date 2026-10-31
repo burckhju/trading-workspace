@@ -75,10 +75,19 @@ export function PerformanceFilters({
         <option value="Asia/Tokyo" />
       </datalist>
       <p className="mt-3 text-xs text-slate-400">
-        Vorgeschlagene Berichtszone: Europe/Berlin. Die gewählte Zone bestimmt die Periodengrenzen.
-        Die Berichtswährung ist fest Euro (EUR). Sie filtert belegte Währungen; sie bestätigt keine
-        Buchung und rechnet nichts um.
+        Die gewählte Berichtszone bestimmt die Periodengrenzen. Die Berichtswährung ist fest Euro
+        (EUR). Sie filtert belegte Währungen; sie bestätigt keine Buchung und rechnet nichts um.
       </p>
+      <details className="mt-2 text-xs text-slate-400">
+        <summary className="cursor-pointer">Herkunft der Berichtsauswahl</summary>
+        <p className="mt-2">
+          Ein eindeutiger Berichtskontext im Link übernimmt dessen Zeitraum und Berichtszone. Ohne
+          diesen Kontext werden die bekannte Zeitzone dieses Browsers und der aktuelle Monat bis
+          heute in dieser Zone vorgeschlagen. Ist keine gültige Browserzone verfügbar, gilt
+          Europe/Berlin als Vorschlag. Zeitraum und Zone bleiben bearbeitbar. „Bericht lesen“ oder
+          ein bewusster Wechsel der Berichtsart übernimmt die gültige neue Auswahl.
+        </p>
+      </details>
       <button
         type="submit"
         disabled={loading}

@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
-from typing import Literal
+from typing import Literal, Protocol
 from uuid import UUID
 
 CurrencyResolutionSource = Literal[
@@ -18,6 +18,19 @@ CurrencyResolutionSource = Literal[
     "CONFLICT",
 ]
 RESOLVER_VERSION = "execution-currency-v3"
+
+
+class CurrencyTradeScope(Protocol):
+    """Only immutable identity is needed, including for an unsaved purchase preview."""
+
+    @property
+    def id(self) -> UUID: ...
+
+    @property
+    def workspace_id(self) -> UUID: ...
+
+    @property
+    def product_id(self) -> UUID: ...
 
 
 class ExecutionCurrencySource(StrEnum):

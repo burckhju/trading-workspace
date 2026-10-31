@@ -30,12 +30,19 @@ const invalidContext =
   'Ungültiger oder mehrdeutiger Verkaufsberichtskontext. Keine Ersatzperiode und kein fremdes Rücksprungziel.';
 
 export function initialPerformanceFilters(): RealizedGrossFilters {
-  const today = todayInZone('Europe/Berlin');
+  let timezone = 'Europe/Berlin';
+  try {
+    const browserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (!reportTimezoneError(browserTimezone)) timezone = browserTimezone;
+  } catch {
+    // A missing browser preference only affects the editable suggestion.
+  }
+  const today = todayInZone(timezone);
   return {
     from_date: `${today.slice(0, 8)}01`,
     to_date: today,
     report_currency: 'EUR',
-    report_timezone: 'Europe/Berlin',
+    report_timezone: timezone,
   };
 }
 
@@ -46,6 +53,20 @@ function isCalendarDate(value: string): boolean {
   // Calendar validation only. Period boundaries remain exclusively backend-owned.
   const date = new Date(`${value}T00:00:00Z`);
   return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
+
+function reportTimezoneError(zone: string): string | undefined {
+  // Modern Intl also accepts fixed offsets; the report API requires an IANA
+  // identifier. Named zones such as Etc/GMT+1 remain valid.
+  if (!zone || zone.length > 64 || /^[+-]/.test(zone) || /[\s\\?#]/.test(zone)) {
+    return 'Bitte eine gültige Berichtszeitzone (IANA) auswählen.';
+  }
+  try {
+    new Intl.DateTimeFormat('de-DE', { timeZone: zone });
+  } catch {
+    return 'Bitte eine gültige Berichtszeitzone (IANA) auswählen.';
+  }
+  return undefined;
 }
 
 export function reportFiltersErrors(filters: RealizedGrossFilters): ReportFilterErrors {
@@ -60,18 +81,8 @@ export function reportFiltersErrors(filters: RealizedGrossFilters): ReportFilter
   if (!/^[A-Z]{3}$/.test(filters.report_currency)) {
     errors.report_currency = 'Bitte eine gültige Berichtswährung auswählen.';
   }
-  const zone = filters.report_timezone;
-  // Modern Intl also accepts fixed offsets; the report API requires an IANA
-  // identifier. Named zones such as Etc/GMT+1 remain valid.
-  if (!zone || zone.length > 64 || /^[+-]/.test(zone) || /[\s\\?#]/.test(zone)) {
-    errors.report_timezone = 'Bitte eine gültige Berichtszeitzone (IANA) auswählen.';
-  } else {
-    try {
-      new Intl.DateTimeFormat('de-DE', { timeZone: zone });
-    } catch {
-      errors.report_timezone = 'Bitte eine gültige Berichtszeitzone (IANA) auswählen.';
-    }
-  }
+  const timezoneError = reportTimezoneError(filters.report_timezone);
+  if (timezoneError) errors.report_timezone = timezoneError;
   return errors;
 }
 

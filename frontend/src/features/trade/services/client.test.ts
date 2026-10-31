@@ -6,6 +6,55 @@ import { tradeManagementApiClient } from './client';
 vi.mock('../../market/services/http', () => ({ requestJson: vi.fn() }));
 const requestJsonMock = vi.mocked(requestJson);
 
+it('previews currency with GET for the exact product or trade time without notifying a write', async () => {
+  requestJsonMock.mockReset();
+  requestJsonMock.mockResolvedValue({} as never);
+  const signal = new AbortController().signal;
+  const listener = vi.fn();
+  window.addEventListener('trade-timeline-changed', listener);
+  try {
+    await tradeManagementApiClient.executionCurrencyPreview(
+      { productId: 'product-a', side: 'BUY' },
+      {
+        executed_on: '2026-08-20',
+        execution_timezone: 'Europe/Vienna',
+      },
+      signal,
+    );
+    await tradeManagementApiClient.executionCurrencyPreview(
+      { tradeId: 'trade-a', side: 'SELL' },
+      {
+        executed_at: '2026-08-20T09:30:00.123Z',
+      },
+      signal,
+    );
+    const urls = requestJsonMock.mock.calls.map(([url]) => new URL(url));
+    expect(urls[0].pathname).toBe(
+      '/api/v1/trade-position/products/product-a/execution-currency-preview',
+    );
+    expect(Object.fromEntries(urls[0].searchParams)).toEqual({
+      side: 'BUY',
+      executed_on: '2026-08-20',
+      execution_timezone: 'Europe/Vienna',
+    });
+    expect(urls[1].pathname).toBe(
+      '/api/v1/trade-position/trades/trade-a/execution-currency-preview',
+    );
+    expect(Object.fromEntries(urls[1].searchParams)).toEqual({
+      side: 'SELL',
+      executed_at: '2026-08-20T09:30:00.123Z',
+    });
+    expect(
+      requestJsonMock.mock.calls.every(
+        ([, options]) => options?.signal === signal && !options.body && !options.method,
+      ),
+    ).toBe(true);
+    expect(listener).not.toHaveBeenCalled();
+  } finally {
+    window.removeEventListener('trade-timeline-changed', listener);
+  }
+});
+
 describe('tradeManagementApiClient', () => {
   beforeEach(() => {
     requestJsonMock.mockReset();

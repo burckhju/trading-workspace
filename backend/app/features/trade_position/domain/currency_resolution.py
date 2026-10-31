@@ -14,14 +14,16 @@ from datetime import date, datetime
 from typing import Protocol
 from uuid import UUID
 
-from app.features.trade_position.domain.currency import ExecutionCurrencyResolution
+from app.features.trade_position.domain.currency import (
+    CurrencyTradeScope,
+    ExecutionCurrencyResolution,
+)
 from app.features.trade_position.domain.currency_evidence import (
     CurrencyEvidence as ReviewedCurrencyEvidence,
 )
 from app.features.trade_position.domain.historical_currency_resolution import (
     resolve_historical_currency,
 )
-from app.features.trade_position.domain.models import Trade
 
 
 class CurrencyExecution(Protocol):
@@ -79,7 +81,7 @@ class CurrencyResolutionLimitExceeded(ValueError):
 
 def resolve_execution_currencies(
     *,
-    trade: Trade,
+    trade: CurrencyTradeScope,
     executions: Sequence[CurrencyExecution],
     current: Mapping[UUID, CurrencyEvidence],
     evidence: Sequence[ReviewedCurrencyEvidence] = (),

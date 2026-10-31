@@ -4,7 +4,7 @@ import { Link, UNSAFE_DataRouterContext, useSearchParams } from 'react-router-do
 import { PendingNavigationGuard } from '../../../components/PendingNavigationGuard';
 
 import { ExecutionDateInput } from '../../trade/components/ExecutionDateInput';
-import { ExecutionCurrencyInput } from '../../trade/components/ExecutionCurrencyInput';
+import { ExecutionCurrencyPreview } from '../../trade/components/ExecutionCurrencyPreview';
 import {
   emptyExecutionCurrency,
   executionCurrencyDeclaration,
@@ -250,14 +250,19 @@ export function ProductSelectionPage() {
     routeKey: string;
     revision: number;
     value: ProductSelectionRunDetailResponse;
+    automaticallyOpened: boolean;
   } | null>(null);
   const detail =
     loadedRun?.routeKey === contextKey && loadedRun.revision === contextRevision
       ? loadedRun.value
       : null;
   const setDetail = useCallback(
-    (value: ProductSelectionRunDetailResponse | null) => {
-      setLoadedRun(value ? { routeKey: contextKey, revision: contextRevision, value } : null);
+    (value: ProductSelectionRunDetailResponse | null, automaticallyOpened = false) => {
+      setLoadedRun(
+        value
+          ? { routeKey: contextKey, revision: contextRevision, value, automaticallyOpened }
+          : null,
+      );
     },
     [contextKey, contextRevision],
   );
@@ -393,6 +398,26 @@ export function ProductSelectionPage() {
             throw new Error('Die geladenen Runs gehören nicht zur ausgewählten Planversion.');
           }
           setRuns(items);
+          // Opening the only saved run reuses its explicit selection and sources.
+          // Multiple runs need a user choice; history refreshes never replace an open form.
+          if (route.kind === 'plan' && items.length === 1) {
+            try {
+              const existing = await productSelectionApiClient.get(items[0].id, controller.signal);
+              if (controller.signal.aborted) return;
+              assertRunContext(existing, {
+                runId: items[0].id,
+                planId,
+                versionId,
+                underlyingId: loaded.detail.plan.underlying_id,
+              });
+              setDetail(existing, true);
+            } catch (error: unknown) {
+              if (!controller.signal.aborted)
+                setMessage(
+                  `Der gespeicherte Bewertungslauf konnte nicht automatisch geöffnet werden. Bitte den Eintrag unter „Historische Runs“ erneut öffnen. ${error instanceof Error ? error.message : 'Die gespeicherten Daten konnten nicht geladen werden.'}`,
+                );
+            }
+          }
         } catch (error: unknown) {
           if (!controller.signal.aborted)
             setMessage(
@@ -824,6 +849,12 @@ export function ProductSelectionPage() {
                     <h2 className="mt-1 text-lg font-semibold">
                       {new Date(detail.run.evaluated_at).toLocaleString('de-DE')}
                     </h2>
+                    {loadedRun?.automaticallyOpened && (
+                      <p className="mt-2 text-sm text-slate-400">
+                        Einziger gespeicherter Bewertungslauf dieser Planversion automatisch
+                        geöffnet.
+                      </p>
+                    )}
                     <p className="mt-1 break-all text-xs text-slate-500">{detail.run.id}</p>
                   </div>
                   <Link
@@ -963,11 +994,16 @@ export function ProductSelectionPage() {
                             />
                           </label>
                         </div>
-                        <ExecutionCurrencyInput
-                          value={purchaseCurrency}
-                          onChange={setPurchaseCurrency}
-                          disabled={busy}
-                        />
+                        {selectedEvaluation && (
+                          <ExecutionCurrencyPreview
+                            context={{ productId: selectedEvaluation.warrant_id, side: 'BUY' }}
+                            date={purchaseDate}
+                            time={purchaseTime}
+                            value={purchaseCurrency}
+                            onChange={setPurchaseCurrency}
+                            disabled={busy}
+                          />
+                        )}
                         <button
                           type="submit"
                           disabled={

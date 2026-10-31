@@ -7,6 +7,9 @@ import type {
   ExecutionCorrectionRequest,
   ExecutionCurrencyConfirmation,
   ExecutionCurrencyHistory,
+  ExecutionCurrencyPreviewContext,
+  ExecutionCurrencyPreviewTime,
+  ExecutionCurrencyResolution,
   InitialPurchaseRequest,
   InitialPurchaseResponse,
   PositionResponse,
@@ -44,6 +47,21 @@ function notifyTimelineChanged(tradeId: string): void {
 }
 
 export const tradeManagementApiClient = {
+  executionCurrencyPreview: (
+    context: ExecutionCurrencyPreviewContext,
+    time: ExecutionCurrencyPreviewTime,
+    signal?: AbortSignal,
+  ): Promise<ExecutionCurrencyResolution> => {
+    const path =
+      'tradeId' in context
+        ? `trades/${encodeURIComponent(context.tradeId)}`
+        : `products/${encodeURIComponent(context.productId)}`;
+    const query = new URLSearchParams({ side: context.side, ...time });
+    return requestJson<ExecutionCurrencyResolution>(
+      `${tradePositionUrl}/${path}/execution-currency-preview?${query}`,
+      { signal },
+    );
+  },
   executionCurrencyHistory: (
     tradeId: string,
     executionId: string,

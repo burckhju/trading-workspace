@@ -4,14 +4,16 @@ import { MemoryRouter, useLocation } from 'react-router-dom';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 
 import { warrantApiClient } from '../../product/services/client';
+import { tradeManagementApiClient } from '../../trade/services/client';
 import { tradePlanOverviewApiClient } from '../../trade_plan/services/overviewClient';
 
 import { productSelectionApiClient } from '../services/client';
 import { tradePlanApiClient } from '../../trade_plan/services/client';
 import { selectionPlanFixture } from '../test/planContextFixtures';
+import type { ProductSelectionRunDetailResponse } from '../types/api';
 import { ProductSelectionPage } from './ProductSelectionPage';
 
-const runDetail = {
+const runDetail: ProductSelectionRunDetailResponse = {
   run: {
     id: '00000000-0000-4000-8000-000000000101',
     trade_plan_id: '00000000-0000-4000-8000-000000000201',
@@ -127,6 +129,47 @@ function CurrentRoute() {
   return <div data-testid="current-route">{location.search}</div>;
 }
 
+it('reuses evidenced initial BUY currency without entering or falsely confirming it', async () => {
+  vi.spyOn(productSelectionApiClient, 'get').mockResolvedValue(selected);
+  vi.mocked(tradeManagementApiClient.executionCurrencyPreview).mockResolvedValue({
+    currency_code: 'EUR',
+    source: 'HISTORICAL_LISTINGS',
+    source_execution_ids: [],
+    confirmation_ids: [],
+    evidence_ids: ['synthetic-source'],
+    reason: null,
+  });
+  const capture = vi
+    .spyOn(tradeManagementApiClient, 'purchaseFromSelection')
+    .mockResolvedValue(
+      purchaseResponse as Awaited<
+        ReturnType<typeof tradeManagementApiClient.purchaseFromSelection>
+      >,
+    );
+  const user = userEvent.setup();
+  render(
+    <MemoryRouter initialEntries={[`/product-selection?run_id=${runDetail.run.id}`]}>
+      <ProductSelectionPage />
+    </MemoryRouter>,
+  );
+  await screen.findByText(/Vorhandene Währung: EUR/);
+  expect(screen.queryByLabelText('Ausführungswährung (Code)')).not.toBeInTheDocument();
+  expect(screen.getByLabelText('Kaufmenge')).toHaveValue(null);
+  expect(screen.getByLabelText('Kaufpreis')).toHaveValue('');
+  expect(capture).not.toHaveBeenCalled();
+  await user.type(screen.getByLabelText('Kaufmenge'), '10');
+  await user.type(screen.getByLabelText('Kaufpreis'), '2,35');
+  await user.click(screen.getByRole('button', { name: 'BUY erfassen und Position eröffnen' }));
+  await screen.findByRole('heading', { name: 'TR-12345678' });
+  expect(capture).toHaveBeenCalledOnce();
+  expect(capture.mock.calls[0][0]).toMatchObject({
+    product_selection_id: selected.selection.id,
+    quantity: 10,
+    price_per_unit: '2.35',
+  });
+  expect(capture.mock.calls[0][0]).not.toHaveProperty('currency_confirmation');
+});
+
 async function readyProductChoices() {
   return waitFor(() => {
     expect(screen.getByTestId('current-route').textContent).toBe(`?run_id=${runDetail.run.id}`);
@@ -138,6 +181,13 @@ async function readyProductChoices() {
 }
 
 beforeEach(() => {
+  vi.spyOn(tradeManagementApiClient, 'executionCurrencyPreview').mockResolvedValue({
+    currency_code: null,
+    source: 'UNKNOWN',
+    source_execution_ids: [],
+    confirmation_ids: [],
+    reason: 'NO_HISTORICAL_EVIDENCE',
+  });
   vi.spyOn(productSelectionApiClient, 'listForTradePlanVersion').mockResolvedValue([]);
   vi.spyOn(tradePlanApiClient, 'get').mockResolvedValue(selectionPlanFixture);
   vi.spyOn(tradePlanApiClient, 'version').mockResolvedValue(selectionPlanFixture.latest_version);

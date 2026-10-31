@@ -32,6 +32,7 @@ vi.mock('../../product/services/client', () => ({
 vi.mock('../services/client', () => ({
   tradeTimelineChangedEvent: 'trade-timeline-changed',
   tradeManagementApiClient: {
+    executionCurrencyPreview: vi.fn(),
     timeline: vi.fn(),
     correctExecution: vi.fn(),
     confirmExecutionCurrency: vi.fn(),
@@ -178,6 +179,12 @@ function expectNoOtherWrites() {
 describe('TradeManagementPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    api.executionCurrencyPreview.mockResolvedValue({
+      currency_code: 'EUR',
+      source: 'PRIOR_BUYS',
+      source_execution_ids: [buy.id],
+      confirmation_ids: ['currency-1'],
+    });
     api.timeline.mockResolvedValue([]);
     api.correctExecution.mockReset();
     api.trade.mockResolvedValue(trade);
@@ -358,7 +365,10 @@ describe('TradeManagementPage', () => {
       const form = within(screen.getByRole('form', { name: 'Verkauf erfassen' }));
       expect(form.queryByLabelText('Ausführungswährung (Code)')).not.toBeInTheDocument();
       expect(form.queryByRole('checkbox')).not.toBeInTheDocument();
-      expect(form.getByText(/Die Währung wird aus den vorherigen Käufen übernommen/)).toBeVisible();
+      expect(
+        await form.findByText('Vorhandene Währung: EUR · aus vorherigen Käufen übernommen'),
+      ).toBeVisible();
+      expect(api.sell).not.toHaveBeenCalled();
       fireEvent.change(form.getByLabelText('Verkaufspreis'), { target: { value: '2.5000000001' } });
       fireEvent.click(form.getByRole('button', { name: 'Position vollständig schließen' }));
       await waitFor(() => expect(api.sell).toHaveBeenCalledOnce());
