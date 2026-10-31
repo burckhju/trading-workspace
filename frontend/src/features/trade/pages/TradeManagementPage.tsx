@@ -2,7 +2,8 @@ import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 
 import { TradeSourcesView } from '../components/TradeSourcesView';
-import { sourceLink } from '../services/sourceView';
+import { TradeWorkspaceNavigation } from '../components/TradeWorkspaceNavigation';
+import { tradeWorkspaceLink } from '../services/workspaceNavigation';
 
 import { PositionRiskPanel } from '../../alert/components/PositionRiskPanel';
 import { TradeAlertsPanel } from '../../alert/components/TradeAlertsPanel';
@@ -78,7 +79,7 @@ export function TradeManagementPage() {
   const tradeId = searchParams.get('trade_id') ?? '';
   const location = useLocation();
   if (searchParams.get('view') === 'sources') {
-    return <TradeSourcesView key={`${location.key}:${location.search}`} query={searchParams} />;
+    return <TradeSourcesView key={location.search} query={searchParams} />;
   }
 
   // URL identity owns the entire transaction context, including child forms.
@@ -92,8 +93,8 @@ export function TradeManagementPage() {
 
 function TradeManagementContext({ tradeId }: { tradeId: string }) {
   const navigate = useNavigate();
-  const { hash } = useLocation();
-  const [, setSearchParams] = useSearchParams();
+  const { search } = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [lookupId, setLookupId] = useState(tradeId);
   const active = useRef(false);
   const [trade, setTrade] = useState<TradeResponse | null>(null);
@@ -279,13 +280,6 @@ function TradeManagementContext({ tradeId }: { tradeId: string }) {
     return () => controller.abort();
   }, [tradeId, refresh]);
 
-  useEffect(() => {
-    if (!trade || !position || !['#sale-capture', '#execution-dates'].includes(hash)) return;
-    const target = document.getElementById(hash.slice(1));
-    target?.scrollIntoView?.({ block: 'start' });
-    target?.focus({ preventScroll: true });
-  }, [hash, trade, position]);
-
   function lookupTrade(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const id = lookupId.trim();
@@ -396,7 +390,7 @@ function TradeManagementContext({ tradeId }: { tradeId: string }) {
       if (active.current) {
         writeLock.current = false;
         notify();
-        void navigate(`/post-trade?trade_id=${encodeURIComponent(tradeId)}`);
+        void navigate(tradeWorkspaceLink('journal', tradeId, searchParams, '#trade-journal'));
       }
     } catch (error: unknown) {
       if (active.current) setMessage(postTradeErrorMessage(error));
@@ -483,23 +477,23 @@ function TradeManagementContext({ tradeId }: { tradeId: string }) {
   return (
     <main className="min-w-0 w-full space-y-6 [overflow-wrap:anywhere]">
       <header>
-        <p className="text-xs uppercase tracking-wide text-slate-500">FT-010</p>
-        <h1 className="mt-1 text-2xl font-semibold">Trade Management</h1>
+        <h1 className="mt-1 text-2xl font-semibold">Trade und Position</h1>
         <p className="mt-2 text-sm text-slate-400">
-          Position, wirtschaftliche SELL-Executions und Management-Entscheidungen bleiben getrennte
-          fachliche Fakten.
+          Position, Buchungen und Quellen im gewählten Trade-Kontext öffnen.
         </p>
+        {!tradeId && (
+          <Link className="mt-3 inline-block text-sky-400 underline" to="/workspace">
+            Trade in der Positionsübersicht auswählen
+          </Link>
+        )}
       </header>
 
       {trade && (
-        <Link
-          className="text-sky-400 underline"
-          target="_blank"
-          rel="noopener noreferrer"
-          to={sourceLink(new URLSearchParams({ trade_id: trade.id }))}
-        >
-          Quellen und dokumentierte Reflexion lesen (neuer Tab)
-        </Link>
+        <TradeWorkspaceNavigation
+          tradeId={trade.id}
+          view="management"
+          cancelled={Boolean(trade.cancelled_at)}
+        />
       )}
 
       <form onSubmit={lookupTrade} className="rounded-xl border border-slate-800 p-5">
@@ -532,6 +526,8 @@ function TradeManagementContext({ tradeId }: { tradeId: string }) {
 
       {trade && warrant && position && (
         <section
+          id="trade-overview"
+          tabIndex={-1}
           aria-label="Trade und Position"
           className="rounded-xl border border-sky-900 bg-sky-950/20 p-5"
         >
@@ -625,7 +621,7 @@ function TradeManagementContext({ tradeId }: { tradeId: string }) {
             </div>
           </details>
           {!trade.cancelled_at && (
-            <div className="mt-5 min-w-0">
+            <div id="position-price-history" tabIndex={-1} className="mt-5 min-w-0">
               <PositionPriceHistory
                 tradeId={trade.id}
                 positionId={position.id}
@@ -650,8 +646,21 @@ function TradeManagementContext({ tradeId }: { tradeId: string }) {
 
       {position && trade && !trade.cancelled_at && (
         <>
-          <PositionRiskPanel tradeId={tradeId} />
-          <TradeAlertsPanel tradeId={tradeId} />
+          <section
+            id="trade-risk"
+            tabIndex={-1}
+            aria-label="Risiko und Monitoring"
+            className="space-y-6"
+          >
+            <PositionRiskPanel tradeId={tradeId} />
+            <TradeAlertsPanel tradeId={tradeId} />
+            <Link
+              className="text-sky-400 underline"
+              to={{ search, hash: '#trade-management-state' }}
+            >
+              Zum Management-Zustand
+            </Link>
+          </section>
           {!position.is_closed && (
             <fieldset disabled={bookingBlocked} className="min-w-0">
               <AdditionalPurchasePanel
@@ -766,7 +775,11 @@ function TradeManagementContext({ tradeId }: { tradeId: string }) {
       )}
 
       {management && position && !trade?.cancelled_at && (
-        <section className="rounded-xl border border-slate-800 p-5">
+        <section
+          id="trade-management-state"
+          tabIndex={-1}
+          className="rounded-xl border border-slate-800 p-5"
+        >
           <h2 className="text-lg font-semibold">Aktueller Management-Zustand</h2>
           <p className="mt-1 text-xs text-slate-500">
             Abgeleitet aus der effektiven Management-Event-Historie; der ursprüngliche TradePlan
