@@ -12,6 +12,9 @@ const journalId = '88888888-8888-4888-8888-888888888888';
 const journalDraftId = '99999999-9999-4999-8999-999999999999';
 const journalFinalId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const at = '2026-08-18T12:00:00Z';
+const createdLessonHref = `/lessons/${lessonId}?trade_id=${tradeId}&trade_return_view=journal#lesson-history`;
+const referencedLessonHref = `/lessons/${lessonId}?trade_id=${tradeId}&trade_return_view=journal&lesson_version_id=${lessonVersionId}#lesson-history`;
+const journalLessonHref = `/lessons/${lessonId}?trade_id=${tradeId}&journal_version_id=${journalFinalId}&trade_return_view=journal#lesson-history`;
 
 async function setup(
   page: Page,
@@ -324,7 +327,7 @@ test('review finalization, explicit pinned handoff and explicit interpretation s
   await page.getByRole('button', { name: 'Lesson anlegen', exact: true }).click();
   await expect(page.getByRole('link', { name: /Bewusste Interpretation/ })).toHaveAttribute(
     'href',
-    `/lessons/${lessonId}`,
+    referencedLessonHref,
   );
   expect(writes).toHaveLength(4);
   expect(writes[3].body).toMatchObject({
@@ -332,11 +335,11 @@ test('review finalization, explicit pinned handoff and explicit interpretation s
   });
   const open = page.getByRole('link', { name: 'Lesson öffnen', exact: true });
   await expect(open).toHaveCount(1);
-  await expect(open).toHaveAttribute('href', `/lessons/${lessonId}`);
+  await expect(open).toHaveAttribute('href', createdLessonHref);
   await expect(page.getByText('Lesson angelegt: LS-55555555', { exact: true })).toBeVisible();
   await open.focus();
   await page.keyboard.press('Enter');
-  await expect(page).toHaveURL(new RegExp(`/lessons/${lessonId}$`));
+  await expect(page).toHaveURL(new URL(createdLessonHref, page.url()).href);
   await expect(
     page.getByText(
       'Diese konkrete Evidenz ist Kontext, kein Beweis für einen handelbaren Optionsscheinkurs.',
@@ -365,7 +368,7 @@ test('a confirmed Lesson remains directly accessible when its reference readback
   ).toBeVisible();
   const open = page.getByRole('link', { name: 'Lesson öffnen', exact: true });
   await expect(open).toHaveCount(1);
-  await expect(open).toHaveAttribute('href', `/lessons/${lessonId}`);
+  await expect(open).toHaveAttribute('href', createdLessonHref);
   await expect(page.getByRole('button', { name: 'Lesson anlegen', exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: 'Lesson-Verweise erneut laden', exact: true }).click();
   await expect(
@@ -374,7 +377,7 @@ test('a confirmed Lesson remains directly accessible when its reference readback
     }),
   ).toBeVisible();
   await open.click();
-  await expect(page).toHaveURL(new RegExp(`/lessons/${lessonId}$`));
+  await expect(page).toHaveURL(new URL(createdLessonHref, page.url()).href);
   await expect(
     page.getByText('Eine bereits bestätigte Interpretation bleibt erreichbar.', { exact: true }),
   ).toBeVisible();
@@ -399,7 +402,7 @@ test('discarding journal edits for a same-trade version change preserves the con
   await directLesson.getByRole('button', { name: 'Lesson anlegen', exact: true }).click();
   await expect(directLesson.getByText('Bereits interpretiert', { exact: true })).toBeVisible();
   const open = directLesson.getByRole('link', { name: 'Lesson öffnen', exact: true });
-  await expect(open).toHaveAttribute('href', `/lessons/${lessonId}`);
+  await expect(open).toHaveAttribute('href', createdLessonHref);
 
   await journal.getByRole('button', { name: 'Journal bearbeiten', exact: true }).click();
   await journal.getByLabel('Was lief gut?').fill('Diese ungespeicherte Journaländerung verwerfen.');
@@ -425,14 +428,14 @@ test('discarding journal edits for a same-trade version change preserves the con
     directLesson.getByText('Lesson angelegt: LS-55555555', { exact: true }),
   ).toBeVisible();
   await expect(open).toHaveCount(1);
-  await expect(open).toHaveAttribute('href', `/lessons/${lessonId}`);
+  await expect(open).toHaveAttribute('href', journalLessonHref);
   await expect(directLesson.getByLabel('Lesson-Titel')).toHaveCount(0);
   await expect(
     directLesson.getByRole('button', { name: 'Lesson anlegen', exact: true }),
   ).toHaveCount(0);
 
   await open.click();
-  await expect(page).toHaveURL(new RegExp(`/lessons/${lessonId}$`));
+  await expect(page).toHaveURL(new URL(journalLessonHref, page.url()).href);
   await expect(
     page.getByText(
       'Die bestätigte Interpretation bleibt trotz verworfener Journaländerung erhalten.',
