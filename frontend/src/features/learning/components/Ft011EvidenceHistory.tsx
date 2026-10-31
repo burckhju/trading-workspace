@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
+import { tradeLessonLink } from '../../../shared/trade-workspace-navigation';
 
 import { ft011MaterializationClient } from '../services/materializationClient';
 import type { Ft011EvidenceHistoryItem } from '../types/materialization';
@@ -11,6 +12,7 @@ export function Ft011EvidenceHistory({
   tradeId: string;
   refreshVersion?: number;
 }) {
+  const [query] = useSearchParams();
   const [items, setItems] = useState<Ft011EvidenceHistoryItem[] | null>(null);
   const [error, setError] = useState(false);
   const [retry, setRetry] = useState(0);
@@ -102,7 +104,7 @@ export function Ft011EvidenceHistory({
                   <li key={link.link_id}>
                     <Link
                       className="text-emerald-300 underline"
-                      to={`/lessons/${link.lesson_id}?lesson_version_id=${link.lesson_version_id}#lesson-history`}
+                      to={tradeLessonLink(link.lesson_id, link.lesson_version_id, tradeId, query)}
                     >
                       {link.lesson_title} · Version {link.lesson_version} · {link.relation}
                       {link.is_current_version ? ' · aktueller Lesson-Stand' : ' · historisch'}

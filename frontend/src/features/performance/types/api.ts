@@ -1,15 +1,12 @@
+import type { RealizedGrossFilters } from '../../../shared/trade-workspace-navigation/types';
+
+export type { RealizedGrossFilters } from '../../../shared/trade-workspace-navigation/types';
+
 import type {
   ExecutionCurrencyConfirmation,
   ExecutionCurrencyResolution,
   TradeOrigin,
 } from '../../trade/types/api';
-
-export interface RealizedGrossFilters {
-  from_date: string;
-  to_date: string;
-  report_currency: string;
-  report_timezone: string;
-}
 
 export interface ReportExecutionTime {
   time_precision: 'TIMESTAMP' | 'DATE_ONLY' | 'UNKNOWN';

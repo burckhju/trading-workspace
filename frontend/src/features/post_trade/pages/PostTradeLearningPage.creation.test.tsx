@@ -143,10 +143,13 @@ async function createLesson() {
   await click(screen.getByRole('button', { name: 'Lesson anlegen' }));
 }
 
-function expectCreatedAction() {
+function expectCreatedAction(journalId?: string) {
   const links = screen.getAllByRole('link', { name: 'Lesson öffnen' });
   expect(links).toHaveLength(1);
-  expect(links[0]).toHaveAttribute('href', `/lessons/${lessonId}`);
+  expect(links[0]).toHaveAttribute(
+    'href',
+    `/lessons/${lessonId}?trade_id=trade-a${journalId ? `&journal_version_id=${journalId}` : ''}&trade_return_view=journal#lesson-history`,
+  );
   expect(screen.getByText('Lesson angelegt: LS-96F10D57')).toHaveAttribute('role', 'status');
   expect(screen.getByText(lessonId)).toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'Lesson anlegen' })).not.toBeInTheDocument();
@@ -238,7 +241,7 @@ describe('PostTradeLearningPage confirmed Lesson creation', () => {
     expect(await screen.findByText('Bereits interpretiert')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Exit discipline · CURRENT' })).toHaveAttribute(
       'href',
-      `/lessons/${lessonId}`,
+      `/lessons/${lessonId}?trade_id=trade-a&trade_return_view=journal&lesson_version_id=lesson-version-a#lesson-history`,
     );
     expect(screen.queryByRole('link', { name: 'Lesson öffnen' })).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Lesson-Titel')).not.toBeInTheDocument();
@@ -270,7 +273,7 @@ describe('PostTradeLearningPage confirmed Lesson creation', () => {
       );
 
       expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
-      await click(expectCreatedAction());
+      await click(expectCreatedAction('journal-b'));
       expect(
         await screen.findByRole('heading', { name: `Geöffnete Lesson: ${lessonId}` }),
       ).toBeInTheDocument();

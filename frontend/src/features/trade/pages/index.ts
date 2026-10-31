@@ -12,6 +12,8 @@ export function TradeManagementPage() {
     'div',
     { className: 'min-w-0 w-full space-y-6 [overflow-wrap:anywhere]' },
     createElement(TradeManagementPageBase),
-    tradeId ? createElement(ProductValuationPanel, { tradeId }) : null,
+    tradeId && searchParams.get('view') !== 'sources'
+      ? createElement(ProductValuationPanel, { key: tradeId, tradeId })
+      : null,
   );
 }

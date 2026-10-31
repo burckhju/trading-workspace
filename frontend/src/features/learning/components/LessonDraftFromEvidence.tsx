@@ -6,6 +6,7 @@ import { lessonDraftClient } from '../services/lessonDraftClient';
 
 interface LessonDraftFromEvidenceProps {
   learningEvidenceId: string;
+  lessonHref?: (lessonId: string) => string;
   disabled?: boolean;
   onCreated?: (lessonId: string) => void;
   onNavigationStateChange?: (state: { dirty: boolean; pending: boolean }) => void;
@@ -15,6 +16,7 @@ interface LessonDraftFromEvidenceProps {
 
 export function LessonDraftFromEvidence({
   learningEvidenceId,
+  lessonHref,
   disabled = false,
   onCreated,
   onNavigationStateChange,
@@ -184,7 +186,7 @@ export function LessonDraftFromEvidence({
             Lesson angelegt: LS-{createdLessonId.slice(0, 8).toUpperCase()}
           </p>
           <Link
-            to={`/lessons/${encodeURIComponent(createdLessonId)}`}
+            to={lessonHref?.(createdLessonId) ?? `/lessons/${encodeURIComponent(createdLessonId)}`}
             className="mt-3 inline-block rounded-lg border border-emerald-700 px-4 py-2 text-sm text-emerald-300"
           >
             Lesson öffnen

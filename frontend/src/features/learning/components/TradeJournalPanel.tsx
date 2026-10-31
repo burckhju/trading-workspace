@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { tradeLessonLink } from '../../../shared/trade-workspace-navigation';
 
 import type { JournalEntry } from '../services/journalClient';
 import { JournalDialog, JournalTextsView, journalButton as button } from './JournalContent';
@@ -59,6 +61,7 @@ export function TradeJournalPanel(props: JournalPanelProps) {
 
 function JournalContext(props: JournalPanelProps) {
   const { tradeId, discardVersion = 0, onNavigationStateChange } = props;
+  const [query] = useSearchParams();
   const navigation = useRef({
     journal: { dirty: false, pending: false },
     lesson: { dirty: false, pending: false },
@@ -505,6 +508,7 @@ function JournalContext(props: JournalPanelProps) {
             Explizite Lesson-Ableitung mit Relation SUPPORTS (unterstützende persönliche Reflexion).
           </p>
           <LessonDraftFromEvidence
+            lessonHref={(id) => tradeLessonLink(id, null, tradeId, query)}
             learningEvidenceId={evidenceId ?? boundEvidence}
             disabled={!journal.ready || busy || !!state.attempt || !evidenceId}
             discardVersion={discardVersion + lessonDiscard}

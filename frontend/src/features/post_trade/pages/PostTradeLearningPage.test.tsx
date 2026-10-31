@@ -198,7 +198,7 @@ describe('PostTradeLearningPage', () => {
     expect(await screen.findByText('Bereits interpretiert')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Exit discipline/ })).toHaveAttribute(
       'href',
-      '/lessons/lesson-1',
+      '/lessons/lesson-1?trade_id=trade-1&trade_return_view=journal&lesson_version_id=lesson-version-1#lesson-history',
     );
     expect(screen.queryByText('lesson-form')).not.toBeInTheDocument();
   });
