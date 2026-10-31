@@ -4,6 +4,7 @@ import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-do
 import { TradeSourcesView } from '../components/TradeSourcesView';
 import {
   TradeWorkspaceNavigation,
+  tradeLookupQuery,
   tradeWorkspaceLink,
 } from '../../../shared/trade-workspace-navigation';
 
@@ -301,7 +302,7 @@ function TradeManagementContext({ tradeId }: { tradeId: string }) {
         .finally(() => {
           if (active.current) setBusy(false);
         });
-    } else setSearchParams({ trade_id: id });
+    } else setSearchParams(tradeLookupQuery(id, searchParams));
   }
 
   async function mutate(

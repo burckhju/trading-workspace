@@ -1,9 +1,9 @@
 import { useEffect } from 'react';
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
 
-import { closedListUrl, parseClosedContext } from './closedReportNavigation';
 import { closedContextKeys, pinKeys } from './context';
 import { tradeWorkspaceLink, type TradeWorkspaceView } from './links';
+import { reportReturnLink } from './reportReturn';
 
 const areas: { label: string; view: TradeWorkspaceView; hash: string; activeOnly?: boolean }[] = [
   { label: 'Überblick', view: 'management', hash: '#trade-overview' },
@@ -23,6 +23,7 @@ const anchors = new Set([
   '#sale-capture',
   '#trade-management-state',
   '#trade-journal-sources',
+  '#trade-review-sources',
   '#trade-evidence-sources',
 ]);
 
@@ -40,7 +41,7 @@ export function TradeWorkspaceNavigation({
 }) {
   const location = useLocation();
   const [query] = useSearchParams();
-  const reportContext = parseClosedContext(query).context;
+  const reportReturn = reportReturnLink(query);
   const allowedKeys = new Set<string>(['trade_id', 'view', ...pinKeys, ...closedContextKeys]);
   const sameQuery = [...query.keys()].every((key) => allowedKeys.has(key));
   useEffect(() => {
@@ -92,9 +93,9 @@ export function TradeWorkspaceNavigation({
           <Link className="text-sky-400 underline" to="/workspace">
             Zur Positionsübersicht
           </Link>
-          {reportContext && (
-            <Link className="text-sky-400 underline" to={closedListUrl(reportContext)}>
-              Zur ursprünglichen Abschlussauswahl
+          {reportReturn && (
+            <Link className="text-sky-400 underline" to={reportReturn.href}>
+              {reportReturn.label}
             </Link>
           )}
         </div>

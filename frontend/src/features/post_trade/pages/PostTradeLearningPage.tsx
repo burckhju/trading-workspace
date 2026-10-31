@@ -17,6 +17,7 @@ import type { TradeResponse } from '../../trade/types/api';
 import {
   TradeWorkspaceNavigation,
   tradeLessonLink,
+  tradeWorkspaceLink,
 } from '../../../shared/trade-workspace-navigation';
 import { postTradeErrorMessage } from '../services/errors';
 import { PostTradeReviewPage } from './PostTradeReviewPage';
@@ -365,6 +366,19 @@ function PostTradeLearningContent({
             </div>
           </details>
         </section>
+      )}
+
+      {tradeId && query.has('review_version_id') && (
+        <p className="text-sm text-slate-400">
+          Hier wird der aktuelle Exit Review bearbeitet. Die verlinkte historische Reviewversion ist
+          in der Quellenansicht verfügbar.{' '}
+          <Link
+            className="text-sky-400 underline"
+            to={tradeWorkspaceLink('sources', tradeId, query, '#trade-review-sources')}
+          >
+            Historische Reviewquelle öffnen
+          </Link>
+        </p>
       )}
 
       <PostTradeReviewPage

@@ -4,18 +4,131 @@ import type {
   TradeResponse,
   TradeTimelineEntryResponse,
 } from "../../frontend/src/features/trade/types/api";
+import type {
+  TradePlanSummaryResponse,
+  TradePlanVersionResponse,
+} from "../../frontend/src/features/trade_plan/types/api";
+import { realizedGrossReport } from "../../frontend/src/test/realizedGrossFixtures";
 
 // Read-only browser fixtures: every API request is intercepted. No real trade,
 // provider, approval, execution or journal is created by these navigation tests.
-test.use({ timezoneId: "Europe/Berlin" });
+test.use({ timezoneId: "Europe/Berlin", serviceWorkers: "block" });
 
 const tradeId = "51000000-0000-4000-8000-000000000001";
 const productId = "52000000-0000-4000-8000-000000000001";
 const positionId = "53000000-0000-4000-8000-000000000001";
 const buyId = "54000000-0000-4000-8000-000000000001";
 const journalVersionId = "55000000-0000-4000-8000-000000000001";
+const reviewVersionId = "56000000-0000-4000-8000-000000000001";
+const planId = "57000000-0000-4000-8000-000000000001";
+const planVersionId = "58000000-0000-4000-8000-000000000001";
+const latestPlanVersionId = "58000000-0000-4000-8000-000000000002";
+const underlyingId = "59000000-0000-4000-8000-000000000001";
 const now = "2026-10-31T09:00:00Z";
 const productName = "Synthetic UX2 navigation warrant";
+const historicalThesis = "Synthetic approved P1 bound to this trade";
+const latestThesis = "Synthetic newer draft P2, not the trade source";
+
+const plan: TradePlanSummaryResponse = {
+  id: planId,
+  underlying_id: underlyingId,
+  origin_type: "MANUAL",
+  candidate_id: null,
+  candidate_evaluation_id: null,
+  created_at: "2026-08-01T09:00:00Z",
+  created_by: "synthetic-actor",
+};
+const historicalPlan: TradePlanVersionResponse = {
+  id: planVersionId,
+  trade_plan_id: planId,
+  version: 1,
+  direction: "LONG",
+  thesis: historicalThesis,
+  entry: {
+    type: "PRICE",
+    currency: "EUR",
+    price: "100",
+    price_from: null,
+    price_to: null,
+    trigger: null,
+    reference_price: null,
+    valid_until: null,
+    rationale: null,
+  },
+  invalidation: {
+    stop_price: "95",
+    invalidation_rule: null,
+    rationale: null,
+  },
+  targets: [{ sequence: 1, price: "110", rationale: null }],
+  risk_assumptions: {
+    thesis_risk: "Synthetic trend break",
+    max_loss_assumption: null,
+    notes: null,
+  },
+  status: "APPROVED",
+  created_at: plan.created_at,
+  created_by: plan.created_by,
+  previous_version_id: null,
+  change_reason: null,
+  candidate_evaluation: null,
+  approval: {
+    approval_id: "synthetic-approval-p1",
+    trade_plan_version_id: planVersionId,
+    version: 1,
+    actor: plan.created_by,
+    approved_at: "2026-08-02T09:00:00Z",
+    correlation_id: null,
+  },
+  events: [],
+};
+const latestPlan: TradePlanVersionResponse = {
+  ...historicalPlan,
+  id: latestPlanVersionId,
+  version: 2,
+  thesis: latestThesis,
+  status: "DRAFT",
+  created_at: "2026-10-30T09:00:00Z",
+  previous_version_id: planVersionId,
+  change_reason: "Synthetic amendment after the original trade",
+  approval: null,
+};
+
+// Existing server-shaped financial fixtures supply all amounts. This mapping
+// changes identities only, so the report and booking/source owners share them.
+function navigationReport() {
+  const report = realizedGrossReport();
+  report.items = report.items.map((item) => ({
+    ...item,
+    trade_id: tradeId,
+    product_id: productId,
+    product_name: productName,
+  }));
+  report.sources = report.sources.map((source) => ({
+    ...source,
+    trade_id: tradeId,
+    product_id: productId,
+    currency_confirmation: source.currency_confirmation
+      ? { ...source.currency_confirmation, trade_id: tradeId }
+      : null,
+    currency_history: source.currency_history.map((confirmation) => ({
+      ...confirmation,
+      trade_id: tradeId,
+    })),
+  }));
+  return report;
+}
+
+function reportQuery() {
+  const report = navigationReport();
+  return new URLSearchParams({
+    report_context: "realized-gross",
+    ...report.filters,
+    report_view: "usable",
+    report_page: "1",
+    report_basis: report.basis.id,
+  });
+}
 
 type Status = "OPEN" | "CLOSED" | "CANCELLED";
 
@@ -25,15 +138,28 @@ async function json(route: Route, body: unknown, status = 200) {
 
 async function fixture(
   page: Page,
-  options: { status?: Status; missingPosition?: boolean } = {},
+  options: {
+    status?: Status;
+    missingPosition?: boolean;
+    historicalPlan?: boolean;
+    reportJourney?: boolean;
+  } = {},
 ) {
   const status = options.status ?? "OPEN";
+  const report = navigationReport();
+  const lastSale = report.items[report.items.length - 1];
+  const openQuantity =
+    status === "OPEN"
+      ? options.reportJourney
+        ? lastSale.open_quantity_after
+        : 10
+      : 0;
   const trade: TradeResponse = {
     id: tradeId,
     product_id: productId,
-    origin: "EXTERNAL",
-    trade_plan_id: null,
-    trade_plan_version_id: null,
+    origin: options.historicalPlan ? "WORKSPACE_SELECTION" : "EXTERNAL",
+    trade_plan_id: options.historicalPlan ? planId : null,
+    trade_plan_version_id: options.historicalPlan ? planVersionId : null,
     product_selection_id: null,
     product_evaluation_id: null,
     created_at: "2026-08-17T08:30:00Z",
@@ -63,6 +189,26 @@ async function fixture(
       confirmation_ids: [],
     },
   };
+  const timeline: TradeTimelineEntryResponse[] = options.reportJourney
+    ? report.sources.map((source) => ({
+        id: source.execution_id,
+        trade_id: tradeId,
+        kind: "EXECUTION",
+        execution_side: source.side,
+        management_event_type: null,
+        occurred_at: source.executed_at ?? source.recorded_at,
+        recorded_at: source.recorded_at,
+        executed_on: source.executed_on,
+        execution_timezone: source.execution_timezone,
+        quantity: source.quantity,
+        price_per_unit: source.price_per_unit,
+        numeric_value: null,
+        text_value: null,
+        supersedes_id: source.supersedes_execution_id,
+        currency_confirmation: source.currency_confirmation,
+        currency_resolution: source.currency_resolution,
+      }))
+    : [buy];
   const reads: string[] = [];
   const writes: string[] = [];
   const browserErrors: string[] = [];
@@ -85,6 +231,27 @@ async function fixture(
       );
     }
     reads.push(`${path}${url.search}`);
+    if (path.endsWith("/performance/realized-gross"))
+      return json(route, report);
+    if (options.historicalPlan) {
+      if (path.endsWith(`/trade-plans/${planId}`))
+        return json(route, { plan, latest_version: latestPlan });
+      if (path.endsWith(`/trade-plans/${planId}/versions`))
+        return json(route, [historicalPlan, latestPlan]);
+      if (path.endsWith(`/trade-plans/${planId}/versions/${planVersionId}`))
+        return json(route, historicalPlan);
+      if (
+        path.endsWith(`/trade-plans/${planId}/versions/${latestPlanVersionId}`)
+      )
+        return json(route, latestPlan);
+      if (path.endsWith(`/underlyings/${underlyingId}`))
+        return json(route, {
+          id: underlyingId,
+          display_name: "Synthetic plan underlying",
+          symbol: "UX2",
+          asset_class: "EQUITY",
+        });
+    }
     if (path.endsWith(`/trade-position/trades/${tradeId}`))
       return json(route, trade);
     if (path.endsWith("/position")) {
@@ -103,9 +270,16 @@ async function fixture(
         id: positionId,
         trade_id: tradeId,
         product_id: productId,
-        open_quantity: status === "OPEN" ? 10 : 0,
-        cost_basis: status === "OPEN" ? "20.00" : "0.00",
-        average_entry_price: "2.00",
+        open_quantity: openQuantity,
+        cost_basis:
+          status === "OPEN"
+            ? options.reportJourney
+              ? lastSale.cost_basis_after
+              : "20.00"
+            : "0.00",
+        average_entry_price: options.reportJourney
+          ? lastSale.average_cost_per_unit
+          : "2.00",
         realized_gross_pnl: null,
         opened_at: trade.created_at,
         opened_on: "2026-08-17",
@@ -125,13 +299,18 @@ async function fixture(
         notes: [],
         last_event_at: trade.created_at,
       });
-    if (path.endsWith("/timeline")) return json(route, [buy]);
-    if (path.endsWith("/currency-confirmations"))
+    if (path.endsWith("/timeline")) return json(route, timeline);
+    if (path.endsWith("/currency-confirmations")) {
+      const source = report.sources.find((item) =>
+        path.includes(`/executions/${item.execution_id}/`),
+      );
       return json(route, {
-        current: null,
-        history: [],
-        currency_resolution: buy.currency_resolution,
+        current: source?.currency_confirmation ?? null,
+        history: source?.currency_history ?? [],
+        currency_resolution:
+          source?.currency_resolution ?? buy.currency_resolution,
       });
+    }
     if (path.endsWith(`/warrants/${productId}`))
       return json(route, {
         id: productId,
@@ -173,12 +352,81 @@ async function fixture(
           trade,
           product_name: productName,
           state: status,
-          open_quantity: status === "OPEN" ? 10 : 0,
-          timeline: [buy],
+          open_quantity: openQuantity,
+          timeline,
           currency_history: [],
         }),
       );
-    if (path.endsWith("/sources/plan")) return json(route, snapshot(null));
+    if (path.endsWith("/sources/plan"))
+      return json(
+        route,
+        snapshot(
+          options.historicalPlan
+            ? {
+                plan,
+                version: historicalPlan,
+                approval: historicalPlan.approval,
+                candidate_evaluation: historicalPlan.candidate_evaluation,
+                events: historicalPlan.events,
+              }
+            : null,
+        ),
+      );
+    if (options.historicalPlan && path.endsWith("/sources/reviews")) {
+      const selected = {
+        version: {
+          id: reviewVersionId,
+          exit_review_id: "synthetic-review",
+          version: 1,
+          status: "FINALIZED",
+          currentness: "CURRENT",
+          timing: "IMPROVABLE",
+          process_adherence: "NOT_ASSESSABLE",
+          risk_decision: null,
+          overall_exit_decision: "IMPROVABLE",
+          rationale: "Synthetic historical review R1",
+          created_at: now,
+          finalized_at: now,
+          supersedes_version_id: null,
+          stale_reason: null,
+        },
+      };
+      return json(
+        route,
+        snapshot({
+          history: [selected],
+          selected,
+          source_currentness: "STALE",
+          checked_at: now,
+        }),
+      );
+    }
+    if (options.historicalPlan && path.endsWith("/sources/journal")) {
+      const selected = {
+        id: journalVersionId,
+        trade_journal_id: "synthetic-journal",
+        version: 1,
+        edit_revision: 1,
+        status: "FINALIZED",
+        source_exit_review_version_id: reviewVersionId,
+        what_went_well: "Synthetic historical journal J1",
+        would_do_differently: null,
+        additional_notes: null,
+        created_at: now,
+        updated_at: now,
+        finalized_at: now,
+        supersedes_version_id: null,
+      };
+      return json(
+        route,
+        snapshot({
+          history: [selected],
+          selected,
+          source_currentness: "STALE",
+          checked_at: now,
+        }),
+      );
+    }
     if (path.endsWith("/sources/reviews") || path.endsWith("/sources/journal"))
       return json(
         route,
@@ -211,9 +459,11 @@ function navigation(page: Page) {
   });
 }
 
-async function loaded(page: Page) {
+async function loaded(page: Page, bookingCount = 1) {
   await expect(
-    page.getByRole("heading", { name: new RegExp(productName) }),
+    page
+      .getByRole("region", { name: "Trade und Position", exact: true })
+      .getByRole("heading", { name: new RegExp(productName) }),
   ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Laden", exact: true }),
@@ -222,7 +472,7 @@ async function loaded(page: Page) {
     page
       .getByRole("region", { name: "Kauf- und Verkaufsdaten" })
       .getByRole("article"),
-  ).toHaveCount(1);
+  ).toHaveCount(bookingCount);
   await page.waitForLoadState("networkidle");
 }
 
@@ -491,3 +741,249 @@ for (const status of ["CLOSED", "CANCELLED"] as const) {
     expect(observed.browserErrors).toEqual([]);
   });
 }
+
+function expectReportContext(url: string, expected: URLSearchParams) {
+  const actual = new URL(url, "http://fixture.invalid").searchParams;
+  for (const [key, value] of expected) {
+    expect(actual.getAll(key), key).toEqual([value]);
+  }
+}
+
+test("the bound approved plan opens in this tab and retains historical trade sources through a copied URL and reload", async ({
+  page,
+}) => {
+  const observed = await fixture(page, { historicalPlan: true });
+  await page.setViewportSize({ width: 1280, height: 844 });
+  const context = reportQuery();
+  context.set("trade_id", tradeId);
+  context.set("review_version_id", reviewVersionId);
+  context.set("journal_version_id", journalVersionId);
+  const sourceQuery = new URLSearchParams(context);
+  sourceQuery.set("view", "sources");
+  await page.goto(`/trade-management?${sourceQuery}#trade-plan-sources`);
+  const planSource = page.getByRole("region", { name: "Ursprünglicher Plan" });
+  await expect(planSource).toContainText(historicalThesis);
+  await expect(planSource).toContainText(
+    "Ursprünglich referenzierte Planversion 1 · Status APPROVED",
+  );
+  await expect(page.getByText("Synthetic historical review R1")).toBeVisible();
+  await expect(page.getByText("Synthetic historical journal J1")).toBeVisible();
+
+  const planLink = planSource.getByRole("link", {
+    name: "Gebundene Planversion öffnen",
+    exact: true,
+  });
+  const copiedLink = await planLink.getAttribute("href");
+  expect(copiedLink).not.toBeNull();
+  const destination = new URL(copiedLink!, page.url());
+  expect(destination.pathname).toBe("/trade-plans");
+  expect(destination.searchParams.getAll("trade_plan_id")).toEqual([planId]);
+  expect(destination.searchParams.getAll("trade_plan_version_id")).toEqual([
+    planVersionId,
+  ]);
+  expect(destination.searchParams.get("trade_return_view")).toBe("sources");
+  expectReportContext(destination.href, context);
+  await expect(planLink).not.toHaveAttribute("target", "_blank");
+  const originalTabCount = page.context().pages().length;
+  await planLink.click();
+  await expect(page).toHaveURL(destination.href);
+
+  const assertHistoricalPlan = async () => {
+    await expect(
+      page.getByRole("heading", { name: "Version 1 · APPROVED", exact: true }),
+    ).toBeVisible();
+    await expect(page.getByText("Neueste Version: 2 · DRAFT")).toBeVisible();
+    await expect(
+      page.getByRole("combobox", { name: "Planversion", exact: true }),
+    ).toHaveValue(planVersionId);
+    await expect(page.getByRole("region", { name: "These" })).toContainText(
+      historicalThesis,
+    );
+    await expect(page.getByText(latestThesis, { exact: true })).toHaveCount(0);
+    expectReportContext(page.url(), context);
+    expect(page.context().pages()).toHaveLength(originalTabCount);
+  };
+  await assertHistoricalPlan();
+  await page.reload();
+  await assertHistoricalPlan();
+  // A copied ordinary href must work without any prior router/location state.
+  await page.goto(destination.href);
+  await assertHistoricalPlan();
+
+  const returnLink = page.getByRole("link", {
+    name: "Zurück zu den Tradequellen",
+    exact: true,
+  });
+  const returnHref = await returnLink.getAttribute("href");
+  expect(returnHref).not.toBeNull();
+  expectReportContext(returnHref!, context);
+  const returnUrl = new URL(returnHref!, page.url());
+  expect(returnUrl.pathname).toBe("/trade-management");
+  expect(returnUrl.searchParams.get("view")).toBe("sources");
+  expect(returnUrl.hash).toBe("#trade-plan-sources");
+  await returnLink.click();
+  await expect(planSource).toBeFocused();
+  await expect(planSource).toContainText(historicalThesis);
+  await expect(page.getByText("Synthetic historical review R1")).toBeVisible();
+  await expect(page.getByText("Synthetic historical journal J1")).toBeVisible();
+  expectReportContext(page.url(), context);
+  for (const [section, version] of [
+    ["reviews", reviewVersionId],
+    ["journal", journalVersionId],
+  ]) {
+    const reads = observed.reads.filter((url) =>
+      url.includes(`/sources/${section}`),
+    );
+    expect(reads.length).toBeGreaterThanOrEqual(2);
+    expect(
+      reads.every((url) =>
+        url.endsWith(`/sources/${section}?version_id=${version}`),
+      ),
+    ).toBe(true);
+  }
+  expect(
+    observed.reads.filter((url) =>
+      url.endsWith(`/trade-plans/${planId}/versions/${planVersionId}`),
+    ).length,
+  ).toBeGreaterThanOrEqual(3);
+  expect(
+    observed.reads.some((url) =>
+      url.endsWith(`/trade-plans/${planId}/versions/${latestPlanVersionId}`),
+    ),
+  ).toBe(false);
+  expect(observed.reads.some((url) => url.includes("/performance/"))).toBe(
+    false,
+  );
+  expect(observed.writes).toEqual([]);
+  expect(observed.browserErrors).toEqual([]);
+});
+
+test("a sales report keeps its exact selection through bookings, copied source links and the return at mobile width", async ({
+  page,
+}) => {
+  const observed = await fixture(page, { reportJourney: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  const context = reportQuery();
+  const reportUrl = `/performance/realized-gross?${context}`;
+  const sellId = "sell-september-2";
+  await page.goto(reportUrl);
+  const sale = page.getByRole("article", {
+    name: `Verkauf ${sellId}`,
+    exact: true,
+  });
+  await expect(sale).toContainText("-20,00 EUR");
+  await sale
+    .getByRole("button", { name: "Quellen und Berechnung", exact: true })
+    .click();
+  const reportSources = page.getByRole("region", {
+    name: `Herkunft SELL ${sellId}`,
+    exact: true,
+  });
+  await expect(
+    reportSources.getByRole("listitem", {
+      name: `Buchungsquelle ${sellId}`,
+      exact: true,
+    }),
+  ).toBeVisible();
+  await page.waitForLoadState("networkidle");
+  const originalReportReads = observed.reads.filter((url) =>
+    url.includes("/performance/"),
+  );
+  expect(originalReportReads.length).toBeGreaterThanOrEqual(1);
+  const bookingsLink = reportSources.getByRole("link", {
+    name: "Buchungen und Währungsbestätigungen im Trade prüfen",
+    exact: true,
+  });
+  const bookingsHref = await bookingsLink.getAttribute("href");
+  expect(bookingsHref).not.toBeNull();
+  expectReportContext(bookingsHref!, context);
+  expect(new URL(bookingsHref!, page.url()).hash).toBe("#execution-dates");
+  await bookingsLink.click();
+  await expect(page).toHaveURL(new URL(bookingsHref!, page.url()).href);
+  await loaded(page, 5);
+  await expect(page.locator("#execution-dates")).toBeFocused();
+  await expect(
+    page.getByRole("article", { name: `Buchung ${sellId}`, exact: true }),
+  ).toBeVisible();
+  expectReportContext(page.url(), context);
+  expect(new URL(page.url()).searchParams.getAll("trade_id")).toEqual([
+    tradeId,
+  ]);
+  await page.reload();
+  await loaded(page, 5);
+  await expect(page.locator("#execution-dates")).toBeFocused();
+  expectReportContext(page.url(), context);
+
+  const sourceLink = navigation(page).getByRole("link", {
+    name: "Plan und Quellen",
+    exact: true,
+  });
+  const copiedSourceHref = await sourceLink.getAttribute("href");
+  expect(copiedSourceHref).not.toBeNull();
+  expectReportContext(copiedSourceHref!, context);
+  await sourceLink.click();
+  const source = page.getByRole("article", {
+    name: `Quelle ${sellId}`,
+    exact: true,
+  });
+  await expect(source).toBeVisible();
+  await expect(source).toContainText("Verkauf");
+  await page.goto(new URL(copiedSourceHref!, page.url()).href);
+  await expect(source).toBeVisible();
+  await page.reload();
+  await expect(source).toBeVisible();
+  expectReportContext(page.url(), context);
+  // A sales origin is navigation context, never a request for a closing report.
+  expect(observed.reads.filter((url) => url.includes("/performance/"))).toEqual(
+    originalReportReads,
+  );
+  await expect(
+    page.getByText(/Ungültiger oder mehrdeutiger Abschlussberichtskontext/),
+  ).toHaveCount(0);
+  const returnLink = page
+    .getByRole("navigation", { name: "Quellenansicht verlassen", exact: true })
+    .getByRole("link", {
+      name: "Zur ursprünglichen Verkaufsauswahl",
+      exact: true,
+    });
+  const returnHref = await returnLink.getAttribute("href");
+  expect(returnHref).toBe(reportUrl);
+  await returnLink.click();
+  await expect(page).toHaveURL(new URL(reportUrl, page.url()).href);
+  await expect(sale).toContainText("-20,00 EUR");
+  expectReportContext(page.url(), context);
+  await expect(page.getByTestId("realized-gross-total")).toHaveText(
+    "10,00 EUR",
+  );
+  await expect(page.getByLabel("Von (einschließlich)")).toHaveValue(
+    "2026-09-01",
+  );
+  await expect(page.getByLabel("Bis (einschließlich)")).toHaveValue(
+    "2026-09-30",
+  );
+  await expect(page.getByLabel("Berichtszeitzone (IANA)")).toHaveValue(
+    "Europe/Berlin",
+  );
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth,
+      ),
+    )
+    .toBe(true);
+  await page.waitForLoadState("networkidle");
+  const returnedReportReads = observed.reads.filter((url) =>
+    url.includes("/performance/"),
+  );
+  expect(returnedReportReads.length).toBeGreaterThan(
+    originalReportReads.length,
+  );
+  expect(
+    returnedReportReads.every((url) => url === originalReportReads[0]),
+  ).toBe(true);
+  expect(
+    observed.reads.some((url) => url.includes("/performance/closed-trades")),
+  ).toBe(false);
+  expect(observed.writes).toEqual([]);
+  expect(observed.browserErrors).toEqual([]);
+});

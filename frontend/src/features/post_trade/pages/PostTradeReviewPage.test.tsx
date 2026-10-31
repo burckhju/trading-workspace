@@ -225,6 +225,8 @@ describe('PostTradeReviewPage', () => {
       trade_id: 'trade-1',
       journal_version_id: 'journal-version-1',
       review_version_id: 'review-version-1',
+      trade_plan_version_id: 'plan-version-for-previous-trade',
+      returnTo: 'https://elsewhere.invalid',
     };
     api.observation.mockImplementation((id) => Promise.resolve({ ...observation, trade_id: id }));
     api.evidence.mockImplementation((id) => Promise.resolve({ ...evidence, trade_id: id }));

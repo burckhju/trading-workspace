@@ -13,10 +13,10 @@ import type {
 } from '../services/sourceView';
 import type { TradeTimelineEntryResponse } from '../types/api';
 import {
-  closedListUrl,
-  parseClosedContext,
+  reportReturnLink,
   TradeWorkspaceNavigation,
   tradeLessonLink,
+  tradePlanLink,
   tradeWorkspaceLink,
 } from '../../../shared/trade-workspace-navigation';
 
@@ -159,7 +159,15 @@ function Execution({ entry, replaced }: { entry: TradeTimelineEntryResponse; rep
   );
 }
 
-function Plan({ data }: { data: PlanSource | null }) {
+function Plan({
+  data,
+  tradeId,
+  query,
+}: {
+  data: PlanSource | null;
+  tradeId: string;
+  query: URLSearchParams;
+}) {
   if (data === null)
     return <p>Eigener EXTERNAL-Trade ohne dokumentierte ursprüngliche Planherkunft.</p>;
   const v = data.version;
@@ -169,13 +177,8 @@ function Plan({ data }: { data: PlanSource | null }) {
         Ursprünglich referenzierte Planversion {v.version} · Status {v.status}. Keine Auswahl der
         heute neuesten Version.
       </p>
-      <Link
-        className={linkClass}
-        target="_blank"
-        rel="noopener noreferrer"
-        to={`/trade-plans?${new URLSearchParams({ trade_plan_id: data.plan.id, trade_plan_version_id: v.id })}`}
-      >
-        Gebundene Planversion öffnen (neuer Tab)
+      <Link className={linkClass} to={tradePlanLink(data.plan.id, v.id, tradeId, query)}>
+        Gebundene Planversion öffnen
       </Link>
       <p>These: {v.thesis}</p>
       <p>
@@ -444,7 +447,7 @@ function Core({
         title="Ursprünglicher Plan"
         url={sourceUrl(tradeId, 'plan')}
       >
-        {(v) => <Plan data={v} />}
+        {(v) => <Plan data={v} tradeId={tradeId} query={query} />}
       </ReadSection>
       <section className={sectionClass} aria-label="Tatsächliche Ausführungen und Management">
         <h2 className="text-lg font-semibold">Tatsächliche Ausführungen und Management</h2>
@@ -466,6 +469,7 @@ function Core({
         </SourceDetails>
       </section>
       <ReadSection<ReviewSources>
+        id="trade-review-sources"
         title="Dokumentierte Exit-Bewertung"
         url={sourceUrl(tradeId, 'reviews', query.get('review_version_id'))}
       >
@@ -491,14 +495,14 @@ function Core({
 
 export function TradeSourcesView({ query }: { query: URLSearchParams }) {
   const error = sourceQueryError(query);
-  const reportContext = parseClosedContext(query).context;
+  const reportReturn = reportReturnLink(query);
   const tradeId = (query.get('trade_id') ?? '').toLowerCase();
   return (
     <main className="min-w-0 w-full space-y-6 [overflow-wrap:anywhere]">
       <nav aria-label="Quellenansicht verlassen" className="flex flex-wrap gap-x-4 gap-y-2">
-        {reportContext && (
-          <Link className={linkClass} to={closedListUrl(reportContext)}>
-            Zur ursprünglichen Abschlussauswahl
+        {reportReturn && (
+          <Link className={linkClass} to={reportReturn.href}>
+            {reportReturn.label}
           </Link>
         )}
         <Link

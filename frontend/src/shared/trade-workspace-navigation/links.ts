@@ -10,6 +10,13 @@ function contextQuery(tradeId: string, from: URLSearchParams): URLSearchParams {
   return next;
 }
 
+/** A deliberate trade change retains the list origin, never another trade's source pins. */
+export function tradeLookupQuery(tradeId: string, from: URLSearchParams): URLSearchParams {
+  const next = new URLSearchParams({ trade_id: tradeId });
+  preserveClosedContext(from, next);
+  return next;
+}
+
 export function tradeWorkspaceLink(
   view: TradeWorkspaceView,
   tradeId: string,
@@ -32,6 +39,28 @@ export function tradeLessonLink(
   if (tradeId) query.set('trade_return_view', returnView);
   if (versionId) query.set('lesson_version_id', versionId);
   return `/lessons/${encodeURIComponent(lessonId)}${query.size ? `?${query}` : ''}#lesson-history`;
+}
+
+/** The stored plan/version owns the destination; the remaining values only describe a return. */
+export function tradePlanLink(
+  planId: string,
+  versionId: string,
+  tradeId: string,
+  from: URLSearchParams,
+): string {
+  const query = contextQuery(tradeId, from);
+  query.set('trade_return_view', 'sources');
+  query.set('trade_plan_id', planId);
+  query.set('trade_plan_version_id', versionId);
+  return `/trade-plans?${query}`;
+}
+
+export function planTradeReturnLink(query: URLSearchParams): string | null {
+  const ids = query.getAll('trade_id');
+  const views = query.getAll('trade_return_view');
+  if (ids.length !== 1 || !ids[0].trim() || views.length !== 1 || views[0] !== 'sources')
+    return null;
+  return tradeWorkspaceLink('sources', ids[0], query, '#trade-plan-sources');
 }
 
 export function lessonTradeReturnLink(query: URLSearchParams): string | null {

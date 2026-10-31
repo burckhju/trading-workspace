@@ -44,6 +44,20 @@ function read() {
   fireEvent.click(screen.getByRole('button', { name: 'Bericht lesen' }));
 }
 
+function expectTradeReturnLink(link: HTMLElement, tradeId: string, view: string) {
+  const url = new URL(link.getAttribute('href')!, 'https://workspace.test');
+  expect(url.pathname).toBe('/trade-management');
+  expect(url.hash).toBe('#execution-dates');
+  expect(Object.fromEntries(url.searchParams)).toEqual({
+    report_context: 'realized-gross',
+    ...reportFilters,
+    report_view: view,
+    report_page: '1',
+    report_basis: 'a'.repeat(64),
+    trade_id: tradeId,
+  });
+}
+
 beforeEach(() => {
   vi.resetAllMocks();
   api.realizedGross.mockResolvedValue(realizedGrossReport());
@@ -71,9 +85,11 @@ it('uses fixed EUR, keeps the visible reporting zone, and displays independent S
   expect(detail.getByRole('listitem', { name: 'Buchungsquelle sell-september-1' })).toBeVisible();
   expect(detail.getByRole('listitem', { name: 'Buchungsquelle buy-september' })).toBeVisible();
   expect(detail.getByRole('listitem', { name: 'Buchungsquelle sell-september-2' })).toBeVisible();
-  expect(
+  expectTradeReturnLink(
     detail.getByRole('link', { name: 'Buchungen und Währungsbestätigungen im Trade prüfen' }),
-  ).toHaveAttribute('href', '/trade-management?trade_id=trade-1#execution-dates');
+    'trade-1',
+    'candidates',
+  );
   expect(api.realizedGross).toHaveBeenCalledOnce();
 });
 
@@ -464,9 +480,11 @@ it('shows excluded currencies and cancelled trades without treating them as retu
   expect(screen.getByText('Nicht in der Summe')).toBeVisible();
   expect(screen.getByText(/Belegte Ausführungswährung außerhalb/)).toBeVisible();
   expect(screen.getByTestId('realized-gross-total')).toHaveTextContent('10,00 EUR');
-  expect(
+  expectTradeReturnLink(
     screen.getByRole('link', { name: 'Stornierter Testtrade · Trade prüfen' }),
-  ).toHaveAttribute('href', '/trade-management?trade_id=cancelled#execution-dates');
+    'cancelled',
+    'excluded',
+  );
   expect(api.realizedGross).toHaveBeenCalledOnce();
 });
 

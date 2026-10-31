@@ -34,9 +34,11 @@ Der ergänzte Parallelstand ist:
 | [#205](https://github.com/burckhju/trading-workspace/pull/205) | `ba7f442a027c55fd3bb15ed6f77271690c8a9055` | Alter Kursverlaufsentwurf, Draft mit Konflikt; #302/#306 sind bereits integriert |
 | [#197](https://github.com/burckhju/trading-workspace/pull/197) | `08d2a5c9abe91ef518eb2c940eff9bbeceb073f8` | Forschungsworkflow; kein produktiver Historienfeed |
 | [#187](https://github.com/burckhju/trading-workspace/pull/187) | `bad00a420f56994216ad1def6a580b00b0f5772f` | Draft mit Konflikt; Hebeltrader-Eingaben/Regeln, u. a. TradePlanWorkflowPage, nicht TradeManagementPage |
-| [#312](https://github.com/burckhju/trading-workspace/pull/312) | `8f67442daac6879d7dfb28416f2171f67aead0e5` | UX-1: Währungsvorschau, belegte Eingaben und Auswahlruns; einzige gemeinsame Produktionsdatei ist TradeManagementPage |
+| [#312](https://github.com/burckhju/trading-workspace/pull/312) | `8f67442daac6879d7dfb28416f2171f67aead0e5` | UX-1: Währungsvorschau, belegte Eingaben und Auswahlruns; gemeinsame Produktionsdateien TradeManagementPage und performanceReportContext, außerdem zwei Performance-Tests |
 | [#313](https://github.com/burckhju/trading-workspace/pull/313) | `2312abfe8834a1b652b100fc635c4d36172d5c32` | Fünf neue Koordinationsdokumente, keine Dateischnittmenge; weist auf die bestehende öffentliche Feature-Importgrenze hin |
 | [#314](https://github.com/burckhju/trading-workspace/pull/314) | `52a24266dce1ec048b23360b4b75d5b3f54d746b` | Zehn neue UX-3-Dokumentations-/Vertragsdateien, keine produktive Hinweisimplementierung und keine Dateischnittmenge |
+| [#315](https://github.com/burckhju/trading-workspace/pull/315) | `d9d85f1af3159c4356c8773d076decbf1dc604e4` | UX-3-A: Hinweisvertrag und Backlog; RealizedGrossSources ist als späterer Pilot benannt, aktuell nur Dokumentation |
+| [#316](https://github.com/burckhju/trading-workspace/pull/316) | `ae8c792f3e3ad74994894fac581cb4cf81ba5de7` | UX-4-A: Visualisierungsvertrag und Vorbereitung, keine produktive Chartänderung |
 
 Die grünen alten PR-Läufe vom September qualifizieren keinen heutigen Testmerge. Keiner der
 fünf älteren Diffs berührt TradeManagementPage. Beim ersten Abgleich aller 292 veröffentlichten
@@ -44,6 +46,18 @@ Branches war UX-1 noch nicht identifizierbar; der später erschienene tatsächli
 wurde deshalb erneut geprüft. Die eigene Umsetzung liegt in [#311](https://github.com/burckhju/trading-workspace/pull/311);
 maßgebliche finale Heads, Testmerge und CI stehen dort, ohne selbstreferenzierende Commitangaben
 in dieser Datei zu erzeugen.
+
+Die Fortsetzung baut auf dem bereits veröffentlichten UX2-A-Head
+`9c9c949c32f53eba7980cd8109bfa9f29e4d0bb5` auf. Alle fünf gemeinsamen
+Koordinationsdokumente aus #313 wurden gelesen:
+[Masterplan](https://github.com/burckhju/trading-workspace/blob/2312abfe8834a1b652b100fc635c4d36172d5c32/docs/coordination/UX_MASTER_PLAN.md),
+[Ownership](https://github.com/burckhju/trading-workspace/blob/2312abfe8834a1b652b100fc635c4d36172d5c32/docs/coordination/UX_OWNERSHIP.md),
+[Shared Contracts](https://github.com/burckhju/trading-workspace/blob/2312abfe8834a1b652b100fc635c4d36172d5c32/docs/coordination/UX_SHARED_CONTRACTS.md),
+[Dependencies](https://github.com/burckhju/trading-workspace/blob/2312abfe8834a1b652b100fc635c4d36172d5c32/docs/coordination/UX_DEPENDENCIES.md)
+und [Integration Status](https://github.com/burckhju/trading-workspace/blob/2312abfe8834a1b652b100fc635c4d36172d5c32/docs/coordination/UX_INTEGRATION_STATUS.md).
+UX2 bleibt Integrator für Navigation und Trade-Host, UX1 für Eingabe-/Vorschausemantik.
+Die Koordinationsdateien bleiben im Master-PR; dieser Branch erzeugt keine zweite Fassung.
+Die technische Zusammenarbeit setzt keinen vorherigen Merge des Dokumentations-PRs voraus.
 
 ## Navigations- und Komponentenmatrix des Ausgangsstands
 
@@ -185,7 +199,7 @@ Schnittstelle `frontend/src/shared/trade-workspace-navigation`. Das gemeinsame M
 ausschließlich Darstellung und reine URL-Verträge; es importiert keine internen Features.
 Die vorhandenen URL-Schlüssel, Berichtsauswahlfilter und Navigationsfunktionen werden genau
 einmal ausgegliedert. Die bisherigen Ownerimporte bleiben über kompatible Exporte gültig.
-`sourceQueryError`, `verifyClosedReport`, `verifyClosedStatistics`, API-Reader und Finanzlogik
+`sourceQueryError`, `verifyClosedReport`, `verifyClosedStatistics`, `verifyRealizedReport`, API-Reader und Finanzlogik
 verbleiben bei ihren Fachownern. Die Ausgliederung ändert keine Filter- oder Quellenprüfung.
 Damit wird die bereits in `FRONTEND_ARCHITECTURE.md` festgelegte Featuregrenze eingehalten;
 der während der Prüfung erschienene Koordinations-Draft #313 hat diesen Integrationspunkt
@@ -199,13 +213,37 @@ ein Hashwechsel keine Quellen neu lädt. Historische Pinwechsel bleiben neue Les
 Der vorhandene Routenexport keyed die aktuelle Produktbewertung nun nach Trade-ID und hängt
 sie nicht mehr an die historische Quellenansicht an. Die doppelte Positionsabfrage innerhalb
 der aktiven Tradeverwaltung bleibt eine ausdrücklich noch offene UX2-B-Aufgabe.
-Der genaue Planlink öffnet die belegte Planversion im neuen Tab, damit der vorhandene
-Arbeitskontext erreichbar bleibt. Es wird kein Produkt-Run und keine Analyseversion erraten.
+Der genaue Planlink öffnet die belegte Planversion im selben Tab. Die Plan-URL führt Trade,
+Quellenpins und Berichtskontext mit; der neue Rücklink öffnet die ursprünglichen Tradequellen
+auch nach Kopieren oder Reload. Der vorhandene Plan-Guard schützt Entwürfe und laufende Writes.
+Es wird kein Produkt-Run und keine Analyseversion erraten.
 
 Lessonlinks und kopierbare Lessonversionslinks führen den Rückkontext mit. Beim bewussten
-Tradewechsel in Post-Trade werden beide alten Review-/Journal-Pins entfernt; ein Reload
-desselben Trades erhält sie. Die optionale `lessonHref`-/`versionHref`-Anbindung ändert nur
+Tradewechsel in Tradeverwaltung und Post-Trade werden beide alten Review-/Journal-Pins entfernt;
+die ursprüngliche Berichtsauswahl bleibt erhalten. Ein erneutes Laden desselben Trades erhält
+seine Pins und offenen Eingaben. Die optionale `lessonHref`-/`versionHref`-Anbindung ändert nur
 Links, keine Felder, Quellenbindung, Reviewentscheidung oder Speicheraktion.
+
+### Ergänzung des Implementierungsauftrags UX2-A
+
+- `tradeLookupQuery` ist der einzige reine URL-Vertrag für eine bewusst neu eingegebene Trade-ID.
+  Er erhält den Berichtskontext einschließlich ungültiger Duplikate und entfernt alte Tradepins.
+  Same-Trade-Reload und bestehende Dirty-/Busy-/Generation-Guards bleiben unverändert.
+- `tradePlanLink` und `planTradeReturnLink` ergänzen den gebundenen Plan-Rundweg. Eine explizit
+  fehlende historische Planversion wird weiterhin nicht durch die neueste Version ersetzt.
+- `realizedReportNavigation` enthält einmalig die bereits vorhandenen reinen SELL-URL-Verträge;
+  `performanceReportContext` exportiert sie kompatibel. `reportReturnLink` unterscheidet die
+  ursprüngliche Abschlussauswahl und Verkaufsauswahl. SELL-Seiten bis 1000 und das bestehende
+  Abschlusslimit von 100 bleiben getrennt; beide Parser behalten ihre bisherige Validierung.
+- Links aus `RealizedGrossReportView` übernehmen Filter und Basis der tatsächlich dargestellten
+  Antwort sowie sichtbare Ansicht und Seite. Der Link führt zum bestehenden Buchungsbereich.
+  Die Quellenansicht löst mit SELL-Herkunft keine Abschlussberichtsabfrage aus und deutet
+  einzelne Verkäufe nicht als wirtschaftliches Gesamtergebnis des Trades um.
+- Ein mitgeführter `review_version_id` ist beim aktuellen Post-Trade-Editor ausdrücklich als
+  historischer Quellenverweis erkennbar. Der direkte Link fokussiert die exakte historische
+  Reviewquelle. Der bestehende Editor bearbeitet weiterhin seinen aktuellen Reviewstand.
+
+Diese Ergänzung ändert weder Formulare noch fachliche Speicher-, Freigabe- oder Rechenregeln.
 
 ### Konkreter Nutzen gegenüber dem Ausgangsstand
 
@@ -213,9 +251,11 @@ Links, keine Felder, Quellenbindung, Reviewentscheidung oder Speicheraktion.
 | --- | --- |
 | Überblick → Kurs → Buchungen → Risiko | Vier direkt fokussierbare Ziele im selben Trade; kein zusätzlicher API-Read, beide offenen Verkaufs-/Korrekturentwürfe bleiben erhalten |
 | Trade → Quellen | Kein zwingender neuer Browser-Tab mehr; normaler Router-Link mit bestehendem Eingabenschutz |
-| Quellen → Trade → Quellen | Trade, Review-/Journal-Pins und Abschlussberichtskontext bleiben erhalten; vorher gingen Pins und Berichtsrückweg beim ersten Rücksprung verloren |
+| Quellen → Trade → Quellen | Trade, Review-/Journal-Pins und typgerechter Berichtskontext bleiben erhalten; vorher gingen Pins und Berichtsrückweg beim ersten Rücksprung verloren |
 | Post-Trade/Quellen → historische Lesson → zurück | Eine erneute Tradeauswahl entfällt; Lessonversion sowie ursprünglicher Quellen-/Journalbereich bleiben adressierbar, auch nach Reload |
-| Quellen → gebundene Planversion | Direkter Link mit exakter Plan-/Versions-ID; keine manuelle Übertragung technischer IDs und kein Umweg über die Planliste nötig |
+| Quellen → gebundene Planversion → Quellen | Exakte Plan-/Versions-ID im selben Tab; Rückweg aus der URL statt Planliste, Browserhistorie oder erneuter Tradeauswahl |
+| Verkaufsauswahl → Buchungen → Quellen → Verkaufsauswahl | Ursprüngliche Filter, Ansicht und Seite bleiben erreichbar; keine erneute Filtereingabe und kein Wechsel zum fachlich anderen Abschlussbericht |
+| Manueller Wechsel von Trade A zu B | Berichtsrückweg bleibt erhalten; die historischen Pins von A werden nicht auf B angewandt |
 | Historische Quellen lesen | Die dort bisher zusätzlich angehängte aktuelle Produktbewertung und ihre Reads entfallen |
 
 Bereits vorhandene Chart-, Buchungs-, Journal- und Performancekonsolidierungen werden nicht
@@ -281,8 +321,9 @@ ein Reload verspricht keine dauerhafte Wiederherstellung ungespeicherter Texte.
 
 UX-1 wurde nach Veröffentlichung von #312 am tatsächlichen Head
 `8f67442daac6879d7dfb28416f2171f67aead0e5` geprüft. Die gemeinsame Ausgangsbasis ist exakt
-`1883f7f330719453958f8be1dd51d48db816662e`. Nur `TradeManagementPage.tsx` wird von beiden
-Features verändert; die geänderten Zeilen überschneiden sich nicht. Ein rein rechnerischer
+`1883f7f330719453958f8be1dd51d48db816662e`. Die Fortsetzung berührt vier gemeinsame Dateien:
+`TradeManagementPage.tsx`, `performanceReportContext.ts`, `RealizedGrossPage.test.tsx` und
+`PerformanceWorkspace.test.tsx`. Ein rein rechnerischer
 Dreiwegevergleich verändert weder Branch-Referenzen noch Main und ersetzt keine gemeinsame CI.
 
 UX-1 ersetzt dort die Währungseingabe durch `ExecutionCurrencyPreview` und bindet den bestehenden
@@ -292,6 +333,18 @@ zu übernehmen. Der UX-1-Readkey enthält keinen URL-Hash; Navigationswechsel d�
 zusätzliche Währungsvorschau oder Formularänderung auslösen. Die gemeinsame lokale Qualifikation
 und ihre genauen Heads werden im PR nachgehalten. Eine gemeinsame reale PostgreSQL-/GitHub-
 Qualifikation bleibt vor späterer Integration auf dem dann aktuellen Main erforderlich.
+
+Im Performance-Service extrahiert UX1 `reportTimezoneError` und nutzt diesen Helper sowohl
+für Filterprüfung als auch Browserzeitzonenvorschlag. Beim späteren Kombinieren bleibt der reine
+URL-/Filtervertrag genau einmal in `shared`; die Browserableitung in `initialPerformanceFilters`
+bleibt im Feature. Der Helper darf keine zweite Parserkopie oder einen Shared-Import aus dem
+Feature erzeugen. Die zwei gemeinsamen Testdateien müssen sowohl UX1-Zeitzonenfälle als auch
+UX2-Rücklinkassertionen behalten.
+
+`RealizedGrossSources.tsx` ist der geplante UX3-Pilot aus #314/#315. Der UX2-Diff ergänzt dort
+nur den typisierten Berichtskontext und den bestehenden Buchungslink; Hinweisstruktur und
+Statussemantik bleiben beim UX3-Vertrag. UX4s bestehende Kurskomponenten und Markerlogik
+werden in dieser Fortsetzung nicht verändert.
 
 UX2-A beschränkt gemeinsame Dateien auf Navigation, Bereichsanker und Darstellung. Besonders
 `TradeManagementPage.tsx` ist als gemeinsame Integrationsstelle zu behandeln: Navigation und
@@ -317,9 +370,10 @@ den anderen übernommen. Die gemeinsame Regression erfolgt später auf dem dann 
 | Navigation per Tastatur und schmalem Viewport | Sichtbarer Fokus, erreichbare Links, kein Layoutüberlauf; bestehende Buchungstabs weiterhin bedienbar | Fokussierter neuer Playwright-Nutzerweg sowie bestehende mobile UI-Tests |
 | Buchungs-/Finanzregression | Bestehende Mengen-, Storno-, Average-Cost-, Währungs- und Berichtsregeln bleiben erfolgreich | Backend-Suiten für Trade/Position, historische Währung und Performance; bestehende E2E-Nutzerwege |
 
-## Verifikationsstand
+## Bereits vorliegende Verifikation bis zum Fortsetzungsstand
 
-Lokal erfolgreich am 31.10.2026:
+Die folgende vorhandene Dokumentation bezieht sich auf den Stand bis `9c9c949c`,
+nicht automatisch auf die nachfolgenden Änderungen. Damals lokal erfolgreich am 31.10.2026:
 
 - Node **22.16.0** entsprechend `frontend/.nvmrc`: TypeScript, ESLint (0 Warnungen), Prettier
   und Produktionsbuild erfolgreich. Vite meldet weiterhin den bestehenden großen Hauptchunk;
@@ -341,6 +395,31 @@ Lokal erfolgreich am 31.10.2026:
   TypeScript/ESLint/Prettier/Build sowie **13 Chromium-Fälle** (acht Navigation, fünf Handoff).
   Ein unabhängiger strukturierter Vergleich bestätigt **35 unveränderte Deklarationen**,
   einschließlich Finanz-/Quellenvalidatoren, URL-Parsern und Navigationskomponente.
+
+### Erneute Qualifikation der UX2-A-Fortsetzung
+
+Auf dem vollständigen fortgesetzten Arbeitsstand am 31.10.2026 erneut ausgeführt:
+
+- Node **22.16.0**: TypeScript, ESLint mit null Warnungen, Prettier und Produktionsbuild erfolgreich.
+  Die bestehende Vite-Hauptchunkwarnung bleibt sichtbar; keine Änderung an der Chunkgrenze.
+- **1.913 Tests in 161 Dateien**, unverändertes vollständiges Frontend-Coverage-Gate bestanden:
+  Statements/Lines **95,85 %**, Branches **90,27 %**, Functions **91,11 %**.
+- **10 Chromium-Navigationsfälle** gemeinsam erfolgreich, einschließlich der acht bisherigen
+  Fälle und zwei neuer Rundwege bei 1280/390 px. Die historische Planversion bleibt trotz
+  neuerem Entwurf nach kopiertem Direktlink und Reload exakt ausgewählt. Verkaufsbericht,
+  konkrete Buchungsquelle und ursprüngliche Auswahl bleiben im selben Kontext.
+- Ergänzte Komponentenregressionen belegen Same-Trade-Reload, bewussten Tradewechsel mit
+  Berichtserhalt, Entfernen fremder Pins, Plan-Dirty-/Busy-Schutz und ausgeblendete verspätete
+  Abschlussantworten nach Wechsel zum Verkaufskontext. Ungültige Duplikate bleiben ungültig.
+- Unabhängiges Delta-Review: keine neue Produktabweichung gefunden. Der strukturierte Vergleich
+  bestätigt 17 unveränderte bestehende Deklarationen: 14 reine URL-/Filterdeklarationen wurden
+  verschoben, Finanzdefinition, Browserfilterinitialisierung und Finanzvalidator blieben im Feature.
+
+Die Browserregressionen verwenden abgefangene synthetische Reads und blockieren Writes.
+Die aktuelle unveränderte GitHub-CI einschließlich PostgreSQL-Owner-Jobs wird für den
+tatsächlich veröffentlichten Fortsetzungs-Head im Draft-PR nachgehalten. Die älteren grünen
+Läufe oben sind kein Ersatz für diese Prüfung. Backendtests wurden lokal in dieser Fortsetzung
+nicht erneut ausgeführt; Backend- und fachliche Schreibimplementierungen sind unverändert.
 
 Die vorinstallierte Node-24-Laufzeit verursachte `AbortSignal`-Fehler auch auf einem separat
 geprüften, unveränderten Main. Die Tests wurden mit der festgeschriebenen Node-22-Laufzeit

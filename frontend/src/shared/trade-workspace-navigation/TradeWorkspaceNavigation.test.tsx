@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { PendingNavigationGuard } from '../../components/PendingNavigationGuard';
 import { parseClosedContext } from './closedReportNavigation';
+import { parseRealizedContext } from './realizedReportNavigation';
 import type { TradeWorkspaceView } from './links';
 import { TradeWorkspaceNavigation } from './TradeWorkspaceNavigation';
 
@@ -186,6 +187,47 @@ describe('Trade workspace navigation', () => {
       'href',
       '/workspace',
     );
+  });
+
+  it('keeps the distinct sale-report selection and page above the closed-report limit', () => {
+    const realizedSearch = search
+      .replace('closed-trades', 'realized-gross')
+      .replace('report_view=qualified', 'report_view=usable')
+      .replace('report_page=3', 'report_page=101');
+    mount(`/trade-management?${realizedSearch}`);
+    const context = parseRealizedContext(new URLSearchParams(realizedSearch)).context;
+    expect(context?.page).toBe(100);
+    for (const name of ['Plan und Quellen', 'Journal und Lessons']) {
+      const target = new URL(
+        screen.getByRole('link', { name }).getAttribute('href')!,
+        'http://workspace.test',
+      );
+      expect(parseRealizedContext(target.searchParams).context).toEqual(context);
+      expect(target.searchParams.get('review_version_id')).toBe(reviewId);
+      expect(target.searchParams.get('journal_version_id')).toBe(journalId);
+    }
+    const target = new URL(
+      screen
+        .getByRole('link', { name: 'Zur ursprünglichen Verkaufsauswahl' })
+        .getAttribute('href')!,
+      'http://workspace.test',
+    );
+    expect(target.pathname).toBe('/performance/realized-gross');
+    expect(parseRealizedContext(target.searchParams).context).toEqual(context);
+    expect(screen.queryByRole('link', { name: 'Zur ursprünglichen Abschlussauswahl' })).toBeNull();
+  });
+
+  it('does not choose a report owner when mixed report contexts are supplied', () => {
+    mount(`${route()}&report_context=realized-gross`);
+    expect(screen.queryByRole('link', { name: /Zur ursprünglichen/ })).toBeNull();
+    const target = new URL(
+      screen.getByRole('link', { name: 'Journal und Lessons' }).getAttribute('href')!,
+      'http://workspace.test',
+    );
+    expect(target.searchParams.getAll('report_context')).toEqual([
+      'closed-trades',
+      'realized-gross',
+    ]);
   });
 
   it('drops arbitrary destinations and monetary values from same-owner as well as cross-owner links', () => {

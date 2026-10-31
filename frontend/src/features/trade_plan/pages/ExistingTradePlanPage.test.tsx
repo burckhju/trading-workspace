@@ -252,6 +252,55 @@ function renderVersion() {
   );
 }
 
+const returnTradeId = '10000000-0000-4000-8000-000000000001';
+const returnReviewId = '20000000-0000-4000-8000-000000000001';
+const returnJournalId = '30000000-0000-4000-8000-000000000001';
+const tradeSourceContext = new URLSearchParams({
+  trade_id: returnTradeId,
+  trade_return_view: 'sources',
+  review_version_id: returnReviewId,
+  journal_version_id: returnJournalId,
+  report_context: 'closed-trades',
+  from_date: '2026-10-01',
+  to_date: '2026-10-31',
+  report_currency: 'EUR',
+  report_timezone: 'Europe/Vienna',
+  report_view: 'qualified',
+  report_page: '3',
+  report_basis: 'a'.repeat(64),
+}).toString();
+const tradePlanEntry = `/trade-plans?trade_plan_id=plan-1&trade_plan_version_id=version-1&${tradeSourceContext}`;
+
+function createPlanReturnRouter(entry = tradePlanEntry) {
+  return createMemoryRouter(
+    [
+      { path: '/trade-plans', element: <ExistingTradePlanPage tradePlanId="plan-1" /> },
+      { path: '/trade-management', element: <p>Ursprüngliche Tradequellen</p> },
+    ],
+    { initialEntries: [entry] },
+  );
+}
+
+function expectTradeSourceDestination(href: string) {
+  const destination = new URL(href, 'http://localhost');
+  expect(destination.pathname).toBe('/trade-management');
+  expect(destination.hash).toBe('#trade-plan-sources');
+  expect(Object.fromEntries(destination.searchParams)).toEqual({
+    trade_id: returnTradeId,
+    view: 'sources',
+    review_version_id: returnReviewId,
+    journal_version_id: returnJournalId,
+    report_context: 'closed-trades',
+    from_date: '2026-10-01',
+    to_date: '2026-10-31',
+    report_currency: 'EUR',
+    report_timezone: 'Europe/Vienna',
+    report_view: 'qualified',
+    report_page: '3',
+    report_basis: 'a'.repeat(64),
+  });
+}
+
 describe('ExistingTradePlanPage version binding and amendments', () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -274,6 +323,107 @@ describe('ExistingTradePlanPage version binding and amendments', () => {
     expect(screen.getByText('Schlusskurs über dem Wochenhoch')).toBeInTheDocument();
     expect(screen.getByText('Dritter Widerstand')).toBeInTheDocument();
     expect(amend).not.toHaveBeenCalled();
+    expect(approve).not.toHaveBeenCalled();
+  });
+
+  it('reopens the copied historical plan URL with its exact trade, source pins and report return', async () => {
+    const base = richVersion('TRIGGER');
+    usePlanData(base, nextVersion(base));
+    const router = createPlanReturnRouter();
+    const first = render(<RouterProvider router={router} />);
+    expect(
+      await screen.findByRole('heading', { name: 'Version 1 · APPROVED' }),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Neueste Version: 2 · DRAFT')).toBeInTheDocument();
+    const returnLink = screen.getByRole('link', { name: 'Zurück zu den Tradequellen' });
+    expectTradeSourceDestination(returnLink.getAttribute('href')!);
+    expect(returnLink).not.toHaveAttribute('target');
+    const copiedUrl = `${router.state.location.pathname}${router.state.location.search}`;
+    first.unmount();
+
+    const reloaded = createPlanReturnRouter(copiedUrl);
+    render(<RouterProvider router={reloaded} />);
+    expect(
+      await screen.findByRole('heading', { name: 'Version 1 · APPROVED' }),
+    ).toBeInTheDocument();
+    expect(getVersion.mock.calls.every(([, id]) => id === 'version-1')).toBe(true);
+    fireEvent.click(screen.getByRole('link', { name: 'Zurück zu den Tradequellen' }));
+    await screen.findByText('Ursprüngliche Tradequellen');
+    expectTradeSourceDestination(
+      `${reloaded.state.location.pathname}${reloaded.state.location.search}${reloaded.state.location.hash}`,
+    );
+    expect(amend).not.toHaveBeenCalled();
+    expect(approve).not.toHaveBeenCalled();
+  });
+
+  it('keeps the source return available when the pinned plan version cannot be read', async () => {
+    usePlanData(richVersion('PRICE'));
+    getVersion.mockRejectedValue(new Error('Historische Planversion nicht verfügbar'));
+    const router = createPlanReturnRouter();
+    render(<RouterProvider router={router} />);
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Historische Planversion nicht verfügbar',
+    );
+    expect(screen.queryByRole('heading', { name: 'Version 1 · APPROVED' })).not.toBeInTheDocument();
+    const returnLink = screen.getByRole('link', { name: 'Zurück zu den Tradequellen' });
+    expectTradeSourceDestination(returnLink.getAttribute('href')!);
+    fireEvent.click(returnLink);
+    await screen.findByText('Ursprüngliche Tradequellen');
+    expect(amend).not.toHaveBeenCalled();
+    expect(approve).not.toHaveBeenCalled();
+  });
+
+  it('uses the existing discard guard for a dirty plan returning to its exact trade sources', async () => {
+    usePlanData(richVersion('TRIGGER'));
+    const router = createPlanReturnRouter();
+    render(<RouterProvider router={router} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Neue Planversion erstellen' }));
+    fireEvent.change(screen.getByLabelText('Trade Thesis'), { target: { value: 'Ungespeichert' } });
+    fireEvent.change(screen.getByLabelText('Änderungsgrund'), {
+      target: { value: 'Eigener Grund' },
+    });
+    fireEvent.click(screen.getByRole('link', { name: 'Zurück zu den Tradequellen' }));
+    expect(await screen.findByRole('alertdialog')).toHaveTextContent('Ungespeicherte Änderungen');
+    expect(screen.getAllByRole('alertdialog')).toHaveLength(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Hier bleiben' }));
+    expect(screen.getByLabelText('Trade Thesis')).toHaveValue('Ungespeichert');
+    expect(screen.getByLabelText('Änderungsgrund')).toHaveValue('Eigener Grund');
+    expect(router.state.location.pathname).toBe('/trade-plans');
+    expect(router.state.location.search).toBe(new URL(tradePlanEntry, 'http://localhost').search);
+    fireEvent.click(screen.getByRole('link', { name: 'Zurück zu den Tradequellen' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Eingaben verwerfen und wechseln' }));
+    await screen.findByText('Ursprüngliche Tradequellen');
+    expectTradeSourceDestination(
+      `${router.state.location.pathname}${router.state.location.search}${router.state.location.hash}`,
+    );
+    expect(amend).not.toHaveBeenCalled();
+    expect(approve).not.toHaveBeenCalled();
+  });
+
+  it('cannot discard or leave through the trade return while a plan write is pending', async () => {
+    usePlanData(richVersion('TRIGGER'));
+    const pending = deferred<TradePlanVersionResponse>();
+    amend.mockReturnValue(pending.promise);
+    const router = createPlanReturnRouter();
+    render(<RouterProvider router={router} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Neue Planversion erstellen' }));
+    fireEvent.change(screen.getByLabelText('Änderungsgrund'), {
+      target: { value: 'Eigener Grund' },
+    });
+    fireEvent.submit(screen.getByRole('form', { name: 'Planversion ändern' }));
+    fireEvent.click(screen.getByRole('link', { name: 'Zurück zu den Tradequellen' }));
+    expect(await screen.findByRole('alertdialog')).toHaveTextContent('Speicherung läuft');
+    expect(
+      screen.queryByRole('button', { name: 'Eingaben verwerfen und wechseln' }),
+    ).not.toBeInTheDocument();
+    expect(router.state.location.pathname).toBe('/trade-plans');
+    fireEvent.click(screen.getByRole('button', { name: 'Hier bleiben' }));
+    await act(async () => {
+      pending.reject(new Error('Abschluss unbekannt'));
+      await pending.promise.catch(() => undefined);
+    });
+    expect(screen.getByLabelText('Änderungsgrund')).toHaveValue('Eigener Grund');
+    expect(amend).toHaveBeenCalledTimes(1);
     expect(approve).not.toHaveBeenCalled();
   });
 

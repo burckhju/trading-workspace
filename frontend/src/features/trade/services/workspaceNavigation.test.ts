@@ -4,7 +4,10 @@ import {
   closedContextQuery,
   lessonTradeReturnLink,
   parseClosedContext,
+  planTradeReturnLink,
   tradeLessonLink,
+  tradeLookupQuery,
+  tradePlanLink,
   tradeWorkspaceLink,
   type ClosedReportContext,
   type TradeWorkspaceView,
@@ -37,6 +40,33 @@ function historicalContext() {
 }
 
 describe('trade workspace navigation context', () => {
+  it('keeps only the report origin when deliberately looking up a different trade', () => {
+    const query = historicalContext();
+    query.set('view', 'sources');
+    query.set('trade_plan_version_id', 'old-plan-version');
+    query.set('lesson_version_id', lessonVersionId);
+    query.set('trade_return_view', 'sources');
+    query.set('returnTo', 'https://elsewhere.invalid');
+    query.append('report_page', '7');
+    const original = query.toString();
+    const destination = tradeLookupQuery('another-trade', query);
+    expect(destination.getAll('trade_id')).toEqual(['another-trade']);
+    for (const key of [
+      'review_version_id',
+      'journal_version_id',
+      'view',
+      'trade_plan_version_id',
+      'lesson_version_id',
+      'trade_return_view',
+      'returnTo',
+    ])
+      expect(destination.has(key)).toBe(false);
+    expect(destination.getAll('report_page')).toEqual(['3', '7']);
+    expect(destination.get('report_timezone')).toBe('Europe/Vienna');
+    expect(parseClosedContext(destination).error).not.toBeNull();
+    expect(query.toString()).toBe(original);
+  });
+
   it('retains the selected trade, historical versions and original report through every owner', () => {
     let query = historicalContext();
     const destinations: [TradeWorkspaceView, string, string][] = [
@@ -130,6 +160,57 @@ describe('trade workspace navigation context', () => {
     expect([...url.searchParams.entries()]).toEqual([['trade_id', tradeId]]);
     expect(url.hash).toBe('');
     expect(parseClosedContext(url.searchParams)).toEqual({ context: null, error: null });
+  });
+});
+
+describe('bound plan context and return navigation', () => {
+  it('opens the exact bound version and returns to the source pins and report after URL reload', () => {
+    const query = historicalContext();
+    query.set('trade_plan_id', 'unrelated-plan');
+    query.set('trade_plan_version_id', 'unrelated-version');
+    query.set('returnTo', 'https://elsewhere.invalid');
+    query.set('amount', '999');
+    const plan = localUrl(tradePlanLink('bound-plan', 'bound-version', tradeId, query));
+    expect(plan.pathname).toBe('/trade-plans');
+    expect(plan.searchParams.getAll('trade_plan_id')).toEqual(['bound-plan']);
+    expect(plan.searchParams.getAll('trade_plan_version_id')).toEqual(['bound-version']);
+    expect(plan.searchParams.get('trade_return_view')).toBe('sources');
+    expect(plan.searchParams.has('returnTo')).toBe(false);
+    expect(plan.searchParams.has('amount')).toBe(false);
+    const returned = localUrl(planTradeReturnLink(new URLSearchParams(plan.search))!);
+    expect(returned.pathname).toBe('/trade-management');
+    expect(returned.hash).toBe('#trade-plan-sources');
+    expect(returned.searchParams.get('view')).toBe('sources');
+    expect(returned.searchParams.get('trade_id')).toBe(tradeId);
+    expect(returned.searchParams.get('review_version_id')).toBe(reviewId);
+    expect(returned.searchParams.get('journal_version_id')).toBe(journalId);
+    expect(parseClosedContext(returned.searchParams).context).toEqual(report);
+    expect(returned.searchParams.has('trade_plan_id')).toBe(false);
+    expect(returned.searchParams.has('trade_plan_version_id')).toBe(false);
+    expect(returned.searchParams.has('trade_return_view')).toBe(false);
+  });
+
+  it.each([
+    '',
+    `trade_id=${tradeId}`,
+    'trade_return_view=sources',
+    'trade_id=&trade_return_view=sources',
+    'trade_id=%20%20&trade_return_view=sources',
+    `trade_id=${tradeId}&trade_return_view=journal`,
+    `trade_id=${tradeId}&trade_return_view=https%3A%2F%2Felsewhere.invalid`,
+    `trade_id=${tradeId}&trade_id=${tradeId}&trade_return_view=sources`,
+    `trade_id=${tradeId}&trade_return_view=sources&trade_return_view=journal`,
+  ])('does not invent a plan return for missing or ambiguous context: %s', (search) => {
+    expect(planTradeReturnLink(new URLSearchParams(search))).toBeNull();
+  });
+
+  it('keeps ambiguous source pins invalid on the return from a plan', () => {
+    const query = historicalContext();
+    query.append('review_version_id', journalId);
+    const plan = localUrl(tradePlanLink('bound-plan', 'bound-version', tradeId, query));
+    const returned = localUrl(planTradeReturnLink(plan.searchParams)!);
+    expect(returned.searchParams.getAll('review_version_id')).toEqual([reviewId, journalId]);
+    expect(sourceQueryError(returned.searchParams)).not.toBeNull();
   });
 });
 

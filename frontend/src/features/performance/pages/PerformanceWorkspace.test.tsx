@@ -586,9 +586,22 @@ it('supports SELL page 101, sources and row filters locally, then transparently 
   expect(screen.getByRole('article', { name: 'Verkauf sell-2000' })).toBeVisible();
   fireEvent.click(screen.getByRole('button', { name: 'Quellen und Berechnung' }));
   expect(screen.getByRole('region', { name: 'Herkunft SELL sell-2000' })).toBeVisible();
-  expect(
-    screen.getByRole('link', { name: 'Buchungen und Währungsbestätigungen im Trade prüfen' }),
-  ).toHaveAttribute('href', '/trade-management?trade_id=trade-1#execution-dates');
+  const bookingLink = new URL(
+    screen
+      .getByRole('link', { name: 'Buchungen und Währungsbestätigungen im Trade prüfen' })
+      .getAttribute('href')!,
+    'https://workspace.test',
+  );
+  expect(bookingLink.pathname).toBe('/trade-management');
+  expect(bookingLink.hash).toBe('#execution-dates');
+  expect(Object.fromEntries(bookingLink.searchParams)).toEqual({
+    report_context: 'realized-gross',
+    ...reportFilters,
+    report_view: 'all',
+    report_page: '101',
+    report_basis: sellBasis,
+    trade_id: 'trade-1',
+  });
   fireEvent.click(screen.getByRole('button', { name: 'Vorherige Seite' }));
   expect(screen.getByText(/Seite 100 von 101/)).toBeVisible();
   fireEvent.click(screen.getByRole('button', { name: 'Nächste Seite' }));

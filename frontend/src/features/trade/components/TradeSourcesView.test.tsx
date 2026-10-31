@@ -455,16 +455,22 @@ describe('read-only trade sources', () => {
             },
           })
         : undefined;
-    mount();
+    mount(`trade_id=${A}&view=sources&review_version_id=${R1}&journal_version_id=${J1}`);
     await screen.findByText('These: P1 original');
     expect(screen.getByText(/Ursprünglich referenzierte Planversion 1/)).toBeVisible();
     expect(screen.getByText(/Gespeicherte Freigabe/)).toBeVisible();
-    expect(
-      screen.getByRole('link', { name: 'Gebundene Planversion öffnen (neuer Tab)' }),
-    ).toHaveAttribute('href', '/trade-plans?trade_plan_id=plan&trade_plan_version_id=P1');
-    expect(
-      screen.getByRole('link', { name: 'Gebundene Planversion öffnen (neuer Tab)' }),
-    ).toHaveAttribute('target', '_blank');
+    const planLink = screen.getByRole('link', { name: 'Gebundene Planversion öffnen' });
+    const destination = new URL(planLink.getAttribute('href')!, 'http://localhost');
+    expect(destination.pathname).toBe('/trade-plans');
+    expect(Object.fromEntries(destination.searchParams)).toEqual({
+      trade_plan_id: 'plan',
+      trade_plan_version_id: 'P1',
+      trade_id: A,
+      trade_return_view: 'sources',
+      review_version_id: R1,
+      journal_version_id: J1,
+    });
+    expect(planLink).not.toHaveAttribute('target');
     expect(screen.getByText(/Daraus folgt kein automatischer Regelverstoß/)).toBeVisible();
     expect(fetchMock.mock.calls.every(([url]) => !requestUrl(url).includes('/trade-plans/'))).toBe(
       true,
