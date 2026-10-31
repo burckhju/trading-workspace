@@ -287,3 +287,44 @@ and [its qualification record](implementation/EXECUTION_CURRENCY_REUSE_QUALIFICA
 Report definition `realized-gross-sell-v2` exposes the changed currency rule;
 calculation, periods and read consistency are unchanged. There is no new migration
 above `20261017_0047`, no backfill and no report-generated confirmation.
+
+## Show existing currency evidence before capture — UX1-A, 2026-10-31
+
+Initial-purchase, additional-purchase and sale forms now read the existing owner's
+currency resolution for the exact entered execution date/time before saving. A
+known currency is shown with its existing source label; the source reference,
+recording time, validity interval and technical evidence remain expandable under
+**Verwendete Währungsherkunft**. No currency code is copied into the manual
+confirmation draft. An explicitly entered exception keeps precedence, including
+when an asynchronous answer arrives after the user starts typing.
+
+Two side-effect-free endpoints return the existing `ExecutionCurrencyResolutionResponse`:
+
+```text
+GET /api/v1/trade-position/products/{product_id}/execution-currency-preview
+GET /api/v1/trade-position/trades/{trade_id}/execution-currency-preview
+```
+
+Both require `side` and either `executed_at` with an offset or the pair
+`executed_on` / `execution_timezone`. The product endpoint accepts only `BUY`.
+No price, quantity, request identity or currency declaration is accepted by these
+reads. The existing read-only Repeatable-Read boundary, workspace ownership,
+complete bounded facts and unchanged historical resolver are reused. Product
+preview cannot borrow another trade's execution documents. Current quotation
+currency, market price, reporting EUR and plan assumptions remain inadmissible
+as historical execution evidence.
+
+Unknown or conflicting results explain the missing source beside the currency
+input. A failed preview offers a read-only retry and retains the manual draft.
+Date/product/trade changes invalidate earlier answers; successful source readback
+also refreshes the preview without resetting quantity, price or manual currency.
+The normal capture independently resolves the committed source state again.
+The preview is a read snapshot, not a frozen promise or a currency confirmation.
+
+The initial BUY can therefore omit a redundant currency entry when an already
+reviewed historical source covers its actual execution interval. Reuse from
+previously confirmed BUYs for additional purchases and sales was already present;
+UX1-A makes the concrete result visible before capture. Quantity, actual price,
+date/time precision, explicit save, correction and cancellation contracts remain
+unchanged. No migration, backfill, provider activation or automatic booking is
+introduced. [Field inventory and qualification](implementation/UX1_INPUT_REUSE_QUALIFICATION.md).

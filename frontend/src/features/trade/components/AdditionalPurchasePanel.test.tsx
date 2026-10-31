@@ -7,10 +7,16 @@ import { AdditionalPurchasePanel } from './AdditionalPurchasePanel';
 import { TradePendingChangesProvider, useTradePendingChanges } from './TradePendingChanges';
 
 vi.mock('../services/client', () => ({
-  tradeManagementApiClient: { purchaseAdditional: vi.fn() },
+  tradeManagementApiClient: { purchaseAdditional: vi.fn(), executionCurrencyPreview: vi.fn() },
 }));
 beforeEach(() => {
   vi.resetAllMocks();
+  vi.mocked(tradeManagementApiClient.executionCurrencyPreview).mockResolvedValue({
+    currency_code: 'EUR',
+    source: 'PRIOR_BUYS',
+    source_execution_ids: ['synthetic-buy'],
+    confirmation_ids: ['synthetic-confirmation'],
+  });
   sessionStorage.clear();
 });
 
@@ -33,6 +39,10 @@ it('defaults to today, preserves backdated inputs and reuses key after failed re
     <AdditionalPurchasePanel tradeId="existing" onChanged={vi.fn().mockResolvedValue(undefined)} />,
   );
   expect(screen.getByLabelText('Nachkaufdatum')).toHaveValue(localToday());
+  expect(
+    await screen.findByText('Vorhandene Währung: EUR · aus vorherigen Käufen übernommen'),
+  ).toBeVisible();
+  expect(tradeManagementApiClient.purchaseAdditional).not.toHaveBeenCalled();
   expect(screen.queryByLabelText('Ausführungswährung (Code)')).not.toBeInTheDocument();
   expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
   fireEvent.change(screen.getByLabelText('Nachkaufdatum'), { target: { value: '2026-08-18' } });

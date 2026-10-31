@@ -22,7 +22,7 @@ import {
   useTradePendingChanges,
 } from '../components/TradePendingChanges';
 import { ExecutionDateInput } from '../components/ExecutionDateInput';
-import { ExecutionCurrencyOverride } from '../components/ExecutionCurrencyOverride';
+import { ExecutionCurrencyPreview } from '../components/ExecutionCurrencyPreview';
 import {
   emptyExecutionCurrency,
   executionCurrencyDeclaration,
@@ -234,8 +234,9 @@ function TradeManagementContext({ tradeId }: { tradeId: string }) {
         if (!basis || thesisRef.current === (basis.thesis ?? ''))
           setThesis(nextManagement.thesis ?? '');
         managementBasis.current = nextManagement;
-        // Only the history view is invalidated by a successful readback. The
-        // booking editor owns its concurrent timeline read and recovery state.
+        // History and unsaved currency previews share the successful readback
+        // revision, including reviewed source changes. The booking editor owns
+        // its concurrent timeline read and recovery state.
         if (basis) setHistoryReloadToken((token) => token + 1);
       } catch (error) {
         if (active.current) {
@@ -657,6 +658,7 @@ function TradeManagementContext({ tradeId }: { tradeId: string }) {
               <AdditionalPurchasePanel
                 key={trade.id}
                 tradeId={tradeId}
+                reloadToken={historyReloadToken}
                 isWriteBlocked={isBookingWriteBlocked}
                 onChanged={() => refresh(tradeId)}
               />
@@ -731,7 +733,11 @@ function TradeManagementContext({ tradeId }: { tradeId: string }) {
                   />
                 </div>
 
-                <ExecutionCurrencyOverride
+                <ExecutionCurrencyPreview
+                  reloadToken={historyReloadToken}
+                  context={{ tradeId, side: 'SELL' }}
+                  date={saleDate}
+                  time={saleTime}
                   value={saleCurrency}
                   onChange={setSaleCurrency}
                   disabled={busy}

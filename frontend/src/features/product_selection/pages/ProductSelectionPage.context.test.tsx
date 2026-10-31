@@ -74,6 +74,13 @@ function deferred<T>() {
 }
 
 beforeEach(() => {
+  vi.spyOn(tradeManagementApiClient, 'executionCurrencyPreview').mockResolvedValue({
+    currency_code: null,
+    source: 'UNKNOWN',
+    source_execution_ids: [],
+    confirmation_ids: [],
+    reason: 'NO_HISTORICAL_EVIDENCE',
+  });
   vi.spyOn(tradePlanApiClient, 'get').mockResolvedValue(plan);
   vi.spyOn(tradePlanApiClient, 'version').mockResolvedValue(version);
   vi.spyOn(productSelectionApiClient, 'get').mockResolvedValue(run);

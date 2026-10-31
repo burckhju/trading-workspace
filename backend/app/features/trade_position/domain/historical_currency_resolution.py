@@ -14,10 +14,10 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from app.features.trade_position.domain.currency import (
     CurrencyEvidenceReference,
     CurrencyResolutionSource,
+    CurrencyTradeScope,
     ExecutionCurrencyResolution,
 )
 from app.features.trade_position.domain.currency_evidence import CurrencyEvidence
-from app.features.trade_position.domain.models import Trade
 
 
 class HistoricalCurrencyExecution(Protocol):
@@ -160,7 +160,7 @@ def _covers(records: Sequence[CurrencyEvidence], start: datetime, end: datetime)
 
 def resolve_historical_currency(
     *,
-    trade: Trade,
+    trade: CurrencyTradeScope,
     execution: HistoricalCurrencyExecution,
     evidence: Sequence[CurrencyEvidence],
 ) -> ExecutionCurrencyResolution:
