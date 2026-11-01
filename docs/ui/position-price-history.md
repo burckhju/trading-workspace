@@ -9,13 +9,18 @@ Der erneut aufgelöste letzte Versionstag `v1.5.31` zeigt dagegen auf
 `5f1b675e09bd993da8e0576067e3e466c5b5bbdb` und enthält #302 noch nicht.
 Repository und Tests belegen keine produktive Kurshistorie auf dem Nutzer-PC.
 
-**UX4-B, 01.11.2026:** Der lokale Darstellungsschnitt in [Draft #322](https://github.com/burckhju/trading-workspace/pull/322)
-wird auf Main `484143d33aa5f2d443da6b2edf097ae1cb5aee3a` / `v1.5.37`
-vervollständigt. Die obigen SHAs bleiben historische Nachweise. Quellenwahl,
+**UX4-B, 01.11.2026:** Der lokale Darstellungsschnitt in [PR #322](https://github.com/burckhju/trading-workspace/pull/322)
+wurde auf Main `484143d33aa5f2d443da6b2edf097ae1cb5aee3a` / `v1.5.37`
+vervollständigt und zur anschließenden Mergeprüfung auf Main
+`e681c79e0c46a6efb9e4eeb7cd18d959ad99ea97` aktualisiert. Der neue Main ergänzt
+ausschließlich die fünf #321-Koordinationsdokumente; Produkt-/Testverträge und
+Version bleiben unverändert. Die obigen SHAs bleiben historische Nachweise. Quellenwahl,
 Originalbelegzugriff und die mobile Hierarchie sind unten beschrieben; exakte
 Koordinationsstände und getrennte Prüfnachweise stehen in der
 [UX4-B-Qualifikation](../implementation/UX4_B_QUALIFICATION.md).
-Dieser Draft autorisiert keinen Merge, Release oder PC-Update.
+Die anschließende Nutzerfreigabe autorisiert den Merge bei widerspruchsfreiem
+Abgleich und grüner aktueller CI. Sie belegt weder Release noch PC-Update oder
+menschliche Fach-/Screenreaderabnahme; der tatsächliche Integrationsstand steht im PR.
 
 ## Anzeige
 

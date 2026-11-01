@@ -1,9 +1,42 @@
 # UX4-B — Quellenwahl und eindeutige Originalbelege
 
-## Auftrag und Ausgangsstand
+## Aktueller Integrationsauftrag
 
-Datum: 01.11.2026. Implementierungsauftrag für den vorhandenen Positionskursverlauf;
-Draft-PR, kein Merge, Release, Deployment oder PC-Update. Repository- und Testdaten
+Am 01.11.2026 wurde anschließend ausdrücklich beauftragt: „Falls vorhanden
+Widersprüche aufzeigen, ansonsten wenn grün mergen“. Diese bedingte Freigabe
+ersetzt für PR #322 die ursprüngliche Beschränkung auf einen Draft. Release,
+Deployment, PC-Installation und menschliche Fach-/Screenreaderabnahme bleiben
+getrennte, hier nicht behauptete Nachweise.
+
+Der zur Mergeprüfung erneut aufgelöste Main ist
+`e681c79e0c46a6efb9e4eeb7cd18d959ad99ea97`, Tree
+`cbae4ba7e9c030e0c7e2db3a5374e88fc8d3ac8f`. Er integriert #321 am bereits
+gelesenen Head `f90ba2c1baebbe530af536348bc71d73ca0e0108` und ergänzt gegenüber
+dem ursprünglichen Ausgangs-Main ausschließlich die fünf Koordinationsdokumente.
+Der Abgleich bestätigt weiterhin den lokalen UX4-B-Korridor, den vorhandenen
+UX2-Hostvertrag und die kanonische UX3-Sprache. Es entsteht keine neue Abhängigkeit
+vom offenen UX3-Piloten und keine Überschneidung seiner Produktdateien mit #322.
+
+Zusätzlich gelesen wurde der aktuelle #320-Head
+`9e725563a5f09a6601bbe1aceee85ef32f7b7d18`: dessen Produkt-/Testumfang bleibt
+gegenüber dem zuvor geprüften Piloten unverändert; Version 1.5.37 wurde erhalten,
+die Releasevorbereitung entfernt und B2 lediglich als getrennter Folgeauftrag
+dokumentiert. Dieser fremde Featurebranch wird nicht übernommen.
+
+Die Main-Aktualisierung ist konfliktfrei und verändert gegenüber dem bereits
+qualifizierten UX4-B-Head `9e4f8460e3d3d69262e907eed21fbae536ebe9b8` keinen
+Produktcode, Test, Workflow, Reader oder Versionswert. Die beiden eigenen
+Dokumente kennzeichnen lediglich den neuen Auftrag und die aktualisierte Basis.
+Die bisherigen grünen Runs bleiben Nachweise ihres exakten früheren Stands;
+der neue kombinierte Head benötigt gemäß aktivem Main-Ruleset aktuelle normale
+CI. Finaler Head, Tree, tatsächlicher Testmerge, Runs und gegebenenfalls der
+ausgeführte Merge werden im PR dokumentiert. Schutzregeln werden nicht umgangen.
+
+## Ursprünglicher Auftrag und Ausgangsstand
+
+Datum: 01.11.2026. Ursprünglicher Implementierungsauftrag für den vorhandenen
+Positionskursverlauf: Draft-PR, kein Merge, Release, Deployment oder PC-Update.
+Die anschließende bedingte Mergefreigabe steht oben. Repository- und Testdaten
 sind kein Nachweis tatsächlich gespeicherter Kurshistorie auf dem Nutzer-PC.
 
 Der tatsächliche Main zu Beginn ist
@@ -230,9 +263,9 @@ bleiben offen.
 | --- | --- |
 | Implementiert | Vollständiger lokaler UX4-B-Darstellungsschnitt im bestehenden Draft |
 | Lokal geprüft | Frontendgate und Backend-Units bestanden; Browsernachweis siehe oben; PostgreSQL lokal übersprungen |
-| CI-geprüft | Bei Erstellung dieses Dokuments noch offen. Maßgeblich sind ausschließlich die neuen Runs am finalen PR-Head bzw. dessen tatsächlichem Testmerge; exakte Links/Ergebnisse werden im PR festgehalten. |
+| CI-geprüft | Der erste vollständige Head `9e4f846…` ist mit neun erfolgreichen regulären Jobs qualifiziert. Die neue CI nach Main-Aktualisierung steht bei Erstellung dieses Nachtrags noch aus; maßgeblich sind ihre Runs am finalen Head bzw. dessen tatsächlichem Testmerge. Exakte Links/Ergebnisse stehen im PR. |
 | Fachlich abgestimmt | Technischer Abgleich mit exakten kanonischen Verträgen erfolgt; neue persönliche Domain-/UX-/Screenreaderabnahme offen |
-| Integriert/ausgeliefert | UX4-B bleibt Draft; kein Merge, Release, Deployment oder PC-Update |
+| Integriert/ausgeliefert | Main-Integration bedingt freigegeben, bei Erstellung dieses Nachtrags noch ausstehend; tatsächlicher Merge-/Main-SHA wird im PR dokumentiert. Release, Deployment und PC-Update sind damit nicht nachgewiesen. |
 
-**Nächster Schritt:** Den Draft #322 nach erfolgreicher Standard-CI am finalen
-Head zur menschlichen UX2-/UX3-/Domain- und Bedienabnahme prüfen.
+**Nächster Schritt:** Den aktualisierten PR #322 nach widerspruchsfreiem Abgleich
+und erfolgreicher Standard-CI am aktuellen Main gemäß Nutzerfreigabe mergen.
