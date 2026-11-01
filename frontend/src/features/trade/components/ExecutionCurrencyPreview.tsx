@@ -49,6 +49,8 @@ function PreviewContext({
   const [revision, setRevision] = useState(0);
   const [result, setResult] = useState<ReadResult | null>(null);
   const key = JSON.stringify([tradeId, productId, side, date, time, revision, reloadToken]);
+  // Re-entering an input tuple must not revive a result invalidated by an intervening change.
+  if (result && result.key !== key) setResult(null);
   const current = result?.key === key ? result : null;
   const resolution = current?.resolution;
   const known =

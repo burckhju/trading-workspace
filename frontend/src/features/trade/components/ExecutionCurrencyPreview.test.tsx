@@ -273,3 +273,118 @@ it('refreshes only the affected trade after an explicit source change and keeps 
   await screen.findByText(/Für den Ausführungszeitraum fehlt/);
   expect(screen.getByLabelText('Ausführungswährung (Code)')).toHaveValue('CHF');
 });
+
+it.each(['success', 'error'] as const)(
+  'does not resurrect the completed old A %s while the replacement A request is pending',
+  async (outcome) => {
+    const firstA = deferred<ExecutionCurrencyResolution>();
+    const middleB = deferred<ExecutionCurrencyResolution>();
+    const secondA = deferred<ExecutionCurrencyResolution>();
+    if (outcome === 'success') read.mockReturnValueOnce(firstA.promise);
+    else read.mockRejectedValueOnce(new Error('Synthetic obsolete completed A error'));
+    read.mockReturnValueOnce(middleB.promise).mockReturnValueOnce(secondA.promise);
+    const onChange = vi.fn();
+    const input = {
+      context: { tradeId: 'synthetic-trade', side: 'SELL' as const },
+      date: '2026-08-20',
+      time: '',
+      value: { code: 'CHF', note: 'Synthetic manual receipt' },
+      onChange,
+    };
+    const view = render(<ExecutionCurrencyPreview {...input} />);
+    if (outcome === 'success') {
+      await act(async () => {
+        firstA.resolve({ ...historical, currency_code: 'USD' });
+        await firstA.promise;
+      });
+      await screen.findByText(/Vorhandene Währung: USD/);
+    } else await screen.findByText(/Synthetic obsolete completed A error/);
+
+    view.rerender(<ExecutionCurrencyPreview {...input} date="2026-08-21" />);
+    expect(read).toHaveBeenCalledTimes(2);
+    expect(
+      screen.getByText(/Währungsherkunft für das Ausführungsdatum wird geprüft/),
+    ).toBeVisible();
+    expect(read.mock.calls[0][2]?.aborted).toBe(true);
+
+    view.rerender(<ExecutionCurrencyPreview {...input} />);
+    expect(read).toHaveBeenCalledTimes(3);
+    expect(read.mock.calls[1][2]?.aborted).toBe(true);
+    expect(read.mock.calls[2][2]?.aborted).toBe(false);
+    expect(onChange).not.toHaveBeenCalled();
+    expect(screen.getByLabelText('Ausführungswährung (Code)')).toHaveValue('CHF');
+    expect(screen.getByLabelText('Beleg / Erläuterung (optional)')).toHaveValue(
+      'Synthetic manual receipt',
+    );
+    // The latest A read has not completed. Previous-generation evidence/error
+    // must not be shown as current merely because the input tuple matches again.
+    expect(
+      screen.queryByText(/Vorhandene Währung: USD|Synthetic obsolete completed A error/),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByText(/Währungsherkunft für das Ausführungsdatum wird geprüft/),
+    ).toBeVisible();
+    await act(async () => {
+      secondA.resolve({ ...historical, currency_code: 'EUR' });
+      await secondA.promise;
+    });
+    await screen.findByText(/Vorhandene Währung: EUR/);
+    await act(async () => {
+      middleB.resolve({ ...historical, currency_code: 'GBP' });
+      await middleB.promise;
+    });
+    expect(screen.getByText(/Vorhandene Währung: EUR/)).toBeVisible();
+    expect(
+      screen.queryByText(
+        /Vorhandene Währung: USD|Vorhandene Währung: GBP|Synthetic obsolete completed A error/,
+      ),
+    ).not.toBeInTheDocument();
+    expect(onChange).not.toHaveBeenCalled();
+  },
+);
+
+it('keeps a manually opened empty override visible across date changes and the fresh read', async () => {
+  const dateB = deferred<ExecutionCurrencyResolution>();
+  const newA = deferred<ExecutionCurrencyResolution>();
+  read
+    .mockResolvedValueOnce(historical)
+    .mockReturnValueOnce(dateB.promise)
+    .mockReturnValueOnce(newA.promise);
+  const onChange = vi.fn();
+  const input = {
+    context: { tradeId: 'synthetic-trade', side: 'SELL' as const },
+    date: '2026-08-20',
+    time: '',
+    value: emptyExecutionCurrency(),
+    onChange,
+  };
+  const view = render(<ExecutionCurrencyPreview {...input} />);
+  await screen.findByText(/Vorhandene Währung: EUR/);
+  fireEvent.click(screen.getByRole('button', { name: 'Abweichende Währung angeben' }));
+
+  view.rerender(<ExecutionCurrencyPreview {...input} date="2026-08-21" />);
+  expect(screen.getByLabelText('Ausführungswährung (Code)')).toHaveValue('');
+  expect(screen.getByRole('button', { name: 'Abweichende Währung verwerfen' })).toHaveAttribute(
+    'aria-expanded',
+    'true',
+  );
+  view.rerender(<ExecutionCurrencyPreview {...input} />);
+  expect(screen.queryByText(/Vorhandene Währung:/)).not.toBeInTheDocument();
+  expect(screen.getByLabelText('Ausführungswährung (Code)')).toHaveValue('');
+
+  await act(async () => {
+    newA.resolve(historical);
+    await newA.promise;
+    dateB.resolve({ ...historical, currency_code: 'GBP' });
+    await dateB.promise;
+  });
+  await screen.findByText(/Vorhandene Währung: EUR/);
+  expect(screen.getByLabelText('Ausführungswährung (Code)')).toHaveValue('');
+  expect(screen.getByLabelText('Beleg / Erläuterung (optional)')).toHaveValue('');
+  expect(screen.getByRole('button', { name: 'Abweichende Währung verwerfen' })).toHaveAttribute(
+    'aria-expanded',
+    'true',
+  );
+  expect(read).toHaveBeenCalledTimes(3);
+  expect(onChange).not.toHaveBeenCalled();
+});

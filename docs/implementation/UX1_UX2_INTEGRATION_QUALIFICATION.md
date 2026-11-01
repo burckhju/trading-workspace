@@ -16,10 +16,10 @@ zusammen, ohne deren Branches gegenseitig zu überschreiben:
 | Koordination, Main bei Beginn | `35f3ab2133fa40beb4ab2e502a08fa3bf5b44e35` | Verbindliche [Shared Contracts](../coordination/UX_SHARED_CONTRACTS.md) und [Abhängigkeiten](../coordination/UX_DEPENDENCIES.md) |
 | Main nach #317, erste Integrationsbasis | `28c03f939eb24e3c79dee235c28dadf3fd299f54` | v1.5.36, inzwischen durch den automatischen Publisher veröffentlicht |
 | Main nach #316, zweiter Basisstand | `5f2e12667759bfb54eb14f39c6d8426c9cd8080f` | Sechs zusätzliche UX4-Dokumente; kein Produktcode-, Test-, Workflow- oder Versionswechsel |
-| Main nach #314, aktuelle Integrationsbasis | `d80bd45d84d845aa920a7eac5b19a7fe6cd63307` | Kanonischer UX3-Dokumentationsvertrag; beide getrennten UX2-/UX3-Backloghunks bleiben erhalten |
+| Main nach #314, aktuelle Integrationsbasis | `d80bd45d84d845aa920a7eac5b19a7fe6cd63307` | Kanonischer UX3-Dokumentationsvertrag; beide getrennten UX1-/UX3-Backloghunks bleiben erhalten |
 
-Die eigenständige Koordinationsveröffentlichung v1.5.36 aus #317 wird zuerst
-abgeschlossen. Der gemeinsame Produktstand erhält v1.5.37 auf dem dann aktuellen
+Die eigenständige Koordinationsveröffentlichung v1.5.36 aus #317 ist abgeschlossen.
+Der gemeinsame Produktstand erhält v1.5.37 auf dem dann aktuellen
 Main. Der erste Integrationscommit erhält Main als ersten Parent und beide genannten
 Featureheads als weitere Parents. Die spätere Mainaktualisierung erhält diesen
 Integrationscommit als zusätzlichen Parent. Der PR dokumentiert tatsächlichen Head,
@@ -28,7 +28,7 @@ Feature-CI ersetzt diese gemeinsame Qualifikation nicht.
 
 Während der gemeinsamen CI wurde #316 parallel gemergt. Der kontrollierte
 Mainabgleich übernimmt alle sechs Dokumente vollständig; Produktcode, Tests und
-Workflows stimmen weiterhin mit dem ursprünglichen Integrationshead
+Workflows stimmten zu diesem Zeitpunkt mit dem ursprünglichen Integrationshead
 `5fe89ab1f3db171ef42366ac45193ce045de2caf` überein. Die strikte Branchregel
 verlangt trotzdem neue reguläre Prüfungen am aktualisierten Head/Testmerge.
 Die vorherigen grünen Frontend-/E2E-Ergebnisse werden nicht als Nachweis dieser
@@ -36,11 +36,14 @@ neuen Mainbasis ausgegeben.
 
 Während dieses zweiten Laufs wurde außerdem #314 in Main integriert. Der erneute
 konfliktfreie Abgleich erhält dessen 13 Dokumentdateien, einschließlich isolierter
-Dokumentationstypprüfungen, vollständig. Der Produktbacklog enthält danach die
-UX2-Navigationseinträge und die fachlich getrennten UX3-Vertragseinträge.
-Anwendung, fachliche Tests, Workflows und Versionen bleiben gegenüber dem ersten
-gemeinsamen Integrationshead identisch. Maßgeblich ist die erneut gestartete CI
-auf der jetzt aktuellen Mainbasis; ältere Läufe werden getrennt dokumentiert.
+Dokumentationstypprüfungen, vollständig. Der Produktbacklog enthält danach den
+UX1-Eingabenachtrag und die fachlich getrennten UX3-Vertragseinträge.
+Bis zu diesem Basisabgleich blieben Anwendung, fachliche Tests, Workflows und
+Versionen gegenüber dem ersten gemeinsamen Integrationshead identisch. Der
+anschließende Reviewfix unten ändert gezielt die Aktualität der Vorschauanzeige
+und ergänzt drei Regressionen. Maßgeblich ist die erneut gestartete CI am
+korrigierten Head auf der aktuellen Mainbasis; ältere Läufe werden getrennt
+dokumentiert.
 
 Die vollständige Navigations-/Komponentenmatrix und die getrennte Vorbereitung
 von UX2-B bis UX2-D stehen weiterhin in
@@ -98,6 +101,31 @@ Invalidierung durch bestätigte `trade-timeline-changed`-Events nach Writes.
 Diese eigenen Evidence-Reads verändern keine manuellen Eingaben. Hashwechsel
 erzeugen weder dieses Event noch einen Readbacktoken.
 
+### Im Review gefundene Aktualitätslücke
+
+Die abschließende Prüfung von #318 fand trotz grüner CI am Head
+`c465508c06af9f5d059f3ce52f38d3d5ba93998e` eine konkrete Lücke: Ein bereits
+abgeschlossenes Vorschauergebnis für Datum A blieb während einer ausstehenden
+B-Abfrage gespeichert. Bei Rückkehr zu A konnte dieses alte Ergebnis wieder
+als aktuell erscheinen, obwohl die neue A-Abfrage noch lief. Das betraf sowohl
+erfolgreiche Herkunftsdaten als auch alte Lesefehler.
+
+`PreviewContext` verwirft jetzt seinen gespeicherten Read-State, sobald dessen
+Schlüssel nicht mehr zum aktuellen Eingabetupel passt. Dieser bedingte Abgleich
+betrifft ausschließlich den eigenen Ergebnis-State. Owner, Effect-Abhängigkeiten,
+Abortschutz, manuelle Code-/Belegwerte und der aufgeklappte Zustand der
+Overrideeingabe bleiben erhalten. Es entsteht kein zusätzlicher Reader und
+keine zusätzliche Abfrage.
+
+Drei neue Tests wurden zunächst am unveränderten Head rot reproduziert:
+abgeschlossener A-Erfolg, abgeschlossener A-Fehler und bewusst geöffnete, noch
+leere Overrideeingabe. Sie prüfen ausstehendes B, erneut ausstehendes A, genau
+drei Reads, abgebrochene alte Signale, unveränderte Entwürfe, ausbleibende
+`onChange`-Aufrufe und eine verspätete B-Antwort. Die bisherigen Browserfälle
+mit anfangs noch ausstehendem A bleiben ergänzend bestehen. Der neue Head muss
+alle regulären Prüfungen erneut bestehen; die zuvor grüne CI gilt nicht als
+Nachweis für die Korrektur.
+
 ## Reproduzierbare gemeinsame Nutzerwege
 
 | Nutzerweg | Nachweis und erwartetes Verhalten |
@@ -108,6 +136,7 @@ erzeugen weder dieses Event noch einen Readbacktoken.
 | Quellen-/Journalseite verlassen und Reload | Ein bestehender zentraler Verwerfguard; Escape/Hier bleiben erhält Entwurf, native Reloadwarnung bleibt wirksam |
 | Preview-Quelle nicht erreichbar | Eigener 503-Fall zeigt Readfehler, keine erfundene Währung; manueller Entwurf bleibt über Bereichswechsel und ausdrücklich ausgelösten Retry erhalten |
 | Datum A → B → A, alte Antwort kommt zuletzt | Je ein Browserfall für alten Erfolg und Fehler; nur neueste EUR-Herkunft sichtbar, keine alte USD-/GBP-Anzeige und keine überschriebenen manuellen Werte |
+| Abgeschlossenes Datum A → ausstehendes B → erneut ausstehendes A | Drei Preview-Regressionen: kein Wiederanzeigen des alten Erfolgs/Fehlers während des neuen Reads; manuelle Werte und bewusst geöffnete leere Overrideeingabe bleiben erhalten |
 | Produkt/Trade wechseln, späte Antworten | Bestehende Preview-/Hosttests plus neuer Public-Adaptertest prüfen Scope, Abort und A → B → A; der Adapter besitzt keine zusätzliche Lebensdauerverwaltung |
 | Gebundene historische Planversion öffnen | Bestehender Browserpfad liest freigegebene P1 trotz neuerem Entwurf P2; kopierte URL, Reload und Rückweg erhalten Trade-/Review-/Journalbezüge |
 | Performance → Buchungen → Quellen → Bericht | Vorhandener SELL-Rundweg erhält Filter, Seite und Basis; Abschluss-/SELL-Kontexte und ihre Validierungen bleiben getrennt |
@@ -129,7 +158,8 @@ festgeschriebenen Playwright 1.55.0.
 
 | Prüfung | Lokaler Nachweis |
 | --- | --- |
-| Gesamte Frontend-Suite mit CI-Coveragegrenzen | 1.978 Tests in 164 Dateien am kanonischen UX1-Adapterstand; 95,95 % Statements/Lines, 90,31 % Branches, 91,35 % Functions |
+| Gesamte Frontend-Suite mit CI-Coveragegrenzen | 1.981 Tests in 164 Dateien einschließlich des Reviewfixes; 95,95 % Statements/Lines, 90,31 % Branches, 91,35 % Functions |
+| Aktualität bereits abgeschlossener Vorschauergebnisse | Drei neue Fälle am unveränderten Vorgänger rot; nach Korrektur 15/15 Previewtests grün und alle drei zusätzlich in der Gesamtsuite erfolgreich |
 | Gemeinsame Navigation im Browser | 13 Fälle, darunter erfolgreiche Vorschau auf beiden Breiten, separater Fehler/Retry und zwei verspätete Antworten |
 | Gesamte TradePosition-Unit-Suite | 406 Tests; eine bestehende Starlette/AnyIO-DeprecationWarning |
 | Helper-/Performance-Grenze | 210 gezielte Tests; zusätzlich in der Gesamtsuite enthalten |
