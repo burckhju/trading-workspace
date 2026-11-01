@@ -15,13 +15,29 @@ export async function assertSourceExitNavigation(page: Page) {
   });
   const links = nav.getByRole("link");
   await expect(links).toHaveCount(2);
-  const first = await links.nth(0).boundingBox();
-  const second = await links.nth(1).boundingBox();
-  expect(first).not.toBeNull();
-  expect(second).not.toBeNull();
-  const separateRows = second!.y >= first!.y + first!.height + 4;
-  const separateColumns = second!.x >= first!.x + first!.width + 8;
-  expect(separateRows || separateColumns).toBe(true);
+  // Route changes and viewport reflow can detach a just-resolved link.
+  // Read fresh geometry within a bounded check; missing or overlapping links still fail.
+  await expect
+    .poll(
+      async () => {
+        const currentLinks = nav.getByRole("link");
+        if ((await currentLinks.count()) !== 2) return false;
+        const [first, second] = await Promise.all(
+          [0, 1].map((index) =>
+            currentLinks
+              .nth(index)
+              .boundingBox({ timeout: 500 })
+              .catch(() => null),
+          ),
+        );
+        if (!first || !second) return false;
+        const separateRows = second.y >= first.y + first.height + 4;
+        const separateColumns = second.x >= first.x + first.width + 8;
+        return separateRows || separateColumns;
+      },
+      { timeout: 5000 },
+    )
+    .toBe(true);
 }
 
 // Added to the existing protected owner journey, not a mocked UI test. All setup
@@ -386,10 +402,19 @@ export async function qualifyTradeSources(
   const historical = region("Evidence und Lesson-Versionen").getByRole("link", {
     name: /Version 1 · SUPPORTS · historische Version/,
   });
-  await expect(historical).toHaveAttribute(
-    "href",
-    `/lessons/${lid}?lesson_version_id=${l1}#lesson-history`,
+  const historicalUrl = new URL(
+    (await historical.getAttribute("href"))!,
+    page.url(),
   );
+  expect(historicalUrl.pathname).toBe(`/lessons/${lid}`);
+  expect(historicalUrl.hash).toBe("#lesson-history");
+  expect(historicalUrl.searchParams.get("lesson_version_id")).toBe(l1);
+  expect(historicalUrl.searchParams.get("trade_id")).toBe(tid);
+  expect(historicalUrl.searchParams.get("trade_return_view")).toBe("sources");
+  for (const [key, value] of new URL(pageUrl(tid, rid, jid), page.url())
+    .searchParams) {
+    if (key !== "view") expect(historicalUrl.searchParams.get(key)).toBe(value);
+  }
   await historical.focus();
   await page.keyboard.press("Enter");
   const snapshot = page.getByRole("article", {
@@ -402,15 +427,26 @@ export async function qualifyTradeSources(
   await page.reload();
   await expect(snapshot).toContainText("Original exact interpretation L1");
   await expect(page.getByLabel("Lesson-Version ansehen")).toHaveValue(l1);
-  await page.goto(pageUrl(tid, rid, jid));
-  await settled();
-  await region("Evidence und Lesson-Versionen")
-    .getByRole("link", {
-      name: "Exakte Evidence-Journalquelle lesen",
-      exact: true,
-    })
+  await page
+    .getByRole("link", { name: "Zurück zum Trade-Arbeitsbereich" })
     .click();
-  await expect(page).toHaveURL(new RegExp(`journal_version_id=${jid}`));
+  await expect(region("Evidence und Lesson-Versionen")).toBeVisible();
+  const returned = new URL(page.url());
+  for (const [key, value] of new URL(pageUrl(tid, rid, jid), page.url())
+    .searchParams) {
+    expect(returned.searchParams.get(key)).toBe(value);
+  }
+  await settled();
+  const evidenceJournalLink = region("Evidence und Lesson-Versionen").getByRole(
+    "link",
+    { name: "Exakte Evidence-Journalquelle lesen", exact: true },
+  );
+  const evidenceJournalHref = await evidenceJournalLink.getAttribute("href");
+  expect(evidenceJournalHref).not.toBeNull();
+  const evidenceJournalTarget = new URL(evidenceJournalHref!, page.url()).href;
+  await evidenceJournalLink.click();
+  await expect(page).toHaveURL(evidenceJournalTarget);
+  expect(new URL(page.url()).searchParams.get("journal_version_id")).toBe(jid);
   await expect(region("Journal")).toContainText("Journalversion 1 · FINALIZED");
   await page.setViewportSize({ width: 390, height: 844 });
   // Navigation can remount sections; record loaded sources, not a transient header.

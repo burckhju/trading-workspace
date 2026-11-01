@@ -278,7 +278,10 @@ test("real PostgreSQL: captured full exit, review, journal, lesson and stale cor
   await expect(lessonLink).toBeVisible();
   await expect(lessonLink).toHaveCount(1);
   const lessonPath = (await lessonLink.getAttribute("href"))!;
-  const lessonId = lessonPath.split("/").at(-1)!;
+  const lessonUrl = new URL(lessonPath, baseURL);
+  const lessonId = lessonUrl.pathname.split("/").at(-1)!;
+  expect(lessonUrl.searchParams.get("trade_id")).toBe(tid);
+  expect(lessonUrl.searchParams.get("trade_return_view")).toBe("journal");
   await expect(
     journal.getByRole("status").filter({ hasText: "Lesson angelegt:" }),
   ).toContainText(`LS-${lessonId.slice(0, 8).toUpperCase()}`);

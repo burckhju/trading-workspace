@@ -275,6 +275,68 @@ beforeEach(() => {
 });
 
 describe('Trade Management transaction context', () => {
+  it.each([
+    ['closed-trades', 'qualified', '3'],
+    ['realized-gross', 'usable', '101'],
+  ])(
+    'keeps the %s origin through reload and guarded manual trade change',
+    async (kind, view, page) => {
+      const query = new URLSearchParams({
+        trade_id: 'trade-a',
+        review_version_id: 'review-for-a',
+        journal_version_id: 'journal-for-a',
+        report_context: kind,
+        from_date: '2026-10-01',
+        to_date: '2026-10-31',
+        report_currency: 'EUR',
+        report_timezone: 'Europe/Vienna',
+        report_view: view,
+        report_page: page,
+        report_basis: 'a'.repeat(64),
+      });
+      const original = `?${query}`;
+      const router = createMemoryRouter([{ path: '*', element: <TradeManagementPage /> }], {
+        initialEntries: [`/trade-management${original}`],
+      });
+      render(<RouterProvider router={router} />);
+      await loaded('trade-a');
+      saleDraft();
+      fireEvent.change(screen.getByLabelText('Neue Management-Notiz'), {
+        target: { value: 'Nur für A' },
+      });
+
+      lookup('trade-a');
+      await waitFor(() => expect(api.trade).toHaveBeenCalledTimes(2));
+      await loaded('trade-a');
+      expect(router.state.location.search).toBe(original);
+      expect(screen.getByLabelText('Verkaufsmenge')).toHaveValue(3);
+      expect(screen.getByLabelText('Neue Management-Notiz')).toHaveValue('Nur für A');
+
+      lookup('trade-b');
+      expect(screen.getByRole('alertdialog')).toBeVisible();
+      fireEvent.click(screen.getByRole('button', { name: 'Hier bleiben' }));
+      expect(router.state.location.search).toBe(original);
+      expect(screen.getByLabelText('Verkaufsmenge')).toHaveValue(3);
+      expect(screen.getByLabelText('Neue Management-Notiz')).toHaveValue('Nur für A');
+      expect(api.trade).toHaveBeenCalledTimes(2);
+
+      lookup('trade-b');
+      fireEvent.click(screen.getByRole('button', { name: 'Eingaben verwerfen und wechseln' }));
+      await loaded('trade-b');
+      const destination = new URLSearchParams(router.state.location.search);
+      expect(destination.getAll('trade_id')).toEqual(['trade-b']);
+      expect(destination.has('review_version_id')).toBe(false);
+      expect(destination.has('journal_version_id')).toBe(false);
+      for (const [key, value] of query) {
+        if (key !== 'trade_id' && !key.endsWith('_version_id'))
+          expect(destination.get(key)).toBe(value);
+      }
+      expect(screen.getByLabelText('Verkaufsmenge')).toHaveValue(null);
+      expect(screen.getByLabelText('Neue Management-Notiz')).toHaveValue('');
+      expectNoWrites();
+    },
+  );
+
   it.each(['trade', 'position', 'managementState', 'warrant'] as const)(
     'does not expose A actions for B when the %s read fails',
     async (stage) => {

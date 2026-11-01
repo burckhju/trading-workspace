@@ -204,6 +204,11 @@ describe('read-only trade sources', () => {
       screen.getByText('Synthetic reflection <script>unsafe()</script>', { exact: false }),
     ).toBeVisible();
     expect(document.querySelector('script')).toBeNull();
+    fireEvent.click(screen.getByRole('link', { name: 'Plan und Quellen' }));
+    await waitFor(() =>
+      expect(screen.getByRole('region', { name: 'Ursprünglicher Plan' })).toHaveFocus(),
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(5);
     expect(screen.getAllByText('IMPROVABLE')).toHaveLength(2);
     expect(screen.getByText(/NOT_ASSESSABLE – ausdrücklich nicht beurteilbar/)).toBeVisible();
     expect(screen.getByText(/Uhrzeit unbekannt/)).toBeVisible();
@@ -413,7 +418,10 @@ describe('read-only trade sources', () => {
     for (const relation of ['SUPPORTS', 'CONTRADICTS'])
       expect(
         screen.getByRole('link', { name: new RegExp(`Interpretation.*${relation}`) }),
-      ).toHaveAttribute('href', `/lessons/lesson?lesson_version_id=${L1}#lesson-history`);
+      ).toHaveAttribute(
+        'href',
+        `/lessons/lesson?trade_id=${A}&trade_return_view=sources&lesson_version_id=${L1}#lesson-history`,
+      );
     fireEvent.click(screen.getByRole('link', { name: 'Exakte Evidence-Journalquelle lesen' }));
     await waitFor(() =>
       expect(screen.getByLabelText('route')).toHaveTextContent(`journal_version_id=${J1}`),
@@ -447,10 +455,22 @@ describe('read-only trade sources', () => {
             },
           })
         : undefined;
-    mount();
+    mount(`trade_id=${A}&view=sources&review_version_id=${R1}&journal_version_id=${J1}`);
     await screen.findByText('These: P1 original');
     expect(screen.getByText(/Ursprünglich referenzierte Planversion 1/)).toBeVisible();
     expect(screen.getByText(/Gespeicherte Freigabe/)).toBeVisible();
+    const planLink = screen.getByRole('link', { name: 'Gebundene Planversion öffnen' });
+    const destination = new URL(planLink.getAttribute('href')!, 'http://localhost');
+    expect(destination.pathname).toBe('/trade-plans');
+    expect(Object.fromEntries(destination.searchParams)).toEqual({
+      trade_plan_id: 'plan',
+      trade_plan_version_id: 'P1',
+      trade_id: A,
+      trade_return_view: 'sources',
+      review_version_id: R1,
+      journal_version_id: J1,
+    });
+    expect(planLink).not.toHaveAttribute('target');
     expect(screen.getByText(/Daraus folgt kein automatischer Regelverstoß/)).toBeVisible();
     expect(fetchMock.mock.calls.every(([url]) => !requestUrl(url).includes('/trade-plans/'))).toBe(
       true,
@@ -507,7 +527,7 @@ describe('read-only trade sources', () => {
     await screen.findByText('Eine eigene Reflexion');
     expect(screen.getByRole('link', { name: 'Zur Tradeverwaltung' })).toHaveAttribute(
       'href',
-      `/trade-management?trade_id=${A}`,
+      `/trade-management?trade_id=${A}#trade-overview`,
     );
     expect(
       [...document.querySelectorAll('a')].every(

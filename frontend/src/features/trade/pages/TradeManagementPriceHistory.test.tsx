@@ -12,7 +12,13 @@ vi.mock('../../operational_workspace/services/positionPriceHistory', () => ({
 }));
 vi.mock('../../product/services/client', () => ({ warrantApiClient: { get: vi.fn() } }));
 vi.mock('../services/client', () => ({
-  tradeManagementApiClient: { trade: vi.fn(), position: vi.fn(), managementState: vi.fn() },
+  tradeManagementApiClient: {
+    trade: vi.fn(),
+    position: vi.fn(),
+    managementState: vi.fn(),
+    executionCurrencyPreview: vi.fn(),
+    sell: vi.fn(),
+  },
 }));
 vi.mock('../../alert/components/PositionRiskPanel', () => ({ PositionRiskPanel: () => null }));
 vi.mock('../../alert/components/TradeAlertsPanel', () => ({ TradeAlertsPanel: () => null }));
@@ -77,6 +83,12 @@ beforeEach(() => {
   vi.resetAllMocks();
   api.trade.mockResolvedValue(trade);
   api.position.mockResolvedValue(position);
+  api.executionCurrencyPreview.mockResolvedValue({
+    currency_code: 'EUR',
+    source: 'PRIOR_BUYS',
+    source_execution_ids: ['synthetic-buy'],
+    confirmation_ids: ['synthetic-confirmation'],
+  });
   api.managementState.mockResolvedValue({
     trade_id: trade.id,
     stop_price: null,
@@ -154,6 +166,87 @@ it('refreshes history after execution readback without restarting the booking ed
   expect(history).toHaveBeenCalledTimes(2);
   expect(screen.getByLabelText('Booking source reload')).toHaveTextContent('0');
   expect(screen.queryByTestId('position-price-chart')).not.toBeInTheDocument();
+});
+
+it('rereads currency after the booking source callback confirms a new parent read and preserves manual sale inputs', async () => {
+  api.position.mockResolvedValue({
+    ...position,
+    is_closed: false,
+    closed_at: null,
+    open_quantity: 10,
+  });
+  show();
+  const form = within(await screen.findByRole('form', { name: 'Verkauf erfassen' }));
+  await form.findByText('Vorhandene Währung: EUR · aus vorherigen Käufen übernommen');
+  const initialSignal = api.executionCurrencyPreview.mock.calls[0][2];
+  fireEvent.change(form.getByLabelText('Verkaufsmenge'), { target: { value: '3' } });
+  fireEvent.change(form.getByLabelText('Verkaufspreis'), { target: { value: '2.35' } });
+  fireEvent.click(form.getByRole('button', { name: 'Abweichende Währung angeben' }));
+  fireEvent.change(form.getByLabelText('Ausführungswährung (Code)'), {
+    target: { value: 'CHF' },
+  });
+  fireEvent.change(form.getByLabelText('Beleg / Erläuterung (optional)'), {
+    target: { value: 'Manuelle Angabe bleibt erhalten' },
+  });
+  api.executionCurrencyPreview.mockResolvedValue({
+    currency_code: null,
+    source: 'UNKNOWN',
+    source_execution_ids: [],
+    confirmation_ids: [],
+    reason: 'NO_HISTORICAL_EVIDENCE',
+  });
+
+  // CurrencyEvidenceEditor uses this callback; it does not emit a timeline event.
+  fireEvent.click(screen.getByRole('button', { name: 'Read corrected execution' }));
+  await form.findByText(/Für den Ausführungszeitraum fehlt ein belastbarer Währungsbeleg/);
+  expect(api.executionCurrencyPreview).toHaveBeenCalledTimes(2);
+  expect(api.executionCurrencyPreview.mock.calls[1].slice(0, 2)).toEqual(
+    api.executionCurrencyPreview.mock.calls[0].slice(0, 2),
+  );
+  expect(initialSignal?.aborted).toBe(true);
+  expect(form.queryByText(/Vorhandene Währung: EUR/)).not.toBeInTheDocument();
+  expect(form.getByLabelText('Verkaufsmenge')).toHaveValue(3);
+  expect(form.getByLabelText('Verkaufspreis')).toHaveValue(2.35);
+  expect(form.getByLabelText('Ausführungswährung (Code)')).toHaveValue('CHF');
+  expect(form.getByLabelText('Beleg / Erläuterung (optional)')).toHaveValue(
+    'Manuelle Angabe bleibt erhalten',
+  );
+  expect(screen.getByLabelText('Booking source reload')).toHaveTextContent('0');
+  expect(api.sell).not.toHaveBeenCalled();
+});
+
+it('does not treat a failed booking source readback as a successful currency reload', async () => {
+  api.position.mockResolvedValue({
+    ...position,
+    is_closed: false,
+    closed_at: null,
+    open_quantity: 10,
+  });
+  show();
+  const form = within(await screen.findByRole('form', { name: 'Verkauf erfassen' }));
+  await form.findByText('Vorhandene Währung: EUR · aus vorherigen Käufen übernommen');
+  const initialSignal = api.executionCurrencyPreview.mock.calls[0][2];
+  fireEvent.change(form.getByLabelText('Verkaufsmenge'), { target: { value: '4' } });
+  fireEvent.change(form.getByLabelText('Verkaufspreis'), { target: { value: '2.40' } });
+  fireEvent.click(form.getByRole('button', { name: 'Abweichende Währung angeben' }));
+  fireEvent.change(form.getByLabelText('Ausführungswährung (Code)'), {
+    target: { value: 'USD' },
+  });
+  api.position.mockRejectedValueOnce(new Error('Storage unavailable'));
+
+  await act(async () => {
+    fireEvent.click(screen.getByRole('button', { name: 'Read corrected execution' }));
+    await waitFor(() => expect(api.position).toHaveBeenCalledTimes(2));
+  });
+  expect(api.position).toHaveBeenCalledTimes(2);
+  expect(api.executionCurrencyPreview).toHaveBeenCalledOnce();
+  expect(initialSignal?.aborted).toBe(false);
+  expect(history).toHaveBeenCalledOnce();
+  expect(form.getByLabelText('Verkaufsmenge')).toHaveValue(4);
+  expect(form.getByLabelText('Verkaufspreis')).toHaveValue(2.4);
+  expect(form.getByLabelText('Ausführungswährung (Code)')).toHaveValue('USD');
+  expect(screen.getByLabelText('Booking source reload')).toHaveTextContent('0');
+  expect(api.sell).not.toHaveBeenCalled();
 });
 
 it('preserves explicit booking reload while only invalidating history after a successful readback', async () => {

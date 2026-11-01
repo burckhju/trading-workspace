@@ -126,6 +126,7 @@ function renderLesson({
     [
       { path: '/lessons/:lessonId', element: <LessonDetailPage /> },
       { path: '/post-trade', element: <h1>Post-Trade target</h1> },
+      { path: '/trade-management', element: <h1>Trade target</h1> },
     ],
     { initialEntries: entries, initialIndex },
   );
@@ -239,6 +240,38 @@ describe('one exact Lesson context and guarded Governance handoff', () => {
     });
     expect(mocks.execute).not.toHaveBeenCalled();
   });
+
+  it.each(['sources', 'journal'] as const)(
+    'keeps the trade and historical pins through copied Lesson versions, reload and the %s return',
+    async (returnView) => {
+      const context = `trade_id=trade-A&review_version_id=review-v1&journal_version_id=journal-v1&trade_return_view=${returnView}`;
+      let view = renderLesson({
+        entries: [`/lessons/lesson-1?${context}&lesson_version_id=l1#lesson-history`],
+      });
+      await screen.findByText('L1 interpretation');
+      fireEvent.change(versionSelect(), { target: { value: 'l2' } });
+      await screen.findByText('L2 interpretation');
+      const shared = screen
+        .getByRole('link', { name: 'Genau diese Lesson-Version öffnen' })
+        .getAttribute('href')!;
+      expect(shared).toBe(`/lessons/lesson-1?${context}&lesson_version_id=l2#lesson-history`);
+      view.unmount();
+      view = renderLesson({ entries: [shared] });
+      await screen.findByText('L2 interpretation');
+      const back = screen.getByRole('link', { name: 'Zurück zum Trade-Arbeitsbereich' });
+      fireEvent.click(back);
+      await screen.findByRole('heading', {
+        name: returnView === 'sources' ? 'Trade target' : 'Post-Trade target',
+      });
+      const returned = new URLSearchParams(view.router.state.location.search);
+      expect(returned.get('trade_id')).toBe('trade-A');
+      expect(returned.get('review_version_id')).toBe('review-v1');
+      expect(returned.get('journal_version_id')).toBe('journal-v1');
+      expect(returned.get('view')).toBe(returnView === 'sources' ? 'sources' : null);
+      expect(mocks.execute).not.toHaveBeenCalled();
+      expect(mocks.createFromLessonVersion).not.toHaveBeenCalled();
+    },
+  );
 
   it('keeps explicit selection, copied URL, reload and browser POP on the same source without writing', async () => {
     const view = renderLesson({

@@ -90,12 +90,10 @@ class ExecutionCurrencyHistoryResponse(BaseModel):
     currency_resolution: ExecutionCurrencyResolutionResponse
 
 
-class CaptureTimeRequest(BaseModel):
-    currency_confirmation: ExecutionCurrencyDeclarationRequest | None = None
+class ExecutionTimeRequest(BaseModel):
     executed_at: AwareDatetime | None = None
     executed_on: date | None = None
     execution_timezone: str | None = Field(default=None, max_length=64)
-    request_id: UUID | None = None
 
     @model_validator(mode="after")
     def validate_time(self) -> Self:
@@ -108,8 +106,28 @@ class CaptureTimeRequest(BaseModel):
                 raise ValueError("Unknown execution timezone") from error
         elif self.execution_timezone is not None:
             raise ValueError("A timezone requires a calendar execution date")
+        return self
+
+
+class CaptureTimeRequest(ExecutionTimeRequest):
+    currency_confirmation: ExecutionCurrencyDeclarationRequest | None = None
+    request_id: UUID | None = None
+
+    @model_validator(mode="after")
+    def validate_capture_identity(self) -> Self:
         if self.request_id is not None and self.executed_at is None and self.executed_on is None:
             raise ValueError("Idempotent capture requires an explicit execution date or time")
+        return self
+
+
+class ExecutionCurrencyPreviewRequest(ExecutionTimeRequest):
+    model_config = ConfigDict(extra="forbid")
+    side: ExecutionSide
+
+    @model_validator(mode="after")
+    def require_explicit_time(self) -> Self:
+        if self.executed_at is None and self.executed_on is None:
+            raise ValueError("Currency preview requires an explicit execution date or time")
         return self
 
 

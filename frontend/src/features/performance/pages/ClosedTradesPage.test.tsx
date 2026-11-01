@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { createMemoryRouter, MemoryRouter, RouterProvider } from 'react-router-dom';
-import { beforeEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
 import {
   closedTradeContribution,
@@ -44,6 +44,10 @@ function chooseOctober() {
   fireEvent.change(screen.getByLabelText('Bis (einschließlich)'), {
     target: { value: '2026-10-31' },
   });
+  // The historical report fixture uses Berlin, independently of the browser suggestion.
+  fireEvent.change(screen.getByLabelText('Berichtszeitzone (IANA)'), {
+    target: { value: closedTradeFilters.report_timezone },
+  });
 }
 function read() {
   fireEvent.click(screen.getByRole('button', { name: 'Bericht lesen' }));
@@ -68,15 +72,22 @@ const nullSummary = {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  const browserOptions = Intl.DateTimeFormat().resolvedOptions();
+  vi.spyOn(Intl.DateTimeFormat.prototype, 'resolvedOptions').mockReturnValue({
+    ...browserOptions,
+    timeZone: 'America/New_York',
+  });
   api.closedTrades.mockResolvedValue(closedTradeReport());
 });
+
+afterEach(() => vi.restoreAllMocks());
 
 it('reads fixed EUR and shows one full trade result with all earlier SELL contributions', async () => {
   renderPage();
   expect(api.closedTrades).not.toHaveBeenCalled();
   expect(screen.getByLabelText('Berichtswährung')).toHaveValue('EUR');
   expect(screen.getByLabelText('Berichtswährung')).toHaveAttribute('readonly');
-  expect(screen.getByLabelText('Berichtszeitzone (IANA)')).toHaveValue('Europe/Berlin');
+  expect(screen.getByLabelText('Berichtszeitzone (IANA)')).toHaveValue('America/New_York');
   expect(
     screen.getByRole('heading', { name: 'Trades mit Vollabschluss im Zeitraum' }),
   ).toBeVisible();

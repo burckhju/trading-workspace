@@ -5,6 +5,7 @@ import { marketApiClient } from '../../market/services/client';
 import { MarketApiError } from '../../market/services/http';
 import type { UnderlyingDetailResponse } from '../../market/types/api';
 import { PendingNavigationGuard } from '../../../components/PendingNavigationGuard';
+import { planTradeReturnLink } from '../../../shared/trade-workspace-navigation';
 import {
   TradePlanProvenance,
   TradePlanVersionContent,
@@ -156,6 +157,7 @@ export function ExistingTradePlanPage({
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
+  const tradeReturnLink = planTradeReturnLink(searchParams);
   const requestedVersionId = tradePlanVersionId ?? searchParams.get('trade_plan_version_id') ?? '';
   const invalidVersionParameter =
     ((tradePlanVersionId !== undefined || searchParams.has('trade_plan_version_id')) &&
@@ -554,6 +556,14 @@ export function ExistingTradePlanPage({
           )}
         </div>
         <div className="flex flex-wrap gap-3">
+          {tradeReturnLink && (
+            <Link
+              to={tradeReturnLink}
+              className="rounded-lg border border-slate-700 px-4 py-2 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-300"
+            >
+              Zurück zu den Tradequellen
+            </Link>
+          )}
           {activeSnapshot && (
             <button
               type="button"

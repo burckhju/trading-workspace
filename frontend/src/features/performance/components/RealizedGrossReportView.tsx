@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { RealizedGrossSources } from './RealizedGrossSources';
 import {
   REALIZED_REPORT_PAGE_SIZE,
+  realizedTradeLink,
   type RealizedReportContext,
   type RealizedReportView,
 } from '../services/performanceReportContext';
@@ -57,6 +58,12 @@ export function RealizedGrossReportView({
   const pages = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
   const page = Math.min(requestedPage, pages - 1);
   const visible = items.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  const returnContext: RealizedReportContext = {
+    filters: report.filters,
+    basis: report.basis.id,
+    view,
+    page,
+  };
   const { summary, counts, currency, filters } = report;
   return (
     <div className="space-y-6" aria-label="Verkaufsbericht">
@@ -288,7 +295,7 @@ export function RealizedGrossReportView({
                 </button>
               </div>
               {expanded === item.execution_id && (
-                <RealizedGrossSources item={item} report={report} />
+                <RealizedGrossSources item={item} report={report} context={returnContext} />
               )}
             </article>
           ))}
@@ -342,7 +349,7 @@ export function RealizedGrossReportView({
               <li key={trade.trade_id}>
                 <Link
                   className="text-sky-300 underline"
-                  to={`/trade-management?trade_id=${encodeURIComponent(trade.trade_id)}#execution-dates`}
+                  to={realizedTradeLink(trade.trade_id, returnContext)}
                 >
                   {trade.product_name ?? 'Produktname nicht verfügbar'} · Trade prüfen
                 </Link>
