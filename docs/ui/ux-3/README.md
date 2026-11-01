@@ -12,8 +12,9 @@ UX3-K wurde als Konsolidierung in [#314](https://github.com/burckhju/trading-wor
 integriert. Die Quellen- und Parallelstände unten dokumentieren diesen historischen
 Schnitt. Der gesonderte [B1/F1-Pilot in #320](https://github.com/burckhju/trading-workspace/pull/320)
 implementiert eine passive Hinweiskarte in `RealizedGrossSources`. Sein Umfang und
-seine Prüfgrenzen stehen in der [Pilotqualifikation](../../implementation/UX3_B1_CURRENCY_NOTICE.md),
-der vorbereitete Lieferweg im [Releasevermerk](../../releases/V1.5.38-UX3-CURRENCY-NOTICE.md).
+seine Prüfgrenzen stehen in der [Pilotqualifikation](../../implementation/UX3_B1_CURRENCY_NOTICE.md).
+Der aktuelle Auftrag endet beim Draft-PR; die parallele Releasevorbereitung
+wird auf ausdrückliche Nutzerentscheidung zurückgenommen.
 
 Die [produktiven Props](../../../frontend/src/shared/notices/types.ts) sind eine
 schmale Textprojektion für diesen Pilot. Die fünf Hinweisarten und die vollständige
@@ -98,14 +99,15 @@ eines bestätigten Empfangs oder einer Abnahme durch einen anderen Lead.
 
 ## 4. Autorisierung, Prüfung und Liefergrenzen
 
-Der Nutzerauftrag vom **01.11.2026** autorisiert die beschriebene Umsetzung,
-Merge bei grünen erforderlichen Prüfungen und die Bereitstellung für den PC.
 UX3-K erfüllte den konkret festgelegten Konsolidierungsauftrag ohne neue
 Produktkomponente. Der anschließende B1/F1-Produktschnitt wird in #320 mit eigenen
-Prüfbelegen geführt. Die vorbereitete Veröffentlichung folgt dem verlinkten
-Releasevermerk; diese Dokumentation behauptet weder einen bereits erfolgten
-Merge oder Tag noch eine menschliche Fachabnahme. Weitere Produktaufträge bleiben
-eigenständige Schnitte.
+Prüfbelegen geführt. Für diesen Pilot autorisiert der Nutzerauftrag vom
+**01.11.2026** Implementierung, Tests, Feature-Branch und Draft-PR. Auf die
+konkret vorgeschlagene Rücknahme der parallelen Versions- und Releasevorbereitung
+hat der Nutzer ausdrücklich mit „Zurücknehmen“ geantwortet. Version 1.5.37 bleibt
+erhalten; Merge, Release, Installation und produktive Datenmutation sind durch
+diesen Auftrag nicht freigegeben. Technische Prüfungen ersetzen keine menschliche
+Fachabnahme. Weitere Produktaufträge bleiben eigenständige Schnitte.
 
 Die Dokumentprüfung und der strict/noEmit-Typcheck qualifizieren den Vertrag.
 Die unveränderten [Backend](../../../.github/workflows/backend.yml)-,

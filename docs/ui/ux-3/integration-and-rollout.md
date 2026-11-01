@@ -6,10 +6,11 @@
 
 Der bestehende B1/F1-Produktpilot wird in
 [PR #320](https://github.com/burckhju/trading-workspace/pull/320) qualifiziert.
-[Pilotbericht](../../implementation/UX3_B1_CURRENCY_NOTICE.md) und
-[Releasevermerk](../../releases/V1.5.38-UX3-CURRENCY-NOTICE.md) trennen Umfang,
-Prüfungen, vorbereitete Veröffentlichung und tatsächliche Installation. Die
-folgenden UX3-K-Quellen-/Parallelstände sind historische Konsolidierungsbelege.
+Der [Pilotbericht](../../implementation/UX3_B1_CURRENCY_NOTICE.md) trennt Umfang,
+Prüfungen und offene Abnahmen. Der aktuelle Auftrag endet beim Draft-PR; die
+parallele Releasevorbereitung wird auf ausdrückliche Nutzerentscheidung
+zurückgenommen. Die folgenden UX3-K-Quellen-/Parallelstände sind historische
+Konsolidierungsbelege.
 
 ## 1. Umfang und Zuständigkeit
 
@@ -380,10 +381,10 @@ stehen getrennt in der Pilotqualifikation und am tatsächlichen PR-/Testmerge-He
 **Den vorhandenen B1/F1-Diff mit aktuellen Nachweisen abschließen.** In
 [#320](https://github.com/burckhju/trading-workspace/pull/320) gehören tatsächlicher
 Head, Mainbasis, Testmerge/Tree und erforderliche Run-/Jobbelege zusammen.
-Integration und PC-Bereitstellung folgen der erteilten Nutzerautorisierung und
-dem [regulären Releaseweg](../../releases/V1.5.38-UX3-CURRENCY-NOTICE.md).
-Die offenen menschlichen Fach-/Screenreader-/Zoomnachweise bleiben gesondert;
-diese Planung behauptet keinen bereits erfolgten Abschluss.
+Der Nutzer hat die Rücknahme der parallelen Versions- und Releasevorbereitung
+ausdrücklich angeordnet. Der Pilot bleibt ein Draft auf Version 1.5.37;
+Integration und PC-Bereitstellung sind durch diesen Auftrag nicht freigegeben.
+Die offenen menschlichen Fach-/Screenreader-/Zoomnachweise bleiben gesondert.
 
 Danach wird der bereits in Abschnitt 5 geplante **B2/F4-Teilschnitt zu Q12** an
 genau einer bestehenden Bewertungsfläche abgegrenzt. Die übrigen F4-Flächen,
@@ -415,7 +416,8 @@ Hinweisengine, automatische Aktion oder globale Hostmigration.
 
 Prüfe TC-49 und die vorhandenen betroffenen Bewertungsregressionen. Liefere
 einen kleinen getrennten PR mit konkretem Scope, aktuellen Head-/Tree-/
-CI-Nachweisen und offen benannten fachlichen/UI-Abnahmen. Die bereits
-erteilten Nutzerfreigaben und erforderlichen Projektgates bleiben maßgeblich;
-dieser Startprompt erweitert weder Folgeumfang noch Freigaben.
+CI-Nachweisen und offen benannten fachlichen/UI-Abnahmen. Dieser gesonderte
+Folgeschnitt benötigt seinen konkreten Nutzerauftrag und die erforderlichen
+Projektgates; dieser Startprompt erteilt keine Umsetzung-, Merge- oder
+Releasefreigabe.
 ```

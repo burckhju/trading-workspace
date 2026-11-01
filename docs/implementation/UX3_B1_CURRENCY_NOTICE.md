@@ -73,6 +73,36 @@ Umsetzung. Manuelle Fach-/Screenreader-/Zoomabnahme bleibt ausdrücklich offen.
 
 ## Umsetzung des begrenzten Pilots
 
+### Rücknahme paralleler Releasevorbereitung — 01.11.2026
+
+Nach Pilothead `06280ed5a59b49d56950b14ed9f1e42bfd0e130a` wurde der gemeinsame
+Branch außerhalb dieser Fortsetzung weitergeschrieben: Main
+`484143d33aa5f2d443da6b2edf097ae1cb5aee3a` mit den beiden UX1-Dokumenten aus #319,
+Releasevorbereitung `71e971a67be7f1ca10192e04e3832f843b8099bd` und danach
+Dokumentationsabgleich `90b72d85122bc33117c3db9a277b889573985660`.
+Produktcode und Tests des Pilots blieben dabei unverändert.
+
+Auf die konkrete Frage zur Rücknahme der fünf Release-Dateien antwortete der
+Nutzer ausdrücklich „Zurücknehmen“. Die vier Versionsdateien VERSION,
+backend/pyproject.toml, frontend/package.json und frontend/package-lock.json
+werden auf den aktuellen Mainstand 1.5.37 zurückgeführt; die neue
+V1.5.38-Release-Notiz wird entfernt. Der Folgecommit erhält die Git-Historie,
+die integrierte UX1-Dokumentation sowie sämtliche Pilotänderungen.
+
+Die inzwischen zusätzlich angepassten docs/ui/ux-3/README.md,
+docs/ui/ux-3/components-and-actions.md und docs/ui/ux-3/integration-and-rollout.md
+bleiben als Dokumentationsabgleich erhalten. Releaseverweise und Freigabeaussagen
+werden an die Nutzerentscheidung angepasst. Dadurch umfasst der tatsächliche
+PR-Diff die oben genannten 13 Dateien und diese drei Dokumentationsdateien.
+Das Dokumenttypmodell contracts.ts, Fachverträge, Produkt- und Testschnitt sowie
+alle Workflows bleiben unverändert. Der dokumentierte B2-Startprompt erteilt
+keine Folgefreigabe und führt keine weitere Produktänderung aus.
+
+Der PR bleibt Draft. Dieser Auftrag erlaubt keinen Merge, Release, keine
+Installation und keine produktive Datenmutation. Aktueller Rücknahmehead,
+Testmerge/Tree und reguläre CI-Ergebnisse werden im bestehenden PR gebunden;
+abgebrochene frühere Läufe sind kein vollständiger Endnachweis.
+
 Die aktive Umstellung erfolgt ausschließlich in RealizedGrossSources. Eine
 statische Karte erklärt den ausgewählten Verkaufsbeitrag und die Qualifikation
 der Berichtssumme. Der Performanceadapter nimmt item, report und context aus
