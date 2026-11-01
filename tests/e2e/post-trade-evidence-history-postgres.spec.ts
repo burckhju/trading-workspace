@@ -436,7 +436,10 @@ test("real PostgreSQL: FT011 history survives correction and opens the exact Les
   await expect(oldLink).toBeVisible();
   const oldHref = (await oldLink.getAttribute("href"))!;
   const lid = new URL(oldHref, baseURL).pathname.split("/").at(-1)!;
-  expect(createdHref).toBe(`/lessons/${lid}`);
+  const createdUrl = new URL(createdHref, baseURL);
+  expect(createdUrl.pathname).toBe(`/lessons/${lid}`);
+  expect(createdUrl.searchParams.get("trade_id")).toBe(tid);
+  expect(createdUrl.searchParams.get("trade_return_view")).toBe("journal");
   const lvid = new URL(oldHref, baseURL).searchParams.get("lesson_version_id");
   const originalLesson = await (
     await request.get(api + `/learning/lessons/${lid}/review-context`)

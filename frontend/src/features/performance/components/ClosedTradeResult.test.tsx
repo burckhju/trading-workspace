@@ -18,6 +18,14 @@ const A = '10000000-0000-4000-8000-000000000001';
 const B = '10000000-0000-4000-8000-000000000002';
 const query = () =>
   closedContextQuery({ filters: closedTradeFilters, view: 'all', page: 1, basis: 'a'.repeat(64) });
+const realizedQuery = () =>
+  new URLSearchParams({
+    report_context: 'realized-gross',
+    ...closedTradeFilters,
+    report_view: 'usable',
+    report_page: '3',
+    report_basis: 'c'.repeat(64),
+  });
 function report(id = A, amount = '50.00') {
   const value = closedTradeReport();
   value.items = [
@@ -126,6 +134,80 @@ it('does not call the report owner without explicit valid context', () => {
   expect(screen.getByRole('alert')).toHaveTextContent('Ungültiger');
   expect(api.closedTrades).not.toHaveBeenCalled();
 });
+
+it('keeps a valid sales-report return without reading or substituting a closed-trade result', () => {
+  const context = realizedQuery();
+  context.set('total', '9999');
+  render(view(A, context));
+  expect(screen.getByText(/Geöffnet aus „Verkäufe im Zeitraum“/)).toBeVisible();
+  const returnLink = screen.getByRole('link', { name: 'Zur ursprünglichen Verkaufsauswahl' });
+  const destination = new URL(returnLink.getAttribute('href')!, 'http://localhost');
+  expect(destination.pathname).toBe('/performance/realized-gross');
+  expect(Object.fromEntries(destination.searchParams)).toEqual({
+    report_context: 'realized-gross',
+    ...closedTradeFilters,
+    report_view: 'usable',
+    report_page: '3',
+    report_basis: 'c'.repeat(64),
+  });
+  expect(screen.getByRole('link', { name: 'Abschlussauswertung auswählen' })).toHaveAttribute(
+    'href',
+    '/performance/closed-trades',
+  );
+  expect(api.closedTrades).not.toHaveBeenCalled();
+  expect(screen.queryByText('50,00 EUR')).not.toBeInTheDocument();
+  expect(screen.queryByText('0,00 EUR')).not.toBeInTheDocument();
+  expect(screen.queryByText(/9999/)).not.toBeInTheDocument();
+});
+
+it.each(['duplicate kind', 'duplicate currency', 'missing date', 'invalid page', 'closed view'])(
+  'rejects %s in a sales-report origin without a replacement selection or report read',
+  (invalid) => {
+    const context = realizedQuery();
+    if (invalid === 'duplicate kind') context.append('report_context', 'closed-trades');
+    if (invalid === 'duplicate currency') context.append('report_currency', 'USD');
+    if (invalid === 'missing date') context.delete('from_date');
+    if (invalid === 'invalid page') context.set('report_page', '0');
+    if (invalid === 'closed view') context.set('report_view', 'qualified');
+    render(view(A, context));
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Ungültiger oder mehrdeutiger Verkaufsberichtskontext',
+    );
+    expect(
+      screen.queryByRole('link', { name: 'Zur ursprünglichen Verkaufsauswahl' }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('link', { name: 'Abschlussauswertung auswählen' }),
+    ).not.toBeInTheDocument();
+    expect(api.closedTrades).not.toHaveBeenCalled();
+    expect(screen.queryByText('50,00 EUR')).not.toBeInTheDocument();
+    expect(screen.queryByText('0,00 EUR')).not.toBeInTheDocument();
+  },
+);
+
+it.each(['resolve', 'reject'] as const)(
+  'ignores a late closed-report %s after changing to a sales-report return context',
+  async (outcome) => {
+    const old = deferred<ClosedTradeReport>();
+    api.closedTrades.mockReturnValue(old.promise);
+    const mounted = render(view());
+    const signal = api.closedTrades.mock.calls[0][1]!;
+    expect(screen.getByRole('status')).toHaveTextContent('wird gelesen');
+    mounted.rerender(view(A, realizedQuery()));
+    expect(signal.aborted).toBe(true);
+    await act(async () => {
+      if (outcome === 'resolve') old.resolve(report(A, '999.00'));
+      else old.reject(new Error('obsolete closed-report failure'));
+      await old.promise.catch(() => undefined);
+    });
+    expect(screen.getByText(/Geöffnet aus „Verkäufe im Zeitraum“/)).toBeVisible();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.queryByText('999,00 EUR')).not.toBeInTheDocument();
+    expect(screen.queryByText('0,00 EUR')).not.toBeInTheDocument();
+    expect(api.closedTrades).toHaveBeenCalledTimes(1);
+  },
+);
 
 it('distinguishes a missing baseline from equality', async () => {
   const context = query();

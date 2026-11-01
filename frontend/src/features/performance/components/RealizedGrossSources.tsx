@@ -1,6 +1,10 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 
+import {
+  realizedTradeLink,
+  type RealizedReportContext,
+} from '../services/performanceReportContext';
 import { moneyText } from '../services/presentation';
 import type { RealizedGrossItem, RealizedGrossReport } from '../types/api';
 import { ReportSourceEntry } from './ReportSourceEntry';
@@ -8,9 +12,11 @@ import { ReportSourceEntry } from './ReportSourceEntry';
 export function RealizedGrossSources({
   item,
   report,
+  context,
 }: {
   item: RealizedGrossItem;
   report: RealizedGrossReport;
+  context: RealizedReportContext;
 }) {
   const [showFullHistory, setShowFullHistory] = useState(false);
   const tradeSources = report.sources.filter((source) => source.trade_id === item.trade_id);
@@ -140,7 +146,7 @@ export function RealizedGrossSources({
       </details>
       <Link
         className="inline-block rounded text-sm text-sky-300 underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400"
-        to={`/trade-management?trade_id=${encodeURIComponent(item.trade_id)}#execution-dates`}
+        to={realizedTradeLink(item.trade_id, context)}
       >
         Buchungen und Währungsbestätigungen im Trade prüfen
       </Link>

@@ -5,7 +5,8 @@ from typing import Annotated, Any
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Depends, Header, HTTPException, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, status
+from sqlalchemy.exc import DBAPIError
 
 from app.features.trade_position.api.currency_confirmations import router as currency_router
 from app.features.trade_position.api.dependencies import get_trade_position_service
@@ -15,8 +16,10 @@ from app.features.trade_position.api.dtos import (
     CaptureTimeRequest,
     ExecutionCorrectionRequest,
     ExecutionCurrencyConfirmationResponse,
+    ExecutionCurrencyPreviewRequest,
     ExecutionCurrencyResolutionResponse,
     ExecutionResponse,
+    ExecutionTimeRequest,
     ExternalPurchaseRequest,
     Ft011EligibilityResponse,
     InitialPurchaseResponse,
@@ -32,6 +35,8 @@ from app.features.trade_position.api.dtos import (
     WorkspacePurchaseRequest,
 )
 from app.features.trade_position.api.price_history import router as price_history_router
+from app.features.trade_position.api.source_router import Reader, unavailable
+from app.features.trade_position.domain.enums import ExecutionSide
 from app.features.trade_position.domain.management import TradeManagementState
 from app.features.trade_position.domain.models import (
     ExecutionRecord,
@@ -179,7 +184,7 @@ def _ft011(value: Ft011Eligibility) -> Ft011EligibilityResponse:
     )
 
 
-def _capture_time(request: CaptureTimeRequest) -> dict[str, Any]:
+def _execution_time(request: ExecutionTimeRequest) -> dict[str, Any]:
     now = datetime.now(UTC)
     result: dict[str, Any] = {}
     if request.executed_on is not None:
@@ -196,6 +201,11 @@ def _capture_time(request: CaptureTimeRequest) -> dict[str, Any]:
         if at > now:
             raise ValueError("Ausführungszeit darf nicht in der Zukunft liegen")
     result["executed_at"] = at
+    return result
+
+
+def _capture_time(request: CaptureTimeRequest) -> dict[str, Any]:
+    result = _execution_time(request)
     if request.request_id is not None:
         result["request_id"] = request.request_id
     if request.currency_confirmation is not None:
@@ -220,6 +230,62 @@ def _translate(error: ValueError) -> HTTPException:
         status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
         detail=message,
     )
+
+
+def _preview_time(request: Request, query: ExecutionCurrencyPreviewRequest) -> dict[str, Any]:
+    if any(len(request.query_params.getlist(key)) > 1 for key in request.query_params):
+        raise ValueError("Mehrdeutiger Ausführungszeitpunkt oder Buchungstyp")
+    return _execution_time(query)
+
+
+@router.get(
+    "/trades/{trade_id}/execution-currency-preview",
+    response_model=ExecutionCurrencyResolutionResponse,
+)
+async def preview_trade_execution_currency(
+    trade_id: UUID,
+    request: Request,
+    query: Annotated[ExecutionCurrencyPreviewRequest, Query()],
+    reader: Reader,
+) -> ExecutionCurrencyResolutionResponse:
+    try:
+        resolution = await reader.execution_currency_preview(
+            WORKSPACE_ID,
+            trade_id=trade_id,
+            side=query.side,
+            **_preview_time(request, query),
+        )
+    except ValueError as error:
+        raise _translate(error) from error
+    except DBAPIError as error:
+        raise unavailable() from error
+    return ExecutionCurrencyResolutionResponse.model_validate(resolution)
+
+
+@router.get(
+    "/products/{product_id}/execution-currency-preview",
+    response_model=ExecutionCurrencyResolutionResponse,
+)
+async def preview_product_execution_currency(
+    product_id: UUID,
+    request: Request,
+    query: Annotated[ExecutionCurrencyPreviewRequest, Query()],
+    reader: Reader,
+) -> ExecutionCurrencyResolutionResponse:
+    try:
+        if query.side is not ExecutionSide.BUY:
+            raise ValueError("Eine Erstkauf-Währungsvorschau benötigt BUY")
+        resolution = await reader.execution_currency_preview(
+            WORKSPACE_ID,
+            product_id=product_id,
+            side=query.side,
+            **_preview_time(request, query),
+        )
+    except ValueError as error:
+        raise _translate(error) from error
+    except DBAPIError as error:
+        raise unavailable() from error
+    return ExecutionCurrencyResolutionResponse.model_validate(resolution)
 
 
 @router.post(

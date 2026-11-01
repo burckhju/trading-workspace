@@ -386,10 +386,19 @@ export async function qualifyTradeSources(
   const historical = region("Evidence und Lesson-Versionen").getByRole("link", {
     name: /Version 1 · SUPPORTS · historische Version/,
   });
-  await expect(historical).toHaveAttribute(
-    "href",
-    `/lessons/${lid}?lesson_version_id=${l1}#lesson-history`,
+  const historicalUrl = new URL(
+    (await historical.getAttribute("href"))!,
+    page.url(),
   );
+  expect(historicalUrl.pathname).toBe(`/lessons/${lid}`);
+  expect(historicalUrl.hash).toBe("#lesson-history");
+  expect(historicalUrl.searchParams.get("lesson_version_id")).toBe(l1);
+  expect(historicalUrl.searchParams.get("trade_id")).toBe(tid);
+  expect(historicalUrl.searchParams.get("trade_return_view")).toBe("sources");
+  for (const [key, value] of new URL(pageUrl(tid, rid, jid), page.url())
+    .searchParams) {
+    if (key !== "view") expect(historicalUrl.searchParams.get(key)).toBe(value);
+  }
   await historical.focus();
   await page.keyboard.press("Enter");
   const snapshot = page.getByRole("article", {
@@ -402,7 +411,15 @@ export async function qualifyTradeSources(
   await page.reload();
   await expect(snapshot).toContainText("Original exact interpretation L1");
   await expect(page.getByLabel("Lesson-Version ansehen")).toHaveValue(l1);
-  await page.goto(pageUrl(tid, rid, jid));
+  await page
+    .getByRole("link", { name: "Zurück zum Trade-Arbeitsbereich" })
+    .click();
+  await expect(region("Evidence und Lesson-Versionen")).toBeVisible();
+  const returned = new URL(page.url());
+  for (const [key, value] of new URL(pageUrl(tid, rid, jid), page.url())
+    .searchParams) {
+    expect(returned.searchParams.get(key)).toBe(value);
+  }
   await settled();
   await region("Evidence und Lesson-Versionen")
     .getByRole("link", {
