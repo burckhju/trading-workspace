@@ -5,6 +5,8 @@ import {
   availableHistoryDays,
   historyTime,
   priceHistoryLabel,
+  priceKindLabel,
+  historyVenue,
 } from '../services/priceHistoryPresentation';
 import { PositionPriceHistoryEvidence } from './PositionPriceHistoryEvidence';
 
@@ -44,6 +46,8 @@ function History({ tradeId, positionId }: Props) {
   const [days, setDays] = useState<PositionPriceHistoryDays>('all');
   const [availableDays, setAvailableDays] = useState<PositionPriceHistoryDays[]>([]);
   const [attempt, setAttempt] = useState(0);
+  // A missing ID is visible by default. Only explicit user choices hide a series.
+  const [hiddenSeriesIds, setHiddenSeriesIds] = useState<string[]>([]);
   const [state, setState] = useState<{
     report: PositionPriceHistoryReport | null;
     error: boolean;
@@ -64,8 +68,10 @@ function History({ tradeId, positionId }: Props) {
   }, [tradeId, positionId, days, attempt]);
   const { report, error } = state;
   const series = report?.series.filter((item) => item.points.length > 0) ?? [];
-  const currencies = [...new Set(series.map((item) => item.currency))];
+  const visibleSeries = series.filter((item) => !hiddenSeriesIds.includes(item.id));
+  const currencies = [...new Set(visibleSeries.map((item) => item.currency))];
   const pointCount = series.reduce((count, item) => count + item.points.length, 0);
+  const visiblePointCount = visibleSeries.reduce((count, item) => count + item.points.length, 0);
   return (
     <section
       aria-label="Positionskursverlauf"
@@ -133,9 +139,53 @@ function History({ tradeId, positionId }: Props) {
               fehlen. Dieser Ausschnitt belegt keine vollständige Historie.
             </p>
           )}
+          {series.length > 1 && (
+            <fieldset className="min-w-0 space-y-2 rounded border border-slate-700 p-3">
+              <legend className="px-1 font-semibold">Sichtbare Kursquellen</legend>
+              <p className="text-xs text-slate-400">
+                Nur die Diagrammansicht wird gefiltert. Originalbelege und Buchungen bleiben
+                vollständig erreichbar. {visiblePointCount} von {pointCount} Kurspunkten sichtbar.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {series.map((item) => (
+                  <label key={item.id} className="flex max-w-full items-start gap-2 rounded border border-slate-700 p-2 text-xs">
+                    <input
+                      type="checkbox"
+                      className="mt-0.5 accent-sky-400"
+                      checked={!hiddenSeriesIds.includes(item.id)}
+                      onChange={(event) =>
+                        setHiddenSeriesIds((previous) =>
+                          event.target.checked
+                            ? previous.filter((id) => id !== item.id)
+                            : [...previous, item.id],
+                        )
+                      }
+                    />
+                    <span className="min-w-0 break-words">
+                      {item.provider} · {priceKindLabel[item.price_kind]} · {item.currency}
+                      <span className="block text-slate-400">{historyVenue(item)}</span>
+                      <span className="block text-slate-400">{item.source_mode ?? 'Quellenmodus unbekannt'}</span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+              <button
+                type="button"
+                className="rounded border border-slate-600 px-3 py-2 text-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-400"
+                onClick={() => setHiddenSeriesIds([])}
+              >
+                Alle Kursquellen anzeigen
+              </button>
+            </fieldset>
+          )}
           {pointCount === 0 ? (
             <p className="rounded border border-slate-700 p-4 text-slate-300">
               Keine zeitlich und fachlich zuordenbaren Kursdaten vorhanden.
+            </p>
+          ) : visibleSeries.length === 0 ? (
+            <p role="status" className="rounded border border-slate-700 p-4 text-slate-300">
+              Alle Kursquellen sind für das Diagramm ausgeblendet. Die gespeicherten
+              Kursbelege sind weiterhin unter „Kursdaten und Quellen“ erreichbar.
             </p>
           ) : (
             <Suspense fallback={<p>Diagramm wird geladen …</p>}>
@@ -143,7 +193,7 @@ function History({ tradeId, positionId }: Props) {
                 <PositionPricePlot
                   key={currency}
                   currency={currency}
-                  series={series.filter((item) => item.currency === currency)}
+                  series={visibleSeries.filter((item) => item.currency === currency)}
                   events={report.events}
                 />
               ))}
