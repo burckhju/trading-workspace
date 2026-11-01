@@ -351,7 +351,7 @@ it('keeps an empty reviewed set distinct from entirely unresolved facts and from
   ).toBeVisible();
   const partialDetail = within(screen.getByRole('region', { name: 'Herkunft SELL tiny' }));
   const partialNotice = within(
-    partialDetail.getByRole('region', { name: 'Währungsherkunft dieses Beitrags', exact: true }),
+    partialDetail.getByRole('region', { name: 'Währungsherkunft dieses Beitrags' }),
   );
   expect(partialNotice.getByText(/Bruttobeitrag als verwendbar/)).toBeVisible();
   expect(partialNotice.getByText(/teilweise berechenbar/)).toBeVisible();
@@ -397,7 +397,7 @@ it('keeps an empty reviewed set distinct from entirely unresolved facts and from
   fireEvent.click(screen.getByRole('button', { name: 'Quellen und Berechnung' }));
   const zeroDetail = within(screen.getByRole('region', { name: 'Herkunft SELL zero' }));
   const zeroNotice = within(
-    zeroDetail.getByRole('region', { name: 'Währungsherkunft dieses Beitrags', exact: true }),
+    zeroDetail.getByRole('region', { name: 'Währungsherkunft dieses Beitrags' }),
   );
   expect(zeroNotice.getByText(/Bruttobeitrag als verwendbar/)).toBeVisible();
   expect(zeroDetail.getByText('0.0000000000')).toBeVisible();
@@ -543,10 +543,10 @@ it('invalidates visible results immediately and ignores older success and failur
     }),
   );
   const currentNotice = within(
-    screen.getByRole('region', { name: 'Währungsherkunft dieses Beitrags', exact: true }),
+    screen.getByRole('region', { name: 'Währungsherkunft dieses Beitrags' }),
   );
   expect(
-    currentNotice.getByRole('heading', { name: 'Währungsherkunft dieses Beitrags', exact: true }),
+    currentNotice.getByRole('heading', { name: 'Währungsherkunft dieses Beitrags' }),
   ).toBeVisible();
   expect(currentNotice.getByText(/Aktueller Oktoberbeitrag/)).toBeVisible();
   fireEvent.click(currentNotice.getByText('Ursache und Quellen'));
@@ -587,7 +587,7 @@ it('invalidates visible results immediately and ignores older success and failur
   });
   expect(screen.queryByTestId('realized-gross-total')).not.toBeInTheDocument();
   expect(
-    screen.queryByRole('region', { name: 'Währungsherkunft dieses Beitrags', exact: true }),
+    screen.queryByRole('region', { name: 'Währungsherkunft dieses Beitrags' }),
   ).not.toBeInTheDocument();
   expect(screen.queryByText(/OCTOBER_OWNER_REASON/)).not.toBeInTheDocument();
   expect(
@@ -623,7 +623,7 @@ it('rejects a response for another filter and replaces the complete report while
     }),
   );
   const initialNotice = within(
-    screen.getByRole('region', { name: 'Währungsherkunft dieses Beitrags', exact: true }),
+    screen.getByRole('region', { name: 'Währungsherkunft dieses Beitrags' }),
   );
   fireEvent.click(initialNotice.getByText('Ursache und Quellen'));
   expect(initialNotice.getByText(/INITIAL_OWNER_REASON/)).toBeVisible();
@@ -697,12 +697,11 @@ it('rejects a response for another filter and replaces the complete report while
     screen.getByRole('region', { name: 'Herkunft SELL replacement' }),
   );
   const correctedNotice = within(
-    correctedDetail.getByRole('region', { name: 'Währungsherkunft dieses Beitrags', exact: true }),
+    correctedDetail.getByRole('region', { name: 'Währungsherkunft dieses Beitrags' }),
   );
   expect(
     correctedNotice.getByRole('heading', {
       name: 'Währungsherkunft dieses Beitrags',
-      exact: true,
     }),
   ).toBeVisible();
   expect(correctedNotice.getByText(/Berichtigter Beitrag/)).toBeVisible();
