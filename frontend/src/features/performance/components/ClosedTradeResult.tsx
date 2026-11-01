@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
+import { parseRealizedContext, reportReturnLink } from '../../../shared/trade-workspace-navigation';
 import { performanceApiClient } from '../services/client';
 import {
   CLOSED_REPORT_PATH,
@@ -20,6 +21,30 @@ export function ClosedTradeResult({
   productId: string;
   query: URLSearchParams;
 }) {
+  if (query.getAll('report_context').includes('realized-gross')) {
+    const realized = parseRealizedContext(query);
+    if (realized.error) return <p role="alert">{realized.error}</p>;
+    const destination = reportReturnLink(query);
+    return (
+      <>
+        <p>
+          Geöffnet aus „Verkäufe im Zeitraum“. Der Verkaufsbericht betrachtet einzelne Verkäufe
+          einschließlich Teilverkäufen. Für ein wirtschaftliches Gesamtergebnis des Trades eine
+          Abschlussauswertung auswählen.
+        </p>
+        <div className="flex flex-wrap gap-x-4 gap-y-2">
+          {destination && (
+            <Link className="text-sky-400 underline" to={destination.href}>
+              {destination.label}
+            </Link>
+          )}
+          <Link className="text-sky-400 underline" to={CLOSED_REPORT_PATH}>
+            Abschlussauswertung auswählen
+          </Link>
+        </div>
+      </>
+    );
+  }
   const parsed = parseClosedContext(query);
   if (parsed.error) return <p role="alert">{parsed.error}</p>;
   if (!parsed.context)

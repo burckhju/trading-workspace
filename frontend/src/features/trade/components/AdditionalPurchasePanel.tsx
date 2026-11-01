@@ -7,7 +7,7 @@ import {
   executionCurrencyDeclaration,
   type ExecutionCurrencyDraft,
 } from '../services/executionCurrency';
-import { ExecutionCurrencyOverride } from './ExecutionCurrencyOverride';
+import { ExecutionCurrencyPreview } from './ExecutionCurrencyPreview';
 import { ExecutionDateInput } from './ExecutionDateInput';
 import { useTradePendingChanges } from './TradePendingChanges';
 
@@ -15,6 +15,7 @@ interface Props {
   tradeId: string;
   onChanged: () => Promise<void>;
   isWriteBlocked?: () => boolean;
+  reloadToken?: number;
 }
 interface Draft {
   quantity: string;
@@ -28,7 +29,7 @@ export function AdditionalPurchasePanel(props: Props) {
   return <AdditionalPurchaseContext key={props.tradeId} {...props} />;
 }
 
-function AdditionalPurchaseContext({ tradeId, onChanged, isWriteBlocked }: Props) {
+function AdditionalPurchaseContext({ tradeId, onChanged, isWriteBlocked, reloadToken }: Props) {
   const [draft, setDraft] = useState<Draft>(() => ({
     quantity: '',
     price: '',
@@ -178,7 +179,11 @@ function AdditionalPurchaseContext({ tradeId, onChanged, isWriteBlocked }: Props
           onTime={(value) => changeDraft({ time: value })}
         />
       </fieldset>
-      <ExecutionCurrencyOverride
+      <ExecutionCurrencyPreview
+        reloadToken={reloadToken}
+        context={{ tradeId, side: 'BUY' }}
+        date={date}
+        time={time}
         value={currency}
         onChange={(value) => changeDraft({ currency: value })}
         disabled={busy}

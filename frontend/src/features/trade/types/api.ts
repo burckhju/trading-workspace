@@ -33,6 +33,16 @@ export interface ExecutionCurrencyResolution {
   reason?: string | null;
   resolver_version?: string;
 }
+
+/** Read-only context for an unsaved execution; contains no economic facts. */
+export type ExecutionCurrencyPreviewContext =
+  | { tradeId: Uuid; side: ExecutionSide }
+  | { productId: Uuid; side: 'BUY' };
+
+export type ExecutionCurrencyPreviewTime =
+  | { executed_at: IsoDateTime }
+  | { executed_on: string; execution_timezone: string };
+
 export interface ExecutionCurrencyDeclaration {
   currency_code: string;
   source: 'USER_CONFIRMED';
