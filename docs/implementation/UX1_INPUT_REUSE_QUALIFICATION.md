@@ -8,6 +8,9 @@ Der Tag zeigt auf diesen Main-Commit. Das jüngste GitHub-Release-Objekt ist dag
 `v1.0.0-product-selection`; Tagpublikation und Release-Objekt sind verschiedene Nachweise.
 Diese Datei dokumentiert Befunde, Änderungen und Prüfnachweise; die maßgebliche
 übergreifende Aufgabenstatusquelle bleibt [PRODUCT_BACKLOG.md](../planning/PRODUCT_BACKLOG.md).
+Die Ausgangsinventur und ihre damaligen Nachweise bleiben erhalten. Die erneute
+Fachregelprüfung vom 01.11.2026 und die öffentliche Erstkaufgrenze stehen im
+[Fortsetzungsabschnitt](#fachregelprüfung-und-öffentliche-erstkaufgrenze--01112026).
 
 Geprüft: README, Development Guide, Frontend-/Backend-Architektur,
 ADR-S6-007, bestehender Trade-Capture-Vertrag, Währungsresolver und Tests.
@@ -33,12 +36,13 @@ Offen sind #220, #207, #205, #197 und #187. #187 enthält Änderungen an
 `TradePlanWorkflowPage.tsx` und ein Hebeltrader-Panel; daraus wird nichts übernommen.
 #309 ist ausschließlich ein dokumentierter Monitoringvertrag, keine Runtimefreigabe.
 
-Während der Umsetzung wurde außerdem #311 (UX2-Navigation, Head `6782bc7a`)
-eröffnet. Gemeinsame Änderungsdatei ist `TradeManagementPage.tsx`; sein Patch lässt
-sich auf UX1-Head `74d29bb8` konfliktfrei rein lesend prüfen (`git apply --check`).
-Bei einer späteren gemeinsamen Integration müssen Währungsvorschau und
-`historyReloadToken` erhalten sowie die Navigationsjourneys gemeinsam geprüft
-werden. Aus #311 wurde nichts übernommen.
+Während der ersten Umsetzung wurde außerdem #311 (UX2-Navigation, damaliger Head
+`6782bc7a`) eröffnet. Damals war `TradeManagementPage.tsx` die einzige gemeinsame
+Änderungsdatei; sein Patch wurde auf UX1-Head `74d29bb8` konfliktfrei rein lesend
+geprüft (`git apply --check`). Dieser historische Einzelbefund gilt nicht für den
+inzwischen erweiterten UX2-Head. Die aktuelle Vier-Dateien-Grenze und der notwendige
+gemeinsame Nachweis sind im Fortsetzungsabschnitt abgegrenzt. Aus #311 wurde nichts
+übernommen.
 
 ## Feldmatrix des geprüften Main
 
@@ -126,7 +130,7 @@ Reihenfolge der abgegrenzten Changesets:
 | Performance-Erststart mit gültiger Browserzone, etwa Europe/Vienna | Die Browserzone muss nicht erneut anstelle des bisherigen Berlin-Vorschlags eingegeben werden | Vorschlag bleibt bearbeitbar; explizite URL hat Vorrang; Datum im selben Zonenbezug, EUR unverändert | performanceReportContext.test.ts; PerformanceWorkspace.test.tsx |
 | Journal / Lessons | Bestehende automatische Trade-/Review-/Plan-/Evidenceverknüpfungen bestätigt | Keine neue Bewertung, Interpretation oder Freigabe erzeugt | Vorhandene Journal-/Lesson-Suiten unverändert |
 
-Die Währungsvorschau verwendet zwei GETs für Produkt beziehungsweise Trade und den
+Die Währungsvorschau verwendet zwei alternative GET-Endpunkte für Produkt beziehungsweise Trade und den
 vorhandenen `TradeSourceReader` samt schreibgeschütztem Repeatable-Read. Pro Faktenart
 gilt dessen Grenze von 2.000 Einträgen, für die Resolververknüpfungen 100.000. Grenzen
 führen zu einem erklärten Fehler statt zu abgeschnittener Herkunft. `side` und
@@ -164,3 +168,101 @@ Das vollständige Frontend-Gate sowie exakte PR-Head-/Testmerge-/CI-Ergebnisse w
 im Integrations-PR nach tatsächlichem Lauf nachgewiesen. Die oben genannten Main-Läufe
 qualifizieren keine UX-1-Änderung. Merge, Release, Deployment, PC-Installation und
 fachliche Abnahme sind nicht Teil dieses autorisierten Implementierungsauftrags.
+
+## Fachregelprüfung und öffentliche Erstkaufgrenze — 01.11.2026
+
+### Ausgang und abgegrenzte Dateifläche
+
+Erneut aufgelöst: Main `35f3ab2133fa40beb4ab2e502a08fa3bf5b44e35`, ursprünglicher
+UX1-Head `8f67442daac6879d7dfb28416f2171f67aead0e5` und offener UX2-Head
+`55072f8e90c00d309c3bd6ed6dd17f61ab33bd32`. Main enthält seit der ersten Prüfung
+ausschließlich die fünf Koordinationsdokumente aus #313. `VERSION` bleibt 1.5.35;
+der veröffentlichte Git-Tag v1.5.35 zeigt weiter auf `1883f7f3`, nicht auf den neuen
+Dokumentations-Main. Die neue Mainbasis wird im UX1-Featurebranch erhalten.
+
+Ausführender Lead dieses Teilschnitts ist UX1. Die integrierten
+[Shared Contracts](../coordination/UX_SHARED_CONTRACTS.md#öffentliche-grenze-für-die-erstkaufvorschau)
+geben die schmale öffentliche Erstkaufgrenze ausdrücklich vor. Reservierter und
+bearbeiteter Produktumfang:
+
+- `frontend/src/features/trade/public/InitialPurchaseCurrencyPreview.tsx`
+- `frontend/src/features/trade/public/InitialPurchaseCurrencyPreview.test.tsx`
+- `frontend/src/features/trade/index.ts`
+- `frontend/src/features/product_selection/pages/ProductSelectionPage.tsx`, ausschließlich Previewimport und Aufruf
+
+Hinzu kommen dieser bestehende Qualifikationsvertrag und
+[trade-capture-safety.md](../trade-capture-safety.md#public-initial-purchase-preview-boundary--ux1-review-2026-11-01).
+Die fünf MASTER-Dokumente werden unverändert aus Main übernommen. Keine eigene
+Änderung an Hostnavigation, Performancehelper, Backend, Workflow, Version oder
+fachlichem Backlogstatus ist Bestandteil dieser Fortsetzung.
+
+### Öffentliche Grenze und fachliche Regelprüfung
+
+`ProductSelectionPage` importiert `InitialPurchaseCurrencyPreview` aus `../../trade`.
+Die öffentliche Grenze exportiert ausschließlich diesen Adapter und seinen Props-Typ.
+Er nimmt `productId`, `date`, `time`, den vorhandenen kontrollierten Währungsentwurf
+`value`/`onChange` mit `code`/`note` sowie optional `disabled` entgegen. Intern ist
+der Kontext fest an das Produkt und `BUY` gebunden; die Props werden ausdrücklich
+einzeln weitergereicht. Freie Side, Trade-ID, Preis, Menge und Read-/Writecallbacks
+gehören nicht zum öffentlichen Vertrag. Trade behält den vorhandenen Previewread;
+Produktauswahl behält den Entwurf und den ausdrücklichen Capture. Es gibt keine
+kopierte Resolution, Finanzregel oder zweite Währungsauflösung.
+
+Der vollständige ursprüngliche Backend-Diff und die Consumer wurden unabhängig
+gegen die bestehenden TradePosition-/ProductSelection-Verträge geprüft. Befund:
+kein konkreter fachlicher Fehler in den additiven Preview-GETs. Die fachlichen
+Resolverfunktionen ändern gegenüber ihrer Basis ausschließlich den Scope-Parametertyp;
+ihre Prioritäts-, Zeit- und Konfliktlogik bleibt unverändert.
+
+| Geprüfte Grenze | Beobachteter Vertrag / vorhandener Gegenfall | Testbeleg |
+|---|---|---|
+| Erstkauf und aktuelle EUR-Notierung | Nur vollständige passende historische Produktquellen; andere Trades und aktuelle Listings begründen keinen Nachweis | `test_currency_preview.py`; `test_execution_currency_preview_postgres.py` |
+| Bestätigung und Nachkauf/Teilverkäufe | Eigene gültige Executionbestätigung hat Vorrang; frühere BUYs bleiben abgeleitete Herkunft, spätere Käufe füllen keine früheren Lücken | Bestehende Currency-Resolverfälle; Preview- und Capturetests |
+| Fehlend / gemischt / widersprüchlich | UNKNOWN, MIXED und CONFLICT bleiben erhalten; keine beliebige Quelle und kein EUR-Ersatz | Preview-, historische Resolver- und Performance-Währungsfälle |
+| Datum, Zeitzone und DST | Date-only erfordert Abdeckung des ganzen möglichen lokalen Tages; halboffene Intervalle und Lücken bleiben erhalten; keine erfundene Uhrzeit | Historische Resolverfälle einschließlich 25-Stunden-Tag; unveränderter `trade-capture-dst.spec.ts` |
+| Korrektur, Storno und Scope | Wirksame Korrekturhistorie, bestätigte Abstammung und neue Zeitbindung; stornierter Trade wird abgewiesen, fremde Quellen bleiben ausgeschlossen | Preview-, Korrektur-/Storno- und Scopefälle |
+| Lesender Snapshot | Keine Capturefelder in GETs, keine Previewbestätigung oder persistierte Preview-ID; bounded Repeatable-Read bleibt READ ONLY | API-Negativfälle; PostgreSQL-Datenvergleich und gleichzeitige Bestätigungsänderung |
+| Öffentliche BUY-Grenze | Nur freigegebene Props/Exports; feste BUY-Bindung auch bei fremden zusätzlichen Runtimeprops | `InitialPurchaseCurrencyPreview.test.tsx` |
+| Manuelle Angaben und Kontextwechsel | Keine Draft-/Capturewrites durch Reads; Code/Notiz, Busy, Retry, A→B→A mit spätem Erfolg/Fehler und Unmount geschützt | Öffentliche Adaptertests und bestehende Preview-/Kontexttests |
+| Bewusster Erstkauf | Angezeigte historische Währung erzeugt keine automatische `currency_confirmation`; erst der ausdrückliche Kauf speichert | `ProductSelectionPage.test.tsx`; `execution-currency-reuse.spec.ts` |
+
+Dies ist eine technische Fachregelprüfung mit synthetischen Nachweisen. Sie ist
+keine menschliche fachliche Abnahme und verändert keinen Abnahmestatus im Backlog.
+
+### Neu ausgeführte lokale Nachweise und CI-Bindung
+
+- Python 3.12.14: gesamte TradePosition-Units, historische Performance-Währung und
+  Preview-PostgreSQLdatei erneut ausgeführt: **427 bestanden, 3 übersprungen**, eine
+  bestehende AnyIO-Deprecation-Warnung, 8,51 Sekunden. Reale Datenbank-URLs waren für
+  diesen lokalen Prozess entfernt; die drei PG-Fälle benötigen die isolierte CI.
+- Node 22.16.0 / npm 10.9.2, `TZ=UTC`: **49 Tests in vier Dateien bestanden**:
+  sieben öffentliche Adapterfälle sowie 5/33/4 bestehende ProductSelection-Seiten-,
+  Kontext- und Repairfälle. TypeScript und gezielte Formatprüfung erfolgreich.
+- Vollständiges Frontend-Gate derselben Toolchain/Zone: **1.869 Tests in 160 Dateien
+  bestanden**, TypeScript, ESLint, Prettier und Build erfolgreich. Coverage:
+  Statements/Lines **95,89 %**, Branches **90,22 %**, Functions **91,27 %**; bestehende
+  Grenzen unverändert. Vier zunächst vom Lintgate beanstandete Async-Testcallbacks
+  warten nun ausdrücklich auf ihre Deferred-Antworten; keine Regel oder Assertion
+  wurde gelockert. Beide Dokumente und zwölf lokale Link-/Ankerziele sind geprüft.
+- Alle normalen GitHub-Gates einschließlich echter PostgreSQL- und Browserreisen
+  werden am neuen Head mit
+  tatsächlich ausgechecktem Testmerge im [bestehenden PR #312](https://github.com/burckhju/trading-workspace/pull/312)
+  nachgewiesen. Die grünen Läufe des ursprünglichen Heads gelten nicht automatisch
+  für den Adapter oder einen später kombinierten UX1/UX2-Stand.
+
+### Verbleibende Integrationsgrenze
+
+Der unabhängig qualifizierbare Adapter schließt die öffentliche UX1-Importgrenze.
+Die [festgelegte Integrationsreihenfolge](../coordination/UX_DEPENDENCIES.md#integrationsreihenfolge-phase-1)
+bleibt bestehen: UX2 stellt den einmaligen Shared-Zeitzonenhelper bereit und führt
+die Hostintegration; UX1 wird anschließend auf dem tatsächlich integrierten UX2-Main
+neu qualifiziert. Gemeinsame Dateien sind weiterhin `TradeManagementPage.tsx`,
+`performanceReportContext.ts`, `PerformanceWorkspace.test.tsx` und
+`RealizedGrossPage.test.tsx`. Beide Funktionsumfänge bleiben zu erhalten.
+
+Kein fremder Featurebranch wird übernommen. Erfolgreiche Einzel-PR-CI dieses
+Adapters ist kein kombinierter Navigations-/Readbacknachweis. Der gemeinsame Stand
+benötigt erfolgreiche Previewantworten, erhaltene manuelle Eingaben, konstante
+Previewreads bei Hashwechseln, historische Pins und beide Berichtsrückwege sowie
+die vollständigen normalen Gates. Mainintegration, Veröffentlichung, PC-Installation
+und menschliche Fachabnahme bleiben eigene, hier nicht erteilte Freigaben.

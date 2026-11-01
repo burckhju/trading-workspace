@@ -328,3 +328,35 @@ UX1-A makes the concrete result visible before capture. Quantity, actual price,
 date/time precision, explicit save, correction and cancellation contracts remain
 unchanged. No migration, backfill, provider activation or automatic booking is
 introduced. [Field inventory and qualification](implementation/UX1_INPUT_REUSE_QUALIFICATION.md).
+
+## Public initial-purchase preview boundary — UX1 review, 2026-11-01
+
+The integrated [UX coordination contract](coordination/UX_SHARED_CONTRACTS.md#öffentliche-grenze-für-die-erstkaufvorschau)
+defines a narrow public Trade UI adapter for ProductSelection. The consumer imports
+`InitialPurchaseCurrencyPreview` from `features/trade`, whose public entry point
+exports only that adapter and `InitialPurchaseCurrencyPreviewProps`.
+
+The adapter accepts `productId`, `date`, `time`, the existing controlled currency
+draft (`value` / `onChange`, with `code` and `note`), and optional `disabled`.
+It explicitly delegates to the existing internal preview with
+`context={{ productId, side: 'BUY' }}`. Side, trade identity, quantity, price,
+read/write callbacks and resolved financial facts are not public adapter inputs.
+Additional runtime properties are not forwarded. The existing draft type is reused;
+no second resolution, currency enum, form store or read owner is introduced.
+
+ProductSelection still owns the selected product, purchase draft and explicit
+capture action. Trade still owns the read, abort/retry handling, historical source
+display and stale-response protection. A successful read does not call `onChange`,
+create a currency confirmation or capture a purchase. Manual currency and note remain
+controlled, including after failed reads, retries and late responses.
+
+The public tests verify the exact export/prop boundary, fixed BUY context, absence
+of read-driven draft/capture writes, busy state, A→B→A with late success/failure,
+read-only retry and unmount. The existing ProductSelection integration test continues
+to prove an explicit initial BUY without an automatically generated
+`currency_confirmation`; the existing synthetic PostgreSQL/browser journey covers
+initial BUY, additional BUY and partial SELL. The backend preview DTOs, routes,
+historical resolver, correction/cancellation and command contracts are unchanged
+by this adapter revision. See the [dated technical review](implementation/UX1_INPUT_REUSE_QUALIFICATION.md#fachregelprüfung-und-öffentliche-erstkaufgrenze--01112026)
+for executed evidence and the separate UX2 integration boundary. Automated contract
+qualification is not a human acceptance or release approval.

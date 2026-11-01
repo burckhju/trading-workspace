@@ -4,7 +4,7 @@ import { Link, UNSAFE_DataRouterContext, useSearchParams } from 'react-router-do
 import { PendingNavigationGuard } from '../../../components/PendingNavigationGuard';
 
 import { ExecutionDateInput } from '../../trade/components/ExecutionDateInput';
-import { ExecutionCurrencyPreview } from '../../trade/components/ExecutionCurrencyPreview';
+import { InitialPurchaseCurrencyPreview } from '../../trade';
 import {
   emptyExecutionCurrency,
   executionCurrencyDeclaration,
@@ -995,8 +995,8 @@ export function ProductSelectionPage() {
                           </label>
                         </div>
                         {selectedEvaluation && (
-                          <ExecutionCurrencyPreview
-                            context={{ productId: selectedEvaluation.warrant_id, side: 'BUY' }}
+                          <InitialPurchaseCurrencyPreview
+                            productId={selectedEvaluation.warrant_id}
                             date={purchaseDate}
                             time={purchaseTime}
                             value={purchaseCurrency}
