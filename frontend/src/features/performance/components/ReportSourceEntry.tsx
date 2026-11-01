@@ -9,13 +9,20 @@ export function ReportSourceEntry({
   source,
   timezone,
   currencyPresentation,
+  priceCurrency,
 }: {
   source: RealizedGrossSource;
   timezone: string;
   /** The Realized pilot supplies passive provenance; other consumers keep their existing view. */
   currencyPresentation?: ReactNode;
+  /** Undefined keeps the existing fallback; null explicitly preserves unknown currency. */
+  priceCurrency?: string | null;
 }) {
   const confirmation = source.currency_confirmation;
+  const displayedPriceCurrency =
+    priceCurrency === undefined
+      ? source.currency_resolution?.currency_code ?? confirmation?.currency_code
+      : priceCurrency;
   return (
     <li
       aria-label={`Buchungsquelle ${source.execution_id}`}
@@ -32,9 +39,7 @@ export function ReportSourceEntry({
       <p className="mt-1 text-sm">Ausgeführt: {executionTimeText(source, timezone)}</p>
       <p className="mt-1 text-sm">
         Gespeicherter Stückpreis: <code>{source.price_per_unit ?? 'unbekannt'}</code>{' '}
-        {source.currency_resolution?.currency_code ??
-          confirmation?.currency_code ??
-          '· Ausführungswährung unbekannt'}
+        {displayedPriceCurrency ?? '· Ausführungswährung unbekannt'}
       </p>
       <p className="mt-1 text-xs text-slate-400">
         Erfasst: {source.recorded_at} · durch {source.recorded_by}

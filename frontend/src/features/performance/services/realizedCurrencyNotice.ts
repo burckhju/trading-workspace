@@ -1,4 +1,4 @@
-import type { AuthorityRef, DetailRow, NoticeView } from '../../../shared/notices';
+import type { DetailRow, NoticeView } from '../../../shared/notices';
 import type { RealizedGrossItem, RealizedGrossReport, RealizedGrossSource } from '../types/api';
 import {
   parseRealizedContext,
@@ -123,7 +123,7 @@ function unresolved(entry: SourceEntry): boolean {
   return (
     !resolution ||
     resolution.currency_code === null ||
-    ['UNKNOWN', 'MIXED', 'CONFLICT'].includes(resolution.source)
+    (!reusedSources.has(resolution.source) && resolution.source !== 'USER_CONFIRMED')
   );
 }
 
@@ -159,16 +159,11 @@ function sourceIdentity(entry: SourceEntry): unknown {
   ];
 }
 
-function sourceDetails(
-  entry: SourceEntry,
-  report: RealizedGrossReport,
-  proof: (references: readonly string[]) => AuthorityRef,
-): DetailRow[] {
-  const sourceProof = proof([`sources.execution_id=${entry.executionId}`]);
+function sourceDetails(entry: SourceEntry, report: RealizedGrossReport): DetailRow[] {
   if (!entry.source) {
     return [
-      { label: `${entry.label} · Quellenzuordnung`, value: entry.problem!, proof: sourceProof },
-      { label: `${entry.label} · Originalbezug`, value: entry.executionId, proof: sourceProof },
+      { label: `${entry.label} · Quellenzuordnung`, value: entry.problem! },
+      { label: `${entry.label} · Originalbezug`, value: entry.executionId },
     ];
   }
   const source = entry.source;
@@ -177,19 +172,16 @@ function sourceDetails(
     {
       label: `${entry.label} · Ausführung`,
       value: executionTimeText(source, report.filters.report_timezone),
-      proof: sourceProof,
     },
     {
       label: `${entry.label} · Währungsherkunft`,
       value: resolution
         ? currencyResolutionLabel(resolution)
         : 'Die Berichtsantwort enthält keine Währungsauflösung für diese Buchung. Eine vorhandene Bestätigung wird hier nicht zu einer Auflösung ergänzt.',
-      proof: sourceProof,
     },
     {
       label: `${entry.label} · Originalbezug`,
       value: `Buchung ${source.execution_id} · Trade ${source.trade_id} · Produkt ${source.product_id} · ${source.side} · wirksam`,
-      proof: sourceProof,
     },
   ];
   if (!resolution) return rows;
@@ -199,7 +191,6 @@ function sourceDetails(
       value:
         reasonExplanations[resolution.reason] ??
         'Der zuständige Fachbereich liefert einen hier noch nicht näher erläuterten Grund. Aus diesem Code wird keine zusätzliche Ursache abgeleitet.',
-      proof: sourceProof,
     });
   }
   rows.push({
@@ -207,32 +198,37 @@ function sourceDetails(
     value: [resolution.source, resolution.reason, resolution.resolver_version]
       .filter(Boolean)
       .join(' · '),
-    proof: sourceProof,
   });
   for (const [label, ids] of [
     ['Verwendete Buchungen', resolution.source_execution_ids],
     ['Verwendete Bestätigungen', resolution.confirmation_ids],
     ['Verwendete Belegversionen', resolution.evidence_ids ?? []],
   ] as const) {
-    if (ids.length)
-      rows.push({ label: `${entry.label} · ${label}`, value: ids.join(', '), proof: sourceProof });
+    if (ids.length) rows.push({ label: `${entry.label} · ${label}`, value: ids.join(', ') });
   }
   for (const evidence of resolution.evidence ?? []) {
     rows.push({
       label: `${entry.label} · Belegquelle`,
       value: `${evidence.source_reference} · Belegversion ${evidence.id}${evidence.source_fingerprint ? ` · Fingerprint ${evidence.source_fingerprint}` : ''}`,
-      proof: proof([`sources.execution_id=${source.execution_id}`, `evidence.id=${evidence.id}`]),
     });
     if (evidence.valid_from || evidence.valid_to) {
       rows.push({
         label: `${entry.label} · Beleggültigkeit`,
         value: `${evidence.valid_from ?? 'Beginn nicht angegeben'} bis ausschließlich ${evidence.valid_to ?? 'Ende nicht angegeben'}`,
-        proof: sourceProof,
       });
     }
   }
   return rows;
 }
+
+/** Only the owner's summary qualifies the selected sum, never a source reason. */
+const summaryImpact: Readonly<Record<RealizedGrossReport['summary']['status'], string>> = {
+  EMPTY: 'Der Bericht enthält keine passenden Verkaufsbeiträge.',
+  COMPLETE: 'Der Bericht weist die gewählte Summe als vollständig berechenbar aus.',
+  PARTIAL:
+    'Der Bericht ist teilweise berechenbar. Die ausgewiesene Teilsumme ist keine vollständige Summe.',
+  NOT_COMPUTABLE: 'Der Bericht weist die gewählte Summe als nicht berechenbar aus.',
+};
 
 /**
  * Read-only explanation of one item from one already accepted report response.
@@ -260,22 +256,6 @@ export function buildRealizedCurrencyNotice(
     return null;
   }
 
-  const proof = (references: readonly string[]): AuthorityRef => ({
-    owner: 'Performance / TradePosition',
-    contract: report.definition_version,
-    snapshotToken: report.basis.id,
-    references: [
-      `items.execution_id=${item.execution_id}`,
-      `items.trade_id=${item.trade_id}`,
-      `items.product_id=${item.product_id}`,
-      `filters=${filterKey(report.filters)}`,
-      ...references,
-    ],
-  });
-  const ownerProof = proof([
-    `items.status=${item.status}`,
-    ...item.reasons.map((reason) => `items.reasons=${reason}`),
-  ]);
   const entries = requiredSources(item, report);
   const reasons = [...new Set(item.reasons.filter((reason) => currencyReasons.has(reason)))];
   const currencyPreventsContribution = item.status === 'NOT_COMPUTABLE' && reasons.length > 0;
@@ -289,22 +269,11 @@ export function buildRealizedCurrencyNotice(
       'Der Bericht weist für Verkauf und Kaufkostenbasis keine einheitliche Währungszuordnung aus.',
   };
   const subject = `${item.product_name?.trim() || 'Produktname nicht verfügbar'} · Verkauf ${executionTimeText(item, report.filters.report_timezone)}.`;
-  const cause: NoticeView['cause'] = reasons.length
-    ? {
-        known: true,
-        explanation: `${subject} ${reasons.map((reason) => explanations[reason]).join(' ')}`,
-        proof: ownerProof,
-      }
+  const cause = reasons.length
+    ? `${subject} ${reasons.map((reason) => explanations[reason]).join(' ')}`
     : unavailable
-      ? {
-          known: false,
-          explanation: `${subject} Die Berichtsantwort liefert nicht für alle benötigten Buchungen eine eindeutig zuordenbare Währungsherkunft. Der ausgewiesene Beitragsstatus bleibt maßgeblich.`,
-        }
-      : {
-          known: true,
-          explanation: `${subject} Die Währungsherkunft des Verkaufs und seiner benötigten Käufe ist in dieser Berichtsantwort belegt.`,
-          proof: ownerProof,
-        };
+      ? `${subject} Die Berichtsantwort liefert nicht für alle benötigten Buchungen eine eindeutig zuordenbare Währungsherkunft. Der ausgewiesene Beitragsstatus bleibt maßgeblich.`
+      : `${subject} Die Währungsherkunft des Verkaufs und seiner benötigten Käufe ist in dieser Berichtsantwort belegt.`;
 
   let impact: string;
   if (item.status === 'EXCLUDED') {
@@ -328,7 +297,7 @@ export function buildRealizedCurrencyNotice(
       'Der Bericht weist diesen Bruttobeitrag als verwendbar aus. Der angezeigte Betrag wird unverändert übernommen.';
   }
 
-  const automaticEntries = entries.filter((entry) => {
+  const hasAutomaticOrigin = entries.some((entry) => {
     const resolution = entry.source?.currency_resolution;
     return resolution && resolution.currency_code !== null && reusedSources.has(resolution.source);
   });
@@ -337,32 +306,31 @@ export function buildRealizedCurrencyNotice(
     reasons.includes('CURRENCY_MIXED') || !reasons.length ? entries : entries.filter(unresolved);
   const identityEntries = causalEntries.length ? causalEntries : entries;
   const details: DetailRow[] = [
-    {
-      label: 'Originalbefund des Beitrags',
-      value: [item.status, ...item.reasons].join(' · '),
-      proof: ownerProof,
-    },
+    { label: 'Originalbefund des Beitrags', value: [item.status, ...item.reasons].join(' · ') },
+    { label: 'Originalqualifikation der Summe', value: report.summary.status },
     {
       label: 'Berichtsauswahl',
       value: `${report.filters.from_date} bis ${report.filters.to_date} · ${report.filters.report_currency} · ${report.filters.report_timezone}`,
-      proof: ownerProof,
     },
-    { label: 'Berichtsstand', value: report.basis.id, proof: ownerProof },
+    { label: 'Berichtsstand', value: report.basis.id },
     {
       label: 'Bericht gelesen',
       value: `${report.basis.read_started_at} bis ${report.basis.read_completed_at}`,
-      proof: ownerProof,
     },
-    { label: 'Bericht berechnet', value: report.basis.calculated_at, proof: ownerProof },
+    { label: 'Bericht berechnet', value: report.basis.calculated_at },
+    {
+      label: 'Zeitbezug',
+      value:
+        'Lese- und Berechnungszeiten sind keine Ausführungs- oder Quellenprüfzeiten und belegen keine Behebung eines früheren Befunds.',
+    },
     {
       label: 'Herkunftsbezug',
       value:
-        'Für die Währungsherkunft dieses Beitrags zählen die wirksamen Käufe im gelieferten Kostenbasispräfix und dieser Verkauf. Frühere Verkäufe belegen die Bestandsentwicklung; spätere und historisch ersetzte Buchungen bleiben Kontext.',
-      proof: ownerProof,
+        'Die wirksamen Käufe im gelieferten Kostenbasispräfix und dieser Verkauf werden einzeln zugeordnet. Frühere Verkäufe belegen die Bestandsentwicklung; spätere und historisch ersetzte Buchungen bleiben Kontext. Diese gemeinsame Darstellung belegt keine gemeinsame Ursache.',
     },
-    ...entries.flatMap((entry) => sourceDetails(entry, report, proof)),
+    ...entries.flatMap((entry) => sourceDetails(entry, report)),
   ];
-  const view = {
+  return {
     id: `realized-currency:${JSON.stringify([
       report.definition_version,
       filterKey(report.filters),
@@ -374,62 +342,22 @@ export function buildRealizedCurrencyNotice(
         .map(sourceIdentity)
         .sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right))),
     ])}`,
-    catalogRule: 'realized-gross-item-currency-provenance',
     title: currencyPreventsContribution
       ? 'Währungsherkunft dieses Beitrags ungeklärt'
       : 'Währungsherkunft dieses Beitrags',
+    presentation: currencyPreventsContribution ? 'warning' : 'information',
     cause,
-    impact,
-    automatic: automaticEntries.length
-      ? {
-          kind: 'owner-result-reused',
-          explanation:
-            'Bereits belegte Währungszuordnungen werden aus vorhandenen Quellen übernommen. Für diese Zuordnungen ist keine erneute Bestätigung nötig.',
-          proof: proof(
-            automaticEntries.map((entry) => `sources.execution_id=${entry.executionId}`),
-          ),
-        }
-      : {
-          kind: 'none-evidenced',
-          explanation: currencyPreventsContribution
-            ? 'Die gelesene Antwort belegt keine automatische Klärung dieser Währungslücke.'
-            : 'Diese Ansicht übernimmt die bereits gelieferten Währungsbelege.',
-        },
-    userNeed: {
-      kind: 'optional-inspection',
-      explanation: 'Buchungen und Belege bei Bedarf im Trade prüfen.',
-    },
-    time: {
-      observedAt: null,
-      checkedAt: null,
-      validFrom: null,
-      validTo: null,
-      explanation:
-        'Die Original-Lese- und Berechnungszeiten dieser Berichtsantwort stehen in den Details. Sie sind keine Ausführungs- oder Quellenprüfzeiten und belegen keine Behebung eines früheren Befunds.',
-    },
+    impact: `${impact} ${summaryImpact[report.summary.status]}`,
+    automatic: hasAutomaticOrigin
+      ? 'Bereits belegte Währungszuordnungen werden aus vorhandenen Quellen übernommen. Für diese Zuordnungen ist keine erneute Bestätigung nötig.'
+      : currencyPreventsContribution
+        ? 'Die gelesene Antwort belegt keine automatische Klärung dieser Währungslücke.'
+        : '',
+    userNeed: 'Buchungen und Belege bei Bedarf im Trade prüfen.',
     details,
-    actions: [
-      {
-        kind: 'read',
-        label: 'Buchungen und Währungsbestätigungen im Trade prüfen',
-        destination: {
-          availability: 'verified-existing',
-          href: realizedTradeLink(item.trade_id, context),
-          builder: 'realizedTradeLink',
-          subject: {
-            identity: 'known-object',
-            kind: 'trade',
-            id: item.trade_id,
-            label: 'Trade dieses Verkaufs',
-            versionId: null,
-          },
-          granularity: 'section',
-          relationshipProof: ownerProof,
-        },
-      },
-    ],
-  } satisfies Omit<NoticeView, 'presentation'>;
-  return currencyPreventsContribution
-    ? { ...view, presentation: { kind: 'warning', priority: 'relevant-problem' } }
-    : { ...view, presentation: { kind: 'information', priority: 'data-quality-information' } };
+    action: {
+      label: 'Buchungen und Währungsbestätigungen im Trade prüfen',
+      href: realizedTradeLink(item.trade_id, context),
+    },
+  };
 }

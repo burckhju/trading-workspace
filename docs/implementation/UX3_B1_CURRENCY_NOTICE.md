@@ -1,185 +1,197 @@
 # UX3-B1/F1 — Währungsherkunft eines Verkaufsbeitrags
 
-## Auftrag und geprüfte Grundlage
+## Fortsetzungsauftrag und Dateischnitt vor Änderungen — 01.11.2026
 
-Der Nutzerauftrag „Nächster Schritt umsetzen ggf. mit separatem Startprompt“
-konkretisiert den ersten Produktdurchstich nach UX3-K. Die bereits erteilte
-Autorisierung für Merge bei grünen erforderlichen Prüfungen und Bereitstellung
-für den PC bleibt erhalten. Technische Prüfung, Main-Integration, veröffentlichter
-Tag, PC-Installation und menschliche Fachabnahme sind getrennte Nachweise.
+Ausführender Rollenowner ist UX3. Der vorliegende Auftrag erlaubt Implementierung,
+Tests und Fortsetzung des vorhandenen Draft-PRs; keine Merges, Releases,
+Installationen oder produktiven Datenmutationen. Frühere Freigabeformulierungen
+im Ausgangsdiff sind keine Freigabe dieses Auftrags.
 
-Ausgangsbasis ist Main
-[`bb49ffe781933270746b9f86f4aee99b6f8144c2`](https://github.com/burckhju/trading-workspace/commit/bb49ffe781933270746b9f86f4aee99b6f8144c2),
-veröffentlicht als v1.5.37. Der Stand enthält den kanonischen Vertrag aus
-[#314](https://github.com/burckhju/trading-workspace/pull/314) und die qualifizierte
-UX1/UX2-Integration aus
-[#318](https://github.com/burckhju/trading-workspace/pull/318).
-Der Quellentwurf #315 bleibt unangetastet. Maßgeblich sind der
-[Hinweisvertrag](../ui/ux-3/notice-contract.md), die
-[Masterentscheidung](../coordination/UX_SHARED_CONTRACTS.md) und der
-[begrenzte Rollout](../ui/ux-3/integration-and-rollout.md).
+Erneut geprüft: Main und v1.5.37 stehen auf
+`bb49ffe781933270746b9f86f4aee99b6f8144c2`; #318 ist integriert.
+Der bereits vorhandene Draft [#320](https://github.com/burckhju/trading-workspace/pull/320)
+wird auf `feat/ux3-b1-currency-notice-20261101` fortgesetzt, Ausgangs-Head
+`36522cdb8ca6a202950e459f07616483258927a8`, Tree
+`a0d63b20972a12e7076fb3280487d6b5f476b692`. Sein damaliger Testmerge ist
+`f251de0676af5399c027b5ce845329d5f64abcf3`, derselbe Tree. Kein zweiter Pilot.
 
-## Ergebnis und Dateigrenze
+Die acht sichtbaren offenen PRs #320, #319, #315, #220, #207, #205, #197 und
+#187 wurden auf Überschneidungen geprüft. Nur PRODUCT_BACKLOG.md überschneidet
+sich mit #319/#315. Der neue Produktschnitt lässt diese Datei sowie die
+MASTER-Dateien auf Mainstand. Keine Kenntnis unveröffentlichter Chat-Arbeit;
+vor dem Push werden Main und Branch-Head erneut aufgelöst. Der frisch geklonte
+Checkout hatte nach dem Checkout keine lokalen Änderungen. Keine AGENTS.md
+im Repository; README, Entwicklungs- und Architekturvorgaben gelten.
 
-Beim Öffnen der Herkunft eines realisierten Verkaufsbeitrags zeigt genau eine
-Karte den betroffenen Gegenstand, die belegte Währungsursache, ihre Auswirkung,
-eine bereits vorhandene automatische Zuordnung und den verbleibenden optionalen
-Prüfweg. Primär stehen Produktname beziehungsweise ein ehrlicher Ersatz sowie
-Verkaufsdatum und Berichtszeitzone. Technische Identitäten stehen in Details.
+### Konkreter Producer-/Consumervertrag
 
-| Fläche / Owner | Konkrete Änderung | Erhaltene Grenze |
+| Producer / Owner | Consumer / erlaubter Schnitt | Unveränderte Grenze |
 | --- | --- | --- |
-| [Shared-Präsentation](../../frontend/src/shared/notices/index.ts) / UX3 | `NoticeView`, `NoticeCard`, `NoticeDetails`, `ContextActionLink`; sichtbare Statuslabels, native Details, interne Links und sichtbarer Fokus | Keine Featureimporte, Requests, Callbacks, Commands, Effekte, Live-Regionen, globale Priorisierung oder Recoveryverwaltung |
-| [Performance-Mapper](../../frontend/src/features/performance/services/realizedCurrencyNotice.ts) / Performance | `buildRealizedCurrencyNotice(item, report, context)` erklärt vorhandene Item-/Quellenfakten; `currencyResolutionLabel` benennt deren Herkunft | Kein Währungsresolver, Finanzalgorithmus, neues Domainenum oder neue fachliche Zulässigkeitsprüfung |
-| [RealizedGrossSources](../../frontend/src/features/performance/components/RealizedGrossSources.tsx) / bestehender Performance-Host | Eine Karte, genau ein bestehender Trade-Buchungslink, eindeutige Quellenzuordnung und ruhige Quellenabschnitte | Vorhandene Berichtsauswahl, Generationen, Rückkontext, Zahlen und Finanzstatus bleiben erhalten |
-| [ReportCurrencyEvidence](../../frontend/src/features/performance/components/ReportCurrencyEvidence.tsx) / Performance | Bereits gelesene Bestätigung, historische Belege, Resolverreferenzen und Bestätigungshistorie aufklappbar | Keine zusätzliche Warnung pro Quelle; keine neue Qualifikation, kein Quellenabruf |
-| [ReportSourceEntry](../../frontend/src/features/performance/components/ReportSourceEntry.tsx) / Performance | Optionaler Präsentationsslot ausschließlich für den Realized-Piloten | Der bestehende Default einschließlich Closed-Trade-Verbrauchern bleibt erhalten; kein globaler Umbau von `ExecutionCurrencySources` |
-| [Vollständiger Dokumentvertrag](../ui/ux-3/contracts.ts) / UX3 | Importiert und erweitert dieselbe Shared-Projektion | Die 42 bestehenden Typgegenfälle sowie zusätzliche Kontext-/Evidence-/Lifecyclebindungen bleiben erhalten; Produktcode importiert keine Dokumentation |
+| TradePosition: gespeicherte ExecutionCurrencyResolution, Confirmation und Evidence innerhalb report.sources | Performance-Featureadapter und quellengebundene Details | Resolverwert und Originalreason; keine Vorschau, neue Quelle, Bestätigung oder Zusatzabfrage |
+| Performance: bereits akzeptierte RealizedGrossReport-Antwort, Item, summary und Kontext | buildRealizedCurrencyNotice und RealizedGrossSources | verifyRealizedReport, echte Itemmitgliedschaft, gleiche Trade-/Produkt-/Executionidentität; Status und Geldstrings bleiben Ownerfakten |
+| UX1: Herkunftssemantik und manuelle Vorrangregel | Ausschließlich gespeicherte Herkunft im Pilot | ExecutionCurrencySources, Preview, Formulare und Capture unverändert |
+| UX2: realizedTradeLink und geprüfter Berichtsrückkontext | Ein lesender Presenter-Link zu #execution-dates | Bereichsziel, bestehende Guards/Fokus-/Abort-/Generationsgrenzen; keine Routerparameter oder Requests hinzugefügt |
+| UX3: geprüfte Texte und begrenzte Präsentationsprops | Reiner NoticeCard-Presenter mit nativen Details | Nur Information/Warnung und ein lesender Link; keine generische Status-, Retry-, Recovery- oder Alarmverwaltung |
 
-Der Pilot ändert keine Trade-/Produktauswahlformulare, UX1-Vorschau, UX2-Navigation,
-Backendantworten, Provider, Tradingregeln oder Planfreigaben. B2–D und weitere
-Berichtspopulationen sind keine implizite Folge dieses Diffs.
+### Reservierter enger Dateischnitt
 
-## Fachliche Entscheidungen
+Produkt und Tests:
 
-### Status und Auswirkung bleiben beim Bericht
+- frontend/src/features/performance/components/RealizedGrossSources.tsx
+- frontend/src/features/performance/components/RealizedGrossSources.test.tsx
+- frontend/src/features/performance/components/ReportCurrencyEvidence.tsx
+- frontend/src/features/performance/components/ReportSourceEntry.tsx
+- frontend/src/features/performance/services/realizedCurrencyNotice.ts
+- frontend/src/features/performance/services/realizedCurrencyNotice.test.ts
+- frontend/src/shared/notices/types.ts
+- frontend/src/shared/notices/NoticeCard.tsx
+- frontend/src/shared/notices/NoticeCard.test.tsx
+- frontend/src/shared/notices/index.ts
+- frontend/src/features/performance/pages/RealizedGrossPage.test.tsx
+- tests/e2e/ux3-currency-notice.spec.ts
+- dieser vorhandene technische Qualifikationsbericht
 
-Eine Warnung entsteht nur aus `item.status === NOT_COMPUTABLE` zusammen mit einem
-gelieferten Währungsreason (`CURRENCY_UNKNOWN`, `CURRENCY_CONFLICT` oder
-`CURRENCY_MIXED`). Der Mapper erfindet weder eine Operationssperre noch einen
-Gesamtstatus. `EXCLUDED` bleibt ein neutral erklärter Ausschluss, auch wenn dort
-zusätzlich ein Währungsreason steht. Nutzbare, unbekannte und echte Nullbeträge
-bleiben unverändert; keine Berechnung und keine Umdeutung von `null` in `0`.
+Der optionale ReportSourceEntry-Slot wird nur für den Pilot präzisiert:
+Resolution-null bleibt auch neben dem Preis unbekannt; der Default anderer
+Consumer bleibt unverändert. Fremde mitgelieferte Confirmation-Detailobjekte
+werden nicht als Beleg dieser Buchung angezeigt. Unabhängige Ursachen werden
+nur optisch gruppiert, frühere SELLs nicht als gemeinsame BUY-Ursache benutzt.
 
-Unbekannte Reasons bleiben mit Originalcode in den Details sichtbar. Die
-Hauptaussage begrenzt dann die Erklärbarkeit. `DOCUMENT_CONFLICT` kann Währung
-oder Handelsplatz betreffen; mehrere historische Listingwährungen werden nicht
-pauschal als widersprüchliche Kaufwährungen bezeichnet.
+Umfangskorrektur gegenüber dem Ausgangs-PR: VERSION, backend/pyproject.toml,
+frontend/package.json, frontend/package-lock.json, PRODUCT_BACKLOG.md und die
+sechs dort veränderten kanonischen UX3-Dokumente werden auf Mainstand gebracht;
+die neue V1.5.38-Release-Notiz entfällt. Keine weiteren Produktflächen.
+Das Dokumentationstypmodell bleibt Dokumentation und außerhalb des
+Produktimportgraphen. Die normative Semantik aus #314 bleibt maßgeblich.
 
-### Die tatsächlichen Quellen bestimmen den Bezug
+Gezielte neue Nachweise betreffen die gefundenen Herkunftslücken und den
+synchronen Wechsel von Text/Details/Link. Bestehende Null-/Nullsummen-/PARTIAL-,
+A→B→A-, Navigations-, Preview- und PostgreSQL-Ownerregressionen werden erhalten.
+Alle normalen Workflows, Coverage- und Owner-Gates bleiben unverändert. Frühere
+grüne Runs gelten nur für ihren damaligen Head; aktuelle Belege folgen nach
+Umsetzung. Manuelle Fach-/Screenreader-/Zoomabnahme bleibt ausdrücklich offen.
 
-Die Karte verwendet wirksame BUY-Quellen aus dem vom Owner gelieferten
-Kostenbasispräfix und den ausgewählten SELL. Frühere SELLs erklären die
-Bestandsentwicklung, aber keine Kaufkostenwährung. Spätere und ersetzte
-Buchungen bleiben in der unverändert zugänglichen Historie. Eine bestätigte
-Verkaufswährung schließt eine unbekannte Kaufwährung nicht aus.
+## Umsetzung des begrenzten Pilots
 
-Quellenidentitäten werden über die gesamte Antwort auf Eindeutigkeit geprüft;
-erst danach werden Trade und Produkt zugeordnet. Fehlende, doppelte, fremde,
-ersetzte oder falschseitige Quellen erzeugen keine erfundene Auflösung. Fremde
-Payloads gelangen nicht in die Quellenanzeige. Fehlt das optionale
-`currency_resolution`, wird es nicht aus einer Bestätigung rekonstruiert.
+Die aktive Umstellung erfolgt ausschließlich in RealizedGrossSources. Eine
+statische Karte erklärt den ausgewählten Verkaufsbeitrag und die Qualifikation
+der Berichtssumme. Der Performanceadapter nimmt item, report und context aus
+der bereits akzeptierten Antwort; er nutzt verifyRealizedReport, prüft echte
+Itemmitgliedschaft und eindeutige Executionidentität und verwendet die vorhandene
+UX2-Navigation. Der reine Presenter erhält nur id, title, information/warning,
+Textfelder für cause/impact/automatic/userNeed, Detailzeilen und einen Leselink.
+Er importiert keine Featureinternas und keine Dokumentationstypen.
 
-Originalbestätigungen, Autoren, Notizen, Bestätigungshistorie, Evidenceversionen,
-Quellenreferenzen, Fingerprints und Resolverversionen bleiben prüfbar. Quellen-
-und Evidence-IDs dienen der Rückverfolgbarkeit. Originalreferenzen sind Text,
-keine ungeprüften externen Links. Das Ende eines Gültigkeitsintervalls wird
-ausdrücklich als ausschließlich bezeichnet.
+### Herkunft, Wirkung und Quellenbindung
 
-### Eine gemeinsame Projektion, kein zweiter Vertrag
+- Resolverwert und Originalsource bleiben maßgeblich. EXECUTION_DOCUMENT,
+  HISTORICAL_LISTING(S), PRIOR_BUYS und REPLACED_EXECUTION erklären die
+  gelieferte automatische Herkunft; eine erneute Bestätigung wird nicht verlangt.
+  USER_CONFIRMED bezeichnet ausschließlich eine vorhandene Bestätigung.
+- UNKNOWN, MIXED und CONFLICT behalten ihren Originalreason. Ein unbekannter
+  Reason oder Source erhält keine erfundene Diagnose. Fehlende Resolution wird
+  auch neben dem Stückpreis nicht aus Confirmation rekonstruiert. Im Default
+  anderer ReportSourceEntry-Consumer bleibt die bestehende Darstellung erhalten.
+- Nur NOT_COMPUTABLE zusammen mit einem gelieferten Währungsreason begründet
+  die entsprechende Beitragswarnung. EXCLUDED plus CURRENCY_UNKNOWN erzeugt
+  keine zusätzliche Sperre der gewählten Summe. Ein eigener Satz übernimmt nur
+  die bestehende report.summary-Qualifikation; die bereits vorhandene Anzeige
+  von total/subtotal und ihren Originalstrings bleibt beim Bericht.
+- null bleibt unbekannt, eine tatsächliche 0 bleibt 0. Der Pilot berechnet
+  weder Kostenbasis noch Brutto-PnL, FX oder Summen und interpretiert keine
+  Decimalstrings durch Number/Float neu.
+- Der vorausgehende Executionprefix ist kein Nachweis gemeinsamer BUY-Ursachen.
+  Frühere SELLs werden für die Währungszuordnung nicht zu Käufen umgedeutet.
+  Quellen mit passender Trade-/Produktidentität, side und is_effective werden
+  einzeln angezeigt; die Karte gruppiert sie ausschließlich optisch.
+- Die Eindeutigkeit von Source-Execution-IDs wird über die gesamte Antwort vor
+  der Trade-/Produktzuordnung geprüft. Fehlende, doppelte oder fremde Quellen
+  werden nicht als Herkunft übernommen. Verschachtelte Confirmation-/History-
+  Detailobjekte benötigen dieselbe Trade- und Execution-ID. Gültige gelieferte
+  Resolverreferenzen bleiben auch ohne passendes Detailobjekt als Referenz sichtbar.
+- IDs, Originalreferenz, Quellenversion, Resolverversion und tatsächlich gelieferte
+  Fingerprints bleiben inspectierbar. source_reference wird als Text gerendert.
+  Erfassungszeit, Ausführungspräzision und historische Gültigkeit bleiben getrennt;
+  valid_to wird ausdrücklich als ausschließlich benannt. Der Produktname ist
+  heutige Stammdatenanzeige, kein historischer Währungsbeleg.
 
-Die reinen Darstellungstypen werden aus dem Dokumentvertrag einmalig nach Shared
-übernommen. `NoticeView` enthält seine vorhandenen Felder und erhält insbesondere
-die Korrelation von Darstellungsart und Nutzerbedarf. Der vollständige Typ
-`Notice<TFacts>` ergänzt dieselbe Projektion um Ownerfakten und Kontext;
-`ExistingDestination` ergänzt `NoticeDestination` um `NoticeContext`.
+### Navigation und zugängliche Darstellung
 
-Der vorhandene Host liefert keinen vollständigen generischen Workspacekontext an
-diesen Quellenabschnitt. Deshalb werden keine `workspaceKey`-/Generationswerte
-erfunden. Der Mapper prüft tatsächliche Itemmitgliedschaft, eindeutige Identität,
-Berichtsdefinition, Filter, Währung und Basis über die bestehenden Ownerhelper.
-`PerformanceWorkspace` behält Requestgeneration und Abortschutz. Die Karte wird
-bei neuen Props unmittelbar aus der neuen Antwort aufgebaut.
+Die Hauptaussage und die belegte Einschränkung stehen außerhalb der Details.
+Native details/summary und Linkelemente bleiben per Tastatur bedienbar. Der Link
+„Buchungen und Währungsbestätigungen im Trade prüfen“ wird ausschließlich mit
+realizedTradeLink gebildet; exakter Trade, Zeitraum, Berichtswährung, Zone, View,
+Seite und Basis bleiben erhalten. #execution-dates bezeichnet den Buchungsbereich,
+keine einzelne Ausführung und keinen neuen Routerparameter.
 
-Die Ursachenidentität enthält fachlichen Bezugsraum und konkrete Quellenidentität.
-Eine neue Berichtsbasis, Lesezeit oder Darstellung allein ändert sie nicht.
-Deutsche Meldungstexte sind keine Identitätsbausteine. Unabhängige Quellen bleiben
-unterscheidbar; dies ist keine berichtsweite Ursachenzählung und kein Deduplizierungs-
-oder Recoverystore.
+Titel, Originalgründe, Details und Aktion werden gemeinsam aus den aktuellen
+Props ersetzt. Requestgeneration, Abort, A→B→A und Fokusführung bleiben bei den
+vorhandenen Hosts. Eine neue basis.id oder ein Remount erzeugt weder eine neue
+Ursache noch eine Recovery. Die Karte hat keine Alertrolle, Live-Region, Effekte,
+Read-/Writecallbacks oder persistente Quittierungszustände. Aufklappen startet
+keine Abfrage und erzeugt keine neue Bestätigung.
 
-### Zeiten und Aktionen behalten ihre Bedeutung
+## Gezielte Prüfung und Nachweisgrenzen
 
-`read_started_at` und `read_completed_at` stehen unter „Bericht gelesen“,
-`calculated_at` unter „Bericht berechnet“. Sie werden nicht als Ausführungszeit,
-Quellenprüfung oder Behebungszeit ausgegeben. Nicht gelieferte allgemeine
-Beobachtungs-/Prüfzeiten bleiben `null`; historische Gültigkeit bleibt am Beleg.
+Neue und erweiterte Tests prüfen sichtbares Verhalten und konkrete Quellen-
+oder Kontextgrenzen. Unveränderte Ownerregressionen werden nicht durch neue
+parallele Finanztests ersetzt.
 
-Der einzige primäre Link lautet „Buchungen und Währungsbestätigungen im Trade
-prüfen“. Er nutzt den vorhandenen `realizedTradeLink` und erhält Zeitraum,
-Berichtswährung, Zeitzone, Basis, Trade-ID und `#execution-dates`. Der Anker
-bezeichnet den Buchungsbereich, keine vorgetäuschte individuelle Zeilenfokussierung.
-Die Shared-Komponente aktiviert ausschließlich absolute interne Apppfade;
-ungeeignete Ziele bleiben Text. Eine spätere Bestätigung bleibt eine bewusste
-Aktion im vorhandenen Fachformular.
-
-Statische Karten besitzen keine Live-Region oder Alertrolle. Aufklappen,
-Rerendern, neue Props und Remounts erzeugen keine automatische Ansage, zusätzliche
-Reads, Writes oder Entwarnung. Die fünf Darstellungsarten tragen sichtbare
-Textlabels; Farbe allein vermittelt keine Bedeutung.
-
-## Prüfungen und Aussagegrenzen
-
-Die lokalen Prüfungen vom 01.11.2026 verwendeten Node 22.16.0, TypeScript 5.8.3,
-Vitest 3.2.0 und `TZ=UTC`; die Produktfixture behält ihre ausdrückliche
-Berichtszeitzone Europe/Berlin. Alle unten als bestanden genannten Prozesse
-beendeten sich regulär mit Exit 0. Der PR-Abschluss bindet zusätzlich den
-tatsächlichen Head, Mainbasis, Testmerge/Tree und die erforderlichen CI-Run-/Jobbelege.
-
-| Prüfung | Tatsächlicher lokaler Nachweis |
+| Anforderung / TC-Bezug | Konkreter Nachweisweg |
 | --- | --- |
-| Vollständige Frontend-Suite | Alle 167 Testdateien erfolgreich; enthalten sind 48 Mapper-, 25 Shared- und 9 neue Hostfälle sowie die bestehenden Performance-/Closed-/Trade-Regressionen |
-| Coverage | Statements/Lines 96,00 %, Functions 91,49 %, Branches 90,33 %; unveränderte Gates 80/80/80/70 % |
-| Frontend-Qualität | Vollständiger TypeScript-Buildcheck, ESLint ohne Warnungen, Prettier und Produktionsbuild erfolgreich; vorhandener Vite-Hinweis auf große Chunks bleibt bestehen |
-| Neuer Browserpilot | 3/3 bei 320/390/1280 CSS px, Playwright 1.55.0 mit Chromium 140.0.7339.16, ein Worker und keine Retries; genau ein Report-GET, null unerwartete Requests/Mutationen und keine Pageerrors je Fall |
-| Bestehender geklickter Berichtsrückweg | 1/1 unverändert bei 390 px: SELL → Buchungslink → Fokus `#execution-dates` → Reload → kopierte Quellen-URL → Reload → exakter Berichtsrückweg; null Writes/Browserfehler und keine zusätzlichen Performance-/Closed-Reads während des Trade-/Quellenwegs |
-| Dokumentvertrag | 10/10 bestehende Dokumentchecks; strict/noEmit mit allen 42 unveränderten erwarteten Typfehlern und positiven Beispielen erfolgreich |
-| Veröffentlichungsschutz | 9/9 vorhandene Version-/Publisherguards erfolgreich; Versionswerte konsistent für die vorbereitete v1.5.38 |
+| Automatische historische Herkunft ohne Eingabe; PRIOR_BUYS ohne SELL-Bestätigung (TC-02/04) | realizedCurrencyNotice.test.ts, RealizedGrossSources.test.tsx; bestehende historische Resolver-/Berichttests |
+| UNKNOWN/MIXED/CONFLICT, fehlende Resolution, unbekannter Reason/Source (TC-01/03/05) | Adapter-/Komponentengegenfälle; Resolver-null trotz vorhandener Confirmation bleibt auch in der Preiszeile unbekannt |
+| EXCLUDED plus CURRENCY_UNKNOWN (TC-09) | Adapter und tatsächlicher Report-Consumer zeigen den ausgeschlossenen Beitrag bei unverändert vollständiger gewählter Summe |
+| null, tatsächliche Null und PARTIAL-Teilbetrag (TC-06/07) | Bestehende RealizedGrossPage-Kette erweitert: unbekannter Beitrag, rohe 0.0040000000 bei angezeigter Teilsumme 0,00 EUR, tatsächliche vollständige Nullsumme; keine Umrechnung |
+| Prefix mit früherem SELL und unabhängige Quellen (TC-59) | Bestehende synthetische Reportfixture und gezielte Adapter-/Komponentenfälle; weder frühere SELLs noch spätere/ersetzte Käufe werden zu gemeinsamer BUY-Ursache |
+| Fehlende/fremde/doppelte Quellen und verschachtelte Confirmation (TC-08/35/44) | Globale Source-Eindeutigkeit, Trade-/Produktbindung, Confirmation-Trade-/Execution-Gegenfälle; fremde Payloads erscheinen nicht |
+| Basis-/Filter-/Objektwechsel und alte Antworten (TC-33/35/58) | Erweiterte bestehende RealizedGrossPage-Fälle plus direkter Komponentenwechsel; bestehende PerformanceWorkspace-A→B→A- und UX1-Previewtests bleiben unverändert |
+| Keine Zusatzreads/-writes und vollständiger Rückweg (TC-41/44) | Fetchspies in Komponententests; neuer Browserpilot erlaubt genau einen Report-GET; unveränderte trade-workspace-navigation-Journey prüft Klick, Reload, kopierte Quellen-URL und Rückkehr |
+| 320/390/1280 px, lange Referenzen, Tastatur/Fokus, ruhige Remounts (TC-45/46/47) | ux3-currency-notice.spec.ts im regulären Smokejob: native Enter/Space, Tab/Shift+Tab, sichtbarer Fokus, Karten-/Quellen-/Dokumentbreite, keine Alerts und keine Zusatzrequests |
+| Andere ReportSourceEntry-Consumer und UX1-Previews | Expliziter Default-Gegenfall sowie bestehende ClosedTradesPage-, ExecutionCurrencySources- und ExecutionCurrencyPreview-Suites |
 
-Die ersten Einzeltestläufe innerhalb der eingeschränkten Prozessumgebung meldeten
-bestandene Fälle, schlossen aber nicht regulär ab. Gewertet wird der danach
-außerhalb dieser Umgebung abgeschlossene Gesamtlauf. Der erste Browserstart
-erreichte wegen fehlender Ausführbarkeit der temporären Chromium-Datei keine
-Appprüfung; nach Korrektur des Dateimodus bestand derselbe unveränderte Spec.
-Keine Test-, Timeout-, Retry- oder Coveragegrenze wurde gelockert.
+TC-60/61 werden nicht als implementierte Create-/Berechtigungsfälle ausgegeben:
+Dieser Pilot zeigt ausschließlich vorhandene, im Report gebundene Objekte.
+Keine pauschale Backendupdate-Empfehlung, neue Pflichtentscheidung oder zusätzliche
+Berichtsblockierung wird aus einem fehlenden optionalen Feld abgeleitet.
 
-Backend-/PostgreSQL-/Deploymentläufe sind keine lokalen B1-Nachweise. Die
-unveränderten erforderlichen Projektgates werden vollständig in der PR-CI
-ausgeführt; frühere Ergebnisse qualifizieren diesen Diff nicht.
+### Tatsächlich lokale Prüfungen dieser Fortsetzung
 
-Der gezielte Testschnitt umfasst Shared-Darstellung, Quellenadapter,
-Hostintegration und einen Browserweg mit synthetischer Berichtsantwort bei
-320/390/1280 CSS px. Er prüft unter anderem unbekannten BUY bei bestätigtem SELL,
-automatische historische Zuordnung, Ausschluss, echte Nullwerte, fehlende und
-mehrdeutige Quellen, neue Props/Basis, genaue interne Ziele, native Tastatur-
-bedienung, Fokus und lange Texte. Vorhandene Performance-, Closed- und
-Trade-Navigationsregressionen bleiben Teil der regulären Gates.
+Laufzeit im isolierten Checkout: Node v24.22.1; keine lokale Installation von
+Abhängigkeiten oder Browsern. Deshalb keine lokale Vitest-, TypeScript-Gesamt-,
+Prettier-, Browser- oder PostgreSQL-Ausführung behauptet. Der reine
+TypeScript-Syntaxstrip ist kein Typecheck.
 
-Die Browserfixture erlaubt genau den vorhandenen Report-GET und blockiert andere
-APIs, Provideraufrufe sowie Mutationen vor einem echten Dienst. Native
-Tastatur-/Geometrieprüfungen sind kein Ersatz für die manuelle Desktop- und
-Mobile-Screenreaderabnahme TC-48 oder echten 200-/400-%-Browserzoom aus TC-45.
-Diese manuellen Nachweise bleiben offen. Der Produktpilot führt auch keine
-fachfremden Alert-/Journal-/Governanceabnahmen aus.
+- node docs/ui/ux-3/verify-docs.mjs: 10/10 bestanden; 818 lokale Dateilinks,
+  24 Anker und 57 Tabellen; Dokumentation außerhalb des Produktimportgraphen.
+- node --test .github/tests/version-tag.test.cjs: regulär Exit 0; Versionen
+  wieder konsistent auf unverändertem Mainstand 1.5.37, kein Publisher ausgeführt.
+- Syntaxprüfung der Adapter-/Typdateien über vorhandenes node:module:
+  regulär Exit 0; ausdrücklich kein Ersatz für die reguläre TypeScript-Prüfung.
+- git diff --check: regulär Exit 0; vollständiger finaler Dateischnitt oben.
 
-## Nächster getrennter Auftrag
+Die regulären Frontend-, Backend-, PostgreSQL-, E2E-/Performance-/Journal-/
+Governance-, Deployment- und Versionsschutzgates bleiben unverändert. Der neue
+Browserspec liegt im bestehenden tests/e2e-Verzeichnis und läuft durch den
+vorhandenen ungefilterten Smoke-Aufruf. Die unveränderte CI-Retrykonfiguration
+wird nicht als retryfreier lokaler Browsernachweis ausgegeben.
 
-Nach qualifizierter B1/F1-Integration kann der folgende Startauftrag für B2/F4
-übernommen werden. Er ist hier vorbereitet, nicht bereits umgesetzt:
+Aktueller finaler Head, tatsächlich ausgecheckter Testmerge, Tree und konkrete
+Run-/Jobergebnisse werden im fortgesetzten [Draft-PR #320](https://github.com/burckhju/trading-workspace/pull/320)
+gebunden. Frühere grüne Runs am Ausgangs-Head 36522cdb qualifizieren den
+geänderten Stand nicht. Die historischen lokalen Aussagen dieses Ausgangsdiffs
+bleiben unter dessen Git-Commit nachvollziehbar und werden hier nicht als neu
+ausgeführt fortgeschrieben.
 
-> Implementiere UX3-B2/F4 auf dem tatsächlichen aktuellen Main von
-> `burckhju/trading-workspace`. Prüfe den kanonischen UX3-Vertrag und Befund Q12.
-> Grenze mit dem bestehenden Bewertungsowner genau die betroffene Fläche in
-> `ProductValuationPanel` beziehungsweise `PositionDetails` ab. Ersetze dort eine
-> unbelegte allgemeine Providerursache durch eine verständliche Erklärung aus
-> den vorhandenen Bewertungsfakten. Erhalte Geldwerte, Usability, Originalzeiten,
-> vorhandene sichere Ziele und fachliche Statusmodelle. Nutze den B1/F1-Kern,
-> soweit er diese eine Darstellung ohne neue Domainfelder trägt. Prüfe TC-49
-> und die vorhandenen Bewertungsregressionen; liefere einen eigenen kleinen PR
-> mit genauem Scope, Tests und noch offenen fachlichen Abnahmen. Keine neue
-> Providerqualifikation, Frischepolicy, Finanzrechnung, automatische Aktion oder
-> globale Hostmigration. Die erteilte Merge-/Bereitstellungsautorisierung gilt
-> nur nach grünen erforderlichen Prüfungen und innerhalb dieses Auftrags.
+## Verbleibende Abnahme
 
-Der [Product Backlog](../planning/PRODUCT_BACKLOG.md) bleibt die einzige fachliche
-Statusquelle. Dieses Dokument protokolliert den technischen Schnitt und seine
-Belege; es erteilt keine zusätzliche fachliche Plan-, Handels- oder Modellfreigabe.
+Technische Tests sind keine menschliche Fachabnahme. Offen bleiben die fachliche
+Prüfung der konkreten Texte und Wirkung durch Performance/TradePosition und UX1,
+die UI-Abnahme durch UX2/UX3, manuelle Desktop-/Mobile-Screenreaderprüfung
+(TC-48) sowie echter 200-/400-%-Browserzoom. Automatische DOM-/Tastatur- und
+Viewportprüfungen ersetzen diese Nachweise nicht.
+
+Der Product Backlog bleibt einzige fachliche Statusquelle. Kein neuer FT-/PB-
+Eintrag, kein zweiter Statuskatalog und keine MASTER-Statuspflege durch diesen
+Schnitt. O1/O3 und UX3-F2–F8/UX4-B/C/D bleiben gesonderte Aufträge; O4 wird durch
+den korrekt benannten vorhandenen Bereichslink nicht vorweggenommen.

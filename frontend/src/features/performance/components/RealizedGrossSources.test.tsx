@@ -7,6 +7,7 @@ import type { RealizedReportContext } from '../services/performanceReportContext
 import type { RealizedGrossReport, RealizedGrossSource } from '../types/api';
 import { RealizedGrossReportView } from './RealizedGrossReportView';
 import { RealizedGrossSources } from './RealizedGrossSources';
+import { ReportSourceEntry } from './ReportSourceEntry';
 
 const tradeId = '6b39ab21-3c1d-48cd-a853-43c3828d11d1';
 const productId = '1e49ef64-7878-4bf8-933f-f957e1627ffd';
@@ -150,11 +151,11 @@ function contextFor(report: RealizedGrossReport): RealizedReportContext {
   return { filters: { ...report.filters }, view: 'all', page: 0, basis: report.basis.id };
 }
 
-function content(report: RealizedGrossReport) {
+function content(report: RealizedGrossReport, selectedExecutionId = saleId) {
   return (
     <MemoryRouter>
       <RealizedGrossSources
-        item={report.items.find((item) => item.execution_id === saleId)!}
+        item={report.items.find((item) => item.execution_id === selectedExecutionId)!}
         report={report}
         context={contextFor(report)}
       />
@@ -227,6 +228,86 @@ it('keeps automatic historical evidence, validity and resolver version inspectab
   expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
   expect(screen.getAllByRole('link', { name: actionName })).toHaveLength(1);
 });
+
+it.each(['missing', 'unknown'] as const)(
+  'keeps a %s resolver currency unknown beside the price despite an existing confirmation',
+  (resolutionState) => {
+    const report = knownReport();
+    const buy = source(report, buyId);
+    if (resolutionState === 'missing') delete buy.currency_resolution;
+    else buy.currency_resolution = { ...unknown };
+    render(content(report));
+    const entry = screen.getByRole('listitem', { name: `Buchungsquelle ${buyId}` });
+    expect(within(entry).getByText(/Gespeicherter Stückpreis:/)).toHaveTextContent(
+      `Gespeicherter Stückpreis: ${buy.price_per_unit} · Ausführungswährung unbekannt`,
+    );
+    openDetails(entry);
+    expect(within(entry).getByText('Währung EUR ausdrücklich vom Nutzer bestätigt.')).toBeVisible();
+    expect(entry).toHaveTextContent(
+      resolutionState === 'missing'
+        ? 'In dieser Antwort ist keine Währungsauflösung enthalten.'
+        : 'Ausführungswährung: unbekannt',
+    );
+  },
+);
+
+it.each(['missing', 'unknown'] as const)(
+  'preserves the existing source consumer default for a %s resolution',
+  (resolutionState) => {
+    const report = knownReport();
+    const buy = source(report, buyId);
+    if (resolutionState === 'missing') delete buy.currency_resolution;
+    else buy.currency_resolution = { ...unknown };
+    render(
+      <ul>
+        <ReportSourceEntry source={buy} timezone={report.filters.report_timezone} />
+      </ul>,
+    );
+    const entry = screen.getByRole('listitem', { name: `Buchungsquelle ${buyId}` });
+    expect(within(entry).getByText(/Gespeicherter Stückpreis:/)).toHaveTextContent(
+      `Gespeicherter Stückpreis: ${buy.price_per_unit} EUR`,
+    );
+    expect(within(entry).getByText('Währung EUR ausdrücklich vom Nutzer bestätigt.')).toBeVisible();
+  },
+);
+
+it.each(['trade_id', 'execution_id'] as const)(
+  'does not assign foreign %s confirmation details or history to the selected source',
+  (scopeField) => {
+    const report = knownReport();
+    const buy = source(report, buyId);
+    const original = buy.currency_confirmation!;
+    const ownHistory = { ...original, note: 'Passende gespeicherte Bestätigung' };
+    buy.currency_confirmation = {
+      ...original,
+      id: 'foreign-current-confirmation',
+      [scopeField]: 'foreign-object',
+      confirmed_by: 'foreign-confirming-actor',
+      note: 'Fremde aktuelle Bestätigungsdetails',
+    };
+    buy.currency_history = [
+      ownHistory,
+      {
+        ...original,
+        id: 'foreign-historical-confirmation',
+        [scopeField]: 'foreign-object',
+        confirmed_by: 'foreign-history-actor',
+        note: 'Fremde historische Bestätigungsdetails',
+      },
+    ];
+    render(content(report));
+    const entry = screen.getByRole('listitem', { name: `Buchungsquelle ${buyId}` });
+    openDetails(entry);
+    expect(entry).not.toHaveTextContent('foreign-');
+    expect(entry).not.toHaveTextContent('Fremde');
+    expect(within(entry).getByText('Währungshistorie (1)')).toBeVisible();
+    expect(within(entry).getByText(ownHistory.note)).toBeVisible();
+    expect(entry).toHaveTextContent('EUR · gespeichert · ausdrücklich bestätigt');
+    // Resolver IDs remain inspectable without borrowing a mismatched detail object.
+    expect(within(entry).getAllByText(`Bestätigung ${original.id}`)).toHaveLength(2);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  },
+);
 
 it('keeps an EXCLUDED row with an unknown currency separate from the complete selected total', () => {
   const report = knownReport();
@@ -402,6 +483,96 @@ it('replaces source versions and references together instead of retaining old re
   ).not.toBeInTheDocument();
   expect(screen.queryByText('Quellenversion archive-v2')).not.toBeInTheDocument();
   expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+});
+
+it('replaces the object, title, reason, source and complete trade return link together', () => {
+  const report = unknownBuyReport();
+  const previousReference = 'Vorheriger Ausführungsbeleg ohne Währungsangabe';
+  source(report, buyId).currency_resolution = {
+    ...unknown,
+    evidence_ids: ['previous-document-version'],
+    evidence: [
+      {
+        id: 'previous-document-version',
+        kind: 'EXECUTION_DOCUMENT',
+        source_reference: previousReference,
+        recorded_at: '2026-10-17T09:00:00Z',
+      },
+    ],
+  };
+  const view = render(content(report));
+  const previousCard = screen.getByRole('region', { name: warningTitle });
+  openDetails(previousCard);
+  expect(previousCard).toHaveTextContent('NO_HISTORICAL_EVIDENCE');
+  expect(previousCard).toHaveTextContent(previousReference);
+  const previousLink = screen.getByRole('link', { name: actionName }).getAttribute('href');
+
+  const next = automaticReport();
+  const nextTradeId = '6b39ab21-3c1d-48cd-a853-43c3828d11d2';
+  const nextProductId = '1e49ef64-7878-4bf8-933f-f957e1627ffe';
+  const nextId = (id: string) => id.replace('70000000-', '80000000-');
+  const nextConfirmation = (entry: NonNullable<RealizedGrossSource['currency_confirmation']>) => ({
+    ...entry,
+    id: nextId(entry.id),
+    trade_id: nextTradeId,
+    execution_id: nextId(entry.execution_id),
+  });
+  next.basis.id = 'd'.repeat(64);
+  next.filters.report_timezone = 'Etc/UTC';
+  next.interval_start_at = '2026-09-01T00:00:00Z';
+  next.interval_end_at = '2026-10-01T00:00:00Z';
+  next.items = next.items.map((item) => ({
+    ...item,
+    execution_id: nextId(item.execution_id),
+    trade_id: nextTradeId,
+    product_id: nextProductId,
+    product_name: 'Nachfolgendes Produkt',
+    cost_basis_execution_ids: item.cost_basis_execution_ids.map(nextId),
+    currency_confirmation_ids: item.currency_confirmation_ids.map(nextId),
+  }));
+  next.sources = next.sources.map((entry) => ({
+    ...entry,
+    execution_id: nextId(entry.execution_id),
+    trade_id: nextTradeId,
+    product_id: nextProductId,
+    currency_confirmation: entry.currency_confirmation
+      ? nextConfirmation(entry.currency_confirmation)
+      : null,
+    currency_history: entry.currency_history.map(nextConfirmation),
+    currency_resolution: {
+      ...entry.currency_resolution!,
+      source_execution_ids: entry.currency_resolution!.source_execution_ids.map(nextId),
+      confirmation_ids: entry.currency_resolution!.confirmation_ids.map(nextId),
+    },
+  }));
+  view.rerender(content(next, nextId(saleId)));
+  const nextCard = screen.getByRole('region', { name: title });
+  openDetails(nextCard);
+  expect(nextCard).toHaveTextContent('Nachfolgendes Produkt');
+  expect(nextCard).toHaveTextContent('HISTORICAL_LISTINGS');
+  expect(nextCard).toHaveTextContent('Synthetischer Handelskalender, Originalbeleg Seite 7');
+  expect(nextCard).toHaveTextContent('Etc/UTC');
+  expect(screen.queryByRole('region', { name: warningTitle })).not.toBeInTheDocument();
+  expect(view.container).not.toHaveTextContent('NO_HISTORICAL_EVIDENCE');
+  expect(view.container).not.toHaveTextContent(previousReference);
+  expect(view.container).not.toHaveTextContent(tradeId);
+  expect(view.container).not.toHaveTextContent(buyId);
+  const nextLink = screen.getByRole('link', { name: actionName }).getAttribute('href');
+  expect(nextLink).not.toBe(previousLink);
+  const url = new URL(nextLink!, 'https://workspace.test');
+  expect(url.pathname).toBe('/trade-management');
+  expect(url.hash).toBe('#execution-dates');
+  expect(Object.fromEntries(url.searchParams)).toEqual({
+    report_context: 'realized-gross',
+    ...next.filters,
+    report_view: 'all',
+    report_page: '1',
+    report_basis: next.basis.id,
+    trade_id: nextTradeId,
+  });
+  expect(
+    view.container.querySelectorAll('[role="alert"], [role="status"], [aria-live]'),
+  ).toHaveLength(0);
 });
 
 it('keeps a missing prefix source explicit and quiet with its technical reference in details', async () => {

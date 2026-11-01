@@ -1999,18 +1999,6 @@ erforderlichen Prüfungen und PC-Bereitstellung des konsolidierten Vertrags;
 dieser Nachtrag ändert weder den fachlichen Arbeits-/Abnahmestatus noch eine
 Produktoberfläche, Finanzberechnung, Handelsregel oder Planfreigabe.
 
-**Abgegrenzter UX3-B1/F1-Produktnachtrag, 01.11.2026:** Der gesondert beauftragte
-[Währungspilot](../implementation/UX3_B1_CURRENCY_NOTICE.md) implementiert eine
-gemeinsame lesende Hinweiskarte in der Herkunft genau eines realisierten
-Verkaufsbeitrags. Der Performance-Owner liefert Status, Gründe und Quellen;
-`realizedTradeLink` erhält den bestehenden Rückkontext. Gemeinsame Darstellung,
-Adapter, Belege und begrenzte Tests sind dort mit ihren Nachweisen dokumentiert.
-Die [Bereitstellung v1.5.38](../releases/V1.5.38-UX3-CURRENCY-NOTICE.md) folgt den
-unveränderten erforderlichen PR-/Main-/Veröffentlichungsgates. Manuelle
-Screenreader-/Zoomabnahme, vollständige fachliche Workspace-Abnahme und
-tatsächliche PC-Installation sind dadurch nicht belegt. Der bestehende fachliche
-Arbeitsstatus bleibt erhalten; B2 bis D sind weiterhin getrennte Folgeaufträge.
-
 | Nachweisfeld | Einordnung |
 |---|---|
 | Zuordnung | Spätere Querschnittsfähigkeit zu M2–M10. Bereich/Querschnitt: Querschnitt: durchgängiger Arbeitsablauf/Bedienbarkeit. Bestehender Bezug: Operational Workspace; nur lesend. Lieferziel: A. |

@@ -424,21 +424,3 @@ Mainstand und mögliche parallele Release-/Dokumentänderungen erneut zu prüfen
 Für F1/B1 werden nur die Fälle des konkreten Piloten ausgeführt, ergänzt um die
 unveränderten erforderlichen Projektgates. Weitere Fälle gehören zum jeweils
 betroffenen kleinen Ownerschnitt; keine fachfremde Gesamtmigration als Testpflicht.
-
-## 10. Produktnachweise B1/F1
-
-Der eigenständige Pilot auf Main `bb49ffe781933270746b9f86f4aee99b6f8144c2`
-implementiert die begrenzte Währungsdarstellung in `RealizedGrossSources`.
-Seine tatsächlichen lokalen Ergebnisse und Grenzen stehen in der
-[B1/F1-Qualifikation](../../implementation/UX3_B1_CURRENCY_NOTICE.md#prüfungen-und-aussagegrenzen).
-Die 82 neuen Mapper-/Shared-/Hostfälle sind Bestandteil der vollständig
-bestandenen Frontend-Suite. Der zusätzliche Browserpilot prüft drei Viewports,
-native Tastaturbedienung, sichtbaren Fokus, genaue Links, ruhige Historie und
-null zusätzliche Requests. Die 42 Dokument-Typgegenfälle bleiben unverändert.
-
-Diese Ergebnisse decken die zum konkreten Pilot passenden Teile von
-TC-01–09, TC-33/35/41/44–47/58/59 ab. Sie sind keine pauschale Abnahme aller
-64 katalogisierten Fälle. TC-48 und die echten Zoomprüfungen aus TC-45 bleiben
-manuell offen; unveränderte fachfremde Ownerflächen sind keine neuen lokalen
-Abnahmen. Der PR-Abschluss ergänzt die aktuellen Head-/Testmerge-/CI-Belege und
-die getrennt verifizierte Bereitstellung.

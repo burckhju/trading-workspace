@@ -14,6 +14,7 @@ const buyId = "70000000-0000-4000-8000-000000000001";
 const saleId = "70000000-0000-4000-8000-000000000005";
 const title = "Währungsherkunft dieses Beitrags ungeklärt";
 const actionName = "Buchungen und Währungsbestätigungen im Trade prüfen";
+const longReference = `https://archive.example/original/${"source".repeat(100)}`;
 
 function pilotReport() {
   const sale = reportItem(saleId, {
@@ -58,7 +59,7 @@ function pilotReport() {
   current.currency_confirmation = {
     ...current.currency_confirmation!,
     trade_id: tradeId,
-    note: "Synthetische Originalabrechnung mit ausführlicher Referenz: bestätigte Verkaufswährung bleibt von der unbekannten Kaufherkunft getrennt.",
+    note: `Synthetische Originalabrechnung mit ausführlicher Referenz: bestätigte Verkaufswährung bleibt von der unbekannten Kaufherkunft getrennt. ${longReference}`,
   };
   current.currency_history = [current.currency_confirmation];
   const report = realizedGrossReport({
@@ -256,6 +257,17 @@ for (const width of [320, 390, 1280]) {
     await expect(
       saleSource.getByText(/Währung EUR ausdrücklich vom Nutzer bestätigt/),
     ).toBeVisible();
+    await expect(
+      saleSource.getByText(longReference, { exact: false }).first(),
+    ).toBeVisible();
+    await expect(saleSource.getByRole("link")).toHaveCount(0);
+    await expect
+      .poll(() =>
+        saleSource.evaluate(
+          (element) => element.scrollWidth <= element.clientWidth,
+        ),
+      )
+      .toBe(true);
     const history = page
       .locator("summary")
       .filter({ hasText: "Gesamte gelesene Trade-Historie" });

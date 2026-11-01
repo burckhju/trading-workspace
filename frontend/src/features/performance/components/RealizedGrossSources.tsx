@@ -47,6 +47,7 @@ export function RealizedGrossSources({
         source={source}
         timezone={report.filters.report_timezone}
         currencyPresentation={<ReportCurrencyEvidence source={source} />}
+        priceCurrency={source.currency_resolution?.currency_code ?? null}
       />
     ) : (
       <li key={id} className="rounded-lg border border-slate-700 p-3 text-sm">

@@ -56,7 +56,7 @@ describe('one current SELL contribution and its actual BUY evidence', () => {
     });
     source('buy-august').currency_confirmation = null;
     const notice = build();
-    expect(notice.presentation).toEqual({ kind: 'warning', priority: 'relevant-problem' });
+    expect(notice.presentation).toBe('warning');
     expect(notice.title).toBe('Währungsherkunft dieses Beitrags ungeklärt');
     expect(notice.impact).toContain('Bruttobeitrag dieses Verkaufs derzeit nicht berechnen');
     expect(detailText(notice)).toContain('Kauf 1 · Währungsherkunft: unbekannt');
@@ -64,7 +64,7 @@ describe('one current SELL contribution and its actual BUY evidence', () => {
     expect(detailText(notice)).toContain(
       'Verkauf · Währungsherkunft: EUR · ausdrücklich bestätigt',
     );
-    expect(notice.userNeed.kind).toBe('optional-inspection');
+    expect(notice.userNeed).toContain('bei Bedarf');
   });
 
   it('does not repair a mixed BUY basis with an explicitly confirmed EUR SELL', () => {
@@ -73,8 +73,8 @@ describe('one current SELL contribution and its actual BUY evidence', () => {
     source('buy-september').currency_resolution!.currency_code = 'USD';
     source('buy-september').currency_confirmation!.currency_code = 'USD';
     const notice = build();
-    expect(notice.presentation.kind).toBe('warning');
-    expect(notice.cause.explanation).toContain('keine einheitliche Währungszuordnung');
+    expect(notice.presentation).toBe('warning');
+    expect(notice.cause).toContain('keine einheitliche Währungszuordnung');
     expect(detailText(notice)).toContain('Kauf 2 · Währungsherkunft: USD · ausdrücklich bestätigt');
     expect(detailText(notice)).toContain(
       'Verkauf · Währungsherkunft: EUR · ausdrücklich bestätigt',
@@ -92,7 +92,7 @@ describe('one current SELL contribution and its actual BUY evidence', () => {
           ? unknownResolution({ reason: 'DOCUMENT_CONFLICT' })
           : { ...source('sell-september-1').currency_resolution!, currency_code: code };
       const notice = build();
-      expect(notice.presentation.kind).toBe('information');
+      expect(notice.presentation).toBe('information');
       expect(notice.id).toBe(initial.id);
       expect(detailText(notice)).not.toContain('DOCUMENT_CONFLICT');
       expect(detailText(notice)).not.toContain('USD');
@@ -115,7 +115,7 @@ describe('one current SELL contribution and its actual BUY evidence', () => {
     );
     const notice = build();
     expect(notice.id).toBe(initial.id);
-    expect(notice.presentation.kind).toBe('information');
+    expect(notice.presentation).toBe('information');
     expect(detailText(notice)).not.toContain('LISTING_HISTORY_INCOMPLETE');
     expect(detailText(notice)).not.toContain('DOCUMENT_CONFLICT');
   });
@@ -129,10 +129,11 @@ describe('one current SELL contribution and its actual BUY evidence', () => {
       source('buy-august').currency_resolution = unknownResolution();
       const summary = structuredClone(report.summary);
       const notice = build();
-      expect(notice.presentation.kind).toBe('information');
-      expect(notice.userNeed.kind).toBe('optional-inspection');
+      expect(notice.presentation).toBe('information');
+      expect(notice.userNeed).toContain('bei Bedarf');
       expect(notice.impact).toContain('von der gewählten Berichtssumme ausgeschlossen');
       expect(notice.impact).toContain('blockiert die gewählte Summe nicht');
+      expect(notice.impact).toContain('Summe als vollständig berechenbar');
       expect(notice.title).not.toContain('ungeklärt');
       expect(report.summary).toEqual(summary);
     },
@@ -142,7 +143,7 @@ describe('one current SELL contribution and its actual BUY evidence', () => {
     const { item, build } = setup();
     unresolvedItem(item, ['HISTORY_INVALID', 'FUTURE_OWNER_REASON']);
     const notice = build();
-    expect(notice.presentation.kind).toBe('information');
+    expect(notice.presentation).toBe('information');
     expect(notice.impact).toContain(
       'Eine nähere Währungsursache kann diese Ansicht aus den gelieferten Gründen nicht erläutern',
     );
@@ -161,7 +162,7 @@ describe('one current SELL contribution and its actual BUY evidence', () => {
       item.realized_gross_pnl_delta_display = display;
       const original = structuredClone(report);
       const notice = build();
-      expect(notice.presentation.kind).toBe(raw === null ? 'warning' : 'information');
+      expect(notice.presentation).toBe(raw === null ? 'warning' : 'information');
       expect(report).toEqual(original);
       expect(item.realized_gross_pnl_delta).toBe(raw);
       expect(item.realized_gross_pnl_delta_display).toBe(display);
@@ -201,9 +202,8 @@ describe('original resolution provenance and bounded explanations', () => {
       ],
     };
     const notice = build();
-    expect(notice.presentation.kind).toBe('information');
-    expect(notice.automatic.kind).toBe('owner-result-reused');
-    expect(notice.automatic.explanation).toContain('keine erneute Bestätigung nötig');
+    expect(notice.presentation).toBe('information');
+    expect(notice.automatic).toContain('keine erneute Bestätigung nötig');
     expect(detailText(notice)).toContain(`Verkauf · Währungsherkunft: EUR · ${label}`);
     expect(detailText(notice)).toContain('Geprüftes historisches Archiv');
     expect(detailText(notice)).toContain('source-fingerprint-1');
@@ -244,7 +244,7 @@ describe('original resolution provenance and bounded explanations', () => {
       expect(detailText(notice)).toContain(reason);
       expect(detailText(notice)).not.toContain('widersprüchliche Kaufwährungen');
       expect(notice.title).not.toContain(reason);
-      expect(notice.cause.explanation).not.toContain(reason);
+      expect(notice.cause).not.toContain(reason);
     },
   );
 
@@ -256,8 +256,26 @@ describe('original resolution provenance and bounded explanations', () => {
     expect(detailText(notice)).toContain('noch nicht näher erläuterten Grund');
     expect(detailText(notice)).toContain('NEW_OWNER_REASON');
     expect(notice.title).not.toContain('NEW_OWNER_REASON');
-    expect(notice.cause.explanation).not.toContain('NEW_OWNER_REASON');
+    expect(notice.cause).not.toContain('NEW_OWNER_REASON');
     expect(detailText(notice)).not.toContain('kein passender historischer Währungsbeleg');
+  });
+
+  it('keeps an unrecognized supplied origin without inventing provenance or a warning', () => {
+    const { source, build } = setup();
+    source('buy-august').currency_resolution = {
+      currency_code: 'CHF',
+      source: 'FUTURE_ORIGIN' as Resolution['source'],
+      source_execution_ids: [],
+      confirmation_ids: [],
+      reason: 'FUTURE_REASON',
+    };
+    const notice = build();
+    expect(notice.presentation).toBe('information');
+    expect(notice.cause).toContain('nicht für alle benötigten Buchungen');
+    expect(detailText(notice)).toContain('CHF · Herkunft nicht näher erläutert');
+    expect(detailText(notice)).toContain('FUTURE_ORIGIN · FUTURE_REASON');
+    expect(detailText(notice)).not.toContain('kein passender historischer Währungsbeleg');
+    expect(notice.automatic).toBe('');
   });
 
   it('keeps two independent equal reasons and their sources visible', () => {
@@ -284,8 +302,8 @@ describe('original resolution provenance and bounded explanations', () => {
     expect(source('buy-august').currency_confirmation?.currency_code).toBe('EUR');
     expect(detailText(notice)).toContain('keine Währungsauflösung für diese Buchung');
     expect(detailText(notice)).toContain('nicht zu einer Auflösung ergänzt');
-    expect(notice.presentation.kind).toBe('information');
-    expect(notice.cause.known).toBe(false);
+    expect(notice.presentation).toBe('information');
+    expect(notice.cause).toContain('nicht für alle benötigten Buchungen');
   });
 
   it('keeps compact labels neutral for unknown and multiple historical listing currencies', () => {
@@ -359,42 +377,30 @@ describe('one valid report, item and navigation context', () => {
     }
     if (problem === 'wrong-sale-side') selected.side = 'BUY';
     const notice = build();
-    expect(notice.presentation.kind).toBe('information');
-    expect(notice.cause.known).toBe(false);
+    expect(notice.presentation).toBe('information');
+    expect(notice.cause).toContain('nicht für alle benötigten Buchungen');
     expect(detailText(notice)).toContain('Quellenzuordnung');
     expect(detailText(notice)).not.toContain('MUST_NOT_BE_CONSUMED');
-    expect(notice.actions[0].destination.subject.id).toBe(item.trade_id);
+    expect(notice.action.href).toContain(`trade_id=${item.trade_id}`);
   });
 
   it('retains the existing read link with the current report context and known trade', () => {
     const { item, report, context, build } = setup();
     const notice = build();
-    expect(notice.actions).toHaveLength(1);
-    expect(notice.actions[0]).toMatchObject({
-      kind: 'read',
+    expect(notice.action).toEqual({
       label: 'Buchungen und Währungsbestätigungen im Trade prüfen',
-      destination: {
-        href: realizedTradeLink(item.trade_id, context),
-        builder: 'realizedTradeLink',
-        granularity: 'section',
-        subject: { identity: 'known-object', kind: 'trade', id: item.trade_id },
-        relationshipProof: { snapshotToken: report.basis.id },
-      },
+      href: realizedTradeLink(item.trade_id, context),
     });
-    expect(notice.actions[0].destination.href).toContain('#execution-dates');
-    expect(notice.actions[0].destination.href).not.toContain('execution_id=');
-    for (const text of [
-      notice.title,
-      notice.cause.explanation,
-      notice.impact,
-      notice.userNeed.explanation,
-    ]) {
+    expect(notice.action.href).toContain('#execution-dates');
+    expect(notice.action.href).not.toContain('execution_id=');
+    expect(detailText(notice)).toContain(report.basis.id);
+    for (const text of [notice.title, notice.cause, notice.impact, notice.userNeed]) {
       expect(text).not.toContain(item.execution_id);
       expect(text).not.toContain(item.trade_id);
     }
   });
 
-  it('keeps cause identity across rereads and unrelated basis changes while replacing current proofs and the link', () => {
+  it('keeps cause identity across rereads and unrelated basis changes while replacing current details and the link', () => {
     const { report, item, context, source, build } = setup();
     unresolvedItem(item);
     source('buy-august').currency_resolution = unknownResolution({
@@ -402,6 +408,7 @@ describe('one valid report, item and navigation context', () => {
       evidence_ids: ['evidence-v1'],
     });
     const first = build();
+    const firstBasis = report.basis.id;
     report.basis.id = context.basis = 'b'.repeat(64);
     report.basis.read_completed_at = '2026-11-01T11:00:00Z';
     report.basis.calculated_at = '2026-11-01T11:00:01Z';
@@ -409,18 +416,16 @@ describe('one valid report, item and navigation context', () => {
     source('buy-september').currency_resolution!.confirmation_ids = ['new-unrelated-confirmation'];
     const next = build();
     expect(next.id).toBe(first.id);
-    expect(next.time.observedAt).toBeNull();
-    expect(next.time.checkedAt).toBeNull();
     expect(next.details.find((row) => row.label === 'Bericht gelesen')?.value).toContain(
       report.basis.read_completed_at,
     );
     expect(next.details.find((row) => row.label === 'Bericht berechnet')?.value).toBe(
       report.basis.calculated_at,
     );
-    expect(next.actions[0].destination.relationshipProof.snapshotToken).toBe(report.basis.id);
-    expect(next.actions[0].destination.href).toContain(`report_basis=${report.basis.id}`);
-    expect(next.actions[0].destination.href).not.toBe(first.actions[0].destination.href);
-    expect(next.details.every((row) => row.proof?.snapshotToken === report.basis.id)).toBe(true);
+    expect(next.details.find((row) => row.label === 'Berichtsstand')?.value).toBe(report.basis.id);
+    expect(next.action.href).toContain(`report_basis=${report.basis.id}`);
+    expect(next.action.href).not.toBe(first.action.href);
+    expect(detailText(next)).not.toContain(firstBasis);
   });
 
   it('changes identity for another real source/evidence version or financial filter context', () => {
@@ -461,12 +466,12 @@ describe('one valid report, item and navigation context', () => {
       const { item, build } = setup();
       item.product_name = productName;
       const notice = build();
-      expect(notice.cause.explanation).toContain(productName ?? 'Produktname nicht verfügbar');
-      expect(notice.cause.explanation).toContain('Verkauf');
-      expect(notice.cause.explanation).toContain('12.09.2026');
-      expect(notice.cause.explanation).toContain('Europe/Berlin');
-      expect(notice.cause.explanation).not.toContain(item.execution_id);
-      expect(notice.cause.explanation).not.toContain(item.trade_id);
+      expect(notice.cause).toContain(productName ?? 'Produktname nicht verfügbar');
+      expect(notice.cause).toContain('Verkauf');
+      expect(notice.cause).toContain('12.09.2026');
+      expect(notice.cause).toContain('Europe/Berlin');
+      expect(notice.cause).not.toContain(item.execution_id);
+      expect(notice.cause).not.toContain(item.trade_id);
     },
   );
 });

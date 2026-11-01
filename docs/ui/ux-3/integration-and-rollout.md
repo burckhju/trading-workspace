@@ -4,21 +4,9 @@
 [Hinweisvertrag](notice-contract.md) · [Komponenten](components-and-actions.md) ·
 [Tests und Abnahme](test-and-acceptance.md)
 
-## Aktueller B1/F1-Schnitt nach integrierter Koordination
-
-Die folgenden Konsolidierungs- und Parallelstände sind historische Belege.
-B1/F1 beginnt auf Main `bb49ffe781933270746b9f86f4aee99b6f8144c2` / v1.5.37:
-#314 sowie die gemeinsame UX1/UX2-Integration #318 sind enthalten. Der Nutzer hat
-die Umsetzung des nächsten Schritts beauftragt. Der
-[konkrete Durchstich](../../implementation/UX3_B1_CURRENCY_NOTICE.md) bindet
-`RealizedGrossSources`, einen Performance-Mapper und die reine Shared-Darstellung.
-`context`, `realizedTradeLink`, Hostgenerationen, Fokusführung und fachliche
-DTO-Zustände bleiben bei ihren bisherigen Ownern. Die dort dokumentierte
-Dateiliste ist die Grenze dieses Produktschnitts; B2 bis D beginnen dadurch nicht.
-
 ## 1. Umfang und Zuständigkeit
 
-**UX3-K war der beauftragte Konsolidierungsschnitt.** Er setzte die
+**UX3-K ist der jetzt beauftragte Konsolidierungsschnitt.** Er setzt die
 [Masterentscheidung](../../coordination/UX_SHARED_CONTRACTS.md#kanonischer-ux3-hinweisvertrag--masterentscheidung-phase-1)
 auf Main `35f3ab2133fa40beb4ab2e502a08fa3bf5b44e35` um: #314 ist die führende
 Grundlage, #315 liefert verpflichtende Präzisierungen. Genau ein Einstieg,
@@ -305,9 +293,8 @@ neue allgemeine Hinweisgrenzen übernommen.
 
 ## 5. Begrenzte Folge-PRs und Abhängigkeiten
 
-UX3-F1 bis UX3-F8 sind **lokale Planungskürzel**, keine angelegten Issues.
-B1/F1 ist im oben verlinkten konkreten Produktschnitt umgesetzt; die übrigen
-Schnitte bleiben getrennte Aufträge. Jeder Schnitt erhält einen eigenen
+UX3-F1 bis UX3-F8 sind **lokale Planungskürzel**, keine angelegten Issues oder
+bereits begonnenen Implementierungen. Jeder Schnitt erhält einen eigenen
 prüfbaren Diff und wird auf den dann tatsächlichen Main-Stand abgeglichen. Die
 Frontend-/Backend-/E2E-Gates des Repositorys bleiben unverändert; gezielte Tests
 ergänzen sie und ersetzen sie nicht. Ein grüner früherer Head qualifiziert keinen
@@ -373,22 +360,22 @@ Negativfälle. Die Prüfung umfasst drei voneinander getrennte Nachweise:
 Backend-Coverage bleibt bei 85 %, Frontend Lines/Functions/Statements bei 80 %
 und Branches bei 70 % gemäß den verlinkten Workflows in der [Übersicht](README.md).
 Es werden keine Tests deaktiviert, Coveragegrenzen gesenkt oder vollständige
-Gate-Erfolge aus Teiltests abgeleitet. Die historische Dokumentationsphase UX3-K
-meldet nur ihre damals ausgeführten Prüfungen im separaten Prüfprotokoll. Die
-aktuellen Produktprüfungen stehen in der
-[B1/F1-Qualifikation](../../implementation/UX3_B1_CURRENCY_NOTICE.md).
+Gate-Erfolge aus Teiltests abgeleitet. Die jetzige Dokumentationsphase meldet
+nur ihre tatsächlich ausgeführten Prüfungen im separaten Prüfprotokoll.
 
 ## 7. Wichtigster nächster Umsetzungsschritt
 
-**Nach B1/F1 genau B2/F4 abgrenzen:** den Bestandsbefund Q12 an einer konkreten
-Kurs-/Positionsbewertungsfläche korrigieren. Der vorhandene Bewertungsowner muss
-den tatsächlichen Grund liefern; eine fehlende Verwendbarkeit belegt allein
-keinen Providerfehler. Der kleine Auftrag übernimmt den gemeinsamen Hinweisvertrag
-und prüft TC-49 samt bestehenden Bewertungsregressionen. Die übrigen F4-Flächen,
-Finanzqualifikation F2 und globale Priorisierung F8 bleiben gesondert.
+**UX3-K qualifizieren und danach B1/F1 als eigenen kleinen Produktschnitt
+abgrenzen.** Die Konsolidierung erhält Dokumentprüfung, strict/noEmit mit
+Typgegenfällen, vollständigen Übernahmebeleg sowie neue Head-/Tree-/CI-Nachweise.
+Die beauftragte Integration und Veröffentlichung wird anhand dieser tatsächlichen
+Nachweise durchgeführt, ohne dadurch eine Produktabnahme zu behaupten.
 
-Ein enger übernehmbarer Startauftrag steht in der
-[B1/F1-Übergabe](../../implementation/UX3_B1_CURRENCY_NOTICE.md#nächster-getrennter-auftrag).
-Vor Beginn werden der dann tatsächliche Mainstand, Datei-/Ownergrenzen und
-vorhandene DTO-Semantik erneut geprüft. Die manuelle B1/F1-Screenreader- und
-Zoomabnahme bleibt als eigener Nachweis sichtbar.
+Danach liefern Performanceowner, UX1 und UX2 die konkreten gespeicherten Fakten,
+Previewgrenze, Kontext-/Guard-/Fokusgrenze und Fläche für genau `RealizedGrossSources`.
+Der rein lesende B1/F1-Pilot verwendet den bestehenden
+historischen Ausführungswährungsresolver über dessen bereits geliefertes
+Ergebnis, zeigt eine kompakte Ursache-Wirkung-Erklärung mit Quellen und führt
+über den vorhandenen Trade-Buchungslink zur Prüfung. Dieser eine begrenzte
+Durchstich prüft die Wiederverwendbarkeit und Kontextisolation, bevor weitere
+Oberflächen den Vertrag übernehmen.

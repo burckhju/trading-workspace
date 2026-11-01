@@ -1,29 +1,12 @@
 # UX-3 — Einheitliche Hinweise und sichere nächste Aktionen
 
-**Ein kanonischer Hinweisvertrag und ein begrenzter lesender B1/F1-Pilot.**
+**Ein kanonischer Dokumentationsvertrag, keine neue produktive Hinweisarchitektur.**
 
 UX-3 erklärt vorhandene Feststellung, Ursache, Auswirkung, belegte Systemleistung
 und verbleibende Nutzerentscheidung. Fachliche Zustände, Geldberechnung,
 Quellenqualifikation, erlaubte Commands und Recovery bleiben bei ihren bestehenden
 Ownern. Dieser Einstieg bündelt die zwei zuvor parallelen Entwürfe gemäß der
 [integrierten Masterentscheidung](../../coordination/UX_SHARED_CONTRACTS.md#kanonischer-ux3-hinweisvertrag--masterentscheidung-phase-1).
-
-## Aktueller Produktdurchstich B1/F1
-
-Nach der Vertragsintegration #314 und der gemeinsamen UX1/UX2-Integration #318
-setzt B1/F1 genau die Währungsherkunft eines geöffneten Verkaufsbeitrags in
-`RealizedGrossSources` um. Ausgangspunkt ist der veröffentlichte Main
-`bb49ffe781933270746b9f86f4aee99b6f8144c2` / v1.5.37. Die Karte erklärt den
-bestehenden Beitragsbefund, bewahrt Herkunft und Bestätigungshistorie und verwendet
-den vorhandenen Trade-Buchungslink. Weitere Hosts und Folgeaufträge bleiben separat.
-
-Die reinen Präsentationstypen liegen jetzt einmalig unter
-[`frontend/src/shared/notices`](../../../frontend/src/shared/notices/index.ts).
-Der vollständige Dokumentvertrag importiert diese Projektion und ergänzt seine
-Owner-, Kontext- und Lifecyclebindungen. Produktcode importiert keine Dokumenttypen.
-Konkreter Umfang, Prüfungen und offene manuelle Abnahme stehen in der
-[B1/F1-Qualifikation](../../implementation/UX3_B1_CURRENCY_NOTICE.md).
-Die folgenden Inventur- und Konsolidierungsbezüge bleiben historische Nachweise.
 
 ## Lesereihenfolge und Lieferumfang
 
@@ -35,7 +18,7 @@ Die folgenden Inventur- und Konsolidierungsbezüge bleiben historische Nachweise
 | [Komponenten und Aktionen](components-and-actions.md) | Kompakte Darstellung, Details, Quellen und sichere Navigation; Reader und Commands bleiben beim Owner. |
 | [Integration und Folgearbeiten](integration-and-rollout.md) | Pflichtübernahmen, Owner, Typpräzisierungen, Abhängigkeiten und genau ein getrennter B1/F1-Pilot. |
 | [Tests und Abnahme](test-and-acceptance.md) | Erhaltene und ergänzte fachliche Gegenfälle, Zuordnung der 24 Fälle aus #315, vorhandene Regressionen und datierte tatsächliche Prüfungen. |
-| [TypeScript-Vertrag](contracts.ts) | Vollständiger Ownervertrag mit bestehenden DTOs; reine Präsentationstypen werden aus dem gemeinsamen B1/F1-Kern importiert, nicht dupliziert. |
+| [TypeScript-Vertrag](contracts.ts) | Ein Dokumentationstypmodell mit bestehenden Owner-DTOs; keine produktiven Renderer, Resolver, Stores oder Endpunkte. |
 | [Typgegenfälle](contracts.type-test.ts) | Positive und negative Beispiele für Belege, Objektidentität, Schreibausgänge, Governance-Reads und Berichtspopulationen. |
 
 Die kanonischen Dateien liegen ausschließlich unter `docs/ui/ux-3/`. Der bestehende
@@ -102,11 +85,9 @@ eines bestätigten Empfangs oder einer Abnahme durch einen anderen Lead.
 
 Der Nutzerauftrag vom **01.11.2026** autorisiert die beschriebene Umsetzung,
 Merge bei grünen erforderlichen Prüfungen und die Bereitstellung für den PC.
-UX3-K erfüllte den konkret festgelegten Konsolidierungsauftrag in #314. Der
-anschließende Nutzerauftrag „Nächster Schritt umsetzen“ konkretisiert B1/F1 als
-eigenen Produktschnitt. Seine technischen Nachweise stehen getrennt von den
-historischen UX3-K-Ergebnissen; eine menschliche Fachabnahme wird daraus nicht
-abgeleitet.
+UX3-K erfüllt jetzt den konkret festgelegten Konsolidierungsauftrag. Die folgenden
+Produktaufträge bleiben eigenständige Schnitte; dieser PR liefert keine neue
+Hinweiskarte oder geänderte Formulare aus.
 
 Die Dokumentprüfung und der strict/noEmit-Typcheck qualifizieren den Vertrag.
 Die unveränderten [Backend](../../../.github/workflows/backend.yml)-,

@@ -12,27 +12,17 @@ Feature; eine globale Funktion `noticeForStatus(status: string)` ist ungeeignet.
 
 | Vorgeschlagener Baustein | Verantwortung | Eingabe | Grenze |
 | --- | --- | --- | --- |
-| `NoticeCard` | Titel, kurze Ursache/Wirkung, Automatik, notwendige oder optionale Aktion | Vom Owner geprüftes `NoticeView`, Überschriftenebene und Details-ID; der vollständige Dokumentvertrag erweitert dieselbe Projektion | Kein Fetch, Resolver, Retry, Command oder Fachgrenzwert. |
+| `NoticeCard` | Titel, kurze Ursache/Wirkung, Automatik, notwendige oder optionale Aktion | Geprüftes `Notice<TFacts>` und Überschriftenebene | Kein Fetch, Resolver, Retry, Command oder Fachgrenzwert. |
 | `NoticeSummary` | Priorisierte eindeutige Hinweisgruppen und betroffene Objektanzahl | Bereits vom Host konsolidierte Gruppen | Zählt weder API-Polls noch Warnsymbole; erstellt keine globale Aufgabenliste. |
 | `NoticeDetails` | Herkunft, Originalzeit, historische Gültigkeit, Diagnose, technische Referenzen | Bereits geladene und scopegeprüfte Detailzeilen | Quelleninformationen nur bei vorhandenen Rechten; kein automatischer Bestätigungs-Write. |
 | `ContextActionLink` | Zugängliche Navigation zum geprüften Ziel | `NoticeAction` mit Objekt-/Versionskontext | Beide Aktionstypen navigieren nur; kein POST/PATCH/DELETE und kein generischer `onRetry`. |
 | `NoticeStatus` | Ruhiges textliches Label samt relevanter Zeit | Fachlich zugeordnete Darstellung aus demselben Hinweis | Farbe und Symbol ergänzen Text; sie entscheiden nicht die Schwere. |
 
-Die Konsolidierung UX3-K spezifizierte diese Komponenten. Der gesonderte
-[B1/F1-Schnitt](../../implementation/UX3_B1_CURRENCY_NOTICE.md) implementiert
-`NoticeCard`, `NoticeDetails` und `ContextActionLink` im
-[Shared-Kern](../../../frontend/src/shared/notices/index.ts). Das ruhige Statuslabel
-ist Bestandteil der Karte; `NoticeSummary` und eine eigenständige Statuskomponente
-bleiben spätere Aufgaben. Es gibt keine globalen Provider, Toast-Stores, Router
-oder Backendtabellen. Der Pilot verwendet einen bestehenden Host und eine fachlich
-eng begrenzte Mapperfunktion.
-
-`NoticeView` enthält nur die unverändert übernommenen präsentierbaren Felder
-des Vertrags. Berichtskontext, Requestgeneration und Lifecycle bleiben beim
-Feature-/Hostowner. B1/F1 erfindet keine Werte, um einen vollständigen
-`NoticeContext` künstlich auszufüllen. Der Dokumenttyp `Notice<TFacts>` und
-`ExistingDestination` erweitern dieselben Shared-Typen um ihre zusätzlichen
-Bindungen; es entsteht kein zweites semantisches Meldungsmodell.
+Die beauftragte Konsolidierung UX3-K spezifiziert diese Komponenten. Ihr
+Produktcode gehört zum gesonderten konkreten B1/F1-Schnitt. Insbesondere
+werden keine neuen Hooks, globalen Provider, Toast-Stores, Router oder
+Backendtabellen angelegt. Ein späterer Pilot verwendet zuerst einen Host und
+eine fachlich eng begrenzte Mapperfunktion.
 
 Für tatsächlich gemeinsame reine Präsentations-/Navigationsverträge gilt die
 [öffentliche Importgrenze](../../coordination/UX_SHARED_CONTRACTS.md#kontext-navigation-und-gemeinsame-importgrenze--owner-ux-2):
@@ -290,24 +280,24 @@ Behauptung bereits geprüfter Konformität:
 
 ## 6. Exemplarische Komponenten-APIs
 
-Die implementierten reinen Props stehen im
-[Shared-Kern](../../../frontend/src/shared/notices/types.ts); der vollständige
-Ownervertrag erweitert sie in [contracts.ts](contracts.ts). B1/F1-Aufruf:
+Die vollständigen Props stehen in [contracts.ts](contracts.ts). Geplanter Aufruf:
 
 ```tsx
 <NoticeCard
   notice={currencyNotice}
   headingLevel={3}
   detailsId="trade-currency-evidence"
+  onNavigate={navigateVerifiedOwnerTarget}
 />
+
+<NoticeSummary groups={hostGroups} onOpenGroup={focusExistingNoticeGroup} />
 ```
 
 `currencyNotice` wird vom Trade-/Performance-Adapter aus einem bereits gültigen
-Snapshot geliefert. Die Karte navigiert über den geprüften internen Ownerlink
-und erhält keinen Callback. Die gemeinsame Komponente importiert weder
-CurrencyResolver noch Finanzberechnungen. `NoticeSummary` bleibt ein gesonderter
-späterer Entwurf für bereits vom Host konsolidierte Meldungen und eindeutige
-Objektanzahlen; der B1/F1-Pilot implementiert keine Berichtszusammenfassung.
+Snapshot geliefert. `hostGroups` enthält bereits konsolidierte Meldungen und
+Count eindeutiger betroffener Objekte. Die gemeinsame Komponente importiert weder
+CurrencyResolver noch Finanzberechnungen. `onNavigate` darf nur das validierte
+Ziel öffnen; seine Signatur ist keine Berechtigung für Schreibaktionen.
 
 Noch keine CSS-Bibliothek, kein Theme-Wechsel und kein Umbau des ApplicationLayout.
 Die vorhandenen Tailwind-/React-Konventionen und Fachkomponenten werden im Pilot

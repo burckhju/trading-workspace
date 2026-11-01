@@ -1,10 +1,16 @@
 import { currencyResolutionLabel } from '../services/realizedCurrencyNotice';
-import type { RealizedGrossSource } from '../types/api';
+import type { RealizedGrossSource, ReportCurrencyConfirmation } from '../types/api';
 
 /** Already-read provenance for the Realized pilot; no qualification or commands. */
 export function ReportCurrencyEvidence({ source }: { source: RealizedGrossSource }) {
   const resolution = source.currency_resolution;
-  const confirmation = source.currency_confirmation;
+  const matchesSource = (entry: ReportCurrencyConfirmation) =>
+    entry.execution_id === source.execution_id && entry.trade_id === source.trade_id;
+  const confirmation =
+    source.currency_confirmation && matchesSource(source.currency_confirmation)
+      ? source.currency_confirmation
+      : null;
+  const history = source.currency_history.filter(matchesSource);
   const evidence = resolution?.evidence ?? [];
   return (
     <div className="min-w-0 space-y-2 text-sm">
@@ -82,18 +88,22 @@ export function ReportCurrencyEvidence({ source }: { source: RealizedGrossSource
           )}
         </div>
       </details>
-      {source.currency_history.length > 0 && (
+      {history.length > 0 && (
         <details className="min-w-0 text-xs text-slate-400">
           <summary className="cursor-pointer rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400">
-            Währungshistorie ({source.currency_history.length})
+            Währungshistorie ({history.length})
           </summary>
           <ol className="mt-2 space-y-2 break-words [overflow-wrap:anywhere]">
-            {source.currency_history.map((entry) => (
+            {history.map((entry) => (
               <li key={entry.id} className="space-y-1 border-l border-slate-700 pl-3">
                 <p>
                   {entry.currency_code} ·{' '}
-                  {entry.id === confirmation?.id ? 'aktuell' : 'historisch ersetzt'} · ausdrücklich
-                  bestätigt
+                  {entry.id === confirmation?.id
+                    ? 'aktuell'
+                    : confirmation
+                      ? 'historisch ersetzt'
+                      : 'gespeichert'}{' '}
+                  · ausdrücklich bestätigt
                 </p>
                 <p>
                   {entry.confirmed_at} · durch {entry.confirmed_by}

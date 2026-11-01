@@ -1,7 +1,6 @@
 /**
- * Full owner-bound UX-3 documentation contract; pure presentation fields are
- * imported from the shared implementation rather than defined a second time.
- * Domain owners keep authority; feature evidence and lifecycle stay here.
+ * UX-3 proposal, documentation only. No runtime imports or implementation.
+ * Domain owners keep authority; these types describe presentation inputs.
  * See notice-contract.md for runtime validation that types cannot prove.
  */
 import type { ExecutionCurrencyResolution } from '../../../frontend/src/features/trade/types/api';
@@ -18,35 +17,19 @@ import type { ProductEvaluationResponse } from '../../../frontend/src/features/p
 import type { Ft011MaterializationStatus } from '../../../frontend/src/features/learning/types/materialization';
 import type { ProposalApprovalResult } from '../../../frontend/src/features/model/types/proposalApproval';
 import type { RuntimeActivation } from '../../../frontend/src/features/model/types/runtimeActivation';
-import type {
-  AuthorityRef,
-  KnownSubjectRef,
-  NoticeAction as PresentationNoticeAction,
-  NoticeDestination,
-  NoticePresentation,
-  NoticeTimeContext,
-  NoticeView,
-} from '../../../frontend/src/shared/notices/types';
-
-export type {
-  AuthorityRef,
-  AutomaticResolution,
-  ContextActionLinkProps,
-  DetailRow,
-  KnownSubjectRef,
-  NoticeCardProps,
-  NoticeCause,
-  NoticeDestination,
-  NoticeDetailsProps,
-  NoticePresentation,
-  NoticeTimeContext,
-  NoticeView,
-  UserNeed,
-} from '../../../frontend/src/shared/notices/types';
 
 export type DeepReadonly<T> = T extends object
   ? { readonly [K in keyof T]: DeepReadonly<T[K]> }
   : T;
+
+/** Only a context-validated existing object may be a navigation destination. */
+export interface KnownSubjectRef {
+  readonly identity: 'known-object';
+  readonly kind: string;
+  readonly id: string;
+  readonly label: string;
+  readonly versionId: string | null;
+}
 
 /** A form/attempt can be known before its prospective object has an identity. */
 export interface OperationSubjectRef {
@@ -103,6 +86,14 @@ export interface NoticeContext<
   readonly snapshotToken: string;
 }
 
+export interface AuthorityRef {
+  readonly owner: string;
+  readonly contract: string;
+  readonly snapshotToken: string;
+  /** Original DTO field paths/IDs; no private raw payload or secret URL. */
+  readonly references: readonly string[];
+}
+
 /** Original owner DTO and fields, rather than a cloned list of domain states. */
 export interface OwnerEvidence<Facts extends object> {
   readonly authority: AuthorityRef;
@@ -110,9 +101,23 @@ export interface OwnerEvidence<Facts extends object> {
   readonly conditionFields: readonly (keyof Facts & string)[];
 }
 
-export interface ExistingDestination extends NoticeDestination {
+export type NoticeCause =
+  | {
+      readonly known: true;
+      readonly explanation: string;
+      readonly proof: AuthorityRef;
+    }
+  | { readonly known: false; readonly explanation: string };
+
+export interface ExistingDestination {
+  readonly availability: 'verified-existing';
+  readonly href: string;
+  readonly builder: string;
+  readonly subject: KnownSubjectRef;
+  readonly granularity: 'object' | 'section' | 'version';
   /** Source context; destination may be a proven parent (execution -> trade). */
   readonly context: NoticeContext;
+  readonly relationshipProof: AuthorityRef;
 }
 
 export interface UnavailableDestination {
@@ -122,7 +127,43 @@ export interface UnavailableDestination {
 }
 
 /** Both variants only navigate. Writes remain in explicit owner workflows. */
-export type NoticeAction = PresentationNoticeAction<ExistingDestination>;
+export type NoticeAction =
+  | {
+      readonly kind: 'read';
+      readonly label: string;
+      readonly destination: ExistingDestination;
+    }
+  | {
+      readonly kind: 'open-decision';
+      readonly label: string;
+      readonly destination: ExistingDestination;
+      readonly decision: 'confirm' | 'correct' | 'review' | 'approve';
+      readonly confirmation: 'explicit-in-owner';
+    };
+
+export type UserNeed =
+  | { readonly kind: 'none'; readonly explanation: string }
+  | { readonly kind: 'optional-inspection'; readonly explanation: string }
+  | {
+      readonly kind: 'required-for-operation';
+      readonly operation: string;
+      readonly explanation: string;
+      readonly proof: AuthorityRef;
+    };
+
+export type AutomaticResolution =
+  | { readonly kind: 'none-evidenced'; readonly explanation: string }
+  | {
+      readonly kind: 'owner-result-reused';
+      readonly explanation: string;
+      readonly proof: AuthorityRef;
+    }
+  | {
+      readonly kind: 'owner-retry-scheduled';
+      readonly explanation: string;
+      readonly notBefore: string;
+      readonly proof: AuthorityRef;
+    };
 
 /** A proof reference is necessary, not sufficient: owner validation is mandatory. */
 export interface ResolutionProof {
@@ -151,16 +192,87 @@ export type NoticeLifecycle =
       readonly historicalContext: string;
     };
 
-/** Adds owner facts to the same renderable projection used by the pilot. */
+export type NoticePresentation =
+  | {
+      readonly kind: 'information';
+      readonly priority: 'data-quality-information' | 'normal';
+    }
+  | {
+      readonly kind: 'warning';
+      readonly priority: 'decision-required' | 'relevant-problem' | 'data-quality-information';
+    }
+  | {
+      readonly kind: 'blocker';
+      readonly priority: 'blocked-operation';
+      readonly blockedOperation: string;
+      readonly proof: AuthorityRef;
+    }
+  | {
+      readonly kind: 'error';
+      readonly priority: 'blocked-operation' | 'decision-required' | 'relevant-problem';
+      readonly failedOperation: string;
+      readonly proof: AuthorityRef;
+    }
+  | {
+      readonly kind: 'success';
+      readonly priority: 'normal';
+      readonly completedOperation: string;
+      readonly proof: AuthorityRef;
+    };
+
+export interface NoticeTimeContext {
+  readonly observedAt: string | null;
+  readonly checkedAt: string | null;
+  readonly validFrom: string | null;
+  readonly validTo: string | null;
+  readonly explanation: string;
+}
+
+export interface DetailRow {
+  readonly label: string;
+  readonly value: string;
+  readonly proof: AuthorityRef | null;
+}
+
+interface NoticeContent<Facts extends object, Context extends NoticeContext> {
+  /** Also excludes a changed global report basis when this cause is unchanged. */
+  readonly id: string;
+  readonly catalogRule: string;
+  readonly context: Context;
+  readonly evidence: OwnerEvidence<Facts>;
+  readonly title: string;
+  readonly cause: NoticeCause;
+  readonly impact: string;
+  readonly automatic: AutomaticResolution;
+  readonly lifecycle: NoticeLifecycle;
+  readonly time: NoticeTimeContext;
+  readonly details: readonly DetailRow[];
+  readonly actions: readonly NoticeAction[];
+  readonly missingDestination: UnavailableDestination | null;
+}
+
+/** Information/success alone cannot establish a mandatory user decision. */
 export type Notice<
   Facts extends object,
   Context extends NoticeContext = NoticeContext,
-> = NoticeView<ExistingDestination> & {
-  readonly context: Context;
-  readonly evidence: OwnerEvidence<Facts>;
-  readonly lifecycle: NoticeLifecycle;
-  readonly missingDestination: UnavailableDestination | null;
-};
+> = NoticeContent<Facts, Context> &
+  (
+    | {
+        readonly presentation: Extract<NoticePresentation, { kind: 'information' | 'success' }>;
+        readonly userNeed: Exclude<UserNeed, { kind: 'required-for-operation' }>;
+      }
+    | {
+        readonly presentation: Exclude<NoticePresentation, { kind: 'information' | 'success' }>;
+        readonly userNeed: UserNeed;
+      }
+  );
+
+export interface NoticeCardProps<Facts extends object> {
+  readonly notice: Notice<Facts>;
+  readonly headingLevel: 2 | 3 | 4;
+  readonly detailsId: string;
+  readonly onNavigate: (destination: ExistingDestination) => void;
+}
 
 export interface NoticeGroup {
   readonly id: string;
@@ -174,6 +286,17 @@ export interface NoticeSummaryProps {
   /** Host deduplicates, orders and counts distinct subjects before rendering. */
   readonly groups: readonly NoticeGroup[];
   readonly onOpenGroup: (groupId: string) => void;
+}
+
+export interface NoticeDetailsProps {
+  readonly id: string;
+  readonly rows: readonly DetailRow[];
+  readonly time: NoticeTimeContext;
+}
+
+export interface ContextActionLinkProps {
+  readonly action: NoticeAction;
+  readonly onNavigate: (destination: ExistingDestination) => void;
 }
 
 export interface NoticeStatusProps {
