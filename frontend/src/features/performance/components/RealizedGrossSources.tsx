@@ -1,12 +1,11 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useId, useState } from 'react';
 
-import {
-  realizedTradeLink,
-  type RealizedReportContext,
-} from '../services/performanceReportContext';
+import { NoticeCard } from '../../../shared/notices';
+import type { RealizedReportContext } from '../services/performanceReportContext';
 import { moneyText } from '../services/presentation';
+import { buildRealizedCurrencyNotice } from '../services/realizedCurrencyNotice';
 import type { RealizedGrossItem, RealizedGrossReport } from '../types/api';
+import { ReportCurrencyEvidence } from './ReportCurrencyEvidence';
 import { ReportSourceEntry } from './ReportSourceEntry';
 
 export function RealizedGrossSources({
@@ -19,8 +18,48 @@ export function RealizedGrossSources({
   context: RealizedReportContext;
 }) {
   const [showFullHistory, setShowFullHistory] = useState(false);
-  const tradeSources = report.sources.filter((source) => source.trade_id === item.trade_id);
-  const byId = new Map(tradeSources.map((source) => [source.execution_id, source]));
+  const detailsId = useId();
+  const notice = buildRealizedCurrencyNotice(item, report, context);
+  if (!notice) {
+    return (
+      <section
+        aria-label="Herkunft nicht zuordenbar"
+        className="mt-4 rounded-lg border border-slate-700 p-4 text-sm"
+      >
+        Die ausgewählte Buchung und der Berichtskontext passen nicht zusammen. Die Herkunft kann in
+        dieser Ansicht nicht zugeordnet werden.
+      </section>
+    );
+  }
+  const tradeSources = report.sources.filter(
+    (source) => source.trade_id === item.trade_id && source.product_id === item.product_id,
+  );
+  const byId = new Map<string, (typeof tradeSources)[number] | null>();
+  for (const source of report.sources) {
+    byId.set(source.execution_id, byId.has(source.execution_id) ? null : source);
+  }
+  const sourceIds = [...new Set(tradeSources.map((source) => source.execution_id))];
+  const sourceEntry = (id: string) => {
+    const source = byId.get(id);
+    return source && source.trade_id === item.trade_id && source.product_id === item.product_id ? (
+      <ReportSourceEntry
+        key={id}
+        source={source}
+        timezone={report.filters.report_timezone}
+        currencyPresentation={<ReportCurrencyEvidence source={source} />}
+      />
+    ) : (
+      <li key={id} className="rounded-lg border border-slate-700 p-3 text-sm">
+        <p>Eine Buchungsquelle ist in dieser Antwort nicht eindeutig zugeordnet.</p>
+        <details className="mt-2 min-w-0 text-xs text-slate-400">
+          <summary className="cursor-pointer rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400">
+            Quellenreferenz
+          </summary>
+          <p className="mt-2 break-words [overflow-wrap:anywhere]">Buchung {id}</p>
+        </details>
+      </li>
+    );
+  };
   const prefixIds = [...new Set([...item.cost_basis_execution_ids, item.execution_id])];
   return (
     <section
@@ -34,6 +73,7 @@ export function RealizedGrossSources({
           erneute Abfrage kann einen anderen korrigierten Stand zeigen.
         </p>
       </header>
+      <NoticeCard notice={notice} headingLevel={4} detailsId={detailsId} />
       <dl className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
         <div>
           <dt className="text-slate-400">Beitrag · Anzeige</dt>
@@ -90,16 +130,7 @@ export function RealizedGrossSources({
       </p>
       <h4 className="font-medium">Vorherige wirksame Buchungen und dieser Verkauf</h4>
       <ol aria-label="Kostenbasispräfix und Verkauf" className="space-y-3">
-        {prefixIds.map((id) => {
-          const source = byId.get(id);
-          return source ? (
-            <ReportSourceEntry key={id} source={source} timezone={report.filters.report_timezone} />
-          ) : (
-            <li key={id} role="alert">
-              Buchungsquelle {id} fehlt in dieser Antwort. Herkunft ist unvollständig.
-            </li>
-          );
-        })}
+        {prefixIds.map(sourceEntry)}
       </ol>
       <details
         className="text-sm"
@@ -115,13 +146,7 @@ export function RealizedGrossSources({
         </p>
         {showFullHistory && (
           <ol aria-label="Gesamte Trade-Historie" className="space-y-3">
-            {tradeSources.map((source) => (
-              <ReportSourceEntry
-                key={source.execution_id}
-                source={source}
-                timezone={report.filters.report_timezone}
-              />
-            ))}
+            {sourceIds.map(sourceEntry)}
           </ol>
         )}
       </details>
@@ -144,12 +169,6 @@ export function RealizedGrossSources({
           ))}
         </ul>
       </details>
-      <Link
-        className="inline-block rounded text-sm text-sky-300 underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400"
-        to={realizedTradeLink(item.trade_id, context)}
-      >
-        Buchungen und Währungsbestätigungen im Trade prüfen
-      </Link>
     </section>
   );
 }

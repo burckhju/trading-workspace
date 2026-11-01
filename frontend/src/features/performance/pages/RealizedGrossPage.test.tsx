@@ -194,7 +194,7 @@ it.each(['UNKNOWN', 'MIXED'] as const)(
       source.getByText(
         sourceType === 'UNKNOWN'
           ? 'Ausführungswährung: unbekannt'
-          : 'Ausführungswährung: widersprüchliche Kaufwährungen',
+          : 'Ausführungswährung: keine eindeutige Währungszuordnung',
       ),
     ).toBeVisible();
     expect(screen.getByTestId('realized-gross-total')).toHaveTextContent('Nicht berechenbar');

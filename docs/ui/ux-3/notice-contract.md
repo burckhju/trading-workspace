@@ -5,9 +5,10 @@
 Dieser eine Vertrag konsolidiert die Grundlage aus #314 mit den verpflichtenden
 Präzisierungen aus #315 gemäß der
 [Masterentscheidung Phase 1](../../coordination/UX_SHARED_CONTRACTS.md#kanonischer-ux3-hinweisvertrag--masterentscheidung-phase-1).
-Die Konsolidierung ist beauftragt; Produktkomponenten und Featureadapter entstehen
-im gesonderten, konkret abgegrenzten B1/F1-Schnitt. Dokumentationstypen sind kein
-Produktimport und kein Nachweis einer bereits erfolgten fachlichen UI-Abnahme.
+Die Konsolidierung wurde in #314 integriert. Der gesonderte, konkret abgegrenzte
+[B1/F1-Schnitt](../../implementation/UX3_B1_CURRENCY_NOTICE.md) implementiert
+die reine Shared-Darstellung und einen Performance-Adapter. Dokumentationstypen
+sind kein Produktimport und kein Nachweis einer bereits erfolgten fachlichen UI-Abnahme.
 
 ## 1. Zuständigkeit und Datenfluss
 
@@ -65,11 +66,19 @@ Ansage innerhalb der vereinbarten Fläche. Fachliche Bedeutung bleibt beim Owner
 | Navigation | `actions`: exaktes geprüftes Objektziel oder ausdrücklich fehlende Zielunterstützung. `read` und `open-decision` navigieren ausschließlich; Readerbuttons, Verwerfen und Commands bleiben beim Owner. |
 | Behebung | `lifecycle`: aktiver Zustand, belegte Auflösung, historisches Ereignis oder nicht beurteilbarer Vergleich. Nur Darstellungsprojektion aus Ownerfakten; ein verschwundener Datensatz ist kein Erfolgsbeleg. |
 
-`contracts.ts` stellt diese Angaben als konsolidierte unveränderliche View-Props
-für die spätere Umsetzung dar. Die unveränderten API-Typen werden wiederverwendet. Nicht jeder bestehende
-Reader liefert bereits alle Angaben: fehlende Ursache, Versionsreferenz oder
-Prüfzeit bleibt `null`/nicht beurteilbar und wird als Integrationslücke dokumentiert.
-Es entstehen keine neuen Pflichtfelder für Nutzer.
+`contracts.ts` stellt diese Angaben als vollständigen unveränderlichen
+Ownervertrag dar. Die reine Projektion `NoticeView` ist in
+[`shared/notices/types.ts`](../../../frontend/src/shared/notices/types.ts)
+einmalig implementiert; der Dokumentvertrag importiert und erweitert sie um
+Kontext, Originalevidence und Lifecycle. Der B1/F1-Renderer erhält nur die
+präsentierbaren Felder. Die Prüfung von Item-/Quellenidentität, Filter und Basis
+liegt beim Performance-Adapter, Requestgeneration und Abortschutz beim bestehenden
+Host. Nicht vorhandene generische Workspace-/Generationswerte werden nicht erfunden.
+
+Die unveränderten API-Typen werden wiederverwendet. Nicht jeder bestehende Reader
+liefert bereits alle Angaben: fehlende Ursache, Versionsreferenz oder Prüfzeit
+bleibt `null`/nicht beurteilbar und wird als Integrationslücke dokumentiert.
+Es entstehen keine neuen Pflichtfelder für Nutzer oder ein zweites Hinweisstatusmodell.
 
 Vor Create oder nach unklarem Create-Ergebnis darf keine UUID erfunden werden.
 Ein bekannter Elterntrade oder Vorgang kann den Hinweis tragen, aber kein Link
