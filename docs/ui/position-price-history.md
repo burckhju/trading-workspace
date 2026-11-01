@@ -20,9 +20,18 @@ historische Nachweise. Quellenwahl,
 Originalbelegzugriff und die mobile Hierarchie sind unten beschrieben; exakte
 Koordinationsstände und getrennte Prüfnachweise stehen in der
 [UX4-B-Qualifikation](../implementation/UX4_B_QUALIFICATION.md).
-Die anschließende Nutzerfreigabe autorisiert den Merge bei widerspruchsfreiem
-Abgleich und grüner aktueller CI. Sie belegt weder Release noch PC-Update oder
-menschliche Fach-/Screenreaderabnahme; der tatsächliche Integrationsstand steht im PR.
+**Erneute Implementierungsfortsetzung:** Die parallel ergänzten Heads
+`8ea8db66991eb27938e699b645dde2876e2a24b0` und
+`7ef57c788cced3d4edf49411d421794f3bf02d99` bleiben erhalten. Gegen Main
+`91ebbc0f51ef000891aee7218ec6dff6a3ce2620` einschließlich des integrierten
+UX3-B1-Piloten wurde der bestehende lokale Schnitt erneut geprüft. Eine lokale
+Fehlergrenze erhält die vollständige Originaltabelle und Ereignisliste jetzt
+auch bei einem Renderfehler im geladenen Chart; mehrfache identische
+Importfehlermeldungen bei mehreren Währungen entfallen. Ergänzt wird der native
+400-%-Zoomnachweis für Hinweisflächen gemäß Visualisierungsvertrag.
+Der aktuelle Auftrag hält #322 ausdrücklich als Draft offen. Kein Merge,
+Release oder PC-Update durch diesen Auftrag; frühere Freigabeformulierungen
+sind historische Nachweise. Der tatsächliche Prüfstand steht im PR.
 
 ## Anzeige
 
@@ -136,8 +145,12 @@ Ein Abschnittswechsel desselben Trades behält Auswahl und Evidenzseite.
 Ein tatsächlicher Trade-/Positions-/Reloadwechsel verwirft den lokalen Zustand;
 Zeitraumwechsel entfernt die vorige Antwort und die zugehörige Punktauswahl.
 Requestgeneration und Abbruchgrenze verhindern die Übernahme verspäteter
-Erfolge und Fehler. Ein Fehler beim Laden des optionalen Chartmoduls lässt
-die vollständige Kursevidenz und Ereignisliste weiterhin zugänglich.
+Erfolge und Fehler. Eine ausschließlich lokale Fehlergrenze um den optionalen
+Chart fängt sowohl Modulimportfehler als auch Renderfehler ab. Auch bei mehreren
+Währungen gibt es genau eine passende Meldung. Die vollständige Kursevidenz,
+ihre Paginierung und die Ereignisliste bleiben außerhalb dieser Grenze per
+Tastatur zugänglich; ein Chartfehler wird weder als fehlende Marktdaten noch
+als fehlgeschlagener Historienread ausgegeben.
 
 Angefragtes Fenster, belegte Zeiten und fehlende vollständige Handelszeitabdeckung
 bleiben getrennt. Eine Kürzung steht direkt an der Grafik; **Erfassung und

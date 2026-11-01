@@ -1,6 +1,9 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { positionPriceHistory } from '../../../test/positionPriceHistoryFixtures';
+import {
+  positionPriceHistory,
+  positionPriceSeries,
+} from '../../../test/positionPriceHistoryFixtures';
 import { readPositionPriceHistory } from '../services/positionPriceHistory';
 import { PositionPriceHistory } from './PositionPriceHistory';
 
@@ -9,10 +12,14 @@ vi.mock('./PositionPricePlot', () => {
   throw new Error('Synthetic unavailable chart chunk');
 });
 
+afterEach(() => vi.restoreAllMocks());
+
 it('keeps complete original evidence and event reasons accessible when the optional chart cannot load', async () => {
   const user = userEvent.setup();
+  const loggedErrors = vi.spyOn(console, 'error').mockImplementation(() => {});
   vi.mocked(readPositionPriceHistory).mockResolvedValue(
     positionPriceHistory({
+      series: [positionPriceSeries(), positionPriceSeries({ id: 'usd-source', currency: 'USD' })],
       events: [
         {
           id: 'date-only-sale',
@@ -34,6 +41,10 @@ it('keeps complete original evidence and event reasons accessible when the optio
   expect(await screen.findByRole('alert')).toHaveTextContent(
     'Das Diagramm konnte nicht geladen werden',
   );
+  expect(screen.getAllByRole('alert')).toHaveLength(1);
+  expect(loggedErrors.mock.calls.flat()).toContainEqual(
+    expect.objectContaining({ message: 'The optional price chart module could not load.' }),
+  );
   expect(screen.queryByText('Kursverlauf konnte nicht geladen werden.')).not.toBeInTheDocument();
   await user.click(screen.getByText('Kursdaten und Quellen'));
   expect(
@@ -41,6 +52,11 @@ it('keeps complete original evidence and event reasons accessible when the optio
       '0,2312345678 EUR',
     ),
   ).toBeInTheDocument();
+  expect(
+    within(screen.getByRole('region', { name: 'Historische Kursdaten' })).getByText(
+      '0,2312345678 USD',
+    ),
+  ).toBeVisible();
   await user.click(screen.getByText('Kauf- und Verkaufsereignisse'));
   expect(screen.getByText('Verkauf · 7 Stück · 0,123456789012345678 EUR')).toBeInTheDocument();
   expect(screen.getByText(/Ausgeführt am 2026-09-09/)).toHaveTextContent('Europe/Berlin');

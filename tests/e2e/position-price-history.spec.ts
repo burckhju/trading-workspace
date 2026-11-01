@@ -1264,7 +1264,182 @@ test("UX4-B overlapping market and execution points retain every exact original 
   expect(requests.browserErrors).toEqual([]);
 });
 
-test("UX4-B uses actual Chromium 200 percent page zoom with keyboard evidence and no additional reads", async ({
+test("UX4-B a chart render failure preserves keyboard access to every original quote and execution", async ({
+  page,
+}) => {
+  const evidence: PositionPriceHistoryReport = history();
+  const original = evidence.series[0].points[0];
+  evidence.series[0].points = Array.from({ length: 51 }, (_, index) => ({
+    ...original,
+    id: "synthetic-chart-failure-point-" + index,
+    observed_at: new Date(Date.parse(observedAt) + index * 60000).toISOString(),
+    price: "0.231234567890123456789",
+  }));
+  evidence.samples_available = evidence.samples_considered = 51;
+  evidence.events = [
+    ...manySourceHistory().events,
+    {
+      id: "synthetic-chart-failure-currency-unknown",
+      side: "SELL",
+      occurred_at: observedAt,
+      executed_on: null,
+      execution_timezone: null,
+      price: "0.281234567890123456789",
+      currency: null,
+      currency_source: "UNKNOWN",
+      quantity: 1,
+      plottable: false,
+      reason: "CURRENCY_UNKNOWN",
+    },
+  ];
+  const apiRequests: string[] = [];
+  page.on("request", (request) => {
+    if (new URL(request.url()).pathname.startsWith("/api/"))
+      apiRequests.push(request.method() + " " + request.url());
+  });
+  const requests = await setup(page, async (route) => {
+    await route.fulfill({ json: evidence });
+  });
+  let replacedChartChunks = 0;
+  // Isolate a genuine render exception at the optional production module
+  // boundary. The stored API evidence itself remains valid and unmodified.
+  await page.route(
+    /\/assets\/PositionPricePlot-[^/]+\.js(?:\?.*)?$/,
+    async (route) => {
+      replacedChartChunks += 1;
+      await route.fulfill({
+        contentType: "application/javascript",
+        body: 'export function PositionPricePlot() { throw new Error("Synthetic chart render failure"); }',
+      });
+    },
+  );
+  await page.setViewportSize({ width: 390, height: 900 });
+  await page.goto("/workspace");
+  const panel = await openPosition(page);
+  await expect(panel.getByRole("alert")).toHaveCount(1);
+  await expect(panel.getByRole("alert")).toContainText(
+    "Das Diagramm konnte nicht dargestellt werden.",
+  );
+  await expect(panel).not.toContainText(
+    "Das Diagramm konnte nicht geladen werden.",
+  );
+  expect(replacedChartChunks).toBe(1);
+  await expect(panel).not.toContainText(
+    "Kursverlauf konnte nicht geladen werden.",
+  );
+  await expect(panel).not.toContainText(
+    "Keine zeitlich und fachlich zuordenbaren Kursdaten vorhanden.",
+  );
+  await expect(panel.locator(".recharts-scatter-symbol")).toHaveCount(0);
+  await page.waitForLoadState("networkidle");
+  const originalRequests = [...apiRequests];
+
+  const tableSummary = panel.getByText("Kursdaten und Quellen", {
+    exact: true,
+  });
+  await tableSummary.focus();
+  await page.keyboard.press("Enter");
+  await page.keyboard.press("Tab");
+  const table = panel.getByRole("region", {
+    name: "Historische Kursdaten",
+    exact: true,
+  });
+  await expect(table).toBeFocused();
+  expect(
+    await table.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return (
+        element.matches(":focus-visible") &&
+        style.outlineStyle !== "none" &&
+        parseFloat(style.outlineWidth) >= 2 &&
+        style.overflowX === "auto"
+      );
+    }),
+  ).toBe(true);
+  await expect(table.getByRole("row")).toHaveCount(51);
+  await expect(table).toContainText("0,231234567890123456789 EUR");
+  await expect(table).toContainText(
+    "Punkt-ID: synthetic-chart-failure-point-0",
+  );
+  await expect(table).toContainText(
+    "Punkt-ID: synthetic-chart-failure-point-49",
+  );
+  await page.keyboard.press("ArrowRight");
+  await expect
+    .poll(() => table.evaluate((element) => element.scrollLeft))
+    .toBeGreaterThan(0);
+  await page.keyboard.press("Tab");
+  const nextPage = panel.getByRole("button", {
+    name: "Weitere Kurspunkte",
+    exact: true,
+  });
+  await expect(nextPage).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(panel.getByText("Seite 2 / 2", { exact: true })).toBeVisible();
+  await expect(table.getByRole("row")).toHaveCount(2);
+  await expect(table).toContainText(
+    "Punkt-ID: synthetic-chart-failure-point-50",
+  );
+  await expect(table).toContainText("Serien-ID: " + evidence.series[0].id);
+  await expect(table).toContainText("0,231234567890123456789 EUR");
+
+  const eventsSummary = panel.getByText("Kauf- und Verkaufsereignisse", {
+    exact: true,
+  });
+  await eventsSummary.focus();
+  await page.keyboard.press("Space");
+  await page.keyboard.press("Tab");
+  const sourceSummaries = panel.getByText(
+    "Buchungsbeleg und Währungsherkunft",
+    { exact: true },
+  );
+  await expect(sourceSummaries.first()).toBeFocused();
+  for (let index = 0; index < evidence.events.length; index += 1) {
+    if (index > 0) await page.keyboard.press("Tab");
+    await expect(sourceSummaries.nth(index)).toBeFocused();
+    await page.keyboard.press("Enter");
+    const event = evidence.events[index];
+    await expect(
+      panel.getByText(
+        "Buchung " + event.id + " · Währungsherkunft: " + event.currency_source,
+        {
+          exact: true,
+        },
+      ),
+    ).toBeVisible();
+  }
+  await expect(panel).toContainText(
+    "Kauf · 10 Stück · 0,231234567890123456789 EUR",
+  );
+  await expect(panel).toContainText(
+    "Verkauf · 2 Stück · 0,231234567890123456789 EUR",
+  );
+  await expect(panel).toContainText(
+    "Ausgeführt am 2026-09-11 · Uhrzeit unbekannt · Europe/Berlin",
+  );
+  await expect(panel).toContainText(
+    "Kein Diagrammmarker: Nur Ausführungsdatum bekannt.",
+  );
+  await expect(panel).toContainText(
+    "Verkauf · 1 Stück · 0,281234567890123456789 Währung unbekannt",
+  );
+  await expect(panel).toContainText(
+    "Kein Diagrammmarker: Währung nicht belegt.",
+  );
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth + 1,
+      ),
+    )
+    .toBe(true);
+  expect(apiRequests).toEqual(originalRequests);
+  expect(requests.reads).toHaveLength(1);
+  expect(requests.writes).toEqual([]);
+  expect(requests.browserErrors).toEqual([]);
+});
+
+test("UX4-B uses actual Chromium 200 and 400 percent page zoom with keyboard evidence and no additional reads", async ({
   baseURL,
 }, testInfo) => {
   // Test-only MV3 extension exercises the browser's native page-zoom API.
@@ -1306,6 +1481,12 @@ test("UX4-B uses actual Chromium 200 percent page zoom with keyboard evidence an
     const page = context.pages()[0] ?? (await context.newPage());
     await page.bringToFront();
     const evidence = manySourceHistory();
+    evidence.excluded = { TIMESTAMP_UNKNOWN: 2 };
+    const apiRequests: string[] = [];
+    page.on("request", (request) => {
+      if (new URL(request.url()).pathname.startsWith("/api/"))
+        apiRequests.push(request.method() + " " + request.url());
+    });
     const requests = await setup(page, async (route) => {
       await route.fulfill({ json: evidence });
     });
@@ -1316,24 +1497,31 @@ test("UX4-B uses actual Chromium 200 percent page zoom with keyboard evidence an
       width: window.innerWidth,
       ratio: window.devicePixelRatio,
     }));
-    const zoom = await worker.evaluate(async (origin) => {
-      const tabs = (
-        globalThis as unknown as {
-          chrome: {
-            tabs: {
-              query: (query: { url: string }) => Promise<Array<{ id: number }>>;
-              setZoom: (id: number, factor: number) => Promise<void>;
-              getZoom: (id: number) => Promise<number>;
-            };
-          };
-        }
-      ).chrome.tabs;
-      const matches = await tabs.query({ url: origin + "/*" });
-      if (matches.length !== 1)
-        throw new Error("Expected one synthetic application tab");
-      await tabs.setZoom(matches[0].id, 2);
-      return tabs.getZoom(matches[0].id);
-    }, new URL(page.url()).origin);
+    const setPageZoom = (factor: number) =>
+      worker.evaluate(
+        async ({ origin, factor }) => {
+          const tabs = (
+            globalThis as unknown as {
+              chrome: {
+                tabs: {
+                  query: (query: {
+                    url: string;
+                  }) => Promise<Array<{ id: number }>>;
+                  setZoom: (id: number, factor: number) => Promise<void>;
+                  getZoom: (id: number) => Promise<number>;
+                };
+              };
+            }
+          ).chrome.tabs;
+          const matches = await tabs.query({ url: origin + "/*" });
+          if (matches.length !== 1)
+            throw new Error("Expected one synthetic application tab");
+          await tabs.setZoom(matches[0].id, factor);
+          return tabs.getZoom(matches[0].id);
+        },
+        { origin: new URL(page.url()).origin, factor },
+      );
+    const zoom = await setPageZoom(2);
     expect(zoom).toBe(2);
     await expect
       .poll(() => page.evaluate(() => window.innerWidth))
@@ -1343,6 +1531,7 @@ test("UX4-B uses actual Chromium 200 percent page zoom with keyboard evidence an
       .toBe(before.ratio * 2);
     await page.waitForLoadState("networkidle");
     expect(requests.reads).toHaveLength(1);
+    const originalRequests = [...apiRequests];
 
     const euros = panel.getByRole("region", {
       name: "Kursbeobachtungen EUR",
@@ -1440,6 +1629,152 @@ test("UX4-B uses actual Chromium 200 percent page zoom with keyboard evidence an
       path: measurements,
       contentType: "application/json",
     });
+
+    // V12 / Q24 additionally qualify the compact, evidence-bound notices at
+    // native 400% zoom. The complete 200% journey and its artifacts stay intact.
+    const noticeZoom = await setPageZoom(4);
+    // Chromium's logarithmic zoom conversion returns 3.9999999999999996 for
+    // setZoom(4). Preserve that raw evidence and compare within IEEE precision.
+    expect(noticeZoom).toBeCloseTo(4, 12);
+    await expect
+      .poll(() => page.evaluate(() => window.innerWidth))
+      .toBe(before.width / 4);
+    await expect
+      .poll(() => page.evaluate(() => window.devicePixelRatio))
+      .toBeCloseTo(before.ratio * 4, 12);
+    const truncation = panel.getByText(/^Begrenzter Ausschnitt:/);
+    const exclusion = panel.getByText("Originalkurszeit unbekannt: 2", {
+      exact: true,
+    });
+    await expect(truncation).toContainText("10000 von 10001");
+    await expect(truncation).toContainText("Ältere Belege können fehlen");
+    await expect(exclusion).toBeVisible();
+    const eventSummary = panel.getByText("Kauf- und Verkaufsereignisse", {
+      exact: true,
+    });
+    await eventSummary.focus();
+    await page.keyboard.press("Enter");
+    await page.keyboard.press("Tab");
+    await expect(
+      panel
+        .getByText("Buchungsbeleg und Währungsherkunft", { exact: true })
+        .first(),
+    ).toBeFocused();
+    const dateEvent = panel
+      .getByRole("listitem")
+      .filter({ hasText: "Ausgeführt am 2026-09-11" });
+    await expect(dateEvent).toHaveCount(1);
+    await expect(dateEvent).toContainText("Uhrzeit unbekannt · Europe/Berlin");
+    await expect(dateEvent).toContainText("Präzision: Datum ohne Uhrzeit");
+    const missingTime = dateEvent.getByText(
+      "Kein Diagrammmarker: Nur Ausführungsdatum bekannt.",
+      {
+        exact: true,
+      },
+    );
+    const dateSource = dateEvent.getByText(
+      "Buchungsbeleg und Währungsherkunft",
+      { exact: true },
+    );
+    await dateSource.focus();
+    await page.keyboard.press("Space");
+    await expect(dateSource).toBeFocused();
+    await expect(dateEvent).toContainText("Buchung synthetic-calendar-sale");
+    expect(
+      await dateSource.evaluate((element) => {
+        const style = getComputedStyle(element);
+        return (
+          element.matches(":focus-visible") &&
+          style.outlineStyle !== "none" &&
+          parseFloat(style.outlineWidth) >= 2
+        );
+      }),
+    ).toBe(true);
+
+    for (const notice of [truncation, exclusion, missingTime]) {
+      await notice.scrollIntoViewIfNeeded();
+      await expect(notice).toBeVisible();
+      expect(
+        await notice.evaluate((element) => {
+          const bounds = element.getBoundingClientRect();
+          return (
+            bounds.left >= 0 &&
+            bounds.right <= window.innerWidth + 1 &&
+            element.scrollWidth <= element.clientWidth + 1
+          );
+        }),
+      ).toBe(true);
+    }
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () => document.documentElement.scrollWidth <= window.innerWidth + 1,
+        ),
+      )
+      .toBe(true);
+
+    const noticeCaptureSession = await context.newCDPSession(page);
+    for (const [name, target] of [
+      ["limits", truncation],
+      ["date-only", missingTime],
+    ] as const) {
+      await target.evaluate((element) =>
+        element.scrollIntoView({ block: "center" }),
+      );
+      await page.evaluate(
+        () =>
+          new Promise<void>((resolve) => {
+            requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+          }),
+      );
+      const noticeCapture = await noticeCaptureSession.send(
+        "Page.captureScreenshot",
+        {
+          format: "png",
+          fromSurface: false,
+          captureBeyondViewport: false,
+        },
+      );
+      const noticeScreenshot = testInfo.outputPath(
+        "ux4-b-native-400-percent-" + name + "-synthetic.png",
+      );
+      await writeFile(
+        noticeScreenshot,
+        Buffer.from(noticeCapture.data, "base64"),
+      );
+      await testInfo.attach(
+        "UX4-B synthetic " + name + " notice at native 400% browser zoom",
+        {
+          path: noticeScreenshot,
+          contentType: "image/png",
+        },
+      );
+    }
+    await noticeCaptureSession.detach();
+    const noticeMeasurements = testInfo.outputPath(
+      "ux4-b-native-400-zoom-measurements.json",
+    );
+    await writeFile(
+      noticeMeasurements,
+      JSON.stringify(
+        {
+          before,
+          nativeZoomFactor: noticeZoom,
+          after: await page.evaluate(() => ({
+            width: window.innerWidth,
+            ratio: window.devicePixelRatio,
+            documentWidth: document.documentElement.scrollWidth,
+          })),
+        },
+        null,
+        2,
+      ),
+    );
+    await testInfo.attach("Native 400% browser zoom measurements", {
+      path: noticeMeasurements,
+      contentType: "application/json",
+    });
+    expect(apiRequests).toEqual(originalRequests);
     expect(requests.reads).toHaveLength(1);
     expect(requests.writes).toEqual([]);
     expect(requests.browserErrors).toEqual([]);

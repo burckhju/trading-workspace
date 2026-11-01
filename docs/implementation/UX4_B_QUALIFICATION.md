@@ -1,10 +1,66 @@
 # UX4-B — Quellenwahl und eindeutige Originalbelege
 
-## Aktueller Integrationsauftrag
+## Aktueller Abschlussauftrag: Draft und vollständiger Chartausfallschutz
+
+Die erneute Implementierungsfortsetzung vom 01.11.2026 verlangt ausdrücklich:
+**PR #322 bleibt bis zur gesonderten Mergefreigabe Draft. Kein Merge, Release,
+Deployment oder PC-Update durch diesen Auftrag.** Der nachstehende frühere
+Integrationsauftrag ist ein historischer Arbeitsstand, keine Freigabe dieses
+Fortsetzungslaufs.
+
+Zu Beginn wurden Main `e681c79e0c46a6efb9e4eeb7cd18d959ad99ea97`, der offene
+Draft #322 am tatsächlichen Head `9e4f8460e3d3d69262e907eed21fbae536ebe9b8`,
+seine vollständigen Änderungen und alle vier erfolgreichen CI-Workflows erneut
+gelesen. Während des Abgleichs wurde #322 parallel auf
+`8ea8db66991eb27938e699b645dde2876e2a24b0` und anschließend
+`7ef57c788cced3d4edf49411d421794f3bf02d99` fortgeschrieben. Beide Commits
+bleiben vollständig erhalten. Der zuletzt übernommene Stand enthält zusätzlich
+die bereits erfolgte Main-Integration des UX3-Piloten; der neue Folgepatch setzt
+ohne eigenen Mergecommit auf `7ef57c78…` auf. Die zwei eigenen Dokumentnachträge
+wurden zusammengeführt und nach dem aktuellen Draftauftrag eingeordnet.
+
+Der erneut geprüfte Main `91ebbc0f51ef000891aee7218ec6dff6a3ce2620` integriert
+inzwischen #320 am Head `9e725563a5f09a6601bbe1aceee85ef32f7b7d18`. Dessen
+begrenzter B1/F1-Pilot betrifft Performance und `shared/notices`; seine 16 Dateien
+überschneiden sich mit keiner UX4-B-Datei. Der kanonische Hinweisvertrag ist
+unverändert. Die neue schmale `NoticeCard`-API ist keine erforderliche Abhängigkeit
+des vorhandenen Positionskursverlaufs. #315 bleibt ergänzende Draft-Quelle.
+
+Der unabhängige Code-/Vertragsabgleich bestätigt die vorhandene Quellenwahl,
+historischen Identitäten, überlagerten Originalbelege, Ereignisqualifikation,
+UTC-Achsen, Paginierung und Requestisolation. Diese Funktionen werden nicht
+erneut entwickelt. Zwei konkrete Lücken werden geschlossen:
+
+1. **Chartausfall:** Eine lokale ErrorBoundary um den optionalen Plot fängt nun
+   auch Fehler beim Rendern eines erfolgreich geladenen Chartmoduls ab. Tabelle,
+   Ereignisse, Ausschlussgründe und ihre Originalwerte bleiben außerhalb dieser
+   Grenze. Auch ein Importfehler erzeugt bei mehreren Währungen genau eine
+   Meldung. Lade- und Renderfehler bleiben unterscheidbar. Die vorhandene
+   Trade-/Position-/Reloadgrenze setzt den lokalen Fehlerzustand zurück;
+   Darstellungsaktionen erzeugen keinen neuen Datenread.
+2. **Hinweise bei 400 %:** V12 und Q24 verlangen ergänzend zum unveränderten
+   nativen 200-%-Browserzoom einen 400-%-Nachweis für Hinweisflächen. Der bestehende
+   Browserfall prüft nun auch Kürzung, unbekannte Kurszeit und date-only-Ereignisse
+   bei tatsächlich gemessenem Browserzoom, sichtbarem Tastaturfokus und ohne
+   horizontale Dokumentrolle oder zusätzliche API-Anfragen.
+
+Die einzige zusätzliche Produktänderung im Folgepatch gegenüber `7ef57c78…` liegt in
+`PositionPriceHistory.tsx`. Hinzu kommen der erhaltene und um Mehrwährung
+erweiterte Lazytest, `PositionPriceHistoryChartError.test.tsx`, zwei gezielte
+Ergänzungen der bestehenden Browserdatei sowie diese beiden UX4-B-Dokumente
+und synthetische Zoomnachweise. Host, öffentliche Imports/Props, Readback,
+Backend, Reader, Finanzberechnungen, Provider, Persistenz, Dependencies,
+Versionsdateien und Workflows bleiben unverändert.
+
+Die erneuten tatsächlichen Prüfungen werden unten separat vom geerbten
+Nachweisstand aufgeführt. Finale SHA, aktueller Main, CI-Testmerge und reguläre
+Run-/Jobergebnisse werden in der PR-Beschreibung aneinander gebunden.
+
+## Historische Integrationsfortschreibungen 8ea8db66 und 7ef57c78
 
 Am 01.11.2026 wurde anschließend ausdrücklich beauftragt: „Falls vorhanden
 Widersprüche aufzeigen, ansonsten wenn grün mergen“. Diese bedingte Freigabe
-ersetzt für PR #322 die ursprüngliche Beschränkung auf einen Draft. Release,
+ersetzte in jenem Arbeitsstand die ursprüngliche Beschränkung auf einen Draft. Release,
 Deployment, PC-Installation und menschliche Fach-/Screenreaderabnahme bleiben
 getrennte, hier nicht behauptete Nachweise.
 
@@ -187,7 +243,67 @@ bleiben getrennt. Der technische Wortlautabgleich wurde gegen die gelesenen
 UX3-Verträge durchgeführt. Eine neue persönliche Fach-/UX3-Abnahme wurde nicht
 erteilt und wird nicht als abgeschlossen ausgewiesen.
 
-## Tatsächlich ausgeführte lokale Prüfung
+## Erneute lokale Prüfung des Folgepatches auf 7ef57c78
+
+Ausgeführt mit Node `22.16.0`, npm `10.9.2`, Python `3.12.14` und dem zum
+vorhandenen Playwright `1.55.0` gehörenden Chromium `140.0.7339.16` (Build 1187).
+Dependencies, Lockdateien, bestehende Assertions und Coveragegates bleiben
+unverändert. Der abschließende lokale Lauf enthält den Folgepatch auf
+`7ef57c788cced3d4edf49411d421794f3bf02d99` einschließlich des zuvor separat
+geprüften integrierten UX3-Piloten. Ein erster vollständiger Frontendlauf auf
+`8ea8db66…` bestand bereits mit 1.998 Tests in 166 Dateien; nach der neuen
+Main-Integration wurde das vollständige Gate erneut ausgeführt. Diese Läufe
+werden nicht zu einer größeren Testpopulation addiert.
+
+| Prüfung | Tatsächlich erneut ausgeführtes Ergebnis |
+| --- | --- |
+| Unverändertes `bash scripts/check-frontend.sh` | **Bestanden:** TypeScript, ESLint, Prettier, **2.082 Tests in 169 Dateien**, Coverage und Produktionsbuild |
+| Frontend-Coverage | Statements/Lines **96,04 %**, Branches **90,46 %**, Functions **91,60 %**; Gates unverändert |
+| Fokussierte Backend-Ownerregressionen | **71 bestanden**, eine bestehende Starlette/AnyIO-Deprecationwarnung |
+| PostgreSQL-Historienintegration lokal | **2 übersprungen**: keine disposable PostgreSQL-Testdatenbank; ausdrücklich kein lokaler Pass |
+| Beide vollständigen History-/Navigations-Browsersuiten am Produktionsbuild | **34 bestanden**, 0 fehlgeschlagen, 0 übersprungen, keine Retries; **48,2 Sekunden** auf dem kombinierten Stand |
+| Chartausfall | Erfolgreicher Modulimport mit anschließendem Renderthrow; vollständige 51-zeilige Originalevidenz auf 2 Seiten, native Tastatur-/Scrollbedienung, BUY/SELL, date-only und unbekannte Währung erhalten, keine zusätzlichen API-Reads/Writes |
+| Native Zoommessung | 200 %: 1280 → 640 CSS-Pixel, DPR 1 → 2, Dokumentbreite 632. 400 %: 1280 → 320 CSS-Pixel, DPR 1 → 4, Dokumentbreite 320 |
+| Unabhängiger Review | Zwei getrennte Code-/Vertragsprüfungen; keine Änderung der UX2-Hostgrenze und keine neue Abhängigkeit vom integrierten UX3-Piloten |
+
+Browserbefehl gegen den Produktionsbuild und lokalen `vite preview`:
+
+```bash
+npm run e2e -- \
+  ../tests/e2e/position-price-history.spec.ts \
+  ../tests/e2e/trade-workspace-navigation.spec.ts --workers=1
+```
+
+Der neue native 400-%-Test speichert den unveränderten Chromium-Rohwert
+`3.9999999999999996`. Ein erster Lauf hatte diesen IEEE-754-Wert noch mit
+strikter numerischer Gleichheit gegen `4` verglichen (33 Pässe, 1 Testfehler).
+Die korrigierte neue Zoomassertion verwendet eine enge numerische Toleranz;
+die exakte Breite von 320 CSS-Pixeln, der unveränderte 200-%-Pfad, Reflow,
+Fokus und sämtliche Read-/Writeassertions bleiben erforderlich. Der obige
+vollständige Lauf wurde danach frisch ohne Retries ausgeführt.
+
+Der erste Backendversuch wurde wegen blockierten lokalen Prozess-/Socketzugriffs
+beendet; dieselben isolierten Tests bestanden mit erlaubtem Prozesszugriff.
+Der komplette Frontendlauf enthält weiterhin bestehende React-`act`-Hinweise;
+Vite meldet große Chunks. Diese Hinweise werden nicht als Warnungsfreiheit ausgegeben.
+
+Die aktuellen Bilder wurden visuell geprüft. Die zusätzlichen 400-%-Belege
+zeigen vollständigen horizontalen Reflow von Kürzung und Datumshinweis sowie
+den sichtbaren Fokus am Buchungsbeleg. Sie sind synthetische Browserfixtures,
+keine Produktionsdaten und keine menschliche Screenreader-Vollabnahme.
+
+| Zusätzlicher aktueller Nachweis | Datei |
+| --- | --- |
+| Hinweis zur begrenzten Historie bei nativem 400-%-Zoom | [Kürzung](evidence/ux4-b/ux4-b-native-400-percent-limits-synthetic.png) |
+| Date-only-Hinweis und fokussierte Buchungsherkunft bei nativem 400-%-Zoom | [Datumsbeleg](evidence/ux4-b/ux4-b-native-400-percent-date-only-synthetic.png) |
+| Unveränderte native Messwerte | [400-%-Messung](evidence/ux4-b/ux4-b-native-400-zoom-measurements.json) |
+
+Die früheren Prüfzahlen folgen als eindeutig getrennter historischer Nachweis.
+Die reguläre vollständige CI des neuen veröffentlichten Heads steht bei Erstellung
+dieses Folgecommits noch aus; ihre tatsächlichen Jobs, der Main-SHA und der
+ausgecheckte Testmerge werden nach Abschluss in der PR-Beschreibung festgehalten.
+
+## Geerbte lokale Prüfung des ersten vollständigen Heads 9e4f8460
 
 Node `22.16.0`, npm `10.9.2` gemäß Repository; unveränderte Lockdatei. Python
 `3.12.14` in isolierter Virtualenv aus unveränderten Requirements.
@@ -277,10 +393,10 @@ bleiben offen.
 | Stufe | Einordnung |
 | --- | --- |
 | Implementiert | Vollständiger lokaler UX4-B-Darstellungsschnitt im bestehenden Draft |
-| Lokal geprüft | Frontendgate und Backend-Units bestanden; Browsernachweis siehe oben; PostgreSQL lokal übersprungen |
-| CI-geprüft | Der erste vollständige Head `9e4f846…` ist mit neun erfolgreichen regulären Jobs qualifiziert. Die neue CI nach Main-Aktualisierung steht bei Erstellung dieses Nachtrags noch aus; maßgeblich sind ihre Runs am finalen Head bzw. dessen tatsächlichem Testmerge. Exakte Links/Ergebnisse stehen im PR. |
+| Lokal geprüft | Folgepatch auf `7ef57c78…` einschließlich integriertem Main: vollständiges Frontendgate mit 2.082 Tests, 71 Backend-Ownerregressionen und 34 Browserfällen bestanden; PostgreSQL lokal übersprungen. Geerbte Zahlen sind separat ausgewiesen. |
+| CI-geprüft | Frühere grüne Runs bleiben ihren damaligen Heads zugeordnet. Der neue Folgecommit benötigt die vollständige reguläre CI am tatsächlichen Testmerge mit aktuellem Main. Maßgebliche finale SHA-/Run-/Jobergebnisse stehen in der PR-Beschreibung. |
 | Fachlich abgestimmt | Technischer Abgleich mit exakten kanonischen Verträgen erfolgt; neue persönliche Domain-/UX-/Screenreaderabnahme offen |
-| Integriert/ausgeliefert | Main-Integration bedingt freigegeben, bei Erstellung dieses Nachtrags noch ausstehend; tatsächlicher Merge-/Main-SHA wird im PR dokumentiert. Release, Deployment und PC-Update sind damit nicht nachgewiesen. |
+| Integriert/ausgeliefert | Der aktuelle Fortsetzungsauftrag hält #322 als Draft offen. Kein Merge, Release, Deployment oder PC-Update durch diesen Auftrag. |
 
-**Nächster Schritt:** Den aktualisierten PR #322 nach widerspruchsfreiem Abgleich
-und erfolgreicher Standard-CI am aktuellen Main gemäß Nutzerfreigabe mergen.
+**Nächster Schritt:** Den technisch qualifizierten Draft #322 zur menschlichen
+UX2-/UX3-/Domain- und Bedienabnahme prüfen.

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { Component, lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { PositionPriceHistoryDays, PositionPriceHistoryReport } from '../positionPriceHistory';
 import { readPositionPriceHistory } from '../services/positionPriceHistory';
 import {
@@ -9,25 +9,42 @@ import {
 } from '../services/priceHistoryPresentation';
 import { PositionPriceHistoryEvidence } from './PositionPriceHistoryEvidence';
 
-// Keep chart dependencies out of the initial workspace bundle. Evidence remains
-// readable if the optional diagram module cannot be loaded.
+class ChartModuleLoadError extends Error {}
+
+// Keep chart dependencies out of the initial workspace bundle. Both loading and
+// rendering failures reach one boundary, even when several currencies exist.
 const PositionPricePlot = lazy(async () => {
   try {
     const module = await import('./PositionPricePlot');
     return { default: module.PositionPricePlot };
-  } catch {
-    return {
-      default: function ChartUnavailable() {
-        return (
-          <p role="alert">
-            Das Diagramm konnte nicht geladen werden. Alle belegten Werte stehen unter „Kursdaten
-            und Quellen“.
-          </p>
-        );
-      },
-    };
+  } catch (cause) {
+    throw new ChartModuleLoadError('The optional price chart module could not load.', { cause });
   }
 });
+
+type ChartFailure = 'load' | 'render' | null;
+
+// An optional renderer must not take the original evidence (or its host) down
+// with it. Identity/reload changes remount History and reset this local boundary.
+class ChartErrorBoundary extends Component<{ children: ReactNode }, { failure: ChartFailure }> {
+  state: { failure: ChartFailure } = { failure: null };
+
+  static getDerivedStateFromError(error: unknown) {
+    return { failure: error instanceof ChartModuleLoadError ? 'load' : 'render' };
+  }
+
+  render() {
+    return this.state.failure ? (
+      <p role="alert">
+        Das Diagramm konnte nicht {this.state.failure === 'load' ? 'geladen' : 'dargestellt'}{' '}
+        werden. Alle belegten Werte stehen unter „Kursdaten und Quellen“ und „Kauf- und
+        Verkaufsereignisse“.
+      </p>
+    ) : (
+      this.props.children
+    );
+  }
+}
 
 interface Props {
   tradeId: string;
@@ -182,30 +199,32 @@ function History({ tradeId, positionId }: Props) {
               Keine zeitlich und fachlich zuordenbaren Kursdaten vorhanden.
             </p>
           ) : (
-            <Suspense fallback={<p>Diagramm wird geladen …</p>}>
-              {currencies.map((currency) => (
-                <PositionPricePlot
-                  key={currency}
-                  currency={currency}
-                  series={series.filter((item) => item.currency === currency)}
-                  events={report.events}
-                  hiddenSeriesIds={hiddenSeriesIds}
-                  onToggleSeries={(seriesId) =>
-                    setHiddenSeriesIds((previous) =>
-                      previous.includes(seriesId)
-                        ? previous.filter((id) => id !== seriesId)
-                        : [...previous, seriesId],
-                    )
-                  }
-                  onInspectEvidence={(target) =>
-                    setEvidenceSelection((previous) => ({
-                      target,
-                      requestId: (previous?.requestId ?? 0) + 1,
-                    }))
-                  }
-                />
-              ))}
-            </Suspense>
+            <ChartErrorBoundary>
+              <Suspense fallback={<p>Diagramm wird geladen …</p>}>
+                {currencies.map((currency) => (
+                  <PositionPricePlot
+                    key={currency}
+                    currency={currency}
+                    series={series.filter((item) => item.currency === currency)}
+                    events={report.events}
+                    hiddenSeriesIds={hiddenSeriesIds}
+                    onToggleSeries={(seriesId) =>
+                      setHiddenSeriesIds((previous) =>
+                        previous.includes(seriesId)
+                          ? previous.filter((id) => id !== seriesId)
+                          : [...previous, seriesId],
+                      )
+                    }
+                    onInspectEvidence={(target) =>
+                      setEvidenceSelection((previous) => ({
+                        target,
+                        requestId: (previous?.requestId ?? 0) + 1,
+                      }))
+                    }
+                  />
+                ))}
+              </Suspense>
+            </ChartErrorBoundary>
           )}
           {Object.entries(report.excluded).some(([, count]) => count > 0) && (
             <div className="space-y-1 text-xs text-amber-200">
