@@ -126,6 +126,34 @@ mit anfangs noch ausstehendem A bleiben ergänzend bestehen. Der neue Head muss
 alle regulären Prüfungen erneut bestehen; die zuvor grüne CI gilt nicht als
 Nachweis für die Korrektur.
 
+### Synchronisation der bestehenden Quellen-Navigationsprüfung
+
+Am korrigierten Head `86472f3571c127f6234b89ede08ac18fbd3adb48` bestanden die
+1.981 Frontendtests erneut. Der reguläre Performance-Owner-Test fand jedoch eine
+unsynchronisierte Geometriemessung im bestehenden Quellenrundweg: Nach dem Link
+zur exakten Evidence-Journalquelle und dem Wechsel auf 390 Pixel Breite konnte
+`boundingBox()` kurzfristig `null` liefern. Der Trace bestätigt zuvor zwei Links
+und sichtbare Locatorauflösung; der anschließende Snapshot zeigt beide Links.
+Die Quellenroute enthält keine Währungsvorschau. PostgreSQL, Migration und
+Compose-Dienste waren gesund; der fehlgeschlagene Lauf wird nicht als bestanden
+ausgegeben.
+
+Der bestehende Test wartet jetzt auf die vollständige Ziel-URL des angeklickten
+Journalquellenlinks. Seine Geometrieprüfung liest innerhalb eines begrenzten
+fünfsekündigen Assertionsfensters neue Rechtecke. Zwei vorhandene Links, sichtbare
+Rechtecke und mindestens vier Pixel Reihen- oder acht Pixel Spaltenabstand
+bleiben verpflichtend. Es gibt keinen festen Sleep, keinen zusätzlichen
+Test-Retry und keine Änderung der Oberfläche, CI-Auswahl oder Qualitätsgrenzen.
+Der daraus entstehende Head erhält erneut die vollständige reguläre CI.
+
+Fünf gezielte lokale Browsergegenproben bestanden: Der ursprüngliche Helper
+weist ein tatsächlich abgelöstes DOM-Element reproduzierbar zurück; der neue
+Helper liest nach demselben Remount erfolgreich neue Rechtecke. Ein dauerhaft
+fehlender Link und tatsächlich überlappende Links werden weiterhin abgewiesen.
+Der vorhandene mobile Bericht-/Buchungs-/Quellenrundweg besteht mit der neuen
+Messung. Diese isolierten Gegenproben ersetzen nicht den regulären
+PostgreSQL-Performance-Owner-Lauf.
+
 ## Reproduzierbare gemeinsame Nutzerwege
 
 | Nutzerweg | Nachweis und erwartetes Verhalten |
