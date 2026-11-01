@@ -991,16 +991,24 @@ gespeichert. Unabhängige Folgechangesets betreffen den einzigen gespeicherten
 Bewertungslauf einer Planversion und den Browserzonen-Vorschlag für Performance.
 Journal-/Lessonquellen werden bereits übernommen; keine erfundenen Bewertungen.
 
+**Technischer UX-1-Nachtrag 01.11.2026:** Der damalige Implementierungsauftrag oben
+bleibt historisch. Der abgegrenzte UX1-A-Schnitt wurde inzwischen gemeinsam mit
+UX2-A in [#318](https://github.com/burckhju/trading-workspace/pull/318) integriert
+und als `v1.5.37` auf `bb49ffe781933270746b9f86f4aee99b6f8144c2` veröffentlicht.
+Der [Auslieferungsnachweis](../implementation/UX1_INPUT_REUSE_QUALIFICATION.md#ux1-delivery-1-5-37)
+belegt den behobenen Previewbefund sowie getrennte PR-, Main- und Publisherprüfungen.
+Er erzeugt keine neue menschliche Abnahme und keinen PC-Betriebsnachweis.
+
 | Nachweisfeld | Einordnung |
 |---|---|
 | Zuordnung | M5: Trade eröffnen. Bereich/Querschnitt: 5. Bestehender Bezug: FT-009. Lieferziel: A, B. |
-| Arbeitsstatus | Released (historischer FT-009-Teilscope); additive Execution-Währungsbestätigung und abgegrenzte UX1-A-Eingabevereinfachung in Technical Review. Aktuelle neue Test-/PR-Nachweise separat in der UX-1-Qualifikation; keine neue Auslieferung oder Fachabnahme. |
+| Arbeitsstatus | Released (historischer FT-009-Teilscope); additive Execution-Währungsbestätigung und abgegrenzte UX1-A-Eingabevereinfachung bleiben für den fachlichen Nachweisabgleich in Technical Review. UX1-A ist mit #318 / v1.5.37 technisch integriert und ausgeliefert; neue menschliche Fachabnahme und Betriebsnachweis bleiben offen. |
 | Soll / Nicht-Soll | **Soll:** Bestätigte Erst-/Nachkäufe als immutable Ausführungsfakten erfassen, Herkunft exakt behalten. **Nicht-Soll:** Keine Brokerorder, autonome Produktauswahl oder Mengenempfehlung. |
 | Vorhandenseinsnachweis | Dokument- und/oder Routing-Nachweis vorhanden; Details, historische Grenzen und nicht erneut geprüfte Implementierung im Eintrag. |
 | Implementierung / Consumer | Bestehende Erst-/Nachkauf- und EXTERNAL-Captures bleiben erhalten. Additive [Execution-Währungsbestätigung](../../backend/app/features/trade_position/service/currency_confirmations.py) in derselben Owner-Transaktion; einschließlich Learning execute-as-trade. Kein EUR-Default und keine rückwirkende Änderung wirtschaftlicher Werte. [Konkrete Qualifikation](../implementation/PERIOD_REALIZED_GROSS_REPORT_QUALIFICATION.md). |
 | Test / Commit | Historische PR-18-CI und Merge 1f98a4a2f4568dbe3e1352c0ae5e5e0c93034c2a bleiben getrennt. Neue atomare Currency-Capture-/Learning-Replay-/Rollback-Fälle und aktuelles vollständiges Backend-Gate sind in der [Berichtsqualifikation mit Codebezug](../implementation/PERIOD_REALIZED_GROSS_REPORT_QUALIFICATION.md) nachgewiesen. |
 | Fachliche Abnahme | Historische Release-/Abnahmehinweise; keine neue menschliche Abnahme. |
-| Software-Auslieferung | v1.1.0-trade-position laut historischer Traceability. |
+| Software-Auslieferung | v1.1.0-trade-position laut historischer Traceability; abgegrenzter UX1-A-Schnitt zusätzlich als [v1.5.37](https://github.com/burckhju/trading-workspace/tree/v1.5.37) auf `bb49ffe781933270746b9f86f4aee99b6f8144c2` veröffentlicht. [Technischer Nachweis](../implementation/UX1_INPUT_REUSE_QUALIFICATION.md#ux1-delivery-1-5-37); keine PC-Installation behauptet. |
 | Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
 | Restarbeit / nächste Abhängigkeit | Additiven Currency-Capture zusammen mit PB-017/PB-019 fachlich abnehmen; ursprüngliche Kaufhistorie nicht umschreiben. Separater bestehender Learning-Randfall: gleichzeitige erstmalige execute-as-trade-Requests mit identischem Key können am Unique-Constraint generisch 422 statt Replay liefern (statischer Befund, keine neue PostgreSQL-Reproduktion); keine Doppelanlage. Sequenzieller Replay und atomarer Currency-Handoff sind im neuen Nachweis qualifiziert. **Nächste Abhängigkeit:** PB-011; Workspace-Ursprung zusätzlich PB-014/015. |
 | Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
