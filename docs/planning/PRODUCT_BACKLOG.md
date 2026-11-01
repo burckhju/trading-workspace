@@ -1978,6 +1978,18 @@ historische Nachweise, keine erneute Implementierungsabhängigkeit.
 <details>
 <summary>unnummeriert — Täglicher Operational Workspace</summary>
 
+**Abgegrenzter UX3-K-Vertragsnachtrag, 01.11.2026:** Der
+[kanonische Hinweisvertrag](../ui/ux-3/README.md) führt die Bestandsinventuren und
+fachlichen Ergänzungen aus #314/#315 gemäß der integrierten UX-Koordination zusammen.
+[Inventur](../ui/ux-3/inventory.md), [Detailnachweise](../ui/ux-3/detail-inventory.md)
+und [Abnahmefälle](../ui/ux-3/test-and-acceptance.md) erhalten die bestehenden
+Domainowner, Quellen-, Schreib-, Readback- und Recoverygrenzen. Die
+[getrennten Folgeaufträge](../ui/ux-3/integration-and-rollout.md) beginnen später
+mit genau einem lesenden Pilot. Der Nutzerauftrag erlaubt Merge bei grünen
+erforderlichen Prüfungen und PC-Bereitstellung des konsolidierten Vertrags;
+dieser Nachtrag ändert weder den fachlichen Arbeits-/Abnahmestatus noch eine
+Produktoberfläche, Finanzberechnung, Handelsregel oder Planfreigabe.
+
 | Nachweisfeld | Einordnung |
 |---|---|
 | Zuordnung | Spätere Querschnittsfähigkeit zu M2–M10. Bereich/Querschnitt: Querschnitt: durchgängiger Arbeitsablauf/Bedienbarkeit. Bestehender Bezug: Operational Workspace; nur lesend. Lieferziel: A. |

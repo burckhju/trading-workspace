@@ -18,10 +18,19 @@ Feature; eine globale Funktion `noticeForStatus(status: string)` ist ungeeignet.
 | `ContextActionLink` | Zugängliche Navigation zum geprüften Ziel | `NoticeAction` mit Objekt-/Versionskontext | Beide Aktionstypen navigieren nur; kein POST/PATCH/DELETE und kein generischer `onRetry`. |
 | `NoticeStatus` | Ruhiges textliches Label samt relevanter Zeit | Fachlich zugeordnete Darstellung aus demselben Hinweis | Farbe und Symbol ergänzen Text; sie entscheiden nicht die Schwere. |
 
-Diese Komponenten werden in Phase 1 **nicht implementiert**. Insbesondere
+Die beauftragte Konsolidierung UX3-K spezifiziert diese Komponenten. Ihr
+Produktcode gehört zum gesonderten konkreten B1/F1-Schnitt. Insbesondere
 werden keine neuen Hooks, globalen Provider, Toast-Stores, Router oder
 Backendtabellen angelegt. Ein späterer Pilot verwendet zuerst einen Host und
 eine fachlich eng begrenzte Mapperfunktion.
+
+Für tatsächlich gemeinsame reine Präsentations-/Navigationsverträge gilt die
+[öffentliche Importgrenze](../../coordination/UX_SHARED_CONTRACTS.md#kontext-navigation-und-gemeinsame-importgrenze--owner-ux-2):
+das vorhandene `frontend/src/shared/` beziehungsweise qualifizierte Ownerlinks
+über typisierte Props. Gemeinsame Komponenten importieren keine Featureinternas,
+Finanz-/Quellenvalidatoren bleiben beim Featureowner. UX2s bereits vorbereitete
+Shared-Navigation wird erhalten, keine zweite URLbibliothek oder bloßes
+Reexport-Barrel eingeführt. Ein eigener Host-/Formularumbau ist kein Teil von B1/F1.
 
 ## 2. Aufbau der kompakten Darstellung
 
@@ -41,10 +50,13 @@ dürfen nicht ausschließlich aufgeklappt sichtbar sein.
 > **Vorhandene Kaufbelege prüfen** · Ursache und Quellen
 
 Der Titel wird nur verwendet, wenn der Performance-Owner den betreffenden Verkauf
-als `NOT_COMPUTABLE` einordnet und die Währungsursache belegt. Ein bloßer
-Quellenlesefehler rechtfertigt diesen Text nicht. In Details stehen Kaufdatum,
+als `NOT_COMPUTABLE` und den Bericht entsprechend als unvollständig einordnet
+und die Währungsursache belegt. Ein bloßer Quellenlesefehler oder `CURRENCY_UNKNOWN`
+an einer `EXCLUDED`-Zeile rechtfertigt diesen Text nicht. In Details stehen Kaufdatum,
 Produktname, betroffene BUY-/SELL-Referenzen, ursprünglicher Gültigkeitsbereich,
-Resolverversion und tatsächlich gemeldeter Reason. Frühere Ableitungsversuche
+Resolverversion und tatsächlich gemeldeter Reason. `cost_basis_execution_ids`
+allein beweist keine gemeinsame Kaufursache; der Prefix kann frühere SELLs enthalten.
+Frühere Ableitungsversuche
 werden nur gezeigt, wenn sie geliefert werden, nicht aus dem Ergebnis erfunden.
 
 Das vorhandene Ziel `#execution-dates` führt bisher zum Buchungsbereich des
@@ -97,7 +109,7 @@ Ein separat fehlgeschlagener Abruf bleibt unabhängig davon erklärbar.
 > **Bestätigung gespeichert — aktueller Stand noch nicht geladen**
 >
 > Die Speicherung wurde bestätigt. Der anschließende Leseversuch ist
-> fehlgeschlagen. Vor weiteren Änderungen muss der aktuelle Stand geladen werden.
+> fehlgeschlagen. Der aktuelle Stand kann erneut geladen werden.
 >
 > Aktuellen Stand laden
 
@@ -105,8 +117,27 @@ Ein bestätigtes Receipt und der Readfehler bleiben zwei belegte Fakten. Der
 erneute Klick liest ausschließlich. Dieser Readbutton gehört zum bestehenden
 Host neben dem Hinweis; er ist kein `NoticeAction`-Link und kein versteckter
 Fetchcallback von `onNavigate`. Bei **unklarem** Schreibausgang lautet die
-Aussage stattdessen „Abschluss noch nicht bestätigt“; ein unveränderter Retry
-bleibt im bestehenden idempotenten Ownerworkflow.
+Aussage stattdessen „Abschluss noch nicht bestätigt“. Ob weitere Commands eine
+vorherige Prüfung verlangen, entscheidet der bestehende Ownerguard. Journal
+besitzt den bewussten identischen Retry mit eingefrorenem Trade/Actor/Payload/Key;
+GET oder Verwerfen klärt Unknown nicht. Lesson-Create, Governancevalidation,
+Approval und Aktivierung erhalten daraus keine generische Wiederholungsgarantie.
+Eine strukturierte Journal-503 bleibt nach Ownervertrag Unknown. Keine neue
+Request-ID, kein veränderter Payload und keine Mutation aus einem Hinweisklick.
+
+### Beispiel: Aktivierungsstand noch nicht verifiziert
+
+> **Modell freigegeben — Aktivierungsstand nicht verifiziert**
+>
+> Die Freigabe ist bestätigt. Der aktuelle Runtime-Stand konnte nicht gelesen
+> werden. Ob diese Version aktiv ist, ist damit noch nicht bestätigt.
+
+Dieser Text benötigt eine passende Approval und den separat fehlgeschlagenen
+Runtime-Read desselben Modellkontexts. Erst ein erfolgreiches `current=null`
+belegt „keine aktive Version“. Die Reader behalten eigene Versions-/Zeit-/
+Generationsbezüge; weder ein gemeinsamer Bildschirm noch ein UI-Token macht sie
+atomar. Ein bekannter Lessonkontext kann navigiert werden; ein Modell-ID-Wert
+allein erzeugt keinen erfundenen Governancepfad oder Aktivierungsknopf.
 
 ### Normale Zustände
 
@@ -135,6 +166,22 @@ Die Hinweis-API besitzt keinen Requestbody, keinen Mutationcallback und keinen
 universellen Retrybutton. Bestehende direkte Feld-/Formularaktionen verbleiben
 bei UX-1 und dem Domain-Owner.
 
+Ein benannter Readbutton führt beim bestehenden Reader genau den angezeigten
+Lesevorgang aus. Lokales Verwerfen ist kein Serverwrite, aber eine bewusste
+Entscheidung im vorhandenen Dirty-Guard. Schreiben, Freigeben, Finalisieren und
+Aktivieren bleiben ausdrücklich benannte Ownercommands mit ihren bestehenden
+Versionen, Zustands-/Idempotenzpins und Bestätigungen. Kein generischer Callback
+in `ContextActionLink` übernimmt eine dieser Wirkungen.
+
+Die HTTP-Methode allein bestimmt die Wirkung nicht:
+[Monitoring-Health](../../../backend/app/features/position_monitoring/service/health.py)
+kann bei einem GET einen Provider lesen; Hinweisrendering/Navigation startet
+keinen zusätzlichen solchen Aufruf. Ein Monitoring-Einmallauf kann Alerts und
+Benachrichtigungen erzeugen und ist kein „Status neu laden“. POST `/risk/preview`
+ist eine nicht persistente Vorschau; Risikoauswertung und Konfigurationsänderung
+mutieren. Die belegte Wirkung und vorhandene Ownergrenze entscheiden, nicht GET
+oder POST als pauschales Merkmal.
+
 ## 4. Nachweisbare bestehende Navigationsverträge
 
 | Ziel | Vorhandene Form / Builder | Garantie und Grenze |
@@ -145,9 +192,12 @@ bei UX-1 und dem Domain-Owner.
 | Berichtsrückweg | `closedContextQuery`, `realizedContextQuery`, `preserveClosedContext` | Definition, Zeitraum, Währung, Zeitzone, View, Seite und Basis getrennt prüfen. URL ist kein Geld-/Quellennachweis. |
 | Planversion | `/trade-plans?trade_plan_id=…&trade_plan_version_id=…` | `planViewContextKey` und vorhandene Responsevalidatoren nutzen. |
 | Auswahlrun | `/product-selection?run_id=…` | `selectionRoute`/`assertRunContext` prüfen Plan-/Versionszusammenhang. |
-| Produktreparatur | `selectionRepairUrl(runId, warrantId)` | `/warrants-admin?selection_run_id=…&warrant_id=…`; vorhandene Reparaturnavigation wiederverwenden. |
+| Produktreparatur | `selectionRepairUrl(runId, warrantId)` | `/warrants-admin?selection_run_id=…&warrant_id=…`; Ziel prüft Run, Produktmitgliedschaft und Basiswert. Nur mit belegtem Run-/Warrantbezug, kein allgemeiner Warrantfokus. |
 | Journalversion | `/post-trade?trade_id=…&journal_version_id=…` | `selectJournalEntry` prüft Trade, Journal und Version. |
-| Lessonversion | `/lessons/…?lesson_version_id=…#lesson-history` | Historische Inhalte bleiben schreibgeschützt. |
+| Lessonversion | `/lessons/…?lesson_version_id=…#lesson-history` | Historische Version bleibt unverändert; explizite Folgeaktionen mit dieser Quelle entscheidet der Owner. Governancepanels leben in diesem Kontext, keine eigenständige `/governance`-Route. |
+| Analyseversion | `/market-analyses/{analysis.id}?version={version.number}` | Exakte belegte Analyse und Version, kein Ersatz durch eine andere Analyse desselben Basiswerts. |
+| Basiswert | `/underlyings/{underlying.id}` | Echte belegte ID; kein Name als Identitätsersatz. |
+| Diagnose / Produktpflege ohne Run | `/workspace` beziehungsweise `/warrants-admin` | Übersichtslinks so benennen; kein belegter allgemeiner Incident-/Warrant-Deep-Link. |
 
 Quellen:
 [Router](../../../frontend/src/app/router.tsx),
@@ -156,6 +206,8 @@ Quellen:
 [Plan-Kontext](../../../frontend/src/features/trade_plan/services/planViewContext.ts),
 [Produktauswahl](../../../frontend/src/features/product_selection/pages/ProductSelectionPage.tsx),
 [Produktreparatur](../../../frontend/src/features/product/services/selectionRepairContext.ts),
+[Reparaturconsumer](../../../frontend/src/features/product/pages/WarrantAdminRoutePage.tsx),
+[Reparaturregression](../../../frontend/src/features/product/pages/WarrantSelectionRepair.test.tsx),
 [Journal-Herkunft](../../../frontend/src/features/learning/components/JournalEvidenceOrigin.tsx),
 [Lesson-Review](../../../frontend/src/features/learning/components/LessonReviewPanel.tsx).
 
@@ -173,11 +225,19 @@ Governanceziele sind UX-2-Integrationspunkte. Bis zur Vereinbarung nur nachweisb
 funktionierende Objekt-/Bereichslinks oder lokale Details anbieten, keine
 scheinbar funktionierenden Wunschparameter.
 
-Die während der Analyse sichtbar gewordenen **offenen** UX-2-Änderungen ergänzen
-diese Main-Ziele um einen kontexterhaltenden Builder und Abschnittsfokus. Der
-[Parallelabgleich](integration-and-rollout.md#2a-nachtrag-zu-den-inzwischen-sichtbaren-parallel-prs)
-nennt den geprüften Head und die neuen Anker. Nach dessen Integration soll UX-3
-diesen Ownervertrag verwenden; es baut die Navigation nicht parallel nach.
+Vor Create oder bei unbekanntem Writeergebnis kann `SubjectRef` nur den bekannten
+Vorgangs-/Elternkontext tragen. `ExistingDestination` verlangt weiterhin echte
+bestätigte Objektidentität. Ohne passende Zielbeziehung bleibt eine konkrete
+Anleitung; kein Dummy-ID-Link, kein Modell-ID→Lesson-ID-Ersatz. Die Reviewquelle
+nutzt `view=sources&review_version_id=…`; der Journalpin bleibt
+`/post-trade?trade_id=…&journal_version_id=…`. Nicht unterstützte Reviewparameter
+auf `/post-trade` gelten nicht als historische Bindung.
+
+Der [Koordinationsstand](integration-and-rollout.md#2a-verbindlicher-koordinationsstand)
+benennt UX2s vorbereitete Shared-Helper und den tatsächlichen Main-/PR-Bezug.
+Der konkrete Produktpilot verwendet den dann integrierten Ownervertrag und
+erbaut keine parallele Navigation. Kopierter Link, Reload und Zurück/Vorwärts
+müssen historische Pins und den erlaubten Berichtsrückkontext erhalten.
 
 ## 5. Mobile und barrierefreie Darstellung
 
