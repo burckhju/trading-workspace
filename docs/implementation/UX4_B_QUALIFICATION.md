@@ -8,25 +8,36 @@ ersetzt für PR #322 die ursprüngliche Beschränkung auf einen Draft. Release,
 Deployment, PC-Installation und menschliche Fach-/Screenreaderabnahme bleiben
 getrennte, hier nicht behauptete Nachweise.
 
-Der zur Mergeprüfung erneut aufgelöste Main ist
+Die erste Aktualisierung übernahm Main
 `e681c79e0c46a6efb9e4eeb7cd18d959ad99ea97`, Tree
-`cbae4ba7e9c030e0c7e2db3a5374e88fc8d3ac8f`. Er integriert #321 am bereits
-gelesenen Head `f90ba2c1baebbe530af536348bc71d73ca0e0108` und ergänzt gegenüber
-dem ursprünglichen Ausgangs-Main ausschließlich die fünf Koordinationsdokumente.
-Der Abgleich bestätigt weiterhin den lokalen UX4-B-Korridor, den vorhandenen
-UX2-Hostvertrag und die kanonische UX3-Sprache. Es entsteht keine neue Abhängigkeit
-vom offenen UX3-Piloten und keine Überschneidung seiner Produktdateien mit #322.
+`cbae4ba7e9c030e0c7e2db3a5374e88fc8d3ac8f`: ausschließlich die fünf
+#321-Koordinationsdokumente am bereits gelesenen Head
+`f90ba2c1baebbe530af536348bc71d73ca0e0108`. Der daraus entstandene
+UX4-B-Zwischenhead `8ea8db66991eb27938e699b645dde2876e2a24b0` wurde während
+seiner CI erneut vom aktuellen Main überholt.
 
-Zusätzlich gelesen wurde der aktuelle #320-Head
-`9e725563a5f09a6601bbe1aceee85ef32f7b7d18`: dessen Produkt-/Testumfang bleibt
-gegenüber dem zuvor geprüften Piloten unverändert; Version 1.5.37 wurde erhalten,
-die Releasevorbereitung entfernt und B2 lediglich als getrennter Folgeauftrag
-dokumentiert. Dieser fremde Featurebranch wird nicht übernommen.
+Die tatsächliche Integrationsbasis ist jetzt
+`91ebbc0f51ef000891aee7218ec6dff6a3ce2620`, Tree
+`615154d4c56284a1ade1263f85dd3fc64a284b22`. Dieser Main integriert zusätzlich
+#320 am erneut gelesenen Head `9e725563a5f09a6601bbe1aceee85ef32f7b7d18`.
+Der begrenzte UX3-B1-Währungsherkunftspilot, sein passiver Notice-Presenter und
+seine Tests sind damit Mainbestand. B2 ist nur als getrennter Folgeauftrag
+dokumentiert. Version 1.5.37 bleibt erhalten; eine Releasevorbereitung ist nicht
+Teil dieses integrierten Stands.
 
-Die Main-Aktualisierung ist konfliktfrei und verändert gegenüber dem bereits
-qualifizierten UX4-B-Head `9e4f8460e3d3d69262e907eed21fbae536ebe9b8` keinen
-Produktcode, Test, Workflow, Reader oder Versionswert. Die beiden eigenen
-Dokumente kennzeichnen lediglich den neuen Auftrag und die aktualisierte Basis.
+Die 16 #320-Dateien überschneiden sich nicht mit dem UX4-B-Diff. Der Abgleich
+bestätigt den lokalen Chartkorridor, den vorhandenen UX2-Hostvertrag und die
+kanonische UX3-Sprache. UX4-B übernimmt keinen neuen Notice-Import und ändert
+keine Performance-/Shared- oder Hostdatei. Der kanonische Hinweisvertrag wird
+durch die begrenzte passive Pilot-API nicht ersetzt.
+
+Beide Main-Aktualisierungen sind konfliktfrei. Der eigene UX4-B-Produkt-/Testcode
+ist gegenüber dem qualifizierten Head `9e4f8460e3d3d69262e907eed21fbae536ebe9b8`
+unverändert; hinzugekommener UX3-Produkt-/Testcode stammt ausschließlich aus dem
+bereits integrierten Main. Die beiden eigenen Dokumente kennzeichnen den neuen
+Auftrag und die aktualisierte Basis. Backend, Reader, Workflows, Abhängigkeiten
+und Versionswerte ändern sich nicht. Es werden nur integrierte Mainstände,
+keine offenen fremden Featurebranches übernommen.
 Die bisherigen grünen Runs bleiben Nachweise ihres exakten früheren Stands;
 der neue kombinierte Head benötigt gemäß aktivem Main-Ruleset aktuelle normale
 CI. Finaler Head, Tree, tatsächlicher Testmerge, Runs und gegebenenfalls der
@@ -64,7 +75,11 @@ historischen UX4-A-Ausgangsstand. Bestehende automatische Reads, geschlossene
 Positionen, UTC-Achsen, getrennte Währungen, Markerqualifikation, Retention und
 50-zeilige Originaltabelle werden wiederverwendet.
 
-## Koordination und tatsächliche Integration
+## Koordination und Integration auf dem ursprünglichen Ausgangs-Main
+
+Die folgende Tabelle dokumentiert den zuerst geprüften Stand auf `484143d…`;
+die anschließenden Integrationen von #321 und #320 sind im aktuellen
+Integrationsauftrag oben gesondert ausgewiesen.
 
 | Bezug | Exakt geprüfter Head | Integrationsstand auf dem Ausgangs-Main |
 | --- | --- | --- |

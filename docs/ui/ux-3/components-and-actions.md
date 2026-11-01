@@ -10,6 +10,9 @@ haben. Die [Inventur](inventory.md) belegt zugleich unterschiedliche fachliche
 Bedeutungen gleichnamiger Codes. Deshalb bleiben die Mapper im jeweiligen
 Feature; eine globale Funktion `noticeForStatus(status: string)` ist ungeeignet.
 
+Die folgende Tabelle beschreibt die vollständigen konzeptionellen Rollen aus
+UX3-K. Die tatsächliche B1-API ist darunter und in Abschnitt 6 abgegrenzt.
+
 | Vorgeschlagener Baustein | Verantwortung | Eingabe | Grenze |
 | --- | --- | --- | --- |
 | `NoticeCard` | Titel, kurze Ursache/Wirkung, Automatik, notwendige oder optionale Aktion | Geprüftes `Notice<TFacts>` und Überschriftenebene | Kein Fetch, Resolver, Retry, Command oder Fachgrenzwert. |
@@ -18,11 +21,24 @@ Feature; eine globale Funktion `noticeForStatus(status: string)` ist ungeeignet.
 | `ContextActionLink` | Zugängliche Navigation zum geprüften Ziel | `NoticeAction` mit Objekt-/Versionskontext | Beide Aktionstypen navigieren nur; kein POST/PATCH/DELETE und kein generischer `onRetry`. |
 | `NoticeStatus` | Ruhiges textliches Label samt relevanter Zeit | Fachlich zugeordnete Darstellung aus demselben Hinweis | Farbe und Symbol ergänzen Text; sie entscheiden nicht die Schwere. |
 
-Die beauftragte Konsolidierung UX3-K spezifiziert diese Komponenten. Ihr
-Produktcode gehört zum gesonderten konkreten B1/F1-Schnitt. Insbesondere
-werden keine neuen Hooks, globalen Provider, Toast-Stores, Router oder
-Backendtabellen angelegt. Ein späterer Pilot verwendet zuerst einen Host und
-eine fachlich eng begrenzte Mapperfunktion.
+Die Konsolidierung UX3-K spezifizierte diese Rollen. Der gesonderte
+[B1/F1-Pilot](../../implementation/UX3_B1_CURRENCY_NOTICE.md) exportiert aus
+[`shared/notices`](../../../frontend/src/shared/notices/index.ts) ausschließlich
+`NoticeCard` sowie die Typen `NoticeView`, `NoticeCardProps` und `DetailRow`.
+Native Details und Statuslabel sind in der Karte enthalten; `ContextActionLink`
+ist ein privater Helper. `NoticeSummary` und eigenständige Details-/Statuskomponenten
+sind keine zusätzlichen öffentlichen B1-Exports.
+
+Die produktive Textprojektion verwendet nur Information/Warnung aus den fünf
+kanonischen Hinweisarten. Ursache, Auswirkung, Automatik und optionaler Prüfweg
+kommen als bereits qualifizierte Texte, Details als Label/Wert und der eine
+lesende Link als Label/`href`. Der Performanceadapter prüft die tatsächlichen
+Item-/Quellen-/Filter-/Basisbezüge; Generation und Abortschutz bleiben beim Host.
+Vollständige `AuthorityRef`-, `NoticeContext`-, `NoticeAction`- und Lifecycleobjekte
+werden nicht an diesen Renderer übergeben. Diese begrenzte Implementierung
+ersetzt keine Semantik des [Gesamtvertrags](notice-contract.md) und führt keinen
+zweiten Normvertrag ein. Die 42 Dokumenttypfälle prüfen dessen konzeptionelles
+Modell; sie sind kein unmittelbarer Typ- oder Verhaltensbeweis des B1-Presenters.
 
 Für tatsächlich gemeinsame reine Präsentations-/Navigationsverträge gilt die
 [öffentliche Importgrenze](../../coordination/UX_SHARED_CONTRACTS.md#kontext-navigation-und-gemeinsame-importgrenze--owner-ux-2):
@@ -280,25 +296,32 @@ Behauptung bereits geprüfter Konformität:
 
 ## 6. Exemplarische Komponenten-APIs
 
-Die vollständigen Props stehen in [contracts.ts](contracts.ts). Geplanter Aufruf:
+Die vollständigen konzeptionellen APIs stehen in [contracts.ts](contracts.ts).
+Die tatsächlichen B1-Props stehen dagegen in
+[`shared/notices/types.ts`](../../../frontend/src/shared/notices/types.ts).
+Der bestehende Host behandelt das nullable Mapperergebnis vor dem Rendern:
 
 ```tsx
-<NoticeCard
-  notice={currencyNotice}
-  headingLevel={3}
-  detailsId="trade-currency-evidence"
-  onNavigate={navigateVerifiedOwnerTarget}
-/>
-
-<NoticeSummary groups={hostGroups} onOpenGroup={focusExistingNoticeGroup} />
+const notice = buildRealizedCurrencyNotice(item, report, context);
+if (notice === null) {
+  return (
+    <section aria-label="Herkunft nicht zuordenbar">
+      Die ausgewählte Buchung und der Berichtskontext passen nicht zusammen.
+      Die Herkunft kann in dieser Ansicht nicht zugeordnet werden.
+    </section>
+  );
+}
+return <NoticeCard notice={notice} headingLevel={4} detailsId={detailsId} />;
 ```
 
-`currencyNotice` wird vom Trade-/Performance-Adapter aus einem bereits gültigen
-Snapshot geliefert. `hostGroups` enthält bereits konsolidierte Meldungen und
-Count eindeutiger betroffener Objekte. Die gemeinsame Komponente importiert weder
-CurrencyResolver noch Finanzberechnungen. `onNavigate` darf nur das validierte
-Ziel öffnen; seine Signatur ist keine Berechtigung für Schreibaktionen.
+`detailsId` stammt aus dem bestehenden Host. Die Karte erhält genau `notice`,
+`headingLevel` und `detailsId`, keinen `onNavigate`- oder sonstigen Callback.
+Der Adapter bildet den Link mit `realizedTradeLink`; die Karte aktiviert nur
+einen geeigneten absoluten internen Apppfad. Das konzeptionelle `NoticeAction`
+mit `read`/`open-decision` und der vollständige Dokumenttyp `Notice<TFacts>` sind
+keine direkt austauschbaren Props dieses Piloten. Eine weitere Hostintegration
+prüft ihren konkreten Umfang gegen denselben Gesamtvertrag.
 
-Noch keine CSS-Bibliothek, kein Theme-Wechsel und kein Umbau des ApplicationLayout.
-Die vorhandenen Tailwind-/React-Konventionen und Fachkomponenten werden im Pilot
-weiterverwendet. Visuelle und Screenreader-Abnahme erfolgt erst an diesem Pilot.
+Der Pilot verwendet die vorhandenen Tailwind-/React-Konventionen und verändert
+kein Theme oder ApplicationLayout. Tatsächliche Produktprüfungen und noch offene
+manuelle UI-/Screenreader-/Zoomnachweise stehen getrennt in der Pilotqualifikation.

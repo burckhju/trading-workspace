@@ -12,9 +12,11 @@ Repository und Tests belegen keine produktive Kurshistorie auf dem Nutzer-PC.
 **UX4-B, 01.11.2026:** Der lokale Darstellungsschnitt in [PR #322](https://github.com/burckhju/trading-workspace/pull/322)
 wurde auf Main `484143d33aa5f2d443da6b2edf097ae1cb5aee3a` / `v1.5.37`
 vervollständigt und zur anschließenden Mergeprüfung auf Main
-`e681c79e0c46a6efb9e4eeb7cd18d959ad99ea97` aktualisiert. Der neue Main ergänzt
-ausschließlich die fünf #321-Koordinationsdokumente; Produkt-/Testverträge und
-Version bleiben unverändert. Die obigen SHAs bleiben historische Nachweise. Quellenwahl,
+`91ebbc0f51ef000891aee7218ec6dff6a3ce2620` aktualisiert. Der neue Main enthält
+die #321-Koordination und den inzwischen integrierten #320-Währungsherkunftspiloten.
+Der eigene lokale Chartumfang bleibt davon getrennt; seine Datenverträge,
+Hosteinbindung und Version 1.5.37 bleiben unverändert. Die obigen SHAs bleiben
+historische Nachweise. Quellenwahl,
 Originalbelegzugriff und die mobile Hierarchie sind unten beschrieben; exakte
 Koordinationsstände und getrennte Prüfnachweise stehen in der
 [UX4-B-Qualifikation](../implementation/UX4_B_QUALIFICATION.md).

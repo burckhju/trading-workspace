@@ -48,16 +48,22 @@ function read() {
   fireEvent.click(screen.getByRole('button', { name: 'Bericht lesen' }));
 }
 
-function expectTradeReturnLink(link: HTMLElement, tradeId: string, view: string) {
+function expectTradeReturnLink(
+  link: HTMLElement,
+  tradeId: string,
+  view: string,
+  filters = reportFilters,
+  basis = 'a'.repeat(64),
+) {
   const url = new URL(link.getAttribute('href')!, 'https://workspace.test');
   expect(url.pathname).toBe('/trade-management');
   expect(url.hash).toBe('#execution-dates');
   expect(Object.fromEntries(url.searchParams)).toEqual({
     report_context: 'realized-gross',
-    ...reportFilters,
+    ...filters,
     report_view: view,
     report_page: '1',
-    report_basis: 'a'.repeat(64),
+    report_basis: basis,
     trade_id: tradeId,
   });
 }
@@ -194,7 +200,7 @@ it.each(['UNKNOWN', 'MIXED'] as const)(
       source.getByText(
         sourceType === 'UNKNOWN'
           ? 'Ausführungswährung: unbekannt'
-          : 'Ausführungswährung: widersprüchliche Kaufwährungen',
+          : 'Ausführungswährung: keine eindeutige Währungszuordnung',
       ),
     ).toBeVisible();
     expect(screen.getByTestId('realized-gross-total')).toHaveTextContent('Nicht berechenbar');
@@ -212,6 +218,21 @@ it('keeps an empty reviewed set distinct from entirely unresolved facts and from
     average_cost_per_unit: null,
     cost_basis_before: null,
     cost_basis_after: null,
+  });
+  const unknownSource = reportSource(unknown.execution_id, {
+    side: 'SELL',
+    quantity: unknown.quantity,
+    price_per_unit: unknown.price_per_unit,
+    executed_at: unknown.executed_at,
+    currency_confirmation: null,
+    currency_history: [],
+    currency_resolution: {
+      currency_code: null,
+      source: 'UNKNOWN',
+      source_execution_ids: [],
+      confirmation_ids: [],
+      reason: 'NO_HISTORICAL_EVIDENCE',
+    },
   });
   api.realizedGross.mockResolvedValueOnce(
     realizedGrossReport({
@@ -248,6 +269,7 @@ it('keeps an empty reviewed set distinct from entirely unresolved facts and from
   api.realizedGross.mockResolvedValueOnce(
     realizedGrossReport({
       items: [unknown],
+      sources: [...realizedGrossReport().sources, unknownSource],
       summary: {
         status: 'NOT_COMPUTABLE',
         total: null,
@@ -266,14 +288,44 @@ it('keeps an empty reviewed set distinct from entirely unresolved facts and from
   expect(
     screen.getByText(/Ausführungswährung für Verkauf oder Kostenbasis nicht vollständig belegt/),
   ).toBeVisible();
+  fireEvent.click(screen.getByRole('button', { name: 'Quellen und Berechnung' }));
+  const unknownDetail = within(screen.getByRole('region', { name: 'Herkunft SELL unknown' }));
+  const unknownNotice = within(
+    unknownDetail.getByRole('region', { name: 'Währungsherkunft dieses Beitrags ungeklärt' }),
+  );
+  expect(
+    unknownNotice.getByText(/Bruttobeitrag dieses Verkaufs derzeit nicht berechnen/),
+  ).toBeVisible();
+  const unknownAmount = unknownDetail.getByText('Beitrag · Anzeige').nextElementSibling;
+  expect(unknownAmount).toBeVisible();
+  expect(unknownAmount).toHaveTextContent('Nicht berechenbar');
+  expect(unknownDetail.queryByText('0,00 EUR')).not.toBeInTheDocument();
+  fireEvent.click(unknownNotice.getByText('Ursache und Quellen'));
+  expect(unknownNotice.getByText(/NO_HISTORICAL_EVIDENCE/)).toBeVisible();
+  expectTradeReturnLink(
+    unknownNotice.getByRole('link', {
+      name: 'Buchungen und Währungsbestätigungen im Trade prüfen',
+    }),
+    unknown.trade_id,
+    'candidates',
+  );
+  expect(api.realizedGross).toHaveBeenCalledTimes(2);
+  const tiny = reportItem('tiny', {
+    realized_gross_pnl_delta: '0.0040000000',
+    realized_gross_pnl_delta_display: '0.00',
+  });
   api.realizedGross.mockResolvedValueOnce(
     realizedGrossReport({
-      items: [
-        reportItem('tiny', {
-          realized_gross_pnl_delta: '0.0040000000',
-          realized_gross_pnl_delta_display: '0.00',
+      items: [tiny, unknown],
+      sources: [
+        ...realizedGrossReport().sources,
+        unknownSource,
+        reportSource(tiny.execution_id, {
+          side: 'SELL',
+          quantity: tiny.quantity,
+          price_per_unit: tiny.price_per_unit,
+          executed_at: tiny.executed_at,
         }),
-        unknown,
       ],
       summary: {
         status: 'PARTIAL',
@@ -297,6 +349,64 @@ it('keeps an empty reviewed set distinct from entirely unresolved facts and from
   expect(
     within(screen.getByRole('region', { name: 'Herkunft SELL tiny' })).getByText('0.0040000000'),
   ).toBeVisible();
+  const partialDetail = within(screen.getByRole('region', { name: 'Herkunft SELL tiny' }));
+  const partialNotice = within(
+    partialDetail.getByRole('region', { name: 'Währungsherkunft dieses Beitrags' }),
+  );
+  expect(partialNotice.getByText(/Bruttobeitrag als verwendbar/)).toBeVisible();
+  expect(partialNotice.getByText(/teilweise berechenbar/)).toBeVisible();
+  expect(partialNotice.getByText(/keine vollständige Summe/)).toBeVisible();
+  const partialAmount = partialDetail.getByText('Beitrag · Anzeige').nextElementSibling;
+  expect(partialAmount).toBeVisible();
+  expect(partialAmount).toHaveTextContent('0,00 EUR');
+  expect(screen.getByTestId('realized-gross-total')).toHaveTextContent('Nicht berechenbar');
+  expect(api.realizedGross).toHaveBeenCalledTimes(3);
+
+  const zero = reportItem('zero', {
+    price_per_unit: '2.0000000000',
+    realized_gross_pnl_delta: '0.0000000000',
+    realized_gross_pnl_delta_display: '0.00',
+  });
+  api.realizedGross.mockResolvedValueOnce(
+    realizedGrossReport({
+      items: [zero],
+      sources: [
+        ...realizedGrossReport().sources,
+        reportSource(zero.execution_id, {
+          side: 'SELL',
+          quantity: zero.quantity,
+          price_per_unit: zero.price_per_unit,
+          executed_at: zero.executed_at,
+        }),
+      ],
+      summary: {
+        status: 'COMPLETE',
+        total: '0.0000000000',
+        total_display: '0.00',
+        subtotal: null,
+        subtotal_display: null,
+        rounding_difference: '0.00',
+        rounding_difference_display: '0.00',
+      },
+    }),
+  );
+  read();
+  await screen.findByRole('article', { name: 'Verkauf zero' });
+  expect(screen.getByTestId('realized-gross-total')).toHaveTextContent('0,00 EUR');
+  expect(screen.queryByTestId('realized-gross-subtotal')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Quellen und Berechnung' }));
+  const zeroDetail = within(screen.getByRole('region', { name: 'Herkunft SELL zero' }));
+  const zeroNotice = within(
+    zeroDetail.getByRole('region', { name: 'Währungsherkunft dieses Beitrags' }),
+  );
+  expect(zeroNotice.getByText(/Bruttobeitrag als verwendbar/)).toBeVisible();
+  expect(zeroDetail.getByText('0.0000000000')).toBeVisible();
+  const zeroAmount = zeroDetail.getByText('Beitrag · Anzeige').nextElementSibling;
+  expect(zeroAmount).toBeVisible();
+  expect(zeroAmount).toHaveTextContent('0,00 EUR');
+  expect(zeroNotice.queryByText(/teilweise berechenbar/)).not.toBeInTheDocument();
+  expect(screen.queryByRole('region', { name: 'Herkunft SELL unknown' })).not.toBeInTheDocument();
+  expect(api.realizedGross).toHaveBeenCalledTimes(4);
 });
 
 it('does not derive totals from the visible page or convert high-precision money through a float', async () => {
@@ -390,27 +500,85 @@ it('invalidates visible results immediately and ignores older success and failur
     target: { value: '2026-10-31' },
   });
   expect(oldSignal?.aborted).toBe(true);
-  api.realizedGross.mockResolvedValueOnce(
-    realizedGrossReport({
-      filters: { ...reportFilters, from_date: '2026-10-01', to_date: '2026-10-31' },
-      summary: {
-        status: 'COMPLETE',
-        total: '30',
-        total_display: '30.00',
-        subtotal: null,
-        subtotal_display: null,
-        rounding_difference: '0',
-        rounding_difference_display: '0.00',
+  const currentReport = realizedGrossReport({
+    filters: { ...reportFilters, from_date: '2026-10-01', to_date: '2026-10-31' },
+    summary: {
+      status: 'COMPLETE',
+      total: '30',
+      total_display: '30.00',
+      subtotal: null,
+      subtotal_display: null,
+      rounding_difference: '0',
+      rounding_difference_display: '0.00',
+    },
+  });
+  currentReport.items[1].product_name = 'Aktueller Oktoberbeitrag';
+  const currentSource = currentReport.sources.find(
+    (source) => source.execution_id === 'sell-september-2',
+  )!;
+  currentSource.currency_confirmation = null;
+  currentSource.currency_history = [];
+  currentSource.currency_resolution = {
+    currency_code: 'EUR',
+    source: 'HISTORICAL_LISTINGS',
+    source_execution_ids: [],
+    confirmation_ids: [],
+    reason: 'OCTOBER_OWNER_REASON',
+    evidence_ids: ['october-evidence'],
+    evidence: [
+      {
+        id: 'october-evidence',
+        kind: 'HISTORICAL_LISTINGS',
+        source_reference: 'Oktober-Archiv',
+        recorded_at: '2026-11-01T10:00:00Z',
       },
-    }),
-  );
+    ],
+  };
+  api.realizedGross.mockResolvedValueOnce(currentReport);
   read();
   expect(await screen.findByTestId('realized-gross-total')).toHaveTextContent('30,00 EUR');
+  fireEvent.click(
+    within(screen.getByRole('article', { name: 'Verkauf sell-september-2' })).getByRole('button', {
+      name: 'Quellen und Berechnung',
+    }),
+  );
+  const currentNotice = within(
+    screen.getByRole('region', { name: 'Währungsherkunft dieses Beitrags' }),
+  );
+  expect(
+    currentNotice.getByRole('heading', { name: 'Währungsherkunft dieses Beitrags' }),
+  ).toBeVisible();
+  expect(currentNotice.getByText(/Aktueller Oktoberbeitrag/)).toBeVisible();
+  fireEvent.click(currentNotice.getByText('Ursache und Quellen'));
+  expect(currentNotice.getByText(/OCTOBER_OWNER_REASON/)).toBeVisible();
+  expect(currentNotice.getByText(/Oktober-Archiv/)).toBeVisible();
+  expectTradeReturnLink(
+    currentNotice.getByRole('link', {
+      name: 'Buchungen und Währungsbestätigungen im Trade prüfen',
+    }),
+    'trade-1',
+    'candidates',
+    currentReport.filters,
+    currentReport.basis.id,
+  );
+  expect(api.realizedGross).toHaveBeenCalledTimes(2);
   await act(async () => {
     old.resolve(realizedGrossReport());
     await old.promise;
   });
   expect(screen.getByTestId('realized-gross-total')).toHaveTextContent('30,00 EUR');
+  expect(currentNotice.getByText(/Aktueller Oktoberbeitrag/)).toBeVisible();
+  expect(currentNotice.getByText(/OCTOBER_OWNER_REASON/)).toBeVisible();
+  expect(currentNotice.getByText(/Oktober-Archiv/)).toBeVisible();
+  expectTradeReturnLink(
+    currentNotice.getByRole('link', {
+      name: 'Buchungen und Währungsbestätigungen im Trade prüfen',
+    }),
+    'trade-1',
+    'candidates',
+    currentReport.filters,
+    currentReport.basis.id,
+  );
   const failed = deferred<RealizedGrossReport>();
   api.realizedGross.mockReturnValueOnce(failed.promise);
   read();
@@ -418,17 +586,31 @@ it('invalidates visible results immediately and ignores older success and failur
     target: { value: 'Etc/UTC' },
   });
   expect(screen.queryByTestId('realized-gross-total')).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole('region', { name: 'Währungsherkunft dieses Beitrags' }),
+  ).not.toBeInTheDocument();
+  expect(screen.queryByText(/OCTOBER_OWNER_REASON/)).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole('link', { name: 'Buchungen und Währungsbestätigungen im Trade prüfen' }),
+  ).not.toBeInTheDocument();
   await act(async () => {
     failed.reject(new Error('Veralteter Fehler'));
     await failed.promise.catch(() => undefined);
   });
   expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  expect(screen.queryByText(/OCTOBER_OWNER_REASON/)).not.toBeInTheDocument();
 });
 
 it('rejects a response for another filter and replaces the complete report while marking a changed source basis', async () => {
   api.realizedGross.mockResolvedValueOnce(
     realizedGrossReport({ filters: { ...reportFilters, report_timezone: 'Etc/UTC' } }),
   );
+  const initial = realizedGrossReport();
+  const initialSource = initial.sources.find(
+    (source) => source.execution_id === 'sell-september-2',
+  )!;
+  initialSource.currency_resolution!.reason = 'INITIAL_OWNER_REASON';
+  api.realizedGross.mockResolvedValueOnce(initial);
   renderPage();
   chooseSeptember();
   read();
@@ -437,6 +619,23 @@ it('rejects a response for another filter and replaces the complete report while
   read();
   await screen.findByTestId('realized-gross-total');
   expect(screen.queryByText(/Der Quellenstand hat sich/)).not.toBeInTheDocument();
+  fireEvent.click(
+    within(screen.getByRole('article', { name: 'Verkauf sell-september-2' })).getByRole('button', {
+      name: 'Quellen und Berechnung',
+    }),
+  );
+  const initialNotice = within(
+    screen.getByRole('region', { name: 'Währungsherkunft dieses Beitrags' }),
+  );
+  fireEvent.click(initialNotice.getByText('Ursache und Quellen'));
+  expect(initialNotice.getByText(/INITIAL_OWNER_REASON/)).toBeVisible();
+  expectTradeReturnLink(
+    initialNotice.getByRole('link', {
+      name: 'Buchungen und Währungsbestätigungen im Trade prüfen',
+    }),
+    'trade-1',
+    'candidates',
+  );
   const corrected = realizedGrossReport();
   corrected.basis.id = 'b'.repeat(64);
   corrected.summary.total = '30.0000000000';
@@ -444,9 +643,39 @@ it('rejects a response for another filter and replaces the complete report while
   corrected.items[1] = {
     ...corrected.items[1],
     execution_id: 'replacement',
+    product_name: 'Berichtigter Beitrag',
+    currency_confirmation_ids: ['currency-buy-august', 'currency-buy-september'],
     realized_gross_pnl_delta: '0',
     realized_gross_pnl_delta_display: '0.00',
   };
+  corrected.sources = corrected.sources.map((source) =>
+    source.execution_id === 'sell-september-2'
+      ? reportSource('replacement', {
+          side: 'SELL',
+          quantity: corrected.items[1].quantity,
+          price_per_unit: corrected.items[1].price_per_unit,
+          executed_at: corrected.items[1].executed_at,
+          currency_confirmation: null,
+          currency_history: [],
+          currency_resolution: {
+            currency_code: 'EUR',
+            source: 'EXECUTION_DOCUMENT',
+            source_execution_ids: ['replacement'],
+            confirmation_ids: [],
+            reason: 'CORRECTED_OWNER_REASON',
+            evidence_ids: ['replacement-evidence'],
+            evidence: [
+              {
+                id: 'replacement-evidence',
+                kind: 'EXECUTION_DOCUMENT',
+                source_reference: 'Berichtigte Originalreferenz',
+                recorded_at: '2026-11-01T10:00:00Z',
+              },
+            ],
+          },
+        })
+      : source,
+  );
   api.realizedGross.mockResolvedValueOnce(corrected);
   read();
   await waitFor(() =>
@@ -457,6 +686,44 @@ it('rejects a response for another filter and replaces the complete report while
     screen.queryByRole('article', { name: 'Verkauf sell-september-2' }),
   ).not.toBeInTheDocument();
   expect(screen.getByRole('article', { name: 'Verkauf replacement' })).toBeVisible();
+  expect(screen.queryByText(/INITIAL_OWNER_REASON/)).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole('link', { name: 'Buchungen und Währungsbestätigungen im Trade prüfen' }),
+  ).not.toBeInTheDocument();
+  fireEvent.click(
+    within(screen.getByRole('article', { name: 'Verkauf replacement' })).getByRole('button', {
+      name: 'Quellen und Berechnung',
+    }),
+  );
+  const correctedDetail = within(screen.getByRole('region', { name: 'Herkunft SELL replacement' }));
+  const correctedNotice = within(
+    correctedDetail.getByRole('region', { name: 'Währungsherkunft dieses Beitrags' }),
+  );
+  expect(
+    correctedNotice.getByRole('heading', {
+      name: 'Währungsherkunft dieses Beitrags',
+    }),
+  ).toBeVisible();
+  expect(correctedNotice.getByText(/Berichtigter Beitrag/)).toBeVisible();
+  fireEvent.click(correctedNotice.getByText('Ursache und Quellen'));
+  expect(correctedNotice.getByText(/CORRECTED_OWNER_REASON/)).toBeVisible();
+  expect(correctedNotice.getByText(/Berichtigte Originalreferenz/)).toBeVisible();
+  expect(
+    correctedDetail.getByRole('listitem', { name: 'Buchungsquelle replacement' }),
+  ).toBeVisible();
+  expect(
+    correctedDetail.queryByRole('listitem', { name: 'Buchungsquelle sell-september-2' }),
+  ).not.toBeInTheDocument();
+  expectTradeReturnLink(
+    correctedNotice.getByRole('link', {
+      name: 'Buchungen und Währungsbestätigungen im Trade prüfen',
+    }),
+    'trade-1',
+    'candidates',
+    corrected.filters,
+    corrected.basis.id,
+  );
+  expect(api.realizedGross).toHaveBeenCalledTimes(3);
 });
 
 it('shows excluded currencies and cancelled trades without treating them as returns or requesting learning data', async () => {

@@ -4,23 +4,33 @@
 [Hinweisvertrag](notice-contract.md) · [Komponenten](components-and-actions.md) ·
 [Tests und Abnahme](test-and-acceptance.md)
 
+Der bestehende B1/F1-Produktpilot wird in
+[PR #320](https://github.com/burckhju/trading-workspace/pull/320) qualifiziert.
+Der [Pilotbericht](../../implementation/UX3_B1_CURRENCY_NOTICE.md) trennt Umfang,
+Prüfungen und offene Abnahmen. Der aktuelle Auftrag endet beim Draft-PR; die
+parallele Releasevorbereitung wird auf ausdrückliche Nutzerentscheidung
+zurückgenommen. Die folgenden UX3-K-Quellen-/Parallelstände sind historische
+Konsolidierungsbelege.
+
 ## 1. Umfang und Zuständigkeit
 
-**UX3-K ist der jetzt beauftragte Konsolidierungsschnitt.** Er setzt die
+**UX3-K war der Konsolidierungsschnitt in #314.** Er setzte die
 [Masterentscheidung](../../coordination/UX_SHARED_CONTRACTS.md#kanonischer-ux3-hinweisvertrag--masterentscheidung-phase-1)
 auf Main `35f3ab2133fa40beb4ab2e502a08fa3bf5b44e35` um: #314 ist die führende
 Grundlage, #315 liefert verpflichtende Präzisierungen. Genau ein Einstieg,
 Hinweisvertrag und Dokumentationstypmodell liegen unter `docs/ui/ux-3/`.
 #315 wird weder als zweiter Normvertrag integriert noch durch diesen Auftrag
 geschlossen. Die Produktinventur auf `1883f7f330719453958f8be1dd51d48db816662e`
-bleibt für den unveränderten Produktcode nachvollziehbar.
+bleibt für den damaligen Produktcode nachvollziehbar.
 
-Die qualifizierte Vertragsintegration/Veröffentlichung ist beauftragt; ein
-tatsächlicher Merge, Release oder PC-Installationsnachweis folgt nicht allein
-aus dieser Planung. Produktkomponenten wurden für UX3-K nicht umgebaut.
-Der spätere B1/F1-Pilot benötigt seinen eigenen konkreten Produktschnitt und
-die benannten Ownerprüfungen. Ein gelesener Parallel-Diff behauptet keine bereits
-erfolgte Ownerabnahme. Arbeitsstatus führt ausschließlich
+Produktkomponenten wurden für UX3-K nicht umgebaut. B1/F1 ist der gesonderte
+Produktschnitt auf dem anschließend integrierten UX1/UX2-Stand aus #318.
+Sein schmaler Renderer und seine tatsächlichen Exports sind in den
+[Komponenten-APIs](components-and-actions.md#6-exemplarische-komponenten-apis)
+vom vollständigen konzeptionellen Vertrag abgegrenzt. Fachliche Zustände und
+der eine normative Hinweisvertrag bleiben erhalten. Ein gelesener Diff oder
+grüne technische Prüfung behauptet keine bereits erfolgte Ownerabnahme,
+Tagveröffentlichung oder PC-Installation. Arbeitsstatus führt ausschließlich
 [Product Backlog — Operational Workspace](../../planning/PRODUCT_BACKLOG.md#operational-workspace).
 
 | Owner | Verantwortet | Übergabe an UX-3 |
@@ -293,13 +303,14 @@ neue allgemeine Hinweisgrenzen übernommen.
 
 ## 5. Begrenzte Folge-PRs und Abhängigkeiten
 
-UX3-F1 bis UX3-F8 sind **lokale Planungskürzel**, keine angelegten Issues oder
-bereits begonnenen Implementierungen. Jeder Schnitt erhält einen eigenen
+UX3-F1 bis UX3-F8 sind **lokale Planungskürzel**, keine angelegten Issues.
+F1/B1 liegt als begrenzter Produktdiff in #320 vor; die übrigen Schnitte bleiben
+getrennte Aufträge. Jeder Schnitt erhält einen eigenen
 prüfbaren Diff und wird auf den dann tatsächlichen Main-Stand abgeglichen. Die
 Frontend-/Backend-/E2E-Gates des Repositorys bleiben unverändert; gezielte Tests
 ergänzen sie und ersetzen sie nicht. Ein grüner früherer Head qualifiziert keinen
-neueren Änderungssatz. Die aktuelle Freigabe zur qualifizierten Konsolidierung
-ersetzt nicht den konkreten Auftrag und die fachliche Abnahme des Produktpiloten.
+neueren Änderungssatz. Die Umsetzung und technische Qualifikation des Piloten
+ersetzen keine fachliche Abnahme oder Freigabe zusätzlicher Folgeumfänge.
 
 | Schnitt | Enger Umfang und Abhängigkeit | Konkrete Prüfung / Abnahmekriterium | Grenze |
 | --- | --- | --- | --- |
@@ -360,22 +371,53 @@ Negativfälle. Die Prüfung umfasst drei voneinander getrennte Nachweise:
 Backend-Coverage bleibt bei 85 %, Frontend Lines/Functions/Statements bei 80 %
 und Branches bei 70 % gemäß den verlinkten Workflows in der [Übersicht](README.md).
 Es werden keine Tests deaktiviert, Coveragegrenzen gesenkt oder vollständige
-Gate-Erfolge aus Teiltests abgeleitet. Die jetzige Dokumentationsphase meldet
-nur ihre tatsächlich ausgeführten Prüfungen im separaten Prüfprotokoll.
+Gate-Erfolge aus Teiltests abgeleitet. Das historische UX3-K-Prüfprotokoll und
+seine 42 Typgegenfälle qualifizieren den Dokumentvertrag. Sie prüfen nicht
+unmittelbar die schmalen produktiven `NoticeView`-Props. Aktuelle B1-Produktbelege
+stehen getrennt in der Pilotqualifikation und am tatsächlichen PR-/Testmerge-Head.
 
 ## 7. Wichtigster nächster Umsetzungsschritt
 
-**UX3-K qualifizieren und danach B1/F1 als eigenen kleinen Produktschnitt
-abgrenzen.** Die Konsolidierung erhält Dokumentprüfung, strict/noEmit mit
-Typgegenfällen, vollständigen Übernahmebeleg sowie neue Head-/Tree-/CI-Nachweise.
-Die beauftragte Integration und Veröffentlichung wird anhand dieser tatsächlichen
-Nachweise durchgeführt, ohne dadurch eine Produktabnahme zu behaupten.
+**Den vorhandenen B1/F1-Diff mit aktuellen Nachweisen abschließen.** In
+[#320](https://github.com/burckhju/trading-workspace/pull/320) gehören tatsächlicher
+Head, Mainbasis, Testmerge/Tree und erforderliche Run-/Jobbelege zusammen.
+Der Nutzer hat die Rücknahme der parallelen Versions- und Releasevorbereitung
+ausdrücklich angeordnet. Der Pilot bleibt ein Draft auf Version 1.5.37;
+Integration und PC-Bereitstellung sind durch diesen Auftrag nicht freigegeben.
+Die offenen menschlichen Fach-/Screenreader-/Zoomnachweise bleiben gesondert.
 
-Danach liefern Performanceowner, UX1 und UX2 die konkreten gespeicherten Fakten,
-Previewgrenze, Kontext-/Guard-/Fokusgrenze und Fläche für genau `RealizedGrossSources`.
-Der rein lesende B1/F1-Pilot verwendet den bestehenden
-historischen Ausführungswährungsresolver über dessen bereits geliefertes
-Ergebnis, zeigt eine kompakte Ursache-Wirkung-Erklärung mit Quellen und führt
-über den vorhandenen Trade-Buchungslink zur Prüfung. Dieser eine begrenzte
-Durchstich prüft die Wiederverwendbarkeit und Kontextisolation, bevor weitere
-Oberflächen den Vertrag übernehmen.
+Danach wird der bereits in Abschnitt 5 geplante **B2/F4-Teilschnitt zu Q12** an
+genau einer bestehenden Bewertungsfläche abgegrenzt. Die übrigen F4-Flächen,
+F2-Finanzqualifikation und B3/B4/C/D-Aufträge werden dadurch nicht erweitert.
+Der folgende kopierbare Startprompt konkretisiert diesen vorhandenen Auftrag;
+er erteilt keine neue Freigabe:
+
+```text
+Setze den gesonderten UX3-B2/F4-Teilschnitt zu Q12 in trading-workspace um.
+Prüfe zuerst den tatsächlichen aktuellen Main, den integrierten B1/F1-Stand,
+den kanonischen UX3-Vertrag und offene parallele Arbeit an der betroffenen
+Fläche. Erhalte fremde Änderungen und grenze gemeinsame Dateien mit dem
+bestehenden Owner ab; alte Heads sind keine aktuelle Integrationsgrundlage.
+
+Prüfe Q12 am tatsächlichen Code von ProductValuationPanel beziehungsweise
+PositionDetails. Lege nach dieser Inspektion genau eine betroffene bestehende
+Bewertungsfläche und die konkrete Datei-/Ownerliste fest. Erkläre dort eine
+belegte Einschränkung aus den vorhandenen Bewertungsdaten. Ein unbekanntes
+analysis_warning beweist keinen veralteten Kurs. MISSING/UNAVAILABLE/ERROR
+belegen keinen verfügbaren Referenzkurs; LAST_AVAILABLE ist nicht pauschal
+STALE. Unbekannte Ursachen bleiben ausdrücklich unbekannt. Erhalte Geldwerte,
+valuation_usable, analysis_usable, die eigenständige G/V-Qualifikation,
+Originalzeiten, Quellenreferenzen, sichere Ziele und fachliche Statusmodelle.
+
+Verwende den vorhandenen B1-Präsentationskern nur soweit er diesen konkreten
+Fall trägt. Implementiere keine Währungsresolver, Finanz-/FX-Berechnungen,
+Providerqualifikation, Trading-/Planfreigabe- oder Recoveryregeln, generische
+Hinweisengine, automatische Aktion oder globale Hostmigration.
+
+Prüfe TC-49 und die vorhandenen betroffenen Bewertungsregressionen. Liefere
+einen kleinen getrennten PR mit konkretem Scope, aktuellen Head-/Tree-/
+CI-Nachweisen und offen benannten fachlichen/UI-Abnahmen. Dieser gesonderte
+Folgeschnitt benötigt seinen konkreten Nutzerauftrag und die erforderlichen
+Projektgates; dieser Startprompt erteilt keine Umsetzung-, Merge- oder
+Releasefreigabe.
+```

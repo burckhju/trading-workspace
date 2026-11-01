@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react';
+
 import { ExecutionCurrencySources } from '../../trade/components/ExecutionCurrencySources';
 import { executionCurrencyText } from '../../trade/services/executionCurrency';
 import { executionTimeText } from '../services/presentation';
@@ -6,11 +8,21 @@ import type { RealizedGrossSource } from '../types/api';
 export function ReportSourceEntry({
   source,
   timezone,
+  currencyPresentation,
+  priceCurrency,
 }: {
   source: RealizedGrossSource;
   timezone: string;
+  /** The Realized pilot supplies passive provenance; other consumers keep their existing view. */
+  currencyPresentation?: ReactNode;
+  /** Undefined keeps the existing fallback; null explicitly preserves unknown currency. */
+  priceCurrency?: string | null;
 }) {
   const confirmation = source.currency_confirmation;
+  const displayedPriceCurrency =
+    priceCurrency === undefined
+      ? (source.currency_resolution?.currency_code ?? confirmation?.currency_code)
+      : priceCurrency;
   return (
     <li
       aria-label={`Buchungsquelle ${source.execution_id}`}
@@ -27,9 +39,7 @@ export function ReportSourceEntry({
       <p className="mt-1 text-sm">Ausgeführt: {executionTimeText(source, timezone)}</p>
       <p className="mt-1 text-sm">
         Gespeicherter Stückpreis: <code>{source.price_per_unit ?? 'unbekannt'}</code>{' '}
-        {source.currency_resolution?.currency_code ??
-          confirmation?.currency_code ??
-          '· Ausführungswährung unbekannt'}
+        {displayedPriceCurrency ?? '· Ausführungswährung unbekannt'}
       </p>
       <p className="mt-1 text-xs text-slate-400">
         Erfasst: {source.recorded_at} · durch {source.recorded_by}
@@ -48,44 +58,53 @@ export function ReportSourceEntry({
         </p>
       )}
       <div className="mt-3 border-t border-slate-800 pt-2 text-sm">
-        {confirmation ? (
+        {currencyPresentation === undefined ? (
           <>
-            <p>Währung {confirmation.currency_code} ausdrücklich vom Nutzer bestätigt.</p>
-            <p className="text-xs text-slate-400">
-              Bestätigt: {confirmation.confirmed_at} · durch {confirmation.confirmed_by}
-            </p>
-            {confirmation.note && <p>Beleg / Erläuterung: {confirmation.note}</p>}
-            <p className="break-all text-xs text-slate-400">Bestätigung {confirmation.id}</p>
+            {confirmation ? (
+              <>
+                <p>Währung {confirmation.currency_code} ausdrücklich vom Nutzer bestätigt.</p>
+                <p className="text-xs text-slate-400">
+                  Bestätigt: {confirmation.confirmed_at} · durch {confirmation.confirmed_by}
+                </p>
+                {confirmation.note && <p>Beleg / Erläuterung: {confirmation.note}</p>}
+                <p className="break-all text-xs text-slate-400">Bestätigung {confirmation.id}</p>
+              </>
+            ) : (
+              <p>Ausführungswährung: {executionCurrencyText(source.currency_resolution)}</p>
+            )}
+            <ExecutionCurrencySources resolution={source.currency_resolution} />
+            {source.currency_history.length > 0 && (
+              <details className="mt-2">
+                <summary className="cursor-pointer">
+                  Währungshistorie ({source.currency_history.length})
+                </summary>
+                <ol className="mt-2 space-y-2">
+                  {source.currency_history.map((entry) => (
+                    <li
+                      key={entry.id}
+                      className="break-words border-l border-slate-700 pl-3 text-xs"
+                    >
+                      <p>
+                        {entry.currency_code} ·{' '}
+                        {entry.id === confirmation?.id ? 'aktuell' : 'historisch ersetzt'} ·
+                        ausdrücklich bestätigt
+                      </p>
+                      <p>
+                        {entry.confirmed_at} · durch {entry.confirmed_by}
+                      </p>
+                      {entry.note && <p>{entry.note}</p>}
+                      <p className="break-all">Bestätigung {entry.id}</p>
+                      {entry.supersedes_confirmation_id && (
+                        <p className="break-all">Ersetzt {entry.supersedes_confirmation_id}</p>
+                      )}
+                    </li>
+                  ))}
+                </ol>
+              </details>
+            )}
           </>
         ) : (
-          <p>Ausführungswährung: {executionCurrencyText(source.currency_resolution)}</p>
-        )}
-        <ExecutionCurrencySources resolution={source.currency_resolution} />
-        {source.currency_history.length > 0 && (
-          <details className="mt-2">
-            <summary className="cursor-pointer">
-              Währungshistorie ({source.currency_history.length})
-            </summary>
-            <ol className="mt-2 space-y-2">
-              {source.currency_history.map((entry) => (
-                <li key={entry.id} className="break-words border-l border-slate-700 pl-3 text-xs">
-                  <p>
-                    {entry.currency_code} ·{' '}
-                    {entry.id === confirmation?.id ? 'aktuell' : 'historisch ersetzt'} ·
-                    ausdrücklich bestätigt
-                  </p>
-                  <p>
-                    {entry.confirmed_at} · durch {entry.confirmed_by}
-                  </p>
-                  {entry.note && <p>{entry.note}</p>}
-                  <p className="break-all">Bestätigung {entry.id}</p>
-                  {entry.supersedes_confirmation_id && (
-                    <p className="break-all">Ersetzt {entry.supersedes_confirmation_id}</p>
-                  )}
-                </li>
-              ))}
-            </ol>
-          </details>
+          currencyPresentation
         )}
       </div>
       {source.time_precision === 'DATE_ONLY' && (
