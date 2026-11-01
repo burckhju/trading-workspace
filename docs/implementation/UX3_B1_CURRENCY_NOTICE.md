@@ -1,11 +1,23 @@
 # UX3-B1/F1 — Währungsherkunft eines Verkaufsbeitrags
 
-## Fortsetzungsauftrag und Dateischnitt vor Änderungen — 01.11.2026
+## Aktueller Abschlussauftrag und separater Versionsschnitt
 
-Ausführender Rollenowner ist UX3. Der vorliegende Auftrag erlaubt Implementierung,
-Tests und Fortsetzung des vorhandenen Draft-PRs; keine Merges, Releases,
-Installationen oder produktiven Datenmutationen. Frühere Freigabeformulierungen
-im Ausgangsdiff sind keine Freigabe dieses Auftrags.
+Der anschließende Nutzerauftrag „So umsetzen“ bestätigt den Abschluss des
+vorhandenen B1/F1-Piloten auf Grundlage der bereits erteilten Freigabe zum Merge
+bei grünen Prüfungen und zur PC-Bereitstellung. Die
+[Vorbereitung von v1.5.38](../releases/V1.5.38-UX3-CURRENCY-NOTICE.md) erfolgt in
+einem separaten Release-PR. Die unten dokumentierte Rücknahme im Pilotbranch
+bleibt als historischer Schritt erhalten. Diese Beauftragung belegt keine bereits
+erfolgte Integration, Tagveröffentlichung, PC-Installation oder menschliche
+Fachabnahme; der Produktumfang und seine Ownergrenzen bleiben unverändert.
+
+## Historischer Fortsetzungsauftrag und Dateischnitt vor Änderungen — 01.11.2026
+
+Ausführender Rollenowner war UX3. Der damalige Fortsetzungsauftrag umfasste
+Implementierung, Tests und Fortsetzung des vorhandenen Draft-PRs; Merges,
+Releases, Installationen oder produktive Datenmutationen gehörten nicht zu
+diesem begrenzten Arbeitsschritt. Diese Abgrenzung beschreibt die damalige Phase,
+nicht den anschließenden Abschlussauftrag.
 
 Erneut geprüft: Main und v1.5.37 stehen auf
 `bb49ffe781933270746b9f86f4aee99b6f8144c2`; #318 ist integriert.
@@ -57,10 +69,10 @@ Consumer bleibt unverändert. Fremde mitgelieferte Confirmation-Detailobjekte
 werden nicht als Beleg dieser Buchung angezeigt. Unabhängige Ursachen werden
 nur optisch gruppiert, frühere SELLs nicht als gemeinsame BUY-Ursache benutzt.
 
-Umfangskorrektur gegenüber dem Ausgangs-PR: VERSION, backend/pyproject.toml,
+Historische Umfangskorrektur gegenüber dem Ausgangs-PR: VERSION, backend/pyproject.toml,
 frontend/package.json, frontend/package-lock.json, PRODUCT_BACKLOG.md und die
-sechs dort veränderten kanonischen UX3-Dokumente werden auf Mainstand gebracht;
-die neue V1.5.38-Release-Notiz entfällt. Keine weiteren Produktflächen.
+sechs dort veränderten kanonischen UX3-Dokumente wurden auf den damaligen Mainstand
+gebracht; die damalige V1.5.38-Release-Notiz entfiel. Keine weiteren Produktflächen.
 Das Dokumentationstypmodell bleibt Dokumentation und außerhalb des
 Produktimportgraphen. Die normative Semantik aus #314 bleibt maßgeblich.
 
@@ -73,7 +85,7 @@ Umsetzung. Manuelle Fach-/Screenreader-/Zoomabnahme bleibt ausdrücklich offen.
 
 ## Umsetzung des begrenzten Pilots
 
-### Rücknahme paralleler Releasevorbereitung — 01.11.2026
+### Historische Rücknahme paralleler Releasevorbereitung — 01.11.2026
 
 Nach Pilothead `06280ed5a59b49d56950b14ed9f1e42bfd0e130a` wurde der gemeinsame
 Branch außerhalb dieser Fortsetzung weitergeschrieben: Main
@@ -85,23 +97,24 @@ Produktcode und Tests des Pilots blieben dabei unverändert.
 Auf die konkrete Frage zur Rücknahme der fünf Release-Dateien antwortete der
 Nutzer ausdrücklich „Zurücknehmen“. Die vier Versionsdateien VERSION,
 backend/pyproject.toml, frontend/package.json und frontend/package-lock.json
-werden auf den aktuellen Mainstand 1.5.37 zurückgeführt; die neue
-V1.5.38-Release-Notiz wird entfernt. Der Folgecommit erhält die Git-Historie,
+wurden auf den damaligen Mainstand 1.5.37 zurückgeführt; die damalige
+V1.5.38-Release-Notiz wurde entfernt. Der Folgecommit erhielt die Git-Historie,
 die integrierte UX1-Dokumentation sowie sämtliche Pilotänderungen.
 
 Die inzwischen zusätzlich angepassten docs/ui/ux-3/README.md,
 docs/ui/ux-3/components-and-actions.md und docs/ui/ux-3/integration-and-rollout.md
-bleiben als Dokumentationsabgleich erhalten. Releaseverweise und Freigabeaussagen
-werden an die Nutzerentscheidung angepasst. Dadurch umfasst der tatsächliche
+blieben als Dokumentationsabgleich erhalten. Releaseverweise und Freigabeaussagen
+wurden an die damalige Nutzerentscheidung angepasst. Dadurch umfasste der damalige
 PR-Diff die oben genannten 13 Dateien und diese drei Dokumentationsdateien.
 Das Dokumenttypmodell contracts.ts, Fachverträge, Produkt- und Testschnitt sowie
 alle Workflows bleiben unverändert. Der dokumentierte B2-Startprompt erteilt
 keine Folgefreigabe und führt keine weitere Produktänderung aus.
 
-Der PR bleibt Draft. Dieser Auftrag erlaubt keinen Merge, Release, keine
-Installation und keine produktive Datenmutation. Aktueller Rücknahmehead,
-Testmerge/Tree und reguläre CI-Ergebnisse werden im bestehenden PR gebunden;
-abgebrochene frühere Läufe sind kein vollständiger Endnachweis.
+Der PR blieb in diesem Rücknahmeschritt Draft. Der damalige Auftrag umfasste
+keinen Merge, Release, keine Installation und keine produktive Datenmutation.
+Rücknahmehead, Testmerge/Tree und reguläre CI-Ergebnisse gehören zu diesem
+historischen Stand; abgebrochene frühere Läufe sind kein vollständiger Endnachweis
+für den anschließenden Abschlussauftrag.
 
 Die aktive Umstellung erfolgt ausschließlich in RealizedGrossSources. Eine
 statische Karte erklärt den ausgewählten Verkaufsbeitrag und die Qualifikation
@@ -207,7 +220,7 @@ vorhandenen ungefilterten Smoke-Aufruf. Die unveränderte CI-Retrykonfiguration
 wird nicht als retryfreier lokaler Browsernachweis ausgegeben.
 
 Aktueller finaler Head, tatsächlich ausgecheckter Testmerge, Tree und konkrete
-Run-/Jobergebnisse werden im fortgesetzten [Draft-PR #320](https://github.com/burckhju/trading-workspace/pull/320)
+Run-/Jobergebnisse werden im fortgesetzten [PR #320](https://github.com/burckhju/trading-workspace/pull/320)
 gebunden. Frühere grüne Runs am Ausgangs-Head 36522cdb qualifizieren den
 geänderten Stand nicht. Die historischen lokalen Aussagen dieses Ausgangsdiffs
 bleiben unter dessen Git-Commit nachvollziehbar und werden hier nicht als neu

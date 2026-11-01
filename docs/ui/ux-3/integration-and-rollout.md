@@ -7,10 +7,11 @@
 Der bestehende B1/F1-Produktpilot wird in
 [PR #320](https://github.com/burckhju/trading-workspace/pull/320) qualifiziert.
 Der [Pilotbericht](../../implementation/UX3_B1_CURRENCY_NOTICE.md) trennt Umfang,
-Prüfungen und offene Abnahmen. Der aktuelle Auftrag endet beim Draft-PR; die
-parallele Releasevorbereitung wird auf ausdrückliche Nutzerentscheidung
-zurückgenommen. Die folgenden UX3-K-Quellen-/Parallelstände sind historische
-Konsolidierungsbelege.
+Prüfungen und offene Abnahmen. Die damalige Draftfortsetzung und Rücknahme der
+parallelen Releasevorbereitung bleiben historische Schritte. Der anschließende
+Abschlussauftrag bestätigt Merge bei grünen Prüfungen und PC-Bereitstellung über
+den [separaten Versionsschnitt](../../releases/V1.5.38-UX3-CURRENCY-NOTICE.md).
+Die folgenden UX3-K-Quellen-/Parallelstände sind historische Konsolidierungsbelege.
 
 ## 1. Umfang und Zuständigkeit
 
@@ -381,9 +382,13 @@ stehen getrennt in der Pilotqualifikation und am tatsächlichen PR-/Testmerge-He
 **Den vorhandenen B1/F1-Diff mit aktuellen Nachweisen abschließen.** In
 [#320](https://github.com/burckhju/trading-workspace/pull/320) gehören tatsächlicher
 Head, Mainbasis, Testmerge/Tree und erforderliche Run-/Jobbelege zusammen.
-Der Nutzer hat die Rücknahme der parallelen Versions- und Releasevorbereitung
-ausdrücklich angeordnet. Der Pilot bleibt ein Draft auf Version 1.5.37;
-Integration und PC-Bereitstellung sind durch diesen Auftrag nicht freigegeben.
+Die parallele Versions- und Releasevorbereitung wurde auf Nutzerentscheidung aus
+dem Pilotbranch zurückgenommen; dort blieb Version 1.5.37 erhalten. Der
+anschließende Auftrag „So umsetzen“ bestätigt den Abschluss auf Grundlage der
+bereits erteilten Freigabe zum Merge bei grünen Prüfungen und zur
+PC-Bereitstellung. Die Veröffentlichung wird in einem separaten Release-PR
+vorbereitet. Integration, Tagveröffentlichung und tatsächliche PC-Installation
+benötigen jeweils ihren eigenen Nachweis; sie werden hier nicht als erfolgt ausgegeben.
 Die offenen menschlichen Fach-/Screenreader-/Zoomnachweise bleiben gesondert.
 
 Danach wird der bereits in Abschnitt 5 geplante **B2/F4-Teilschnitt zu Q12** an

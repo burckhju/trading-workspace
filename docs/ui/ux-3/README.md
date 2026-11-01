@@ -13,8 +13,10 @@ integriert. Die Quellen- und Parallelstände unten dokumentieren diesen historis
 Schnitt. Der gesonderte [B1/F1-Pilot in #320](https://github.com/burckhju/trading-workspace/pull/320)
 implementiert eine passive Hinweiskarte in `RealizedGrossSources`. Sein Umfang und
 seine Prüfgrenzen stehen in der [Pilotqualifikation](../../implementation/UX3_B1_CURRENCY_NOTICE.md).
-Der aktuelle Auftrag endet beim Draft-PR; die parallele Releasevorbereitung
-wird auf ausdrückliche Nutzerentscheidung zurückgenommen.
+Die damalige Draftfortsetzung und Rücknahme der parallelen Releasevorbereitung
+sind historische Schritte. Der anschließende Abschlussauftrag bestätigt den
+Merge bei grünen Prüfungen und die PC-Bereitstellung über einen
+[separaten Versionsschnitt](../../releases/V1.5.38-UX3-CURRENCY-NOTICE.md).
 
 Die [produktiven Props](../../../frontend/src/shared/notices/types.ts) sind eine
 schmale Textprojektion für diesen Pilot. Die fünf Hinweisarten und die vollständige
@@ -101,13 +103,18 @@ eines bestätigten Empfangs oder einer Abnahme durch einen anderen Lead.
 
 UX3-K erfüllte den konkret festgelegten Konsolidierungsauftrag ohne neue
 Produktkomponente. Der anschließende B1/F1-Produktschnitt wird in #320 mit eigenen
-Prüfbelegen geführt. Für diesen Pilot autorisiert der Nutzerauftrag vom
-**01.11.2026** Implementierung, Tests, Feature-Branch und Draft-PR. Auf die
+Prüfbelegen geführt. Die damalige Fortsetzung vom **01.11.2026** umfasste
+Implementierung, Tests, Feature-Branch und Draft-PR. Auf die
 konkret vorgeschlagene Rücknahme der parallelen Versions- und Releasevorbereitung
-hat der Nutzer ausdrücklich mit „Zurücknehmen“ geantwortet. Version 1.5.37 bleibt
-erhalten; Merge, Release, Installation und produktive Datenmutation sind durch
-diesen Auftrag nicht freigegeben. Technische Prüfungen ersetzen keine menschliche
-Fachabnahme. Weitere Produktaufträge bleiben eigenständige Schnitte.
+antwortete der Nutzer ausdrücklich mit „Zurücknehmen“. Die Releasevorbereitung
+wurde aus dem Pilotbranch entfernt; dort blieb Version 1.5.37 erhalten.
+
+Der anschließende Nutzerauftrag „So umsetzen“ bestätigt den Abschluss auf
+Grundlage der bereits erteilten Freigabe zum Merge bei grünen Prüfungen und zur
+PC-Bereitstellung. Der Versionsschnitt wird in einem separaten Release-PR
+vorbereitet. Diese Beauftragung belegt keine bereits erfolgte Integration,
+Tagveröffentlichung oder PC-Installation. Technische Prüfungen ersetzen keine
+menschliche Fachabnahme. Weitere Produktaufträge bleiben eigenständige Schnitte.
 
 Die Dokumentprüfung und der strict/noEmit-Typcheck qualifizieren den Vertrag.
 Die unveränderten [Backend](../../../.github/workflows/backend.yml)-,
