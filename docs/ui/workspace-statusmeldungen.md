@@ -1,5 +1,13 @@
 # Statusmeldungen im Arbeitsbereich
 
+**Kanonischer UX3-Verweis, 01.11.2026:** Die bereichsübergreifende
+[Hinweisinventur](ux-3/inventory.md), ihr [ergänzender Detailnachweis](ux-3/detail-inventory.md)
+und der [einheitliche Hinweisvertrag](ux-3/notice-contract.md) führen die Entwürfe
+aus #314/#315 gemäß der integrierten UX-Koordination zusammen. Komponenten,
+sichere Aktionen und getrennte Folgeaufträge stehen am [gemeinsamen Einstieg](ux-3/README.md).
+Dieser Dokumentationsschnitt ändert keine produktiven Anzeigen oder Domainzustände;
+der folgende historische Workspace-Katalog bleibt nachvollziehbar.
+
 Stand der Auswertung: `main` bei `3b344855d56e8add972d2459d5a15c32c8e9c230`
 (14.09.2026). Dies ist der Katalog möglicher Anzeigen, kein Befund über ein
 persönliches Depot oder einen tatsächlich aktualisierten Nutzerrechner.
