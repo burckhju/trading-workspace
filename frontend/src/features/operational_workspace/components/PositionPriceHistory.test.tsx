@@ -397,3 +397,52 @@ it('paginates full-precision evidence and resets the table when the window chang
   await userEvent.click(screen.getByText('Kursdaten und Quellen'));
   expect(screen.getByText('Seite 1 / 2')).toBeInTheDocument();
 });
+
+
+it('filters only the displayed series by exact historical ID and keeps original evidence', async () => {
+  const user = userEvent.setup();
+  vi.mocked(readPositionPriceHistory).mockResolvedValue(
+    positionPriceHistory({
+      series: [
+        positionPriceSeries({ id: 'source-a', identity_key: 'route-a' }),
+        positionPriceSeries({ id: 'source-b', identity_key: 'route-b', price_kind: 'ASK' }),
+      ],
+    }),
+  );
+  const rendered = show();
+  await screen.findByRole('group', { name: 'Sichtbare Kursquellen' });
+  expect(rendered.container.querySelectorAll('.recharts-scatter-symbol')).toHaveLength(2);
+  await user.click(screen.getByRole('checkbox', { name: /Quellsegment route-a/ }));
+  expect(rendered.container.querySelectorAll('.recharts-scatter-symbol')).toHaveLength(1);
+  expect(screen.getByText(/1 von 2 Kurspunkten sichtbar/)).toBeInTheDocument();
+  await user.click(screen.getByRole('checkbox', { name: /Quellsegment route-b/ }));
+  expect(screen.getByRole('status')).toHaveTextContent('Alle Kursquellen');
+  expect(screen.queryByTestId('position-price-chart')).not.toBeInTheDocument();
+  await user.click(screen.getByText('Kursdaten und Quellen'));
+  const table = screen.getByRole('region', { name: 'Historische Kursdaten' });
+  expect(within(table).getByText(/Quellsegment: route-a/)).toBeInTheDocument();
+  expect(within(table).getByText(/Quellsegment: route-b/)).toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: 'Alle Kursquellen anzeigen' }));
+  expect(rendered.container.querySelectorAll('.recharts-scatter-symbol')).toHaveLength(2);
+  expect(readPositionPriceHistory).toHaveBeenCalledTimes(1);
+});
+
+it('does not transfer hidden sources to another position or reload identity', async () => {
+  const user = userEvent.setup();
+  vi.mocked(readPositionPriceHistory).mockResolvedValue(
+    positionPriceHistory({
+      series: [
+        positionPriceSeries({ id: 'source-a', identity_key: 'route-a' }),
+        positionPriceSeries({ id: 'source-b', identity_key: 'route-b' }),
+      ],
+    }),
+  );
+  const rendered = show();
+  await screen.findByRole('group', { name: 'Sichtbare Kursquellen' });
+  await user.click(screen.getByRole('checkbox', { name: /Quellsegment route-a/ }));
+  expect(screen.getByRole('checkbox', { name: /Quellsegment route-a/ })).not.toBeChecked();
+  rendered.rerender(<PositionPriceHistory tradeId="trade-2" positionId="position-2" />);
+  await screen.findByRole('group', { name: 'Sichtbare Kursquellen' });
+  expect(screen.getByRole('checkbox', { name: /Quellsegment route-a/ })).toBeChecked();
+  expect(readPositionPriceHistory).toHaveBeenCalledTimes(2);
+});
