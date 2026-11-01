@@ -606,8 +606,10 @@ it('rejects a response for another filter and replaces the complete report while
     realizedGrossReport({ filters: { ...reportFilters, report_timezone: 'Etc/UTC' } }),
   );
   const initial = realizedGrossReport();
-  initial.sources.find((source) => source.execution_id === 'sell-september-2')!
-    .currency_resolution!.reason = 'INITIAL_OWNER_REASON';
+  const initialSource = initial.sources.find(
+    (source) => source.execution_id === 'sell-september-2',
+  )!;
+  initialSource.currency_resolution!.reason = 'INITIAL_OWNER_REASON';
   api.realizedGross.mockResolvedValueOnce(initial);
   renderPage();
   chooseSeptember();
@@ -693,9 +695,7 @@ it('rejects a response for another filter and replaces the complete report while
       name: 'Quellen und Berechnung',
     }),
   );
-  const correctedDetail = within(
-    screen.getByRole('region', { name: 'Herkunft SELL replacement' }),
-  );
+  const correctedDetail = within(screen.getByRole('region', { name: 'Herkunft SELL replacement' }));
   const correctedNotice = within(
     correctedDetail.getByRole('region', { name: 'Währungsherkunft dieses Beitrags' }),
   );

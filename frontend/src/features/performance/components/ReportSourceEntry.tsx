@@ -21,7 +21,7 @@ export function ReportSourceEntry({
   const confirmation = source.currency_confirmation;
   const displayedPriceCurrency =
     priceCurrency === undefined
-      ? source.currency_resolution?.currency_code ?? confirmation?.currency_code
+      ? (source.currency_resolution?.currency_code ?? confirmation?.currency_code)
       : priceCurrency;
   return (
     <li
