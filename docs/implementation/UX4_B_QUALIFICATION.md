@@ -8,6 +8,19 @@ Deployment oder PC-Update durch diesen Auftrag.** Der nachstehende frühere
 Integrationsauftrag ist ein historischer Arbeitsstand, keine Freigabe dieses
 Fortsetzungslaufs.
 
+**Aktuelle Main-Basis nach paralleler Releasefortschreibung:** Während der
+abschließenden CI wurde #323 unabhängig von diesem Auftrag als
+`849a6d54eaeb5f5831754c6b15a41358c571f6da` in Main integriert. Gegenüber dem
+nachstehend geprüften `91ebbc0f…` ändern sich ausschließlich vier Versionsdateien
+auf `1.5.38` und vier Dokumentdateien; Produktcode, Tests, Dependencies und
+Workflows sind bytegleich. Dieser abschließende UX4-B-Nachtrag ändert nur die
+beiden eigenen Dokumente. Er übernimmt keinen Mainmerge und ändert keine
+Versionsdatei. Die reguläre CI des neuen PR-Heads muss den tatsächlichen
+GitHub-Testmerge mit `849a6d54…` qualifizieren. Der zuvor geprüfte Testmerge
+`44a2e7a2f1b6b8d93ef2b50eab662bc5c756e4db` bleibt seinem damaligen Main
+`91ebbc0f…` zugeordnet; seine grünen Ergebnisse werden nicht auf die neuere
+Main-Basis umetikettiert. Finale Commit-, Tree- und Run-Bindung steht im PR.
+
 Zu Beginn wurden Main `e681c79e0c46a6efb9e4eeb7cd18d959ad99ea97`, der offene
 Draft #322 am tatsächlichen Head `9e4f8460e3d3d69262e907eed21fbae536ebe9b8`,
 seine vollständigen Änderungen und alle vier erfolgreichen CI-Workflows erneut
@@ -254,6 +267,10 @@ geprüften integrierten UX3-Piloten. Ein erster vollständiger Frontendlauf auf
 `8ea8db66…` bestand bereits mit 1.998 Tests in 166 Dateien; nach der neuen
 Main-Integration wurde das vollständige Gate erneut ausgeführt. Diese Läufe
 werden nicht zu einer größeren Testpopulation addiert.
+Der spätere reine Main-Release-/Dokumentationsnachtrag verändert keinen lokal
+geprüften Produkt- oder Testinhalt. Der vollständige Dateibaum des neuen
+CI-Testmerges unterscheidet sich durch die nachfolgenden Versions-/Dokumentdateien;
+diese Integrationsqualifikation wird deshalb gesondert im PR nachgewiesen.
 
 | Prüfung | Tatsächlich erneut ausgeführtes Ergebnis |
 | --- | --- |

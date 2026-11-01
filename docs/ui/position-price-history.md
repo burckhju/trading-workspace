@@ -33,6 +33,13 @@ Der aktuelle Auftrag hält #322 ausdrücklich als Draft offen. Kein Merge,
 Release oder PC-Update durch diesen Auftrag; frühere Freigabeformulierungen
 sind historische Nachweise. Der tatsächliche Prüfstand steht im PR.
 
+Während der Abschlussprüfung wurde Main durch den separaten Release-PR #323 auf
+`849a6d54eaeb5f5831754c6b15a41358c571f6da` / `v1.5.38` fortgeschrieben.
+Der Diff betrifft ausschließlich Versionsmetadaten und Dokumentation;
+Produktcode, Tests und Workflows sind unverändert. UX4-B ändert weiterhin keine
+Versionsdatei. Die finale CI wird an den tatsächlichen PR-Testmerge mit dieser
+neuen Main-Basis gebunden; ältere grüne Runs bleiben historische Nachweise.
+
 ## Anzeige
 
 Beim Aufklappen einer bestehenden Position lädt **Historischer Positionskurs**
