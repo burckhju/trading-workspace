@@ -11,6 +11,10 @@ Diese Datei dokumentiert Befunde, Änderungen und Prüfnachweise; die maßgeblic
 Die Ausgangsinventur und ihre damaligen Nachweise bleiben erhalten. Die erneute
 Fachregelprüfung vom 01.11.2026 und die öffentliche Erstkaufgrenze stehen im
 [Fortsetzungsabschnitt](#fachregelprüfung-und-öffentliche-erstkaufgrenze--01112026).
+Die später erfolgte gemeinsame Integration, der behobene Previewbefund und die
+Veröffentlichung v1.5.37 sind im
+[technischen Auslieferungsnachweis](#ux1-delivery-1-5-37) getrennt belegt.
+Die vorherigen Integrationsgrenzen beschreiben ihren damaligen Prüfstand.
 
 Geprüft: README, Development Guide, Frontend-/Backend-Architektur,
 ADR-S6-007, bestehender Trade-Capture-Vertrag, Währungsresolver und Tests.
@@ -266,3 +270,97 @@ benötigt erfolgreiche Previewantworten, erhaltene manuelle Eingaben, konstante
 Previewreads bei Hashwechseln, historische Pins und beide Berichtsrückwege sowie
 die vollständigen normalen Gates. Mainintegration, Veröffentlichung, PC-Installation
 und menschliche Fachabnahme bleiben eigene, hier nicht erteilte Freigaben.
+
+<a id="ux1-delivery-1-5-37"></a>
+## Technischer Auslieferungsnachweis — 01.11.2026
+
+**Prüfstand: 01.11.2026, 20:32 Uhr Europe/Berlin.** Die gemeinsame Integration aus
+[#318](https://github.com/burckhju/trading-workspace/pull/318) enthält den kanonischen
+UX1-Head `b1df1c1000815786a6623d35bf3f8631661a9543` und UX2-A-Head
+`55072f8e90c00d309c3bd6ed6dd17f61ab33bd32`. Main und der separat gelesene
+[Tag v1.5.37](https://github.com/burckhju/trading-workspace/tree/v1.5.37) zeigen auf
+[`bb49ffe781933270746b9f86f4aee99b6f8144c2`](https://github.com/burckhju/trading-workspace/commit/bb49ffe781933270746b9f86f4aee99b6f8144c2).
+`VERSION` nennt 1.5.37. #311 und #312 sind durch die erhaltene Abstammung im selben
+Mergecommit integriert; ein zusätzlicher isolierter UX1-A-Integrationsauftrag ist
+damit nicht mehr erforderlich.
+
+| Technischer Bezug | Verifizierter Wert |
+|---|---|
+| Mainbasis der Produktintegration | `d80bd45d84d845aa920a7eac5b19a7fe6cd63307` |
+| Finaler #318-Head | `54eaba19fc626194237e8280af2e6cc315b1bac7` |
+| Zugehöriger PR-Testmerge | `341f9a031928268827710186446268217770e1ac` |
+| Gemeinsamer Tree von qualifiziertem PR-Stand und Mainmerge | `a924db2985cba84f37952faef6b73c16be8984ed` |
+| Mainmerge und Veröffentlichungstag | `bb49ffe781933270746b9f86f4aee99b6f8144c2` / `v1.5.37` |
+
+Der öffentliche BUY-Adapter, der einmalige Shared-Zeitzonenhelper und die gemeinsame
+Host-/Readbackintegration sind enthalten. UX1-B liest den einzigen gespeicherten
+Lauf einer exakten Planversion; UX1-C übernimmt eine gültige Browserzone als
+bearbeitbaren Erstvorschlag, bei Vorrang des bestehenden URL-Kontexts. Diese
+abgegrenzten Änderungen bedeuten keine vollständige Abnahme aller Plan-, Auswahl-
+oder Performancefähigkeiten. UX1-D erzeugt weiterhin keine menschliche Bewertung.
+
+### Aufgenommene Korrektur und Nachweisgrenze
+
+Der [Reviewbefund](https://github.com/burckhju/trading-workspace/pull/318#discussion_r4436683610)
+betraf ein bereits abgeschlossenes A-Ergebnis, das nach A → ausstehendem B →
+erneut ausstehendem A wieder als aktueller Read erscheinen konnte. Der Runtimefix
+`86472f3571c127f6234b89ede08ac18fbd3adb48` verwirft den gespeicherten Read-State
+beim zwischenzeitlichen Eingabetupelwechsel. Auf Main stehen die Korrektur in
+[ExecutionCurrencyPreview](../../frontend/src/features/trade/components/ExecutionCurrencyPreview.tsx)
+und drei ergänzte
+[Regressionen](../../frontend/src/features/trade/components/ExecutionCurrencyPreview.test.tsx):
+abgeschlossener A-Erfolg, abgeschlossener A-Fehler und Erhalt einer bewusst
+geöffneten leeren Overrideeingabe. Manuelle Werte, Abortschutz, ausstehender
+Ersatzread und die Abweisung einer verspäteten B-Antwort bleiben abgesichert.
+
+Der [aufgelöste Reviewthread](https://github.com/burckhju/trading-workspace/pull/318#discussion_r4436821052)
+dokumentiert die roten Gegenproben und die erneute vollständige Qualifikation.
+Die anschließende Präzisierung des E2E-Quellenrundwegs wartet auf die exakte Ziel-URL
+und misst frische Geometrie innerhalb eines begrenzten Assertionsfensters.
+Anzahl, Sichtbarkeit und Mindestabstände bleiben unverändert; Produktlogik,
+Retries und CI-Gates wurden nicht geändert.
+Die [gemeinsame Integrationsqualifikation](UX1_UX2_INTEGRATION_QUALIFICATION.md)
+bewahrt diese getrennten Nachweise; frühere grüne Läufe ohne Runtimefix ersetzen
+den finalen Nachweis nicht.
+
+| Tatsächlicher Main-Nachweis auf `bb49ffe…` | Gelesenes Ergebnis |
+|---|---|
+| [Backend 41336601722](https://github.com/burckhju/trading-workspace/actions/runs/41336601722) | Push auf Main; alle drei Jobs erfolgreich |
+| [Frontend 41336601804](https://github.com/burckhju/trading-workspace/actions/runs/41336601804) | Push auf Main; Qualitätsjob erfolgreich |
+| [End-to-End 41336601617](https://github.com/burckhju/trading-workspace/actions/runs/41336601617) | Push auf Main; alle vier Jobs erfolgreich |
+| [Publisher 41338459285](https://github.com/burckhju/trading-workspace/actions/runs/41338459285) | Veröffentlichungsschutz und Tagjob erfolgreich; Tagref separat gelesen |
+
+Dieser Nachtrag beruht auf gelesenen Gitobjekten, Produktdateien, Tests,
+PR-/Reviewmetadaten und Run-/Jobergebnissen. Für diese Dokumentationsfortschreibung
+wurden keine lokalen Anwendungs- oder PC-Tests ausgeführt. Die Produktnachweise
+oben qualifizieren den ausgelieferten Stand; die CI des neuen Dokumentations-PRs
+wird separat an dessen eigenem Head geführt.
+
+### Eingaben und nächste Übergabe
+
+Eine belegte Währung muss nicht erneut eingegeben werden; das Währungsfeld war
+bereits optional. Eine neue Pflichtbestätigung entfällt daher nicht, sondern wird
+auch durch die Vorschau nicht erzeugt. Erst-/Nachkaufmenge, Teilverkaufsmenge und
+Ausführungspreis bleiben tatsächliche Eingaben. Die bestehende ausdrücklich
+betätigte Aktion „Position vollständig schließen“ verwendet dagegen bereits die
+offene Restmenge ohne erneute Mengenangabe. Diese bewusste Vollverkaufsentscheidung
+ist keine automatische Buchung. Das lokale Heute bleibt ein editierbarer
+Datumsstartwert und kein historischer Ausführungsnachweis.
+
+UX1 übergibt dem vorgesehenen
+[UX3-B1/F1-Pilot](../ui/ux-3/integration-and-rollout.md) ausschließlich die bereits
+gelieferte gespeicherte Währungsherkunft in `RealizedGrossSources`. Performance
+behält Beitrags-/Summenwirkung, UX2 Kontext und vorhandene Links, UX3 Darstellung.
+Ein `EXCLUDED`-Beitrag mit `CURRENCY_UNKNOWN` erzeugt keine zusätzliche Sperre
+der gewählten Summe. `cost_basis_execution_ids` kann frühere SELLs enthalten
+und beweist allein keine gemeinsame BUY-Ursache. Keine neuen Reads, Resolver,
+Pflichtfelder oder globale Umstellung der auch in Vorschauen verwendeten
+`ExecutionCurrencySources` sind Teil dieser Übergabe.
+
+Die fünf Koordinationsdokumente benötigen eine getrennte Fortschreibung durch
+MASTER; ihre damaligen technischen Statusangaben begründen keine Wiederholung
+bereits integrierter Arbeit. Die einzige fachliche Aufgabenstatusquelle bleibt
+[PRODUCT_BACKLOG](../planning/PRODUCT_BACKLOG.md#pb-016-opening).
+**Die Veröffentlichung belegt weder eine durchgeführte PC-Installation noch eine
+neue menschliche Fachabnahme.** Für diese beiden Stufen liegt hier kein neuer
+Nachweis vor.
