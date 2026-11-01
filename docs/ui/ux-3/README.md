@@ -1,12 +1,27 @@
 # UX-3 — Einheitliche Hinweise und sichere nächste Aktionen
 
-**Ein kanonischer Dokumentationsvertrag, keine neue produktive Hinweisarchitektur.**
+**Ein kanonischer Hinweisvertrag mit einem begrenzten B1/F1-Produktpiloten.**
 
 UX-3 erklärt vorhandene Feststellung, Ursache, Auswirkung, belegte Systemleistung
 und verbleibende Nutzerentscheidung. Fachliche Zustände, Geldberechnung,
 Quellenqualifikation, erlaubte Commands und Recovery bleiben bei ihren bestehenden
 Ownern. Dieser Einstieg bündelt die zwei zuvor parallelen Entwürfe gemäß der
 [integrierten Masterentscheidung](../../coordination/UX_SHARED_CONTRACTS.md#kanonischer-ux3-hinweisvertrag--masterentscheidung-phase-1).
+
+UX3-K wurde als Konsolidierung in [#314](https://github.com/burckhju/trading-workspace/pull/314)
+integriert. Die Quellen- und Parallelstände unten dokumentieren diesen historischen
+Schnitt. Der gesonderte [B1/F1-Pilot in #320](https://github.com/burckhju/trading-workspace/pull/320)
+implementiert eine passive Hinweiskarte in `RealizedGrossSources`. Sein Umfang und
+seine Prüfgrenzen stehen in der [Pilotqualifikation](../../implementation/UX3_B1_CURRENCY_NOTICE.md),
+der vorbereitete Lieferweg im [Releasevermerk](../../releases/V1.5.38-UX3-CURRENCY-NOTICE.md).
+
+Die [produktiven Props](../../../frontend/src/shared/notices/types.ts) sind eine
+schmale Textprojektion für diesen Pilot. Die fünf Hinweisarten und die vollständige
+Semantik des [Gesamtvertrags](notice-contract.md) bleiben maßgeblich. Die
+[Komponentenbeschreibung](components-and-actions.md#6-exemplarische-komponenten-apis)
+trennt tatsächliche B1-Exports und konzeptionelle APIs; es entsteht kein zweiter
+Normvertrag. Die 42 Dokumenttypgegenfälle prüfen das vollständige Dokumentmodell,
+nicht unmittelbar die produktiven `NoticeView`-Props oder die UI-Abnahme.
 
 ## Lesereihenfolge und Lieferumfang
 
@@ -18,7 +33,7 @@ Ownern. Dieser Einstieg bündelt die zwei zuvor parallelen Entwürfe gemäß der
 | [Komponenten und Aktionen](components-and-actions.md) | Kompakte Darstellung, Details, Quellen und sichere Navigation; Reader und Commands bleiben beim Owner. |
 | [Integration und Folgearbeiten](integration-and-rollout.md) | Pflichtübernahmen, Owner, Typpräzisierungen, Abhängigkeiten und genau ein getrennter B1/F1-Pilot. |
 | [Tests und Abnahme](test-and-acceptance.md) | Erhaltene und ergänzte fachliche Gegenfälle, Zuordnung der 24 Fälle aus #315, vorhandene Regressionen und datierte tatsächliche Prüfungen. |
-| [TypeScript-Vertrag](contracts.ts) | Ein Dokumentationstypmodell mit bestehenden Owner-DTOs; keine produktiven Renderer, Resolver, Stores oder Endpunkte. |
+| [TypeScript-Vertrag](contracts.ts) | Vollständiges konzeptionelles Dokumentationstypmodell mit bestehenden Owner-DTOs; die begrenzte B1-Renderer-API ist gesondert dokumentiert. |
 | [Typgegenfälle](contracts.type-test.ts) | Positive und negative Beispiele für Belege, Objektidentität, Schreibausgänge, Governance-Reads und Berichtspopulationen. |
 
 Die kanonischen Dateien liegen ausschließlich unter `docs/ui/ux-3/`. Der bestehende
@@ -37,8 +52,8 @@ nachvollziehbare Quelle erhalten; seine Schließung ist kein Bestandteil von UX3
 | Verpflichtende Ergänzungen | [#315](https://github.com/burckhju/trading-workspace/pull/315), `d9d85f1af3159c4356c8773d076decbf1dc604e4` | 79 Detailzeilen, fachliche Präzisierungen und 24 Fälle; nachvollziehbar in den kanonischen Vertrag übernommen. |
 | Verbindliche Koordination | [Shared Contracts](../../coordination/UX_SHARED_CONTRACTS.md), [Ownership](../../coordination/UX_OWNERSHIP.md), [Abhängigkeiten](../../coordination/UX_DEPENDENCIES.md) | Ein Owner je gemeinsamer Grenze, vier Typpräzisierungen und vollständige Pflichtübernahmen. |
 
-Die vollständige Dateiliste, der endgültige Head, die konkrete Mainbasis, der
-Testmerge/Tree und die aktuellen Run-/Jobnachweise stehen in
+Die damalige Dateiliste, der Head, die Mainbasis, der Testmerge/Tree und die
+zugehörigen Run-/Jobnachweise der Konsolidierung stehen in
 [PR #314](https://github.com/burckhju/trading-workspace/pull/314). Ein späterer
 Main- oder Headwechsel benötigt die betroffene erneute Prüfung; ältere CI wird
 nicht als Nachweis des konsolidierten Vertrags ausgegeben.
@@ -54,11 +69,11 @@ Beim Start der Konsolidierung am 01.11.2026 wurden diese Remote-Heads aufgelöst
 | UX-4 / [#316](https://github.com/burckhju/trading-workspace/pull/316) | `ae8c792f3e3ad74994894fac581cb4cf81ba5de7` | Eigener Dokumentationsschnitt, kein fehlender Qualitätsowner. Spätere Darstellung konsumiert den kanonischen UX3-Vertrag. |
 | Koordinationsrelease / [#317](https://github.com/burckhju/trading-workspace/pull/317) | `b6123628b4e608ad737b91d4ee4f9e2d3c31f434` | Bereitet v1.5.36 separat vor. UX3-K beansprucht diese Version nicht; eine eigene Bereitstellung prüft den dann tatsächlichen Main-/Tagstand. |
 
-Die integrierte Koordination ordnet die unabhängige UX4-A-Dokumentation vor der
-UX3-K-Vertragsintegration ein. Sie verlangt anschließend UX2-A vor der gezielten
-UX1-Integration. Der produktive B1/F1-Pilot folgt erst im dann qualifizierten
-Gesamtstand. Keine fremden Featurebranches, Alt-PRs oder fachlichen Freigaben sind
-Bestandteil dieses Vertrags-PRs. Ein veröffentlichter Querverweis ist kein Beleg
+Die integrierte Koordination ordnete die unabhängige UX4-A-Dokumentation vor der
+UX3-K-Vertragsintegration ein und verlangte anschließend UX2-A vor der gezielten
+UX1-Integration. B1/F1 setzt auf deren gemeinsam integriertem Stand aus #318 auf.
+Fremde Featurebranches, Alt-PRs oder fachliche Freigaben wurden durch UX3-K nicht
+übernommen. Ein veröffentlichter Querverweis ist kein Beleg
 eines bestätigten Empfangs oder einer Abnahme durch einen anderen Lead.
 
 ## 3. Fachliche Grenzen
@@ -85,9 +100,12 @@ eines bestätigten Empfangs oder einer Abnahme durch einen anderen Lead.
 
 Der Nutzerauftrag vom **01.11.2026** autorisiert die beschriebene Umsetzung,
 Merge bei grünen erforderlichen Prüfungen und die Bereitstellung für den PC.
-UX3-K erfüllt jetzt den konkret festgelegten Konsolidierungsauftrag. Die folgenden
-Produktaufträge bleiben eigenständige Schnitte; dieser PR liefert keine neue
-Hinweiskarte oder geänderte Formulare aus.
+UX3-K erfüllte den konkret festgelegten Konsolidierungsauftrag ohne neue
+Produktkomponente. Der anschließende B1/F1-Produktschnitt wird in #320 mit eigenen
+Prüfbelegen geführt. Die vorbereitete Veröffentlichung folgt dem verlinkten
+Releasevermerk; diese Dokumentation behauptet weder einen bereits erfolgten
+Merge oder Tag noch eine menschliche Fachabnahme. Weitere Produktaufträge bleiben
+eigenständige Schnitte.
 
 Die Dokumentprüfung und der strict/noEmit-Typcheck qualifizieren den Vertrag.
 Die unveränderten [Backend](../../../.github/workflows/backend.yml)-,
@@ -95,7 +113,8 @@ Die unveränderten [Backend](../../../.github/workflows/backend.yml)-,
 [End-to-End](../../../.github/workflows/e2e.yml)- und
 [Veröffentlichungsgates](../../../.github/workflows/version-tag.yml) prüfen den
 tatsächlichen PR-/Releasehead. Alte Einzelerfolge ersetzen diese Nachweise nicht.
-Konkrete lokale Ergebnisse stehen im [Prüfprotokoll](test-and-acceptance.md).
+Historische Vertragsprüfungen stehen im [Prüfprotokoll](test-and-acceptance.md),
+aktuelle Produktnachweise in der Pilotqualifikation und am tatsächlichen PR-Head.
 
 Dokumentation, bestandene Prüfung, Main-Integration, veröffentlichter Tag,
 PC-Installation und menschliche Fachabnahme sind getrennte Nachweise. Der vorhandene
