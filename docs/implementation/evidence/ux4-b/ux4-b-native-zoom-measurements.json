@@ -1,0 +1,12 @@
+{
+  "before": {
+    "width": 1280,
+    "ratio": 1
+  },
+  "nativeZoomFactor": 2,
+  "after": {
+    "width": 640,
+    "ratio": 2,
+    "documentWidth": 632
+  }
+}

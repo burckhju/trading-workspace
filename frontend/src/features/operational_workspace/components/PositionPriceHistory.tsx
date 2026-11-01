@@ -1,12 +1,11 @@
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import type { PositionPriceHistoryDays, PositionPriceHistoryReport } from '../positionPriceHistory';
 import { readPositionPriceHistory } from '../services/positionPriceHistory';
 import {
   availableHistoryDays,
   historyTime,
   priceHistoryLabel,
-  priceKindLabel,
-  historyVenue,
+  type PriceHistoryEvidenceSelection,
 } from '../services/priceHistoryPresentation';
 import { PositionPriceHistoryEvidence } from './PositionPriceHistoryEvidence';
 
@@ -48,44 +47,55 @@ function History({ tradeId, positionId }: Props) {
   const [attempt, setAttempt] = useState(0);
   // A missing ID is visible by default. Only explicit user choices hide a series.
   const [hiddenSeriesIds, setHiddenSeriesIds] = useState<string[]>([]);
+  const [evidenceSelection, setEvidenceSelection] = useState<PriceHistoryEvidenceSelection | null>(
+    null,
+  );
+  const requestGeneration = useRef(0);
   const [state, setState] = useState<{
     report: PositionPriceHistoryReport | null;
     error: boolean;
   }>({ report: null, error: false });
   useEffect(() => {
     const controller = new AbortController();
+    const generation = ++requestGeneration.current;
+    const isCurrent = () => generation === requestGeneration.current && !controller.signal.aborted;
     readPositionPriceHistory(tradeId, positionId, days, controller.signal)
       .then((report) => {
-        if (!controller.signal.aborted) {
+        if (isCurrent()) {
           setState({ report, error: false });
           if (days === 'all') setAvailableDays(availableHistoryDays(report));
         }
       })
       .catch(() => {
-        if (!controller.signal.aborted) setState({ report: null, error: true });
+        if (isCurrent()) setState({ report: null, error: true });
       });
-    return () => controller.abort();
+    return () => {
+      requestGeneration.current += 1;
+      controller.abort();
+    };
   }, [tradeId, positionId, days, attempt]);
   const { report, error } = state;
   const series = report?.series.filter((item) => item.points.length > 0) ?? [];
   const visibleSeries = series.filter((item) => !hiddenSeriesIds.includes(item.id));
-  const currencies = [...new Set(visibleSeries.map((item) => item.currency))];
+  // Visibility never requalifies executions or removes their currency panel.
+  const currencies = [...new Set(series.map((item) => item.currency))];
   const pointCount = series.reduce((count, item) => count + item.points.length, 0);
   const visiblePointCount = visibleSeries.reduce((count, item) => count + item.points.length, 0);
   return (
     <section
       aria-label="Positionskursverlauf"
-      className="min-w-0 space-y-4 rounded-xl border border-slate-700 bg-slate-950/40 p-3 sm:p-4"
+      className="min-w-0 space-y-4 break-words rounded-xl border border-slate-700 bg-slate-950/40 p-3 sm:p-4"
     >
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h3 className="font-semibold text-white">Historischer Positionskurs</h3>
-        <label className="min-w-0 text-xs">
+        <label className="flex min-w-0 max-w-full flex-wrap items-center gap-2 text-xs">
           Zeitraum
           <select
-            className="ml-2 max-w-full rounded border border-slate-600 bg-slate-950 p-2"
+            className="min-w-0 max-w-full rounded border border-slate-600 bg-slate-950 p-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400"
             value={days}
             onChange={(event) => {
               setState({ report: null, error: false });
+              setEvidenceSelection(null);
               setDays(event.target.value as PositionPriceHistoryDays);
             }}
           >
@@ -110,9 +120,10 @@ function History({ tradeId, positionId }: Props) {
           <p role="alert">Kursverlauf konnte nicht geladen werden.</p>
           <button
             type="button"
-            className="rounded border border-slate-600 px-3 py-2"
+            className="rounded border border-slate-600 px-3 py-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400"
             onClick={() => {
               setState({ report: null, error: false });
+              setEvidenceSelection(null);
               setAttempt(attempt + 1);
             }}
           >
@@ -124,13 +135,18 @@ function History({ tradeId, positionId }: Props) {
         <>
           <p className="text-xs text-slate-400">
             ISIN {report.isin ?? 'nicht hinterlegt'} · {pointCount}{' '}
-            {pointCount === 1 ? 'belegter Kurspunkt' : 'belegte Kurspunkte'}.
+            {pointCount === 1 ? 'gelieferter Marktkurspunkt' : 'gelieferte Marktkurspunkte'}.
             <span className="block">
-              Zeitraum:{' '}
+              Angefragter Zeitraum:{' '}
               {report.window_start ? historyTime(report.window_start) : 'Alle gespeicherten Kurse'}
               {' bis '}
               {historyTime(report.window_end)}.
             </span>
+          </p>
+          <p className="text-xs text-slate-300">
+            Eine vollständige Handelszeitabdeckung ist nicht belegt. Kauf- und Verkaufsbuchungen
+            zählen nicht als Marktkurspunkte. Gespeicherte Qualität beschreibt den Erfassungsstand,
+            keine heutige Handelbarkeit.
           </p>
           {report.truncated && (
             <p className="rounded border border-amber-800 p-3 text-amber-200">
@@ -139,53 +155,31 @@ function History({ tradeId, positionId }: Props) {
               fehlen. Dieser Ausschnitt belegt keine vollständige Historie.
             </p>
           )}
-          {series.length > 1 && (
-            <fieldset className="min-w-0 space-y-2 rounded border border-slate-700 p-3">
-              <legend className="px-1 font-semibold">Sichtbare Kursquellen</legend>
+          {pointCount > 0 && (
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <p className="text-xs text-slate-400">
-                Nur die Diagrammansicht wird gefiltert. Originalbelege und Buchungen bleiben
-                vollständig erreichbar. {visiblePointCount} von {pointCount} Kurspunkten sichtbar.
+                Zur Anzeige ausgewählt: {visiblePointCount} von {pointCount} gelieferten
+                Marktkurspunkten. Originalbelege und Buchungen bleiben vollständig erreichbar.
               </p>
-              <div className="flex flex-wrap gap-2">
-                {series.map((item) => (
-                  <label key={item.id} className="flex max-w-full items-start gap-2 rounded border border-slate-700 p-2 text-xs">
-                    <input
-                      type="checkbox"
-                      className="mt-0.5 accent-sky-400"
-                      checked={!hiddenSeriesIds.includes(item.id)}
-                      onChange={(event) =>
-                        setHiddenSeriesIds((previous) =>
-                          event.target.checked
-                            ? previous.filter((id) => id !== item.id)
-                            : [...previous, item.id],
-                        )
-                      }
-                    />
-                    <span className="min-w-0 break-words">
-                      {item.provider} · {priceKindLabel[item.price_kind]} · {item.currency} · Quellsegment {item.identity_key}
-                      <span className="block text-slate-400">{historyVenue(item)}</span>
-                      <span className="block text-slate-400">{item.source_mode ?? 'Quellenmodus unbekannt'}</span>
-                    </span>
-                  </label>
-                ))}
-              </div>
               <button
                 type="button"
-                className="rounded border border-slate-600 px-3 py-2 text-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-400"
+                className="rounded border border-slate-600 px-3 py-2 text-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400"
                 onClick={() => setHiddenSeriesIds([])}
               >
                 Alle Kursquellen anzeigen
               </button>
-            </fieldset>
+            </div>
+          )}
+          {pointCount > 0 && visibleSeries.length === 0 && (
+            <p role="status" className="rounded border border-slate-700 p-4 text-slate-300">
+              Alle Kursquellen sind für das Diagramm ausgeblendet. Das ist Ihre Darstellungswahl;
+              die gespeicherten Kursbelege und Kauf-/Verkaufsereignisse sind weiterhin erreichbar.
+              Mit „Alle Kursquellen anzeigen“ stellen Sie die Ansicht wieder her.
+            </p>
           )}
           {pointCount === 0 ? (
             <p className="rounded border border-slate-700 p-4 text-slate-300">
               Keine zeitlich und fachlich zuordenbaren Kursdaten vorhanden.
-            </p>
-          ) : visibleSeries.length === 0 ? (
-            <p role="status" className="rounded border border-slate-700 p-4 text-slate-300">
-              Alle Kursquellen sind für das Diagramm ausgeblendet. Die gespeicherten
-              Kursbelege sind weiterhin unter „Kursdaten und Quellen“ erreichbar.
             </p>
           ) : (
             <Suspense fallback={<p>Diagramm wird geladen …</p>}>
@@ -193,8 +187,22 @@ function History({ tradeId, positionId }: Props) {
                 <PositionPricePlot
                   key={currency}
                   currency={currency}
-                  series={visibleSeries.filter((item) => item.currency === currency)}
+                  series={series.filter((item) => item.currency === currency)}
                   events={report.events}
+                  hiddenSeriesIds={hiddenSeriesIds}
+                  onToggleSeries={(seriesId) =>
+                    setHiddenSeriesIds((previous) =>
+                      previous.includes(seriesId)
+                        ? previous.filter((id) => id !== seriesId)
+                        : [...previous, seriesId],
+                    )
+                  }
+                  onInspectEvidence={(target) =>
+                    setEvidenceSelection((previous) => ({
+                      target,
+                      requestId: (previous?.requestId ?? 0) + 1,
+                    }))
+                  }
                 />
               ))}
             </Suspense>
@@ -213,13 +221,36 @@ function History({ tradeId, positionId }: Props) {
               </ul>
             </div>
           )}
-          <PositionPriceHistoryEvidence key={`${days}:${attempt}`} report={report} />
-          <p className="text-xs text-slate-400">
-            Erste gespeicherte Stichprobe: {historyTime(report.collection_started_at)}. Eine
-            vollständige Handelszeitabdeckung ist nicht belegt. Wiederholte gespeicherte Kurse
-            ergeben keine zusätzlichen Originalkurszeiten. Quellen- und Preisarten bleiben getrennt.
-            Ein letzter gespeicherter Kurs kann der einzige belegte Punkt sein.
-          </p>
+          <PositionPriceHistoryEvidence
+            key={`${days}:${attempt}`}
+            report={report}
+            selection={evidenceSelection}
+          />
+          <details className="min-w-0 rounded border border-slate-700 p-3 text-xs">
+            <summary className="cursor-pointer font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400">
+              Erfassung und Lesegrenzen
+            </summary>
+            <p className="mt-3 text-slate-300">
+              {!report.truncated && (
+                <>
+                  {report.samples_considered} von {report.samples_available} gespeicherten
+                  Stichproben geprüft (Grenze {report.sample_limit}).{' '}
+                </>
+              )}
+              Zuerst werden die neuesten Stichproben nach Erfassungsreihenfolge geprüft, danach das
+              Originalzeitfenster. Vorhandene letzte erfolgreiche Kurse kommen gesondert hinzu.
+              Stichproben, Marktkurspunkte und Ausführungen haben unterschiedliche Zählgrundlagen.
+            </p>
+            <p className="mt-2 text-slate-400">
+              Erste gespeicherte Stichprobe: {historyTime(report.collection_started_at)}. Das ist
+              kein Beginn vollständiger Kursversorgung. Wiederholte gespeicherte Kurse ergeben keine
+              zusätzlichen Originalkurszeiten. Ein letzter gespeicherter Kurs kann der einzige
+              belegte Punkt sein.
+            </p>
+            <p className="mt-2 break-all text-slate-400">
+              Erfassungsverfahren: {report.sampling_policy}
+            </p>
+          </details>
         </>
       )}
     </section>

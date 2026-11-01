@@ -5,6 +5,17 @@ import type {
   PositionPriceSeries,
 } from '../positionPriceHistory';
 
+// Presentation-only destinations within the current response. Coordinates are
+// deliberately not identities: several original records can share one point.
+export type PriceHistoryEvidenceTarget =
+  | { kind: 'point'; seriesId: string; pointId: string }
+  | { kind: 'event'; eventId: string };
+
+export interface PriceHistoryEvidenceSelection {
+  target: PriceHistoryEvidenceTarget;
+  requestId: number;
+}
+
 export const priceKindLabel: Record<PositionPriceKind, string> = {
   BID: 'Geldkurs',
   ASK: 'Briefkurs',
@@ -39,6 +50,39 @@ const labels: Record<string, string> = {
 
 export function priceHistoryLabel(code: string): string {
   return labels[code] ?? code;
+}
+
+export function historyProvider(provider: string): string {
+  const names: Record<string, string> = {
+    VONTOBEL_MARKETS: 'Vontobel Markets',
+    JPMORGAN: 'J.P. Morgan',
+    MORGAN_STANLEY: 'Morgan Stanley',
+    BOERSE_STUTTGART_DELAYED: 'Börse Stuttgart',
+    GETTEX_DELAYED: 'gettex',
+    FRANKFURT_QUOTES: 'Börse Frankfurt',
+  };
+  return names[provider] ? `${names[provider]} · ${provider}` : provider;
+}
+
+export function historySourceMode(mode: string | null): string {
+  const modes: Record<string, string> = {
+    DELAYED: 'Zeitverzögerte Quelle (DELAYED)',
+    REALTIME: 'Echtzeitquelle bei Erfassung (REALTIME)',
+    OFFICIAL_WEBSITE: 'Offizielle Website (OFFICIAL_WEBSITE)',
+    OFFICIAL_ISSUER_INDICATION: 'Indikation des Emittenten (OFFICIAL_ISSUER_INDICATION)',
+    OFFICIAL_WEBSITE_LAST_TRADE:
+      'Letzter Handel von offizieller Website (OFFICIAL_WEBSITE_LAST_TRADE)',
+    OFFICIAL_WEBSITE_PREVIOUS_CLOSE:
+      'Vorheriger Schlusskurs von offizieller Website (OFFICIAL_WEBSITE_PREVIOUS_CLOSE)',
+    FRANKFURT_DELAYED_MONITORING:
+      'Zeitverzögerte Frankfurter Monitoringquelle (FRANKFURT_DELAYED_MONITORING)',
+    FRANKFURT_REALTIME_MONITORING:
+      'Frankfurter Echtzeitquelle bei Erfassung (FRANKFURT_REALTIME_MONITORING)',
+    OFFICIAL_DELAYED_PRETRADE:
+      'Offizielle zeitverzögerte Vorhandelskurse (OFFICIAL_DELAYED_PRETRADE)',
+    NORMALIZED_SNAPSHOT: 'Vereinheitlichter Quellensnapshot (NORMALIZED_SNAPSHOT)',
+  };
+  return mode ? (modes[mode] ?? mode) : 'Quellenmodus unbekannt';
 }
 
 export function historyTime(value: string | null): string {

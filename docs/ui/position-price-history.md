@@ -9,6 +9,14 @@ Der erneut aufgelöste letzte Versionstag `v1.5.31` zeigt dagegen auf
 `5f1b675e09bd993da8e0576067e3e466c5b5bbdb` und enthält #302 noch nicht.
 Repository und Tests belegen keine produktive Kurshistorie auf dem Nutzer-PC.
 
+**UX4-B, 01.11.2026:** Der lokale Darstellungsschnitt in [Draft #322](https://github.com/burckhju/trading-workspace/pull/322)
+wird auf Main `484143d33aa5f2d443da6b2edf097ae1cb5aee3a` / `v1.5.37`
+vervollständigt. Die obigen SHAs bleiben historische Nachweise. Quellenwahl,
+Originalbelegzugriff und die mobile Hierarchie sind unten beschrieben; exakte
+Koordinationsstände und getrennte Prüfnachweise stehen in der
+[UX4-B-Qualifikation](../implementation/UX4_B_QUALIFICATION.md).
+Dieser Draft autorisiert keinen Merge, Release oder PC-Update.
+
 ## Anzeige
 
 Beim Aufklappen einer bestehenden Position lädt **Historischer Positionskurs**
@@ -54,6 +62,81 @@ begrenzte Antwort werden getrennt dargestellt. Ein abgebrochener oder verspätet
 Request darf nach dem Positionswechsel keine fremde Historie anzeigen. Die
 Tabelle ist horizontal scrollbar und paginiert, die Grafik passt sich Mobil-
 und Desktopbreiten an. Zeitraumwahl und Datenalternative sind per Tastatur nutzbar.
+
+## Quellen auswählen und Originalbelege öffnen
+
+Alle gelieferten Marktserien sind zunächst ausgewählt. Die Quellenlegende nennt
+Provider, Preisart, Währung, historischen Handelsplatz oder dessen Unbekanntheit
+und Quellenmodus. Bekannte Provider-/Moduscodes erhalten lesbare Bezeichnungen;
+der Originalcode bleibt erhalten, unbekannte Codes werden nicht interpretiert.
+Checkboxen blenden ausschließlich die exakt benannte `series.id` aus oder ein.
+Quellnummer, Farbe und Form bleiben innerhalb derselben Antwort beim Ausblenden
+anderer Quellen stabil. Bei vielen Quellen wiederholen sich grafische Symbole;
+die zusätzliche Quellnummer und der Originalbeleg unterscheiden diese weiterhin.
+Kaufdreieck und Verkaufskreuz bleiben für Ausführungen reserviert.
+
+Bei mehr als sechs Serien je Währung sind die Quellenbedienelemente zunächst
+eingeklappt. Preisarten, Währung, ausgewählte/ausgeblendete Quellen und belegte
+Originalkurszeiten bleiben direkt an der Grafik sichtbar. Historische IDs,
+Listing und ISIN sind zusätzlich unter **Quellenkennung** erreichbar.
+**Alle Kursquellen anzeigen** stellt sämtliche gelieferten Quellen wieder her
+und behält bei Tastaturbedienung den Fokus. Das funktioniert auch dann, wenn ein
+engeres Zeitfenster nur noch eine zuvor ausgeblendete Serie liefert.
+
+Sind alle Marktserien ausgeblendet, bezeichnet die Oberfläche dies ausdrücklich
+als Darstellungswahl. Es ist weder ein Datenmangel noch ein Providerfehler.
+Währungsbereiche, zulässige Ausführungsmarker, vollständige Kurstabelle und
+Ereignisliste bleiben erhalten. Die Angabe **Zur Anzeige ausgewählt** zählt
+Originalmarktpunkte der ausgewählten Serien; die gelieferte Marktpunktzahl zählt
+alle Serien dieser Antwort. Ausführungen und gespeicherte Stichproben haben
+andere Zählgrundlagen. Nicht endliche JavaScript-Plotkoordinaten werden erklärt;
+ihre Originalstrings bleiben in der Evidenz erhalten.
+
+Ein Klick auf einen Diagrammpunkt öffnet **Belege an diesem Diagrammpunkt**.
+Alle gelieferten Markt- und Ausführungsbelege an denselben Plotkoordinaten sind
+einzeln anwählbar, auch wenn unterschiedliche Decimalstrings auf dieselbe
+JavaScript-Zahl fallen. Ausgeblendete Quellen werden dabei ausdrücklich als
+ausgeblendet bezeichnet. Kein Punkt wird gemittelt, dedupliziert oder zeitlich
+verschoben. Quelle plus Punkt-ID beziehungsweise Ereignis-ID bestimmen das Ziel,
+niemals Zeit oder Preis allein.
+
+Der gleichwertige Weg ohne Hover heißt **Punkte und Buchungen auswählen**.
+Er listet alle dargestellten Punkte mit Preis, Währung, Originalzeit und
+Quellnummer beziehungsweise Kauf/Verkauf und Stückzahl. Seine Pagination mit
+20 Einträgen begrenzt nur die Bedienelemente; sie nimmt keine neue Stichprobe
+aus den Chartdaten. **Originalbeleg anzeigen** öffnet die vorhandene Evidenz:
+
+- Für Marktkurse wird die richtige Seite der weiterhin 50-zeiligen Tabelle
+  gewählt. Eine fokussierte kompakte Karte über der Tabelle zeigt denselben
+  eindeutigen Originalbeleg und dessen vollständigen Preis. Technische Angaben
+  lassen sich aufklappen; die Tabelle bleibt im eigenen beschrifteten
+  horizontalen Scrollbereich.
+- Für Ausführungen werden Ereignisliste und Herkunftsdetails geöffnet und
+  genau das betreffende Ereignis fokussiert. Kauf/Verkauf, Menge in Stück,
+  Preis, Währung, Originalzeit oder Date-only-Datum, bekannte Zeitzone,
+  überlieferte Präzision, Währungsherkunft und vorhandener Ausschlussgrund
+  bleiben ohne Hover erreichbar.
+
+Die vorhandenen Diagrammpfeiltasten verändern den Recharts-Tooltipindex und
+Enter dessen Anzeige. Sie sind keine vollständige Navigation über alle
+Scatterserien oder überlagerte Belege. Die native Auswahl stellt diesen
+vollständigen Tastaturweg bereit; `accessibilityLayer` allein wird nicht als
+Screenreaderabnahme ausgegeben.
+
+Die Quellen-/Belegbedienung verwendet ausschließlich die aktuelle Historienantwort.
+Sie löst weder Read noch Write, URL-/Hashwechsel oder Provideraufruf aus.
+Ein Abschnittswechsel desselben Trades behält Auswahl und Evidenzseite.
+Ein tatsächlicher Trade-/Positions-/Reloadwechsel verwirft den lokalen Zustand;
+Zeitraumwechsel entfernt die vorige Antwort und die zugehörige Punktauswahl.
+Requestgeneration und Abbruchgrenze verhindern die Übernahme verspäteter
+Erfolge und Fehler. Ein Fehler beim Laden des optionalen Chartmoduls lässt
+die vollständige Kursevidenz und Ereignisliste weiterhin zugänglich.
+
+Angefragtes Fenster, belegte Zeiten und fehlende vollständige Handelszeitabdeckung
+bleiben getrennt. Eine Kürzung steht direkt an der Grafik; **Erfassung und
+Lesegrenzen** erklärt Stichprobenzahlen, Limit, Erfassungsreihenfolge, gesonderte
+Retention und den ersten gespeicherten Samplezeitpunkt. Die bestehenden
+Domainreasoncodes und ihre zeitlich qualifizierten Labels bleiben unverändert.
 
 ## Wiederverwendete Daten und Grenzen
 

@@ -1,5 +1,13 @@
-import { expect, test, type Page, type Route } from "@playwright/test";
+import {
+  chromium,
+  expect,
+  test,
+  type Page,
+  type Route,
+} from "@playwright/test";
+import { mkdir, writeFile } from "node:fs/promises";
 import { position } from "../../frontend/src/test/positionFixture";
+import type { PositionPriceHistoryReport } from "../../frontend/src/features/operational_workspace/positionPriceHistory";
 
 // Synthetic stored evidence only. Every API request is intercepted so these
 // browser journeys cannot activate a provider or alter an existing position.
@@ -851,6 +859,650 @@ test("a late response for position A cannot overwrite the opened position B", as
   await expect(panel).toContainText("CURRENT_B_PROVIDER");
   await expect(panel).not.toContainText("LATE_A_PROVIDER");
   await expect(panel.locator(".recharts-scatter-symbol")).toHaveCount(1);
+  expect(requests.writes).toEqual([]);
+  expect(requests.browserErrors).toEqual([]);
+});
+
+// Explicit synthetic stress evidence: different historical source identities
+// share original coordinates. These values are never user/provider history.
+function manySourceHistory(
+  withEarlierPoints = false,
+): PositionPriceHistoryReport {
+  const evidence: PositionPriceHistoryReport = history();
+  const exactPrice = "0.231234567890123456789";
+  const kinds = ["BID", "ASK", "LAST_TRADE", "PREVIOUS_CLOSE"] as const;
+  const modes = [
+    "OFFICIAL_WEBSITE",
+    "OFFICIAL_ISSUER_INDICATION",
+    "SYNTHETIC_HISTORICAL_MODE",
+    null,
+  ];
+  evidence.series = Array.from({ length: 14 }, (_, index) => ({
+    ...series(
+      "synthetic-source-" + index + "-" + "x".repeat(80),
+      "EUR",
+      "SYNTHETIC_PROVIDER_" + (index % 3) + "_MIT_LANGER_QUELLENKENNUNG",
+      exactPrice,
+    ),
+    price_kind: kinds[index % kinds.length],
+    source_mode: modes[index % modes.length],
+    venue_mic: index % 4 < 2 ? ["XFRA", "XSTU"][index % 4] : null,
+    provider_exchange_code:
+      index % 4 === 2 ? "ISSUER" : index % 4 === 3 ? null : "_FRA_" + index,
+  }));
+  if (withEarlierPoints) {
+    const first = evidence.series[0];
+    first.points = [
+      ...Array.from({ length: 55 }, (_, index) => ({
+        ...first.points[0],
+        id: "earlier-synthetic-point-" + index,
+        observed_at: new Date(
+          Date.parse(observedAt) - (55 - index) * 3600000,
+        ).toISOString(),
+        price: "0.20",
+      })),
+      first.points[0],
+    ];
+  }
+  evidence.series.push(
+    series("separate-usd-source", "USD", "SYNTHETIC_USD_PROVIDER", "0.25"),
+  );
+  evidence.events = [
+    {
+      id: "synthetic-overlap-buy",
+      side: "BUY",
+      occurred_at: observedAt,
+      executed_on: null,
+      execution_timezone: null,
+      price: exactPrice,
+      currency: "EUR",
+      currency_source: "USER_CONFIRMED",
+      quantity: 10,
+      plottable: true,
+      reason: null,
+    },
+    {
+      id: "synthetic-overlap-sell",
+      side: "SELL",
+      occurred_at: observedAt,
+      executed_on: null,
+      execution_timezone: null,
+      price: exactPrice,
+      currency: "EUR",
+      currency_source: "HISTORICAL_LISTING",
+      quantity: 2,
+      plottable: true,
+      reason: null,
+    },
+    {
+      id: "synthetic-calendar-sale",
+      side: "SELL",
+      occurred_at: null,
+      executed_on: "2026-09-11",
+      execution_timezone: "Europe/Berlin",
+      price: "0.271234567890123456789",
+      currency: "EUR",
+      currency_source: "USER_CONFIRMED",
+      quantity: 1,
+      plottable: false,
+      reason: "DATE_ONLY",
+    },
+  ];
+  evidence.samples_considered = 10000;
+  evidence.samples_available = 10001;
+  evidence.truncated = true;
+  return evidence;
+}
+
+for (const width of [320, 390, 1280]) {
+  test(
+    "UX4-B synthetic many-source legend supports keyboard hiding and restoration at " +
+      width +
+      "px",
+    async ({ page }, testInfo) => {
+      const evidence = manySourceHistory();
+      const apiRequests: string[] = [];
+      page.on("request", (request) => {
+        if (new URL(request.url()).pathname.startsWith("/api/"))
+          apiRequests.push(request.method() + " " + request.url());
+      });
+      const requests = await setup(page, async (route) => {
+        await route.fulfill({ json: evidence });
+      });
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto("/workspace");
+      const panel = await openPosition(page);
+      const euros = panel.getByRole("region", {
+        name: "Kursbeobachtungen EUR",
+        exact: true,
+      });
+      const sourceSummary = euros.getByText(
+        "Kursquellen EUR ein-/ausblenden (14)",
+        { exact: true },
+      );
+      await expect(panel.locator(".recharts-scatter-symbol")).toHaveCount(17);
+      const compactScreenshot = testInfo.outputPath(
+        "ux4-b-compact-chart-" + width + "-synthetic.png",
+      );
+      await euros.screenshot({ path: compactScreenshot });
+      await testInfo.attach("UX4-B synthetic compact chart " + width + "px", {
+        path: compactScreenshot,
+        contentType: "image/png",
+      });
+      await sourceSummary.focus();
+      await page.keyboard.press("Enter");
+      const legend = euros.getByRole("list", { name: "Kursquellen EUR" });
+      await expect(legend.getByRole("checkbox")).toHaveCount(14);
+      await expect(panel.getByRole("checkbox")).toHaveCount(15);
+      await expect(panel.locator(".recharts-scatter-symbol")).toHaveCount(17);
+      for (const kind of [
+        "Geldkurs",
+        "Briefkurs",
+        "Letzter Handel",
+        "Vorheriger Schlusskurs",
+      ]) {
+        await expect(legend).toContainText(kind);
+      }
+      await expect(legend).toContainText("Handelsplatz nicht belegt");
+      await expect(legend).toContainText(
+        "Emittentenquelle · kein Börsenhandelsplatz",
+      );
+      await expect(panel).toContainText(
+        "Zur Anzeige ausgewählt: 15 von 15 gelieferten Marktkurspunkten.",
+      );
+      await expect(panel).toContainText(
+        "Belegte Kurszeiten aller gelieferten Quellen:",
+      );
+      await expect(panel).toContainText(
+        "10000 von 10001 gespeicherten Stichproben",
+      );
+      await page.waitForLoadState("networkidle");
+      const originalRequests = [...apiRequests];
+
+      const firstSource = legend.getByRole("checkbox").first();
+      await firstSource.focus();
+      await page.keyboard.press("Space");
+      await expect(firstSource).not.toBeChecked();
+      await expect(firstSource).toBeFocused();
+      expect(
+        await firstSource.evaluate((element) => {
+          const style = getComputedStyle(element);
+          return (
+            element.matches(":focus-visible") &&
+            style.outlineStyle !== "none" &&
+            parseFloat(style.outlineWidth) >= 2
+          );
+        }),
+      ).toBe(true);
+      await expect(panel).toContainText(
+        "Zur Anzeige ausgewählt: 14 von 15 gelieferten Marktkurspunkten.",
+      );
+      await expect(panel.locator(".recharts-scatter-symbol")).toHaveCount(16);
+
+      const sourceDetails = legend.getByText("Quellenkennung 1", {
+        exact: true,
+      });
+      await page.keyboard.press("Tab");
+      await expect(sourceDetails).toBeFocused();
+      await page.keyboard.press("Enter");
+      await expect(
+        legend.getByText("Serie: " + evidence.series[0].id, { exact: true }),
+      ).toBeVisible();
+      await page.keyboard.press("Enter");
+      await page.keyboard.press("Shift+Tab");
+      await expect(firstSource).toBeFocused();
+
+      // Every native checkbox remains operable even after its plot is empty.
+      const boxes = panel.getByRole("checkbox");
+      for (let index = 1; index < (await boxes.count()); index += 1) {
+        await boxes.nth(index).focus();
+        await page.keyboard.press("Space");
+        await expect(boxes.nth(index)).not.toBeChecked();
+      }
+      await expect(panel.getByRole("status")).toContainText(
+        "Alle Kursquellen sind für das Diagramm ausgeblendet.",
+      );
+      await expect(panel).not.toContainText(
+        "Keine zeitlich und fachlich zuordenbaren Kursdaten vorhanden.",
+      );
+      await expect(panel).toContainText(
+        "Zur Anzeige ausgewählt: 0 von 15 gelieferten Marktkurspunkten.",
+      );
+      // BUY and SELL keep their owner-qualified markers after all market sources hide.
+      await expect(euros.locator(".recharts-scatter-symbol")).toHaveCount(2);
+      const eventSummary = panel.getByText("Kauf- und Verkaufsereignisse", {
+        exact: true,
+      });
+      await eventSummary.focus();
+      await page.keyboard.press("Enter");
+      await expect(
+        panel.getByText("Kauf · 10 Stück · 0,231234567890123456789 EUR", {
+          exact: true,
+        }),
+      ).toBeVisible();
+      await expect(
+        panel.getByText("Verkauf · 2 Stück · 0,231234567890123456789 EUR", {
+          exact: true,
+        }),
+      ).toBeVisible();
+      await expect(panel).toContainText("Nur Ausführungsdatum bekannt");
+      await expect(panel).toContainText("Europe/Berlin");
+      const tableSummary = panel.getByText("Kursdaten und Quellen", {
+        exact: true,
+      });
+      await tableSummary.focus();
+      await page.keyboard.press("Space");
+      const table = panel.getByRole("region", {
+        name: "Historische Kursdaten",
+        exact: true,
+      });
+      await expect(table.getByRole("row")).toHaveCount(16);
+      await expect(table).toContainText(evidence.series[0].id);
+      await expect(table).toContainText("0,231234567890123456789");
+      await expect(
+        table.getByRole("columnheader", { name: "Kurs", exact: true }),
+      ).toBeVisible();
+      expect(
+        await table.evaluate((element) => getComputedStyle(element).overflowX),
+      ).toBe("auto");
+
+      const restore = panel.getByRole("button", {
+        name: "Alle Kursquellen anzeigen",
+        exact: true,
+      });
+      await restore.focus();
+      await page.keyboard.press("Enter");
+      await expect(restore).toBeFocused();
+      await expect(panel.getByRole("status")).toHaveCount(0);
+      await expect(panel.locator(".recharts-scatter-symbol")).toHaveCount(17);
+      for (let index = 0; index < (await boxes.count()); index += 1) {
+        await expect(boxes.nth(index)).toBeChecked();
+      }
+      await firstSource.focus();
+      await expect(firstSource).toBeFocused();
+      await expect
+        .poll(() =>
+          page.evaluate(
+            () => document.documentElement.scrollWidth <= window.innerWidth + 1,
+          ),
+        )
+        .toBe(true);
+      const screenshot = testInfo.outputPath(
+        "ux4-b-many-sources-" + width + "-synthetic.png",
+      );
+      await euros.screenshot({ path: screenshot });
+      await testInfo.attach(
+        "UX4-B synthetic sources and keyboard focus " + width + "px",
+        {
+          path: screenshot,
+          contentType: "image/png",
+        },
+      );
+      expect(apiRequests).toEqual(originalRequests);
+      expect(requests.reads).toHaveLength(1);
+      expect(requests.writes).toEqual([]);
+      expect(requests.browserErrors).toEqual([]);
+    },
+  );
+}
+
+test("UX4-B overlapping market and execution points retain every exact original and focus table page two", async ({
+  page,
+}, testInfo) => {
+  const evidence = manySourceHistory(true);
+  const requests = await setup(page, async (route) => {
+    await route.fulfill({ json: evidence });
+  });
+  await page.setViewportSize({ width: 390, height: 900 });
+  await page.goto("/workspace");
+  const panel = await openPosition(page);
+  const euros = panel.getByRole("region", {
+    name: "Kursbeobachtungen EUR",
+    exact: true,
+  });
+  await expect(euros.locator(".recharts-scatter-symbol")).toHaveCount(71);
+  await euros
+    .getByText("Kursquellen EUR ein-/ausblenden (14)", { exact: true })
+    .click();
+  // Hide one source, then use the real topmost SELL marker at the shared coordinates.
+  await euros.getByRole("checkbox").nth(1).uncheck();
+  await euros.locator(".recharts-scatter-symbol").last().click();
+  const overlap = euros.getByRole("heading", {
+    name: "Belege an diesem Diagrammpunkt: 16",
+    exact: true,
+  });
+  await expect(overlap).toBeFocused();
+  const choices = euros.getByRole("list", {
+    name: "Einzelbelege EUR",
+    exact: true,
+  });
+  await expect(choices.getByRole("button")).toHaveCount(16);
+  await expect(choices).toContainText("Quelle im Diagramm ausgeblendet");
+
+  for (let source = 0; source < 14; source += 1) {
+    const point = evidence.series[source].points.at(-1)!;
+    const button = choices.getByRole("button", {
+      name: new RegExp("^Quelle " + (source + 1) + ", Kurspunkt "),
+    });
+    await button.focus();
+    await page.keyboard.press(source % 2 === 0 ? "Enter" : "Space");
+    const original = panel.getByRole("region", {
+      name: "Ausgewählter Originalkursbeleg",
+      exact: true,
+    });
+    await expect(original).toBeFocused();
+    await expect(original).toContainText("0,231234567890123456789 EUR");
+    await expect(
+      original.locator('time[datetime="' + observedAt + '"]'),
+    ).toBeVisible();
+    const technical = original.getByText(
+      "Technische Angaben zum ausgewählten Kursbeleg",
+      { exact: true },
+    );
+    if ((await technical.locator("..").getAttribute("open")) === null) {
+      await technical.focus();
+      await page.keyboard.press("Enter");
+    }
+    await expect(original).toContainText(
+      "Serien-ID: " + evidence.series[source].id,
+    );
+    await expect(original).toContainText("Punkt-ID: " + point.id);
+    await expect(panel.getByText("Seite 2 / 2", { exact: true })).toBeVisible();
+    const row = panel
+      .getByRole("region", { name: "Historische Kursdaten", exact: true })
+      .getByRole("row")
+      .filter({ hasText: "Punkt-ID: " + point.id });
+    await expect(row).toHaveCount(1);
+    await expect(row).toContainText("Serien-ID: " + evidence.series[source].id);
+  }
+  for (const [side, id, quantity, source] of [
+    ["Kauf", "synthetic-overlap-buy", "10", "USER_CONFIRMED"],
+    ["Verkauf", "synthetic-overlap-sell", "2", "HISTORICAL_LISTING"],
+  ]) {
+    const button = choices.getByRole("button", {
+      name: new RegExp("^" + side + ", Buchung "),
+    });
+    await button.focus();
+    await page.keyboard.press("Enter");
+    const event = panel
+      .getByRole("listitem")
+      .filter({ hasText: "Buchung " + id + " · Währungsherkunft:" });
+    await expect(event).toHaveCount(1);
+    await expect(event).toBeFocused();
+    await expect(event).toContainText(
+      side + " · " + quantity + " Stück · 0,231234567890123456789 EUR",
+    );
+    await expect(event).toContainText(source);
+    await expect(
+      event.locator('time[datetime="' + observedAt + '"]'),
+    ).toBeVisible();
+  }
+  await expect(
+    panel.locator(".recharts-line-curve, .recharts-scatter-line"),
+  ).toHaveCount(0);
+  await expect(panel).toContainText("Nur Ausführungsdatum bekannt");
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth + 1,
+      ),
+    )
+    .toBe(true);
+  const screenshot = testInfo.outputPath(
+    "ux4-b-overlap-originals-390-synthetic.png",
+  );
+  await choices.screenshot({ path: screenshot });
+  await testInfo.attach(
+    "UX4-B synthetic overlapping original evidence at 390px",
+    {
+      path: screenshot,
+      contentType: "image/png",
+    },
+  );
+  expect(requests.reads).toHaveLength(1);
+  expect(requests.writes).toEqual([]);
+  expect(requests.browserErrors).toEqual([]);
+});
+
+test("UX4-B uses actual Chromium 200 percent page zoom with keyboard evidence and no additional reads", async ({
+  baseURL,
+}, testInfo) => {
+  // Test-only MV3 extension exercises the browser's native page-zoom API.
+  // No CSS zoom, device scaling or viewport substitution qualifies this check.
+  const extension = testInfo.outputPath("synthetic-zoom-extension");
+  await mkdir(extension, { recursive: true });
+  await writeFile(
+    extension + "/manifest.json",
+    JSON.stringify({
+      manifest_version: 3,
+      name: "Synthetic UX4-B native browser zoom test",
+      version: "1.0",
+      permissions: ["tabs"],
+      background: { service_worker: "worker.js" },
+    }),
+  );
+  await writeFile(
+    extension + "/worker.js",
+    "chrome.runtime.onInstalled.addListener(() => {});\n",
+  );
+  const executablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
+  const context = await chromium.launchPersistentContext(
+    testInfo.outputPath("synthetic-zoom-profile"),
+    {
+      ...(executablePath ? { executablePath } : {}),
+      headless: false,
+      viewport: { width: 1280, height: 900 },
+      args: [
+        "--headless=new",
+        "--disable-extensions-except=" + extension,
+        "--load-extension=" + extension,
+      ],
+    },
+  );
+  try {
+    const worker =
+      context.serviceWorkers()[0] ??
+      (await context.waitForEvent("serviceworker"));
+    const page = context.pages()[0] ?? (await context.newPage());
+    await page.bringToFront();
+    const evidence = manySourceHistory();
+    const requests = await setup(page, async (route) => {
+      await route.fulfill({ json: evidence });
+    });
+    await page.goto((baseURL ?? "http://127.0.0.1:8080") + "/workspace");
+    const panel = await openPosition(page);
+    await expect(panel.locator(".recharts-scatter-symbol")).toHaveCount(17);
+    const before = await page.evaluate(() => ({
+      width: window.innerWidth,
+      ratio: window.devicePixelRatio,
+    }));
+    const zoom = await worker.evaluate(async (origin) => {
+      const tabs = (
+        globalThis as unknown as {
+          chrome: {
+            tabs: {
+              query: (query: { url: string }) => Promise<Array<{ id: number }>>;
+              setZoom: (id: number, factor: number) => Promise<void>;
+              getZoom: (id: number) => Promise<number>;
+            };
+          };
+        }
+      ).chrome.tabs;
+      const matches = await tabs.query({ url: origin + "/*" });
+      if (matches.length !== 1)
+        throw new Error("Expected one synthetic application tab");
+      await tabs.setZoom(matches[0].id, 2);
+      return tabs.getZoom(matches[0].id);
+    }, new URL(page.url()).origin);
+    expect(zoom).toBe(2);
+    await expect
+      .poll(() => page.evaluate(() => window.innerWidth))
+      .toBe(before.width / 2);
+    await expect
+      .poll(() => page.evaluate(() => window.devicePixelRatio))
+      .toBe(before.ratio * 2);
+    await page.waitForLoadState("networkidle");
+    expect(requests.reads).toHaveLength(1);
+
+    const euros = panel.getByRole("region", {
+      name: "Kursbeobachtungen EUR",
+      exact: true,
+    });
+    const sourceSummary = euros.getByText(
+      "Kursquellen EUR ein-/ausblenden (14)",
+      { exact: true },
+    );
+    await sourceSummary.focus();
+    await page.keyboard.press("Enter");
+    const source = euros.getByRole("checkbox").first();
+    await source.focus();
+    await page.keyboard.press("Space");
+    await expect(source).not.toBeChecked();
+    await expect(source).toBeFocused();
+    await expect(panel).toContainText(
+      "Zur Anzeige ausgewählt: 14 von 15 gelieferten Marktkurspunkten.",
+    );
+    await sourceSummary.focus();
+    await page.keyboard.press("Enter");
+    const picker = euros.getByText("Punkte und Buchungen auswählen (EUR)", {
+      exact: true,
+    });
+    await picker.focus();
+    await page.keyboard.press("Enter");
+    const choice = euros.getByRole("button", {
+      name: /^Quelle 2, Kurspunkt 1:/,
+    });
+    await choice.focus();
+    await page.keyboard.press("Space");
+    const selected = panel.getByRole("region", {
+      name: "Ausgewählter Originalkursbeleg",
+      exact: true,
+    });
+    await expect(selected).toBeFocused();
+    await expect(selected).toContainText("0,231234567890123456789 EUR");
+    await expect(selected).toContainText("Briefkurs");
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () => document.documentElement.scrollWidth <= window.innerWidth + 1,
+        ),
+      )
+      .toBe(true);
+    const screenshot = testInfo.outputPath(
+      "ux4-b-native-200-percent-synthetic.png",
+    );
+    // Native zoom changes compositor coordinates. Capture the browser viewport
+    // directly instead of asking Playwright to clip an unzoomed element box.
+    await selected.evaluate((element) =>
+      element.scrollIntoView({ block: "center" }),
+    );
+    await page.evaluate(
+      () =>
+        new Promise<void>((resolve) => {
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+        }),
+    );
+    const captureSession = await context.newCDPSession(page);
+    const capture = await captureSession.send("Page.captureScreenshot", {
+      format: "png",
+      fromSurface: false,
+      captureBeyondViewport: false,
+    });
+    await writeFile(screenshot, Buffer.from(capture.data, "base64"));
+    await captureSession.detach();
+    await testInfo.attach(
+      "UX4-B synthetic original evidence at verified native 200% browser zoom",
+      {
+        path: screenshot,
+        contentType: "image/png",
+      },
+    );
+    const measurements = testInfo.outputPath(
+      "ux4-b-native-zoom-measurements.json",
+    );
+    await writeFile(
+      measurements,
+      JSON.stringify(
+        {
+          before,
+          nativeZoomFactor: zoom,
+          after: await page.evaluate(() => ({
+            width: window.innerWidth,
+            ratio: window.devicePixelRatio,
+            documentWidth: document.documentElement.scrollWidth,
+          })),
+        },
+        null,
+        2,
+      ),
+    );
+    await testInfo.attach("Native browser zoom measurements", {
+      path: measurements,
+      contentType: "application/json",
+    });
+    expect(requests.reads).toHaveLength(1);
+    expect(requests.writes).toEqual([]);
+    expect(requests.browserErrors).toEqual([]);
+  } finally {
+    await context.close();
+  }
+});
+
+test("UX4-B preserves existing chart arrows while exact evidence remains a separate keyboard action", async ({
+  page,
+}) => {
+  const evidence = history();
+  evidence.series[0].points[0].price = "0.211111111111111111";
+  evidence.series[0].points.push({
+    ...evidence.series[0].points[0],
+    id: "synthetic-next-second",
+    observed_at: "2026-09-10T13:45:23Z",
+    price: "0.311111111111111111",
+  });
+  const requests = await setup(page, async (route) => {
+    await route.fulfill({ json: evidence });
+  });
+  await page.goto("/workspace");
+  const panel = await openPosition(page);
+  await expect(panel.locator(".recharts-scatter-symbol")).toHaveCount(2);
+  const chart = panel.getByRole("application");
+  await chart.focus();
+  await page.keyboard.press("ArrowRight");
+  const tooltip = panel.locator(".recharts-tooltip-wrapper");
+  await expect(tooltip).toBeVisible();
+  await expect(tooltip).toContainText("0,311111111111111111 EUR");
+  await expect(
+    tooltip.locator('time[datetime="2026-09-10T13:45:23Z"]'),
+  ).toBeVisible();
+  await expect(chart).toBeFocused();
+  await page.keyboard.press("ArrowLeft");
+  await expect(tooltip).toContainText("0,211111111111111111 EUR");
+  await expect(
+    tooltip.locator('time[datetime="' + observedAt + '"]'),
+  ).toBeVisible();
+  await page.keyboard.press("Enter");
+  await expect(tooltip).not.toBeVisible();
+  await expect(chart).toBeFocused();
+  await expect(
+    panel.getByRole("heading", {
+      name: "Angezeigte Punkte und Buchungen: 2",
+      exact: true,
+    }),
+  ).not.toBeVisible();
+  const summary = panel.getByText("Punkte und Buchungen auswählen (EUR)", {
+    exact: true,
+  });
+  await summary.focus();
+  await page.keyboard.press("Enter");
+  await panel.getByRole("button", { name: /^Quelle 1, Kurspunkt 2:/ }).focus();
+  await page.keyboard.press("Enter");
+  const selected = panel.getByRole("region", {
+    name: "Ausgewählter Originalkursbeleg",
+    exact: true,
+  });
+  await expect(selected).toBeFocused();
+  await expect(selected).toContainText("0,311111111111111111 EUR");
+  expect(requests.reads).toHaveLength(1);
   expect(requests.writes).toEqual([]);
   expect(requests.browserErrors).toEqual([]);
 });

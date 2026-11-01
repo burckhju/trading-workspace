@@ -1,0 +1,43 @@
+{
+  "scope": "Synthetic compact-chart screenshot, solid source/marker/axis colors and sampled secondary text; no automated full WCAG/screenreader approval",
+  "screenshot": "ux4-b-compact-chart-320-synthetic.png",
+  "background": "#070c20",
+  "ratios": {
+    "market_sky": {
+      "foreground": "#38bdf8",
+      "contrast": 9.06
+    },
+    "market_amber": {
+      "foreground": "#fbbf24",
+      "contrast": 11.62
+    },
+    "market_purple": {
+      "foreground": "#c084fc",
+      "contrast": 7.34
+    },
+    "market_green": {
+      "foreground": "#34d399",
+      "contrast": 10.09
+    },
+    "market_rose_and_sell": {
+      "foreground": "#fb7185",
+      "contrast": 7.21
+    },
+    "market_white": {
+      "foreground": "#e2e8f0",
+      "contrast": 15.74
+    },
+    "buy": {
+      "foreground": "#a3e635",
+      "contrast": 12.87
+    },
+    "secondary_text_screenshot": {
+      "foreground": "#90a1b9",
+      "contrast": 7.38
+    },
+    "axis_stroke": {
+      "foreground": "#cbd5e1",
+      "contrast": 13.07
+    }
+  }
+}

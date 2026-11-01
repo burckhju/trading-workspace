@@ -1,4 +1,5 @@
 import { expect, test, type Page, type Route } from "@playwright/test";
+import type { PositionPriceHistoryReport } from "../../frontend/src/features/operational_workspace/positionPriceHistory";
 
 import type {
   ExecutionCurrencyResolution,
@@ -181,6 +182,7 @@ async function fixture(
     historicalPlan?: boolean;
     reportJourney?: boolean;
     currencyPreview?: "available" | ((route: Route, url: URL) => Promise<void>);
+    priceHistory?: PositionPriceHistoryReport;
   } = {},
 ) {
   const status = options.status ?? "OPEN";
@@ -383,23 +385,26 @@ async function fixture(
         updated_at: trade.created_at,
       });
     if (path.endsWith("/price-history"))
-      return json(route, {
-        trade_id: tradeId,
-        position_id: positionId,
-        warrant_id: productId,
-        isin: null,
-        window_start: null,
-        window_end: now,
-        sampling_policy: "FIRST_CAPTURE_PER_ROUTE_5_MIN_UTC_V1",
-        sample_limit: 10000,
-        samples_considered: 0,
-        samples_available: 0,
-        truncated: false,
-        collection_started_at: null,
-        excluded: {},
-        series: [],
-        events: [],
-      });
+      return json(
+        route,
+        options.priceHistory ?? {
+          trade_id: tradeId,
+          position_id: positionId,
+          warrant_id: productId,
+          isin: null,
+          window_start: null,
+          window_end: now,
+          sampling_policy: "FIRST_CAPTURE_PER_ROUTE_5_MIN_UTC_V1",
+          sample_limit: 10000,
+          samples_considered: 0,
+          samples_available: 0,
+          truncated: false,
+          collection_started_at: null,
+          excluded: {},
+          series: [],
+          events: [],
+        },
+      );
     if (path.endsWith(`/alerts/trades/${tradeId}`)) return json(route, []);
     if (path.endsWith("/sources"))
       return json(
@@ -702,6 +707,166 @@ test("a failed currency preview remains a read error while manual drafts survive
     "Synthetic manual receipt after read error",
   );
   expect(salePreviewReads(observed.reads)).toHaveLength(2);
+  expect(observed.writes).toEqual([]);
+  expect(observed.browserErrors).toEqual([]);
+});
+
+test("UX4-B same-trade hashes preserve source visibility, exact evidence page and manual drafts without another read", async ({
+  page,
+}) => {
+  const series = {
+    id: "synthetic-hash-source-a",
+    provider: "SYNTHETIC_HASH_PROVIDER_A",
+    identity_key: "synthetic-historical-identity-a",
+    warrant_listing_id: "synthetic-historical-listing-a",
+    isin: "DE000VH2LU21",
+    currency: "EUR",
+    price_kind: "BID" as const,
+    source_mode: "OFFICIAL_WEBSITE",
+    provider_exchange_code: "_FRA",
+    venue_mic: "XFRA",
+    points: Array.from({ length: 55 }, (_, index) => ({
+      id: "synthetic-point-" + index,
+      observed_at: new Date(
+        Date.parse("2026-09-10T13:00:00Z") + index * 60000,
+      ).toISOString(),
+      price: "2.231234567890123456789",
+      captured_at: now,
+      retrieved_at: now,
+      status: "TWO_SIDED_WITHIN_AGE_LIMIT",
+      storage: "SAMPLE" as const,
+      quote_time_basis: null,
+    })),
+  };
+  const priceHistory: PositionPriceHistoryReport = {
+    trade_id: tradeId,
+    position_id: positionId,
+    warrant_id: productId,
+    isin: series.isin,
+    window_start: null,
+    window_end: now,
+    sampling_policy: "FIRST_CAPTURE_PER_ROUTE_5_MIN_UTC_V1",
+    sample_limit: 10000,
+    samples_considered: 56,
+    samples_available: 56,
+    truncated: false,
+    collection_started_at: now,
+    excluded: {},
+    series: [
+      series,
+      {
+        ...series,
+        id: "synthetic-hash-source-b",
+        provider: "SYNTHETIC_HASH_PROVIDER_B",
+        identity_key: "synthetic-historical-identity-b",
+        points: [{ ...series.points[54], price: "2.33" }],
+      },
+    ],
+    events: [],
+  };
+  const observed = await fixture(page, {
+    currencyPreview: "available",
+    priceHistory,
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(
+    "/trade-management?trade_id=" + tradeId + "#position-price-history",
+  );
+  await loaded(page);
+  const panel = page.getByRole("region", {
+    name: "Positionskursverlauf",
+    exact: true,
+  });
+  await expect(panel.locator(".recharts-scatter-symbol")).toHaveCount(56);
+  const hiddenSource = panel.getByRole("checkbox", { name: /^Quelle 2:/ });
+  await hiddenSource.focus();
+  await page.keyboard.press("Space");
+  await expect(hiddenSource).not.toBeChecked();
+  const choosePoint = panel.getByText("Punkte und Buchungen auswählen (EUR)", {
+    exact: true,
+  });
+  await choosePoint.focus();
+  await page.keyboard.press("Enter");
+  for (let next = 0; next < 2; next += 1) {
+    await panel
+      .getByRole("button", { name: "Weitere Einzelbelege", exact: true })
+      .focus();
+    await page.keyboard.press("Enter");
+  }
+  const point = panel.getByRole("button", { name: /^Quelle 1, Kurspunkt 55:/ });
+  await point.focus();
+  await page.keyboard.press("Enter");
+  const selected = panel.getByRole("region", {
+    name: "Ausgewählter Originalkursbeleg",
+    exact: true,
+  });
+  await expect(selected).toBeFocused();
+  await expect(selected).toContainText("2,231234567890123456789 EUR");
+  await expect(panel.getByText("Seite 2 / 2", { exact: true })).toBeVisible();
+
+  await page.getByLabel("Verkaufsmenge", { exact: true }).fill("3");
+  await page.getByLabel("Verkaufspreis", { exact: true }).fill("2.50");
+  await page
+    .getByLabel("Neue Management-Notiz", { exact: true })
+    .fill("Synthetic unsaved note survives chart navigation");
+  await page.waitForLoadState("networkidle");
+  const originalReads = [...observed.reads];
+  expect(
+    originalReads.filter((url) => url.endsWith("/price-history")),
+  ).toHaveLength(1);
+
+  for (const [label, hash] of [
+    ["Buchungen", "#execution-dates"],
+    ["Überblick", "#trade-overview"],
+    ["Kursverlauf", "#position-price-history"],
+  ]) {
+    const link = navigation(page).getByRole("link", {
+      name: label,
+      exact: true,
+    });
+    await link.focus();
+    await page.keyboard.press("Enter");
+    await expect(page.locator(hash)).toBeFocused();
+    expect(new URL(page.url()).hash).toBe(hash);
+    await expect(hiddenSource).not.toBeChecked();
+    await expect(panel.locator(".recharts-scatter-symbol")).toHaveCount(55);
+    await expect(panel.getByText("Seite 2 / 2", { exact: true })).toBeVisible();
+    await expect(
+      panel.getByText("Auswahlseite 3 / 3", { exact: true }),
+    ).toBeVisible();
+    await expect(selected).toContainText("2,231234567890123456789 EUR");
+    await expect(page.getByLabel("Verkaufsmenge", { exact: true })).toHaveValue(
+      "3",
+    );
+    await expect(page.getByLabel("Verkaufspreis", { exact: true })).toHaveValue(
+      "2.50",
+    );
+    await expect(
+      page.getByLabel("Neue Management-Notiz", { exact: true }),
+    ).toHaveValue("Synthetic unsaved note survives chart navigation");
+    await expect(page.getByRole("alertdialog")).toHaveCount(0);
+    expect(observed.reads).toEqual(originalReads);
+  }
+  const table = panel.getByRole("region", {
+    name: "Historische Kursdaten",
+    exact: true,
+  });
+  // A duplicated local point ID in the other historical source remains a separate row.
+  await expect(
+    table.getByRole("row").filter({ hasText: "Punkt-ID: synthetic-point-54" }),
+  ).toHaveCount(2);
+  await expect(
+    table
+      .getByRole("row")
+      .filter({ hasText: "Serien-ID: synthetic-hash-source-b" }),
+  ).toContainText("2,33");
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth + 1,
+      ),
+    )
+    .toBe(true);
   expect(observed.writes).toEqual([]);
   expect(observed.browserErrors).toEqual([]);
 });
