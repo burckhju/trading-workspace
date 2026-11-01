@@ -162,7 +162,7 @@ function History({ tradeId, positionId }: Props) {
                       }
                     />
                     <span className="min-w-0 break-words">
-                      {item.provider} · {priceKindLabel[item.price_kind]} · {item.currency}
+                      {item.provider} · {priceKindLabel[item.price_kind]} · {item.currency} · Quellsegment {item.identity_key}
                       <span className="block text-slate-400">{historyVenue(item)}</span>
                       <span className="block text-slate-400">{item.source_mode ?? 'Quellenmodus unbekannt'}</span>
                     </span>
