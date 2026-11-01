@@ -708,7 +708,9 @@ it('rejects a response for another filter and replaces the complete report while
   fireEvent.click(correctedNotice.getByText('Ursache und Quellen'));
   expect(correctedNotice.getByText(/CORRECTED_OWNER_REASON/)).toBeVisible();
   expect(correctedNotice.getByText(/Berichtigte Originalreferenz/)).toBeVisible();
-  expect(correctedDetail.getByRole('listitem', { name: 'Buchungsquelle replacement' })).toBeVisible();
+  expect(
+    correctedDetail.getByRole('listitem', { name: 'Buchungsquelle replacement' }),
+  ).toBeVisible();
   expect(
     correctedDetail.queryByRole('listitem', { name: 'Buchungsquelle sell-september-2' }),
   ).not.toBeInTheDocument();
