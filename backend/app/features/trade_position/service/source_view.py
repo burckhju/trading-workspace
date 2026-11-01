@@ -8,8 +8,8 @@ provider, materialization or currentness refresh is used.
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, replace
-from datetime import UTC, datetime
-from uuid import UUID
+from datetime import UTC, date, datetime
+from uuid import UUID, uuid4
 
 from sqlalchemy import Select, select, text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
@@ -57,9 +57,20 @@ from app.features.trade_plan.persistence.models import (
     TradePlanTargetModel,
 )
 from app.features.trade_plan.service.queries import TradePlanQueryService, TradePlanVersionView
-from app.features.trade_position.domain.currency import ExecutionCurrencyConfirmation
-from app.features.trade_position.domain.currency_resolution import resolve_execution_currencies
-from app.features.trade_position.domain.enums import TradeOrigin
+from app.features.trade_position.domain.currency import (
+    CurrencyTradeScope,
+    ExecutionCurrencyConfirmation,
+    ExecutionCurrencyResolution,
+)
+from app.features.trade_position.domain.currency_evidence import (
+    CurrencyEvidenceLimitExceeded,
+)
+from app.features.trade_position.domain.currency_resolution import (
+    CurrencyExecution,
+    CurrencyResolutionLimitExceeded,
+    resolve_execution_currencies,
+)
+from app.features.trade_position.domain.enums import ExecutionSide, TradeOrigin
 from app.features.trade_position.domain.models import Trade
 from app.features.trade_position.domain.timeline import (
     TradeTimelineEntry,
@@ -90,6 +101,31 @@ from app.features.trade_position.service.resolvers import SqlAlchemyWorkspaceSel
 MAX_FACTS = 2_000
 MAX_VERSIONS = 100
 MAX_LINKS = 1_000
+MAX_CURRENCY_PROVENANCE_LINKS = 100_000
+
+
+@dataclass(frozen=True)
+class _ProductCurrencyScope:
+    """Transient resolver scope; this is neither a Trade nor a persisted identity."""
+
+    id: UUID
+    workspace_id: UUID
+    product_id: UUID
+
+
+@dataclass(frozen=True)
+class _CurrencyPreviewContext:
+    """Only resolver inputs: no invented execution quantity, price or confirmation."""
+
+    id: UUID
+    trade_id: UUID
+    product_id: UUID
+    side: ExecutionSide
+    executed_at: datetime
+    recorded_at: datetime
+    executed_on: date | None
+    execution_timezone: str | None
+    supersedes_execution_id: None = None
 
 
 @dataclass(frozen=True)
@@ -181,6 +217,107 @@ class TradeSourceReader:
         if trade is None:
             raise source_error("TRADE_NOT_FOUND", "Trade nicht gefunden.", 404)
         return trade
+
+    async def execution_currency_preview(
+        self,
+        workspace_id: UUID,
+        *,
+        side: ExecutionSide,
+        executed_at: datetime,
+        executed_on: date | None = None,
+        execution_timezone: str | None = None,
+        trade_id: UUID | None = None,
+        product_id: UUID | None = None,
+    ) -> ExecutionCurrencyResolution:
+        """Resolve the proposed time in one existing bounded, read-only snapshot.
+
+        The preview is never a new confirmation or a promise about a future write.
+        The normal capture independently resolves its committed sources again.
+        """
+        if (trade_id is None) == (product_id is None):
+            raise ValueError("Currency preview requires exactly one trade or product")
+        if product_id is not None and side is not ExecutionSide.BUY:
+            raise ValueError("An initial product currency preview requires BUY")
+        async with self._session() as session:
+            scope: CurrencyTradeScope
+            executions: list[CurrencyExecution] = []
+            current: dict[UUID, ExecutionCurrencyConfirmation] = {}
+            if trade_id is not None:
+                trade = await self._trade(session, workspace_id, trade_id)
+                if trade.cancelled_at is not None:
+                    raise source_error("TRADE_CANCELLED", "Dieser Trade wurde storniert.", 409)
+                scope = trade
+                await self._bounded(
+                    session,
+                    select(ExecutionRecordModel.id).where(
+                        ExecutionRecordModel.trade_id == trade_id
+                    ),
+                    MAX_FACTS,
+                )
+                await self._bounded(
+                    session,
+                    select(ExecutionCurrencyConfirmationModel.id).where(
+                        ExecutionCurrencyConfirmationModel.workspace_id == workspace_id,
+                        ExecutionCurrencyConfirmationModel.trade_id == trade_id,
+                    ),
+                    MAX_FACTS,
+                )
+                executions.extend(
+                    await SqlAlchemyExecutionRecordRepository(session).list_for_trade(trade_id)
+                )
+                current = await SqlAlchemyExecutionCurrencyConfirmationRepository(
+                    session
+                ).current_for_trade(workspace_id, trade_id)
+            else:
+                found = await session.scalar(
+                    select(WarrantModel.id).where(
+                        WarrantModel.workspace_id == workspace_id,
+                        WarrantModel.id == product_id,
+                    )
+                )
+                if found is None:
+                    raise source_error(
+                        "WARRANT_NOT_FOUND",
+                        "Produkt in diesem Workspace nicht gefunden.",
+                        404,
+                    )
+                scope = _ProductCurrencyScope(uuid4(), workspace_id, found)
+            preview = _CurrencyPreviewContext(
+                id=uuid4(),
+                trade_id=scope.id,
+                product_id=scope.product_id,
+                side=side,
+                executed_at=executed_at,
+                recorded_at=datetime.now(UTC),
+                executed_on=executed_on,
+                execution_timezone=execution_timezone,
+            )
+            try:
+                evidence = await SqlAlchemyCurrencyEvidenceRepository(session).list_for_product(
+                    workspace_id, scope.product_id, limit=MAX_FACTS
+                )
+                if product_id is not None:
+                    # Another execution's document never proves this first purchase.
+                    evidence = tuple(
+                        item for item in evidence if item.kind == "HISTORICAL_LISTINGS"
+                    )
+                resolutions = resolve_execution_currencies(
+                    trade=scope,
+                    executions=[*executions, preview],
+                    current=current,
+                    evidence=evidence,
+                    max_provenance_links=MAX_CURRENCY_PROVENANCE_LINKS,
+                )
+            except (
+                CurrencyEvidenceLimitExceeded,
+                CurrencyResolutionLimitExceeded,
+            ) as error:
+                raise source_error(
+                    "SOURCE_RESOURCE_LIMIT",
+                    "Die vollständigen Währungsquellen überschreiten die sichere Lesegrenze.",
+                    413,
+                ) from error
+            return resolutions[preview.id]
 
     @staticmethod
     def _review_query(session: AsyncSession) -> PostTradeQueryService:

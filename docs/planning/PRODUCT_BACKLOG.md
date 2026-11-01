@@ -982,10 +982,19 @@ Erstkaufstrecke sind beim Zusammenführen beider Branches erneut zu prüfen.
 <details>
 <summary>PB-016 — Trade eröffnen und tatsächliche Käufe erfassen</summary>
 
+**Abgegrenzter UX-1-Nachtrag 31.10.2026:** Der aktuelle Auftrag autorisiert Umsetzung,
+isolierte Qualifikation und einen Draft-Integrations-PR, keinen Merge, Release oder
+PC-Update. Die [Feldinventur und Prüfnachweise](../implementation/UX1_INPUT_REUSE_QUALIFICATION.md)
+trennen vorhandene Wiederverwendung von der neuen lesenden Währungsvorschau vor
+Erstkauf/Nachkauf/Verkauf. Automatische Herkunft wird niemals als manuelle Bestätigung
+gespeichert. Unabhängige Folgechangesets betreffen den einzigen gespeicherten
+Bewertungslauf einer Planversion und den Browserzonen-Vorschlag für Performance.
+Journal-/Lessonquellen werden bereits übernommen; keine erfundenen Bewertungen.
+
 | Nachweisfeld | Einordnung |
 |---|---|
 | Zuordnung | M5: Trade eröffnen. Bereich/Querschnitt: 5. Bestehender Bezug: FT-009. Lieferziel: A, B. |
-| Arbeitsstatus | Released (historischer FT-009-Teilscope); additive Execution-Währungsbestätigung in Technical Review, siehe PB-017-/PB-019-Qualifikation. |
+| Arbeitsstatus | Released (historischer FT-009-Teilscope); additive Execution-Währungsbestätigung und abgegrenzte UX1-A-Eingabevereinfachung in Technical Review. Aktuelle neue Test-/PR-Nachweise separat in der UX-1-Qualifikation; keine neue Auslieferung oder Fachabnahme. |
 | Soll / Nicht-Soll | **Soll:** Bestätigte Erst-/Nachkäufe als immutable Ausführungsfakten erfassen, Herkunft exakt behalten. **Nicht-Soll:** Keine Brokerorder, autonome Produktauswahl oder Mengenempfehlung. |
 | Vorhandenseinsnachweis | Dokument- und/oder Routing-Nachweis vorhanden; Details, historische Grenzen und nicht erneut geprüfte Implementierung im Eintrag. |
 | Implementierung / Consumer | Bestehende Erst-/Nachkauf- und EXTERNAL-Captures bleiben erhalten. Additive [Execution-Währungsbestätigung](../../backend/app/features/trade_position/service/currency_confirmations.py) in derselben Owner-Transaktion; einschließlich Learning execute-as-trade. Kein EUR-Default und keine rückwirkende Änderung wirtschaftlicher Werte. [Konkrete Qualifikation](../implementation/PERIOD_REALIZED_GROSS_REPORT_QUALIFICATION.md). |

@@ -136,6 +136,37 @@ describe('PostTradeLearningPage', () => {
     expect(warrantGet).toHaveBeenCalledWith('product-1', expect.any(AbortSignal));
   });
 
+  it('distinguishes the current review editor from a historical source return pin', async () => {
+    listForEvidence.mockResolvedValue([]);
+    const query = new URLSearchParams({
+      trade_id: 'trade-1',
+      review_version_id: '20000000-0000-4000-8000-000000000001',
+      report_context: 'realized-gross',
+      from_date: '2026-10-01',
+      to_date: '2026-10-31',
+      report_currency: 'EUR',
+      report_timezone: 'Europe/Vienna',
+      report_view: 'usable',
+      report_page: '3',
+      report_basis: 'a'.repeat(64),
+    });
+    render(
+      <MemoryRouter initialEntries={[`/post-trade?${query}`]}>
+        <PostTradeLearningPage />
+      </MemoryRouter>,
+    );
+    await screen.findByRole('heading', { name: /TR-TRADE-1 · DAX Call 19000/ });
+    expect(screen.getByText(/Hier wird der aktuelle Exit Review bearbeitet/)).toBeVisible();
+    expect(screen.getByText('review')).toBeInTheDocument();
+    const link = screen.getByRole('link', { name: 'Historische Reviewquelle öffnen' });
+    const destination = new URL(link.getAttribute('href')!, 'http://workspace.test');
+    expect(destination.pathname).toBe('/trade-management');
+    expect(destination.hash).toBe('#trade-review-sources');
+    expect(destination.searchParams.get('view')).toBe('sources');
+    for (const [key, value] of query) expect(destination.searchParams.get(key)).toBe(value);
+    expect(materialize).not.toHaveBeenCalled();
+  });
+
   it('hands a ready finalized review to FT-012 before showing the Lesson form', async () => {
     status
       .mockResolvedValueOnce({
@@ -198,7 +229,7 @@ describe('PostTradeLearningPage', () => {
     expect(await screen.findByText('Bereits interpretiert')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Exit discipline/ })).toHaveAttribute(
       'href',
-      '/lessons/lesson-1',
+      '/lessons/lesson-1?trade_id=trade-1&trade_return_view=journal&lesson_version_id=lesson-version-1#lesson-history',
     );
     expect(screen.queryByText('lesson-form')).not.toBeInTheDocument();
   });

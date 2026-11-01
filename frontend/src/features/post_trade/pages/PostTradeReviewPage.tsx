@@ -1,6 +1,7 @@
 import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
+import { tradeLookupQuery } from '../../../shared/trade-workspace-navigation';
 import { ft011MaterializationClient } from '../../learning/services/materializationClient';
 import type { Ft011MaterializationStatus } from '../../learning/types/materialization';
 import { ErrorNotice, LoadingNotice } from '../../market/components/ApiFeedback';
@@ -237,12 +238,7 @@ function PostTradeReviewContent({
           }
         });
     } else {
-      setSearchParams((previous) => {
-        const next = new URLSearchParams(previous);
-        next.set('trade_id', id);
-        next.delete('journal_version_id');
-        return next;
-      });
+      setSearchParams((previous) => tradeLookupQuery(id, previous));
     }
   }
 

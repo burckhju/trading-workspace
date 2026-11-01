@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { beforeEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
 import {
   realizedGrossReport,
@@ -39,22 +39,47 @@ function chooseSeptember() {
   fireEvent.change(screen.getByLabelText('Bis (einschließlich)'), {
     target: { value: '2026-09-30' },
   });
+  // The historical report fixture uses Berlin, independently of the browser suggestion.
+  fireEvent.change(screen.getByLabelText('Berichtszeitzone (IANA)'), {
+    target: { value: reportFilters.report_timezone },
+  });
 }
 function read() {
   fireEvent.click(screen.getByRole('button', { name: 'Bericht lesen' }));
 }
 
+function expectTradeReturnLink(link: HTMLElement, tradeId: string, view: string) {
+  const url = new URL(link.getAttribute('href')!, 'https://workspace.test');
+  expect(url.pathname).toBe('/trade-management');
+  expect(url.hash).toBe('#execution-dates');
+  expect(Object.fromEntries(url.searchParams)).toEqual({
+    report_context: 'realized-gross',
+    ...reportFilters,
+    report_view: view,
+    report_page: '1',
+    report_basis: 'a'.repeat(64),
+    trade_id: tradeId,
+  });
+}
+
 beforeEach(() => {
   vi.resetAllMocks();
+  const browserOptions = Intl.DateTimeFormat().resolvedOptions();
+  vi.spyOn(Intl.DateTimeFormat.prototype, 'resolvedOptions').mockReturnValue({
+    ...browserOptions,
+    timeZone: 'America/New_York',
+  });
   api.realizedGross.mockResolvedValue(realizedGrossReport());
 });
+
+afterEach(() => vi.restoreAllMocks());
 
 it('uses fixed EUR, keeps the visible reporting zone, and displays independent September contributions with all preceding sources', async () => {
   renderPage();
   expect(api.realizedGross).not.toHaveBeenCalled();
   expect(screen.getByLabelText('Berichtswährung')).toHaveValue('EUR');
   expect(screen.getByLabelText('Berichtswährung')).toHaveAttribute('readonly');
-  expect(screen.getByLabelText('Berichtszeitzone (IANA)')).toHaveValue('Europe/Berlin');
+  expect(screen.getByLabelText('Berichtszeitzone (IANA)')).toHaveValue('America/New_York');
   chooseSeptember();
   read();
   expect(await screen.findByTestId('realized-gross-total')).toHaveTextContent('10,00 EUR');
@@ -71,9 +96,11 @@ it('uses fixed EUR, keeps the visible reporting zone, and displays independent S
   expect(detail.getByRole('listitem', { name: 'Buchungsquelle sell-september-1' })).toBeVisible();
   expect(detail.getByRole('listitem', { name: 'Buchungsquelle buy-september' })).toBeVisible();
   expect(detail.getByRole('listitem', { name: 'Buchungsquelle sell-september-2' })).toBeVisible();
-  expect(
+  expectTradeReturnLink(
     detail.getByRole('link', { name: 'Buchungen und Währungsbestätigungen im Trade prüfen' }),
-  ).toHaveAttribute('href', '/trade-management?trade_id=trade-1#execution-dates');
+    'trade-1',
+    'candidates',
+  );
   expect(api.realizedGross).toHaveBeenCalledOnce();
 });
 
@@ -464,9 +491,11 @@ it('shows excluded currencies and cancelled trades without treating them as retu
   expect(screen.getByText('Nicht in der Summe')).toBeVisible();
   expect(screen.getByText(/Belegte Ausführungswährung außerhalb/)).toBeVisible();
   expect(screen.getByTestId('realized-gross-total')).toHaveTextContent('10,00 EUR');
-  expect(
+  expectTradeReturnLink(
     screen.getByRole('link', { name: 'Stornierter Testtrade · Trade prüfen' }),
-  ).toHaveAttribute('href', '/trade-management?trade_id=cancelled#execution-dates');
+    'cancelled',
+    'excluded',
+  );
   expect(api.realizedGross).toHaveBeenCalledOnce();
 });
 
