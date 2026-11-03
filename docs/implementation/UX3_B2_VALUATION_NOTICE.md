@@ -32,6 +32,7 @@ erneut abzugleichen; fremde Änderungen bleiben erhalten.
 | `frontend/src/features/trade/components/ProductValuationPanel.notices.test.tsx` | Neue gezielte Gegenfälle zu Q12/TC-49, unbekannten Codes, gültigem Sitzungskurs und unveränderten Anzeige-/Lesegrenzen. |
 | `frontend/src/features/trade/components/ProductValuationPanel.test.tsx` | Bestehende falsche LAST_AVAILABLE-Erwartung korrigieren; STALE-Gegenfall erhalten. |
 | `frontend/src/features/trade/components/ProductValuationPanel.currency.test.tsx` | Einzelne Warntext-Assertion für die synthetische Kombination OUTDATED + INDICATIVE ohne bestätigten Altersgrenzbeleg anpassen; Werte, Fixtures und G/V-Qualifikation erhalten. |
+| `tests/e2e/position-monitoring-health.spec.ts` | Bestehende Browserfälle für STALE und LAST_AVAILABLE unterscheiden; jeweils den falschen Hinweis ausschließen. Getrennte Basiswert-Health, Geldwerte und Read-only-Assertions erhalten. |
 | Dieser Bericht | Ausgangsbasis, begrenzter Umfang, tatsächliche Prüfbelege und verbleibende Arbeit. |
 | `docs/ui/ux-3/integration-and-rollout.md` | Einstieg und Abschnitt 7: historischen B1-Abschluss, aktuellen ersten B2-Schnitt und getrennten verbleibenden PositionDetails-Auftrag einordnen. |
 
@@ -127,10 +128,29 @@ Die gezielten Fälle ergänzen die unveränderten Projektgates; sie ersetzen sie
 | --- | --- |
 | Gezielte neue Hinweisfälle und bestehende Bewertungsregressionen | **35/35 Tests in vier Dateien bestanden**, darunter acht neue Gegenfälle; Node 22.16.0 und unverändertes Lockfile. Der STALE-Fall, die Währungsqualifikation und die Emittentenzeitregressionen bleiben erhalten. |
 | Typecheck, Lint, Formatierung und Produktbuild | Vollständiger TypeScript-Buildcheck, ESLint und Prettier für die betroffenen Bewertungsdateien sowie Vite-Produktionsbuild erfolgreich, jeweils Exit 0. |
-| Dateiabgleich | Die sechs vorgesehenen Dateien überschneiden sich mit keiner Datei der zum Abgleich offenen PRs #315, #220, #207, #205, #197 und #187. Die später integrierten UX4-B-Dateien bleiben erhalten. |
+| Dateiabgleich | Die sechs ursprünglich vorgesehenen Dateien überschneiden sich mit keiner Datei der offenen PRs #315, #220, #207, #205, #197 und #187. Am 03.11. wurde auch der ergänzte Browserpfad gegen deren vollständige aktuelle Dateilisten ohne Überschneidung geprüft. Die später integrierten UX4-B-Dateien bleiben erhalten. |
 | Erforderliche reguläre PR-Gates | Werden zusätzlich auf dem tatsächlichen PR-Head qualifiziert; die lokale Auswahl und frühere B1-/UX4-Läufe ersetzen sie nicht. |
 | B2-PR, finaler Head, aktuelle Basis, Testmerge/Tree, Run-/Jobbelege | Die PR-Übergabe bindet diese tatsächlichen Integrationsnachweise gesondert. Dieser lokale Bericht behauptet weder erfolgreiche Remote-CI noch Mainintegration oder Tagveröffentlichung allein aufgrund der Vorprüfung. |
 | Menschliche fachliche/UI-Abnahme, Screenreader und echter Browserzoom | Nicht als erfolgt nachgewiesen; automatisierte Tests ersetzen diese Nachweise nicht. |
+
+## Ergänzende Browserregression am 03.11.2026
+
+Der erste reguläre Smoke-Lauf auf Head
+`4d2fe48b68440f3c60d3aae2aca3942d02714537` und Testmerge
+`c594e18bb773c0455a359f07dc645de934f8a3c0` fand eine weitere alte
+Text-Erwartung: Der Browserfall für `LAST_AVAILABLE` verlangte noch pauschal
+„Kursdaten veraltet“. Der [tatsächliche fehlgeschlagene Job](https://github.com/burckhju/trading-workspace/actions/runs/41582694560/job/125740925463)
+meldet einen fehlgeschlagenen, 153 bestandene und fünf übersprungene Fälle.
+Seine Fixture liefert einen verwendbaren letzten Sitzungskurs; die unabhängige
+Basiswert-Health bleibt zugleich `STALE`.
+
+Die bestehende Browserprüfung erwartet jetzt den zum gelieferten Produktstatus
+passenden Hinweis und schließt den jeweils falschen Hinweis ausdrücklich aus.
+Beide Fälle bleiben enthalten. Health-, Geld- und Read-only-Assertions,
+Fixtures, Zeitlimits, Retrykonfiguration und Projektgates werden nicht verändert.
+Die Runtime bleibt gegenüber der lokalen Vorprüfung unverändert. Der gesamte
+Produktschnitt umfasst damit sieben Dateien und benötigt einen neuen vollständigen
+PR-Lauf auf dem korrigierten Head; frühere Teilerfolge ersetzen diesen nicht.
 
 Dieser Bericht ist kein zweiter Arbeitsstatuskatalog. Der erste Produktschnitt
 schließt Q12 nicht insgesamt ab: Der Auffangtext in `PositionDetails` bleibt
