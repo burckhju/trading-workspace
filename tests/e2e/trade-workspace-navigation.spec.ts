@@ -803,9 +803,9 @@ for (const [name, amount, qualified, expected] of [
       name: "Produktbewertung",
       exact: true,
     });
-    const pnl = valuation.locator("dl > div").filter({
-      has: valuation.getByText("Unrealized gross P&L", { exact: true }),
-    });
+    const pnl = valuation
+      .getByText("Unrealized gross P&L", { exact: true })
+      .locator("..");
     await expect(pnl.locator("dd").first()).toHaveText(expected);
     await expect(valuation.getByText("25 EUR", { exact: true })).toBeVisible();
     await expect(valuation.getByText("999 EUR", { exact: true })).toHaveCount(
