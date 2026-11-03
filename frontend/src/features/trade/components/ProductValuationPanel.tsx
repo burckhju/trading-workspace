@@ -92,7 +92,8 @@ function priceTypeText(type: string | null | undefined): string {
   return 'Bid';
 }
 
-function warningText(warning: string): string {
+function warningText(value: ProductPositionValuationResponse): string {
+  const warning = value.analysis_warning;
   if (warning === 'QUOTE_TIMEZONE_UNKNOWN_INDICATIVE_ANALYSIS_ONLY') {
     return 'Zeitzone des Kurszeitpunkts unbekannt – indikative Analyse';
   }
@@ -105,7 +106,20 @@ function warningText(warning: string): string {
   if (warning === 'REFERENCE_PRICE_INDICATIVE_ANALYSIS_ONLY') {
     return 'Handels- oder Schlusskurs – indikative Analyse';
   }
-  return 'Kursdaten veraltet – nur indikative Analyse';
+  if (warning === 'OUTDATED_QUOTE_INDICATIVE_ANALYSIS_ONLY') {
+    if (value.status === 'STALE') return 'Kursdaten veraltet – nur indikative Analyse';
+    if (value.status === 'LAST_AVAILABLE') {
+      return 'Letzter verfügbarer Produktkurs – indikative Analyse';
+    }
+    if (
+      value.status === 'INDICATIVE' &&
+      value.reason === 'REFERENCE_PRICE_AVAILABLE_FOR_ANALYSIS' &&
+      value.quote_age_limit_exceeded === true
+    ) {
+      return 'Referenzkurs überschreitet die gemeldete Altersgrenze – indikative Analyse';
+    }
+  }
+  return 'Hinweis zur Kursbasis – Ursache nicht näher erläutert';
 }
 
 /** Technical readiness of the host's independently validated position read. */
@@ -276,7 +290,7 @@ export function ProductValuationPanel({
           role="status"
           className="mt-3 rounded-lg border border-amber-700 bg-amber-950/30 p-3 text-sm text-amber-200"
         >
-          <p className="font-medium">{warningText(value.analysis_warning)}</p>
+          <p className="font-medium">{warningText(value)}</p>
           <p className="mt-1">
             Analyseergebnisse und Empfehlungen auf dieser Kursbasis beziehen sich auf den letzten
             verfügbaren Kurs. Sie entscheiden, wie Sie Quelle und Aktualität für Ihre Auswertung
@@ -295,6 +309,21 @@ export function ProductValuationPanel({
               ist indikativ.
             </p>
           )}
+          <details className="mt-2 min-w-0 [overflow-wrap:anywhere]">
+            <summary className="cursor-pointer rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400">
+              Originalhinweis zur Kursbasis
+            </summary>
+            <dl className="mt-2 space-y-2 text-xs">
+              <div>
+                <dt>Analysehinweis</dt>
+                <dd>{value.analysis_warning}</dd>
+              </div>
+              <div>
+                <dt>Bewertungsgrund</dt>
+                <dd>{value.reason}</dd>
+              </div>
+            </dl>
+          </details>
         </div>
       )}
 

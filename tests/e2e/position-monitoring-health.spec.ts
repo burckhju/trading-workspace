@@ -171,8 +171,21 @@ for (const valuationStatus of ["STALE", "LAST_AVAILABLE"] as const) {
       page.getByText("Für diesen Trade liegen noch keine Alerts vor."),
     ).toBeVisible();
     await expect(
-      page.getByText("Kursdaten veraltet – nur indikative Analyse"),
+      page.getByText(
+        valuationStatus === "STALE"
+          ? "Kursdaten veraltet – nur indikative Analyse"
+          : "Letzter verfügbarer Produktkurs – indikative Analyse",
+        { exact: true },
+      ),
     ).toBeVisible();
+    await expect(
+      page.getByText(
+        valuationStatus === "STALE"
+          ? "Letzter verfügbarer Produktkurs – indikative Analyse"
+          : "Kursdaten veraltet – nur indikative Analyse",
+        { exact: true },
+      ),
+    ).toHaveCount(0);
     await expect(page.getByText(/Kursstand:/)).toContainText("1 Tag 14 Std.");
     await expect(
       page.getByText("Indikativer Wert (letzter Bid)"),

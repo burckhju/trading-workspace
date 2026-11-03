@@ -4,7 +4,7 @@
 
 ### Live-Basis und Datei-/Leseverantwortung vor dem Produktdiff
 
-Am 03.11.2026 erneut geprüft: Main `3397399e7bf8364501437f9509a4fb18dbe32c08`,
+Am 03.11.2026 vor dem Produktdiff geprüft: Ausgangs-Main `3397399e7bf8364501437f9509a4fb18dbe32c08`,
 Tree `c9362029d9fc3a1d0ccf7bee4e1f5b942e474807`, Version **1.5.38**.
 #321 ist über `e681c79e0c46a6efb9e4eeb7cd18d959ad99ea97`, #320 über
 `91ebbc0f51ef000891aee7218ec6dff6a3ce2620` und #322 über den aktuellen Main
@@ -28,23 +28,26 @@ historische Draft-Quellreferenz, kein zweiter normativer Hinweisvertrag.
 | `tests/e2e/trade-workspace-navigation.spec.ts` | Synthetische Bewertungsfixture und additive Überblicks-/Read-/Tastaturfälle bei 320/390/1280 px | Kopierter Direktlink, Reload, Hash-/Detailwechsel und historische Rückwege | #322 ist integriert: dessen Quellenwahl-, Originalbeleg-, Pagination- und Entwurfsassertionen vollständig erhalten |
 | Dieses UX2-Dokument | Lesevertrag, Herkunft und konkrete Nutzerwege; tatsächliche Prüfbelege im PR | Keine neue Fachstatusquelle | PRODUCT_BACKLOG bleibt einzige fachliche Statusquelle; keine Änderung der fünf Masterdateien |
 
-**Neuer Parallelstand während der Umsetzung:** Der anschließend erschienene
-[UX3-B2-Draft #324](https://github.com/burckhju/trading-workspace/pull/324) wurde am
-Head `5c6eab563595872ab5fc19123578beb8e6870fa9` geprüft. Seine sieben tatsächlichen
-Dateien überschneiden sich in `ProductValuationPanel.tsx`, dessen Haupttest und
-Währungstest mit UX2-B. UX3 ändert Warnursachen/-texte und Originalcodedetails;
-UX2 ändert Props, Readlebensdauer und Platzierung. Ein reiner Dreiwegevergleich
-ist textuell konfliktfrei, qualifiziert aber keinen kombinierten Stand.
+**Parallelstand und anschließende Main-Anbindung von #324:** Der während der
+Umsetzung erschienene [UX3-B2-PR #324](https://github.com/burckhju/trading-workspace/pull/324)
+wurde zunächst als Draft am Head `5c6eab563595872ab5fc19123578beb8e6870fa9` geprüft.
+Seine sieben Dateien überschneiden sich in `ProductValuationPanel.tsx`, dessen
+Haupttest und Währungstest mit UX2-B. UX3 verantwortet Warnursachen/-texte und
+Originalcodedetails; UX2 Props, Readlebensdauer und Platzierung.
 
-#324s neue `ProductValuationPanel.notices.test.tsx` verwendet noch den alten
-Ein-Prop-Aufruf und erwartet einen Positionsread des Panels. Bei Kombination
-muss diese Suite den validierten Hostkontext übergeben und null eigene
-Positionsreads erwarten; ihre Q12-/Qualifikations-/Originalcodeassertionen bleiben
-erhalten. Technisch empfohlene Reihenfolge: #324 auf Main, anschließend UX2-B auf
-genau diesen integrierten Main mit angepasster Testschnittstelle und vollständiger
-neuer CI qualifizieren. Keine erfolgte Abstimmung, Zustimmung, fremde
-Branchübernahme oder kombinierte Freigabe wird behauptet. Der aktuelle
-Main-/Head-/CI-Stand wird am eigenen Draft-PR fortgeschrieben.
+Am 03.11.2026 um 05:47:53 UTC wurde #324 auf Main integriert. Die neue tatsächliche
+Integrationsbasis ist **`7399bccaf0c2923327b15ee43cfbc484e7cd3b30`**; Version 1.5.38
+bleibt erhalten. UX2 übernimmt genau diesen integrierten Main. Die UX3-Mapper,
+Originalhinweisdetails, Warntextassertions und der geänderte Monitoring-E2E-Fall
+bleiben vollständig erhalten. Die neue `ProductValuationPanel.notices.test.tsx`
+erhält den validierten Hostkontext und erwartet null eigene Positionsreads;
+ihre acht Q12-/Qualifikations-/Originalcode-/XSS-/Bedienfälle bleiben erhalten.
+
+Damit ist die zuvor dokumentierte technische Reihenfolge umgesetzt. Der textuell
+saubere Merge allein ist keine kombinierte Qualifikation: Alle regulären Gates
+werden am neuen gemeinsamen Head/Testmerge erneut ausgeführt und am eigenen
+Draft-PR nachgewiesen. Keine fremde Zustimmung, menschliche Fachabnahme oder
+Freigabe zum Merge dieses UX2-PRs wird daraus abgeleitet.
 
 **Ergänzter Prüfschnitt nach der ersten Implementierung:** Die Einbettung und die
 O1-konforme Anzeige betreffen zusätzlich bestehende Browserassertions. Ihre
@@ -66,9 +69,10 @@ in `PositionDetails`; die einzige gemeinsame Datei ist nun
 `position-currency-qualification.spec.ts`. #326 ergänzt dort die Assertions vor
 der Navigation, UX2 präzisiert den Bewertungsselektor danach; beide Teile bleiben
 bei Integration erhalten. #327 am Head
-`72b32d1eedb36b315a9a46fc9a70e10fbf9cf7bb` betrifft UX4-C und hat keine
+`797e08abb10e9a1698cd8c873791baad9b8d4ae3` betrifft UX4-C und hat keine
 Dateischnittmenge. Aus diesen beiden Vergleichen folgt keine zusätzliche
-technische Reihenfolge; die gesonderte #324-Integrationsanforderung bleibt bestehen.
+technische Reihenfolge. Die Anbindung an den integrierten #324-Stand ist oben
+gesondert belegt.
 
 ### Positions- und Bewertungs-Lesevertrag
 
@@ -127,10 +131,11 @@ drei Rohwerte. Der genaue fehlende Teil bleibt benannt; Layout, vorhandene
 Bewertung und ihre eigene G/V-Qualifikation sind davon unabhängig. Keine eigene
 Kostenbasis-, Average-Cost-, FX- oder Ergebnisrechnung.
 
-Der bestehende Q12-Auffangtext für unbekannte `analysis_warning` gehört zum
-gesonderten UX3-B2-Draft #324. UX2-B ändert weder seine Ursache noch dessen Mapper
-und behauptet keine Q12-/F2-Fachabnahme. Alerts, Positionsrisiko und operativer
-Monitoringzustand behalten ihre getrennten Flächen und Owner.
+Die Q12-Hinweisregeln aus dem inzwischen integrierten UX3-B2-Schnitt #324 bleiben
+unverändert beim UX3-Owner; UX2 übernimmt sie ohne neue Ursachen- oder
+Finanzqualifikation. Die gesonderte `PositionDetails`-Fortsetzung in #326 und
+menschliche Q12-/F2-Abnahmen bleiben getrennt. Alerts, Positionsrisiko und
+operativer Monitoringzustand behalten ihre getrennten Flächen und Owner.
 
 ### Vorherige und neue Nutzerwege
 

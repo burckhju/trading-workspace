@@ -298,7 +298,9 @@ describe('ProductValuationPanel', () => {
     expect(await screen.findByText('Letzter verfügbarer Produktkurs')).toBeInTheDocument();
     expect(screen.getByText('Indikativer Wert (letzter Bid)')).toBeInTheDocument();
     expect(screen.getByText('Indikativer unrealized gross P&L')).toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent('Kursdaten veraltet');
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Letzter verfügbarer Produktkurs – indikative Analyse',
+    );
     expect(screen.getByText(/keine Freigabe zur Orderausführung/)).toBeInTheDocument();
   });
 
