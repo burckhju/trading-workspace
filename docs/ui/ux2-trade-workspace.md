@@ -35,9 +35,9 @@ Seine sieben Dateien überschneiden sich in `ProductValuationPanel.tsx`, dessen
 Haupttest und Währungstest mit UX2-B. UX3 verantwortet Warnursachen/-texte und
 Originalcodedetails; UX2 Props, Readlebensdauer und Platzierung.
 
-Am 03.11.2026 um 05:47:53 UTC wurde #324 auf Main integriert. Die neue tatsächliche
-Integrationsbasis ist **`7399bccaf0c2923327b15ee43cfbc484e7cd3b30`**; Version 1.5.38
-bleibt erhalten. UX2 übernimmt genau diesen integrierten Main. Die UX3-Mapper,
+Am 03.11.2026 um 05:47:53 UTC wurde #324 auf Main integriert. Die erste aktualisierte
+Integrationsbasis war **`7399bccaf0c2923327b15ee43cfbc484e7cd3b30`** mit Version 1.5.38.
+UX2 übernahm genau diesen integrierten Main. Die UX3-Mapper,
 Originalhinweisdetails, Warntextassertions und der geänderte Monitoring-E2E-Fall
 bleiben vollständig erhalten. Die neue `ProductValuationPanel.notices.test.tsx`
 erhält den validierten Hostkontext und erwartet null eigene Positionsreads;
@@ -48,6 +48,16 @@ saubere Merge allein ist keine kombinierte Qualifikation: Alle regulären Gates
 werden am neuen gemeinsamen Head/Testmerge erneut ausgeführt und am eigenen
 Draft-PR nachgewiesen. Keine fremde Zustimmung, menschliche Fachabnahme oder
 Freigabe zum Merge dieses UX2-PRs wird daraus abgeleitet.
+
+**Spätere Main-Fortschreibung durch den separaten Release-PR #328:** Am 03.11.2026
+um 06:09:41 UTC wurde `14913454ddecd1a9559639ec19d7373cf5269e90` integriert.
+Dies ist die aktuelle Mainbasis des UX2-Branches; ihre Version **1.5.39** wird
+unverändert übernommen. #328 ändert ausschließlich Versionseinträge in
+`VERSION`, Backend-/Frontendmanifest und Lockdatei sowie seine Releasebeschreibung.
+Diese Dateien enthalten gegenüber diesem Main keinen eigenen UX2-Diff. UX2 führt
+keine eigene Versionsanhebung, Veröffentlichung, Bereitstellung oder PC-Aktualisierung
+aus. Auch nach dieser Basisfortschreibung wird der vollständige gemeinsame Stand
+mit neuen regulären Gates am tatsächlichen Head/Testmerge qualifiziert.
 
 **Ergänzter Prüfschnitt nach der ersten Implementierung:** Die Einbettung und die
 O1-konforme Anzeige betreffen zusätzlich bestehende Browserassertions. Ihre
@@ -64,12 +74,12 @@ Der Bewertungsblock nutzt die vorhandene Kartenbreite. Die bestehenden
 Mindestbreiten im Risikotest werden nicht abgesenkt.
 
 Beim weiteren Live-Abgleich wurden außerdem zwei neue offene Drafts geprüft:
-#326 am Head `799d2d69d45e890a440ed4963ad5399335bb8b75` betrifft die Q12-Darstellung
+#326 am Head `a2481215c857c68dc74cca947b2f70f653877f21` betrifft die Q12-Darstellung
 in `PositionDetails`; die einzige gemeinsame Datei ist nun
 `position-currency-qualification.spec.ts`. #326 ergänzt dort die Assertions vor
 der Navigation, UX2 präzisiert den Bewertungsselektor danach; beide Teile bleiben
 bei Integration erhalten. #327 am Head
-`797e08abb10e9a1698cd8c873791baad9b8d4ae3` betrifft UX4-C und hat keine
+`2d134bcd07599902606161af857c6d211f8a4fd7` betrifft UX4-C und hat keine
 Dateischnittmenge. Aus diesen beiden Vergleichen folgt keine zusätzliche
 technische Reihenfolge. Die Anbindung an den integrierten #324-Stand ist oben
 gesondert belegt.
