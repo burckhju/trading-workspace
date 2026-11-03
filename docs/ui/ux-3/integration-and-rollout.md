@@ -4,13 +4,16 @@
 [Hinweisvertrag](notice-contract.md) · [Komponenten](components-and-actions.md) ·
 [Tests und Abnahme](test-and-acceptance.md)
 
-Der bestehende B1/F1-Produktpilot wird in
-[PR #320](https://github.com/burckhju/trading-workspace/pull/320) qualifiziert.
+Der B1/F1-Produktpilot wurde mit
+[PR #320](https://github.com/burckhju/trading-workspace/pull/320) integriert und über
+[#323](https://github.com/burckhju/trading-workspace/pull/323) als
+[v1.5.38](../../releases/V1.5.38-UX3-CURRENCY-NOTICE.md) veröffentlicht.
 Der [Pilotbericht](../../implementation/UX3_B1_CURRENCY_NOTICE.md) trennt Umfang,
 Prüfungen und offene Abnahmen. Die damalige Draftfortsetzung und Rücknahme der
-parallelen Releasevorbereitung bleiben historische Schritte. Der anschließende
-Abschlussauftrag bestätigt Merge bei grünen Prüfungen und PC-Bereitstellung über
-den [separaten Versionsschnitt](../../releases/V1.5.38-UX3-CURRENCY-NOTICE.md).
+parallelen Releasevorbereitung bleiben historische Schritte. Der am 02.11.2026
+beauftragte erste B2/F4-Schnitt betrifft genau `ProductValuationPanel`; Umfang und
+noch ausstehende neue Nachweise stehen im
+[B2-Qualifikationsbericht](../../implementation/UX3_B2_VALUATION_NOTICE.md).
 Die folgenden UX3-K-Quellen-/Parallelstände sind historische Konsolidierungsbelege.
 
 ## 1. Umfang und Zuständigkeit
@@ -379,50 +382,66 @@ stehen getrennt in der Pilotqualifikation und am tatsächlichen PR-/Testmerge-He
 
 ## 7. Wichtigster nächster Umsetzungsschritt
 
-**Den vorhandenen B1/F1-Diff mit aktuellen Nachweisen abschließen.** In
-[#320](https://github.com/burckhju/trading-workspace/pull/320) gehören tatsächlicher
-Head, Mainbasis, Testmerge/Tree und erforderliche Run-/Jobbelege zusammen.
-Die parallele Versions- und Releasevorbereitung wurde auf Nutzerentscheidung aus
-dem Pilotbranch zurückgenommen; dort blieb Version 1.5.37 erhalten. Der
-anschließende Auftrag „So umsetzen“ bestätigt den Abschluss auf Grundlage der
-bereits erteilten Freigabe zum Merge bei grünen Prüfungen und zur
-PC-Bereitstellung. Die Veröffentlichung wird in einem separaten Release-PR
-vorbereitet. Integration, Tagveröffentlichung und tatsächliche PC-Installation
-benötigen jeweils ihren eigenen Nachweis; sie werden hier nicht als erfolgt ausgegeben.
-Die offenen menschlichen Fach-/Screenreader-/Zoomnachweise bleiben gesondert.
+**Aktueller Auftrag: den ersten B2/F4-Teilschnitt zu Q12 ausschließlich in
+`ProductValuationPanel` umsetzen und qualifizieren.** B1/F1 ist mit
+[#320](https://github.com/burckhju/trading-workspace/pull/320) integriert; der
+separate Release aus [#323](https://github.com/burckhju/trading-workspace/pull/323)
+ist als `v1.5.38` auf `849a6d54eaeb5f5831754c6b15a41358c571f6da` veröffentlicht.
+Der Ausgangs-Main dieses Schnitts `3397399e7bf8364501437f9509a4fb18dbe32c08` enthält danach
+zusätzlich UX4-B aus #322; dieser spätere Schnitt gehört nicht zum v1.5.38-Tag.
+Eine tatsächliche PC-Installation oder menschliche Abnahme wird damit nicht behauptet.
 
-Danach wird der bereits in Abschnitt 5 geplante **B2/F4-Teilschnitt zu Q12** an
-genau einer bestehenden Bewertungsfläche abgegrenzt. Die übrigen F4-Flächen,
-F2-Finanzqualifikation und B3/B4/C/D-Aufträge werden dadurch nicht erweitert.
-Der folgende kopierbare Startprompt konkretisiert diesen vorhandenen Auftrag;
-er erteilt keine neue Freigabe:
+Der Nutzerauftrag vom 02.11.2026 autorisiert die Fortsetzung; die bestehende
+Merge-bei-Grün- und PC-Bereitstellungsfreigabe bleibt erhalten. Der konkrete
+[Datei-/Ownerschnitt und die Abnahmefälle](../../implementation/UX3_B2_VALUATION_NOTICE.md)
+erhalten Finanzqualifikation, Usability, Quellenzeiten und die bestehenden Reads.
+Unbekannte Warncodes begründen keine erfundene Ursache; der OUTDATED-Code allein
+beweist keinen STALE-Status. Die lokale Vorprüfung umfasst 35 erfolgreiche Tests
+in vier Bewertungsdateien, Typecheck, gezielte Lint-/Formatprüfung und Produktbuild.
+Die regulären PR-/Integrationsnachweise werden gesondert am tatsächlichen Head
+gebunden; frühere grüne Läufe ersetzen sie nicht.
+
+**Verbleibende Q12-Fläche nach diesem Schnitt: `PositionDetails`.** Q12 und B2
+werden durch die erste Korrektur nicht pauschal abgeschlossen. Die übrigen
+F4-Flächen, F2-Finanzqualifikation und B3/B4/C/D bleiben getrennt. Der folgende
+kopierbare Startprompt beschreibt ausschließlich den verbleibenden Folgeschnitt;
+er nimmt ihn nicht in den aktuellen ProductValuationPanel-PR auf:
 
 ```text
-Setze den gesonderten UX3-B2/F4-Teilschnitt zu Q12 in trading-workspace um.
-Prüfe zuerst den tatsächlichen aktuellen Main, den integrierten B1/F1-Stand,
-den kanonischen UX3-Vertrag und offene parallele Arbeit an der betroffenen
-Fläche. Erhalte fremde Änderungen und grenze gemeinsame Dateien mit dem
-bestehenden Owner ab; alte Heads sind keine aktuelle Integrationsgrundlage.
+Setze den verbleibenden gesonderten UX3-B2/F4-Teilschnitt zu Q12 in
+trading-workspace an genau der bestehenden PositionDetails-Fläche um.
+Prüfe zuerst tatsächlichen aktuellen Main, den B1-Stand, den erreichten
+ProductValuationPanel-Teilschnitt, den kanonischen UX3-Vertrag und offene
+parallele PRs. Erhalte fremde Änderungen und lege nach Inspektion die konkrete
+Datei-/Ownerliste fest; alte Heads sind keine aktuelle Integrationsgrundlage.
 
-Prüfe Q12 am tatsächlichen Code von ProductValuationPanel beziehungsweise
-PositionDetails. Lege nach dieser Inspektion genau eine betroffene bestehende
-Bewertungsfläche und die konkrete Datei-/Ownerliste fest. Erkläre dort eine
-belegte Einschränkung aus den vorhandenen Bewertungsdaten. Ein unbekanntes
-analysis_warning beweist keinen veralteten Kurs. MISSING/UNAVAILABLE/ERROR
-belegen keinen verfügbaren Referenzkurs; LAST_AVAILABLE ist nicht pauschal
-STALE. Unbekannte Ursachen bleiben ausdrücklich unbekannt. Erhalte Geldwerte,
-valuation_usable, analysis_usable, die eigenständige G/V-Qualifikation,
+Lies den tatsächlichen OperationalPosition-Vertrag und vorhandene
+Qualifikationshelper. MISSING/UNAVAILABLE/ERROR belegen keinen verfügbaren
+Referenzkurs; LAST_AVAILABLE ist nicht pauschal STALE. Ein unbekannter
+analysis_warning beweist weder veraltete Daten noch einen Providerfehler.
+Zeige nur belegte Wirkung und benenne unbekannte Ursachen. Übernimm vorhandene
+Usabilityflags, soweit der konkrete DTO sie liefert. Erfinde fehlende Flags
+nicht aus Zahlen, einem Marktwert oder dem Vorhandensein eines Kursfelds.
+Erhalte Geldwerte, die eigenständige G/V-Qualifikation, echte Nullwerte,
 Originalzeiten, Quellenreferenzen, sichere Ziele und fachliche Statusmodelle.
 
-Verwende den vorhandenen B1-Präsentationskern nur soweit er diesen konkreten
-Fall trägt. Implementiere keine Währungsresolver, Finanz-/FX-Berechnungen,
-Providerqualifikation, Trading-/Planfreigabe- oder Recoveryregeln, generische
-Hinweisengine, automatische Aktion oder globale Hostmigration.
+Ändere nur diese vorhandene Hinweisfläche und ihre gezielten Tests. Erhalte
+UX2-Host, Navigation und Guards sowie den integrierten UX4-Historienrenderer
+einschließlich Quellenwahl und Originalbelegzugang unverändert. Keine weitere
+Änderung an ProductValuationPanel in diesem Folgeschnitt. Verwende den
+B1-Präsentationskern nur, soweit er den Fall ohne erfundenes Aktionsziel trägt;
+keine Shared-Erweiterung allein zur Erzwingung einer Karte.
 
-Prüfe TC-49 und die vorhandenen betroffenen Bewertungsregressionen. Liefere
-einen kleinen getrennten PR mit konkretem Scope, aktuellen Head-/Tree-/
-CI-Nachweisen und offen benannten fachlichen/UI-Abnahmen. Dieser gesonderte
-Folgeschnitt benötigt seinen konkreten Nutzerauftrag und die erforderlichen
-Projektgates; dieser Startprompt erteilt keine Umsetzung-, Merge- oder
-Releasefreigabe.
+Implementiere keine Währungsresolver, Finanz-/FX-Berechnungen,
+Providerqualifikation, Trading-/Planfreigabe- oder Recoveryregeln, generische
+Hinweisengine, automatische Aktion oder globale Hostmigration. Fehlende
+Ownerfakten bleiben ausdrücklich unbekannt und werden nicht im Frontend ergänzt.
+
+Prüfe TC-49 und die vorhandenen betroffenen Positions-/Bewertungsregressionen:
+fehlender Kurs ohne Referenzbehauptung, gültiger letzter Sitzungskurs versus
+STALE, unabhängiger Marktwert und G/V, Quellenzeit sowie unveränderte Lese-/
+Schreib- und Navigationsgrenzen. Liefere einen kleinen getrennten PR mit
+konkretem Scope, aktuellen Head-/Tree-/CI-Nachweisen und offen benannten
+fachlichen/UI-Abnahmen. Die bestehenden Projektgates bleiben unverändert.
+Behaupte keinen pauschalen Abschluss von B2, Q12 oder weiteren UX-Aufträgen.
 ```

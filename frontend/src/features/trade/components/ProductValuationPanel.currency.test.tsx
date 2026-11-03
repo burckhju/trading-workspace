@@ -95,7 +95,13 @@ describe.each([
       ).parentElement!;
       expect(within(pnl).getByText('—')).toBeInTheDocument();
       expect(screen.getByText(/Bewertungsquelle: SYNTHETIC_QUOTE/)).toBeInTheDocument();
-      if (analysis) expect(screen.getByRole('status')).toHaveTextContent('indikative Analyse');
+      if (analysis) {
+        expect(screen.getByRole('status')).toHaveTextContent(
+          status === 'INDICATIVE'
+            ? 'Hinweis zur Kursbasis – Ursache nicht näher erläutert'
+            : 'indikative Analyse',
+        );
+      }
     },
   );
 });
