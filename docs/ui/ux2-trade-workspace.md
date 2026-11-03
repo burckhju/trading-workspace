@@ -1,5 +1,115 @@
 # UX-2: Einheitlicher Trade- und Positionsarbeitsbereich
 
+## UX2-B — aktueller, begrenzter Implementierungsschnitt
+
+### Live-Basis und Datei-/Leseverantwortung vor dem Produktdiff
+
+Am 03.11.2026 erneut geprüft: Main `3397399e7bf8364501437f9509a4fb18dbe32c08`,
+Tree `c9362029d9fc3a1d0ccf7bee4e1f5b942e474807`, Version **1.5.38**.
+#321 ist über `e681c79e0c46a6efb9e4eeb7cd18d959ad99ea97`, #320 über
+`91ebbc0f51ef000891aee7218ec6dff6a3ce2620` und #322 über den aktuellen Main
+integriert. Der getrennte Versionsschnitt #323 und Tag `v1.5.38` zeigen auf
+`849a6d54eaeb5f5831754c6b15a41358c571f6da`; UX4-B liegt danach auf Main.
+Die früheren Main-/Draftangaben unten und in den Masterdokumenten sind datierte
+Nachweise. Die integrierten Owner-/Schutzverträge gelten weiter. #321 verändert
+genau die fünf Masterdateien; sie bleiben in diesem Auftrag unverändert.
+
+Kein bestehender UX2-B-Branch oder -PR wurde gefunden. Eigener Branch:
+`feat/ux2-b-trade-overview`. Die offenen PRs #315, #220, #207, #205, #197 und #187
+haben keine Dateiüberschneidung mit dem folgenden Schnitt. #315 bleibt eine
+historische Draft-Quellreferenz, kein zweiter normativer Hinweisvertrag.
+
+| Datei / bestehender Owner | Erlaubter Änderungsschnitt | Props und Lade-/Aktualisierungspfad | Überschneidung / Integrationsfolge |
+| --- | --- | --- | --- |
+| `frontend/src/features/trade/pages/TradeManagementPage.tsx`: UX2-Host, validiert Trade/Position/Management/Produkt | Vorhandenen Überblick komponieren, validierte Position weiterreichen, technische Readbereitschaft und Revision führen | `tradeId`, `productId`, `position`, `cancelled`, `positionRead`; Reload und bestehende Write-Readbacks erneuern den Host; Timelineereignis invalidiert nur | UX1-Entwürfe/Preview erhalten; UX4-Slot mit `tradeId`, `positionId`, `historyReloadToken` erhalten. Direkt auf aktuellem Main |
+| `frontend/src/features/trade/pages/index.ts`: Routenexport mit separat angehängter Bewertung | Bestehende Seite direkt exportieren; Bewertung nur im Hostüberblick | Kein eigener Positions-/Bewertungsread mehr außerhalb des Hosts; Quellenmodus bleibt ausgeschlossen | Gemeinsam mit Host/Panel integrieren; keine neue Route |
+| `frontend/src/features/trade/components/ProductValuationPanel.tsx`: Bewertungsread und bestehende Qualifikationsdarstellung | Doppelten Positionsread entfernen; unabhängigen Bewertungszustand an validierten Host und Revision binden; ausführliche Herkunft aufklappbar ordnen | Nur `productValuation`; Abort/Generation, Trade-/Positions-/optionale Basisidentität prüfen; keine Hash-/Detailabhängigkeit | Vorbereiteter UX3-B2/Q12-Schnitt: Status-/Reason-/Warningmapper bleiben UX3; spätere Arbeit auf neuen Propvertrag abgleichen. Keine Zustimmung eines anderen Leads behauptet |
+| Bewertungs-/Host-/Kontexttests unter `frontend/src/features/trade/` | Geänderte Readzahlen, Qualifikation, Racefälle, Readback und Entwurfserhalt absichern | OPEN/CLOSED/CANCELLED, fehlende/fremde Daten, Reload, A→B→A, bestätigter Write mit erfolgreichem/fehlgeschlagenem Readback | Bestehende UX1-/Chartregressionen behalten |
+| `tests/e2e/trade-workspace-navigation.spec.ts` | Synthetische Bewertungsfixture und additive Überblicks-/Read-/Tastaturfälle bei 320/390/1280 px | Kopierter Direktlink, Reload, Hash-/Detailwechsel und historische Rückwege | #322 ist integriert: dessen Quellenwahl-, Originalbeleg-, Pagination- und Entwurfsassertionen vollständig erhalten |
+| Dieses UX2-Dokument | Lesevertrag, Herkunft und konkrete Nutzerwege; tatsächliche Prüfbelege im PR | Keine neue Fachstatusquelle | PRODUCT_BACKLOG bleibt einzige fachliche Statusquelle; keine Änderung der fünf Masterdateien |
+
+### Positions- und Bewertungs-Lesevertrag
+
+Der Host besitzt die validierte Position. Seine vorhandenen Trade-, Positions-,
+Management- und Produktprüfungen bleiben Erfolgsvoraussetzung des fachlichen
+Readbacks. Die Bewertung bleibt ein nachgelagerter, unabhängiger Reader und wird
+**keine zusätzliche Erfolgsvoraussetzung** einer gespeicherten Buchung.
+
+Jeder Hostversuch und jede bestätigte passende Buchungsänderung entwerten die
+bisherige Bewertungsrevision. Das Timelineereignis belegt den bestätigten Write,
+nicht den anschließenden erfolgreichen Host-Readback: Es invalidiert nur und
+startet keinen eigenen Positionsread. Erst ein erfolgreich validierter, offener,
+nicht stornierter Hoststand erlaubt einen Bewertungsread. `historyReloadToken`
+bleibt bei seiner bisherigen Bedeutung für Chart und UX1-Vorschau; er allein
+wäre für den Fall „Write bestätigt, Host-Readback fehlgeschlagen“ unzureichend.
+
+| Ereignis | Position / Bewertung | Sichtbarer vorheriger Stand |
+| --- | --- | --- |
+| Erster OPEN-Aufruf | Ein Hostpositionsread, danach ein Bewertungsread | Kein erfundener Wert während Laden/Fehler |
+| CLOSED oder CANCELLED | Ein Hostpositionsread, kein aktueller Bewertungsread | Historische Zugänge; kein neuer Pflichtschritt |
+| Same-Trade-Reload | Alte Revision sofort ungültig; ein Hostread; Bewertung erst nach dessen Erfolg | Letzte Hostidentität/Position mit sichtbarem Aktualisierungsvorbehalt; Entwürfe/Chart bleiben gemountet; alte Bewertung ausgeblendet |
+| Bestätigter Write | Timelineereignis invalidiert, bestehender Aufrufer führt Host-Readback aus | Receipt bleibt vom Readback getrennt |
+| Host-Readback erfolgreich | Neue Revision; ein neuer Bewertungsread | Neuer validierter Hoststand; Bewertung hat eigenes Laden/Ergebnis/Fehler |
+| Host-Readback fehlgeschlagen | Keine neue Bewertungsfreigabe | Alte Bewertung bleibt ungültig; letzter Hoststand ausdrücklich als nicht aktualisiert kenntlich |
+| Tradewechsel / A→B→A | Bestehender keyed Kontext, Abort und Generation; Identitäten erneut prüfen | Kein fremder oder bereits abgeschlossener alter Erfolg/Fehler darf wiederkehren |
+| Hashwechsel / Details | Null zusätzliche Positions-/Bewertungsreads | Formulare und Chartzustand erhalten |
+| `view=sources` | Keine aktuellen Positionsbewertungsreads | Bestehende unabhängige historische Quellenreader |
+
+Die Bewertungsantwort muss zum Trade und zur Position gehören; eine vorhandene
+`position_basis.position` zusätzlich zu Trade, Position und Produkt. Die
+Mengen-/Zeit-/Geldwerte verschiedener Reader werden nicht auf vermeintliche
+Gleichzeitigkeit geprüft oder gemeinsam verrechnet. Zusammen dargestellte
+Abschnitte garantieren **keinen atomaren Finanzsnapshot**. Die tatsächliche
+Bewertungsbasis bleibt über `PositionValuationBasisDetails` erreichbar.
+
+### Herkunftsmatrix des Überblicks
+
+| Anzeigewert | Vorhandener Owner / DTO | Qualifikation und Basis | Ohne passenden Nachweis |
+| --- | --- | --- | --- |
+| Trade-/Produktidentität, ISIN/WKN | TradePosition `TradeResponse`; Produkt `WarrantResponse` | Host prüft Trade-/Produktzugehörigkeit | Keine erfundene Identität |
+| OPEN/CLOSED/CANCELLED | `TradeResponse.cancelled_at`, `PositionResponse.is_closed` | Bestehende Lifecyclebedeutung; kein Status aus HTTP 404 | Lade-/Fehlerzustand, keine erfundene Schließung |
+| Offene Menge | `PositionResponse.open_quantity` | Validierte Positionsprojektion, Einheit Stück | Fehlend bleibt fehlend; echte 0 bleibt 0 |
+| Eröffnung, letzte Ausführung, Abschluss | `opened_on/at`, `last_execution_on/at`, `closed_on/at` | Datum ohne Uhrzeit bleibt date-only | Keine ergänzte Uhrzeit |
+| Bid, Ask, Referenzkurs | `ProductPositionValuationResponse` | Bestehende `valuation_usable`-/`analysis_usable`-Anzeige, Kursart und Kurswährung | `null` bleibt „—“, kein Ersatzkurs/Nullbetrag |
+| Marktwert / indikativer Wert | Derselbe DTO: `market_value` / `analysis_market_value` | Jeweilige Ownerverwendbarkeit und tatsächliche Bewertungsbasis | Kein Betrag ohne Verwendbarkeit; `null` bleibt fehlend |
+| Unrealisierter Brutto-G/V | Derselbe DTO: aktuelle oder Analyse-G/V-Felder | `qualifiedUnrealizedPnl`, eigenständiges `unrealized_pnl_usable` bzw. `analysis_unrealized_pnl_usable` und Währung | Bestehender Nichtberechenbarkeitsgrund; echter Nullbetrag bleibt möglich |
+| Volumen, Spread und Spread-% | Bestehende optionale Bewertungsfelder | Unveränderte Ownerwerte; Spreadbezug Bid | Fehlendes Feld entfällt; Volumen 0 bleibt Einschränkung der Handelbarkeit |
+| Kursalter, Kurs-/Abruf-/Bewertungszeit | Bestehende Bewertungsfelder | Originalpräzision, unbekannte Zeitzone und Retention bleiben erhalten | Unbekannt bleibt unbekannt; Abrufzeit ist keine neue Kurszeit |
+| Kostenbasis-/Währungsevidenz | `PositionValuationBasis` | Bestehende Definition, `basis_id`, wirksame Executions und Kaufwährungsnachweise | Kein zusätzlicher Geldqualifikationsschluss |
+
+**O1-Teilblocker:** `PositionResponse.cost_basis`, `average_entry_price` und
+`realized_gross_pnl` besitzen keinen ausreichenden Geldwertvertrag für den neuen
+Überblick. Sie werden dort nicht als qualifizierte Geldwerte präsentiert. Weder
+die heutige Kurswährung noch `currency_status=KNOWN` qualifizieren pauschal diese
+drei Rohwerte. Der genaue fehlende Teil bleibt benannt; Layout, vorhandene
+Bewertung und ihre eigene G/V-Qualifikation sind davon unabhängig. Keine eigene
+Kostenbasis-, Average-Cost-, FX- oder Ergebnisrechnung.
+
+Der bestehende Q12-Auffangtext für unbekannte `analysis_warning` bleibt ein
+gesonderter UX3-B2-Auftrag. UX2-B ändert weder seine Ursache noch dessen Mapper
+und behauptet keine Q12-/F2-Fachabnahme. Alerts, Positionsrisiko und operativer
+Monitoringzustand behalten ihre getrennten Flächen und Owner.
+
+### Vorherige und neue Nutzerwege
+
+| Nutzerziel | Vorher auf dieser bereits vorhandenen Route | UX2-B |
+| --- | --- | --- |
+| Bestand und Produktbewertung gemeinsam prüfen | Positionskopf oben; Bewertung erst hinter Buchungen, Risiko, Verkaufs-/Managementformularen und Storno | Beides direkt im vorhandenen `#trade-overview`, Bewertung vor dem Chart; kein zusätzlicher Seitenwechsel behauptet |
+| Verwendbarkeit/G/V-Grenze erkennen | Bewertung und ihre Einschränkungen erst nach langem Scrollweg | Bestehende Einschränkungen neben den Werten; technische Herkunft aufklappbar |
+| Mögliche weitere Arbeit wählen | Allgemeiner „Nächster Schritt“, einschließlich pauschaler Nachbeobachtungsaufforderung | Konkrete bestehende Links entsprechend OPEN/CLOSED/CANCELLED; keine neue Pflicht aus einem Lifecyclezustand |
+| Bewertung nach Buchungsänderung einordnen | Separater Positionsread und Timelineevent konnten der Hostvalidierung vorauslaufen | Hostposition einmal validiert; neue Bewertung erst nach erfolgreichem Readback; Fehlergrenze sichtbar |
+
+Geplante Prüfungen betreffen genau diese Änderungen. Tatsächlich ausgeführte
+Läufe, finale Dateiliste, Head/Testmerge/Tree und reguläre CI werden am eigenen
+Draft-PR gebunden. Technische Implementierung ist keine menschliche Fachabnahme.
+UX2-C/D, Merge, Versionserhöhung, Release, Deployment und PC-Update sind getrennt.
+
+## Historische UX2-A-Übergabe
+
+Die folgenden zeitgebundenen Angaben dokumentieren die damalige A-Arbeit; ihre
+offenen Integrationsaussagen wurden inzwischen durch #318 und seine Nachfolger
+überholt. Sie sind keine erneuten Umsetzungsaufträge.
+
 ## Prüfgrundlage und Umfang
 
 Die Bestandsaufnahme vom 31.10.2026 beruht auf dem tatsächlich geklonten Main-Commit
