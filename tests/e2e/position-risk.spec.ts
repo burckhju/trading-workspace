@@ -35,8 +35,8 @@ async function expectStackedPanels(
   await expectUsableWidth(page, valuation);
   const riskBounds = await risk.boundingBox();
   const valuationBounds = await valuation.boundingBox();
-  expect(valuationBounds!.y).toBeGreaterThanOrEqual(
-    riskBounds!.y + riskBounds!.height,
+  expect(riskBounds!.y).toBeGreaterThanOrEqual(
+    valuationBounds!.y + valuationBounds!.height,
   );
   const overflow = await page.evaluate(() => ({
     pageWidth: document.documentElement.scrollWidth,
@@ -135,8 +135,9 @@ test("qualified risk preview, explicit activation and immutable evaluation prese
   await page.goto(`/trade-management?trade_id=${captured.trade.id}`);
   const panel = page.getByRole("region", { name: "Risiko- und Trendsignale" });
   const summary = panel.getByRole("region", { name: "Risikoübersicht" });
-  const valuation = page.locator("section").filter({
-    has: page.getByRole("heading", { name: "Produktbewertung", exact: true }),
+  const valuation = page.getByRole("region", {
+    name: "Produktbewertung",
+    exact: true,
   });
   await expect(summary.getByText("Deaktiviert", { exact: true })).toBeVisible();
   await expect(

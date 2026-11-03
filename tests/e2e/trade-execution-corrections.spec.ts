@@ -164,8 +164,6 @@ test("real BUY and SELL amount corrections retain history, reopen the position, 
     open: number,
     cost: RegExp,
     gross: RegExp,
-    uiCost: string,
-    uiGross: string,
   ) {
     const readback = await position();
     expect(readback).toMatchObject({
@@ -189,15 +187,23 @@ test("real BUY and SELL amount corrections retain history, reopen the position, 
         exact: true,
       }),
     ).toHaveCount(1);
-    for (const [label, expected] of [
-      ["Offene Menge", String(open)],
-      ["Cost Basis", uiCost],
-      ["Realized gross P&L", uiGross],
-    ]) {
-      const name = page.getByText(label, { exact: true });
-      await expect(name).toHaveCount(1);
-      await expect(name.locator("..").locator("dd")).toHaveText(expected);
+    const overview = page.getByRole("region", {
+      name: "Trade und Position",
+      exact: true,
+    });
+    const quantity = overview.getByText("Offene Menge", { exact: true });
+    await expect(quantity).toHaveCount(1);
+    await expect(quantity.locator("..").locator("dd")).toHaveText(
+      `${open.toLocaleString("de-DE")} Stück`,
+    );
+    for (const label of ["Cost Basis", "Average Entry", "Realized gross P&L"]) {
+      await expect(overview.getByText(label, { exact: true })).toHaveCount(0);
     }
+    await expect(
+      overview.getByText(
+        /Kostenbasis, durchschnittlicher Einstieg und realisierter Brutto-G\/V/,
+      ),
+    ).toBeVisible();
     evidence.push({ stage, history: await timeline(), position: readback });
     return readback;
   }
@@ -317,8 +323,6 @@ test("real BUY and SELL amount corrections retain history, reopen the position, 
     0,
     /^0(?:\.0+)?(?:e[+-]?\d+)?$/i,
     /^10(?:\.0+)?$/,
-    "0",
-    "10",
   );
   await expect(panel.getByRole("article")).toHaveCount(2);
   await open(originalBuy);
@@ -366,8 +370,6 @@ test("real BUY and SELL amount corrections retain history, reopen the position, 
     0,
     /^0(?:\.0+)?(?:e[+-]?\d+)?$/i,
     /^5(?:\.0+)?$/,
-    "0",
-    "5",
   );
   const buyQuantity = await correct(buyPrice, "Menge", "12", {
     side: "BUY",
@@ -380,8 +382,6 @@ test("real BUY and SELL amount corrections retain history, reopen the position, 
     2,
     /^5(?:\.0+)?$/,
     /^5(?:\.0+)?$/,
-    "5",
-    "5",
   );
   // Read the dependent SELL again after its effective BUY source changed.
   const rereadSell = (await timeline()).find(
@@ -402,8 +402,6 @@ test("real BUY and SELL amount corrections retain history, reopen the position, 
     4,
     /^10(?:\.0+)?$/,
     /^4(?:\.0+)?$/,
-    "10",
-    "4",
   );
   const sellPrice = await correct(sellQuantity, "Preis je Einheit", "3,50", {
     side: "SELL",
@@ -417,8 +415,6 @@ test("real BUY and SELL amount corrections retain history, reopen the position, 
     4,
     /^10(?:\.0+)?$/,
     /^8(?:\.0+)?$/,
-    "10",
-    "8",
   );
   const beforeRejected = await timeline();
 

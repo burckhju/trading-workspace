@@ -46,6 +46,30 @@ neuer CI qualifizieren. Keine erfolgte Abstimmung, Zustimmung, fremde
 Branchübernahme oder kombinierte Freigabe wird behauptet. Der aktuelle
 Main-/Head-/CI-Stand wird am eigenen Draft-PR fortgeschrieben.
 
+**Ergänzter Prüfschnitt nach der ersten Implementierung:** Die Einbettung und die
+O1-konforme Anzeige betreffen zusätzlich bestehende Browserassertions. Ihre
+fachlichen Werte, Write-/Receipt-/Historienprüfungen und Mindestbreiten bleiben
+verbindlich; nur die tatsächlich geänderten Orte und Anzeigen werden angepasst.
+
+| Bestehende E2E-Dateien | Begrenzte Anpassung |
+| --- | --- |
+| `frankfurt-reference-valuation.spec.ts`, `position-currency-qualification.spec.ts`, `position-risk.spec.ts` | Eindeutig benannte Bewertungsregion statt aller verschachtelten Abschnitte; vorhandene Frankfurt-IDs vervollständigen; Herkunft explizit aufklappen; Bewertung vor Risiko prüfen. Bestehende Finanz-, Read-only-, Breiten- und Overflowassertions bleiben erhalten |
+| `ft010-trade-management.spec.ts`, `trade-management-context.spec.ts`, `depot-sell-capture.spec.ts`, `trade-timeline.spec.ts`, `position-price-history.spec.ts` | Offene Menge weiterhin exakt, jetzt mit Einheit Stück; Planreferenz in den Herkunftsdetails prüfen. Kein Chart-/Historienverhalten ändern |
+| `trade-execution-corrections.spec.ts` | Alle exakten API-Betrags-/Average-Cost-/Korrekturprüfungen beibehalten; im Überblick Menge mit Einheit und den O1-Ausschluss unqualifizierter Rohbeträge prüfen |
+
+Der Bewertungsblock nutzt die vorhandene Kartenbreite. Die bestehenden
+Mindestbreiten im Risikotest werden nicht abgesenkt.
+
+Beim weiteren Live-Abgleich wurden außerdem zwei neue offene Drafts geprüft:
+#326 am Head `799d2d69d45e890a440ed4963ad5399335bb8b75` betrifft die Q12-Darstellung
+in `PositionDetails`; die einzige gemeinsame Datei ist nun
+`position-currency-qualification.spec.ts`. #326 ergänzt dort die Assertions vor
+der Navigation, UX2 präzisiert den Bewertungsselektor danach; beide Teile bleiben
+bei Integration erhalten. #327 am Head
+`72b32d1eedb36b315a9a46fc9a70e10fbf9cf7bb` betrifft UX4-C und hat keine
+Dateischnittmenge. Aus diesen beiden Vergleichen folgt keine zusätzliche
+technische Reihenfolge; die gesonderte #324-Integrationsanforderung bleibt bestehen.
+
 ### Positions- und Bewertungs-Lesevertrag
 
 Der Host besitzt die validierte Position. Seine vorhandenen Trade-, Positions-,

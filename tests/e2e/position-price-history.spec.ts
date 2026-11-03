@@ -672,7 +672,7 @@ for (const width of [1440, 390]) {
         .getByText("Offene Menge", { exact: true })
         .locator("..")
         .locator("dd"),
-    ).toHaveText("0");
+    ).toHaveText("0 Stück");
     await expect.poll(() => requests.reads.length).toBe(1);
     expect(requests.reads[0].pathname).toMatch(
       /\/trades\/trade-managed\/price-history$/,

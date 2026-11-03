@@ -644,7 +644,7 @@ function TradeManagementContext({ tradeId }: { tradeId: string }) {
             Ansicht nicht als Geldwerte qualifiziert. Wirtschaftliche Ergebnisse und ihre Belege
             können Sie in den Quellen prüfen.
           </p>
-          <div className="mt-5 min-w-0">
+          <div className="-mx-4 mt-5 min-w-0">
             <ProductValuationPanel
               tradeId={trade.id}
               productId={trade.product_id}
