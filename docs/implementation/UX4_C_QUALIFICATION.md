@@ -8,8 +8,10 @@ Versionswechsel-, Deployment- oder PC-Freigabe.
 
 | Bezug | Exakter Stand |
 | --- | --- |
-| Verifizierter Main bei Start und vor Veröffentlichung | `3397399e7bf8364501437f9509a4fb18dbe32c08` |
+| Verifizierter Main bei Start und Erstveröffentlichung | `3397399e7bf8364501437f9509a4fb18dbe32c08` |
 | Main-Tree / integrierter UX4-B-Tree | `c9362029d9fc3a1d0ccf7bee4e1f5b942e474807` |
+| Neue Mainbasis nach parallel integriertem UX3-B2 #324 | `7399bccaf0c2923327b15ee43cfbc484e7cd3b30` |
+| Vollständiger Tree der neuen Mainbasis | `e6ab672e15468f3be4ad2521ac1e07d1a727eeb1` |
 | Zuerst aktualisierter Startprompt, eigener erster Commit | `c3d9469902c3772c701c03a3ed253f4be0cec1ab` |
 | Implementierungs- und Testsnapshot vor diesem Dokumentnachtrag | `c1a8fc72ad3d143deb072fa79662b420c435fb96` |
 | Vollständiger Tree dieses Implementierungssnapshots | `61308222774165896fc093121cd2cd73a8753a79` |
@@ -25,6 +27,26 @@ PR-Head und seinem realen Checkout. **Die PR-Beschreibung führt die finalen
 Run-/Joblinks, Checkout-SHA, Treevergleich und Ergebnisse.** Dieses Dokument
 hält den fachlichen Schnitt und die lokale Nachweisgrenze fest; es erklärt
 keinen späteren Head allein aufgrund älterer grüner Läufe für qualifiziert.
+
+### Mainfortschreibung während der CI
+
+UX3-B2 [#324](https://github.com/burckhju/trading-workspace/pull/324) wurde am
+03.11.2026 um 05:47:53 UTC unabhängig von diesem Auftrag in Main integriert.
+Der neue Main `7399bccaf0c2923327b15ee43cfbc484e7cd3b30` enthält sieben gegenüber
+`3397399e…` geänderte Dateien für `ProductValuationPanel`, dessen Tests,
+`position-monitoring-health.spec.ts` und zwei UX3-Dokumente. Keine davon gehört
+zum UX4-C-Diff. Der eigene Draftbranch wurde ohne Konflikt auf diesen Main
+rebased; Produkt- und Testdateien von UX4-C bleiben gegenüber seinem zuletzt
+veröffentlichten Head `797e08abb10e9a1698cd8c873791baad9b8d4ae3` unverändert.
+Die vier eigenen Umsetzungsschritte bleiben in derselben Reihenfolge erhalten;
+neue Commit-SHAs und finaler Checkout stehen in der PR-Beschreibung.
+
+Die auf der alten Basis abgeschlossenen Frontend-, Browser- und Guardprüfungen
+bleiben ihrem tatsächlichen Testmerge `343e7f682e0f3793b25307eab3b3c2f363928b9e`
+zugeordnet. Die neue vollständige CI muss den neuen Head mit `7399bcca…`
+qualifizieren. Weder der externe Mainmerge noch eine Release-/PC-Freigabe wird
+diesem UX4-C-Auftrag zugerechnet. Der historische Erstlauf und die damals
+gefundene mobile Reflowlücke bleiben unten nachvollziehbar dokumentiert.
 
 ## UX4-B-Abschluss
 

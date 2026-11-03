@@ -2,12 +2,13 @@
 
 | Feld | Stand |
 | --- | --- |
-| Dokumenttyp / Version | Eigenständiger Implementierungsauftrag, Draft 0.2 |
+| Dokumenttyp / Version | Eigenständiger Implementierungsauftrag, Draft 0.3 |
 | Status | Gegen tatsächlichen Main aktualisiert; begrenzter UX4-C-Draft beauftragt, keine menschliche Fach-/Integrationsabnahme |
 | Datum | 03.11.2026, Europe/Berlin |
 | Repository | `https://github.com/burckhju/trading-workspace` |
 | Historische Prüfbasis | `1883f7f330719453958f8be1dd51d48db816662e`, `v1.5.35` |
 | Verifizierter Main bei UX4-C-Start | `3397399e7bf8364501437f9509a4fb18dbe32c08`, Versionsdateien `1.5.38`; UX4-B #322 integriert |
+| Verifizierte neue Qualifikationsbasis während der Umsetzung | `7399bccaf0c2923327b15ee43cfbc484e7cd3b30`; UX3-B2 #324 unabhängig integriert, eigener UX4-C-Draft darauf rebased |
 | Ziel | Vorhandene qualifizierte Performancewerte verständlich visualisieren |
 | Grenze | Keine neue Finanzberechnung; kein Merge, Release oder PC-Update |
 
@@ -94,6 +95,16 @@ fachliche Statusowner; dieser Auftrag erteilt ausschließlich Draft-PR-Freigabe.
 Diese fachlokale Einbindung benötigt keinen neuen gemeinsamen Hostvertrag.
 Eine spätere gemeinsame Workspace-/Hinweiserweiterung bleibt gesondert mit den
 jeweiligen Ownern abzustimmen; persönliche Freigaben werden hier nicht behauptet.
+
+### Mainfortschreibung nach der ersten Veröffentlichung
+
+Während der UX4-C-CI wurde #324 am 03.11.2026 um 05:47:53 UTC unabhängig in
+Main integriert. Der neue B2-Bestand betrifft Produktbewertung und deren
+Hinweisvertrag; keine der sieben geänderten Dateien überschneidet sich mit
+UX4-C. Einbindungsstelle, Performance-Owner und fachliche Grenzen bleiben
+unverändert. Der eigene Draft wird auf `7399bcca…` rebased und vollständig
+neu qualifiziert; grüne Läufe auf `3397399e…` ersetzen diese neue CI nicht.
+Die ebenfalls geprüften parallelen #325/#326 bleiben gesonderte Arbeiten.
 
 ## Belegter Iststand und Berechnungsgrenzen
 

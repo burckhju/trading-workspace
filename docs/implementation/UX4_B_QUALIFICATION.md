@@ -13,11 +13,18 @@ UX4-B-Testsuite aus und erteilt keine menschliche Fach- oder Bedienabnahme.
 
 | Bezug | Verifizierter Stand |
 | --- | --- |
-| Aktueller Main / tatsächlicher Merge #322 | [`3397399e7bf8364501437f9509a4fb18dbe32c08`](https://github.com/burckhju/trading-workspace/commit/3397399e7bf8364501437f9509a4fb18dbe32c08) |
+| Main bei dieser UX4-B-Abschlussprüfung / tatsächlicher Merge #322 | [`3397399e7bf8364501437f9509a4fb18dbe32c08`](https://github.com/burckhju/trading-workspace/commit/3397399e7bf8364501437f9509a4fb18dbe32c08) |
 | Main vor Integration / erster Merge-Elterncommit | `849a6d54eaeb5f5831754c6b15a41358c571f6da` |
 | Finaler PR-Head / zweiter Merge-Elterncommit | `d3c12f105fbd643f5579e23e00b4cca978229184` |
 | Tatsächlicher Checkout aller neun regulären PR-Prüfjobs | [`1fc6f408894f6c26b942439dfe93ba526ffff5d1`](https://github.com/burckhju/trading-workspace/commit/1fc6f408894f6c26b942439dfe93ba526ffff5d1) |
 | Identischer vollständiger Tree von PR-Head, CI-Testmerge und Mainmerge | `c9362029d9fc3a1d0ccf7bee4e1f5b942e474807` |
+
+Nach dieser Prüfung wurde UX3-B2 #324 am 03.11.2026 um 05:47:53 UTC unabhängig
+von diesem Auftrag in Main integriert: `7399bccaf0c2923327b15ee43cfbc484e7cd3b30`.
+Die sieben geänderten Dateien betreffen Produktbewertung, ihre Tests und UX3-Dokumente;
+UX4-B-Code und seine Nachweise bleiben unverändert. Die nachstehende historische
+Main-CI gehört weiterhin ausdrücklich zum UX4-B-Merge `3397399e…`. Die kombinierte
+UX4-C-Qualifikation auf der neueren Mainbasis ist im eigenständigen Draft dokumentiert.
 
 Der [integrierte Diff](https://github.com/burckhju/trading-workspace/compare/849a6d54eaeb5f5831754c6b15a41358c571f6da...3397399e7bf8364501437f9509a4fb18dbe32c08)
 enthält 24 Dateien: lokale Historienkomponenten und Präsentationshelfer,
