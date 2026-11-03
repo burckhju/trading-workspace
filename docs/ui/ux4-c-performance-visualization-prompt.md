@@ -75,7 +75,8 @@ fachliche Statusowner; dieser Auftrag erteilt ausschließlich Draft-PR-Freigabe.
 ### Konkreter lokaler Integrationsschnitt
 
 - UX-2: Einbindung innerhalb `RealizedGrossReportView` unmittelbar vor der
-  vorhandenen Eintragssektion; ausschließlich die bereits akzeptierte `report`-Prop.
+  vorhandenen Eintragssektion; die bereits akzeptierte `report`-Prop und ein
+  rein lokaler Callback zu den bestehenden Quellenkarten.
   Ergänzung der bestehenden `ClosedTradeStatistics`-Karten. Keine Änderung an
   `PerformanceWorkspace`, `TradeManagementPage`, Routing oder Shared-Imports.
   Bestehende Auswahl-/Basis-/Generationskeys übernehmen Invalidierung und Reset.
