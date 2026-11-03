@@ -18,11 +18,14 @@ function show(overrides: Partial<OperationalPosition> = {}) {
   return within(screen.getByRole('region', { name: 'Details Test Warrant' }));
 }
 
-it('retains the supplied STALE restriction', () => {
-  const details = show({ valuation_status: 'STALE' });
-  expect(details.getByText(/Kursdaten veraltet:/)).toHaveTextContent('Keine Orderfreigabe');
-  expect(details.getByText('25,00 EUR')).toBeInTheDocument();
-});
+it.each([null, 'OUTDATED_QUOTE_INDICATIVE_ANALYSIS_ONLY'])(
+  'retains the supplied STALE restriction with warning %s',
+  (warning) => {
+    const details = show({ valuation_status: 'STALE', analysis_warning: warning });
+    expect(details.getByText(/Kursdaten veraltet:/)).toHaveTextContent('Keine Orderfreigabe');
+    expect(details.getByText('25,00 EUR')).toBeInTheDocument();
+  },
+);
 
 it('does not infer staleness or usability from LAST_AVAILABLE alone', () => {
   const details = show({ valuation_status: 'LAST_AVAILABLE', analysis_warning: null });
@@ -32,14 +35,20 @@ it('does not infer staleness or usability from LAST_AVAILABLE alone', () => {
   expect(details.getByText('+5,00 EUR')).toBeInTheDocument();
 });
 
-it('explains the separate known outdated warning on LAST_AVAILABLE', () => {
-  const details = show({
-    valuation_status: 'LAST_AVAILABLE',
-    analysis_warning: 'OUTDATED_QUOTE_INDICATIVE_ANALYSIS_ONLY',
-  });
-  expect(details.getByText(/Kursdaten veraltet:/)).toBeInTheDocument();
-  expect(details.getByText('25,00 EUR')).toBeInTheDocument();
-});
+it.each(['LAST_AVAILABLE', 'INDICATIVE', 'AVAILABLE'])(
+  'does not infer staleness from the reused OUTDATED warning on %s',
+  (status) => {
+    const details = show({
+      valuation_status: status,
+      analysis_warning: 'OUTDATED_QUOTE_INDICATIVE_ANALYSIS_ONLY',
+    });
+    expect(
+      details.queryByText(/veraltet|Referenzkurs|verwendbar|nutzbar/i),
+    ).not.toBeInTheDocument();
+    expect(details.getByText(/die Analyse ist indikativ/i)).toBeInTheDocument();
+    expect(details.getByText('25,00 EUR')).toBeInTheDocument();
+  },
+);
 
 it.each([
   ['MISSING', /Produktkurs fehlt/i],

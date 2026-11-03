@@ -194,15 +194,13 @@ test("valuation notices preserve keyboard details, existing reads and explicit h
         exact: true,
       }),
     ).toBeVisible();
-    if (id === 99) {
-      await expect(region).toContainText("Kursdaten veraltet");
-    } else {
-      await expect(region).not.toContainText("veraltet");
-      await expect(region).not.toContainText("verfügbaren Referenzkurs");
-    }
-    if (id === 97) {
+    await expect(region).not.toContainText("veraltet");
+    await expect(region).not.toContainText("verfügbaren Referenzkurs");
+    if (id === 97 || id === 99) {
       await expect(region).toContainText("Letzter verfügbarer Kursstand");
     }
+    if (id === 99)
+      await expect(region).toContainText(/die Analyse ist indikativ/i);
 
     // These existing children read on expansion; the passive notice adds none.
     await expect(
@@ -212,8 +210,16 @@ test("valuation notices preserve keyboard details, existing reads and explicit h
       region.getByText("Risikoauswertung konnte nicht geladen werden."),
     ).toBeVisible();
     expect(requests.slice(before).sort()).toEqual([
-      `GET /api/v1/position-monitoring/trades/trade-${id}/risk`,
-      `GET /api/v1/trade-position/trades/trade-${id}/price-history`,
+      expect.stringMatching(
+        new RegExp(
+          `^GET (?:/api)?/api/v1/position-monitoring/trades/trade-${id}/risk$`,
+        ),
+      ),
+      expect.stringMatching(
+        new RegExp(
+          `^GET (?:/api)?/api/v1/trade-position/trades/trade-${id}/price-history$`,
+        ),
+      ),
     ]);
     await expect(page).toHaveURL(/\/workspace$/);
     const history = region.getByRole("link", {

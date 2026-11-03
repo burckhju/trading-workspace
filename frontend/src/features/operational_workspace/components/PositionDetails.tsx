@@ -34,7 +34,10 @@ function valuationNotice(
 
   switch (p.analysis_warning) {
     case 'OUTDATED_QUOTE_INDICATIVE_ANALYSIS_ONLY':
-      return staleValuationNotice;
+      // The owner also emits this warning for a regular last-session quote.
+      return p.valuation_status === 'LAST_AVAILABLE'
+        ? 'Letzter verfügbarer Kursstand; die Analyse ist indikativ.'
+        : 'Hinweis zur Kursaktualität: Die Analyse ist indikativ.';
     case 'QUOTE_TIMESTAMP_UNKNOWN_INDICATIVE_ANALYSIS_ONLY':
       return 'Kurszeitpunkt unbekannt: Ein vollständiger, bestätigter Kurszeitpunkt fehlt. Die Analyse ist indikativ.';
     case 'QUOTE_TIMEZONE_UNKNOWN_INDICATIVE_ANALYSIS_ONLY':
