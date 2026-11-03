@@ -8,7 +8,55 @@ import { unrealizedPnlReason } from '../../trade/services/valuationQualification
 import { PositionValuationBasisDetails } from '../../trade/components/PositionValuationBasisDetails';
 import { PositionPriceHistory } from './PositionPriceHistory';
 
+const staleValuationNotice =
+  'Kursdaten veraltet: Bewertung und darauf basierende Analysen sind indikativ.';
+
+function valuationNotice(
+  p: Pick<OperationalPosition, 'valuation_status' | 'analysis_warning'>,
+): string | null {
+  // A warning must not turn a missing, failed or unknown status into a quote.
+  switch (p.valuation_status) {
+    case 'STALE':
+      return staleValuationNotice;
+    case 'MISSING':
+      return 'Produktkurs fehlt.';
+    case 'UNAVAILABLE':
+      return 'Produktkurs nicht verfügbar.';
+    case 'ERROR':
+      return 'Fehler bei der Produktbewertung; die genaue Ursache ist nicht bekannt.';
+    case 'AVAILABLE':
+    case 'LAST_AVAILABLE':
+    case 'INDICATIVE':
+      break;
+    default:
+      return 'Bewertungsstatus derzeit nicht einordenbar; die genaue Ursache ist nicht bekannt.';
+  }
+
+  switch (p.analysis_warning) {
+    case 'OUTDATED_QUOTE_INDICATIVE_ANALYSIS_ONLY':
+      return staleValuationNotice;
+    case 'QUOTE_TIMESTAMP_UNKNOWN_INDICATIVE_ANALYSIS_ONLY':
+      return 'Kurszeitpunkt unbekannt: Ein vollständiger, bestätigter Kurszeitpunkt fehlt. Die Analyse ist indikativ.';
+    case 'QUOTE_TIMEZONE_UNKNOWN_INDICATIVE_ANALYSIS_ONLY':
+      return 'Zeitzone des Kurszeitpunkts unbekannt; die Aktualität ist nicht bestätigt. Die Analyse ist indikativ.';
+    case 'QUOTE_REFRESH_FAILED_INDICATIVE_ANALYSIS_ONLY':
+      return 'Kursabruf fehlgeschlagen; die Analyse ist indikativ.';
+    case 'REFERENCE_PRICE_INDICATIVE_ANALYSIS_ONLY':
+      return 'Handels- oder Schlusskurs: Die Analyse ist indikativ.';
+    default:
+      if (p.analysis_warning) return 'Bewertungshinweis: Die gemeldete Ursache ist nicht bekannt.';
+  }
+
+  if (p.valuation_status === 'LAST_AVAILABLE') {
+    return 'Letzter verfügbarer Kursstand; die Aktualität ist damit nicht bestätigt.';
+  }
+  return p.valuation_status === 'INDICATIVE'
+    ? 'Indikative Bewertung; Aktualität und Handelbarkeit sind nicht bestätigt.'
+    : null;
+}
+
 export function PositionDetails({ position: p }: { position: OperationalPosition }) {
+  const notice = valuationNotice(p);
   return (
     <section
       aria-label={`Details ${p.product_name}`}
@@ -81,14 +129,7 @@ export function PositionDetails({ position: p }: { position: OperationalPosition
       <p>
         Quelle: {p.quote_source ?? 'Unbekannt'} · Kurszeitpunkt: {timeLabel(p.quote_observed_at)}
       </p>
-      {(p.valuation_status !== 'AVAILABLE' || p.analysis_warning) && (
-        <p className="text-amber-200">
-          {['LAST_AVAILABLE', 'STALE'].includes(p.valuation_status)
-            ? 'Kursdaten veraltet: Bewertung und darauf basierende Analysen sind indikativ.'
-            : 'Indikative Bewertung mit dem verfügbaren Referenzkurs; Aktualität und Handelbarkeit sind nicht bestätigt.'}{' '}
-          Keine Orderfreigabe.
-        </p>
-      )}
+      {notice && <p className="text-amber-200">{notice} Keine Orderfreigabe.</p>}
       <p className="text-xs text-slate-400">
         Stop und Ziel werden unverändert angezeigt. Kein Vergleich zwischen Basiswert-Stop und
         Optionsscheinpreis. Nachkäufe, Teilverkäufe und deren tatsächliche Daten stehen in der

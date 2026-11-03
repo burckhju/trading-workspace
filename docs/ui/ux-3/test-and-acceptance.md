@@ -424,3 +424,83 @@ Mainstand und mögliche parallele Release-/Dokumentänderungen erneut zu prüfen
 Für F1/B1 werden nur die Fälle des konkreten Piloten ausgeführt, ergänzt um die
 unveränderten erforderlichen Projektgates. Weitere Fälle gehören zum jeweils
 betroffenen kleinen Ownerschnitt; keine fachfremde Gesamtmigration als Testpflicht.
+
+## 10. B2/F4 — Q12 in PositionDetails
+
+Dieser begrenzte Produktschnitt setzt TC-49 ausschließlich in
+[PositionDetails](../../../frontend/src/features/operational_workspace/components/PositionDetails.tsx)
+um. Ausgangsbasis, am **03.11.2026** erneut geprüft: Main
+`3397399e7bf8364501437f9509a4fb18dbe32c08`, Tree
+`c9362029d9fc3a1d0ccf7bee4e1f5b942e474807`. Der separat gelesene Tag `v1.5.38`
+zeigt weiterhin auf `849a6d54eaeb5f5831754c6b15a41358c571f6da`; die integrierte
+UX4-B-Arbeit aus #322 gehört zur Mainbasis. Der neue Branch heißt
+`feat/ux3-b2-position-details-status`. Die tatsächlichen offenen PR-Diffs wurden
+auf Dateiüberschneidungen geprüft; #315 bleibt unveränderte offene Draft-Quelle.
+Dies ist ein technischer Nachweis, keine zweite fachliche Statusliste neben dem
+Product Backlog und keine Änderung der fünf Masterdokumente.
+
+### Unveränderte gemeinsame Schnittstelle
+
+Eingabe bleibt ausschließlich
+[`OperationalPosition`](../../../frontend/src/features/operational_workspace/types.ts).
+Der kleine lokale Mapper liest nur `valuation_status` und das optionale
+`analysis_warning`; seine Ausgabe ist ein Text oder kein Hinweis. Er erweitert
+weder das DTO noch den B1-Präsentationskern. Dessen `NoticeCard` verlangt einen
+Aktionslink; der vorhandene passive Absatz benötigt keinen neuen Link und keine
+Erweiterung dieser API. Der Absatz behält seine Platzierung und erzeugt keine
+Live-Ansage, Fokusänderung, Navigation, neuen Reads oder Writes.
+
+`STALE` bleibt erklärt. `LAST_AVAILABLE` allein wird als letzter verfügbarer
+Kursstand beschrieben, ohne Veraltung oder Nutzbarkeit daraus abzuleiten.
+Die ausdrücklich gelieferte bekannte Veraltungswarnung wird weiterhin erklärt.
+Bekannte Zeitstempel-, Zeitzonen-, Abruf- und Referenzkurswarnungen verwenden
+ausschließlich ihre bestehenden Ursachen aus dem
+[Bewertungsowner](../../../backend/app/features/position_monitoring/service/product_valuation.py).
+`MISSING`, `UNAVAILABLE`, `ERROR` und unbekannte Statuswerte werden vor der
+Warncodeauswertung begrenzt beschrieben; ein Warncode kann daraus keinen
+verfügbaren Referenzkurs machen. Unbekannte Warncodes bleiben ohne erfundene
+Ursache. `AVAILABLE` ohne Warnung erzeugt keinen Bewertungswarnhinweis.
+
+Die bereits vom
+[Snapshotowner](../../../backend/app/features/operational_workspace/service/position_snapshot.py)
+komponierten Beträge bleiben unverändert. `positionPnl(p)` mit
+`qualifiedUnrealizedPnl(...)` und `unrealizedPnlReason(...)` qualifiziert den G/V
+weiter unabhängig vom Marktwert. Die reicheren Flags und Referenzpreisfelder
+aus `ProductPositionValuationResponse` gehören nicht zu dieser Eingabe und
+werden weder ergänzt noch nachgeladen. Quelle, originaler Kurszeitpunkt samt
+vorhandener Formatierung, `position_basis` und dessen Beleg-/Executionreferenzen
+bleiben erhalten. UX2 behält Host, Ziele einschließlich `#execution-dates` und
+Fokus; UX1 behält Eingabe/Validierung; UX4 behält `PositionPriceHistory` mit
+unveränderten `tradeId`/`positionId` und der #322-Funktionalität. Der bestehende
+lesende `PositionRiskPanel` und die bisherigen Detailreads bleiben erhalten.
+
+### Gezielte Regressionen und Nachweisgrenzen
+
+| Prüfdatei | Positiver und negativer Nachweis dieses Schnitts |
+| --- | --- |
+| [PositionDetails.test.tsx](../../../frontend/src/features/operational_workspace/components/PositionDetails.test.tsx) | STALE; LAST_AVAILABLE mit Wert ohne Veraltung und mit separat gelieferter Veraltungswarnung; MISSING/UNAVAILABLE/ERROR mit lokal konsistent fehlenden Kurswerten; unbekannter Warncode und separater unbekannter Status, auch mit Referenzkurswarnung; vier bekannte Warnursachen; AVAILABLE ohne Warnung; INDICATIVE ohne Referenzkursbehauptung; vorhandener Marktwert bei unabhängig unbrauchbarem G/V. Bestehende Readunterkomponenten sind für diese reine Textgrenze isoliert. |
+| [OpenPositionsPanel.test.tsx](../../../frontend/src/features/operational_workspace/pages/OpenPositionsPanel.test.tsx) und [Währungsregression](../../../frontend/src/features/operational_workspace/pages/OpenPositionsPanel.currency.test.tsx) | Vorhandene Hostfälle erhalten. Der bisherige unbekannte Warncode `INDICATIVE` erwartet nun eine neutrale Ursache; negative G/V-Zahl und Quelle bleiben sichtbar. AVAILABLE mit unabhängig unqualifiziertem G/V erzeugt keinen zusätzlichen Bewertungswarnhinweis. |
+| [positions-table.spec.ts](../../../tests/e2e/positions-table.spec.ts) | AVAILABLE, LAST_AVAILABLE allein und mit bekannter Veraltungswarnung im bestehenden Host; Quelle, original formatierte Kurszeit und Marktwert; Enter-Auf-/Zuklappen mit erhaltenem Fokus; exakt die beiden bisherigen Detail-GETs auf Kursverlauf und Risiko; keine Writes oder automatische Navigation; Historienlink mit `#execution-dates` erst nach bewusster Aktivierung. Vorhandener schmaler Browserfall bleibt erhalten. |
+| [position-currency-qualification.spec.ts](../../../tests/e2e/position-currency-qualification.spec.ts) | Bereits backendqualifizierte Marktwert-/G/V-Trennung zusätzlich in PositionDetails vor dem bestehenden Managementweg; exakte Kostenbasis-, wirksame Execution- und Confirmationreferenzen. Die Backend→HTTP-[Owner-Fixture](../../../tests/fixtures/position_currency_qualification.json) bleibt unverändert. |
+
+Vor dem Produktpatch wurden die falschen Texte an der unveränderten Mainfassung
+reproduziert. Eine direkte React-Renderassertion für LAST_AVAILABLE ohne Warnung
+endete mit `AssertionError: LAST_AVAILABLE alone must not claim staleness` und
+Exit 1; dieselbe Assertion endete nach der Korrektur mit Exit 0. Toolchain:
+Node 22.16.0, npm 10.9.2, unveränderte Lockdatei, `TZ=UTC`.
+Lokale Vitest-Einzelresultate ohne abschließenden Prozessabschluss werden nicht
+als bestandener Lauf gezählt; der lokale Chromiumstart endete mit SIGTRAP und
+belegt keine Browserabnahme. Die regulären unveränderten Frontend-, Backend-,
+E2E- und Publication-Guard-Gates müssen am tatsächlichen finalen PR-Head bzw.
+zugehörigen Testmerge vollständig gelesen werden. Head, Mainbasis, Testmerge/Tree
+und aktuelle Run-/Joblinks werden gemeinsam im Draft-PR gebunden; ältere CI
+ersetzt diesen Nachweis nicht.
+
+Offen bleiben menschlicher Domainreview der Ursache/Wirkung und G/V-Trennung,
+UX1-/UX2-/UX4-Abnahme der erhaltenen Grenzen sowie UX3-Sprach-/Darstellungsprüfung
+einschließlich realer Screenreader-, Mobil- und 200–400-%-Zoomabnahme. Automatisierte
+Fälle ersetzen diese Abnahmen nicht. Der unbekannte-Warncode-Fallback in
+`ProductValuationPanel` bleibt ein separater Q12-Rest. UX1-B-Planwährung und
+FT-007/TradePlan-Auswahl-/Konfliktregel bleiben ebenfalls außerhalb dieses PRs.
+Dieser Auftrag umfasst keinen Merge, Release, Tag, PC-Schritt oder produktiven
+Datenwrite.

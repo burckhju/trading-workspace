@@ -40,6 +40,7 @@ it('shows qualified coverage and missing-currency reasons in rows and details wi
   expect(within(details).getByText(/Kaufwährung.*nicht.*belegt/i)).toBeInTheDocument();
   expect(within(details).getByText('25,00 EUR')).toBeInTheDocument();
   expect(within(details).getByText(/Quelle: TEST_PROVIDER/)).toBeInTheDocument();
+  expect(within(details).queryByText(/Keine Orderfreigabe/)).not.toBeInTheDocument();
   await userEvent.click(screen.getByRole('button', { name: 'Gewinn' }));
   expect(screen.queryByRole('row', { name: /Unbekannte Kaufwährung/ })).not.toBeInTheDocument();
   expect(screen.getByRole('row', { name: /Belegter Kauf/ })).toBeInTheDocument();
