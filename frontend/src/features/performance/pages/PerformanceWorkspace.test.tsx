@@ -655,7 +655,9 @@ it('supports SELL page 101, sources and row filters locally, then transparently 
   expect(screen.getByTestId('realized-gross-total')).toHaveTextContent('10,00 EUR');
   submit();
   await screen.findByText(/Die ursprüngliche Seite 101 ist/);
-  expect(screen.getByText(/Seite 1 von 1/)).toBeVisible();
+  expect(screen.getByRole('navigation', { name: 'Berichtsseiten' })).toHaveTextContent(
+    'Seite 1 von 1',
+  );
   expect(api.realizedGross).toHaveBeenCalledTimes(2);
   fireEvent.change(screen.getByLabelText('Zeilen anzeigen'), { target: { value: 'usable' } });
   expect(new URLSearchParams(router.state.location.search).get('report_view')).toBe('usable');

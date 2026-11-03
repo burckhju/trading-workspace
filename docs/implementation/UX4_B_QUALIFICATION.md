@@ -1,6 +1,148 @@
 # UX4-B — Quellenwahl und eindeutige Originalbelege
 
-## Aktueller Abschlussauftrag: Draft und vollständiger Chartausfallschutz
+## Abschlussnachtrag vom 03.11.2026 — integriert und technisch qualifiziert
+
+**UX4-B ist in Main enthalten; ein zusätzlicher UX4-B-Produktfix ist nach diesem
+Abgleich nicht erforderlich.** [PR #322](https://github.com/burckhju/trading-workspace/pull/322)
+ist geschlossen und gemergt, seit **01.11.2026, 22:52:54 Uhr Europe/Berlin**.
+Die erneute Prüfung liest tatsächliche GitHub-Metadaten, Gitobjekte, Joblogs,
+das konkrete Playwright-Artefakt und den Maincode. Sie führt keine neue lokale
+UX4-B-Testsuite aus und erteilt keine menschliche Fach- oder Bedienabnahme.
+
+### Exakter Integrationsstand
+
+| Bezug | Verifizierter Stand |
+| --- | --- |
+| Aktueller Main / tatsächlicher Merge #322 | [`3397399e7bf8364501437f9509a4fb18dbe32c08`](https://github.com/burckhju/trading-workspace/commit/3397399e7bf8364501437f9509a4fb18dbe32c08) |
+| Main vor Integration / erster Merge-Elterncommit | `849a6d54eaeb5f5831754c6b15a41358c571f6da` |
+| Finaler PR-Head / zweiter Merge-Elterncommit | `d3c12f105fbd643f5579e23e00b4cca978229184` |
+| Tatsächlicher Checkout aller neun regulären PR-Prüfjobs | [`1fc6f408894f6c26b942439dfe93ba526ffff5d1`](https://github.com/burckhju/trading-workspace/commit/1fc6f408894f6c26b942439dfe93ba526ffff5d1) |
+| Identischer vollständiger Tree von PR-Head, CI-Testmerge und Mainmerge | `c9362029d9fc3a1d0ccf7bee4e1f5b942e474807` |
+
+Der [integrierte Diff](https://github.com/burckhju/trading-workspace/compare/849a6d54eaeb5f5831754c6b15a41358c571f6da...3397399e7bf8364501437f9509a4fb18dbe32c08)
+enthält 24 Dateien: lokale Historienkomponenten und Präsentationshelfer,
+zugehörige Tests, Dokumentation und synthetische Nachweise. Enthalten sind
+Quellenwahl nach historischer Serienidentität, einzeln erreichbare überlagerte
+Originalbelege, paginierter Tastaturzugang, getrennte Währungen und Zeitbezüge,
+sichtbare Begrenzungs-/Ausschlussgründe sowie lokaler Import-/Renderausfallschutz.
+Die vollständige Originaltabelle und Ereignisliste bleiben auch ohne Chart
+bedienbar. Diese Funktionen werden für UX4-C nicht erneut implementiert.
+
+Dieser UX4-B-Diff ändert weder Backend noch Finanzberechnung, historische
+Kursdaten, API/Reader, Persistenz, Hostintegration, Navigation, Dependencies,
+Versionen oder Workflows. Main enthält bereits die vorherigen UX2-/UX3-
+Integrationen; deren Änderungen werden UX4-B nicht zugerechnet.
+
+### Tatsächliche finale PR-CI und nachgelagerte Main-CI
+
+Alle vier finalen PR-Workflows sind im ersten Versuch erfolgreich: **neun
+reguläre Prüfjobs**, dazu der auf PRs bestimmungsgemäß übersprungene Tagjob.
+Die Checkoutlogs aller neun Jobs bestätigen `1fc6f408…`; die Ergebnisse gehören
+zum PR-Head `d3c12f105…` über diesen Testmerge. Die vollständige Treegleichheit
+mit Main ist unabhängig von den Statuslabels geprüft.
+
+| Finaler PR-Workflow | Direkt aus Jobs/Logs geprüfter Nachweis |
+| --- | --- |
+| [Frontend 41352906300](https://github.com/burckhju/trading-workspace/actions/runs/41352906300) | TypeScript, ESLint, Prettier und Build erfolgreich; **2.082 Tests in 169 Dateien**. Coverage Statements/Lines **96,04 %**, Branches **90,46 %**, Functions **91,60 %**. |
+| [Backend 41352906162](https://github.com/burckhju/trading-workspace/actions/runs/41352906162) | Alle drei Jobs erfolgreich; Quality: **3.880 bestanden, 0 Skips**, eine Warnung, Coverage **88,04 %** bei unverändertem 85-%-Gate. Renderer-Sandbox und Umask-Image erfolgreich. |
+| [End-to-End 41352906157](https://github.com/burckhju/trading-workspace/actions/runs/41352906157) | Alle vier Jobs erfolgreich; Smoke **154 bestanden / 5 vorgesehene Skips**. Alle fünf ausgelagerten Datenbankjourneys bestehen in den drei Ownerjobs: Candidate **1**, Journal/Evidence **2**, SELL/Vollabschluss **1 + 1**. |
+| [Versionsschutz 41352906155](https://github.com/burckhju/trading-workspace/actions/runs/41352906155) | **9 Publication-Guardtests bestanden**, keine Fehler/Skips; veröffentlichender Tagjob auf dem PR übersprungen. |
+
+Der [Backend-Qualityjob](https://github.com/burckhju/trading-workspace/actions/runs/41352906162/job/124986802622)
+enthält `database/test_position_price_history_postgres.py ..`: beide lokal
+übersprungenen Historienfälle liefen hier tatsächlich erfolgreich. Das bleibt
+ein CI-Nachweis und wird nicht als lokaler PostgreSQL-Pass ausgegeben.
+
+Das [Playwright-Artefakt 13102077057](https://github.com/burckhju/trading-workspace/actions/runs/41352906157/artifacts/13102077057)
+wurde erneut heruntergeladen und ausgewertet: **159 Tests / 159 Ergebnisse**,
+154 bestanden, fünf vorgesehene Skips, keine unerwarteten Ergebnisse oder Flakes,
+jedes Ergebnis `retry=0`. Alle acht UX4-B-Fälle bestehen; die vollständigen
+History-/Navigationssuiten umfassen **20 + 14 Pässe**. Drei native Zoom-PNGs und
+beide Mess-JSONs sind byteidentisch mit Main. Gemessen sind **200 %** mit
+640 CSS-Pixeln, DPR 2 und Dokumentbreite 632 sowie **400 %** mit 320 CSS-Pixeln,
+DPR 4 und Dokumentbreite 320; der native 400-%-Rohwert ist
+`3.9999999999999996`.
+
+Auf dem tatsächlichen Main-Checkout `3397399…` bestehen zusätzlich der
+[Frontend-Pushlauf 41354255997](https://github.com/burckhju/trading-workspace/actions/runs/41354255997)
+mit 2.082 Tests / 169 Dateien und der
+[E2E-Pushlauf 41354256013](https://github.com/burckhju/trading-workspace/actions/runs/41354256013)
+mit 154 Smoke-Pässen, fünf vorgesehenen Smoke-Skips und allen fünf erfolgreichen
+Ownerjourneys. **Ein gesonderter Backend-Pushlauf auf diesem Main-SHA existiert
+nicht:** Der unveränderte
+[Backend-Pfadfilter](https://github.com/burckhju/trading-workspace/blob/3397399e7bf8364501437f9509a4fb18dbe32c08/.github/workflows/backend.yml)
+wird durch den UX4-B-Dateischnitt nicht ausgelöst. Die vollständige
+Backendqualifikation stammt vom oben genannten identischen PR-Testmerge-Tree.
+
+Die nachgelagerten Version-tag-Läufe
+[41354516028](https://github.com/burckhju/trading-workspace/actions/runs/41354516028)
+und [41354589642](https://github.com/burckhju/trading-workspace/actions/runs/41354589642)
+sind erfolgreich beendet, ihre Tagjoblogs melden jedoch jeweils
+`Waiting for successful backend.yml at 3397399e7bf8364501437f9509a4fb18dbe32c08`.
+Das ist kein Publikationsnachweis für UX4-B. Der erneut aufgelöste
+[Tag v1.5.38](https://github.com/burckhju/trading-workspace/tree/v1.5.38) zeigt
+unverändert auf `849a6d54…`, also auf Main vor UX4-B. Ein Installationsstand auf
+dem Nutzer-PC ist dadurch nicht belegt.
+
+### Historische lokale Prüfungen und Sourcegleichheit
+
+Die folgenden Läufe sind im erhaltenen Bericht dokumentiert, nicht am
+03.11.2026 erneut ausgeführt. Testpopulationen verschiedener Stände werden
+nicht addiert und lokale Ergebnisse nicht auf spätere vollständige Trees
+umetikettiert.
+
+| Exakter Bezug | Dokumentierte lokale Prüfung |
+| --- | --- |
+| `9e4f8460e3d3d69262e907eed21fbae536ebe9b8` | Frontend **1.995 / 165 Dateien**, Backend **71**, PostgreSQL **2 übersprungen**, Browser **33** ohne Retries. |
+| `8ea8db66991eb27938e699b645dde2876e2a24b0` | Frontendzwischenlauf **1.998 / 166 Dateien**. |
+| Folgepatch auf `7ef57c788cced3d4edf49411d421794f3bf02d99`, committed als [`e6f2b2f23eda1255b53fbc05248f2f10e1d3c19e`](https://github.com/burckhju/trading-workspace/commit/e6f2b2f23eda1255b53fbc05248f2f10e1d3c19e) | Finale lokale Prüfung: Frontend **2.082 / 169 Dateien**, Backend **71**, PostgreSQL **2 übersprungen**, Browser **34 in 48,2 s**, native 200-/400-%-Nachweise. |
+| `1e1b29a69215040e823979c452a377bfe9fa671e` | Ausschließlich zwei Dokumentnachträge, kein neuer lokaler Produktlauf. |
+| `d3c12f105fbd643f5579e23e00b4cca978229184` | Kombinierter Head mit Main-Versionsmetadaten 1.5.38; vollständige eigenständige CI wie oben. |
+
+Der [Diff vom letzten lokalen Produktstand zum finalen Head](https://github.com/burckhju/trading-workspace/compare/e6f2b2f23eda1255b53fbc05248f2f10e1d3c19e...d3c12f105fbd643f5579e23e00b4cca978229184)
+ist leer für `frontend/src`, `tests`, `backend/app`, `backend/migrations` und
+`.github/workflows`. Die zehn geänderten Dateien betreffen Dokumentation und
+Versionsmetadaten; `package.json`, Lockdatei und `pyproject.toml` ändern nur
+1.5.37 auf 1.5.38, keine Dependency. Der Produkt-/Testinhalt ist gleich; der
+vollständige Tree von `e6f2b2f…` ist dagegen
+`00e9c2710265af3b5808200bf0a9c337f685c2bc` und wird vom finalen Tree getrennt.
+
+### UX-2-/UX-3-Abgleich und verbleibende Abnahme
+
+Der vorhandene [UX2-Host](https://github.com/burckhju/trading-workspace/blob/3397399e7bf8364501437f9509a4fb18dbe32c08/frontend/src/features/trade/pages/TradeManagementPage.tsx)
+verwendet weiterhin den öffentlichen `PositionPriceHistory`-Export, Anker
+`#position-price-history`, `tradeId`, `positionId` und
+`reloadToken={historyReloadToken}`. Ein erfolgreich qualifizierter Readback
+erhöht den Token; Identitäts-, Generations- und Abortprüfungen bleiben beim
+Host. `PositionDetails` bleibt zusätzlicher bestehender Host. Gleicher
+Trade/anderer Hash erhält Auswahl, Belegseite und Entwürfe ohne neue Reads.
+
+Der [kanonische UX3-Vertrag](https://github.com/burckhju/trading-workspace/blob/3397399e7bf8364501437f9509a4fb18dbe32c08/docs/ui/ux-3/README.md)
+aus #314 und der begrenzte B1/F1-Pilot #320 sind Mainbestand. UX4-B unterscheidet
+bestätigte Leere, technischen Fehler, Begrenzung, historische Qualität und
+Darstellungswahl. Die passive B1-API ist für den Kursverlauf keine zusätzliche
+Abhängigkeit. Neue Qualitätsampeln, Recovery- oder Handelbarkeitsaussagen
+entstehen nicht. Dieser technische Abgleich behauptet keine neue persönliche
+UX2-/UX3- oder Fachownerfreigabe.
+
+| Abnahmebereich | Vorhandener Nachweis | Weiterhin offen |
+| --- | --- | --- |
+| Fachlichkeit | Unveränderte Ownerwerte, Herkunft, Zeitpräzision, Währungs-/Quellentrennung und Ausschlussgründe | Menschliche Domainprüfung repräsentativer realer Fälle; tatsächliche Historienabdeckung auf dem Nutzer-PC. |
+| Tastatur | Native Quellenwahl, Belegsprung und Pagination, Tab/Shift-Tab/Enter/Space, sichtbarer Fokus, Chartpfeile und chartloser Fallback automatisiert | Durchgängiger menschlicher Bedienlauf; keine vollständige Scatter-/Assistenztechniknavigation behauptet. |
+| Screenreader | Semantische Tabelle, native Controls und eigenständiger Belegzugang | Tatsächlicher Screenreaderlauf einschließlich Ansagen, Fokusfolge und Live-Regionen; keine vollständige WCAG-Abnahme. |
+| Mobile und Zoom | 320/390/1280 CSS-Pixel, native 200/400 %, lokale Tabellenrolle ohne horizontalen Dokumentüberlauf | Menschliche Lesbarkeits-/Touchabnahme auf realem Mobilgerät und repräsentativen Daten. |
+| Integration und Bereitstellung | UX4-B in Main, identischer qualifizierter Tree | Persönliche UX2-/UX3-Abnahme sowie jede gesonderte Release-/PC-Freigabe bleiben getrennt. |
+
+## Historischer Fortsetzungsauftrag vom 01.11.2026: Draft und vollständiger Chartausfallschutz
+
+**Die folgenden Abschnitte bewahren den damaligen Arbeits- und Nachweisstand
+vom 01.11.2026.** Aussagen wie „aktuell“, „Draft offen“ und „CI ausstehend“
+beziehen sich dort auf den jeweiligen Fortsetzungslauf, nicht auf den oben
+verifizierten Abschlussstand vom 03.11.2026. Die ebenfalls historisch
+fortgeschriebene [Positionshistorienbeschreibung](../ui/position-price-history.md)
+beschreibt den vorhandenen Darstellungsschnitt; für tatsächlichen Merge und
+finale CI gilt dieser Abschlussnachtrag. Er setzt den historischen Vorschlag
+#205 weder erneut um noch ändert er dessen PR-Status.
 
 Die erneute Implementierungsfortsetzung vom 01.11.2026 verlangt ausdrücklich:
 **PR #322 bleibt bis zur gesonderten Mergefreigabe Draft. Kein Merge, Release,

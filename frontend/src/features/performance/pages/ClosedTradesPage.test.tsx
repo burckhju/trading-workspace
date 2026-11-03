@@ -591,7 +591,11 @@ it('shows all eight disjoint groups while keeping exclusions outside result and 
   expect(
     screen.getByRole('table', { name: 'Disjunkte Fallgruppen der untersuchten Trades' }),
   ).toBeVisible();
-  expect(within(screen.getByRole('table')).getAllByRole('row')).toHaveLength(9);
+  expect(
+    within(
+      screen.getByRole('table', { name: 'Disjunkte Fallgruppen der untersuchten Trades' }),
+    ).getAllByRole('row'),
+  ).toHaveLength(9);
   fireEvent.change(screen.getByLabelText('Zeilen anzeigen'), { target: { value: 'excluded' } });
   expect(screen.getAllByRole('article')).toHaveLength(4);
   expect(screen.getAllByText('Nicht in der Summe')).toHaveLength(4);
