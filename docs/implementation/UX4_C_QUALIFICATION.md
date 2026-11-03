@@ -111,7 +111,7 @@ Ownerfreigabe oder bestätigte Zustellung an einen anderen Chat.
 | UX-2 / Host | Vorhandener Slot im Performance-Feature. `PerformanceWorkspace`, `TradeManagementPage`, Router und `shared/trade-workspace-navigation` unverändert. Auswahl/Basis/Generation des bestehenden Reportview-Keys invalidieren Grafik, Pager, Statistik und Quellen gemeinsam. |
 | UX-3 / Qualität | Kanonischer Hinweisvertrag aus #314 und integrierter B1/F1-Pilot aus #320 erhalten. Vorhandene `RealizedGrossSources`, `ReportSourceEntry`, Währungsadapter und `NoticeCard` wiederverwendet. Keine zweite Hinweisengine, neue Qualitätsenum oder Recoverybehauptung. |
 | Fachowner | `verifyRealizedReport`, `verifyClosedReport`, `verifyClosedStatistics`, Reader, Projektion, Währungsresolver, Periodenregeln und sämtliche Finanzstatistiken unverändert. |
-| Offene parallele Arbeit | Vollständige Dateilisten aller sechs offenen Fremd-PRs #315/#220/#207/#205/#197/#187 geprüft; keine Überschneidung mit dem UX4-C-Schnitt. Der historische History-Scope-Text mit #205-Überschneidung wird nicht verändert. |
+| Offene parallele Arbeit | Vollständige Dateilisten der anfangs sechs offenen Fremd-PRs #315/#220/#207/#205/#197/#187 und der anschließend veröffentlichten UX-PRs #324/#325/#326 geprüft; keine Überschneidung mit dem UX4-C-Schnitt. Der historische History-Scope-Text mit #205-Überschneidung wird nicht verändert. Die PR-Beschreibung hält die geprüften parallelen Heads fest. |
 
 Besonders geprüft: Ein monetär oder zeitlich ungeklärter Fall ist keine Null,
 kein Verlust und kein neutraler Trade. `EMPTY` betrifft die gewählte Zeitraum-
@@ -143,6 +143,35 @@ mit Exit 130 abgebrochen. Das ist kein vollständiger lokaler Gatepass.
 Die reguläre CI muss den gesamten aktuellen Head
 qualifizieren; sie ersetzt weder übersprungene lokale Ergebnisse rückwirkend
 noch die menschliche Abnahme.
+
+### Erster CI-Lauf und eng begrenzte Reflowkorrektur
+
+Der erste vollständige PR-CI-Lauf startete auf Head
+`72b32d1eedb36b315a9a46fc9a70e10fbf9cf7bb`. Sein tatsächlich ausgecheckter
+Testmerge `cb1a69382ab8e2f9acd77bf12ca426ae70c74dca` verbindet diesen Head
+mit Main `3397399e7bf8364501437f9509a4fb18dbe32c08`; Head und Testmerge
+besitzen denselben Tree `50457543cd441ce48b0212cc565df54b8dafa235`.
+
+- [Frontend-CI 41583877964](https://github.com/burckhju/trading-workspace/actions/runs/41583877964)
+  bestand mit **2.145 Tests in 173 Dateien**, Coverage Statements/Lines **96,01 %**,
+  Branches **90,54 %**, Functions **91,50 %** sowie Typprüfung, Lint,
+  Formatprüfung und Produktionsbuild.
+- [Browser-CI 41583877952](https://github.com/burckhju/trading-workspace/actions/runs/41583877952)
+  meldete im Smoke-Job **162 bestanden, 5 bewusst ausgelagert, 1 fehlgeschlagen**.
+  Alle fünf ausgelagerten Journeys bestanden in ihren drei Ownerjobs. Acht der
+  neun neuen UX4-C-Fälle bestanden bereits, einschließlich nativen 200-/400-%-Zooms
+  und Chartausfällen. Das ist ausdrücklich kein grüner Gesamtstand dieses Heads.
+- Der einzige fehlgeschlagene Fall prüfte extrem lange Original-Decimalstrings
+  bei 320 CSS-Pixeln. Die vorhandenen SELL-Quellenkarten ließen wegen intrinsischer
+  Grid-Mindestbreite und `overflow-wrap: break-word` die Dokumentbreite überlaufen.
+  Trace-DOM und tatsächlich geladene CSS-Regeln bestätigen die Ursache; der
+  Fehler war in allen drei vorhandenen CI-Testversuchen reproduzierbar.
+- Die Korrektur beschränkt sich auf `min-w-0` an den betreffenden Gridkindern
+  und `overflow-wrap: anywhere` an Geldanzeigen in `RealizedGrossReportView`.
+  Originalwerte, Berechnung, Semantik und Browserassertions bleiben unverändert.
+  TypeScript, Formatprüfung und Diffcheck wurden danach erneut erfolgreich
+  ausgeführt. Der neue Head benötigt erneut die vollständige reguläre CI;
+  deren endgültige Zuordnung wird in der PR-Beschreibung festgehalten.
 
 ### Automatisierte Prüfmatrix
 
