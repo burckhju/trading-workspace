@@ -12,6 +12,20 @@ vi.mock('../services/client', () => ({
 
 const api = vi.mocked(tradeManagementApiClient);
 
+const openPosition = {
+  id: 'position-1',
+  trade_id: 'trade-1',
+  product_id: 'product-1',
+  open_quantity: 10,
+  cost_basis: '2',
+  average_entry_price: '0.2',
+  realized_gross_pnl: '0',
+  opened_at: '2026-09-01T00:00:00Z',
+  last_execution_at: '2026-09-01T00:00:00Z',
+  closed_at: null,
+  is_closed: false,
+};
+
 const quote: ProductPositionValuationResponse = {
   trade_id: 'trade-1',
   position_id: 'position-1',
@@ -51,24 +65,19 @@ const quote: ProductPositionValuationResponse = {
 describe('issuer quote time disclosure', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    api.position.mockResolvedValue({
-      id: 'position-1',
-      trade_id: 'trade-1',
-      product_id: 'product-1',
-      open_quantity: 10,
-      cost_basis: '2',
-      average_entry_price: '0.2',
-      realized_gross_pnl: '0',
-      opened_at: '2026-09-01T00:00:00Z',
-      last_execution_at: '2026-09-01T00:00:00Z',
-      closed_at: null,
-      is_closed: false,
-    });
   });
 
   it('keeps the full local timestamp verbatim and discloses zero volumes', async () => {
     api.productValuation.mockResolvedValue(quote);
-    render(<ProductValuationPanel tradeId="trade-1" />);
+    render(
+      <ProductValuationPanel
+        tradeId="trade-1"
+        productId="product-1"
+        position={openPosition}
+        cancelled={false}
+        positionRead={{ status: 'ready', revision: 1 }}
+      />,
+    );
     expect(
       await screen.findAllByText(/Quellzeit 21\/09\/2026 20:12:49.77 \(Zeitzone unbekannt\)/),
     ).toHaveLength(2);
@@ -90,7 +99,15 @@ describe('issuer quote time disclosure', () => {
       bid_volume: 125000,
       ask_volume: 125000,
     });
-    render(<ProductValuationPanel tradeId="trade-1" />);
+    render(
+      <ProductValuationPanel
+        tradeId="trade-1"
+        productId="product-1"
+        position={openPosition}
+        cancelled={false}
+        positionRead={{ status: 'ready', revision: 1 }}
+      />,
+    );
     expect(
       await screen.findAllByText(/Quelluhrzeit 20:12:49 \(Datum und Zeitzone unbekannt\)/),
     ).toHaveLength(2);

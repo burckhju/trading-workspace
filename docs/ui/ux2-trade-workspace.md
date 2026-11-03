@@ -99,10 +99,26 @@ Monitoringzustand behalten ihre getrennten Flächen und Owner.
 | Mögliche weitere Arbeit wählen | Allgemeiner „Nächster Schritt“, einschließlich pauschaler Nachbeobachtungsaufforderung | Konkrete bestehende Links entsprechend OPEN/CLOSED/CANCELLED; keine neue Pflicht aus einem Lifecyclezustand |
 | Bewertung nach Buchungsänderung einordnen | Separater Positionsread und Timelineevent konnten der Hostvalidierung vorauslaufen | Hostposition einmal validiert; neue Bewertung erst nach erfolgreichem Readback; Fehlergrenze sichtbar |
 
-Geplante Prüfungen betreffen genau diese Änderungen. Tatsächlich ausgeführte
-Läufe, finale Dateiliste, Head/Testmerge/Tree und reguläre CI werden am eigenen
-Draft-PR gebunden. Technische Implementierung ist keine menschliche Fachabnahme.
-UX2-C/D, Merge, Versionserhöhung, Release, Deployment und PC-Update sind getrennt.
+Die ergänzten Regressionen prüfen diese Read-, Qualifikations- und Bediengrenzen
+in den bestehenden Bewertungssuites, der neuen `TradeManagementOverview.test.tsx`
+und den erhaltenen Host-/Navigationssuites. Der vollständige UX4-B-Charttest in der
+gemeinsamen E2E-Datei bleibt unverändert. Die drei Überblicksfälle erzeugen
+Screenshotanhänge bei 320, 390 und 1280 px für die konkrete Darstellungsprüfung.
+
+Reproduktion mit `frontend/.nvmrc` (Node 22.16.0), npm 10.9.2 und unveränderter
+Lockdatei: `bash scripts/check-frontend.sh`; Browserregression über
+`npm --prefix frontend run e2e -- trade-workspace-navigation.spec.ts` im bestehenden
+Teststack. Die reguläre PR-CI führt zusätzlich Backend-Coverage, alle vier
+E2E-Ownerjobs, Issuer-Sandbox, restriktive Imageprüfung und Publication Guards
+aus. Keine Pflichtprüfung wird durch einen Teiltest ersetzt.
+
+Tatsächlich ausgeführte Läufe, finale Dateiliste, Head/Testmerge/Tree und reguläre
+CI werden am eigenen Draft-PR gebunden. Die lokale Sandbox kann Chromium nicht
+starten (SIGTRAP vor Seitenöffnung); lokale Vitest-Dateiergebnisse ohne beendeten
+Prozess sind ebenfalls kein vollständiger Gateerfolg. Die CI muss deshalb den
+gesamten tatsächlichen Änderungssatz qualifizieren. Technische Implementierung
+ist keine menschliche Fachabnahme. UX2-C/D, Merge, Versionserhöhung, Release,
+Deployment und PC-Update bleiben getrennt.
 
 ## Historische UX2-A-Übergabe
 

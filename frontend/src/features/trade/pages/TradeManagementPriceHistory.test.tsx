@@ -12,6 +12,7 @@ vi.mock('../../operational_workspace/services/positionPriceHistory', () => ({
 }));
 vi.mock('../../product/services/client', () => ({ warrantApiClient: { get: vi.fn() } }));
 vi.mock('../services/client', () => ({
+  tradeTimelineChangedEvent: 'trade-timeline-changed',
   tradeManagementApiClient: {
     trade: vi.fn(),
     position: vi.fn(),
@@ -20,6 +21,8 @@ vi.mock('../services/client', () => ({
     sell: vi.fn(),
   },
 }));
+// This suite owns the real chart; the real valuation has a separate host integration suite.
+vi.mock('../components/ProductValuationPanel', () => ({ ProductValuationPanel: () => null }));
 vi.mock('../../alert/components/PositionRiskPanel', () => ({ PositionRiskPanel: () => null }));
 vi.mock('../../alert/components/TradeAlertsPanel', () => ({ TradeAlertsPanel: () => null }));
 vi.mock('../components/TradeCancellationPanel', () => ({ TradeCancellationPanel: () => null }));
