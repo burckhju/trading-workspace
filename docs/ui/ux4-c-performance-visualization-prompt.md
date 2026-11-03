@@ -2,11 +2,12 @@
 
 | Feld | Stand |
 | --- | --- |
-| Dokumenttyp / Version | Eigenständiger Implementierungsauftrag, Draft 0.1 |
-| Status | Vorbereitung durch UX4-A; keine Implementierungs- oder Integrationsabnahme |
-| Datum | 31.10.2026, Europe/Vienna |
+| Dokumenttyp / Version | Eigenständiger Implementierungsauftrag, Draft 0.2 |
+| Status | Gegen tatsächlichen Main aktualisiert; begrenzter UX4-C-Draft beauftragt, keine menschliche Fach-/Integrationsabnahme |
+| Datum | 03.11.2026, Europe/Berlin |
 | Repository | `https://github.com/burckhju/trading-workspace` |
 | Historische Prüfbasis | `1883f7f330719453958f8be1dd51d48db816662e`, `v1.5.35` |
+| Verifizierter Main bei UX4-C-Start | `3397399e7bf8364501437f9509a4fb18dbe32c08`, Versionsdateien `1.5.38`; UX4-B #322 integriert |
 | Ziel | Vorhandene qualifizierte Performancewerte verständlich visualisieren |
 | Grenze | Keine neue Finanzberechnung; kein Merge, Release oder PC-Update |
 
@@ -14,8 +15,9 @@
 
 Du verantwortest UX4-C im genannten Repository. Implementiere eine begrenzte
 Performancevisualisierung aus den vorhandenen Ownerantworten und liefere einen
-eigenständigen Draft-PR. Dieser Startprompt ist ein späterer Implementierungsauftrag;
-der UX4-A-PR selbst enthält ausschließlich Analyse und Verträge.
+eigenständigen Draft-PR. Der ursprüngliche UX4-A-PR enthielt ausschließlich
+Analyse und Verträge; dieser aktualisierte Auftrag setzt auf deren inzwischen
+integriertem Mainbestand auf.
 
 Prüfe zu Beginn den tatsächlichen aktuellen Main, die Repositoryvorgaben und
 vorhandene `AGENTS.md`-Dateien. Die historische SHA oben ist ein überprüfter
@@ -40,39 +42,61 @@ Lies mindestens:
 - [Performance-Konsolidierung](../implementation/UI_PERFORMANCE_CONSOLIDATION.md)
   und [Quellenintegration](../implementation/CLOSED_TRADE_SOURCE_INTEGRATION_QUALIFICATION.md).
 
-Lies außerdem die konkret veröffentlichten Koordinations- und UX-Verträge.
-Der Konsolidierungsstand vom 31.10.2026 bindet folgende **Drafts**, getrennt
-vom historischen Main-Bestand:
+Lies außerdem die im geprüften Main vorhandenen Verträge:
 
-- Master-Koordination [#313](https://github.com/burckhju/trading-workspace/pull/313),
-  Head `2312abfe8834a1b652b100fc635c4d36172d5c32`:
-  [UX_MASTER_PLAN](https://github.com/burckhju/trading-workspace/blob/2312abfe8834a1b652b100fc635c4d36172d5c32/docs/coordination/UX_MASTER_PLAN.md),
-  [UX_OWNERSHIP](https://github.com/burckhju/trading-workspace/blob/2312abfe8834a1b652b100fc635c4d36172d5c32/docs/coordination/UX_OWNERSHIP.md),
-  [UX_SHARED_CONTRACTS](https://github.com/burckhju/trading-workspace/blob/2312abfe8834a1b652b100fc635c4d36172d5c32/docs/coordination/UX_SHARED_CONTRACTS.md),
-  [UX_DEPENDENCIES](https://github.com/burckhju/trading-workspace/blob/2312abfe8834a1b652b100fc635c4d36172d5c32/docs/coordination/UX_DEPENDENCIES.md) und
-  [UX_INTEGRATION_STATUS](https://github.com/burckhju/trading-workspace/blob/2312abfe8834a1b652b100fc635c4d36172d5c32/docs/coordination/UX_INTEGRATION_STATUS.md).
-- UX-3 [#314](https://github.com/burckhju/trading-workspace/pull/314),
-  Head `52a24266dce1ec048b23360b4b75d5b3f54d746b`:
-  [Hinweisvertrag](https://github.com/burckhju/trading-workspace/blob/52a24266dce1ec048b23360b4b75d5b3f54d746b/docs/ui/ux-3/notice-contract.md) und
-  [Komponenten und Aktionen](https://github.com/burckhju/trading-workspace/blob/52a24266dce1ec048b23360b4b75d5b3f54d746b/docs/ui/ux-3/components-and-actions.md).
-  Die gemeinsamen Hinweisrenderer sind dort Vorschläge, keine bereits
-  integrierten Komponenten.
-- UX-2 [#311](https://github.com/burckhju/trading-workspace/pull/311),
-  Head `79e9b97e31d3bf80936fb5c026798bf8ebb10b33` mit
-  [Workspacevertrag](https://github.com/burckhju/trading-workspace/blob/79e9b97e31d3bf80936fb5c026798bf8ebb10b33/docs/ui/ux2-trade-workspace.md),
-  sowie UX-1 [#312](https://github.com/burckhju/trading-workspace/pull/312),
-  Head `8f67442daac6879d7dfb28416f2171f67aead0e5` mit
-  [Qualifikation und Übergabe](https://github.com/burckhju/trading-workspace/blob/8f67442daac6879d7dfb28416f2171f67aead0e5/docs/implementation/UX1_INPUT_REUSE_QUALIFICATION.md).
+- [UX_MASTER_PLAN](../coordination/UX_MASTER_PLAN.md),
+  [UX_OWNERSHIP](../coordination/UX_OWNERSHIP.md),
+  [UX_SHARED_CONTRACTS](../coordination/UX_SHARED_CONTRACTS.md),
+  [UX_DEPENDENCIES](../coordination/UX_DEPENDENCIES.md) und
+  [UX_INTEGRATION_STATUS](../coordination/UX_INTEGRATION_STATUS.md).
+  #313 und die Fortschreibung #321 sind integriert. Ihre datierten Snapshots
+  ersetzen keine aktuelle Prüfung von PRs, Main und CI.
+- Den kanonischen UX-3-[Hinweisvertrag](ux-3/notice-contract.md) aus #314 sowie
+  [Komponenten und Aktionen](ux-3/components-and-actions.md). Der B1/F1-Pilot
+  aus #320 ist integriert: `shared/notices` exportiert tatsächlich `NoticeCard`,
+  `NoticeView`, `NoticeCardProps` und `DetailRow`. Weitere konzeptionelle
+  Hinweisbausteine sind keine vorhandenen öffentlichen Exports. #315 bleibt
+  ergänzende offene Draft-Quelle, kein zweiter normativer Vertrag.
+- Den [UX-2-Workspacevertrag](ux2-trade-workspace.md) und die
+  [gemeinsame UX1-/UX2-Qualifikation](../implementation/UX1_UX2_INTEGRATION_QUALIFICATION.md).
+  #311/#312 sind über #318 integriert; Shared-Reportnavigation und der editierbare
+  Browserzonenvorschlag gehören zum Mainbestand.
+- Den [UX4-B-Abschlussnachweis](../implementation/UX4_B_QUALIFICATION.md).
+  #322 ist mit Head `d3c12f105fbd643f5579e23e00b4cca978229184` in Main integriert.
+  Quellenwahl, Originalbelegzugang und Chartausfallschutz nicht erneut implementieren.
 
-Prüfe ihre aktuellen Heads, Inhalte und Integrationszustände beim Start erneut.
-Die zeitgebundenen Aussagen im Koordinationssnapshot zu noch ausstehenden
-UX-3-/UX-4-Übergaben sind keine Aussage über inzwischen veröffentlichte Drafts.
-Eine veröffentlichte Dokumentation erteilt weder eine Integrationsabnahme noch
-eine Mergefreigabe. Das Product Backlog bleibt der fachliche Statusowner.
+Der Abgleich am 03.11.2026 umfasst alle sechs offenen Fremd-PRs
+#315/#220/#207/#205/#197/#187. Keiner ändert die vorgesehenen Performance-Dateien
+oder diesen Startprompt. Vor Veröffentlichung erneut vergleichen. Eine technische
+Vertragsprüfung ist keine zugestellte Abstimmung in einem fremden Chat und keine
+menschliche UX-/Domain-/Screenreaderabnahme. Das Product Backlog bleibt der
+fachliche Statusowner; dieser Auftrag erteilt ausschließlich Draft-PR-Freigabe.
+
+### Konkreter lokaler Integrationsschnitt
+
+- UX-2: Einbindung innerhalb `RealizedGrossReportView` unmittelbar vor der
+  vorhandenen Eintragssektion; ausschließlich die bereits akzeptierte `report`-Prop.
+  Ergänzung der bestehenden `ClosedTradeStatistics`-Karten. Keine Änderung an
+  `PerformanceWorkspace`, `TradeManagementPage`, Routing oder Shared-Imports.
+  Bestehende Auswahl-/Basis-/Generationskeys übernehmen Invalidierung und Reset.
+- UX-3: Vorhandene Summaryzustände, Reasontexte und B1-Quellenhinweise erhalten.
+  `PARTIAL`/`NOT_COMPUTABLE` bleiben unvollständig, `EMPTY` bleibt geprüfte Leere.
+  Eine Plotdarstellungsgrenze ist keine neue finanzielle Ursache. Keine zweite
+  Notice-Engine oder zusätzliche Live-Ankündigung statischer Reportdaten.
+- UX4-C V1: Kategoriale Einzelereignisse in gelieferter Berichtreihenfolge mit
+  eindeutigem SELL-Bezug; keine Zeitabstands- oder Tagesbucketbehauptung. Originalzeit,
+  Zeitpräzision und Zone stehen in einer vollständigen paginierten Datentabelle.
+  Ein grafischer Seitenausschnitt verändert weder Statistik noch Gesamtzähler.
+  Die vier bestehenden Abschlusskarten erhalten je Definition, N, Zeitraum,
+  Zone und Währungs-/Einheitenbezug; die bestehenden Abdeckungsgruppen bleiben erhalten.
+
+Diese fachlokale Einbindung benötigt keinen neuen gemeinsamen Hostvertrag.
+Eine spätere gemeinsame Workspace-/Hinweiserweiterung bleibt gesondert mit den
+jeweiligen Ownern abzustimmen; persönliche Freigaben werden hier nicht behauptet.
 
 ## Belegter Iststand und Berechnungsgrenzen
 
-Die historische Prüfbasis enthält bereits zwei Berichte, eine gemeinsame
+Der verifizierte Main enthält bereits zwei Berichte, eine gemeinsame
 Performanceoberfläche und vier Backendstatistiken. Es fehlt die grafische
 Darstellung der Beiträge, nicht deren Finanzberechnung.
 
@@ -211,10 +235,9 @@ Die Berichtsperiode reicht vom Beginn des Von-Tages bis ausschließlich zum
 Beginn des Tages nach Bis in der gewählten Zone. Verwende die Backendgrenzen;
 keine pauschalen 24-Stunden-Tage oder lokale Neuqualifikation. Bewahre die
 explizite Auswahl aus URL/Workspace. Der Main-Default der historischen Basis
-war `Europe/Berlin`; UX4 erfindet keine neue Defaultzone und übernimmt
-gegebenenfalls die inzwischen integrierte UX-1-Regel: gültige Browserzone als
-editierbarer Vorschlag, explizite URL-Auswahl mit Vorrang. Der geprüfte UX-1-Draft
-ist keine Erlaubnis, ihn in diesem Auftrag vorab zu integrieren.
+war `Europe/Berlin`; inzwischen gilt die integrierte UX-1-Regel: gültige
+Browserzone als editierbarer Vorschlag, Fallback `Europe/Berlin`, explizite
+URL-Auswahl mit Vorrang. UX4 ändert diese vorhandene Regel nicht.
 
 `basis.knowledge=CURRENT_EFFECTIVE_FACTS` bedeutet heute wirksame korrigierte
 Fakten, auch für alte Berichtsperioden. `basis.id` ist kein wiederherstellbarer
@@ -282,12 +305,13 @@ oder Services wie `trade/services/sourceView` oder
 Ein abgestimmtes schmales Modul unter dem bestehenden `frontend/src/shared/`
 darf nur gemeinsame Darstellungs-/URL-Transportverträge enthalten; alternativ
 erhält der Renderer bereits vom Owner qualifizierte Links über typisierte Props.
-Eine solche neue gemeinsame Schnittstelle ist ein Vorschlag, kein Main-Bestand.
+Die vorhandene `shared/trade-workspace-navigation`-Grenze ist Main-Bestand;
+eine zusätzliche gemeinsame Schnittstelle ist für den lokalen V1-Schnitt unnötig.
 Berichtsvalidatoren, Quellenqualifikation und Finanzlogik verbleiben vollständig
 bei ihren Feature-/Domainownern. URLs und Rücksprungparameter sind kein
 Finanz- oder Quellenbeleg.
 
-Hinweise folgen dem gelesenen UX-3-Draft: Der Performance-Adapter ordnet
+Hinweise folgen dem integrierten kanonischen UX-3-Vertrag: Der Performance-Adapter ordnet
 vorhandene Status-/Reason-Felder einer verständlichen Ursache und konkreten
 Auswirkung zu. Ein Readfehler belegt keine fehlende historische Währung; ein
 vollständig geprüfter leerer Bericht ist kein Fehler. Relevante Einschränkungen
@@ -308,7 +332,7 @@ zusammenfassender Hinweis und Detail erzeugen keine doppelte Live-Ankündigung.
 | Bestehende Performance-/Finanzowner | Performance besitzt Berichtsbasis, Kohorte, Kennzahlendefinition und Berichtvalidatoren; Trade/Position besitzt Projektion und historische Währungsqualifikation. Neue Aggregationen sind vorgelagerte Domainaufträge. |
 | UX-1 | Sichere belegte Ableitungen und editierbare Filtervorschläge; keine Übernahme der Performance-Domainzuständigkeit und keine parallele UX4-Währungsauflösung. |
 | UX-2 | Einbindungsposition, gemeinsame Workspacekomponenten, öffentliche Import-/Navigationsgrenze, Read-Lebensdauer, Readback und Hostinvalidierung. Vor Änderungen Slot, Props, Anker/Fokusziele, Ladeowner und reservierte Konfliktdateien mit konkretem PR/Head/Integrationsschritt abstimmen. |
-| UX-3 | Die veröffentlichten Hinweisverträge aus #314 auf Ownerdaten anwenden: Ursache, Auswirkung, belegte Navigation und zugängliche Ankündigung. Vorgeschlagene Komponenten nicht als vorhanden voraussetzen; keine eigene globale Qualitätsampel oder Schweregradlogik. |
+| UX-3 | Den integrierten Hinweisvertrag aus #314 und den begrenzten B1-Piloten aus #320 erhalten: Ursache, Auswirkung, belegte Navigation und zugängliche Ankündigung. Nur tatsächliche öffentliche Exports verwenden; keine eigene globale Qualitätsampel oder Schweregradlogik. |
 | UX4-B / UX4-D | Keine technische Implementierungsabhängigkeit erforderlich. Bestehende Datenverträge nutzen; keine gemeinsame neue Infrastruktur voraussetzen. |
 
 Solange die gemeinsame Einbindung nicht abgestimmt ist, bereite eine fachlich
@@ -397,4 +421,5 @@ Gesamtabnahme der Depotperformance.
 
 | Version | Datum | Änderung |
 | --- | --- | --- |
+| 0.2 | 03.11.2026 | Vor Runtimearbeit gegen Main `3397399e…` aktualisiert: tatsächlicher UX4-B-Merge, integrierte UX1/UX2-/UX3-Grenzen, sechs offene Fremd-PRs und lokaler V1-Slot; keine neue Fachberechnung oder menschliche Abnahme |
 | 0.1 | 31.10.2026 | Eigenständiger UX4-C-Startprompt aus UX4-A-Codeinventur und Visualisierungsvertrag; konkretisiert anhand Koordination #313, UX-3 #314 und UX-1-Head `8f67442d…`: Host-/Readback-/Importgrenzen, Hinweisvertrag und Zeitzonenregression; keine Runtimeänderung |
