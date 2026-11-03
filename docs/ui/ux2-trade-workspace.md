@@ -15,7 +15,7 @@ Nachweise. Die integrierten Owner-/Schutzverträge gelten weiter. #321 veränder
 genau die fünf Masterdateien; sie bleiben in diesem Auftrag unverändert.
 
 Kein bestehender UX2-B-Branch oder -PR wurde gefunden. Eigener Branch:
-`feat/ux2-b-trade-overview`. Die offenen PRs #315, #220, #207, #205, #197 und #187
+`feat/ux2-b-trade-overview`. Die beim Start offenen PRs #315, #220, #207, #205, #197 und #187
 haben keine Dateiüberschneidung mit dem folgenden Schnitt. #315 bleibt eine
 historische Draft-Quellreferenz, kein zweiter normativer Hinweisvertrag.
 
@@ -27,6 +27,24 @@ historische Draft-Quellreferenz, kein zweiter normativer Hinweisvertrag.
 | Bewertungs-/Host-/Kontexttests unter `frontend/src/features/trade/` | Geänderte Readzahlen, Qualifikation, Racefälle, Readback und Entwurfserhalt absichern | OPEN/CLOSED/CANCELLED, fehlende/fremde Daten, Reload, A→B→A, bestätigter Write mit erfolgreichem/fehlgeschlagenem Readback | Bestehende UX1-/Chartregressionen behalten |
 | `tests/e2e/trade-workspace-navigation.spec.ts` | Synthetische Bewertungsfixture und additive Überblicks-/Read-/Tastaturfälle bei 320/390/1280 px | Kopierter Direktlink, Reload, Hash-/Detailwechsel und historische Rückwege | #322 ist integriert: dessen Quellenwahl-, Originalbeleg-, Pagination- und Entwurfsassertionen vollständig erhalten |
 | Dieses UX2-Dokument | Lesevertrag, Herkunft und konkrete Nutzerwege; tatsächliche Prüfbelege im PR | Keine neue Fachstatusquelle | PRODUCT_BACKLOG bleibt einzige fachliche Statusquelle; keine Änderung der fünf Masterdateien |
+
+**Neuer Parallelstand während der Umsetzung:** Der anschließend erschienene
+[UX3-B2-Draft #324](https://github.com/burckhju/trading-workspace/pull/324) wurde am
+Head `5c6eab563595872ab5fc19123578beb8e6870fa9` geprüft. Seine sieben tatsächlichen
+Dateien überschneiden sich in `ProductValuationPanel.tsx`, dessen Haupttest und
+Währungstest mit UX2-B. UX3 ändert Warnursachen/-texte und Originalcodedetails;
+UX2 ändert Props, Readlebensdauer und Platzierung. Ein reiner Dreiwegevergleich
+ist textuell konfliktfrei, qualifiziert aber keinen kombinierten Stand.
+
+#324s neue `ProductValuationPanel.notices.test.tsx` verwendet noch den alten
+Ein-Prop-Aufruf und erwartet einen Positionsread des Panels. Bei Kombination
+muss diese Suite den validierten Hostkontext übergeben und null eigene
+Positionsreads erwarten; ihre Q12-/Qualifikations-/Originalcodeassertionen bleiben
+erhalten. Technisch empfohlene Reihenfolge: #324 auf Main, anschließend UX2-B auf
+genau diesen integrierten Main mit angepasster Testschnittstelle und vollständiger
+neuer CI qualifizieren. Keine erfolgte Abstimmung, Zustimmung, fremde
+Branchübernahme oder kombinierte Freigabe wird behauptet. Der aktuelle
+Main-/Head-/CI-Stand wird am eigenen Draft-PR fortgeschrieben.
 
 ### Positions- und Bewertungs-Lesevertrag
 
@@ -85,8 +103,8 @@ drei Rohwerte. Der genaue fehlende Teil bleibt benannt; Layout, vorhandene
 Bewertung und ihre eigene G/V-Qualifikation sind davon unabhängig. Keine eigene
 Kostenbasis-, Average-Cost-, FX- oder Ergebnisrechnung.
 
-Der bestehende Q12-Auffangtext für unbekannte `analysis_warning` bleibt ein
-gesonderter UX3-B2-Auftrag. UX2-B ändert weder seine Ursache noch dessen Mapper
+Der bestehende Q12-Auffangtext für unbekannte `analysis_warning` gehört zum
+gesonderten UX3-B2-Draft #324. UX2-B ändert weder seine Ursache noch dessen Mapper
 und behauptet keine Q12-/F2-Fachabnahme. Alerts, Positionsrisiko und operativer
 Monitoringzustand behalten ihre getrennten Flächen und Owner.
 

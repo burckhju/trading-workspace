@@ -700,7 +700,7 @@ describe('ProductValuationPanel', () => {
         },
       },
     })),
-  ])('rejects an unverified valuation: $field', async ({ value }) => {
+  ])('rejects an unverified valuation: $field', async ({ field, value }) => {
     api.productValuation.mockResolvedValueOnce(value);
     await act(async () => {
       render(panel());
@@ -708,7 +708,13 @@ describe('ProductValuationPanel', () => {
     });
 
     expect(screen.getByRole('heading', { name: 'Produktbewertung' })).toBeInTheDocument();
-    expect(screen.getByText(/Produktbewertung gehört nicht zu diesem Trade/)).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        field.startsWith('missing')
+          ? /Produktbewertung konnte nicht vollständig gelesen werden/
+          : /Produktbewertung gehört nicht zu diesem Trade/,
+      ),
+    ).toBeInTheDocument();
     expect(screen.queryByText('Produktkurs verfügbar')).not.toBeInTheDocument();
     expect(screen.queryByText('25 EUR')).not.toBeInTheDocument();
     expect(api.productValuation).toHaveBeenCalledTimes(1);
