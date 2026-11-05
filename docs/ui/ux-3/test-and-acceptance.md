@@ -444,6 +444,16 @@ fünf Versions-/Nachweisdateien aus #328 werden unverändert übernommen; der ei
 Diff bleibt bei sieben Dateien. Aus der übernommenen Version 1.5.39 folgt kein
 Tag- oder Installationsnachweis. Frühere Läufe gegen `3397399e...` beziehungsweise
 `7399bcca...` ersetzen keine neue CI auf diesem Gesamtstand.
+Am **05.11.2026** wurde der unveränderte, qualifizierte Head
+`cd469037656dff05c6deb6704a94d371adeeb95a` über
+[#326](https://github.com/burckhju/trading-workspace/pull/326) integriert:
+Main-Merge `a68b3a928129b42b19dc2a6de07be1bf7c91a811`, Parents
+`14913454ddecd1a9559639ec19d7373cf5269e90` und dieser PR-Head, Tree
+`5e71e12af4d8fb1a10d074c7ec9c30079988c4d9`. Der Tree entspricht exakt dem
+qualifizierten Testmerge `c5cc04d8c532cd2d2d5c18a632ae715564aeffd1`.
+Das ist der Produktintegrationsnachweis; der bislang veröffentlichte Tag
+`v1.5.39` auf `14913454...` enthält den Schnitt noch nicht. Der getrennte
+Release-/Tag- und PC-Nachweis folgt gesondert.
 Dies ist ein technischer Nachweis, keine zweite fachliche Statusliste neben dem
 Product Backlog und keine Änderung der fünf Masterdokumente.
 
@@ -461,7 +471,7 @@ Live-Ansage, Fokusänderung, Navigation, neuen Reads oder Writes.
 `STALE` bleibt erklärt. `LAST_AVAILABLE` allein wird als letzter verfügbarer
 Kursstand beschrieben, ohne Veraltung oder Nutzbarkeit daraus abzuleiten.
 Der wiederverwendete Warncode `OUTDATED_QUOTE_INDICATIVE_ANALYSIS_ONLY` allein
-ist ebenfalls kein eindeutiger Veraltungsbeleg; der genaue Klärpunkt steht unten.
+ist ebenfalls kein eindeutiger Veraltungsbeleg; die aufgelöste Beleggrenze steht unten.
 Bekannte Zeitstempel-, Zeitzonen-, Abruf- und Referenzkurswarnungen verwenden
 ausschließlich ihre bestehenden Ursachen aus dem
 [Bewertungsowner](../../../backend/app/features/position_monitoring/service/product_valuation.py).
@@ -499,13 +509,18 @@ Exit 1; dieselbe Assertion endete nach der Korrektur mit Exit 0. Toolchain:
 Node 22.16.0, npm 10.9.2, unveränderte Lockdatei, `TZ=UTC`.
 Lokale Vitest-Einzelresultate ohne abschließenden Prozessabschluss werden nicht
 als bestandener Lauf gezählt; der lokale Chromiumstart endete mit SIGTRAP und
-belegt keine Browserabnahme. Die regulären unveränderten Frontend-, Backend-,
-E2E- und Publication-Guard-Gates müssen am tatsächlichen finalen PR-Head bzw.
-zugehörigen Testmerge vollständig gelesen werden. Head, Mainbasis, Testmerge/Tree
-und aktuelle Run-/Joblinks werden gemeinsam im Draft-PR gebunden; ältere CI
-ersetzt diesen Nachweis nicht.
+belegt keine Browserabnahme. Die regulären unveränderten Gates sind für den oben
+genannten Head und Testmerge vollständig erfolgreich: neun ausgeführte Jobs aus
+[Frontend](https://github.com/burckhju/trading-workspace/actions/runs/41588604527),
+[Backend](https://github.com/burckhju/trading-workspace/actions/runs/41588604480),
+[E2E](https://github.com/burckhju/trading-workspace/actions/runs/41588604471) und
+[Publication Guards](https://github.com/burckhju/trading-workspace/actions/runs/41588604577).
+Die exakten Run-/Job- und Checkoutbelege stehen in #326. Der auf PRs regulär
+übersprungene Tagjob zählt weder zu diesen neun Jobs noch als Veröffentlichung.
+Ein späterer Release-/Dokumentationsschnitt benötigt seine eigenen regulären
+CI- und Main-Push-/Tagbelege; diese Produktläufe ersetzen sie nicht.
 
-### Enger Owner-Klärpunkt zum zusätzlichen Veraltungsgegenfall
+### Aufgelöste Beleggrenze und historische Zusatzursachenannahme
 
 Beim ursprünglichen Parallelabgleich waren [#324](https://github.com/burckhju/trading-workspace/pull/324)
 an `ProductValuationPanel` und [#325](https://github.com/burckhju/trading-workspace/pull/325)
@@ -523,29 +538,46 @@ der oben genannten Mainbasis liefert `LAST_AVAILABLE`, den Grund
 `MARKET_CLOSED_LAST_AVAILABLE_QUOTE`, `valuation_usable=True` und denselben
 `OUTDATED_QUOTE_INDICATIVE_ANALYSIS_ONLY`-Code wie für `STALE`.
 
-Deshalb kann dieser Warncode im schmaleren `OperationalPosition` nicht als die
-im Auftrag geforderte **separate eindeutige Veraltungsursache** nachgewiesen werden.
-Der erste eigene Draft deutete ihn noch so; diese Annahme wurde vor Abschluss
-zurückgenommen. Die sichere Darstellung bleibt an dieser Stelle neutral und
-erklärt nur den letzten Kursstand bzw. die indikative Analyse. `STALE` bleibt
-der hier eindeutig gelieferte Veraltungsbeleg. Die 19 Komponentenfälle prüfen
-diese Grenze; sie behaupten keinen erfundenen positiven Zusatzursachenfall.
+Der erste Draft vom 03.11.2026 deutete den Warncode zunächst als separate
+eindeutige Veraltungsursache; diese Annahme wurde bereits vor dem Produktabschluss
+zurückgenommen. Die anschließend offen gelassene Forderung nach einem positiven
+Zusatzursachenfall wurde am **05.11.2026 anhand des bestehenden Vertrags geklärt**:
+TC-49 verlangt keinen Fall „LAST_AVAILABLE plus weiterer Veraltungsbeleg“, sondern
+ursachengetreue Texte ohne erfundene Veraltung oder Referenzkurse. Die frühere
+Zuordnung dieser Zusatzpflicht zu TC-49 war zu weit und wird hier ausdrücklich
+korrigiert; die kanonische TC-Zeile und die Domainregeln bleiben unverändert.
 
-**Konkrete Entscheidungsvorlage an den Bewertungsowner:** Welcher bereits
-gelieferte, eindeutig qualifizierte Befund darf bei `LAST_AVAILABLE` zusätzlich
-Veraltung belegen? Empfehlung für diesen begrenzten PR: ohne einen solchen
-Nachweis die neutrale Darstellung beibehalten; eine notwendige zusätzliche
-Ownerqualifikation separat entscheiden. Keine neuen Flags, DTOs, Reads oder
-Altersgrenzen in diesen Schnitt aufnehmen. Der entsprechende positive
-Zusatzursachenfall aus TC-49 bleibt bis zu dieser fachlichen Klärung offen;
-die übrigen Regressionen und technischen Gates werden vollständig ausgeführt.
+Der [Snapshot-Composer](../../../backend/app/features/operational_workspace/service/position_snapshot.py),
+das [REST-DTO](../../../backend/app/features/operational_workspace/api/dtos.py) und
+`OperationalPosition` liefern keinen solchen zusätzlichen Frischebefund.
+`reason`, `valuation_usable`, `analysis_usable`, `freshness_policy` und
+`quote_age_limit_exceeded` des reicheren Bewertungsobjekts gehören nicht zu dieser
+Eingabe. Auch ein bloßes Überschreiten einer Zeitgrenze wäre nach der bestehenden
+[Sitzungspolicy](../../../backend/app/features/position_monitoring/service/quote_freshness.py)
+kein Ersatz für deren fachliche Einordnung. Geldwerte, G/V-Gründe oder Originalzeiten
+dürfen diese fehlende Qualifikation nicht im Frontend erzeugen.
 
-Offen bleiben menschlicher Domainreview der Ursache/Wirkung und G/V-Trennung,
-UX1-/UX2-/UX4-Abnahme der erhaltenen Grenzen sowie UX3-Sprach-/Darstellungsprüfung
-einschließlich realer Screenreader-, Mobil- und 200–400-%-Zoomabnahme. Automatisierte
-Fälle ersetzen diese Abnahmen nicht. Der unbekannte-Warncode-Fallback in
+**Ergebnis für diesen Schnitt:** `STALE` ist der positive gelieferte
+Veraltungsbeleg. `LAST_AVAILABLE` allein und mit dem mehrdeutigen OUTDATED-Code
+bleibt neutral; bekannte andere Warncodes erklären nur ihre tatsächlich belegte
+Einschränkung. Die 19 Komponentenfälle enthalten diese positiven und negativen
+Gegenfälle. Diese begrenzte Darstellung erfüllt die Beleggrenze aus TC-49 und
+[Hinweisvertrag §§2/8](notice-contract.md). Es bleibt keine zusätzliche
+Domainentscheidung für diesen Textschnitt offen. Falls künftig eine weitere
+Ownerqualifikation benötigt wird, ist sie gesondert zu entscheiden; keine neuen
+Flags, DTOs, Reads oder Altersgrenzen werden dafür in diesen Schnitt aufgenommen.
+
+Dieser Code-/Vertragsabgleich behauptet keine gesonderten menschlichen
+Domain-/UX1-/UX2-/UX4-Abnahmen oder abgeschlossene reale Screenreader-, Mobil-
+und 200–400-%-Zoomabnahme. Automatisierte Fälle ersetzen diese Abnahmen nicht.
+Der unbekannte-Warncode-Fallback in
 `ProductValuationPanel` wurde separat durch #324 korrigiert und wird in diesem
 PositionDetails-Diff nicht erneut bearbeitet. UX1-B-Planwährung und
 FT-007/TradePlan-Auswahl-/Konfliktregel bleiben ebenfalls außerhalb dieses PRs.
-Dieser Auftrag umfasst keinen Merge, Release, Tag, PC-Schritt oder produktiven
-Datenwrite.
+
+**Historischer Auftragsumfang vom 03.11.2026:** Der damalige Draftauftrag umfasste
+keinen Merge, Release, Tag, PC-Schritt oder produktiven Datenwrite. Die Fortsetzung
+vom **05.11.2026** erfolgt unter der im aktuellen Strang ausdrücklich bestehenden
+Freigabe „wenn grün mergen und für den PC bereitstellen“. Sie autorisiert den oben
+belegten Produktabschluss und den getrennten regulären Releaseweg; sie belegt
+weder einen bereits veröffentlichten neuen Tag noch eine Installation auf dem PC.
