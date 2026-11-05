@@ -2,13 +2,42 @@
 
 | Feld | Stand |
 | --- | --- |
-| Dokumenttyp / Version | Eigenständiger Implementierungsauftrag, 0.1 |
-| Status | Draft; keine Implementierungs- oder Integrationsabnahme |
-| Datum | 31.10.2026, Europe/Vienna |
-| Historische Referenz / geprüfter Main | `1883f7f330719453958f8be1dd51d48db816662e`, `v1.5.35` |
+| Dokumenttyp / Version | Eigenständiger Implementierungsauftrag, 0.2 |
+| Status | Gegen aktuellen Main vorbereiteter Implementierungsstart; Runtime und menschliche Abnahme offen |
+| Datum | 05.11.2026, Europe/Berlin |
+| Historische Referenz | `1883f7f330719453958f8be1dd51d48db816662e`, `v1.5.35`; keine aktuelle Arbeitsbasis |
+| Verifizierter Main dieser Vorbereitung | `e4921d6e25b70baddb80d4eaaf61028bb055ad04`, Versionsdateien `1.5.40` und veröffentlichter Git-Tag `v1.5.40` auf diesem Commit; #326 und #329 integriert |
+| Eigenständiger Implementierungsbranch | `feat/ux4-d-quality-lifecycle-20261105`; aus Main, ohne Übernahme des offenen UX4-C-Branches |
 | Voraussetzung | Aktuellen Main, Fachverträge und UX-1/2/3-Koordination beim Start erneut prüfen |
-| Ergebnis | Eigenständiger Draft-PR mit Darstellung, tatsächlichen Prüfnachweisen und offenen Voraussetzungen |
+| Ergebnis dieser Vorbereitung | Aktualisierter Startprompt und [konkreter Implementierungsumfang](../implementation/UX4_D_IMPLEMENTATION_SCOPE.md) im eigenständigen Draft; keine D-Runtimequalifikation behauptet |
 | Freigabegrenze | Kein Merge, Release oder PC-Update ohne gesonderte Freigabe |
+
+## Vorbereitungsauftrag vom 05.11.2026
+
+UX4-LEAD schließt zunächst die technische Qualifikation von UX4-C ab und bereitet
+anschließend UX4-D vor. Dieser Vorbereitungsstand ändert ausschließlich den
+Auftrag und seinen konkreten Umsetzungsumfang. Die nachfolgenden Runtimearbeiten
+sind der begrenzte Folgeschnitt auf diesem Branch, keine bereits ausgeführten
+Produktänderungen oder D-Abnahmen. Ist der zugehörige Draft bereits vorhanden,
+seinen tatsächlichen Head prüfen und fortführen; keinen zweiten UX4-D-Auftrag eröffnen.
+
+Der aktuelle [UX4-C-Draft #327](https://github.com/burckhju/trading-workspace/pull/327)
+führt seine exakten Main-/Head-/Testmerge- und CI-Nachweise. Die erste vollständige
+Integrationsqualifikation auf `9efb108d…` / Main `a68b3a92…` ist abgeschlossen.
+Die danach unabhängig integrierte Version-/Dokumentfortschreibung #329 änderte
+keinen Runtime- oder Testinhalt. Der erneut aktualisierte C-Head
+`79760e9cf40cef6c6e58d8b15b6849a3056cc5c8` ist vollständig gegen den oben genannten
+Main qualifiziert: alle vier Workflows und neun ausgeführten Prüfjobs erfolgreich,
+ohne Retry; der separate Tagjob war im PR bestimmungsgemäß übersprungen. Der echte
+Testmerge `0b54de55654d06e3bced587876c24e8d00470a2d` hat denselben Tree wie der
+C-Head. Der D-Draft wird nach diesem erneuten Gesamtabschluss veröffentlicht.
+Der endgültige Nachweis ist in #327 gebunden. Eine technische
+C-Qualifikation ist weder eine menschliche C-Abnahme noch eine D-Implementierung.
+
+Die aktuellen vollständigen Dateilisten der offenen #327/#325/#315/#220/#207/#205/
+#197/#187 überschneiden sich nicht mit den beiden Dateien dieser Vorbereitung.
+Ein begonnener eigenständiger UX4-D-Branch oder entsprechender PR wurde beim
+Abgleich nicht gefunden. Das ersetzt keine erneute Prüfung vor Veröffentlichung.
 
 ## Auftrag
 
@@ -30,19 +59,40 @@ und V10–V14, sowie die [Prüfplanung](../implementation/UX4_A_QUALIFICATION.md
 voraus. Er erlaubt keine gemeinsame Workspace-Integration vor der konkreten
 Abstimmung mit UX-2.
 
-### Gelesener UX-3-Koordinationsstand
+### Tatsächlich integrierte UX-1/2/3-Verträge
 
-[UX-3-Draft #314](https://github.com/burckhju/trading-workspace/pull/314) wurde am
-31.10.2026 am exakten Head `52a24266dce1ec048b23360b4b75d5b3f54d746b` gelesen:
-[Hinweisvertrag](https://github.com/burckhju/trading-workspace/blob/52a24266dce1ec048b23360b4b75d5b3f54d746b/docs/ui/ux-3/notice-contract.md),
-[Komponenten und Aktionen](https://github.com/burckhju/trading-workspace/blob/52a24266dce1ec048b23360b4b75d5b3f54d746b/docs/ui/ux-3/components-and-actions.md),
-[Integration und Folgearbeiten](https://github.com/burckhju/trading-workspace/blob/52a24266dce1ec048b23360b4b75d5b3f54d746b/docs/ui/ux-3/integration-and-rollout.md)
-und [Übersicht](https://github.com/burckhju/trading-workspace/blob/52a24266dce1ec048b23360b4b75d5b3f54d746b/docs/ui/ux-3/README.md).
-Diese Dokumentation schlägt Hinweissprache und View-Props vor. `NoticeCard`,
-`NoticeSummary`, `NoticeDetails`, `ContextActionLink` und `NoticeStatus` sind
-**keine vorhandenen produktiven Komponenten** und kein bereits abgestimmter
-Importvertrag. UX4-D baut weder eine zweite Notice-Schicht noch einen globalen
-Hinweisspeicher; es bleibt Consumer der abgestimmten Qualitätsdarstellung.
+Die gemeinsame UX1-/UX2-Integration aus #318, der kanonische UX3-Vertrag aus #314,
+der passive B1/F1-Pilot aus #320 und die beiden B2/Q12-Schnitte aus #324 und #326
+sind im geprüften Main vorhanden. Maßgeblich sind der aktuelle
+[Hinweisvertrag](ux-3/notice-contract.md), [Komponenten und Aktionen](ux-3/components-and-actions.md),
+[Rollout](ux-3/integration-and-rollout.md), die [UX-2-Grenzen](ux2-trade-workspace.md)
+sowie [Ownership](../coordination/UX_OWNERSHIP.md) und
+[gemeinsame Verträge](../coordination/UX_SHARED_CONTRACTS.md).
+Der frühere Drafthead `52a24266…` bleibt historische Herkunft des Auftrags;
+der weiterhin offene #315 ist keine zweite normative Hinweisquelle.
+
+[`shared/notices`](../../frontend/src/shared/notices/index.ts) exportiert jetzt
+**`NoticeCard`, `NoticeView`, `NoticeCardProps` und `DetailRow`**. Der produktive
+Pilot ist bewusst passiv und enger als das Dokumentationsmodell:
+`information | warning`, vorhandene Texte/Details und ein qualifizierter lesender
+Link. `ContextActionLink` ist intern; `NoticeSummary`, `NoticeDetails` und
+`NoticeStatus` sind weiterhin keine öffentlichen Bausteine. Keine erweiterten
+Exports, globale Schweregrade oder neue Recoverylogik aus dem Konzept ableiten.
+UX4-D baut weder eine zweite Notice-Schicht noch einen globalen Hinweisspeicher.
+
+`shared/trade-workspace-navigation` ist Mainbestand. Vorhandene Plan-/Lessonlinks,
+Versionspins und Quellenanker werden wiederverwendet. UX-2 besitzt ausdrücklich
+auch die spätere kompakte Lebenszyklusanzeige und gemeinsame historische
+Navigation aus seinem Abschnitt UX2-D. Der offene UX2-B #325 an
+`555538fa0519cd31e6d5391dd938a8150c90ac3d` umfasst 22 Dateien für Host und
+Produktbewertung. Seine Implementierung ist kein Mainbestand und wird hier nicht
+übernommen. Fehlende Dateischnittmenge ist keine Zustimmung zu einem neuen Host.
+
+Die integrierten B2-Texte in `ProductValuationPanel` und `PositionDetails` werden
+nicht erneut entwickelt. Der aktuelle UX3-Rollout bereitet B3/M06 in
+`TradeAlertsPanel` vor; diese Hinweisfläche bleibt im ersten D-Schnitt Referenz.
+UX-1 behält Eingaben, Vorschläge und Herkunftsbestätigung. Technische Codeabgleiche
+behaupten keine persönliche Ownerfreigabe oder Zustellung an einen anderen Chat.
 
 Die Planungskürzel UX3-F3/F4/F7/F8 berühren Refreshdiagnostik, Kursqualität,
 historische Quellen und lokale Zusammenfassungen. Sie reservieren keine Dateien
@@ -80,7 +130,7 @@ den tatsächlichen Stand; ergänze weder neue Provideradapter noch neue Fach-API
 
 | Bereich / vorhandene Anzeige | Datenquelle und Owner | Zulässige Arbeit |
 | --- | --- | --- |
-| Gehaltene Optionsscheine: [QuoteCoveragePanel](../../frontend/src/features/operational_workspace/pages/QuoteCoveragePanel.tsx) | `/market-data/warrants/quote-coverage`; [QuoteCoverageService](../../backend/app/features/market_data/service/quote_coverage.py) und persistierte Quellenbelege | Absolute Zähler, Produktpopulation, Route, Identität, Preisart, Währung und Qualitätsgründe klarer gliedern; vorhandene Filter und Details erhalten. |
+| Gehaltene Optionsscheine: [QuoteCoveragePanel](../../frontend/src/features/operational_workspace/pages/QuoteCoveragePanel.tsx) | `/market-data/warrants/quote-coverage`; [QuoteCoverageService](../../backend/app/features/market_data/service/quote_coverage.py) und persistierte Quellenbelege | Produktpopulation, einzelne Route, Identität, Preisart, Währung, Zeit und Qualitätsgründe klarer gliedern. Die Antwort hat keine serverseitige Qualitätssummary; keine neue Statussumme oder Quote aus `items`/Routen bilden. |
 | Offene Positionen: im geprüften Main API ohne eigenen Frontendverbraucher | `/market-data/positions/quote-coverage`; [PositionQuoteCoverageService](../../backend/app/features/market_data/service/position_quote_coverage.py), [Repository](../../backend/app/features/market_data/persistence/position_quote_coverage.py) | Nach UX-2-Abstimmung vorhandene Positionszähler und genaue Quellenbindung anzeigen; keine neue Sammelbewertung. |
 | Providerbetrieb: [MarketDataRefreshPanel](../../frontend/src/features/operational_workspace/pages/MarketDataRefreshPanel.tsx), darin `RefreshDiagnostics` | `/market-data/refresh/status`; [RefreshDiagnostics](../../backend/app/features/market_data/service/refresh_diagnostics.py), [RefreshQuality](../../backend/app/features/market_data/service/refresh_quality.py), bestehender Runtime-Owner | Aktuellen Versuch, letzten abgeschlossenen Versuch, Quellenfehler und Retention mit ihren eigenen Zeiten lesbar halten. |
 | Monitoring: [MonitoringRuntimePanel](../../frontend/src/features/alert/components/MonitoringRuntimePanel.tsx) und [TradeAlertsPanel](../../frontend/src/features/alert/components/TradeAlertsPanel.tsx) | `/position-monitoring/runtime/status`; bestehende Health-, Alert- und Notification-Owner | Globale Laufzähler von Tradechecks sowie fachliche Warnung von Daten- und Zustellproblem unterscheiden. Vorhandene Daten nutzen; keine zusätzlichen Healthreads für die Visualisierung. |
@@ -93,6 +143,33 @@ Nutze bestehende Qualitäts- und Herkunftsdetails in `ProductValuationPanel`,
 `Ft011EvidenceHistory`, `JournalEvidenceOrigin` und `EvidenceSourceStatus`.
 Erzeuge keine zweite Bewertung oder abweichende Warnsemantik. Ein bestehendes
 `CURRENT` bei einem Produktbeleg beweist beispielsweise keine verfügbare Live-IV.
+
+Wiederverwendung bedeutet bei `Ft011EvidenceHistory`, `JournalEvidenceOrigin` und
+`EvidenceSourceStatus` nicht zusätzliches Mounten in der Belegliste: Diese
+Komponenten besitzen eigene Reads. Für die lokale Quellenverbesserung die bereits
+geladenen `SourceSnapshot<T>`-Daten und vorhandenen `ReadSection`-Renderprops
+verwenden. Keine neue Abrufkette durch die optische Gliederung erzeugen.
+
+### Konkrete lokale Umsetzungsfolge
+
+1. **Erfassungsprotokoll:** vorhandene Segmentzähler, Segmentzeiten und Originalbelege
+   in `WarrantQuoteHistory` als zugängliche Übersicht gliedern. Zähler gelten für
+   das Erfassungsfenster; Details sind auf die letzten höchstens 50 Beobachtungen
+   dieses Fensters über alle Segmente begrenzt. `collection_started_at` kann
+   außerhalb des Fensters liegen. Keine Zeitabdeckungsquote berechnen.
+2. **Aktuelle Kurs-/Providerdimensionen:** vorhandene Routen in `QuoteCoveragePanel`
+   und die fachlokale `RefreshDiagnostics` klarer gliedern. Originalkurszeit,
+   Abrufzeit, aktueller Versuch, abgeschlossener Check, Retention und Providerbeleg
+   bleiben unabhängig. Bestehende explizite Readaktionen und lokale Filter erhalten.
+3. **Historische Belegliste:** vorhandene `TradeSourcesView` mit ihren fünf
+   unabhängigen Source-Reads verbessern. Analyse-/Kandidatenherkunft aus
+   `PlanSource.candidate_evaluation` lesbar machen; keine zusätzliche gemeinsame
+   Übersicht und keine neue Statusmaschine. Vorhandene Links und Pins erhalten.
+
+Die genaue Feld-/Datei-/Testmatrix und zurückgestellten Hostteile stehen im
+[Implementierungsumfang](../implementation/UX4_D_IMPLEMENTATION_SCOPE.md).
+Diese Reihenfolge verteilt spätere Runtimearbeit; sie behauptet keine hier bereits
+umgesetzte Darstellung.
 
 Die Positionskursdarstellung gehört [UX4-B](ux4-b-position-price-history-prompt.md),
 die Performancevisualisierung [UX4-C](ux4-c-performance-visualization-prompt.md).
@@ -212,7 +289,7 @@ frontendseitige Form darf keinen zusätzlichen Backend-Lifecycleowner behaupten.
 | --- | --- |
 | UX-1 und Fach-Owner | Sichere Ableitungen, historische IDs, Währungs-/Zeitbelege, gültige Versionslinks und Definitionen. Fehlende Daten nicht im Browser rekonstruieren. Unterschiede zwischen bestehenden Frischepfaden beim Owner klären, statt sie in der Anzeige zu vereinheitlichen. |
 | UX-2 | Gemeinsamer Einbau, Props, Zuständigkeit für Reads, Invalidierung, Lebensdauer, Navigation und Konfliktdateien vor der Integration festhalten. Bestehende Quellenansicht erweitern; keinen parallelen Trade-Workspace bauen. |
-| UX-3 | Den oben gepinnten Draft als Darstellungsgrundlage lesen und den tatsächlichen Folgehead prüfen. Ursache, Wirkung, Nutzerbedarf, Hinweisidentität und Priorität innerhalb einer Hinweisgruppe abstimmen; Fachstatus und globale Ownerpriorität bleiben erhalten. Keine produktiven Notice-Komponenten oder freigegebene Integration aus #314 ableiten. |
+| UX-3 | Integrierten kanonischen Hinweisvertrag und tatsächliche B1-Exports konsumieren. Ursache, Wirkung, Nutzerbedarf, Hinweisidentität und Priorität innerhalb einer Hinweisgruppe abstimmen; Fachstatus und globale Ownerpriorität bleiben erhalten. Keine konzeptionellen Zusatzbausteine, zweite Hinweisengine oder neue Recoverylogik einführen. |
 | UX4-B / UX4-C | Gemeinsame Herkunfts-/Lückenbegriffe abstimmen; vorhandene Kurs- und Performanceowner bleiben eigenständig. Keine technische Abhängigkeit von einem ungemergten Folge-Branch erzeugen. |
 
 **Öffentliche Typgrenze:** UX-3 benennt in O3 die derzeit privaten
@@ -224,6 +301,20 @@ Gemeinsame Präsentation erhält qualifizierte Ownerdaten und Links über eine
 schmale öffentliche Grenze bzw. typisierte Props; dokumentarische Typimporte
 erlauben keine produktiven Querimporte interner Features. Ein Reexport-Barrel
 allein löst diese Grenze nicht.
+
+Für die erste lokale Folge bleibt diese Grenze unverändert: Daten und Renderer
+bleiben in ihrem bisherigen Feature. Der engere History-/Coverage-Frontendtyp
+enthält noch nicht alle vorhandenen Backendflags. Eine spätere rein additive
+Abbildung darf nur die tatsächliche Payload und ältere/fehlende Felder behandeln;
+keine fehlende Policy, `execution_usable` oder `time_coverage_percent` erfinden.
+
+Eine neue Positionscoveragefläche, ein gemeinsamer Lifecycle-Überblick und ein
+neuer Trade → Analyse → Trade-Rückweg benötigen den konkreten UX-2-Vertrag.
+Main unterstützt `/market-analyses/:analysisId?version=N`; eine beliebige
+`source_id`/`source_version` ist trotzdem kein Analysebeleg. In der ersten lokalen
+Belegliste Analyseprovenance anzeigen und den vorhandenen gebundenen Planlink
+erhalten. Keine internen Analysehelper featurefremd importieren und keine neuen
+Rückwegparameter ohne öffentlichen Vertrag hinzufügen.
 
 Fehlen Quellenidentität, Originalzeit, Währung, eine konkrete historische
 Verknüpfung oder ein expliziter Status, zeige genau diese fehlende Voraussetzung.
@@ -263,7 +354,7 @@ Fokus; aufgeklappte Details und sichere Navigation behalten ihre Kontextprüfung
 | Lebenszyklus / Pins | Manueller Plan und externer Trade bleiben gültig. Exakte Plan-/Review-/Journal-/Lessonversion bleibt erhalten. Falsche oder doppelte Pins haben keinen Latest-Fallback. Korrektur und Storno erzeugen keinen falschen Abschluss. |
 | Unabhängige Achsen | DRAFT mit CURRENT, FINALIZED mit STALE, leeres finales Journal sowie ältere Evidence bei neuem nicht bereitem Review sind getrennt lesbar; kein erfundener Lessonreviewstatus. |
 | Readgrenzen / Nebenwirkungen | Langsame Antwort nach Trade-/Pinwechsel einschließlich A→B→A wird durch Kontext und Requestgeneration verworfen; auch alte Hinweise, Aktionen, Fehler und Erfolge werden ungültig. Fehler/Timeout/Limit bleibt eigener Zustand. Öffnen, Fokus, Filter und Links erzeugen keine zusätzlichen Provideraufrufe oder fachlichen Commands; reiner Abschnittswechsel keine neuen Hostreads. Getrennte Readfenster bleiben sichtbar. |
-| Mobile / Zoom | Tatsächliche Browserprüfung bei 320, 390 und 1280 CSS-Pixeln sowie 200 % Zoom; kompakte Hinweisflächen zusätzlich bei 400 % gemäß UX-3-Draft. Keine horizontale Dokumentrolle, verdeckten Controls oder abgeschnittenen Einheiten. Breite Tabellen nur in einem beschrifteten eigenen Scrollbereich. |
+| Mobile / Zoom | Tatsächliche Browserprüfung bei 320, 390 und 1280 CSS-Pixeln sowie nativem 200/400-%-Zoom. Keine horizontale Dokumentrolle, verdeckten Controls oder abgeschnittenen Einheiten. Breite Tabellen nur in einem beschrifteten eigenen Scrollbereich. |
 | Tastatur / Zugänglichkeit | Tab/Shift-Tab, Enter/Leertaste, vorhandene Ausklapp-/Filterbedienung, sinnvoller sichtbarer Fokus, zugängliche Namen und semantische Tabellen tatsächlich prüfen. Keine Doppelankündigung oder erneute Live-Ansage unveränderter Hinweise. Alle Belege ohne Hover; Kontraste prüfen. Keine Screenreader- oder WCAG-Vollabnahme ohne echten Nachweis. |
 | Fachliche Unverändertheit | Keine Änderung an Finanzformeln, Währungsresolvern, Frischepolicy, Statusableitungen oder Persistenz. Bestehende relevante Backend-/Frontendregressionen bleiben grün; keine abgeschwächten Assertions oder Coveragegates. |
 
@@ -309,4 +400,5 @@ Kein Merge, Release oder PC-Update ohne gesonderte Freigabe.
 
 | Version | Datum | Änderung |
 | --- | --- | --- |
+| 0.2 | 05.11.2026 | Vorbereitung gegen Main `e4921d6e…`/1.5.40: tatsächliche UX1/2/3-Integrationen und B1-Exports, vier lokale Darstellungsflächen, fehlende Produktcoverage-Summary, bestehende fünf Quellenreads, UX2-D-Hostgrenze und verbindliche 200/400-%-Nachweise; keine Runtimeänderung oder D-Abnahme |
 | 0.1 | 31.10.2026 | Eigenständiger UX4-D-Startauftrag aus UX4-A; absolute Qualitätszähler und historische Belegliste, mit Integrationsgrenzen und geplanter echter Abnahme; UX-3-Draft #314 am exakten Head abgeglichen |
