@@ -1,6 +1,11 @@
 import { expect, test, type Page } from "@playwright/test";
+import type { OperationalPosition } from "../../frontend/src/features/operational_workspace/types";
 
-async function setup(page: Page) {
+async function setup(
+  page: Page,
+  overrides: Record<number, Partial<OperationalPosition>> = {},
+  requests: string[] = [],
+) {
   let writes = 0;
   const positions = Array.from({ length: 100 }, (_, i) => ({
     trade_id: `trade-${i}`,
@@ -34,11 +39,13 @@ async function setup(page: Page) {
     open_alert_types: i === 0 ? ["STOP_REACHED"] : [],
     attention_state: i === 0 ? "ALERT" : "OK",
     target: `/trade-management?trade_id=trade-${i}`,
+    ...overrides[i],
   }));
   await page.route("**/api/**", async (route) => {
     const req = route.request();
     if (req.method() !== "GET") writes++;
     const path = new URL(req.url()).pathname;
+    requests.push(`${req.method()} ${path}`);
     let body: unknown = [];
     if (path.endsWith("/operational-workspace/actions"))
       body = { generated_at: "2026-09-13T09:00:00Z", actions: [] };
@@ -134,6 +141,108 @@ test("100 positions: global search, colored statuses, pagination, details and re
     body: await page.screenshot({ fullPage: true }),
     contentType: "image/png",
   });
+  expect(writes()).toBe(0);
+});
+
+test("valuation notices preserve keyboard details, existing reads and explicit history navigation", async ({
+  page,
+}) => {
+  const requests: string[] = [];
+  const writes = await setup(
+    page,
+    {
+      96: { valuation_status: "AVAILABLE", analysis_warning: null },
+      97: { valuation_status: "LAST_AVAILABLE", analysis_warning: null },
+      99: {
+        valuation_status: "LAST_AVAILABLE",
+        analysis_warning: "OUTDATED_QUOTE_INDICATIVE_ANALYSIS_ONLY",
+      },
+    },
+    requests,
+  );
+  await page.goto("/workspace");
+  await expect(
+    page.getByRole("heading", { name: "Offene Positionen · 100" }),
+  ).toBeVisible();
+  await expect(page.getByText(/Positionssignale werden ergänzt/)).toHaveCount(
+    0,
+  );
+  const quoteTime = await page.evaluate(() =>
+    new Date("2026-09-11T14:00:00Z").toLocaleString("de-DE"),
+  );
+
+  for (const id of [96, 97, 99]) {
+    await page.getByRole("searchbox").fill(`WK00${id}`);
+    const details = page.getByRole("button", { name: "Details", exact: true });
+    await details.focus();
+    const before = requests.length;
+    await page.keyboard.press("Enter");
+    const expanded = page.getByRole("button", {
+      name: "Details schließen",
+      exact: true,
+    });
+    await expect(expanded).toHaveAttribute("aria-expanded", "true");
+    await expect(expanded).toBeFocused();
+    const region = page.getByRole("region", {
+      name: `Details Optionsschein 0${id}`,
+    });
+    await expect(region).toContainText(
+      `Quelle: FIXTURE · Kurszeitpunkt: ${quoteTime}`,
+    );
+    await expect(
+      region.getByText(`${55 + id},00 ${id % 2 ? "CHF" : "EUR"}`, {
+        exact: true,
+      }),
+    ).toBeVisible();
+    await expect(region).not.toContainText("veraltet");
+    await expect(region).not.toContainText("verfügbaren Referenzkurs");
+    if (id === 97 || id === 99) {
+      await expect(region).toContainText("Letzter verfügbarer Kursstand");
+    }
+    if (id === 99)
+      await expect(region).toContainText(/die Analyse ist indikativ/i);
+
+    // These existing children read on expansion; the passive notice adds none.
+    await expect(
+      region.getByText("Kursverlauf konnte nicht geladen werden."),
+    ).toBeVisible();
+    await expect(
+      region.getByText("Risikoauswertung konnte nicht geladen werden."),
+    ).toBeVisible();
+    expect(requests.slice(before).sort()).toEqual([
+      expect.stringMatching(
+        new RegExp(
+          `^GET (?:/api)?/api/v1/position-monitoring/trades/trade-${id}/risk$`,
+        ),
+      ),
+      expect.stringMatching(
+        new RegExp(
+          `^GET (?:/api)?/api/v1/trade-position/trades/trade-${id}/price-history$`,
+        ),
+      ),
+    ]);
+    await expect(page).toHaveURL(/\/workspace$/);
+    const history = region.getByRole("link", {
+      name: "Kauf-/Verkaufsdaten und Historie öffnen",
+    });
+    await expect(history).toHaveAttribute(
+      "href",
+      `/trade-management?trade_id=trade-${id}#execution-dates`,
+    );
+    expect(writes()).toBe(0);
+    if (id === 99) {
+      await history.focus();
+      await page.keyboard.press("Enter");
+      await expect(page).toHaveURL(/trade_id=trade-99#execution-dates$/);
+    } else {
+      await expanded.focus();
+      await page.keyboard.press("Enter");
+      await expect(details).toHaveAttribute("aria-expanded", "false");
+      await expect(details).toBeFocused();
+      await expect(region).toHaveCount(0);
+      expect(requests).toHaveLength(before + 2);
+    }
+  }
   expect(writes()).toBe(0);
 });
 

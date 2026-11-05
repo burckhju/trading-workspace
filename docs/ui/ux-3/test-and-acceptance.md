@@ -424,3 +424,128 @@ Mainstand und mögliche parallele Release-/Dokumentänderungen erneut zu prüfen
 Für F1/B1 werden nur die Fälle des konkreten Piloten ausgeführt, ergänzt um die
 unveränderten erforderlichen Projektgates. Weitere Fälle gehören zum jeweils
 betroffenen kleinen Ownerschnitt; keine fachfremde Gesamtmigration als Testpflicht.
+
+## 10. B2/F4 — Q12 in PositionDetails
+
+Dieser begrenzte Produktschnitt setzt TC-49 ausschließlich in
+[PositionDetails](../../../frontend/src/features/operational_workspace/components/PositionDetails.tsx)
+um. Ausgangsbasis, am **03.11.2026** erneut geprüft: Main
+`3397399e7bf8364501437f9509a4fb18dbe32c08`, Tree
+`c9362029d9fc3a1d0ccf7bee4e1f5b942e474807`. Der separat gelesene Tag `v1.5.38`
+zeigt weiterhin auf `849a6d54eaeb5f5831754c6b15a41358c571f6da`; die integrierte
+UX4-B-Arbeit aus #322 gehört zur Mainbasis. Der neue Branch heißt
+`feat/ux3-b2-position-details-status`. Die tatsächlichen offenen PR-Diffs wurden
+auf Dateiüberschneidungen geprüft; #315 bleibt unveränderte offene Draft-Quelle.
+Während der CI-Prüfung wurden #324 und danach der separate Versionsschnitt #328
+unabhängig auf Main integriert. Die qualifizierte Integrationsbasis dieses
+Branchstandes ist deshalb `14913454ddecd1a9559639ec19d7373cf5269e90`, Tree
+`741ceb37376d27779b0da83d25dfe563b8ca5933`. Die sieben disjunkten #324-Dateien und
+fünf Versions-/Nachweisdateien aus #328 werden unverändert übernommen; der eigene
+Diff bleibt bei sieben Dateien. Aus der übernommenen Version 1.5.39 folgt kein
+Tag- oder Installationsnachweis. Frühere Läufe gegen `3397399e...` beziehungsweise
+`7399bcca...` ersetzen keine neue CI auf diesem Gesamtstand.
+Dies ist ein technischer Nachweis, keine zweite fachliche Statusliste neben dem
+Product Backlog und keine Änderung der fünf Masterdokumente.
+
+### Unveränderte gemeinsame Schnittstelle
+
+Eingabe bleibt ausschließlich
+[`OperationalPosition`](../../../frontend/src/features/operational_workspace/types.ts).
+Der kleine lokale Mapper liest nur `valuation_status` und das optionale
+`analysis_warning`; seine Ausgabe ist ein Text oder kein Hinweis. Er erweitert
+weder das DTO noch den B1-Präsentationskern. Dessen `NoticeCard` verlangt einen
+Aktionslink; der vorhandene passive Absatz benötigt keinen neuen Link und keine
+Erweiterung dieser API. Der Absatz behält seine Platzierung und erzeugt keine
+Live-Ansage, Fokusänderung, Navigation, neuen Reads oder Writes.
+
+`STALE` bleibt erklärt. `LAST_AVAILABLE` allein wird als letzter verfügbarer
+Kursstand beschrieben, ohne Veraltung oder Nutzbarkeit daraus abzuleiten.
+Der wiederverwendete Warncode `OUTDATED_QUOTE_INDICATIVE_ANALYSIS_ONLY` allein
+ist ebenfalls kein eindeutiger Veraltungsbeleg; der genaue Klärpunkt steht unten.
+Bekannte Zeitstempel-, Zeitzonen-, Abruf- und Referenzkurswarnungen verwenden
+ausschließlich ihre bestehenden Ursachen aus dem
+[Bewertungsowner](../../../backend/app/features/position_monitoring/service/product_valuation.py).
+`MISSING`, `UNAVAILABLE`, `ERROR` und unbekannte Statuswerte werden vor der
+Warncodeauswertung begrenzt beschrieben; ein Warncode kann daraus keinen
+verfügbaren Referenzkurs machen. Unbekannte Warncodes bleiben ohne erfundene
+Ursache. `AVAILABLE` ohne Warnung erzeugt keinen Bewertungswarnhinweis.
+
+Die bereits vom
+[Snapshotowner](../../../backend/app/features/operational_workspace/service/position_snapshot.py)
+komponierten Beträge bleiben unverändert. `positionPnl(p)` mit
+`qualifiedUnrealizedPnl(...)` und `unrealizedPnlReason(...)` qualifiziert den G/V
+weiter unabhängig vom Marktwert. Die reicheren Flags und Referenzpreisfelder
+aus `ProductPositionValuationResponse` gehören nicht zu dieser Eingabe und
+werden weder ergänzt noch nachgeladen. Quelle, originaler Kurszeitpunkt samt
+vorhandener Formatierung, `position_basis` und dessen Beleg-/Executionreferenzen
+bleiben erhalten. UX2 behält Host, Ziele einschließlich `#execution-dates` und
+Fokus; UX1 behält Eingabe/Validierung; UX4 behält `PositionPriceHistory` mit
+unveränderten `tradeId`/`positionId` und der #322-Funktionalität. Der bestehende
+lesende `PositionRiskPanel` und die bisherigen Detailreads bleiben erhalten.
+
+### Gezielte Regressionen und Nachweisgrenzen
+
+| Prüfdatei | Positiver und negativer Nachweis dieses Schnitts |
+| --- | --- |
+| [PositionDetails.test.tsx](../../../frontend/src/features/operational_workspace/components/PositionDetails.test.tsx) | STALE ohne/mit Warncode; LAST_AVAILABLE mit Wert ohne Veraltung; wiederverwendetes OUTDATED bei LAST_AVAILABLE/INDICATIVE/AVAILABLE ohne eigenständigen Veraltungsbeleg; MISSING/UNAVAILABLE/ERROR mit lokal konsistent fehlenden Kurswerten; unbekannter Warncode und separater unbekannter Status, auch mit Referenzkurswarnung; vier bekannte Warnursachen; AVAILABLE ohne Warnung; INDICATIVE ohne Referenzkursbehauptung; vorhandener Marktwert bei unabhängig unbrauchbarem G/V. Bestehende Readunterkomponenten sind für diese reine Textgrenze isoliert. |
+| [OpenPositionsPanel.test.tsx](../../../frontend/src/features/operational_workspace/pages/OpenPositionsPanel.test.tsx) und [Währungsregression](../../../frontend/src/features/operational_workspace/pages/OpenPositionsPanel.currency.test.tsx) | Vorhandene Hostfälle erhalten. Der bisherige unbekannte Warncode `INDICATIVE` erwartet nun eine neutrale Ursache; negative G/V-Zahl und Quelle bleiben sichtbar. AVAILABLE mit unabhängig unqualifiziertem G/V erzeugt keinen zusätzlichen Bewertungswarnhinweis. |
+| [positions-table.spec.ts](../../../tests/e2e/positions-table.spec.ts) | AVAILABLE, LAST_AVAILABLE allein und mit dem wiederverwendeten OUTDATED-Warncode im bestehenden Host; Quelle, original formatierte Kurszeit und Marktwert; Enter-Auf-/Zuklappen mit erhaltenem Fokus; exakt die beiden bisherigen Detail-GETs auf Kursverlauf und Risiko, einschließlich des bestehenden CI-Proxypräfixes; keine Writes oder automatische Navigation; Historienlink mit `#execution-dates` erst nach bewusster Aktivierung. Vorhandener schmaler Browserfall bleibt erhalten. |
+| [position-currency-qualification.spec.ts](../../../tests/e2e/position-currency-qualification.spec.ts) | Bereits backendqualifizierte Marktwert-/G/V-Trennung zusätzlich in PositionDetails vor dem bestehenden Managementweg; exakte Kostenbasis-, wirksame Execution- und Confirmationreferenzen. Die Backend→HTTP-[Owner-Fixture](../../../tests/fixtures/position_currency_qualification.json) bleibt unverändert. |
+
+Vor dem Produktpatch wurden die falschen Texte an der unveränderten Mainfassung
+reproduziert. Eine direkte React-Renderassertion für LAST_AVAILABLE ohne Warnung
+endete mit `AssertionError: LAST_AVAILABLE alone must not claim staleness` und
+Exit 1; dieselbe Assertion endete nach der Korrektur mit Exit 0. Toolchain:
+Node 22.16.0, npm 10.9.2, unveränderte Lockdatei, `TZ=UTC`.
+Lokale Vitest-Einzelresultate ohne abschließenden Prozessabschluss werden nicht
+als bestandener Lauf gezählt; der lokale Chromiumstart endete mit SIGTRAP und
+belegt keine Browserabnahme. Die regulären unveränderten Frontend-, Backend-,
+E2E- und Publication-Guard-Gates müssen am tatsächlichen finalen PR-Head bzw.
+zugehörigen Testmerge vollständig gelesen werden. Head, Mainbasis, Testmerge/Tree
+und aktuelle Run-/Joblinks werden gemeinsam im Draft-PR gebunden; ältere CI
+ersetzt diesen Nachweis nicht.
+
+### Enger Owner-Klärpunkt zum zusätzlichen Veraltungsgegenfall
+
+Beim ursprünglichen Parallelabgleich waren [#324](https://github.com/burckhju/trading-workspace/pull/324)
+an `ProductValuationPanel` und [#325](https://github.com/burckhju/trading-workspace/pull/325)
+an dessen Hostanbindung noch disjunkt zu diesem Sieben-Dateien-Schnitt.
+#324 ist inzwischen integriert; seine Änderung bleibt unverändert in der Basis.
+Der später gelesene #325-Head `7812ab180d0c944dd7af9b9e35e148b233b6c3be` teilt nun
+`tests/e2e/position-currency-qualification.spec.ts`: Unser Zusatz prüft vor der
+Navigation die Positionsdetails, #325 passt danach den Selektor der Region
+`Produktbewertung` an. Beide getrennten Änderungen sind bei späterer gemeinsamer
+Integration zu erhalten und dann gemeinsam zu prüfen. Der offene #325 erweitert
+diesen Produktauftrag nicht; weitere aktuelle Parallelabgleiche stehen im PR.
+Der semantische Abgleich hat eine
+relevante bestehende Producermehrdeutigkeit präzisiert: Der Bewertungsowner auf
+der oben genannten Mainbasis liefert `LAST_AVAILABLE`, den Grund
+`MARKET_CLOSED_LAST_AVAILABLE_QUOTE`, `valuation_usable=True` und denselben
+`OUTDATED_QUOTE_INDICATIVE_ANALYSIS_ONLY`-Code wie für `STALE`.
+
+Deshalb kann dieser Warncode im schmaleren `OperationalPosition` nicht als die
+im Auftrag geforderte **separate eindeutige Veraltungsursache** nachgewiesen werden.
+Der erste eigene Draft deutete ihn noch so; diese Annahme wurde vor Abschluss
+zurückgenommen. Die sichere Darstellung bleibt an dieser Stelle neutral und
+erklärt nur den letzten Kursstand bzw. die indikative Analyse. `STALE` bleibt
+der hier eindeutig gelieferte Veraltungsbeleg. Die 19 Komponentenfälle prüfen
+diese Grenze; sie behaupten keinen erfundenen positiven Zusatzursachenfall.
+
+**Konkrete Entscheidungsvorlage an den Bewertungsowner:** Welcher bereits
+gelieferte, eindeutig qualifizierte Befund darf bei `LAST_AVAILABLE` zusätzlich
+Veraltung belegen? Empfehlung für diesen begrenzten PR: ohne einen solchen
+Nachweis die neutrale Darstellung beibehalten; eine notwendige zusätzliche
+Ownerqualifikation separat entscheiden. Keine neuen Flags, DTOs, Reads oder
+Altersgrenzen in diesen Schnitt aufnehmen. Der entsprechende positive
+Zusatzursachenfall aus TC-49 bleibt bis zu dieser fachlichen Klärung offen;
+die übrigen Regressionen und technischen Gates werden vollständig ausgeführt.
+
+Offen bleiben menschlicher Domainreview der Ursache/Wirkung und G/V-Trennung,
+UX1-/UX2-/UX4-Abnahme der erhaltenen Grenzen sowie UX3-Sprach-/Darstellungsprüfung
+einschließlich realer Screenreader-, Mobil- und 200–400-%-Zoomabnahme. Automatisierte
+Fälle ersetzen diese Abnahmen nicht. Der unbekannte-Warncode-Fallback in
+`ProductValuationPanel` wurde separat durch #324 korrigiert und wird in diesem
+PositionDetails-Diff nicht erneut bearbeitet. UX1-B-Planwährung und
+FT-007/TradePlan-Auswahl-/Konfliktregel bleiben ebenfalls außerhalb dieses PRs.
+Dieser Auftrag umfasst keinen Merge, Release, Tag, PC-Schritt oder produktiven
+Datenwrite.
