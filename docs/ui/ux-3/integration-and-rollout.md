@@ -10,10 +10,14 @@ Der B1/F1-Produktpilot wurde mit
 [v1.5.38](../../releases/V1.5.38-UX3-CURRENCY-NOTICE.md) veröffentlicht.
 Der [Pilotbericht](../../implementation/UX3_B1_CURRENCY_NOTICE.md) trennt Umfang,
 Prüfungen und offene Abnahmen. Die damalige Draftfortsetzung und Rücknahme der
-parallelen Releasevorbereitung bleiben historische Schritte. Der am 02.11.2026
-beauftragte erste B2/F4-Schnitt betrifft genau `ProductValuationPanel`; Umfang und
-noch ausstehende neue Nachweise stehen im
-[B2-Qualifikationsbericht](../../implementation/UX3_B2_VALUATION_NOTICE.md).
+parallelen Releasevorbereitung bleiben historische Schritte. Der erste B2/F4-Schnitt
+in `ProductValuationPanel` ist über #324 integriert und mit #328 als
+[v1.5.39](../../releases/V1.5.39-UX3-VALUATION-NOTICE.md) veröffentlicht; Umfang und
+Nachweise stehen im [B2-Qualifikationsbericht](../../implementation/UX3_B2_VALUATION_NOTICE.md).
+Der folgende PositionDetails-Schnitt aus #326 ist seit dem 05.11.2026 integriert;
+seine Beleggrenze und die getrennten Produkt-/Veröffentlichungsnachweise stehen in
+[Abnahmeabschnitt 10](test-and-acceptance.md#10-b2f4--q12-in-positiondetails).
+Abschnitt 7 bereitet danach genau einen B3-Schnitt für Alert-Invalidierungstexte vor.
 Die folgenden UX3-K-Quellen-/Parallelstände sind historische Konsolidierungsbelege.
 
 ## 1. Umfang und Zuständigkeit
@@ -382,66 +386,107 @@ stehen getrennt in der Pilotqualifikation und am tatsächlichen PR-/Testmerge-He
 
 ## 7. Wichtigster nächster Umsetzungsschritt
 
-**Aktueller Auftrag: den ersten B2/F4-Teilschnitt zu Q12 ausschließlich in
-`ProductValuationPanel` umsetzen und qualifizieren.** B1/F1 ist mit
-[#320](https://github.com/burckhju/trading-workspace/pull/320) integriert; der
-separate Release aus [#323](https://github.com/burckhju/trading-workspace/pull/323)
-ist als `v1.5.38` auf `849a6d54eaeb5f5831754c6b15a41358c571f6da` veröffentlicht.
-Der Ausgangs-Main dieses Schnitts `3397399e7bf8364501437f9509a4fb18dbe32c08` enthält danach
-zusätzlich UX4-B aus #322; dieser spätere Schnitt gehört nicht zum v1.5.38-Tag.
-Eine tatsächliche PC-Installation oder menschliche Abnahme wird damit nicht behauptet.
+**PositionDetails ist umgesetzt und integriert; nächster Produktschnitt ist
+UX3-B3/F4, zunächst nur M06 in `TradeAlertsPanel`.** B1/F1 aus #320 bleibt über
+#323/v1.5.38 veröffentlicht. Die erste Q12-Fläche `ProductValuationPanel` aus
+[#324](https://github.com/burckhju/trading-workspace/pull/324) ist im separaten
+Release #328/v1.5.39 auf `14913454ddecd1a9559639ec19d7373cf5269e90` enthalten;
+dieser Tag enthält auch den zuvor integrierten UX4-B-Stand aus #322.
 
-Der Nutzerauftrag vom 02.11.2026 autorisiert die Fortsetzung; die bestehende
-Merge-bei-Grün- und PC-Bereitstellungsfreigabe bleibt erhalten. Der konkrete
-[Datei-/Ownerschnitt und die Abnahmefälle](../../implementation/UX3_B2_VALUATION_NOTICE.md)
-erhalten Finanzqualifikation, Usability, Quellenzeiten und die bestehenden Reads.
-Unbekannte Warncodes begründen keine erfundene Ursache; der OUTDATED-Code allein
-beweist keinen STALE-Status. Die lokale Vorprüfung umfasst 35 erfolgreiche Tests
-in vier Bewertungsdateien, Typecheck, gezielte Lint-/Formatprüfung und Produktbuild.
-Die regulären PR-/Integrationsnachweise werden gesondert am tatsächlichen Head
-gebunden; frühere grüne Läufe ersetzen sie nicht.
+Die zweite Q12-Fläche `PositionDetails` wurde am **05.11.2026** mit
+[#326](https://github.com/burckhju/trading-workspace/pull/326) integriert:
+Main `a68b3a928129b42b19dc2a6de07be1bf7c91a811`, Produkt-Head
+`cd469037656dff05c6deb6704a94d371adeeb95a`, Testmerge
+`c5cc04d8c532cd2d2d5c18a632ae715564aeffd1`, gemeinsamer Tree
+`5e71e12af4d8fb1a10d074c7ec9c30079988c4d9`. Alle neun regulären Produktjobs sind
+für diesen Testmerge erfolgreich; die Quellen und der aufgelöste TC-49-Punkt stehen
+in [Abnahmeabschnitt 10](test-and-acceptance.md#10-b2f4--q12-in-positiondetails).
+`STALE` bleibt positiver Veraltungsbeleg, `LAST_AVAILABLE` mit mehrdeutigem
+OUTDATED-Code neutral. Es fehlen dafür keine zusätzlich zu erfindenden Ownerflags.
+Der bislang veröffentlichte v1.5.39-Tag enthält #326 noch nicht; der getrennte
+Release-/Dokumentationsschnitt v1.5.40 benötigt eigene CI- und Main-Push-/Tagbelege.
+Eine tatsächliche PC-Installation oder gesonderte menschliche Abnahme wird nicht
+behauptet. Die historische Draft-only-Grenze vom 03.11.2026 erweitert sich durch
+die Fortsetzung vom 05.11.2026 unter der bestehenden ausdrücklichen Freigabe
+„wenn grün mergen und für den PC bereitstellen“; sie ist kein aktuelles Mergeverbot.
 
-**Verbleibende Q12-Fläche nach diesem Schnitt: `PositionDetails`.** Q12 und B2
-werden durch die erste Korrektur nicht pauschal abgeschlossen. Die übrigen
-F4-Flächen, F2-Finanzqualifikation und B3/B4/C/D bleiben getrennt. Der folgende
-kopierbare Startprompt beschreibt ausschließlich den verbleibenden Folgeschnitt;
-er nimmt ihn nicht in den aktuellen ProductValuationPanel-PR auf:
+Die beiden genannten Q12-Textkorrekturen sind damit technisch integriert; daraus
+folgt kein pauschaler Abschluss aller B2-/F4-/UX3-Abnahmen. Der
+[Product Backlog](../../planning/PRODUCT_BACKLOG.md#operational-workspace) bleibt
+Arbeitsstatusowner. F2-Finanzqualifikation, B3/B4/C/D und die gesonderten
+menschlichen Abnahmen bleiben getrennt.
+
+Für den kleinsten folgenden B3-Schnitt sind die Ownerfakten bereits vorhanden:
+[TradeAlertsPanel](../../../frontend/src/features/alert/components/TradeAlertsPanel.tsx)
+erklärt derzeit jeden `invalidation_reason` als ungeklärten Kursbezug.
+[Legacy-Invalidierung](../../../backend/app/features/position_monitoring/service/legacy_alerts.py)
+liefert `LEGACY_RULE_PRICE_BASIS_UNCONFIRMED`, der
+[Risiko-Lifecycle](../../../backend/app/features/alert/service/risk_lifecycle.py)
+liefert hingegen `RISK_CONFIGURATION_OR_IDENTITY_SUPERSEDED`.
+[Alert-Read-Model](../../../backend/app/features/alert/service/read_models.py),
+[API-Abbildung](../../../backend/app/features/alert/api/router.py) und
+[AlertResponse](../../../frontend/src/features/alert/types/api.ts) erhalten diese
+Gründe bereits. Für ihre verständliche Erklärung ist keine neue Domainentscheidung
+oder Datenabfrage erforderlich.
+
+Der am 05.11.2026 gelesene Parallelstand #325 (`555538fa...`, UX2-Host/Produktbewertung),
+#327 (`2d134bcd...`, Performance) und #207 (`85921b9a...`, nur Workflow) ändert
+weder `TradeAlertsPanel.tsx` noch dessen Test. Das ist ein begrenzter Dateiabgleich,
+kein Integrationsnachweis dieser PRs; vor Beginn neu prüfen. Insbesondere der
+UX2-Host aus #325 bleibt außerhalb des folgenden M06-Schnitts.
+M02/TC-50 folgt separat: Der bestehende Health-Reader ist nur für offene Positionen
+anwendbar, aber das Panel erhält derzeit nur `tradeId`. Weder HTTP 404 noch eine
+leere Alertliste belegt einen Positionsabschluss. Der Startprompt implementiert
+deshalb noch keine neue Health-/Anwendbarkeitsgrenze und keine B3-Gesamtmigration:
 
 ```text
-Setze den verbleibenden gesonderten UX3-B2/F4-Teilschnitt zu Q12 in
-trading-workspace an genau der bestehenden PositionDetails-Fläche um.
-Prüfe zuerst tatsächlichen aktuellen Main, den B1-Stand, den erreichten
-ProductValuationPanel-Teilschnitt, den kanonischen UX3-Vertrag und offene
-parallele PRs. Erhalte fremde Änderungen und lege nach Inspektion die konkrete
-Datei-/Ownerliste fest; alte Heads sind keine aktuelle Integrationsgrundlage.
+Setze den ersten gesonderten UX3-B3/F4-Schnitt zu M06 in trading-workspace um:
+nur ursachengetreue Invalidierungstexte im vorhandenen TradeAlertsPanel.
+Prüfe zunächst aktuellen Main, #326-/Releaseintegration, kanonischen UX3-Vertrag,
+Product Backlog sowie tatsächliche offene PR-Diffs, insbesondere #325/#327/#207.
+Erhalte fremde Änderungen; vorhandene Arbeit am selben Schnitt weiterführen,
+keinen konkurrierenden Auftrag oder zweiten Status-/Hinweisvertrag beginnen.
 
-Lies den tatsächlichen OperationalPosition-Vertrag und vorhandene
-Qualifikationshelper. MISSING/UNAVAILABLE/ERROR belegen keinen verfügbaren
-Referenzkurs; LAST_AVAILABLE ist nicht pauschal STALE. Ein unbekannter
-analysis_warning beweist weder veraltete Daten noch einen Providerfehler.
-Zeige nur belegte Wirkung und benenne unbekannte Ursachen. Übernimm vorhandene
-Usabilityflags, soweit der konkrete DTO sie liefert. Erfinde fehlende Flags
-nicht aus Zahlen, einem Marktwert oder dem Vorhandensein eines Kursfelds.
-Erhalte Geldwerte, die eigenständige G/V-Qualifikation, echte Nullwerte,
-Originalzeiten, Quellenreferenzen, sichere Ziele und fachliche Statusmodelle.
+Prüfe frontend/src/features/alert/components/TradeAlertsPanel.tsx und .test.tsx,
+frontend/src/features/alert/types/api.ts sowie die vorhandenen Ownerbelege:
+backend/app/features/position_monitoring/service/legacy_alerts.py,
+backend/app/features/alert/service/risk_lifecycle.py,
+backend/app/features/alert/service/read_models.py und alert/api/router.py.
+Der kanonische Bezug ist detail-inventory.md M06/M07 und TC-51; die vollständige
+TC-51-Matrix wird nicht allein durch diese lokale Textkorrektur abgenommen.
 
-Ändere nur diese vorhandene Hinweisfläche und ihre gezielten Tests. Erhalte
-UX2-Host, Navigation und Guards sowie den integrierten UX4-Historienrenderer
-einschließlich Quellenwahl und Originalbelegzugang unverändert. Keine weitere
-Änderung an ProductValuationPanel in diesem Folgeschnitt. Verwende den
-B1-Präsentationskern nur, soweit er den Fall ohne erfundenes Aktionsziel trägt;
-keine Shared-Erweiterung allein zur Erzwingung einer Karte.
+Korrigiere den vorhandenen Invalidierungsabsatz nur aus geliefertem Alertstatus
+und invalidation_reason: LEGACY_RULE_PRICE_BASIS_UNCONFIRMED erklärt den
+unbestätigten historischen Regelkursbezug; RISK_CONFIGURATION_OR_IDENTITY_SUPERSEDED
+erklärt die abgelöste Risikokonfiguration oder Identität, ohne eine der beiden
+Alternativen zu erfinden. Unbekannter oder fehlender Grund bleibt begrenzt
+erklärt; Originalcode bei Bedarf sekundär in vorhandenen/kleinen nativen Details.
+Leite INVALIDATED nicht selbst aus Text oder Feldanwesenheit ab. OPEN, RESOLVED
+und INVALIDATED bleiben Ownerzustände; Invalidierung ist keine Kurserholung,
+kein Vollverkauf, Storno, Regel-EXITED, Quittieren oder Zustellerfolg.
 
-Implementiere keine Währungsresolver, Finanz-/FX-Berechnungen,
-Providerqualifikation, Trading-/Planfreigabe- oder Recoveryregeln, generische
-Hinweisengine, automatische Aktion oder globale Hostmigration. Fehlende
-Ownerfakten bleiben ausdrücklich unbekannt und werden nicht im Frontend ergänzt.
+Produktumfang zunächst genau TradeAlertsPanel.tsx mit lokalem reinem Textmapper
+und den gezielten Fällen in TradeAlertsPanel.test.tsx. Benenne vor einer nötigen
+Erweiterung die konkrete Datei-/Ownergrenze. Erhalte Alertgrund, ursprüngliche
+Werte, Quellen-/Preisart-/Identitätsbezüge, Originalzeiten, Reihenfolge und Zähler.
+Notification-/Deliveryzustände einschließlich unterdrücktem Versand bei
+INVALIDATED + PENDING bleiben unabhängig; keine automatische Wiederzustellung.
 
-Prüfe TC-49 und die vorhandenen betroffenen Positions-/Bewertungsregressionen:
-fehlender Kurs ohne Referenzbehauptung, gültiger letzter Sitzungskurs versus
-STALE, unabhängiger Marktwert und G/V, Quellenzeit sowie unveränderte Lese-/
-Schreib- und Navigationsgrenzen. Liefere einen kleinen getrennten PR mit
-konkretem Scope, aktuellen Head-/Tree-/CI-Nachweisen und offen benannten
-fachlichen/UI-Abnahmen. Die bestehenden Projektgates bleiben unverändert.
-Behaupte keinen pauschalen Abschluss von B2, Q12 oder weiteren UX-Aufträgen.
+Keine neuen Reads, Retrybuttons, Writes, Alertquittierung, DTO-/Statusmodelle,
+Domain-/Provider-/Trading-/Freigabe-/Recoveryregeln oder gemeinsame Hinweisengine.
+UX2-Host/Navigation, UX4-Historie und die abgeschlossenen Q12-Flächen unverändert
+lassen. B1-NoticeCard nicht um eine unbelegte Aktion erweitern.
+M02/TC-50-Healthteilfehler und Nichtanwendbarkeit separat belassen: 404 und leere
+Alerts beweisen keine geschlossene Position; keine Health-Recovery erfinden.
+
+Prüfe beide echten Invalidierungsgründe, unbekannten/fehlenden Grund, unveränderte
+OPEN-/RESOLVED-Anzeige und Alert-/Deliverytrennung mit positiven und negativen
+Assertions. Bewahre die vorhandenen TradeAlertsPanel-/Monitoringregressionen;
+prüfe nur bei tatsächlicher Hostwirkung den bestehenden Browserpfad
+tests/e2e/position-monitoring-health.spec.ts zusätzlich. Keine automatischen
+Writes/Navigation oder neue Live-Ansage; native Details bei Bedarf per Tastatur
+bedienbar, technische Referenzen sekundär. Keine künstlichen neuen Gatefälle.
+Liefere einen kleinen eigenen PR mit aktuellem Head/Testmerge/Tree, regulären
+CI-Nachweisen und ehrlich getrennten menschlichen Abnahmen. Bestehende Gates
+beibehalten; keinen pauschalen Abschluss von B3/TC-51/F4 oder UX3 behaupten.
 ```
