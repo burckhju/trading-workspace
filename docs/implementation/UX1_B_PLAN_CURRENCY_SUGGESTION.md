@@ -25,6 +25,34 @@ Historische Genehmigungen anderer PRs werden nicht übernommen.
 | Weitere offene PRs | #315/#220/#207/#205/#197/#187 ebenfalls auf Dateiebene geprüft. #187 betrifft einen getrennten Hebeltrader-Wrapper, nicht diese Erstanlage. Keine Übernahme fremder Branches. |
 | Eigene Arbeit | Kein bestehender Branch/PR für diesen Planwährungsschnitt gefunden. Eigener Branch `feat/ux1-b-plan-currency-suggestion`, genau ein Draft-PR. |
 
+
+### Aktualisierung der Integrationsbasis
+
+Beim Abschlussabgleich wurde der inzwischen integrierte UX2-B-PR #325 erkannt:
+aktueller Main `68f8c3fe78fd867f7a34cb5a44aa634097e0a008`, Tree
+`31c68ce63278461e4d284644b0a4c9092cb68fb8`. Der Merge erfolgte am
+06.11.2026 um 07:45:48 Uhr Europe/Berlin. Sein vollständiger Diff umfasst
+22 Dateien und überschneidet sich mit keiner der zwölf Dateien dieses Schnitts.
+Die neue Mainbasis ändert TradePlan, Candidate, Analysis und die hier
+belegten Quellen-/Ownerverträge nicht.
+
+Die vier eigenen Commits wurden in derselben Reihenfolge auf diesen Main
+neu aufgesetzt. Der erste reine Vertragscommit dieser Historie ist
+`e1818924ca8db1cd7b951dd439a7077c9651f676`; der ursprünglich vor jedem Runtimeedit gesicherte
+Commit `7454a7c0a22b9be7504075824cf8dc66fd73a4f3` bleibt der zeitliche
+Phase-1-Nachweis. Die eigenen Runtime- und Testinhalte sind bei der
+Basisaktualisierung unverändert; hinzu kommt nur dieser Dokumentationshinweis.
+Keine Übernahme eines offenen Fremdbranches und kein eigener Edit der
+gemeinsamen Trade-Workspace-E2E-Datei.
+
+Der tatsächliche Tag `v1.5.40` bleibt bei `e4921d6e…`; die neue Mainbasis
+ist damit nicht allein durch einen Merge oder grüne CI veröffentlicht.
+Die gelesenen Ergebnisse von Zwischenhead `18795cbc…` /
+Testmerge `74e76d4a…` belegen ausschließlich die vorherige Basis.
+Alle neun regulären Gates sind für den neu aufgesetzten finalen Head und
+dessen tatsächlichen Testmerge erneut zu qualifizieren; die Bindung steht
+im selben Draft-PR.
+
 Der historische Abschnitt „UX1-B“ in
 [UX1_INPUT_REUSE_QUALIFICATION](UX1_INPUT_REUSE_QUALIFICATION.md) bezeichnete das
 Wiederöffnen eines gespeicherten Produktauswahlruns. Seine ausgelieferte Leistung,

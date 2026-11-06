@@ -426,7 +426,8 @@ for (const edit of [
     const fixture = await installFixture(page);
     await page.goto(creationPath);
     await expect.poll(() => fixture.snapshotOffsets).toEqual([0, 200]);
-    const field = page.getByLabel(edit.label, { exact: true });
+    // A controlled textarea adds its value to the wrapping label's text, not its accessible name.
+    const field = page.getByRole("textbox", { name: edit.label, exact: true });
     await field.fill(edit.value);
     if (edit.clear) await field.fill("");
     await finishSnapshotRead(page, fixture);
