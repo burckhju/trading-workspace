@@ -839,7 +839,11 @@ describe('lifecycle evidence presentation', () => {
       const region = screen.getByRole('region', { name });
       expect(within(region).getByText(/Lesefenster/)).toHaveTextContent(time);
     }
-    expect(screen.getByText(/Gemeinsames Lesefenster für Analyse und Plan/)).toBeVisible();
+    expect(
+      within(screen.getByRole('region', { name: 'Ursprünglicher Plan' })).getByText(
+        /Eigenes Lesefenster der Planquelle, gemeinsam für Analyse und Plan:/,
+      ),
+    ).toBeVisible();
     expect(screen.getByText(/Dasselbe Lesefenster wie die Ausführungen/)).toBeVisible();
     expect(fetchMock).toHaveBeenCalledTimes(5);
   });

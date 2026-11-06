@@ -373,6 +373,11 @@ async function expectSources(page: Page) {
     page.getByRole("region", { name: "Ursprünglicher Plan", exact: true }),
   ).toContainText("Gespeicherte Freigabe: Nicht dokumentiert");
   await expect(
+    page.getByRole("region", { name: "Ursprünglicher Plan", exact: true }),
+  ).toContainText(
+    "Eigenes Lesefenster der Planquelle, gemeinsam für Analyse und Plan:",
+  );
+  await expect(
     page.getByRole("region", { name: "Position", exact: true }),
   ).toContainText("UNKNOWN");
   await expect(

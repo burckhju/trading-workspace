@@ -167,7 +167,11 @@ function ReadSection<T>({
           <>
             <ReadWindowDetails
               window={value}
-              label={preceding ? 'Gemeinsames Lesefenster für Analyse und Plan' : undefined}
+              label={
+                preceding
+                  ? 'Eigenes Lesefenster der Planquelle, gemeinsam für Analyse und Plan'
+                  : undefined
+              }
             />
             {children(value.data, value)}
           </>
