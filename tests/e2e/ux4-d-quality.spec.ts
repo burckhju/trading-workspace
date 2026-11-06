@@ -889,7 +889,7 @@ async function inspectCoverage(page: Page, panel: Locator) {
     exact: true,
   });
   await expect(scroll.getByRole("table")).toHaveAccessibleName(
-    "Verifizierte Kurswege gehaltener Optionsscheine",
+    "Kursabdeckung und Quellen gehaltener Optionsscheine",
   );
   await expect(scroll.getByRole("columnheader")).toHaveCount(3);
   await scroll.focus();

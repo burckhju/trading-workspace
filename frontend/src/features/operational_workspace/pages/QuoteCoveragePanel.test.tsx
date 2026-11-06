@@ -434,7 +434,7 @@ it('provides table semantics and a labelled keyboard scroll area without reads o
   });
   expect(region).toHaveAttribute('tabindex', '0');
   const table = within(region).getByRole('table', {
-    name: 'Verifizierte Kurswege gehaltener Optionsscheine',
+    name: 'Kursabdeckung und Quellen gehaltener Optionsscheine',
   });
   expect(within(table).getAllByRole('columnheader')).toHaveLength(3);
   expect(within(table).getByRole('rowheader')).toHaveAttribute('scope', 'row');

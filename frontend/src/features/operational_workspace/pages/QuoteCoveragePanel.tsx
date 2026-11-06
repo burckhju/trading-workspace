@@ -381,7 +381,9 @@ export function QuoteCoveragePanel() {
             className={`mt-2 max-w-full overflow-x-auto ${focus}`}
           >
             <table className="w-full min-w-[42rem] table-fixed text-left text-sm">
-              <caption className="sr-only">Verifizierte Kurswege gehaltener Optionsscheine</caption>
+              <caption className="sr-only">
+                Kursabdeckung und Quellen gehaltener Optionsscheine
+              </caption>
               <thead>
                 <tr>
                   <th scope="col" className="w-1/4 p-2">
