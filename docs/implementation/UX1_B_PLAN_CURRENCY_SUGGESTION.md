@@ -150,7 +150,8 @@ Create-DRAFT-Payload; die spätere Ansicht erfindet keine Übernahmeprovenienz.
 
 ### Nachweisführung und Abnahmegrenze
 
-Die Phase-1-Dokumentation wird vor jedem Runtimeedit als eigener Commit erhalten.
+Die Phase-1-Dokumentation ist vor jedem Runtimeedit als eigener Commit
+`7454a7c0a22b9be7504075824cf8dc66fd73a4f3` erhalten.
 Gezielte Quellen-/Formular-/Browserregressionen sowie Typecheck, Lint und
 Formatprüfung ergänzen anschließend die unveränderten regulären PR-Gates:
 Backend quality, restrictive-umask image, issuer renderer sandbox; Frontend
@@ -165,3 +166,78 @@ PRs zählen nicht. Keine Änderung an Gates, Retries, Schutzregeln, fünf
 Masterdateien, gemeinsamer Trade-Workspace-E2E-Datei, Versionen oder Finanzlogik.
 Menschlicher FT-007-/UX1-Review und fachliche Bedienabnahme bleiben offen;
 technische Prüfungen erteilen weder Merge- noch Release-/PC-Freigabe.
+
+## Implementierter Draft und technische Prüfung
+
+Nach dem positiven Quellen-/Ownerabgleich wurde Phase 2 auf derselben Basis
+umgesetzt. Der Draft enthält den Vorschlag als neues Verhalten; Ausgangs-Main
+und veröffentlichter Tag enthalten diese Automatik weiterhin nicht.
+
+### Konkrete Produktgrenze
+
+- [Öffentlicher Analysis-Adapter](../../frontend/src/features/analysis/public/historicalSnapshotCurrency.ts)
+  und [enger Export](../../frontend/src/features/analysis/index.ts): tatsächliche
+  Runidentität prüfen, vollständige Pagination lesen, exakten einheitlichen
+  Währungsstring liefern. Bestehende Reader, Standardaufrufe, DTOs und Backend
+  bleiben unverändert.
+- [Candidate-Quellenauswahl](../../frontend/src/features/trade_plan/services/planCurrencySuggestion.ts):
+  genau eine UNDERLYING-Rolle vor Prüfung des ANALYSIS-Typs; nur die bereits
+  geprüfte Evaluation, keine aktuellen Listing- oder latest-Lookups.
+- [Erstellungsflow](../../frontend/src/features/trade_plan/pages/TradePlanPage.tsx):
+  separater optionaler Read, einmalige direkte Initialisierung, dauerhafter
+  `humanEdited`-Schutz, Anfragegeneration und Abort. Der bestehende
+  Formular-Remount bei akzeptiertem Kontextwechsel bleibt erhalten.
+- [Inhaltsformular](../../frontend/src/features/trade_plan/forms/TradePlanContentForm.tsx):
+  nur additive optionale Hinweisprop; Währungsfeld bleibt sichtbar/editierbar
+  und über `aria-describedby` mit der Analyse-/Versionstextreferenz verbunden.
+  Kein Reader, Resolver oder Default im Formular.
+
+`content.ts`, `originContext.ts`, `ExistingTradePlanPage.tsx`, Backend,
+Candidate-/Analysis-Standardreader, Ausführungswährungsresolver, Navigation,
+Workflow-/Versionsdateien und die fünf Masterdokumente wurden nicht geändert.
+Der komplette neue fachliche Effekt ist **ein erneut einzugebender Währungscode
+weniger pro qualifiziertem neuen Candidate-Plan**. Das gilt nicht für fehlende
+Quellen oder bereits bearbeitete Formulare und enthält keine Nutzungsquote.
+
+### Zuordnung der Regressionen
+
+Die Dateien enthalten ausführbare Anforderungen für die obigen Fälle. Erst ein
+vollständig beendeter Lauf am zugeordneten Head qualifiziert sie als bestanden.
+
+| Testfläche | Konkrete Assertions |
+|---|---|
+| [Analysis-Adapter, 45 Fälle](../../frontend/src/features/analysis/public/historicalSnapshotCurrency.test.ts) | Tatsächliche HTTP-Readeraufrufe mit `include_snapshot=false`, 401 Zeilen auf drei Seiten, GET-only ohne Body, alte Modellreferenz, exakter Code, falsche Antwortidentität, leere/ungültige Quelle, später Währungskonflikt, widersprüchliche/verkürzte/wiederholte Seiten, HTTP-Fehler und Abbruch. |
+| [Candidate-Selector, 22 Fälle](../../frontend/src/features/trade_plan/services/planCurrencySuggestion.test.ts) | Historischer Pin trotz heutiger EUR-Notierung, manuell ohne Read, mehrere UNDERLYING-Rollen auch mit unterschiedlichem Typ, fehlende Referenzen, optionale Fehler ohne Ursprungsmutation. |
+| [Erstellungsflow, 25 Fälle](../../frontend/src/features/trade_plan/pages/TradePlanPage.currency-suggestion.test.tsx) | Initialisierung, neuere Evaluation ignorieren, finaler sichtbarer Savewert, manueller Fallback, ungültiger Pflichtursprung, gespeicherter Plan/Amendment unverändert, vorherige Feldedits, Edit→Leer, dauerhafte Herkunftsgrenze, Dirty/Busy/Unknown, A→B→A mit ausstehenden **und bereits abgeschlossenen** alten Erfolgen/Fehlern. |
+| [Gemeinsames Formular](../../frontend/src/features/trade_plan/forms/TradePlanContentForm.test.tsx) | Zusätzlicher Hinweis-/Editierbarkeitstest; generischer Leerstart ohne versteckte Währung unverändert. |
+| [Eigene Browserstrecke, fünf Fälle](../../tests/e2e/ux1-b-plan-currency-suggestion.spec.ts) | 201 Zeilen über zwei Seiten; vor letzter Seite kein Vorschlag; historische USD-Quelle trotz aktueller EUR-Notierung und neuerer Evaluation; 1280/390 px, editierbare Herkunft, genau ein bewusster DRAFT-POST mit CHF, Konflikt erst auf letzter Seite, verspätete Quelle nach Preis- beziehungsweise Thesis→Leer-Edit. Alle API-/XHR-/Fetchzugriffe sind synthetisch abgefangen; unbekannte Requests bleiben Fehler. |
+| Bestehende Regressionen | Page-, Deep-Link-, ExistingPlan- und Form-Suites, Analysis-Client sowie Backend Analysis/Candidate/TradePlan einschließlich Candidate→TradePlan- und Plan→ProductSelection-Handoff. |
+
+### Lokale Ergebnisse und offen gehaltene Ausführungsgrenzen
+
+Toolchain: Node **22.16.0**, npm **10.9.2**, Python **3.12.14** mit den
+Repositorymanifesten; keine Lockdateiänderung. Lokale Tests verwenden synthetische
+Antworten und keine produktive Datenbank. Die folgenden Befunde sind von der
+regulären PR-CI zu unterscheiden:
+
+| Prüfung | Tatsächliches Ergebnis |
+|---|---|
+| Bestehende Backend-Units Analysis, Candidate, TradePlan und beide Handoff-Integrationen | **335 bestanden**, Exit 0, 44,78 s. Eine bestehende Starlette/AnyIO-DeprecationWarning; keine lokale PostgreSQL-Qualifikation behauptet. |
+| Vollständiger Frontend-Typecheck | Exit 0 nach Korrektur dreier unzulässiger `exact`-Optionen in neuen Testing-Library-Testaufrufen; keine fachliche Assertion entfernt. |
+| Gezielt ESLint und Prettier | Neue/angepasste Frontenddateien sowie Browser-Spec geprüft; keine Regelabsenkung. |
+| Statischer Browserbuild | Vite-Build erfolgreich; bestehende Chunkgrößenwarnung. |
+| Gezielte Vitest-Läufe | Quellenlauf meldete 69, Formularlauf zuletzt 86 grüne Fälle auf Dateiebene. Der lokale Runner beendete den Workerabschluss nicht regulär; begrenzter Quellengegenlauf Exit 124, ursprüngliche Prozesse beendet. **Kein vollständig bestandener lokaler Vitest-Gesamtlauf behauptet.** |
+| Lokaler Chromiumlauf | Fünf Fälle entdeckt; Chromium 140.0.7339.16 bricht bereits beim Start mit SIGTRAP ab, auch beim isolierten `about:blank`-Start. Keine Produktassertion erreicht, kein bestandener Browsernachweis und keine Screenshots behauptet. Keine Browserflags oder Schutzregeln zur Umgehung geändert. |
+| Dokumentation / Diff | UTF-8, vollständige Codeblöcke, lokale Linkziele und `git diff --check` geprüft. |
+
+Die **maßgebliche finale Qualifikation** wird in der Beschreibung des einzigen
+Draft-PRs dieses Branches mit finalem Head, tatsächlichem Testmerge/Tree,
+aktueller Mainbasis und allen neun regulären Prüfjobs gebunden. Ein fehlender,
+fehlgeschlagener oder abgebrochener Lauf bleibt dort ausdrücklich offen, bis die
+reguläre CI ihn tatsächlich qualifiziert. Die lokalen Ausführungsgrenzen oben
+werden nicht nachträglich als erfolgreiche Läufe umgedeutet.
+
+Die neue Regel bleibt zur menschlichen Prüfung durch UX1/FT-007 im Draft.
+Fachliche Bedienabnahme und reale Quellenabdeckung sind nicht aus synthetischen
+Tests ableitbar. Kein Merge, Release, Tag, PC-Update oder produktiver Write wurde
+durchgeführt oder für diesen Auftrag freigegeben.

@@ -1,3 +1,5 @@
+import { useId } from 'react';
+
 import type { EntryType, TradePlanContentRequest } from '../types/api';
 
 const inputClass = 'mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 p-2';
@@ -10,6 +12,7 @@ function ContentField({
   decimal = false,
   multiline = false,
   placeholder,
+  describedBy,
 }: {
   label: string;
   value?: string | number | null;
@@ -18,6 +21,7 @@ function ContentField({
   decimal?: boolean;
   multiline?: boolean;
   placeholder?: string;
+  describedBy?: string;
 }) {
   return (
     <label className="block min-w-0 text-sm">
@@ -33,6 +37,7 @@ function ContentField({
       ) : (
         <input
           required={required}
+          aria-describedby={describedBy}
           inputMode={decimal ? 'decimal' : undefined}
           className={inputClass}
           value={value ?? ''}
@@ -49,11 +54,14 @@ export function TradePlanContentForm({
   value,
   onChange,
   disabled = false,
+  currencyHint,
 }: {
   value: TradePlanContentRequest;
   onChange: (value: TradePlanContentRequest) => void;
   disabled?: boolean;
+  currencyHint?: string;
 }) {
+  const currencyHintId = useId();
   const entry = value.entry;
   const updateEntry = (change: Partial<TradePlanContentRequest['entry']>) =>
     onChange({ ...value, entry: { ...entry, ...change } });
@@ -99,9 +107,15 @@ export function TradePlanContentForm({
           label="Währung"
           value={entry.currency}
           onChange={(currency) => updateEntry({ currency })}
+          describedBy={currencyHint ? currencyHintId : undefined}
           required
         />
       </div>
+      {currencyHint && (
+        <p id={currencyHintId} className="break-words text-xs text-slate-400">
+          {currencyHint}
+        </p>
+      )}
       <p className="text-xs text-slate-400">
         Die Planwährung bezieht sich auf den Basiswert. Beim Wechsel der Entry-Art werden die
         bisherigen Preis- beziehungsweise Triggerfelder ersetzt.
