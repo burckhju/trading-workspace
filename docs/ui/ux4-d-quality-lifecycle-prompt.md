@@ -16,7 +16,7 @@
 
 Der bestehende D-Draft an `67af2c8c43d92c0cd6d14412f58b3c4129f1eec6` enthielt zwei
 Dokumentänderungen und lag 17 Commits hinter Main. Der aktuelle Main wurde ohne
-Konflikte mit `5d1916b548dcf483f341d6b0098aa80d198521f2` übernommen. D1–D4 erweitern
+Konflikte mit `cd1bb03e944f261c5d45cf41fd3460ab25296fc7` übernommen. D1–D4 erweitern
 anschließend die bestehenden lokalen Darstellungen und Leser, ohne gemeinsame
 Hostdateien, Provideraufrufe, Finanzlogik, Persistenz oder Softwareversion zu ändern.
 Die Browsermatrix enthält 320/390/1280 Pixel und gemessenen nativen 200/400-%-Zoom.

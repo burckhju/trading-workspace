@@ -16,7 +16,7 @@ Fachliche Aufgabenstände bleiben im
 | Tatsächlicher Main | `7bfe1bfa13ec158ec380aa6f5d3c7f480838f5e8` |
 | Versionsdateien / veröffentlichter Git-Tag | Unverändert `1.5.41` / `v1.5.41`; daraus folgt kein Installationsbeleg |
 | Übernommener D-Draft | `67af2c8c43d92c0cd6d14412f58b3c4129f1eec6`, zunächst 17 Commits hinter Main und einen voraus; ausschließlich zwei Dokumentdateien |
-| Main-Integration | Konfliktfreier regulärer Merge `5d1916b548dcf483f341d6b0098aa80d198521f2`; kein Reset und keine Übernahme offener Featurebranches |
+| Main-Integration | Konfliktfreier regulärer Merge `cd1bb03e944f261c5d45cf41fd3460ab25296fc7`; kein Reset und keine Übernahme offener Featurebranches |
 | UX4-C | [PR #327](https://github.com/burckhju/trading-workspace/pull/327), Draft-Head `79760e9cf40cef6c6e58d8b15b6849a3056cc5c8`, beim Start 17 Commits hinter Main; seine historische technische Qualifikation ist kein Nachweis gegen den neuen Main |
 | Reviews beim Start | Keine Reviews, offenen Threads oder angeforderten Reviewer an #330; keine persönliche Ownerabnahme daraus ableiten |
 | Grenzen | Draft bleibt Draft; kein Merge, Release, Tag, Deployment oder PC-Update |
