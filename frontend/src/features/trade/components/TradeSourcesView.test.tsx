@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter, useLocation, useNavigate } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -92,6 +93,91 @@ function journal(status = 'DRAFT') {
     updated_at: NOW,
     finalized_at: status === 'FINALIZED' ? NOW : null,
     supersedes_version_id: null,
+  };
+}
+function plan() {
+  return {
+    plan: {
+      id: 'historical-plan',
+      origin_type: 'CANDIDATE_EVALUATION',
+      candidate_id: 'candidate-1',
+      candidate_evaluation_id: 'evaluation-3',
+    },
+    approval: null,
+    events: [],
+    candidate_evaluation: {
+      candidate_id: 'candidate-1',
+      evaluation_id: 'evaluation-3',
+      evaluation_version: 3,
+      direction: 'LONG',
+      model_id: 'candidate-model',
+      model_version: '2.1',
+      qualification: 'QUALIFIED',
+      quality_status: 'PARTIAL',
+      evaluated_at: '2026-07-01T09:00:00Z',
+      sources: [
+        {
+          role: 'MARKET_CONTEXT',
+          source_type: 'MARKET_ANALYSIS',
+          source_id: 'historical-analysis',
+          source_version: 7,
+          model_id: 'analysis-model',
+          model_version: '1.4',
+        },
+        {
+          role: 'SUBJECT',
+          source_type: 'OTHER_HISTORICAL_SOURCE',
+          source_id: 'historical-other-source',
+          source_version: 2,
+          model_id: 'source-model',
+          model_version: '5',
+        },
+      ],
+    },
+    version: {
+      id: 'historical-plan-v1',
+      version: 1,
+      status: 'DRAFT',
+      thesis: 'Ursprüngliche These',
+      created_at: '2026-07-01T10:00:00Z',
+      entry: { type: 'PRICE', price: '100', currency: 'EUR' },
+      invalidation: { stop_price: '95' },
+      targets: [],
+      risk_assumptions: { thesis_risk: 'Original risk' },
+    },
+  };
+}
+function evidence(bound = false) {
+  return {
+    evidence_id: 'historical-evidence',
+    evidence_type: 'FT011',
+    created_at: '2026-09-01T09:00:00Z',
+    review_version_id: bound ? R1 : null,
+    journal_version_id: null,
+    source_bound: bound,
+    lesson_links: [
+      {
+        link_id: 'historical-relation',
+        lesson_id: 'lesson',
+        lesson_title: 'Historische Interpretation',
+        lesson_version_id: L1,
+        lesson_version: 1,
+        relation: 'CONTRADICTS',
+        is_current_version: false,
+      },
+    ],
+  };
+}
+function plannedCore() {
+  const data = core();
+  return {
+    ...data,
+    trade: {
+      ...data.trade,
+      origin: 'WORKSPACE_SELECTION',
+      trade_plan_id: 'historical-plan',
+      trade_plan_version_id: 'historical-plan-v1',
+    },
   };
 }
 let fetchMock: ReturnType<typeof vi.fn<typeof fetch>>;
@@ -534,5 +620,383 @@ describe('read-only trade sources', () => {
         (link) => !link.getAttribute('href')?.includes('evil'),
       ),
     ).toBe(true);
+  });
+});
+
+describe('lifecycle evidence presentation', () => {
+  it('orders six evidence groups without asserting lifecycle completion', async () => {
+    mount();
+    await screen.findByText('Eine eigene Reflexion');
+    const list = screen.getByRole('list', { name: 'Belege im Trade-Lebenszyklus' });
+    expect(
+      [...list.children].map(
+        (item) => within(item as HTMLElement).getAllByRole('heading')[0].textContent,
+      ),
+    ).toEqual([
+      'Analyse / Kandidat',
+      'Ursprünglicher Plan',
+      'Tatsächliche Ausführungen und Management',
+      'Position',
+      'Review und Journal',
+      'Evidence und Lesson-Versionen',
+    ]);
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+    expect(screen.queryByRole('progressbar')).toBeNull();
+    expect(screen.queryByText(/6\/6|100\s*%|Analyse abgeschlossen/)).toBeNull();
+    expect(fetchMock).toHaveBeenCalledTimes(5);
+  });
+
+  it('shows historical candidate and source identities without inventing analysis links', async () => {
+    override = (url) => {
+      if (url.pathname.endsWith('/sources')) return response(plannedCore());
+      if (url.pathname.endsWith('/plan')) return response(plan());
+      return undefined;
+    };
+    mount(`trade_id=${A}&view=sources&review_version_id=${R1}&journal_version_id=${J1}`);
+    const analysis = await screen.findByRole('region', { name: 'Analyse / Kandidat' });
+    await within(analysis).findByText('evaluation-3 · Version 3');
+    expect(within(analysis).getByText('candidate-1')).toBeVisible();
+    expect(within(analysis).getByText('candidate-model · 2.1')).toBeVisible();
+    expect(within(analysis).getByText('QUALIFIED')).toBeVisible();
+    expect(within(analysis).getByText('PARTIAL')).toBeVisible();
+    expect(within(analysis).getByText(/9:00:00 UTC/)).toBeVisible();
+    const sources = within(analysis).getByRole('list', {
+      name: 'Historische Analyse- und Kandidatenquellen',
+    });
+    expect(within(sources).getByText('MARKET_ANALYSIS')).toBeVisible();
+    expect(within(sources).getByText('historical-analysis · Version 7')).toBeVisible();
+    expect(within(sources).getByText('analysis-model · 1.4')).toBeVisible();
+    expect(within(sources).getByText('OTHER_HISTORICAL_SOURCE')).toBeVisible();
+    expect(within(sources).getByText('historical-other-source · Version 2')).toBeVisible();
+    expect(within(analysis).queryByRole('link')).toBeNull();
+    expect(fetchMock).toHaveBeenCalledTimes(5);
+    const boundPlan = screen.getByRole('link', { name: 'Gebundene Planversion öffnen' });
+    expect(boundPlan.getAttribute('href')).toContain('trade_plan_version_id=historical-plan-v1');
+    expect(boundPlan.getAttribute('href')).toContain(`review_version_id=${R1}`);
+    expect(boundPlan.getAttribute('href')).toContain(`journal_version_id=${J1}`);
+  });
+
+  it('treats manual origin without analysis as valid and does not infer plan approval from a trade', async () => {
+    const data = plan();
+    override = (url) => {
+      if (url.pathname.endsWith('/sources')) return response(plannedCore());
+      if (url.pathname.endsWith('/plan'))
+        return response({
+          ...data,
+          plan: {
+            ...data.plan,
+            origin_type: 'MANUAL',
+            candidate_id: null,
+            candidate_evaluation_id: null,
+          },
+          candidate_evaluation: null,
+        });
+      return undefined;
+    };
+    mount();
+    await screen.findByText(/Manueller Plan ohne gebundene Kandidatenbewertung/);
+    const region = screen.getByRole('region', { name: 'Ursprünglicher Plan' });
+    expect(within(region).getByText(/Planversion 1 · Status DRAFT/)).toBeVisible();
+    expect(within(region).getByText('Gespeicherte Freigabe: Nicht dokumentiert')).toBeVisible();
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(fetchMock).toHaveBeenCalledTimes(5);
+  });
+
+  it('keeps a missing candidate source explicit and preserves unknown owner codes', async () => {
+    const data = plan();
+    override = (url) => {
+      if (url.pathname.endsWith('/sources')) return response(plannedCore());
+      if (url.pathname.endsWith('/plan'))
+        return response({
+          ...data,
+          candidate_evaluation: {
+            ...data.candidate_evaluation,
+            qualification: 'FUTURE_QUALIFICATION',
+            sources: [],
+          },
+        });
+      return undefined;
+    };
+    mount();
+    await screen.findByText('Keine einzelnen historischen Analysequellen dokumentiert.');
+    expect(screen.getByText('FUTURE_QUALIFICATION')).toBeVisible();
+    expect(
+      screen.queryByText(/Analyse abgeschlossen|Analyse freigegeben|alles in Ordnung/),
+    ).toBeNull();
+    expect(fetchMock).toHaveBeenCalledTimes(5);
+  });
+
+  it('shares the pending plan read and its single retry between analysis and plan', async () => {
+    const pending = deferred<Response>();
+    let first = true;
+    override = (url) => {
+      if (url.pathname.endsWith('/plan')) {
+        if (first) {
+          first = false;
+          return pending.promise;
+        }
+        return response(plan());
+      }
+      return undefined;
+    };
+    mount();
+    await screen.findByText('Eine eigene Reflexion');
+    const analysis = screen.getByRole('region', { name: 'Analyse / Kandidat' });
+    const planRegion = screen.getByRole('region', { name: 'Ursprünglicher Plan' });
+    expect(
+      within(analysis).getByText('Analyseherkunft wird gemeinsam mit der Planquelle gelesen.'),
+    ).toBeVisible();
+    expect(within(analysis).queryByRole('status')).toBeNull();
+    expect(within(planRegion).getByRole('status')).toHaveTextContent(
+      'Ursprünglicher Plan wird gelesen.',
+    );
+    expect(screen.queryByText(/ohne dokumentierte ursprüngliche Planherkunft/)).toBeNull();
+    await act(async () => {
+      pending.resolve(failure());
+      await pending.promise;
+    });
+    expect(within(analysis).getByText(/Analyseherkunft konnte nicht geprüft werden/)).toBeVisible();
+    expect(screen.getAllByRole('alert')).toHaveLength(1);
+    expect(within(planRegion).getByRole('alert')).toBeVisible();
+    fireEvent.click(
+      within(planRegion).getByRole('button', { name: 'Ursprünglicher Plan neu lesen' }),
+    );
+    await within(analysis).findByText('evaluation-3 · Version 3');
+    expect(within(planRegion).getByText('These: Ursprüngliche These')).toBeVisible();
+    expect(fetchMock).toHaveBeenCalledTimes(6);
+    expect(fetchMock.mock.calls.filter(([url]) => requestUrl(url).endsWith('/plan'))).toHaveLength(
+      2,
+    );
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('does not read or claim optional evidence before a successful core read', async () => {
+    const pending = deferred<Response>();
+    override = (url) => (url.pathname.endsWith('/sources') ? pending.promise : undefined);
+    mount();
+    expect(
+      within(screen.getByRole('region', { name: 'Trade und Quellenstand' })).getByRole('status'),
+    ).toHaveTextContent('Trade und Quellenstand wird gelesen.');
+    expect(screen.queryByRole('list', { name: 'Belege im Trade-Lebenszyklus' })).toBeNull();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      pending.resolve(response(core()));
+      await pending.promise;
+    });
+    await screen.findByText('Eine eigene Reflexion');
+    expect(fetchMock).toHaveBeenCalledTimes(5);
+  });
+
+  it('retains independent read windows and makes shared windows explicit in UTC', async () => {
+    override = (url) => {
+      const stamp = url.pathname.endsWith('/plan')
+        ? '10:11:12'
+        : url.pathname.endsWith('/reviews')
+          ? '11:12:13'
+          : url.pathname.endsWith('/journal')
+            ? '12:13:14'
+            : url.pathname.endsWith('/evidence')
+              ? '13:14:15'
+              : '09:10:11';
+      const data = url.pathname.endsWith('/sources')
+        ? plannedCore()
+        : url.pathname.endsWith('/plan')
+          ? plan()
+          : url.pathname.endsWith('/reviews')
+            ? {
+                history: [review()],
+                selected: review(),
+                source_currentness: 'CURRENT',
+                checked_at: NOW,
+              }
+            : url.pathname.endsWith('/journal')
+              ? {
+                  history: [journal()],
+                  selected: journal(),
+                  source_currentness: 'CURRENT',
+                  checked_at: NOW,
+                }
+              : [];
+      return new Response(
+        JSON.stringify({
+          data,
+          read_started_at: `2026-10-21T${stamp}Z`,
+          read_completed_at: `2026-10-21T${stamp}Z`,
+        }),
+      );
+    };
+    mount();
+    await screen.findByText('Eine eigene Reflexion');
+    for (const [name, time] of [
+      ['Analyse / Kandidat', '10:11:12 UTC'],
+      ['Ursprünglicher Plan', '10:11:12 UTC'],
+      ['Tatsächliche Ausführungen und Management', '09:10:11 UTC'],
+      ['Position', '09:10:11 UTC'],
+      ['Dokumentierte Exit-Bewertung', '11:12:13 UTC'],
+      ['Journal', '12:13:14 UTC'],
+      ['Evidence und Lesson-Versionen', '13:14:15 UTC'],
+    ]) {
+      const region = screen.getByRole('region', { name });
+      expect(within(region).getByText(/Lesefenster/)).toHaveTextContent(time);
+    }
+    expect(screen.getByText(/Gemeinsames Lesefenster für Analyse und Plan/)).toBeVisible();
+    expect(screen.getByText(/Dasselbe Lesefenster wie die Ausführungen/)).toBeVisible();
+    expect(fetchMock).toHaveBeenCalledTimes(5);
+  });
+
+  it('shows UNKNOWN and null position independently of historical evidence and a failed review read', async () => {
+    override = (url) => {
+      if (url.pathname.endsWith('/sources'))
+        return response({ ...core(), state: 'UNKNOWN', open_quantity: null, timeline: [] });
+      if (url.pathname.endsWith('/reviews')) return failure();
+      if (url.pathname.endsWith('/evidence')) return response([evidence()]);
+      return undefined;
+    };
+    mount();
+    await screen.findByRole('link', { name: /Historische Interpretation.*CONTRADICTS/ });
+    const position = screen.getByRole('region', { name: 'Position' });
+    expect(within(position).getByText('UNKNOWN')).toBeVisible();
+    expect(within(position).getByText('Nicht verfügbar')).toBeVisible();
+    expect(within(position).queryByText('0 Stück')).toBeNull();
+    expect(within(position).queryByRole('link')).toBeNull();
+    expect(
+      screen.getByText('Keine Ausführungs- oder Managementbelege dokumentiert.'),
+    ).toBeVisible();
+    const reviewRegion = screen.getByRole('region', { name: 'Dokumentierte Exit-Bewertung' });
+    expect(within(reviewRegion).getByRole('alert')).toBeVisible();
+    expect(within(reviewRegion).queryByText('Exit-Bewertung nicht dokumentiert.')).toBeNull();
+    const evidenceRegion = screen.getByRole('region', { name: 'Evidence und Lesson-Versionen' });
+    expect(
+      within(evidenceRegion).getByText(/Alte Herkunft nicht vollständig auflösbar/),
+    ).toBeVisible();
+    expect(
+      within(evidenceRegion).getByText(
+        /Materialisierungsbereitschaft und der Lesson-Reviewstatus werden hier nicht geprüft/,
+      ),
+    ).toBeVisible();
+    expect(screen.queryByText(/6\/6|100\s*%|Review abgeschlossen|Lesson freigegeben/)).toBeNull();
+    expect(fetchMock).toHaveBeenCalledTimes(5);
+  });
+
+  it('retains explicit zero quantity and keeps date-only execution separate from capture time', async () => {
+    mount();
+    await screen.findByText('Eine eigene Reflexion');
+    const position = screen.getByRole('region', { name: 'Position' });
+    expect(within(position).getByText('0 Stück')).toBeVisible();
+    const execution = screen.getByRole('article', { name: 'Quelle buy' });
+    expect(
+      within(execution).getByText(/Ausführung: 2026-08-05 · Uhrzeit unbekannt · Europe\/Berlin/),
+    ).toBeVisible();
+    await userEvent.click(within(execution).getByText('Herkunftsdetails'));
+    expect(within(execution).getByText(/Erfasst:.*16:00:00 UTC/)).toBeVisible();
+    expect(within(execution).queryByText(/2026-08-04T22:00:00|2026-08-05T00:00:00/)).toBeNull();
+    expect(fetchMock).toHaveBeenCalledTimes(5);
+  });
+
+  it('does not turn a missing execution side, amount or price into a sale or zero', async () => {
+    const data = core();
+    override = (url) =>
+      url.pathname.endsWith('/sources')
+        ? response({
+            ...data,
+            timeline: [
+              {
+                ...data.timeline[0],
+                execution_side: null,
+                quantity: null,
+                price_per_unit: null,
+                execution_timezone: null,
+              },
+            ],
+          })
+        : undefined;
+    mount();
+    await screen.findByText('Eine eigene Reflexion');
+    const execution = screen.getByRole('article', { name: 'Quelle buy' });
+    expect(within(execution).getByRole('heading')).toHaveTextContent(
+      'Ausführungsart nicht dokumentiert',
+    );
+    expect(
+      within(execution).getByText(/Menge: Nicht verfügbar; Preis je Stück: Nicht verfügbar/),
+    ).toBeVisible();
+    expect(within(execution).getByText(/Zeitzone nicht dokumentiert/)).toBeVisible();
+    expect(within(execution).queryByText('Verkauf')).toBeNull();
+    expect(within(execution).queryByText(/0 Stück/)).toBeNull();
+  });
+
+  it('keeps a current draft and a finalized empty journal independent from older evidence', async () => {
+    reviewValue = review(R2, null, 'DRAFT');
+    journalValue = { ...journal('FINALIZED'), what_went_well: '' };
+    override = (url) => {
+      if (url.pathname.endsWith('/reviews'))
+        return response({
+          history: [reviewValue, review()],
+          selected: reviewValue,
+          source_currentness: 'CURRENT',
+          checked_at: NOW,
+        });
+      if (url.pathname.endsWith('/evidence')) return response([evidence(true)]);
+      return undefined;
+    };
+    mount(`trade_id=${A}&view=sources&review_version_id=${R2}&journal_version_id=${J1}`);
+    await screen.findByRole('link', { name: /Historische Interpretation.*CONTRADICTS/ });
+    const reviewRegion = screen.getByRole('region', { name: 'Dokumentierte Exit-Bewertung' });
+    expect(within(reviewRegion).getByText(/Exakt angeforderte Version: 2 · DRAFT/)).toBeVisible();
+    expect(within(reviewRegion).getByText(/Heutige Quellenprüfung: CURRENT/)).toBeVisible();
+    const journalRegion = screen.getByRole('region', { name: 'Journal' });
+    expect(within(journalRegion).getByText('Finales Journal ohne Reflexionstext.')).toBeVisible();
+    expect(within(journalRegion).getByText(/Heutige Prüfung.*STALE/)).toBeVisible();
+    expect(
+      within(journalRegion).getByText(
+        'Der gespeicherte Status bewertet nicht die Vollständigkeit der Reflexion.',
+      ),
+    ).toBeVisible();
+    expect(
+      screen.getByRole('link', { name: 'Exakte Evidence-Reviewquelle lesen' }).getAttribute('href'),
+    ).toContain(`review_version_id=${R1}`);
+    expect(fetchMock).toHaveBeenCalledTimes(5);
+  });
+
+  it.each([
+    ['2026-07-01T09:00:00', /2026-07-01T09:00:00 \(Zeitbasis nicht belegt\)/],
+    ['2026-07-01T09:00:00+02:00', /7:00:00 UTC/],
+    ['invalidZ', /invalidZ \(Zeitangabe nicht lesbar\)/],
+  ])('does not invent the timezone of historical timestamp %s', async (value, expected) => {
+    const data = plan();
+    override = (url) => {
+      if (url.pathname.endsWith('/sources')) return response(plannedCore());
+      if (url.pathname.endsWith('/plan'))
+        return response({
+          ...data,
+          candidate_evaluation: { ...data.candidate_evaluation, evaluated_at: value },
+        });
+      return undefined;
+    };
+    mount();
+    const analysis = await screen.findByRole('region', { name: 'Analyse / Kandidat' });
+    await within(analysis).findByText('evaluation-3 · Version 3');
+    const time = within(analysis).getByText('Bewertungszeit').nextElementSibling;
+    expect(time).toHaveTextContent(expected);
+    if (String(value) === '2026-07-01T09:00:00') expect(time).not.toHaveTextContent('UTC');
+    expect(fetchMock).toHaveBeenCalledTimes(5);
+  });
+
+  it('keeps source details focusable and opens native details without new reads', async () => {
+    mount();
+    await screen.findByText('Eine eigene Reflexion');
+    const position = screen.getByRole('region', { name: 'Position' });
+    const summary = within(position).getByText('Herkunftsdetails');
+    summary.focus();
+    expect(summary).toHaveFocus();
+    await userEvent.click(summary);
+    expect(summary.closest('details')).toHaveAttribute('open');
+    expect(within(position).getByText(/Projektion für Trade/)).toBeVisible();
+    expect(
+      within(position).getByText('Eine eigene Positions-ID wird in dieser Quelle nicht geliefert.'),
+    ).toBeVisible();
+    await userEvent.click(summary);
+    expect(summary.closest('details')).not.toHaveAttribute('open');
+    expect(summary).toHaveClass('focus-visible:outline-sky-300');
+    expect(fetchMock).toHaveBeenCalledTimes(5);
   });
 });

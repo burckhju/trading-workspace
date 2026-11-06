@@ -20,16 +20,71 @@ import {
   tradeWorkspaceLink,
 } from '../../../shared/trade-workspace-navigation';
 
-const sectionClass = 'space-y-3 rounded-xl border border-slate-800 p-4';
-const linkClass = 'text-sky-400 underline focus-visible:outline';
+const sectionClass =
+  'min-w-0 space-y-3 rounded-xl border border-slate-800 p-3 sm:p-4 [overflow-wrap:anywhere]';
+const linkClass =
+  'rounded-sm text-sky-400 underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-sky-300';
 const missing = 'Nicht dokumentiert';
-const stamp = (value: string | null | undefined) =>
-  value ? new Date(value).toLocaleString('de-DE') : missing;
+const stamp = (value: string | null | undefined) => {
+  if (!value) return missing;
+  if (!/(?:Z|[+-]\d{2}:?\d{2})$/i.test(value)) return `${value} (Zeitbasis nicht belegt)`;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? `${value} (Zeitangabe nicht lesbar)`
+    : `${date.toLocaleString('de-DE', { timeZone: 'UTC' })} UTC`;
+};
+
+type ReadWindow = Pick<SourceSnapshot<unknown>, 'read_started_at' | 'read_completed_at'>;
+
+function ReadWindowDetails({
+  window,
+  label = 'Eigenes Lesefenster',
+}: {
+  window: ReadWindow;
+  label?: string;
+}) {
+  return (
+    <p className="text-xs text-slate-400">
+      {label}: {stamp(window.read_started_at)} bis {stamp(window.read_completed_at)}. Kein
+      gemeinsamer Stand mit anderen Quellenreads.
+    </p>
+  );
+}
+
+function SourceSection({
+  title,
+  id,
+  inList = false,
+  headingLevel = 2,
+  children,
+}: {
+  title: string;
+  id?: string;
+  inList?: boolean;
+  headingLevel?: 1 | 2 | 3;
+  children: ReactNode;
+}) {
+  const Heading = headingLevel === 1 ? 'h1' : headingLevel === 3 ? 'h3' : 'h2';
+  const section = (
+    <section
+      id={id}
+      tabIndex={id ? -1 : undefined}
+      className={`${sectionClass} focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-sky-300`}
+      aria-label={title}
+    >
+      <Heading className="text-lg font-semibold">{title}</Heading>
+      {children}
+    </section>
+  );
+  return inList ? <li className="min-w-0">{section}</li> : section;
+}
 
 function SourceDetails({ children }: { children: ReactNode }) {
   return (
-    <details>
-      <summary className="cursor-pointer">Herkunftsdetails</summary>
+    <details className="min-w-0">
+      <summary className="cursor-pointer rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-sky-300">
+        Herkunftsdetails
+      </summary>
       <div className="mt-2 space-y-2 text-sm [overflow-wrap:anywhere]">{children}</div>
     </details>
   );
@@ -39,12 +94,18 @@ function ReadSection<T>({
   title,
   url,
   id,
+  inList,
+  headingLevel,
+  preceding,
   children,
 }: {
   title: string;
   url: string;
   id?: string;
-  children: (data: T) => ReactNode;
+  inList?: boolean;
+  headingLevel?: 1 | 2 | 3;
+  preceding?: { title: string; children: (data: T) => ReactNode };
+  children: (data: T, window: ReadWindow) => ReactNode;
 }) {
   const [attempt, setAttempt] = useState(0);
   const [value, setValue] = useState<SourceSnapshot<T> | null>(null);
@@ -68,29 +129,51 @@ function ReadSection<T>({
     };
   }, [url, attempt]);
   return (
-    <section id={id} tabIndex={id ? -1 : undefined} className={sectionClass} aria-label={title}>
-      <h2 className="text-lg font-semibold">{title}</h2>
-      {error ? (
-        <>
-          <p role="alert">
-            Quelle konnte nicht gelesen werden. Das bedeutet nicht, dass sie fehlt. {error}
+    <>
+      {preceding && (
+        <SourceSection title={preceding.title} inList={inList}>
+          <p className="text-sm text-slate-400">
+            Analyseherkunft und ursprünglicher Plan stammen aus demselben Lesevorgang. Der
+            historische Bezug wird nicht durch eine aktuelle Analyse ersetzt.
           </p>
-          <button type="button" className={linkClass} onClick={() => setAttempt((v) => v + 1)}>
-            {title} neu lesen
-          </button>
-        </>
-      ) : value === null ? (
-        <p role="status">{title} wird gelesen.</p>
-      ) : (
-        <>
-          <p className="text-xs text-slate-400">
-            Eigenes Lesefenster: {stamp(value.read_started_at)} bis {stamp(value.read_completed_at)}
-            . Kein gemeinsamer Stand mit anderen Abschnitten.
-          </p>
-          {children(value.data)}
-        </>
+          {error ? (
+            <p>
+              Analyseherkunft konnte nicht geprüft werden. Fehler und erneutes Lesen der gemeinsamen
+              Quelle stehen unter „{title}“.
+            </p>
+          ) : value === null ? (
+            <p>Analyseherkunft wird gemeinsam mit der Planquelle gelesen.</p>
+          ) : (
+            <>
+              <ReadWindowDetails window={value} label={`Dasselbe Lesefenster wie „${title}“`} />
+              {preceding.children(value.data)}
+            </>
+          )}
+        </SourceSection>
       )}
-    </section>
+      <SourceSection title={title} id={id} inList={inList} headingLevel={headingLevel}>
+        {error ? (
+          <>
+            <p role="alert">
+              Quelle konnte nicht gelesen werden. Das bedeutet nicht, dass sie fehlt. {error}
+            </p>
+            <button type="button" className={linkClass} onClick={() => setAttempt((v) => v + 1)}>
+              {title} neu lesen
+            </button>
+          </>
+        ) : value === null ? (
+          <p role="status">{title} wird gelesen.</p>
+        ) : (
+          <>
+            <ReadWindowDetails
+              window={value}
+              label={preceding ? 'Gemeinsames Lesefenster für Analyse und Plan' : undefined}
+            />
+            {children(value.data, value)}
+          </>
+        )}
+      </SourceSection>
+    </>
   );
 }
 
@@ -102,7 +185,9 @@ function Execution({ entry, replaced }: { entry: TradeTimelineEntryResponse; rep
         ? `Managemententscheidung: ${entry.management_event_type}`
         : entry.execution_side === 'BUY'
           ? 'Kauf'
-          : 'Verkauf';
+          : entry.execution_side === 'SELL'
+            ? 'Verkauf'
+            : 'Ausführungsart nicht dokumentiert';
   return (
     <article
       className="space-y-2 rounded-lg border border-slate-800 p-3"
@@ -114,14 +199,16 @@ function Execution({ entry, replaced }: { entry: TradeTimelineEntryResponse; rep
         {entry.supersedes_id ? ' · Korrektur eines früheren Eintrags' : ''}
       </p>
       <p>
+        {entry.kind === 'EXECUTION' ? 'Ausführung: ' : 'Ereigniszeit: '}
         {entry.executed_on
-          ? `${entry.executed_on} · Uhrzeit unbekannt · ${entry.execution_timezone}`
+          ? `${entry.executed_on} · Uhrzeit unbekannt · ${entry.execution_timezone ?? 'Zeitzone nicht dokumentiert'}`
           : stamp(entry.occurred_at)}
       </p>
       {entry.kind === 'EXECUTION' && (
         <>
           <p>
-            Menge: {entry.quantity}; Preis je Stück: {entry.price_per_unit}
+            Menge: {entry.quantity == null ? 'Nicht verfügbar' : `${entry.quantity} Stück`}; Preis
+            je Stück: {entry.price_per_unit ?? 'Nicht verfügbar'}
           </p>
           <p>
             Ausführungswährung: {entry.currency_resolution?.currency_code ?? 'Unbekannt'} ·
@@ -129,7 +216,7 @@ function Execution({ entry, replaced }: { entry: TradeTimelineEntryResponse; rep
           </p>
         </>
       )}
-      {entry.numeric_value !== null && (
+      {entry.numeric_value != null && (
         <p>
           Dokumentierter Wert: {entry.numeric_value}.{' '}
           {entry.price_binding
@@ -141,6 +228,9 @@ function Execution({ entry, replaced }: { entry: TradeTimelineEntryResponse; rep
       <SourceDetails>
         <p>
           Quellen-ID: {entry.id}; Vorgänger: {entry.supersedes_id ?? 'Keiner'}
+        </p>
+        <p>
+          Quellentyp: {entry.kind}; Trade: {entry.trade_id ?? missing}
         </p>
         <p>Erfasst: {stamp(entry.recorded_at)}</p>
         <pre className="whitespace-pre-wrap">
@@ -156,6 +246,106 @@ function Execution({ entry, replaced }: { entry: TradeTimelineEntryResponse; rep
         </pre>
       </SourceDetails>
     </article>
+  );
+}
+
+function Analysis({ data }: { data: PlanSource | null }) {
+  if (data === null)
+    return (
+      <p>
+        Keine Analyse-/Kandidatenquelle über einen ursprünglichen Plan dokumentiert. Ein externer
+        Trade kann ohne diese Herkunft bestehen.
+      </p>
+    );
+  const evaluation = data.candidate_evaluation;
+  if (!evaluation)
+    return (
+      <p>
+        {data.plan.origin_type === 'MANUAL'
+          ? 'Manueller Plan ohne gebundene Kandidatenbewertung. Eine Analyseherkunft ist für diesen Ursprung nicht erforderlich.'
+          : 'Kandidatenbewertung nicht dokumentiert. Eine heutige Analyse ersetzt diesen fehlenden historischen Beleg nicht.'}
+      </p>
+    );
+  return (
+    <>
+      <p>
+        Historische Kandidatenbewertung der gebundenen Planversion. Qualifikation und
+        Quellenqualität sind die gespeicherten Befunde dieser Bewertung.
+      </p>
+      <dl className="grid gap-3 sm:grid-cols-2">
+        <div>
+          <dt className="text-sm text-slate-400">Kandidat-ID</dt>
+          <dd>{evaluation.candidate_id}</dd>
+        </div>
+        <div>
+          <dt className="text-sm text-slate-400">Bewertung-ID und Version</dt>
+          <dd>
+            {evaluation.evaluation_id} · Version {evaluation.evaluation_version}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-sm text-slate-400">Modell und Version</dt>
+          <dd>
+            {evaluation.model_id} · {evaluation.model_version}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-sm text-slate-400">Bewertungszeit</dt>
+          <dd>{stamp(evaluation.evaluated_at)}</dd>
+        </div>
+        <div>
+          <dt className="text-sm text-slate-400">Qualifikation</dt>
+          <dd>{evaluation.qualification}</dd>
+        </div>
+        <div>
+          <dt className="text-sm text-slate-400">Quellenqualität</dt>
+          <dd>{evaluation.quality_status}</dd>
+        </div>
+        <div>
+          <dt className="text-sm text-slate-400">Richtung</dt>
+          <dd>{evaluation.direction}</dd>
+        </div>
+      </dl>
+      {evaluation.sources.length === 0 ? (
+        <p>Keine einzelnen historischen Analysequellen dokumentiert.</p>
+      ) : (
+        <ul aria-label="Historische Analyse- und Kandidatenquellen" className="space-y-3">
+          {evaluation.sources.map((source) => (
+            <li
+              key={`${source.role}:${source.source_type}:${source.source_id}:${source.source_version}`}
+              className="rounded-lg border border-slate-800 p-3"
+            >
+              <dl className="grid gap-2 sm:grid-cols-2">
+                <div>
+                  <dt className="text-sm text-slate-400">Quellentyp</dt>
+                  <dd>{source.source_type}</dd>
+                </div>
+                <div>
+                  <dt className="text-sm text-slate-400">Rolle</dt>
+                  <dd>{source.role}</dd>
+                </div>
+                <div>
+                  <dt className="text-sm text-slate-400">Quellen-ID und Version</dt>
+                  <dd>
+                    {source.source_id} · Version {source.source_version}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-sm text-slate-400">Quellmodell und Version</dt>
+                  <dd>
+                    {source.model_id} · {source.model_version}
+                  </dd>
+                </div>
+              </dl>
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="text-sm text-slate-400">
+        Quellenreferenzen bezeichnen den damaligen Stand. Ein direkter Analyseversionslink ist hier
+        nicht belegt; die gebundene Planversion ist im nächsten Abschnitt erreichbar.
+      </p>
+    </>
   );
 }
 
@@ -176,6 +366,9 @@ function Plan({
       <p>
         Ursprünglich referenzierte Planversion {v.version} · Status {v.status}. Keine Auswahl der
         heute neuesten Version.
+      </p>
+      <p>
+        Planherkunft: {data.plan.origin_type ?? missing}. Planfreigabe und Kauf sind unabhängig.
       </p>
       <Link className={linkClass} to={tradePlanLink(data.plan.id, v.id, tradeId, query)}>
         Gebundene Planversion öffnen
@@ -212,7 +405,6 @@ function Plan({
           {JSON.stringify(
             {
               approval: data.approval,
-              candidate_evaluation: data.candidate_evaluation,
               events: data.events,
             },
             null,
@@ -280,6 +472,10 @@ function Review({ data, query }: { data: ReviewSources; query: URLSearchParams }
           Finalisiert: {stamp(v.finalized_at)}
         </p>
         <p>Vorgänger: {v.supersedes_version_id ?? 'Keiner'}</p>
+        <p>
+          Gespeicherter Veraltungsgrund: {v.stale_reason ?? missing}; Zeitpunkt: {stamp(v.stale_at)}
+          . Dieser historische Eintrag ersetzt nicht die heutige Quellenprüfung.
+        </p>
       </SourceDetails>
     </>
   );
@@ -296,15 +492,23 @@ function Journal({ data, query }: { data: JournalSources; query: URLSearchParams
       <p>
         Journalversion {v.version} · {v.status} · Bearbeitungsrevision {v.edit_revision}
       </p>
+      <p>
+        {query.has('journal_version_id')
+          ? 'Exakt angeforderte Journalversion.'
+          : 'Heute ausgewählter Journalstand.'}
+      </p>
       {v.status === 'DRAFT' && (
         <p>Veränderlicher Entwurf. Die Versions-ID allein friert diesen Text nicht ein.</p>
       )}
       {empty && (
-        <p>
-          {v.status === 'FINALIZED'
-            ? 'Finales Journal ohne Reflexionstext.'
-            : 'Entwurf ohne Reflexionstext.'}
-        </p>
+        <>
+          <p>
+            {v.status === 'FINALIZED'
+              ? 'Finales Journal ohne Reflexionstext.'
+              : 'Entwurf ohne Reflexionstext.'}
+          </p>
+          <p>Der gespeicherte Status bewertet nicht die Vollständigkeit der Reflexion.</p>
+        </>
       )}
       <p>
         Heutige Prüfung der referenzierten Reviewquelle: {data.source_currentness} ·{' '}
@@ -336,6 +540,9 @@ function Journal({ data, query }: { data: JournalSources; query: URLSearchParams
           Erstellt: {stamp(v.created_at)}; Geändert: {stamp(v.updated_at)}; Finalisiert:{' '}
           {stamp(v.finalized_at)}
         </p>
+        <p>
+          Journal: {v.trade_journal_id}; Vorgängerversion: {v.supersedes_version_id ?? 'Keine'}
+        </p>
       </SourceDetails>
     </>
   );
@@ -346,8 +553,17 @@ function Evidence({ data, query }: { data: EvidenceSource[]; query: URLSearchPar
     return <p>Keine dokumentierte Evidence-/Lesson-Beziehung für diesen Trade.</p>;
   return (
     <>
+      <p>
+        Historische Evidence und ihre gespeicherten Lesson-Beziehungen. Die aktuelle
+        Materialisierungsbereitschaft und der Lesson-Reviewstatus werden hier nicht geprüft. Eine
+        Beziehung bestätigt keine Freigabe und keinen früheren Prozessschritt.
+      </p>
       {data.map((e) => (
-        <article key={e.evidence_id} className="space-y-2 rounded-lg border border-slate-800 p-3">
+        <article
+          key={e.evidence_id}
+          className="min-w-0 space-y-2 rounded-lg border border-slate-800 p-3"
+          aria-label={`Evidence ${e.evidence_id}`}
+        >
           <h3 className="font-semibold">
             {e.evidence_type} ·{' '}
             {e.source_bound
@@ -378,26 +594,47 @@ function Evidence({ data, query }: { data: EvidenceSource[]; query: URLSearchPar
             </p>
           )}
           {e.lesson_links.length === 0 && <p>Keine gespeicherte Lesson-Beziehung.</p>}
-          {e.lesson_links.map((l) => (
-            <p key={l.link_id}>
-              <Link
-                className={linkClass}
-                to={tradeLessonLink(
-                  l.lesson_id,
-                  l.lesson_version_id,
-                  query.get('trade_id') ?? '',
-                  query,
-                  'sources',
-                )}
-              >
-                {l.lesson_title} · Version {l.lesson_version} · {l.relation} ·{' '}
-                {l.is_current_version ? 'heutige Version' : 'historische Version'}
-              </Link>
-            </p>
-          ))}
+          {e.lesson_links.length > 0 && (
+            <ul aria-label="Belegte Lesson-Beziehungen" className="space-y-3">
+              {e.lesson_links.map((l) => (
+                <li key={l.link_id} className="space-y-2">
+                  <Link
+                    className={linkClass}
+                    to={tradeLessonLink(
+                      l.lesson_id,
+                      l.lesson_version_id,
+                      query.get('trade_id') ?? '',
+                      query,
+                      'sources',
+                    )}
+                  >
+                    {l.lesson_title} · Version {l.lesson_version} · {l.relation} ·{' '}
+                    {l.is_current_version ? 'heutige Version' : 'historische Version'}
+                  </Link>
+                  <dl className="grid gap-2 text-sm sm:grid-cols-2">
+                    <div>
+                      <dt className="text-slate-400">Lesson-ID</dt>
+                      <dd>{l.lesson_id}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-slate-400">Lessonversion-ID</dt>
+                      <dd>{l.lesson_version_id}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-slate-400">Beziehungs-ID</dt>
+                      <dd>{l.link_id}</dd>
+                    </div>
+                  </dl>
+                </li>
+              ))}
+            </ul>
+          )}
           <SourceDetails>
             <p>Evidence: {e.evidence_id}</p>
-            <pre className="whitespace-pre-wrap">{JSON.stringify(e.lesson_links, null, 2)}</pre>
+            <p>
+              Reviewversion: {e.review_version_id ?? missing}; Journalversion:{' '}
+              {e.journal_version_id ?? missing}; Quellenbindung: {e.source_bound ? 'Ja' : 'Nein'}
+            </p>
           </SourceDetails>
         </article>
       ))}
@@ -409,23 +646,21 @@ function Core({
   data,
   tradeId,
   query,
+  window,
 }: {
   data: TradeSourceCore;
   tradeId: string;
   query: URLSearchParams;
+  window: ReadWindow;
 }) {
   if (data.trade.id.toLowerCase() !== tradeId)
     return <p role="alert">Unpassende Tradeidentität. Weitere Quellen werden nicht gelesen.</p>;
   const replaced = new Set(data.timeline.map((t) => t.supersedes_id).filter(Boolean));
   return (
     <>
-      <h1 className="text-2xl font-semibold">
+      <h2 className="text-2xl font-semibold">
         {data.product_name ?? 'Trade'} · TR-{tradeId.slice(0, 8).toUpperCase()}
-      </h1>
-      <p>
-        Zustand im Ausführungs-Lesefenster: {data.state}; offene Menge:{' '}
-        {data.open_quantity ?? 'Nicht verfügbar'}.
-      </p>
+      </h2>
       <p>Produktname ist heutige Stammdatenanzeige, keine historische Entscheidungsgrundlage.</p>
       <TradeWorkspaceNavigation
         tradeId={tradeId}
@@ -442,53 +677,103 @@ function Core({
           Trade: {data.trade.id}; Produkt: {data.trade.product_id}; Ursprung: {data.trade.origin}
         </p>
       </SourceDetails>
-      <ReadSection<PlanSource | null>
-        id="trade-plan-sources"
-        title="Ursprünglicher Plan"
-        url={sourceUrl(tradeId, 'plan')}
-      >
-        {(v) => <Plan data={v} tradeId={tradeId} query={query} />}
-      </ReadSection>
-      <section className={sectionClass} aria-label="Tatsächliche Ausführungen und Management">
-        <h2 className="text-lg font-semibold">Tatsächliche Ausführungen und Management</h2>
-        <p>
-          Ausführungen und Managemententscheidungen bleiben getrennt. Korrekturvorgänger sind
-          Historie und zählen nicht zusätzlich. Date-only beweist keine Intraday-Reihenfolge.
-        </p>
-        {data.timeline.map((entry) => (
-          <Execution key={entry.id} entry={entry} replaced={replaced.has(entry.id)} />
-        ))}
-        <SourceDetails>
+      <p>
+        Analyse → Plan → Ausführung → Position → Review/Journal → Evidence/Lesson dient als
+        Lesereihenfolge. Jeder Abschnitt zeigt seine eigenen Belege; spätere Belege bestätigen
+        keinen früheren Schritt. Manuelle Pläne und externe Trades sind mögliche Ursprünge.
+      </p>
+      <ol aria-label="Belege im Trade-Lebenszyklus" role="list" className="space-y-4">
+        <ReadSection<PlanSource | null>
+          id="trade-plan-sources"
+          title="Ursprünglicher Plan"
+          url={sourceUrl(tradeId, 'plan')}
+          inList
+          preceding={{ title: 'Analyse / Kandidat', children: (v) => <Analysis data={v} /> }}
+        >
+          {(v) => <Plan data={v} tradeId={tradeId} query={query} />}
+        </ReadSection>
+        <SourceSection title="Tatsächliche Ausführungen und Management" inList>
+          <ReadWindowDetails window={window} label="Gemeinsames Lesefenster mit der Position" />
           <p>
-            Historische ausdrückliche Währungserklärungen; abgeleitete Wiederverwendung erzeugt
-            keine neue Erklärung.
+            Ausführungen und Managemententscheidungen bleiben getrennt. Korrekturvorgänger sind
+            Historie und zählen nicht zusätzlich. Date-only beweist keine Intraday-Reihenfolge.
           </p>
-          <pre className="whitespace-pre-wrap">
-            {JSON.stringify(data.currency_history, null, 2)}
-          </pre>
-        </SourceDetails>
-      </section>
-      <ReadSection<ReviewSources>
-        id="trade-review-sources"
-        title="Dokumentierte Exit-Bewertung"
-        url={sourceUrl(tradeId, 'reviews', query.get('review_version_id'))}
-      >
-        {(v) => <Review data={v} query={query} />}
-      </ReadSection>
-      <ReadSection<JournalSources>
-        id="trade-journal-sources"
-        title="Journal"
-        url={sourceUrl(tradeId, 'journal', query.get('journal_version_id'))}
-      >
-        {(v) => <Journal data={v} query={query} />}
-      </ReadSection>
-      <ReadSection<EvidenceSource[]>
-        id="trade-evidence-sources"
-        title="Evidence und Lesson-Versionen"
-        url={sourceUrl(tradeId, 'evidence')}
-      >
-        {(v) => <Evidence data={v} query={query} />}
-      </ReadSection>
+          {data.timeline.length === 0 && (
+            <p>Keine Ausführungs- oder Managementbelege dokumentiert.</p>
+          )}
+          {data.timeline.map((entry) => (
+            <Execution key={entry.id} entry={entry} replaced={replaced.has(entry.id)} />
+          ))}
+          <SourceDetails>
+            <p>
+              Historische ausdrückliche Währungserklärungen; abgeleitete Wiederverwendung erzeugt
+              keine neue Erklärung.
+            </p>
+            <pre className="whitespace-pre-wrap">
+              {JSON.stringify(data.currency_history, null, 2)}
+            </pre>
+          </SourceDetails>
+        </SourceSection>
+        <SourceSection title="Position" inList>
+          <ReadWindowDetails window={window} label="Dasselbe Lesefenster wie die Ausführungen" />
+          <dl className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <dt className="text-sm text-slate-400">Gelieferter Positionszustand</dt>
+              <dd>{data.state}</dd>
+            </div>
+            <div>
+              <dt className="text-sm text-slate-400">Offene Menge</dt>
+              <dd>
+                {data.open_quantity == null ? 'Nicht verfügbar' : `${data.open_quantity} Stück`}
+              </dd>
+            </div>
+          </dl>
+          {data.state === 'CANCELLED' && (
+            <p>Storniert ist kein Verkauf und kein wirtschaftlicher Vollabschluss.</p>
+          )}
+          {data.state === 'UNKNOWN' && (
+            <p>
+              Positionszustand unbekannt. Daraus folgt weder „nicht begonnen“ noch „geschlossen“.
+            </p>
+          )}
+          <SourceDetails>
+            <p>
+              Projektion für Trade: {data.trade.id}; Produkt: {data.trade.product_id}.
+            </p>
+            <p>Eine eigene Positions-ID wird in dieser Quelle nicht geliefert.</p>
+          </SourceDetails>
+        </SourceSection>
+        <SourceSection title="Review und Journal" inList>
+          <p>
+            Review und Journal werden unabhängig gelesen. Finalisierung, gespeicherter Quellenstand
+            und heutige Quellenprüfung bleiben getrennte Aussagen.
+          </p>
+          <ReadSection<ReviewSources>
+            id="trade-review-sources"
+            title="Dokumentierte Exit-Bewertung"
+            url={sourceUrl(tradeId, 'reviews', query.get('review_version_id'))}
+            headingLevel={3}
+          >
+            {(v) => <Review data={v} query={query} />}
+          </ReadSection>
+          <ReadSection<JournalSources>
+            id="trade-journal-sources"
+            title="Journal"
+            url={sourceUrl(tradeId, 'journal', query.get('journal_version_id'))}
+            headingLevel={3}
+          >
+            {(v) => <Journal data={v} query={query} />}
+          </ReadSection>
+        </SourceSection>
+        <ReadSection<EvidenceSource[]>
+          id="trade-evidence-sources"
+          title="Evidence und Lesson-Versionen"
+          url={sourceUrl(tradeId, 'evidence')}
+          inList
+        >
+          {(v) => <Evidence data={v} query={query} />}
+        </ReadSection>
+      </ol>
     </>
   );
 }
@@ -519,8 +804,12 @@ export function TradeSourcesView({ query }: { query: URLSearchParams }) {
       {error ? (
         <p role="alert">{error}</p>
       ) : (
-        <ReadSection<TradeSourceCore> title="Trade und Quellenstand" url={sourceUrl(tradeId)}>
-          {(v) => <Core data={v} tradeId={tradeId} query={query} />}
+        <ReadSection<TradeSourceCore>
+          title="Trade und Quellenstand"
+          url={sourceUrl(tradeId)}
+          headingLevel={1}
+        >
+          {(v, window) => <Core data={v} tradeId={tradeId} query={query} window={window} />}
         </ReadSection>
       )}
     </main>
