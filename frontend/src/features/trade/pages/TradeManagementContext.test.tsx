@@ -24,6 +24,8 @@ import type {
 import { TradeManagementPage } from './TradeManagementPage';
 
 vi.mock('../../operational_workspace', () => ({ PositionPriceHistory: () => null }));
+// The real valuation/host read contract is exercised by TradeManagementOverview.test.tsx.
+vi.mock('../components/ProductValuationPanel', () => ({ ProductValuationPanel: () => null }));
 
 // Isolate page/route ownership. The real child workflows remain covered in their
 // existing suites and the disposable PostgreSQL browser regression.
@@ -114,6 +116,7 @@ vi.mock('../../post_trade/services/client', () => ({
 }));
 vi.mock('../../product/services/client', () => ({ warrantApiClient: { get: vi.fn() } }));
 vi.mock('../services/client', () => ({
+  tradeTimelineChangedEvent: 'trade-timeline-changed',
   tradeManagementApiClient: {
     trade: vi.fn(),
     position: vi.fn(),
@@ -648,7 +651,7 @@ describe('Trade Management transaction context', () => {
     expect(screen.getByLabelText('Verkaufsmenge')).toHaveValue(3);
     expect(screen.getByLabelText('Verkaufspreis')).toHaveValue(2.5);
     expect(
-      within(screen.getByRole('region', { name: 'Trade und Position' })).getByText('7'),
+      within(screen.getByRole('region', { name: 'Trade und Position' })).getByText('7 Stück'),
     ).toBeInTheDocument();
     expectNoWrites();
   });
@@ -683,13 +686,13 @@ describe('Trade Management transaction context', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Booking refresh' }));
     fireEvent.click(screen.getByRole('button', { name: 'Booking refresh' }));
     const overview = within(screen.getByRole('region', { name: 'Trade und Position' }));
-    await overview.findByText('7');
+    await overview.findByText('7 Stück');
     await act(() => {
       oldPosition.resolve({ ...a.position, open_quantity: 99 });
       return Promise.resolve();
     });
-    expect(overview.getByText('7')).toBeInTheDocument();
-    expect(overview.queryByText('99')).not.toBeInTheDocument();
+    expect(overview.getByText('7 Stück')).toBeInTheDocument();
+    expect(overview.queryByText('99 Stück')).not.toBeInTheDocument();
   });
 
   it('does not acknowledge a superseded booking readback when the newer projection read fails', async () => {
@@ -712,8 +715,8 @@ describe('Trade Management transaction context', () => {
     await screen.findByText(/Booking read failed: Ein neuerer Trade-Leseversuch/);
     expect(screen.queryByText('Booking read succeeded')).not.toBeInTheDocument();
     const overview = within(screen.getByRole('region', { name: 'Trade und Position' }));
-    expect(overview.getByText('10')).toBeInTheDocument();
-    expect(overview.queryByText('99')).not.toBeInTheDocument();
+    expect(overview.getByText('10 Stück')).toBeInTheDocument();
+    expect(overview.queryByText('99 Stück')).not.toBeInTheDocument();
   });
 
   it('guards lookup, query and browser navigation with one page guard and keeps hash drafts', async () => {

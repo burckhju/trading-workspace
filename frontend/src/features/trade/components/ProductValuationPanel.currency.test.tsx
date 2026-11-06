@@ -12,6 +12,21 @@ vi.mock('../services/client', () => ({
 }));
 
 const api = vi.mocked(tradeManagementApiClient);
+
+const openPosition = {
+  id: 'position-1',
+  trade_id: 'trade-1',
+  product_id: 'product-1',
+  open_quantity: 10,
+  cost_basis: '20',
+  average_entry_price: '2',
+  realized_gross_pnl: '0',
+  opened_at: '2026-10-27T08:00:00Z',
+  last_execution_at: '2026-10-27T08:00:00Z',
+  closed_at: null,
+  is_closed: false,
+};
+
 function valuation(
   overrides: Partial<ProductPositionValuationResponse> = {},
 ): ProductPositionValuationResponse {
@@ -49,19 +64,6 @@ function valuation(
 
 beforeEach(() => {
   vi.clearAllMocks();
-  api.position.mockResolvedValue({
-    id: 'position-1',
-    trade_id: 'trade-1',
-    product_id: 'product-1',
-    open_quantity: 10,
-    cost_basis: '20',
-    average_entry_price: '2',
-    realized_gross_pnl: '0',
-    opened_at: '2026-10-27T08:00:00Z',
-    last_execution_at: '2026-10-27T08:00:00Z',
-    closed_at: null,
-    is_closed: false,
-  });
 });
 
 describe.each([
@@ -86,7 +88,15 @@ describe.each([
           analysis_unrealized_pnl_reason: reason,
         }),
       );
-      render(<ProductValuationPanel tradeId="trade-1" />);
+      render(
+        <ProductValuationPanel
+          tradeId="trade-1"
+          productId="product-1"
+          position={openPosition}
+          cancelled={false}
+          positionRead={{ status: 'ready', revision: 1 }}
+        />,
+      );
       expect(await screen.findByText('25 EUR')).toBeInTheDocument();
       expect(screen.queryByText('5 EUR')).not.toBeInTheDocument();
       expect(screen.getByText(message)).toBeInTheDocument();
@@ -112,7 +122,15 @@ it.each(['5', '-5', '0'])(
     api.productValuation.mockResolvedValue(
       valuation({ unrealized_gross_pnl: pnl, analysis_unrealized_gross_pnl: pnl }),
     );
-    render(<ProductValuationPanel tradeId="trade-1" />);
+    render(
+      <ProductValuationPanel
+        tradeId="trade-1"
+        productId="product-1"
+        position={openPosition}
+        cancelled={false}
+        positionRead={{ status: 'ready', revision: 1 }}
+      />,
+    );
     expect(await screen.findByText(`${pnl} EUR`)).toBeInTheDocument();
   },
 );
@@ -129,7 +147,15 @@ it('uses the selected analysis qualification independently from the current quot
       analysis_warning: 'OUTDATED_QUOTE_INDICATIVE_ANALYSIS_ONLY',
     }),
   );
-  render(<ProductValuationPanel tradeId="trade-1" />);
+  render(
+    <ProductValuationPanel
+      tradeId="trade-1"
+      productId="product-1"
+      position={openPosition}
+      cancelled={false}
+      positionRead={{ status: 'ready', revision: 1 }}
+    />,
+  );
   expect(await screen.findByText('25 EUR')).toBeInTheDocument();
   expect(screen.getByText('5 EUR')).toBeInTheDocument();
 });

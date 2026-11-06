@@ -23,6 +23,7 @@ for (const [kind, refreshError] of [
         body = {
           id: "9f1e7034-3977-4600-a37c-de119d7e8d8c",
           trade_id: tradeId,
+          product_id: "8ee5ab84-86ce-491e-b4b0-d98a0379d0c3",
           open_quantity: 2000,
           cost_basis: "1020",
           average_entry_price: "0.51",
@@ -33,6 +34,7 @@ for (const [kind, refreshError] of [
       } else if (path.endsWith("/product-valuation")) {
         body = {
           trade_id: tradeId,
+          position_id: "9f1e7034-3977-4600-a37c-de119d7e8d8c",
           status: "INDICATIVE",
           reason: refreshError
             ? "LAST_SUCCESSFUL_QUOTE_REFRESH_FAILED"
@@ -98,11 +100,9 @@ for (const [kind, refreshError] of [
       });
     });
     await page.goto(`/trade-management?trade_id=${tradeId}`);
-    const panel = page.locator("section").filter({
-      has: page.getByRole("heading", {
-        name: "Produktbewertung",
-        exact: true,
-      }),
+    const panel = page.getByRole("region", {
+      name: "Produktbewertung",
+      exact: true,
     });
     await expect(
       panel.getByText("Indikative Auswertung", { exact: true }),
@@ -112,13 +112,17 @@ for (const [kind, refreshError] of [
     await expect(panel.getByRole("status")).toContainText(
       refreshError ? "letzter erfolgreicher Abruf" : "Kurszeitpunkt unbekannt",
     );
-    await expect(panel.getByText(/Bewertungsquelle:/)).toContainText(
-      "DE000VH2LU21",
-    );
-    await expect(panel.getByText(/Handelsplatz:/)).toContainText("XFRA");
-    await expect(panel.getByText(/Handelsplatz:/)).toContainText(
+    await expect(panel.getByText(/Bewertungsquelle:/)).toBeVisible();
+    await expect(panel.getByText(/Kursart:/)).toBeVisible();
+    await expect(panel.getByText(/Kursart:/)).toContainText(
       "Feed-Verzögerung: unbekannt",
     );
+    await panel
+      .getByText("Kursherkunft und Zeitbezüge anzeigen", { exact: true })
+      .click();
+    const origin = panel.getByText(/Instrument DE000VH2LU21/);
+    await expect(origin).toBeVisible();
+    await expect(origin).toContainText("Handelsplatz: XFRA");
     await expect(
       panel.getByText("Marktwert (Bid)", { exact: true }),
     ).toHaveCount(0);
