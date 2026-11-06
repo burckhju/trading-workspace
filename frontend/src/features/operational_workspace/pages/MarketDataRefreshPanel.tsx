@@ -17,19 +17,31 @@ type RefreshCheck = {
   last_failure_reason?: string | null;
   last_failure_category?: string | null;
   last_success_at?: string | null;
-  qualified_success?: boolean;
-  retained_quote?: boolean;
-  quote_status?: string;
+  qualified_success?: boolean | null;
+  retained_quote?: boolean | null;
+  quote_status?: string | null;
   quote_observed_at?: string | null;
   quote_retrieved_at?: string | null;
   quote_usable?: boolean | null;
   provider_reachable?: boolean | null;
   response_valid?: boolean | null;
   identity_key?: string | null;
+  attempt_started_at?: string | null;
   waiting?: boolean;
   recovered_at: string | null;
   last_checked_at: string | null;
-  observed_in_latest_run: boolean;
+  observed_in_latest_run?: boolean | null;
+};
+
+// These are already part of each completed job's quote payload. Keep them
+// separate from checks: a current quote must not decorate an older identity.
+type RefreshCacheEvidence = {
+  provider?: string | null;
+  warrant_listing_id?: string | null;
+  identity_key?: string | null;
+  cache_status?: string | null;
+  retrieved_at?: string | null;
+  attempt_completed_at?: string | null;
 };
 
 type RefreshStatus = {
@@ -66,6 +78,8 @@ type RefreshStatus = {
     status: string;
     reason: string;
     next_run_at: string | null;
+    checked_at?: string | null;
+    quotes?: RefreshCacheEvidence[] | null;
     held?: boolean;
     execution?: {
       running: boolean;
@@ -73,7 +87,7 @@ type RefreshStatus = {
       elapsed_seconds: number | null;
     };
     diagnostics?: {
-      scope: 'PROCESS_LOCAL';
+      scope?: string | null;
       checks: RefreshCheck[];
     };
     source_selection?: {
@@ -111,101 +125,285 @@ const quoteLabels: Record<string, string> = {
   UNASSESSED: 'Kursqualität nicht geprüft',
 };
 
+const cacheLabels: Record<string, string> = {
+  HIT: 'Cachetreffer',
+  MISS: 'Kein Cachetreffer',
+  BYPASS: 'Cache nicht verwendet',
+  STALE_REJECTED: 'Veralteter Cacheeintrag verworfen',
+};
+
 function date(value: string | null): string {
-  return value ? new Date(value).toLocaleString('de-DE') : 'Unbekannt';
+  return value
+    ? `${new Date(value).toLocaleString('de-DE', { timeZone: 'UTC' })} UTC`
+    : 'Unbekannt';
+}
+
+function DiagnosticTime({ value }: { value?: string | null }) {
+  if (!value) return <>Unbekannt</>;
+  if (!/(?:Z|[+-]\d{2}:\d{2})$/i.test(value) || Number.isNaN(Date.parse(value))) {
+    return <>{value} · Zeitbasis nicht belegt</>;
+  }
+  return <time dateTime={value}>{date(value)}</time>;
 }
 
 function evidence(value: boolean | null | undefined): string {
   return value === true ? 'Ja' : value === false ? 'Nein' : 'Nicht belegt';
 }
 
-function RefreshDiagnostics({ reason, checks = [] }: { reason: string; checks?: RefreshCheck[] }) {
+function RefreshCacheDetails({ quotes }: { quotes?: RefreshCacheEvidence[] | null }) {
   return (
-    <details className="mt-1 text-xs text-slate-400">
-      <summary>
+    <details className="mt-3 rounded-lg border border-slate-700 p-3">
+      <summary className="cursor-pointer rounded font-medium text-slate-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-300">
+        Cachebelege des letzten abgeschlossenen Laufs
+      </summary>
+      <p className="mt-2">
+        Cacheangaben gehören zur jeweiligen gelieferten Kursantwort und ihrer Quellenidentität. Ein
+        Cachetreffer belegt keinen neuen Providerkontakt und keine Wiederherstellung.
+      </p>
+      {!quotes ? (
+        <p className="mt-2">Cachebelege wurden in dieser Statusantwort nicht mitgeliefert.</p>
+      ) : quotes.length === 0 ? (
+        <p className="mt-2">Keine Kursantworten für diesen abgeschlossenen Lauf geliefert.</p>
+      ) : (
+        <ul aria-label="Gelieferte Cachebelege" className="mt-2 space-y-3">
+          {quotes.map((quote, index) => (
+            <li
+              key={`${quote.provider}:${quote.warrant_listing_id}:${quote.identity_key}:${index}`}
+              className="min-w-0 border-l border-slate-600 pl-3"
+            >
+              <dl className="grid min-w-0 gap-2 sm:grid-cols-2">
+                <div className="min-w-0">
+                  <dt className="font-medium text-slate-200">Cachezustand</dt>
+                  <dd>
+                    {quote.cache_status
+                      ? `${cacheLabels[quote.cache_status] ?? 'Cachezustand derzeit nicht einordenbar'} · ${quote.cache_status}`
+                      : 'Nicht belegt'}
+                  </dd>
+                </div>
+                <div className="min-w-0">
+                  <dt className="font-medium text-slate-200">Provider</dt>
+                  <dd>{quote.provider ?? 'Nicht belegt'}</dd>
+                </div>
+                <div className="min-w-0">
+                  <dt className="font-medium text-slate-200">Notierung</dt>
+                  <dd>{quote.warrant_listing_id ?? 'Nicht belegt'}</dd>
+                </div>
+                <div className="min-w-0">
+                  <dt className="font-medium text-slate-200">Quellenidentität</dt>
+                  <dd>{quote.identity_key ?? 'Nicht belegt'}</dd>
+                </div>
+                <div className="min-w-0">
+                  <dt className="font-medium text-slate-200">Abrufzeit der Kursantwort</dt>
+                  <dd>
+                    <DiagnosticTime value={quote.retrieved_at} />
+                  </dd>
+                </div>
+                <div className="min-w-0">
+                  <dt className="font-medium text-slate-200">Abschluss dieses Quellenversuchs</dt>
+                  <dd>
+                    <DiagnosticTime value={quote.attempt_completed_at} />
+                  </dd>
+                </div>
+              </dl>
+            </li>
+          ))}
+        </ul>
+      )}
+    </details>
+  );
+}
+
+function RefreshDiagnostics({
+  reason,
+  jobKey,
+  checks,
+  scope,
+  completedAt,
+  quotes,
+}: {
+  reason: string;
+  jobKey: string;
+  checks?: RefreshCheck[];
+  scope?: string | null;
+  completedAt?: string | null;
+  quotes?: RefreshCacheEvidence[] | null;
+}) {
+  return (
+    <details className="mt-2 min-w-0 text-sm text-slate-300 [overflow-wrap:anywhere]">
+      <summary className="cursor-pointer rounded font-medium text-slate-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-300">
         Diagnose
-        {checks.length > 0 &&
+        {checks &&
+          checks.length > 0 &&
           ` · ${checks.length} ${checks.length === 1 ? 'Abrufnachweis' : 'Abrufnachweise'}`}
       </summary>
-      <p>{reason}</p>
-      {checks.map((check) => (
-        <div
-          key={`${check.kind}:${check.source}:${check.listing_id}:${check.identity_key ?? ''}`}
-          className="mt-2 break-words border-l border-slate-700 pl-2"
-        >
-          <p>{check.kind === 'JOB' ? 'Auftrag' : (check.source ?? 'Quelle unbekannt')}</p>
-          {check.consecutive_failures > 0 ? (
-            <>
-              <p className="text-amber-200">
-                {categoryLabels[check.last_failure_category ?? check.category ?? ''] ??
-                  check.last_failure_category ??
-                  check.category ??
-                  'Abruf prüfen'}{' '}
-                · {check.consecutive_failures}{' '}
-                {check.consecutive_failures === 1 ? 'Prüfung' : 'Prüfungen'} in Folge mit Befund
+      <p className="mt-2">{reason}</p>
+      <p>Auftragsidentität: {jobKey}</p>
+      <p>Geltungsbereich: {scope ?? 'Nicht belegt'}</p>
+      <p>
+        Letzter abgeschlossener Schedulerlauf: <DiagnosticTime value={completedAt} />
+      </p>
+      <p className="mt-2">
+        Die folgenden Belege beschreiben abgeschlossene Prüfungen. Providerkontakt, Antwort,
+        verwendbarer Kurs und qualifizierter Erfolg sind getrennte Aussagen. Ein laufender Abruf hat
+        noch kein neues Ergebnis; frühere Belege bleiben an ihre eigenen Zeiten gebunden.
+      </p>
+      <h3 className="mt-3 font-semibold text-slate-200">Abgeschlossene Diagnosebelege</h3>
+      {!checks ? (
+        <p className="mt-2">Diagnosebelege wurden in dieser Statusantwort nicht mitgeliefert.</p>
+      ) : checks.length === 0 ? (
+        <p className="mt-2">Keine abgeschlossenen Diagnosebelege in dieser Statusantwort.</p>
+      ) : (
+        <ul aria-label="Abgeschlossene Diagnosebelege" className="mt-3 space-y-3">
+          {checks.map((check) => (
+            <li
+              key={`${check.kind}:${check.source}:${check.listing_id}:${check.identity_key ?? ''}`}
+              className="min-w-0 rounded-lg border border-slate-700 p-3"
+            >
+              <h4 className="font-semibold text-slate-100">
+                {check.kind === 'JOB' ? 'Auftrag' : (check.source ?? 'Quelle unbekannt')}
+              </h4>
+              <p className="mt-1">
+                {check.observed_in_latest_run === true
+                  ? 'Beleg aus dem letzten abgeschlossenen Lauf.'
+                  : check.observed_in_latest_run === false
+                    ? 'Historischer Beleg · In letzter Prüfung nicht erneut geprüft.'
+                    : 'Zuordnung zum letzten abgeschlossenen Lauf nicht belegt.'}
               </p>
-              <p>
-                Seit: {date(check.first_failure_at)} · Zuletzt festgestellt:{' '}
-                {date(check.last_failure_at)}
-              </p>
-              {check.last_failure_reason && check.last_failure_reason !== check.reason && (
-                <p>Vorheriger Befund: {check.last_failure_reason}</p>
+              {check.kind === 'SOURCE' && (
+                <>
+                  <p>Notierung: {check.listing_id ?? 'Nicht belegt'}</p>
+                  <p>Quellenidentität: {check.identity_key ?? 'Nicht belegt'}</p>
+                  <p>
+                    Beginn dieses Quellenversuchs:{' '}
+                    <DiagnosticTime value={check.attempt_started_at} />
+                  </p>
+                </>
               )}
-            </>
-          ) : check.recovered_at ? (
-            <p>
-              {check.kind === 'SOURCE'
-                ? 'Kursversorgung wiederhergestellt'
-                : 'Auftrag wieder abgeschlossen'}
-              : {date(check.recovered_at)}
-            </p>
-          ) : null}
-          {(check.waiting || check.status === 'DEFERRED') && (
-            <p>
-              {check.reason === 'WARRANT_QUOTE_RECOVERY_NOT_OBSERVED'
-                ? 'Kein neuer Erfolgsnachweis'
-                : 'Wiederholung zurückgestellt'}
-              {check.consecutive_failures > 0 && ' · vorheriger Befund bleibt offen'}.
-            </p>
-          )}
-          <p>
-            {check.kind === 'SOURCE'
-              ? 'Letzter qualifizierter Kursabruf'
-              : 'Letzter abgeschlossener Auftrag'}
-            : {date(check.last_success_at ?? null)}
-          </p>
-          {check.last_failure_at && (
-            <p>Letzter fehlgeschlagener Abruf: {date(check.last_failure_at)}</p>
-          )}
-          {check.kind === 'SOURCE' && (
-            <>
-              <p>Provider technisch erreichbar: {evidence(check.provider_reachable)}</p>
-              <p>Antwort gültig: {evidence(check.response_valid)}</p>
-              <p>Kurs verwendbar: {evidence(check.quote_usable)}</p>
-              <p>{quoteLabels[check.quote_status ?? 'UNASSESSED'] ?? check.quote_status}</p>
-              {check.retained_quote && (
-                <p className="text-amber-200">
-                  Gespeicherter Ersatzkurs vorhanden. Kein Nachweis eines aktuellen Providererfolgs.
+              <p>
+                Letzte Quellen- oder Auftragsprüfung:{' '}
+                <DiagnosticTime value={check.last_checked_at} /> · Statuscode: {check.status}
+              </p>
+              <p>Diagnosekategorie: {check.category ?? 'Nicht geliefert'}</p>
+              {check.reason && <p>Diagnosecode: {check.reason}</p>}
+              {check.kind === 'SOURCE' && (
+                <>
+                  <h5 className="mt-3 font-semibold text-slate-200">Providerantwort und Kurs</h5>
+                  <dl className="mt-2 grid min-w-0 gap-3 sm:grid-cols-2">
+                    <div className="min-w-0">
+                      <dt className="text-slate-400">Providerkontakt</dt>
+                      <dd>Provider technisch erreichbar: {evidence(check.provider_reachable)}</dd>
+                    </div>
+                    <div className="min-w-0">
+                      <dt className="text-slate-400">Antwortprüfung</dt>
+                      <dd>Antwort gültig: {evidence(check.response_valid)}</dd>
+                    </div>
+                    <div className="min-w-0">
+                      <dt className="text-slate-400">Fachliche Verwendbarkeit</dt>
+                      <dd>Kurs verwendbar: {evidence(check.quote_usable)}</dd>
+                    </div>
+                    <div className="min-w-0">
+                      <dt className="text-slate-400">Erfolgsqualifikation des Backends</dt>
+                      <dd>
+                        Qualifizierter Erfolg dieser Prüfung: {evidence(check.qualified_success)}
+                      </dd>
+                    </div>
+                    <div className="min-w-0">
+                      <dt className="text-slate-400">Kursbewertung dieser Prüfung</dt>
+                      <dd>
+                        <p>
+                          {check.quote_status
+                            ? (quoteLabels[check.quote_status] ??
+                              'Kursstatus derzeit nicht einordenbar')
+                            : 'Kursbewertung nicht mitgeliefert'}
+                        </p>
+                        <p>Kursstatuscode: {check.quote_status ?? 'Nicht geliefert'}</p>
+                      </dd>
+                    </div>
+                    <div className="min-w-0">
+                      <dt className="text-slate-400">Retention</dt>
+                      <dd>Gespeicherter Ersatzkurs: {evidence(check.retained_quote)}</dd>
+                    </div>
+                  </dl>
+                  {check.retained_quote && (
+                    <p className="mt-2 text-amber-200">
+                      Gespeicherter Ersatzkurs vorhanden. Kein Nachweis eines aktuellen
+                      Providererfolgs.
+                    </p>
+                  )}
+                  <p className="mt-2">
+                    Kurszeit: <DiagnosticTime value={check.quote_observed_at} /> · Abrufzeit des
+                    Kurses: <DiagnosticTime value={check.quote_retrieved_at} />
+                  </p>
+                </>
+              )}
+              <h5 className="mt-3 font-semibold text-slate-200">
+                Fehlerfolge und frühere Ergebnisse
+              </h5>
+              {check.consecutive_failures > 0 ? (
+                <>
+                  <p className="text-amber-200">
+                    {categoryLabels[check.last_failure_category ?? check.category ?? ''] ??
+                      check.last_failure_category ??
+                      check.category ??
+                      'Abruf prüfen'}{' '}
+                    · {check.consecutive_failures}{' '}
+                    {check.consecutive_failures === 1 ? 'Prüfung' : 'Prüfungen'} in Folge mit Befund
+                  </p>
+                  <p>
+                    Seit: <DiagnosticTime value={check.first_failure_at} /> · Zuletzt festgestellt:{' '}
+                    <DiagnosticTime value={check.last_failure_at} />
+                  </p>
+                </>
+              ) : check.recovered_at ? (
+                <p>
+                  Historischer Wiederherstellungsbeleg ·{' '}
+                  {check.kind === 'SOURCE'
+                    ? 'Kursversorgung wiederhergestellt'
+                    : 'Auftrag wieder abgeschlossen'}
+                  : <DiagnosticTime value={check.recovered_at} />
+                </p>
+              ) : (
+                <p>
+                  0 Prüfungen in Folge mit Befund. Daraus folgt kein Nachweis der
+                  Providererreichbarkeit.
+                </p>
+              )}
+              {check.consecutive_failures > 0 && check.recovered_at && (
+                <p>
+                  Früherer Wiederherstellungsbeleg: <DiagnosticTime value={check.recovered_at} />.{' '}
+                  Die gemeldete Fehlerfolge bleibt bestehen.
+                </p>
+              )}
+              {(check.waiting || check.status === 'DEFERRED') && (
+                <p>
+                  {check.reason === 'WARRANT_QUOTE_RECOVERY_NOT_OBSERVED'
+                    ? 'Kein neuer Erfolgsnachweis'
+                    : 'Wiederholung zurückgestellt'}
+                  {check.consecutive_failures > 0 && ' · vorheriger Befund bleibt offen'}.
                 </p>
               )}
               <p>
-                Kurszeit: {date(check.quote_observed_at ?? null)} · Abrufzeit des Kurses:{' '}
-                {date(check.quote_retrieved_at ?? null)}
+                {check.kind === 'SOURCE'
+                  ? 'Letzter qualifizierter Kursabruf'
+                  : 'Letzter erfolgreich abgeschlossener Auftrag'}
+                : <DiagnosticTime value={check.last_success_at} />
               </p>
-              {check.qualified_success !== undefined && (
-                <p>Qualifizierter Erfolg dieser Prüfung: {evidence(check.qualified_success)}</p>
+              {check.last_failure_at && (
+                <p>
+                  Letzter fehlgeschlagener Abruf: <DiagnosticTime value={check.last_failure_at} />
+                </p>
               )}
-            </>
-          )}
-          {!check.observed_in_latest_run && <p>In letzter Prüfung nicht erneut geprüft.</p>}
-          <p>
-            Letzte Quellen- oder Auftragsprüfung: {date(check.last_checked_at)} · {check.status}
-          </p>
-          {check.reason && <p>Diagnosecode: {check.reason}</p>}
-          {check.listing_id && <p>Notierung: {check.listing_id}</p>}
-          {check.identity_key && <p>Quellenidentität: {check.identity_key}</p>}
-        </div>
-      ))}
+              {check.last_failure_reason && check.last_failure_reason !== check.reason && (
+                <p>Vorheriger Befund: {check.last_failure_reason}</p>
+              )}
+              {check.last_failure_category && (
+                <p>Letzte Fehlerkategorie: {check.last_failure_category}</p>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+      <RefreshCacheDetails quotes={quotes} />
     </details>
   );
 }
@@ -281,8 +479,8 @@ export function MarketDataRefreshPanel() {
   }
 
   return (
-    <details className="mb-6 rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-      <summary className="cursor-pointer text-sm font-semibold text-slate-200">
+    <details className="mb-6 min-w-0 rounded-xl border border-slate-800 bg-slate-900/60 p-4 [overflow-wrap:anywhere]">
+      <summary className="cursor-pointer rounded text-sm font-semibold text-slate-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-300">
         Automatischer Kursabruf
       </summary>
       <p className="mt-3 text-sm text-slate-400">
@@ -294,7 +492,7 @@ export function MarketDataRefreshPanel() {
         type="button"
         onClick={() => void load()}
         disabled={loading}
-        className="mt-3 rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-200"
+        className="mt-3 rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-300"
       >
         {loading ? 'Status wird geladen …' : 'Abrufstatus laden'}
       </button>
@@ -325,10 +523,11 @@ export function MarketDataRefreshPanel() {
             verzögern. Ein abgeschlossener Schedulerlauf bestätigt nicht den Erfolg jeder
             Kursquelle.
           </p>
-          {value.jobs.some((job) => job.diagnostics) && (
+          {value.jobs.some((job) => job.diagnostics?.scope === 'PROCESS_LOCAL') && (
             <p className="mt-2 text-xs text-slate-400">
               Abrufdiagnosen gelten nur für diese Backend-Laufzeit und werden bei einem Neustart
-              zurückgesetzt. Das Kursalter steht separat unter „Kursquellen im Depot“.
+              zurückgesetzt. Sie belegen keinen dauerhaften Verfügbarkeitsverlauf. Das Kursalter
+              steht separat unter „Kursquellen im Depot“.
             </p>
           )}
           <p className="mt-2 text-slate-400">
@@ -384,7 +583,7 @@ export function MarketDataRefreshPanel() {
           )}
           <ul className="mt-3 divide-y divide-slate-800">
             {value.jobs.map((job) => (
-              <li key={job.job} className="py-2">
+              <li key={job.job} className="min-w-0 py-2">
                 <p>
                   {job.name} · {job.isin ?? 'ISIN fehlt'} · {taskLabel(job.job)}
                   {job.held && ' · Offene Position'}
@@ -398,14 +597,13 @@ export function MarketDataRefreshPanel() {
                   {job.next_run_at && (
                     <>
                       {' '}
-                      · Nächste Prüfung frühestens{' '}
-                      {new Date(job.next_run_at).toLocaleString('de-DE')}
+                      · Nächste Prüfung frühestens <DiagnosticTime value={job.next_run_at} />
                     </>
                   )}
                 </p>
                 {job.execution?.running && (
                   <p className="text-xs text-slate-400">
-                    Aktueller Abruf · Start: {date(job.execution.started_at)}
+                    Aktueller Abruf · Start: <DiagnosticTime value={job.execution.started_at} />
                     {job.execution.elapsed_seconds !== null && (
                       <> · bisher {Math.floor(job.execution.elapsed_seconds)} Sek.</>
                     )}{' '}
@@ -432,7 +630,14 @@ export function MarketDataRefreshPanel() {
                     {job.source_selection.statuses.AMBIGUOUS_SOURCE ?? 0} mehrdeutig
                   </p>
                 )}
-                <RefreshDiagnostics reason={job.reason} checks={job.diagnostics?.checks} />
+                <RefreshDiagnostics
+                  reason={job.reason}
+                  jobKey={job.job}
+                  checks={job.diagnostics?.checks}
+                  scope={job.diagnostics?.scope}
+                  completedAt={job.checked_at}
+                  quotes={job.quotes}
+                />
               </li>
             ))}
           </ul>
