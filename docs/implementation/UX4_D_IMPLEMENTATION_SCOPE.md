@@ -1,49 +1,38 @@
-# UX4-D — Vorbereiteter Implementierungsumfang
+# UX4-D — Implementierungsumfang und Nachweisgrenzen
 
 ## Auftrag, Basis und Nachweisgrenze
 
-Stand: **05.11.2026, Europe/Berlin**. Dieser Vorbereitungs-Draft aktualisiert den
-[UX4-D-Startprompt](../ui/ux4-d-quality-lifecycle-prompt.md) und bindet die spätere
-Darstellung an vorhandene Daten, Dateien und Owner. Er enthält **keine Runtime- oder
-Teständerung** und erklärt UX4-D nicht für implementiert, fachlich abgenommen oder
-integriert. Fachliche Aufgabenstände bleiben im
+Stand: **06.11.2026, UTC**. Der vorhandene [Draft #330](https://github.com/burckhju/trading-workspace/pull/330)
+wird auf `feat/ux4-d-quality-lifecycle-20261105` fortgeführt. D1–D4 sind in den
+bestehenden fachlokalen Renderern implementiert und durch gezielte Tests ergänzt.
+Das ist keine menschliche Fachabnahme oder Integration. Die exakten veröffentlichten
+Head-/Testmerge-SHAs, CI-Läufe, Browserartefakte und Ergebnisse werden in #330 an den
+jeweiligen Head gebunden; ein älterer grüner Vorbereitungslauf gilt dafür nicht.
+Fachliche Aufgabenstände bleiben im
 [Product Backlog](../planning/PRODUCT_BACKLOG.md).
 
 | Bezug | Geprüfter Stand |
 | --- | --- |
-| Tatsächlicher Main | `e4921d6e25b70baddb80d4eaaf61028bb055ad04` |
-| Main-Tree | `ff0dc79a4ee679eb9803e89d96d560b0e12d5470` |
-| Versionsdateien / veröffentlichter Git-Tag | `1.5.40` / `v1.5.40`, Tag zeigt auf den genannten Main; daraus folgt kein Installationsbeleg |
-| Eigener Implementierungsbranch | `feat/ux4-d-quality-lifecycle-20261105`, direkt aus Main |
-| UX4-C | [PR #327](https://github.com/burckhju/trading-workspace/pull/327), aktueller Head `79760e9cf40cef6c6e58d8b15b6849a3056cc5c8`; genaue finale CI dort gebunden |
-| Erfüllte Vorbedingung der D-Veröffentlichung | Vollständiger erneuter C-CI-Abschluss auf diesem Head und Main, vier Workflows / neun ausgeführte Prüfjobs erfolgreich; Draft bleibt getrennt von C und übernimmt keine offenen Featurecommits |
-| D-Runtime / menschliche Abnahme | Noch nicht ausgeführt; die nachstehenden Fälle sind verbindliche spätere Prüfungen |
+| Tatsächlicher Main | `7bfe1bfa13ec158ec380aa6f5d3c7f480838f5e8` |
+| Versionsdateien / veröffentlichter Git-Tag | Unverändert `1.5.41` / `v1.5.41`; daraus folgt kein Installationsbeleg |
+| Übernommener D-Draft | `67af2c8c43d92c0cd6d14412f58b3c4129f1eec6`, zunächst 17 Commits hinter Main und einen voraus; ausschließlich zwei Dokumentdateien |
+| Main-Integration | Konfliktfreier regulärer Merge `5d1916b548dcf483f341d6b0098aa80d198521f2`; kein Reset und keine Übernahme offener Featurebranches |
+| UX4-C | [PR #327](https://github.com/burckhju/trading-workspace/pull/327), Draft-Head `79760e9cf40cef6c6e58d8b15b6849a3056cc5c8`, beim Start 17 Commits hinter Main; seine historische technische Qualifikation ist kein Nachweis gegen den neuen Main |
+| Reviews beim Start | Keine Reviews, offenen Threads oder angeforderten Reviewer an #330; keine persönliche Ownerabnahme daraus ableiten |
+| Grenzen | Draft bleibt Draft; kein Merge, Release, Tag, Deployment oder PC-Update |
 
-Die erste aktualisierte C-Produktbasis `a68b3a92…` wurde mit allen neun Prüfjobs
-erfolgreich qualifiziert. Danach ergänzte #329 ausschließlich Versionsmetadaten
-und UX3-Dokumentation. Der erneute vollständige C-Nachweis ist abgeschlossen und
-gehört ausdrücklich zum neuen Head: [Backend](https://github.com/burckhju/trading-workspace/actions/runs/42110490344),
-[Frontend](https://github.com/burckhju/trading-workspace/actions/runs/42110490324),
-[E2E](https://github.com/burckhju/trading-workspace/actions/runs/42110490287) und
-[Releaseguards](https://github.com/burckhju/trading-workspace/actions/runs/42110490758)
-waren im jeweils ersten Versuch erfolgreich. Der PR-Tagjob war bestimmungsgemäß
-übersprungen. Testmerge `0b54de55654d06e3bced587876c24e8d00470a2d` und Head haben
-denselben Tree `1b8f42b79cc28778f3808dd99b39ede8549626e9`. Frühere grüne Läufe
-ersetzen diesen Nachweis nicht. C bleibt Draft und wird durch diesen D-Auftrag
-weder gemergt noch freigegeben.
+Die Vorbereitung vom 05.11.2026 beruhte auf Main `e4921d6e25b70baddb80d4eaaf61028bb055ad04`
+und Version `1.5.40`. Die damaligen zwei Dokumentänderungen sind Teil derselben
+PR-Historie. Beim erneuten Abgleich am 06.11.2026 überschneiden sich die vollständigen
+Dateilisten der offenen #327/#315/#220/#207/#205/#197/#187 nicht mit den vier
+lokalen D-Renderern und deren Typ-/Testdateien. UX2-B #325 ist inzwischen integriert.
+Das ist ein technischer Abgleich, keine persönliche UX1-/UX2-/UX3-/Domainfreigabe.
 
-Die aktuelle Branchsuche und PR-Suche ergaben vor dieser Vorbereitung keinen
-eigenständigen begonnenen UX4-D-Schnitt. Die vollständigen Dateilisten der offenen
-#327/#325/#315/#220/#207/#205/#197/#187 wurden verglichen: keine Überschneidung mit
-den beiden Dokumentdateien dieses Drafts oder den vier unten vorgeschlagenen
-lokalen Renderern. Das ist ein technischer Abgleich, keine persönliche
-UX1-/UX2-/UX3-/Domainfreigabe.
-
-## 1. Konkreter lokaler Produktumfang für die spätere Umsetzung
+## 1. Implementierter lokaler Produktumfang
 
 ### Erfassungsprotokoll und historische Quellen
 
-Erster begrenzter Schnitt:
+Begrenzter D1-Schnitt:
 [`WarrantQuoteHistory.tsx`](../../frontend/src/features/product/components/WarrantQuoteHistory.tsx)
 und dessen vorhandene Tests. Die Daten kommen über
 [`dataEvidenceApi.history`](../../frontend/src/features/product/services/dataEvidence.ts)
@@ -69,10 +58,10 @@ aus dem bestehenden
 
 Die Backendantwort enthält außerdem `sampling_policy`, `time_coverage_percent`,
 `iv_history_available`, `underlying_synchronization_available`, `execution_usable`
-und je Item `quote_fingerprint`. Der aktuelle schmale
+und je Item `quote_fingerprint`. Der additive
 [`QuoteHistoryReport`-Frontendtyp](../../frontend/src/features/product/types/dataEvidence.ts)
-bildet sie noch nicht alle ab. Nur bei tatsächlicher Nutzung additiv gegen die
-reale Payload und ältere/fehlende Felder typisieren. `time_coverage_percent=null`
+bildet die verwendeten Felder optional gegen die reale Payload ab und akzeptiert
+ältere Antworten mit fehlenden Feldern. `time_coverage_percent=null`
 bleibt unbekannt; keine neue Frische-, Kalender-, IV- oder Zeitabdeckungsrechnung.
 
 ### Aktuelle Kursqualität und fehlende Kurs-/Quelleninformationen
@@ -95,7 +84,7 @@ die separaten `refresh_jobs` behalten ihre eigene Bedeutung. Gelieferte Alterswe
 anzeigen, nicht aus `Date.now()` neu berechnen. Eine aktuelle Quelle B heilt weder
 die gebundene Identität noch den Fehler einer Quelle A.
 
-Bereits serverseitig vorhanden, aber im schmalen Frontendtyp noch nicht vollständig:
+Additiv im lokalen Frontendtyp aus vorhandenen Serverfeldern abgebildet:
 `assessment_scope=STORED_OBSERVATIONS_NOT_LIVE_VALUATION`, `execution_usable=false`,
 `mapping_id`, `max_quote_age_seconds`, `quote_time_text` und `quote_time_basis`.
 Eine unbekannte Zone im Originalzeittext darf nicht zu einem erfundenen Instant
@@ -167,10 +156,11 @@ Gliederung vorhandene Daten/Renderprops verwenden; keine zweite Lese- oder Statu
 | UX-3 | Aktueller kanonischer Hinweisvertrag und enger B1-Renderer; keine globale Statusunion oder eigene Recovery-/Schweregradpolicy. B2-Produktbewertung/PositionDetails und vorbereiteter B3/M06-Alerttext sind keine ersten D-Schreibflächen. |
 | Fachowner | Finanz-, Kurs-, Provider-, Währungs-, Frische-, Quellen- und Lebenszyklusqualifikation bleiben vollständig beim bestehenden Backend-/Readerowner. |
 
-Der offene UX2-B #325 an `555538fa0519cd31e6d5391dd938a8150c90ac3d` ändert 22 Dateien,
-insbesondere `TradeManagementPage`, `pages/index.ts`, `ProductValuationPanel` und
-zugehörige Tests. Die vier lokalen D-Renderer überschneiden sich damit nicht.
-Eine fehlende Schreibüberschneidung ersetzt dennoch keine UX2-Zustimmung.
+UX2-B #325 ist im geprüften Main integriert. `TradeManagementPage`, `pages/index.ts`,
+`ProductValuationPanel` und gemeinsame Navigationsdateien werden von UX4-D nicht
+geändert. Bestehende Hostanker, Versionspins und Readergrenzen werden erhalten.
+Eine fehlende Schreibüberschneidung ersetzt dennoch keine UX2-Zustimmung zu einem
+zukünftigen neuen Einbauvertrag.
 
 Für folgende Ausbauten liegt **kein neuer Einbauvertrag** vor; sie werden hier nicht
 als freigegebene Produktänderung aufgenommen:
@@ -193,22 +183,25 @@ als freigegebene Produktänderung aufgenommen:
 
 ## 3. Dateien und tatsächliche spätere Abnahme
 
-Die jetzige Vorbereitung ändert nur diesen Umfang und den Startprompt. Die
-folgenden Produkt- und Testdateien sind **geplante spätere Änderungen**, keine
-aktuelle Dateireservierung oder bereits ausgeführte Tests:
+Der tatsächliche Produktdiff besteht aus den vier lokalen Renderern, dem additiv
+erweiterten Historytyp und den vier dazugehörigen Unit-/Integrationstestdateien.
+Zusätzlich kommen die beiden Browser-Specs `tests/e2e/ux4-d-quality.spec.ts` und
+`tests/e2e/ux4-d-lifecycle.spec.ts` sowie ihr gemeinsamer Helper
+`tests/e2e/support/ux4-native-zoom.ts` hinzu. Die Backendtests und vorhandenen
+Ownerbrowsertests in der folgenden Tabelle bleiben unverändert:
 
 | Schnitt | Produktfläche | Bestehende gezielte Testanker |
 | --- | --- | --- |
-| Erfassungsprotokoll | `product/components/WarrantQuoteHistory.tsx`; nur bei benötigten vorhandenen Payloadfeldern `product/types/dataEvidence.ts` | `WarrantQuoteHistory.test.tsx`, Backend `test_quote_history.py` |
+| Erfassungsprotokoll | `product/components/WarrantQuoteHistory.tsx`; `product/types/dataEvidence.ts` | `WarrantQuoteHistory.test.tsx`, Backend `test_quote_history.py` |
 | Produktquellen | `operational_workspace/pages/QuoteCoveragePanel.tsx` | `QuoteCoveragePanel.test.tsx`, `test_held_quote_coverage_api.py`, Browser `quote-coverage.spec.ts` |
 | Refreshdiagnostik | lokale `RefreshDiagnostics` in `MarketDataRefreshPanel.tsx` | `MarketDataRefreshPanel.diagnostics.test.tsx`, `test_refresh_identity_evidence.py`, `test_refresh_diagnostics_api.py` |
-| Historische Belegliste | `trade/components/TradeSourcesView.tsx`, gegebenenfalls fachlokale reine Renderer | `TradeSourcesView.test.tsx`, `test_source_view.py`, `test_trade_source_view_postgres.py`, Browser `post-trade-handoff-pin.spec.ts` und `post-trade-evidence-history-postgres.spec.ts` |
+| Historische Belegliste | `trade/components/TradeSourcesView.tsx` | `TradeSourcesView.test.tsx`, `test_source_view.py`, `test_trade_source_view_postgres.py`, Browser `post-trade-handoff-pin.spec.ts` und `post-trade-evidence-history-postgres.spec.ts` |
 
 Frontendpfade beginnen mit `frontend/src/features/`. Keine neue gemeinsame
 Hostkomponente, Backendroute, Persistenz, Migration, Dependency, Finanzformel oder
 Statusmaschine gehört zu dieser Folge.
 
-Für den tatsächlichen späteren Runtime-Head nachweisen:
+Für den veröffentlichten Runtime-Head nachweisen:
 
 1. Getrennte Populationen/Einheiten; echte Null versus fehlend; unbekannte Codes
    ohne Entwarnung oder erfundene Ursache; keine lokal erzeugten Qualitätszahlen.
@@ -225,17 +218,43 @@ Für den tatsächlichen späteren Runtime-Head nachweisen:
 7. Unveränderte reguläre CI und relevante Ownerregressionen am genauen Head;
    nicht ausgeführte oder übersprungene Fälle ausdrücklich benennen.
 
+### Ausführbare Browser- und Accessibility-Nachweise
+
+Die zwei neuen Specs benutzen die echten bestehenden Hosts `/warrants-admin`,
+`/workspace` und `/trade-management` mit synthetischen, strikt abgefangenen
+API-Antworten. Sie lösen keine Providerabfragen oder Schreibvorgänge aus. Die
+18 Browserfälle umfassen D1–D4 jeweils bei 320, 390 und 1280 CSS-Pixeln, vier
+native Zoomfälle mit jeweils 200 und 400 Prozent sowie zwei zusätzliche
+Lifecyclefälle für getrennte Lade-/Fehler-/Retry- und Leerzustände.
+
+Die Zoomfälle verwenden Chromiums `chrome.tabs.setZoom/getZoom` über eine reine
+Testextension. Angeforderter und tatsächlich gelesener Faktor, `innerWidth`,
+`devicePixelRatio`, CSS-Zoom und Dokumentbreite werden protokolliert; CSS-Zoom
+oder ein bloß verkleinertes Viewport ersetzt diesen Nachweis nicht. JSON,
+Screenshots und Accessibility-Snapshots werden am jeweiligen Test angehängt.
+Die Matrix prüft Enter/Space für native Details, Tab/Shift+Tab, fokussierbare
+Tabellenbereiche, erhaltene Pins und Readbudgets. Konkrete Text-/Fokusfarbproben
+prüfen mindestens 4,5:1 beziehungsweise 3:1; das ist keine vollständige
+WCAG- oder Screenreader-Zertifizierung.
+
+Die lokale Ausführungsumgebung kann Chromium wegen ihrer Prozess-/Dateisystemgrenzen
+nicht starten. Auch Vitest meldet hier erfolgreiche einzelne Dateien, beendet
+seinen Prozess aber nicht zuverlässig. Diese Ausgaben werden ausdrücklich nicht
+als vollständiger grüner Gateabschluss gezählt. Die unveränderte reguläre CI auf
+dem veröffentlichten PR-Head ist für die Laufqualifikation maßgeblich.
+
 Menschliche UX-/Domain-/Screenreader-/Touchabnahme und repräsentative Nutzerdaten
-bleiben gesondert offen. C-Screenshots oder ein erfolgreicher Dokumentationslauf
-sind keine Belege für eine zukünftige D-Oberfläche.
+bleiben gesondert offen. Synthetische Browserbelege belegen Darstellung und
+Leseverträge, nicht die fachliche Repräsentativität echter Nutzerdaten.
 
-## 4. Veröffentlichung dieses Vorbereitungsstands
+## 4. Veröffentlichung und Übergabe
 
-Vor Erstellung des eigenständigen Drafts Main, C-Head, Reviews, CI, Branchrückstand
-und konkurrierende D-/UX-Arbeiten erneut prüfen. Die zweite vollständige C-CI muss
-abgeschlossen sein. Dann diesen vorbereiteten Stand auf dem oben genannten
-Implementierungsbranch veröffentlichen; genaue D-Head-/Basis-/Diff- und Prüfbelege
-in der PR-Beschreibung führen. Dokumentiert, implementiert, getestet, menschlich
-abgenommen und integriert bleiben getrennte Aussagen.
+#330 bleibt der einzige UX4-D-Draft. Vor dem Push Remote-Main, Remote-Head,
+Branchrückstand und Reviews erneut prüfen; keine fremden Änderungen überschreiben.
+Nach dem Push müssen alle regulären Prüfjobs auf demselben Head beziehungsweise
+seinem belegten Testmerge vollständig laufen. Genaue D-Head-/Basis-/Diff-, Testzahl-,
+CI- und Browsernachweise sowie offene fachliche Abnahmen stehen in der
+PR-Beschreibung. Dokumentiert, implementiert, getestet, menschlich abgenommen und
+integriert bleiben getrennte Aussagen.
 
 Dieser Auftrag erteilt keine Merge-, Release-, Tag-, Deployment- oder PC-Freigabe.

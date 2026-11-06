@@ -3,23 +3,34 @@
 | Feld | Stand |
 | --- | --- |
 | Dokumenttyp / Version | Eigenständiger Implementierungsauftrag, 0.2 |
-| Status | Gegen aktuellen Main vorbereiteter Implementierungsstart; Runtime und menschliche Abnahme offen |
-| Datum | 05.11.2026, Europe/Berlin |
+| Status | D1–D4 im bestehenden Draft #330 implementiert; headbezogene Laufqualifikation dort, menschliche Abnahme offen |
+| Datum | 06.11.2026, UTC; Vorbereitung vom 05.11.2026 bleibt historische Herkunft |
 | Historische Referenz | `1883f7f330719453958f8be1dd51d48db816662e`, `v1.5.35`; keine aktuelle Arbeitsbasis |
-| Verifizierter Main dieser Vorbereitung | `e4921d6e25b70baddb80d4eaaf61028bb055ad04`, Versionsdateien `1.5.40` und veröffentlichter Git-Tag `v1.5.40` auf diesem Commit; #326 und #329 integriert |
-| Eigenständiger Implementierungsbranch | `feat/ux4-d-quality-lifecycle-20261105`; aus Main, ohne Übernahme des offenen UX4-C-Branches |
-| Voraussetzung | Aktuellen Main, Fachverträge und UX-1/2/3-Koordination beim Start erneut prüfen |
-| Ergebnis dieser Vorbereitung | Aktualisierter Startprompt und [konkreter Implementierungsumfang](../implementation/UX4_D_IMPLEMENTATION_SCOPE.md) im eigenständigen Draft; keine D-Runtimequalifikation behauptet |
+| Verifizierter Main der Umsetzung | `7bfe1bfa13ec158ec380aa6f5d3c7f480838f5e8`, unveränderte Versionsdateien `1.5.41`, veröffentlichter Git-Tag `v1.5.41`; UX2-B #325 inzwischen integriert |
+| Eigenständiger Implementierungsbranch | `feat/ux4-d-quality-lifecycle-20261105`; vorhandener Draft [#330](https://github.com/burckhju/trading-workspace/pull/330), Main regulär konfliktfrei übernommen; keine offenen Featurebranches übernommen |
+| Voraussetzung | Main, Fachverträge, offene Reviews, CI und UX-1/2/3-Dateigrenzen beim Start und vor Veröffentlichung erneut prüfen |
+| Ergebnis der Umsetzung | Vier fachlokale Renderer, additive vorhandene Historyfelder, gezielte Unit-/Integrationstests und Browsermatrix; [konkreter Implementierungsumfang](../implementation/UX4_D_IMPLEMENTATION_SCOPE.md), exakter finaler Head und CI in #330 |
 | Freigabegrenze | Kein Merge, Release oder PC-Update ohne gesonderte Freigabe |
 
-## Vorbereitungsauftrag vom 05.11.2026
+## Fortführung vom 06.11.2026
 
-UX4-LEAD schließt zunächst die technische Qualifikation von UX4-C ab und bereitet
-anschließend UX4-D vor. Dieser Vorbereitungsstand ändert ausschließlich den
-Auftrag und seinen konkreten Umsetzungsumfang. Die nachfolgenden Runtimearbeiten
-sind der begrenzte Folgeschnitt auf diesem Branch, keine bereits ausgeführten
-Produktänderungen oder D-Abnahmen. Ist der zugehörige Draft bereits vorhanden,
-seinen tatsächlichen Head prüfen und fortführen; keinen zweiten UX4-D-Auftrag eröffnen.
+Der bestehende D-Draft an `67af2c8c43d92c0cd6d14412f58b3c4129f1eec6` enthielt zwei
+Dokumentänderungen und lag 17 Commits hinter Main. Der aktuelle Main wurde ohne
+Konflikte mit `5d1916b548dcf483f341d6b0098aa80d198521f2` übernommen. D1–D4 erweitern
+anschließend die bestehenden lokalen Darstellungen und Leser, ohne gemeinsame
+Hostdateien, Provideraufrufe, Finanzlogik, Persistenz oder Softwareversion zu ändern.
+Die Browsermatrix enthält 320/390/1280 Pixel und gemessenen nativen 200/400-%-Zoom.
+Ein gelisteter Test ist kein ausgeführter Browsernachweis: Die tatsächlichen
+Ergebnisse werden ausschließlich am veröffentlichten Head in #330 dokumentiert.
+Der PR bleibt Draft; persönliche Fach-/UX-/Screenreader-/Touchabnahme bleibt offen.
+
+## Historischer Vorbereitungsauftrag vom 05.11.2026
+
+Die folgenden C-Nachweise gehören zur damaligen Basis
+`e4921d6e25b70baddb80d4eaaf61028bb055ad04` / `1.5.40`. Sie sind keine C- oder
+D-Qualifikation gegen den inzwischen fortgeschrittenen Main. Die Vorbereitung
+änderte ausschließlich den Auftrag und seinen konkreten Umsetzungsumfang. #330
+wird als einziger D-PR fortgeführt.
 
 Der aktuelle [UX4-C-Draft #327](https://github.com/burckhju/trading-workspace/pull/327)
 führt seine exakten Main-/Head-/Testmerge- und CI-Nachweise. Die erste vollständige
@@ -34,10 +45,11 @@ C-Head. Der D-Draft wird nach diesem erneuten Gesamtabschluss veröffentlicht.
 Der endgültige Nachweis ist in #327 gebunden. Eine technische
 C-Qualifikation ist weder eine menschliche C-Abnahme noch eine D-Implementierung.
 
-Die aktuellen vollständigen Dateilisten der offenen #327/#325/#315/#220/#207/#205/
-#197/#187 überschneiden sich nicht mit den beiden Dateien dieser Vorbereitung.
-Ein begonnener eigenständiger UX4-D-Branch oder entsprechender PR wurde beim
-Abgleich nicht gefunden. Das ersetzt keine erneute Prüfung vor Veröffentlichung.
+Die damaligen vollständigen Dateilisten der offenen #327/#325/#315/#220/#207/#205/
+#197/#187 überschnitten sich nicht mit den beiden Dateien der Vorbereitung.
+Beim aktuellen Umsetzungsstart wurde der existierende D-PR #330 geprüft und
+fortgeführt. Die verbleibenden offenen PRs haben keine Dateischnittmenge mit den
+lokalen D-Renderern und deren Typ-/Testdateien; das ersetzt keine Ownerabnahme.
 
 ## Auftrag
 
@@ -83,10 +95,10 @@ UX4-D baut weder eine zweite Notice-Schicht noch einen globalen Hinweisspeicher.
 `shared/trade-workspace-navigation` ist Mainbestand. Vorhandene Plan-/Lessonlinks,
 Versionspins und Quellenanker werden wiederverwendet. UX-2 besitzt ausdrücklich
 auch die spätere kompakte Lebenszyklusanzeige und gemeinsame historische
-Navigation aus seinem Abschnitt UX2-D. Der offene UX2-B #325 an
-`555538fa0519cd31e6d5391dd938a8150c90ac3d` umfasst 22 Dateien für Host und
-Produktbewertung. Seine Implementierung ist kein Mainbestand und wird hier nicht
-übernommen. Fehlende Dateischnittmenge ist keine Zustimmung zu einem neuen Host.
+Navigation aus seinem Abschnitt UX2-D. UX2-B #325 für Host und Produktbewertung
+ist inzwischen Mainbestand und wird über den Main-Merge übernommen. UX4-D
+verändert diese gemeinsamen Hostdateien nicht. Fehlende Dateischnittmenge ist
+keine Zustimmung zu einem neuen Host.
 
 Die integrierten B2-Texte in `ProductValuationPanel` und `PositionDetails` werden
 nicht erneut entwickelt. Der aktuelle UX3-Rollout bereitet B3/M06 in
@@ -168,8 +180,9 @@ verwenden. Keine neue Abrufkette durch die optische Gliederung erzeugen.
 
 Die genaue Feld-/Datei-/Testmatrix und zurückgestellten Hostteile stehen im
 [Implementierungsumfang](../implementation/UX4_D_IMPLEMENTATION_SCOPE.md).
-Diese Reihenfolge verteilt spätere Runtimearbeit; sie behauptet keine hier bereits
-umgesetzte Darstellung.
+Diese Reihenfolge wurde als kleine getrennte D1–D4-Änderungen umgesetzt. Der
+Implementierungsumfang beschreibt die tatsächlichen Dateien und Nachweisgrenzen;
+CI-Ergebnisse werden am exakten veröffentlichten PR-Head geführt.
 
 Die Positionskursdarstellung gehört [UX4-B](ux4-b-position-price-history-prompt.md),
 die Performancevisualisierung [UX4-C](ux4-c-performance-visualization-prompt.md).
