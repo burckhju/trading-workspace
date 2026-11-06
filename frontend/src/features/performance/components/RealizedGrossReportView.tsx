@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { RealizedGrossSources } from './RealizedGrossSources';
+import { RealizedGrossVisualization } from './RealizedGrossVisualization';
 import {
   REALIZED_REPORT_PAGE_SIZE,
   realizedTradeLink,
@@ -48,6 +49,9 @@ export function RealizedGrossReportView({
       page: nextPage,
     });
   const [expanded, setExpanded] = useState<string | null>(null);
+  const sourceCards = useRef(new Map<string, HTMLElement>());
+  const [sourceJump, setSourceJump] = useState<{ id: string } | null>(null);
+  const appliedSourceJump = useRef<{ id: string } | null>(null);
   const items = report.items.filter((item) => {
     if (view === 'usable') return item.status === 'USABLE';
     if (view === 'unresolved') return item.status === 'NOT_COMPUTABLE';
@@ -58,6 +62,15 @@ export function RealizedGrossReportView({
   const pages = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
   const page = Math.min(requestedPage, pages - 1);
   const visible = items.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  useEffect(() => {
+    if (!sourceJump || appliedSourceJump.current === sourceJump) return;
+    const card = sourceCards.current.get(sourceJump.id);
+    if (card) {
+      appliedSourceJump.current = sourceJump;
+      card.focus();
+      card.scrollIntoView?.({ block: 'start' });
+    }
+  }, [sourceJump, page, view]);
   const returnContext: RealizedReportContext = {
     filters: report.filters,
     basis: report.basis.id,
@@ -77,22 +90,22 @@ export function RealizedGrossReportView({
         </p>
         <h2 className="mt-2 text-lg font-semibold">{statusText[summary.status]}</h2>
         <dl className="mt-4 grid gap-4 sm:grid-cols-2">
-          <div>
+          <div className="min-w-0">
             <dt className="text-sm text-slate-400">Realisierte Bruttosumme · gesamte Auswahl</dt>
             <dd
-              className="mt-1 break-words text-2xl font-semibold"
+              className="mt-1 text-2xl font-semibold [overflow-wrap:anywhere]"
               data-testid="realized-gross-total"
             >
               {moneyText(summary.total_display, currency.code)}
             </dd>
           </div>
           {summary.subtotal !== null && (
-            <div>
+            <div className="min-w-0">
               <dt className="text-sm text-amber-300">
                 Bekannter Teilbetrag · nur verwendbare Beiträge
               </dt>
               <dd
-                className="mt-1 break-words text-2xl font-semibold"
+                className="mt-1 text-2xl font-semibold [overflow-wrap:anywhere]"
                 data-testid="realized-gross-subtotal"
               >
                 {moneyText(summary.subtotal_display, currency.code)}
@@ -204,6 +217,18 @@ export function RealizedGrossReportView({
         </details>
       </section>
 
+      <RealizedGrossVisualization
+        report={report}
+        onOpenSources={(item) => {
+          const index = report.items.findIndex(
+            (candidate) => candidate.execution_id === item.execution_id,
+          );
+          navigateView('all', Math.floor(index / PAGE_SIZE));
+          setExpanded(item.execution_id);
+          setSourceJump({ id: item.execution_id });
+        }}
+      />
+
       <section aria-labelledby="realized-gross-items-title" className="space-y-4">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
@@ -249,10 +274,15 @@ export function RealizedGrossReportView({
             <article
               key={item.execution_id}
               aria-label={`Verkauf ${item.execution_id}`}
-              className="min-w-0 rounded-xl border border-slate-800 p-4"
+              ref={(element) => {
+                if (element) sourceCards.current.set(item.execution_id, element);
+                else sourceCards.current.delete(item.execution_id);
+              }}
+              tabIndex={-1}
+              className="min-w-0 rounded-xl border border-slate-800 p-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400"
             >
               <div className="grid gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1.5fr)_minmax(0,1fr)_auto]">
-                <div>
+                <div className="min-w-0">
                   <h3 className="break-words font-medium">
                     {item.product_name ?? 'Produktname nicht verfügbar'}
                   </h3>
@@ -261,7 +291,7 @@ export function RealizedGrossReportView({
                   </p>
                   <p className="mt-1 text-sm">{executionTimeText(item, filters.report_timezone)}</p>
                 </div>
-                <div>
+                <div className="min-w-0">
                   <p
                     className={
                       item.status === 'USABLE' ? 'text-sm text-sky-300' : 'text-sm text-amber-300'
@@ -275,9 +305,9 @@ export function RealizedGrossReportView({
                     </p>
                   ))}
                 </div>
-                <div>
+                <div className="min-w-0">
                   <p className="text-xs text-slate-400">Realisierter Bruttobeitrag</p>
-                  <p className="mt-1 break-words font-semibold">
+                  <p className="mt-1 font-semibold [overflow-wrap:anywhere]">
                     {item.status === 'EXCLUDED'
                       ? 'Nicht in der Summe'
                       : moneyText(item.realized_gross_pnl_delta_display, item.currency_code)}
