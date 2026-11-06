@@ -8,6 +8,7 @@ type Route = {
   listing_id: string;
   mic: string;
   currency: string;
+  mapping_id?: string | null;
   mapping_status: string | null;
   provider_identity: string | null;
   provider_exchange_code: string | null;
@@ -22,9 +23,12 @@ type Route = {
   observed_at: string | null;
   retrieved_at: string | null;
   age_seconds: number | null;
+  max_quote_age_seconds?: number | null;
   feed_delay_seconds: number | null;
   trading_status: string | null;
   refresh_error: string | null;
+  quote_time_text?: string | null;
+  quote_time_basis?: string | null;
 };
 
 type RefreshJob = {
@@ -59,6 +63,8 @@ type Report = {
   source_order: string[];
   configured_sources: string[];
   items: Item[];
+  assessment_scope?: string;
+  execution_usable?: boolean;
 };
 
 const labels: Record<string, string> = {
@@ -99,7 +105,108 @@ function label(value: string) {
   return labels[value] ?? value;
 }
 function date(value: string | null) {
-  return value ? new Date(value).toLocaleString('de-DE') : 'Unbekannt';
+  if (!value) return 'Unbekannt';
+  if (!/(Z|[+-]\d{2}:\d{2})$/i.test(value) || !Number.isFinite(Date.parse(value))) {
+    return `${value} (kein belegter Zeitpunkt mit Zeitzone)`;
+  }
+  return `${new Date(value).toLocaleString('de-DE', { timeZone: 'UTC' })} UTC`;
+}
+
+const focus =
+  'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-300';
+
+function RouteEvidence({ route }: { route: Route }) {
+  const currency = route.currency || 'Währung unbekannt';
+  return (
+    <div className="my-3 min-w-0 space-y-3 rounded border border-slate-700 p-3">
+      <h5 className="font-semibold">
+        {route.provider} ·{' '}
+        {route.provider_exchange_code === 'ISSUER' ? 'Emittentenindikation' : route.mic} ·{' '}
+        {currency}
+      </h5>
+      <div>
+        <h6 className="font-semibold text-slate-300">Quellenidentität und Verfügbarkeit</h6>
+        <p>{route.configured ? 'Provider konfiguriert' : 'Provider nicht konfiguriert'}</p>
+        <p>Routennachweis: {label(route.route_reason)}</p>
+        <dl className="mt-2 space-y-1 text-xs">
+          <div>
+            <dt>Notierungs-ID</dt>
+            <dd>{route.listing_id}</dd>
+          </div>
+          <div>
+            <dt>Provideridentität</dt>
+            <dd>{route.provider_identity ?? 'Nicht belegt'}</dd>
+          </div>
+          <div>
+            <dt>Provider-Platzcode</dt>
+            <dd>{route.provider_exchange_code ?? 'Nicht belegt'}</dd>
+          </div>
+          <div>
+            <dt>Handelsplatz (MIC)</dt>
+            <dd>{route.mic || 'Nicht belegt'}</dd>
+          </div>
+          <div>
+            <dt>Mapping-ID</dt>
+            <dd>{route.mapping_id ?? 'Keine gespeicherte Mapping-ID geliefert'}</dd>
+          </div>
+          <div>
+            <dt>Zuordnungsstatus</dt>
+            <dd>{route.mapping_status ?? 'Keine gespeicherte Providerzuordnung belegt'}</dd>
+          </div>
+          <div>
+            <dt>Identitätsprüfung</dt>
+            <dd>{date(route.validated_at)}</dd>
+          </div>
+        </dl>
+      </div>
+      <div>
+        <h6 className="font-semibold text-slate-300">Gespeicherte Preisarten</h6>
+        <p>Geld: {route.bid == null ? 'nicht vorhanden' : `${route.bid} ${currency}`}</p>
+        <p>Brief: {route.ask == null ? 'nicht vorhanden' : `${route.ask} ${currency}`}</p>
+        <p>
+          Referenz ({route.reference_price_type ?? 'Preisart nicht belegt'}):{' '}
+          {route.reference_price == null
+            ? 'nicht vorhanden'
+            : `${route.reference_price} ${currency} · nur indikativ`}
+        </p>
+        <p>Handelsstatus: {route.trading_status ?? 'unbekannt'}</p>
+      </div>
+      <div>
+        <h6 className="font-semibold text-slate-300">Kursfrische und Zeitbasis</h6>
+        <p>Beobachtungsstatus: {label(route.observation_status)}</p>
+        <p>Kurszeit: {date(route.observed_at)}</p>
+        <p>Originalzeittext: {route.quote_time_text ?? 'Nicht geliefert'}</p>
+        <p>Zeitbasis der Quelle: {route.quote_time_basis ?? 'Nicht geliefert'}</p>
+        <p>Zuletzt abgerufen: {date(route.retrieved_at)}</p>
+        <p>
+          Kursalter am Prüfstand:{' '}
+          {route.age_seconds == null ? 'Unbekannt' : `${route.age_seconds} Sekunden`}
+        </p>
+        <p>
+          Altersgrenze laut Quelle:{' '}
+          {route.max_quote_age_seconds == null
+            ? 'Nicht geliefert'
+            : `${route.max_quote_age_seconds} Sekunden`}
+        </p>
+        <p>
+          Quellenverzögerung:{' '}
+          {route.feed_delay_seconds == null ? 'unbekannt' : `${route.feed_delay_seconds} Sekunden`}
+        </p>
+        <p className="mt-1 text-xs text-slate-400">
+          Alter und Frische stammen aus dem Prüfstand. Ein Originalzeittext ohne belegte Zone bleibt
+          unverändert; die Abrufzeit ersetzt keinen Kurszeitpunkt.
+        </p>
+      </div>
+      {route.refresh_error && (
+        <div className="text-amber-300">
+          <p>Abrufhinweis: {route.refresh_error}</p>
+          {(route.bid != null || route.ask != null || route.reference_price != null) && (
+            <p>Gespeicherter Ersatzkurs · aktueller Providererfolg nicht bestätigt.</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function QuoteCoveragePanel() {
@@ -143,7 +250,10 @@ export function QuoteCoveragePanel() {
     ) ?? [];
 
   return (
-    <section aria-label="Kursquellen im Depot" className="mt-4 border-t border-slate-700 pt-4">
+    <section
+      aria-label="Kursquellen im Depot"
+      className="mt-4 min-w-0 border-t border-slate-700 pt-4 [overflow-wrap:anywhere]"
+    >
       <h3 className="text-sm font-semibold">Kursquellen im Depot</h3>
       <p className="mt-2 text-sm text-slate-400">
         Gespeicherte Zuordnungen und letzte verifizierte Beobachtungen je Optionsschein. Diese
@@ -154,10 +264,17 @@ export function QuoteCoveragePanel() {
         type="button"
         onClick={() => void load()}
         disabled={loading}
-        className="mt-3 rounded-lg border border-slate-700 px-3 py-2 text-sm"
+        className={`mt-3 rounded-lg border border-slate-700 px-3 py-2 text-sm ${focus}`}
       >
         {loading ? 'Kursquellen werden geladen …' : 'Kursquellen im Depot prüfen'}
       </button>
+      <p role="status" className="sr-only">
+        {loading
+          ? 'Gespeicherte Kursquellen werden gelesen.'
+          : report
+            ? 'Kursquellen geladen.'
+            : ''}
+      </p>
       {error && (
         <p role="alert" className="mt-2 text-amber-300">
           Kursquellen konnten nicht geladen werden. Erneut prüfen.
@@ -168,6 +285,27 @@ export function QuoteCoveragePanel() {
           <p className="mt-2 text-sm">
             Prüfstand: {date(report.assessed_at)} · {report.items.length} gehaltene Optionsscheine
           </p>
+          <p className="mt-2 text-sm text-slate-300">
+            Produktabdeckung: Die gelieferte Liste zählt Produkte, keine Positionen oder Kurse. Die
+            Einstufung je Produkt stammt vom Backend; einzelne Quellen können davon abweichen.
+          </p>
+          <dl className="mt-2 space-y-1 text-xs text-slate-400">
+            <div>
+              <dt>Prüfumfang</dt>
+              <dd>
+                {report.assessment_scope ??
+                  'Scope-Feld nicht geliefert; Ansicht gespeicherter Beobachtungen'}
+              </dd>
+            </div>
+            <div>
+              <dt>Ausführungsverwendbarkeit (execution_usable)</dt>
+              <dd>
+                {report.execution_usable == null
+                  ? 'Nicht geliefert'
+                  : String(report.execution_usable)}
+              </dd>
+            </div>
+          </dl>
           <p className="mt-2 text-sm">
             Automatischer Abruf:{' '}
             {!report.scheduler_enabled
@@ -182,6 +320,25 @@ export function QuoteCoveragePanel() {
             konfigurierte Quellen garantieren keine Abdeckung. Eine passende Emittentenbezeichnung
             erlaubt nur die Identitätsprüfung, nicht den Kursabruf ohne verifizierte Zuordnung.
           </p>
+          <details className="mt-2 text-xs">
+            <summary className={`cursor-pointer ${focus}`}>
+              Quellenkonfiguration des Prüfstands
+            </summary>
+            <ul className="mt-2 list-inside list-disc space-y-1">
+              {report.source_order.map((source) => (
+                <li key={source}>
+                  {source}:{' '}
+                  {report.configured_sources.includes(source)
+                    ? 'konfiguriert'
+                    : 'nicht konfiguriert'}
+                </li>
+              ))}
+            </ul>
+            {report.source_order.length === 0 && <p>Keine Quellenreihenfolge geliefert.</p>}
+            <p className="mt-2">
+              Konfiguration belegt weder Erreichbarkeit noch einen Kurs dieses Produkts.
+            </p>
+          </details>
           <div className="mt-3 flex flex-wrap gap-4 text-sm">
             <label>
               Emittent{' '}
@@ -189,7 +346,7 @@ export function QuoteCoveragePanel() {
                 aria-label="Kursquellen nach Emittent"
                 value={issuer}
                 onChange={(event) => setIssuer(event.target.value)}
-                className="rounded border border-slate-700 bg-slate-900 p-1"
+                className={`max-w-full rounded border border-slate-700 bg-slate-900 p-1 ${focus}`}
               >
                 <option value="">Alle Emittenten</option>
                 {[...new Set(report.items.map((item) => item.issuer))].sort().map((name) => (
@@ -202,6 +359,7 @@ export function QuoteCoveragePanel() {
             <label>
               <input
                 type="checkbox"
+                className={focus}
                 checked={onlyGaps}
                 onChange={(event) => setOnlyGaps(event.target.checked)}
               />{' '}
@@ -211,30 +369,45 @@ export function QuoteCoveragePanel() {
           {items.length === 0 && (
             <p className="mt-3 text-sm">Keine gehaltenen Optionsscheine für diese Ansicht.</p>
           )}
-          <div className="mt-3 overflow-x-auto">
-            <table className="w-full text-left text-sm">
+          <p className="mt-3 text-xs text-slate-400">
+            Breite Tabelle: bei Bedarf im beschrifteten Tabellenbereich horizontal scrollen.
+          </p>
+          <div
+            role="region"
+            aria-label="Kursabdeckung je Produkt, horizontal scrollbar"
+            tabIndex={0}
+            className={`mt-2 max-w-full overflow-x-auto ${focus}`}
+          >
+            <table className="w-full min-w-[42rem] table-fixed text-left text-sm">
               <caption className="sr-only">Verifizierte Kurswege gehaltener Optionsscheine</caption>
               <thead>
                 <tr>
-                  <th className="p-2">Optionsschein / Emittent</th>
-                  <th className="p-2">Kursnachweis</th>
-                  <th className="p-2">Automatischer Abruf</th>
+                  <th scope="col" className="w-1/4 p-2">
+                    Optionsschein / Emittent
+                  </th>
+                  <th scope="col" className="w-1/2 p-2">
+                    Produktabdeckung und Kursnachweis
+                  </th>
+                  <th scope="col" className="w-1/4 p-2">
+                    Automatischer Abruf
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {items.map((item) => (
                   <tr key={item.warrant_id} className="border-t border-slate-800 align-top">
-                    <td className="p-2">
-                      <p className="font-semibold">{item.name}</p>
+                    <th scope="row" className="p-2 font-normal">
+                      <h4 className="font-semibold">{item.name}</h4>
                       <p>{item.issuer}</p>
                       <p className="text-xs">
                         {item.isin ?? 'ISIN fehlt'} · {item.wkn ?? 'WKN unbekannt'}
                       </p>
-                    </td>
+                      <p className="mt-2 text-xs">Produkt-ID: {item.warrant_id}</p>
+                    </th>
                     <td className="p-2">
                       <p>{label(item.coverage)}</p>
                       <details className="mt-2">
-                        <summary className="cursor-pointer">
+                        <summary className={`cursor-pointer ${focus}`}>
                           Kurswege ({item.routes.length})
                         </summary>
                         <p className="my-2 text-xs text-slate-400">
@@ -249,67 +422,10 @@ export function QuoteCoveragePanel() {
                           </p>
                         )}
                         {item.routes.map((route) => (
-                          <div
+                          <RouteEvidence
                             key={`${route.listing_id}:${route.provider}`}
-                            className="my-3 border-l border-slate-700 pl-2"
-                          >
-                            <p>
-                              {route.provider} ·{' '}
-                              {route.provider_exchange_code === 'ISSUER'
-                                ? 'Emittentenindikation'
-                                : route.mic}{' '}
-                              · {route.currency}
-                            </p>
-                            <p>
-                              {route.configured
-                                ? label(route.route_reason)
-                                : 'Provider nicht konfiguriert'}{' '}
-                              · {label(route.observation_status)}
-                            </p>
-                            {route.bid !== null && (
-                              <p>
-                                Geld: {route.bid} {route.currency} · Brief:{' '}
-                                {route.ask ?? 'nicht vorhanden'}
-                              </p>
-                            )}
-                            {route.reference_price !== null && (
-                              <p>
-                                Referenz ({route.reference_price_type}): {route.reference_price}{' '}
-                                {route.currency} · nur indikativ
-                              </p>
-                            )}
-                            <p>
-                              Kurszeit: {date(route.observed_at)} · zuletzt abgerufen:{' '}
-                              {date(route.retrieved_at)}
-                            </p>
-                            {route.age_seconds !== null && (
-                              <p>Alter: {Math.floor(route.age_seconds / 60)} Min.</p>
-                            )}
-                            <p>
-                              Quellenverzögerung:{' '}
-                              {route.feed_delay_seconds === null
-                                ? 'unbekannt'
-                                : `${route.feed_delay_seconds} Sekunden`}
-                            </p>
-                            <p>Handelsstatus: {route.trading_status ?? 'unbekannt'}</p>
-                            {route.refresh_error && (
-                              <div className="text-amber-300">
-                                <p>Abrufhinweis: {route.refresh_error}</p>
-                                {(route.bid !== null || route.reference_price !== null) && (
-                                  <p>
-                                    Gespeicherter Ersatzkurs · aktueller Providererfolg nicht
-                                    bestätigt.
-                                  </p>
-                                )}
-                              </div>
-                            )}
-                            <p className="text-xs">
-                              Zuordnung:{' '}
-                              {route.mapping_status ??
-                                'ISIN-direkt / keine gespeicherte Providerzuordnung'}{' '}
-                              · geprüft: {date(route.validated_at)}
-                            </p>
-                          </div>
+                            route={route}
+                          />
                         ))}
                       </details>
                     </td>
@@ -339,7 +455,7 @@ export function QuoteCoveragePanel() {
                         </>
                       )}
                       <details className="mt-2">
-                        <summary>Diagnose</summary>
+                        <summary className={`cursor-pointer ${focus}`}>Diagnose</summary>
                         <p>
                           {item.refresh_reason ??
                             (item.refresh_jobs?.length
