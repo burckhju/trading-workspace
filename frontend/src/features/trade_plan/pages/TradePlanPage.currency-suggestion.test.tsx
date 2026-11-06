@@ -361,6 +361,30 @@ describe('new Candidate TradePlan currency suggestion', () => {
     },
   );
 
+  it.each(['Entry-Preis', 'Trade Thesis'])(
+    'does not claim a queued suggestion after a %s edit wins before React commits it',
+    async (label) => {
+      const pending = deferred<Suggestion>();
+      readSuggestion.mockReturnValue(pending.promise);
+      mount();
+      await screen.findByLabelText('Währung');
+      await waitFor(() => expect(readSuggestion).toHaveBeenCalledTimes(1));
+      const input = screen.getByLabelText(label);
+      await act(async () => {
+        pending.resolve(suggestion);
+        await pending.promise;
+        // The source callback has queued its updates, but this edit still sees the old form.
+        fireEvent.change(input, { target: { value: '101' } });
+      });
+      expect(screen.getByLabelText(label)).toHaveValue('101');
+      expect(screen.getByLabelText('Währung')).toHaveValue('');
+      expect(screen.queryByText(/Initialvorschlag/)).not.toBeInTheDocument();
+      edit('Währung', 'USD');
+      expect(screen.queryByText(/Initialvorschlag/)).not.toBeInTheDocument();
+      expect(readSuggestion).toHaveBeenCalledTimes(1);
+    },
+  );
+
   it('does not restore automatic provenance when the user enters the suggested code again', async () => {
     mount();
     await waitFor(() => expect(screen.getByLabelText('Währung')).toHaveValue('USD'));

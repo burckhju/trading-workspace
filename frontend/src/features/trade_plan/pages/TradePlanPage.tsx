@@ -27,7 +27,7 @@ function CreateTradePlanForm() {
   const [currencyHint, setCurrencyHint] = useState<string>();
   const dirty = useRef(false);
   const humanEdited = useRef(false);
-  const currencyInitialized = useRef(false);
+  const initializedCurrency = useRef<string | null>(null);
   const currencyRequest = useRef(0);
   const mutation = useRef(false);
   const active = useRef(true);
@@ -73,11 +73,11 @@ function CreateTradePlanForm() {
           !isCurrent() ||
           !suggestion ||
           humanEdited.current ||
-          currencyInitialized.current ||
+          initializedCurrency.current !== null ||
           mutation.current
         )
           return;
-        currencyInitialized.current = true;
+        initializedCurrency.current = suggestion.currency;
         setContent((current) => ({
           ...current,
           entry: { ...current.entry, currency: suggestion.currency },
@@ -87,7 +87,7 @@ function CreateTradePlanForm() {
         );
       })
       .catch(() => {
-        if (!isCurrent() || humanEdited.current || currencyInitialized.current) return;
+        if (!isCurrent() || humanEdited.current || initializedCurrency.current !== null) return;
         setCurrencyHint(
           'Kein Währungsvorschlag verfügbar. Die Planwährung kann manuell eingegeben werden.',
         );
@@ -265,12 +265,23 @@ function CreateTradePlanForm() {
             <TradePlanContentForm
               value={content}
               disabled={busy}
-              currencyHint={currencyHint}
+              currencyHint={
+                initializedCurrency.current === null ||
+                content.entry.currency === initializedCurrency.current
+                  ? currencyHint
+                  : undefined
+              }
               onChange={(value) => {
                 if (mutation.current) return;
                 humanEdited.current = true;
                 dirty.current = true;
-                if (value.entry.currency !== content.entry.currency) setCurrencyHint(undefined);
+                // An edit may beat a queued initialization before React renders its currency.
+                if (
+                  value.entry.currency !== content.entry.currency ||
+                  (initializedCurrency.current !== null &&
+                    value.entry.currency !== initializedCurrency.current)
+                )
+                  setCurrencyHint(undefined);
                 setContent(value);
               }}
             />
