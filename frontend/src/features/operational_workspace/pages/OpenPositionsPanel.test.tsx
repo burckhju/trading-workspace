@@ -73,7 +73,9 @@ it('warns in blue for indicative quotes and retains negative P/L separately', as
   expect(screen.getByText('Produktkurs: Indikativer Referenzkurs')).toHaveClass('text-sky-200');
   expect(screen.getByText('−558,00 EUR')).toHaveClass('text-rose-300');
   await userEvent.click(screen.getByRole('button', { name: 'Details' }));
-  expect(screen.getByText(/Indikative Bewertung mit/)).toHaveTextContent('Keine Orderfreigabe');
+  expect(
+    screen.getByText(/Bewertungshinweis: Die gemeldete Ursache ist nicht bekannt/),
+  ).toHaveTextContent('Keine Orderfreigabe');
   expect(screen.getByText(/Quelle: FRANKFURT_QUOTES/)).toBeInTheDocument();
 });
 it('searches all 100 positions before pagination and keeps the same underlying products distinct', async () => {

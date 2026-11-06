@@ -214,6 +214,29 @@ test("the same backend qualification and sources remain visible after opening tr
   await page.goto("/workspace");
   await page
     .getByRole("row", { name: /Currency mismatch/ })
+    .getByRole("button", { name: "Details", exact: true })
+    .click();
+  const details = page.getByRole("region", {
+    name: "Details Currency mismatch",
+  });
+  await expect(details.getByText("25,00 EUR", { exact: true })).toBeVisible();
+  await expect(details).not.toContainText("+5,00 EUR");
+  await expect(details).toContainText(
+    "Kaufwährung der Kostenbasis stimmt nicht mit der Kurswährung überein",
+  );
+  await details
+    .getByText("Kostenbasis und Währungsnachweise", { exact: true })
+    .click();
+  await expect(details).toContainText(mismatch.position_basis!.basis_id);
+  for (const id of mismatch.position_basis!.effective_execution_ids)
+    await expect(details).toContainText(id);
+  for (const evidence of mismatch.position_basis!.buy_currency_evidence) {
+    await expect(details).toContainText(evidence.execution_id);
+    for (const id of evidence.confirmation_ids)
+      await expect(details).toContainText(id);
+  }
+  await page
+    .getByRole("row", { name: /Currency mismatch/ })
     .getByRole("link", { name: "Trade verwalten", exact: true })
     .click();
   await expect(page).toHaveURL(new RegExp(`trade_id=${mismatch.trade_id}`));
