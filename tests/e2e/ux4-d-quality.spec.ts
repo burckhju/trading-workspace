@@ -24,6 +24,7 @@ import {
 const assessedAt = "2026-11-06T11:00:00Z";
 const originalAt = "2026-10-29T14:10:00Z";
 const retrievedAt = "2026-11-06T10:40:00Z";
+const historyRetrievedAt = "2026-11-06T05:50:00Z";
 const capturedAt = "2026-11-06T10:51:00Z";
 const firstFailureAt = "2026-11-06T10:45:00Z";
 const lastFailureAt = "2026-11-06T10:55:00Z";
@@ -74,7 +75,7 @@ function historyFixture(): QuoteHistoryReport {
     slot_at: "2026-11-06T10:50:00Z",
     status: "REFERENCE_ONLY",
     reason: null,
-    retrieved_at: retrievedAt,
+    retrieved_at: historyRetrievedAt,
     cache_status: "HIT",
     quote_fingerprint: fingerprint,
     quote: {
@@ -93,6 +94,24 @@ function historyFixture(): QuoteHistoryReport {
       quote_time_basis: null,
     },
   };
+  // Sixty distinct five-minute capture slots retain the same original quote.
+  // Together with the two later special cases, the reader returns the latest
+  // fifty of sixty-two captures; aggregate counts still cover the full window.
+  const captures = Array.from({ length: 60 }, (_, index) => ({
+    ...reference,
+    id:
+      index === 0
+        ? reference.id
+        : index === 1
+          ? "synthetic-repeated-original-quote"
+          : `synthetic-reference-capture-${index + 1}`,
+    captured_at: new Date(Date.parse(capturedAt) - index * 300_000)
+      .toISOString()
+      .replace(".000Z", "Z"),
+    slot_at: new Date(Date.parse(reference.slot_at) - index * 300_000)
+      .toISOString()
+      .replace(".000Z", "Z"),
+  }));
   return {
     warrant_id: warrant.id,
     window_start: "2026-10-30T11:00:00Z",
@@ -112,7 +131,7 @@ function historyFixture(): QuoteHistoryReport {
         sampled_slots: 60,
         distinct_quote_evidence: 1,
         observed_utc_days: 1,
-        first_capture_at: "2026-11-06T06:00:00Z",
+        first_capture_at: captures[59].captured_at,
         last_capture_at: capturedAt,
         statuses: { REFERENCE_ONLY: 60, REQUEST_FAILED: 0 },
       },
@@ -147,6 +166,7 @@ function historyFixture(): QuoteHistoryReport {
         identity_key: "synthetic-issuer-unknown-time",
         captured_at: "2026-11-06T10:56:00Z",
         slot_at: "2026-11-06T10:55:00Z",
+        retrieved_at: retrievedAt,
         status: "TIMESTAMP_UNKNOWN",
         quote_fingerprint: "e".repeat(64),
         quote: {
@@ -176,14 +196,8 @@ function historyFixture(): QuoteHistoryReport {
         quote_fingerprint: null,
         quote: null,
       },
-      reference,
-      {
-        ...reference,
-        id: "synthetic-repeated-original-quote",
-        captured_at: "2026-11-06T10:46:00Z",
-        slot_at: "2026-11-06T10:45:00Z",
-      },
-    ],
+      ...captures,
+    ].slice(0, 50),
   };
 }
 
@@ -680,7 +694,7 @@ async function inspectHistory(page: Page, report: Locator) {
     table.getByRole("row", { name: /TWO_SIDED_WITHIN_AGE_LIMIT 0/ }),
   ).toBeVisible();
   const summary = report.getByText(
-    "Erfassungsbelege mit Originalzeiten (4 geliefert)",
+    "Erfassungsbelege mit Originalzeiten (50 geliefert)",
     { exact: true },
   );
   await openDetails(page, summary);
@@ -693,7 +707,7 @@ async function inspectHistory(page: Page, report: Locator) {
       exact: true,
     })
     .getByRole("listitem");
-  await expect(observations).toHaveCount(4);
+  await expect(observations).toHaveCount(50);
   const unknown = observations.nth(0);
   await expect(field(unknown, "Originalkurszeit (UTC)")).toHaveText(
     "unbekannt",
@@ -725,7 +739,7 @@ async function inspectHistory(page: Page, report: Locator) {
   ).toHaveAttribute("datetime", capturedAt);
   await expect(
     field(reference, "Abrufzeit (UTC)").locator("time"),
-  ).toHaveAttribute("datetime", retrievedAt);
+  ).toHaveAttribute("datetime", historyRetrievedAt);
   await expect(field(reference, "Referenzkurs")).toHaveText(
     "0.231234567890123456789",
   );
@@ -742,7 +756,7 @@ async function inspectHistory(page: Page, report: Locator) {
   );
   await expect(report.locator("[aria-live]")).toHaveCount(0);
   await assertDocumentReflow(page);
-  return unknown;
+  return unknown.getByRole("heading", { name: "Zeitbelege", exact: true });
 }
 
 async function openWorkspace(page: Page, calls: Requests) {
@@ -1019,6 +1033,7 @@ async function attachEvidence(
   name: string,
   calls: Requests,
   native?: BrowserContext,
+  viewportTargets?: ReadonlyArray<readonly [string, Locator]>,
 ) {
   const focused = panel.locator(":focus");
   await visibleFocus(focused);
@@ -1051,6 +1066,16 @@ async function attachEvidence(
       element.scrollIntoView({ block: "center" }),
     );
     await nativeScreenshot(native, page, testInfo, `${name}-focus.png`);
+  } else if (viewportTargets) {
+    for (const [label, target] of viewportTargets) {
+      await target.evaluate((element) =>
+        element.scrollIntoView({ block: "start" }),
+      );
+      await testInfo.attach(`${name}-${label}.png`, {
+        body: await page.screenshot(),
+        contentType: "image/png",
+      });
+    }
   } else
     await testInfo.attach(`${name}.png`, {
       body: await page.screenshot({ fullPage: true }),
@@ -1092,12 +1117,48 @@ for (const width of [320, 390, 1280]) {
       const before = [...calls.api];
       await surface.inspect(page, panel);
       noSideEffects(calls, before);
+      const historyItems = panel
+        .getByRole("list", {
+          name: "Einzelne gespeicherte Erfassungsbelege",
+          exact: true,
+        })
+        .getByRole("listitem");
+      // Fifty full evidence cards can exceed Chromium's screenshot height at
+      // 320px. Keep full DOM/ARIA/reflow checks, but capture readable viewports.
+      const viewportTargets =
+        surface.id === "D1"
+          ? ([
+              [
+                "overview",
+                panel.getByRole("heading", {
+                  name: "Erfassungsfenster und Grenzen",
+                  exact: true,
+                }),
+              ],
+              [
+                "original-times",
+                historyItems.first().getByRole("heading", {
+                  name: "Zeitbelege",
+                  exact: true,
+                }),
+              ],
+              [
+                "source-identity",
+                historyItems.nth(2).getByRole("heading", {
+                  name: "Historische Quellenidentität",
+                  exact: true,
+                }),
+              ],
+            ] as const)
+          : undefined;
       await attachEvidence(
         page,
         panel,
         testInfo,
         `ux4-${surface.id.toLowerCase()}-${width}-synthetic`,
         calls,
+        undefined,
+        viewportTargets,
       );
     });
   }
