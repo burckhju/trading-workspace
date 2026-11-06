@@ -1,9 +1,9 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { tradeManagementApiClient } from '../services/client';
-import type { ProductPositionValuationResponse } from '../types/api';
+import type { PositionResponse, ProductPositionValuationResponse } from '../types/api';
 import { ProductValuationPanel } from './ProductValuationPanel';
 
 vi.mock('../services/client', () => ({
@@ -12,6 +12,20 @@ vi.mock('../services/client', () => ({
 }));
 
 const api = vi.mocked(tradeManagementApiClient);
+
+const position: PositionResponse = {
+  id: 'position-1',
+  trade_id: 'trade-1',
+  product_id: 'product-1',
+  open_quantity: 10,
+  cost_basis: '20.00',
+  average_entry_price: '2.00',
+  realized_gross_pnl: '0',
+  opened_at: '2026-10-27T08:00:00Z',
+  last_execution_at: '2026-10-27T08:00:00Z',
+  closed_at: null,
+  is_closed: false,
+};
 
 function valuation(
   overrides: Partial<ProductPositionValuationResponse> = {},
@@ -50,24 +64,23 @@ function valuation(
 
 function show(value: ProductPositionValuationResponse) {
   api.productValuation.mockResolvedValue(value);
-  return render(<ProductValuationPanel tradeId="trade-1" />);
+  return render(
+    <ProductValuationPanel
+      tradeId="trade-1"
+      productId="product-1"
+      position={position}
+      cancelled={false}
+      positionRead={{ status: 'ready', revision: 1 }}
+    />,
+  );
 }
 
 beforeEach(() => {
   vi.clearAllMocks();
-  api.position.mockResolvedValue({
-    id: 'position-1',
-    trade_id: 'trade-1',
-    product_id: 'product-1',
-    open_quantity: 10,
-    cost_basis: '20.00',
-    average_entry_price: '2.00',
-    realized_gross_pnl: '0',
-    opened_at: '2026-10-27T08:00:00Z',
-    last_execution_at: '2026-10-27T08:00:00Z',
-    closed_at: null,
-    is_closed: false,
-  });
+});
+
+afterEach(() => {
+  expect(api.position).not.toHaveBeenCalled();
 });
 
 describe('cause-faithful valuation notices (TC-49)', () => {
@@ -102,7 +115,7 @@ describe('cause-faithful valuation notices (TC-49)', () => {
     await user.click(summary);
     expect(details).toHaveAttribute('open');
     expect(originalWarning).toBeVisible();
-    expect(api.position).toHaveBeenCalledTimes(1);
+    expect(api.position).not.toHaveBeenCalled();
     expect(api.productValuation).toHaveBeenCalledTimes(1);
   });
 

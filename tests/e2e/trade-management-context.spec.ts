@@ -135,8 +135,8 @@ test("failed trade switch cannot reuse another position; retry and history prese
   await page.getByRole("button", { name: "Laden", exact: true }).click();
   await page.getByRole("alertdialog", { name: "Ungespeicherte Änderungen" })
     .getByRole("button", { name: "Eingaben verwerfen und wechseln" }).click();
-  // The separate product-valuation panel may report the same failed read.
-  // Assert the management page's status, not a duplicate text anywhere on the page.
+  // The host reports the failed position read; valuation stays withheld until
+  // a new host read succeeds. Keep the existing host status contract explicit.
   await expect(
     page.getByRole("status").filter({ hasText: "Test: Position B nicht verfügbar." }),
   ).toBeVisible();
@@ -208,11 +208,11 @@ test("failed trade switch cannot reuse another position; retry and history prese
   await expect(
     page.getByRole("heading", { name: new RegExp(a.warrant.display_name) }),
   ).toBeVisible();
-  await expect(page.getByText("Offene Menge", { exact: true }).locator("..").locator("dd")).toHaveText("10");
+  await expect(page.getByText("Offene Menge", { exact: true }).locator("..").locator("dd")).toHaveText("10 Stück");
   await page.goForward();
   await expect(
     page.getByRole("heading", { name: new RegExp(b.warrant.display_name) }),
   ).toBeVisible();
-  await expect(page.getByText("Offene Menge", { exact: true }).locator("..").locator("dd")).toHaveText("18");
+  await expect(page.getByText("Offene Menge", { exact: true }).locator("..").locator("dd")).toHaveText("18 Stück");
   expect(writes).toHaveLength(1);
 });

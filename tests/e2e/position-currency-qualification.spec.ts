@@ -240,11 +240,10 @@ test("the same backend qualification and sources remain visible after opening tr
     .getByRole("link", { name: "Trade verwalten", exact: true })
     .click();
   await expect(page).toHaveURL(new RegExp(`trade_id=${mismatch.trade_id}`));
-  const panel = page
-    .locator("section")
-    .filter({
-      has: page.getByRole("heading", { name: "Produktbewertung", exact: true }),
-    });
+  const panel = page.getByRole("region", {
+    name: "Produktbewertung",
+    exact: true,
+  });
   await expect(panel.getByText("25 EUR", { exact: true })).toBeVisible();
   await expect(panel.getByText("5 EUR", { exact: true })).toHaveCount(0);
   await expect(panel).toContainText(

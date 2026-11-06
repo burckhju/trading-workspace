@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
-import { tradeManagementApiClient, tradeTimelineChangedEvent } from '../services/client';
-import type { ProductPositionValuationResponse } from '../types/api';
+import { tradeManagementApiClient } from '../services/client';
+import type { PositionResponse, ProductPositionValuationResponse } from '../types/api';
 import { qualifiedUnrealizedPnl, unrealizedPnlReason } from '../services/valuationQualification';
 import { PositionValuationBasisDetails } from './PositionValuationBasisDetails';
 
@@ -122,68 +122,137 @@ function warningText(value: ProductPositionValuationResponse): string {
   return 'Hinweis zur Kursbasis – Ursache nicht näher erläutert';
 }
 
-export function ProductValuationPanel({ tradeId }: { tradeId: string }) {
-  const [value, setValue] = useState<ProductPositionValuationResponse | null>(null);
-  const [closed, setClosed] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+/** Technical readiness of the host's independently validated position read. */
+export interface PositionReadState {
+  status: 'loading' | 'ready' | 'invalidated' | 'error';
+  revision: number;
+}
 
-  const load = useCallback(
-    async (signal?: AbortSignal) => {
-      try {
-        const position = await tradeManagementApiClient.position(tradeId, signal);
-        if (position.is_closed) {
-          setClosed(true);
-          setValue(null);
-          setError(null);
-          return;
-        }
+interface Props {
+  tradeId: string;
+  productId: string;
+  position: PositionResponse;
+  cancelled: boolean;
+  positionRead: PositionReadState;
+}
 
-        const next = await tradeManagementApiClient.productValuation(tradeId, signal);
-        setClosed(false);
-        setValue(next);
-        setError(null);
-      } catch (caught) {
-        if (caught instanceof DOMException && caught.name === 'AbortError') return;
-        setError(
-          caught instanceof Error
-            ? caught.message
-            : 'Produktbewertung konnte nicht geladen werden.',
-        );
-      }
-    },
-    [tradeId],
-  );
+type ReadResult = { key: string } & (
+  | { value: ProductPositionValuationResponse; error?: never }
+  | { value?: never; error: string }
+);
+
+export function ProductValuationPanel({
+  tradeId,
+  productId,
+  position,
+  cancelled,
+  positionRead,
+}: Props) {
+  const [result, setResult] = useState<ReadResult | null>(null);
+  const generation = useRef(0);
+  const positionId = position.id;
+  const matchingPosition = position.trade_id === tradeId && position.product_id === productId;
+  const inactive = cancelled || position.is_cancelled || position.is_closed;
+  const readable = positionRead.status === 'ready' && matchingPosition && !inactive;
+  const key = JSON.stringify([
+    tradeId,
+    productId,
+    positionId,
+    matchingPosition,
+    inactive,
+    positionRead.status,
+    positionRead.revision,
+  ]);
+  // Invalidate completed results during render as well: returning to A after B
+  // must not revive A's former success/error before the new effect has run.
+  if (result && result.key !== key) setResult(null);
+  const current = result?.key === key ? result : null;
 
   useEffect(() => {
+    const requestGeneration = ++generation.current;
+    if (!readable) return undefined;
     const controller = new AbortController();
-    void load(controller.signal);
-
-    function onTimelineChanged(event: Event) {
-      const detail = (event as CustomEvent<{ tradeId?: string }>).detail;
-      if (detail?.tradeId === tradeId) void load();
+    const isCurrent = () => !controller.signal.aborted && generation.current === requestGeneration;
+    async function load() {
+      try {
+        const next = await tradeManagementApiClient.productValuation(tradeId, controller.signal);
+        if (!isCurrent()) return;
+        const basis = next?.position_basis?.position;
+        if (
+          !next ||
+          !Array.isArray(next.source_attempts) ||
+          (next.position_basis != null && !basis)
+        )
+          throw new Error(
+            'Die Produktbewertung konnte nicht vollständig gelesen werden. Bitte erneut laden.',
+          );
+        if (
+          next.trade_id !== tradeId ||
+          next.position_id !== positionId ||
+          (basis &&
+            (basis.id !== positionId ||
+              basis.trade_id !== tradeId ||
+              basis.product_id !== productId))
+        )
+          throw new Error(
+            'Die gelesene Produktbewertung gehört nicht zu diesem Trade und seiner Position.',
+          );
+        setResult({ key, value: next });
+      } catch (caught) {
+        if (isCurrent())
+          setResult({
+            key,
+            error:
+              caught instanceof Error
+                ? caught.message
+                : 'Produktbewertung konnte nicht geladen werden.',
+          });
+      }
     }
-
-    window.addEventListener(tradeTimelineChangedEvent, onTimelineChanged);
+    void load();
     return () => {
       controller.abort();
-      window.removeEventListener(tradeTimelineChangedEvent, onTimelineChanged);
+      generation.current += 1;
     };
-  }, [load, tradeId]);
+  }, [key, readable, tradeId, productId, positionId]);
 
-  if (closed) return null;
+  if (positionRead.status !== 'ready' || !matchingPosition || inactive) {
+    return (
+      <section aria-label="Produktbewertung" className="rounded-xl border border-slate-800 p-4">
+        <h2 className="text-lg font-semibold">Produktbewertung</h2>
+        <p className="mt-2 text-sm text-slate-400">
+          {positionRead.status === 'error'
+            ? 'Produktbewertung derzeit nicht verfügbar. Bitte den Positionsstand über „Laden“ erneut prüfen.'
+            : positionRead.status !== 'ready'
+              ? 'Produktbewertung wartet auf den erfolgreich geprüften Positionsstand.'
+              : !matchingPosition
+                ? 'Die Position gehört nicht zu diesem Trade und Produkt. Bitte erneut laden.'
+                : cancelled || position.is_cancelled
+                  ? 'Für einen stornierten Trade wird keine aktuelle Produktbewertung geladen.'
+                  : 'Für eine geschlossene Position wird keine aktuelle Produktbewertung geladen.'}
+        </p>
+      </section>
+    );
+  }
+
+  const value = current?.value;
+  const error = current?.error;
 
   if (error) {
     return (
-      <section className="rounded-xl border border-rose-900 bg-rose-950/20 p-5">
+      <section
+        aria-label="Produktbewertung"
+        className="rounded-xl border border-rose-900 bg-rose-950/20 p-4"
+      >
         <h2 className="text-lg font-semibold">Produktbewertung</h2>
         <p className="mt-2 text-sm text-rose-200">{error}</p>
       </section>
     );
   }
 
-  if (value === null) {
+  if (!value) {
     return (
-      <section className="rounded-xl border border-slate-800 p-5">
+      <section aria-label="Produktbewertung" className="rounded-xl border border-slate-800 p-4">
         <h2 className="text-lg font-semibold">Produktbewertung</h2>
         <p className="mt-2 text-sm text-slate-400">Produktkurs wird geprüft …</p>
       </section>
@@ -200,7 +269,7 @@ export function ProductValuationPanel({ tradeId }: { tradeId: string }) {
     : value.unrealized_pnl_reason;
 
   return (
-    <section className="rounded-xl border border-slate-800 p-5">
+    <section aria-label="Produktbewertung" className="rounded-xl border border-slate-800 p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-xs uppercase tracking-wide text-slate-500">Gehaltenes Produkt</p>
@@ -210,6 +279,11 @@ export function ProductValuationPanel({ tradeId }: { tradeId: string }) {
           {statusText(value)}
         </span>
       </div>
+
+      <p className="mt-2 text-xs text-slate-400">
+        Position und Produktbewertung werden getrennt gelesen. Die Bewertungsbasis kann von dem oben
+        gezeigten Positionsstand abweichen; ein gemeinsamer Lesezeitpunkt ist nicht zugesichert.
+      </p>
 
       {(value.analysis_usable || value.valuation_usable) && value.analysis_warning && (
         <div
@@ -334,33 +408,38 @@ export function ProductValuationPanel({ tradeId }: { tradeId: string }) {
             </p>
           )}
           <p className="mt-4 text-xs text-slate-500">
-            Bewertungsquelle: {value.quote_provider ?? value.selected_source ?? '—'} · Instrument{' '}
-            {value.provider_identity ?? value.symbol ?? '—'} · {formatQuoteTimestamp(value)} ·{' '}
-            {formatQuoteAge(value)}
+            Bewertungsquelle: {value.quote_provider ?? value.selected_source ?? '—'} ·{' '}
+            {formatQuoteTimestamp(value)} · {formatQuoteAge(value)}
           </p>
           <p className="mt-2 text-xs text-slate-500">
-            Kursart: {priceTypeText(value.reference_price_type)} · Handelsplatz:{' '}
-            {value.quote_venue_mic ?? value.provider_exchange_code ?? 'unbekannt'} ·
-            Provider-Platzcode: {value.provider_exchange_code ?? 'unbekannt'} · Feed-Verzögerung:{' '}
+            Kursart: {priceTypeText(value.reference_price_type)} · Feed-Verzögerung:{' '}
             {value.quote_delay_seconds == null ? 'unbekannt' : `${value.quote_delay_seconds} Sek.`}{' '}
             · Handelsstatus: {value.trading_status ?? 'unbekannt'}
           </p>
-          <p className="mt-2 text-xs text-slate-500">
-            Letzter erfolgreicher Abruf:{' '}
-            {value.quote_retrieved_at
-              ? new Date(value.quote_retrieved_at).toLocaleString('de-DE')
-              : 'unbekannt'}{' '}
-            · Ausgewertet:{' '}
-            {value.quote_assessed_at
-              ? new Date(value.quote_assessed_at).toLocaleString('de-DE')
-              : 'unbekannt'}
-          </p>
-          {value.spread_absolute != null && (
-            <p className="mt-2 text-sm">
-              Spread: {formatDecimal(value.spread_absolute)} {value.currency} /{' '}
-              {formatDecimal(value.spread_percent ?? null)} %
+          <details className="mt-3 text-xs text-slate-500">
+            <summary className="cursor-pointer">Kursherkunft und Zeitbezüge anzeigen</summary>
+            <p className="mt-2">
+              Instrument {value.provider_identity ?? value.symbol ?? '—'} · Handelsplatz:{' '}
+              {value.quote_venue_mic ?? value.provider_exchange_code ?? 'unbekannt'} ·
+              Provider-Platzcode: {value.provider_exchange_code ?? 'unbekannt'}
             </p>
-          )}
+            <p className="mt-2">
+              Letzter erfolgreicher Abruf:{' '}
+              {value.quote_retrieved_at
+                ? new Date(value.quote_retrieved_at).toLocaleString('de-DE')
+                : 'unbekannt'}{' '}
+              · Ausgewertet:{' '}
+              {value.quote_assessed_at
+                ? new Date(value.quote_assessed_at).toLocaleString('de-DE')
+                : 'unbekannt'}
+            </p>
+            {value.spread_absolute != null && (
+              <p className="mt-2">
+                Spread: {formatDecimal(value.spread_absolute)} {value.currency} /{' '}
+                {formatDecimal(value.spread_percent ?? null)} % (bezogen auf Bid)
+              </p>
+            )}
+          </details>
           {!value.execution_usable && (
             <p className="mt-2 text-xs text-amber-300">
               Indikative Empfehlungen sind möglich. Dieser Kurs erteilt keine Freigabe zur

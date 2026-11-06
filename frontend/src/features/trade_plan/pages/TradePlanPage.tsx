@@ -7,6 +7,7 @@ import { TradePlanContentForm } from '../forms/TradePlanContentForm';
 import { createEmptyTradePlanContent } from '../forms/content';
 import { tradePlanApiClient } from '../services/client';
 import { loadTradePlanOrigin, type TradePlanOriginContext } from '../services/originContext';
+import { loadCandidatePlanCurrencySuggestion } from '../services/planCurrencySuggestion';
 import { isTradePlanDetailResponse } from '../services/responseContext';
 import type { CreateTradePlanRequest, TradePlanContentRequest } from '../types/api';
 import { ExistingTradePlanPage } from './ExistingTradePlanPage';
@@ -23,7 +24,11 @@ function CreateTradePlanForm() {
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [uncertain, setUncertain] = useState(false);
+  const [currencyHint, setCurrencyHint] = useState<string>();
   const dirty = useRef(false);
+  const humanEdited = useRef(false);
+  const initializedCurrency = useRef<string | null>(null);
+  const currencyRequest = useRef(0);
   const mutation = useRef(false);
   const active = useRef(true);
   const shouldBlock = useCallback(() => dirty.current || mutation.current, []);
@@ -53,6 +58,45 @@ function CreateTradePlanForm() {
       controller.abort();
     };
   }, [contextKey]);
+
+  useEffect(() => {
+    const generation = ++currencyRequest.current;
+    if (origin?.type !== 'CANDIDATE_EVALUATION') return;
+    const controller = new AbortController();
+    const isCurrent = () =>
+      active.current && !controller.signal.aborted && currencyRequest.current === generation;
+
+    // This optional read cannot change the validity or loading state of the origin.
+    void loadCandidatePlanCurrencySuggestion(origin, controller.signal)
+      .then((suggestion) => {
+        if (
+          !isCurrent() ||
+          !suggestion ||
+          humanEdited.current ||
+          initializedCurrency.current !== null ||
+          mutation.current
+        )
+          return;
+        initializedCurrency.current = suggestion.currency;
+        setContent((current) => ({
+          ...current,
+          entry: { ...current.entry, currency: suggestion.currency },
+        }));
+        setCurrencyHint(
+          `Initialvorschlag aus Analyse ${suggestion.analysisId}, Version ${suggestion.version}. Die Planwährung bleibt editierbar.`,
+        );
+      })
+      .catch(() => {
+        if (!isCurrent() || humanEdited.current || initializedCurrency.current !== null) return;
+        setCurrencyHint(
+          'Kein Währungsvorschlag verfügbar. Die Planwährung kann manuell eingegeben werden.',
+        );
+      });
+    return () => {
+      currencyRequest.current += 1;
+      controller.abort();
+    };
+  }, [origin]);
 
   function changeOrigin() {
     if (mutation.current) return;
@@ -221,9 +265,23 @@ function CreateTradePlanForm() {
             <TradePlanContentForm
               value={content}
               disabled={busy}
+              currencyHint={
+                initializedCurrency.current === null ||
+                content.entry.currency === initializedCurrency.current
+                  ? currencyHint
+                  : undefined
+              }
               onChange={(value) => {
                 if (mutation.current) return;
+                humanEdited.current = true;
                 dirty.current = true;
+                // An edit may beat a queued initialization before React renders its currency.
+                if (
+                  value.entry.currency !== content.entry.currency ||
+                  (initializedCurrency.current !== null &&
+                    value.entry.currency !== initializedCurrency.current)
+                )
+                  setCurrencyHint(undefined);
                 setContent(value);
               }}
             />

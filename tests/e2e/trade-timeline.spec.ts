@@ -164,5 +164,5 @@ test("refreshes immutable timeline after a captured partial sale", async ({ page
 
   await expect(page.getByText("Verkauf erfasst", { exact: true })).toBeVisible();
   await expect(page.getByText("40 Stück · 2.50 je Einheit", { exact: true })).toBeVisible();
-  await expect(page.getByText("Offene Menge", { exact: true }).locator("..").locator("dd")).toHaveText("60");
+  await expect(page.getByText("Offene Menge", { exact: true }).locator("..").locator("dd")).toHaveText("60 Stück");
 });
