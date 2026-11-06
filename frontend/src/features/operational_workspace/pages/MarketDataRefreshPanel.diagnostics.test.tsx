@@ -45,6 +45,42 @@ const sample = {
   jobs: [{ ...job, diagnostics: { scope: 'PROCESS_LOCAL', checks: [baseCheck] } }],
 };
 
+const sourceCheck = {
+  ...baseCheck,
+  kind: 'SOURCE',
+  source: 'FRANKFURT_QUOTES',
+  listing_id: 'listing-diagnostic',
+  identity_key: 'a'.repeat(64),
+  category: 'PROVIDER_ERROR',
+  reason: 'FRANKFURT_TRANSPORT_TIMEOUT',
+  attempt_started_at: firstFailure,
+  provider_reachable: false,
+  response_valid: null,
+  quote_usable: true,
+  qualified_success: false,
+  retained_quote: true,
+  quote_status: 'LAST_AVAILABLE',
+  quote_observed_at: firstFailure,
+  quote_retrieved_at: firstFailure,
+};
+
+function sourceStatus(
+  changes: Record<string, unknown> = {},
+  jobChanges: Record<string, unknown> = {},
+) {
+  return {
+    ...sample,
+    jobs: [
+      {
+        ...job,
+        checked_at: lastFailure,
+        diagnostics: { scope: 'PROCESS_LOCAL', checks: [{ ...sourceCheck, ...changes }] },
+        ...jobChanges,
+      },
+    ],
+  };
+}
+
 async function loadStatus(value: unknown = sample) {
   request.mockResolvedValue(value);
   render(<MarketDataRefreshPanel />);
@@ -63,7 +99,7 @@ describe('market data refresh operational diagnostics', () => {
 
     expect(screen.getByText('Auftragsfehler · 2 Prüfungen in Folge mit Befund')).toBeVisible();
     expect(screen.getByText(/Seit:/)).toHaveTextContent(
-      `Seit: ${new Date(firstFailure).toLocaleString('de-DE')} · Zuletzt festgestellt: ${new Date(lastFailure).toLocaleString('de-DE')}`,
+      'Seit: 30.10.2026, 10:00:00 UTC · Zuletzt festgestellt: 30.10.2026, 10:05:00 UTC',
     );
     expect(screen.getByText('Diagnosecode: REFRESH_JOB_FAILED')).toBeVisible();
     expect(screen.getByText(/nur für diese Backend-Laufzeit/)).toHaveTextContent(
@@ -87,7 +123,7 @@ describe('market data refresh operational diagnostics', () => {
 
     expect(screen.getByText(/^Abruf läuft · Nächste Prüfung frühestens/)).toBeVisible();
     expect(screen.getByText(/Aktueller Abruf · Start:/)).toHaveTextContent(
-      `Start: ${new Date(recovered).toLocaleString('de-DE')} · bisher 62 Sek. · Stand der Statusabfrage`,
+      'Start: 30.10.2026, 10:10:00 UTC · bisher 62 Sek. · Stand der Statusabfrage',
     );
     expect(screen.getByText('Auftragsfehler · 2 Prüfungen in Folge mit Befund')).toBeVisible();
     expect(screen.getByText(/Letzte Quellen- oder Auftragsprüfung:/)).toHaveTextContent(
@@ -247,7 +283,7 @@ describe('market data refresh operational diagnostics', () => {
         new Date(recovered).toLocaleString('de-DE'),
       );
       expect(screen.getByText(/Kurszeit:/)).toHaveTextContent(
-        `Kurszeit: ${new Date(lastFailure).toLocaleString('de-DE')} · Abrufzeit des Kurses: ${new Date(recovered).toLocaleString('de-DE')}`,
+        'Kurszeit: 30.10.2026, 10:05:00 UTC · Abrufzeit des Kurses: 30.10.2026, 10:10:00 UTC',
       );
       expect(screen.getByText('Quellenidentität: warrant-listing-currency-mapping')).toBeVisible();
       expect(
@@ -286,6 +322,8 @@ describe('market data refresh operational diagnostics', () => {
                 quote_usable: true,
                 provider_reachable: true,
                 response_valid: true,
+                last_failure_reason: 'FRANKFURT_TRANSPORT_TIMEOUT',
+                last_failure_category: 'PROVIDER_ERROR',
               },
             ],
           },
@@ -299,6 +337,8 @@ describe('market data refresh operational diagnostics', () => {
     expect(screen.getByText(/Letzter fehlgeschlagener Abruf:/)).toHaveTextContent(
       new Date(lastFailure).toLocaleString('de-DE'),
     );
+    expect(screen.getByText('Vorheriger Befund: FRANKFURT_TRANSPORT_TIMEOUT')).toBeVisible();
+    expect(screen.getByText('Letzte Fehlerkategorie: PROVIDER_ERROR')).toBeVisible();
     expect(
       screen.queryByText(/Offene Quellenbefunde|Auftrag wieder abgeschlossen/),
     ).not.toBeInTheDocument();
@@ -445,7 +485,9 @@ describe('market data refresh operational diagnostics', () => {
     });
 
     expect(screen.getByText('Kein Kurs verfügbar · 1 Prüfung in Folge mit Befund')).toBeVisible();
-    expect(screen.getByText('In letzter Prüfung nicht erneut geprüft.')).toBeVisible();
+    expect(
+      screen.getByText('Historischer Beleg · In letzter Prüfung nicht erneut geprüft.'),
+    ).toBeVisible();
     expect(
       screen.queryByText(/Kursversorgung wiederhergestellt|Auftrag wieder abgeschlossen/),
     ).not.toBeInTheDocument();
@@ -482,7 +524,9 @@ describe('market data refresh operational diagnostics', () => {
     expect(
       screen.getByText('Wiederholung zurückgestellt · vorheriger Befund bleibt offen.'),
     ).toBeVisible();
-    expect(screen.getByText('In letzter Prüfung nicht erneut geprüft.')).toBeVisible();
+    expect(
+      screen.getByText('Historischer Beleg · In letzter Prüfung nicht erneut geprüft.'),
+    ).toBeVisible();
     expect(screen.getByText('Vorheriger Befund: REFRESH_JOB_FAILED')).toBeVisible();
     expect(screen.getByText('Diagnosecode: FRANKFURT_REQUEST_THROTTLED')).toBeVisible();
     expect(
@@ -529,5 +573,303 @@ describe('market data refresh operational diagnostics', () => {
       );
       expect(within(row).getByText(`Letzter Fehler: ${lane}_FAILED`)).toBeVisible();
     }
+  });
+
+  it.each([
+    [false, null, true, false, 'Nein', 'Nicht belegt', 'Ja', 'Nein'],
+    [true, false, false, false, 'Ja', 'Nein', 'Nein', 'Nein'],
+    [null, true, true, true, 'Nicht belegt', 'Ja', 'Ja', 'Ja'],
+    [
+      undefined,
+      undefined,
+      null,
+      undefined,
+      'Nicht belegt',
+      'Nicht belegt',
+      'Nicht belegt',
+      'Nicht belegt',
+    ],
+  ])(
+    'keeps transport %s, response %s, quote %s and qualification %s independent',
+    async (reachable, valid, usable, success, reachText, validText, usableText, successText) => {
+      await loadStatus(
+        sourceStatus({
+          provider_reachable: reachable,
+          response_valid: valid,
+          quote_usable: usable,
+          qualified_success: success,
+          retained_quote: undefined,
+        }),
+      );
+
+      const check = within(screen.getByRole('list', { name: 'Abgeschlossene Diagnosebelege' }));
+      expect(check.getByText(`Provider technisch erreichbar: ${reachText}`)).toBeVisible();
+      expect(check.getByText(`Antwort gültig: ${validText}`)).toBeVisible();
+      expect(check.getByText(`Kurs verwendbar: ${usableText}`)).toBeVisible();
+      expect(check.getByText(`Qualifizierter Erfolg dieser Prüfung: ${successText}`)).toBeVisible();
+      expect(check.getByText('Gespeicherter Ersatzkurs: Nicht belegt')).toBeVisible();
+      expect(check.getAllByRole('term')).toHaveLength(6);
+      expect(check.getAllByRole('definition')).toHaveLength(6);
+      expect(check.queryByRole('alert')).not.toBeInTheDocument();
+      expect(
+        screen.queryByText(/Provider wieder erreichbar|Kursversorgung wiederhergestellt/),
+      ).not.toBeInTheDocument();
+      expect(request).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it('keeps a new failure episode visible when the payload also contains an earlier recovery', async () => {
+    await loadStatus(
+      sourceStatus({
+        first_failure_at: lastFailure,
+        last_failure_at: recovered,
+        last_checked_at: recovered,
+        recovered_at: firstFailure,
+        last_success_at: firstFailure,
+      }),
+    );
+
+    expect(screen.getByText('Providerfehler · 2 Prüfungen in Folge mit Befund')).toBeVisible();
+    const historic = screen.getByText(/Früherer Wiederherstellungsbeleg:/);
+    expect(historic).toHaveTextContent('Die gemeldete Fehlerfolge bleibt bestehen.');
+    expect(historic.querySelector('time')).toHaveAttribute('datetime', firstFailure);
+    expect(
+      screen.queryByText(/Kursversorgung wiederhergestellt|Provider wieder erreichbar/),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText('Qualifizierter Erfolg dieser Prüfung: Nein')).toBeVisible();
+  });
+
+  it('retains each source identity and its own completed attempt while a new job is running', async () => {
+    const newerIdentity = 'b'.repeat(64);
+    await loadStatus(
+      sourceStatus(
+        {},
+        {
+          execution: { running: true, started_at: recovered, elapsed_seconds: 0 },
+          diagnostics: {
+            scope: 'PROCESS_LOCAL',
+            checks: [
+              { ...sourceCheck, observed_in_latest_run: false },
+              {
+                ...sourceCheck,
+                identity_key: newerIdentity,
+                attempt_started_at: lastFailure,
+                last_checked_at: recovered,
+                observed_in_latest_run: true,
+                qualified_success: true,
+                provider_reachable: null,
+                response_valid: true,
+                consecutive_failures: 0,
+                retained_quote: false,
+                reason: null,
+                category: null,
+                last_failure_at: null,
+              },
+            ],
+          },
+        },
+      ),
+    );
+
+    const list = screen.getByRole('list', { name: 'Abgeschlossene Diagnosebelege' });
+    const [older, latest] = within(list).getAllByRole('listitem');
+    expect(within(older).getByText(`Quellenidentität: ${sourceCheck.identity_key}`)).toBeVisible();
+    expect(within(latest).getByText(`Quellenidentität: ${newerIdentity}`)).toBeVisible();
+    expect(
+      within(older).getByText(/Historischer Beleg · In letzter Prüfung nicht erneut geprüft/),
+    ).toBeVisible();
+    expect(within(latest).getByText('Beleg aus dem letzten abgeschlossenen Lauf.')).toBeVisible();
+    expect(
+      within(older)
+        .getByText(/Beginn dieses Quellenversuchs:/)
+        .querySelector('time'),
+    ).toHaveAttribute('datetime', firstFailure);
+    expect(
+      within(latest)
+        .getByText(/Beginn dieses Quellenversuchs:/)
+        .querySelector('time'),
+    ).toHaveAttribute('datetime', lastFailure);
+    expect(
+      within(older)
+        .getByText(/Letzte Quellen- oder Auftragsprüfung:/)
+        .querySelector('time'),
+    ).toHaveAttribute('datetime', lastFailure);
+    expect(
+      within(latest)
+        .getByText(/Letzte Quellen- oder Auftragsprüfung:/)
+        .querySelector('time'),
+    ).toHaveAttribute('datetime', recovered);
+    expect(
+      screen.getByText(/Letzter abgeschlossener Schedulerlauf:/).querySelector('time'),
+    ).toHaveAttribute('datetime', lastFailure);
+    expect(screen.getByText(/Aktueller Abruf · Start:/)).toHaveTextContent('bisher 0 Sek.');
+    expect(screen.getByText(/Aktueller Abruf · Start:/).querySelector('time')).toHaveAttribute(
+      'datetime',
+      recovered,
+    );
+    expect(
+      within(older).queryByText('Qualifizierter Erfolg dieser Prüfung: Ja'),
+    ).not.toBeInTheDocument();
+    expect(request).toHaveBeenCalledTimes(1);
+  });
+
+  it('preserves unknown original codes and missing qualification without inventing an assessment', async () => {
+    await loadStatus(
+      sourceStatus({
+        status: 'FUTURE_STATUS',
+        category: 'FUTURE_CATEGORY',
+        reason: 'FUTURE_REASON',
+        quote_status: 'FUTURE_QUOTE_STATUS',
+        qualified_success: undefined,
+        observed_in_latest_run: undefined,
+        listing_id: null,
+        identity_key: null,
+      }),
+    );
+
+    expect(screen.getByText(/Statuscode: FUTURE_STATUS/)).toBeVisible();
+    expect(screen.getByText('Diagnosekategorie: FUTURE_CATEGORY')).toBeVisible();
+    expect(screen.getByText('Diagnosecode: FUTURE_REASON')).toBeVisible();
+    expect(screen.getByText('Kursstatuscode: FUTURE_QUOTE_STATUS')).toBeVisible();
+    expect(screen.getByText('Kursstatus derzeit nicht einordenbar')).toBeVisible();
+    expect(screen.getByText('Qualifizierter Erfolg dieser Prüfung: Nicht belegt')).toBeVisible();
+    expect(screen.getByText('Notierung: Nicht belegt')).toBeVisible();
+    expect(screen.getByText('Quellenidentität: Nicht belegt')).toBeVisible();
+    expect(
+      screen.getByText('Zuordnung zum letzten abgeschlossenen Lauf nicht belegt.'),
+    ).toBeVisible();
+    expect(
+      screen.queryByText(/Provider wieder erreichbar|Kursversorgung wiederhergestellt/),
+    ).not.toBeInTheDocument();
+  });
+
+  it('renders supplied cache outcomes as separate evidence without joining them to an older check', async () => {
+    const cases = [
+      ['HIT', 'Cachetreffer · HIT'],
+      ['MISS', 'Kein Cachetreffer · MISS'],
+      ['BYPASS', 'Cache nicht verwendet · BYPASS'],
+      ['STALE_REJECTED', 'Veralteter Cacheeintrag verworfen · STALE_REJECTED'],
+      ['FUTURE_CACHE', 'Cachezustand derzeit nicht einordenbar · FUTURE_CACHE'],
+      [null, 'Nicht belegt'],
+    ];
+    await loadStatus(
+      sourceStatus(
+        { observed_in_latest_run: false },
+        {
+          quotes: cases.map(([status], index) => ({
+            provider: 'FRANKFURT_QUOTES',
+            warrant_listing_id: 'listing-diagnostic',
+            identity_key: `cache-identity-${index}`,
+            cache_status: status,
+            retrieved_at: firstFailure,
+            attempt_completed_at: recovered,
+          })),
+        },
+      ),
+    );
+    fireEvent.click(screen.getByText('Cachebelege des letzten abgeschlossenen Laufs'));
+
+    const checks = screen.getByRole('list', { name: 'Abgeschlossene Diagnosebelege' });
+    const cache = screen.getByRole('list', { name: 'Gelieferte Cachebelege' });
+    const rows = within(cache).getAllByRole('listitem');
+    expect(rows).toHaveLength(cases.length);
+    cases.forEach(([, label], index) => {
+      expect(within(rows[index]).getByText(label!)).toBeVisible();
+      expect(within(rows[index]).getByText(`cache-identity-${index}`)).toBeVisible();
+      expect(rows[index].querySelectorAll('time')).toHaveLength(2);
+      expect(rows[index].querySelector('time')).toHaveAttribute('datetime', firstFailure);
+    });
+    expect(within(checks).queryByText(/cache-identity-/)).not.toBeInTheDocument();
+    expect(within(checks).getByText('Qualifizierter Erfolg dieser Prüfung: Nein')).toBeVisible();
+    expect(within(checks).getByText('Provider technisch erreichbar: Nein')).toBeVisible();
+    expect(screen.queryByText(/Kursversorgung wiederhergestellt/)).not.toBeInTheDocument();
+    expect(request).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    [undefined, 'Cachebelege wurden in dieser Statusantwort nicht mitgeliefert.'],
+    [null, 'Cachebelege wurden in dieser Statusantwort nicht mitgeliefert.'],
+    [[], 'Keine Kursantworten für diesen abgeschlossenen Lauf geliefert.'],
+  ])('keeps absent or empty cache evidence %s explicit', async (quotes, message) => {
+    await loadStatus(sourceStatus({}, { quotes }));
+    fireEvent.click(screen.getByText('Cachebelege des letzten abgeschlossenen Laufs'));
+    expect(screen.getByText(message)).toBeVisible();
+    expect(screen.queryByRole('list', { name: 'Gelieferte Cachebelege' })).not.toBeInTheDocument();
+    expect(screen.getByText('Gespeicherter Ersatzkurs: Ja')).toBeVisible();
+    expect(
+      screen.queryByText(/Cachetreffer · HIT|Cache nicht verwendet · BYPASS/),
+    ).not.toBeInTheDocument();
+  });
+
+  it('does not turn missing scope or an empty process snapshot into healthy providers', async () => {
+    await loadStatus(sourceStatus({}, { diagnostics: { checks: [] } }));
+    expect(screen.getByText('Geltungsbereich: Nicht belegt')).toBeVisible();
+    expect(
+      screen.getByText('Keine abgeschlossenen Diagnosebelege in dieser Statusantwort.'),
+    ).toBeVisible();
+    expect(
+      screen.queryByText(/nur für diese Backend-Laufzeit|Kursversorgung wiederhergestellt/),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText('Provider technisch erreichbar: Ja')).not.toBeInTheDocument();
+  });
+
+  it('keeps missing or unqualified times without a synthetic instant', async () => {
+    await loadStatus(
+      sourceStatus({
+        attempt_started_at: '10:15',
+        last_checked_at: null,
+        quote_observed_at: '2026-10-30T10:00:00',
+        quote_retrieved_at: 'invalid-provider-time',
+        quote_status: undefined,
+      }),
+    );
+    const start = screen.getByText(/Beginn dieses Quellenversuchs:/);
+    expect(start).toHaveTextContent('10:15 · Zeitbasis nicht belegt');
+    expect(start.querySelector('time')).toBeNull();
+    const quote = screen.getByText(/Kurszeit:/);
+    expect(quote).toHaveTextContent('2026-10-30T10:00:00 · Zeitbasis nicht belegt');
+    expect(quote).toHaveTextContent('invalid-provider-time · Zeitbasis nicht belegt');
+    expect(quote.querySelector('time')).toBeNull();
+    expect(screen.getByText(/Letzte Quellen- oder Auftragsprüfung:/)).toHaveTextContent(
+      'Unbekannt',
+    );
+    expect(screen.getByText('Kursbewertung nicht mitgeliefert')).toBeVisible();
+    expect(screen.queryByText('Kursqualität nicht geprüft')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Invalid Date/)).not.toBeInTheDocument();
+  });
+
+  it('keeps native disclosure and focus changes passive and clears old evidence on a failed reread', async () => {
+    await loadStatus(sourceStatus({}, { quotes: [] }));
+    const diagnostics = screen.getByText(/^Diagnose ·/);
+    const cache = screen.getByText('Cachebelege des letzten abgeschlossenen Laufs');
+    cache.focus();
+    fireEvent.click(cache);
+    expect(cache).toHaveFocus();
+    expect(cache.parentElement).toHaveAttribute('open');
+    fireEvent.click(cache);
+    diagnostics.focus();
+    fireEvent.click(diagnostics);
+    fireEvent.click(diagnostics);
+    expect(diagnostics).toHaveFocus();
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(request).toHaveBeenLastCalledWith(
+      expect.stringContaining('/market-data/refresh/status'),
+    );
+
+    request.mockRejectedValueOnce(new Error('unavailable'));
+    fireEvent.click(screen.getByRole('button', { name: 'Abrufstatus laden' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Abrufstatus konnte nicht geladen werden.',
+    );
+    expect(
+      screen.queryByRole('list', { name: 'Abgeschlossene Diagnosebelege' }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(`Quellenidentität: ${sourceCheck.identity_key}`),
+    ).not.toBeInTheDocument();
+    expect(request).toHaveBeenCalledTimes(2);
+    expect(request.mock.calls.every(([url]) => url.endsWith('/market-data/refresh/status'))).toBe(
+      true,
+    );
   });
 });
