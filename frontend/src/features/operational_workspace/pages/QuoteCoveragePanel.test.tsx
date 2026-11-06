@@ -65,7 +65,11 @@ it('loads stored coverage only on request and preserves original time and quote 
   expect(screen.getByText(/Emittentenindikation · EUR/)).toBeInTheDocument();
   expect(screen.getByText(/Brief: nicht vorhanden/)).toBeInTheDocument();
   expect(screen.getByText(/Abrufhinweis: VONTOBEL_QUOTE_TIMEOUT/)).toBeInTheDocument();
-  expect(screen.getByText(/Kurszeit:.*14.9.2026/)).toBeInTheDocument();
+  expect(screen.getByText(/^Kurszeit:/)).toHaveTextContent(/Kurszeit:.*14.9.2026/);
+  expect(screen.getByText(/^Kurszeit:/).querySelector('time')).toHaveAttribute(
+    'datetime',
+    '2026-09-14T10:00:00Z',
+  );
   expect(screen.getByText(/keine Orderfreigabe/)).toBeInTheDocument();
   expect(request).toHaveBeenCalledTimes(1);
   expect(request.mock.calls[0][0]).toContain('/market-data/warrants/quote-coverage');
@@ -249,7 +253,7 @@ it('keeps a fresh retained quote with a failed provider in the gap filter despit
   expect(
     screen.getByText('Gespeicherter Ersatzkurs · aktueller Providererfolg nicht bestätigt.'),
   ).toBeVisible();
-  expect(screen.getByText(/Kurszeit:.*14.9.2026/)).toBeVisible();
+  expect(screen.getByText(/^Kurszeit:/)).toHaveTextContent(/Kurszeit:.*14.9.2026/);
 });
 
 it('does not invent a substitute quote for a failed provider without stored prices', async () => {
@@ -335,7 +339,7 @@ it('separates product population, source identity, time basis and supplied fresh
   expect(screen.getByText('Zeitbasis der Quelle: SOURCE_LOCAL_TIMEZONE_UNKNOWN')).toBeVisible();
   expect(screen.getByText('Kursalter am Prüfstand: Unbekannt')).toBeVisible();
   expect(screen.getByText('Altersgrenze laut Quelle: 3600 Sekunden')).toBeVisible();
-  expect(screen.getByText(/Zuletzt abgerufen:.*14.9.2026.*UTC/)).toBeVisible();
+  expect(screen.getByText(/^Zuletzt abgerufen:/)).toHaveTextContent(/14.9.2026.*UTC/);
   expect(screen.queryByText(/100 %|0 %|Qualitätsquote/)).not.toBeInTheDocument();
 });
 

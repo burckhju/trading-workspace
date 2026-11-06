@@ -109,7 +109,9 @@ function date(value: string | null) {
   if (!/(Z|[+-]\d{2}:\d{2})$/i.test(value) || !Number.isFinite(Date.parse(value))) {
     return `${value} (kein belegter Zeitpunkt mit Zeitzone)`;
   }
-  return `${new Date(value).toLocaleString('de-DE', { timeZone: 'UTC' })} UTC`;
+  return (
+    <time dateTime={value}>{new Date(value).toLocaleString('de-DE', { timeZone: 'UTC' })} UTC</time>
+  );
 }
 
 const focus =
@@ -340,7 +342,7 @@ export function QuoteCoveragePanel() {
             </p>
           </details>
           <div className="mt-3 flex flex-wrap gap-4 text-sm">
-            <label>
+            <label className="min-w-0 max-w-full">
               Emittent{' '}
               <select
                 aria-label="Kursquellen nach Emittent"
