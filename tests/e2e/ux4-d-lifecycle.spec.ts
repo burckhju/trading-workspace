@@ -355,6 +355,9 @@ async function setup(
 }
 
 async function expectSources(page: Page) {
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+    `Trade und Quellenstand · TR-${tradeId.slice(0, 8).toUpperCase()}`,
+  );
   const list = page.getByRole("list", {
     name: "Belege im Trade-Lebenszyklus",
     exact: true,
@@ -612,10 +615,48 @@ test("UX4-D lifecycle supports measured native 200 and 400 percent zoom", async 
         testInfo,
         `ux4-d-lifecycle-native-${factor * 100}.png`,
       );
+      const summary = page
+        .getByRole("region", { name: "Ursprünglicher Plan", exact: true })
+        .getByText("Herkunftsdetails", { exact: true });
+      await summary.focus();
+      await page.keyboard.press("Tab");
+      await page.keyboard.press("Shift+Tab");
+      await expect(summary).toBeFocused();
+      await summary.evaluate((element) =>
+        element.scrollIntoView({ block: "center", inline: "nearest" }),
+      );
+      await expect(summary).toBeInViewport({ ratio: 1 });
+      const focus = await summary.evaluate((element) => {
+        const rectangle = element.getBoundingClientRect();
+        const style = getComputedStyle(element);
+        return {
+          visible: element.matches(":focus-visible"),
+          outlineStyle: style.outlineStyle,
+          outlineWidth: style.outlineWidth,
+          bounds: {
+            x: rectangle.x,
+            y: rectangle.y,
+            width: rectangle.width,
+            height: rectangle.height,
+          },
+        };
+      });
+      expect(focus).toMatchObject({
+        visible: true,
+        outlineStyle: "solid",
+        outlineWidth: "2px",
+      });
+      await nativeScreenshot(
+        context,
+        page,
+        testInfo,
+        `ux4-d-lifecycle-native-${factor * 100}-focus.png`,
+      );
       measurements.push({
         ...measured,
         ...(await browserMeasurements(page)),
         contrast,
+        focus,
       });
       expect(requests.reads).toEqual(originalReads);
     }

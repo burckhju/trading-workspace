@@ -56,12 +56,14 @@ function SourceSection({
   id,
   inList = false,
   headingLevel = 2,
+  headingText,
   children,
 }: {
   title: string;
   id?: string;
   inList?: boolean;
   headingLevel?: 1 | 2 | 3;
+  headingText?: string;
   children: ReactNode;
 }) {
   const Heading = headingLevel === 1 ? 'h1' : headingLevel === 3 ? 'h3' : 'h2';
@@ -72,7 +74,7 @@ function SourceSection({
       className={`${sectionClass} focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-sky-300`}
       aria-label={title}
     >
-      <Heading className="text-lg font-semibold">{title}</Heading>
+      <Heading className="text-lg font-semibold">{headingText ?? title}</Heading>
       {children}
     </section>
   );
@@ -96,6 +98,7 @@ function ReadSection<T>({
   id,
   inList,
   headingLevel,
+  headingText,
   preceding,
   children,
 }: {
@@ -104,6 +107,7 @@ function ReadSection<T>({
   id?: string;
   inList?: boolean;
   headingLevel?: 1 | 2 | 3;
+  headingText?: string;
   preceding?: { title: string; children: (data: T) => ReactNode };
   children: (data: T, window: ReadWindow) => ReactNode;
 }) {
@@ -151,7 +155,13 @@ function ReadSection<T>({
           )}
         </SourceSection>
       )}
-      <SourceSection title={title} id={id} inList={inList} headingLevel={headingLevel}>
+      <SourceSection
+        title={title}
+        id={id}
+        inList={inList}
+        headingLevel={headingLevel}
+        headingText={headingText}
+      >
         {error ? (
           <>
             <p role="alert">
@@ -812,6 +822,7 @@ export function TradeSourcesView({ query }: { query: URLSearchParams }) {
           title="Trade und Quellenstand"
           url={sourceUrl(tradeId)}
           headingLevel={1}
+          headingText={`Trade und Quellenstand · TR-${tradeId.slice(0, 8).toUpperCase()}`}
         >
           {(v, window) => <Core data={v} tradeId={tradeId} query={query} window={window} />}
         </ReadSection>

@@ -395,6 +395,9 @@ describe('read-only trade sources', () => {
     override = () => failure();
     mount();
     await screen.findByRole('alert');
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
+      'Trade und Quellenstand · TR-10000000',
+    );
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
   it('ignores old A success across A → B → A', async () => {
@@ -641,6 +644,9 @@ describe('lifecycle evidence presentation', () => {
       'Evidence und Lesson-Versionen',
     ]);
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
+      'Trade und Quellenstand · TR-10000000',
+    );
     expect(screen.queryByRole('progressbar')).toBeNull();
     expect(screen.queryByText(/6\/6|100\s*%|Analyse abgeschlossen/)).toBeNull();
     expect(fetchMock).toHaveBeenCalledTimes(5);
@@ -774,6 +780,9 @@ describe('lifecycle evidence presentation', () => {
     const pending = deferred<Response>();
     override = (url) => (url.pathname.endsWith('/sources') ? pending.promise : undefined);
     mount();
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
+      'Trade und Quellenstand · TR-10000000',
+    );
     expect(
       within(screen.getByRole('region', { name: 'Trade und Quellenstand' })).getByRole('status'),
     ).toHaveTextContent('Trade und Quellenstand wird gelesen.');
@@ -784,6 +793,9 @@ describe('lifecycle evidence presentation', () => {
       await pending.promise;
     });
     await screen.findByText('Eine eigene Reflexion');
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
+      'Trade und Quellenstand · TR-10000000',
+    );
     expect(fetchMock).toHaveBeenCalledTimes(5);
   });
 
