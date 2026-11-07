@@ -33,7 +33,7 @@ function management(overrides: Record<string, unknown> = {}) {
     stop_price: "1.80",
     target_price: "2.80",
     thesis: "Initial thesis",
-    notes: [],
+    notes: [] as string[],
     last_event_at: now,
     ...overrides,
   };
@@ -187,18 +187,48 @@ test("manages partial/full exit and explicit management decisions without provid
   await page.goto(`/trade-management?trade_id=${tradeId}`);
   await expect(page.getByRole("heading", { name: "OPEN" })).toBeVisible();
   await expect(page.getByRole("heading", { name: /TR-10000000 · DAX Call 19000/ })).toBeVisible();
-  await expect(page.getByText("TP-10000000")).toBeVisible();
-  await expect(page.getByText("Offene Menge", { exact: true }).locator("..").locator("dd")).toHaveText("100");
+  const overview = page.getByRole("region", { name: "Trade und Position", exact: true });
+  await overview.getByText("Technische Provenance anzeigen", { exact: true }).click();
+  await expect(overview.getByText("TP-10000000")).toBeVisible();
+  await expect(overview.getByText(`TradePlan-ID ${tradePlanId}`, { exact: true })).toBeVisible();
+  await expect(overview.getByText("TradePlanVersion-ID 10000000-0000-4000-8000-000000000014", { exact: true })).toBeVisible();
+  await expect(page.getByText("Offene Menge", { exact: true }).locator("..").locator("dd")).toHaveText("100 Stück");
   await expect(page.getByRole("form", { name: "Verkauf erfassen" }).getByText(/keine Broker-Order/i)).toBeVisible();
 
   await page.getByLabel("Verkaufsmenge").fill("40");
   await page.getByLabel("Verkaufspreis").fill("2.50");
   await page.getByLabel("Verkaufsdatum", { exact: true }).fill("2026-08-17");
   await page.getByLabel("Verkaufsdatum Uhrzeit").fill("09:30");
+  const receiptPromise = page.waitForResponse((response) =>
+    response.request().method() === "POST" && response.url().endsWith(`/trades/${tradeId}/sales`),
+  );
+  const positionReadbackPromise = page.waitForResponse((response) =>
+    response.request().method() === "GET" && response.url().endsWith(`/trades/${tradeId}/position`),
+  );
   await page.getByRole("button", { name: "Teilverkauf erfassen" }).click();
   await expect.poll(() => salePosts).toBe(1);
-  await expect(page.getByText("Offene Menge", { exact: true }).locator("..").locator("dd")).toHaveText("60");
-  await expect(page.getByText("20", { exact: true })).toBeVisible();
+  const receipt = await receiptPromise;
+  const positionReadback = await positionReadbackPromise;
+  expect(receipt.status()).toBe(201);
+  expect(positionReadback.status()).toBe(200);
+  const expectedPosition = {
+    id: positionId,
+    trade_id: tradeId,
+    product_id: productId,
+    open_quantity: 60,
+    cost_basis: "120.00",
+    average_entry_price: "2.00",
+    realized_gross_pnl: "20.00",
+    is_closed: false,
+  };
+  expect((await receipt.json()).position).toMatchObject(expectedPosition);
+  expect(await positionReadback.json()).toMatchObject(expectedPosition);
+  await expect(page.getByText("Offene Menge", { exact: true }).locator("..").locator("dd")).toHaveText("60 Stück");
+  for (const label of ["Cost Basis", "Average Entry", "Realized gross P&L"]) {
+    await expect(overview.getByText(label, { exact: true })).toHaveCount(0);
+  }
+  await expect(overview.getByText("20", { exact: true })).toHaveCount(0);
+  await expect(overview.getByText(/Kostenbasis, durchschnittlicher Einstieg und realisierter Brutto-G\/V/)).toBeVisible();
 
   await page.getByLabel("Stop", { exact: true }).fill("1.90");
   await page.getByLabel("Instrument für Stop", { exact: true }).selectOption("WARRANT");

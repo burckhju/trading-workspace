@@ -3,6 +3,7 @@ import type { PositionPriceHistoryReport } from "../../frontend/src/features/ope
 
 import type {
   ExecutionCurrencyResolution,
+  ProductPositionValuationResponse,
   TradeResponse,
   TradeTimelineEntryResponse,
 } from "../../frontend/src/features/trade/types/api";
@@ -156,6 +157,72 @@ function reportQuery() {
 
 type Status = "OPEN" | "CLOSED" | "CANCELLED";
 
+// Server-shaped values are supplied independently of the host position read.
+// This fixture does not derive money amounts or qualifications in the browser.
+function overviewValuation(
+  overrides: Partial<ProductPositionValuationResponse> = {},
+): ProductPositionValuationResponse {
+  return {
+    trade_id: tradeId,
+    position_id: positionId,
+    status: "AVAILABLE",
+    reason: "WARRANT_BID_AVAILABLE",
+    warrant_listing_id: "synthetic-overview-listing",
+    symbol: "UX2.OVERVIEW",
+    bid: "2.50",
+    ask: "2.55",
+    currency: "EUR",
+    quote_observed_at: now,
+    quote_age_seconds: 900,
+    max_quote_age_seconds: 3600,
+    market_value: "25.00",
+    unrealized_gross_pnl: "5.00",
+    unrealized_pnl_usable: true,
+    unrealized_pnl_reason: "COST_BASIS_CURRENCY_MATCHED",
+    selected_source: "SYNTHETIC_OVERVIEW_PROVIDER",
+    valuation_usable: true,
+    execution_usable: false,
+    analysis_usable: true,
+    analysis_warning: null,
+    analysis_market_value: "25.00",
+    analysis_unrealized_gross_pnl: "5.00",
+    analysis_unrealized_pnl_usable: true,
+    analysis_unrealized_pnl_reason: "COST_BASIS_CURRENCY_MATCHED",
+    freshness_policy: "DE_WARRANT_SESSION_FRESHNESS_V1",
+    source_attempts: [],
+    reference_price: "2.50",
+    reference_price_type: "BID",
+    quote_provider: "SYNTHETIC_OVERVIEW_PROVIDER",
+    provider_identity: "synthetic-overview-identity",
+    quote_venue_mic: "XFRA",
+    provider_exchange_code: "_FRA",
+    quote_retrieved_at: now,
+    quote_assessed_at: now,
+    quote_delay_seconds: 900,
+    position_basis: {
+      definition_version: "POSITION_VALUATION_BASIS_V1",
+      basis_id: "synthetic-overview-basis",
+      position: {
+        id: positionId,
+        trade_id: tradeId,
+        product_id: productId,
+        open_quantity: 10,
+        cost_basis: "20.00",
+        average_entry_price: "2.00",
+        realized_gross_pnl: "0",
+        opened_at: "2026-08-17T08:30:00Z",
+        last_execution_at: "2026-08-17T08:30:00Z",
+        closed_at: null,
+      },
+      cost_basis_currency: "EUR",
+      currency_status: "KNOWN",
+      effective_execution_ids: [buyId],
+      buy_currency_evidence: [{ ...historicalCurrency, execution_id: buyId }],
+    },
+    ...overrides,
+  };
+}
+
 async function json(route: Route, body: unknown, status = 200) {
   await route.fulfill({ status, json: body });
 }
@@ -179,6 +246,8 @@ async function fixture(
   options: {
     status?: Status;
     missingPosition?: boolean;
+    positionError?: boolean;
+    productValuation?: ProductPositionValuationResponse;
     historicalPlan?: boolean;
     reportJourney?: boolean;
     currencyPreview?: "available" | ((route: Route, url: URL) => Promise<void>);
@@ -313,7 +382,7 @@ async function fixture(
     if (path.endsWith(`/trade-position/trades/${tradeId}`))
       return json(route, trade);
     if (path.endsWith("/position")) {
-      if (options.missingPosition)
+      if (options.missingPosition || options.positionError)
         return json(
           route,
           {
@@ -322,7 +391,7 @@ async function fixture(
             details: [],
             timestamp: now,
           },
-          404,
+          options.positionError ? 503 : 404,
         );
       return json(route, {
         id: positionId,
@@ -346,6 +415,8 @@ async function fixture(
         is_closed: status === "CLOSED",
       });
     }
+    if (path.endsWith("/product-valuation") && options.productValuation)
+      return json(route, options.productValuation);
     if (path.endsWith("/management"))
       return json(route, {
         trade_id: tradeId,
@@ -537,7 +608,264 @@ async function loaded(page: Page, bookingCount = 1) {
   await page.waitForLoadState("networkidle");
 }
 
-for (const width of [390, 1280]) {
+for (const width of [320, 390, 1280]) {
+  test(`UX2-B overview joins position and qualified valuation with keyboard details and no navigation reads at ${width}px`, async ({
+    page,
+  }, testInfo) => {
+    const observed = await fixture(page, {
+      productValuation: overviewValuation(),
+    });
+    await page.setViewportSize({ width, height: 844 });
+    const address = `/trade-management?trade_id=${tradeId}#trade-overview`;
+    await page.goto(address);
+    await loaded(page);
+    const overview = page.getByRole("region", {
+      name: "Trade und Position",
+      exact: true,
+    });
+    const valuation = overview.getByRole("region", {
+      name: "Produktbewertung",
+      exact: true,
+    });
+    await expect(overview).toBeFocused();
+    await expect(valuation).toContainText("Produktkurs verfügbar");
+    for (const label of [
+      "Offene Menge",
+      "Kaufdatum / eröffnet",
+      "Letzte Ausführung",
+      "Verkaufsdatum / geschlossen",
+    ]) {
+      await expect(overview.getByText(label, { exact: true })).toBeVisible();
+    }
+    await expect(overview).toContainText(
+      "Kostenbasis, durchschnittlicher Einstieg und realisierter Brutto-G/V",
+    );
+    for (const oldMoneyLabel of [
+      "Cost Basis",
+      "Average Entry",
+      "Realized gross P&L",
+    ]) {
+      await expect(
+        overview.getByText(oldMoneyLabel, { exact: true }),
+      ).toHaveCount(0);
+    }
+    await expect(valuation.getByText("25 EUR", { exact: true })).toBeVisible();
+    await expect(valuation.getByText("5 EUR", { exact: true })).toBeVisible();
+    await expect(
+      valuation.getByText(
+        /Position und Produktbewertung werden getrennt gelesen/,
+      ),
+    ).toBeVisible();
+    await expect(
+      valuation.getByText(/Dieser Kurs erteilt keine Freigabe zur/),
+    ).toBeVisible();
+    await expect(
+      valuation.getByText(/Bewertungsquelle: SYNTHETIC_OVERVIEW_PROVIDER/),
+    ).toBeVisible();
+    expect(
+      await overview.evaluate((element) => {
+        const value = element.querySelector('[aria-label="Produktbewertung"]');
+        const chart = element.querySelector("#position-price-history");
+        return Boolean(
+          value &&
+            chart &&
+            value.compareDocumentPosition(chart) &
+              Node.DOCUMENT_POSITION_FOLLOWING,
+        );
+      }),
+    ).toBe(true);
+    await expect(
+      overview.getByRole("link", { name: "Buchungen prüfen", exact: true }),
+    ).toHaveAttribute(
+      "href",
+      `/trade-management?trade_id=${tradeId}#execution-dates`,
+    );
+    await expect(
+      overview.getByRole("link", { name: "Verkauf erfassen", exact: true }),
+    ).toHaveAttribute(
+      "href",
+      `/trade-management?trade_id=${tradeId}#sale-capture`,
+    );
+
+    const originalReads = [...observed.reads];
+    expect(
+      originalReads.filter((url) => url.endsWith("/position")),
+    ).toHaveLength(1);
+    expect(
+      originalReads.filter((url) => url.endsWith("/product-valuation")),
+    ).toHaveLength(1);
+    for (const label of [
+      "Technische Provenance anzeigen",
+      "Kostenbasis und Währungsnachweise",
+      "Kursherkunft und Zeitbezüge anzeigen",
+    ]) {
+      const summary = overview.locator("summary").filter({ hasText: label });
+      const details = summary.locator("..");
+      await expect(details).not.toHaveAttribute("open");
+      await summary.focus();
+      await page.keyboard.press("Enter");
+      await expect(details).toHaveAttribute("open", "");
+      await expect(summary).toBeFocused();
+      await page.keyboard.press("Enter");
+      await expect(details).not.toHaveAttribute("open");
+    }
+    // Same-page history must keep the mounted host and its chart/form state.
+    for (const [label, hash] of [
+      ["Kursverlauf", "#position-price-history"],
+      ["Überblick", "#trade-overview"],
+    ]) {
+      const link = navigation(page).getByRole("link", {
+        name: label,
+        exact: true,
+      });
+      await link.focus();
+      await page.keyboard.press("Enter");
+      await expect(page.locator(hash)).toBeFocused();
+    }
+    await page.goBack();
+    await expect(page.locator("#position-price-history")).toBeFocused();
+    await page.goForward();
+    await expect(overview).toBeFocused();
+    await page.waitForLoadState("networkidle");
+    expect(observed.reads).toEqual(originalReads);
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () => document.documentElement.scrollWidth <= window.innerWidth + 1,
+        ),
+      )
+      .toBe(true);
+    const screenshot = testInfo.outputPath(`ux2-b-overview-${width}.png`);
+    await overview.screenshot({ path: screenshot });
+    await testInfo.attach(`ux2-b-overview-${width}`, {
+      path: screenshot,
+      contentType: "image/png",
+    });
+
+    // A copied URL in a new tab needs no router state from the original tab.
+    const copiedAddress = page.url();
+    const copiedPage = await page.context().newPage();
+    const copied = await fixture(copiedPage, {
+      productValuation: overviewValuation(),
+    });
+    await copiedPage.goto(copiedAddress);
+    await loaded(copiedPage);
+    const copiedOverview = copiedPage.getByRole("region", {
+      name: "Trade und Position",
+      exact: true,
+    });
+    await expect(copiedOverview).toContainText("Produktkurs verfügbar");
+    await expect(copiedOverview).toBeFocused();
+    await copiedPage.reload();
+    await loaded(copiedPage);
+    await expect(copiedOverview).toContainText("Produktkurs verfügbar");
+    await expect(copiedOverview).toBeFocused();
+    expect(
+      copied.reads.filter((url) => url.endsWith("/position")),
+    ).toHaveLength(2);
+    expect(
+      copied.reads.filter((url) => url.endsWith("/product-valuation")),
+    ).toHaveLength(2);
+    expect(copied.writes).toEqual([]);
+    expect(copied.browserErrors).toEqual([]);
+    await copiedPage.close();
+    expect(observed.reads).toEqual(originalReads);
+    expect(observed.writes).toEqual([]);
+    expect(observed.browserErrors).toEqual([]);
+  });
+}
+
+for (const [name, amount, qualified, expected] of [
+  ["missing value", null, true, "—"],
+  ["real zero", "0", true, "0 EUR"],
+  ["unqualified amount despite known currency", "999.00", false, "—"],
+] as const) {
+  test(`UX2-B overview preserves ${name} independently of its current quote`, async ({
+    page,
+  }) => {
+    const observed = await fixture(page, {
+      productValuation: overviewValuation({
+        unrealized_gross_pnl: amount,
+        unrealized_pnl_usable: qualified,
+        unrealized_pnl_reason: qualified
+          ? "COST_BASIS_CURRENCY_MATCHED"
+          : "COST_BASIS_CURRENCY_UNCONFIRMED",
+        analysis_unrealized_gross_pnl: amount,
+        analysis_unrealized_pnl_usable: qualified,
+        analysis_unrealized_pnl_reason: qualified
+          ? "COST_BASIS_CURRENCY_MATCHED"
+          : "COST_BASIS_CURRENCY_UNCONFIRMED",
+      }),
+    });
+    await page.goto(`/trade-management?trade_id=${tradeId}#trade-overview`);
+    await loaded(page);
+    const valuation = page.getByRole("region", {
+      name: "Produktbewertung",
+      exact: true,
+    });
+    const pnl = valuation
+      .getByText("Unrealized gross P&L", { exact: true })
+      .locator("..");
+    await expect(pnl.locator("dd").first()).toHaveText(expected);
+    await expect(valuation.getByText("25 EUR", { exact: true })).toBeVisible();
+    await expect(valuation.getByText("999 EUR", { exact: true })).toHaveCount(
+      0,
+    );
+    expect(
+      observed.reads.filter((url) => url.endsWith("/position")),
+    ).toHaveLength(1);
+    expect(
+      observed.reads.filter((url) => url.endsWith("/product-valuation")),
+    ).toHaveLength(1);
+    expect(observed.writes).toEqual([]);
+    expect(observed.browserErrors).toEqual([]);
+  });
+}
+
+test("UX2-B keeps indicative valuation limits visible before provenance details open", async ({
+  page,
+}) => {
+  const observed = await fixture(page, {
+    productValuation: overviewValuation({
+      status: "STALE",
+      reason: "WARRANT_QUOTE_STALE",
+      valuation_usable: false,
+      market_value: null,
+      unrealized_gross_pnl: null,
+      unrealized_pnl_usable: false,
+      unrealized_pnl_reason: "WARRANT_QUOTE_STALE",
+      analysis_warning: "OUTDATED_QUOTE_INDICATIVE_ANALYSIS_ONLY",
+    }),
+  });
+  await page.goto(`/trade-management?trade_id=${tradeId}#trade-overview`);
+  await loaded(page);
+  const valuation = page.getByRole("region", {
+    name: "Produktbewertung",
+    exact: true,
+  });
+  await expect(
+    valuation.getByText("Produktkurs veraltet", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    valuation.getByText("Kursdaten veraltet – nur indikative Analyse", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(
+    valuation.getByText("Indikativer Wert (letzter Bid)", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    valuation.getByText("Marktwert (Bid)", { exact: true }),
+  ).toHaveCount(0);
+  await expect(valuation.locator("details[open]")).toHaveCount(0);
+  expect(
+    observed.reads.filter((url) => url.endsWith("/product-valuation")),
+  ).toHaveLength(1);
+  expect(observed.writes).toEqual([]);
+  expect(observed.browserErrors).toEqual([]);
+});
+
+for (const width of [320, 390, 1280]) {
   test(`one trade keeps both drafts and read owners through keyboard section changes at ${width}px`, async ({
     page,
   }, testInfo) => {
@@ -1113,6 +1441,44 @@ test("a missing position offers no stale booking context or fabricated holding",
     page.getByRole("region", { name: "Trade und Position" }),
   ).toHaveCount(0);
   expect(new URL(page.url()).searchParams.get("trade_id")).toBe(tradeId);
+  expect(
+    observed.reads.filter((url) => url.endsWith("/position")),
+  ).toHaveLength(1);
+  expect(observed.reads.some((url) => url.endsWith("/product-valuation"))).toBe(
+    false,
+  );
+  expect(observed.writes).toEqual([]);
+  expect(observed.browserErrors).toEqual([]);
+});
+
+test("UX2-B does not read valuation after a failed host position read", async ({
+  page,
+}) => {
+  const observed = await fixture(page, {
+    positionError: true,
+    productValuation: overviewValuation(),
+  });
+  await page.goto(`/trade-management?trade_id=${tradeId}#trade-overview`);
+  await expect(
+    page
+      .getByRole("status")
+      .filter({ hasText: "Synthetic UX2 position is unavailable." }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Laden", exact: true }),
+  ).toBeEnabled();
+  await expect(
+    page.getByRole("region", { name: "Trade und Position", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("region", { name: "Produktbewertung", exact: true }),
+  ).toHaveCount(0);
+  expect(
+    observed.reads.filter((url) => url.endsWith("/position")),
+  ).toHaveLength(1);
+  expect(observed.reads.some((url) => url.endsWith("/product-valuation"))).toBe(
+    false,
+  );
   expect(observed.writes).toEqual([]);
   expect(observed.browserErrors).toEqual([]);
 });
@@ -1140,6 +1506,19 @@ for (const status of ["CLOSED", "CANCELLED"] as const) {
     await expect(
       page.getByRole("button", { name: "Teilverkauf erfassen", exact: true }),
     ).toHaveCount(0);
+    await expect(
+      page.getByRole("region", { name: "Produktbewertung", exact: true }),
+    ).toContainText(
+      status === "CANCELLED"
+        ? "Für einen stornierten Trade wird keine aktuelle Produktbewertung geladen."
+        : "Für eine geschlossene Position wird keine aktuelle Produktbewertung geladen.",
+    );
+    expect(
+      observed.reads.filter((url) => url.endsWith("/position")),
+    ).toHaveLength(1);
+    expect(
+      observed.reads.some((url) => url.endsWith("/product-valuation")),
+    ).toBe(false);
     if (status === "CANCELLED") {
       await expect(
         page.getByRole("region", { name: "Positionskursverlauf" }),
@@ -1267,6 +1646,9 @@ test("the bound approved plan opens in this tab and retains historical trade sou
     ),
   ).toBe(false);
   expect(observed.reads.some((url) => url.includes("/performance/"))).toBe(
+    false,
+  );
+  expect(observed.reads.some((url) => url.endsWith("/product-valuation"))).toBe(
     false,
   );
   expect(observed.writes).toEqual([]);

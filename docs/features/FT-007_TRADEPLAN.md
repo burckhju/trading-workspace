@@ -223,6 +223,52 @@ Felder:
 
 Keine Orderart, Stückzahl, Warrant-Preis oder Brokersemantik.
 
+### Neuer Vorschlag UX1-B: editierbare Planwährung bei Candidate-Erstanlage
+
+**Vertragsvorschlag vom 06.11.2026 für einen eigenen Draft-PR.** Diese Regel
+war im geprüften Main `e4921d6e25b70baddb80d4eaaf61028bb055ad04` noch nicht
+implementiert und wird nicht rückwirkend aus der bisherigen Plansemantik
+abgeleitet. Quellenprüfung, öffentliche Lesegrenze und technische Qualifikation
+stehen im [UX1-B-Nachweis](../implementation/UX1_B_PLAN_CURRENCY_SUGGESTION.md).
+
+Ein neues, vollständig unberührtes Candidate-Planformular darf einmalig die
+unveränderte Währung des vollständigen gespeicherten Underlying-Analysis-Snapshots
+als sichtbaren, vollständig editierbaren Initialvorschlag erhalten. Dafür muss die
+bereits geprüfte konkrete CandidateEvaluation **genau eine** UNDERLYING-Referenz
+enthalten; diese muss ANALYSIS mit genauer ID, Run-Version und vorhandenen
+Modellreferenzen bezeichnen. Mehrere UNDERLYING-Referenzen bleiben mehrdeutig,
+auch wenn nur eine davon ANALYSIS ist. Die tatsächlich gelieferte Run-Antwort muss
+an Analyse, Version, Underlying und Modellreferenzen passen. Alle gespeicherten
+Snapshotzeilen müssen vollständig gelesen sein und denselben nichtleeren, nach
+den bestehenden Verträgen gültigen Währungswert tragen. Kein latest-Ersatz,
+aktuelles Primary-Listing, Produkt, Execution, Mehrheitsentscheid, Normalisieren
+oder Umrechnen ersetzt diesen Nachweis. Historische Pins benötigen keine neue
+Aktualitäts- oder Modellfreigabeprüfung.
+
+Der erste echte Edit **irgendeines** Planinhalts sperrt automatische Übernahmen
+für diese Formularinstanz dauerhaft, einschließlich Bearbeiten und anschließendem
+Leeren. Ein leeres Währungsfeld allein berechtigt nicht zur Übernahme. Der
+Initialvorschlag selbst setzt keinen Dirty-Zustand. Kontextwechsel erhalten die
+bestehenden Dirty-/Busy-Guards und verwerfen alte Erfolge und Fehler zusätzlich
+über Anfrage-/Formulargeneration und Abort, auch bei A→B→A.
+
+Der Quellenread ist optional und getrennt vom erforderlichen Ursprungsread.
+Fehlende, unvollständige, widersprüchliche, falsch gebundene oder nicht lesbare
+Quellen ergeben keinen Vorschlag; bei gültigem Ursprung bleibt die manuelle
+Anlage möglich. Es entstehen weder Pflichtbestätigung noch automatische
+Wiederholung. Solange die Währung unverändert übernommen bleibt, darf ein lokaler
+Hinweis die konkrete Analyseversion nennen. Die erste manuelle Währungsänderung
+beendet diese Behauptung dauerhaft, auch bei späterer Rückkehr zum selben Code.
+Ein gespeicherter Plan zeigt ausschließlich seinen gespeicherten Planwert; dieser
+Schnitt speichert keine neue historische Übernahmeprovenienz.
+
+Abweichende Planwährung, sämtliche Preise und Annahmen, bewusstes Speichern als
+DRAFT und spätere explizite Freigabe bleiben Benutzerentscheidungen. Manueller
+Ursprung, Amendments und gespeicherte Versionen behalten ihre bisherigen Inhalte
+und Wege. FT-005/FT-006 besitzen weiterhin Referenz und immutable Quelle;
+FT-007 besitzt Plansemantik und Freigabe, UX1 Vorbelegung und Entwurfsschutz.
+Die historischen Ausführungswährungsresolver bleiben unverändert.
+
 ## Stop und Invalidation V1
 
 `InvalidationPlan` trennt Preis-Stop und fachliche Invalidierung:

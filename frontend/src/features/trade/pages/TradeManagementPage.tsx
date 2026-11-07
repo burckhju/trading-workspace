@@ -15,7 +15,8 @@ import { postTradeApiClient } from '../../post_trade/services/client';
 import { postTradeErrorMessage } from '../../post_trade/services/errors';
 import { warrantApiClient } from '../../product/services/client';
 import type { WarrantResponse } from '../../product/types/api';
-import { tradeManagementApiClient } from '../services/client';
+import { tradeManagementApiClient, tradeTimelineChangedEvent } from '../services/client';
+import { ProductValuationPanel, type PositionReadState } from '../components/ProductValuationPanel';
 import { PriceBindingInput } from '../components/PriceBindingInput';
 import type { PriceBinding } from '../types/api';
 import { ExecutionDatesPanel } from '../components/ExecutionDatesPanel';
@@ -33,14 +34,6 @@ import {
 } from '../services/executionCurrency';
 import { captureRequest, executionTime, finishCapture, localToday } from '../services/capture';
 import type { PositionResponse, TradeManagementStateResponse, TradeResponse } from '../types/api';
-
-function formatNumber(value: string | null | undefined): string {
-  if (value == null || value.trim() === '' || !Number.isFinite(Number(value)))
-    return 'Nicht verfügbar';
-  return new Intl.NumberFormat('de-DE', {
-    maximumFractionDigits: 10,
-  }).format(Number(value));
-}
 
 function formatDateTime(value: string | null): string {
   return value ? new Date(value).toLocaleString('de-DE') : '—';
@@ -114,6 +107,10 @@ function TradeManagementContext({ tradeId }: { tradeId: string }) {
   const writeLock = useRef(false);
   const readGeneration = useRef(0);
   const readController = useRef<AbortController | null>(null);
+  const [positionRead, setPositionRead] = useState<PositionReadState>({
+    status: 'loading',
+    revision: 0,
+  });
   const [reloadToken, setReloadToken] = useState(0);
   const [historyReloadToken, setHistoryReloadToken] = useState(0);
   const [stopPrice, setStopPrice, stopPriceRef] = useDraft('');
@@ -171,12 +168,22 @@ function TradeManagementContext({ tradeId }: { tradeId: string }) {
 
   useEffect(() => {
     active.current = true;
+    function onTimelineChanged(event: Event) {
+      if ((event as CustomEvent<{ tradeId?: string }>).detail?.tradeId !== tradeId) return;
+      // A confirmed write invalidates even a completed valuation. It does not
+      // prove that the caller's subsequent host readback has succeeded.
+      const revision = ++readGeneration.current;
+      readController.current?.abort();
+      setPositionRead({ status: 'invalidated', revision });
+    }
+    window.addEventListener(tradeTimelineChangedEvent, onTimelineChanged);
     return () => {
       active.current = false;
       readGeneration.current += 1;
       readController.current?.abort();
+      window.removeEventListener(tradeTimelineChangedEvent, onTimelineChanged);
     };
-  }, []);
+  }, [tradeId]);
 
   const refresh = useCallback(
     async (id: string, signal?: AbortSignal) => {
@@ -186,6 +193,7 @@ function TradeManagementContext({ tradeId }: { tradeId: string }) {
       readController.current?.abort();
       const controller = new AbortController();
       readController.current = controller;
+      setPositionRead({ status: 'loading', revision: generation });
       const abort = () => controller.abort();
       signal?.addEventListener('abort', abort, { once: true });
       const assertCurrent = () => {
@@ -216,6 +224,7 @@ function TradeManagementContext({ tradeId }: { tradeId: string }) {
         setWarrant(nextWarrant);
         setPosition(nextPosition);
         setManagement(nextManagement);
+        setPositionRead({ status: 'ready', revision: generation });
         const basis = managementBasis.current;
         // A booking refresh must not reset another form's unfinished management input.
         // Treat price and its binding as one draft so their instrument context stays together.
@@ -247,6 +256,7 @@ function TradeManagementContext({ tradeId }: { tradeId: string }) {
           // A booking readback must not count an aborted/superseded projection
           // as success, even if a newer attempt subsequently fails.
           assertCurrent();
+          setPositionRead({ status: 'error', revision: generation });
           throw error;
         }
       } finally {
@@ -550,35 +560,26 @@ function TradeManagementContext({ tradeId }: { tradeId: string }) {
               {trade.cancelled_at ? 'CANCELLED' : position.is_closed ? 'CLOSED' : 'OPEN'}
             </h3>
           </div>
+          {positionRead.status !== 'ready' && (
+            <p className="mt-4 rounded-lg border border-amber-800 p-3 text-sm text-amber-200">
+              {positionRead.status === 'error'
+                ? 'Position konnte nicht aktualisiert werden.'
+                : positionRead.status === 'invalidated'
+                  ? 'Eine Änderung wurde bestätigt. Der aktualisierte Positionsstand ist noch nicht geprüft.'
+                  : 'Position wird erneut geprüft.'}{' '}
+              Der letzte erfolgreich gelesene Positionsstand bleibt zur Orientierung sichtbar. Die
+              bisherige Produktbewertung wird nicht mehr angezeigt.
+            </p>
+          )}
           <dl className="mt-5 grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
-            <div>
-              <dt className="text-slate-500">Ursprung</dt>
-              <dd className="mt-1 font-medium">
-                {trade.origin === 'WORKSPACE_SELECTION' ? 'Workspace-Produktauswahl' : 'Extern'}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-slate-500">TradePlan</dt>
-              <dd className="mt-1 font-medium">
-                {trade.trade_plan_id ? tradePlanReference(trade.trade_plan_id) : 'Kein TradePlan'}
-              </dd>
-            </div>
             <div>
               <dt className="text-slate-500">Offene Menge</dt>
               <dd className="mt-1 font-medium">
                 {trade.cancelled_at
                   ? 'Storniert – kein Bestand'
-                  : (position.open_quantity ?? 'Nicht verfügbar')}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-slate-500">Nächster Schritt</dt>
-              <dd className="mt-1 font-medium">
-                {trade.cancelled_at
-                  ? 'Stornierung und Historie prüfen'
-                  : position.is_closed
-                    ? 'Nachbeobachtung starten'
-                    : 'Alerts prüfen und Stop/Target aktiv managen'}
+                  : position.open_quantity == null
+                    ? 'Nicht verfügbar'
+                    : `${position.open_quantity.toLocaleString('de-DE')} Stück`}
               </dd>
             </div>
             <div>
@@ -590,6 +591,14 @@ function TradeManagementContext({ tradeId }: { tradeId: string }) {
               </dd>
             </div>
             <div>
+              <dt className="text-slate-500">Letzte Ausführung</dt>
+              <dd className="mt-1 font-medium">
+                {position.last_execution_on
+                  ? `${position.last_execution_on} (Uhrzeit unbekannt)`
+                  : formatDateTime(position.last_execution_at)}
+              </dd>
+            </div>
+            <div>
               <dt className="text-slate-500">Verkaufsdatum / geschlossen</dt>
               <dd className="mt-1 font-medium">
                 {position.closed_on
@@ -597,23 +606,66 @@ function TradeManagementContext({ tradeId }: { tradeId: string }) {
                   : formatDateTime(position.closed_at)}
               </dd>
             </div>
-            <div>
-              <dt className="text-slate-500">Cost Basis</dt>
-              <dd className="mt-1 font-medium">{formatNumber(position.cost_basis)}</dd>
-            </div>
-            <div>
-              <dt className="text-slate-500">Average Entry</dt>
-              <dd className="mt-1 font-medium">{formatNumber(position.average_entry_price)}</dd>
-            </div>
-            <div>
-              <dt className="text-slate-500">Realized gross P&amp;L</dt>
-              <dd className="mt-1 font-medium">{formatNumber(position.realized_gross_pnl)}</dd>
-            </div>
           </dl>
+          <nav
+            aria-label="Mögliche Aktionen im Überblick"
+            className="mt-4 flex flex-wrap gap-3 text-sm"
+          >
+            <Link className="text-sky-400 underline" to={{ search, hash: '#execution-dates' }}>
+              Buchungen prüfen
+            </Link>
+            {!trade.cancelled_at && !position.is_closed && (
+              <>
+                <Link className="text-sky-400 underline" to={{ search, hash: '#sale-capture' }}>
+                  Verkauf erfassen
+                </Link>
+                <Link className="text-sky-400 underline" to={{ search, hash: '#trade-risk' }}>
+                  Risiko und Monitoring prüfen
+                </Link>
+              </>
+            )}
+            {!trade.cancelled_at && position.is_closed && (
+              <Link
+                className="text-sky-400 underline"
+                to={tradeWorkspaceLink('journal', tradeId, searchParams, '#trade-journal')}
+              >
+                Nachbeobachtung und Journal öffnen
+              </Link>
+            )}
+            <Link
+              className="text-sky-400 underline"
+              to={tradeWorkspaceLink('sources', tradeId, searchParams)}
+            >
+              Ergebnis und Belege öffnen
+            </Link>
+          </nav>
+          <p className="mt-4 text-xs text-slate-400">
+            Kostenbasis, durchschnittlicher Einstieg und realisierter Brutto-G/V sind in dieser
+            Ansicht nicht als Geldwerte qualifiziert. Wirtschaftliche Ergebnisse und ihre Belege
+            können Sie in den Quellen prüfen.
+          </p>
+          <div className="-mx-4 mt-5 min-w-0">
+            <ProductValuationPanel
+              tradeId={trade.id}
+              productId={trade.product_id}
+              position={position}
+              cancelled={Boolean(trade.cancelled_at)}
+              positionRead={positionRead}
+            />
+          </div>
           <details className="mt-4 text-xs text-slate-500">
             <summary className="cursor-pointer">Technische Provenance anzeigen</summary>
             <div className="mt-2 space-y-1 break-all">
+              <p>
+                Ursprung:{' '}
+                {trade.origin === 'WORKSPACE_SELECTION' ? 'Workspace-Produktauswahl' : 'Extern'}
+              </p>
+              <p>
+                TradePlan:{' '}
+                {trade.trade_plan_id ? tradePlanReference(trade.trade_plan_id) : 'Kein TradePlan'}
+              </p>
               <p>Trade-ID {trade.id}</p>
+              <p>Positions-ID {position.id}</p>
               <p>Produkt-ID {trade.product_id}</p>
               {trade.trade_plan_id && <p>TradePlan-ID {trade.trade_plan_id}</p>}
               {trade.trade_plan_version_id && (

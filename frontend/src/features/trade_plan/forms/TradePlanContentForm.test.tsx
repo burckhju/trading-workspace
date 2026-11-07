@@ -6,7 +6,11 @@ import type { TradePlanContentRequest, TradePlanVersionResponse } from '../types
 import { createEmptyTradePlanContent, tradePlanContentFromVersion } from './content';
 import { TradePlanContentForm } from './TradePlanContentForm';
 
-function renderContent(initial = createEmptyTradePlanContent(), disabled = false) {
+function renderContent(
+  initial = createEmptyTradePlanContent(),
+  disabled = false,
+  currencyHint?: string,
+) {
   const change = vi.fn<(content: TradePlanContentRequest) => void>();
   function Editor() {
     const [value, setValue] = useState(initial);
@@ -14,6 +18,7 @@ function renderContent(initial = createEmptyTradePlanContent(), disabled = false
       <TradePlanContentForm
         value={value}
         disabled={disabled}
+        currencyHint={currencyHint}
         onChange={(next) => {
           change(next);
           setValue(next);
@@ -26,6 +31,18 @@ function renderContent(initial = createEmptyTradePlanContent(), disabled = false
 }
 
 describe('TradePlanContentForm', () => {
+  it('associates an optional source hint with the editable currency without initializing content', () => {
+    const hint = 'Initialvorschlag aus Analyse analysis-1, Version 3.';
+    const change = renderContent(createEmptyTradePlanContent(), false, hint);
+    const currency = screen.getByLabelText('Währung');
+    expect(currency).toHaveAccessibleDescription(hint);
+    expect(currency).toHaveValue('');
+    expect(change).not.toHaveBeenCalled();
+    fireEvent.change(currency, { target: { value: 'CHF' } });
+    expect(currency).toHaveValue('CHF');
+    expect(change.mock.lastCall?.[0].entry.currency).toBe('CHF');
+  });
+
   it('starts without a hidden currency and captures precise prices, all targets and optional contents', () => {
     const change = renderContent();
     expect(screen.getByLabelText('Währung')).toHaveValue('');

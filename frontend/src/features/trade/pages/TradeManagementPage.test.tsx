@@ -12,6 +12,8 @@ import { TradeManagementPage } from './TradeManagementPage';
 
 // History integration and its readback lifecycle have a dedicated page suite.
 vi.mock('../../operational_workspace', () => ({ PositionPriceHistory: () => null }));
+// The real valuation/host read contract is exercised by TradeManagementOverview.test.tsx.
+vi.mock('../components/ProductValuationPanel', () => ({ ProductValuationPanel: () => null }));
 
 vi.mock('../../alert/components/TradeAlertsPanel', () => ({
   TradeAlertsPanel: ({ tradeId }: { tradeId: string }) => <div>Alerts for {tradeId}</div>,
@@ -211,16 +213,16 @@ describe('TradeManagementPage', () => {
       screen.getByRole('heading', { name: /TR-TRADE-1 · DAX Call 19000/ }),
     ).toBeInTheDocument();
     expect(screen.getByText(/ISIN DE000TEST123 · WKN TEST12/)).toBeInTheDocument();
-    expect(screen.getByText('Workspace-Produktauswahl')).toBeInTheDocument();
-    expect(screen.getByText('TP-PLAN-123')).toBeInTheDocument();
-    expect(screen.getByText('Alerts prüfen und Stop/Target aktiv managen')).toBeInTheDocument();
+    expect(screen.getByText(/Ursprung: Workspace-Produktauswahl/)).toBeInTheDocument();
+    expect(screen.getByText(/TradePlan: TP-PLAN-123/)).toBeInTheDocument();
     const overview = within(screen.getByRole('region', { name: 'Trade und Position' }));
     expect(overview.getAllByText('OPEN')).toHaveLength(1);
     expect(overview.getAllByText('Offene Menge')).toHaveLength(1);
-    expect(overview.getByText('10')).toBeInTheDocument();
-    expect(overview.getByText('Cost Basis')).toBeInTheDocument();
-    expect(overview.getByText('Average Entry')).toBeInTheDocument();
-    expect(overview.getByText('Realized gross P&L')).toBeInTheDocument();
+    expect(overview.getByText('10 Stück')).toBeInTheDocument();
+    // O1: raw projection amounts have no sufficient monetary qualification.
+    expect(overview.queryByText('Cost Basis')).not.toBeInTheDocument();
+    expect(overview.queryByText('Average Entry')).not.toBeInTheDocument();
+    expect(overview.queryByText('Realized gross P&L')).not.toBeInTheDocument();
     expect(screen.queryByText('10 offen')).not.toBeInTheDocument();
     expect(screen.getByDisplayValue('1.80')).toBeInTheDocument();
     expect(screen.getByDisplayValue('2.80')).toBeInTheDocument();
@@ -277,7 +279,8 @@ describe('TradeManagementPage', () => {
     );
 
     expect(await screen.findByRole('heading', { name: 'CLOSED' })).toBeInTheDocument();
-    expect(screen.getAllByText('Nachbeobachtung starten')).toHaveLength(2);
+    // CLOSED leaves the existing explicit action available without declaring it mandatory.
+    expect(screen.getAllByText('Nachbeobachtung starten')).toHaveLength(1);
     expect(
       screen.getByText(
         'Die Position ist geschlossen. Weitere Verkäufe können nicht erfasst werden.',
@@ -418,7 +421,7 @@ describe('TradeManagementPage', () => {
     await waitFor(() => expect(postTradeApi.startObservation).toHaveBeenCalledWith('trade-1'));
   });
 
-  it('preserves date-only precision and does not turn unavailable projection amounts into zero', async () => {
+  it('preserves date-only precision and genuine zero quantity without presenting unqualified projection amounts', async () => {
     api.position.mockResolvedValue({
       ...position,
       opened_on: '2026-08-17',
@@ -439,8 +442,10 @@ describe('TradeManagementPage', () => {
     const overview = within(screen.getByRole('region', { name: 'Trade und Position' }));
     expect(overview.getByText('2026-08-17 (Uhrzeit unbekannt)')).toBeInTheDocument();
     expect(overview.getByText('2026-08-18 (Uhrzeit unbekannt)')).toBeInTheDocument();
-    expect(overview.getAllByText('Nicht verfügbar')).toHaveLength(3);
-    expect(overview.getAllByText('0')).toHaveLength(1);
+    expect(overview.queryByText('Cost Basis')).not.toBeInTheDocument();
+    expect(overview.queryByText('Average Entry')).not.toBeInTheDocument();
+    expect(overview.queryByText('Realized gross P&L')).not.toBeInTheDocument();
+    expect(overview.getAllByText('0 Stück')).toHaveLength(1);
   });
 
   it.each([
@@ -560,12 +565,10 @@ describe('TradeManagementPage', () => {
       expect(screen.getAllByRole('region', { name: 'Trade und Position' })).toHaveLength(1);
       const overview = within(screen.getByRole('region', { name: 'Trade und Position' }));
       const projected = (label: string) => overview.getByText(label).nextElementSibling;
-      expect(projected('Offene Menge')?.textContent).toBe(String(nextPosition.open_quantity));
-      expect(projected('Cost Basis')?.textContent).toBe(nextPosition.is_closed ? '0' : '4');
-      expect(projected('Average Entry')?.textContent).toBe(nextPosition.is_closed ? '0' : '2');
-      expect(projected('Realized gross P&L')).toHaveTextContent(
-        nextPosition.is_closed ? '5' : '10',
-      );
+      expect(projected('Offene Menge')?.textContent).toBe(`${nextPosition.open_quantity} Stück`);
+      expect(overview.queryByText('Cost Basis')).not.toBeInTheDocument();
+      expect(overview.queryByText('Average Entry')).not.toBeInTheDocument();
+      expect(overview.queryByText('Realized gross P&L')).not.toBeInTheDocument();
       expect(
         overview.getByRole('heading', { name: nextPosition.is_closed ? 'CLOSED' : 'OPEN' }),
       ).toBeInTheDocument();
