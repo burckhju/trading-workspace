@@ -65,7 +65,11 @@ it('loads stored coverage only on request and preserves original time and quote 
   expect(screen.getByText(/Emittentenindikation · EUR/)).toBeInTheDocument();
   expect(screen.getByText(/Brief: nicht vorhanden/)).toBeInTheDocument();
   expect(screen.getByText(/Abrufhinweis: VONTOBEL_QUOTE_TIMEOUT/)).toBeInTheDocument();
-  expect(screen.getByText(/Kurszeit:.*14.9.2026/)).toBeInTheDocument();
+  expect(screen.getByText(/^Kurszeit:/)).toHaveTextContent(/Kurszeit:.*14.9.2026/);
+  expect(screen.getByText(/^Kurszeit:/).querySelector('time')).toHaveAttribute(
+    'datetime',
+    '2026-09-14T10:00:00Z',
+  );
   expect(screen.getByText(/keine Orderfreigabe/)).toBeInTheDocument();
   expect(request).toHaveBeenCalledTimes(1);
   expect(request.mock.calls[0][0]).toContain('/market-data/warrants/quote-coverage');
@@ -135,7 +139,7 @@ it('keeps references with unknown observation time distinct from bid and retriev
   fireEvent.click(screen.getByText('Kurswege (1)'));
   expect(screen.getByText(/Referenz.*0.77 EUR · nur indikativ/)).toBeInTheDocument();
   expect(screen.getByText(/Kurszeit: Unbekannt/)).toBeInTheDocument();
-  expect(screen.queryByText(/^Geld:/)).not.toBeInTheDocument();
+  expect(screen.getByText('Geld: nicht vorhanden')).toBeInTheDocument();
   expect(screen.queryByText(/Invalid Date/)).not.toBeInTheDocument();
 });
 
@@ -249,7 +253,7 @@ it('keeps a fresh retained quote with a failed provider in the gap filter despit
   expect(
     screen.getByText('Gespeicherter Ersatzkurs · aktueller Providererfolg nicht bestätigt.'),
   ).toBeVisible();
-  expect(screen.getByText(/Kurszeit:.*14.9.2026/)).toBeVisible();
+  expect(screen.getByText(/^Kurszeit:/)).toHaveTextContent(/Kurszeit:.*14.9.2026/);
 });
 
 it('does not invent a substitute quote for a failed provider without stored prices', async () => {
@@ -288,4 +292,160 @@ it('does not label a locally deferred refresh as a failed provider attempt', asy
     screen.getByText('Gespeicherter Ersatzkurs · aktueller Providererfolg nicht bestätigt.'),
   ).toBeVisible();
   expect(screen.queryByText(/fehlgeschlagen/)).not.toBeInTheDocument();
+});
+
+it('separates product population, source identity, time basis and supplied freshness values', async () => {
+  request.mockResolvedValue({
+    ...report,
+    assessment_scope: 'STORED_OBSERVATIONS_NOT_LIVE_VALUATION',
+    execution_usable: false,
+    items: [
+      {
+        ...item,
+        routes: [
+          {
+            ...route,
+            mapping_id: 'mapping-exact-version',
+            provider_identity: 'historical-provider-identity',
+            quote_time_text: '14.09.2026 10:00 (Zone nicht geliefert)',
+            quote_time_basis: 'SOURCE_LOCAL_TIMEZONE_UNKNOWN',
+            observed_at: null,
+            age_seconds: null,
+            max_quote_age_seconds: 3600,
+          },
+        ],
+      },
+    ],
+  });
+  render(<QuoteCoveragePanel />);
+  fireEvent.click(screen.getByRole('button'));
+  await screen.findByText('Synthetic old bid');
+  expect(screen.getByText(/1 gehaltene Optionsscheine/)).toBeVisible();
+  expect(
+    screen.getByText(/Die gelieferte Liste zählt Produkte, keine Positionen oder Kurse/),
+  ).toBeVisible();
+  expect(screen.getByText('STORED_OBSERVATIONS_NOT_LIVE_VALUATION')).toBeVisible();
+  expect(screen.getByText('false', { exact: true })).toBeVisible();
+  fireEvent.click(screen.getByText('Kurswege (1)'));
+  expect(screen.getByRole('heading', { name: 'Quellenidentität und Verfügbarkeit' })).toBeVisible();
+  expect(screen.getByText('mapping-exact-version')).toBeVisible();
+  expect(screen.getByText('historical-provider-identity')).toBeVisible();
+  expect(screen.getByText('listing', { exact: true })).toBeVisible();
+  expect(screen.getByText('XSTU', { exact: true })).toBeVisible();
+  expect(screen.getByText('Kurszeit: Unbekannt')).toBeVisible();
+  expect(
+    screen.getByText('Originalzeittext: 14.09.2026 10:00 (Zone nicht geliefert)'),
+  ).toBeVisible();
+  expect(screen.getByText('Zeitbasis der Quelle: SOURCE_LOCAL_TIMEZONE_UNKNOWN')).toBeVisible();
+  expect(screen.getByText('Kursalter am Prüfstand: Unbekannt')).toBeVisible();
+  expect(screen.getByText('Altersgrenze laut Quelle: 3600 Sekunden')).toBeVisible();
+  expect(screen.getByText(/^Zuletzt abgerufen:/)).toHaveTextContent(/14.9.2026.*UTC/);
+  expect(screen.queryByText(/100 %|0 %|Qualitätsquote/)).not.toBeInTheDocument();
+});
+
+it('shows each missing price kind while keeping exact zero and ask-only evidence', async () => {
+  request.mockResolvedValue({
+    ...report,
+    items: [
+      {
+        ...item,
+        routes: [
+          {
+            ...route,
+            bid: null,
+            ask: '0.00',
+            age_seconds: 0,
+            feed_delay_seconds: 0,
+            max_quote_age_seconds: 0,
+            refresh_error: null,
+          },
+        ],
+      },
+    ],
+  });
+  render(<QuoteCoveragePanel />);
+  fireEvent.click(screen.getByRole('button'));
+  await screen.findByText('Synthetic old bid');
+  fireEvent.click(screen.getByText('Kurswege (1)'));
+  expect(screen.getByText('Geld: nicht vorhanden')).toBeVisible();
+  expect(screen.getByText('Brief: 0.00 EUR')).toBeVisible();
+  expect(screen.getByText('Referenz (Preisart nicht belegt): nicht vorhanden')).toBeVisible();
+  expect(screen.getByText('Kursalter am Prüfstand: 0 Sekunden')).toBeVisible();
+  expect(screen.getByText('Altersgrenze laut Quelle: 0 Sekunden')).toBeVisible();
+  expect(screen.getByText('Quellenverzögerung: 0 Sekunden')).toBeVisible();
+  expect(screen.getByText('Zeitbasis der Quelle: Nicht geliefert')).toBeVisible();
+  expect(screen.getByText('Keine gespeicherte Mapping-ID geliefert')).toBeVisible();
+  expect(screen.getByText(/Scope-Feld nicht geliefert/)).toBeVisible();
+});
+
+it('keeps an unavailable source and unknown owner codes independent of a fresh alternative', async () => {
+  request.mockResolvedValue({
+    ...report,
+    items: [
+      {
+        ...item,
+        coverage: 'BID_WITHIN_AGE_BUDGET',
+        routes: [
+          { ...route, refresh_error: null, observation_status: 'BID_WITHIN_AGE_BUDGET' },
+          {
+            ...route,
+            provider: 'GETTEX_DELAYED',
+            configured: false,
+            listing_id: 'different-listing',
+            provider_identity: null,
+            mapping_status: null,
+            route_reason: 'FUTURE_ROUTE_REASON',
+            observation_status: 'FUTURE_OBSERVATION_STATUS',
+            bid: null,
+            ask: null,
+            refresh_error: null,
+            observed_at: '2026-09-14T10:00:00',
+          },
+        ],
+      },
+    ],
+  });
+  render(<QuoteCoveragePanel />);
+  fireEvent.click(screen.getByRole('button'));
+  await screen.findByText('Synthetic old bid');
+  fireEvent.click(screen.getByText('Quellenkonfiguration des Prüfstands'));
+  expect(screen.getByText('GETTEX_DELAYED: nicht konfiguriert')).toBeVisible();
+  fireEvent.click(screen.getByText('Kurswege (2)'));
+  expect(screen.getByText('Provider nicht konfiguriert')).toBeVisible();
+  expect(screen.getByText('Routennachweis: FUTURE_ROUTE_REASON')).toBeVisible();
+  expect(screen.getByText('Beobachtungsstatus: FUTURE_OBSERVATION_STATUS')).toBeVisible();
+  expect(screen.getByText('Keine gespeicherte Providerzuordnung belegt')).toBeVisible();
+  expect(
+    screen.getByText('Kurszeit: 2026-09-14T10:00:00 (kein belegter Zeitpunkt mit Zeitzone)'),
+  ).toBeVisible();
+  expect(
+    screen.queryByText(/ISIN-direkt|Provider wieder erreichbar|gesund/),
+  ).not.toBeInTheDocument();
+  expect(request).toHaveBeenCalledTimes(1);
+});
+
+it('provides table semantics and a labelled keyboard scroll area without reads on inspection', async () => {
+  request.mockResolvedValue(report);
+  render(<QuoteCoveragePanel />);
+  fireEvent.click(screen.getByRole('button'));
+  await screen.findByText('Synthetic old bid');
+  const region = screen.getByRole('region', {
+    name: 'Kursabdeckung je Produkt, horizontal scrollbar',
+  });
+  expect(region).toHaveAttribute('tabindex', '0');
+  const table = within(region).getByRole('table', {
+    name: 'Kursabdeckung und Quellen gehaltener Optionsscheine',
+  });
+  expect(within(table).getAllByRole('columnheader')).toHaveLength(3);
+  expect(within(table).getByRole('rowheader')).toHaveAttribute('scope', 'row');
+  expect(screen.getByRole('status')).not.toContainElement(table);
+  fireEvent.focus(region);
+  fireEvent.click(screen.getByText('Quellenkonfiguration des Prüfstands'));
+  fireEvent.click(screen.getByText('Kurswege (1)'));
+  fireEvent.click(screen.getByText('Diagnose', { exact: true }));
+  fireEvent.change(screen.getByLabelText('Kursquellen nach Emittent'), {
+    target: { value: 'VONT FINL.' },
+  });
+  fireEvent.click(screen.getByLabelText('Nur Prüfbedarf'));
+  expect(request).toHaveBeenCalledTimes(1);
 });

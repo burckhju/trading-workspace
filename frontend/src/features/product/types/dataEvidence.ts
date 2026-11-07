@@ -31,6 +31,12 @@ export interface QuoteHistoryReport {
   window_end: string;
   collection_started_at: string | null;
   item_limit: number;
+  // Existing backend fields are optional for older stored-history responses.
+  sampling_policy?: string | null;
+  time_coverage_percent?: null;
+  iv_history_available?: boolean | null;
+  underlying_synchronization_available?: boolean | null;
+  execution_usable?: boolean | null;
   segments: Array<{
     provider: string;
     identity_key: string;
@@ -53,6 +59,7 @@ export interface QuoteHistoryReport {
     reason: string | null;
     retrieved_at: string | null;
     cache_status: string | null;
+    quote_fingerprint?: string | null;
     quote: {
       bid: string | null;
       ask: string | null;
@@ -61,6 +68,12 @@ export interface QuoteHistoryReport {
       observed_at: string | null;
       currency: string;
       source_mode: string | null;
+      warrant_listing_id?: string | null;
+      provider_symbol?: string | null;
+      provider_exchange_code?: string | null;
+      venue_mic?: string | null;
+      quote_time_text?: string | null;
+      quote_time_basis?: string | null;
     } | null;
   }>;
 }
