@@ -286,7 +286,9 @@ it('keeps an empty reviewed set distinct from entirely unresolved facts and from
   expect(screen.getByTestId('realized-gross-total')).toHaveTextContent('Nicht berechenbar');
   expect(screen.queryByTestId('realized-gross-subtotal')).not.toBeInTheDocument();
   expect(
-    screen.getByText(/Ausführungswährung für Verkauf oder Kostenbasis nicht vollständig belegt/),
+    within(screen.getByRole('article', { name: 'Verkauf unknown' })).getByText(
+      /Ausführungswährung für Verkauf oder Kostenbasis nicht vollständig belegt/,
+    ),
   ).toBeVisible();
   fireEvent.click(screen.getByRole('button', { name: 'Quellen und Berechnung' }));
   const unknownDetail = within(screen.getByRole('region', { name: 'Herkunft SELL unknown' }));
@@ -478,12 +480,15 @@ it('never exposes a date-only sort anchor as execution time and retains ambiguou
   chooseSeptember();
   read();
   await screen.findByTestId('realized-gross-total');
-  expect(screen.getByText('2026-09-01 · Uhrzeit unbekannt · Asia/Tokyo')).toBeVisible();
+  const ambiguous = within(screen.getByRole('article', { name: 'Verkauf ambiguous' }));
+  expect(ambiguous.getByText('2026-09-01 · Uhrzeit unbekannt · Asia/Tokyo')).toBeVisible();
   expect(screen.queryByText(/2026-08-31T15:00:00Z/)).not.toBeInTheDocument();
   expect(
-    screen.getByText(/Periodenzugehörigkeit wegen der Datums- \/ Zeitzonenpräzision mehrdeutig/),
+    ambiguous.getByText(/Periodenzugehörigkeit wegen der Datums- \/ Zeitzonenpräzision mehrdeutig/),
   ).toBeVisible();
-  expect(screen.getByText(/Unterschiedliche Währungen in Verkauf und Kostenbasis/)).toBeVisible();
+  expect(
+    ambiguous.getByText(/Unterschiedliche Währungen in Verkauf und Kostenbasis/),
+  ).toBeVisible();
 });
 
 it('invalidates visible results immediately and ignores older success and failure responses after filter changes', async () => {
@@ -755,8 +760,9 @@ it('shows excluded currencies and cancelled trades without treating them as retu
   await screen.findByTestId('realized-gross-total');
   expect(screen.queryByRole('article', { name: 'Verkauf other-currency' })).not.toBeInTheDocument();
   fireEvent.change(screen.getByLabelText('Zeilen anzeigen'), { target: { value: 'excluded' } });
-  expect(screen.getByText('Nicht in der Summe')).toBeVisible();
-  expect(screen.getByText(/Belegte Ausführungswährung außerhalb/)).toBeVisible();
+  const excludedCard = within(screen.getByRole('article', { name: 'Verkauf other-currency' }));
+  expect(excludedCard.getByText('Nicht in der Summe')).toBeVisible();
+  expect(excludedCard.getByText(/Belegte Ausführungswährung außerhalb/)).toBeVisible();
   expect(screen.getByTestId('realized-gross-total')).toHaveTextContent('10,00 EUR');
   expectTradeReturnLink(
     screen.getByRole('link', { name: 'Stornierter Testtrade · Trade prüfen' }),
