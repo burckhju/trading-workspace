@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { marketApiClient } from '../../market/services/client';
@@ -124,4 +124,49 @@ describe('BulkImportPage', () => {
       expect(importClient.resolve).toHaveBeenCalledWith('job-1', 'row-1', 'u1', 'w1'),
     );
   });
+
+  it.each([
+    'Die Upload-Anfrage überschreitet das Größenlimit (HTTP 413). Bitte eine kleinere PDF-Auswahl treffen und den Import erneut starten.',
+    'Keine verlässliche Antwort auf den PDF-Import erhalten (HTTP 504). Der Importstand ist unklar. Bitte vor einem erneuten Upload den Importstand prüfen.',
+  ])(
+    'shows an upload failure while preserving selection and avoiding other commands: %s',
+    async (message) => {
+      let rejectUpload: (failure: Error) => void = () => {};
+      importClient.upload.mockImplementationOnce(
+        () =>
+          new Promise((_resolve, reject) => {
+            rejectUpload = reject;
+          }),
+      );
+      const files = Array.from(
+        { length: 103 },
+        (_, index) =>
+          new File(['synthetic pdf'], `issue-${index}.pdf`, { type: 'application/pdf' }),
+      );
+      const { rerender } = render(<BulkImportPage />);
+      const input = screen.getByLabelText<HTMLInputElement>('Hebeltrader PDFs');
+      fireEvent.change(input, { target: { files } });
+      fireEvent.click(screen.getByRole('button', { name: '103 PDFs importieren' }));
+
+      expect(screen.getByRole('button', { name: 'Verarbeite …' })).toBeDisabled();
+      expect(importClient.upload).toHaveBeenCalledExactlyOnceWith(files);
+      await act(async () => {
+        rejectUpload(new Error(message));
+        await Promise.resolve();
+      });
+
+      expect(await screen.findByText(message)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: '103 PDFs importieren' })).toBeEnabled();
+      expect(Array.from(input.files ?? [])).toEqual(files);
+      rerender(<BulkImportPage />);
+      expect(importClient.upload).toHaveBeenCalledOnce();
+      expect(importClient.getJob).not.toHaveBeenCalled();
+      expect(importClient.reviewRows).not.toHaveBeenCalled();
+      expect(importClient.confirm).not.toHaveBeenCalled();
+      expect(importClient.resolve).not.toHaveBeenCalled();
+      expect(importClient.discard).not.toHaveBeenCalled();
+      expect(screen.queryByText('Import-Job')).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Import bestätigen' })).not.toBeInTheDocument();
+    },
+  );
 });
