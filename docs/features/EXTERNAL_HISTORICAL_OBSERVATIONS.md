@@ -29,6 +29,41 @@ Import historical third-party trade proposals as `ExternalObservation` evidence 
 - file-level errors preserve filename and a machine-readable failure reason;
 - processing order does not affect deterministic WKN identity resolution.
 
+## Upload transport and failure handling
+
+The packaged frontend proxy gives only `/api/api/v1/learning/bulk-imports/`
+an explicit **256 MiB request-body budget** and a **300-second upstream read
+timeout**. The body budget includes all files and multipart framing; the timeout
+applies between upstream reads, not to the total duration of a streaming response.
+These are bounded deployment settings for the existing synchronous import, not
+a new file-count rule or a guarantee that every archive finishes within that time.
+The general API proxy keeps its existing limits. Both initial upload and the
+existing job-bound file endpoint retain their original backend routes and headers.
+
+Without this import-specific configuration, Nginx's default 1 MiB body limit can
+reject a multi-file request before it reaches the import API. Its HTML error page
+is not a JSON import response. See the official
+[body-limit](https://nginx.org/en/docs/http/ngx_http_core_module.html#client_max_body_size)
+and [read-timeout](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_read_timeout)
+contracts.
+
+The upload client preserves structured API `message`/`detail` errors and presents
+controlled HTTP/transport errors when a gateway returns HTML or an unreadable
+response. HTTP 413 identifies the upload-size rejection and asks for a smaller
+selection. Gateway failures, a lost connection or an invalid successful response
+leave the import outcome **unknown**: the job and individual files may already
+have been committed. They must not be described as proof that nothing was saved.
+No automatic resend, splitting into new jobs or confirmation is introduced.
+Only a structurally valid job response is passed to the existing review flow.
+
+Regression coverage includes one multipart request containing 103 files, HTML
+and malformed response handling, and real requests through the packaged proxy.
+The proxy probes deliberately omit the required upload field or use a job first
+verified as absent, so they reach backend validation without creating import
+records. They establish transport and route preservation, not a successful
+business import of 103 real PDFs or a measured maximum processing time. A separate
+probe preserves the default body limit on other API paths.
+
 ## Relevant data from Hebeltrader PDFs
 Representative 2026 samples expose stable labels for issue date/number, underlying name and WKN, derivative type and WKN, indicated derivative price and timestamp, targets/stops, strike, omega/leverage and maturity. They also expose underlying price, underlying targets/stops, GD50/GD200 and risk/potential figures. Article prose and charts remain source context and are not interpreted as model changes.
 

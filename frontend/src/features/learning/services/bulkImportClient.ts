@@ -36,12 +36,61 @@ export type BulkImportConfirmResult = {
   accepted_observation_version_ids: string[];
 };
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isNullableString(value: unknown): value is string | null {
+  return value === null || typeof value === 'string';
+}
+
+function isBulkImportFile(value: unknown): value is BulkImportFile {
+  return (
+    isRecord(value) &&
+    typeof value.id === 'string' &&
+    typeof value.filename === 'string' &&
+    typeof value.status === 'string' &&
+    isNullableString(value.duplicate_of_file_id) &&
+    isNullableString(value.failure_code) &&
+    isNullableString(value.failure_detail)
+  );
+}
+
+function isBulkImportJob(value: unknown): value is BulkImportJob {
+  return (
+    isRecord(value) &&
+    typeof value.job_id === 'string' &&
+    value.job_id.trim().length > 0 &&
+    typeof value.status === 'string' &&
+    typeof value.files_total === 'number' &&
+    isRecord(value.files_by_status) &&
+    Object.values(value.files_by_status).every((count) => typeof count === 'number') &&
+    Array.isArray(value.files) &&
+    value.files.every(isBulkImportFile)
+  );
+}
+
+function unknownImportMessage(status?: number): string {
+  const httpStatus = status === undefined ? '' : ` (HTTP ${status})`;
+  return `Keine verlässliche Antwort auf den PDF-Import erhalten${httpStatus}. Der Importstand ist unklar. Bitte vor einem erneuten Upload den Importstand prüfen.`;
+}
+
 function errorMessage(payload: unknown, status: number): string {
-  if (typeof payload === 'object' && payload !== null) {
-    if ('message' in payload && typeof payload.message === 'string') return payload.message;
-    if ('detail' in payload && typeof payload.detail === 'string') return payload.detail;
+  let apiMessage: string | undefined;
+  if (isRecord(payload)) {
+    if (typeof payload.message === 'string') apiMessage = payload.message;
+    else if (typeof payload.detail === 'string') apiMessage = payload.detail;
   }
-  return `Upload fehlgeschlagen (HTTP ${status}).`;
+  if (status === 413) {
+    const sizeMessage =
+      'Die Upload-Anfrage überschreitet das Größenlimit (HTTP 413). Bitte eine kleinere PDF-Auswahl treffen und den Import erneut starten.';
+    return apiMessage === undefined ? sizeMessage : `${apiMessage} ${sizeMessage}`;
+  }
+  if (status >= 500) {
+    const unknownMessage = unknownImportMessage(status);
+    return apiMessage === undefined ? unknownMessage : `${apiMessage} ${unknownMessage}`;
+  }
+  return apiMessage ?? `Upload fehlgeschlagen (HTTP ${status}).`;
 }
 
 async function uploadFiles(files: File[]): Promise<BulkImportJob> {
@@ -50,16 +99,41 @@ async function uploadFiles(files: File[]): Promise<BulkImportJob> {
     formData.append('files', file);
   }
 
-  const response = await fetch(`${bulkImportUrl}/hebeltrader`, {
-    method: 'POST',
-    headers: { Accept: 'application/json' },
-    body: formData,
-  });
-  const payload = (await response.json()) as unknown;
+  let response: Response;
+  try {
+    response = await fetch(`${bulkImportUrl}/hebeltrader`, {
+      method: 'POST',
+      headers: { Accept: 'application/json' },
+      body: formData,
+    });
+  } catch {
+    throw new Error(unknownImportMessage());
+  }
+
+  let body: string;
+  try {
+    body = await response.text();
+  } catch {
+    throw new Error(
+      response.ok
+        ? unknownImportMessage(response.status)
+        : errorMessage(undefined, response.status),
+    );
+  }
+  let payload: unknown;
+  try {
+    payload = JSON.parse(body) as unknown;
+  } catch {
+    // Gateways can return HTML or an empty body; the HTTP status remains evidence.
+    payload = undefined;
+  }
   if (!response.ok) {
     throw new Error(errorMessage(payload, response.status));
   }
-  return payload as BulkImportJob;
+  if (!isBulkImportJob(payload)) {
+    throw new Error(unknownImportMessage(response.status));
+  }
+  return payload;
 }
 
 export const bulkImportClient = {
