@@ -431,7 +431,25 @@ def test_changed_inventory_aborts_before_writing(recovery_database: str, change:
     async def exercise() -> None:
         async with _client(recovery_database) as (client, database):
             inventory = await _seed(client)
+            cancellation_target = None
+            if change == "cancellation":
+                # The reference trade contains SELLs and cannot be cancelled.
+                # Put a genuinely cancellable, open pure BUY into the approved
+                # inventory before changing its owner state.
+                response = await client.post(
+                    BASE + "/purchases/external",
+                    json={"product_id": inventory.product_id} | _payload(10, "1.00", "2026-10-05"),
+                )
+                assert response.status_code == 201, response.text
+                cancellation_target = recovery.RecoveryTarget(
+                    execution_id=UUID(response.json()["execution"]["id"]),
+                    trade_id=UUID(response.json()["trade"]["id"]),
+                    product_id=UUID(inventory.product_id),
+                )
             plan = await _plan(client, inventory)
+            if cancellation_target is not None:
+                plan = plan.model_copy(update={"targets": (*plan.targets, cancellation_target)})
+                assert (await _inspect(database.engine, plan))["status"] == "READY"
             if change == "source":
                 response = await client.post(
                     evidence_url(inventory.product_id), json=historical(await venue(client))
@@ -454,7 +472,8 @@ def test_changed_inventory_aborts_before_writing(recovery_database: str, change:
                     "2026-08-05",
                 )
             elif change == "cancellation":
-                await _cancel(client, inventory.product_id, inventory.trade_id)
+                assert cancellation_target is not None
+                await _cancel(client, inventory.product_id, str(cancellation_target.trade_id))
             else:
                 plan = plan.model_copy(update={"expected_basis": "0" * 64})
             before = await _state(database.engine)
