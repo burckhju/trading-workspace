@@ -32,6 +32,12 @@ from app.features.market_data.persistence.models import (
 from app.features.market_data.service.instrument_identity import MarketDataInstrumentIdentityService
 from app.providers.eodhd.client import EodhdClient
 from app.providers.eodhd.dto import EodhdDailyPriceDto, EodhdSearchResultDto
+from app.providers.eodhd.index_catalog import (
+    EODHD_INDEX_CATALOG_PATH,
+    EODHD_INDEX_EXCHANGE,
+    EodhdIndexCatalogEntry,
+    exact_index_catalog_match,
+)
 from app.providers.shared.budget import DailyCallBudget
 from app.providers.shared.rate_limit import TokenBucketRateLimiter
 from app.providers.shared.retry import RetryPolicy
@@ -133,22 +139,32 @@ class ReferenceMarketDataService:
     ) -> ProviderInstrumentMappingModel:
         await self._require_active_reference(workspace_id, market_reference_id)
         mapping = await self._require_mapping(workspace_id, market_reference_id)
-        match = await self._exact_search_match(mapping)
+        match = await self._exact_reference_match(mapping)
         currency = (match.currency or "").strip().upper() if match is not None else ""
+        index_catalog = mapping.provider_exchange_code.upper() == EODHD_INDEX_EXCHANGE
         now = datetime.now(UTC)
         mapping.validated_at = now
         mapping.updated_at = now
         mapping.version += 1
         if match is None:
             mapping.status = MappingStatus.INVALID
-            mapping.validation_message = "EODHD did not return an exact symbol and exchange match"
+            mapping.validation_message = (
+                "EODHD INDX catalog did not return an exact symbol and exchange match"
+                if index_catalog
+                else "EODHD did not return an exact symbol and exchange match"
+            )
         elif not currency:
             mapping.status = MappingStatus.INVALID
-            mapping.validation_message = "EODHD exact match did not provide a currency"
+            mapping.validation_message = (
+                "EODHD INDX catalog exact match did not provide a currency"
+                if index_catalog
+                else "EODHD exact match did not provide a currency"
+            )
         else:
             mapping.status = MappingStatus.ACTIVE
+            source = "EODHD INDX catalog" if index_catalog else "EODHD Search API"
             mapping.validation_message = (
-                "Technically validated against EODHD Search API; " f"currency={currency}"
+                f"Technically validated against {source}; currency={currency}"
             )
         await self._session.commit()
         return mapping
@@ -171,7 +187,7 @@ class ReferenceMarketDataService:
         if instrument_id is None or mapping.listing_id is not None:
             raise ValueError("provider mapping is not MarketReference-owned")
 
-        match = await self._exact_search_match(mapping)
+        match = await self._exact_reference_match(mapping)
         currency = (match.currency or "").strip().upper() if match is not None else ""
         if not currency:
             raise ValueError("provider currency could not be resolved from the validated mapping")
@@ -303,6 +319,21 @@ class ReferenceMarketDataService:
         if mapping is None or mapping.listing_id is not None:
             raise ValueError("EODHD provider mapping was not found for market reference")
         return mapping
+
+    async def _exact_reference_match(
+        self, mapping: ProviderInstrumentMappingModel
+    ) -> EodhdIndexCatalogEntry | EodhdSearchResultDto | None:
+        if mapping.provider_exchange_code.upper() != EODHD_INDEX_EXCHANGE:
+            return await self._exact_search_match(mapping)
+        payload = await self._provider_call(
+            capability=MarketDataCapability.INSTRUMENT_MAPPING_VALIDATION,
+            operation=lambda: self._client.get_json(
+                EODHD_INDEX_CATALOG_PATH,
+                capability=MarketDataCapability.INSTRUMENT_MAPPING_VALIDATION,
+                params={"symbols": mapping.provider_symbol},
+            ),
+        )
+        return exact_index_catalog_match(payload, symbol=mapping.provider_symbol)
 
     async def _exact_search_match(
         self, mapping: ProviderInstrumentMappingModel
