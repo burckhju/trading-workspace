@@ -36,6 +36,8 @@ async def test_actions_keep_exact_names_for_alerts_delivery_open_and_closed_trad
         local = [r for r in rows if r[0].workspace_id == depot.workspace]
         assert len(local) == 3
         expected = {}
+        alert_ids = {}
+        failed_notification_ids = set()
         for index, (trade, position, warrant) in enumerate(rows):
             name = f"SYNTHETIC Optionsschein {index} <A&B>"
             await session.execute(
@@ -53,6 +55,7 @@ async def test_actions_keep_exact_names_for_alerts_delivery_open_and_closed_trad
                 )
             )
             alert_id = uuid4()
+            alert_ids[trade.id] = alert_id
             await session.execute(
                 insert(AlertModel).values(
                     id=alert_id,
@@ -69,9 +72,10 @@ async def test_actions_keep_exact_names_for_alerts_delivery_open_and_closed_trad
                     status="OPEN",
                 )
             )
+            notification_id = uuid4()
             await session.execute(
                 insert(NotificationModel).values(
-                    id=uuid4(),
+                    id=notification_id,
                     alert_id=alert_id,
                     channel="TELEGRAM",
                     destination_key="synthetic",
@@ -82,6 +86,7 @@ async def test_actions_keep_exact_names_for_alerts_delivery_open_and_closed_trad
             )
             if trade.workspace_id == depot.workspace:
                 expected[warrant.id] = (name, f"DE000SYN00{index}0", f"SYN00{index}")
+                failed_notification_ids.add(notification_id)
         await session.flush()
         statements = []
 
@@ -95,9 +100,22 @@ async def test_actions_keep_exact_names_for_alerts_delivery_open_and_closed_trad
             )
         finally:
             event.remove(depot.connection.sync_connection, "before_cursor_execute", capture)
-        assert (
-            len(actions) == 9
-        )  # Three alerts + three terminal failures + two open + one post-trade.
+        # Two current alerts + all three terminal failures + two open + one post-trade.
+        assert len(actions) == 8
+        assert {a.resource_id for a in actions if a.action_type == "POSITION_ALERT"} == {
+            alert_ids[trade.id]
+            for trade, position, _ in local
+            if position.open_quantity > 0 and position.closed_at is None
+        }
+        assert {
+            a.resource_id for a in actions if a.action_type == "NOTIFICATION_DELIVERY_FAILURE"
+        } == failed_notification_ids
+        closed_trade = next(trade for trade, position, _ in local if position.open_quantity == 0)
+        closed_alert = await session.get(AlertModel, alert_ids[closed_trade.id])
+        assert closed_alert is not None
+        assert closed_alert.status == "OPEN"
+        assert closed_alert.reason == "SYNTHETIC Stop reached"
+        assert closed_alert.detected_at == now
         assert {a.action_type for a in actions} == {
             "POSITION_ALERT",
             "NOTIFICATION_DELIVERY_FAILURE",

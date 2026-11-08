@@ -181,9 +181,16 @@ class OperationalWorkspaceReadModel:
             await self._session.execute(
                 select(AlertModel, TradeModel.product_id)
                 .join(TradeModel, TradeModel.id == AlertModel.trade_id)
+                .join(
+                    PositionModel,
+                    (PositionModel.id == AlertModel.position_id)
+                    & (PositionModel.trade_id == TradeModel.id),
+                )
                 .where(
                     TradeModel.workspace_id == workspace_id,
                     TradeModel.cancelled_at.is_(None),
+                    PositionModel.open_quantity > 0,
+                    PositionModel.closed_at.is_(None),
                     AlertModel.status == AlertStatus.OPEN.value,
                 )
                 .order_by(AlertModel.detected_at, AlertModel.id)
