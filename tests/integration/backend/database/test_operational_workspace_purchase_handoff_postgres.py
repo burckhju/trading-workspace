@@ -1,4 +1,4 @@
-"""PostgreSQL regression for ProductSelection -> BUY -> Operational Workspace handoff."""
+"""PostgreSQL regression for purchase handoff and alert relevance through real sales."""
 
 from __future__ import annotations
 
@@ -7,12 +7,15 @@ import os
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from unittest.mock import AsyncMock
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
+from app.features.alert.domain.models import AlertStatus
+from app.features.alert.persistence.models import AlertModel
+from app.features.alert.persistence.read_repository import SqlAlchemyAlertReadRepository
 from app.features.market.domain.enums import UnderlyingType
 from app.features.market_data.persistence.position_quote_source import (
     PositionQuoteSourceSelectionRepository,
@@ -65,9 +68,9 @@ async def test_purchase_consumes_current_selection_and_never_reopens_initial_buy
     current_selection_id = uuid4()
     actor = uuid4()
     recording_started_at = datetime.now(UTC)
-    # Both executions already happened; recorded_at must remain the real capture time.
-    # A future SELL is invalid, rather than a reason to fabricate its recording time.
-    now = recording_started_at - timedelta(minutes=2)
+    # Executions and alerts are historical; recorded_at remains the real capture time.
+    # An old, unreviewed breach must still be actionable while its position is open.
+    now = recording_started_at - timedelta(days=31)
 
     async with engine.connect() as connection:
         outer_transaction = await connection.begin()
@@ -339,6 +342,63 @@ async def test_purchase_consumes_current_selection_and_never_reopens_initial_buy
                     "OPEN_POSITION_MANAGEMENT"
                 ]
 
+                def stop_alert(
+                    trade_id: UUID,
+                    position_id: UUID,
+                    status: AlertStatus = AlertStatus.OPEN,
+                ) -> AlertModel:
+                    detected_at = now + timedelta(seconds=10)
+                    return AlertModel(
+                        id=uuid4(),
+                        trade_id=trade_id,
+                        position_id=position_id,
+                        alert_type="STOP_REACHED",
+                        severity="WARNING",
+                        rule_key="CURRENT_STOP",
+                        reason="observed_value=1.90 <= threshold=2.00",
+                        observed_value=Decimal("1.90"),
+                        threshold_value=Decimal("2.00"),
+                        market_data_observed_at=detected_at,
+                        detected_at=detected_at,
+                        status=status.value,
+                        resolved_at=(detected_at if status is AlertStatus.RESOLVED else None),
+                        invalidated_at=(detected_at if status is AlertStatus.INVALIDATED else None),
+                        invalidation_reason=(
+                            "LEGACY_RULE_PRICE_BASIS_UNCONFIRMED"
+                            if status is AlertStatus.INVALIDATED
+                            else None
+                        ),
+                        price_context=(
+                            None
+                            if status is AlertStatus.INVALIDATED
+                            else {
+                                "basis": "WARRANT",
+                                "instrument_id": str(warrant_id),
+                                "currency": currency_code,
+                                "price_type": "BID",
+                            }
+                        ),
+                    )
+
+                alerts = {
+                    status: stop_alert(trade.id, position.id, status) for status in AlertStatus
+                }
+                session.add_all(alerts.values())
+                await session.flush()
+                alert_reader = SqlAlchemyAlertReadRepository(session)
+                original_history = {
+                    item.id: item for item in await alert_reader.list_for_trade(trade.id)
+                }
+                assert {item.status for item in original_history.values()} == set(AlertStatus)
+                old_open_alert_id = alerts[AlertStatus.OPEN].id
+                assert original_history[old_open_alert_id].detected_at < (
+                    recording_started_at - timedelta(days=30)
+                )
+                assert [
+                    action.resource_id for action in await workspace._alert_actions(workspace_id)
+                ] == [old_open_alert_id]
+                assert await workspace._alert_actions(uuid4()) == []
+
                 # A partial sale keeps the purchase progress open.
                 await service.record_sale(
                     workspace_id=workspace_id,
@@ -351,6 +411,9 @@ async def test_purchase_consumes_current_selection_and_never_reopens_initial_buy
                 (partial,) = await overview_router.list_trade_plans(session=session)
                 assert partial.execution.status == "OPEN"
                 assert partial.execution.trades[0].open_quantity == 6
+                assert [
+                    action.resource_id for action in await workspace._alert_actions(workspace_id)
+                ] == [old_open_alert_id]
 
                 sale, closed = await service.record_sale(
                     workspace_id=workspace_id,
@@ -370,6 +433,11 @@ async def test_purchase_consumes_current_selection_and_never_reopens_initial_buy
 
                 after_close = await workspace._initial_purchase_actions(workspace_id)
                 assert after_close == []
+                assert await workspace._alert_actions(workspace_id) == []
+                session.expire_all()
+                assert {
+                    item.id: item for item in await alert_reader.list_for_trade(trade.id)
+                } == original_history
                 # A new plan version must not inherit the previous version's selection.
                 new_version_id = uuid4()
                 await session.execute(
@@ -398,7 +466,7 @@ async def test_purchase_consumes_current_selection_and_never_reopens_initial_buy
                 )
 
                 # Explicit older-version provenance is retained for a later purchase too.
-                second, _, _ = await service.record_initial_purchase(
+                second, _, second_position = await service.record_initial_purchase(
                     workspace_id=workspace_id,
                     product_selection_id=old_selection_id,
                     quantity=3,
@@ -406,6 +474,17 @@ async def test_purchase_consumes_current_selection_and_never_reopens_initial_buy
                     executed_at=now,
                     actor=actor,
                 )
+                # Another open position in the same product cannot revive the old breach.
+                assert second.product_id == trade.product_id
+                assert second_position.id != position.id
+                assert await workspace._alert_actions(workspace_id) == []
+                second_alert = stop_alert(second.id, second_position.id)
+                second_alert_id = second_alert.id
+                session.add(second_alert)
+                await session.flush()
+                assert [
+                    action.resource_id for action in await workspace._alert_actions(workspace_id)
+                ] == [second_alert_id]
                 cancellation = TradeCancellationService(session)
                 preview = await cancellation.preview(workspace_id, second.id)
                 assert preview["can_cancel"]
@@ -421,6 +500,14 @@ async def test_purchase_consumes_current_selection_and_never_reopens_initial_buy
                 assert cancelled.execution.status == "CLOSED"
                 assert {t.status for t in cancelled.execution.trades} == {"CLOSED", "CANCELLED"}
                 assert cancelled.execution.current_version_status == "NOT_STARTED"
+                assert await workspace._alert_actions(workspace_id) == []
+                session.expire_all()
+                (cancelled_alert,) = await alert_reader.list_for_trade(second.id)
+                assert cancelled_alert.id == second_alert_id
+                assert cancelled_alert.status is AlertStatus.RESOLVED
+                assert {
+                    item.id: item for item in await alert_reader.list_for_trade(trade.id)
+                } == original_history
 
                 # The exact workspace boundary must not leak even when plan ids are supplied.
                 isolated = await read_execution_overviews(

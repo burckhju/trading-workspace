@@ -85,7 +85,30 @@ Ziel: `/trade-management?trade_id=<id>`
 
 ### Position Monitoring und Alerts
 
-Bestehende offene Position-Alerts werden als konkrete Trade-Management-Actions projiziert. Der Workspace erzeugt oder quittiert keine Alerts.
+Bestehende offene Position-Alerts werden als konkrete Trade-Management-Actions
+projiziert, wenn die exakt referenzierte Position zum selben Trade gehört,
+eine positive Restmenge besitzt und nicht geschlossen ist. Der Trade muss zum
+angefragten Workspace gehören und darf nicht storniert sein. Dieselben
+Positionskriterien gelten bereits für die Management-Actions und den
+Positionsbestand.
+
+Nach einem vollständigen Verkauf entfällt deshalb beim nächsten Workspace-Read
+die aktuelle Positions-Action, auch wenn der Alert-Owner das frühere Ereignis
+weiterhin als `OPEN` speichert. Ein Teilverkauf mit Restbestand beendet die
+Action nicht. Ein späterer neuer Trade desselben Produkts macht die alten
+Alerts nicht wieder zu aktuellen Aufgaben.
+
+Der Workspace erzeugt, quittiert oder beendet keine Alerts. Status, Originalzeit,
+Regelbezug, Kursbeleg und Notification-Verlauf bleiben unverändert in der
+Alert-Historie des Trades lesbar. Es gibt weder eine Altersgrenze noch eine
+Ableitung „erledigt“ aus einem aktuell angezeigten Kurs. Die vorhandene
+Monitoringlogik entscheidet weiterhin über `RESOLVED` und `INVALIDATED`; ein
+fehlender oder veralteter Kurs ist kein Beleg für eine fachliche Entwarnung.
+
+Der PostgreSQL-Handofftest
+`tests/integration/backend/database/test_operational_workspace_purchase_handoff_postgres.py`
+prüft die Projektion über tatsächlichen Kauf, Teilverkauf und Vollabschluss
+sowie den Erhalt der Alert-Historie.
 
 Ziel: `/trade-management?trade_id=<id>`
 
