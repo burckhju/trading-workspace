@@ -98,6 +98,12 @@ keine Migration aus und ändert keine Provider-Einstellungen. Fehlende Container
 oder abweichende Zustände erfordern eine gezielte Reparatur. Normale Hintergrund-
 aufgaben laufen nach dem Start gemäß der bereits gespeicherten Konfiguration.
 
+Für den eng begrenzten Wechsel von ausgeschaltetem EODHD zu einem aktiven Provider
+mit bereits vorhandenem Schlüssel gibt es einen separaten
+[EODHD-Aktivierungsweg](EODHD_ACTIVATION.md). Er erstellt einen neuen geprüften
+Zustand bei gleicher Programmversion und berücksichtigt ausdrücklich die bereits
+eingerichtete Kurs-, Positions- und Telegramautomatik.
+
 Die drei Entwicklungsskripte `check-backend.sh`, `check-frontend.sh` und
 `run-e2e.sh` sind für den täglichen Programmstart nicht erforderlich.
 
