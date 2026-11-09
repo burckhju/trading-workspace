@@ -23,6 +23,7 @@ function show(url = '/market-charts?end=2026-10-04') {
   );
 }
 beforeEach(() => {
+  window.localStorage.clear();
   vi.mocked(chartClient.catalog).mockResolvedValue(chartCatalog());
   vi.mocked(chartClient.series).mockImplementation((keys) =>
     Promise.resolve(

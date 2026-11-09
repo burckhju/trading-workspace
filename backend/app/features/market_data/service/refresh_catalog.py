@@ -1,12 +1,14 @@
 """Read active workspace instruments without inferring product identity from symbols."""
 
 from dataclasses import dataclass
-from uuid import UUID
+from uuid import UUID, uuid5
 
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import DatabaseManager
 from app.features.market.domain.enums import LifecycleStatus
+from app.features.market.persistence.chart_watchlist import ChartWatchlistMemberModel
 from app.features.market.persistence.models import (
     CurrencyModel,
     IssuerModel,
@@ -14,8 +16,13 @@ from app.features.market.persistence.models import (
     TradingVenueModel,
     UnderlyingModel,
 )
+from app.features.market.persistence.top_down_models import MarketReferenceModel
 from app.features.market_data.domain.enums import MappingStatus, MarketDataProvider
-from app.features.market_data.persistence.models import WarrantProviderMappingModel
+from app.features.market_data.persistence.instruments import MarketDataInstrumentModel
+from app.features.market_data.persistence.models import (
+    ProviderInstrumentMappingModel,
+    WarrantProviderMappingModel,
+)
 from app.features.product.domain.models import WarrantLifecycle
 from app.features.product.persistence.models import WarrantListingModel, WarrantModel
 from app.features.trade_position.persistence.models import PositionModel, TradeModel
@@ -29,6 +36,8 @@ class RefreshInstrument:
     issuer: str | None = None
     listing_id: UUID | None = None
     held: bool = False
+    reference_id: UUID | None = None
+    setup_code: str | None = None
 
 
 ISSUER_PROVIDERS = frozenset({MarketDataProvider.JPMORGAN, MarketDataProvider.MORGAN_STANLEY})
@@ -128,15 +137,80 @@ async def read_catalog(
                 .order_by(held_underlying.desc(), UnderlyingModel.id, ListingModel.id)
             )
         ).all()
+        chart_items = await _read_chart_items(session, workspace_id)
         return (
             [
                 RefreshInstrument(w.id, w.display_name, w.isin, issuer.legal_name, held=held)
                 for w, issuer, held in warrants
             ],
-            [
+            chart_items
+            + [
                 RefreshInstrument(
                     u.id, u.name, u.isin, listing_id=listing.id if listing else None, held=held
                 )
                 for u, listing, held in underlyings
             ],
         )
+
+
+async def _read_chart_items(session: AsyncSession, workspace_id: UUID) -> list[RefreshInstrument]:
+    """Resume only explicit chart activation; never discover arbitrary index mappings."""
+    pending = list(
+        await session.scalars(
+            select(ChartWatchlistMemberModel)
+            .where(
+                ChartWatchlistMemberModel.workspace_id == workspace_id,
+                ChartWatchlistMemberModel.setup_completed_at.is_(None),
+            )
+            .order_by(ChartWatchlistMemberModel.ordinal)
+        )
+    )
+    references = list(
+        await session.scalars(
+            select(MarketReferenceModel)
+            .join(
+                ChartWatchlistMemberModel,
+                ChartWatchlistMemberModel.market_reference_id == MarketReferenceModel.id,
+            )
+            .join(
+                MarketDataInstrumentModel,
+                MarketDataInstrumentModel.market_reference_id == MarketReferenceModel.id,
+            )
+            .join(
+                ProviderInstrumentMappingModel,
+                ProviderInstrumentMappingModel.market_data_instrument_id
+                == MarketDataInstrumentModel.id,
+            )
+            .where(
+                ChartWatchlistMemberModel.workspace_id == workspace_id,
+                ChartWatchlistMemberModel.setup_completed_at.is_not(None),
+                MarketReferenceModel.workspace_id == workspace_id,
+                MarketReferenceModel.active.is_(True),
+                MarketDataInstrumentModel.workspace_id == workspace_id,
+                MarketDataInstrumentModel.kind == "MARKET_REFERENCE",
+                MarketDataInstrumentModel.listing_id.is_(None),
+                ProviderInstrumentMappingModel.workspace_id == workspace_id,
+                ProviderInstrumentMappingModel.provider == MarketDataProvider.EODHD,
+                ProviderInstrumentMappingModel.status == MappingStatus.ACTIVE,
+                ProviderInstrumentMappingModel.validated_at.is_not(None),
+                ProviderInstrumentMappingModel.listing_id.is_(None),
+                ChartWatchlistMemberModel.verified_mapping_id == ProviderInstrumentMappingModel.id,
+                ChartWatchlistMemberModel.verified_mapping_version
+                == ProviderInstrumentMappingModel.version,
+                ChartWatchlistMemberModel.verified_provider_symbol
+                == ProviderInstrumentMappingModel.provider_symbol,
+                ChartWatchlistMemberModel.verified_provider_exchange_code
+                == ProviderInstrumentMappingModel.provider_exchange_code,
+            )
+            .order_by(MarketReferenceModel.id)
+        )
+    )
+    return [
+        RefreshInstrument(
+            uuid5(workspace_id, f"chart-setup:{member.code}"),
+            str(member.definition["name"]),
+            member.definition.get("isin"),
+            setup_code=member.code,
+        )
+        for member in pending
+    ] + [RefreshInstrument(ref.id, ref.name, None, reference_id=ref.id) for ref in references]

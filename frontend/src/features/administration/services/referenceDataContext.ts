@@ -130,8 +130,9 @@ function chartReturnTo(params: URLSearchParams, context: ReferenceDataContext): 
   const result = new URLSearchParams();
   if (supplied) {
     const source = new URLSearchParams(supplied);
-    for (const name of ['underlying', 'period', 'end', 'field']) {
+    for (const name of ['underlying', 'period', 'end', 'field', 'view']) {
       const value = uniqueParameter(source, name);
+      if (name === 'view' && !['overview', 'detail'].includes(value)) continue;
       if (value) result.set(name, value);
     }
     for (const target of source.getAll('target')) result.append('target', target);
@@ -464,8 +465,9 @@ export function withChartSetupContext(setupUrl: string, chartParams: URLSearchPa
   if (pathname !== '/chart-setup') return setupUrl;
   const params = new URLSearchParams(query);
   const chart = new URLSearchParams();
-  for (const name of ['underlying', 'period', 'end', 'field']) {
+  for (const name of ['underlying', 'period', 'end', 'field', 'view']) {
     const value = uniqueParameter(chartParams, name);
+    if (name === 'view' && !['overview', 'detail'].includes(value)) continue;
     if (value) chart.set(name, value);
   }
   for (const target of chartParams.getAll('target')) chart.append('target', target);

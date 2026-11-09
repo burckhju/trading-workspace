@@ -1,0 +1,1104 @@
+{
+  "schema_version": 1,
+  "catalog_version": "GLOBAL_MARKETS_ETF_V1_20261109",
+  "name": "Globale Marktübersicht: 30 US-gelistete ETFs",
+  "reviewed_on": "2026-11-09",
+  "selection_basis": "Neutrale Analyseabdeckung: 11 US-Sektoren, 10 breite und regionale Aktienmärkte, 9 Anleihebausteine. Keine Rangliste, Gewichtung oder Kaufempfehlung. Der direkte S&P-500-Index ist ein separater MarketReference-Eintrag.",
+  "evidence_scope": "Öffentliche statische Identitäts- und Listingbelege. Keine EODHD-Kennungen, Providerberechtigungen, aktive Mappings, gespeicherte Historie oder Kursfrische werden behauptet. USD bezeichnet die gewählten US-Listings; andere Listings derselben ISIN bleiben getrennt.",
+  "items": [
+    {
+      "position": 1,
+      "code": "ETF_US_XLE",
+      "kind": "ETF",
+      "name": "State Street Energy Select Sector SPDR ETF",
+      "group": "US-Sektoren",
+      "coverage": "Energie",
+      "isin": "US81369Y5069",
+      "ticker": "XLE",
+      "mic": "ARCX",
+      "exchange_name": "NYSE Arca",
+      "country_code": "US",
+      "timezone": "America/New_York",
+      "currency": "USD",
+      "source_url": "https://www.ssga.com/us/en/institutional/etfs/state-street-energy-select-sector-spdr-etf-xle",
+      "venue_source_url": "https://www.iso20022.org/sites/default/files/ISO10383_MIC/ISO10383_MIC.pdf",
+      "reviewed_on": "2026-11-09",
+      "sources": [
+        {
+          "role": "issuer_identity",
+          "url": "https://www.ssga.com/us/en/institutional/etfs/state-street-energy-select-sector-spdr-etf-xle"
+        },
+        {
+          "role": "mic_registry",
+          "url": "https://www.iso20022.org/sites/default/files/ISO10383_MIC/ISO10383_MIC.pdf"
+        },
+        {
+          "role": "exchange_timezone",
+          "url": "https://www.nyse.com/trade/hours-calendars?os=vb"
+        }
+      ],
+      "provider_coverage": "NOT_VERIFIED"
+    },
+    {
+      "position": 2,
+      "code": "ETF_US_XLB",
+      "kind": "ETF",
+      "name": "State Street Materials Select Sector SPDR ETF",
+      "group": "US-Sektoren",
+      "coverage": "Grundstoffe",
+      "isin": "US81369Y1001",
+      "ticker": "XLB",
+      "mic": "ARCX",
+      "exchange_name": "NYSE Arca",
+      "country_code": "US",
+      "timezone": "America/New_York",
+      "currency": "USD",
+      "source_url": "https://www.ssga.com/us/en/individual/etfs/state-street-materials-select-sector-spdr-etf-xlb",
+      "venue_source_url": "https://www.iso20022.org/sites/default/files/ISO10383_MIC/ISO10383_MIC.pdf",
+      "reviewed_on": "2026-11-09",
+      "sources": [
+        {
+          "role": "issuer_identity",
+          "url": "https://www.ssga.com/us/en/individual/etfs/state-street-materials-select-sector-spdr-etf-xlb"
+        },
+        {
+          "role": "mic_registry",
+          "url": "https://www.iso20022.org/sites/default/files/ISO10383_MIC/ISO10383_MIC.pdf"
+        },
+        {
+          "role": "exchange_timezone",
+          "url": "https://www.nyse.com/trade/hours-calendars?os=vb"
+        }
+      ],
+      "provider_coverage": "NOT_VERIFIED"
+    },
+    {
+      "position": 3,
+      "code": "ETF_US_XLI",
+      "kind": "ETF",
+      "name": "State Street Industrial Select Sector SPDR ETF",
+      "group": "US-Sektoren",
+      "coverage": "Industrie",
+      "isin": "US81369Y7040",
+      "ticker": "XLI",
+      "mic": "ARCX",
+      "exchange_name": "NYSE Arca",
+      "country_code": "US",
+      "timezone": "America/New_York",
+      "currency": "USD",
+      "source_url": "https://www.ssga.com/us/en/institutional/etfs/state-street-industrial-select-sector-spdr-etf-xli",
+      "venue_source_url": "https://www.iso20022.org/sites/default/files/ISO10383_MIC/ISO10383_MIC.pdf",
+      "reviewed_on": "2026-11-09",
+      "sources": [
+        {
+          "role": "issuer_identity",
+          "url": "https://www.ssga.com/us/en/institutional/etfs/state-street-industrial-select-sector-spdr-etf-xli"
+        },
+        {
+          "role": "mic_registry",
+          "url": "https://www.iso20022.org/sites/default/files/ISO10383_MIC/ISO10383_MIC.pdf"
+        },
+        {
+          "role": "exchange_timezone",
+          "url": "https://www.nyse.com/trade/hours-calendars?os=vb"
+        }
+      ],
+      "provider_coverage": "NOT_VERIFIED"
+    },
+    {
+      "position": 4,
+      "code": "ETF_US_XLY",
+      "kind": "ETF",
+      "name": "State Street Consumer Discretionary Select Sector SPDR ETF",
+      "group": "US-Sektoren",
+      "coverage": "Zyklischer Konsum",
+      "isin": "US81369Y4070",
+      "ticker": "XLY",
+      "mic": "ARCX",
+      "exchange_name": "NYSE Arca",
+      "country_code": "US",
+      "timezone": "America/New_York",
+      "currency": "USD",
+      "source_url": "https://www.ssga.com/us/en/intermediary/etfs/state-street-consumer-discretionary-select-sector-spdr-etf-xly",
+      "venue_source_url": "https://www.iso20022.org/sites/default/files/ISO10383_MIC/ISO10383_MIC.pdf",
+      "reviewed_on": "2026-11-09",
+      "sources": [
+        {
+          "role": "issuer_identity",
+          "url": "https://www.ssga.com/us/en/intermediary/etfs/state-street-consumer-discretionary-select-sector-spdr-etf-xly"
+        },
+        {
+          "role": "mic_registry",
+          "url": "https://www.iso20022.org/sites/default/files/ISO10383_MIC/ISO10383_MIC.pdf"
+        },
+        {
+          "role": "exchange_timezone",
+          "url": "https://www.nyse.com/trade/hours-calendars?os=vb"
+        }
+      ],
+      "provider_coverage": "NOT_VERIFIED"
+    },
+    {
+      "position": 5,
+      "code": "ETF_US_XLP",
+      "kind": "ETF",
+      "name": "State Street Consumer Staples Select Sector SPDR ETF",
+      "group": "US-Sektoren",
+      "coverage": "Basiskonsum",
+      "isin": "US81369Y3080",
+      "ticker": "XLP",
+      "mic": "ARCX",
+      "exchange_name": "NYSE Arca",
+      "country_code": "US",
+      "timezone": "America/New_York",
+      "currency": "USD",
+      "source_url": "https://www.ssga.com/us/en/intermediary/etfs/state-street-consumer-staples-select-sector-spdr-etf-xlp",
+      "venue_source_url": "https://www.iso20022.org/sites/default/files/ISO10383_MIC/ISO10383_MIC.pdf",
+      "reviewed_on": "2026-11-09",
+      "sources": [
+        {
+          "role": "issuer_identity",
+          "url": "https://www.ssga.com/us/en/intermediary/etfs/state-street-consumer-staples-select-sector-spdr-etf-xlp"
+        },
+        {
+          "role": "mic_registry",
+          "url": "https://www.iso20022.org/sites/default/files/ISO10383_MIC/ISO10383_MIC.pdf"
+        },
+        {
+          "role": "exchange_timezone",
+          "url": "https://www.nyse.com/trade/hours-calendars?os=vb"
+        }
+      ],
+      "provider_coverage": "NOT_VERIFIED"
+    },
+    {
+      "position": 6,
+      "code": "ETF_US_XLV",
+      "kind": "ETF",
+      "name": "State Street Health Care Select Sector SPDR ETF",
+      "group": "US-Sektoren",
+      "coverage": "Gesundheit",
+      "isin": "US81369Y2090",
+      "ticker": "XLV",
+      "mic": "ARCX",
+      "exchange_name": "NYSE Arca",
+      "country_code": "US",
+      "timezone": "America/New_York",
+      "currency": "USD",
+      "source_url": "https://www.ssga.com/us/en/intermediary/etfs/state-street-health-care-select-sector-spdr-etf-xlv",
+      "venue_source_url": "https://www.iso20022.org/sites/default/files/ISO10383_MIC/ISO10383_MIC.pdf",
+      "reviewed_on": "2026-11-09",
+      "sources": [
+        {
+          "role": "issuer_identity",
+          "url": "https://www.ssga.com/us/en/intermediary/etfs/state-street-health-care-select-sector-spdr-etf-xlv"
+        },
+        {
+          "role": "mic_registry",
+          "url": "https://www.iso20022.org/sites/default/files/ISO10383_MIC/ISO10383_MIC.pdf"
+        },
+        {
+          "role": "exchange_timezone",
+          "url": "https://www.nyse.com/trade/hours-calendars?os=vb"
+        }
+      ],
+      "provider_coverage": "NOT_VERIFIED"
+    },
+    {
+      "position": 7,
+      "code": "ETF_US_XLF",
+      "kind": "ETF",
+      "name": "State Street Financial Select Sector SPDR ETF",
+      "group": "US-Sektoren",
+      "coverage": "Finanzen",
+      "isin": "US81369Y6059",
+      "ticker": "XLF",
+      "mic": "ARCX",
+      "exchange_name": "NYSE Arca",
+      "country_code": "US",
+      "timezone": "America/New_York",
+      "currency": "USD",
+      "source_url": "https://www.ssga.com/us/en/intermediary/etfs/state-street-financial-select-sector-spdr-etf-xlf",
+      "venue_source_url": "https://www.iso20022.org/sites/default/files/ISO10383_MIC/ISO10383_MIC.pdf",
+      "reviewed_on": "2026-11-09",
+      "sources": [
+        {
+          "role": "issuer_identity",
+          "url": "https://www.ssga.com/us/en/intermediary/etfs/state-street-financial-select-sector-spdr-etf-xlf"
+        },
+        {
+          "role": "mic_registry",
+          "url": "https://www.iso20022.org/sites/default/files/ISO10383_MIC/ISO10383_MIC.pdf"
+        },
+        {
+          "role": "exchange_timezone",
+          "url": "https://www.nyse.com/trade/hours-calendars?os=vb"
+        }
+      ],
+      "provider_coverage": "NOT_VERIFIED"
+    },
+    {
+      "position": 8,
+      "code": "ETF_US_XLK",
+      "kind": "ETF",
+      "name": "State Street Technology Select Sector SPDR ETF",
+      "group": "US-Sektoren",
+      "coverage": "Informationstechnologie",
+      "isin": "US81369Y8030",
+      "ticker": "XLK",
+      "mic": "ARCX",
+      "exchange_name": "NYSE Arca",
+      "country_code": "US",
+      "timezone": "America/New_York",
+      "currency": "USD",
+      "source_url": "https://www.ssga.com/us/en/intermediary/etfs/state-street-technology-select-sector-spdr-etf-xlk",
+      "venue_source_url": "https://www.iso20022.org/sites/default/files/ISO10383_MIC/ISO10383_MIC.pdf",
+      "reviewed_on": "2026-11-09",
+      "sources": [
+        {
+          "role": "issuer_identity",
+          "url": "https://www.ssga.com/us/en/intermediary/etfs/state-street-technology-select-sector-spdr-etf-xlk"
+        },
+        {
+          "role": "mic_registry",
+          "url": "https://www.iso20022.org/sites/default/files/ISO10383_MIC/ISO10383_MIC.pdf"
+        },
+        {
+          "role": "exchange_timezone",
+          "url": "https://www.nyse.com/trade/hours-calendars?os=vb"
+        }
+      ],
+      "provider_coverage": "NOT_VERIFIED"
+    },
+    {
+      "position": 9,
+      "code": "ETF_US_XLC",
+      "kind": "ETF",
+      "name": "State Street Communication Services Select Sector SPDR ETF",
+      "group": "US-Sektoren",
+      "coverage": "Kommunikation",
+      "isin": "US81369Y8527",
+      "ticker": "XLC",
+      "mic": "ARCX",
+      "exchange_name": "NYSE Arca",
+      "country_code": "US",
+      "timezone": "America/New_York",
+      "currency": "USD",
+      "source_url": "https://www.ssga.com/us/en/institutional/etfs/state-street-communication-services-select-sector-spdr-etf-xlc",
+      "venue_source_url": "https://www.iso20022.org/sites/default/files/ISO10383_MIC/ISO10383_MIC.pdf",
+      "reviewed_on": "2026-11-09",
+      "sources": [
+        {
+          "role": "issuer_identity",
+          "url": "https://www.ssga.com/us/en/institutional/etfs/state-street-communication-services-select-sector-spdr-etf-xlc"
+        },
+        {
+          "role": "mic_registry",
+          "url": "https://www.iso20022.org/sites/default/files/ISO10383_MIC/ISO10383_MIC.pdf"
+        },
+        {
+          "role": "exchange_timezone",
+          "url": "https://www.nyse.com/trade/hours-calendars?os=vb"
+        }
+      ],
+      "provider_coverage": "NOT_VERIFIED"
+    },
+    {
+      "position": 10,
+      "code": "ETF_US_XLU",
+      "kind": "ETF",
+      "name": "State Street Utilities Select Sector SPDR ETF",
+      "group": "US-Sektoren",
+      "coverage": "Versorger",
+      "isin": "US81369Y8865",
+      "ticker": "XLU",
+      "mic": "ARCX",
+      "exchange_name": "NYSE Arca",
+      "country_code": "US",
+      "timezone": "America/New_York",
+      "currency": "USD",
+      "source_url": "https://www.ssga.com/us/en/institutional/etfs/state-street-utilities-select-sector-spdr-etf-xlu",
+      "venue_source_url": "https://www.iso20022.org/sites/default/files/ISO10383_MIC/ISO10383_MIC.pdf",
+      "reviewed_on": "2026-11-09",
+      "sources": [
+        {
+          "role": "issuer_identity",
+          "url": "https://www.ssga.com/us/en/institutional/etfs/state-street-utilities-select-sector-spdr-etf-xlu"
+        },
+        {
+          "role": "mic_registry",
+          "url": "https://www.iso20022.org/sites/default/files/ISO10383_MIC/ISO10383_MIC.pdf"
+        },
+        {
+          "role": "exchange_timezone",
+          "url": "https://www.nyse.com/trade/hours-calendars?os=vb"
+        }
+      ],
+      "provider_coverage": "NOT_VERIFIED"
+    },
+    {
+      "position": 11,
+      "code": "ETF_US_XLRE",
+      "kind": "ETF",
+      "name": "State Street Real Estate Select Sector SPDR ETF",
+      "group": "US-Sektoren",
+      "coverage": "Immobilien",
+      "isin": "US81369Y8600",
+      "ticker": "XLRE",
+      "mic": "ARCX",
+      "exchange_name": "NYSE Arca",
+      "country_code": "US",
+      "timezone": "America/New_York",
+      "currency": "USD",
+      "source_url": "https://www.ssga.com/us/en/intermediary/etfs/state-street-real-estate-select-sector-spdr-etf-xlre",
+      "venue_source_url": "https://www.iso20022.org/sites/default/files/ISO10383_MIC/ISO10383_MIC.pdf",
+      "reviewed_on": "2026-11-09",
+      "sources": [
+        {
+          "role": "issuer_identity",
+          "url": "https://www.ssga.com/us/en/intermediary/etfs/state-street-real-estate-select-sector-spdr-etf-xlre"
+        },
+        {
+          "role": "mic_registry",
+          "url": "https://www.iso20022.org/sites/default/files/ISO10383_MIC/ISO10383_MIC.pdf"
+        },
+        {
+          "role": "exchange_timezone",
+          "url": "https://www.nyse.com/trade/hours-calendars?os=vb"
+        }
+      ],
+      "provider_coverage": "NOT_VERIFIED"
+    },
+    {
+      "position": 12,
+      "code": "ETF_US_VT",
+      "kind": "ETF",
+      "name": "Vanguard Total World Stock ETF",
+      "group": "Aktienmärkte und Regionen",
+      "coverage": "Weltweiter Aktienmarkt",
+      "isin": "US9220427424",
+      "ticker": "VT",
+      "mic": "ARCX",
+      "exchange_name": "NYSE Arca",
+      "country_code": "US",
+      "timezone": "America/New_York",
+      "currency": "USD",
+      "source_url": "https://www.vanguardsouthamerica.com/en/product/etf/equity/3141/vanguard-total-world-stock-etf",
+      "venue_source_url": "https://www.iso20022.org/sites/default/files/ISO10383_MIC/ISO10383_MIC.pdf",
+      "reviewed_on": "2026-11-09",
+      "sources": [
+        {
+          "role": "issuer_identity",
+          "url": "https://www.vanguardsouthamerica.com/en/product/etf/equity/3141/vanguard-total-world-stock-etf"
+        },
+        {
+          "role": "listing_and_etf_type",
+          "url": "https://www.nasdaqtrader.com/dynamic/SymDir/otherlisted.txt"
+        },
+        {
+          "role": "listing_directory_definitions",
+          "url": "https://www.nasdaqtrader.com/trader.aspx?id=symboldirdefs"
+        },
+        {
+          "role": "mic_registry",
+          "url": "https://www.iso20022.org/sites/default/files/ISO10383_MIC/ISO10383_MIC.pdf"
+        },
+        {
+          "role": "exchange_timezone",
+          "url": "https://www.nyse.com/trade/hours-calendars?os=vb"
+        }
+      ],
+      "provider_coverage": "NOT_VERIFIED"
+    },
+    {
+      "position": 13,
+      "code": "ETF_US_VTI",
+      "kind": "ETF",
+      "name": "Vanguard Morningstar Total Stock Market ETF",
+      "group": "Aktienmärkte und Regionen",
+      "coverage": "Breiter US-Aktienmarkt",
+      "isin": "US9229087690",
+      "ticker": "VTI",
+      "mic": "ARCX",
+      "exchange_name": "NYSE Arca",
+      "country_code": "US",
+      "timezone": "America/New_York",
+      "currency": "USD",
+      "source_url": "https://advisors.vanguard.com/investments/products/vti/vanguard-total-stock-market-etf",
+      "venue_source_url": "https://www.iso20022.org/sites/default/files/ISO10383_MIC/ISO10383_MIC.pdf",
+      "reviewed_on": "2026-11-09",
+      "sources": [
+        {
+          "role": "issuer_identity",
+          "url": "https://advisors.vanguard.com/investments/products/vti/vanguard-total-stock-market-etf"
+        },
+        {
+          "role": "issuer_isin",
+          "url": "https://www.vanguardsouthamerica.com/en/product/etf/equity/0970/vanguard-total-stock-market-etf"
+        },
+        {
+          "role": "listing_and_etf_type",
+          "url": "https://www.nasdaqtrader.com/dynamic/SymDir/otherlisted.txt"
+        },
+        {
+          "role": "listing_directory_definitions",
+          "url": "https://www.nasdaqtrader.com/trader.aspx?id=symboldirdefs"
+        },
+        {
+          "role": "mic_registry",
+          "url": "https://www.iso20022.org/sites/default/files/ISO10383_MIC/ISO10383_MIC.pdf"
+        },
+        {
+          "role": "exchange_timezone",
+          "url": "https://www.nyse.com/trade/hours-calendars?os=vb"
+        }
+      ],
+      "provider_coverage": "NOT_VERIFIED"
+    },
+    {
+      "position": 14,
+      "code": "ETF_US_SPY",
+      "kind": "ETF",
+      "name": "State Street SPDR S&P 500 ETF Trust",
+      "group": "Aktienmärkte und Regionen",
+      "coverage": "US-Großunternehmen; eigenständiger ETF neben dem direkten Index",
+      "isin": "US78462F1030",
+      "ticker": "SPY",
+      "mic": "ARCX",
+      "exchange_name": "NYSE Arca",
+      "country_code": "US",
+      "timezone": "America/New_York",
+      "currency": "USD",
+      "source_url": "https://www.ssga.com/us/en/institutional/etfs/state-street-spdr-sp-500-etf-trust-spy",
+      "venue_source_url": "https://www.iso20022.org/sites/default/files/ISO10383_MIC/ISO10383_MIC.pdf",
+      "reviewed_on": "2026-11-09",
+      "sources": [
+        {
+          "role": "issuer_identity",
+          "url": "https://www.ssga.com/us/en/institutional/etfs/state-street-spdr-sp-500-etf-trust-spy"
+        },
+        {
+          "role": "mic_registry",
+          "url": "https://www.iso20022.org/sites/default/files/ISO10383_MIC/ISO10383_MIC.pdf"
+        },
+        {
+          "role": "exchange_timezone",
+          "url": "https://www.nyse.com/trade/hours-calendars?os=vb"
+        }
+      ],
+      "provider_coverage": "NOT_VERIFIED"
+    },
+    {
+      "position": 15,
+      "code": "ETF_US_QQQ",
+      "kind": "ETF",
+      "name": "Invesco QQQ Trust, Series 1",
+      "group": "Aktienmärkte und Regionen",
+      "coverage": "Nasdaq-100-Aktienuniversum",
+      "isin": "US46090E1038",
+      "ticker": "QQQ",
+      "mic": "XNMS",
+      "exchange_name": "Nasdaq Global Market",
+      "country_code": "US",
+      "timezone": "America/New_York",
+      "currency": "USD",
+      "source_url": "https://www.invesco.com/us/en/financial-products/etfs/invesco-qqq-trust-series-1.html",
+      "venue_source_url": "https://www.iso20022.org/sites/default/files/ISO10383_MIC/ISO10383_MIC.pdf",
+      "reviewed_on": "2026-11-09",
+      "sources": [
+        {
+          "role": "issuer_identity",
+          "url": "https://www.invesco.com/us/en/financial-products/etfs/invesco-qqq-trust-series-1.html"
+        },
+        {
+          "role": "issuer_listing",
+          "url": "https://www.invesco.com/qqq-etf/en/about.html"
+        },
+        {
+          "role": "listing_and_etf_type",
+          "url": "https://www.nasdaqtrader.com/dynamic/SymDir/nasdaqlisted.txt"
+        },
+        {
+          "role": "listing_directory_definitions",
+          "url": "https://www.nasdaqtrader.com/trader.aspx?id=symboldirdefs"
+        },
+        {
+          "role": "mic_registry",
+          "url": "https://www.iso20022.org/sites/default/files/ISO10383_MIC/ISO10383_MIC.pdf"
+        },
+        {
+          "role": "exchange_timezone",
+          "url": "https://www.nasdaq.com/market-activity/stock-market-holiday-schedule"
+        }
+      ],
+      "provider_coverage": "NOT_VERIFIED"
+    },
+    {
+      "position": 16,
+      "code": "ETF_US_IWM",
+      "kind": "ETF",
+      "name": "iShares Russell 2000 ETF",
+      "group": "Aktienmärkte und Regionen",
+      "coverage": "Kleinere US-Unternehmen",
+      "isin": "US4642876555",
+      "ticker": "IWM",
+      "mic": "ARCX",
+      "exchange_name": "NYSE Arca",
+      "country_code": "US",
+      "timezone": "America/New_York",
+      "currency": "USD",
+      "source_url": "https://www.blackrock.com/mx/intermediarios/productos/239710/ishares-russell-2000-etf",
+      "venue_source_url": "https://www.iso20022.org/sites/default/files/ISO10383_MIC/ISO10383_MIC.pdf",
+      "reviewed_on": "2026-11-09",
+      "sources": [
+        {
+          "role": "issuer_identity",
+          "url": "https://www.blackrock.com/mx/intermediarios/productos/239710/ishares-russell-2000-etf"
+        },
+        {
+          "role": "mic_registry",
+          "url": "https://www.iso20022.org/sites/default/files/ISO10383_MIC/ISO10383_MIC.pdf"
+        },
+        {
+          "role": "exchange_timezone",
+          "url": "https://www.nyse.com/trade/hours-calendars?os=vb"
+        }
+      ],
+      "provider_coverage": "NOT_VERIFIED"
+    },
+    {
+      "position": 17,
+      "code": "ETF_US_VEA",
+      "kind": "ETF",
+      "name": "Vanguard FTSE Developed Markets ETF",
+      "group": "Aktienmärkte und Regionen",
+      "coverage": "Entwickelte Aktienmärkte außerhalb der USA",
+      "isin": "US9219438580",
+      "ticker": "VEA",
+      "mic": "ARCX",
+      "exchange_name": "NYSE Arca",
+      "country_code": "US",
+      "timezone": "America/New_York",
+      "currency": "USD",
+      "source_url": "https://www.vanguardsouthamerica.com/es/producto/etf/renta-variable/0936/vanguard-ftse-developed-markets-etf",
+      "venue_source_url": "https://www.iso20022.org/sites/default/files/ISO10383_MIC/ISO10383_MIC.pdf",
+      "reviewed_on": "2026-11-09",
+      "sources": [
+        {
+          "role": "issuer_identity",
+          "url": "https://www.vanguardsouthamerica.com/es/producto/etf/renta-variable/0936/vanguard-ftse-developed-markets-etf"
+        },
+        {
+          "role": "listing_and_etf_type",
+          "url": "https://www.nasdaqtrader.com/dynamic/SymDir/otherlisted.txt"
+        },
+        {
+          "role": "listing_directory_definitions",
+          "url": "https://www.nasdaqtrader.com/trader.aspx?id=symboldirdefs"
+        },
+        {
+          "role": "mic_registry",
+          "url": "https://www.iso20022.org/sites/default/files/ISO10383_MIC/ISO10383_MIC.pdf"
+        },
+        {
+          "role": "exchange_timezone",
+          "url": "https://www.nyse.com/trade/hours-calendars?os=vb"
+        }
+      ],
+      "provider_coverage": "NOT_VERIFIED"
+    },
+    {
+      "position": 18,
+      "code": "ETF_US_VWO",
+      "kind": "ETF",
+      "name": "Vanguard FTSE Emerging Markets ETF",
+      "group": "Aktienmärkte und Regionen",
+      "coverage": "Schwellenländeraktien",
+      "isin": "US9220428588",
+      "ticker": "VWO",
+      "mic": "ARCX",
+      "exchange_name": "NYSE Arca",
+      "country_code": "US",
+      "timezone": "America/New_York",
+      "currency": "USD",
+      "source_url": "https://www.vanguardsouthamerica.com/es/producto/etf/renta-variable/0964/vanguard-ftse-emerging-markets-etf",
+      "venue_source_url": "https://www.iso20022.org/sites/default/files/ISO10383_MIC/ISO10383_MIC.pdf",
+      "reviewed_on": "2026-11-09",
+      "sources": [
+        {
+          "role": "issuer_identity",
+          "url": "https://www.vanguardsouthamerica.com/es/producto/etf/renta-variable/0964/vanguard-ftse-emerging-markets-etf"
+        },
+        {
+          "role": "listing_and_etf_type",
+          "url": "https://www.nasdaqtrader.com/dynamic/SymDir/otherlisted.txt"
+        },
+        {
+          "role": "listing_directory_definitions",
+          "url": "https://www.nasdaqtrader.com/trader.aspx?id=symboldirdefs"
+        },
+        {
+          "role": "mic_registry",
+          "url": "https://www.iso20022.org/sites/default/files/ISO10383_MIC/ISO10383_MIC.pdf"
+        },
+        {
+          "role": "exchange_timezone",
+          "url": "https://www.nyse.com/trade/hours-calendars?os=vb"
+        }
+      ],
+      "provider_coverage": "NOT_VERIFIED"
+    },
+    {
+      "position": 19,
+      "code": "ETF_US_VGK",
+      "kind": "ETF",
+      "name": "Vanguard FTSE Europe ETF",
+      "group": "Aktienmärkte und Regionen",
+      "coverage": "Europäische Aktien",
+      "isin": "US9220428745",
+      "ticker": "VGK",
+      "mic": "ARCX",
+      "exchange_name": "NYSE Arca",
+      "country_code": "US",
+      "timezone": "America/New_York",
+      "currency": "USD",
+      "source_url": "https://www.vanguardsouthamerica.com/en/product/etf/equity/0963/vanguard-ftse-europe-etf",
+      "venue_source_url": "https://www.iso20022.org/sites/default/files/ISO10383_MIC/ISO10383_MIC.pdf",
+      "reviewed_on": "2026-11-09",
+      "sources": [
+        {
+          "role": "issuer_identity",
+          "url": "https://www.vanguardsouthamerica.com/en/product/etf/equity/0963/vanguard-ftse-europe-etf"
+        },
+        {
+          "role": "listing_and_etf_type",
+          "url": "https://www.nasdaqtrader.com/dynamic/SymDir/otherlisted.txt"
+        },
+        {
+          "role": "listing_directory_definitions",
+          "url": "https://www.nasdaqtrader.com/trader.aspx?id=symboldirdefs"
+        },
+        {
+          "role": "mic_registry",
+          "url": "https://www.iso20022.org/sites/default/files/ISO10383_MIC/ISO10383_MIC.pdf"
+        },
+        {
+          "role": "exchange_timezone",
+          "url": "https://www.nyse.com/trade/hours-calendars?os=vb"
+        }
+      ],
+      "provider_coverage": "NOT_VERIFIED"
+    },
+    {
+      "position": 20,
+      "code": "ETF_US_EWJ",
+      "kind": "ETF",
+      "name": "iShares MSCI Japan ETF",
+      "group": "Aktienmärkte und Regionen",
+      "coverage": "Japanische Aktien",
+      "isin": "US46434G8226",
+      "ticker": "EWJ",
+      "mic": "ARCX",
+      "exchange_name": "NYSE Arca",
+      "country_code": "US",
+      "timezone": "America/New_York",
+      "currency": "USD",
+      "source_url": "https://www.blackrock.com/mx/intermediarios/productos/239665/ishares-msci-japan-etf",
+      "venue_source_url": "https://www.iso20022.org/sites/default/files/ISO10383_MIC/ISO10383_MIC.pdf",
+      "reviewed_on": "2026-11-09",
+      "sources": [
+        {
+          "role": "issuer_identity",
+          "url": "https://www.blackrock.com/mx/intermediarios/productos/239665/ishares-msci-japan-etf"
+        },
+        {
+          "role": "exchange_isin",
+          "url": "https://www.bmv.com.mx/en/issuers/statistics/EWJ-6512"
+        },
+        {
+          "role": "mic_registry",
+          "url": "https://www.iso20022.org/sites/default/files/ISO10383_MIC/ISO10383_MIC.pdf"
+        },
+        {
+          "role": "exchange_timezone",
+          "url": "https://www.nyse.com/trade/hours-calendars?os=vb"
+        }
+      ],
+      "provider_coverage": "NOT_VERIFIED"
+    },
+    {
+      "position": 21,
+      "code": "ETF_US_MCHI",
+      "kind": "ETF",
+      "name": "iShares MSCI China ETF",
+      "group": "Aktienmärkte und Regionen",
+      "coverage": "Chinesische Aktien",
+      "isin": "US46429B6719",
+      "ticker": "MCHI",
+      "mic": "XNMS",
+      "exchange_name": "Nasdaq Global Market",
+      "country_code": "US",
+      "timezone": "America/New_York",
+      "currency": "USD",
+      "source_url": "https://www.ishares.com/uk/professionals/en/products/239619/ishares-msci-china-etf?siteEntryPassthrough=true",
+      "venue_source_url": "https://www.iso20022.org/sites/default/files/ISO10383_MIC/ISO10383_MIC.pdf",
+      "reviewed_on": "2026-11-09",
+      "sources": [
+        {
+          "role": "issuer_identity",
+          "url": "https://www.ishares.com/uk/professionals/en/products/239619/ishares-msci-china-etf?siteEntryPassthrough=true"
+        },
+        {
+          "role": "exchange_isin",
+          "url": "https://www.bmv.com.mx/es/emisoras/perfil/MCHI-7680"
+        },
+        {
+          "role": "listing_and_etf_type",
+          "url": "https://www.nasdaqtrader.com/dynamic/SymDir/nasdaqlisted.txt"
+        },
+        {
+          "role": "listing_directory_definitions",
+          "url": "https://www.nasdaqtrader.com/trader.aspx?id=symboldirdefs"
+        },
+        {
+          "role": "mic_registry",
+          "url": "https://www.iso20022.org/sites/default/files/ISO10383_MIC/ISO10383_MIC.pdf"
+        },
+        {
+          "role": "exchange_timezone",
+          "url": "https://www.nasdaq.com/market-activity/stock-market-holiday-schedule"
+        }
+      ],
+      "provider_coverage": "NOT_VERIFIED"
+    },
+    {
+      "position": 22,
+      "code": "ETF_US_AGG",
+      "kind": "ETF",
+      "name": "iShares Core U.S. Aggregate Bond ETF",
+      "group": "Anleihen",
+      "coverage": "Breiter US-Anleihemarkt",
+      "isin": "US4642872265",
+      "ticker": "AGG",
+      "mic": "ARCX",
+      "exchange_name": "NYSE Arca",
+      "country_code": "US",
+      "timezone": "America/New_York",
+      "currency": "USD",
+      "source_url": "https://www.blackrock.com/mx/intermediarios/productos/239458/ishares-core-total-us-bond-market-etf?printable=true",
+      "venue_source_url": "https://www.iso20022.org/sites/default/files/ISO10383_MIC/ISO10383_MIC.pdf",
+      "reviewed_on": "2026-11-09",
+      "sources": [
+        {
+          "role": "issuer_identity",
+          "url": "https://www.blackrock.com/mx/intermediarios/productos/239458/ishares-core-total-us-bond-market-etf?printable=true"
+        },
+        {
+          "role": "mic_registry",
+          "url": "https://www.iso20022.org/sites/default/files/ISO10383_MIC/ISO10383_MIC.pdf"
+        },
+        {
+          "role": "exchange_timezone",
+          "url": "https://www.nyse.com/trade/hours-calendars?os=vb"
+        }
+      ],
+      "provider_coverage": "NOT_VERIFIED"
+    },
+    {
+      "position": 23,
+      "code": "ETF_US_BNDX",
+      "kind": "ETF",
+      "name": "Vanguard Total International Bond ETF",
+      "group": "Anleihen",
+      "coverage": "Internationale Anleihen; vom Fonds vorgesehene USD-Absicherung",
+      "isin": "US92203J4076",
+      "ticker": "BNDX",
+      "mic": "XNMS",
+      "exchange_name": "Nasdaq Global Market",
+      "country_code": "US",
+      "timezone": "America/New_York",
+      "currency": "USD",
+      "source_url": "https://www.vanguardsouthamerica.com/en/product/etf/fixed-income/3711/vanguard-total-international-bond-etf",
+      "venue_source_url": "https://www.iso20022.org/sites/default/files/ISO10383_MIC/ISO10383_MIC.pdf",
+      "reviewed_on": "2026-11-09",
+      "sources": [
+        {
+          "role": "issuer_identity",
+          "url": "https://www.vanguardsouthamerica.com/en/product/etf/fixed-income/3711/vanguard-total-international-bond-etf"
+        },
+        {
+          "role": "listing_and_etf_type",
+          "url": "https://www.nasdaqtrader.com/dynamic/SymDir/nasdaqlisted.txt"
+        },
+        {
+          "role": "listing_directory_definitions",
+          "url": "https://www.nasdaqtrader.com/trader.aspx?id=symboldirdefs"
+        },
+        {
+          "role": "mic_registry",
+          "url": "https://www.iso20022.org/sites/default/files/ISO10383_MIC/ISO10383_MIC.pdf"
+        },
+        {
+          "role": "exchange_timezone",
+          "url": "https://www.nasdaq.com/market-activity/stock-market-holiday-schedule"
+        }
+      ],
+      "provider_coverage": "NOT_VERIFIED"
+    },
+    {
+      "position": 24,
+      "code": "ETF_US_SHY",
+      "kind": "ETF",
+      "name": "iShares 1-3 Year Treasury Bond ETF",
+      "group": "Anleihen",
+      "coverage": "US-Staatsanleihen: 1–3 Jahre",
+      "isin": "US4642874576",
+      "ticker": "SHY",
+      "mic": "XNMS",
+      "exchange_name": "Nasdaq Global Market",
+      "country_code": "US",
+      "timezone": "America/New_York",
+      "currency": "USD",
+      "source_url": "https://www.blackrock.com/mx/intermediarios/productos/239452/ishares-13-year-treasury-bond-etf",
+      "venue_source_url": "https://www.iso20022.org/sites/default/files/ISO10383_MIC/ISO10383_MIC.pdf",
+      "reviewed_on": "2026-11-09",
+      "sources": [
+        {
+          "role": "issuer_identity",
+          "url": "https://www.blackrock.com/mx/intermediarios/productos/239452/ishares-13-year-treasury-bond-etf"
+        },
+        {
+          "role": "listing_and_etf_type",
+          "url": "https://www.nasdaqtrader.com/dynamic/SymDir/nasdaqlisted.txt"
+        },
+        {
+          "role": "listing_directory_definitions",
+          "url": "https://www.nasdaqtrader.com/trader.aspx?id=symboldirdefs"
+        },
+        {
+          "role": "mic_registry",
+          "url": "https://www.iso20022.org/sites/default/files/ISO10383_MIC/ISO10383_MIC.pdf"
+        },
+        {
+          "role": "exchange_timezone",
+          "url": "https://www.nasdaq.com/market-activity/stock-market-holiday-schedule"
+        }
+      ],
+      "provider_coverage": "NOT_VERIFIED"
+    },
+    {
+      "position": 25,
+      "code": "ETF_US_IEF",
+      "kind": "ETF",
+      "name": "iShares 7-10 Year Treasury Bond ETF",
+      "group": "Anleihen",
+      "coverage": "US-Staatsanleihen: 7–10 Jahre",
+      "isin": "US4642874402",
+      "ticker": "IEF",
+      "mic": "XNMS",
+      "exchange_name": "Nasdaq Global Market",
+      "country_code": "US",
+      "timezone": "America/New_York",
+      "currency": "USD",
+      "source_url": "https://www.blackrock.com/mx/intermediarios/productos/239456/",
+      "venue_source_url": "https://www.iso20022.org/sites/default/files/ISO10383_MIC/ISO10383_MIC.pdf",
+      "reviewed_on": "2026-11-09",
+      "sources": [
+        {
+          "role": "issuer_identity",
+          "url": "https://www.blackrock.com/mx/intermediarios/productos/239456/"
+        },
+        {
+          "role": "listing_and_etf_type",
+          "url": "https://www.nasdaqtrader.com/dynamic/SymDir/nasdaqlisted.txt"
+        },
+        {
+          "role": "listing_directory_definitions",
+          "url": "https://www.nasdaqtrader.com/trader.aspx?id=symboldirdefs"
+        },
+        {
+          "role": "mic_registry",
+          "url": "https://www.iso20022.org/sites/default/files/ISO10383_MIC/ISO10383_MIC.pdf"
+        },
+        {
+          "role": "exchange_timezone",
+          "url": "https://www.nasdaq.com/market-activity/stock-market-holiday-schedule"
+        }
+      ],
+      "provider_coverage": "NOT_VERIFIED"
+    },
+    {
+      "position": 26,
+      "code": "ETF_US_TLT",
+      "kind": "ETF",
+      "name": "iShares 20+ Year Treasury Bond ETF",
+      "group": "Anleihen",
+      "coverage": "US-Staatsanleihen: mehr als 20 Jahre",
+      "isin": "US4642874329",
+      "ticker": "TLT",
+      "mic": "XNMS",
+      "exchange_name": "Nasdaq Global Market",
+      "country_code": "US",
+      "timezone": "America/New_York",
+      "currency": "USD",
+      "source_url": "https://www.blackrock.com/mx/intermediarios/productos/239454/ishares-20-year-treasury-bond-etf",
+      "venue_source_url": "https://www.iso20022.org/sites/default/files/ISO10383_MIC/ISO10383_MIC.pdf",
+      "reviewed_on": "2026-11-09",
+      "sources": [
+        {
+          "role": "issuer_identity",
+          "url": "https://www.blackrock.com/mx/intermediarios/productos/239454/ishares-20-year-treasury-bond-etf"
+        },
+        {
+          "role": "listing_and_etf_type",
+          "url": "https://www.nasdaqtrader.com/dynamic/SymDir/nasdaqlisted.txt"
+        },
+        {
+          "role": "listing_directory_definitions",
+          "url": "https://www.nasdaqtrader.com/trader.aspx?id=symboldirdefs"
+        },
+        {
+          "role": "mic_registry",
+          "url": "https://www.iso20022.org/sites/default/files/ISO10383_MIC/ISO10383_MIC.pdf"
+        },
+        {
+          "role": "exchange_timezone",
+          "url": "https://www.nasdaq.com/market-activity/stock-market-holiday-schedule"
+        }
+      ],
+      "provider_coverage": "NOT_VERIFIED"
+    },
+    {
+      "position": 27,
+      "code": "ETF_US_TIP",
+      "kind": "ETF",
+      "name": "iShares TIPS Bond ETF",
+      "group": "Anleihen",
+      "coverage": "Inflationsgebundene US-Staatsanleihen",
+      "isin": "US4642871762",
+      "ticker": "TIP",
+      "mic": "ARCX",
+      "exchange_name": "NYSE Arca",
+      "country_code": "US",
+      "timezone": "America/New_York",
+      "currency": "USD",
+      "source_url": "https://www.blackrock.com/mx/intermediarios/productos/239467/ishares-tips-bond-etf",
+      "venue_source_url": "https://www.iso20022.org/sites/default/files/ISO10383_MIC/ISO10383_MIC.pdf",
+      "reviewed_on": "2026-11-09",
+      "sources": [
+        {
+          "role": "issuer_identity",
+          "url": "https://www.blackrock.com/mx/intermediarios/productos/239467/ishares-tips-bond-etf"
+        },
+        {
+          "role": "mic_registry",
+          "url": "https://www.iso20022.org/sites/default/files/ISO10383_MIC/ISO10383_MIC.pdf"
+        },
+        {
+          "role": "exchange_timezone",
+          "url": "https://www.nyse.com/trade/hours-calendars?os=vb"
+        }
+      ],
+      "provider_coverage": "NOT_VERIFIED"
+    },
+    {
+      "position": 28,
+      "code": "ETF_US_HYG",
+      "kind": "ETF",
+      "name": "iShares iBoxx $ High Yield Corporate Bond ETF",
+      "group": "Anleihen",
+      "coverage": "Unternehmensanleihen: High Yield",
+      "isin": "US4642885135",
+      "ticker": "HYG",
+      "mic": "ARCX",
+      "exchange_name": "NYSE Arca",
+      "country_code": "US",
+      "timezone": "America/New_York",
+      "currency": "USD",
+      "source_url": "https://www.blackrock.com/mx/intermediarios/productos/239565/",
+      "venue_source_url": "https://www.iso20022.org/sites/default/files/ISO10383_MIC/ISO10383_MIC.pdf",
+      "reviewed_on": "2026-11-09",
+      "sources": [
+        {
+          "role": "issuer_identity",
+          "url": "https://www.blackrock.com/mx/intermediarios/productos/239565/"
+        },
+        {
+          "role": "mic_registry",
+          "url": "https://www.iso20022.org/sites/default/files/ISO10383_MIC/ISO10383_MIC.pdf"
+        },
+        {
+          "role": "exchange_timezone",
+          "url": "https://www.nyse.com/trade/hours-calendars?os=vb"
+        }
+      ],
+      "provider_coverage": "NOT_VERIFIED"
+    },
+    {
+      "position": 29,
+      "code": "ETF_US_LQD",
+      "kind": "ETF",
+      "name": "iShares iBoxx $ Investment Grade Corporate Bond ETF",
+      "group": "Anleihen",
+      "coverage": "Unternehmensanleihen: Investment Grade",
+      "isin": "US4642872422",
+      "ticker": "LQD",
+      "mic": "ARCX",
+      "exchange_name": "NYSE Arca",
+      "country_code": "US",
+      "timezone": "America/New_York",
+      "currency": "USD",
+      "source_url": "https://www.blackrock.com/mx/intermediarios/productos/239566/",
+      "venue_source_url": "https://www.iso20022.org/sites/default/files/ISO10383_MIC/ISO10383_MIC.pdf",
+      "reviewed_on": "2026-11-09",
+      "sources": [
+        {
+          "role": "issuer_identity",
+          "url": "https://www.blackrock.com/mx/intermediarios/productos/239566/"
+        },
+        {
+          "role": "mic_registry",
+          "url": "https://www.iso20022.org/sites/default/files/ISO10383_MIC/ISO10383_MIC.pdf"
+        },
+        {
+          "role": "exchange_timezone",
+          "url": "https://www.nyse.com/trade/hours-calendars?os=vb"
+        }
+      ],
+      "provider_coverage": "NOT_VERIFIED"
+    },
+    {
+      "position": 30,
+      "code": "ETF_US_BIL",
+      "kind": "ETF",
+      "name": "State Street SPDR Bloomberg 1-3 Month T-Bill ETF",
+      "group": "Anleihen",
+      "coverage": "US-Treasury Bills: 1–3 Monate",
+      "isin": "US78468R6633",
+      "ticker": "BIL",
+      "mic": "ARCX",
+      "exchange_name": "NYSE Arca",
+      "country_code": "US",
+      "timezone": "America/New_York",
+      "currency": "USD",
+      "source_url": "https://www.ssga.com/us/en/individual/etfs/state-street-spdr-bloomberg-1-3-month-t-bill-etf-bil",
+      "venue_source_url": "https://www.iso20022.org/sites/default/files/ISO10383_MIC/ISO10383_MIC.pdf",
+      "reviewed_on": "2026-11-09",
+      "sources": [
+        {
+          "role": "issuer_identity",
+          "url": "https://www.ssga.com/us/en/individual/etfs/state-street-spdr-bloomberg-1-3-month-t-bill-etf-bil"
+        },
+        {
+          "role": "mic_registry",
+          "url": "https://www.iso20022.org/sites/default/files/ISO10383_MIC/ISO10383_MIC.pdf"
+        },
+        {
+          "role": "exchange_timezone",
+          "url": "https://www.nyse.com/trade/hours-calendars?os=vb"
+        }
+      ],
+      "provider_coverage": "NOT_VERIFIED"
+    }
+  ]
+}

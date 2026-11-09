@@ -41,6 +41,7 @@ class MappingCommand:
     provider_exchange_code: str
     actor_id: str | None
     actor_name: str
+    require_absent: bool = False
 
 
 class ProviderMappingAdministrationService:
@@ -52,6 +53,7 @@ class ProviderMappingAdministrationService:
         *,
         now: Callable[[], datetime] = lambda: datetime.now(UTC),
         id_factory: Callable[[], UUID] = uuid4,
+        mapping_id_factory: Callable[[], UUID] | None = None,
         resolver: ProviderInstrumentResolver | None = None,
         venue_reconciliation: ProviderVenueReconciliationService | None = None,
         instrument_identity: MarketDataInstrumentIdentityService | None = None,
@@ -59,6 +61,7 @@ class ProviderMappingAdministrationService:
         self._uow = uow
         self._now = now
         self._id_factory = id_factory
+        self._mapping_id_factory = mapping_id_factory or id_factory
         self._resolver = resolver
         self._venue_reconciliation = venue_reconciliation
         self._instrument_identity = instrument_identity
@@ -83,10 +86,12 @@ class ProviderMappingAdministrationService:
             existing = await self._uow.mappings.find_for_listing(
                 command.workspace_id, command.listing_id, command.provider
             )
+            if existing is not None and command.require_absent:
+                raise ValueError("PROVIDER_MAPPING_ALREADY_EXISTS")
             now = self._now()
             if existing is None:
                 value = ProviderInstrumentMapping(
-                    id=self._id_factory(),
+                    id=self._mapping_id_factory(),
                     workspace_id=command.workspace_id,
                     listing_id=command.listing_id,
                     provider=command.provider,

@@ -2,14 +2,17 @@
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import timedelta
 from random import Random
+from typing import TYPE_CHECKING
+from uuid import UUID, uuid4
 
 import httpx
 from pydantic import ValidationError
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings
 from app.database import DatabaseManager
@@ -22,7 +25,9 @@ from app.features.market_data.service.administration import (
 )
 from app.features.market_data.service.application import DailyPriceImportService
 from app.features.market_data.service.errors import MarketDataConfigurationError
+from app.features.market_data.service.etf_mapping_validation import EtfCatalogMappingResolver
 from app.features.market_data.service.instrument_identity import MarketDataInstrumentIdentityService
+from app.features.market_data.service.reference_market_data import ReferenceMarketDataService
 from app.features.market_data.service.unit_of_work import SqlAlchemyMarketDataUnitOfWork
 from app.features.market_data.service.venue_reconciliation import (
     ProviderVenueReconciliationService,
@@ -47,6 +52,9 @@ from app.providers.shared.rate_limit import TokenBucketRateLimiter
 from app.providers.shared.retry import RetryPolicy
 from app.providers.stuttgart_delayed.adapter import StuttgartDelayedWarrantQuoteAdapter
 from app.providers.vontobel_markets.adapter import VontobelMarketsWarrantQuoteAdapter
+
+if TYPE_CHECKING:
+    from app.features.market.service.chart_watchlist import ChartWatchlistService
 
 
 @dataclass(frozen=True, slots=True)
@@ -224,6 +232,53 @@ class ApplicationContainer:
                 provider=MarketDataProvider.EODHD,
             )
         return self.eodhd.adapter
+
+    def reference_service_for_session(
+        self, session: AsyncSession, *, mapping_id_factory: Callable[[], UUID] = uuid4
+    ) -> ReferenceMarketDataService:
+        """The API, setup and scheduled index imports share the existing owner."""
+        self.require_eodhd_adapter()
+        assert self.eodhd is not None
+        return ReferenceMarketDataService(
+            session,
+            client=self.eodhd.client,
+            call_budget=self.eodhd.call_budget,
+            retry_policy=self.eodhd.retry_policy,
+            rate_limiter=self.eodhd.rate_limiter,
+            provider_call_cost=self.settings.market_data.eodhd.historical_eod_call_cost,
+            mapping_id_factory=mapping_id_factory,
+        )
+
+    @asynccontextmanager
+    async def reference_market_data_service(self) -> AsyncIterator[ReferenceMarketDataService]:
+        async with self.database.session_context() as session:
+            yield self.reference_service_for_session(session)
+
+    @asynccontextmanager
+    async def chart_watchlist_service(
+        self, workspace_id: UUID
+    ) -> AsyncIterator[ChartWatchlistService]:
+        from app.features.market.service.chart_watchlist import ChartWatchlistService
+
+        async with self.database.session_context() as session:
+            yield ChartWatchlistService(
+                session,
+                workspace_id,
+                etf_discovery=self.eodhd.adapter.etf_catalog if self.eodhd else None,
+                etf_resolver_factory=EtfCatalogMappingResolver,
+                reference_service=(
+                    self.reference_service_for_session(session) if self.eodhd else None
+                ),
+                reference_service_factory=(
+                    (
+                        lambda factory: self.reference_service_for_session(
+                            session, mapping_id_factory=factory
+                        )
+                    )
+                    if self.eodhd
+                    else None
+                ),
+            )
 
     @asynccontextmanager
     async def daily_price_import_service(

@@ -16,8 +16,11 @@ from uuid import UUID, uuid4
 from sqlalchemy import func, select
 
 from app.core.config.frankfurt import FrankfurtSourceMode
+from app.features.market.persistence.chart_watchlist import ChartWatchlistMemberModel
 from app.features.market.persistence.models import TradingVenueModel
+from app.features.market.service.types import Actor
 from app.features.market_data.domain.enums import MappingStatus, MarketDataProvider
+from app.features.market_data.persistence.instruments import MarketDataInstrumentModel
 from app.features.market_data.persistence.models import (
     DailyPriceModel,
     ProviderInstrumentMappingModel,
@@ -25,6 +28,7 @@ from app.features.market_data.persistence.models import (
 )
 from app.features.market_data.persistence.quote_identity import QuoteIdentity, read_quote_identity
 from app.features.market_data.service.issuer_discovery import discover_issuer_route
+from app.features.market_data.service.reference_market_data import ReferenceMappingExpectation
 from app.features.market_data.service.refresh_catalog import (
     ISSUER_PROVIDERS,
     RefreshInstrument,
@@ -72,7 +76,7 @@ def _job_lane(key: str) -> RefreshLane:
         return RefreshLane.ISSUER_QUOTES
     if key.startswith(("FRANKFURT_MAPPING:", "VONTOBEL_MAPPING:")):
         return RefreshLane.WARRANT_DISCOVERY
-    if key.startswith(("EODHD_MAPPING:", "UNDERLYING_EOD:")):
+    if key.startswith(("EODHD_MAPPING:", "UNDERLYING_EOD:", "REFERENCE_EOD:", "CHART_SETUP:")):
         return RefreshLane.UNDERLYINGS
     return RefreshLane.WARRANTS
 
@@ -286,6 +290,26 @@ class MarketDataRefreshRuntime:
                             )
                         )
                 for item in underlyings:
+                    if item.setup_code is not None:
+                        schedule.append(
+                            (
+                                f"CHART_SETUP:{item.setup_code}",
+                                item,
+                                self.settings.discovery_interval_seconds,
+                                partial(self._setup_chart, item),
+                            )
+                        )
+                        continue
+                    if item.reference_id is not None:
+                        schedule.append(
+                            (
+                                f"REFERENCE_EOD:{item.reference_id}",
+                                item,
+                                self.settings.underlyings_interval_seconds,
+                                partial(self._reference, item),
+                            )
+                        )
+                        continue
                     if self.settings.auto_configure and item.listing_id is not None:
                         key = f"EODHD_MAPPING:{item.id}:{item.listing_id}"
                         schedule.append(
@@ -311,6 +335,8 @@ class MarketDataRefreshRuntime:
                         "job": key,
                         "instrument_id": item.id,
                         "listing_id": item.listing_id,
+                        "market_reference_id": item.reference_id,
+                        "chart_setup_code": item.setup_code,
                         "name": item.name,
                         "isin": item.isin,
                         "status": "PENDING",
@@ -481,6 +507,8 @@ class MarketDataRefreshRuntime:
             "job": key,
             "instrument_id": item.id,
             "listing_id": item.listing_id,
+            "market_reference_id": item.reference_id,
+            "chart_setup_code": item.setup_code,
             "name": item.name,
             "isin": item.isin,
             "held": self.jobs.get(key, {}).get("held", item.held),
@@ -697,6 +725,103 @@ class MarketDataRefreshRuntime:
         assert item.listing_id is not None
         await self._pace_underlying()
         return await discover_underlying(self.container, self.workspace_id, item.listing_id)
+
+    async def _setup_chart(self, item: RefreshInstrument) -> dict[str, Any]:
+        assert item.setup_code is not None
+        await self._pace_underlying()
+        async with self.container.chart_watchlist_service(self.workspace_id) as service:
+            result = await service.configure_item(
+                item.setup_code, actor=Actor(None, "Chart overview background setup")
+            )
+        if result.setup_status == "CONFIGURED":
+            # The next scan schedules persisted price imports, without a browser request.
+            self.wake.set()
+        return {
+            "status": "AVAILABLE" if result.setup_status == "CONFIGURED" else "BLOCKED",
+            "reason": result.setup_reason or "CHART_SETUP_COMPLETE",
+            "target_key": result.target_key,
+        }
+
+    async def _reference(self, item: RefreshInstrument) -> dict[str, Any]:
+        if self.container.eodhd is None:
+            return {"status": "BLOCKED", "reason": "EODHD_DISABLED"}
+        assert item.reference_id is not None
+        async with self.container.database.session_context() as session:
+            mapping = await session.scalar(
+                select(ProviderInstrumentMappingModel)
+                .join(
+                    MarketDataInstrumentModel,
+                    MarketDataInstrumentModel.id
+                    == ProviderInstrumentMappingModel.market_data_instrument_id,
+                )
+                .join(
+                    ChartWatchlistMemberModel,
+                    ChartWatchlistMemberModel.market_reference_id
+                    == MarketDataInstrumentModel.market_reference_id,
+                )
+                .where(
+                    ChartWatchlistMemberModel.workspace_id == self.workspace_id,
+                    ChartWatchlistMemberModel.setup_completed_at.is_not(None),
+                    ChartWatchlistMemberModel.verified_mapping_id
+                    == ProviderInstrumentMappingModel.id,
+                    ChartWatchlistMemberModel.verified_mapping_version
+                    == ProviderInstrumentMappingModel.version,
+                    ChartWatchlistMemberModel.verified_provider_symbol
+                    == ProviderInstrumentMappingModel.provider_symbol,
+                    ChartWatchlistMemberModel.verified_provider_exchange_code
+                    == ProviderInstrumentMappingModel.provider_exchange_code,
+                    MarketDataInstrumentModel.workspace_id == self.workspace_id,
+                    MarketDataInstrumentModel.market_reference_id == item.reference_id,
+                    MarketDataInstrumentModel.listing_id.is_(None),
+                    ProviderInstrumentMappingModel.workspace_id == self.workspace_id,
+                    ProviderInstrumentMappingModel.provider == MarketDataProvider.EODHD,
+                    ProviderInstrumentMappingModel.listing_id.is_(None),
+                )
+            )
+            if (
+                mapping is None
+                or mapping.status != MappingStatus.ACTIVE
+                or mapping.validated_at is None
+            ):
+                return {"status": "BLOCKED", "reason": "VALIDATED_EODHD_MAPPING_REQUIRED"}
+            last_day = await session.scalar(
+                select(func.max(DailyPriceModel.trading_date)).where(
+                    DailyPriceModel.workspace_id == self.workspace_id,
+                    DailyPriceModel.market_data_instrument_id == mapping.market_data_instrument_id,
+                    DailyPriceModel.listing_id.is_(None),
+                )
+            )
+        await self._pace_underlying()
+        end = datetime.now(UTC).date() - timedelta(days=1)
+        start = (
+            max(end - timedelta(days=400), last_day - timedelta(days=7))
+            if last_day
+            else end - timedelta(days=400)
+        )
+        async with self.container.reference_market_data_service() as service:
+            result = await service.import_daily_prices(
+                workspace_id=self.workspace_id,
+                market_reference_id=item.reference_id,
+                start_date=start,
+                end_date=end,
+                expected_mapping=ReferenceMappingExpectation(
+                    mapping.id,
+                    mapping.version,
+                    mapping.provider_symbol,
+                    mapping.provider_exchange_code,
+                ),
+            )
+        processed = result.inserted + result.updated + result.unchanged
+        return {
+            "status": "AVAILABLE" if processed else "MISSING",
+            "reason": "COMPLETED_EOD_IMPORTED" if processed else "NO_COMPLETED_EOD_RETURNED",
+            "provider": MarketDataProvider.EODHD,
+            "provider_identity": mapping.provider_symbol,
+            "provider_exchange_code": mapping.provider_exchange_code,
+            "processed": processed,
+            "price_type": "EOD",
+            "execution_usable": False,
+        }
 
     async def _underlying(self, item: RefreshInstrument) -> dict[str, Any]:
         if self.container.eodhd is None:
