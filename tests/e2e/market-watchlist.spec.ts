@@ -4,6 +4,12 @@ import {
   watchlistFixture,
   watchlistSeries,
 } from "../../frontend/src/test/watchlistFixtures";
+import {
+  assertDocumentReflow,
+  browserMeasurements,
+  nativeScreenshot,
+  nativeZoomBrowser,
+} from "./support/ux4-native-zoom";
 
 // Synthetic fixtures prove the UI contract, not live provider coverage on a PC.
 async function installOverview(page: Page, enabled = true) {
@@ -13,7 +19,7 @@ async function installOverview(page: Page, enabled = true) {
     const request = route.request();
     const url = new URL(request.url());
     if (request.method() !== "GET") {
-      expect(url.pathname).toBe("/api/v1/market-charts/watchlist/activate");
+      expect(url.pathname).toBe("/api/api/v1/market-charts/watchlist/activate");
       expect(request.postDataJSON()).toEqual({
         catalog_version: state.catalog_version,
         confirmed: true,
@@ -131,26 +137,52 @@ for (const width of [320, 390, 1280]) {
 }
 
 for (const scale of [2, 4]) {
-  test(`overview CSS zoom ${scale * 100}% reflow (human browser zoom remains separate)`, async ({
-    page,
+  test(`overview native Chromium zoom ${scale * 100}% retains reflow and keyboard sources`, async ({
+    baseURL,
   }, testInfo) => {
-    await page.setViewportSize({ width: 1280, height: 1000 });
-    await installOverview(page);
-    await page.goto("/market-charts");
-    await expect(page.locator('[data-testid^="watchlist-chart-"]')).toHaveCount(
-      31,
-    );
-    await page.evaluate((factor) => {
-      document.documentElement.style.zoom = String(factor);
-    }, scale);
-    expect(
-      await page.evaluate(
-        () => document.documentElement.scrollWidth <= window.innerWidth,
-      ),
-    ).toBe(true);
-    await testInfo.attach(`watchlist-css-zoom-${scale * 100}`, {
-      body: await page.screenshot({ fullPage: false }),
-      contentType: "image/png",
-    });
+    test.setTimeout(90_000);
+    const { context, page, setZoom } = await nativeZoomBrowser(testInfo);
+    try {
+      const calls = await installOverview(page);
+      await page.goto((baseURL ?? "http://127.0.0.1:8080") + "/market-charts");
+      await expect(
+        page.locator('[data-testid^="watchlist-chart-"]'),
+      ).toHaveCount(31);
+      await expect.poll(() => calls.series).toBe(31);
+      const before = calls.series;
+      const zoom = await setZoom(scale);
+      const first = page.getByRole("article").first();
+      await first
+        .getByText("Werte, Quellen und Einrichtung", { exact: true })
+        .click();
+      await expect(first.getByRole("table")).toBeVisible();
+      const source = first.getByRole("link", {
+        name: "Indexquelle",
+        exact: true,
+      });
+      await source.focus();
+      await expect(source).toBeFocused();
+      await assertDocumentReflow(page);
+      expect(calls.series).toBe(before);
+      expect(calls.writes).toBe(0);
+      await testInfo.attach(`watchlist-native-zoom-${scale * 100}.json`, {
+        body: Buffer.from(
+          JSON.stringify(
+            { ...zoom, ...(await browserMeasurements(page)) },
+            null,
+            2,
+          ),
+        ),
+        contentType: "application/json",
+      });
+      await nativeScreenshot(
+        context,
+        page,
+        testInfo,
+        `watchlist-native-zoom-${scale * 100}`,
+      );
+    } finally {
+      await context.close();
+    }
   });
 }

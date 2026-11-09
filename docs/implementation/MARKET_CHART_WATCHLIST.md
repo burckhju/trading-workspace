@@ -150,9 +150,10 @@ Aktivierungsantworten. Die Browserfälle liegen in
 `tests/e2e/market-watchlist.spec.ts`; bestehende Market-Charts-, Performance-,
 Journal- und Governance-Nachweise bleiben bestehen.
 
-Neue automatische Reflowfälle umfassen 320, 390 und 1280 Pixel sowie CSS-Zoom von
-200 und 400 Prozent. CSS-Zoom ist kein menschlicher Nachweis des nativen
-Browserzooms. Die finalen CI-Ergebnisse werden am konkreten PR-Head dokumentiert.
+Neue automatische Reflowfälle umfassen 320, 390 und 1280 Pixel sowie nativen
+Chromium-Browserzoom von 200 und 400 Prozent. Der vorhandene UX-4-Testhelper prüft
+Zoomfaktor, Layoutbreite und Pixeldichte; Quellen bleiben per Tastatur erreichbar.
+Die finalen CI-Ergebnisse werden am konkreten PR-Head dokumentiert.
 
 Offen bleiben menschliche UX-/Domainabnahme, reale Screenreader- und
 Touchbedienung sowie nativer Browserzoom. Synthetische CI-Providerantworten

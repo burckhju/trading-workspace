@@ -122,7 +122,9 @@ test("market to sectors and stock: backend values, keyboard tooltip, legend and 
   await expect
     .poll(() => requests.seriesCalls.at(-1))
     .toEqual(["listing:stock", "listing:Energy", "reference:sp500"]);
-  await expect(page.getByLabel("Darstellung")).toHaveValue("normalized");
+  // A fresh page restores the user's saved comparison mode. Explicitly
+  // selecting these three series makes each visible without resetting it.
+  await expect(page.getByLabel("Darstellung")).toHaveValue("change_percent");
   await expect(page.locator(".recharts-line-curve")).toHaveCount(3);
 });
 
