@@ -91,9 +91,13 @@ test("one activation persists all 31 charts; local controls keep the same reads"
   await page.getByLabel("Übersicht filtern").fill("ETF 30");
   await expect(page.getByRole("article")).toHaveCount(1);
   await page.getByLabel("Übersicht filtern").clear();
-  await page.getByLabel("Gruppe", { exact: true }).selectOption("Anleihen");
+  await page
+    .getByRole("combobox", { name: "Gruppe", exact: true })
+    .selectOption("Anleihen");
   await expect(page.getByRole("article")).toHaveCount(15);
-  await page.getByLabel("Gruppe", { exact: true }).selectOption("");
+  await page
+    .getByRole("combobox", { name: "Gruppe", exact: true })
+    .selectOption("");
   expect(calls.series).toBe(31);
   expect(calls.writes).toBe(1);
   await page.reload();
