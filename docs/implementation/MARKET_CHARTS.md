@@ -1,5 +1,10 @@
 # Markt-, Sektor- und Aktiendiagramme
 
+Ergänzung 2026-11-09: Die [dauerhafte S&P-500-/ETF-Übersicht](MARKET_CHART_WATCHLIST.md)
+erweitert den bestehenden Host um 31 separate Diagramme und eine einmalige,
+quellengebundene Einrichtung mit Hintergrundaktualisierung. Der folgende Text
+dokumentiert weiterhin die ursprüngliche Chartimplementierung und ihre Fachgrenzen.
+
 Datum: 2026-10-04. Status: implementiert und mit PR #243 gemergt (`f580bfe`).
 Versionierte Auslieferung: [1.5.0](../releases/V1.5.0-MARKET-CHARTS-AND-POSITION-RISK.md).
 Keine fachliche Liveabnahme oder Bereitstellung.

@@ -32,6 +32,7 @@ from app.features.market_data.service.types import (
 )
 from app.providers.eodhd.client import EodhdClient
 from app.providers.eodhd.dto import EodhdDailyPriceDto, EodhdSearchResultDto
+from app.providers.eodhd.etf_catalog import EodhdEtfCatalog
 from app.providers.eodhd.mapping import map_daily_price
 from app.providers.eodhd.stock_catalog import EodhdStockCatalog
 from app.providers.shared.budget import DailyCallBudget
@@ -110,6 +111,14 @@ class EodhdMarketDataAdapter:
         self._clock = clock
         self._settings = settings or EodhdAdapterSettings()
         self.stock_catalog = EodhdStockCatalog(
+            client=client,
+            retry=retry_policy,
+            rate_limiter=rate_limiter,
+            budget=call_budget,
+            clock=clock,
+            call_cost=self._settings.provider_call_cost,
+        )
+        self.etf_catalog = EodhdEtfCatalog(
             client=client,
             retry=retry_policy,
             rate_limiter=rate_limiter,

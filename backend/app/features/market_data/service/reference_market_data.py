@@ -25,6 +25,7 @@ from app.features.market_data.domain.enums import (
     PriceType,
     QualityStatus,
 )
+from app.features.market_data.persistence.instruments import MarketDataInstrumentModel
 from app.features.market_data.persistence.models import (
     DailyPriceModel,
     ProviderInstrumentMappingModel,
@@ -45,6 +46,16 @@ from app.providers.shared.retry import RetryPolicy
 _SEARCH_RESULTS = TypeAdapter(list[EodhdSearchResultDto])
 _DAILY_PRICES = TypeAdapter(list[EodhdDailyPriceDto])
 T = TypeVar("T")
+
+
+@dataclass(frozen=True, slots=True)
+class ReferenceMappingExpectation:
+    """The exact mapping revision approved by a persisted scheduling membership."""
+
+    id: UUID
+    version: int
+    provider_symbol: str
+    provider_exchange_code: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -74,6 +85,7 @@ class ReferenceMarketDataService:
         retry_policy: RetryPolicy,
         rate_limiter: TokenBucketRateLimiter,
         provider_call_cost: int = 1,
+        mapping_id_factory: Callable[[], UUID] = uuid4,
     ) -> None:
         self._session = session
         self._client = client
@@ -81,6 +93,7 @@ class ReferenceMarketDataService:
         self._retry = retry_policy
         self._rate_limiter = rate_limiter
         self._provider_call_cost = provider_call_cost
+        self._mapping_id_factory = mapping_id_factory
         self._identity = MarketDataInstrumentIdentityService(session)
 
     async def upsert_mapping(
@@ -90,6 +103,7 @@ class ReferenceMarketDataService:
         market_reference_id: UUID,
         provider_symbol: str,
         provider_exchange_code: str,
+        require_absent: bool = False,
     ) -> ProviderInstrumentMappingModel:
         await self._require_active_reference(workspace_id, market_reference_id)
         instrument = await self._identity.for_market_reference(
@@ -97,6 +111,8 @@ class ReferenceMarketDataService:
             market_reference_id=market_reference_id,
         )
         mapping = await self._mapping_for_instrument(workspace_id, instrument.id)
+        if mapping is not None and require_absent:
+            raise ValueError("PROVIDER_MAPPING_ALREADY_EXISTS")
         now = datetime.now(UTC)
         symbol = provider_symbol.strip().upper()
         exchange = provider_exchange_code.strip().upper()
@@ -105,7 +121,7 @@ class ReferenceMarketDataService:
 
         if mapping is None:
             mapping = ProviderInstrumentMappingModel(
-                id=uuid4(),
+                id=self._mapping_id_factory(),
                 workspace_id=workspace_id,
                 listing_id=None,
                 market_data_instrument_id=instrument.id,
@@ -176,11 +192,16 @@ class ReferenceMarketDataService:
         market_reference_id: UUID,
         start_date: date,
         end_date: date,
+        expected_mapping: ReferenceMappingExpectation | None = None,
     ) -> ReferencePriceImportResult:
         if end_date < start_date:
             raise ValueError("end_date must not be before start_date")
         await self._require_active_reference(workspace_id, market_reference_id)
-        mapping = await self._require_mapping(workspace_id, market_reference_id)
+        mapping = (
+            await self._expected_mapping(workspace_id, market_reference_id, expected_mapping)
+            if expected_mapping is not None
+            else await self._require_mapping(workspace_id, market_reference_id)
+        )
         if mapping.status is not MappingStatus.ACTIVE:
             raise ValueError("EODHD provider mapping is not active")
         instrument_id = mapping.market_data_instrument_id
@@ -209,6 +230,13 @@ class ReferenceMarketDataService:
             rows = _DAILY_PRICES.validate_python(payload)
         except ValidationError as exc:
             raise ValueError("EODHD daily-price response has an invalid structure") from exc
+
+        if expected_mapping is not None:
+            # No lock is held across provider I/O. Lock only the fresh matching owner
+            # revision while the following price writes are committed.
+            await self._expected_mapping(
+                workspace_id, market_reference_id, expected_mapping, for_update=True
+            )
 
         inserted = updated = unchanged = 0
         now = datetime.now(UTC)
@@ -293,6 +321,52 @@ class ReferenceMarketDataService:
             raise ValueError("market reference not found in workspace")
         if not active:
             raise ValueError("market reference is not active")
+
+    async def _expected_mapping(
+        self,
+        workspace_id: UUID,
+        reference_id: UUID,
+        expectation: ReferenceMappingExpectation,
+        *,
+        for_update: bool = False,
+    ) -> ProviderInstrumentMappingModel:
+        statement = (
+            select(ProviderInstrumentMappingModel)
+            .join(
+                MarketDataInstrumentModel,
+                ProviderInstrumentMappingModel.market_data_instrument_id
+                == MarketDataInstrumentModel.id,
+            )
+            .join(
+                MarketReferenceModel,
+                MarketDataInstrumentModel.market_reference_id == MarketReferenceModel.id,
+            )
+            .where(
+                ProviderInstrumentMappingModel.workspace_id == workspace_id,
+                ProviderInstrumentMappingModel.provider == MarketDataProvider.EODHD,
+                ProviderInstrumentMappingModel.listing_id.is_(None),
+                MarketDataInstrumentModel.workspace_id == workspace_id,
+                MarketDataInstrumentModel.market_reference_id == reference_id,
+                MarketDataInstrumentModel.listing_id.is_(None),
+                MarketReferenceModel.workspace_id == workspace_id,
+                MarketReferenceModel.active.is_(True),
+            )
+            .execution_options(populate_existing=True)
+        )
+        if for_update:
+            statement = statement.with_for_update(of=ProviderInstrumentMappingModel)
+        mapping = await self._session.scalar(statement)
+        if (
+            mapping is None
+            or mapping.id != expectation.id
+            or mapping.version != expectation.version
+            or mapping.provider_symbol != expectation.provider_symbol
+            or mapping.provider_exchange_code != expectation.provider_exchange_code
+            or mapping.status != MappingStatus.ACTIVE
+            or mapping.validated_at is None
+        ):
+            raise ValueError("EXPECTED_REFERENCE_MAPPING_CHANGED")
+        return mapping
 
     async def _mapping_for_instrument(
         self, workspace_id: UUID, instrument_id: UUID

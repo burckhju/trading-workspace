@@ -10,50 +10,11 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import type {
-  ChartComparison,
-  ChartDisplayMode,
-  ChartDisplayState,
-  ChartPoint,
-  ChartSeries,
-} from '../types/charts';
+import type { ChartComparison, ChartDisplayMode, ChartDisplayState } from '../types/charts';
 import { chartDate, chartMessage, chartNumber } from './chartLabels';
-
-type PlotRow = {
-  date: string;
-  day: number;
-  values: (number | null)[];
-  points: (ChartPoint | null)[];
-};
+import { chartPlotRows } from '../services/chartPlotRows';
 const colors = ['#38bdf8', '#fbbf24', '#c084fc', '#34d399'];
 const dashes = ['', '8 4', '3 3', '10 3 2 3'];
-
-// Only plotting coordinates are converted to binary floats. Alignment, prices,
-// normalization and percentages are provided by the backend unchanged.
-function plotRows(series: ChartSeries[], mode: ChartDisplayMode): PlotRow[] {
-  const dates = new Set(series.flatMap((item) => item.points.map((point) => point.trading_date)));
-  for (const item of series) {
-    item.points.forEach((point) => {
-      if (point.gap_before) {
-        const previousCalendarDay = new Date(`${point.trading_date}T00:00:00Z`);
-        previousCalendarDay.setUTCDate(previousCalendarDay.getUTCDate() - 1);
-        dates.add(previousCalendarDay.toISOString().slice(0, 10));
-      }
-    });
-  }
-  const maps = series.map(
-    (item) => new Map(item.points.map((point) => [point.trading_date, point])),
-  );
-  return [...dates].sort().map((date) => {
-    const points = maps.map((map) => map.get(date) ?? null);
-    return {
-      date,
-      day: Date.parse(`${date}T00:00:00Z`) / 86400000,
-      points,
-      values: points.map((point) => (point?.[mode] == null ? null : Number(point[mode]))),
-    };
-  });
-}
 
 export function TimeSeriesChart({
   result,
@@ -80,7 +41,7 @@ export function TimeSeriesChart({
   );
   const [tableIndex, setTableIndex] = useState(0);
   const [page, setPage] = useState(0);
-  const rows = useMemo(() => plotRows(result.series, mode), [result.series, mode]);
+  const rows = useMemo(() => chartPlotRows(result.series, mode), [result.series, mode]);
   const comparison = mode !== 'value';
   const displayAllowed = !comparison || result.comparison_status === 'READY';
   const visible = result.series

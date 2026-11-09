@@ -198,6 +198,7 @@ async def test_catalog_preserves_unlisted_underlyings_and_scopes_all_reads():
     warrant = SimpleNamespace(id=uuid4(), display_name="Warrant", isin="DE000VH2LU21")
     stock = SimpleNamespace(id=uuid4(), name="Stock", isin=None)
     session = SimpleNamespace(
+        scalars=AsyncMock(return_value=[]),
         execute=AsyncMock(
             side_effect=[
                 Mock(
@@ -205,10 +206,11 @@ async def test_catalog_preserves_unlisted_underlyings_and_scopes_all_reads():
                 ),
                 Mock(all=Mock(return_value=[(stock, None, False)])),
             ]
-        )
+        ),
     )
-    database = SimpleNamespace(session_context=lambda: session_context(session))
+    database = SimpleNamespace(session_context=Mock(side_effect=lambda: session_context(session)))
     warrants, stocks = await read_catalog(database, workspace)
+    database.session_context.assert_called_once()
     assert warrants[0].id == warrant.id and stocks[0].listing_id is None
     assert warrants[0].held is True and stocks[0].held is False
     for call in session.execute.call_args_list:

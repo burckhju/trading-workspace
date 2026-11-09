@@ -20,6 +20,7 @@ from app.features.analysis.api.charts import router as charts_router
 from app.features.candidate.api import router as candidate_router
 from app.features.learning.api import router as learning_router
 from app.features.market.api import reference_data_router, underlying_router
+from app.features.market.api.chart_watchlist import router as chart_watchlist_router
 from app.features.market.api.reference_market_data_router import (
     router as reference_market_data_router,
 )
@@ -133,6 +134,7 @@ def create_application(settings: Settings | None = None) -> FastAPI:
     application.include_router(product_selection_router)
     application.include_router(analysis_router)
     application.include_router(charts_router)
+    application.include_router(chart_watchlist_router)
     application.include_router(candidate_router)
     application.include_router(trade_plan_router)
     application.include_router(trade_position_router)

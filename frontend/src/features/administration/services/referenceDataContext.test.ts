@@ -243,12 +243,12 @@ describe('explicit setup context contracts', () => {
     const link = withChartSetupContext(
       '/chart-setup?reference_id=r1',
       new URLSearchParams(
-        'target=reference:r1&target=listing:l2&period=6&field=ADJUSTED_CLOSE&end=2026-10-26&return_to=https://outside.test',
+        'target=reference:r1&target=listing:l2&period=6&field=ADJUSTED_CLOSE&end=2026-10-26&view=overview&return_to=https://outside.test',
       ),
     );
     const context = parse(link.split('?')[1]);
     expect(context.returnTo).toBe(
-      '/market-charts?period=6&end=2026-10-26&field=ADJUSTED_CLOSE&target=reference%3Ar1&target=listing%3Al2',
+      '/market-charts?period=6&end=2026-10-26&field=ADJUSTED_CLOSE&view=overview&target=reference%3Ar1&target=listing%3Al2',
     );
     expect(context.returnTo).not.toContain('outside');
     expect(parse(canonicalSetupUrl(context).split('?')[1]).returnTo).toBe(context.returnTo);

@@ -4,8 +4,14 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { withChartSetupContext } from '../../administration/services/referenceDataContext';
 import { UnderlyingSearchCombobox } from '../components/UnderlyingSearchCombobox';
 import { TimeSeriesChart } from '../components/TimeSeriesChart';
+import { ChartWatchlistOverview } from '../components/ChartWatchlistOverview';
 import { chartDate, chartMessage } from '../components/chartLabels';
 import { chartClient } from '../services/chartClient';
+import {
+  chartPeriods,
+  loadChartViewPreferences,
+  saveChartViewPreferences,
+} from '../services/chartViewPreferences';
 import type {
   ChartCatalog,
   ChartComparison,
@@ -18,12 +24,24 @@ const control = 'rounded border border-slate-600 bg-slate-950 p-2 text-sm';
 
 export function MarketChartsPage() {
   const [params, setParams] = useSearchParams();
-  const rawEnd = params.get('end') ?? today();
+  const [preferences] = useState(loadChartViewPreferences);
+  const [liveDay, setLiveDay] = useState(today);
+  const view =
+    params.get('view') === 'overview'
+      ? 'overview'
+      : params.get('view') === 'detail' ||
+          params.has('target') ||
+          params.has('underlying') ||
+          params.has('end')
+        ? 'detail'
+        : 'overview';
+  const rawEnd = params.get('end') ?? liveDay;
   const end =
     /^\d{4}-\d{2}-\d{2}$/.test(rawEnd) && !Number.isNaN(Date.parse(rawEnd)) ? rawEnd : today();
-  const rawPeriod = params.get('period') ?? '3';
-  const period = ['1', '3', '6', '12', '36', 'all'].includes(rawPeriod) ? rawPeriod : '3';
-  const field = params.get('field') === 'ADJUSTED_CLOSE' ? 'ADJUSTED_CLOSE' : 'CLOSE';
+  const rawPeriod = params.get('period') ?? preferences.period;
+  const period = chartPeriods.includes(rawPeriod) ? rawPeriod : '3';
+  const rawField = params.get('field') ?? preferences.field;
+  const field = rawField === 'ADJUSTED_CLOSE' ? 'ADJUSTED_CLOSE' : 'CLOSE';
   const underlyingId = params.get('underlying') ?? '';
   const keys = params.getAll('target').join('|');
   const [catalog, setCatalog] = useState<ChartCatalog | null>(null);
@@ -34,15 +52,42 @@ export function MarketChartsPage() {
   const [catalogError, setCatalogError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [selectionError, setSelectionError] = useState<string | null>(null);
-  const [display, setDisplay] = useState<ChartDisplayState>({
-    mode: null,
-    singleKey: null,
-    hiddenKeys: [],
-  });
+  const [display, setDisplay] = useState<ChartDisplayState>(preferences.display);
+
+  useEffect(() => {
+    const refreshDay = () => setLiveDay(today());
+    const timer = window.setInterval(refreshDay, 60_000);
+    document.addEventListener('visibilitychange', refreshDay);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', refreshDay);
+    };
+  }, []);
+
+  useEffect(() => {
+    saveChartViewPreferences({ period, field, display });
+  }, [period, field, display]);
 
   function update(name: string, value: string) {
     const next = new URLSearchParams(params);
+    next.set('view', view);
     next.set(name, value);
+    setParams(next);
+  }
+
+  function openDetail(targets: string[]) {
+    const next = new URLSearchParams(params);
+    next.set('view', 'detail');
+    next.delete('underlying');
+    next.delete('target');
+    targets.forEach((target) => next.append('target', target));
+    setDisplay((current) => ({
+      ...current,
+      mode: targets.length === 1 ? 'value' : 'normalized',
+      singleKey: targets[0] ?? null,
+      hiddenKeys: [],
+    }));
+    setSelectionError(null);
     setParams(next);
   }
 
@@ -66,6 +111,7 @@ export function MarketChartsPage() {
   }
 
   useEffect(() => {
+    if (view !== 'detail') return;
     const abort = new AbortController();
     setCatalog(null);
     setCatalogError(null);
@@ -79,12 +125,12 @@ export function MarketChartsPage() {
           setCatalogError(reason instanceof Error ? reason.message : 'Übersicht nicht verfügbar.');
       });
     return () => abort.abort();
-  }, [end]);
+  }, [end, view]);
 
   useEffect(() => {
     setContext(null);
     setContextError(null);
-    if (!underlyingId) return;
+    if (view !== 'detail' || !underlyingId) return;
     const abort = new AbortController();
     chartClient
       .underlying(underlyingId, end, abort.signal)
@@ -98,7 +144,7 @@ export function MarketChartsPage() {
           );
       });
     return () => abort.abort();
-  }, [underlyingId, end]);
+  }, [underlyingId, end, view]);
 
   const initial = underlyingId
     ? context?.subject?.key
@@ -107,7 +153,7 @@ export function MarketChartsPage() {
   useEffect(() => {
     setResult(null);
     setError(null);
-    if (!effectiveKeys) {
+    if (view !== 'detail' || !effectiveKeys) {
       setLoading(false);
       return;
     }
@@ -126,7 +172,7 @@ export function MarketChartsPage() {
         if (!abort.signal.aborted) setLoading(false);
       });
     return () => abort.abort();
-  }, [effectiveKeys, period, end, field]);
+  }, [effectiveKeys, period, end, field, view]);
 
   return (
     <div className="mx-auto min-w-0 w-full max-w-7xl space-y-6">
@@ -139,6 +185,24 @@ export function MarketChartsPage() {
           Gespeicherte Tageskurse vergleichen. Identität, Datenbasis und Lücken bleiben sichtbar.
         </p>
       </header>
+      <nav aria-label="Diagrammansicht" className="flex flex-wrap gap-3">
+        <button
+          type="button"
+          aria-pressed={view === 'overview'}
+          className="rounded border border-sky-700 px-4 py-2 aria-pressed:bg-sky-950"
+          onClick={() => update('view', 'overview')}
+        >
+          Marktübersicht
+        </button>
+        <button
+          type="button"
+          aria-pressed={view === 'detail'}
+          className="rounded border border-sky-700 px-4 py-2 aria-pressed:bg-sky-950"
+          onClick={() => update('view', 'detail')}
+        >
+          Detail und Vergleich
+        </button>
+      </nav>
       <div className="grid gap-4 rounded-xl border border-slate-700 p-4 sm:grid-cols-2 lg:grid-cols-4">
         <label className="grid gap-2 text-sm">
           Zeitraum
@@ -161,9 +225,10 @@ export function MarketChartsPage() {
             ))}
           </select>
         </label>
-        <label className="grid gap-2 text-sm">
-          Enddatum
+        <div className="grid gap-2 text-sm">
+          <label htmlFor="market-chart-end">Enddatum</label>
           <input
+            id="market-chart-end"
             className={control}
             type="date"
             value={end}
@@ -173,7 +238,26 @@ export function MarketChartsPage() {
               if (event.target.value) update('end', event.target.value);
             }}
           />
-        </label>
+          <span className="text-xs text-slate-400">
+            {params.has('end')
+              ? 'Festes historisches Enddatum'
+              : 'Rollierendes Enddatum: heute (UTC)'}
+          </span>
+          {params.has('end') && (
+            <button
+              type="button"
+              className="text-left text-sky-300 underline"
+              onClick={() => {
+                const next = new URLSearchParams(params);
+                next.set('view', view);
+                next.delete('end');
+                setParams(next);
+              }}
+            >
+              Bis heute fortführen
+            </button>
+          )}
+        </div>
         <div className="grid gap-2 text-sm">
           <label htmlFor="chart-price-field">Preisgrundlage</label>
           <select
@@ -191,230 +275,249 @@ export function MarketChartsPage() {
             werden nicht ersetzt.
           </span>
         </div>
-        <label className="grid gap-2 text-sm">
-          Marktreferenz
-          <select
-            className={control}
-            value={
-              [...(catalog?.references ?? []), ...(catalog?.proxies ?? [])].some(
-                (item) => item.identity.key === effectiveKeys.split('|')[0],
-              )
-                ? effectiveKeys.split('|')[0]
-                : ''
-            }
-            onChange={(event) => selectTargets([event.target.value])}
-          >
-            <option value="">Markt auswählen</option>
-            {catalog?.references.map(({ identity }) => (
-              <option key={identity.key} value={identity.key}>
-                {identity.name} · direkte Referenz
-              </option>
-            ))}
-            {catalog?.proxies.map(({ identity }) => (
-              <option key={`${identity.key}:${identity.reference_id}`} value={identity.key}>
-                {identity.name} · ETF-Proxy für {identity.reference_code}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-      <div className="rounded-xl border border-slate-700 p-4">
-        <h2 className="mb-3 font-semibold">Aktie oder ETF auswählen</h2>
-        <UnderlyingSearchCombobox
-          value={underlyingId}
-          onChange={(id) => {
-            const next = new URLSearchParams(params);
-            next.set('underlying', id);
-            next.delete('target');
-            setParams(next);
-          }}
-        />
-        {context && (
-          <div className="mt-3 space-y-2 text-sm">
-            <p>
-              Fachliche Zuordnung zum {chartDate(context.assignment_date)}: Markt{' '}
-              {context.market?.name ?? 'fehlt'} · Sektor {context.sector?.name ?? 'fehlt'}.
-            </p>
-            {context.issues.map((issue) => (
-              <p key={issue} className="text-amber-200">
-                {chartMessage(issue)}
-              </p>
-            ))}
-            <button
-              className="rounded border border-sky-700 p-2 disabled:opacity-40"
-              disabled={!context.subject || !context.market || !context.sector}
-              onClick={() =>
-                selectTargets(
-                  [context.subject, context.sector, context.market].flatMap((item) =>
-                    item ? [item.key] : [],
-                  ),
+        {view === 'detail' && (
+          <label className="grid gap-2 text-sm">
+            Marktreferenz
+            <select
+              className={control}
+              value={
+                [...(catalog?.references ?? []), ...(catalog?.proxies ?? [])].some(
+                  (item) => item.identity.key === effectiveKeys.split('|')[0],
                 )
+                  ? effectiveKeys.split('|')[0]
+                  : ''
               }
+              onChange={(event) => selectTargets([event.target.value])}
             >
-              Mit zugeordnetem Sektor und Markt vergleichen
-            </button>
-            <Link
-              className="ml-3 text-sky-300 underline"
-              to={withChartSetupContext(
-                `/chart-setup?underlying_id=${context.underlying_id}`,
-                params,
-              )}
-            >
-              Zuordnungen einrichten
-            </Link>
-          </div>
+              <option value="">Markt auswählen</option>
+              {catalog?.references.map(({ identity }) => (
+                <option key={identity.key} value={identity.key}>
+                  {identity.name} · direkte Referenz
+                </option>
+              ))}
+              {catalog?.proxies.map(({ identity }) => (
+                <option key={`${identity.key}:${identity.reference_id}`} value={identity.key}>
+                  {identity.name} · ETF-Proxy für {identity.reference_code}
+                </option>
+              ))}
+            </select>
+          </label>
         )}
       </div>
-      {catalogError && <p role="alert">{catalogError}</p>}
-      {contextError && <p role="alert">{contextError}</p>}
-      {selectionError && <p role="alert">{selectionError}</p>}
-      {error && (
-        <p role="alert" className="rounded border border-rose-700 p-4">
-          {error}
-        </p>
-      )}
-      {loading && <p role="status">Gespeicherte Kurse werden geladen …</p>}
-      {result && (
-        <TimeSeriesChart
-          key={`${effectiveKeys}:${period}:${end}:${field}`}
-          result={result}
-          display={display}
-          onDisplayChange={setDisplay}
+      {view === 'overview' ? (
+        <ChartWatchlistOverview
+          end={end}
+          period={period}
+          field={field}
+          onOpenDetail={openDetail}
+          chartParams={params}
         />
-      )}
-      {!effectiveKeys && !loading && (
-        <p className="rounded border border-amber-700 p-4">
-          Keine passende Marktserie eingerichtet.{' '}
-          <Link
-            to={withChartSetupContext('/chart-setup', params)}
-            className="text-sky-300 underline"
-          >
-            Markt und Datenbasis einrichten
-          </Link>
-        </p>
-      )}
-      <section className="rounded-xl border border-slate-700 p-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-xl font-semibold">Sektor-Abdeckungsmatrix</h2>
-          <Link
-            to={withChartSetupContext('/chart-setup', params)}
-            className="text-sm text-sky-300 underline"
-          >
-            Sektoren und Referenzen einrichten
-          </Link>
-        </div>
-        <p className="my-3 text-sm text-slate-400">
-          Alle administrierten Sektoren zum {chartDate(end)}. Kursabdeckung bezeichnet gespeicherte
-          Daten; ETF-Serien sind Stellvertreter für die jeweilige Benchmark.
-        </p>
-        {catalog?.taxonomy_status === 'NO_SECTOR_TAXONOMY' && (
-          <p className="text-amber-200">
-            {chartMessage(catalog.taxonomy_status)} Die Einrichtung zeigt eine vollständige,
-            quellenbelegte Sektorliste zur expliziten Übernahme.
-          </p>
-        )}
-        <div
-          className="overflow-x-auto"
-          tabIndex={0}
-          role="region"
-          aria-label="Sektor-Abdeckungsmatrix"
-        >
-          <table className="w-full text-left text-sm">
-            <thead>
-              <tr>
-                {[
-                  'Sektor / System',
-                  'Referenz / ETF',
-                  'Kennung / Listing',
-                  'Quelle',
-                  'Historie',
-                  'Status / Aktion',
-                ].map((title) => (
-                  <th scope="col" key={title} className="p-2">
-                    {title}
-                  </th>
+      ) : (
+        <>
+          <div className="rounded-xl border border-slate-700 p-4">
+            <h2 className="mb-3 font-semibold">Aktie oder ETF auswählen</h2>
+            <UnderlyingSearchCombobox
+              value={underlyingId}
+              onChange={(id) => {
+                const next = new URLSearchParams(params);
+                next.set('underlying', id);
+                next.delete('target');
+                setParams(next);
+              }}
+            />
+            {context && (
+              <div className="mt-3 space-y-2 text-sm">
+                <p>
+                  Fachliche Zuordnung zum {chartDate(context.assignment_date)}: Markt{' '}
+                  {context.market?.name ?? 'fehlt'} · Sektor {context.sector?.name ?? 'fehlt'}.
+                </p>
+                {context.issues.map((issue) => (
+                  <p key={issue} className="text-amber-200">
+                    {chartMessage(issue)}
+                  </p>
                 ))}
-              </tr>
-            </thead>
-            <tbody>
-              {catalog?.sectors.map(
-                ({ context: sector, reference_history: direct, proxy_history: proxyHistory }) => {
-                  const identity = sector.proxy ?? sector.reference;
-                  const history = sector.proxy ? proxyHistory : direct;
-                  return (
-                    <tr key={sector.id} className="border-t border-slate-700 align-top">
-                      <th scope="row" className="p-2">
-                        {sector.name}
-                        <span className="block text-xs font-normal text-slate-400">
-                          {sector.classification_system} {sector.classification_version} ·{' '}
-                          {sector.code}
-                        </span>
+                <button
+                  className="rounded border border-sky-700 p-2 disabled:opacity-40"
+                  disabled={!context.subject || !context.market || !context.sector}
+                  onClick={() =>
+                    selectTargets(
+                      [context.subject, context.sector, context.market].flatMap((item) =>
+                        item ? [item.key] : [],
+                      ),
+                    )
+                  }
+                >
+                  Mit zugeordnetem Sektor und Markt vergleichen
+                </button>
+                <Link
+                  className="ml-3 text-sky-300 underline"
+                  to={withChartSetupContext(
+                    `/chart-setup?underlying_id=${context.underlying_id}`,
+                    params,
+                  )}
+                >
+                  Zuordnungen einrichten
+                </Link>
+              </div>
+            )}
+          </div>
+          {catalogError && <p role="alert">{catalogError}</p>}
+          {contextError && <p role="alert">{contextError}</p>}
+          {selectionError && <p role="alert">{selectionError}</p>}
+          {error && (
+            <p role="alert" className="rounded border border-rose-700 p-4">
+              {error}
+            </p>
+          )}
+          {loading && <p role="status">Gespeicherte Kurse werden geladen …</p>}
+          {result && (
+            <TimeSeriesChart
+              key={`${effectiveKeys}:${period}:${end}:${field}`}
+              result={result}
+              display={display}
+              onDisplayChange={setDisplay}
+            />
+          )}
+          {!effectiveKeys && !loading && (
+            <p className="rounded border border-amber-700 p-4">
+              Keine passende Marktserie eingerichtet.{' '}
+              <Link
+                to={withChartSetupContext('/chart-setup', params)}
+                className="text-sky-300 underline"
+              >
+                Markt und Datenbasis einrichten
+              </Link>
+            </p>
+          )}
+          <section className="rounded-xl border border-slate-700 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2 className="text-xl font-semibold">Sektor-Abdeckungsmatrix</h2>
+              <Link
+                to={withChartSetupContext('/chart-setup', params)}
+                className="text-sm text-sky-300 underline"
+              >
+                Sektoren und Referenzen einrichten
+              </Link>
+            </div>
+            <p className="my-3 text-sm text-slate-400">
+              Alle administrierten Sektoren zum {chartDate(end)}. Kursabdeckung bezeichnet
+              gespeicherte Daten; ETF-Serien sind Stellvertreter für die jeweilige Benchmark.
+            </p>
+            {catalog?.taxonomy_status === 'NO_SECTOR_TAXONOMY' && (
+              <p className="text-amber-200">
+                {chartMessage(catalog.taxonomy_status)} Die Einrichtung zeigt eine vollständige,
+                quellenbelegte Sektorliste zur expliziten Übernahme.
+              </p>
+            )}
+            <div
+              className="overflow-x-auto"
+              tabIndex={0}
+              role="region"
+              aria-label="Sektor-Abdeckungsmatrix"
+            >
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr>
+                    {[
+                      'Sektor / System',
+                      'Referenz / ETF',
+                      'Kennung / Listing',
+                      'Quelle',
+                      'Historie',
+                      'Status / Aktion',
+                    ].map((title) => (
+                      <th scope="col" key={title} className="p-2">
+                        {title}
                       </th>
-                      <td className="p-2">
-                        {sector.reference?.name ?? 'Nicht zugeordnet'}
-                        {sector.proxy && (
-                          <span className="block">ETF-Proxy: {sector.proxy.name}</span>
-                        )}
-                      </td>
-                      <td className="p-2">
-                        {identity?.isin ?? identity?.reference_code ?? '—'}
-                        <span className="block">
-                          {identity?.mic ?? 'Keine Notierung'} / {identity?.currency ?? 'unbekannt'}
-                        </span>
-                      </td>
-                      <td className="p-2">
-                        {identity?.provider_identity ?? 'Mapping fehlt'}
-                        <span className="block text-xs">{identity?.mapping_status}</span>
-                      </td>
-                      <td className="p-2">
-                        {history.count} EOD
-                        <span className="block whitespace-nowrap">
-                          {chartDate(history.first_date)} – {chartDate(history.last_date)}
-                        </span>
-                      </td>
-                      <td className="space-y-2 p-2">
-                        <p>
-                          {chartMessage(sector.status)}
-                          {history.count === 0 ? ' · Historie fehlt' : ''}
-                        </p>
-                        {identity && sector.status === 'CONFIGURED' && (
-                          <div className="flex flex-wrap gap-2">
-                            <button
-                              className="text-sky-300 underline"
-                              onClick={() => selectTargets([identity.key])}
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {catalog?.sectors.map(
+                    ({
+                      context: sector,
+                      reference_history: direct,
+                      proxy_history: proxyHistory,
+                    }) => {
+                      const identity = sector.proxy ?? sector.reference;
+                      const history = sector.proxy ? proxyHistory : direct;
+                      return (
+                        <tr key={sector.id} className="border-t border-slate-700 align-top">
+                          <th scope="row" className="p-2">
+                            {sector.name}
+                            <span className="block text-xs font-normal text-slate-400">
+                              {sector.classification_system} {sector.classification_version} ·{' '}
+                              {sector.code}
+                            </span>
+                          </th>
+                          <td className="p-2">
+                            {sector.reference?.name ?? 'Nicht zugeordnet'}
+                            {sector.proxy && (
+                              <span className="block">ETF-Proxy: {sector.proxy.name}</span>
+                            )}
+                          </td>
+                          <td className="p-2">
+                            {identity?.isin ?? identity?.reference_code ?? '—'}
+                            <span className="block">
+                              {identity?.mic ?? 'Keine Notierung'} /{' '}
+                              {identity?.currency ?? 'unbekannt'}
+                            </span>
+                          </td>
+                          <td className="p-2">
+                            {identity?.provider_identity ?? 'Mapping fehlt'}
+                            <span className="block text-xs">{identity?.mapping_status}</span>
+                          </td>
+                          <td className="p-2">
+                            {history.count} EOD
+                            <span className="block whitespace-nowrap">
+                              {chartDate(history.first_date)} – {chartDate(history.last_date)}
+                            </span>
+                          </td>
+                          <td className="space-y-2 p-2">
+                            <p>
+                              {chartMessage(sector.status)}
+                              {history.count === 0 ? ' · Historie fehlt' : ''}
+                            </p>
+                            {identity && sector.status === 'CONFIGURED' && (
+                              <div className="flex flex-wrap gap-2">
+                                <button
+                                  className="text-sky-300 underline"
+                                  onClick={() => selectTargets([identity.key])}
+                                >
+                                  Diagramm
+                                </button>
+                                <button
+                                  className="text-sky-300 underline"
+                                  onClick={() =>
+                                    selectTargets([
+                                      ...new Set([
+                                        ...effectiveKeys.split('|').filter(Boolean),
+                                        identity.key,
+                                      ]),
+                                    ])
+                                  }
+                                >
+                                  Vergleichen
+                                </button>
+                              </div>
+                            )}
+                            <Link
+                              className="block text-sky-300 underline"
+                              to={withChartSetupContext(sector.setup_url, params)}
                             >
-                              Diagramm
-                            </button>
-                            <button
-                              className="text-sky-300 underline"
-                              onClick={() =>
-                                selectTargets([
-                                  ...new Set([
-                                    ...effectiveKeys.split('|').filter(Boolean),
-                                    identity.key,
-                                  ]),
-                                ])
-                              }
-                            >
-                              Vergleichen
-                            </button>
-                          </div>
-                        )}
-                        <Link
-                          className="block text-sky-300 underline"
-                          to={withChartSetupContext(sector.setup_url, params)}
-                        >
-                          Einrichten
-                        </Link>
-                      </td>
-                    </tr>
-                  );
-                },
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
+                              Einrichten
+                            </Link>
+                          </td>
+                        </tr>
+                      );
+                    },
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </>
+      )}
     </div>
   );
 }

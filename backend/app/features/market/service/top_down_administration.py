@@ -280,6 +280,36 @@ class TopDownReferenceAdministrationService:
         await self._session.commit()
         return TopDownV1BootstrapResult(tuple(values))
 
+    async def ensure_v1_reference(
+        self, workspace_id: UUID, code: str = "SP500"
+    ) -> MarketReferenceModel:
+        """Ensure the approved direct SP500 identity without creating other benchmarks."""
+        if code != "SP500":
+            raise ValueError("only the approved SP500 reference is supported")
+        existing = await self._session.scalar(
+            select(MarketReferenceModel).where(
+                MarketReferenceModel.workspace_id == workspace_id,
+                MarketReferenceModel.code == code,
+            )
+        )
+        if existing is not None:
+            return existing
+        value = MarketReferenceModel(
+            id=uuid4(),
+            workspace_id=workspace_id,
+            code=code,
+            name="S&P 500",
+            reference_type=MarketReferenceType.INDEX.value,
+            region="US",
+            role=BenchmarkRole.BROAD_MARKET.value,
+            reference_version="TOP_DOWN_V1",
+            active=True,
+            created_at=datetime.now(UTC),
+        )
+        self._session.add(value)
+        await self._session.commit()
+        return value
+
     async def create_sector(
         self,
         *,

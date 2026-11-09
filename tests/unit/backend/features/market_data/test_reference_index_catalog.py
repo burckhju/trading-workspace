@@ -36,7 +36,10 @@ from app.features.market_data.service.errors import (
     MarketDataBudgetExhaustedError,
     MarketDataUnavailableError,
 )
-from app.features.market_data.service.reference_market_data import ReferenceMarketDataService
+from app.features.market_data.service.reference_market_data import (
+    ReferenceMappingExpectation,
+    ReferenceMarketDataService,
+)
 from app.providers.eodhd.client import EodhdClient
 from app.providers.shared.budget import DailyCallBudget
 from app.providers.shared.rate_limit import TokenBucketRateLimiter
@@ -531,3 +534,63 @@ async def test_non_index_reference_keeps_existing_search_and_history_contract():
         assert run.provider.requests[0].url.params["limit"] == "20"
         assert imported.currency == "CAD"
         assert all(row.currency == "CAD" and row.listing_id is None for row in run.added)
+
+
+@pytest.mark.asyncio
+async def test_scheduled_import_rejects_stale_mapping_before_any_provider_call():
+    async with runtime([index_row()], status=MappingStatus.ACTIVE) as run:
+        run.mapping.validated_at = run.clock.utcnow()
+        approved = ReferenceMappingExpectation(MAPPING, 1, "GSPC", "INDX")
+        run.mapping.version = 2
+        with pytest.raises(ValueError, match="EXPECTED_REFERENCE_MAPPING_CHANGED"):
+            await run.service.import_daily_prices(
+                workspace_id=WORKSPACE,
+                market_reference_id=REFERENCE,
+                start_date=START,
+                end_date=END,
+                expected_mapping=approved,
+            )
+        assert run.provider.paths == []
+        assert await run.budget.usage() == 0
+        assert run.added == []
+        run.session.commit.assert_not_awaited()
+        statement = run.session.scalar.call_args.args[0]
+        assert statement.get_execution_options()["populate_existing"] is True
+        assert statement._for_update_arg is None
+
+
+@pytest.mark.asyncio
+async def test_scheduled_import_rechecks_mapping_after_provider_io_before_price_writes(monkeypatch):
+    async with runtime([index_row()], status=MappingStatus.ACTIVE) as run:
+        run.mapping.validated_at = run.clock.utcnow()
+        approved = ReferenceMappingExpectation(MAPPING, 1, "GSPC", "INDX")
+        original_get_json = run.service._client.get_json
+
+        async def concurrent_change(path, **kwargs):
+            payload = await original_get_json(path, **kwargs)
+            if path.startswith("/eod/"):
+                run.mapping.version += 1
+                run.mapping.provider_symbol = "DIFFERENT"
+            return payload
+
+        monkeypatch.setattr(run.service._client, "get_json", concurrent_change)
+        with pytest.raises(ValueError, match="EXPECTED_REFERENCE_MAPPING_CHANGED"):
+            await run.service.import_daily_prices(
+                workspace_id=WORKSPACE,
+                market_reference_id=REFERENCE,
+                start_date=START,
+                end_date=END,
+                expected_mapping=approved,
+            )
+        assert run.provider.paths == [CATALOG_PATH, "/api/eod/GSPC.INDX"]
+        assert run.added == []
+        run.session.commit.assert_not_awaited()
+        reads = [
+            call.args[0]
+            for call in run.session.scalar.call_args_list
+            if call.args[0].column_descriptions[0]["entity"] is ProviderInstrumentMappingModel
+        ]
+        assert len(reads) == 2
+        assert all(statement.get_execution_options()["populate_existing"] for statement in reads)
+        assert reads[0]._for_update_arg is None
+        assert reads[1]._for_update_arg is not None
