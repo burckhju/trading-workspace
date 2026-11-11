@@ -147,6 +147,17 @@ aus `scripts/check-backend.sh`. Tests laufen in einer neuen, eindeutig lokalen
 Wegwerfumgebung ohne produktive Zugangsdaten. Keine Migration, Frontendänderung,
 Schedule, Providerzustimmung oder Installation gehört zu diesem Schnitt.
 
+### Nachtrag zur tatsächlichen CI-Umgebung vom 11.11.2026
+
+Der erste PR-Lauf scheitert in allen vier E2E-Jobs vor den Tests: `ubuntu-latest`
+liefert Ubuntu 26.04, während das vorhandene Frontend Playwright 1.55.0 pinnt.
+Für die notwendige Qualifikation wird ausschließlich der Runner dieser vier
+Jobs auf das von genau dieser Playwright-Version unterstützte `ubuntu-24.04`
+festgelegt. Browser-/Anwendungsversionen, Testbefehle, Gategrenzen, Retry- und
+Uploadregeln bleiben erhalten. Der versionsgenaue Beleg und der fehlgeschlagene
+Ausgangslauf stehen im Qualifikationsnachweis; ein neuer Lauf muss den Fix
+tatsächlich bestätigen.
+
 ## JSON-Eingabeschema und lokaler CLI
 
 Der Eingabevertrag heißt `hebeltrader-research-input-v1`. Das oberste Objekt

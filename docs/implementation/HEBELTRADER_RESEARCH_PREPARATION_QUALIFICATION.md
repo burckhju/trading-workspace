@@ -90,6 +90,30 @@ Turbo-Bedarf, ungültige Preise/Datentypen und den Schutz vorhandener Ausgaben.
 Frontend, operative Datenbank und Provideradapter wurden nicht verändert.
 Es gibt keinen Zielinstallations-, Release- oder vollständigen Renditenachweis.
 
+### CI-Runner-Fortsetzung im eigenen Commit
+
+Draft [PR #341](https://github.com/burckhju/trading-workspace/pull/341) wurde mit
+Head `225483d0db4a3f31163f2e07302eb76219aed3ee` und identischem lokalen/remote Tree
+`133aa8a46f624570b4950767fdc02804b16e8c06` angelegt. Der erste E2E-Lauf
+[42994375444](https://github.com/burckhju/trading-workspace/actions/runs/42994375444)
+scheitert bei allen vier Jobs bereits in `Install Chromium` mit
+`Playwright does not support chromium on ubuntu26.04-x64`. Es wurde kein
+Browserfall ausgeführt; nachgelagerte Artefaktfehler sind kein Testnachweis.
+
+`frontend/package.json` und Lockfile pinnen Playwright **1.55.0**. Das separate
+Backend-SDK 1.63.0 ist nicht die Version dieses E2E-Installationsbefehls. Der
+[versionsgenaue Host-Platform-Code](https://github.com/microsoft/playwright/blob/v1.55.0/packages/playwright-core/src/server/utils/hostPlatform.ts)
+qualifiziert Ubuntu 24.04; die zugehörige
+[offizielle Noble-Dockerdatei](https://github.com/microsoft/playwright/blob/v1.55.0/utils/docker/Dockerfile.noble)
+verwendet denselben unterstützten Betriebssystemstand.
+
+Ein separater enger CI-Commit ersetzt daher exakt vier `runs-on: ubuntu-latest`
+durch `runs-on: ubuntu-24.04` in `.github/workflows/e2e.yml`. Testidentitäten,
+Assertions, Timeouts, Retryregeln, Artefaktregeln, Paketversionen und alle anderen
+Workflows bleiben unverändert. Das ist eine Korrektur der Prüfplattform;
+fehlgeschlagene oder übersprungene Prüfungen werden nicht umgewertet. Der neue
+vollständige Lauf wird am neuen PR-Head gesondert ausgewiesen.
+
 ## Verbleibende fachliche Arbeit
 
 Historische Produktidentitäten, Emittentenbedingungen, Bid-/Ask-Historien,
