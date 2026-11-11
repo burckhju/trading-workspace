@@ -1,6 +1,159 @@
 # UX-Masterplan
 
+## Soll-Ist-Abgleich und Umsetzungsfolge vom 11.11.2026
+
+**Gemeinsame technische Basis:** Main und veröffentlichter Tag `v1.5.46` zeigen auf
+[`d01c259f4b79fdfbdcec8743ececda035b69f9d1`](https://github.com/burckhju/trading-workspace/commit/d01c259f4b79fdfbdcec8743ececda035b69f9d1),
+Tree `2371c76ac02f747d1961494c011b4cccdb3ad651`. Tatsächliche Main-CI und Publisher
+sind erfolgreich. Die [getrennten Nachweise](UX_INTEGRATION_STATUS.md#technischer-snapshot-v1546)
+gelten für diesen Commit; sie sind keine menschliche Fach- oder PC-Abnahme.
+Vor Beginn eines Folgeauftrags Main, Tag und offene Dateiarbeit erneut prüfen.
+
+Dieser Abgleich vergleicht die bestehenden UX-Aufträge mit dem Code. Er ändert
+keinen Arbeitsstatus im [Backlog](../planning/PRODUCT_BACKLOG.md#pflegevertrag-und-statusbedeutung),
+erzeugt keine neuen FT-/PB-IDs und berechnet keinen Fertigstellungsprozentsatz.
+Ein integrierter Teilschnitt erfüllt nicht automatisch das gesamte ursprüngliche
+Ziel. Insbesondere ist UX4-D4 nicht gleichbedeutend mit vollständigem UX2-D.
+
+| Bestehendes Ziel | Technischer Istbefund | Verbleibender begrenzter Bedarf |
+|---|---|---|
+| UX1-A/B/C/D: belegte Eingaben wiederverwenden | Erst-/Nachkauf-/SELL-Preview, einzelner gespeicherter Auswahlrun, Browserzone und vorhandene Journal-/Lessonübernahme sind implementiert; #331 ergänzt den editierbaren Planwährungsvorschlag. | Für diese vereinbarten Schnitte keine konkrete fehlende Automatik gefunden. Zwei vorhandene Berichte aktualisieren und reale Verständlichkeit, Quellenabdeckung und Bedienung getrennt abnehmen. |
+| UX2-A/B/C: gemeinsamer Kontext, Überblick, Historie | Gemeinsame Navigation und Entwurfsschutz, qualifizierter Positions-/Bewertungsreadback, ein Positionschart und ein Timelineowner sind vorhanden. O1 bleibt auf qualifizierte Ownerwerte begrenzt. | Vorhandene Wege abnehmen; rohe Kostenbasis oder realisierten G/V nicht durch einen Layoutpatch zu qualifizierten Geldwerten erklären. |
+| UX2-D: historische Quellenwege | Plan-, Review-, Journal- und Lessonpins sowie sechs Beleggruppen sind vorhanden. Analyse-/Kandidatenquellen bleiben im Tradeweg überwiegend Text; der Run der konkreten historischen Selection wird nicht an den Consumer ausgegeben. | Zuerst gebundene Kandidaten-/Analyseversion mit sicherem Trade-Rückweg, danach exakten Selection-Run über einen qualifizierten bestehenden Readvertrag anbinden. |
+| UX3-B/C/D: verständliche Ursachen und sichere Folgewege | Kanonischer Vertrag, B1/F1, Q12-Flächen und viele lokale Fehler-/Quellen-/Rückwege sind vorhanden. | M06-Invalidierungsgrund, M02-Health-Teilreadfehler und TP06-Updatebehauptung korrigieren; weitere Konsolidierung nur an konkret vereinbarten Hostflächen. |
+| UX4-B/C/D: belegte Visualisierungen | Positionsquellenwahl, Ereignisbelege, einzelne SELL-Beiträge, erklärte Abschlussstatistiken und lokale Qualitäts-/Lebenszyklusdarstellung sind integriert. #340 ergänzt die Chartwatchlist. | Menschliche Abnahme; Positionscoverage als spätere gemeinsame Oberfläche erst nach Host-/Readtypvertrag. Neue Finanzzeitreihen und weitergehende M8-Funktionen behalten ihre Domainvoraussetzungen. |
+
+Code-/Sollbezüge: [UX1-Qualifikation](../implementation/UX1_INPUT_REUSE_QUALIFICATION.md),
+[Planwährung](../implementation/UX1_B_PLAN_CURRENCY_SUGGESTION.md),
+[UX2-Auftrag](../ui/ux2-trade-workspace.md),
+[UX3-Rollout](../ui/ux-3/integration-and-rollout.md),
+[UX4-D-Grenzen](../implementation/UX4_D_IMPLEMENTATION_SCOPE.md) und
+[UX4-C-Grenzen](../implementation/UX4_C_QUALIFICATION.md).
+
+### Aktueller Auftrag an UX1
+
+Ziel ist der überprüfbare Abschluss der vorhandenen Wiederverwendung, mit
+sichtbarer Trennung von Vorschlag, manueller Entscheidung und gespeichertem Fakt.
+Erlaubter Dateischnitt: `docs/implementation/UX1_INPUT_REUSE_QUALIFICATION.md`
+und `docs/implementation/UX1_B_PLAN_CURRENCY_SUGGESTION.md`. Bestehende
+A/B/C/D- und finale #331-Nachweise auf die gemeinsame Basis beziehen; den
+ursprünglichen Einzelrun-B-Schnitt vom späteren Planwährungsvorschlag unterscheiden.
+UX1 besitzt Eingabe-/Herkunftsdarstellung, die bestehenden Domains ihre Fakten.
+
+Prüfen: belegte und UNKNOWN/MIXED/CONFLICT-Währung, manuelle Overrides und späte
+Antworten; ein versus mehrere Runs; vollständiger historischer Analysesnapshot
+bei unverändertem Formular; URL-Vorrang der Zone; Journal-/Lessonpins und
+Entwurfserhalt. Vorhandene Tests/CI zuordnen, menschliche Prüfung gesondert
+belegen. Keine neue Produktfunktion, Recovery, Backlogänderung oder Domainregel.
+Abschluss: beide Berichte mit datiertem Nachtrag und konkreten vorhandenen bzw.
+noch fehlenden Abnahmebelegen, Branch/PR/Head und exaktem Zwei-Dateien-Diff.
+
+### Aktueller Auftrag an UX2
+
+Ziel des nächsten Produktschnitts ist der historische Weg aus dem Trade zur
+belegten Kandidatenevaluation bzw. Analyseversion und zurück zum selben
+Trade-/Review-/Journal-/Berichtskontext. Vor dem Produktdiff den konkreten
+URL-/Rückwegvertrag mit Analysis/Candidate festhalten. Wiederverwenden:
+`TradeSourcesView.tsx`, `CandidatePage.tsx`, `MarketAnalysisDetailPage.tsx`,
+`analysisWorkflowContext.ts` und die reine öffentliche Grenze
+`shared/trade-workspace-navigation/{links,context,types}.ts` samt Tests.
+`TradePlanVersionContent.tsx` ist nur nach ausdrücklicher Consumerabstimmung
+zusätzlicher Dateischnitt. UX2 besitzt Navigation; die Domains validieren Typ,
+Identität und Version. UX4 ändert die Quellenansicht nicht parallel.
+
+Nur belegtes `ANALYSIS` mit passender ID und positiver ganzzahliger Version
+entspricht dem vorhandenen Zielvertrag. Andere Quellentypen bleiben lesbare
+Provenance; keine unbelegte Alias- oder Latest-Zuordnung. Prüfen: genaue Pins,
+ungültige/doppelte/fremde Parameter, Kopieren/Reload, Dirty-/Busy-Schutz,
+A→B→A, keine zusätzlichen Source-Reads oder Writes allein durch Linkdarstellung
+sowie Tastatur und schmale Ansicht. Zielseiten behalten ihre bestehenden Owner-Reads.
+Abschluss: exakt belegter historischer Hin- und Rückweg im kleinen Draft mit
+aktueller kombinierter CI. Neue Analyse, Produktauswahl und Finanzlogik sind
+Nicht-Ziele.
+
+Danach separat: FT-008/FT-009 qualifizieren die vorhandene Zuordnung
+`product_selection_id → selection.run_id` für den bestehenden Source-DTO.
+Prüffläche: `trade_position/service/{resolvers,source_view}.py`,
+`api/source_router.py`, passende DTO-/PostgreSQL-Tests; UX2 konsumiert
+anschließend in `trade/services/sourceView.ts` und `TradeSourcesView.tsx`.
+Keine neue Persistenz und kein Ersatz durch die neueste Planauswahl. Mehrere
+Runs, spätere Auswahl, EXTERNAL und fremder Workspace müssen erhalten bleiben.
+Das bestehende UX2-Dokument begleitet beide Schnitte und die separate Abnahme
+der bereits integrierten A/B/C-Wege.
+
+### Aktueller Auftrag an UX3
+
+Zuerst M06 aus dem bestehenden B3/F4-Auftrag: genau
+`frontend/src/features/alert/components/TradeAlertsPanel.tsx` und dessen Test.
+Ein lokaler reiner Textmapper erklärt gelieferten Status und Grund:
+`LEGACY_RULE_PRICE_BASIS_UNCONFIRMED` gegenüber
+`RISK_CONFIGURATION_OR_IDENTITY_SUPERSEDED`; unbekannter/fehlender Grund bleibt
+neutral. Keine neue Domainableitung, Quittierung, Zustellung oder Recovery.
+Beide Gründe, unbekannt/fehlend, OPEN/RESOLVED und unabhängigen Deliveryzustand
+positiv/negativ prüfen; Originalwerte und historische Bezüge erhalten.
+
+Danach M02/TC-50 in derselben Fläche, seriell: Health-Teilreadfehler sichtbar
+halten. Vor einem neuen Anwendbarkeitsverhalten vereinbaren UX2 und
+PositionMonitoring den autoritativen Positionskontext; 404 oder leere Alerts
+beweisen keinen Vollabschluss. Der vorhandene `positionRead`-Zustand gehört
+zum Vertrag: Ein nach invalidiertem/fehlgeschlagenem Readback weiterhin sichtbarer
+alter `is_closed`-Wert ist kein aktueller Abschlussbeleg. Ein Health-GET kann
+Providerzugriff enthalten.
+Keine zusätzlichen Healthreads durch Navigation oder Anzeige.
+
+Unabhängig vorbereitbar ist der enge B4/TP06-Schnitt in
+`trade_plan/components/PlanPurchaseStatus.tsx` und dessen Test: aus fehlenden
+optionalen Executiondaten kein erforderliches Backend-/PC-Update behaupten.
+Vorhandene UNKNOWN/NOT_STARTED-, Versions- und Tradeverknüpfungen erhalten.
+C-/D-Konsolidierung folgt danach nur für eine benannte Hostfläche mit Ownerfakten,
+Fokus-/Ansagevertrag und konkreten Negativfällen, nicht als globale Migration.
+Ein belegter späterer C3/M11-Schnitt betrifft `PositionRiskPanel.tsx` samt Test:
+Read/Preview, Configure-/Evaluate-Write und bestätigten Write mit fehlgeschlagenem
+Readback getrennt erklären; Operationsvertrag zuerst, kein generischer Retry.
+Für D2/F8 ist `ClosedTradeStatistics.tsx` samt Test ein konkreter späterer
+Kandidat: denselben belegten Unverfügbarkeitsgrund innerhalb einer Reportbasis
+einmal erklären, alle betroffenen Werte weiterhin als unbekannt ausweisen.
+Performance besitzt Bedeutung/Population, UX4 den Renderer, UX3 Sprache und
+Ursachenbindung. Der gesonderte Profit-Faktor-Grund ohne Verluste bleibt getrennt.
+
+### Aktueller Auftrag an UX4
+
+Die gelieferten B/C/D- und #340-Schnitte erhalten einen begrenzten gemeinsamen
+Bedien-/Quellenabgleich: Quellenwahl, überlagerte Originalbelege, DATE_ONLY,
+unbekannte Werte statt Null, getrennte Reportpopulationen, exakte Rohwerte,
+Tabellenfallback, Tastatur, 320/390/1280 CSS-Pixel sowie nativer Zoom. Automatisierte
+CI ist vorhanden; tatsächlicher Screenreader, Touch, repräsentative Nutzerdaten
+und PC-Providerabdeckung bleiben eigene Nachweise. Technische Übergaben in den
+bestehenden UX4-Qualifikations-/Scopedokumenten nachführen; kein neuer Statuskatalog.
+
+Als nächster möglicher Produktumfang bleibt die bereits benannte
+Positionscoverage: bestehender GET `/market-data/positions/quote-coverage`,
+keine zweite Kursquelle. Zuerst UX2-Slot, Props, Readowner, Invalidierung/Fokus
+und öffentliche Market-Data-Readtypgrenze vereinbaren. Danach darf UX4 einen
+schmalen Renderer mit gelieferten absoluten Zählern und Quellen einplanen.
+Überlappende Populationen, fehlende Felder, zwei Positionen desselben Produkts,
+Readfehler und Nebenwirkungsfreiheit prüfen. Kein lokaler Qualitätsprozentsatz.
+Der ursprüngliche Auftrag enthält hierfür noch keinen endgültigen Dateischnitt;
+dieser ist vor Umsetzung konkret zu übergeben.
+
+### Verbleibende Fachentscheidungen und Abnahme
+
+PB-019-Regelabweichungen und Entscheidungsqualität benötigen weiterhin erklärte
+Kriterien der bestehenden FT-011-/FT-012-Owner. Performanceexport, breitere
+Statistiken und zusätzliche Zeitreihen bleiben eigene erhaltene Anforderungen;
+ohne Gebühren-/Cashflow-/FX-/Zeitreihenvertrag entstehen keine Equity-, Netto-,
+Drawdown- oder Sharpewerte. Diese offenen Fachgrenzen verhindern die oben
+belegbaren kleinen UX-Verbesserungen nicht.
+
+Die [Integrationsfolge](UX_DEPENDENCIES.md#umsetzungsfolge-ab-v1546) trennt
+unabhängige Arbeit, gemeinsame Dateien, reguläre CI und erforderliche Freigaben.
+Genau nächster UX-Produktschnitt ist M06; der aktuelle CI-Umgebungsbefund wird
+vor Integration gesondert vom CI-Owner aufgelöst. PC-Updates oder produktive
+Datenänderungen sind kein Teil dieser Planung.
+
 ## Auftrag und gemeinsame Basis
+
+**Historischer technischer Snapshot vom 01.11.2026:** Die damalige Basis und die nachfolgenden ursprünglichen Übergabepakete bleiben als Herkunft erhalten. Aktuelle technische Befunde und Folgeaufträge stehen im datierten Abschnitt oben; allgemeine Prinzipien gelten unverändert.
 
 MASTER-LEAD koordiniert Architektur, Zuständigkeiten, Abhängigkeiten, technische Prüfung und Integration der vier UX-Stränge. Dieser Dokumentationsschnitt implementiert keine Produktfunktion.
 
@@ -39,7 +192,7 @@ MASTER pflegt diese fünf Dokumente. Die Leads pflegen ihre vorhandenen PRs und 
 
 **Tatsächlich ausgeführte Phase 1:** Masterkoordination #313, UX4-A #316 und der kanonische UX3-K-Vertrag #314 sind integriert. [#318](https://github.com/burckhju/trading-workspace/pull/318) hat UX1 und UX2-A gemeinsam integriert; #311 und #312 sind mit erhaltener Abstammung im selben Mainmerge enthalten. BUY-Adapter, einmaliger Shared-Zeitzonenhelper, Host-/Testintegration und qualifizierte Preview-Fixture sind vorhanden. Der A→B→A-Reviewfix und die finale E2E-Synchronisation gehören zum ausgelieferten Stand `v1.5.37`. Die frühere Einzel-PR-Reihenfolge bleibt in [UX_DEPENDENCIES](UX_DEPENDENCIES.md#integrationsreihenfolge-phase-1) als historischer Auftrag erhalten und wird nicht erneut verteilt.
 
-**Begrenzte Folgearbeit:** Der kanonische Hinweisvertrag aus #314 gilt; #315 bleibt offene Draft-Quelle und wird weder als zweiter Vertrag integriert noch geschlossen. Genau der vorhandene UX3-B1/F1-Pilot in `RealizedGrossSources` ist der nächste Präsentationsschnitt; dafür existiert bereits [Draft #320](https://github.com/burckhju/trading-workspace/pull/320) am Head `71e971a67be7f1ca10192e04e3832f843b8099bd`. Seine Produktprüfung ist eigenständig. UX4-B/C/D bleiben getrennte, an ihre konkreten Host-/Hinweis-/Domainverträge gebundene Aufträge. Diese technische Fortschreibung erteilt keine neue Produkt-, Fach- oder Mergefreigabe.
+**Historische Folgearbeit vom 01.11.2026:** Der kanonische Hinweisvertrag aus #314 gilt; #315 bleibt offene Draft-Quelle und wird weder als zweiter Vertrag integriert noch geschlossen. Genau der vorhandene UX3-B1/F1-Pilot in `RealizedGrossSources` ist der nächste Präsentationsschnitt; dafür existiert bereits [Draft #320](https://github.com/burckhju/trading-workspace/pull/320) am Head `71e971a67be7f1ca10192e04e3832f843b8099bd`. Seine Produktprüfung ist eigenständig. UX4-B/C/D bleiben getrennte, an ihre konkreten Host-/Hinweis-/Domainverträge gebundene Aufträge. Diese technische Fortschreibung erteilt keine neue Produkt-, Fach- oder Mergefreigabe.
 
 ## Übergabepaket UX-1 — Eingaben und Herkunft
 
