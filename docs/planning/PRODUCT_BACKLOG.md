@@ -1350,7 +1350,7 @@ Keine PC-Installation, produktive Datenkorrektur oder vollständige M8-Abnahme.
 
 ### PB-019
 
-[Exit-Review-Evidence bewusst materialisieren](#pb-019-materialization) · [Journalentwurf und Journalabschluss](#pb-019-journal) · [Regelabweichungen dokumentieren](#pb-019-deviations) · [Belegte Lessons Learned](#pb-019-lessons) · [Entscheidungsbewertung getrennt vom Ergebnis](#pb-019-decision-quality) · [Performancekennzahlen](#pb-019-performance-metrics) · [Tradeübergreifende Statistiken](#pb-019-performance-statistics) · [Performance-Dashboards](#pb-019-performance-dashboards) · [Perioden- und Tradeauswertungen](#pb-019-performance-evaluations)
+[Exit-Review-Evidence bewusst materialisieren](#pb-019-materialization) · [Journalentwurf und Journalabschluss](#pb-019-journal) · [Regelabweichungen dokumentieren](#pb-019-deviations) · [Belegte Lessons Learned](#pb-019-lessons) · [Entscheidungsbewertung getrennt vom Ergebnis](#pb-019-decision-quality) · [Performancekennzahlen](#pb-019-performance-metrics) · [Tradeübergreifende Statistiken](#pb-019-performance-statistics) · [Performance-Dashboards](#pb-019-performance-dashboards) · [Perioden- und Tradeauswertungen](#pb-019-performance-evaluations) · [Externe historische Forschung vorbereiten](#pb-019-external-research)
 
 <a id="pb-019-materialization"></a>
 <details>
@@ -1609,6 +1609,32 @@ Nachweis vollständiger realer Währungsabdeckung oder einer neuen Auslieferung.
 | Betriebsnachweis | Am 20.10.2026 meldet der Nutzer vier gesunde Dienste, `ready` und installiert 1.5.9 / `254fe35b76027b72cd989715e17bd0ae55af55eb`; lesende Berichtsansicht beobachtet. Kein Installations- oder Fachabnahmenachweis für 1.5.10 und keine Aussage über vollständige reale Währungsabdeckung. |
 | Restarbeit / nächste Abhängigkeit | Freigegebene Bereitstellung v1.5.31 mit aktuellen Release-PR-/Main-/Publisherprüfungen und Tag-/Commitbezug abschließen. Einmal geprüfte historische Quellen werden für passende Buchungen automatisch wiederverwendet; unbelegte Fälle bleiben ungeklärt. **Nächste Abhängigkeit:** tatsächlicher Release-Nachweis, danach gesonderte reale Quellen- und Betriebsbeobachtung. Kein PC-Zugriff oder produktiver Datenänderungsauftrag in diesem Schnitt. |
 | Umfangsentscheidung | Der enge erste Brutto-SELL-Schnitt erfüllt keinen vollständigen M8-Umfang. Statistik-/Kohorten-/Diagramm-/Exportanforderungen bleiben erhalten; weitere Kennzahlen behalten ihre eigenen offenen Fachverträge. |
+
+</details>
+
+<a id="pb-019-external-research"></a>
+<details>
+<summary>PB-019 — Externe historische Forschung vorbereiten</summary>
+
+**Abgegrenzter Analyseauftrag 11.11.2026:** Alle 222 externen Empfehlungen
+sollen bewertet und Synergien mit Trading Workspace genutzt werden. Die
+EUR-Notierung der Derivate wird unabhängig von Basiswert- und Basispreiswährung
+erhalten. Der Auftrag zur eigenständigen Analyse deckt den lokalen Prüfadapter;
+produktive Imports, reale Ausführungen, Modellaktivierung, Merge und Auslieferung
+bleiben getrennte Handlungen.
+
+| Nachweisfeld | Einordnung |
+|---|---|
+| Zuordnung | FT-012 / Learning als Owner externer Quellen; bestehende Observation-, Identitäts- und Outcome-Verträge bleiben maßgeblich. |
+| Arbeitsstatus | Technical Review — Offline-Adapter und 60 neue synthetische Tests lokal bestanden; native Gesamtqualifikation in der regulären PR-CI sowie fachliche Vollauswertung bleiben getrennt nachzuweisen. |
+| Soll / Nicht-Soll | **Soll:** Vollständiger, deterministischer Quellen- und Datenbedarfsnachweis mit getrennten Preisachsen und exakter Herkunft. **Nicht-Soll:** Keine Renditen aus fehlenden Kursen und keine Übernahme hypothetischer Trades in den Ausführungsbestand. |
+| Implementierung / Consumer | [Quellenvertrag und Akzeptanzkriterien](../features/HEBELTRADER_RESEARCH_PREPARATION.md); lokaler JSON-Dateiadapter unter dem Learning-Owner. Der bestehende PDF-Bulkimport und seine ausdrückliche Bestätigung bleiben eigenständig. |
+| Test / Commit | [Technische Qualifikation und Grenzen](../implementation/HEBELTRADER_RESEARCH_PREPARATION_QUALIFICATION.md); ausschließlich synthetische Testdaten im öffentlichen Repository. Basis `d01c259f4b79fdfbdcec8743ececda035b69f9d1` / 1.5.46. |
+| Fachliche Abnahme | Analysevorbereitung durch aktuellen Nutzerauftrag gedeckt. Keine Endabnahme einer 222-Fälle-Renditestudie oder eines neuen Handelsmodells. |
+| Software-Auslieferung | Eigener Entwicklungsbranch; kein Release, Tag, Merge oder PC-Update durch diesen Schnitt. |
+| Betriebsnachweis | Offline-Dateiverarbeitung; keine Aussage über den Nutzerbestand oder historische Datenabdeckung der produktiven Installation. |
+| Restarbeit / nächste Abhängigkeit | Verifizierte Listingidentitäten, historische EUR-Produktquotes und Vertrags-/Settlementdaten; nachvollziehbare Modell-/Ausführungsannahmen vor dem historischen Lauf. Vorhandene Forschung #197 sowie #187/#207 bleiben getrennt. |
+| Umfangsentscheidung | Vorbereitung ist ein begrenzter Teil der vollständigen Forschungsaufgabe. Bestehende 6-/14-Fälle-Ergebnisse, Quellen und Modellstände werden nicht überschrieben oder zu einem unabhängigen Test umgedeutet. |
 
 </details>
 
