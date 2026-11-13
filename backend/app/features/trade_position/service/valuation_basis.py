@@ -7,7 +7,7 @@ binds their outputs to the same effective facts and immutable evidence.
 
 import hashlib
 import json
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from typing import Literal
 from uuid import UUID
 
@@ -19,17 +19,24 @@ from app.features.trade_position.domain.currency import (
     CurrencyResolutionSource,
     ExecutionCurrencyResolution,
 )
-from app.features.trade_position.domain.currency_resolution import resolve_execution_currencies
+from app.features.trade_position.domain.currency_resolution import (
+    resolve_execution_currencies,
+)
 from app.features.trade_position.domain.enums import ExecutionSide
-from app.features.trade_position.domain.models import Position, Trade
-from app.features.trade_position.domain.projector import PositionProjector
+from app.features.trade_position.domain.models import ExecutionRecord, Position, Trade
+from app.features.trade_position.domain.projector import (
+    BuyProjectionContribution,
+    PositionProjector,
+)
 from app.features.trade_position.persistence.currency_evidence import (
     SqlAlchemyCurrencyEvidenceRepository,
 )
 from app.features.trade_position.persistence.currency_repository import (
     SqlAlchemyExecutionCurrencyConfirmationRepository,
 )
-from app.features.trade_position.persistence.repositories import SqlAlchemyExecutionRecordRepository
+from app.features.trade_position.persistence.repositories import (
+    SqlAlchemyExecutionRecordRepository,
+)
 
 POSITION_VALUATION_DEFINITION = "position-unrealized-gross-v1"
 
@@ -56,6 +63,23 @@ class PositionValuationBasis:
     currency_status: Literal["KNOWN", "UNKNOWN", "MIXED"]
     effective_execution_ids: tuple[UUID, ...]
     buy_currency_evidence: tuple[BuyCurrencyEvidence, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class PositionExecutionBasis:
+    """Execution-owner facts for evidence consumers in one read-only snapshot.
+
+    ``history`` retains replaced facts and their correction links. The ordered
+    effective stream, remaining BUY weights and qualified gross valuation all
+    originate from one call to the existing projector. Neither a source link
+    nor this read can create an execution, confirmation or position mutation.
+    """
+
+    trade: Trade
+    history: tuple[ExecutionRecord, ...]
+    effective_executions: tuple[ExecutionRecord, ...]
+    buy_contributions: tuple[BuyProjectionContribution, ...]
+    valuation_basis: PositionValuationBasis
 
 
 def _buy_evidence(
@@ -90,6 +114,16 @@ def _legacy_currency_material(
 async def read_position_valuation_basis(
     session: AsyncSession, *, trade: Trade, position_id: UUID
 ) -> PositionValuationBasis:
+    """Preserve the existing monetary read shape and its basis identity."""
+    return (
+        await read_position_execution_basis(session, trade=trade, position_id=position_id)
+    ).valuation_basis
+
+
+async def read_position_execution_basis(
+    session: AsyncSession, *, trade: Trade, position_id: UUID
+) -> PositionExecutionBasis:
+    """Read owner facts; caller supplies the scoped trade and snapshot transaction."""
     executions = SqlAlchemyExecutionRecordRepository(session)
     history = await executions.list_for_trade(trade.id)
     effective = await executions.list_effective_for_trade(trade.id)
@@ -164,7 +198,7 @@ async def read_position_valuation_basis(
             currency_evidence=[asdict(item) for item in evidence],
             buy_currency_evidence=[asdict(buy) for buy in buys],
         )
-    return PositionValuationBasis(
+    valuation = PositionValuationBasis(
         definition_version=POSITION_VALUATION_DEFINITION,
         basis_id=hashlib.sha256(
             json.dumps(material, sort_keys=True, default=str, separators=(",", ":")).encode()
@@ -174,4 +208,20 @@ async def read_position_valuation_basis(
         currency_status=status,
         effective_execution_ids=tuple(fact.id for fact in trace.ordered_executions),
         buy_currency_evidence=buys,
+    )
+    enriched_history = tuple(
+        replace(
+            fact,
+            currency_confirmation=confirmations.get(fact.id),
+            currency_resolution=resolutions[fact.id],
+        )
+        for fact in history
+    )
+    enriched_by_id = {fact.id: fact for fact in enriched_history}
+    return PositionExecutionBasis(
+        trade=trade,
+        history=enriched_history,
+        effective_executions=tuple(enriched_by_id[fact.id] for fact in trace.ordered_executions),
+        buy_contributions=trace.buy_contributions,
+        valuation_basis=valuation,
     )

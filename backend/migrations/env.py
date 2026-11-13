@@ -40,6 +40,9 @@ from app.features.trade_position.persistence import (
 from app.features.trade_position.persistence import (
     currency_models as execution_currency_models,  # noqa: F401
 )
+from app.features.trade_position.persistence import (
+    hebeltrader_evidence as hebeltrader_evidence_models,  # noqa: F401
+)
 from app.features.trade_position.persistence import models as trade_position_models  # noqa: F401
 from app.features.user_preferences.persistence import models as user_preference_models  # noqa: F401
 

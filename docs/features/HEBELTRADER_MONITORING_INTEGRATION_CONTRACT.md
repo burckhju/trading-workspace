@@ -1,5 +1,12 @@
 # Hebeltrader-Positionsmeldungen: Integrationsvertrag zu #207
 
+**Additiver Stand 14.11.2026:** Der historische F207-1-Abgleich bleibt erhalten.
+Der [Evidenzschnitt F207-4](#f207-4-evidence-read) und die
+[F207-3-Schnittstellenübergabe](#f207-3-interface-handoff) am Dokumentende
+beschreiben die begrenzte Ergänzung auf Main `b84544edabccbe5a9102ee883eb26ebf01f40f9a`.
+Aufgabenstatus bleibt ausschließlich im Product Backlog; vollständige Baseline,
+Regelaktivierung und Betrieb werden dadurch nicht als abgeschlossen erklärt.
+
 ## Zweck und Dokumentgrenze
 
 Dieser Dokumentationsschnitt **F207-1** sichert die historischen Anforderungen aus
@@ -674,3 +681,272 @@ verlinken ihre Belege unmittelbar im Text.
 [pr197-research]: https://github.com/burckhju/trading-workspace/blob/08d2a5c9abe91ef518eb2c940eff9bbeceb073f8/docs/research/HEBELTRADER_EXECUTION.md
 [migration-0039]: https://github.com/burckhju/trading-workspace/blob/46cb2693e38751ca330074e8606142d0c5e9d24b/backend/migrations/versions/20260918_0039_position_quote_source_selection.py
 [migration-0048]: https://github.com/burckhju/trading-workspace/blob/46cb2693e38751ca330074e8606142d0c5e9d24b/backend/migrations/versions/20261028_0048_currency_source_evidence.py
+
+<a id="f207-3-interface-handoff"></a>
+## Anhang: F207-3-Schnittstellenübergabe vom 14.11.2026
+
+Gezielte, ausschließlich lesende Codeprüfung auf Main
+`b84544edabccbe5a9102ee883eb26ebf01f40f9a` (`VERSION` 1.5.46).
+Dieser Anhang ergänzt die historische Anforderungszuordnung; er implementiert
+keine F207-3-Regelauswertung und belegt keine aktuelle Versorgung auf dem
+Nutzer-PC. Aufgabenstatus bleibt ausschließlich im Product Backlog.
+
+### Vorhandene Owner und wiederverwendbare Reads
+
+| Bedarf | Vorhandener öffentlicher Vertrag | Grenze am geprüften Main |
+| --- | --- | --- |
+| Gespeicherte Produktquote | [`RiskMarketDataReader.saved_quote(workspace_id, position_id, as_of)`](../../backend/app/features/market_data/service/risk_read.py) | Rein lesend; prüft Source Selection, Route, Instrument, Währung, Qualität und Zeit. Keine Aussage über verifizierte offene Sitzung oder 20 abgeschlossene Sitzungen. |
+| Historische Produktkurse | [`QuoteHistoryReader.prices/report`](../../backend/app/features/market_data/service/quote_history.py), [`WarrantPriceHistory`](../../backend/app/features/market_data/service/warrant_price_history.py) | Persistierte Samples und Last-success, getrennte BID-/ASK-/Referenzserien und Original-/Abruf-/Erfassungszeiten. Keine vollständige Zeitabdeckung. |
+| Produkttermin und Bedingungen | [`RiskProductReader.read(workspace_id, warrant_id, as_of)`](../../backend/app/features/product/service/risk_reference.py) | Liefert Bedingungen-ID, `maturity`, optional `expiry_at`, Evidenzrevision, Herkunft und Dokumentreferenz. Letzter Handelstag fehlt. |
+| Produktbelegrevisionen | [`ValuationEvidenceService.view` / `current_evidence`](../../backend/app/features/product/service/valuation_evidence.py) | An Produktidentität und Bedingungen-ID gebunden; Prüf- und Erfassungszeit getrennt. Kein Rückgriff auf eine ältere passende Revision bei geänderter letzter Evidenz. |
+| Basiswertlisting | [`RiskListingReader.read`](../../backend/app/features/market/service/risk_reference.py) | Eindeutige aktive primäre Notierung, Symbol und Währung; noch kein historisch fest gebundener Kalenderread. |
+| Basiswerttagesdaten | [`MarketDataReader.list_daily_prices`](../../backend/app/features/market_data/service/query.py) | Vorhandene OHLC-/Adjusted-Close-Daten sind weder vollständiger Kalender noch Intraday-Trade zum Kauf. |
+
+Der [Kursvertrag](../../backend/app/features/market_data/domain/models.py) erhält
+bereits Originalzeit, Kursseite, Währung, Listing/ISIN, Venue/MIC, Zeitbasis und
+Quellenmodus. [`SavedQuoteEvidence`](../../backend/app/features/market_data/domain/risk_evidence.py)
+ergänzt Abrufzeit und Routenidentität. Diese Verträge bleiben die Preisgrundlage.
+`ProductPositionValuationService.for_trade` und `WarrantListingQuoteProvider`
+können dagegen Provider-I/O auslösen; der Retentionwrapper kann zudem speichern.
+Ein Coverage-GET verwendet deshalb ausschließlich gespeicherte Reader.
+
+### Vier vorgeschlagene Anschlussverträge für F207-3
+
+Die folgenden Namen beschreiben **noch nicht implementierte** schmale Reads bei
+Market Data/Product. Sie beschaffen im Read keine Daten und aktivieren keine
+Quelle. Vorhandene Identitäts-, Beleg- und Preisobjekte werden wiederverwendet.
+`known_at` bezeichnet den Wissensstand; Originalereigniszeit und spätere
+Erfassungszeit bleiben jeweils eigenständige Felder.
+
+**`read_session_evidence(binding, interval, known_at)`** — Market Data liefert
+fest gebundenes Basiswert-/Produktlisting, Handelsplatz/MIC, Zeitzone,
+Kalender-ID/-Version, Gültigkeit, belegten Deckungsbereich und Quellreferenz.
+Jede Sitzung enthält lokalen Sitzungstag, tatsächliches `opens_at`/`closes_at`
+und gegebenenfalls verkürzte Zeiten; Nicht-Sitzungstage und Deckungslücken sind
+explizit unterscheidbar. Market besitzt bereits Listing-/Venue-Identitäten und
+IANA-Zeitzone, aber keinen solchen Sitzungsevidenzreader. Der generische
+[`DE_WARRANT_SESSION_FRESHNESS_V1`](../../backend/app/features/position_monitoring/service/quote_freshness.py)
+mit 08–22 Uhr und regulären Feiertagen ersetzt ihn nicht. Kauf-/Z1-Tag zählt 0;
+der Consumer zählt nur spätere, zur maßgeblichen Ereigniszeit abgeschlossene
+Sitzungen. Fehlende Tageskerzen werden nicht als Feiertage interpretiert.
+
+**`read_product_deadline_evidence(workspace_id, warrant_id, terms_id,
+exit_listing_id, known_at)`** — Product verwendet `RiskProductReader`,
+`ValuationEvidence` und `WarrantListing`; ergänzt werden verifizierter letzter
+Handelstag/-schluss, ausdrücklich gebundenes Ausstiegslisting, Terminart und
+instrumentbezogene Schlusszeit mit Quelle und Revision. `expiry_at` ist kein
+Synonym für letzten Handelstag. Die vorhandene Produktbelegvalidierung bindet
+sein lokales Datum an `maturity_date`; abweichende Bewertungs-/Zahlungstage sind
+dadurch nicht unterstützt. B05 benötigt den früheren verifizierten maßgeblichen
+Termin und die 20. vorherige Produktsitzung, unter Ausschluss des Termintags.
+Diese Frist bleibt unabhängig davon, ob gerade ein Produktkurs erreichbar ist.
+
+**`read_saved_original_bid(workspace_id, position_id, as_of)`** — Market Data
+baut auf `RiskMarketDataReader.saved_quote` und dem unveränderten
+`WarrantQuoteSnapshot` auf. Der spätere Baseline-Qualifier verlangt tatsächlichen
+BID des gehaltenen Instruments, passende Währung und belegte Skala, echte
+Originalzeit, `0 <= Alter <= 900 Sekunden` und verifiziert laufende offene Sitzung.
+Die 20. Basiswertsitzung muss bereits **zur Originalkurszeit** abgeschlossen sein.
+Empfang nach dem Sitzungsschluss qualifiziert einen älteren Kurs nicht nachträglich.
+Retention ist weder pauschaler Ausschluss noch Frischenachweis. Last, Close, Ask,
+Mid oder eine nur frische Empfangszeit ersetzen keine fehlende BID-Evidenz.
+
+**`read_underlying_trade_at_or_before(binding, execution_time_evidence,
+known_at)`** — Market Data liefert einen unveränderlichen Beobachtungsbezug mit
+Basiswert/Listing/Venue, `price_kind=TRADE`, Preis, Währung, Preismaßstab und
+gegebenenfalls verifizierter Anpassungsevidenz. Originalzeit samt Genauigkeit,
+Herkunft, Korrekturbezug und Erfassungszeit bleiben sichtbar. Die Auswahl muss
+belegen, weshalb dies der letzte geeignete Trade zum oder vor dem Kauf ist.
+Am geprüften Main existieren nur Tagesdatenprovider, kein solcher historischer
+Basiswert-Tradereader. `source_updated_at` und `retrieved_at` sind keine
+Tradezeitpunkte. Unbekannte Kaufuhrzeit wird nicht erfunden, spätere Trades werden
+nicht rückdatiert und ein belegter späterer Nachtrag hat keine pauschale
+60-Sekunden-Grenze. F207-4 liefert dafür den Ausführungs-/Belegbezug.
+
+### Reale Quellenqualifikation und verbleibender Betriebsnachweis
+
+| Bestehender Pfad | Vorhandene Evidenz | Verbleibende B04-/B58-Grenze |
+| --- | --- | --- |
+| JPMorgan | Gebundene Produktindikation; Originalzeit ausdrücklich unbekannt (`DATE_AND_TIMEZONE_UNKNOWN`). | Frischer Empfang ersetzt weder Datum noch Zeitzone; kein geeigneter Original-BID-Zeitnachweis. |
+| Morgan Stanley | Produktindikation mit lokalem Zeittext, `LOCAL_DATETIME_TIMEZONE_UNKNOWN` oder fehlendem Zeitstempel. | Unverifizierte Zeitzone; `observed_at` bleibt unbekannt. |
+| gettex delayed | Genaue MUND-/MUNC-/ISIN-/Währungsbindung, getrennte Seiten und originale UTC-Zeit. | Marktstatus ist `UNKNOWN`; nominal 900 Sekunden Delay belegt kein tatsächliches Alter ≤900 Sekunden einschließlich Transportlatenz. |
+| Frankfurt normalisierter Snapshot | BID/ASK, Originalzeit, Marktstatus, MIC und Delay sind transportierbar. | Kalender-/Sitzungsbezug und instrumentbezogene aktuelle Versorgung sind gesondert zu belegen. Der öffentliche Websitepfad liefert dagegen Last/Previous Close. |
+| Stuttgart delayed | Genaue ISIN/MIC/Währung, Originalzeit und Seitenvalidierung. | Kein vollständiger verifizierter Kalender-/Markt-offen-Bezug und hier kein lokaler Feednachweis. |
+| EODHD | Bestehende Basiswert-EOD-Versorgung. | Optionsschein-Bid/Ask wird im Adapter ausdrücklich abgewiesen; kein historischer Intraday-Trade-Nachweis aus OHLC. |
+
+Die [Quellenqualifikation vom 30.10.2026](../reviews/ISSUER_QUOTE_QUALIFICATION_2026-10-30.md)
+ordnet #220 bereits als historische Forschung ein. Deren frühere technische
+Beobachtungen sind keine heutige Liveabdeckung oder zusätzliche Nutzungsfreigabe.
+Dieser Anhang führt keine neue Providerzustimmung, Beschaffung oder Aktivierung
+ein. Verifizierte Kalenderabdeckung, produktbezogene Schluss-/Handelstermine,
+tatsächliche Originalgeldkurse und historische Basiswert-Trades bleiben pro
+Instrument nachzuweisen. Eine Regel mit fehlenden Belegen bleibt konkret nicht
+beurteilbar; eine Datenlücke beendet insbesondere keine Verlustepisode.
+
+Die hier genannten bestehenden Tests für Quotehistorie, Retention,
+Produktbelegrevisionen und Risikoreader sind wiederverwendbare Regressionen,
+aber wurden für diese lesende Teilprüfung nicht ausgeführt. Im späteren F207-3-
+Schnitt sind insbesondere verkürzte Sitzungen, Zeitzonen, Deckungslücken, Alter
+genau 900 Sekunden und die zwischen Kurs- und Abrufzeit endende 20. Sitzung zu
+prüfen. Kalenderintegration und B04/B05/B06/B57-Auswertung bleiben Folgeschritte.
+
+<a id="f207-4-evidence-read"></a>
+## F207-4: implementierter Evidenzvertrag und Positionsconsumer
+
+### Umfang und verbleibende Grenze
+
+Dieser additive Schnitt verbindet vorhandene wirtschaftliche Fakten mit
+nachvollziehbaren historischen Belegen. Er implementiert die Referenzen auf die
+ursprüngliche Auftragsgruppe, effektive Teilausführungen, ursprüngliche
+Z1-Bezugsmenge, historische Basiswert-Trades, tatsächlich zugeordnete
+Z1-Verkäufe und eine genau gebundene bestätigte Hebeltrader-Quellenversion.
+Die Positionsdetails zeigen die Abdeckung und konkrete Lücken dieser Eingaben.
+
+Das ist **der vorgelagerte Evidenz- und Abdeckungsteil von F207-4**. Er liefert
+keine Baseline-Regelauswertung, keine Zielereignisse, Schutzvorschläge,
+Kalenderintegration oder Meldungszustände. B07 bleibt eigenständig, B08
+ausgeschlossen. Eine neue Verlagsquelle aktiviert keine Regelversion. Auch bei
+vollständigen Belegen bleiben `implementation_status=F207_4_EVIDENCE_ONLY` und
+`operation_status=NOT_ASSESSED` erhalten.
+
+**Anpassungsgrenze innerhalb F207-4:** Dieser erste Schnitt berechnet keine
+Split- oder Produktnormalisierung. Ein ausdrücklich belegter unveränderter
+gemeinsamer Originalmaßstab ist vergleichbar. Unterschiedliche Maßstäbe oder
+`ADJUSTMENT_REQUIRED` sperren die betroffene Preisgewichtung sichtbar.
+Die spätere Anbindung verifizierter Market-Data-/Produktanpassungen muss deren
+Owner, Originale und einmalige Anwendung erhalten; ein Basiswertsplit verändert
+hier weder Optionsscheinmenge noch Kosten oder Produktbedingungen.
+
+### Producer, Consumer und historische Zuordnung
+
+| Vertrag | Owner / Verantwortung |
+| --- | --- |
+| `read_position_execution_basis(session, trade, position_id)` | Trade Position: derselbe vorhandene Projektionsgang liefert komplette Korrekturhistorie, effektive Ausführungen, qualifizierte Bewertungsbasis und BUY-Restgewichte. Bestehende Geldarithmetik und `position-unrealized-gross-v1`-Basisidentität bleiben erhalten. |
+| `HebeltraderSourceReader.read(...)` | Learning: exakte historische Version, Workspace-/Produkt-/Basiswertgrenzen, bestätigte PDF-Annahmerow und Dateihash; strukturierte Produkt- und Basiswertmarken bleiben getrennt. Keine Artikeltexte oder neue Quellenannahme. |
+| `HebeltraderEvidenceDeclaration` / Revision | Trade Position: ausschließlich Referenzen und neue historische Beobachtungsbelege; keine kopierte Ausführungshistorie. Eindeutige Vorgangskennung und Vorgängerrevision sichern Wiederholung und konkurrierende Änderungen. |
+| `HebeltraderEvidenceReader` | Trade Position: kurzer PostgreSQL-Snapshot mit `REPEATABLE READ READ ONLY`, ohne Autoflush und mit Rollback. Kein Provider, Command, Regelzyklus oder Zustellpfad. |
+| `HebeltraderEvidenceCoverage` in `PositionDetails` | Operational Workspace: Darstellung des öffentlichen Reads; keine eigene Mengen-, Währungs-, Regel- oder Qualitätsrechnung. Bestehender Ausführungseditor und dessen Entwürfe werden nicht verändert. |
+
+Die Einstiegsgruppe benötigt einen ausdrücklichen Orderbeleg und die zugehörigen
+Execution-IDs. Ihre vollständige Mitgliedschaft wird bestätigt; weder Uhrzeitnähe
+noch alle BUYs eines Trades ersetzen diese Angabe. Die Bezugsmenge ist die Summe
+genau dieser effektiven Fills. Ein späterer Nachkauf wird niemals automatisch
+Mitglied. Eine Korrektur folgt der vorhandenen expliziten Kette derselben Seite;
+Original-ID, Korrekturkette und aktuelle effektive ID bleiben sichtbar.
+
+Ein historischer Tradebeleg referenziert genau einen BUY, Originalpreis,
+`PriceBinding`, Maßstab, Herkunft und die geprüfte Auswahl als letzter geeigneter
+Trade zum oder vor dieser Ausführung. Das ist eine ausdrückliche Quellenprüfung,
+kein neu behaupteter Marktfeed. `observed_at` oder `observed_on` mit Quellzeitzone
+erhalten die Genauigkeit; die serverseitige `recorded_at` der Revision hält die
+spätere Erfassung. Ein gleicher Kalendertag ohne Uhrzeit beweist keine
+Intraday-Reihenfolge. Ein früherer eindeutig abgegrenzter Tag kann sie belegen.
+Eine korrigierte Kaufzeit verlangt eine erneute as-of-Zuordnung; unveränderte
+Kaufzeit bei Mengen-/Preiskorrektur kann den vorhandenen Beleg weiterverwenden.
+Es gibt keine pauschale 60-Sekunden-Nachtragsgrenze.
+
+Die persönliche Basiswertgewichtung verwendet ausschließlich die Restbeiträge
+aus `PositionProjector.project_with_trace`. Nach BUY 100, SELL 40 und BUY 20
+werden 60 und 20 gewichtet; verkauftes Gewicht wird nicht erneut einbezogen.
+Fehlende Teilbelege verkleinern den Nenner nicht. Der aktuelle persönliche
+Basiswerteinstieg bleibt dann unbekannt. Ein vollständig belegter ursprünglicher
+Gruppenwert bleibt unabhängig von einer späteren Nachkauflücke lesbar. Diese
+analytischen Mengenbeiträge sind keine FIFO- oder Steuerbuchhaltung.
+
+Eine vorhandene unveränderte initiale TradeLink-Version darf ihre bereits
+explizite historische Quellenversion liefern. Mehrdeutige oder nachträglich
+geänderte Links erzeugen keine automatische Auswahl. Bei der ersten bewussten
+Belegbestätigung wird ein wiederverwendeter Pin in der Revision gesichert;
+spätere Reads folgen ausschließlich diesem Pin. Bewusst entfernte oder ersetzte
+Pins werden nicht durch eine aktuelle Empfehlung aufgefüllt.
+
+Z1-Verkäufe benötigen echte SELL-IDs und ausdrückliche Belegzuordnung. Eine
+geprüfte leere Zuordnung bedeutet null zugeordnete Verkäufe; eine ungeprüfte
+Zuordnung bleibt unbekannt. Kein Zieltreffer, Gesehen-Status oder 50%-Richtwert
+erzeugt eine Verkaufsausführung oder eine vorgeschlagene Ordermenge.
+
+### Schmaler API-Vertrag
+
+| Methode / Pfad unter `/api/v1/trade-position/trades/{trade_id}` | Verhalten |
+| --- | --- |
+| `GET /hebeltrader-evidence?position_id={position_id}` | Abdeckung aus einem Snapshot. `position_id` ist genau einmal erforderlich; fremde Positionen werden abgewiesen. |
+| `GET /hebeltrader-evidence/history?position_id={position_id}` | Unveränderte Revisionen samt Deklarationen, Vorgängern und Erfassungszeiten. Kein Quellenrefresh. |
+| `POST /hebeltrader-evidence` | Ausdrücklich bestätigte vollständige neue Belegrevision; schreibt ausschließlich Evidenzreferenzen. Keine Ausführung, Regelaktivierung oder Nachricht. |
+
+Der POST enthält `position_id`, eine neue `request_id`, den genau gelesenen
+`supersedes_evidence_id` (beim ersten Beleg `null`),
+`confirmation="CONFIRM_HISTORICAL_EVIDENCE"` und `declaration`.
+Die Deklaration kann unvollständig sein; vorhandene Belege werden in der neuen
+Revision ausdrücklich mitgeführt. Frühere Revisionen bleiben unverändert.
+Identische Wiederholung derselben Vorgangskennung erzeugt keine neue Revision;
+abweichender Inhalt oder veralteter Vorgänger liefert einen Konflikt.
+
+Die begrenzten Deklarationsfelder sind:
+
+- `entry_order`: `source_reference`, ausdrücklich bestätigte `execution_ids`
+  und `complete`;
+- `source_version_id`: feste historische Version aus dem vorhandenen PDF-Owner;
+- `underlying_trades`: je BUY `execution_id`, `source_reference`, `price`,
+  `binding`, `scale_reference`, `last_trade_verified`, `price_kind="TRADE"`
+  und entweder genauer Originalzeitpunkt oder Originaldatum mit Quellzeitzone;
+- `z1_sales`: tatsächliche SELL-IDs mit `source_reference`, ergänzt um die
+  ausdrückliche Prüfung `z1_sales_reviewed`;
+- `source_scale_reference`, `scale_review_status` und `scale_review_reference`:
+  nachvollziehbarer gemeinsamer Maßstab oder sichtbarer Anpassungsbedarf.
+
+Keine Währungs-, Kalender- oder unbekannten Kurswerte werden beim Benutzer als
+Schätzung abgefragt. Bereits qualifizierte historische Währungsevidenz wird über
+den bestehenden Resolver gelesen. Die Ausnahmen können über diesen schmalen
+Command ergänzt werden; dieser PR baut dafür keinen zusätzlichen Editor.
+
+`definition_version="hebeltrader-evidence-v1"` bindet das Readformat.
+`coverage_status` ist `COMPLETE`, `INCOMPLETE` oder `CONFLICTED` **nur für diese
+Evidenzmenge**. Die einzelnen `items` unterscheiden `PRESENT`, `MISSING`,
+`CONFLICT` und `UNSUITABLE`, benennen betroffene spätere B-Regeln, konkrete
+Klärung und Referenzen. `valuation_basis` bleibt der vorhandene Ownernachweis;
+`execution_links` ergänzen Original-/Korrektur-/effektive IDs und Zeitgenauigkeit.
+Quellenversion, Dateihash, Ausgabedatum, Import-/Annahme-/Erfassungszeit sowie
+Lesebeginn/-abschluss sind getrennt. Gleiche Fakten ergeben dieselbe `basis_id`;
+der Lesetakt ändert sie nicht. Ein Lesefehler bedeutet keine fehlende Evidenz.
+
+### Integration, Prüfung und Übergabe
+
+Die additive Migration `20261114_0050` folgt dem tatsächlich geprüften einzigen
+Kopf `20261109_0049`. Sie ergänzt Revisionen und abgeleitete FK-Schutzreferenzen,
+ändert keine bestehenden Depotfakten und erzeugt keinen Backfill. Datenbankguards
+sichern Identitäten, Korrekturvorgänger, Chronologie und Unveränderlichkeit.
+Ein Downgrade mit vorhandenen neuen Belegen wird wegen Datenverlust verweigert.
+
+Vor Umsetzung wurden alle neun offenen PR-Dateilisten geprüft. #335 besitzt
+keine Dateiüberschneidung mit diesem Schnitt. #207 enthält weiterhin nur seinen
+Exporthelper; kein Gesamtpatch und keine historische Migrationsnummer wurden
+übernommen. Die fünf UX-Koordinationsdateien aus #342 bleiben unberührt. Die
+Überschneidungen mit #341/#315 betreffen ausschließlich den bestehenden
+Monitoringeintrag der gemeinsamen Backlogdatei; deren andere Einträge bleiben
+erhalten. Der oben benannte Read/Consumer ist die begrenzte Ownervereinbarung
+für diese neue Positionsfläche, kein neuer allgemeiner Dashboardvertrag.
+
+Gezielte synthetische Tests liegen bei Trade Position und Learning; sie prüfen
+Gruppen/Nachkäufe, Restgewichtung, fehlende/zukünftige/ungenau datierte Belege,
+Korrekturketten, fremde Identitäten, Währung/Skala, historische Quellenpins,
+Idempotenz und konfliktgesicherte Revisionen. PostgreSQL-Tests verwenden eine
+eindeutig geprüfte Wegwerfdatenbank und gesperrte externe HTTP-Aufrufe. UI-Tests
+sichern Positionswechsel einschließlich A→B→A, verspäteten Erfolg/Fehler,
+unveränderte fremde Eingaben und ausschließlich lesende Wiederholung.
+Tatsächliche Prüfergebnisse und reguläre unveränderte Gates werden im Draft-PR
+an dessen Head und Testmerge gebunden; übersprungene Prüfungen sind kein Erfolg.
+
+Die Backendpfade `POST /trade-position/purchases/external` und der Learning-
+`execute-as-trade` sind vorhanden; Main besitzt dafür keinen direkten
+Frontendaufruf. Für die Evidenz bestehender Positionen ist kein neuer Kaufdialog
+erforderlich. Eine Empfehlung erzeugt weiterhin keine Depotbuchung; ein
+universeller Brokerimport oder eine Depotsynchronisation ist nicht enthalten.
+
+Anschließend benötigt F207-2 diese Referenzen für dauerhafte Zielereignisse und
+Schutzvorschläge; F207-3 benötigt zusätzlich die im vorigen Anhang definierten
+verifizierten Kalender-/Termin-/Originalkursverträge; F207-5 ergänzt erst den
+Regel-/Meldungslebenszyklus und dessen Aktivierung. Reale Positionsbelege,
+Installationsstand und laufende Provider-/Zustellzustände auf dem Nutzer-PC
+sind ein späterer gesonderter Betriebsnachweis. Merge, Release, Installation,
+produktive Datenkorrektur, Providerzustimmung und echte Nachrichten gehören
+nicht zu diesem Draft-Auftrag.
