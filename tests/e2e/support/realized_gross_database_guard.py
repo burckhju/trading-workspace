@@ -14,6 +14,8 @@ from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.pool import NullPool
 
+REVISION = "20261114_0050"
+
 
 async def verify() -> dict[str, object]:
     if os.environ.get("REPORT_E2E_WRITES_ALLOWED") != "1":
@@ -43,9 +45,13 @@ async def verify() -> dict[str, object]:
             if marker != f"synthetic realized-gross browser {run_id}":
                 raise RuntimeError("Disposable database marker does not match this run")
             version = await connection.scalar(text("SELECT version()"))
-            revision = await connection.scalar(text("SELECT version_num FROM alembic_version"))
-            if not str(version).startswith("PostgreSQL 17.") or revision != "20261109_0049":
-                raise RuntimeError("The qualification requires PostgreSQL 17 and schema 0049")
+            if not str(version).startswith("PostgreSQL 17."):
+                raise RuntimeError("The qualification requires PostgreSQL 17")
+            revisions = (
+                await connection.scalars(text("SELECT version_num FROM alembic_version"))
+            ).all()
+            if revisions != [REVISION]:
+                raise RuntimeError("Unexpected or multiple migration heads")
             tables = (
                 await connection.scalars(
                     text("SELECT tablename FROM pg_tables WHERE schemaname='public' ORDER BY 1")
@@ -69,7 +75,7 @@ async def verify() -> dict[str, object]:
                 "database": url.database,
                 "run_id": run_id,
                 "postgresql": version,
-                "schema_revision": revision,
+                "schema_revision": REVISION,
                 "fingerprint": fingerprint,
                 "tables": contents,
             }

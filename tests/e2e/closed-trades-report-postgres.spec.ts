@@ -32,7 +32,7 @@ test("real PostgreSQL: full-close cohort, lifetime result, gaps and current corr
       ),
     );
   const initial = databaseState();
-  expect(initial.schema_revision).toBe("20261109_0049");
+  expect(initial.schema_revision).toBe("20261114_0050");
   expect(initial.postgresql).toMatch(/^PostgreSQL 17\./);
   expect(initial.tables.trades.count).toBe(0);
   expect(initial.tables.execution_records.count).toBe(0);

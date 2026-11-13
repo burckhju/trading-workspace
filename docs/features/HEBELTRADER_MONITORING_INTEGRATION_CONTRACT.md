@@ -921,10 +921,10 @@ Vor Umsetzung wurden alle neun offenen PR-Dateilisten geprüft. #335 besitzt
 keine Dateiüberschneidung mit diesem Schnitt. #207 enthält weiterhin nur seinen
 Exporthelper; kein Gesamtpatch und keine historische Migrationsnummer wurden
 übernommen. Die fünf UX-Koordinationsdateien aus #342 bleiben unberührt. Die
-Überschneidungen mit #341/#315 betreffen ausschließlich den bestehenden
-Monitoringeintrag der gemeinsamen Backlogdatei; deren andere Einträge bleiben
-erhalten. Der oben benannte Read/Consumer ist die begrenzte Ownervereinbarung
-für diese neue Positionsfläche, kein neuer allgemeiner Dashboardvertrag.
+Überschneidungen mit #341/#315 betreffen die gemeinsame Backlogdatei; dieser PR
+ändert darin ausschließlich den bestehenden Monitoringeintrag, deren andere
+Einträge bleiben erhalten. Der oben benannte Read/Consumer ist die begrenzte
+Ownervereinbarung für diese neue Positionsfläche, kein neuer allgemeiner Dashboardvertrag.
 
 Gezielte synthetische Tests liegen bei Trade Position und Learning; sie prüfen
 Gruppen/Nachkäufe, Restgewichtung, fehlende/zukünftige/ungenau datierte Belege,
@@ -933,7 +933,10 @@ Idempotenz und konfliktgesicherte Revisionen. PostgreSQL-Tests verwenden eine
 eindeutig geprüfte Wegwerfdatenbank und gesperrte externe HTTP-Aufrufe. UI-Tests
 sichern Positionswechsel einschließlich A→B→A, verspäteten Erfolg/Fehler,
 unveränderte fremde Eingaben und ausschließlich lesende Wiederholung.
-Tatsächliche Prüfergebnisse und reguläre unveränderte Gates werden im Draft-PR
+Die bestehenden E2E-Wegwerfprüfungen erwarten weiterhin genau einen verifizierten
+Migrationskopf; ihre Schemaerwartung wird mit dieser Migration von `0049` auf
+`0050` nachgeführt. Isolation, Datenbankidentität und übrige Gates bleiben erhalten.
+Tatsächliche Prüfergebnisse werden im [Draft-PR #344](https://github.com/burckhju/trading-workspace/pull/344)
 an dessen Head und Testmerge gebunden; übersprungene Prüfungen sind kein Erfolg.
 
 Die Backendpfade `POST /trade-position/purchases/external` und der Learning-
