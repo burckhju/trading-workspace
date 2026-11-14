@@ -14,6 +14,7 @@ from uuid import UUID, uuid4
 import httpx
 import pytest
 from sqlalchemy import insert, text, update
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.engine import make_url
 from sqlalchemy.exc import DBAPIError, IntegrityError
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
@@ -54,6 +55,7 @@ from app.features.learning.persistence.models import (
 )
 from app.features.market.persistence.models import WorkspaceModel
 from app.features.position_monitoring.persistence.hebeltrader_targets import (
+    HebeltraderTargetAssessmentModel,
     SqlAlchemyHebeltraderTargetRepository,
 )
 from app.features.position_monitoring.service.hebeltrader_target_contracts import (
@@ -89,6 +91,16 @@ def forbid_outbound_http(monkeypatch):
 def engine_for(url):
     assert make_url(url).database.startswith("tw_currency_ref_test_")
     return create_async_engine(url, poolclass=NullPool)
+
+
+def target_check_name(name):
+    # The PostgreSQL dialect shortens naming-convention identifiers to 63 bytes.
+    constraint = next(
+        item
+        for item in HebeltraderTargetAssessmentModel.__table__.constraints
+        if item.name and item.name.endswith(name)
+    )
+    return postgresql.dialect().identifier_preparer.format_constraint(constraint)
 
 
 def record_for(data, underlying, **changes):
@@ -566,8 +578,11 @@ def test_database_rejects_scope_predecessor_receipt_and_malformed_snapshot(targe
             ({"definition_version": "unsupported"}, "unsupported target assessment definition"),
             ({"baseline_id": "OTHER"}, "unsupported target assessment definition"),
             ({"baseline_version": "2"}, "unsupported target assessment definition"),
-            ({"basis_id": "short"}, "hebeltrader_target_basis"),
-            ({"input_fingerprint": "short"}, "hebeltrader_target_fingerprint"),
+            ({"basis_id": "short"}, target_check_name("hebeltrader_target_basis")),
+            (
+                {"input_fingerprint": "short"},
+                target_check_name("hebeltrader_target_fingerprint"),
+            ),
         ):
             with pytest.raises(IntegrityError, match=expected):
                 await append(target_database, replace(candidate, **change))
