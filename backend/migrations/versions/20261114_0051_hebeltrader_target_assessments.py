@@ -203,9 +203,13 @@ def upgrade() -> None:
       END LOOP;
       RETURN NEW;
     END $$;
+    """)
+    op.execute("""
     CREATE TRIGGER guard_hebeltrader_target_assessments
       BEFORE INSERT OR UPDATE OR DELETE ON hebeltrader_target_assessments
       FOR EACH ROW EXECUTE FUNCTION guard_hebeltrader_target_rows();
+    """)
+    op.execute("""
     CREATE TRIGGER guard_hebeltrader_target_requests
       BEFORE INSERT OR UPDATE OR DELETE ON hebeltrader_target_requests
       FOR EACH ROW EXECUTE FUNCTION guard_hebeltrader_target_rows();
@@ -220,9 +224,11 @@ def downgrade() -> None:
         RAISE EXCEPTION 'Refusing downgrade: hebeltrader target evidence would be lost';
       END IF;
     END $$;
-    DROP TRIGGER guard_hebeltrader_target_requests ON hebeltrader_target_requests;
-    DROP TRIGGER guard_hebeltrader_target_assessments ON hebeltrader_target_assessments;
-    DROP FUNCTION guard_hebeltrader_target_rows();
     """)
+    op.execute("DROP TRIGGER guard_hebeltrader_target_requests ON hebeltrader_target_requests")
+    op.execute(
+        "DROP TRIGGER guard_hebeltrader_target_assessments ON hebeltrader_target_assessments"
+    )
+    op.execute("DROP FUNCTION guard_hebeltrader_target_rows()")
     op.drop_table("hebeltrader_target_requests")
     op.drop_table("hebeltrader_target_assessments")
