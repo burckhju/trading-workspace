@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import type { HebeltraderEvidenceReport } from "../../frontend/src/features/operational_workspace/hebeltraderEvidence";
+import type { HebeltraderTargetsReport } from "../../frontend/src/features/operational_workspace/hebeltraderTargets";
 import type { OperationalPosition } from "../../frontend/src/features/operational_workspace/types";
 
 async function setup(
@@ -120,6 +121,46 @@ async function setup(
         operation_status: "NOT_ASSESSED",
         baseline_id: "HEBELTRADER_CONFIRMED_BASELINE",
         baseline_version: "1.0.0",
+      };
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(report),
+      });
+    }
+    const targets = path.match(
+      /^\/(?:api\/)?api\/v1\/position-monitoring\/trades\/trade-(0|[1-9]\d?)\/hebeltrader-targets$/,
+    );
+    if (targets) {
+      const id = targets[1];
+      expect(req.method()).toBe("GET");
+      expect([...url.searchParams.entries()]).toEqual([
+        ["position_id", `position-${id}`],
+      ]);
+      const report: HebeltraderTargetsReport = {
+        definition_version: "hebeltrader-targets-v1",
+        baseline_id: "HEBELTRADER_CONFIRMED_BASELINE",
+        baseline_version: "1.0.0",
+        implementation_status: "F207_2_TARGET_HISTORY_ONLY",
+        operation_status: "NOT_ACTIVATED",
+        trade_id: `trade-${id}`,
+        position_id: `position-${id}`,
+        current_basis_id: `synthetic-target-basis-${id}`,
+        currentness: "NO_ASSESSMENT",
+        position_state: "OPEN",
+        read_started_at: "2026-09-13T09:00:00Z",
+        read_completed_at: "2026-09-13T09:00:01Z",
+        assessment_count: 0,
+        inputs: {
+          source_version_id: null,
+          source_scale_reference: null,
+          price_history_fingerprint: `synthetic-prices-${id}`,
+          listing_binding_fingerprint: null,
+          qualification_reusable: false,
+          available_price_rows: 0,
+          issues: ["SAVED_PRICE_QUALIFICATION_MISSING"],
+        },
+        latest_assessment: null,
       };
       return route.fulfill({
         status: 200,
@@ -284,7 +325,25 @@ test("valuation notices preserve keyboard details, existing reads and explicit h
       "F207-4: Evidenzverknüpfung. Keine Baseline-Regelauswertung.",
     );
     await expect(coverage).toContainText("Durch diesen Read nicht geprüft.");
+    const targets = region.getByRole("region", {
+      name: "Hebeltrader-Zielhistorie",
+    });
+    await expect(targets).toContainText("Noch keine gespeicherte Prüfung");
+    await expect(targets).toContainText(
+      "nicht als laufende Überwachung aktiviert",
+    );
+    await expect(targets).toContainText(
+      "Die Vergleichsqualifikation für Preisbelege, Listing und Maßstab fehlt",
+    );
+    await expect(
+      targets.getByRole("button", { name: "Gespeicherte Belege prüfen" }),
+    ).toBeEnabled();
     expect(requests.slice(before).sort()).toEqual([
+      expect.stringMatching(
+        new RegExp(
+          `^GET (?:/api)?/api/v1/position-monitoring/trades/trade-${id}/hebeltrader-targets$`,
+        ),
+      ),
       expect.stringMatching(
         new RegExp(
           `^GET (?:/api)?/api/v1/position-monitoring/trades/trade-${id}/risk$`,
@@ -320,7 +379,7 @@ test("valuation notices preserve keyboard details, existing reads and explicit h
       await expect(details).toHaveAttribute("aria-expanded", "false");
       await expect(details).toBeFocused();
       await expect(region).toHaveCount(0);
-      expect(requests).toHaveLength(before + 3);
+      expect(requests).toHaveLength(before + 4);
     }
   }
   expect(writes()).toBe(0);
