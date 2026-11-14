@@ -7,6 +7,7 @@ import { PositionDetails } from './PositionDetails';
 // Existing read owners are covered by the host/browser regressions. These cases
 // isolate the passive wording from their independent request lifecycle.
 vi.mock('./PositionPriceHistory', () => ({ PositionPriceHistory: () => null }));
+vi.mock('./HebeltraderEvidenceCoverage', () => ({ HebeltraderEvidenceCoverage: () => null }));
 vi.mock('../../alert/components/PositionRiskPanel', () => ({ PositionRiskPanel: () => null }));
 
 function show(overrides: Partial<OperationalPosition> = {}) {

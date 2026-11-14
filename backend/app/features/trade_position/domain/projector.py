@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from decimal import Decimal
+from fractions import Fraction
 from uuid import UUID
 
 from app.features.trade_position.domain.enums import ExecutionSide
@@ -31,6 +32,22 @@ class SellProjectionTrace:
 
 
 @dataclass(frozen=True, slots=True)
+class BuyProjectionContribution:
+    """One effective BUY's remaining weight in the owner's average-cost pool.
+
+    This is an analytical quantity contribution, not a separately held lot or a
+    FIFO allocation. SELLs reduce every prior BUY proportionally. Consumers use
+    the owner's ``position.open_quantity`` as the denominator, including when a
+    price/evidence value is missing. Rational weights are converted to Decimal
+    only for this immutable read result; no monetary arithmetic is changed.
+    """
+
+    execution_id: UUID
+    original_quantity: int
+    remaining_quantity: Decimal
+
+
+@dataclass(frozen=True, slots=True)
 class PositionProjectionTrace:
     """Pure projection and immutable source snapshots from one effective stream.
 
@@ -43,6 +60,7 @@ class PositionProjectionTrace:
     position: Position
     ordered_executions: tuple[ExecutionRecord, ...]
     sells: tuple[SellProjectionTrace, ...]
+    buy_contributions: tuple[BuyProjectionContribution, ...] = ()
 
 
 class PositionProjector:
@@ -54,7 +72,7 @@ class PositionProjector:
         executions: list[ExecutionRecord],
     ) -> Position:
         position, _ = PositionProjector._project(
-            id=id, trade=trade, executions=executions, sells=None
+            id=id, trade=trade, executions=executions, sells=None, buys=None
         )
         return position
 
@@ -66,13 +84,15 @@ class PositionProjector:
         executions: list[ExecutionRecord],
     ) -> PositionProjectionTrace:
         sells: list[SellProjectionTrace] = []
+        buys: list[BuyProjectionContribution] = []
         position, ordered = PositionProjector._project(
-            id=id, trade=trade, executions=executions, sells=sells
+            id=id, trade=trade, executions=executions, sells=sells, buys=buys
         )
         return PositionProjectionTrace(
             position=position,
             ordered_executions=tuple(ordered),
             sells=tuple(sells),
+            buy_contributions=tuple(buys),
         )
 
     @staticmethod
@@ -82,6 +102,7 @@ class PositionProjector:
         trade: Trade,
         executions: list[ExecutionRecord],
         sells: list[SellProjectionTrace] | None,
+        buys: list[BuyProjectionContribution] | None,
     ) -> tuple[Position, list[ExecutionRecord]]:
         if not executions:
             raise ValueError("position projection requires execution history")
@@ -103,6 +124,10 @@ class PositionProjector:
         opened_on = None
         closed_at = None
         closed_on = None
+        # Track only read provenance alongside this same economic projection.
+        # Fractions avoid accumulating a different rounding history per BUY.
+        buy_weights: dict[UUID, tuple[int, Fraction]] = {}
+        remaining_factor = Fraction(1)
 
         for execution_index, execution in enumerate(ordered):
             if execution.trade_id != trade.id:
@@ -122,6 +147,11 @@ class PositionProjector:
                 cost_basis += execution.gross_amount
                 open_quantity = new_quantity
                 average_entry_price = cost_basis / Decimal(open_quantity)
+                if buys is not None:
+                    buy_weights[execution.id] = (
+                        execution.quantity,
+                        Fraction(execution.quantity) / remaining_factor,
+                    )
                 continue
 
             if opened_at is None or average_entry_price is None:
@@ -138,6 +168,8 @@ class PositionProjector:
             realized_gross_pnl += realized_gross_pnl_delta
             cost_basis -= Decimal(execution.quantity) * applicable_cost
             open_quantity -= execution.quantity
+            if buys is not None:
+                remaining_factor *= Fraction(open_quantity, open_quantity_before)
 
             cost_basis_before_close_reset = None
             if open_quantity == 0:
@@ -162,6 +194,17 @@ class PositionProjector:
 
         if opened_at is None or average_entry_price is None:
             raise ValueError("position projection requires BUY execution")
+
+        if buys is not None:
+            buys.extend(
+                BuyProjectionContribution(
+                    execution_id=execution_id,
+                    original_quantity=quantity,
+                    remaining_quantity=Decimal((weight * remaining_factor).numerator)
+                    / Decimal((weight * remaining_factor).denominator),
+                )
+                for execution_id, (quantity, weight) in buy_weights.items()
+            )
 
         position = Position(
             id=id,

@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import type { HebeltraderEvidenceReport } from "../../frontend/src/features/operational_workspace/hebeltraderEvidence";
 import type { OperationalPosition } from "../../frontend/src/features/operational_workspace/types";
 
 async function setup(
@@ -44,7 +45,8 @@ async function setup(
   await page.route("**/api/**", async (route) => {
     const req = route.request();
     if (req.method() !== "GET") writes++;
-    const path = new URL(req.url()).pathname;
+    const url = new URL(req.url());
+    const path = url.pathname;
     requests.push(`${req.method()} ${path}`);
     let body: unknown = [];
     if (path.endsWith("/operational-workspace/actions"))
@@ -67,6 +69,63 @@ async function setup(
         dynamic_stop_policy_version: "V1",
         analysis_run_id: null,
       };
+    }
+    const coverage = path.match(
+      /^\/(?:api\/)?api\/v1\/trade-position\/trades\/trade-(0|[1-9]\d?)\/hebeltrader-evidence$/,
+    );
+    if (coverage) {
+      const id = coverage[1];
+      expect(req.method()).toBe("GET");
+      expect([...url.searchParams.entries()]).toEqual([
+        ["position_id", `position-${id}`],
+      ]);
+      const report: HebeltraderEvidenceReport = {
+        definition_version: "hebeltrader-evidence-v1",
+        trade_id: `trade-${id}`,
+        position_id: `position-${id}`,
+        product_id: `product-${id}`,
+        underlying_id: "underlying-1",
+        basis_id: `synthetic-basis-${id}`,
+        read_started_at: "2026-09-13T09:00:00Z",
+        read_completed_at: "2026-09-13T09:00:01Z",
+        evidence_revision_id: null,
+        evidence_recorded_at: null,
+        coverage_status: "INCOMPLETE",
+        items: [
+          {
+            key: "executions",
+            label: "Ausführungen",
+            status: "PRESENT",
+            detail: `Gespeicherte Ausführung von position-${id}.`,
+            affected_rules: ["B10", "B53"],
+            clarification: null,
+            references: [`execution:buy-${id}`],
+          },
+          {
+            key: "source",
+            label: "Historische Quelle",
+            status: "MISSING",
+            detail: "Historische Quellenversion fehlt.",
+            affected_rules: ["B01", "B02"],
+            clarification: "Historische Ausgabe zuordnen.",
+            references: [],
+          },
+        ],
+        original_z1_quantity: null,
+        assigned_z1_sold_quantity: null,
+        personal_underlying_entry: null,
+        underlying_currency: null,
+        source: null,
+        implementation_status: "F207_4_EVIDENCE_ONLY",
+        operation_status: "NOT_ASSESSED",
+        baseline_id: "HEBELTRADER_CONFIRMED_BASELINE",
+        baseline_version: "1.0.0",
+      };
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(report),
+      });
     }
     // Navigation may open a management page, but must never record a trade.
     if (path.includes("/trade-position/trades/"))
@@ -202,17 +261,38 @@ test("valuation notices preserve keyboard details, existing reads and explicit h
     if (id === 99)
       await expect(region).toContainText(/die Analyse ist indikativ/i);
 
-    // These existing children read on expansion; the passive notice adds none.
+    // Detail children read on expansion; the passive valuation notice adds none.
     await expect(
       region.getByText("Kursverlauf konnte nicht geladen werden."),
     ).toBeVisible();
     await expect(
       region.getByText("Risikoauswertung konnte nicht geladen werden."),
     ).toBeVisible();
+    const coverage = region.getByRole("region", {
+      name: "Hebeltrader-Belegabdeckung",
+    });
+    await expect(coverage).toContainText("Belege noch unvollständig");
+    await expect(coverage).toContainText(
+      `Gespeicherte Ausführung von position-${id}.`,
+    );
+    await expect(coverage).toContainText("Ausführungen: Vorhanden");
+    await expect(coverage).toContainText("Historische Quelle: Fehlt");
+    await expect(coverage).toContainText(
+      "Klärung: Historische Ausgabe zuordnen.",
+    );
+    await expect(coverage).toContainText(
+      "F207-4: Evidenzverknüpfung. Keine Baseline-Regelauswertung.",
+    );
+    await expect(coverage).toContainText("Durch diesen Read nicht geprüft.");
     expect(requests.slice(before).sort()).toEqual([
       expect.stringMatching(
         new RegExp(
           `^GET (?:/api)?/api/v1/position-monitoring/trades/trade-${id}/risk$`,
+        ),
+      ),
+      expect.stringMatching(
+        new RegExp(
+          `^GET (?:/api)?/api/v1/trade-position/trades/trade-${id}/hebeltrader-evidence$`,
         ),
       ),
       expect.stringMatching(
@@ -240,7 +320,7 @@ test("valuation notices preserve keyboard details, existing reads and explicit h
       await expect(details).toHaveAttribute("aria-expanded", "false");
       await expect(details).toBeFocused();
       await expect(region).toHaveCount(0);
-      expect(requests).toHaveLength(before + 2);
+      expect(requests).toHaveLength(before + 3);
     }
   }
   expect(writes()).toBe(0);
