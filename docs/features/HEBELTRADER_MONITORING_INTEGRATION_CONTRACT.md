@@ -1,9 +1,11 @@
 # Hebeltrader-Positionsmeldungen: Integrationsvertrag zu #207
 
 **Additiver Stand 14.11.2026:** Der historische F207-1-Abgleich bleibt erhalten.
-Der [Evidenzschnitt F207-4](#f207-4-evidence-read) und die
-[F207-3-Schnittstellenübergabe](#f207-3-interface-handoff) am Dokumentende
-beschreiben die begrenzte Ergänzung auf Main `b84544edabccbe5a9102ee883eb26ebf01f40f9a`.
+Der [Evidenzschnitt F207-4](#f207-4-evidence-read) wurde mit
+[PR #344](https://github.com/burckhju/trading-workspace/pull/344) auf Main
+`e6738c291b0701d00cce20a370aba7496a9f24d0` integriert. Die
+[F207-3-Schnittstellenübergabe](#f207-3-interface-handoff) bleibt maßgeblich.
+Darauf folgt der begrenzte [Zielhistorien-Schnitt F207-2](#f207-2-target-history).
 Aufgabenstatus bleibt ausschließlich im Product Backlog; vollständige Baseline,
 Regelaktivierung und Betrieb werden dadurch nicht als abgeschlossen erklärt.
 
@@ -936,7 +938,7 @@ unveränderte fremde Eingaben und ausschließlich lesende Wiederholung.
 Die bestehenden E2E-Wegwerfprüfungen erwarten weiterhin genau einen verifizierten
 Migrationskopf; ihre Schemaerwartung wird mit dieser Migration von `0049` auf
 `0050` nachgeführt. Isolation, Datenbankidentität und übrige Gates bleiben erhalten.
-Tatsächliche Prüfergebnisse werden im [Draft-PR #344](https://github.com/burckhju/trading-workspace/pull/344)
+Tatsächliche Prüfergebnisse werden im [PR #344](https://github.com/burckhju/trading-workspace/pull/344)
 an dessen Head und Testmerge gebunden; übersprungene Prüfungen sind kein Erfolg.
 
 Die Backendpfade `POST /trade-position/purchases/external` und der Learning-
@@ -945,7 +947,7 @@ Frontendaufruf. Für die Evidenz bestehender Positionen ist kein neuer Kaufdialo
 erforderlich. Eine Empfehlung erzeugt weiterhin keine Depotbuchung; ein
 universeller Brokerimport oder eine Depotsynchronisation ist nicht enthalten.
 
-Anschließend benötigt F207-2 diese Referenzen für dauerhafte Zielereignisse und
+Die damalige Übergabe an F207-2 benötigt diese Referenzen für dauerhafte Zielereignisse und
 Schutzvorschläge; F207-3 benötigt zusätzlich die im vorigen Anhang definierten
 verifizierten Kalender-/Termin-/Originalkursverträge; F207-5 ergänzt erst den
 Regel-/Meldungslebenszyklus und dessen Aktivierung. Reale Positionsbelege,
@@ -953,3 +955,192 @@ Installationsstand und laufende Provider-/Zustellzustände auf dem Nutzer-PC
 sind ein späterer gesonderter Betriebsnachweis. Merge, Release, Installation,
 produktive Datenkorrektur, Providerzustimmung und echte Nachrichten gehören
 nicht zu diesem Draft-Auftrag.
+
+<a id="f207-2-target-history"></a>
+## F207-2: erster Schnitt für dauerhafte Z1-/Z2-Nachweise
+
+### Nutzungsverhalten und genaue Grenze
+
+Dieser Folgeschritt basiert auf dem integrierten F207-4-Main
+`e6738c291b0701d00cce20a370aba7496a9f24d0`. Die vorhandenen Positionsdetails
+erhalten einen Zielhistorienblock. Öffnen und Aktualisieren lesen ausschließlich
+gespeicherte Fakten. Erst **„Gespeicherte Belege prüfen“** startet einen ausdrücklich
+bestätigten Prüflauf über vorhandene Kursdaten. Er hält Ergebnis, originale
+Preisbelege, Eingangsstand, Vergleichsfreigabe und Vorgänger unveränderlich fest.
+
+Implementiert ist der **Z1-/Z2-Evidenz- und Verlaufsteil von F207-2**: ein
+qualifizierter ursprünglicher Zielnachweis, die einmalige ursprüngliche
+50-%-Orientierung nach Z1, der Prüfhinweis für den Restpositionsausstieg nach Z2
+und eine persönliche Einstandsschutz-Prüfgrundlage. Letztere ist ausdrücklich
+**kein bekanntgegebener oder überwachter Schutzvorschlag**. Die nachfolgenden
+F207-2-Teile bleiben offen: historische dokumentierte Stopberührungen,
+gleichzeitige Stop-/Zielkonstellationen, höherer vergleichbarer Schutzboden,
+Bekanntgabezeitpunkt und anschließende Schutzüberwachung sowie deren
+Korrekturfreigabe. B06 benötigt weiter den F207-3-Kalendervertrag.
+
+Die Oberfläche trennt `PROVEN`, `NOT_PROVEN`, `NOT_ASSESSABLE` und
+`REVIEW_REQUIRED`. `NOT_PROVEN` bedeutet ausschließlich, dass die verfügbaren
+geeigneten Belege keinen Treffer nachweisen. Es bestätigt keine lückenlose
+Kalender-/Kurshistorie und keine Entwarnung. `CHANGED_INPUTS` kennzeichnet einen
+gespeicherten Prüfstand mit inzwischen veränderter Basis sofort als historisch.
+`F207_2_TARGET_HISTORY_ONLY` und `NOT_ACTIVATED` bleiben getrennt sichtbar; eine
+vollständige Hebeltrader-Baseline oder ein laufender Betriebszustand folgt daraus
+nicht. Das bisherige generische Monitoring und die F207-4-Abdeckungsanzeige
+behalten ihre eigenen Aussagen.
+
+### Bestehende Owner und neuer schmaler Vertrag
+
+| Vertrag | Verantwortung und Grenze |
+| --- | --- |
+| `read_hebeltrader_monitoring_basis(session, workspace_id, trade_id, position_id, lock=False)` | Trade Position liefert denselben vorhandenen Ausführungs-/Korrektur-/Währungs-/Restmengen-/Einstandsowner wie F207-4. Hinzu kommen feste Evidenzrevision, bestätigte Quelle und Richtung aus dem vorhandenen Produktbedingungs-Owner. Fehlende oder widersprüchliche historische Richtung bleibt unbekannt. Keine zweite Bestandsrechnung. |
+| `HebeltraderHistoryReader.read(..., listing_id, start_date, end_date, known_at)` | Market Data liest ausschließlich gespeicherte originale Tageskurse und aktuelle Listing-/Venue-Referenzen. Workspace, Basiswert und optionale Dateninstrument-Zuordnung werden geprüft. Ein bestehendes eindeutig aktives Primary-Listing dient einmalig der Auswahl; nach einer gespeicherten Prüfung bleibt dessen Listing-ID gebunden. |
+| `evaluate_hebeltrader_targets(...)` | Reine Funktion des bestehenden Monitoring-Owners. Preisqualifikation, dauerhafte Zielbelege, ursprüngliche Orientierung und getrennte aktuelle Auswertbarkeit; keine ORM-, Provider-, Order- oder Zustellabhängigkeit. |
+| `HebeltraderTargetReader` | Eigener kurzer `REPEATABLE READ READ ONLY`-Snapshot, ohne Autoflush, mit Timeout und Rollback. Lesen erzeugt keinen neuen Prüflauf. |
+| `HebeltraderTargetService.assess(...)` | Expliziter Command, konsistenter Snapshot und vorhandene Trade-Sperre; unveränderliche Bewertungskette und idempotente Vorgangsbelege. Keine Ausführungsbuchung, Aktivierung, Alert-/Notification-Erzeugung oder Providerabfrage. |
+| `HebeltraderTargetHistory` in `PositionDetails` | Ephemerer Consumer mit genau gebundenem Trade/Position/Basisstand. Er zeigt Ownerwerte, ohne Mengen, Preise oder Regeln selbst zu berechnen. |
+
+Die gespeicherte Kursreihe bleibt auf **UNDERLYING** beschränkt; Warrantpreise
+werden hier nicht mit Basiswertmarken verglichen. Der erste Schnitt qualifiziert
+die bestätigte aufsteigende CALL-Konstellation. PUT, unbekannte Richtung oder
+widersprüchliche Zielreihenfolge erhalten einen konkreten Sperrgrund. Die
+Bestätigung einer Regelbasis ersetzt keinen fehlenden Instrument-/Richtungsbeleg.
+
+Der Market-Data-Read erhält Originalzeilen-ID, Fingerprint, OHLC-Werte,
+Währung, Provider/Symbol, Warnungen und getrennte Quellaktualisierungs-, Abruf-,
+Anlage- und Änderungszeiten. Er liest maximal 5.000 Zeilen vollständig; bei
+Überschreitung gibt es keinen still gekürzten Auswertungsbereich. Ein vollständiger
+gespeicherter Bereich belegt noch keine vollständige Folge von Handelssitzungen.
+Momentane Listing-/Venue-Daten tragen weiterhin
+`CURRENT_REFERENCE_NOT_HISTORICALLY_VERIFIED`.
+
+### Zeit, Preismaßstab und wenige tatsächliche Ausnahmen
+
+Ein Tageshoch kann Z1 beziehungsweise Z2 einschließlich exakter Schwelle belegen,
+wenn das vollständige lokale Tagesintervall nach dem belegten eigenen Einstieg
+liegt. `DATE_ONLY` wird als ganzer lokaler Kalendertag mit exklusivem Ende
+behandelt, einschließlich Zeitumstellung. Das ist keine behauptete Handelssitzung
+oder Trefferuhrzeit. Der Kauftag eines nur tagesgenauen Kaufs wird nicht als
+nachträglicher Treffer verwendet. Quellaktualisierung, Abruf und spätere Erfassung
+werden niemals zum wirtschaftlichen Ereigniszeitpunkt umgedeutet.
+
+Auch die historische Quelle muss vor dem betrachteten Ereignis verfügbar gewesen
+sein. Der PDF-Owner belegt ihr Ausgabedatum, nicht Publikationsuhrzeit oder
+Verlagszeitzone. Deshalb muss der Kursintervallbeginn außerhalb der gesamten
+möglichen Datumsgrenze liegen: spätestens endet dieser Unsicherheitsbereich am
+Folgetag um 12:00 UTC bei UTC−12. Diese konservative Grenze ist **keine erfundene
+Publikationszeit**. Ein früherer unklarer Tag sperrt keinen späteren geeigneten
+Beleg. Import-/Annahme-/Erfassungszeit bleiben gesondert erhalten.
+
+F207-4 bestätigt gegebenenfalls den gemeinsamen Maßstab von Quelle und
+historischen Kaufbelegen. Diese Bestätigung gilt **nicht automatisch für neu
+hinzukommende Tageskurse**. Hierfür ist eine zusätzliche konkrete Qualifikation
+von historischer Listingbindung und unverändertem Originalmaßstab erforderlich.
+Sie bindet genau den History-Fingerprint, Listing-Fingerprint, die historische
+Quellenversion, deren Skalenreferenz und eine Belegreferenz. Ein nominell passender
+Provider oder eine übereinstimmende Währung allein genügt nicht.
+
+Eine solche Qualifikation kann über den unten beschriebenen Command erfasst
+werden; dieser Schnitt ergänzt dafür keinen eigenen Editor. Ohne den zusätzlichen
+Beleg liefert auch der Prüfbutton einen gespeicherten, verständlich begründeten
+Status `NOT_ASSESSABLE`. Bereits passende Qualifikationen desselben Eingangsstands
+werden wiederverwendet; keine erneute Eingabe ist nötig. Eine erweiterte oder
+korrigierte Reihe verlangt vor neuen Treffern eine zu ihr passende Qualifikation.
+Ein reiner Tageswechsel oder erneuter Abruf identischer bereits geeigneter
+Originalkurse entwertet die Qualifikation nicht. Abruf- und Speicheränderungszeit
+bleiben im Audit erhalten; Quellenzeit, Originalwerte, Identitäten und tatsächliche
+Eignungsänderungen bleiben Teil des Vergleichsstands.
+F207-3 muss später die wiederverwendbare verifizierte Beschaffung ergänzen.
+Dies ist die wesentliche Bedien- und Betriebsgrenze dieses ersten Schnitts.
+
+Abweichendes `adjusted_close`, Split-/Anpassungswarnungen oder widersprüchliche
+Originalbelege sind sichtbare Prüfungsindizien. Daraus wird weder ein Split
+behauptet noch ein Faktor abgeleitet. Selbst eine pauschale Bestätigung des
+unveränderten Maßstabs ersetzt keine benötigte verifizierte Anpassungsevidenz.
+Eine spätere Normalisierung bleibt beim bestehenden Market-/Produktowner.
+
+### Dauerhaftigkeit, Korrektur und Mengen
+
+Die Ereignisidentität ist pro Workspace, Position, Baselineversion und Z1/Z2
+stabil. Kursrückgang, Neustart, Nachkauf oder eine spätere Kursdatenlücke löschen
+einen ursprünglich belegten Treffer nicht. Die aktuelle Vergleichbarkeit der
+Eingangsreihe wird separat ausgewiesen. Die ursprüngliche Quelle, Skala,
+Marke, Kurszeile, Tagesintervall und Feststellungszeit bleiben pro Ziel sichtbar,
+auch wenn ein späterer Prüflauf eine andere Quellenbasis besitzt.
+
+Erkannte Änderungen an Quellengrundlage, Kaufzeit, Produktrichtung,
+Listingreferenz oder ursprünglichem Kursbeleg setzen `REVIEW_REQUIRED` und
+erhalten den Originalproof unverändert. Eine weitere normale Auswertung hebt
+diesen Klärungsbedarf nicht auf. Ein zusätzlicher fachlicher Freigabe- oder
+Verwerfungscommand für korrigierte Zielereignisse gehört zum folgenden
+F207-2-Schnitt; bis dahin werden daraus keine neuen Handlungshinweise abgeleitet.
+
+Die ursprüngliche Z1-Menge kommt ausschließlich aus der belegten Einstiegsgruppe.
+Nachkäufe erhöhen sie nicht. Ausgegeben werden Anteil `0.5`, ursprüngliche Menge
+und ausdrücklich zugeordnete tatsächliche Z1-Verkäufe; keine gerundete oder
+verbleibende Ordermenge. Teilverkauf und Nachkauf verwenden für Restmenge und
+persönlichen Basiswerteinstand die vorhandenen Ownerbeiträge. B03 steht bei
+gleichzeitigem Z1-/Z2-Treffer vor der Z1-Orientierung; alle belegten Ursachen
+bleiben erhalten. Ein Treffer erzeugt keinen SELL. Geschlossene/stornierte
+Positionen sind historisch lesbar und erhalten keinen neuen Prüflauf.
+
+### API, Migration und Prüfnachweise
+
+| Pfad unter `/api/v1/position-monitoring/trades/{trade_id}` | Vertrag |
+| --- | --- |
+| `GET /hebeltrader-targets?position_id=...` | Aktuelle Eingangsreferenzen, gespeicherter letzter Prüfstand, Anzahl, Aktualität und lesbare Lücken; keine neue fachliche Bewertung. |
+| `POST /hebeltrader-targets/assessments` | Ausdrückliche neue Prüfung gespeicherter Belege; vollständige unveränderliche Ergebnisrevision oder Wiederverwendung identischer letzter Eingaben. |
+| `GET /hebeltrader-targets/assessments/{assessment_id}?position_id=...` | Exakt zugeordneter Auditstand mit Originaleingängen, Ergebnis und Vorgänger; unverändert auch nach späteren Korrekturen lesbar. |
+
+Der POST benötigt `position_id`, `request_id`, den genau gelesenen
+`expected_basis_id`, `expected_assessment_id` (anfangs `null`) und
+`confirmation="ASSESS_SAVED_HEBELTRADER_EVIDENCE"`. Optionales `qualification`
+enthält `history_fingerprint`, `listing_fingerprint`, `source_version_id`,
+`source_scale_reference`, `evidence_reference` sowie ausdrücklich
+`confirmation="CONFIRM_HISTORICAL_LISTING_AND_UNCHANGED_ORIGINAL_SCALE"`.
+Veraltete Basis/Vorgänger erzeugen 409; falsch gebundene Qualifikation erzeugt
+422. Gleiche Vorgangskennung mit gleichem Inhalt schreibt nichts erneut,
+abweichender Inhalt erzeugt einen Konflikt. Gleiche aktuelle Eingaben mit neuer
+Vorgangskennung erhalten lediglich einen Wiederholungsbeleg, kein zweites
+Zielereignis. Eine unklare POST-Antwort löst keinen automatischen Retry aus; die
+Oberfläche verlangt zunächst einen bewusst ausgelösten erfolgreichen Read.
+
+Der Writer erwirbt die vorhandene Trade-Sperre unter `READ COMMITTED`. Erst
+nach deren Erhalt beginnt ein separater kurzer `REPEATABLE READ READ ONLY`-
+Snapshot für alle Owner- und Marktinputs. So bleibt eine während des Wartens
+abgeschlossene additive Evidenzkorrektur sichtbar und wird durch den Basisvergleich
+erfasst. Die Sperre bleibt bis zum atomaren Append/Receipt-Commit erhalten.
+Auch ein ungeeigneter historischer Quellenpin samt Ablehnungsgründen wird im
+Audit gespeichert, ohne ihn zur gültigen Vergleichsquelle hochzustufen.
+
+Die additive Migration `20261114_0051` folgt dem einzigen aktuellen Kopf
+`20261114_0050`. Sie ergänzt `hebeltrader_target_assessments` und
+`hebeltrader_target_requests`, ohne Backfill oder Änderung von Depotfakten.
+FK-/Scope-/Quellen-/Vorgänger-/Chronologieguards, genau ein Wurzelstand und
+höchstens ein Nachfolger je Revision sichern die Kette. Änderungen/Löschungen
+und ein Downgrade mit vorhandenen Zielbelegen werden verweigert. Die vorhandenen
+E2E-Wegwerfguards werden exakt auf den neuen Kopf nachgeführt; Identitätsprüfung,
+Isolation und übrige Gates bleiben unverändert.
+
+Gezielte Tests prüfen Ownerwiederverwendung, konservative Zeitgrenzen,
+Publikationsdatum, Skala/Preisachse/Währung, Korrekturen, unveränderliche
+Originalbelege, Replays/Konflikte, reinen GET und verspätete UI-Antworten samt
+A→B→A. PostgreSQL-Guards laufen ausschließlich in eindeutig identifizierten
+synthetischen Wegwerfumgebungen mit gesperrten externen HTTP-Aufrufen.
+Reguläre Prüfergebnisse und verbleibende Umgebungsgrenzen werden im zugehörigen
+PR an tatsächlichen Head und Integrationsstand gebunden; übersprungene Prüfungen
+gelten nicht als bestanden.
+
+### Übergabe
+
+Der verbleibende **F207-2-Schnitt** ergänzt historische dokumentierte Stops,
+vergleichbaren höheren Schutzboden, Vorschlagsbekanntgabe und anschließende
+Überwachung sowie explizite Korrekturklärung. **F207-3** ergänzt verifizierte
+historische Referenz-/Skalen-/Anpassungsbelege, Kalender, Produkttermine und
+regelgeeignete Originalkurse einschließlich B04/B58; der neue gespeicherte
+History-Read ist dafür wiederverwendbar, kein Ersatz für Kalender- oder
+Providerqualifikation. **F207-5** ergänzt Regel-/Meldungslebenszyklus, Aktivierung
+und Zustellzustände. B07 bleibt eigenständig, B08 ausgeschlossen. ATR, Phase,
+Score und Risiko behalten ihre Bedeutung. Neue Quellen aktivieren keine
+Regelversion. Release, PC-Installation, produktive Korrektur, neue
+Providerzustimmungen und echte Nachrichtentests benötigen einen gesonderten
+Auftrag.
