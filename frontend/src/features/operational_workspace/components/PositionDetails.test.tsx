@@ -8,6 +8,7 @@ import { PositionDetails } from './PositionDetails';
 // isolate the passive wording from their independent request lifecycle.
 vi.mock('./PositionPriceHistory', () => ({ PositionPriceHistory: () => null }));
 vi.mock('./HebeltraderEvidenceCoverage', () => ({ HebeltraderEvidenceCoverage: () => null }));
+vi.mock('./HebeltraderTargetHistory', () => ({ HebeltraderTargetHistory: () => null }));
 vi.mock('../../alert/components/PositionRiskPanel', () => ({ PositionRiskPanel: () => null }));
 
 function show(overrides: Partial<OperationalPosition> = {}) {

@@ -75,6 +75,8 @@ Arbeitsstatus weiterhin ausschließlich in PB-016, PB-017 und Operational Worksp
 
 **Position Monitoring & Alert Capability** besitzt MonitoringRuleState und Alert. **Notification Capability** besitzt Notification und DeliveryAttempt. Die noch offene Nummerierungsentscheidung wird nicht vorweggenommen. Der historische rein tägliche Underlying-Scope darf nicht spätere dokumentierte Preisbindungs-/Produktdaten-Erweiterungen verdecken. Aktuelle Arbeits-/Nachweisstände stehen nur im Backlog.
 
+Der [schmale Hebeltrader-Zielhistorienvertrag](../features/HEBELTRADER_MONITORING_INTEGRATION_CONTRACT.md#f207-2-target-history) gehört ebenfalls zum bestehenden Monitoring-Owner: unveränderliche Zielprüfstände und idempotente Prüfvorgangsbelege. Trade Position bleibt Eigentümer wirtschaftlicher Ausführungen, Restmengen, Einstand und ursprünglicher Belegzuordnungen; Market Data und Learning liefern ihre getrennten Kurs- und Quellenreferenzen. Der Operational Workspace konsumiert die öffentlichen Reads und leitet bewusste Prüfcommands an Monitoring weiter.
+
 <a id="ownership"></a>
 ## Ein schreibender fachlicher Owner je Objekt
 
@@ -92,6 +94,7 @@ Arbeitsstatus weiterhin ausschließlich in PB-016, PB-017 und Operational Worksp
 | Trade / ExecutionRecord / Position | FT-009, durch FT-010 erweiterter gemeinsamer Vertrag in `trade_position` | FT-010–FT-012, Monitoring, Workspace; kein zweiter Verkauf/Positionsowner. |
 | TradeManagementEvent | FT-010 | FT-011, FT-012, Monitoring, Workspace; ein SELL bleibt ExecutionRecord. |
 | MonitoringRuleState / Alert | Bestehende Position Monitoring & Alert Capability | Notification, Workspace; keine implizite Ausführung. |
+| Hebeltrader-Zielprüfstand / Prüfvorgangsbeleg | Bestehende Position Monitoring & Alert Capability | Positionsconsumer und Auditread; keine Ausführung, Aktivierung oder Zustellung. |
 | Notification / DeliveryAttempt | Bestehende Notification Capability | Delivery-Adapter, Workspace; Zustellung ist nicht der fachliche Alert. |
 | PostTradeObservation / ExitReview / ExitReviewVersion | FT-011 in `post_trade` | FT-012 über freigegebenen Handoff; FT-013 und Workspace als nachgelagerte Consumer. |
 | LearningEvidence / Lesson / LessonVersion | FT-012 in `learning` | FT-013, Learning-UI; Evidence-Transport ist keine Interpretation. |

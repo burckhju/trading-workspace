@@ -163,7 +163,7 @@ def test_migration_graph_and_generated_postgres_ddl_preserve_evidence_boundaries
     config = Config()
     config.set_main_option("script_location", str(ROOT / "backend/migrations"))
     scripts = ScriptDirectory.from_config(config)
-    assert scripts.get_heads() == ["20261114_0050"]
+    assert scripts.get_heads() == ["20261114_0051"]
     revision = scripts.get_revision("20261114_0050")
     assert revision.down_revision == "20261109_0049"
     path = ROOT / "backend/migrations/versions/20261114_0050_position_baseline_evidence.py"

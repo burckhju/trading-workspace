@@ -8,6 +8,7 @@ import { unrealizedPnlReason } from '../../trade/services/valuationQualification
 import { PositionValuationBasisDetails } from '../../trade/components/PositionValuationBasisDetails';
 import { PositionPriceHistory } from './PositionPriceHistory';
 import { HebeltraderEvidenceCoverage } from './HebeltraderEvidenceCoverage';
+import { HebeltraderTargetHistory } from './HebeltraderTargetHistory';
 
 const staleValuationNotice =
   'Kursdaten veraltet: Bewertung und darauf basierende Analysen sind indikativ.';
@@ -72,6 +73,14 @@ export function PositionDetails({ position: p }: { position: OperationalPosition
       </p>
       <PositionPriceHistory tradeId={p.trade_id} positionId={p.position_id} />
       <HebeltraderEvidenceCoverage
+        tradeId={p.trade_id}
+        positionId={p.position_id}
+        reloadToken={
+          p.position_basis?.basis_id ??
+          `${p.open_quantity}:${p.cost_basis}:${p.average_entry_price}`
+        }
+      />
+      <HebeltraderTargetHistory
         tradeId={p.trade_id}
         positionId={p.position_id}
         reloadToken={

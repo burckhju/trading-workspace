@@ -4,8 +4,9 @@ import hashlib
 import json
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from dataclasses import asdict, dataclass, replace
+from dataclasses import asdict, dataclass, field, replace
 from datetime import UTC, datetime
+from typing import Literal
 from uuid import UUID, uuid4
 
 from sqlalchemy import select, text
@@ -17,6 +18,7 @@ from app.features.learning.application.hebeltrader_source_reader import (
     HebeltraderSourceEvidence,
     HebeltraderSourceReader,
 )
+from app.features.product.domain.models import OptionDirection
 from app.features.product.service.application import WarrantService
 from app.features.trade_position.domain.enums import ExecutionSide
 from app.features.trade_position.domain.hebeltrader_evidence import (
@@ -310,6 +312,170 @@ class HebeltraderEvidenceHistory:
     read_completed_at: datetime
 
 
+@dataclass(frozen=True, slots=True)
+class HebeltraderScaleBasis:
+    """The reviewed F207-4 scope, never a qualification of later market bars.
+
+    ``UNCHANGED_VERIFIED`` relates the pinned publisher marks to the declared
+    purchase observations. A monitoring consumer must separately establish the
+    scale of each new market observation before comparing it with those marks.
+    """
+
+    review_status: Literal["UNVERIFIED", "UNCHANGED_VERIFIED", "ADJUSTMENT_REQUIRED"]
+    source_scale_reference: str | None
+    review_reference: str | None
+    scope: Literal["SOURCE_AND_PURCHASE_EVIDENCE_ONLY"] = field(
+        default="SOURCE_AND_PURCHASE_EVIDENCE_ONLY", init=False
+    )
+    market_observations_verified: Literal[False] = field(default=False, init=False)
+
+
+@dataclass(frozen=True, slots=True)
+class HebeltraderMonitoringBasis:
+    """Immutable references and owner projections from the caller's session."""
+
+    coverage: HebeltraderCoverage
+    execution_basis: PositionExecutionBasis
+    evidence_revision: HebeltraderEvidenceRevision | None
+    source_evidence: HebeltraderSourceEvidence | None
+    scale: HebeltraderScaleBasis
+    option_direction: OptionDirection | None
+    option_terms_version_ids: tuple[UUID, ...]
+    option_direction_reason: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class _HebeltraderEvidenceSnapshot:
+    coverage: HebeltraderCoverage
+    execution_basis: PositionExecutionBasis
+    evidence_revision: HebeltraderEvidenceRevision | None
+    source_evidence: HebeltraderSourceEvidence | None
+
+
+async def _read_evidence_snapshot(
+    session: AsyncSession,
+    *,
+    workspace_id: UUID,
+    trade_id: UUID,
+    position_id: UUID,
+    started_at: datetime,
+    lock: bool,
+) -> _HebeltraderEvidenceSnapshot:
+    """Share fact selection with the existing F207-4 coverage read."""
+    basis, underlying_id = await _context(
+        session,
+        workspace_id=workspace_id,
+        trade_id=trade_id,
+        position_id=position_id,
+        lock=lock,
+    )
+    history = await SqlAlchemyHebeltraderEvidenceRepository(session).history(
+        workspace_id, trade_id, position_id
+    )
+    if len(history) > MAX_EVIDENCE_REVISIONS:
+        raise evidence_error(
+            "BASELINE_EVIDENCE_LIMIT",
+            "Belegkette überschreitet die vollständige Lesegrenze.",
+        )
+    current = current_revision(history)
+    source = await _source(
+        session,
+        basis=basis,
+        underlying_id=underlying_id,
+        source_version_id=current.declaration.source_version_id if current else None,
+        reuse_trade_link=current is None,
+    )
+    return _HebeltraderEvidenceSnapshot(
+        coverage=build_hebeltrader_coverage(
+            basis=basis,
+            underlying_id=underlying_id,
+            revision=current,
+            source_evidence=source,
+            read_started_at=started_at,
+            read_completed_at=datetime.now(UTC),
+        ),
+        execution_basis=basis,
+        evidence_revision=current,
+        source_evidence=source,
+    )
+
+
+async def read_hebeltrader_monitoring_basis(
+    session: AsyncSession,
+    *,
+    workspace_id: UUID,
+    trade_id: UUID,
+    position_id: UUID,
+    lock: bool = False,
+) -> HebeltraderMonitoringBasis:
+    """Read existing execution/source owners within the caller's transaction.
+
+    The caller supplies the snapshot and owns its lifetime. ``lock=True`` uses
+    the existing trade lock for a subsequent explicit monitoring command. This
+    read neither flushes pending changes nor starts, commits or rolls back a
+    transaction. It cannot contact a provider, activate rules or issue notices.
+
+    Product direction is qualified against the existing terms history. A later
+    different direction must not silently redefine historical target semantics;
+    missing or conflicting terms therefore leave it explicitly unknown.
+    """
+    started = datetime.now(UTC)
+    with session.no_autoflush:
+        snapshot = await _read_evidence_snapshot(
+            session,
+            workspace_id=workspace_id,
+            trade_id=trade_id,
+            position_id=position_id,
+            started_at=started,
+            lock=lock,
+        )
+        current = snapshot.evidence_revision
+        basis = snapshot.execution_basis
+        if current is not None and (
+            current.workspace_id,
+            current.trade_id,
+            current.position_id,
+            current.product_id,
+            current.underlying_id,
+        ) != (
+            workspace_id,
+            trade_id,
+            position_id,
+            basis.trade.product_id,
+            snapshot.coverage.underlying_id,
+        ):
+            raise evidence_error(
+                "BASELINE_EVIDENCE_CONFLICT", "Belegrevision gehört nicht zur Positionsbasis.", 409
+            )
+        terms = await WarrantService(session).terms_history(workspace_id, basis.trade.product_id)
+        if any(term.warrant_id != basis.trade.product_id for term in terms):
+            raise evidence_error(
+                "BASELINE_PRODUCT_MISMATCH", "Produktbedingungen gehören nicht zur Position.", 409
+            )
+        directions = {term.option_direction for term in terms}
+        direction = next(iter(directions)) if len(directions) == 1 else None
+        direction_reason = (
+            "PRODUCT_TERMS_MISSING"
+            if not terms
+            else "PRODUCT_DIRECTION_CONFLICT" if direction is None else None
+        )
+        declaration = current.declaration if current else HebeltraderEvidenceDeclaration()
+        return HebeltraderMonitoringBasis(
+            coverage=replace(snapshot.coverage, read_completed_at=datetime.now(UTC)),
+            execution_basis=basis,
+            evidence_revision=current,
+            source_evidence=snapshot.source_evidence,
+            scale=HebeltraderScaleBasis(
+                review_status=declaration.scale_review_status,
+                source_scale_reference=declaration.source_scale_reference,
+                review_reference=declaration.scale_review_reference,
+            ),
+            option_direction=direction,
+            option_terms_version_ids=tuple(term.id for term in terms),
+            option_direction_reason=direction_reason,
+        )
+
+
 class HebeltraderEvidenceReader:
     def __init__(self, engine: AsyncEngine) -> None:
         self._engine = engine
@@ -331,37 +497,16 @@ class HebeltraderEvidenceReader:
     ) -> HebeltraderCoverage:
         started = datetime.now(UTC)
         async with self._snapshot() as session:
-            basis, underlying_id = await _context(
-                session,
-                workspace_id=workspace_id,
-                trade_id=trade_id,
-                position_id=position_id,
-                lock=False,
-            )
-            history = await SqlAlchemyHebeltraderEvidenceRepository(session).history(
-                workspace_id, trade_id, position_id
-            )
-            if len(history) > MAX_EVIDENCE_REVISIONS:
-                raise evidence_error(
-                    "BASELINE_EVIDENCE_LIMIT",
-                    "Belegkette überschreitet die vollständige Lesegrenze.",
+            return (
+                await _read_evidence_snapshot(
+                    session,
+                    workspace_id=workspace_id,
+                    trade_id=trade_id,
+                    position_id=position_id,
+                    started_at=started,
+                    lock=False,
                 )
-            current = current_revision(history)
-            source = await _source(
-                session,
-                basis=basis,
-                underlying_id=underlying_id,
-                source_version_id=current.declaration.source_version_id if current else None,
-                reuse_trade_link=current is None,
-            )
-            return build_hebeltrader_coverage(
-                basis=basis,
-                underlying_id=underlying_id,
-                revision=current,
-                source_evidence=source,
-                read_started_at=started,
-                read_completed_at=datetime.now(UTC),
-            )
+            ).coverage
 
     async def history(
         self, workspace_id: UUID, trade_id: UUID, position_id: UUID
