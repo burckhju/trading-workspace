@@ -2,6 +2,7 @@ import { environment } from '../../../services/environment';
 import { MarketApiError, requestJson } from '../../market/services/http';
 import type {
   HebeltraderTarget,
+  HebeltraderTargetAssessment,
   HebeltraderTargetAssessmentRequest,
   HebeltraderTargetsReport,
 } from '../hebeltraderTargets';
@@ -91,7 +92,9 @@ function target(value: unknown): value is HebeltraderTarget {
   );
 }
 
-function assessment(value: unknown): boolean {
+export function isHebeltraderTargetAssessment(
+  value: unknown,
+): value is HebeltraderTargetAssessment | null {
   if (value === null) return true;
   if (!object(value) || !object(value.orientation) || !object(value.protection_basis)) return false;
   const orientation = value.orientation;
@@ -118,7 +121,11 @@ function assessment(value: unknown): boolean {
   );
 }
 
-function verified(value: unknown, tradeId: string, positionId: string): HebeltraderTargetsReport {
+export function verifyHebeltraderTargetsReport(
+  value: unknown,
+  tradeId: string,
+  positionId: string,
+): HebeltraderTargetsReport {
   if (
     !object(value) ||
     value.trade_id !== tradeId ||
@@ -142,7 +149,7 @@ function verified(value: unknown, tradeId: string, positionId: string): Hebeltra
     typeof value.inputs.qualification_reusable !== 'boolean' ||
     !count(value.inputs.available_price_rows) ||
     !strings(value.inputs.issues) ||
-    !assessment(value.latest_assessment) ||
+    !isHebeltraderTargetAssessment(value.latest_assessment) ||
     (value.currentness === 'NO_ASSESSMENT') !== (value.latest_assessment === null) ||
     (value.assessment_count === 0) !== (value.latest_assessment === null)
   ) {
@@ -175,7 +182,18 @@ export async function readHebeltraderTargets(
         : 'Die Zielhistorie konnte nicht gelesen werden. Daraus folgt keine Entwarnung.',
     );
   }
-  return verified(value, tradeId, positionId);
+  return verifyHebeltraderTargetsReport(value, tradeId, positionId);
+}
+
+export class HebeltraderCommandError extends Error {
+  constructor(
+    message: string,
+    readonly outcome: 'REJECTED' | 'UNKNOWN',
+    readonly code: string | null = null,
+  ) {
+    super(message);
+    this.name = 'HebeltraderCommandError';
+  }
 }
 
 export async function assessHebeltraderTargets(
@@ -191,13 +209,25 @@ export async function assessHebeltraderTargets(
       signal,
     });
   } catch (error) {
-    throw new Error(
+    const rejected = error instanceof MarketApiError && error.status >= 400 && error.status < 500;
+    throw new HebeltraderCommandError(
       error instanceof MarketApiError && error.status === 409
         ? 'Die Beleggrundlage hat sich geändert. Den gespeicherten Prüfstand erneut lesen.'
         : error instanceof MarketApiError && error.status === 403
           ? 'Keine Berechtigung für diese Prüfung. Den gespeicherten Prüfstand erneut lesen.'
-          : 'Der Ausgang der Prüfung konnte nicht bestätigt werden. Den gespeicherten Prüfstand erneut lesen; die Prüfung wird nicht automatisch wiederholt.',
+          : rejected
+            ? `${error.response.message} (${error.response.code})`
+            : 'Der Ausgang der Prüfung konnte nicht bestätigt werden. Den Beleg genau dieser Anfrage lesen; die Prüfung wird nicht automatisch wiederholt.',
+      rejected ? 'REJECTED' : 'UNKNOWN',
+      error instanceof MarketApiError ? error.response.code : null,
     );
   }
-  return verified(value, tradeId, payload.position_id);
+  try {
+    return verifyHebeltraderTargetsReport(value, tradeId, payload.position_id);
+  } catch (error) {
+    throw new HebeltraderCommandError(
+      error instanceof Error ? error.message : 'Der Schreibausgang ist nicht bestätigt.',
+      'UNKNOWN',
+    );
+  }
 }

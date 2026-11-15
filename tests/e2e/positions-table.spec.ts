@@ -1,6 +1,17 @@
 import { expect, test, type Page } from "@playwright/test";
 import type { HebeltraderEvidenceReport } from "../../frontend/src/features/operational_workspace/hebeltraderEvidence";
-import type { HebeltraderTargetsReport } from "../../frontend/src/features/operational_workspace/hebeltraderTargets";
+import type {
+  HebeltraderTargetAssessmentRequest,
+  HebeltraderTargetsReport,
+} from "../../frontend/src/features/operational_workspace/hebeltraderTargets";
+import {
+  qualificationPreview,
+  targetRequest,
+} from "../../frontend/src/features/operational_workspace/test/hebeltraderQualificationFixture";
+import {
+  targetAssessment,
+  targetReport,
+} from "../../frontend/src/features/operational_workspace/test/hebeltraderTargetsFixture";
 import type { OperationalPosition } from "../../frontend/src/features/operational_workspace/types";
 
 async function setup(
@@ -448,4 +459,247 @@ test("narrow layout: bounded horizontal scroll and keyboard-accessible details a
     .click();
   await expect(page).toHaveURL(/trade_id=trade-99#sale-capture$/);
   expect(writes()).toBe(0);
+});
+
+test("historical qualification preserves a scoped draft and recovers exactly one explicit request without activation", async ({
+  page,
+}) => {
+  const requests: string[] = [];
+  const otherWrites = await setup(page, {}, requests);
+  const preview = qualificationPreview();
+  preview.report.trade_id = "trade-99";
+  preview.report.position_id = "position-99";
+  preview.report.current_basis_id = "a".repeat(64);
+  preview.entry.product_id = "product-99";
+  preview.source!.product_id = "product-99";
+  preview.source!.product.binding.instrument_id = "product-99";
+  let currentReport = preview.report;
+  let submitted: HebeltraderTargetAssessmentRequest | null = null;
+  let assessmentPosts = 0;
+  const specificRequests: string[] = [];
+  const routePath =
+    /^\/(?:api\/)?api\/v1\/position-monitoring\/trades\/trade-99\/hebeltrader-targets(?:\/qualification-preview|\/assessments|\/requests\/[0-9a-f-]{36})?$/;
+  const concreteReference =
+    "Synthetisches Listingarchiv 2026, Seite 7; Zeit, Währung und gemeinsamer Originalmaßstab geprüft.";
+  await page.route(
+    (url) => routePath.test(url.pathname),
+    async (route) => {
+      const request = route.request();
+      const url = new URL(request.url());
+      const path = url.pathname;
+      specificRequests.push(`${request.method()} ${path}`);
+      requests.push(`${request.method()} ${path}`);
+      if (path.endsWith("/assessments")) {
+        expect(request.method()).toBe("POST");
+        expect([...url.searchParams]).toEqual([]);
+        assessmentPosts += 1;
+        submitted =
+          request.postDataJSON() as HebeltraderTargetAssessmentRequest;
+        expect(submitted).toEqual({
+          position_id: "position-99",
+          request_id: expect.stringMatching(
+            /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+          ),
+          expected_basis_id: preview.report.current_basis_id,
+          expected_assessment_id: null,
+          confirmation: "ASSESS_SAVED_HEBELTRADER_EVIDENCE",
+          qualification: {
+            ...preview.qualification_binding,
+            evidence_reference: concreteReference,
+            confirmation:
+              "CONFIRM_HISTORICAL_LISTING_AND_UNCHANGED_ORIGINAL_SCALE",
+          },
+        });
+        currentReport = targetReport({
+          trade_id: "trade-99",
+          position_id: "position-99",
+          current_basis_id: preview.report.current_basis_id,
+          latest_assessment: targetAssessment({
+            id: "exact-request-assessment",
+            basis_id: preview.report.current_basis_id,
+          }),
+        });
+        // Synthetic recorded command with an unconfirmed response; no database/provider is contacted.
+        return route.fulfill({
+          status: 503,
+          contentType: "application/json",
+          body: JSON.stringify({
+            code: "RESPONSE_UNAVAILABLE",
+            message: "Synthetisch unbestätigte Antwort",
+            details: [],
+            timestamp: "2026-11-14T10:00:01Z",
+          }),
+        });
+      }
+      expect(request.method()).toBe("GET");
+      expect([...url.searchParams]).toEqual([["position_id", "position-99"]]);
+      if (path.includes("/requests/")) {
+        expect(submitted).not.toBeNull();
+        expect(path.split("/").at(-1)).toBe(submitted!.request_id);
+        const receipt = targetRequest({
+          trade_id: "trade-99",
+          position_id: "position-99",
+          request_id: submitted!.request_id,
+          assessment: currentReport.latest_assessment,
+          qualification: {
+            ...preview.qualification_binding!,
+            evidence_reference: concreteReference,
+          },
+        });
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify(receipt),
+        });
+      }
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(
+          path.endsWith("/qualification-preview")
+            ? {
+                ...preview,
+                report: currentReport,
+                qualification: currentReport.inputs.qualification_reusable
+                  ? {
+                      ...preview.qualification,
+                      status: "REUSABLE",
+                      value: {
+                        ...preview.qualification_binding,
+                        evidence_reference: concreteReference,
+                      },
+                      contained_in_assessment_id:
+                        currentReport.latest_assessment!.id,
+                      contained_in_recorded_at:
+                        currentReport.latest_assessment!.recorded_at,
+                    }
+                  : preview.qualification,
+              }
+            : currentReport,
+        ),
+      });
+    },
+  );
+  await page.goto("/workspace");
+  await expect(
+    page.getByRole("heading", { name: "Offene Positionen · 100" }),
+  ).toBeVisible();
+  await expect(page.getByText(/Positionssignale werden ergänzt/)).toHaveCount(
+    0,
+  );
+  const search = page.getByRole("searchbox");
+  await search.fill("WK0099");
+  await page.getByRole("button", { name: "Details", exact: true }).click();
+  await expect(page.getByText("Noch keine gespeicherte Prüfung")).toBeVisible();
+  expect(specificRequests).toEqual([
+    expect.stringMatching(
+      /^GET (?:\/api)?\/api\/v1\/position-monitoring\/trades\/trade-99\/hebeltrader-targets$/,
+    ),
+  ]);
+  const beforePreview = requests.length;
+  await page
+    .getByRole("button", { name: "Historische Vergleichsbelege ansehen" })
+    .click();
+  const qualification = page.getByRole("region", {
+    name: "Historische Vergleichsqualifikation",
+  });
+  await expect(
+    qualification.getByRole("table", {
+      name: "Gespeicherte Basiswert-Tageskurse",
+    }),
+  ).toBeVisible();
+  expect(requests.slice(beforePreview)).toEqual([
+    expect.stringMatching(
+      /^GET (?:\/api)?\/api\/v1\/position-monitoring\/trades\/trade-99\/hebeltrader-targets\/qualification-preview$/,
+    ),
+  ]);
+  await expect(qualification).toContainText("Basiswertmarken in USD");
+  await expect(qualification).toContainText("keine unabhängige Verifikation");
+  await expect(qualification).toContainText("kann aus dem Listing stammen");
+  const reference = qualification.getByRole("textbox", {
+    name: "Konkreter Nachweis für historische Listingzuordnung und gemeinsamen Originalmaßstab",
+  });
+  const confirm = qualification.getByRole("button", {
+    name: "Historische Zuordnung und Originalmaßstab bestätigen und prüfen",
+  });
+  await reference.fill("   ");
+  await expect(confirm).toBeDisabled();
+  await reference.fill(concreteReference);
+  await expect(confirm).toBeEnabled();
+  await page
+    .getByRole("button", { name: "Details schließen", exact: true })
+    .click();
+  await page.getByRole("button", { name: "Details", exact: true }).click();
+  await expect(reference).toHaveValue(concreteReference);
+  await expect(search).toHaveValue("WK0099");
+  expect(assessmentPosts).toBe(0);
+  const beforePost = requests.length;
+  await confirm.click();
+  await expect(
+    page.getByRole("region", { name: "Unbestätigter Prüfauftrag" }),
+  ).toBeVisible();
+  expect(requests.slice(beforePost)).toEqual([
+    expect.stringMatching(
+      /^POST (?:\/api)?\/api\/v1\/position-monitoring\/trades\/trade-99\/hebeltrader-targets\/assessments$/,
+    ),
+  ]);
+  await expect(confirm).toBeDisabled();
+  await page
+    .getByRole("button", { name: "Aktualisieren", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Offene Positionen · 100" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Details", exact: true }).click();
+  const unresolved = page.getByRole("region", {
+    name: "Unbestätigter Prüfauftrag",
+  });
+  await expect(unresolved).toBeVisible();
+  await expect(unresolved).toContainText(concreteReference);
+  await expect(search).toHaveValue("WK0099");
+  await expect(
+    page.getByRole("button", {
+      name: "Gespeicherte Belege prüfen",
+      exact: true,
+    }),
+  ).toBeDisabled();
+  await expect(qualification).toContainText(
+    "Die vorhandene Bestätigung passt zu diesem Stand und wird wiederverwendet.",
+  );
+  const beforeReceipt = specificRequests.length;
+  await page
+    .getByRole("button", { name: "Beleg genau dieser Anfrage lesen" })
+    .click();
+  await expect(
+    page.getByText(
+      /Der gespeicherte Vorgangsbeleg bestätigt genau diese Anfrage/,
+    ),
+  ).toBeVisible();
+  expect(specificRequests.slice(beforeReceipt)).toEqual([
+    expect.stringMatching(
+      new RegExp(
+        `^GET (?:/api)?/api/v1/position-monitoring/trades/trade-99/hebeltrader-targets/requests/${submitted!.request_id}$`,
+      ),
+    ),
+  ]);
+  await page
+    .getByText("Gespeicherter Beleg dieser Anfrage", { exact: true })
+    .click();
+  await expect(
+    page.getByText(/Damals enthaltener Prüfstand: exact-request-assessment/),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "Hebeltrader-Zielhistorie" }),
+  ).toContainText("nicht als laufende Überwachung aktiviert");
+  await expect(
+    page.getByRole("region", { name: "Hebeltrader-Belegabdeckung" }),
+  ).toContainText("Keine Baseline-Regelauswertung");
+  expect(assessmentPosts).toBe(1);
+  expect(otherWrites()).toBe(0);
+  await page
+    .getByRole("link", { name: "Kauf-/Verkaufsdaten und Historie öffnen" })
+    .click();
+  await expect(page).toHaveURL(/trade_id=trade-99#execution-dates$/);
+  expect(assessmentPosts).toBe(1);
+  expect(otherWrites()).toBe(0);
 });

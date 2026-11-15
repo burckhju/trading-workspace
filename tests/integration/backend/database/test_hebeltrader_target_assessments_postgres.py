@@ -777,3 +777,119 @@ def test_closed_or_cancelled_position_rejects_new_assessment_but_keeps_history(
             assert await state(target_database) == before_read
 
     asyncio.run(exercise())
+
+
+def test_qualification_preview_and_exact_request_receipt_are_read_only_across_later_assessments(
+    target_database,
+):
+    """Real HTTP/transactions; missing source data remains explicitly not assessable."""
+    _migrate(target_database, "head")
+
+    async def exercise():
+        async with real_client(target_database) as (client, _):
+            data, underlying = await seed(client)
+            other = await second_position(client, data, underlying)
+            trade_id, position_id = data["trade"]["id"], data["position"]["id"]
+            base = f"/api/v1/position-monitoring/trades/{trade_id}/hebeltrader-targets"
+            query = {"position_id": position_id}
+            first_request_id = uuid4()
+            before = await state(target_database)
+            preview = await client.get(base + "/qualification-preview", params=query)
+            assert preview.status_code == 200, preview.text
+            preview_body = preview.json()
+            assert preview_body["operation_status"] == "READ_ONLY"
+            assert preview_body["readiness"]["status"] == "BLOCKED"
+            assert preview_body["qualification_binding"] is None
+            assert preview_body["report"]["latest_assessment"] is None
+            unknown = await client.get(base + f"/requests/{first_request_id}", params=query)
+            assert unknown.status_code == 200, unknown.text
+            assert unknown.json()["status"] == "UNKNOWN"
+            assert unknown.json()["assessment"] is None
+            assert unknown.json()["qualification"] is None
+            assert unknown.json()["recorded_at"] is None
+            assert await state(target_database) == before
+
+            first_command = {
+                "position_id": position_id,
+                "request_id": str(first_request_id),
+                "expected_basis_id": preview_body["report"]["current_basis_id"],
+                "expected_assessment_id": None,
+                "confirmation": "ASSESS_SAVED_HEBELTRADER_EVIDENCE",
+            }
+            first = await client.post(base + "/assessments", json=first_command)
+            assert first.status_code == 200, first.text
+            first_assessment = first.json()["latest_assessment"]
+            assert first_assessment["targets"][0]["status"] == "NOT_ASSESSABLE"
+            after_command = await state(target_database)
+            assert len(after_command["hebeltrader_target_assessments"]) == 1
+            assert len(after_command["hebeltrader_target_requests"]) == 1
+            for table, rows in before.items():
+                if table not in {"hebeltrader_target_assessments", "hebeltrader_target_requests"}:
+                    assert after_command[table] == rows, table
+
+            # A later additive owner revision changes the basis, without rewriting executions.
+            evidence = replace(evidence_revision(data, underlying), recorded_at=datetime.now(UTC))
+            await append_evidence(target_database, evidence)
+            changed = await client.get(base + "/qualification-preview", params=query)
+            assert changed.status_code == 200, changed.text
+            current = changed.json()["report"]
+            assert current["current_basis_id"] != first_command["expected_basis_id"]
+            assert current["latest_assessment"]["id"] == first_assessment["id"]
+            before_stale = await state(target_database)
+            stale = await client.post(
+                base + "/assessments", json={**first_command, "request_id": str(uuid4())}
+            )
+            assert stale.status_code == 409, stale.text
+            assert await state(target_database) == before_stale
+            second = await client.post(
+                base + "/assessments",
+                json={
+                    **first_command,
+                    "request_id": str(uuid4()),
+                    "expected_basis_id": current["current_basis_id"],
+                    "expected_assessment_id": first_assessment["id"],
+                },
+            )
+            assert second.status_code == 200, second.text
+            assert second.json()["latest_assessment"]["id"] != first_assessment["id"]
+            stable = await state(target_database)
+            saved = await client.get(base + f"/requests/{first_request_id}", params=query)
+            assert saved.status_code == 200, saved.text
+            original_receipt = saved.json()
+            assert original_receipt["status"] == "RECORDED"
+            assert original_receipt["assessment"] == first_assessment
+            assert original_receipt["qualification"] is None
+            original_record = next(
+                row
+                for row in stable["hebeltrader_target_requests"]
+                if str(row["request_id"]) == str(first_request_id)
+            )
+            assert (
+                datetime.fromisoformat(original_receipt["recorded_at"])
+                == original_record["recorded_at"]
+            )
+
+            foreign = await client.get(
+                "/api/v1/position-monitoring/trades/"
+                + other["trade"]["id"]
+                + f"/hebeltrader-targets/requests/{first_request_id}",
+                params={"position_id": other["position"]["id"]},
+            )
+            assert foreign.status_code == 404, foreign.text
+            assert foreign.json()["code"] == "HEBELTRADER_REQUEST_NOT_FOUND"
+            assert first_assessment["id"] not in foreign.text
+            assert trade_id not in foreign.text
+            assert await state(target_database) == stable
+            replay = await client.post(base + "/assessments", json=first_command)
+            assert replay.status_code == 200, replay.text
+            assert await state(target_database) == stable
+
+        # A new application/session lifetime still returns the receipt's original snapshot.
+        async with real_client(target_database) as (restarted, _):
+            saved = await restarted.get(base + f"/requests/{first_request_id}", params=query)
+            assert saved.status_code == 200, saved.text
+            assert saved.json()["assessment"] == first_assessment
+            assert saved.json()["recorded_at"] == original_receipt["recorded_at"]
+            assert await state(target_database) == stable
+
+    asyncio.run(exercise())

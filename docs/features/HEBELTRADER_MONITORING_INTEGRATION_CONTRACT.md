@@ -1,11 +1,14 @@
 # Hebeltrader-Positionsmeldungen: Integrationsvertrag zu #207
 
-**Additiver Stand 14.11.2026:** Der historische F207-1-Abgleich bleibt erhalten.
+**Additiver Stand 15.11.2026:** Der historische F207-1-Abgleich bleibt erhalten.
 Der [Evidenzschnitt F207-4](#f207-4-evidence-read) wurde mit
 [PR #344](https://github.com/burckhju/trading-workspace/pull/344) auf Main
 `e6738c291b0701d00cce20a370aba7496a9f24d0` integriert. Die
 [F207-3-Schnittstellenübergabe](#f207-3-interface-handoff) bleibt maßgeblich.
-Darauf folgt der begrenzte [Zielhistorien-Schnitt F207-2](#f207-2-target-history).
+Der begrenzte [Zielhistorien-Schnitt F207-2](#f207-2-target-history) wurde mit
+[PR #345](https://github.com/burckhju/trading-workspace/pull/345) auf Main
+`6efa74d3bd0978c7ef8975fdc9c506de7a0aa348` integriert. Daran schließt der
+[Vergleichsbeleg-Schnitt F207-3](#f207-3-history-qualification) an.
 Aufgabenstatus bleibt ausschließlich im Product Backlog; vollständige Baseline,
 Regelaktivierung und Betrieb werden dadurch nicht als abgeschlossen erklärt.
 
@@ -1040,7 +1043,9 @@ Quellenversion, deren Skalenreferenz und eine Belegreferenz. Ein nominell passen
 Provider oder eine übereinstimmende Währung allein genügt nicht.
 
 Eine solche Qualifikation kann über den unten beschriebenen Command erfasst
-werden; dieser Schnitt ergänzt dafür keinen eigenen Editor. Ohne den zusätzlichen
+werden; der ursprüngliche F207-2-Schnitt ergänzt dafür keinen eigenen Editor.
+Der anschließende [Vergleichsbeleg-Schnitt](#f207-3-history-qualification) ergänzt
+die konkrete Prüfung und Bestätigung in den Positionsdetails. Ohne den zusätzlichen
 Beleg liefert auch der Prüfbutton einen gespeicherten, verständlich begründeten
 Status `NOT_ASSESSABLE`. Bereits passende Qualifikationen desselben Eingangsstands
 werden wiederverwendet; keine erneute Eingabe ist nötig. Eine erweiterte oder
@@ -1144,3 +1149,154 @@ Score und Risiko behalten ihre Bedeutung. Neue Quellen aktivieren keine
 Regelversion. Release, PC-Installation, produktive Korrektur, neue
 Providerzustimmungen und echte Nachrichtentests benötigen einen gesonderten
 Auftrag.
+
+<a id="f207-3-history-qualification"></a>
+## F207-3: konkrete Prüfung historischer Vergleichsbelege
+
+### Abgegrenzter Anschluss und vorhandene Daten
+
+Dieser Schnitt setzt auf Main `6efa74d3bd0978c7ef8975fdc9c506de7a0aa348`
+mit dem integrierten Zielhistorien-PR #345 auf. Er schließt dessen konkreten
+Bedienengpass: Die bereits vorhandene zusätzliche Vergleichsqualifikation lässt
+sich anhand der gespeicherten Originalbelege in den Positionsdetails prüfen und
+ausdrücklich bestätigen. Er implementiert **weder den vollständigen F207-3-Vertrag
+noch eine automatische historische Quellenverifikation**.
+
+Die gespeicherten Ownerfakten liefern Identität, technische Qualität, Originalwerte
+und Zeitangaben. Aktuelle Listing-/Venue-Versionen und technische Providerzuordnungen
+beweisen aber keine historische Gültigkeit. Beispielsweise übernimmt der vorhandene
+EODHD-Mapper die Währung aus dem Listingkontext; zwei gleiche Währungsfelder sind
+deshalb keine zwei unabhängigen historischen Nachweise. `VALID`, ein Providername
+oder ein technischer Symbolabgleich ersetzt keinen belegten gemeinsamen Maßstab.
+
+Die zusätzliche Bestätigung bleibt eine **ausdrückliche Nutzererklärung mit konkreter
+Belegreferenz**. Die Software prüft ihre exakte Bindung und die technischen
+Voraussetzungen, verifiziert den Inhalt des externen Nachweises aber nicht
+unabhängig. Eine Referenz soll Dokument, datierten Quellenstand und relevante
+Fundstelle benennen und tatsächlich die historische Zuordnung sowie den
+unveränderten Originalmaßstab tragen. Es gibt keinen automatischen Abruf beliebiger
+URLs und keine pauschale Freigabe durch Providername, Währung oder ein Kontrollkästchen.
+
+### Öffentliche Reads beim bestehenden Monitoring-Owner
+
+| Pfad unter `/api/v1/position-monitoring/trades/{trade_id}` | Vertrag |
+| --- | --- |
+| `GET /hebeltrader-targets/qualification-preview?position_id=...` | Konsistenter Vergleichsbeleg-Read mit dem bisherigen Report, Einstieg, exakter historischer Quelle, F207-4-Skalenbezug, vollständigem gespeicherten Kursbestand, getrennten Voraussetzungen und vorhandener Nutzererklärung. |
+| `GET /hebeltrader-targets/requests/{request_id}?position_id=...` | Ausschließlich der zu Trade/Position/Workspace gehörende Vorgang: `RECORDED` mit seinem ursprünglichen Prüfstand und seiner Erklärung oder `UNKNOWN`. Kein neuer Prüflauf und keine Bestätigung eines anderen Requests. |
+
+Beide Reads verwenden die bestehende eigene `REPEATABLE READ READ ONLY`-Session,
+ohne Autoflush, mit Timeout und Rollback. Die Ausführungswahrheit bleibt beim
+Trade-Position-Owner. Quelle und Kurse kommen aus den bestehenden Learning- und
+Market-Data-Readern. Es werden keine Kurse beschafft, Ausführungen gebucht,
+Regelversionen aktiviert, Alerts erzeugt oder Nachrichten zugestellt.
+
+Der Preview enthält den **Report aus demselben Snapshot**. Dessen
+`current_basis_id` und letzter Assessment-ID sowie die separat ausgegebene
+`qualification_binding` sind die Bindung für den unveränderten bestehenden
+Assessmentcommand. Ein früherer separat gelesener Report darf diese Tokens nicht
+ersetzen. Identität, Originalmarken, Währung, Fingerprints und Quellenversion werden
+übernommen; sie müssen nicht erneut vom Nutzer eingegeben werden.
+
+Die gesamte gespeicherte Reihe bleibt bis zur vorhandenen Grenze von 5.000 Zeilen
+lesbar. Eine seitenweise Darstellung ändert den bestätigten Bereich nicht. Eine
+Limitüberschreitung oder ein unvollständiger Read ergibt keine scheinbar vollständige
+Bestätigung. Originalzeilen, OHLC, Adjusted Close, Provider/Symbol, Qualität,
+Warnungen, Fingerprints sowie Quellaktualisierung, Abruf, Anlage und spätere
+Änderung bleiben unterscheidbar. Listingprovenienz bleibt
+`CURRENT_REFERENCE_NOT_HISTORICALLY_VERIFIED`; `DATE_ONLY` und lokale Tagesintervalle
+bleiben erhalten. Es entstehen keine erfundenen Sitzungs- oder Trefferzeiten.
+
+### Getrennte Aussagen und unveränderte fachliche Prüfung
+
+`review_hebeltrader_target_inputs` prüft ausschließlich die vorhandenen
+Vergleichsvoraussetzungen. Derselbe reine Zeilenprüfer wird von der anschließenden
+Zielauswertung verwendet; es gibt keinen zweiten Preis-/Zeit-/Skalenalgorithmus.
+Der Read erzeugt keine Qualifikation, keine Zielereignisse und keine Proofs.
+
+| Aussage | Bedeutung |
+| --- | --- |
+| `REVIEWABLE` | Die Voraussetzungen erlauben die gezielte Nutzererklärung für diesen Stand; mindestens eine Originalzeile ist danach technisch verwendbar. Kein bereits ausgewerteter Zieltreffer. |
+| `BLOCKED` | Globale Voraussetzungen fehlen oder keine gespeicherte Zeile ist technisch geeignet. Die Gründe bleiben sichtbar; keine gültige Commandbindung wird angeboten. |
+| `NOT_APPLICABLE` | Geschlossene/stornierte Position; vorhandene Belege bleiben lesbar. |
+| `SUITABLE_AFTER_CONFIRMATION` / `UNSUITABLE` | Technischer Befund je Originalzeile. Ungeeignete Zeilen bleiben auch nach einer Erklärung gesperrt. |
+| `MISSING` / `REUSABLE` / `STALE` | Getrennter Zustand der bereits gespeicherten Nutzererklärung; Wiederverwendbarkeit bedeutet exakte Bindungsgleichheit, nicht automatisch aktuelle Dateneignung. |
+
+Bei einer übergeordneten Sperre kann die Zeilenprüfung entfallen. Die Originale
+bleiben dann lesbar und als **nicht zeilenweise geprüft** gekennzeichnet; ein
+fehlender Einzelbefund wird nicht in eine Ablehnung dieser Zeile umgedeutet.
+
+Der ursprüngliche persönliche Einstieg und die konkrete Quellenskalenreferenz
+werden weiterhin vom zuständigen Owner gelesen. Fehlt diese Referenz, zeigt der
+Preview den tatsächlichen Blocker; er setzt keinen erfundenen Standardmaßstab ein.
+Die F207-4-Bestätigung bleibt auf Quelle und Kaufbelege begrenzt und wird nicht auf
+neue Marktdaten ausgedehnt. Anpassungsindizien, falsche Achsen/Währungen,
+ungeeignete Zeiten und widersprüchliche Originale bleiben gesperrt. Ein bestehendes
+`REVIEW_REQUIRED` wird durch die neue Vergleichserklärung nicht aufgehoben.
+
+Eine unveränderte passende Erklärung wird ohne erneute Eingabe wiederverwendet.
+Sie wird als **„enthalten in Prüfstand …“** mit dessen Zeitpunkt angezeigt. Dieser
+Zeitpunkt oder Autor wird nicht zum ursprünglichen Bestätiger umgedeutet, weil eine
+Erklärung in spätere Prüfstände übernommen werden kann. Neuer Kursbestand,
+materielle Korrektur, andere Quelle oder Listingbindung benötigen weiterhin eine
+passende Erklärung; identischer Neuabruf und reiner Tageswechsel allein nicht.
+
+### Bedienung, Entwurf und unklarer Commandausgang
+
+Die Belegansicht wird ausdrücklich im bestehenden Zielhistorienblock geöffnet.
+Ein konkretes Referenzfeld und die inhaltlich bezeichnete Aktion bestätigen die
+historische Listing-/Zeit-/Währungszuordnung sowie den gemeinsamen Originalmaßstab
+mit genau dieser Quelle für den benannten gespeicherten Bereich. Der bestehende
+`POST /hebeltrader-targets/assessments` bleibt der einzige Writer.
+
+Der Operational Workspace hält den Formular- und Vorgangszustand ausschließlich
+ephemer und getrennt nach Trade/Position im vorhandenen Positionshost. Schließen,
+Filter, Seitenwechsel, ein Reload der Positionsdetails oder die globale Aktion
+„Aktualisieren“ löschen den Entwurf nicht. Eine geänderte Basis erhält den Text
+als bisherigen Entwurf, erfordert aber
+die erneute Prüfung des neuen Stands. Der Entwurf gehört zur Lebensdauer der
+Positionsübersicht; deren Verlassen oder ein Neuladen der Anwendung ist keine
+persistierte Entwurfssicherung.
+
+Beim bewussten Absenden werden Payload und `request_id` eingefroren. Verspätete
+Antworten, A→B→A und unmountete Details dürfen keine fremden oder neueren Belege
+überschreiben. Konkrete Ablehnung und unklarer Transport-/Schreibausgang bleiben
+unterscheidbar. Ein unklarer Ausgang hält den unveränderten Vorgang fest; ein
+beliebiger erfolgreicher Report-GET bestätigt nicht nachträglich genau diesen
+Schreibvorgang.
+
+Der gezielte Vorgangsread kann `RECORDED` anhand des gespeicherten Receipts belegen.
+Er liefert dessen ursprünglichen Prüfstand, auch wenn inzwischen ein neuerer
+existiert. `UNKNOWN` bedeutet ausschließlich, dass in diesem Lesesnapshot kein
+passender Receipt sichtbar ist. Es beweist weder ein Scheitern noch einen laufenden
+Vorgang und gibt keinen neuen Idempotency-Key frei. Eine bewusste Wiederholung
+verwendet denselben eingefrorenen Command und dieselbe Kennung; kein automatischer
+POST oder Retry. Die Ablehnung einer solchen Wiederholung beweist nicht das
+Scheitern der ursprünglichen unbestätigten Sendung und erhält deshalb deren
+unklaren Ausgang. Die bestehenden CAS-/Scope-/Replayprüfungen bleiben maßgeblich.
+
+### Persistenz, Nachweise und nächste Abhängigkeiten
+
+Die vorhandenen unveränderlichen Assessmentinputs speichern Quelle, vollständigen
+Kursstand und konkrete Erklärung; der bestehende Receipt bindet den Vorgang.
+Es entsteht keine zweite Kurs-, Ausführungs- oder Qualifikationshistorie.
+**Keine Migration:** Der Migrationsgraph bleibt unverändert bei `20261114_0051`.
+
+Gezielte Regressionen prüfen reine Reads, identischen Snapshot und CAS, fehlende
+Quellenskala, gemischte geeignete/ungeeignete Originalzeilen, Daten-/Quellenwechsel,
+deklarierte Wiederverwendung trotz gesperrter Eignung, unveränderte frühere Proofs,
+Requestauflösung sowie Entwurfserhalt und verspätete Antworten. Der tatsächliche
+PostgreSQL-Nachweis verwendet die vorhandene geschützte synthetische
+Wegwerfumgebung mit abgefangenen externen Aufrufen. Reguläre Ergebnisse bleiben
+an den tatsächlichen PR-Head/Testmerge gebunden; fehlende oder übersprungene
+Prüfungen und der Nutzer-PC sind kein Erfolgsnachweis.
+
+Verifizierte historische Beschaffung/Referenzgültigkeit, Anpassungsevidenz,
+Basiswert-/Produktkalender, Produktfristen, historische Trades zum Kauf und
+Original-BIDs bleiben weitere F207-3-Schritte. Insbesondere ersetzt dieser Read
+keine B04-/B58-Prüfung auf offene verifizierte Sitzung, Originalzeit, höchstens
+900 Sekunden Alter und bereits zum Kurszeitpunkt abgeschlossene 20. Basiswertsitzung.
+B04/B05/B06/B57-Auswertung, restlicher F207-2-Schutzvertrag und F207-5-Aktivierung/
+Zustellung bleiben getrennt. B07, der Ausschluss B08 sowie ATR-/Phase-/Score-/
+Risikoverträge behalten ihre Bedeutung. Aufgabenstatus steht ausschließlich im
+Product Backlog; VERSION, Providerzustimmungen und produktiver Betrieb werden
+durch diesen Schnitt nicht geändert.

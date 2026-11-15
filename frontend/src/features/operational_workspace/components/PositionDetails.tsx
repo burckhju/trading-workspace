@@ -9,6 +9,7 @@ import { PositionValuationBasisDetails } from '../../trade/components/PositionVa
 import { PositionPriceHistory } from './PositionPriceHistory';
 import { HebeltraderEvidenceCoverage } from './HebeltraderEvidenceCoverage';
 import { HebeltraderTargetHistory } from './HebeltraderTargetHistory';
+import type { QualificationSessions } from '../hooks/useHebeltraderQualificationSessions';
 
 const staleValuationNotice =
   'Kursdaten veraltet: Bewertung und darauf basierende Analysen sind indikativ.';
@@ -60,7 +61,13 @@ function valuationNotice(
     : null;
 }
 
-export function PositionDetails({ position: p }: { position: OperationalPosition }) {
+export function PositionDetails({
+  position: p,
+  qualificationSessions,
+}: {
+  position: OperationalPosition;
+  qualificationSessions?: QualificationSessions;
+}) {
   const notice = valuationNotice(p);
   return (
     <section
@@ -83,6 +90,7 @@ export function PositionDetails({ position: p }: { position: OperationalPosition
       <HebeltraderTargetHistory
         tradeId={p.trade_id}
         positionId={p.position_id}
+        qualificationSessions={qualificationSessions}
         reloadToken={
           p.position_basis?.basis_id ??
           `${p.open_quantity}:${p.cost_basis}:${p.average_entry_price}`

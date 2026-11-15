@@ -81,4 +81,15 @@ export interface HebeltraderTargetAssessmentRequest {
   expected_basis_id: string;
   expected_assessment_id: string | null;
   confirmation: 'ASSESS_SAVED_HEBELTRADER_EVIDENCE';
+  qualification?: TargetComparisonQualification & {
+    confirmation: 'CONFIRM_HISTORICAL_LISTING_AND_UNCHANGED_ORIGINAL_SCALE';
+  };
+}
+
+export interface TargetComparisonQualification {
+  history_fingerprint: string;
+  listing_fingerprint: string;
+  source_version_id: string;
+  source_scale_reference: string;
+  evidence_reference: string;
 }
