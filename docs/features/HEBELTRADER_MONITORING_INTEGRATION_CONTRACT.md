@@ -10,12 +10,13 @@ Der begrenzte [Zielhistorien-Schnitt F207-2](#f207-2-target-history) wurde mit
 `6efa74d3bd0978c7ef8975fdc9c506de7a0aa348` integriert. Der
 [Vergleichsbeleg-Schnitt F207-3](#f207-3-history-qualification) wurde mit
 [PR #346](https://github.com/burckhju/trading-workspace/pull/346) auf Main
-`1d63d001216ef6f9294697f54707f3ae89a58ac4` integriert. Daran schließt der
-[Sitzungsevidenz-Schnitt F207-3](#f207-3-session-evidence) in
-[PR #347](https://github.com/burckhju/trading-workspace/pull/347) an.
+`1d63d001216ef6f9294697f54707f3ae89a58ac4` integriert. Der
+[Sitzungsevidenz-Schnitt F207-3](#f207-3-session-evidence) wurde mit
+[PR #347](https://github.com/burckhju/trading-workspace/pull/347) auf Main
+`19a10ad484293995e200b5eb9a99b4ae11a49ee2` integriert.
 Der anschließende [Original-Geldkurs-Schnitt](#f207-3-original-bid-evidence)
 baut ausdrücklich auf dessen Head `093e97899fd35a1f8f508518ebe606fad8e2e237`
-auf; er setzt keine bereits erfolgte Integration von #347 voraus.
+auf; dessen Inhalt ist identisch mit dem inzwischen integrierten Main-Tree.
 Aufgabenstatus bleibt ausschließlich im Product Backlog; vollständige Baseline,
 Regelaktivierung und Betrieb werden dadurch nicht als abgeschlossen erklärt.
 
@@ -1494,8 +1495,13 @@ im Product Backlog.
 Dieser Anschluss verwendet den überprüften Sitzungsevidenz-Head aus #347
 `093e97899fd35a1f8f508518ebe606fad8e2e237`, Tree
 `c51703185c713034245306b00bf17ce7e6d80cea`. Main ist beim Beginn weiterhin
-`1d63d001216ef6f9294697f54707f3ae89a58ac4`; #347 ist eine offene Draft-Abhängigkeit.
-Der zusätzliche Diff gegenüber diesem Vorgänger enthält keine Migration.
+`1d63d001216ef6f9294697f54707f3ae89a58ac4`; #347 war eine offene Draft-Abhängigkeit.
+Während der Umsetzung wurde #347 am 15.11.2026 um 20:44:57 UTC auf Main
+`19a10ad484293995e200b5eb9a99b4ae11a49ee2` integriert. Dessen Tree ist exakt
+`c51703185c713034245306b00bf17ce7e6d80cea`; die geprüfte Grundlage bleibt damit
+inhaltlich gleich. Der anschließende [PR #348](https://github.com/burckhju/trading-workspace/pull/348)
+enthält gegenüber diesem tatsächlichen Main nur den zusätzlichen Schnitt.
+Dieser Diff enthält keine Migration.
 Der gemeinsame Migrationsgraph bleibt linear mit `20261115_0052` nach
 `20261114_0051`; VERSION und veröffentlichter Tag bleiben unverändert.
 
