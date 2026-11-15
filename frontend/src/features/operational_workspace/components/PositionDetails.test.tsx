@@ -10,6 +10,7 @@ vi.mock('./PositionPriceHistory', () => ({ PositionPriceHistory: () => null }));
 vi.mock('./HebeltraderEvidenceCoverage', () => ({ HebeltraderEvidenceCoverage: () => null }));
 vi.mock('./HebeltraderTargetHistory', () => ({ HebeltraderTargetHistory: () => null }));
 vi.mock('./HebeltraderSessions', () => ({ HebeltraderSessions: () => null }));
+vi.mock('./HebeltraderOriginalBid', () => ({ HebeltraderOriginalBid: () => null }));
 vi.mock('../../alert/components/PositionRiskPanel', () => ({ PositionRiskPanel: () => null }));
 
 function show(overrides: Partial<OperationalPosition> = {}) {

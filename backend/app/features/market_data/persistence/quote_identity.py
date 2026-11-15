@@ -26,6 +26,10 @@ class QuoteIdentity:
     exchange: str
     mic: str
     stream_id: str | None = None
+    workspace_id: UUID | None = None
+    warrant_id: UUID | None = None
+    warrant_listing_id: UUID | None = None
+    trading_venue_id: UUID | None = None
 
 
 def verified_identity(
@@ -129,6 +133,10 @@ def verified_identity(
         exchange,
         venue.mic,
         stream_id,
+        workspace_id,
+        warrant.id,
+        listing.id,
+        venue.id,
     )
 
 

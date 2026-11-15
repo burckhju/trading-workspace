@@ -233,6 +233,7 @@ class FrankfurtWarrantQuoteAdapter:
                 venue_mic=FRANKFURT_MIC,
                 max_quote_age_seconds=self.settings.max_quote_age_seconds,
                 refresh_error=observation.refresh_error,
+                original_evidence=observation.original_evidence,
             )
         return MarketDataResult(
             data=quote,

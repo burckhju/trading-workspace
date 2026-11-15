@@ -16,6 +16,10 @@ import {
   sessionReport,
   unavailableSessionReport,
 } from "../../frontend/src/features/operational_workspace/test/hebeltraderSessionsFixture";
+import {
+  missingBidSideReport,
+  originalBidReport,
+} from "../../frontend/src/features/operational_workspace/test/hebeltraderOriginalBidFixture";
 import type { OperationalPosition } from "../../frontend/src/features/operational_workspace/types";
 
 async function setup(
@@ -137,6 +141,26 @@ async function setup(
         baseline_id: "HEBELTRADER_CONFIRMED_BASELINE",
         baseline_version: "1.0.0",
       };
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(report),
+      });
+    }
+    const originalBid = path.match(
+      /^\/(?:api\/)?api\/v1\/position-monitoring\/trades\/trade-(0|[1-9]\d?)\/hebeltrader-original-bid$/,
+    );
+    if (originalBid) {
+      const id = originalBid[1];
+      expect(req.method()).toBe("GET");
+      expect([...url.searchParams.entries()]).toEqual([
+        ["position_id", `position-${id}`],
+      ]);
+      const report = (id === "97" ? missingBidSideReport : originalBidReport)({
+        trade_id: `trade-${id}`,
+        position_id: `position-${id}`,
+        product_id: `product-${id}`,
+      });
       return route.fulfill({
         status: 200,
         contentType: "application/json",
@@ -420,7 +444,78 @@ test("valuation notices preserve keyboard details, existing reads and explicit h
     }
     await expect(sessions.getByRole("textbox")).toHaveCount(0);
     await expect(sessions.getByRole("button")).toHaveCount(0);
+    const original = region.getByRole("region", {
+      name: "Hebeltrader-Original-Geldkurs",
+    });
+    await expect(original).toContainText(
+      "Teilbelege vorhanden; Gesamtqualifikation offen",
+    );
+    await expect(original).toContainText(
+      "B04, B05, B06 und B58 sind nicht ausgewertet",
+    );
+    await expect(original).toContainText(
+      "Historischer Produkt-Preismaßstab · Beleg fehlt",
+    );
+    await expect(original).toContainText(
+      "Verifizierte offene Produktsitzung · Beleg fehlt",
+    );
+    await expect(original).toContainText(
+      "nicht als laufende Überwachung aktiviert",
+    );
+    await expect(
+      original
+        .getByRole("list", {
+          name: "Voraussetzungen für den Original-Geldkurs",
+        })
+        .getByRole("listitem"),
+    ).toHaveCount(8);
+    const sideTime = original
+      .getByText("Exakte Original-BID-Zeit", { exact: true })
+      .locator("..");
+    if (id === 97) {
+      await expect(sideTime).toContainText("Nicht belegt");
+      await expect(original).toContainText(
+        "Keine Zählung zur BID-Zeit verfügbar",
+      );
+      await expect(original).toContainText(
+        "Gemeinsame Snapshotzeit, ASK-Zeit und Abrufzeit ersetzen sie nicht",
+      );
+    } else {
+      await expect(sideTime).toContainText("2026-09-21T13:00:00Z");
+      await expect(original).toContainText("1.234567890123 EUR");
+      await expect(original).toContainText("20 abgeschlossene Sitzungen");
+      await original
+        .getByText("Geldkursquelle, Positionsbasis und Kalenderbelege")
+        .click();
+      await expect(original).toContainText("2026-09-21T12:59:58Z");
+      await expect(original).toContainText(
+        "OPEN · Kein verifizierter Live-Marktstatus",
+      );
+      await expect(original).toContainText(
+        "Zeitpunkt der Speicherung nicht aufgezeichnet",
+      );
+      await expect(
+        original.getByText("SHA-256 des gespeicherten JSON-Payloads", {
+          exact: true,
+        }),
+      ).toBeVisible();
+      await expect(original).toContainText("f".repeat(64));
+      await original
+        .getByText("Geldkursquelle, Positionsbasis und Kalenderbelege")
+        .click();
+    }
+    await expect(original.getByRole("textbox")).toHaveCount(0);
+    await expect(
+      original.getByRole("button", {
+        name: "Gespeicherten Geldkursbeleg erneut lesen",
+      }),
+    ).toBeEnabled();
     expect(requests.slice(before).sort()).toEqual([
+      expect.stringMatching(
+        new RegExp(
+          `^GET (?:/api)?/api/v1/position-monitoring/trades/trade-${id}/hebeltrader-original-bid$`,
+        ),
+      ),
       expect.stringMatching(
         new RegExp(
           `^GET (?:/api)?/api/v1/position-monitoring/trades/trade-${id}/hebeltrader-sessions$`,
@@ -466,7 +561,7 @@ test("valuation notices preserve keyboard details, existing reads and explicit h
       await expect(details).toHaveAttribute("aria-expanded", "false");
       await expect(details).toBeFocused();
       await expect(region).toHaveCount(0);
-      expect(requests).toHaveLength(before + 5);
+      expect(requests).toHaveLength(before + 6);
     }
   }
   expect(writes()).toBe(0);
@@ -670,6 +765,9 @@ test("historical qualification preserves a scoped draft and recovers exactly one
   await expect(
     page.getByRole("region", { name: "Hebeltrader-Basiswertsitzungen" }),
   ).toContainText("2 abgeschlossene Basiswertsitzungen");
+  await expect(
+    page.getByRole("region", { name: "Hebeltrader-Original-Geldkurs" }),
+  ).toContainText("Teilbelege vorhanden; Gesamtqualifikation offen");
   expect(specificRequests).toEqual([
     expect.stringMatching(
       /^GET (?:\/api)?\/api\/v1\/position-monitoring\/trades\/trade-99\/hebeltrader-targets$/,

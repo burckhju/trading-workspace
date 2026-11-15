@@ -7,6 +7,11 @@ from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
+from app.features.market_data.domain.original_quote_evidence import (
+    OriginalQuoteEvidence,
+    OriginalQuoteSideEvidence,
+)
+
 SCHEMA_VERSION = "frankfurt-quotes-v1"
 FRANKFURT_MIC = "XFRA"
 Price = Annotated[Decimal, Field(gt=0, allow_inf_nan=False)]
@@ -99,6 +104,7 @@ class FrankfurtObservation(BaseModel):
     source_mode: str = "NORMALIZED_SNAPSHOT"
     refresh_error: str | None = None
     execution_usable: Literal[False] = False
+    original_evidence: OriginalQuoteEvidence | None = None
 
     @property
     def analysis_usable(self) -> bool:
@@ -206,6 +212,33 @@ def assess_snapshot(
     ):
         status, reason = QuoteStatus.STALE, "FRANKFURT_SNAPSHOT_STALE"
 
+    original_evidence = None
+    if (
+        status is not QuoteStatus.ERROR
+        and record is not None
+        and record.kind == "BID_ASK"
+        and record.bid is not None
+        and record.ask is not None
+        and record.bid_at is not None
+        and record.ask_at is not None
+        and len(rows) == 1
+        and isinstance(rows[0].get("bid_at"), str)
+        and isinstance(rows[0].get("ask_at"), str)
+    ):
+        # Preserve the actual source text, including its original UTC offset.
+        # A datetime supplied by an internal caller has no original text to retain.
+        original_evidence = OriginalQuoteEvidence(
+            version="original-quote-evidence-v1",
+            source_contract=snapshot.schema_version,
+            source_reference=snapshot.source,
+            generated_at=snapshot.generated_at,
+            isin=record.isin,
+            currency=record.currency,
+            venue_mic=record.mic,
+            bid=OriginalQuoteSideEvidence(record.bid, record.bid_at, rows[0]["bid_at"], "bid_at"),
+            ask=OriginalQuoteSideEvidence(record.ask, record.ask_at, rows[0]["ask_at"], "ask_at"),
+        )
+
     return FrankfurtObservation(
         status=status,
         reason=reason,
@@ -219,4 +252,5 @@ def assess_snapshot(
         observed_at=observed_at,
         age_seconds=age,
         record=record,
+        original_evidence=original_evidence,
     )

@@ -10,6 +10,7 @@ import { PositionPriceHistory } from './PositionPriceHistory';
 import { HebeltraderEvidenceCoverage } from './HebeltraderEvidenceCoverage';
 import { HebeltraderTargetHistory } from './HebeltraderTargetHistory';
 import { HebeltraderSessions } from './HebeltraderSessions';
+import { HebeltraderOriginalBid } from './HebeltraderOriginalBid';
 import type { QualificationSessions } from '../hooks/useHebeltraderQualificationSessions';
 
 const staleValuationNotice =
@@ -98,6 +99,14 @@ export function PositionDetails({
         }
       />
       <HebeltraderSessions
+        tradeId={p.trade_id}
+        positionId={p.position_id}
+        reloadToken={
+          p.position_basis?.basis_id ??
+          `${p.open_quantity}:${p.cost_basis}:${p.average_entry_price}`
+        }
+      />
+      <HebeltraderOriginalBid
         tradeId={p.trade_id}
         positionId={p.position_id}
         reloadToken={
