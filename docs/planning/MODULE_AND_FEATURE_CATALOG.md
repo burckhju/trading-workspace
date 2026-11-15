@@ -79,6 +79,8 @@ Der [schmale Hebeltrader-Zielhistorienvertrag](../features/HEBELTRADER_MONITORIN
 
 Der [Vergleichsbeleg- und Vorgangsstatusread](../features/HEBELTRADER_MONITORING_INTEGRATION_CONTRACT.md#f207-3-history-qualification) ergänzt denselben Monitoring-Owner. Die bestehende Nutzererklärung bleibt im unveränderlichen Zielprüfstand gespeichert; der Workspace hält ausschließlich ephemere, positionsgebundene Formular- und Commandzustände. Eine technische Eignungsprüfung, die belegte Nutzererklärung und eine unabhängige historische Quellenverifikation sind unterschiedliche Aussagen.
 
+Der [Sitzungsevidenz-Vertrag](../features/HEBELTRADER_MONITORING_INTEGRATION_CONTRACT.md#f207-3-session-evidence) ordnet Originalmanifest, Quellbeleg, historische Instrument-/Listing-/Kalenderbindung und unveränderliche Revisionen TC-001 / `market_data` zu. Monitoring liest diese Belege zusammen mit dem effektiven Trade-Position-Einstieg in einem Datenbanksnapshot und zählt abgeschlossene Basiswertsitzungen zum Lesezeitpunkt. Der Workspace zeigt den öffentlichen Read; er zählt nicht selbst und führt keinen Import aus. Menschliche Dokumentprüfung ist keine unabhängige Systemverifikation; Produktfristen, Original-BID-Qualifikation und Regelaktivierung bleiben eigene Verträge.
+
 <a id="ownership"></a>
 ## Ein schreibender fachlicher Owner je Objekt
 
@@ -97,6 +99,7 @@ Der [Vergleichsbeleg- und Vorgangsstatusread](../features/HEBELTRADER_MONITORING
 | TradeManagementEvent | FT-010 | FT-011, FT-012, Monitoring, Workspace; ein SELL bleibt ExecutionRecord. |
 | MonitoringRuleState / Alert | Bestehende Position Monitoring & Alert Capability | Notification, Workspace; keine implizite Ausführung. |
 | Hebeltrader-Zielprüfstand / Prüfvorgangsbeleg | Bestehende Position Monitoring & Alert Capability | Positionsconsumer und Auditread; keine Ausführung, Aktivierung oder Zustellung. |
+| Sitzungsevidenzrevision / Originalmanifest / Quellbeleg | TC-001 / `market_data` | Monitoring und Auditread; explizite Kalenderbindung, keine zweite Ausführungs- oder Produktterminhistorie. |
 | Notification / DeliveryAttempt | Bestehende Notification Capability | Delivery-Adapter, Workspace; Zustellung ist nicht der fachliche Alert. |
 | PostTradeObservation / ExitReview / ExitReviewVersion | FT-011 in `post_trade` | FT-012 über freigegebenen Handoff; FT-013 und Workspace als nachgelagerte Consumer. |
 | LearningEvidence / Lesson / LessonVersion | FT-012 in `learning` | FT-013, Learning-UI; Evidence-Transport ist keine Interpretation. |

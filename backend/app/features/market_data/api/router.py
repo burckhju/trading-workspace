@@ -25,6 +25,7 @@ from app.features.market_data.api.dtos import (
 from app.features.market_data.api.errors import translate_market_data_error
 from app.features.market_data.api.quote_coverage import router as quote_coverage_router
 from app.features.market_data.api.quote_history import router as quote_history_router
+from app.features.market_data.api.session_evidence import router as session_evidence_router
 from app.features.market_data.domain.enums import MarketDataProvider
 from app.features.market_data.service.administration import (
     MappingCommand,
@@ -41,6 +42,7 @@ router = APIRouter(prefix="/api/v1/market-data", tags=["market-data"])
 
 router.include_router(quote_coverage_router)
 router.include_router(quote_history_router)
+router.include_router(session_evidence_router)
 WORKSPACE_ID = UUID("00000000-0000-4000-8000-000000000001")
 
 

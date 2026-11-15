@@ -7,8 +7,11 @@ Der [Evidenzschnitt F207-4](#f207-4-evidence-read) wurde mit
 [F207-3-Schnittstellenübergabe](#f207-3-interface-handoff) bleibt maßgeblich.
 Der begrenzte [Zielhistorien-Schnitt F207-2](#f207-2-target-history) wurde mit
 [PR #345](https://github.com/burckhju/trading-workspace/pull/345) auf Main
-`6efa74d3bd0978c7ef8975fdc9c506de7a0aa348` integriert. Daran schließt der
-[Vergleichsbeleg-Schnitt F207-3](#f207-3-history-qualification) an.
+`6efa74d3bd0978c7ef8975fdc9c506de7a0aa348` integriert. Der
+[Vergleichsbeleg-Schnitt F207-3](#f207-3-history-qualification) wurde mit
+[PR #346](https://github.com/burckhju/trading-workspace/pull/346) auf Main
+`1d63d001216ef6f9294697f54707f3ae89a58ac4` integriert. Daran schließt der
+[Sitzungsevidenz-Schnitt F207-3](#f207-3-session-evidence) an.
 Aufgabenstatus bleibt ausschließlich im Product Backlog; vollständige Baseline,
 Regelaktivierung und Betrieb werden dadurch nicht als abgeschlossen erklärt.
 
@@ -1300,3 +1303,178 @@ Zustellung bleiben getrennt. B07, der Ausschluss B08 sowie ATR-/Phase-/Score-/
 Risikoverträge behalten ihre Bedeutung. Aufgabenstatus steht ausschließlich im
 Product Backlog; VERSION, Providerzustimmungen und produktiver Betrieb werden
 durch diesen Schnitt nicht geändert.
+
+<a id="f207-3-session-evidence"></a>
+## F207-3: Originalkalenderbelege und abgeschlossene Basiswertsitzungen
+
+### Abgegrenzter Anschluss und Wirkung für die Position
+
+Dieser Schnitt setzt auf Main `1d63d001216ef6f9294697f54707f3ae89a58ac4`
+mit dem integrierten Vergleichsbeleg-PR #346 auf. Er implementiert den bislang
+fehlenden gespeicherten Sitzungsevidenzvertrag bei Market Data und dessen ersten
+Positionsconsumer. Der bestehende Trade-Position-Owner liefert den ursprünglichen
+effektiven BUY; der neue Read zeigt abgeschlossene Basiswertsitzungen seit diesem
+Tag 0 zum serverseitigen Prüfzeitpunkt. Bestehende Position, Instrumentidentität,
+Ausführung und Kaufzeitgenauigkeit werden übernommen, ohne zusätzliche
+Positionseingabe oder zweite Ausführungshistorie.
+
+Ein dokumentiertes Kalenderpaket gilt für das ausdrücklich zugeordnete Instrument
+und kann von allen zugehörigen Positionen wiederverwendet werden. In den
+Positionsdetails erscheint ohne solches Paket die konkrete fehlende Evidenz.
+Es gibt keinen Kalendereditor mit täglichen Nutzereingaben. Beschaffung und
+inhaltliche Prüfung der Originalquelle bleiben vor dem bewussten Import nötig;
+ein generischer Kalender, fehlende Kurszeilen oder der aktuelle Wochentag ersetzen
+diesen Nachweis nicht.
+
+**Dieser Schnitt ist keine B04-/B05-/B06-/B58-Auswertung.** Die Zahl bezieht sich
+auf den angezeigten Lesezeitpunkt, nicht auf die Originalzeit eines Produkt-BID.
+Produkttermine, Z1-bezogene Frist, Verlustepisode, Schutzvorschlag und laufende
+Überwachung werden dadurch nicht hergestellt. Auch ein vollständiger importierter
+Kalender ist ausdrücklich `MANUAL_DOCUMENT_REVIEW_NOT_INDEPENDENT_VERIFICATION`:
+Die Software prüft Struktur, Hashes und Bindungen, nicht unabhängig den Inhalt
+der externen Quelle und keinen aktuellen Live-Marktstatus.
+
+### Schreibender Owner und kleinster Originalpaketvertrag
+
+`market_data` besitzt ausschließlich die neue Sitzungsevidenz. Market und Product
+bleiben Owner von Basiswert-/Produkt-/Listing-/Venue-Identität; Trade Position
+besitzt weiterhin effektive Ausführungen, Korrekturen, Restmenge und Einstand.
+
+| Feldgruppe | Bewahrter Inhalt und Grenze |
+| --- | --- |
+| Originalmanifest | Unveränderter UTF-8-Text `manifest_json`, SHA256 und `schema_version=session-evidence-manifest-v1`. Doppelte JSON-Schlüssel, unbekannte Felder und ungültige Originalwerte werden abgewiesen. |
+| Originalquelle | Tatsächliche Dokumentbytes als Base64, SHA256, Dateiname ohne Pfad und unterstützter Medientyp. Der Manifestbezug `source_document_sha256` muss exakt denselben Beleg benennen. Eine URL allein ist kein Importpaket; sie wird nicht abgerufen. |
+| Historische Bindung | `instrument_kind` (`UNDERLYING` oder `WARRANT`), Instrument, Listing, Venue-ID/MIC, Marktsegment, IANA-Zeitzone, `valid_from` und `valid_through`. Kein implizites aktuelles Primary-Listing. |
+| Kalenderstand | `calendar_id`, `calendar_version`, `coverage_start`, `coverage_end`; chronologisch geordnete, eindeutige Tagesbelege. Jede Revision ersetzt den vorigen Manifestinhalt vollständig. |
+| Tagesbeleg | `session_date`, `status=SESSION/CLOSED/UNKNOWN`, konkrete Fundstelle und bei `SESSION` ein bis acht Originalintervalle mit Öffnung/Schluss und explizitem Offset. `CLOSED` und `UNKNOWN` haben keine Intervalle. |
+| Quellenzeiten | Herausgeber/Fundstelle, bekannte Publikationsuhrzeit **oder** Publikationsdatum; beides darf fehlen, keine Uhrzeit wird erfunden. Bekannter Abrufzeitpunkt bleibt optional und getrennt. |
+| Dokumentprüfung | Expliziter Prüfzeitpunkt, konkrete Prüfbelegreferenz und erfassender Actor. Menschliche Dokumentprüfung ist keine unabhängige Systemverifikation. |
+| Revision/Vorgang | Serverseitiges `recorded_at`, Revisions-ID/-nummer, `supersedes_revision_id`, `request_id` und an Actor/Workspace/Paket gebundener Fingerprint. |
+
+Die Grenzen sind 3.660 Kalendertage, 2.000.000 Manifestbytes und 2.000.000
+Originaldokumentbytes. Übergrößen werden abgewiesen, nicht gekürzt. Unterstützt
+sind PDF, JSON, CSV, Klartext und HTML als aufbewahrte Originalbytes; der Import
+führt diese Inhalte nicht aus. Intervalle müssen zur lokalen Kalenderdatums- und
+Offsetbindung passen, dürfen auch über Mitternacht reichen und sich weder innerhalb
+eines Tages noch über Tagesgrenzen überlappen. Verkürzte Sitzungen und Pausen
+bleiben ausdrückliche Originalintervalle.
+
+Listing/Instrument/Venue/MIC werden gegen ihre tatsächlichen Ownerbeziehungen
+geprüft. Die historische Zeitzone stammt aus der ausdrücklich geprüften Quelle;
+eine spätere aktuelle Venue-Zeitzone schreibt sie nicht um. Der Read ist kein
+vollständiger historischer Stammdatensnapshot: Eine inzwischen nicht mehr passende
+Instrument-/Listing-/Venue-Zuordnung bleibt als ungeeignet sichtbar.
+
+### Öffentliche Import- und Readschnittstellen
+
+Alle Pfade dieser Tabelle liegen unter `/api/v1/market-data/session-evidence`:
+
+| Schnittstelle | Vertrag |
+| --- | --- |
+| `POST /imports` | `SessionEvidenceRequest`: Originaltext und Bytes samt Hashes, `request_id`, erwartete `supersedes_revision_id` (beim ersten Import `null`), Prüfbeleg/Prüfzeit, optional Abrufzeit und ausdrücklich `confirmation=CONFIRM_OFFICIAL_SESSION_DOCUMENT_REVIEW`. Liefert die gespeicherte Originalrevision. |
+| `GET /current` | Pflichtquery `instrument_kind`, `instrument_id`, zeitzonenbewusstes `known_at`; optional `expected_listing_id`. Liefert Revision, Bindung, Quelle und Eignungsgründe, noch keine vollständige Zeitraumabdeckung. |
+| `GET` | Zusätzlich `start_date` und `end_date`; liefert sämtliche Originaltage im angefragten Bereich, `missing_dates`, Fingerprint und `COMPLETE/INCOMPLETE/MISSING/UNSUITABLE/LIMIT_EXCEEDED`. |
+| `GET /revisions/{revision_id}` | Pflichtquery Instrumentart/-ID; liefert die exakt zugehörige ursprüngliche Revision einschließlich Originalmanifest und Base64-Dokument. Keine Umhängung auf den jüngsten Stand. |
+
+Workspace und Standardactor folgen dem bestehenden lokalen API-Vertrag. Ein
+Instrumentlock mit `READ COMMITTED`, Vorgänger-CAS und eindeutiger Requestbindung
+verhindert verzweigte Revisionen. Ein identischer erneut gesendeter Vorgang liefert
+seine ursprüngliche Revision; eine andere Payload oder ein anderer Actor mit
+derselben Kennung ist ein Konflikt. Der Import erzeugt weder Trade noch
+Ausführung, Regelversion oder Benachrichtigung.
+
+Pro Workspace/Instrumentart/Instrument gibt es eine Revisionskette. Der Read wählt
+deren letzten gespeicherten Stand mit `recorded_at <= known_at`. Revisionen werden
+nicht zu einem scheinbar vollständigen Kalender gemischt. Eine Korrektur bewahrt
+den Vorgänger; eine Rücknahme erfolgt mit einer neuen `WITHDRAWN`-Revision und
+führt nicht zum stillen Rückfall auf ältere Belege. Eine neue Jahresquelle muss
+deshalb den benötigten Gesamtbereich abdecken oder die verbleibende Lücke zeigen.
+
+`COMPLETE` bezeichnet vollständige und strukturell geeignete **importierte
+Tagesbelege im angefragten Bereich**. Fehlende Daten stehen in `missing_dates`;
+explizite `UNKNOWN`-Tage bleiben als Originalzeilen mit eigenem Grund erhalten.
+Beides verhindert `COMPLETE`. Ein vorhandener `CLOSED`-Beleg dagegen belegt einen
+Nicht-Sitzungstag. Technischer Datenbankausfall oder verletzte Originalintegrität
+liefert HTTP 503, keine scheinbare fachliche Beleglücke.
+
+### Positionsread, Tag 0 und abgeschlossene 20. Sitzung
+
+`GET /api/v1/position-monitoring/trades/{trade_id}/hebeltrader-sessions?position_id=...`
+ist der schmale Monitoring-Read. Er akzeptiert genau eine Positionskennung und
+keinen vom Consumer erfundenen Prüfzeitpunkt. Trade, Position und Workspace werden
+vom bestehenden Ausführungsowner geprüft. Wirtschaftlicher Einstieg, Kalenderkopf
+und Tagesbelege stammen aus derselben eigenen `REPEATABLE READ READ ONLY`-Session
+ohne Autoflush, mit Timeout und Rollback. Der Kalenderbereich ist an die dort
+gelesene explizite Listing-/Revisionsbindung gebunden.
+
+Der erste effektive BUY aus der bestehenden Ownerprojektion bestimmt den Einstieg.
+Teilverkauf und Nachkauf starten ihn nicht neu; eine wirksame Ausführungskorrektur
+verändert die aktuelle Projektion nachvollziehbar unter Erhalt des Originals.
+Bei `DATE_ONLY` wird der interne Sortieranker niemals als Kaufuhrzeit ausgegeben.
+Umfasst das belegte Kaufdatum in der historischen Kalenderzeitzone mehrere mögliche
+Tage, bleibt Tag 0 ungeklärt. Dieselbe Zeitzone funktioniert auch an 23-/25-Stunden-
+Tagen. Fehlende Hebeltrader-Marken oder Optionsrichtung verhindern diese unabhängige
+Sitzungszählung nicht.
+
+Der Kaufkalendertag zählt 0. Für jeden folgenden Kalendertag bis zum Lesezeitpunkt
+wird ein ausdrücklicher Tagesbeleg benötigt. Eine Sitzung zählt erst ab ihrem
+letzten Schlusszeitpunkt, auch bei Pausen, verkürzter Sitzung, Sommerzeitwechsel
+und Schluss am Folgetag. Die 20. Sitzung samt Originalschlusszeit wird nur aus
+bereits abgeschlossenen Belegen ausgegeben, nie aus einer Zukunftsprojektion.
+
+| Aussage | Bedeutung |
+| --- | --- |
+| `AVAILABLE` | Vollständiger benötigter Bereich und eindeutiger Einstieg; `completed_sessions` ist eine Zahl, auch **0**. Am Kauftag selbst ist kein Folgetagsread nötig (`period.status=NOT_REQUESTED`). |
+| `NOT_ASSESSABLE` | Fehlender/ungeeigneter Kalender, Datumskonflikt, fehlender Tag oder Bereichsgrenze. Anzahl und Schwellenbefund bleiben `null`; keine Teilzählung als Gesamtzahl. |
+| `NOT_APPLICABLE` | Geschlossene oder stornierte Position, einschließlich Storno beim Trade-Owner; keine aktuelle Fristzählung. |
+| `F207_3_SESSION_EVIDENCE_AND_COUNT_ONLY` | Implementierter Funktionsschnitt; kein Nachweis vollständiger F207-3-Regelfunktion. |
+| `B04_B05_B06_B58_NOT_EVALUATED`, `NOT_ACTIVATED`, `READ_ONLY` | Getrennter Regel-, Betriebs- und Readstatus. Kein Assessment, Alert, SELL, Aktivierungscommand oder Provideraufruf. |
+
+Die bestehende Positionsansicht zeigt diese Aussagen, konkrete Gründe, ursprüngliche
+Kaufzeitgenauigkeit, Zeitraum, sämtliche Tagesbelege, Revisionen, Quellenversion und
+Publikations-/Abruf-/Prüf-/Erfassungszeiten mit Originalhashes. Paginierung verkürzt
+den zugrunde liegenden Bereich nicht. Der vorhandene Host-Reloadvertrag und
+Generation-/Abortschutz verhindern vermischte Belege bei Positionswechsel und
+verspäteten Antworten; bestehende Eingaben zur Zielqualifikation bleiben erhalten.
+
+### Migration, Nachweise und Übergabe
+
+Die additive Migration `20261115_0052` folgt auf den tatsächlichen vorherigen Head
+`20261114_0051`. Sie ergänzt `market_session_evidence` mit Scope-/Ketten-/Hash- und
+Provenienzschutz. PostgreSQL prüft Originalhashes auch beim INSERT; UPDATE, DELETE
+und TRUNCATE sind gesperrt. Ein belegter Downgrade wird verweigert. Kein bestehender
+Ausführungs-, Bestands-, Einstands- oder Zielprüfstand wird migriert oder umgeschrieben.
+Die vorhandenen E2E-Schemaguards erwarten lediglich den neuen tatsächlichen Head;
+ihre Schutzbedingungen und alle regulären Gates bleiben unverändert.
+
+Gezielte Tests sichern Originalpakete, Fremdscope, Preisachsenidentität, Replay/CAS,
+Korrektur/Rücknahme, historische Reads, fehlende/UNKNOWN-Tage, Tag 0, Datum ohne
+Uhrzeit, Sommerzeit, Pausen, Übernachtschluss, den exakten 20.-Schlusszeitpunkt,
+Teilverkauf/Nachkauf, Storno und side-effect-freie Reads. Fünf echte PostgreSQL-Fälle
+verwenden den vorhandenen UUID-Wegwerfdatenbankguard und synthetische Ownerfakten,
+darunter Migration/Downgrade, SQL-Schutz, konkurrierende Importe und der komplette
+BUY→Kalenderimport→Positionsread mit unveränderten übrigen Tabellen. Externe
+Aufrufe sind abgefangen. Tatsächliche Ergebnisse und Skips werden im zugehörigen
+PR an Head und Testmerge gebunden; lokale Sammlung ist kein Datenbanknachweis.
+
+Für den folgenden F207-3-Schnitt sind `SessionEvidenceReader.current/read` und die
+reine Zählfunktion wiederverwendbar. Deren expliziter `event_at` muss bei B04/B58
+die **belegte Original-BID-Zeit** erhalten. Zusätzlich fehlen die unabhängig
+qualifizierte Quellenbeschaffung, verifizierte offene Produktsitzung, passende
+Währung/Skala des gehaltenen Instruments und `0 <= Kursalter <= 900 Sekunden`.
+Der bestehende [Frankfurt-Snapshotmapper](../../backend/app/providers/frankfurt_quotes/schema.py)
+setzt `observed_at=min(bid_at, ask_at)`; der gemeinsame `WarrantQuoteSnapshot`
+bewahrt keine einzelnen Seitenzeiten. Diese kombinierte Zeit darf nicht als
+exakte Original-BID-Zeit für den 20.-Sitzungsnachweis umgedeutet werden. Dafür ist
+ein additiver Seitenzeit-/Provenienzvertrag nötig oder der Kurs bleibt ungeeignet.
+
+Product muss verifizierten letzten Handelstag, maßgeblichen Produkttermin und
+festes Ausstiegslisting samt instrumentbezogenem Schluss ergänzen. Die vorhandenen
+`maturity_date`-/`expiry_at`-Belege sind wiederzuverwenden; ein Bewertungstag oder
+Auszahlungstag ist kein Ersatz. B05-Rückwärtszählung und Z1-bezogene B06-Zählung
+bleiben offen. F207-2 benötigt den restlichen Schutz-/Korrekturvertrag; F207-5
+Regelaktivierung, Meldungslebenszyklus, Zustellung und separaten PC-Betriebsnachweis.
+Keine neue Quelle aktiviert eine Regelversion, B08 bleibt ausgeschlossen und B07
+eigenständig. VERSION, Providerzustimmungen, produktive Daten und Installation
+werden durch diesen Schnitt nicht geändert. Aufgabenstatus bleibt ausschließlich
+im Product Backlog.

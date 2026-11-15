@@ -1,8 +1,10 @@
 from app.features.position_monitoring.api.frankfurt import router as frankfurt_router
+from app.features.position_monitoring.api.hebeltrader_sessions import router as sessions_router
 from app.features.position_monitoring.api.hebeltrader_targets import router as targets_router
 from app.features.position_monitoring.api.router import router
 
 router.include_router(frankfurt_router)
 router.include_router(targets_router)
+router.include_router(sessions_router)
 
 __all__ = ["router"]

@@ -24,6 +24,9 @@ from app.features.market_data.persistence import (
     instruments as market_data_instrument_models,  # noqa: F401
 )
 from app.features.market_data.persistence import models as market_data_models  # noqa: F401
+from app.features.market_data.persistence import (
+    session_evidence as session_evidence_models,  # noqa: F401
+)
 from app.features.model.persistence import models as model_governance_models  # noqa: F401
 from app.features.notification.persistence import models as notification_models  # noqa: F401
 from app.features.position_monitoring.persistence import (
