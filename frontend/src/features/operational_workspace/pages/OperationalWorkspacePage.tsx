@@ -6,6 +6,7 @@ import { operationalWorkspaceApiClient } from '../services/client';
 import type { OperationalAction, OperationalPosition, OperationalPriority } from '../types';
 import { MarketDataRefreshPanel } from './MarketDataRefreshPanel';
 import { OpenPositionsPanel } from './OpenPositionsPanel';
+import { useHebeltraderQualificationSessions } from '../hooks/useHebeltraderQualificationSessions';
 
 const sections: Array<{ priority: OperationalPriority; title: string; description: string }> = [
   {
@@ -77,6 +78,7 @@ function ActionCard({ action }: { action: OperationalAction }) {
 }
 
 export function OperationalWorkspacePage() {
+  const qualificationSessions = useHebeltraderQualificationSessions();
   const [actions, setActions] = useState<OperationalAction[]>([]);
   const [positions, setPositions] = useState<OperationalPosition[]>([]);
   const [loading, setLoading] = useState(true);
@@ -187,7 +189,11 @@ export function OperationalWorkspacePage() {
 
       <MarketDataRefreshPanel />
       {!error && !loading && (
-        <OpenPositionsPanel positions={positions} signalsLoading={signalsLoading} />
+        <OpenPositionsPanel
+          positions={positions}
+          signalsLoading={signalsLoading}
+          qualificationSessions={qualificationSessions}
+        />
       )}
 
       {!error && !loading && actions.length === 0 && (

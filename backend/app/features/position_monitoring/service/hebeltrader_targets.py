@@ -33,6 +33,13 @@ from app.features.position_monitoring.persistence.hebeltrader_targets import (
     TargetAssessmentRecord,
     TargetRequestReceipt,
 )
+from app.features.position_monitoring.service.hebeltrader_qualification_contracts import (
+    TargetQualificationPreview,
+    TargetRequestStatus,
+)
+from app.features.position_monitoring.service.hebeltrader_qualification_projection import (
+    build_qualification_preview,
+)
 from app.features.position_monitoring.service.hebeltrader_target_contracts import (
     HebeltraderTargetsReport,
     TargetAssessmentCommand,
@@ -256,6 +263,73 @@ class HebeltraderTargetReader:
                     "HEBELTRADER_ASSESSMENT_NOT_FOUND", "Prüfstand nicht gefunden.", 404
                 )
             return record
+
+    async def qualification_preview(
+        self, workspace_id: UUID, trade_id: UUID, position_id: UUID
+    ) -> TargetQualificationPreview:
+        started = datetime.now(UTC)
+        async with self._snapshot() as session:
+            repository = SqlAlchemyHebeltraderTargetRepository(session)
+            latest = await repository.latest(workspace_id, trade_id, position_id)
+            inputs = await _inputs(
+                session,
+                workspace_id=workspace_id,
+                trade_id=trade_id,
+                position_id=position_id,
+                now=started,
+                lock=False,
+                previous=latest,
+            )
+            count = await repository.count(workspace_id, trade_id, position_id)
+            return build_qualification_preview(
+                report=_report(inputs, latest=latest, count=count, started=started),
+                owner=inputs.owner,
+                position=inputs.position,
+                source=inputs.source,
+                history=inputs.history,
+                latest=latest,
+                qualification=_previous_qualification(latest),
+            )
+
+    async def request_status(
+        self, workspace_id: UUID, trade_id: UUID, position_id: UUID, request_id: UUID
+    ) -> TargetRequestStatus:
+        started = datetime.now(UTC)
+        async with self._snapshot() as session:
+            await read_hebeltrader_monitoring_basis(
+                session, workspace_id=workspace_id, trade_id=trade_id, position_id=position_id
+            )
+            repository = SqlAlchemyHebeltraderTargetRepository(session)
+            receipt = await repository.find_request(workspace_id, request_id)
+            if receipt is not None and (receipt.trade_id, receipt.position_id) != (
+                trade_id,
+                position_id,
+            ):
+                raise target_error(
+                    "HEBELTRADER_REQUEST_NOT_FOUND", "Prüfvorgang nicht gefunden.", 404
+                )
+            record = None
+            if receipt is not None:
+                record = await repository.get(
+                    workspace_id, trade_id, position_id, receipt.assessment_id
+                )
+                if record is None:
+                    raise target_error(
+                        "HEBELTRADER_REQUEST_READ_INCONSISTENT",
+                        "Der gespeicherte Prüfvorgang konnte nicht vollständig gelesen werden.",
+                        503,
+                    )
+            return TargetRequestStatus(
+                trade_id=trade_id,
+                position_id=position_id,
+                request_id=request_id,
+                status="RECORDED" if record else "UNKNOWN",
+                read_started_at=started,
+                read_completed_at=datetime.now(UTC),
+                recorded_at=receipt.recorded_at if receipt else None,
+                assessment=persisted_view(record) if record else None,
+                qualification=_previous_qualification(record),
+            )
 
 
 class HebeltraderTargetService:

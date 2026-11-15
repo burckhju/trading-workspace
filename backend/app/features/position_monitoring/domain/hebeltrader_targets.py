@@ -106,6 +106,21 @@ class TargetComparisonQualification:
 
 
 @dataclass(frozen=True, slots=True)
+class TargetInputRowReview:
+    source_row_id: UUID
+    fingerprint: str
+    usable: bool
+    reasons: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class TargetInputReview:
+    global_reasons: tuple[str, ...]
+    usable_row_count: int
+    rows: tuple[TargetInputRowReview, ...]
+
+
+@dataclass(frozen=True, slots=True)
 class TargetProof:
     assessment_id: UUID
     detected_at: datetime
@@ -239,11 +254,10 @@ def _closed(position: TargetPositionBasis) -> bool:
     return position.closed or position.cancelled or position.remaining_quantity == 0
 
 
-def _comparison_problems(
+def _input_problems(
     position: TargetPositionBasis,
     source: TargetSourceBasis | None,
     history: TargetHistoryBasis,
-    qualification: TargetComparisonQualification | None,
     assessed_at: datetime,
 ) -> tuple[str, ...]:
     problems: list[str] = []
@@ -292,6 +306,17 @@ def _comparison_problems(
             problems.append("LISTING_TIMEZONE_INVALID")
     if not _aware(history.known_at) or history.known_at > assessed_at:
         problems.append("HISTORY_CUTOFF_INVALID")
+    return tuple(dict.fromkeys(problems))
+
+
+def _comparison_problems(
+    position: TargetPositionBasis,
+    source: TargetSourceBasis | None,
+    history: TargetHistoryBasis,
+    qualification: TargetComparisonQualification | None,
+    assessed_at: datetime,
+) -> tuple[str, ...]:
+    problems = list(_input_problems(position, source, history, assessed_at))
     if qualification is None:
         problems.append("PRICE_COMPARISON_NOT_CONFIRMED")
     else:
@@ -308,19 +333,14 @@ def _comparison_problems(
     return tuple(dict.fromkeys(problems))
 
 
-def _usable_rows(
+def _review_rows(
     position: TargetPositionBasis,
-    source: TargetSourceBasis | None,
+    source: TargetSourceBasis,
     history: TargetHistoryBasis,
-    qualification: TargetComparisonQualification | None,
     assessed_at: datetime,
-) -> tuple[tuple[TargetDailyEvidence, ...], tuple[str, ...]]:
-    boundary, entry_problems = _entry_boundary(position)
-    problems = _comparison_problems(position, source, history, qualification, assessed_at)
-    if entry_problems or problems:
-        return (), (*entry_problems, *problems)
-    assert boundary is not None and history.listing_timezone is not None
-    assert source is not None and source.issue_date is not None
+    boundary: datetime,
+) -> tuple[tuple[TargetDailyEvidence, TargetInputRowReview], ...]:
+    assert history.listing_timezone is not None and source.issue_date is not None
     zone = ZoneInfo(history.listing_timezone)
     # A date with unknown publisher zone spans the global UTC+14 ... UTC-12
     # envelope. This is its latest possible end, not an invented publication
@@ -328,8 +348,7 @@ def _usable_rows(
     publication_latest_end = datetime.combine(
         source.issue_date + timedelta(days=1), time(hour=12), UTC
     )
-    rows: list[TargetDailyEvidence] = []
-    skipped: list[str] = []
+    rows: list[tuple[TargetDailyEvidence, TargetInputRowReview]] = []
     originals: dict[UUID, TargetDailyEvidence] = {}
     duplicates: set[UUID] = set()
     for row in history.rows:
@@ -342,52 +361,98 @@ def _usable_rows(
         if row.source_row_id in seen:
             continue
         seen.add(row.source_row_id)
+        reasons: tuple[str, ...] = ()
         if row.source_row_id in duplicates:
-            skipped.append("CONFLICTING_ORIGINAL_PRICE_EVIDENCE")
-            continue
-        if (row.workspace_id, row.listing_id, row.currency) != (
+            reasons = ("CONFLICTING_ORIGINAL_PRICE_EVIDENCE",)
+        elif (row.workspace_id, row.listing_id, row.currency) != (
             position.workspace_id,
             history.listing_id,
             source.binding.currency,
         ):
-            skipped.append("ROW_SCOPE_OR_CURRENCY_MISMATCH")
-            continue
-        if row.issues:
-            skipped.extend(("ROW_EVIDENCE_UNSUITABLE", *row.issues))
-            continue
-        if row.scale_status != "REQUIRES_EXPLICIT_COMPARISON_QUALIFICATION":
-            skipped.append("ROW_ADJUSTMENT_REQUIRES_OWNER_EVIDENCE")
-            continue
-        if not _positive(row.high) or not row.fingerprint:
-            skipped.append("ROW_ORIGINAL_VALUES_INVALID")
-            continue
-        expected_start = datetime.combine(row.trading_date, time.min, zone).astimezone(UTC)
-        expected_end = datetime.combine(
-            row.trading_date + timedelta(days=1), time.min, zone
-        ).astimezone(UTC)
-        if (
-            not _aware(row.interval_start)
-            or not _aware(row.interval_end)
-            or row.interval_start != expected_start
-            or row.interval_end != expected_end
-        ):
-            skipped.append("FULL_DAILY_INTERVAL_NOT_ESTABLISHED")
-            continue
-        if expected_end > min(history.known_at, assessed_at):
-            skipped.append("FULL_DAILY_INTERVAL_NOT_COMPLETED")
-            continue
-        if (history.start_date is not None and row.trading_date < history.start_date) or (
-            history.end_date is not None and row.trading_date > history.end_date
-        ):
-            skipped.append("ROW_OUTSIDE_REQUESTED_RANGE")
-            continue
-        if expected_start < boundary:
-            skipped.append("INTERVAL_NOT_ENTIRELY_AFTER_ENTRY")
-            continue
-        if expected_start < publication_latest_end:
-            skipped.append("SOURCE_PUBLICATION_ORDER_NOT_ESTABLISHED")
-            continue
-        rows.append(row)
+            reasons = ("ROW_SCOPE_OR_CURRENCY_MISMATCH",)
+        elif row.issues:
+            reasons = ("ROW_EVIDENCE_UNSUITABLE", *row.issues)
+        elif row.scale_status != "REQUIRES_EXPLICIT_COMPARISON_QUALIFICATION":
+            reasons = ("ROW_ADJUSTMENT_REQUIRES_OWNER_EVIDENCE",)
+        elif not _positive(row.high) or not row.fingerprint:
+            reasons = ("ROW_ORIGINAL_VALUES_INVALID",)
+        else:
+            expected_start = datetime.combine(row.trading_date, time.min, zone).astimezone(UTC)
+            expected_end = datetime.combine(
+                row.trading_date + timedelta(days=1), time.min, zone
+            ).astimezone(UTC)
+            if (
+                not _aware(row.interval_start)
+                or not _aware(row.interval_end)
+                or row.interval_start != expected_start
+                or row.interval_end != expected_end
+            ):
+                reasons = ("FULL_DAILY_INTERVAL_NOT_ESTABLISHED",)
+            elif expected_end > min(history.known_at, assessed_at):
+                reasons = ("FULL_DAILY_INTERVAL_NOT_COMPLETED",)
+            elif (history.start_date is not None and row.trading_date < history.start_date) or (
+                history.end_date is not None and row.trading_date > history.end_date
+            ):
+                reasons = ("ROW_OUTSIDE_REQUESTED_RANGE",)
+            elif expected_start < boundary:
+                reasons = ("INTERVAL_NOT_ENTIRELY_AFTER_ENTRY",)
+            elif expected_start < publication_latest_end:
+                reasons = ("SOURCE_PUBLICATION_ORDER_NOT_ESTABLISHED",)
+        rows.append(
+            (
+                row,
+                TargetInputRowReview(row.source_row_id, row.fingerprint, not reasons, reasons),
+            )
+        )
+    return tuple(rows)
+
+
+def review_hebeltrader_target_inputs(
+    *,
+    position: TargetPositionBasis,
+    source: TargetSourceBasis | None,
+    history: TargetHistoryBasis,
+    as_of: datetime,
+) -> TargetInputReview:
+    """Review prerequisites without confirming a scale or evaluating a target.
+
+    ``usable`` means technically eligible for the separate explicit comparison
+    qualification, never historically verified or a proven hit. Each original
+    row ID is counted once; conflicting duplicates stay visibly unsuitable.
+    The caller retains the complete original history, including duplicates and
+    rows for which global prerequisites prevent a meaningful row-level review.
+    """
+    if not _aware(as_of):
+        raise ValueError("ASSESSMENT_TIME_MUST_BE_AWARE")
+    if isinstance(position.remaining_quantity, bool) or position.remaining_quantity < 0:
+        raise ValueError("INVALID_OWNER_REMAINING_QUANTITY")
+    boundary, entry_problems = _entry_boundary(position)
+    problems = (*entry_problems, *_input_problems(position, source, history, as_of))
+    if problems:
+        return TargetInputReview(problems, 0, ())
+    assert boundary is not None and source is not None
+    rows = tuple(review for _, review in _review_rows(position, source, history, as_of, boundary))
+    count = sum(row.usable for row in rows)
+    return TargetInputReview(
+        () if count else ("NO_SUITABLE_POST_ENTRY_DAILY_EVIDENCE",), count, rows
+    )
+
+
+def _usable_rows(
+    position: TargetPositionBasis,
+    source: TargetSourceBasis | None,
+    history: TargetHistoryBasis,
+    qualification: TargetComparisonQualification | None,
+    assessed_at: datetime,
+) -> tuple[tuple[TargetDailyEvidence, ...], tuple[str, ...]]:
+    boundary, entry_problems = _entry_boundary(position)
+    problems = _comparison_problems(position, source, history, qualification, assessed_at)
+    if entry_problems or problems:
+        return (), (*entry_problems, *problems)
+    assert boundary is not None and source is not None
+    reviewed = _review_rows(position, source, history, assessed_at, boundary)
+    rows = tuple(row for row, review in reviewed if review.usable)
+    skipped = [reason for _, review in reviewed for reason in review.reasons]
     if not rows:
         skipped.append("NO_SUITABLE_POST_ENTRY_DAILY_EVIDENCE")
     return tuple(sorted(rows, key=lambda row: (row.trading_date, row.source_row_id))), tuple(

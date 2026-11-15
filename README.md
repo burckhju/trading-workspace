@@ -17,7 +17,7 @@ Die versionierte Software ist in [VERSION](VERSION) festgehalten. Der am 13.10.2
 
 Journal, Lessons, Positions-Brutto-PnL, tradeübergreifende Performance und Modellgovernance sind unterschiedliche Fähigkeiten. Fehlende Nachweise und offene ursprüngliche Anforderungen bleiben im Backlog sichtbar. Marktcharts oder eine vorhandene Kandidatenstrecke erklären keine benachbarten Funktionen für fertig.
 
-Für die Hebeltrader-Positionsdetails beschreibt der [Integrationsvertrag](docs/features/HEBELTRADER_MONITORING_INTEGRATION_CONTRACT.md#f207-2-target-history) die vorhandene Belegabdeckung und den begrenzten Zielhistorien-Read mit ausdrücklichem Prüflauf, erforderlicher Kursqualifikation und verbleibenden Betriebsgrenzen. Der Aufgabenstatus steht weiterhin ausschließlich im Backlog.
+Für die Hebeltrader-Positionsdetails beschreibt der [Integrationsvertrag](docs/features/HEBELTRADER_MONITORING_INTEGRATION_CONTRACT.md#f207-2-target-history) die vorhandene Belegabdeckung und den begrenzten Zielhistorien-Read mit ausdrücklichem Prüflauf. Der [anschließende Vergleichsbeleg-Vertrag](docs/features/HEBELTRADER_MONITORING_INTEGRATION_CONTRACT.md#f207-3-history-qualification) macht die erforderliche Kursqualifikation nachvollziehbar bedienbar und erhält die verbleibenden Betriebsgrenzen. Der Aufgabenstatus steht weiterhin ausschließlich im Backlog.
 
 ## Entwicklung und Betrieb
 

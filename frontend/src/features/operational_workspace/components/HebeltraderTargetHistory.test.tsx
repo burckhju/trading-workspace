@@ -8,7 +8,8 @@ import { targetAssessment, targetReport } from '../test/hebeltraderTargetsFixtur
 import { HebeltraderTargetHistory } from './HebeltraderTargetHistory';
 import { PositionDetails } from './PositionDetails';
 
-vi.mock('../services/hebeltraderTargets', () => ({
+vi.mock('../services/hebeltraderTargets', async (original) => ({
+  ...(await original<typeof import('../services/hebeltraderTargets')>()),
   readHebeltraderTargets: vi.fn(),
   assessHebeltraderTargets: vi.fn(),
 }));
@@ -204,7 +205,8 @@ it('preserves draft input and requires deliberate readback after an uncertain wr
   await user.click(screen.getByRole('button', { name: 'Gespeicherten Prüfstand erneut lesen' }));
   await screen.findByText('Z1: Treffer belegt');
   expect(screen.getByLabelText('Verkaufsmenge')).toHaveValue('3');
-  expect(button()).toBeEnabled();
+  expect(button()).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Beleg genau dieser Anfrage lesen' })).toBeEnabled();
   expect(readHebeltraderTargets).toHaveBeenCalledTimes(2);
   expect(assessHebeltraderTargets).toHaveBeenCalledOnce();
 });
@@ -271,7 +273,8 @@ it.each(['resolve', 'reject'] as const)(
       await pending.promise.catch(() => undefined);
     });
     expect(screen.queryByText(/obsolete-assessment|Alter Schreibfehler/)).not.toBeInTheDocument();
-    expect(button()).toBeEnabled();
+    expect(button()).toBeDisabled();
+    expect(screen.getByRole('region', { name: 'Unbestätigter Prüfauftrag' })).toBeInTheDocument();
     expect(assessHebeltraderTargets).toHaveBeenCalledOnce();
     expect(vi.mocked(assessHebeltraderTargets).mock.calls[0][2]?.aborted).toBe(true);
   },

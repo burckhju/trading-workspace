@@ -77,6 +77,8 @@ Arbeitsstatus weiterhin ausschließlich in PB-016, PB-017 und Operational Worksp
 
 Der [schmale Hebeltrader-Zielhistorienvertrag](../features/HEBELTRADER_MONITORING_INTEGRATION_CONTRACT.md#f207-2-target-history) gehört ebenfalls zum bestehenden Monitoring-Owner: unveränderliche Zielprüfstände und idempotente Prüfvorgangsbelege. Trade Position bleibt Eigentümer wirtschaftlicher Ausführungen, Restmengen, Einstand und ursprünglicher Belegzuordnungen; Market Data und Learning liefern ihre getrennten Kurs- und Quellenreferenzen. Der Operational Workspace konsumiert die öffentlichen Reads und leitet bewusste Prüfcommands an Monitoring weiter.
 
+Der [Vergleichsbeleg- und Vorgangsstatusread](../features/HEBELTRADER_MONITORING_INTEGRATION_CONTRACT.md#f207-3-history-qualification) ergänzt denselben Monitoring-Owner. Die bestehende Nutzererklärung bleibt im unveränderlichen Zielprüfstand gespeichert; der Workspace hält ausschließlich ephemere, positionsgebundene Formular- und Commandzustände. Eine technische Eignungsprüfung, die belegte Nutzererklärung und eine unabhängige historische Quellenverifikation sind unterschiedliche Aussagen.
+
 <a id="ownership"></a>
 ## Ein schreibender fachlicher Owner je Objekt
 

@@ -15,6 +15,10 @@ from app.features.position_monitoring.domain.hebeltrader_targets import (
     TargetComparisonQualification,
 )
 from app.features.position_monitoring.persistence.hebeltrader_targets import TargetAssessmentRecord
+from app.features.position_monitoring.service.hebeltrader_qualification_contracts import (
+    TargetQualificationPreview,
+    TargetRequestStatus,
+)
 from app.features.position_monitoring.service.hebeltrader_target_contracts import (
     HebeltraderTargetsReport,
     TargetAssessmentCommand,
@@ -124,6 +128,28 @@ async def assessment(
     _position_query(request)
     try:
         return await reader.assessment(WORKSPACE_ID, trade_id, position_id, assessment_id)
+    except DBAPIError as error:
+        raise _read_unavailable() from error
+
+
+@router.get("/trades/{trade_id}/hebeltrader-targets/qualification-preview")
+async def qualification_preview(
+    trade_id: UUID, position_id: UUID, reader: Reader, request: Request
+) -> TargetQualificationPreview:
+    _position_query(request)
+    try:
+        return await reader.qualification_preview(WORKSPACE_ID, trade_id, position_id)
+    except DBAPIError as error:
+        raise _read_unavailable() from error
+
+
+@router.get("/trades/{trade_id}/hebeltrader-targets/requests/{request_id}")
+async def request_status(
+    trade_id: UUID, position_id: UUID, request_id: UUID, reader: Reader, request: Request
+) -> TargetRequestStatus:
+    _position_query(request)
+    try:
+        return await reader.request_status(WORKSPACE_ID, trade_id, position_id, request_id)
     except DBAPIError as error:
         raise _read_unavailable() from error
 

@@ -5,6 +5,10 @@ import { PositionDetails } from '../components/PositionDetails';
 import { PositionStatus, QuoteStatus } from '../components/PositionStatus';
 import { unrealizedPnlReason } from '../../trade/services/valuationQualification';
 import {
+  useHebeltraderQualificationSessions,
+  type QualificationSessions,
+} from '../hooks/useHebeltraderQualificationSessions';
+import {
   dateLabel,
   defaultPositionsView,
   formatUnits,
@@ -40,12 +44,16 @@ const control =
 export function OpenPositionsPanel({
   positions,
   signalsLoading = false,
+  qualificationSessions: controlledQualificationSessions,
 }: {
   positions: OperationalPosition[];
   signalsLoading?: boolean;
+  qualificationSessions?: QualificationSessions;
 }) {
   const [view, setView] = useState(readPositionsView);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const localQualificationSessions = useHebeltraderQualificationSessions();
+  const qualificationSessions = controlledQualificationSessions ?? localQualificationSessions;
   useEffect(() => savePositionsView(view), [view]);
   const filtered = useMemo(() => visiblePositions(positions, view), [positions, view]);
   const totals = useMemo(() => portfolioTotals(positions), [positions]);
@@ -358,7 +366,10 @@ export function OpenPositionsPanel({
           id={`position-detail-${expandedPosition.position_id}`}
           className="min-w-0 rounded-xl border border-slate-700 bg-slate-900/70"
         >
-          <PositionDetails position={expandedPosition} />
+          <PositionDetails
+            position={expandedPosition}
+            qualificationSessions={qualificationSessions}
+          />
         </div>
       )}
       <nav

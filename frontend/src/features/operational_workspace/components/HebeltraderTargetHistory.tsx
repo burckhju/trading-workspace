@@ -1,11 +1,21 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { HebeltraderTarget, HebeltraderTargetsReport } from '../hebeltraderTargets';
-import { assessHebeltraderTargets, readHebeltraderTargets } from '../services/hebeltraderTargets';
+import { readHebeltraderTargets } from '../services/hebeltraderTargets';
+import {
+  emptyQualificationSession,
+  qualificationSessionKey,
+  useHebeltraderQualificationSessions,
+  type QualificationSession,
+  type QualificationSessions,
+} from '../hooks/useHebeltraderQualificationSessions';
+import { useHebeltraderTargetCommand } from '../hooks/useHebeltraderTargetCommand';
+import { HebeltraderQualification } from './HebeltraderQualification';
 
 interface Props {
   tradeId: string;
   positionId: string;
   reloadToken?: string | number;
+  qualificationSessions?: QualificationSessions;
 }
 
 const targetLabels: Record<HebeltraderTarget['status'], string> = {
@@ -86,21 +96,58 @@ function Target({ value }: { value: HebeltraderTarget }) {
 }
 
 export function HebeltraderTargetHistory(props: Props) {
+  const localSessions = useHebeltraderQualificationSessions();
+  const sessions = props.qualificationSessions ?? localSessions;
+  const sessionKey = qualificationSessionKey(props.tradeId, props.positionId);
   return (
-    <History key={`${props.tradeId}:${props.positionId}:${props.reloadToken ?? 0}`} {...props} />
+    <History
+      key={`${props.tradeId}:${props.positionId}:${props.reloadToken ?? 0}`}
+      tradeId={props.tradeId}
+      positionId={props.positionId}
+      sessionKey={sessionKey}
+      session={sessions.values[sessionKey] ?? emptyQualificationSession}
+      update={sessions.update}
+    />
   );
 }
 
-function History({ tradeId, positionId }: Props) {
+function History({
+  tradeId,
+  positionId,
+  sessionKey,
+  session,
+  update,
+}: {
+  tradeId: string;
+  positionId: string;
+  sessionKey: string;
+  session: QualificationSession;
+  update: QualificationSessions['update'];
+}) {
   const [report, setReport] = useState<HebeltraderTargetsReport | null>(null);
   const [readError, setReadError] = useState<string | null>(null);
-  const [commandError, setCommandError] = useState<string | null>(null);
   const [readAttempt, setReadAttempt] = useState(0);
-  const [busy, setBusy] = useState(false);
-  const [needsReadback, setNeedsReadback] = useState(false);
   const generation = useRef(0);
-  const pendingCommand = useRef(false);
-  const commandController = useRef<AbortController | null>(null);
+  const acceptReport = useCallback(
+    (value: HebeltraderTargetsReport) => {
+      generation.current += 1;
+      setReport(value);
+      setReadError(null);
+      // A fresh read may resolve a concrete rejection; it never resolves an unknown write.
+      update(sessionKey, (previous) =>
+        previous.command?.phase === 'REJECTED' ? { ...previous, command: null } : previous,
+      );
+    },
+    [sessionKey, update],
+  );
+  const command = useHebeltraderTargetCommand({
+    tradeId,
+    positionId,
+    sessionKey,
+    session,
+    update,
+    onReport: acceptReport,
+  });
 
   useEffect(() => {
     const controller = new AbortController();
@@ -109,10 +156,7 @@ function History({ tradeId, positionId }: Props) {
     readHebeltraderTargets(tradeId, positionId, controller.signal)
       .then((value) => {
         if (!current()) return;
-        setReport(value);
-        setReadError(null);
-        setCommandError(null);
-        setNeedsReadback(false);
+        acceptReport(value);
       })
       .catch((reason: unknown) => {
         if (current())
@@ -125,55 +169,31 @@ function History({ tradeId, positionId }: Props) {
     return () => {
       generation.current += 1;
       controller.abort();
-      commandController.current?.abort();
     };
-  }, [tradeId, positionId, readAttempt]);
+  }, [tradeId, positionId, readAttempt, acceptReport]);
 
   async function assess() {
-    if (!report || pendingCommand.current || needsReadback || report.position_state !== 'OPEN')
+    if (
+      !report ||
+      command.blocked ||
+      session.command?.phase === 'REJECTED' ||
+      report.position_state !== 'OPEN'
+    )
       return;
-    pendingCommand.current = true;
-    setBusy(true);
-    setCommandError(null);
-    const controller = new AbortController();
-    commandController.current = controller;
-    const currentGeneration = generation.current;
-    const current = () => generation.current === currentGeneration && !controller.signal.aborted;
-    try {
-      const result = await assessHebeltraderTargets(
-        tradeId,
-        {
-          position_id: positionId,
-          request_id: crypto.randomUUID(),
-          expected_basis_id: report.current_basis_id,
-          expected_assessment_id: report.latest_assessment?.id ?? null,
-          confirmation: 'ASSESS_SAVED_HEBELTRADER_EVIDENCE',
-        },
-        controller.signal,
-      );
-      if (current()) setReport(result);
-    } catch (reason) {
-      if (current()) {
-        setCommandError(
-          reason instanceof Error
-            ? reason.message
-            : 'Der Ausgang der Prüfung konnte nicht bestätigt werden.',
-        );
-        setNeedsReadback(true);
-      }
-    } finally {
-      if (current()) {
-        pendingCommand.current = false;
-        setBusy(false);
-      }
-    }
+    await command.execute({
+      position_id: positionId,
+      request_id: crypto.randomUUID(),
+      expected_basis_id: report.current_basis_id,
+      expected_assessment_id: report.latest_assessment?.id ?? null,
+      confirmation: 'ASSESS_SAVED_HEBELTRADER_EVIDENCE',
+    });
   }
 
   const assessment = report?.latest_assessment;
   return (
     <section
       aria-label="Hebeltrader-Zielhistorie"
-      aria-busy={busy}
+      aria-busy={command.busy}
       className="min-w-0 space-y-3 break-words rounded-xl border border-slate-700 bg-slate-950/40 p-3 sm:p-4"
     >
       <h3 className="font-semibold text-white">Hebeltrader · Dauerhafte Zielbelege</h3>
@@ -183,11 +203,102 @@ function History({ tradeId, positionId }: Props) {
       </p>
       {!report && !readError && <p>Zielhistorie wird geladen …</p>}
       {readError && <p role="alert">{readError}</p>}
-      {commandError && <p role="alert">{commandError}</p>}
-      {(readError || needsReadback) && (
+      {session.command?.message && (
+        <p role={session.command.phase === 'CONFIRMED' ? 'status' : 'alert'}>
+          {session.command.message}
+        </p>
+      )}
+      {session.command?.phase === 'REJECTED' && (
+        <p>
+          Die Anfrage wurde konkret abgelehnt. Vor einer neuen Prüfung den aktuellen Belegstand
+          lesen; der Referenzentwurf bleibt erhalten.
+        </p>
+      )}
+      {session.command?.phase === 'UNKNOWN' && (
+        <section
+          aria-label="Unbestätigter Prüfauftrag"
+          className="space-y-2 rounded border border-amber-500 p-3"
+        >
+          <p>
+            Der angezeigte Stand ist nach dem Schreibversuch noch nicht bestätigt. Ein allgemeiner
+            Leseabruf klärt den Ausgang dieser Anfrage nicht.
+          </p>
+          <p>
+            Anfrage: {session.command.payload.request_id} · Eingefrorene Belegbasis:{' '}
+            {session.command.payload.expected_basis_id}
+          </p>
+          {session.command.payload.qualification && (
+            <p>
+              Eingefrorene Belegreferenz: {session.command.payload.qualification.evidence_reference}
+            </p>
+          )}
+          <p>
+            Der vollständige Prüfauftrag und der Entwurf bleiben beim Schließen der Details, bei
+            Filter- und Seitenwechseln sowie bei „Aktualisieren“ erhalten. Vor dem Verlassen der
+            Workspace-Seite oder Neuladen im Browser den Vorgangsbeleg klären; dort endet dieser
+            lokale Speicher. Es wird keine neue Anfragekennung erzeugt und nichts automatisch
+            wiederholt.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              className="rounded border border-slate-600 px-3 py-2 disabled:opacity-40"
+              disabled={command.busy}
+              onClick={() => void command.readReceipt()}
+            >
+              Beleg genau dieser Anfrage lesen
+            </button>
+            <button
+              type="button"
+              className="rounded border border-slate-600 px-3 py-2 disabled:opacity-40"
+              disabled={command.busy || !report || report.position_state !== 'OPEN'}
+              onClick={() => void command.retry()}
+            >
+              Denselben eingefrorenen Prüfauftrag erneut senden
+            </button>
+          </div>
+          <p className="text-xs text-slate-300">
+            Eine bewusste Wiederholung sendet denselben Inhalt mit derselben Anfragekennung; der
+            Server behandelt sie idempotent.
+          </p>
+          {command.readingReceipt && <p role="status">Vorgangsbeleg wird gelesen …</p>}
+          {command.receiptError && <p role="alert">{command.receiptError}</p>}
+        </section>
+      )}
+      {session.command?.receipt?.status === 'RECORDED' && (
+        <details className="space-y-2 rounded border border-slate-700 p-3">
+          <summary className="cursor-pointer">Gespeicherter Beleg dieser Anfrage</summary>
+          <p>
+            Anfrage {session.command.receipt.request_id} · Vorgang gespeichert:{' '}
+            {session.command.receipt.recorded_at}
+          </p>
+          <p>
+            Damals enthaltener Prüfstand: {session.command.receipt.assessment?.id} · Belegbasis:{' '}
+            {session.command.receipt.assessment?.basis_id} · Prüfstand gespeichert:{' '}
+            {session.command.receipt.assessment?.recorded_at}
+          </p>
+          {session.command.receipt.qualification && (
+            <p>
+              Damals enthaltene Nutzererklärung:{' '}
+              {session.command.receipt.qualification.evidence_reference}
+            </p>
+          )}
+          <p>
+            Dieser Beleg bestätigt die konkrete Anfrage. Er ersetzt nicht den aktuellen Prüfstand;
+            für spätere Änderungen den Prüfstand erneut lesen.
+          </p>
+          <ul aria-label="Zielbefunde des Vorgangsbelegs" className="space-y-2">
+            {session.command.receipt.assessment?.targets.map((target) => (
+              <Target key={target.target} value={target} />
+            ))}
+          </ul>
+        </details>
+      )}
+      {(readError || session.command) && (
         <button
           type="button"
           className="rounded border border-slate-600 px-3 py-2 focus-visible:outline-2 focus-visible:outline-sky-300"
+          disabled={command.busy}
           onClick={() => {
             setReport(null);
             setReadError(null);
@@ -225,11 +336,6 @@ function History({ tradeId, positionId }: Props) {
               werden; bisherige Belege bleiben erhalten.
             </p>
           )}
-          {needsReadback && (
-            <p className="text-amber-200">
-              Der angezeigte Stand ist nach dem Schreibversuch noch nicht bestätigt.
-            </p>
-          )}
           {report.position_state !== 'OPEN' && (
             <p>
               Position {report.position_state === 'CLOSED' ? 'geschlossen' : 'storniert'}:
@@ -252,6 +358,17 @@ function History({ tradeId, positionId }: Props) {
               </ul>
             </details>
           )}
+          <HebeltraderQualification
+            tradeId={tradeId}
+            positionId={positionId}
+            report={report}
+            sessionKey={sessionKey}
+            session={session}
+            update={update}
+            blocked={command.blocked}
+            onReport={acceptReport}
+            onSubmit={command.execute}
+          />
           {assessment && (
             <>
               <ul aria-label="Gespeicherte Zielbefunde" className="space-y-3">
@@ -337,12 +454,19 @@ function History({ tradeId, positionId }: Props) {
       <button
         type="button"
         className="rounded border border-slate-600 px-3 py-2 focus-visible:outline-2 focus-visible:outline-sky-300 disabled:opacity-40"
-        disabled={!report || report.position_state !== 'OPEN' || busy || needsReadback}
+        disabled={
+          !report ||
+          report.position_state !== 'OPEN' ||
+          command.blocked ||
+          session.command?.phase === 'REJECTED'
+        }
         onClick={() => void assess()}
       >
         Gespeicherte Belege prüfen
       </button>
-      {busy && <p role="status">Gespeicherte Belege werden geprüft …</p>}
+      {session.command?.phase === 'PENDING' && (
+        <p role="status">Gespeicherte Belege werden geprüft …</p>
+      )}
     </section>
   );
 }
