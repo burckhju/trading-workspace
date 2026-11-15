@@ -12,6 +12,10 @@ import {
   targetAssessment,
   targetReport,
 } from "../../frontend/src/features/operational_workspace/test/hebeltraderTargetsFixture";
+import {
+  sessionReport,
+  unavailableSessionReport,
+} from "../../frontend/src/features/operational_workspace/test/hebeltraderSessionsFixture";
 import type { OperationalPosition } from "../../frontend/src/features/operational_workspace/types";
 
 async function setup(
@@ -133,6 +137,27 @@ async function setup(
         baseline_id: "HEBELTRADER_CONFIRMED_BASELINE",
         baseline_version: "1.0.0",
       };
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(report),
+      });
+    }
+    const sessions = path.match(
+      /^\/(?:api\/)?api\/v1\/position-monitoring\/trades\/trade-(0|[1-9]\d?)\/hebeltrader-sessions$/,
+    );
+    if (sessions) {
+      const id = sessions[1];
+      expect(req.method()).toBe("GET");
+      expect([...url.searchParams.entries()]).toEqual([
+        ["position_id", `position-${id}`],
+      ]);
+      const report = (id === "97" ? unavailableSessionReport : sessionReport)({
+        trade_id: `trade-${id}`,
+        position_id: `position-${id}`,
+        product_id: `product-${id}`,
+        basis_id: `synthetic-session-basis-${id}`,
+      });
       return route.fulfill({
         status: 200,
         contentType: "application/json",
@@ -349,7 +374,58 @@ test("valuation notices preserve keyboard details, existing reads and explicit h
     await expect(
       targets.getByRole("button", { name: "Gespeicherte Belege prüfen" }),
     ).toBeEnabled();
+    const sessions = region.getByRole("region", {
+      name: "Hebeltrader-Basiswertsitzungen",
+    });
+    await expect(sessions).toContainText(
+      id === 97 ? "Nicht beurteilbar" : "2 abgeschlossene Basiswertsitzungen",
+    );
+    await expect(sessions).toContainText(
+      "B04, B05, B06 und B58 sind nicht ausgewertet",
+    );
+    await expect(sessions).toContainText(
+      "nicht als laufende Überwachung aktiviert",
+    );
+    await expect(sessions).toContainText(
+      "serverseitiger Lesezeitpunkt, keine Original-BID-Zeit",
+    );
+    if (id === 97) {
+      await expect(sessions).toContainText(
+        "Eine ausdrücklich zugeordnete Kalenderrevision fehlt.",
+      );
+      await expect(sessions).not.toContainText(
+        "0 abgeschlossene Basiswertsitzungen",
+      );
+    } else {
+      await expect(
+        sessions.getByRole("table", {
+          name: "Dokumentierte Basiswert-Kalendertage",
+        }),
+      ).toContainText("Dokumentiert geschlossen");
+      await sessions
+        .getByText("Kalenderbindung, Quelle und Zeitstände")
+        .click();
+      await expect(sessions.getByText("a".repeat(64))).toBeVisible();
+      await expect(sessions.getByText("b".repeat(64))).toBeVisible();
+      await expect(sessions).toContainText("keine unabhängige Verifikation");
+      await expect(
+        sessions.locator('time[datetime="2026-08-31"]'),
+      ).toBeVisible();
+      await expect(
+        sessions.locator('time[datetime="2026-08-31T00:00:00Z"]'),
+      ).toHaveCount(0);
+      await sessions
+        .getByText("Kalenderbindung, Quelle und Zeitstände")
+        .click();
+    }
+    await expect(sessions.getByRole("textbox")).toHaveCount(0);
+    await expect(sessions.getByRole("button")).toHaveCount(0);
     expect(requests.slice(before).sort()).toEqual([
+      expect.stringMatching(
+        new RegExp(
+          `^GET (?:/api)?/api/v1/position-monitoring/trades/trade-${id}/hebeltrader-sessions$`,
+        ),
+      ),
       expect.stringMatching(
         new RegExp(
           `^GET (?:/api)?/api/v1/position-monitoring/trades/trade-${id}/hebeltrader-targets$`,
@@ -390,7 +466,7 @@ test("valuation notices preserve keyboard details, existing reads and explicit h
       await expect(details).toHaveAttribute("aria-expanded", "false");
       await expect(details).toBeFocused();
       await expect(region).toHaveCount(0);
-      expect(requests).toHaveLength(before + 4);
+      expect(requests).toHaveLength(before + 5);
     }
   }
   expect(writes()).toBe(0);
@@ -591,6 +667,9 @@ test("historical qualification preserves a scoped draft and recovers exactly one
   await search.fill("WK0099");
   await page.getByRole("button", { name: "Details", exact: true }).click();
   await expect(page.getByText("Noch keine gespeicherte Prüfung")).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "Hebeltrader-Basiswertsitzungen" }),
+  ).toContainText("2 abgeschlossene Basiswertsitzungen");
   expect(specificRequests).toEqual([
     expect.stringMatching(
       /^GET (?:\/api)?\/api\/v1\/position-monitoring\/trades\/trade-99\/hebeltrader-targets$/,
