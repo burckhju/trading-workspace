@@ -4,7 +4,11 @@ import { MemoryRouter } from 'react-router-dom';
 import { position } from '../../../test/positionFixture';
 import type { HebeltraderOriginalBidReport } from '../hebeltraderOriginalBid';
 import { readHebeltraderOriginalBid } from '../services/hebeltraderOriginalBid';
-import { missingBidSideReport, originalBidReport } from '../test/hebeltraderOriginalBidFixture';
+import {
+  documentedPriceScaleReport,
+  missingBidSideReport,
+  originalBidReport,
+} from '../test/hebeltraderOriginalBidFixture';
 import { HebeltraderOriginalBid } from './HebeltraderOriginalBid';
 import { PositionDetails } from './PositionDetails';
 
@@ -37,6 +41,144 @@ function deferred() {
   });
   return { promise, resolve, reject };
 }
+
+it('shows the bounded original product document and both owner contributions without activating a rule', async () => {
+  const user = userEvent.setup();
+  vi.mocked(readHebeltraderOriginalBid).mockResolvedValueOnce(documentedPriceScaleReport());
+  render(<HebeltraderOriginalBid tradeId="trade-1" positionId="position-1" />);
+  await screen.findByText('Historischer Produkt-Preismaßstab · Teilvoraussetzung belegt');
+  expect(screen.getByText('Verifizierte offene Produktsitzung · Beleg fehlt')).toBeVisible();
+  expect(field('Regelfunktion')).toHaveTextContent('B04, B05, B06 und B58 sind nicht ausgewertet');
+  await user.click(screen.getByText('Geldkursquelle, Positionsbasis und Kalenderbelege'));
+  expect(field('Historischer Produktmaßstab')).toHaveTextContent(
+    'synthetic-issuer-correction-2 · EUR je Optionsschein',
+  );
+  expect(field('Produktbelegrevision')).toHaveTextContent(
+    'product-scale-revision-2 · Revision 2 · ersetzt product-scale-revision-1',
+  );
+  expect(field('Belegter Zeitraum des Produktmaßstabs')).toHaveTextContent(
+    '2026-08-30T22:00:00Z einschließlich bis 2026-09-21T13:00:01Z ausschließlich',
+  );
+  expect(field('Produktquelle veröffentlicht am')).toHaveTextContent(
+    '2026-09-21 · Nur Datum belegt',
+  );
+  expect(field('Produktdokument geprüft am')).toHaveTextContent('2026-09-21T13:02:00Z');
+  expect(field('Produktbeleg erfasst am')).toHaveTextContent('2026-09-21T13:03:00Z');
+  expect(field('Originaldokument SHA-256')).toHaveTextContent('c'.repeat(64));
+  expect(
+    screen.getByText(/Dokumentierte menschliche Prüfung, keine unabhängige Verifikation/),
+  ).toBeVisible();
+  const table = within(
+    screen.getByRole('table', { name: 'Kaufbeiträge und dokumentierter Produktmaßstab' }),
+  );
+  const rows = table.getAllByRole('row');
+  expect(rows).toHaveLength(3);
+  expect(rows[1]).toHaveTextContent('effective-buy-1');
+  expect(rows[1]).toHaveTextContent('Ersetzt: original-buy-1');
+  expect(rows[1]).toHaveTextContent('Ursprünglich 10 Stück · Restbeitrag 5 Stück');
+  expect(rows[1]).toHaveTextContent('2026-08-31 · Nur Datum belegt (Europe/Berlin)');
+  expect(rows[1]).toHaveTextContent('Keine bekannte Kaufuhrzeit');
+  expect(rows[2]).toHaveTextContent('Originalpreis 1.2067901235 EUR je Stück');
+  expect(rows[2]).toHaveTextContent('Restbeitrag 2 Stück');
+  expect(field('Restbestand und Bruttoeinstand des Ausführungsowners')).toHaveTextContent(
+    'Ø 0.987654321 · Kostenbeitrag 6.913580247',
+  );
+  expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+  expect(screen.getAllByRole('button')).toHaveLength(1);
+  expect(readHebeltraderOriginalBid).toHaveBeenCalledOnce();
+});
+
+it('keeps a missing partial purchase proof and its full owner contribution visible', async () => {
+  const user = userEvent.setup();
+  const report = documentedPriceScaleReport();
+  report.product_price_scale!.status = 'MISSING';
+  report.product_price_scale!.purchases[1].status = 'MISSING';
+  report.product_price_scale!.purchases[1].reasons = [
+    'PRODUCT_SCALE_BUY_OUTSIDE_DOCUMENTED_PERIOD',
+  ];
+  report.checks[6].status = 'MISSING';
+  vi.mocked(readHebeltraderOriginalBid).mockResolvedValueOnce(report);
+  render(<HebeltraderOriginalBid tradeId="trade-1" positionId="position-1" />);
+  await screen.findByText('Historischer Produkt-Preismaßstab · Beleg fehlt');
+  await user.click(screen.getByText('Geldkursquelle, Positionsbasis und Kalenderbelege'));
+  const rows = within(
+    screen.getByRole('table', { name: 'Kaufbeiträge und dokumentierter Produktmaßstab' }),
+  ).getAllByRole('row');
+  expect(rows).toHaveLength(3);
+  expect(rows[2]).toHaveTextContent('Restbeitrag 2 Stück');
+  expect(rows[2]).toHaveTextContent(
+    'Der Produktbeleg deckt den tatsächlichen Kauf beziehungsweise seinen vollständigen möglichen Tag nicht ab.',
+  );
+  expect(screen.getByText('Teilbelege vorhanden; Gesamtqualifikation offen')).toBeVisible();
+});
+
+it.each(['ADJUSTMENT_REQUIRED', 'WITHDRAWN'] as const)(
+  'shows %s without applying a factor or hiding the original document',
+  async (status) => {
+    const user = userEvent.setup();
+    const report = documentedPriceScaleReport({ coverage_status: 'UNSUITABLE' });
+    const scale = report.product_price_scale!;
+    scale.status = 'UNSUITABLE';
+    scale.evidence.status = 'UNSUITABLE';
+    scale.evidence.manifest!.status = status;
+    scale.evidence.reasons = [`PRODUCT_PRICE_SCALE_${status}`];
+    report.checks[6].status = 'UNSUITABLE';
+    vi.mocked(readHebeltraderOriginalBid).mockResolvedValueOnce(report);
+    render(<HebeltraderOriginalBid tradeId="trade-1" positionId="position-1" />);
+    await screen.findByText('Historischer Produkt-Preismaßstab · Ungeeignet');
+    await user.click(screen.getByText('Geldkursquelle, Positionsbasis und Kalenderbelege'));
+    expect(field('Erklärung zum Produktmaßstab')).toHaveTextContent(
+      status === 'ADJUSTMENT_REQUIRED'
+        ? 'Anpassung erforderlich; keine Umrechnung durch diesen Read'
+        : 'Produktmaßstabsbeleg zurückgezogen',
+    );
+    expect(field('Originaldokument zum Produktmaßstab')).toHaveTextContent(
+      'synthetic-original-scale.txt',
+    );
+    expect(field('Produktbindung des Quellenbelegs')).toHaveTextContent('terms-version-1');
+    expect(
+      screen.getByText(/Dieser Read rechnet weder Bestände noch Produktanpassungen um/),
+    ).toBeVisible();
+    expect(screen.getByRole('table')).toHaveTextContent('Originalpreis 1.2067901235 EUR je Stück');
+  },
+);
+
+it('does not attach a late product scale revision to a newly reopened position or overwrite its neighbour draft', async () => {
+  const user = userEvent.setup();
+  const pending = deferred();
+  vi.mocked(readHebeltraderOriginalBid)
+    .mockReturnValueOnce(pending.promise)
+    .mockImplementation((tradeId, positionId) =>
+      Promise.resolve(documentedPriceScaleReport({ trade_id: tradeId, position_id: positionId })),
+    );
+  const content = (tradeId: string, positionId: string) => (
+    <>
+      <label>
+        Bestehender Qualifikationsentwurf
+        <input defaultValue="Mein erhaltenes Dokument" />
+      </label>
+      <HebeltraderOriginalBid tradeId={tradeId} positionId={positionId} />
+    </>
+  );
+  const view = render(content('trade-1', 'position-1'));
+  view.rerender(content('trade-2', 'position-2'));
+  await screen.findByText('Historischer Produkt-Preismaßstab · Teilvoraussetzung belegt');
+  view.rerender(content('trade-1', 'position-1'));
+  await screen.findByText('Historischer Produkt-Preismaßstab · Teilvoraussetzung belegt');
+  const stale = documentedPriceScaleReport();
+  stale.product_price_scale!.evidence.manifest!.source_version = 'VERALTETE_FREMDE_QUELLVERSION';
+  await act(async () => {
+    pending.resolve(stale);
+    await pending.promise;
+  });
+  await user.click(screen.getByText('Geldkursquelle, Positionsbasis und Kalenderbelege'));
+  expect(field('Historischer Produktmaßstab')).toHaveTextContent('synthetic-issuer-correction-2');
+  expect(screen.queryByText(/VERALTETE_FREMDE_QUELLVERSION/)).not.toBeInTheDocument();
+  expect(screen.getByLabelText('Bestehender Qualifikationsentwurf')).toHaveValue(
+    'Mein erhaltenes Dokument',
+  );
+  expect(vi.mocked(readHebeltraderOriginalBid).mock.calls[0][2]?.aborted).toBe(true);
+});
 
 it('shows exact saved BID and owner entry values while keeping scale, live market and rule gaps explicit', async () => {
   const user = userEvent.setup();

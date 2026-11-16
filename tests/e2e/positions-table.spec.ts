@@ -17,6 +17,7 @@ import {
   unavailableSessionReport,
 } from "../../frontend/src/features/operational_workspace/test/hebeltraderSessionsFixture";
 import {
+  documentedPriceScaleReport,
   missingBidSideReport,
   originalBidReport,
 } from "../../frontend/src/features/operational_workspace/test/hebeltraderOriginalBidFixture";
@@ -156,7 +157,13 @@ async function setup(
       expect([...url.searchParams.entries()]).toEqual([
         ["position_id", `position-${id}`],
       ]);
-      const report = (id === "97" ? missingBidSideReport : originalBidReport)({
+      const report = (
+        id === "97"
+          ? missingBidSideReport
+          : id === "99"
+            ? documentedPriceScaleReport
+            : originalBidReport
+      )({
         trade_id: `trade-${id}`,
         position_id: `position-${id}`,
         product_id: `product-${id}`,
@@ -454,7 +461,9 @@ test("valuation notices preserve keyboard details, existing reads and explicit h
       "B04, B05, B06 und B58 sind nicht ausgewertet",
     );
     await expect(original).toContainText(
-      "Historischer Produkt-Preismaßstab · Beleg fehlt",
+      id === 99
+        ? "Historischer Produkt-Preismaßstab · Teilvoraussetzung belegt"
+        : "Historischer Produkt-Preismaßstab · Beleg fehlt",
     );
     await expect(original).toContainText(
       "Verifizierte offene Produktsitzung · Beleg fehlt",
@@ -500,6 +509,32 @@ test("valuation notices preserve keyboard details, existing reads and explicit h
         }),
       ).toBeVisible();
       await expect(original).toContainText("f".repeat(64));
+      if (id === 99) {
+        await expect(original).toContainText("synthetic-issuer-correction-2");
+        await expect(original).toContainText(
+          "2026-09-21T13:00:01Z ausschließlich",
+        );
+        await expect(original).toContainText(
+          "Dokumentierte menschliche Prüfung, keine unabhängige Verifikation",
+        );
+        await expect(original).toContainText(
+          "product-scale-revision-2 · Revision 2 · ersetzt product-scale-revision-1",
+        );
+        await expect(original).toContainText("c".repeat(64));
+        const purchases = original.getByRole("table", {
+          name: "Kaufbeiträge und dokumentierter Produktmaßstab",
+        });
+        await expect(purchases.getByRole("row")).toHaveCount(3);
+        await expect(purchases).toContainText(
+          "Ursprünglich 10 Stück · Restbeitrag 5 Stück",
+        );
+        await expect(purchases).toContainText("Restbeitrag 2 Stück");
+        await expect(purchases).toContainText(
+          "Originalpreis 1.2067901235 EUR je Stück",
+        );
+        await expect(purchases).toContainText("Ersetzt: original-buy-1");
+        await expect(purchases).toContainText("Keine bekannte Kaufuhrzeit");
+      }
       await original
         .getByText("Geldkursquelle, Positionsbasis und Kalenderbelege")
         .click();

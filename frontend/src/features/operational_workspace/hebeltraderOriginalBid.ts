@@ -132,6 +132,94 @@ export type ProductSessionCalendar = Omit<SessionEvidenceCurrent, 'instrument_ki
   binding: (Omit<SessionBinding, 'instrument_kind'> & { instrument_kind: 'WARRANT' }) | null;
 };
 
+export interface ProductPriceScaleBinding {
+  warrant_id: string;
+  isin: string;
+  issuer_id: string;
+  underlying_id: string;
+  current_terms_id: string;
+}
+
+export interface ProductPriceScaleCurrent {
+  workspace_id: string;
+  warrant_id: string;
+  known_at: string;
+  revision_id: string | null;
+  supersedes_revision_id: string | null;
+  revision_number: number | null;
+  manifest: {
+    schema_version: 'product-price-scale-evidence-v1';
+    scale_id: string;
+    source_version: string;
+    binding: ProductPriceScaleBinding;
+    axis: 'WARRANT';
+    currency: string;
+    unit: 'CURRENCY_PER_WARRANT';
+    valid_from: string;
+    valid_until: string;
+    status: 'UNCHANGED_ORIGINAL' | 'ADJUSTMENT_REQUIRED' | 'WITHDRAWN';
+    source_publisher: string;
+    source_reference: string;
+    source_document_sha256: string;
+    source_published_at: string | null;
+    source_published_on: string | null;
+  } | null;
+  binding: ProductPriceScaleBinding | null;
+  source: {
+    manifest_sha256: string;
+    document_sha256: string;
+    document_filename: string;
+    document_media_type: string;
+    publisher: string;
+    reference: string;
+    published_at: string | null;
+    published_on: string | null;
+    retrieved_at: string | null;
+    reviewed_at: string;
+    review_reference: string;
+    recorded_by: string;
+  } | null;
+  recorded_at: string | null;
+  read_at: string;
+  status: 'AVAILABLE' | 'MISSING' | 'UNSUITABLE';
+  reasons: string[];
+  fingerprint: string;
+  verification: 'MANUAL_DOCUMENT_REVIEW_NOT_INDEPENDENT_VERIFICATION';
+  operation_status: 'READ_ONLY';
+}
+
+export type ProductScaleCoverageStatus = 'COVERED' | 'MISSING' | 'UNSUITABLE' | 'NOT_APPLICABLE';
+
+export interface PurchaseScaleCoverage {
+  execution_id: string;
+  supersedes_execution_id: string | null;
+  original_quantity: number;
+  remaining_quantity: string;
+  price_per_unit: string;
+  executed_at: string | null;
+  executed_on: string | null;
+  execution_timezone: string | null;
+  recorded_at: string;
+  currency_code: string | null;
+  possible_from: string | null;
+  possible_until: string | null;
+  status: ProductScaleCoverageStatus;
+  reasons: string[];
+}
+
+export interface ProductPriceScaleAssessment {
+  status: 'DOCUMENTED' | 'MISSING' | 'UNSUITABLE' | 'NOT_APPLICABLE';
+  reasons: string[];
+  evidence: ProductPriceScaleCurrent;
+  execution_basis_id: string;
+  bid_at: string | null;
+  bid_status: ProductScaleCoverageStatus;
+  bid_reasons: string[];
+  purchases: PurchaseScaleCoverage[];
+  adjustment_applied: false;
+  definition_version: 'hebeltrader-product-price-scale-v1';
+}
+
 export interface HebeltraderOriginalBidReport {
   trade_id: string;
   position_id: string;
@@ -146,6 +234,7 @@ export interface HebeltraderOriginalBidReport {
   entry: SessionEntry | null;
   saved_quote: SavedQuoteEvidence;
   bid: OriginalBidAssessment;
+  product_price_scale?: ProductPriceScaleAssessment | null;
   product_sessions: {
     calendar: ProductSessionCalendar | null;
     period: SessionPeriodView;
@@ -164,7 +253,9 @@ export interface HebeltraderOriginalBidReport {
   definition_version: 'hebeltrader-original-bid-v1';
   baseline_id: 'HEBELTRADER_CONFIRMED_BASELINE';
   baseline_version: '1.0.0';
-  implementation_status: 'F207_3_ORIGINAL_BID_EVIDENCE_ONLY';
+  implementation_status:
+    | 'F207_3_ORIGINAL_BID_EVIDENCE_ONLY'
+    | 'F207_3_PRODUCT_PRICE_SCALE_EVIDENCE_ONLY';
   rule_evaluation_status: 'B04_B05_B06_B58_NOT_EVALUATED';
   operation_status: 'NOT_ACTIVATED';
   read_status: 'READ_ONLY';

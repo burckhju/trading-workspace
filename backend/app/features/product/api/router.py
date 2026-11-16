@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.dependencies import get_database_session
 from app.features.product.api.errors import translate_product_error
+from app.features.product.api.price_scale_evidence import router as price_scale_evidence_router
 from app.features.product.api.valuation_evidence import router as valuation_evidence_router
 from app.features.product.domain.models import (
     OptionDirection,
@@ -25,6 +26,7 @@ from app.features.trade_position.api.currency_evidence import router as currency
 
 router = APIRouter(prefix="/api/v1/warrants", tags=["warrants"])
 router.include_router(valuation_evidence_router)
+router.include_router(price_scale_evidence_router)
 router.include_router(currency_evidence_router)
 WORKSPACE_ID = UUID("00000000-0000-4000-8000-000000000001")
 StrikeCurrencyCode = Annotated[

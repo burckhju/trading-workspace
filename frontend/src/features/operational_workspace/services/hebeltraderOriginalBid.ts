@@ -235,6 +235,209 @@ function verifyMatch(value: unknown, event: unknown) {
   } else requireValue(match.interval === null);
 }
 
+function verifyScaleBinding(value: unknown, productId: unknown) {
+  const binding = object(value);
+  requireValue(
+    binding.warrant_id === productId &&
+      ['isin', 'issuer_id', 'underlying_id', 'current_terms_id'].every((key) => text(binding[key])),
+  );
+  return binding;
+}
+
+function verifyScaleCurrent(
+  value: unknown,
+  productId: unknown,
+  workspace: unknown,
+  evaluatedAt: unknown,
+) {
+  const current = object(value);
+  requireValue(
+    current.workspace_id === workspace &&
+      current.warrant_id === productId &&
+      current.known_at === evaluatedAt &&
+      clock(current.read_at) &&
+      nullableClock(current.recorded_at) &&
+      nullableText(current.revision_id) &&
+      nullableText(current.supersedes_revision_id) &&
+      (current.revision_number === null ||
+        (Number.isSafeInteger(current.revision_number) && Number(current.revision_number) >= 1)) &&
+      oneOf(current.status, ['AVAILABLE', 'MISSING', 'UNSUITABLE']) &&
+      strings(current.reasons) &&
+      hash(current.fingerprint) &&
+      current.verification === 'MANUAL_DOCUMENT_REVIEW_NOT_INDEPENDENT_VERIFICATION' &&
+      current.operation_status === 'READ_ONLY',
+  );
+  const binding = current.binding === null ? null : verifyScaleBinding(current.binding, productId);
+  let manifest: Record<string, unknown> | null = null;
+  if (current.manifest !== null) {
+    manifest = object(current.manifest);
+    const manifestBinding = verifyScaleBinding(manifest.binding, productId);
+    requireValue(
+      manifest.schema_version === 'product-price-scale-evidence-v1' &&
+        manifest.axis === 'WARRANT' &&
+        manifest.unit === 'CURRENCY_PER_WARRANT' &&
+        currency(manifest.currency) &&
+        clock(manifest.valid_from) &&
+        clock(manifest.valid_until) &&
+        oneOf(manifest.status, ['UNCHANGED_ORIGINAL', 'ADJUSTMENT_REQUIRED', 'WITHDRAWN']) &&
+        ['scale_id', 'source_version', 'source_publisher', 'source_reference'].every((key) =>
+          text(manifest?.[key]),
+        ) &&
+        hash(manifest.source_document_sha256) &&
+        nullableClock(manifest.source_published_at) &&
+        nullableDay(manifest.source_published_on),
+    );
+    if (current.status === 'AVAILABLE') {
+      requireValue(
+        binding !== null &&
+          ['warrant_id', 'isin', 'issuer_id', 'underlying_id', 'current_terms_id'].every(
+            (key) => binding[key] === manifestBinding[key],
+          ),
+      );
+    }
+  }
+  if (current.source !== null) {
+    const source = object(current.source);
+    requireValue(
+      hash(source.manifest_sha256) &&
+        hash(source.document_sha256) &&
+        [
+          'document_filename',
+          'document_media_type',
+          'publisher',
+          'reference',
+          'review_reference',
+          'recorded_by',
+        ].every((key) => text(source[key])) &&
+        clock(source.reviewed_at) &&
+        nullableClock(source.retrieved_at) &&
+        nullableClock(source.published_at) &&
+        nullableDay(source.published_on) &&
+        manifest !== null &&
+        source.document_sha256 === manifest.source_document_sha256 &&
+        source.publisher === manifest.source_publisher &&
+        source.reference === manifest.source_reference &&
+        source.published_at === manifest.source_published_at &&
+        source.published_on === manifest.source_published_on,
+    );
+  }
+  requireValue(
+    current.status !== 'AVAILABLE' ||
+      (binding !== null &&
+        manifest !== null &&
+        current.source !== null &&
+        text(current.revision_id) &&
+        clock(current.recorded_at)),
+  );
+  return current;
+}
+
+function verifyProductScale(
+  value: unknown,
+  report: Record<string, unknown>,
+  economic: Record<string, unknown>,
+  bid: Record<string, unknown>,
+  workspace: unknown,
+) {
+  const scale = object(value);
+  requireValue(
+    scale.definition_version === 'hebeltrader-product-price-scale-v1' &&
+      scale.adjustment_applied === false &&
+      scale.execution_basis_id === economic.basis_id &&
+      scale.bid_at === bid.original_bid_at &&
+      oneOf(scale.status, ['DOCUMENTED', 'MISSING', 'UNSUITABLE', 'NOT_APPLICABLE']) &&
+      oneOf(scale.bid_status, ['COVERED', 'MISSING', 'UNSUITABLE', 'NOT_APPLICABLE']) &&
+      strings(scale.reasons) &&
+      strings(scale.bid_reasons) &&
+      Array.isArray(scale.purchases) &&
+      Array.isArray(economic.buy_currency_evidence) &&
+      strings(economic.effective_execution_ids),
+  );
+  const evidence = verifyScaleCurrent(
+    scale.evidence,
+    report.product_id,
+    workspace,
+    report.evaluated_at,
+  );
+  const effectiveExecutionIds = economic.effective_execution_ids;
+  const buyEvidence = economic.buy_currency_evidence.map(object);
+  requireValue(
+    buyEvidence.every(
+      (row) =>
+        text(row.execution_id) &&
+        effectiveExecutionIds.includes(row.execution_id) &&
+        (row.currency_code === null || currency(row.currency_code)),
+    ) && new Set(buyEvidence.map((row) => row.execution_id)).size === buyEvidence.length,
+  );
+  const ownerBuys = new Map(buyEvidence.map((row) => [row.execution_id, row.currency_code]));
+  const purchases = scale.purchases.map(object);
+  requireValue(
+    new Set(purchases.map((row) => row.execution_id)).size === purchases.length &&
+      purchases.length === ownerBuys.size &&
+      purchases.every(
+        (row) =>
+          text(row.execution_id) &&
+          ownerBuys.has(row.execution_id) &&
+          nullableText(row.supersedes_execution_id) &&
+          Number.isSafeInteger(row.original_quantity) &&
+          Number(row.original_quantity) > 0 &&
+          decimal(row.remaining_quantity) &&
+          decimal(row.price_per_unit) &&
+          clock(row.recorded_at) &&
+          (row.currency_code === null || currency(row.currency_code)) &&
+          nullableClock(row.possible_from) &&
+          nullableClock(row.possible_until) &&
+          (row.executed_on === null
+            ? clock(row.executed_at) && row.execution_timezone === null
+            : day(row.executed_on) && row.executed_at === null && text(row.execution_timezone)) &&
+          oneOf(row.status, ['COVERED', 'MISSING', 'UNSUITABLE', 'NOT_APPLICABLE']) &&
+          strings(row.reasons),
+      ),
+  );
+  const manifest = evidence.manifest === null ? null : object(evidence.manifest);
+  const binding = evidence.binding === null ? null : object(evidence.binding);
+  requireValue(evidence.status !== 'AVAILABLE' || binding?.underlying_id === report.underlying_id);
+  for (const purchase of purchases) {
+    requireValue(
+      purchase.status !== 'COVERED' ||
+        (evidence.status === 'AVAILABLE' &&
+          manifest?.status === 'UNCHANGED_ORIGINAL' &&
+          purchase.currency_code === manifest.currency &&
+          purchase.currency_code === ownerBuys.get(purchase.execution_id)),
+    );
+  }
+  if (scale.bid_status === 'COVERED') {
+    const quote = object(object(report.saved_quote).quote);
+    const original = object(quote.original_evidence);
+    requireValue(
+      evidence.status === 'AVAILABLE' &&
+        binding?.isin === original.isin &&
+        manifest?.currency === bid.currency &&
+        bid.status === 'AVAILABLE',
+    );
+  }
+  if (scale.status === 'DOCUMENTED') {
+    requireValue(
+      report.position_state === 'OPEN' &&
+        evidence.status === 'AVAILABLE' &&
+        manifest?.status === 'UNCHANGED_ORIGINAL' &&
+        scale.bid_status === 'COVERED' &&
+        bid.status === 'AVAILABLE' &&
+        manifest.currency === bid.currency &&
+        purchases.some((row) => row.status === 'COVERED') &&
+        purchases.every((row) => row.status === 'COVERED' || row.status === 'NOT_APPLICABLE'),
+    );
+  }
+  requireValue(
+    report.position_state === 'OPEN'
+      ? scale.status !== 'NOT_APPLICABLE' && scale.bid_status !== 'NOT_APPLICABLE'
+      : scale.status === 'NOT_APPLICABLE' &&
+          scale.bid_status === 'NOT_APPLICABLE' &&
+          purchases.every((row) => row.status === 'NOT_APPLICABLE'),
+  );
+  return scale;
+}
+
 /** Validate the displayed fields and their scopes, without repeating owner qualification rules. */
 export function verifyHebeltraderOriginalBid(
   value: unknown,
@@ -255,7 +458,10 @@ export function verifyHebeltraderOriginalBid(
       report.definition_version === 'hebeltrader-original-bid-v1' &&
       report.baseline_id === 'HEBELTRADER_CONFIRMED_BASELINE' &&
       report.baseline_version === '1.0.0' &&
-      report.implementation_status === 'F207_3_ORIGINAL_BID_EVIDENCE_ONLY' &&
+      oneOf(report.implementation_status, [
+        'F207_3_ORIGINAL_BID_EVIDENCE_ONLY',
+        'F207_3_PRODUCT_PRICE_SCALE_EVIDENCE_ONLY',
+      ]) &&
       report.rule_evaluation_status === 'B04_B05_B06_B58_NOT_EVALUATED' &&
       report.operation_status === 'NOT_ACTIVATED' &&
       report.read_status === 'READ_ONLY' &&
@@ -396,14 +602,29 @@ export function verifyHebeltraderOriginalBid(
           check.affected_rules.every((rule) => oneOf(rule, ['B04', 'B58'])),
       ),
   );
+  const scale =
+    report.product_price_scale == null
+      ? null
+      : verifyProductScale(
+          report.product_price_scale,
+          report,
+          economic,
+          bid,
+          underlyingCalendar.workspace_id,
+        );
+  requireValue(
+    report.implementation_status !== 'F207_3_PRODUCT_PRICE_SCALE_EVIDENCE_ONLY' || scale !== null,
+  );
+  const scaleCheck = checks.find((check) => check.key === 'PRICE_SCALE');
+  requireValue(
+    scale === null
+      ? scaleCheck?.status === (report.position_state === 'OPEN' ? 'MISSING' : 'NOT_APPLICABLE')
+      : scaleCheck?.status === (scale.status === 'DOCUMENTED' ? 'SATISFIED' : scale.status),
+  );
   requireValue(
     report.position_state === 'OPEN'
       ? report.coverage_status !== 'NOT_APPLICABLE' &&
-          checks
-            .filter(
-              (check) => check.key === 'PRICE_SCALE' || check.key === 'VERIFIED_LIVE_MARKET_STATUS',
-            )
-            .every((check) => check.status === 'MISSING')
+          checks.find((check) => check.key === 'VERIFIED_LIVE_MARKET_STATUS')?.status === 'MISSING'
       : report.coverage_status === 'NOT_APPLICABLE' &&
           checks.every((check) => check.status === 'NOT_APPLICABLE'),
   );

@@ -2,6 +2,7 @@ import {
   originalBidCheckKeys,
   type HebeltraderOriginalBidReport,
   type OriginalBidCheck,
+  type ProductPriceScaleCurrent,
 } from '../hebeltraderOriginalBid';
 import {
   sessionCalendar,
@@ -12,6 +13,66 @@ import {
 
 const evaluatedAt = '2026-09-21T13:05:00Z';
 const bidAt = '2026-09-21T13:00:00Z';
+
+export function productPriceScaleCurrent(
+  productId = 'product-1',
+  underlyingId = 'underlying-1',
+): ProductPriceScaleCurrent {
+  const binding = {
+    warrant_id: productId,
+    isin: 'DE000TEST1234',
+    issuer_id: 'issuer-1',
+    underlying_id: underlyingId,
+    current_terms_id: 'terms-version-1',
+  };
+  return {
+    workspace_id: 'workspace-1',
+    warrant_id: productId,
+    known_at: evaluatedAt,
+    revision_id: 'product-scale-revision-2',
+    supersedes_revision_id: 'product-scale-revision-1',
+    revision_number: 2,
+    binding,
+    manifest: {
+      schema_version: 'product-price-scale-evidence-v1',
+      scale_id: 'synthetic-original-product-units',
+      source_version: 'synthetic-issuer-correction-2',
+      binding: { ...binding },
+      axis: 'WARRANT',
+      currency: 'EUR',
+      unit: 'CURRENCY_PER_WARRANT',
+      valid_from: '2026-08-30T22:00:00Z',
+      valid_until: '2026-09-21T13:00:01Z',
+      status: 'UNCHANGED_ORIGINAL',
+      source_publisher: 'Synthetischer Emittent',
+      source_reference: 'Originaldokument Produktmaßstab, Fassung 2',
+      source_document_sha256: 'c'.repeat(64),
+      source_published_at: null,
+      source_published_on: '2026-09-21',
+    },
+    source: {
+      manifest_sha256: 'd'.repeat(64),
+      document_sha256: 'c'.repeat(64),
+      document_filename: 'synthetic-original-scale.txt',
+      document_media_type: 'text/plain',
+      publisher: 'Synthetischer Emittent',
+      reference: 'Originaldokument Produktmaßstab, Fassung 2',
+      published_at: null,
+      published_on: '2026-09-21',
+      retrieved_at: '2026-09-21T13:01:00Z',
+      reviewed_at: '2026-09-21T13:02:00Z',
+      review_reference: 'Konkrete menschliche Prüfung der Produktmaßstabskette',
+      recorded_by: 'actor-1',
+    },
+    recorded_at: '2026-09-21T13:03:00Z',
+    read_at: evaluatedAt,
+    status: 'AVAILABLE',
+    reasons: [],
+    fingerprint: 'e'.repeat(64),
+    verification: 'MANUAL_DOCUMENT_REVIEW_NOT_INDEPENDENT_VERIFICATION',
+    operation_status: 'READ_ONLY',
+  };
+}
 
 export function originalBidReport(
   overrides: Partial<HebeltraderOriginalBidReport> = {},
@@ -96,6 +157,13 @@ export function originalBidReport(
           source: 'USER_CONFIRMED',
           source_execution_ids: [],
           confirmation_ids: ['currency-confirmation-1'],
+        },
+        {
+          execution_id: 'effective-buy-2',
+          currency_code: 'EUR',
+          source: 'USER_CONFIRMED',
+          source_execution_ids: [],
+          confirmation_ids: ['currency-confirmation-2'],
         },
       ],
     },
@@ -322,5 +390,65 @@ export function missingBidSideReport(
         }
       : check,
   );
+  return report;
+}
+
+export function documentedPriceScaleReport(
+  overrides: Partial<HebeltraderOriginalBidReport> = {},
+): HebeltraderOriginalBidReport {
+  const report = originalBidReport(overrides);
+  report.implementation_status = 'F207_3_PRODUCT_PRICE_SCALE_EVIDENCE_ONLY';
+  report.product_price_scale = {
+    definition_version: 'hebeltrader-product-price-scale-v1',
+    status: 'DOCUMENTED',
+    reasons: [],
+    evidence: productPriceScaleCurrent(report.product_id, report.underlying_id),
+    execution_basis_id: report.economic_basis.basis_id,
+    bid_at: report.bid.original_bid_at,
+    bid_status: 'COVERED',
+    bid_reasons: [],
+    adjustment_applied: false,
+    purchases: [
+      {
+        execution_id: 'effective-buy-1',
+        supersedes_execution_id: 'original-buy-1',
+        original_quantity: 10,
+        remaining_quantity: '5',
+        price_per_unit: '0.9',
+        executed_at: null,
+        executed_on: '2026-08-31',
+        execution_timezone: 'Europe/Berlin',
+        recorded_at: '2026-09-15T09:00:00Z',
+        currency_code: 'EUR',
+        possible_from: '2026-08-30T22:00:00Z',
+        possible_until: '2026-08-31T22:00:00Z',
+        status: 'COVERED',
+        reasons: [],
+      },
+      {
+        execution_id: 'effective-buy-2',
+        supersedes_execution_id: null,
+        original_quantity: 2,
+        remaining_quantity: '2',
+        price_per_unit: '1.2067901235',
+        executed_at: '2026-09-05T08:00:00Z',
+        executed_on: null,
+        execution_timezone: null,
+        recorded_at: '2026-09-05T08:10:00Z',
+        currency_code: 'EUR',
+        possible_from: '2026-09-05T08:00:00Z',
+        possible_until: null,
+        status: 'COVERED',
+        reasons: [],
+      },
+    ],
+  };
+  report.checks[6] = {
+    ...report.checks[6],
+    status: 'SATISFIED',
+    detail:
+      'Unveränderter Produktmaßstab für alle beitragenden Käufe und die Original-BID-Zeit dokumentiert. Manuelle Quellenprüfung, keine unabhängige Verifikation.',
+    reasons: [],
+  };
   return report;
 }

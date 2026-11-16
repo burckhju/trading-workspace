@@ -24,7 +24,11 @@ from app.features.position_monitoring.service.hebeltrader_original_bid_sessions 
     product_sessions,
     underlying_sessions,
 )
+from app.features.position_monitoring.service.hebeltrader_product_price_scale import (
+    product_scale_assessment,
+)
 from app.features.position_monitoring.service.hebeltrader_sessions import _entry
+from app.features.product.service.price_scale_evidence import ProductPriceScaleEvidenceReader
 from app.features.trade_position.service.hebeltrader_evidence import (
     read_hebeltrader_monitoring_basis,
 )
@@ -39,7 +43,9 @@ NOTICES = (
     "weder Originalzeit noch die Grenze von höchstens 900 Sekunden.",
     "Kalenderbelege stammen aus dokumentierter menschlicher Quellenprüfung. Dokumentierte "
     "Handelsintervalle und Quellstatus OPEN belegen keine unabhängig verifizierte aktuell "
-    "offene Produktsitzung. Der historische Optionsschein-Preismaßstab ist ebenfalls offen.",
+    "offene Produktsitzung. Ein dokumentierter Produktmaßstab ist ebenfalls keine unabhängige "
+    "Quellenverifikation: Nur der ausdrücklich belegte unveränderte Zeitraum zählt; "
+    "Anpassungsbedarf bleibt gesperrt und verändert keine Mengen oder Kosten.",
     "Gelesen wird der veränderliche letzte gespeicherte Erfolg der aktuell bestätigten "
     "Kursroute. Dies ist keine historische Kursrekonstruktion und keine Aussage über einen "
     "späteren Abrufversuch. Ein Speicherdatum wird in diesem Store nicht aufgezeichnet; "
@@ -107,6 +113,20 @@ class HebeltraderOriginalBidReader:
             ):
                 raise inconsistent_read()
             bid = assess_original_bid(saved, evaluated_at=started, applicable=state == "OPEN")
+            scale_evidence = await ProductPriceScaleEvidenceReader(session).current(
+                workspace_id=workspace_id,
+                warrant_id=basis.trade.product_id,
+                known_at=started,
+            )
+            scale = product_scale_assessment(
+                evidence=scale_evidence,
+                basis=basis,
+                underlying_id=owner.coverage.underlying_id,
+                saved=saved,
+                bid=bid,
+                now=started,
+                applicable=state == "OPEN",
+            )
             calendars = SessionEvidenceReader(session)
             entry = _entry(owner)
             product = await product_sessions(calendars, route=saved.route, bid=bid, now=started)
@@ -124,6 +144,7 @@ class HebeltraderOriginalBidReader:
                 bid=bid,
                 product=product,
                 underlying=underlying,
+                product_price_scale=scale,
                 applicable=state == "OPEN",
             )
             material = {
@@ -132,6 +153,7 @@ class HebeltraderOriginalBidReader:
                 "entry": asdict(entry) if entry else None,
                 "saved_quote": asdict(saved),
                 "bid": asdict(bid),
+                "product_price_scale": asdict(scale),
                 "product_sessions": asdict(product),
                 "underlying_sessions": asdict(underlying),
                 "checks": [asdict(check) for check in checks],
@@ -153,6 +175,7 @@ class HebeltraderOriginalBidReader:
                 entry=entry,
                 saved_quote=saved,
                 bid=bid,
+                product_price_scale=scale,
                 product_sessions=product,
                 underlying_sessions=underlying,
                 coverage_status=(

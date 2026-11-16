@@ -12,7 +12,7 @@ from alembic.script import ScriptDirectory
 ROOT = Path(__file__).resolve().parents[3]
 RUN = "00000000-0000-4000-8000-000000000123"
 WORKSPACE = "00000000-0000-4000-8000-000000000001"
-CURRENT = "20261115_0052"
+CURRENT = "20261116_0053"
 
 
 @pytest.fixture(params=["realized_gross", "journal", "candidate_governance"])

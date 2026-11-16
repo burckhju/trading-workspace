@@ -1659,3 +1659,166 @@ deren Meldungs-/Zustelllebenszyklus. Einstandsvergleich, Verlustepisode, Order,
 Ausführung, Providerzustimmung, Merge, Release und PC-Installation gehören
 nicht zu diesem Anschlussauftrag. Die maßgebliche Aufgabenstatusquelle bleibt
 der Product Backlog.
+
+
+<a id="f207-3-product-price-scale"></a>
+## F207-3: dokumentierter Optionsschein-Preismaßstab
+
+### Umfang und geprüfte Grundlage
+
+Der Anschluss vom 16.11.2026 baut auf dem Original-Geldkurs-Head aus
+[#348](https://github.com/burckhju/trading-workspace/pull/348)
+`9a6168c12eca72094fda925862819e49d5df7485` auf. Bei der Bestandsprüfung steht Main
+auf `19a10ad484293995e200b5eb9a99b4ae11a49ee2`; #348 ist ein offener Draft und
+bleibt eine ausdrücklich benannte Integrationsabhängigkeit. Der eigene Branch
+`feat/f207-3-product-price-scale` verändert diesen Vorgängerbranch nicht.
+Tatsächlicher Prüfhead, Testmerge, CI-Ergebnisse und späterer Integrationsstand
+stehen im zugehörigen PR; der Aufgabenstatus bleibt ausschließlich im Backlog.
+
+Dieser Schnitt ergänzt **einen dokumentgebundenen Produktmaßstab und dessen
+Consumer im bestehenden Original-Geldkursbericht**. Ein unveränderter Maßstab
+kann damit für alle noch zur gehaltenen Position beitragenden Käufe und den
+konkreten Original-BID nachgewiesen werden. Er ist produktbezogen wiederverwendbar;
+keine neue Bestätigung pro Position, Fill oder Kurs wird allein durch das Lesen
+verlangt. Fehlende oder unzureichende Quellen bleiben konkrete Ausnahmen.
+
+Es gibt keine Umrechnung von Preisen, Kosten oder Stückzahlen. Ein Beleg mit
+Anpassungsbedarf sperrt die Vergleichbarkeit. Eine geeignete dokumentierte Skala
+ist außerdem kein Nachweis des offenen Produktmarkts, keine B04-Auswertung und
+keine aktive Baseline. B07, der Ausschluss B08 und sämtliche anderen bestätigten
+Regeln behalten ihre Bedeutung.
+
+### Product als einziger Maßstabsowner
+
+`product.domain.price_scale_evidence` definiert den engen
+`product-price-scale-evidence-v1`-Vertrag. Die neue Relation
+`product_price_scale_evidence` enthält ausschließlich Originalquellen und ihre
+Revisionen. Sie enthält keine Käufe, Verkäufe, Lots, Kosten oder Positionsbestände.
+Die bestehende `WarrantValuationEvidence`-Akte bleibt für Produktart,
+Ausübungsart, Quanto, Ratio-Konvention und Verfall zuständig. Deren aktuelle
+Bewertungsbestätigung wird nicht still zu einem historischen Maßstabsbeleg.
+
+| Belegteil | Vertrag |
+| --- | --- |
+| Identität | Workspace des Imports, exaktes Produkt, ISIN, Emittent, Basiswert und ausdrücklich referenzierter aktueller `current_terms_id`. Eine spätere Identitäts- oder Termsänderung sperrt die aktuelle Zuordnung. |
+| Preismaßstab | Achse `WARRANT`, explizite Währung, Einheit `CURRENCY_PER_WARRANT`, dokumentierte `scale_id` und `source_version`. Gleiche Ratio, gleiche ISIN oder gleiche Währung allein genügen nicht. |
+| Historische Gültigkeit | Ausdrückliches endliches, offsetbewusstes Intervall `[valid_from, valid_until)` aus der Quelle. `effective_from` der vorhandenen Produktbedingungen ist eine Erfassungsgrenze und wird nicht als tatsächlicher historischer Anpassungszeitpunkt verwendet. |
+| Aussage | `UNCHANGED_ORIGINAL`, `ADJUSTMENT_REQUIRED` oder `WITHDRAWN`. Nur der erste Fall kann unveränderte Originaleinheiten dokumentieren. Ein Faktor, eine automatische Splitverrechnung oder ein günstiger Rückfall auf eine alte Revision existiert nicht. |
+| Original | Exakter UTF-8-Manifesttext und Originaldokumentbytes mit getrennten SHA256, Dateiname, Medientyp, Herausgeber und konkreter Fundstelle. Hashprüfung belegt Unverändertheit der übergebenen Bytes, nicht die sachliche Wahrheit des Inhalts. |
+| Zeitstände | Veröffentlichung entweder zeit- oder datumgenau; optionale tatsächliche Beschaffungszeit, ausdrückliche Prüfung und serverseitige spätere Erfassung bleiben getrennt. Unbekannte Uhrzeiten werden nicht ergänzt. |
+| Korrektur | Eigene `request_id`, unveränderliche Revision, exakter Vorgänger und Requestfingerprint. Identischer Retry erhält den ursprünglichen Beleg; geänderter Requestinhalt oder veralteter Vorgänger wird abgewiesen. |
+
+Die Herkunft bleibt ausdrücklich
+`MANUAL_DOCUMENT_REVIEW_NOT_INDEPENDENT_VERIFICATION`. Ein dokumentierter
+Gültigkeitsanspruch kann über den Erfassungszeitpunkt hinaus reichen; er ist
+**keine laufend unabhängig verifizierte Änderungsfreiheit**. Es gibt keine
+unbegrenzte Fortschreibung, automatische Anpassungsbeschaffung oder Verlängerung
+über das erklärte Ende hinaus. Ein neu erfasster Produktbedingungsstand verlangt
+neue passende Evidenz. Ein Basiswertsplit oder eine F207-4-Markenbestätigung
+qualifiziert keine Optionsschein-Anpassung.
+
+### Schmaler Import- und Lesevertrag
+
+| Bestehender Owner / ergänzter Einstieg | Wirkung |
+| --- | --- |
+| `POST /api/v1/warrants/{warrant_id}/price-scale-evidence/imports` | Bewusster Import des konkreten Originalpakets mit `confirmation=CONFIRM_PRODUCT_PRICE_SCALE_DOCUMENT_REVIEW`; erzeugt nur eine Maßstabsrevision. |
+| `GET /api/v1/warrants/{warrant_id}/price-scale-evidence/current` | Serverzeitgebundener Read der neuesten bekannten Revision einschließlich ungeeigneter oder zurückgenommener Quelle. Keine historischen Queryparameter, kein günstiger Quellenfallback. |
+| `GET /api/v1/warrants/{warrant_id}/price-scale-evidence/revisions/{revision_id}` | Exakter ursprünglicher Beleg einschließlich Manifest und Originalbytes; ursprüngliche und ersetzte Revision bleiben lesbar. |
+| `ProductPriceScaleEvidenceReader.current(workspace_id, warrant_id, known_at)` | Interner Product-Read in der bereits geöffneten Snapshottransaktion des Consumers. `known_at` bindet den Wissensstand; er rekonstruiert keine historische Stammdatenwelt. Der kompakte Read enthält keine Dokumentbytes. |
+
+Der Import verwendet die vorhandene Produktidentität und deren vorhandene
+Bedingungsversion. Es werden keine Ersatzstammdaten oder historischen
+Ausführungen angelegt. Das Paket enthält `manifest_json`, dessen SHA256,
+`document_base64`, dessen SHA256, Dateiname/Medientyp, Prüfzeit/Fundstelle,
+optionale Beschaffungszeit sowie Request-/Vorgänger-ID. Das darin enthaltene
+Manifest nennt exakt die oben beschriebenen Produkt-, Maßstabs-, Zeitraum- und
+Quellenfelder. Maximal 64.000 Manifestbytes und 2.000.000 Originaldokumentbytes;
+Doppelkeys, unbekannte Felder, numerische Ersatzzeitstempel, ungültige Hashes und
+widersprüchliche Publikationszeitgenauigkeit sind keine akzeptierten Originale.
+URLs sind Herkunftstext und werden durch Import oder Lesen nicht abgerufen.
+
+Der Backendweg ist ein Integrationsvertrag für tatsächlich vorhandene und
+bewusst geprüfte Originale; es gibt in diesem Schnitt keinen neuen Quelleneditor.
+Die vorhandenen Positionsdetails bleiben rein lesend. Eine Originalquelle darf
+nicht automatisch aus identischen Stammdaten oder aus dem Fehlen eines
+Splitvermerks erzeugt werden.
+
+Migration `20261116_0053` folgt dem erneut geprüften linearen Head
+`20261115_0052`. PostgreSQL schützt Originalbytes/Hashes, Produkt-/Workspace-/
+Termsbindung, Revisionskette und Unveränderlichkeit einschließlich UPDATE,
+DELETE und TRUNCATE. Ein Downgrade mit bereits gespeicherten Originalbelegen
+bricht ab, statt diese zu löschen. Vorhandene Bewertungsfakten, Ausführungen,
+Kursdaten, Kalender und Regeln werden nicht umgeschrieben. VERSION bleibt
+unverändert; eine Migration im Test ist kein Installationsnachweis auf dem PC.
+
+### Consumer: bestehende wirtschaftliche Wahrheit vollständig erhalten
+
+Der vorhandene `hebeltrader-original-bid`-GET liest den Product-Beleg in **derselben
+`REPEATABLE READ READ ONLY`-Transaktion** wie die übrigen Owner. Er verwendet
+unverändert `PositionExecutionBasis` und die vom vorhandenen Projektor gelieferten
+`buy_contributions`. Die ursprüngliche Menge, der noch beitragende Anteil,
+Ausführungskorrektur, tatsächlicher Preis und historische Währung jedes Kaufs
+bleiben nachvollziehbar. Kein eigener Gewichtungs- oder Einstandsrechner kommt
+hinzu.
+
+Jeder beitragende Kauf und die tatsächliche Original-BID-Zeit müssen im selben
+belegten unveränderten Zeitraum und in derselben Währung liegen. Fehlende
+Teilabdeckung entfernt keinen Kauf aus der Basis. Datumgenaue Käufe verlangen
+die Abdeckung des ganzen möglichen lokalen Tages einschließlich Zeitumstellung;
+ihr interner Mitternachts-Sortieranker wird nicht als bekannte Kaufuhrzeit
+angezeigt. Bei einer Ausführungskorrektur werden dieselben neuen effektiven
+Ownerfakten erneut gebunden; Originalausführung und ursprünglicher Produktbeleg
+bleiben erhalten. Eine Korrektur innerhalb desselben belegten Maßstabs braucht
+keine pauschale neue Dokumenterklärung. Ein korrigierter Kauf außerhalb des
+Zeitraums bleibt dagegen unvollständig.
+
+Der additive Reportteil `product_price_scale` enthält den kompakten Product-Read,
+`execution_basis_id`, Original-BID-Bezug und sämtliche Kaufbeiträge samt
+Einzelbefunden. `DOCUMENTED` bedeutet dokumentierte unveränderte Einheiten;
+`MISSING`, `UNSUITABLE` und `NOT_APPLICABLE` erhalten konkrete Gründe.
+`adjustment_applied=false` bleibt fest. Der Gesamtberichtsfingerprint bindet
+Quelle, Revision, Zeiten, wirtschaftliche Basis und diese Einzelbefunde.
+Nach dem gemeinsamen Serverlesestart erfasste Ausführungs- oder verwendete
+Währungsfakten führen zu einem Konsistenzfehler; der Read filtert sie nicht
+heraus und projiziert keine vermeintlich frühere wirtschaftliche Wahrheit.
+Ein erneuter passiver Read kann den neuen gemeinsamen Stand lesen.
+
+`PRICE_SCALE` kann dadurch `SATISFIED` werden; die Anzeige benennt ausdrücklich
+die manuelle Originalquellenprüfung. `VERIFIED_LIVE_MARKET_STATUS` bleibt für
+offene Positionen fehlend. Der Bericht bleibt `PARTIAL` beziehungsweise
+`UNSUITABLE`; `F207_3_PRODUCT_PRICE_SCALE_EVIDENCE_ONLY`,
+`B04_B05_B06_B58_NOT_EVALUATED`, `NOT_ACTIVATED` und `READ_ONLY` trennen Umfang,
+Regelfunktion, Betrieb und Wirkung. Die bisherigen v1-Antworten werden vom
+Frontend weiterhin erkannt; der neue Implementierungsstatus verlangt den
+vollständigen zusätzlichen Maßstabsbericht.
+
+Die bestehende Original-Geldkursanzeige zeigt Zeitraum, Quellen-/Termsrevision,
+Prüf-/Erfassungszeiten, Hashes und die beitragenden Käufe. Kein zusätzlicher
+Positionsread, Formular oder Provideraufruf wird ausgelöst. A→B→A, verspätete
+Antworten, Unmount sowie bestehende Entwürfe und UNKNOWN-Recovery bleiben geschützt.
+Technische oder inkonsistente Ownerantworten sind Lesefehler; sie werden nicht
+als fehlende oder erfüllte Belege ausgegeben.
+
+### Nachweise und verbleibender Anschluss
+
+Gezielte synthetische Fälle decken Einstiegsfills, Teilverkauf/Nachkauf,
+Korrekturen, unbelegte Teilmengen, datumgenaue Käufe/DST, Grenzen des halboffenen
+Zeitraums, Währungen, fremde Identitäten, neue Terms, Originalhashes, konkurrierende
+Revisionen, Rücknahme, Anpassungsbedarf und reine Reads ab. Echte PostgreSQL-Fälle
+verwenden die vorhandenen bewachten UUID-Wegwerfdatenbanken mit abgefangenen
+externen Aufrufen; Migration, Originalimporte, tatsächliche Käufe/Verkäufe/
+Korrekturen und Read-only-Snapshot werden dort geprüft. Ausgeführte Ergebnisse,
+Skips und unveränderte reguläre Gates stehen am konkreten Head/Testmerge im PR.
+Lokale Sammlung ersetzt keinen PostgreSQL- oder Betriebsnachweis.
+
+**Nächste F207-3-Abhängigkeit:** Ein tatsächlich belegter Quellvertrag für den
+instrumentbezogenen offenen Markt muss eigene Originalstatuszeit, Handelsplatz
+und zeitliche Bedeutung liefern. `trading_status=OPEN`, BID-/Generierungszeit
+und geplantes Kalenderintervall leisten dies derzeit nicht. Erst damit und mit
+ausreichend qualifizierter tatsächlicher Quellenversorgung können B58 und die
+B04-/B57-Verlustepisode geschlossen werden. Produktspezifische Anpassungsfaktoren
+und ihre einmalige wirtschaftliche Anwendung sind ebenfalls nicht implementiert.
+Produkttermine/B05, Z1-bezogene B06-Zählung und historische Basiswert-Trades bleiben
+weitere F207-3-Teile; F207-2 benötigt Schutz-/Korrekturverträge, F207-5 den Regel-/
+Meldungs-/Zustelllebenszyklus. Kein produktiver Provider, Release, PC-Update,
+echte Nachricht oder produktive Datenkorrektur folgt aus diesem Anschluss.
