@@ -17,9 +17,9 @@ import {
   unavailableSessionReport,
 } from "../../frontend/src/features/operational_workspace/test/hebeltraderSessionsFixture";
 import {
-  documentedPriceScaleReport,
   missingBidSideReport,
   originalBidReport,
+  originalMarketStatusReport,
 } from "../../frontend/src/features/operational_workspace/test/hebeltraderOriginalBidFixture";
 import type { OperationalPosition } from "../../frontend/src/features/operational_workspace/types";
 
@@ -161,7 +161,7 @@ async function setup(
         id === "97"
           ? missingBidSideReport
           : id === "99"
-            ? documentedPriceScaleReport
+            ? originalMarketStatusReport
             : originalBidReport
       )({
         trade_id: `trade-${id}`,
@@ -466,7 +466,9 @@ test("valuation notices preserve keyboard details, existing reads and explicit h
         : "Historischer Produkt-Preismaßstab · Beleg fehlt",
     );
     await expect(original).toContainText(
-      "Verifizierte offene Produktsitzung · Beleg fehlt",
+      id === 99
+        ? "Verifizierter Produktmarktstatus · Beleg fehlt"
+        : "Verifizierte offene Produktsitzung · Beleg fehlt",
     );
     await expect(original).toContainText(
       "nicht als laufende Überwachung aktiviert",
@@ -510,6 +512,27 @@ test("valuation notices preserve keyboard details, existing reads and explicit h
       ).toBeVisible();
       await expect(original).toContainText("f".repeat(64));
       if (id === 99) {
+        await expect(original).toContainText("Originaler Produktmarktstatus");
+        await expect(original).toContainText(
+          "2026-09-21T15:00:00+02:00 · Feld market_status_at",
+        );
+        await expect(original).toContainText("OPEN · Feld market_status");
+        await expect(original).toContainText("SYNTHETIC-FRANKFURT");
+        await expect(original).toContainText(
+          "Bezugspunkt entspricht der Statusbeobachtung",
+        );
+        await expect(original).toContainText(
+          "Bezugspunkt liegt nach der Statusbeobachtung",
+        );
+        await expect(original).toContainText(
+          "Ob der Produktmarkt zum Lesestand offen oder geschlossen ist, ist damit nicht belegt",
+        );
+        await expect(original).toContainText(
+          "Eine Originalstatuszeit belegt eine Punktbeobachtung, kein Gültigkeitsintervall",
+        );
+        await expect(original).toContainText(
+          "Spätere Statusmeldungen, auch CLOSED oder SUSPENDED ohne geeigneten Geldkurs, können darin fehlen",
+        );
         await expect(original).toContainText("synthetic-issuer-correction-2");
         await expect(original).toContainText(
           "2026-09-21T13:00:01Z ausschließlich",

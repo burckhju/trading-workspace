@@ -26,6 +26,13 @@ const day = (value: unknown): value is string =>
 const nullableDay = (value: unknown) => value === null || day(value);
 const currency = (value: unknown) => typeof value === 'string' && /^[A-Z]{3}$/.test(value);
 const hash = (value: unknown) => typeof value === 'string' && /^[a-f0-9]{64}$/.test(value);
+const originalStatusClock = (value: unknown): value is string =>
+  clock(value) &&
+  /^\d{4}-\d{2}-\d{2}T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d{1,6})?(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/.test(
+    value,
+  ) &&
+  !value.endsWith('-00:00') &&
+  day(value.slice(0, 10));
 
 function requireValue(condition: unknown): asserts condition {
   if (!condition) throw new Error(protocolError);
@@ -125,6 +132,62 @@ function verifySide(value: unknown) {
   );
 }
 
+const originalStatusFields = [
+  'version',
+  'source_contract',
+  'source_reference',
+  'generated_at',
+  'isin',
+  'venue_mic',
+  'status',
+  'original_status_text',
+  'source_status_field',
+  'observed_at',
+  'original_time_text',
+  'source_time_field',
+  'time_basis',
+  'temporal_meaning',
+] as const;
+
+function verifyOriginalStatus(
+  value: unknown,
+  quote: Record<string, unknown>,
+  route: Record<string, unknown>,
+) {
+  const original = object(value);
+  requireValue(
+    original.version === 'original-market-status-evidence-v1' &&
+      [
+        'source_contract',
+        'source_reference',
+        'original_status_text',
+        'source_status_field',
+        'source_time_field',
+      ].every((key) => text(original[key])) &&
+      clock(original.generated_at) &&
+      clock(original.observed_at) &&
+      originalStatusClock(original.original_time_text) &&
+      original.isin === quote.provider_symbol &&
+      (quote.isin === null || original.isin === quote.isin) &&
+      original.venue_mic === route.venue_mic &&
+      original.venue_mic === quote.venue_mic &&
+      original.status === quote.trading_status &&
+      original.original_status_text === original.status &&
+      oneOf(original.status, ['OPEN', 'CLOSED', 'SUSPENDED', 'UNKNOWN']) &&
+      original.time_basis === 'SEPARATE_STATUS_TIMESTAMP' &&
+      original.temporal_meaning === 'OBSERVED_AT_INSTANT',
+  );
+  if (quote.original_evidence !== null) {
+    const envelope = object(quote.original_evidence);
+    requireValue(
+      ['source_contract', 'source_reference', 'generated_at'].every(
+        (key) => original[key] === envelope[key],
+      ),
+    );
+  }
+  return original;
+}
+
 function verifySaved(
   value: unknown,
   positionId: string,
@@ -213,7 +276,73 @@ function verifySaved(
     verifySide(original.bid);
     verifySide(original.ask);
   }
+  if (quote.original_market_status != null) {
+    verifyOriginalStatus(quote.original_market_status, quote, route);
+  }
   return saved;
+}
+
+function verifyStatusPoint(
+  value: unknown,
+  eventAt: unknown,
+  applicable: boolean,
+  hasOriginal: boolean,
+) {
+  const point = object(value);
+  requireValue(point.event_at === eventAt && nullableClock(point.event_at));
+  if (!applicable) {
+    requireValue(point.status === 'NOT_APPLICABLE' && point.relation === 'NOT_APPLICABLE');
+  } else {
+    requireValue(point.status === 'NOT_ASSESSABLE');
+    requireValue(
+      eventAt === null
+        ? point.relation === 'NO_EVENT_TIME'
+        : !hasOriginal
+          ? point.relation === 'NO_ORIGINAL_STATUS_TIME'
+          : oneOf(point.relation, ['BEFORE_SOURCE_POINT', 'AT_SOURCE_POINT', 'AFTER_SOURCE_POINT']),
+    );
+  }
+}
+
+function verifyLiveMarketStatus(
+  value: unknown,
+  report: Record<string, unknown>,
+  saved: Record<string, unknown>,
+  bid: Record<string, unknown>,
+) {
+  const live = object(value);
+  const quote = saved.quote === null ? null : object(saved.quote);
+  const applicable = report.position_state === 'OPEN';
+  requireValue(
+    live.definition_version === 'hebeltrader-live-market-status-v1' &&
+      oneOf(live.status, ['MISSING', 'UNSUITABLE', 'NOT_APPLICABLE']) &&
+      strings(live.reasons) &&
+      live.evaluated_at === report.evaluated_at &&
+      live.reported_status === (quote?.trading_status ?? null) &&
+      (live.reported_status === null || text(live.reported_status)) &&
+      live.evidence_scope === 'SAVED_QUOTE_LAST_SUCCESS_ONLY' &&
+      live.source_qualification === 'NOT_INDEPENDENTLY_VERIFIED' &&
+      live.newer_status_observations === 'NOT_OBSERVED_BY_SAVED_QUOTE_READER' &&
+      live.status_validity_interval === 'NOT_ESTABLISHED',
+  );
+  if (live.original_evidence === null) {
+    requireValue(quote?.original_market_status == null);
+  } else {
+    requireValue(quote !== null);
+    const route = object(saved.route);
+    const original = verifyOriginalStatus(live.original_evidence, quote, route);
+    const savedOriginal = object(quote.original_market_status);
+    requireValue(originalStatusFields.every((key) => original[key] === savedOriginal[key]));
+  }
+  verifyStatusPoint(live.at_bid, bid.original_bid_at, applicable, live.original_evidence !== null);
+  verifyStatusPoint(live.at_read, report.evaluated_at, applicable, live.original_evidence !== null);
+  requireValue(
+    applicable
+      ? live.status !== 'NOT_APPLICABLE' &&
+          (live.status !== 'UNSUITABLE' || report.coverage_status === 'UNSUITABLE')
+      : live.status === 'NOT_APPLICABLE',
+  );
+  return live;
 }
 
 function verifyMatch(value: unknown, event: unknown) {
@@ -461,6 +590,7 @@ export function verifyHebeltraderOriginalBid(
       oneOf(report.implementation_status, [
         'F207_3_ORIGINAL_BID_EVIDENCE_ONLY',
         'F207_3_PRODUCT_PRICE_SCALE_EVIDENCE_ONLY',
+        'F207_3_MARKET_STATUS_EVIDENCE_ONLY',
       ]) &&
       report.rule_evaluation_status === 'B04_B05_B06_B58_NOT_EVALUATED' &&
       report.operation_status === 'NOT_ACTIVATED' &&
@@ -613,7 +743,9 @@ export function verifyHebeltraderOriginalBid(
           underlyingCalendar.workspace_id,
         );
   requireValue(
-    report.implementation_status !== 'F207_3_PRODUCT_PRICE_SCALE_EVIDENCE_ONLY' || scale !== null,
+    !['F207_3_PRODUCT_PRICE_SCALE_EVIDENCE_ONLY', 'F207_3_MARKET_STATUS_EVIDENCE_ONLY'].includes(
+      String(report.implementation_status),
+    ) || scale !== null,
   );
   const scaleCheck = checks.find((check) => check.key === 'PRICE_SCALE');
   requireValue(
@@ -622,9 +754,21 @@ export function verifyHebeltraderOriginalBid(
       : scaleCheck?.status === (scale.status === 'DOCUMENTED' ? 'SATISFIED' : scale.status),
   );
   requireValue(
+    report.implementation_status !== 'F207_3_MARKET_STATUS_EVIDENCE_ONLY' ||
+      report.live_market_status != null,
+  );
+  const live =
+    report.live_market_status == null
+      ? null
+      : verifyLiveMarketStatus(report.live_market_status, report, saved, bid);
+  const liveCheck = checks.find((check) => check.key === 'VERIFIED_LIVE_MARKET_STATUS');
+  requireValue(live === null || liveCheck?.status === live.status);
+  requireValue(
     report.position_state === 'OPEN'
       ? report.coverage_status !== 'NOT_APPLICABLE' &&
-          checks.find((check) => check.key === 'VERIFIED_LIVE_MARKET_STATUS')?.status === 'MISSING'
+          (report.implementation_status === 'F207_3_MARKET_STATUS_EVIDENCE_ONLY'
+            ? live !== null && oneOf(liveCheck?.status, ['MISSING', 'UNSUITABLE'])
+            : liveCheck?.status === 'MISSING')
       : report.coverage_status === 'NOT_APPLICABLE' &&
           checks.every((check) => check.status === 'NOT_APPLICABLE'),
   );

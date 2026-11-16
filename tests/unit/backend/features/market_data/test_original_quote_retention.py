@@ -106,6 +106,7 @@ async def test_new_capture_keeps_legacy_quote_hash_and_never_rewrites_legacy_pay
         )
     legacy_quote = QUOTE.dump_python(c.result.data, mode="json")
     legacy_quote.pop("original_evidence")
+    legacy_quote.pop("original_market_status")
     # This is the released pre-extension fingerprint format and stored payload.
     legacy_material = {
         key: value

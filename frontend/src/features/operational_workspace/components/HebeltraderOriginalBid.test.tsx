@@ -8,6 +8,7 @@ import {
   documentedPriceScaleReport,
   missingBidSideReport,
   originalBidReport,
+  originalMarketStatusReport,
 } from '../test/hebeltraderOriginalBidFixture';
 import { HebeltraderOriginalBid } from './HebeltraderOriginalBid';
 import { PositionDetails } from './PositionDetails';
@@ -41,6 +42,101 @@ function deferred() {
   });
   return { promise, resolve, reject };
 }
+
+it('shows the original status point, both reference clocks and the unobserved newer-state boundary', async () => {
+  const user = userEvent.setup();
+  vi.mocked(readHebeltraderOriginalBid).mockResolvedValueOnce(originalMarketStatusReport());
+  render(<HebeltraderOriginalBid tradeId="trade-1" positionId="position-1" />);
+  await screen.findByText('Verifizierter Produktmarktstatus · Beleg fehlt');
+  await user.click(screen.getByText('Geldkursquelle, Positionsbasis und Kalenderbelege'));
+  expect(field('Gespeicherte Marktstatusmeldung')).toHaveTextContent('OPEN');
+  expect(field('Originaltext des Status und Quellenfeld')).toHaveTextContent(
+    'OPEN · Feld market_status',
+  );
+  expect(field('Eigenständige Originalstatuszeit')).toHaveTextContent('2026-09-21T13:00:00Z');
+  expect(field('Unveränderter Originalzeittext des Status')).toHaveTextContent(
+    '2026-09-21T15:00:00+02:00 · Feld market_status_at',
+  );
+  expect(field('Statusquelle und Instrument')).toHaveTextContent(
+    'frankfurt-quotes-v1 · SYNTHETIC-FRANKFURT · DE000TEST1234 · XFRA',
+  );
+  expect(field('Statusbezug zur Original-BID-Zeit')).toHaveTextContent(
+    'Bezugspunkt entspricht der Statusbeobachtung',
+  );
+  expect(field('Statusbezug zum Lesestand')).toHaveTextContent(
+    'Bezugspunkt liegt nach der Statusbeobachtung',
+  );
+  expect(field('Statusbezug zum Lesestand')).toHaveTextContent('2026-09-21T13:05:00Z');
+  expect(
+    screen.getByText(/Eine Originalstatuszeit belegt eine Punktbeobachtung/),
+  ).toHaveTextContent(
+    '900 Sekunden betrifft den Geldkurs, nicht eine Gültigkeitsdauer des Marktstatus',
+  );
+  expect(screen.getByText(/Der Quellenvertrag ist nicht unabhängig verifiziert/)).toHaveTextContent(
+    'Spätere Statusmeldungen, auch CLOSED oder SUSPENDED ohne geeigneten Geldkurs, können darin fehlen',
+  );
+  expect(
+    within(
+      screen.getByRole('list', { name: 'Voraussetzungen für den Original-Geldkurs' }),
+    ).getAllByRole('listitem'),
+  ).toHaveLength(8);
+  expect(screen.getByText('Teilbelege vorhanden; Gesamtqualifikation offen')).toBeVisible();
+  expect(screen.getAllByRole('button')).toHaveLength(1);
+  expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+  expect(readHebeltraderOriginalBid).toHaveBeenCalledOnce();
+});
+
+it.each(['CLOSED', 'SUSPENDED'] as const)(
+  'describes %s as the saved source statement without asserting a currently closed market',
+  async (status) => {
+    const user = userEvent.setup();
+    const report = originalMarketStatusReport({ coverage_status: 'UNSUITABLE' });
+    report.live_market_status!.status = 'UNSUITABLE';
+    report.live_market_status!.reported_status = status;
+    report.live_market_status!.original_evidence!.status = status;
+    report.live_market_status!.original_evidence!.original_status_text = status;
+    report.saved_quote.quote!.trading_status = status;
+    report.saved_quote.quote!.original_market_status = {
+      ...report.live_market_status!.original_evidence!,
+    };
+    report.checks[7].status = 'UNSUITABLE';
+    vi.mocked(readHebeltraderOriginalBid).mockResolvedValueOnce(report);
+    render(<HebeltraderOriginalBid tradeId="trade-1" positionId="position-1" />);
+    await screen.findByText('Verifizierter Produktmarktstatus · Ungeeignet');
+    await user.click(screen.getByText('Geldkursquelle, Positionsbasis und Kalenderbelege'));
+    expect(field('Gespeicherte Marktstatusmeldung')).toHaveTextContent(status);
+    expect(screen.getByText(/Gespeicherter Offen-Beleg:/)).toHaveTextContent(
+      'Ob der Produktmarkt zum Lesestand offen oder geschlossen ist, ist damit nicht belegt',
+    );
+    expect(field('Statusbezug zum Lesestand')).toHaveTextContent('Keine daraus belegte Öffnung');
+    expect(field('Regelfunktion')).toHaveTextContent(
+      'B04, B05, B06 und B58 sind nicht ausgewertet',
+    );
+    expect(field('Betriebszustand')).toHaveTextContent('nicht als laufende Überwachung aktiviert');
+  },
+);
+
+it('keeps absent status time absent even beside a fresh original BID and populated envelope clocks', async () => {
+  const user = userEvent.setup();
+  const report = originalMarketStatusReport();
+  report.live_market_status!.original_evidence = null;
+  report.saved_quote.quote!.original_market_status = null;
+  report.live_market_status!.at_bid.relation = 'NO_ORIGINAL_STATUS_TIME';
+  report.live_market_status!.at_read.relation = 'NO_ORIGINAL_STATUS_TIME';
+  vi.mocked(readHebeltraderOriginalBid).mockResolvedValueOnce(report);
+  render(<HebeltraderOriginalBid tradeId="trade-1" positionId="position-1" />);
+  await screen.findByText('Verifizierter Produktmarktstatus · Beleg fehlt');
+  await user.click(screen.getByText('Geldkursquelle, Positionsbasis und Kalenderbelege'));
+  expect(field('Eigenständige Originalstatuszeit')).toHaveTextContent('Nicht belegt');
+  expect(field('Unveränderter Originalzeittext des Status')).toHaveTextContent(
+    'BID-, Snapshot-, Generierungs- und Abrufzeit ersetzen sie nicht',
+  );
+  expect(field('Statusbezug zur Original-BID-Zeit')).toHaveTextContent(
+    'Eigenständige Originalstatuszeit nicht belegt',
+  );
+  expect(field('Exakte Original-BID-Zeit')).toHaveTextContent('2026-09-21T13:00:00Z');
+  expect(field('Kursalter laut Server')).toHaveTextContent('300 Sekunden');
+});
 
 it('shows the bounded original product document and both owner contributions without activating a rule', async () => {
   const user = userEvent.setup();
@@ -143,13 +239,13 @@ it.each(['ADJUSTMENT_REQUIRED', 'WITHDRAWN'] as const)(
   },
 );
 
-it('does not attach a late product scale revision to a newly reopened position or overwrite its neighbour draft', async () => {
+it('does not attach late scale or status evidence to a reopened position or overwrite its neighbour draft', async () => {
   const user = userEvent.setup();
   const pending = deferred();
   vi.mocked(readHebeltraderOriginalBid)
     .mockReturnValueOnce(pending.promise)
     .mockImplementation((tradeId, positionId) =>
-      Promise.resolve(documentedPriceScaleReport({ trade_id: tradeId, position_id: positionId })),
+      Promise.resolve(originalMarketStatusReport({ trade_id: tradeId, position_id: positionId })),
     );
   const content = (tradeId: string, positionId: string) => (
     <>
@@ -165,15 +261,18 @@ it('does not attach a late product scale revision to a newly reopened position o
   await screen.findByText('Historischer Produkt-Preismaßstab · Teilvoraussetzung belegt');
   view.rerender(content('trade-1', 'position-1'));
   await screen.findByText('Historischer Produkt-Preismaßstab · Teilvoraussetzung belegt');
-  const stale = documentedPriceScaleReport();
+  const stale = originalMarketStatusReport();
   stale.product_price_scale!.evidence.manifest!.source_version = 'VERALTETE_FREMDE_QUELLVERSION';
+  stale.live_market_status!.original_evidence!.source_reference = 'VERALTETE_STATUSQUELLE';
   await act(async () => {
     pending.resolve(stale);
     await pending.promise;
   });
   await user.click(screen.getByText('Geldkursquelle, Positionsbasis und Kalenderbelege'));
   expect(field('Historischer Produktmaßstab')).toHaveTextContent('synthetic-issuer-correction-2');
+  expect(field('Statusquelle und Instrument')).toHaveTextContent('SYNTHETIC-FRANKFURT');
   expect(screen.queryByText(/VERALTETE_FREMDE_QUELLVERSION/)).not.toBeInTheDocument();
+  expect(screen.queryByText(/VERALTETE_STATUSQUELLE/)).not.toBeInTheDocument();
   expect(screen.getByLabelText('Bestehender Qualifikationsentwurf')).toHaveValue(
     'Mein erhaltenes Dokument',
   );

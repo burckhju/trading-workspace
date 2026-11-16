@@ -7,6 +7,10 @@ from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
+from app.features.market_data.domain.original_market_status_evidence import (
+    OriginalMarketStatusEvidence,
+    original_market_status_time,
+)
 from app.features.market_data.domain.original_quote_evidence import (
     OriginalQuoteEvidence,
     OriginalQuoteSideEvidence,
@@ -58,6 +62,12 @@ class FrankfurtRecord(BaseModel):
     close_price: Price | None = None
     close_at: datetime | None = None
     trading_status: Literal["OPEN", "CLOSED", "SUSPENDED", "UNKNOWN"] = "UNKNOWN"
+    status_observed_at: datetime | None = None
+
+    @field_validator("status_observed_at", mode="before")
+    @classmethod
+    def validate_status_timestamp(cls, value: Any) -> datetime | None:
+        return None if value is None else original_market_status_time(value)
 
     @field_validator("bid_at", "ask_at", "last_at", "close_at", mode="before")
     @classmethod
@@ -105,6 +115,7 @@ class FrankfurtObservation(BaseModel):
     refresh_error: str | None = None
     execution_usable: Literal[False] = False
     original_evidence: OriginalQuoteEvidence | None = None
+    original_market_status: OriginalMarketStatusEvidence | None = None
 
     @property
     def analysis_usable(self) -> bool:
@@ -202,7 +213,15 @@ def assess_snapshot(
             elif record.trading_status != "OPEN":
                 status, reason = QuoteStatus.INSUFFICIENT, "FRANKFURT_MARKET_NOT_OPEN"
 
-    if snapshot.generated_at > retrieved_at or retrieved_at > now:
+    if (
+        snapshot.generated_at > retrieved_at
+        or retrieved_at > now
+        or (
+            record is not None
+            and record.status_observed_at is not None
+            and record.status_observed_at > snapshot.generated_at
+        )
+    ):
         status, reason = QuoteStatus.ERROR, "FRANKFURT_TIMESTAMP_INCONSISTENT"
     elif status is not QuoteStatus.ERROR and snapshot.delay_seconds > max_age_seconds:
         status, reason = QuoteStatus.INSUFFICIENT, "FRANKFURT_FEED_DELAY_EXCEEDED"
@@ -239,6 +258,32 @@ def assess_snapshot(
             ask=OriginalQuoteSideEvidence(record.ask, record.ask_at, rows[0]["ask_at"], "ask_at"),
         )
 
+    original_market_status = None
+    if (
+        status is not QuoteStatus.ERROR
+        and record is not None
+        and record.status_observed_at is not None
+        and len(rows) == 1
+        and isinstance(rows[0].get("status_observed_at"), str)
+        and rows[0].get("trading_status") == record.trading_status
+    ):
+        # This is our normalized import's explicit point observation. It does
+        # not verify a vendor's capability, a validity interval or a live feed.
+        original_market_status = OriginalMarketStatusEvidence(
+            version="original-market-status-evidence-v1",
+            source_contract=snapshot.schema_version,
+            source_reference=snapshot.source,
+            generated_at=snapshot.generated_at,
+            isin=record.isin,
+            venue_mic=record.mic,
+            status=record.trading_status,
+            original_status_text=rows[0]["trading_status"],
+            source_status_field="trading_status",
+            observed_at=record.status_observed_at,
+            original_time_text=rows[0]["status_observed_at"],
+            source_time_field="status_observed_at",
+        )
+
     return FrankfurtObservation(
         status=status,
         reason=reason,
@@ -253,4 +298,5 @@ def assess_snapshot(
         age_seconds=age,
         record=record,
         original_evidence=original_evidence,
+        original_market_status=original_market_status,
     )

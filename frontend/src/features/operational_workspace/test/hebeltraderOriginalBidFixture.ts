@@ -1,6 +1,7 @@
 import {
   originalBidCheckKeys,
   type HebeltraderOriginalBidReport,
+  type OriginalMarketStatusEvidence,
   type OriginalBidCheck,
   type ProductPriceScaleCurrent,
 } from '../hebeltraderOriginalBid';
@@ -449,6 +450,62 @@ export function documentedPriceScaleReport(
     detail:
       'Unveränderter Produktmaßstab für alle beitragenden Käufe und die Original-BID-Zeit dokumentiert. Manuelle Quellenprüfung, keine unabhängige Verifikation.',
     reasons: [],
+  };
+  return report;
+}
+
+export function originalMarketStatusReport(
+  overrides: Partial<HebeltraderOriginalBidReport> = {},
+): HebeltraderOriginalBidReport {
+  const report = documentedPriceScaleReport(overrides);
+  const envelope = report.saved_quote.quote!.original_evidence!;
+  const original: OriginalMarketStatusEvidence = {
+    version: 'original-market-status-evidence-v1',
+    source_contract: envelope.source_contract,
+    source_reference: envelope.source_reference,
+    generated_at: envelope.generated_at,
+    isin: 'DE000TEST1234',
+    venue_mic: 'XFRA',
+    status: 'OPEN',
+    original_status_text: 'OPEN',
+    source_status_field: 'market_status',
+    observed_at: '2026-09-21T13:00:00Z',
+    original_time_text: '2026-09-21T15:00:00+02:00',
+    source_time_field: 'market_status_at',
+    time_basis: 'SEPARATE_STATUS_TIMESTAMP',
+    temporal_meaning: 'OBSERVED_AT_INSTANT',
+  };
+  report.implementation_status = 'F207_3_MARKET_STATUS_EVIDENCE_ONLY';
+  report.saved_quote.quote!.original_market_status = { ...original };
+  report.live_market_status = {
+    definition_version: 'hebeltrader-live-market-status-v1',
+    status: 'MISSING',
+    reasons: ['LIVE_MARKET_STATUS_SOURCE_UNQUALIFIED'],
+    evaluated_at: report.evaluated_at,
+    reported_status: 'OPEN',
+    original_evidence: original,
+    at_bid: {
+      event_at: report.bid.original_bid_at,
+      relation: 'AT_SOURCE_POINT',
+      status: 'NOT_ASSESSABLE',
+    },
+    at_read: {
+      event_at: report.evaluated_at,
+      relation: 'AFTER_SOURCE_POINT',
+      status: 'NOT_ASSESSABLE',
+    },
+    evidence_scope: 'SAVED_QUOTE_LAST_SUCCESS_ONLY',
+    source_qualification: 'NOT_INDEPENDENTLY_VERIFIED',
+    newer_status_observations: 'NOT_OBSERVED_BY_SAVED_QUOTE_READER',
+    status_validity_interval: 'NOT_ESTABLISHED',
+  };
+  report.checks[7] = {
+    ...report.checks[7],
+    label: 'Verifizierter Produktmarktstatus',
+    status: 'MISSING',
+    detail:
+      'Die eigene Statuszeit belegt eine gespeicherte Punktbeobachtung, keine Gültigkeit bis zum Lesestand. Die Quelle ist nicht unabhängig qualifiziert; neuere Statusmeldungen sind diesem Read unbekannt.',
+    reasons: [...report.live_market_status.reasons],
   };
   return report;
 }

@@ -416,6 +416,25 @@ The detailed probe exposes them without granting execution permission.
 Trading status is `OPEN`, `CLOSED`, `SUSPENDED` or `UNKNOWN`; the adapter does not
 invent calendars/holidays or infer that a market is open from a recent download.
 
+The optional `status_observed_at` field can preserve a **separate original status
+observation** supplied by an upstream exporter. It is an extension of this
+application-owned normalized contract, not a field claimed to exist in a verified
+Deutsche Boerse feed. It requires an explicitly supplied `trading_status` and an
+ISO date/time string with seconds and a known UTC offset. Date-only, naive,
+numeric, unknown `-00:00` offset and more than six fractional-second digits are
+rejected rather than assigned or truncated. Its original string is preserved in
+`WarrantQuoteSnapshot.original_market_status` with the source/reference, original
+status field and separate envelope generation time. Missing status time leaves
+this object null; BID/ASK, generation and retrieval clocks never replace it.
+
+This describes only `OBSERVED_AT_INSTANT`. It does not establish a validity
+interval, a status freshness budget or B58 eligibility. In particular the quote's
+900-second limit is **not** a status TTL. Existing `contract_verified` readiness
+does not verify new status semantics. Price last-success can omit a later negative
+status without a suitable BID, and first-per-five-minute-slot samples are not a
+complete status stream. The passive [Hebeltrader consumer](features/HEBELTRADER_MONITORING_INTEGRATION_CONTRACT.md#f207-3-market-status-evidence)
+shows these limits explicitly; this change enables no upstream source or provider.
+
 For `LAST_TRADE`, use `last_price` and `last_at`; the reason is
 `FRANKFURT_POST_TRADE_ONLY` and the provider result contains no quote.
 Unknown fields/schema versions, duplicate JSON keys, non-finite/non-positive

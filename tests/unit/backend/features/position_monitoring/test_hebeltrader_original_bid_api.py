@@ -78,6 +78,11 @@ async def test_registered_get_preserves_exact_quote_currency_times_and_missing_o
     assert result["operation_status"] == "NOT_ACTIVATED"
     assert result["rule_evaluation_status"] == "B04_B05_B06_B58_NOT_EVALUATED"
     assert result["read_status"] == "READ_ONLY"
+    assert result["implementation_status"] == "F207_3_MARKET_STATUS_EVIDENCE_ONLY"
+    assert result["live_market_status"]["original_evidence"] is None
+    assert result["live_market_status"]["reported_status"] == "OPEN"
+    assert result["live_market_status"]["at_bid"]["event_at"] == result["bid"]["original_bid_at"]
+    assert result["live_market_status"]["at_read"]["event_at"] == result["evaluated_at"]
     assert len(result["checks"]) == 8
     assert all(item["affected_rules"] == ["B04", "B58"] for item in result["checks"])
     assert before == (context.state.owner, context.state.saved)
@@ -128,13 +133,45 @@ async def test_registered_get_exposes_product_original_revision_without_document
     scale = result["product_price_scale"]
     assert scale["status"] == "DOCUMENTED"
     assert scale["execution_basis_id"] == result["economic_basis"]["basis_id"]
-    assert [row["remaining_quantity"] for row in scale["purchases"]] == ["24", "36", "20"]
+    assert [row["remaining_quantity"] for row in scale["purchases"]] == [
+        "24",
+        "36",
+        "20",
+    ]
     assert scale["evidence"]["manifest"]["unit"] == "CURRENCY_PER_WARRANT"
     assert scale["evidence"]["source"]["document_sha256"] == "a" * 64
     assert "document_base64" not in scale["evidence"]
     assert "manifest_json" not in scale["evidence"]
-    assert result["implementation_status"] == "F207_3_PRODUCT_PRICE_SCALE_EVIDENCE_ONLY"
+    assert result["implementation_status"] == "F207_3_MARKET_STATUS_EVIDENCE_ONLY"
     assert result["coverage_status"] == "PARTIAL"
+    examples.sessions.assert_passive_snapshot(context)
+
+
+async def test_actual_json_keeps_status_original_time_separate_from_price_and_read(
+    context, transport
+):
+    context.state.saved = examples.with_status(context.state.saved)
+    before = deepcopy((context.state.saved, context.state.owner))
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.get(
+            path(context), params={"position_id": str(context.scope["position_id"])}
+        )
+    assert response.status_code == 200, response.text
+    data = response.json()
+    status = data["live_market_status"]
+    assert status["original_evidence"] == data["saved_quote"]["quote"]["original_market_status"]
+    assert status["original_evidence"]["original_time_text"].endswith("+01:00")
+    assert status["original_evidence"]["temporal_meaning"] == "OBSERVED_AT_INSTANT"
+    assert status["original_evidence"]["source_time_field"] == "status_observed_at"
+    assert status["at_bid"]["event_at"] == data["bid"]["original_bid_at"]
+    assert status["at_read"]["event_at"] == data["read_started_at"]
+    assert status["at_bid"]["relation"] == "AT_SOURCE_POINT"
+    assert status["at_read"]["relation"] == "AFTER_SOURCE_POINT"
+    assert status["at_bid"]["status"] == status["at_read"]["status"] == "NOT_ASSESSABLE"
+    assert status["status"] == "MISSING"
+    assert status["source_qualification"] == "NOT_INDEPENDENTLY_VERIFIED"
+    assert status["newer_status_observations"] == "NOT_OBSERVED_BY_SAVED_QUOTE_READER"
+    assert before == (context.state.saved, context.state.owner)
     examples.sessions.assert_passive_snapshot(context)
 
 

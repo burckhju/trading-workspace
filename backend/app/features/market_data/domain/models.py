@@ -19,6 +19,9 @@ from app.features.market_data.domain.errors import (
     InvalidMarketDataValue,
     InvalidProviderInstrumentMapping,
 )
+from app.features.market_data.domain.original_market_status_evidence import (
+    OriginalMarketStatusEvidence,
+)
 from app.features.market_data.domain.original_quote_evidence import OriginalQuoteEvidence
 
 
@@ -258,6 +261,7 @@ class WarrantQuoteSnapshot:
     bid_volume: int | None = None
     ask_volume: int | None = None
     original_evidence: OriginalQuoteEvidence | None = None
+    original_market_status: OriginalMarketStatusEvidence | None = None
 
     def __post_init__(self) -> None:
         if (self.reference_price is None) != (self.reference_price_type is None):
@@ -347,3 +351,22 @@ class WarrantQuoteSnapshot:
                     raise InvalidMarketDataValue(
                         "Original quote evidence does not match snapshot price"
                     )
+        market_status = self.original_market_status
+        if market_status is not None:
+            if (
+                market_status.isin != self.provider_symbol
+                or (self.isin is not None and market_status.isin != self.isin)
+                or market_status.venue_mic != self.venue_mic
+                or market_status.status != self.trading_status
+            ):
+                raise InvalidMarketDataValue(
+                    "Original market status does not match snapshot identity or status"
+                )
+            if evidence is not None and (
+                market_status.source_contract != evidence.source_contract
+                or market_status.source_reference != evidence.source_reference
+                or market_status.generated_at != evidence.generated_at
+            ):
+                raise InvalidMarketDataValue(
+                    "Original price and market status require the same source envelope"
+                )

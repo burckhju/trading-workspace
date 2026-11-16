@@ -14,8 +14,15 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 from app.features.market_data.service.risk_read import RiskMarketDataReader
 from app.features.market_data.service.session_evidence import SessionEvidenceReader
-from app.features.position_monitoring.domain.hebeltrader_original_bid import assess_original_bid
-from app.features.position_monitoring.service.hebeltrader_original_bid_checks import input_checks
+from app.features.position_monitoring.domain.hebeltrader_live_market_status import (
+    assess_live_market_status,
+)
+from app.features.position_monitoring.domain.hebeltrader_original_bid import (
+    assess_original_bid,
+)
+from app.features.position_monitoring.service.hebeltrader_original_bid_checks import (
+    input_checks,
+)
 from app.features.position_monitoring.service.hebeltrader_original_bid_contracts import (
     HebeltraderOriginalBidReport,
 )
@@ -28,7 +35,9 @@ from app.features.position_monitoring.service.hebeltrader_product_price_scale im
     product_scale_assessment,
 )
 from app.features.position_monitoring.service.hebeltrader_sessions import _entry
-from app.features.product.service.price_scale_evidence import ProductPriceScaleEvidenceReader
+from app.features.product.service.price_scale_evidence import (
+    ProductPriceScaleEvidenceReader,
+)
 from app.features.trade_position.service.hebeltrader_evidence import (
     read_hebeltrader_monitoring_basis,
 )
@@ -50,6 +59,11 @@ NOTICES = (
     "Kursroute. Dies ist keine historische Kursrekonstruktion und keine Aussage über einen "
     "späteren Abrufversuch. Ein Speicherdatum wird in diesem Store nicht aufgezeichnet; "
     "es wird nicht aus der Abrufzeit ergänzt.",
+    "Ein eigener Originalstatuszeitpunkt beschreibt ausschließlich die gemeldete "
+    "Punktbeobachtung. Er wird weder auf die Geldkurszeit zurückdatiert noch bis zum "
+    "Lesestand fortgeschrieben. Das 900-Sekunden-Limit des Geldkurses ist keine "
+    "Statusgültigkeit. Spätere Statusmeldungen ohne geeigneten Preis können im letzten "
+    "Kurserfolg fehlen; eine vollständige aktuelle Statusversorgung ist nicht belegt.",
     "Dieser Read bucht keine Ausführung, ändert keine Eingaben, aktiviert keine Regel und "
     "löst weder Zustellung noch Providerabfrage aus. Produktive Betriebsbelege stehen aus.",
 )
@@ -113,6 +127,12 @@ class HebeltraderOriginalBidReader:
             ):
                 raise inconsistent_read()
             bid = assess_original_bid(saved, evaluated_at=started, applicable=state == "OPEN")
+            market_status = assess_live_market_status(
+                saved,
+                original_bid_at=bid.original_bid_at,
+                evaluated_at=started,
+                applicable=state == "OPEN",
+            )
             scale_evidence = await ProductPriceScaleEvidenceReader(session).current(
                 workspace_id=workspace_id,
                 warrant_id=basis.trade.product_id,
@@ -145,6 +165,7 @@ class HebeltraderOriginalBidReader:
                 product=product,
                 underlying=underlying,
                 product_price_scale=scale,
+                live_market_status=market_status,
                 applicable=state == "OPEN",
             )
             material = {
@@ -154,6 +175,7 @@ class HebeltraderOriginalBidReader:
                 "saved_quote": asdict(saved),
                 "bid": asdict(bid),
                 "product_price_scale": asdict(scale),
+                "live_market_status": asdict(market_status),
                 "product_sessions": asdict(product),
                 "underlying_sessions": asdict(underlying),
                 "checks": [asdict(check) for check in checks],
@@ -176,6 +198,7 @@ class HebeltraderOriginalBidReader:
                 saved_quote=saved,
                 bid=bid,
                 product_price_scale=scale,
+                live_market_status=market_status,
                 product_sessions=product,
                 underlying_sessions=underlying,
                 coverage_status=(
