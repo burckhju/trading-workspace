@@ -115,6 +115,42 @@ async def test_foreign_position_is_404_not_missing_evidence(context, transport):
     context.quote_read.assert_not_awaited()
 
 
+async def test_registered_get_exposes_product_original_revision_without_document_payload(
+    context, transport
+):
+    context.state.price_scale = examples.scales.scale_evidence()
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.get(
+            path(context), params={"position_id": str(context.scope["position_id"])}
+        )
+    assert response.status_code == 200, response.text
+    result = response.json()
+    scale = result["product_price_scale"]
+    assert scale["status"] == "DOCUMENTED"
+    assert scale["execution_basis_id"] == result["economic_basis"]["basis_id"]
+    assert [row["remaining_quantity"] for row in scale["purchases"]] == ["24", "36", "20"]
+    assert scale["evidence"]["manifest"]["unit"] == "CURRENCY_PER_WARRANT"
+    assert scale["evidence"]["source"]["document_sha256"] == "a" * 64
+    assert "document_base64" not in scale["evidence"]
+    assert "manifest_json" not in scale["evidence"]
+    assert result["implementation_status"] == "F207_3_PRODUCT_PRICE_SCALE_EVIDENCE_ONLY"
+    assert result["coverage_status"] == "PARTIAL"
+    examples.sessions.assert_passive_snapshot(context)
+
+
+async def test_product_source_integrity_error_is_503_without_leaking_document(context, transport):
+    secret = "Synthetic private original-document text"
+    context.scale_read.side_effect = ValueError(secret)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.get(
+            path(context), params={"position_id": str(context.scope["position_id"])}
+        )
+    assert response.status_code == 503
+    assert secret not in response.text
+    assert response.json()["code"] == "HEBELTRADER_ORIGINAL_BID_READ_UNAVAILABLE"
+    examples.sessions.assert_passive_snapshot(context)
+
+
 @pytest.mark.parametrize("integrity_error", [False, True])
 async def test_database_or_payload_error_is_503_and_not_missing_data(
     context, transport, integrity_error

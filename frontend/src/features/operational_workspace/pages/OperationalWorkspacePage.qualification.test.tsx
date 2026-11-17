@@ -142,7 +142,8 @@ it('preserves separate A/B drafts through detail closing, filters and page navig
   await user.click(within(rowA as HTMLElement).getByRole('button', { name: 'Details' }));
   await screen.findByRole('textbox');
   expect(reference()).toHaveValue('A: eigener Originalbeleg');
-  await user.type(screen.getByRole('searchbox'), 'Warrant 00');
+  await user.click(screen.getByRole('searchbox'));
+  await user.paste('Warrant 00');
   expect(screen.getByRole('searchbox')).toHaveValue('Warrant 00');
   expect(reference()).toHaveValue('A: eigener Originalbeleg');
   expect(assessHebeltraderTargets).not.toHaveBeenCalled();
@@ -157,7 +158,8 @@ it('keeps the draft through the existing details reloadToken without affecting a
       <OpenPositionsPanel positions={[p]} />
     </MemoryRouter>,
   );
-  await user.type(screen.getByRole('searchbox'), 'Test');
+  await user.click(screen.getByRole('searchbox'));
+  await user.paste('Test');
   await openDetails(user);
   await user.click(reference());
   await user.paste('Unveränderter Referenzentwurf');

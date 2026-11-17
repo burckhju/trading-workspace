@@ -7,6 +7,9 @@ from app.features.position_monitoring.domain.hebeltrader_original_bid import (
     DocumentedSessionMatch,
     OriginalBidAssessment,
 )
+from app.features.position_monitoring.domain.hebeltrader_product_price_scale import (
+    ProductPriceScaleAssessment,
+)
 from app.features.position_monitoring.service.hebeltrader_original_bid_contracts import (
     OriginalBidCheck,
     ProductSessionPrerequisites,
@@ -60,6 +63,42 @@ REASONS = {
         "Ohne passende bestätigte Kursroute ist kein Produktkalender eindeutig zuordenbar."
     ),
     "PRODUCT_CALENDAR_NOT_ASSESSABLE": "Die dokumentierten Produktsitzungen sind nicht belegbar.",
+    "PRODUCT_PRICE_SCALE_EVIDENCE_MISSING": (
+        "Ein Originalbeleg zum historischen Optionsschein-Preismaßstab fehlt beim Produktowner."
+    ),
+    "PRODUCT_PRICE_SCALE_WITHDRAWN": "Der Produktmaßstabsbeleg wurde ausdrücklich zurückgenommen.",
+    "PRODUCT_PRICE_SCALE_ADJUSTMENT_REQUIRED": (
+        "Der Produktbeleg verlangt eine Anpassung. Dieser Schnitt rechnet keine Preise, "
+        "Stückzahlen oder Kosten um; eine qualifizierte Produktanpassungsprojektion fehlt."
+    ),
+    "PRODUCT_PRICE_SCALE_BINDING_CHANGED": (
+        "Produktidentität oder aktuelle Bedingungsversion passen nicht mehr zum Maßstabsbeleg."
+    ),
+    "PRODUCT_SCALE_BUY_CURRENCY_MISSING": (
+        "Die historische Währung eines beitragenden Kaufs ist beim Ausführungsowner unbekannt."
+    ),
+    "PRODUCT_SCALE_BUY_CURRENCY_MISMATCH": (
+        "Ein beitragender Kauf verwendet eine andere Währung als der dokumentierte Produktmaßstab."
+    ),
+    "PRODUCT_SCALE_BUY_TIME_UNSUITABLE": (
+        "Der mögliche Ausführungszeitraum eines beitragenden Kaufs ist nicht eindeutig belegt."
+    ),
+    "PRODUCT_SCALE_BUY_OUTSIDE_DOCUMENTED_PERIOD": (
+        "Ein beitragender Kauf ist nicht vollständig vom belegten Maßstabszeitraum umfasst. "
+        "Bei datumgenauen Käufen muss der ganze mögliche lokale Tag abgedeckt sein."
+    ),
+    "PRODUCT_SCALE_QUALIFIED_BID_MISSING": (
+        "Ein geeigneter Original-Geldkurs fehlt für den konkreten Maßstabsbezug."
+    ),
+    "PRODUCT_SCALE_BID_BINDING_MISMATCH": (
+        "Original-Geldkurs und Maßstabsbeleg haben unterschiedliche Instrumente oder Währungen."
+    ),
+    "PRODUCT_SCALE_BID_OUTSIDE_DOCUMENTED_PERIOD": (
+        "Die Original-Geldkurszeit liegt außerhalb des ausdrücklich belegten Maßstabszeitraums."
+    ),
+    "PRODUCT_SCALE_CONTRIBUTING_BUYS_MISSING": (
+        "Der Ausführungsowner liefert keinen beitragenden Kauf für diese offene Position."
+    ),
     "OUTSIDE_DOCUMENTED_PRODUCT_SESSION": (
         "Der betreffende Zeitpunkt liegt außerhalb der vollständig dokumentierten "
         "Produkt-Handelsintervalle."
@@ -114,6 +153,7 @@ def input_checks(
     bid: OriginalBidAssessment,
     product: ProductSessionPrerequisites,
     underlying: UnderlyingSessionsAtBid,
+    product_price_scale: ProductPriceScaleAssessment,
     applicable: bool,
 ) -> tuple[OriginalBidCheck, ...]:
     held = OriginalBidCheck(
@@ -218,11 +258,20 @@ def input_checks(
         OriginalBidCheck(
             "PRICE_SCALE",
             "Historischer Produkt-Preismaßstab",
-            "MISSING",
-            "Ein Ownerbeleg für den unveränderten oder verifiziert angepassten Preismaßstab "
-            "zwischen Optionsschein-Einstand und Geldkurs fehlt. Die vorhandene "
-            "Basiswert-/Markenqualifikation bestätigt diesen Produktmaßstab nicht.",
-            ("WARRANT_EXECUTION_BID_SCALE_EVIDENCE_MISSING",),
+            (
+                "SATISFIED"
+                if product_price_scale.status == "DOCUMENTED"
+                else ("UNSUITABLE" if product_price_scale.status == "UNSUITABLE" else "MISSING")
+            ),
+            (
+                "Alle noch beitragenden Käufe und der Original-Geldkurs liegen im selben "
+                "dokumentierten unveränderten Produktmaßstab: Währung pro Optionsschein. "
+                "Die manuelle Originalquellenprüfung ist keine unabhängige Verifikation. "
+                "Der bestehende Bruttoeinstand und alle Mengen bleiben unverändert."
+                if product_price_scale.status == "DOCUMENTED"
+                else details(product_price_scale.reasons)
+            ),
+            product_price_scale.reasons,
         ),
         OriginalBidCheck(
             "VERIFIED_LIVE_MARKET_STATUS",

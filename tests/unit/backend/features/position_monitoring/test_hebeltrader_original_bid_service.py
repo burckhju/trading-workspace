@@ -13,6 +13,9 @@ from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 from tests.unit.backend.features.position_monitoring import test_hebeltrader_original_bid as bids
 from tests.unit.backend.features.position_monitoring import (
+    test_hebeltrader_product_price_scale as scales,
+)
+from tests.unit.backend.features.position_monitoring import (
     test_hebeltrader_sessions_service as sessions,
 )
 from tests.unit.backend.features.position_monitoring import (
@@ -87,6 +90,7 @@ def context(monkeypatch, case):
     state = SimpleNamespace(
         owner=owner,
         saved=saved,
+        price_scale=scales.scale_evidence(missing=True),
         calendars={"UNDERLYING": calendar, "WARRANT": product},
         changes={},
         day=original_day,
@@ -137,6 +141,14 @@ def context(monkeypatch, case):
         )
         return state.calendars[kind]
 
+    async def read_scale(**kwargs):
+        assert kwargs == dict(
+            workspace_id=scope["workspace_id"],
+            warrant_id=state.owner.execution_basis.trade.product_id,
+            known_at=NOW,
+        )
+        return state.price_scale
+
     async def read_days(**kwargs):
         kind = kwargs["instrument_kind"]
         current = state.calendars[kind]
@@ -168,6 +180,8 @@ def context(monkeypatch, case):
     quote_read = AsyncMock(side_effect=read_quote)
     current_read = AsyncMock(side_effect=read_current)
     period_read = AsyncMock(side_effect=read_days)
+    scale_read = AsyncMock(side_effect=read_scale)
+    scale_factory = Mock(return_value=SimpleNamespace(current=scale_read))
     quote_factory = Mock(return_value=SimpleNamespace(saved_quote=quote_read))
     calendar_factory = Mock(return_value=SimpleNamespace(current=current_read, read=period_read))
     session_factory = Mock(return_value=session)
@@ -175,6 +189,7 @@ def context(monkeypatch, case):
     monkeypatch.setattr(module, "AsyncSession", session_factory)
     monkeypatch.setattr(module, "RiskMarketDataReader", quote_factory)
     monkeypatch.setattr(module, "SessionEvidenceReader", calendar_factory)
+    monkeypatch.setattr(module, "ProductPriceScaleEvidenceReader", scale_factory)
     monkeypatch.setattr(module, "read_hebeltrader_monitoring_basis", owner_read)
     return SimpleNamespace(
         reader=module.HebeltraderOriginalBidReader(engine),
@@ -189,6 +204,8 @@ def context(monkeypatch, case):
         session_factory=session_factory,
         quote_factory=quote_factory,
         calendar_factory=calendar_factory,
+        scale_read=scale_read,
+        scale_factory=scale_factory,
     )
 
 
@@ -225,7 +242,7 @@ async def test_exact_original_bid_read_keeps_all_owners_and_open_gaps_distinct(c
         if key not in {"PRICE_SCALE", "VERIFIED_LIVE_MARKET_STATUS"}
     )
     assert report.coverage_status == "PARTIAL"
-    assert report.implementation_status == "F207_3_ORIGINAL_BID_EVIDENCE_ONLY"
+    assert report.implementation_status == "F207_3_PRODUCT_PRICE_SCALE_EVIDENCE_ONLY"
     assert report.rule_evaluation_status == "B04_B05_B06_B58_NOT_EVALUATED"
     assert report.operation_status == "NOT_ACTIVATED"
     assert report.read_status == "READ_ONLY"
@@ -260,6 +277,75 @@ async def test_partial_sale_and_rebuy_use_existing_cost_contributions_and_entry(
         report.economic_basis.buy_currency_evidence == basis.valuation_basis.buy_currency_evidence
     )
     assert report.economic_basis.basis_id == basis.valuation_basis.basis_id
+
+
+async def test_documented_product_scale_closes_only_its_input_gap_and_reuses_same_snapshot(context):
+    missing = await context.reader.read(**context.scope)
+    context.state.price_scale = scales.scale_evidence()
+    report = await context.reader.read(**context.scope)
+    assert checks(report)["PRICE_SCALE"].status == "SATISFIED"
+    assert checks(report)["VERIFIED_LIVE_MARKET_STATUS"].status == "MISSING"
+    assert report.product_price_scale.status == "DOCUMENTED"
+    assert report.product_price_scale.adjustment_applied is False
+    assert report.product_price_scale.execution_basis_id == report.economic_basis.basis_id
+    assert report.product_price_scale.evidence is context.state.price_scale
+    assert report.coverage_status == "PARTIAL"
+    assert report.operation_status == "NOT_ACTIVATED"
+    assert report.rule_evaluation_status == "B04_B05_B06_B58_NOT_EVALUATED"
+    assert "manuelle Originalquellenprüfung" in checks(report)["PRICE_SCALE"].detail
+    assert "keine unabhängige" in checks(report)["PRICE_SCALE"].detail
+    assert report.basis_id != missing.basis_id
+    assert report.economic_basis is missing.economic_basis
+    assert all(call.args == (context.session,) for call in context.scale_factory.call_args_list)
+    context.session.commit.assert_not_awaited()
+    context.session.flush.assert_not_called()
+
+
+@pytest.mark.parametrize("state", ["WITHDRAWN", "ADJUSTMENT_REQUIRED"])
+async def test_product_source_revision_can_block_comparison_without_rewriting_owner_facts(
+    context, state
+):
+    evidence = scales.scale_evidence()
+    context.state.price_scale = replace(
+        evidence,
+        status="UNSUITABLE",
+        reasons=(f"PRODUCT_PRICE_SCALE_{state}",),
+        manifest=replace(evidence.manifest, status=state),
+    )
+    report = await context.reader.read(**context.scope)
+    assert report.product_price_scale.status == "UNSUITABLE"
+    assert report.product_price_scale.evidence.manifest.status == state
+    assert report.coverage_status == "UNSUITABLE"
+    assert checks(report)["PRICE_SCALE"].status == "UNSUITABLE"
+    assert report.economic_basis is context.state.owner.execution_basis.valuation_basis
+    assert report.economic_basis.position.open_quantity == 80
+    sessions.assert_passive_snapshot(context)
+
+
+async def test_product_source_hash_revision_and_original_period_enter_report_basis(context):
+    evidence = scales.scale_evidence()
+    context.state.price_scale = evidence
+    original = await context.reader.read(**context.scope)
+    context.state.price_scale = replace(
+        evidence,
+        revision_id=UUID(int=9999),
+        supersedes_revision_id=evidence.revision_id,
+        revision_number=2,
+        source=replace(evidence.source, document_sha256="e" * 64),
+        manifest=replace(evidence.manifest, source_document_sha256="e" * 64),
+    )
+    revised = await context.reader.read(**context.scope)
+    assert revised.product_price_scale.status == original.product_price_scale.status == "DOCUMENTED"
+    assert revised.basis_id != original.basis_id
+    assert original.product_price_scale.evidence == evidence
+
+
+async def test_scale_reader_error_rolls_back_and_never_disguises_it_as_missing_proof(context):
+    context.scale_read.side_effect = ValueError("synthetic original source integrity failure")
+    with pytest.raises(ValueError):
+        await context.reader.read(**context.scope)
+    context.current_read.assert_not_awaited()
+    sessions.assert_passive_snapshot(context)
 
 
 @pytest.mark.parametrize("seconds,expected", [(60, False), (30, True)])

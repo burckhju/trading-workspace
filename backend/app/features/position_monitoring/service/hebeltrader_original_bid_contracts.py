@@ -11,6 +11,9 @@ from app.features.position_monitoring.domain.hebeltrader_original_bid import (
     DocumentedSessionMatch,
     OriginalBidAssessment,
 )
+from app.features.position_monitoring.domain.hebeltrader_product_price_scale import (
+    ProductPriceScaleAssessment,
+)
 from app.features.position_monitoring.domain.hebeltrader_sessions import (
     CompletedSessionCount,
     SessionEntry,
@@ -60,6 +63,7 @@ class HebeltraderOriginalBidReport:
     entry: SessionEntry | None
     saved_quote: SavedQuoteEvidence
     bid: OriginalBidAssessment
+    product_price_scale: ProductPriceScaleAssessment
     product_sessions: ProductSessionPrerequisites
     underlying_sessions: UnderlyingSessionsAtBid
     coverage_status: Literal["PARTIAL", "UNSUITABLE", "NOT_APPLICABLE"]
@@ -68,8 +72,8 @@ class HebeltraderOriginalBidReport:
     definition_version: Literal["hebeltrader-original-bid-v1"] = "hebeltrader-original-bid-v1"
     baseline_id: Literal["HEBELTRADER_CONFIRMED_BASELINE"] = "HEBELTRADER_CONFIRMED_BASELINE"
     baseline_version: Literal["1.0.0"] = "1.0.0"
-    implementation_status: Literal["F207_3_ORIGINAL_BID_EVIDENCE_ONLY"] = (
-        "F207_3_ORIGINAL_BID_EVIDENCE_ONLY"
+    implementation_status: Literal["F207_3_PRODUCT_PRICE_SCALE_EVIDENCE_ONLY"] = (
+        "F207_3_PRODUCT_PRICE_SCALE_EVIDENCE_ONLY"
     )
     rule_evaluation_status: Literal["B04_B05_B06_B58_NOT_EVALUATED"] = (
         "B04_B05_B06_B58_NOT_EVALUATED"

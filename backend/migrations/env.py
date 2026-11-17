@@ -36,6 +36,9 @@ from app.features.position_monitoring.persistence import (
     models as position_monitoring_models,  # noqa: F401
 )
 from app.features.product.persistence import models as product_models  # noqa: F401
+from app.features.product.persistence import (
+    price_scale_evidence as product_price_scale_models,  # noqa: F401
+)
 from app.features.product_selection.persistence import (
     models as product_selection_models,  # noqa: F401
 )

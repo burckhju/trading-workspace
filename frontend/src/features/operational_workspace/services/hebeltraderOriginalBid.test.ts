@@ -1,6 +1,10 @@
 import { MarketApiError, requestJson } from '../../market/services/http';
 import type { HebeltraderOriginalBidReport } from '../hebeltraderOriginalBid';
-import { missingBidSideReport, originalBidReport } from '../test/hebeltraderOriginalBidFixture';
+import {
+  documentedPriceScaleReport,
+  missingBidSideReport,
+  originalBidReport,
+} from '../test/hebeltraderOriginalBidFixture';
 import { readHebeltraderOriginalBid, verifyHebeltraderOriginalBid } from './hebeltraderOriginalBid';
 
 vi.mock('../../market/services/http', async (original) => ({
@@ -9,7 +13,7 @@ vi.mock('../../market/services/http', async (original) => ({
 }));
 
 it('uses only the scoped owner GET and preserves exact decimals and the two event clocks', async () => {
-  const report = originalBidReport({ trade_id: 'trade/a', position_id: 'position/b' });
+  const report = documentedPriceScaleReport({ trade_id: 'trade/a', position_id: 'position/b' });
   vi.mocked(requestJson).mockResolvedValueOnce(report);
   const signal = new AbortController().signal;
   expect(await readHebeltraderOriginalBid('trade/a', 'position/b', signal)).toBe(report);
@@ -21,6 +25,250 @@ it('uses only the scoped owner GET and preserves exact decimals and the two even
   expect(report.bid.price).toBe('1.234567890123');
   expect(report.underlying_sessions.count?.evaluated_at).toBe(report.bid.original_bid_at);
   expect(report.underlying_sessions.count?.evaluated_at).not.toBe(report.evaluated_at);
+});
+
+it('accepts documented product units only as an input proof while the live-market gap remains', () => {
+  const report = documentedPriceScaleReport();
+  expect(verifyHebeltraderOriginalBid(report, 'trade-1', 'position-1')).toBe(report);
+  expect(report.checks[6].status).toBe('SATISFIED');
+  expect(report.checks[7].status).toBe('MISSING');
+  expect(report.product_price_scale?.purchases[0].remaining_quantity).toBe('5');
+  expect(report.product_price_scale?.purchases[0].executed_at).toBeNull();
+  expect(report.coverage_status).toBe('PARTIAL');
+});
+
+it.each(['ISIN', 'UNDERLYING', 'BUY_CURRENCY'] as const)(
+  'rejects an internally consistent documented product source with a foreign %s',
+  (mismatch) => {
+    const report = documentedPriceScaleReport();
+    const scale = report.product_price_scale!;
+    if (mismatch === 'ISIN') {
+      scale.evidence.binding!.isin = 'DE0000000001';
+      scale.evidence.manifest!.binding.isin = 'DE0000000001';
+    } else if (mismatch === 'UNDERLYING') {
+      scale.evidence.binding!.underlying_id = 'foreign-underlying';
+      scale.evidence.manifest!.binding.underlying_id = 'foreign-underlying';
+    } else scale.purchases[0].currency_code = 'USD';
+    expect(() => verifyHebeltraderOriginalBid(report, 'trade-1', 'position-1')).toThrow(
+      'nicht sicher zuordnen',
+    );
+  },
+);
+
+it.each(['OMITTED', 'DUPLICATE', 'SELL', 'OWNER_CURRENCY'] as const)(
+  'rejects a documented comparison whose owner BUY set or currency is %s',
+  (mismatch) => {
+    const report = documentedPriceScaleReport();
+    const scale = report.product_price_scale!;
+    if (mismatch === 'OMITTED') scale.purchases.pop();
+    else if (mismatch === 'DUPLICATE') scale.purchases[1].execution_id = 'effective-buy-1';
+    else if (mismatch === 'SELL') scale.purchases[1].execution_id = 'effective-sale-1';
+    else report.economic_basis.buy_currency_evidence[1].currency_code = 'USD';
+    expect(() => verifyHebeltraderOriginalBid(report, 'trade-1', 'position-1')).toThrow(
+      'nicht sicher zuordnen',
+    );
+  },
+);
+
+it('retains unsuitable historical product bindings and purchase currencies for clarification', () => {
+  const report = documentedPriceScaleReport({ coverage_status: 'UNSUITABLE' });
+  const scale = report.product_price_scale!;
+  scale.evidence.status = 'UNSUITABLE';
+  scale.evidence.binding!.isin = 'DE0000000001';
+  scale.evidence.binding!.underlying_id = 'former-underlying';
+  scale.evidence.manifest!.binding = { ...scale.evidence.binding! };
+  scale.evidence.reasons = ['PRODUCT_PRICE_SCALE_BINDING_CHANGED'];
+  scale.status = 'UNSUITABLE';
+  scale.bid_status = 'UNSUITABLE';
+  scale.purchases = scale.purchases.map((row) => ({
+    ...row,
+    currency_code: 'USD',
+    status: 'UNSUITABLE',
+    reasons: ['PRODUCT_SCALE_BUY_CURRENCY_MISMATCH'],
+  }));
+  report.checks[6].status = 'UNSUITABLE';
+  expect(verifyHebeltraderOriginalBid(report, 'trade-1', 'position-1')).toBe(report);
+});
+
+it.each(['ADJUSTMENT_REQUIRED', 'WITHDRAWN'] as const)(
+  'preserves an unsuitable %s original product document and its correction chain',
+  (status) => {
+    const report = documentedPriceScaleReport({ coverage_status: 'UNSUITABLE' });
+    const scale = report.product_price_scale!;
+    scale.evidence.status = 'UNSUITABLE';
+    scale.evidence.manifest!.status = status;
+    scale.evidence.reasons = [`PRODUCT_PRICE_SCALE_${status}`];
+    scale.status = 'UNSUITABLE';
+    scale.bid_status = 'UNSUITABLE';
+    scale.purchases = scale.purchases.map((row) => ({ ...row, status: 'UNSUITABLE' }));
+    report.checks[6].status = 'UNSUITABLE';
+    expect(verifyHebeltraderOriginalBid(report, 'trade-1', 'position-1')).toBe(report);
+    expect(scale.evidence.supersedes_revision_id).toBe('product-scale-revision-1');
+    expect(scale.purchases[0].supersedes_execution_id).toBe('original-buy-1');
+  },
+);
+
+it('keeps missing purchase coverage visible without discarding a remaining owner contribution', () => {
+  const report = documentedPriceScaleReport();
+  const scale = report.product_price_scale!;
+  scale.status = 'MISSING';
+  scale.purchases[1] = {
+    ...scale.purchases[1],
+    status: 'MISSING',
+    reasons: ['PRODUCT_SCALE_BUY_OUTSIDE_DOCUMENTED_PERIOD'],
+  };
+  report.checks[6].status = 'MISSING';
+  expect(verifyHebeltraderOriginalBid(report, 'trade-1', 'position-1')).toBe(report);
+  expect(scale.purchases).toHaveLength(2);
+  expect(scale.purchases[1].remaining_quantity).toBe('2');
+});
+
+it('accepts an absent owner revision with actual purchase facts and no fabricated source', () => {
+  const report = documentedPriceScaleReport();
+  const scale = report.product_price_scale!;
+  scale.status = 'MISSING';
+  scale.bid_status = 'MISSING';
+  scale.purchases = scale.purchases.map((row) => ({ ...row, status: 'MISSING' }));
+  scale.evidence = {
+    ...scale.evidence,
+    status: 'MISSING',
+    revision_id: null,
+    supersedes_revision_id: null,
+    revision_number: null,
+    manifest: null,
+    binding: null,
+    source: null,
+    recorded_at: null,
+    reasons: ['PRODUCT_PRICE_SCALE_MISSING'],
+  };
+  report.checks[6].status = 'MISSING';
+  expect(verifyHebeltraderOriginalBid(report, 'trade-1', 'position-1')).toBe(report);
+});
+
+it.each(['CLOSED', 'CANCELLED'] as const)(
+  'retains %s product evidence with every contribution not applicable',
+  (position_state) => {
+    const report = documentedPriceScaleReport({
+      position_state,
+      coverage_status: 'NOT_APPLICABLE',
+    });
+    const scale = report.product_price_scale!;
+    scale.status = 'NOT_APPLICABLE';
+    scale.bid_status = 'NOT_APPLICABLE';
+    scale.purchases = scale.purchases.map((row) => ({ ...row, status: 'NOT_APPLICABLE' }));
+    report.checks = report.checks.map((check) => ({ ...check, status: 'NOT_APPLICABLE' }));
+    expect(verifyHebeltraderOriginalBid(report, 'trade-1', 'position-1')).toBe(report);
+  },
+);
+
+it('rejects mixed scale scopes, owner bases, clocks, units and unsupported complete claims', () => {
+  const mutations: Array<(report: HebeltraderOriginalBidReport) => void> = [
+    (r) => {
+      r.product_price_scale = null;
+    },
+    (r) => {
+      delete r.product_price_scale;
+    },
+    (r) => {
+      r.product_price_scale!.execution_basis_id = 'foreign-owner-basis';
+    },
+    (r) => {
+      r.product_price_scale!.bid_at = r.evaluated_at;
+    },
+    (r) => {
+      r.product_price_scale!.evidence.workspace_id = 'foreign-workspace';
+    },
+    (r) => {
+      r.product_price_scale!.evidence.warrant_id = 'foreign-product';
+    },
+    (r) => {
+      r.product_price_scale!.evidence.known_at = r.bid.original_bid_at!;
+    },
+    (r) => {
+      r.product_price_scale!.evidence.manifest!.binding.warrant_id = 'foreign-product';
+    },
+    (r) => {
+      r.product_price_scale!.evidence.manifest!.binding.current_terms_id = 'different-terms';
+    },
+    (r) => {
+      r.product_price_scale!.evidence.manifest!.currency = 'USD';
+    },
+    (r) => {
+      r.product_price_scale!.evidence.manifest!.source_document_sha256 = '0'.repeat(64);
+    },
+    (r) => {
+      r.product_price_scale!.evidence.source!.published_on = '2026-09-22';
+    },
+    (r) => {
+      r.product_price_scale!.purchases[0].execution_id = 'foreign-purchase';
+    },
+    (r) => {
+      r.product_price_scale!.purchases[1].execution_id = 'effective-buy-1';
+    },
+    (r) => {
+      r.product_price_scale!.purchases[0].executed_at = '2026-08-31T00:00:00Z';
+    },
+    (r) => {
+      r.product_price_scale!.purchases[1].status = 'MISSING';
+    },
+    (r) => {
+      r.product_price_scale!.bid_status = 'MISSING';
+    },
+    (r) => {
+      r.product_price_scale!.evidence.status = 'UNSUITABLE';
+    },
+    (r) => {
+      r.product_price_scale!.evidence.manifest!.status = 'WITHDRAWN';
+    },
+    (r) => {
+      r.product_price_scale!.purchases = [];
+    },
+    (r) => {
+      r.checks[6].status = 'MISSING';
+    },
+    (r) => {
+      r.checks[7].status = 'SATISFIED';
+    },
+  ];
+  for (const mutate of mutations) {
+    const report = documentedPriceScaleReport();
+    mutate(report);
+    expect(() => verifyHebeltraderOriginalBid(report, 'trade-1', 'position-1')).toThrow(
+      'nicht sicher zuordnen',
+    );
+  }
+  for (const [key, value] of [
+    ['axis', 'UNDERLYING'],
+    ['unit', 'CENT_PER_WARRANT'],
+    ['valid_until', null],
+    ['schema_version', 'future-scale'],
+  ]) {
+    const report = documentedPriceScaleReport();
+    const malformed = {
+      ...report,
+      product_price_scale: {
+        ...report.product_price_scale,
+        evidence: {
+          ...report.product_price_scale!.evidence,
+          manifest: { ...report.product_price_scale!.evidence.manifest, [key as string]: value },
+        },
+      },
+    };
+    expect(() => verifyHebeltraderOriginalBid(malformed, 'trade-1', 'position-1')).toThrow(
+      'nicht sicher zuordnen',
+    );
+  }
+  const report = documentedPriceScaleReport();
+  expect(() =>
+    verifyHebeltraderOriginalBid(
+      {
+        ...report,
+        product_price_scale: { ...report.product_price_scale, adjustment_applied: true },
+      },
+      'trade-1',
+      'position-1',
+    ),
+  ).toThrow('nicht sicher zuordnen');
 });
 
 it('keeps legacy side gaps inspectable without replacing the BID clock with snapshot or retrieval time', () => {

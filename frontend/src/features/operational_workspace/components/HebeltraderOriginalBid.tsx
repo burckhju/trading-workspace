@@ -3,6 +3,9 @@ import type {
   DocumentedSessionMatch,
   HebeltraderOriginalBidReport,
   OriginalBidCheck,
+  ProductPriceScaleAssessment,
+  ProductPriceScaleCurrent,
+  ProductScaleCoverageStatus,
   ProductSessionCalendar,
 } from '../hebeltraderOriginalBid';
 import type { SessionEvidenceCurrent, SessionPeriodView } from '../hebeltraderSessions';
@@ -22,6 +25,42 @@ const checkLabels: Record<OriginalBidCheck['status'], string> = {
   NOT_REACHED: 'Noch nicht erreicht',
   NOT_APPLICABLE: 'Nicht anwendbar',
 };
+const scaleLabels: Record<ProductScaleCoverageStatus, string> = {
+  COVERED: 'Zeitraum und Einheit dokumentiert',
+  MISSING: 'Beleg fehlt oder Zeitraum nicht abgedeckt',
+  UNSUITABLE: 'Für diesen Vergleich ungeeignet',
+  NOT_APPLICABLE: 'Kein aktueller Vergleichsbeitrag',
+};
+const scaleReasonTexts: Record<string, string> = {
+  PRODUCT_SCALE_BUY_CURRENCY_MISSING: 'Historische Kaufwährung nicht belegt.',
+  PRODUCT_SCALE_BUY_CURRENCY_MISMATCH: 'Kaufwährung und Produktbeleg stimmen nicht überein.',
+  PRODUCT_SCALE_BUY_TIME_UNSUITABLE: 'Der mögliche Kaufzeitraum ist nicht eindeutig belegt.',
+  PRODUCT_SCALE_BUY_OUTSIDE_DOCUMENTED_PERIOD:
+    'Der Produktbeleg deckt den tatsächlichen Kauf beziehungsweise seinen vollständigen möglichen Tag nicht ab.',
+  PRODUCT_SCALE_QUALIFIED_BID_MISSING: 'Ein geeigneter Original-BID fehlt.',
+  PRODUCT_SCALE_BID_BINDING_MISMATCH:
+    'Original-BID und Produktbeleg haben unterschiedliche Bindungen.',
+  PRODUCT_SCALE_BID_OUTSIDE_DOCUMENTED_PERIOD:
+    'Die BID-Zeit liegt außerhalb des belegten Zeitraums.',
+  PRODUCT_SCALE_CONTRIBUTING_BUYS_MISSING: 'Beitragende Kaufbezüge des Ausführungsowners fehlen.',
+  BUY_NO_REMAINING_CONTRIBUTION:
+    'Dieser Kauf trägt laut Ausführungsowner nicht mehr zum offenen Bestand bei.',
+  POSITION_CLOSED_OR_CANCELLED: 'Die Position ist geschlossen oder storniert.',
+};
+
+function ScaleReasons({ reasons }: { reasons: string[] }) {
+  return reasons.length === 0 ? null : (
+    <ul className="space-y-1">
+      {reasons.map((reason) => (
+        <li key={reason}>
+          {scaleReasonTexts[reason] ??
+            'Der Produktowner meldet einen ungeeigneten oder fehlenden Beleg.'}{' '}
+          <span className="[overflow-wrap:anywhere]">({reason})</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 function Time({ value }: { value: string | null }) {
   return value === null ? <>Nicht belegt</> : <time dateTime={value}>{value}</time>;
@@ -130,6 +169,187 @@ function CalendarProof({
         </details>
       )}
     </section>
+  );
+}
+
+function ProductScaleProof({ current }: { current: ProductPriceScaleCurrent }) {
+  const manifest = current.manifest;
+  const source = current.source;
+  return (
+    <section aria-label="Produktbeleg zum historischen Preismaßstab" className="space-y-3">
+      <h5 className="font-semibold">Produktbeleg zum historischen Preismaßstab</h5>
+      <p>
+        Dokumentierte menschliche Prüfung, keine unabhängige Verifikation durch die Anwendung. Der
+        Beleg gilt nur für seinen angegebenen Zeitraum; daraus folgen keine automatische Anpassung
+        und keine Buchung.
+      </p>
+      <dl className="grid min-w-0 gap-3 sm:grid-cols-2">
+        <Field label="Produktbelegrevision">
+          {current.revision_id ?? 'Nicht vorhanden'} · Revision{' '}
+          {current.revision_number ?? 'Nicht vorhanden'} · ersetzt{' '}
+          {current.supersedes_revision_id ?? 'Keine frühere Revision'}
+        </Field>
+        <Field label="Produktowner-Befund">
+          {current.status === 'AVAILABLE'
+            ? 'Produktbeleg mit passender aktueller Bindung'
+            : current.status === 'MISSING'
+              ? 'Produktbeleg fehlt'
+              : 'Produktbeleg ungeeignet'}
+          {current.reasons.length > 0 && <p>{current.reasons.join(', ')}</p>}
+        </Field>
+        <Field label="Produktbindung des Quellenbelegs">
+          {current.binding ? (
+            <>
+              {current.binding.isin} · {current.binding.warrant_id} · Bedingungsversion{' '}
+              {current.binding.current_terms_id}
+            </>
+          ) : (
+            'Nicht belegt'
+          )}
+        </Field>
+        <Field label="Produktbeleg erfasst am">
+          <Time value={current.recorded_at} />
+        </Field>
+        <Field label="Produktbeleg-Lesestand">
+          Bekannt bis <Time value={current.known_at} /> · gelesen <Time value={current.read_at} />
+        </Field>
+        <Field label="Produktbeleg-Fingerprint">{current.fingerprint}</Field>
+        {manifest && (
+          <>
+            <Field label="Historischer Produktmaßstab">
+              {manifest.scale_id} · Quellversion {manifest.source_version} · {manifest.currency} je
+              Optionsschein
+            </Field>
+            <Field label="Erklärung zum Produktmaßstab">
+              {manifest.status === 'UNCHANGED_ORIGINAL'
+                ? 'Unveränderter Originalmaßstab dokumentiert'
+                : manifest.status === 'ADJUSTMENT_REQUIRED'
+                  ? 'Anpassung erforderlich; keine Umrechnung durch diesen Read'
+                  : 'Produktmaßstabsbeleg zurückgezogen'}
+            </Field>
+            <Field label="Belegter Zeitraum des Produktmaßstabs">
+              Ab <Time value={manifest.valid_from} /> einschließlich bis{' '}
+              <Time value={manifest.valid_until} /> ausschließlich. Keine unbegrenzte Gültigkeit.
+            </Field>
+            <Field label="Referenzierte Emittenten- und Basiswertidentität">
+              Emittent {manifest.binding.issuer_id} · Basiswert {manifest.binding.underlying_id}
+            </Field>
+          </>
+        )}
+        {source && (
+          <>
+            <Field label="Originaldokument zum Produktmaßstab">
+              {source.publisher} · {source.reference} · {source.document_filename}
+            </Field>
+            <Field label="Produktquelle veröffentlicht am">
+              <Time value={source.published_at ?? source.published_on} />
+              {source.published_at === null &&
+                source.published_on !== null &&
+                ' · Nur Datum belegt'}
+            </Field>
+            <Field label="Produktdokument geprüft am">
+              <Time value={source.reviewed_at} /> · {source.review_reference}
+            </Field>
+            <Field label="Produktdokument abgerufen am">
+              <Time value={source.retrieved_at} />
+            </Field>
+            <Field label="Originaldokument SHA-256">{source.document_sha256}</Field>
+            <Field label="Produktmanifest SHA-256">{source.manifest_sha256}</Field>
+          </>
+        )}
+      </dl>
+    </section>
+  );
+}
+
+function ProductScale({ assessment }: { assessment: ProductPriceScaleAssessment }) {
+  return (
+    <div className="space-y-4">
+      <ProductScaleProof current={assessment.evidence} />
+      <dl className="grid gap-3 sm:grid-cols-2">
+        <Field label="Ausführungsbasis des Maßstabsvergleichs">
+          {assessment.execution_basis_id}
+        </Field>
+        <Field label="Produktmaßstab zur Original-BID-Zeit">
+          {scaleLabels[assessment.bid_status]} · <Time value={assessment.bid_at} />
+          <ScaleReasons reasons={assessment.bid_reasons} />
+        </Field>
+      </dl>
+      <p>
+        Mengen und Preise stammen unverändert vom Ausführungsowner. Ein Restbeitrag ist keine
+        Verkaufsvorgabe. Dieser Read rechnet weder Bestände noch Produktanpassungen um.
+      </p>
+      {assessment.purchases.length === 0 ? (
+        <p>Keine Kaufbezüge für diesen Lesestand vorhanden.</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table
+            aria-label="Kaufbeiträge und dokumentierter Produktmaßstab"
+            className="w-full text-left"
+          >
+            <thead>
+              <tr>
+                <th scope="col" className="p-2">
+                  Kaufbezug und Korrektur
+                </th>
+                <th scope="col" className="p-2">
+                  Ausführungszeit und Erfassung
+                </th>
+                <th scope="col" className="p-2">
+                  Mengen- und Preisbeitrag des Owners
+                </th>
+                <th scope="col" className="p-2">
+                  Maßstabsbeleg
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {assessment.purchases.map((purchase) => (
+                <tr key={purchase.execution_id} className="border-t border-slate-700 align-top">
+                  <th scope="row" className="max-w-64 p-2 font-normal [overflow-wrap:anywhere]">
+                    {purchase.execution_id}
+                    <p>
+                      Ersetzt: {purchase.supersedes_execution_id ?? 'Keinen früheren Kaufbeleg'}
+                    </p>
+                  </th>
+                  <td className="p-2">
+                    <p>
+                      <Time value={purchase.executed_at ?? purchase.executed_on} />
+                      {purchase.executed_on !== null &&
+                        ` · Nur Datum belegt (${purchase.execution_timezone})`}
+                    </p>
+                    <p>
+                      Erfasst <Time value={purchase.recorded_at} />
+                    </p>
+                    {purchase.executed_on !== null && purchase.possible_from !== null && (
+                      <p>
+                        Möglicher Ausführungstag: <Time value={purchase.possible_from} /> bis{' '}
+                        <Time value={purchase.possible_until} /> ausschließlich. Keine bekannte
+                        Kaufuhrzeit.
+                      </p>
+                    )}
+                  </td>
+                  <td className="p-2">
+                    <p>
+                      Ursprünglich {purchase.original_quantity} Stück · Restbeitrag{' '}
+                      {purchase.remaining_quantity} Stück
+                    </p>
+                    <p>
+                      Originalpreis {purchase.price_per_unit}{' '}
+                      {purchase.currency_code ?? 'Währung nicht belegt'} je Stück
+                    </p>
+                  </td>
+                  <td className="p-2">
+                    <p>{scaleLabels[purchase.status]}</p>
+                    <ScaleReasons reasons={purchase.reasons} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -263,6 +483,7 @@ function Evidence({ report }: { report: HebeltraderOriginalBidReport }) {
           </>
         )}
       </dl>
+      {report.product_price_scale && <ProductScale assessment={report.product_price_scale} />}
       <CalendarProof
         label="Produktkalender für BID- und Lesezeit"
         calendar={report.product_sessions.calendar}
