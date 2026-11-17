@@ -178,6 +178,25 @@ Handelsschlussgrenze zusätzlich die produktspezifische Schlusszeit. Eine
 implementierte Kalenderfunktion oder der historische Produktseitenbefund ist
 noch keine aktive B05-Überwachung. Die B05-Prüfung erhält keine BID-Abhängigkeit.
 
+Der unabhängige Rechenschnitt
+[`calculate_product_deadline`](../../backend/app/features/position_monitoring/domain/hebeltrader_deadlines.py)
+verwendet deshalb ausschließlich explizite Produktdatumseingänge, das feste
+Ausstiegslisting und `SessionEvidenceRead`. Er übernimmt Revision, Fingerprint
+und die ausdrücklich menschliche Kalenderprüfung. Er ermittelt die 20. Sitzung
+vor dem früheren Produkttermin und die erste Öffnung der vorherigen Sitzung
+nach B19; verspätete Auswertung verschiebt keinen Termin. Bei genau 20 belegten
+Sitzungen ist der Ausstiegstag berechenbar, die fehlende Vorwarnsitzung bleibt
+`PARTIAL`. Kalenderlücken werden nicht als Feiertage ergänzt.
+
+Der Ergebnisumfang bleibt `DOCUMENTED_CALENDAR_CALCULATION_ONLY` und
+`B05_NOT_ACTIVATED`. Die ausgewiesene letzte Kalenderschlusszeit ist keine
+unabhängig verifizierte produktspezifische B20-Schlusszeit. Die synthetischen
+[Domainprüfungen](../../tests/unit/backend/features/position_monitoring/test_hebeltrader_deadlines.py)
+prüfen unter anderem 19/20/21 Sitzungen, früheren Termin, ausgeschlossenen
+Termintag, B19-Grenze, verkürzte/geteilte Sitzungen, DST, Jahreswechsel,
+Kalenderrevisionen, Wissenzeit und exakte Instrument-/Listingbindung. Es gibt
+keinen BID-Eingang, Provideraufruf oder Schreibpfad in dieser Berechnung.
+
 ## 6. Nachweisdisziplin
 
 Direkte Abrufe, Suchindexansichten, Codeanalyse und historische Originale sind
