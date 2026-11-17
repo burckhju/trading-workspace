@@ -4,7 +4,7 @@ Trading Workspace unterstützt einen benutzergesteuerten Tradingprozess: Referen
 
 ## Softwarestand und Planung
 
-Die versionierte Software ist in [VERSION](VERSION) festgehalten. Umfang, Bereitstellungsnachweise und kontrollierter PC-Updateweg für `v1.5.48` stehen in der [Release-Notiz](docs/releases/V1.5.48-B58-ACQUISITION.md). Sie ergänzt die vorhandene B04/B57-Strecke um eine begrenzte ARIVA-Beschaffungsprobe; die reale B58-Quellenqualifikation bleibt offen. Ein Softwaretag belegt weder die aktuelle Installation auf dem Nutzer-PC noch die vollständige Erfüllung sämtlicher ursprünglicher Roadmap-Ziele.
+Die versionierte Software ist in [VERSION](VERSION) festgehalten. Umfang, Bereitstellungsnachweise und kontrollierter PC-Updateweg für `v1.5.49` stehen in der [Release-Notiz](docs/releases/V1.5.49-INDICATIVE-POSITION-REVIEW.md). Sie ergänzt eine eigene automatische Einstandsindikation, die Prüferinnerung nach 20 abgeschlossenen Basiswertsitzungen und unabhängige Datenproblemhinweise. Die reale B58-Quellenqualifikation bleibt offen; der alternative Umfang ist gesondert versioniert und einmal zentral aktivierbar. Ein Softwaretag belegt weder die aktuelle Installation auf dem Nutzer-PC noch die vollständige Erfüllung sämtlicher ursprünglicher Roadmap-Ziele.
 
 **Aktueller Arbeitsstatus und Abnahmematrix:** [Product Backlog](docs/planning/PRODUCT_BACKLOG.md). Es ist die einzige maßgebliche Aufgabenstatusquelle. Hier steht bewusst keine zweite vollständige Feature-Statusliste.
 
@@ -22,6 +22,8 @@ Für die Hebeltrader-Positionsdetails beschreibt der [Integrationsvertrag](docs/
 Die [preisunabhängige Statusversorgung](docs/features/HEBELTRADER_MONITORING_INTEGRATION_CONTRACT.md#f207-3-independent-status-observations) ergänzt beim vorhandenen Market-Data-Owner ein dauerhaftes Journal auch für negative/preislose Meldungen. Der [tatsächliche Quellenbefund](docs/reviews/B58_SOURCE_QUALIFICATION_2026-11-17.md) trennt erreichbare Originaldaten von weiterhin fehlender B58-Eignung.
 
 Der anschließende [B04/B57-Regel- und Betriebsvertrag](docs/features/HEBELTRADER_MONITORING_INTEGRATION_CONTRACT.md#b04-b57-loss-monitoring-v1) ergänzt einen ausdrücklich begrenzten Verlustpfad: vorhandener Ausführungsowner, qualifizierte Eingänge, dauerhafte Verlustepisode, Hintergrundrunner und deduplizierter Hinweis im Arbeitsbereich. Dieser neue Commandpfad ändert die bisherigen passiven Evidenzreads nicht. Der zentrale Teilumfang ist standardmäßig ausgeschaltet; der Produktionskatalog geeigneter B58-Quellen ist leer. Synthetisch prüfbare Implementierung, reale Datenversorgung, Integration, Veröffentlichung und PC-Betrieb bleiben getrennt. Die vollständige Hebeltrader-Baseline wird dadurch nicht aktiviert.
+
+Die gesonderte [indikative Positionsprüfung](docs/features/HEBELTRADER_MONITORING_INTEGRATION_CONTRACT.md#indicative-entry-review-v1) nutzt vorhandene wirtschaftliche und Quellenbelege für einen ausdrücklich begrenzten alternativen Umfang. Dauerhafte Preis-, Prüf- und Datenproblemepisoden werden im bestehenden Runner ausgewertet; der Arbeitsbereich liest die gespeicherten Hinweise. Der [zentrale PC-Betriebsübergang](docs/technical/LINUX_LAUNCHER.md#einmaliger-übergang-auf-die-indikative-positionsprüfung) erhält die bestehende Installation und benötigt nach dem kontrollierten Update keine tägliche technische Bestätigung. Original-BID-Zeit, reine Empfangszeit und unbekannte Statusfortgeltung bleiben sichtbar getrennt.
 
 ## Entwicklung und Betrieb
 
