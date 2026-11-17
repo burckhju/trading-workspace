@@ -13,7 +13,7 @@ from unittest.mock import AsyncMock
 from uuid import UUID, uuid4
 
 import pytest
-from sqlalchemy import text
+from sqlalchemy import text, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import async_sessionmaker
 from tests.integration.backend.database import test_hebeltrader_loss_postgres as strict
@@ -61,6 +61,7 @@ from app.features.position_monitoring.service.runner import PositionMonitoringRu
 from app.features.position_monitoring.service.runtime import (
     PositionMonitoringRuntimeService,
 )
+from app.features.trade_position.persistence.models import PositionModel
 
 indicative_database = strict.loss_database
 forbid_outbound_http = strict.forbid_outbound_http
@@ -248,6 +249,87 @@ def test_adapter_review_gap_recovery_parallel_replay_and_restart(indicative_data
                 assert restarted.alerts_created == restarted.notifications_created == 0
                 assert await _state(engine) == final
                 await passive_report(client, engine, scope)
+        finally:
+            await engine.dispose()
+
+    asyncio.run(exercise())
+
+
+def test_changed_priceless_status_updates_assessment_without_duplicate_notice(
+    indicative_database,
+):
+    _migrate(indicative_database, "head")
+
+    async def exercise():
+        engine = engine_for(indicative_database)
+        try:
+            async with _client(indicative_database) as (client, database):
+                scope = await strict.prepare(client, database)
+                at, _ = await strict.supply(database, scope)
+                await evaluate(engine, scope, at)
+                closed_at, _ = await strict.supply(database, scope, bid=None, status="CLOSED")
+                closed = await evaluate(engine, scope, closed_at)
+                baseline = await _state(engine)
+                episodes = active_episodes(baseline)
+                assert set(episodes) == {"ENTRY_LOSS", "REVIEW_DUE", "DATA_UNAVAILABLE"}
+
+                async with strict.synthetic_source(
+                    database, scope, bid=None, status="SUSPENDED"
+                ) as (suspended_at, retained, _requests):
+                    for repeat in (False, True):
+                        # Same original payload, a separate delivery request. The
+                        # actual status owner deduplicates the repeated fact.
+                        await retained.get_warrant_listing_quote(
+                            strict.WarrantQuoteRequest(
+                                workspace_id=UUID(WORKSPACE),
+                                warrant_listing_id=UUID(scope["listing"]["id"]),
+                                correlation_id=uuid4(),
+                                as_of=suspended_at,
+                                expected_currency="EUR",
+                            )
+                        )
+                        result = await evaluate(engine, scope, suspended_at)
+                        assert result.reasons == closed.reasons
+                        assert result.unchanged is repeat
+                        assert result.alerts_created == result.notifications_created == 0
+                        assert result.loss_episode_active and result.data_problem_active
+                        assert result.assessment_id != closed.assessment_id
+                        current = await _state(engine)
+                        assert len(current[ASSESSMENTS]) == 3
+                        assert active_episodes(current) == episodes
+                        assert current["alerts"] == baseline["alerts"]
+                        assert current["notifications"] == baseline["notifications"]
+                        assert (
+                            current["warrant_quote_observations"]
+                            == baseline["warrant_quote_observations"]
+                        )
+                        report = await passive_report(client, engine, scope)
+                        source = report["latest_assessment"]["source"]
+                        assert source["source_status_point"] == "SUSPENDED"
+                        assert datetime.fromisoformat(source["source_status_observed_at"]) == (
+                            suspended_at
+                        )
+                        assert source["status_validity"] == "NOT_ESTABLISHED"
+
+                # A changed original clock also becomes its own assessment,
+                # although the price, status label and problem reason persist.
+                revised_at, _ = await strict.supply(database, scope, bid=None, status="SUSPENDED")
+                revised = await evaluate(engine, scope, revised_at)
+                assert revised.assessment_id != result.assessment_id
+                assert revised.reasons == result.reasons and not revised.unchanged
+                assert revised.alerts_created == revised.notifications_created == 0
+                final = await _state(engine)
+                assert len(final[ASSESSMENTS]) == 4
+                assert active_episodes(final) == episodes
+                assert final["alerts"] == baseline["alerts"]
+                assert final["notifications"] == baseline["notifications"]
+                report = await passive_report(client, engine, scope)
+                assert (
+                    datetime.fromisoformat(
+                        report["latest_assessment"]["source"]["source_status_observed_at"]
+                    )
+                    == revised_at
+                )
         finally:
             await engine.dispose()
 
@@ -481,6 +563,95 @@ def test_execution_correction_full_sale_and_late_retry_leave_strict_b04_untouche
                 assert report["active_episodes"] == []
         finally:
             await engine.dispose()
+
+    asyncio.run(exercise())
+
+
+def test_general_runner_cleans_full_sale_with_review_paused_and_without_adapter(
+    indicative_database,
+):
+    _migrate(indicative_database, "head")
+
+    async def exercise():
+        async with _client(indicative_database) as (client, database):
+            scope = await strict.prepare(client, database)
+            trade = scope["capture"]["trade"]["id"]
+            position_id = UUID(scope["capture"]["position"]["id"])
+            at, _ = await strict.supply(database, scope)
+            assert (await strict.evaluate(database.engine, scope, at)).episode_active
+            await evaluate(database.engine, scope, at)
+            gap_at, _ = await strict.supply(database, scope, http_error=True)
+            assert (await evaluate(database.engine, scope, gap_at)).data_problem_active
+            before_sale = await _state(database.engine)
+            strict_before = strict_state(before_sale)
+            review_alerts = {row["alert_id"] for row in before_sale[EPISODES]}
+            pending = {
+                row["id"]
+                for row in before_sale["notifications"]
+                if row["alert_id"] in review_alerts and row["status"] == "PENDING"
+            }
+            assert len(pending) == 3
+            async with database.session_context() as session:
+                position = await session.get(PositionModel, position_id)
+                earlier_projection = {
+                    column.name: getattr(position, column.name)
+                    for column in PositionModel.__table__.columns
+                    if column.name not in {"id", "trade_id", "product_id"}
+                }
+            response = await client.post(
+                f"{BASE}/trades/{trade}/sales",
+                json={
+                    "quantity": 100,
+                    "price_per_unit": "2.00",
+                    "executed_on": (scope["anchor"] + timedelta(days=15)).isoformat(),
+                    "execution_timezone": "Europe/Berlin",
+                    "request_id": str(uuid4()),
+                    "currency_confirmation": DECLARATION,
+                },
+            )
+            assert response.status_code == 201, response.text
+            assert response.json()["position"]["open_quantity"] == 0
+            # Deliberately restore an internally consistent earlier projection
+            # only in this guarded synthetic DB. Effective executions still
+            # prove full sale and must control terminal notification handling.
+            async with database.session_context() as session:
+                await session.execute(
+                    update(PositionModel)
+                    .where(PositionModel.id == position_id)
+                    .values(**earlier_projection)
+                )
+                await session.commit()
+            runtime = PositionMonitoringRuntimeService(
+                database=database,
+                market_data=None,
+                delivery_adapter=None,
+                indicative_entry=IndicativeEntryRuntime(database, scope="DISABLED"),
+                review_notifications_enabled=False,
+            )
+            result = await runtime.run()
+            assert result.indicative_entry.positions_evaluated == 0
+            assert result.notifications_created == result.notifications_delivered == 0
+            assert result.notification_failures == 0
+            after = await _state(database.engine)
+            assert strict_state(after) == strict_before
+            assert after[ASSESSMENTS] == before_sale[ASSESSMENTS]
+            assert after[EPISODES] == before_sale[EPISODES]
+            assert {row["status"] for row in after["notifications"] if row["id"] in pending} == {
+                "FAILED"
+            }
+            terminal = [
+                row
+                for row in after["notification_delivery_attempts"]
+                if row["notification_id"] in pending
+            ]
+            assert len(terminal) == 3
+            assert {row["error_code"] for row in terminal} == {"REVIEW_POSITION_CLOSED"}
+            assert all(
+                row["provider_message_id"] is None and not row["retryable"] for row in terminal
+            )
+            repeated = await runtime.run()
+            assert repeated.notification_failures == repeated.notifications_delivered == 0
+            assert await _state(database.engine) == after
 
     asyncio.run(exercise())
 

@@ -346,6 +346,85 @@ def test_read_clock_and_same_gap_do_not_enter_fingerprint(durable):
     )
 
 
+def test_original_status_facts_bind_assessment_without_delivery_clock_or_gap_churn(
+    durable,
+):
+    _, inputs = durable
+    point = {
+        "fingerprint": "a" * 64,
+        "original": {"status": "CLOSED", "observed_at": NOW.isoformat()},
+        "captured_at": NOW.isoformat(),
+    }
+
+    def bound(**status):
+        return replace(inputs, material={**inputs.material, "status_observations": status})
+
+    value = decision(input_problems=("REVIEW_LATER_NEGATIVE_STATUS_OBSERVED",))
+    first = IndicativeEntryService._input_fingerprint(
+        bound(latest_observations=[point], latest_capture=point), value
+    )
+    # Owner fact identity excludes delivery/request clocks. Receiving a duplicate
+    # point, or another copy of an already known gap, is not a new assessment.
+    delivered_again = {**point, "captured_at": (NOW + timedelta(seconds=1)).isoformat()}
+    gap = {"fingerprint": "b" * 64, "original": None, "reason": "HTTP_503"}
+    for capture in (delivered_again, gap, {**gap, "fingerprint": "c" * 64}):
+        assert (
+            IndicativeEntryService._input_fingerprint(
+                bound(latest_observations=[point, delivered_again], latest_capture=capture),
+                value,
+            )
+            == first
+        )
+
+
+@pytest.mark.parametrize("changed_fact", ["status", "original_clock", "source_binding"])
+def test_changed_original_status_fact_is_not_hidden_by_same_problem_reason(durable, changed_fact):
+    _, inputs = durable
+    original = {
+        "status": "CLOSED",
+        "observed_at": NOW.isoformat(),
+        "source_reference": "one",
+    }
+    point = {
+        "fingerprint": "a" * 64,
+        "original": original,
+        "captured_at": NOW.isoformat(),
+    }
+    changes = {
+        "status": {"status": "SUSPENDED"},
+        "original_clock": {"observed_at": (NOW - timedelta(seconds=1)).isoformat()},
+        "source_binding": {"source_reference": "two"},
+    }
+    # The status owner supplies the new bound fingerprint for each changed
+    # original fact; the consumer does not recalculate or invent that identity.
+    changed = {
+        **point,
+        "fingerprint": "b" * 64,
+        "original": {**original, **changes[changed_fact]},
+    }
+    first = replace(
+        inputs,
+        material={
+            **inputs.material,
+            "status_observations": {"latest_observations": [point]},
+        },
+    )
+    later = replace(
+        first,
+        material={
+            **first.material,
+            "status_observations": {
+                "latest_observations": [point],
+                "latest_capture": changed,
+            },
+        },
+    )
+    value = decision(input_problems=("REVIEW_LATER_NEGATIVE_STATUS_OBSERVED",))
+    assert IndicativeEntryService._input_fingerprint(first, value) != (
+        IndicativeEntryService._input_fingerprint(later, value)
+    )
+
+
 @pytest.mark.asyncio
 async def test_review_event_is_once_per_entry_and_twentieth_threshold_even_after_revision(
     durable,
