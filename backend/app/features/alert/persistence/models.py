@@ -24,8 +24,16 @@ class AlertModel(Base):
     __table_args__ = (
         CheckConstraint(
             "alert_type IN ('STOP_REACHED', 'TARGET_REACHED', 'RISK_TREND_CHANGED', "
-            "'RISK_VOLATILITY_HIGH', 'HEBELTRADER_B04_LOSS')",
+            "'RISK_VOLATILITY_HIGH', 'HEBELTRADER_B04_LOSS', 'INDICATIVE_ENTRY_LOSS', "
+            "'POSITION_REVIEW_DUE', 'POSITION_DATA_UNAVAILABLE')",
             name="alert_type_valid",
+        ),
+        CheckConstraint(
+            "(alert_type IN ('POSITION_REVIEW_DUE', 'POSITION_DATA_UNAVAILABLE') "
+            "AND observed_value IS NULL AND threshold_value IS NULL) OR "
+            "(alert_type NOT IN ('POSITION_REVIEW_DUE', 'POSITION_DATA_UNAVAILABLE') "
+            "AND observed_value IS NOT NULL AND threshold_value IS NOT NULL)",
+            name="alert_value_shape",
         ),
         CheckConstraint("status IN ('OPEN', 'RESOLVED', 'INVALIDATED')", name="alert_status_valid"),
         ForeignKeyConstraint(
@@ -45,8 +53,8 @@ class AlertModel(Base):
     severity: Mapped[str] = mapped_column(String(20), nullable=False)
     rule_key: Mapped[str] = mapped_column(String(200), nullable=False)
     reason: Mapped[str] = mapped_column(String(1000), nullable=False)
-    observed_value: Mapped[Decimal] = mapped_column(Numeric(24, 10), nullable=False)
-    threshold_value: Mapped[Decimal] = mapped_column(Numeric(24, 10), nullable=False)
+    observed_value: Mapped[Decimal | None] = mapped_column(Numeric(24, 10), nullable=True)
+    threshold_value: Mapped[Decimal | None] = mapped_column(Numeric(24, 10), nullable=True)
     market_data_observed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )

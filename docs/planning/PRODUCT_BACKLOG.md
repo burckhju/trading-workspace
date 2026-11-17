@@ -2189,6 +2189,26 @@ ist noch kein Veröffentlichungs- oder PC-Installationsbeleg behauptet.
 </details>
 
 <a id="naechster-schnitt"></a>
+### Freigegebene indikative Positionsprüfung — 17.11.2026
+
+Die ausdrücklich freigegebene Alternative ergänzt einen eigenen automatischen
+Prüfumfang, ohne B04/B57, B58 oder bestehende Stop-/Zielachsen umzudeuten. Der
+[gemeinsame Meldungsvertrag](../features/HEBELTRADER_MONITORING_INTEGRATION_CONTRACT.md#indicative-review-alert-contract-v1)
+bereitet drei getrennte Alerttypen, nichtpreisliche Werteform und bestehende
+Workspace-/Notification-Consumer vor. Dieser Grundlage folgt die eigene
+regelmäßige Einstandsbeobachtung mit Prüferinnerung und Datenproblemepisode.
+Der Meldungsgrundlagenschnitt allein ist keine laufende Überwachung. Integration,
+reguläre Gates, Veröffentlichung und tatsächlicher PC-Betrieb bleiben getrennte
+Nachweise; die PRs binden ihre Tests an Head und Integrationsstand.
+
+B05 bleibt von aktuellen Kursen unabhängig. Die dokumentierten Originalkalender
+sind verfügbar; eine aktuelle persönliche Produkttermin-/letzter-Handelstag-/
+Ausstiegslistingbindung einschließlich produktspezifischem Schluss ist im
+zugänglichen Quellenstand nicht belegt. Daraus folgt keine Aussage über unbekannte
+lokale Belege auf dem Nutzer-PC. Der vorhandene Rechenkern bleibt erhalten;
+produktive Fristmeldungen werden ohne diese erforderlichen Fakten nicht aktiviert.
+Die übrigen offenen F207-2/B06-/F207-5-Arbeiten bleiben unverändert.
+
 ## Genau nächster sinnvoller Umsetzungsschritt
 
 **Aktueller Liefernachtrag 28.10.2026 zu v1.5.31:** Nach dem freigegebenen und

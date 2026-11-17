@@ -1,4 +1,4 @@
-"""Terminal B04 outbox decisions within the caller's existing trade transaction."""
+"""Terminal position outbox decisions within the caller's existing trade transaction."""
 
 from datetime import datetime
 from uuid import UUID, uuid4
@@ -32,6 +32,32 @@ _REASONS = {
     "B04_TRADE_MISSING": "Wirtschaftlicher Trade fehlt; B04-Zustellung unterdrückt.",
 }
 B04_SUPPRESSION_CODES = tuple(_REASONS)
+REVIEW_SUPPRESSION_CODES = (
+    "REVIEW_POSITION_CLOSED",
+    "REVIEW_ALERT_RESOLVED",
+    "REVIEW_ALERT_INVALIDATED",
+    "REVIEW_TRADE_CANCELLED",
+    "REVIEW_TRADE_MISSING",
+)
+_REASONS.update(
+    {
+        "REVIEW_POSITION_CLOSED": "Vollverkauf belegt; ausstehender Prüfhinweis unterdrückt.",
+        "REVIEW_ALERT_RESOLVED": "Prüfbedingung beendet; ausstehende Zustellung unterdrückt.",
+        "REVIEW_ALERT_INVALIDATED": "Prüfgrundlage korrigiert; ausstehende Zustellung unterdrückt.",
+        "REVIEW_TRADE_CANCELLED": "Trade storniert; ausstehender Prüfhinweis unterdrückt.",
+        "REVIEW_TRADE_MISSING": "Wirtschaftlicher Trade fehlt; Prüfzustellung unterdrückt.",
+    }
+)
+POSITION_SUPPRESSION_CODES = (*B04_SUPPRESSION_CODES, *REVIEW_SUPPRESSION_CODES)
+POSITION_REVIEW_ALERT_TYPES = (
+    AlertType.INDICATIVE_ENTRY_LOSS.value,
+    AlertType.POSITION_REVIEW_DUE.value,
+    AlertType.POSITION_DATA_UNAVAILABLE.value,
+)
+POSITION_GUARDED_ALERT_TYPES = (
+    AlertType.HEBELTRADER_B04_LOSS.value,
+    *POSITION_REVIEW_ALERT_TYPES,
+)
 
 
 async def suppress_b04_notification(
@@ -42,16 +68,32 @@ async def suppress_b04_notification(
     reason: str,
     attempt_id: UUID | None = None,
 ) -> DeliveryResult:
+    """Retain the B04-only public contract for existing callers."""
+    if reason not in B04_SUPPRESSION_CODES:
+        raise ValueError("Unsupported B04 suppression reason")
+    return await suppress_position_notification(
+        session, notification=notification, now=now, reason=reason, attempt_id=attempt_id
+    )
+
+
+async def suppress_position_notification(
+    session: AsyncSession,
+    *,
+    notification: NotificationModel,
+    now: datetime,
+    reason: str,
+    attempt_id: UUID | None = None,
+) -> DeliveryResult:
     """Record one suppressed preparation, never an actual external send.
 
-    Caller has locked the B04 trade and pending notification and commits the
+    Caller has locked the trade and pending notification and commits the
     decision together with its business change. Earlier attempts are retained;
     an already in-flight external request cannot be recalled by this decision.
     """
     if notification.status != NotificationStatus.PENDING.value:
-        raise ValueError("B04 suppression requires a locked pending notification")
+        raise ValueError("Suppression requires a locked pending notification")
     if reason not in _REASONS:
-        raise ValueError("Unsupported B04 suppression reason")
+        raise ValueError("Unsupported position suppression reason")
     current = await session.scalar(
         select(func.max(NotificationDeliveryAttemptModel.attempt_number)).where(
             NotificationDeliveryAttemptModel.notification_id == notification.id
@@ -95,7 +137,7 @@ async def suppress_pending_b04_notifications(
     )
     if alert_type != AlertType.HEBELTRADER_B04_LOSS.value:
         raise ValueError("B04 notification lifecycle requires a B04 alert")
-    if reason not in _REASONS:
+    if reason not in B04_SUPPRESSION_CODES:
         raise ValueError("Unsupported B04 suppression reason")
     pending = tuple(
         await session.scalars(
@@ -111,4 +153,35 @@ async def suppress_pending_b04_notifications(
     )
     for notification in pending:
         await suppress_b04_notification(session, notification=notification, now=now, reason=reason)
+    return len(pending)
+
+
+async def suppress_pending_review_notifications(
+    session: AsyncSession, *, alert_id: UUID, now: datetime, reason: str
+) -> int:
+    """Suppress separate review notices; never alter a B04 episode or commit."""
+    await session.flush()
+    alert_type = await session.scalar(
+        select(AlertModel.alert_type).where(AlertModel.id == alert_id)
+    )
+    if alert_type not in POSITION_REVIEW_ALERT_TYPES:
+        raise ValueError("Review notification lifecycle requires a review alert")
+    if reason not in REVIEW_SUPPRESSION_CODES:
+        raise ValueError("Unsupported review suppression reason")
+    pending = tuple(
+        await session.scalars(
+            select(NotificationModel)
+            .where(
+                NotificationModel.alert_id == alert_id,
+                NotificationModel.status == NotificationStatus.PENDING.value,
+            )
+            .order_by(NotificationModel.id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+    )
+    for notification in pending:
+        await suppress_position_notification(
+            session, notification=notification, now=now, reason=reason
+        )
     return len(pending)

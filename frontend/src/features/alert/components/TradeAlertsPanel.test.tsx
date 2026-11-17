@@ -1,7 +1,8 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { alertApiClient } from '../services/client';
+import type { AlertResponse } from '../types/api';
 import { TradeAlertsPanel } from './TradeAlertsPanel';
 
 vi.mock('../services/client', () => ({
@@ -13,6 +14,45 @@ vi.mock('../services/client', () => ({
 }));
 
 const api = vi.mocked(alertApiClient);
+
+function entryObservation(overrides: Partial<AlertResponse> = {}): AlertResponse {
+  return {
+    id: 'synthetic-entry-alert',
+    position_id: 'position-1',
+    trade_id: 'trade-1',
+    alert_type: 'INDICATIVE_ENTRY_LOSS',
+    severity: 'WARNING',
+    rule_key: 'synthetic-entry-episode',
+    reason: 'Der beobachtete Geldkurs liegt unter dem persönlichen Bruttoeinstand.',
+    observed_value: '0.48',
+    threshold_value: '0.55',
+    market_data_observed_at: null,
+    detected_at: '2026-11-17T10:05:00Z',
+    status: 'OPEN',
+    resolved_at: null,
+    notifications: [],
+    price_context: {
+      scope: 'INDICATIVE_ENTRY_V1',
+      rule_version: 'indicative-entry-review-v1',
+      qualified_b04: 'false',
+      evaluation_mode: 'INDICATIVE_ISSUER',
+      basis: 'WARRANT',
+      price_type: 'BID',
+      currency: 'EUR',
+      provider: 'SYNTHETIC',
+      provider_identity: 'SYNTHETIC-INSTRUMENT',
+      observed_at: null,
+      retrieved_at: '2026-11-17T10:04:00Z',
+      quote_time_text: '11:03:00',
+      quote_time_basis: 'DATE_AND_TIMEZONE_UNKNOWN',
+      completed_sessions: '19',
+      session_count_at: '2026-11-17T10:05:00Z',
+      session_count_basis: 'EVALUATION_TIME',
+      remaining_quantity: '2300',
+    },
+    ...overrides,
+  };
+}
 
 describe('TradeAlertsPanel', () => {
   beforeEach(() => {
@@ -306,5 +346,228 @@ describe('TradeAlertsPanel', () => {
       screen.queryByRole('button', { name: /kaufen|verkaufen|ausführen/i }),
     ).not.toBeInTheDocument();
     expect(api.forTrade).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(['SOURCE_BID', 'INDICATIVE_ISSUER'])(
+    'keeps %s entry observations separate from qualified B04 and original time evidence',
+    async (evaluationMode) => {
+      const alert = entryObservation();
+      api.forTrade.mockResolvedValue([
+        { ...alert, price_context: { ...alert.price_context, evaluation_mode: evaluationMode } },
+      ]);
+
+      render(<TradeAlertsPanel tradeId="trade-1" />);
+
+      expect(
+        await screen.findByText('Indikativ · Kurs unter persönlichem Bruttoeinstand'),
+      ).toBeInTheDocument();
+      expect(screen.getByText(/Teilumfang: Indikative Einstandsbeobachtung/)).toHaveTextContent(
+        'indicative-entry-review-v1',
+      );
+      expect(screen.getByText(/B58-Qualifikation nicht belegt/)).toHaveTextContent(
+        'keine B04/B57-Verlustepisode',
+      );
+      expect(screen.getByText('Beobachteter Geldkurs · indikativ')).toBeInTheDocument();
+      expect(screen.getByText('0,48')).toBeInTheDocument();
+      expect(screen.getByText('Persönlicher Bruttoeinstand je Stück')).toBeInTheDocument();
+      expect(screen.getByText('0,55')).toBeInTheDocument();
+      expect(screen.getByText(/Abgeschlossene Basiswertsitzungen: 19/)).toHaveTextContent(
+        'zum Prüfzeitpunkt',
+      );
+      expect(screen.getByText(/Kurszeitpunkt: nicht bekannt/)).toHaveTextContent(
+        'Abgerufen: 2026-11-17T10:04:00Z',
+      );
+      expect(screen.getByText(/Zeitangabe der Quelle: 11:03:00/)).toHaveTextContent(
+        'Kursdatum und Zeitzone unbekannt',
+      );
+      expect(screen.queryByText('Original-Geldkurs')).not.toBeInTheDocument();
+      expect(screen.queryByText(/^Regel: B04\/B57/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/zur Original-Geldkurszeit/)).not.toBeInTheDocument();
+    },
+  );
+
+  it('uses the declared BID session time without replacing it by the reminder session count', async () => {
+    const alert = entryObservation();
+    api.forTrade.mockResolvedValue([
+      {
+        ...alert,
+        price_context: {
+          ...alert.price_context,
+          evaluation_mode: 'SOURCE_BID',
+          observed_at: '2026-11-17T10:00:00Z',
+          session_count_at: '2026-11-17T10:00:00Z',
+          session_count_basis: 'ORIGINAL_BID',
+          review_completed_sessions: '20',
+          review_session_count_at: '2026-11-17T10:05:00Z',
+        },
+      },
+    ]);
+
+    render(<TradeAlertsPanel tradeId="trade-1" />);
+
+    expect(await screen.findByText(/Abgeschlossene Basiswertsitzungen: 19/)).toHaveTextContent(
+      'zur Original-Geldkurszeit · Stand: 2026-11-17T10:00:00Z',
+    );
+    expect(screen.queryByText(/Abgeschlossene Basiswertsitzungen: 20/)).not.toBeInTheDocument();
+  });
+
+  it.each(['POSITION_REVIEW_DUE', 'POSITION_DATA_UNAVAILABLE'] as const)(
+    'renders %s as a price-free persisted notice and only uses existing reads',
+    async (alertType) => {
+      const alert = entryObservation();
+      api.forTrade.mockResolvedValue([
+        {
+          ...alert,
+          alert_type: alertType,
+          observed_value: null,
+          threshold_value: null,
+          reason: 'Synthetischer Anlass des gespeicherten Hinweises.',
+          price_context: {
+            ...alert.price_context,
+            price_type: null,
+            review_completed_sessions: '20',
+            review_session_count_at: '2026-11-17T10:05:00Z',
+            data_problem_reasons:
+              alertType === 'POSITION_DATA_UNAVAILABLE' ? 'QUOTE_MISSING,CURRENCY_MISSING' : null,
+          },
+        },
+      ]);
+
+      render(<TradeAlertsPanel tradeId="trade-1" />);
+
+      expect(
+        await screen.findByText(
+          alertType === 'POSITION_REVIEW_DUE'
+            ? 'Prüfhinweis · 20 Basiswertsitzungen abgeschlossen'
+            : 'Datenproblem · Einstandsbeobachtung nicht auswertbar',
+        ),
+      ).toBeInTheDocument();
+      if (alertType === 'POSITION_REVIEW_DUE') {
+        expect(
+          screen.getByText(/Abgeschlossene Basiswertsitzungen zum Prüfzeitpunkt: 20/),
+        ).toHaveTextContent('Stand: 2026-11-17T10:05:00Z');
+        expect(screen.getByText(/Kalenderbasierter Prüfhinweis/)).toHaveTextContent(
+          'keinen Verlust',
+        );
+      } else {
+        expect(screen.getByText(/Ein bestehender Verlusthinweis bleibt/)).toBeInTheDocument();
+        expect(screen.getByText('QUOTE_MISSING,CURRENCY_MISSING')).toBeInTheDocument();
+      }
+      expect(screen.queryByText('Beobachtet')).not.toBeInTheDocument();
+      expect(screen.queryByText('Schwelle')).not.toBeInTheDocument();
+      expect(screen.queryByText('Original-Geldkurs')).not.toBeInTheDocument();
+      expect(screen.queryByText('Persönlicher Bruttoeinstand je Stück')).not.toBeInTheDocument();
+      expect(screen.queryByText('Marktdaten')).not.toBeInTheDocument();
+      expect(screen.queryByText('0')).not.toBeInTheDocument();
+      expect(screen.queryByText('NaN')).not.toBeInTheDocument();
+      expect(screen.queryByText(/Kursbezug ungeklärt/)).not.toBeInTheDocument();
+      expect(screen.queryByRole('button')).not.toBeInTheDocument();
+      expect(api.forTrade).toHaveBeenCalledExactlyOnceWith('trade-1', expect.any(AbortSignal));
+      expect(api.monitoringHealth).toHaveBeenCalledExactlyOnceWith(
+        'trade-1',
+        expect.any(AbortSignal),
+      );
+      expect(api.monitoringRuntime).toHaveBeenCalledExactlyOnceWith(expect.any(AbortSignal));
+    },
+  );
+
+  it('keeps an existing entry observation visible next to a separate data problem', async () => {
+    api.forTrade.mockResolvedValue([
+      entryObservation(),
+      entryObservation({
+        id: 'synthetic-data-alert',
+        alert_type: 'POSITION_DATA_UNAVAILABLE',
+        observed_value: null,
+        threshold_value: null,
+        reason: 'Eine spätere Kurslieferung fehlt.',
+        detected_at: '2026-11-17T10:10:00Z',
+      }),
+    ]);
+
+    render(<TradeAlertsPanel tradeId="trade-1" />);
+
+    const loss = await screen.findByText('Indikativ · Kurs unter persönlichem Bruttoeinstand');
+    const data = screen.getByText('Datenproblem · Einstandsbeobachtung nicht auswertbar');
+    expect(screen.getByText('2 offen')).toBeInTheDocument();
+    expect(within(loss.closest('li')!).getByText('0,48')).toBeInTheDocument();
+    expect(within(loss.closest('li')!).getByText('OPEN')).toBeInTheDocument();
+    expect(within(data.closest('li')!).queryByText('0,48')).not.toBeInTheDocument();
+    expect(
+      within(data.closest('li')!).getByText('Eine spätere Kurslieferung fehlt.'),
+    ).toBeInTheDocument();
+  });
+
+  it('does not convert a missing numeric value into a zero price', async () => {
+    api.forTrade.mockResolvedValue([
+      entryObservation({ observed_value: null, threshold_value: null }),
+    ]);
+    render(<TradeAlertsPanel tradeId="trade-1" />);
+
+    const loss = await screen.findByText('Indikativ · Kurs unter persönlichem Bruttoeinstand');
+    const row = within(loss.closest('li')!);
+    expect(row.queryByText('0')).not.toBeInTheDocument();
+    expect(row.getAllByText('—')).toHaveLength(3);
+  });
+
+  it.each([
+    ['REVIEW_POSITION_CLOSED', true],
+    ['REVIEW_ALERT_RESOLVED', true],
+    ['REVIEW_ALERT_INVALIDATED', true],
+    ['REVIEW_TRADE_CANCELLED', true],
+    ['REVIEW_TRADE_MISSING', true],
+    ['REVIEW_TRANSPORT_ERROR', false],
+  ] as const)(
+    'renders delivery outcome %s without inventing recovery',
+    async (errorCode, suppressed) => {
+      api.forTrade.mockResolvedValue([
+        entryObservation({
+          notifications: [
+            {
+              id: 'synthetic-notification',
+              channel: 'TELEGRAM',
+              destination_key: 'synthetic',
+              status: 'FAILED',
+              created_at: '2026-11-17T10:05:00Z',
+              last_delivery: {
+                status: 'FAILED',
+                attempted_at: '2026-11-17T10:06:00Z',
+                completed_at: '2026-11-17T10:06:00Z',
+                retryable: !suppressed,
+                error_code: errorCode,
+                error_message: 'Synthetischer Zustellgrund.',
+              },
+            },
+          ],
+        }),
+      ]);
+      render(<TradeAlertsPanel tradeId="trade-1" />);
+
+      expect(
+        await screen.findByText(
+          suppressed
+            ? 'TELEGRAM: Versand unterdrückt · Synthetischer Zustellgrund.'
+            : 'TELEGRAM: fehlgeschlagen',
+        ),
+      ).toBeInTheDocument();
+      expect(screen.getByText('OPEN')).toBeInTheDocument();
+      expect(screen.queryByText('TELEGRAM: zugestellt')).not.toBeInTheDocument();
+    },
+  );
+
+  it('does not describe every invalidated observation as an unqualified price binding', async () => {
+    api.forTrade.mockResolvedValue([
+      entryObservation({
+        status: 'INVALIDATED',
+        invalidation_reason: 'OWNER_BASIS_CHANGED',
+      }),
+    ]);
+    render(<TradeAlertsPanel tradeId="trade-1" />);
+
+    expect(
+      await screen.findByText(/Hinweis durch eine neue Bewertung ungültig/),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/Meldung wegen ungeklärtem Kursbezug ungültig/),
+    ).not.toBeInTheDocument();
   });
 });

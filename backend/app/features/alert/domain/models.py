@@ -13,6 +13,9 @@ class AlertType(StrEnum):
     RISK_TREND_CHANGED = "RISK_TREND_CHANGED"
     RISK_VOLATILITY_HIGH = "RISK_VOLATILITY_HIGH"
     HEBELTRADER_B04_LOSS = "HEBELTRADER_B04_LOSS"
+    INDICATIVE_ENTRY_LOSS = "INDICATIVE_ENTRY_LOSS"
+    POSITION_REVIEW_DUE = "POSITION_REVIEW_DUE"
+    POSITION_DATA_UNAVAILABLE = "POSITION_DATA_UNAVAILABLE"
 
 
 class AlertSeverity(StrEnum):
@@ -35,8 +38,8 @@ class Alert:
     severity: AlertSeverity
     rule_key: str
     reason: str
-    observed_value: Decimal
-    threshold_value: Decimal
+    observed_value: Decimal | None
+    threshold_value: Decimal | None
     market_data_observed_at: datetime | None
     detected_at: datetime
     status: AlertStatus = AlertStatus.OPEN

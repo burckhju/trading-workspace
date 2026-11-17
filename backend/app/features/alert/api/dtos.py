@@ -40,8 +40,8 @@ class AlertResponse(BaseModel):
     severity: AlertSeverity
     rule_key: str
     reason: str
-    observed_value: Decimal
-    threshold_value: Decimal
+    observed_value: Decimal | None
+    threshold_value: Decimal | None
     market_data_observed_at: datetime | None
     detected_at: datetime
     status: AlertStatus

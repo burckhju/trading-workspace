@@ -3,7 +3,10 @@ export type AlertType =
   | 'TARGET_REACHED'
   | 'RISK_TREND_CHANGED'
   | 'RISK_VOLATILITY_HIGH'
-  | 'HEBELTRADER_B04_LOSS';
+  | 'HEBELTRADER_B04_LOSS'
+  | 'INDICATIVE_ENTRY_LOSS'
+  | 'POSITION_REVIEW_DUE'
+  | 'POSITION_DATA_UNAVAILABLE';
 export type AlertSeverity = 'WARNING' | 'INFO';
 export type AlertStatus = 'OPEN' | 'RESOLVED' | 'INVALIDATED';
 export type NotificationChannel = 'TELEGRAM';
@@ -40,8 +43,8 @@ export interface AlertResponse {
   severity: AlertSeverity;
   rule_key: string;
   reason: string;
-  observed_value: string;
-  threshold_value: string;
+  observed_value: string | null;
+  threshold_value: string | null;
   market_data_observed_at: string | null;
   detected_at: string;
   status: AlertStatus;
