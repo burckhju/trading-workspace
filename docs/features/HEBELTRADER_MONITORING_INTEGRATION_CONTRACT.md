@@ -2289,3 +2289,60 @@ Produkt-/Originalterminbelege, die dauerhafte feste Ausstiegslistingbindung,
 produktspezifische Schlusszeit und anschließend seinen ausdrücklichen
 Ereignis-/Betriebsvertrag. Diese kleine Vorbereitung ist keine laufende
 Fristüberwachung und erweitert die B04/B57-Aktivierung nicht.
+
+<a id="b58-ariva-acquisition-probe-v1"></a>
+## B58: begrenzte reale Beschaffungsprobe, Version 1
+
+Der [aktualisierte Quellenbefund](../reviews/B58_ARIVA_ACQUISITION_2026-11-17.md)
+bestimmt den konkreten Evaluationspfad: ARIVA MDS für **Börse Frankfurt
+Certificates and Warrants / Real-time**, ARIVA-Quellencode `XSC`. OpenAPI und
+OIDC-Discovery belegen die implementierten Requests. Zugang, eigene
+Originalstatuszeit, deren zeitliche Aussage, vollständige negative/preislose
+Meldungen, Wiederanlauf und konkrete Nutzungsrechte bleiben zu beschaffen.
+Ein API-Key allein schließt diese Lücke nicht. Die 900 Sekunden gelten weiterhin
+nur für den BID; weder Heartbeat noch Kalender bestätigen einen offenen Markt.
+
+`app.tools.probe_ariva_b58` übernimmt im Planmodus automatisch die bereits
+gespeicherten offenen Optionsscheinpositionen aus dem bestehenden passiven
+`positions/quote-coverage`-Read. Der Read bleibt beim Market-Data-Owner;
+Positionsprojektion und vorhandene Quellenentscheidungen werden nicht neu
+berechnet. Die Probe wählt keine neuen Quellen und ändert keine wirtschaftlichen
+Fakten. Deduplizierte ISINs, gespeicherte Bindungen und konkrete Lücken werden
+übernommen; maximal 64 verschiedene Instrumente, kein stilles Abschneiden und
+keine manuell einzutragenden IDs, Hashes oder Request-IDs.
+
+Erst der ausdrückliche CLI-Aufruf mit `--fetch` verwendet einen einmalig
+bereitgestellten berechtigten Clientzugang. `ARIVA_MDS_CLIENT_ID` und
+`ARIVA_MDS_CLIENT_SECRET` dienen ausschließlich dem dokumentierten
+Client-Credentials-Verfahren. Sie sind kein Vertrauensschalter und erscheinen
+nicht in URL, Bericht oder Kommandozeilenargumenten. Der Provider-Layer erfasst
+Quellenmetadaten, gezielte Marktzustände mit `quality=REALTIME` und anschließend
+vorhandene Listingvarianten. `XSC`, `operatingMic`, `segmentMic`, Währung und
+Listingvariante bleiben unterschiedliche Felder; insbesondere wird eine
+Emittentenquelle nicht in ein Börsenlisting umgedeutet.
+
+Die Beschaffungsprobe hält erfolgreiche originale JSON-Antwortbytes als
+UTF-8-Text samt SHA-256, URL und eigener Erfassungszeit in einer exklusiv
+erzeugten privaten Berichtsdatei fest. HTTP- und Bodygrößenlimits begrenzen die
+Requests; keine Redirects, stillen Retries, Quelle-Fallbacks oder vollständigen
+Source-Feed-Abonnements. Zugriffs-, Transport- und Schemafehler bleiben Fehler,
+keine CLOSED-Meldungen. Preislose Statusblöcke bleiben in den Originalantworten
+erhalten. Statuscodes werden ohne quellspezifischen Vertrag nicht als OPEN
+gedeutet; auch ein neu auftauchendes undokumentiertes Zeitfeld qualifiziert
+keinen Status. Mehrere oder widersprüchliche Listingantworten bleiben sichtbar.
+
+Die Berichte binden jeden Abruf getrennt an seine Zeit und Quelle. Sie behaupten
+keinen atomaren Snapshot über lokale Positionsdaten und externe Antworten,
+keine unveränderte Position während des Abrufs und keine historische
+Vollständigkeit. Der Eigentümer der bestehenden Preis-/Statuspersistenz bleibt
+Market Data; die Probe besitzt keinen fachlichen Datenbankschreibpfad. Eine
+spätere Integration qualifizierter Originaldaten verwendet diesen Owner und
+den bestehenden B04/B57-Runner, nicht eine zweite Regelimplementierung.
+
+Der Ergebnisumfang ist **Beschaffungsprüfung**, immer `b58_qualified=false`.
+Ein erfolgreicher Plan ist kein erfolgreicher Anbieterabruf; ein erfolgreicher
+Anbieterabruf ist keine B58-Freigabe. Produktivregistry, zentrale Aktivierung,
+passive Evidenzverträge, Preisachsen und B08-Ausschluss bleiben erhalten.
+Synthetische Tests mit abgefangenen HTTP-Aufrufen belegen Transport und
+Auswertung dieses Schnitts. Reale Depot-/Providerabnahme, Integration,
+Veröffentlichung und Installation sind gesonderte Nachweise im Backlog/PR.
