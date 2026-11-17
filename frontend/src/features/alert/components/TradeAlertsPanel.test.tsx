@@ -232,4 +232,79 @@ describe('TradeAlertsPanel', () => {
       'Keine Orderfreigabe',
     );
   });
+
+  it('renders B04 scope and quantity while keeping data problems and suppression separate', async () => {
+    api.monitoringHealth.mockResolvedValue({
+      trade_id: 'trade-1',
+      position_id: 'position-1',
+      status: 'MISSING',
+      reason: 'SYNTHETIC_DATA_GAP',
+      symbol: null,
+      trading_date: null,
+      market_data_observed_at: null,
+      age_days: null,
+    });
+    api.forTrade.mockResolvedValue([
+      {
+        id: 'b04-alert',
+        position_id: 'position-1',
+        trade_id: 'trade-1',
+        alert_type: 'HEBELTRADER_B04_LOSS',
+        severity: 'WARNING',
+        rule_key: 'synthetic-b04-episode',
+        reason: 'Original-Geldkurs liegt unter dem persönlichen Bruttoeinstand.',
+        observed_value: '0.48',
+        threshold_value: '0.55',
+        market_data_observed_at: '2026-11-17T10:00:00Z',
+        detected_at: '2026-11-17T10:00:05Z',
+        status: 'RESOLVED',
+        resolved_at: '2026-11-17T10:01:00Z',
+        price_context: {
+          basis: 'WARRANT',
+          currency: 'EUR',
+          price_type: 'BID',
+          provider: 'SYNTHETIC',
+          observed_at: '2026-11-17T10:00:00Z',
+          rule_version: 'hebeltrader-b04-b57-v1',
+          remaining_quantity: '2300',
+          completed_sessions_at_bid: '20',
+        },
+        notifications: [
+          {
+            id: 'b04-notification',
+            channel: 'TELEGRAM',
+            destination_key: 'synthetic',
+            status: 'FAILED',
+            created_at: '2026-11-17T10:00:05Z',
+            last_delivery: {
+              status: 'FAILED',
+              attempted_at: '2026-11-17T10:01:00Z',
+              completed_at: '2026-11-17T10:01:00Z',
+              retryable: false,
+              error_code: 'B04_POSITION_CLOSED',
+              error_message:
+                'Effektive Ausführungen belegen Vollverkauf; B04-Zustellung unterdrückt.',
+            },
+          },
+        ],
+      },
+    ]);
+    render(<TradeAlertsPanel tradeId="trade-1" />);
+    expect(
+      await screen.findByText('Hebeltrader · Verlust nach 20 Basiswertsitzungen'),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Regel: B04/B57 · hebeltrader-b04-b57-v1')).toBeInTheDocument();
+    expect(screen.getByText(/Restmenge bei Auslösung: 2300/)).toHaveTextContent(
+      'Abgeschlossene Basiswertsitzungen zur Geldkurszeit: 20',
+    );
+    expect(screen.getByText('Original-Geldkurs')).toBeInTheDocument();
+    expect(screen.getByText('Persönlicher Bruttoeinstand je Stück')).toBeInTheDocument();
+    expect(screen.getByText('Daten fehlen')).toBeInTheDocument();
+    expect(screen.getByText(/TELEGRAM: Versand unterdrückt/)).toHaveTextContent('Vollverkauf');
+    expect(screen.queryByText('TELEGRAM: zugestellt')).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /kaufen|verkaufen|ausführen/i }),
+    ).not.toBeInTheDocument();
+    expect(api.forTrade).toHaveBeenCalledTimes(1);
+  });
 });

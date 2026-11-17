@@ -1,4 +1,5 @@
 import { PositionRiskPanel } from '../../alert/components/PositionRiskPanel';
+import { alertTypeLabel } from '../../alert/services/alertLabels';
 import { Link } from 'react-router-dom';
 import type { OperationalPosition } from '../types';
 import { dateLabel, money, numberLabel, purchaseDate, timeLabel } from '../services/positionsView';
@@ -11,6 +12,7 @@ import { HebeltraderEvidenceCoverage } from './HebeltraderEvidenceCoverage';
 import { HebeltraderTargetHistory } from './HebeltraderTargetHistory';
 import { HebeltraderSessions } from './HebeltraderSessions';
 import { HebeltraderOriginalBid } from './HebeltraderOriginalBid';
+import { HebeltraderLoss } from './HebeltraderLoss';
 import type { QualificationSessions } from '../hooks/useHebeltraderQualificationSessions';
 
 const staleValuationNotice =
@@ -114,6 +116,14 @@ export function PositionDetails({
           `${p.open_quantity}:${p.cost_basis}:${p.average_entry_price}`
         }
       />
+      <HebeltraderLoss
+        tradeId={p.trade_id}
+        positionId={p.position_id}
+        reloadToken={
+          p.position_basis?.basis_id ??
+          `${p.open_quantity}:${p.cost_basis}:${p.average_entry_price}`
+        }
+      />
       <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div>
           <dt className="text-slate-400">Basiswert</dt>
@@ -170,7 +180,7 @@ export function PositionDetails({
       <p>
         {p.open_alert_count} offene Hinweise
         {p.open_alert_types.length > 0
-          ? ` · ${p.open_alert_types.map((t) => (t === 'STOP_REACHED' ? 'Stop erreicht' : t === 'TARGET_REACHED' ? 'Ziel erreicht' : t)).join(', ')}`
+          ? ` · ${p.open_alert_types.map(alertTypeLabel).join(', ')}`
           : ''}
       </p>
       <p>

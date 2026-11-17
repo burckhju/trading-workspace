@@ -22,6 +22,11 @@ import {
   originalMarketStatusReport,
 } from "../../frontend/src/features/operational_workspace/test/hebeltraderOriginalBidFixture";
 import type { OperationalPosition } from "../../frontend/src/features/operational_workspace/types";
+import {
+  lossAssessment,
+  lossEpisode,
+  lossReport,
+} from "../../frontend/src/features/operational_workspace/test/hebeltraderLossFixture";
 
 async function setup(
   page: Page,
@@ -146,6 +151,34 @@ async function setup(
         status: 200,
         contentType: "application/json",
         body: JSON.stringify(report),
+      });
+    }
+    const loss = path.match(
+      /^\/(?:api\/)?api\/v1\/position-monitoring\/trades\/trade-(0|[1-9]\d?)\/hebeltrader-loss$/,
+    );
+    if (loss) {
+      const id = loss[1];
+      expect(req.method()).toBe("GET");
+      expect([...url.searchParams.entries()]).toEqual([
+        ["position_id", `position-${id}`],
+      ]);
+      const active = id === "99" ? lossEpisode() : null;
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(
+          lossReport({
+            trade_id: `trade-${id}`,
+            position_id: `position-${id}`,
+            activation_status: "BLOCKED_SOURCE",
+            runner_enabled: true,
+            latest_assessment: lossAssessment(),
+            assessment_count: active ? 2 : 1,
+            active_episode: active,
+            recent_episodes: active ? [active] : [],
+            episode_count: active ? 1 : 0,
+          }),
+        ),
       });
     }
     const originalBid = path.match(
@@ -568,7 +601,39 @@ test("valuation notices preserve keyboard details, existing reads and explicit h
         name: "Gespeicherten Geldkursbeleg erneut lesen",
       }),
     ).toBeEnabled();
-    expect(requests.slice(before).sort()).toEqual([
+    const lossStatus = region.getByRole("region", {
+      name: "Hebeltrader-Verlustüberwachung",
+    });
+    await expect(lossStatus).toContainText(
+      "Durch fehlende Quellenqualifikation blockiert",
+    );
+    await expect(lossStatus).toContainText("Nicht vollständig aktiviert");
+    await expect(lossStatus).toContainText("hebeltrader-b04-b57-v1");
+    await expect(lossStatus.getByRole("button")).toHaveCount(0);
+    await expect(lossStatus.getByRole("textbox")).toHaveCount(0);
+    if (id === 99) {
+      await expect(lossStatus).toContainText("Verlustepisode 1 bleibt offen");
+      await expect(lossStatus).toContainText(
+        "Die Datenlücke beendet diese Verlustepisode nicht.",
+      );
+    }
+    expect(
+      requests
+        .slice(before)
+        .filter((request) => request.endsWith("/hebeltrader-loss")),
+    ).toEqual([
+      expect.stringMatching(
+        new RegExp(
+          `^GET (?:/api)?/api/v1/position-monitoring/trades/trade-${id}/hebeltrader-loss$`,
+        ),
+      ),
+    ]);
+    expect(
+      requests
+        .slice(before)
+        .filter((request) => !request.endsWith("/hebeltrader-loss"))
+        .sort(),
+    ).toEqual([
       expect.stringMatching(
         new RegExp(
           `^GET (?:/api)?/api/v1/position-monitoring/trades/trade-${id}/hebeltrader-original-bid$`,
@@ -619,7 +684,7 @@ test("valuation notices preserve keyboard details, existing reads and explicit h
       await expect(details).toHaveAttribute("aria-expanded", "false");
       await expect(details).toBeFocused();
       await expect(region).toHaveCount(0);
-      expect(requests).toHaveLength(before + 6);
+      expect(requests).toHaveLength(before + 7);
     }
   }
   expect(writes()).toBe(0);

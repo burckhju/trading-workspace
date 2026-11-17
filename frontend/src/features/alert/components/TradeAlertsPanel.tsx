@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import { riskPercent } from '../services/riskLabels';
+import { alertTypeLabel } from '../services/alertLabels';
 import { alertApiClient } from '../services/client';
 import type {
   AlertResponse,
@@ -22,12 +23,8 @@ function formatNumber(value: string): string {
 }
 
 function alertTitle(alert: AlertResponse): string {
-  const title = {
-    STOP_REACHED: 'Stop erreicht',
-    TARGET_REACHED: 'Target erreicht',
-    RISK_TREND_CHANGED: 'Trendverschlechterung',
-    RISK_VOLATILITY_HIGH: 'Erhöhte realisierte Volatilität',
-  }[alert.alert_type];
+  const title =
+    alert.alert_type === 'TARGET_REACHED' ? 'Target erreicht' : alertTypeLabel(alert.alert_type);
   return alert.price_context?.evaluation_mode === 'INDICATIVE_ISSUER'
     ? `${title} (indikative Prüfung)`
     : title;
@@ -35,6 +32,9 @@ function alertTitle(alert: AlertResponse): string {
 
 function notificationLabel(notification: NotificationResponse): string {
   if (notification.status === 'DELIVERED') return `${notification.channel}: zugestellt`;
+  if (notification.last_delivery?.error_code?.startsWith('B04_')) {
+    return `${notification.channel}: Versand unterdrückt · ${notification.last_delivery.error_message ?? 'B04-Hinweis ist nicht mehr zustellbar.'}`;
+  }
   if (notification.status === 'FAILED') return `${notification.channel}: fehlgeschlagen`;
   if (notification.last_delivery?.status === 'IN_PROGRESS') {
     return `${notification.channel}: Versand läuft`;
@@ -238,9 +238,24 @@ export function TradeAlertsPanel({ tradeId }: { tradeId: string }) {
 
                 {alert.invalidation_reason && (
                   <p className="mt-2 text-sm text-amber-300">
-                    Meldung wegen ungeklärtem Kursbezug ungültig. Ursprüngliche Werte bleiben zur
-                    Nachvollziehbarkeit erhalten.
+                    {alert.alert_type === 'HEBELTRADER_B04_LOSS'
+                      ? 'B04-Verlusthinweis durch neue Bewertung ungültig. Ursprüngliche Werte bleiben zur Nachvollziehbarkeit erhalten.'
+                      : 'Meldung wegen ungeklärtem Kursbezug ungültig. Ursprüngliche Werte bleiben zur Nachvollziehbarkeit erhalten.'}
                   </p>
+                )}
+                {alert.alert_type === 'HEBELTRADER_B04_LOSS' && (
+                  <div className="mt-2 text-sm text-slate-400">
+                    <p>Regel: B04/B57 · {alert.price_context?.rule_version ?? 'nicht belegt'}</p>
+                    <p>
+                      Restmenge bei Auslösung: {alert.price_context?.remaining_quantity ?? '—'} ·
+                      Abgeschlossene Basiswertsitzungen zur Geldkurszeit:{' '}
+                      {alert.price_context?.completed_sessions_at_bid ?? '—'}
+                    </p>
+                    <p>
+                      Verlustepisode zur Prüfung. Ausschließlich ein Hinweis; keine Orderfreigabe
+                      und keine automatische Stop- oder Zieländerung.
+                    </p>
+                  </div>
                 )}
                 {alert.price_context && (
                   <div className="mt-2 text-xs text-slate-400">
@@ -274,7 +289,11 @@ export function TradeAlertsPanel({ tradeId }: { tradeId: string }) {
                 )}
                 <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
                   <div>
-                    <dt className="text-slate-500">Beobachtet</dt>
+                    <dt className="text-slate-500">
+                      {alert.alert_type === 'HEBELTRADER_B04_LOSS'
+                        ? 'Original-Geldkurs'
+                        : 'Beobachtet'}
+                    </dt>
                     <dd className="mt-1">
                       {alert.price_context?.basis === 'UNDERLYING_RISK_SIGNAL'
                         ? riskPercent(alert.observed_value)
@@ -282,7 +301,11 @@ export function TradeAlertsPanel({ tradeId }: { tradeId: string }) {
                     </dd>
                   </div>
                   <div>
-                    <dt className="text-slate-500">Schwelle</dt>
+                    <dt className="text-slate-500">
+                      {alert.alert_type === 'HEBELTRADER_B04_LOSS'
+                        ? 'Persönlicher Bruttoeinstand je Stück'
+                        : 'Schwelle'}
+                    </dt>
                     <dd className="mt-1">
                       {alert.price_context?.basis === 'UNDERLYING_RISK_SIGNAL'
                         ? riskPercent(alert.threshold_value)

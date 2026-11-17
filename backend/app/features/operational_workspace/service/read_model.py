@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 from typing import ClassVar
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import and_, exists, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.features.alert.domain.models import AlertStatus, AlertType
@@ -18,7 +18,13 @@ from app.features.candidate.service.runtime_readiness import (
     RuntimeAwareCandidateLiveWorkflowService,
 )
 from app.features.notification.domain.models import NotificationStatus
-from app.features.notification.persistence.models import NotificationModel
+from app.features.notification.persistence.models import (
+    NotificationDeliveryAttemptModel,
+    NotificationModel,
+)
+from app.features.notification.service.hebeltrader_lifecycle import (
+    B04_SUPPRESSION_CODES,
+)
 from app.features.post_trade.persistence.models import (
     ExitReviewModel,
     ExitReviewVersionModel,
@@ -204,19 +210,14 @@ class OperationalWorkspaceReadModel:
                 action_type="POSITION_ALERT",
                 priority="ACTION",
                 state="ACTIONABLE",
-                title=(
-                    "Stop erreicht"
-                    if alert.alert_type == AlertType.STOP_REACHED.value
-                    else (
-                        "Trendverschlechterung"
-                        if alert.alert_type == AlertType.RISK_TREND_CHANGED.value
-                        else (
-                            "Erhöhte realisierte Volatilität"
-                            if alert.alert_type == AlertType.RISK_VOLATILITY_HIGH.value
-                            else "Target erreicht"
-                        )
-                    )
-                ),
+                title={
+                    AlertType.STOP_REACHED.value: "Stop erreicht",
+                    AlertType.RISK_TREND_CHANGED.value: "Trendverschlechterung",
+                    AlertType.RISK_VOLATILITY_HIGH.value: "Erhöhte realisierte Volatilität",
+                    AlertType.HEBELTRADER_B04_LOSS.value: (
+                        "Hebeltrader · Verlust nach 20 Basiswertsitzungen"
+                    ),
+                }.get(alert.alert_type, "Target erreicht"),
                 detail=alert.reason,
                 resource_type="alert",
                 resource_id=alert.id,
@@ -244,6 +245,26 @@ class OperationalWorkspaceReadModel:
                     TradeModel.workspace_id == workspace_id,
                     TradeModel.cancelled_at.is_(None),
                     NotificationModel.status == NotificationStatus.FAILED.value,
+                    or_(
+                        AlertModel.alert_type != AlertType.HEBELTRADER_B04_LOSS.value,
+                        and_(
+                            AlertModel.status == AlertStatus.OPEN.value,
+                            exists().where(
+                                PositionModel.id == AlertModel.position_id,
+                                PositionModel.trade_id == TradeModel.id,
+                                PositionModel.open_quantity > 0,
+                                PositionModel.closed_at.is_(None),
+                            ),
+                            ~exists().where(
+                                NotificationDeliveryAttemptModel.notification_id
+                                == NotificationModel.id,
+                                NotificationDeliveryAttemptModel.error_code.in_(
+                                    B04_SUPPRESSION_CODES
+                                ),
+                                NotificationDeliveryAttemptModel.retryable.is_(False),
+                            ),
+                        ),
+                    ),
                 )
                 .order_by(NotificationModel.created_at, NotificationModel.id)
             )

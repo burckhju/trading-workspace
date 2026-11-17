@@ -2011,3 +2011,224 @@ Schreibfreiheit. Der PostgreSQL-Fall verwendet eine bewachte UUID-Wegwerfdatenba
 mit abgefangenen externen Aufrufen; er prüft konkurrierende Writer, Migration und
 unveränderliche Speicherung. Tatsächlich ausgeführte Ergebnisse, offene/übersprungene
 Prüfungen und reguläre Gates werden an Head und Integrationsbaum im PR ausgewiesen.
+
+<a id="b04-b57-loss-monitoring-v1"></a>
+## B04/B57: versionierter Verlustpfad und begrenzter Betriebsvertrag
+
+Dieser Implementierungsnachtrag vom 17.11.2026 baut auf dem unveränderten
+Gesamtstand #348 → #349 → #350 und dem eigenständigen Statusowner in
+[#351](https://github.com/burckhju/trading-workspace/pull/351) auf. Er beschreibt
+eine neue fachliche Commandstrecke. Die älteren Soll-Ist-Tabellen und die
+anschließend dokumentierten rein lesenden Evidenzverträge bleiben historische
+beziehungsweise eigenständige Aussagen. Der Product Backlog bleibt die einzige
+Aufgabenstatusquelle; PR-Nachweise binden Prüfung und Integration an konkrete
+Heads und Trees.
+
+### Regelumfang und zentrale Aktivierung
+
+| Feld | Vertrag dieses Schnitts |
+|---|---|
+| Regelversion | `hebeltrader-b04-b57-v1` |
+| Fachlicher Teilumfang | `B04_B57_WITH_B58_INPUTS` |
+| Baselinebezug | `HEBELTRADER_CONFIRMED_BASELINE`, Version `1.0.0`; vollständige Baseline ausdrücklich nicht aktiviert |
+| Zentrale Konfiguration | `TRADING_WORKSPACE_POSITION_MONITORING__HEBELTRADER_SCOPE=DISABLED` als Default; ausschließlich der gesondert freigegebene Wert `B04_B57_V1` wählt später diesen Teilumfang |
+| Vorhandener Hintergrundrunner | `TRADING_WORKSPACE_POSITION_MONITORING__ENABLED` und dessen Intervall bleiben gesonderte Betriebsparameter |
+| Produktive Quellen | `QUALIFIED_B58_PATHS=()`; keine derzeit positiv belegte B58-Quelle |
+| Weiter fehlender Umfang | B05, B06, restlicher F207-2-Schutzpfad, vollständiger F207-5-Meldungs-/Aktivierungs-/Betriebsvertrag; B08 ausgeschlossen |
+
+Der Konfigurationswert aktiviert weder einen Provider noch dessen Nutzungsrechte
+und ist kein Quellenbeleg. Er migriert keine einzelne Position. Die spätere
+Freigabe erfolgt zentral für die benannte Regelversion und deren nachweislich
+abgedeckte Quellenpfade. Im jetzigen Lieferstand ist keine Installation aktiviert.
+Auch bei testweise gewähltem Teilumfang bleibt eine nicht qualifizierte Quelle
+als `NOT_ASSESSABLE` erhalten und erzeugt keinen Verlusthinweis.
+
+`B58SourceRegistry` ist eine interne, geprüfte Bindung an Provider, ISIN, MIC,
+Quellenvertrag/-referenz, Original-BID-Feld, Statusfeld, eigene Statuszeit und
+belegte zeitliche Bedeutung. Es gibt keinen HTTP-Command, Formularschalter oder
+Umgebungsparameter zum Freistellen eines beliebigen Imports. Qualifikationsreferenz
+und Dokumentprüfsumme sind interne Beschaffungsbelege, keine Nutzereingaben und
+allein noch keine Quellenqualifikation. Der Produktionskatalog bleibt bis zum
+wirklichen Quellennachweis leer. Die aktuelle Implementierung unterstützt nur
+den ausdrücklich belegten Punktvertrag `OBSERVED_AT_INSTANT`; andere reale
+Zeitsemantiken benötigen ihren eigenen verifizierten Adapter-/Readervertrag.
+
+Ein passender OPEN-Punkt muss die tatsächliche Auswertungszeit belegen. Ein alter
+OPEN-Punkt wird weder durch Kalender noch Empfangszeit oder 900 Sekunden
+fortgeschrieben. CLOSED, SUSPENDED, widersprüchliche Punkte, spätere Lücken und
+ein unqualifizierter Quellenwechsel bleiben ungeeignet. Das ist keine zusätzliche
+Forderung durchgehender Öffnung zwischen BID und Auswertung. Der synthetische
+Testpunkt zur Testuhr ist kein Nachweis eines realen, so liefernden Anbieters.
+
+### Bestehende wirtschaftliche und zeitliche Owner
+
+`read_loss_inputs` übernimmt den tatsächlichen frühesten effektiven BUY,
+Korrekturen, Restmenge, gewichteten Bruttoeinstand, noch beitragende Käufe und
+historische Ausführungswährung unmittelbar aus `read_position_execution_basis`.
+Es gibt keine zweite Depot-, Währungs- oder Kostenrechnung. Vollverkauf und
+Stornierung werden vor Kursvoraussetzungen erkannt.
+
+Der vorhandene Market-Data-Owner liefert gespeicherten Original-BID samt Route
+und Herkunft sowie das unabhängige Statusjournal. Product liefert die bestehende
+maßstabsbezogene Revision innerhalb ihres endlichen Gültigkeitsbereichs. Der
+bestehende Kalenderreader liefert Revisionen und dokumentierte Sitzungen.
+`underlying_sessions` ruft wie zuvor
+`count_completed_sessions(..., event_at=original_bid_at)` auf. Kaufdatum ist
+Tag 0; nur spätere, zur Original-BID-Zeit abgeschlossene Sitzungen zählen.
+Endet die 20. Sitzung erst zwischen BID und Abruf, bleibt der ältere BID bei 19.
+
+BID-Alter bis einschließlich 900 Sekunden ist zulässig; 901 Sekunden,
+Zukunftszeiten, fehlende separate Originalseitenzeit, Ask/Last/Close oder bloße
+Empfangszeit qualifizieren nicht. Historische Währung, dokumentierter
+Produktmaßstab und erforderliche Kalenderbindung werden mit derselben
+gespeicherten wirtschaftlichen Basis geprüft. Korrekturen, Rücknahmen,
+Teilabdeckung und Widersprüche ändern den nachvollziehbaren Befund.
+
+B04 fordert keinen Z1-Verkauf, keinen persönlichen historischen
+Basiswert-Einstieg, keine Target-Qualifikation und keine pauschal vollständige
+F207-Evidenz. Die bestehende historische Target-Erklärung bleibt an ihren
+konkreten Kursbestands-Fingerprint gebunden; dieser Schnitt erweitert sie nicht
+auf neue Kursbestände. Ihre spätere Beschaffungsautomatisierung ist ein eigener
+Vertrag und keine B04-Voraussetzung.
+
+### Dauerhafte Bewertung und Verlustepisode
+
+| Eingangs-/Positionszustand | Bewertung und Wirkung |
+|---|---|
+| Geeignete B58-Eingänge, mindestens 20 Sitzungen, BID unter Bruttoeinstand | `LOSS`; neue Episode und genau ein logischer `HEBELTRADER_B04_LOSS`-Alert, falls keine Episode aktiv ist |
+| Weiterer geeigneter Verlust während derselben Episode | Neue tatsächliche Bewertung bei veränderten Fakten, gleiche Episode und gleicher logischer Hinweis |
+| Identische Eingänge und gleiche Ownerbasis | Unveränderte Bewertung; kein zweiter Ledgerstand, Alert oder Outboxeintrag |
+| Fehlend, veraltet, ungeeignet, weniger als 20 oder Datenproblem nach einem Verlust | `NOT_ASSESSABLE` beziehungsweise `NOT_REACHED`; aktive Verlustepisode bleibt erhalten und gesondert sichtbar |
+| Geeigneter BID mindestens auf persönlichem Bruttoeinstand | `RECOVERED`; aktive Episode und Alert schließen; ausstehende B04-Zustellung wird terminal unterdrückt |
+| Späterer geeigneter Verlust | Neue Episode mit neuer nachvollziehbarer Nummer und neuem Hinweis |
+| Wirtschaftliche Korrektur | Neue Bewertung mit neuer Ownerbasis; alte Eingänge und Bewertung bleiben unverändert |
+| Vollständiger Verkauf oder Stornierung | `CLOSED` ohne Kursvoraussetzung; Episode/Alert schließen, neue Handlungshinweise und ausstehende Zustellungen entfallen; Historie bleibt |
+
+Ein gegenüber einer früheren qualifizierten Bewertung älterer BID oder ein
+widersprüchlicher Preis zur selben Original-BID-Zeit darf keine Erholung
+beweisen. Der neue Befund bleibt als Datenproblem gespeichert. Es werden keine
+früheren Beobachtungen oder angeblich damaligen Meldungen aus heutigem
+Last-success rekonstruiert.
+
+Migration `20261117_0055` auf `20261117_0054` ergänzt beim Monitoring-Owner
+`hebeltrader_loss_assessments` und `hebeltrader_loss_episodes`. Assessments sind
+unveränderlich und kettenförmig referenziert. Eine Episode referenziert ihren
+eröffnenden und gegebenenfalls einmalig schließenden Befund sowie den bestehenden
+Alert. PostgreSQL schützt Scope, eindeutige Vorgänger, eine aktive Episode je
+Position/Regelversion und die historischen Einträge. Eine Downmigration mit
+vorhandener Historie wird verweigert.
+
+### Lauf, Transaktion und Zustellung
+
+Der vorhandene `PositionMonitoringRunner` ruft den neuen Teilumfang innerhalb
+seines normalen Zyklus auf. Die bestehende Produktbewertung/Quellenauswahl
+beschafft Daten außerhalb des wirtschaftlichen Locks; Status/Preis werden bei
+ihrem bisherigen Owner erfasst. Danach erhält die Bewertung den vorhandenen
+Trade-Lock und liest erst anschließend einen konsistenten READ-ONLY-Snapshot.
+Der kurze Snapshot nutzt eine separate NullPool-Verbindung derselben Datenbank,
+damit auch ein Anwendungspool mit einer einzigen Verbindung nicht verhungert.
+Rollback und Freigabe sind auch bei Fehlern garantiert; pro gerade bewertendem
+Lockinhaber entsteht höchstens eine solche zusätzliche Leseverbindung.
+
+Assessment, Episode, fachlicher Alert und optional vorhandene Notification
+committen für B04 gemeinsam. Ein Fehler rollt diesen fachlichen Schritt
+vollständig zurück; bereits vorher erfasste Marktbelege bleiben bestehen.
+Der Ausführungsowner und parallele Bewertungen verwenden denselben Trade-Lock.
+Datenbankconstraints und vorhandene Alert-/Channel-/Destination-Eindeutigkeit
+ergänzen die Serialisierung. Wiederholung und Neustart erzeugen keinen zweiten
+logischen Hinweis. Der Lauf berücksichtigt neben offenen Positionen auch noch
+aktive Episoden inzwischen vollständig verkaufter Positionen.
+
+Die bestehende Durable-Delivery-Sequenz erhält ihren eigenen Commit vor dem
+externen Aufruf. Vor B04-Zustellung prüft sie unter dem Trade-Lock nochmals
+Alertzustand und tatsächlichen effektiven Restbestand. Vollverkauf, Stornierung,
+Recovery oder Invalidierung unterdrücken noch ausstehende Zustellungen mit
+einem nachvollziehbaren terminalen Versuch. Ein später eintreffender retryable
+Transportfehler setzt eine solche Unterdrückung nicht wieder auf PENDING.
+Ein bereits an den externen Adapter übergebener Aufruf lässt sich nicht
+nachträglich zurückholen; ein tatsächlich bestätigter Versand bleibt wahrheitsgemäß
+historisiert. Es wird kein Exactly-once-Versandversprechen für das externe Netz
+erfunden. Tests verwenden ausschließlich abgefangene Aufrufe.
+
+Regelauslöser erzeugen ausschließlich Hinweise. Orders, Ausführungsbuchungen,
+automatische Stop-/Zieländerungen und andere Handels-/Preisachsenregeln werden
+nicht verändert.
+
+### Passive Sicht und wenige Nutzereingaben
+
+`GET /api/v1/position-monitoring/trades/{trade_id}/hebeltrader-loss?position_id=…`
+liest gespeicherte Bewertungen und Episoden in einem READ-ONLY-Snapshot. Die
+Positionsdetails zeigen Version/Teilumfang, Aktivierungszustand, fehlende Regeln,
+letzten Datenbefund und aktive Episode getrennt. Die bestehenden sechs
+Evidenzabfragen bleiben erhalten. Navigation, Lesen, Aktualisierung der Ansicht
+und Positionswechsel beschaffen keine Kurse und führen keine fachlichen Writes
+aus. Der Workspace zeigt B04 mit eigenem Titel und erzeugt aus absichtlich
+unterdrückten B04-Zustellungen keine neue Fehler-Handlungsaufgabe.
+
+Vorhandene Positionen, Ausführungen, Währungs-, Kalender-, Produkt- und
+Quellenbelege werden wiederverwendet. Es gibt keine täglichen Bestätigungen,
+manuellen IDs, Hashes oder Request-IDs. Dokumentierte menschliche Prüfung bleibt
+von unabhängiger Systemverifikation getrennt. Tatsächliche Änderungen,
+Belegrücknahmen und Widersprüche werden als konkrete Ausnahmen gezeigt.
+
+### Abnahmegrenze und Folgearbeiten
+
+Gezielte Tests decken die 19/20-Grenze und BID-Zeit, 900/901 Sekunden,
+Originalseitenzeit, separate preislose Negativmeldungen, Lücken, Verspätung,
+Quellenwechsel, Maßstab/Währung, Episodenfolge, echte Ownerkorrekturen,
+Parallelität/Neustart, Zustellunterdrückung und schreibfreie Ansichten ab.
+Der PostgreSQL-Durchlauf verbindet den tatsächlichen Frankfurt-Parser und
+Retention mit Bewertung, Ledger, Episode, Alert und Outbox; ein weiterer Fall
+benutzt den vorhandenen getakteten Runner ohne erneute Nutzereingabe.
+Ausschließlich ausdrücklich bewachte synthetische Wegwerfdatenbanken und
+abgefangene HTTP-Aufrufe sind zulässig. Sammlung, Skips und ausgeführte Prüfung
+werden im PR getrennt mit dem tatsächlichen Head/Integrationsstand ausgewiesen.
+
+Die [Quellenblockade](../reviews/B58_SOURCE_QUALIFICATION_2026-11-17.md) ist offen.
+Der implementierte synthetische Pfad belegt keine tatsächlich laufende Versorgung
+des Nutzerdepots. Als kleinste reale Voraussetzung fehlt ein zugänglicher,
+nutzungsrechtlich geeigneter konkreter Anbieter-/Instrument-/Listingpfad mit
+Original-BID, eigener BID-Zeit, instrumentbezogenem Status mit eigener Zeit und
+belegter Zeitbedeutung sowie Negativ-/Status-only-/Lücken-/Recovery-Lieferung.
+
+B05 benötigt verifizierten letzten Handelstag, maßgeblichen Produkttermin,
+festes Ausstiegslisting, dokumentierte Rückwärtszählung und Friststufen; diese
+Regel bleibt von aktueller BID-Verfügbarkeit unabhängig. Restliches F207-2/B06
+benötigt dokumentierte Stopberührungen, Schutzboden, Bekanntgabe, anschließende
+Schutzüberwachung, Korrekturklärung und Z1-bezogene Sitzungszählung. F207-5
+benötigt gemeinsame Meldungsdarstellung, gesehen/abgelehnt/ausgeführt, globale
+Versionierung und gesonderte Betriebsabnahme. Dieser Schnitt erfüllt davon nur
+den ausdrücklich genannten B04-Episoden-/Zustell-/Anzeigeanteil.
+
+Vor Auslieferung sind geordnete Integration, eine neue Version, reguläre
+Releaseprüfungen und der kontrollierte Installationsweg mit identifizierter
+Zielinstallation, Sicherung und Migration nötig. `VERSION` und Tag `v1.5.46`
+bleiben unverändert; der Tag enthält bereits die neueren Main-Änderungen nicht.
+Merge, Release, Installation, neue Providerzustimmungen und echte Nachrichtentests
+benötigen ihre ausdrückliche Freigabe. Dieser Entwicklungsauftrag führt sie nicht
+aus.
+
+Als konkrete nächste Softwareversion ist `1.5.47` vorgeschlagen, vor einem
+autorisierten Release erneut auf Verfügbarkeit zu prüfen. Ein eigener
+Release-PR synchronisiert `VERSION`, `backend/pyproject.toml`,
+`frontend/package.json` und `frontend/package-lock.json`. Nach dessen Integration
+verlangt der vorhandene Publisher erfolgreiche neueste Backend-/Frontend-/E2E-
+Main-Push-Läufe am noch aktuellen Main-SHA; erfolgreiche Draftprüfungen ersetzen
+dies nicht. Vor einem später genehmigten Update werden Tag und vollständiger
+Releasecommit unabhängig geprüft. Der vorhandene verwaltete Linux-Launcher
+übernimmt Sicherung des alten Quellstands, PostgreSQL-Custom-Dump,
+Consent-State-Archiv, Konfigurations-/Image-/Datenbankprüfungen und Migration im
+kontrollierten Wartungsfenster. Der vom alten Tag aus nötige additive Schemapfad
+ist `0049 → 0050 → 0051 → 0052 → 0053 → 0054 → 0055`.
+
+Eine automatische Rückkehr zu `1.5.46` wird nicht zugesagt: Die neuen Migrationen
+verweigern destruktive Downgrades bei vorhandenen Belegen; der alte Alert-Reader
+kennt den neuen B04-Typ nicht. Nach begonnener Migration braucht Recovery eine
+eigene geprüfte Entscheidung anhand tatsächlicher Phase, Schema, Images und
+Sicherungen. Archivlesbarkeit ist kein Restore-Nachweis. Die anschließende
+Betriebsabnahme prüft installierten Commit/Images, Alembic-current und -head,
+Readiness, erhaltene Daten/Konfiguration und einen vollständig abgeschlossenen
+Hintergrundzyklus. Quellenqualifikation und zentrale Aktivierungsfreigabe bleiben
+davon getrennt. Maßgeblich sind die bestehenden Verträge
+[Linux-Launcher](../technical/LINUX_LAUNCHER.md) und
+[Betrieb/Release](../technical/ISSUER_MONITORING_OPERATIONS.md).

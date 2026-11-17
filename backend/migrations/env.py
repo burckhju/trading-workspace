@@ -30,6 +30,9 @@ from app.features.market_data.persistence import (
 from app.features.model.persistence import models as model_governance_models  # noqa: F401
 from app.features.notification.persistence import models as notification_models  # noqa: F401
 from app.features.position_monitoring.persistence import (
+    hebeltrader_loss as hebeltrader_loss_models,  # noqa: F401
+)
+from app.features.position_monitoring.persistence import (
     hebeltrader_targets as hebeltrader_target_models,  # noqa: F401
 )
 from app.features.position_monitoring.persistence import (

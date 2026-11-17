@@ -10,6 +10,7 @@ from app.features.notification.providers.telegram import (
     TelegramDeliveryConfig,
 )
 from app.features.notification.service.delivery import NotificationDeliveryAdapter
+from app.features.position_monitoring.service.hebeltrader_loss_runtime import HebeltraderLossRuntime
 from app.features.position_monitoring.service.risk_runtime import RiskRuntimeService
 from app.features.position_monitoring.service.rule_prices import ProductValuationReader
 from app.features.position_monitoring.service.runtime import PositionMonitoringRuntimeService
@@ -42,6 +43,12 @@ def build_position_monitoring_runtime(
     return PositionMonitoringRuntimeService(
         database=database,
         risk=RiskRuntimeService(database),
+        hebeltrader_loss=HebeltraderLossRuntime(
+            database,
+            scope=monitoring.hebeltrader_scope,
+            products=products,
+            notifications_enabled=delivery_adapter is not None,
+        ),
         market_data=market_data,
         products=products,
         parallel_positions=monitoring.parallel_positions,

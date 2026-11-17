@@ -2,7 +2,8 @@ export type AlertType =
   | 'STOP_REACHED'
   | 'TARGET_REACHED'
   | 'RISK_TREND_CHANGED'
-  | 'RISK_VOLATILITY_HIGH';
+  | 'RISK_VOLATILITY_HIGH'
+  | 'HEBELTRADER_B04_LOSS';
 export type AlertSeverity = 'WARNING' | 'INFO';
 export type AlertStatus = 'OPEN' | 'RESOLVED' | 'INVALIDATED';
 export type NotificationChannel = 'TELEGRAM';

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
@@ -20,6 +20,10 @@ from app.features.position_monitoring.service.cycle import (
     MonitoringCycleResult,
     PositionMonitoringCycleService,
 )
+from app.features.position_monitoring.service.hebeltrader_loss_runtime import (
+    HebeltraderLossRuntime,
+    LossRunResult,
+)
 from app.features.position_monitoring.service.legacy_alerts import invalidate_unbound_alerts
 from app.features.position_monitoring.service.processor import SqlAlchemyMonitoringRuleProcessor
 from app.features.position_monitoring.service.risk_runtime import RiskRuntimeService
@@ -36,6 +40,7 @@ class PositionMonitoringRuntimeResult:
     notifications_delivered: int
     notification_failures: int
     alerts_invalidated: int = 0
+    hebeltrader_loss: LossRunResult = field(default_factory=LossRunResult)
 
 
 class PositionMonitoringRuntimeService:
@@ -51,10 +56,12 @@ class PositionMonitoringRuntimeService:
         delivery_adapter: NotificationDeliveryAdapter | None,
         max_completed_price_age_days: int = 4,
         risk: RiskRuntimeService | None = None,
+        hebeltrader_loss: HebeltraderLossRuntime | None = None,
         delivery_max_attempts: int = 3,
         delivery_recovery_timeout: timedelta = timedelta(minutes=5),
     ) -> None:
         self._risk = risk
+        self._hebeltrader_loss = hebeltrader_loss
         self._database = database
         self._market_data = market_data
         self._products = products
@@ -69,10 +76,13 @@ class PositionMonitoringRuntimeService:
             invalidated = await invalidate_unbound_alerts(session, now=datetime.now(UTC))
         cycle_result = await self._run_monitoring_cycle()
         risk_alerts = await self._risk.run() if self._risk else ()
+        loss_result = (
+            await self._hebeltrader_loss.run() if self._hebeltrader_loss else LossRunResult()
+        )
         if self._delivery_adapter is None:
-            return PositionMonitoringRuntimeResult(cycle_result, 0, 0, 0, invalidated)
+            return PositionMonitoringRuntimeResult(cycle_result, 0, 0, 0, invalidated, loss_result)
 
-        created = 0
+        created = loss_result.notifications_created
         for created_alert in (*cycle_result.created_alerts, *risk_alerts):
             try:
                 if await self._create_notification(created_alert):
@@ -110,6 +120,7 @@ class PositionMonitoringRuntimeService:
             notifications_delivered=delivered,
             notification_failures=failures,
             alerts_invalidated=invalidated,
+            hebeltrader_loss=loss_result,
         )
 
     async def _run_monitoring_cycle(self) -> MonitoringCycleResult:

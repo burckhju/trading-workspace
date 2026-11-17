@@ -116,6 +116,15 @@ Ziel: `/trade-management?trade_id=<id>`
 
 Terminal fehlgeschlagene Notifications werden als Action projiziert. Retry-, Delivery- und Notification-State bleiben bei der Notification Capability.
 
+Der [B04/B57-Teilumfang vom 17.11.2026](HEBELTRADER_MONITORING_INTEGRATION_CONTRACT.md#b04-b57-loss-monitoring-v1)
+ergänzt einen eigenen Verlusthinweis und eine passive Positionsanzeige für
+Regelversion, Aktivierung, Datenbefund und dauerhafte Episode. Absichtlich
+unterdrückte B04-Zustellungen nach Recovery, Invalidierung oder Positionsschluss
+werden nicht als neue Zustellfehler-Aufgabe projiziert. Ihr Verlauf bleibt in
+der bestehenden Alert-/Notification-Historie lesbar. Der Workspace schreibt
+keine Bewertung, Episode oder Zustellung und verlangt keine erneute
+Belegerfassung. Andere Alert-/Notification-Typen behalten ihren Vertrag.
+
 Ziel: `/trade-management?trade_id=<id>`
 
 ### Post Trade / FT-011
