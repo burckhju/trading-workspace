@@ -63,9 +63,8 @@ trading-workspace update vX.Y.Z GEPRUEFTER_VOLLSTAENDIGER_COMMIT_SHA
 
 Kein automatischer Wechsel auf `main` oder einen ungeprüften neuesten Tag.
 Der Tag muss genau zum angegebenen Commit und dessen `VERSION` passen. Der
-unveränderte, bereits qualifizierte Migrationshelfer und seine Validierung sind
-über Inhaltsprüfsummen gebunden. Eine Änderung daran verlangt eine erneute
-Prüfung des Updatewegs.
+Migrationshelfer und seine qualifizierte Validierung sind über Inhaltsprüfsummen
+gebunden. Eine Änderung daran verlangt eine erneute Prüfung des Updatewegs.
 
 Das Update verwendet denselben Programmordner und legt Sicherungen unter
 `trading-workspace-state/runs/` ab. Es archiviert den vorherigen Quellstand und
@@ -103,6 +102,54 @@ mit bereits vorhandenem Schlüssel gibt es einen separaten
 [EODHD-Aktivierungsweg](EODHD_ACTIVATION.md). Er erstellt einen neuen geprüften
 Zustand bei gleicher Programmversion und berücksichtigt ausdrücklich die bereits
 eingerichtete Kurs-, Positions- und Telegramautomatik.
+
+### Einmaliger Übergang auf die indikative Positionsprüfung
+
+Der für v1.5.49 vorbereitete Updatevertrag ergänzt genau zwei bisher fehlende
+Backendfelder mit ihren ausgeschalteten Werten: `REVIEW_SCOPE=DISABLED` und
+`REVIEW_NOTIFICATIONS_ENABLED=false` im vorhandenen
+`TRADING_WORKSPACE_POSITION_MONITORING__`-Namensraum. Das Softwareupdate aktiviert
+keine neue Regel oder Zustellung. Vorhandene Werte müssen weiterhin gleich sein;
+aktive Zielwerte, gelöschte Felder und jede andere Konfigurationsabweichung werden
+verweigert. Der Migrationsablauf, die Datensicherung und seine Schutzparameter
+bleiben wirksam.
+
+Der bisher installierte Starter bindet die frühere Validator-Prüfsumme und lehnt
+den neuen Stand deshalb ab. Vor diesem Releaseupdate wird einmalig der neu
+qualifizierte Starter aus dem exakt veröffentlichten Tag außerhalb des
+Programmordners gespeichert und mit `install` eingerichtet. Die Release-Übergabe
+liefert die vollständig ausgefüllten Befehle samt überprüftem Commit. Der
+Programmcheckout wird dadurch noch nicht gewechselt; erst anschließend folgt
+das normale gepinnte `trading-workspace update`. Keine versiegelte Konfiguration
+manuell bearbeiten und keinen Schutzschalter entfernen.
+
+Nach erfolgreichem Update und `trading-workspace status` erfolgt die zentrale
+Vorbereitung einmal für die bestehende Installation:
+
+```bash
+python3 ~/Boerse/trading-workspace-app/scripts/activate-indicative-monitoring.py prepare
+```
+
+Die Vorbereitung prüft den tatsächlich installierten Tag, Images, vollständige
+Compose-Kette und den privaten Zustand. Sie erstellt einen konkreten Plan und
+gibt den dazu passenden Anwendungsbefehl aus. Diesen Befehl übernehmen; eigene
+IDs, Hashes oder Request-IDs sind nicht erforderlich. Er aktiviert den Umfang
+`INDICATIVE_ENTRY_V1` und den vorhandenen Runner zentral. Externe Zustellungen
+dieses Umfangs bleiben ausgeschaltet. Bereits eingerichtete Provider,
+Kursaktualisierung und andere Meldungsarten behalten ihre Konfiguration.
+
+Die Anwendung verwendet die vorhandenen Images, sichert Datenbank und
+Zustimmungszustand und übernimmt erst nach erfolgreicher Prüfung den neuen
+Zustand. Es gibt keinen Imagebuild, keine Migration und keine neue
+Providerzustimmung in diesem Aktivierungsschritt. Ein geänderter Ausgangszustand
+verlangt einen neuen konkreten Plan; ein Fehler nach Beginn behält `pending` und
+die Diagnose. Die oben beschriebenen Wiederherstellungsregeln gelten weiter.
+
+Der Abschluss trennt geladene Konfiguration, gestarteten Runner und tatsächlich
+abgeschlossenen Prüflauf. Eine erfolgreiche Aktivierung belegt keine
+B58-Qualifikation oder vollständige Depotabdeckung. Die
+[Betriebsgrenzen der indikativen Prüfung](ISSUER_MONITORING_OPERATIONS.md#indicative-entry-operations)
+und der versionierte Regelvertrag bleiben maßgeblich.
 
 Die drei Entwicklungsskripte `check-backend.sh`, `check-frontend.sh` und
 `run-e2e.sh` sind für den täglichen Programmstart nicht erforderlich.

@@ -14,6 +14,13 @@ from typing import Any
 PROJECT = "trading-workspace"
 SERVICES = ("backend", "issuer-renderer", "database", "frontend")
 PREFIX = "TRADING_WORKSPACE_"
+DEPLOYMENT_CONTRACT_VERSION = "legacy-issuer-review-defaults-v2"
+# The only additive configuration transition admitted by this version. Existing
+# values still require exact equality; deployment cannot activate either scope.
+ADDITIVE_BACKEND_DEFAULTS = {
+    f"{PREFIX}POSITION_MONITORING__REVIEW_SCOPE": "DISABLED",
+    f"{PREFIX}POSITION_MONITORING__REVIEW_NOTIFICATIONS_ENABLED": "false",
+}
 PRESERVED_KEYS = {
     *(
         f"{PREFIX}MARKET_DATA__{provider}__{key}"
@@ -50,6 +57,15 @@ def environment(container: dict[str, Any]) -> dict[str, str]:
 def relevant(values: dict[str, Any], service: str) -> dict[str, str]:
     prefixes = (PREFIX, "POSTGRES_") if service == "database" else (PREFIX,)
     return {key: str(value) for key, value in values.items() if key.startswith(prefixes)}
+
+
+def additive_backend_defaults(current: dict[str, str], proposed: dict[str, str]) -> set[str]:
+    """Qualify absent-to-disabled keys only; never replace an existing setting."""
+    return {
+        key
+        for key, disabled in ADDITIVE_BACKEND_DEFAULTS.items()
+        if key not in current and proposed.get(key) == disabled
+    }
 
 
 def containers_by_service(items: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
@@ -153,10 +169,10 @@ def make_overlay(
     differences = {
         key for key in current.keys() | configured.keys() if current.get(key) != configured.get(key)
     }
+    allowed = PRESERVED_KEYS | additive_backend_defaults(current, configured)
     require(
-        differences <= PRESERVED_KEYS,
-        "Unreviewed backend settings differ from base: "
-        + ", ".join(sorted(differences - PRESERVED_KEYS)),
+        differences <= allowed,
+        "Unreviewed backend settings differ from base: " + ", ".join(sorted(differences - allowed)),
     )
     require(current.keys() >= PRESERVED_KEYS, "Missing legacy settings")
     stuttgart = containers["backend"]["Mounts"][0]["Source"]
@@ -232,6 +248,8 @@ def validate_candidate(items: list[dict[str, Any]], candidate: dict[str, Any]) -
         changed = {
             key for key in current.keys() | proposed.keys() if current.get(key) != proposed.get(key)
         }
+        if service == "backend":
+            changed -= additive_backend_defaults(current, proposed)
         require(not changed, f"Target environment differs: {service}/" + ", ".join(sorted(changed)))
         current_ports = {
             (port, binding.get("HostIp") or "", binding["HostPort"])

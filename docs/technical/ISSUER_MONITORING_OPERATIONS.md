@@ -164,6 +164,56 @@ werden weiterhin durch die Hintergrund-Lane und deren Identitätsprüfungen ange
 
 ## Release und Deployment auseinanderhalten
 
+<a id="indicative-entry-operations"></a>
+### Gesonderte automatische Einstandsbeobachtung
+
+`INDICATIVE_ENTRY_V1` mit Regelversion `indicative-entry-review-v1` ist ein eigener
+freigegebener Prüfumfang. Er nutzt gespeicherte Positionen, effektive Ausführungen,
+Einstand und Währung sowie vorhandene Quellen-, Kalender- und Produktbelege.
+Z1-Verkauf oder Target-Evidenz sind für diesen Umfang keine Voraussetzung. Neue
+oder fehlende Belege werden gezielt als Datenproblem sichtbar; unveränderte
+Belege innerhalb ihres Gültigkeitsbereichs werden nicht täglich neu bestätigt.
+
+Der Hintergrundrunner erzeugt drei getrennte Hinweise im vorhandenen
+Arbeitsbereich: Einstandsindikation unter persönlichem Bruttoeinstand,
+Prüferinnerung nach 20 abgeschlossenen Basiswertsitzungen und Datenproblem.
+Wiederholung und Neustart erzeugen keinen zweiten logischen Hinweis für dieselbe
+Episode. Eine Datenlücke ist keine Kurserholung. Vollständiger Verkauf beendet
+neue Hinweise und noch ausstehende Zustellungen dieser Typen; die Historie bleibt.
+Die vorhandenen allgemeinen Stop-/Zielregeln bleiben erhalten.
+
+Ein explizit belegter Original-BID benötigt seine eigene Seitenzeit und mindestens
+20 abgeschlossene Sitzungen bereits zu dieser Zeit. Bestehende registrierte
+Emittentenindikationen haben dagegen häufig keine verifizierte Originalzeit;
+ihre bisherige 300-Sekunden-Grenze betrifft ausschließlich den erfolgreichen
+Empfang. Eine fällige Positionsprüfung datiert diesen Preis nicht nachträglich.
+Negative Originalstatuspunkte bleiben mit eigener Zeit sichtbar; ihre
+Fortgeltung wird nicht erfunden. Die genaue Eingangsqualifikation steht im
+[Regelvertrag](../features/HEBELTRADER_MONITORING_INTEGRATION_CONTRACT.md#indicative-entry-review-v1).
+
+Die einmalige [zentrale PC-Aktivierung](LINUX_LAUNCHER.md#einmaliger-übergang-auf-die-indikative-positionsprüfung)
+schaltet den Umfang für bestehende offene Positionen gemeinsam ein.
+`REVIEW_NOTIFICATIONS_ENABLED=false` hält neue externe Reviewzustellungen aus;
+die Hinweise sind im Arbeitsbereich gespeichert. Vorhandene andere
+Benachrichtigungen können gemäß ihrer bereits eingerichteten Konfiguration
+weiterlaufen. Aktivierung und Softwareupdate erteilen keine neue Providerfreigabe
+und versenden keine Testnachricht.
+
+Die Betriebsanzeige unterscheidet konfigurierten Umfang, gestarteten Runner,
+abgeschlossenen Zyklus und dessen tatsächliche Positions-/Datenproblemzähler.
+Ein geladener Umfang mit null ausgewerteten Positionen belegt keine
+Depotabdeckung; ein Fehler oder Datenproblem bleibt sichtbar. Die passive
+Detailansicht liest vorhandene Bewertungen und löst weder Beschaffung noch
+Regelauswertung aus. Nach Aktivierung wird der nächste reguläre Prüflauf
+abgewartet; tägliche Prüfklicks sind nicht erforderlich.
+
+Die strenge B04/B57-Strecke und `HEBELTRADER_CONFIRMED_BASELINE` werden dadurch
+nicht aktiviert. B58 bleibt ohne geeignete reale Originalstatuslieferung offen.
+B05 benötigt weiterhin seine eigenständigen belegten Produkttermine und das
+feste Ausstiegslisting; ein fehlender BID ist für diese Fristregel kein Hindernis.
+
+### Softwarestand und Betriebsnachweis
+
 Git-Tag und Paketversion kennzeichnen den Quellstand; Schema, Image und geladene
 Konfiguration sind separate Betriebsnachweise. Vor Deployment sichern, beide
 Migrationen prüfen, zuerst Renderer-Health bestätigen und anschließend die

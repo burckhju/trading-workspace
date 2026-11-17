@@ -2198,15 +2198,21 @@ bereitet drei getrennte Alerttypen, nichtpreisliche Werteform und bestehende
 Workspace-/Notification-Consumer vor. Dieser Grundlage folgt die eigene
 regelmäßige Einstandsbeobachtung mit Prüferinnerung und Datenproblemepisode.
 Der Meldungsgrundlagenschnitt [#357](https://github.com/burckhju/trading-workspace/pull/357)
-allein ist keine laufende Überwachung. Der folgende
+allein ist keine laufende Überwachung. Der darauf aufbauende
+[Regel-PR #358](https://github.com/burckhju/trading-workspace/pull/358) mit dem
 [versionierte Regel-/Betriebsschnitt](../features/HEBELTRADER_MONITORING_INTEGRATION_CONTRACT.md#indicative-entry-review-v1)
 implementiert die eigene automatische Einstandsbeobachtung, deduplizierte
 20-Sitzungen-Erinnerung und Datenproblemepisode auf vorhandenen Ownern.
 Eigene Migration 0057, tatsächlicher Runneranschluss, passiver Statusread und
 getrennte zentrale Scope-/Zustellfreigabe; B04/B57 und B58 bleiben unverändert.
 Die Freigabe des Nutzers umfasst diesen alternativen Umfang sowie Merge nach
-grünen Prüfungen und versionierte PC-Bereitstellung. Ein kontrollierter
-einmaliger Aktivierungsweg wird separat vorbereitet. Integration,
+grünen Prüfungen und versionierte PC-Bereitstellung. Der kontrollierte
+[einmalige Aktivierungsweg](../features/HEBELTRADER_MONITORING_INTEGRATION_CONTRACT.md#indicative-review-linux-operation-v1)
+ist als eigener Folgeschnitt vorbereitet. Die Prüfung von v1.5.47/48 auf den
+neuen Stand fand eine erforderliche eng begrenzte Erweiterung der bisherigen
+Deploymentqualifikation: genau zwei bisher fehlende Konfigurationsfelder dürfen
+mit ausgeschalteten Werten ergänzt werden. Ein neu gepinnter Launcher und
+Alt-Konfigurationsnachweise gehören deshalb zum PC-Lieferumfang. Integration,
 reguläre Gates, Veröffentlichung und tatsächlicher PC-Betrieb bleiben getrennte
 Nachweise; die PRs binden ihre Tests an Head und Integrationsstand.
 

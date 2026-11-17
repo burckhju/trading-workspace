@@ -5,6 +5,7 @@ from __future__ import annotations
 import copy
 import importlib.util
 import json
+import shutil
 import sys
 from pathlib import Path
 from types import ModuleType
@@ -38,6 +39,30 @@ def load_tool() -> ModuleType:
 
 
 tool = load_tool()
+
+
+def test_support_pins_the_qualified_validator_and_unchanged_migration_shell(tmp_path: Path) -> None:
+    for relative, checksums in tool.LEGACY_HASHES.items():
+        destination = tmp_path / relative
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(ROOT / relative, destination)
+        assert tool._digest(destination.read_bytes()) in checksums
+    checked = tool._legacy(tmp_path)
+    assert checked["DEPLOYMENT_CONTRACT_VERSION"] == "legacy-issuer-review-defaults-v2"
+    assert len(tool.LEGACY_HASHES["scripts/migrate-legacy-issuer.sh"]) == 1
+    assert len(tool.LEGACY_HASHES["backend/app/tools/legacy_issuer_deployment.py"]) == 2
+
+
+@pytest.mark.parametrize("relative", sorted(tool.LEGACY_HASHES))
+def test_unqualified_support_bytes_remain_rejected(tmp_path: Path, relative: str) -> None:
+    for name in tool.LEGACY_HASHES:
+        destination = tmp_path / name
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(ROOT / name, destination)
+    destination = tmp_path / relative
+    destination.write_bytes(destination.read_bytes() + b"\n# Unqualified future change\n")
+    with pytest.raises(tool.ActivationError, match="Pinned legacy deployment tooling differs"):
+        tool._legacy(tmp_path)
 
 
 @pytest.fixture
@@ -377,3 +402,124 @@ def test_prepare_preserves_interrupted_operation_markers_before_any_command(
         assert interrupted.readlink() == tmp_path / "missing-private-target"
     else:
         assert interrupted.read_text() == SECRET
+
+
+def sealed_state(tmp_path: Path, transition: dict[str, Any] | None) -> Path:
+    state = tmp_path / "synthetic-private-deployment"
+    state.mkdir(mode=0o700)
+    for name in tool.LEGACY_INPUTS:
+        tool._write_private(state / name, b"synthetic-private-input", exclusive=True)
+    if transition is None:
+        body = "".join(
+            tool._digest(tool._read_private(state / name)) + "  " + name + "\n"
+            for name in sorted(tool.LEGACY_INPUTS)
+        )
+        tool._write_private(state / "inputs.sha256", body.encode(), exclusive=True)
+    else:
+        tool._write_private(state / "activation-tool.py", SCRIPT.read_bytes(), exclusive=True)
+        tool._write_json(state / "transition.json", transition)
+        tool._create_seal(state)
+    return state
+
+
+def test_plain_deployment_remains_an_exact_legacy_seal(tmp_path: Path) -> None:
+    state = sealed_state(tmp_path, None)
+    before = {path.name: path.read_bytes() for path in state.iterdir()}
+    assert tool._previous_activation(state) is False
+    assert {path.name: path.read_bytes() for path in state.iterdir()} == before
+
+
+@pytest.mark.parametrize(
+    "operation,schema,old_activation",
+    [
+        ("enable-eodhd", 1, None),
+        ("enable-eodhd", 2, False),
+        ("activate-indicative-monitoring", 1, False),
+        ("activate-indicative-monitoring", 1, True),
+    ],
+)
+def test_previous_known_activation_retains_all_exact_seal_members(
+    tmp_path: Path, operation: str, schema: int, old_activation: bool | None
+) -> None:
+    transition = {
+        "operation": operation,
+        "schema": schema,
+        "tool_sha256": tool._digest(SCRIPT.read_bytes()),
+    }
+    if old_activation is not None:
+        transition["old_activation"] = old_activation
+    state = sealed_state(tmp_path, transition)
+    before = {path.name: path.read_bytes() for path in state.iterdir()}
+    assert tool._previous_activation(state) is True
+    assert set(tool._seal_entries(state, activation=True)) == (
+        tool.LEGACY_INPUTS | tool.ADDITIONAL_INPUTS
+    )
+    assert {path.name: path.read_bytes() for path in state.iterdir()} == before
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        "unknown-operation",
+        "unknown-schema",
+        "boolean-schema",
+        "missing-history",
+        "wrong-tool",
+        "tampered-input",
+        "extra-seal-member",
+    ],
+)
+def test_previous_activation_rejects_unknown_or_changed_records(
+    tmp_path: Path, change: str
+) -> None:
+    transition = {
+        "operation": "activate-indicative-monitoring",
+        "schema": 1,
+        "old_activation": False,
+        "tool_sha256": tool._digest(SCRIPT.read_bytes()),
+    }
+    if change == "unknown-operation":
+        transition["operation"] = "unreviewed-operation"
+    elif change == "unknown-schema":
+        transition["schema"] = 3
+    elif change == "boolean-schema":
+        transition["schema"] = True
+    elif change == "missing-history":
+        del transition["old_activation"]
+    elif change == "wrong-tool":
+        transition["tool_sha256"] = "0" * 64
+    state = sealed_state(tmp_path, transition)
+    if change == "tampered-input":
+        tool._write_private(state / "environment.env", b"changed-private-input")
+    elif change == "extra-seal-member":
+        body = tool._read_private(state / "inputs.sha256")
+        tool._write_private(state / "extra.json", b"{}", exclusive=True)
+        tool._write_private(
+            state / "inputs.sha256", body + (tool._digest(b"{}") + "  extra.json\n").encode()
+        )
+    with pytest.raises(tool.ActivationError):
+        tool._previous_activation(state)
+
+
+@pytest.mark.parametrize("old_activation", [False, True])
+def test_new_prepared_activation_binds_previous_seal_shape(
+    tmp_path: Path,
+    models: tuple[dict[str, Any], dict[str, Any]],
+    old_activation: bool,
+) -> None:
+    _, candidate = models
+    transition = {
+        "operation": "enable-eodhd",
+        "schema": 2,
+        "old_activation": old_activation,
+        "automation": tool.summarize_automation(candidate),
+        "tool_sha256": tool._digest(SCRIPT.read_bytes()),
+    }
+    state = sealed_state(tmp_path, transition)
+    tool._write_json(state / "candidate.json", candidate)
+    (state / "inputs.sha256").unlink()
+    tool._create_seal(state)
+    tool._write_private(state / "prepared", b"", exclusive=True)
+    prepared, record = tool._precheck_apply(state, False)
+    assert prepared == candidate
+    assert record["schema"] == 2 and record["old_activation"] is old_activation

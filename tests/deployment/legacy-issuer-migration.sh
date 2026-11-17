@@ -14,6 +14,24 @@ fixture="$(mktemp -d)"
 data_directory="$fixture/data with spaces/\$literal"
 mkdir -p "$fixture/legacy/docker" "$data_directory"
 cp "$ROOT/docker/compose.yml" "$fixture/legacy/docker/compose.yml"
+# Reproduce the v1.5.47/v1.5.48 configuration boundary: the old containers really
+# lack both new keys. A fixture rendered entirely from current Compose would
+# miss the absent-to-disabled upgrade contract.
+python3 - "$fixture/legacy/docker/compose.yml" <<'PY'
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+lines = path.read_text().splitlines(keepends=True)
+for key in (
+    "TRADING_WORKSPACE_POSITION_MONITORING__REVIEW_SCOPE",
+    "TRADING_WORKSPACE_POSITION_MONITORING__REVIEW_NOTIFICATIONS_ENABLED",
+):
+    selected = [line for line in lines if line.lstrip().startswith(key + ":")]
+    assert len(selected) == 1, "The bounded old-release fixture no longer matches"
+    lines.remove(selected[0])
+path.write_text("".join(lines))
+PY
 export ISSUER_RENDERER_SECCOMP_PATH="$ROOT/docker/issuer-renderer/seccomp_profile.json"
 cat > "$fixture/legacy/docker/.env" <<EOF
 POSTGRES_DB=migration_test
@@ -49,8 +67,47 @@ services:
     image: issuer-renderer:test
 EOF
 old() {
-  docker compose --project-name trading-workspace --env-file "$fixture/legacy/docker/.env" \
-    -f "$ROOT/docker/compose.yml" -f "$ROOT/docker/compose.issuer-monitoring.yml" -f "$fixture/old.yml" "$@"
+  docker compose --project-name trading-workspace --project-directory "$ROOT/docker" \
+    --env-file "$fixture/legacy/docker/.env" \
+    -f "$fixture/legacy/docker/compose.yml" -f "$ROOT/docker/compose.issuer-monitoring.yml" -f "$fixture/old.yml" "$@"
+}
+ci_egress_chain=TW_REVIEW_CI_EGRESS
+ci_egress_created=false
+isolate_runtime_egress() {
+  # Only these freshly created disposable networks are intercepted. Build and
+  # host traffic use other networks; application/provider/Telegram calls cannot
+  # leave either runtime subnet even if a background job is unexpectedly queued.
+  docker network inspect trading-workspace_default trading-workspace_issuer-discovery \
+    > "$fixture/runtime-networks.json"
+  python3 - "$fixture/runtime-networks.json" > "$fixture/runtime-subnets" <<'PY'
+import ipaddress
+import json
+import sys
+from pathlib import Path
+
+networks = json.loads(Path(sys.argv[1]).read_text())
+assert len(networks) == 2
+subnets = set()
+for network in networks:
+    assert network["Labels"]["com.docker.compose.project"] == "trading-workspace"
+    assert network["EnableIPv6"] is False, "The fixture must not have unguarded IPv6"
+    for config in network["IPAM"]["Config"]:
+        subnet = ipaddress.ip_network(config["Subnet"], strict=True)
+        assert subnet.version == 4 and subnet.prefixlen >= 16
+        subnets.add(str(subnet))
+assert len(subnets) == 2
+print("\n".join(sorted(subnets)))
+PY
+  sudo iptables --wait -N "$ci_egress_chain"
+  ci_egress_created=true
+  while IFS= read -r subnet; do
+    sudo iptables --wait -A "$ci_egress_chain" -d "$subnet" -j RETURN
+  done < "$fixture/runtime-subnets"
+  sudo iptables --wait -A "$ci_egress_chain" -j REJECT
+  while IFS= read -r subnet; do
+    sudo iptables --wait -I DOCKER-USER 1 -s "$subnet" -j "$ci_egress_chain"
+    printf '%s\n' "$subnet" >> "$fixture/guarded-runtime-subnets"
+  done < "$fixture/runtime-subnets"
 }
 cleanup() {
   for state in "$fixture/private" "$fixture"/trading-workspace-state/runs/*/deployment \
@@ -59,12 +116,44 @@ cleanup() {
   done
   # This entire runner and these volumes are synthetic, created above in this job.
   old down --volumes || true
+  if [[ "$ci_egress_created" == true ]]; then
+    if [[ -f "$fixture/guarded-runtime-subnets" ]]; then
+      while IFS= read -r subnet; do
+        sudo iptables --wait -D DOCKER-USER -s "$subnet" -j "$ci_egress_chain" || true
+      done < "$fixture/guarded-runtime-subnets"
+    fi
+    sudo iptables --wait -F "$ci_egress_chain" || true
+    sudo iptables --wait -X "$ci_egress_chain" || true
+  fi
 }
 trap cleanup EXIT
 old build backend frontend
 old up -d --no-deps --wait --wait-timeout 120 database issuer-renderer
+isolate_runtime_egress
 old run --rm --no-deps backend python -m alembic upgrade head
 old up -d --no-deps --wait --wait-timeout 120 backend frontend
+docker exec -i trading-workspace-backend-1 python - <<'PY'
+import socket
+
+try:
+    socket.create_connection(("198.51.100.1", 443), timeout=3)
+except OSError:
+    print("Synthetic external destination was intercepted")
+else:
+    raise AssertionError("Runtime egress was not blocked")
+PY
+sudo iptables --wait -vnxL "$ci_egress_chain" > "$fixture/egress-guard-counters"
+python3 - "$fixture/egress-guard-counters" <<'PY'
+import sys
+from pathlib import Path
+
+rows = [line.split() for line in Path(sys.argv[1]).read_text().splitlines()]
+assert any(len(row) > 2 and row[2] == "REJECT" and int(row[0]) > 0 for row in rows), (
+    "An actual runtime connection must reach the dedicated rejection rule"
+)
+PY
+docker exec trading-workspace-backend-1 python -c \
+  'import os; assert "TRADING_WORKSPACE_POSITION_MONITORING__REVIEW_SCOPE" not in os.environ; assert "TRADING_WORKSPACE_POSITION_MONITORING__REVIEW_NOTIFICATIONS_ENABLED" not in os.environ'
 docker exec trading-workspace-database-1 psql -U migration_test -d migration_test \
   -c "CREATE TABLE deployment_probe (marker text); INSERT INTO deployment_probe VALUES ('retained');"
 docker exec trading-workspace-issuer-renderer-1 python -c 'from pathlib import Path; Path("/state/ci-marker").write_text("retained")'
@@ -97,6 +186,8 @@ test "$(docker exec trading-workspace-database-1 psql -At -U migration_test -d m
 test "$(docker exec trading-workspace-issuer-renderer-1 cat /state/ci-marker)" = retained
 # Inspect only approved values; do not output a full deployment environment.
 docker exec trading-workspace-backend-1 python -c 'import os; assert os.environ["TRADING_WORKSPACE_MARKET_DATA__REFRESH__ENABLED"] == "false"; assert os.environ["TRADING_WORKSPACE_NOTIFICATION__TELEGRAM__ENABLED"] == "false"'
+docker exec trading-workspace-backend-1 python -c \
+  'import os; assert os.environ["TRADING_WORKSPACE_POSITION_MONITORING__REVIEW_SCOPE"] == "DISABLED"; assert os.environ["TRADING_WORKSPACE_POSITION_MONITORING__REVIEW_NOTIFICATIONS_ENABLED"] == "false"'
 # New tooling must inspect the original sealed checkout, without rebuilding or
 # changing its release, configuration, services or persistent state.
 git -C "$ROOT" worktree add --detach "$fixture/trading-workspace-app" HEAD
@@ -113,12 +204,17 @@ cmp "$fixture/before.ids" "$fixture/after.ids"
 # Qualify the documented next-release update of this already canonical deployment.
 # A distinct disposable commit supplies a new revision/image tag without changing
 # production code or any prepared state from the first deployment.
+printf '%s\n' '0.0.491' > "$fixture/trading-workspace-app/VERSION"
 git -C "$fixture/trading-workspace-app" -c user.name=CI -c user.email=ci@example.invalid \
-  commit --allow-empty -m 'CI next-release deployment fixture'
+  commit -am 'CI synthetic tagged release for bounded activation'
+git -C "$fixture/trading-workspace-app" tag v0.0.491
 mkdir -m 700 "$fixture/trading-workspace-state"
 mkdir -p "$fixture/trading-workspace-state/runs/ci"
+mkdir -p "$fixture/current-configuration/docker"
+cp "$ROOT/docker/compose.yml" "$fixture/current-configuration/docker/compose.yml"
+cp "$fixture/private/environment.env" "$fixture/current-configuration/docker/.env"
 bash "$fixture/trading-workspace-app/scripts/migrate-legacy-issuer.sh" \
-  prepare "$fixture/legacy" "$fixture/trading-workspace-state/runs/ci/deployment"
+  prepare "$fixture/current-configuration" "$fixture/trading-workspace-state/runs/ci/deployment"
 bash "$fixture/trading-workspace-app/scripts/migrate-legacy-issuer.sh" apply "$fixture/trading-workspace-state/runs/ci/deployment"
 test -f "$fixture/trading-workspace-state/runs/ci/deployment/deployed"
 test "$(cat "$fixture/private/database-container")" = "$(cat "$fixture/trading-workspace-state/runs/ci/deployment/database-container")"
@@ -160,6 +256,37 @@ activation_launcher() {
   TRADING_WORKSPACE_BASE="$fixture" DISPLAY= WAYLAND_DISPLAY= \
     "$TRADING_WORKSPACE_BIN_DIR/trading-workspace" "$@"
 }
+# Qualify the real review activation first, then the independent EODHD transition
+# from its additional sealed metadata. The database has no monitored positions;
+# every provider and every external notification remains disabled at this stage.
+python3 - "$fixture/trading-workspace-state/runs" > "$fixture/review-old-generations.json" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+print(json.dumps(sorted(str(path) for path in Path(sys.argv[1]).glob("*/deployment"))))
+PY
+python3 "$fixture/trading-workspace-app/scripts/activate-indicative-monitoring.py" prepare --base "$fixture"
+review_state="$(python3 - "$fixture/trading-workspace-state/runs" "$fixture/review-old-generations.json" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+previous = set(json.loads(Path(sys.argv[2]).read_text()))
+current = {str(path) for path in Path(sys.argv[1]).glob("*/deployment")}
+created = current - previous
+assert len(created) == 1, "Expected one prepared review activation"
+print(created.pop())
+PY
+)"
+python3 "$review_state/activation-tool.py" apply "$review_state" --base "$fixture"
+test "$(cat "$fixture/trading-workspace-state/current-state")" = "$review_state"
+test -f "$review_state/deployed"
+(cd "$review_state" && sha256sum --check --status inputs.sha256)
+activation_launcher status
+docker exec trading-workspace-backend-1 python -c \
+  'import json, urllib.request; s=json.load(urllib.request.urlopen("http://127.0.0.1:8000/api/v1/position-monitoring/runtime/status", timeout=10)); assert s["review_scope"] == "INDICATIVE_ENTRY_V1" and s["review_notifications_enabled"] is False and s["running"] is True; assert s["hebeltrader_scope"] == "DISABLED"; print("Synthetic indicative scope active; strict scope and review delivery remain disabled")'
+launcher_state="$review_state"
 cp "$launcher_state/inputs.sha256" "$fixture/activation-old-inputs.sha256"
 cp "$fixture/trading-workspace-state/current-state" "$fixture/activation-old-pointer"
 docker inspect trading-workspace-database-1 trading-workspace-issuer-renderer-1 \
@@ -185,6 +312,14 @@ print(created.pop())
 PY
 )"
 test -f "$activation_state/prepared"
+python3 - "$activation_state/transition.json" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+transition = json.loads(Path(sys.argv[1]).read_text())
+assert transition["schema"] == 2 and transition["old_activation"] is True
+PY
 if python3 "$ROOT/scripts/enable-eodhd-linux.py" apply "$activation_state" --base "$fixture" \
   > "$fixture/activation-unacknowledged.log" 2>&1; then
   echo 'Unacknowledged active monitoring was not rejected' >&2
@@ -277,9 +412,19 @@ cp "$activation_state/environment.env" "$fixture/future-configuration/docker/.en
 bash "$fixture/future-release/scripts/migrate-legacy-issuer.sh" prepare \
   "$fixture/future-configuration" "$fixture/future-state/deployment"
 test -f "$fixture/future-state/deployment/prepared"
+python3 - "$fixture/future-state/deployment/candidate.json" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+environment = json.loads(Path(sys.argv[1]).read_text())["services"]["backend"]["environment"]
+assert environment["TRADING_WORKSPACE_POSITION_MONITORING__REVIEW_SCOPE"] == "INDICATIVE_ENTRY_V1"
+assert environment["TRADING_WORKSPACE_POSITION_MONITORING__REVIEW_NOTIFICATIONS_ENABLED"] == "false"
+assert environment["TRADING_WORKSPACE_MARKET_DATA__EODHD__ENABLED"] == "true"
+PY
 test "$(cat "$fixture/trading-workspace-state/current-state")" = "$activation_state"
 docker inspect --format '{{.Id}} {{.Image}}' trading-workspace-database-1 \
   trading-workspace-issuer-renderer-1 trading-workspace-backend-1 trading-workspace-frontend-1 > "$fixture/activation-after-future-prepare"
 cmp "$fixture/activation-launcher-after" "$fixture/activation-after-future-prepare"
 activation_launcher status
-echo 'Explicit EODHD activation passed: approved delta, preserved data/images/seals, working launcher and next-release preparation.'
+echo 'Bounded review defaults and review-to-EODHD activation passed: approved deltas, preserved data/images/seals, working launcher and next-release preparation.'

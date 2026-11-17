@@ -154,13 +154,16 @@ class Installation:
         data.update(changes)
         path.write_text(json.dumps(data))
 
-    def release(self, version: str) -> str:
+    def release(self, version: str, *, unknown_validator: bool = False) -> str:
         remote = self.work / "releases.git"
         worktree = self.work / "release-source"
         command(GIT, "clone", "--shared", str(remote), str(worktree))
         command(GIT, "config", "user.name", "Fixture", cwd=worktree)
         command(GIT, "config", "user.email", "fixture@example.invalid", cwd=worktree)
         (worktree / "VERSION").write_text(version.removeprefix("v") + "\n")
+        if unknown_validator:
+            validator = worktree / "backend/app/tools/legacy_issuer_deployment.py"
+            validator.write_text(validator.read_text() + "\n# Unqualified future validator\n")
         command(GIT, "commit", "-am", "Synthetic release", cwd=worktree)
         command(GIT, "tag", version, cwd=worktree)
         command(GIT, "push", "origin", version, cwd=worktree)
@@ -406,7 +409,19 @@ def test_failed_update_keeps_current_pointer_and_blocks_retry(installation: Inst
     assert len(installation.calls()) == count
 
 
-def test_launcher_does_not_change_the_pinned_migration_helpers() -> None:
+def test_unknown_validator_is_rejected_before_checkout_or_pending_state(
+    installation: Installation,
+) -> None:
+    target = installation.release("v1.5.3", unknown_validator=True)
+    result = installation.run("update", "v1.5.3", target)
+    assert result.returncode != 0
+    assert "Deployment-Validierung" in result.stderr
+    assert command(GIT, "rev-parse", "HEAD", cwd=installation.app) == installation.revision
+    assert not (installation.control / "pending").exists()
+    assert_no_mutation(installation)
+
+
+def test_launcher_pins_only_explicitly_qualified_deployment_contracts() -> None:
     content = SCRIPT.read_text()
     for name in (
         "scripts/migrate-legacy-issuer.sh",

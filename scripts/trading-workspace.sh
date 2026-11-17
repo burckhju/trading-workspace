@@ -187,7 +187,7 @@ start_services() {
 }
 
 update_release() {
-  local TW_TAG="$1" TW_TARGET="$2" TW_NEXT TW_CONFIG
+  local TW_TAG="$1" TW_TARGET="$2" TW_NEXT TW_CONFIG TW_VALIDATOR_SHA
   case "$TW_SELF" in "$TW_APP"/*) fail 'Den Starter zuerst mit install außerhalb des Programmordners installieren.' ;; esac
   for command in mktemp tar; do
     command -v "$command" >/dev/null || fail "Erforderliches Programm fehlt: $command"
@@ -199,9 +199,15 @@ update_release() {
   git -C "$TW_OLD_ROOT" fetch origin "refs/tags/$TW_TAG:refs/tags/$TW_TAG" </dev/null
   [[ "$(git -C "$TW_OLD_ROOT" rev-parse "$TW_TAG^{commit}")" == "$TW_TARGET" ]] || fail 'Der veröffentlichte Tag zeigt nicht auf den geprüften Commit.'
   [[ "$(git -C "$TW_OLD_ROOT" show "$TW_TARGET:VERSION")" == "${TW_TAG#v}" ]] || fail 'VERSION und Tag widersprechen sich.'
-  # Refuse an unreviewed change of the deployment mechanism on a future release.
+  # Pin the unchanged deployment shell and the two explicitly qualified validator
+  # contracts: original strict equality, or v2's two absent-to-disabled defaults.
+  # Existing settings and unknown future validator bytes remain protected.
   [[ "$(git -C "$TW_OLD_ROOT" show "$TW_TARGET:scripts/migrate-legacy-issuer.sh" | sha256sum | cut -d ' ' -f 1)" == 98e654752c7da85828d7367d19e3f145c43960634dfc831be17778caae7756d9 ]] || fail 'Deployment-Helfer wurde verändert; Updateweg muss neu geprüft werden.'
-  [[ "$(git -C "$TW_OLD_ROOT" show "$TW_TARGET:backend/app/tools/legacy_issuer_deployment.py" | sha256sum | cut -d ' ' -f 1)" == 37319d79a373f3f4fe0a7f7d416164cde165787be30714731d61d538f70de4f4 ]] || fail 'Deployment-Validierung wurde verändert; Updateweg muss neu geprüft werden.'
+  TW_VALIDATOR_SHA="$(git -C "$TW_OLD_ROOT" show "$TW_TARGET:backend/app/tools/legacy_issuer_deployment.py" | sha256sum | cut -d ' ' -f 1)"
+  case "$TW_VALIDATOR_SHA" in
+    37319d79a373f3f4fe0a7f7d416164cde165787be30714731d61d538f70de4f4|a9a158d631359fa26554983589c942a9f5ee973de30ec56b4cb6fad8337ffb55) ;;
+    *) fail 'Deployment-Validierung wurde verändert; Updateweg muss neu geprüft werden.' ;;
+  esac
   if [[ "$TW_OLD_REV" == "$TW_TARGET" ]]; then
     printf 'Bereits installiert: %s (%s). Keine Änderung.\n' "$TW_TAG" "$TW_TARGET"
     return 0

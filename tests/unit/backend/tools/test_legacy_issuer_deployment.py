@@ -153,6 +153,89 @@ def test_overlay_preserves_false_flags_and_literal_paths_without_copying_secrets
     migration.verify_identity(items, copy.deepcopy(items))
 
 
+def test_old_release_accepts_only_additive_disabled_review_defaults() -> None:
+    items, target = deployment_fixture()
+    old = copy.deepcopy(items)
+    defaults = migration.ADDITIVE_BACKEND_DEFAULTS
+    assert migration.DEPLOYMENT_CONTRACT_VERSION == "legacy-issuer-review-defaults-v2"
+    assert not (migration.environment(items[0]).keys() & defaults.keys())
+    target["services"]["backend"]["environment"].update(defaults)
+
+    overlay = migration.make_overlay(items, target, REVISION)
+    migration.validate_candidate(items, target)
+
+    assert items == old
+    assert not (overlay["services"]["backend"]["environment"].keys() & defaults.keys())
+    assert (
+        target["services"]["backend"]["environment"] | defaults
+        == target["services"]["backend"]["environment"]
+    )
+
+
+@pytest.mark.parametrize(
+    "key,value",
+    [
+        ("TRADING_WORKSPACE_POSITION_MONITORING__REVIEW_SCOPE", "INDICATIVE_ENTRY_V1"),
+        ("TRADING_WORKSPACE_POSITION_MONITORING__REVIEW_SCOPE", "disabled"),
+        ("TRADING_WORKSPACE_POSITION_MONITORING__REVIEW_SCOPE", ""),
+        ("TRADING_WORKSPACE_POSITION_MONITORING__REVIEW_NOTIFICATIONS_ENABLED", "true"),
+        ("TRADING_WORKSPACE_POSITION_MONITORING__REVIEW_NOTIFICATIONS_ENABLED", False),
+        ("TRADING_WORKSPACE_POSITION_MONITORING__REVIEW_NOTIFICATIONS_ENABLED", "0"),
+        ("TRADING_WORKSPACE_POSITION_MONITORING__UNREVIEWED", "false"),
+    ],
+)
+def test_additive_review_defaults_do_not_allow_activation_or_other_settings(
+    key: str, value: Any
+) -> None:
+    items, target = deployment_fixture()
+    target["services"]["backend"]["environment"].update(migration.ADDITIVE_BACKEND_DEFAULTS)
+    target["services"]["backend"]["environment"][key] = value
+    with pytest.raises(migration.DeploymentError):
+        migration.make_overlay(items, target, REVISION)
+    with pytest.raises(migration.DeploymentError):
+        migration.validate_candidate(items, target)
+
+
+@pytest.mark.parametrize("key,disabled", migration.ADDITIVE_BACKEND_DEFAULTS.items())
+@pytest.mark.parametrize("change", ["remove", "replace-disabled", "replace-active"])
+def test_existing_review_values_cannot_be_removed_or_replaced(
+    key: str, disabled: str, change: str
+) -> None:
+    items, target = deployment_fixture()
+    original = disabled if change != "replace-active" else "previous-explicit-value"
+    items[0]["Config"]["Env"].append(key + "=" + original)
+    if change != "remove":
+        target["services"]["backend"]["environment"][key] = (
+            "changed-value" if change == "replace-disabled" else disabled
+        )
+    with pytest.raises(migration.DeploymentError):
+        migration.make_overlay(items, target, REVISION)
+    with pytest.raises(migration.DeploymentError):
+        migration.validate_candidate(items, target)
+
+
+@pytest.mark.parametrize("service", ["database", "frontend", "issuer-renderer"])
+def test_review_defaults_cannot_be_added_to_other_services(service: str) -> None:
+    items, target = deployment_fixture()
+    target["services"][service]["environment"].update(migration.ADDITIVE_BACKEND_DEFAULTS)
+    with pytest.raises(migration.DeploymentError):
+        migration.validate_candidate(items, target)
+
+
+def test_later_release_retains_explicit_active_review_values() -> None:
+    items, target = deployment_fixture()
+    active = {
+        "TRADING_WORKSPACE_POSITION_MONITORING__REVIEW_SCOPE": "INDICATIVE_ENTRY_V1",
+        "TRADING_WORKSPACE_POSITION_MONITORING__REVIEW_NOTIFICATIONS_ENABLED": "false",
+    }
+    items[0]["Config"]["Env"].extend(key + "=" + value for key, value in active.items())
+    target["services"]["backend"]["environment"].update(active)
+    original = copy.deepcopy(items)
+    migration.make_overlay(items, target, REVISION)
+    migration.validate_candidate(items, target)
+    assert items == original
+
+
 @pytest.mark.parametrize(
     "kind", ["env", "missing-setting", "revision", "project", "duplicate", "stopped", "name"]
 )
