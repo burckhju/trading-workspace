@@ -19,6 +19,7 @@ from app.features.market_data.domain.errors import (
     InvalidMarketDataValue,
     InvalidProviderInstrumentMapping,
 )
+from app.features.market_data.domain.original_quote_evidence import OriginalQuoteEvidence
 
 
 def _require_utc(value: datetime, *, field: str) -> datetime:
@@ -256,6 +257,7 @@ class WarrantQuoteSnapshot:
     quote_time_basis: str | None = None
     bid_volume: int | None = None
     ask_volume: int | None = None
+    original_evidence: OriginalQuoteEvidence | None = None
 
     def __post_init__(self) -> None:
         if (self.reference_price is None) != (self.reference_price_type is None):
@@ -327,3 +329,21 @@ class WarrantQuoteSnapshot:
             value = getattr(self, field)
             if value is not None:
                 object.__setattr__(self, field, _normalize_code(value, field=field))
+        evidence = self.original_evidence
+        if evidence is not None:
+            if (
+                self.reference_price is not None
+                or evidence.isin != self.provider_symbol
+                or (self.isin is not None and evidence.isin != self.isin)
+                or evidence.currency != self.currency
+                or evidence.venue_mic != self.venue_mic
+            ):
+                raise InvalidMarketDataValue(
+                    "Original quote evidence does not match snapshot identity"
+                )
+            for side in ("bid", "ask"):
+                original = getattr(evidence, side)
+                if original is not None and original.price != getattr(self, side):
+                    raise InvalidMarketDataValue(
+                        "Original quote evidence does not match snapshot price"
+                    )

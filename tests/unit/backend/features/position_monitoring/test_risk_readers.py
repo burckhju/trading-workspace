@@ -1,5 +1,6 @@
 """Provenance qualification remains separate from numerical signals."""
 
+from contextlib import nullcontext
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
@@ -17,6 +18,7 @@ from app.features.market_data.domain.enums import (
     QualityStatus,
 )
 from app.features.market_data.domain.models import WarrantQuoteSnapshot
+from app.features.market_data.persistence.quote_identity import QuoteIdentity
 from app.features.market_data.service.risk_read import RiskMarketDataReader
 from app.features.market_data.service.types import MarketDataResult
 
@@ -44,14 +46,27 @@ async def test_saved_quote_reader_requires_current_route_and_preserves_original_
 ):
     import app.features.market_data.service.risk_read as module
 
-    listing = uuid4()
+    workspace, listing = uuid4(), uuid4()
     selection = SimpleNamespace(
+        id=uuid4(),
+        selected_at=NOW - timedelta(hours=1),
         selection_status="SELECTED",
         warrant_listing_id=listing,
         provider="JPMORGAN",
         identity_key="current",
     )
-    identity = SimpleNamespace(key="current", isin="DE000SYN0010", currency="EUR")
+    identity = QuoteIdentity(
+        key="current",
+        isin="DE000SYN0010",
+        wkn=None,
+        currency="EUR",
+        exchange="ISSUER",
+        mic="XSTU",
+        workspace_id=workspace,
+        warrant_id=uuid4(),
+        warrant_listing_id=listing,
+        trading_venue_id=uuid4(),
+    )
     quote = WarrantQuoteSnapshot(
         listing,
         Decimal(2),
@@ -79,7 +94,7 @@ async def test_saved_quote_reader_requires_current_route_and_preserves_original_
     if case == "unknown_provider":
         selection.provider = "NOT_A_PROVIDER"
     if case == "identity":
-        identity.key = "superseded"
+        identity = replace(identity, key="superseded")
     if case == "no_data":
         result = replace(result, data=None)
     if case == "currency":
@@ -103,12 +118,13 @@ async def test_saved_quote_reader_requires_current_route_and_preserves_original_
         identity_key="current", payload={} if case == "invalid_payload" else payload
     )
     session = SimpleNamespace(
+        no_autoflush=nullcontext(),
         scalar=AsyncMock(return_value=None if case == "no_selection" else selection),
         get=AsyncMock(return_value=None if case == "no_saved" else record),
     )
     monkeypatch.setattr(module, "read_quote_identity", AsyncMock(return_value=identity))
     evidence = await RiskMarketDataReader(session).saved_quote(
-        workspace_id=uuid4(), position_id=uuid4(), as_of=NOW
+        workspace_id=workspace, position_id=uuid4(), as_of=NOW
     )
     assert evidence.reason == reason
     if case == "good":

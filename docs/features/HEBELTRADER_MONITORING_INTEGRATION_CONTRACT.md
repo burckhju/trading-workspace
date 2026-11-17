@@ -10,8 +10,13 @@ Der begrenzte [Zielhistorien-Schnitt F207-2](#f207-2-target-history) wurde mit
 `6efa74d3bd0978c7ef8975fdc9c506de7a0aa348` integriert. Der
 [Vergleichsbeleg-Schnitt F207-3](#f207-3-history-qualification) wurde mit
 [PR #346](https://github.com/burckhju/trading-workspace/pull/346) auf Main
-`1d63d001216ef6f9294697f54707f3ae89a58ac4` integriert. Daran schließt der
-[Sitzungsevidenz-Schnitt F207-3](#f207-3-session-evidence) an.
+`1d63d001216ef6f9294697f54707f3ae89a58ac4` integriert. Der
+[Sitzungsevidenz-Schnitt F207-3](#f207-3-session-evidence) wurde mit
+[PR #347](https://github.com/burckhju/trading-workspace/pull/347) auf Main
+`19a10ad484293995e200b5eb9a99b4ae11a49ee2` integriert.
+Der anschließende [Original-Geldkurs-Schnitt](#f207-3-original-bid-evidence)
+baut ausdrücklich auf dessen Head `093e97899fd35a1f8f508518ebe606fad8e2e237`
+auf; dessen Inhalt ist identisch mit dem inzwischen integrierten Main-Tree.
 Aufgabenstatus bleibt ausschließlich im Product Backlog; vollständige Baseline,
 Regelaktivierung und Betrieb werden dadurch nicht als abgeschlossen erklärt.
 
@@ -1462,11 +1467,14 @@ reine Zählfunktion wiederverwendbar. Deren expliziter `event_at` muss bei B04/B
 die **belegte Original-BID-Zeit** erhalten. Zusätzlich fehlen die unabhängig
 qualifizierte Quellenbeschaffung, verifizierte offene Produktsitzung, passende
 Währung/Skala des gehaltenen Instruments und `0 <= Kursalter <= 900 Sekunden`.
-Der bestehende [Frankfurt-Snapshotmapper](../../backend/app/providers/frankfurt_quotes/schema.py)
-setzt `observed_at=min(bid_at, ask_at)`; der gemeinsame `WarrantQuoteSnapshot`
-bewahrt keine einzelnen Seitenzeiten. Diese kombinierte Zeit darf nicht als
-exakte Original-BID-Zeit für den 20.-Sitzungsnachweis umgedeutet werden. Dafür ist
-ein additiver Seitenzeit-/Provenienzvertrag nötig oder der Kurs bleibt ungeeignet.
+Am Ausgangsstand des Sitzungsschnitts setzt der
+[Frankfurt-Snapshotmapper](../../backend/app/providers/frankfurt_quotes/schema.py)
+`observed_at=min(bid_at, ask_at)`; der gemeinsame `WarrantQuoteSnapshot`
+bewahrt dort noch keine einzelnen Seitenzeiten. Diese kombinierte Zeit darf
+nicht als exakte Original-BID-Zeit für den 20.-Sitzungsnachweis umgedeutet werden.
+Der nachfolgende [additive Seitenzeitvertrag](#f207-3-original-bid-evidence)
+schließt diese Speicherlücke für den bestehenden normalisierten Frankfurt-Pfad;
+Legacy- und andere Quellbelege erhalten keine erfundene Seitenzeit.
 
 Product muss verifizierten letzten Handelstag, maßgeblichen Produkttermin und
 festes Ausstiegslisting samt instrumentbezogenem Schluss ergänzen. Die vorhandenen
@@ -1478,3 +1486,176 @@ Keine neue Quelle aktiviert eine Regelversion, B08 bleibt ausgeschlossen und B07
 eigenständig. VERSION, Providerzustimmungen, produktive Daten und Installation
 werden durch diesen Schnitt nicht geändert. Aufgabenstatus bleibt ausschließlich
 im Product Backlog.
+
+<a id="f207-3-original-bid-evidence"></a>
+## F207-3: Original-Geldkursbelege und passive Eingangsvoraussetzungen
+
+### Abgrenzung, Abhängigkeit und Wirkung
+
+Dieser Anschluss verwendet den überprüften Sitzungsevidenz-Head aus #347
+`093e97899fd35a1f8f508518ebe606fad8e2e237`, Tree
+`c51703185c713034245306b00bf17ce7e6d80cea`. Main ist beim Beginn weiterhin
+`1d63d001216ef6f9294697f54707f3ae89a58ac4`; #347 war eine offene Draft-Abhängigkeit.
+Während der Umsetzung wurde #347 am 15.11.2026 um 20:44:57 UTC auf Main
+`19a10ad484293995e200b5eb9a99b4ae11a49ee2` integriert. Dessen Tree ist exakt
+`c51703185c713034245306b00bf17ce7e6d80cea`; die geprüfte Grundlage bleibt damit
+inhaltlich gleich. Der anschließende [PR #348](https://github.com/burckhju/trading-workspace/pull/348)
+enthält gegenüber diesem tatsächlichen Main nur den zusätzlichen Schnitt.
+Dieser Diff enthält keine Migration.
+Der gemeinsame Migrationsgraph bleibt linear mit `20261115_0052` nach
+`20261114_0051`; VERSION und veröffentlichter Tag bleiben unverändert.
+
+Die Positionsdetails erhalten einen kompakten Abschnitt **Hebeltrader ·
+Original-Geldkurs**. Er liest die aktuelle bestätigte Kursroute und deren
+gespeicherten letzten Erfolg. Bereits erfasste Ausführungen, historische
+Kaufwährung und Kalenderpakete werden verwendet. Es gibt keine neue Pflichtangabe,
+keinen Kalendereditor und keine zusätzliche Bestätigung für vorhandene Belege.
+Erneutes Lesen aktualisiert nur diesen Bericht; es beschafft keinen Providerkurs.
+
+Die Anzeige trennt erfüllte, fehlende, ungeeignete, noch nicht erreichte und
+nicht anwendbare Eingangsvoraussetzungen. Ein vollständiger Teilbeleg ist keine
+ausgewertete B04-/B58-Regel. Insbesondere fehlen weiterhin ein Ownerbeleg zum
+historischen **Optionsschein-Preismaßstab** und ein qualifizierter, zeitlich
+zugeordneter Nachweis des offenen Produktmarkts. Deshalb kann dieser Bericht
+keine vollständige Regeltauglichkeit oder Entwarnung ausgeben.
+
+### Ein additiver Originalseitenvertrag beim bestehenden Kursowner
+
+`market_data.domain.original_quote_evidence` definiert `OriginalQuoteEvidence`
+mit `version=original-quote-evidence-v1`, normalisiertem Quellvertrag,
+Quellreferenz, Generierungszeit, ISIN, Währung, MIC und optionalen einzelnen
+BID-/ASK-Belegen. Jede vorhandene Seite bindet den exakten Decimalpreis an ihre
+explizite Originalzeit, den unveränderten ISO-Zeittext einschließlich Offset
+und das zugehörige Quellenfeld. Der Zeittext muss denselben Zeitpunkt belegen;
+naive Zeitangaben, unbekannte Uhrzeit oder spätere Erfassung werden nicht ergänzt.
+
+Der vorhandene **normalisierte** Frankfurt-Vertrag `frankfurt-quotes-v1` übernimmt
+bei `kind=BID_ASK` die tatsächlich übergebenen Originalstrings `bid_at`/`ask_at`.
+Er ist kein behauptetes natives Börsen-HTTP-Format. Der bestehende gemeinsame
+Snapshotzeitpunkt `min(bid_at, ask_at)` behält seine Bedeutung. Das neue optionale
+`WarrantQuoteSnapshot.original_evidence` bindet Seitenwerte, ISIN/Providersymbol,
+Währung und MIC an denselben Snapshot. Referenzpreise sind keine BID-Seite.
+
+Der Monitoringconsumer qualifiziert ausschließlich diesen bereits belegten
+Pfad: Provider `FRANKFURT_QUOTES`, Quellvertrag `frankfurt-quotes-v1`, BID-Feld
+`bid_at`, separate Seitenzeit, XFRA und vorhandener Frankfurt-Realtime-/Delayed-
+Monitoringmodus. Eine bloß strukturell gültige neue Quelle erhält keine
+automatische fachliche Freigabe. Eine nominelle Verzögerung ist kein Altersbeleg.
+Andere Produzenten bleiben unverändert: gettex/Stuttgart mit gemeinsamer Zeit,
+Vontobel mit nicht separat belegter BID-Zeit, JPMorgan/Morgan Stanley mit den
+bisherigen Zeitpräzisionsgrenzen sowie Frankfurt-LAST-/PREVIOUS_CLOSE-Referenzen
+werden daraus nicht zu geeigneten Original-BIDs. Produktive Provider werden
+nicht neu aktiviert oder abgefragt.
+
+Die vorhandene Retention und unveränderliche Samples bewahren das additive
+Originalobjekt im bestehenden JSON. Neue Samples enthalten außerdem die
+äußere Qualitätsstufe, Warnungen und den Grundcode des Ergebnisses. Für Quotes
+ohne Originalseitenbeleg wird das neue `None`-Defaultfeld vor Sample-Speicherung
+und Quote-Hashing entfernt: bestehende Payloads und der bisherige
+`quote_fingerprint` bleiben unverändert. Der Quotehash bindet weiterhin
+Route und Quote; der neue lesende Gesamtbelegfingerprint erfasst zusätzlich
+die vollständigen gespeicherten Ergebnisdaten einschließlich Metadaten.
+
+### Schmaler gespeicherter Read und seine Zeitgrenzen
+
+`RiskMarketDataReader.saved_quote` erhält additiv `expected_warrant_id`. Der
+bestehende Identitätsjoin muss Kursroute und tatsächlich gehaltenes Produkt
+belegen. Workspace, Position, Warrant, Listing, Venue, Währung, Auswahl-ID/-Zeit
+und unveränderter Identitätsschlüssel werden in `SavedQuoteRouteBinding` sichtbar.
+Provider, Capability, Symbol/ISIN/WKN, Exchange/MIC, Währung und Zeitfolge bleiben
+geprüft. Eine geänderte oder fremde Route wird nicht automatisch repariert.
+
+`SavedQuoteProvenance` bewahrt Abrufzeit, Lesezeit, Qualitätsstatus, Warnungen,
+Grundcode und SHA256 des vollständig gespeicherten kanonischen JSON. Dieser
+Fingerprint ist kein Hash ursprünglicher HTTP-Antwortbytes. Der Last-success-
+Store besitzt **keine aufgezeichnete Speicherzeit**: `stored_at=null` und
+`stored_at_status=NOT_RECORDED_BY_LAST_SUCCESS_STORE` sagen dies ausdrücklich.
+Abruf und Speicherung werden nicht gleichgesetzt. `storage_kind=LAST_SUCCESS`,
+`mutable=true` und `historical_read=false` grenzen die Aussage auf den aktuell
+gespeicherten Erfolg ein; Samples werden nicht zur historischen Rekonstruktion
+oder als Rückfall auf eine frühere Route verwendet. Der letzte fehlgeschlagene
+Abrufversuch ist diesem Reader nicht bekannt.
+
+```text
+GET /api/v1/position-monitoring/trades/{trade_id}/hebeltrader-original-bid
+    ?position_id={position_id}
+```
+
+Der Monitoring-Read verwendet genau eine `REPEATABLE READ READ ONLY`-Transaktion
+ohne Autoflush, mit begrenztem Statementtimeout und Rollback auch bei Fehlern.
+Er bezieht die wirtschaftliche Basis direkt aus Trade Position: effektiver
+ursprünglicher BUY, Restmenge, gewichteter Bruttoeinstand und historische
+Währungsauflösung samt vorhandenen Kaufbelegen. Teilverkauf, Nachkauf und
+Korrekturen erzeugen keine zweite Kosten-/Bestandshistorie.
+
+Der Zeitpunkt ist serverseitig. Zusätzliche, doppelte oder historische
+Queryparameter werden abgewiesen. Fremde Trade-/Positionszuordnungen sind kein
+fehlender Kurs. Inkonsistente Ownerantworten und Datenbank-/Integritätsfehler
+liefern einen Lesefehler, keine scheinbare Beleglücke oder Regelerfüllung.
+Ein Berichtsfingerprint bindet Wirtschaftsbasis, Seitenbeleg, Route, vollständige
+Provenienz, beide Kalenderrevisionen/-quellen, gelesene Zeiträume und Ergebnisse.
+
+### Acht lesbare Voraussetzungen
+
+| Read-Befund | Bedeutung und konkrete Grenze |
+| --- | --- |
+| `HELD_INSTRUMENT` | Gespeicherter Kurs und bestätigte Route gehören zum tatsächlich gehaltenen Instrument. |
+| `ORIGINAL_BID_TIME_AND_AGE` | Echte BID-Seitenzeit; Originalzeit ≤ Quellgenerierung ≤ Abruf ≤ Lesestand; exakt `0 <= Alter <= 900 Sekunden`, ohne Rundung oder Empfangsersatz. |
+| `EXECUTION_CURRENCY` | Bekannte historische Ausführungswährung und echter BID in derselben Währung. Gemischte/fehlende Währung wird nicht umgerechnet oder erneut pauschal abgefragt. |
+| `PRODUCT_SESSION_AT_BID` | Die BID-Zeit liegt in einem vollständig dokumentierten Intervall des exakt zugeordneten Produktlistings. |
+| `PRODUCT_SESSION_AT_READ` | Separater Befund für den serverseitigen Lesestand. Öffnung ist eingeschlossen, Schluss ausgeschlossen; Pausen und Overnight werden erhalten. |
+| `TWENTY_UNDERLYING_SESSIONS_AT_BID` | Vorhandener Tag-0-/Präzisionsvertrag, aber Zählung ausdrücklich zur Original-BID-Zeit. Ein späterer 20. Schluss bis zum Lesen zählt nicht nachträglich. |
+| `PRICE_SCALE` | Weiter fehlender Ownerbeleg zwischen historischem Optionsschein-Einstand und BID. F207-4-Marken-/Basiswertbelege oder die OHLC-Nutzerqualifikation aus #346 bestätigen diesen Produktmaßstab nicht. |
+| `VERIFIED_LIVE_MARKET_STATUS` | Weiter fehlender qualifizierter Nachweis des offenen Instruments. Dokumentierte Kalenderintervalle und Quellstatus `OPEN` bleiben eigenständige Fakten. |
+
+Für den Produktkalender wird ausschließlich das Listing der bestätigten Kursroute
+gelesen. Ein begrenzter Zeitraum umfasst die beiden lokalen Ereignistage und
+den vorausgehenden Tag, damit eine Übernachtsitzung nachvollziehbar abgedeckt
+ist. Auch dieser vorausgehende Tag braucht einen ausdrücklichen Quellbeleg;
+fehlend bedeutet nicht geschlossen. Vergleiche erfolgen auf UTC-Zeitpunkten,
+einschließlich der wiederholten Stunde bei Zeitumstellung. Liegen BID und Read
+in unterschiedlichen dokumentierten Intervallen, wird dies angezeigt; daraus
+wird keine zusätzliche, unbestätigte Handelsregel erfunden.
+
+Beide Kalenderreads bleiben auf dieselbe Revision, Originalquelle und den
+Lesezeitpunkt gebunden. Fehlende/UNKNOWN-Tage, Rücknahme oder unpassende Bindungen
+werden nicht durch ältere Revisionen oder Kurszeilen ersetzt. Ohne geeigneten
+BID gibt es keinen ersatzweisen Sitzungszählstand zur Abruf- oder Lesezeit.
+Die vorhandene Sitzungsanzeige aus #347 behält ihren eigenen Serverzeitvertrag.
+
+`coverage_status` ist `PARTIAL`, `UNSUITABLE` oder `NOT_APPLICABLE`; es gibt keine
+vollständige B58-Freigabe in diesem Schnitt. `F207_3_ORIGINAL_BID_EVIDENCE_ONLY`,
+`B04_B05_B06_B58_NOT_EVALUATED`, `NOT_ACTIVATED` und `READ_ONLY` halten Belegstand,
+implementierte Funktion, Regelauswertung und Betrieb auseinander. Geschlossene
+und stornierte Positionen erhalten keine aktuelle Eingangsqualifikation.
+
+### Consumer, Nachweise und Anschluss
+
+Der Operational Workspace zeigt den serverseitigen Bericht ohne Finanz-,
+Alters- oder Sitzungsrechnung. Positions-/Reloadwechsel, Abbruch und verspätete
+Antworten sind isoliert; bestehende Formularentwürfe und UNKNOWN-Recovery bleiben
+erhalten. Technische Lesefehler werden getrennt von fehlenden Belegen angezeigt.
+
+Gezielte Tests prüfen Originaltexte/-zeiten und Retention über Neustart,
+Legacy-Hashkompatibilität, falsche Quellen/Preisachsen/Identitäten, 900 Sekunden
+einschließlich Mikrosekundengrenze, 20. Schluss zwischen BID und Read,
+Währungsreuse, Teilverkauf/Nachkauf, Zeitumstellung, fehlende/ersetzte Kalender,
+Scope, Provenienz und schreibfreie Reads. Ein zusätzlicher echter PostgreSQL-Fall
+verwendet die vorhandene bewachte UUID-Wegwerfdatenbank: realer externer Kauf,
+bestätigte Währung/Quellenauswahl, gespeicherter separater BID, zwei Original-
+Kalenderimporte und tatsächlicher GET mit geprüfter Read-only-Isolation sowie
+unveränderten übrigen Tabellen. Alle Daten sind synthetisch und externe Aufrufe
+abgefangen. Ausgeführte reguläre Ergebnisse, Skips und Coverage stehen im
+zugehörigen PR am konkreten Head und tatsächlichen Testmerge. Eine lokale
+Testsammlung ist kein PostgreSQL- oder Betriebsnachweis; Gates bleiben unverändert.
+
+**Folgeschnitt F207-3:** Produkt-Preismaßstab/Anpassungsbelege und qualifizierte
+offene Sitzung samt Quellenbeschaffung schließen; darauf B04/B57-Verlustzustände
+mit dem persönlichen Einstand implementieren. Verifizierter letzter Handelstag,
+Produkttermin/festes Ausstiegslisting, B05-Rückwärtszählung, Z1-bezogene B06-Zählung
+und historische Basiswert-Trades zum Kauf bleiben offen. F207-2 benötigt weiter
+Schutz-/Korrekturverträge; F207-5 aktiviert später belegte Regelfunktionen und
+deren Meldungs-/Zustelllebenszyklus. Einstandsvergleich, Verlustepisode, Order,
+Ausführung, Providerzustimmung, Merge, Release und PC-Installation gehören
+nicht zu diesem Anschlussauftrag. Die maßgebliche Aufgabenstatusquelle bleibt
+der Product Backlog.

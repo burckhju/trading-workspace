@@ -94,6 +94,10 @@ async def capture_quote_sample(
         return
     quote = result.data if result is not None and reason is None else None
     data = QUOTE.dump_python(quote, mode="json") if quote else None
+    if data is not None and quote is not None and quote.original_evidence is None:
+        # Preserve the original hash contract for pre-existing snapshot producers.
+        # An absent optional side-clock contract is not new market evidence.
+        data.pop("original_evidence", None)
     fingerprint = None
     if data is not None:
         normalized = {
@@ -130,6 +134,9 @@ async def capture_quote_sample(
                 "retrieved_at": result.retrieved_at.isoformat() if result else None,
                 "cache_status": result.cache_status.value if result else None,
                 "policy_version": POLICY,
+                "quality_status": result.quality_status.value if result else None,
+                "warnings": list(result.warnings) if result else [],
+                "reason_code": result.reason_code if result else None,
             },
         )
     )
