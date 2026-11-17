@@ -7,6 +7,13 @@ from unittest.mock import AsyncMock
 from uuid import uuid4
 
 import pytest
+from tests.unit.backend.features.notification.test_hebeltrader_b04 import (
+    NOW,
+    executions,
+    store_fixture,
+)
+from tests.unit.backend.features.notification.test_warrant_name import ISIN, NAME, WKN, alert
+
 from app.features.alert.domain.models import AlertType
 from app.features.notification.domain.models import DeliveryResult, DeliveryStatus
 from app.features.notification.persistence.models import NotificationDeliveryAttemptModel
@@ -17,13 +24,6 @@ from app.features.notification.service.hebeltrader_lifecycle import (
 from app.features.trade_position.persistence.repositories import (
     SqlAlchemyExecutionRecordRepository,
 )
-
-from tests.unit.backend.features.notification.test_hebeltrader_b04 import (
-    NOW,
-    executions,
-    store_fixture,
-)
-from tests.unit.backend.features.notification.test_warrant_name import ISIN, NAME, WKN, alert
 
 REVIEW_TYPES = (
     AlertType.INDICATIVE_ENTRY_LOSS,

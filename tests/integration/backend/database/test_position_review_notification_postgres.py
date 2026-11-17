@@ -9,6 +9,21 @@ from uuid import UUID, uuid4
 
 import httpx
 import pytest
+from sqlalchemy import event, select, text, update
+from sqlalchemy.engine import make_url
+from sqlalchemy.exc import IntegrityError
+from tests.integration.backend.learning.test_journal_write_postgres import (
+    journal_database as guarded_database,
+)
+from tests.integration.backend.test_realized_gross_report_postgres import _client
+from tests.integration.backend.test_trade_capture_safety import (
+    BASE,
+    WORKSPACE,
+    product,
+    purchase,
+)
+from tests.integration.backend.test_usd_chf_currency_references import _migrate
+
 from app.features.alert.domain.models import Alert, AlertSeverity, AlertType
 from app.features.alert.persistence.models import AlertModel
 from app.features.alert.persistence.repositories import SqlAlchemyAlertRepository
@@ -29,21 +44,6 @@ from app.features.notification.service.hebeltrader_lifecycle import (
 from app.features.operational_workspace.service.read_model import OperationalWorkspaceReadModel
 from app.features.trade_position.persistence.models import PositionModel, TradeModel
 from app.features.trade_position.persistence.unit_of_work import SqlAlchemyTradePositionUnitOfWork
-from sqlalchemy import event, select, text, update
-from sqlalchemy.engine import make_url
-from sqlalchemy.exc import IntegrityError
-
-from tests.integration.backend.learning.test_journal_write_postgres import (
-    journal_database as guarded_database,
-)
-from tests.integration.backend.test_realized_gross_report_postgres import _client
-from tests.integration.backend.test_trade_capture_safety import (
-    BASE,
-    WORKSPACE,
-    product,
-    purchase,
-)
-from tests.integration.backend.test_usd_chf_currency_references import _migrate
 
 REVIEW_TYPES = (
     AlertType.INDICATIVE_ENTRY_LOSS,
