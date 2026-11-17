@@ -99,6 +99,10 @@ class PositionMonitoringRunner:
                     b04_alerts_created=result.hebeltrader_loss.alerts_created,
                     b04_data_problems=result.hebeltrader_loss.data_problems,
                     b04_position_errors=result.hebeltrader_loss.position_errors,
+                    review_positions_evaluated=result.indicative_entry.positions_evaluated,
+                    review_alerts_created=result.indicative_entry.alerts_created,
+                    review_data_problems=result.indicative_entry.data_problems,
+                    review_position_errors=result.indicative_entry.position_errors,
                     alerts_invalidated=result.alerts_invalidated,
                     notifications_created=result.notifications_created,
                     notifications_delivered=result.notifications_delivered,
@@ -117,6 +121,10 @@ class PositionMonitoringRunner:
                         "notification_failures": result.notification_failures,
                         "market_data_errors": result.cycle.market_data_errors,
                         "position_errors": result.cycle.position_errors,
+                        "review_positions_evaluated": result.indicative_entry.positions_evaluated,
+                        "review_alerts_created": result.indicative_entry.alerts_created,
+                        "review_data_problems": result.indicative_entry.data_problems,
+                        "review_position_errors": result.indicative_entry.position_errors,
                     },
                 )
             except asyncio.CancelledError:

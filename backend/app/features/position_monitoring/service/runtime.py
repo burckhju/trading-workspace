@@ -24,6 +24,10 @@ from app.features.position_monitoring.service.hebeltrader_loss_runtime import (
     HebeltraderLossRuntime,
     LossRunResult,
 )
+from app.features.position_monitoring.service.indicative_entry_runtime import (
+    IndicativeEntryRuntime,
+    IndicativeRunResult,
+)
 from app.features.position_monitoring.service.legacy_alerts import invalidate_unbound_alerts
 from app.features.position_monitoring.service.processor import SqlAlchemyMonitoringRuleProcessor
 from app.features.position_monitoring.service.risk_runtime import RiskRuntimeService
@@ -41,6 +45,7 @@ class PositionMonitoringRuntimeResult:
     notification_failures: int
     alerts_invalidated: int = 0
     hebeltrader_loss: LossRunResult = field(default_factory=LossRunResult)
+    indicative_entry: IndicativeRunResult = field(default_factory=IndicativeRunResult)
 
 
 class PositionMonitoringRuntimeService:
@@ -57,11 +62,15 @@ class PositionMonitoringRuntimeService:
         max_completed_price_age_days: int = 4,
         risk: RiskRuntimeService | None = None,
         hebeltrader_loss: HebeltraderLossRuntime | None = None,
+        indicative_entry: IndicativeEntryRuntime | None = None,
+        review_notifications_enabled: bool = False,
         delivery_max_attempts: int = 3,
         delivery_recovery_timeout: timedelta = timedelta(minutes=5),
     ) -> None:
         self._risk = risk
         self._hebeltrader_loss = hebeltrader_loss
+        self._indicative_entry = indicative_entry
+        self._review_notifications_enabled = review_notifications_enabled
         self._database = database
         self._market_data = market_data
         self._products = products
@@ -79,10 +88,15 @@ class PositionMonitoringRuntimeService:
         loss_result = (
             await self._hebeltrader_loss.run() if self._hebeltrader_loss else LossRunResult()
         )
+        review_result = (
+            await self._indicative_entry.run() if self._indicative_entry else IndicativeRunResult()
+        )
         if self._delivery_adapter is None:
-            return PositionMonitoringRuntimeResult(cycle_result, 0, 0, 0, invalidated, loss_result)
+            return PositionMonitoringRuntimeResult(
+                cycle_result, 0, 0, 0, invalidated, loss_result, review_result
+            )
 
-        created = loss_result.notifications_created
+        created = loss_result.notifications_created + review_result.notifications_created
         for created_alert in (*cycle_result.created_alerts, *risk_alerts):
             try:
                 if await self._create_notification(created_alert):
@@ -94,7 +108,9 @@ class PositionMonitoringRuntimeService:
                 )
 
         delivery = DurableNotificationDeliveryService(
-            store=SqlAlchemyDurableNotificationDeliveryStore(self._database),
+            store=SqlAlchemyDurableNotificationDeliveryStore(
+                self._database, review_delivery_enabled=self._review_notifications_enabled
+            ),
             adapter=self._delivery_adapter,
             new_id=uuid4,
             now=lambda: datetime.now(UTC),
@@ -121,6 +137,7 @@ class PositionMonitoringRuntimeService:
             notification_failures=failures,
             alerts_invalidated=invalidated,
             hebeltrader_loss=loss_result,
+            indicative_entry=review_result,
         )
 
     async def _run_monitoring_cycle(self) -> MonitoringCycleResult:

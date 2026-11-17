@@ -55,6 +55,13 @@ def format_review_alert(
     review_due = alert.alert_type is AlertType.POSITION_REVIEW_DUE
     sessions = context.get("review_completed_sessions" if review_due else "completed_sessions")
     session_at = context.get("review_session_count_at" if review_due else "session_count_at")
+    if context.get("source_status_point"):
+        lines += [
+            f"Letzter belegter Statuspunkt: {label(context.get('source_status_point'))}",
+            f"Originalstatuszeit: {label(context.get('source_status_observed_at'))}",
+            f"Status erfasst: {label(context.get('source_status_captured_at'))}",
+            "Fortgeltung des Statuspunkts nicht belegt.",
+        ]
     lines += [
         f"Abgeschlossene Basiswertsitzungen: {label(sessions)}",
         f"Bezug der Sitzungszählung: {label(session_at)}",

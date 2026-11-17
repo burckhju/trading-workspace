@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import and_, func, or_, select, update
+from sqlalchemy import and_, func, literal, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import DatabaseManager
@@ -24,6 +24,7 @@ from app.features.notification.persistence.models import (
 )
 from app.features.notification.service.hebeltrader_lifecycle import (
     POSITION_GUARDED_ALERT_TYPES,
+    POSITION_REVIEW_ALERT_TYPES,
     POSITION_SUPPRESSION_CODES,
     suppress_position_notification,
 )
@@ -38,8 +39,9 @@ from app.features.trade_position.persistence.repositories import (
 class SqlAlchemyDurableNotificationDeliveryStore:
     """Persist preparation and completion in separate database transactions."""
 
-    def __init__(self, database: DatabaseManager) -> None:
+    def __init__(self, database: DatabaseManager, *, review_delivery_enabled: bool = True) -> None:
         self._database = database
+        self._review_delivery_enabled = review_delivery_enabled
 
     async def list_pending_notification_ids(self, *, limit: int) -> tuple[UUID, ...]:
         async with self._database.session_context() as session:
@@ -49,6 +51,10 @@ class SqlAlchemyDurableNotificationDeliveryStore:
                 .join(TradeModel, TradeModel.id == AlertModel.trade_id)
                 .where(
                     NotificationModel.status == NotificationStatus.PENDING.value,
+                    or_(
+                        literal(self._review_delivery_enabled),
+                        AlertModel.alert_type.not_in(POSITION_REVIEW_ALERT_TYPES),
+                    ),
                     or_(
                         # Position notices need a durable suppression reason when the
                         # alert was resolved/invalidated or its trade cancelled.
@@ -108,6 +114,21 @@ class SqlAlchemyDurableNotificationDeliveryStore:
                 )
                 if terminal is not None:
                     return terminal
+                if (
+                    alert_model.alert_type in POSITION_REVIEW_ALERT_TYPES
+                    and not self._review_delivery_enabled
+                ):
+                    return DeliveryPreparation(
+                        notification=notification,
+                        terminal_result=DeliveryResult(
+                            status=DeliveryStatus.FAILED,
+                            retryable=True,
+                            error_code="REVIEW_DELIVERY_DISABLED",
+                            error_message=(
+                                "External review delivery is disabled; notice stays pending"
+                            ),
+                        ),
+                    )
             if alert_status == "INVALIDATED":
                 model.status = NotificationStatus.FAILED.value
                 await session.commit()

@@ -2386,3 +2386,109 @@ eigenen UI-Owner angepasst. Der neue Monitoring-Regelpfad folgt auf dieser
 gemeinsamen Grundlage. Dieser erste Schnitt erzeugt selbst keine neuen Hinweise
 und aktiviert weder einen Runner noch eine Regel. Aufgabenstatus und tatsächliche
 PR-/Headnachweise verbleiben im Product Backlog beziehungsweise im zugehörigen PR.
+
+
+<a id="indicative-entry-review-v1"></a>
+## Automatische indikative Einstandsbeobachtung und Positionsprüfung, Version 1
+
+Dieser auf dem Meldungsvertrag aufbauende Schnitt implementiert den vom Nutzer
+ausdrücklich freigegebenen alternativen Regelumfang `INDICATIVE_ENTRY_V1`,
+Regelversion `indicative-entry-review-v1`. Er aktiviert und verändert weder
+`HEBELTRADER_CONFIRMED_BASELINE` noch `hebeltrader-b04-b57-v1`. Die Produktivliste
+der B58-Quellen bleibt leer. Der neue Umfang erzeugt ausschließlich Prüfhinweise,
+keine vollständige B04-Verlustfeststellung, Orders, Ausführungen oder Stop-/Zieländerungen.
+
+### Wiederverwendete Fakten und ausdrücklich schwächere Preisaussagen
+
+Der Ausführungsowner liefert unverändert effektiven Erstkauf, Korrekturen,
+Restmenge, gewichteten Bruttoeinstand und historische Währungsbelege. Market Data
+liefert bestehende Quellenbindung, Last-success-Provenienz, Original-BID,
+Statusjournal und Kalenderrevision. Product liefert die vorhandenen dokumentierten
+Maßstabsbelege. Z1-Verkauf, Target-Qualifikation, persönliche historische
+Basiswerteinstiegsbelege oder sämtliche F207-Evidenz sind keine Voraussetzung.
+
+| Bewertungsmodus | Preis- und Zeitaussage | Sitzungsaussage |
+|---|---|---|
+| `SOURCE_BID` | Vorhandener expliziter Original-BID-Vertrag, eigene Seitenzeit, Alter 0 bis einschließlich 900 Sekunden, unveränderte Instrument-/Listing-/Währungs-/Maßstabsbindung. Marktöffnung bleibt unqualifiziert. | `count_completed_sessions(..., event_at=original_bid_at)`; mindestens 20 Sitzungen bereits am BID. |
+| `INDICATIVE_ISSUER` | Ausschließlich bereits registrierte Emittentenindikationen mit passender Auswahlpolicy, Identität, BID und Originalzeittext. Originalzeit und Quellenfrische bleiben unbekannt. Die vorhandene Grenze von 300 Sekunden betrifft nur den erfolgreichen Empfang; ein Refreshfehler/Retention-Fallback qualifiziert nicht. | 20 abgeschlossene Sitzungen an der Prüfzeit belegen die fällige Positionsprüfung; sie datieren den unbekannt alten Preis nicht nachträglich. |
+
+Ein gemeinsamer Timestamp wird nicht still zur Original-BID-Seitenzeit. Andere
+Referenzarten wie Ask/Last/Close werden nicht zugeschaltet. Die 900 Sekunden
+begründen keine Statusgültigkeit. Ein Kalender oder fehlende Fehlermeldung bestätigt
+kein OPEN. Bei unbekannter BID-Zeit wird der Produktmaßstab an den verbleibenden
+Kaufbeiträgen und der aktuellen Prüfzeit geprüft; eine Abdeckung der unbekannten
+Originalkurszeit wird ausdrücklich nicht behauptet. Widersprüche oder fehlende
+Bindungen ergeben einen Datenbefund.
+
+Originalstatus und Preis bleiben beim bestehenden Owner getrennt erhalten. Spätere
+negative/preislose Beobachtungen und tatsächliche Versorgungslücken bleiben
+wirksam; ein Transportfehler erzeugt kein CLOSED. Die erwartete Nichtlieferung
+eines Originalstatus allein verhindert diesen ausdrücklich indikativen Umfang
+nicht. Quellenwechsel bleiben nachvollziehbar; Reihenfolge wird nur zwischen
+vergleichbaren Quellen-/Routen-/Zeitsemantiken geprüft. Ein Quellenwechsel allein
+beendet keine Episode.
+
+### Drei unabhängige dauerhafte Vorgänge
+
+`indicative_entry_assessments` speichert unveränderliche Bewertungen mit
+wirtschaftlicher Grundlage und Eingängen. `indicative_entry_episodes` verwaltet
+getrennt Einstandsbeobachtung, 20-Sitzungen-Prüferinnerung und Datenproblem.
+Migration `20261117_0057` erzwingt Scope, eindeutige Vorgänger, pro Typ höchstens
+eine aktive Episode und nachvollziehbare einmalige Beendigung. Eine mit Belegen
+gefüllte Historie wird nicht destruktiv heruntergestuft.
+
+- Ein brauchbarer indikativer BID unter Einstand eröffnet genau einen logischen
+  `INDICATIVE_ENTRY_LOSS`-Hinweis; unveränderter Verlust erhält die Episode.
+- Datenlücken oder ungeeignete Eingänge beenden diese Episode nicht. Ein nach dem
+  eigenen alternativen Vertrag brauchbarer BID mindestens auf Einstand beendet
+  ausschließlich diese indikative Bedingung. Ein späterer Verlust eröffnet eine
+  neue indikative Episode. Strikte B04/B57-Episoden bleiben unberührt.
+- `POSITION_REVIEW_DUE` entsteht für die belegte 20-Sitzungen-Schwelle. Sein
+  Ereignisschlüssel bindet effektiven Erstkauf und das tatsächliche Ende der
+  20. Sitzung, nicht die wechselnde Prüfuhr oder einen bloßen Kalenderfingerprint.
+  Eine bereits gemeldete unveränderte Schwelle wird nach einer vorübergehenden
+  Lücke nicht erneut gemeldet. Wirkliche Korrekturen bleiben nachvollziehbar.
+- `POSITION_DATA_UNAVAILABLE` bildet einen anhaltenden Datenmangel als eigenen
+  Vorgang ab. Er ist keine Verlust- oder Erholungsbehauptung.
+- Vollverkauf oder Stornierung schließen die neuen Handlungshinweise und
+  unterdrücken ihre noch ausstehenden Zustellungen; Historie bleibt erhalten.
+
+### Hintergrundbetrieb und zentrale Freigabe
+
+Der vorhandene Runner verarbeitet im neuen Umfang alle offenen Positionen sowie
+Positionen mit noch offenen Reviewepisoden. Eine gespeicherte Stop-/Target-Regel
+ist dafür nicht nötig. Beschaffung erfolgt ausschließlich über den bestehenden
+Bewertungs-/Quellenowner außerhalb des wirtschaftlichen Trade-Locks. Danach
+öffnet der Service einen konsistenten READ-ONLY-Snapshot und schreibt Bewertung,
+Episode, Alert und optionale Outbox atomar in der gesperrten Transaktion.
+Wiederholungen, parallele Worker und Neustarts erzeugen keine zweiten logischen
+Hinweise. Ein Ein-Verbindungs-Pool bleibt durch den vorhandenen unabhängigen
+Snapshotvertrag nutzbar. Aus heutigem Last-success werden keine früheren
+Beobachtungen oder angeblich damaligen Zustellungen erfunden.
+
+Die neue zentrale Einstellung
+`TRADING_WORKSPACE_POSITION_MONITORING__REVIEW_SCOPE` kennt `DISABLED` (Default)
+und `INDICATIVE_ENTRY_V1`. Eine zentrale Aktivierung gilt für vorhandene und
+künftige passende Positionen; keine einzelne Positionsmigration, neuen IDs oder
+täglichen Nutzerbestätigungen. Der allgemeine Runner muss gesondert laufen.
+Vorhandene Produkt-/Kalenderbelege werden innerhalb ihrer belegten Gültigkeit
+wiederverwendet; wirkliche Änderungen und Lücken bleiben Ausnahmen.
+
+`TRADING_WORKSPACE_POSITION_MONITORING__REVIEW_NOTIFICATIONS_ENABLED=false`
+beschränkt den neuen Umfang zunächst auf gespeicherte Hinweise im Workspace.
+Eine spätere externe Zustellung benötigt diese eigene Einstellung und den bereits
+konfigurierten Notification-Adapter. Vorhandene andere Meldungsarten bleiben
+unverändert. Produktionszustimmung, synthetischer Test und tatsächlicher Versand
+bleiben verschiedene Nachweise.
+
+Der bestehende Runtime-GET zeigt Regelversion, beide getrennten Scopes, externe
+Reviewfreigabe und echte Zyklusergebnisse. Konfiguration, laufender Prozess,
+abgeschlossener Zyklus und erfolgreiche Versorgung sind getrennte Angaben.
+`GET /api/v1/position-monitoring/trades/{trade_id}/indicative-entry?position_id=...`
+liest gespeicherte Bewertung und Episoden in einer READ-ONLY-Transaktion. Er
+führt keine Bewertung, Beschaffung oder Aktivierung aus.
+
+B05 bleibt kursunabhängig vorbereitet, aber ohne qualifizierte persönliche
+Produkttermin-/Ausstiegslisting-/Schlusszeitbelege nicht im produktiven Umfang.
+Restliches F207-2/B06 und F207-5, B08-Ausschluss sowie bestehende Handels- und
+Preisachsenverträge bleiben unverändert.

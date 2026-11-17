@@ -36,6 +36,9 @@ from app.features.position_monitoring.persistence import (
     hebeltrader_targets as hebeltrader_target_models,  # noqa: F401
 )
 from app.features.position_monitoring.persistence import (
+    indicative_entry as indicative_entry_models,  # noqa: F401
+)
+from app.features.position_monitoring.persistence import (
     models as position_monitoring_models,  # noqa: F401
 )
 from app.features.product.persistence import models as product_models  # noqa: F401
