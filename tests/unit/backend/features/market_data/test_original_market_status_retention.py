@@ -110,7 +110,9 @@ async def test_new_closed_without_bid_does_not_retime_old_open_or_claim_a_comple
     snapshots.load.return_value = (FrankfurtSnapshot.model_validate(data), later, False)
     retained = await runtime(c, later, adapter).get_warrant_listing_quote(c.request)
     assert retained.data.retained is True
-    assert retained.data.refresh_error == "WARRANT_NO_QUOTE_RETURNED"
+    # The adapter now transports this original status independently. It still
+    # supplies no acceptable price and cannot replace the retained quote.
+    assert retained.data.refresh_error == "WARRANT_QUOTE_NOT_VALIDATED"
     assert retained.data.original_market_status == first.data.original_market_status
     assert retained.data.original_market_status.status == "OPEN"
     assert retained.data.original_market_status.observed_at == NOW - timedelta(seconds=30)

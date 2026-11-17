@@ -302,14 +302,23 @@ class WarrantQuoteSnapshot:
         )
         if self.observed_at is not None:
             _require_utc(self.observed_at, field="observed_at")
-        elif self.reference_price is None and not (
-            (self.source_mode, self.quote_time_basis)
-            in {
-                ("OFFICIAL_ISSUER_INDICATION_TIME_ONLY", "DATE_AND_TIMEZONE_UNKNOWN"),
-                ("OFFICIAL_ISSUER_INDICATION_LOCAL_DATETIME", "LOCAL_DATETIME_TIMEZONE_UNKNOWN"),
-                ("OFFICIAL_ISSUER_INDICATION_LOCAL_DATETIME", "TIMESTAMP_MISSING"),
-            }
-            and self.provider_exchange_code == "ISSUER"
+        elif (
+            self.reference_price is None
+            and not (
+                self.bid is None and self.ask is None and self.original_market_status is not None
+            )
+            and not (
+                (self.source_mode, self.quote_time_basis)
+                in {
+                    ("OFFICIAL_ISSUER_INDICATION_TIME_ONLY", "DATE_AND_TIMEZONE_UNKNOWN"),
+                    (
+                        "OFFICIAL_ISSUER_INDICATION_LOCAL_DATETIME",
+                        "LOCAL_DATETIME_TIMEZONE_UNKNOWN",
+                    ),
+                    ("OFFICIAL_ISSUER_INDICATION_LOCAL_DATETIME", "TIMESTAMP_MISSING"),
+                }
+                and self.provider_exchange_code == "ISSUER"
+            )
         ):
             raise InvalidMarketDataValue("Bid/ask observation requires a timestamp")
         if (

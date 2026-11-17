@@ -1941,3 +1941,73 @@ ersetzen diese Nachweise nicht. B04/B57, Produktfristen/B05, Z1-Zählung/B06,
 historische Basiswert-Trades und die F207-2-/F207-5-Reste bleiben getrennt offen.
 Eine produktive Quellenaktivierung oder Änderung bestehender Zustimmungen folgt
 aus diesem Anschluss nicht.
+
+<a id="f207-3-independent-status-observations"></a>
+## F207-3: Preisunabhängige Originalstatusbeobachtungen
+
+Der [erneut verifizierte gemeinsame Ausgangsstand](../reviews/F207_CHAIN_VERIFICATION_2026-11-17.md)
+ist #350 `77b3312da20b83d207f1da9c9b5f379b705dc8bb`, mit unveränderten offenen
+Abhängigkeiten #348 → #349 → #350. Dieser Nachtrag ergänzt die spätere
+Implementierung; historische Soll-Ist-Tabellen und der bisherige rein lesende
+Original-BID-Vertrag behalten ihre zeitliche Einordnung. Aufgabenstatus bleibt
+allein im Product Backlog.
+
+### Tatsächlicher Quellenbefund
+
+Die [Quellenprüfung vom 17.11.2026](../reviews/B58_SOURCE_QUALIFICATION_2026-11-17.md)
+enthält einen tatsächlich abgerufenen Frankfurt-Originalpayload für
+DE000VH2LU21/XSC/EUR. Er liefert Last und Last-Zeit, keinen Original-BID und
+keinen instrumentbezogenen Status mit eigener Zeit. Die übrigen geprüften
+Pfadgrenzen, Primärdokumente und die kleinste offene Beschaffung sind dort
+konkret angegeben. **Kein erreichbarer Pfad ist positiv B58-qualifiziert.**
+Ein normalisierter Frankfurt-Import ist weiterhin kein Beweis eines existierenden
+Lieferanten. Reale Depotdaten, aktuelle Listingbindungen und Nutzer-PC sind hier
+nicht erreichbar; der Beispielpfad belegt keine tatsächliche Depotabdeckung.
+
+### Zuständiger Owner, Persistenz und zeitlicher Reader
+
+Market Data ergänzt die Tabelle `warrant_market_status_observations` und
+Migration `20261117_0054` auf `20261116_0053`. Der bestehende Retentionwrapper
+schreibt unter seinem vorhandenen Listinglock **vor** Preisvalidierung,
+Last-success-Auswahl und Fünfminuten-Sampling einen unabhängig geprüften
+Originalstatus oder eine ausdrücklich beobachtete Versorgungslücke. Preisretention
+und Preis-Samplepolitik behalten ihren bisherigen Zweck. Es wird keine historische
+Statusfolge aus einem früheren Last-success zurückgefüllt.
+
+Der vorhandene Frankfurt-Adapter transportiert einen geeigneten Status auch ohne
+Preis oder bei separat ungültigen Preisfeldern. Der preislose Snapshot ist
+`INCOMPLETE`, hat keinen BID und keine erfundene Kurszeit. Eine unpassende
+Instrument-/Listing-/Quellenbindung oder Originalzeit bleibt abgewiesen. Ein
+Transportfehler, fehlende Statuslieferung oder error-retained Payload ergibt
+`GAP`, niemals `CLOSED` und niemals ein erneuertes `OPEN`.
+
+Jeder Fakt bindet Workspace, Instrument, Listing, Provider, Routenidentität,
+ISIN/MIC, Quellenvertrag/-referenz, eigene Originalstatuszeit, Generierung,
+Abruf und erste Erfassung. Deterministische Faktidentitäten deduplizieren
+Wiederholung ohne die ursprünglichen Zeiten zu erneuern. Sie sind keine Hashes
+unveränderter Anbieterbytes. Verspätete Meldungen bleiben erhalten; Auswahl
+richtet sich nach Originalzeit. Widersprüche am selben Originalzeitpunkt bleiben
+sichtbar. Quellenhistorie und andere Routen werden angezeigt, ohne daraus einen
+stillen Quellenwechsel oder Preisfallback abzuleiten.
+
+`MarketStatusReader.read(route, event_at, known_at)` ist ein schreibfreier
+Ownerread im Snapshot des Callers. Er liefert Punkte am angefragten Ereignis,
+neueste belegte Punkte, letzte Erfassung, letzte Lücke und Quellenhistorie.
+`OBSERVED_AT_INSTANT` gilt ausschließlich am eigenen Zeitpunkt; es gibt keine
+Status-TTL, keine Fortschreibung bis zum Lesestand und keine zusätzliche
+Bedingung durchgehender Öffnung. Auch ein passender Punkt bleibt hinsichtlich
+unabhängiger Quellenqualifikation `NOT_INDEPENDENTLY_VERIFIED`.
+
+Die bestehenden passiven Beleg-GETs ändern ihren Vertrag nicht. Der neue Reader
+ist die additive Grundlage des nachfolgenden Regelpfads. Dieser Statusschnitt
+aktiviert keine Regel, keinen Provider und keine produktive Zustellung.
+
+### Prüfung und Grenzen
+
+Synthetische Tests führen den tatsächlichen Frankfurt-Adapter über Retention bis
+in das unabhängige Journal. Sie prüfen preislose/fehlerhafte Preise, negative und
+verspätete Meldungen, Wiederholung, Original-/Quellenbindung, Lücken, Neustart und
+Schreibfreiheit. Der PostgreSQL-Fall verwendet eine bewachte UUID-Wegwerfdatenbank
+mit abgefangenen externen Aufrufen; er prüft konkurrierende Writer, Migration und
+unveränderliche Speicherung. Tatsächlich ausgeführte Ergebnisse, offene/übersprungene
+Prüfungen und reguläre Gates werden an Head und Integrationsbaum im PR ausgewiesen.
