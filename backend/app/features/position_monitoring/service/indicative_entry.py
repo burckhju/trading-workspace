@@ -238,6 +238,17 @@ class IndicativeEntryService:
     def _input_fingerprint(inputs: IndicativeInputs, decision: IndicativeDecision) -> str:
         material = inputs.material
         route = asdict(inputs.saved.route) if inputs.saved.route else None
+        status = material.get("status_observations") or {}
+        observations = list(status.get("latest_observations", ()))
+        if status.get("latest_capture") is not None:
+            observations.append(status["latest_capture"])
+        # The owner fingerprint binds original status, clocks and source/route,
+        # independently of repeated delivery or request clocks. Changed source
+        # facts need a new assessment even when the data-problem reason stays
+        # the same; episode and notification identity remain separate.
+        original_status_facts = sorted(
+            {item["fingerprint"] for item in observations if item.get("original") is not None}
+        )
         # Reading time, growing ages, repeated status gaps and original-response
         # transport metadata are not the identity of a logical evaluation.
         # Real receipt changes are retained only for the unknown-clock policy.
@@ -248,6 +259,7 @@ class IndicativeEntryService:
                     "owner": inputs.owner_basis_id,
                     "route": route,
                     "provider": inputs.saved.provider,
+                    "original_status_facts": original_status_facts,
                     "quote": {
                         "bid": decision.bid,
                         "currency": inputs.quote.currency,

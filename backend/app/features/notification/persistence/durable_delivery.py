@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from sqlalchemy import and_, func, literal, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -26,6 +26,7 @@ from app.features.notification.service.hebeltrader_lifecycle import (
     POSITION_GUARDED_ALERT_TYPES,
     POSITION_REVIEW_ALERT_TYPES,
     POSITION_SUPPRESSION_CODES,
+    REVIEW_SUPPRESSION_CODES,
     suppress_position_notification,
 )
 from app.features.trade_position.domain.projector import PositionProjector
@@ -42,6 +43,62 @@ class SqlAlchemyDurableNotificationDeliveryStore:
     def __init__(self, database: DatabaseManager, *, review_delivery_enabled: bool = True) -> None:
         self._database = database
         self._review_delivery_enabled = review_delivery_enabled
+
+    async def suppress_terminal_review_notifications(
+        self, *, now: datetime, page_size: int = 100
+    ) -> int:
+        """Reconcile existing review outbox facts even while their scope is paused.
+
+        This store must have delivery disabled: prepare reuses the trade lock
+        and execution owner, suppresses only proven terminal states and leaves
+        open notices pending without an attempt or provider call. Keyset pages
+        advance past those paused notices instead of starving later closures.
+        New rows after the fixed cutoff belong to a later runner cycle.
+        """
+        if self._review_delivery_enabled or now.utcoffset() is None or page_size < 1:
+            raise ValueError("Review cleanup requires disabled delivery, an aware clock and pages")
+        after: tuple[datetime, UUID] | None = None
+        suppressed = 0
+        while True:
+            statement = (
+                select(NotificationModel.id, NotificationModel.created_at)
+                .join(AlertModel, AlertModel.id == NotificationModel.alert_id)
+                .where(
+                    NotificationModel.status == NotificationStatus.PENDING.value,
+                    NotificationModel.created_at <= now,
+                    AlertModel.alert_type.in_(POSITION_REVIEW_ALERT_TYPES),
+                )
+                .order_by(NotificationModel.created_at, NotificationModel.id)
+                .limit(page_size)
+            )
+            if after is not None:
+                statement = statement.where(
+                    or_(
+                        NotificationModel.created_at > after[0],
+                        and_(
+                            NotificationModel.created_at == after[0],
+                            NotificationModel.id > after[1],
+                        ),
+                    )
+                )
+            async with self._database.session_context() as session:
+                pending = (await session.execute(statement)).all()
+            if not pending:
+                return suppressed
+            for item in pending:
+                preparation = await self.prepare(
+                    notification_id=item.id,
+                    attempt_id=uuid4(),
+                    now=now,
+                    stale_before=now,
+                    max_attempts=1,
+                )
+                if preparation.attempt is not None or preparation.terminal_result is None:
+                    raise RuntimeError("Terminal review cleanup must never prepare a delivery")
+                suppressed += int(
+                    preparation.terminal_result.error_code in REVIEW_SUPPRESSION_CODES
+                )
+            after = (pending[-1].created_at, pending[-1].id)
 
     async def list_pending_notification_ids(self, *, limit: int) -> tuple[UUID, ...]:
         async with self._database.session_context() as session:

@@ -83,6 +83,9 @@ class PositionMonitoringRuntimeService:
     async def run(self) -> PositionMonitoringRuntimeResult:
         async with self._database.session_context() as session:
             invalidated = await invalidate_unbound_alerts(session, now=datetime.now(UTC))
+        await SqlAlchemyDurableNotificationDeliveryStore(
+            self._database, review_delivery_enabled=False
+        ).suppress_terminal_review_notifications(now=datetime.now(UTC))
         cycle_result = await self._run_monitoring_cycle()
         risk_alerts = await self._risk.run() if self._risk else ()
         loss_result = (
