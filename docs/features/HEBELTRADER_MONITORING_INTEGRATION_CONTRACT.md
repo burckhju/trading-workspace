@@ -1945,12 +1945,13 @@ aus diesem Anschluss nicht.
 <a id="f207-3-independent-status-observations"></a>
 ## F207-3: Preisunabhängige Originalstatusbeobachtungen
 
-Der [erneut verifizierte gemeinsame Ausgangsstand](../reviews/F207_CHAIN_VERIFICATION_2026-11-17.md)
-ist #350 `77b3312da20b83d207f1da9c9b5f379b705dc8bb`, mit unveränderten offenen
-Abhängigkeiten #348 → #349 → #350. Dieser Nachtrag ergänzt die spätere
-Implementierung; historische Soll-Ist-Tabellen und der bisherige rein lesende
-Original-BID-Vertrag behalten ihre zeitliche Einordnung. Aufgabenstatus bleibt
-allein im Product Backlog.
+Historischer Ausgangspunkt dieses Implementierungsnachtrags war der
+[erneut verifizierte gemeinsame Stand](../reviews/F207_CHAIN_VERIFICATION_2026-11-17.md)
+#350 `77b3312da20b83d207f1da9c9b5f379b705dc8bb` mit den damals offenen
+Abhängigkeiten #348 → #349 → #350. Spätere Integrations- und Liefernachweise
+ändern diesen Ausgangsbeleg nicht. Historische Soll-Ist-Tabellen und der
+bisherige rein lesende Original-BID-Vertrag behalten ihre zeitliche Einordnung;
+Aufgabenstatus bleibt allein im Product Backlog.
 
 ### Tatsächlicher Quellenbefund
 
@@ -2200,21 +2201,32 @@ benötigt gemeinsame Meldungsdarstellung, gesehen/abgelehnt/ausgeführt, globale
 Versionierung und gesonderte Betriebsabnahme. Dieser Schnitt erfüllt davon nur
 den ausdrücklich genannten B04-Episoden-/Zustell-/Anzeigeanteil.
 
-Vor Auslieferung sind geordnete Integration, eine neue Version, reguläre
-Releaseprüfungen und der kontrollierte Installationsweg mit identifizierter
-Zielinstallation, Sicherung und Migration nötig. `VERSION` und Tag `v1.5.46`
-bleiben unverändert; der Tag enthält bereits die neueren Main-Änderungen nicht.
-Merge, Release, Installation, neue Providerzustimmungen und echte Nachrichtentests
-benötigen ihre ausdrückliche Freigabe. Dieser Entwicklungsauftrag führt sie nicht
-aus.
+**Liefernachtrag 17.11.2026:** Die neue ausdrückliche Freigabe umfasst die
+geordnete Integration der grün geprüften Draftkette und die versionierte
+Bereitstellung für den vorhandenen PC-Updateweg. #348 → #349 → #350 → #351 →
+#352 → #353 sind unverändert integriert; der gemeinsame Main-Commit
+`02eb6e1ca87dd8470ff8f17bf59dbfa6f98fc715` besitzt exakt den zuvor geprüften
+#353-Tree. Der gemeinsame Release-PR führt diesen Teilumfang mit `1.5.47`
+zusammen. Die [Release-Notiz](../releases/V1.5.47-HEBELTRADER-LOSS-PATH.md)
+bindet die Integrationsbelege und den kontrollierten Updateweg; Aufgabenstatus
+bleibt im Backlog.
 
-Als konkrete nächste Softwareversion ist `1.5.47` vorgeschlagen, vor einem
-autorisierten Release erneut auf Verfügbarkeit zu prüfen. Ein eigener
-Release-PR synchronisiert `VERSION`, `backend/pyproject.toml`,
+Die Bereitstellung ändert keine fachliche Aktivierungsgrenze:
+`HEBELTRADER_SCOPE=DISABLED` und `QUALIFIED_B58_PATHS=()` bleiben bestehen.
+Die vollständige Baseline wird nicht aktiviert. Der B05-Rechenschnitt bleibt
+`DOCUMENTED_CALENDAR_CALCULATION_ONLY` mit `B05_NOT_ACTIVATED`. Ein Softwaretag
+ersetzt weder den geeigneten tatsächlichen Quellenpfad noch dessen persönliche
+Depotabdeckung. Die Freigabe zur Bereitstellung ist kein Nachweis einer bereits
+ausgeführten PC-Installation. Neue produktive Providerzustimmungen, echte
+externe Nachrichtentests und die zentrale Regelaktivierung bleiben gesonderte
+Entscheidungen.
+
+Der eigene Release-PR synchronisiert `VERSION`, `backend/pyproject.toml`,
 `frontend/package.json` und `frontend/package-lock.json`. Nach dessen Integration
 verlangt der vorhandene Publisher erfolgreiche neueste Backend-/Frontend-/E2E-
 Main-Push-Läufe am noch aktuellen Main-SHA; erfolgreiche Draftprüfungen ersetzen
-dies nicht. Vor einem später genehmigten Update werden Tag und vollständiger
+dies nicht. Bestehende Tags, insbesondere `v1.5.46`, werden nicht verschoben.
+Vor einem später genehmigten Update werden Tag und vollständiger
 Releasecommit unabhängig geprüft. Der vorhandene verwaltete Linux-Launcher
 übernimmt Sicherung des alten Quellstands, PostgreSQL-Custom-Dump,
 Consent-State-Archiv, Konfigurations-/Image-/Datenbankprüfungen und Migration im
