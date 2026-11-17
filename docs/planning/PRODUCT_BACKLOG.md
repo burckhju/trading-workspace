@@ -2216,6 +2216,19 @@ Alt-Konfigurationsnachweise gehören deshalb zum PC-Lieferumfang. Integration,
 reguläre Gates, Veröffentlichung und tatsächlicher PC-Betrieb bleiben getrennte
 Nachweise; die PRs binden ihre Tests an Head und Integrationsstand.
 
+Der [Versionsschnitt v1.5.49](../releases/V1.5.49-INDICATIVE-POSITION-REVIEW.md)
+führt Meldungsgrundlage #357, Regelpfad #358 und
+[PC-Betriebsübergang #359](https://github.com/burckhju/trading-workspace/pull/359)
+in einer kontrolliert bereitstellbaren Version zusammen. Die Mergefolge bleibt
+an vollständig grüne reguläre Prüfungen und unveränderte gemeinsame Trees
+gebunden. Die Release-PR dokumentiert tatsächliche Heads, Integration und
+Veröffentlichung; erst die neuesten erfolgreichen Main-Push-Gates am selben
+Commit erlauben den unveränderten Publisher. v1.5.47 und v1.5.48 bleiben
+unverändert getaggt. Letzter vom Nutzer gemeldeter PC-Nachweis ist weiterhin
+v1.5.47 mit vier gesunden Diensten und Readiness; Installation, zentrale
+Aktivierung, reale Positionsabdeckung und tatsächlich abgeschlossene Zyklen
+dieser neuen Version sind damit noch nicht belegt.
+
 B05 bleibt von aktuellen Kursen unabhängig. Die dokumentierten Originalkalender
 sind verfügbar; eine aktuelle persönliche Produkttermin-/letzter-Handelstag-/
 Ausstiegslistingbindung einschließlich produktspezifischem Schluss ist im
