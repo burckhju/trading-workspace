@@ -20,6 +20,29 @@ from zoneinfo import ZoneInfo
 
 import httpx
 import pytest
+from sqlalchemy import text
+from sqlalchemy.engine import make_url
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from tests.integration.backend.database import test_saved_quote_evidence_postgres as saved
+from tests.integration.backend.database.test_product_price_scale_evidence_postgres import (
+    engine_for,
+    import_body,
+    scale_url,
+    seed_scope,
+    store_quote_and_calendars,
+)
+from tests.integration.backend.database.test_product_price_scale_evidence_postgres import (
+    state as read_database_state,
+)
+from tests.integration.backend.test_realized_gross_report_postgres import (
+    DECLARATION,
+    _client,
+    _state,
+)
+from tests.integration.backend.test_trade_capture_safety import BASE, WORKSPACE
+from tests.integration.backend.test_usd_chf_currency_references import _migrate
+
 from app.core.config.frankfurt import FrankfurtQuoteSettings
 from app.features.market_data.domain.enums import MarketDataProvider
 from app.features.market_data.service.retained_quotes import RetainedWarrantQuoteProvider
@@ -45,29 +68,6 @@ from app.features.position_monitoring.service.runner import PositionMonitoringRu
 from app.features.position_monitoring.service.runtime import PositionMonitoringRuntimeService
 from app.providers.frankfurt_quotes.adapter import FrankfurtWarrantQuoteAdapter
 from app.providers.frankfurt_quotes.client import FrankfurtSnapshotClient
-from sqlalchemy import text
-from sqlalchemy.engine import make_url
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-
-from tests.integration.backend.database import test_saved_quote_evidence_postgres as saved
-from tests.integration.backend.database.test_product_price_scale_evidence_postgres import (
-    engine_for,
-    import_body,
-    scale_url,
-    seed_scope,
-    store_quote_and_calendars,
-)
-from tests.integration.backend.database.test_product_price_scale_evidence_postgres import (
-    state as read_database_state,
-)
-from tests.integration.backend.test_realized_gross_report_postgres import (
-    DECLARATION,
-    _client,
-    _state,
-)
-from tests.integration.backend.test_trade_capture_safety import BASE, WORKSPACE
-from tests.integration.backend.test_usd_chf_currency_references import _migrate
 
 loss_database = saved.quote_database
 forbid_outbound_http = saved.forbid_outbound_http
