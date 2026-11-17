@@ -23,6 +23,7 @@ from app.features.market_data.domain.enums import (
 )
 from app.features.market_data.domain.models import WarrantQuoteSnapshot
 from app.features.market_data.persistence.models import (
+    WarrantMarketStatusObservationModel,
     WarrantProviderMappingModel,
     WarrantQuoteObservationModel,
     WarrantQuoteSampleModel,
@@ -280,6 +281,7 @@ def route():
         WarrantListingModel,
         WarrantProviderMappingModel,
         WarrantQuoteObservationModel,
+        WarrantMarketStatusObservationModel,
         WarrantQuoteSampleModel,
     ):
         m.__table__.create(db.engine)

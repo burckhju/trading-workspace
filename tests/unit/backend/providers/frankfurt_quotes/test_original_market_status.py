@@ -4,6 +4,7 @@ from datetime import timedelta
 
 import pytest
 
+from app.features.market_data.domain.enums import QualityStatus
 from app.providers.frankfurt_quotes.schema import FrankfurtSourceError, QuoteStatus
 from tests.unit.backend.providers.frankfurt_quotes.test_adapter_api import context
 from tests.unit.backend.providers.frankfurt_quotes.test_schema import (
@@ -152,4 +153,28 @@ async def test_status_without_bid_is_not_misrepresented_as_a_persistable_price_s
     assert observation.analysis_usable is False
     adapter, _database, _snapshots, request, _row = context(data)
     result = await adapter.get_warrant_listing_quote(request)
-    assert result.data is None
+    assert result.data.original_market_status == observation.original_market_status
+    assert result.data.bid is result.data.ask is result.data.observed_at is None
+    assert result.data.original_evidence is None
+    assert result.quality_status is QualityStatus.INCOMPLETE
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "field,value", [("bid", "not-a-price"), ("bid", "0"), ("bid_at", "bad-time")]
+)
+async def test_status_has_independent_validation_when_price_fields_are_invalid(field, value):
+    data = status_payload()
+    data["records"][0].update({field: value, "trading_status": "SUSPENDED"})
+    observation = assess(data)
+    assert observation.status is QuoteStatus.ERROR
+    assert observation.reason == "FRANKFURT_RECORD_INVALID"
+    assert observation.record is None
+    assert observation.original_market_status.status == "SUSPENDED"
+    assert "status_record" not in observation.model_dump(mode="json")
+    adapter, _database, _snapshots, request, _row = context(data)
+    result = await adapter.get_warrant_listing_quote(request)
+    assert result.quality_status is QualityStatus.INCOMPLETE
+    assert result.data.bid is result.data.ask is result.data.observed_at is None
+    assert result.data.original_evidence is None
+    assert result.data.original_market_status == observation.original_market_status

@@ -22,6 +22,7 @@ from app.features.market_data.domain.enums import (
 )
 from app.features.market_data.domain.models import WarrantQuoteSnapshot
 from app.features.market_data.persistence.models import (
+    WarrantMarketStatusObservationModel,
     WarrantProviderMappingModel,
     WarrantQuoteObservationModel,
     WarrantQuoteSampleModel,
@@ -46,6 +47,10 @@ class SqlSession:
 
     def __init__(self, session):
         self.session = session
+
+    @property
+    def no_autoflush(self):
+        return self.session.no_autoflush
 
     async def execute(self, statement):
         return self.session.execute(statement)
@@ -86,6 +91,7 @@ def context(tmp_path):
         WarrantListingModel,
         WarrantProviderMappingModel,
         WarrantQuoteObservationModel,
+        WarrantMarketStatusObservationModel,
         WarrantQuoteSampleModel,
     ]
     for model in tables:

@@ -248,6 +248,58 @@ class WarrantQuoteObservationModel(Base):
     payload: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
 
 
+class WarrantMarketStatusObservationModel(Base):
+    """Append-only source status facts and delivery gaps, independent of prices."""
+
+    __tablename__ = "warrant_market_status_observations"
+    __table_args__ = (
+        UniqueConstraint("workspace_id", "fingerprint", name="uq_warrant_status_fact"),
+        CheckConstraint("kind IN ('STATUS','GAP')", name="warrant_status_kind"),
+        CheckConstraint(
+            "(kind = 'STATUS' AND observed_at IS NOT NULL AND original IS NOT NULL "
+            "AND retrieved_at IS NOT NULL AND reason IS NULL) OR "
+            "(kind = 'GAP' AND observed_at IS NULL AND original IS NULL AND reason IS NOT NULL)",
+            name="warrant_status_payload_kind",
+        ),
+        CheckConstraint("retrieved_at <= captured_at", name="warrant_status_receipt_order"),
+        CheckConstraint("observed_at <= retrieved_at", name="warrant_status_original_order"),
+        Index(
+            "ix_warrant_status_route_event",
+            "workspace_id",
+            "warrant_listing_id",
+            "provider",
+            "identity_key",
+            "observed_at",
+        ),
+        Index(
+            "ix_warrant_status_capture",
+            "workspace_id",
+            "warrant_listing_id",
+            "captured_at",
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    workspace_id: Mapped[UUID] = mapped_column(ForeignKey("workspaces.id", ondelete="RESTRICT"))
+    warrant_id: Mapped[UUID] = mapped_column(ForeignKey("warrants.id", ondelete="RESTRICT"))
+    warrant_listing_id: Mapped[UUID] = mapped_column(
+        ForeignKey("warrant_listings.id", ondelete="RESTRICT")
+    )
+    provider: Mapped[str] = mapped_column(String(30))
+    identity_key: Mapped[str] = mapped_column(String(64))
+    isin: Mapped[str] = mapped_column(String(12))
+    venue_mic: Mapped[str] = mapped_column(String(4))
+    fingerprint: Mapped[str] = mapped_column(String(64))
+    kind: Mapped[str] = mapped_column(String(10))
+    observed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    retrieved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    captured_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    source_contract: Mapped[str | None] = mapped_column(String(100))
+    source_reference: Mapped[str | None] = mapped_column(String(200))
+    original: Mapped[dict[str, Any] | None] = mapped_column(JSON(none_as_null=True))
+    reason: Mapped[str | None] = mapped_column(String(140))
+
+
 class WarrantQuoteSampleModel(Base):
     """First completed capture per UTC five-minute slot and verified source identity."""
 

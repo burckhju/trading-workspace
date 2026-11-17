@@ -236,6 +236,29 @@ class FrankfurtWarrantQuoteAdapter:
                 original_evidence=observation.original_evidence,
                 original_market_status=observation.original_market_status,
             )
+        elif (
+            observation.original_market_status is not None and observation.status_record is not None
+        ):
+            # Transport the independent source fact even when price assessment
+            # fails. No quote time or price is derived from the status clock.
+            status_record = observation.status_record
+            quote = WarrantQuoteSnapshot(
+                warrant_listing_id=request.warrant_listing_id,
+                bid=None,
+                ask=None,
+                currency=status_record.currency,
+                provider_symbol=status_record.isin,
+                provider_exchange_code=observation.provider_exchange_code,
+                observed_at=None,
+                isin=status_record.isin,
+                wkn=status_record.wkn,
+                venue_mic=FRANKFURT_MIC,
+                trading_status=status_record.trading_status,
+                source_mode="FRANKFURT_ORIGINAL_STATUS_ONLY",
+                assessed_at=observation.assessed_at,
+                refresh_error=observation.refresh_error,
+                original_market_status=observation.original_market_status,
+            )
         return MarketDataResult(
             data=quote,
             provider=PROVIDER,
@@ -243,7 +266,9 @@ class FrankfurtWarrantQuoteAdapter:
             correlation_id=request.correlation_id,
             retrieved_at=observation.retrieved_at,
             cache_status=CacheStatus.HIT if hit else CacheStatus.MISS,
-            quality_status=(QualityStatus.VALID if quote is not None else QualityStatus.INCOMPLETE),
+            quality_status=(
+                QualityStatus.VALID if observation.analysis_usable else QualityStatus.INCOMPLETE
+            ),
             warnings=(
                 observation.reason,
                 f"source={observation.source}",

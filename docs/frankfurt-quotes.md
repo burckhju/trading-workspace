@@ -698,3 +698,21 @@ Retry-After, concurrent readers, cancellation and unchanged old files. They do
 not establish a distributed request budget or real provider coverage. Separate
 CLI processes continue to have separate clients and must not be treated as
 sharing the API process's budget.
+
+## Independent status observations (2026-11-17)
+
+The additive Market Data status journal now preserves original instrument-status
+points independently of price success. The existing normalized adapter validates
+the status lane separately: missing, crossed or malformed price fields cannot
+erase a separately suitable original CLOSED/SUSPENDED observation. It returns a
+price-less `INCOMPLETE` snapshot with no invented quote time. Transport/cache-after-error
+results remain delivery gaps; they do not establish new status facts.
+
+`warrant_market_status_observations` records original, receipt and first-capture
+clocks with exact instrument/listing/provider/source binding before price
+retention or sampling. Repeated source facts retain their first capture; late
+facts and same-time conflicts remain inspectable. The existing price stores
+and the passive original-BID display retain their documented scope. The new
+status reader establishes no validity interval and no independently qualified
+B58 supplier. See the [owner contract](features/HEBELTRADER_MONITORING_INTEGRATION_CONTRACT.md#f207-3-independent-status-observations)
+and [actual source investigation](reviews/B58_SOURCE_QUALIFICATION_2026-11-17.md).

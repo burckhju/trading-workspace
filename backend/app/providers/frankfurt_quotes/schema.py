@@ -75,6 +75,23 @@ class FrankfurtRecord(BaseModel):
         return None if value is None else _utc(value)
 
 
+class FrankfurtStatusRecord(BaseModel):
+    """Only the original status lane; price fields have no authority over it."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+    isin: Annotated[str, Field(pattern=r"^[A-Z]{2}[A-Z0-9]{9}[0-9]$")]
+    wkn: Annotated[str, Field(pattern=r"^[A-Z0-9]{6}$")] | None = None
+    mic: Annotated[str, Field(pattern=r"^[A-Z0-9]{4}$")]
+    currency: Annotated[str, Field(pattern=r"^[A-Z]{3}$")]
+    trading_status: Literal["OPEN", "CLOSED", "SUSPENDED", "UNKNOWN"]
+    status_observed_at: datetime
+
+    @field_validator("status_observed_at", mode="before")
+    @classmethod
+    def validate_status_timestamp(cls, value: Any) -> datetime:
+        return original_market_status_time(value)
+
+
 class FrankfurtSnapshot(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
@@ -116,6 +133,7 @@ class FrankfurtObservation(BaseModel):
     execution_usable: Literal[False] = False
     original_evidence: OriginalQuoteEvidence | None = None
     original_market_status: OriginalMarketStatusEvidence | None = None
+    status_record: FrankfurtStatusRecord | None = Field(default=None, exclude=True)
 
     @property
     def analysis_usable(self) -> bool:
@@ -131,6 +149,36 @@ class FrankfurtObservation(BaseModel):
         if record.kind == "PREVIOUS_CLOSE":
             return record.close_price is not None
         return record.bid is not None and self.observed_at is not None
+
+
+def _status_record(
+    rows: list[dict[str, Any]],
+    *,
+    isin: str,
+    wkn: str | None,
+    currency: str,
+    generated_at: datetime,
+    retrieved_at: datetime,
+    now: datetime,
+) -> FrankfurtStatusRecord | None:
+    if len(rows) != 1:
+        return None
+    row = rows[0]
+    try:
+        status = FrankfurtStatusRecord.model_validate(
+            {key: row.get(key) for key in FrankfurtStatusRecord.model_fields}
+        )
+    except ValidationError:
+        return None
+    if (
+        status.isin != isin
+        or status.mic != FRANKFURT_MIC
+        or status.currency != currency
+        or (wkn is not None and status.wkn != wkn)
+        or not status.status_observed_at <= generated_at <= retrieved_at <= now
+    ):
+        return None
+    return status
 
 
 def assess_snapshot(
@@ -150,17 +198,31 @@ def assess_snapshot(
         raise ValueError("max_age_seconds must be in [1, 900]")
     matches = [row for row in snapshot.records if row.get("isin") == isin]
     rows = [row for row in matches if row.get("mic") == FRANKFURT_MIC]
+    status_record = _status_record(
+        rows,
+        isin=isin,
+        wkn=wkn,
+        currency=currency,
+        generated_at=snapshot.generated_at,
+        retrieved_at=retrieved_at,
+        now=now,
+    )
     record = None
+    record_invalid = False
     if len(rows) == 1:
         try:
             record = FrankfurtRecord.model_validate(rows[0])
         except ValidationError:
-            raise FrankfurtSourceError("FRANKFURT_RECORD_INVALID") from None
+            if status_record is None:
+                raise FrankfurtSourceError("FRANKFURT_RECORD_INVALID") from None
+            record_invalid = True
 
     status, reason = QuoteStatus.AVAILABLE, "FRANKFURT_BID_ASK_AVAILABLE"
     observed_at = None
     age = None
-    if len(rows) > 1:
+    if record_invalid:
+        status, reason = QuoteStatus.ERROR, "FRANKFURT_RECORD_INVALID"
+    elif len(rows) > 1:
         status, reason = QuoteStatus.ERROR, "FRANKFURT_DUPLICATE_IDENTITY"
     elif not rows:
         status = QuoteStatus.MISSING
@@ -259,14 +321,7 @@ def assess_snapshot(
         )
 
     original_market_status = None
-    if (
-        status is not QuoteStatus.ERROR
-        and record is not None
-        and record.status_observed_at is not None
-        and len(rows) == 1
-        and isinstance(rows[0].get("status_observed_at"), str)
-        and rows[0].get("trading_status") == record.trading_status
-    ):
+    if status_record is not None:
         # This is our normalized import's explicit point observation. It does
         # not verify a vendor's capability, a validity interval or a live feed.
         original_market_status = OriginalMarketStatusEvidence(
@@ -274,12 +329,12 @@ def assess_snapshot(
             source_contract=snapshot.schema_version,
             source_reference=snapshot.source,
             generated_at=snapshot.generated_at,
-            isin=record.isin,
-            venue_mic=record.mic,
-            status=record.trading_status,
+            isin=status_record.isin,
+            venue_mic=status_record.mic,
+            status=status_record.trading_status,
             original_status_text=rows[0]["trading_status"],
             source_status_field="trading_status",
-            observed_at=record.status_observed_at,
+            observed_at=status_record.status_observed_at,
             original_time_text=rows[0]["status_observed_at"],
             source_time_field="status_observed_at",
         )
@@ -299,4 +354,5 @@ def assess_snapshot(
         record=record,
         original_evidence=original_evidence,
         original_market_status=original_market_status,
+        status_record=status_record,
     )

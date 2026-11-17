@@ -31,6 +31,7 @@ from app.features.market_data.service.errors import (
     MarketDataNotFoundError,
 )
 from app.features.market_data.service.quote_history import capture_quote_sample
+from app.features.market_data.service.status_observations import capture_market_status
 from app.features.market_data.service.types import MarketDataResult, WarrantQuoteRequest
 from app.features.product.persistence.models import WarrantListingModel
 
@@ -99,6 +100,18 @@ class RetainedWarrantQuoteProvider:
             if await self._identity(session, request) != identity:
                 raise MarketDataMappingError("WARRANT_QUOTE_IDENTITY_CHANGED_DURING_REFRESH")
             assert listing is not None
+            # Status facts have their own journal and clocks. Price rejection,
+            # last-success fallback and first-capture-per-slot cannot erase them.
+            await capture_market_status(
+                session,
+                request=request,
+                warrant_id=listing.warrant_id,
+                provider=self._name,
+                identity=identity,
+                result=result,
+                error=error,
+                captured_at=self._capture_clock(),
+            )
             key = (request.workspace_id, request.warrant_listing_id, self._name.value)
             row = await session.get(WarrantQuoteObservationModel, key)
             previous = (
