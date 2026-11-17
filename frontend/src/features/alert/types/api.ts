@@ -85,6 +85,9 @@ export interface PositionMonitoringHealthResponse {
 
 export interface MonitoringRuntimeStatusResponse {
   enabled: boolean;
+  review_scope?: 'DISABLED' | 'INDICATIVE_ENTRY_V1';
+  review_rule_version?: string;
+  review_notifications_enabled?: boolean;
   running: boolean;
   cycle_running: boolean;
   interval_seconds: number;

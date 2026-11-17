@@ -411,6 +411,32 @@ describe('TradeAlertsPanel', () => {
     expect(screen.queryByText(/Abgeschlossene Basiswertsitzungen: 20/)).not.toBeInTheDocument();
   });
 
+  it('does not extend an old suspended status point from a recent capture time', async () => {
+    const alert = entryObservation();
+    api.forTrade.mockResolvedValue([
+      {
+        ...alert,
+        price_context: {
+          ...alert.price_context,
+          source_status_point: 'SUSPENDED',
+          source_status_observed_at: '2026-11-16T09:00:00Z',
+          source_status_captured_at: '2026-11-17T10:04:00Z',
+          status_validity: 'NOT_ESTABLISHED',
+        },
+      },
+    ]);
+    render(<TradeAlertsPanel tradeId="trade-1" />);
+
+    expect(await screen.findByText('Letzter belegter Statuspunkt: SUSPENDED')).toBeInTheDocument();
+    expect(screen.getByText(/Originalstatuszeit: 2026-11-16T09:00:00Z/)).toHaveTextContent(
+      'Erfasst: 2026-11-17T10:04:00Z',
+    );
+    expect(screen.getByText('Fortgeltung nicht belegt.')).toBeInTheDocument();
+    expect(
+      screen.queryByText(/Aktueller Marktstatus|aktuell SUSPENDED|aktuell gesperrt/),
+    ).not.toBeInTheDocument();
+  });
+
   it.each(['POSITION_REVIEW_DUE', 'POSITION_DATA_UNAVAILABLE'] as const)(
     'renders %s as a price-free persisted notice and only uses existing reads',
     async (alertType) => {

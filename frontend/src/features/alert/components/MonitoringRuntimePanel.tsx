@@ -17,11 +17,51 @@ function runtimeLabel(value: MonitoringRuntimeStatusResponse): string {
       'stale_market_data',
       'market_data_errors',
       'position_errors',
+      'review_data_problems',
+      'review_position_errors',
     ].some((key) => (value.last_result?.[key] ?? 0) > 0)
   ) {
     return 'Prüfung aktiv · Daten- oder Regelfehler im letzten Durchlauf';
   }
   return 'Automatische Prüfung aktiv';
+}
+
+const reviewCounts: [string, string][] = [
+  ['review_positions_evaluated', 'Positionen ausgewertet'],
+  ['review_alerts_created', 'Hinweise erstellt'],
+  ['review_data_problems', 'Datenprobleme'],
+  ['review_position_errors', 'Fehler bei der Auswertung'],
+];
+
+function reviewLabel(value: MonitoringRuntimeStatusResponse): string {
+  if (value.review_scope !== 'DISABLED' && value.review_scope !== 'INDICATIVE_ENTRY_V1') {
+    return 'Aktivierung dieses Teilumfangs nicht belegt';
+  }
+  if (value.review_scope === 'DISABLED') return 'Indikative Beobachtung deaktiviert';
+  if (value.review_rule_version !== 'indicative-entry-review-v1') {
+    return 'Teilumfang gewählt · Regelversion nicht belegt';
+  }
+  if (!value.enabled) return 'Teilumfang gewählt · Hintergrundprüfung deaktiviert';
+  if (!value.running) return 'Teilumfang gewählt · Hintergrundprüfung nicht gestartet';
+  if (value.last_error) return 'Teilumfang eingeschaltet · letzter Prüfdurchlauf fehlgeschlagen';
+  if (!value.last_cycle_completed_at || !value.last_result) {
+    return 'Teilumfang eingeschaltet · erster Abschluss noch nicht belegt';
+  }
+  if (
+    reviewCounts.some(
+      ([key]) =>
+        !Number.isInteger(value.last_result?.[key]) || (value.last_result?.[key] ?? -1) < 0,
+    )
+  ) {
+    return 'Teilumfang eingeschaltet · Prüfergebnis nicht verfügbar';
+  }
+  if (value.last_result.review_data_problems > 0 || value.last_result.review_position_errors > 0) {
+    return 'Teilumfang eingeschaltet · Daten- oder Auswertungsprobleme';
+  }
+  if (value.last_result.review_positions_evaluated === 0) {
+    return 'Teilumfang eingeschaltet · keine Position ausgewertet';
+  }
+  return 'Letzter indikativer Prüfdurchlauf abgeschlossen';
 }
 
 const counts: [string, string][] = [
@@ -59,7 +99,7 @@ export function MonitoringRuntimePanel({ tradeId }: { tradeId?: string }) {
   return (
     <div className="mt-4 rounded-lg border border-slate-800 p-4">
       <p className="text-xs uppercase tracking-wide text-slate-500">
-        Automatische Stop-/Ziel-Prüfung
+        Automatische Positionsprüfung
       </p>
       <p className="mt-1 font-medium">
         {value
@@ -69,12 +109,48 @@ export function MonitoringRuntimePanel({ tradeId }: { tradeId?: string }) {
             : 'Laufstatus wird geladen…'}
       </p>
       <p className="mt-2 text-sm text-slate-400">
-        Jede Regel verwendet ihren bestätigten Instrument- und Währungsbezug. Basiswert-Regeln
-        verwenden abgeschlossene Tagesdaten; Optionsschein-Regeln den ausgewiesenen Produktkurs.
-        Regeln ohne bestätigten Kursbezug bleiben blockiert.
+        Stop-/Ziel-Regeln verwenden ihren bestätigten Instrument- und Währungsbezug.
+        Basiswert-Regeln verwenden abgeschlossene Tagesdaten; Optionsschein-Regeln den ausgewiesenen
+        Produktkurs. Regeln ohne bestätigten Kursbezug bleiben blockiert.
       </p>
       {value && (
         <>
+          <section
+            className="mt-3 rounded border border-slate-700 p-3 text-sm"
+            aria-label="Indikative Einstandsbeobachtung"
+          >
+            <p className="font-medium">Indikative Einstandsbeobachtung</p>
+            <p className="mt-1">{reviewLabel(value)}</p>
+            <p className="mt-2 text-xs text-slate-400">
+              Regelversion: {value.review_rule_version ?? 'nicht belegt'}
+            </p>
+            <p className="mt-1 text-xs text-slate-400">
+              Kursvergleich, 20-Sitzungen-Prüfhinweise und Datenprobleme sind getrennte Hinweise.
+              Dieser Teilumfang aktiviert keine qualifizierte B04/B57-Überwachung und keine
+              vollständige Hebeltrader-Baseline.
+            </p>
+            <p className="mt-2 text-xs text-slate-400">
+              {value.review_notifications_enabled === false
+                ? 'Hinweise im Arbeitsbereich · externe Zustellung dieses Teilumfangs ausgeschaltet.'
+                : value.review_notifications_enabled === true
+                  ? 'Externe Zustellung dieses Teilumfangs konfiguriert; tatsächlichen Versand am jeweiligen Hinweis prüfen.'
+                  : 'Konfiguration der externen Zustellung dieses Teilumfangs nicht belegt.'}
+            </p>
+            {value.review_scope === 'INDICATIVE_ENTRY_V1' &&
+              value.last_cycle_completed_at &&
+              value.last_result && (
+                <dl className="mt-3 grid gap-2 sm:grid-cols-2">
+                  {reviewCounts.map(([key, label]) => (
+                    <div key={key}>
+                      <dt className="text-slate-500">
+                        {label} · letzter abgeschlossener Durchlauf
+                      </dt>
+                      <dd>{value.last_result?.[key] ?? 'nicht belegt'}</dd>
+                    </div>
+                  ))}
+                </dl>
+              )}
+          </section>
           <p className="mt-2 text-xs text-slate-400">
             Prüfintervall: {value.interval_seconds} Sekunden · Kursart und Aktualität je Regel
             beachten

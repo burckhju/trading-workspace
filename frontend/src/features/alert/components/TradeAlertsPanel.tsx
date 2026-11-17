@@ -327,6 +327,18 @@ export function TradeAlertsPanel({ tradeId }: { tradeId: string }) {
                       Ausschließlich ein Hinweis; keine Orderfreigabe und keine automatische Stop-
                       oder Zieländerung.
                     </p>
+                    <div className="mt-2 text-xs text-slate-400">
+                      <p>
+                        Letzter belegter Statuspunkt:{' '}
+                        {alert.price_context?.source_status_point ?? 'nicht belegt'}
+                      </p>
+                      <p>
+                        Originalstatuszeit:{' '}
+                        {alert.price_context?.source_status_observed_at ?? 'nicht belegt'} ·
+                        Erfasst: {alert.price_context?.source_status_captured_at ?? 'nicht belegt'}
+                      </p>
+                      <p>Fortgeltung nicht belegt.</p>
+                    </div>
                     {alert.price_context?.data_problem_reasons && (
                       <details className="mt-2 text-xs text-slate-500">
                         <summary className="cursor-pointer">

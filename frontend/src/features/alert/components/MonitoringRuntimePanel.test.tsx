@@ -1,5 +1,5 @@
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { render, screen, within } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { alertApiClient } from '../services/client';
 import type { MonitoringRuntimeStatusResponse } from '../types/api';
@@ -28,6 +28,10 @@ const value: MonitoringRuntimeStatusResponse = {
 };
 
 describe('MonitoringRuntimePanel', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it('makes incomplete coverage visible despite a running scheduler', async () => {
     vi.mocked(alertApiClient.monitoringRuntime).mockResolvedValue(value);
     render(<MonitoringRuntimePanel />);
@@ -63,5 +67,117 @@ describe('MonitoringRuntimePanel', () => {
       await screen.findByText('Automatische Prüfung nicht gestartet oder beendet'),
     ).toBeInTheDocument();
     expect(screen.queryByText('Automatische Prüfung aktiv')).not.toBeInTheDocument();
+  });
+
+  const reviewValue: MonitoringRuntimeStatusResponse = {
+    ...value,
+    review_scope: 'INDICATIVE_ENTRY_V1',
+    review_rule_version: 'indicative-entry-review-v1',
+    review_notifications_enabled: false,
+    last_result: {
+      ...value.last_result,
+      review_positions_evaluated: 2,
+      review_alerts_created: 1,
+      review_data_problems: 0,
+      review_position_errors: 0,
+    },
+  };
+
+  it.each<[string, Partial<MonitoringRuntimeStatusResponse>, string]>([
+    ['missing scope', { review_scope: undefined }, 'Aktivierung dieses Teilumfangs nicht belegt'],
+    ['disabled', { review_scope: 'DISABLED' }, 'Indikative Beobachtung deaktiviert'],
+    [
+      'unknown version',
+      { review_rule_version: undefined },
+      'Teilumfang gewählt · Regelversion nicht belegt',
+    ],
+    [
+      'disabled runner',
+      { enabled: false, running: false },
+      'Teilumfang gewählt · Hintergrundprüfung deaktiviert',
+    ],
+    ['not started', { running: false }, 'Teilumfang gewählt · Hintergrundprüfung nicht gestartet'],
+    [
+      'no completion',
+      { last_cycle_completed_at: null },
+      'Teilumfang eingeschaltet · erster Abschluss noch nicht belegt',
+    ],
+    [
+      'missing results',
+      { last_result: value.last_result },
+      'Teilumfang eingeschaltet · Prüfergebnis nicht verfügbar',
+    ],
+    [
+      'failed cycle',
+      { last_error: 'MONITORING_CYCLE_FAILED' },
+      'Teilumfang eingeschaltet · letzter Prüfdurchlauf fehlgeschlagen',
+    ],
+    [
+      'data problem',
+      { last_result: { ...reviewValue.last_result, review_data_problems: 1 } },
+      'Teilumfang eingeschaltet · Daten- oder Auswertungsprobleme',
+    ],
+    [
+      'position error',
+      { last_result: { ...reviewValue.last_result, review_position_errors: 1 } },
+      'Teilumfang eingeschaltet · Daten- oder Auswertungsprobleme',
+    ],
+    [
+      'no positions',
+      { last_result: { ...reviewValue.last_result, review_positions_evaluated: 0 } },
+      'Teilumfang eingeschaltet · keine Position ausgewertet',
+    ],
+  ])(
+    'keeps indicative configuration and actual progress separate: %s',
+    async (_name, overrides, label) => {
+      vi.mocked(alertApiClient.monitoringRuntime).mockResolvedValue({
+        ...reviewValue,
+        ...overrides,
+      });
+      render(<MonitoringRuntimePanel />);
+
+      expect(await screen.findByText(label)).toBeInTheDocument();
+      expect(
+        screen.queryByText('Letzter indikativer Prüfdurchlauf abgeschlossen'),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.getByText(/Dieser Teilumfang aktiviert keine qualifizierte B04\/B57/),
+      ).toHaveTextContent('keine vollständige Hebeltrader-Baseline');
+    },
+  );
+
+  it('shows a completed indicative cycle and disabled external delivery without another request or activation form', async () => {
+    vi.mocked(alertApiClient.monitoringRuntime).mockResolvedValue(reviewValue);
+    render(<MonitoringRuntimePanel />);
+
+    expect(
+      await screen.findByText('Letzter indikativer Prüfdurchlauf abgeschlossen'),
+    ).toBeInTheDocument();
+    const scope = within(screen.getByRole('region', { name: 'Indikative Einstandsbeobachtung' }));
+    expect(scope.getByText('Regelversion: indicative-entry-review-v1')).toBeInTheDocument();
+    expect(
+      scope.getByText(/externe Zustellung dieses Teilumfangs ausgeschaltet/),
+    ).toBeInTheDocument();
+    expect(
+      scope.getByText('Positionen ausgewertet · letzter abgeschlossener Durchlauf'),
+    ).toBeInTheDocument();
+    expect(scope.getByText('2')).toBeInTheDocument();
+    expect(scope.queryByRole('button')).not.toBeInTheDocument();
+    expect(vi.mocked(alertApiClient.monitoringRuntime)).toHaveBeenCalledExactlyOnceWith(
+      expect.any(AbortSignal),
+    );
+  });
+
+  it('does not turn enabled external delivery into an actual delivered notification', async () => {
+    vi.mocked(alertApiClient.monitoringRuntime).mockResolvedValue({
+      ...reviewValue,
+      review_notifications_enabled: true,
+    });
+    render(<MonitoringRuntimePanel />);
+
+    expect(
+      await screen.findByText(/Externe Zustellung dieses Teilumfangs konfiguriert/),
+    ).toHaveTextContent('tatsächlichen Versand am jeweiligen Hinweis prüfen');
+    expect(screen.queryByText(/zugestellt/)).not.toBeInTheDocument();
   });
 });

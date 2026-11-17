@@ -57,6 +57,11 @@ async def get_monitoring_runtime_status(
     values = runner.status() if isinstance(runner, PositionMonitoringRunner) else {}
     return MonitoringRuntimeStatusResponse(
         enabled=container.settings.position_monitoring.enabled,
+        review_scope=container.settings.position_monitoring.review_scope,
+        review_notifications_enabled=(
+            container.settings.position_monitoring.review_notifications_enabled
+        ),
+        hebeltrader_scope=container.settings.position_monitoring.hebeltrader_scope,
         interval_seconds=container.settings.position_monitoring.interval_seconds,
         parallel_positions=container.settings.position_monitoring.parallel_positions,
         telegram_enabled=container.settings.notification.telegram.enabled,
