@@ -2232,3 +2232,48 @@ Hintergrundzyklus. Quellenqualifikation und zentrale Aktivierungsfreigabe bleibe
 davon getrennt. Maßgeblich sind die bestehenden Verträge
 [Linux-Launcher](../technical/LINUX_LAUNCHER.md) und
 [Betrieb/Release](../technical/ISSUER_MONITORING_OPERATIONS.md).
+
+<a id="b05-documented-deadline-calculation"></a>
+## B05: unabhängige dokumentierte Rückwärtszählung
+
+Dieser gesonderte Rechenschnitt baut technisch auf dem Reviewstand des
+[B04/B57-PR #352](https://github.com/burckhju/trading-workspace/pull/352) auf,
+besitzt fachlich aber keine BID- oder B04-Abhängigkeit. Der
+[tatsächliche Quellenbefund](../reviews/B58_SOURCE_QUALIFICATION_2026-11-17.md#5-unabhängiger-b05-anschluss-reale-quellen-und-verbleibender-scope)
+belegt zugängliche Originalkalender 2026/2027 einschließlich Sonderzeiten; eine
+datierte Produktansicht liefert nur einen historischen Produkthinweis. Die
+aktuelle persönliche Produkt-/Termin-/Ausstiegslistingbindung bleibt offen.
+Aufgabenstatus und verbleibende Beschaffung stehen weiterhin ausschließlich im
+Backlog, nicht in einer zweiten Aufgabenliste dieses Anhangs.
+
+`calculate_product_deadline` verwendet explizite Produktdaten für Laufzeitende
+und letzten Handelstag, das fest gewählte Ausstiegslisting und den bestehenden
+`SessionEvidenceRead`. Die Funktion verifiziert Produkttermine nicht selbst und
+besitzt keine Nutzererfassung. Ihr zukünftiger Caller muss diese Eingänge aus
+dem qualifizierten Product-Owner liefern. Rückzahlung ist kein Terminersatz.
+
+Der frühere der beiden erforderlichen Produkttermine ist maßgeblich (B17).
+Dessen gesamter Kalendertag zählt nicht mit (B18). Die 20. davor dokumentierte
+Produktsitzung bestimmt den Ausstiegstag; die erste Öffnung der vorherigen
+Sitzung bestimmt die Vorwarnung nach B19. Bei genau 20 belegten Sitzungen ist
+der Ausstiegstag vorhanden, die fehlende Vorwarnsitzung bleibt ausdrücklich
+`PARTIAL`. Eine spätere Auswertung verschiebt die ursprünglichen Termine nicht.
+Fehlende oder unbekannte Kalendertage werden nicht als Feiertage ergänzt.
+
+Instrument, Workspace, festes Listing, endlicher Gültigkeitsbereich,
+Originalkalenderrevision, Fingerprint, Wissenzeit und menschliche Prüfung
+bleiben gebunden. Verkürzte/geteilte Sitzungen, Sommerzeit und Jahreswechsel
+folgen den dokumentierten Intervallen. Die Phasen `BEFORE_WARNING`,
+`WARNING_DUE`, `EXIT_SESSION_STARTED` und `CALENDAR_SESSION_ENDED` sind
+nachvollziehbare Kalenderbefunde. Die letzte Kalenderschlusszeit ist ausdrücklich
+keine unabhängig verifizierte produktspezifische B20-Schlussfrist.
+
+Der Ergebnisumfang lautet `DOCUMENTED_CALENDAR_CALCULATION_ONLY`, der Regelstatus
+`B05_NOT_ACTIVATED`. Die Funktion hat keinen BID-Parameter, Provideraufruf,
+Schreibpfad, Alert oder Runneranschluss. 47 gezielte synthetische Domainfälle
+prüfen die genannten Grenzen. Headgebundene reguläre Nachweise stehen im
+zugehörigen PR. Der reale persönliche Terminpfad benötigt weiter qualifizierte
+Produkt-/Originalterminbelege, die dauerhafte feste Ausstiegslistingbindung,
+produktspezifische Schlusszeit und anschließend seinen ausdrücklichen
+Ereignis-/Betriebsvertrag. Diese kleine Vorbereitung ist keine laufende
+Fristüberwachung und erweitert die B04/B57-Aktivierung nicht.

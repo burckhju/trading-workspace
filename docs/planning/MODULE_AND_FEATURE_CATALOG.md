@@ -85,6 +85,8 @@ Der additive [Original-Geldkurs-Vertrag](../features/HEBELTRADER_MONITORING_INTE
 
 Der [B04/B57-Regel- und Betriebsvertrag](../features/HEBELTRADER_MONITORING_INTEGRATION_CONTRACT.md#b04-b57-loss-monitoring-v1) ergänzt beim bestehenden Monitoring-Owner unveränderliche Bewertungen und dauerhafte Verlustepisoden. Trade Position bleibt alleiniger wirtschaftlicher Owner; Market Data und Product liefern ihre bestehenden Belege. Alert und optionale Notification werden für diesen Teilumfang atomar erzeugt, während externe Delivery getrennt bleibt. Der vorhandene Runner übernimmt wiederkehrende Auswertung; der Workspace liest Teilumfang, Aktivierung, Datenbefund und Episode ohne fachliche Writes. Die zentrale Teilumfangskonfiguration ist standardmäßig ausgeschaltet und der Produktionskatalog geeigneter B58-Quellen leer. Vollständige Baseline, B05/B06, übriges F207-2 und der vollständige F207-5-Vertrag folgen daraus nicht.
 
+Die [B05-Kalenderberechnung](../features/HEBELTRADER_MONITORING_INTEGRATION_CONTRACT.md#b05-documented-deadline-calculation) ist eine getrennte reine Monitoring-Domainfunktion auf dem bestehenden Market-Data-Kalenderread. Product bleibt Owner der noch zu qualifizierenden Originaltermine und festen Ausstiegslistingbindung. Die Berechnung erzeugt keine Produktbelege, aktuelle Statusaussage, Notification oder Aktivierung und benötigt keinen BID.
+
 <a id="ownership"></a>
 ## Ein schreibender fachlicher Owner je Objekt
 
