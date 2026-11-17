@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Prepare/apply one explicit EODHD activation in the managed Linux installation.
 
-The application release, images and legacy validators never change.  Preparation
+Activation preserves the installed release, images and pinned validators. Preparation
 only writes a new private generation.  Applying it can resume already configured
 provider, monitoring and notification work; the operator must acknowledge that.
 """
@@ -40,10 +40,13 @@ AUTOMATION_KEYS = {
 }
 LEGACY_HASHES = {
     "scripts/migrate-legacy-issuer.sh": (
-        "98e654752c7da85828d7367d19e3f145c43960634dfc831be17778caae7756d9"
+        "98e654752c7da85828d7367d19e3f145c43960634dfc831be17778caae7756d9",
     ),
     "backend/app/tools/legacy_issuer_deployment.py": (
-        "37319d79a373f3f4fe0a7f7d416164cde165787be30714731d61d538f70de4f4"
+        # Previously qualified equality contract and the explicitly reviewed v2
+        # absent-to-disabled defaults. No unknown future validator is accepted.
+        "37319d79a373f3f4fe0a7f7d416164cde165787be30714731d61d538f70de4f4",
+        "a9a158d631359fa26554983589c942a9f5ee973de30ec56b4cb6fad8337ffb55",
     ),
 }
 LEGACY_INPUTS = {
@@ -60,6 +63,7 @@ LEGACY_INPUTS = {
     "database-container",
 }
 ADDITIONAL_INPUTS = {"activation-tool.py", "transition.json"}
+ACTIVATION_SCHEMA = 2
 
 
 class ActivationError(ValueError):
@@ -368,6 +372,33 @@ def _create_seal(state: Path) -> None:
     _write_private(state / "inputs.sha256", body.encode(), exclusive=True)
 
 
+def _previous_activation(state: Path) -> bool:
+    """Accept a completed, exactly sealed deployment or known activation record."""
+    activation = os.path.lexists(state / "transition.json")
+    _seal_entries(state, activation=activation)
+    if activation:
+        transition = parse_json(_read_private(state / "transition.json"))
+        require(
+            isinstance(transition, dict)
+            and type(transition.get("schema")) is int
+            and type(transition.get("operation")) is str
+            and (transition.get("operation"), transition.get("schema"))
+            in {
+                ("enable-eodhd", 1),
+                ("enable-eodhd", ACTIVATION_SCHEMA),
+                ("activate-indicative-monitoring", 1),
+            }
+            and (
+                (transition.get("operation"), transition.get("schema")) == ("enable-eodhd", 1)
+                or type(transition.get("old_activation")) is bool
+            )
+            and transition.get("tool_sha256")
+            == _digest(_read_private(state / "activation-tool.py")),
+            "Previous activation record differs.",
+        )
+    return activation
+
+
 def _line(path: Path) -> str:
     value = _read_private(path).decode("utf-8").strip()
     require(
@@ -423,10 +454,10 @@ def _current(control: Path) -> Path:
 
 
 def _legacy(app: Path) -> dict[str, Any]:
-    for relative, checksum in LEGACY_HASHES.items():
+    for relative, checksums in LEGACY_HASHES.items():
         path = app / relative
         require(
-            path.is_file() and not path.is_symlink() and _digest(path.read_bytes()) == checksum,
+            path.is_file() and not path.is_symlink() and _digest(path.read_bytes()) in checksums,
             "Pinned legacy deployment tooling differs; review is required.",
         )
     return runpy.run_path(
@@ -664,7 +695,7 @@ def prepare(base: Path) -> Path:
     with _lock(control):
         _require_idle_control(control)
         old = _current(control)
-        _seal_entries(old)
+        old_activation = _previous_activation(old)
         legacy = _legacy(app)
         launcher_path, launcher_hash = _launcher(app)
         runs = control / "runs"
@@ -676,7 +707,9 @@ def prepare(base: Path) -> Path:
         state.mkdir(mode=0o700)
         log = state / "operation.log"
         _mark(state, "prepare-preflight")
-        items, before, revision, version = _validate_old(app, old, log, legacy)
+        items, before, revision, version = _validate_old(
+            app, old, log, legacy, activation_state=old_activation
+        )
         _provider_status(log, enabled=False)
         summary = summarize_automation(before)
         for name in LEGACY_INPUTS - {"environment.env", "baseline.json", "candidate.json"}:
@@ -693,9 +726,10 @@ def prepare(base: Path) -> Path:
         tool = Path(__file__).resolve().read_bytes()
         _write_private(state / "activation-tool.py", tool, exclusive=True)
         transition = {
-            "schema": 1,
+            "schema": ACTIVATION_SCHEMA,
             "operation": "enable-eodhd",
             "old_state": str(old),
+            "old_activation": old_activation,
             "application_root": str(app),
             "release_revision": revision,
             "release_version": version,
@@ -753,8 +787,9 @@ def _precheck_apply(
     transition = parse_json(_read_private(state / "transition.json"))
     require(
         isinstance(transition, dict)
-        and transition.get("schema") == 1
-        and transition.get("operation") == "enable-eodhd",
+        and transition.get("schema") == ACTIVATION_SCHEMA
+        and transition.get("operation") == "enable-eodhd"
+        and type(transition.get("old_activation")) is bool,
         "Unknown activation record.",
     )
     require(summary == transition.get("automation"), "Recorded automation summary differs.")
@@ -837,7 +872,9 @@ def apply(base: Path, state: Path, allow_existing_automation: bool = False) -> N
         )
         log = state / "operation.log"
         _mark(state, "apply-preflight")
-        live, before, revision, version = _validate_old(app, old, log, legacy)
+        live, before, revision, version = _validate_old(
+            app, old, log, legacy, activation_state=transition["old_activation"]
+        )
         require(
             revision == transition.get("release_revision")
             and version == transition.get("release_version"),
@@ -887,7 +924,7 @@ def apply(base: Path, state: Path, allow_existing_automation: bool = False) -> N
         _compose(app, state, log, *common, "backend", "frontend")
         _mark(state, "verification")
         _seal_entries(state, activation=True)
-        _seal_entries(old)
+        _seal_entries(old, activation=transition["old_activation"])
         deployed = _inspect(log)
         _legacy_call(legacy, "validate_candidate", deployed, candidate)
         _check_images_and_chain(deployed, app, state, candidate, legacy, log)

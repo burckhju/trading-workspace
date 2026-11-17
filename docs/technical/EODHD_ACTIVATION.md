@@ -22,7 +22,8 @@ Der einzige erlaubte Unterschied der effektiven Compose-Konfiguration ist:
 Alle übrigen Einstellungen, Schlüssel, Datenbindungen, Ports, Images und
 Schutzparameter werden auf Gleichheit geprüft. Die bisherigen versiegelten
 Dateien bleiben erhalten. Der normale Starter und der bisherige Migrationshelfer
-werden nicht geändert; deren Schutzprüfungen bleiben wirksam.
+werden durch den Aktivierungsvorgang nicht geändert; deren Schutzprüfungen
+bleiben wirksam.
 
 Der neue Zustand enthält eine eigene Kopie der Konfiguration, die belegte alte
 Containeraufnahme, die geprüfte neue Compose-Konfiguration und das Werkzeug.
@@ -91,6 +92,24 @@ Ein Fehler nach Beginn der Anwendung behält seinen Vorgang und den `pending`-
 Marker. Es gibt keinen automatischen Rollback und keine blinde Wiederholung.
 Die sichtbare Phase und das private `operation.log` sind die Grundlage einer
 gezielten Wiederherstellung; bestehende Marker und Sicherungen bleiben erhalten.
+
+### Zusammenspiel mit der indikativen Positionsprüfung
+
+Der für v1.5.49 qualifizierte Werkzeugstand kann eine bereits abgeschlossene
+indikative Aktivierung als Ausgangszustand verwenden. Der EODHD-Vorgang speichert
+hierfür einen versionierten Datensatz mit dem ausdrücklich gebundenen
+`old_activation`-Zustand. Die bekannten zusätzlichen Siegelbestandteile werden
+vollständig geprüft; unbekannte Aktivierungstypen oder unvollständige Siegel
+werden verweigert. Ein bestehender indikativer Umfang und seine Zustellfreigabe
+bleiben bei der unabhängigen EODHD-Aktivierung unverändert.
+
+Alte vorbereitete Vorgänge werden nicht mit einem ausgetauschten Werkzeug
+fortgesetzt. Ihre eigene Werkzeugkopie und ihr versiegelter Ausgangszustand
+bleiben maßgeblich. Für eine neue Vorbereitung nach dem Releaseupdate wird der
+Werkzeugstand aus diesem tatsächlich installierten Release benutzt. Der
+[einmalige Launcherübergang](LINUX_LAUNCHER.md#einmaliger-übergang-auf-die-indikative-positionsprüfung)
+bindet die neu qualifizierte Deploymentvalidierung ausdrücklich. Keine
+Providerberechtigung oder Zustimmung folgt aus dieser technischen Kompatibilität.
 
 ## Fachliche Grenze
 

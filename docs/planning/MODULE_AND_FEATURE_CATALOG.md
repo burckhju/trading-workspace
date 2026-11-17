@@ -87,6 +87,8 @@ Der [B04/B57-Regel- und Betriebsvertrag](../features/HEBELTRADER_MONITORING_INTE
 
 Die [B05-Kalenderberechnung](../features/HEBELTRADER_MONITORING_INTEGRATION_CONTRACT.md#b05-documented-deadline-calculation) ist eine getrennte reine Monitoring-Domainfunktion auf dem bestehenden Market-Data-Kalenderread. Product bleibt Owner der noch zu qualifizierenden Originaltermine und festen Ausstiegslistingbindung. Die Berechnung erzeugt keine Produktbelege, aktuelle Statusaussage, Notification oder Aktivierung und benötigt keinen BID.
 
+Der gesonderte [indikative Einstands- und Prüfvertrag](../features/HEBELTRADER_MONITORING_INTEGRATION_CONTRACT.md#indicative-entry-review-v1) gehört demselben Monitoring-Owner. Seine Bewertungen und getrennten Verlustindikations-, Prüf- und Datenproblemepisoden verwenden ausschließlich die vorhandenen wirtschaftlichen und Datenowner. Alert/Notification behalten Meldung und Zustellung; der Workspace konsumiert passive Reads. Dieser Umfang ist keine positive B58-Qualifikation und aktiviert keine vollständige Hebeltrader-Baseline. Der [zentrale PC-Betriebsübergang](../features/HEBELTRADER_MONITORING_INTEGRATION_CONTRACT.md#indicative-review-linux-operation-v1) liegt beim vorhandenen Deploymentowner; der Backlog bleibt die einzige Aufgabenstatusquelle.
+
 <a id="ownership"></a>
 ## Ein schreibender fachlicher Owner je Objekt
 

@@ -2492,3 +2492,54 @@ B05 bleibt kursunabhängig vorbereitet, aber ohne qualifizierte persönliche
 Produkttermin-/Ausstiegslisting-/Schlusszeitbelege nicht im produktiven Umfang.
 Restliches F207-2/B06 und F207-5, B08-Ausschluss sowie bestehende Handels- und
 Preisachsenverträge bleiben unverändert.
+
+<a id="indicative-review-linux-operation-v1"></a>
+## Zentraler PC-Betriebsübergang für den indikativen Umfang, Version 1
+
+Der Betriebsvertrag `indicative-review-linux-operation-v1` trennt die
+Softwaremigration von der einmaligen Aktivierung. Der neu qualifizierte
+Deploymentvalidator erlaubt bei alten Installationen ausschließlich das Ergänzen
+der beiden bisher fehlenden Backendfelder `REVIEW_SCOPE=DISABLED` und
+`REVIEW_NOTIFICATIONS_ENABLED=false`. Vollständige Feldnamen verwenden den
+bestehenden Präfix `TRADING_WORKSPACE_POSITION_MONITORING__`. Vorhandene Felder,
+Providerzustimmungen, Geheimnisse, Ports, Datenbindungen und Sicherheitsparameter
+bleiben gleichheitsgebunden. Aktive Werte, Entfernung und fremde neue Felder
+sind kein zulässiger Versionsübergang.
+
+Die geänderte Validatorqualifikation wird ausdrücklich durch neue feste
+Prüfsummen im freigegebenen Launcher und Aktivierungswerkzeug gebunden. Ein
+alter Launcher wird vor dem Update aus dem exakt freigegebenen Release außerhalb
+des Programmcheckouts aktualisiert. Der Migrationsablauf behält Vorbereitung,
+Sicherungen, vollständige Compose-Herkunft und Fehlerzustand; Schema 0056/0057
+wird erst durch das kontrollierte Releaseupdate angehoben. Es gibt keine
+automatische Positionsmigration oder Aktivierung einer vollständigen Baseline.
+
+`scripts/activate-indicative-monitoring.py` bereitet danach einen eigenen
+privaten, versiegelten Vorgang auf dem tatsächlich installierten Tag vor. Seine
+Anwendung erlaubt nur `REVIEW_SCOPE: DISABLED → INDICATIVE_ENTRY_V1` und den
+Start des vorhandenen Runners; externe Reviewzustellung bleibt ausgeschaltet.
+Alle anderen effektiven Einstellungen und Images bleiben identisch. Der Ablauf
+benutzt die qualifizierten Funktionen des vorhandenen Deploymentowners über
+ihre konkrete Inhaltsbindung; er verändert keine Prüfregeln zur Laufzeit.
+
+Vorbereitung liest die Installation und schreibt nur den neuen Vorgang. Die
+Anwendung prüft Ausgangszustand, Werkzeug, Tag, Container und Konfiguration
+erneut, sichert Datenbank und Zustimmungszustand und veröffentlicht den neuen
+`current-state` erst nach erfolgreicher Prüfung. Ausstehende oder widersprüchliche
+Wartungsvorgänge werden nicht übersprungen. Ein Fehler behält seinen `pending`-
+Marker und die Diagnose; Wiederherstellung bleibt eine gezielte Operation.
+
+Ein vollständig ausgegebener Anwendungsbefehl bindet den vorbereiteten Zustand.
+Manuelle IDs, Fingerprints und tägliche technische Bestätigungen gehören nicht
+zum Betrieb. Der Abschluss meldet Umfang und Regelversion sowie vorhandene echte
+Zyklusergebnisse getrennt. Ein gestarteter Runner bestätigt weder eine bereits
+erfolgte Bewertung noch geeignete reale Daten oder B58-Qualifikation. Die
+passiven Ansichten bleiben frei von Aktivierung und fachlichen Schreiboperationen.
+
+Synthetische Prüfungen qualifizieren den Übergang von tatsächlich fehlenden
+Alt-Feldern, die enge Konfigurationsdifferenz, Siegel-/Zustandswechsel, Ausfall-
+und Wiederholungsgrenzen sowie die Kompatibilität der vorhandenen Wartungswege.
+Schreibende Systemtests verwenden ausschließlich entbehrliche CI-Installationen
+und abgefangene Provider-/Nachrichtenaufrufe. Das ersetzt keinen beobachteten
+PC-Lauf oder reale Depotabnahme; deren Status bleibt im Backlog beziehungsweise
+in der konkreten Releaseübergabe getrennt.
