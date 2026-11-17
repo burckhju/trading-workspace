@@ -1945,8 +1945,14 @@ Originalantworten, sobald ein berechtigter Evaluationszugang vorliegt. Keine
 zusätzliche UI, Migration, Daten-Neuerfassung oder produktive Providerfreigabe.
 Tests bleiben synthetisch mit abgefangenen externen Aufrufen; aktuelle
 Head-/Integrationsstand- und reguläre Gatebelege stehen im zugehörigen PR.
-Dieser neue Schnitt ist zunächst reviewfähig vorbereitet, nicht integriert oder
-auf dem PC installiert. **Nächste externe Abhängigkeit:** geeigneter erlaubter
+Der Schnitt ist mit [#355](https://github.com/burckhju/trading-workspace/pull/355)
+am grün geprüften unveränderten Head integriert: Main-Merge
+`ae554532269b2ac215ea80e93373fe806b73050e`, Tree
+`0badca1f6de01ee6cf24b0a041c377eb84d605d4`, identisch zum tatsächlichen
+PR-Testmerge. Der anschließende schmale [Versionsschnitt v1.5.48](../releases/V1.5.48-B58-ACQUISITION.md)
+bereitet den bestehenden kontrollierten PC-Updateweg vor. Seine eigenen PR-
+und Main-Push-Gates sowie Tag/Commit werden separat nachgewiesen; der gemeldete
+PC-Stand bleibt v1.5.47. **Nächste externe Abhängigkeit:** geeigneter erlaubter
 ARIVA-Evaluationszugang zu `XSC / REALTIME` **und** belegte Lieferung eigener
 Originalstatuszeit/-semantik, negativer/preisloser Ereignisse, Lücken/Recovery
 und Nutzungsrecht. Ein konkreter unverbindlicher Anfrageentwurf ist vorbereitet,
