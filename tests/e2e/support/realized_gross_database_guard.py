@@ -14,7 +14,7 @@ from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.pool import NullPool
 
-REVISION = "20261117_0054"
+REVISION = "20261117_0055"
 
 
 async def verify() -> dict[str, object]:

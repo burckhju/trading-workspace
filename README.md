@@ -21,6 +21,8 @@ Für die Hebeltrader-Positionsdetails beschreibt der [Integrationsvertrag](docs/
 
 Die [preisunabhängige Statusversorgung](docs/features/HEBELTRADER_MONITORING_INTEGRATION_CONTRACT.md#f207-3-independent-status-observations) ergänzt beim vorhandenen Market-Data-Owner ein dauerhaftes Journal auch für negative/preislose Meldungen. Der [tatsächliche Quellenbefund](docs/reviews/B58_SOURCE_QUALIFICATION_2026-11-17.md) trennt erreichbare Originaldaten von weiterhin fehlender B58-Eignung.
 
+Der anschließende [B04/B57-Regel- und Betriebsvertrag](docs/features/HEBELTRADER_MONITORING_INTEGRATION_CONTRACT.md#b04-b57-loss-monitoring-v1) ergänzt einen ausdrücklich begrenzten Verlustpfad: vorhandener Ausführungsowner, qualifizierte Eingänge, dauerhafte Verlustepisode, Hintergrundrunner und deduplizierter Hinweis im Arbeitsbereich. Dieser neue Commandpfad ändert die bisherigen passiven Evidenzreads nicht. Der zentrale Teilumfang ist standardmäßig ausgeschaltet; der Produktionskatalog geeigneter B58-Quellen ist leer. Synthetisch prüfbare Implementierung, reale Datenversorgung, Integration, Veröffentlichung und PC-Betrieb bleiben getrennt. Die vollständige Hebeltrader-Baseline wird dadurch nicht aktiviert.
+
 ## Entwicklung und Betrieb
 
 Die [Entwicklungsanleitung](docs/technical/DEVELOPMENT_GUIDE.md) beschreibt die bestehenden Schichten, Versionen und Prüfeinstiege. Werkzeuge und Abhängigkeiten aus den aktuellen Manifesten/Lockdateien ermitteln; keine Gate-Absenkung. Tests mit Schreibzugriff nur in einer eindeutig identifizierten Wegwerfumgebung mit synthetischen Daten und abgefangenen externen Aufrufen ausführen.

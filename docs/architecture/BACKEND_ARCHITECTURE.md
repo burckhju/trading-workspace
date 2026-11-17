@@ -578,6 +578,16 @@ Repositories:
 
 Externe Provideraufrufe und Datenbanktransaktionen müssen so koordiniert werden, dass inkonsistente Zwischenzustände vermieden oder nachvollziehbar behandelt werden.
 
+Der [B04/B57-Vertrag](../features/HEBELTRADER_MONITORING_INTEGRATION_CONTRACT.md#b04-b57-loss-monitoring-v1)
+konkretisiert diese Grenze für den additiven Verlustpfad: Der Application Service
+erhält erst den bestehenden Trade-Lock und öffnet danach einen konsistenten
+schreibfreien Snapshot. Eine kurzlebige unabhängige Leseverbindung vermeidet die
+Erschöpfung desselben Anwendungspools. Die fachlichen Writes für Assessment,
+Episode, Alert und optionale Outbox bleiben atomar in der gesperrten Transaktion;
+Market-Data-Beschaffung und spätere externe Delivery liegen außerhalb dieser
+Grenze. Wirtschaftliche Daten werden ausschließlich beim Ausführungsowner
+berechnet. Repositories und passive Reads erhalten keine versteckten Commits.
+
 ---
 
 # Events

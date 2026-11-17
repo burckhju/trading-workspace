@@ -11,6 +11,7 @@ vi.mock('./HebeltraderEvidenceCoverage', () => ({ HebeltraderEvidenceCoverage: (
 vi.mock('./HebeltraderTargetHistory', () => ({ HebeltraderTargetHistory: () => null }));
 vi.mock('./HebeltraderSessions', () => ({ HebeltraderSessions: () => null }));
 vi.mock('./HebeltraderOriginalBid', () => ({ HebeltraderOriginalBid: () => null }));
+vi.mock('./HebeltraderLoss', () => ({ HebeltraderLoss: () => null }));
 vi.mock('../../alert/components/PositionRiskPanel', () => ({ PositionRiskPanel: () => null }));
 
 function show(overrides: Partial<OperationalPosition> = {}) {
@@ -142,4 +143,17 @@ it('preserves a composed market value and independent unusable PnL on LAST_AVAIL
   expect(details.queryByText('+5,00 EUR')).not.toBeInTheDocument();
   expect(details.getByText(/Kaufwährung.*nicht.*belegt/i)).toBeInTheDocument();
   expect(details.queryByText(/veraltet/)).not.toBeInTheDocument();
+});
+
+it('names a persisted B04 loss episode alongside a separate missing quote', () => {
+  const details = show({
+    open_alert_count: 1,
+    open_alert_types: ['HEBELTRADER_B04_LOSS'],
+    valuation_status: 'MISSING',
+    analysis_warning: null,
+  });
+  expect(
+    details.getByText(/1 offene Hinweise · Hebeltrader · Verlust nach 20 Basiswertsitzungen/),
+  ).toBeInTheDocument();
+  expect(details.getByText(/Produktkurs fehlt/)).toBeInTheDocument();
 });

@@ -1,5 +1,11 @@
 # Position Monitoring, Alerting and Outbound Notifications
 
+> Ergänzung 17.11.2026: Der [versionierte B04/B57-Teilumfang](HEBELTRADER_MONITORING_INTEGRATION_CONTRACT.md#b04-b57-loss-monitoring-v1)
+> ergänzt diesen Owner, ohne den historischen V1-Vertrag auf alle späteren Regeln
+> auszudehnen. Für B04 committen Bewertung, dauerhafte Episode, Alert und optionale
+> Notification atomar. Delivery bleibt separat. Der Default ist ausgeschaltet;
+> reale B58-Qualifikation, Integration, Release und PC-Betrieb sind eigene Nachweise.
+
 ## Status und Feature-Zuordnung
 
 Status: **Technical Review**.
@@ -54,6 +60,16 @@ Eine Änderung der fachlichen Schwelle beendet den bisherigen aktiven Zustand un
 ## Notification und Delivery
 
 Aus einem Alert wird pro `Alert + Channel + Destination` höchstens eine Notification erzeugt. Alert-Status und Delivery-Status sind getrennt.
+
+Für `HEBELTRADER_B04_LOSS` gilt zusätzlich der oben verlinkte Episodenvertrag.
+Fehlende oder ungeeignete Daten schließen die Episode nicht. Qualifizierte
+Erholung oder vollständiger Verkauf beendet noch ausstehende B04-Zustellungen;
+der Delivery-Owner prüft vor Übergabe an den Adapter den tatsächlichen
+wirtschaftlichen Restbestand und den Alertzustand erneut. Terminale
+Unterdrückung bleibt auch bei einem späten retryable Transportfehler erhalten.
+Bereits übergebene externe Aufrufe und tatsächlich bestätigte Zustellungen
+werden wahrheitsgemäß historisiert. Die unten stehende historische V1-Sequenz
+bleibt für die bisherigen Regeltypen erhalten.
 
 Die persistente Delivery-Sequenz lautet:
 

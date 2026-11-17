@@ -145,6 +145,26 @@ async def test_open_alert_projection_uses_existing_alert_state() -> None:
 
 
 @pytest.mark.asyncio
+async def test_b04_alert_action_keeps_its_own_rule_label_and_existing_navigation() -> None:
+    item = SimpleNamespace(
+        id=uuid4(),
+        trade_id=uuid4(),
+        alert_type="HEBELTRADER_B04_LOSS",
+        reason="Original-Geldkurs unter persönlichem Bruttoeinstand.",
+        detected_at=datetime.now(UTC),
+    )
+    session = AsyncMock(spec=AsyncSession)
+    session.execute.return_value = _Rows([(item, uuid4())])
+    actions = await OperationalWorkspaceReadModel(cast(AsyncSession, session))._alert_actions(
+        uuid4()
+    )
+    assert len(actions) == 1
+    assert actions[0].title == "Hebeltrader · Verlust nach 20 Basiswertsitzungen"
+    assert actions[0].detail == item.reason
+    assert actions[0].target == f"/trade-management?trade_id={item.trade_id}"
+
+
+@pytest.mark.asyncio
 async def test_terminal_notification_failure_projection_links_to_trade_management() -> None:
     workspace_id = uuid4()
     notification_id = uuid4()

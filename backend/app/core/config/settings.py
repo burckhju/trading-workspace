@@ -3,7 +3,7 @@
 import re
 from enum import StrEnum
 from functools import lru_cache
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field, SecretStr, field_validator
@@ -228,6 +228,8 @@ class PositionMonitoringSettings(BaseModel):
     """Background scheduling and completed-price freshness settings."""
 
     enabled: bool = False
+    # Central, explicit partial-scope activation; never the full confirmed baseline.
+    hebeltrader_scope: Literal["DISABLED", "B04_B57_V1"] = "DISABLED"
     interval_seconds: Annotated[float, Field(ge=30, le=86_400)] = 900.0
     parallel_positions: Annotated[int, Field(ge=1, le=4)] = 4
     max_completed_price_age_days: Annotated[int, Field(ge=0, le=30)] = 4

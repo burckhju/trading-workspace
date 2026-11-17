@@ -22,6 +22,11 @@ from app.database.base import Base
 class AlertModel(Base):
     __tablename__ = "alerts"
     __table_args__ = (
+        CheckConstraint(
+            "alert_type IN ('STOP_REACHED', 'TARGET_REACHED', 'RISK_TREND_CHANGED', "
+            "'RISK_VOLATILITY_HIGH', 'HEBELTRADER_B04_LOSS')",
+            name="alert_type_valid",
+        ),
         CheckConstraint("status IN ('OPEN', 'RESOLVED', 'INVALIDATED')", name="alert_status_valid"),
         ForeignKeyConstraint(
             ["position_id"], ["positions.id"], ondelete="RESTRICT", name="fk_alerts_position"

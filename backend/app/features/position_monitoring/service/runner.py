@@ -95,6 +95,10 @@ class PositionMonitoringRunner:
                 }
                 self.last_rule_checks = result.cycle.rule_checks
                 self.last_result.update(
+                    b04_positions_evaluated=result.hebeltrader_loss.positions_evaluated,
+                    b04_alerts_created=result.hebeltrader_loss.alerts_created,
+                    b04_data_problems=result.hebeltrader_loss.data_problems,
+                    b04_position_errors=result.hebeltrader_loss.position_errors,
                     alerts_invalidated=result.alerts_invalidated,
                     notifications_created=result.notifications_created,
                     notifications_delivered=result.notifications_delivered,
