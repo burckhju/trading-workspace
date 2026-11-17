@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from app.features.alert.domain.models import Alert, AlertType
+from app.features.notification.service.review_formatter import format_review_alert
 
 
 def _display_text(value: str | None, *, missing: str = "—") -> str:
@@ -16,6 +17,20 @@ def format_position_alert(
     warrant_isin: str | None = None,
     warrant_wkn: str | None = None,
 ) -> str:
+    if alert.alert_type in {
+        AlertType.INDICATIVE_ENTRY_LOSS,
+        AlertType.POSITION_REVIEW_DUE,
+        AlertType.POSITION_DATA_UNAVAILABLE,
+    }:
+        return format_review_alert(
+            alert,
+            symbol=symbol,
+            warrant_name=warrant_name,
+            warrant_isin=warrant_isin,
+            warrant_wkn=warrant_wkn,
+        )
+    if alert.observed_value is None or alert.threshold_value is None:
+        raise ValueError("Price and risk alerts require both numeric values")
     title = {
         AlertType.STOP_REACHED: "Stop erreicht",
         AlertType.TARGET_REACHED: "Target erreicht",

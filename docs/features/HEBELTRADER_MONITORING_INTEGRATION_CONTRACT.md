@@ -2346,3 +2346,43 @@ passive Evidenzverträge, Preisachsen und B08-Ausschluss bleiben erhalten.
 Synthetische Tests mit abgefangenen HTTP-Aufrufen belegen Transport und
 Auswertung dieses Schnitts. Reale Depot-/Providerabnahme, Integration,
 Veröffentlichung und Installation sind gesonderte Nachweise im Backlog/PR.
+
+
+<a id="indicative-review-alert-contract-v1"></a>
+## Gesonderte Positionsprüfhinweise: gemeinsamer Meldungsvertrag, Version 1
+
+Am 17.11.2026 wurde die Umsetzung der zuvor erläuterten Alternative ausdrücklich
+freigegeben: eine eigene indikative Einstandsbeobachtung, eine Prüferinnerung nach
+20 abgeschlossenen Basiswertsitzungen und getrennte Datenproblemhinweise. Dies
+ist keine Änderung von B04/B57 oder positive B58-Qualifikation. Originalzeit,
+Marktöffnung und eigene Empfangszeit bleiben unterschiedliche Aussagen.
+
+Der erste additive Schnitt bereitet beim bestehenden Alert-/Notification-Owner
+die Typen `INDICATIVE_ENTRY_LOSS`, `POSITION_REVIEW_DUE` und
+`POSITION_DATA_UNAVAILABLE` vor. Die letzten beiden sind nichtpreisliche Hinweise:
+`observed_value` und `threshold_value` sind beide NULL. Für alle bisherigen Typen
+und die indikative Einstandsbeobachtung bleiben beide Zahlen verpflichtend.
+Migration `20261117_0056` erhält bestehende Meldungen und erzwingt diese Werteform;
+ein Downgrade mit vorhandener neuer Historie wird verweigert. Keine Nullkurse,
+keine rückwirkende Umbenennung bestehender B04-Alerts.
+
+Der vorhandene Arbeitsbereich und die Positionsdetails zeigen die drei Typen mit
+eigenen Titeln und Aussagen. Original-BID-Zeit und Empfangszeit bleiben getrennt;
+bei unbekannter Originalzeit wird keine Kursfrische behauptet. Prüferinnerungen
+und Datenprobleme enthalten keine Kurs-/Verlustbehauptung. Der bestehende Alert-
+GET bleibt lesend. Kein neues Nutzerformular und keine zusätzliche Providerabfrage
+werden durch die Anzeige ausgelöst.
+
+Vor externer Übergabe prüft der vorhandene Notification-Owner auch diese drei
+Typen unter demselben Trade-Lock gegen effektive Ausführungen, Stornierung und
+Alertzustand. Die eigene `REVIEW_*`-Unterdrückung bleibt von `B04_*` getrennt.
+Vollverkauf, erledigte oder durch Korrektur ungültige Hinweise beenden ausstehende
+Zustellung; ein später Transportfehler belebt sie nicht wieder. Bereits tatsächlich
+übergebene externe Aufrufe bleiben als solche historisiert.
+
+**Integrationsschnitt:** Backend Alert-/Notification-Vertrag und Workspace-
+Projektion liegen bei einem Integrator; die fünf Frontend-Alertdateien werden vom
+eigenen UI-Owner angepasst. Der neue Monitoring-Regelpfad folgt auf dieser
+gemeinsamen Grundlage. Dieser erste Schnitt erzeugt selbst keine neuen Hinweise
+und aktiviert weder einen Runner noch eine Regel. Aufgabenstatus und tatsächliche
+PR-/Headnachweise verbleiben im Product Backlog beziehungsweise im zugehörigen PR.

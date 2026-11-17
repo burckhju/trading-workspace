@@ -23,8 +23,9 @@ from app.features.notification.persistence.models import (
     NotificationModel,
 )
 from app.features.notification.service.hebeltrader_lifecycle import (
-    B04_SUPPRESSION_CODES,
-    suppress_b04_notification,
+    POSITION_GUARDED_ALERT_TYPES,
+    POSITION_SUPPRESSION_CODES,
+    suppress_position_notification,
 )
 from app.features.trade_position.domain.projector import PositionProjector
 from app.features.trade_position.persistence.models import TradeModel
@@ -49,9 +50,9 @@ class SqlAlchemyDurableNotificationDeliveryStore:
                 .where(
                     NotificationModel.status == NotificationStatus.PENDING.value,
                     or_(
-                        # B04 needs a durable suppression reason even when its
+                        # Position notices need a durable suppression reason when the
                         # alert was resolved/invalidated or its trade cancelled.
-                        AlertModel.alert_type == AlertType.HEBELTRADER_B04_LOSS.value,
+                        AlertModel.alert_type.in_(POSITION_GUARDED_ALERT_TYPES),
                         and_(
                             AlertModel.status != "INVALIDATED",
                             TradeModel.cancelled_at.is_(None),
@@ -96,11 +97,8 @@ class SqlAlchemyDurableNotificationDeliveryStore:
                 select(AlertModel).where(AlertModel.id == model.alert_id).with_for_update()
             )
             alert_status = alert_model.status if alert_model is not None else None
-            if (
-                alert_model is not None
-                and alert_model.alert_type == AlertType.HEBELTRADER_B04_LOSS.value
-            ):
-                terminal = await self._prepare_b04_terminal(
+            if alert_model is not None and alert_model.alert_type in POSITION_GUARDED_ALERT_TYPES:
+                terminal = await self._prepare_position_terminal(
                     session,
                     model=model,
                     alert=alert_model,
@@ -224,7 +222,7 @@ class SqlAlchemyDurableNotificationDeliveryStore:
             await session.commit()
             return DeliveryPreparation(notification=notification, attempt=attempt)
 
-    async def _prepare_b04_terminal(
+    async def _prepare_position_terminal(
         self,
         session: AsyncSession,
         *,
@@ -234,7 +232,7 @@ class SqlAlchemyDurableNotificationDeliveryStore:
         attempt_id: UUID,
         now: datetime,
     ) -> DeliveryPreparation | None:
-        """Recheck B04 under the same trade lock used by execution writers.
+        """Recheck position notices under the same trade lock used by execution writers.
 
         Position rows may lag effective execution corrections. Reuse the
         execution owner's projector, without a second quantity calculation.
@@ -263,13 +261,14 @@ class SqlAlchemyDurableNotificationDeliveryStore:
                 ),
             )
 
+        prefix = "B04" if alert.alert_type == AlertType.HEBELTRADER_B04_LOSS.value else "REVIEW"
         reason: str | None = None
         if alert.status != "OPEN":
-            reason = f"B04_ALERT_{alert.status}"
+            reason = f"{prefix}_ALERT_{alert.status}"
         elif trade is None:
-            reason = "B04_TRADE_MISSING"
+            reason = f"{prefix}_TRADE_MISSING"
         elif trade.cancelled_at is not None:
-            reason = "B04_TRADE_CANCELLED"
+            reason = f"{prefix}_TRADE_CANCELLED"
         else:
             effective = await SqlAlchemyExecutionRecordRepository(session).list_effective_for_trade(
                 trade.id
@@ -282,11 +281,11 @@ class SqlAlchemyDurableNotificationDeliveryStore:
                 executions=effective,
             )
             if position.open_quantity <= 0:
-                reason = "B04_POSITION_CLOSED"
+                reason = f"{prefix}_POSITION_CLOSED"
         if reason is None:
             return None
 
-        result = await suppress_b04_notification(
+        result = await suppress_position_notification(
             session,
             notification=model,
             now=now,
@@ -325,9 +324,9 @@ class SqlAlchemyDurableNotificationDeliveryStore:
             if attempt.status != DeliveryStatus.IN_PROGRESS.value:
                 return
 
-            suppressed_b04 = None
+            suppressed_position = None
             if notification.status == NotificationStatus.FAILED.value:
-                suppressed_b04 = await session.scalar(
+                suppressed_position = await session.scalar(
                     select(NotificationDeliveryAttemptModel.id)
                     .join(
                         NotificationModel,
@@ -337,9 +336,9 @@ class SqlAlchemyDurableNotificationDeliveryStore:
                     .where(
                         NotificationDeliveryAttemptModel.notification_id == notification_id,
                         NotificationDeliveryAttemptModel.attempt_number > attempt.attempt_number,
-                        NotificationDeliveryAttemptModel.error_code.in_(B04_SUPPRESSION_CODES),
+                        NotificationDeliveryAttemptModel.error_code.in_(POSITION_SUPPRESSION_CODES),
                         NotificationDeliveryAttemptModel.retryable.is_(False),
-                        AlertModel.alert_type == AlertType.HEBELTRADER_B04_LOSS.value,
+                        AlertModel.alert_type.in_(POSITION_GUARDED_ALERT_TYPES),
                     )
                     .limit(1)
                 )
@@ -352,9 +351,9 @@ class SqlAlchemyDurableNotificationDeliveryStore:
             attempt.error_message = result.error_message
             if result.status is DeliveryStatus.DELIVERED:
                 notification.status = NotificationStatus.DELIVERED.value
-            elif suppressed_b04 is not None:
+            elif suppressed_position is not None:
                 # Preserve a real earlier in-flight result without resurrecting
-                # its outbox item after a later B04 suppression decision.
+                # its outbox item after a later position suppression decision.
                 notification.status = NotificationStatus.FAILED.value
             elif not result.retryable or attempt.attempt_number >= max_attempts:
                 notification.status = NotificationStatus.FAILED.value

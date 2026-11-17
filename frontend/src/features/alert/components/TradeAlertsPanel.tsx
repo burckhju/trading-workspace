@@ -18,22 +18,59 @@ function formatDate(value: string | null): string {
   return value ? new Date(`${value}T00:00:00`).toLocaleDateString('de-DE') : '—';
 }
 
-function formatNumber(value: string): string {
-  return new Intl.NumberFormat('de-DE', { maximumFractionDigits: 10 }).format(Number(value));
+function formatNumber(value: string | null): string {
+  return value === null
+    ? '—'
+    : new Intl.NumberFormat('de-DE', { maximumFractionDigits: 10 }).format(Number(value));
+}
+
+function isEntryObservation(alert: AlertResponse): boolean {
+  return (
+    alert.alert_type === 'INDICATIVE_ENTRY_LOSS' ||
+    alert.alert_type === 'POSITION_REVIEW_DUE' ||
+    alert.alert_type === 'POSITION_DATA_UNAVAILABLE'
+  );
+}
+
+function hasPriceTrigger(alert: AlertResponse): boolean {
+  return (
+    alert.alert_type !== 'POSITION_REVIEW_DUE' && alert.alert_type !== 'POSITION_DATA_UNAVAILABLE'
+  );
+}
+
+function alertTriggerLabel(alert: AlertResponse): string {
+  if (alert.alert_type === 'POSITION_REVIEW_DUE') {
+    return 'Anlass: abgeschlossene Basiswertsitzungen';
+  }
+  if (alert.alert_type === 'POSITION_DATA_UNAVAILABLE') {
+    return 'Datenlage: Einstandsbeobachtung nicht beurteilbar';
+  }
+  return alert.price_context
+    ? `Auslöser: ${alert.price_context.basis === 'WARRANT' ? 'Optionsschein' : 'Basiswert'} · ${alert.price_context.price_type ?? 'Kurs'} · ${alert.price_context.currency ?? '—'}`
+    : 'Kursbezug ungeklärt · historische Meldung nicht belastbar';
 }
 
 function alertTitle(alert: AlertResponse): string {
   const title =
     alert.alert_type === 'TARGET_REACHED' ? 'Target erreicht' : alertTypeLabel(alert.alert_type);
-  return alert.price_context?.evaluation_mode === 'INDICATIVE_ISSUER'
+  return !isEntryObservation(alert) && alert.price_context?.evaluation_mode === 'INDICATIVE_ISSUER'
     ? `${title} (indikative Prüfung)`
     : title;
 }
 
+const reviewSuppressionCodes = new Set([
+  'REVIEW_POSITION_CLOSED',
+  'REVIEW_ALERT_RESOLVED',
+  'REVIEW_ALERT_INVALIDATED',
+  'REVIEW_TRADE_CANCELLED',
+  'REVIEW_TRADE_MISSING',
+]);
+
 function notificationLabel(notification: NotificationResponse): string {
   if (notification.status === 'DELIVERED') return `${notification.channel}: zugestellt`;
-  if (notification.last_delivery?.error_code?.startsWith('B04_')) {
-    return `${notification.channel}: Versand unterdrückt · ${notification.last_delivery.error_message ?? 'B04-Hinweis ist nicht mehr zustellbar.'}`;
+  const errorCode = notification.last_delivery?.error_code;
+  if (errorCode?.startsWith('B04_') || reviewSuppressionCodes.has(errorCode ?? '')) {
+    return `${notification.channel}: Versand unterdrückt · ${notification.last_delivery?.error_message ?? 'Hinweis ist nicht mehr zustellbar.'}`;
   }
   if (notification.status === 'FAILED') return `${notification.channel}: fehlgeschlagen`;
   if (notification.last_delivery?.status === 'IN_PROGRESS') {
@@ -224,11 +261,7 @@ export function TradeAlertsPanel({ tradeId }: { tradeId: string }) {
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <p className="font-medium">{alertTitle(alert)}</p>
-                    <p className="mt-1 text-xs text-slate-400">
-                      {alert.price_context
-                        ? `Auslöser: ${alert.price_context.basis === 'WARRANT' ? 'Optionsschein' : 'Basiswert'} · ${alert.price_context.price_type ?? 'Kurs'} · ${alert.price_context.currency ?? '—'}`
-                        : 'Kursbezug ungeklärt · historische Meldung nicht belastbar'}
-                    </p>
+                    <p className="mt-1 text-xs text-slate-400">{alertTriggerLabel(alert)}</p>
                     <p className="mt-1 text-sm text-slate-400">{alert.reason}</p>
                   </div>
                   <span className="rounded-full border border-slate-700 px-2.5 py-1 text-xs">
@@ -240,7 +273,9 @@ export function TradeAlertsPanel({ tradeId }: { tradeId: string }) {
                   <p className="mt-2 text-sm text-amber-300">
                     {alert.alert_type === 'HEBELTRADER_B04_LOSS'
                       ? 'B04-Verlusthinweis durch neue Bewertung ungültig. Ursprüngliche Werte bleiben zur Nachvollziehbarkeit erhalten.'
-                      : 'Meldung wegen ungeklärtem Kursbezug ungültig. Ursprüngliche Werte bleiben zur Nachvollziehbarkeit erhalten.'}
+                      : isEntryObservation(alert)
+                        ? 'Hinweis durch eine neue Bewertung ungültig. Ursprüngliche Angaben bleiben zur Nachvollziehbarkeit erhalten.'
+                        : 'Meldung wegen ungeklärtem Kursbezug ungültig. Ursprüngliche Werte bleiben zur Nachvollziehbarkeit erhalten.'}
                   </p>
                 )}
                 {alert.alert_type === 'HEBELTRADER_B04_LOSS' && (
@@ -257,7 +292,52 @@ export function TradeAlertsPanel({ tradeId }: { tradeId: string }) {
                     </p>
                   </div>
                 )}
-                {alert.price_context && (
+                {isEntryObservation(alert) && (
+                  <div className="mt-2 text-sm text-slate-400">
+                    <p>
+                      Teilumfang: Indikative Einstandsbeobachtung ·{' '}
+                      {alert.price_context?.rule_version ?? 'Version nicht belegt'}
+                    </p>
+                    <p className="mt-1">
+                      {alert.alert_type === 'INDICATIVE_ENTRY_LOSS'
+                        ? 'Indikativer Vergleich mit dem persönlichen Bruttoeinstand. B58-Qualifikation nicht belegt; keine B04/B57-Verlustepisode.'
+                        : alert.alert_type === 'POSITION_REVIEW_DUE'
+                          ? 'Kalenderbasierter Prüfhinweis. Die abgeschlossenen Sitzungen allein belegen keinen Verlust; keine B04/B57-Verlustepisode.'
+                          : 'Die Einstandsbeobachtung ist wegen fehlender oder ungeeigneter Daten nicht auswertbar. Ein bestehender Verlusthinweis bleibt davon getrennt.'}
+                    </p>
+                    {alert.alert_type === 'POSITION_REVIEW_DUE' ? (
+                      <p className="mt-1">
+                        Abgeschlossene Basiswertsitzungen zum Prüfzeitpunkt:{' '}
+                        {alert.price_context?.review_completed_sessions ?? 'nicht belegt'} · Stand:{' '}
+                        {alert.price_context?.review_session_count_at ?? 'nicht belegt'}
+                      </p>
+                    ) : (
+                      <p className="mt-1">
+                        Abgeschlossene Basiswertsitzungen:{' '}
+                        {alert.price_context?.completed_sessions ?? 'nicht belegt'} ·{' '}
+                        {alert.price_context?.session_count_basis === 'ORIGINAL_BID'
+                          ? 'zur Original-Geldkurszeit'
+                          : alert.price_context?.session_count_basis === 'EVALUATION_TIME'
+                            ? 'zum Prüfzeitpunkt'
+                            : 'Zeitbezug nicht belegt'}{' '}
+                        · Stand: {alert.price_context?.session_count_at ?? 'nicht belegt'}
+                      </p>
+                    )}
+                    <p className="mt-1">
+                      Ausschließlich ein Hinweis; keine Orderfreigabe und keine automatische Stop-
+                      oder Zieländerung.
+                    </p>
+                    {alert.price_context?.data_problem_reasons && (
+                      <details className="mt-2 text-xs text-slate-500">
+                        <summary className="cursor-pointer">
+                          Gründe des Datenproblems anzeigen
+                        </summary>
+                        <p className="mt-1 break-all">{alert.price_context.data_problem_reasons}</p>
+                      </details>
+                    )}
+                  </div>
+                )}
+                {alert.price_context && alert.alert_type !== 'POSITION_REVIEW_DUE' && (
                   <div className="mt-2 text-xs text-slate-400">
                     <p>
                       Quelle: {alert.price_context.provider} ·{' '}
@@ -288,34 +368,43 @@ export function TradeAlertsPanel({ tradeId }: { tradeId: string }) {
                   </div>
                 )}
                 <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
-                  <div>
-                    <dt className="text-slate-500">
-                      {alert.alert_type === 'HEBELTRADER_B04_LOSS'
-                        ? 'Original-Geldkurs'
-                        : 'Beobachtet'}
-                    </dt>
-                    <dd className="mt-1">
-                      {alert.price_context?.basis === 'UNDERLYING_RISK_SIGNAL'
-                        ? riskPercent(alert.observed_value)
-                        : formatNumber(alert.observed_value)}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-slate-500">
-                      {alert.alert_type === 'HEBELTRADER_B04_LOSS'
-                        ? 'Persönlicher Bruttoeinstand je Stück'
-                        : 'Schwelle'}
-                    </dt>
-                    <dd className="mt-1">
-                      {alert.price_context?.basis === 'UNDERLYING_RISK_SIGNAL'
-                        ? riskPercent(alert.threshold_value)
-                        : formatNumber(alert.threshold_value)}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-slate-500">Marktdaten</dt>
-                    <dd className="mt-1">{formatDateTime(alert.market_data_observed_at)}</dd>
-                  </div>
+                  {hasPriceTrigger(alert) && (
+                    <>
+                      <div>
+                        <dt className="text-slate-500">
+                          {alert.alert_type === 'HEBELTRADER_B04_LOSS'
+                            ? 'Original-Geldkurs'
+                            : alert.alert_type === 'INDICATIVE_ENTRY_LOSS'
+                              ? 'Beobachteter Geldkurs · indikativ'
+                              : 'Beobachtet'}
+                        </dt>
+                        <dd className="mt-1">
+                          {alert.observed_value !== null &&
+                          alert.price_context?.basis === 'UNDERLYING_RISK_SIGNAL'
+                            ? riskPercent(alert.observed_value)
+                            : formatNumber(alert.observed_value)}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-slate-500">
+                          {alert.alert_type === 'HEBELTRADER_B04_LOSS' ||
+                          alert.alert_type === 'INDICATIVE_ENTRY_LOSS'
+                            ? 'Persönlicher Bruttoeinstand je Stück'
+                            : 'Schwelle'}
+                        </dt>
+                        <dd className="mt-1">
+                          {alert.threshold_value !== null &&
+                          alert.price_context?.basis === 'UNDERLYING_RISK_SIGNAL'
+                            ? riskPercent(alert.threshold_value)
+                            : formatNumber(alert.threshold_value)}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-slate-500">Marktdaten</dt>
+                        <dd className="mt-1">{formatDateTime(alert.market_data_observed_at)}</dd>
+                      </div>
+                    </>
+                  )}
                   <div>
                     <dt className="text-slate-500">Erkannt</dt>
                     <dd className="mt-1">{formatDateTime(alert.detected_at)}</dd>

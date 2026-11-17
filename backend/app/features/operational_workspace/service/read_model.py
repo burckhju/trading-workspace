@@ -23,7 +23,8 @@ from app.features.notification.persistence.models import (
     NotificationModel,
 )
 from app.features.notification.service.hebeltrader_lifecycle import (
-    B04_SUPPRESSION_CODES,
+    POSITION_GUARDED_ALERT_TYPES,
+    POSITION_SUPPRESSION_CODES,
 )
 from app.features.post_trade.persistence.models import (
     ExitReviewModel,
@@ -212,6 +213,11 @@ class OperationalWorkspaceReadModel:
                 state="ACTIONABLE",
                 title={
                     AlertType.STOP_REACHED.value: "Stop erreicht",
+                    AlertType.INDICATIVE_ENTRY_LOSS.value: "Preisindikation unter Einstand",
+                    AlertType.POSITION_REVIEW_DUE.value: (
+                        "Positionsprüfung nach 20 Sitzungen fällig"
+                    ),
+                    AlertType.POSITION_DATA_UNAVAILABLE.value: "Daten für Positionsprüfung fehlen",
                     AlertType.RISK_TREND_CHANGED.value: "Trendverschlechterung",
                     AlertType.RISK_VOLATILITY_HIGH.value: "Erhöhte realisierte Volatilität",
                     AlertType.HEBELTRADER_B04_LOSS.value: (
@@ -246,7 +252,7 @@ class OperationalWorkspaceReadModel:
                     TradeModel.cancelled_at.is_(None),
                     NotificationModel.status == NotificationStatus.FAILED.value,
                     or_(
-                        AlertModel.alert_type != AlertType.HEBELTRADER_B04_LOSS.value,
+                        AlertModel.alert_type.not_in(POSITION_GUARDED_ALERT_TYPES),
                         and_(
                             AlertModel.status == AlertStatus.OPEN.value,
                             exists().where(
@@ -259,7 +265,7 @@ class OperationalWorkspaceReadModel:
                                 NotificationDeliveryAttemptModel.notification_id
                                 == NotificationModel.id,
                                 NotificationDeliveryAttemptModel.error_code.in_(
-                                    B04_SUPPRESSION_CODES
+                                    POSITION_SUPPRESSION_CODES
                                 ),
                                 NotificationDeliveryAttemptModel.retryable.is_(False),
                             ),
