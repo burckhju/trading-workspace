@@ -4,7 +4,7 @@ Trading Workspace unterstützt einen benutzergesteuerten Tradingprozess: Referen
 
 ## Softwarestand und Planung
 
-Die versionierte Software ist in [VERSION](VERSION) festgehalten. Der am 13.10.2026 geprüfte Stand ist `v1.5.5` / `a78288ad38610656480d0363abe657b567c7ba94`; Einzelheiten und Betriebsgrenzen stehen in der [Release-Notiz](docs/releases/V1.5.5-ISSUER-COVERAGE.md). Ein Softwaretag belegt weder die aktuelle Installation auf dem Nutzer-PC noch die vollständige Erfüllung sämtlicher ursprünglicher Roadmap-Ziele.
+Die versionierte Software ist in [VERSION](VERSION) festgehalten. Umfang, Bereitstellungsnachweise und kontrollierter PC-Updateweg für `v1.5.47` stehen in der [Release-Notiz](docs/releases/V1.5.47-HEBELTRADER-LOSS-PATH.md). Ein Softwaretag belegt weder die aktuelle Installation auf dem Nutzer-PC noch die vollständige Erfüllung sämtlicher ursprünglicher Roadmap-Ziele.
 
 **Aktueller Arbeitsstatus und Abnahmematrix:** [Product Backlog](docs/planning/PRODUCT_BACKLOG.md). Es ist die einzige maßgebliche Aufgabenstatusquelle. Hier steht bewusst keine zweite vollständige Feature-Statusliste.
 
