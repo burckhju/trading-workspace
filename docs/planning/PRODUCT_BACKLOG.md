@@ -1929,6 +1929,31 @@ historische Nachweise, keine erneute Implementierungsabhängigkeit.
 | Restarbeit / nächste Abhängigkeit | Verbleibendes **F207-2:** historische dokumentierte Stops, höherer vergleichbarer Schutzboden, Bekanntgabe und spätere Überwachung sowie explizite Korrekturklärung. **F207-3:** verifizierte historische Beschaffung/Bindungs-/Skalen-/Anpassungsevidenz, verifizierte produktbezogene Termine und feste Ausstiegslistingbindung, B05-Ereignis-/Fristbetrieb einschließlich produktspezifischer Schlussgrenze, Z1-Zählung und historische Trades zum Kauf. Die reine B05-Rückwärtszählung ist gesondert vorbereitet; die realen Originalkalender sind erreichbar, die aktuelle persönliche Product-Terminqualifikation bleibt offen. Für B04/B58 bleiben qualifizierte tatsächliche Quellenbeschaffung und belegte zeitliche Statussemantik zu schließen. Der preisunabhängige Statusowner (#351), der anschließende B04/B57-Regelpfad (#352) und der gesonderte B05-Rechenschnitt (#353) sind im beschriebenen Umfang in Main integriert. Der [reale Quellenbefund](../reviews/B58_SOURCE_QUALIFICATION_2026-11-17.md) nennt den tatsächlich geprüften ungeeigneten Frankfurt-Pfad und die präzise fehlende Lieferung. Der neue Originalstatus-Transport ist keine verifizierte Live-Versorgung; der neue Produktmaßstabsvertrag deckt nur tatsächlich dokumentierte unveränderte Originaleinheiten ab. Verifizierte Anpassungsfaktoren und ihre wirtschaftliche Anwendung bleiben offen; Originalseitenzeit, historische Währung, exakte 900-Sekunden-Grenze und dokumentierte 20. Sitzung zur BID-Zeit sind im neuen passiven Read getrennt prüfbar. Andere/ältere Quellen erhalten keine abgeleitete Original-BID-Zeit. Persönliche Einstandsprüfung und B04/B57-Verlustepisode sind im beschriebenen Teilumfang implementiert; die produktive Quellenqualifikation und Freigabe bleiben davor verbindlich. Dokumentierte Kalenderintervalle sind keine volle B58-Freigabe. **F207-5:** gemeinsame Meldungsdarstellung, gesehen/abgelehnt/ausgeführt, globale Versionierung, vollständiger Betriebsvertrag und getrennter PC-Betriebsnachweis. Der neue B04-Episoden-/Zustellanteil erfüllt diesen Gesamtumfang nicht. **Auslieferung:** Die neue ausdrückliche Freigabe umfasst Integration und versionierte PC-Bereitstellung. Der gemeinsame Versionsschnitt bereitet 1.5.47 mit regulären Releasegates und kontrolliertem Installationsweg vor; [Release-Notiz](../releases/V1.5.47-HEBELTRADER-LOSS-PATH.md). Tag-/Commitbezug und tatsächlicher PC-Betrieb werden getrennt belegt. `HEBELTRADER_SCOPE=DISABLED`, leere Produktivregistry und `B05_NOT_ACTIVATED` bleiben erhalten; bestehender Tag v1.5.46 wird nicht verschoben. Der [Integrationsvertrag zu #207](../features/HEBELTRADER_MONITORING_INTEGRATION_CONTRACT.md) erhält B01–B58 einschließlich Ausschluss B08 und eigenständigem B07; historische Einordnung und übrige Zusagen bleiben bestehen. Arbeitsstatus unverändert. |
 | Umfangsentscheidung | Bestehende unnummerierte Fähigkeit behalten; keine FT-Nummer erfinden. Frühere reine Underlying-EOD-Aussage nicht auf sämtliche spätere Regeln verallgemeinern. |
 
+**Quellen-/Implementierungsnachtrag 17.11.2026 nach Installation 1.5.47:**
+Main und Tag `v1.5.47` wurden auf
+`2d0c7b06476864d68deae67cbb7db41ad1b7376f` zurückgelesen. Der Nutzer meldete
+denselben installierten Commit, vier gesunde Container und `Bereitschaft: ready`;
+dies ist ein Nutzerbericht zur Installation, kein unabhängig beobachteter
+B58-Depotbetrieb. Die fortgesetzte [reale Quellenprüfung](../reviews/B58_ARIVA_ACQUISITION_2026-11-17.md)
+bestimmt das tatsächliche Frankfurt-Echtzeitprodukt über ARIVA; frei erreichbare
+Last-/Emittenten-/Aussetzungsdaten schließen die Statuszeitlücke weiterhin nicht.
+Der eigene, auf diesem Main aufbauende
+[Beschaffungsprüfer](../features/HEBELTRADER_MONITORING_INTEGRATION_CONTRACT.md#b58-ariva-acquisition-probe-v1)
+übernimmt gespeicherte ISINs automatisch, verwendet dokumentierte
+Client-Credentials-/Quellen-/Marketstate-/Listingrequests und erfasst echte
+Originalantworten, sobald ein berechtigter Evaluationszugang vorliegt. Keine
+zusätzliche UI, Migration, Daten-Neuerfassung oder produktive Providerfreigabe.
+Tests bleiben synthetisch mit abgefangenen externen Aufrufen; aktuelle
+Head-/Integrationsstand- und reguläre Gatebelege stehen im zugehörigen PR.
+Dieser neue Schnitt ist zunächst reviewfähig vorbereitet, nicht integriert oder
+auf dem PC installiert. **Nächste externe Abhängigkeit:** geeigneter erlaubter
+ARIVA-Evaluationszugang zu `XSC / REALTIME` **und** belegte Lieferung eigener
+Originalstatuszeit/-semantik, negativer/preisloser Ereignisse, Lücken/Recovery
+und Nutzungsrecht. Ein konkreter unverbindlicher Anfrageentwurf ist vorbereitet,
+aber nicht versendet. API-Zugang allein genügt nicht. `QUALIFIED_B58_PATHS=()`
+und `HEBELTRADER_SCOPE=DISABLED` bleiben bestehen; B05, B06 und F207-5 behalten
+ihre oben genannten Restarbeiten. Arbeitsstatus des Gesamtumfangs unverändert.
+
 </details>
 
 
