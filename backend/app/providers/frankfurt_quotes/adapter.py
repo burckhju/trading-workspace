@@ -234,6 +234,7 @@ class FrankfurtWarrantQuoteAdapter:
                 max_quote_age_seconds=self.settings.max_quote_age_seconds,
                 refresh_error=observation.refresh_error,
                 original_evidence=observation.original_evidence,
+                original_market_status=observation.original_market_status,
             )
         return MarketDataResult(
             data=quote,

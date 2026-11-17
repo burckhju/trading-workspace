@@ -3,6 +3,9 @@
 from dataclasses import replace
 
 from app.features.market_data.domain.risk_evidence import SavedQuoteEvidence
+from app.features.position_monitoring.domain.hebeltrader_live_market_status import (
+    LiveMarketStatusAssessment,
+)
 from app.features.position_monitoring.domain.hebeltrader_original_bid import (
     DocumentedSessionMatch,
     OriginalBidAssessment,
@@ -15,7 +18,9 @@ from app.features.position_monitoring.service.hebeltrader_original_bid_contracts
     ProductSessionPrerequisites,
     UnderlyingSessionsAtBid,
 )
-from app.features.position_monitoring.service.hebeltrader_sessions import REASONS as SESSION_REASONS
+from app.features.position_monitoring.service.hebeltrader_sessions import (
+    REASONS as SESSION_REASONS,
+)
 from app.features.trade_position.service.valuation_basis import PositionValuationBasis
 
 REASONS = {
@@ -103,6 +108,46 @@ REASONS = {
         "Der betreffende Zeitpunkt liegt außerhalb der vollständig dokumentierten "
         "Produkt-Handelsintervalle."
     ),
+    "MARKET_STATUS_SAVED_QUOTE_MISSING": (
+        "Ohne passenden gespeicherten Kurs liegt auch kein zugeordneter Statusbeleg vor."
+    ),
+    "MARKET_STATUS_VALUE_MISSING_OR_UNKNOWN": (
+        "Der gespeicherte Quellenstatus fehlt oder ist ausdrücklich unbekannt."
+    ),
+    "MARKET_STATUS_SOURCE_REPORTED_NOT_OPEN": (
+        "Die gespeicherte Quelle meldet CLOSED oder SUSPENDED. Dieser Beleg bestätigt "
+        "keinen offenen Markt; daraus folgt keine Aussage, ob das Instrument jetzt geschlossen ist."
+    ),
+    "MARKET_STATUS_VALUE_UNSUPPORTED": (
+        "Der gespeicherte Statuswert ist nicht als unterstützte Öffnungsaussage definiert."
+    ),
+    "MARKET_STATUS_ORIGINAL_TIME_MISSING": (
+        "Eine eigene Originalstatuszeit fehlt. Preis-, Quellgenerierungs- und Abrufzeit "
+        "dürfen sie nicht ersetzen."
+    ),
+    "MARKET_STATUS_BINDING_OR_PROVENANCE_INVALID": (
+        "Originalstatus, Instrument, Handelsplatz oder gespeicherte Quellenbindung widersprechen "
+        "sich oder sind nicht vollständig belegt."
+    ),
+    "MARKET_STATUS_SOURCE_TIME_INCONSISTENT": (
+        "Originalstatuszeit, Quellgenerierung, Abruf und gemeinsamer Lesestand "
+        "sind widersprüchlich."
+    ),
+    "MARKET_STATUS_POINT_IS_NOT_VALIDITY_INTERVAL": (
+        "Die Originalstatuszeit ist eine Punktbeobachtung und belegt kein Öffnungsintervall "
+        "an der Geldkurszeit oder am späteren Lesestand. Auch ein zeitlich gleicher Punkt "
+        "ist noch keine qualifizierte Live-Aussage."
+    ),
+    "MARKET_STATUS_SOURCE_SEMANTICS_NOT_VERIFIED": (
+        "Ein unabhängig belegter Quellenvertrag für Bedeutung und zeitliche Gültigkeit "
+        "des Instrumentstatus fehlt. Eine passende Datenstruktur oder Providerkonfiguration "
+        "bestätigt ihn nicht."
+    ),
+    "MARKET_STATUS_NEWER_OBSERVATIONS_NOT_COVERED": (
+        "Der gelesene letzte Kurserfolg enthält keinen vollständigen Nachweis späterer "
+        "Statusmeldungen oder Abrufversuche. Eine neuere Meldung ohne geeigneten Preis "
+        "kann fehlen; ältere OPEN-Angaben gelten deshalb nicht automatisch weiter."
+    ),
 }
 
 UNSUITABLE_REASONS = {
@@ -154,6 +199,7 @@ def input_checks(
     product: ProductSessionPrerequisites,
     underlying: UnderlyingSessionsAtBid,
     product_price_scale: ProductPriceScaleAssessment,
+    live_market_status: LiveMarketStatusAssessment,
     applicable: bool,
 ) -> tuple[OriginalBidCheck, ...]:
     held = OriginalBidCheck(
@@ -231,7 +277,7 @@ def input_checks(
             "SATISFIED" if count.threshold_reached else "NOT_REACHED",
             f"Zur Original-Geldkurszeit waren {count.completed_sessions} dokumentierte "
             "Basiswertsitzungen nach Tag 0 abgeschlossen. Spätere Sitzungsschlüsse zählen nicht.",
-            () if count.threshold_reached else ("TWENTIETH_SESSION_NOT_COMPLETED_AT_BID",),
+            (() if count.threshold_reached else ("TWENTIETH_SESSION_NOT_COMPLETED_AT_BID",)),
         )
     else:
         reasons = count.reasons if count is not None else bid.reasons
@@ -252,7 +298,9 @@ def input_checks(
             product.at_bid,
         ),
         _session_check(
-            "PRODUCT_SESSION_AT_READ", "Dokumentierte Produktsitzung zum Lesestand", product.at_read
+            "PRODUCT_SESSION_AT_READ",
+            "Dokumentierte Produktsitzung zum Lesestand",
+            product.at_read,
         ),
         sessions,
         OriginalBidCheck(
@@ -275,12 +323,10 @@ def input_checks(
         ),
         OriginalBidCheck(
             "VERIFIED_LIVE_MARKET_STATUS",
-            "Verifizierte offene Produktsitzung",
-            "MISSING",
-            "Ein zeitlich zugeordneter unabhängiger Nachweis der geöffneten Produktsitzung "
-            "fehlt. Importierte Kalenderintervalle und der Quelltext zum Handelsstatus "
-            "ersetzen diesen Nachweis nicht.",
-            ("VERIFIED_LIVE_PRODUCT_SESSION_MISSING",),
+            "Verifizierter Produktmarktstatus",
+            live_market_status.status,
+            details(live_market_status.reasons),
+            live_market_status.reasons,
         ),
     )
     if applicable:

@@ -4,6 +4,7 @@ import asyncio
 import base64
 import hashlib
 import json
+from copy import deepcopy
 from dataclasses import replace
 from datetime import UTC, datetime, time, timedelta
 from decimal import Decimal
@@ -37,6 +38,9 @@ from app.features.market_data.domain.enums import (
     QualityStatus,
 )
 from app.features.market_data.domain.models import WarrantQuoteSnapshot
+from app.features.market_data.domain.original_market_status_evidence import (
+    OriginalMarketStatusEvidence,
+)
 from app.features.market_data.domain.original_quote_evidence import (
     OriginalQuoteEvidence,
     OriginalQuoteSideEvidence,
@@ -50,8 +54,9 @@ from app.features.market_data.persistence.position_quote_source import (
     PositionQuoteSourceSelectionRepository,
 )
 from app.features.market_data.service.position_quote_source import PositionQuoteSourceSelector
+from app.features.market_data.service.retained_quotes import RetainedWarrantQuoteProvider
 from app.features.market_data.service.risk_read import RiskMarketDataReader
-from app.features.market_data.service.types import MarketDataResult
+from app.features.market_data.service.types import MarketDataResult, WarrantQuoteRequest
 from app.features.position_monitoring.service import hebeltrader_original_bid as monitoring
 from app.features.product.persistence.models import WarrantModel
 
@@ -380,7 +385,7 @@ def test_actual_last_success_restart_scopes_and_read_only_snapshot_without_histo
 
             monkeypatch.setattr(monitoring, "read_hebeltrader_monitoring_basis", checked_owner)
             endpoint = f"/api/v1/position-monitoring/trades/{trade}/hebeltrader-original-bid"
-            async with _client(quote_database) as (client, _):
+            async with _client(quote_database) as (client, database):
                 response = await client.get(endpoint, params={"position_id": str(position)})
                 assert response.status_code == 200, response.text
                 partial = response.json()
@@ -404,6 +409,12 @@ def test_actual_last_success_restart_scopes_and_read_only_snapshot_without_histo
                 assert partial["read_status"] == "READ_ONLY"
                 assert partial["operation_status"] == "NOT_ACTIVATED"
                 assert partial["rule_evaluation_status"] == "B04_B05_B06_B58_NOT_EVALUATED"
+                legacy_status = partial["live_market_status"]
+                assert legacy_status["reported_status"] == "OPEN"
+                assert legacy_status["original_evidence"] is None
+                assert legacy_status["status"] == "MISSING"
+                assert legacy_status["at_bid"]["relation"] == "NO_ORIGINAL_STATUS_TIME"
+                assert legacy_status["at_read"]["relation"] == "NO_ORIGINAL_STATUS_TIME"
                 for path, target_position in (
                     (endpoint, foreign_position),
                     (
@@ -489,6 +500,217 @@ def test_actual_last_success_restart_scopes_and_read_only_snapshot_without_histo
                 assert documented["operation_status"] == "NOT_ACTIVATED"
                 assert documented["saved_quote"]["provenance"]["stored_at"] is None
                 assert await _state(engine) == after_imports
+
+                # Persist a separately timed source status through the real price
+                # owner, then read it from fresh sessions and the production API.
+                source = original.data.original_evidence
+                status_at = source.bid.observed_at
+                status = OriginalMarketStatusEvidence(
+                    version="original-market-status-evidence-v1",
+                    source_contract=source.source_contract,
+                    source_reference=source.source_reference,
+                    generated_at=source.generated_at,
+                    isin=source.isin,
+                    venue_mic=source.venue_mic,
+                    status="OPEN",
+                    original_status_text="OPEN",
+                    source_status_field="trading_status",
+                    observed_at=status_at,
+                    original_time_text=status_at.astimezone(ZoneInfo("Europe/Berlin")).isoformat(),
+                    source_time_field="status_observed_at",
+                )
+                with_status = replace(
+                    original, data=replace(original.data, original_market_status=status)
+                )
+                upstream = Mock()
+                upstream.get_warrant_listing_quote = AsyncMock(return_value=with_status)
+                retained = RetainedWarrantQuoteProvider(
+                    database, upstream, MarketDataProvider.FRANKFURT_QUOTES
+                )
+                request = WarrantQuoteRequest(
+                    UUID(WORKSPACE), listing, uuid4(), now, expected_currency="EUR"
+                )
+                assert await retained.get_warrant_listing_quote(request) == with_status
+                upstream.get_warrant_listing_quote.assert_awaited_once_with(request)
+                status_payload = RESULT.dump_python(with_status, mode="json")
+                after_status = await _state(engine)
+                status_snapshot = await read(pending_edit=True)
+                assert await read() == status_snapshot
+                assert status_snapshot.quote.original_market_status == status
+                assert first.quote.original_market_status is None
+                assert (
+                    status_snapshot.provenance.raw_payload_fingerprint
+                    != first.provenance.raw_payload_fingerprint
+                )
+                response = await client.get(endpoint, params={"position_id": str(position)})
+                assert response.status_code == 200, response.text
+                reported = response.json()
+                live = reported["live_market_status"]
+                assert reported["implementation_status"] == "F207_3_MARKET_STATUS_EVIDENCE_ONLY"
+                assert live["definition_version"] == "hebeltrader-live-market-status-v1"
+                assert live["status"] == "MISSING" and live["reported_status"] == "OPEN"
+                assert live["original_evidence"] == status_payload["data"]["original_market_status"]
+                assert live["at_bid"]["relation"] == "AT_SOURCE_POINT"
+                assert live["at_read"]["relation"] == "AFTER_SOURCE_POINT"
+                assert live["at_bid"]["status"] == live["at_read"]["status"] == "NOT_ASSESSABLE"
+                assert live["evidence_scope"] == "SAVED_QUOTE_LAST_SUCCESS_ONLY"
+                assert live["source_qualification"] == "NOT_INDEPENDENTLY_VERIFIED"
+                assert live["status_validity_interval"] == "NOT_ESTABLISHED"
+                assert live["newer_status_observations"] == "NOT_OBSERVED_BY_SAVED_QUOTE_READER"
+                assert {
+                    "MARKET_STATUS_POINT_IS_NOT_VALIDITY_INTERVAL",
+                    "MARKET_STATUS_SOURCE_SEMANTICS_NOT_VERIFIED",
+                    "MARKET_STATUS_NEWER_OBSERVATIONS_NOT_COVERED",
+                }.issubset(live["reasons"])
+                assert reported["coverage_status"] == "PARTIAL"
+                assert reported["rule_evaluation_status"] == "B04_B05_B06_B58_NOT_EVALUATED"
+                assert reported["operation_status"] == "NOT_ACTIVATED"
+                assert await _state(engine) == after_status
+
+                async def replace_payload(value):
+                    # Deliberately damaged stored JSON only in this guarded DB;
+                    # this is not an application write path or a recovery action.
+                    async with sessions() as session:
+                        await session.execute(
+                            update(WarrantQuoteObservationModel)
+                            .where(
+                                WarrantQuoteObservationModel.workspace_id == UUID(WORKSPACE),
+                                WarrantQuoteObservationModel.warrant_listing_id == listing,
+                                WarrantQuoteObservationModel.provider
+                                == MarketDataProvider.FRANKFURT_QUOTES.value,
+                            )
+                            .values(payload=value)
+                        )
+                        await session.commit()
+
+                # The actual typed saved reader rejects foreign scope, source
+                # revisions, contradictory status and invented/unknown clocks.
+                for field, invalid in (
+                    ("isin", "DE000CD00001"),
+                    ("venue_mic", "XSTU"),
+                    ("source_contract", "unrelated-source-v2"),
+                    ("source_reference", "Synthetic different source revision"),
+                    ("original_status_text", "CLOSED"),
+                    ("original_time_text", status_at.replace(tzinfo=None).isoformat()),
+                ):
+                    damaged = deepcopy(status_payload)
+                    damaged["data"]["original_market_status"][field] = invalid
+                    await replace_payload(damaged)
+                    rejected = await read()
+                    assert rejected.quote is None, field
+                    assert rejected.reason == "SAVED_QUOTE_PAYLOAD_INVALID", field
+
+                # Equality at the actual read clock is allowed; one microsecond
+                # before retrieval is not. No grace period or status TTL exists.
+                boundary = deepcopy(status_payload)
+                for key in ("original_evidence", "original_market_status"):
+                    boundary["data"][key]["generated_at"] = now.isoformat()
+                boundary["data"]["original_market_status"].update(
+                    observed_at=now.isoformat(), original_time_text=now.isoformat()
+                )
+                await replace_payload(boundary)
+                assert (await read()).quote.original_market_status.observed_at == now
+                assert (await read(as_of=now - timedelta(microseconds=1))).quote is None
+                future = deepcopy(boundary)
+                # With no separate price-side envelope, only the newly added
+                # original-status clock guard can reject this future generation.
+                future["data"]["original_evidence"] = None
+                future["data"]["original_market_status"]["generated_at"] = (
+                    now + timedelta(microseconds=1)
+                ).isoformat()
+                await replace_payload(future)
+                assert (await read()).reason == "SAVED_QUOTE_IDENTITY_OR_TIME_INVALID"
+                await replace_payload(status_payload)
+                assert await _state(engine) == after_status
+
+                # A later CLOSED observation without a valid price is not a new
+                # last-success. Exercise the real retention owner: its returned
+                # fallback marks the error, while this passive saved-price read
+                # cannot see that later attempt or claim a current OPEN market.
+                closed_at = datetime.now(UTC)
+                closed = replace(
+                    status,
+                    generated_at=closed_at,
+                    observed_at=closed_at,
+                    original_time_text=closed_at.isoformat(),
+                    status="CLOSED",
+                    original_status_text="CLOSED",
+                )
+                status_only = replace(
+                    with_status,
+                    retrieved_at=closed_at,
+                    data=replace(
+                        with_status.data,
+                        bid=None,
+                        ask=None,
+                        observed_at=closed_at,
+                        trading_status="CLOSED",
+                        original_evidence=None,
+                        original_market_status=closed,
+                    ),
+                )
+                upstream.get_warrant_listing_quote.reset_mock()
+                upstream.get_warrant_listing_quote.return_value = status_only
+                request = replace(request, correlation_id=uuid4(), as_of=closed_at)
+                fallback = await retained.get_warrant_listing_quote(request)
+                upstream.get_warrant_listing_quote.assert_awaited_once_with(request)
+                assert fallback.data.retained
+                assert fallback.data.refresh_error == "WARRANT_QUOTE_NOT_VALIDATED"
+                assert fallback.data.original_market_status == status
+                assert fallback.retrieved_at == original.retrieved_at
+                after_attempt = await _state(engine)
+                saved_again = await read(as_of=closed_at)
+                assert saved_again.quote.original_market_status == status
+                assert saved_again.quote.refresh_error is None
+                assert (
+                    saved_again.provenance.raw_payload_fingerprint
+                    == status_snapshot.provenance.raw_payload_fingerprint
+                )
+                response = await client.get(endpoint, params={"position_id": str(position)})
+                assert response.status_code == 200, response.text
+                live_after_attempt = response.json()["live_market_status"]
+                assert live_after_attempt["status"] == "MISSING"
+                assert live_after_attempt["reported_status"] == "OPEN"
+                assert live_after_attempt["original_evidence"] == live["original_evidence"]
+                assert (
+                    live_after_attempt["newer_status_observations"]
+                    == "NOT_OBSERVED_BY_SAVED_QUOTE_READER"
+                )
+                assert live_after_attempt["status_validity_interval"] == "NOT_ESTABLISHED"
+                assert all(
+                    item["status"] != "SATISFIED"
+                    for item in response.json()["checks"]
+                    if item["key"] == "VERIFIED_LIVE_MARKET_STATUS"
+                )
+                assert await _state(engine) == after_attempt
+
+                # A priced CLOSED point can be stored by the existing price
+                # owner. It is unsuitable OPEN evidence, not a claim that the
+                # market remained closed up to this later passive read.
+                priced_closed = replace(
+                    with_status,
+                    retrieved_at=closed_at,
+                    data=replace(
+                        with_status.data,
+                        trading_status="CLOSED",
+                        original_evidence=replace(source, generated_at=closed_at),
+                        original_market_status=closed,
+                    ),
+                )
+                upstream.get_warrant_listing_quote.return_value = priced_closed
+                assert await retained.get_warrant_listing_quote(request) == priced_closed
+                after_priced_closed = await _state(engine)
+                response = await client.get(endpoint, params={"position_id": str(position)})
+                assert response.status_code == 200, response.text
+                closed_report = response.json()["live_market_status"]
+                assert closed_report["status"] == "UNSUITABLE"
+                assert closed_report["reported_status"] == "CLOSED"
+                assert "MARKET_STATUS_SOURCE_REPORTED_NOT_OPEN" in closed_report["reasons"]
+                assert closed_report["at_bid"]["relation"] == "BEFORE_SOURCE_POINT"
+                assert closed_report["at_read"]["relation"] == "AFTER_SOURCE_POINT"
+                assert closed_report["at_read"]["status"] == "NOT_ASSESSABLE"
+                assert closed_report["status_validity_interval"] == "NOT_ESTABLISHED"
+                assert await _state(engine) == after_priced_closed
 
             # This existing table is intentionally mutable. New payload replaces
             # the last-success, while a previously returned snapshot stays intact.

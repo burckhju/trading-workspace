@@ -1,6 +1,6 @@
 # Hebeltrader-Positionsmeldungen: Integrationsvertrag zu #207
 
-**Additiver Stand 15.11.2026:** Der historische F207-1-Abgleich bleibt erhalten.
+**Additiver Stand 16.11.2026:** Der historische F207-1-Abgleich bleibt erhalten.
 Der [Evidenzschnitt F207-4](#f207-4-evidence-read) wurde mit
 [PR #344](https://github.com/burckhju/trading-workspace/pull/344) auf Main
 `e6738c291b0701d00cce20a370aba7496a9f24d0` integriert. Die
@@ -17,6 +17,11 @@ Der begrenzte [Zielhistorien-Schnitt F207-2](#f207-2-target-history) wurde mit
 Der anschließende [Original-Geldkurs-Schnitt](#f207-3-original-bid-evidence)
 baut ausdrücklich auf dessen Head `093e97899fd35a1f8f508518ebe606fad8e2e237`
 auf; dessen Inhalt ist identisch mit dem inzwischen integrierten Main-Tree.
+Der [Originalstatus-Anschluss](#f207-3-market-status-evidence) baut auf den noch
+offenen Drafts [#348](https://github.com/burckhju/trading-workspace/pull/348) und
+[#349](https://github.com/burckhju/trading-workspace/pull/349) auf. Er erhält
+ausdrückliche Statuspunktbelege und erklärt ihre Grenzen im vorhandenen Read;
+eine qualifizierte aktuelle Statusversorgung ist weiterhin nicht belegt.
 Aufgabenstatus bleibt ausschließlich im Product Backlog; vollständige Baseline,
 Regelaktivierung und Betrieb werden dadurch nicht als abgeschlossen erklärt.
 
@@ -1822,3 +1827,117 @@ Produkttermine/B05, Z1-bezogene B06-Zählung und historische Basiswert-Trades bl
 weitere F207-3-Teile; F207-2 benötigt Schutz-/Korrekturverträge, F207-5 den Regel-/
 Meldungs-/Zustelllebenszyklus. Kein produktiver Provider, Release, PC-Update,
 echte Nachricht oder produktive Datenkorrektur folgt aus diesem Anschluss.
+
+<a id="f207-3-market-status-evidence"></a>
+## F207-3: Originalstatusbelege und getrennte zeitliche Aussagen
+
+### Abgegrenzter Nutzen und tatsächliche Grundlage
+
+Dieser Schnitt ersetzt den bisher pauschalen Hinweis auf fehlenden Live-Marktstatus
+durch einen nachvollziehbaren Befund zur tatsächlich gespeicherten Quellenmeldung.
+Der bestehende Original-Geldkurs-GET zeigt eigenen Originalstatuszeitpunkt,
+Quellenfeld und unveränderten Originalzeittext, soweit diese ausdrücklich geliefert
+wurden. Er stellt den Bezug zur Original-BID-Zeit und zum Serverlesestand getrennt dar.
+
+Geprüfte Grundlage ist Main `19a10ad484293995e200b5eb9a99b4ae11a49ee2` mit
+integriertem #347. Der Arbeitsbranch setzt auf #349-Head
+`c258101a490353468bd03a7bf0b531fa0a43b727` auf; #348 und #349 sind bei dieser
+Bestandsprüfung noch offene Draft-Abhängigkeiten. Deren Arbeiten bleiben erhalten.
+Es gibt keine neue Migration: einziger Head weiterhin `20261116_0053` aus #349.
+
+**Kein bestehender Quellenpfad ist damit als B58-tauglicher Live-Marktstatus
+qualifiziert.** Frankfurt besitzt bislang einen normalisierten `trading_status`
+ohne eigene Statuszeit, Vontobel `tradingHours.isOpen` ohne Statuszeit und ohne
+belegte zeitliche Bedeutung. Die öffentliche Frankfurt-Website liefert an diesem
+Pfad Last/Previous Close und keinen tatsächlichen Instrumentstatus. Preis-,
+Generierungs- und Abrufzeiten sind keine Ersatzstatuszeiten.
+
+### Originalfakt beim bestehenden Market-Data-Owner
+
+`WarrantQuoteSnapshot.original_market_status` ist ein optionaler
+`original-market-status-evidence-v1`-Beleg. Er enthält Quellvertrag/-referenz,
+Quellgenerierung, ISIN/MIC, Status `OPEN | CLOSED | SUSPENDED | UNKNOWN`, dessen
+Originaltext/Quellenfeld sowie die eigene Originalzeit in UTC mit unverändertem
+Zeittext und eigenem Quellenfeld. Seine ausdrückliche zeitliche Bedeutung ist
+ausschließlich `OBSERVED_AT_INSTANT`; `SEPARATE_STATUS_TIMESTAMP` bezeichnet die
+eigene Statusuhr. Ein Beleg ohne diese Originalzeit wird nicht erfunden.
+
+Der bestehende **anwendungseigene, vendor-neutrale** Frankfurt-Importvertrag
+`frankfurt-quotes-v1` erhält dafür das optionale Feld `status_observed_at`.
+Nur ein tatsächlicher ISO-Datum/Zeit-String mit explizitem Offset wird übernommen;
+Epoch-Zahlen, datumgenaue oder zeitzonenlose Werte sind unzulässig. Fehlt das Feld,
+bleibt das neue Objekt `null`; der vorhandene `trading_status` bleibt erhalten.
+Das ist keine Behauptung, dass ein konkreter Anbieter dieses Feld bereits liefert.
+
+Status, Instrument und MIC müssen zum Snapshot passen. Wenn beide Originalbelege
+vorliegen, müssen Status- und Preisbeleg dieselbe Quellhülle benennen. Es gilt
+`Originalstatuszeit <= Quellgenerierung <= Abruf <= gemeinsamer Lesestand`.
+Eine neue Quelle, `source_contract`, strukturelle Validierung oder die bestehende
+Konfiguration `contract_verified` verifiziert keine neue Statussemantik.
+
+Die vorhandenen JSON-Stores, Retention und Samples erhalten das additive Objekt.
+Ohne Objekt wird das neue `None`-Feld vor Samplehashing entfernt; bestehende
+Payload-/Sampleidentitäten und historische Belege bleiben erhalten. Es entsteht
+keine zweite Kurs- oder Statushistorie und keine geänderte Samplepolitik.
+
+### Passiver Consumer und ausdrücklich nicht belegte Gültigkeit
+
+Der vorhandene Positions-GET ergänzt `live_market_status` im selben
+`REPEATABLE READ READ ONLY`-Snapshot. Der Befund ist vollständig in `basis_id`
+enthalten. Er übernimmt denselben gespeicherten Kurs und führt keinen zusätzlichen
+Provideraufruf, Import, Autoflush, Commit, Assessment oder Zustellvorgang aus.
+
+| Read-Feld | Aussage |
+| --- | --- |
+| `reported_status`, `original_evidence` | Unveränderte gespeicherte Quellenmeldung und optionaler eigener Originalbeleg. |
+| `at_bid`, `at_read` | Vergleich des jeweiligen expliziten Ereigniszeitpunkts mit dem Statuspunkt: davor, zeitgleich, danach oder ohne Original-/Ereigniszeit. Selbst `AT_SOURCE_POINT` bleibt `NOT_ASSESSABLE` hinsichtlich einer qualifizierten Marktöffnung. |
+| `source_qualification` | `NOT_INDEPENDENTLY_VERIFIED`: kein unabhängiger Quellenvertrag für Statusbedeutung und zeitliche Gültigkeit. |
+| `status_validity_interval` | `NOT_ESTABLISHED`: kein erfundenes Öffnungsintervall und keine Status-TTL. |
+| `evidence_scope` | `SAVED_QUOTE_LAST_SUCCESS_ONLY`: weiterhin der veränderliche letzte gespeicherte Kurserfolg. |
+| `newer_status_observations` | `NOT_OBSERVED_BY_SAVED_QUOTE_READER`: spätere Statusmeldungen und Abrufausgänge sind durch diesen Read nicht vollständig erfasst. |
+
+Die **900 Sekunden gehören ausschließlich zum BID-Kursalter**. Ein Statuspunkt
+wird weder rückwärts zur BID-Zeit noch vorwärts bis zum Lesestand fortgeschrieben.
+Die zwei Zeitpunkte bleiben getrennt; daraus wird auch keine neue Forderung nach
+durchgehender Öffnung zwischen ihnen oder einem BID nach Wiedereröffnung abgeleitet.
+
+Die vorhandene Preis-Retention kann einen späteren `CLOSED`-/`SUSPENDED`-Befund
+ohne geeigneten BID zugunsten des älteren Kurserfolgs verwerfen. Auch der erste
+Capture pro Fünf-Minuten-Slot ist kein vollständiger Statusstrom. Der neue Read
+behauptet weder, diesen jüngeren Befund zu kennen, noch, es habe keinen gegeben.
+Ein alter `OPEN` erhält durch einen späteren Abruf keine neue Originalzeit.
+
+`VERIFIED_LIVE_MARKET_STATUS` bleibt einer der acht bestehenden Checks. Er ist
+`MISSING` bei unbelegter Öffnung beziehungsweise `UNSUITABLE` bei widersprüchlichem
+Beleg, nicht unterstütztem Status oder gespeicherter `CLOSED`-/`SUSPENDED`-Meldung.
+Letzteres bedeutet **ungeeigneter Offen-Beleg, nicht nachweislich jetzt geschlossen**.
+Er wird in diesem Schnitt niemals `SATISFIED`. Geschlossene/stornierte Positionen
+erhalten weiterhin `NOT_APPLICABLE`.
+
+`F207_3_MARKET_STATUS_EVIDENCE_ONLY` benennt den zusätzlichen implementierten
+Vertrag. `B04_B05_B06_B58_NOT_EVALUATED`, `NOT_ACTIVATED` und `READ_ONLY` bleiben
+erhalten. Die UI konsumiert denselben GET, bindet Belege an Position, Kursroute,
+Status und beide Zeitpunkte und erhält bestehende Entwürfe/A→B→A-Schutz.
+Legacyantworten behalten ihren engeren Vertrag; der neue Implementierungsstatus
+verlangt die vollständigen zusätzlichen Maßstabs- und Statusbefunde.
+
+### Nachweise und nächste tatsächliche Abhängigkeit
+
+Gezielte Tests prüfen Originaltext/Offset/DST, strikte Zeitformate, Instrument-/
+Quellhüllenbindung, fehlende und unbekannte Statuswerte, Punktvergleich ohne
+900-Sekunden-TTL, unveränderte alte Samplehashes und originale Retention nach
+Neustart. Ein späterer negativer Status ohne geeigneten Preis darf keine positive
+Live-Qualifikation des alten `OPEN` erzeugen. Echte PostgreSQL- und API-Prüfungen
+verwenden bewachte synthetische Wegwerfdatenbanken und abgefangene externe Aufrufe.
+Lesen bleibt ohne Änderung wirtschaftlicher Fakten; UI-Tests erhalten bestehende
+Eingaben und verhindern vermischte Belege bei verspäteten Antworten.
+Reguläre Ergebnisse stehen am geprüften Head/Testmerge im zugehörigen Draft-PR.
+
+Für eine positive B58-Qualifikation fehlen weiterhin ein tatsächlich belegter
+instrumentbezogener Quellvertrag mit geeigneter Originalstatuszeit und zeitlicher
+Aussage sowie ein Ownerpfad, der auch negative/status-only Beobachtungen unabhängig
+vom Preis erhält. Vorhandene Konfiguration, Kalender oder eine neue DTO-Form
+ersetzen diese Nachweise nicht. B04/B57, Produktfristen/B05, Z1-Zählung/B06,
+historische Basiswert-Trades und die F207-2-/F207-5-Reste bleiben getrennt offen.
+Eine produktive Quellenaktivierung oder Änderung bestehender Zustimmungen folgt
+aus diesem Anschluss nicht.

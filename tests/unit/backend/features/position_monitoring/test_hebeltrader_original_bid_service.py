@@ -11,7 +11,9 @@ from uuid import UUID
 import pytest
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
-from tests.unit.backend.features.position_monitoring import test_hebeltrader_original_bid as bids
+from tests.unit.backend.features.position_monitoring import (
+    test_hebeltrader_original_bid as bids,
+)
 from tests.unit.backend.features.position_monitoring import (
     test_hebeltrader_product_price_scale as scales,
 )
@@ -21,7 +23,12 @@ from tests.unit.backend.features.position_monitoring import (
 from tests.unit.backend.features.position_monitoring import (
     test_hebeltrader_target_projection as projection,
 )
-from tests.unit.backend.features.trade_position import test_hebeltrader_coverage as executions
+from tests.unit.backend.features.position_monitoring.test_hebeltrader_live_market_status import (
+    with_status,
+)
+from tests.unit.backend.features.trade_position import (
+    test_hebeltrader_coverage as executions,
+)
 
 from app.core.exceptions import ApplicationError
 from app.features.market_data.domain.risk_evidence import SavedQuoteEvidence
@@ -137,7 +144,7 @@ def context(monkeypatch, case):
                 state.owner.coverage.underlying_id if kind == "UNDERLYING" else route.warrant_id
             ),
             known_at=NOW,
-            expected_listing_id=None if kind == "UNDERLYING" else route.warrant_listing_id,
+            expected_listing_id=(None if kind == "UNDERLYING" else route.warrant_listing_id),
         )
         return state.calendars[kind]
 
@@ -215,7 +222,11 @@ def checks(report):
 
 async def test_exact_original_bid_read_keeps_all_owners_and_open_gaps_distinct(context):
     before = deepcopy(
-        (asdict(context.state.owner), asdict(context.state.saved), context.state.calendars)
+        (
+            asdict(context.state.owner),
+            asdict(context.state.saved),
+            context.state.calendars,
+        )
     )
     report = await context.reader.read(**context.scope)
     observed = report.saved_quote.quote.observed_at
@@ -242,7 +253,12 @@ async def test_exact_original_bid_read_keeps_all_owners_and_open_gaps_distinct(c
         if key not in {"PRICE_SCALE", "VERIFIED_LIVE_MARKET_STATUS"}
     )
     assert report.coverage_status == "PARTIAL"
-    assert report.implementation_status == "F207_3_PRODUCT_PRICE_SCALE_EVIDENCE_ONLY"
+    assert report.implementation_status == "F207_3_MARKET_STATUS_EVIDENCE_ONLY"
+    assert report.live_market_status.reported_status == "OPEN"
+    assert report.live_market_status.original_evidence is None
+    assert report.live_market_status.at_bid.event_at == report.bid.original_bid_at
+    assert report.live_market_status.at_read.event_at == NOW
+    assert report.live_market_status.at_read.status == "NOT_ASSESSABLE"
     assert report.rule_evaluation_status == "B04_B05_B06_B58_NOT_EVALUATED"
     assert report.operation_status == "NOT_ACTIVATED"
     assert report.read_status == "READ_ONLY"
@@ -260,7 +276,9 @@ async def test_exact_original_bid_read_keeps_all_owners_and_open_gaps_distinct(c
     sessions.assert_passive_snapshot(context)
 
 
-async def test_partial_sale_and_rebuy_use_existing_cost_contributions_and_entry(context):
+async def test_partial_sale_and_rebuy_use_existing_cost_contributions_and_entry(
+    context,
+):
     basis = context.state.owner.execution_basis
     assert [fact.side for fact in basis.effective_executions] == [
         ExecutionSide.BUY,
@@ -279,7 +297,9 @@ async def test_partial_sale_and_rebuy_use_existing_cost_contributions_and_entry(
     assert report.economic_basis.basis_id == basis.valuation_basis.basis_id
 
 
-async def test_documented_product_scale_closes_only_its_input_gap_and_reuses_same_snapshot(context):
+async def test_documented_product_scale_closes_only_its_input_gap_and_reuses_same_snapshot(
+    context,
+):
     missing = await context.reader.read(**context.scope)
     context.state.price_scale = scales.scale_evidence()
     report = await context.reader.read(**context.scope)
@@ -299,6 +319,85 @@ async def test_documented_product_scale_closes_only_its_input_gap_and_reuses_sam
     assert all(call.args == (context.session,) for call in context.scale_factory.call_args_list)
     context.session.commit.assert_not_awaited()
     context.session.flush.assert_not_called()
+
+
+async def test_status_point_clarifies_remaining_gap_without_qualifying_an_otherwise_complete_read(
+    context,
+):
+    context.state.price_scale = scales.scale_evidence()
+    old = await context.reader.read(**context.scope)
+    context.state.saved = with_status(context.state.saved)
+    report = await context.reader.read(**context.scope)
+    status = report.live_market_status
+    assert status.original_evidence is context.state.saved.quote.original_market_status
+    assert status.at_bid.event_at == report.bid.original_bid_at
+    assert status.at_bid.relation == "AT_SOURCE_POINT"
+    assert status.at_read.event_at == report.read_started_at
+    assert status.at_read.relation == "AFTER_SOURCE_POINT"
+    assert status.at_bid.status == status.at_read.status == "NOT_ASSESSABLE"
+    assert checks(report)["VERIFIED_LIVE_MARKET_STATUS"].reasons == status.reasons
+    assert checks(report)["VERIFIED_LIVE_MARKET_STATUS"].status == "MISSING"
+    assert all(
+        check.status == "SATISFIED"
+        for check in report.checks
+        if check.key != "VERIFIED_LIVE_MARKET_STATUS"
+    )
+    assert "Punktbeobachtung" in checks(report)["VERIFIED_LIVE_MARKET_STATUS"].detail
+    assert "späterer" in checks(report)["VERIFIED_LIVE_MARKET_STATUS"].detail
+    assert report.coverage_status == "PARTIAL"
+    assert report.economic_basis is old.economic_basis
+    assert report.basis_id != old.basis_id
+    assert report.operation_status == "NOT_ACTIVATED"
+    assert report.rule_evaluation_status == "B04_B05_B06_B58_NOT_EVALUATED"
+    assert all(call.args == (context.session,) for call in context.quote_factory.call_args_list)
+    context.session.commit.assert_not_awaited()
+    context.session.flush.assert_not_called()
+
+
+@pytest.mark.parametrize("status", ["OPEN", "CLOSED", "SUSPENDED", "UNKNOWN"])
+async def test_source_status_is_a_readable_fact_without_any_current_open_or_closed_claim(
+    context, status
+):
+    context.state.saved = with_status(context.state.saved, status=status)
+    before = deepcopy((context.state.saved, context.state.owner))
+    report = await context.reader.read(**context.scope)
+    live = report.live_market_status
+    unsuitable = status in {"CLOSED", "SUSPENDED"}
+    assert live.status == ("UNSUITABLE" if unsuitable else "MISSING")
+    assert checks(report)["VERIFIED_LIVE_MARKET_STATUS"].status == live.status
+    assert report.coverage_status == ("UNSUITABLE" if unsuitable else "PARTIAL")
+    assert live.reported_status == status
+    assert live.at_bid.status == live.at_read.status == "NOT_ASSESSABLE"
+    assert live.status_validity_interval == "NOT_ESTABLISHED"
+    assert live.newer_status_observations == "NOT_OBSERVED_BY_SAVED_QUOTE_READER"
+    assert report.economic_basis == context.state.owner.execution_basis.valuation_basis
+    assert before == (context.state.saved, context.state.owner)
+    sessions.assert_passive_snapshot(context)
+
+
+async def test_original_status_text_enters_fingerprint_without_rewriting_price_or_execution(
+    context,
+):
+    context.state.saved = with_status(context.state.saved)
+    first = await context.reader.read(**context.scope)
+    quote = context.state.saved.quote
+    evidence = quote.original_market_status
+    context.state.saved = replace(
+        context.state.saved,
+        quote=replace(
+            quote,
+            original_market_status=replace(
+                evidence,
+                original_time_text=evidence.observed_at.isoformat().replace("+00:00", "Z"),
+            ),
+        ),
+    )
+    second = await context.reader.read(**context.scope)
+    assert first.basis_id != second.basis_id
+    assert first.live_market_status.original_evidence.original_time_text.endswith("+01:00")
+    assert second.live_market_status.original_evidence.original_time_text.endswith("Z")
+    assert first.bid == second.bid
+    assert first.economic_basis is second.economic_basis
 
 
 @pytest.mark.parametrize("state", ["WITHDRAWN", "ADJUSTMENT_REQUIRED"])
@@ -322,7 +421,9 @@ async def test_product_source_revision_can_block_comparison_without_rewriting_ow
     sessions.assert_passive_snapshot(context)
 
 
-async def test_product_source_hash_revision_and_original_period_enter_report_basis(context):
+async def test_product_source_hash_revision_and_original_period_enter_report_basis(
+    context,
+):
     evidence = scales.scale_evidence()
     context.state.price_scale = evidence
     original = await context.reader.read(**context.scope)
@@ -340,7 +441,9 @@ async def test_product_source_hash_revision_and_original_period_enter_report_bas
     assert original.product_price_scale.evidence == evidence
 
 
-async def test_scale_reader_error_rolls_back_and_never_disguises_it_as_missing_proof(context):
+async def test_scale_reader_error_rolls_back_and_never_disguises_it_as_missing_proof(
+    context,
+):
     context.scale_read.side_effect = ValueError("synthetic original source integrity failure")
     with pytest.raises(ValueError):
         await context.reader.read(**context.scope)
@@ -382,7 +485,10 @@ async def test_twentieth_session_must_have_finished_at_bid_not_the_later_read(
 @pytest.mark.parametrize("kind", ["WARRANT", "UNDERLYING"])
 @pytest.mark.parametrize(
     "status,reason",
-    [("MISSING", "SESSION_EVIDENCE_MISSING"), ("UNSUITABLE", "SESSION_EVIDENCE_WITHDRAWN")],
+    [
+        ("MISSING", "SESSION_EVIDENCE_MISSING"),
+        ("UNSUITABLE", "SESSION_EVIDENCE_WITHDRAWN"),
+    ],
 )
 async def test_missing_or_withdrawn_calendar_never_falls_back_to_old_rows(
     context, kind, status, reason
@@ -405,7 +511,11 @@ async def test_missing_or_withdrawn_calendar_never_falls_back_to_old_rows(
 @pytest.mark.parametrize("kind", ["WARRANT", "UNDERLYING"])
 @pytest.mark.parametrize(
     "reason",
-    ["SESSION_DAY_EVIDENCE_GAP", "SESSION_DAY_EVIDENCE_UNKNOWN", "SESSION_RANGE_LIMIT_EXCEEDED"],
+    [
+        "SESSION_DAY_EVIDENCE_GAP",
+        "SESSION_DAY_EVIDENCE_UNKNOWN",
+        "SESSION_RANGE_LIMIT_EXCEEDED",
+    ],
 )
 async def test_incomplete_unknown_or_oversized_period_is_not_qualified(context, kind, reason):
     context.state.changes[kind] = dict(status="INCOMPLETE", reasons=(reason,))
@@ -498,7 +608,8 @@ async def test_documented_interval_at_each_clock_is_separate_and_close_is_exclud
         if kind == "WARRANT" and day == NOW.date():
             close = NOW if at_read else NOW - timedelta(seconds=60)
             return replace(
-                normal, intervals=(SessionWindow(datetime.combine(day, time(8), UTC), close),)
+                normal,
+                intervals=(SessionWindow(datetime.combine(day, time(8), UTC), close),),
             )
         return normal
 
@@ -511,7 +622,9 @@ async def test_documented_interval_at_each_clock_is_separate_and_close_is_exclud
     assert report.coverage_status == "UNSUITABLE"
 
 
-async def test_different_documented_intervals_are_visible_without_inventing_a_new_rule(context):
+async def test_different_documented_intervals_are_visible_without_inventing_a_new_rule(
+    context,
+):
     def document(kind, day):
         normal = original_day(kind, day)
         if kind == "WARRANT" and day == NOW.date():
@@ -520,7 +633,8 @@ async def test_different_documented_intervals_are_visible_without_inventing_a_ne
                 intervals=(
                     SessionWindow(datetime.combine(day, time(8), UTC), NOW - timedelta(seconds=30)),
                     SessionWindow(
-                        NOW - timedelta(seconds=20), datetime.combine(day, time(22), UTC)
+                        NOW - timedelta(seconds=20),
+                        datetime.combine(day, time(22), UTC),
                     ),
                 ),
             )
@@ -566,14 +680,15 @@ async def test_cross_owner_mismatch_fails_as_read_error_not_complete_or_missing_
     elif mutation in {"foreign_workspace", "foreign_product"}:
         trade = replace(
             owner.execution_basis.trade,
-            **{"workspace_id" if mutation == "foreign_workspace" else "product_id": foreign},
+            **{("workspace_id" if mutation == "foreign_workspace" else "product_id"): foreign},
         )
         context.state.owner = replace(
             owner, execution_basis=replace(owner.execution_basis, trade=trade)
         )
     elif mutation == "quote_scope":
         context.state.saved = replace(
-            context.state.saved, route=replace(context.state.saved.route, position_id=foreign)
+            context.state.saved,
+            route=replace(context.state.saved.route, position_id=foreign),
         )
     elif mutation.startswith("calendar_"):
         current = context.state.calendars["WARRANT"]
@@ -624,6 +739,9 @@ async def test_closed_and_cancelled_positions_cannot_obtain_current_qualificatio
     report = await context.reader.read(**context.scope)
     assert report.coverage_status == "NOT_APPLICABLE"
     assert report.bid.status == "NOT_APPLICABLE"
+    assert report.live_market_status.status == "NOT_APPLICABLE"
+    assert report.live_market_status.at_bid.status == "NOT_APPLICABLE"
+    assert report.live_market_status.at_read.status == "NOT_APPLICABLE"
     assert all(check.status == "NOT_APPLICABLE" for check in report.checks)
     assert report.underlying_sessions.count is None
     context.period_read.assert_not_awaited()
@@ -646,7 +764,9 @@ async def test_saved_payload_quality_and_source_corrections_change_audit_basis(c
     assert before.saved_quote == saved
 
 
-async def test_execution_correction_uses_updated_owner_without_rewriting_earlier_report(context):
+async def test_execution_correction_uses_updated_owner_without_rewriting_earlier_report(
+    context,
+):
     before = await context.reader.read(**context.scope)
     owner = context.state.owner
     original_history = deepcopy(owner.execution_basis.history)

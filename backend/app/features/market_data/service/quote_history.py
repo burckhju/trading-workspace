@@ -98,6 +98,9 @@ async def capture_quote_sample(
         # Preserve the original hash contract for pre-existing snapshot producers.
         # An absent optional side-clock contract is not new market evidence.
         data.pop("original_evidence", None)
+    if data is not None and quote is not None and quote.original_market_status is None:
+        # An absent original status clock must not change historical quote hashes.
+        data.pop("original_market_status", None)
     fingerprint = None
     if data is not None:
         normalized = {

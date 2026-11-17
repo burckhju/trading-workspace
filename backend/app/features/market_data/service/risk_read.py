@@ -181,6 +181,10 @@ class RiskMarketDataReader:
                 result.data.original_evidence is not None
                 and result.data.original_evidence.generated_at > result.retrieved_at
             )
+            or (
+                result.data.original_market_status is not None
+                and result.data.original_market_status.generated_at > result.retrieved_at
+            )
             or result.data.provider_symbol != identity.isin
             or result.data.provider_exchange_code != identity.exchange
             or (result.data.isin is not None and result.data.isin != identity.isin)

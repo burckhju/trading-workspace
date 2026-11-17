@@ -47,6 +47,50 @@ export interface OriginalQuoteEvidence {
   ask: OriginalQuoteSideEvidence | null;
 }
 
+export interface OriginalMarketStatusEvidence {
+  version: 'original-market-status-evidence-v1';
+  source_contract: string;
+  source_reference: string;
+  generated_at: string;
+  isin: string;
+  venue_mic: string;
+  status: 'OPEN' | 'CLOSED' | 'SUSPENDED' | 'UNKNOWN';
+  original_status_text: string;
+  source_status_field: string;
+  observed_at: string;
+  original_time_text: string;
+  source_time_field: string;
+  time_basis: 'SEPARATE_STATUS_TIMESTAMP';
+  temporal_meaning: 'OBSERVED_AT_INSTANT';
+}
+
+export interface MarketStatusPointComparison {
+  event_at: string | null;
+  relation:
+    | 'NO_EVENT_TIME'
+    | 'NO_ORIGINAL_STATUS_TIME'
+    | 'BEFORE_SOURCE_POINT'
+    | 'AT_SOURCE_POINT'
+    | 'AFTER_SOURCE_POINT'
+    | 'NOT_APPLICABLE';
+  status: 'NOT_ASSESSABLE' | 'NOT_APPLICABLE';
+}
+
+export interface LiveMarketStatusAssessment {
+  definition_version: 'hebeltrader-live-market-status-v1';
+  status: 'MISSING' | 'UNSUITABLE' | 'NOT_APPLICABLE';
+  reasons: string[];
+  evaluated_at: string;
+  reported_status: string | null;
+  original_evidence: OriginalMarketStatusEvidence | null;
+  at_bid: MarketStatusPointComparison;
+  at_read: MarketStatusPointComparison;
+  evidence_scope: 'SAVED_QUOTE_LAST_SUCCESS_ONLY';
+  source_qualification: 'NOT_INDEPENDENTLY_VERIFIED';
+  newer_status_observations: 'NOT_OBSERVED_BY_SAVED_QUOTE_READER';
+  status_validity_interval: 'NOT_ESTABLISHED';
+}
+
 export interface SavedQuoteEvidence {
   reason: string;
   provider: string | null;
@@ -79,6 +123,7 @@ export interface SavedQuoteEvidence {
     bid_volume: number | null;
     ask_volume: number | null;
     original_evidence: OriginalQuoteEvidence | null;
+    original_market_status?: OriginalMarketStatusEvidence | null;
   };
   route: null | {
     workspace_id: string;
@@ -235,6 +280,7 @@ export interface HebeltraderOriginalBidReport {
   saved_quote: SavedQuoteEvidence;
   bid: OriginalBidAssessment;
   product_price_scale?: ProductPriceScaleAssessment | null;
+  live_market_status?: LiveMarketStatusAssessment | null;
   product_sessions: {
     calendar: ProductSessionCalendar | null;
     period: SessionPeriodView;
@@ -255,7 +301,8 @@ export interface HebeltraderOriginalBidReport {
   baseline_version: '1.0.0';
   implementation_status:
     | 'F207_3_ORIGINAL_BID_EVIDENCE_ONLY'
-    | 'F207_3_PRODUCT_PRICE_SCALE_EVIDENCE_ONLY';
+    | 'F207_3_PRODUCT_PRICE_SCALE_EVIDENCE_ONLY'
+    | 'F207_3_MARKET_STATUS_EVIDENCE_ONLY';
   rule_evaluation_status: 'B04_B05_B06_B58_NOT_EVALUATED';
   operation_status: 'NOT_ACTIVATED';
   read_status: 'READ_ONLY';

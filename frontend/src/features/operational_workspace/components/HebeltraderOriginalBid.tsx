@@ -2,6 +2,8 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type {
   DocumentedSessionMatch,
   HebeltraderOriginalBidReport,
+  LiveMarketStatusAssessment,
+  MarketStatusPointComparison,
   OriginalBidCheck,
   ProductPriceScaleAssessment,
   ProductPriceScaleCurrent,
@@ -70,6 +72,86 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
     <div className="min-w-0">
       <dt className="text-slate-400">{label}</dt>
       <dd className="[overflow-wrap:anywhere]">{children}</dd>
+    </div>
+  );
+}
+
+const statusPointLabels: Record<MarketStatusPointComparison['relation'], string> = {
+  NO_EVENT_TIME: 'Bezugspunkt nicht belegt',
+  NO_ORIGINAL_STATUS_TIME: 'Eigenständige Originalstatuszeit nicht belegt',
+  BEFORE_SOURCE_POINT: 'Bezugspunkt liegt vor der Statusbeobachtung',
+  AT_SOURCE_POINT: 'Bezugspunkt entspricht der Statusbeobachtung',
+  AFTER_SOURCE_POINT: 'Bezugspunkt liegt nach der Statusbeobachtung',
+  NOT_APPLICABLE: 'Für diese Position nicht anwendbar',
+};
+
+function StatusPoint({
+  label,
+  comparison,
+}: {
+  label: string;
+  comparison: MarketStatusPointComparison;
+}) {
+  return (
+    <Field label={label}>
+      {statusPointLabels[comparison.relation]}
+      <p>
+        Bezug: <Time value={comparison.event_at} />
+      </p>
+      <p>Keine daraus belegte Öffnung; zeitliche Einordnung laut Backend.</p>
+    </Field>
+  );
+}
+
+function MarketStatus({ assessment }: { assessment: LiveMarketStatusAssessment }) {
+  const original = assessment.original_evidence;
+  return (
+    <div className="space-y-3 rounded border border-slate-700 p-3">
+      <h4 className="font-semibold">Originaler Produktmarktstatus</h4>
+      <p>
+        Gespeicherter Offen-Beleg: {checkLabels[assessment.status]}. Die Quellenmeldung beschreibt
+        den gespeicherten Befund. Ob der Produktmarkt zum Lesestand offen oder geschlossen ist, ist
+        damit nicht belegt.
+      </p>
+      <dl className="grid min-w-0 gap-3 sm:grid-cols-2">
+        <Field label="Gespeicherte Marktstatusmeldung">
+          {assessment.reported_status ?? 'Nicht belegt'}
+        </Field>
+        <Field label="Originaltext des Status und Quellenfeld">
+          {original
+            ? `${original.original_status_text} · Feld ${original.source_status_field}`
+            : 'Kein eigenständiger Originalstatusbeleg'}
+        </Field>
+        <Field label="Eigenständige Originalstatuszeit">
+          <Time value={original?.observed_at ?? null} />
+        </Field>
+        <Field label="Unveränderter Originalzeittext des Status">
+          {original
+            ? `${original.original_time_text} · Feld ${original.source_time_field}`
+            : 'Nicht belegt; BID-, Snapshot-, Generierungs- und Abrufzeit ersetzen sie nicht'}
+        </Field>
+        <Field label="Statusquelle und Instrument">
+          {original
+            ? `${original.source_contract} · ${original.source_reference} · ${original.isin} · ${original.venue_mic}`
+            : 'Kein eigenständiger Quellenbeleg'}
+        </Field>
+        <Field label="Statusquelle erzeugt am">
+          <Time value={original?.generated_at ?? null} />
+        </Field>
+        <StatusPoint label="Statusbezug zur Original-BID-Zeit" comparison={assessment.at_bid} />
+        <StatusPoint label="Statusbezug zum Lesestand" comparison={assessment.at_read} />
+      </dl>
+      <p>
+        Eine Originalstatuszeit belegt eine Punktbeobachtung, kein Gültigkeitsintervall. Auch
+        derselbe Zeitpunkt belegt keine unabhängig qualifizierte Öffnung. Die Grenze von 900
+        Sekunden betrifft den Geldkurs, nicht eine Gültigkeitsdauer des Marktstatus.
+      </p>
+      <p>
+        Der Quellenvertrag ist nicht unabhängig verifiziert. Dieser Read kennt nur den letzten
+        gespeicherten Kurserfolg. Spätere Statusmeldungen, auch CLOSED oder SUSPENDED ohne
+        geeigneten Geldkurs, können darin fehlen. Neuere Meldungen und die Abwesenheit einer
+        Handelsunterbrechung sind damit nicht nachgewiesen.
+      </p>
     </div>
   );
 }
@@ -483,6 +565,7 @@ function Evidence({ report }: { report: HebeltraderOriginalBidReport }) {
           </>
         )}
       </dl>
+      {report.live_market_status && <MarketStatus assessment={report.live_market_status} />}
       {report.product_price_scale && <ProductScale assessment={report.product_price_scale} />}
       <CalendarProof
         label="Produktkalender für BID- und Lesezeit"

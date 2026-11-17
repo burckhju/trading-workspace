@@ -514,7 +514,7 @@ async def read_report(client, scope):
     assert report["read_status"] == "READ_ONLY"
     assert report["operation_status"] == "NOT_ACTIVATED"
     assert report["rule_evaluation_status"] == "B04_B05_B06_B58_NOT_EVALUATED"
-    assert report["implementation_status"] == "F207_3_PRODUCT_PRICE_SCALE_EVIDENCE_ONLY"
+    assert report["implementation_status"] == "F207_3_MARKET_STATUS_EVIDENCE_ONLY"
     assert report["product_price_scale"]["adjustment_applied"] is False
     assert (
         report["product_price_scale"]["execution_basis_id"] == report["economic_basis"]["basis_id"]

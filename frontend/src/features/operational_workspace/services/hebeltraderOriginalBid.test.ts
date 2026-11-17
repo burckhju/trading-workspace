@@ -4,6 +4,7 @@ import {
   documentedPriceScaleReport,
   missingBidSideReport,
   originalBidReport,
+  originalMarketStatusReport,
 } from '../test/hebeltraderOriginalBidFixture';
 import { readHebeltraderOriginalBid, verifyHebeltraderOriginalBid } from './hebeltraderOriginalBid';
 
@@ -13,7 +14,7 @@ vi.mock('../../market/services/http', async (original) => ({
 }));
 
 it('uses only the scoped owner GET and preserves exact decimals and the two event clocks', async () => {
-  const report = documentedPriceScaleReport({ trade_id: 'trade/a', position_id: 'position/b' });
+  const report = originalMarketStatusReport({ trade_id: 'trade/a', position_id: 'position/b' });
   vi.mocked(requestJson).mockResolvedValueOnce(report);
   const signal = new AbortController().signal;
   expect(await readHebeltraderOriginalBid('trade/a', 'position/b', signal)).toBe(report);
@@ -26,6 +27,244 @@ it('uses only the scoped owner GET and preserves exact decimals and the two even
   expect(report.underlying_sessions.count?.evaluated_at).toBe(report.bid.original_bid_at);
   expect(report.underlying_sessions.count?.evaluated_at).not.toBe(report.evaluated_at);
 });
+
+it('preserves an original status point without claiming live validity at either reference time', () => {
+  const report = originalMarketStatusReport();
+  expect(verifyHebeltraderOriginalBid(report, 'trade-1', 'position-1')).toBe(report);
+  expect(report.live_market_status?.original_evidence?.original_time_text).toBe(
+    '2026-09-21T15:00:00+02:00',
+  );
+  expect(report.live_market_status?.at_bid.relation).toBe('AT_SOURCE_POINT');
+  expect(report.live_market_status?.at_read.relation).toBe('AFTER_SOURCE_POINT');
+  expect(report.checks[7].status).toBe('MISSING');
+  expect(report.live_market_status?.status_validity_interval).toBe('NOT_ESTABLISHED');
+});
+
+it('retains a raw OPEN with no status clock despite available BID, envelope and retrieval times', () => {
+  const report = originalMarketStatusReport();
+  delete report.saved_quote.quote!.original_market_status;
+  report.live_market_status!.original_evidence = null;
+  report.live_market_status!.at_bid.relation = 'NO_ORIGINAL_STATUS_TIME';
+  report.live_market_status!.at_read.relation = 'NO_ORIGINAL_STATUS_TIME';
+  expect(verifyHebeltraderOriginalBid(report, 'trade-1', 'position-1')).toBe(report);
+  expect(report.live_market_status!.original_evidence).toBeNull();
+  expect(report.live_market_status!.reported_status).toBe('OPEN');
+});
+
+it.each(['CLOSED', 'SUSPENDED'] as const)(
+  'accepts %s as an unsuitable saved opening proof without any current-market claim',
+  (status) => {
+    const report = originalMarketStatusReport({ coverage_status: 'UNSUITABLE' });
+    report.saved_quote.quote!.trading_status = status;
+    report.saved_quote.quote!.original_market_status!.status = status;
+    report.saved_quote.quote!.original_market_status!.original_status_text = status;
+    report.live_market_status!.reported_status = status;
+    report.live_market_status!.original_evidence = {
+      ...report.saved_quote.quote!.original_market_status!,
+    };
+    report.live_market_status!.status = 'UNSUITABLE';
+    report.checks[7].status = 'UNSUITABLE';
+    expect(verifyHebeltraderOriginalBid(report, 'trade-1', 'position-1')).toBe(report);
+    expect(report.live_market_status!.at_read.status).toBe('NOT_ASSESSABLE');
+    expect(report.live_market_status!.newer_status_observations).toBe(
+      'NOT_OBSERVED_BY_SAVED_QUOTE_READER',
+    );
+  },
+);
+
+it('preserves an unsupported raw status as unsuitable without inventing a normalized original', () => {
+  const report = originalMarketStatusReport({ coverage_status: 'UNSUITABLE' });
+  report.saved_quote.quote!.trading_status = 'UNRECOGNIZED_SOURCE_STATE';
+  report.saved_quote.quote!.original_market_status = null;
+  report.live_market_status!.reported_status = 'UNRECOGNIZED_SOURCE_STATE';
+  report.live_market_status!.original_evidence = null;
+  report.live_market_status!.status = 'UNSUITABLE';
+  report.live_market_status!.at_bid.relation = 'NO_ORIGINAL_STATUS_TIME';
+  report.live_market_status!.at_read.relation = 'NO_ORIGINAL_STATUS_TIME';
+  report.checks[7].status = 'UNSUITABLE';
+  expect(verifyHebeltraderOriginalBid(report, 'trade-1', 'position-1')).toBe(report);
+});
+
+it.each(['ISIN', 'MIC', 'STATUS', 'SOURCE_REFERENCE', 'ORIGINAL_TIME'] as const)(
+  'rejects an original-status %s mixed with another saved quote or source point',
+  (mismatch) => {
+    const report = originalMarketStatusReport();
+    const original = report.live_market_status!.original_evidence!;
+    if (mismatch === 'ISIN') {
+      original.isin = 'DE0000000001';
+      report.saved_quote.quote!.original_market_status!.isin = original.isin;
+    } else if (mismatch === 'MIC') {
+      original.venue_mic = 'XSTU';
+      report.saved_quote.quote!.original_market_status!.venue_mic = original.venue_mic;
+    } else if (mismatch === 'STATUS') original.status = 'CLOSED';
+    else if (mismatch === 'SOURCE_REFERENCE') original.source_reference = 'ANOTHER-SOURCE';
+    else original.original_time_text = '2026-09-21T15:00:01+02:00';
+    expect(() => verifyHebeltraderOriginalBid(report, 'trade-1', 'position-1')).toThrow(
+      'nicht sicher zuordnen',
+    );
+  },
+);
+
+it.each([
+  ['original_status_text', 'CLOSED'],
+  ['source_contract', 'another-source-contract'],
+  ['source_reference', 'another-source-envelope'],
+  ['generated_at', '2026-09-21T13:00:03Z'],
+  ['original_time_text', '2026-09-21T13:00:00-00:00'],
+  ['original_time_text', '2026-09-21T13:00:00.0000001Z'],
+  ['original_time_text', '2026-02-30T13:00:00Z'],
+  ['original_time_text', '2026-09-21T24:00:00Z'],
+])('rejects both status copies consistently altered at %s to %s', (field, value) => {
+  const report = originalMarketStatusReport();
+  const original = { ...report.live_market_status!.original_evidence, [field]: value };
+  const malformed = {
+    ...report,
+    saved_quote: {
+      ...report.saved_quote,
+      quote: { ...report.saved_quote.quote, original_market_status: original },
+    },
+    live_market_status: { ...report.live_market_status, original_evidence: { ...original } },
+  };
+  expect(() => verifyHebeltraderOriginalBid(malformed, 'trade-1', 'position-1')).toThrow(
+    'nicht sicher zuordnen',
+  );
+});
+
+it('rejects a status and route MIC that disagree with the saved quote MIC', () => {
+  const report = originalMarketStatusReport();
+  report.saved_quote.quote!.venue_mic = 'XSTU';
+  expect(() => verifyHebeltraderOriginalBid(report, 'trade-1', 'position-1')).toThrow(
+    'nicht sicher zuordnen',
+  );
+});
+
+it('rejects an empty raw status without assigning it an original status point', () => {
+  const report = originalMarketStatusReport({ coverage_status: 'UNSUITABLE' });
+  report.saved_quote.quote!.trading_status = '';
+  report.saved_quote.quote!.original_market_status = null;
+  report.live_market_status!.reported_status = '';
+  report.live_market_status!.original_evidence = null;
+  report.live_market_status!.status = 'UNSUITABLE';
+  report.live_market_status!.at_bid.relation = 'NO_ORIGINAL_STATUS_TIME';
+  report.live_market_status!.at_read.relation = 'NO_ORIGINAL_STATUS_TIME';
+  report.checks[7].status = 'UNSUITABLE';
+  expect(() => verifyHebeltraderOriginalBid(report, 'trade-1', 'position-1')).toThrow(
+    'nicht sicher zuordnen',
+  );
+});
+
+it('preserves a valid six-digit original timestamp in both copies without applying a status TTL', () => {
+  const report = originalMarketStatusReport();
+  const original = report.live_market_status!.original_evidence!;
+  original.original_time_text = '2026-09-21T15:00:00.000000+02:00';
+  report.saved_quote.quote!.original_market_status = { ...original };
+  expect(verifyHebeltraderOriginalBid(report, 'trade-1', 'position-1')).toBe(report);
+  expect(report.live_market_status!.status).toBe('MISSING');
+});
+
+it('rejects missing status payloads, altered point bindings and invented live verification', () => {
+  const cases: Array<(r: HebeltraderOriginalBidReport) => unknown> = [
+    (r) => ({ ...r, live_market_status: null }),
+    (r) => ({ ...r, live_market_status: undefined }),
+    (r) => ({ ...r, product_price_scale: undefined }),
+    (r) => ({
+      ...r,
+      live_market_status: { ...r.live_market_status, reported_status: 'CLOSED' },
+    }),
+    (r) => ({
+      ...r,
+      live_market_status: { ...r.live_market_status, original_evidence: null },
+    }),
+    (r) => ({
+      ...r,
+      live_market_status: { ...r.live_market_status, evaluated_at: r.bid.original_bid_at },
+    }),
+    (r) => ({
+      ...r,
+      live_market_status: {
+        ...r.live_market_status,
+        at_bid: { ...r.live_market_status!.at_bid, event_at: r.evaluated_at },
+      },
+    }),
+    (r) => ({
+      ...r,
+      live_market_status: {
+        ...r.live_market_status,
+        at_read: { ...r.live_market_status!.at_read, event_at: r.bid.original_bid_at },
+      },
+    }),
+    (r) => ({
+      ...r,
+      live_market_status: {
+        ...r.live_market_status,
+        at_read: { ...r.live_market_status!.at_read, status: 'OPEN' },
+      },
+    }),
+    (r) => ({ ...r, live_market_status: { ...r.live_market_status, status: 'SATISFIED' } }),
+    (r) => ({
+      ...r,
+      live_market_status: { ...r.live_market_status, source_qualification: 'VERIFIED' },
+    }),
+    (r) => ({
+      ...r,
+      live_market_status: { ...r.live_market_status, status_validity_interval: '900_SECONDS' },
+    }),
+    (r) => ({
+      ...r,
+      live_market_status: { ...r.live_market_status, newer_status_observations: 'NONE' },
+    }),
+    (r) => ({
+      ...r,
+      live_market_status: { ...r.live_market_status, evidence_scope: 'COMPLETE_STATUS_HISTORY' },
+    }),
+    (r) => ({
+      ...r,
+      live_market_status: {
+        ...r.live_market_status,
+        original_evidence: {
+          ...r.live_market_status!.original_evidence,
+          temporal_meaning: 'VALID_UNTIL_NEXT_UPDATE',
+        },
+      },
+    }),
+    (r) => ({
+      ...r,
+      checks: r.checks.map((check) =>
+        check.key === 'VERIFIED_LIVE_MARKET_STATUS' ? { ...check, status: 'SATISFIED' } : check,
+      ),
+    }),
+  ];
+  for (const malformed of cases) {
+    expect(() =>
+      verifyHebeltraderOriginalBid(
+        malformed(originalMarketStatusReport()),
+        'trade-1',
+        'position-1',
+      ),
+    ).toThrow('nicht sicher zuordnen');
+  }
+});
+
+it.each(['CLOSED', 'CANCELLED'] as const)(
+  'retains the status source for a %s position while all point assessments remain inapplicable',
+  (position_state) => {
+    const report = originalMarketStatusReport({
+      position_state,
+      coverage_status: 'NOT_APPLICABLE',
+    });
+    const scale = report.product_price_scale!;
+    scale.status = 'NOT_APPLICABLE';
+    scale.bid_status = 'NOT_APPLICABLE';
+    scale.purchases = scale.purchases.map((row) => ({ ...row, status: 'NOT_APPLICABLE' }));
+    report.live_market_status!.status = 'NOT_APPLICABLE';
+    for (const point of [report.live_market_status!.at_bid, report.live_market_status!.at_read]) {
+      point.status = 'NOT_APPLICABLE';
+      point.relation = 'NOT_APPLICABLE';
+    }
+    report.checks = report.checks.map((check) => ({ ...check, status: 'NOT_APPLICABLE' }));
+    expect(verifyHebeltraderOriginalBid(report, 'trade-1', 'position-1')).toBe(report);
+  },
+);
 
 it('accepts documented product units only as an input proof while the live-market gap remains', () => {
   const report = documentedPriceScaleReport();
