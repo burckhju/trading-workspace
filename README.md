@@ -4,7 +4,7 @@ Trading Workspace unterstützt einen benutzergesteuerten Tradingprozess: Referen
 
 ## Softwarestand und Planung
 
-Die versionierte Software ist in [VERSION](VERSION) festgehalten. Umfang, Bereitstellungsnachweise und kontrollierter PC-Updateweg für `v1.5.49` stehen in der [Release-Notiz](docs/releases/V1.5.49-INDICATIVE-POSITION-REVIEW.md). Sie ergänzt eine eigene automatische Einstandsindikation, die Prüferinnerung nach 20 abgeschlossenen Basiswertsitzungen und unabhängige Datenproblemhinweise. Die reale B58-Quellenqualifikation bleibt offen; der alternative Umfang ist gesondert versioniert und einmal zentral aktivierbar. Ein Softwaretag belegt weder die aktuelle Installation auf dem Nutzer-PC noch die vollständige Erfüllung sämtlicher ursprünglicher Roadmap-Ziele.
+Die versionierte Software ist in [VERSION](VERSION) festgehalten. Umfang und kontrollierter PC-Updateweg für `v1.5.50` stehen in der [Release-Notiz](docs/releases/V1.5.50-INDICATIVE-V2-AND-PRODUCT-DEADLINES.md). Sie erweitert den eigenen indikativen Umfang um ursprüngliche Produktdokumente, wiederverwendbare Kalender, ausdrücklich verzögerte Quellen und unabhängige Produkttermin-Erinnerungen. Die reale B58-Originalstatusversorgung bleibt unbelegt. V2 wird einmal zentral aktiviert; vorhandene Positionen und wirtschaftliche Belege bleiben erhalten. Ein Softwaretag bestätigt weder die Installation auf dem Nutzer-PC noch vollständige Hebeltrader-Überwachung.
 
 **Aktueller Arbeitsstatus und Abnahmematrix:** [Product Backlog](docs/planning/PRODUCT_BACKLOG.md). Es ist die einzige maßgebliche Aufgabenstatusquelle. Hier steht bewusst keine zweite vollständige Feature-Statusliste.
 
