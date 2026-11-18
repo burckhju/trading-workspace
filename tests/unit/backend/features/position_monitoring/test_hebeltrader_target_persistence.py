@@ -161,7 +161,7 @@ async def test_missing_reads_and_count_never_create_an_assessment_or_request():
 
 def test_real_postgresql_ddl_graph_scopes_immutability_and_guarded_downgrade(monkeypatch):
     graph = ScriptDirectory(str(ROOT / "backend/migrations"))
-    assert graph.get_heads() == ["20261117_0057"]
+    assert graph.get_heads() == ["20261118_0058"]
     assert graph.get_revision("20261114_0051").down_revision == "20261114_0050"
     path = ROOT / "backend/migrations/versions/20261114_0051_hebeltrader_target_assessments.py"
     spec = importlib.util.spec_from_file_location("target_assessment_migration", path)

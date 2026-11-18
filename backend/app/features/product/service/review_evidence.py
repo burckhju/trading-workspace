@@ -17,6 +17,7 @@ from app.features.product.domain.price_scale_evidence import (
 from app.features.product.domain.review_evidence import (
     ExtractedProductFacts,
     ProductDeadlineEvidence,
+    ProductReviewAcquisitionState,
     ProductReviewEvidence,
 )
 from app.features.product.persistence.models import (
@@ -24,7 +25,10 @@ from app.features.product.persistence.models import (
     WarrantTermsVersionModel,
 )
 from app.features.product.persistence.price_scale_evidence import fingerprint
-from app.features.product.persistence.review_evidence import ProductReviewDocumentModel
+from app.features.product.persistence.review_evidence import (
+    ProductReviewAcquisitionModel,
+    ProductReviewDocumentModel,
+)
 from app.features.product.service.price_scale_evidence import (
     binding_matches,
     require_warrant,
@@ -147,6 +151,29 @@ class ProductReviewEvidenceReader:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
+    async def acquisition_state(
+        self,
+        *,
+        workspace_id: UUID,
+        warrant_id: UUID,
+        known_at: datetime,
+    ) -> ProductReviewAcquisitionState | None:
+        if not aware(known_at):
+            raise ValueError("PRODUCT_DOCUMENT_CLOCK_INVALID")
+        with self._session.no_autoflush:
+            row = await self._session.scalar(
+                select(ProductReviewAcquisitionModel).where(
+                    ProductReviewAcquisitionModel.workspace_id == workspace_id,
+                    ProductReviewAcquisitionModel.warrant_id == warrant_id,
+                    ProductReviewAcquisitionModel.attempted_at <= known_at,
+                )
+            )
+            if row is None:
+                return None
+            return ProductReviewAcquisitionState(
+                row.outcome, row.attempted_at, row.next_attempt_at, tuple(row.problems or ())
+            )
+
     async def _facts(
         self,
         *,
@@ -173,6 +200,12 @@ class ProductReviewEvidenceReader:
             try:
                 binding = BINDING.validate_python(row.binding)
                 facts = FACTS.validate_python(row.facts)
+                if (
+                    binding.warrant_id != warrant_id
+                    or row.terms_id != binding.current_terms_id
+                    or facts.isin != binding.isin
+                ):
+                    raise ValueError("Original document identity metadata disagree")
                 if hashlib.sha256(row.document).hexdigest() != row.document_sha256:
                     raise ValueError("Original document integrity")
             except ValueError:

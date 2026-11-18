@@ -72,3 +72,4 @@ class ProductReviewAcquisitionModel(Base):
     attempted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     next_attempt_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     outcome: Mapped[str] = mapped_column(String(100))
+    problems: Mapped[list[str]] = mapped_column(JSON, default=list, server_default="[]")

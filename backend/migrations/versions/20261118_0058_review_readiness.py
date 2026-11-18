@@ -77,6 +77,7 @@ def upgrade() -> None:
         sa.Column("attempted_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("next_attempt_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("outcome", sa.String(100), nullable=False),
+        sa.Column("problems", sa.JSON(), nullable=False, server_default="[]"),
     )
     op.create_table(
         "review_calendar_sources",
@@ -98,7 +99,8 @@ def upgrade() -> None:
         op.execute("""
         CREATE FUNCTION guard_review_readiness_history() RETURNS trigger AS $$
         BEGIN
-            RAISE EXCEPTION 'review readiness originals are append-only';
+            RAISE EXCEPTION 'review readiness originals are append-only'
+              USING ERRCODE = '23514';
         END; $$ LANGUAGE plpgsql;
         """)
         op.execute("""
@@ -112,13 +114,24 @@ def upgrade() -> None:
           EXECUTE FUNCTION guard_review_readiness_history();
         """)
         op.execute("""
+        CREATE TRIGGER no_truncate_product_review_documents BEFORE TRUNCATE
+          ON product_review_documents FOR EACH STATEMENT
+          EXECUTE FUNCTION guard_review_readiness_history();
+        """)
+        op.execute("""
+        CREATE TRIGGER no_truncate_review_calendar_sources BEFORE TRUNCATE
+          ON review_calendar_sources FOR EACH STATEMENT
+          EXECUTE FUNCTION guard_review_readiness_history();
+        """)
+        op.execute("""
         CREATE FUNCTION guard_product_review_document_scope() RETURNS trigger AS $$
         BEGIN
             IF NOT EXISTS (SELECT 1 FROM warrants w JOIN warrant_terms_versions t
               ON t.warrant_id = w.id WHERE w.id = NEW.warrant_id
               AND w.workspace_id = NEW.workspace_id AND t.id = NEW.terms_id)
             OR NEW.retrieved_at > NEW.recorded_at THEN
-                RAISE EXCEPTION 'product review document scope or clock mismatch';
+                RAISE EXCEPTION 'product review document scope or clock mismatch'
+                  USING ERRCODE = '23514';
             END IF;
             RETURN NEW;
         END; $$ LANGUAGE plpgsql;

@@ -16,6 +16,14 @@ VERIFICATION = "ORIGINAL_DOCUMENT_EXTRACTION_NOT_HISTORICAL_VERIFICATION"
 
 
 @dataclass(frozen=True, slots=True)
+class ProductReviewAcquisitionState:
+    outcome: str
+    attempted_at: datetime
+    next_attempt_at: datetime
+    problems: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
 class ProductReviewEvidence:
     workspace_id: UUID
     warrant_id: UUID
