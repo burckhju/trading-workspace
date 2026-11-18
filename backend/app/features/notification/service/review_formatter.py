@@ -46,6 +46,12 @@ def format_review_alert(
             )
         elif context.get("evaluation_mode") == "SOURCE_BID":
             lines.append("Sitzungszahl zur Original-BID-Zeit; Marktöffnung nicht B58-qualifiziert.")
+        elif context.get("evaluation_mode") == "DELAYED_SOURCE_BID":
+            lines += [
+                f"Gemeinsame Quellkurszeit: {label(context.get('source_quote_at'))}",
+                "Verzögerter BID; gemeinsame Quellkurszeit, keine eigene Original-BID-Zeit. "
+                "Indikatives Alterslimit 30 Minuten; keine B58-Qualifikation.",
+            ]
         else:
             lines.append("Zeitbezug der Preisindikation nicht belegt.")
     else:
@@ -62,6 +68,18 @@ def format_review_alert(
             f"Status erfasst: {label(context.get('source_status_captured_at'))}",
             "Fortgeltung des Statuspunkts nicht belegt.",
         ]
+    if context.get("history_continuity_assumed") == "true":
+        lines.append(
+            "Aktuelle Stückeinheit dokumentiert; unveränderte historische "
+            "Produkteinheit angenommen und nicht unabhängig verifiziert."
+        )
+    if context.get("calendar_quality") == "CURRENT_DOCUMENT_REFERENCE_MARKET_ASSUMED":
+        lines.append(
+            "Kalender des im aktuellen Produktdokument genannten Referenzmarkts; "
+            "historische persönliche Listingbindung nicht verifiziert."
+        )
+    if context.get("session_day_precision") == "CONSERVATIVE_DATE_BOUND":
+        lines.append("Sitzungszahl konservativ ab spätestem möglichen Kaufkalendertag.")
     lines += [
         f"Abgeschlossene Basiswertsitzungen: {label(sessions)}",
         f"Bezug der Sitzungszählung: {label(session_at)}",

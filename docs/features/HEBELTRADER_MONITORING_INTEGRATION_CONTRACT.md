@@ -2603,3 +2603,61 @@ belegt ausschließlich Börsentage. Er enthält keine erfundenen individuellen
 Öffnungs- oder Schlusszeiten und wird nicht auf 2027 ausgedehnt. Eine darauf
 aufbauende Datumserinnerung muss gesondert als `DAY_ONLY_CALENDAR_REVIEW`
 erscheinen; der produktspezifische B20-Schluss bleibt unqualifiziert.
+
+<a id="indicative-review-rule-v2"></a>
+## Erweiterter indikativer Regel- und Betriebsumfang, Version 2
+
+`INDICATIVE_ENTRY_V2` / `indicative-entry-review-v2` ist die ausdrücklich
+beauftragte Alternative bei fehlender geeigneter B58-Quelle. Der zentrale
+`REVIEW_SCOPE` wählt genau DISABLED, V1 oder V2. Die bestätigte vollständige
+`HEBELTRADER_CONFIRMED_BASELINE` und der strenge B04/B57/B58-Pfad werden dadurch
+nicht aktiviert oder fachlich verändert. B08 bleibt ausgeschlossen.
+
+V2 ergänzt ausschließlich die schon vorhandenen verzögerten Originalquellen
+GETTEX_DELAYED und BOERSE_STUTTGART_DELAYED mit gebundener Instrument-/Listing-/
+Währungsidentität. Ihr eigener gemeinsamer Quellenzeitpunkt darf höchstens
+1800 Sekunden zurückliegen und nicht zukünftig sein. Er steht getrennt in
+`source_quote_at`; `original_bid_at` bleibt leer, solange keine eigene originale
+BID-Seitenzeit existiert. Diese 30-Minuten-Grenze ist eine explizite indikative
+Regel, keine Aufweichung der strengen B58-Grenze von 900 Sekunden. Für den
+bestehenden ursprünglichen BID-Pfad bleiben 900 Sekunden maßgeblich; bei
+indikativem Emittentenabruf bleibt die Originalzeit unbekannt. Empfangszeit,
+Ask, Last und Close ersetzen keine Original-BID-Zeit oder einen BID.
+
+Der aktuelle Originalproduktmaßstab kann nur mit sichtbarer historischer
+Kontinuitätsannahme verwendet werden. Bekannte Rücknahmen, Anpassungen und
+Widersprüche bleiben Sperren. Bei fehlender ursprünglicher Sitzungsbindung
+kann V2 den gesondert dokumentierten Referenzmarkt-/Kalenderpfad verwenden;
+eine bekannte ungeeignete oder zurückgenommene Bindung wird nicht übergangen.
+Die Sitzungszahl gehört weiterhin zum eigenen Quellenereignis. Die spätere
+Abrufzeit qualifiziert keinen vor Ende der 20. Sitzung entstandenen Kurs.
+Fehlende Target-/Z1-Evidenz ist keine zusätzliche Einstandsvoraussetzung.
+
+V1 und V2 bilden eine dauerhafte Reviewfamilie. Migration 0059 erhält bisherige
+Bewertungen und Episoden und erzwingt gemeinsame Eindeutigkeit für Wurzel,
+Nachfolger, aktive Episode und logisches Ereignis. Ein zentraler Versionswechsel
+erzeugt keinen zweiten identischen Hinweis. Die bewertete Regelversion bleibt
+jeweils an der unveränderlichen Bewertung sichtbar.
+
+Ein Verlust bleibt bei Datenlücken offen. Eine Erholung muss mindestens die
+stärkste während der Episode tatsächlich belegte Preis- und Maßstabsqualität
+besitzen: originaler BID vor verzögertem Quellen-BID vor indikativem
+Emittentenwert; historisch dokumentierter Maßstab vor angenommener Kontinuität.
+Ein Quellenwechsel mit unbekannter Originalzeit bestätigt keine vergleichbare
+Erholung. Verspätete schwächere Werte löschen keine stärkere Beobachtung. Diese
+Erholungsgrenze bleibt über Wiederholungen, Neustarts und einen Wechsel zurück
+zu V1 erhalten. Korrekturen und Vollverkauf verwenden weiterhin ausschließlich
+den wirtschaftlichen Ausführungsowner; Vollverkauf unterdrückt ausstehende
+Handlungshinweise und erhält die Historie.
+
+Die aktive V2-Schleife beschafft Originaldokumente vor der Bewertung außerhalb
+des Trade-Locks. Gespeicherte Quellen, unveränderte Kalender und Produktbelege
+werden wiederverwendet. Beschaffungszustand und konkrete begrenzte Fehlercodes
+sind eine zusätzliche passive Betriebsdiagnose; sie ändern keine historische
+Bewertung. Wiederkehrende Läufe brauchen keine täglichen Bestätigungen. Alle
+Regelauslöser bleiben Hinweise ohne Orders, Buchungen oder Stop-/Zieländerung.
+
+Externe Reviewzustellung bleibt separat ausgeschaltet, bis sie ausdrücklich
+freigegeben wird. Implementierung, synthetischer Durchlauf, grüne Integration,
+Release, zentrale PC-Aktivierung und reale Depotabdeckung werden getrennt
+nachgewiesen. Der Aufgabenstatus bleibt ausschließlich im Backlog.

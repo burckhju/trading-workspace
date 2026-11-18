@@ -58,6 +58,11 @@ async def get_monitoring_runtime_status(
     return MonitoringRuntimeStatusResponse(
         enabled=container.settings.position_monitoring.enabled,
         review_scope=container.settings.position_monitoring.review_scope,
+        review_rule_version=(
+            "indicative-entry-review-v2"
+            if container.settings.position_monitoring.review_scope == "INDICATIVE_ENTRY_V2"
+            else "indicative-entry-review-v1"
+        ),
         review_notifications_enabled=(
             container.settings.position_monitoring.review_notifications_enabled
         ),

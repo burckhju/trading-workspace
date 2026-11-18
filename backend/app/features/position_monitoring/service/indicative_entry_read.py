@@ -13,6 +13,14 @@ from app.features.position_monitoring.domain.indicative_entry import (
     RULE_SCOPE,
     RULE_VERSION,
 )
+from app.features.position_monitoring.domain.indicative_policy import (
+    REVIEW_FAMILY_VERSIONS,
+    ReviewActivationScope,
+    review_policy,
+)
+from app.features.position_monitoring.domain.indicative_recovery import (
+    product_scale_quality,
+)
 from app.features.position_monitoring.persistence.indicative_entry import (
     IndicativeEntryAssessmentModel as Assessment,
 )
@@ -23,11 +31,10 @@ from app.features.position_monitoring.service.indicative_entry import (
     latest_indicative_assessment,
 )
 from app.features.position_monitoring.service.indicative_entry_inputs import (
+    session_context,
     status_point_context,
 )
-from app.features.position_monitoring.service.indicative_entry_runtime import (
-    ReviewActivationScope,
-)
+from app.features.product.service.review_evidence import ProductReviewEvidenceReader
 from app.features.trade_position.persistence.repositories import (
     SqlAlchemyPositionRepository,
     SqlAlchemyReadOnlyTradeRepository,
@@ -54,6 +61,15 @@ class IndicativeAssessmentView:
     review_due: bool | None
     owner_basis_id: str
     source: dict[str, str | None]
+    rule_version: str
+    source_quote_at: str | None
+    source_time_basis: str
+    source_freshness: str | None
+    product_scale_quality: str
+    history_continuity_assumed: bool
+    session_day_precision: str | None
+    calendar_quality: str | None
+    calendar_verification: str | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -67,6 +83,15 @@ class IndicativeEpisodeView:
     opened_at: datetime
     closed_at: datetime | None
     close_reason: str | None
+    rule_version: str
+
+
+@dataclass(frozen=True, slots=True)
+class DocumentReadinessView:
+    outcome: str
+    attempted_at: datetime
+    next_attempt_at: datetime
+    problems: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -87,12 +112,15 @@ class IndicativeStatusReport:
     qualified_b04: Literal[False] = False
     full_baseline_activated: Literal[False] = False
     read_status: Literal["READ_ONLY"] = "READ_ONLY"
+    document_readiness: DocumentReadinessView | None = None
 
 
 def _assessment_view(row: Assessment) -> IndicativeAssessmentView:
     result = row.result
     saved = row.inputs.get("saved_quote") or {}
     route = saved.get("route") or {}
+    quote = saved.get("quote") or {}
+    sessions = session_context(row.inputs)
     return IndicativeAssessmentView(
         row.id,
         row.evaluated_at,
@@ -115,8 +143,27 @@ def _assessment_view(row: Assessment) -> IndicativeAssessmentView:
             "provider": saved.get("provider"),
             "listing_id": route.get("warrant_listing_id"),
             "identity_key": route.get("identity_key"),
+            "venue_mic": route.get("venue_mic"),
+            "source_mode": quote.get("source_mode"),
+            "quote_time_text": quote.get("quote_time_text"),
+            "quote_time_basis": quote.get("quote_time_basis"),
             **status_point_context(row.inputs),
         },
+        row.rule_version,
+        result.get("source_quote_at"),
+        result.get("source_time_basis")
+        or ("ORIGINAL_BID_TIME" if result["original_bid_at"] else "ORIGINAL_TIME_UNKNOWN"),
+        result.get("source_freshness")
+        or (
+            "WITHIN_900_SECONDS"
+            if result["evaluation_mode"] == "SOURCE_BID"
+            else ("UNKNOWN" if result["evaluation_mode"] == "INDICATIVE_ISSUER" else None)
+        ),
+        product_scale_quality(row.inputs),
+        row.inputs.get("product_scale", {}).get("history_continuity_assumed") is True,
+        sessions["session_day_precision"],
+        sessions["calendar_quality"],
+        sessions["calendar_verification"],
     )
 
 
@@ -137,6 +184,7 @@ class IndicativeEntryReader:
     ) -> None:
         self._engine = engine
         self._scope = scope
+        self._policy = review_policy(scope)
         self._runner_enabled = runner_enabled
         self._notifications_enabled = notifications_enabled
 
@@ -164,7 +212,7 @@ class IndicativeEntryReader:
                 scope = (
                     Episode.workspace_id == workspace_id,
                     Episode.position_id == position_id,
-                    Episode.rule_version == RULE_VERSION,
+                    Episode.rule_version.in_(REVIEW_FAMILY_VERSIONS),
                 )
                 recent = tuple(
                     await session.scalars(
@@ -190,7 +238,7 @@ class IndicativeEntryReader:
                         .where(
                             Assessment.workspace_id == workspace_id,
                             Assessment.position_id == position_id,
-                            Assessment.rule_version == RULE_VERSION,
+                            Assessment.rule_version.in_(REVIEW_FAMILY_VERSIONS),
                         )
                     )
                     or 0
@@ -198,6 +246,9 @@ class IndicativeEntryReader:
                 episodes = int(
                     await session.scalar(select(func.count()).select_from(Episode).where(*scope))
                     or 0
+                )
+                acquisition = await ProductReviewEvidenceReader(session).acquisition_state(
+                    workspace_id=workspace_id, warrant_id=trade.product_id, known_at=now
                 )
                 return IndicativeStatusReport(
                     trade_id,
@@ -211,6 +262,18 @@ class IndicativeEntryReader:
                     assessments,
                     episodes,
                     now,
+                    definition_version=self._policy.version,
+                    scope=self._policy.scope,
+                    document_readiness=(
+                        DocumentReadinessView(
+                            acquisition.outcome,
+                            acquisition.attempted_at,
+                            acquisition.next_attempt_at,
+                            acquisition.problems,
+                        )
+                        if acquisition is not None
+                        else None
+                    ),
                 )
             finally:
                 await session.rollback()

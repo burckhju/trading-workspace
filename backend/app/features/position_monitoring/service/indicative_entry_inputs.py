@@ -1,8 +1,10 @@
 """Compose existing economic, route, product and session facts for review only."""
 
+from __future__ import annotations
+
 from dataclasses import asdict, dataclass, replace
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
@@ -36,6 +38,10 @@ from app.features.position_monitoring.domain.indicative_entry import (
     IndicativeQuote,
     qualify_review_quote,
 )
+from app.features.position_monitoring.domain.indicative_policy import (
+    V1_POLICY,
+    IndicativeReviewPolicy,
+)
 from app.features.position_monitoring.service.hebeltrader_original_bid_sessions import (
     current_calendar,
     empty_period,
@@ -55,6 +61,9 @@ from app.features.trade_position.service.valuation_basis import (
     PositionExecutionBasis,
     read_position_execution_basis,
 )
+
+if TYPE_CHECKING:
+    from app.features.product.domain.review_evidence import ProductReviewEvidence
 
 JSON_VALUE = TypeAdapter(dict[str, Any])
 
@@ -85,6 +94,18 @@ def status_point_context(material: dict[str, Any]) -> dict[str, str | None]:
     }
 
 
+def session_context(material: dict[str, Any], *, review: bool = False) -> dict[str, str | None]:
+    """Disclose the actual calendar provenance and V2's conservative date bound."""
+    sessions = material.get("review_sessions" if review else "comparison_sessions") or {}
+    calendar = sessions.get("calendar") or {}
+    return {
+        "session_day_precision": calendar.get("entry_day_precision"),
+        "calendar_quality": calendar.get("calendar_quality")
+        or ("DOCUMENTED" if calendar.get("status") == "AVAILABLE" else None),
+        "calendar_verification": calendar.get("verification"),
+    }
+
+
 @dataclass(frozen=True, slots=True)
 class IndicativeInputs:
     workspace_id: UUID
@@ -98,6 +119,7 @@ class IndicativeInputs:
     comparison_count: CompletedSessionCount | None
     material: dict[str, Any]
     problems: tuple[str, ...]
+    policy: IndicativeReviewPolicy = V1_POLICY
 
 
 async def _sessions(
@@ -152,6 +174,49 @@ async def _sessions(
     }
 
 
+async def _review_sessions(
+    session: AsyncSession,
+    reader: SessionEvidenceReader,
+    *,
+    workspace_id: UUID,
+    warrant_id: UUID,
+    underlying_id: UUID,
+    entry: SessionEntry | None,
+    now: datetime,
+    event_at: datetime,
+    policy: IndicativeReviewPolicy,
+) -> tuple[CompletedSessionCount, dict[str, Any]]:
+    count, material = await _sessions(
+        reader,
+        workspace_id=workspace_id,
+        underlying_id=underlying_id,
+        entry=entry,
+        now=now,
+        event_at=event_at,
+    )
+    missing_only = {"SESSION_EVIDENCE_MISSING", "SESSION_BINDING_MISSING"}
+    if (
+        policy.allow_assumed_product_history
+        and count.reasons
+        and set(count.reasons) <= missing_only
+    ):
+        from app.features.position_monitoring.service.indicative_entry_sessions import (
+            read_review_session_count,
+        )
+
+        alternative, reference = await read_review_session_count(
+            session,
+            workspace_id=workspace_id,
+            warrant_id=warrant_id,
+            underlying_id=underlying_id,
+            entry=entry,
+            now=now,
+            event_at=event_at,
+        )
+        return alternative, {**reference, "strict_calendar": material}
+    return count, material
+
+
 def _scale(
     basis: PositionExecutionBasis,
     evidence: ProductPriceScaleCurrent,
@@ -160,6 +225,8 @@ def _scale(
     isin: str | None,
     underlying_id: UUID,
     now: datetime,
+    policy: IndicativeReviewPolicy = V1_POLICY,
+    review_evidence: ProductReviewEvidence | None = None,
 ) -> tuple[dict[str, Any], tuple[str, ...]]:
     """Reuse owner BUY contributions; never recalculate remaining cost or units.
 
@@ -208,7 +275,21 @@ def _scale(
         "owner_assessment": asdict(scale),
         "coverage_basis": "ORIGINAL_BID_TIME",
         "comparison_covered": scale.status == "DOCUMENTED",
+        "quality": "DOCUMENTED" if scale.status == "DOCUMENTED" else "UNAVAILABLE",
+        "history_continuity_assumed": False,
     }
+    if policy.allow_assumed_product_history:
+        return _expanded_scale(
+            material,
+            basis=basis,
+            evidence=evidence,
+            review_evidence=review_evidence,
+            quote=quote,
+            purchases=purchases,
+            isin=isin,
+            underlying_id=underlying_id,
+            now=now,
+        )
     if quote.evaluation_mode != "INDICATIVE_ISSUER":
         return material, scale.reasons if scale.status != "DOCUMENTED" else ()
     manifest = evidence.manifest
@@ -227,7 +308,141 @@ def _scale(
         coverage_basis="REVIEW_TIME_ORIGINAL_BID_TIME_UNKNOWN",
         review_at=now,
         comparison_covered=not problems,
+        quality="DOCUMENTED" if not problems else "UNAVAILABLE",
     )
+    return material, tuple(dict.fromkeys(problems))
+
+
+def _expanded_scale(
+    material: dict[str, Any],
+    *,
+    basis: PositionExecutionBasis,
+    evidence: ProductPriceScaleCurrent,
+    review_evidence: ProductReviewEvidence | None,
+    quote: IndicativeQuote,
+    purchases: tuple[PurchaseScaleInput, ...],
+    isin: str | None,
+    underlying_id: UUID,
+    now: datetime,
+) -> tuple[dict[str, Any], tuple[str, ...]]:
+    """Qualify indicative units without asserting an unchanged historical scale.
+
+    Documented BUY coverage remains preferred. Only a separately captured
+    current Product-owner document can enable the explicit continuity
+    assumption; known contradictions and withdrawn history always win.
+    """
+    assessment = material["owner_assessment"]
+    current = review_evidence
+    if current is not None:
+        if (
+            current.workspace_id != basis.trade.workspace_id
+            or current.warrant_id != basis.trade.product_id
+            or current.known_at != now
+            or (current.recorded_at is not None and current.recorded_at > now)
+        ):
+            raise ValueError("REVIEW_PRODUCT_UNIT_OWNER_MISMATCH")
+        material["current_unit_evidence"] = asdict(current)
+        contradictions = list(current.reasons) if current.status == "UNSUITABLE" else []
+        if current.status == "AVAILABLE" and (
+            current.binding is None
+            or current.binding.warrant_id != basis.trade.product_id
+            or current.binding.isin != isin
+            or current.binding.underlying_id != underlying_id
+            or (evidence.binding is not None and current.binding != evidence.binding)
+            or current.unit != "CURRENCY_PER_WARRANT"
+            or (quote.currency is not None and current.currency != quote.currency)
+            or current.currency != basis.valuation_basis.cost_basis_currency
+            or current.quality != "CURRENT_UNIT_HISTORY_ASSUMED"
+        ):
+            contradictions.append("REVIEW_CURRENT_PRODUCT_UNIT_BINDING_MISMATCH")
+        if current.status == "UNSUITABLE" or contradictions:
+            material.update(comparison_covered=False, quality="UNAVAILABLE")
+            return material, tuple(contradictions) or ("REVIEW_CURRENT_PRODUCT_UNIT_UNSUITABLE",)
+    if material["comparison_covered"]:
+        return material, ()
+    manifest = evidence.manifest
+    event_at = quote.original_bid_at or quote.source_quote_at or now
+    purchase_problems = tuple(
+        dict.fromkeys(
+            reason
+            for purchase in assessment["purchases"]
+            for reason in purchase["reasons"]
+            if reason != "BUY_NO_REMAINING_CONTRIBUTION"
+        )
+    )
+    coverage_basis = (
+        "SHARED_QUOTE_TIME"
+        if quote.source_quote_at is not None
+        else (
+            "ORIGINAL_BID_TIME"
+            if quote.original_bid_at is not None
+            else "REVIEW_TIME_ORIGINAL_BID_TIME_UNKNOWN"
+        )
+    )
+    material.update(coverage_basis=coverage_basis)
+    if (
+        evidence.status == "AVAILABLE"
+        and manifest is not None
+        and not purchase_problems
+        and any(item.remaining_quantity > 0 for item in purchases)
+        and (quote.currency is None or manifest.currency == quote.currency)
+        and manifest.currency == basis.valuation_basis.cost_basis_currency
+        and manifest.binding.isin == isin
+        and manifest.valid_from <= event_at < manifest.valid_until
+    ):
+        material.update(comparison_covered=True, quality="DOCUMENTED")
+        return material, ()
+    # Missing historical intervals permit an assumption, contradictory facts do
+    # not. In particular, the reader's unsuitable head is never bypassed by a
+    # newer-looking current-unit document.
+    overridable = {
+        "PRODUCT_PRICE_SCALE_EVIDENCE_MISSING",
+        "PRODUCT_SCALE_QUALIFIED_BID_MISSING",
+        "PRODUCT_SCALE_BUY_OUTSIDE_DOCUMENTED_PERIOD",
+        "PRODUCT_SCALE_BID_OUTSIDE_DOCUMENTED_PERIOD",
+    }
+    hard = tuple(reason for reason in assessment["reasons"] if reason not in overridable)
+    if evidence.status == "UNSUITABLE" or hard:
+        return material, hard or evidence.reasons or ("PRODUCT_SCALE_HISTORY_CONFLICT",)
+    if current is None:
+        return material, ("REVIEW_CURRENT_PRODUCT_UNIT_MISSING",)
+    problems = list(current.reasons)
+    if current.status != "AVAILABLE":
+        problems.extend(current.reasons or ("REVIEW_CURRENT_PRODUCT_UNIT_MISSING",))
+    binding = current.binding
+    if (
+        binding is None
+        or binding.warrant_id != basis.trade.product_id
+        or binding.isin != isin
+        or binding.underlying_id != underlying_id
+        or (evidence.binding is not None and binding != evidence.binding)
+    ):
+        problems.append("REVIEW_CURRENT_PRODUCT_UNIT_BINDING_MISMATCH")
+    if (
+        current.unit != "CURRENCY_PER_WARRANT"
+        or current.currency is None
+        or (quote.currency is not None and current.currency != quote.currency)
+        or current.currency != basis.valuation_basis.cost_basis_currency
+        or (manifest is not None and manifest.currency != current.currency)
+    ):
+        problems.append("REVIEW_CURRENT_PRODUCT_UNIT_CURRENCY_MISMATCH")
+    contributing = tuple(item for item in purchases if item.remaining_quantity > 0)
+    if not contributing:
+        problems.append("PRODUCT_SCALE_CONTRIBUTING_BUYS_MISSING")
+    if any(item.currency_code is None for item in contributing):
+        problems.append("PRODUCT_SCALE_BUY_CURRENCY_MISSING")
+    if any(
+        item.currency_code is not None and item.currency_code != current.currency
+        for item in contributing
+    ):
+        problems.append("PRODUCT_SCALE_BUY_CURRENCY_MISMATCH")
+    if not problems:
+        material.update(
+            comparison_covered=True,
+            quality="CURRENT_UNIT_HISTORY_ASSUMED",
+            history_continuity_assumed=True,
+            continuity_basis="CURRENT_ORIGINAL_DOCUMENT_AND_EXECUTION_OWNER",
+        )
     return material, tuple(dict.fromkeys(problems))
 
 
@@ -250,10 +465,11 @@ def supply_problems(
     if status.latest_capture is not None and status.latest_capture.original is not None:
         observations.append(status.latest_capture)
     points = [item.original for item in observations if item.original is not None]
+    source_event_at = quote.original_bid_at or quote.source_quote_at
     relevant = [
         item
         for item in points
-        if quote.original_bid_at is not None and item.observed_at >= quote.original_bid_at
+        if source_event_at is not None and item.observed_at >= source_event_at
     ]
     if len({item.status for item in relevant}) > 1:
         problems.append("REVIEW_SOURCE_STATUS_CONFLICT")
@@ -276,6 +492,7 @@ async def read_indicative_inputs(
     trade_id: UUID,
     position_id: UUID,
     now: datetime,
+    policy: IndicativeReviewPolicy = V1_POLICY,
 ) -> IndicativeInputs:
     """Pure read inside one snapshot taken after the existing economic owner lock."""
     trade = await SqlAlchemyReadOnlyTradeRepository(session).get(workspace_id, trade_id)
@@ -307,11 +524,12 @@ async def read_indicative_inputs(
             economic.basis_id,
             True,
             saved,
-            qualify_review_quote(saved, now=now, selection_policy=None),
+            qualify_review_quote(saved, now=now, selection_policy=None, policy=policy),
             None,
             None,
             JSON_VALUE.dump_python(material, mode="json"),
             (),
+            policy,
         )
     saved = await RiskMarketDataReader(session).saved_quote(
         workspace_id=workspace_id,
@@ -325,7 +543,10 @@ async def read_indicative_inputs(
         else None
     )
     quote = qualify_review_quote(
-        saved, now=now, selection_policy=selection.policy_version if selection else None
+        saved,
+        now=now,
+        selection_policy=selection.policy_version if selection else None,
+        policy=policy,
     )
     first = next(
         (item for item in basis.effective_executions if item.side is ExecutionSide.BUY),
@@ -343,23 +564,38 @@ async def read_indicative_inputs(
         else None
     )
     reader = SessionEvidenceReader(session)
-    review_count, review_sessions = await _sessions(
+    review_count, review_sessions = await _review_sessions(
+        session,
         reader,
         workspace_id=workspace_id,
+        warrant_id=trade.product_id,
         underlying_id=warrant.underlying_id,
         entry=entry,
         now=now,
         event_at=now,
+        policy=policy,
     )
     comparison_count, comparison_sessions = review_count, review_sessions
-    if quote.evaluation_mode == "SOURCE_BID":
-        comparison_count, comparison_sessions = await _sessions(
+    if quote.evaluation_mode in {"SOURCE_BID", "DELAYED_SOURCE_BID"}:
+        comparison_count, comparison_sessions = await _review_sessions(
+            session,
             reader,
             workspace_id=workspace_id,
+            warrant_id=trade.product_id,
             underlying_id=warrant.underlying_id,
             entry=entry,
             now=now,
             event_at=quote.session_event_at,
+            policy=policy,
+        )
+    current_unit = None
+    if policy.allow_assumed_product_history:
+        from app.features.product.service.review_evidence import (
+            ProductReviewEvidenceReader,
+        )
+
+        current_unit = await ProductReviewEvidenceReader(session).current_for_review(
+            workspace_id=workspace_id, warrant_id=trade.product_id, known_at=now
         )
     scale, scale_problems = _scale(
         basis,
@@ -370,6 +606,8 @@ async def read_indicative_inputs(
         isin=warrant.isin,
         underlying_id=warrant.underlying_id,
         now=now,
+        policy=policy,
+        review_evidence=current_unit,
     )
     status = None
     if saved.route is not None and saved.provider is not None and warrant.isin is not None:
@@ -445,4 +683,5 @@ async def read_indicative_inputs(
         comparison_count,
         JSON_VALUE.dump_python(material, mode="json"),
         tuple(dict.fromkeys(problems)),
+        policy,
     )

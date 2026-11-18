@@ -85,6 +85,32 @@ def test_review_formatter_keeps_identity_version_and_explicit_non_b04_scope(kind
         assert "0.48" not in body and "0.55" not in body
 
 
+def test_delayed_v2_notice_exposes_shared_clock_and_assumptions_without_original_bid_time():
+    item = review_alert(AlertType.INDICATIVE_ENTRY_LOSS)
+    shared_at = NOW - timedelta(minutes=17)
+    item = replace(
+        item,
+        market_data_observed_at=None,
+        price_context={
+            **item.price_context,
+            "rule_version": "indicative-entry-review-v2",
+            "evaluation_mode": "DELAYED_SOURCE_BID",
+            "observed_at": None,
+            "source_quote_at": shared_at.isoformat(),
+            "history_continuity_assumed": "true",
+            "calendar_quality": "CURRENT_DOCUMENT_REFERENCE_MARKET_ASSUMED",
+            "session_day_precision": "CONSERVATIVE_DATE_BOUND",
+        },
+    )
+    body = format_position_alert(item, symbol=ISIN)
+    assert f"Gemeinsame Quellkurszeit: {shared_at.isoformat()}" in body
+    assert "Original-Geldkurszeit: —" in body
+    assert "Alterslimit 30 Minuten" in body
+    assert "angenommen und nicht unabhängig verifiziert" in body
+    assert "historische persönliche Listingbindung nicht verifiziert" in body
+    assert "Sitzungszahl konservativ" in body
+
+
 def test_issuer_indication_never_turns_recent_receipt_into_original_price_time():
     item = review_alert(AlertType.INDICATIVE_ENTRY_LOSS)
     item = replace(

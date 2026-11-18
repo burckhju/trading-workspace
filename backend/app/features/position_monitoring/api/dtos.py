@@ -49,8 +49,10 @@ class MonitoringDailyPriceResponse(BaseModel):
 
 class MonitoringRuntimeStatusResponse(BaseModel):
     enabled: bool
-    review_scope: Literal["DISABLED", "INDICATIVE_ENTRY_V1"] = "DISABLED"
-    review_rule_version: Literal["indicative-entry-review-v1"] = "indicative-entry-review-v1"
+    review_scope: Literal["DISABLED", "INDICATIVE_ENTRY_V1", "INDICATIVE_ENTRY_V2"] = "DISABLED"
+    review_rule_version: Literal["indicative-entry-review-v1", "indicative-entry-review-v2"] = (
+        "indicative-entry-review-v1"
+    )
     review_notifications_enabled: bool = False
     hebeltrader_scope: Literal["DISABLED", "B04_B57_V1"] = "DISABLED"
     telegram_enabled: bool = False
