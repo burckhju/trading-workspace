@@ -2,15 +2,27 @@
 
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, time, timedelta
-from typing import Literal
+from typing import Literal, Protocol
 from uuid import UUID
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from app.features.market_data.domain.session_evidence import (
     MAX_SESSION_DAYS,
-    SessionBinding,
     SessionDay,
 )
+
+
+class SessionCalendar(Protocol):
+    """Counting needs calendar bounds; owners separately qualify exact bindings."""
+
+    @property
+    def timezone(self) -> str: ...
+
+    @property
+    def valid_from(self) -> date: ...
+
+    @property
+    def valid_through(self) -> date: ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -43,7 +55,7 @@ class CompletedSessionCount:
 
 
 def session_anchor(
-    entry: SessionEntry | None, binding: SessionBinding | None, *, event_at: datetime
+    entry: SessionEntry | None, binding: SessionCalendar | None, *, event_at: datetime
 ) -> SessionAnchor:
     """Resolve a calendar day, never the ordering anchor of a date-only execution."""
     if event_at.utcoffset() is None:
@@ -120,7 +132,7 @@ def unavailable_session_count(
 def count_completed_sessions(
     *,
     entry: SessionEntry | None,
-    binding: SessionBinding | None,
+    binding: SessionCalendar | None,
     days: tuple[SessionDay, ...],
     event_at: datetime,
 ) -> CompletedSessionCount:
@@ -131,11 +143,30 @@ def count_completed_sessions(
     counts only once, after its final documented close, including overnight closes.
     """
     anchor = session_anchor(entry, binding, event_at=event_at)
+    return count_sessions_from_anchor(anchor=anchor, binding=binding, days=days, event_at=event_at)
+
+
+def count_sessions_from_anchor(
+    *,
+    anchor: SessionAnchor,
+    binding: SessionCalendar | None,
+    days: tuple[SessionDay, ...],
+    event_at: datetime,
+) -> CompletedSessionCount:
+    """Shared calendar arithmetic; callers retain how their day-zero bound was derived."""
+    if event_at.utcoffset() is None:
+        raise ValueError("The evaluation event requires a timezone-aware clock")
     if anchor.reasons or binding is None or anchor.day is None:
         return unavailable_session_count(
             event_at=event_at, anchor_date=anchor.day, reasons=anchor.reasons
         )
     last_day = event_at.astimezone(ZoneInfo(binding.timezone)).date()
+    if anchor.day > last_day or anchor.day < binding.valid_from:
+        return unavailable_session_count(
+            event_at=event_at,
+            anchor_date=anchor.day,
+            reasons=("ENTRY_OUTSIDE_BINDING_VALIDITY",),
+        )
     if last_day > binding.valid_through:
         return unavailable_session_count(
             event_at=event_at,
@@ -150,7 +181,9 @@ def count_completed_sessions(
     dates = [day.session_date for day in relevant]
     if len(set(dates)) != len(dates) or dates != sorted(dates):
         return unavailable_session_count(
-            event_at=event_at, anchor_date=anchor.day, reasons=("SESSION_DAYS_CONFLICT",)
+            event_at=event_at,
+            anchor_date=anchor.day,
+            reasons=("SESSION_DAYS_CONFLICT",),
         )
     expected_dates = {
         anchor.day + timedelta(days=offset) for offset in range(1, (last_day - anchor.day).days + 1)

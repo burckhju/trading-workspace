@@ -2543,3 +2543,63 @@ Schreibende Systemtests verwenden ausschließlich entbehrliche CI-Installationen
 und abgefangene Provider-/Nachrichtenaufrufe. Das ersetzt keinen beobachteten
 PC-Lauf oder reale Depotabnahme; deren Status bleibt im Backlog beziehungsweise
 in der konkreten Releaseübergabe getrennt.
+
+<a id="indicative-review-readiness-v2"></a>
+## Originalbelege für die erweiterte indikative Prüfung, Version 2
+
+Der Nachtrag `indicative-review-readiness-v2` gehört ausschließlich zum gesonderten
+indikativen Umfang. Er liefert keine B58-Qualifikation und ändert weder die
+bestätigten B04/B57-Regeln noch den ursprünglichen Produktmaßstabs- oder
+Kalenderimportvertrag. Produkt- und Market-Data-Owner erhalten additive,
+unveränderliche Originaldokumente; Migration 0058 aktiviert keine Regel und
+führt keine Depot-, Ausführungs- oder historischen Kursbuchungen aus.
+
+Der Product-Owner beschafft veröffentlichte PRIIPs-Dokumente über fest gebundene
+Emittentenpfade. Die bestehende Produktidentität bestimmt den Pfad; Quellen-URL,
+Originalbytes, SHA256, Abruf-/Speicherzeit, Parserstand und aktuelle
+Bedingungsversion werden zusammen erhalten. Redirects, Zugangssperren und
+unbekannte Dokumentformen werden nicht umgangen. Es werden keine Provider
+aktiviert, Zustimmungen akzeptiert oder Quellen einer Position neu ausgewählt.
+Ein erfolgreicher Abruf wird täglich erneut geprüft, ein fehlgeschlagener frühestens
+nach einer Stunde; die bestehende Belegrevision bleibt bei Wiederholung derselben
+Originalbytes erhalten. Passive Ansichten führen diese Beschaffung nicht aus.
+
+Explizite Stücknotierung und Produktwährung ermöglichen den Qualitätsgrad
+`CURRENT_UNIT_HISTORY_ASSUMED`. Er bezeichnet eine **angenommene historische
+Kontinuität**, keine rückwirkend geprüfte unveränderte Originaleinheit. Der
+Ausführungsowner bleibt allein zuständig für Restmenge, gewichteten
+Bruttoeinstand, Korrekturen und historische Ausführungswährung. Ein dokumentierter
+strenger Maßstab hat Vorrang; bekannte Rücknahme, Anpassung oder widersprüchliche
+Bindung darf durch den schwächeren Beleg nicht übergangen werden. Eine nicht
+extrahierbare Einheit bleibt fehlend. Bezugsverhältnis, Mindestausübungsmenge,
+Emissionspreis, Ask, Last und Beispielanlagebetrag ersetzen keinen Stückmaßstab.
+
+Die zusätzliche Referenzkalenderbasis verwendet den im aktuellen Original-KID
+genannten Basiswert und Referenzmarkt. Sie kennzeichnet
+`CURRENT_DOCUMENT_REFERENCE_MARKET_ASSUMED` und bestätigt keine historische
+persönliche Primärlistingbindung. Die endliche NYSE-Abdeckung 2025–2027 bindet
+die [Originalveröffentlichung der Feiertage und verkürzten Sitzungen](https://ir.theice.com/press/news-details/2024/NYSE-Group-Announces-2025-2026-and-2027-Holiday-and-Early-Closings-Calendar/default.aspx),
+die [reguläre Kernhandelszeit](https://www.nyse.com/trade/hours-calendars) und die
+[gesonderte Schließung am 9. Januar 2025](https://ir.theice.com/press/news-details/2024/The-New-York-Stock-Exchange-Will-Close-Markets-on-January-9-to-Honor-the-Passing-of-Former-President-Jimmy-Carter-on-National-Day-of-Mourning/default.aspx).
+Originaldateien müssen vor Speicherung exakt zum überprüften Quellenstand
+passen. Geänderte Originale werden als neue, noch zu prüfende Quellenrevision
+behandelt. Der Status lautet ausdrücklich
+`ENGINEERING_REVIEW_OF_ORIGINAL_CALENDAR_NOT_INDEPENDENT_VERIFICATION`.
+Die Verarbeitung ist keine unabhängige Systemverifikation dieser fachlichen
+Dokumentenprüfung und keine Aussage über den aktuellen Instrumentmarktstatus.
+
+`count_completed_sessions(..., event_at=...)` bleibt die Sitzungsarithmetik.
+Der Kaufkalendertag zählt als Tag 0. Bei mehrdeutigem ursprünglichem Datum mit
+Zeitzone darf V2 den spätesten möglichen Referenzkalendertag als konservative
+Schranke verwenden (`CONSERVATIVE_DATE_BOUND`); so entsteht die kleinere belegbare
+Sitzungszahl. Frühester/spätester möglicher Tag und ursprüngliche Präzision
+bleiben erhalten. Es wird kein Ausführungszeitpunkt erfunden. Der strenge
+B04-Reader behandelt diese ursprüngliche Mehrdeutigkeit weiterhin unverändert.
+Bei einem bekannten Kurszeitpunkt wird stets zu diesem Ereignis gezählt, nicht
+zur späteren Abruf- oder Lesezeit.
+
+Der ergänzende [Stuttgarter Originalkalender 2026](https://www.boerse-stuttgart.de/media/wabiiobs/2026-07-21_bk_handelskalender_2026_aktualisierung_20260721.pdf)
+belegt ausschließlich Börsentage. Er enthält keine erfundenen individuellen
+Öffnungs- oder Schlusszeiten und wird nicht auf 2027 ausgedehnt. Eine darauf
+aufbauende Datumserinnerung muss gesondert als `DAY_ONLY_CALENDAR_REVIEW`
+erscheinen; der produktspezifische B20-Schluss bleibt unqualifiziert.

@@ -2237,6 +2237,43 @@ lokale Belege auf dem Nutzer-PC. Der vorhandene Rechenkern bleibt erhalten;
 produktive Fristmeldungen werden ohne diese erforderlichen Fakten nicht aktiviert.
 Die übrigen offenen F207-2/B06-/F207-5-Arbeiten bleiben unverändert.
 
+### Beauftragte Erweiterung der indikativen Überwachung — 18.11.2026
+
+**Ausgangsstand:** Main und Tag v1.5.49 zeigen auf
+`ce767a0dbee9254756024346a817baf7cdf77797`; die bisherigen Monitoring-PRs sind
+integriert. Der Nutzer meldet v1.5.49 mit vier gesunden Diensten, Readiness und
+aktiviertem `INDICATIVE_ENTRY_V1`. Der abgeschlossene PC-Durchlauf bewertet sechs
+Positionen, erzeugt sechs Hinweise und meldet sechs Datenprobleme bei null
+Positionsfehlern. Das ist ein beobachteter Runnerbetrieb, keine geeignete
+Kurs-/Einstandsabdeckung. Externe Zustellung dieses Teilumfangs ist ausgeschaltet.
+
+**In Arbeit, noch nicht integriert/veröffentlicht:** Der beauftragte V2-Schnitt
+ergänzt ursprüngliche Produktdokumente und wiederverwendbare veröffentlichte
+Kalender, eine ausdrücklich indikative Verarbeitung verzögerter Quellen und
+bekannte Qualitätsgrenzen, zusammenhängende Episoden über den Versionswechsel
+sowie preisunabhängige begrenzte Produktfrist-Erinnerungen. Der
+[V2-Belegvertrag](../features/HEBELTRADER_MONITORING_INTEGRATION_CONTRACT.md#indicative-review-readiness-v2)
+trennt aktuelle dokumentierte Einheit, angenommene historische Kontinuität und
+den weiter unveränderten strengen B04/B57/B58-Pfad. Reguläre PR-/Main-Gates,
+neuer Release und kontrollierter PC-Übergang bleiben bis zum tatsächlichen
+Nachweis offen. Grüne PRs dürfen gemäß ausdrücklicher Nutzerfreigabe gemergt und
+für den PC bereitgestellt werden; neue produktive Providerzustimmungen und echte
+externe Nachrichtentests sind damit nicht freigegeben.
+
+**Reale Abdeckungsgrenzen:** Aktuelle KIDs zweier untersuchter Emittentenpfade
+belegen EUR und Stücknotiz. Andere untersuchte Dokumente nennen die Währung,
+belegen jedoch keinen eindeutig extrahierbaren Preismaßstab. Fünf untersuchte
+Produkte nennen NYSE als Basiswertreferenz; die Originalkalender 2025–2027 sind
+einschließlich besonderer Schließung und verkürzter Sitzungen verfügbar. Die
+neue Referenzmarktannahme ist kein historischer persönlicher Listingnachweis.
+Ein geprüftes einzelnes Stuttgarter Verzögerungsarchiv enthielt die untersuchten
+Depotinstrumente nicht und keinen nichtleeren Instrumentstatus; daraus folgt
+keine Aussage über sämtliche anderen Archivintervalle. Geeignete B58-Versorgung
+bleibt unbelegt. Persönliches Ausstiegslisting, belegter letzter Handelstag,
+fehlende weitere Kalenderabdeckung und individueller Produktschluss bleiben
+gezielte Ausnahmen. B06, restliches F207-2 und F207-5 bleiben offen; B08 bleibt
+ausgeschlossen.
+
 ## Genau nächster sinnvoller Umsetzungsschritt
 
 **Aktueller Liefernachtrag 28.10.2026 zu v1.5.31:** Nach dem freigegebenen und
