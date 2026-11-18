@@ -2264,7 +2264,13 @@ den weiterhin unveränderten strengen B04/B57/B58-Pfad.
 **Abnahme und Auslieferung:** Die Integration dieser Kette und des
 [Versionsschnitts](../releases/V1.5.50-INDICATIVE-V2-AND-PRODUCT-DEADLINES.md)
 ist ausschließlich nach erfolgreichen regulären PR-Gates und Abgleich der
-jeweiligen tatsächlichen Integrationstrees freigegeben. Der unveränderte Publisher
+jeweiligen tatsächlichen Integrationstrees freigegeben. Die unveränderte
+Commitkette wird durch [Integrations-PR #365](https://github.com/burckhju/trading-workspace/pull/365)
+gemeinsam gegen Main übernommen, nachdem alle vier eigenen Implementierungs-Heads
+und der abschließende Release-Head grün geprüft sind. Dieser normale PR-Merge
+erhält die bestehende Pflicht zu aktuellen Statusprüfungen; keine Schutzregel
+wird gelockert und kein grüner Status auf einen neuen Head übertragen.
+Der unveränderte Publisher
 veröffentlicht `v1.5.50` erst nach erfolgreichen Backend-/Frontend-/E2E-Push-Läufen
 am identischen aktuellen Main-Commit. Die konkreten Heads, Testmerge-Trees,
 CI-Läufe und der danach zurückgelesene Tag stehen in der zugehörigen
