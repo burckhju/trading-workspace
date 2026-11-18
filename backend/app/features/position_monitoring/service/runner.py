@@ -103,6 +103,10 @@ class PositionMonitoringRunner:
                     review_alerts_created=result.indicative_entry.alerts_created,
                     review_data_problems=result.indicative_entry.data_problems,
                     review_position_errors=result.indicative_entry.position_errors,
+                    deadline_positions_evaluated=result.product_deadline.positions_evaluated,
+                    deadline_alerts_created=result.product_deadline.alerts_created,
+                    deadline_data_problems=result.product_deadline.data_problems,
+                    deadline_position_errors=result.product_deadline.position_errors,
                     alerts_invalidated=result.alerts_invalidated,
                     notifications_created=result.notifications_created,
                     notifications_delivered=result.notifications_delivered,
@@ -125,6 +129,10 @@ class PositionMonitoringRunner:
                         "review_alerts_created": result.indicative_entry.alerts_created,
                         "review_data_problems": result.indicative_entry.data_problems,
                         "review_position_errors": result.indicative_entry.position_errors,
+                        "deadline_positions_evaluated": result.product_deadline.positions_evaluated,
+                        "deadline_alerts_created": result.product_deadline.alerts_created,
+                        "deadline_data_problems": result.product_deadline.data_problems,
+                        "deadline_position_errors": result.product_deadline.position_errors,
                     },
                 )
             except asyncio.CancelledError:

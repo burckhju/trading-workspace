@@ -6,6 +6,9 @@ from app.features.position_monitoring.api.hebeltrader_original_bid import (
 from app.features.position_monitoring.api.hebeltrader_sessions import router as sessions_router
 from app.features.position_monitoring.api.hebeltrader_targets import router as targets_router
 from app.features.position_monitoring.api.indicative_entry import router as indicative_entry_router
+from app.features.position_monitoring.api.product_deadline_review import (
+    router as product_deadline_router,
+)
 from app.features.position_monitoring.api.router import router
 
 router.include_router(frankfurt_router)
@@ -14,5 +17,6 @@ router.include_router(sessions_router)
 router.include_router(original_bid_router)
 router.include_router(loss_router)
 router.include_router(indicative_entry_router)
+router.include_router(product_deadline_router)
 
 __all__ = ["router"]

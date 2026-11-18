@@ -2661,3 +2661,85 @@ Externe Reviewzustellung bleibt separat ausgeschaltet, bis sie ausdrücklich
 freigegeben wird. Implementierung, synthetischer Durchlauf, grüne Integration,
 Release, zentrale PC-Aktivierung und reale Depotabdeckung werden getrennt
 nachgewiesen. Der Aufgabenstatus bleibt ausschließlich im Backlog.
+
+<a id="documented-product-deadline-review-v1"></a>
+## Kursunabhängige dokumentierte Produktfristprüfung, Version 1
+
+`DOCUMENTED_PRODUCT_DEADLINE_REVIEW_V1` / `product-deadline-review-v1` ist ein
+begrenzter B05-Teilumfang innerhalb der ausdrücklichen zentralen V2-Aktivierung.
+Der vorhandene B05-Rechenkern bleibt maßgeblich: das frühere Datum aus belegtem
+Produktende und letztem Handelstag am ausdrücklich gewählten Ausstiegslisting
+bestimmt die Rückwärtszählung von zwanzig abgeschlossenen Produktbörsentagen;
+der davor liegende Produkttag bestimmt die Vorwarnstufe. Keine BID-,
+Originalstatus-, Ziel-, Einstands-, Kurswährungs- oder Produktmaßstabsqualifikation
+ist Voraussetzung für diese Fristerinnerung.
+
+Product komponiert den aktuellen Original-KID-Termin, den Originalbeleg des
+letzten Handelstags und eine ausdrückliche persönliche Wahl aus den vorhandenen
+Produktlistings. Bedingungsversion, Listingrevision, Handelsplatz und MIC müssen
+zusammenpassen. Ein Quellenlisting, der erste gespeicherte Platz oder der einzige
+angezeigte Platz ersetzt keine persönliche Ausstiegswahl. Unveränderte Wahl und
+Dokumente werden wiederverwendet; Änderung, Rücknahme, Inaktivität und Widerspruch
+erscheinen gezielt. Anzeigenamenkorrekturen verlangen keine erneute fachliche
+Wahl, wenn die maßgebliche Bindung gleich bleibt.
+
+Der enge Originaldateiimport übernimmt die bereitgestellten Bytes einer
+Stuttgarter Produktseite. Er prüft die exakte Produktidentität und den
+Masterdaten-Eintrag zum letzten Börsenhandelstag, erhält Original, Parserstand,
+Quellenreferenz und serverseitige Bindungen. Aus der Datei wird weder eine
+unabhängig authentifizierte Beschaffung noch ein gegenwärtiger Marktstatus
+abgeleitet. Der Beleg trägt
+`USER_SUPPLIED_ORIGINAL_NOT_INDEPENDENT_VERIFICATION`; Empfang ist
+`FILE_RECEIVED_AT`. Produktende, Auszahlungstag und letzter Handelstag bleiben
+verschiedene Fakten. Ein einmaliger Dateiimport erfordert keine täglichen
+Bestätigungen und aktiviert keinen Webseiten-Kursabruf oder Provider.
+
+Vorhandene geeignete Originalkalenderzeiten werden über den bestehenden
+Kalenderowner gelesen. Nur bei tatsächlich fehlendem, nicht bei zurückgenommenem
+oder widersprüchlichem Zeitbeleg kann der eigene Original-Börsentagskalender
+verwendet werden. Sein Umfang heißt `DAY_ONLY_CALENDAR_REVIEW`. Er liefert
+`WARNING_DAY_REACHED`, `DEADLINE_DAY_REACHED` und `DEADLINE_DAY_PASSED` mit
+`scheduled_on`, ohne erfundenes `scheduled_at`, Mitternachtsereignis oder
+produktspezifische Öffnungs-/Schlusszeit. Die zeitlich genauere Kalenderstrecke
+zeigt ihre ursprünglichen Sitzungszeiten, bestätigt damit aber ebenfalls keinen
+individuellen B20-Handelsschluss. Beide Teilstrecken tragen
+`qualified_b05=false` und `product_cutoff_status=UNVERIFIED`.
+
+Monitoring erhält in Migration 0060 eigene unveränderliche Fristenbewertungen
+und dauerhafte Ereignis-/Datenproblemepisoden. Wiederholung, Parallelverarbeitung
+und Neustart erzeugen kein zweites logisches Ereignis; echte Termin-/Auswahl-/
+Kalenderänderungen erzeugen nachvollziehbare Neubewertungen. Der aktuelle
+Durchlauf stellt nur die jetzt belegte Stufe fest und erfindet keine damalige
+Zustellung. Datenlücken löschen eine bestehende Fristepisode nicht. Vollverkauf
+beendet Handlungshinweise und unterdrückt ausstehende Zustellungen; Historie
+bleibt erhalten. Alert `PRODUCT_DEADLINE_REVIEW` hat keine numerischen Kurswerte.
+
+Der vorhandene Runner führt den kursunabhängigen Fristlauf gesondert aus und
+zeigt seine eigenen vier `deadline_*`-Zähler neben den Einstandsergebnissen.
+Passive GETs beschaffen keine Belege und schreiben keine Bewertungen. Eine
+spätere externe Zustellung setzt aktive zentrale V2-Freigabe und die eigene
+Reviewzustellfreigabe voraus. Direkt vor Dispatch werden wirtschaftlicher
+Owner, Produktbelege, Exitwahl und Kalender unter dem bestehenden Trade-Lock
+konsistent erneut gelesen. V1 darf alte V2-Fristzustellungen nicht freigeben;
+ein belegter Vollverkauf wird auch bei pausierter Zustellung erhalten.
+Eine vorübergehend fehlende Fristgrundlage pausiert dieselbe ausstehende
+Zustellung ohne Versandversuch oder endgültigen Fehlerstatus. Wird dieselbe
+Stufe wieder belegt, kann dieselbe Outbox weiterlaufen. Vollverkauf, aufgehobene
+Friststufe und echte Änderungen des Fristereignisses beenden ihre ausstehende
+Zustellung nachvollziehbar.
+Der Zustelllauf betrachtet einen festen Beginn-Zeitstand und durchläuft dessen
+Kandidaten anhand ihres unveränderlichen `(created_at, id)`-Schlüssels. Pausierte
+Einträge verdecken dadurch keine späteren anderen Hinweise. Das bestehende
+Sendebudget begrenzt tatsächliche Adapteraufrufe; reine Pause-/Terminalprüfungen
+verbrauchen keinen Versandversuch. Während des Laufs neu angelegte Nachrichten
+gehören zum nächsten Durchlauf. Daraus entsteht keine fachliche Statusgültigkeit
+oder zusätzliche Marktzeitregel.
+
+Für die vollständige B05-Abnahme bleiben ein verifizierter individueller
+Produktschluss, sämtliche erforderlichen Kalenderjahre und die reale
+Depotbindung gesondert offen. Restliches F207-2/B06 benötigt weiterhin
+Stopberührungen, Schutzboden, Bekanntgabe, Schutzüberwachung,
+Korrekturklärung und Z1-bezogene Sitzungszählung. F207-5 benötigt gemeinsame
+Meldungsaktionen gesehen/abgelehnt/ausgeführt, globale Versionierung und
+Betriebsabnahme. Diese begrenzten Nachträge erklären diese Restarbeiten nicht
+für erledigt; allein der Backlog führt den Aufgabenstatus.

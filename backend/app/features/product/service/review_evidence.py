@@ -19,6 +19,7 @@ from app.features.product.domain.review_evidence import (
     ProductDeadlineEvidence,
     ProductReviewAcquisitionState,
     ProductReviewEvidence,
+    ReviewEvidenceStatus,
 )
 from app.features.product.persistence.models import (
     WarrantModel,
@@ -29,6 +30,8 @@ from app.features.product.persistence.review_evidence import (
     ProductReviewAcquisitionModel,
     ProductReviewDocumentModel,
 )
+from app.features.product.service.deadline_choice import read_product_deadline_exit_choice
+from app.features.product.service.deadline_listing_terms import read_product_listing_terms
 from app.features.product.service.price_scale_evidence import (
     binding_matches,
     require_warrant,
@@ -297,25 +300,87 @@ class ProductReviewEvidenceReader:
         warrant_id: UUID,
         known_at: datetime,
     ) -> ProductDeadlineEvidence:
-        # The explicit personal exit-listing owner is composed in the deadline increment.
         row, binding, facts, problems = await self._facts(
             workspace_id=workspace_id, warrant_id=warrant_id, known_at=known_at
         )
-        reasons = (
-            *problems,
-            "PRODUCT_EXIT_LISTING_MISSING",
-            "PRODUCT_LAST_TRADING_DAY_UNVERIFIED",
+        choice = await read_product_deadline_exit_choice(
+            self._session, workspace_id=workspace_id, warrant_id=warrant_id, known_at=known_at
         )
+        listing = await read_product_listing_terms(
+            self._session, workspace_id=workspace_id, warrant_id=warrant_id, known_at=known_at
+        )
+        # A product date needs no unit, currency, target or underlying-market assumption.
+        reasons = [item for item in problems if item != "PRODUCT_DOCUMENT_UNDERLYING_AMBIGUOUS"]
+        reasons.extend((*choice.reasons, *listing.reasons))
+        if facts is None or facts.maturity_on is None:
+            reasons.append("PRODUCT_MATURITY_EVIDENCE_MISSING")
+        for component in (choice, listing):
+            if (
+                component.workspace_id != workspace_id
+                or component.warrant_id != warrant_id
+                or component.known_at != known_at
+                or (
+                    component.recorded_at is not None
+                    and (not aware(component.recorded_at) or component.recorded_at > known_at)
+                )
+            ):
+                reasons.append("PRODUCT_DEADLINE_COMPONENT_SCOPE_MISMATCH")
+        if binding is not None and (
+            choice.current_terms_id != binding.current_terms_id
+            or (listing.terms_id is not None and listing.terms_id != binding.current_terms_id)
+        ):
+            reasons.append("PRODUCT_DEADLINE_TERMS_MISMATCH")
+        if (
+            choice.status == listing.status == "AVAILABLE"
+            and choice.exit_venue_mic != listing.venue_mic
+        ):
+            reasons.append("PRODUCT_LAST_TRADING_DAY_EXIT_VENUE_MISMATCH")
+        unique_reasons = tuple(dict.fromkeys(reasons))
+        missing = {
+            "PRODUCT_REVIEW_DOCUMENT_MISSING",
+            "PRODUCT_MATURITY_EVIDENCE_MISSING",
+            "PRODUCT_EXIT_LISTING_MISSING",
+            "PRODUCT_LAST_TRADING_DAY_EVIDENCE_MISSING",
+        }
+        hard_problem = bool(set(unique_reasons) - missing) or "UNSUITABLE" in {
+            choice.status,
+            listing.status,
+        }
+        status: ReviewEvidenceStatus = (
+            "UNSUITABLE" if hard_problem else "MISSING" if unique_reasons else "AVAILABLE"
+        )
+        clocks = [
+            clock
+            for clock in (row.recorded_at if row else None, choice.recorded_at, listing.recorded_at)
+            if clock is not None and aware(clock)
+        ]
         return ProductDeadlineEvidence(
             workspace_id,
             warrant_id,
             known_at,
-            "MISSING" if row is None else "UNSUITABLE",
-            reasons,
+            status,
+            unique_reasons,
             row.id if row else None,
-            row.recorded_at if row else None,
-            fingerprint({"revision_id": row.id if row else None, "reasons": reasons}),
+            max(clocks) if clocks else None,
+            fingerprint(
+                {
+                    "kid_revision_id": row.id if row else None,
+                    "kid_document_sha256": row.document_sha256 if row else None,
+                    "kid_facts": asdict(facts) if facts else None,
+                    "exit_choice": choice.fingerprint,
+                    "listing_terms": listing.fingerprint,
+                    "reasons": unique_reasons,
+                }
+            ),
             terms_id=binding.current_terms_id if binding else None,
             maturity_on=facts.maturity_on if facts else None,
-            source_reference=row.source_reference if row else None,
+            last_trading_on=listing.last_trading_on,
+            exit_listing_id=choice.exit_listing_id,
+            exit_venue_mic=choice.exit_venue_mic,
+            source_reference=listing.source_reference,
+            verification="CURRENT_KID_AND_USER_SUPPLIED_LISTING_ORIGINAL_NOT_INDEPENDENT_VERIFICATION",
+            product_document_revision_id=row.id if row else None,
+            listing_terms_revision_id=listing.revision_id,
+            exit_choice_revision_id=choice.revision_id,
+            product_document_source_reference=row.source_reference if row else None,
         )

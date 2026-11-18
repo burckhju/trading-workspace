@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import and_, func, literal, or_, select, update
+from sqlalchemy import Select, and_, func, literal, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import DatabaseManager
@@ -22,12 +22,16 @@ from app.features.notification.persistence.models import (
     NotificationDeliveryAttemptModel,
     NotificationModel,
 )
+from app.features.notification.service.durable_delivery import PendingNotificationCursor
 from app.features.notification.service.hebeltrader_lifecycle import (
     POSITION_GUARDED_ALERT_TYPES,
     POSITION_REVIEW_ALERT_TYPES,
     POSITION_SUPPRESSION_CODES,
     REVIEW_SUPPRESSION_CODES,
     suppress_position_notification,
+)
+from app.features.position_monitoring.domain.product_deadline_review import (
+    RULE_SCOPE as DEADLINE_SCOPE,
 )
 from app.features.trade_position.domain.projector import PositionProjector
 from app.features.trade_position.persistence.models import TradeModel
@@ -40,9 +44,16 @@ from app.features.trade_position.persistence.repositories import (
 class SqlAlchemyDurableNotificationDeliveryStore:
     """Persist preparation and completion in separate database transactions."""
 
-    def __init__(self, database: DatabaseManager, *, review_delivery_enabled: bool = True) -> None:
+    def __init__(
+        self,
+        database: DatabaseManager,
+        *,
+        review_delivery_enabled: bool = True,
+        deadline_delivery_enabled: bool = False,
+    ) -> None:
         self._database = database
         self._review_delivery_enabled = review_delivery_enabled
+        self._deadline_delivery_enabled = deadline_delivery_enabled
 
     async def suppress_terminal_review_notifications(
         self, *, now: datetime, page_size: int = 100
@@ -101,31 +112,82 @@ class SqlAlchemyDurableNotificationDeliveryStore:
             after = (pending[-1].created_at, pending[-1].id)
 
     async def list_pending_notification_ids(self, *, limit: int) -> tuple[UUID, ...]:
+        """Retain the existing bounded diagnostic/compatibility reader."""
         async with self._database.session_context() as session:
-            values = await session.scalars(
-                select(NotificationModel.id)
-                .join(AlertModel, AlertModel.id == NotificationModel.alert_id)
-                .join(TradeModel, TradeModel.id == AlertModel.trade_id)
-                .where(
-                    NotificationModel.status == NotificationStatus.PENDING.value,
-                    or_(
-                        literal(self._review_delivery_enabled),
-                        AlertModel.alert_type.not_in(POSITION_REVIEW_ALERT_TYPES),
-                    ),
-                    or_(
-                        # Position notices need a durable suppression reason when the
-                        # alert was resolved/invalidated or its trade cancelled.
-                        AlertModel.alert_type.in_(POSITION_GUARDED_ALERT_TYPES),
-                        and_(
-                            AlertModel.status != "INVALIDATED",
-                            TradeModel.cancelled_at.is_(None),
-                        ),
+            rows = await session.execute(self._pending_statement().limit(limit))
+            return tuple(row.id for row in rows)
+
+    async def list_pending_notification_page(
+        self,
+        *,
+        limit: int,
+        created_before: datetime,
+        after: PendingNotificationCursor | None = None,
+    ) -> tuple[PendingNotificationCursor, ...]:
+        """Read one immutable-clock keyset page with the same delivery scope gates."""
+        if limit < 1 or created_before.utcoffset() is None:
+            raise ValueError("pending page requires a positive limit and aware cutoff")
+        statement = self._pending_statement().where(NotificationModel.created_at < created_before)
+        if after is not None:
+            if after[0].utcoffset() is None:
+                raise ValueError("pending page requires an aware cursor")
+            statement = statement.where(
+                or_(
+                    NotificationModel.created_at > after[0],
+                    and_(
+                        NotificationModel.created_at == after[0],
+                        NotificationModel.id > after[1],
                     ),
                 )
-                .order_by(NotificationModel.created_at, NotificationModel.id)
-                .limit(limit)
             )
-            return tuple(values.all())
+        async with self._database.session_context() as session:
+            rows = await session.execute(statement.limit(limit))
+            return tuple(
+                (
+                    # Owner timestamps are UTC; SQLite verification drops tzinfo.
+                    (
+                        row.created_at.replace(tzinfo=UTC)
+                        if row.created_at.utcoffset() is None
+                        else row.created_at.astimezone(UTC)
+                    ),
+                    row.id,
+                )
+                for row in rows
+            )
+
+    def _pending_statement(self) -> Select[tuple[UUID, datetime]]:
+        return (
+            select(NotificationModel.id, NotificationModel.created_at)
+            .join(AlertModel, AlertModel.id == NotificationModel.alert_id)
+            .join(TradeModel, TradeModel.id == AlertModel.trade_id)
+            .where(
+                NotificationModel.status == NotificationStatus.PENDING.value,
+                or_(
+                    literal(self._review_delivery_enabled),
+                    AlertModel.alert_type.not_in(POSITION_REVIEW_ALERT_TYPES),
+                ),
+                or_(
+                    literal(self._deadline_delivery_enabled),
+                    and_(
+                        AlertModel.alert_type != AlertType.PRODUCT_DEADLINE_REVIEW.value,
+                        or_(
+                            AlertModel.price_context["scope"].as_string().is_(None),
+                            AlertModel.price_context["scope"].as_string() != DEADLINE_SCOPE,
+                        ),
+                    ),
+                ),
+                or_(
+                    # Position notices need a durable suppression reason when the
+                    # alert was resolved/invalidated or its trade cancelled.
+                    AlertModel.alert_type.in_(POSITION_GUARDED_ALERT_TYPES),
+                    and_(
+                        AlertModel.status != "INVALIDATED",
+                        TradeModel.cancelled_at.is_(None),
+                    ),
+                ),
+            )
+            .order_by(NotificationModel.created_at, NotificationModel.id)
+        )
 
     async def prepare(
         self,
@@ -171,9 +233,9 @@ class SqlAlchemyDurableNotificationDeliveryStore:
                 )
                 if terminal is not None:
                     return terminal
-                if (
-                    alert_model.alert_type in POSITION_REVIEW_ALERT_TYPES
-                    and not self._review_delivery_enabled
+                if alert_model.alert_type in POSITION_REVIEW_ALERT_TYPES and (
+                    not self._review_delivery_enabled
+                    or (self._is_deadline(alert_model) and not self._deadline_delivery_enabled)
                 ):
                     return DeliveryPreparation(
                         notification=notification,
@@ -360,6 +422,40 @@ class SqlAlchemyDurableNotificationDeliveryStore:
             )
             if position.open_quantity <= 0:
                 reason = f"{prefix}_POSITION_CLOSED"
+        if (
+            reason is None
+            and trade is not None
+            and self._is_deadline(alert)
+            and self._review_delivery_enabled
+            and self._deadline_delivery_enabled
+        ):
+            from app.features.position_monitoring.service.product_deadline_review_delivery import (
+                deadline_review_delivery_problem,
+            )
+
+            if (alert.price_context or {}).get("scope") != DEADLINE_SCOPE:
+                reason = "REVIEW_ALERT_INVALIDATED"
+            else:
+                reason = await deadline_review_delivery_problem(
+                    session,
+                    workspace_id=trade.workspace_id,
+                    trade_id=trade.id,
+                    position_id=alert.position_id,
+                    price_context=alert.price_context,
+                    known_at=now,
+                )
+        if reason == "REVIEW_DEADLINE_INPUTS_UNAVAILABLE":
+            # Missing premises pause the same outbox item. No attempt or
+            # terminal failure is invented; a restored event can still be sent.
+            return DeliveryPreparation(
+                notification=self._notification(model),
+                terminal_result=DeliveryResult(
+                    status=DeliveryStatus.FAILED,
+                    retryable=True,
+                    error_code=reason,
+                    error_message="Product deadline inputs unavailable; notice stays pending",
+                ),
+            )
         if reason is None:
             return None
 
@@ -372,6 +468,13 @@ class SqlAlchemyDurableNotificationDeliveryStore:
         )
         await session.commit()
         return DeliveryPreparation(notification=self._notification(model), terminal_result=result)
+
+    @staticmethod
+    def _is_deadline(alert: AlertModel) -> bool:
+        return (
+            alert.alert_type == AlertType.PRODUCT_DEADLINE_REVIEW.value
+            or (alert.price_context or {}).get("scope") == DEADLINE_SCOPE
+        )
 
     async def complete(
         self,

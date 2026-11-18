@@ -23,6 +23,7 @@ from app.features.market.persistence.models import UnderlyingModel, WorkspaceMod
 from app.features.product.domain.models import OptionDirection, WarrantLifecycle
 from app.features.product.domain.price_scale_evidence import ProductPriceScaleBinding
 from app.features.product.domain.review_evidence import ExtractedProductFacts
+from app.features.product.persistence.deadline_choice import ProductDeadlineExitChoiceModel
 from app.features.product.persistence.models import WarrantModel, WarrantTermsVersionModel
 from app.features.product.persistence.review_evidence import ProductReviewDocumentModel
 from app.features.product.service.review_evidence import BINDING, FACTS, ProductReviewEvidenceReader
@@ -59,6 +60,7 @@ def context(tmp_path):
         WarrantModel,
         WarrantTermsVersionModel,
         ProductReviewDocumentModel,
+        ProductDeadlineExitChoiceModel,
     ):
         model.__table__.create(engine)
     # Match the existing PostgreSQL partial uniqueness in the disposable SQLite fixture.
@@ -307,11 +309,11 @@ async def test_maturity_alone_does_not_invent_last_trading_day_or_personal_exit_
         warrant_id=WARRANT,
         known_at=NOW,
     )
-    assert report.status == "UNSUITABLE"
+    assert report.status == "MISSING"
     assert report.maturity_on == date(2027, 1, 15)
     assert report.last_trading_on is None and report.exit_listing_id is None
     assert "PRODUCT_EXIT_LISTING_MISSING" in report.reasons
-    assert "PRODUCT_LAST_TRADING_DAY_UNVERIFIED" in report.reasons
+    assert "PRODUCT_LAST_TRADING_DAY_EVIDENCE_MISSING" in report.reasons
 
 
 @pytest.mark.asyncio

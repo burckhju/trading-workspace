@@ -12,6 +12,9 @@ from app.features.notification.providers.telegram import (
 from app.features.notification.service.delivery import NotificationDeliveryAdapter
 from app.features.position_monitoring.service.hebeltrader_loss_runtime import HebeltraderLossRuntime
 from app.features.position_monitoring.service.indicative_entry_runtime import IndicativeEntryRuntime
+from app.features.position_monitoring.service.product_deadline_review_runtime import (
+    ProductDeadlineReviewRuntime,
+)
 from app.features.position_monitoring.service.risk_runtime import RiskRuntimeService
 from app.features.position_monitoring.service.rule_prices import ProductValuationReader
 from app.features.position_monitoring.service.runtime import PositionMonitoringRuntimeService
@@ -60,8 +63,23 @@ def build_position_monitoring_runtime(
                 monitoring.review_notifications_enabled and delivery_adapter is not None
             ),
         ),
+        product_deadline=ProductDeadlineReviewRuntime(
+            database,
+            scope=monitoring.review_scope,
+            notifications_enabled=(
+                monitoring.review_scope == "INDICATIVE_ENTRY_V2"
+                and monitoring.review_notifications_enabled
+                and delivery_adapter is not None
+            ),
+        ),
         market_data=market_data,
-        review_notifications_enabled=monitoring.review_notifications_enabled,
+        review_notifications_enabled=(
+            monitoring.review_notifications_enabled and monitoring.review_scope != "DISABLED"
+        ),
+        deadline_notifications_enabled=(
+            monitoring.review_notifications_enabled
+            and monitoring.review_scope == "INDICATIVE_ENTRY_V2"
+        ),
         products=products,
         parallel_positions=monitoring.parallel_positions,
         delivery_adapter=delivery_adapter,

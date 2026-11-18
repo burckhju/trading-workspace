@@ -61,6 +61,10 @@ class ProductDeadlineEvidence:
     exit_venue_mic: str | None = None
     source_reference: str | None = None
     verification: str = VERIFICATION
+    product_document_revision_id: UUID | None = None
+    listing_terms_revision_id: UUID | None = None
+    exit_choice_revision_id: UUID | None = None
+    product_document_source_reference: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
