@@ -62,6 +62,7 @@ class PositionOperationalSnapshot:
     open_alert_types: tuple[str, ...]
     attention_state: str
     target: str
+    product_id: UUID | None = None
     product_isin: str | None = None
     product_wkn: str | None = None
     underlying_name: str | None = None
@@ -158,6 +159,7 @@ class OperationalPositionSnapshotService:
                 PositionOperationalSnapshot(
                     trade_id=trade.id,
                     position_id=position.id,
+                    product_id=position.product_id,
                     product_name=warrant.display_name,
                     product_isin=warrant.isin,
                     product_wkn=warrant.wkn,

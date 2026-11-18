@@ -40,7 +40,14 @@ original_support_loader = tool.load_support
 
 
 class FakeInstallation:
-    def __init__(self, root: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def __init__(
+        self,
+        root: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        *,
+        scope: str = "DISABLED",
+        previous_activation: bool = False,
+    ) -> None:
         self.base = root / "synthetic Boerse"
         self.app = self.base / "trading-workspace-app"
         for relative in (
@@ -73,8 +80,8 @@ class FakeInstallation:
         backend = self.before["services"]["backend"]["environment"]
         backend.update(
             {
-                tool.SCOPE_KEY: "DISABLED",
-                tool.RUNNER_KEY: "false",
+                tool.SCOPE_KEY: scope,
+                tool.RUNNER_KEY: "true" if scope == "INDICATIVE_ENTRY_V1" else "false",
                 tool.NOTIFICATIONS_KEY: "false",
                 "TRADING_WORKSPACE_POSITION_MONITORING__HEBELTRADER_SCOPE": "DISABLED",
                 "TRADING_WORKSPACE_MARKET_DATA__REFRESH__AUTO_CONFIGURE": "false",
@@ -90,6 +97,7 @@ class FakeInstallation:
         self.backups: list[list[str]] = []
         self.tag_revision = REVISION
         self.fail_backup = False
+        self.runtime_before: dict[str, Any] = {}
         self.runtime_after: dict[str, Any] = {}
         self._update_live(self.before, self.old)
         for name in self.h.LEGACY_INPUTS:
@@ -97,7 +105,8 @@ class FakeInstallation:
             if name == "environment.env":
                 data = (
                     f"# Synthetic private installation\nPOSTGRES_PASSWORD='{SECRET}'\n"
-                    + f"{tool.SCOPE_KEY}=DISABLED\n{tool.RUNNER_KEY}=false\n"
+                    + f"{tool.SCOPE_KEY}={scope}\n"
+                    + f"{tool.RUNNER_KEY}={backend[tool.RUNNER_KEY]}\n"
                     + f"{tool.NOTIFICATIONS_KEY}=false\n"
                 ).encode()
             elif name == "candidate.json":
@@ -121,7 +130,21 @@ class FakeInstallation:
             self.h._digest(self.h._read_private(self.old / name)) + "  " + name + "\n"
             for name in sorted(self.h.LEGACY_INPUTS)
         )
-        self.h._write_private(self.old / "inputs.sha256", seal.encode(), exclusive=True)
+        if previous_activation:
+            old_tool = b"raise AssertionError('Synthetic previous tool must never execute')\n"
+            self.h._write_private(self.old / "activation-tool.py", old_tool, exclusive=True)
+            self.h._write_json(
+                self.old / "transition.json",
+                {
+                    "schema": 1,
+                    "operation": tool.OPERATION,
+                    "old_activation": False,
+                    "tool_sha256": self.h._digest(old_tool),
+                },
+            )
+            self.h._create_seal(self.old)
+        else:
+            self.h._write_private(self.old / "inputs.sha256", seal.encode(), exclusive=True)
         for name in ("prepared", "deployed"):
             self.h._write_private(self.old / name, b"", exclusive=True)
         self.h._write_private(self.control / "current-state", (str(self.old) + "\n").encode())
@@ -214,14 +237,17 @@ class FakeInstallation:
                 "enabled": environment[tool.RUNNER_KEY] == "true",
                 "running": environment[tool.RUNNER_KEY] == "true",
                 "review_scope": environment[tool.SCOPE_KEY],
-                "review_rule_version": tool.RULE_VERSION,
+                "review_rule_version": (
+                    "indicative-entry-review-v2"
+                    if environment[tool.SCOPE_KEY] == "INDICATIVE_ENTRY_V2"
+                    else "indicative-entry-review-v1"
+                ),
                 "review_notifications_enabled": False,
                 "last_cycle_completed_at": None,
                 "last_error": None,
                 "last_result": None,
             }
-            if active:
-                value.update(self.runtime_after)
+            value.update(self.runtime_after if active else self.runtime_before)
             return json.dumps(value).encode()
         if command[:2] == ["docker", "stop"]:
             assert command[-2:] == [
@@ -240,8 +266,13 @@ class FakeInstallation:
 
 
 @pytest.fixture
-def installation(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> FakeInstallation:
-    return FakeInstallation(tmp_path, monkeypatch)
+def installation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest
+) -> FakeInstallation:
+    scope, previous_activation = getattr(request, "param", ("DISABLED", False))
+    return FakeInstallation(
+        tmp_path, monkeypatch, scope=scope, previous_activation=previous_activation
+    )
 
 
 @pytest.fixture
@@ -256,12 +287,13 @@ def managed_installation(installation: FakeInstallation) -> FakeInstallation:
 
 
 @pytest.mark.parametrize("newline", ["\n", "\r\n"])
-def test_env_patch_preserves_secrets_and_unrelated_settings(newline: str) -> None:
+@pytest.mark.parametrize("scope", ["DISABLED", "INDICATIVE_ENTRY_V1"])
+def test_env_patch_preserves_secrets_and_unrelated_settings(newline: str, scope: str) -> None:
     before = newline.join(
         [
             f"# {tool.SCOPE_KEY}=DISABLED",
             f"SECRET='{SECRET}'",
-            f"export {tool.SCOPE_KEY} = 'DISABLED' # retained comment",
+            f"export {tool.SCOPE_KEY} = '{scope}' # retained comment",
             f"{tool.RUNNER_KEY}=false",
             f'{tool.NOTIFICATIONS_KEY}="false"',
             "TRADING_WORKSPACE_NOTIFICATION__TELEGRAM__ENABLED=true",
@@ -269,7 +301,7 @@ def test_env_patch_preserves_secrets_and_unrelated_settings(newline: str) -> Non
         ]
     )
     after = tool.patch_environment(before)
-    assert after == before.replace("'DISABLED' #", tool.SCOPE + " #").replace(
+    assert after == before.replace("'" + scope + "' #", tool.SCOPE + " #").replace(
         tool.RUNNER_KEY + "=false",
         tool.RUNNER_KEY + "=true",
     )
@@ -295,7 +327,7 @@ def test_absent_flags_are_appended_without_rewriting_existing_values(before: str
         f"{tool.SCOPE_KEY}=DISABLED\x00",
     ],
 )
-def test_ambiguous_or_previously_active_configuration_is_rejected(assignment: str) -> None:
+def test_ambiguous_or_already_v2_configuration_is_rejected(assignment: str) -> None:
     with pytest.raises(tool.ActivationError) as error:
         tool.patch_environment(f"SECRET='{SECRET}'\n" + assignment)
     assert SECRET not in str(error.value)
@@ -345,17 +377,49 @@ def test_effective_transition_refuses_unrelated_changes(
 
 
 @pytest.mark.parametrize("runner", ["false", "true"])
+@pytest.mark.parametrize("scope", ["DISABLED", "INDICATIVE_ENTRY_V1"])
 def test_transition_retains_existing_runner_and_disabled_notifications(
-    installation: FakeInstallation, runner: str
+    installation: FakeInstallation, runner: str, scope: str
 ) -> None:
     before = copy.deepcopy(installation.before)
+    before["services"]["backend"]["environment"][tool.SCOPE_KEY] = scope
     before["services"]["backend"]["environment"][tool.RUNNER_KEY] = runner
     after = copy.deepcopy(before)
     after["services"]["backend"]["environment"].update(tool.TARGETS)
     tool.validate_transition(installation.h, before, after)
-    assert before["services"]["backend"]["environment"][tool.SCOPE_KEY] == "DISABLED"
+    assert before["services"]["backend"]["environment"][tool.SCOPE_KEY] == scope
 
 
+@pytest.mark.parametrize(
+    "scope", [None, "INDICATIVE_ENTRY_V2", "B04_B57_V1", "HEBELTRADER_CONFIRMED_BASELINE"]
+)
+def test_transition_refuses_any_unreviewed_or_already_activated_source_scope(
+    installation: FakeInstallation, scope: str | None
+) -> None:
+    before = copy.deepcopy(installation.before)
+    before["services"]["backend"]["environment"][tool.SCOPE_KEY] = scope
+    after = copy.deepcopy(before)
+    after["services"]["backend"]["environment"].update(tool.TARGETS)
+    with pytest.raises(tool.ActivationError, match="disabled or use V1"):
+        tool.validate_transition(installation.h, before, after)
+
+
+def test_existing_enabled_review_delivery_requires_separate_review(
+    installation: FakeInstallation,
+) -> None:
+    before = copy.deepcopy(installation.before)
+    before["services"]["backend"]["environment"][tool.NOTIFICATIONS_KEY] = "true"
+    after = copy.deepcopy(before)
+    after["services"]["backend"]["environment"].update(tool.TARGETS)
+    with pytest.raises(tool.ActivationError, match="notifications must remain disabled"):
+        tool.validate_transition(installation.h, before, after)
+
+
+@pytest.mark.parametrize(
+    "installation",
+    [("DISABLED", False), ("INDICATIVE_ENTRY_V1", False), ("INDICATIVE_ENTRY_V1", True)],
+    indirect=True,
+)
 def test_prepare_then_apply_keeps_seals_images_data_and_normal_update_path(
     managed_installation: FakeInstallation, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -365,6 +429,14 @@ def test_prepare_then_apply_keeps_seals_images_data_and_normal_update_path(
     assert not f.mutations and not f.backups
     assert f.h._line(f.control / "current-state") == str(f.old)
     f.h._seal_entries(state, activation=True)
+    transition = json.loads((state / "transition.json").read_text())
+    assert (
+        transition["source_scope"] == f.before["services"]["backend"]["environment"][tool.SCOPE_KEY]
+    )
+    assert transition["source_rule_version"] == "indicative-entry-review-v1"
+    assert transition["target_scope"] == "INDICATIVE_ENTRY_V2"
+    assert transition["target_rule_version"] == "indicative-entry-review-v2"
+    assert transition["operation_version"] == "indicative-review-linux-operation-v2"
     output = capsys.readouterr()
     assert SECRET not in output.out + output.err
     assert "apply" in output.out and "Provider" in output.out
@@ -378,6 +450,7 @@ def test_prepare_then_apply_keeps_seals_images_data_and_normal_update_path(
     assert (state / "backups-verified").is_file()
     assert f.h._line(state / "phase") == "completed"
     f.h._seal_entries(state, activation=True)
+    assert f.h._previous_activation(state) is True
     assert len(f.mutations) == 3 and len(f.backups) == 4
     assert f.live[2]["Id"] == "id-database"
     assert all("--pull" in command and "never" in command for command in f.mutations[1:])
@@ -391,6 +464,67 @@ def test_prepare_then_apply_keeps_seals_images_data_and_normal_update_path(
     with pytest.raises(ValueError):
         tool.apply(f.base, state)
     assert len(f.commands) == before_repeat
+
+
+@pytest.mark.parametrize(
+    "installation", [("DISABLED", False), ("INDICATIVE_ENTRY_V1", True)], indirect=True
+)
+@pytest.mark.parametrize("phase", ["prepare", "apply"])
+@pytest.mark.parametrize(
+    "mismatch",
+    [
+        {"review_scope": "INDICATIVE_ENTRY_V2"},
+        {"review_rule_version": "indicative-entry-review-v2"},
+        {"review_notifications_enabled": True},
+    ],
+)
+def test_loaded_source_scope_and_rule_version_must_match_before_any_service_change(
+    managed_installation: FakeInstallation, phase: str, mismatch: dict[str, Any]
+) -> None:
+    f = managed_installation
+    state = tool.prepare(f.base) if phase == "apply" else None
+    f.runtime_before = mismatch
+    with pytest.raises(tool.ActivationError, match="Loaded review scope"):
+        if state is None:
+            tool.prepare(f.base)
+        else:
+            tool.apply(f.base, state)
+    assert not f.mutations and not f.backups
+    assert not (f.control / "pending").exists()
+    assert f.h._line(f.control / "current-state") == str(f.old)
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("schema", True),
+        ("operation_version", "indicative-review-linux-operation-v1"),
+        ("source_scope", "INDICATIVE_ENTRY_V2"),
+        ("source_rule_version", "indicative-entry-review-v2"),
+        ("target_scope", "INDICATIVE_ENTRY_V1"),
+        ("target_rule_version", "indicative-entry-review-v1"),
+    ],
+)
+def test_prepared_transition_binds_scope_and_rule_version_even_when_sealed(
+    managed_installation: FakeInstallation, field: str, value: Any
+) -> None:
+    f = managed_installation
+    state = tool.prepare(f.base)
+    transition = json.loads((state / "transition.json").read_text())
+    transition[field] = value
+    f.h._write_json(state / "transition.json", transition)
+    # Deliberately construct an internally sealed but unsupported synthetic record.
+    # The production seal creator remains exclusive and is never weakened.
+    names = sorted(f.h.LEGACY_INPUTS | f.h.ADDITIONAL_INPUTS)
+    seal = "".join(
+        f.h._digest(f.h._read_private(state / name)) + "  " + name + "\n" for name in names
+    )
+    f.h._write_private(state / "inputs.sha256", seal.encode())
+    with pytest.raises(tool.ActivationError, match="Unknown activation record"):
+        tool.apply(f.base, state)
+    assert not f.mutations and not f.backups
+    assert not (f.control / "pending").exists()
+    assert f.h._line(f.control / "current-state") == str(f.old)
 
 
 @pytest.mark.parametrize("marker", ["pending", "current-state.new"])
@@ -455,7 +589,13 @@ def test_backup_failure_retains_pending_state_and_cannot_be_blindly_replayed(
 
 @pytest.mark.parametrize(
     "runtime",
-    [{"review_notifications_enabled": True}, {"running": False}, {"review_scope": "DISABLED"}],
+    [
+        {"review_notifications_enabled": True},
+        {"running": False},
+        {"review_scope": "DISABLED"},
+        {"review_scope": "INDICATIVE_ENTRY_V1"},
+        {"review_rule_version": "indicative-entry-review-v1"},
+    ],
 )
 def test_actual_loaded_scope_is_required_before_publishing_state(
     managed_installation: FakeInstallation, runtime: dict[str, Any]
@@ -496,6 +636,73 @@ def test_scope_confirmation_never_invents_completed_or_healthy_cycles(
     out = capsys.readouterr().out
     assert expected in out
     assert "Keine B58-Qualifikation" in out
+
+
+def test_entry_and_deadline_results_remain_separate_and_limitations_visible(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    result = dict.fromkeys((*tool.COUNTERS, *tool.DEADLINE_COUNTERS), 0)
+    result.update(
+        review_positions_evaluated=6,
+        review_alerts_created=2,
+        deadline_positions_evaluated=3,
+        deadline_alerts_created=1,
+        deadline_data_problems=2,
+        deadline_position_errors=1,
+    )
+    tool.print_runtime_summary(
+        {"last_cycle_completed_at": "2026-11-18T15:00:00Z", "last_result": result}
+    )
+    out = capsys.readouterr().out
+    assert "INDICATIVE_ENTRY_V2; Regelversion: indicative-entry-review-v2" in out
+    assert "Einstandsprüfung: Positionen ausgewertet=6; Hinweise erstellt=2" in out
+    assert "Produkttermin-Erinnerungen: Positionen ausgewertet=3; Hinweise erstellt=1" in out
+    assert "Produkttermin-Erinnerungen: Daten- oder Auswertungsprobleme bestehen" in out
+    assert "Positionen ausgewertet=9" not in out
+    assert "keine bestätigte instrumentbezogene Ausstiegsfrist" in out
+    assert "Keine B58-Qualifikation" in out
+
+
+@pytest.mark.parametrize("invalid", [None, False, -1, "3"])
+def test_missing_or_invalid_deadline_counts_do_not_hide_completed_entry_counts(
+    invalid: Any, capsys: pytest.CaptureFixture[str]
+) -> None:
+    result = dict.fromkeys((*tool.COUNTERS, *tool.DEADLINE_COUNTERS), 0)
+    result["review_positions_evaluated"] = 6
+    result["deadline_positions_evaluated"] = invalid
+    tool.print_runtime_summary(
+        {"last_cycle_completed_at": "2026-11-18T15:00:00Z", "last_result": result}
+    )
+    out = capsys.readouterr().out
+    assert "Einstandsprüfung: Positionen ausgewertet=6" in out
+    assert "Produkttermin-Erinnerungen: Ergebnisse dieses Teilumfangs fehlen noch" in out
+    assert "Produkttermin-Erinnerungen: Positionen ausgewertet=" not in out
+
+
+def test_failed_cycle_never_reuses_previous_success_counters(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    tool.print_runtime_summary(
+        {
+            "last_cycle_completed_at": "2026-11-18T15:00:00Z",
+            "last_result": dict.fromkeys((*tool.COUNTERS, *tool.DEADLINE_COUNTERS), 2),
+            "last_error": "SYNTHETIC_FAILURE",
+        }
+    )
+    out = capsys.readouterr().out
+    assert "vorherige Zähler belegen keine Erholung" in out
+    assert "Positionen ausgewertet=" not in out
+
+
+def test_zero_counts_do_not_claim_portfolio_coverage(capsys: pytest.CaptureFixture[str]) -> None:
+    tool.print_runtime_summary(
+        {
+            "last_cycle_completed_at": "2026-11-18T15:00:00Z",
+            "last_result": dict.fromkeys((*tool.COUNTERS, *tool.DEADLINE_COUNTERS), 0),
+        }
+    )
+    out = capsys.readouterr().out
+    assert out.count("Keine ausgewertete Position belegt; Depotabdeckung bleibt offen.") == 2
 
 
 def test_changed_support_bytes_are_not_executed(installation: FakeInstallation) -> None:

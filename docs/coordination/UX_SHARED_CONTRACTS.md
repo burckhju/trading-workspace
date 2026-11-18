@@ -143,3 +143,19 @@ Der vollständige [Visualisierungsvertrag](../ui/ux4-visualization-contract.md) 
 Ein neues Feld oder veränderte Bedeutung erhält vor Integration: genauen Domain-Owner, Producer/Consumer, Kompatibilitätsentscheidung, fehlende/veraltete/ungültige Fälle, historische Referenzen und betroffene Contract-/Integrationstests. Gemeinsame API-/Domainänderungen werden nicht gleichzeitig in mehreren unabhängigen PRs entwickelt.
 
 UX-3 formuliert die Darstellung von Datenqualität; die fachliche Entscheidung über Qualität bleibt bei jedem bestehenden Owner. UX-2 koordiniert Readback/Hostinvalidierung; UX-1 und UX-4 prüfen ihre jeweiligen Reaktionen darauf. Diese Trennung ist bei jeder gemeinsamen Regression nachzuweisen.
+
+## Ergänzung: indikative Prüfung und unabhängige Produktfrist (18.11.2026)
+
+`shared/indicative-monitoring` vereinheitlicht ausschließlich die Darstellung
+öffentlicher Ownerbefunde: Regelversion, aktivierter Umfang, bekannte Quellenzeit,
+Qualitätsgrenzen, Beschaffungsdiagnose und Produktfrist. Fehlende Angaben bleiben
+unbekannt; eine aktuelle Dokumenteinheit ist keine historische Verifikation.
+Die bestehenden Alert-/Notificationzustände behalten ihre Bedeutung.
+
+Die Positionsansicht bindet Reads an Trade, Position und das vom Backend
+mitgelieferte Produkt. Kontextwechsel und verspätete Antworten dürfen keinen
+fremden Stand übernehmen. Lesen und Navigieren löst weder Kursbeschaffung noch
+Bewertung, Aktivierung oder Auswahl aus. Die explizite Exitwahl verwendet die
+vorhandenen Product-Optionen und deren Versionen; kein vorgeschlagener erster
+Eintrag, manuelle technische Identität oder pauschales Bestätigen aller Belege.
+Tatsächliche Auswahländerungen bleiben Commands, keine UI-Evidenzbehauptung.

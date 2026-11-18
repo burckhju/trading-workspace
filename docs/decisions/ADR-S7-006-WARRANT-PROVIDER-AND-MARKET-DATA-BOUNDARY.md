@@ -15,3 +15,15 @@ FT-004 V1 can ship with manual/reference administration while provider support r
 
 ## User impact
 Initially, warrant reference data may require manual administration/import rather than automatic EODHD discovery. The trade-off is that provider data cannot silently create or overwrite trusted product records.
+
+## Originaldokumente im gesonderten indikativen Umfang (18.11.2026)
+
+Der [V2-Belegvertrag](../features/HEBELTRADER_MONITORING_INTEGRATION_CONTRACT.md#indicative-review-readiness-v2)
+ergänzt feste veröffentlichte KID-Dokumentpfade beim Product-Owner und endlich
+belegte Kalenderoriginale beim Market-Data-Owner. Dies ist keine neue
+Kursquellenpriorität oder Providerzustimmung. Die bestehenden verzögerten
+GETTEX-/Stuttgart-Adapter bleiben die Kursbeschaffungsowner; gemeinsame
+Quellkurszeit, Original-BID-Seitenzeit, Empfang und instrumentbezogener
+Originalstatus bleiben verschieden. Der bewusst begrenzte Originaldateiimport
+für Listingtermine aktiviert keinen regelmäßigen Webseitenkursabruf. Die
+strengen B58-Quellenanforderungen bleiben unverändert.

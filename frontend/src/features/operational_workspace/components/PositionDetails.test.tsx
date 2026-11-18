@@ -12,6 +12,12 @@ vi.mock('./HebeltraderTargetHistory', () => ({ HebeltraderTargetHistory: () => n
 vi.mock('./HebeltraderSessions', () => ({ HebeltraderSessions: () => null }));
 vi.mock('./HebeltraderOriginalBid', () => ({ HebeltraderOriginalBid: () => null }));
 vi.mock('./HebeltraderLoss', () => ({ HebeltraderLoss: () => null }));
+vi.mock('./IndicativeEntryObservation', () => ({ IndicativeEntryObservation: () => null }));
+vi.mock('../../product/deadlineExitListing', () => ({
+  DeadlineExitListingChoice: ({ warrantId }: { warrantId: string }) => (
+    <p>Produkttermin-Auswahl für {warrantId}</p>
+  ),
+}));
 vi.mock('../../alert/components/PositionRiskPanel', () => ({ PositionRiskPanel: () => null }));
 
 function show(overrides: Partial<OperationalPosition> = {}) {
@@ -22,6 +28,16 @@ function show(overrides: Partial<OperationalPosition> = {}) {
   );
   return within(screen.getByRole('region', { name: 'Details Test Warrant' }));
 }
+
+it('uses the persisted product binding for the explicit deadline choice even without a valuation basis', () => {
+  const details = show({ product_id: 'synthetic-product', position_basis: null });
+  expect(details.getByText('Produkttermin-Auswahl für synthetic-product')).toBeInTheDocument();
+});
+
+it('does not invent a product identity for the deadline choice from the symbol or ISIN', () => {
+  const details = show({ product_id: null, position_basis: null });
+  expect(details.queryByText(/Produkttermin-Auswahl für/)).not.toBeInTheDocument();
+});
 
 it.each([null, 'OUTDATED_QUOTE_INDICATIVE_ANALYSIS_ONLY'])(
   'retains the supplied STALE restriction with warning %s',

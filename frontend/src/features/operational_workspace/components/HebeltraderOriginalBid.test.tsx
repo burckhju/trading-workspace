@@ -15,6 +15,7 @@ import { PositionDetails } from './PositionDetails';
 
 vi.mock('../services/hebeltraderOriginalBid', () => ({ readHebeltraderOriginalBid: vi.fn() }));
 vi.mock('./PositionPriceHistory', () => ({ PositionPriceHistory: () => null }));
+vi.mock('./IndicativeEntryObservation', () => ({ IndicativeEntryObservation: () => null }));
 vi.mock('./HebeltraderEvidenceCoverage', () => ({ HebeltraderEvidenceCoverage: () => null }));
 vi.mock('./HebeltraderTargetHistory', () => ({ HebeltraderTargetHistory: () => null }));
 vi.mock('./HebeltraderSessions', () => ({

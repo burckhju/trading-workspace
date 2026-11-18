@@ -285,7 +285,7 @@ test -f "$review_state/deployed"
 (cd "$review_state" && sha256sum --check --status inputs.sha256)
 activation_launcher status
 docker exec trading-workspace-backend-1 python -c \
-  'import json, urllib.request; s=json.load(urllib.request.urlopen("http://127.0.0.1:8000/api/v1/position-monitoring/runtime/status", timeout=10)); assert s["review_scope"] == "INDICATIVE_ENTRY_V1" and s["review_notifications_enabled"] is False and s["running"] is True; assert s["hebeltrader_scope"] == "DISABLED"; print("Synthetic indicative scope active; strict scope and review delivery remain disabled")'
+  'import json, urllib.request; s=json.load(urllib.request.urlopen("http://127.0.0.1:8000/api/v1/position-monitoring/runtime/status", timeout=10)); assert s["review_scope"] == "INDICATIVE_ENTRY_V2" and s["review_rule_version"] == "indicative-entry-review-v2" and s["review_notifications_enabled"] is False and s["running"] is True; assert s["hebeltrader_scope"] == "DISABLED"; print("Synthetic indicative scope active; strict scope and review delivery remain disabled")'
 launcher_state="$review_state"
 cp "$launcher_state/inputs.sha256" "$fixture/activation-old-inputs.sha256"
 cp "$fixture/trading-workspace-state/current-state" "$fixture/activation-old-pointer"
@@ -418,7 +418,7 @@ import sys
 from pathlib import Path
 
 environment = json.loads(Path(sys.argv[1]).read_text())["services"]["backend"]["environment"]
-assert environment["TRADING_WORKSPACE_POSITION_MONITORING__REVIEW_SCOPE"] == "INDICATIVE_ENTRY_V1"
+assert environment["TRADING_WORKSPACE_POSITION_MONITORING__REVIEW_SCOPE"] == "INDICATIVE_ENTRY_V2"
 assert environment["TRADING_WORKSPACE_POSITION_MONITORING__REVIEW_NOTIFICATIONS_ENABLED"] == "false"
 assert environment["TRADING_WORKSPACE_MARKET_DATA__EODHD__ENABLED"] == "true"
 PY

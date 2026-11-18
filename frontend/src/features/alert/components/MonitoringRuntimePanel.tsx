@@ -19,6 +19,8 @@ function runtimeLabel(value: MonitoringRuntimeStatusResponse): string {
       'position_errors',
       'review_data_problems',
       'review_position_errors',
+      'deadline_data_problems',
+      'deadline_position_errors',
     ].some((key) => (value.last_result?.[key] ?? 0) > 0)
   ) {
     return 'Prüfung aktiv · Daten- oder Regelfehler im letzten Durchlauf';
@@ -33,12 +35,52 @@ const reviewCounts: [string, string][] = [
   ['review_position_errors', 'Fehler bei der Auswertung'],
 ];
 
+const deadlineCounts: [string, string][] = [
+  ['deadline_positions_evaluated', 'Positionen auf Produkttermine geprüft'],
+  ['deadline_alerts_created', 'Produkttermin-Hinweise erstellt'],
+  ['deadline_data_problems', 'Produkt- oder Kalenderprobleme'],
+  ['deadline_position_errors', 'Fehler bei der Terminprüfung'],
+];
+
+function deadlineLabel(value: MonitoringRuntimeStatusResponse): string {
+  if (value.review_rule_version !== 'indicative-entry-review-v2')
+    return 'Produkttermin-Teilumfang nicht belegt';
+  if (!value.enabled || !value.running)
+    return 'Produkttermin-Teilumfang gewählt · Hintergrundprüfung nicht aktiv';
+  if (value.last_error) return 'Produkttermin-Prüfung · letzter Durchlauf fehlgeschlagen';
+  if (!value.last_cycle_completed_at || !value.last_result)
+    return 'Produkttermin-Prüfung · erster Abschluss noch nicht belegt';
+  if (
+    deadlineCounts.some(
+      ([key]) =>
+        !Number.isInteger(value.last_result?.[key]) || (value.last_result?.[key] ?? -1) < 0,
+    )
+  )
+    return 'Produkttermin-Prüfergebnis nicht verfügbar';
+  if (
+    value.last_result.deadline_data_problems > 0 ||
+    value.last_result.deadline_position_errors > 0
+  )
+    return 'Produkttermin-Prüfung mit Daten- oder Auswertungsproblemen';
+  if (value.last_result.deadline_positions_evaluated === 0)
+    return 'Produkttermin-Prüfung · keine Position ausgewertet';
+  return 'Letzter Produkttermin-Prüfdurchlauf abgeschlossen';
+}
+
 function reviewLabel(value: MonitoringRuntimeStatusResponse): string {
-  if (value.review_scope !== 'DISABLED' && value.review_scope !== 'INDICATIVE_ENTRY_V1') {
+  if (
+    value.review_scope !== 'DISABLED' &&
+    value.review_scope !== 'INDICATIVE_ENTRY_V1' &&
+    value.review_scope !== 'INDICATIVE_ENTRY_V2'
+  ) {
     return 'Aktivierung dieses Teilumfangs nicht belegt';
   }
   if (value.review_scope === 'DISABLED') return 'Indikative Beobachtung deaktiviert';
-  if (value.review_rule_version !== 'indicative-entry-review-v1') {
+  const expectedVersion =
+    value.review_scope === 'INDICATIVE_ENTRY_V2'
+      ? 'indicative-entry-review-v2'
+      : 'indicative-entry-review-v1';
+  if (value.review_rule_version !== expectedVersion) {
     return 'Teilumfang gewählt · Regelversion nicht belegt';
   }
   if (!value.enabled) return 'Teilumfang gewählt · Hintergrundprüfung deaktiviert';
@@ -122,8 +164,19 @@ export function MonitoringRuntimePanel({ tradeId }: { tradeId?: string }) {
             <p className="font-medium">Indikative Einstandsbeobachtung</p>
             <p className="mt-1">{reviewLabel(value)}</p>
             <p className="mt-2 text-xs text-slate-400">
+              Regelumfang: {value.review_scope ?? 'nicht belegt'}
+            </p>
+            <p className="mt-2 text-xs text-slate-400">
               Regelversion: {value.review_rule_version ?? 'nicht belegt'}
             </p>
+            {value.review_scope === 'INDICATIVE_ENTRY_V2' && (
+              <p className="mt-2 text-xs text-amber-200">
+                Erweiterter indikativer Teilumfang: verzögerte Kurse, unbekanntes Kursalter und
+                angenommene historische Maßstabskontinuität werden je Position ausgewiesen. Bekannte
+                Widersprüche sperren den Vergleich. Der aktuelle Instrumentmarktstatus ist damit
+                nicht bestätigt.
+              </p>
+            )}
             <p className="mt-1 text-xs text-slate-400">
               Kursvergleich, 20-Sitzungen-Prüfhinweise und Datenprobleme sind getrennte Hinweise.
               Dieser Teilumfang aktiviert keine qualifizierte B04/B57-Überwachung und keine
@@ -136,7 +189,8 @@ export function MonitoringRuntimePanel({ tradeId }: { tradeId?: string }) {
                   ? 'Externe Zustellung dieses Teilumfangs konfiguriert; tatsächlichen Versand am jeweiligen Hinweis prüfen.'
                   : 'Konfiguration der externen Zustellung dieses Teilumfangs nicht belegt.'}
             </p>
-            {value.review_scope === 'INDICATIVE_ENTRY_V1' &&
+            {(value.review_scope === 'INDICATIVE_ENTRY_V1' ||
+              value.review_scope === 'INDICATIVE_ENTRY_V2') &&
               value.last_cycle_completed_at &&
               value.last_result && (
                 <dl className="mt-3 grid gap-2 sm:grid-cols-2">
@@ -151,6 +205,33 @@ export function MonitoringRuntimePanel({ tradeId }: { tradeId?: string }) {
                 </dl>
               )}
           </section>
+          {value.review_scope === 'INDICATIVE_ENTRY_V2' && (
+            <section
+              className="mt-3 rounded border border-slate-700 p-3 text-sm"
+              aria-label="Produkttermin-Erinnerungen"
+            >
+              <p className="font-medium">Produkttermin-Erinnerungen</p>
+              <p className="mt-1">{deadlineLabel(value)}</p>
+              <p className="mt-2 text-xs text-slate-400">
+                Kalendererinnerungen aus vorhandenen Produkt- und Handelsplatzbelegen; unabhängig
+                von der aktuellen Geldkursverfügbarkeit. Tagesgenaue Belege bleiben tagesgenau.
+                Produktbezogene letzte Handelsuhrzeit und vollständige B05-Qualifikation bleiben
+                offen.
+              </p>
+              {value.last_cycle_completed_at && value.last_result && (
+                <dl className="mt-3 grid gap-2 sm:grid-cols-2">
+                  {deadlineCounts.map(([key, label]) => (
+                    <div key={key}>
+                      <dt className="text-slate-500">
+                        {label} · letzter abgeschlossener Durchlauf
+                      </dt>
+                      <dd>{value.last_result?.[key] ?? 'nicht belegt'}</dd>
+                    </div>
+                  ))}
+                </dl>
+              )}
+            </section>
+          )}
           <p className="mt-2 text-xs text-slate-400">
             Prüfintervall: {value.interval_seconds} Sekunden · Kursart und Aktualität je Regel
             beachten

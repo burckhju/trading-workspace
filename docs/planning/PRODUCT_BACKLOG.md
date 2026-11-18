@@ -2247,7 +2247,17 @@ Positionen, erzeugt sechs Hinweise und meldet sechs Datenprobleme bei null
 Positionsfehlern. Das ist ein beobachteter Runnerbetrieb, keine geeignete
 Kurs-/Einstandsabdeckung. Externe Zustellung dieses Teilumfangs ist ausgeschaltet.
 
-**In Arbeit, noch nicht integriert/veröffentlicht:** Der beauftragte V2-Schnitt
+**Implementierung vorbereitet, Integration und Veröffentlichung noch offen:**
+[PR #361](https://github.com/burckhju/trading-workspace/pull/361) sichert die
+Originaldokument-/Kalenderbasis; [PR #362](https://github.com/burckhju/trading-workspace/pull/362)
+verbindet die V2-Regel und dauerhafte Reviewfamilie. Die darauf aufbauenden
+Fristen-/Oberflächen-/PC-Schnitte sind unabhängig vorbereitet und werden in
+der gemeinsamen Reihenfolge geprüft. Reale PostgreSQL-Owner-, Browser- und
+Deploymentgates müssen am jeweiligen tatsächlichen Integrationsstand bestehen.
+Der vollständige lokale Backend-Unitlauf der Quellenbasis meldet 5431 bestanden
+und 10 übersprungen; dies ersetzt die noch laufenden regulären Gates nicht.
+
+Der beauftragte V2-Schnitt
 ergänzt ursprüngliche Produktdokumente und wiederverwendbare veröffentlichte
 Kalender, eine ausdrücklich indikative Verarbeitung verzögerter Quellen und
 bekannte Qualitätsgrenzen, zusammenhängende Episoden über den Versionswechsel
@@ -2269,9 +2279,12 @@ neue Referenzmarktannahme ist kein historischer persönlicher Listingnachweis.
 Ein geprüftes einzelnes Stuttgarter Verzögerungsarchiv enthielt die untersuchten
 Depotinstrumente nicht und keinen nichtleeren Instrumentstatus; daraus folgt
 keine Aussage über sämtliche anderen Archivintervalle. Geeignete B58-Versorgung
-bleibt unbelegt. Persönliches Ausstiegslisting, belegter letzter Handelstag,
-fehlende weitere Kalenderabdeckung und individueller Produktschluss bleiben
-gezielte Ausnahmen. B06, restliches F207-2 und F207-5 bleiben offen; B08 bleibt
+bleibt unbelegt. Vier zugängliche Original-Produktseiten enthalten einen
+expliziten letzten Handelstag; ihr einmaliger kontrollierter Dateiimport ist
+vorbereitet, bestätigt aber keine unabhängig verifizierte Herkunft. Persönliche
+Ausstiegslistingwahl, die am PC tatsächlich importierten Originale, fehlende
+weitere Kalenderabdeckung und individueller Produktschluss bleiben gezielte
+Ausnahmen. Der kalenderbasierte Fristteil bleibt B05_PARTIAL/B20_UNVERIFIED. B06, restliches F207-2 und F207-5 bleiben offen; B08 bleibt
 ausgeschlossen.
 
 ## Genau nächster sinnvoller Umsetzungsschritt

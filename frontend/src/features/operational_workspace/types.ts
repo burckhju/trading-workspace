@@ -46,6 +46,7 @@ export interface OperationalWorkspaceResponse {
 export interface OperationalPosition {
   trade_id: string;
   position_id: string;
+  product_id?: string | null;
   product_name: string;
   product_isin?: string | null;
   product_wkn?: string | null;

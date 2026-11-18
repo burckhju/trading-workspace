@@ -2743,3 +2743,45 @@ Korrekturklärung und Z1-bezogene Sitzungszählung. F207-5 benötigt gemeinsame
 Meldungsaktionen gesehen/abgelehnt/ausgeführt, globale Versionierung und
 Betriebsabnahme. Diese begrenzten Nachträge erklären diese Restarbeiten nicht
 für erledigt; allein der Backlog führt den Aufgabenstatus.
+
+<a id="indicative-review-linux-operation-v2"></a>
+## Zentraler PC-Betriebsübergang für den erweiterten Umfang, Version 2
+
+`indicative-review-linux-operation-v2` erweitert den bestehenden versiegelten
+Aktivierungsweg auf `DISABLED → INDICATIVE_ENTRY_V2` und
+`INDICATIVE_ENTRY_V1 → INDICATIVE_ENTRY_V2`. Quelle, Ziel, installierter Tag und
+gehörige Regelversion werden im konkreten Vorgang gebunden und vor Anwendung
+unter dem vorhandenen Wartungslock erneut geprüft. Die bisherigen Support-,
+Validator-, Backup-, Siegel- und Compose-Herkunftsprüfungen bleiben erhalten.
+Ein neues Programmrelease wird zuerst über den normalen gepinnten Updateweg
+installiert; die nachfolgende Aktivierung ändert keine Images oder Schemata.
+
+Die zentrale Aktivierung übernimmt sämtliche bestehenden Positionen und
+wirtschaftlichen Belege. Sie startet den bestehenden Runner mit V2 und hält
+externe Reviewzustellung ausgeschaltet. Bereits eingerichtete andere Provider-,
+Refresh- und Nachrichteneinstellungen bleiben erhalten. Eine neue produktive
+Providerzustimmung oder externe Testnachricht gehört nicht zu diesem Übergang.
+Ein ausstehender oder abweichender Wartungszustand wird nicht übersprungen.
+
+Der bereitgestellte Originaldateiimport liest ein vorhandenes Quellenverzeichnis
+oder ZIP zunächst als Vorschau und ordnet ausschließlich bereits gespeicherte
+Produkte anhand ihrer ISIN zu. Nur `--apply` importiert die unveränderten Bytes
+über die lokale Product-API. Alle Dateien, Mehrdeutigkeiten, bestehenden
+Produktzuordnungen und API-Verfügbarkeiten werden vor dem ersten Import geprüft.
+Der Transport bleibt auf Loopback beschränkt, ohne Proxy oder Weiterleitung;
+es werden keine neuen Produkte, Quellenfreigaben oder Ausstiegswahlen erzeugt.
+Die unvermeidbare persönliche Exitentscheidung erfolgt einmal im bestehenden
+Arbeitsbereich aus vorhandenen Produktlistings. Manuelle technische IDs, Hashes
+oder Request-IDs sind für beide Abläufe nicht erforderlich.
+
+Die Oberfläche zeigt V2-Regelversion, Quellenzeitbasis und bekannte
+Qualitätsgrenzen, separate Dokumentbeschaffungsdiagnosen und den unabhängigen
+Friststand. Terminansicht und Statusreads bleiben passiv. Fachliche Exitwahl und
+Originalimport sind ausdrückliche Commands. Die gemeinsame Darstellungslogik
+leitet daraus keine eigene Handelsregel oder neue wirtschaftliche Wahrheit ab.
+
+Der Betriebsabschluss weist die Einstands- und Fristzähler getrennt aus.
+Fehlende Daten, fehlende Kalenderabdeckung oder null bewertete Positionen bleiben
+sichtbar. Eine erfolgreiche Softwareinstallation oder Aktivierung bestätigt
+keine reale Abdeckung aller Depotpositionen und keine B58-Qualifikation. Eine
+vollständige Hebeltrader-Baseline wird auch durch diesen Übergang nicht aktiviert.

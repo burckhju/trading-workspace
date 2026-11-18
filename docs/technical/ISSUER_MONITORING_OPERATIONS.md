@@ -212,6 +212,32 @@ nicht aktiviert. B58 bleibt ohne geeignete reale Originalstatuslieferung offen.
 B05 benötigt weiterhin seine eigenständigen belegten Produkttermine und das
 feste Ausstiegslisting; ein fehlender BID ist für diese Fristregel kein Hindernis.
 
+### Erweiterter eigener Umfang V2
+
+`INDICATIVE_ENTRY_V2` / `indicative-entry-review-v2` ergänzt den
+[V2-Regelvertrag](../features/HEBELTRADER_MONITORING_INTEGRATION_CONTRACT.md#indicative-review-rule-v2)
+mit den vorhandenen verzögerten Quellen (eigene gemeinsame Quellzeit,
+höchstens 30 Minuten) und aktuellen Originalproduktbelegen mit sichtbar
+angenommener historischer Kontinuität. Die strenge 900-Sekunden-BID-Grenze und
+die weiterhin fehlende B58-Originalstatusversorgung bleiben unverändert.
+Beschaffungsprobleme sind getrennte Betriebsdiagnosen und löschen weder alte
+Originale noch eine bestehende Verlustepisode. Bekannte Rücknahmen oder
+widersprüchliche Bindungen werden nicht durch schwächere Belege übergangen.
+
+Die unabhängige Produktfristprüfung benötigt dokumentiertes Produktende,
+letzten Handelstag und ausdrücklich gewähltes Ausstiegslisting. Vorliegende
+Originalseiten können einmalig über den kontrollierten Dateiimport übernommen
+werden. Ein Börsentagskalender liefert ausschließlich eine Datumserinnerung;
+individuelle Handelszeiten/B20 und nicht belegte Kalenderjahre bleiben offen.
+Einstands- und Fristergebnisse haben getrennte Zähler. Vorübergehend fehlende
+Fristgrundlagen pausieren ausstehende Meldungen, während ein belegter Vollverkauf
+diese beendet. Externe Reviewzustellung bleibt im vorbereiteten PC-Übergang aus.
+
+Die [zentrale V2-Aktivierung](LINUX_LAUNCHER.md#erweiterung-der-vorhandenen-installation-auf-v2)
+übernimmt vorhandene Positionen gemeinsam; tatsächliche Depotabdeckung wird
+anschließend aus einem beobachteten PC-Zyklus beurteilt. Eine vollständige
+Hebeltrader-Baseline, B06 oder B08 folgen daraus nicht.
+
 ### Softwarestand und Betriebsnachweis
 
 Git-Tag und Paketversion kennzeichnen den Quellstand; Schema, Image und geladene

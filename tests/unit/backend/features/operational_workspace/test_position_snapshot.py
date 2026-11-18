@@ -1,3 +1,4 @@
+from dataclasses import asdict
 from datetime import UTC, datetime
 from decimal import Decimal
 from types import SimpleNamespace
@@ -9,6 +10,7 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import app.features.operational_workspace.service.position_snapshot as snapshot_module
+from app.features.operational_workspace.api.dtos import OperationalPositionResponse
 from app.features.operational_workspace.service.position_snapshot import (
     OperationalPositionSnapshotService,
 )
@@ -54,6 +56,7 @@ async def test_composes_alert_first_snapshot_with_plan_rules_and_current_valuati
     opened_at = datetime(2026, 9, 8, 8, 0, tzinfo=UTC)
     position = SimpleNamespace(
         id=position_id,
+        product_id=uuid4(),
         opened_at=opened_at,
         opened_on=None,
         open_quantity=10,
@@ -113,6 +116,8 @@ async def test_composes_alert_first_snapshot_with_plan_rules_and_current_valuati
     assert item.underlying_name == "Test Underlying"
     assert item.underlying_id == warrant.underlying_id
     assert item.trade_id == trade_id
+    assert item.product_id == position.product_id
+    assert OperationalPositionResponse(**asdict(item)).product_id == position.product_id
     assert item.stop_price == Decimal("19000")
     assert item.target_price == Decimal("20500")
     assert item.market_value == Decimal("25.00")
@@ -136,6 +141,7 @@ async def test_fails_closed_for_unhealthy_or_missing_snapshot_reads(monkeypatch)
     position_id = uuid4()
     position = SimpleNamespace(
         id=position_id,
+        product_id=uuid4(),
         opened_at=datetime(2026, 9, 8, 8, 0, tzinfo=UTC),
         opened_on=None,
         open_quantity=5,
@@ -190,6 +196,8 @@ async def test_fails_closed_for_unhealthy_or_missing_snapshot_reads(monkeypatch)
     assert item.open_alert_count == 0
     assert item.monitoring_status == "STALE"
     assert item.valuation_status == "STALE"
+    assert item.position_basis is None
+    assert item.product_id == position.product_id
 
 
 def test_attention_state_is_ok_only_without_alerts_and_with_healthy_data() -> None:
@@ -219,6 +227,7 @@ async def test_workspace_shows_frankfurt_analysis_values_with_warning_and_proven
     trade_id, position_id = uuid4(), uuid4()
     position = SimpleNamespace(
         id=position_id,
+        product_id=uuid4(),
         opened_at=datetime(2026, 9, 8, tzinfo=UTC),
         opened_on=None,
         open_quantity=2000,
