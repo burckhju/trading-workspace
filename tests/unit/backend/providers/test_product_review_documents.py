@@ -8,7 +8,9 @@ import httpx
 import pytest
 
 import app.providers.product_review_documents as documents
-from tests.unit.backend.providers.product_review_document_fixture import synthetic_kid_pdf
+from tests.unit.backend.providers.product_review_document_fixture import (
+    synthetic_kid_pdf,
+)
 
 ISIN = "DE000TEST124"
 UNDERLYING = "US00SYNTH011"
@@ -48,8 +50,14 @@ def no_network(monkeypatch):
             "J.P. Morgan SE",
             f"https://www.jpmorgan-key-information-documents.com/priips/document/{ISIN}/de/pop",
         ),
-        ("Société Générale", f"https://kid.sgmarkets.com/public/api/kid/isin/{ISIN}?lang=ger"),
-        ("SG Effekten", f"https://kid.sgmarkets.com/public/api/kid/isin/{ISIN}?lang=ger"),
+        (
+            "Société Générale",
+            f"https://kid.sgmarkets.com/public/api/kid/isin/{ISIN}?lang=ger",
+        ),
+        (
+            "SG Effekten",
+            f"https://kid.sgmarkets.com/public/api/kid/isin/{ISIN}?lang=ger",
+        ),
         (
             "UniCredit Bank",
             "https://www.onemarkets.de/content/onemarkets-relaunch/de.pdf"
@@ -150,7 +158,11 @@ def test_rejects_missing_document_type_or_exact_product_identity(text):
 
 
 @pytest.mark.parametrize(
-    "source", ["https://example.invalid/kid.pdf", "https://kid.bnpparibas.com.evil.invalid/kid.pdf"]
+    "source",
+    [
+        "https://example.invalid/kid.pdf",
+        "https://kid.bnpparibas.com.evil.invalid/kid.pdf",
+    ],
 )
 def test_unsupported_or_lookalike_host_does_not_qualify_a_payload(source):
     with pytest.raises(ValueError, match="PRODUCT_DOCUMENT_SOURCE_UNSUPPORTED"):
@@ -232,3 +244,98 @@ def test_pdf_parser_limits_pages_and_combines_only_extracted_page_text(monkeypat
     result = documents.extract_kid(b"%PDF-SYNTHETIC", isin=ISIN, source_url=BNP_URL)
     assert result.unit == "CURRENCY_PER_WARRANT"
     assert result.currency is None
+
+
+@pytest.mark.parametrize(
+    ("issuer", "date_fields", "end_basis", "payment_basis", "qualifier"),
+    [
+        (
+            "BNP Paribas",
+            "Bewertungstag Der Ausübungstag bzw. der 16.05.2031 Fälligkeitstag 23.05.2031",
+            "VALUATION_OR_EXERCISE_DAY",
+            "MATURITY_PAYMENT_DAY",
+            "DOCUMENTED_DATE",
+        ),
+        (
+            "UniCredit",
+            "Finaler Bewertungstag 16.05.2031 Finaler Zahltag (Fälligkeit) 23.05.2031",
+            "FINAL_VALUATION_DAY",
+            "FINAL_PAYMENT_DAY",
+            "DOCUMENTED_DATE",
+        ),
+        (
+            "J.P. Morgan SE",
+            "Ausübungszeitraum vom 01. Januar 2030 bis zum 16. Mai 2031 Referenzpreis "
+            "Rückzahlungstermin Der 5. Geschäftstag nach dem Bewertungstag, "
+            "voraussichtich spätestens den 23.05.2031",
+            "EXERCISE_PERIOD_END",
+            "REDEMPTION_DAY",
+            "EXPECTED_LATEST",
+        ),
+        (
+            "Société Générale",
+            "Ausübungsfrist: 01. Januar 2030 bis 16. Mai 2031 Basiswert "
+            "Rückzahlungstermin: 23.05.2031",
+            "EXERCISE_PERIOD_END",
+            "REDEMPTION_DAY",
+            "DOCUMENTED_DATE",
+        ),
+    ],
+)
+def test_original_end_and_payment_remain_distinct_facts(
+    issuer, date_fields, end_basis, payment_basis, qualifier
+):
+    facts = documents.extract_kid_text(
+        f"{IDENTITY} {date_fields}",
+        isin=ISIN,
+        source_url=documents.kid_url(issuer, ISIN),
+    )
+    assert facts.product_end_on == facts.maturity_on == date(2031, 5, 16)
+    assert facts.product_end_basis == end_basis
+    assert facts.payment_on == date(2031, 5, 23)
+    assert facts.payment_basis == payment_basis
+    assert facts.payment_qualifier == qualifier
+    assert facts.current_terms_date_role is None  # Only the product owner compares stored terms.
+    assert facts.last_trading_on is None
+
+
+@pytest.mark.parametrize("wording", ["voraussichtlich", "voraussichtich"])
+def test_expected_payment_qualifier_is_not_promoted_to_a_guaranteed_date(wording):
+    facts = documents.extract_kid_text(
+        f"{IDENTITY} Rückzahlungstermin Der 5. Geschäftstag nach dem Bewertungstag, "
+        f"{wording} spätestens den 23.05.2031",
+        isin=ISIN,
+        source_url=documents.kid_url("J.P. Morgan", ISIN),
+    )
+    assert facts.payment_on == date(2031, 5, 23)
+    assert facts.payment_qualifier == "EXPECTED_LATEST"
+    assert facts.maturity_on is facts.product_end_on is None
+
+
+@pytest.mark.parametrize(
+    "payment_text",
+    [
+        "Rückzahlungstermin Der 5. Geschäftstag nach dem Bewertungstag",
+        "Rückzahlungstermin Der 5. Geschäftstag nach dem Bewertungstag. Emissionstag 23.05.2031",
+        "Rückzahlungstermin 23.05.2031 Rückzahlungstermin 24.05.2031",
+    ],
+)
+def test_no_payment_date_from_arithmetic_neighbouring_fields_or_ambiguity(payment_text):
+    facts = documents.extract_kid_text(
+        f"{IDENTITY} {payment_text}",
+        isin=ISIN,
+        source_url=documents.kid_url("J.P. Morgan", ISIN),
+    )
+    assert facts.payment_on is facts.payment_basis is facts.payment_qualifier is None
+    assert facts.maturity_on is None
+
+
+def test_payment_before_the_product_end_remains_a_hard_document_contradiction():
+    facts = documents.extract_kid_text(
+        f"{IDENTITY} Finaler Bewertungstag 16.05.2031 Finaler Zahltag 15.05.2031",
+        isin=ISIN,
+        source_url=documents.kid_url("UniCredit", ISIN),
+    )
+    assert facts.product_end_on == facts.maturity_on == date(2031, 5, 16)
+    assert facts.payment_on == date(2031, 5, 15)
+    assert facts.issues == ("PRODUCT_DOCUMENT_PAYMENT_BEFORE_END",)
