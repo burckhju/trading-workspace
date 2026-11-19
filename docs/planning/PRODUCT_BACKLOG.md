@@ -2303,6 +2303,35 @@ weitere Kalenderabdeckung und individueller Produktschluss bleiben gezielte
 Ausnahmen. Der kalenderbasierte Fristteil bleibt B05_PARTIAL/B20_UNVERIFIED. B06, restliches F207-2 und F207-5 bleiben offen; B08 bleibt
 ausgeschlossen.
 
+### Betriebsnachtrag 19.11.2026 — Prepare-Abbruch beim PC-Update
+
+Die Kette #361–#365 ist nach erfolgreichen regulären PR-Prüfungen integriert.
+Main und veröffentlichter Tag `v1.5.50` wurden auf
+`e335a42fd8380d494eb7a0639f57bc6ee2ff476e` zurückgelesen; die erfolgreichen
+Main-Push-Prüfungen und automatische Veröffentlichung sind in
+[#365](https://github.com/burckhju/trading-workspace/pull/365) nachgewiesen.
+
+Der neue Nutzerbeleg vom PC zeigt einen davon getrennten Installationsabbruch:
+Beim Backend-Imagebuild lief der Paketdownload von `files.pythonhosted.org` in
+einen `ReadTimeoutError`; der parallele Frontend-Build wurde abgebrochen.
+Die vier bisherigen v1.5.49-Container waren danach weiterhin gesund.
+`prepared`, `apply-started`, `backups-verified`, `migration-started` und
+`deployed` des neuen Versuchs fehlten. Der Checkout stand bereits auf dem
+Zielrelease, während der vorherige Installationszustand und `pending` erhalten
+blieben. Die anschließende V2-Vorbereitung wurde deshalb gesperrt; ein
+erfolgreicher v1.5.50-PC-Betrieb oder eine V2-Depotabdeckung ist weiterhin nicht
+belegt.
+
+Der begrenzte [Wiederaufnahmeweg](../technical/LINUX_UPDATE_RECOVERY.md) schließt
+diese operative Lücke mit einem separat zu qualifizierenden Supporthelfer:
+vollständige Prüfung des unveränderten alten Zustands, reine Rückkehr des
+Quellcheckouts, nachvollziehbarer Abschluss des vor Apply gescheiterten Versuchs
+und erneuter Aufruf des unveränderten Launchers. Alte Belege bleiben erhalten;
+Deploymentverträge, Runtimeversion, Regeln und Providerfreigaben werden dadurch
+nicht geändert. Konkrete Tool-/CI-Qualifikation und tatsächliche PC-Ausführung
+bleiben getrennte Nachweise. Der Gesamtarbeitsstatus und die fachlichen
+Abdeckungsgrenzen oben bleiben bestehen.
+
 ## Genau nächster sinnvoller Umsetzungsschritt
 
 **Aktueller Liefernachtrag 28.10.2026 zu v1.5.31:** Nach dem freigegebenen und

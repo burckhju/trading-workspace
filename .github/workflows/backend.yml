@@ -70,6 +70,15 @@ jobs:
           PYTHONPATH: ${{ github.workspace }}/backend:${{ github.workspace }}
         run: alembic upgrade head
 
+      - name: Qualify controlled update recovery
+        env:
+          PYTHONPATH: ${{ github.workspace }}/backend:${{ github.workspace }}
+        # Recovery fixtures require private state outside every Git checkout.
+        # Prove this operational contract before starting the complete suite.
+        run: >-
+          pytest -c pyproject.toml ../tests/unit/backend/test_linux_update_recovery.py
+          -q -ra
+
       - name: Tests with coverage
         env:
           PYTHONPATH: ${{ github.workspace }}/backend:${{ github.workspace }}

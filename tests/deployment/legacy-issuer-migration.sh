@@ -158,13 +158,25 @@ docker exec trading-workspace-database-1 psql -U migration_test -d migration_tes
   -c "CREATE TABLE deployment_probe (marker text); INSERT INTO deployment_probe VALUES ('retained');"
 docker exec trading-workspace-issuer-renderer-1 python -c 'from pathlib import Path; Path("/state/ci-marker").write_text("retained")'
 bash "$ROOT/scripts/migrate-legacy-issuer.sh" prepare "$fixture/legacy" "$fixture/private"
-# Reproduce serialization-only drift without changing any sealed input. All
-# Docker operations still reach the real daemon; only rendered JSON is reformatted.
+# Reproduce serialization-only drift without changing any sealed input. A later
+# update arms one failing build; all other operations reach the real Docker daemon.
 export TW_REAL_DOCKER="$(command -v docker)"
 mkdir "$fixture/bin"
 cat > "$fixture/bin/docker" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
+if [[ "$1" == compose && " $* " == *' build backend frontend issuer-renderer '* && -n "${TW_RETRY_BUILD_TRACE:-}" ]]; then
+  if [[ -f "$TW_FAIL_NEXT_COMPOSE_BUILD" ]]; then
+    mv -- "$TW_FAIL_NEXT_COMPOSE_BUILD" "$TW_FAIL_NEXT_COMPOSE_BUILD.consumed"
+    printf '%s\n' 'build-timeout' >> "$TW_RETRY_BUILD_TRACE"
+    printf '%s\n' 'Synthetic dependency download timeout: pip ReadTimeoutError at files.pythonhosted.org:443' >&2
+    exit 42
+  fi
+  printf '%s\n' 'real-build' >> "$TW_RETRY_BUILD_TRACE"
+fi
+if [[ "$1" == compose && " $* " == *' run --rm --no-deps backend python -m alembic upgrade head '* && -n "${TW_RETRY_BUILD_TRACE:-}" ]]; then
+  printf '%s\n' 'real-migration' >> "$TW_RETRY_BUILD_TRACE"
+fi
 if [[ "$1" == compose && " $* " == *' config --format json '* ]]; then
   "$TW_REAL_DOCKER" "$@" | python3 -c 'import json, sys; print(json.dumps(json.load(sys.stdin), sort_keys=True, indent=4))'
 else
@@ -190,7 +202,14 @@ docker exec trading-workspace-backend-1 python -c \
   'import os; assert os.environ["TRADING_WORKSPACE_POSITION_MONITORING__REVIEW_SCOPE"] == "DISABLED"; assert os.environ["TRADING_WORKSPACE_POSITION_MONITORING__REVIEW_NOTIFICATIONS_ENABLED"] == "false"'
 # New tooling must inspect the original sealed checkout, without rebuilding or
 # changing its release, configuration, services or persistent state.
-git -C "$ROOT" worktree add --detach "$fixture/trading-workspace-app" HEAD
+# Keep fixture release tags and its remote configuration in a separate repository.
+git clone --no-hardlinks "$ROOT" "$fixture/trading-workspace-app"
+git -C "$fixture/trading-workspace-app" checkout --detach "$(git -C "$ROOT" rev-parse HEAD)"
+git -C "$fixture/trading-workspace-app" remote set-url origin https://github.com/burckhju/trading-workspace.git
+test -z "$(git -C "$fixture/trading-workspace-app" status --porcelain --untracked-files=all)"
+for tool in trading-workspace.sh enable-eodhd-linux.py migrate-legacy-issuer.sh; do
+  cmp "$ROOT/scripts/$tool" "$fixture/trading-workspace-app/scripts/$tool"
+done
 docker ps -aq --filter label=com.docker.compose.project=trading-workspace | sort > "$fixture/before.ids"
 bash "$fixture/trading-workspace-app/scripts/migrate-legacy-issuer.sh" compose "$fixture/private" ps
 bash "$fixture/trading-workspace-app/scripts/migrate-legacy-issuer.sh" compose "$fixture/private" \
@@ -400,31 +419,151 @@ cmp "$fixture/activation-launcher-before" "$fixture/activation-launcher-after"
 docker exec trading-workspace-backend-1 python -c \
   'import json, urllib.request; s=json.load(urllib.request.urlopen("http://127.0.0.1:8000/api/v1/market-data/providers/status", timeout=10)); assert s["enabled"] is True and s["configured"] is True and s["used_today"] == 0'
 
-# Exercise the original next-release preparation against the newly activated
-# environment. A separate synthetic commit isolates build tags; no third apply
-# or migration is needed to prove that the original preservation guards accept it.
+# Exercise a real managed update after a download fails in prepare. The runtime
+# egress guard remains active; only one build is interrupted, before invoking
+# Docker. Recovery must return to the unchanged launcher for a real new update.
 git -C "$fixture/trading-workspace-app" worktree add --detach "$fixture/future-release" HEAD
+printf '%s\n' '0.0.492' > "$fixture/future-release/VERSION"
 git -C "$fixture/future-release" -c user.name=CI -c user.email=ci@example.invalid \
-  commit --allow-empty -m 'CI next release after explicit provider activation'
-mkdir -p "$fixture/future-configuration/docker" "$fixture/future-state"
-cp "$fixture/trading-workspace-app/docker/compose.yml" "$fixture/future-configuration/docker/compose.yml"
-cp "$activation_state/environment.env" "$fixture/future-configuration/docker/.env"
-bash "$fixture/future-release/scripts/migrate-legacy-issuer.sh" prepare \
-  "$fixture/future-configuration" "$fixture/future-state/deployment"
-test -f "$fixture/future-state/deployment/prepared"
-python3 - "$fixture/future-state/deployment/candidate.json" <<'PY'
+  commit -am 'CI next release after explicit provider activation'
+git -C "$fixture/future-release" tag v0.0.492
+future_revision="$(git -C "$fixture/future-release" rev-parse HEAD)"
+git clone --bare "$fixture/future-release" "$fixture/releases.git"
+export TW_REAL_GIT="$(command -v git)"
+export TW_RETRY_APP="$fixture/trading-workspace-app"
+export TW_RETRY_RELEASES="$fixture/releases.git"
+# The launcher still observes its required GitHub origin and checks the exact
+# tag/commit. Only this synthetic release's fetch uses the local bare repository.
+cat > "$fixture/bin/git" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+if [[ $# == 5 && "$1" == -C && "$2" == "$TW_RETRY_APP" && "$3" == fetch && "$4" == origin ]]; then
+  exec "$TW_REAL_GIT" -C "$2" fetch "$TW_RETRY_RELEASES" "$5"
+fi
+exec "$TW_REAL_GIT" "$@"
+EOF
+chmod 700 "$fixture/bin/git"
+cp "$ROOT/scripts/retry-linux-update.py" "$fixture/retry-linux-update.py"
+cmp "$ROOT/scripts/trading-workspace.sh" "$TRADING_WORKSPACE_BIN_DIR/trading-workspace"
+test -z "$(git -C "$fixture/trading-workspace-app" status --porcelain --untracked-files=all)"
+cp "$fixture/trading-workspace-state/current-state" "$fixture/retry-old-pointer"
+cp "$activation_state/inputs.sha256" "$fixture/retry-old-inputs.sha256"
+docker inspect trading-workspace-database-1 trading-workspace-issuer-renderer-1 \
+  trading-workspace-backend-1 trading-workspace-frontend-1 > "$fixture/retry-before.json"
+managed_effective_config() {
+  ISSUER_RENDERER_SECCOMP_PATH="$fixture/trading-workspace-app/docker/issuer-renderer/seccomp_profile.json" \
+    docker compose --project-name trading-workspace --env-file "$activation_state/environment.env" \
+      -f "$fixture/trading-workspace-app/docker/compose.yml" \
+      -f "$fixture/trading-workspace-app/docker/compose.issuer-monitoring.yml" \
+      -f "$activation_state/preserve.json" config --format json
+}
+managed_effective_config > "$fixture/retry-before-config.json"
+export TW_RETRY_BUILD_TRACE="$fixture/retry-build-trace"
+export TW_FAIL_NEXT_COMPOSE_BUILD="$fixture/fail-next-compose-build"
+touch "$TW_FAIL_NEXT_COMPOSE_BUILD"
+if activation_launcher update v0.0.492 "$future_revision" > "$fixture/retry-first-update.log" 2>&1; then
+  echo 'Injected prepare download failure was not propagated' >&2; exit 1
+fi
+test "$(git -C "$fixture/trading-workspace-app" rev-parse HEAD)" = "$future_revision"
+failed_attempt="$(cat "$fixture/trading-workspace-state/pending")"
+for marker in prepared apply-started backups-verified migration-started deployed; do
+  test ! -e "$failed_attempt/deployment/$marker"
+done
+grep -q 'Synthetic dependency download timeout' "$failed_attempt/deployment/operation.log"
+test -f "$TW_FAIL_NEXT_COMPOSE_BUILD.consumed"
+cmp "$fixture/retry-old-pointer" "$fixture/trading-workspace-state/current-state"
+cmp "$fixture/retry-old-inputs.sha256" "$activation_state/inputs.sha256"
+(cd "$activation_state" && sha256sum --check --status inputs.sha256)
+if activation_launcher status > "$fixture/retry-pending-status.log" 2>&1; then
+  echo 'Managed status accepted an unfinished update' >&2; exit 1
+fi
+docker inspect trading-workspace-database-1 trading-workspace-issuer-renderer-1 \
+  trading-workspace-backend-1 trading-workspace-frontend-1 > "$fixture/retry-after-failure.json"
+managed_effective_config > "$fixture/retry-after-failure-config.json"
+python3 - "$fixture" "$activation_state" "$failed_attempt" <<'PY'
+import hashlib
 import json
 import sys
 from pathlib import Path
 
-environment = json.loads(Path(sys.argv[1]).read_text())["services"]["backend"]["environment"]
+fixture, old, failed = map(Path, sys.argv[1:])
+before = json.loads((fixture / "retry-before.json").read_text())
+after = json.loads((fixture / "retry-after-failure.json").read_text())
+assert len(before) == len(after) == 4
+for expected, actual in zip(before, after):
+    assert all(expected[field] == actual[field] for field in ("Id", "Image", "Config", "HostConfig", "Mounts"))
+    assert actual["State"]["Running"] and actual["State"]["Health"]["Status"] == "healthy"
+assert json.loads((fixture / "retry-before-config.json").read_text()) == json.loads(
+    (fixture / "retry-after-failure-config.json").read_text()
+)
+assert failed.parent == fixture / "trading-workspace-state/runs"
+assert (failed / "previous-state").read_text().strip() == str(old)
+snapshots = {}
+for directory in (old, failed):
+    snapshots[str(directory)] = {
+        str(path.relative_to(directory)): hashlib.sha256(path.read_bytes()).hexdigest()
+        for path in directory.rglob("*") if path.is_file()
+    }
+(fixture / "retry-preserved-files.json").write_text(json.dumps(snapshots))
+PY
+test "$(docker exec trading-workspace-database-1 psql -At -U migration_test -d migration_test -c 'SELECT marker FROM deployment_probe')" = retained
+test "$(docker exec trading-workspace-issuer-renderer-1 cat /state/ci-marker)" = retained
+
+python3 "$fixture/retry-linux-update.py" retry v0.0.492 "$future_revision" --base "$fixture"
+retry_state="$(cat "$fixture/trading-workspace-state/current-state")"
+test "$retry_state" != "$activation_state"
+test "$retry_state" != "$failed_attempt/deployment"
+test ! -e "$fixture/trading-workspace-state/pending"
+test ! -e "$fixture/trading-workspace-state/current-state.new"
+test "$(cat "$failed_attempt/aborted-before-apply")" = "$failed_attempt"
+test "$(cat "$(dirname "$retry_state")/completed")" = "$(dirname "$retry_state")"
+for marker in prepared apply-started backups-verified migration-started deployed; do
+  test -f "$retry_state/$marker"
+done
+test "$(git -C "$fixture/trading-workspace-app" rev-parse HEAD)" = "$future_revision"
+test -z "$(git -C "$fixture/trading-workspace-app" status --porcelain --untracked-files=all)"
+(cd "$retry_state" && sha256sum --check --status inputs.sha256)
+(cd "$activation_state" && sha256sum --check --status inputs.sha256)
+cmp "$fixture/retry-old-inputs.sha256" "$activation_state/inputs.sha256"
+cmp "$activation_state/database-container" "$retry_state/database-container"
+test "$(docker exec trading-workspace-database-1 psql -At -U migration_test -d migration_test -c 'SELECT marker FROM deployment_probe')" = retained
+test "$(docker exec trading-workspace-issuer-renderer-1 cat /state/ci-marker)" = retained
+activation_launcher status
+docker inspect trading-workspace-database-1 trading-workspace-issuer-renderer-1 \
+  trading-workspace-backend-1 trading-workspace-frontend-1 > "$fixture/retry-after-success.json"
+python3 - "$fixture" "$retry_state" <<'PY'
+import hashlib
+import json
+import sys
+from pathlib import Path
+
+fixture, state = map(Path, sys.argv[1:])
+assert (fixture / "retry-build-trace").read_text().splitlines() == [
+    "build-timeout", "real-build", "real-migration"
+]
+for directory, entries in json.loads((fixture / "retry-preserved-files.json").read_text()).items():
+    for relative, checksum in entries.items():
+        assert hashlib.sha256((Path(directory) / relative).read_bytes()).hexdigest() == checksum, (
+            "Recovery changed an existing deployment or failed-attempt file"
+        )
+before = json.loads((fixture / "retry-before.json").read_text())
+after = json.loads((fixture / "retry-after-success.json").read_text())
+assert len(before) == len(after) == 4
+def settings(container):
+    environment = dict(entry.split("=", 1) for entry in container["Config"]["Env"])
+    return {key: value for key, value in environment.items()
+            if key.startswith(("TRADING_WORKSPACE_", "POSTGRES_"))}
+for expected, actual in zip(before, after):
+    assert expected["Name"] == actual["Name"] and expected["Mounts"] == actual["Mounts"]
+    assert actual["State"]["Running"] and actual["State"]["Health"]["Status"] == "healthy"
+    assert settings(expected) == settings(actual)
+    if actual["Config"]["Labels"]["com.docker.compose.service"] == "database":
+        assert expected["Id"] == actual["Id"] and expected["Image"] == actual["Image"]
+    else:
+        assert expected["Id"] != actual["Id"] and expected["Image"] != actual["Image"]
+environment = json.loads((state / "candidate.json").read_text())["services"]["backend"]["environment"]
 assert environment["TRADING_WORKSPACE_POSITION_MONITORING__REVIEW_SCOPE"] == "INDICATIVE_ENTRY_V2"
 assert environment["TRADING_WORKSPACE_POSITION_MONITORING__REVIEW_NOTIFICATIONS_ENABLED"] == "false"
 assert environment["TRADING_WORKSPACE_MARKET_DATA__EODHD__ENABLED"] == "true"
 PY
-test "$(cat "$fixture/trading-workspace-state/current-state")" = "$activation_state"
-docker inspect --format '{{.Id}} {{.Image}}' trading-workspace-database-1 \
-  trading-workspace-issuer-renderer-1 trading-workspace-backend-1 trading-workspace-frontend-1 > "$fixture/activation-after-future-prepare"
-cmp "$fixture/activation-launcher-after" "$fixture/activation-after-future-prepare"
-activation_launcher status
-echo 'Bounded review defaults and review-to-EODHD activation passed: approved deltas, preserved data/images/seals, working launcher and next-release preparation.'
+echo 'Bounded review defaults, review-to-EODHD activation and failed-prepare recovery passed: preserved evidence/data/seals, real managed update and healthy launcher.'
