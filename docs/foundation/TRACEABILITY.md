@@ -1,5 +1,55 @@
 # Traceability – aktueller Nachweiseinstieg
 
+## Revision und Verantwortlichkeit
+
+| Feld | Nachweisstand |
+|---|---|
+| Prüfung | 19.11.2026, Beginn 19:31:38 Uhr MEZ / 18:31:38 UTC |
+| Letzter Main-/Tag-/PR-Abgleich | 19.11.2026, 19:50 Uhr MEZ; Produktbasis unverändert, #368 weiterhin offen |
+| Geprüfter Produktcommit | `254f0bbd52ab42e0120d381e915dc96c1118796c` (`main`, veröffentlichter Tag `v1.5.51`) |
+| Aufgabenstatus | Ausschließlich [Product Backlog – Abnahmematrix](../planning/PRODUCT_BACKLOG.md#abnahmematrix) |
+| Gegenstand | Soll-Ist-Nachweise und deren zeitliche Geltung; keine neue fachliche Abnahme oder Betriebsänderung |
+
+Die [aktuelle Einstiegssicht](../planning/PRODUCT_BACKLOG.md#aktueller-stand) führt zum [einzigen nächsten Arbeitsauftrag](../planning/PRODUCT_BACKLOG.md#naechster-schnitt). Alle 63 Inhaltsziel-Vorkommen der unveränderten [Roadmap vom 22.07.2026](archive/ROADMAP_2026-07-22.md) bleiben [einzeln zugeordnet](../planning/PRODUCT_BACKLOG.md#originalzuordnung). Der Archivblob `919ed7570580b1d883a409f864ed15747fbfda3e` wurde erneut bestätigt.
+
+## Verbindliche Nachweiskette
+
+Ursprüngliches Soll → dokumentierte Umfangsentscheidung → Verarbeitung und Benutzerpfad → Tests auf benanntem Commit → fachliche Abnahme → Auslieferung → beobachteter Betrieb. Jeder Schritt besitzt einen eigenen Geltungsumfang. Ein späterer Betriebsbeleg kann ältere Vorbereitungstexte überholen; erfolgreiche CI ersetzt keine menschliche Gesamtproduktabnahme.
+
+## Aktuelle Quellen und Grenzen
+
+| Nachweiskette | Tatsächliche Quelle / Consumer | Maßgebliche Teilfähigkeit |
+|---|---|---|
+| Original M0–M11 und unveränderte Zuständigkeiten | [PROJECT](PROJECT.md), [Baseline](archive/ROADMAP_2026-07-22.md), [bestehende FT-/Owner-Zuordnung](../planning/MODULE_AND_FEATURE_CATALOG.md#ownership) | [Originalzuordnung](../planning/PRODUCT_BACKLOG.md#originalzuordnung), [Abnahmematrix](../planning/PRODUCT_BACKLOG.md#abnahmematrix) |
+| Persistente feste Chart-Watchlist | [Implementierungsvertrag](../implementation/MARKET_CHART_WATCHLIST.md); Katalog, Aktivierung, Mappingrevision, Persistenz und UI sind im Backlog mit Code-/Testpfaden verbunden | [PB-012 Watchlist](../planning/PRODUCT_BACKLOG.md#pb-012-watchlist); kein Schluss auf frei pflegbare Watchlist |
+| Reproduzierbare Analyse und Kandidaten | [FT-006-Quellenqualifikation](../implementation/FT006_SOURCE_QUALITY_QUALIFICATION.md), [GOOD-Kandidatenreise](../implementation/CANDIDATE_GOVERNANCE_JOURNEY_QUALIFICATION.md) | [PB-013 Analyse](../planning/PRODUCT_BACKLOG.md#pb-013-analysis), [PB-012 Kandidat](../planning/PRODUCT_BACKLOG.md#pb-012-candidate) |
+| Tatsächliche Ausführungen, Management, Historie und historische Währung | [FT-010-Vertrag](../features/FT-010_TRADE_MANAGEMENT.md), [historische Währungsquellen](../releases/V1.5.31-HISTORICAL-EXECUTION-CURRENCY.md) | [PB-017 Historie](../planning/PRODUCT_BACKLOG.md#pb-017-history), [Brutto-PnL](../planning/PRODUCT_BACKLOG.md#pb-017-gross-pnl); Produktwechsel separat |
+| Observation → Review → Journal → Evidence → Lesson, einschließlich korrigierter Folgeversionen | [Journalqualifikation](../implementation/FT012_JOURNAL_WRITE_QUALIFICATION.md), [Lessonqualifikation](../implementation/FT012_LESSON_REVIEW_QUALIFICATION.md), [Materialisierung](../implementation/FT011_MATERIALIZATION_CONSISTENCY_QUALIFICATION.md); [native Journalreise](../../tests/e2e/post-trade-journal-postgres.spec.ts), [native Evidencehistorie](../../tests/e2e/post-trade-evidence-history-postgres.spec.ts) | [PB-018 Currentness](../planning/PRODUCT_BACKLOG.md#pb-018-currentness), [PB-019 Journal](../planning/PRODUCT_BACKLOG.md#pb-019-journal), [Lessons](../planning/PRODUCT_BACKLOG.md#pb-019-lessons) |
+| Brutto-SELL, Vollabschlusskohorte, Trefferquote, Durchschnitt, Median, Profit-Faktor und Verkaufsbeitragsgrafik | [Periodenqualifikation](../implementation/PERIOD_REALIZED_GROSS_REPORT_QUALIFICATION.md), [UI8](../implementation/UI_PERFORMANCE_CONSOLIDATION.md), [v1.5.42 / UX4-C](../releases/V1.5.42-UX4-PERFORMANCE-QUALITY-LIFECYCLE.md) | [Kennzahlen](../planning/PRODUCT_BACKLOG.md#pb-019-performance-metrics), [Statistik](../planning/PRODUCT_BACKLOG.md#pb-019-performance-statistics), [Dashboard](../planning/PRODUCT_BACKLOG.md#pb-019-performance-dashboards), [Auswertungen](../planning/PRODUCT_BACKLOG.md#pb-019-performance-evaluations) |
+| Evidence → Hypothese → Vorschlag → Validierung → Freigabe → getrennte Aktivierung → Anwendung → Rückkehr | [RuntimeActivationService](../../backend/app/features/model/service/runtime_activation_service.py), [native Candidate-Governance-Reise](../../tests/e2e/candidate-governance-journey-postgres.spec.ts) | [Governance](../planning/PRODUCT_BACKLOG.md#pb-020-governance), [Aktivierung](../planning/PRODUCT_BACKLOG.md#pb-020-activation), [konkrete Kandidatenfamilie](../planning/PRODUCT_BACKLOG.md#pb-020-candidate-family); andere Modellfamilien gesondert |
+| Indikative V2- und Produktfristprüfung, eigene Episoden und passive Reader | [V2-/Fristvertrag](../features/HEBELTRADER_MONITORING_INTEGRATION_CONTRACT.md#indicative-review-readiness-v2), [v1.5.50](../releases/V1.5.50-INDICATIVE-V2-AND-PRODUCT-DEADLINES.md), [Build-/Recoveryreparatur](../releases/V1.5.51-RELIABLE-BACKEND-BUILD.md) | [Monitoring](../planning/PRODUCT_BACKLOG.md#monitoring-rules), [Erinnerungen](../planning/PRODUCT_BACKLOG.md#reminders), [Installation](../planning/PRODUCT_BACKLOG.md#operations-installation) |
+| Datierter PC-Betrieb und späterer Ursachenbefund | [#367](https://github.com/burckhju/trading-workspace/pull/367): Installation/Aktivierung und Zyklus 18:06:42–18:07:17 Uhr MEZ, Audit 18:13:12; [#368](https://github.com/burckhju/trading-workspace/pull/368): neuere öffentliche Zusammenfassung des vollständigen Readbacks für vier offene Positionen, Datumsfehler und Kalender-HTTP-403; Rohdiagnose nicht öffentlich | [Betriebsevidenz](../planning/PRODUCT_BACKLOG.md#betriebsnachweis), [aktueller PR-Abgleich](../planning/PRODUCT_BACKLOG.md#pr-abgleich), [Folgeauftrag](../planning/PRODUCT_BACKLOG.md#naechster-schnitt). Offener Fix ist noch kein ausgelieferter Main-Code. |
+
+## Aktuell erneut gelesene CI
+
+Alle folgenden Läufe sind auf `254f0bbd52ab42e0120d381e915dc96c1118796c` gebunden. Run-/Job-/Stepzustände und die maßgeblichen Abschlusslogs einschließlich Checkout wurden direkt gelesen. Die Zahlen sind ausgeführte bestehende Main-Prüfungen, keine in diesem Dokumentationsauftrag neu gestarteten Anwendungstests.
+
+| Ebene | Nachweis | Aussagegrenze |
+|---|---|---|
+| Backend | [Run 44538810458](https://github.com/burckhju/trading-workspace/actions/runs/44538810458): 6.242 Tests, 1 Warnung, 89,90 % Coverage bei 85-%-Gate; 90 Installer-/Recoveryfälle im eigenen frühen Schritt; alle drei Jobs erfolgreich | Teilmengen nicht zur Gesamttestzahl addieren; synthetische PostgreSQL- und Containerprüfungen sind kein privater Depotnachweis |
+| Frontend | [Run 44538810455](https://github.com/burckhju/trading-workspace/actions/runs/44538810455): 205 Testdateien, 2.713 Tests sowie Typprüfung, Lint, Format und Build erfolgreich | Keine menschliche Screenreader-/Touch-/Fachabnahme |
+| Browser | [Run 44538810474](https://github.com/burckhju/trading-workspace/actions/runs/44538810474): 206 allgemeine Fälle; fünf vorgesehene Smoke-Skips werden durch zwei Reports, zwei Journal/Evidence-Fälle und einen Governancefall in eigenen Ownerjobs abgedeckt | Kein Liveprovider-/Privatdaten-E2E; alle vier Jobs erfolgreich |
+| Veröffentlichung | [Publisher 44546805171](https://github.com/burckhju/trading-workspace/actions/runs/44546805171): neun Guards erfolgreich; Tagjob veröffentlicht `v1.5.51` am 19.11.2026 um 15:43:29 Uhr MEZ am geprüften Main | Softwaretag und beobachteter PC-Betrieb bleiben verschiedene Belege |
+
+Prüfmethoden, Zugriffsgrenzen und die Prüfung dieses Dokumentdiffs stehen im [Nachweisregister](../planning/PRODUCT_BACKLOG.md#nachweisregister). Der Zugriff umfasst einen vollständigen Git-Checkout und GitHub-Nachweise, keinen privaten PC-/Datenbankzugang. Die unten erhaltenen historischen Accepted-, Released- und RC-Aussagen gelten unverändert für ihre damaligen Umfänge.
+
+## Historische Fortschreibungen vom 13.–27.10.2026
+
+<details>
+<summary>Frühere Nachweise und damalige Zugriffsschranken – keine aktuelle Handlungsanweisung</summary>
+
+Die folgenden Aussagen zu „noch offen“, „aktuell“ oder fehlender Installation beschreiben ausschließlich den damaligen Stand. Maßgeblich sind die aktuelle Abnahmematrix und die zeitlich späteren Belege oben. Historische Freigaben werden weder erweitert noch zurückgenommen.
+
 > Nachweisfortschreibung 26.10.2026, UI3: [Lesson-Ansicht, Quellen und vorbefüllte Prüfung](../implementation/UI_LESSON_CONSOLIDATION.md) verbindet den vorhandenen FT-012-Review-Kontext mit genau einer ausgewählten Inhaltsversion, kompakten exakten Quellen, vollständig vorbefülltem Folgeversionseditor und dem bestehenden Navigationsschutz für Review- und Hypotheseneingaben. Basis ist Main `f8f61a11` / VERSION 1.5.21 einschließlich der integrierten #284/#285; der ältere Tag `v1.5.21` auf `059860ea` ist davon getrennt. Implementierungscommit `986f20a2` / Tree `014efb38`, vollständiger Frontend-Check mit 1.009 Tests, gezielte lokale Nachweise und der lokal nicht ausführbare geschützte PostgreSQL-Ownerlauf sind im Bericht getrennt gebunden; die regulären CI-Nachweise gehören zum tatsächlichen neuen PR-Head. Arbeitsstatus ausschließlich [PB-019 Lessons](../planning/PRODUCT_BACKLOG.md#pb-019-lessons); kein neuer Release-, Fachabnahme- oder PC-Betriebsnachweis. Historische Qualifikationen und der markierte Baselinebestand unten bleiben unverändert.
 
 > Nachweisfortschreibung 25.10.2026, #278: [FT-006 Runtime-/Quellenqualität](../implementation/FT006_SOURCE_QUALITY_QUALIFICATION.md) verbindet feste neue Analyseversion 1.0.1, historische 1.0.0-Reproduktion, Snapshot/Hash/Provenienz und den bestehenden Candidate-Consumer mit echten Markt-/Sektorreferenzidentitäten. Die neue GOOD-B07-Browserausführung ist auf Head `18e3e141`, Tree `4c0abfea`, Testmerge `71f16737` in [Run `40182968277` / Job `121137734172`, Versuch 1](https://github.com/burckhju/trading-workspace/actions/runs/40182968277/job/121137734172) tatsächlich bestanden; [vollständiger datierter B07-Nachweis](../implementation/CANDIDATE_GOVERNANCE_JOURNEY_QUALIFICATION.md). Der historische LIMITED-Nachweis bleibt erhalten. Die Gesamt-CI des Folgecommits einschließlich der eng reproduzierten Frontend-Testkorrektur wird im bestehenden PR #278 mit eigenen Identitäten gebunden. Arbeitsstatus ausschließlich [PB-013 Analyse](../planning/PRODUCT_BACKLOG.md#pb-013-analysis) und [PB-020 Candidate](../planning/PRODUCT_BACKLOG.md#pb-020-candidate-family). Kein Abschluss weiterer M0–M11-Ziele.
@@ -54,6 +104,8 @@ Der [Konfliktabgleich](../planning/PRODUCT_BACKLOG.md#konfliktaufloesung) ordnet
 ## Prüf- und Zugriffsschranken
 
 Aktuelle Basis-CI, gelesene Einzelschritte, nicht ausgeführte lokale Befehle und fehlende Quellen-/Betriebszugriffe stehen ausschließlich im [Nachweisregister](../planning/PRODUCT_BACKLOG.md#nachweisregister). Konkrete neue Fachabnahmen, vollständige Live-E2E und eine aktuelle JMBbot-Installation werden nicht behauptet. Die fünf Ausgangsdokumente wurden vor Bearbeitung mit ihren Git-Blob-Hashes abgeglichen; die folgende historische Traceability bleibt bytegenau erhalten (Quellblob `d0cb63972ad37e8644a2f55537e9a3c1702061e1`).
+
+</details>
 
 <a id="historische-nachweise"></a>
 ## Unverändert erhaltener historischer Bestand

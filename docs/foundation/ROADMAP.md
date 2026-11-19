@@ -7,16 +7,18 @@
 | Feld | Wert |
 |---|---|
 | Dokument-ID | DOC-004 (bestehende Kennung) |
-| Revision | Planungskonsolidierung 2026-10-13; zur fachlichen Prüfung |
-| Prüfstand | `a78288ad38610656480d0363abe657b567c7ba94` / `main` / Softwaretag `v1.5.5` |
+| Revision | Nachweis- und Statuskonsolidierung 2026-11-19; keine neue Produktumfangsentscheidung |
+| Prüfstand | `254f0bbd52ab42e0120d381e915dc96c1118796c` / `main` / Softwaretag `v1.5.51` |
 | Aktueller Arbeitsstatus | Ausschließlich im [Product Backlog](../planning/PRODUCT_BACKLOG.md) |
+
+Die [datierte Einstiegssicht](../planning/PRODUCT_BACKLOG.md#aktueller-stand) und der [einzige nächste Arbeitsauftrag](../planning/PRODUCT_BACKLOG.md#naechster-schnitt) berücksichtigen den PC-Nachweis aus #367 und die neuere Ursachenbeschreibung des noch offenen #368. Aus dem datierten Quellenzeugnis eines offenen PR folgt keine Main-Integration seines Codes. Historische Vorbereitungs- und Freigabestände sind im Backlog gesondert eingeordnet.
 
 <a id="historische-baseline"></a>
 ## Ursprüngliche Roadmap als unveränderte Referenz
 
-Die [Roadmap vom 22.07.2026, Version 1.1](archive/ROADMAP_2026-07-22.md) ist die Vergleichsbasis. Sie wird als **genau eine unveränderte historische Baseline** im Repository erhalten. Der Inhalt entspricht bytegenau `docs/foundation/ROADMAP.md` am Prüfcommit; Git-Blob `919ed7570580b1d883a409f864ed15747fbfda3e`. Die Metadaten einschließlich damaligem Approved-Status und der ursprünglichen Reihenfolge bleiben historische Aussagen, keine neue Freigabe.
+Die [Roadmap vom 22.07.2026, Version 1.1](archive/ROADMAP_2026-07-22.md) ist die Vergleichsbasis. Sie wird als **genau eine unveränderte historische Baseline** im Repository erhalten. Der Inhalt entspricht bytegenau der vor der Konsolidierung vom 13.10.2026 archivierten Roadmap; Git-Blob `919ed7570580b1d883a409f864ed15747fbfda3e`, am 19.11.2026 erneut geprüft. Die Metadaten einschließlich damaligem Approved-Status und der ursprünglichen Reihenfolge bleiben historische Aussagen, keine neue Freigabe.
 
-Die zwölf M-IDs M0–M11 werden weder umbenannt noch neu vergeben. Alle 63 ursprünglichen Inhaltsziel-Vorkommen sind im [Originalabgleich des zentralen Backlogs](../planning/PRODUCT_BACKLOG.md#originalzuordnung) einzeln einem maßgeblichen Eintrag zugeordnet. Ziel- und Ergebnisformulierungen jedes Meilensteins bleiben vollständig in der Baseline. Ein Softwaretag – auch `v1.5.5` – erklärt nicht rückwirkend alle ursprünglichen Meilensteinansprüche für erfüllt. Es werden keine Fertigstellungsprozente aus undefinierter Grundgesamtheit abgeleitet.
+Die zwölf M-IDs M0–M11 werden weder umbenannt noch neu vergeben. Alle 63 ursprünglichen Inhaltsziel-Vorkommen sind im [Originalabgleich des zentralen Backlogs](../planning/PRODUCT_BACKLOG.md#originalzuordnung) einzeln einem maßgeblichen Eintrag zugeordnet. Ziel- und Ergebnisformulierungen jedes Meilensteins bleiben vollständig in der Baseline. Ein Softwaretag – auch `v1.5.51` – erklärt nicht rückwirkend alle ursprünglichen Meilensteinansprüche für erfüllt. Es werden keine Fertigstellungsprozente aus undefinierter Grundgesamtheit abgeleitet.
 
 | Ursprünglicher Bezug | Rückverfolgbare Inhalte und aktueller Arbeitsstatus |
 |---|---|
@@ -78,6 +80,6 @@ Die Buchstaben bezeichnen überprüfbare Ergebnisse, keine neue Meilensteinnumme
 
 ## Fokus und Umfangsentscheidungen
 
-B und C erhalten den begründeten Planungsfokus. Akute belegte Daten-/Betriebssicherheitsprobleme in A dürfen diesen Fokus übersteuern. D kann unabhängig qualifiziert werden, soweit vorhandene freigegebene Evidence und Regeln genügen. A–D schließen keine ursprünglichen Zusagen aus: Insbesondere Watchlist, Scanner, Marktbreite, Produktscore, Produktwechsel, alle ursprünglichen Modellfamilien und Performance bleiben im [Originalabgleich](../planning/PRODUCT_BACKLOG.md#originalzuordnung).
+B und C behalten den begründeten Planungsfokus. Die aktuell belegten Datenprobleme in A begründen den im Backlog bestimmten Vorrang der [positionsweisen Ursachen- und Abdeckungsklärung](../planning/PRODUCT_BACKLOG.md#naechster-schnitt). D kann unabhängig qualifiziert werden, soweit vorhandene freigegebene Evidence und Regeln genügen. A–D schließen keine ursprünglichen Zusagen aus: Insbesondere der weitere Watchlist-Anspruch, Scanner, Marktbreite, Produktscore, Produktwechsel, weitere Modellfamilien und verbleibende Performanceanforderungen bleiben im [Originalabgleich](../planning/PRODUCT_BACKLOG.md#originalzuordnung). Bereits gelieferte Journal-, Bruttoauswertungs- und Kandidaten-Governance-Schnitte werden dort nicht erneut zur Implementierung eingeplant.
 
 „Bewusst verschoben“ oder „aus Zielbild entfernt“ benötigt eine belegte Produktentscheidung mit Umfang, Datum und Referenz. Ein enger V1-Nicht-Scope ist keine dauerhafte Entfernung. Fehlt die Entscheidung, bleibt der Anspruch als offener Umfang bzw. Entscheidungsvorschlag im Backlog. Der [nächste einzelne Umsetzungsschnitt](../planning/PRODUCT_BACKLOG.md#naechster-schnitt) und die [Nachweisgrenzen](../planning/PRODUCT_BACKLOG.md#nachweisregister) werden ausschließlich dort gepflegt.

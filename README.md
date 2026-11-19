@@ -4,7 +4,11 @@ Trading Workspace unterstützt einen benutzergesteuerten Tradingprozess: Referen
 
 ## Softwarestand und Planung
 
+**Nachweisabgleich vom 19.11.2026:** Geprüft ist Main `254f0bbd52ab42e0120d381e915dc96c1118796c`, zugleich veröffentlichter Tag `v1.5.51`. Die [aktuelle Einstiegssicht](docs/planning/PRODUCT_BACKLOG.md#aktueller-stand) trennt implementierte Teilumfänge, Fachabnahme, Auslieferung und den datierten PC-Betrieb. Der dort verlinkte [eine nächste Arbeitsauftrag](docs/planning/PRODUCT_BACKLOG.md#naechster-schnitt) berücksichtigt die Datenprobleme der indikativen Positions- und Produktterminprüfung sowie den neueren, noch nicht integrierten [Produktdatums-Fix #368](https://github.com/burckhju/trading-workspace/pull/368).
+
 Die versionierte Software ist in [VERSION](VERSION) festgehalten. Der [Reparaturrelease v1.5.51](docs/releases/V1.5.51-RELIABLE-BACKEND-BUILD.md) bindet den Backend-Build an ein festes Basisimage und ein geprüftes SQLAlchemy-Artefakt, begrenzt Installationswiederholungen und ergänzt den kontrollierten Wechsel von einem fehlgeschlagenen Update auf einen neuen Release. Der fachliche [V2-Umfang aus v1.5.50](docs/releases/V1.5.50-INDICATIVE-V2-AND-PRODUCT-DEADLINES.md) umfasst ursprüngliche Produktdokumente, wiederverwendbare Kalender, ausdrücklich verzögerte Quellen und unabhängige Produkttermin-Erinnerungen. Die reale B58-Originalstatusversorgung bleibt unbelegt. V2 wird einmal zentral aktiviert; vorhandene Positionen und wirtschaftliche Belege bleiben erhalten. Ein Softwaretag bestätigt weder die Installation auf dem Nutzer-PC noch vollständige Hebeltrader-Überwachung.
+
+Für die Installation und den tatsächlich abgeschlossenen V2-Lauf liegt inzwischen ein eigener [PC-Nachweis in PR #367](https://github.com/burckhju/trading-workspace/pull/367) vor. Die neuere öffentliche Diagnosezusammenfassung in #368 beschreibt verbleibende Datenprobleme und eine konkrete Datumsursache; sie belegt noch keine Auslieferung oder Betriebswirkung des vorgeschlagenen Fixes. GitHubs älterer „Latest Release“-Eintrag und frühere Vorbereitungstexte sind nicht der aktuelle Software- oder Betriebsnachweis.
 
 **Aktueller Arbeitsstatus und Abnahmematrix:** [Product Backlog](docs/planning/PRODUCT_BACKLOG.md). Es ist die einzige maßgebliche Aufgabenstatusquelle. Hier steht bewusst keine zweite vollständige Feature-Statusliste.
 
