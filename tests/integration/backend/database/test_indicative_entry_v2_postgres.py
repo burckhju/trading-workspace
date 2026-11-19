@@ -188,15 +188,33 @@ async def store_delayed_quote(database, scope):
             )
         )
         await session.commit()
-        selected = await PositionQuoteSourceSelector(
+        selector = PositionQuoteSourceSelector(
             PositionQuoteSourceSelectionRepository(session), (provider,)
-        ).select_once(
+        )
+        # The purchase already saved a missing-source decision before this
+        # synthetic mapping existed. Initial selection must preserve that fact;
+        # the existing reconciliation owner adds the newly verified successor.
+        previous = await selector.select_once(
             workspace_id=UUID(WORKSPACE),
             position_id=UUID(scope["capture"]["position"]["id"]),
             warrant_id=UUID(scope["product"]["id"]),
             selected_at=at,
         )
+        assert previous.selection_status == "NO_VERIFIED_QUOTE_SOURCE"
+        reconciled = await selector.reconcile(
+            workspace_id=UUID(WORKSPACE),
+            position_id=UUID(scope["capture"]["position"]["id"]),
+            warrant_id=UUID(scope["product"]["id"]),
+            selected_at=at,
+        )
+        selected = reconciled.selection
+        assert reconciled.changed and selected is not None
         assert selected.selection_status == "SELECTED"
+        assert selected.provider == provider.value and selected.warrant_listing_id == listing
+        assert selected.evidence["previous_selection_id"] == str(previous.id)
+        assert (
+            previous.superseded_at == at and previous.selection_status == "NO_VERIFIED_QUOTE_SOURCE"
+        )
         await session.commit()
         result = MarketDataResult(
             data=WarrantQuoteSnapshot(
