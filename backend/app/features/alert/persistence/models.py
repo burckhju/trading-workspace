@@ -25,13 +25,15 @@ class AlertModel(Base):
         CheckConstraint(
             "alert_type IN ('STOP_REACHED', 'TARGET_REACHED', 'RISK_TREND_CHANGED', "
             "'RISK_VOLATILITY_HIGH', 'HEBELTRADER_B04_LOSS', 'INDICATIVE_ENTRY_LOSS', "
-            "'POSITION_REVIEW_DUE', 'POSITION_DATA_UNAVAILABLE')",
+            "'POSITION_REVIEW_DUE', 'POSITION_DATA_UNAVAILABLE', 'PRODUCT_DEADLINE_REVIEW')",
             name="alert_type_valid",
         ),
         CheckConstraint(
-            "(alert_type IN ('POSITION_REVIEW_DUE', 'POSITION_DATA_UNAVAILABLE') "
+            "(alert_type IN ('POSITION_REVIEW_DUE', 'POSITION_DATA_UNAVAILABLE', "
+            "'PRODUCT_DEADLINE_REVIEW') "
             "AND observed_value IS NULL AND threshold_value IS NULL) OR "
-            "(alert_type NOT IN ('POSITION_REVIEW_DUE', 'POSITION_DATA_UNAVAILABLE') "
+            "(alert_type NOT IN ('POSITION_REVIEW_DUE', 'POSITION_DATA_UNAVAILABLE', "
+            "'PRODUCT_DEADLINE_REVIEW') "
             "AND observed_value IS NOT NULL AND threshold_value IS NOT NULL)",
             name="alert_value_shape",
         ),

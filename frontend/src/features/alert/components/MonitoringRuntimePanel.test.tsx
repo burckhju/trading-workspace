@@ -163,6 +163,9 @@ describe('MonitoringRuntimePanel', () => {
     ).toBeInTheDocument();
     expect(scope.getByText('2')).toBeInTheDocument();
     expect(scope.queryByRole('button')).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('region', { name: 'Produkttermin-Erinnerungen' }),
+    ).not.toBeInTheDocument();
     expect(vi.mocked(alertApiClient.monitoringRuntime)).toHaveBeenCalledExactlyOnceWith(
       expect.any(AbortSignal),
     );
@@ -179,5 +182,74 @@ describe('MonitoringRuntimePanel', () => {
       await screen.findByText(/Externe Zustellung dieses Teilumfangs konfiguriert/),
     ).toHaveTextContent('tatsächlichen Versand am jeweiligen Hinweis prüfen');
     expect(screen.queryByText(/zugestellt/)).not.toBeInTheDocument();
+  });
+
+  it('recognizes the separate V2 scope without presenting assumptions as B58 or complete monitoring', async () => {
+    vi.mocked(alertApiClient.monitoringRuntime).mockResolvedValue({
+      ...reviewValue,
+      review_scope: 'INDICATIVE_ENTRY_V2',
+      review_rule_version: 'indicative-entry-review-v2',
+    });
+    render(<MonitoringRuntimePanel />);
+    expect(
+      await screen.findByText('Letzter indikativer Prüfdurchlauf abgeschlossen'),
+    ).toBeInTheDocument();
+    const scope = within(screen.getByRole('region', { name: 'Indikative Einstandsbeobachtung' }));
+    expect(scope.getByText('Regelumfang: INDICATIVE_ENTRY_V2')).toBeInTheDocument();
+    expect(scope.getByText(/Erweiterter indikativer Teilumfang/)).toHaveTextContent(
+      'Bekannte Widersprüche sperren den Vergleich',
+    );
+    expect(scope.getByText(/Erweiterter indikativer Teilumfang/)).toHaveTextContent(
+      'Instrumentmarktstatus ist damit nicht bestätigt',
+    );
+    expect(
+      scope.getByText('Positionen ausgewertet · letzter abgeschlossener Durchlauf'),
+    ).toBeInTheDocument();
+    expect(scope.queryByRole('button')).not.toBeInTheDocument();
+    expect(alertApiClient.monitoringRuntime).toHaveBeenCalledOnce();
+  });
+
+  it('does not describe a mismatched V2 scope and V1 version as an assessed operating scope', async () => {
+    vi.mocked(alertApiClient.monitoringRuntime).mockResolvedValue({
+      ...reviewValue,
+      review_scope: 'INDICATIVE_ENTRY_V2',
+      review_rule_version: 'indicative-entry-review-v1',
+    });
+    render(<MonitoringRuntimePanel />);
+    expect(
+      await screen.findByText('Teilumfang gewählt · Regelversion nicht belegt'),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText('Letzter indikativer Prüfdurchlauf abgeschlossen'),
+    ).not.toBeInTheDocument();
+  });
+
+  it('keeps deadline coverage counters separate from entry comparisons and shows missing deadline evidence', async () => {
+    vi.mocked(alertApiClient.monitoringRuntime).mockResolvedValue({
+      ...reviewValue,
+      review_scope: 'INDICATIVE_ENTRY_V2',
+      review_rule_version: 'indicative-entry-review-v2',
+      last_result: {
+        ...reviewValue.last_result,
+        deadline_positions_evaluated: 6,
+        deadline_alerts_created: 3,
+        deadline_data_problems: 3,
+        deadline_position_errors: 0,
+      },
+    });
+    render(<MonitoringRuntimePanel />);
+    expect(
+      await screen.findByText('Produkttermin-Prüfung mit Daten- oder Auswertungsproblemen'),
+    ).toBeInTheDocument();
+    const deadline = within(screen.getByRole('region', { name: 'Produkttermin-Erinnerungen' }));
+    const entry = within(screen.getByRole('region', { name: 'Indikative Einstandsbeobachtung' }));
+    expect(entry.getByText('2')).toBeInTheDocument();
+    expect(deadline.getByText('6')).toBeInTheDocument();
+    expect(entry.getByText('Letzter indikativer Prüfdurchlauf abgeschlossen')).toBeInTheDocument();
+    expect(deadline.getByText(/vollständige B05-Qualifikation bleiben offen/)).toBeInTheDocument();
+    expect(
+      deadline.queryByText('Letzter Produkttermin-Prüfdurchlauf abgeschlossen'),
+    ).not.toBeInTheDocument();
+    expect(alertApiClient.monitoringRuntime).toHaveBeenCalledOnce();
   });
 });

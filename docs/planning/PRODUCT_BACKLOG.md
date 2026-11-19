@@ -2237,6 +2237,72 @@ lokale Belege auf dem Nutzer-PC. Der vorhandene Rechenkern bleibt erhalten;
 produktive Fristmeldungen werden ohne diese erforderlichen Fakten nicht aktiviert.
 Die übrigen offenen F207-2/B06-/F207-5-Arbeiten bleiben unverändert.
 
+### Beauftragte Erweiterung der indikativen Überwachung — 18.11.2026
+
+**Ausgangsstand:** Main und Tag v1.5.49 zeigen auf
+`ce767a0dbee9254756024346a817baf7cdf77797`; die bisherigen Monitoring-PRs sind
+integriert. Der Nutzer meldet v1.5.49 mit vier gesunden Diensten, Readiness und
+aktiviertem `INDICATIVE_ENTRY_V1`. Der abgeschlossene PC-Durchlauf bewertet sechs
+Positionen, erzeugt sechs Hinweise und meldet sechs Datenprobleme bei null
+Positionsfehlern. Das ist ein beobachteter Runnerbetrieb, keine geeignete
+Kurs-/Einstandsabdeckung. Externe Zustellung dieses Teilumfangs ist ausgeschaltet.
+
+**V2-Lieferumfang dieses Versionsschnitts (1.5.50):**
+Die beauftragte Implementierung ist als zusammenhängende Kette
+[Originalbelege #361](https://github.com/burckhju/trading-workspace/pull/361) →
+[Regelpfad #362](https://github.com/burckhju/trading-workspace/pull/362) →
+[Produktfristen #363](https://github.com/burckhju/trading-workspace/pull/363) →
+[Arbeitsbereich/PC #364](https://github.com/burckhju/trading-workspace/pull/364)
+reviewfähig bereitgestellt. V2 ergänzt ursprüngliche Produktdokumente,
+wiederverwendbare veröffentlichte Kalender, ausdrücklich indikative Verarbeitung
+verzögerter Quellen, Qualitätsgrenzen für Erholungen, zusammenhängende Episoden
+über den Versionswechsel und kursunabhängige begrenzte Produktfrist-Erinnerungen.
+Der [V2-Belegvertrag](../features/HEBELTRADER_MONITORING_INTEGRATION_CONTRACT.md#indicative-review-readiness-v2)
+trennt aktuelle dokumentierte Einheit, angenommene historische Kontinuität und
+den weiterhin unveränderten strengen B04/B57/B58-Pfad.
+
+**Abnahme und Auslieferung:** Die Integration dieser Kette und des
+[Versionsschnitts](../releases/V1.5.50-INDICATIVE-V2-AND-PRODUCT-DEADLINES.md)
+ist ausschließlich nach erfolgreichen regulären PR-Gates und Abgleich der
+jeweiligen tatsächlichen Integrationstrees freigegeben. Die unveränderte
+Commitkette wird durch [Integrations-PR #365](https://github.com/burckhju/trading-workspace/pull/365)
+gemeinsam gegen Main übernommen, nachdem alle vier eigenen Implementierungs-Heads
+und der abschließende Release-Head grün geprüft sind. Dieser normale PR-Merge
+erhält die bestehende Pflicht zu aktuellen Statusprüfungen; keine Schutzregel
+wird gelockert und kein grüner Status auf einen neuen Head übertragen.
+Der unveränderte Publisher
+veröffentlicht `v1.5.50` erst nach erfolgreichen Backend-/Frontend-/E2E-Push-Läufen
+am identischen aktuellen Main-Commit. Die konkreten Heads, Testmerge-Trees,
+CI-Läufe und der danach zurückgelesene Tag stehen in der zugehörigen
+Releaseübergabe; ein vorbereiteter Versionsschnitt allein ist keine bereits
+erfolgte Veröffentlichung. Damit bleiben Implementierung, geprüfte Integration
+und veröffentlichtes Artefakt getrennte Nachweise.
+
+**Weiterhin offen: neuer beobachteter PC-Betrieb und reale Abdeckung.**
+Die kontrollierte Übernahme von DISABLED oder V1 nach V2, Originaldateiimport und
+explizite Exitwahl sind vorbereitet. Es gab hier keine PC-Installation,
+Produktimport-/Auswahlaktion, neue produktive Providerzustimmung oder echte
+externe Nachricht. Der letzte vom Nutzer belegte Betrieb bleibt v1.5.49 mit
+sechs Datenproblemen. Ein dortiger neuer V2-Durchlauf muss die tatsächlich
+brauchbaren Positionen und verbleibenden Lücken getrennt ausweisen.
+
+**Reale Abdeckungsgrenzen:** Aktuelle KIDs zweier untersuchter Emittentenpfade
+belegen EUR und Stücknotiz. Andere untersuchte Dokumente nennen die Währung,
+belegen jedoch keinen eindeutig extrahierbaren Preismaßstab. Fünf untersuchte
+Produkte nennen NYSE als Basiswertreferenz; die Originalkalender 2025–2027 sind
+einschließlich besonderer Schließung und verkürzter Sitzungen verfügbar. Die
+neue Referenzmarktannahme ist kein historischer persönlicher Listingnachweis.
+Ein geprüftes einzelnes Stuttgarter Verzögerungsarchiv enthielt die untersuchten
+Depotinstrumente nicht und keinen nichtleeren Instrumentstatus; daraus folgt
+keine Aussage über sämtliche anderen Archivintervalle. Geeignete B58-Versorgung
+bleibt unbelegt. Vier zugängliche Original-Produktseiten enthalten einen
+expliziten letzten Handelstag; ihr einmaliger kontrollierter Dateiimport ist
+vorbereitet, bestätigt aber keine unabhängig verifizierte Herkunft. Persönliche
+Ausstiegslistingwahl, die am PC tatsächlich importierten Originale, fehlende
+weitere Kalenderabdeckung und individueller Produktschluss bleiben gezielte
+Ausnahmen. Der kalenderbasierte Fristteil bleibt B05_PARTIAL/B20_UNVERIFIED. B06, restliches F207-2 und F207-5 bleiben offen; B08 bleibt
+ausgeschlossen.
+
 ## Genau nächster sinnvoller Umsetzungsschritt
 
 **Aktueller Liefernachtrag 28.10.2026 zu v1.5.31:** Nach dem freigegebenen und

@@ -230,7 +230,7 @@ class PositionMonitoringSettings(BaseModel):
     enabled: bool = False
     # Central, explicit partial-scope activation; never the full confirmed baseline.
     hebeltrader_scope: Literal["DISABLED", "B04_B57_V1"] = "DISABLED"
-    review_scope: Literal["DISABLED", "INDICATIVE_ENTRY_V1"] = "DISABLED"
+    review_scope: Literal["DISABLED", "INDICATIVE_ENTRY_V1", "INDICATIVE_ENTRY_V2"] = "DISABLED"
     review_notifications_enabled: bool = False
     interval_seconds: Annotated[float, Field(ge=30, le=86_400)] = 900.0
     parallel_positions: Annotated[int, Field(ge=1, le=4)] = 4

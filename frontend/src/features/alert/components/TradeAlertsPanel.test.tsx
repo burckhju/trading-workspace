@@ -541,6 +541,7 @@ describe('TradeAlertsPanel', () => {
     ['REVIEW_ALERT_INVALIDATED', true],
     ['REVIEW_TRADE_CANCELLED', true],
     ['REVIEW_TRADE_MISSING', true],
+    ['REVIEW_DEADLINE_INPUTS_UNAVAILABLE', true],
     ['REVIEW_TRANSPORT_ERROR', false],
   ] as const)(
     'renders delivery outcome %s without inventing recovery',
@@ -596,4 +597,186 @@ describe('TradeAlertsPanel', () => {
       screen.queryByText(/Meldung wegen ungeklärtem Kursbezug ungültig/),
     ).not.toBeInTheDocument();
   });
+
+  it('shows a V2 delayed shared clock and assumed unit history without calling it an original BID clock', async () => {
+    const alert = entryObservation();
+    api.forTrade.mockResolvedValue([
+      {
+        ...alert,
+        price_context: {
+          ...alert.price_context,
+          scope: 'INDICATIVE_ENTRY_V2',
+          rule_version: 'indicative-entry-review-v2',
+          evaluation_mode: 'DELAYED_SOURCE_BID',
+          source_quote_at: '2026-11-17T09:45:00Z',
+          source_time_basis: 'SHARED_QUOTE_TIME',
+          source_freshness: 'WITHIN_1800_SECONDS',
+          product_scale_quality: 'CURRENT_UNIT_HISTORY_ASSUMED',
+          history_continuity_assumed: 'true',
+          session_count_basis: 'SHARED_QUOTE_TIME',
+          session_count_at: '2026-11-17T09:45:00Z',
+        },
+      },
+    ]);
+    render(<TradeAlertsPanel tradeId="trade-1" />);
+    const title = await screen.findByText('Indikativ · Kurs unter persönlichem Bruttoeinstand');
+    const row = within(title.closest('li')!);
+    expect(
+      row.getByText('Gemeinsame Kurszeit der Quelle; keine eigene BID-Zeit'),
+    ).toBeInTheDocument();
+    expect(row.getByText('Verzögert · bis 1.800 Sekunden bei Bewertung')).toBeInTheDocument();
+    expect(
+      row.getByText(/Aktuelle Produkteinheit; historische Kontinuität angenommen/),
+    ).toBeInTheDocument();
+    expect(row.getByText(/Abgeschlossene Basiswertsitzungen: 19/)).toHaveTextContent(
+      'zur gemeinsamen Kurszeit der Quelle',
+    );
+    expect(row.getByText(/Original-Geldkurszeit: nicht bekannt/)).toBeInTheDocument();
+    expect(row.queryByText('Original-Geldkurs')).not.toBeInTheDocument();
+  });
+
+  it.each(['REVIEW_RECOVERY_EVIDENCE_WEAKER', 'REVIEW_RECOVERY_SOURCE_NOT_COMPARABLE'])(
+    'preserves the loss alongside the explicit recovery blocker %s',
+    async (reason) => {
+      const alert = entryObservation();
+      api.forTrade.mockResolvedValue([
+        alert,
+        entryObservation({
+          id: 'synthetic-blocked-recovery',
+          alert_type: 'POSITION_DATA_UNAVAILABLE',
+          observed_value: null,
+          threshold_value: null,
+          price_context: {
+            ...alert.price_context,
+            scope: 'INDICATIVE_ENTRY_V2',
+            data_problem_reasons: reason,
+          },
+        }),
+      ]);
+      render(<TradeAlertsPanel tradeId="trade-1" />);
+      expect(await screen.findByText('2 offen')).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          reason === 'REVIEW_RECOVERY_EVIDENCE_WEAKER'
+            ? 'Der spätere Kurs hat eine schwächere Belegqualität und beendet den bestehenden Verlusthinweis nicht.'
+            : 'Die spätere Kursquelle ist für eine Entwarnung nicht vergleichbar. Der Verlusthinweis bleibt offen.',
+        ),
+      ).toBeInTheDocument();
+      expect(screen.getAllByText('OPEN')).toHaveLength(2);
+      expect(screen.queryByText('RESOLVED')).not.toBeInTheDocument();
+    },
+  );
+
+  it.each([
+    ['WARNING_DUE', 'Vorwarnung zur dokumentierten Sitzung vor dem Produkttermin'],
+    ['EXIT_SESSION_STARTED', 'Dokumentierter Termintag hat begonnen'],
+    ['CALENDAR_SESSION_ENDED', 'Dokumentierte Kalendersitzung am Termintag ist beendet'],
+  ])(
+    'shows %s as a price-free day reminder with an unverified product cutoff',
+    async (stage, label) => {
+      api.forTrade.mockResolvedValue([
+        entryObservation({
+          alert_type: 'PRODUCT_DEADLINE_REVIEW',
+          reason: 'Synthetische Kalendererinnerung.',
+          observed_value: null,
+          threshold_value: null,
+          price_context: {
+            scope: 'DOCUMENTED_PRODUCT_DEADLINE_REVIEW_V1',
+            rule_version: 'product-deadline-review-v1',
+            deadline_stage: stage,
+            relevant_product_date: '2027-01-15',
+            last_trading_on: '2027-01-15',
+            exit_venue_mic: 'XSYN',
+            exit_session_date: '2027-01-15',
+            exit_session_opens_at: '2027-01-15T08:00:00Z',
+            calendar_session_closes_at: '2027-01-15T21:00:00Z',
+            product_cutoff_status: 'UNVERIFIED',
+            qualified_b05: 'false',
+          },
+        }),
+      ]);
+      render(<TradeAlertsPanel tradeId="trade-1" />);
+      const title = await screen.findByText('Produkttermin · Kalendererinnerung');
+      const row = within(title.closest('li')!);
+      expect(row.getByText(label)).toBeInTheDocument();
+      expect(
+        row.getByText(/Produktbezogene letzte Handelsuhrzeit nicht verifiziert/),
+      ).toHaveTextContent('keine ausführbare Produktfrist');
+      expect(row.getByText(/Unabhängig von einer aktuellen BID-Verfügbarkeit/)).toBeInTheDocument();
+      expect(row.queryByText('Beobachtet')).not.toBeInTheDocument();
+      expect(row.queryByText('Marktdaten')).not.toBeInTheDocument();
+      expect(row.queryByText(/Kurszeitpunkt:/)).not.toBeInTheDocument();
+      expect(row.queryByText('0')).not.toBeInTheDocument();
+      expect(row.queryByRole('button')).not.toBeInTheDocument();
+      expect(api.forTrade).toHaveBeenCalledOnce();
+    },
+  );
+
+  it('keeps a product deadline data gap distinct from a missing entry quote', async () => {
+    api.forTrade.mockResolvedValue([
+      entryObservation({
+        alert_type: 'POSITION_DATA_UNAVAILABLE',
+        reason: 'Synthetischer fehlender Produkttermin.',
+        observed_value: null,
+        threshold_value: null,
+        price_context: {
+          scope: 'DOCUMENTED_PRODUCT_DEADLINE_REVIEW_V1',
+          rule_version: 'product-deadline-review-v1',
+          data_problem_reasons: 'SYNTHETIC_PRODUCT_DATE_MISSING',
+        },
+      }),
+    ]);
+    render(<TradeAlertsPanel tradeId="trade-1" />);
+    const title = await screen.findByText(
+      'Datenproblem · Produkttermin-Erinnerung nicht auswertbar',
+    );
+    const row = within(title.closest('li')!);
+    expect(
+      row.getByText('Datenlage: Produkttermin-Erinnerung nicht beurteilbar'),
+    ).toBeInTheDocument();
+    expect(row.getByText('SYNTHETIC_PRODUCT_DATE_MISSING')).toBeInTheDocument();
+    expect(row.queryByText(/Teilumfang: Indikative Einstandsbeobachtung/)).not.toBeInTheDocument();
+    expect(row.queryByText(/Quelle:/)).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ['WARNING_DAY_REACHED', 'Lokaler Kalendertag der Vorwarnung erreicht'],
+    ['DEADLINE_DAY_REACHED', 'Dokumentierter Produkttermin erreicht · tagesgenau'],
+    ['DEADLINE_DAY_PASSED', 'Dokumentierter Produkttermin liegt in der Vergangenheit · tagesgenau'],
+  ])(
+    'keeps %s as a calendar date without inventing opening, close or midnight',
+    async (stage, label) => {
+      api.forTrade.mockResolvedValue([
+        entryObservation({
+          alert_type: 'PRODUCT_DEADLINE_REVIEW',
+          reason: 'Synthetische tagesgenaue Erinnerung.',
+          observed_value: null,
+          threshold_value: null,
+          price_context: {
+            scope: 'DOCUMENTED_PRODUCT_DEADLINE_REVIEW_V1',
+            rule_version: 'product-deadline-review-v1',
+            deadline_stage: stage,
+            calendar_precision: 'DAY_ONLY',
+            calendar_calculation_scope: 'DAY_ONLY_CALENDAR_REVIEW',
+            scheduled_on: '2027-01-15',
+            warning_session_date: '2027-01-14',
+            exit_session_date: '2027-01-15',
+            exit_venue_mic: 'XSYN',
+          },
+        }),
+      ]);
+      render(<TradeAlertsPanel tradeId="trade-1" />);
+      const title = await screen.findByText('Produkttermin · Kalendererinnerung');
+      const row = within(title.closest('li')!);
+      expect(row.getByText(label)).toBeInTheDocument();
+      expect(row.getByText('Lokaler Kalendertag des Anlasses: 2027-01-15')).toBeInTheDocument();
+      expect(
+        row.getByText(/Der Tageskalender belegt keine Eröffnungs- oder Schlussuhrzeit/),
+      ).toBeInTheDocument();
+      expect(row.queryByText('Dokumentierter Sitzungsbeginn')).not.toBeInTheDocument();
+      expect(row.queryByText('Dokumentiertes Sitzungsende')).not.toBeInTheDocument();
+      expect(row.queryByText(/00:00/)).not.toBeInTheDocument();
+      expect(row.queryByText('Marktdaten')).not.toBeInTheDocument();
+    },
+  );
 });

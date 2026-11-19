@@ -6,6 +6,7 @@ export type AlertType =
   | 'HEBELTRADER_B04_LOSS'
   | 'INDICATIVE_ENTRY_LOSS'
   | 'POSITION_REVIEW_DUE'
+  | 'PRODUCT_DEADLINE_REVIEW'
   | 'POSITION_DATA_UNAVAILABLE';
 export type AlertSeverity = 'WARNING' | 'INFO';
 export type AlertStatus = 'OPEN' | 'RESOLVED' | 'INVALIDATED';
@@ -85,7 +86,7 @@ export interface PositionMonitoringHealthResponse {
 
 export interface MonitoringRuntimeStatusResponse {
   enabled: boolean;
-  review_scope?: 'DISABLED' | 'INDICATIVE_ENTRY_V1';
+  review_scope?: 'DISABLED' | 'INDICATIVE_ENTRY_V1' | 'INDICATIVE_ENTRY_V2';
   review_rule_version?: string;
   review_notifications_enabled?: boolean;
   running: boolean;

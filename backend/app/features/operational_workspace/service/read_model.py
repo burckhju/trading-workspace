@@ -218,6 +218,7 @@ class OperationalWorkspaceReadModel:
                         "Positionsprüfung nach 20 Sitzungen fällig"
                     ),
                     AlertType.POSITION_DATA_UNAVAILABLE.value: "Daten für Positionsprüfung fehlen",
+                    AlertType.PRODUCT_DEADLINE_REVIEW.value: "Dokumentierte Produktfrist prüfen",
                     AlertType.RISK_TREND_CHANGED.value: "Trendverschlechterung",
                     AlertType.RISK_VOLATILITY_HIGH.value: "Erhöhte realisierte Volatilität",
                     AlertType.HEBELTRADER_B04_LOSS.value: (

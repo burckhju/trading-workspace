@@ -103,7 +103,8 @@ mit bereits vorhandenem Schlüssel gibt es einen separaten
 Zustand bei gleicher Programmversion und berücksichtigt ausdrücklich die bereits
 eingerichtete Kurs-, Positions- und Telegramautomatik.
 
-### Einmaliger Übergang auf die indikative Positionsprüfung
+<a id="einmaliger-übergang-auf-die-indikative-positionsprüfung"></a>
+### Ursprünglicher Übergang auf V1 (v1.5.49)
 
 Der für v1.5.49 vorbereitete Updatevertrag ergänzt genau zwei bisher fehlende
 Backendfelder mit ihren ausgeschalteten Werten: `REVIEW_SCOPE=DISABLED` und
@@ -150,6 +151,40 @@ abgeschlossenen Prüflauf. Eine erfolgreiche Aktivierung belegt keine
 B58-Qualifikation oder vollständige Depotabdeckung. Die
 [Betriebsgrenzen der indikativen Prüfung](ISSUER_MONITORING_OPERATIONS.md#indicative-entry-operations)
 und der versionierte Regelvertrag bleiben maßgeblich.
+
+### Erweiterung der vorhandenen Installation auf V2
+
+Nach Installation des dafür veröffentlichten Releases über den normalen,
+Tag und vollständigen Commit bindenden `trading-workspace update` wird derselbe
+Aktivierungsbefehl einmal aufgerufen. Der Betriebsvertrag
+[indicative-review-linux-operation-v2](../features/HEBELTRADER_MONITORING_INTEGRATION_CONTRACT.md#indicative-review-linux-operation-v2)
+akzeptiert einen bisher ausgeschalteten Umfang oder die bestehende aktive V1.
+Er erstellt eine neue private Vorbereitung für `INDICATIVE_ENTRY_V2` mit
+Regelversion `indicative-entry-review-v2`. Erst der vollständig ausgegebene
+`apply`-Befehl wendet diesen konkreten Zustand an.
+
+Der V2-Wechsel benötigt keine neue Launcher-/Supportqualifikation: deren
+bisherige Inhaltsbindung ist unverändert. Datenbank, vorhandene Images,
+Providerfreigaben, Refresh und bestehende andere Telegramzustellungen bleiben
+an den installierten Zustand gebunden. Die neue Reviewzustellung bleibt aus.
+Einstands- und Fristläufe werden mit getrennten Ergebnissen angezeigt.
+
+Vorhandene Originalseiten für letzte Handelstage können einmal übernommen
+werden, ohne Depotdaten erneut einzugeben:
+
+```bash
+python3 ~/Boerse/trading-workspace-app/scripts/import-original-product-documents.py /pfad/zum/quellenpaket.zip
+```
+
+Dieser erste Aufruf ist eine Vorschau. Derselbe Aufruf mit `--apply` übernimmt
+die erkannten Originale über die lokale API. Die tatsächliche Dateizuordnung
+und sämtliche Importvoraussetzungen werden vor dem ersten Schreiben geprüft.
+Es wird keine Internetquelle abgefragt, kein Produkt angelegt und kein
+Ausstiegsplatz ausgewählt. Den festen Ausstiegsplatz anschließend einmal im
+Positionsbereich unter **Produkttermine · fester Ausstiegshandelsplatz** aus den vorhandenen
+Listings wählen.
+Nicht abgedeckte Instrumente, Kalenderjahre und individuelle Produktschlusszeiten
+bleiben ausdrücklich offen.
 
 Die drei Entwicklungsskripte `check-backend.sh`, `check-frontend.sh` und
 `run-e2e.sh` sind für den täglichen Programmstart nicht erforderlich.

@@ -40,6 +40,7 @@ from app.features.position_monitoring.domain.indicative_entry import (
     RULE_SCOPE,
     RULE_VERSION,
 )
+from app.features.position_monitoring.domain.indicative_policy import V1_POLICY, V2_POLICY
 from app.features.position_monitoring.service import indicative_entry as review_commands
 from app.features.position_monitoring.service.hebeltrader_b58_sources import (
     QUALIFIED_B58_PATHS,
@@ -69,10 +70,10 @@ ASSESSMENTS = "indicative_entry_assessments"
 EPISODES = "indicative_entry_episodes"
 
 
-async def evaluate(engine, scope, at, *, notifications_enabled=True):
+async def evaluate(engine, scope, at, *, notifications_enabled=True, policy=V1_POLICY):
     sessions = async_sessionmaker(engine, expire_on_commit=False, autoflush=False)
     async with sessions() as session:
-        return await IndicativeEntryService(session).evaluate(
+        return await IndicativeEntryService(session, policy=policy).evaluate(
             workspace_id=UUID(WORKSPACE),
             trade_id=UUID(scope["capture"]["trade"]["id"]),
             position_id=UUID(scope["capture"]["position"]["id"]),
@@ -105,6 +106,87 @@ def strict_state(state):
             if row["notification_id"] in notification_ids
         ],
     }
+
+
+def test_v2_transition_preserves_v1_episode_and_outbox_under_parallel_restart_and_sale(
+    indicative_database,
+):
+    _migrate(indicative_database, "head")
+
+    async def exercise():
+        engine = engine_for(indicative_database)
+        try:
+            async with _client(indicative_database) as (client, database):
+                scope = await strict.prepare(client, database)
+                at, _ = await strict.supply(database, scope)
+                first = await evaluate(engine, scope, at)
+                before = await _state(engine)
+                legacy_episodes = active_episodes(before)
+                results = await asyncio.wait_for(
+                    asyncio.gather(
+                        *(evaluate(engine, scope, at, policy=V2_POLICY) for _ in range(3))
+                    ),
+                    timeout=30,
+                )
+                assert {item.outcome for item in results} == {"BELOW_ENTRY"}
+                assert len({item.assessment_id for item in results}) == 1
+                assert sum(item.alerts_created for item in results) == 0
+                assert sum(item.notifications_created for item in results) == 0
+                assert sum(item.unchanged for item in results) == 2
+                upgraded = await _state(engine)
+                assert active_episodes(upgraded) == legacy_episodes
+                assert upgraded["alerts"] == before["alerts"]
+                assert upgraded["notifications"] == before["notifications"]
+                row = assessment(upgraded, results[0])
+                assert row["rule_version"] == V2_POLICY.version
+                assert row["previous_assessment_id"] == first.assessment_id
+                assert row["result"]["loss_evidence_floor"]["price_rank"] == 3
+                assert row["result"]["loss_evidence_floor"]["scale_rank"] == 2
+                assert assessment(upgraded, first) == assessment(before, first)
+                report = await passive_report(client, engine, scope)
+                assert report["latest_assessment"]["rule_version"] == V2_POLICY.version
+                assert {item["rule_version"] for item in report["active_episodes"]} == {
+                    V1_POLICY.version
+                }
+
+            async with _client(indicative_database) as (client, database):
+                restarted = await evaluate(engine, scope, at, policy=V2_POLICY)
+                assert restarted.unchanged and restarted.assessment_id == results[0].assessment_id
+                assert await _state(engine) == upgraded
+                recovered_at, _ = await strict.supply(database, scope, bid="2.00")
+                recovered = await evaluate(engine, scope, recovered_at, policy=V2_POLICY)
+                assert (
+                    recovered.outcome == "AT_OR_ABOVE_ENTRY" and not recovered.loss_episode_active
+                )
+                recovered_state = await _state(engine)
+                loss = next(row for row in recovered_state[EPISODES] if row["kind"] == "ENTRY_LOSS")
+                assert loss["rule_version"] == V1_POLICY.version
+                assert loss["closing_assessment_id"] == recovered.assessment_id
+                assert set(active_episodes(recovered_state)) == {"REVIEW_DUE"}
+                loss_at, _ = await strict.supply(database, scope)
+                await evaluate(engine, scope, loss_at, policy=V2_POLICY)
+                response = await client.post(
+                    f"{BASE}/trades/{scope['capture']['trade']['id']}/sales",
+                    json={
+                        "quantity": 100,
+                        "price_per_unit": "2.00",
+                        "executed_on": (scope["anchor"] + timedelta(days=15)).isoformat(),
+                        "execution_timezone": "Europe/Berlin",
+                        "request_id": str(uuid4()),
+                        "currency_confirmation": DECLARATION,
+                    },
+                )
+                assert response.status_code == 201, response.text
+                closed = await IndicativeEntryRuntime(database, scope=V2_POLICY.scope).run()
+                assert closed.positions_evaluated == 1 and closed.position_errors == 0
+                final = await _state(engine)
+                assert not active_episodes(final)
+                assert not [row for row in final["notifications"] if row["status"] == "PENDING"]
+                assert strict_state(final) == strict_state(before)
+        finally:
+            await engine.dispose()
+
+    asyncio.run(exercise())
 
 
 async def passive_report(client, engine, scope):

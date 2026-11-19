@@ -14,6 +14,7 @@ vi.mock('../services/hebeltraderTargets', async (original) => ({
   assessHebeltraderTargets: vi.fn(),
 }));
 vi.mock('./PositionPriceHistory', () => ({ PositionPriceHistory: () => null }));
+vi.mock('./IndicativeEntryObservation', () => ({ IndicativeEntryObservation: () => null }));
 vi.mock('./HebeltraderEvidenceCoverage', () => ({ HebeltraderEvidenceCoverage: () => null }));
 vi.mock('../../alert/components/PositionRiskPanel', () => ({ PositionRiskPanel: () => null }));
 

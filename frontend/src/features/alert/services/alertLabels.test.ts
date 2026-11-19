@@ -16,6 +16,7 @@ describe('persisted alert labels', () => {
     expect(alertTypeLabel('HEBELTRADER_B04_LOSS')).toBe(
       'Hebeltrader · Verlust nach 20 Basiswertsitzungen',
     );
+    expect(alertTypeLabel('PRODUCT_DEADLINE_REVIEW')).toBe('Produkttermin · Kalendererinnerung');
   });
 
   it('keeps unknown types explicit without inferring a known rule', () => {

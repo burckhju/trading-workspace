@@ -13,6 +13,8 @@ import { HebeltraderTargetHistory } from './HebeltraderTargetHistory';
 import { HebeltraderSessions } from './HebeltraderSessions';
 import { HebeltraderOriginalBid } from './HebeltraderOriginalBid';
 import { HebeltraderLoss } from './HebeltraderLoss';
+import { IndicativeEntryObservation } from './IndicativeEntryObservation';
+import { DeadlineExitListingChoice } from '../../product/deadlineExitListing';
 import type { QualificationSessions } from '../hooks/useHebeltraderQualificationSessions';
 
 const staleValuationNotice =
@@ -73,6 +75,7 @@ export function PositionDetails({
   qualificationSessions?: QualificationSessions;
 }) {
   const notice = valuationNotice(p);
+  const productId = p.product_id ?? p.position_basis?.position.product_id;
   return (
     <section
       aria-label={`Details ${p.product_name}`}
@@ -83,6 +86,15 @@ export function PositionDetails({
         WKN {p.product_wkn ?? 'nicht hinterlegt'} · ISIN {p.product_isin ?? 'nicht hinterlegt'}
       </p>
       <PositionPriceHistory tradeId={p.trade_id} positionId={p.position_id} />
+      <IndicativeEntryObservation
+        tradeId={p.trade_id}
+        positionId={p.position_id}
+        reloadToken={
+          p.position_basis?.basis_id ??
+          `${p.open_quantity}:${p.cost_basis}:${p.average_entry_price}`
+        }
+      />
+      {productId && <DeadlineExitListingChoice warrantId={productId} />}
       <HebeltraderEvidenceCoverage
         tradeId={p.trade_id}
         positionId={p.position_id}

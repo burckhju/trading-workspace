@@ -36,6 +36,7 @@ class OperationalWorkspaceResponse(BaseModel):
 class OperationalPositionResponse(BaseModel):
     trade_id: UUID
     position_id: UUID
+    product_id: UUID | None = None
     product_name: str
     opened_at: datetime
     open_quantity: int

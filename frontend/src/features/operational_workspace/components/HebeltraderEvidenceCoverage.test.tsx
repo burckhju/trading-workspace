@@ -10,6 +10,7 @@ import { PositionDetails } from './PositionDetails';
 
 vi.mock('../services/hebeltraderEvidence', () => ({ readHebeltraderEvidence: vi.fn() }));
 vi.mock('./PositionPriceHistory', () => ({ PositionPriceHistory: () => null }));
+vi.mock('./IndicativeEntryObservation', () => ({ IndicativeEntryObservation: () => null }));
 vi.mock('../../alert/components/PositionRiskPanel', () => ({ PositionRiskPanel: () => null }));
 
 beforeEach(() => {

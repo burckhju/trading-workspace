@@ -24,6 +24,13 @@ class Store:
         assert limit > 0
         return (self.notification.id,)
 
+    async def list_pending_notification_page(
+        self, *, limit: int, created_before: datetime, after: tuple[datetime, UUID] | None = None
+    ) -> tuple[tuple[datetime, UUID], ...]:
+        assert limit > 0
+        key = (self.notification.created_at, self.notification.id)
+        return (key,) if key[0] < created_before and (after is None or key > after) else ()
+
     async def prepare(
         self,
         *,

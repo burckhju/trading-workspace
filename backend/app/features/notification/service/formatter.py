@@ -20,6 +20,7 @@ def format_position_alert(
     if alert.alert_type in {
         AlertType.INDICATIVE_ENTRY_LOSS,
         AlertType.POSITION_REVIEW_DUE,
+        AlertType.PRODUCT_DEADLINE_REVIEW,
         AlertType.POSITION_DATA_UNAVAILABLE,
     }:
         return format_review_alert(

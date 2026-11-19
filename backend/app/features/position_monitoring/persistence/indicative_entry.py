@@ -20,6 +20,8 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database.base import Base
 
+FAMILY_FILTER = "rule_version IN ('indicative-entry-review-v1','indicative-entry-review-v2')"
+
 
 class IndicativeEntryAssessmentModel(Base):
     __tablename__ = "indicative_entry_assessments"
@@ -35,6 +37,14 @@ class IndicativeEntryAssessmentModel(Base):
             sqlite_where=text("previous_assessment_id IS NULL"),
         ),
         Index("ix_indicative_entry_history", "workspace_id", "position_id", "recorded_at"),
+        Index(
+            "uq_indicative_family_root",
+            "workspace_id",
+            "position_id",
+            unique=True,
+            postgresql_where=text(f"previous_assessment_id IS NULL AND {FAMILY_FILTER}"),
+            sqlite_where=text(f"previous_assessment_id IS NULL AND {FAMILY_FILTER}"),
+        ),
         CheckConstraint(
             "outcome IN ('BELOW_ENTRY','AT_OR_ABOVE_ENTRY','NOT_REACHED','UNAVAILABLE','CLOSED')",
             name="indicative_entry_outcome",
@@ -90,6 +100,35 @@ class IndicativeEntryEpisodeModel(Base):
             unique=True,
             postgresql_where=text("closed_at IS NULL"),
             sqlite_where=text("closed_at IS NULL"),
+        ),
+        Index(
+            "uq_indicative_family_active",
+            "workspace_id",
+            "position_id",
+            "kind",
+            unique=True,
+            postgresql_where=text(f"closed_at IS NULL AND {FAMILY_FILTER}"),
+            sqlite_where=text(f"closed_at IS NULL AND {FAMILY_FILTER}"),
+        ),
+        Index(
+            "uq_indicative_family_event",
+            "workspace_id",
+            "position_id",
+            "kind",
+            "event_key",
+            unique=True,
+            postgresql_where=text(FAMILY_FILTER),
+            sqlite_where=text(FAMILY_FILTER),
+        ),
+        Index(
+            "uq_indicative_family_number",
+            "workspace_id",
+            "position_id",
+            "kind",
+            "episode_number",
+            unique=True,
+            postgresql_where=text(FAMILY_FILTER),
+            sqlite_where=text(FAMILY_FILTER),
         ),
         CheckConstraint("episode_number > 0", name="indicative_entry_episode_positive"),
         CheckConstraint(

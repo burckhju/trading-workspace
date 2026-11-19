@@ -27,6 +27,7 @@ import {
   lossEpisode,
   lossReport,
 } from "../../frontend/src/features/operational_workspace/test/hebeltraderLossFixture";
+import { indicativeReport } from "../../frontend/src/features/operational_workspace/test/indicativeEntryFixture";
 
 async function setup(
   page: Page,
@@ -177,6 +178,29 @@ async function setup(
             active_episode: active,
             recent_episodes: active ? [active] : [],
             episode_count: active ? 1 : 0,
+          }),
+        ),
+      });
+    }
+    const indicative = path.match(
+      /^\/(?:api\/)?api\/v1\/position-monitoring\/trades\/trade-(0|[1-9]\d?)\/indicative-entry$/,
+    );
+    if (indicative) {
+      const id = indicative[1];
+      expect(req.method()).toBe("GET");
+      expect([...url.searchParams.entries()]).toEqual([
+        ["position_id", `position-${id}`],
+      ]);
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(
+          indicativeReport({
+            trade_id: `trade-${id}`,
+            position_id: `position-${id}`,
+            activation_status: "SCOPE_ENABLED",
+            runner_enabled: true,
+            read_at: "2026-09-13T09:00:01Z",
           }),
         ),
       });
@@ -617,6 +641,22 @@ test("valuation notices preserve keyboard details, existing reads and explicit h
         "Die Datenlücke beendet diese Verlustepisode nicht.",
       );
     }
+    const indicative = region.getByRole("region", {
+      name: "Indikative Depotbeobachtung",
+    });
+    await expect(indicative).toContainText(
+      "INDICATIVE_ENTRY_V2 · indicative-entry-review-v2",
+    );
+    await expect(indicative).toContainText("Teilumfang zentral eingeschaltet");
+    await expect(indicative).toContainText(
+      "Noch keine indikative Bewertung gespeichert",
+    );
+    await expect(indicative).toContainText(
+      "Keine qualifizierte B04/B57-Überwachung",
+    );
+    await expect(indicative.getByRole("alert")).toHaveCount(0);
+    await expect(indicative.getByRole("button")).toHaveCount(0);
+    await expect(indicative.getByRole("textbox")).toHaveCount(0);
     expect(
       requests
         .slice(before)
@@ -647,6 +687,11 @@ test("valuation notices preserve keyboard details, existing reads and explicit h
       expect.stringMatching(
         new RegExp(
           `^GET (?:/api)?/api/v1/position-monitoring/trades/trade-${id}/hebeltrader-targets$`,
+        ),
+      ),
+      expect.stringMatching(
+        new RegExp(
+          `^GET (?:/api)?/api/v1/position-monitoring/trades/trade-${id}/indicative-entry$`,
         ),
       ),
       expect.stringMatching(
@@ -684,7 +729,7 @@ test("valuation notices preserve keyboard details, existing reads and explicit h
       await expect(details).toHaveAttribute("aria-expanded", "false");
       await expect(details).toBeFocused();
       await expect(region).toHaveCount(0);
-      expect(requests).toHaveLength(before + 7);
+      expect(requests).toHaveLength(before + 8);
     }
   }
   expect(writes()).toBe(0);

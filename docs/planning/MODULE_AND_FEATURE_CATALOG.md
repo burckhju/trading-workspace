@@ -90,6 +90,15 @@ Die [B05-Kalenderberechnung](../features/HEBELTRADER_MONITORING_INTEGRATION_CONT
 Der gesonderte [indikative Einstands- und Prüfvertrag](../features/HEBELTRADER_MONITORING_INTEGRATION_CONTRACT.md#indicative-entry-review-v1) gehört demselben Monitoring-Owner. Seine Bewertungen und getrennten Verlustindikations-, Prüf- und Datenproblemepisoden verwenden ausschließlich die vorhandenen wirtschaftlichen und Datenowner. Alert/Notification behalten Meldung und Zustellung; der Workspace konsumiert passive Reads. Dieser Umfang ist keine positive B58-Qualifikation und aktiviert keine vollständige Hebeltrader-Baseline. Der [zentrale PC-Betriebsübergang](../features/HEBELTRADER_MONITORING_INTEGRATION_CONTRACT.md#indicative-review-linux-operation-v1) liegt beim vorhandenen Deploymentowner; der Backlog bleibt die einzige Aufgabenstatusquelle.
 
 <a id="ownership"></a>
+Die [V2-Originalbelege](../features/HEBELTRADER_MONITORING_INTEGRATION_CONTRACT.md#indicative-review-readiness-v2)
+bleiben beim Product-/Market-Data-Owner; die [versionierte indikative Reviewfamilie](../features/HEBELTRADER_MONITORING_INTEGRATION_CONTRACT.md#indicative-review-rule-v2)
+und [kursunabhängige Produktfristprüfung](../features/HEBELTRADER_MONITORING_INTEGRATION_CONTRACT.md#documented-product-deadline-review-v1)
+beim bestehenden Monitoring-Owner. Persönliche Exitwahl und ursprüngliche
+Listingtermine gehören zu Product. Alert/Notification behalten Ereignis und
+Zustellung, der Workspace konsumiert passive Reads. Originaldokumente,
+angenommene historische Kontinuität und echte B58-Qualifikation bleiben getrennt;
+keine zweite Depot-/Kostenrechnung oder vollständige Baseline wird eingeführt.
+
 ## Ein schreibender fachlicher Owner je Objekt
 
 | Objekt | Bestehender schreibender Owner | Wesentliche lesende Consumer / Grenze |

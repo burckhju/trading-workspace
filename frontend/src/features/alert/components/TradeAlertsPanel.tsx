@@ -1,4 +1,9 @@
 import { useEffect, useState } from 'react';
+import {
+  IndicativeQualityDetails,
+  IndicativeCalendarDetails,
+  indicativeReasonLabel,
+} from '../../../shared/indicative-monitoring';
 
 import { riskPercent } from '../services/riskLabels';
 import { alertTypeLabel } from '../services/alertLabels';
@@ -9,6 +14,7 @@ import type {
   PositionMonitoringHealthResponse,
 } from '../types/api';
 import { MonitoringRuntimePanel } from './MonitoringRuntimePanel';
+import { ProductDeadlineContext } from './ProductDeadlineContext';
 
 function formatDateTime(value: string | null): string {
   return value ? new Date(value).toLocaleString('de-DE') : '—';
@@ -26,19 +32,34 @@ function formatNumber(value: string | null): string {
 
 function isEntryObservation(alert: AlertResponse): boolean {
   return (
-    alert.alert_type === 'INDICATIVE_ENTRY_LOSS' ||
-    alert.alert_type === 'POSITION_REVIEW_DUE' ||
-    alert.alert_type === 'POSITION_DATA_UNAVAILABLE'
+    !isDeadlineObservation(alert) &&
+    (alert.alert_type === 'INDICATIVE_ENTRY_LOSS' ||
+      alert.alert_type === 'POSITION_REVIEW_DUE' ||
+      alert.alert_type === 'POSITION_DATA_UNAVAILABLE')
+  );
+}
+
+function isDeadlineObservation(alert: AlertResponse): boolean {
+  return (
+    alert.alert_type === 'PRODUCT_DEADLINE_REVIEW' ||
+    alert.price_context?.scope === 'DOCUMENTED_PRODUCT_DEADLINE_REVIEW_V1'
   );
 }
 
 function hasPriceTrigger(alert: AlertResponse): boolean {
   return (
-    alert.alert_type !== 'POSITION_REVIEW_DUE' && alert.alert_type !== 'POSITION_DATA_UNAVAILABLE'
+    alert.alert_type !== 'POSITION_REVIEW_DUE' &&
+    alert.alert_type !== 'POSITION_DATA_UNAVAILABLE' &&
+    alert.alert_type !== 'PRODUCT_DEADLINE_REVIEW'
   );
 }
 
 function alertTriggerLabel(alert: AlertResponse): string {
+  if (isDeadlineObservation(alert)) {
+    return alert.alert_type === 'POSITION_DATA_UNAVAILABLE'
+      ? 'Datenlage: Produkttermin-Erinnerung nicht beurteilbar'
+      : 'Anlass: dokumentierter Produkttermin und Kalendersitzung';
+  }
   if (alert.alert_type === 'POSITION_REVIEW_DUE') {
     return 'Anlass: abgeschlossene Basiswertsitzungen';
   }
@@ -51,6 +72,9 @@ function alertTriggerLabel(alert: AlertResponse): string {
 }
 
 function alertTitle(alert: AlertResponse): string {
+  if (isDeadlineObservation(alert) && alert.alert_type === 'POSITION_DATA_UNAVAILABLE') {
+    return 'Datenproblem · Produkttermin-Erinnerung nicht auswertbar';
+  }
   const title =
     alert.alert_type === 'TARGET_REACHED' ? 'Target erreicht' : alertTypeLabel(alert.alert_type);
   return !isEntryObservation(alert) && alert.price_context?.evaluation_mode === 'INDICATIVE_ISSUER'
@@ -64,6 +88,7 @@ const reviewSuppressionCodes = new Set([
   'REVIEW_ALERT_INVALIDATED',
   'REVIEW_TRADE_CANCELLED',
   'REVIEW_TRADE_MISSING',
+  'REVIEW_DEADLINE_INPUTS_UNAVAILABLE',
 ]);
 
 function notificationLabel(notification: NotificationResponse): string {
@@ -273,10 +298,16 @@ export function TradeAlertsPanel({ tradeId }: { tradeId: string }) {
                   <p className="mt-2 text-sm text-amber-300">
                     {alert.alert_type === 'HEBELTRADER_B04_LOSS'
                       ? 'B04-Verlusthinweis durch neue Bewertung ungültig. Ursprüngliche Werte bleiben zur Nachvollziehbarkeit erhalten.'
-                      : isEntryObservation(alert)
+                      : isEntryObservation(alert) || isDeadlineObservation(alert)
                         ? 'Hinweis durch eine neue Bewertung ungültig. Ursprüngliche Angaben bleiben zur Nachvollziehbarkeit erhalten.'
                         : 'Meldung wegen ungeklärtem Kursbezug ungültig. Ursprüngliche Werte bleiben zur Nachvollziehbarkeit erhalten.'}
                   </p>
+                )}
+                {isDeadlineObservation(alert) && (
+                  <ProductDeadlineContext
+                    context={alert.price_context}
+                    dataUnavailable={alert.alert_type === 'POSITION_DATA_UNAVAILABLE'}
+                  />
                 )}
                 {alert.alert_type === 'HEBELTRADER_B04_LOSS' && (
                   <div className="mt-2 text-sm text-slate-400">
@@ -317,9 +348,11 @@ export function TradeAlertsPanel({ tradeId }: { tradeId: string }) {
                         {alert.price_context?.completed_sessions ?? 'nicht belegt'} ·{' '}
                         {alert.price_context?.session_count_basis === 'ORIGINAL_BID'
                           ? 'zur Original-Geldkurszeit'
-                          : alert.price_context?.session_count_basis === 'EVALUATION_TIME'
-                            ? 'zum Prüfzeitpunkt'
-                            : 'Zeitbezug nicht belegt'}{' '}
+                          : alert.price_context?.session_count_basis === 'SHARED_QUOTE_TIME'
+                            ? 'zur gemeinsamen Kurszeit der Quelle'
+                            : alert.price_context?.session_count_basis === 'EVALUATION_TIME'
+                              ? 'zum Prüfzeitpunkt'
+                              : 'Zeitbezug nicht belegt'}{' '}
                         · Stand: {alert.price_context?.session_count_at ?? 'nicht belegt'}
                       </p>
                     )}
@@ -327,6 +360,24 @@ export function TradeAlertsPanel({ tradeId }: { tradeId: string }) {
                       Ausschließlich ein Hinweis; keine Orderfreigabe und keine automatische Stop-
                       oder Zieländerung.
                     </p>
+                    <IndicativeCalendarDetails
+                      dayPrecision={alert.price_context?.session_day_precision}
+                      quality={alert.price_context?.calendar_quality}
+                      verification={alert.price_context?.calendar_verification}
+                    />
+                    {alert.alert_type !== 'POSITION_REVIEW_DUE' && (
+                      <div className="mt-3">
+                        <IndicativeQualityDetails
+                          sourceQuoteAt={alert.price_context?.source_quote_at}
+                          sourceTimeBasis={alert.price_context?.source_time_basis}
+                          sourceFreshness={alert.price_context?.source_freshness}
+                          productScaleQuality={alert.price_context?.product_scale_quality}
+                          historyContinuityAssumed={
+                            alert.price_context?.history_continuity_assumed === 'true'
+                          }
+                        />
+                      </div>
+                    )}
                     <div className="mt-2 text-xs text-slate-400">
                       <p>
                         Letzter belegter Statuspunkt:{' '}
@@ -345,40 +396,54 @@ export function TradeAlertsPanel({ tradeId }: { tradeId: string }) {
                           Gründe des Datenproblems anzeigen
                         </summary>
                         <p className="mt-1 break-all">{alert.price_context.data_problem_reasons}</p>
+                        <ul className="mt-1 space-y-1">
+                          {alert.price_context.data_problem_reasons
+                            .split(',')
+                            .map((reason, index) => (
+                              <li key={`${reason}:${index}`}>
+                                {indicativeReasonLabel(reason.trim())}
+                              </li>
+                            ))}
+                        </ul>
                       </details>
                     )}
                   </div>
                 )}
-                {alert.price_context && alert.alert_type !== 'POSITION_REVIEW_DUE' && (
-                  <div className="mt-2 text-xs text-slate-400">
-                    <p>
-                      Quelle: {alert.price_context.provider} ·{' '}
-                      {alert.price_context.provider_identity} ·{' '}
-                      {alert.price_context.venue_mic ?? 'Handelsplatz nicht angegeben'}
-                    </p>
-                    <p>
-                      Kurszeitpunkt: {alert.price_context.observed_at ?? 'nicht bekannt'} ·
-                      Handelstag: {alert.price_context.trading_date ?? '—'} · Abgerufen:{' '}
-                      {alert.price_context.retrieved_at ?? '—'}
-                    </p>
-                    {alert.price_context.quote_time_text && (
+                {alert.price_context &&
+                  alert.alert_type !== 'POSITION_REVIEW_DUE' &&
+                  !isDeadlineObservation(alert) && (
+                    <div className="mt-2 text-xs text-slate-400">
                       <p>
-                        Zeitangabe der Quelle: {alert.price_context.quote_time_text} ·{' '}
-                        {alert.price_context.quote_time_basis === 'DATE_AND_TIMEZONE_UNKNOWN'
-                          ? 'Kursdatum und Zeitzone unbekannt'
-                          : alert.price_context.quote_time_basis ===
-                              'LOCAL_DATETIME_TIMEZONE_UNKNOWN'
-                            ? 'Zeitzone unbekannt'
-                            : alert.price_context.quote_time_basis}
+                        Quelle: {alert.price_context.provider} ·{' '}
+                        {alert.price_context.provider_identity} ·{' '}
+                        {alert.price_context.venue_mic ?? 'Handelsplatz nicht angegeben'}
                       </p>
-                    )}
-                    {alert.price_context.warning && (
-                      <p className="text-amber-300">
-                        Indikative Prüfung · {alert.price_context.warning}. Keine Orderfreigabe.
+                      <p>
+                        {isEntryObservation(alert) && alert.price_context.source_time_basis
+                          ? 'Original-Geldkurszeit'
+                          : 'Kurszeitpunkt'}
+                        : {alert.price_context.observed_at ?? 'nicht bekannt'} · Handelstag:{' '}
+                        {alert.price_context.trading_date ?? '—'} · Abgerufen:{' '}
+                        {alert.price_context.retrieved_at ?? '—'}
                       </p>
-                    )}
-                  </div>
-                )}
+                      {alert.price_context.quote_time_text && (
+                        <p>
+                          Zeitangabe der Quelle: {alert.price_context.quote_time_text} ·{' '}
+                          {alert.price_context.quote_time_basis === 'DATE_AND_TIMEZONE_UNKNOWN'
+                            ? 'Kursdatum und Zeitzone unbekannt'
+                            : alert.price_context.quote_time_basis ===
+                                'LOCAL_DATETIME_TIMEZONE_UNKNOWN'
+                              ? 'Zeitzone unbekannt'
+                              : alert.price_context.quote_time_basis}
+                        </p>
+                      )}
+                      {alert.price_context.warning && (
+                        <p className="text-amber-300">
+                          Indikative Prüfung · {alert.price_context.warning}. Keine Orderfreigabe.
+                        </p>
+                      )}
+                    </div>
+                  )}
                 <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
                   {hasPriceTrigger(alert) && (
                     <>

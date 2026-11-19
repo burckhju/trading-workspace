@@ -3,6 +3,7 @@
 from dataclasses import asdict, dataclass, replace
 from datetime import UTC, datetime
 from decimal import Decimal
+from typing import Any
 from uuid import UUID, uuid4
 
 from sqlalchemy import exists, func, select, text
@@ -21,12 +22,19 @@ from app.features.notification.service.hebeltrader_lifecycle import (
 )
 from app.features.position_monitoring.domain.indicative_entry import (
     EPISODE_KINDS,
-    RULE_KEY,
-    RULE_SCOPE,
-    RULE_VERSION,
     EpisodeKind,
     IndicativeDecision,
     decide_indicative_entry,
+)
+from app.features.position_monitoring.domain.indicative_policy import (
+    REVIEW_FAMILY_VERSIONS,
+    V1_POLICY,
+    IndicativeReviewPolicy,
+)
+from app.features.position_monitoring.domain.indicative_recovery import (
+    extend_loss_floor,
+    product_scale_quality,
+    recovery_problems,
 )
 from app.features.position_monitoring.persistence.indicative_entry import (
     IndicativeEntryAssessmentModel as Assessment,
@@ -44,6 +52,7 @@ from app.features.position_monitoring.service.indicative_entry_inputs import (
     JSON_VALUE,
     IndicativeInputs,
     read_indicative_inputs,
+    session_context,
     status_point_context,
 )
 from app.features.trade_position.persistence.repositories import (
@@ -59,7 +68,7 @@ async def latest_indicative_assessment(
         select(Assessment).where(
             Assessment.workspace_id == workspace_id,
             Assessment.position_id == position_id,
-            Assessment.rule_version == RULE_VERSION,
+            Assessment.rule_version.in_(REVIEW_FAMILY_VERSIONS),
             ~exists().where(successor.previous_assessment_id == Assessment.id),
         )
     )
@@ -80,8 +89,11 @@ class IndicativeEvaluationResult:
 
 
 class IndicativeEntryService:
-    def __init__(self, session: AsyncSession) -> None:
+    def __init__(
+        self, session: AsyncSession, *, policy: IndicativeReviewPolicy = V1_POLICY
+    ) -> None:
         self._session = session
+        self._policy = policy
 
     async def evaluate(
         self,
@@ -114,15 +126,24 @@ class IndicativeEntryService:
                     trade_id=trade_id,
                     position_id=position_id,
                     now=evaluated_at,
+                    policy=self._policy,
                 )
                 previous = await latest_indicative_assessment(snapshot, workspace_id, position_id)
                 inputs = self._preserve_refresh_failure(inputs, previous, refresh_failed)
+                if self._policy.allow_assumed_product_history or (
+                    previous is not None and previous.result.get("loss_evidence_floor") is not None
+                ):
+                    floor = await self._recovery_floor(snapshot, inputs, previous)
+                    inputs = replace(
+                        inputs,
+                        material={**inputs.material, "loss_evidence_floor": floor},
+                    )
                 latest_price = await snapshot.scalar(
                     select(Assessment)
                     .where(
                         Assessment.workspace_id == workspace_id,
                         Assessment.position_id == position_id,
-                        Assessment.rule_version == RULE_VERSION,
+                        Assessment.rule_version.in_(REVIEW_FAMILY_VERSIONS),
                         Assessment.outcome.in_(("BELOW_ENTRY", "AT_OR_ABOVE_ENTRY")),
                         Assessment.result["evaluation_mode"].as_string()
                         == inputs.quote.evaluation_mode,
@@ -220,7 +241,7 @@ class IndicativeEntryService:
             ):
                 problems.append("REVIEW_CONFLICTING_PRICE_AT_SAME_TIME")
         position = inputs.material["economic_basis"]["position"]
-        return decide_indicative_entry(
+        decision = decide_indicative_entry(
             closed=inputs.closed,
             gross_entry=Decimal(position["average_entry_price"]),
             remaining_quantity=position["open_quantity"],
@@ -233,10 +254,90 @@ class IndicativeEntryService:
             ),
             input_problems=tuple(problems),
         )
+        if inputs.policy.allow_assumed_product_history or inputs.material.get(
+            "loss_evidence_floor"
+        ):
+            recovery = recovery_problems(
+                decision, inputs.material, inputs.material.get("loss_evidence_floor")
+            )
+            if recovery:
+                decision = replace(decision, outcome="UNAVAILABLE", reasons=recovery)
+        return decision
+
+    @staticmethod
+    async def _recovery_floor(
+        session: AsyncSession, inputs: IndicativeInputs, previous: Assessment | None
+    ) -> dict[str, Any] | None:
+        episode = await session.scalar(
+            select(Episode).where(
+                Episode.workspace_id == inputs.workspace_id,
+                Episode.position_id == inputs.position_id,
+                Episode.rule_version.in_(REVIEW_FAMILY_VERSIONS),
+                Episode.kind == "ENTRY_LOSS",
+                Episode.closed_at.is_(None),
+            )
+        )
+        if episode is None:
+            return None
+        opening_id = str(episode.opening_assessment_id)
+        saved = previous.result.get("loss_evidence_floor") if previous is not None else None
+        if saved is not None and saved.get("opening_assessment_id") == opening_id:
+            return dict(saved)
+        if previous is None:
+            raise ValueError("REVIEW_ACTIVE_LOSS_WITHOUT_ASSESSMENT")
+        # One-time V1 upgrade follows the actual predecessor chain, not clocks
+        # or mutable last-success. Later cycles consume the recorded floor.
+        history = (
+            select(Assessment.id, Assessment.previous_assessment_id)
+            .where(
+                Assessment.id == previous.id,
+                Assessment.workspace_id == inputs.workspace_id,
+                Assessment.position_id == inputs.position_id,
+                Assessment.rule_version.in_(REVIEW_FAMILY_VERSIONS),
+            )
+            .cte("indicative_loss_ancestry", recursive=True)
+        )
+        history = history.union_all(
+            select(Assessment.id, Assessment.previous_assessment_id)
+            .join(history, Assessment.id == history.c.previous_assessment_id)
+            .where(history.c.id != episode.opening_assessment_id)
+        )
+        rows = tuple(
+            await session.scalars(select(Assessment).join(history, Assessment.id == history.c.id))
+        )
+        if not any(row.id == episode.opening_assessment_id for row in rows):
+            raise ValueError("REVIEW_LOSS_HISTORY_NOT_CONNECTED")
+        floor = None
+        for row in rows:
+            if row.outcome == "BELOW_ENTRY":
+                floor = extend_loss_floor(
+                    floor,
+                    material=row.inputs,
+                    result=row.result,
+                    opening_assessment_id=opening_id,
+                )
+        return floor
 
     @staticmethod
     def _input_fingerprint(inputs: IndicativeInputs, decision: IndicativeDecision) -> str:
         material = inputs.material
+        scale = {
+            key: value
+            for key, value in material.get("product_scale", {}).items()
+            if key != "review_at"
+        }
+        if owner_scale := scale.get("owner_assessment"):
+            # This existing read fingerprint includes known_at. Its complete
+            # revision, document hashes, binding and facts remain below; only
+            # the opaque read-clock-dependent digest is not an event identity.
+            scale["owner_assessment"] = {
+                **owner_scale,
+                "evidence": {
+                    key: value
+                    for key, value in owner_scale.get("evidence", {}).items()
+                    if key != "fingerprint"
+                },
+            }
         route = asdict(inputs.saved.route) if inputs.saved.route else None
         status = material.get("status_observations") or {}
         observations = list(status.get("latest_observations", ()))
@@ -255,7 +356,7 @@ class IndicativeEntryService:
         return _fingerprint(
             _stable_material(
                 {
-                    "rule": RULE_KEY,
+                    "rule": inputs.policy.key,
                     "owner": inputs.owner_basis_id,
                     "route": route,
                     "provider": inputs.saved.provider,
@@ -264,6 +365,8 @@ class IndicativeEntryService:
                         "bid": decision.bid,
                         "currency": inputs.quote.currency,
                         "original_bid_at": decision.original_bid_at,
+                        "source_quote_at": decision.source_quote_at,
+                        "source_time_basis": decision.source_time_basis,
                         "receipt_at": (
                             decision.received_at
                             if decision.evaluation_mode == "INDICATIVE_ISSUER"
@@ -273,11 +376,7 @@ class IndicativeEntryService:
                     },
                     "calendar": material.get("review_sessions", {}).get("calendar"),
                     "comparison_calendar": material.get("comparison_sessions", {}).get("calendar"),
-                    "scale": {
-                        key: value
-                        for key, value in material.get("product_scale", {}).items()
-                        if key != "review_at"
-                    },
+                    "scale": scale,
                     "outcome": decision.outcome,
                     "reasons": decision.reasons,
                     "review_due": decision.review_due,
@@ -318,7 +417,7 @@ class IndicativeEntryService:
                 select(Episode).where(
                     Episode.workspace_id == inputs.workspace_id,
                     Episode.position_id == inputs.position_id,
-                    Episode.rule_version == RULE_VERSION,
+                    Episode.rule_version.in_(REVIEW_FAMILY_VERSIONS),
                     Episode.closed_at.is_(None),
                 )
             )
@@ -327,13 +426,31 @@ class IndicativeEntryService:
         assert assessment_id is not None
         review_key = self._review_event_key(inputs, decision)
         if not duplicate:
+            result = {**asdict(decision), "review_event_key": review_key}
+            if inputs.policy.allow_assumed_product_history or inputs.material.get(
+                "loss_evidence_floor"
+            ):
+                floor = inputs.material.get("loss_evidence_floor")
+                if decision.outcome == "BELOW_ENTRY":
+                    loss = active.get("ENTRY_LOSS")
+                    floor = extend_loss_floor(
+                        floor,
+                        material=inputs.material,
+                        result=result,
+                        opening_assessment_id=str(
+                            loss.opening_assessment_id if loss else assessment_id
+                        ),
+                    )
+                elif decision.outcome in {"AT_OR_ABOVE_ENTRY", "CLOSED"}:
+                    floor = None
+                result["loss_evidence_floor"] = floor
             session.add(
                 Assessment(
                     id=assessment_id,
                     workspace_id=inputs.workspace_id,
                     trade_id=inputs.trade_id,
                     position_id=inputs.position_id,
-                    rule_version=RULE_VERSION,
+                    rule_version=inputs.policy.version,
                     previous_assessment_id=previous_id,
                     input_fingerprint=fingerprint,
                     owner_basis_id=inputs.owner_basis_id,
@@ -343,7 +460,7 @@ class IndicativeEntryService:
                     ordering_at=decision.ordering_at,
                     inputs=inputs.material,
                     result=JSON_VALUE.dump_python(
-                        {**asdict(decision), "review_event_key": review_key},
+                        result,
                         mode="json",
                     ),
                 )
@@ -394,7 +511,7 @@ class IndicativeEntryService:
                         select(Episode).where(
                             Episode.workspace_id == inputs.workspace_id,
                             Episode.position_id == inputs.position_id,
-                            Episode.rule_version == RULE_VERSION,
+                            Episode.rule_version.in_(REVIEW_FAMILY_VERSIONS),
                             Episode.kind == "REVIEW_DUE",
                             Episode.event_key == review_key,
                         )
@@ -450,7 +567,7 @@ class IndicativeEntryService:
                     select(func.max(Episode.episode_number)).where(
                         Episode.workspace_id == inputs.workspace_id,
                         Episode.position_id == inputs.position_id,
-                        Episode.rule_version == RULE_VERSION,
+                        Episode.rule_version.in_(REVIEW_FAMILY_VERSIONS),
                         Episode.kind == kind,
                     )
                 )
@@ -482,7 +599,7 @@ class IndicativeEntryService:
             trade_id=inputs.trade_id,
             alert_type=alert_type,
             severity=AlertSeverity.WARNING,
-            rule_key=f"{RULE_KEY}:{kind}",
+            rule_key=f"{inputs.policy.key}:{kind}",
             reason=reason,
             observed_value=decision.bid if kind == "ENTRY_LOSS" else None,
             threshold_value=decision.gross_entry if kind == "ENTRY_LOSS" else None,
@@ -497,7 +614,7 @@ class IndicativeEntryService:
             workspace_id=inputs.workspace_id,
             trade_id=inputs.trade_id,
             position_id=inputs.position_id,
-            rule_version=RULE_VERSION,
+            rule_version=inputs.policy.version,
             kind=kind,
             event_key=(self._review_event_key(inputs, decision) if kind == "REVIEW_DUE" else None),
             episode_number=sequence,
@@ -521,8 +638,9 @@ class IndicativeEntryService:
         route = saved.route
         context = {
             **status_point_context(inputs.material),
-            "scope": RULE_SCOPE,
-            "rule_version": RULE_VERSION,
+            **session_context(inputs.material, review=kind == "REVIEW_DUE"),
+            "scope": inputs.policy.scope,
+            "rule_version": inputs.policy.version,
             "qualified_b04": "false",
             "evaluation_mode": decision.evaluation_mode,
             "basis": "WARRANT",
@@ -540,10 +658,16 @@ class IndicativeEntryService:
                 decision.original_bid_at.isoformat() if decision.original_bid_at else None
             ),
             "retrieved_at": (decision.received_at.isoformat() if decision.received_at else None),
-            "source_freshness": (
-                "WITHIN_900_SECONDS"
-                if decision.evaluation_mode == "SOURCE_BID"
-                else ("UNKNOWN" if decision.evaluation_mode == "INDICATIVE_ISSUER" else None)
+            "source_quote_at": (
+                decision.source_quote_at.isoformat() if decision.source_quote_at else None
+            ),
+            "source_time_basis": decision.source_time_basis,
+            "source_freshness": decision.source_freshness,
+            "product_scale_quality": product_scale_quality(inputs.material),
+            "history_continuity_assumed": (
+                "true"
+                if inputs.material.get("product_scale", {}).get("history_continuity_assumed")
+                else "false"
             ),
             "completed_sessions": (
                 str(decision.completed_sessions)
@@ -552,7 +676,13 @@ class IndicativeEntryService:
             ),
             "session_count_at": decision.session_count_at.isoformat(),
             "session_count_basis": (
-                "ORIGINAL_BID" if decision.evaluation_mode == "SOURCE_BID" else "EVALUATION_TIME"
+                "ORIGINAL_BID"
+                if decision.evaluation_mode == "SOURCE_BID"
+                else (
+                    "SHARED_QUOTE_TIME"
+                    if decision.evaluation_mode == "DELAYED_SOURCE_BID"
+                    else "EVALUATION_TIME"
+                )
             ),
             "review_completed_sessions": (
                 str(decision.review_completed_sessions)

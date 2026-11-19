@@ -319,6 +319,8 @@ def test_owner_to_depot_preserves_market_value_and_excludes_unqualified_pnl(
             assert len(rows) == 6
             for name, _currency, bid, reason, pnl in cases:
                 row = rows[name]
+                assert row["product_id"] == captures[name]["trade"]["product_id"]
+                assert row["position_basis"]["position"]["product_id"] == row["product_id"]
                 assert row["open_quantity"] == 10
                 assert Decimal(row["cost_basis"]) == Decimal("20")
                 assert Decimal(row["market_value"]) == Decimal(bid) * 10

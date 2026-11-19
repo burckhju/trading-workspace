@@ -8,6 +8,7 @@ const titles: Record<AlertType, string> = {
   HEBELTRADER_B04_LOSS: 'Hebeltrader · Verlust nach 20 Basiswertsitzungen',
   INDICATIVE_ENTRY_LOSS: 'Indikativ · Kurs unter persönlichem Bruttoeinstand',
   POSITION_REVIEW_DUE: 'Prüfhinweis · 20 Basiswertsitzungen abgeschlossen',
+  PRODUCT_DEADLINE_REVIEW: 'Produkttermin · Kalendererinnerung',
   POSITION_DATA_UNAVAILABLE: 'Datenproblem · Einstandsbeobachtung nicht auswertbar',
 };
 

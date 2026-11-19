@@ -2543,3 +2543,245 @@ Schreibende Systemtests verwenden ausschließlich entbehrliche CI-Installationen
 und abgefangene Provider-/Nachrichtenaufrufe. Das ersetzt keinen beobachteten
 PC-Lauf oder reale Depotabnahme; deren Status bleibt im Backlog beziehungsweise
 in der konkreten Releaseübergabe getrennt.
+
+<a id="indicative-review-readiness-v2"></a>
+## Originalbelege für die erweiterte indikative Prüfung, Version 2
+
+Der Nachtrag `indicative-review-readiness-v2` gehört ausschließlich zum gesonderten
+indikativen Umfang. Er liefert keine B58-Qualifikation und ändert weder die
+bestätigten B04/B57-Regeln noch den ursprünglichen Produktmaßstabs- oder
+Kalenderimportvertrag. Produkt- und Market-Data-Owner erhalten additive,
+unveränderliche Originaldokumente; Migration 0058 aktiviert keine Regel und
+führt keine Depot-, Ausführungs- oder historischen Kursbuchungen aus.
+
+Der Product-Owner beschafft veröffentlichte PRIIPs-Dokumente über fest gebundene
+Emittentenpfade. Die bestehende Produktidentität bestimmt den Pfad; Quellen-URL,
+Originalbytes, SHA256, Abruf-/Speicherzeit, Parserstand und aktuelle
+Bedingungsversion werden zusammen erhalten. Redirects, Zugangssperren und
+unbekannte Dokumentformen werden nicht umgangen. Es werden keine Provider
+aktiviert, Zustimmungen akzeptiert oder Quellen einer Position neu ausgewählt.
+Ein erfolgreicher Abruf wird täglich erneut geprüft, ein fehlgeschlagener frühestens
+nach einer Stunde; die bestehende Belegrevision bleibt bei Wiederholung derselben
+Originalbytes erhalten. Passive Ansichten führen diese Beschaffung nicht aus.
+
+Explizite Stücknotierung und Produktwährung ermöglichen den Qualitätsgrad
+`CURRENT_UNIT_HISTORY_ASSUMED`. Er bezeichnet eine **angenommene historische
+Kontinuität**, keine rückwirkend geprüfte unveränderte Originaleinheit. Der
+Ausführungsowner bleibt allein zuständig für Restmenge, gewichteten
+Bruttoeinstand, Korrekturen und historische Ausführungswährung. Ein dokumentierter
+strenger Maßstab hat Vorrang; bekannte Rücknahme, Anpassung oder widersprüchliche
+Bindung darf durch den schwächeren Beleg nicht übergangen werden. Eine nicht
+extrahierbare Einheit bleibt fehlend. Bezugsverhältnis, Mindestausübungsmenge,
+Emissionspreis, Ask, Last und Beispielanlagebetrag ersetzen keinen Stückmaßstab.
+
+Die zusätzliche Referenzkalenderbasis verwendet den im aktuellen Original-KID
+genannten Basiswert und Referenzmarkt. Sie kennzeichnet
+`CURRENT_DOCUMENT_REFERENCE_MARKET_ASSUMED` und bestätigt keine historische
+persönliche Primärlistingbindung. Die endliche NYSE-Abdeckung 2025–2027 bindet
+die [Originalveröffentlichung der Feiertage und verkürzten Sitzungen](https://ir.theice.com/press/news-details/2024/NYSE-Group-Announces-2025-2026-and-2027-Holiday-and-Early-Closings-Calendar/default.aspx),
+die [reguläre Kernhandelszeit](https://www.nyse.com/trade/hours-calendars) und die
+[gesonderte Schließung am 9. Januar 2025](https://ir.theice.com/press/news-details/2024/The-New-York-Stock-Exchange-Will-Close-Markets-on-January-9-to-Honor-the-Passing-of-Former-President-Jimmy-Carter-on-National-Day-of-Mourning/default.aspx).
+Originaldateien müssen vor Speicherung exakt zum überprüften Quellenstand
+passen. Geänderte Originale werden als neue, noch zu prüfende Quellenrevision
+behandelt. Der Status lautet ausdrücklich
+`ENGINEERING_REVIEW_OF_ORIGINAL_CALENDAR_NOT_INDEPENDENT_VERIFICATION`.
+Die Verarbeitung ist keine unabhängige Systemverifikation dieser fachlichen
+Dokumentenprüfung und keine Aussage über den aktuellen Instrumentmarktstatus.
+
+`count_completed_sessions(..., event_at=...)` bleibt die Sitzungsarithmetik.
+Der Kaufkalendertag zählt als Tag 0. Bei mehrdeutigem ursprünglichem Datum mit
+Zeitzone darf V2 den spätesten möglichen Referenzkalendertag als konservative
+Schranke verwenden (`CONSERVATIVE_DATE_BOUND`); so entsteht die kleinere belegbare
+Sitzungszahl. Frühester/spätester möglicher Tag und ursprüngliche Präzision
+bleiben erhalten. Es wird kein Ausführungszeitpunkt erfunden. Der strenge
+B04-Reader behandelt diese ursprüngliche Mehrdeutigkeit weiterhin unverändert.
+Bei einem bekannten Kurszeitpunkt wird stets zu diesem Ereignis gezählt, nicht
+zur späteren Abruf- oder Lesezeit.
+
+Der ergänzende [Stuttgarter Originalkalender 2026](https://www.boerse-stuttgart.de/media/wabiiobs/2026-07-21_bk_handelskalender_2026_aktualisierung_20260721.pdf)
+belegt ausschließlich Börsentage. Er enthält keine erfundenen individuellen
+Öffnungs- oder Schlusszeiten und wird nicht auf 2027 ausgedehnt. Eine darauf
+aufbauende Datumserinnerung muss gesondert als `DAY_ONLY_CALENDAR_REVIEW`
+erscheinen; der produktspezifische B20-Schluss bleibt unqualifiziert.
+
+<a id="indicative-review-rule-v2"></a>
+## Erweiterter indikativer Regel- und Betriebsumfang, Version 2
+
+`INDICATIVE_ENTRY_V2` / `indicative-entry-review-v2` ist die ausdrücklich
+beauftragte Alternative bei fehlender geeigneter B58-Quelle. Der zentrale
+`REVIEW_SCOPE` wählt genau DISABLED, V1 oder V2. Die bestätigte vollständige
+`HEBELTRADER_CONFIRMED_BASELINE` und der strenge B04/B57/B58-Pfad werden dadurch
+nicht aktiviert oder fachlich verändert. B08 bleibt ausgeschlossen.
+
+V2 ergänzt ausschließlich die schon vorhandenen verzögerten Originalquellen
+GETTEX_DELAYED und BOERSE_STUTTGART_DELAYED mit gebundener Instrument-/Listing-/
+Währungsidentität. Ihr eigener gemeinsamer Quellenzeitpunkt darf höchstens
+1800 Sekunden zurückliegen und nicht zukünftig sein. Er steht getrennt in
+`source_quote_at`; `original_bid_at` bleibt leer, solange keine eigene originale
+BID-Seitenzeit existiert. Diese 30-Minuten-Grenze ist eine explizite indikative
+Regel, keine Aufweichung der strengen B58-Grenze von 900 Sekunden. Für den
+bestehenden ursprünglichen BID-Pfad bleiben 900 Sekunden maßgeblich; bei
+indikativem Emittentenabruf bleibt die Originalzeit unbekannt. Empfangszeit,
+Ask, Last und Close ersetzen keine Original-BID-Zeit oder einen BID.
+
+Der aktuelle Originalproduktmaßstab kann nur mit sichtbarer historischer
+Kontinuitätsannahme verwendet werden. Bekannte Rücknahmen, Anpassungen und
+Widersprüche bleiben Sperren. Bei fehlender ursprünglicher Sitzungsbindung
+kann V2 den gesondert dokumentierten Referenzmarkt-/Kalenderpfad verwenden;
+eine bekannte ungeeignete oder zurückgenommene Bindung wird nicht übergangen.
+Die Sitzungszahl gehört weiterhin zum eigenen Quellenereignis. Die spätere
+Abrufzeit qualifiziert keinen vor Ende der 20. Sitzung entstandenen Kurs.
+Fehlende Target-/Z1-Evidenz ist keine zusätzliche Einstandsvoraussetzung.
+
+V1 und V2 bilden eine dauerhafte Reviewfamilie. Migration 0059 erhält bisherige
+Bewertungen und Episoden und erzwingt gemeinsame Eindeutigkeit für Wurzel,
+Nachfolger, aktive Episode und logisches Ereignis. Ein zentraler Versionswechsel
+erzeugt keinen zweiten identischen Hinweis. Die bewertete Regelversion bleibt
+jeweils an der unveränderlichen Bewertung sichtbar.
+
+Ein Verlust bleibt bei Datenlücken offen. Eine Erholung muss mindestens die
+stärkste während der Episode tatsächlich belegte Preis- und Maßstabsqualität
+besitzen: originaler BID vor verzögertem Quellen-BID vor indikativem
+Emittentenwert; historisch dokumentierter Maßstab vor angenommener Kontinuität.
+Ein Quellenwechsel mit unbekannter Originalzeit bestätigt keine vergleichbare
+Erholung. Verspätete schwächere Werte löschen keine stärkere Beobachtung. Diese
+Erholungsgrenze bleibt über Wiederholungen, Neustarts und einen Wechsel zurück
+zu V1 erhalten. Korrekturen und Vollverkauf verwenden weiterhin ausschließlich
+den wirtschaftlichen Ausführungsowner; Vollverkauf unterdrückt ausstehende
+Handlungshinweise und erhält die Historie.
+
+Die aktive V2-Schleife beschafft Originaldokumente vor der Bewertung außerhalb
+des Trade-Locks. Gespeicherte Quellen, unveränderte Kalender und Produktbelege
+werden wiederverwendet. Beschaffungszustand und konkrete begrenzte Fehlercodes
+sind eine zusätzliche passive Betriebsdiagnose; sie ändern keine historische
+Bewertung. Wiederkehrende Läufe brauchen keine täglichen Bestätigungen. Alle
+Regelauslöser bleiben Hinweise ohne Orders, Buchungen oder Stop-/Zieländerung.
+
+Externe Reviewzustellung bleibt separat ausgeschaltet, bis sie ausdrücklich
+freigegeben wird. Implementierung, synthetischer Durchlauf, grüne Integration,
+Release, zentrale PC-Aktivierung und reale Depotabdeckung werden getrennt
+nachgewiesen. Der Aufgabenstatus bleibt ausschließlich im Backlog.
+
+<a id="documented-product-deadline-review-v1"></a>
+## Kursunabhängige dokumentierte Produktfristprüfung, Version 1
+
+`DOCUMENTED_PRODUCT_DEADLINE_REVIEW_V1` / `product-deadline-review-v1` ist ein
+begrenzter B05-Teilumfang innerhalb der ausdrücklichen zentralen V2-Aktivierung.
+Der vorhandene B05-Rechenkern bleibt maßgeblich: das frühere Datum aus belegtem
+Produktende und letztem Handelstag am ausdrücklich gewählten Ausstiegslisting
+bestimmt die Rückwärtszählung von zwanzig abgeschlossenen Produktbörsentagen;
+der davor liegende Produkttag bestimmt die Vorwarnstufe. Keine BID-,
+Originalstatus-, Ziel-, Einstands-, Kurswährungs- oder Produktmaßstabsqualifikation
+ist Voraussetzung für diese Fristerinnerung.
+
+Product komponiert den aktuellen Original-KID-Termin, den Originalbeleg des
+letzten Handelstags und eine ausdrückliche persönliche Wahl aus den vorhandenen
+Produktlistings. Bedingungsversion, Listingrevision, Handelsplatz und MIC müssen
+zusammenpassen. Ein Quellenlisting, der erste gespeicherte Platz oder der einzige
+angezeigte Platz ersetzt keine persönliche Ausstiegswahl. Unveränderte Wahl und
+Dokumente werden wiederverwendet; Änderung, Rücknahme, Inaktivität und Widerspruch
+erscheinen gezielt. Anzeigenamenkorrekturen verlangen keine erneute fachliche
+Wahl, wenn die maßgebliche Bindung gleich bleibt.
+
+Der enge Originaldateiimport übernimmt die bereitgestellten Bytes einer
+Stuttgarter Produktseite. Er prüft die exakte Produktidentität und den
+Masterdaten-Eintrag zum letzten Börsenhandelstag, erhält Original, Parserstand,
+Quellenreferenz und serverseitige Bindungen. Aus der Datei wird weder eine
+unabhängig authentifizierte Beschaffung noch ein gegenwärtiger Marktstatus
+abgeleitet. Der Beleg trägt
+`USER_SUPPLIED_ORIGINAL_NOT_INDEPENDENT_VERIFICATION`; Empfang ist
+`FILE_RECEIVED_AT`. Produktende, Auszahlungstag und letzter Handelstag bleiben
+verschiedene Fakten. Ein einmaliger Dateiimport erfordert keine täglichen
+Bestätigungen und aktiviert keinen Webseiten-Kursabruf oder Provider.
+
+Vorhandene geeignete Originalkalenderzeiten werden über den bestehenden
+Kalenderowner gelesen. Nur bei tatsächlich fehlendem, nicht bei zurückgenommenem
+oder widersprüchlichem Zeitbeleg kann der eigene Original-Börsentagskalender
+verwendet werden. Sein Umfang heißt `DAY_ONLY_CALENDAR_REVIEW`. Er liefert
+`WARNING_DAY_REACHED`, `DEADLINE_DAY_REACHED` und `DEADLINE_DAY_PASSED` mit
+`scheduled_on`, ohne erfundenes `scheduled_at`, Mitternachtsereignis oder
+produktspezifische Öffnungs-/Schlusszeit. Die zeitlich genauere Kalenderstrecke
+zeigt ihre ursprünglichen Sitzungszeiten, bestätigt damit aber ebenfalls keinen
+individuellen B20-Handelsschluss. Beide Teilstrecken tragen
+`qualified_b05=false` und `product_cutoff_status=UNVERIFIED`.
+
+Monitoring erhält in Migration 0060 eigene unveränderliche Fristenbewertungen
+und dauerhafte Ereignis-/Datenproblemepisoden. Wiederholung, Parallelverarbeitung
+und Neustart erzeugen kein zweites logisches Ereignis; echte Termin-/Auswahl-/
+Kalenderänderungen erzeugen nachvollziehbare Neubewertungen. Der aktuelle
+Durchlauf stellt nur die jetzt belegte Stufe fest und erfindet keine damalige
+Zustellung. Datenlücken löschen eine bestehende Fristepisode nicht. Vollverkauf
+beendet Handlungshinweise und unterdrückt ausstehende Zustellungen; Historie
+bleibt erhalten. Alert `PRODUCT_DEADLINE_REVIEW` hat keine numerischen Kurswerte.
+
+Der vorhandene Runner führt den kursunabhängigen Fristlauf gesondert aus und
+zeigt seine eigenen vier `deadline_*`-Zähler neben den Einstandsergebnissen.
+Passive GETs beschaffen keine Belege und schreiben keine Bewertungen. Eine
+spätere externe Zustellung setzt aktive zentrale V2-Freigabe und die eigene
+Reviewzustellfreigabe voraus. Direkt vor Dispatch werden wirtschaftlicher
+Owner, Produktbelege, Exitwahl und Kalender unter dem bestehenden Trade-Lock
+konsistent erneut gelesen. V1 darf alte V2-Fristzustellungen nicht freigeben;
+ein belegter Vollverkauf wird auch bei pausierter Zustellung erhalten.
+Eine vorübergehend fehlende Fristgrundlage pausiert dieselbe ausstehende
+Zustellung ohne Versandversuch oder endgültigen Fehlerstatus. Wird dieselbe
+Stufe wieder belegt, kann dieselbe Outbox weiterlaufen. Vollverkauf, aufgehobene
+Friststufe und echte Änderungen des Fristereignisses beenden ihre ausstehende
+Zustellung nachvollziehbar.
+Der Zustelllauf betrachtet einen festen Beginn-Zeitstand und durchläuft dessen
+Kandidaten anhand ihres unveränderlichen `(created_at, id)`-Schlüssels. Pausierte
+Einträge verdecken dadurch keine späteren anderen Hinweise. Das bestehende
+Sendebudget begrenzt tatsächliche Adapteraufrufe; reine Pause-/Terminalprüfungen
+verbrauchen keinen Versandversuch. Während des Laufs neu angelegte Nachrichten
+gehören zum nächsten Durchlauf. Daraus entsteht keine fachliche Statusgültigkeit
+oder zusätzliche Marktzeitregel.
+
+Für die vollständige B05-Abnahme bleiben ein verifizierter individueller
+Produktschluss, sämtliche erforderlichen Kalenderjahre und die reale
+Depotbindung gesondert offen. Restliches F207-2/B06 benötigt weiterhin
+Stopberührungen, Schutzboden, Bekanntgabe, Schutzüberwachung,
+Korrekturklärung und Z1-bezogene Sitzungszählung. F207-5 benötigt gemeinsame
+Meldungsaktionen gesehen/abgelehnt/ausgeführt, globale Versionierung und
+Betriebsabnahme. Diese begrenzten Nachträge erklären diese Restarbeiten nicht
+für erledigt; allein der Backlog führt den Aufgabenstatus.
+
+<a id="indicative-review-linux-operation-v2"></a>
+## Zentraler PC-Betriebsübergang für den erweiterten Umfang, Version 2
+
+`indicative-review-linux-operation-v2` erweitert den bestehenden versiegelten
+Aktivierungsweg auf `DISABLED → INDICATIVE_ENTRY_V2` und
+`INDICATIVE_ENTRY_V1 → INDICATIVE_ENTRY_V2`. Quelle, Ziel, installierter Tag und
+gehörige Regelversion werden im konkreten Vorgang gebunden und vor Anwendung
+unter dem vorhandenen Wartungslock erneut geprüft. Die bisherigen Support-,
+Validator-, Backup-, Siegel- und Compose-Herkunftsprüfungen bleiben erhalten.
+Ein neues Programmrelease wird zuerst über den normalen gepinnten Updateweg
+installiert; die nachfolgende Aktivierung ändert keine Images oder Schemata.
+
+Die zentrale Aktivierung übernimmt sämtliche bestehenden Positionen und
+wirtschaftlichen Belege. Sie startet den bestehenden Runner mit V2 und hält
+externe Reviewzustellung ausgeschaltet. Bereits eingerichtete andere Provider-,
+Refresh- und Nachrichteneinstellungen bleiben erhalten. Eine neue produktive
+Providerzustimmung oder externe Testnachricht gehört nicht zu diesem Übergang.
+Ein ausstehender oder abweichender Wartungszustand wird nicht übersprungen.
+
+Der bereitgestellte Originaldateiimport liest ein vorhandenes Quellenverzeichnis
+oder ZIP zunächst als Vorschau und ordnet ausschließlich bereits gespeicherte
+Produkte anhand ihrer ISIN zu. Nur `--apply` importiert die unveränderten Bytes
+über die lokale Product-API. Alle Dateien, Mehrdeutigkeiten, bestehenden
+Produktzuordnungen und API-Verfügbarkeiten werden vor dem ersten Import geprüft.
+Der Transport bleibt auf Loopback beschränkt, ohne Proxy oder Weiterleitung;
+es werden keine neuen Produkte, Quellenfreigaben oder Ausstiegswahlen erzeugt.
+Die unvermeidbare persönliche Exitentscheidung erfolgt einmal im bestehenden
+Arbeitsbereich aus vorhandenen Produktlistings. Manuelle technische IDs, Hashes
+oder Request-IDs sind für beide Abläufe nicht erforderlich.
+
+Die Oberfläche zeigt V2-Regelversion, Quellenzeitbasis und bekannte
+Qualitätsgrenzen, separate Dokumentbeschaffungsdiagnosen und den unabhängigen
+Friststand. Terminansicht und Statusreads bleiben passiv. Fachliche Exitwahl und
+Originalimport sind ausdrückliche Commands. Die gemeinsame Darstellungslogik
+leitet daraus keine eigene Handelsregel oder neue wirtschaftliche Wahrheit ab.
+
+Der Betriebsabschluss weist die Einstands- und Fristzähler getrennt aus.
+Fehlende Daten, fehlende Kalenderabdeckung oder null bewertete Positionen bleiben
+sichtbar. Eine erfolgreiche Softwareinstallation oder Aktivierung bestätigt
+keine reale Abdeckung aller Depotpositionen und keine B58-Qualifikation. Eine
+vollständige Hebeltrader-Baseline wird auch durch diesen Übergang nicht aktiviert.

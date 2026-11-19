@@ -12,9 +12,19 @@ from app.features.notification.domain.models import (
 )
 from app.features.notification.service.delivery import NotificationDeliveryAdapter
 
+PendingNotificationCursor = tuple[datetime, UUID]
+
 
 class DurableNotificationDeliveryStore(Protocol):
     async def list_pending_notification_ids(self, *, limit: int) -> tuple[UUID, ...]: ...
+
+    async def list_pending_notification_page(
+        self,
+        *,
+        limit: int,
+        created_before: datetime,
+        after: PendingNotificationCursor | None = None,
+    ) -> tuple[PendingNotificationCursor, ...]: ...
 
     async def prepare(
         self,
@@ -62,15 +72,45 @@ class DurableNotificationDeliveryService:
         self._in_progress_timeout = in_progress_timeout
 
     async def deliver_pending(self, *, limit: int = 100) -> tuple[DeliveryResult, ...]:
+        """Use a fixed cycle cutoff and at most ``limit`` external adapter calls.
+
+        Paused or already terminal preparations do not consume the send budget.
+        Keyset pages advance past them exactly once in this cycle, including when
+        other workers finish rows. Records dated at/after the initial cutoff
+        wait for the next cycle; the cutoff is not a business validity period.
+        Results include non-send decisions and can therefore exceed ``limit``.
+        """
         if limit < 1:
             raise ValueError("limit must be positive")
-        notification_ids = await self._store.list_pending_notification_ids(limit=limit)
+        cutoff = self._now()
+        if cutoff.utcoffset() is None:
+            raise ValueError("delivery cycle requires an aware cutoff")
+        after: PendingNotificationCursor | None = None
         results: list[DeliveryResult] = []
-        for notification_id in notification_ids:
-            results.append(await self.deliver(notification_id))
+        sends = 0
+        while sends < limit:
+            page = await self._store.list_pending_notification_page(
+                limit=100, created_before=cutoff, after=after
+            )
+            if not page:
+                break
+            for key in page:
+                if after is not None and key <= after:
+                    raise RuntimeError("pending notification page did not advance")
+                result, sent = await self._deliver(key[1])
+                results.append(result)
+                sends += int(sent)
+                after = key
+                if sends == limit:
+                    return tuple(results)
         return tuple(results)
 
     async def deliver(self, notification_id: UUID) -> DeliveryResult:
+        result, _ = await self._deliver(notification_id)
+        return result
+
+    async def _deliver(self, notification_id: UUID) -> tuple[DeliveryResult, bool]:
+        """Report actual adapter use without interpreting provider error strings."""
         started_at = self._now()
         preparation = await self._store.prepare(
             notification_id=notification_id,
@@ -80,7 +120,7 @@ class DurableNotificationDeliveryService:
             max_attempts=self._max_attempts,
         )
         if preparation.terminal_result is not None:
-            return preparation.terminal_result
+            return preparation.terminal_result, False
         if preparation.attempt is None:
             raise RuntimeError("delivery preparation produced neither attempt nor terminal result")
 
@@ -101,4 +141,4 @@ class DurableNotificationDeliveryService:
             completed_at=self._now(),
             max_attempts=self._max_attempts,
         )
-        return result
+        return result, True

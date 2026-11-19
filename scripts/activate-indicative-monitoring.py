@@ -24,9 +24,16 @@ PREFIX = "TRADING_WORKSPACE_POSITION_MONITORING__"
 SCOPE_KEY = PREFIX + "REVIEW_SCOPE"
 RUNNER_KEY = PREFIX + "ENABLED"
 NOTIFICATIONS_KEY = PREFIX + "REVIEW_NOTIFICATIONS_ENABLED"
-SCOPE = "INDICATIVE_ENTRY_V1"
-RULE_VERSION = "indicative-entry-review-v1"
+SCOPE = "INDICATIVE_ENTRY_V2"
+RULE_VERSION = "indicative-entry-review-v2"
+SOURCE_SCOPES = ("DISABLED", "INDICATIVE_ENTRY_V1")
+RULE_VERSIONS = {
+    "DISABLED": "indicative-entry-review-v1",
+    "INDICATIVE_ENTRY_V1": "indicative-entry-review-v1",
+    SCOPE: RULE_VERSION,
+}
 OPERATION = "activate-indicative-monitoring"
+OPERATION_VERSION = "indicative-review-linux-operation-v2"
 SCRIPT_PATH = "scripts/activate-indicative-monitoring.py"
 SUPPORT_PATH = "scripts/enable-eodhd-linux.py"
 SUPPORT_SHA256 = "b650c0bf46397c721a382380b2d2061f6261f943e523f1951c4a5c20733ce90a"
@@ -37,6 +44,13 @@ COUNTERS = (
     "review_data_problems",
     "review_position_errors",
 )
+DEADLINE_COUNTERS = (
+    "deadline_positions_evaluated",
+    "deadline_alerts_created",
+    "deadline_data_problems",
+    "deadline_position_errors",
+)
+COUNTER_LABELS = ("Positionen ausgewertet", "Hinweise erstellt", "Datenprobleme", "Positionsfehler")
 
 
 class ActivationError(ValueError):
@@ -80,7 +94,7 @@ def patch_environment(text: str) -> str:
         r"(?P<equals>[ \t]*=)(?P<value>[^\r\n]*)(?P<newline>\r?\n)?$"
     )
     allowed = {
-        SCOPE_KEY: {"DISABLED"},
+        SCOPE_KEY: set(SOURCE_SCOPES),
         RUNNER_KEY: {"false", "true"},
         NOTIFICATIONS_KEY: {"false"},
     }
@@ -100,7 +114,7 @@ def patch_environment(text: str) -> str:
             )
             require(
                 value is not None and value["literal"] in allowed[key],
-                "Unexpected activation value; use a disabled indicative scope and notifications.",
+                "Unexpected activation value; use a disabled or V1 scope with review delivery off.",
             )
             assert value is not None
             if value["literal"] != TARGETS[key]:
@@ -125,12 +139,19 @@ def patch_environment(text: str) -> str:
     return result
 
 
+def _source_scope(environment: dict[str, Any]) -> str:
+    scope = environment.get(SCOPE_KEY)
+    require(
+        scope in SOURCE_SCOPES,
+        "Indicative review must be disabled or use V1 before this transition.",
+    )
+    assert isinstance(scope, str)
+    return scope
+
+
 def validate_transition(h: Any, before: dict[str, Any], after: dict[str, Any]) -> None:
     old, new = h._backend_environment(before), h._backend_environment(after)
-    require(
-        old.get(SCOPE_KEY) == "DISABLED",
-        "Indicative review must be disabled before activation.",
-    )
+    _source_scope(old)
     require(
         old.get(RUNNER_KEY) in ("true", "false"),
         "Unknown existing runner configuration.",
@@ -183,6 +204,7 @@ def _release(h: Any, app: Path, log: Path, revision: str, version: str) -> None:
 
 
 def _runtime(h: Any, log: Path, *, scope: str, enabled: bool) -> dict[str, Any]:
+    require(scope in RULE_VERSIONS, "Unknown runtime scope.")
     keys = (
         "enabled",
         "running",
@@ -212,12 +234,34 @@ def _runtime(h: Any, log: Path, *, scope: str, enabled: bool) -> dict[str, Any]:
         and value.get("enabled") is enabled
         and value.get("running") is enabled
         and value.get("review_scope") == scope
-        and value.get("review_rule_version") == RULE_VERSION
+        and value.get("review_rule_version") == RULE_VERSIONS[scope]
         and value.get("review_notifications_enabled") is False,
         "Loaded review scope, runner or notification settings differ.",
     )
     assert isinstance(value, dict)
     return value
+
+
+def _print_cycle_counters(result: Any, counters: tuple[str, ...], label: str) -> None:
+    if not isinstance(result, dict) or any(
+        type(result.get(key)) is not int or result[key] < 0 for key in counters
+    ):
+        print(label + ": Ergebnisse dieses Teilumfangs fehlen noch.")
+        return
+    print(
+        "Letzter abgeschlossener Durchlauf · "
+        + label
+        + ": "
+        + "; ".join(
+            COUNTER_LABELS[index] + "=" + str(result[key]) for index, key in enumerate(counters)
+        )
+    )
+    if result[counters[0]] == 0:
+        print(label + ": Keine ausgewertete Position belegt; Depotabdeckung bleibt offen.")
+    if result[counters[2]] or result[counters[3]]:
+        print(
+            label + ": Daten- oder Auswertungsprobleme bestehen; Hinweise im Arbeitsbereich prüfen."
+        )
 
 
 def print_runtime_summary(value: dict[str, Any]) -> None:
@@ -230,27 +274,12 @@ def print_runtime_summary(value: dict[str, Any]) -> None:
         print("Noch kein abgeschlossener Prüfdurchlauf belegt; Datenabdeckung bleibt offen.")
     else:
         result = value.get("last_result")
-        if not isinstance(result, dict) or any(
-            type(result.get(key)) is not int or result[key] < 0 for key in COUNTERS
-        ):
-            print("Ein Durchlauf ist abgeschlossen; Ergebnisse dieses Teilumfangs fehlen noch.")
-        else:
-            print(
-                "Letzter abgeschlossener Durchlauf: "
-                + "; ".join(
-                    label + "=" + str(result[key])
-                    for label, key in (
-                        ("Positionen ausgewertet", "review_positions_evaluated"),
-                        ("Hinweise erstellt", "review_alerts_created"),
-                        ("Datenprobleme", "review_data_problems"),
-                        ("Positionsfehler", "review_position_errors"),
-                    )
-                )
-            )
-            if result["review_data_problems"] or result["review_position_errors"]:
-                print(
-                    "Daten- oder Auswertungsprobleme bestehen; Hinweise im Arbeitsbereich prüfen."
-                )
+        _print_cycle_counters(result, COUNTERS, "Einstandsprüfung")
+        _print_cycle_counters(result, DEADLINE_COUNTERS, "Produkttermin-Erinnerungen")
+    print(
+        "Produkttermine sind Kalendererinnerungen; "
+        "keine bestätigte instrumentbezogene Ausstiegsfrist."
+    )
     print("Keine B58-Qualifikation oder vollständige Hebeltrader-Überwachung bestätigt.")
 
 
@@ -281,12 +310,9 @@ def prepare(base: Path) -> Path:
         )
         _release(h, app, log, revision, version)
         environment = h._backend_environment(before)
+        source_scope = _source_scope(environment)
         summary = h.summarize_automation(before)
-        _runtime(h, log, scope="DISABLED", enabled=summary["monitoring_enabled"])
-        require(
-            environment.get(SCOPE_KEY) == "DISABLED",
-            "Indicative scope is not disabled.",
-        )
+        _runtime(h, log, scope=source_scope, enabled=summary["monitoring_enabled"])
         require(
             environment.get(NOTIFICATIONS_KEY) == "false",
             "Review notifications are not disabled.",
@@ -310,6 +336,11 @@ def prepare(base: Path) -> Path:
             {
                 "schema": 1,
                 "operation": OPERATION,
+                "operation_version": OPERATION_VERSION,
+                "source_scope": source_scope,
+                "source_rule_version": RULE_VERSIONS[source_scope],
+                "target_scope": SCOPE,
+                "target_rule_version": RULE_VERSION,
                 "old_state": str(old),
                 "old_activation": old_activation,
                 "application_root": str(app),
@@ -331,7 +362,16 @@ def prepare(base: Path) -> Path:
             h._sync_directory(directory)
         print("Vorbereitet: " + str(state))
         print("Installierter Tag: v" + version + "; unveränderter Commit: " + revision)
-        print("Änderung: indikativer Teilumfang an, allgemeiner Runner an, Review-Zustellung aus.")
+        print(
+            "Änderung: "
+            + source_scope
+            + " → "
+            + SCOPE
+            + "; Regelversion: "
+            + RULE_VERSION
+            + "; allgemeiner Runner an, Review-Zustellung aus."
+        )
+        print("V2 ergänzt Einstandsindikation und beleggebundene Produkttermin-Erinnerungen.")
         print(
             "Provider, Refresh, vorhandene Telegramkonfiguration, Images und Datenbindungen "
             "bleiben erhalten."
@@ -370,10 +410,18 @@ def _precheck(h: Any, state: Path) -> tuple[dict[str, Any], dict[str, Any]]:
         "Activation is not an unused prepared operation.",
     )
     transition = h.parse_json(h._read_private(state / "transition.json"))
+    source_scope = transition.get("source_scope") if isinstance(transition, dict) else None
     require(
         isinstance(transition, dict)
+        and type(transition.get("schema")) is int
         and transition.get("schema") == 1
         and transition.get("operation") == OPERATION
+        and transition.get("operation_version") == OPERATION_VERSION
+        and isinstance(source_scope, str)
+        and source_scope in SOURCE_SCOPES
+        and transition.get("source_rule_version") == RULE_VERSIONS[source_scope]
+        and transition.get("target_scope") == SCOPE
+        and transition.get("target_rule_version") == RULE_VERSION
         and transition.get("support_sha256") == SUPPORT_SHA256
         and type(transition.get("old_activation")) is bool,
         "Unknown activation record.",
@@ -446,7 +494,9 @@ def apply(base: Path, state: Path) -> None:
             summary == transition.get("automation_before"),
             "Existing automation changed.",
         )
-        _runtime(h, log, scope="DISABLED", enabled=summary["monitoring_enabled"])
+        source_scope = _source_scope(h._backend_environment(before))
+        require(source_scope == transition["source_scope"], "Prepared source scope changed.")
+        _runtime(h, log, scope=source_scope, enabled=summary["monitoring_enabled"])
         rendered = h.parse_json(h._compose(app, state, log, "config", "--format", "json"))
         h._legacy_call(legacy, "verify_configuration", candidate, rendered)
         validate_transition(h, before, rendered)

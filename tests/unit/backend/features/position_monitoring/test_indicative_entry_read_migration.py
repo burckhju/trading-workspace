@@ -21,6 +21,69 @@ from app.features.position_monitoring.persistence.indicative_entry import (
 from app.features.position_monitoring.service import indicative_entry_read as module
 
 
+@pytest.mark.parametrize("v2_history", [False, True])
+def test_family_migration_preserves_v1_and_refuses_v2_history_downgrade(tmp_path, v2_history):
+    initial = importlib.import_module("migrations.versions.20261117_0057_indicative_entry_review")
+    family = importlib.import_module("migrations.versions.20261118_0059_indicative_review_family")
+    assert family.down_revision == "20261118_0058"
+    engine = create_engine(f"sqlite:///{tmp_path}/synthetic_review_family_migration.db")
+    try:
+        with (
+            engine.begin() as connection,
+            Operations.context(MigrationContext.configure(connection)),
+        ):
+            initial.upgrade()
+            row = dict(
+                id=uuid4(),
+                workspace_id=uuid4(),
+                trade_id=uuid4(),
+                position_id=uuid4(),
+                rule_version="indicative-entry-review-v1",
+                previous_assessment_id=None,
+                input_fingerprint="1" * 64,
+                owner_basis_id="2" * 64,
+                outcome="UNAVAILABLE",
+                evaluated_at=datetime.now(UTC),
+                recorded_at=datetime.now(UTC),
+                ordering_at=None,
+                inputs={},
+                result={},
+            )
+            connection.execute(insert(IndicativeEntryAssessmentModel).values(**row))
+            family.upgrade()
+            indexes = inspect(connection).get_indexes("indicative_entry_assessments")
+            assert "uq_indicative_family_root" in {item["name"] for item in indexes}
+            if v2_history:
+                connection.execute(
+                    insert(IndicativeEntryAssessmentModel).values(
+                        **(
+                            row
+                            | {
+                                "id": uuid4(),
+                                "previous_assessment_id": row["id"],
+                                "rule_version": "indicative-entry-review-v2",
+                            }
+                        )
+                    )
+                )
+                with pytest.raises(RuntimeError, match="Immutable V2 review history"):
+                    family.downgrade()
+            else:
+                family.downgrade()
+                assert "uq_indicative_family_root" not in {
+                    item["name"]
+                    for item in inspect(connection).get_indexes("indicative_entry_assessments")
+                }
+            existing = (
+                connection.execute(IndicativeEntryAssessmentModel.__table__.select())
+                .mappings()
+                .first()
+            )
+            assert existing["id"] == row["id"] and existing["rule_version"] == row["rule_version"]
+    finally:
+        engine.dispose()
+
+
 @pytest.mark.parametrize("has_history", [False, True])
 def test_review_migration_is_additive_and_refuses_history_destruction(tmp_path, has_history):
     migration = importlib.import_module("migrations.versions.20261117_0057_indicative_entry_review")
@@ -65,8 +128,10 @@ def test_review_migration_is_additive_and_refuses_history_destruction(tmp_path, 
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("acquisition_failed", [False, True])
 async def test_passive_reader_opens_read_only_snapshot_and_never_refreshes_or_writes(
     monkeypatch,
+    acquisition_failed,
 ):
     session = Mock(spec=AsyncSession)
     session.execute = AsyncMock()
@@ -80,10 +145,31 @@ async def test_passive_reader_opens_read_only_snapshot_and_never_refreshes_or_wr
     monkeypatch.setattr(module, "AsyncSession", Mock(return_value=session))
     monkeypatch.setattr(module, "latest_indicative_assessment", AsyncMock(return_value=None))
     workspace, trade, position = uuid4(), uuid4(), uuid4()
+    product = uuid4()
     monkeypatch.setattr(
         module,
         "SqlAlchemyReadOnlyTradeRepository",
-        Mock(return_value=SimpleNamespace(get=AsyncMock(return_value=SimpleNamespace(id=trade)))),
+        Mock(
+            return_value=SimpleNamespace(
+                get=AsyncMock(return_value=SimpleNamespace(id=trade, product_id=product))
+            )
+        ),
+    )
+    acquisition = (
+        SimpleNamespace(
+            outcome="PRODUCT_DOCUMENT_ACQUISITION_FAILED",
+            attempted_at=datetime(2026, 11, 18, tzinfo=UTC),
+            next_attempt_at=datetime(2026, 11, 18, 1, tzinfo=UTC),
+            problems=("PRODUCT:PRODUCT_DOCUMENT_ACQUISITION_FAILED",),
+        )
+        if acquisition_failed
+        else None
+    )
+    diagnostics = AsyncMock(return_value=acquisition)
+    monkeypatch.setattr(
+        module,
+        "ProductReviewEvidenceReader",
+        Mock(return_value=SimpleNamespace(acquisition_state=diagnostics)),
     )
     monkeypatch.setattr(
         module,
@@ -101,6 +187,11 @@ async def test_passive_reader_opens_read_only_snapshot_and_never_refreshes_or_wr
     assert report.activation_status == "NOT_ACTIVATED"
     assert report.qualified_b04 is report.full_baseline_activated is False
     assert report.latest_assessment is None and report.assessment_count == 0
+    assert (report.document_readiness is not None) is acquisition_failed
+    if acquisition_failed:
+        assert report.document_readiness.outcome == "PRODUCT_DOCUMENT_ACQUISITION_FAILED"
+        assert report.document_readiness.attempted_at == acquisition.attempted_at
+    assert diagnostics.await_args.kwargs["warrant_id"] == product
     assert "REPEATABLE READ READ ONLY" in str(session.execute.await_args_list[0].args[0])
     session.commit.assert_not_awaited()
     session.flush.assert_not_awaited()

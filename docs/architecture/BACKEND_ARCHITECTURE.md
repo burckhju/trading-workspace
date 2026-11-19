@@ -854,3 +854,17 @@ Bis dahin bleibt der Status `🔵 Review`.
 |---|---|---|
 | 1.0 | 2026-07-22 | Erstversion |
 | 1.1 | 2026-08-01 | Abgleich mit Repository und Source Architecture; Korrektur von Schichtenmodell, Providerrolle, Featurestruktur, Testablage, Nachvollziehbarkeit und Freigabekriterien |
+
+## Ergänzender Monitoring-Ownervertrag (18.11.2026)
+
+Die versionierte [indikative V2-Komposition](../features/HEBELTRADER_MONITORING_INTEGRATION_CONTRACT.md#indicative-review-rule-v2)
+und [kursunabhängige Produktfristprüfung](../features/HEBELTRADER_MONITORING_INTEGRATION_CONTRACT.md#documented-product-deadline-review-v1)
+verwenden die bestehenden Capabilitygrenzen. Product erhält Originaldokumente
+und persönliche Exitwahl; Market Data erhält ursprüngliche Kalenderrevisionen.
+Trade Position bleibt alleiniger Owner wirtschaftlicher Ausführungen und Kosten.
+Monitoring komponiert einen konsistenten Snapshot, persistiert Bewertungen und
+Episoden sowie Alert/optionale Outbox atomar unter dem vorhandenen Trade-Lock.
+Beschaffung läuft außerhalb dieser Transaktion, passive Reads ohne fachliche
+Writes. Notification prüft vor Dispatch die aktuelle Grundlage erneut; der
+separate NullPool-Snapshot bleibt auch bei Anwendungspoolgröße 1 verfügbar.
+Keine zweite Depot-, Kalenderstatus- oder Preisberechnung wird eingeführt.
