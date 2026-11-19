@@ -15,6 +15,7 @@ from app.features.product.domain.price_scale_evidence import (
     aware,
 )
 from app.features.product.domain.review_evidence import (
+    CurrentTermsDateRole,
     ExtractedProductFacts,
     ProductDeadlineEvidence,
     ProductReviewAcquisitionState,
@@ -30,13 +31,22 @@ from app.features.product.persistence.review_evidence import (
     ProductReviewAcquisitionModel,
     ProductReviewDocumentModel,
 )
-from app.features.product.service.deadline_choice import read_product_deadline_exit_choice
-from app.features.product.service.deadline_listing_terms import read_product_listing_terms
+from app.features.product.service.deadline_choice import (
+    read_product_deadline_exit_choice,
+)
+from app.features.product.service.deadline_listing_terms import (
+    read_product_listing_terms,
+)
 from app.features.product.service.price_scale_evidence import (
     binding_matches,
     require_warrant,
 )
-from app.providers.product_review_documents import PARSER_VERSION, extract_kid, kid_url
+from app.providers.product_review_documents import (
+    PARSER_VERSION,
+    REPARSEABLE_PARSER_VERSIONS,
+    extract_kid,
+    kid_url,
+)
 
 FACTS = TypeAdapter(ExtractedProductFacts)
 BINDING = TypeAdapter(ProductPriceScaleBinding)
@@ -103,10 +113,32 @@ async def record_original_kid(
     issues = list(facts.issues)
     if facts.underlying_isin is not None and facts.underlying_isin != underlying.isin:
         issues.append("PRODUCT_DOCUMENT_UNDERLYING_MISMATCH")
-    if facts.maturity_on is not None and facts.maturity_on != terms.maturity_date:
+    matches_end = facts.product_end_on is not None and facts.product_end_on == terms.maturity_date
+    matches_payment = facts.payment_on is not None and facts.payment_on == terms.maturity_date
+    role: CurrentTermsDateRole | None = (
+        "PRODUCT_END_AND_PAYMENT"
+        if matches_end and matches_payment
+        else "PRODUCT_END" if matches_end else "PAYMENT" if matches_payment else None
+    )
+    dates_ordered = (
+        facts.product_end_on is None
+        or facts.payment_on is None
+        or facts.payment_on >= facts.product_end_on
+    )
+    if not dates_ordered:
+        role = None  # The parser reports the independent, hard document-date contradiction.
+    # Existing terms call this field maturity_date; both actual product end and
+    # the separately labelled payment date have been stored there. Accept only
+    # an exact role match proved by this same original, never an arbitrary later day.
+    if (
+        dates_ordered
+        and (facts.product_end_on is not None or facts.payment_on is not None)
+        and role is None
+    ):
         issues.append("PRODUCT_DOCUMENT_CURRENT_TERMS_MISMATCH")
     payload = FACTS.dump_python(facts, mode="json")
     payload["issues"] = issues
+    payload["current_terms_date_role"] = role
     binding = ProductPriceScaleBinding(
         warrant.id, warrant.isin, warrant.issuer_id, warrant.underlying_id, terms.id
     )
@@ -118,6 +150,13 @@ async def record_original_kid(
         warrant_id=warrant_id,
         known_at=datetime.max.replace(tzinfo=UTC),
     )
+    if current is not None and current.parser_version not in {
+        PARSER_VERSION,
+        *REPARSEABLE_PARSER_VERSIONS,
+    }:
+        # Recheck under the product lock: another application may have advanced
+        # the parser while this caller was fetching its network original.
+        raise ValueError("PRODUCT_DOCUMENT_PARSER_UNSUPPORTED")
     if current is not None and current.recorded_at > now:
         raise ValueError("PRODUCT_DOCUMENT_CLOCK_REGRESSION")
     if current is not None and (
@@ -148,6 +187,57 @@ async def record_original_kid(
     return revision.id
 
 
+async def reparse_saved_original_kid(
+    session: AsyncSession,
+    *,
+    workspace_id: UUID,
+    warrant_id: UUID,
+    now: datetime,
+) -> UUID | None:
+    """Append a parser upgrade from intact saved bytes without claiming a new fetch.
+
+    The caller commits this local revision before any network work. A changed
+    owner binding needs new acquisition, not a silent rebinding of old evidence.
+    Unknown/newer parser versions are never downgraded by an older application.
+    """
+    if not aware(now):
+        raise ValueError("PRODUCT_DOCUMENT_CLOCK_INVALID")
+    await require_warrant(session, workspace_id=workspace_id, warrant_id=warrant_id, lock=True)
+    previous = await latest_document(
+        session,
+        workspace_id=workspace_id,
+        warrant_id=warrant_id,
+        known_at=datetime.max.replace(tzinfo=UTC),
+    )
+    if previous is None or previous.parser_version == PARSER_VERSION:
+        return None
+    if previous.parser_version not in REPARSEABLE_PARSER_VERSIONS:
+        raise ValueError("PRODUCT_DOCUMENT_PARSER_UNSUPPORTED")
+    if previous.recorded_at > now:
+        raise ValueError("PRODUCT_DOCUMENT_CLOCK_REGRESSION")
+    if hashlib.sha256(previous.document).hexdigest() != previous.document_sha256:
+        raise ValueError("PRODUCT_REVIEW_DOCUMENT_CORRUPT")
+    try:
+        binding = BINDING.validate_python(previous.binding)
+    except ValueError as error:
+        raise ValueError("PRODUCT_REVIEW_DOCUMENT_CORRUPT") from error
+    if binding.warrant_id != warrant_id or previous.terms_id != binding.current_terms_id:
+        raise ValueError("PRODUCT_REVIEW_DOCUMENT_CORRUPT")
+    if not await binding_matches(session, workspace_id=workspace_id, binding=binding, known_at=now):
+        # Preserve the reader's hard binding conflict and let the ordinary
+        # acquisition budget obtain a new original for the changed owner facts.
+        return None
+    return await record_original_kid(
+        session,
+        workspace_id=workspace_id,
+        warrant_id=warrant_id,
+        source_reference=previous.source_reference,
+        document=previous.document,
+        retrieved_at=previous.retrieved_at,
+        now=now,
+    )
+
+
 class ProductReviewEvidenceReader:
     """One caller-owned snapshot, without writes, fetches or last-good fallback."""
 
@@ -174,7 +264,10 @@ class ProductReviewEvidenceReader:
             if row is None:
                 return None
             return ProductReviewAcquisitionState(
-                row.outcome, row.attempted_at, row.next_attempt_at, tuple(row.problems or ())
+                row.outcome,
+                row.attempted_at,
+                row.next_attempt_at,
+                tuple(row.problems or ()),
             )
 
     async def _facts(
@@ -200,6 +293,8 @@ class ProductReviewEvidenceReader:
             )
             if row is None:
                 return None, None, None, ("PRODUCT_REVIEW_DOCUMENT_MISSING",)
+            if row.parser_version not in {PARSER_VERSION, *REPARSEABLE_PARSER_VERSIONS}:
+                return row, None, None, ("PRODUCT_DOCUMENT_PARSER_UNSUPPORTED",)
             try:
                 binding = BINDING.validate_python(row.binding)
                 facts = FACTS.validate_python(row.facts)
@@ -207,6 +302,10 @@ class ProductReviewEvidenceReader:
                     binding.warrant_id != warrant_id
                     or row.terms_id != binding.current_terms_id
                     or facts.isin != binding.isin
+                    or (
+                        facts.product_end_on is not None
+                        and facts.maturity_on != facts.product_end_on
+                    )
                 ):
                     raise ValueError("Original document identity metadata disagree")
                 if hashlib.sha256(row.document).hexdigest() != row.document_sha256:
@@ -274,6 +373,12 @@ class ProductReviewEvidenceReader:
             source_document_sha256=row.document_sha256 if row else None,
             reference_venue_mic=facts.reference_venue_mic if facts else None,
             maturity_on=facts.maturity_on if facts else None,
+            product_end_on=facts.product_end_on if facts else None,
+            product_end_basis=facts.product_end_basis if facts else None,
+            payment_on=facts.payment_on if facts else None,
+            payment_basis=facts.payment_basis if facts else None,
+            payment_qualifier=facts.payment_qualifier if facts else None,
+            current_terms_date_role=facts.current_terms_date_role if facts else None,
         )
 
     async def reference_market_for_review(
@@ -304,10 +409,16 @@ class ProductReviewEvidenceReader:
             workspace_id=workspace_id, warrant_id=warrant_id, known_at=known_at
         )
         choice = await read_product_deadline_exit_choice(
-            self._session, workspace_id=workspace_id, warrant_id=warrant_id, known_at=known_at
+            self._session,
+            workspace_id=workspace_id,
+            warrant_id=warrant_id,
+            known_at=known_at,
         )
         listing = await read_product_listing_terms(
-            self._session, workspace_id=workspace_id, warrant_id=warrant_id, known_at=known_at
+            self._session,
+            workspace_id=workspace_id,
+            warrant_id=warrant_id,
+            known_at=known_at,
         )
         # A product date needs no unit, currency, target or underlying-market assumption.
         reasons = [item for item in problems if item != "PRODUCT_DOCUMENT_UNDERLYING_AMBIGUOUS"]
@@ -351,7 +462,11 @@ class ProductReviewEvidenceReader:
         )
         clocks = [
             clock
-            for clock in (row.recorded_at if row else None, choice.recorded_at, listing.recorded_at)
+            for clock in (
+                row.recorded_at if row else None,
+                choice.recorded_at,
+                listing.recorded_at,
+            )
             if clock is not None and aware(clock)
         ]
         return ProductDeadlineEvidence(
@@ -383,4 +498,10 @@ class ProductReviewEvidenceReader:
             listing_terms_revision_id=listing.revision_id,
             exit_choice_revision_id=choice.revision_id,
             product_document_source_reference=row.source_reference if row else None,
+            product_end_on=facts.product_end_on if facts else None,
+            product_end_basis=facts.product_end_basis if facts else None,
+            payment_on=facts.payment_on if facts else None,
+            payment_basis=facts.payment_basis if facts else None,
+            payment_qualifier=facts.payment_qualifier if facts else None,
+            current_terms_date_role=facts.current_terms_date_role if facts else None,
         )

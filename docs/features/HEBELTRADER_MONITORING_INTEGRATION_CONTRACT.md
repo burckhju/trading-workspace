@@ -2785,3 +2785,49 @@ Fehlende Daten, fehlende Kalenderabdeckung oder null bewertete Positionen bleibe
 sichtbar. Eine erfolgreiche Softwareinstallation oder Aktivierung bestätigt
 keine reale Abdeckung aller Depotpositionen und keine B58-Qualifikation. Eine
 vollständige Hebeltrader-Baseline wird auch durch diesen Übergang nicht aktiviert.
+
+<a id="indicative-product-date-semantics-v2"></a>
+## Produktende, Zahlungstermin und lokale Originalneuauswertung
+
+Der am 19.11.2026 beobachtete V2-Betrieb belegt eine Bedeutungsabweichung im
+bisherigen KID-Vergleich: `maturity_date` in vorhandenen Produktbedingungen
+enthält einen ausdrücklich dokumentierten Fälligkeits-/Zahlungstag, während der
+KID-Parser unter `maturity_on` das vorherige Bewertungs-/Ausübungsende liefert.
+Der Reparaturparser `current-product-document-v2` trennt diese Fakten beim
+bestehenden Product-Owner. Dies ändert keine Hebeltrader-Schwelle.
+
+| Belegfeld | Bedeutung und Verwendung |
+| --- | --- |
+| `product_end_on`, `product_end_basis` | Eindeutig belegter Bewertungs-/Ausübungstermin mit ursprünglicher Rolle. |
+| `maturity_on` | Kompatibles Review-Ausgabefeld, ausschließlich dasselbe Produktende. |
+| `payment_on`, `payment_basis`, `payment_qualifier` | Separat gelabelter Zahlungstermin; ein erwarteter spätester Termin bleibt als solcher gekennzeichnet. Keine Berechnung aus einer Anzahl Geschäftstage. |
+| `current_terms_date_role` | Vom Owner erzeugter Nachweis, welchem dieser belegten Felder das vorhandene Stammdatum exakt entspricht. Keine Nutzereingabe oder pauschale Vertrauensfreigabe. |
+
+Ein Stammdatum, das keinem eindeutig belegten Originalfeld entspricht, bleibt
+ein Widerspruch. Mehrdeutige Zahlungsdaten lösen keinen Konflikt auf; eine
+widersprüchliche Terminfolge bleibt gesperrt. Produkt-, Basiswert-, Währungs-
+und Bedingungsbindungen sowie fehlender Stückmaßstab werden nicht durch eine
+Datumsübereinstimmung ersetzt. Die B17-Fristbasis bleibt das frühere belegte
+Produktende beziehungsweise der letzte Handelstag. Der Zahlungstag wird niemals
+als Ersatz für eines dieser Fristdaten verwendet.
+
+Der aktive V2-Readinesspfad wertet gespeicherte Originale mit bekanntem altem
+Parserstand nach Prüfung von Hash, Quelle und unveränderter Ownerbindung erneut
+aus. Dieser lokale Schritt liegt vor dem Netzwerk-Wiederholungsbudget. Er
+erzeugt eine neue unveränderliche Belegrevision und erhält ursprüngliche Bytes,
+Abrufzeit, ältere Revisionen und vorhandene Erwerbsversuche. Die neue
+Speicherzeit ist keine neue Beschaffungszeit. Wiederholung bleibt idempotent;
+unbekannte neuere Parserstände werden nicht heruntergestuft. Geänderte
+Ownerbindungen benötigen den vorhandenen regulären Neuerwerb. Passive Leser
+führen weder Parsermigration noch Beschaffung aus.
+
+Für den beobachteten HTTP-403-Kalenderabruf ergänzt ein kontrollierter privater
+Originaldateiimport den bestehenden Market-Data-Owner. Vorschau und `--apply`
+prüfen ausschließlich das bereits bekannte XSTU-2026-Original gegen feste
+Quelle, Quellenversion und SHA256. Dateiherkunft und Eingangszeit bleiben
+`USER_SUPPLIED_ORIGINAL_NOT_INDEPENDENT_VERIFICATION` beziehungsweise
+`FILE_RECEIVED_AT`; der PC-Netzabruf wird nicht als erfolgreich ausgegeben.
+Gespeicherte gute Revisionen bleiben unverändert, korrupte oder widersprüchliche
+Revisionen werden nicht überschrieben. Das öffentliche Release enthält kein
+Original-PDF. Umfang und Bindung bleiben XSTU, 2026 und `DAY_ONLY`; persönliche
+Ausstiegswahl, 2027 und individueller Produktschluss werden dadurch nicht belegt.

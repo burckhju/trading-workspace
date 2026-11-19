@@ -2366,6 +2366,47 @@ bestehenden Owner. Die Liefernotiz bindet Quellen, Prüfgrenzen und den PC-Weg;
 konkrete PR-/Main-/Publisherbelege sowie Tag/SHA werden im Release-PR geführt.
 Die tatsächliche V2-Depotabdeckung bleibt bis zum beobachteten PC-Lauf offen.
 
+### Dritter Betriebsnachtrag 19.11.2026 — belegte V2-Datumsursache und v1.5.52
+
+Der neue Nutzerbeleg bestätigt eine erfolgreiche v1.5.51-Installation, aktive
+V2 und abgeschlossene Prüfläufe ohne Laufzeitfehler. Die jüngste vollständige,
+lesende Diagnose umfasst vier offene Positionen; alle vier melden weiterhin
+Einstands- und Fristdatenprobleme. Der Readback erfasst alle offenen Positionen
+und die unveränderte Zyklus-/Quellenlage vollständig. Eine tatsächliche
+fachliche Vollabdeckung ist damit weiterhin nicht belegt.
+
+Der Abgleich der bereits gespeicherten Originalbytes mit aktuellen und daran
+gebundenen Produktbedingungen isoliert einen konkreten Implementierungsfehler:
+Das vorhandene Fälligkeitsdatum entspricht dem Original-Zahlungstag, wurde aber
+mit dem früheren Bewertungs-/Ausübungsende verglichen. Die
+[Produkttermin-Reparatur v1.5.52](../releases/V1.5.52-PRODUCT-DATE-SEMANTICS.md)
+trennt die belegten Rollen und erhält erwartete beziehungsweise späteste
+Zahlungstermine als eingeschränkt qualifizierte Fakten. Der lokale bekannte
+Parserwechsel verwendet vorhandene Originale vor dem Netzwerk-Backoff und
+bewahrt Quelle, ursprüngliche Abrufzeit und append-only Historie. Echte
+Widersprüche bleiben Sperren; B17 verwendet weiterhin ausschließlich das
+frühere belegte Produktende beziehungsweise den letzten Handelstag.
+
+Die gespeicherten Kalenderfehler sind als HTTP 403 eingegrenzt. Ein kontrollierter
+privater Import des exakten bereits qualifizierten 2026-Originals ergänzt den
+vorhandenen Kalenderowner, ohne einen erfolgreichen Netzabruf oder zusätzliche
+Kalenderjahre zu behaupten. Fremde Original-PDFs werden nicht veröffentlicht.
+
+Implementierung, gezielte Regression, reguläre PR-Prüfungen, geschützte
+Integration und automatische Veröffentlichung sind die eigenständigen
+Liefernachweise dieses Schnitts. Deren konkrete Heads, Prüfläufe und Tag/SHA
+werden im zugehörigen Release-PR geführt. Die anschließende PC-Ausführung muss
+die tatsächlich wieder auswertbaren Positionen zeigen.
+
+**Verbleibender fachlicher Auftrag:** Fehlende Kursrouten und Stückmaßstäbe,
+eine tatsächlich falsche Basiswertidentität, persönliche Ausstiegswahl,
+Originalbeleg des letzten Handelstags, weitere Kalenderabdeckung und
+individueller Produktschluss bleiben gezielte Restarbeiten. Vorhandene
+Buchungen werden wiederverwendet; technische Reparaturen dürfen diese offenen
+Belege nicht durch Annahmen ersetzen. Geeignete Positionen werden unabhängig
+von den übrigen Lücken ausgewertet. B58, restliches F207-2/B06 und vollständiges
+F207-5 bleiben offen; B08 bleibt ausgeschlossen.
+
 ## Genau nächster sinnvoller Umsetzungsschritt
 
 **Aktueller Liefernachtrag 28.10.2026 zu v1.5.31:** Nach dem freigegebenen und
