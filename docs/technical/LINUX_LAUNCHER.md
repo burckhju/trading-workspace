@@ -77,6 +77,13 @@ Dann nicht blind erneut starten und keine Marker löschen. Der vorherige Zustand
 bleibt nachvollziehbar; es erfolgt kein automatischer Rollback. Nach erfolgreichem
 Update Provider-Kurse und Monitoring gesondert prüfen.
 
+Für einen nachgewiesenen Fehler **vor `prepared` und vor jedem Apply-Schritt**
+gibt es einen gesonderten, qualifiziert auszuliefernden
+[Supporthelfer zur kontrollierten Wiederholung](LINUX_UPDATE_RECOVERY.md).
+Er prüft die unveränderte alte Installation, bewahrt den gescheiterten Vorgang
+und verwendet anschließend erneut diesen unveränderten Starter. Andere
+Fehlerphasen bleiben außerhalb dieses begrenzten Wiederaufnahmewegs.
+
 ## Warum nicht einfach start-linux.sh?
 
 `start-linux.sh` ist der bestehende Compose-Build-/Deployment-Einstieg. Ein nackter
