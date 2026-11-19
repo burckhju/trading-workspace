@@ -60,16 +60,29 @@ def no_external_requests(monkeypatch):
         raise AssertionError("Synthetic readiness tests must not make HTTP requests")
 
     def isolated_client(**kwargs):
-        return client(**kwargs, trust_env=False, transport=httpx.MockTransport(no_http))
+        kwargs.setdefault("trust_env", False)
+        kwargs.setdefault("transport", httpx.MockTransport(no_http))
+        return client(**kwargs)
 
     asynchronous = AsyncMock(side_effect=AssertionError("No live provider access"))
     synchronous = Mock(side_effect=AssertionError("No live provider access"))
     monkeypatch.setattr(httpx.AsyncHTTPTransport, "handle_async_request", asynchronous)
     monkeypatch.setattr(httpx.HTTPTransport, "handle_request", synchronous)
-    monkeypatch.setattr(acquisition.httpx, "AsyncClient", isolated_client)
+    # Replace only this owner's module reference, never the shared HTTPX class.
+    # Other collected tests must keep their explicit synthetic client transports.
+    monkeypatch.setattr(acquisition, "httpx", SimpleNamespace(AsyncClient=isolated_client))
     yield
     asynchronous.assert_not_awaited()
     synchronous.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_readiness_client_fixture_preserves_explicit_synthetic_transports():
+    for factory in (httpx.AsyncClient, acquisition.httpx.AsyncClient):
+        transport = httpx.MockTransport(lambda request: httpx.Response(200, text=request.url.path))
+        async with factory(trust_env=False, transport=transport) as client:
+            response = await client.get("https://example.invalid/mock-only")
+        assert response.status_code == 200 and response.text == "/mock-only"
 
 
 @pytest.fixture
