@@ -60,9 +60,9 @@ jobs:
       - name: Install backend with development dependencies
         run: python -m pip install --upgrade pip && python -m pip install --requirement requirements-dev.txt
       - name: Ruff
-        run: ruff check app ../tests/unit/backend ../tests/integration/backend
+        run: ruff check app install_dependencies.py ../tests/unit/backend ../tests/integration/backend
       - name: Black
-        run: black --check --config pyproject.toml app ../tests/unit/backend ../tests/integration/backend
+        run: black --check --config pyproject.toml app install_dependencies.py ../tests/unit/backend ../tests/integration/backend
       - name: mypy
         run: mypy app
       - name: Migrate PostgreSQL test database
@@ -70,14 +70,14 @@ jobs:
           PYTHONPATH: ${{ github.workspace }}/backend:${{ github.workspace }}
         run: alembic upgrade head
 
-      - name: Qualify controlled update recovery
+      - name: Qualify dependency installation and update recovery
         env:
           PYTHONPATH: ${{ github.workspace }}/backend:${{ github.workspace }}
         # Recovery fixtures require private state outside every Git checkout.
         # Prove this operational contract before starting the complete suite.
         run: >-
           pytest -c pyproject.toml ../tests/unit/backend/test_linux_update_recovery.py
-          -q -ra
+          ../tests/unit/backend/test_backend_dependency_install.py -q -ra
 
       - name: Tests with coverage
         env:
@@ -122,19 +122,41 @@ jobs:
           # Only disposable CI checkout files; no credentials or runtime volumes.
           find backend/app backend/migrations -type d -exec chmod 0700 {} +
           find backend/app backend/migrations -type f -exec chmod 0600 {} +
-          chmod 0600 backend/alembic.ini backend/requirements.txt
+          chmod 0600 backend/alembic.ini backend/requirements.txt backend/install_dependencies.py
       - name: Build production backend from restricted sources
         run: docker build --tag trading-workspace-permissions:test backend
       - name: Verify non-root imports, read-only code and Frankfurt route
         run: |
           docker run --rm --network none -i trading-workspace-permissions:test python - <<'PY'
+          import json
           import os
+          import sys
+          from importlib.metadata import distribution
           from pathlib import Path
+
+          import greenlet
           from fastapi.testclient import TestClient
           from app.main import app
 
           assert os.geteuid() != 0, "Runtime must not run as root"
-          paths = [Path("/app"), Path("/app/alembic.ini"), Path("/app/requirements.txt")]
+          assert sys.version_info[:3] == (3, 12, 16), "Pinned Python base differs"
+          sqlalchemy = distribution("SQLAlchemy")
+          assert sqlalchemy.version == "2.0.50"
+          direct = json.loads(sqlalchemy.read_text("direct_url.json"))
+          assert direct["url"] == (
+              "https://files.pythonhosted.org/packages/d0/10/"
+              "f7220e9b784d295d241c86ed99aeb537f92afcd469a64861f2717e9bb077/"
+              "sqlalchemy-2.0.50-py3-none-any.whl"
+          )
+          assert direct["archive_info"]["hashes"]["sha256"] == (
+              "92064363517a3ff8212b5a93b8c62876579d8dfd1ca5b561335f30152d884fa9"
+          )
+          assert "Tag: py3-none-any" in sqlalchemy.read_text("WHEEL")
+          assert greenlet.greenlet(lambda: "asyncio-extra-ready").switch() == "asyncio-extra-ready"
+          paths = [
+              Path("/app"), Path("/app/alembic.ini"), Path("/app/requirements.txt"),
+              Path("/app/install_dependencies.py"),
+          ]
           for root in (Path("/app/app"), Path("/app/migrations")):
               paths.extend([root, *root.rglob("*")])
           for path in paths:

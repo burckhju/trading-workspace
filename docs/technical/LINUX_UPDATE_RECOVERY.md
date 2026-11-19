@@ -1,4 +1,4 @@
-# Wiederholung eines vor Apply fehlgeschlagenen verwalteten Updates
+# Wiederaufnahme eines vor Apply fehlgeschlagenen verwalteten Updates
 
 `scripts/retry-linux-update.py` ist ein separat ausgelieferter Supporthelfer für
 einen eng begrenzten Fehlerzustand: Der verwaltete Launcher hat den Zielrelease
@@ -70,6 +70,43 @@ Käufe, Verkäufe und Providerfreigaben werden aus der vorhandenen Installation
 
 Eine andere Operation im kurzen Übergabefenster führt zur normalen Ablehnung
 durch den Launcher. Es wird keine Schutzprüfung abgeschaltet oder umgangen.
+
+## Wechsel auf einen neuen veröffentlichten Ersatzrelease
+
+Wenn derselbe Zielbuild wiederholt scheitert und ein gezielt korrigierter Release
+qualifiziert und veröffentlicht wurde, ergänzt `replace` den bisherigen
+`retry`-Einstieg. Der Helfer wird weiterhin außerhalb des App-Checkouts aus dem
+in der Übergabe gebundenen Commit mit überprüfter SHA256 bezogen.
+
+```text
+python3 /PFAD/ZUM/retry-linux-update.py replace FAILED_TAG FAILED_SHA NEW_TAG NEW_SHA --base BASISVERZEICHNIS
+```
+
+Die konkrete Übergabe füllt alle Werte aus. Beim vorliegenden Fall bleibt der
+fehlgeschlagene Zielbezug v1.5.50/e335a42fd8380d494eb7a0639f57bc6ee2ff476e,
+während der Ersatzrelease v1.5.51 mit seinem veröffentlichten Commit benannt wird.
+Die weiterhin installierte Revision wird aus dem alten versiegelten Zustand
+gelesen; sie wird nicht als Nutzereingabe neu behauptet.
+
+Zusätzlich zu allen bisherigen Prüfungen liest `replace` unter derselben Sperre
+den neuen Tag frisch aus dem bekannten Origin und holt nur diesen Tag regulär,
+ohne Force. Lokaler Tag, vollständiger neuer SHA, `VERSION`, Abstammung vom
+fehlgeschlagenen Ziel sowie bytegleiche qualifizierte Deploymentverträge über
+installierte, fehlgeschlagene und neue Revision müssen übereinstimmen. Der
+aktuelle Checkout bleibt ausschließlich auf installierte oder fehlgeschlagene
+Revision begrenzt. Ein lokaler Tag allein genügt nicht als Veröffentlichungsbeleg.
+
+Erst nach diesen Prüfungen folgt die bestehende Quellrückkehr und Archivierung
+des nachweislich vor Apply gescheiterten Vorgangs. Dessen `target-revision` und
+Deploymentmetadaten bleiben unverändert auf das fehlgeschlagene Ziel gebunden;
+der neue Auditbeleg nennt zusätzlich den Ersatzrelease. Der Original-Launcher
+wird anschließend mit dem neuen Tag/SHA ausgeführt. Der Helfer schreibt weiterhin
+keinen `current-state`; eine neue fehlgeschlagene Vorbereitung erhält ihren
+eigenen normalen Vorgang. `retry` behält seinen bisherigen Ablauf für dasselbe Ziel.
+
+Der [Reparaturrelease v1.5.51](../releases/V1.5.51-RELIABLE-BACKEND-BUILD.md)
+beschreibt den konkreten Buildbefund, die begrenzte Korrektur und die zugehörigen
+Qualifikationsgrenzen.
 
 ## Abbruchgrenzen
 

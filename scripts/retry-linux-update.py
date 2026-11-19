@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Close one proven pre-apply failure and retry through the unchanged Linux launcher.
+"""Close a proven pre-apply failure and retry or replace via the unchanged launcher.
 
 Run this support file outside the application checkout. It restores only the old
 source commit, archives the failed pending record, then executes the installed
@@ -181,6 +181,72 @@ def _old_runtime(
     return items
 
 
+def _replacement_checks(
+    support: SimpleNamespace,
+    app: Path,
+    log: Path,
+    old_revision: str,
+    failed_revision: str,
+    tag: str,
+    revision: str,
+) -> str:
+    """Verify a separately published replacement before closing the failed attempt."""
+    reference = "refs/tags/" + tag
+    published: dict[str, str] = {}
+    for line in (
+        _git(support, app, log, "ls-remote", "--exit-code", "origin", reference, reference + "^{}")
+        .decode()
+        .splitlines()
+    ):
+        fields = line.split()
+        require(
+            len(fields) == 2
+            and re.fullmatch(r"[0-9a-f]{40}", fields[0]) is not None
+            and fields[1] in (reference, reference + "^{}")
+            and fields[1] not in published,
+            "The published replacement tag could not be verified.",
+        )
+        published[fields[1]] = fields[0]
+    require(
+        reference in published
+        and published.get(reference + "^{}", published[reference]) == revision,
+        "The published replacement tag does not identify the approved replacement.",
+    )
+    local_tags = (
+        _git(support, app, log, "for-each-ref", "--format=%(objectname) %(refname)", reference)
+        .decode()
+        .splitlines()
+    )
+    require(
+        not local_tags or local_tags == [published[reference] + " " + reference],
+        "An existing local replacement tag differs from the published release.",
+    )
+    # Never replace a conflicting local tag. The original launcher repeats this
+    # same non-forced fetch and exact commit check before starting its new run.
+    _git(support, app, log, "fetch", "origin", reference + ":" + reference)
+    require(
+        _git(support, app, log, "rev-parse", reference).decode().strip() == published[reference]
+        and _git(support, app, log, "rev-parse", reference + "^{commit}").decode().strip()
+        == revision,
+        "The local replacement tag differs from the published release.",
+    )
+    require(
+        _git(support, app, log, "show", revision + ":VERSION").decode().strip() == tag[1:],
+        "Replacement VERSION and release tag differ.",
+    )
+    try:
+        _git(support, app, log, "merge-base", "--is-ancestor", failed_revision, revision)
+    except support.ActivationError:
+        raise RecoveryError("The failed-to-replacement ancestry could not be verified.") from None
+    for relative in UNCHANGED_FILES:
+        require(
+            _git(support, app, log, "show", old_revision + ":" + relative)
+            == _git(support, app, log, "show", revision + ":" + relative),
+            "The replacement deployment contract differs from the installed and failed releases.",
+        )
+    return published[reference]
+
+
 def _checkout(
     support: SimpleNamespace, app: Path, revision: str, log: Path, lock_descriptor: int
 ) -> None:
@@ -201,7 +267,13 @@ def _checkout(
     )
 
 
-def close_failed_prepare(base: Path, tag: str, target_revision: str) -> Path:
+def close_failed_prepare(
+    base: Path,
+    tag: str,
+    target_revision: str,
+    *,
+    replacement: tuple[str, str] | None = None,
+) -> Path:
     """Return the verified launcher after restoring sources and closing only pending."""
     require(
         re.fullmatch(r"v[0-9]+\.[0-9]+\.[0-9]+", tag) is not None,
@@ -211,6 +283,18 @@ def close_failed_prepare(base: Path, tag: str, target_revision: str) -> Path:
         re.fullmatch(r"[0-9a-f]{40}", target_revision) is not None,
         "Invalid target revision.",
     )
+    if replacement is not None:
+        replacement_tag, replacement_revision = replacement
+        require(
+            re.fullmatch(r"v[0-9]+\.[0-9]+\.[0-9]+", replacement_tag) is not None
+            and replacement_tag != tag,
+            "Invalid or unchanged replacement release tag.",
+        )
+        require(
+            re.fullmatch(r"[0-9a-f]{40}", replacement_revision) is not None
+            and replacement_revision != target_revision,
+            "Invalid or unchanged replacement revision.",
+        )
     require(
         base.is_absolute() and base.resolve() == base,
         "Base path must be absolute and direct.",
@@ -222,13 +306,18 @@ def close_failed_prepare(base: Path, tag: str, target_revision: str) -> Path:
     )
     support = _support(app)
     try:
-        return _close_bound_operation(support, base, tag, target_revision)
+        return _close_bound_operation(support, base, tag, target_revision, replacement=replacement)
     except support.ActivationError as error:
         raise RecoveryError(str(error)) from None
 
 
 def _close_bound_operation(
-    support: SimpleNamespace, base: Path, tag: str, target_revision: str
+    support: SimpleNamespace,
+    base: Path,
+    tag: str,
+    target_revision: str,
+    *,
+    replacement: tuple[str, str] | None = None,
 ) -> Path:
     app, control = support._layout(base)
     recovery_sha256 = digest(Path(__file__).resolve().read_bytes())
@@ -284,6 +373,11 @@ def _close_bound_operation(
         os.close(descriptor)
         log = Path(log_name)
         head = _release_checks(support, app, log, old_revision, tag, target_revision)
+        replacement_tag_object = None
+        if replacement is not None:
+            replacement_tag_object = _replacement_checks(
+                support, app, log, old_revision, target_revision, *replacement
+            )
         require(
             support._read_private(configuration / "docker/compose.yml")
             == _git(support, app, log, "show", old_revision + ":docker/compose.yml"),
@@ -318,7 +412,7 @@ def _close_bound_operation(
             "Operation ownership or sealed state changed during recovery.",
         )
         _phase_is_unused(failed)
-        record = {
+        record: dict[str, Any] = {
             "schema": 1,
             "operation": "close-failed-prepare",
             "old_revision": old_revision,
@@ -331,6 +425,12 @@ def _close_bound_operation(
             "support_sha256": SUPPORT_SHA256,
             "recovery_sha256": recovery_sha256,
         }
+        if replacement is not None:
+            record.update(
+                replacement_tag=replacement[0],
+                replacement_revision=replacement[1],
+                replacement_tag_object=replacement_tag_object,
+            )
         support._write_private(
             log.with_suffix(".json"),
             (json.dumps(record, sort_keys=True) + "\n").encode(),
@@ -354,6 +454,21 @@ def retry(base: Path, tag: str, target_revision: str) -> NoReturn:
     os.execv(str(launcher), [str(launcher), "update", tag, target_revision])
 
 
+def replace_release(
+    base: Path, failed_tag: str, failed_revision: str, new_tag: str, new_revision: str
+) -> NoReturn:
+    launcher = close_failed_prepare(
+        base, failed_tag, failed_revision, replacement=(new_tag, new_revision)
+    )
+    os.environ["TRADING_WORKSPACE_BASE"] = str(base)
+    print(
+        "Failed preparation closed; the existing deployment is unchanged. "
+        "Installing the verified replacement through the unchanged launcher.",
+        flush=True,
+    )
+    os.execv(str(launcher), [str(launcher), "update", new_tag, new_revision])
+
+
 class _SafeParser(argparse.ArgumentParser):
     def error(self, message: str) -> NoReturn:
         raise RecoveryError("Invalid arguments; use --help. No argument values printed.")
@@ -362,18 +477,29 @@ class _SafeParser(argparse.ArgumentParser):
 def main(argv: list[str] | None = None) -> int:
     parser = _SafeParser(description=__doc__)
     commands = parser.add_subparsers(dest="action", required=True)
-    command = commands.add_parser("retry")
-    command.add_argument("tag")
-    command.add_argument("revision")
-    command.add_argument(
-        "--base",
-        type=Path,
-        default=Path(os.environ.get("TRADING_WORKSPACE_BASE", str(Path.home() / "Boerse"))),
-    )
+    for action in ("retry", "replace"):
+        command = commands.add_parser(action)
+        command.add_argument("tag", metavar="FAILED_TAG" if action == "replace" else "tag")
+        command.add_argument(
+            "revision", metavar="FAILED_SHA" if action == "replace" else "revision"
+        )
+        if action == "replace":
+            command.add_argument("new_tag", metavar="NEW_TAG")
+            command.add_argument("new_revision", metavar="NEW_SHA")
+        command.add_argument(
+            "--base",
+            type=Path,
+            default=Path(os.environ.get("TRADING_WORKSPACE_BASE", str(Path.home() / "Boerse"))),
+        )
     try:
         args = parser.parse_args(argv)
         require(os.getuid() != 0, "Run as the existing deployment owner, not root/sudo.")
-        retry(args.base.expanduser(), args.tag, args.revision)
+        if args.action == "replace":
+            replace_release(
+                args.base.expanduser(), args.tag, args.revision, args.new_tag, args.new_revision
+            )
+        else:
+            retry(args.base.expanduser(), args.tag, args.revision)
     except RecoveryError as error:
         print("Update retry stopped: " + str(error), file=sys.stderr)
     except KeyboardInterrupt:

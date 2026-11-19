@@ -4,7 +4,7 @@ fastapi==0.128.2
 pydantic-settings==2.14.1
 pypdf==6.0.0
 python-multipart==0.0.20
-SQLAlchemy[asyncio]==2.0.50
+SQLAlchemy[asyncio] @ https://files.pythonhosted.org/packages/d0/10/f7220e9b784d295d241c86ed99aeb537f92afcd469a64861f2717e9bb077/sqlalchemy-2.0.50-py3-none-any.whl#sha256=92064363517a3ff8212b5a93b8c62876579d8dfd1ca5b561335f30152d884fa9
 uvicorn[standard]==0.48.0
 
 httpx==0.28.1

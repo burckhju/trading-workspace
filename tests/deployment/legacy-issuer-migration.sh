@@ -223,10 +223,10 @@ cmp "$fixture/before.ids" "$fixture/after.ids"
 # Qualify the documented next-release update of this already canonical deployment.
 # A distinct disposable commit supplies a new revision/image tag without changing
 # production code or any prepared state from the first deployment.
-printf '%s\n' '0.0.491' > "$fixture/trading-workspace-app/VERSION"
+printf '%s\n' '0.0.490' > "$fixture/trading-workspace-app/VERSION"
 git -C "$fixture/trading-workspace-app" -c user.name=CI -c user.email=ci@example.invalid \
   commit -am 'CI synthetic tagged release for bounded activation'
-git -C "$fixture/trading-workspace-app" tag v0.0.491
+git -C "$fixture/trading-workspace-app" tag v0.0.490
 mkdir -m 700 "$fixture/trading-workspace-state"
 mkdir -p "$fixture/trading-workspace-state/runs/ci"
 mkdir -p "$fixture/current-configuration/docker"
@@ -423,22 +423,25 @@ docker exec trading-workspace-backend-1 python -c \
 # egress guard remains active; only one build is interrupted, before invoking
 # Docker. Recovery must return to the unchanged launcher for a real new update.
 git -C "$fixture/trading-workspace-app" worktree add --detach "$fixture/future-release" HEAD
-printf '%s\n' '0.0.492' > "$fixture/future-release/VERSION"
+printf '%s\n' '0.0.491' > "$fixture/future-release/VERSION"
 git -C "$fixture/future-release" -c user.name=CI -c user.email=ci@example.invalid \
   commit -am 'CI next release after explicit provider activation'
-git -C "$fixture/future-release" tag v0.0.492
+git -C "$fixture/future-release" tag v0.0.491
 future_revision="$(git -C "$fixture/future-release" rev-parse HEAD)"
 git clone --bare "$fixture/future-release" "$fixture/releases.git"
 export TW_REAL_GIT="$(command -v git)"
 export TW_RETRY_APP="$fixture/trading-workspace-app"
 export TW_RETRY_RELEASES="$fixture/releases.git"
 # The launcher still observes its required GitHub origin and checks the exact
-# tag/commit. Only this synthetic release's fetch uses the local bare repository.
+# tag/commit. Only this fixture's fetch and publication check use its bare remote.
 cat > "$fixture/bin/git" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 if [[ $# == 5 && "$1" == -C && "$2" == "$TW_RETRY_APP" && "$3" == fetch && "$4" == origin ]]; then
   exec "$TW_REAL_GIT" -C "$2" fetch "$TW_RETRY_RELEASES" "$5"
+fi
+if [[ $# == 7 && "$1" == -C && "$2" == "$TW_RETRY_APP" && "$3" == ls-remote && "$4" == --exit-code && "$5" == origin ]]; then
+  exec "$TW_REAL_GIT" -C "$2" ls-remote --exit-code "$TW_RETRY_RELEASES" "$6" "$7"
 fi
 exec "$TW_REAL_GIT" "$@"
 EOF
@@ -451,17 +454,18 @@ cp "$activation_state/inputs.sha256" "$fixture/retry-old-inputs.sha256"
 docker inspect trading-workspace-database-1 trading-workspace-issuer-renderer-1 \
   trading-workspace-backend-1 trading-workspace-frontend-1 > "$fixture/retry-before.json"
 managed_effective_config() {
+  local config_state="${1:-$activation_state}"
   ISSUER_RENDERER_SECCOMP_PATH="$fixture/trading-workspace-app/docker/issuer-renderer/seccomp_profile.json" \
-    docker compose --project-name trading-workspace --env-file "$activation_state/environment.env" \
+    docker compose --project-name trading-workspace --env-file "$config_state/environment.env" \
       -f "$fixture/trading-workspace-app/docker/compose.yml" \
       -f "$fixture/trading-workspace-app/docker/compose.issuer-monitoring.yml" \
-      -f "$activation_state/preserve.json" config --format json
+      -f "$config_state/preserve.json" config --format json
 }
 managed_effective_config > "$fixture/retry-before-config.json"
 export TW_RETRY_BUILD_TRACE="$fixture/retry-build-trace"
 export TW_FAIL_NEXT_COMPOSE_BUILD="$fixture/fail-next-compose-build"
 touch "$TW_FAIL_NEXT_COMPOSE_BUILD"
-if activation_launcher update v0.0.492 "$future_revision" > "$fixture/retry-first-update.log" 2>&1; then
+if activation_launcher update v0.0.491 "$future_revision" > "$fixture/retry-first-update.log" 2>&1; then
   echo 'Injected prepare download failure was not propagated' >&2; exit 1
 fi
 test "$(git -C "$fixture/trading-workspace-app" rev-parse HEAD)" = "$future_revision"
@@ -509,7 +513,7 @@ PY
 test "$(docker exec trading-workspace-database-1 psql -At -U migration_test -d migration_test -c 'SELECT marker FROM deployment_probe')" = retained
 test "$(docker exec trading-workspace-issuer-renderer-1 cat /state/ci-marker)" = retained
 
-python3 "$fixture/retry-linux-update.py" retry v0.0.492 "$future_revision" --base "$fixture"
+python3 "$fixture/retry-linux-update.py" retry v0.0.491 "$future_revision" --base "$fixture"
 retry_state="$(cat "$fixture/trading-workspace-state/current-state")"
 test "$retry_state" != "$activation_state"
 test "$retry_state" != "$failed_attempt/deployment"
@@ -566,4 +570,143 @@ assert environment["TRADING_WORKSPACE_POSITION_MONITORING__REVIEW_SCOPE"] == "IN
 assert environment["TRADING_WORKSPACE_POSITION_MONITORING__REVIEW_NOTIFICATIONS_ENABLED"] == "false"
 assert environment["TRADING_WORKSPACE_MARKET_DATA__EODHD__ENABLED"] == "true"
 PY
-echo 'Bounded review defaults, review-to-EODHD activation and failed-prepare recovery passed: preserved evidence/data/seals, real managed update and healthy launcher.'
+echo 'Same-release retry passed: preserved evidence/data/seals, real managed update and healthy launcher.'
+
+# Retain the successful retry above and independently qualify a different target:
+# installed v0.0.491, failed v0.0.492, published replacement v0.0.493.
+printf '%s\n' '0.0.492' > "$fixture/future-release/VERSION"
+git -C "$fixture/future-release" -c user.name=CI -c user.email=ci@example.invalid \
+  commit -am 'CI release whose preparation will fail'
+git -C "$fixture/future-release" tag v0.0.492
+replacement_failed_revision="$(git -C "$fixture/future-release" rev-parse HEAD)"
+printf '%s\n' '0.0.493' > "$fixture/future-release/VERSION"
+git -C "$fixture/future-release" -c user.name=CI -c user.email=ci@example.invalid \
+  commit -am 'CI separately published replacement release'
+git -C "$fixture/future-release" tag v0.0.493
+replacement_revision="$(git -C "$fixture/future-release" rev-parse HEAD)"
+git -C "$fixture/future-release" push "$fixture/releases.git" refs/tags/v0.0.492 refs/tags/v0.0.493
+replacement_old_state="$retry_state"
+cp "$fixture/trading-workspace-state/current-state" "$fixture/replace-old-pointer"
+cp "$replacement_old_state/inputs.sha256" "$fixture/replace-old-inputs.sha256"
+docker inspect trading-workspace-database-1 trading-workspace-issuer-renderer-1 \
+  trading-workspace-backend-1 trading-workspace-frontend-1 > "$fixture/replace-before.json"
+managed_effective_config "$replacement_old_state" > "$fixture/replace-before-config.json"
+export TW_RETRY_BUILD_TRACE="$fixture/replace-build-trace"
+export TW_FAIL_NEXT_COMPOSE_BUILD="$fixture/fail-replacement-compose-build"
+touch "$TW_FAIL_NEXT_COMPOSE_BUILD"
+if activation_launcher update v0.0.492 "$replacement_failed_revision" > "$fixture/replace-first-update.log" 2>&1; then
+  echo 'Replacement fixture did not fail during the first preparation' >&2; exit 1
+fi
+replacement_failed_attempt="$(cat "$fixture/trading-workspace-state/pending")"
+test "$(git -C "$fixture/trading-workspace-app" rev-parse HEAD)" = "$replacement_failed_revision"
+test "$(cat "$replacement_failed_attempt/previous-state")" = "$replacement_old_state"
+test "$(cat "$replacement_failed_attempt/previous-revision")" = "$future_revision"
+test "$(cat "$replacement_failed_attempt/target-revision")" = "$replacement_failed_revision"
+for marker in prepared apply-started backups-verified migration-started deployed; do
+  test ! -e "$replacement_failed_attempt/deployment/$marker"
+done
+grep -q 'Synthetic dependency download timeout' "$replacement_failed_attempt/deployment/operation.log"
+test -f "$TW_FAIL_NEXT_COMPOSE_BUILD.consumed"
+cmp "$fixture/replace-old-pointer" "$fixture/trading-workspace-state/current-state"
+cmp "$fixture/replace-old-inputs.sha256" "$replacement_old_state/inputs.sha256"
+(cd "$replacement_old_state" && sha256sum --check --status inputs.sha256)
+if activation_launcher status > "$fixture/replace-pending-status.log" 2>&1; then
+  echo 'Managed status accepted the unfinished replacement fixture' >&2; exit 1
+fi
+docker inspect trading-workspace-database-1 trading-workspace-issuer-renderer-1 \
+  trading-workspace-backend-1 trading-workspace-frontend-1 > "$fixture/replace-after-failure.json"
+managed_effective_config "$replacement_old_state" > "$fixture/replace-after-failure-config.json"
+python3 - "$fixture" "$replacement_old_state" "$replacement_failed_attempt" "$failed_attempt" <<'PY'
+import hashlib
+import json
+import sys
+from pathlib import Path
+
+fixture, old, failed, earlier_failed = map(Path, sys.argv[1:])
+before = json.loads((fixture / "replace-before.json").read_text())
+after = json.loads((fixture / "replace-after-failure.json").read_text())
+assert len(before) == len(after) == 4
+for expected, actual in zip(before, after):
+    assert all(expected[field] == actual[field] for field in ("Id", "Image", "Config", "HostConfig", "Mounts"))
+    assert actual["State"]["Running"] and actual["State"]["Health"]["Status"] == "healthy"
+assert json.loads((fixture / "replace-before-config.json").read_text()) == json.loads(
+    (fixture / "replace-after-failure-config.json").read_text()
+)
+snapshots = {}
+for directory in (old, failed, earlier_failed):
+    snapshots[str(directory)] = {
+        str(path.relative_to(directory)): hashlib.sha256(path.read_bytes()).hexdigest()
+        for path in directory.rglob("*") if path.is_file()
+    }
+(fixture / "replace-preserved-files.json").write_text(json.dumps(snapshots))
+PY
+python3 "$fixture/retry-linux-update.py" replace v0.0.492 "$replacement_failed_revision" \
+  v0.0.493 "$replacement_revision" --base "$fixture"
+replacement_state="$(cat "$fixture/trading-workspace-state/current-state")"
+test "$replacement_state" != "$replacement_old_state"
+test "$replacement_state" != "$replacement_failed_attempt/deployment"
+test "$(cat "$replacement_failed_attempt/aborted-before-apply")" = "$replacement_failed_attempt"
+test "$(cat "$(dirname "$replacement_state")/completed")" = "$(dirname "$replacement_state")"
+test "$(cat "$replacement_state/revision")" = "$replacement_revision"
+test "$(git -C "$fixture/trading-workspace-app" rev-parse HEAD)" = "$replacement_revision"
+test -z "$(git -C "$fixture/trading-workspace-app" status --porcelain --untracked-files=all)"
+test ! -e "$fixture/trading-workspace-state/pending"
+test ! -e "$fixture/trading-workspace-state/current-state.new"
+for marker in prepared apply-started backups-verified migration-started deployed; do
+  test -f "$replacement_state/$marker"
+  test ! -e "$replacement_failed_attempt/deployment/$marker"
+done
+(cd "$replacement_state" && sha256sum --check --status inputs.sha256)
+(cd "$replacement_old_state" && sha256sum --check --status inputs.sha256)
+cmp "$fixture/replace-old-inputs.sha256" "$replacement_old_state/inputs.sha256"
+cmp "$replacement_old_state/database-container" "$replacement_state/database-container"
+test "$(docker exec trading-workspace-database-1 psql -At -U migration_test -d migration_test -c 'SELECT marker FROM deployment_probe')" = retained
+test "$(docker exec trading-workspace-issuer-renderer-1 cat /state/ci-marker)" = retained
+activation_launcher status
+docker inspect trading-workspace-database-1 trading-workspace-issuer-renderer-1 \
+  trading-workspace-backend-1 trading-workspace-frontend-1 > "$fixture/replace-after-success.json"
+python3 - "$fixture" "$replacement_old_state" "$replacement_failed_attempt" "$replacement_state" <<'PY'
+import hashlib
+import json
+import sys
+from pathlib import Path
+
+fixture, old, failed, state = map(Path, sys.argv[1:])
+assert (fixture / "replace-build-trace").read_text().splitlines() == [
+    "build-timeout", "real-build", "real-migration"
+]
+for directory, entries in json.loads((fixture / "replace-preserved-files.json").read_text()).items():
+    for relative, checksum in entries.items():
+        assert hashlib.sha256((Path(directory) / relative).read_bytes()).hexdigest() == checksum, (
+            "Replacement changed an existing deployment or failed-attempt file"
+        )
+evidence = list(failed.glob("retry-*.json"))
+assert len(evidence) == 1
+record = json.loads(evidence[0].read_text())
+assert record["old_revision"] == (old / "revision").read_text().strip()
+assert record["target_tag"] == "v0.0.492"
+assert record["target_revision"] == (failed / "target-revision").read_text().strip()
+assert record["replacement_tag"] == "v0.0.493"
+assert record["replacement_revision"] == (state / "revision").read_text().strip()
+assert record["replacement_tag_object"] == record["replacement_revision"]
+before = json.loads((fixture / "replace-before.json").read_text())
+after = json.loads((fixture / "replace-after-success.json").read_text())
+assert len(before) == len(after) == 4
+def settings(container):
+    environment = dict(entry.split("=", 1) for entry in container["Config"]["Env"])
+    return {key: value for key, value in environment.items()
+            if key.startswith(("TRADING_WORKSPACE_", "POSTGRES_"))}
+for expected, actual in zip(before, after):
+    assert expected["Name"] == actual["Name"] and expected["Mounts"] == actual["Mounts"]
+    assert actual["State"]["Running"] and actual["State"]["Health"]["Status"] == "healthy"
+    assert settings(expected) == settings(actual)
+    if actual["Config"]["Labels"]["com.docker.compose.service"] == "database":
+        assert expected["Id"] == actual["Id"] and expected["Image"] == actual["Image"]
+    else:
+        assert expected["Id"] != actual["Id"] and expected["Image"] != actual["Image"]
+environment = json.loads((state / "candidate.json").read_text())["services"]["backend"]["environment"]
+assert environment["TRADING_WORKSPACE_POSITION_MONITORING__REVIEW_SCOPE"] == "INDICATIVE_ENTRY_V2"
+assert environment["TRADING_WORKSPACE_POSITION_MONITORING__REVIEW_NOTIFICATIONS_ENABLED"] == "false"
+assert environment["TRADING_WORKSPACE_MARKET_DATA__EODHD__ENABLED"] == "true"
+PY
+echo 'Bounded defaults, review/EODHD activation, same-release retry and published replacement passed: real builds/migrations, preserved data/consent/evidence and healthy launcher.'
