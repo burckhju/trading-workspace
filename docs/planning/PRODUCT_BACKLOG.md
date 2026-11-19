@@ -2332,6 +2332,40 @@ nicht geändert. Konkrete Tool-/CI-Qualifikation und tatsächliche PC-Ausführun
 bleiben getrennte Nachweise. Der Gesamtarbeitsstatus und die fachlichen
 Abdeckungsgrenzen oben bleiben bestehen.
 
+### Zweiter Betriebsnachtrag 19.11.2026 — SQLAlchemy-Auflösung und Ersatzrelease
+
+Der in [PR #366](https://github.com/burckhju/trading-workspace/pull/366)
+qualifizierte Wiederanlauf wurde auf dem PC ausgeführt: Der ursprüngliche
+Fehlversuch wurde kontrolliert abgeschlossen und der reguläre Launcher erneut
+aufgerufen. Im neuen Versuch `20261119T115817Z-AJUxxu` scheiterte jedoch der
+Backend-Build mit `No matching distribution found for SQLAlchemy==2.0.50`
+und `from versions: none`. Die vier bisherigen v1.5.49-Dienste waren erneut
+gesund; alle fünf Prepare-/Apply-/Migrationsmarker des neuen Versuchs fehlten.
+Eine V2-Aktivierung oder erfolgreiche v1.5.50-Installation ist weiterhin nicht
+beobachtet.
+
+Die neun direkten Paketversionen existieren; die Anforderungen sind gegenüber
+dem installierten v1.5.49 unverändert. Der erfolgreiche Main-Build von #366
+installierte sie tatsächlich. Der PC verwendete einen anderen offiziellen
+Python-3.12-Basisindex als CI. Weder diese Abweichung noch die leere
+Kandidatenliste belegt einen inkompatiblen SQLAlchemy-Pin; die konkrete Ursache
+der verworfenen Indexantwort bleibt unbelegt.
+
+Der [Reparaturschnitt v1.5.51](../releases/V1.5.51-RELIABLE-BACKEND-BUILD.md)
+bindet den Backend-Build an die geprüfte CI-Basis und SQLAlchemy 2.0.50 als
+exaktes offizielles universelles Wheel mit SHA256. Begrenzte längere Abrufversuche
+und eine vor den Anwendungsquellen liegende Abhängigkeitsschicht adressieren
+die beiden beobachteten Beschaffungsfehler. Der neue Recovery-Einstieg prüft
+den veröffentlichten Ersatzrelease vor dem unveränderten Abschluss des
+fehlgeschlagenen alten Zielversuchs. Der normale Launcher bleibt für Build,
+Sicherung, Migration und Zustandsabschluss zuständig.
+
+Dieser Nachtrag erweitert keine fachliche Abdeckung. Regeln, gespeicherte
+Käufe/Verkäufe, Providerfreigaben und Aktivierungsentscheidungen bleiben beim
+bestehenden Owner. Die Liefernotiz bindet Quellen, Prüfgrenzen und den PC-Weg;
+konkrete PR-/Main-/Publisherbelege sowie Tag/SHA werden im Release-PR geführt.
+Die tatsächliche V2-Depotabdeckung bleibt bis zum beobachteten PC-Lauf offen.
+
 ## Genau nächster sinnvoller Umsetzungsschritt
 
 **Aktueller Liefernachtrag 28.10.2026 zu v1.5.31:** Nach dem freigegebenen und

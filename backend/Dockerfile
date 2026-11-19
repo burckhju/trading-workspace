@@ -1,4 +1,4 @@
-FROM python:3.12-slim AS runtime
+FROM python:3.12-slim@sha256:5e2bdb1b0d542d5039cffb8181c65930093949194a65c365dfb1b0fe13a4fa5b AS runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -8,12 +8,13 @@ WORKDIR /app
 
 RUN groupadd --system app && useradd --system --gid app --home-dir /app app
 
-COPY requirements.txt ./
+COPY requirements.txt install_dependencies.py ./
+
+RUN python install_dependencies.py
+
 COPY alembic.ini ./
 COPY migrations ./migrations
 COPY app ./app
-
-RUN python -m pip install --no-cache-dir --requirement requirements.txt
 
 # COPY preserves local checkout modes, including 0600/0700 from umask 077.
 # Normalize only image-owned runtime code, never host files or mounted secrets.
@@ -21,7 +22,7 @@ RUN python -m pip install --no-cache-dir --requirement requirements.txt
 RUN chmod 0755 /app \
     && find /app/app /app/migrations -type d -exec chmod 0755 {} + \
     && find /app/app /app/migrations -type f -exec chmod 0644 {} + \
-    && chmod 0644 /app/alembic.ini /app/requirements.txt
+    && chmod 0644 /app/alembic.ini /app/requirements.txt /app/install_dependencies.py
 
 USER app
 

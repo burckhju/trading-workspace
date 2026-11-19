@@ -107,9 +107,15 @@ class FailedUpdate:
     def base(self) -> Path:
         return self.app.parent
 
-    def close(self, *, tag: str | None = None, revision: str | None = None) -> Path:
+    def close(
+        self,
+        *,
+        tag: str | None = None,
+        revision: str | None = None,
+        replacement: tuple[str, str] | None = None,
+    ) -> Path:
         return tool.close_failed_prepare(
-            self.base, tag or self.tag, revision or self.target_revision
+            self.base, tag or self.tag, revision or self.target_revision, replacement=replacement
         )
 
     def items(self) -> list[dict[str, Any]]:
@@ -238,6 +244,17 @@ def failed_update(
     private(failed / "operation.log", "ReadTimeoutError: files.pythonhosted.org\n")
     private(control / "pending", str(operation) + "\n")
     binaries = installation.work / "bin"
+    (binaries / "git").write_text(
+        "#!/usr/bin/env python3\n" + SUPPORT + "\nargs = sys.argv[1:]\n"
+        "app = str(work / 'Boerse with spaces/trading-workspace-app')\n"
+        "if args[:4] == ['-C', app, 'fetch', 'origin']:\n"
+        "    log('git-remote', args)\n"
+        "    args[3] = str(work / 'releases.git')\n"
+        "elif args[:5] == ['-C', app, 'ls-remote', '--exit-code', 'origin']:\n"
+        "    log('git-remote', args)\n"
+        "    args[4] = str(work / 'releases.git')\n"
+        "os.execv(real_git, [real_git, *args])\n"
+    )
     (binaries / "docker").write_text(
         "#!/usr/bin/env python3\nORIGINAL_DOCKER = " + repr(DOCKER) + "\n" + DOCKER_READS
     )
@@ -252,6 +269,36 @@ def failed_update(
     for name, value in installation.env.items():
         monkeypatch.setenv(name, value)
     return FailedUpdate(installation, old_revision, target_revision, "v1.5.50", operation, failed)
+
+
+def replacement_release(
+    fixture: FailedUpdate, *, problem: str = "", annotated: bool = False
+) -> tuple[str, str]:
+    source = fixture.installation.work / "replacement-source"
+    command(GIT, "clone", "--shared", str(fixture.app), str(source))
+    command(GIT, "config", "user.name", "Fixture", cwd=source)
+    command(GIT, "config", "user.email", "fixture@example.invalid", cwd=source)
+    if problem == "ancestry":
+        command(GIT, "checkout", "--detach", fixture.old_revision, cwd=source)
+    (source / "VERSION").write_text("1.5.99\n" if problem == "version" else "1.5.51\n")
+    if problem in {"compose", "validator"}:
+        relative = (
+            "docker/compose.yml"
+            if problem == "compose"
+            else "backend/app/tools/legacy_issuer_deployment.py"
+        )
+        path = source / relative
+        path.write_bytes(path.read_bytes() + b"\n# Unqualified replacement contract\n")
+    command(GIT, "commit", "-am", "Synthetic replacement release", cwd=source)
+    tag = "v1.5.51"
+    if annotated:
+        command(GIT, "tag", "-a", tag, "-m", "Published annotated release", cwd=source)
+    else:
+        command(GIT, "tag", tag, cwd=source)
+    command(
+        GIT, "push", str(fixture.installation.work / "releases.git"), "refs/tags/" + tag, cwd=source
+    )
+    return tag, command(GIT, "rev-parse", "HEAD", cwd=source)
 
 
 def assert_unmodified_runtime(fixture: FailedUpdate, before: bytes) -> None:
@@ -299,19 +346,26 @@ class HandedOff(Exception):
 
 
 @pytest.mark.parametrize("build_fails", [False, True])
+@pytest.mark.parametrize("action", ["retry", "replace"])
 def test_retry_hands_off_unlocked_to_original_launcher_success_or_new_build_failure(
     failed_update: FailedUpdate,
     monkeypatch: pytest.MonkeyPatch,
     build_fails: bool,
+    action: str,
 ) -> None:
     fixture = failed_update
+    next_tag, next_revision = (
+        replacement_release(fixture)
+        if action == "replace"
+        else (fixture.tag, fixture.target_revision)
+    )
     old, failed = snapshot(fixture.old), snapshot(fixture.failed)
     runtime = (fixture.installation.work / "runtime.json").read_bytes()
     if build_fails:
         (fixture.installation.work / "fail-prepare").touch()
 
     def execute(path: str, args: list[str]) -> None:
-        assert args == [path, "update", fixture.tag, fixture.target_revision]
+        assert args == [path, "update", next_tag, next_revision]
         assert Path(path).read_bytes() == (ROOT / "scripts/trading-workspace.sh").read_bytes()
         assert os.environ["TRADING_WORKSPACE_BASE"] == str(fixture.base)
         assert_unmodified_runtime(fixture, runtime)
@@ -322,41 +376,206 @@ def test_retry_hands_off_unlocked_to_original_launcher_success_or_new_build_fail
 
     monkeypatch.setattr(tool.os, "execv", execute)
     with pytest.raises(HandedOff) as handed:
-        tool.retry(fixture.base, fixture.tag, fixture.target_revision)
+        if action == "replace":
+            tool.replace_release(
+                fixture.base, fixture.tag, fixture.target_revision, next_tag, next_revision
+            )
+        else:
+            tool.retry(fixture.base, fixture.tag, fixture.target_revision)
     result = handed.value.result
     assert "never-print-this" not in result.stdout + result.stderr
     assert (result.returncode != 0) is build_fails, result.stdout + result.stderr
     assert snapshot(fixture.old) == old
     assert snapshot(fixture.failed) == failed
     assert (fixture.operation / "aborted-before-apply").is_file()
-    assert command(GIT, "rev-parse", "HEAD", cwd=fixture.app) == fixture.target_revision
+    assert command(GIT, "rev-parse", "HEAD", cwd=fixture.app) == next_revision
+    evidence = json.loads(next(fixture.operation.glob("retry-*.json")).read_text())
+    assert evidence["old_revision"] == fixture.old_revision
+    assert evidence["target_revision"] == fixture.target_revision
+    if action == "replace":
+        assert evidence["replacement_tag"] == next_tag
+        assert evidence["replacement_revision"] == next_revision
+    else:
+        assert "replacement_revision" not in evidence
     current = Path((fixture.control / "current-state").read_text().strip())
     if build_fails:
         assert current == fixture.old
         assert (fixture.installation.work / "runtime.json").read_bytes() == runtime
         pending = Path((fixture.control / "pending").read_text().strip())
         assert pending != fixture.operation
+        assert (pending / "target-revision").read_text().strip() == next_revision
         assert "Synthetic prepare failure" in (pending / "deployment/operation.log").read_text()
-        assert not (pending / "deployment/apply-started").exists()
+        assert not any((pending / "deployment" / marker).exists() for marker in tool.PHASE_MARKERS)
     else:
         assert current != fixture.old and (current / "deployed").is_file()
         assert not (fixture.control / "pending").exists()
-        assert (current / "revision").read_text().strip() == fixture.target_revision
+        assert (current / "revision").read_text().strip() == next_revision
         assert (current / "environment.env").read_bytes() == old["environment.env"]
         assert (current / "database-container").read_bytes() == old["database-container"]
         assert (current.parent / "completed").is_file()
+
+
+@pytest.mark.parametrize("annotated", [False, True])
+def test_published_replacement_is_checked_with_real_git_without_changing_sources(
+    failed_update: FailedUpdate, annotated: bool
+) -> None:
+    fixture = failed_update
+    tag, revision = replacement_release(fixture, annotated=annotated)
+    pending = (fixture.control / "pending").read_bytes()
+    support = tool._support(fixture.app)
+    tag_object = tool._replacement_checks(
+        support,
+        fixture.app,
+        fixture.operation / "replacement-check.log",
+        fixture.old_revision,
+        fixture.target_revision,
+        tag,
+        revision,
+    )
+    assert tag_object == command(GIT, "rev-parse", "refs/tags/" + tag, cwd=fixture.app)
+    assert command(GIT, "rev-parse", tag + "^{commit}", cwd=fixture.app) == revision
+    assert (tag_object != revision) is annotated
+    assert command(GIT, "rev-parse", "HEAD", cwd=fixture.app) == fixture.target_revision
+    assert (fixture.control / "pending").read_bytes() == pending
+    remote_calls = [call[3:] for call in fixture.installation.calls() if call[0] == "git-remote"]
+    assert remote_calls == [
+        ["ls-remote", "--exit-code", "origin", "refs/tags/" + tag, "refs/tags/" + tag + "^{}"],
+        ["fetch", "origin", "refs/tags/" + tag + ":refs/tags/" + tag],
+    ]
+
+
+def replacement_problem(fixture: FailedUpdate, problem: str) -> tuple[str, str]:
+    tag, revision = replacement_release(fixture, problem=problem)
+    remote = str(fixture.installation.work / "releases.git")
+    if problem == "tag":
+        tag = "v1.5.52"
+    elif problem == "sha":
+        revision = "f" * 40
+    elif problem == "local_tag":
+        command(GIT, "tag", tag, fixture.old_revision, cwd=fixture.app)
+    elif problem == "remote_tag":
+        command(GIT, "fetch", remote, "refs/tags/" + tag + ":refs/tags/" + tag, cwd=fixture.app)
+        command(GIT, "--git-dir", remote, "update-ref", "refs/tags/" + tag, fixture.target_revision)
+    elif problem == "unpublished":
+        command(GIT, "fetch", remote, "refs/tags/" + tag + ":refs/tags/" + tag, cwd=fixture.app)
+        command(GIT, "--git-dir", remote, "update-ref", "-d", "refs/tags/" + tag)
+    return tag, revision
+
+
+@pytest.mark.parametrize(
+    "problem",
+    [
+        "tag",
+        "sha",
+        "version",
+        "ancestry",
+        "compose",
+        "validator",
+        "local_tag",
+        "remote_tag",
+        "unpublished",
+    ],
+)
+@pytest.mark.parametrize("full_closure", [False, True])
+def test_unqualified_replacement_cannot_close_pending_or_change_sources(
+    failed_update: FailedUpdate, problem: str, full_closure: bool
+) -> None:
+    fixture = failed_update
+    replacement = replacement_problem(fixture, problem)
+    old, failed = snapshot(fixture.old), snapshot(fixture.failed)
+    pending = (fixture.control / "pending").read_bytes()
+    runtime = (fixture.installation.work / "runtime.json").read_bytes()
+    support = tool._support(fixture.app)
+    with pytest.raises(
+        (tool.RecoveryError, support.ActivationError),
+        match=r"replacement|Replacement|local command",
+    ):
+        if full_closure:
+            fixture.close(replacement=replacement)
+        else:
+            # The independent real-Git guard also runs on development hosts whose
+            # temporary parent belongs to Git. Full closure still enforces _layout.
+            tool._replacement_checks(
+                support,
+                fixture.app,
+                fixture.operation / "replacement-check.log",
+                fixture.old_revision,
+                fixture.target_revision,
+                *replacement,
+            )
+    assert command(GIT, "rev-parse", "HEAD", cwd=fixture.app) == fixture.target_revision
+    assert (fixture.control / "pending").read_bytes() == pending
+    assert snapshot(fixture.old) == old and snapshot(fixture.failed) == failed
+    assert not (fixture.operation / "aborted-before-apply").exists()
+    if problem == "local_tag":
+        assert command(GIT, "rev-parse", replacement[0], cwd=fixture.app) == fixture.old_revision
+    assert_unmodified_runtime(fixture, runtime)
+
+
+@pytest.mark.parametrize("annotated", [False, True])
+def test_replacement_closure_keeps_three_identities_and_checks_publication_under_lock(
+    failed_update: FailedUpdate, monkeypatch: pytest.MonkeyPatch, annotated: bool
+) -> None:
+    fixture = failed_update
+    tag, revision = replacement_release(fixture, annotated=annotated)
+    old, failed = snapshot(fixture.old), snapshot(fixture.failed)
+    pending = (fixture.control / "pending").read_bytes()
+    pointer = (fixture.control / "current-state").read_bytes()
+    actual_git = tool._git
+    publications = []
+
+    def checked_git(*args: Any) -> bytes:
+        if args[3] == "ls-remote":
+            with (
+                (fixture.control / "update.lock").open("r+") as contender,
+                pytest.raises(BlockingIOError),
+            ):
+                fcntl.flock(contender, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            publications.append(args[3:])
+        return actual_git(*args)
+
+    monkeypatch.setattr(tool, "_git", checked_git)
+    fixture.close(replacement=(tag, revision))
+    assert len(publications) == 1
+    assert command(GIT, "rev-parse", "HEAD", cwd=fixture.app) == fixture.old_revision
+    assert snapshot(fixture.old) == old and snapshot(fixture.failed) == failed
+    assert (fixture.control / "current-state").read_bytes() == pointer
+    assert (fixture.operation / "aborted-before-apply").read_bytes() == pending
+    evidence = json.loads(next(fixture.operation.glob("retry-*.json")).read_text())
+    assert evidence["old_revision"] == fixture.old_revision
+    assert evidence["target_tag"] == fixture.tag
+    assert evidence["target_revision"] == fixture.target_revision
+    assert evidence["replacement_tag"] == tag
+    assert evidence["replacement_revision"] == revision
+    assert evidence["replacement_tag_object"] == command(
+        GIT, "rev-parse", "refs/tags/" + tag, cwd=fixture.app
+    )
+
+
+@pytest.mark.parametrize(
+    "replacement",
+    [("bad/tag", "b" * 40), ("v1.5.50", "b" * 40), ("v1.5.51", "bad"), ("v1.5.51", "a" * 40)],
+)
+def test_invalid_replacement_identity_is_rejected_before_inspecting_state(
+    tmp_path: Path, replacement: tuple[str, str]
+) -> None:
+    with pytest.raises(tool.RecoveryError, match="Invalid or unchanged replacement"):
+        tool.close_failed_prepare(tmp_path, "v1.5.50", "a" * 40, replacement=replacement)
 
 
 @pytest.mark.parametrize(
     "marker", ["prepared", "apply-started", "backups-verified", "migration-started", "deployed"]
 )
 @pytest.mark.parametrize("dangling_link", [False, True])
+@pytest.mark.parametrize("replacement", [False, True])
 def test_every_phase_marker_blocks_even_as_a_dangling_link(
     failed_update: FailedUpdate,
     marker: str,
     dangling_link: bool,
+    replacement: bool,
 ) -> None:
     fixture = failed_update
+    new_release = replacement_release(fixture) if replacement else None
     path = fixture.failed / marker
     if dangling_link:
         path.symlink_to(fixture.failed / "missing")
@@ -364,7 +583,7 @@ def test_every_phase_marker_blocks_even_as_a_dangling_link(
         private(path, b"")
     pending = (fixture.control / "pending").read_bytes()
     with pytest.raises(tool.RecoveryError, match="apply may have started"):
-        fixture.close()
+        fixture.close(replacement=new_release)
     assert command(GIT, "rev-parse", "HEAD", cwd=fixture.app) == fixture.target_revision
     assert (fixture.control / "pending").read_bytes() == pending
     assert not list(fixture.operation.glob("retry-*"))
@@ -656,13 +875,18 @@ def test_support_loader_rejects_links_and_unknown_bytes(tmp_path: Path, changed:
         tool._support(app)
 
 
+@pytest.mark.parametrize("action", ["retry", "replace"])
 def test_cli_rejects_root_and_never_prints_unrecognized_private_arguments(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
+    action: str,
 ) -> None:
     monkeypatch.setattr(tool.os, "getuid", lambda: 0)
-    assert tool.main(["retry", "v1.5.50", "a" * 40]) == 2
+    args = [action, "v1.5.50", "a" * 40]
+    if action == "replace":
+        args.extend(["v1.5.51", "b" * 40])
+    assert tool.main(args) == 2
     assert "not root/sudo" in capsys.readouterr().err
     secret = "PRIVATE-ARGUMENT-MUST-NOT-APPEAR"
-    assert tool.main(["retry", "v1.5.50", "a" * 40, "--" + secret]) == 2
+    assert tool.main([*args, "--" + secret]) == 2
     assert secret not in capsys.readouterr().err
