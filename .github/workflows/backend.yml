@@ -79,6 +79,19 @@ jobs:
           pytest -c pyproject.toml ../tests/unit/backend/test_linux_update_recovery.py
           ../tests/unit/backend/test_backend_dependency_install.py -q -ra
 
+      - name: Qualify saved-original upgrades and date semantics
+        env:
+          PYTHONPATH: ${{ github.workspace }}/backend:${{ github.workspace }}
+        # Exercise actual PostgreSQL history/locking before the complete suite.
+        # All originals are synthetic and provider HTTP remains blocked.
+        run: >-
+          pytest -c pyproject.toml
+          ../tests/unit/backend/providers/test_product_review_documents.py
+          ../tests/unit/backend/features/product/test_product_document_reparse.py
+          ../tests/unit/backend/features/market_data/test_review_calendars.py
+          ../tests/integration/backend/database/test_product_document_reparse_postgres.py
+          -q -ra
+
       - name: Tests with coverage
         env:
           PYTHONPATH: ${{ github.workspace }}/backend:${{ github.workspace }}

@@ -7,18 +7,18 @@
 | Feld | Wert |
 |---|---|
 | Dokument-ID | DOC-004 (bestehende Kennung) |
-| Revision | Nachweis- und Statuskonsolidierung 2026-11-19; keine neue Produktumfangsentscheidung |
-| Prüfstand | `254f0bbd52ab42e0120d381e915dc96c1118796c` / `main` / Softwaretag `v1.5.51` |
+| Revision | Nachweisfortschreibung 2026-11-20 auf v1.5.52; keine neue Produktumfangsentscheidung |
+| Prüfstand | `c7db441de36297a98d47cdf28c64b4e5d9994692` / `main` / Softwaretag `v1.5.52` |
 | Aktueller Arbeitsstatus | Ausschließlich im [Product Backlog](../planning/PRODUCT_BACKLOG.md) |
 
-Die [datierte Einstiegssicht](../planning/PRODUCT_BACKLOG.md#aktueller-stand) und der [einzige nächste Arbeitsauftrag](../planning/PRODUCT_BACKLOG.md#naechster-schnitt) berücksichtigen den PC-Nachweis aus #367 und die neuere Ursachenbeschreibung des noch offenen #368. Aus dem datierten Quellenzeugnis eines offenen PR folgt keine Main-Integration seines Codes. Historische Vorbereitungs- und Freigabestände sind im Backlog gesondert eingeordnet.
+Die [datierte Einstiegssicht](../planning/PRODUCT_BACKLOG.md#aktueller-stand) und der [einzige nächste Arbeitsauftrag](../planning/PRODUCT_BACKLOG.md#naechster-schnitt) trennen den belegten v1.5.51-PC-Betrieb aus #367 von der inzwischen integrierten und veröffentlichten Produktkorrektur #368 / v1.5.52. Die reale Wirkung des Fixes auf dem privaten Bestand bleibt ein gesonderter Nachweis; seine erneute Implementierung, Integration oder Veröffentlichung ist kein offener Auftrag. Historische Vorbereitungs- und Freigabestände sind im Backlog gesondert eingeordnet.
 
 <a id="historische-baseline"></a>
 ## Ursprüngliche Roadmap als unveränderte Referenz
 
-Die [Roadmap vom 22.07.2026, Version 1.1](archive/ROADMAP_2026-07-22.md) ist die Vergleichsbasis. Sie wird als **genau eine unveränderte historische Baseline** im Repository erhalten. Der Inhalt entspricht bytegenau der vor der Konsolidierung vom 13.10.2026 archivierten Roadmap; Git-Blob `919ed7570580b1d883a409f864ed15747fbfda3e`, am 19.11.2026 erneut geprüft. Die Metadaten einschließlich damaligem Approved-Status und der ursprünglichen Reihenfolge bleiben historische Aussagen, keine neue Freigabe.
+Die [Roadmap vom 22.07.2026, Version 1.1](archive/ROADMAP_2026-07-22.md) ist die Vergleichsbasis. Sie wird als **genau eine unveränderte historische Baseline** im Repository erhalten. Der Inhalt entspricht bytegenau der vor der Konsolidierung vom 13.10.2026 archivierten Roadmap; Git-Blob `919ed7570580b1d883a409f864ed15747fbfda3e`, am 20.11.2026 erneut geprüft. Die Metadaten einschließlich damaligem Approved-Status und der ursprünglichen Reihenfolge bleiben historische Aussagen, keine neue Freigabe.
 
-Die zwölf M-IDs M0–M11 werden weder umbenannt noch neu vergeben. Alle 63 ursprünglichen Inhaltsziel-Vorkommen sind im [Originalabgleich des zentralen Backlogs](../planning/PRODUCT_BACKLOG.md#originalzuordnung) einzeln einem maßgeblichen Eintrag zugeordnet. Ziel- und Ergebnisformulierungen jedes Meilensteins bleiben vollständig in der Baseline. Ein Softwaretag – auch `v1.5.51` – erklärt nicht rückwirkend alle ursprünglichen Meilensteinansprüche für erfüllt. Es werden keine Fertigstellungsprozente aus undefinierter Grundgesamtheit abgeleitet.
+Die zwölf M-IDs M0–M11 werden weder umbenannt noch neu vergeben. Alle 63 ursprünglichen Inhaltsziel-Vorkommen sind im [Originalabgleich des zentralen Backlogs](../planning/PRODUCT_BACKLOG.md#originalzuordnung) einzeln einem maßgeblichen Eintrag zugeordnet. Ziel- und Ergebnisformulierungen jedes Meilensteins bleiben vollständig in der Baseline. Ein Softwaretag – auch `v1.5.52` – erklärt nicht rückwirkend alle ursprünglichen Meilensteinansprüche für erfüllt. Es werden keine Fertigstellungsprozente aus undefinierter Grundgesamtheit abgeleitet.
 
 | Ursprünglicher Bezug | Rückverfolgbare Inhalte und aktueller Arbeitsstatus |
 |---|---|

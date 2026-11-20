@@ -121,6 +121,114 @@ async def read_calendar(
 XSTU_DAY_VERSION = "xstu-dates-2026-reviewed-20261118-v1"
 XSTU_DAY_URL = "https://www.boerse-stuttgart.de/media/wabiiobs/2026-07-21_bk_handelskalender_2026_aktualisierung_20260721.pdf"
 XSTU_DAY_SHA256 = "0426c32af27ae7c040f4ec15a50c5c483051ca97ee3215976982a5c3583ee717"
+XSTU_IMPORT_VERIFICATION = "USER_SUPPLIED_ORIGINAL_NOT_INDEPENDENT_VERIFICATION"
+
+
+def _xstu_payload(source: str) -> dict[str, Any]:
+    return {
+        "days": xstu_day_rows(),
+        "precision": "DAY_ONLY",
+        "verification": VERIFICATION,
+        "sources": [{"url": XSTU_DAY_URL, "sha256": XSTU_DAY_SHA256, "document_base64": source}],
+    }
+
+
+async def _existing_xstu_original(
+    session: AsyncSession, *, workspace_id: UUID, now: datetime
+) -> ReviewCalendarModel | None:
+    row = await read_calendar(
+        session, workspace_id=workspace_id, source_version=XSTU_DAY_VERSION, known_at=now
+    )
+    if row is not None:
+        sources = row.payload.get("sources")
+        if (
+            row.venue_mic != "XSTU"
+            or row.payload.get("precision") != "DAY_ONLY"
+            or row.payload.get("verification") != VERIFICATION
+            or row.payload.get("days") != xstu_day_rows()
+            or not isinstance(sources, list)
+            or len(sources) != 1
+            or sources[0].get("url") != XSTU_DAY_URL
+            or sources[0].get("sha256") != XSTU_DAY_SHA256
+        ):
+            raise ValueError("REVIEW_CALENDAR_STORED_INTEGRITY_FAILURE")
+        return row
+    # A future-dated existing revision cannot be silently reused or replaced.
+    if (
+        await session.scalar(
+            select(ReviewCalendarModel.id).where(
+                ReviewCalendarModel.workspace_id == workspace_id,
+                ReviewCalendarModel.source_version == XSTU_DAY_VERSION,
+            )
+        )
+        is not None
+    ):
+        raise ValueError("REVIEW_CALENDAR_KNOWLEDGE_TIME_INVALID")
+    return None
+
+
+async def import_xstu_day_calendar_original(
+    session: AsyncSession,
+    *,
+    workspace_id: UUID,
+    document: bytes,
+    now: datetime,
+    apply: bool = False,
+) -> dict[str, Any]:
+    """Preview/import one exact local original; caller owns the transaction.
+
+    The source URL, digest, reviewed dates and coverage are fixed by this owner.
+    Receipt is not an authenticated source fetch or publication time. Existing
+    originals are reused unchanged, including their original acquisition basis.
+    """
+    if now.utcoffset() is None:
+        raise ValueError("REVIEW_CALENDAR_KNOWLEDGE_TIME_INVALID")
+    if not 0 < len(document) <= MAX_BYTES:
+        raise ValueError("REVIEW_CALENDAR_SOURCE_SIZE_INVALID")
+    if hashlib.sha256(document).hexdigest() != XSTU_DAY_SHA256:
+        raise ValueError("REVIEW_CALENDAR_SOURCE_REVISION_CHANGED")
+    row = await _existing_xstu_original(session, workspace_id=workspace_id, now=now)
+    outcome = "ALREADY_AVAILABLE" if row is not None else "READY_TO_IMPORT"
+    if apply and row is None:
+        payload = _xstu_payload(base64.b64encode(document).decode("ascii"))
+        payload["acquisition"] = {
+            "method": "USER_SUPPLIED_ORIGINAL",
+            "verification": XSTU_IMPORT_VERIFICATION,
+            "time_basis": "FILE_RECEIVED_AT",
+            "received_at": now.isoformat(),
+        }
+        inserted = await session.scalar(
+            insert(ReviewCalendarModel)
+            .values(
+                id=uuid4(),
+                workspace_id=workspace_id,
+                venue_mic="XSTU",
+                source_version=XSTU_DAY_VERSION,
+                recorded_at=now,
+                payload=payload,
+                fingerprint=fingerprint(payload),
+            )
+            .on_conflict_do_nothing(index_elements=["workspace_id", "source_version"])
+            .returning(ReviewCalendarModel.id)
+        )
+        row = await _existing_xstu_original(session, workspace_id=workspace_id, now=now)
+        if row is None:
+            raise ValueError("REVIEW_CALENDAR_IMPORT_NOT_RECORDED")
+        outcome = "IMPORTED" if inserted is not None else "ALREADY_AVAILABLE"
+    return {
+        "mode": "APPLY" if apply else "PREVIEW",
+        "outcome": outcome,
+        "source_version": XSTU_DAY_VERSION,
+        "source_reference": XSTU_DAY_URL,
+        "document_sha256": XSTU_DAY_SHA256,
+        "coverage_start": "2026-01-01",
+        "coverage_end": "2026-12-31",
+        "precision": "DAY_ONLY",
+        "verification": VERIFICATION,
+        "local_import_verification": XSTU_IMPORT_VERIFICATION,
+        "stored_acquisition": row.payload.get("acquisition") if row is not None else None,
+        "provider_requests": False,
+    }
 
 
 async def acquire_xstu_day_calendar(
@@ -130,21 +238,10 @@ async def acquire_xstu_day_calendar(
     workspace_id: UUID,
     now: datetime,
 ) -> None:
-    exists = await session.scalar(
-        select(ReviewCalendarModel.id).where(
-            ReviewCalendarModel.workspace_id == workspace_id,
-            ReviewCalendarModel.source_version == XSTU_DAY_VERSION,
-        )
-    )
-    if exists is not None:
+    if await _existing_xstu_original(session, workspace_id=workspace_id, now=now) is not None:
         return
     source = await fetch_calendar_source(client, XSTU_DAY_URL, XSTU_DAY_SHA256)
-    payload: dict[str, Any] = {
-        "days": xstu_day_rows(),
-        "precision": "DAY_ONLY",
-        "verification": VERIFICATION,
-        "sources": [{"url": XSTU_DAY_URL, "sha256": XSTU_DAY_SHA256, "document_base64": source}],
-    }
+    payload = _xstu_payload(source)
     await session.execute(
         insert(ReviewCalendarModel)
         .values(

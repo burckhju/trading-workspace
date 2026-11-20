@@ -20,7 +20,10 @@ from app.features.product.persistence.review_evidence import (
     ProductReviewAcquisitionModel,
 )
 from app.features.product.service.price_scale_evidence import require_warrant
-from app.features.product.service.review_evidence import record_original_kid
+from app.features.product.service.review_evidence import (
+    record_original_kid,
+    reparse_saved_original_kid,
+)
 from app.features.trade_position.service.open_position_reader import OpenPositionReader
 from app.providers.product_review_documents import fetch_original, kid_url
 
@@ -75,8 +78,15 @@ class ProductReviewReadiness:
             await require_warrant(
                 session, workspace_id=workspace_id, warrant_id=warrant_id, lock=True
             )
+            reparsed = await reparse_saved_original_kid(
+                session, workspace_id=workspace_id, warrant_id=warrant_id, now=now
+            )
             attempt = await session.get(ProductReviewAcquisitionModel, (workspace_id, warrant_id))
             if attempt is not None and attempt.next_attempt_at > now:
+                if reparsed is not None:
+                    # This is a new interpretation of the saved original. Keep
+                    # its receipt time and every network retry-budget field intact.
+                    await session.commit()
                 return
             row = (
                 await session.execute(

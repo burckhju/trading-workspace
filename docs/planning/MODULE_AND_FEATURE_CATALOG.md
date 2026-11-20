@@ -5,7 +5,7 @@
 | Feld | Wert |
 |---|---|
 | Dokumenttyp | Product Architecture / Planungssichten |
-| Revision | Nachweisabgleich 2026-11-19 am Main `254f0bbd52ab42e0120d381e915dc96c1118796c` / `v1.5.51` |
+| Revision | Nachweisfortschreibung 2026-11-20 am Main `c7db441de36297a98d47cdf28c64b4e5d9994692` / `v1.5.52` |
 | Aufgabenstatus | Nur im [Product Backlog](PRODUCT_BACKLOG.md#abnahmematrix) |
 | Baseline | [Ursprüngliche Roadmap und Übergang](../foundation/ROADMAP.md#historische-baseline) |
 
@@ -14,6 +14,8 @@
 Dieser Katalog ordnet bestehende Features und Querschnittsfähigkeiten acht dauerhaften Planungssichten zu. Er erfindet keine FT-IDs, keine neue technische Paketstruktur und keine neue schreibende Ownership. Fachliches Feature, technischer Paketname, Modellfamilie und Planungssicht bleiben unterschiedliche Begriffe. Die historische Modulgliederung in ARCHITECTURE wird dadurch nicht still umgebaut.
 
 Die [aktuelle Einstiegssicht](PRODUCT_BACKLOG.md#aktueller-stand), alle [abgeschlossenen Teilumfänge und verbleibenden Lücken](PRODUCT_BACKLOG.md#abnahmematrix) sowie der [eine nächste Arbeitsauftrag](PRODUCT_BACKLOG.md#naechster-schnitt) stehen ausschließlich im Backlog. Folgende Präzisierungen beschreiben Fähigkeiten und Grenzen, keine zweite Aufgabenstatusliste: Die persistente [Chart-Watchlist](../implementation/MARKET_CHART_WATCHLIST.md) besitzt einen festen Katalog aus S&P 500 und 30 ETFs; Journalentwurf, Finalisierung, Folgeversion, Evidence und Lessons haben eigene FT-012-Schreibpfade; die [Performance-Erweiterung](../releases/V1.5.42-UX4-PERFORMANCE-QUALITY-LIFECYCLE.md) umfasst Bruttokennzahlen und Verkaufsbeitragsgrafik; die konkrete Kandidatenfamilie besitzt einen geprüften Freigabe-/Aktivierungs-/Rückkehrweg. Daraus folgt weder eine frei pflegbare Watchlist noch ein vollständiges Performance- oder Modellfamilienangebot.
+
+Die [Datumsrollen und lokale Originalneuauswertung aus v1.5.52](../features/HEBELTRADER_MONITORING_INTEGRATION_CONTRACT.md#indicative-product-date-semantics-v2) gehören zu den bestehenden Product-/Market-Data-Ownern. Der vorhandene Monitoringconsumer verwendet das qualifizierte Produktende; der enge XSTU-2026-Import erzeugt weder weitere Kalenderabdeckung noch einen neuen Owner. Technische Auslieferung und reale PC-Wirkung werden im Backlog getrennt nachgewiesen.
 
 <a id="planungssichten"></a>
 ## Acht dauerhafte Funktionsbereiche

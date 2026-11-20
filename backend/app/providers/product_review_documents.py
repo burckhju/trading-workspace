@@ -9,9 +9,15 @@ import httpx
 from pypdf import PdfReader
 
 from app.features.market.contracts import is_canonical_isin
-from app.features.product.domain.review_evidence import ExtractedProductFacts
+from app.features.product.domain.review_evidence import (
+    ExtractedProductFacts,
+    ProductEndBasis,
+    ProductPaymentBasis,
+    ProductPaymentQualifier,
+)
 
-PARSER_VERSION = "current-product-document-v1"
+PARSER_VERSION = "current-product-document-v2"
+REPARSEABLE_PARSER_VERSIONS = frozenset({"current-product-document-v1"})
 MAX_BYTES = 2_000_000
 
 
@@ -60,6 +66,49 @@ def _one_date(pattern: str, text: str) -> date | None:
         return None
 
 
+def _payment_date(
+    text: str, host: str
+) -> tuple[date | None, ProductPaymentBasis | None, ProductPaymentQualifier | None]:
+    """Only a date printed in the same labelled payment field, never date arithmetic."""
+    payment = None
+    basis: ProductPaymentBasis | None = None
+    qualifier: ProductPaymentQualifier | None = None
+    if host == "kid.bnpparibas.com":
+        payment = _one_date(r"\bFälligkeitstag\s*:?\s*(\d{2}\.\d{2}\.\d{4})\b", text)
+        basis = "MATURITY_PAYMENT_DAY"
+    elif host == "www.onemarkets.de":
+        payment = _one_date(
+            r"\bFinaler Zahltag(?:\s*\(Fälligkeit\))?\s*:?\s*(\d{2}\.\d{2}\.\d{4})\b",
+            text,
+        )
+        basis = "FINAL_PAYMENT_DAY"
+    else:
+        # The observed JPM original spells the qualifier "voraussichtich".
+        # Preserve its expected/latest meaning instead of promoting it to a fixed date.
+        fields = re.findall(
+            r"\bRückzahlungstermin\s*:?\s*"
+            r"((?:Der \d+\. Geschäftstag nach dem Bewertungstag,?\s*)?"
+            r"(?:voraussichtl?ich\s*)?(?:spätestens\s*)?(?:den\s*)?)"
+            r"(\d{2}\.\d{2}\.\d{4})\b",
+            text,
+            re.I,
+        )
+        if len({value for _, value in fields}) == 1:
+            payment = _one_date(r"(\d{2}\.\d{2}\.\d{4})", fields[0][1])
+            prefixes = " ".join(prefix.casefold() for prefix, _ in fields)
+            qualifier = (
+                "EXPECTED_LATEST"
+                if "spätestens" in prefixes
+                else "EXPECTED" if "voraussicht" in prefixes else "DOCUMENTED_DATE"
+            )
+        basis = "REDEMPTION_DAY"
+    return (
+        payment,
+        basis if payment is not None else None,
+        (qualifier or "DOCUMENTED_DATE") if payment is not None else None,
+    )
+
+
 def extract_kid_text(text: str, *, isin: str, source_url: str) -> ExtractedProductFacts:
     """Recognize only observed labeled fields, never investment/ratio example amounts."""
     text = " ".join(text.split())
@@ -78,6 +127,7 @@ def extract_kid_text(text: str, *, isin: str, source_url: str) -> ExtractedProdu
         "www.onemarkets.de",
     }:
         raise ValueError("PRODUCT_DOCUMENT_SOURCE_UNSUPPORTED")
+    assert host is not None
     underlyings = {
         value
         for value in re.findall(r"\b[A-Z]{2}[A-Z0-9]{9}[0-9]\b", text)
@@ -101,12 +151,15 @@ def extract_kid_text(text: str, *, isin: str, source_url: str) -> ExtractedProdu
     if re.search(r"Maßgebliche Börse\s*:?\s*Deutsche Börse Xetra", text):
         venues.add("XETR")
     maturity = None
+    end_basis: ProductEndBasis | None = None
     if host == "kid.bnpparibas.com":
         maturity = _one_date(
             r"Bewertungstag Der Ausübungstag bzw\. der (\d{2}\.\d{2}\.\d{4})", text
         )
+        end_basis = "VALUATION_OR_EXERCISE_DAY"
     elif host == "www.onemarkets.de":
         maturity = _one_date(r"Finaler Bewertungstag (\d{2}\.\d{2}\.\d{4})", text)
+        end_basis = "FINAL_VALUATION_DAY"
     # Dates expressed as month names are parsed only in the exercise-period field.
     if host in {"www.jpmorgan-key-information-documents.com", "kid.sgmarkets.com"}:
         months = {
@@ -140,7 +193,13 @@ def extract_kid_text(text: str, *, isin: str, source_url: str) -> ExtractedProdu
                 day, month, year = dates[-1]
                 ends.add(date(int(year), months[month], int(day)))
         maturity = next(iter(ends)) if len(ends) == 1 else None
-    issues = () if len(underlyings) == 1 else ("PRODUCT_DOCUMENT_UNDERLYING_AMBIGUOUS",)
+        end_basis = "EXERCISE_PERIOD_END"
+    payment, payment_basis, payment_qualifier = _payment_date(text, host)
+    issues: tuple[str, ...] = (
+        () if len(underlyings) == 1 else ("PRODUCT_DOCUMENT_UNDERLYING_AMBIGUOUS",)
+    )
+    if maturity is not None and payment is not None and payment < maturity:
+        issues += ("PRODUCT_DOCUMENT_PAYMENT_BEFORE_END",)
     return ExtractedProductFacts(
         isin=isin,
         underlying_isin=next(iter(underlyings)) if len(underlyings) == 1 else None,
@@ -149,6 +208,11 @@ def extract_kid_text(text: str, *, isin: str, source_url: str) -> ExtractedProdu
         reference_venue_mic=next(iter(venues)) if len(venues) == 1 else None,
         maturity_on=maturity,
         issues=issues,
+        product_end_on=maturity,
+        product_end_basis=end_basis if maturity is not None else None,
+        payment_on=payment,
+        payment_basis=payment_basis,
+        payment_qualifier=payment_qualifier,
     )
 
 

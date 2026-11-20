@@ -2,20 +2,27 @@
 
 import base64
 import hashlib
+import io
+import json
+import os
+from contextlib import asynccontextmanager
 from dataclasses import asdict
 from datetime import UTC, date, datetime, timedelta
+from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import AsyncMock
 from uuid import uuid4
 
 import httpx
 import pytest
 from pydantic import TypeAdapter
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 from tests.unit.backend.features.market_data.test_session_evidence_service import (
     SqlSession,
 )
 
+from app.core.config import Settings
 from app.features.market_data.domain.review_calendars import (
     NYSE_CALENDAR,
     calendar_days,
@@ -30,6 +37,7 @@ from app.features.position_monitoring.service import (
     indicative_entry_sessions as consumer,
 )
 from app.features.product.persistence.price_scale_evidence import fingerprint
+from app.tools import import_review_calendar_original as local_import
 
 NOW = datetime(2026, 11, 18, 15, tzinfo=UTC)
 WORKSPACE = uuid4()
@@ -243,3 +251,239 @@ def test_day_only_calendar_has_no_invented_open_close_or_2027_extension():
     assert rows[0] == {"session_date": "2026-01-01", "status": "CLOSED"}
     assert rows[-1] == {"session_date": "2026-12-31", "status": "CLOSED"}
     assert set(rows[1]) == {"session_date", "status"}
+
+
+@pytest.fixture
+def local_original(monkeypatch):
+    # No third-party document is redistributed in the repository or test data.
+    raw = b"%PDF-1.4\nSynthetic reviewed local calendar; not an exchange document.\n"
+    monkeypatch.setattr(owner, "XSTU_DAY_SHA256", hashlib.sha256(raw).hexdigest())
+    return raw
+
+
+def test_xstu_original_import_retains_the_existing_reviewed_source_pin():
+    assert owner.XSTU_DAY_VERSION == "xstu-dates-2026-reviewed-20261118-v1"
+    assert owner.XSTU_DAY_SHA256 == (
+        "0426c32af27ae7c040f4ec15a50c5c483051ca97ee3215976982a5c3583ee717"
+    )
+    assert owner.XSTU_DAY_URL == (
+        "https://www.boerse-stuttgart.de/media/wabiiobs/"
+        "2026-07-21_bk_handelskalender_2026_aktualisierung_20260721.pdf"
+    )
+
+
+async def test_local_preview_has_no_insert_flush_commit_or_network(stored, local_original):
+    sql, session = stored
+    result = await owner.import_xstu_day_calendar_original(
+        session, workspace_id=WORKSPACE, document=local_original, now=NOW
+    )
+    assert result["mode"] == "PREVIEW" and result["outcome"] == "READY_TO_IMPORT"
+    assert result["provider_requests"] is False
+    assert list(sql.scalars(select(ReviewCalendarModel))) == []
+    session.flush.assert_not_awaited()
+    session.commit.assert_not_awaited()
+    assert all(statement.is_select for statement in session.statements)
+
+
+async def test_local_original_import_is_private_day_only_and_reused_without_network(
+    stored, local_original
+):
+    sql, session = stored
+    result = await owner.import_xstu_day_calendar_original(
+        session, workspace_id=WORKSPACE, document=local_original, now=NOW, apply=True
+    )
+    sql.commit()
+    assert result["outcome"] == "IMPORTED"
+    row = sql.scalar(select(ReviewCalendarModel))
+    row_id, original_payload, original_fingerprint = row.id, row.payload, row.fingerprint
+    acquisition = row.payload["acquisition"]
+    assert acquisition == {
+        "method": "USER_SUPPLIED_ORIGINAL",
+        "verification": "USER_SUPPLIED_ORIGINAL_NOT_INDEPENDENT_VERIFICATION",
+        "time_basis": "FILE_RECEIVED_AT",
+        "received_at": NOW.isoformat(),
+    }
+    assert result["stored_acquisition"] == acquisition
+    assert row.payload["precision"] == "DAY_ONLY"
+    assert row.payload["verification"] == owner.VERIFICATION
+    assert len(row.payload["days"]) == 365
+    assert set(row.payload["days"][0]) == {"session_date", "status"}
+    assert row.payload["days"][-1]["session_date"] == "2026-12-31"
+    assert base64.b64decode(row.payload["sources"][0]["document_base64"]) == local_original
+    later = await owner.import_xstu_day_calendar_original(
+        session,
+        workspace_id=WORKSPACE,
+        document=local_original,
+        now=NOW + timedelta(days=1),
+        apply=True,
+    )
+    assert later["outcome"] == "ALREADY_AVAILABLE"
+    assert later["stored_acquisition"]["received_at"] == NOW.isoformat()
+    async with httpx.AsyncClient(trust_env=False) as client:
+        await owner.acquire_xstu_day_calendar(
+            session, client, workspace_id=WORKSPACE, now=NOW + timedelta(days=1)
+        )
+    retained = sql.scalar(select(ReviewCalendarModel))
+    assert retained.id == row_id
+    assert retained.payload == original_payload and retained.fingerprint == original_fingerprint
+    assert len(list(sql.scalars(select(ReviewCalendarModel)))) == 1
+
+
+@pytest.mark.parametrize("invalid", [b"", b"changed original", b"x" * (owner.MAX_BYTES + 1)])
+async def test_local_import_rejects_missing_changed_and_oversized_originals_before_writes(
+    stored, local_original, invalid
+):
+    sql, session = stored
+    with pytest.raises(ValueError, match="REVIEW_CALENDAR_SOURCE_"):
+        await owner.import_xstu_day_calendar_original(
+            session, workspace_id=WORKSPACE, document=invalid, now=NOW, apply=True
+        )
+    assert session.statements == []
+    assert list(sql.scalars(select(ReviewCalendarModel))) == []
+
+
+@pytest.mark.parametrize("corrupt", ["bytes", "days", "source", "fingerprint"])
+async def test_import_and_readiness_cannot_replace_a_corrupt_existing_original(
+    stored, local_original, corrupt
+):
+    sql, session = stored
+    await owner.import_xstu_day_calendar_original(
+        session, workspace_id=WORKSPACE, document=local_original, now=NOW, apply=True
+    )
+    row = sql.scalar(select(ReviewCalendarModel))
+    values = json.loads(json.dumps(row.payload))
+    if corrupt == "bytes":
+        values["sources"][0]["document_base64"] = base64.b64encode(b"tampered").decode()
+    elif corrupt == "days":
+        values["days"][0]["status"] = "SESSION"
+    elif corrupt == "source":
+        values["sources"][0]["url"] = "https://example.invalid/another-source"
+    row.payload = values
+    row.fingerprint = "0" * 64 if corrupt == "fingerprint" else fingerprint(values)
+    sql.commit()
+    before = (row.id, row.payload, row.fingerprint)
+    with pytest.raises(ValueError, match="STORED_INTEGRITY_FAILURE"):
+        await owner.import_xstu_day_calendar_original(
+            session, workspace_id=WORKSPACE, document=local_original, now=NOW, apply=True
+        )
+    async with httpx.AsyncClient(trust_env=False) as client:
+        with pytest.raises(ValueError, match="STORED_INTEGRITY_FAILURE"):
+            await owner.acquire_xstu_day_calendar(session, client, workspace_id=WORKSPACE, now=NOW)
+    assert (row.id, row.payload, row.fingerprint) == before
+
+
+async def test_local_import_never_relabels_existing_network_origin_or_other_workspace(
+    stored, local_original
+):
+    sql, session = stored
+    await owner.import_xstu_day_calendar_original(
+        session, workspace_id=WORKSPACE, document=local_original, now=NOW, apply=True
+    )
+    row = sql.scalar(select(ReviewCalendarModel))
+    row.payload = {key: value for key, value in row.payload.items() if key != "acquisition"}
+    row.fingerprint = fingerprint(row.payload)
+    sql.commit()
+    original = (row.id, row.payload, row.fingerprint)
+    result = await owner.import_xstu_day_calendar_original(
+        session, workspace_id=WORKSPACE, document=local_original, now=NOW, apply=True
+    )
+    assert result["stored_acquisition"] is None
+    assert (row.id, row.payload, row.fingerprint) == original
+    other = await owner.import_xstu_day_calendar_original(
+        session, workspace_id=uuid4(), document=local_original, now=NOW
+    )
+    assert other["outcome"] == "READY_TO_IMPORT"
+    assert len(list(sql.scalars(select(ReviewCalendarModel)))) == 1
+
+
+async def test_local_import_does_not_overwrite_a_future_revision(stored, local_original):
+    sql, session = stored
+    await owner.import_xstu_day_calendar_original(
+        session,
+        workspace_id=WORKSPACE,
+        document=local_original,
+        now=NOW + timedelta(minutes=1),
+        apply=True,
+    )
+    sql.commit()
+    with pytest.raises(ValueError, match="KNOWLEDGE_TIME_INVALID"):
+        await owner.import_xstu_day_calendar_original(
+            session, workspace_id=WORKSPACE, document=local_original, now=NOW, apply=True
+        )
+    assert len(list(sql.scalars(select(ReviewCalendarModel)))) == 1
+
+
+@pytest.mark.parametrize("apply", [False, True])
+async def test_local_cli_uses_configured_workspace_and_explicit_apply_only(
+    stored, local_original, tmp_path, monkeypatch, apply
+):
+    sql, session = stored
+    path = tmp_path / "synthetic-local-calendar.pdf"
+    path.write_bytes(local_original)
+
+    @asynccontextmanager
+    async def session_context():
+        yield session
+
+    database = SimpleNamespace(session_context=session_context, dispose=AsyncMock())
+    settings = Settings.model_construct(database_echo=True)
+    settings.market_data.refresh.workspace_id = WORKSPACE
+    monkeypatch.setattr(local_import, "get_settings", lambda: settings)
+
+    def database_manager(actual_settings):
+        assert actual_settings is not settings and actual_settings.database_echo is False
+        return database
+
+    monkeypatch.setattr(local_import, "DatabaseManager", database_manager)
+    monkeypatch.setattr(local_import, "datetime", SimpleNamespace(now=lambda _zone: NOW))
+    result = await local_import._run(SimpleNamespace(file=path, apply=apply))
+    assert result["outcome"] == ("IMPORTED" if apply else "READY_TO_IMPORT")
+    assert session.commit.await_count == int(apply)
+    session.rollback.assert_awaited_once()
+    database.dispose.assert_awaited_once()
+    assert settings.database_echo is True
+    statements = [str(statement) for statement in session.statements]
+    assert statements[0] == (
+        "SET TRANSACTION ISOLATION LEVEL READ COMMITTED"
+        if apply
+        else "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY"
+    )
+    rows = list(sql.scalars(select(ReviewCalendarModel)))
+    assert len(rows) == int(apply)
+    if apply:
+        assert rows[0].workspace_id == WORKSPACE
+
+
+def test_local_cli_reads_bounded_stdin_and_rejects_symlinks_and_special_files(
+    local_original, tmp_path, monkeypatch
+):
+    monkeypatch.setattr(
+        local_import.sys, "stdin", SimpleNamespace(buffer=io.BytesIO(local_original))
+    )
+    assert local_import.read_original(Path("-")) == local_original
+    original = tmp_path / "calendar.pdf"
+    original.write_bytes(local_original)
+    link = tmp_path / "link.pdf"
+    link.symlink_to(original)
+    with pytest.raises(OSError):
+        local_import.read_original(link)
+    fifo = tmp_path / "not-a-regular-file"
+    os.mkfifo(fifo)
+    with pytest.raises(ValueError, match="SOURCE_FILE_INVALID"):
+        local_import.read_original(fifo)
+
+
+def test_local_cli_defaults_to_preview_and_does_not_print_exception_payloads(monkeypatch, capsys):
+    seen = []
+
+    async def run(args):
+        seen.append(args)
+        raise RuntimeError("postgresql://private-user:private-password@private-host")
+
+    monkeypatch.setattr(local_import, "_run", run)
+    assert local_import.main(["--file", "local.pdf"]) == 1
+    assert seen[0].apply is False
+    assert json.loads(capsys.readouterr().out) == {
+        "outcome": "FAILED",
+        "problem": "REVIEW_CALENDAR_IMPORT_FAILED",
+    }

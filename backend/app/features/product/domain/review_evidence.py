@@ -13,6 +13,12 @@ from app.features.product.domain.price_scale_evidence import ProductPriceScaleBi
 
 type ReviewEvidenceStatus = Literal["AVAILABLE", "MISSING", "UNSUITABLE"]
 VERIFICATION = "ORIGINAL_DOCUMENT_EXTRACTION_NOT_HISTORICAL_VERIFICATION"
+type ProductEndBasis = Literal[
+    "VALUATION_OR_EXERCISE_DAY", "FINAL_VALUATION_DAY", "EXERCISE_PERIOD_END"
+]
+type ProductPaymentBasis = Literal["MATURITY_PAYMENT_DAY", "FINAL_PAYMENT_DAY", "REDEMPTION_DAY"]
+type ProductPaymentQualifier = Literal["DOCUMENTED_DATE", "EXPECTED", "EXPECTED_LATEST"]
+type CurrentTermsDateRole = Literal["PRODUCT_END", "PAYMENT", "PRODUCT_END_AND_PAYMENT"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -42,6 +48,12 @@ class ProductReviewEvidence:
     reference_venue_mic: str | None = None
     maturity_on: date | None = None
     verification: str = VERIFICATION
+    product_end_on: date | None = None
+    product_end_basis: ProductEndBasis | None = None
+    payment_on: date | None = None
+    payment_basis: ProductPaymentBasis | None = None
+    payment_qualifier: ProductPaymentQualifier | None = None
+    current_terms_date_role: CurrentTermsDateRole | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -65,11 +77,22 @@ class ProductDeadlineEvidence:
     listing_terms_revision_id: UUID | None = None
     exit_choice_revision_id: UUID | None = None
     product_document_source_reference: str | None = None
+    product_end_on: date | None = None
+    product_end_basis: ProductEndBasis | None = None
+    payment_on: date | None = None
+    payment_basis: ProductPaymentBasis | None = None
+    payment_qualifier: ProductPaymentQualifier | None = None
+    current_terms_date_role: CurrentTermsDateRole | None = None
 
 
 @dataclass(frozen=True, slots=True)
 class ExtractedProductFacts:
-    """Parser output, never a caller supplied trust flag or historical interval."""
+    """Extracted facts and an owner-generated terms comparison, never a trust flag.
+
+    `maturity_on` remains the review's product-end compatibility field. Payment
+    dates only explain the role of an existing terms date; they never fill an
+    absent product end or become a deadline calculation input.
+    """
 
     isin: str
     underlying_isin: str | None
@@ -80,3 +103,9 @@ class ExtractedProductFacts:
     last_trading_on: date | None = None
     last_trading_venue_mic: str | None = None
     issues: tuple[str, ...] = ()
+    product_end_on: date | None = None
+    product_end_basis: ProductEndBasis | None = None
+    payment_on: date | None = None
+    payment_basis: ProductPaymentBasis | None = None
+    payment_qualifier: ProductPaymentQualifier | None = None
+    current_terms_date_role: CurrentTermsDateRole | None = None
