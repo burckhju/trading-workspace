@@ -46,6 +46,20 @@ Gründen je Position/Regel und privatem Rohbeleg. Runtimezähler allein erfülle
 die Abnahme nicht. Die historischen Aufträge unten bleiben ausdrücklich
 historische Nachweise.
 
+**Ergänzung zur Mehrquellenidee, 20.11.2026:** Die bereitgestellten
+Portalbeispiele und aktuelle Primärquellen belegen einen konkreten weiteren
+Versorgungsansatz. Öffentliche geeignete Quellen vorrangig prüfen;
+ein kostenpflichtiger Feed ist keine Vorbedingung. Vorhandener Refresh
+liest bereits mehrere verifizierte Routen, der Positionsowner hat aber
+keine Auswahl „aktuellste“ oder „zwei identisch“ und keinen automatischen
+Wechsel bei Ausfall. [Befunde und vorgeschlagene Auswahlrichtlinie](../reviews/DEPOT_DATA_SUPPLY_2026-11-20.md#webquellen-mehrfachpruefung)
+trennen Preisart/Listing/Zeit/Herkunft, Zugangsrechte und V2-/B58-Grenzen.
+Onvista verlangt Zustimmung für automatisierte Abrufe. Neue Adapter,
+Rangfolge, Vergleichstoleranzen und Ersatzquellen sind **Analysis**, nicht
+implementiert oder freigegeben. Der bestehende nächste Diagnoseschnitt
+erfasst diese Möglichkeiten je tatsächlicher Position mit; keine zweite
+aktuelle Aufgabenliste und keine neue Provideraktivierung.
+
 > Fortschreibung 17.10.2026 auf `e9aac2bfaadeb9133a6ed07e42d1dec39836b156` / 1.5.8: Vollständiger Checkout für PB-017 Brutto-PnL und PB-019 Performance geprüft; [Quellenvertrag und V1-Entscheidungsvorschlag](../implementation/PERIOD_REALIZED_GROSS_READINESS.md) und [Owner-Trace-Qualifikation](../implementation/PERIOD_REALIZED_GROSS_QUALIFICATION.md). Die darunter erhaltene Konsolidierungsbasis beschreibt ihren damaligen Prüfstand. Die anschließende Nutzeranweisung „Ok, umsetzen“ gibt den konkreten Währungs-/Periodenvertrag zur Umsetzung frei ([ADR-S10-008](../decisions/ADR-S10-008-EXECUTION-CURRENCY-AND-PERIOD-REALIZED-GROSS.md)); die [Berichtsqualifikation](../implementation/PERIOD_REALIZED_GROSS_REPORT_QUALIFICATION.md) dokumentiert die Fortsetzung. Nur ausdrücklich ergänzte Teilfähigkeiten werden fortgeschrieben; keine fertige Fachabnahme, Veröffentlichung oder PC-Abnahme.
 
 > Fortschreibung 18.10.2026: Der Nutzer hat mit „wenn prüfungen grün mergen und für den pc verfügbar machen“ die geschützte Integration und PC-Bereitstellung des konkret gelieferten Schnitts ausdrücklich autorisiert. [Version 1.5.9 und Updateweg](../releases/V1.5.9-REALIZED-GROSS-REPORT.md) verbinden diese Freigabe mit erneuter aktueller PR-/main-CI, dem getrennt vorgezogenen Integritätsfix #249 und dem tatsächlich veröffentlichten Tag. Die Aussagen vom 17.10. über fehlende Veröffentlichungsfreigabe sind damit historisch; eine PC-Installation oder vollständige M8-Abnahme wird weiterhin nicht behauptet.
@@ -2509,6 +2523,9 @@ Matrix konkret vorbereitet, nicht automatisch aktiviert.
    ausdrücklich als gezielte lesende Ergänzung benennen.
 6. Für jede wesentliche Restlücke Beschaffungsweg, Owner, mögliche
    Regelverbesserung und erforderliche Entscheidung festhalten.
+   Geeignete öffentliche Webrouten, mehrdeutige Auswahl und fehlende
+   Abrufrechte ausdrücklich getrennt prüfen; Mehrquellenvergleich nicht
+   als Ersatz für Originalzeit oder Status qualifizieren.
    Öffentlich nur aggregierte technische Ergebnisse; private
    Positionen, Beträge, Originale und Zugangsdaten bleiben geschützt.
 

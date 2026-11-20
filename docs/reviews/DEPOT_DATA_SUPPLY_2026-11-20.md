@@ -21,6 +21,12 @@ Beschaffungskandidat; eine vollständige Eignung ist nicht nachgewiesen.
 Die gesondert freigegebene V2-Indikation bleibt bis dahin ein begrenzter
 Teilumfang. Regeln werden nicht an ein verfügbares Feld angepasst.
 
+**Ergänzung nach den Webseitenbeispielen des Nutzers:** Geeignete öffentliche
+Webquellen sind ausdrücklich vorrangig zu prüfen. Ein kostenpflichtiger Feed
+ist keine Vorbedingung. Die [Mehrquellenprüfung](#webquellen-mehrfachpruefung)
+präzisiert den vorhandenen Anschluss, Zugangshürden und die vorgeschlagene,
+noch nicht freigegebene Auswahlrichtlinie.
+
 Dieser Bericht enthält Quellenbefunde und technische Nachweise, **keine
 zweite Aufgabenstatusliste**. Arbeitsstatus und genau ein nächster Auftrag
 stehen im [Product Backlog](../planning/PRODUCT_BACKLOG.md#naechster-schnitt).
@@ -270,6 +276,87 @@ keinen vollständigen Statusvertrag. Ihre bekannten öffentlichen Prüf-ISINs
 werden **nicht** als heutige Depotpositionen bezeichnet. Ein weiterer
 öffentlicher Einzelabruf würde weder Rechte noch die belegte Feldlücke lösen.
 
+<a id="webquellen-mehrfachpruefung"></a>
+### Ergänzung: öffentliche Webquellen und Gegenprüfung
+
+Der Nutzer hat zwei Portalansichten unterschiedlicher Emittenten bereitgestellt
+und vorgeschlagen, Quellen je Neuanlage zu prüfen sowie die aktuellste oder
+zwei übereinstimmende Beobachtungen zu verwenden. Die Ansichten zeigen
+Produktidentität, getrennte Geld-/Briefwerte, Währung, Quotegeber und Uhrzeit.
+Das ist ein konkreter Ansatz für bessere Versorgung. Eine Depotzugehörigkeit
+der Beispiele wird nicht vorausgesetzt; Bilder, private Zuordnungen und
+Einzelwerte werden hier nicht veröffentlicht.
+
+Die Recherche am 20.11.2026 bestätigt die Quellenklasse, qualifiziert aber
+keinen laufenden Abruf. Gelesene Such-/Webseitenrepräsentationen sind keine
+synchronisierten Originalantworten am Consumer. „Heute“, Uhrzeit und
+Echtzeitlabel ergeben allein keinen belegten aktuellen UTC-Zeitpunkt.
+Kein Portal-API wurde nachgebaut, kein Zugang aktiviert und keine
+regelmäßige Abfrage eingerichtet.
+
+| Primärbeleg | Geprüfte Aussage | Konsequenz |
+| --- | --- | --- |
+| [Onvista: Optionsscheinansicht](https://hilfe.onvista.de/de/welche-kurse-werden-in-der-optionsschein-einzelansicht-dargestellt), [Realtime-Angebot](https://hilfe.onvista.de/de/gibt-es-auf-onvista-realtime-kurse) | Börsen-Bid/Ask und Emittentenquotierungen werden angeboten; die Kursquelle gehört zur Anzeige. | Portal, ursprünglichen Quotegeber und Listing getrennt erfassen. Keine allgemeine Pflicht zur permanenten Quotierung oder belegte OPEN-Geltung daraus ableiten. |
+| [Onvista-Bedingungen, Abschnitt 6](https://www.onvista.de/nutzungsbedingungen), [Erläuterung](https://hilfe.onvista.de/de/verstoss-gegen-nutzungsbedingungen) | Automatisierte Portalabfragen benötigen ausdrückliche Einwilligung; die Erläuterung verlangt vorherige schriftliche Zustimmung. | Dauerabruf nur nach passender Freigabe oder über einen anders berechtigten Lieferweg. Private Anzeige belegt diese Zustimmung nicht. Kein Preis für eine solche Erlaubnis festgestellt. |
+| [DZ BANK: Herkunft, Zeit und Verzögerung](https://www.dzbank-wertpapiere.de/rechtliche-hinweise) | Mehrere Lieferanten, teilweise verzögerte Daten und teilweise GMT-Zeiten; allgemeine Hinweise qualifizieren nicht jedes einzelne Feld. | Ein genau passendes DZ-Produkt war als Webrepräsentation mit Bid/Ask, Quellname, Zeiten und Dokumentlinks lesbar. Automatischer Zugangsvertrag, genaue Feldzeitsemantik und Statusgeltung ungeprüft. |
+| [HSBC-FAQ, Punkte 28–30](https://www.hsbc-zertifikate.de/home/faq/Allgemeines.html) | Kein direkter Anlegerzugriff auf historische Emittentenkurse; Verweis auf Stuttgart. Quotierung kann ausgesetzt und wieder aufgenommen werden. | Aktuelle Anzeige ersetzt keine Historie. Portale mit gemeinsamem Emittenten bleiben gegenüber dessen Ausfall abhängig. Für das konkrete HSBC-Beispiel wurde kein eigener Originalquote unabhängig gelesen; ähnliche Produkte wurden nicht substituiert. |
+
+**Vorhandener Unterbau:** Der Refresh verarbeitet aktive, verifizierte
+Mappingrouten getrennt und protokolliert deren Abrufversuche/Beobachtungen
+([refresh.py](../../backend/app/features/market_data/service/refresh.py),
+Z.630–715). Ein zusätzlicher Runner ist dafür nicht nötig. Unterstützte
+Adapter und dynamische JPM-/Morgan-Discovery sind keine Freigabe für jede
+beliebige Webseite oder jeden Emittenten.
+
+Der Positionsowner entscheidet bei genau einer geeigneten Route; mehrere
+bleiben `AMBIGUOUS_SOURCE`, eine ausgewählte Route bleibt auch bei Fehlern
+erhalten ([position_quote_source.py](../../backend/app/features/market_data/service/position_quote_source.py),
+Z.45–115, 156–239). Der allgemeine Resolver nimmt den ersten hinreichend
+frischen Bid und hat kein Verfahren „neuester aller Bids“ oder „zwei identisch“
+([quote_sources.py](../../backend/app/features/position_monitoring/service/quote_sources.py),
+Z.87–136, 300–343). Eine URL-Liste schließt diese Auswahllücke nicht.
+
+**Empfohlene Auswahllogik, noch keine beschlossene neue Regel:**
+
+1. Quellenkatalog je Anbieter/Parser/Zugangsrecht hinterlegen. Bei Neuanlage
+   unterstützte Quellen asynchron im vorhandenen Scheduler anhand der ISIN
+   entdecken und exakt verifizieren. Listing, Währung, Einheit und
+   Ursprungslieferant binden; keine Netzprüfung in der Kauftransaktion.
+2. Zuerst nach dem jeweiligen Regelvertrag geeignete Kandidaten bestimmen.
+   Innerhalb vergleichbarer Qualität und Listingbedeutung nach belegter
+   Originalzeit auswählen. Unbekannte Originalzeit bleibt unbekannt;
+   zulässige Empfangsfrische einer registrierten V2-Indikation bleibt separat.
+3. Eine qualifizierte Hauptquelle kann genügen. Weitere erlaubte Routen als
+   Ersatz und Gegenprüfung führen. Wechsel beim bestehenden Auswahlowner
+   mit Grund versionieren. Börsen-/Quotegeberwechsel bleiben sichtbar.
+4. „Zwei identisch“ ist ein Zusatzmerkmal: gleicher Kurstyp, Produkt,
+   Einheit, Währung, Listingbedeutung und vergleichbares Zeitfenster.
+   Spiegel desselben Originalfeeds können Transport-/Parserfehler aufdecken,
+   beweisen aber keine unabhängige Preisentstehung, Aktualität oder OPEN.
+   Verschiedene Plätze/Zeiten können legitime unterschiedliche Bids liefern.
+   Keine Mehrheitsentscheidung über die tatsächlich gewählte Kurs-/Exitbörse.
+5. Vergleichsfenster, Tick-/Rundungstoleranz, Rangfolge und Konfliktbehandlung
+   vor Umsetzung festlegen; hier keine neuen Grenzwerte erfinden. Bei
+   ungeklärtem maßgeblichem Konflikt keine sichere Entwarnung ableiten.
+   Bestehende V2-Sperren für schwächere/nicht vergleichbare Erholungsbelege
+   erhalten ([indicative_recovery.py](../../backend/app/features/position_monitoring/domain/indicative_recovery.py)).
+6. Bei jedem regulären Abruf Identität, Zeit und Vollständigkeit prüfen.
+   Format-/Zugangsänderungen sichtbar sperren; Wiederanlauf erst mit erneut
+   geeigneter Beobachtung. Keine tägliche manuelle Quellenpflege vorsehen.
+
+So kann V2 praktisch verbessert werden. Zwei gleiche Preise liefern keinen
+instrumentbezogenen Originalstatus mit gültiger Zeitsemantik für B58.
+Historische Kaufwährung, Anpassungen, B06-Basiswerttrades und Fristen bleiben
+eigenständige Datenaufgaben. Frühere negative Einzelproben schließen nur
+ihre konkret belegten Feldlücken aus, nicht die gesamte Quellenklasse.
+
+Arbeitsstatus und bestehender nächster Diagnoseschnitt bleiben im
+[Backlog](../planning/PRODUCT_BACKLOG.md#naechster-schnitt). Vorhandene geeignete,
+mehrdeutige und unzugängliche Quellen je tatsächlicher Position getrennt
+erfassen. Daraus den kleinsten Adapter-/Auswahlschnitt ableiten; ein bezahltes
+Paket nicht vorziehen, wenn ein erlaubter geeigneter Webweg dieselben
+benötigten Fakten liefert.
+
 ## 5. Fehlende Information → Beschaffung → Owner → Regel
 
 | Wesentliche Lücke | Konkrete Beschaffung / Entscheidung | Bestehende zuständige Komponente und nötiger Anschluss | Dadurch mögliche Prüfung |
@@ -388,7 +475,7 @@ geändert. Externe Originaldokumente und private Rohdaten werden nicht
 eingecheckt. Die historische Roadmap und die markierte historische
 Traceability bleiben unverändert.
 
-Lokale Dokumentationsprüfung: `git diff --check`, 97 neue beziehungsweise
+Lokale Dokumentationsprüfung: `git diff --check`, 104 neue beziehungsweise
 geänderte relative Dateiverweise einschließlich Ankern, geschlossene
 Codeblöcke/Details, `bash -n` und Python-Syntax des Diagnose-Snippets
 bestanden. Die archivierte Roadmap ist byteidentisch
