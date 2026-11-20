@@ -16,8 +16,9 @@ Empfohlen wird eine **kombinierte Versorgung**: vorhandene Ausführungen und
 belegte historische Währungen wiederverwenden, Produkt-/Listingfehler beim
 zuständigen Owner korrigieren, Emittentenoriginale und offizielle Kalender
 verknüpfen und einen geeigneten Bid-/Statusfeed anhand der tatsächlichen
-Depotlistings qualifizieren. ARIVA MDS ist ein konkret belegter
-Beschaffungskandidat; eine vollständige Eignung ist nicht nachgewiesen.
+Depotlistings qualifizieren. ARIVA MDS und die ergänzend untersuchte
+TAI-PAN-API sind konkrete Beschaffungskandidaten; eine vollständige Eignung
+ist nicht nachgewiesen.
 Die gesondert freigegebene V2-Indikation bleibt bis dahin ein begrenzter
 Teilumfang. Regeln werden nicht an ein verfügbares Feld angepasst.
 
@@ -26,6 +27,11 @@ Webquellen sind ausdrücklich vorrangig zu prüfen. Ein kostenpflichtiger Feed
 ist keine Vorbedingung. Die [Mehrquellenprüfung](#webquellen-mehrfachpruefung)
 präzisiert den vorhandenen Anschluss, Zugangshürden und die vorgeschlagene,
 noch nicht freigegebene Auswahlrichtlinie.
+
+Die [Quellen-, Rechte- und Kostenübersicht für neun Emittenten](ISSUER_QUOTE_SOURCE_ACCESS_2026-11-20.md)
+ergänzt konkrete direkte Portale, kostenlose Dateidienste und einen
+veröffentlichten API-Komponentenpreis. Sie beantwortet ausdrücklich, welche
+B58-Bedingungen auch bei angenommener Bid-Aktualisierungszeit offenbleiben.
 
 Dieser Bericht enthält Quellenbefunde und technische Nachweise, **keine
 zweite Aufgabenstatusliste**. Arbeitsstatus und genau ein nächster Auftrag
@@ -48,12 +54,12 @@ Instrument-/Listingabgleich voraus.
 
 | Gegenstand | Verifizierter Stand | Bedeutung |
 | --- | --- | --- |
-| Main / lokaler vollständiger Checkout | `c7db441de36297a98d47cdf28c64b4e5d9994692`, Tree `e0c62e8ce82aa8bf1d4b9f247ae05f0b12675b22`; Merge #368 am 19.11.2026, 20:16:53 MEZ | Git-Remote und GitHub-Branchobjekt am 20.11.2026 unabhängig gelesen. |
-| Softwaretag | `v1.5.52` zeigt auf denselben Commit; `VERSION=1.5.52` | Tagobjekt erneut gelesen; Veröffentlichung ist kein Installationsbeleg. |
-| Main-CI | [Backend 44596683043](https://github.com/burckhju/trading-workspace/actions/runs/44596683043), [Frontend 44596682863](https://github.com/burckhju/trading-workspace/actions/runs/44596682863), [E2E 44596682853](https://github.com/burckhju/trading-workspace/actions/runs/44596682853): `completed/success`, identischer Main-SHA | Aktuelle API-Metadaten gelesen. Testzahlen in #368 sind dortige Nachweise; Anwendungssuiten für diesen Dokumentationsauftrag nicht erneut ausgeführt. |
+| Aktueller Main / vollständiger Checkout | `6c0f9160b91bee4c6c45849c9c47d4c4b5a3bf56`, Tree `45ce0a3d95549e2946f0fc437e9c3109ca951d5a`; Merge [#369](https://github.com/burckhju/trading-workspace/pull/369) am 20.11.2026, 15:01:45 MEZ | Git-Remote erneut gelesen. Gegenüber der folgenden Produktbasis ausschließlich fünf Dokumente geändert; kein neuer PC-Datenbeleg. |
+| Produktbasis / Softwaretag | `c7db441de36297a98d47cdf28c64b4e5d9994692`, Tree `e0c62e8ce82aa8bf1d4b9f247ae05f0b12675b22`; `v1.5.52` zeigt auf diesen Commit, aktuelles `VERSION=1.5.52` | Merge #368 am 19.11.2026, 20:16:53 MEZ. Quellcode und Monitoringvertrag gegenüber aktuellem Main unverändert; Veröffentlichung ist kein Installationsbeleg. |
+| CI der Produktbasis | [Backend 44596683043](https://github.com/burckhju/trading-workspace/actions/runs/44596683043), [Frontend 44596682863](https://github.com/burckhju/trading-workspace/actions/runs/44596682863), [E2E 44596682853](https://github.com/burckhju/trading-workspace/actions/runs/44596682853): `completed/success`, identischer Produkt-SHA `c7db441…` | API-Metadaten gelesen. Testzahlen in #368 sind dortige Nachweise; keine Aussage über neue Main-CI allein aus diesen älteren Runs. Anwendungssuiten für diesen Dokumentationsauftrag nicht erneut ausgeführt. |
 | Publisher | [44601501673](https://github.com/burckhju/trading-workspace/actions/runs/44601501673), beendet 19.11.2026, 20:45:03 MEZ, `success` | Tagbezug zusätzlich unabhängig geprüft. |
 | Ausgangsbefund #367 | Nutzer-Audit vom 19.11.2026, **18:13:12 MEZ**; Zyklus **18:06:42–18:07:17 MEZ**, 35,307 s; v1.5.51 / `254f0bbd52ab42e0120d381e915dc96c1118796c`, Schema `20261118_0060`, V2 aktiv | Je sechs Bewertungen und sechs Datenprobleme bei Einstand und Frist; je null technische Positionsfehler. Sechs Frist-Datenwarnungen sind keine sechs Fristauslöser. |
-| Neuerer vollständiger PC-Befund | [Dritter Betriebsnachtrag](../planning/PRODUCT_BACKLOG.md#dritter-betriebsnachtrag-19112026--belegte-v2-datumsursache-und-v1552) und [PR #368](https://github.com/burckhju/trading-workspace/pull/368), 19.11.2026, **ohne veröffentlichte genaue Diagnoseuhrzeit** | Vier offene Positionen, vier Einstands- und vier Fristdatenprobleme; aktive V2 unter v1.5.51, abgeschlossene Läufe ohne Laufzeitfehler. Die Zahl sechs ist damit kein aktueller Inventarnenner. Die Ursache der Bestandsänderung wird nicht geraten. |
+| Neuerer vollständiger PC-Befund | [Dritter Betriebsnachtrag](../planning/PRODUCT_BACKLOG.md#dritter-betriebsnachtrag-19112026--belegte-v2-datumsursache-und-v1552) und [PR #368](https://github.com/burckhju/trading-workspace/pull/368), 19.11.2026, **ohne veröffentlichte genaue Diagnoseuhrzeit** | Vier offene Positionen, vier Einstands- und vier Fristdatenprobleme; aktive V2 unter v1.5.51; die technische Fehlerfreiheit des früheren Sechserzyklus ist gesondert belegt. Die Zahl sechs ist damit kein aktueller Inventarnenner. Die Ursache der Bestandsänderung wird nicht geraten. |
 | Nach v1.5.52 | Kein neuerer PC-Installations-/Abdeckungsbeleg in den zugänglichen Quellen | Update und automatische Neuinterpretation vorhandener Originale sind implementiert; Erfolg je Position bleibt offen. |
 | Offene Dokumentationsarbeit | [PR #369](https://github.com/burckhju/trading-workspace/pull/369), Head `84451218e525673de8728e075758b14082329e8d`, noch offen | Nicht mit Main oder einer neuen PC-Abnahme gleichgesetzt; keine fremde Branchänderung. |
 
@@ -202,7 +208,7 @@ eine erfundene Prozent- oder Vollabdeckungszusage.
 | --- | --- | --- | --- | --- |
 | **1. Bestehende Wege vervollständigen**: v1.5.52, richtige Basiswertbindung, zugelassene Routen, vorhandene KIDs, Kalenderoriginal und Exitwahl | Verbesserbare V2-Preis-/Prüfhinweise und begrenzte Fristen. Welche aktuellen Positionen geeignet werden, muss am Verbraucher gemessen werden. | Klein bis mittel; keine neue Providerbestellung. Einmalige belegte Korrekturen/Importe, bei Produkt-/Originaländerungen erneut. | Vorhandener Scheduler/Backoff und Originalerhalt; 403 wird nicht durch häufigeres Wiederholen gelöst. Historische Skala und B58 bleiben offen. | Integriert; alte Datenprobleme beobachtet, Wirkung v1.5.52 noch unbelegt. |
 | **2. Offizieller Brokerimport** des tatsächlich verwendeten Brokers; Beispiele comdirect REST oder IBKR Flex | Ausführungs-IDs, BUY/SELL, Menge/Preis, Währung und Zeit können Einstands-/Sitzungs-/Performancegrundlage schließen. Kein Ersatz für Produktbedingungen/Zielgeschichte/B58. | Mittel, Import/Reconciliation. comdirect API ohne Zusatzgebühr; tatsächlicher Broker, sonstige Konto-/Datenkosten und Rechte unbekannt. Einmaliger Backfill, dann inkrementell. | Idempotente Execution-IDs, Korrekturen/Stornos, Vollständigkeit und Token-/Sessionerneuerung nötig. comdirect-TAN-Aufwand für Dauerbetrieb offen. Kein Brokerwechsel vorgeschlagen. | Dokumentiertes Angebot, kein Kontoexport geprüft, nicht integriert. |
-| **3. Lizenzierter Vendor-/Börsenfeed**, zuerst begrenzte ARIVA-Probe XSC REALTIME bei passendem Listing | Potenziell geeignete Quotes/Historien; B58 nur mit zusätzlich belegter Originalstatuszeit/-semantik und vollständigen restlichen Inputs. Tatsächliche ISIN-/Listingdeckung offen. | Mittel bis hoch. ARIVA: individuelles Angebot/Testzugang, kein bestätigter Privatpreis. Andere MICs benötigen passendes Produkt/Recht. | Automatische Auth-Erneuerung, begrenzter Backoff, Original-/Statusjournal, Lücken-/Replay-/Reconnectvertrag und fachliche Wiederqualifikation. Aktuelles Standardschema reicht nicht. | Angebot und Schema praktisch geprüft; echte Lieferung/Integration/Betrieb offen. |
+| **3. Lizenzierter Vendor-/Börsenfeed**, begrenzte ARIVA- oder TAI-PAN-Probe bei passendem Listing | Potenziell geeignete Quotes/Historien; B58 nur mit zusätzlich belegter Originalstatuszeit/-semantik und vollständigen restlichen Inputs. Tatsächliche ISIN-/Listingdeckung offen. | Mittel bis hoch. ARIVA: individuelles Angebot, kein Privatpreis. TAI-PAN: 49 EUR/Monat API plus 29 EUR/Monat Global veröffentlicht; Gesamtpreis, USt./Nutzerklasse, Speicherung und mögliche Zusatzpakete offen. [Kostenprüfung](ISSUER_QUOTE_SOURCE_ACCESS_2026-11-20.md). | Automatische Auth-Erneuerung, begrenzter Backoff, Original-/Statusjournal, Lücken-/Replay-/Reconnectvertrag und fachliche Wiederqualifikation. Aktuelles ARIVA-Schema reicht nicht; TAI-PAN-Statusfeld nicht belegt. | ARIVA-Angebot und Schema praktisch geprüft; TAI-PAN-Angebot/SDK dokumentiert. Echte Depotlieferung/Integration/Betrieb offen. |
 | **4. Kombination — Hauptempfehlung**: vorhandene Executions, nötige Brokerergänzungen, qualifizierter Bid-/Statusfeed, Emittentenoriginale, offizielle Kalender und historische Regelbelege | Tragfähiger Gesamtweg zu B04/B57/B58 und B05/B20; später B06 mit zusätzlicher Historie und offener Verarbeitung. Einzelkomponenten qualifizieren sich nicht gegenseitig. | Höherer einmaliger Anschlussaufwand, danach wenig regelmäßige Handarbeit; Kosten des tatsächlich benötigten Vendorpakets plus gezielte Ausnahmen. | Bestehende Owner erhalten; Fristpfad bleibt bei Quoteausfall verwendbar. Historische Archive und manuelle Entscheidungen können punktuell nötig bleiben. | Bausteine integriert; vollständige Versorgung des aktuellen Depots nicht belegt. |
 | **5. Begrenzter Übergang**: vorhandene Emittentenindikationen/gettex-/Stuttgart-Delayed, KIDs, Originalkalender und dokumentierte Zuordnungen | Nur gesondertes V2, 20-Sitzungen-Erinnerung und B05_PARTIAL/B20_UNVERIFIED. Keine volle B58-/B06-Aussage. | Geringere unmittelbare Beschaffungskosten; Website-/Dateifehler, Produktausnahmen und Kalenderpflege bleiben Aufwand. Keine täglichen manuellen Kurs-/OPEN-Eingaben. | Nur innerhalb Quellenalter, unveränderter Bindungen und Kalenderdeckung. XSTU-Paket endet 2026; benötigte Folgejahre können Fristprüfung schon davor sperren. | Adapter/Regeln integriert; aktuelle brauchbare Positionszahl offen. |
 
@@ -357,6 +363,19 @@ erfassen. Daraus den kleinsten Adapter-/Auswahlschnitt ableiten; ein bezahltes
 Paket nicht vorziehen, wenn ein erlaubter geeigneter Webweg dieselben
 benötigten Fakten liefert.
 
+**Nachtrag zur Uhrzeitannahme und den neun Emittenten:** Die Uhr neben einem
+Bid ist ein plausibler Aktualisierungshinweis; ihre angenommene Bedeutung
+ist getrennt von bestätigter Originalzeit zu erhalten. Selbst unter dieser
+Annahme bleiben Datum/Zeitzone und Alter ≤900 s, Produktsitzungen zu Quote
+und Auswertung, instrumentbezogenes OPEN zur Auswertung und 20 bereits zur
+Bid-Zeit abgeschlossene Basiswertsitzungen erforderlich. Der
+[neue Quellenvergleich](ISSUER_QUOTE_SOURCE_ACCESS_2026-11-20.md)
+trennt diese B58-Bedingungen von B04-Einstandsbasis, B06 und Produktfristen.
+Er belegt gettex nur für BNP/HSBC/UniCredit aus der angefragten Gruppe,
+Stuttgart als kostenlosen Dateidownload mit offenem Dauerabrufumfang und
+TAI-PAN als kostenpflichtigen Entwicklerkandidaten. Keine Quelle wird ohne
+tatsächliche ISIN-/Listingprobe als Vollabdeckung ausgewiesen.
+
 ## 5. Fehlende Information → Beschaffung → Owner → Regel
 
 | Wesentliche Lücke | Konkrete Beschaffung / Entscheidung | Bestehende zuständige Komponente und nötiger Anschluss | Dadurch mögliche Prüfung |
@@ -475,7 +494,7 @@ geändert. Externe Originaldokumente und private Rohdaten werden nicht
 eingecheckt. Die historische Roadmap und die markierte historische
 Traceability bleiben unverändert.
 
-Lokale Dokumentationsprüfung: `git diff --check`, 104 neue beziehungsweise
+Lokale Prüfung des vorausgehenden Dokumentationsstands: `git diff --check`, 104 neue beziehungsweise
 geänderte relative Dateiverweise einschließlich Ankern, geschlossene
 Codeblöcke/Details, `bash -n` und Python-Syntax des Diagnose-Snippets
 bestanden. Die archivierte Roadmap ist byteidentisch
@@ -484,6 +503,17 @@ Traceability einschließlich historischem Abschnitt blieb byteidentisch
 unter dem additiven neuen Verweis erhalten. Der nächste-Auftrag-Anker
 ist eindeutig. Diese Prüfungen und die unabhängige fachliche/technische
 Gegenprüfung sind kein ausgeführter PC-Readback.
+
+Die ergänzende Quellen-/Kostenprüfung wurde gegen Main `6c0f916…`
+fortgeschrieben. Die zwischenzeitlich integrierte Konsolidierung aus #369
+ist erhalten; deren neue Nachweise sind von der historischen Traceability
+getrennt. Alle relativen Verweise einschließlich Ankern in den acht gegenüber
+Main geänderten Dokumenten, Codeblock-/Details-Abschlüsse, Konfliktfreiheit
+und Whitespace wurden erneut erfolgreich geprüft. Die fachliche
+Gegenprüfung bestätigt Preis-/Rechtegrenzen und die Trennung von B58/B06;
+der gettex-Bedingungslink wurde dabei auf den spezifischen Dateivertrag
+präzisiert. Neue Anwendungstests sind für diesen reinen Dokumentationsschnitt
+nicht ausgeführt worden.
 
 Zusätzlich wurde die Antwortprüfung der Vorlage isoliert gegen die tatsächlichen
 Indicative-Report-Dataclassdefinitionen geprüft: eine vollständige Antwort mit

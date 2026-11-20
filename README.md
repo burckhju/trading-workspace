@@ -4,7 +4,11 @@ Trading Workspace unterstützt einen benutzergesteuerten Tradingprozess: Referen
 
 ## Softwarestand und Planung
 
+**Nachweisfortschreibung vom 20.11.2026:** Geprüft ist Main `c7db441de36297a98d47cdf28c64b4e5d9994692`, zugleich veröffentlichter Tag `v1.5.52`. Die [aktuelle Einstiegssicht](docs/planning/PRODUCT_BACKLOG.md#aktueller-stand) trennt implementierte Teilumfänge, Fachabnahme, Auslieferung und datierten PC-Betrieb. Der [eine nächste Arbeitsauftrag](docs/planning/PRODUCT_BACKLOG.md#naechster-schnitt) betrifft die reale V2-Datenbereitschaft nach dem inzwischen integrierten und veröffentlichten [Produktdatums-Fix #368](https://github.com/burckhju/trading-workspace/pull/368).
+
 Die versionierte Software ist in [VERSION](VERSION) festgehalten. Die [Produkttermin-Auswertung v1.5.52](docs/releases/V1.5.52-PRODUCT-DATE-SEMANTICS.md) trennt belegtes Produktende und Zahlungstermin, korrigiert daraus entstandene falsche Widersprüche und wertet vorhandene Originalbelege automatisch neu aus. Ein kontrollierter privater Originalimport ergänzt den gesperrten Stuttgarter Kalenderabruf. Die [Build-Reparatur aus v1.5.51](docs/releases/V1.5.51-RELIABLE-BACKEND-BUILD.md) und der fachliche [V2-Umfang aus v1.5.50](docs/releases/V1.5.50-INDICATIVE-V2-AND-PRODUCT-DEADLINES.md) bleiben die Grundlage. Vorhandene Positionen und wirtschaftliche Belege werden weiterverwendet; echte Datenwidersprüche bleiben sichtbar. Die reale B58-Originalstatusversorgung ist weiterhin unbelegt. Ein Softwaretag bestätigt weder die Installation auf dem Nutzer-PC noch vollständige Hebeltrader-Überwachung.
+
+Der letzte belegte PC-Betrieb ist weiterhin [v1.5.51 aus PR #367](https://github.com/burckhju/trading-workspace/pull/367), mit Installation, Aktivierung und abgeschlossenem V2-Lauf. [PR #368](https://github.com/burckhju/trading-workspace/pull/368) ergänzt den damaligen privaten Ursachenbefund sowie die spätere Auslieferung des Fixes; ein PC-Update auf v1.5.52 und die danach tatsächlich wieder auswertbaren Positionen sind noch nicht nachgewiesen. GitHubs älterer „Latest Release“-Datensatz bleibt vom aktuellen Softwaretag getrennt.
 
 **Aktueller Arbeitsstatus und Abnahmematrix:** [Product Backlog](docs/planning/PRODUCT_BACKLOG.md). Es ist die einzige maßgebliche Aufgabenstatusquelle. Hier steht bewusst keine zweite vollständige Feature-Statusliste.
 
