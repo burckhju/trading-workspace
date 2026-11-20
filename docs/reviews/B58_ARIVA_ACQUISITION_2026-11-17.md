@@ -1,5 +1,7 @@
 # B58: ARIVA-Beschaffungsprüfung vom 17.11.2026
 
+> Fortschreibung 20.11.2026: Die [erneute Originalschema-Prüfung und der Szenarienvergleich](DEPOT_DATA_SUPPLY_2026-11-20.md#4-beschaffungswege-und-szenarien) belegen inzwischen ARIVA OpenAPI 0.6.26 (465.140 Bytes, SHA256 `0ec994559799e96b0012ba3cc6b9309a0bdb07c79500a3b396b932f1f1a3f1ea`, Abruf 12:50:22.630081 UTC). Status und Marketstate-Hülle enthalten weiterhin keine eigene Originalstatuszeit. Kein authentifizierter Depotpayload wurde geprüft. Der Bericht benennt zusätzlich den im heutigen Consumer notwendigen Adapter-/Zeitsemantikanschluss; ein Clientzugang allein genügt nicht. Die nachstehenden Originalbefunde vom 17.11. bleiben unverändert historische Belege. Aufgabenstatus ausschließlich im Backlog.
+
 ## Aussage und Geltungsbereich
 
 **Kein zugänglicher Pfad ist positiv B58-qualifiziert.** Ergänzung zum

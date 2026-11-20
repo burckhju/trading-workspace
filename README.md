@@ -14,6 +14,13 @@ Der letzte belegte PC-Betrieb ist weiterhin [v1.5.51 aus PR #367](https://github
 
 **Aktueller Arbeitsstatus und Abnahmematrix:** [Product Backlog](docs/planning/PRODUCT_BACKLOG.md). Es ist die einzige maßgebliche Aufgabenstatusquelle. Hier steht bewusst keine zweite vollständige Feature-Statusliste.
 
+Der [Datenversorgungsnachweis vom 20.11.2026](docs/reviews/DEPOT_DATA_SUPPLY_2026-11-20.md)
+verbindet die benötigten Regelinputs mit tatsächlichen Datenwegen,
+konkreten Fehlerursachen und Beschaffungsoptionen. Die
+[vollständige passive Depotdiagnose](docs/technical/ISSUER_MONITORING_OPERATIONS.md#lesende-depot-datenversorgungsdiagnose)
+liest vorhandene Positionen und gespeicherte Prüfgründe, ohne einen
+Kursabruf oder Regellauf auszulösen.
+
 | Orientierung | Maßgebliche Quelle |
 |---|---|
 | Ursprüngliche Zusagen M0–M11 und Lieferziele A–D | [Roadmap](docs/foundation/ROADMAP.md) |

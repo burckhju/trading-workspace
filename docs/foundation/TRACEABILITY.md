@@ -6,7 +6,8 @@
 |---|---|
 | Erstprüfung | 19.11.2026, Beginn 19:31:38 Uhr MEZ / 18:31:38 UTC, auf v1.5.51 |
 | Fortschreibung | 20.11.2026, ab 13:46:04 Uhr MEZ; Main-Delta, aktuelle CI und Veröffentlichung von #368 geprüft |
-| Geprüfter Produktcommit | `c7db441de36297a98d47cdf28c64b4e5d9994692` (`main`, veröffentlichter Tag `v1.5.52`) |
+| Geprüfter Produktcommit | `c7db441de36297a98d47cdf28c64b4e5d9994692` (veröffentlichter Tag `v1.5.52`; unveränderte Anwendung im neueren Dokument-Main) |
+| Aktueller Dokument-Main | `6c0f9160b91bee4c6c45849c9c47d4c4b5a3bf56`, Merge #369 vom 20.11.2026, 15:01:45 Uhr MEZ; reine Dokumentkonsolidierung |
 | Aufgabenstatus | Ausschließlich [Product Backlog – Abnahmematrix](../planning/PRODUCT_BACKLOG.md#abnahmematrix) |
 | Gegenstand | Soll-Ist-Nachweise und deren zeitliche Geltung; keine neue fachliche Abnahme oder Betriebsänderung |
 
@@ -44,6 +45,10 @@ Die unveränderten Funktionsbefunde der Erstprüfung und das gezielt geprüfte M
 Prüfmethoden, Zugriffsgrenzen und die Prüfung dieses Dokumentdiffs stehen im [Nachweisregister](../planning/PRODUCT_BACKLOG.md#nachweisregister). Der Zugriff umfasst einen vollständigen Git-Checkout und GitHub-Nachweise, keinen privaten PC-/Datenbankzugang. Die unten erhaltenen historischen Accepted-, Released- und RC-Aussagen gelten unverändert für ihre damaligen Umfänge.
 
 Die [historische Erstprüfung auf v1.5.51](../planning/PRODUCT_BACKLOG.md#historischer-audit-20261119) und die [alte #369-PR-CI auf Head 84451218… / Testmerge 483e468…](../planning/PRODUCT_BACKLOG.md#nachweisregister) behalten ihre damaligen Commitbindungen. Für den fortgeschriebenen Dokumentations-Head sind eigene PR-Prüfungen erforderlich; der alte grüne Lauf wird nicht übertragen.
+
+## Datenversorgung für die Depotüberwachung
+
+> Nachweisfortschreibung 20.11.2026: [Datenversorgung für die Depotüberwachung](../reviews/DEPOT_DATA_SUPPLY_2026-11-20.md) verbindet ursprüngliche Projektziele und später freigegebene Regeln mit konkreten Pflichtfeldern, bestehenden Owner-/Consumerketten, aktuellen Anbieterprimärquellen und beobachteten PC-Befunden. Geprüfte Software-/Tagbasis: `c7db441de36297a98d47cdf28c64b4e5d9994692` / v1.5.52; neuer Dokument-Main `6c0f9160b91bee4c6c45849c9c47d4c4b5a3bf56` aus #369 enthält keine Anwendungsänderung und keinen neuen PC-Betriebsbeleg. Der neuere Vierer-Readback unter v1.5.51 ergänzt den früheren Sechserzyklus; v1.5.52-Wirkung und aktuelle positionsbezogene Abdeckung bleiben unbelegt. Originalstatus-, historische Skalen-/Trade- und Fristlücken sowie B06-Verarbeitungsreste sind getrennt zugeordnet. [Lesende Betriebsdiagnose](../technical/ISSUER_MONITORING_OPERATIONS.md#lesende-depot-datenversorgungsdiagnose); Arbeitsstatus und genau ein nächster Auftrag ausschließlich im [Product Backlog](../planning/PRODUCT_BACKLOG.md#naechster-schnitt). Keine neue Regel-, Provider- oder Betriebsfreigabe; historischer Bestand unverändert.
 
 ## Historische Fortschreibungen vom 13.–27.10.2026
 
