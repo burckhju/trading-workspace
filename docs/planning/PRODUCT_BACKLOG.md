@@ -4,7 +4,7 @@
 
 | Feld | Wert |
 |---|---|
-| Revision | Nachweis- und Statuskonsolidierung 2026-11-19; Fortschreibung auf v1.5.52 am 2026-11-20 |
+| Revision | Nachweis- und Statuskonsolidierung 2026-11-19; Fortschreibung auf v1.5.52 und Lieferverweis v1.5.53 am 2026-11-20 |
 | Erstprüfung | 19.11.2026, 19:31:38 Uhr MEZ (Europe/Berlin), auf `254f0bbd52ab42e0120d381e915dc96c1118796c` / `v1.5.51` |
 | Fortschreibung | 20.11.2026, Beginn 13:46:04 Uhr MEZ; Main-/Release-Delta, tatsächliche CI, PR- und Betriebsnachweise erneut geprüft |
 | Geprüfter Produktstand | `main` / `c7db441de36297a98d47cdf28c64b4e5d9994692` / veröffentlichter Softwaretag `v1.5.52` |
@@ -15,6 +15,8 @@
 ## Aktuelle Einstiegssicht — 20.11.2026
 
 **Der Gesamtbacklog bleibt offen.** Alle ursprünglichen M0–M11-Zusagen sind weiterhin vollständig [zugeordnet](#originalzuordnung). Der geprüfte Main und der veröffentlichte Tag `v1.5.52` zeigen auf `c7db441de36297a98d47cdf28c64b4e5d9994692`. [PR #368](https://github.com/burckhju/trading-workspace/pull/368) wurde am **19.11.2026 um 20:16:54 Uhr MEZ** integriert; das Publisherlog belegt die Veröffentlichung um **20:45:01 Uhr MEZ**. Der separate GitHub-„Latest Release“-Datensatz zeigt weiterhin auf `v1.0.0-product-selection`; er ist nicht der aktuelle Softwaretag ([Nachweisregister](#nachweisregister)).
+
+**PC-Lieferumfang dieser Planung:** [PR #369](https://github.com/burckhju/trading-workspace/pull/369) wurde am **20.11.2026 um 15:01:46 Uhr MEZ** als `6c0f9160b91bee4c6c45849c9c47d4c4b5a3bf56` gemergt. Der reine [Bereitstellungsrelease v1.5.53](../releases/V1.5.53-PLANNING-PC-DELIVERY.md) macht diesen Dokumentstand zusammen mit dem unveränderten Produktumfang v1.5.52 über den vorhandenen PC-Updateweg lieferbar. Die konkreten PR-/Main-Prüfungen und der endgültige unveränderliche Tag-Commit werden im Release-PR protokolliert. Dieser Lieferverweis ergänzt den datierten Audit; er ändert keine Teilfähigkeitsbewertung und belegt keine PC-Installation oder fachliche Wirkung. Der [eine nächste Fachauftrag](#naechster-schnitt) gilt auch nach einem Update auf den einschließenden Folgerelease.
 
 **Zusätzlich abgeschlossen seit der Erstprüfung:** Die [Trennung von Produktende und Zahlungstag, erneute Auswertung gespeicherter Originale und der enge lokale XSTU-2026-Originalimport](#market-data-evidence) sind implementiert, qualifiziert, integriert und mit v1.5.52 ausgeliefert. Die früheren Lieferreste für #368 sind damit geschlossen. Ein bereitstehender Importweg belegt keinen tatsächlich ausgeführten Import; der Datums-Fix belegt noch keine Wirkung auf dem privaten Bestand.
 
