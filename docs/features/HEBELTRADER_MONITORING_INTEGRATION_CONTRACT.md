@@ -1,5 +1,15 @@
 # Hebeltrader-Positionsmeldungen: Integrationsvertrag zu #207
 
+**Datenversorgungsabgleich 20.11.2026:** Der
+[regelbezogene Datenvertrag und Quellen-/Consumerbefund](../reviews/DEPOT_DATA_SUPPLY_2026-11-20.md#2-fachlicher-datenvertrag)
+fasst die hier geltenden Schwellen und Belegpflichten auf Main
+`c7db441de36297a98d47cdf28c64b4e5d9994692` / v1.5.52 zusammen.
+Er trennt B04/B57/B58, die freigegebene V2-Indikation, Produktfristen
+und B06 sowie Datenbeschaffung von noch fehlender Verarbeitung.
+Die folgenden Regeltexte bleiben unverändert; dieser Verweis erteilt
+keine neue Freigabe. Aktueller Arbeitsstatus und nächster Auftrag
+ausschließlich im [Backlog](../planning/PRODUCT_BACKLOG.md#naechster-schnitt).
+
 **Additiver Stand 16.11.2026:** Der historische F207-1-Abgleich bleibt erhalten.
 Der [Evidenzschnitt F207-4](#f207-4-evidence-read) wurde mit
 [PR #344](https://github.com/burckhju/trading-workspace/pull/344) auf Main

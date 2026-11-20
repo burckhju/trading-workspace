@@ -9,6 +9,43 @@
 | Funktion | Einzige maßgebliche Quelle des aktuellen Arbeitsstatus |
 | Prüfgrenze | Statische Quellen- und CI-Prüfung; kein vollständiger lokaler Checkout, keine neue Fach- oder Liveabnahme |
 
+<a id="datenversorgung-20261120"></a>
+## Aktuelle Fortschreibung — Datenversorgung, 20.11.2026
+
+**Priorität dieses Auftrags ist die geeignete Versorgung der tatsächlichen
+Depotpositionen.** Der vollständige Checkout und die aktuellen GitHub-Referenzen
+wurden auf Main `c7db441de36297a98d47cdf28c64b4e5d9994692` /
+`v1.5.52` geprüft. Die obigen Metadaten beschreiben weiterhin die
+historische Konsolidierungsbasis; neue Aussagen sind an diesen Prüfstand
+gebunden. Der [Datenversorgungsnachweis](../reviews/DEPOT_DATA_SUPPLY_2026-11-20.md)
+enthält Datenvertrag, vollständige Consumerketten, Fehlerklassen, aktuelle
+Primärquellen und fünf Versorgungsszenarien. Er führt keinen Aufgabenstatus.
+
+**Tatsächlicher Fortschritt:** Anforderungen und reale Beschaffungswege sind
+bis zum Verbraucher abgeglichen. Der neuere vollständige Betriebsbeleg vom
+19.11.2026 umfasst vier offene Positionen unter v1.5.51/V2, jeweils vier
+Einstands-/Fristdatenprobleme ohne Laufzeitfehler. Er ergänzt den zeitlich
+genau belegten früheren Sechserzyklus aus #367. Zahlungstag/Produktende und
+Kalender-HTTP-403 sind konkrete Ursachen; die Datumsreparatur und ein enger
+Kalenderoriginalimport sind mit v1.5.52 ausgeliefert. Die Wirkung auf dem
+PC ist noch nicht belegt.
+
+**Verbleibend:** aktuelle positionsgenaue Zuordnung der Fehler, fehlende
+Kursrouten/Stückmaßstäbe, eine falsche Basiswertbindung, historische
+Währungs-/Skalen-/Tradebelege, Exitwahl/letzter Handelstag/Kalenderjahre und
+Produktschluss; strenge B58-Originalstatusversorgung sowie B06-/F207-2- und
+F207-5-Reste. Der tatsächliche Broker und ein berechtigter geeigneter
+Feedzugang sind nicht festgestellt. ARIVA-Schema 0.6.26 wurde tatsächlich
+gelesen; eigene Statuszeit weiterhin nicht geliefert. Keine Beschaffung,
+Providerfreigabe, Regeländerung oder aktuelle Depotabnahme erfolgte.
+
+Die maßgeblichen Teilfähigkeitsfelder unten sind entsprechend fortgeschrieben.
+**Genau nächster Auftrag:** [vollständige lesende Verbraucherdiagnose](#naechster-schnitt)
+mit automatischer Inventur über den vorhandenen Coverage-Reader, konkreten
+Gründen je Position/Regel und privatem Rohbeleg. Runtimezähler allein erfüllen
+die Abnahme nicht. Die historischen Aufträge unten bleiben ausdrücklich
+historische Nachweise.
+
 > Fortschreibung 17.10.2026 auf `e9aac2bfaadeb9133a6ed07e42d1dec39836b156` / 1.5.8: Vollständiger Checkout für PB-017 Brutto-PnL und PB-019 Performance geprüft; [Quellenvertrag und V1-Entscheidungsvorschlag](../implementation/PERIOD_REALIZED_GROSS_READINESS.md) und [Owner-Trace-Qualifikation](../implementation/PERIOD_REALIZED_GROSS_QUALIFICATION.md). Die darunter erhaltene Konsolidierungsbasis beschreibt ihren damaligen Prüfstand. Die anschließende Nutzeranweisung „Ok, umsetzen“ gibt den konkreten Währungs-/Periodenvertrag zur Umsetzung frei ([ADR-S10-008](../decisions/ADR-S10-008-EXECUTION-CURRENCY-AND-PERIOD-REALIZED-GROSS.md)); die [Berichtsqualifikation](../implementation/PERIOD_REALIZED_GROSS_REPORT_QUALIFICATION.md) dokumentiert die Fortsetzung. Nur ausdrücklich ergänzte Teilfähigkeiten werden fortgeschrieben; keine fertige Fachabnahme, Veröffentlichung oder PC-Abnahme.
 
 > Fortschreibung 18.10.2026: Der Nutzer hat mit „wenn prüfungen grün mergen und für den pc verfügbar machen“ die geschützte Integration und PC-Bereitstellung des konkret gelieferten Schnitts ausdrücklich autorisiert. [Version 1.5.9 und Updateweg](../releases/V1.5.9-REALIZED-GROSS-REPORT.md) verbinden diese Freigabe mit erneuter aktueller PR-/main-CI, dem getrennt vorgezogenen Integritätsfix #249 und dem tatsächlich veröffentlichten Tag. Die Aussagen vom 17.10. über fehlende Veröffentlichungsfreigabe sind damit historisch; eine PC-Installation oder vollständige M8-Abnahme wird weiterhin nicht behauptet.
@@ -25,7 +62,7 @@ Für jeden Beleg gilt der oben genannte Basiscommit, sofern explizit ein histori
 
 ## Orientierung und Priorisierung
 
-Die [acht dauerhaften Planungssichten und drei Querschnittsthemen](MODULE_AND_FEATURE_CATALOG.md#planungssichten) sind keine neuen Paketgrenzen. Die [Lieferziele A–D](../foundation/ROADMAP.md#lieferziele) sind keine starre Reihenfolge. Fokus ist **B: Abschluss/Journal/Lernen** und **C: belastbare Performance**; belegte akute Daten- oder Betriebssicherheitsprobleme in A dürfen vorgezogen werden. D verwendet bestehende Kandidaten-Governance statt Neubau. Governance und Betrieb begleiten alle Ziele.
+Die [acht dauerhaften Planungssichten und drei Querschnittsthemen](MODULE_AND_FEATURE_CATALOG.md#planungssichten) sind keine neuen Paketgrenzen. Die [Lieferziele A–D](../foundation/ROADMAP.md#lieferziele) sind keine starre Reihenfolge. **Aktuelle Priorität vom 20.11.2026: Datenversorgung für verlässliche Depotüberwachung in A.** Der frühere Fokus **B: Abschluss/Journal/Lernen** und **C: belastbare Performance** bleibt als ursprüngliches Lieferziel erhalten; die dortigen Daten- und Definitionslücken sind im neuen Versorgungsnachweis ausdrücklich ausgewiesen. D verwendet bestehende Kandidaten-Governance statt Neubau. Governance und Betrieb begleiten alle Ziele.
 
 Die bisherigen Prioritätsklassen P0–P3 bleiben verwendbar; P0 steht für zwingende Voraussetzungen/Sicherheit, P1 für den nächsten umsetzbaren Nutzen. Die explizit markierten B-/C-Reste erhalten P1 als Planungsfokus; das behauptet keine erfüllte Definition of Ready. Es gibt keine neue durchnummerierte Feature- oder Sprintfolge.
 
@@ -1834,8 +1871,8 @@ Nachweis vollständiger realer Währungsabdeckung oder einer neuen Auslieferung.
 | Test / Commit | Historische Basis-CI bleibt erhalten. C-Vorherstand auf `3d47732665c8b66984923d88a65cf99e74d96791` (Produktionsbasis `5e9ede2`, Dokumentationshead `bade0e33`): 322 gezielte Tests bestanden, davon 31 neue Charakterisierungen; originale Kurs-/Abrufzeiten, Fehlerreuse und alte lokale Dateien geprüft. Nach der Nutzerentscheidung für Variante 2 wurden dieselben Datenqualitätsgrenzen am neuen Prüfcommit `187c16b63e0d4dc16b2204f80aec4533c34173e6` erneut qualifiziert; gezielte Gesamtsuite: `344 bestanden, 0 Fehler/Skips/Deselektionen`. [Getrennte Nachweise und Grenzen](../reviews/MARKET_DATA_SOURCE_MODE_PACING_2026-10-21.md). Aktuelle Diagnose-Liveabnahme / Quoten / Providerrechte auf JMBbot weiterhin nicht geprüft. |
 | Fachliche Abnahme | Keine eigenständige fachliche Abnahme für diesen vollständigen Zuschnitt verifiziert. |
 | Software-Auslieferung | Kein gesonderter Release-Nachweis für den vollständigen Zuschnitt verifiziert; ein allgemeiner Softwaretag ersetzt ihn nicht. |
-| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
-| Restarbeit / nächste Abhängigkeit | Qualifizierte Daten-/Readinesszustände für konkrete tägliche Aufgaben und Positionen belegen. Die technische Quellenmodusprüfung ersetzt keine reale Coverage-/Rechteabnahme. **Nächste Abhängigkeit:** Identifizierte Zielinstallation, vorhandene Rechte und unveränderte erlaubte Abrufwege. |
+| Betriebsnachweis | Neuerer vollständiger Nutzerbeleg vom 19.11.2026: vier offene Positionen unter v1.5.51/V2, je vier Einstands-/Fristdatenprobleme. Konkrete Datumsverarbeitung und Kalender-HTTP-403 belegt; vollständige Einzelzuordnung und aktueller Zustand nicht zugänglich. [Versorgungsnachweis vom 20.11.2026](../reviews/DEPOT_DATA_SUPPLY_2026-11-20.md). |
+| Restarbeit / nächste Abhängigkeit | Tatsächliche Feld-/Quellen-/Identitäts-/Zeitqualität je Position und Regel erheben; V2-Indikation von strenger B04/B57/B58-Eignung trennen. ARIVA-Schema 0.6.26 ist praktisch gelesen, aber ohne eigene Statuszeit und ohne Depotlieferung. **Nächste Abhängigkeit:** [vollständige lesende Verbraucherdiagnose](#naechster-schnitt); anschließend gezielte Quellen-/Ownerkorrektur beziehungsweise konkret begrenzte Evaluation. |
 | Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
 
 </details>
@@ -1854,8 +1891,8 @@ Nachweis vollständiger realer Währungsabdeckung oder einer neuen Auslieferung.
 | Test / Commit | Historischer C-Stand: `3d47732665c8b66984923d88a65cf99e74d96791`, Tree `1b8dd1badb32e9a9d017ffd44656065f1021ac4b`, Dokumentationshead `bade0e33`: 322 gezielte Tests und vollständige Ruff-/Black-/mypy-Prüfungen bestanden; damals 14 s Zusatzpause in allen drei Modi, Public 2 HTTP vs. Snapshot 1 Zugriff, Konkurrenz/Cancellation geprüft. Neuer Prüfcommit `187c16b63e0d4dc16b2204f80aec4533c34173e6`, gezielte Gesamtsuite `344 bestanden, 0 Fehler/Skips/Deselektionen`. Identische neue Drei-Modus-Matrix vor/nach Änderung: vorher 2 fehlgeschlagen/1 bestanden, nachher 3 bestanden, jeweils 3 bewusst deselektiert; keine Gesamtsuitenbehauptung daraus. [Nachtrag, A01–A14 und Grenzen](../reviews/MARKET_DATA_SOURCE_MODE_PACING_2026-10-21.md#nachtrag-variante-2-entschieden). Keine reale Schedulerbeobachtung. |
 | Fachliche Abnahme | Die Nutzeranweisung „wie vorgeschlagen gezielt ändern“ entscheidet Variante 2 und beendet die offene Frage zur zusätzlichen Snapshot-Schedulerpause. Public-Pacing, Rechte und Clientgrenzen bleiben unverändert. Damit ist diese begrenzte Semantik entschieden; eine eigenständige fachliche Abnahme des vollständigen Zuschnitts ist weiterhin nicht verifiziert. |
 | Software-Auslieferung | Nutzerfreigabe für Merge und PC-Bereitstellung bei grünen Prüfungen liegt vor. Der begrenzte Quellenmodus-Schnitt wird als [v1.5.12](../releases/V1.5.12-SNAPSHOT-QUOTE-PACING.md) vorbereitet; finale PR-/Main-Prüfungen und tatsächlicher Tag werden in [PR #271](https://github.com/burckhju/trading-workspace/pull/271) gebunden. Dies ist keine Abnahme des vollständigen Zuschnitts oder Nachweis der PC-Installation. |
-| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
-| Restarbeit / nächste Abhängigkeit | Begrenzte Umsetzung und ergänzte Cache-/Fehler-/Job-Fälligkeitstests sind am neuen Code-/Testbestand nachgewiesen; finale PR-Gates headgebunden im PR dokumentieren und Integration getrennt behandeln. Der [Entscheidungsnachtrag](../reviews/MARKET_DATA_SOURCE_MODE_PACING_2026-10-21.md#nachtrag-variante-2-entschieden) hält auch mögliche spätere Erholung bei unveränderten Jobintervallen fest; keine neue Recovery-Retrylogik. Technical Review bleibt bis zur Integration; aktuelle Betriebszustände auf JMBbot weiterhin separat prüfen. |
+| Betriebsnachweis | PR #367 belegt am 19.11.2026 einen abgeschlossenen V2-Zyklus 18:06:42–18:07:17 MEZ ohne technische Positionsfehler; spätere vollständige Diagnose weiterhin fachliche Datenprobleme. Das belegt weder geeignete Quotes noch vollständige EOD-/Kalenderversorgung. Aktuelle Scheduler-/Quellenlage nach v1.5.52 offen; [Versorgungsnachweis vom 20.11.2026](../reviews/DEPOT_DATA_SUPPLY_2026-11-20.md). |
+| Restarbeit / nächste Abhängigkeit | Bestehende Pacing-/Backoff-/Recoverylogik verwenden; aktuelle Abrufgründe mit tatsächlichem gespeichertem Consumerbestand verbinden. Prozesslokale Diagnose, erhaltene Altkurse und dauerhaft gespeicherte Originale getrennt beurteilen. **Nächste Abhängigkeit:** [vollständige lesende Verbraucherdiagnose](#naechster-schnitt). Kein zusätzlicher Runner oder kürzeres Intervall als Ersatz für fehlende Originalfelder. |
 | Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
 
 **Aktueller Integrationsabgleich 28.10.2026:** [PR #295](https://github.com/burckhju/trading-workspace/pull/295)
@@ -1885,8 +1922,8 @@ historische Nachweise, keine erneute Implementierungsabhängigkeit.
 | Test / Commit | Aktuelle CI enthält erfolgreiche PostgreSQL-Migrationsschritte; konkrete neue Tabellen/Constraints hier nicht vollständig eigenständig gelesen oder lokal geprüft. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
 | Fachliche Abnahme | Keine eigenständige fachliche Abnahme für diesen vollständigen Zuschnitt verifiziert. |
 | Software-Auslieferung | Version 1.5.4 laut Release-Notiz; in Softwarebasis 1.5.5 enthalten, aktuelle Installation separat. |
-| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
-| Restarbeit / nächste Abhängigkeit | Aufbewahrung, wachsenden Speicher und tatsächliche vorhandene Belege auf der Zielinstallation prüfen; Bericht nicht mit Livebeobachtung verwechseln. **Nächste Abhängigkeit:** Bestehende erlaubte Datenabrufe / manuelle Belegerfassung; unveränderte Providerzustimmungen. |
+| Betriebsnachweis | Im jüngsten v1.5.51-Nutzerbeleg lagen Originalproduktbytes vor; deren falscher Datumsvergleich ist belegt. v1.5.52 repariert deren Auswertung und bietet engen XSTU-2026-Originalimport. Aktuelle Vollständigkeit, historische Skalen-/Währungsbelege und Wirkung auf dem PC bleiben offen; [Versorgungsnachweis vom 20.11.2026](../reviews/DEPOT_DATA_SUPPLY_2026-11-20.md). |
+| Restarbeit / nächste Abhängigkeit | Aktuelle gespeicherte Originalrevisionen/Bindungen und Consumergründe positionsbezogen prüfen. Historische Produktmaßstäbe, Anpassungen, Original-BID-Seitenzeit, Basiswertkalender und historische Basiswerttrades sind eigenständige Belege. Fünf-Minuten-Quotesamples sind keine vollständige Historie. **Nächste Abhängigkeit:** [vollständige lesende Verbraucherdiagnose](#naechster-schnitt); keine Neuerfassung vorhandener Käufe oder heutige Werte als historische Ergänzung. |
 | Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
 
 </details>
@@ -1925,8 +1962,8 @@ historische Nachweise, keine erneute Implementierungsabhängigkeit.
 | Test / Commit | F207-4-Nachweise in [PR #344](https://github.com/burckhju/trading-workspace/pull/344), integriert auf `e6738c291b0701d00cce20a370aba7496a9f24d0`; F207-2-Nachweise in [PR #345](https://github.com/burckhju/trading-workspace/pull/345), integriert auf `6efa74d3bd0978c7ef8975fdc9c506de7a0aa348`; F207-3-Vergleichsbeleg-Nachweise in [PR #346](https://github.com/burckhju/trading-workspace/pull/346), integriert auf `1d63d001216ef6f9294697f54707f3ae89a58ac4`. Der Sitzungsevidenz-Schnitt ergänzt gezielte Original-/Scope-/Revisions-/Tag-0-/Zeitpräzisions-/Schlussgrenzen-/Read-only-/UI-Regressionen sowie fünf echte PostgreSQL-Fälle in geschützten synthetischen Wegwerfdatenbanken. Der Original-Geldkurs-Anschluss ergänzt gezielte Originalseiten-/Legacy-Hash-/900-Sekunden-/BID-vor-20.-Schluss-/Währungs-/Scope-/Read-only-/UI-Regressionen und einen weiteren echten PostgreSQL-Fall mit BUY, bestätigter Währung/Quellenauswahl, gespeichertem BID, zwei Originalkalenderimporten und tatsächlichem Positions-GET. Der Produktmaßstabsschnitt ergänzt Original-/Hash-/Revisions-/Scope-/Terms-/Zeitraum-/Date-only-/Teilverkauf-/Nachkauf-/Korrektur- und Consumerfälle sowie echte PostgreSQL-Prüfungen von Migration, Konkurrenz, Originalerhaltung, tatsächlichen BUY/SELL-Korrekturen und schreibfreiem GET. Der Originalstatus-Anschluss ergänzt strikte Originalzeit-/Scope-/Quellhüllen-/Legacy-Hash-/Punktvergleichs-/Read-only-/UI-Fälle sowie reale PostgreSQL-Retention mit späterem CLOSED ohne geeigneten BID: älterer OPEN bleibt ausdrücklich unqualifiziert. Reguläre Ergebnisse bleiben im zugehörigen PR an tatsächlichen Head und Testmerge gebunden; lokale Testsammlung, übersprungene Prüfungen und PC-Betrieb sind kein Erfolg. Neue gezielte B04-Fälle prüfen 19/20 und BID-Zeit, 900/901, Seitenzeit/Währung/Maßstab, Episodenfolge und Korrekturen. Echte PostgreSQL-Tests verbinden abgefangenen Frankfurt-Originaleingang über Retention/Status mit Ledger, Alert und Outbox; weitere Fälle prüfen vorhandenen Runner, Parallelität/Neustart, einen Ein-Verbindungs-Pool und Vollverkauf während ausstehender Zustellung. Die tatsächliche Ausführung und alle regulären Gate-Ergebnisse sind am finalen Head/Testmerge in [#352](https://github.com/burckhju/trading-workspace/pull/352) und am gemeinsamen #353-Stand nachgewiesen. Backend: 5.460 bestanden, 0 Skips, 89,70 % Coverage; Smoke: 206 bestanden und 5 Skips, die fünf separaten Owner-Journeys tatsächlich bestanden. Spätere Release-Main-Gates bleiben eigene Nachweise. B05 ergänzt 47 synthetische Domainfälle für 19/20/21 Sitzungen, früheren Termin, ausgeschlossenen Termintag, Vorwarnung, Sonderzeiten, DST, Jahreswechsel, Revisionen, Wissenzeit und exakte Scopebindung; Ergebnisse bleiben im eigenen PR an Head/Tree gebunden. |
 | Fachliche Abnahme | Keine eigenständige fachliche Abnahme für diesen vollständigen Zuschnitt verifiziert. |
 | Software-Auslieferung | Liefernachtrag 17.11.2026: #348 → #349 → #350 → #351 → #352 → #353 sind geordnet auf Main `02eb6e1ca87dd8470ff8f17bf59dbfa6f98fc715` integriert; dessen Tree entspricht exakt dem geprüften #353-Stand. Die neue ausdrückliche Freigabe umfasst die gemeinsame versionierte Bereitstellung mit den bereits integrierten Main-Erweiterungen. Umfang, Releasegates und kontrollierter PC-Updateweg stehen in der [Release-Notiz zu v1.5.47](../releases/V1.5.47-HEBELTRADER-LOSS-PATH.md). Veröffentlichung erst durch den unveränderlichen Tag am qualifizierten Releasecommit. Keine Aktivierung einer B58-Quelle, der vollständigen Baseline oder des B05-Fristbetriebs. Die tatsächliche Installation auf JMBbot bleibt ein gesonderter Betriebsnachweis. |
-| Betriebsnachweis | Nicht geprüft: aktueller Betrieb auf JMBbot. |
-| Restarbeit / nächste Abhängigkeit | Verbleibendes **F207-2:** historische dokumentierte Stops, höherer vergleichbarer Schutzboden, Bekanntgabe und spätere Überwachung sowie explizite Korrekturklärung. **F207-3:** verifizierte historische Beschaffung/Bindungs-/Skalen-/Anpassungsevidenz, verifizierte produktbezogene Termine und feste Ausstiegslistingbindung, B05-Ereignis-/Fristbetrieb einschließlich produktspezifischer Schlussgrenze, Z1-Zählung und historische Trades zum Kauf. Die reine B05-Rückwärtszählung ist gesondert vorbereitet; die realen Originalkalender sind erreichbar, die aktuelle persönliche Product-Terminqualifikation bleibt offen. Für B04/B58 bleiben qualifizierte tatsächliche Quellenbeschaffung und belegte zeitliche Statussemantik zu schließen. Der preisunabhängige Statusowner (#351), der anschließende B04/B57-Regelpfad (#352) und der gesonderte B05-Rechenschnitt (#353) sind im beschriebenen Umfang in Main integriert. Der [reale Quellenbefund](../reviews/B58_SOURCE_QUALIFICATION_2026-11-17.md) nennt den tatsächlich geprüften ungeeigneten Frankfurt-Pfad und die präzise fehlende Lieferung. Der neue Originalstatus-Transport ist keine verifizierte Live-Versorgung; der neue Produktmaßstabsvertrag deckt nur tatsächlich dokumentierte unveränderte Originaleinheiten ab. Verifizierte Anpassungsfaktoren und ihre wirtschaftliche Anwendung bleiben offen; Originalseitenzeit, historische Währung, exakte 900-Sekunden-Grenze und dokumentierte 20. Sitzung zur BID-Zeit sind im neuen passiven Read getrennt prüfbar. Andere/ältere Quellen erhalten keine abgeleitete Original-BID-Zeit. Persönliche Einstandsprüfung und B04/B57-Verlustepisode sind im beschriebenen Teilumfang implementiert; die produktive Quellenqualifikation und Freigabe bleiben davor verbindlich. Dokumentierte Kalenderintervalle sind keine volle B58-Freigabe. **F207-5:** gemeinsame Meldungsdarstellung, gesehen/abgelehnt/ausgeführt, globale Versionierung, vollständiger Betriebsvertrag und getrennter PC-Betriebsnachweis. Der neue B04-Episoden-/Zustellanteil erfüllt diesen Gesamtumfang nicht. **Auslieferung:** Die neue ausdrückliche Freigabe umfasst Integration und versionierte PC-Bereitstellung. Der gemeinsame Versionsschnitt bereitet 1.5.47 mit regulären Releasegates und kontrolliertem Installationsweg vor; [Release-Notiz](../releases/V1.5.47-HEBELTRADER-LOSS-PATH.md). Tag-/Commitbezug und tatsächlicher PC-Betrieb werden getrennt belegt. `HEBELTRADER_SCOPE=DISABLED`, leere Produktivregistry und `B05_NOT_ACTIVATED` bleiben erhalten; bestehender Tag v1.5.46 wird nicht verschoben. Der [Integrationsvertrag zu #207](../features/HEBELTRADER_MONITORING_INTEGRATION_CONTRACT.md) erhält B01–B58 einschließlich Ausschluss B08 und eigenständigem B07; historische Einordnung und übrige Zusagen bleiben bestehen. Arbeitsstatus unverändert. |
+| Betriebsnachweis | Nutzerbelegt am 19.11.2026: aktive V2 unter v1.5.51, abgeschlossene Zyklen ohne Laufzeitfehler. Erster genau datierter Zyklus sechs Positionen mit je sechs Datenproblemen; späterer vollständiger Readback vier offene Positionen mit je vier Einstands-/Fristdatenproblemen. Die genaue Uhrzeit des neueren Readbacks ist nicht veröffentlicht. Kein v1.5.52- oder strenger B58-/B06-Gesamtbetriebsnachweis; [Versorgungsnachweis vom 20.11.2026](../reviews/DEPOT_DATA_SUPPLY_2026-11-20.md). |
+| Restarbeit / nächste Abhängigkeit | **Aktuell 20.11.2026:** [vollständige lesende Verbraucherdiagnose](#naechster-schnitt) ist der einzige nächste Auftrag. Danach Fehler gezielt beim bestehenden Owner schließen: Produktdatumfix am Verbraucher belegen, falsche Basiswertbindung korrigieren, Kursrouten/Stückmaßstäbe, historische Kaufwährung, Kalender und Produktfristen versorgen. **B04/B57/B58:** Produktionsregistry leer; eigener Original-BID und Statuszeit/-geltung samt realer Listinglieferung und Recovery fehlen. Ein neuer Feed braucht außerdem qualifizierten Adapter-/Zeitsemantikanschluss. **B05/B20:** V2 liefert nur getrennten begrenzten Fristreview; Exitlisting, letzter Handelstag, Folgekalender und individueller Produktschluss bleiben erforderliche Belege. **F207-2/B06:** historische Basiswerttrades zu beitragenden Käufen, ursprüngliche Ziele/Zieltreffer, vergleichbarer höchster Schutzboden, Bekanntgabe, Z1-Zählung, weitere Überwachung und Korrekturklärung bleiben offen. **F207-5:** vollständige gemeinsame Meldungsdarstellung, Zustands-/Versions-/Betriebsabnahme gesondert; Teilpfade ersetzen Gesamtumfang nicht. B07 separat, B08 ausgeschlossen. V1/V2 bleiben ausdrücklich freigegebene Alternativen mit eigener begrenzter Aussage, keine Lockerung der strengen Regeln. [Versorgungsnachweis vom 20.11.2026](../reviews/DEPOT_DATA_SUPPLY_2026-11-20.md) bindet sämtliche Datenanforderungen und Beschaffungsszenarien; keine neue Providerfreigabe oder Produktivänderung. |
 | Umfangsentscheidung | Bestehende unnummerierte Fähigkeit behalten; keine FT-Nummer erfinden. Frühere reine Underlying-EOD-Aussage nicht auf sämtliche spätere Regeln verallgemeinern. |
 
 **Quellen-/Implementierungsnachtrag 17.11.2026 nach Installation 1.5.47:**
@@ -2175,20 +2212,20 @@ ist noch kein Veröffentlichungs- oder PC-Installationsbeleg behauptet.
 | Nachweisfeld | Einordnung |
 |---|---|
 | Zuordnung | M11: Betrieb; Ziel A. Bereich/Querschnitt: Querschnitt: technische Qualität/Betrieb. Bestehender Bezug: bestehende Betriebs-/Releaseverantwortung. Lieferziel: A. |
-| Arbeitsstatus | Analysis |
+| Arbeitsstatus | Technical Review — v1.5.51-/V2-Betrieb begrenzt beobachtet; aktueller PC-Stand und v1.5.52-Wirkung offen |
 | Soll / Nicht-Soll | **Soll:** JMBbot mit tatsächlich installierter Version/Commit, Schema, Compose-Provenienz, Daten-/Monitoring-/Zustellzuständen und Nachweiszeitpunkt identifizieren. **Nicht-Soll:** Keine Diagnoseanleitung als erfolgreichen Lauf ausgeben; kein Monitoring-Einmallauf, Deployment oder Nachricht. |
 | Vorhandenseinsnachweis | Vollständige Teilfähigkeit nicht verifiziert. Vorhandene Nachbarfunktionen/Dokumente sind im Implementierungsfeld benannt; daraus folgt kein Abwesenheitsbeweis. |
 | Implementierung / Consumer | [Release-Notiz 1.5.5](https://github.com/burckhju/trading-workspace/blob/a78288ad38610656480d0363abe657b567c7ba94/docs/releases/V1.5.5-ISSUER-COVERAGE.md) nennt zuvor bestätigten PC-Stand v1.5.4 / ab4730885b91fd954f3494434ff3d1f4734397db. Dies ist ein historischer Dokumentbeleg, keine aktuelle Beobachtung. |
 | Test / Commit | CI-Wegwerfinstallationen qualifiziert; aktuelle JMBbot-Installation und Wiederherstellung nicht geprüft. Bezug: Basiscommit, soweit kein anderer Commit ausdrücklich genannt. |
 | Fachliche Abnahme | Keine eigenständige fachliche Abnahme für diesen vollständigen Zuschnitt verifiziert. |
 | Software-Auslieferung | Softwaretag 1.5.5 getrennt vom historisch genannten PC-Stand 1.5.4. |
-| Betriebsnachweis | JMBbot identifiziert; aktueller Zustand nicht geprüft. Historischer PC-Stand nur laut Release-Notiz. |
-| Restarbeit / nächste Abhängigkeit | Bei autorisiertem lesendem Zugriff Installation und Zustände mit vorhandenen sicheren Diagnosewegen belegen; keine Nutzerbestände ändern. **Nächste Abhängigkeit:** Erreichbare identifizierte Zielinstallation / zulässiger lesender Zugang. |
+| Betriebsnachweis | PR #367 und #368 enthalten Nutzerbelege vom 19.11.2026 zu v1.5.51/Commit 254f0bbd52ab42e0120d381e915dc96c1118796c, vier gesunden Diensten, Schema 20261118_0060 und aktiver V2. Vollständiger neuerer Readback: vier offene Positionen mit Datenproblemen. Main/Tag v1.5.52 verifiziert, dessen PC-Installation nicht belegt. [Versorgungsnachweis vom 20.11.2026](../reviews/DEPOT_DATA_SUPPLY_2026-11-20.md). |
+| Restarbeit / nächste Abhängigkeit | [vollständige lesende Verbraucherdiagnose](#naechster-schnitt) auf der vorhandenen Installation ausführen oder das private Paket bereitstellen; Installation, Scope, Zyklusabschluss und Datenabdeckung getrennt nachweisen. Kein Start/Update/Einmallauf als lesende Diagnose ausgeben. **Nächste Abhängigkeit:** bestehender PC-Lesezugang, keine neuen Providerrechte. |
 | Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
 
 </details>
 
-<a id="naechster-schnitt"></a>
+<a id="indikative-freigabe-20261117"></a>
 ### Freigegebene indikative Positionsprüfung — 17.11.2026
 
 Die ausdrücklich freigegebene Alternative ergänzt einen eigenen automatischen
@@ -2407,9 +2444,83 @@ Belege nicht durch Annahmen ersetzen. Geeignete Positionen werden unabhängig
 von den übrigen Lücken ausgewertet. B58, restliches F207-2/B06 und vollständiges
 F207-5 bleiben offen; B08 bleibt ausgeschlossen.
 
-## Genau nächster sinnvoller Umsetzungsschritt
+<a id="naechster-schnitt"></a>
+## Genau nächster ausführbarer Arbeitsauftrag — aktuelle Depotversorgung belegen
 
-**Aktueller Liefernachtrag 28.10.2026 zu v1.5.31:** Nach dem freigegebenen und
+**Ziel:** Einen vollständigen privaten, ausschließlich lesenden
+Verbraucherbefund des tatsächlich installierten PC-Stands erstellen.
+Die erwartete Verbesserung ist die eindeutige Ursachenklärung für jede
+aktuelle offene Position und Regel, einschließlich der noch unbelegten
+v1.5.52-Wirkung. Es wird keine erfundene Zahl künftig auswertbarer Positionen
+versprochen.
+
+**Betroffene Daten/Regeln:** effektive Ausführungs-/Währungsbasis,
+Produkt-/Basiswert-/Listingbindung, gespeicherter Bid mit Zeitqualität,
+historischer Maßstab, Kalender, Produktende/letzter Handelstag/Exitwahl,
+Ziel-/Basiswerteinstiegsevidenz sowie persistierte Episoden.
+V2-Einstand und V2-Frist, B04/B57/B58 und B06-Eingänge getrennt auswerten.
+
+**Vorhandene Komponenten und konkrete Arbeit:** Die
+[kopierbare Betriebsanleitung](../technical/ISSUER_MONITORING_OPERATIONS.md#lesende-depot-datenversorgungsdiagnose)
+verwendet `market-data/positions/quote-coverage` als vollständiges
+Inventar und die bestehenden passiven Monitoring-/Trade-Position-Reader.
+Runtime und Inventar vor/nach der Sammlung lesen; persönliche Werte im
+privaten Diagnoseverzeichnis belassen. Gespeicherte Bewertungen,
+`latest_assessment.reasons`, Erwerbsversuche und aktive Episoden
+mit der jeweiligen wirtschaftlichen/Quellenbasis verbinden. Für jede
+Blockade den zuständigen bestehenden Owner und die konkrete Korrektur
+oder fehlende Beschaffung eintragen. Anschließend nur aggregierte
+technische Befunde im Versorgungsnachweis und diese Statusfelder
+aktualisieren. Kein neuer Runner, API-Endpunkt, Provideradapter oder
+Produktivimport ist für diesen Diagnoseschnitt nötig.
+
+**Benötigter Zugang / gebündelte fehlende Information:** einmalige
+Ausführung der lesenden Anleitung auf der bestehenden Installation oder
+ein ausdrücklich bereitgestelltes privates Diagnosepaket. Kein neues
+Providerkonto und keine Geheimnisse erforderlich. Für die nachfolgende
+Brokerbewertung genügt ergänzend der tatsächliche Brokername und die
+Angabe eines bereits erlaubten Lesezugangs. Fehlende persönliche
+Exitentscheidungen und kostenpflichtige Quellen werden anhand der
+Matrix konkret vorbereitet, nicht automatisch aktiviert.
+
+**Überprüfbare Abnahmekriterien:**
+
+1. Tatsächlichen Release-/Containerstand und datierte letzte reguläre
+   Auswertung festhalten. v1.5.52 weder aus Main noch aus einem
+   gestarteten Runner als installiert voraussetzen.
+2. Beide Inventarreads erfolgreich; Zahl, eindeutige IDs und alle offenen
+   Positionen einschließlich fehlender Quellen erfasst. Jede Position
+   erhält sämtliche vorgesehenen Readergebnisse oder einen ausdrücklich
+   ausgewiesenen Diagnosefehler. Kein fester Vierer-/Sechsernenner.
+3. Je Position und Regel `vollständig / teilweise / nicht auswertbar`
+   mit konkreten Reason-Codes, Zeit-/Quellenbezug und Ursache
+   `Quelle / Mapping / Import / Verarbeitung / Konfiguration /
+   Fachentscheidung`. Unzugänglicher Read bleibt gesondert
+   `Diagnose nicht verfügbar`. `monitoring_usable` ist keine
+   Regelqualifikation.
+4. Verschiedene Zyklus-, Bestands- oder Basisstände sichtbar halten und
+   bei Bedarf gezielt lesend wiederholen. Keine globale Atomarität
+   über mehrere GETs behaupten. Bereits vorhandene Rohlogs nur für
+   einen konkret ungeklärten Beschaffungsfehler ergänzen.
+5. Die Datumsreparatur am betroffenen Verbraucher nachweisen oder
+   präzise als noch nicht installiert, nicht ausgewertet oder weiterhin
+   durch einen echten Konflikt blockiert ausweisen. GETs allein beweisen
+   keine aktuelle Parserrevision; nötige Originalrevisionsprüfung
+   ausdrücklich als gezielte lesende Ergänzung benennen.
+6. Für jede wesentliche Restlücke Beschaffungsweg, Owner, mögliche
+   Regelverbesserung und erforderliche Entscheidung festhalten.
+   Öffentlich nur aggregierte technische Ergebnisse; private
+   Positionen, Beträge, Originale und Zugangsdaten bleiben geschützt.
+
+Ein abgeschlossener Zyklus oder ein unveränderter Warnungszähler genügt
+nicht. Abgenommen wird die lückenlose Ursachenmatrix beziehungsweise
+konkret nachgewiesene bessere Regelabdeckung. Aktueller Arbeitsstatus
+dieses nächsten Schnitts: **Analysis — PC-Verbraucherbeleg fehlt;
+lesender Ablauf ist vorbereitet.**
+
+## Historische nächste Umsetzungsschritte — frühere Lieferaufträge
+
+**Historischer Liefernachtrag 28.10.2026 zu v1.5.31:** Nach dem freigegebenen und
 erfolgten Merge von [PR #298](https://github.com/burckhju/trading-workspace/pull/298)
 auf `271d2abbad076c867352297b96e29b6aa4b19092` ist die
 [versionierte PC-Bereitstellung der historischen Währungsquellen](../releases/V1.5.31-HISTORICAL-EXECUTION-CURRENCY.md)
