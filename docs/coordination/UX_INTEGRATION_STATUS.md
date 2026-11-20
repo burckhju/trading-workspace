@@ -1,6 +1,107 @@
 # UX-Integrationsprotokoll — Phase 1
 
+<a id="technischer-snapshot-v1546"></a>
+## Technischer Snapshot und Soll-Ist-Abgleich vom 11.11.2026
+
+Geprüfte Repositorybasis: **Main und Tag `v1.5.46` =
+`d01c259f4b79fdfbdcec8743ececda035b69f9d1`**. VERSION, Tagref, PR-Zustände, Git-Objekte,
+tatsächliche Diffs und CI-Run-/Jobbezüge wurden gelesen. Dieser Snapshot führt
+technische Koordination fort. Fachliche Arbeits-/Abnahmestände stehen
+ausschließlich im [Backlog](../planning/PRODUCT_BACKLOG.md#pflegevertrag-und-statusbedeutung).
+
+### Produktbasis und tatsächlich ausgeführte Qualifikation
+
+| Bezug | Verifizierter Stand |
+|---|---|
+| Aktueller Main / #340-Merge | [`d01c259f4b79fdfbdcec8743ececda035b69f9d1`](https://github.com/burckhju/trading-workspace/commit/d01c259f4b79fdfbdcec8743ececda035b69f9d1); integriert am 09.11.2026, 23:15:21 Uhr Europe/Berlin |
+| VERSION / veröffentlichter Tag | `1.5.46`; [Tag](https://github.com/burckhju/trading-workspace/tree/v1.5.46) zeigt auf denselben Main |
+| Finaler #340-Head | `9573b4b2683c5c43048c422844c82e23812f1079` |
+| Tatsächlich geprüfter #340-Testmerge | `23254cf92a2098d08d06ffa11f5e6b5c34c35c68`; Eltern vorheriger Main `0fe00f5…` und finaler Head |
+| Gemeinsamer vollständiger Tree | `2371c76ac02f747d1961494c011b4cccdb3ad651` in Head, Testmerge und tatsächlichem Mainmerge |
+| Veröffentlichung | [Tagjob 129484586236](https://github.com/burckhju/trading-workspace/actions/runs/42712235879/job/129484586236): `Published v1.5.46 at fully tested main d01c259…`, 09.11.2026, 23:29:03 Uhr Europe/Berlin |
+| PC / menschliche Abnahme | Tatsächliche Installation, Aktivierung, erster regulärer Live-Zyklus und menschliche UX-/Domain-/Assistenztechnikabnahme aus diesen Quellen nicht nachgewiesen |
+
+Die finale #340-PR-CI ist vollständig erfolgreich:
+[Backend](https://github.com/burckhju/trading-workspace/actions/runs/42706478806),
+[Frontend](https://github.com/burckhju/trading-workspace/actions/runs/42706478859),
+[E2E](https://github.com/burckhju/trading-workspace/actions/runs/42706478335),
+[Guards](https://github.com/burckhju/trading-workspace/actions/runs/42706478338).
+Der frühere Locatorfehler am Head `ab0c780…` ist historisch; der finale Head
+enthält die gezielte Combobox-Korrektur ohne reduzierte Assertions.
+
+| Tatsächliche Mainprüfung auf `d01c259…` | Ergebnis |
+|---|---|
+| [Backend 42710203616](https://github.com/burckhju/trading-workspace/actions/runs/42710203616) / [Quality 129477404991](https://github.com/burckhju/trading-workspace/actions/runs/42710203616/job/129477404991) | Drei Jobs erfolgreich; 4.156 Tests bestanden, eine Warnung, Coverage 88,45 %. |
+| [Frontend 42710203780](https://github.com/burckhju/trading-workspace/actions/runs/42710203780/job/129477405336) | 2.428 Tests in 187 Dateien bestanden. |
+| [E2E 42710203670](https://github.com/burckhju/trading-workspace/actions/runs/42710203670) / [Smoke 129477404536](https://github.com/burckhju/trading-workspace/actions/runs/42710203670/job/129477404536) | Alle vier Jobs erfolgreich; Smoke 205 bestanden / 5 reguläre Skips, separate Ownerjobs erfolgreich. |
+| [Publisher 42712235879](https://github.com/burckhju/trading-workspace/actions/runs/42712235879) | Guards und tatsächlich ausgeführter Tagjob erfolgreich. Frühere wartende Publisherläufe sind kein eigener Veröffentlichungsnachweis. |
+
+Diese Mainläufe wurden am 09.11. ausgeführt und jetzt dem unveränderten Main
+zugeordnet. Die vorliegende Dokumentarbeit führt keine lokalen Produkt-,
+PostgreSQL-, Browser-, Provider- oder PC-Prüfungen aus.
+
+### Seit dem alten Master-Snapshot integrierte UX-Schnitte
+
+| PR | Tatsächlicher Merge / technischer Umfang |
+|---|---|
+| #321 | `e681c79e0c46a6efb9e4eeb7cd18d959ad99ea97`; frühere Masterfortschreibung integriert. |
+| #320 | `91ebbc0f51ef000891aee7218ec6dff6a3ce2620`; UX3-B1/F1, seit v1.5.38 veröffentlicht. |
+| #322 | `3397399e7bf8364501437f9509a4fb18dbe32c08`; begrenzter UX4-B-Stand. |
+| #324 / #326 | `7399bccaf0c2923327b15ee43cfbc484e7cd3b30` / `a68b3a928129b42b19dc2a6de07be1bf7c91a811`; Q12 in Produktbewertung und PositionDetails. |
+| #325 | `68f8c3fe78fd867f7a34cb5a44aa634097e0a008`; begrenzter UX2-B-Überblick/Readback. |
+| #331 | `09fe1c8925ce31c980f5533da554763091594a9b`; editierbarer Planwährungsvorschlag, seit v1.5.41 enthalten. |
+| #330 → #327 | `970685d0c2cdc84cc0ac465ad57b6f2b4051c4c1` → `27c76f2b02fa72d43f075d5b6e3f762a846f88bf`; UX4-D, danach C; seit v1.5.42 enthalten. |
+| #337 / #338 | `a4ea882d9df055e4e61a00036f4dc1d296ac98bf` / `94a7cd5031e42ba0e38565ea49ddd85782807920`; aktuelle Positionshinweise im Workspace und begrenzte PDF-Transport-/Fehlerkorrektur. |
+| #340 | Aktueller Main: Chartwatchlist mit gesondertem Setup-/Market-Data-/Schedulerumfang; keine vollständige fachliche UX4-/M8-Abnahme. |
+
+Die frühere Reihenfolge #330 vor #327 ist erfüllt. #318 einschließlich
+#311/#312-Abstammung, BUY-Adapter, Shared-Zeitzonenhelper, Hostintegration und
+Previewfix bleibt enthalten. Keine dieser erledigten Arbeiten neu verteilen.
+
+### Tatsächlich offene Arbeit und CI-Bindung
+
+| PR | Aktueller technischer Befund |
+|---|---|
+| [#335](https://github.com/burckhju/trading-workspace/pull/335) | Offen/Draft, Head `be746bfeb1b89846a127eaa3274662c8bab0ff05`, vier neue Tool-/Dokument-/Testdateien. Alte grüne Läufe vom 08.11. qualifizieren Testmerge `8db11ae611a93147cf4cef5bc66a5ff5e93050fd` auf `fcca553…`. Aktueller Testmerge `810db813d324657fc47552d528ba0e62ad26c5b2` auf Main `d01c259…` hat keine eigenen Checkruns. Separate Domain-/Betriebsarbeit, keine UX1-Vorbelegung oder ausgeführte Recovery. |
+| [#341](https://github.com/burckhju/trading-workspace/pull/341) | Offen/Draft, zehn Dateien, Head `52640616ed7ef0e8c91f945905ad3857ff263fed`, Testmerge `d47473a0f42ed073318571d25dd6289cd4c14c64`, identischer Head-/Testmerge-Tree `80b578b754b28447307adc0a070f32838c7ca066`. Lokaler Learning-Quellenprüfadapter, Ergebnisstatus NOT_COMPUTED; keine vollständige Renditestudie, kein operativer Import. |
+| [#315](https://github.com/burckhju/trading-workspace/pull/315) | Weiter offen/Draft als historische Quelle. Kein zweiter UX3-Vertrag und keine Schließung. |
+| #220 / #207 / #205 / #197 / #187 | Weiter offen; keine neue UX-Implementierungsfreigabe oder pauschale Integrationsvoraussetzung aus diesen Alt-PRs. |
+
+#341 hat neun tatsächlich erfolgreiche Prüfjobs am genannten Testmerge:
+[Backend 42995060477](https://github.com/burckhju/trading-workspace/actions/runs/42995060477)
+mit 4.216 bestandenen Tests/88,54 % Coverage,
+[Frontend 42995060396](https://github.com/burckhju/trading-workspace/actions/runs/42995060396)
+mit 2.428 Tests,
+[E2E 42995060434](https://github.com/burckhju/trading-workspace/actions/runs/42995060434)
+mit 205 Smoke-Pässen/5 regulären Skips und erfolgreichen Ownerjobs sowie
+[Guards 42995060466](https://github.com/burckhju/trading-workspace/actions/runs/42995060466).
+Der Tagjob ist übersprungen. Alle neun Checkoutlogs wurden dem Testmerge
+zugeordnet. Der separate Runnerhunk bindet vier E2E-Jobs an Ubuntu 24.04;
+sein älterer Fehler und die [Integrationsgrenze](UX_DEPENDENCIES.md#aktuelle-ci-und-parallelitätsgrenzen)
+bleiben getrennt von erfolgreicher aktueller PR-CI und nicht erfolgter Mainintegration.
+
+### Konkrete Restlücken und Übergabe
+
+Der [Soll-Ist-Abgleich](UX_MASTER_PLAN.md#soll-ist-abgleich-und-umsetzungsfolge-vom-11112026)
+belegt über Dokumentationsbedarf hinaus UX2-D-Quellenwege sowie UX3-M06/M02/TP06.
+UX4-Positionscoverage benötigt vor Einbau den benannten Host-/Readtypvertrag.
+Die vorhandenen UX1-Schnitte und wesentlichen UX2-/UX4-Funktionen benötigen
+fachliche und menschliche Nachweise, keine pauschale Neuimplementierung.
+
+Keine neue UX1-Zwei-Berichte-, UX2-Nachtrags- oder M06-PR ist in der geprüften
+offenen Liste vorhanden. Ein Link ist kein bestätigter Empfang in einem anderen
+Chat. Unveröffentlichte Arbeit vor Doppelbearbeitung als Branch/PR/SHA anfordern.
+
+Dieser eigene Dokumentationsschnitt betrifft ausschließlich die fünf
+Koordinationsdateien. UTF-8, Newlines, lokale Links/Anker, Tabellen und vollständiger
+Diff werden vor Übergabe geprüft. Eigener Head, Testmerge/Tree und tatsächlich
+entstandene reguläre CI werden im zugehörigen Draft-PR nachgewiesen; die obigen
+Produktläufe sind dafür kein Ersatz. Kein Merge, Release, Tag, PC-Update,
+Backlogstatussprung oder produktiver Datenänderungsauftrag folgt aus diesem Draft.
+
 ## Technischer Snapshot nach v1.5.37
+
+**Historischer Snapshot vom 01.11.2026.** Alle folgenden damaligen Main-/PR-/CI- und Nächster-Schritt-Aussagen bis zum älteren Snapshot beschreiben diesen Zeitpunkt. #321 sowie B1/F1 und weitere UX-Schnitte sind inzwischen integriert; aktuelle Nachweise stehen oben. Historische Belege und Anker bleiben erhalten.
 
 **Erneuter GitHub-Abgleich: 01.11.2026, 21:20 Uhr Europe/Berlin.** Der Ausgangsnachweis von 20:35 Uhr wurde anhand aktueller Main-/Tagrefs, Git-Objekte, PR-Zustände, Dateidiffs, Reviewthread sowie tatsächlicher Run-/Jobergebnisse und Checkoutlogs erneut geprüft. Die Codebelege für Adapter, Helper, Host, Previewfix und kanonischen UX3-Vertrag wurden gelesen. Maßgeblich für fachliche Arbeits- und Abnahmestände bleibt ausschließlich [PRODUCT_BACKLOG](../planning/PRODUCT_BACKLOG.md#pflegevertrag-und-statusbedeutung).
 

@@ -1,8 +1,66 @@
 # UX-Abhängigkeiten und Integrationsfolge
 
+## Umsetzungsfolge ab v1.5.46
+
+Technische Basis vom 11.11.2026: `d01c259f4b79fdfbdcec8743ececda035b69f9d1`.
+Die [aktuellen Auftragsgrenzen](UX_MASTER_PLAN.md#soll-ist-abgleich-und-umsetzungsfolge-vom-11112026)
+ersetzen die ausdrücklich historischen Folgeaufträge unten. Fachliche Arbeitsstände
+bleiben im Backlog. Reihenfolge bedeutet hier Abhängigkeit vor Integration,
+keine automatische Merge-/Releasefreigabe.
+
+| Folge / parallel mögliche Arbeit | Konkretes Ergebnis | Voraussetzung vor Integration |
+|---|---|---|
+| Master, UX1 und UX2: Nachweise nachführen | Fünf Masterdateien, zwei UX1-Berichte und bestehendes UX2-Dokument mit getrennten Dateischnitten. | Historische Aussagen datieren; keine fachlichen Statussprünge. Die reguläre CI gilt auch dem Dokumentations-Head. |
+| UX3: zuerst M06 | Ursachengetreue Invalidierung in `TradeAlertsPanel` und dessen Test. | Keine neue Domain-/Deliverylogik; beide echten Gründe und negative Statusfälle. |
+| UX2: historischer Kandidaten-/Analyseweg | Exakte belegte Version und gebundener Rückweg. | Konkreter öffentlicher URL-/Pin-/Guardvertrag mit Analysis/Candidate; keine internen Crossimports. Parallel zu M06 möglich. |
+| UX3: B4/TP06; anschließend oder parallel zur Vertragsklärung M02 | Unbelegte Updatepflicht entfernen; Health-Teilreadfehler später korrekt erklären. | B4 hat keine fachliche M02-Abhängigkeit. M02 benötigt autoritativen Host-/Positionskontext; auf `TradeAlertsPanel` erst nach M06 weiterarbeiten. |
+| ProductSelection/TradePosition, danach UX2 | Historischen Selection-Run im bestehenden Read ausgeben und verlinken. | Domainvertrag/Tests zuerst; gemeinsame `TradeSourcesView`- und Shared-Dateien seriell nach dem Analyseweg. |
+| Market Data/UX2, danach UX4 | Begrenzte Positionscoverage aus vorhandenen Fakten. | Öffentliche Payload-/Hostgrenze und konkreter Dateischnitt zuerst; keine Qualitätsquote aus überlappenden Zählern. |
+| UX3 mit dem jeweiligen Hostowner | C3/M11 im Riskpanel und später D2/F8 in Abschlussstatistiken jeweils als eigener schmaler Schnitt; weitere D1/D3-Fläche konkret benennen. | Vorhandene Navigation, Priorität und Fehlerzustände konsumieren; stabile Ursache, Kontextgültigkeit und genau einen Ansageowner prüfen. Keine appweite zweite Engine. |
+| Alle Leads mit den Fachownern | Tatsächliche fachliche Bedien-/Quellen-/Accessibility-Abnahme der vorhandenen und ergänzten Wege. | Ausgeführte automatisierte Fälle, menschliche Prüfung und reale Betriebsbelege jeweils getrennt zuordnen. |
+
+### Aktuelle CI und Parallelitätsgrenzen
+
+#341 enthält einen gesonderten Vier-Zeilen-Runnerwechsel in
+`.github/workflows/e2e.yml` von `ubuntu-latest` zu `ubuntu-24.04`.
+Sein älterer Lauf scheiterte vor den Browserfällen an der Playwright-/Runnerumgebung;
+sein aktueller Head mit diesem Hunk ist vollständig grün. Der Hunk ist noch nicht
+Mainbestand. Ein neuer Main-basierter PR muss seine tatsächliche reguläre CI
+erhalten; weder die frühere Main-CI noch #341 qualifiziert dessen neue Umgebung.
+Der CI-Owner klärt eine Übernahme im bestehenden oder separat begrenzten Auftrag.
+Die fünf Masterdateien übernehmen keinen Workflowhunk, keine Gateabsenkung und
+keine Freigabe des vollständigen Forschungs-PRs allein wegen des Runnerfixes.
+
+#335 ist technisch von den obigen UX-Schnitten unabhängig. Seine alte grüne
+Kombination `8db11ae…` ersetzt keine neue Qualifikation auf aktuellem Main.
+Eine spätere Integration und eine reale Anwendung der Bestandsdeklaration bleiben
+getrennte Entscheidungen. #341 besitzt Learning-/Quellenvertrag und reguläre
+PR-CI, aber noch keine Mainintegration oder Veröffentlichung. #315 bleibt Quelle.
+
+### Gemeinsame Abnahme nach den Ergänzungen
+
+- UX1/UX2: zwei Entwürfe, Bereichswechsel ohne neue Reads, echter Kontextwechsel
+  mit Guard und A→B→A; Vorschlag ist keine Bestätigung.
+- UX2/Analysis/Candidate: exakte historische Pins, unbekannter Quellentyp,
+  nicht vorhandene Version, Kopieren/Reload und identischer gebundener Rückweg.
+- UX2/UX3: aktueller Positionskontext, Health-Teilreadfehler, historische Alerts,
+  Invalidierung und Delivery ohne gegenseitige Umdeutung.
+- UX2/UX4/Market Data: vorhandene Readgrenzen, Originalzeit/DATE_ONLY,
+  Quellen-/Währungs-/Preisarttrennung und Tabellenfallback; keine neuen
+  Provideraktionen oder globale Vollständigkeitsbehauptung.
+- Alle: reguläre CI am tatsächlichen Head/Testmerge, anschließend bei
+  autorisierter Integration tatsächliche Main-CI; Publisher/Tag, PC-Installation
+  und menschliche Abnahme bleiben weitere getrennte Nachweise.
+
+**Genau nächster UX-Produktschritt:** M06 als kleinen Zwei-Dateien-Draft vorlegen.
+Unabhängige Vertrags- und Dokumentationsarbeit kann parallel beginnen; der
+CI-Umgebungsbefund wird vor Integration durch den CI-Owner aufgelöst.
+
 Diese Datei steuert technische Reihenfolge und Konfliktauflösung, keine fachlichen Aufgabenstände. Maßgeblich bleiben [PRODUCT_BACKLOG](../planning/PRODUCT_BACKLOG.md), [Ownership](UX_OWNERSHIP.md) und [gemeinsame Verträge](UX_SHARED_CONTRACTS.md). Konkrete aktuelle Heads/CI: [Integrationsprotokoll](UX_INTEGRATION_STATUS.md).
 
 ## Technisch abgeschlossene Integration nach v1.5.37
+
+**Historischer Snapshot vom 01.11.2026.** Damalige Main-/Draft- und Folgeauftragsaussagen bis zur Integrationsprüfung unten sind historische Bezüge; fortgeltende Schutz- und Regressionsregeln bleiben erhalten. Die aktuellen Aufträge stehen im datierten Abschnitt oben.
 
 [#318](https://github.com/burckhju/trading-workspace/pull/318) integriert UX1 und UX2-A gemeinsam im veröffentlichten Produktmerge `bb49ffe781933270746b9f86f4aee99b6f8144c2`. Finaler Head `54eaba19fc626194237e8280af2e6cc315b1bac7`, qualifizierter Testmerge `341f9a031928268827710186446268217770e1ac` und dieser Produktmerge besitzen Tree `a924db2985cba84f37952faef6b73c16be8984ed`. Der aktuelle Main `484143d33aa5f2d443da6b2edf097ae1cb5aee3a` ergänzt ausschließlich die beiden #319-Dokumentdateien; Tag `v1.5.37` bleibt auf `bb49ffe…`. BUY-Adapter, einmaliger Zeitzonenhelper, Host-/Testintegration und erfolgreiche Preview-Fixture sind umgesetzt; diese Aufgaben werden nicht erneut verteilt. Die Dokumentverträge #313, #316 und kanonisch #314 sind integriert. #315 bleibt offene Draft-Quelle.
 
@@ -91,6 +149,8 @@ Die kombinierte Navigationsfixture muss erfolgreiche Währungsvorschau und sicht
 Nachweise immer mit Main-SHA, Implementierungshead, tatsächlich ausgechecktem Testmerge und Tree, Befehl, Toolchain/Zeitzone, Lauf-/Jobnummer, Ergebnis sowie regulären Skips binden. Jeder neue kombinierte Zustand benötigt alle normalen CI-Gates; für den ausgelieferten #318-Stand sind sie getrennt von den Main-/Publisherbelegen dokumentiert. Gezielte lokale Tests ergänzen sie. Ändert sich ein Head oder Main, wird nur der konkret betroffene Nachweis erneuert, bevor eine Integration entschieden wird.
 
 ## Präzise Folgeaufträge
+
+**Historische Aufträge vom 01.11.2026:** Auch B1/F1 und die hier beschriebenen UX4-B/C/D-Teilschnitte sind inzwischen integriert; nicht erneut als fehlende Arbeit verteilen.
 
 Die folgenden Rollenbezüge erfinden keine GitHub-Assignees und belegen keinen Empfang in einem anderen Chat. **Die beiden UX2-/UX1-Aufträge unten sind historisch und über #318 technisch abgeschlossen.** Ihre Details erhalten die Herkunft der Integration; sie sind keine erneuten Implementierungsaufträge. Neue Arbeit bindet sich an den tatsächlichen aktuellen Head und Diff; MASTER ändert keine fremden Featurebranches.
 

@@ -1,8 +1,49 @@
 # Gemeinsame UX-Verträge
 
+## Technischer Vertragsabgleich auf v1.5.46
+
+Stand 11.11.2026, Main `d01c259f4b79fdfbdcec8743ececda035b69f9d1`.
+Dieser Abschnitt aktualisiert Implementierungsbezüge; er ändert keine
+Finanz-, Qualitäts-, Status- oder Freigaberegel der nachfolgenden Verträge.
+
+- Öffentlicher BUY-only-`InitialPurchaseCurrencyPreview`, einmaliger
+  `reportTimezoneError`, Hostreadback und die drei A→B→A-Regressionen bleiben
+  implementiert. #331 ergänzt genau den belegten editierbaren Planwährungsvorschlag;
+  der ursprüngliche Einzelrun-B-Schnitt bleibt eine andere Fähigkeit.
+- Der kanonische #314-Vertrag einschließlich vier Typpräzisierungen ist erhalten.
+  B1/F1 aus #320 ist inzwischen Produktbestand; der passive `shared/notices`-Pilot
+  ist keine vollständige Implementierung sämtlicher Dokumentationstypen.
+  Q12 in `ProductValuationPanel` und `PositionDetails` ist integriert.
+- UX2-B liest die qualifizierte Position im Host und konsumiert die bestehende
+  Bewertung. O1 erlaubt weiterhin keine ungeprüfte monetäre Darstellung roher
+  Kostenbasis-/G/V-Felder. Navigation ist kein atomarer Finanzsnapshot.
+- UX4-B/C/D und #340 verwenden qualifizierte Ownerwerte, getrennte Einheiten,
+  Lücken und Tabellenalternativen. Der Watchlist-GET liest; die ausdrückliche
+  Aktivierung bleibt ein bestehender Command. Anzeige allein ist keine Freigabe.
+- Die sechs Gruppen in `TradeSourcesView` sind getrennte Belege mit eigenen
+  Readgrenzen; sie begründen weder globale Lifecyclevollständigkeit noch
+  vollständiges UX2-D.
+
+Für die nächsten schmalen Schnitte sind bestehende Grenzen zu konkretisieren,
+nicht fehlende Fachregeln in der UI zu erfinden:
+
+| Schnitt | Vor Umsetzung zu belegende Grenze | Owner / Consumer |
+|---|---|---|
+| Historischer Analyse-/Kandidatenrückweg | Exakter Quellentyp, ID/Version, erlaubte Rückparameter und Dirty-/Busy-Verhalten. Vorhandenes `ANALYSIS` ist kein Freibrief für fremde Quellentypen oder Latest. | UX2: öffentlicher URLvertrag; Analysis/Candidate: jeweilige Identitäts-/Versionsprüfung; UX4: Quellenconsumer. |
+| Historischer Auswahlrun | Bereits gespeicherte Selection exakt zum workspacegebundenen Run auflösen; kein Ersatz durch latest und keine neue persistierte Relation. | TradePosition: Source-Read; ProductSelection: Auswahl-/Runidentität; UX2: Navigation. |
+| M06 und M02 | Gelieferte Invalidierungsursache erhalten; Healthfehler separat sichtbar. Geschlossen/nicht anwendbar nur aus autoritativem Positionskontext, nicht aus 404/leer. | UX3: Erklärung; PositionMonitoring: Health; Alert: persistierte Alert-/Invalidierungssemantik; Notification: Delivery; UX2: Hostkontext. |
+| B4/TP06 | Fehlende optionale Executiondetails ohne unbelegte Updatepflicht erklären; UNKNOWN und NOT_STARTED bleiben verschieden. | UX3: Text; TradePlan/TradePosition: Kaufstatus; UX2: vorhandene Ziele. |
+| Neue Positionscoveragefläche | Echte bestehende Payload, additive öffentliche Readtypgrenze, Slot/Readowner/Invalidierung und getrennte Populationen. | Market Data: Readvertrag; UX2: Host; UX4: Renderer; UX3: Qualitätssprache. |
+
+Konkrete Test- und Abschlussgrenzen stehen in
+[Masterplan](UX_MASTER_PLAN.md#soll-ist-abgleich-und-umsetzungsfolge-vom-11112026)
+und [Integrationsfolge](UX_DEPENDENCIES.md#umsetzungsfolge-ab-v1546).
+Die historischen Einordnungen zu noch offenen B1- und UX4-B/C/D-Entwürfen weiter unten
+beschreiben den 01.11.2026; sie verteilen keine bereits integrierte Arbeit neu.
+
 Basis und Zuständigkeiten: [Masterplan](UX_MASTER_PLAN.md), [Ownership](UX_OWNERSHIP.md). Diese Regeln präzisieren die Zusammenarbeit auf bestehenden Fachverträgen. Sie führen weder ein neues persistiertes Modell noch eine zusätzliche API oder Finanzberechnung ein.
 
-**Technischer Nachtrag nach `v1.5.37`:** Die folgenden Owner- und Schutzgrenzen bleiben erhalten. Ihre UX1/UX2-Umsetzung ist über #318 im veröffentlichten Produktmerge `bb49ffe781933270746b9f86f4aee99b6f8144c2` und unverändert im aktuellen Dokumentmain `484143d33aa5f2d443da6b2edf097ae1cb5aee3a` belegt; die UX3-K-Präzisierungen sind mit #314 integriert. Historische Lücken und Übernahmeaufträge werden unten als solche gekennzeichnet. [Getrennte Implementierungs-/CI-/Main-/Tagbelege](UX_INTEGRATION_STATUS.md#technischer-snapshot-nach-v1537).
+**Historischer technischer Nachtrag vom 01.11.2026 nach `v1.5.37`:** Die folgenden Owner- und Schutzgrenzen bleiben erhalten. Ihre UX1/UX2-Umsetzung ist über #318 im veröffentlichten Produktmerge `bb49ffe781933270746b9f86f4aee99b6f8144c2` und unverändert im aktuellen Dokumentmain `484143d33aa5f2d443da6b2edf097ae1cb5aee3a` belegt; die UX3-K-Präzisierungen sind mit #314 integriert. Historische Lücken und Übernahmeaufträge werden unten als solche gekennzeichnet. [Getrennte Implementierungs-/CI-/Main-/Tagbelege](UX_INTEGRATION_STATUS.md#technischer-snapshot-nach-v1537).
 
 ## Kontext, Navigation und gemeinsame Importgrenze — Owner UX-2
 
@@ -64,7 +105,7 @@ UX-2 legt Hostplatzierung und Fokusziele fest. UX-3 verwendet verständliche Tex
 
 **Der kanonische UX3-K-Vertrag aus #314 ist integriert.** Finaler Head `cc547ef662d1bc28315d25df1930c32b94278d6b`, Merge `d80bd45d84d845aa920a7eac5b19a7fe6cd63307`; im geprüften Main enthalten sind genau ein [Einstieg](../ui/ux-3/README.md), [Hinweisvertrag](../ui/ux-3/notice-contract.md) und [Dokumentationstypmodell](../ui/ux-3/contracts.ts). Die Pflichtübernahmen aus #315 sind im kanonischen Vertrag nachvollziehbar. #315 `d9d85f1af3159c4356c8773d076decbf1dc604e4` bleibt offene Draft-Quelle; sein `docs/ui/ux3-notice-contract.md` wird nicht als zweiter normativer Vertrag integriert und der PR nicht geschlossen.
 
-Die frühere Aussage, vor der Konsolidierung sei keiner der Entwürfe integrationsfähig, gehört zum Snapshot vom 01.11.2026, 15:28 Uhr. Sie ist mit dem belegten #314-Abschluss historisch. Der separate B1/F1-Produktentwurf #320 ist noch kein Mainbestand und erhält seine eigene Prüfung. Sein aktueller Head `71e971a67be7f1ca10192e04e3832f843b8099bd` lässt den kanonischen Dokumentvertrag unverändert; der engere passive Pilot-View ist kein neuer globaler Fachvertrag.
+**Historischer Implementierungsbezug vom 01.11.2026:** Die frühere Aussage, vor der Konsolidierung sei keiner der Entwürfe integrationsfähig, gehört zum Snapshot vom 01.11.2026, 15:28 Uhr. Sie ist mit dem belegten #314-Abschluss historisch. Der separate B1/F1-Produktentwurf #320 ist noch kein Mainbestand und erhält seine eigene Prüfung. Sein aktueller Head `71e971a67be7f1ca10192e04e3832f843b8099bd` lässt den kanonischen Dokumentvertrag unverändert; der engere passive Pilot-View ist kein neuer globaler Fachvertrag.
 
 Historische Herleitung: Schon #315 Revision 0.2 ordnete sieben fachliche Inventurfamilien den fünf Darstellungsarten zu und beschränkte die gemeinsame Action-API auf Navigation. Kanonisierung, eindeutige Typbindung und Übernahme der zusätzlichen Fach-/Recoveryfälle sind inzwischen im integrierten #314 umgesetzt. Die nachfolgende Vertragstabelle bleibt die gemeinsame Grenze.
 
@@ -130,7 +171,7 @@ Referenzen: [Positionskursverlauf](../ui/position-price-history.md), [Monitoring
 
 ### Kompatibilität von UX4-A / #316
 
-Der vollständige [Visualisierungsvertrag](../ui/ux4-visualization-contract.md) und die sechs UX4-A-Dokumente sind mit #316, finalem Head `82b11711a70aacf39fddf59a6545662fb7102b92` und Merge `5f2e12667759bfb54eb14f39c6d8426c9cd8080f`, im geprüften Main integriert. UX4-B/C/D bleiben getrennte Produktaufträge; der Dokumentabschluss belegt keine Umsetzung dieser Oberflächen. Historische #314/#315-Referenzen berechtigen nicht zu einem zweiten Hinweis-API-Modell.
+**Historischer Implementierungsbezug vom 01.11.2026; die folgenden Schutzgrenzen gelten fort:** Der vollständige [Visualisierungsvertrag](../ui/ux4-visualization-contract.md) und die sechs UX4-A-Dokumente sind mit #316, finalem Head `82b11711a70aacf39fddf59a6545662fb7102b92` und Merge `5f2e12667759bfb54eb14f39c6d8426c9cd8080f`, im geprüften Main integriert. UX4-B/C/D bleiben getrennte Produktaufträge; der Dokumentabschluss belegt keine Umsetzung dieser Oberflächen. Historische #314/#315-Referenzen berechtigen nicht zu einem zweiten Hinweis-API-Modell.
 
 - `realized-gross-sell-v2`: wirksame SELL-Beiträge im Zeitraum, einschließlich Teilverkäufen offener Trades. `closed-trade-gross-v1`: je qualifiziertem Vollabschluss das vollständige Lifetime-Ergebnis. Marktwert und unrealisierter G/V bilden weitere getrennte Aussagen. Keine populationsübergreifende Summe, Finanzkurve, Deduplikation oder neue Formel. Statistiknenner bleibt die vollständige qualifizierte Kohorte.
 - `PositionPriceHistory`/`PositionPricePlot`/`PositionPriceHistoryEvidence` und `TimeSeriesChart` wiederverwenden. Einzelbeobachtungen bleiben Scatter; keine synthetische Linie, Glättung, interpolierten Kurse, erfundenen DATE_ONLY-Zeitpunkte oder unbelegte FX-Umrechnung. Bestehende EOD-Verbindung realer Punkte erhält ihre Lückengrenzen.

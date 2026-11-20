@@ -1,5 +1,35 @@
 # UX-Ownership
 
+## Aktueller Dateiabgleich vom 11.11.2026
+
+Basis ist Main `d01c259f4b79fdfbdcec8743ececda035b69f9d1` / `v1.5.46`.
+**Die normativen Owner- und Schutzgrenzen unten bleiben unverändert.**
+Die Implementierungen #318, #320, #322, #324, #325, #326, #327, #330, #331 und
+#340 sind integriert; ihre ehemaligen Dateien sind keine offenen Reservierungen.
+
+| Konkret vorhandene Arbeit | Ein verantwortlicher Owner je Schnittstelle | Consumer / Abgrenzung |
+|---|---|---|
+| Eigene fünf Masterdokumente | MASTER-LEAD | Alle Leads; kein Backlogdiff, keine Produkt-/Workflow-/Versionsänderung. |
+| #335: neue BUY-Bestätigungen über bestehenden Service | TradePosition für die Bestätigungssemantik | Performance besitzt Bericht/Nachbedingungen; Betrieb besitzt eine konkrete Anwendung; UX1 konsumiert Herkunft. Keine UX1-Vorbelegungsautomatik. |
+| #341: lokale historische Quellenprüfung | FT-012 / Learning | Keine Trade-/Performanceberechnung, kein UI-Host. Der separate Runnerhunk gehört dem bestehenden CI-Owner. |
+| #315: historische Vertragsquelle | UX3 für die Quellenübergabe | Der kanonische Vertrag bleibt #314; keine zweite Integration oder Schließung. |
+
+Die vollständigen Dateilisten der acht offenen Fremd-PRs #341/#335/#315/#220/#207/#205/
+#197/#187 überschneiden sich nicht mit den fünf Masterdateien. #341 und der
+historische Quellen-PR #315 enthalten beide `PRODUCT_BACKLOG.md`; #315 ist
+kein parallel zur Integration freigegebener Vertragsentwurf. Die Masterplanung
+ändert diese Datei nicht.
+
+Die [aktuellen Folgeaufträge](UX_MASTER_PLAN.md#soll-ist-abgleich-und-umsetzungsfolge-vom-11112026)
+begründen erst mit tatsächlichem Branch/PR/Head eine Dateiabstimmung:
+UX2 führt neue Links in `TradeSourcesView` und Shared-Navigation;
+UX3 führt M06 und nachfolgend M02 seriell in `TradeAlertsPanel`;
+UX4 bearbeitet `TradeSourcesView` während des UX2-Linkauftrags nicht parallel.
+Für Health-Anwendbarkeit bleibt UX2 Hostowner und PositionMonitoring
+Faktowner. Für Positionscoverage liefert Market Data den bestehenden Readvertrag,
+UX2 integriert den Host und UX4 besitzt den Renderer. Keinen gemeinsamen
+UX-Domainowner oder eine neue Lock-/Aufgabenstatusdatenbank anlegen.
+
 Gemeinsame Basis und Auftragsblätter: [UX_MASTER_PLAN](UX_MASTER_PLAN.md). Diese Zuordnung regelt technische Zusammenarbeit; fachliche Aufgabenstände stehen nur im [PRODUCT_BACKLOG](../planning/PRODUCT_BACKLOG.md).
 
 ## Ein Owner je gemeinsamer UX-Schnittstelle
@@ -47,7 +77,7 @@ Vor jedem neuen PR vollständige Dateiliste und gemeinsam betroffene Verträge m
 
 Die Ownergrenzen bleiben unverändert: UX-2 integriert Host-/Shared-Änderungen; UX-1 besitzt Preview-/Formularverhalten und Browserzonenvorschlag. Die kanonische UX3-Konsolidierung aus #314 ist integriert; #315 bleibt offene Draft-Quelle. UX-4 besitzt die vorhandenen Diagrammrenderer und Darstellungsregeln. Gemeinsame Hoständerungen werden weiter abgestimmt; eigenständige, nicht überlappende Komponentenarbeit bleibt im jeweils autorisierten Auftrag möglich.
 
-**Tatsächlich vorhandene Folgearbeit, 01.11.2026, 21:20 Uhr Europe/Berlin:** [#319](https://github.com/burckhju/trading-workspace/pull/319) ist als reiner Dokumentationsnachtrag in Main `484143d33aa5f2d443da6b2edf097ae1cb5aee3a` integriert; seine beiden Dateien bleiben außerhalb des Master-Diffs. [#320](https://github.com/burckhju/trading-workspace/pull/320), Head `71e971a67be7f1ca10192e04e3832f843b8099bd`, bearbeitet B1/F1 einschließlich `RealizedGrossSources`, `ReportSourceEntry`, Featuremapper/Evidenzdarstellung, passivem `shared/notices`-Piloten und Tests. Der aktuelle 18-Dateien-Diff enthält keine Backlog- oder kanonische UX3-Dokumentänderung. Vor Änderungen an Quellenflächen, insbesondere durch UX4-C, den aktuellen Diff abstimmen.
+**Historischer Dateiabgleich, 01.11.2026, 21:20 Uhr Europe/Berlin:** [#319](https://github.com/burckhju/trading-workspace/pull/319) ist als reiner Dokumentationsnachtrag in Main `484143d33aa5f2d443da6b2edf097ae1cb5aee3a` integriert; seine beiden Dateien bleiben außerhalb des Master-Diffs. [#320](https://github.com/burckhju/trading-workspace/pull/320), Head `71e971a67be7f1ca10192e04e3832f843b8099bd`, bearbeitet B1/F1 einschließlich `RealizedGrossSources`, `ReportSourceEntry`, Featuremapper/Evidenzdarstellung, passivem `shared/notices`-Piloten und Tests. Der aktuelle 18-Dateien-Diff enthält keine Backlog- oder kanonische UX3-Dokumentänderung. Vor Änderungen an Quellenflächen, insbesondere durch UX4-C, den aktuellen Diff abstimmen.
 
 [#322](https://github.com/burckhju/trading-workspace/pull/322), Head `e3365df7afc70ec52fe6fb19aabc4050250091e3`, ist die konkret vorhandene UX4-B-Folgearbeit: ausschließlich `frontend/src/features/operational_workspace/components/PositionPriceHistory.tsx` und `PositionPriceHistory.test.tsx`. Keine Dateiüberschneidung mit #320 oder den fünf Masterdateien. Eine vollständige UX4-B-Abnahme ist damit nicht belegt; C/D erhalten keine erfundene Dateireservierung. Die frühere #319/#320-Backlogüberschneidung und fehlende B-Übergabe gehören zum Snapshot von 20:52 Uhr. Die erneut gelesenen offenen Fremd-PRs ändern keine der fünf Masterdateien. Ein PR-Verweis belegt keine bestätigte Zustellung an einen anderen Chat.
 
