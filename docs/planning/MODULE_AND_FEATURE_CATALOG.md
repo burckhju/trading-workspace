@@ -5,13 +5,17 @@
 | Feld | Wert |
 |---|---|
 | Dokumenttyp | Product Architecture / Planungssichten |
-| Revision | Konsolidierung 2026-10-13; zur fachlichen Prüfung |
+| Revision | Nachweisfortschreibung 2026-11-20 am Main `c7db441de36297a98d47cdf28c64b4e5d9994692` / `v1.5.52` |
 | Aufgabenstatus | Nur im [Product Backlog](PRODUCT_BACKLOG.md#abnahmematrix) |
 | Baseline | [Ursprüngliche Roadmap und Übergang](../foundation/ROADMAP.md#historische-baseline) |
 
 ## Zweck und Grenzen
 
 Dieser Katalog ordnet bestehende Features und Querschnittsfähigkeiten acht dauerhaften Planungssichten zu. Er erfindet keine FT-IDs, keine neue technische Paketstruktur und keine neue schreibende Ownership. Fachliches Feature, technischer Paketname, Modellfamilie und Planungssicht bleiben unterschiedliche Begriffe. Die historische Modulgliederung in ARCHITECTURE wird dadurch nicht still umgebaut.
+
+Die [aktuelle Einstiegssicht](PRODUCT_BACKLOG.md#aktueller-stand), alle [abgeschlossenen Teilumfänge und verbleibenden Lücken](PRODUCT_BACKLOG.md#abnahmematrix) sowie der [eine nächste Arbeitsauftrag](PRODUCT_BACKLOG.md#naechster-schnitt) stehen ausschließlich im Backlog. Folgende Präzisierungen beschreiben Fähigkeiten und Grenzen, keine zweite Aufgabenstatusliste: Die persistente [Chart-Watchlist](../implementation/MARKET_CHART_WATCHLIST.md) besitzt einen festen Katalog aus S&P 500 und 30 ETFs; Journalentwurf, Finalisierung, Folgeversion, Evidence und Lessons haben eigene FT-012-Schreibpfade; die [Performance-Erweiterung](../releases/V1.5.42-UX4-PERFORMANCE-QUALITY-LIFECYCLE.md) umfasst Bruttokennzahlen und Verkaufsbeitragsgrafik; die konkrete Kandidatenfamilie besitzt einen geprüften Freigabe-/Aktivierungs-/Rückkehrweg. Daraus folgt weder eine frei pflegbare Watchlist noch ein vollständiges Performance- oder Modellfamilienangebot.
+
+Die [Datumsrollen und lokale Originalneuauswertung aus v1.5.52](../features/HEBELTRADER_MONITORING_INTEGRATION_CONTRACT.md#indicative-product-date-semantics-v2) gehören zu den bestehenden Product-/Market-Data-Ownern. Der vorhandene Monitoringconsumer verwendet das qualifizierte Produktende; der enge XSTU-2026-Import erzeugt weder weitere Kalenderabdeckung noch einen neuen Owner. Technische Auslieferung und reale PC-Wirkung werden im Backlog getrennt nachgewiesen.
 
 <a id="planungssichten"></a>
 ## Acht dauerhafte Funktionsbereiche
@@ -108,7 +112,7 @@ keine zweite Depot-/Kostenrechnung oder vollständige Baseline wird eingeführt.
 | Emittent | FT-003 | FT-004, FT-008. |
 | Provider / Datenquelle | Separates Providerfeature gemäß bestehendem Katalog | FT-004/006/008/013; technische Adapter/Mapping-Infrastruktur nicht mit neuer fachlicher Ownership verwechseln. |
 | Instrument / Warrant / TermsVersion / WarrantListing | FT-004 | FT-008–FT-012; konkrete Terms-/Listing-Identität bleibt historisch. |
-| Watchlist / Candidate / CandidateEvaluation | FT-005 | FT-007 und Workspace; Watchlist-Zuordnung ist keine Implementierungsbehauptung. |
+| Watchlist / Candidate / CandidateEvaluation | FT-005; feste Chart-Watchlist im bestehenden `market`-Owner | FT-007, Marktcharts und Workspace; persistierte Katalogeinträge und Mapping-Revisionen sind von der Kandidatenbewertung und einer frei pflegbaren Watchlist getrennt. Keine Ownership-Verschiebung. |
 | Analyse / Analyseversion | FT-006 | FT-005, FT-007, FT-012, FT-013; Fachberechnung nicht im Frontend duplizieren. |
 | TradePlan / TradePlanVersion | FT-007 | FT-008–FT-012, Workspace; spätere Managemententscheidung verändert keine historische Planversion. |
 | ProductSelectionRun / ProductEvaluation / ProductSelection | FT-008 | FT-009, FT-012, Workspace; Berechnung und Benutzerwahl sind verschiedene Objekte. |
@@ -120,7 +124,7 @@ keine zweite Depot-/Kostenrechnung oder vollständige Baseline wird eingeführt.
 | Notification / DeliveryAttempt | Bestehende Notification Capability | Delivery-Adapter, Workspace; Zustellung ist nicht der fachliche Alert. |
 | PostTradeObservation / ExitReview / ExitReviewVersion | FT-011 in `post_trade` | FT-012 über freigegebenen Handoff; FT-013 und Workspace als nachgelagerte Consumer. |
 | LearningEvidence / Lesson / LessonVersion | FT-012 in `learning` | FT-013, Learning-UI; Evidence-Transport ist keine Interpretation. |
-| Journal / Performance Record | FT-012 gemäß bestehender fachlicher Zuordnung | FT-013 und lesende Auswertung; kein Schluss auf vorhandene vollständige Implementierung. |
+| Journal / Performance Record | FT-012 gemäß bestehender fachlicher Zuordnung; Journal in `learning`, Performance in `performance` unter Wiederverwendung der `trade_position`-Fakten und Berechnungsverträge | Journalversionen und Evidence sind persistiert; SELL- und Vollabschlussauswertung lesen dieselben wirksamen Execution-Fakten. FT-013 konsumiert konkrete Lernquellen. Kein zusätzlicher Buchungs- oder Rechenowner. |
 | Model / ModelVersion / Freigabe-/Aktivierungsartefakte | FT-013 in `model` | Jeweiliger fachlicher Modellconsumer; freigegeben ist nicht automatisch aktiv. |
 
 Die Tabelle bewahrt vorhandene fachliche Zuständigkeiten; sie ist kein Auftrag zur Paketverschiebung. Für später dokumentierte IV-/Produktbeleg-Erweiterungen wird ohne vollständige Vertragsprüfung keine zusätzliche Code-Ownership erfunden. Das [Backlog](PRODUCT_BACKLOG.md#market-data-evidence) benennt diese Nachweisgrenze.
