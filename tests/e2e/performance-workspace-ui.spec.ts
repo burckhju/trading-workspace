@@ -153,6 +153,15 @@ test("performance workspace: one keyboard-operated selection, both reports and r
   await expect(
     page.getByRole("form", { name: "Performance-Zeitraum auswählen" }),
   ).toBeVisible();
+  const openNavigation = page.getByRole("button", {
+    name: "Navigation öffnen",
+    exact: true,
+  });
+  await openNavigation.focus();
+  await page.keyboard.press("Enter");
+  await expect(
+    page.getByRole("button", { name: "Navigation schließen", exact: true }),
+  ).toHaveAttribute("aria-expanded", "true");
   const mainNavigation = page.getByRole("navigation", {
     name: "Hauptnavigation",
     exact: true,
@@ -166,6 +175,11 @@ test("performance workspace: one keyboard-operated selection, both reports and r
       exact: true,
     }),
   ).toHaveAttribute("href", "/performance/closed-trades");
+  await page
+    .getByRole("button", { name: "Navigation schließen", exact: true })
+    .focus();
+  await page.keyboard.press("Enter");
+  await expect(mainNavigation).not.toBeVisible();
   expect(api.reads).toHaveLength(0);
   await reportButton(page, "closed-trades").focus();
   await page.keyboard.press("Tab");

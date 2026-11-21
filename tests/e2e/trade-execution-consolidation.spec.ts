@@ -198,7 +198,11 @@ test("one current list and one guarded inline editor replace history, including 
   await page.goto(`/trade-management?trade_id=${tradeId}#execution-dates`);
   const panel = page.getByRole("region", { name: "Kauf- und Verkaufsdaten" });
   await expect(panel.getByRole("article")).toHaveCount(2);
-  await expect(page.getByText("OPEN", { exact: true })).toHaveCount(1);
+  await expect(
+    page
+      .getByRole("region", { name: "Trade und Position", exact: true })
+      .getByRole("heading", { name: "Offen", exact: true }),
+  ).toBeVisible();
   await expect(page.getByText("Offene Menge", { exact: true })).toHaveCount(1);
   await expect(
     page.getByRole("heading", { name: "Trade Timeline", exact: true }),

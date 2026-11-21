@@ -600,7 +600,9 @@ for (const outcome of ["success", "error"] as const) {
     ];
     await expect.poll(() => api.writes).toEqual(expected);
     await api.releaseSave(hypotheses[0], outcome);
-    await expect(page).toHaveURL(new RegExp(`/lessons/${lessons[1]}$`));
+    await expect(page).toHaveURL(
+      new RegExp(`/lessons/${lessons[1]}#model-improvement$`),
+    );
     await expect(
       page.getByRole("heading", {
         name: "Synthetic Hypothesis 1",

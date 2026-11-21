@@ -422,11 +422,36 @@ test("valuation notices preserve keyboard details, existing reads and explicit h
         exact: true,
       }),
     ).toBeVisible();
-    if (id === 97 || id === 99)
-      await expect(valuation).toContainText(
-        "Letzter verfügbarer Produktkurs – indikative Analyse",
-      );
-    if (id === 99) await expect(valuation).toContainText(/indikativ/i);
+    if (id === 97 || id === 99) {
+      await expect(
+        valuation.getByText("Letzter verfügbarer Produktkurs", { exact: true }),
+      ).toBeVisible();
+      await expect(
+        valuation.getByText(
+          "Der Handel ist geschlossen. Angezeigt wird der letzte plausible Kurs der vorherigen Handelssitzung; die Bewertung ist indikativ.",
+          { exact: true },
+        ),
+      ).toBeVisible();
+      await expect(
+        valuation.getByText(
+          "Indikative Empfehlungen sind möglich. Dieser Kurs erteilt keine Freigabe zur Orderausführung.",
+          { exact: true },
+        ),
+      ).toBeVisible();
+    }
+    if (id === 99) {
+      await expect(
+        valuation.getByText(
+          "Letzter verfügbarer Produktkurs – indikative Analyse",
+          { exact: true },
+        ),
+      ).toBeVisible();
+      await expect(
+        valuation.getByText(
+          /Dieser Referenzwert garantiert keinen ausführbaren Orderpreis/,
+        ),
+      ).toBeVisible();
+    }
     await page.waitForLoadState("networkidle");
     const readsAfterOpen = [...requests];
 

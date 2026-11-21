@@ -52,7 +52,7 @@ test("candidate governance: exact Lesson source, explicit A-B-A and immutable ev
     const evaluationHistory = () =>
       q.getJson(`/candidates/${candidateId}/evaluations`);
     const readyButton = candidate.getByRole("button", {
-      name: "Top-down neu bewerten",
+      name: "Kandidaten neu bewerten",
       exact: true,
     });
     const runtimeRegion = () =>
@@ -515,6 +515,10 @@ test("candidate governance: exact Lesson source, explicit A-B-A and immutable ev
         (s: { code: string }) => s.code === "CANDIDATE_RUNTIME_MODEL",
       ).resource_id,
     ).toBe(versionA.id);
+    await candidate
+      .locator("summary")
+      .filter({ hasText: /^Voraussetzungen im Detail/ })
+      .click();
     await expect(
       candidate.getByText(
         `Active executable model TOP_DOWN_CANDIDATE version ${versionA.version}.`,
@@ -627,10 +631,20 @@ test("candidate governance: exact Lesson source, explicit A-B-A and immutable ev
           name: `Evaluation ${secondB.id}`,
           exact: true,
         });
-        await expect(bRegion).toContainText("NOT_QUALIFIED");
+        await expect(
+          bRegion.getByRole("heading", {
+            name: "Kriterien nicht erfüllt",
+            exact: true,
+          }),
+        ).toBeVisible();
         await expect(bRegion).toContainText(`Version ${versionB.version}`);
         await candidate.reload();
-        await expect(bRegion).toContainText("NOT_QUALIFIED");
+        await expect(
+          bRegion.getByRole("heading", {
+            name: "Kriterien nicht erfüllt",
+            exact: true,
+          }),
+        ).toBeVisible();
         await bRegion
           .getByText("Gespeicherte Analysequellen dieser Evaluation", {
             exact: true,
@@ -651,11 +665,16 @@ test("candidate governance: exact Lesson source, explicit A-B-A and immutable ev
           .locator(`a[href="${candidateUrl}&evaluation=${firstA.id}"]`)
           .click();
         await expect(
-          candidate.getByRole("region", {
-            name: `Evaluation ${firstA.id}`,
-            exact: true,
-          }),
-        ).toContainText("QUALIFIED");
+          candidate
+            .getByRole("region", {
+              name: `Evaluation ${firstA.id}`,
+              exact: true,
+            })
+            .getByRole("heading", {
+              name: "Kriterien erfüllt",
+              exact: true,
+            }),
+        ).toBeVisible();
         const versions = await q.getJson(
           `/model-governance/models/${modelId}/versions`,
         );

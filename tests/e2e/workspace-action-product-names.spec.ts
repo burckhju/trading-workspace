@@ -48,7 +48,10 @@ test("workspace action cards retain product identity and navigation on a narrow 
   await expect(card).not.toContainText("SYNTHETIC Beta Call");
   await expect(
     card.getByRole("link", { name: "Prüfen: Produktkurs fehlt" }),
-  ).toHaveAttribute("href", "/trade-management?trade_id=synthetic-trade-0");
+  ).toHaveAttribute(
+    "href",
+    "/trade-management?trade_id=synthetic-trade-0#trade-risk",
+  );
   await card.getByRole("link", { name: "Prüfen: Produktkurs fehlt" }).focus();
   await expect(
     card.getByRole("link", { name: "Prüfen: Produktkurs fehlt" }),

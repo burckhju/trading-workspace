@@ -703,10 +703,10 @@ for (const width of [1440, 390]) {
         .getByRole("button", { name: "Datenprobleme", exact: true })
         .click();
       await page
-        .getByLabel("Sortierung", { exact: true })
+        .getByRole("combobox", { name: "Sortierung", exact: true })
         .selectOption("product");
       await page
-        .getByLabel("Zeilen pro Seite", { exact: true })
+        .getByRole("combobox", { name: "Zeilen pro Seite", exact: true })
         .selectOption("25");
       await page.getByRole("button", { name: "Nächste Seite" }).click();
       await expect(page.getByRole("status")).toContainText(
@@ -795,11 +795,11 @@ for (const width of [1440, 390]) {
       await expect(
         page.getByRole("button", { name: "Datenprobleme", exact: true }),
       ).toHaveAttribute("aria-pressed", "true");
-      await expect(page.getByLabel("Sortierung", { exact: true })).toHaveValue(
-        "product",
-      );
       await expect(
-        page.getByLabel("Zeilen pro Seite", { exact: true }),
+        page.getByRole("combobox", { name: "Sortierung", exact: true }),
+      ).toHaveValue("product");
+      await expect(
+        page.getByRole("combobox", { name: "Zeilen pro Seite", exact: true }),
       ).toHaveValue("25");
       await expect(page.getByRole("status")).toContainText(
         "32 Treffer von 35 offenen Positionen · Seite 2 von 2",

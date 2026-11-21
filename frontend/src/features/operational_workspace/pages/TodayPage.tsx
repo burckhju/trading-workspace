@@ -99,6 +99,14 @@ function ActionCard({ action }: { action: OperationalAction }) {
 export function TodayPage() {
   const { response, loading, error, reload } = useWorkspaceActions();
   const actions = response?.actions ?? [];
+  const groups = sections
+    .map((section) => ({
+      ...section,
+      items: actions.filter((action) => action.priority === section.priority),
+    }))
+    .filter(({ items }) => items.length > 0);
+  const groupColumns =
+    groups.length === 3 ? 'xl:grid-cols-3' : groups.length === 2 ? 'xl:grid-cols-2' : '';
   return (
     <section className="w-full min-w-0 space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-4">
@@ -154,24 +162,23 @@ export function TodayPage() {
           </p>
         </section>
       )}
-      {!error &&
-        sections.map(({ priority, title, description }) => {
-          const items = actions.filter((action) => action.priority === priority);
-          if (!items.length) return null;
-          return (
-            <section key={priority} aria-labelledby={`today-${priority}`}>
+      {!error && groups.length > 0 && (
+        <div className={`grid items-start gap-6 ${groupColumns}`}>
+          {groups.map(({ priority, title, description, items }) => (
+            <section key={priority} aria-labelledby={`today-${priority}`} className="min-w-0">
               <h2 id={`today-${priority}`} className="text-xl font-semibold text-white">
                 {title} <span className="text-slate-500">· {items.length}</span>
               </h2>
               <p className="mt-1 text-sm text-slate-400">{description}</p>
-              <ul className="mt-3 grid gap-3 xl:grid-cols-2">
+              <ul className={`mt-3 grid gap-3 ${groups.length === 1 ? 'xl:grid-cols-2' : ''}`}>
                 {items.map((action) => (
                   <ActionCard key={action.id} action={action} />
                 ))}
               </ul>
             </section>
-          );
-        })}
+          ))}
+        </div>
+      )}
       <aside className="rounded-xl border border-slate-800 px-4 py-3 text-sm text-slate-400">
         <p>
           Hinweise zu einzelnen Positionen stehen oben und im Depot. Den übergreifenden Datenstand,
