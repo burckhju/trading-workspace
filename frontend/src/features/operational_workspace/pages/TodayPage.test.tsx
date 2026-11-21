@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { operationalWorkspaceApiClient } from '../services/client';
 import type { OperationalAction } from '../types';
-import { OperationalWorkspacePage } from './OperationalWorkspacePage';
+import { TodayPage } from './TodayPage';
 
 vi.mock('../services/client', () => ({
   operationalWorkspaceApiClient: { getActions: vi.fn(), getPositions: vi.fn() },
@@ -39,7 +39,7 @@ function show(actions: OperationalAction[]) {
   });
   render(
     <MemoryRouter>
-      <OperationalWorkspacePage />
+      <TodayPage />
     </MemoryRouter>,
   );
 }
@@ -70,15 +70,20 @@ describe('workspace action product identity', () => {
         product_wkn: 'SYN002',
       }),
     ]);
-    const alpha = (await screen.findByText('Optionsschein: SYNTHETIC Alpha Call')).closest('li')!;
+    const alpha = (await screen.findByText('SYNTHETIC Alpha Call')).closest('li')!;
     expect(within(alpha).getByText('WKN: SYN001 · ISIN: DE000SYN0010')).toBeInTheDocument();
+    expect(within(alpha).getByRole('heading', { name: 'Produktkurs fehlt' })).toBeVisible();
     expect(within(alpha).queryByText(/Beta/)).not.toBeInTheDocument();
-    expect(within(alpha).getByRole('link', { name: 'Öffnen' })).toHaveAttribute(
+    expect(within(alpha).getByRole('link', { name: 'Prüfen: Produktkurs fehlt' })).toHaveAttribute(
       'href',
-      '/trade-management?trade_id=alpha',
+      ['POSITION_ALERT', 'POSITION_DATA_HEALTH', 'NOTIFICATION_DELIVERY_FAILURE'].includes(
+        action_type,
+      )
+        ? '/trade-management?trade_id=alpha#trade-risk'
+        : '/trade-management?trade_id=alpha',
     );
-    expect(await screen.findByText('Optionsschein: SYNTHETIC Beta Call')).toBeInTheDocument();
-    expect(operationalWorkspaceApiClient.getPositions).toHaveBeenCalledTimes(1);
+    expect(await screen.findByText('SYNTHETIC Beta Call')).toBeInTheDocument();
+    expect(operationalWorkspaceApiClient.getPositions).not.toHaveBeenCalled();
     expect(operationalWorkspaceApiClient.getActions).toHaveBeenCalledTimes(1);
   });
 
@@ -105,9 +110,7 @@ describe('workspace action product identity', () => {
       action('markup', { product_id: 'a', product_name: 'SYNTHETIC <img src=x> & Call' }),
       action('blank', { product_id: 'b', product_name: '  \n  ' }),
     ]);
-    expect(
-      await screen.findByText('Optionsschein: SYNTHETIC <img src=x> & Call'),
-    ).toBeInTheDocument();
+    expect(await screen.findByText('SYNTHETIC <img src=x> & Call')).toBeInTheDocument();
     expect(screen.queryByRole('img')).not.toBeInTheDocument();
     expect(screen.getByText('Optionsschein: Name nicht verfügbar')).toBeInTheDocument();
   });

@@ -1,5 +1,58 @@
 # UX-Integrationsprotokoll — Phase 1
 
+<a id="fachstruktur-a-20261121"></a>
+## Fachstruktur A — Umsetzung und Qualifikation, 21.11.2026
+
+**Auswahl:** ausdrückliche Nutzerentscheidung „A“ nach drei Vorschauen. Ausgangspunkt: Main `6ef1558440be9e717cdb7a1a94d025aa38f08ec0`, Version `1.5.53`; Arbeitsbranch `ux/fachstruktur-a-20261121`. Dieser neue Schnitt konsolidiert Navigation, Bereichseinstiege und sichtbare Objektbereiche. Backend, DTOs, finanzielle Regeln, Aufgabenprioritäten und Releaseversionen bleiben außerhalb des Diffs.
+
+### Abgleich paralleler Arbeit
+
+Vor dem Produktdiff wurden Main und alle zehn offenen PRs erneut abgefragt. #342 enthält parallele Änderungen an den UX-Koordinationsunterlagen; die Ergänzung hier ist bewusst datiert und ersetzt keinen historischen Nachweis. #370 und #341 berühren den Backlog; hier wird ausschließlich die unnummerierte tägliche Workspace-Fähigkeit fortgeschrieben. `TradePlanWorkflowPage.tsx` überschneidet sich mit #187; ausschließlich seine HTML-Hülle wechselt von verschachteltem `main` zu `section`, der fachliche Workflow bleibt unverändert. Fremde PRs werden weder übernommen noch geschlossen. Vor Integration ist der aktuelle Dateiabgleich erneut erforderlich.
+
+### Geprüfte Nutzeraufgaben
+
+| Aufgabe | Konkreter neuer Weg | Gebundene Regression |
+|---|---|---|
+| 1. Handlungsbedarf und Datenprobleme erkennen | Aktuelles → vorhandener Hinweis → Trade beziehungsweise Basisdaten/Diagnose | `TodayPage.test.tsx`, `WorkspaceEntryPages.test.tsx`, `workspace-action-product-names.spec.ts`, `ui-fachstruktur-navigation.spec.ts` |
+| 2. Offene Position und Überwachungszustand finden | Depot → Suche/Filter → Überwachung | `OpenPositionsPanel.test.tsx`, `TradeManagementMonitoring.test.tsx`, `positions-table.spec.ts`, Monitoring-/Qualifikationstests |
+| 3. Position bearbeiten und tatsächlichen Verkauf erfassen | Trade/Bearbeiten → Buchungen oder direkter Verkaufanker | `TradeManagementContext.test.tsx`, `TradeManagementPage.test.tsx`, `trade-workspace-navigation.spec.ts`, `depot-sell-capture.spec.ts`, Korrektur-/Währungstests |
+| 4. Idee → Plan → Auswahl → Kauf | Marktanalyse/Handelsideen → vorhandener Plan → exakte Produktauswahl → Depot/Kauferfassung | Plan-/Katalog-/Run-Kontexttests, `ft007-trade-plan.spec.ts`, `ft008-product-selection.spec.ts`, `product-selection-confirmation-capture.spec.ts`, `purchase-workspace-handoff.spec.ts` |
+| 5. Vollabschluss nachbeobachten, bewerten, dokumentieren | Abschlussbericht → Nachbeobachtung/Exit Review → Journal → Erkenntnisse | `PostTradeLearningPage.integration.test.tsx`, Journal-/Evidence-/Pin-Tests, vorhandene PostgreSQL-E2E-Journeys |
+| 6. Performance und Datengrundlage finden | Depot/Performance → SELL- oder Vollabschlussbericht → Quellen | `Application.test.tsx`, bestehende Performance-Suites und `performance-workspace-ui.spec.ts`, unveränderte Brutto-/Statistikowner |
+| 7. Instrument-/Datenproblem gezielt bearbeiten | Trade/Überwachung → exakter Optionsschein → begrenzter Rückweg; Basisdaten/Diagnose → Einrichtung | Katalog-Direktlink-/Dirtytests, `workspaceNavigation.test.ts`, `warrant-admin-consolidation.spec.ts`, `quote-coverage.spec.ts`, `scheduled-market-data.spec.ts` |
+
+Rückkehr mit Filter/Seite/Auswahl, unveränderte historische Pins, Hashwechsel ohne zusätzliche Ownerreads und Erhalt mehrerer Entwürfe sind Teil dieser Regressionen. Schmale Navigation, Tastatur und Screenshots sind an 390 px und Desktop gebunden; vorhandene native Zoomprüfungen bleiben erhalten.
+
+### Tatsächlich ausgeführte Prüfungen
+
+Die gezielten Prüfungen verwenden Node **22.16.0** aus der Projektvorgabe. Node 24 verursachte im lokalen jsdom-/Request-Zusammenspiel einen AbortSignal-Typkonflikt; es wurde kein Produkt- oder Testschutz dafür abgeschwächt. Für Tests mit dynamischer Zeitzone werden isolierte Forks verwendet.
+
+| Abschließende lokale Prüfung | Ergebnis |
+|---|---|
+| TypeScript-Projektprüfung | Bestanden |
+| ESLint, maximal 0 Warnungen | Bestanden |
+| Prettier gesamtes Frontend / `git diff --check` | Bestanden |
+| Vollständige Vitest-Suite mit unveränderten Coveragegates | **2.836 Tests in 211 Dateien bestanden** |
+| Coverage | **96,61 % Statements / 91,21 % Branches / 92,80 % Functions / 96,61 % Lines**; Mindestwerte 80/70/80/80 erfüllt |
+| Produktionsbuild | Bestanden; bestehender Hinweis auf große Bundle-Chunks bleibt sichtbar |
+| Playwright-Discovery | **213 Tests in 58 Dateien erfasst**, keine Behauptung einer Browserausführung |
+
+Reproduzierbar im `frontend`-Verzeichnis mit Node 22.16.0: `npm run typecheck`, `npm run lint`, `npm run format`, `npm run test:coverage -- --pool=forks --minWorkers=1 --maxWorkers=2 --coverage.thresholds.lines=80 --coverage.thresholds.functions=80 --coverage.thresholds.statements=80 --coverage.thresholds.branches=70`, `npm run build`. Die regulären CI-Gates bleiben unverändert. Ein vorhandener Diagnose-Zeitstempeltest wurde auf die bereits explizite UTC-Darstellung präzisiert; seine vorher implizite Runnerzeitzone war kein Produktvertrag.
+
+Browser-/PR-Qualifikation wird durch die [normalen Actions dieses Arbeitsbranches](https://github.com/burckhju/trading-workspace/actions?query=branch%3Aux%2Ffachstruktur-a-20261121) und die konkreten Job-/Screenshotbelege im Pull Request ausgewiesen. Die beiden neuen Browserfälle hängen Aktuelles und Depotdetail bei 1440/390 px samt geprüftem Requestprotokoll an; die bestehenden Fach- und PostgreSQL-Journeys bleiben eigene Nachweise.
+
+Lokaler Chromiumstart war bereits in der Bestandsphase durch die Sandbox-Socketgrenze blockiert (`Operation not permitted`). Die automatische Freigabeprüfung lehnte den erweiterten Start ab; es wird kein bestandener lokaler Browserlauf behauptet. Die normalen Repository-E2E-Jobs bleiben die vorgesehene Ausführungsumgebung. `playwright --list` bestätigt nur die Erfassung von Tests, keine Bedien- oder Layoutprüfung.
+
+### Konkrete Grenzen
+
+- Kein globaler Journalindex ohne vorhandenen Trade-/Reviewkontext; Bereichseinstieg erklärt diese Grenze.
+- Vollabschlüsse bleiben eine zeitlich definierte Berichtskohorte, kein universelles Trade-Archiv.
+- Modellverbesserung bleibt an vorhandene Erkenntnisversionen und bestehende Governance gebunden.
+- UI-GETs behalten ihre bisherigen fachlichen Effekte. Insbesondere ist der Positionsreader kein garantiert providerfreier Diagnosepfad.
+- Die automatische Browser-/Frontendprüfung ist von einer menschlichen Fachabnahme und einer Installation auf dem privaten PC getrennt. Dieser Auftrag veröffentlicht keinen Release.
+
+Die historischen technischen Snapshots folgen unverändert.
+
 ## Technischer Snapshot nach v1.5.37
 
 **Erneuter GitHub-Abgleich: 01.11.2026, 21:20 Uhr Europe/Berlin.** Der Ausgangsnachweis von 20:35 Uhr wurde anhand aktueller Main-/Tagrefs, Git-Objekte, PR-Zustände, Dateidiffs, Reviewthread sowie tatsächlicher Run-/Jobergebnisse und Checkoutlogs erneut geprüft. Die Codebelege für Adapter, Helper, Host, Previewfix und kanonischen UX3-Vertrag wurden gelesen. Maßgeblich für fachliche Arbeits- und Abnahmestände bleibt ausschließlich [PRODUCT_BACKLOG](../planning/PRODUCT_BACKLOG.md#pflegevertrag-und-statusbedeutung).

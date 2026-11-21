@@ -108,7 +108,7 @@ function show() {
         element: (
           <>
             <Link to="/post-trade?trade_id=trade-b">Anderen Trade öffnen</Link>
-            <Link to="/post-trade?trade_id=trade-a&journal_version_id=journal-b">
+            <Link to="/post-trade?trade_id=trade-a&journal_version_id=journal-b#trade-lessons">
               Andere Journalversion öffnen
             </Link>
             <PostTradeLearningPage />
@@ -117,7 +117,7 @@ function show() {
       },
       { path: '/lessons/:lessonId', element: <LessonDestination /> },
     ],
-    { initialEntries: ['/post-trade?trade_id=trade-a'] },
+    { initialEntries: ['/post-trade?trade_id=trade-a#trade-lessons'] },
   );
   render(<RouterProvider router={router} />);
   return router;
@@ -263,7 +263,7 @@ describe('PostTradeLearningPage confirmed Lesson creation', () => {
         await screen.findByText('Lesson-Verweise konnten nicht geladen werden.');
       expectCreatedAction();
 
-      await click(screen.getByRole('button', { name: 'Review-Eingaben ändern' }));
+      await click(screen.getByRole('button', { name: 'Review-Eingaben ändern', hidden: true }));
       await click(screen.getByRole('link', { name: 'Andere Journalversion öffnen' }));
       expect(await screen.findByRole('alertdialog')).toHaveTextContent('Ungespeicherte Änderungen');
       expect(router.state.location.search).toBe('?trade_id=trade-a');
@@ -290,7 +290,7 @@ describe('PostTradeLearningPage confirmed Lesson creation', () => {
     expectCreatedAction();
 
     status.mockResolvedValue(evidenceStatus('evidence-b'));
-    await click(screen.getByRole('button', { name: 'Reviewstand erneut lesen' }));
+    await click(screen.getByRole('button', { name: 'Reviewstand erneut lesen', hidden: true }));
     await waitFor(() => expect(list).toHaveBeenCalledWith('evidence-b', expect.any(AbortSignal)));
     const title = await screen.findByLabelText('Lesson-Titel');
     await waitFor(() => expect(title).toBeEnabled());

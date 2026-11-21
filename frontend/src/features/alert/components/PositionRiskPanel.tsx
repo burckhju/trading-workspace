@@ -1,21 +1,36 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { riskApi } from '../services/risk';
 import { riskLabel as label, riskPercent as percent } from '../services/riskLabels';
 import type { RiskParameters, RiskView } from '../types/risk';
 import { PositionRiskSummary } from './PositionRiskSummary';
 import { IvRiskPanel } from './IvRiskPanel';
+import type { PositionRiskPending } from '../types/pending';
+
+interface Props {
+  tradeId: string;
+  readOnly?: boolean;
+  onPendingChange?: (participant: PositionRiskPending | null) => void;
+  isContextPending?: () => boolean;
+}
 
 export function PositionRiskPanel({
   tradeId,
   readOnly = false,
-}: {
-  tradeId: string;
-  readOnly?: boolean;
-}) {
+  onPendingChange,
+  isContextPending,
+}: Props) {
   // Remount on identity changes, including outstanding command responses.
-  return <RiskPanel key={tradeId} tradeId={tradeId} readOnly={readOnly} />;
+  return (
+    <RiskPanel
+      key={tradeId}
+      tradeId={tradeId}
+      readOnly={readOnly}
+      onPendingChange={onPendingChange}
+      isContextPending={isContextPending}
+    />
+  );
 }
-function RiskPanel({ tradeId, readOnly }: { tradeId: string; readOnly: boolean }) {
+function RiskPanel({ tradeId, readOnly, onPendingChange, isContextPending }: Props) {
   const [view, setView] = useState<RiskView | null>(null);
   const [parameters, setParameters] = useState<RiskParameters | null>(null);
   const [history, setHistory] = useState<RiskView[]>([]);
@@ -23,13 +38,70 @@ function RiskPanel({ tradeId, readOnly }: { tradeId: string; readOnly: boolean }
   const [busy, setBusy] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
   const [proposed, setProposed] = useState(false);
+  const basisRef = useRef<RiskView | null>(null);
+  const parametersRef = useRef<RiskParameters | null>(null);
+  const confirmedRef = useRef(false);
+  const busyRef = useRef(false);
+  const writingRef = useRef(false);
+  const ivPending = useRef<PositionRiskPending | null>(null);
+  const updateParameters = (next: RiskParameters | null) => {
+    parametersRef.current = next;
+    setParameters(next);
+  };
+  const updateConfirmed = (next: boolean) => {
+    confirmedRef.current = next;
+    setConfirmed(next);
+  };
+  const participant = useMemo<PositionRiskPending>(
+    () => ({
+      isDirty: () =>
+        Boolean(
+          confirmedRef.current ||
+            ivPending.current?.isDirty() ||
+            (parametersRef.current &&
+              basisRef.current &&
+              Object.keys(parametersRef.current).some((key) => {
+                const field = key as keyof RiskParameters;
+                return (
+                  String(parametersRef.current![field]) !==
+                  String(basisRef.current!.configuration.parameters[field])
+                );
+              })),
+        ),
+      isBusy: () => writingRef.current,
+      discard: () => {
+        const saved = basisRef.current;
+        parametersRef.current = saved?.configuration.parameters ?? null;
+        confirmedRef.current = false;
+        setParameters(parametersRef.current);
+        setConfirmed(false);
+        setProposed(false);
+        setView(saved);
+        ivPending.current?.discard();
+      },
+    }),
+    [],
+  );
+  const reportIvPending = useCallback(
+    (value: PositionRiskPending | null) => {
+      ivPending.current = value;
+      onPendingChange?.(participant);
+    },
+    [onPendingChange, participant],
+  );
+  useLayoutEffect(() => {
+    onPendingChange?.(participant);
+  }, [onPendingChange, participant, parameters, confirmed, busy]);
+  useLayoutEffect(() => () => onPendingChange?.(null), [onPendingChange]);
   useEffect(() => {
     const controller = new AbortController();
     riskApi
       .read(tradeId, controller.signal)
       .then((value) => {
         if (!controller.signal.aborted) {
+          basisRef.current = value;
           setView(value);
+          parametersRef.current = value.configuration.parameters;
           setParameters(value.configuration.parameters);
         }
       })
@@ -39,22 +111,27 @@ function RiskPanel({ tradeId, readOnly }: { tradeId: string; readOnly: boolean }
     return () => controller.abort();
   }, [tradeId]);
   async function command(action: 'preview' | 'evaluate' | 'configure' | 'history') {
-    if (!view || !parameters) return;
+    if (!view || !parameters || busyRef.current || isContextPending?.()) return;
+    busyRef.current = true;
+    writingRef.current = action === 'configure' || action === 'evaluate';
     setBusy(true);
     setError('');
     try {
       if (action === 'history') setHistory(await riskApi.history(tradeId));
       else if (action === 'configure') {
         await riskApi.configure(tradeId, view, parameters, !view.configuration.enabled);
-        setView(await riskApi.read(tradeId));
-        setConfirmed(false);
+        const accepted = await riskApi.read(tradeId);
+        basisRef.current = accepted;
+        setView(accepted);
+        updateParameters(accepted.configuration.parameters);
+        updateConfirmed(false);
         setProposed(false);
       } else {
-        setView(
-          await (action === 'preview'
-            ? riskApi.preview(tradeId, parameters)
-            : riskApi.evaluate(tradeId)),
-        );
+        const next = await (action === 'preview'
+          ? riskApi.preview(tradeId, parameters)
+          : riskApi.evaluate(tradeId));
+        if (action !== 'preview') basisRef.current = next;
+        setView(next);
         setProposed(action === 'preview');
       }
     } catch {
@@ -62,6 +139,8 @@ function RiskPanel({ tradeId, readOnly }: { tradeId: string; readOnly: boolean }
         'Aktion fehlgeschlagen. Bei geändertem Regelstand bitte neu laden; es erfolgt keine automatische Wiederholung.',
       );
     } finally {
+      busyRef.current = false;
+      writingRef.current = false;
       setBusy(false);
     }
   }
@@ -93,7 +172,7 @@ function RiskPanel({ tradeId, readOnly }: { tradeId: string; readOnly: boolean }
             {view.product?.isin ?? 'unbekannt'}
           </p>
           <PositionRiskSummary view={view} proposed={proposed} />
-          <IvRiskPanel view={view} />
+          <IvRiskPanel view={view} onPendingChange={reportIvPending} />
           <details className="space-y-3 rounded border border-slate-700 p-3">
             <summary className="cursor-pointer font-semibold">
               Kennzahlen, Kursqualität und Quellen im Detail
@@ -229,7 +308,7 @@ function RiskPanel({ tradeId, readOnly }: { tradeId: string; readOnly: boolean }
           </details>
           {!readOnly && (
             <>
-              <fieldset disabled={busy} className="min-w-0 space-y-2">
+              <fieldset disabled={busy || isContextPending?.()} className="min-w-0 space-y-2">
                 <legend>Explizite Regelkonfiguration</legend>
                 <p>
                   Die vorgeschlagenen Schwellen sind nicht historisch kalibriert. Dezimalbrüche:
@@ -253,8 +332,8 @@ function RiskPanel({ tradeId, readOnly }: { tradeId: string; readOnly: boolean }
                       className="max-w-full rounded border bg-slate-900 p-1"
                       value={parameters[key]}
                       onChange={(event) => {
-                        setConfirmed(false);
-                        setParameters({
+                        updateConfirmed(false);
+                        updateParameters({
                           ...parameters,
                           [key]:
                             key === 'confirmation_sessions' || key === 'maximum_age_days'
@@ -279,7 +358,7 @@ function RiskPanel({ tradeId, readOnly }: { tradeId: string; readOnly: boolean }
                   <input
                     type="checkbox"
                     checked={confirmed}
-                    onChange={(event) => setConfirmed(event.target.checked)}
+                    onChange={(event) => updateConfirmed(event.target.checked)}
                   />{' '}
                   Ich bestätige diese Parameter und die Änderung des Aktivierungszustands. Aktive
                   Warnungen können über das bestehende Monitoring zugestellt werden.
@@ -300,6 +379,7 @@ function RiskPanel({ tradeId, readOnly }: { tradeId: string; readOnly: boolean }
                       void riskApi
                         .read(tradeId)
                         .then((value) => {
+                          basisRef.current = value;
                           setView(value);
                           setProposed(false);
                         })
@@ -312,7 +392,11 @@ function RiskPanel({ tradeId, readOnly }: { tradeId: string; readOnly: boolean }
                   </button>
                 )}
               </fieldset>
-              <button disabled={busy} className={button} onClick={() => void command('history')}>
+              <button
+                disabled={busy || isContextPending?.()}
+                className={button}
+                onClick={() => void command('history')}
+              >
                 Letzte 20 Auswertungen anzeigen
               </button>
               <ul>

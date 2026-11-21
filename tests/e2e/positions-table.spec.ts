@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { readonlyPositionDetail } from "./support/readonly-position-detail";
 import type { HebeltraderEvidenceReport } from "../../frontend/src/features/operational_workspace/hebeltraderEvidence";
 import type {
   HebeltraderTargetAssessmentRequest,
@@ -75,6 +76,12 @@ async function setup(
     const url = new URL(req.url());
     const path = url.pathname;
     requests.push(`${req.method()} ${path}`);
+    const detail = readonlyPositionDetail(
+      path,
+      positions as OperationalPosition[],
+    );
+    if (detail !== undefined)
+      return route.fulfill({ status: 200, json: detail });
     let body: unknown = [];
     if (path.endsWith("/operational-workspace/actions"))
       body = { generated_at: "2026-09-13T09:00:00Z", actions: [] };
@@ -332,20 +339,19 @@ test("100 positions: global search, colored statuses, pagination, details and re
   await expect(
     page.getByText("Optionsschein 099", { exact: true }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Details", exact: true }).click();
+  await page.getByRole("link", { name: "Trade öffnen", exact: true }).click();
+  await expect(page).toHaveURL(
+    /trade-management\?trade_id=trade-99#trade-overview$/,
+  );
   await expect(
-    page.getByRole("region", { name: "Details Optionsschein 099" }),
-  ).toContainText("Quelle: FIXTURE");
+    page.getByRole("region", { name: "Produktbewertung", exact: true }),
+  ).toContainText("Bewertungsquelle: FIXTURE");
   await page
-    .getByRole("link", { name: "Trade verwalten", exact: true })
+    .getByRole("link", { name: "Zur Positionsübersicht", exact: true })
     .click();
-  await expect(page).toHaveURL(/trade-management\?trade_id=trade-99$/);
-  await page.goBack();
   await expect(search).toHaveValue("DE000TEST0099");
   await page.getByRole("button", { name: "Ansicht zurücksetzen" }).click();
-  await expect(
-    page.getByRole("region", { name: "Details Optionsschein 099" }),
-  ).toHaveCount(0);
+  await expect(page.locator("#trade-overview")).toHaveCount(0);
   await page.getByLabel("Zeilen pro Seite").selectOption("100");
   await expect(page.locator("tbody > tr[data-position-id]")).toHaveCount(100);
   await page
@@ -397,42 +403,63 @@ test("valuation notices preserve keyboard details, existing reads and explicit h
 
   for (const id of [96, 97, 99]) {
     await page.getByRole("searchbox").fill(`WK00${id}`);
-    const details = page.getByRole("button", { name: "Details", exact: true });
-    await details.focus();
-    const before = requests.length;
-    await page.keyboard.press("Enter");
-    const expanded = page.getByRole("button", {
-      name: "Details schließen",
+    const openTrade = page.getByRole("link", {
+      name: "Trade öffnen",
       exact: true,
     });
-    await expect(expanded).toHaveAttribute("aria-expanded", "true");
-    await expect(expanded).toBeFocused();
-    const region = page.getByRole("region", {
-      name: `Details Optionsschein 0${id}`,
+    await openTrade.focus();
+    const before = requests.length;
+    await page.keyboard.press("Enter");
+    await expect(page.locator("#trade-overview")).toBeFocused();
+    const valuation = page.getByRole("region", {
+      name: "Produktbewertung",
+      exact: true,
     });
-    await expect(region).toContainText(
-      `Quelle: FIXTURE · Kurszeitpunkt: ${quoteTime}`,
-    );
+    await expect(valuation).toContainText("Bewertungsquelle: FIXTURE");
+    await expect(valuation).toContainText(quoteTime);
     await expect(
-      region.getByText(`${55 + id},00 ${id % 2 ? "CHF" : "EUR"}`, {
+      valuation.getByText(`${55 + id} ${id % 2 ? "CHF" : "EUR"}`, {
         exact: true,
       }),
     ).toBeVisible();
-    await expect(region).not.toContainText("veraltet");
-    await expect(region).not.toContainText("verfügbaren Referenzkurs");
-    if (id === 97 || id === 99) {
-      await expect(region).toContainText("Letzter verfügbarer Kursstand");
-    }
-    if (id === 99)
-      await expect(region).toContainText(/die Analyse ist indikativ/i);
+    if (id === 97 || id === 99)
+      await expect(valuation).toContainText(
+        "Letzter verfügbarer Produktkurs – indikative Analyse",
+      );
+    if (id === 99) await expect(valuation).toContainText(/indikativ/i);
+    await page.waitForLoadState("networkidle");
+    const readsAfterOpen = [...requests];
 
-    // Detail children read on expansion; the passive valuation notice adds none.
+    // The canonical detail mounts each established reader once; hash changes reveal it.
+    const navigation = page.getByRole("navigation", {
+      name: "Trade-Arbeitsbereiche",
+      exact: true,
+    });
+    await navigation
+      .getByRole("link", { name: "Kursverlauf", exact: true })
+      .click();
     await expect(
-      region.getByText("Kursverlauf konnte nicht geladen werden."),
+      page.getByText("Kursverlauf konnte nicht geladen werden."),
     ).toBeVisible();
+    await navigation
+      .getByRole("link", { name: "Überwachung", exact: true })
+      .click();
+    await expect(page.locator("#trade-risk")).toBeFocused();
+    const region = page.getByRole("region", {
+      name: "Überwachung und Datenlage",
+      exact: true,
+    });
+    await region
+      .getByText("Risiko- und Trendsignale sowie Warnregeln", { exact: true })
+      .click();
     await expect(
       region.getByText("Risikoauswertung konnte nicht geladen werden."),
     ).toBeVisible();
+    await region
+      .getByText("Hebeltrader: Quellen, Voraussetzungen und Prüfungen", {
+        exact: true,
+      })
+      .click();
     const coverage = region.getByRole("region", {
       name: "Hebeltrader-Belegabdeckung",
     });
@@ -671,7 +698,11 @@ test("valuation notices preserve keyboard details, existing reads and explicit h
     expect(
       requests
         .slice(before)
-        .filter((request) => !request.endsWith("/hebeltrader-loss"))
+        .filter((request) =>
+          /\/(hebeltrader-original-bid|hebeltrader-sessions|hebeltrader-targets|indicative-entry|risk|hebeltrader-evidence|price-history)$/.test(
+            request,
+          ),
+        )
         .sort(),
     ).toEqual([
       expect.stringMatching(
@@ -710,27 +741,36 @@ test("valuation notices preserve keyboard details, existing reads and explicit h
         ),
       ),
     ]);
-    await expect(page).toHaveURL(/\/workspace$/);
-    const history = region.getByRole("link", {
-      name: "Kauf-/Verkaufsdaten und Historie öffnen",
+    await expect(page).toHaveURL(
+      new RegExp(`trade_id=trade-${id}#trade-risk$`),
+    );
+    const history = navigation.getByRole("link", {
+      name: "Buchungen",
+      exact: true,
     });
     await expect(history).toHaveAttribute(
       "href",
       `/trade-management?trade_id=trade-${id}#execution-dates`,
     );
+    await history.focus();
+    await page.keyboard.press("Enter");
+    await expect(page).toHaveURL(
+      new RegExp(`trade_id=trade-${id}#execution-dates$`),
+    );
+    await expect(page.locator("#execution-dates")).toBeFocused();
+    expect(requests).toEqual(readsAfterOpen);
+    expect(
+      requests
+        .slice(before)
+        .filter((request) =>
+          request.endsWith("/operational-workspace/positions"),
+        ),
+    ).toEqual([]);
     expect(writes()).toBe(0);
-    if (id === 99) {
-      await history.focus();
-      await page.keyboard.press("Enter");
-      await expect(page).toHaveURL(/trade_id=trade-99#execution-dates$/);
-    } else {
-      await expanded.focus();
-      await page.keyboard.press("Enter");
-      await expect(details).toHaveAttribute("aria-expanded", "false");
-      await expect(details).toBeFocused();
-      await expect(region).toHaveCount(0);
-      expect(requests).toHaveLength(before + 8);
-    }
+    await navigation
+      .getByRole("link", { name: "Zur Positionsübersicht", exact: true })
+      .click();
+    await expect(page.getByRole("searchbox")).toHaveValue(`WK00${id}`);
   }
   expect(writes()).toBe(0);
 });
@@ -762,28 +802,24 @@ test("narrow layout: bounded horizontal scroll and keyboard-accessible details a
   expect(await scroll.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(
     true,
   );
-  const details = page.getByRole("button", { name: "Details", exact: true });
-  await details.focus();
-  await page.keyboard.press("Enter");
-  // The accessible label changes to “Details schließen” after activation.
-  const expanded = page.getByRole("button", {
-    name: "Details schließen",
+  const openTrade = page.getByRole("link", {
+    name: "Trade öffnen",
     exact: true,
   });
-  await expect(expanded).toHaveAttribute("aria-expanded", "true");
-  await expect(expanded).toBeFocused();
-  await expect(
-    page.getByRole("region", { name: "Details Optionsschein 099" }),
-  ).toBeVisible();
+  await openTrade.focus();
+  await page.keyboard.press("Enter");
   const detailRegion = page.getByRole("region", {
-    name: "Details Optionsschein 099",
+    name: "Trade und Position",
+    exact: true,
   });
-  // Details remain readable when the table is scrolled to its actions on the right.
+  await expect(detailRegion).toBeVisible();
+  await expect(detailRegion).toBeFocused();
+  // The object detail occupies the narrow viewport independently of the scrolled table.
   const detailBox = await detailRegion.boundingBox();
   expect(detailBox).not.toBeNull();
   expect(detailBox!.x).toBeGreaterThanOrEqual(0);
   expect(detailBox!.x + detailBox!.width).toBeLessThanOrEqual(390);
-  await expect(detailRegion).toContainText("Quelle: FIXTURE");
+  await expect(detailRegion).toContainText("Bewertungsquelle: FIXTURE");
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= window.innerWidth + 1,
@@ -928,7 +964,12 @@ test("historical qualification preserves a scoped draft and recovers exactly one
   );
   const search = page.getByRole("searchbox");
   await search.fill("WK0099");
-  await page.getByRole("button", { name: "Details", exact: true }).click();
+  await page.getByRole("link", { name: "Überwachung", exact: true }).click();
+  await page
+    .getByText("Hebeltrader: Quellen, Voraussetzungen und Prüfungen", {
+      exact: true,
+    })
+    .click();
   await expect(page.getByText("Noch keine gespeicherte Prüfung")).toBeVisible();
   await expect(
     page.getByRole("region", { name: "Hebeltrader-Basiswertsitzungen" }),
@@ -971,12 +1012,12 @@ test("historical qualification preserves a scoped draft and recovers exactly one
   await expect(confirm).toBeDisabled();
   await reference.fill(concreteReference);
   await expect(confirm).toBeEnabled();
-  await page
-    .getByRole("button", { name: "Details schließen", exact: true })
-    .click();
-  await page.getByRole("button", { name: "Details", exact: true }).click();
+  const beforeAreaChange = [...requests];
+  await page.getByRole("link", { name: "Überblick", exact: true }).click();
+  await expect(page.locator("#trade-risk")).toBeHidden();
+  await page.getByRole("link", { name: "Überwachung", exact: true }).click();
   await expect(reference).toHaveValue(concreteReference);
-  await expect(search).toHaveValue("WK0099");
+  expect(requests).toEqual(beforeAreaChange);
   expect(assessmentPosts).toBe(0);
   const beforePost = requests.length;
   await confirm.click();
@@ -990,18 +1031,16 @@ test("historical qualification preserves a scoped draft and recovers exactly one
   ]);
   await expect(confirm).toBeDisabled();
   await page
-    .getByRole("button", { name: "Aktualisieren", exact: true })
+    .getByRole("button", { name: "Stand neu laden", exact: true })
     .click();
   await expect(
-    page.getByRole("heading", { name: "Offene Positionen · 100" }),
+    page.getByRole("heading", { name: /TR-TRADE-99 · Optionsschein 099/ }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Details", exact: true }).click();
   const unresolved = page.getByRole("region", {
     name: "Unbestätigter Prüfauftrag",
   });
   await expect(unresolved).toBeVisible();
   await expect(unresolved).toContainText(concreteReference);
-  await expect(search).toHaveValue("WK0099");
   await expect(
     page.getByRole("button", {
       name: "Gespeicherte Belege prüfen",
@@ -1041,10 +1080,12 @@ test("historical qualification preserves a scoped draft and recovers exactly one
   ).toContainText("Keine Baseline-Regelauswertung");
   expect(assessmentPosts).toBe(1);
   expect(otherWrites()).toBe(0);
-  await page
-    .getByRole("link", { name: "Kauf-/Verkaufsdaten und Historie öffnen" })
-    .click();
+  await page.getByRole("link", { name: "Buchungen", exact: true }).click();
   await expect(page).toHaveURL(/trade_id=trade-99#execution-dates$/);
+  await page
+    .getByRole("link", { name: "Zur Positionsübersicht", exact: true })
+    .click();
+  await expect(search).toHaveValue("WK0099");
   expect(assessmentPosts).toBe(1);
   expect(otherWrites()).toBe(0);
 });

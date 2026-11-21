@@ -84,7 +84,7 @@ describe('TradePlanWorkflowPage', () => {
 
   it('selects an active underlying once by business identifiers and binds it without a UUID input', async () => {
     mount();
-    expect(screen.queryByLabelText('Trade Thesis')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Handelsidee und Begründung')).not.toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Basiswert suchen'), { target: { value: 'Apple' } });
     fireEvent.click(screen.getByRole('button', { name: 'Suchen' }));
     await waitFor(() =>
@@ -98,7 +98,7 @@ describe('TradePlanWorkflowPage', () => {
     expect(screen.queryByLabelText('Basiswert suchen')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Underlying-ID')).not.toBeInTheDocument();
     expect(screen.getByLabelText('Währung')).toHaveValue('');
-    expect(screen.getByLabelText('Trade Thesis')).toBeInTheDocument();
+    expect(screen.getByLabelText('Handelsidee und Begründung')).toBeInTheDocument();
   });
 
   it('shows the exact candidate evaluation and its underlying as readable context', async () => {
@@ -122,7 +122,7 @@ describe('TradePlanWorkflowPage', () => {
       mount(`/trade-plans${query}`);
       expect(await screen.findByRole('alert')).toBeInTheDocument();
       expect(screen.queryByLabelText('Basiswert suchen')).not.toBeInTheDocument();
-      expect(screen.queryByLabelText('Trade Thesis')).not.toBeInTheDocument();
+      expect(screen.queryByLabelText('Handelsidee und Begründung')).not.toBeInTheDocument();
       expect(marketApi.searchUnderlyings).not.toHaveBeenCalled();
       expect(tradePlanApiClient.create).not.toHaveBeenCalled();
       fireEvent.click(screen.getByRole('button', { name: 'Ursprung neu auswählen' }));
@@ -138,14 +138,14 @@ describe('TradePlanWorkflowPage', () => {
       await screen.findByText(/Basiswert passt nicht zum gewählten Kandidaten/),
     ).toBeInTheDocument();
     expect(marketApi.getUnderlying).not.toHaveBeenCalled();
-    expect(screen.queryByLabelText('Trade Thesis')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Handelsidee und Begründung')).not.toBeInTheDocument();
   });
 
   it('does not replace a missing evaluation with the latest one', async () => {
     candidateApi.evaluations.mockResolvedValue([{ ...evaluation, id: 'evaluation-2', version: 8 }]);
     mount('/trade-plans?candidate_id=candidate-1&candidate_evaluation_id=evaluation-1');
     expect(await screen.findByText(/Es wurde kein Ersatz gewählt/)).toBeInTheDocument();
-    expect(screen.queryByLabelText('Trade Thesis')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Handelsidee und Begründung')).not.toBeInTheDocument();
   });
 
   it.each(['identity', 'inactive', 'short', 'missing-candidate'])(
@@ -163,7 +163,7 @@ describe('TradePlanWorkflowPage', () => {
           : '/trade-plans?underlying_id=underlying-apple',
       );
       expect(await screen.findByRole('alert')).toBeInTheDocument();
-      expect(screen.queryByLabelText('Trade Thesis')).not.toBeInTheDocument();
+      expect(screen.queryByLabelText('Handelsidee und Begründung')).not.toBeInTheDocument();
     },
   );
 

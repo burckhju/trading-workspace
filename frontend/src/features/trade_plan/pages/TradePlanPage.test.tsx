@@ -156,23 +156,23 @@ function mount(path = `/trade-plans?underlying_id=${underlying.id}`) {
   );
 }
 async function fillContent() {
-  await screen.findByLabelText('Trade Thesis');
+  await screen.findByLabelText('Handelsidee und Begründung');
   expect(screen.getByLabelText('Währung')).toHaveValue('');
-  fireEvent.change(screen.getByLabelText('Trade Thesis'), {
+  fireEvent.change(screen.getByLabelText('Handelsidee und Begründung'), {
     target: { value: 'Breakout continuation' },
   });
   fireEvent.change(screen.getByLabelText('Währung'), { target: { value: 'USD' } });
-  fireEvent.change(screen.getByLabelText('Entry-Preis'), {
+  fireEvent.change(screen.getByLabelText('Einstiegspreis'), {
     target: { value: '100.000000123456789' },
   });
   fireEvent.change(screen.getByLabelText('Technischer Stop'), { target: { value: '95' } });
-  fireEvent.change(screen.getByLabelText('Target 1'), { target: { value: '110' } });
-  fireEvent.change(screen.getByLabelText('Plan-Risiko / Annahme'), {
+  fireEvent.change(screen.getByLabelText('Kursziel 1'), { target: { value: '110' } });
+  fireEvent.change(screen.getByLabelText('Risikoannahme'), {
     target: { value: 'False breakout' },
   });
 }
 function submit() {
-  fireEvent.click(screen.getByRole('button', { name: 'TradePlan als DRAFT erstellen' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Tradeplan als Entwurf speichern' }));
 }
 
 describe('TradePlanPage', () => {
@@ -213,19 +213,19 @@ describe('TradePlanPage', () => {
     mockedClient.versions.mockResolvedValue([version]);
     mount(`/trade-plans?trade_plan_id=${detail.plan.id}`);
     await screen.findByRole('heading', { name: 'TP-11111111' });
-    fireEvent.click(screen.getByText('Herkunft und Lifecycle anzeigen'));
-    fireEvent.click(screen.getByText('Technische Provenance anzeigen'));
+    fireEvent.click(screen.getByText('Herkunft und Verlauf anzeigen'));
+    fireEvent.click(screen.getByText('Technische Herkunftsnachweise anzeigen'));
     expect(screen.getByText(/gespeicherte Evaluation v7/)).toBeInTheDocument();
     expect(screen.getAllByText(/MARKET_CONTEXT/).length).toBeGreaterThan(0);
     expect(screen.getByText('Lifecycle für Version 3')).toBeInTheDocument();
     expect(screen.getByText(/Correlation corr-approve/)).toBeInTheDocument();
-    expect(screen.getByText('Approval-Nachweis')).toBeInTheDocument();
+    expect(screen.getByText('Freigabenachweis')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Produktauswahl starten' })).toHaveAttribute(
       'href',
       `/product-selection?trade_plan_id=${detail.plan.id}&trade_plan_version_id=${version.id}`,
     );
     expect(screen.queryByLabelText('Underlying-ID')).not.toBeInTheDocument();
-    expect(screen.queryByLabelText('Trade Thesis')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Handelsidee und Begründung')).not.toBeInTheDocument();
   });
 
   it('creates with one bound underlying, explicit plan currency and full content, then shows only the central view', async () => {
@@ -236,14 +236,14 @@ describe('TradePlanPage', () => {
     fireEvent.change(screen.getByLabelText('Invalidierungsregel'), {
       target: { value: 'Close below support' },
     });
-    fireEvent.change(screen.getByLabelText('Target-Begründung 1'), {
+    fireEvent.change(screen.getByLabelText('Zielbegründung 1'), {
       target: { value: 'Prior high' },
     });
     fireEvent.click(screen.getByText('Weitere Risikoangaben'));
-    fireEvent.change(screen.getByLabelText('Max-Loss-Annahme (optional)'), {
+    fireEvent.change(screen.getByLabelText('Maximaler Verlust (Annahme, optional)'), {
       target: { value: '5%' },
     });
-    fireEvent.change(screen.getByLabelText('Risk Notes'), {
+    fireEvent.change(screen.getByLabelText('Ergänzende Risikonotizen'), {
       target: { value: 'No position sizing' },
     });
     submit();
@@ -262,10 +262,10 @@ describe('TradePlanPage', () => {
       },
     });
     await screen.findByRole('heading', { name: 'TP-11111111' });
-    expect(screen.getByText('TradePlan wurde als DRAFT erstellt.')).toBeInTheDocument();
-    expect(screen.queryByLabelText('Trade Thesis')).not.toBeInTheDocument();
+    expect(screen.getByText('Tradeplan wurde als Entwurf gespeichert.')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Handelsidee und Begründung')).not.toBeInTheDocument();
     expect(
-      screen.queryByRole('button', { name: 'TradePlan als DRAFT erstellen' }),
+      screen.queryByRole('button', { name: 'Tradeplan als Entwurf speichern' }),
     ).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Zur Prüfung einreichen' })).toBeInTheDocument();
   });
@@ -284,7 +284,7 @@ describe('TradePlanPage', () => {
       `/trade-plans?candidate_id=${detail.plan.candidate_id}&candidate_evaluation_id=${detail.plan.candidate_evaluation_id}`,
     );
     await fillContent();
-    fireEvent.change(screen.getByLabelText('Entry-Art'), { target: { value: 'TRIGGER' } });
+    fireEvent.change(screen.getByLabelText('Einstiegsart'), { target: { value: 'TRIGGER' } });
     fireEvent.change(screen.getByLabelText('Trigger'), { target: { value: 'Break above 101' } });
     expect(screen.getByText(/CandidateEvaluation · Version 7/)).toBeInTheDocument();
     expect(screen.queryByLabelText('Candidate-ID')).not.toBeInTheDocument();
@@ -309,13 +309,13 @@ describe('TradePlanPage', () => {
     );
     mount();
     await fillContent();
-    const form = screen.getByLabelText('Trade Thesis').closest('form')!;
+    const form = screen.getByLabelText('Handelsidee und Begründung').closest('form')!;
     act(() => {
       fireEvent.submit(form);
       fireEvent.submit(form);
     });
     expect(mockedClient.create).toHaveBeenCalledTimes(1);
-    expect(screen.getByLabelText('Trade Thesis')).toBeDisabled();
+    expect(screen.getByLabelText('Handelsidee und Begründung')).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Ursprung wechseln' })).toBeDisabled();
     await act(async () => {
       resolve(manualDetail);
@@ -337,7 +337,9 @@ describe('TradePlanPage', () => {
     await fillContent();
     submit();
     expect(await screen.findByText('Ursprung ist nicht mehr verfügbar')).toBeInTheDocument();
-    expect(screen.getByLabelText('Trade Thesis')).toHaveValue('Breakout continuation');
+    expect(screen.getByLabelText('Handelsidee und Begründung')).toHaveValue(
+      'Breakout continuation',
+    );
     expect(screen.getByLabelText('Währung')).toHaveValue('USD');
     expect(mockedClient.create).toHaveBeenCalledTimes(1);
   });
@@ -348,8 +350,10 @@ describe('TradePlanPage', () => {
     await fillContent();
     submit();
     expect(await screen.findByText(/Abschluss der Speicherung ist unklar/)).toBeInTheDocument();
-    expect(screen.getByLabelText('Trade Thesis')).toHaveValue('Breakout continuation');
-    expect(screen.getByRole('button', { name: 'TradePlan als DRAFT erstellen' })).toBeDisabled();
+    expect(screen.getByLabelText('Handelsidee und Begründung')).toHaveValue(
+      'Breakout continuation',
+    );
+    expect(screen.getByRole('button', { name: 'Tradeplan als Entwurf speichern' })).toBeDisabled();
     expect(mockedClient.create).toHaveBeenCalledTimes(1);
   });
 
@@ -359,11 +363,11 @@ describe('TradePlanPage', () => {
     await fillContent();
     submit();
     expect(await screen.findByRole('heading', { name: 'TP-11111111' })).toBeInTheDocument();
-    expect(screen.getByText('TradePlan wurde als DRAFT erstellt.')).toBeInTheDocument();
+    expect(screen.getByText('Tradeplan wurde als Entwurf gespeichert.')).toBeInTheDocument();
     expect(
       await screen.findByText(/Planansicht konnte nicht aktualisiert werden: reload failed/),
     ).toBeInTheDocument();
-    expect(screen.queryByLabelText('Trade Thesis')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Handelsidee und Begründung')).not.toBeInTheDocument();
     expect(mockedClient.create).toHaveBeenCalledTimes(1);
   });
 
@@ -376,8 +380,10 @@ describe('TradePlanPage', () => {
     await fillContent();
     submit();
     expect(await screen.findByText(/zurückgegebenen Referenzen passen nicht/)).toBeInTheDocument();
-    expect(screen.getByLabelText('Trade Thesis')).toHaveValue('Breakout continuation');
-    expect(screen.getByRole('button', { name: 'TradePlan als DRAFT erstellen' })).toBeDisabled();
+    expect(screen.getByLabelText('Handelsidee und Begründung')).toHaveValue(
+      'Breakout continuation',
+    );
+    expect(screen.getByRole('button', { name: 'Tradeplan als Entwurf speichern' })).toBeDisabled();
   });
 
   it.each(['empty', 'approved', 'manual-candidate', 'missing-version-id'])(
@@ -395,8 +401,12 @@ describe('TradePlanPage', () => {
       expect(
         await screen.findByText(/zurückgegebenen Referenzen passen nicht/),
       ).toBeInTheDocument();
-      expect(screen.getByLabelText('Trade Thesis')).toHaveValue('Breakout continuation');
-      expect(screen.getByRole('button', { name: 'TradePlan als DRAFT erstellen' })).toBeDisabled();
+      expect(screen.getByLabelText('Handelsidee und Begründung')).toHaveValue(
+        'Breakout continuation',
+      );
+      expect(
+        screen.getByRole('button', { name: 'Tradeplan als Entwurf speichern' }),
+      ).toBeDisabled();
       expect(mockedClient.create).toHaveBeenCalledTimes(1);
     },
   );
@@ -412,7 +422,9 @@ describe('TradePlanPage', () => {
     expect(await screen.findByRole('alertdialog')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Hier bleiben' })).toHaveFocus();
     fireEvent.click(screen.getByRole('button', { name: 'Hier bleiben' }));
-    expect(screen.getByLabelText('Trade Thesis')).toHaveValue('Breakout continuation');
+    expect(screen.getByLabelText('Handelsidee und Begründung')).toHaveValue(
+      'Breakout continuation',
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Ursprung wechseln' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Eingaben verwerfen und wechseln' }));
     expect(await screen.findByLabelText('Basiswert suchen')).toBeInTheDocument();

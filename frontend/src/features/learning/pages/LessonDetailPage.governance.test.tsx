@@ -34,7 +34,7 @@ vi.mock('../components/JournalEvidenceOrigin', () => ({
 const at = '2026-10-26T12:00:00Z';
 const confirmLabel = 'Prüfentscheidung verbindlich bestätigen';
 const discardLabel = 'Eingaben verwerfen und wechseln';
-const hypothesisLabel = 'Hypothese für FT-013 anlegen';
+const hypothesisLabel = 'Hypothese anlegen';
 const sourceReviewLabel = 'Quellenbezogene Prüfung beginnen';
 const routers: ReturnType<typeof createMemoryRouter>[] = [];
 
@@ -135,9 +135,10 @@ function renderLesson({
   return { ...render(strict ? <StrictMode>{provider}</StrictMode> : provider), router };
 }
 
-const click = (name: string) => fireEvent.click(screen.getByRole('button', { name }));
+const click = (name: string) => fireEvent.click(screen.getByRole('button', { hidden: true, name }));
 const reason = () => screen.getByLabelText(/Begründung der Prüfentscheidung/);
-const versionSelect = () => screen.getByRole('combobox', { name: 'Lesson-Version ansehen' });
+const versionSelect = () =>
+  screen.getByRole('combobox', { hidden: true, name: 'Lesson-Version ansehen' });
 
 async function fillHypothesis() {
   const title = await screen.findByLabelText('Titel');
@@ -148,7 +149,7 @@ async function fillHypothesis() {
 }
 
 async function prepareReview(operation = sourceReviewLabel) {
-  fireEvent.click(await screen.findByRole('button', { name: operation }));
+  fireEvent.click(await screen.findByRole('button', { hidden: true, name: operation }));
   fireEvent.change(reason(), { target: { value: 'Explicit synthetic review.' } });
   if (operation === 'Neue Lesson-Version vorbereiten')
     await waitFor(() =>
@@ -204,11 +205,13 @@ describe('one exact Lesson context and guarded Governance handoff', () => {
     expect(within(article).getAllByRole('list')).toHaveLength(1);
     expect(within(article).getAllByRole('listitem')).toHaveLength(3);
     expect(screen.queryByText('L1 interpretation')).not.toBeInTheDocument();
-    expect(screen.getByText('Heutiger Lesson-Status: CURRENT')).toBeInTheDocument();
+    expect(
+      screen.getByText('Heutiger Erkenntnisstatus: Aktuelle Interpretation'),
+    ).toBeInTheDocument();
     openSource('SUPPORTS · Evidence l2-e1');
     expect(await screen.findAllByText('Exact source origin: l2-e1')).toHaveLength(1);
     expect(screen.queryByText('SUPPORTS · Evidence l1-e1')).not.toBeInTheDocument();
-    await screen.findByRole('button', { name: hypothesisLabel });
+    await screen.findByRole('button', { hidden: true, name: hypothesisLabel });
     expect(mocks.context).toHaveBeenCalledExactlyOnceWith('lesson-1');
     expect(mocks.getLesson).not.toHaveBeenCalled();
     expect(mocks.listForLessonVersion).toHaveBeenCalledWith('l2', expect.any(AbortSignal));
@@ -217,21 +220,63 @@ describe('one exact Lesson context and guarded Governance handoff', () => {
     expect(router.state.location.search).toBe('');
   });
 
+  it('keeps review and hypothesis drafts mounted while changing visible work areas without reads or pin changes', async () => {
+    const { router } = renderLesson({
+      entries: [
+        '/lessons/lesson-1?lesson_version_id=l2&lesson_list=models&lesson_cursor=page-two#lesson-history',
+      ],
+    });
+    await screen.findByText('L2 interpretation');
+    await prepareReview();
+    const reviewReason = reason();
+    const navigation = within(
+      screen.getByRole('navigation', { name: 'Erkenntnis-Arbeitsbereiche' }),
+    );
+    fireEvent.click(navigation.getByRole('link', { name: 'Modellverbesserung' }));
+    const { title, statement } = await fillHypothesis();
+    expect(title).toBeVisible();
+    expect(reviewReason).not.toBeVisible();
+    const counts = [mocks.context.mock.calls.length, mocks.listForLessonVersion.mock.calls.length];
+    const search = router.state.location.search;
+
+    fireEvent.click(navigation.getByRole('link', { name: 'Erkenntnis & Quellen' }));
+    expect(reviewReason).toBeVisible();
+    expect(reviewReason).toHaveValue('Explicit synthetic review.');
+    expect(title).not.toBeVisible();
+    fireEvent.click(navigation.getByRole('link', { name: 'Modellverbesserung' }));
+    expect(screen.getByLabelText('Titel')).toBe(title);
+    expect(title).toHaveValue('Synthetic H1');
+    expect(statement).toHaveValue('Synthetic interpretation only');
+    expect(router.state.location.search).toBe(search);
+    expect([mocks.context.mock.calls.length, mocks.listForLessonVersion.mock.calls.length]).toEqual(
+      counts,
+    );
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Zurück zur Modellverbesserung' })).toHaveAttribute(
+      'href',
+      '/model-improvements?cursor=page-two',
+    );
+    expect(mocks.execute).not.toHaveBeenCalled();
+    expect(mocks.createFromLessonVersion).not.toHaveBeenCalled();
+  });
+
   it('shows only historical L1 and its sources with today’s status, then creates an explicit L1 hypothesis', async () => {
     mocks.context.mockResolvedValue(reviewContext('REVIEW_RECOMMENDED'));
     renderLesson({ entries: ['/lessons/lesson-1?lesson_version_id=l1#lesson-history'] });
     const article = await screen.findByRole('article', { name: 'Lesson-Snapshot Version 1' });
     expect(within(article).getByText('L1 interpretation')).toBeInTheDocument();
     expect(screen.queryByText('L2 interpretation')).not.toBeInTheDocument();
-    expect(screen.getByText('Heutiger Lesson-Status: REVIEW_RECOMMENDED')).toBeInTheDocument();
+    expect(screen.getByText('Heutiger Erkenntnisstatus: Prüfung empfohlen')).toBeInTheDocument();
     expect(screen.getByText('Gewählte Inhaltsversion: Version 1 · historisch')).toBeInTheDocument();
     openSource('SUPPORTS · Evidence l1-e1');
     expect(await screen.findByText('Exact source origin: l1-e1')).toBeInTheDocument();
     expect(screen.queryByText('SUPPORTS · Evidence l2-e1')).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Neue Lesson-Version vorbereiten' })).toBeNull();
+    expect(
+      screen.queryByRole('button', { hidden: true, name: 'Neue Lesson-Version vorbereiten' }),
+    ).toBeNull();
     await fillHypothesis();
     click(hypothesisLabel);
-    await screen.findByText('Bereits an FT-013 übergeben');
+    await screen.findByText('Vorhandene Hypothesen');
     expect(mocks.listForLessonVersion).toHaveBeenCalledWith('l1', expect.any(AbortSignal));
     expect(mocks.listForLessonVersion).not.toHaveBeenCalledWith('l2', expect.any(AbortSignal));
     expect(mocks.createFromLessonVersion).toHaveBeenCalledExactlyOnceWith('l1', {
@@ -258,7 +303,10 @@ describe('one exact Lesson context and guarded Governance handoff', () => {
       view.unmount();
       view = renderLesson({ entries: [shared] });
       await screen.findByText('L2 interpretation');
-      const back = screen.getByRole('link', { name: 'Zurück zum Trade-Arbeitsbereich' });
+      const back = screen.getByRole('link', {
+        hidden: true,
+        name: 'Zurück zum Trade-Arbeitsbereich',
+      });
       fireEvent.click(back);
       await screen.findByRole('heading', {
         name: returnView === 'sources' ? 'Trade target' : 'Post-Trade target',
@@ -278,10 +326,9 @@ describe('one exact Lesson context and guarded Governance handoff', () => {
       entries: ['/lessons/lesson-1?lesson_version_id=l1#lesson-history'],
     });
     await screen.findByText('L1 interpretation');
-    expect(screen.getByRole('link', { name: 'Genau diese Lesson-Version öffnen' })).toHaveAttribute(
-      'href',
-      '/lessons/lesson-1?lesson_version_id=l1#lesson-history',
-    );
+    expect(
+      screen.getByRole('link', { hidden: true, name: 'Genau diese Lesson-Version öffnen' }),
+    ).toHaveAttribute('href', '/lessons/lesson-1?lesson_version_id=l1#lesson-history');
     fireEvent.change(versionSelect(), { target: { value: 'l2' } });
     await screen.findByText('L2 interpretation');
     expect(view.router.state.location.search).toBe('?lesson_version_id=l2');
@@ -305,11 +352,17 @@ describe('one exact Lesson context and guarded Governance handoff', () => {
     async (requested) => {
       renderLesson({ entries: [`/lessons/lesson-1?lesson_version_id=${requested}`] });
       expect(await screen.findByRole('alert')).toHaveTextContent(
-        'Keine andere Version wurde dafür eingesetzt',
+        requested === ''
+          ? 'Erkenntnisversion nicht eindeutig'
+          : 'Keine andere Version wurde dafür eingesetzt',
       );
       expect(screen.queryByRole('article')).not.toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: hypothesisLabel })).not.toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: sourceReviewLabel })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { hidden: true, name: hypothesisLabel }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { hidden: true, name: sourceReviewLabel }),
+      ).not.toBeInTheDocument();
       expect(mocks.listForLessonVersion).not.toHaveBeenCalled();
       expect(mocks.execute).not.toHaveBeenCalled();
     },
@@ -327,7 +380,9 @@ describe('one exact Lesson context and guarded Governance handoff', () => {
       renderLesson();
       await screen.findByText(/Keine neue Bestätigung bis zum erfolgreichen Neuladen/);
       expect(screen.queryByRole('article')).not.toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: hypothesisLabel })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { hidden: true, name: hypothesisLabel }),
+      ).not.toBeInTheDocument();
       expect(mocks.listForLessonVersion).not.toHaveBeenCalled();
       expect(mocks.execute).not.toHaveBeenCalled();
     },
@@ -352,7 +407,7 @@ describe('one exact Lesson context and guarded Governance handoff', () => {
       versionSelect().focus();
       fireEvent.change(versionSelect(), { target: { value: 'l1' } });
       expect(await screen.findAllByRole('alertdialog')).toHaveLength(1);
-      expect(screen.getByRole('button', { name: 'Hier bleiben' })).toHaveFocus();
+      expect(screen.getByRole('button', { hidden: true, name: 'Hier bleiben' })).toHaveFocus();
       expect(router.state.location.search).toBe('?marker=retained');
       click('Hier bleiben');
       expect(field).toHaveValue(previousValue);
@@ -490,7 +545,7 @@ describe('one exact Lesson context and guarded Governance handoff', () => {
     expect(title).toHaveValue('Synthetic H1');
     expect(statement).toHaveValue('Synthetic interpretation only');
     expect(title).toBeDisabled();
-    expect(screen.getByRole('button', { name: hypothesisLabel })).toBeDisabled();
+    expect(screen.getByRole('button', { hidden: true, name: hypothesisLabel })).toBeDisabled();
     fireEvent.submit(title.closest('form')!);
     expect(mocks.createFromLessonVersion).not.toHaveBeenCalled();
     await act(async () => {
@@ -533,10 +588,13 @@ describe('one exact Lesson context and guarded Governance handoff', () => {
     mocks.context.mockResolvedValue(reviewContext('REVIEW_RECOMMENDED'));
     click(confirmLabel);
     await screen.findByText(/Prüfentscheidung gespeichert: transition-1/);
-    await screen.findByText('Heutiger Lesson-Status: REVIEW_RECOMMENDED');
+    await screen.findByText('Heutiger Erkenntnisstatus: Prüfung empfohlen');
     const { title, statement } = await fillHypothesis();
     const key = router.state.location.key;
-    const link = screen.getByRole('link', { name: 'Genau diese Lesson-Version öffnen' });
+    const link = screen.getByRole('link', {
+      hidden: true,
+      name: 'Genau diese Lesson-Version öffnen',
+    });
     expect(link).toHaveAttribute('href', '/lessons/lesson-1?lesson_version_id=l2#lesson-history');
     fireEvent.click(link);
     fireEvent.change(versionSelect(), { target: { value: 'l2' } });
@@ -581,7 +639,9 @@ describe('one exact Lesson context and guarded Governance handoff', () => {
     await screen.findByText(/Keine neue Bestätigung bis zum erfolgreichen Neuladen/);
     expect(screen.queryByRole('form', { name: 'Lesson-Prüfentscheidung' })).not.toBeInTheDocument();
     expect(screen.queryByText('L2 interpretation')).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: hypothesisLabel })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { hidden: true, name: hypothesisLabel }),
+    ).not.toBeInTheDocument();
     expect(mocks.execute).toHaveBeenCalledTimes(1);
     expect(mocks.execute.mock.calls[0][1]).toMatchObject({
       operation: 'NEW_VERSION',
@@ -609,7 +669,7 @@ describe('one exact Lesson context and guarded Governance handoff', () => {
     mocks.context.mockResolvedValue(successor);
     click('Lesson-Prüfstand neu laden');
     await screen.findByText('Explicit L3 interpretation');
-    await screen.findByRole('button', { name: hypothesisLabel });
+    await screen.findByRole('button', { hidden: true, name: hypothesisLabel });
     expect(screen.getByText(/Prüfentscheidung gespeichert: l3/)).toBeInTheDocument();
     expect(mocks.execute).toHaveBeenCalledTimes(1);
     expect(mocks.listForLessonVersion).toHaveBeenLastCalledWith('l3', expect.any(AbortSignal));
@@ -626,7 +686,7 @@ describe('one exact Lesson context and guarded Governance handoff', () => {
     click(confirmLabel);
     await screen.findByText(/Prüfentscheidung gespeichert: l3/);
     await screen.findByRole('alertdialog');
-    expect(screen.getByRole('button', { name: discardLabel })).toBeEnabled();
+    expect(screen.getByRole('button', { hidden: true, name: discardLabel })).toBeEnabled();
     expect(router.state.location.search).toBe('');
     click('Hier bleiben');
     expect(screen.getByLabelText('Titel')).toHaveValue('Synthetic H1');

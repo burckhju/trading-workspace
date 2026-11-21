@@ -13,15 +13,18 @@ export function TradePlanVersionContent({ version }: { version: TradePlanVersion
   return (
     <div className="space-y-6">
       <section aria-label="These">
-        <h3 className="font-semibold">Trade Thesis</h3>
+        <h3 className="font-semibold">Handelsidee und Begründung</h3>
         <p className="mt-2 whitespace-pre-wrap break-words text-sm">{version.thesis}</p>
       </section>
       <section aria-label="Einstieg">
-        <h3 className="font-semibold">Entry · {version.entry.type}</h3>
+        <h3 className="font-semibold">
+          Einstieg ·{' '}
+          {{ PRICE: 'Preis', PRICE_RANGE: 'Preisbereich', TRIGGER: 'Auslöser' }[version.entry.type]}
+        </h3>
         <dl className="mt-3 grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-3">
           <Value label="Planwährung" value={version.entry.currency} />
           {version.entry.type === 'PRICE' && (
-            <Value label="Entry-Preis" value={version.entry.price} />
+            <Value label="Einstiegspreis" value={version.entry.price} />
           )}
           {version.entry.type === 'PRICE_RANGE' && (
             <>
@@ -34,7 +37,7 @@ export function TradePlanVersionContent({ version }: { version: TradePlanVersion
           )}
           <Value label="Referenzpreis" value={version.entry.reference_price} />
           <Value label="Gültig bis" value={version.entry.valid_until} />
-          <Value label="Entry-Begründung" value={version.entry.rationale} />
+          <Value label="Einstiegsbegründung" value={version.entry.rationale} />
         </dl>
       </section>
       <section aria-label="Invalidierung">
@@ -51,7 +54,7 @@ export function TradePlanVersionContent({ version }: { version: TradePlanVersion
           {version.targets.map((target) => (
             <li key={target.sequence} className="rounded-lg border border-slate-800 p-3">
               <p className="font-medium">
-                Target {target.sequence} · {target.price}
+                Kursziel {target.sequence} · {target.price}
               </p>
               {target.rationale && (
                 <p className="mt-1 whitespace-pre-wrap break-words text-slate-300">
@@ -65,9 +68,12 @@ export function TradePlanVersionContent({ version }: { version: TradePlanVersion
       <section aria-label="Risikoannahmen">
         <h3 className="font-semibold">Risikoannahmen</h3>
         <dl className="mt-3 grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-3">
-          <Value label="Plan-Risiko / Annahme" value={version.risk_assumptions.thesis_risk} />
-          <Value label="Max-Loss-Annahme" value={version.risk_assumptions.max_loss_assumption} />
-          <Value label="Risk Notes" value={version.risk_assumptions.notes} />
+          <Value label="Risikoannahme" value={version.risk_assumptions.thesis_risk} />
+          <Value
+            label="Maximaler Verlust (Annahme)"
+            value={version.risk_assumptions.max_loss_assumption}
+          />
+          <Value label="Ergänzende Risikonotizen" value={version.risk_assumptions.notes} />
         </dl>
       </section>
       {version.change_reason && (
@@ -89,7 +95,7 @@ export function TradePlanProvenance({
   const candidate = version.candidate_evaluation;
   return (
     <details className="rounded-xl border border-slate-800 p-5">
-      <summary className="cursor-pointer font-semibold">Herkunft und Lifecycle anzeigen</summary>
+      <summary className="cursor-pointer font-semibold">Herkunft und Verlauf anzeigen</summary>
       <div className="mt-4 space-y-4 text-sm">
         <p>
           {plan.origin_type === 'MANUAL'
@@ -113,7 +119,7 @@ export function TradePlanProvenance({
         )}
         {version.approval && (
           <div className="rounded-lg border border-emerald-800 p-3">
-            <h3 className="font-medium">Approval-Nachweis</h3>
+            <h3 className="font-medium">Freigabenachweis</h3>
             <p>
               Version {version.approval.version} ·{' '}
               {new Date(version.approval.approved_at).toLocaleString('de-DE')}
@@ -139,7 +145,7 @@ export function TradePlanProvenance({
           )}
         </section>
         <details className="text-xs text-slate-400">
-          <summary className="cursor-pointer">Technische Provenance anzeigen</summary>
+          <summary className="cursor-pointer">Technische Herkunftsnachweise anzeigen</summary>
           <dl className="mt-3 space-y-2 break-all">
             <Value label="TradePlan-ID" value={plan.id} />
             <Value label="Underlying-ID" value={plan.underlying_id} />

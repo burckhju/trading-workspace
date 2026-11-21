@@ -82,7 +82,7 @@ export function TradePlanWorkflowPage() {
   if (existingTradePlanId) return <ExistingTradePlanPage tradePlanId={existingTradePlanId} />;
 
   return (
-    <main className="min-w-0 space-y-6">
+    <section className="min-w-0 space-y-6">
       <header>
         <p className="text-xs uppercase tracking-wide text-slate-500">FT-007 · Anlage</p>
         <h1 className="mt-1 text-2xl font-semibold">Neuen TradePlan anlegen</h1>
@@ -159,6 +159,6 @@ export function TradePlanWorkflowPage() {
       {(candidateOrigin || selectedUnderlyingId || searchParams.has('underlying_id')) && (
         <BaseTradePlanPage key={searchParams.toString()} />
       )}
-    </main>
+    </section>
   );
 }

@@ -163,17 +163,22 @@ test("candidate governance: exact Lesson source, explicit A-B-A and immutable ev
         }),
       ).toBeVisible();
       await expect(
-        page.getByRole("button", {
-          name: "Hypothese für FT-013 anlegen",
-          exact: true,
-        }),
-      ).toBeEnabled();
-      await expect(
         page.getByRole("link", {
           name: "Genau diese Lesson-Version öffnen",
           exact: true,
         }),
       ).toHaveAttribute("href", `${lessonUrl}#lesson-history`);
+      await page
+        .getByRole("navigation", { name: "Erkenntnis-Arbeitsbereiche" })
+        .getByRole("link", { name: "Modellverbesserung", exact: true })
+        .click();
+      await expect(
+        page.getByRole("button", {
+          name: "Hypothese anlegen",
+          exact: true,
+        }),
+      ).toBeEnabled();
+
       expect(
         await q.getJson(`/model-governance/lesson-versions/${l1}/hypotheses`),
       ).toEqual([]);
@@ -202,7 +207,7 @@ test("candidate governance: exact Lesson source, explicit A-B-A and immutable ev
         () =>
           page
             .getByRole("button", {
-              name: "Hypothese für FT-013 anlegen",
+              name: "Hypothese anlegen",
               exact: true,
             })
             .click(),

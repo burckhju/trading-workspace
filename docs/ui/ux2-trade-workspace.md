@@ -1,5 +1,22 @@
 # UX-2: Einheitlicher Trade- und Positionsarbeitsbereich
 
+## Fachstruktur A — 21.11.2026
+
+Nach ausdrücklicher Nutzerwahl liegt die globale Haupt-/Unterstruktur im [UX-Masterplan](../coordination/UX_MASTER_PLAN.md#gewählte-fachstruktur-a--21112026). Dieser Schnitt setzt auf dem inzwischen integrierten UX2-B-Überblick auf.
+
+| Bisheriger Einstieg | Neuer primärer Weg | Kontext und Erhalt |
+|---|---|---|
+| Basiswertliste als Startseite `/` | Aktuelles `/`; Basiswerte weiterhin `/underlyings` | Vorhandene Basiswertdirektlinks bleiben gültig |
+| Gestapelter Arbeitsbereich `/workspace` | Aktuelles für Hinweise; Depot `/workspace` für Positionen; `/data-sources` für Diagnose | Gleiche bestehenden Reader, getrennte Einstiege |
+| Inline Positionsdetails in der Tabelle | Kanonischer Trade mit **Überwachung**, **Überblick** und **Kursverlauf** | Suche, Sortierung, Filter, Seite, Positionsauswahl und Rückkehrfokus |
+| Trade-Seite mit aufeinanderfolgenden langen Blöcken | **Überblick**, **Kursverlauf**, **Buchungen**, **Überwachung**, **Bearbeiten**, **Plan und Belege** | Bestehende Hashaliases; Formulare und Reads behalten ihre Lebensdauer |
+| Produktvergleich und Kauf im selben sichtbaren Block | Vergleich unter Marktanalyse; `#purchase` unter Depot/Ausführungen | Ein Run, ein Kaufentwurf, bewusste tatsächliche Ausführung |
+| Nachbeobachtung, Journal und Lessons gestapelt | Getrennte lokale Unteransichten plus Bereichseinstiege | Exakte Review-/Journal-/Lessonpins und vorhandener Handoff |
+| Modellbefehle nur im langen Lessondetail | Modellverbesserungsliste → konkrete Lessonversion `#model-improvement` | Gleiche versionierte Governance; keine implizite Aktivierung |
+| Produkttermine an mehreren Stellen bearbeiten | Optionsscheindetail mit exaktem Trade-Rückweg | Überwachung zeigt Kontext und verlinkt denselben Editor |
+
+Die bisherigen API-, Snapshot-, Finanz- und Rückkontextgrenzen bleiben erhalten. [Prüfstand und konkrete Grenzen](../coordination/UX_INTEGRATION_STATUS.md#fachstruktur-a-20261121) sind getrennt von historischen Liefernachweisen dokumentiert.
+
 ## UX2-B — aktueller, begrenzter Implementierungsschnitt
 
 ### Live-Basis und Datei-/Leseverantwortung vor dem Produktdiff

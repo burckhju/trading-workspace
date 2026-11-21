@@ -4,13 +4,26 @@ import { UNSAFE_DataRouterContext, useBlocker } from 'react-router-dom';
 export interface ProductFormGuard {
   dirty: boolean;
   busy: boolean;
+  shouldBlock?: () => boolean;
 }
 
 export const DISCARD_PRODUCT_DRAFT =
   'Ungespeicherte Änderungen verwerfen und den aktuellen Produktkontext verlassen?';
 
-function RouterGuard({ dirty, busy }: ProductFormGuard) {
-  const blocker = useBlocker(dirty || busy);
+function RouterGuard({ dirty, busy, shouldBlock }: ProductFormGuard) {
+  const blocker = useBlocker(({ currentLocation, nextLocation }) => {
+    const current = new URLSearchParams(currentLocation.search);
+    const next = new URLSearchParams(nextLocation.search);
+    current.delete('q');
+    next.delete('q');
+    // A local catalogue filter or anchor does not discard the selected product's form.
+    if (
+      currentLocation.pathname === nextLocation.pathname &&
+      current.toString() === next.toString()
+    )
+      return false;
+    return shouldBlock ? shouldBlock() : dirty || busy;
+  });
   const stay = useRef<HTMLButtonElement>(null);
   const dialog = useRef<HTMLDialogElement>(null);
   useEffect(() => {

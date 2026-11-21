@@ -1,5 +1,21 @@
 # UX-Ownership
 
+## Zuständigkeit der gewählten Fachstruktur A — 21.11.2026
+
+Die Nutzerwahl A erweitert den bisherigen Präsentationsauftrag auf die gemeinsame Anwendungsnavigation. Die fachlichen Owner bleiben unverändert.
+
+| Oberfläche / Schnittstelle | Integrationsverantwortung | Fachliche Grenze |
+|---|---|---|
+| `app/navigation.ts`, `app/router.tsx`, `ApplicationLayout` | UX-2 / gemeinsame UI-Integration | Präsentation, Ort und vorhandene Einstiege; keine Aufgabenpriorität oder Freigabelogik |
+| Aktuelles, Depotliste, Ausführungsübersicht, Datenquelleneinstieg | `operational_workspace` als vorhandener Consumer | Bestehende Action-/Positionsprojektionen; Diagnose bleibt beim bisherigen Reader |
+| `PositionMonitoring` als öffentlicher Adapter | `operational_workspace`; Trade ist Host | Gleiche Beleg-, Risiko- und Qualifikationsowner; kein zusätzlicher Positionssnapshot pro Tab |
+| Produktvergleich und Erstkaufansicht | `product_selection` | Ein Run und Kaufentwurf; `#purchase` ist ein Präsentationsort in Depot |
+| Planfilter und Rückweg | `trade_plan` über öffentliche Navigationshelper | Nur Ansichtsfilter; keine neue Planversion oder Genehmigung |
+| Nachbereitung, Journal, Erkenntnis und Modellverbesserung | `post_trade`, `learning`, `model` | Bisherige Versionen und Commands; keine neue Journal-/Modellzustandswahrheit |
+| Produktpflege und Trade-Rückweg | `product` und Shared-Navigationsvertrag | Exaktes Produkt; nur zugelassene interne Rückziele |
+
+Die vollständige [Hauptortmatrix](UX_MASTER_PLAN.md#vollständige-funktionszuordnung-aus-der-bestandsaufnahme) gilt für diesen Schnitt. Die folgenden älteren Tabellen bleiben mit ihren fachlichen Eigentumsgrenzen erhalten.
+
 Gemeinsame Basis und Auftragsblätter: [UX_MASTER_PLAN](UX_MASTER_PLAN.md). Diese Zuordnung regelt technische Zusammenarbeit; fachliche Aufgabenstände stehen nur im [PRODUCT_BACKLOG](../planning/PRODUCT_BACKLOG.md).
 
 ## Ein Owner je gemeinsamer UX-Schnittstelle

@@ -232,11 +232,14 @@ for (const width of [1280, 390]) {
     await expect(page).toHaveURL(
       /product-selection\?run_id=synthetic-run-alpha$/,
     );
+    await page
+      .getByRole("link", { name: "Tatsächlichen Kauf erfassen", exact: true })
+      .click();
     await expect(
       page.getByText(`Kauf für: ${selected.display_name}`, { exact: true }),
     ).toBeVisible();
     await expect(
-      page.getByRole("button", { name: "BUY erfassen und Position eröffnen" }),
+      page.getByRole("button", { name: "Kauf erfassen und Position eröffnen" }),
     ).toBeDisabled();
     expect(
       requests.some((path) =>

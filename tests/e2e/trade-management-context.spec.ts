@@ -122,23 +122,33 @@ test("failed trade switch cannot reuse another position; retry and history prese
         : route.continue(),
   );
 
-  await page.goto(`/trade-management?trade_id=${a.trade.id}`);
+  await page.goto(`/trade-management?trade_id=${a.trade.id}#sale-capture`);
   await expect(
     page.getByRole("heading", { name: new RegExp(a.warrant.display_name) }),
   ).toBeVisible();
   await page.getByLabel("Verkaufsmenge", { exact: true }).fill("3");
   await page.getByLabel("Verkaufspreis", { exact: true }).fill("2.50");
+  await page.getByRole("link", { name: "Bearbeiten", exact: true }).click();
   await page
     .getByLabel("Neue Management-Notiz", { exact: true })
     .fill("Draft belongs to A");
+  await page
+    .getByText("Trade über Kennung öffnen oder Stand neu laden", {
+      exact: true,
+    })
+    .click();
   await page.getByLabel("Trade-ID", { exact: true }).fill(b.trade.id);
   await page.getByRole("button", { name: "Laden", exact: true }).click();
-  await page.getByRole("alertdialog", { name: "Ungespeicherte Änderungen" })
-    .getByRole("button", { name: "Eingaben verwerfen und wechseln" }).click();
+  await page
+    .getByRole("alertdialog", { name: "Ungespeicherte Änderungen" })
+    .getByRole("button", { name: "Eingaben verwerfen und wechseln" })
+    .click();
   // The host reports the failed position read; valuation stays withheld until
   // a new host read succeeds. Keep the existing host status contract explicit.
   await expect(
-    page.getByRole("status").filter({ hasText: "Test: Position B nicht verfügbar." }),
+    page
+      .getByRole("status")
+      .filter({ hasText: "Test: Position B nicht verfügbar." }),
   ).toBeVisible();
   await expect(page).toHaveURL(new RegExp(`trade_id=${b.trade.id}$`));
   await expect(
@@ -156,7 +166,9 @@ test("failed trade switch cannot reuse another position; retry and history prese
   expect(writes).toEqual([]);
 
   blockB = false;
-  await page.getByRole("button", { name: "Laden", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Stand neu laden", exact: true })
+    .click();
   await expect(
     page.getByRole("heading", { name: new RegExp(b.warrant.display_name) }),
   ).toBeVisible();
@@ -172,6 +184,7 @@ test("failed trade switch cannot reuse another position; retry and history prese
   expect(writes).toEqual([]);
 
   // Deliberate new inputs on the correctly identified B: never replay A's draft.
+  await page.getByRole("link", { name: "Buchungen", exact: true }).click();
   await page.getByLabel("Verkaufsmenge", { exact: true }).fill("2");
   await page.getByLabel("Verkaufspreis", { exact: true }).fill("3.25");
   await page.getByLabel("Verkaufsdatum", { exact: true }).fill("2026-08-20");
@@ -205,14 +218,20 @@ test("failed trade switch cannot reuse another position; retry and history prese
 
   // Query-only history navigation must load the actual URL trade, not stale local state.
   await page.goBack();
+  await expect(page).toHaveURL(new RegExp(`trade_id=${b.trade.id}$`));
+  await page.goBack();
   await expect(
     page.getByRole("heading", { name: new RegExp(a.warrant.display_name) }),
   ).toBeVisible();
-  await expect(page.getByText("Offene Menge", { exact: true }).locator("..").locator("dd")).toHaveText("10 Stück");
+  await expect(
+    page.getByText("Offene Menge", { exact: true }).locator("..").locator("dd"),
+  ).toHaveText("10 Stück");
   await page.goForward();
   await expect(
     page.getByRole("heading", { name: new RegExp(b.warrant.display_name) }),
   ).toBeVisible();
-  await expect(page.getByText("Offene Menge", { exact: true }).locator("..").locator("dd")).toHaveText("18 Stück");
+  await expect(
+    page.getByText("Offene Menge", { exact: true }).locator("..").locator("dd"),
+  ).toHaveText("18 Stück");
   expect(writes).toHaveLength(1);
 });

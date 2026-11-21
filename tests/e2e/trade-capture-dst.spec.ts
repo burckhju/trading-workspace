@@ -80,25 +80,34 @@ test("ambiguous purchase and sale times write nothing; explicit date-only captur
     if (
       outgoing.method() === "POST" &&
       outgoing.url().includes("/trade-position/")
-    ) captures.push(outgoing);
+    )
+      captures.push(outgoing);
   });
-  await page.goto(`/trade-management?trade_id=${tradeId}`);
+  await page.goto(`/trade-management?trade_id=${tradeId}#execution-dates`);
   await page.getByLabel("Nachkaufmenge").fill("5");
   await page.getByLabel("Nachkaufpreis").fill("0.5");
   await page.getByLabel("Nachkaufdatum", { exact: true }).fill("2025-10-26");
   await page.getByLabel("Nachkaufdatum Uhrzeit", { exact: true }).fill("02:30");
   await page.getByRole("button", { name: "Nachkauf speichern" }).click();
-  await expect(page.getByText(/Die Uhrzeit ist wegen der Zeitumstellung/)).toBeVisible();
+  await expect(
+    page.getByText(/Die Uhrzeit ist wegen der Zeitumstellung/),
+  ).toBeVisible();
   expect(captures).toHaveLength(0);
   expect(await executions()).toEqual(originalExecutions);
-  expect((await (await request.get(`${tradeUrl}/position`)).json()).open_quantity).toBe(10);
+  expect(
+    (await (await request.get(`${tradeUrl}/position`)).json()).open_quantity,
+  ).toBe(10);
   await expect(page.getByLabel("Nachkaufmenge")).toHaveValue("5");
-  await expect(page.getByLabel("Nachkaufdatum Uhrzeit", { exact: true })).toHaveValue("02:30");
+  await expect(
+    page.getByLabel("Nachkaufdatum Uhrzeit", { exact: true }),
+  ).toHaveValue("02:30");
 
   // Explicit user choice, never an automatic fallback after the rejected time.
   await page.getByLabel("Nachkaufdatum Uhrzeit", { exact: true }).fill("");
   await page.getByRole("button", { name: "Nachkauf speichern" }).click();
-  await expect(page.getByText("Nachkauf beim bestehenden Trade erfasst.")).toBeVisible();
+  await expect(
+    page.getByText("Nachkauf beim bestehenden Trade erfasst."),
+  ).toBeVisible();
   expect(captures).toHaveLength(1);
   expect(captures[0].postDataJSON()).toMatchObject({
     quantity: 5,
@@ -109,24 +118,40 @@ test("ambiguous purchase and sale times write nothing; explicit date-only captur
   expect(captures[0].postDataJSON()).not.toHaveProperty("executed_at");
   const afterPurchase = await executions();
   expect(afterPurchase).toHaveLength(2);
-  expect(afterPurchase.find((row: { id: string }) => row.id === original.execution.id)).toEqual(
-    originalExecutions[0],
-  );
-  expect((await (await request.get(`${tradeUrl}/position`)).json()).open_quantity).toBe(15);
+  expect(
+    afterPurchase.find(
+      (row: { id: string }) => row.id === original.execution.id,
+    ),
+  ).toEqual(originalExecutions[0]);
+  expect(
+    (await (await request.get(`${tradeUrl}/position`)).json()).open_quantity,
+  ).toBe(15);
 
   await page.getByLabel("Verkaufspreis", { exact: true }).fill("0.9");
   await page.getByLabel("Verkaufsdatum", { exact: true }).fill("2025-10-26");
   await page.getByLabel("Verkaufsdatum Uhrzeit", { exact: true }).fill("02:30");
-  await page.getByRole("button", { name: "Position vollständig schließen" }).click();
-  await expect(page.getByText(/Die Uhrzeit ist wegen der Zeitumstellung/)).toBeVisible();
+  await page
+    .getByRole("button", { name: "Position vollständig schließen" })
+    .click();
+  await expect(
+    page.getByText(/Die Uhrzeit ist wegen der Zeitumstellung/),
+  ).toBeVisible();
   expect(captures).toHaveLength(1);
   expect(await executions()).toEqual(afterPurchase);
-  expect((await (await request.get(`${tradeUrl}/position`)).json()).open_quantity).toBe(15);
-  await expect(page.getByLabel("Verkaufsdatum Uhrzeit", { exact: true })).toHaveValue("02:30");
+  expect(
+    (await (await request.get(`${tradeUrl}/position`)).json()).open_quantity,
+  ).toBe(15);
+  await expect(
+    page.getByLabel("Verkaufsdatum Uhrzeit", { exact: true }),
+  ).toHaveValue("02:30");
 
   await page.getByLabel("Verkaufsdatum Uhrzeit", { exact: true }).fill("");
-  await page.getByRole("button", { name: "Position vollständig schließen" }).click();
-  await expect(page.getByRole("heading", { name: "CLOSED", exact: true })).toBeVisible();
+  await page
+    .getByRole("button", { name: "Position vollständig schließen" })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Geschlossen", exact: true }),
+  ).toBeVisible();
   expect(captures).toHaveLength(2);
   expect(captures[1].postDataJSON()).toMatchObject({
     quantity: 15,
@@ -140,7 +165,9 @@ test("ambiguous purchase and sale times write nothing; explicit date-only captur
   expect(closed.is_closed).toBe(true);
   const history = await executions();
   expect(history).toHaveLength(3);
-  const sale = history.find((row: { execution_side: string }) => row.execution_side === "SELL");
+  const sale = history.find(
+    (row: { execution_side: string }) => row.execution_side === "SELL",
+  );
   expect(sale.executed_on).toBe("2025-10-26");
   expect(sale.execution_timezone).toBe("Europe/Berlin");
 });

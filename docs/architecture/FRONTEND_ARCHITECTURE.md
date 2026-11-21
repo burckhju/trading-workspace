@@ -1,5 +1,16 @@
 # Frontend Architecture
 
+<a id="fachstruktur-a"></a>
+## Ergänzung: gewählte Fachstruktur A — 21.11.2026
+
+Das gemeinsame Layout bietet fünf Hauptbereiche: **Aktuelles**, **Depot**, **Marktanalyse**, **Lessons Learned**, **Basisdaten**. `src/app/navigation.ts` besitzt ausschließlich die Zuordnung von bestehenden Pfaden, sichtbaren Untergruppen und aktueller Ortsanzeige. `router.tsx` komponiert die bestehenden Featureseiten und die neuen schmalen Bereichseinstiege. Fachzustände, API-Clients, Schreibschutz und Geldberechnungen bleiben in ihren Featureownern.
+
+Die Startseite liest nur die bestehende Actionprojektion. Depotliste und Datenquellendiagnose werden über eigene Einstiege angefordert. `operational_workspace/public/WorkspaceActionLinks.tsx` ist ein enger, lesender Kompositionsslot für vorhandene Nachbereitungs-/Erstkaufhinweise. `PositionMonitoring` ist der öffentliche Adapter für die bisherigen Positionsbelege im kanonischen Tradehost. Die Oberfläche erzeugt keine zweite Aufgabenverwaltung oder allgemeine Journal-/Modell-API.
+
+Trade-, Run- und Lernobjektbereiche verwenden erhaltene Hashziele; ausgeblendete Formulare und Reader bleiben gemountet. Ein Bereichswechsel erzeugt keinen zweiten Entwurf und keinen erneuten Ownerread. Pfad-/Query-/Objektwechsel behalten bestehende Dirty-/Busy-Guards und Abortgenerationen. Neue Querverweise nutzen öffentliche Featureexports beziehungsweise den bestehenden Shared-Navigationsvertrag. Finanzinformationen werden nicht über URL- oder Layoutzustand weitergereicht.
+
+Details zur [vollständigen Funktionszuordnung](../coordination/UX_MASTER_PLAN.md#vollständige-funktionszuordnung-aus-der-bestandsaufnahme), den [getrennten Zuständigkeiten](../coordination/UX_OWNERSHIP.md) und den [technischen Prüfungen](../coordination/UX_INTEGRATION_STATUS.md#fachstruktur-a-20261121). Die übrigen Architekturgrundsätze bleiben gültig.
+
 > Technische Architektur des Frontends des Trading Workspace
 
 ---

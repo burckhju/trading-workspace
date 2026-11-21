@@ -1,8 +1,18 @@
 import { execFileSync } from "node:child_process";
 import { resolve } from "node:path";
-import { expect, test, type Request } from "@playwright/test";
+import { expect, test, type Page, type Request } from "@playwright/test";
 import { prepareLearningQualification } from "./support/journal-evidence";
 import { localLearningRequest } from "./support/journal-request-guard.mjs";
+
+async function showLearningArea(
+  page: Page,
+  name: "Nachbeobachtung & Exit Review" | "Journal" | "Erkenntnisse",
+) {
+  await page
+    .getByRole("navigation", { name: "Nachbereitung dieses Trades" })
+    .getByRole("link", { name, exact: true })
+    .click();
+}
 
 // Match the canonical origin used by the existing real-write browser cases.
 test.use({ baseURL: "http://localhost:8080", serviceWorkers: "block" });
@@ -277,6 +287,7 @@ test("real PostgreSQL: FT011 history survives correction and opens the exact Les
     tradeId: string,
     review: { current_version_id: string },
   ) => {
+    await showLearningArea(page, "Erkenntnisse");
     const button = page.getByRole("button", {
       name: "An Lessons Learned übergeben",
       exact: true,
@@ -387,6 +398,7 @@ test("real PostgreSQL: FT011 history survives correction and opens the exact Les
       "Bewusstes synthetisches Review – kein handelbarer Underlying-Vergleich.",
     );
   const firstReview = await finalizeAndReadBack(tid, 1);
+  await showLearningArea(page, "Erkenntnisse");
   const history = page.getByRole("region", {
     name: "Bisherige Review-Evidence",
     exact: true,
@@ -472,9 +484,11 @@ test("real PostgreSQL: FT011 history survives correction and opens the exact Les
   await expect(
     page.getByText("Bereit für FT-012.", { exact: true }),
   ).toHaveCount(0);
+  await showLearningArea(page, "Nachbeobachtung & Exit Review");
   await expect(
     page.getByText("Noch nicht bereit: EXIT_REVIEW_STALE", { exact: true }),
   ).toBeVisible();
+  await showLearningArea(page, "Erkenntnisse");
   await expect(oldLink).toHaveAttribute("href", oldHref);
   expect(
     (

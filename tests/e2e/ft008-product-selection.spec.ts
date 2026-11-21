@@ -202,13 +202,13 @@ test("approved TradePlan handoff keeps missing quote visible and allows an expli
     page.getByLabel("TradePlanVersion-ID", { exact: true }),
   ).toHaveCount(0);
   await expect(
-    page.getByText("Version 1 · APPROVED", { exact: true }),
+    page.getByText("Version 1 · Freigegeben", { exact: true }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Produkte neu bewerten" }).click();
   await expect(page).toHaveURL(`/product-selection?run_id=${runId}`);
 
   await expect(
-    page.getByText("NOT_EVALUABLE", { exact: true }).first(),
+    page.getByText("Nicht bewertbar", { exact: true }).first(),
   ).toBeVisible();
   await expect(
     page.getByText(
@@ -374,7 +374,9 @@ test("fixture-backed eligible quote requires explicit confirmation before one us
   await page.getByRole("button", { name: "Produkte neu bewerten" }).click();
   await expect(page).toHaveURL(`/product-selection?run_id=${runId}`);
 
-  await expect(page.getByText("ELIGIBLE", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("Geeignet", { exact: true }).last(),
+  ).toBeVisible();
   await expect(
     page.getByText("1.20 EUR", { exact: true }).first(),
   ).toBeVisible();
@@ -445,7 +447,7 @@ test("explicit picker retains an approved version when the latest plan version i
   });
   await page.goto("/product-selection");
   const choice = page.getByRole("link", {
-    name: "Produktauswahl für diesen TradePlan öffnen",
+    name: "Produktauswahl für diesen Tradeplan öffnen",
     exact: true,
   });
   await expect(choice).toHaveAttribute(
@@ -456,7 +458,7 @@ test("explicit picker retains an approved version when the latest plan version i
   await expect(choice).toBeFocused();
   await page.keyboard.press("Enter");
   await expect(
-    page.getByText("Version 1 · APPROVED", { exact: true }),
+    page.getByText("Version 1 · Freigegeben", { exact: true }),
   ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Produkte neu bewerten", exact: true }),
@@ -507,7 +509,7 @@ test("stored historical run remains pinned after a later approval and cannot sil
   });
   await page.goto(`/product-selection?run_id=${runId}`);
   await expect(
-    page.getByText("Version 1 · SUPERSEDED", { exact: true }),
+    page.getByText("Version 1 · Abgelöst", { exact: true }),
   ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Produkte neu bewerten", exact: true }),
@@ -520,7 +522,7 @@ test("stored historical run remains pinned after a later approval and cannot sil
   );
   await page.reload();
   await expect(
-    page.getByText("Version 1 · SUPERSEDED", { exact: true }),
+    page.getByText("Version 1 · Abgelöst", { exact: true }),
   ).toBeVisible();
   expect(originalRun.run.trade_plan_version_id).toBe(versionId);
   expect(writes).toEqual([]);

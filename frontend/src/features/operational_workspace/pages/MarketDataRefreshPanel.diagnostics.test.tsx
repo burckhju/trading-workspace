@@ -6,6 +6,7 @@ import { MarketDataRefreshPanel } from './MarketDataRefreshPanel';
 
 vi.mock('../../market/services/http', () => ({ requestJson: vi.fn() }));
 const request = vi.mocked(requestJson);
+// Diagnostic timestamps explicitly use UTC, independent of the test runner's local timezone.
 const firstFailure = '2026-10-30T10:00:00Z';
 const lastFailure = '2026-10-30T10:05:00Z';
 const recovered = '2026-10-30T10:10:00Z';
@@ -127,7 +128,7 @@ describe('market data refresh operational diagnostics', () => {
     );
     expect(screen.getByText('Auftragsfehler · 2 Prüfungen in Folge mit Befund')).toBeVisible();
     expect(screen.getByText(/Letzte Quellen- oder Auftragsprüfung:/)).toHaveTextContent(
-      new Date(lastFailure).toLocaleString('de-DE'),
+      new Date(lastFailure).toLocaleString('de-DE', { timeZone: 'UTC' }) + ' UTC',
     );
     expect(screen.queryByText(/hängt|hängend|Zeitlimit überschritten/i)).not.toBeInTheDocument();
   });
@@ -162,7 +163,7 @@ describe('market data refresh operational diagnostics', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Abrufstatus laden' }));
 
     expect(await screen.findByText(/Auftrag wieder abgeschlossen:/)).toHaveTextContent(
-      new Date(recovered).toLocaleString('de-DE'),
+      new Date(recovered).toLocaleString('de-DE', { timeZone: 'UTC' }) + ' UTC',
     );
     expect(screen.queryByText(/Prüfungen in Folge mit Befund/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Aktueller Abruf · Start:/)).not.toBeInTheDocument();
@@ -280,7 +281,7 @@ describe('market data refresh operational diagnostics', () => {
       expect(screen.getByText('Kurs verwendbar: Ja')).toBeVisible();
       expect(screen.getByText('Qualifizierter Erfolg dieser Prüfung: Ja')).toBeVisible();
       expect(screen.getByText(/Letzter qualifizierter Kursabruf:/)).toHaveTextContent(
-        new Date(recovered).toLocaleString('de-DE'),
+        new Date(recovered).toLocaleString('de-DE', { timeZone: 'UTC' }) + ' UTC',
       );
       expect(screen.getByText(/Kurszeit:/)).toHaveTextContent(
         'Kurszeit: 30.10.2026, 10:05:00 UTC · Abrufzeit des Kurses: 30.10.2026, 10:10:00 UTC',
@@ -332,10 +333,10 @@ describe('market data refresh operational diagnostics', () => {
     });
 
     expect(screen.getByText(/Kursversorgung wiederhergestellt:/)).toHaveTextContent(
-      new Date(recovered).toLocaleString('de-DE'),
+      new Date(recovered).toLocaleString('de-DE', { timeZone: 'UTC' }) + ' UTC',
     );
     expect(screen.getByText(/Letzter fehlgeschlagener Abruf:/)).toHaveTextContent(
-      new Date(lastFailure).toLocaleString('de-DE'),
+      new Date(lastFailure).toLocaleString('de-DE', { timeZone: 'UTC' }) + ' UTC',
     );
     expect(screen.getByText('Vorheriger Befund: FRANKFURT_TRANSPORT_TIMEOUT')).toBeVisible();
     expect(screen.getByText('Letzte Fehlerkategorie: PROVIDER_ERROR')).toBeVisible();
@@ -387,7 +388,7 @@ describe('market data refresh operational diagnostics', () => {
     expect(screen.getByText('Kurs verwendbar: Nein')).toBeVisible();
     expect(screen.getByText('Qualifizierter Erfolg dieser Prüfung: Nein')).toBeVisible();
     expect(screen.getByText(/Letzter qualifizierter Kursabruf:/)).toHaveTextContent(
-      new Date(firstFailure).toLocaleString('de-DE'),
+      new Date(firstFailure).toLocaleString('de-DE', { timeZone: 'UTC' }) + ' UTC',
     );
     expect(screen.queryByText(/Kursversorgung wiederhergestellt/)).not.toBeInTheDocument();
   });

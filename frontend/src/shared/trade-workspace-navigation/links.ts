@@ -63,6 +63,34 @@ export function planTradeReturnLink(query: URLSearchParams): string | null {
   return tradeWorkspaceLink('sources', ids[0], query, '#trade-plan-sources');
 }
 
+/** The product is selected explicitly; only an allowlisted trade context describes the return. */
+export function tradeProductLink(
+  productId: string,
+  tradeId: string,
+  from: URLSearchParams,
+): string {
+  const query = contextQuery(tradeId, from);
+  query.set('product_id', productId);
+  query.set('trade_return_view', 'monitoring');
+  return `/warrants-admin?${query}`;
+}
+
+export function productTradeReturnLink(query: URLSearchParams): string | null {
+  const ids = query.getAll('trade_id');
+  const products = query.getAll('product_id');
+  const views = query.getAll('trade_return_view');
+  if (
+    ids.length !== 1 ||
+    !ids[0].trim() ||
+    products.length !== 1 ||
+    !products[0].trim() ||
+    views.length !== 1 ||
+    views[0] !== 'monitoring'
+  )
+    return null;
+  return tradeWorkspaceLink('management', ids[0], query, '#trade-risk');
+}
+
 export function lessonTradeReturnLink(query: URLSearchParams): string | null {
   const ids = query.getAll('trade_id');
   const views = query.getAll('trade_return_view');

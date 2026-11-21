@@ -222,6 +222,16 @@ for (const width of [1440, 390]) {
     await expect(
       page.getByRole("heading", { name: beta.display_name, exact: true }),
     ).toBeVisible();
+    await page.getByLabel("Produkte suchen", { exact: true }).fill("Beta");
+    await expect(page).toHaveURL(new RegExp(`product_id=${beta.id}.*q=Beta`));
+    await page.reload();
+    await expect(
+      page.getByLabel("Produkte suchen", { exact: true }),
+    ).toHaveValue("Beta");
+    await expect(
+      page.getByRole("heading", { name: beta.display_name, exact: true }),
+    ).toBeVisible();
+    await page.getByLabel("Produkte suchen", { exact: true }).fill("");
     await expect(
       page.getByRole("button", { name: "Neues Produkt", exact: true }),
     ).toBeVisible();
@@ -289,10 +299,23 @@ for (const width of [1440, 390]) {
     await page
       .getByLabel("Neue Fälligkeit", { exact: true })
       .fill("2027-09-17");
+    await page.getByLabel("Produkte suchen", { exact: true }).fill("Beta");
+    await expect(
+      page.getByLabel("Neue Fälligkeit", { exact: true }),
+    ).toHaveValue("2027-09-17");
+    await expect(page.getByRole("alertdialog")).toHaveCount(0);
+    await page.getByLabel("Produkte suchen", { exact: true }).fill("");
 
     // A real DataRouter navigation must preserve the draft when the user stays.
+    const selectedProductUrl = new URL("/warrants-admin", page.url());
+    selectedProductUrl.searchParams.set("product_id", beta.id);
+    await expect(page).toHaveURL(selectedProductUrl.href);
+    if (width < 1024)
+      await page
+        .getByRole("button", { name: "Navigation öffnen", exact: true })
+        .click();
     const otherPage = page.getByRole("link", {
-      name: "Stammdaten · Basiswerte",
+      name: "Basiswerte",
       exact: true,
     });
     await otherPage.click();
@@ -324,7 +347,7 @@ for (const width of [1440, 390]) {
     });
     await page.keyboard.press("Escape");
     await expect(navigationDialog).toHaveCount(0);
-    await expect(page).toHaveURL(/\/warrants-admin$/);
+    await expect(page).toHaveURL(selectedProductUrl.href);
     await expect(
       page.getByLabel("Neue Fälligkeit", { exact: true }),
     ).toHaveValue("2027-09-17");
@@ -334,7 +357,7 @@ for (const width of [1440, 390]) {
     await expect(stay).toBeFocused();
     await page.keyboard.press("Enter");
     await expect(navigationDialog).toHaveCount(0);
-    await expect(page).toHaveURL(/\/warrants-admin$/);
+    await expect(page).toHaveURL(selectedProductUrl.href);
     await expect(
       page.getByLabel("Neue Fälligkeit", { exact: true }),
     ).toHaveValue("2027-09-17");

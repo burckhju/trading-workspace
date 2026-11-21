@@ -73,12 +73,12 @@ beforeEach(() => {
 });
 it('shows exact compact historical provenance once and separates lineage from review, without copying texts', async () => {
   mount();
-  await screen.findByText('Quellversion jetzt: SUPERSEDED');
+  await screen.findByText('Quellversion jetzt: Durch neuere Version ersetzt');
   expect(journalClient.version).toHaveBeenCalledWith('j1', expect.any(AbortSignal));
   expect(requestJson).toHaveBeenCalledWith(expect.stringContaining('/learning-evidence/evidence'), {
     signal: expect.any(AbortSignal),
   });
-  expect(screen.getByText('Review-Quelle jetzt: STALE')).toBeVisible();
+  expect(screen.getByText('Review-Quelle jetzt: Veraltet – erneute Prüfung nötig')).toBeVisible();
   expect(screen.getByText(/2026-10-14T13:01:00Z/)).toBeVisible();
   expect(screen.getAllByText('Quellentyp: TRADE_JOURNAL_VERSION')).toHaveLength(1);
   expect(screen.getAllByText('Konkrete Quellversion: j1')).toHaveLength(1);
@@ -96,7 +96,7 @@ it('shows exact compact historical provenance once and separates lineage from re
   }
   expect(screen.getByRole('link', { name: 'Genau diese Journalversion öffnen' })).toHaveAttribute(
     'href',
-    '/post-trade?trade_id=trade&journal_version_id=j1',
+    '/post-trade?trade_id=trade&journal_version_id=j1#trade-journal',
   );
   expect(screen.getByText(/Die heutige Quellenprüfung ändert/)).toBeVisible();
   expect(requestJson).toHaveBeenCalledTimes(1);
@@ -137,7 +137,7 @@ it.each([
   });
   mount();
   await screen.findByText(`Quellentyp: ${type}`);
-  await screen.findByText('Quellversion jetzt: UNKNOWN');
+  await screen.findByText('Quellversion jetzt: Ungeklärt');
   expect(journalClient.version).not.toHaveBeenCalled();
   expect(screen.queryByRole('link')).not.toBeInTheDocument();
   expect(screen.queryByText(/Persönliches Trade-Journal/)).not.toBeInTheDocument();
@@ -178,7 +178,7 @@ it('keeps a failed currentness read separate from a valid exact historical link'
   await screen.findByText(/Quellenprüfung nicht verfügbar/);
   expect(screen.getByRole('link', { name: 'Genau diese Journalversion öffnen' })).toHaveAttribute(
     'href',
-    '/post-trade?trade_id=trade&journal_version_id=j1',
+    '/post-trade?trade_id=trade&journal_version_id=j1#trade-journal',
   );
   expect(screen.queryByText(/Quellversion jetzt:/)).not.toBeInTheDocument();
 });
@@ -236,7 +236,7 @@ it('keeps A→B→A lifetimes isolated under StrictMode', async () => {
   });
   expect(screen.getByRole('link', { name: 'Genau diese Journalversion öffnen' })).toHaveAttribute(
     'href',
-    '/post-trade?trade_id=trade&journal_version_id=j1',
+    '/post-trade?trade_id=trade&journal_version_id=j1#trade-journal',
   );
   expect(journalClient.version).not.toHaveBeenCalledWith('old', expect.anything());
 });

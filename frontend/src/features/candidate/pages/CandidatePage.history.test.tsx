@@ -8,8 +8,10 @@ const mocks = vi.hoisted(() => ({
   evaluations: vi.fn(),
   liveWorkflow: vi.fn(),
   evaluateAuto: vi.fn(),
+  getUnderlying: vi.fn(),
 }));
 vi.mock('../services/client', () => ({ candidateApiClient: mocks }));
+vi.mock('../../market', () => ({ marketApiClient: { getUnderlying: mocks.getUnderlying } }));
 
 function renderHistory(evaluation = 'eval-a') {
   return render(
@@ -26,6 +28,7 @@ function renderHistory(evaluation = 'eval-a') {
 describe('exact persisted Candidate history', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.getUnderlying.mockResolvedValue({ id: 'underlying-1', name: 'Apple Inc.' });
     mocks.list.mockResolvedValue([
       { id: 'candidate-1', underlying_id: 'underlying-1', status: 'UNDER_REVIEW' },
     ]);
@@ -61,7 +64,7 @@ describe('exact persisted Candidate history', () => {
     renderHistory();
     const region = await screen.findByRole('region', { name: 'Evaluation eval-a' });
     expect(within(region).getByText('Version 1')).toBeInTheDocument();
-    expect(within(region).getByRole('heading', { name: 'QUALIFIED' })).toBeInTheDocument();
+    expect(within(region).getByRole('heading', { name: 'Kriterien erfüllt' })).toBeInTheDocument();
     expect(within(region).getByText(/market-analysis-1.*Quellversion 4/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Bewertungsstand 1/ })).toHaveAttribute(
       'href',
@@ -83,7 +86,7 @@ describe('exact persisted Candidate history', () => {
 
   it('sends one evaluation for two synchronous explicit clicks', async () => {
     renderHistory('');
-    const button = await screen.findByRole('button', { name: 'Top-down neu bewerten' });
+    const button = await screen.findByRole('button', { name: 'Kandidaten neu bewerten' });
     await screen.findByRole('region', { name: 'Evaluation eval-b' });
     act(() => {
       fireEvent.click(button);

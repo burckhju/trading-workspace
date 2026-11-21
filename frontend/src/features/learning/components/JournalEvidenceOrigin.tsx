@@ -108,7 +108,7 @@ function EvidenceOriginContext({ evidenceId }: { evidenceId: string }) {
             to={`/post-trade?${new URLSearchParams({
               trade_id: history.trade_id,
               journal_version_id: entry.version.id,
-            })}`}
+            })}#trade-journal`}
           >
             Genau diese Journalversion öffnen
           </Link>

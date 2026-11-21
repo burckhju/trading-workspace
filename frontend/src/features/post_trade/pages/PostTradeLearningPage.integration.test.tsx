@@ -19,6 +19,8 @@ import type {
 import { PostTradeLearningPage } from './PostTradeLearningPage';
 
 // Only I/O is mocked: Parent, Journal, both Lesson forms, Review and the router guard are real.
+// Coordination races address mounted controls, including hidden owners. A separate
+// hash-navigation test verifies the visible user path and read-free draft retention.
 vi.mock('../../learning/services/journalClient', async (original) => ({
   ...(await original<typeof import('../../learning/services/journalClient')>()),
   journalClient: { history: vi.fn(), version: vi.fn(), command: vi.fn() },
@@ -271,6 +273,73 @@ describe('PostTradeLearningPage with real forms and a data router', () => {
     });
   });
 
+  it('switches visible tasks with the same mounted drafts, exact pins and no additional owner reads', async () => {
+    const { router } = mountPage();
+    const journal = await editJournal('Ungespeicherte persönliche Reflexion');
+    const journalInput = journal.getByLabelText('Was lief gut?');
+    await screen.findByLabelText('Review-Begründung');
+    await screen.findByLabelText('Lesson-Titel');
+    const reads = [
+      tradeManagementApiClient.trade,
+      postTradeApiClient.observation,
+      postTradeApiClient.evidence,
+      postTradeApiClient.review,
+      journalClient.history,
+      journalClient.version,
+      ft011MaterializationClient.status,
+      ft011MaterializationClient.history,
+      lessonReadbackClient.listForEvidence,
+    ];
+    const counts = reads.map((read) => vi.mocked(read).mock.calls.length);
+    const exactSearch = router.state.location.search;
+    const navigation = within(
+      screen.getByRole('navigation', { name: 'Nachbereitung dieses Trades' }),
+    );
+
+    fireEvent.click(navigation.getByRole('link', { name: 'Nachbeobachtung & Exit Review' }));
+    expect(router.state.location.hash).toBe('#post-trade-review');
+    expect(journalInput).not.toBeVisible();
+    const rationale = screen.getByLabelText('Review-Begründung');
+    expect(rationale).toBeVisible();
+    fireEvent.change(rationale, { target: { value: 'Ungespeicherte Exit-Bewertung' } });
+
+    fireEvent.click(navigation.getByRole('link', { name: 'Erkenntnisse' }));
+    expect(rationale).not.toBeVisible();
+    const lesson = screen.getByLabelText('Lesson-Titel');
+    expect(lesson).toBeVisible();
+    fillLesson();
+
+    fireEvent.click(navigation.getByRole('link', { name: 'Journal' }));
+    expect(journal.getByLabelText('Was lief gut?')).toBe(journalInput);
+    expect(journalInput).toBeVisible();
+    expect(journalInput).toHaveValue('Ungespeicherte persönliche Reflexion');
+    expect(rationale).toHaveValue('Ungespeicherte Exit-Bewertung');
+    expect(lesson).toHaveValue('Local Lesson title');
+    expect(router.state.location.search).toBe(exactSearch);
+    expect(reads.map((read) => vi.mocked(read).mock.calls.length)).toEqual(counts);
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    expect(postTradeApiClient.updateReviewDraft).not.toHaveBeenCalled();
+    expect(journalClient.command).not.toHaveBeenCalled();
+    expect(lessonDraftClient.createFromEvidence).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('link', { name: 'Andere Seite' }));
+    expect(await screen.findByRole('alertdialog')).toHaveTextContent('Ungespeicherte Änderungen');
+    fireEvent.click(screen.getByRole('button', { name: 'Hier bleiben' }));
+    expect(journalInput).toHaveValue('Ungespeicherte persönliche Reflexion');
+  });
+
+  it.each(['#post-trade-review', '#trade-review'])(
+    'accepts the explicit review anchor %s while retaining a journal source pin',
+    async (hash) => {
+      const { router } = mountPage(`${initialUrl}${hash}`);
+      expect(await screen.findByLabelText('Review-Begründung')).toBeVisible();
+      expect(screen.getByRole('navigation', { name: 'Nachbereitung dieses Trades' })).toBeVisible();
+      expect(screen.queryByRole('region', { name: 'Trade-Journal' })).not.toBeInTheDocument();
+      expect(router.state.location.search).toContain(`journal_version_id=${draftId}`);
+      expect(router.state.location.search).toContain('tab=reflection');
+    },
+  );
+
   it('uses one guard for journal, Lesson and Review across query, route, trade, back and unload', async () => {
     const { router } = mountPage();
     const journal = await editJournal();
@@ -280,10 +349,10 @@ describe('PostTradeLearningPage with real forms and a data router', () => {
     await waitFor(() => expect(rationale).toBeEnabled());
     fireEvent.change(rationale, { target: { value: 'Local review interpretation' } });
     for (const link of ['Historische Quelle', 'Anderer Trade', 'Andere Seite']) {
-      fireEvent.click(screen.getByRole('link', { name: link }));
+      fireEvent.click(screen.getByRole('link', { hidden: true, name: link }));
       expect(await screen.findAllByRole('alertdialog')).toHaveLength(1);
-      expect(screen.getByRole('button', { name: 'Hier bleiben' })).toHaveFocus();
-      fireEvent.click(screen.getByRole('button', { name: 'Hier bleiben' }));
+      expect(screen.getByRole('button', { hidden: true, name: 'Hier bleiben' })).toHaveFocus();
+      fireEvent.click(screen.getByRole('button', { hidden: true, name: 'Hier bleiben' }));
       expect(router.state.location.search).toContain(draftId);
       expect(journal.getByLabelText('Was lief gut?')).toHaveValue('Local journal interpretation');
       expect(screen.getByLabelText('Lesson-Titel')).toHaveValue('Local Lesson title');
@@ -300,10 +369,13 @@ describe('PostTradeLearningPage with real forms and a data router', () => {
     const unload = new Event('beforeunload', { cancelable: true });
     window.dispatchEvent(unload);
     expect(unload.defaultPrevented).toBe(true);
-    fireEvent.click(screen.getByRole('link', { name: 'Andere Seite' }));
+    fireEvent.click(screen.getByRole('link', { hidden: true, name: 'Andere Seite' }));
     await act(async () => {
       fireEvent.click(
-        await screen.findByRole('button', { name: 'Eingaben verwerfen und wechseln' }),
+        await screen.findByRole('button', {
+          hidden: true,
+          name: 'Eingaben verwerfen und wechseln',
+        }),
       );
     });
     expect(await screen.findByRole('heading', { name: 'Andere Seite geöffnet' })).toBeVisible();
@@ -328,11 +400,13 @@ describe('PostTradeLearningPage with real forms and a data router', () => {
     vi.mocked(postTradeApiClient.review).mockResolvedValue(savedReview);
     vi.mocked(ft011MaterializationClient.status).mockReturnValue(statusRead.promise);
     vi.mocked(journalClient.history).mockReturnValue(journalRead.promise);
-    fireEvent.click(screen.getByRole('button', { name: 'Entwurf speichern' }));
-    fireEvent.click(screen.getByRole('link', { name: 'Andere Seite' }));
+    fireEvent.click(screen.getByRole('button', { hidden: true, name: 'Entwurf speichern' }));
+    fireEvent.click(screen.getByRole('link', { hidden: true, name: 'Andere Seite' }));
     expect(await screen.findByRole('alertdialog')).toHaveTextContent('Speicherung läuft');
-    expect(screen.queryByRole('button', { name: 'Eingaben verwerfen und wechseln' })).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Hier bleiben' }));
+    expect(
+      screen.queryByRole('button', { hidden: true, name: 'Eingaben verwerfen und wechseln' }),
+    ).toBeNull();
+    fireEvent.click(screen.getByRole('button', { hidden: true, name: 'Hier bleiben' }));
     await act(async () => {
       writing.resolve(savedReview);
       await writing.promise;
@@ -340,20 +414,20 @@ describe('PostTradeLearningPage with real forms and a data router', () => {
     await waitFor(() => expect(journalClient.history).toHaveBeenCalledTimes(2));
     expect(journal.getByLabelText('Was lief gut?')).toHaveValue('Local journal interpretation');
     expect(screen.getByLabelText('Lesson-Titel')).toHaveValue('Local Lesson title');
-    expect(screen.getByRole('button', { name: 'Lesson anlegen' })).toBeDisabled();
+    expect(screen.getByRole('button', { hidden: true, name: 'Lesson anlegen' })).toBeDisabled();
     await act(async () => {
       statusRead.resolve(ownerStatus);
       journalRead.resolve(history());
       await Promise.all([statusRead.promise, journalRead.promise]);
     });
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Lesson anlegen' })).toBeEnabled(),
+      expect(screen.getByRole('button', { hidden: true, name: 'Lesson anlegen' })).toBeEnabled(),
     );
     expect(screen.getByLabelText('Lesson-Titel')).toHaveValue('Local Lesson title');
     expect(journal.getByLabelText('Was lief gut?')).toHaveValue('Local journal interpretation');
-    fireEvent.click(screen.getByRole('link', { name: 'Andere Seite' }));
+    fireEvent.click(screen.getByRole('link', { hidden: true, name: 'Andere Seite' }));
     expect(await screen.findByRole('alertdialog')).toHaveTextContent('Ungespeicherte Änderungen');
-    fireEvent.click(screen.getByRole('button', { name: 'Hier bleiben' }));
+    fireEvent.click(screen.getByRole('button', { hidden: true, name: 'Hier bleiben' }));
     expect(postTradeApiClient.updateReviewDraft).toHaveBeenCalledTimes(1);
     expect(journalClient.command).not.toHaveBeenCalled();
     expect(lessonDraftClient.createFromEvidence).not.toHaveBeenCalled();
@@ -371,7 +445,7 @@ describe('PostTradeLearningPage with real forms and a data router', () => {
     fillLesson(journal, 'Journal-specific Lesson');
     const read = deferred<JournalHistory>();
     vi.mocked(journalClient.history).mockReturnValue(read.promise);
-    const reload = screen.getByRole('button', { name: 'Laden' });
+    const reload = screen.getByRole('button', { hidden: true, name: 'Laden' });
     await waitFor(() => expect(reload).toBeEnabled());
     fireEvent.click(reload);
     await waitFor(() =>
@@ -384,9 +458,9 @@ describe('PostTradeLearningPage with real forms and a data router', () => {
     });
     expect(journal.getByLabelText('Lesson-Titel')).toHaveValue('Journal-specific Lesson');
     expect(journal.getByRole('button', { name: 'Lesson anlegen' })).toBeDisabled();
-    fireEvent.click(screen.getByRole('link', { name: 'Andere Seite' }));
+    fireEvent.click(screen.getByRole('link', { hidden: true, name: 'Andere Seite' }));
     expect(await screen.findByRole('alertdialog')).toHaveTextContent('Ungespeicherte Änderungen');
-    fireEvent.click(screen.getByRole('button', { name: 'Hier bleiben' }));
+    fireEvent.click(screen.getByRole('button', { hidden: true, name: 'Hier bleiben' }));
     expect(lessonDraftClient.createFromEvidence).not.toHaveBeenCalled();
     expect(journalClient.command).not.toHaveBeenCalled();
   });
@@ -400,23 +474,29 @@ describe('PostTradeLearningPage with real forms and a data router', () => {
       learning_evidence_id: 'new-evidence',
       exit_review_version_id: 'new-review',
     });
-    const reload = screen.getByRole('button', { name: 'Laden' });
+    const reload = screen.getByRole('button', { hidden: true, name: 'Laden' });
     await waitFor(() => expect(reload).toBeEnabled());
     fireEvent.click(reload);
     expect(await screen.findByText(/Die Evidence hat sich geändert/)).toHaveTextContent(evidenceId);
     expect(screen.getByLabelText('Lesson-Titel')).toHaveValue('Local Lesson title');
-    expect(screen.getByRole('button', { name: 'Lesson anlegen' })).toBeDisabled();
+    expect(screen.getByRole('button', { hidden: true, name: 'Lesson anlegen' })).toBeDisabled();
     await waitFor(() =>
       expect(
-        screen.getByRole('button', { name: 'Eingaben verwerfen und neue Evidence öffnen' }),
+        screen.getByRole('button', {
+          hidden: true,
+          name: 'Eingaben verwerfen und neue Evidence öffnen',
+        }),
       ).toBeEnabled(),
     );
     fireEvent.click(
-      screen.getByRole('button', { name: 'Eingaben verwerfen und neue Evidence öffnen' }),
+      screen.getByRole('button', {
+        hidden: true,
+        name: 'Eingaben verwerfen und neue Evidence öffnen',
+      }),
     );
     expect(screen.getByLabelText('Lesson-Titel')).toHaveValue('');
     fillLesson(screen, 'New context interpretation');
-    fireEvent.click(screen.getByRole('button', { name: 'Lesson anlegen' }));
+    fireEvent.click(screen.getByRole('button', { hidden: true, name: 'Lesson anlegen' }));
     await waitFor(() =>
       expect(lessonDraftClient.createFromEvidence).toHaveBeenCalledExactlyOnceWith(
         'new-evidence',
@@ -427,16 +507,18 @@ describe('PostTradeLearningPage with real forms and a data router', () => {
   });
 
   it('does not release a pending direct Lesson POST on a route or trade change', async () => {
-    mountPage();
+    mountPage(`${initialUrl}#trade-lessons`);
     await screen.findByLabelText('Lesson-Titel');
     fillLesson();
     const writing = deferred<Awaited<ReturnType<typeof lessonDraftClient.createFromEvidence>>>();
     vi.mocked(lessonDraftClient.createFromEvidence).mockReturnValue(writing.promise);
-    fireEvent.click(screen.getByRole('button', { name: 'Lesson anlegen' }));
-    fireEvent.click(screen.getByRole('link', { name: 'Anderer Trade' }));
+    fireEvent.click(screen.getByRole('button', { hidden: true, name: 'Lesson anlegen' }));
+    fireEvent.click(screen.getByRole('link', { hidden: true, name: 'Anderer Trade' }));
     expect(await screen.findByRole('alertdialog')).toHaveTextContent('Speicherung läuft');
-    expect(screen.queryByRole('button', { name: 'Eingaben verwerfen und wechseln' })).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Hier bleiben' }));
+    expect(
+      screen.queryByRole('button', { hidden: true, name: 'Eingaben verwerfen und wechseln' }),
+    ).toBeNull();
+    fireEvent.click(screen.getByRole('button', { hidden: true, name: 'Hier bleiben' }));
     await act(async () => {
       writing.reject(new Error('unknown POST outcome'));
       await writing.promise.catch(() => undefined);
@@ -457,7 +539,10 @@ describe('PostTradeLearningPage with real forms and a data router', () => {
     const journal = await editJournal();
     const writing = deferred<Awaited<ReturnType<typeof ft011MaterializationClient.materialize>>>();
     vi.mocked(ft011MaterializationClient.materialize).mockReturnValue(writing.promise);
-    const handoff = await screen.findByRole('button', { name: 'An Lessons Learned übergeben' });
+    const handoff = await screen.findByRole('button', {
+      hidden: true,
+      name: 'An Lessons Learned übergeben',
+    });
     await waitFor(() => expect(handoff).toBeEnabled());
     fireEvent.click(handoff);
     fireEvent.click(handoff);
@@ -466,10 +551,12 @@ describe('PostTradeLearningPage with real forms and a data router', () => {
       `ft011-to-ft012:v2:${tradeId}:${reviewId}`,
       reviewId,
     );
-    fireEvent.click(screen.getByRole('link', { name: 'Andere Seite' }));
+    fireEvent.click(screen.getByRole('link', { hidden: true, name: 'Andere Seite' }));
     expect(await screen.findByRole('alertdialog')).toHaveTextContent('Speicherung läuft');
-    expect(screen.queryByRole('button', { name: 'Eingaben verwerfen und wechseln' })).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Hier bleiben' }));
+    expect(
+      screen.queryByRole('button', { hidden: true, name: 'Eingaben verwerfen und wechseln' }),
+    ).toBeNull();
+    fireEvent.click(screen.getByRole('button', { hidden: true, name: 'Hier bleiben' }));
     vi.mocked(ft011MaterializationClient.status).mockResolvedValue(ownerStatus);
     await act(async () => {
       writing.resolve({
@@ -482,9 +569,9 @@ describe('PostTradeLearningPage with real forms and a data router', () => {
     });
     await screen.findByLabelText('Lesson-Titel');
     expect(journal.getByLabelText('Was lief gut?')).toHaveValue('Local journal interpretation');
-    fireEvent.click(screen.getByRole('link', { name: 'Andere Seite' }));
+    fireEvent.click(screen.getByRole('link', { hidden: true, name: 'Andere Seite' }));
     expect(await screen.findByRole('alertdialog')).toHaveTextContent('Ungespeicherte Änderungen');
-    fireEvent.click(screen.getByRole('button', { name: 'Hier bleiben' }));
+    fireEvent.click(screen.getByRole('button', { hidden: true, name: 'Hier bleiben' }));
     expect(journalClient.command).not.toHaveBeenCalled();
     expect(lessonDraftClient.createFromEvidence).not.toHaveBeenCalled();
   });
@@ -494,9 +581,12 @@ describe('PostTradeLearningPage with real forms and a data router', () => {
     const nextReviewId = '40000000-0000-4000-8000-000000000002';
     vi.mocked(ft011MaterializationClient.status).mockResolvedValue(readyStatus);
     vi.mocked(postTradeApiClient.review).mockResolvedValue({ ...review, status: 'FINALIZED' });
-    mountPage();
+    mountPage(`${initialUrl}#trade-lessons`);
     await screen.findByLabelText('Review-Begründung');
-    const handoff = await screen.findByRole('button', { name: 'An Lessons Learned übergeben' });
+    const handoff = await screen.findByRole('button', {
+      hidden: true,
+      name: 'An Lessons Learned übergeben',
+    });
     await waitFor(() => expect(handoff).toBeEnabled());
 
     const freshRead = deferred<Awaited<ReturnType<typeof ft011MaterializationClient.status>>>();
@@ -524,7 +614,9 @@ describe('PostTradeLearningPage with real forms and a data router', () => {
       await freshRead.promise;
     });
     await waitFor(() => expect(handoff).toBeEnabled());
-    expect(screen.getByText(`ExitReviewVersion: ${nextReviewId}`, { exact: true })).toBeVisible();
+    const sourceVersion = screen.getByText(`ExitReviewVersion: ${nextReviewId}`, { exact: true });
+    fireEvent.click(sourceVersion.closest('details')!.querySelector('summary')!);
+    expect(sourceVersion).toBeVisible();
     expect(screen.getByText(/Die Review-Version hat sich geändert/)).toBeVisible();
     expect(ft011MaterializationClient.materialize).toHaveBeenCalledExactlyOnceWith(
       tradeId,
@@ -536,18 +628,18 @@ describe('PostTradeLearningPage with real forms and a data router', () => {
   });
 
   it('retains a direct Lesson across a failed owner read and suppresses a duplicate after explicit new-source reconciliation', async () => {
-    mountPage();
+    mountPage(`${initialUrl}#trade-lessons`);
     await screen.findByLabelText('Lesson-Titel');
     fillLesson();
     vi.mocked(ft011MaterializationClient.status).mockRejectedValue(new Error('status unavailable'));
-    const reload = screen.getByRole('button', { name: 'Laden' });
+    const reload = screen.getByRole('button', { hidden: true, name: 'Laden' });
     await waitFor(() => expect(reload).toBeEnabled());
     fireEvent.click(reload);
     expect(
       await screen.findByText('Der Learning-Übergabestatus konnte nicht geladen werden.'),
     ).toBeVisible();
     expect(screen.getByLabelText('Lesson-Titel')).toHaveValue('Local Lesson title');
-    expect(screen.getByRole('button', { name: 'Lesson anlegen' })).toBeDisabled();
+    expect(screen.getByRole('button', { hidden: true, name: 'Lesson anlegen' })).toBeDisabled();
     vi.mocked(ft011MaterializationClient.status).mockResolvedValue({
       ...ownerStatus,
       learning_evidence_id: 'new-evidence',
@@ -566,19 +658,31 @@ describe('PostTradeLearningPage with real forms and a data router', () => {
           : [],
       ),
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Übergabestatus erneut laden' }));
+    fireEvent.click(
+      screen.getByRole('button', { hidden: true, name: 'Übergabestatus erneut laden' }),
+    );
     expect(await screen.findByText(/Die Evidence hat sich geändert/)).toHaveTextContent(evidenceId);
-    expect(await screen.findByRole('link', { name: /Existing new-source Lesson/ })).toBeVisible();
+    expect(
+      await screen.findByRole('link', { hidden: true, name: /Existing new-source Lesson/ }),
+    ).toBeVisible();
     await waitFor(() =>
       expect(
-        screen.getByRole('button', { name: 'Eingaben verwerfen und neue Evidence öffnen' }),
+        screen.getByRole('button', {
+          hidden: true,
+          name: 'Eingaben verwerfen und neue Evidence öffnen',
+        }),
       ).toBeEnabled(),
     );
     fireEvent.click(
-      screen.getByRole('button', { name: 'Eingaben verwerfen und neue Evidence öffnen' }),
+      screen.getByRole('button', {
+        hidden: true,
+        name: 'Eingaben verwerfen und neue Evidence öffnen',
+      }),
     );
     await waitFor(() => expect(screen.queryByLabelText('Lesson-Titel')).toBeNull());
-    expect(screen.getByRole('link', { name: /Existing new-source Lesson/ })).toHaveAttribute(
+    expect(
+      screen.getByRole('link', { hidden: true, name: /Existing new-source Lesson/ }),
+    ).toHaveAttribute(
       'href',
       `/lessons/existing-lesson?trade_id=${tradeId}&journal_version_id=${draftId}&trade_return_view=journal&lesson_version_id=lv#lesson-history`,
     );
@@ -631,7 +735,7 @@ describe('PostTradeLearningPage with real forms and a data router', () => {
         name: 'Gespeicherten Journalstand laden (lokalen Text verwerfen)',
       });
       act(() => {
-        fireEvent.click(screen.getByRole('button', { name: 'Entwurf speichern' }));
+        fireEvent.click(screen.getByRole('button', { hidden: true, name: 'Entwurf speichern' }));
         // The old enabled closure must consult the shared synchronous pending getter.
         fireEvent.click(discard);
         fireEvent.click(loadSaved);
@@ -651,9 +755,9 @@ describe('PostTradeLearningPage with real forms and a data router', () => {
       await waitFor(() => expect(loadSaved).toBeEnabled());
       if (openDialog) fireEvent.click(journal.getByRole('button', { name: 'Abbrechen' }));
       expect(journal.getByLabelText('Was lief gut?')).toHaveValue('Local journal interpretation');
-      fireEvent.click(screen.getByRole('link', { name: 'Andere Seite' }));
+      fireEvent.click(screen.getByRole('link', { hidden: true, name: 'Andere Seite' }));
       expect(await screen.findByRole('alertdialog')).toHaveTextContent('Ungespeicherte Änderungen');
-      fireEvent.click(screen.getByRole('button', { name: 'Hier bleiben' }));
+      fireEvent.click(screen.getByRole('button', { hidden: true, name: 'Hier bleiben' }));
       expect(journalClient.command).not.toHaveBeenCalled();
       expect(postTradeApiClient.updateReviewDraft).toHaveBeenCalledTimes(1);
     },
@@ -667,10 +771,11 @@ describe('PostTradeLearningPage with real forms and a data router', () => {
       ...ownerStatus,
       learning_evidence_id: 'new-evidence',
     });
-    const reload = screen.getByRole('button', { name: 'Laden' });
+    const reload = screen.getByRole('button', { hidden: true, name: 'Laden' });
     await waitFor(() => expect(reload).toBeEnabled());
     fireEvent.click(reload);
     const reset = await screen.findByRole('button', {
+      hidden: true,
       name: 'Eingaben verwerfen und neue Evidence öffnen',
     });
     await waitFor(() => expect(reset).toBeEnabled());
@@ -682,7 +787,7 @@ describe('PostTradeLearningPage with real forms and a data router', () => {
       target: { value: saved.rationale },
     });
     act(() => {
-      fireEvent.click(screen.getByRole('button', { name: 'Entwurf speichern' }));
+      fireEvent.click(screen.getByRole('button', { hidden: true, name: 'Entwurf speichern' }));
       fireEvent.click(reset);
     });
     expect(reset).toBeDisabled();
@@ -712,12 +817,13 @@ describe('PostTradeLearningPage with real forms and a data router', () => {
       version: 2,
       rationale: 'New saved Review',
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Laden' }));
+    fireEvent.click(screen.getByRole('button', { hidden: true, name: 'Laden' }));
     const reset = await screen.findByRole('button', {
+      hidden: true,
       name: 'Revieweingaben verwerfen und gespeicherten Stand laden',
     });
     await waitFor(() => expect(reset).toBeEnabled());
-    const create = screen.getByRole('button', { name: 'Lesson anlegen' });
+    const create = screen.getByRole('button', { hidden: true, name: 'Lesson anlegen' });
     await waitFor(() => expect(create).toBeEnabled());
     const writing = deferred<Awaited<ReturnType<typeof lessonDraftClient.createFromEvidence>>>();
     vi.mocked(lessonDraftClient.createFromEvidence).mockReturnValue(writing.promise);

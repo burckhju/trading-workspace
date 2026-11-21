@@ -166,20 +166,23 @@ function LessonHypothesisForm({
   }
 
   if (loading && hypotheses.length === 0)
-    return <LoadingNotice label="FT-013-Hypothesen werden geladen …" />;
+    return <LoadingNotice label="Hypothesen werden geladen …" />;
 
   return (
     <section className="rounded-xl border border-slate-800 p-5">
-      <h2 className="font-semibold">FT-013 Hypothesen</h2>
+      <h3 className="font-semibold">Hypothesen</h3>
       <p className="mt-2 text-sm text-slate-400">
-        Eine Hypothese ist eine explizite Interpretation dieser Lesson-Version. Sie aktiviert keine
-        Modelländerung und startet keine Validierung automatisch.
+        Formulieren Sie eine prüfbare Annahme aus dieser Erkenntnisversion. Die anschließenden
+        Änderungsvorschläge und Prüfungen bleiben eigenständige Schritte.
       </p>
-      <p className="mt-2 break-all text-xs">Quell-LessonVersion {lessonVersionId}</p>
+      <details className="mt-2 text-xs text-slate-400">
+        <summary>Quellenbeleg der Hypothese</summary>
+        <p className="mt-2 break-all">Quell-LessonVersion {lessonVersionId}</p>
+      </details>
 
       {actionsDisabled && (
         <p className="mt-2 text-sm text-amber-300" role="status">
-          Lesson-Kontext wird geprüft. Eingaben bleiben erhalten; neue Governance-Aktionen sind
+          Erkenntniskontext wird geprüft. Eingaben bleiben erhalten; neue Prüfaktionen sind
           vorübergehend gesperrt.
         </p>
       )}
@@ -199,7 +202,7 @@ function LessonHypothesisForm({
 
       {hypotheses.length > 0 ? (
         <div className="mt-4 space-y-3">
-          <p className="text-sm font-medium text-emerald-300">Bereits an FT-013 übergeben</p>
+          <p className="text-sm font-medium text-emerald-300">Vorhandene Hypothesen</p>
           {hypotheses.map((hypothesis) => (
             <article key={hypothesis.id} className="rounded-lg border border-slate-800 p-4">
               <div className="flex items-center justify-between gap-4">
@@ -281,7 +284,7 @@ function LessonHypothesisForm({
             disabled={saving || !ready || actionsDisabled}
             className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium disabled:opacity-50"
           >
-            {saving ? 'Wird übergeben …' : 'Hypothese für FT-013 anlegen'}
+            {saving ? 'Wird übergeben …' : 'Hypothese anlegen'}
           </button>
         </form>
       )}

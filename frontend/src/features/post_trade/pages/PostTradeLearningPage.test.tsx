@@ -128,9 +128,9 @@ describe('PostTradeLearningPage', () => {
       await screen.findByRole('heading', { name: /TR-TRADE-1 · DAX Call 19000/ }),
     ).toBeInTheDocument();
     expect(screen.getByText(/ISIN DE000TEST123 · WKN TEST12/)).toBeInTheDocument();
-    expect(screen.getByText('Workspace-Produktauswahl')).toBeInTheDocument();
+    expect(screen.getByText('Produktauswahl im Workspace')).toBeInTheDocument();
     expect(screen.getByText('TP-PLAN-123')).toBeInTheDocument();
-    expect(screen.getByText('LearningEvidence materialisiert')).toBeInTheDocument();
+    expect(screen.getByText('Reviewquelle übernommen')).toBeInTheDocument();
     expect(screen.getByText('review')).toBeInTheDocument();
     expect(tradeGet).toHaveBeenCalledWith('trade-1', expect.any(AbortSignal));
     expect(warrantGet).toHaveBeenCalledWith('product-1', expect.any(AbortSignal));
@@ -186,7 +186,7 @@ describe('PostTradeLearningPage', () => {
     listForEvidence.mockResolvedValue([]);
 
     render(
-      <MemoryRouter initialEntries={['/post-trade?trade_id=trade-1']}>
+      <MemoryRouter initialEntries={['/post-trade?trade_id=trade-1#trade-lessons']}>
         <PostTradeLearningPage />
       </MemoryRouter>,
     );
@@ -221,7 +221,7 @@ describe('PostTradeLearningPage', () => {
     ]);
 
     render(
-      <MemoryRouter initialEntries={['/post-trade?trade_id=trade-1']}>
+      <MemoryRouter initialEntries={['/post-trade?trade_id=trade-1#trade-lessons']}>
         <PostTradeLearningPage />
       </MemoryRouter>,
     );
@@ -238,7 +238,7 @@ describe('PostTradeLearningPage', () => {
     listForEvidence.mockResolvedValue([]);
 
     render(
-      <MemoryRouter initialEntries={['/post-trade?trade_id=trade-1']}>
+      <MemoryRouter initialEntries={['/post-trade?trade_id=trade-1#trade-lessons']}>
         <PostTradeLearningPage />
       </MemoryRouter>,
     );
@@ -254,7 +254,7 @@ describe('PostTradeLearningPage', () => {
     listForEvidence.mockResolvedValue([]);
 
     render(
-      <MemoryRouter initialEntries={['/post-trade?trade_id=trade-1']}>
+      <MemoryRouter initialEntries={['/post-trade?trade_id=trade-1#trade-lessons']}>
         <PostTradeLearningPage />
       </MemoryRouter>,
     );
@@ -274,7 +274,7 @@ describe('PostTradeLearningPage', () => {
       exit_review_version_id: 'version-1',
     });
     render(
-      <MemoryRouter initialEntries={['/post-trade?trade_id=trade-1']}>
+      <MemoryRouter initialEntries={['/post-trade?trade_id=trade-1#trade-lessons']}>
         <PostTradeLearningPage />
       </MemoryRouter>,
     );
@@ -287,7 +287,9 @@ describe('PostTradeLearningPage', () => {
       learning_evidence_id: null,
       exit_review_version_id: 'version-1',
     });
+    fireEvent.click(screen.getByRole('link', { name: 'Nachbeobachtung & Exit Review' }));
     fireEvent.click(screen.getByRole('button', { name: 'Review-Änderung simulieren' }));
+    fireEvent.click(screen.getByRole('link', { name: 'Erkenntnisse' }));
     expect(
       await screen.findByRole('button', { name: 'An Lessons Learned übergeben' }),
     ).toBeEnabled();
@@ -306,7 +308,7 @@ describe('PostTradeLearningPage', () => {
       exit_review_version_id: null,
     });
     render(
-      <MemoryRouter initialEntries={['/post-trade?trade_id=trade-1']}>
+      <MemoryRouter initialEntries={['/post-trade?trade_id=trade-1#trade-lessons']}>
         <PostTradeLearningPage />
       </MemoryRouter>,
     );
@@ -333,7 +335,7 @@ describe('PostTradeLearningPage', () => {
         exit_review_version_id: 'version-1',
       });
     render(
-      <MemoryRouter initialEntries={['/post-trade?trade_id=trade-1']}>
+      <MemoryRouter initialEntries={['/post-trade?trade_id=trade-1#trade-lessons']}>
         <PostTradeLearningPage />
       </MemoryRouter>,
     );
@@ -341,13 +343,13 @@ describe('PostTradeLearningPage', () => {
     await waitFor(() => expect(status).toHaveBeenCalledTimes(2));
     expect(screen.queryByText('lesson-form')).toBeNull();
     expect(listForEvidence).not.toHaveBeenCalled();
-    expect(screen.queryByText('LearningEvidence materialisiert')).toBeNull();
+    expect(screen.queryByText('Reviewquelle übernommen')).toBeNull();
   });
 
   it('does not treat a failed Lesson readback as an empty evidence relation', async () => {
     listForEvidence.mockRejectedValueOnce(new Error('synthetic read error'));
     render(
-      <MemoryRouter initialEntries={['/post-trade?trade_id=trade-1']}>
+      <MemoryRouter initialEntries={['/post-trade?trade_id=trade-1#trade-lessons']}>
         <PostTradeLearningPage />
       </MemoryRouter>,
     );
@@ -377,7 +379,7 @@ describe('PostTradeLearningPage', () => {
           }),
     );
     render(
-      <MemoryRouter initialEntries={['/post-trade?trade_id=trade-1']}>
+      <MemoryRouter initialEntries={['/post-trade?trade_id=trade-1#trade-lessons']}>
         <Link to="/post-trade?trade_id=trade-2">Anderer Trade</Link>
         <PostTradeLearningPage />
       </MemoryRouter>,
@@ -422,7 +424,7 @@ describe('PostTradeLearningPage', () => {
       },
     ]);
     render(
-      <MemoryRouter initialEntries={['/post-trade?trade_id=trade-1']}>
+      <MemoryRouter initialEntries={['/post-trade?trade_id=trade-1#trade-lessons']}>
         <PostTradeLearningPage />
       </MemoryRouter>,
     );

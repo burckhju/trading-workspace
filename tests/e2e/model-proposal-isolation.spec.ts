@@ -402,11 +402,9 @@ test.afterEach(async ({ page }, info) => {
 });
 
 const proposalForm = (page: Page) =>
-  page
-    .locator("form")
-    .filter({
-      has: page.getByRole("textbox", { name: "Rationale", exact: true }),
-    });
+  page.locator("form").filter({
+    has: page.getByRole("textbox", { name: "Rationale", exact: true }),
+  });
 async function dispatchSubmits(page: Page, count = 1) {
   await proposalForm(page).evaluate((form, times) => {
     // Synchronous events in one browser task, independent of disabled buttons.
@@ -450,11 +448,19 @@ const expectedWrite = (
 // The real route keys LessonDetail and the parent keys hypothesis articles.
 // Drive that existing React Router transition without a document reload or a
 // synthetic production route; old server work remains independently observable.
+async function openModelArea(page: Page) {
+  await page
+    .getByRole("navigation", { name: "Erkenntnis-Arbeitsbereiche" })
+    .getByRole("link", { name: "Modellverbesserung", exact: true })
+    .click();
+}
+
 async function changeLesson(page: Page, index: number) {
   await page.evaluate((path) => {
     history.pushState(null, "", path);
     dispatchEvent(new PopStateEvent("popstate"));
   }, `/lessons/${lessons[index]}`);
+  await openModelArea(page);
   await expect(
     page.getByRole("heading", {
       name: `Synthetic Hypothesis ${index + 1}`,
@@ -475,6 +481,7 @@ for (const viewport of [
     }, info) => {
       const api = await installApi(page, baseURL, models[1]);
       await page.goto(`/lessons/${lessons[0]}`);
+      await openModelArea(page);
       await selectModel(page, 0, "Rationale belonging to Model 1.");
       await page
         .getByRole("combobox", { name: "Governed Model", exact: true })
@@ -544,6 +551,7 @@ test("synchronous duplicate submits create once and a confirmed failure permits 
 }) => {
   const api = await installApi(page, baseURL);
   await page.goto(`/lessons/${lessons[0]}`);
+  await openModelArea(page);
   const rationale = "Preserve this rationale after a confirmed failure.";
   await selectModel(page, 0, rationale);
   await dispatchSubmits(page, 2);
@@ -579,6 +587,7 @@ for (const outcome of ["success", "error"] as const) {
   }) => {
     const api = await installApi(page, baseURL);
     await page.goto(`/lessons/${lessons[0]}`);
+    await openModelArea(page);
     await selectModel(page, 0, "Hypothesis 1 snapshot.");
     await page.getByRole("button", { name: saveLabel, exact: true }).click();
     await expect.poll(() => api.writes).toHaveLength(1);
@@ -639,6 +648,7 @@ test("an unknown network completion does not repeat POST and explicit readback f
 }) => {
   const api = await installApi(page, baseURL);
   await page.goto(`/lessons/${lessons[0]}`);
+  await openModelArea(page);
   const rationale = "Keep this until an explicit readback.";
   await selectModel(page, 0, rationale);
   await page.getByRole("button", { name: saveLabel, exact: true }).click();
@@ -666,6 +676,7 @@ test("the existing Candidate editor creates explicit V2 from V1 without Validati
 }) => {
   const api = await installApi(page, baseURL);
   await page.goto(`/lessons/${lessons[0]}`);
+  await openModelArea(page);
   await selectModel(page, 2, "Explicit synthetic Candidate policy change.");
   await expect(
     page.getByRole("button", { name: saveLabel, exact: true }),

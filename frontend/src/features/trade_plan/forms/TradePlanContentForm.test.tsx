@@ -48,25 +48,25 @@ describe('TradePlanContentForm', () => {
     expect(screen.getByLabelText('Währung')).toHaveValue('');
     const input = (label: string, value: string) =>
       fireEvent.change(screen.getByLabelText(label), { target: { value } });
-    input('Trade Thesis', 'Trendfortsetzung');
+    input('Handelsidee und Begründung', 'Trendfortsetzung');
     input('Währung', 'USD');
-    input('Entry-Preis', '100.123456789123456789');
+    input('Einstiegspreis', '100.123456789123456789');
     input('Technischer Stop', '90.987654321987654321');
     input('Invalidierungsregel', 'Trend gebrochen');
     input('Invalidierungsbegründung', 'Neues Tief');
-    input('Target 1', '110.123456789123456789');
-    input('Target-Begründung 1', 'Erster Widerstand');
-    fireEvent.click(screen.getByRole('button', { name: 'Target hinzufügen' }));
-    input('Target 2', '120.123456789123456789');
-    input('Target-Begründung 2', 'Zweiter Widerstand');
-    fireEvent.click(screen.getByText('Weitere Entry-Angaben'));
+    input('Kursziel 1', '110.123456789123456789');
+    input('Zielbegründung 1', 'Erster Widerstand');
+    fireEvent.click(screen.getByRole('button', { name: 'Ziel hinzufügen' }));
+    input('Kursziel 2', '120.123456789123456789');
+    input('Zielbegründung 2', 'Zweiter Widerstand');
+    fireEvent.click(screen.getByText('Weitere Einstiegsangaben'));
     input('Referenzpreis', '100.123456789123456789');
-    input('Gültig bis (ISO 8601 mit Zeitzone)', '2026-12-31T12:34:56.123456+01:00');
-    input('Entry-Begründung', 'Bestätigung');
-    input('Plan-Risiko / Annahme', 'Fehlausbruch');
+    input('Gültig bis (Datum und Uhrzeit mit Zeitzone)', '2026-12-31T12:34:56.123456+01:00');
+    input('Einstiegsbegründung', 'Bestätigung');
+    input('Risikoannahme', 'Fehlausbruch');
     fireEvent.click(screen.getByText('Weitere Risikoangaben'));
-    input('Max-Loss-Annahme (optional)', 'Verlustannahme');
-    input('Risk Notes', 'Ereignisrisiko');
+    input('Maximaler Verlust (Annahme, optional)', 'Verlustannahme');
+    input('Ergänzende Risikonotizen', 'Ereignisrisiko');
     expect(change).toHaveBeenLastCalledWith({
       thesis: 'Trendfortsetzung',
       entry: {
@@ -92,10 +92,10 @@ describe('TradePlanContentForm', () => {
         notes: 'Ereignisrisiko',
       },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Target 1 entfernen' }));
-    expect(screen.getByLabelText('Target 1')).toHaveValue('120.123456789123456789');
-    expect(screen.getByLabelText('Target-Begründung 1')).toHaveValue('Zweiter Widerstand');
-    expect(screen.queryByRole('button', { name: 'Target 1 entfernen' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Kursziel 1 entfernen' }));
+    expect(screen.getByLabelText('Kursziel 1')).toHaveValue('120.123456789123456789');
+    expect(screen.getByLabelText('Zielbegründung 1')).toHaveValue('Zweiter Widerstand');
+    expect(screen.queryByRole('button', { name: 'Kursziel 1 entfernen' })).not.toBeInTheDocument();
   });
 
   it('switches entry variants explicitly while retaining independent optional values', () => {
@@ -109,7 +109,7 @@ describe('TradePlanContentForm', () => {
       valid_until: '2026-12-31T12:00:00Z',
     };
     const change = renderContent(initial);
-    fireEvent.change(screen.getByLabelText('Entry-Art'), { target: { value: 'PRICE_RANGE' } });
+    fireEvent.change(screen.getByLabelText('Einstiegsart'), { target: { value: 'PRICE_RANGE' } });
     fireEvent.change(screen.getByLabelText('Preis von'), { target: { value: '100.1' } });
     fireEvent.change(screen.getByLabelText('Preis bis'), { target: { value: '101.1' } });
     expect(change.mock.lastCall?.[0].entry).toMatchObject({
@@ -120,7 +120,7 @@ describe('TradePlanContentForm', () => {
       trigger: null,
       reference_price: '99.123456789',
     });
-    fireEvent.change(screen.getByLabelText('Entry-Art'), { target: { value: 'TRIGGER' } });
+    fireEvent.change(screen.getByLabelText('Einstiegsart'), { target: { value: 'TRIGGER' } });
     fireEvent.change(screen.getByLabelText('Trigger'), { target: { value: 'Ausbruch bestätigt' } });
     expect(change).toHaveBeenLastCalledWith(
       expect.objectContaining({
@@ -137,8 +137,8 @@ describe('TradePlanContentForm', () => {
         },
       }),
     );
-    fireEvent.change(screen.getByLabelText('Entry-Art'), { target: { value: 'PRICE' } });
-    expect(screen.getByLabelText('Entry-Preis')).toHaveValue('');
+    fireEvent.change(screen.getByLabelText('Einstiegsart'), { target: { value: 'PRICE' } });
+    expect(screen.getByLabelText('Einstiegspreis')).toHaveValue('');
     expect(screen.getByLabelText('Referenzpreis')).toHaveValue('99.123456789');
   });
 
@@ -147,7 +147,7 @@ describe('TradePlanContentForm', () => {
     for (const textbox of screen.getAllByRole('textbox', { hidden: true }))
       expect(textbox).toBeDisabled();
     expect(screen.getByRole('combobox')).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Target hinzufügen' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Ziel hinzufügen' })).toBeDisabled();
   });
 
   it('copies all editable snapshot content without changing nulls or mutating the source', () => {

@@ -296,7 +296,7 @@ describe('Lesson hypothesis owner status after explicit child commands', () => {
       expect(screen.getByText('ModelChangeProposal vorhanden')).toBeInTheDocument();
       expect(screen.queryByText('OPEN', { exact: true })).toBeNull();
       expect(screen.queryByText('CLOSED', { exact: true })).toBeNull();
-      expect(screen.queryByRole('button', { name: 'Hypothese für FT-013 anlegen' })).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Hypothese anlegen' })).toBeNull();
       expect(mocks.proposals.create).toHaveBeenCalledTimes(1);
     },
   );

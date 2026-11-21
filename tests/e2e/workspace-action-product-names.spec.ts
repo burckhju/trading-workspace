@@ -39,19 +39,20 @@ test("workspace action cards retain product identity and navigation on a narrow 
       json: { generated_at: "2026-09-14T12:00:00Z", positions: [] },
     }),
   );
-  await page.goto("/workspace");
+  await page.goto("/");
   const card = page
     .getByRole("listitem")
     .filter({ hasText: "SYNTHETIC Alpha Call" });
   await expect(card).toHaveCount(1);
   await expect(card).toContainText("WKN: SYN000 · ISIN: DE000SYN0000");
   await expect(card).not.toContainText("SYNTHETIC Beta Call");
-  await expect(card.getByRole("link", { name: "Öffnen" })).toHaveAttribute(
-    "href",
-    "/trade-management?trade_id=synthetic-trade-0",
-  );
-  await card.getByRole("link", { name: "Öffnen" }).focus();
-  await expect(card.getByRole("link", { name: "Öffnen" })).toBeFocused();
+  await expect(
+    card.getByRole("link", { name: "Prüfen: Produktkurs fehlt" }),
+  ).toHaveAttribute("href", "/trade-management?trade_id=synthetic-trade-0");
+  await card.getByRole("link", { name: "Prüfen: Produktkurs fehlt" }).focus();
+  await expect(
+    card.getByRole("link", { name: "Prüfen: Produktkurs fehlt" }),
+  ).toBeFocused();
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= window.innerWidth,

@@ -161,8 +161,11 @@ test("performance workspace: one keyboard-operated selection, both reports and r
     mainNavigation.getByRole("link", { name: "Performance", exact: true }),
   ).toHaveAttribute("aria-current", "page");
   await expect(
-    mainNavigation.getByRole("link", { name: /Verkäufe|Vollabschluss/ }),
-  ).toHaveCount(0);
+    mainNavigation.getByRole("link", {
+      name: "Vollabschlüsse im Zeitraum",
+      exact: true,
+    }),
+  ).toHaveAttribute("href", "/performance/closed-trades");
   expect(api.reads).toHaveLength(0);
   await reportButton(page, "closed-trades").focus();
   await page.keyboard.press("Tab");

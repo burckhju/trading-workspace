@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { MarketApiError } from '../../market/services/http';
 import { ivApi, ivLabel } from '../services/iv';
 import type { IvModelForm, IvModelResult } from '../types/iv';
+import type { PositionRiskPending } from '../types/pending';
 
 const empty: IvModelForm = {
   scope: '',
@@ -66,13 +67,42 @@ function readForm(key: string): IvModelForm {
   return { ...empty };
 }
 
-export function IvModelCalculator({ tradeId }: { tradeId: string }) {
+export function IvModelCalculator({
+  tradeId,
+  onPendingChange,
+}: {
+  tradeId: string;
+  onPendingChange?: (participant: PositionRiskPending | null) => void;
+}) {
   const key = `iv-assumptions-v1:${tradeId}`;
   const [form, setForm] = useState<IvModelForm>(() => readForm(key));
   const [result, setResult] = useState<IvModelResult | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const active = useRef<AbortController | null>(null);
+  const savedForm = useRef(form);
+  const unsaved = useRef(false);
+  const participant = useMemo<PositionRiskPending>(
+    () => ({
+      // Successfully stored assumptions already survive route and browser navigation.
+      isDirty: () => unsaved.current,
+      isBusy: () => false,
+      discard: () => {
+        active.current?.abort();
+        active.current = null;
+        unsaved.current = false;
+        setBusy(false);
+        setForm(savedForm.current);
+        setResult(null);
+        setError('');
+      },
+    }),
+    [],
+  );
+  useLayoutEffect(() => {
+    onPendingChange?.(participant);
+  }, [onPendingChange, participant, form]);
+  useLayoutEffect(() => () => onPendingChange?.(null), [onPendingChange]);
   useEffect(() => () => active.current?.abort(), []);
   function change(next: IvModelForm) {
     active.current?.abort();
@@ -83,8 +113,10 @@ export function IvModelCalculator({ tradeId }: { tradeId: string }) {
     setError('');
     try {
       sessionStorage.setItem(key, JSON.stringify(next));
+      savedForm.current = next;
+      unsaved.current = false;
     } catch {
-      /* Optional convenience. */
+      unsaved.current = true;
     }
   }
   async function calculate() {
@@ -129,6 +161,12 @@ export function IvModelCalculator({ tradeId }: { tradeId: string }) {
         Schätzungen von Zins und Dividenden sind erforderlich; null darf nur eine bewusste Annahme
         sein. Die Eingaben bleiben für diese Position in dieser Browsersitzung erhalten.
       </p>
+      {unsaved.current && (
+        <p role="status" className="text-amber-200">
+          Die Annahmen konnten in diesem Browser nicht zwischengespeichert werden. Sie bleiben bis
+          zum Verlassen dieser Position erhalten.
+        </p>
+      )}
       <button
         type="button"
         className="rounded border px-3 py-2"

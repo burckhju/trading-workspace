@@ -1,8 +1,15 @@
 import { Link } from 'react-router-dom';
 
 import type { TradePlanOverviewItem } from '../services/overviewClient';
+import { withPlanListContext } from '../services/planNavigation';
 
-export function PlanSelectedProduct({ item }: { item: TradePlanOverviewItem }) {
+export function PlanSelectedProduct({
+  item,
+  listContext = new URLSearchParams(),
+}: {
+  item: TradePlanOverviewItem;
+  listContext?: URLSearchParams;
+}) {
   // The API resolves the latest explicit selection of this exact plan version.
   // Neither an underlying nor a historical purchase can fill in a missing selection.
   const product = item.selected_product;
@@ -36,7 +43,10 @@ export function PlanSelectedProduct({ item }: { item: TradePlanOverviewItem }) {
             Produktauswahl ist kein Kaufnachweis. Tatsächliche Käufe stehen separat im Kaufstatus.
           </p>
           <Link
-            to={`/product-selection?run_id=${encodeURIComponent(product.run_id)}`}
+            to={withPlanListContext(
+              `/product-selection?run_id=${encodeURIComponent(product.run_id)}`,
+              listContext,
+            )}
             className="inline-flex rounded text-sm text-sky-200 underline underline-offset-4 focus-visible:outline-2"
           >
             Ausgewählten Optionsschein prüfen

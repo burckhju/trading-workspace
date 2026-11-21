@@ -1,5 +1,19 @@
 # Gemeinsame UX-Verträge
 
+<a id="fachstruktur-a"></a>
+## Fachstruktur A — ergänzender Navigationsvertrag, 21.11.2026
+
+1. `app/navigation.ts` ordnet vorhandene URLs einem Hauptort zu. Der Helfer interpretiert keine Geldbeträge, Freigaben oder Versionsgültigkeit und schreibt keine Suchparameter um. Der bisherige `/performance`-Alias bewahrt Query und Hash.
+2. Hashwechsel im selben Trade, Produktauswahlrun oder Lernobjekt ändern nur die sichtbare Unteransicht. Formulare und Leseowner bleiben gemountet. Kein zusätzlicher Trade-, Positions-, Timeline-, Vorschau- oder Reviewread allein durch Tabnavigation. Quellenwechsel mit verändertem `view` verwendet weiterhin den vorhandenen Dirty-/Busy-Guard.
+3. Pfad-, Objekt- und relevante Querywechsel behalten den bestehenden Navigationsschutz, Abort-/Generationsschutz und die A→B→A-Grenzen. Manuelle Eingaben haben Vorrang vor verspäteten Readantworten. Der globale Sprung zum Inhalt setzt Fokus und Scrollposition, ohne den Objekt-Hash zu verändern. Produktkatalogsuche `q` ist nur ein Ansichtsfilter und verwirft den geöffneten Produktentwurf nicht.
+4. Depotansicht speichert ausschließlich Suche/Filter/Sortierung/Seite und gewählte Position im selben Browsertab. Planfilter, Produktsuche/-wahl und Lesson-Listencursor bleiben in begrenzten URL-Parametern erhalten. Ein begrenzter tablokaler Verlauf speichert nur tatsächlich benutzte Lesson-Cursorverbindungen getrennt für Erkenntnisse und Modellverbesserung; unbekannte Vorgänger werden nicht erfunden. Es entstehen keine parallelen Finanz- oder Aufgabenstände.
+5. `PositionMonitoring` ist ein öffentlicher Kompositionsadapter. Qualifikationsentwurf, laufender Befehl und unbestätigte Antwort nehmen am gemeinsamen Trade-Navigationsschutz teil. Ein leerer Alert-/Actionread bedeutet nicht vollständige Überwachung.
+6. `WorkspaceActionLinks` übernimmt ausschließlich vorhandene Actiontypen. Nachbereitungslinks sind kein Journalindex, Kauflinks keine neue Freigabe. Nur der explizite Nutzerbefehl beim bestehenden Owner bucht, bestätigt, prüft oder aktiviert.
+7. Journal, Exit Review, Evidence, Erkenntnisversion und Modellgovernance behalten ihre getrennten Zuständigkeiten. Listenstatus CURRENT bestätigt keine Quellenaktualität. Erkenntnislisten öffnen exakte Versionen; Quellenprüfung erfolgt ausdrücklich. Persönliches Journal setzt weiterhin den vorhandenen Reviewhandoff voraus.
+8. Lesende Performance bleibt bei getrennten SELL-/Vollabschlusspopulationen und den vorhandenen vier Bruttostatistiken. Historische Pins und begrenzter Berichts-Rückkontext werden über die vorhandenen Shared-Helper transportiert. Produktpflege erlaubt ausschließlich die expliziten internen Trade-Rückziele.
+
+Historische Verträge und ihre unveränderten fachlichen Grenzen folgen unten. Die [Hauptortmatrix](UX_MASTER_PLAN.md#gewählte-fachstruktur-a--21112026) und [Prüfnachweise](UX_INTEGRATION_STATUS.md#fachstruktur-a-20261121) konkretisieren diesen Präsentationsschnitt.
+
 Basis und Zuständigkeiten: [Masterplan](UX_MASTER_PLAN.md), [Ownership](UX_OWNERSHIP.md). Diese Regeln präzisieren die Zusammenarbeit auf bestehenden Fachverträgen. Sie führen weder ein neues persistiertes Modell noch eine zusätzliche API oder Finanzberechnung ein.
 
 **Technischer Nachtrag nach `v1.5.37`:** Die folgenden Owner- und Schutzgrenzen bleiben erhalten. Ihre UX1/UX2-Umsetzung ist über #318 im veröffentlichten Produktmerge `bb49ffe781933270746b9f86f4aee99b6f8144c2` und unverändert im aktuellen Dokumentmain `484143d33aa5f2d443da6b2edf097ae1cb5aee3a` belegt; die UX3-K-Präzisierungen sind mit #314 integriert. Historische Lücken und Übernahmeaufträge werden unten als solche gekennzeichnet. [Getrennte Implementierungs-/CI-/Main-/Tagbelege](UX_INTEGRATION_STATUS.md#technischer-snapshot-nach-v1537).

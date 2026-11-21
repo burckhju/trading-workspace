@@ -464,7 +464,13 @@ test("structured mapping prefill preserves the nonprimary listing and protects t
   await symbol.fill("REVIEWED_NEW");
   await page.getByRole("checkbox", { name: confirmation }).check();
   await symbol.fill("REVIEWED_NEWER");
-  await page.getByRole("link", { name: "Diagramme", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Navigation öffnen", exact: true })
+    .click();
+  await page
+    .getByRole("navigation", { name: "Hauptnavigation", exact: true })
+    .getByRole("link", { name: "Marktanalyse", exact: true })
+    .click();
   const guard = page.getByRole("alertdialog");
   await expect(guard).toBeVisible();
   await expect(

@@ -307,13 +307,13 @@ function expectOnlyHistoricalReads(fixture: Fixture) {
 
 async function fillPricesAndAssumptions(page: Page) {
   await page
-    .getByLabel("Trade Thesis")
+    .getByLabel("Handelsidee und Begründung")
     .fill("Bewusst geplante historische Quelle");
-  await page.getByLabel("Entry-Preis", { exact: true }).fill("100");
+  await page.getByLabel("Einstiegspreis", { exact: true }).fill("100");
   await page.getByLabel("Technischer Stop").fill("95");
-  await page.getByLabel("Target 1", { exact: true }).fill("110");
+  await page.getByLabel("Kursziel 1", { exact: true }).fill("110");
   await page
-    .getByLabel("Plan-Risiko / Annahme")
+    .getByLabel("Risikoannahme")
     .fill("Bewusst angenommener Fehlausbruch");
 }
 
@@ -327,10 +327,13 @@ async function saveVisibleCurrency(
   );
   expect(fixture.commands).toEqual([]);
   await page
-    .getByRole("button", { name: "TradePlan als DRAFT erstellen", exact: true })
+    .getByRole("button", {
+      name: "Tradeplan als Entwurf speichern",
+      exact: true,
+    })
     .click();
   await expect(
-    page.getByRole("heading", { name: "Version 1 · DRAFT", exact: true }),
+    page.getByRole("heading", { name: "Version 1 · Entwurf", exact: true }),
   ).toBeVisible();
   await expect(page).toHaveURL(
     new RegExp(
@@ -417,8 +420,12 @@ test("UX1-B currency conflict on the last snapshot page preserves the manual cre
 });
 
 for (const edit of [
-  { label: "Entry-Preis", value: "101", clear: false },
-  { label: "Trade Thesis", value: "Eigener Entwurf", clear: true },
+  { label: "Einstiegspreis", value: "101", clear: false },
+  {
+    label: "Handelsidee und Begründung",
+    value: "Eigener Entwurf",
+    clear: true,
+  },
 ]) {
   test(`UX1-B delayed currency cannot relabel a draft after ${edit.label}${edit.clear ? " edit then clear" : " edit"}`, async ({
     page,
