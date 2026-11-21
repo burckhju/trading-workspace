@@ -1610,9 +1610,12 @@ test("the bound approved plan opens in this tab and retains historical trade sou
 
   const assertHistoricalPlan = async () => {
     await expect(
-      page.getByRole("heading", { name: "Version 1 · APPROVED", exact: true }),
+      page.getByRole("heading", {
+        name: "Version 1 · Freigegeben",
+        exact: true,
+      }),
     ).toBeVisible();
-    await expect(page.getByText("Neueste Version: 2 · DRAFT")).toBeVisible();
+    await expect(page.getByText("Neueste Version: 2 · Entwurf")).toBeVisible();
     await expect(
       page.getByRole("combobox", { name: "Planversion", exact: true }),
     ).toHaveValue(planVersionId);

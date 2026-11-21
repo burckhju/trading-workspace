@@ -454,7 +454,9 @@ describe('UX2-B host overview and independent valuation readback', () => {
     readback();
     await screen.findByText('Host readback succeeded');
     expect(api.position).toHaveBeenCalledTimes(2);
-    expect(api.productValuation).toHaveBeenCalledTimes(2);
+    // Host success can commit before the valuation reader's separate passive effect.
+    // Await only that request's start; its response deliberately remains unresolved.
+    await waitFor(() => expect(api.productValuation).toHaveBeenCalledTimes(2));
     expect(screen.getByLabelText('History revision')).toHaveTextContent('1');
     expect(screen.queryByText('Marktwert (Bid)')).not.toBeInTheDocument();
     expectDrafts();
@@ -463,6 +465,8 @@ describe('UX2-B host overview and independent valuation readback', () => {
     expect(screen.getByText('Confirmed booking receipt')).toBeInTheDocument();
     expect(screen.getByText('Host readback succeeded')).toBeInTheDocument();
     expect(screen.queryByText(/Host readback failed/)).not.toBeInTheDocument();
+    expect(api.position).toHaveBeenCalledTimes(2);
+    expect(api.productValuation).toHaveBeenCalledTimes(2);
     expectDrafts();
   });
 

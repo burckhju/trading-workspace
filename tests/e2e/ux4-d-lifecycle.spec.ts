@@ -474,7 +474,7 @@ async function inspectWithoutReading(page: Page) {
   expect(lessonTarget.searchParams.get("review_version_id")).toBe(reviewId);
   expect(lessonTarget.searchParams.get("journal_version_id")).toBe(journalId);
   await page
-    .getByRole("link", { name: "Plan und Quellen", exact: true })
+    .getByRole("link", { name: "Plan und Belege", exact: true })
     .click();
   await expect(planRegion).toBeFocused();
   return contrast;

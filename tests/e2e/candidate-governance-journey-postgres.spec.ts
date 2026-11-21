@@ -28,6 +28,16 @@ test("candidate governance: exact Lesson source, explicit A-B-A and immutable ev
     q.allowLesson(lessonId, [l1, l2], evidenceId);
     q.allowModel(modelId);
     q.allowCandidate(candidateId);
+    const candidateUnderlyingSources = setup.sourceOwners.filter(
+      (owner) => owner.role === "UNDERLYING",
+    );
+    expect(candidateUnderlyingSources).toHaveLength(1);
+    const candidateUnderlyingId = candidateUnderlyingSources[0].underlying_id;
+    expect(candidateUnderlyingId).toMatch(/^[0-9a-f-]{36}$/);
+    // The candidate now displays its existing underlying's name. Bind this
+    // read to the exact source created for this journey, never the whole catalog.
+    const candidateUnderlyingPath = `/underlyings/${candidateUnderlyingId}`;
+    q.allowRead(candidateUnderlyingPath);
     for (const analysis of [...setup.analyses, ...setup.legacyAnalyses])
       q.allowRead(
         `/market-analyses/${analysis.analysis.id}/runs/${analysis.run.version}`,
@@ -47,8 +57,24 @@ test("candidate governance: exact Lesson source, explicit A-B-A and immutable ev
     });
     const runtimeRegion = () =>
       page.getByRole("region", { name: "Runtime-Aktivierung", exact: true });
-    await candidate.goto(candidateUrl);
-    await expect(readyButton).toBeEnabled();
+    await q.readWindow(
+      "S1-opening-candidate-with-bound-name-is-read-only",
+      async () => {
+        const underlying = await q.getJson(candidateUnderlyingPath);
+        expect(underlying.id).toBe(candidateUnderlyingId);
+        expect(underlying.name).toEqual(expect.any(String));
+        expect(underlying.name.trim()).not.toBe("");
+        await candidate.goto(candidateUrl);
+        await expect(
+          candidate.getByRole("heading", {
+            name: underlying.name,
+            exact: true,
+          }),
+        ).toBeVisible();
+        await expect(readyButton).toBeEnabled();
+        return { candidateId, underlying };
+      },
+    );
     const originalReadiness = await q.getJson(
       `/candidates/${candidateId}/live-workflow`,
     );
