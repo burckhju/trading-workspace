@@ -253,7 +253,7 @@ aufgeführt und dürfen nicht aus grünen Unit-Tests abgeleitet werden.
 <a id="lesende-depot-datenversorgungsdiagnose"></a>
 ## Lesende Diagnose der tatsächlichen Depotversorgung
 
-Prüfstand: Main `c7db441de36297a98d47cdf28c64b4e5d9994692` / v1.5.52, 20.11.2026. [Fachlicher Datenvertrag und Einzelbelege](../reviews/DEPOT_DATA_SUPPLY_2026-11-20.md); [einziger nächster Arbeitsauftrag](../planning/PRODUCT_BACKLOG.md#naechster-schnitt). Diese Anleitung ist vorbereitet und lokal auf Syntax und Readerverträge geprüft; eine Ausführung auf dem Nutzer-PC ist damit nicht behauptet.
+Prüfstand der Fortsetzung: Main `febeb922c0f337029baa7f9d792c37f9f72ba02b` / `VERSION=1.5.53`, 21.11.2026. Die verwendeten Backendreader, Docker- und Launcherdateien sind gegenüber der geprüften Produktbasis `c7db441de36297a98d47cdf28c64b4e5d9994692` unverändert. Die neuen Main-Änderungen umfassen insbesondere die Oberfläche und die Versions-/Dokumentauslieferung; sie sind kein PC-Installationsnachweis. [Fachlicher Datenvertrag und Einzelbelege](../reviews/DEPOT_DATA_SUPPLY_2026-11-20.md); [einziger nächster Arbeitsauftrag](../planning/PRODUCT_BACKLOG.md#naechster-schnitt). Der eigenständige Collector ist für den bestehenden PC vorbereitet; seine lokale Prüfung ist keine Ausführung auf dem Nutzerbestand.
 
 Es existiert bereits ein geeigneter GET-Inventarread: `/api/v1/market-data/positions/quote-coverage`. Er ermittelt alle offenen, nicht stornierten Positionen aus der DB, einschließlich Positionen ohne Quelle; es gibt keine feste Sechserliste und keinen Bezug nur auf letzte Rulechecks. Er liefert Produkt- und Listingidentitäten sowie source selection. Vor/nach Sammlung werden dessen IDs und Mapping-/Auswahlbezüge verglichen. Kein neuer API-Endpoint, Runner oder Produktionscode ist nötig.
 
@@ -261,250 +261,81 @@ Quellbelege: [Inventar-API](../../backend/app/features/market_data/api/quote_cov
 
 Die dortige Eigenschaft `monitoring_usable` ist **kein** Nachweis der B58-/V2-Regelqualität: sie schließt ausdrücklich STALE/REFERENCE_ONLY/TIMESTAMP_UNKNOWN ein (`service/position_quote_coverage.py:209–229`). Die tatsächlichen gespeicherten Regelbewertungen bleiben maßgeblich.
 
-### Kopierbarer Abruf im vorhandenen Programmordner
+### Ein einzelner lesender Collector außerhalb des Programmordners
 
-Der Befehl wählt nur den bestehenden Backendcontainer; er startet/baut/ändert keinen Dienst. Keine Providerbestätigung, keine Regelausführung, kein Import. Der JSON-Bericht bleibt außerhalb des Repositories in einem privaten neuen Verzeichnis. Keine Rohdatei als PR-Anhang veröffentlichen. Falls Docker/Backend nicht läuft, ist das Ergebnis „Diagnose nicht zugänglich“; nicht für diese Diagnose einen neuen Stack starten.
+Der [Collector `collect-depot-data-supply.py`](../../scripts/collect-depot-data-supply.py)
+ist eine eigenständige Datei. Auf dem bestehenden Linux-PC als bisheriger
+Installationsbenutzer herunterladen und außerhalb des Programmordners
+speichern, beispielsweise im Downloadordner. Ein Checkout-/Releasewechsel
+ist für diesen Lesevorgang nicht erforderlich.
 
 ```bash
-(
-set -euo pipefail
-cd "$HOME/Boerse/trading-workspace-app"
-umask 077
-TW_DIAG_DIR=$(mktemp -d "$HOME/trading-workspace-diagnose.XXXXXX")
-~/.local/bin/trading-workspace status > "$TW_DIAG_DIR/installation.txt" 2>&1
-docker compose --env-file docker/.env -f docker/compose.yml exec -T backend \
-  python - > "$TW_DIAG_DIR/monitoring-private.json" <<'PY'
-import asyncio
-import json
-from datetime import UTC, datetime
-from uuid import UUID
-
-import httpx
-from pydantic import TypeAdapter, ValidationError
-
-from app.features.market_data.service.position_quote_coverage import PositionQuoteCoverageReport
-from app.features.position_monitoring.service.hebeltrader_loss_read import LossStatusReport
-from app.features.position_monitoring.service.hebeltrader_original_bid_contracts import (
-    HebeltraderOriginalBidReport,
-)
-from app.features.position_monitoring.service.hebeltrader_target_contracts import (
-    HebeltraderTargetsReport,
-)
-from app.features.position_monitoring.service.indicative_entry_read import IndicativeStatusReport
-from app.features.position_monitoring.service.product_deadline_review_read import (
-    ProductDeadlineStatusReport,
-)
-from app.features.trade_position.service.hebeltrader_coverage import HebeltraderCoverage
-
-BASE = "/api/v1/position-monitoring"
-INVENTORY = "/api/v1/market-data/positions/quote-coverage"
-READS = (
-    ("indicative-entry", BASE),
-    ("product-deadline-review", BASE),
-    ("hebeltrader-original-bid", BASE),
-    ("hebeltrader-targets", BASE),
-    ("hebeltrader-loss", BASE),
-    ("hebeltrader-evidence", "/api/v1/trade-position"),
-)
-INVENTORY_RESPONSE = TypeAdapter(PositionQuoteCoverageReport)
-POSITION_RESPONSES = {
-    "indicative-entry": TypeAdapter(IndicativeStatusReport),
-    "product-deadline-review": TypeAdapter(ProductDeadlineStatusReport),
-    "hebeltrader-original-bid": TypeAdapter(HebeltraderOriginalBidReport),
-    "hebeltrader-targets": TypeAdapter(HebeltraderTargetsReport),
-    "hebeltrader-loss": TypeAdapter(LossStatusReport),
-    "hebeltrader-evidence": TypeAdapter(HebeltraderCoverage),
-}
-
-def now():
-    return datetime.now(UTC).isoformat()
-
-async def get(client, path, params=None):
-    started = now()
-    try:
-        response = await client.get(path, params=params)
-        if response.status_code != 200:
-            return {"read_at": started, "http_status": response.status_code,
-                    "read_error": "DIAGNOSTIC_READ_UNAVAILABLE"}
-        body = response.json()
-        if not isinstance(body, dict):
-            return {"read_at": started, "http_status": 200,
-                    "read_error": "JSON_OBJECT_REQUIRED"}
-        return {"read_at": started, "http_status": 200, "body": body}
-    except (httpx.HTTPError, ValueError) as error:
-        return {"read_at": started, "read_error": type(error).__name__}
-
-def canonical_uuid(value):
-    if not isinstance(value, str):
-        raise ValueError("UUID_STRING_REQUIRED")
-    parsed = UUID(value)
-    if parsed.int == 0 or value.lower() != str(parsed):
-        raise ValueError("CANONICAL_NONZERO_UUID_REQUIRED")
-    return str(parsed)
-
-def valid_time(value):
-    if not isinstance(value, str):
-        return False
-    try:
-        return datetime.fromisoformat(value).utcoffset() is not None
-    except ValueError:
-        return False
-
-def validate_inventory(snapshot):
-    if snapshot.get("http_status") != 200 or snapshot.get("read_error"):
-        return [], ["INVENTORY_READ_UNAVAILABLE"]
-    body = snapshot.get("body", {})
-    try:
-        INVENTORY_RESPONSE.validate_python(body)
-    except (ValidationError, ValueError, TypeError):
-        return [], ["INVENTORY_RESPONSE_SCHEMA_INVALID"]
-    summary, rows = body.get("summary"), body.get("items")
-    if (not isinstance(summary, dict) or not isinstance(rows, list)
-            or type(summary.get("open_positions")) is not int
-            or summary["open_positions"] < 0
-            or summary["open_positions"] != len(rows)
-            or not valid_time(body.get("assessed_at"))
-            or body.get("assessment_scope") != "STORED_OBSERVATIONS_NOT_LIVE_VALUATION"
-            or body.get("execution_usable") is not False):
-        return [], ["INVENTORY_SCHEMA_OR_COUNT_INVALID"]
-    validated, position_ids, trade_ids = [], set(), set()
-    for row in rows:
-        if not isinstance(row, dict):
-            return [], ["INVENTORY_ITEM_NOT_OBJECT"]
-        try:
-            clean = dict(row)
-            for key in ("position_id", "trade_id", "warrant_id"):
-                clean[key] = canonical_uuid(row.get(key))
-            for key in ("selection_id", "warrant_listing_id", "mapping_id"):
-                if key not in row:
-                    raise ValueError("INVENTORY_FIELD_MISSING")
-                clean[key] = canonical_uuid(row[key]) if row[key] is not None else None
-            for key in ("selected_provider", "selection_status", "mic", "currency"):
-                if key not in row or (row[key] is not None and not isinstance(row[key], str)):
-                    raise ValueError("INVENTORY_FIELD_INVALID")
-            if ("mapping_version" not in row or
-                    (row["mapping_version"] is not None and
-                     (type(row["mapping_version"]) is not int or row["mapping_version"] < 1))):
-                raise ValueError("INVENTORY_MAPPING_VERSION_INVALID")
-        except (ValueError, AttributeError, TypeError):
-            return [], ["INVENTORY_IDENTITY_SCHEMA_INVALID"]
-        if clean["position_id"] in position_ids or clean["trade_id"] in trade_ids:
-            return [], ["INVENTORY_DUPLICATE_POSITION_OR_TRADE"]
-        position_ids.add(clean["position_id"])
-        trade_ids.add(clean["trade_id"])
-        validated.append(clean)
-    return sorted(validated, key=lambda row: row["position_id"]), []
-
-def bindings(rows):
-    keys = ("position_id", "trade_id", "warrant_id", "selection_id",
-            "selected_provider", "warrant_listing_id", "mapping_id",
-            "mapping_version", "selection_status", "mic", "currency")
-    return sorted(tuple(str(row.get(key)) for key in keys) for row in rows)
-
-def marker(snapshot):
-    body = snapshot.get("body", {})
-    if (snapshot.get("http_status") != 200 or snapshot.get("read_error")
-            or type(body.get("cycle_running")) is not bool
-            or not valid_time(body.get("last_cycle_started_at"))
-            or not valid_time(body.get("last_cycle_completed_at"))):
-        return None
-    keys = ("last_cycle_started_at", "last_cycle_completed_at", "cycle_running")
-    return tuple(body.get(key) for key in keys)
-
-def validate_position_read(snapshot, row, name):
-    if snapshot.get("http_status") != 200 or snapshot.get("read_error"):
-        return
-    body = snapshot.get("body", {})
-    try:
-        POSITION_RESPONSES[name].validate_python(body)
-        if any(canonical_uuid(body.get(key)) != row[key]
-               for key in ("trade_id", "position_id")):
-            raise ValueError("WRONG_POSITION")
-        clocks = ("read_at",) if name in {
-            "indicative-entry", "product-deadline-review", "hebeltrader-loss"
-        } else ("read_started_at", "read_completed_at")
-        if name == "hebeltrader-original-bid":
-            clocks += ("evaluated_at",)
-        if any(not valid_time(body.get(key)) for key in clocks):
-            raise ValueError("INVALID_READ_TIME")
-        if name in {"indicative-entry", "product-deadline-review", "hebeltrader-loss"}:
-            if "latest_assessment" not in body:
-                raise ValueError("MISSING_ASSESSMENT_FIELD")
-            assessment = body["latest_assessment"]
-            if assessment is not None and (not isinstance(assessment, dict)
-                    or not isinstance(assessment.get("reasons"), list)
-                    or not all(isinstance(reason, str) for reason in assessment["reasons"])
-                    or not valid_time(assessment.get("evaluated_at"))):
-                raise ValueError("INVALID_ASSESSMENT")
-    except (ValidationError, ValueError, AttributeError, TypeError):
-        snapshot["read_error"] = "POSITION_RESPONSE_SCHEMA_OR_IDENTITY_INVALID"
-
-async def main():
-    result = {"schema": "PRIVATE_MONITORING_READBACK_2026_11_20",
-              "started_at": now(), "requests": "GET_ONLY",
-              "global_atomic_snapshot": False}
-    async with httpx.AsyncClient(base_url="http://127.0.0.1:8000",
-                               timeout=15, trust_env=False,
-                               follow_redirects=False) as client:
-        result["runtime_before"] = await get(client, BASE + "/runtime/status")
-        result["refresh_before"] = await get(client, "/api/v1/market-data/refresh/status")
-        result["inventory_before"] = await get(client, INVENTORY)
-        initial, initial_errors = validate_inventory(result["inventory_before"])
-        result["inventory_before_errors"] = initial_errors
-        result["positions"] = []
-        for number, row in enumerate(initial, 1):
-            entry = {"label": f"P{number:02d}", "identity_private": row, "reads": {}}
-            for name, prefix in READS:
-                read = await get(
-                    client, f"{prefix}/trades/{row['trade_id']}/{name}",
-                    {"position_id": row["position_id"]})
-                validate_position_read(read, row, name)
-                entry["reads"][name] = read
-            result["positions"].append(entry)
-        result["inventory_after"] = await get(client, INVENTORY)
-        result["refresh_after"] = await get(client, "/api/v1/market-data/refresh/status")
-        result["runtime_after"] = await get(client, BASE + "/runtime/status")
-    final, final_errors = validate_inventory(result["inventory_after"])
-    result["inventory_after_errors"] = final_errors
-    valid_inventory = not initial_errors and not final_errors
-    before_marker = marker(result["runtime_before"])
-    after_marker = marker(result["runtime_after"])
-    result["coverage_checks"] = {
-        "inventory_schema_ids_and_counts_valid": valid_inventory,
-        "positions_requested": len(initial),
-        "nonempty_portfolio_observed": valid_inventory and bool(initial),
-        "same_inventory_and_bindings": valid_inventory and bindings(initial) == bindings(final),
-        "same_idle_cycle_markers": (
-            before_marker is not None and before_marker == after_marker
-            and before_marker[2] is False),
-        "auxiliary_reads_available": all(
-            result[key].get("http_status") == 200 and not result[key].get("read_error")
-            for key in ("runtime_before", "refresh_before", "refresh_after", "runtime_after")),
-        "all_position_reads_available": valid_inventory and bool(initial) and all(
-            read.get("http_status") == 200 and not read.get("read_error")
-            for entry in result["positions"] for read in entry["reads"].values()),
-    }
-    checks = result["coverage_checks"]
-    result["collection_status"] = (
-        "INVENTORY_UNAVAILABLE_OR_INVALID" if not valid_inventory else
-        "NO_OPEN_POSITIONS_NO_COVERAGE_EVIDENCE" if not initial else
-        "AUXILIARY_READS_UNAVAILABLE" if not checks["auxiliary_reads_available"] else
-        "POSITION_READS_INCOMPLETE" if not checks["all_position_reads_available"] else
-        "CHANGED_OR_UNVERIFIED_COLLECTION_WINDOW" if not (
-            checks["same_inventory_and_bindings"] and checks["same_idle_cycle_markers"]) else
-        "COMPLETE_PASSIVE_READBACK_NOT_RULE_QUALIFICATION")
-    result["completed_at"] = now()
-    print(json.dumps(result, ensure_ascii=False, indent=2))
-
-asyncio.run(main())
-PY
-printf '%s\n' "$TW_DIAG_DIR"
-)
+python3 "$HOME/Downloads/collect-depot-data-supply.py"
 ```
 
-Quellcodeprüfung dieses Snippets ist möglich; seine Ausführung auf dem Nutzer-PC ist damit nicht behauptet. Der Launcherstatus enthält Installationsstand und prüft bestehende versiegelte Images; `/health` allein liefert keine Softwareversion.
+Der Standardbasisordner ist `~/Boerse`; ein bereits gesetztes
+`TRADING_WORKSPACE_BASE` beziehungsweise `--base /absoluter/pfad` übernimmt
+abweichende Installationsorte. Der Host benötigt Python 3.10 oder neuer
+und verwendet ausschließlich dessen Standardbibliothek. Die fachlichen Reader und ihre vorhandenen Abhängigkeiten
+laufen im bereits vorhandenen Backendcontainer. Es werden keine Pakete
+installiert und keine fehlenden Dienste gestartet.
 
-Die Antwortprüfung verwendet mit `TypeAdapter` die vorhandenen Response-Dataclasses der installierten Anwendung. Die benannten Response-Dataclasses sind in v1.5.51 und v1.5.52 vorhanden; maßgeblich ist der jeweils installierte Vertrag. Die Imports definieren Typen, Funktionen und lokale SQLAlchemy-Metadaten, öffnen jedoch keine Datenbanksitzung und führen keinen Provider-/Commandpfad aus. Die Validierung ersetzt die Originalantwort nicht. Zulässige `null`-Bewertungen und fachliche MISSING-/UNSUITABLE-Befunde bleiben erhalten; ein unvollständiges HTTP-200-Objekt wird als Diagnosefehler markiert. Das ist eine Transport-/Strukturprüfung, keine fachliche Regelqualifikation.
+Der Collector gibt das neue private Diagnoseverzeichnis unmittelbar aus.
+Es liegt außerhalb des Repositories, hat Modus `0700`; Dateien und das
+abschließend erzeugte `.tar.gz` haben `0600`. Bei unzugänglichem Bestand
+oder unvollständigem Abruf bleibt ein Fehlerpaket mit genauer Fehlerklasse
+erhalten. Ein fehlender Zugang wird nicht als fehlende fachliche Daten
+umgedeutet. Das Archiv privat bereitstellen; keine Rohdatei als PR-Anhang
+veröffentlichen.
+
+| Datei im privaten Archiv | Inhalt und Nachweisgrenze |
+| --- | --- |
+| `installation-before.json`, `installation-after.json` | Selektive Git-/VERSION-/Deployment-Marker und Docker-Container-/Imagebezüge. Vorher/nachher vergleichen; keine `.env`, vollständigen Konfigurationen oder Docker-Inspects. |
+| `schema.json` | Tatsächliche Alembic-Revisionswerte über die konfigurierte Backend-Datenbank in einer ausdrücklich lesenden Transaktion. Kein aus dem Release angenommener Schemastand. |
+| `monitoring-private.json` | Vollständiges Inventar vor/nach, Runtime-/Refreshstatus vor/nach und sechs vorhandene GET-Reader je aktueller Position samt unveränderten Antworten und Lesefehlern. |
+| `summary.json` | Ergebnis der Sammlung, Verfügbarkeit und beobachtete Bindungswechsel. Vollständiger Transport ist keine V2-/B58-/B06-Regelqualifikation. |
+
+**Zulässige Operationen:** Git-Metadaten mit unterdrückten optionalen
+Schreiblocks, kleine explizit ausgewählte Deployment-Marker, Docker-
+Container-/Imageinspektion mit fest begrenzten Feldern sowie `docker exec`
+gegen die zuvor validierte bestehende Backend-ID. Im Backend läuft Python
+mit `-B`, um neue Bytecode-Dateien zu vermeiden. Der Schemaread verwendet die
+wirklich konfigurierte Datenbank mit `READ ONLY`, begrenzten Wartezeiten und
+abschließendem Rollback. Er lässt damit auch einen abweichenden Datenbank-
+URL-Zugang korrekt beim vorhandenen Backend; Zugangsdaten werden nicht
+in das Paket geschrieben. Die eigentliche Verbrauchersammlung verwendet
+nur die bereits qualifizierten GET-Pfade.
+
+**Ausdrücklich nicht Teil dieses Collectors:** Launcher `status`,
+Deploymenthelfer, `docker compose`, Validatorcontainer, Build/Start/Update,
+Refresh, Import, Regelausführung, Anbieterzustimmung oder Nachrichtenversand.
+Die laufenden Dienste werden weder angehalten noch pausiert. Fehler werden
+mit begrenzten Klassen gemeldet; vollständige Containerlogs, Tracebacks,
+Providerkeys und Produktoriginalbytes werden nicht gesammelt.
+
+### Korrektur des vorbereiteten Ablaufs vom 20.11.2026
+
+Der frühere Dokumentblock begann mit `trading-workspace status`. Dieser
+ändert zwar keine Depotregeln, ruft aber den vorhandenen Deploymentvalidator
+auf: [Launcher](../../scripts/trading-workspace.sh), Z.105/141, und
+[Deploymenthelfer](../../scripts/migrate-legacy-issuer.sh), Z.60–64/101–106,
+legen unter anderem Lock-/Wartungsdateien an beziehungsweise starten einen
+isolierten Validatorcontainer. Deshalb wird dieser Aufruf aus dem streng
+passiven Diagnosepfad entfernt. Der Launcher selbst wird nicht verändert.
+Außerdem fehlte bislang ein tatsächlicher DB-Schemabeleg, obwohl die
+Backlog-Abnahme ihn verlangt. Der neue getrennte Schemaread schließt diese
+Lücke des vorbereiteten Collectors; eine echte PC-Abnahme ist damit noch
+nicht erbracht.
+
+Der fachliche GET-Pythonteil des alten Blocks wird unverändert übernommen:
+11.191 UTF-8-Bytes, SHA256
+`b8dee0cd47ccd95a224cf5897eb60233d3195bf9d76700a103acfcfbc5dbafab`.
+Die Prüfung mit den vorhandenen Response-Dataclasses bleibt erhalten.
+Die Imports kommen aus der installierten Anwendung und öffnen selbst
+keine Datenbanksitzung. Zulässige `null`-Bewertungen und fachliche
+MISSING-/UNSUITABLE-Befunde bleiben erhalten; unvollständige HTTP-200-
+Antworten sind Diagnosefehler. Die Rohantwort wird durch die Prüfung
+nicht ersetzt. Die nachfolgenden Auswertungsregeln gelten weiter.
 
 ### Auswertungsregeln
 

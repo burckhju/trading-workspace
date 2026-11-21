@@ -21,23 +21,22 @@ async function expectUsableWidth(page: Page, panel: Locator) {
     }
     return { width: element.getBoundingClientRect().width, ancestors };
   });
+  const availableWidth = await panel.evaluate(
+    (element) => element.closest("main")!.clientWidth,
+  );
   expect(layout.width, JSON.stringify(layout)).toBeGreaterThanOrEqual(
-    Math.min(page.viewportSize()!.width, 1600) - 64,
+    availableWidth - 64,
   );
 }
 
-async function expectStackedPanels(
+async function expectRiskAreaLayout(
   page: Page,
   risk: Locator,
   valuation: Locator,
 ) {
   await expectUsableWidth(page, risk);
-  await expectUsableWidth(page, valuation);
-  const riskBounds = await risk.boundingBox();
-  const valuationBounds = await valuation.boundingBox();
-  expect(riskBounds!.y).toBeGreaterThanOrEqual(
-    valuationBounds!.y + valuationBounds!.height,
-  );
+  await expect(valuation).toHaveCount(1);
+  await expect(valuation).toBeHidden();
   const overflow = await page.evaluate(() => ({
     pageWidth: document.documentElement.scrollWidth,
     viewport: window.innerWidth,
@@ -132,13 +131,13 @@ test("qualified risk preview, explicit activation and immutable evaluation prese
   expect(preview.iv.current_iv_decimal).toBeNull();
   expect(preview.iv.percentile).toBeNull();
   expect(preview.iv.risk_level).toBeNull();
-  await page.goto(`/trade-management?trade_id=${captured.trade.id}`);
+  await page.goto(`/trade-management?trade_id=${captured.trade.id}#trade-risk`);
+  await page
+    .getByText("Risiko- und Trendsignale sowie Warnregeln", { exact: true })
+    .click();
   const panel = page.getByRole("region", { name: "Risiko- und Trendsignale" });
   const summary = panel.getByRole("region", { name: "Risikoübersicht" });
-  const valuation = page.getByRole("region", {
-    name: "Produktbewertung",
-    exact: true,
-  });
+  const valuation = page.locator('[aria-label="Produktbewertung"]');
   await expect(summary.getByText("Deaktiviert", { exact: true })).toBeVisible();
   await expect(
     summary.getByText("Nicht auswertbar", { exact: true }),
@@ -147,14 +146,14 @@ test("qualified risk preview, explicit activation and immutable evaluation prese
     body: await panel.screenshot(),
     contentType: "image/png",
   });
-  await expectStackedPanels(page, panel, valuation);
+  await expectRiskAreaLayout(page, panel, valuation);
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(summary).toBeVisible();
   await testInfo.attach("risk-overview-mobile", {
     body: await panel.screenshot(),
     contentType: "image/png",
   });
-  await expectStackedPanels(page, panel, valuation);
+  await expectRiskAreaLayout(page, panel, valuation);
   await panel
     .getByText("Kennzahlen, Kursqualität und Quellen im Detail")
     .click();
@@ -162,10 +161,10 @@ test("qualified risk preview, explicit activation and immutable evaluation prese
     "Mindestens 21 abgeschlossene bereinigte Tageskurse erforderlich",
   );
   await expect(panel).toContainText("Echte Optionsschein-Kurshistorie fehlt");
-  await expectStackedPanels(page, panel, valuation);
+  await expectRiskAreaLayout(page, panel, valuation);
   for (const width of [320, 768]) {
     await page.setViewportSize({ width, height: 844 });
-    await expectStackedPanels(page, panel, valuation);
+    await expectRiskAreaLayout(page, panel, valuation);
     await testInfo.attach(`risk-details-${width}`, {
       body: await panel.screenshot(),
       contentType: "image/png",
@@ -194,7 +193,7 @@ test("qualified risk preview, explicit activation and immutable evaluation prese
   await expect(iv).toContainText("kein Verkaufserlös");
   for (const width of [320, 390, 768, 1440]) {
     await page.setViewportSize({ width, height: 900 });
-    await expectStackedPanels(page, panel, valuation);
+    await expectRiskAreaLayout(page, panel, valuation);
     await testInfo.attach(`iv-model-${width}`, {
       body: await iv.screenshot(),
       contentType: "image/png",

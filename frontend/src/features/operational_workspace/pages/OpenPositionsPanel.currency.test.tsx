@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { position } from '../../../test/positionFixture';
 import { OpenPositionsPanel } from './OpenPositionsPanel';
+import { PositionDetails } from '../components/PositionDetails';
 
 beforeEach(() => sessionStorage.clear());
 
@@ -35,7 +36,17 @@ it('shows qualified coverage and missing-currency reasons in rows and details wi
   expect(
     screen.getByText('Nicht realisierter Brutto-G/V: +5,00 EUR · 1/2 verfügbar'),
   ).toBeInTheDocument();
-  await userEvent.click(within(row).getByRole('button', { name: 'Details' }));
+  render(
+    <MemoryRouter>
+      <PositionDetails
+        position={position({
+          product_name: 'Unbekannte Kaufwährung',
+          unrealized_pnl_usable: false,
+          unrealized_pnl_reason: 'COST_BASIS_CURRENCY_UNKNOWN',
+        })}
+      />
+    </MemoryRouter>,
+  );
   const details = screen.getByRole('region', { name: 'Details Unbekannte Kaufwährung' });
   expect(within(details).getByText(/Kaufwährung.*nicht.*belegt/i)).toBeInTheDocument();
   expect(within(details).getByText('25,00 EUR')).toBeInTheDocument();

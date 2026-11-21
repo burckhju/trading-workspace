@@ -22,9 +22,20 @@ type View =
   | { kind: 'product'; product: WarrantResponse };
 const CLEAN: ProductFormGuard = { dirty: false, busy: false };
 
+export interface ProductCatalogueNavigation {
+  query: string;
+  productId: string | null;
+  onQueryChange: (query: string) => void;
+  onProductChange: (productId: string | null) => void;
+}
+
 export function WarrantAdminPage({
   selectionContext,
-}: { selectionContext?: SelectionRepairContext } = {}) {
+  catalogueNavigation,
+}: {
+  selectionContext?: SelectionRepairContext;
+  catalogueNavigation?: ProductCatalogueNavigation;
+} = {}) {
   const [warrants, setWarrants] = useState<WarrantResponse[]>([]);
   const [issuers, setIssuers] = useState<IssuerResponse[]>([]);
   const [underlyings, setUnderlyings] = useState<UnderlyingSummaryResponse[]>(
@@ -37,7 +48,13 @@ export function WarrantAdminPage({
   const [catalogueError, setCatalogueError] = useState('');
   const [referenceError, setReferenceError] = useState('');
   const [notice, setNotice] = useState('');
-  const [query, setQuery] = useState('');
+  const [localQuery, setLocalQuery] = useState('');
+  const query = catalogueNavigation?.query ?? localQuery;
+  const navigationRef = useRef(catalogueNavigation);
+  navigationRef.current = catalogueNavigation;
+  const catalogueState = useRef({ warrants, view });
+  catalogueState.current = { warrants, view };
+  const appliedProductContext = useRef<string | null | undefined>(undefined);
   const catalogueController = useRef<AbortController | null>(null);
   const guardRef = useRef(CLEAN);
   const returnView = useRef<View>({ kind: 'catalogue' });
@@ -83,12 +100,24 @@ export function WarrantAdminPage({
         }
         setWarrants(filtered);
         setCatalogueError('');
-        if (initial)
+        if (initial) {
+          const requestedId = selectionContext?.warrantId ?? navigationRef.current?.productId;
+          const requested = requestedId
+            ? filtered.find((item) => item.id === requestedId)
+            : filtered[0];
+          if (requestedId && !requested) {
+            setView({ kind: 'catalogue' });
+            setCatalogueError(
+              'Das angeforderte Produkt ist nicht im Katalog vorhanden. Bitte ein Produkt ausdrücklich auswählen.',
+            );
+            return;
+          }
           setView((current) =>
-            current.kind === 'catalogue' && filtered[0]
-              ? { kind: 'product', product: filtered[0] }
+            current.kind === 'catalogue' && requested
+              ? { kind: 'product', product: requested }
               : current,
           );
+        }
       } catch (cause) {
         if (!controller.signal.aborted && (!scopeKey || currentViewKey.current === scopeKey)) {
           setCatalogueError(
@@ -97,7 +126,15 @@ export function WarrantAdminPage({
           throw cause;
         }
       } finally {
-        if (!controller.signal.aborted) setLoading(false);
+        if (!controller.signal.aborted) {
+          // Initial resolution already chose the exact product (or reported why it
+          // cannot be opened). Do not replace a new-product form opened while the
+          // catalogue was loading, or overwrite a precise repair-context error.
+          if (initial)
+            appliedProductContext.current =
+              selectionContext?.warrantId ?? navigationRef.current?.productId;
+          setLoading(false);
+        }
       }
     },
     [selectionContext],
@@ -142,6 +179,35 @@ export function WarrantAdminPage({
     };
   }, [selectionContext, refreshCatalogue]);
 
+  // Browser back/forward restores the same catalog selection. Route navigation
+  // has already passed the existing form guard; a local search never remounts it.
+  const requestedProductId = selectionContext?.warrantId ?? catalogueNavigation?.productId;
+  useEffect(() => {
+    if (loading || !navigationRef.current || appliedProductContext.current === requestedProductId)
+      return;
+    appliedProductContext.current = requestedProductId;
+    const { warrants: items, view: current } = catalogueState.current;
+    const selected = requestedProductId
+      ? items.find((item) => item.id === requestedProductId)
+      : items[0];
+    if (current.kind === 'product' && current.product.id === selected?.id) return;
+    guardRef.current = CLEAN;
+    setGuard(CLEAN);
+    setNotice('');
+    if (selected) {
+      currentViewKey.current = selected.id;
+      setView({ kind: 'product', product: selected });
+      setCatalogueError('');
+    } else {
+      currentViewKey.current = 'catalogue';
+      setView({ kind: 'catalogue' });
+      if (requestedProductId)
+        setCatalogueError(
+          'Das angeforderte Produkt ist nicht im Katalog vorhanden. Bitte ein Produkt ausdrücklich auswählen.',
+        );
+    }
+  }, [requestedProductId, loading]);
+
   function switchView(next: View) {
     if (guardRef.current.busy) return false;
     if (guardRef.current.dirty && !window.confirm(DISCARD_PRODUCT_DRAFT)) return false;
@@ -155,6 +221,11 @@ export function WarrantAdminPage({
           ? `create-${next.sequence}`
           : 'catalogue';
     setView(next);
+    if (next.kind !== 'create') {
+      if (next.kind === 'product') setCatalogueError('');
+      appliedProductContext.current = next.kind === 'product' ? next.product.id : null;
+      navigationRef.current?.onProductChange(next.kind === 'product' ? next.product.id : null);
+    }
     return true;
   }
 
@@ -180,7 +251,9 @@ export function WarrantAdminPage({
       'Optionsschein und Notierung gespeichert. Ein Kauf wurde noch nicht erfasst. Bestehende Bewertungsläufe bleiben unverändert.',
     );
     currentViewKey.current = created.id;
+    appliedProductContext.current = created.id;
     setView({ kind: 'product', product: created });
+    navigationRef.current?.onProductChange(created.id);
     // Read-only reconciliation never selects another product or retries the confirmed POST.
     void refreshCatalogue(false, created.id).catch(() => {
       if (currentViewKey.current === created.id)
@@ -193,6 +266,7 @@ export function WarrantAdminPage({
   const productDeleted = useCallback((deleted: WarrantResponse) => {
     if (currentViewKey.current !== deleted.id) return;
     currentViewKey.current = 'catalogue';
+    appliedProductContext.current = null;
     setWarrants((items) => items.filter((item) => item.id !== deleted.id));
     setView((current) =>
       current.kind === 'product' && current.product.id === deleted.id
@@ -202,6 +276,7 @@ export function WarrantAdminPage({
     guardRef.current = CLEAN;
     setGuard(CLEAN);
     setNotice(`Optionsschein „${deleted.display_name}“ wurde gelöscht.`);
+    navigationRef.current?.onProductChange(null);
   }, []);
 
   const issuerName = (id: string) => issuers.find((item) => item.id === id)?.display_name ?? id;
@@ -214,10 +289,15 @@ export function WarrantAdminPage({
 
   return (
     <div className="w-full min-w-0 space-y-6">
-      <ProductNavigationGuard {...guard} />
+      <ProductNavigationGuard
+        {...guard}
+        shouldBlock={() => guardRef.current.dirty || guardRef.current.busy}
+      />
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-xs uppercase tracking-wide text-slate-500">Administration · FT-004</p>
+          <p className="text-xs uppercase tracking-wide text-slate-500">
+            Basisdaten · Produktkatalog
+          </p>
           <h1 className="mt-1 text-2xl font-semibold">Optionsscheine</h1>
           <p className="mt-2 max-w-3xl text-sm text-slate-400">
             Produkt im Katalog auswählen und seine Stammdaten prüfen. Änderungen und historische
@@ -268,7 +348,10 @@ export function WarrantAdminPage({
                 Produkte suchen
                 <input
                   value={query}
-                  onChange={(event) => setQuery(event.target.value)}
+                  onChange={(event) => {
+                    setLocalQuery(event.target.value);
+                    catalogueNavigation?.onQueryChange(event.target.value);
+                  }}
                   className="mt-1 w-full min-w-0 rounded border border-slate-700 bg-slate-950 p-2"
                   placeholder="Name, ISIN oder WKN"
                 />

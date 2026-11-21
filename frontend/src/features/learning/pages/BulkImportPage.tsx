@@ -1,4 +1,5 @@
 import { ChangeEvent, useEffect, useMemo, useState } from 'react';
+import { PendingNavigationGuard } from '../../../components/PendingNavigationGuard';
 
 import { marketApiClient } from '../../market/services/client';
 import type { UnderlyingSummaryResponse } from '../../market/types/api';
@@ -23,6 +24,7 @@ function payloadText(row: BulkImportReviewRow, key: string): string {
 
 export function BulkImportPage() {
   const [files, setFiles] = useState<File[]>([]);
+  const [uploadedFiles, setUploadedFiles] = useState<File[] | null>(null);
   const [job, setJob] = useState<BulkImportJob | null>(null);
   const [reviewRows, setReviewRows] = useState<BulkImportReviewRow[]>([]);
   const [underlyings, setUnderlyings] = useState<UnderlyingSummaryResponse[]>([]);
@@ -78,6 +80,7 @@ export function BulkImportPage() {
     setConfirmedCount(null);
     try {
       const response = await bulkImportClient.upload(files);
+      setUploadedFiles(files);
       setJob(response);
       setReviewRows(await bulkImportClient.reviewRows(response.job_id));
     } catch (value: unknown) {
@@ -155,23 +158,44 @@ export function BulkImportPage() {
 
   return (
     <div className="w-full space-y-8">
+      <PendingNavigationGuard
+        busy={busy}
+        shouldBlock={() =>
+          busy ||
+          (files.length > 0 && files !== uploadedFiles) ||
+          reviewRows.some((row) => {
+            const selection = selections[row.id];
+            return (
+              selection !== undefined &&
+              (selection.underlyingId !== (row.underlying_id ?? '') ||
+                selection.productId !== (row.product_id ?? ''))
+            );
+          })
+        }
+      />
       <header>
         <p className="text-xs uppercase tracking-wide text-slate-500">
-          Learning · Historical Evidence
+          Lessons Learned · Externe Beobachtungen
         </p>
-        <h1 className="mt-1 text-2xl font-semibold">Hebeltrader PDF-Import</h1>
+        <h1 className="mt-1 text-2xl font-semibold">Lernimporte</h1>
         <p className="mt-2 max-w-4xl text-sm text-slate-400">
-          Viele historische Ausgaben in einem Job hochladen, automatisch per WKN zuordnen und nur
-          die Ausnahmen manuell prüfen. Erst die Bestätigung übernimmt valide Zeilen als externe
-          Beobachtungen; es werden keine Trades erzeugt.
+          Importieren Sie historische Hebeltrader-PDFs und prüfen Sie ihre Zuordnungen. Bereits der
+          Upload speichert den Importauftrag und die Dateien. Die anschließende Bestätigung
+          übernimmt gültige Zeilen als externe Beobachtungen; daraus entstehen keine Trades oder
+          Erkenntnisse automatisch.
         </p>
       </header>
 
       {error && (
-        <p className="rounded-lg border border-rose-800 p-3 text-sm text-rose-200">{error}</p>
+        <p role="alert" className="rounded-lg border border-rose-800 p-3 text-sm text-rose-200">
+          {error}
+        </p>
       )}
       {confirmedCount !== null && (
-        <p className="rounded-lg border border-emerald-800 p-3 text-sm text-emerald-200">
+        <p
+          role="status"
+          className="rounded-lg border border-emerald-800 p-3 text-sm text-emerald-200"
+        >
           Import abgeschlossen: {confirmedCount} Beobachtungen wurden übernommen.
         </p>
       )}
@@ -207,8 +231,11 @@ export function BulkImportPage() {
         <section className="rounded-xl border border-slate-800 p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h2 className="text-lg font-medium">Import-Job</h2>
-              <p className="mt-1 text-xs text-slate-500">{job.job_id}</p>
+              <h2 className="text-lg font-medium">Importauftrag</h2>
+              <details className="mt-1 text-xs text-slate-500">
+                <summary>Technischer Beleg</summary>
+                <p className="break-all">{job.job_id}</p>
+              </details>
             </div>
             <span className="rounded-full border border-slate-700 px-3 py-1 text-xs font-medium">
               {job.status}
@@ -353,7 +380,7 @@ export function BulkImportPage() {
       )}
 
       {job && (
-        <section className="flex items-center justify-between gap-4 rounded-xl border border-slate-800 p-5">
+        <section className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-slate-800 p-5">
           <div>
             <h2 className="font-medium">Fachliche Übernahme</h2>
             <p className="mt-1 text-sm text-slate-400">

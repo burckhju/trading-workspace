@@ -1,6 +1,16 @@
 import { expect, test, type Page } from "@playwright/test";
 import type { JournalHistory } from "../../frontend/src/features/learning/services/journalClient";
 
+async function showLearningArea(
+  page: Page,
+  name: "Nachbeobachtung & Exit Review" | "Journal" | "Erkenntnisse",
+) {
+  await page
+    .getByRole("navigation", { name: "Nachbereitung dieses Trades" })
+    .getByRole("link", { name, exact: true })
+    .click();
+}
+
 // Real browser, application router and forms; synthetic HTTP responses only.
 // PostgreSQL qualification remains in the two separately guarded owner journeys.
 const tradeId = "10000000-0000-4000-8000-000000000001";
@@ -382,13 +392,8 @@ test("journal UI keeps real parent journal and both lesson forms mounted across 
   page,
 }) => {
   const fixture = await setup(page, finalId);
-  const journal = page.getByRole("region", {
-    name: "Trade-Journal",
-    exact: true,
-  });
-  const directLesson = page.locator("section").filter({
-    has: page.getByRole("heading", { name: "FT-012 Learning", exact: true }),
-  });
+  const journal = page.locator('#trade-journal [aria-label="Trade-Journal"]');
+  const directLesson = page.locator("#trade-lessons");
   await journal
     .getByLabel("Lesson-Titel")
     .fill("Journalquelle bleibt gebunden");
@@ -396,6 +401,7 @@ test("journal UI keeps real parent journal and both lesson forms mounted across 
   await journal
     .getByLabel("Lesson-Inhalt")
     .fill("Eigene Interpretation der historischen Journalquelle.");
+  await showLearningArea(page, "Erkenntnisse");
   await directLesson
     .getByLabel("Lesson-Titel")
     .fill("FT011-Quelle bleibt getrennt");
@@ -403,6 +409,7 @@ test("journal UI keeps real parent journal and both lesson forms mounted across 
   await directLesson
     .getByLabel("Lesson-Inhalt")
     .fill("Unabhängige Interpretation der FT011-Evidence.");
+  await showLearningArea(page, "Nachbeobachtung & Exit Review");
   fixture.pauseReads();
   await page
     .getByRole("button", { name: "Review-Quellenstand prüfen", exact: true })
@@ -414,12 +421,15 @@ test("journal UI keeps real parent journal and both lesson forms mounted across 
     "FT011-Quelle bleibt getrennt",
   );
   fixture.resumeReads();
+  await showLearningArea(page, "Journal");
   await expect(
     journal.getByRole("button", { name: "Lesson anlegen", exact: true }),
   ).toBeEnabled();
+  await showLearningArea(page, "Erkenntnisse");
   await expect(
     directLesson.getByRole("button", { name: "Lesson anlegen", exact: true }),
   ).toBeEnabled();
+  await showLearningArea(page, "Journal");
   fixture.failJournalRead(true);
   await journal
     .getByRole("button", { name: "Quellenstand neu laden", exact: true })

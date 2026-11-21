@@ -104,7 +104,7 @@ describe('Lesson hypothesis navigation ownership', () => {
       pending.resolve(hypothesis());
       await pending.promise;
     });
-    expect(screen.getByText('Bereits an FT-013 übergeben')).toBeInTheDocument();
+    expect(screen.getByText('Vorhandene Hypothesen')).toBeInTheDocument();
     expect(navigation).toEqual({ dirty: false, busy: false });
   });
 
@@ -131,7 +131,7 @@ describe('Lesson hypothesis navigation ownership', () => {
     expect(title).toHaveValue('Explicit hypothesis');
     expect(statement).toHaveValue('Synthetic interpretation.');
     expect(title).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Hypothese für FT-013 anlegen' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Hypothese anlegen' })).toBeDisabled();
     fireEvent.submit(title.closest('form')!);
     expect(mocks.createFromLessonVersion).not.toHaveBeenCalled();
     expect(onNavigationStateChange).toHaveBeenLastCalledWith({ dirty: true, busy: false });
@@ -143,8 +143,8 @@ describe('Lesson hypothesis navigation ownership', () => {
       />,
     );
     expect(screen.getByLabelText('Titel')).toBe(title);
-    fireEvent.click(screen.getByRole('button', { name: 'Hypothese für FT-013 anlegen' }));
-    await screen.findByText('Bereits an FT-013 übergeben');
+    fireEvent.click(screen.getByRole('button', { name: 'Hypothese anlegen' }));
+    await screen.findByText('Vorhandene Hypothesen');
     expect(mocks.createFromLessonVersion).toHaveBeenCalledExactlyOnceWith(source, {
       title: 'Explicit hypothesis',
       statement: 'Synthetic interpretation.',
@@ -156,7 +156,7 @@ describe('Lesson hypothesis navigation ownership', () => {
         onNavigationStateChange={onNavigationStateChange}
       />,
     );
-    expect(screen.getByText('Bereits an FT-013 übergeben')).toBeInTheDocument();
+    expect(screen.getByText('Vorhandene Hypothesen')).toBeInTheDocument();
     expect(screen.getByText(`Gebundene Quellversion ${source}`)).toBeInTheDocument();
     expect(mocks.listForLessonVersion).toHaveBeenCalledTimes(1);
     expect(mocks.createFromLessonVersion).toHaveBeenCalledTimes(1);
@@ -178,7 +178,7 @@ describe('Lesson hypothesis navigation ownership', () => {
     expect(statement).toHaveValue('Synthetic interpretation.');
     disabled = false;
     fireEvent.submit(title.closest('form')!);
-    await screen.findByText('Bereits an FT-013 übergeben');
+    await screen.findByText('Vorhandene Hypothesen');
     expect(mocks.createFromLessonVersion).toHaveBeenCalledExactlyOnceWith('lesson-version-1', {
       title: 'Explicit hypothesis',
       statement: 'Synthetic interpretation.',
@@ -195,7 +195,7 @@ describe('Lesson hypothesis navigation ownership', () => {
       />,
     );
     await fillHypothesis();
-    fireEvent.click(screen.getByRole('button', { name: 'Hypothese für FT-013 anlegen' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Hypothese anlegen' }));
     await screen.findByRole('alert');
     expect(onNavigationStateChange).toHaveBeenLastCalledWith({ dirty: true, busy: false });
     expect(screen.getByLabelText('Titel')).toHaveValue('Explicit hypothesis');
@@ -261,7 +261,7 @@ describe('Lesson hypothesis navigation ownership', () => {
       />,
     );
     await fillHypothesis();
-    fireEvent.click(screen.getByRole('button', { name: 'Hypothese für FT-013 anlegen' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Hypothese anlegen' }));
     view.rerender(
       <LessonHypothesisPanel
         lessonVersionId="lesson-version-2"
@@ -281,7 +281,7 @@ describe('Lesson hypothesis navigation ownership', () => {
       await pending.promise;
     });
     expect(screen.getByLabelText('Titel')).toHaveValue('');
-    expect(screen.queryByText('Bereits an FT-013 übergeben')).not.toBeInTheDocument();
+    expect(screen.queryByText('Vorhandene Hypothesen')).not.toBeInTheDocument();
     expect(onNavigationStateChange).toHaveBeenLastCalledWith({ dirty: false, busy: false });
     expect(mocks.createFromLessonVersion).toHaveBeenCalledTimes(1);
   });

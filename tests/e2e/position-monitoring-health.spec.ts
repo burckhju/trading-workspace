@@ -24,12 +24,20 @@ for (const valuationStatus of ["STALE", "LAST_AVAILABLE"] as const) {
         return json(route, { message: "Analysis must be read-only" }, 405);
       }
       const path = new URL(route.request().url()).pathname;
-      if (path.endsWith('/position-monitoring/runtime/status')) {
+      if (path.endsWith("/position-monitoring/runtime/status")) {
         return json(route, {
-          enabled: false, running: false, cycle_running: false, interval_seconds: 900,
-          scope: 'PROCESS_LOCAL_ALL_WORKSPACES', price_basis: 'COMPLETED_UNDERLYING_DAILY_LOW_HIGH',
-          last_cycle_started_at: null, last_cycle_completed_at: null,
-          next_run_at: null, last_error: null, last_error_at: null, last_result: null,
+          enabled: false,
+          running: false,
+          cycle_running: false,
+          interval_seconds: 900,
+          scope: "PROCESS_LOCAL_ALL_WORKSPACES",
+          price_basis: "COMPLETED_UNDERLYING_DAILY_LOW_HIGH",
+          last_cycle_started_at: null,
+          last_cycle_completed_at: null,
+          next_run_at: null,
+          last_error: null,
+          last_error_at: null,
+          last_result: null,
         });
       }
 
@@ -113,7 +121,10 @@ for (const valuationStatus of ["STALE", "LAST_AVAILABLE"] as const) {
           market_value: valuationStatus === "STALE" ? null : "250.00",
           unrealized_gross_pnl: valuationStatus === "STALE" ? null : "50.00",
           unrealized_pnl_usable: valuationStatus === "LAST_AVAILABLE",
-          unrealized_pnl_reason: valuationStatus === "STALE" ? "WARRANT_QUOTE_STALE" : "COST_BASIS_CURRENCY_MATCHED",
+          unrealized_pnl_reason:
+            valuationStatus === "STALE"
+              ? "WARRANT_QUOTE_STALE"
+              : "COST_BASIS_CURRENCY_MATCHED",
           selected_source: "VONTOBEL_MARKETS",
           valuation_usable: valuationStatus === "LAST_AVAILABLE",
           execution_usable: false,
@@ -137,39 +148,53 @@ for (const valuationStatus of ["STALE", "LAST_AVAILABLE"] as const) {
           market_data_observed_at: "2026-09-01T20:00:00Z",
           age_days: 5,
           basis: {
-            underlying_id: '40000000-0000-4000-8000-000000000001',
-            name: 'Example basis', isin: 'US0378331005',
-            listing_id: '40000000-0000-4000-8000-000000000002', venue_mic: 'XFRA', currency: 'EUR',
+            underlying_id: "40000000-0000-4000-8000-000000000001",
+            name: "Example basis",
+            isin: "US0378331005",
+            listing_id: "40000000-0000-4000-8000-000000000002",
+            venue_mic: "XFRA",
+            currency: "EUR",
           },
           daily_price: {
-            listing_id: '40000000-0000-4000-8000-000000000002', trading_date: '2026-09-01',
-            close: '24100', low: '23900', high: '24200', currency: 'EUR',
-            provider: 'EODHD', provider_symbol: 'DAX.INDX', source_updated_at: null,
-            retrieved_at: '2026-09-01T20:00:00Z',
+            listing_id: "40000000-0000-4000-8000-000000000002",
+            trading_date: "2026-09-01",
+            close: "24100",
+            low: "23900",
+            high: "24200",
+            currency: "EUR",
+            provider: "EODHD",
+            provider_symbol: "DAX.INDX",
+            source_updated_at: null,
+            retrieved_at: "2026-09-01T20:00:00Z",
           },
         });
       }
       return json(route, { code: "E2E_ROUTE_MISSING", message: path }, 500);
     });
 
-    await page.goto(`/trade-management?trade_id=${tradeId}`);
+    await page.goto(`/trade-management?trade_id=${tradeId}#trade-risk`);
 
     await expect(
       page.getByText("Daten veraltet", { exact: true }),
     ).toBeVisible();
     await expect(page.getByText("STALE", { exact: true })).toBeVisible();
     await expect(page.getByText("DAX.INDX", { exact: true })).toBeVisible();
-    await expect(page.getByText('Automatische Prüfung deaktiviert')).toBeVisible();
-    await expect(page.getByText('24.100 EUR', { exact: true })).toBeVisible();
-    await expect(page.getByText('23.900 EUR', { exact: true })).toBeVisible();
-    await expect(page.getByText('24.200 EUR', { exact: true })).toBeVisible();
-    await expect(page.getByText(/Example basis · US0378331005 · XFRA · EUR/)).toBeVisible();
+    await expect(
+      page.getByText("Automatische Prüfung deaktiviert"),
+    ).toBeVisible();
+    await expect(page.getByText("24.100 EUR", { exact: true })).toBeVisible();
+    await expect(page.getByText("23.900 EUR", { exact: true })).toBeVisible();
+    await expect(page.getByText("24.200 EUR", { exact: true })).toBeVisible();
+    await expect(
+      page.getByText(/Example basis · US0378331005 · XFRA · EUR/),
+    ).toBeVisible();
     await expect(
       page.getByText(/Optionsschein-Regeln verwenden ihre eigene Kursquelle/i),
     ).toBeVisible();
     await expect(
       page.getByText("Für diesen Trade liegen noch keine Alerts vor."),
     ).toBeVisible();
+    await page.getByRole("link", { name: "Überblick", exact: true }).click();
     await expect(
       page.getByText(
         valuationStatus === "STALE"

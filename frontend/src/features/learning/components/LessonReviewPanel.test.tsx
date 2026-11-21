@@ -141,7 +141,7 @@ it('read and prepare never write; confirms exact complete source snapshot with n
     expect.any(String),
   ]);
   expect(onChanged).toHaveBeenCalledTimes(1);
-  expect(screen.getByText(/Lesson-Status: REVIEW_RECOMMENDED/)).toBeVisible();
+  expect(screen.getByText(/Erkenntnisstatus: Prüfung empfohlen/)).toBeVisible();
 });
 
 it('contradiction opening accepts explicit current CONTRADICTS link IDs, never supporting IDs', async () => {
@@ -257,7 +257,7 @@ it('readback failure preserves receipt and never recreates the committed operati
   ).not.toBeInTheDocument();
   vi.mocked(lessonReviewClient.context).mockResolvedValue(context('REVIEW_RECOMMENDED'));
   click('Lesson-Prüfstand neu laden');
-  await screen.findByText(/Lesson-Status: REVIEW_RECOMMENDED/);
+  await screen.findByText(/Erkenntnisstatus: Prüfung empfohlen/);
   expect(lessonReviewClient.execute).toHaveBeenCalledTimes(1);
 });
 
@@ -430,12 +430,12 @@ it('StrictMode cleanup invalidates its pending read without erasing the newer co
       </MemoryRouter>
     </StrictMode>,
   );
-  await screen.findByText(/Lesson-Status: REVIEW_RECOMMENDED/);
+  await screen.findByText(/Erkenntnisstatus: Prüfung empfohlen/);
   await act(async () => {
     resolve(context('CURRENT'));
     await Promise.resolve();
   });
-  expect(screen.getByText(/Lesson-Status: REVIEW_RECOMMENDED/)).toBeVisible();
+  expect(screen.getByText(/Erkenntnisstatus: Prüfung empfohlen/)).toBeVisible();
   expect(screen.queryByRole('button', { name: 'Quellenbezogene Prüfung beginnen' })).toBeNull();
   expect(lessonReviewClient.execute).not.toHaveBeenCalled();
   expect(onChanged).not.toHaveBeenCalled();

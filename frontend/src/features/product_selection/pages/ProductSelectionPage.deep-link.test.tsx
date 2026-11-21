@@ -86,7 +86,7 @@ describe('ProductSelectionPage run deep link', () => {
     expect(await screen.findByText('Produktvergleich')).toBeInTheDocument();
     expect(screen.queryByLabelText('TradePlan-ID')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('TradePlanVersion-ID')).not.toBeInTheDocument();
-    expect(await screen.findByText('Version 3 · APPROVED')).toBeInTheDocument();
+    expect(await screen.findByText('Version 3 · Freigegeben')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Ursprüngliche Planversion ansehen' })).toHaveAttribute(
       'href',
       `/trade-plans?trade_plan_id=${runDetail.run.trade_plan_id}&trade_plan_version_id=${runDetail.run.trade_plan_version_id}`,

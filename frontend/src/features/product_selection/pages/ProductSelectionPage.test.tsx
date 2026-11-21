@@ -152,6 +152,7 @@ it('reuses evidenced initial BUY currency without entering or falsely confirming
       <ProductSelectionPage />
     </MemoryRouter>,
   );
+  await user.click(screen.getByRole('link', { name: 'Kauf erfassen' }));
   await screen.findByText(/Vorhandene Währung: EUR/);
   expect(screen.queryByLabelText('Ausführungswährung (Code)')).not.toBeInTheDocument();
   expect(screen.getByLabelText('Kaufmenge')).toHaveValue(null);
@@ -159,7 +160,7 @@ it('reuses evidenced initial BUY currency without entering or falsely confirming
   expect(capture).not.toHaveBeenCalled();
   await user.type(screen.getByLabelText('Kaufmenge'), '10');
   await user.type(screen.getByLabelText('Kaufpreis'), '2,35');
-  await user.click(screen.getByRole('button', { name: 'BUY erfassen und Position eröffnen' }));
+  await user.click(screen.getByRole('button', { name: 'Kauf erfassen und Position eröffnen' }));
   await screen.findByRole('heading', { name: 'TR-12345678' });
   expect(capture).toHaveBeenCalledOnce();
   expect(capture.mock.calls[0][0]).toMatchObject({
@@ -238,7 +239,7 @@ describe('ProductSelectionPage', () => {
 
     const buttons = await readyProductChoices();
     expect(screen.getByText('Produktvergleich')).toBeInTheDocument();
-    expect(screen.getByText('NOT_EVALUABLE')).toBeInTheDocument();
+    expect(screen.getAllByText('Nicht bewertbar')[0]).toBeInTheDocument();
     expect(buttons).toHaveLength(2);
     expect(buttons[0]).toBeEnabled();
     expect(buttons[1]).toBeEnabled();
@@ -329,9 +330,7 @@ describe('ProductSelectionPage', () => {
     );
     expect(screen.getAllByText('Selected warrant 0').length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText(runDetail.evaluations[0].warrant_listing_id)).toBeInTheDocument();
-    expect(
-      screen.getByRole('heading', { name: /tatsächlichen Kauf erfassen/i }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Tatsächlichen Kauf erfassen' })).toBeInTheDocument();
     const selectionCall = fetchMock.mock.calls.find(([url]) => {
       if (typeof url === 'string') return url.includes('/selection');
       if (url instanceof URL) return url.href.includes('/selection');
@@ -368,12 +367,13 @@ describe('ProductSelectionPage', () => {
     expect(screen.getByText('Produktvergleich')).toBeInTheDocument();
     await user.click(buttons[0]);
     await user.click(screen.getByRole('button', { name: 'Auswahl dokumentieren' }));
+    await user.click(await screen.findByRole('link', { name: 'Tatsächlichen Kauf erfassen' }));
     await screen.findByRole('heading', { name: /tatsächlichen Kauf erfassen/i });
 
     await user.type(screen.getByLabelText('Kaufmenge'), '10');
     await user.type(screen.getByLabelText('Kaufpreis'), '2,35');
     await user.type(screen.getByLabelText('Ausführungswährung (Code)'), 'EU');
-    await user.click(screen.getByRole('button', { name: 'BUY erfassen und Position eröffnen' }));
+    await user.click(screen.getByRole('button', { name: 'Kauf erfassen und Position eröffnen' }));
     expect(await screen.findByText(/dreistelligen Währungscode/)).toBeVisible();
     expect(
       fetchMock.mock.calls.some(([url]) => {
@@ -385,14 +385,14 @@ describe('ProductSelectionPage', () => {
     expect(
       screen.queryByRole('checkbox', { name: /als tatsächliche Währung/ }),
     ).not.toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'BUY erfassen und Position eröffnen' }));
+    await user.click(screen.getByRole('button', { name: 'Kauf erfassen und Position eröffnen' }));
 
     expect(await screen.findByRole('heading', { name: 'TR-12345678' })).toBeInTheDocument();
     expect(screen.getByText('23.50')).toBeInTheDocument();
-    expect(screen.getByText(/Position ist jetzt die wirtschaftliche Wahrheit/)).toBeInTheDocument();
+    expect(screen.getByText(/erfasste Position findest du jetzt im Depot/)).toBeInTheDocument();
 
     const managementLink = screen.getByRole('link', {
-      name: 'Position verwalten und Monitoring öffnen',
+      name: 'Position und Überwachung öffnen',
     });
     expect(managementLink).toHaveAttribute(
       'href',

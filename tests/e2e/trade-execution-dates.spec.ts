@@ -67,7 +67,7 @@ test("correct existing BUY and SELL dates through UI, preserving quantities and 
   const original = await purchase.json();
   const tid = original.trade.id;
   const tradeUrl = `${root}/trade-position/trades/${tid}`;
-  await page.goto(`/trade-management?trade_id=${tid}`);
+  await page.goto(`/trade-management?trade_id=${tid}#execution-dates`);
   const panel = page.getByRole("region", { name: "Kauf- und Verkaufsdaten" });
   await panel.getByRole("button", { name: "Kauf korrigieren" }).click();
   const form = panel.getByRole("form", {
@@ -102,7 +102,7 @@ test("correct existing BUY and SELL dates through UI, preserving quantities and 
     .getByRole("button", { name: "Position vollständig schließen" })
     .click();
   await expect(
-    page.getByRole("heading", { name: "CLOSED", exact: true }),
+    page.getByRole("heading", { name: "Geschlossen", exact: true }),
   ).toBeVisible();
   let closed = await (await request.get(`${tradeUrl}/position`)).json();
   expect(closed.closed_on).toBe("2026-08-22");
@@ -132,9 +132,7 @@ test("correct existing BUY and SELL dates through UI, preserving quantities and 
   });
 
   // A closed position must still offer correction of its historical sale date.
-  await panel
-    .getByRole("button", { name: "Verkauf korrigieren" })
-    .click();
+  await panel.getByRole("button", { name: "Verkauf korrigieren" }).click();
   await form
     .getByLabel("Verkaufsdatum korrigieren", { exact: true })
     .fill("2026-08-23");

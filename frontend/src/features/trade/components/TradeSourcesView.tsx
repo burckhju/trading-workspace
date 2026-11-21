@@ -797,7 +797,7 @@ export function TradeSourcesView({ query }: { query: URLSearchParams }) {
   const reportReturn = reportReturnLink(query);
   const tradeId = (query.get('trade_id') ?? '').toLowerCase();
   return (
-    <main className="min-w-0 w-full space-y-6 [overflow-wrap:anywhere]">
+    <section className="min-w-0 w-full space-y-6 [overflow-wrap:anywhere]">
       <nav aria-label="Quellenansicht verlassen" className="flex flex-wrap gap-x-4 gap-y-2">
         {reportReturn && (
           <Link className={linkClass} to={reportReturn.href}>
@@ -827,6 +827,6 @@ export function TradeSourcesView({ query }: { query: URLSearchParams }) {
           {(v, window) => <Core data={v} tradeId={tradeId} query={query} window={window} />}
         </ReadSection>
       )}
-    </main>
+    </section>
   );
 }

@@ -7,6 +7,9 @@ import { warrantApiClient } from '../../product/services/client';
 import { tradeManagementApiClient } from '../services/client';
 import { TradeManagementPage } from './TradeManagementPage';
 
+vi.mock('../../operational_workspace/components/PositionMonitoring', () => ({
+  PositionMonitoring: () => null,
+}));
 vi.mock('../../operational_workspace/services/positionPriceHistory', () => ({
   readPositionPriceHistory: vi.fn(),
 }));
@@ -117,9 +120,9 @@ beforeEach(() => {
   history.mockResolvedValue(positionPriceHistory());
 });
 
-function show() {
+function show(hash = '#position-price-history') {
   return render(
-    <MemoryRouter initialEntries={['/trade-management?trade_id=trade-1']}>
+    <MemoryRouter initialEntries={[`/trade-management?trade_id=trade-1${hash}`]}>
       <TradeManagementPage />
     </MemoryRouter>,
   );
@@ -135,7 +138,7 @@ it.each([true, false])(
       open_quantity: closed ? 0 : 10,
     });
     show();
-    await screen.findByRole('heading', { name: closed ? 'CLOSED' : 'OPEN' });
+    await screen.findByRole('heading', { name: closed ? 'Geschlossen' : 'Offen' });
     const details = screen.getByRole('region', { name: 'Trade und Position' });
     const chart = within(details).getByRole('region', { name: 'Positionskursverlauf' });
     await within(chart).findByText('Handelswährung: EUR');
@@ -152,7 +155,7 @@ it.each([true, false])(
 it('does not request history for a cancelled position', async () => {
   api.trade.mockResolvedValue({ ...trade, cancelled_at: '2026-10-20T08:00:00Z' });
   show();
-  await screen.findByRole('heading', { name: 'CANCELLED' });
+  await screen.findByRole('heading', { name: 'Storniert' });
   expect(screen.queryByRole('region', { name: 'Positionskursverlauf' })).not.toBeInTheDocument();
   expect(history).not.toHaveBeenCalled();
 });
@@ -163,6 +166,7 @@ it('refreshes history after execution readback without restarting the booking ed
   expect(screen.getByLabelText('Booking source reload')).toHaveTextContent('0');
   const originalSignal = history.mock.calls[0][3]!;
   history.mockResolvedValueOnce(positionPriceHistory({ series: [] }));
+  fireEvent.click(screen.getByRole('link', { name: 'Buchungen' }));
   fireEvent.click(screen.getByRole('button', { name: 'Read corrected execution' }));
   await screen.findByText('Keine zeitlich und fachlich zuordenbaren Kursdaten vorhanden.');
   expect(originalSignal.aborted).toBe(true);
@@ -178,7 +182,7 @@ it('rereads currency after the booking source callback confirms a new parent rea
     closed_at: null,
     open_quantity: 10,
   });
-  show();
+  show('#execution-dates');
   const form = within(await screen.findByRole('form', { name: 'Verkauf erfassen' }));
   await form.findByText('Vorhandene Währung: EUR · aus vorherigen Käufen übernommen');
   const initialSignal = api.executionCurrencyPreview.mock.calls[0][2];
@@ -200,6 +204,7 @@ it('rereads currency after the booking source callback confirms a new parent rea
   });
 
   // CurrencyEvidenceEditor uses this callback; it does not emit a timeline event.
+  fireEvent.click(screen.getByRole('link', { name: 'Buchungen' }));
   fireEvent.click(screen.getByRole('button', { name: 'Read corrected execution' }));
   await form.findByText(/Für den Ausführungszeitraum fehlt ein belastbarer Währungsbeleg/);
   expect(api.executionCurrencyPreview).toHaveBeenCalledTimes(2);
@@ -225,7 +230,7 @@ it('does not treat a failed booking source readback as a successful currency rel
     closed_at: null,
     open_quantity: 10,
   });
-  show();
+  show('#execution-dates');
   const form = within(await screen.findByRole('form', { name: 'Verkauf erfassen' }));
   await form.findByText('Vorhandene Währung: EUR · aus vorherigen Käufen übernommen');
   const initialSignal = api.executionCurrencyPreview.mock.calls[0][2];
@@ -238,6 +243,7 @@ it('does not treat a failed booking source readback as a successful currency rel
   api.position.mockRejectedValueOnce(new Error('Storage unavailable'));
 
   await act(async () => {
+    fireEvent.click(screen.getByRole('link', { name: 'Buchungen' }));
     fireEvent.click(screen.getByRole('button', { name: 'Read corrected execution' }));
     await waitFor(() => expect(api.position).toHaveBeenCalledTimes(2));
   });
@@ -256,6 +262,8 @@ it('preserves explicit booking reload while only invalidating history after a su
   show();
   await screen.findByText('Handelswährung: EUR');
   api.position.mockRejectedValueOnce(new Error('Storage unavailable'));
+  const opener = screen.getByText('Trade über Kennung öffnen oder Stand neu laden');
+  if (!opener.closest('details')!.open) fireEvent.click(opener);
   fireEvent.click(screen.getByRole('button', { name: 'Laden' }));
   await screen.findByText('Storage unavailable');
   expect(history).toHaveBeenCalledTimes(1);
@@ -278,6 +286,7 @@ it('does not let a pre-correction in-flight price response replace the refreshed
   await waitFor(() => expect(history).toHaveBeenCalledTimes(1));
   const originalSignal = history.mock.calls[0][3]!;
   history.mockResolvedValueOnce(positionPriceHistory({ series: [] }));
+  fireEvent.click(screen.getByRole('link', { name: 'Buchungen' }));
   fireEvent.click(screen.getByRole('button', { name: 'Read corrected execution' }));
   await screen.findByText('Keine zeitlich und fachlich zuordenbaren Kursdaten vorhanden.');
   expect(originalSignal.aborted).toBe(true);

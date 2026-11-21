@@ -7,6 +7,7 @@ import {
 } from "@playwright/test";
 import { mkdir, writeFile } from "node:fs/promises";
 import { position } from "../../frontend/src/test/positionFixture";
+import { readonlyPositionDetail } from "./support/readonly-position-detail";
 import type { PositionPriceHistoryReport } from "../../frontend/src/features/operational_workspace/positionPriceHistory";
 
 // Synthetic stored evidence only. Every API request is intercepted so these
@@ -134,6 +135,21 @@ async function setup(
     if (managedStatus) {
       const fixture = managedTradeFixture(url.pathname, managedStatus);
       if (fixture !== undefined) return route.fulfill({ json: fixture });
+    } else {
+      const fixture = readonlyPositionDetail(
+        url.pathname,
+        ["a", "b"].map((id) =>
+          position({
+            trade_id: `trade-${id}`,
+            position_id: `position-${id}`,
+            product_id: `warrant-${id}`,
+            product_name: `Stored position ${id.toUpperCase()}`,
+            product_isin: isin,
+            target: `/trade-management?trade_id=trade-${id}`,
+          }),
+        ),
+      );
+      if (fixture !== undefined) return route.fulfill({ json: fixture });
     }
     return route.fulfill({
       status: 404,
@@ -211,8 +227,9 @@ function managedTradeFixture(
 async function openPosition(page: Page, id = "a") {
   await page
     .locator(`tr[data-position-id="position-${id}"]`)
-    .getByRole("button", { name: "Details", exact: true })
+    .getByRole("link", { name: "Trade öffnen", exact: true })
     .click();
+  await page.getByRole("link", { name: "Kursverlauf", exact: true }).click();
   return page.getByRole("region", {
     name: "Positionskursverlauf",
     exact: true,
@@ -619,9 +636,11 @@ for (const width of [1440, 390]) {
       "CLOSED",
     );
     await page.setViewportSize({ width, height: 900 });
-    await page.goto("/trade-management?trade_id=trade-managed");
+    await page.goto(
+      "/trade-management?trade_id=trade-managed#position-price-history",
+    );
     await expect(
-      page.getByRole("heading", { name: "CLOSED", exact: true }),
+      page.getByRole("heading", { name: "Geschlossen", exact: true }),
     ).toBeVisible();
     const detail = page.getByRole("region", {
       name: "Trade und Position",
@@ -708,7 +727,9 @@ test("reloading the same managed position refreshes its historical evidence with
     },
     "CLOSED",
   );
-  await page.goto("/trade-management?trade_id=trade-managed");
+  await page.goto(
+    "/trade-management?trade_id=trade-managed#position-price-history",
+  );
   const panel = page.getByRole("region", {
     name: "Positionskursverlauf",
     exact: true,
@@ -717,7 +738,9 @@ test("reloading the same managed position refreshes its historical evidence with
   await panel.getByText("Kursdaten und Quellen", { exact: true }).click();
   await expect(panel).toContainText("0,2312345678");
   price = "0.2912345678";
-  await page.getByRole("button", { name: "Laden", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Stand neu laden", exact: true })
+    .click();
   await expect.poll(() => requests.reads.length).toBe(2);
   await expect(panel.locator(".recharts-scatter-symbol")).toHaveCount(1);
   // The evidence table may be re-mounted as part of invalidating the old view.
@@ -727,7 +750,7 @@ test("reloading the same managed position refreshes its historical evidence with
   await expect(panel).toContainText("0,2912345678");
   await expect(panel).not.toContainText("0,2312345678");
   await expect(
-    page.getByRole("heading", { name: "CLOSED", exact: true }),
+    page.getByRole("heading", { name: "Geschlossen", exact: true }),
   ).toBeVisible();
   expect(requests.writes).toEqual([]);
   expect(requests.browserErrors).toEqual([]);
@@ -743,9 +766,11 @@ test("a cancelled trade keeps its audit context without requesting or showing a 
     },
     "CANCELLED",
   );
-  await page.goto("/trade-management?trade_id=trade-managed");
+  await page.goto(
+    "/trade-management?trade_id=trade-managed#position-price-history",
+  );
   await expect(
-    page.getByRole("heading", { name: "CANCELLED", exact: true }),
+    page.getByRole("heading", { name: "Storniert", exact: true }),
   ).toBeVisible();
   await expect(
     page.getByRole("region", { name: "Trade und Position", exact: true }),
@@ -844,6 +869,9 @@ test("a late response for position A cannot overwrite the opened position B", as
     await page.goto("/workspace");
     await openPosition(page);
     await expect.poll(() => aStarted).toBe(true);
+    await page
+      .getByRole("link", { name: "Zur Positionsübersicht", exact: true })
+      .click();
     await openPosition(page, "b");
     await expect(panel).toContainText("CURRENT_B_PROVIDER");
   } finally {
@@ -852,7 +880,7 @@ test("a late response for position A cannot overwrite the opened position B", as
   await expect.poll(() => aFinished).toBe(true);
   await expect(
     page.getByRole("region", {
-      name: "Details Stored position B",
+      name: "Trade und Position",
       exact: true,
     }),
   ).toBeVisible();

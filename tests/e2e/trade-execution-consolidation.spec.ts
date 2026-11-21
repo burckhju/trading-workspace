@@ -198,7 +198,11 @@ test("one current list and one guarded inline editor replace history, including 
   await page.goto(`/trade-management?trade_id=${tradeId}#execution-dates`);
   const panel = page.getByRole("region", { name: "Kauf- und Verkaufsdaten" });
   await expect(panel.getByRole("article")).toHaveCount(2);
-  await expect(page.getByText("OPEN", { exact: true })).toHaveCount(1);
+  await expect(
+    page
+      .getByRole("region", { name: "Trade und Position", exact: true })
+      .getByRole("heading", { name: "Offen", exact: true }),
+  ).toBeVisible();
   await expect(page.getByText("Offene Menge", { exact: true })).toHaveCount(1);
   await expect(
     page.getByRole("heading", { name: "Trade Timeline", exact: true }),
@@ -280,18 +284,27 @@ test("same-trade refresh preserves editor and management drafts; route and brows
   page,
 }) => {
   const fixture = await mockedBookings(page);
-  await page.goto(`/trade-management?trade_id=${tradeId}`);
+  await page.goto(`/trade-management?trade_id=${tradeId}#execution-dates`);
   const panel = page.getByRole("region", { name: "Kauf- und Verkaufsdaten" });
   await expect(panel.getByRole("article")).toHaveCount(2);
+  await page.getByRole("link", { name: "Bearbeiten", exact: true }).click();
   await page.getByLabel("Stop", { exact: true }).fill("0.47");
+  await page.getByRole("link", { name: "Buchungen", exact: true }).click();
   await panel
     .getByRole("button", { name: "Kauf korrigieren", exact: true })
     .click();
   const input = panel.getByLabel("Kaufdatum korrigieren", { exact: true });
   await input.fill("2026-08-15");
-  await page.getByRole("button", { name: "Laden", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Stand neu laden", exact: true })
+    .click();
   await expect(input).toHaveValue("2026-08-15");
   await expect(page.getByLabel("Stop", { exact: true })).toHaveValue("0.47");
+  await page
+    .getByText("Trade über Kennung öffnen oder Stand neu laden", {
+      exact: true,
+    })
+    .click();
   await page.getByLabel("Trade-ID", { exact: true }).fill(otherTradeId);
   await page.getByRole("button", { name: "Laden", exact: true }).click();
   const dialog = page.getByRole("alertdialog", {
@@ -299,13 +312,16 @@ test("same-trade refresh preserves editor and management drafts; route and brows
   });
   await expect(dialog).toBeVisible();
   await dialog.getByRole("button", { name: "Hier bleiben" }).click();
-  await expect(page).toHaveURL(new RegExp(`trade_id=${tradeId}$`));
+  await expect(page).toHaveURL(
+    new RegExp(`trade_id=${tradeId}#execution-dates$`),
+  );
   await expect(input).toHaveValue("2026-08-15");
   await page.getByRole("button", { name: "Laden", exact: true }).click();
   await dialog
     .getByRole("button", { name: "Eingaben verwerfen und wechseln" })
     .click();
   await expect(page).toHaveURL(new RegExp(`trade_id=${otherTradeId}$`));
+  await page.getByRole("link", { name: "Buchungen", exact: true }).click();
   await expect(panel.getByRole("article")).toHaveCount(2);
   await expect(page.getByLabel("Stop", { exact: true })).toHaveValue("0.40");
   await panel
@@ -315,9 +331,12 @@ test("same-trade refresh preserves editor and management drafts; route and brows
     .getByLabel("Verkaufsdatum korrigieren", { exact: true })
     .fill("2026-08-23");
   await page.goBack();
+  await expect(page.getByRole("alertdialog")).toHaveCount(0);
+  await page.goBack();
   await expect(dialog).toBeVisible();
   await dialog.getByRole("button", { name: "Hier bleiben" }).click();
   await expect(page).toHaveURL(new RegExp(`trade_id=${otherTradeId}$`));
+  await page.getByRole("link", { name: "Buchungen", exact: true }).click();
   await expect(
     panel.getByLabel("Verkaufsdatum korrigieren", { exact: true }),
   ).toHaveValue("2026-08-23");
@@ -433,7 +452,9 @@ test.describe("real PostgreSQL owner boundary", () => {
     await expect(
       panel.getByText(/EUR · aus vorherigen Käufen übernommen/),
     ).toBeVisible();
+    await page.getByRole("link", { name: "Bearbeiten", exact: true }).click();
     await page.getByLabel("Stop", { exact: true }).fill("0.47");
+    await page.getByRole("link", { name: "Buchungen", exact: true }).click();
     const form = panel.getByRole("form", {
       name: "Buchung korrigieren",
     });
@@ -454,9 +475,7 @@ test.describe("real PostgreSQL owner boundary", () => {
         name: /Ich bestätige die geänderten Buchungsdaten/,
       })
       .check();
-    await form
-      .getByRole("button", { name: "Korrektur speichern" })
-      .click();
+    await form.getByRole("button", { name: "Korrektur speichern" }).click();
     await expect(panel.getByRole("status")).toContainText("Buchung korrigiert");
     await expect(page.getByLabel("Stop", { exact: true })).toHaveValue("0.47");
     expect(writes).toHaveLength(1);
@@ -481,9 +500,7 @@ test.describe("real PostgreSQL owner boundary", () => {
         name: /Ich bestätige die geänderten Buchungsdaten/,
       })
       .check();
-    await form
-      .getByRole("button", { name: "Korrektur speichern" })
-      .click();
+    await form.getByRole("button", { name: "Korrektur speichern" }).click();
     await expect(panel.getByRole("status")).toContainText("Buchung korrigiert");
     expect(writes).toHaveLength(2);
     expect(writes[1].body).toEqual({

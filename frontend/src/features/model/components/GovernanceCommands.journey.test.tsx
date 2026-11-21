@@ -31,7 +31,7 @@ describe('explicit Governance command submission', () => {
 
   it('sends one hypothesis for two synchronous form events', async () => {
     render(<LessonHypothesisPanel lessonVersionId="l1" />);
-    const button = await screen.findByRole('button', { name: 'Hypothese für FT-013 anlegen' });
+    const button = await screen.findByRole('button', { name: 'Hypothese anlegen' });
     fireEvent.change(screen.getByLabelText('Titel'), { target: { value: 'Synthetic hypothesis' } });
     fireEvent.change(screen.getByLabelText('Hypothese'), { target: { value: 'Synthetic only' } });
     act(() => {

@@ -351,7 +351,9 @@ for (const viewport of [
         page.getByText(originalContent, { exact: true }),
       ).toHaveCount(0);
       await expect(
-        page.getByText("Heutiger Lesson-Status: CURRENT", { exact: true }),
+        page.getByText("Heutiger Erkenntnisstatus: Aktuelle Interpretation", {
+          exact: true,
+        }),
       ).toBeVisible();
       for (const item of evidence)
         await expect(
@@ -366,7 +368,7 @@ for (const viewport of [
       );
       await externalSource.click();
       await expect(
-        page.getByText("Quellversion jetzt: UNKNOWN", { exact: true }),
+        page.getByText("Quellversion jetzt: Ungeklärt", { exact: true }),
       ).toBeVisible();
       await expect(
         page.getByRole("link", {
@@ -396,12 +398,20 @@ for (const viewport of [
           exact: true,
         }),
       ).toHaveCount(0);
+      await page
+        .getByRole("navigation", { name: "Erkenntnis-Arbeitsbereiche" })
+        .getByRole("link", { name: "Modellverbesserung", exact: true })
+        .click();
       await expect(
         page.getByRole("button", {
-          name: "Hypothese für FT-013 anlegen",
+          name: "Hypothese anlegen",
           exact: true,
         }),
       ).toBeEnabled();
+      await page.goBack();
+      await expect(page.getByLabel("Lesson-Version ansehen")).toHaveValue(
+        versions[0],
+      );
       const exactLesson = page.getByRole("link", {
         name: "Genau diese Lesson-Version öffnen",
         exact: true,
@@ -428,10 +438,15 @@ for (const viewport of [
       await source.focus();
       await page.keyboard.press("Enter");
       await expect(
-        page.getByText("Quellversion jetzt: SUPERSEDED", { exact: true }),
+        page.getByText("Quellversion jetzt: Durch neuere Version ersetzt", {
+          exact: true,
+        }),
       ).toBeVisible();
       await expect(
-        page.getByText("Review-Quelle jetzt: STALE", { exact: true }),
+        page.getByText(
+          "Review-Quelle jetzt: Veraltet – erneute Prüfung nötig",
+          { exact: true },
+        ),
       ).toBeVisible();
       await expect(page.getByText(journalText, { exact: true })).toHaveCount(0);
       await expect(
@@ -447,7 +462,7 @@ for (const viewport of [
       });
       await expect(exactJournal).toHaveAttribute(
         "href",
-        `/post-trade?trade_id=${tradeId}&journal_version_id=${journalVersions[0]}`,
+        `/post-trade?trade_id=${tradeId}&journal_version_id=${journalVersions[0]}#trade-journal`,
       );
       await exactJournal.click();
       const journal = page.getByRole("region", {
@@ -517,7 +532,7 @@ for (const viewport of [
         }),
       ).toHaveAttribute(
         "href",
-        `/post-trade?trade_id=${tradeId}&journal_version_id=${journalVersions[0]}`,
+        `/post-trade?trade_id=${tradeId}&journal_version_id=${journalVersions[0]}#trade-journal`,
       );
       await expect(
         editor.getByText("Materialisiert: " + at, { exact: true }),

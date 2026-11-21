@@ -1,7 +1,7 @@
 import { Ft011EvidenceHistory } from '../../learning/components/Ft011EvidenceHistory';
 import { TradeJournalPanel } from '../../learning/components/TradeJournalPanel';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useSearchParams } from 'react-router-dom';
 
 import { PendingNavigationGuard } from '../../../components/PendingNavigationGuard';
 
@@ -99,6 +99,19 @@ function PostTradeLearningContent({
   isContextPending: () => boolean;
 }) {
   const [query] = useSearchParams();
+  const location = useLocation();
+  // Hash navigation changes presentation only. All three owners stay mounted,
+  // with the exact search string (including historical pins) untouched.
+  const area =
+    location.hash === '#trade-journal'
+      ? 'journal'
+      : location.hash === '#trade-lessons'
+        ? 'lessons'
+        : ['#post-trade-review', '#trade-review'].includes(location.hash)
+          ? 'review'
+          : query.has('journal_version_id') || query.get('tab') === 'reflection'
+            ? 'journal'
+            : 'review';
   const [trade, setTrade] = useState<TradeResponse | null>(null);
   const [warrant, setWarrant] = useState<WarrantResponse | null>(null);
   const [status, setStatus] = useState<Ft011MaterializationStatus | null>(null);
@@ -301,16 +314,27 @@ function PostTradeLearningContent({
 
   return (
     <div className="min-w-0 w-full space-y-6">
+      {!trade && (
+        <header className="space-y-2">
+          <h1 className="text-2xl font-semibold">Trade-Nachbereitung</h1>
+          <p className="text-sm text-slate-400">
+            Nachbeobachtung, persönliche Reflexion und Erkenntnisse zu einem Trade.
+          </p>
+        </header>
+      )}
       {trade && (
         <TradeWorkspaceNavigation
           tradeId={trade.id}
           view="journal"
           cancelled={Boolean(trade.cancelled_at)}
+          showObjectLinks={false}
         />
       )}
       {trade && (
         <section className="mb-6 rounded-xl border border-sky-900 bg-sky-950/20 p-5">
-          <p className="text-xs uppercase tracking-wide text-sky-400">Post-Trade-Kontext</p>
+          <p className="text-xs uppercase tracking-wide text-sky-400">
+            Lessons Learned · Trade-Nachbereitung
+          </p>
           <div className="mt-1 flex flex-wrap items-start justify-between gap-3">
             <div>
               <h1 className="text-xl font-semibold">
@@ -332,30 +356,42 @@ function PostTradeLearningContent({
             <div>
               <dt className="text-slate-500">Ursprung</dt>
               <dd className="mt-1 font-medium">
-                {trade.origin === 'WORKSPACE_SELECTION' ? 'Workspace-Produktauswahl' : 'Extern'}
+                {trade.origin === 'WORKSPACE_SELECTION' ? 'Produktauswahl im Workspace' : 'Extern'}
               </dd>
             </div>
             <div>
-              <dt className="text-slate-500">TradePlan</dt>
+              <dt className="text-slate-500">Tradeplan</dt>
               <dd className="mt-1 font-medium">
-                {trade.trade_plan_id ? tradePlanReference(trade.trade_plan_id) : 'Kein TradePlan'}
+                {trade.trade_plan_id ? tradePlanReference(trade.trade_plan_id) : 'Kein Tradeplan'}
               </dd>
             </div>
             <div>
-              <dt className="text-slate-500">Learning-Übergang</dt>
+              <dt className="text-slate-500">Quelle für Erkenntnisse</dt>
               <dd className="mt-1 font-medium">
-                {status === null || !statusValid || completedRefreshVersion !== refreshVersion
-                  ? 'Übergabestatus wird geprüft'
-                  : status.materialized
-                    ? 'LearningEvidence materialisiert'
-                    : status.ready
-                      ? 'Aktueller Reviewstand noch nicht übergeben'
-                      : 'Neue Übergabe derzeit nicht bereit'}
+                {materializationError
+                  ? 'Quellenstand nicht verfügbar'
+                  : status === null || !statusValid || completedRefreshVersion !== refreshVersion
+                    ? 'Übergabestatus wird geprüft'
+                    : status.materialized
+                      ? 'Reviewquelle übernommen'
+                      : status.ready
+                        ? 'Aktueller Reviewstand noch nicht übergeben'
+                        : 'Neue Übergabe derzeit nicht bereit'}
               </dd>
+              {materializationError && area !== 'lessons' && (
+                <dd className="mt-1">
+                  <Link
+                    className="text-amber-200 underline"
+                    to={`${location.pathname}${location.search}#trade-lessons`}
+                  >
+                    Quellenproblem prüfen
+                  </Link>
+                </dd>
+              )}
             </div>
           </dl>
           <details className="mt-4 text-xs text-slate-500">
-            <summary className="cursor-pointer">Technische Provenance anzeigen</summary>
+            <summary className="cursor-pointer">Technische Herkunft anzeigen</summary>
             <div className="mt-2 space-y-1 break-all">
               <p>Trade-ID {trade.id}</p>
               <p>Produkt-ID {trade.product_id}</p>
@@ -368,33 +404,62 @@ function PostTradeLearningContent({
         </section>
       )}
 
-      {tradeId && query.has('review_version_id') && (
-        <p className="text-sm text-slate-400">
-          Hier wird der aktuelle Exit Review bearbeitet. Die verlinkte historische Reviewversion ist
-          in der Quellenansicht verfügbar.{' '}
-          <Link
-            className="text-sky-400 underline"
-            to={tradeWorkspaceLink('sources', tradeId, query, '#trade-review-sources')}
-          >
-            Historische Reviewquelle öffnen
-          </Link>
-        </p>
+      {tradeId && (
+        <nav aria-label="Nachbereitung dieses Trades" className="flex flex-wrap gap-2">
+          {(
+            [
+              ['review', '#post-trade-review', 'Nachbeobachtung & Exit Review'],
+              ['journal', '#trade-journal', 'Journal'],
+              ['lessons', '#trade-lessons', 'Erkenntnisse'],
+            ] as const
+          ).map(([value, hash, label]) => (
+            <Link
+              key={value}
+              to={`${location.pathname}${location.search}${hash}`}
+              aria-current={area === value ? 'location' : undefined}
+              className={`inline-flex min-h-11 items-center rounded-lg border px-4 py-2 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-300 ${area === value ? 'border-sky-500 bg-sky-950 text-sky-100' : 'border-slate-700 text-slate-300 hover:border-sky-600'}`}
+            >
+              {label}
+            </Link>
+          ))}
+        </nav>
       )}
 
-      <PostTradeReviewPage
-        onLearningStateChanged={refreshLearningState}
-        externalRefreshVersion={refreshVersion}
-        showMaterializationAction={false}
-        onNavigationStateChange={reportReview}
-        isContextPending={isContextPending}
-        discardVersion={discardVersion}
-      />
+      <section
+        id="post-trade-review"
+        tabIndex={-1}
+        hidden={Boolean(tradeId) && area !== 'review'}
+        className="space-y-5"
+      >
+        {tradeId && query.has('review_version_id') && (
+          <p className="text-sm text-slate-400">
+            Hier wird der aktuelle Exit Review bearbeitet. Die verlinkte historische Reviewversion
+            ist in der Quellenansicht verfügbar.{' '}
+            <Link
+              className="text-sky-400 underline"
+              to={tradeWorkspaceLink('sources', tradeId, query, '#trade-review-sources')}
+            >
+              Historische Reviewquelle öffnen
+            </Link>
+          </p>
+        )}
+
+        <PostTradeReviewPage
+          onLearningStateChanged={refreshLearningState}
+          externalRefreshVersion={refreshVersion}
+          showMaterializationAction={false}
+          onNavigationStateChange={reportReview}
+          isContextPending={isContextPending}
+          discardVersion={discardVersion}
+        />
+      </section>
 
       {tradeId && (
         <section
           id="trade-journal"
           tabIndex={-1}
-          aria-label="Journal und Lessons"
+          aria-label="Persönliche Reflexion"
+          hidden={area !== 'journal'}
           className="space-y-6"
         >
           <TradeJournalPanel
@@ -408,131 +473,150 @@ function PostTradeLearningContent({
         </section>
       )}
 
-      {tradeId && (
-        <Ft011EvidenceHistory
-          key={`evidence:${tradeId}`}
-          tradeId={tradeId}
-          refreshVersion={refreshVersion}
-        />
-      )}
-
-      {materializationError && (
-        <div role="alert" className="mt-3 text-sm text-red-300">
-          <p>{materializationError}</p>
-          <button
-            type="button"
-            className="mt-2 underline"
-            disabled={materializing}
-            onClick={() => {
-              setMaterializationError(null);
-              refreshLearningState();
-            }}
-          >
-            Übergabestatus erneut laden
-          </button>
-        </div>
-      )}
-
-      {status?.ready && !status.materialized && (
-        <section className="mt-6 rounded-xl border border-amber-800 bg-amber-950/20 p-5">
-          <h2 className="text-lg font-semibold">Lessons Learned</h2>
-          <p className="mt-2 text-sm text-slate-300">
-            Das Exit Review ist finalisiert. Übergib es bewusst als unveränderliche Evidence an
-            FT-012, bevor du daraus eine Lesson ableitest.
+      <section
+        id="trade-lessons"
+        tabIndex={-1}
+        hidden={!tradeId || area !== 'lessons'}
+        className="space-y-6"
+        aria-label="Erkenntnisse zu diesem Trade"
+      >
+        <header className="space-y-2">
+          <h2 className="text-xl font-semibold">Erkenntnisse zu diesem Trade</h2>
+          <p className="text-sm text-slate-400">
+            Leiten Sie aus einer freigegebenen Reviewquelle eine eigenständige Erkenntnis ab.
+            Reflexionen zu einer Journalversion bleiben im Journal verknüpft.
           </p>
-          <button
-            type="button"
-            className="mt-4 rounded-lg bg-amber-500 px-4 py-2 text-sm font-medium text-slate-950 disabled:opacity-50"
-            disabled={
-              materializing ||
-              !statusValid ||
-              completedRefreshVersion !== refreshVersion ||
-              !status.exit_review_version_id
-            }
-            onClick={() => void handleMaterialize()}
-          >
-            {materializing ? 'Wird übergeben…' : 'An Lessons Learned übergeben'}
-          </button>
-          <p className="mt-3 break-all text-xs text-slate-400">
-            ExitReviewVersion: {status.exit_review_version_id ?? 'Nicht verfügbar'}
-          </p>
-        </section>
-      )}
+          <Link className="text-sm text-sky-300 underline" to="/lessons">
+            Alle Erkenntnisse ansehen
+          </Link>
+        </header>
+        {tradeId && (
+          <Ft011EvidenceHistory
+            key={`evidence:${tradeId}`}
+            tradeId={tradeId}
+            refreshVersion={refreshVersion}
+          />
+        )}
 
-      {(learningEvidenceId || lessonFormSourceId) && (
-        <section className="mt-6 rounded-xl border border-slate-800 p-5">
-          <h2 className="text-lg font-semibold">FT-012 Learning</h2>
-          <p className="mt-2 text-sm text-slate-400">
-            Die materialisierte Evidence kann jetzt bewusst interpretiert werden. Es findet keine
-            automatische Lesson- oder FT-013-Erzeugung statt.
-          </p>
+        {materializationError && (
+          <div role="alert" className="mt-3 text-sm text-red-300">
+            <p>{materializationError}</p>
+            <button
+              type="button"
+              className="mt-2 underline"
+              disabled={materializing}
+              onClick={() => {
+                setMaterializationError(null);
+                refreshLearningState();
+              }}
+            >
+              Übergabestatus erneut laden
+            </button>
+          </div>
+        )}
 
-          {lessonSourceId === learningEvidenceId && lessonReadbackError ? (
-            <div role="alert" className="mt-4 text-sm text-red-300">
-              <p>{lessonReadbackError}</p>
-              <button type="button" onClick={refreshLessonReferences} className="mt-2 underline">
-                Lesson-Verweise erneut laden
-              </button>
-            </div>
-          ) : lessonSourceId !== learningEvidenceId || lessonReferences === null ? (
-            <p role="status" className="mt-4 text-sm text-slate-400">
-              Lesson-Verweise werden geladen …
+        {status?.ready && !status.materialized && (
+          <section className="mt-6 rounded-xl border border-amber-800 bg-amber-950/20 p-5">
+            <h3 className="text-lg font-semibold">Reviewquelle übernehmen</h3>
+            <p className="mt-2 text-sm text-slate-300">
+              Der Exit Review ist finalisiert. Übernehmen Sie diesen festen Quellenstand, bevor Sie
+              daraus eine Erkenntnis ableiten.
             </p>
-          ) : lessonReferences.length > 0 ? (
-            <div className="mt-5 rounded-lg border border-emerald-800 p-4">
-              <p className="font-medium text-emerald-300">Bereits interpretiert</p>
-              <p className="mt-1 text-sm text-slate-400">
-                Diese Evidence wird bereits von {lessonReferences.length} Lesson
-                {lessonReferences.length === 1 ? '' : 's'} referenziert.
-              </p>
-              <ul className="mt-3 space-y-2 text-sm">
-                {lessonReferences.map((lesson) => (
-                  <li key={lesson.lesson_id}>
-                    <Link
-                      to={tradeLessonLink(
-                        lesson.lesson_id,
-                        lesson.current_version_id,
-                        tradeId,
-                        query,
-                      )}
-                      className="text-emerald-300 underline"
-                    >
-                      {lesson.title} · {lesson.current_state}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-          {!learningEvidenceId && lessonFormSourceId && (
-            <p role="status" className="mt-3 text-sm text-amber-200">
-              Die Eingaben bleiben an der bisherigen Evidence {lessonFormSourceId} gebunden. Die
-              aktuelle Übergabe ist noch nicht als Lessonquelle bestätigt.
-            </p>
-          )}
-          {lessonFormSourceId && (
-            <LessonDraftFromEvidence
-              lessonHref={(id) => tradeLessonLink(id, null, tradeId, query)}
-              learningEvidenceId={learningEvidenceId ?? lessonFormSourceId}
+            <button
+              type="button"
+              className="mt-4 rounded-lg bg-amber-500 px-4 py-2 text-sm font-medium text-slate-950 disabled:opacity-50"
               disabled={
+                materializing ||
                 !statusValid ||
                 completedRefreshVersion !== refreshVersion ||
-                !learningEvidenceId ||
-                lessonSourceId !== learningEvidenceId ||
-                lessonReferences === null ||
-                lessonReadbackError !== null
+                !status.exit_review_version_id
               }
-              onNavigationStateChange={reportLesson}
-              isContextPending={isContextPending}
-              discardVersion={discardVersion}
-              onCreated={() => {
-                createdLessonSourceId.current = lessonFormSourceId;
-                refreshLessonReferences();
-              }}
-            />
-          )}
-        </section>
-      )}
+              onClick={() => void handleMaterialize()}
+            >
+              {materializing ? 'Wird übergeben…' : 'An Lessons Learned übergeben'}
+            </button>
+            <details className="mt-3 break-all text-xs text-slate-400">
+              <summary>Quellenbeleg</summary>
+              <p>ExitReviewVersion: {status.exit_review_version_id ?? 'Nicht verfügbar'}</p>
+            </details>
+          </section>
+        )}
+
+        {(learningEvidenceId || lessonFormSourceId) && (
+          <section className="mt-6 rounded-xl border border-slate-800 p-5">
+            <h3 className="text-lg font-semibold">Erkenntnis aus der Reviewquelle</h3>
+            <p className="mt-2 text-sm text-slate-400">
+              Interpretieren Sie die übernommene Quelle oder öffnen Sie die bereits daraus
+              abgeleiteten Erkenntnisse.
+            </p>
+
+            {lessonSourceId === learningEvidenceId && lessonReadbackError ? (
+              <div role="alert" className="mt-4 text-sm text-red-300">
+                <p>{lessonReadbackError}</p>
+                <button type="button" onClick={refreshLessonReferences} className="mt-2 underline">
+                  Lesson-Verweise erneut laden
+                </button>
+              </div>
+            ) : lessonSourceId !== learningEvidenceId || lessonReferences === null ? (
+              <p role="status" className="mt-4 text-sm text-slate-400">
+                Lesson-Verweise werden geladen …
+              </p>
+            ) : lessonReferences.length > 0 ? (
+              <div className="mt-5 rounded-lg border border-emerald-800 p-4">
+                <p className="font-medium text-emerald-300">Bereits interpretiert</p>
+                <p className="mt-1 text-sm text-slate-400">
+                  Diese Evidence wird bereits von {lessonReferences.length} Lesson
+                  {lessonReferences.length === 1 ? '' : 's'} referenziert.
+                </p>
+                <ul className="mt-3 space-y-2 text-sm">
+                  {lessonReferences.map((lesson) => (
+                    <li key={lesson.lesson_id}>
+                      <Link
+                        to={tradeLessonLink(
+                          lesson.lesson_id,
+                          lesson.current_version_id,
+                          tradeId,
+                          query,
+                        )}
+                        className="text-emerald-300 underline"
+                      >
+                        {lesson.title} · {lesson.current_state}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+            {!learningEvidenceId && lessonFormSourceId && (
+              <p role="status" className="mt-3 text-sm text-amber-200">
+                Die Eingaben bleiben an der bisherigen Evidence {lessonFormSourceId} gebunden. Die
+                aktuelle Übergabe ist noch nicht als Lessonquelle bestätigt.
+              </p>
+            )}
+            {lessonFormSourceId && (
+              <LessonDraftFromEvidence
+                lessonHref={(id) => tradeLessonLink(id, null, tradeId, query)}
+                learningEvidenceId={learningEvidenceId ?? lessonFormSourceId}
+                disabled={
+                  !statusValid ||
+                  completedRefreshVersion !== refreshVersion ||
+                  !learningEvidenceId ||
+                  lessonSourceId !== learningEvidenceId ||
+                  lessonReferences === null ||
+                  lessonReadbackError !== null
+                }
+                onNavigationStateChange={reportLesson}
+                isContextPending={isContextPending}
+                discardVersion={discardVersion}
+                onCreated={() => {
+                  createdLessonSourceId.current = lessonFormSourceId;
+                  refreshLessonReferences();
+                }}
+              />
+            )}
+          </section>
+        )}
+      </section>
     </div>
   );
 }

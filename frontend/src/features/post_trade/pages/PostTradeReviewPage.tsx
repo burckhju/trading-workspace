@@ -464,12 +464,12 @@ function PostTradeReviewContent({
   const reviewReadOnly = review?.status === 'FINALIZED';
 
   return (
-    <main className="space-y-6">
+    <section className="space-y-6">
       <header>
-        <p className="text-xs uppercase tracking-wide text-slate-500">FT-011</p>
-        <h1 className="mt-1 text-2xl font-semibold">Post-Trade Review</h1>
+        <p className="text-xs uppercase tracking-wide text-slate-500">Trade-Nachbereitung</p>
+        <h2 className="mt-1 text-2xl font-semibold">Nachbeobachtung &amp; Exit Review</h2>
         <p className="mt-2 text-sm text-slate-400">
-          Tatsächlicher Exit und nachgelagerte Underlying-Beobachtung bleiben getrennte Fakten.
+          Prüfen Sie den tatsächlichen Verkauf und die anschließende Entwicklung des Basiswerts.
         </p>
       </header>
 
@@ -937,6 +937,6 @@ function PostTradeReviewContent({
           ) : null}
         </section>
       )}
-    </main>
+    </section>
   );
 }

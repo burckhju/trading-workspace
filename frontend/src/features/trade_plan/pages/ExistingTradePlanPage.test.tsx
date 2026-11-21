@@ -122,14 +122,14 @@ describe('ExistingTradePlanPage', () => {
       </MemoryRouter>,
     );
 
-    const button = await screen.findByRole('button', { name: 'TradePlan aufgeben' });
+    const button = await screen.findByRole('button', { name: 'Tradeplan aufgeben' });
     fireEvent.click(button);
 
     await waitFor(() => expect(abandon).toHaveBeenCalledWith('plan-1', 'version-1'));
     expect(
-      await screen.findByRole('heading', { name: 'Version 1 · ABANDONED' }),
+      await screen.findByRole('heading', { name: 'Version 1 · Aufgegeben' }),
     ).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'TradePlan aufgeben' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Tradeplan aufgeben' })).not.toBeInTheDocument();
   });
 
   it('does not offer abandon for an approved TradePlan', async () => {
@@ -143,9 +143,9 @@ describe('ExistingTradePlanPage', () => {
     );
 
     expect(
-      await screen.findByRole('heading', { name: 'Version 1 · APPROVED' }),
+      await screen.findByRole('heading', { name: 'Version 1 · Freigegeben' }),
     ).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'TradePlan aufgeben' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Tradeplan aufgeben' })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Produktauswahl starten' })).toBeInTheDocument();
   });
 
@@ -159,8 +159,9 @@ describe('ExistingTradePlanPage', () => {
       </MemoryRouter>,
     );
 
+    fireEvent.click(await screen.findByText('Weitere Aktionen · Tradeplan dauerhaft löschen'));
     const deleteButton = await screen.findByRole('button', {
-      name: 'TradePlan unwiderruflich löschen',
+      name: 'Tradeplan unwiderruflich löschen',
     });
     expect(deleteButton).toBeDisabled();
 
@@ -312,9 +313,9 @@ describe('ExistingTradePlanPage version binding and amendments', () => {
     usePlanData(base, nextVersion(base));
     renderVersion();
     expect(
-      await screen.findByRole('heading', { name: 'Version 1 · APPROVED' }),
+      await screen.findByRole('heading', { name: 'Version 1 · Freigegeben' }),
     ).toBeInTheDocument();
-    expect(screen.getByText('Neueste Version: 2 · DRAFT')).toBeInTheDocument();
+    expect(screen.getByText('Neueste Version: 2 · Entwurf')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Produktauswahl starten' })).toHaveAttribute(
       'href',
       '/product-selection?trade_plan_id=plan-1&trade_plan_version_id=version-1',
@@ -332,9 +333,9 @@ describe('ExistingTradePlanPage version binding and amendments', () => {
     const router = createPlanReturnRouter();
     const first = render(<RouterProvider router={router} />);
     expect(
-      await screen.findByRole('heading', { name: 'Version 1 · APPROVED' }),
+      await screen.findByRole('heading', { name: 'Version 1 · Freigegeben' }),
     ).toBeInTheDocument();
-    expect(screen.getByText('Neueste Version: 2 · DRAFT')).toBeInTheDocument();
+    expect(screen.getByText('Neueste Version: 2 · Entwurf')).toBeInTheDocument();
     const returnLink = screen.getByRole('link', { name: 'Zurück zu den Tradequellen' });
     expectTradeSourceDestination(returnLink.getAttribute('href')!);
     expect(returnLink).not.toHaveAttribute('target');
@@ -344,7 +345,7 @@ describe('ExistingTradePlanPage version binding and amendments', () => {
     const reloaded = createPlanReturnRouter(copiedUrl);
     render(<RouterProvider router={reloaded} />);
     expect(
-      await screen.findByRole('heading', { name: 'Version 1 · APPROVED' }),
+      await screen.findByRole('heading', { name: 'Version 1 · Freigegeben' }),
     ).toBeInTheDocument();
     expect(getVersion.mock.calls.every(([, id]) => id === 'version-1')).toBe(true);
     fireEvent.click(screen.getByRole('link', { name: 'Zurück zu den Tradequellen' }));
@@ -364,7 +365,9 @@ describe('ExistingTradePlanPage version binding and amendments', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Historische Planversion nicht verfügbar',
     );
-    expect(screen.queryByRole('heading', { name: 'Version 1 · APPROVED' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('heading', { name: 'Version 1 · Freigegeben' }),
+    ).not.toBeInTheDocument();
     const returnLink = screen.getByRole('link', { name: 'Zurück zu den Tradequellen' });
     expectTradeSourceDestination(returnLink.getAttribute('href')!);
     fireEvent.click(returnLink);
@@ -378,7 +381,9 @@ describe('ExistingTradePlanPage version binding and amendments', () => {
     const router = createPlanReturnRouter();
     render(<RouterProvider router={router} />);
     fireEvent.click(await screen.findByRole('button', { name: 'Neue Planversion erstellen' }));
-    fireEvent.change(screen.getByLabelText('Trade Thesis'), { target: { value: 'Ungespeichert' } });
+    fireEvent.change(screen.getByLabelText('Handelsidee und Begründung'), {
+      target: { value: 'Ungespeichert' },
+    });
     fireEvent.change(screen.getByLabelText('Änderungsgrund'), {
       target: { value: 'Eigener Grund' },
     });
@@ -386,7 +391,7 @@ describe('ExistingTradePlanPage version binding and amendments', () => {
     expect(await screen.findByRole('alertdialog')).toHaveTextContent('Ungespeicherte Änderungen');
     expect(screen.getAllByRole('alertdialog')).toHaveLength(1);
     fireEvent.click(screen.getByRole('button', { name: 'Hier bleiben' }));
-    expect(screen.getByLabelText('Trade Thesis')).toHaveValue('Ungespeichert');
+    expect(screen.getByLabelText('Handelsidee und Begründung')).toHaveValue('Ungespeichert');
     expect(screen.getByLabelText('Änderungsgrund')).toHaveValue('Eigener Grund');
     expect(router.state.location.pathname).toBe('/trade-plans');
     expect(router.state.location.search).toBe(new URL(tradePlanEntry, 'http://localhost').search);
@@ -435,7 +440,9 @@ describe('ExistingTradePlanPage version binding and amendments', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'angeforderte Planversion ist nicht verfügbar',
     );
-    expect(screen.queryByRole('heading', { name: 'Version 1 · APPROVED' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('heading', { name: 'Version 1 · Freigegeben' }),
+    ).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Produktauswahl starten' })).not.toBeInTheDocument();
   });
 
@@ -447,8 +454,8 @@ describe('ExistingTradePlanPage version binding and amendments', () => {
       return Promise.resolve(version('DRAFT'));
     });
     renderVersion();
-    fireEvent.click(await screen.findByRole('button', { name: 'Zurück zu DRAFT' }));
-    expect(await screen.findByRole('heading', { name: 'Version 1 · DRAFT' })).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole('button', { name: 'Zurück zum Entwurf' }));
+    expect(await screen.findByRole('heading', { name: 'Version 1 · Entwurf' })).toBeInTheDocument();
     expect(returnToDraft).toHaveBeenCalledExactlyOnceWith('plan-1', 'version-1');
     expect(
       screen.queryByRole('button', { name: 'Neue Planversion erstellen' }),
@@ -490,15 +497,19 @@ describe('ExistingTradePlanPage version binding and amendments', () => {
       });
       renderVersion();
       fireEvent.click(await screen.findByRole('button', { name: 'Neue Planversion erstellen' }));
-      expect(screen.getByLabelText('Trade Thesis')).toHaveValue(base.thesis);
+      expect(screen.getByLabelText('Handelsidee und Begründung')).toHaveValue(base.thesis);
       expect(screen.getByLabelText('Währung')).toHaveValue('USD');
-      expect(screen.getByLabelText('Target 3')).toHaveValue(base.targets[2].price);
-      fireEvent.change(screen.getByLabelText('Trade Thesis'), { target: { value: 'Neue These' } });
+      expect(screen.getByLabelText('Kursziel 3')).toHaveValue(base.targets[2].price);
+      fireEvent.change(screen.getByLabelText('Handelsidee und Begründung'), {
+        target: { value: 'Neue These' },
+      });
       fireEvent.change(screen.getByLabelText('Änderungsgrund'), {
         target: { value: 'Neue Information' },
       });
-      fireEvent.click(screen.getByRole('button', { name: 'Neue DRAFT-Version speichern' }));
-      expect(await screen.findByRole('heading', { name: 'Version 2 · DRAFT' })).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'Neue Entwurfsversion speichern' }));
+      expect(
+        await screen.findByRole('heading', { name: 'Version 2 · Entwurf' }),
+      ).toBeInTheDocument();
       expect(amend).toHaveBeenCalledExactlyOnceWith('plan-1', 'version-1', {
         thesis: 'Neue These',
         entry: base.entry,
@@ -508,7 +519,7 @@ describe('ExistingTradePlanPage version binding and amendments', () => {
         change_reason: 'Neue Information',
       });
       expect(screen.queryByRole('form', { name: 'Planversion ändern' })).not.toBeInTheDocument();
-      expect(screen.getByRole('option', { name: 'Version 1 · APPROVED' })).toBeInTheDocument();
+      expect(screen.getByRole('option', { name: 'Version 1 · Freigegeben' })).toBeInTheDocument();
       expect(approve).not.toHaveBeenCalled();
     },
   );
@@ -518,16 +529,16 @@ describe('ExistingTradePlanPage version binding and amendments', () => {
     usePlanData(base);
     renderVersion();
     fireEvent.click(await screen.findByRole('button', { name: 'Neue Planversion erstellen' }));
-    fireEvent.change(screen.getByLabelText('Trade Thesis'), {
+    fireEvent.change(screen.getByLabelText('Handelsidee und Begründung'), {
       target: { value: 'Bewusste Eingabe' },
     });
     fireEvent.change(screen.getByLabelText('Änderungsgrund'), { target: { value: 'Grund' } });
     usePlanData(base, nextVersion(base));
     fireEvent.click(screen.getByRole('button', { name: 'Planansicht aktualisieren' }));
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Neue DRAFT-Version speichern' })).toBeEnabled(),
+      expect(screen.getByRole('button', { name: 'Neue Entwurfsversion speichern' })).toBeEnabled(),
     );
-    expect(screen.getByLabelText('Trade Thesis')).toHaveValue('Bewusste Eingabe');
+    expect(screen.getByLabelText('Handelsidee und Begründung')).toHaveValue('Bewusste Eingabe');
     expect(
       screen.getByRole('heading', { name: 'Neue Planversion aus Version 1' }),
     ).toBeInTheDocument();
@@ -539,14 +550,14 @@ describe('ExistingTradePlanPage version binding and amendments', () => {
         timestamp: '2026-10-25T12:00:00Z',
       }),
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Neue DRAFT-Version speichern' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Neue Entwurfsversion speichern' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Konflikt');
     expect(amend).toHaveBeenCalledWith(
       'plan-1',
       'version-1',
       expect.objectContaining({ thesis: 'Bewusste Eingabe' }),
     );
-    expect(screen.getByLabelText('Trade Thesis')).toHaveValue('Bewusste Eingabe');
+    expect(screen.getByLabelText('Handelsidee und Begründung')).toHaveValue('Bewusste Eingabe');
     expect(screen.getByLabelText('Änderungsgrund')).toHaveValue('Grund');
   });
 
@@ -562,7 +573,7 @@ describe('ExistingTradePlanPage version binding and amendments', () => {
     fireEvent.submit(form);
     fireEvent.submit(form);
     expect(amend).toHaveBeenCalledTimes(1);
-    expect(screen.getByLabelText('Trade Thesis')).toBeDisabled();
+    expect(screen.getByLabelText('Handelsidee und Begründung')).toBeDisabled();
     expect(screen.getByLabelText('Änderungsgrund')).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Abbrechen' })).toBeDisabled();
     await act(async () => {
@@ -587,14 +598,14 @@ describe('ExistingTradePlanPage version binding and amendments', () => {
     fireEvent.change(screen.getByLabelText('Änderungsgrund'), {
       target: { value: 'Neue Information' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Neue DRAFT-Version speichern' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Neue Entwurfsversion speichern' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Refresh offline');
     expect(screen.getByRole('status')).toHaveTextContent('wurde als DRAFT gespeichert');
-    expect(screen.getByRole('heading', { name: 'Version 2 · DRAFT' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Version 2 · Entwurf' })).toBeInTheDocument();
     expect(
-      screen.queryByRole('button', { name: 'Neue DRAFT-Version speichern' }),
+      screen.queryByRole('button', { name: 'Neue Entwurfsversion speichern' }),
     ).not.toBeInTheDocument();
-    expect(screen.getByRole('option', { name: 'Version 1 · APPROVED' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Version 1 · Freigegeben' })).toBeInTheDocument();
     expect(amend).toHaveBeenCalledTimes(1);
   });
 
@@ -611,7 +622,7 @@ describe('ExistingTradePlanPage version binding and amendments', () => {
             search: '?trade_plan_id=plan-1&trade_plan_version_id=version-1',
             state: {
               confirmedTradePlan: created,
-              confirmationMessage: 'TradePlan wurde als DRAFT erstellt.',
+              confirmationMessage: 'Tradeplan wurde als Entwurf gespeichert.',
             },
           },
         ]}
@@ -620,8 +631,10 @@ describe('ExistingTradePlanPage version binding and amendments', () => {
       </MemoryRouter>,
     );
     expect(await screen.findByRole('alert')).toHaveTextContent('Read offline');
-    expect(screen.getByRole('status')).toHaveTextContent('TradePlan wurde als DRAFT erstellt.');
-    expect(screen.getByRole('heading', { name: 'Version 1 · DRAFT' })).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Tradeplan wurde als Entwurf gespeichert.',
+    );
+    expect(screen.getByRole('heading', { name: 'Version 1 · Entwurf' })).toBeInTheDocument();
   });
 
   it('cancels consciously and never writes on cancellation', async () => {
@@ -629,9 +642,11 @@ describe('ExistingTradePlanPage version binding and amendments', () => {
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
     renderVersion();
     fireEvent.click(await screen.findByRole('button', { name: 'Neue Planversion erstellen' }));
-    fireEvent.change(screen.getByLabelText('Trade Thesis'), { target: { value: 'Ungespeichert' } });
+    fireEvent.change(screen.getByLabelText('Handelsidee und Begründung'), {
+      target: { value: 'Ungespeichert' },
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Abbrechen' }));
-    expect(screen.getByLabelText('Trade Thesis')).toHaveValue('Ungespeichert');
+    expect(screen.getByLabelText('Handelsidee und Begründung')).toHaveValue('Ungespeichert');
     confirm.mockReturnValue(true);
     fireEvent.click(screen.getByRole('button', { name: 'Abbrechen' }));
     expect(screen.queryByRole('form', { name: 'Planversion ändern' })).not.toBeInTheDocument();
@@ -647,14 +662,16 @@ describe('ExistingTradePlanPage version binding and amendments', () => {
     );
     render(<RouterProvider router={router} />);
     fireEvent.click(await screen.findByRole('button', { name: 'Neue Planversion erstellen' }));
-    fireEvent.change(screen.getByLabelText('Trade Thesis'), { target: { value: 'Ungespeichert' } });
+    fireEvent.change(screen.getByLabelText('Handelsidee und Begründung'), {
+      target: { value: 'Ungespeichert' },
+    });
     fireEvent.change(screen.getByLabelText('Planversion'), { target: { value: 'version-2' } });
     expect(await screen.findByRole('alertdialog')).toHaveTextContent('Ungespeicherte Änderungen');
     fireEvent.click(screen.getByRole('button', { name: 'Hier bleiben' }));
-    expect(screen.getByLabelText('Trade Thesis')).toHaveValue('Ungespeichert');
+    expect(screen.getByLabelText('Handelsidee und Begründung')).toHaveValue('Ungespeichert');
     fireEvent.change(screen.getByLabelText('Planversion'), { target: { value: 'version-2' } });
     fireEvent.click(await screen.findByRole('button', { name: 'Eingaben verwerfen und wechseln' }));
-    expect(await screen.findByRole('heading', { name: 'Version 2 · DRAFT' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Version 2 · Entwurf' })).toBeInTheDocument();
     expect(amend).not.toHaveBeenCalled();
   });
 
@@ -765,13 +782,13 @@ describe('ExistingTradePlanPage version binding and amendments', () => {
       latest_version: base,
     });
     renderVersion();
-    await screen.findByRole('heading', { name: 'Version 1 · APPROVED' });
-    fireEvent.click(screen.getByText('Herkunft und Lifecycle anzeigen'));
+    await screen.findByRole('heading', { name: 'Version 1 · Freigegeben' });
+    fireEvent.click(screen.getByText('Herkunft und Verlauf anzeigen'));
     expect(screen.getByText('Kandidatenursprung · gespeicherte Evaluation v7.')).toBeVisible();
-    expect(screen.getByRole('heading', { name: 'Approval-Nachweis' })).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Freigabenachweis' })).toBeVisible();
     expect(screen.getByText('Explizite Entscheidung')).toBeVisible();
     expect(screen.getByText('evaluation-7')).not.toBeVisible();
-    fireEvent.click(screen.getByText('Technische Provenance anzeigen'));
+    fireEvent.click(screen.getByText('Technische Herkunftsnachweise anzeigen'));
     expect(screen.getByText('evaluation-7')).toBeVisible();
     expect(screen.getByText(/market · MARKET_ANALYSIS · analysis-4 · v4/)).toBeVisible();
     expect(amend).not.toHaveBeenCalled();
@@ -834,7 +851,7 @@ describe('ExistingTradePlanPage version binding and amendments', () => {
     });
     expect(screen.getByText('Anderer Plan')).toBeInTheDocument();
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: 'Version 2 · DRAFT' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Version 2 · Entwurf' })).not.toBeInTheDocument();
     expect(amend).toHaveBeenCalledTimes(1);
   });
 });
@@ -857,7 +874,7 @@ describe('ExistingTradePlanPage context revision and origin hints', () => {
       </MemoryRouter>,
     );
     expect(
-      await screen.findByRole('heading', { name: 'Version 1 · APPROVED' }),
+      await screen.findByRole('heading', { name: 'Version 1 · Freigegeben' }),
     ).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Produktauswahl starten' })).toHaveAttribute(
       'href',
@@ -954,7 +971,7 @@ describe('ExistingTradePlanPage context revision and origin hints', () => {
       );
       if (matching)
         expect(
-          await screen.findByRole('heading', { name: 'Version 1 · APPROVED' }),
+          await screen.findByRole('heading', { name: 'Version 1 · Freigegeben' }),
         ).toBeInTheDocument();
       else {
         expect(await screen.findByRole('alert')).toHaveTextContent(
@@ -980,7 +997,7 @@ describe('ExistingTradePlanPage context revision and origin hints', () => {
       },
     );
     render(<RouterProvider router={router} />);
-    await screen.findByRole('heading', { name: 'Version 1 · APPROVED' });
+    await screen.findByRole('heading', { name: 'Version 1 · Freigegeben' });
     const pending = deferred<TradePlanDetailResponse>();
     getPlan.mockReturnValueOnce(pending.promise);
     await act(async () => {
@@ -1040,13 +1057,13 @@ describe('ExistingTradePlanPage context revision and origin hints', () => {
         <ExistingTradePlanPage tradePlanId="plan-1" />
       </MemoryRouter>,
     );
-    await screen.findByRole('heading', { name: 'Version 1 · APPROVED' });
+    await screen.findByRole('heading', { name: 'Version 1 · Freigegeben' });
     await act(async () => {
       pending.resolve(nextVersion(base));
       await pending.promise;
     });
-    expect(screen.getByRole('heading', { name: 'Version 1 · APPROVED' })).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: 'Version 2 · DRAFT' })).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Version 1 · Freigegeben' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Version 2 · Entwurf' })).not.toBeInTheDocument();
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
     expect(getVersion).not.toHaveBeenCalled();
     expect(amend).toHaveBeenCalledTimes(1);
@@ -1069,16 +1086,20 @@ describe('ExistingTradePlanPage context revision and origin hints', () => {
       amend.mockResolvedValue(malformed as TradePlanVersionResponse);
       renderVersion();
       fireEvent.click(await screen.findByRole('button', { name: 'Neue Planversion erstellen' }));
-      fireEvent.change(screen.getByLabelText('Trade Thesis'), { target: { value: 'Behalten' } });
+      fireEvent.change(screen.getByLabelText('Handelsidee und Begründung'), {
+        target: { value: 'Behalten' },
+      });
       fireEvent.change(screen.getByLabelText('Änderungsgrund'), { target: { value: 'Grund' } });
-      fireEvent.click(screen.getByRole('button', { name: 'Neue DRAFT-Version speichern' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Neue Entwurfsversion speichern' }));
       expect(await screen.findByRole('alert')).toHaveTextContent(
         'Der Abschluss der Speicherung ist unklar',
       );
       expect(screen.getByRole('alert')).not.toHaveTextContent('TypeError');
-      expect(screen.getByLabelText('Trade Thesis')).toHaveValue('Behalten');
+      expect(screen.getByLabelText('Handelsidee und Begründung')).toHaveValue('Behalten');
       expect(screen.getByLabelText('Änderungsgrund')).toHaveValue('Grund');
-      expect(screen.queryByRole('heading', { name: 'Version 2 · DRAFT' })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('heading', { name: 'Version 2 · Entwurf' }),
+      ).not.toBeInTheDocument();
       expect(amend).toHaveBeenCalledTimes(1);
     },
   );

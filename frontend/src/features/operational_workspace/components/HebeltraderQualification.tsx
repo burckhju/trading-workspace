@@ -244,8 +244,9 @@ export function HebeltraderQualification({
                     Konkretes Dokument beziehungsweise nachvollziehbare Belegstelle mit
                     Datum/Version und geprüfter Zuordnung angeben (3–1.000 Zeichen). IDs, Währungen
                     und Fingerprints werden aus dem gelesenen Stand übernommen. Details schließen,
-                    Filter, Seitenwechsel und „Aktualisieren“ erhalten den Entwurf. Beim Verlassen
-                    der Workspace-Seite oder Neuladen im Browser endet dieser lokale Speicher.
+                    Bereichswechsel innerhalb dieser Position und erneutes Lesen erhalten den
+                    Entwurf. Beim Verlassen dieser Position oder Neuladen im Browser endet dieser
+                    lokale Speicher.
                   </p>
                   {!validReference && (
                     <p>

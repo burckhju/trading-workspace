@@ -4,6 +4,8 @@ Trading Workspace unterstützt einen benutzergesteuerten Tradingprozess: Referen
 
 ## Softwarestand und Planung
 
+**PC-Lieferumfang v1.5.53:** Die [Bereitstellungsnotiz](docs/releases/V1.5.53-PLANNING-PC-DELIVERY.md) bündelt den Produktstand v1.5.52 mit der inzwischen gemergten Planungskonsolidierung aus [PR #369](https://github.com/burckhju/trading-workspace/pull/369). Der bestehende Linux-Launcher übernimmt den nach grüner Main-CI automatisch veröffentlichten Tag mit seinem vollständigen Commit. Die nachfolgende Nachweisfortschreibung bleibt auf ihren datierten Prüfstand begrenzt; Veröffentlichung, PC-Installation und reale Datenabdeckung sind getrennte Nachweise.
+
 **Nachweisfortschreibung vom 20.11.2026:** Geprüft ist Main `c7db441de36297a98d47cdf28c64b4e5d9994692`, zugleich veröffentlichter Tag `v1.5.52`. Die [aktuelle Einstiegssicht](docs/planning/PRODUCT_BACKLOG.md#aktueller-stand) trennt implementierte Teilumfänge, Fachabnahme, Auslieferung und datierten PC-Betrieb. Der [eine nächste Arbeitsauftrag](docs/planning/PRODUCT_BACKLOG.md#naechster-schnitt) betrifft die reale V2-Datenbereitschaft nach dem inzwischen integrierten und veröffentlichten [Produktdatums-Fix #368](https://github.com/burckhju/trading-workspace/pull/368).
 
 Die versionierte Software ist in [VERSION](VERSION) festgehalten. Die [Produkttermin-Auswertung v1.5.52](docs/releases/V1.5.52-PRODUCT-DATE-SEMANTICS.md) trennt belegtes Produktende und Zahlungstermin, korrigiert daraus entstandene falsche Widersprüche und wertet vorhandene Originalbelege automatisch neu aus. Ein kontrollierter privater Originalimport ergänzt den gesperrten Stuttgarter Kalenderabruf. Die [Build-Reparatur aus v1.5.51](docs/releases/V1.5.51-RELIABLE-BACKEND-BUILD.md) und der fachliche [V2-Umfang aus v1.5.50](docs/releases/V1.5.50-INDICATIVE-V2-AND-PRODUCT-DEADLINES.md) bleiben die Grundlage. Vorhandene Positionen und wirtschaftliche Belege werden weiterverwendet; echte Datenwidersprüche bleiben sichtbar. Die reale B58-Originalstatusversorgung ist weiterhin unbelegt. Ein Softwaretag bestätigt weder die Installation auf dem Nutzer-PC noch vollständige Hebeltrader-Überwachung.
@@ -17,7 +19,9 @@ verbindet die benötigten Regelinputs mit tatsächlichen Datenwegen,
 konkreten Fehlerursachen und Beschaffungsoptionen. Die
 [vollständige passive Depotdiagnose](docs/technical/ISSUER_MONITORING_OPERATIONS.md#lesende-depot-datenversorgungsdiagnose)
 liest vorhandene Positionen und gespeicherte Prüfgründe, ohne einen
-Kursabruf oder Regellauf auszulösen.
+Kursabruf oder Regellauf auszulösen. Der [einzelne Diagnosecollector](scripts/collect-depot-data-supply.py)
+kann außerhalb des installierten Checkouts laufen und liefert ein privates
+Archiv einschließlich tatsächlicher Installations- und DB-Schemabelege.
 
 | Orientierung | Maßgebliche Quelle |
 |---|---|

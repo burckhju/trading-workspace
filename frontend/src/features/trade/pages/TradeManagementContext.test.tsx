@@ -23,7 +23,10 @@ import type {
 } from '../types/api';
 import { TradeManagementPage } from './TradeManagementPage';
 
-vi.mock('../../operational_workspace', () => ({ PositionPriceHistory: () => null }));
+vi.mock('../../operational_workspace', () => ({
+  PositionPriceHistory: () => null,
+  PositionMonitoring: () => null,
+}));
 // The real valuation/host read contract is exercised by TradeManagementOverview.test.tsx.
 vi.mock('../components/ProductValuationPanel', () => ({ ProductValuationPanel: () => null }));
 
@@ -201,7 +204,9 @@ function Navigation() {
   const location = useLocation();
   return (
     <nav>
-      <button onClick={() => void navigate('/trade-management?trade_id=trade-b')}>Go B</button>
+      <button onClick={() => void navigate('/trade-management?trade_id=trade-b#execution-dates')}>
+        Go B
+      </button>
       <button onClick={() => void navigate('/trade-management')}>Clear context</button>
       <button onClick={() => void navigate(`${location.pathname}${location.search}#sale-capture`)}>
         Sale anchor
@@ -219,7 +224,7 @@ function Navigation() {
 
 function openPage() {
   return render(
-    <MemoryRouter initialEntries={['/trade-management?trade_id=trade-a']}>
+    <MemoryRouter initialEntries={['/trade-management?trade_id=trade-a#execution-dates']}>
       <Navigation />
       <TradeManagementPage />
     </MemoryRouter>,
@@ -239,7 +244,10 @@ function openGuardedPage() {
       },
     ],
     {
-      initialEntries: ['/trade-management?trade_id=trade-b', '/trade-management?trade_id=trade-a'],
+      initialEntries: [
+        '/trade-management?trade_id=trade-b#execution-dates',
+        '/trade-management?trade_id=trade-a#execution-dates',
+      ],
       initialIndex: 1,
     },
   );
@@ -248,6 +256,8 @@ function openGuardedPage() {
 }
 async function loaded(id: string) {
   await screen.findByRole('heading', { name: new RegExp(`Synthetic warrant ${id}`) });
+  const opener = screen.getByText('Trade über Kennung öffnen oder Stand neu laden');
+  if (!opener.closest('details')!.open) fireEvent.click(opener);
   await waitFor(() => expect(screen.getByRole('button', { name: 'Laden' })).toBeEnabled());
 }
 function lookup(id: string) {
@@ -255,6 +265,8 @@ function lookup(id: string) {
   fireEvent.click(screen.getByRole('button', { name: 'Laden' }));
 }
 function saleDraft(quantity = '3', price = '2.50') {
+  const bookings = screen.getByRole('link', { name: 'Buchungen' });
+  if (!bookings.hasAttribute('aria-current')) fireEvent.click(bookings);
   fireEvent.change(screen.getByLabelText('Verkaufsmenge'), { target: { value: quantity } });
   fireEvent.change(screen.getByLabelText('Verkaufspreis'), { target: { value: price } });
 }
@@ -471,6 +483,7 @@ describe('Trade Management transaction context', () => {
     api.position.mockRejectedValueOnce(new Error('Temporary read failure'));
     lookup(b.trade.id);
     await screen.findByText('Temporary read failure');
+    fireEvent.click(screen.getByText('Trade über Kennung öffnen oder Stand neu laden'));
     await waitFor(() => expect(screen.getByRole('button', { name: 'Laden' })).toBeEnabled());
     fireEvent.click(screen.getByRole('button', { name: 'Laden' }));
     await loaded(b.trade.id);
@@ -557,6 +570,7 @@ describe('Trade Management transaction context', () => {
     await loaded(b.trade.id);
     expect(screen.getByLabelText('Stop')).toHaveValue(1.8);
     fireEvent.change(screen.getByLabelText('Stop'), { target: { value: '1.90' } });
+    fireEvent.click(screen.getByRole('link', { name: 'Bearbeiten' }));
     fireEvent.click(screen.getByRole('button', { name: 'Stop speichern' }));
     await screen.findByText('Stop wurde aktualisiert.');
     expect(api.changeStop).toHaveBeenCalledWith(b.trade.id, {
@@ -578,7 +592,7 @@ describe('Trade Management transaction context', () => {
     saleDraft();
     lookup(b.trade.id);
     await loaded(b.trade.id);
-    expect(screen.getByRole('heading', { name: 'CANCELLED' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Storniert' })).toBeInTheDocument();
     expect(screen.queryByRole('form', { name: 'Verkauf erfassen' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Stop speichern' })).not.toBeInTheDocument();
     expect(screen.queryByText('Additional trade-b')).not.toBeInTheDocument();
@@ -607,7 +621,7 @@ describe('Trade Management transaction context', () => {
       return Promise.resolve();
     });
     expect(screen.getByLabelText('Current location')).toHaveTextContent(
-      '/trade-management?trade_id=trade-b',
+      '/trade-management?trade_id=trade-b#execution-dates',
     );
     expect(screen.getByRole('heading', { name: /Synthetic warrant trade-b/ })).toBeInTheDocument();
   });
@@ -640,9 +654,9 @@ describe('Trade Management transaction context', () => {
     });
     api.position.mockResolvedValueOnce({ ...a.position, open_quantity: 7 });
     fireEvent.click(screen.getByRole('button', { name: 'Booking refresh' }));
-    await waitFor(() => expect(screen.getByLabelText('Target')).toHaveValue(3.1));
-    expect(screen.getByLabelText('Instrument für Target')).toHaveValue('UNDERLYING');
-    expect(screen.getByLabelText('Währung für Target')).toHaveValue('CHF');
+    await waitFor(() => expect(screen.getByLabelText('Ziel')).toHaveValue(3.1));
+    expect(screen.getByLabelText('Instrument für Ziel')).toHaveValue('UNDERLYING');
+    expect(screen.getByLabelText('Währung für Ziel')).toHaveValue('CHF');
     expect(screen.getByLabelText('Stop')).toHaveValue(1.95);
     expect(screen.getByLabelText('Instrument für Stop')).toHaveValue('UNDERLYING');
     expect(screen.getByLabelText('Währung für Stop')).toHaveValue('USD');
@@ -660,8 +674,8 @@ describe('Trade Management transaction context', () => {
     openGuardedPage();
     await loaded(a.trade.id);
     saleDraft();
-    fireEvent.change(screen.getByLabelText('Target'), { target: { value: '3.25' } });
-    fireEvent.change(screen.getByLabelText('Instrument für Target'), {
+    fireEvent.change(screen.getByLabelText('Ziel'), { target: { value: '3.25' } });
+    fireEvent.change(screen.getByLabelText('Instrument für Ziel'), {
       target: { value: 'UNDERLYING' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Laden' }));
@@ -670,8 +684,8 @@ describe('Trade Management transaction context', () => {
     expect(screen.getByLabelText('Booking reload')).toHaveTextContent('1');
     expect(screen.getByLabelText('Verkaufsmenge')).toHaveValue(3);
     expect(screen.getByLabelText('Verkaufspreis')).toHaveValue(2.5);
-    expect(screen.getByLabelText('Target')).toHaveValue(3.25);
-    expect(screen.getByLabelText('Instrument für Target')).toHaveValue('UNDERLYING');
+    expect(screen.getByLabelText('Ziel')).toHaveValue(3.25);
+    expect(screen.getByLabelText('Instrument für Ziel')).toHaveValue('UNDERLYING');
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
     expectNoWrites();
   });
@@ -793,8 +807,10 @@ describe('Trade Management transaction context', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Booking write begins' }));
     expect(screen.getByRole('button', { name: 'Teilverkauf erfassen' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Position vollständig schließen' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('link', { name: 'Bearbeiten' }));
     expect(screen.getByRole('button', { name: 'Stop speichern' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Laden' })).toBeEnabled();
+    fireEvent.click(screen.getByRole('link', { name: 'Buchungen' }));
     fireEvent.submit(screen.getByRole('form', { name: 'Verkauf erfassen' }));
     expectNoWrites();
     fireEvent.click(screen.getByRole('button', { name: 'Booking checked' }));
@@ -807,11 +823,14 @@ describe('Trade Management transaction context', () => {
     saleDraft();
     fireEvent.click(screen.getByRole('button', { name: 'Additional write begins' }));
     expect(screen.getByRole('button', { name: 'Teilverkauf erfassen' })).toBeDisabled();
+    const saleForm = screen.getByRole('form', { name: 'Verkauf erfassen' });
+    fireEvent.click(screen.getByRole('link', { name: 'Bearbeiten' }));
     expect(screen.getByRole('button', { name: 'Stop speichern' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Laden' })).toBeDisabled();
-    fireEvent.submit(screen.getByRole('form', { name: 'Verkauf erfassen' }));
+    fireEvent.submit(saleForm);
     fireEvent.submit(screen.getByRole('button', { name: 'Stop speichern' }).closest('form')!);
     expectNoWrites();
+    fireEvent.click(screen.getByRole('link', { name: 'Buchungen' }));
     fireEvent.click(screen.getByRole('button', { name: 'Additional write ends' }));
     expect(screen.getByRole('button', { name: 'Teilverkauf erfassen' })).toBeEnabled();
     expect(screen.getByRole('button', { name: 'Laden' })).toBeEnabled();

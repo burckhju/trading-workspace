@@ -76,7 +76,7 @@ test("backdated purchase, duplicate prevention, explicit additional purchase and
   );
   expect(duplicate.status()).toBe(409);
   expect((await duplicate.json()).code).toBe("OPEN_TRADE_EXISTS");
-  await page.goto(`/trade-management?trade_id=${tradeId}`);
+  await page.goto(`/trade-management?trade_id=${tradeId}#execution-dates`);
   await expect(
     page.getByRole("heading", { name: "Nachkauf erfassen" }),
   ).toBeVisible();
@@ -93,6 +93,7 @@ test("backdated purchase, duplicate prevention, explicit additional purchase and
   expect(position.open_quantity).toBe(15);
   expect(position.opened_on).toBe("2026-08-17");
   await expect(page.getByLabel("Verkaufsdatum", { exact: true })).toBeVisible();
+  await page.getByRole("link", { name: "Bearbeiten", exact: true }).click();
   await page.getByRole("button", { name: "Stornierung prüfen" }).click();
   const confirm = page.getByRole("button", {
     name: "Fehleingabe verbindlich stornieren",

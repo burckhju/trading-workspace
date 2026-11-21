@@ -183,7 +183,7 @@ test("real BUY and SELL amount corrections retain history, reopen the position, 
     if (open !== 0) expect(readback.closed_at).toBeNull();
     await expect(
       page.getByRole("heading", {
-        name: open === 0 ? "CLOSED" : "OPEN",
+        name: open === 0 ? "Geschlossen" : "Offen",
         exact: true,
       }),
     ).toHaveCount(1);
@@ -199,11 +199,13 @@ test("real BUY and SELL amount corrections retain history, reopen the position, 
     for (const label of ["Cost Basis", "Average Entry", "Realized gross P&L"]) {
       await expect(overview.getByText(label, { exact: true })).toHaveCount(0);
     }
+    await page.getByRole("link", { name: "Überblick", exact: true }).click();
     await expect(
       overview.getByText(
         /Kostenbasis, durchschnittlicher Einstieg und realisierter Brutto-G\/V/,
       ),
     ).toBeVisible();
+    await page.getByRole("link", { name: "Buchungen", exact: true }).click();
     evidence.push({ stage, history: await timeline(), position: readback });
     return readback;
   }
@@ -345,19 +347,21 @@ test("real BUY and SELL amount corrections retain history, reopen the position, 
   await expect(form).toHaveCount(0);
 
   // Keep management drafts open while real corrections refresh the page.
+  await page.getByRole("link", { name: "Bearbeiten", exact: true }).click();
   await page.getByLabel("Stop", { exact: true }).fill("1.75");
   await page
     .getByLabel("Instrument für Stop", { exact: true })
     .selectOption("WARRANT");
   await page.getByLabel("Währung für Stop", { exact: true }).fill("EUR");
-  await page.getByLabel("Target", { exact: true }).fill("4.5");
+  await page.getByLabel("Ziel", { exact: true }).fill("4.5");
   await page
-    .getByLabel("Instrument für Target", { exact: true })
+    .getByLabel("Instrument für Ziel", { exact: true })
     .selectOption("WARRANT");
-  await page.getByLabel("Währung für Target", { exact: true }).fill("EUR");
+  await page.getByLabel("Währung für Ziel", { exact: true }).fill("EUR");
   await page
     .getByLabel("Aktuelle These", { exact: true })
     .fill("UI7 unsaved thesis");
+  await page.getByRole("link", { name: "Buchungen", exact: true }).click();
 
   const buyPrice = await correct(originalBuy, "Preis je Einheit", "2,50", {
     side: "BUY",
@@ -377,12 +381,7 @@ test("real BUY and SELL amount corrections retain history, reopen the position, 
     price_per_unit: buyPrice.price_per_unit,
     executed_at: originalBuy.occurred_at,
   });
-  await expectPosition(
-    "buy-quantity",
-    2,
-    /^5(?:\.0+)?$/,
-    /^5(?:\.0+)?$/,
-  );
+  await expectPosition("buy-quantity", 2, /^5(?:\.0+)?$/, /^5(?:\.0+)?$/);
   // Read the dependent SELL again after its effective BUY source changed.
   const rereadSell = (await timeline()).find(
     (entry) => entry.id === originalSell.id,
@@ -397,12 +396,7 @@ test("real BUY and SELL amount corrections retain history, reopen the position, 
     executed_on: "2026-08-22",
     execution_timezone: "Europe/Berlin",
   });
-  await expectPosition(
-    "sell-quantity",
-    4,
-    /^10(?:\.0+)?$/,
-    /^4(?:\.0+)?$/,
-  );
+  await expectPosition("sell-quantity", 4, /^10(?:\.0+)?$/, /^4(?:\.0+)?$/);
   const sellPrice = await correct(sellQuantity, "Preis je Einheit", "3,50", {
     side: "SELL",
     quantity: 8,
@@ -450,12 +444,12 @@ test("real BUY and SELL amount corrections retain history, reopen the position, 
 
   for (const [label, expected] of [
     ["Stop", "1.75"],
-    ["Target", "4.5"],
+    ["Ziel", "4.5"],
     ["Aktuelle These", "UI7 unsaved thesis"],
     ["Währung für Stop", "EUR"],
-    ["Währung für Target", "EUR"],
+    ["Währung für Ziel", "EUR"],
     ["Instrument für Stop", "WARRANT"],
-    ["Instrument für Target", "WARRANT"],
+    ["Instrument für Ziel", "WARRANT"],
   ]) {
     await expect(page.getByLabel(label, { exact: true })).toHaveValue(expected);
   }

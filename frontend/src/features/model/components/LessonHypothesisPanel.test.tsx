@@ -39,10 +39,10 @@ describe('LessonHypothesisPanel', () => {
 
     render(<LessonHypothesisPanel lessonVersionId="lesson-version-1" />);
 
-    expect(await screen.findByText('Bereits an FT-013 übergeben')).toBeInTheDocument();
+    expect(await screen.findByText('Vorhandene Hypothesen')).toBeInTheDocument();
     expect(screen.getByText('Exit discipline')).toBeInTheDocument();
     expect(screen.getByText('Proposal workflow hypothesis-1')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Hypothese für FT-013 anlegen' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Hypothese anlegen' })).toBeNull();
   });
 
   it('creates an explicit hypothesis from the current LessonVersion', async () => {
@@ -58,12 +58,12 @@ describe('LessonHypothesisPanel', () => {
 
     render(<LessonHypothesisPanel lessonVersionId="lesson-version-1" />);
 
-    await screen.findByRole('button', { name: 'Hypothese für FT-013 anlegen' });
+    await screen.findByRole('button', { name: 'Hypothese anlegen' });
     fireEvent.change(screen.getByLabelText('Titel'), { target: { value: 'Exit discipline' } });
     fireEvent.change(screen.getByLabelText('Hypothese'), {
       target: { value: 'Late exits reduce expectancy.' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Hypothese für FT-013 anlegen' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Hypothese anlegen' }));
 
     await waitFor(() =>
       expect(mocks.createFromLessonVersion).toHaveBeenCalledWith('lesson-version-1', {
@@ -71,6 +71,6 @@ describe('LessonHypothesisPanel', () => {
         statement: 'Late exits reduce expectancy.',
       }),
     );
-    expect(await screen.findByText('Bereits an FT-013 übergeben')).toBeInTheDocument();
+    expect(await screen.findByText('Vorhandene Hypothesen')).toBeInTheDocument();
   });
 });

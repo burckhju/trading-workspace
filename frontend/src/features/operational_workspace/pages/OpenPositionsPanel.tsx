@@ -1,13 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { OperationalPosition } from '../types';
-import { PositionDetails } from '../components/PositionDetails';
 import { PositionStatus, QuoteStatus } from '../components/PositionStatus';
 import { unrealizedPnlReason } from '../../trade/services/valuationQualification';
-import {
-  useHebeltraderQualificationSessions,
-  type QualificationSessions,
-} from '../hooks/useHebeltraderQualificationSessions';
 import {
   dateLabel,
   defaultPositionsView,
@@ -41,26 +36,50 @@ const rowBorders = {
 const control =
   'rounded-lg border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-slate-100 focus-visible:outline-2 focus-visible:outline-sky-300 disabled:opacity-50';
 
+const selectedPositionKey = 'workspace-selected-position-v1';
+function readSelectedPosition() {
+  try {
+    return sessionStorage.getItem(selectedPositionKey);
+  } catch {
+    return null;
+  }
+}
+
 export function OpenPositionsPanel({
   positions,
   signalsLoading = false,
-  qualificationSessions: controlledQualificationSessions,
 }: {
   positions: OperationalPosition[];
   signalsLoading?: boolean;
-  qualificationSessions?: QualificationSessions;
 }) {
   const [view, setView] = useState(readPositionsView);
-  const [expanded, setExpanded] = useState<string | null>(null);
-  const localQualificationSessions = useHebeltraderQualificationSessions();
-  const qualificationSessions = controlledQualificationSessions ?? localQualificationSessions;
+  const [selected, setSelected] = useState(readSelectedPosition);
+  const panel = useRef<HTMLElement>(null);
+  const restoredFocus = useRef(false);
   useEffect(() => savePositionsView(view), [view]);
   const filtered = useMemo(() => visiblePositions(positions, view), [positions, view]);
   const totals = useMemo(() => portfolioTotals(positions), [positions]);
   const pages = Math.max(1, Math.ceil(filtered.length / view.pageSize));
   const page = Math.min(view.page, pages);
   const displayed = filtered.slice((page - 1) * view.pageSize, page * view.pageSize);
-  const expandedPosition = displayed.find((p) => p.position_id === expanded);
+  useEffect(() => {
+    if (restoredFocus.current || positions.length === 0) return;
+    restoredFocus.current = true;
+    if (!selected) return;
+    const link = Array.from(
+      panel.current?.querySelectorAll<HTMLAnchorElement>('[data-position-link]') ?? [],
+    ).find((entry) => entry.dataset.positionLink === selected);
+    link?.focus({ preventScroll: true });
+    link?.scrollIntoView?.({ block: 'nearest' });
+  }, [positions, selected]);
+  function remember(positionId: string) {
+    setSelected(positionId);
+    try {
+      sessionStorage.setItem(selectedPositionKey, positionId);
+    } catch {
+      /* Optional view context. */
+    }
+  }
   function change(update: Partial<PositionsView>) {
     setView((v) => ({ ...v, ...update, page: 1 }));
   }
@@ -88,14 +107,14 @@ export function OpenPositionsPanel({
     );
   }
   return (
-    <section aria-labelledby="open-positions-heading" className="min-w-0 space-y-4">
+    <section ref={panel} aria-labelledby="open-positions-heading" className="min-w-0 space-y-4">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h2 id="open-positions-heading" className="text-xl font-semibold text-white">
             Offene Positionen · {positions.length}
           </h2>
           <p className="mt-1 text-sm text-slate-400">
-            Kompakter Depotstatus · Details öffnen statt lange Karten vergleichen.
+            Überwachung prüfen oder den Trade mit Buchungen und Bearbeitung öffnen.
           </p>
         </div>
         <p className="text-sm text-slate-300">
@@ -200,7 +219,12 @@ export function OpenPositionsPanel({
           <button
             type="button"
             onClick={() => {
-              setExpanded(null);
+              setSelected(null);
+              try {
+                sessionStorage.removeItem(selectedPositionKey);
+              } catch {
+                /* Optional view context. */
+              }
               setView({ ...defaultPositionsView });
             }}
             className={control}
@@ -230,7 +254,7 @@ export function OpenPositionsPanel({
       {positions.some((p) => p.valuation_status !== 'AVAILABLE' || p.analysis_warning) && (
         <p className="rounded-lg border border-amber-900 bg-amber-950/20 p-3 text-sm text-amber-200">
           Indikative, veraltete oder fehlende Kurse sind je Zeile gekennzeichnet. Quelle und
-          Kurszeitpunkt unter „Details“. Keine Orderfreigabe.
+          Kurszeitpunkt unter „Überwachung“. Keine Orderfreigabe.
         </p>
       )}
       {filtered.length === 0 ? (
@@ -276,7 +300,12 @@ export function OpenPositionsPanel({
             </thead>
             <tbody>
               {displayed.map((p) => (
-                <tr key={p.position_id} data-position-id={p.position_id} className="group">
+                <tr
+                  key={p.position_id}
+                  data-position-id={p.position_id}
+                  aria-selected={selected === p.position_id || undefined}
+                  className={`group ${selected === p.position_id ? 'bg-sky-950/20' : ''}`}
+                >
                   <th
                     scope="row"
                     className={`sticky left-0 z-10 min-w-52 max-w-72 border-b border-b-slate-800 border-l-4 ${rowBorders[positionTone(p)]} bg-slate-950 p-3 text-left font-normal group-hover:bg-slate-900`}
@@ -330,25 +359,24 @@ export function OpenPositionsPanel({
                   </td>
                   <td className="min-w-40 border-b border-slate-800 p-3">
                     <div className="flex flex-col items-start gap-2">
-                      <button
-                        type="button"
-                        className="rounded text-sky-200 underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-sky-300"
-                        aria-expanded={expanded === p.position_id}
-                        aria-controls={`position-detail-${p.position_id}`}
-                        onClick={() =>
-                          setExpanded(expanded === p.position_id ? null : p.position_id)
-                        }
-                      >
-                        {expanded === p.position_id ? 'Details schließen' : 'Details'}
-                      </button>
                       <Link
-                        to={p.target}
-                        className="rounded text-slate-100 underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-sky-300"
+                        to={`${p.target.split('#')[0]}#trade-risk`}
+                        data-position-link={p.position_id}
+                        onClick={() => remember(p.position_id)}
+                        className="rounded text-sky-200 underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-sky-300"
                       >
-                        Trade verwalten
+                        Überwachung
                       </Link>
                       <Link
-                        to={`${p.target}#sale-capture`}
+                        to={`${p.target.split('#')[0]}#trade-overview`}
+                        onClick={() => remember(p.position_id)}
+                        className="rounded text-slate-100 underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-sky-300"
+                      >
+                        Trade öffnen
+                      </Link>
+                      <Link
+                        to={`${p.target.split('#')[0]}#sale-capture`}
+                        onClick={() => remember(p.position_id)}
                         className="rounded border border-sky-800 bg-sky-950/40 px-2 py-1 text-sky-100 focus-visible:outline-2 focus-visible:outline-sky-300"
                       >
                         Verkauf erfassen
@@ -359,17 +387,6 @@ export function OpenPositionsPanel({
               ))}
             </tbody>
           </table>
-        </div>
-      )}
-      {expandedPosition && (
-        <div
-          id={`position-detail-${expandedPosition.position_id}`}
-          className="min-w-0 rounded-xl border border-slate-700 bg-slate-900/70"
-        >
-          <PositionDetails
-            position={expandedPosition}
-            qualificationSessions={qualificationSessions}
-          />
         </div>
       )}
       <nav

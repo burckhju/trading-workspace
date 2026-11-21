@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 
 import { marketApiClient } from '../../market/services/client';
 import type { UnderlyingDetailResponse } from '../../market/types/api';
@@ -7,23 +7,25 @@ import { PlanPurchaseStatus } from '../components/PlanPurchaseStatus';
 import { PlanSelectedProduct } from '../components/PlanSelectedProduct';
 import { purchaseLabels } from '../services/purchaseStatus';
 import {
-  tradePlanOverviewApiClient,
-  type TradePlanOverviewItem,
-  type PurchaseStatus,
-} from '../services/overviewClient';
+  planPurchaseFilter,
+  planStatusLabel,
+  withPlanListContext,
+} from '../services/planNavigation';
+import { tradePlanOverviewApiClient, type TradePlanOverviewItem } from '../services/overviewClient';
 
 function tradePlanReference(id: string): string {
   return `TP-${id.slice(0, 8).toUpperCase()}`;
 }
 
 export function TradePlanOverviewPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [items, setItems] = useState<TradePlanOverviewItem[]>([]);
   const [underlyings, setUnderlyings] = useState<Record<string, UnderlyingDetailResponse>>({});
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const [revision, setRevision] = useState(0);
-  const [filter, setFilter] = useState<PurchaseStatus | 'ALL'>('ALL');
+  const filter = planPurchaseFilter(searchParams);
   const visible = items.filter(
     (item) => filter === 'ALL' || (item.execution?.status ?? 'UNKNOWN') === filter,
   );
@@ -63,7 +65,7 @@ export function TradePlanOverviewPage() {
         if (!controller.signal.aborted) {
           setItems([]);
           setMessage(
-            error instanceof Error ? error.message : 'TradePlans konnten nicht geladen werden.',
+            error instanceof Error ? error.message : 'Tradepläne konnten nicht geladen werden.',
           );
         }
       } finally {
@@ -75,17 +77,20 @@ export function TradePlanOverviewPage() {
   }, [revision]);
 
   return (
-    <main className="w-full space-y-6">
+    <section className="w-full space-y-6">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-xs uppercase tracking-wide text-slate-500">FT-007 · Übersicht</p>
-          <h1 className="mt-1 text-2xl font-semibold">TradePlans</h1>
+          <p className="text-xs uppercase tracking-wide text-slate-500">
+            Marktanalyse · Handelsvorbereitung
+          </p>
+          <h1 className="mt-1 text-2xl font-semibold">Tradepläne</h1>
           <p className="mt-2 text-sm text-slate-400">
-            Planfreigabe und tatsächliche Käufe sind getrennt. APPROVED bedeutet noch nicht gekauft.
+            Plane Einstieg, Ausstieg und Risiko. Eine Freigabe ist noch kein tatsächlich erfasster
+            Kauf.
           </p>
         </div>
         <Link to="/trade-plans" className="rounded-lg border border-sky-700 px-4 py-2 text-sm">
-          Neuen TradePlan anlegen
+          Neuen Tradeplan anlegen
         </Link>
       </header>
 
@@ -94,10 +99,15 @@ export function TradePlanOverviewPage() {
           <span className="mb-1 block">Nach Kaufstatus filtern</span>
           <select
             value={filter}
-            onChange={(event) => setFilter(event.target.value as PurchaseStatus | 'ALL')}
+            onChange={(event) => {
+              const next = new URLSearchParams(searchParams);
+              if (event.target.value === 'ALL') next.delete('purchase_status');
+              else next.set('purchase_status', event.target.value);
+              setSearchParams(next);
+            }}
             className="rounded-lg border border-slate-600 bg-slate-950 px-3 py-2"
           >
-            <option value="ALL">Alle TradePlans</option>
+            <option value="ALL">Alle Tradepläne</option>
             {Object.entries(purchaseLabels).map(([value, label]) => (
               <option key={value} value={value}>
                 {label}
@@ -115,7 +125,7 @@ export function TradePlanOverviewPage() {
         </button>
         {!loading && !message && (
           <p role="status" className="text-sm text-slate-400">
-            {visible.length} von {items.length} TradePlans
+            {visible.length} von {items.length} Tradeplänen
           </p>
         )}
       </div>
@@ -124,15 +134,15 @@ export function TradePlanOverviewPage() {
           {message}
         </p>
       )}
-      {loading && <p className="text-sm text-slate-400">TradePlans werden geladen …</p>}
+      {loading && <p className="text-sm text-slate-400">Tradepläne werden geladen …</p>}
       {!loading && items.length === 0 && !message && (
         <p className="rounded-xl border border-slate-800 p-5 text-sm text-slate-400">
-          Noch keine TradePlans vorhanden.
+          Noch keine Tradepläne vorhanden.
         </p>
       )}
 
       {!loading && items.length > 0 && visible.length === 0 && (
-        <p>Keine TradePlans mit diesem Kaufstatus.</p>
+        <p>Keine Tradepläne mit diesem Kaufstatus.</p>
       )}
       <div className="space-y-3">
         {!loading &&
@@ -144,7 +154,11 @@ export function TradePlanOverviewPage() {
               trade_plan_version_id: item.latest_version_id,
             }).toString();
             return (
-              <article key={item.id} className="rounded-xl border border-slate-800 p-5">
+              <article
+                id={`plan-${item.id}`}
+                key={item.id}
+                className="rounded-xl border border-slate-800 p-5"
+              >
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div>
                     <p className="text-xs uppercase tracking-wide text-slate-500">
@@ -166,7 +180,7 @@ export function TradePlanOverviewPage() {
                   </div>
                   <span className="rounded-full border border-slate-700 px-3 py-1 text-xs">
                     <span className="text-slate-400">Neueste Version: </span>
-                    {item.status}
+                    {planStatusLabel(item.status)}
                   </span>
                 </div>
                 <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-3">
@@ -177,7 +191,7 @@ export function TradePlanOverviewPage() {
                   <div>
                     <dt className="text-slate-500">Ursprung</dt>
                     <dd className="mt-1">
-                      {item.origin_type === 'MANUAL' ? 'Manuell' : 'CandidateEvaluation'}
+                      {item.origin_type === 'MANUAL' ? 'Manuell' : 'Kandidatenbewertung'}
                     </dd>
                   </div>
                   <div>
@@ -185,18 +199,21 @@ export function TradePlanOverviewPage() {
                     <dd className="mt-1">{new Date(item.created_at).toLocaleString('de-DE')}</dd>
                   </div>
                 </dl>
-                <PlanSelectedProduct item={item} />
+                <PlanSelectedProduct item={item} listContext={searchParams} />
                 <PlanPurchaseStatus item={item} />
                 <div className="mt-4 flex flex-wrap gap-3">
                   <Link
-                    to={`/trade-plans?trade_plan_id=${encodeURIComponent(item.id)}`}
+                    to={withPlanListContext(
+                      `/trade-plans?trade_plan_id=${encodeURIComponent(item.id)}`,
+                      searchParams,
+                    )}
                     className="inline-flex rounded-lg border border-slate-600 px-4 py-2 text-sm"
                   >
                     Öffnen
                   </Link>
                   {item.status === 'DRAFT' && (
                     <Link
-                      to="/product-selection"
+                      to={withPlanListContext('/product-selection', searchParams)}
                       className="inline-flex rounded-lg border border-slate-600 px-4 py-2 text-sm"
                     >
                       Freigegebene Planversion auswählen
@@ -204,7 +221,10 @@ export function TradePlanOverviewPage() {
                   )}
                   {item.status === 'APPROVED' && (
                     <Link
-                      to={`/product-selection?${selectionSearch}`}
+                      to={withPlanListContext(
+                        `/product-selection?${selectionSearch}`,
+                        searchParams,
+                      )}
                       className="inline-flex rounded-lg border border-emerald-700 px-4 py-2 text-sm"
                     >
                       {item.selected_product === null && item.execution?.status === 'NOT_STARTED'
@@ -217,6 +237,6 @@ export function TradePlanOverviewPage() {
             );
           })}
       </div>
-    </main>
+    </section>
   );
 }

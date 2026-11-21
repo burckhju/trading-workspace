@@ -759,10 +759,10 @@ async function inspectHistory(page: Page, report: Locator) {
   return unknown.getByRole("heading", { name: "Zeitbelege", exact: true });
 }
 
-async function openWorkspace(page: Page, calls: Requests) {
+async function openDataSources(page: Page, calls: Requests) {
   await expect(
     page.getByRole("heading", {
-      name: "Was benötigt jetzt deine Aufmerksamkeit?",
+      name: "Datenquellen & Diagnose",
       exact: true,
     }),
   ).toBeVisible();
@@ -776,7 +776,7 @@ async function openWorkspace(page: Page, calls: Requests) {
 }
 
 async function openCoverage(page: Page, calls: Requests) {
-  await openWorkspace(page, calls);
+  await openDataSources(page, calls);
   const panel = page.getByRole("region", {
     name: "Kursquellen im Depot",
     exact: true,
@@ -919,7 +919,7 @@ async function inspectCoverage(page: Page, panel: Locator) {
 }
 
 async function openDiagnostics(page: Page, calls: Requests) {
-  const panel = await openWorkspace(page, calls);
+  const panel = await openDataSources(page, calls);
   const button = panel.getByRole("button", {
     name: "Abrufstatus laden",
     exact: true,
@@ -1092,13 +1092,13 @@ const surfaces = [
   },
   {
     id: "D2",
-    path: "/workspace",
+    path: "/data-sources",
     open: openCoverage,
     inspect: inspectCoverage,
   },
   {
     id: "D3",
-    path: "/workspace",
+    path: "/data-sources",
     open: openDiagnostics,
     inspect: inspectDiagnostics,
   },

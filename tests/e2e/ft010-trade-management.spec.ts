@@ -150,16 +150,46 @@ test("manages partial/full exit and explicit management decisions without provid
     }
     if (method === "POST" && path.endsWith("/management/stop")) {
       stopPosts += 1;
-      const body = request.postDataJSON() as { price: string; price_binding: { basis: string; instrument_id: string; currency: string } };
-      expect(body.price_binding).toEqual({ basis: "WARRANT", instrument_id: productId, currency: "EUR" });
-      currentManagement = management({ ...currentManagement, stop_price: body.price, stop_price_binding: body.price_binding });
+      const body = request.postDataJSON() as {
+        price: string;
+        price_binding: {
+          basis: string;
+          instrument_id: string;
+          currency: string;
+        };
+      };
+      expect(body.price_binding).toEqual({
+        basis: "WARRANT",
+        instrument_id: productId,
+        currency: "EUR",
+      });
+      currentManagement = management({
+        ...currentManagement,
+        stop_price: body.price,
+        stop_price_binding: body.price_binding,
+      });
       return json(route, {}, 201);
     }
     if (method === "POST" && path.endsWith("/management/target")) {
       targetPosts += 1;
-      const body = request.postDataJSON() as { price: string; price_binding: { basis: string; instrument_id: string; currency: string } };
-      expect(body.price_binding).toEqual({ basis: "UNDERLYING", instrument_id: "40000000-0000-4000-8000-000000000001", currency: "EUR" });
-      currentManagement = management({ ...currentManagement, target_price: body.price, target_price_binding: body.price_binding });
+      const body = request.postDataJSON() as {
+        price: string;
+        price_binding: {
+          basis: string;
+          instrument_id: string;
+          currency: string;
+        };
+      };
+      expect(body.price_binding).toEqual({
+        basis: "UNDERLYING",
+        instrument_id: "40000000-0000-4000-8000-000000000001",
+        currency: "EUR",
+      });
+      currentManagement = management({
+        ...currentManagement,
+        target_price: body.price,
+        target_price_binding: body.price_binding,
+      });
       return json(route, {}, 201);
     }
     if (method === "POST" && path.endsWith("/management/thesis")) {
@@ -185,25 +215,50 @@ test("manages partial/full exit and explicit management decisions without provid
   });
 
   await page.goto(`/trade-management?trade_id=${tradeId}`);
-  await expect(page.getByRole("heading", { name: "OPEN" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: /TR-10000000 · DAX Call 19000/ })).toBeVisible();
-  const overview = page.getByRole("region", { name: "Trade und Position", exact: true });
-  await overview.getByText("Technische Provenance anzeigen", { exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Offen" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: /TR-10000000 · DAX Call 19000/ }),
+  ).toBeVisible();
+  const overview = page.getByRole("region", {
+    name: "Trade und Position",
+    exact: true,
+  });
+  await overview
+    .getByText("Herkunft und technische Kennungen", { exact: true })
+    .click();
   await expect(overview.getByText("TP-10000000")).toBeVisible();
-  await expect(overview.getByText(`TradePlan-ID ${tradePlanId}`, { exact: true })).toBeVisible();
-  await expect(overview.getByText("TradePlanVersion-ID 10000000-0000-4000-8000-000000000014", { exact: true })).toBeVisible();
-  await expect(page.getByText("Offene Menge", { exact: true }).locator("..").locator("dd")).toHaveText("100 Stück");
-  await expect(page.getByRole("form", { name: "Verkauf erfassen" }).getByText(/keine Broker-Order/i)).toBeVisible();
+  await expect(
+    overview.getByText(`TradePlan-ID ${tradePlanId}`, { exact: true }),
+  ).toBeVisible();
+  await expect(
+    overview.getByText(
+      "TradePlanVersion-ID 10000000-0000-4000-8000-000000000014",
+      { exact: true },
+    ),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Offene Menge", { exact: true }).locator("..").locator("dd"),
+  ).toHaveText("100 Stück");
+  await page.getByRole("link", { name: "Buchungen", exact: true }).click();
+  await expect(
+    page
+      .getByRole("form", { name: "Verkauf erfassen" })
+      .getByText(/keine Broker-Order/i),
+  ).toBeVisible();
 
   await page.getByLabel("Verkaufsmenge").fill("40");
   await page.getByLabel("Verkaufspreis").fill("2.50");
   await page.getByLabel("Verkaufsdatum", { exact: true }).fill("2026-08-17");
   await page.getByLabel("Verkaufsdatum Uhrzeit").fill("09:30");
-  const receiptPromise = page.waitForResponse((response) =>
-    response.request().method() === "POST" && response.url().endsWith(`/trades/${tradeId}/sales`),
+  const receiptPromise = page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" &&
+      response.url().endsWith(`/trades/${tradeId}/sales`),
   );
-  const positionReadbackPromise = page.waitForResponse((response) =>
-    response.request().method() === "GET" && response.url().endsWith(`/trades/${tradeId}/position`),
+  const positionReadbackPromise = page.waitForResponse(
+    (response) =>
+      response.request().method() === "GET" &&
+      response.url().endsWith(`/trades/${tradeId}/position`),
   );
   await page.getByRole("button", { name: "Teilverkauf erfassen" }).click();
   await expect.poll(() => salePosts).toBe(1);
@@ -223,26 +278,38 @@ test("manages partial/full exit and explicit management decisions without provid
   };
   expect((await receipt.json()).position).toMatchObject(expectedPosition);
   expect(await positionReadback.json()).toMatchObject(expectedPosition);
-  await expect(page.getByText("Offene Menge", { exact: true }).locator("..").locator("dd")).toHaveText("60 Stück");
+  await expect(
+    page.getByText("Offene Menge", { exact: true }).locator("..").locator("dd"),
+  ).toHaveText("60 Stück");
   for (const label of ["Cost Basis", "Average Entry", "Realized gross P&L"]) {
     await expect(overview.getByText(label, { exact: true })).toHaveCount(0);
   }
   await expect(overview.getByText("20", { exact: true })).toHaveCount(0);
-  await expect(overview.getByText(/Kostenbasis, durchschnittlicher Einstieg und realisierter Brutto-G\/V/)).toBeVisible();
+  await page.getByRole("link", { name: "Überblick", exact: true }).click();
+  await expect(
+    overview.getByText(
+      /Kostenbasis, durchschnittlicher Einstieg und realisierter Brutto-G\/V/,
+    ),
+  ).toBeVisible();
 
+  await page.getByRole("link", { name: "Bearbeiten", exact: true }).click();
   await page.getByLabel("Stop", { exact: true }).fill("1.90");
-  await page.getByLabel("Instrument für Stop", { exact: true }).selectOption("WARRANT");
+  await page
+    .getByLabel("Instrument für Stop", { exact: true })
+    .selectOption("WARRANT");
   await page.getByLabel("Währung für Stop", { exact: true }).fill("EUR");
   await page.getByRole("button", { name: "Stop speichern" }).click();
   await expect.poll(() => stopPosts).toBe(1);
   await expect(page.getByText("Stop wurde aktualisiert.")).toBeVisible();
 
-  await page.getByLabel("Target", { exact: true }).fill("3.00");
-  await page.getByLabel("Instrument für Target", { exact: true }).selectOption("UNDERLYING");
-  await page.getByLabel("Währung für Target", { exact: true }).fill("EUR");
-  await page.getByRole("button", { name: "Target speichern" }).click();
+  await page.getByLabel("Ziel", { exact: true }).fill("3.00");
+  await page
+    .getByLabel("Instrument für Ziel", { exact: true })
+    .selectOption("UNDERLYING");
+  await page.getByLabel("Währung für Ziel", { exact: true }).fill("EUR");
+  await page.getByRole("button", { name: "Ziel speichern" }).click();
   await expect.poll(() => targetPosts).toBe(1);
-  await expect(page.getByText("Target wurde aktualisiert.")).toBeVisible();
+  await expect(page.getByText("Ziel wurde aktualisiert.")).toBeVisible();
 
   await page.getByLabel("Aktuelle These").fill("Thesis updated by user");
   await page.getByRole("button", { name: "These speichern" }).click();
@@ -253,13 +320,20 @@ test("manages partial/full exit and explicit management decisions without provid
     .fill("Observed volatility after partial exit");
   await page.getByRole("button", { name: "Notiz hinzufügen" }).click();
   await expect.poll(() => notePosts).toBe(1);
-  await expect(page.getByText("Observed volatility after partial exit")).toBeVisible();
+  await expect(
+    page.getByText("Observed volatility after partial exit"),
+  ).toBeVisible();
 
+  await page.getByRole("link", { name: "Buchungen", exact: true }).click();
   await page.getByLabel("Verkaufspreis").fill("2.40");
   await expect(page.getByLabel("Verkaufsmenge")).toHaveValue("");
-  await page.getByRole("button", { name: "Position vollständig schließen" }).click();
+  await page
+    .getByRole("button", { name: "Position vollständig schließen" })
+    .click();
   await expect.poll(() => salePosts).toBe(2);
-  await expect(page.getByRole("heading", { name: "CLOSED" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Geschlossen" }),
+  ).toBeVisible();
   await expect(
     page.getByText(
       "Die Position ist geschlossen. Weitere Verkäufe können nicht erfasst werden.",

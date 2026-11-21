@@ -3,8 +3,15 @@ import { riskLabel } from '../services/riskLabels';
 import type { RiskView } from '../types/risk';
 import { IvModelCalculator } from './IvModelCalculator';
 import { WarrantQuoteHistory } from '../../product/components/WarrantQuoteHistory';
+import type { PositionRiskPending } from '../types/pending';
 
-export function IvRiskPanel({ view }: { view: RiskView }) {
+export function IvRiskPanel({
+  view,
+  onPendingChange,
+}: {
+  view: RiskView;
+  onPendingChange?: (participant: PositionRiskPending | null) => void;
+}) {
   const iv = view.iv;
   const quote = view.quote_evidence;
   const label = (code: string) => ivLabel(code) ?? riskLabel(code);
@@ -114,7 +121,11 @@ export function IvRiskPanel({ view }: { view: RiskView }) {
       {view.product?.warrant_id && (
         <WarrantQuoteHistory key={view.product.warrant_id} warrantId={view.product.warrant_id} />
       )}
-      <IvModelCalculator key={view.trade_id} tradeId={view.trade_id} />
+      <IvModelCalculator
+        key={view.trade_id}
+        tradeId={view.trade_id}
+        onPendingChange={onPendingChange}
+      />
     </section>
   );
 }

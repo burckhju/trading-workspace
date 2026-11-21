@@ -4,13 +4,54 @@
 
 | Feld | Wert |
 |---|---|
-| Revision | Nachweis- und Statuskonsolidierung 2026-11-19; Fortschreibung auf v1.5.52 am 2026-11-20 |
+| Revision | Nachweis- und Statuskonsolidierung 2026-11-19; Fortschreibung auf v1.5.52, Lieferverweis v1.5.53 und Datenversorgungsanalyse am 2026-11-20; passive PC-Diagnose am 2026-11-21; begrenzter UI-Nachtrag Fachstruktur A am 2026-11-21 ausschließlich unter täglichem Workspace |
 | Erstprüfung | 19.11.2026, 19:31:38 Uhr MEZ (Europe/Berlin), auf `254f0bbd52ab42e0120d381e915dc96c1118796c` / `v1.5.51` |
 | Fortschreibung | 20.11.2026, Beginn 13:46:04 Uhr MEZ; Main-/Release-Delta, tatsächliche CI, PR- und Betriebsnachweise erneut geprüft |
-| Geprüfter Produktstand | `c7db441de36297a98d47cdf28c64b4e5d9994692` / veröffentlichter Softwaretag `v1.5.52`; unveränderte Anwendung auf dem neueren Dokument-Main |
-| Aktueller Dokument-Main | `6c0f9160b91bee4c6c45849c9c47d4c4b5a3bf56`, Merge #369 am 20.11.2026 um 15:01:45 Uhr MEZ; ausschließlich README und vier bestehende Planungs-/Verweisdokumente geändert |
+| Geprüfter Produktstand | Fachlicher Daten-/Readervertrag auf `c7db441de36297a98d47cdf28c64b4e5d9994692` / v1.5.52; Backendreader und bestehende Betriebshelfer bis zum unten genannten Main unverändert. Die neue Oberfläche bleibt an ihre eigenen #372-Nachweise gebunden. |
+| Aktueller Main | `febeb922c0f337029baa7f9d792c37f9f72ba02b`, Mergecommit #372 vom 21.11.2026, 20:53:44 Uhr MEZ, `VERSION=1.5.53`. #371/#372 liefern Version/Dokumente und Oberfläche; Main ist kein Nachweis einer PC-Installation. |
 | Funktion | Einzige maßgebliche Quelle des aktuellen Aufgabenstatus; bestehende PB-/FT-/M-Kennungen und Owner bleiben erhalten |
 | Prüfgrenze | Vollständiger Checkout, ursprüngliche Quellprüfung und gezielter Abgleich des neuen Main-Deltas; keine neue menschliche Fachabnahme, kein Zugriff auf privaten PC oder dessen Datenbank |
+
+<a id="depotdiagnose-20261121"></a>
+## Fortsetzung des nächsten Auftrags — passive PC-Diagnose, 21.11.2026
+
+Der Nutzerauftrag „Nächster Schritt“ setzt die bereits priorisierte
+[vollständige lesende Verbraucherdiagnose](#naechster-schnitt) fort.
+Die bestehende PC-Installation und ihre Datenbank sind in der bereitgestellten
+Arbeitsumgebung nicht zugänglich; ein neuer PC-Readback liegt nicht vor.
+Main wurde auf `febeb922…` / `VERSION=1.5.53` fortgeschrieben. Die
+benötigten Backendreader und ihre Responseverträge sind gegenüber dem
+geprüften Produktstand unverändert. [#371](https://github.com/burckhju/trading-workspace/pull/371)
+belegt die Bereitstellung von v1.5.53, [#372](https://github.com/burckhju/trading-workspace/pull/372)
+die Oberflächenintegration; beide Beschreibungen und Diskussionen enthalten
+keinen neueren privaten Installations-, Zyklus- oder Abdeckungsbeleg.
+
+**Konkreter Fortschritt:** Der vorbereitete Abruf wird als einzelne
+[herunterladbare Pythondatei](../../scripts/collect-depot-data-supply.py)
+mit privatem Diagnosearchiv bereitgestellt. Der bisherige Aufruf
+`trading-workspace status` ist aus diesem Ablauf entfernt: Er kann über den
+Deploymentvalidator Lock-/Wartungsdateien schreiben und einen
+Validatorcontainer starten. Stattdessen werden nur gezielte Git-/State-/
+Container-/Imagebelege vor und nach der Sammlung gelesen. Ein ausdrücklicher
+READ-ONLY-SELECT über die konfigurierte Backend-Datenbank ergänzt den
+bislang fehlenden tatsächlichen Schemastand. Der fachliche GET-Pythonteil
+mit vollständigem Inventar und sechs Readern je Position bleibt bytegleich.
+[Ausführung und Nachweisgrenzen](../technical/ISSUER_MONITORING_OPERATIONS.md#lesende-depot-datenversorgungsdiagnose).
+
+**Qualifikation des Helfers:** 19 isolierte Tests, gezieltes Black-/Ruff-Gate
+und Syntaxprüfung für den Host ab Python 3.10 erfolgreich. Die Tests prüfen
+unter anderem erlaubte Leseoperationen, private Ausgaben, falsche
+Installationsbindungen, unvollständige Readerantworten und den
+READ-ONLY-Schemaread; sie ersetzen keinen PC-Lauf.
+[Prüfbeleg](../reviews/DEPOT_DATA_SUPPLY_2026-11-20.md#8-prüfung-dieser-dokumentation).
+
+**Verbleibend:** einmalige Ausführung auf dem bestehenden PC und Auswertung
+des privaten Archivs; erst daraus folgen positionsgenaue Gründe und
+beurteilbare Abdeckung. Der Helfer verbessert die Durchführbarkeit und
+Integrität der Diagnose, nicht bereits die Datenversorgung einer Position.
+Keine neue Quellen-/Regelfreigabe oder Depotabnahme. Der einzige nächste
+Auftrag unten bleibt maßgeblich; seine Abnahmekriterien werden durch den
+vorbereiteten Collector noch nicht als erfüllt geführt.
 
 <a id="datenversorgung-20261120"></a>
 ## Aktuelle Fortschreibung — Datenversorgung, 20.11.2026
@@ -88,6 +129,8 @@ lesende Diagnoseschnitt und seine Abnahmekriterien bleiben maßgeblich.
 ## Aktuelle Einstiegssicht — 20.11.2026
 
 **Der Gesamtbacklog bleibt offen.** Alle ursprünglichen M0–M11-Zusagen sind weiterhin vollständig [zugeordnet](#originalzuordnung). Der aktuelle Main `6c0f9160b91bee4c6c45849c9c47d4c4b5a3bf56` enthält die reine Dokumentkonsolidierung #369. Die unveränderte Produkt-/CI-Basis und der veröffentlichte Tag `v1.5.52` sind `c7db441de36297a98d47cdf28c64b4e5d9994692`. [PR #368](https://github.com/burckhju/trading-workspace/pull/368) wurde am **19.11.2026 um 20:16:54 Uhr MEZ** integriert; das Publisherlog belegt die Veröffentlichung um **20:45:01 Uhr MEZ**. Der separate GitHub-„Latest Release“-Datensatz zeigt weiterhin auf `v1.0.0-product-selection`; er ist nicht der aktuelle Softwaretag ([Nachweisregister](#nachweisregister)).
+
+**PC-Lieferumfang dieser Planung:** [PR #369](https://github.com/burckhju/trading-workspace/pull/369) wurde am **20.11.2026 um 15:01:46 Uhr MEZ** als `6c0f9160b91bee4c6c45849c9c47d4c4b5a3bf56` gemergt. Der reine [Bereitstellungsrelease v1.5.53](../releases/V1.5.53-PLANNING-PC-DELIVERY.md) macht diesen Dokumentstand zusammen mit dem unveränderten Produktumfang v1.5.52 über den vorhandenen PC-Updateweg lieferbar. Die konkreten PR-/Main-Prüfungen und der endgültige unveränderliche Tag-Commit werden im Release-PR protokolliert. Dieser Lieferverweis ergänzt den datierten Audit; er ändert keine Teilfähigkeitsbewertung und belegt keine PC-Installation oder fachliche Wirkung. Der [eine nächste Fachauftrag](#naechster-schnitt) gilt auch nach einem Update auf den einschließenden Folgerelease.
 
 **Zusätzlich abgeschlossen seit der Erstprüfung:** Die [Trennung von Produktende und Zahlungstag, erneute Auswertung gespeicherter Originale und der enge lokale XSTU-2026-Originalimport](#market-data-evidence) sind implementiert, qualifiziert, integriert und mit v1.5.52 ausgeliefert. Die früheren Lieferreste für #368 sind damit geschlossen. Ein bereitstehender Importweg belegt keinen tatsächlich ausgeführten Import; der Datums-Fix belegt noch keine Wirkung auf dem privaten Bestand.
 
@@ -2362,17 +2405,17 @@ ihre oben genannten Restarbeiten. Arbeitsstatus des Gesamtumfangs unverändert.
 | Nachweisfeld | Einordnung |
 |---|---|
 | Zuordnung | Spätere Querschnittsfähigkeit zu M2–M10. Bereich/Querschnitt: Querschnitt: durchgängiger Arbeitsablauf/Bedienbarkeit. Bestehender Bezug: Operational Workspace; nur lesend. Lieferziel: A. |
-| Arbeitsstatus | Business Review — vollständige tägliche Nutzerreise offen; lesende Arbeitsbereich-/Währungs-/V2-Consumer technisch abgeschlossen und ausgeliefert; historische begrenzte Freigaben erhalten. |
+| Arbeitsstatus | Technical Review (neuer UI-Schnitt Fachstruktur A, ausdrücklich ausgewählt am 21.11.2026); Business Review (menschliche Abnahme der täglichen Nutzerreise); lesende Arbeitsbereich-/Währungs-/V2-Consumer technisch abgeschlossen und ausgeliefert; historische begrenzte Freigaben erhalten. |
 | Abgeschlossener Teilumfang | Integrierte Währungsqualifikation und V2-Reader/Anzeige released; historische v1.5.30-Bereitstellung nicht als nächster Auftrag führen. |
 | Soll / Nicht-Soll | **Soll:** Nächste Aufgaben, Datenbereitschaft, offene Positionen, Monitoring und Zustellung aus autoritativen Quellen verständlich zusammenführen. **Nicht-Soll:** Keine eigenen Done-/Acknowledge-/Assignment-Zustände und keine konkurrierende fachliche Schreibwahrheit. |
 | Befundklasse / Lückenart | Vorhandene Fähigkeit mit ausdrücklich begrenztem Abschluss und noch fehlender fachlicher/Betriebs-/Umfangsprüfung. **Art der Restarbeit:** Fachliche Nutzerabnahme und reale Datenabdeckung. |
-| Implementierung / Consumer | OperationalWorkspaceReadModel bildet Ownerzustände auf Aktionen ab; PositionSnapshotService verbindet Position/Bewertung; kein eigener Done-Owner. PositionDetails lädt IndicativeEntryObservation; TradeAlertsPanel zeigt Produkt-/Einstands-/Datenhinweise und Quellen. Währungsqualifikation bleibt Backend-basiert. ACHTUNG: /operational-workspace/positions ist fachlich lesend, ruft aber valuation_reader/QuoteResolver auf; nicht als garantiert refreshfreie Diagnose verwenden. |
-| Test / Commit | [tests/unit/backend/features/operational_workspace/test_read_model.py](../../tests/unit/backend/features/operational_workspace/test_read_model.py); [tests/unit/backend/features/operational_workspace/test_position_snapshot.py](../../tests/unit/backend/features/operational_workspace/test_position_snapshot.py); [frontend/src/features/operational_workspace/pages/OperationalWorkspacePage.qualification.test.tsx](../../frontend/src/features/operational_workspace/pages/OperationalWorkspacePage.qualification.test.tsx); [frontend/src/features/operational_workspace/components/IndicativeEntryObservation.test.tsx](../../frontend/src/features/operational_workspace/components/IndicativeEntryObservation.test.tsx); [tests/e2e/purchase-workspace-handoff.spec.ts](../../tests/e2e/purchase-workspace-handoff.spec.ts) Aktuelle Ausführung/Commitbindung: [Main-CI im Nachweisregister](#nachweisregister); kein neuer lokaler Anwendungstest. |
+| Implementierung / Consumer | OperationalWorkspaceReadModel bildet Ownerzustände auf Aktionen ab; PositionSnapshotService verbindet Position/Bewertung; kein eigener Done-Owner. Fachstruktur A trennt Aktuelles, Depot, Marktanalyse, Lessons Learned und Basisdaten; kanonische Trade-/Run-/Lernbereiche erhalten ihre bisherigen Owner. Die vollständige Zuordnung steht im [UX-Masterplan](../coordination/UX_MASTER_PLAN.md#gewählte-fachstruktur-a--21112026). PositionMonitoring lädt IndicativeEntryObservation; TradeAlertsPanel zeigt Produkt-/Einstands-/Datenhinweise und Quellen. Währungsqualifikation bleibt Backend-basiert. ACHTUNG: /operational-workspace/positions ist fachlich lesend, ruft aber valuation_reader/QuoteResolver auf; nicht als garantiert refreshfreie Diagnose verwenden. |
+| Test / Commit | [tests/unit/backend/features/operational_workspace/test_read_model.py](../../tests/unit/backend/features/operational_workspace/test_read_model.py); [tests/unit/backend/features/operational_workspace/test_position_snapshot.py](../../tests/unit/backend/features/operational_workspace/test_position_snapshot.py); [frontend/src/features/trade/pages/TradeManagementMonitoring.test.tsx](../../frontend/src/features/trade/pages/TradeManagementMonitoring.test.tsx); [frontend/src/features/operational_workspace/components/IndicativeEntryObservation.test.tsx](../../frontend/src/features/operational_workspace/components/IndicativeEntryObservation.test.tsx); [tests/e2e/purchase-workspace-handoff.spec.ts](../../tests/e2e/purchase-workspace-handoff.spec.ts) Historische Auslieferung: [Main-CI im Nachweisregister](#nachweisregister). Neue lokale Tests und separate PR-/Browserqualifikation für Fachstruktur A: [aktuelles Integrationsprotokoll](../coordination/UX_INTEGRATION_STATUS.md#fachstruktur-a-20261121); keine Gleichsetzung mit dem veröffentlichten Main. |
 | Fachliche Abnahme | UX-Hinweisvertrag und begrenzte Währungsschnitte historisch freigegeben; kein vollständiger menschlicher UX-/Tagesablaufnachweis. |
 | Software-Auslieferung | Im geprüften Main und veröffentlichten Tag v1.5.52 enthalten; konkrete Softwareauslieferung, keine dadurch erteilte Gesamtfachabnahme. |
 | Betriebsnachweis | Installation des damaligen v1.5.51-Codes durch PR [#367](https://github.com/burckhju/trading-workspace/pull/367) belegt; Nutzung und fachliche Abnahme genau dieses Teilpfads nicht separat nachgewiesen. Neuere öffentliche Ursachenbeschreibung in [#368](https://github.com/burckhju/trading-workspace/pull/368): Der damalige vollständige private Readback auf v1.5.51 betrifft vier offene Positionen, alle mit Datenproblemen in beiden Prüfpfaden. Das ist der jüngste belegte Referenzbestand, keine Aussage über den heutigen Bestand. Rohdiagnosezeitpunkt und private Einzelzeilen sind nicht veröffentlicht. Datumsvergleich, lokaler Originalupgrade und enger XSTU-2026-Import sind seit v1.5.52 integriert und veröffentlicht. Ein tatsächlicher PC-Update-/Reparse-/Import-/Zyklusnachweis für v1.5.52 fehlt hier; die älteren sechs Laufpositionen bleiben getrennte v1.5.51-Betriebsevidenz. |
 | Restarbeit / nächste Abhängigkeit | Vollständige Lesbarkeit täglicher Aufgaben mit echten begrenzten Datenzuständen unbelegt → Benutzer erkennt Priorität, Ursache und zulässigen Folgeschritt → bestehender Workspace/Positions-/Alertconsumer → datierte identifizierte Installation und aktuelle Ownerbelege → repräsentative Handlungs-/Leer-/Fehler-/Datenwarnungsfälle mit Quellenrückkehr fachlich abgenommen, ohne neue Zustandswahrheit. |
-| Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
+| Umfangsentscheidung | Nutzerwahl A am 21.11.2026 autorisiert die dokumentierte UI-Konsolidierung nach Auswahl aus drei Varianten. Bestehender fachlicher Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
 
 <details>
 <summary>Historische Nachträge – damaliger Umfang, keine aktuelle Handlungsanweisung</summary>
@@ -2563,7 +2606,7 @@ Ziel-/Basiswerteinstiegsevidenz sowie persistierte Episoden.
 V2-Einstand und V2-Frist, B04/B57/B58 und B06-Eingänge getrennt auswerten.
 
 **Vorhandene Komponenten und konkrete Arbeit:** Die
-[kopierbare Betriebsanleitung](../technical/ISSUER_MONITORING_OPERATIONS.md#lesende-depot-datenversorgungsdiagnose)
+[Betriebsanleitung mit einzelnem Collector](../technical/ISSUER_MONITORING_OPERATIONS.md#lesende-depot-datenversorgungsdiagnose)
 verwendet `market-data/positions/quote-coverage` als vollständiges
 Inventar und die bestehenden passiven Monitoring-/Trade-Position-Reader.
 Runtime und Inventar vor/nach der Sammlung lesen; persönliche Werte im
@@ -2577,8 +2620,9 @@ aktualisieren. Kein neuer Runner, API-Endpunkt, Provideradapter oder
 Produktivimport ist für diesen Diagnoseschnitt nötig.
 
 **Benötigter Zugang / gebündelte fehlende Information:** einmalige
-Ausführung der lesenden Anleitung auf der bestehenden Installation oder
-ein ausdrücklich bereitgestelltes privates Diagnosepaket. Kein neues
+Ausführung von `collect-depot-data-supply.py` auf der bestehenden Installation
+und Bereitstellung seines privaten `.tar.gz`-Pakets beziehungsweise ein
+bereits vorhandener gleichwertiger lesender Befund. Kein neues
 Providerkonto und keine Geheimnisse erforderlich. Für die nachfolgende
 Brokerbewertung genügt ergänzend der tatsächliche Brokername und die
 Angabe eines bereits erlaubten Lesezugangs. Fehlende persönliche

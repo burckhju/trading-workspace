@@ -449,6 +449,19 @@ erhalten; Depotüberwachung ist die Priorität dieses Auftrags.
 
 ## 7. Kleinste fehlende Diagnose und Abnahme
 
+**Fortsetzung 21.11.2026:** Der nächste Auftrag wurde gegen Main
+`febeb922c0f337029baa7f9d792c37f9f72ba02b` / `VERSION=1.5.53` begonnen.
+Die relevanten Backendreader sind unverändert; ein neuer privater PC-Zugang
+oder tatsächlicher Verbraucherbefund liegt nicht vor. Der frühere
+Bash-Ablauf ist durch den [einzelnen Diagnosecollector](../../scripts/collect-depot-data-supply.py)
+ersetzt: gezielte Installationsreads ohne den Nebenwirkungen erzeugenden
+Launcherstatus, ausdrücklicher READ-ONLY-Schemaread und derselbe fachliche
+GET-Collector. Das Paket bleibt außerhalb des Checkouts. Der
+[Backlog-Nachtrag](../planning/PRODUCT_BACKLOG.md#depotdiagnose-20261121)
+trennt diese konkrete Vorbereitung von noch ausstehender PC-Ausführung
+und verbesserter Datenabdeckung. Die Marktquellen-/Kostenbefunde oben bleiben
+an ihren Recherchetag 20.11.2026 gebunden.
+
 Die konkrete lesende Vorgehensweise steht im
 [Betriebsnachtrag zur vollständigen Depotdiagnose](../technical/ISSUER_MONITORING_OPERATIONS.md#lesende-depot-datenversorgungsdiagnose).
 Sie benötigt genau ein privates Diagnosepaket aus der vorhandenen Installation.
@@ -488,7 +501,7 @@ Kalender-/Betriebsunterlagen und die zugehörigen Consumer.
 Quellenanalysen, neue öffentliche Primärquellenabrufe, frühere Originalproben,
 synthetische Tests und PC-Berichte sind jeweils gekennzeichnet.
 
-Dieser Schnitt ändert Dokumentation. Keine wirtschaftlichen Daten,
+Der ursprüngliche Schnitt vom 20.11.2026 ändert Dokumentation. Keine wirtschaftlichen Daten,
 Produktivkonfiguration, Providerfreigaben, Regeln, Migrationen oder Tags werden
 geändert. Externe Originaldokumente und private Rohdaten werden nicht
 eingecheckt. Die historische Roadmap und die markierte historische
@@ -523,3 +536,35 @@ Diagnosefehler. Dabei wurden weder HTTP noch DB oder Provider verwendet.
 Der vollständige App-Import war hier mangels SQLAlchemy nicht ausführbar;
 Imports und Response-Verträge wurden statisch gegengeprüft. Die Anleitung
 validiert gegen die vorhandenen DTOs der installierten Anwendung.
+
+### Qualifikation des eigenständigen Collectors am 21.11.2026
+
+Die Fortsetzung ergänzt den [einzelnen Collector](../../scripts/collect-depot-data-supply.py)
+und [19 isolierte Tests](../../tests/unit/backend/test_collect_depot_data_supply.py).
+Ausgeführt mit `python -B -m unittest discover -s tests/unit/backend -p
+test_collect_depot_data_supply.py -v`: alle 19 Tests erfolgreich. Die
+kontrollierten Ersatzprozesse prüfen die zulässigen Git-/Dockeroperationen,
+Installations-/Image-/Containerbindung, geänderte Bestände, Schemafehler,
+fehlende B06-Antworten und private Dateirechte samt Fehlerarchiv. Die
+Schema-Ersatzengine belegt SELECT in READ-ONLY-Transaktion, Rollback und
+Freigabe der Verbindung im Erfolgs- und Fehlerfall; sie ist kein Zugriff
+auf PostgreSQL oder den Nutzerbestand.
+
+Black 26.1.0 und Ruff 0.15.1 bestehen für beide neuen Pythondateien; der
+Host wird ausdrücklich mit Ruff-Ziel Python 3.10 geprüft. Zusätzlich
+besteht `ast.parse(feature_version=(3, 10))`; ein Regressionstest simuliert
+die älteren Grenzen des Zeitparsers für Docker-Zeitstempel mit neun
+Nachkommastellen und `Z`. Eine echte Python-3.10-Laufzeit wurde nicht
+ausgeführt. Die Hostabhängigkeiten bleiben auf die Standardbibliothek
+begrenzt. Der bisherige fachliche GET-Payload ist vor/nach Formatierung
+byteidentisch (SHA256 und Länge im Betriebsnachtrag); der neue
+Schema-Payload umfasst 1.928 Bytes, SHA256
+`7aba0ec505ed0c1bebbf190faa8c09c888bb1d78a8c3a22db2b2d4c1602f783d`.
+
+Die gezielte Dokumentprüfung umfasst die relativen Links einschließlich
+Ankern der acht gegenüber Main geänderten Dokumente, geschlossene
+Codeblöcke/Details, Konfliktfreiheit und `git diff --check`. Die
+archivierte Roadmap bleibt byteidentisch. Kein lokaler Test verbindet
+sich mit Docker, der Anwendung, PostgreSQL oder einer Marktquelle.
+Ein Gesamtanwendungstest und eine PC-Ausführung sind nicht Teil dieses
+Helfernachweises. Der Abnahmebedarf aus dem Backlog bleibt offen.

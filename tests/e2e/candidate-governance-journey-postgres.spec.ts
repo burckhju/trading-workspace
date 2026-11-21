@@ -28,6 +28,16 @@ test("candidate governance: exact Lesson source, explicit A-B-A and immutable ev
     q.allowLesson(lessonId, [l1, l2], evidenceId);
     q.allowModel(modelId);
     q.allowCandidate(candidateId);
+    const candidateUnderlyingSources = setup.sourceOwners.filter(
+      (owner) => owner.role === "UNDERLYING",
+    );
+    expect(candidateUnderlyingSources).toHaveLength(1);
+    const candidateUnderlyingId = candidateUnderlyingSources[0].underlying_id;
+    expect(candidateUnderlyingId).toMatch(/^[0-9a-f-]{36}$/);
+    // The candidate now displays its existing underlying's name. Bind this
+    // read to the exact source created for this journey, never the whole catalog.
+    const candidateUnderlyingPath = `/underlyings/${candidateUnderlyingId}`;
+    q.allowRead(candidateUnderlyingPath);
     for (const analysis of [...setup.analyses, ...setup.legacyAnalyses])
       q.allowRead(
         `/market-analyses/${analysis.analysis.id}/runs/${analysis.run.version}`,
@@ -42,13 +52,29 @@ test("candidate governance: exact Lesson source, explicit A-B-A and immutable ev
     const evaluationHistory = () =>
       q.getJson(`/candidates/${candidateId}/evaluations`);
     const readyButton = candidate.getByRole("button", {
-      name: "Top-down neu bewerten",
+      name: "Kandidaten neu bewerten",
       exact: true,
     });
     const runtimeRegion = () =>
       page.getByRole("region", { name: "Runtime-Aktivierung", exact: true });
-    await candidate.goto(candidateUrl);
-    await expect(readyButton).toBeEnabled();
+    await q.readWindow(
+      "S1-opening-candidate-with-bound-name-is-read-only",
+      async () => {
+        const underlying = await q.getJson(candidateUnderlyingPath);
+        expect(underlying.id).toBe(candidateUnderlyingId);
+        expect(underlying.name).toEqual(expect.any(String));
+        expect(underlying.name.trim()).not.toBe("");
+        await candidate.goto(candidateUrl);
+        await expect(
+          candidate.getByRole("heading", {
+            name: underlying.name,
+            exact: true,
+          }),
+        ).toBeVisible();
+        await expect(readyButton).toBeEnabled();
+        return { candidateId, underlying };
+      },
+    );
     const originalReadiness = await q.getJson(
       `/candidates/${candidateId}/live-workflow`,
     );
@@ -163,17 +189,22 @@ test("candidate governance: exact Lesson source, explicit A-B-A and immutable ev
         }),
       ).toBeVisible();
       await expect(
-        page.getByRole("button", {
-          name: "Hypothese für FT-013 anlegen",
-          exact: true,
-        }),
-      ).toBeEnabled();
-      await expect(
         page.getByRole("link", {
           name: "Genau diese Lesson-Version öffnen",
           exact: true,
         }),
       ).toHaveAttribute("href", `${lessonUrl}#lesson-history`);
+      await page
+        .getByRole("navigation", { name: "Erkenntnis-Arbeitsbereiche" })
+        .getByRole("link", { name: "Modellverbesserung", exact: true })
+        .click();
+      await expect(
+        page.getByRole("button", {
+          name: "Hypothese anlegen",
+          exact: true,
+        }),
+      ).toBeEnabled();
+
       expect(
         await q.getJson(`/model-governance/lesson-versions/${l1}/hypotheses`),
       ).toEqual([]);
@@ -202,7 +233,7 @@ test("candidate governance: exact Lesson source, explicit A-B-A and immutable ev
         () =>
           page
             .getByRole("button", {
-              name: "Hypothese für FT-013 anlegen",
+              name: "Hypothese anlegen",
               exact: true,
             })
             .click(),
@@ -484,6 +515,10 @@ test("candidate governance: exact Lesson source, explicit A-B-A and immutable ev
         (s: { code: string }) => s.code === "CANDIDATE_RUNTIME_MODEL",
       ).resource_id,
     ).toBe(versionA.id);
+    await candidate
+      .locator("summary")
+      .filter({ hasText: /^Voraussetzungen im Detail/ })
+      .click();
     await expect(
       candidate.getByText(
         `Active executable model TOP_DOWN_CANDIDATE version ${versionA.version}.`,
@@ -596,10 +631,20 @@ test("candidate governance: exact Lesson source, explicit A-B-A and immutable ev
           name: `Evaluation ${secondB.id}`,
           exact: true,
         });
-        await expect(bRegion).toContainText("NOT_QUALIFIED");
+        await expect(
+          bRegion.getByRole("heading", {
+            name: "Kriterien nicht erfüllt",
+            exact: true,
+          }),
+        ).toBeVisible();
         await expect(bRegion).toContainText(`Version ${versionB.version}`);
         await candidate.reload();
-        await expect(bRegion).toContainText("NOT_QUALIFIED");
+        await expect(
+          bRegion.getByRole("heading", {
+            name: "Kriterien nicht erfüllt",
+            exact: true,
+          }),
+        ).toBeVisible();
         await bRegion
           .getByText("Gespeicherte Analysequellen dieser Evaluation", {
             exact: true,
@@ -620,11 +665,16 @@ test("candidate governance: exact Lesson source, explicit A-B-A and immutable ev
           .locator(`a[href="${candidateUrl}&evaluation=${firstA.id}"]`)
           .click();
         await expect(
-          candidate.getByRole("region", {
-            name: `Evaluation ${firstA.id}`,
-            exact: true,
-          }),
-        ).toContainText("QUALIFIED");
+          candidate
+            .getByRole("region", {
+              name: `Evaluation ${firstA.id}`,
+              exact: true,
+            })
+            .getByRole("heading", {
+              name: "Kriterien erfüllt",
+              exact: true,
+            }),
+        ).toBeVisible();
         const versions = await q.getJson(
           `/model-governance/models/${modelId}/versions`,
         );

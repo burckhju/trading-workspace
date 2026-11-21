@@ -1,5 +1,12 @@
 import { FormEvent, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, UNSAFE_DataRouterContext, useSearchParams } from 'react-router-dom';
+import {
+  Link,
+  UNSAFE_DataRouterContext,
+  useLocation,
+  useNavigate,
+  useSearchParams,
+} from 'react-router-dom';
+import { planStatusLabel, withPlanListContext } from '../../trade_plan';
 
 import { PendingNavigationGuard } from '../../../components/PendingNavigationGuard';
 
@@ -37,6 +44,12 @@ import type {
   ProductSelectionRunDetailResponse,
   ProductSelectionRunSummaryResponse,
 } from '../types/api';
+
+const eligibilityLabels: Record<EligibilityStatus, string> = {
+  ELIGIBLE: 'Geeignet',
+  INELIGIBLE: 'Ausgeschlossen',
+  NOT_EVALUABLE: 'Nicht bewertbar',
+};
 
 function eligibilityClass(status: EligibilityStatus): string {
   if (status === 'ELIGIBLE') return 'border-emerald-700 text-emerald-300';
@@ -102,21 +115,21 @@ function EvaluationCard({
             evaluation.eligibility_status,
           )}`}
         >
-          {evaluation.eligibility_status}
+          {eligibilityLabels[evaluation.eligibility_status]}
         </span>
       </div>
 
       <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-3">
         <div>
-          <dt className="text-slate-500">Bid</dt>
+          <dt className="text-slate-500">Geldkurs</dt>
           <dd>{bid ? metricLabel(bid) : '—'}</dd>
         </div>
         <div>
-          <dt className="text-slate-500">Ask</dt>
+          <dt className="text-slate-500">Briefkurs</dt>
           <dd>{ask ? metricLabel(ask) : '—'}</dd>
         </div>
         <div>
-          <dt className="text-slate-500">Spread</dt>
+          <dt className="text-slate-500">Geld-/Briefspanne</dt>
           <dd>{spread ? metricLabel(spread) : '—'}</dd>
         </div>
       </dl>
@@ -157,7 +170,7 @@ function EvaluationCard({
           </section>
 
           <section>
-            <h4 className="text-xs uppercase tracking-wide text-slate-500">Daten / Inputs</h4>
+            <h4 className="text-xs uppercase tracking-wide text-slate-500">Datengrundlage</h4>
             <ul className="mt-2 space-y-2 text-sm">
               {evaluation.inputs.map((input) => (
                 <li
@@ -216,6 +229,14 @@ function EvaluationCard({
 export function ProductSelectionPage() {
   const references = useSelectionReferenceData();
   const dataRouter = useContext(UNSAFE_DataRouterContext);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const purchaseView = location.hash === '#purchase';
+  const viewHeading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    if (location.hash === '#purchase' || location.hash === '#selection')
+      viewHeading.current?.focus();
+  }, [location.hash]);
   const [searchParams, setSearchParams] = useSearchParams();
   const contextKey = searchParams.toString();
   const currentContext = useRef({ key: contextKey, revision: 0 });
@@ -333,7 +354,7 @@ export function ProductSelectionPage() {
     setDetail(null);
     setRuns([]);
     setMessage(
-      receipt ? 'Produktsuche wurde als neuer historischer Selection Run durchgeführt.' : null,
+      receipt ? 'Produktsuche wurde als neuer historischer Bewertungslauf durchgeführt.' : null,
     );
     setPendingSelection(null);
     setRationale('');
@@ -414,7 +435,7 @@ export function ProductSelectionPage() {
             } catch (error: unknown) {
               if (!controller.signal.aborted)
                 setMessage(
-                  `Der gespeicherte Bewertungslauf konnte nicht automatisch geöffnet werden. Bitte den Eintrag unter „Historische Runs“ erneut öffnen. ${error instanceof Error ? error.message : 'Die gespeicherten Daten konnten nicht geladen werden.'}`,
+                  `Der gespeicherte Bewertungslauf konnte nicht automatisch geöffnet werden. Bitte den Eintrag unter „Bewertungshistorie“ erneut öffnen. ${error instanceof Error ? error.message : 'Die gespeicherten Daten konnten nicht geladen werden.'}`,
                 );
             }
           }
@@ -422,10 +443,10 @@ export function ProductSelectionPage() {
           if (!controller.signal.aborted)
             setMessage(
               receipt
-                ? `Selection Run wurde gespeichert. Nur das Neuladen der Historie ist fehlgeschlagen: ${error instanceof Error ? error.message : 'Unbekannter Lesefehler'}`
+                ? `Bewertungslauf wurde gespeichert. Nur das Neuladen der Historie ist fehlgeschlagen: ${error instanceof Error ? error.message : 'Unbekannter Lesefehler'}`
                 : error instanceof Error
                   ? error.message
-                  : 'Historische Runs konnten nicht geladen werden.',
+                  : 'Bewertungshistorie konnten nicht geladen werden.',
             );
         }
       } catch (error: unknown) {
@@ -483,7 +504,9 @@ export function ProductSelectionPage() {
     } catch (error: unknown) {
       if (isCurrent(key))
         setMessage(
-          error instanceof Error ? error.message : 'Historische Runs konnten nicht geladen werden.',
+          error instanceof Error
+            ? error.message
+            : 'Bewertungshistorie konnten nicht geladen werden.',
         );
     } finally {
       if (isCurrent(key)) {
@@ -523,8 +546,13 @@ export function ProductSelectionPage() {
       setPurchaseDate(initialPurchaseDate.current);
       setPurchaseCurrency(emptyExecutionCurrency());
       setExistingTradeId(null);
-      setMessage('Produktsuche wurde als neuer historischer Selection Run durchgeführt.');
-      const runSearch = new URLSearchParams({ run_id: created.run.id });
+      setMessage('Produktsuche wurde als neuer historischer Bewertungslauf durchgeführt.');
+      const runSearch = new URLSearchParams(
+        withPlanListContext(
+          `/product-selection?run_id=${encodeURIComponent(created.run.id)}`,
+          searchParams,
+        ).split('?')[1],
+      );
       if (runSearch.toString() !== contextKey) {
         confirmedNavigation.current = {
           routeKey: runSearch.toString(),
@@ -541,7 +569,7 @@ export function ProductSelectionPage() {
       } catch (error: unknown) {
         if (isCurrent(key))
           setMessage(
-            `Selection Run wurde gespeichert. Nur das Neuladen der Historie ist fehlgeschlagen: ${error instanceof Error ? error.message : 'Unbekannter Lesefehler'}`,
+            `Bewertungslauf wurde gespeichert. Nur das Neuladen der Historie ist fehlgeschlagen: ${error instanceof Error ? error.message : 'Unbekannter Lesefehler'}`,
           );
       }
     } catch (error: unknown) {
@@ -558,7 +586,12 @@ export function ProductSelectionPage() {
   }
 
   function loadRun(runId: string) {
-    const next = new URLSearchParams({ run_id: runId });
+    const next = new URLSearchParams(
+      withPlanListContext(
+        `/product-selection?run_id=${encodeURIComponent(runId)}`,
+        searchParams,
+      ).split('?')[1],
+    );
     const sameContext = next.toString() === contextKey;
     // Reloading this URL does not invoke the router's navigation blocker.
     if (!mayLeaveContext(!sameContext)) return;
@@ -603,7 +636,7 @@ export function ProductSelectionPage() {
       setRationale('');
       setPurchase(null);
       setMessage(
-        'Produktauswahl wurde dokumentiert. Nächster Schritt: tatsächlichen Kauf als BUY erfassen.',
+        'Produktauswahl wurde dokumentiert. Einen bereits ausgeführten Kauf kannst du jetzt separat erfassen.',
       );
     } catch (error: unknown) {
       if (isCurrent(key))
@@ -658,7 +691,7 @@ export function ProductSelectionPage() {
       setPurchase(created);
       setPurchaseCurrency(emptyExecutionCurrency());
       setMessage(
-        `Kauf wurde als BUY erfasst. Trade ${tradeReference(created.trade.id)} und offene Position wurden erstellt.`,
+        `Kauf wurde erfasst. Trade ${tradeReference(created.trade.id)} und offene Position wurden erstellt.`,
       );
     } catch (error: unknown) {
       if (!isCurrent(key)) return;
@@ -683,9 +716,13 @@ export function ProductSelectionPage() {
       className="w-full space-y-8"
       onClickCapture={(event) => {
         const target = event.target;
+        const anchor = target instanceof Element ? target.closest('a') : null;
+        const sameContext =
+          anchor?.pathname === location.pathname && anchor.search === location.search;
         if (
           target instanceof Element &&
-          target.closest('a') &&
+          anchor &&
+          !sameContext &&
           !dataRouter &&
           !mayLeaveContext(true)
         )
@@ -699,14 +736,49 @@ export function ProductSelectionPage() {
         busy={busy}
       />
       <div>
-        <p className="text-xs uppercase tracking-wide text-slate-500">FT-008</p>
-        <h1 className="mt-1 text-2xl font-semibold">Produktauswahl</h1>
-        <p className="mt-2 max-w-3xl text-sm text-slate-400">
-          Transparente Entscheidungshilfe für eine freigegebene TradePlanVersion. Das System
-          bewertet und erklärt; die endgültige Produktauswahl bleibt eine separate
-          Benutzerentscheidung.
+        <p className="text-xs uppercase tracking-wide text-slate-500">
+          {purchaseView ? 'Depot · Ausführungen' : 'Marktanalyse · Handelsvorbereitung'}
         </p>
+        <h1
+          ref={viewHeading}
+          tabIndex={-1}
+          className="mt-1 rounded text-2xl font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-300"
+        >
+          {purchaseView ? 'Tatsächlichen Kauf erfassen' : 'Produktauswahl'}
+        </h1>
+        <p className="mt-2 max-w-3xl text-sm text-slate-400">
+          {purchaseView
+            ? 'Dokumentiere eine bereits ausgeführte Transaktion für das ausgewählte Produkt. Menge, Preis und Datum stammen aus deiner Abrechnung.'
+            : 'Vergleiche Produkte für eine konkrete freigegebene Planversion und dokumentiere deine Auswahl.'}
+        </p>
+        {purchaseView && (
+          <Link
+            to="/executions"
+            className="mt-3 inline-block rounded text-sm text-sky-300 underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-300"
+          >
+            Zur Übersicht der Ausführungen
+          </Link>
+        )}
       </div>
+      <nav
+        aria-label="Produktauswahl und Kauf"
+        className="flex flex-wrap gap-2 border-b border-slate-800 pb-3"
+      >
+        <Link
+          to={{ pathname: location.pathname, search: location.search, hash: '#selection' }}
+          aria-current={!purchaseView ? 'page' : undefined}
+          className="rounded-lg border border-slate-700 px-4 py-2 text-sm aria-[current=page]:border-sky-500 aria-[current=page]:bg-sky-950/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-300"
+        >
+          Vergleich und Auswahl
+        </Link>
+        <Link
+          to={{ pathname: location.pathname, search: location.search, hash: '#purchase' }}
+          aria-current={purchaseView ? 'page' : undefined}
+          className="rounded-lg border border-slate-700 px-4 py-2 text-sm aria-[current=page]:border-sky-500 aria-[current=page]:bg-sky-950/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-300"
+        >
+          Kauf erfassen
+        </Link>
+      </nav>
 
       {message && !pendingSelection && (
         <p role="status" className="rounded-lg border border-slate-700 p-3 text-sm">
@@ -726,8 +798,26 @@ export function ProductSelectionPage() {
         </div>
       )}
 
-      <div className="grid gap-8 xl:grid-cols-[21rem_1fr]">
-        <aside className="space-y-5">
+      {purchaseView && contextError && (
+        <p role="alert" className="rounded-lg border border-amber-800 p-4">
+          {contextError}
+        </p>
+      )}
+      {purchaseView && !detail?.selection && (
+        <section className="rounded-xl border border-slate-800 p-5">
+          <h2 className="font-semibold">Noch kein Produkt ausgewählt</h2>
+          <p className="mt-2 text-sm text-slate-400">
+            Öffne Vergleich und Auswahl und bestätige ein Produkt im bestehenden Bewertungslauf. Ein
+            Kauf wird dadurch noch nicht erfasst.
+          </p>
+        </section>
+      )}
+      <div
+        className={
+          purchaseView ? 'min-w-0' : 'grid min-w-0 gap-6 xl:grid-cols-[19rem_minmax(0,1fr)]'
+        }
+      >
+        <aside hidden={purchaseView} className="space-y-5">
           <form
             onSubmit={(event) => void startRun(event)}
             className="rounded-xl border border-slate-800 p-5"
@@ -746,12 +836,12 @@ export function ProductSelectionPage() {
             {context && (
               <>
                 <p className="mt-3 break-words font-medium">
-                  TradePlan für{' '}
+                  Tradeplan für{' '}
                   {references.plans[tradePlanId]?.underlying_name ||
                     'Basiswertname nicht verfügbar'}
                 </p>
                 <p className="mt-2 text-sm">
-                  Version {context.version.version} · {context.version.status}
+                  Version {context.version.version} · {planStatusLabel(context.version.status)}
                 </p>
                 <p className="mt-1 text-xs text-slate-400">
                   {context.detail.plan.origin_type === 'MANUAL'
@@ -760,13 +850,16 @@ export function ProductSelectionPage() {
                 </p>
                 {!canStart && (
                   <p className="mt-3 text-sm text-amber-200">
-                    Diese Version ist nicht mehr APPROVED. Historische Runs bleiben lesbar. Für eine
-                    neue Bewertung eine freigegebene Version auswählen.
+                    Diese Version ist nicht mehr freigegeben. Historische Bewertungsläufe bleiben
+                    lesbar. Für eine neue Bewertung eine freigegebene Version auswählen.
                   </p>
                 )}
                 <Link
                   className="mt-3 inline-block text-sm text-sky-300 underline"
-                  to={`/trade-plans?${new URLSearchParams({ trade_plan_id: tradePlanId, trade_plan_version_id: tradePlanVersionId })}`}
+                  to={withPlanListContext(
+                    `/trade-plans?${new URLSearchParams({ trade_plan_id: tradePlanId, trade_plan_version_id: tradePlanVersionId })}`,
+                    searchParams,
+                  )}
                 >
                   Ausgewählte Planversion ansehen
                 </Link>
@@ -782,7 +875,8 @@ export function ProductSelectionPage() {
               disabled={busy}
               className="mt-4 text-sm text-sky-300 underline disabled:opacity-40"
               onClick={() => {
-                if (mayLeaveContext(true)) setSearchParams({});
+                if (mayLeaveContext(true))
+                  void navigate(withPlanListContext('/product-selection', searchParams));
               }}
             >
               Anderen Plan auswählen
@@ -798,7 +892,7 @@ export function ProductSelectionPage() {
 
           <section className="rounded-xl border border-slate-800 p-5">
             <div className="flex items-center justify-between gap-2">
-              <h2 className="font-semibold">Historische Runs</h2>
+              <h2 className="font-semibold">Bewertungshistorie</h2>
               {tradePlanVersionId.trim() && (
                 <button
                   type="button"
@@ -828,7 +922,7 @@ export function ProductSelectionPage() {
                 </button>
               ))}
               {runs.length === 0 && (
-                <p className="text-sm text-slate-500">Noch keine Runs geladen.</p>
+                <p className="text-sm text-slate-500">Noch keine Bewertungsläufe geladen.</p>
               )}
             </div>
           </section>
@@ -840,7 +934,7 @@ export function ProductSelectionPage() {
               <section className="rounded-xl border border-slate-800 p-5">
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div>
-                    <p className="text-xs uppercase tracking-wide text-slate-500">Selection Run</p>
+                    <p className="text-xs uppercase tracking-wide text-slate-500">Bewertungslauf</p>
                     <p className="mt-1 break-words font-semibold">
                       Basiswert:{' '}
                       {references.plans[detail.run.trade_plan_id]?.underlying_name ||
@@ -855,32 +949,35 @@ export function ProductSelectionPage() {
                         geöffnet.
                       </p>
                     )}
-                    <p className="mt-1 break-all text-xs text-slate-500">{detail.run.id}</p>
+                    <details className="mt-2 text-xs text-slate-500">
+                      <summary className="cursor-pointer">Technische Laufreferenz</summary>
+                      <p className="mt-1 break-all">{detail.run.id}</p>
+                    </details>
                   </div>
                   <Link
-                    to={{
-                      pathname: '/trade-plans',
-                      search: new URLSearchParams({
+                    to={withPlanListContext(
+                      `/trade-plans?${new URLSearchParams({
                         trade_plan_id: detail.run.trade_plan_id,
                         trade_plan_version_id: detail.run.trade_plan_version_id,
-                      }).toString(),
-                    }}
+                      }).toString()}`,
+                      searchParams,
+                    )}
                     className="rounded-lg border border-slate-700 px-3 py-2 text-xs"
                   >
                     Ursprüngliche Planversion ansehen
                   </Link>
                 </div>
-                <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-4">
+                <dl hidden={purchaseView} className="mt-4 grid gap-3 text-sm sm:grid-cols-4">
                   <div>
                     <dt className="text-slate-500">Betrachtet</dt>
                     <dd className="text-lg font-semibold">{detail.evaluations.length}</dd>
                   </div>
                   <div>
-                    <dt className="text-slate-500">Eligible</dt>
+                    <dt className="text-slate-500">Geeignet</dt>
                     <dd className="text-lg font-semibold text-emerald-300">{counts.eligible}</dd>
                   </div>
                   <div>
-                    <dt className="text-slate-500">Ineligible</dt>
+                    <dt className="text-slate-500">Ausgeschlossen</dt>
                     <dd className="text-lg font-semibold text-rose-300">{counts.ineligible}</dd>
                   </div>
                   <div>
@@ -909,173 +1006,197 @@ export function ProductSelectionPage() {
                         </dd>
                       </div>
                       <div>
-                        <dt className="text-slate-500">Listing</dt>
-                        <dd className="break-all">{selectedEvaluation.warrant_listing_id}</dd>
+                        <dt className="text-slate-500">Notierung</dt>
+                        <dd>
+                          <details>
+                            <summary className="cursor-pointer">
+                              Technische Notierungsreferenz
+                            </summary>
+                            <p className="break-all">{selectedEvaluation.warrant_listing_id}</p>
+                          </details>
+                        </dd>
                       </div>
                     </dl>
                   )}
-                  <p className="mt-3 break-all text-xs text-slate-500">
-                    Selection {detail.selection.id} · Evaluation{' '}
-                    {detail.selection.product_evaluation_id}
-                  </p>
-                  <p className="mt-1 text-xs text-slate-400">
-                    {new Date(detail.selection.selected_at).toLocaleString('de-DE')} · Actor{' '}
-                    {detail.selection.selected_by}
-                  </p>
+                  <details className="mt-3 text-xs text-slate-500">
+                    <summary className="cursor-pointer">Auswahlbeleg und Erfassung</summary>
+                    <p className="mt-2 break-all">
+                      Auswahl {detail.selection.id} · Evaluation{' '}
+                      {detail.selection.product_evaluation_id}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-400">
+                      {new Date(detail.selection.selected_at).toLocaleString('de-DE')} · Actor{' '}
+                      {detail.selection.selected_by}
+                    </p>
+                  </details>
                   {detail.selection.rationale && (
                     <p className="mt-3 text-sm text-slate-300">{detail.selection.rationale}</p>
                   )}
 
-                  {!purchase ? (
-                    <form
-                      onSubmit={(event) => void recordPurchase(event)}
-                      className="mt-5 rounded-lg border border-slate-700 bg-slate-950/50 p-4"
+                  {!purchaseView && (
+                    <Link
+                      to={{
+                        pathname: location.pathname,
+                        search: location.search,
+                        hash: '#purchase',
+                      }}
+                      className="mt-4 inline-block rounded-lg border border-sky-700 px-4 py-2 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-300"
                     >
-                      <fieldset disabled={busy || contextLoading || Boolean(contextError)}>
-                        <h3 className="font-medium">
-                          Nächster Schritt: tatsächlichen Kauf erfassen
-                        </h3>
-                        {selectedEvaluation && (
-                          <p className="mt-2 break-words text-sm font-medium">
-                            Kauf für:{' '}
-                            {references.products[selectedEvaluation.warrant_id]?.display_name ||
-                              'Produktname nicht verfügbar'}
-                          </p>
-                        )}
-                        {existingTradeId && (
-                          <p role="alert">
-                            Offener Trade vorhanden.{' '}
-                            <Link
-                              className="underline"
-                              to={`/trade-management?trade_id=${encodeURIComponent(existingTradeId)}`}
-                            >
-                              Bestehenden Trade öffnen und Nachkauf erfassen
-                            </Link>
-                            . Es wurde nichts zusätzlich gebucht.
-                          </p>
-                        )}
-                        <ExecutionDateInput
-                          label="Kaufdatum"
-                          date={purchaseDate}
-                          time={purchaseTime}
-                          onDate={setPurchaseDate}
-                          onTime={setPurchaseTime}
-                        />
-                        <p className="mt-1 text-xs text-slate-400">
-                          Erst dieser BUY erzeugt den Trade und die offene Position. Die
-                          Produktauswahl allein ist noch keine Ausführung.
-                        </p>
-                        <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                          <label className="text-sm">
-                            <span className="text-slate-400">Kaufmenge</span>
-                            <input
-                              aria-label="Kaufmenge"
-                              type="number"
-                              min="1"
-                              step="1"
-                              required
-                              value={purchaseQuantity}
-                              onChange={(event) => setPurchaseQuantity(event.target.value)}
-                              className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 p-2"
-                            />
-                          </label>
-                          <label className="text-sm">
-                            <span className="text-slate-400">
-                              Tatsächlicher Kaufpreis je Einheit
-                            </span>
-                            <input
-                              aria-label="Kaufpreis"
-                              inputMode="decimal"
-                              required
-                              value={purchasePrice}
-                              onChange={(event) => setPurchasePrice(event.target.value)}
-                              placeholder="z. B. 2,35"
-                              className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 p-2"
-                            />
-                          </label>
-                        </div>
-                        {selectedEvaluation && (
-                          <InitialPurchaseCurrencyPreview
-                            productId={selectedEvaluation.warrant_id}
+                      Tatsächlichen Kauf erfassen
+                    </Link>
+                  )}
+                  <div hidden={!purchaseView} id="purchase">
+                    {!purchase ? (
+                      <form
+                        onSubmit={(event) => void recordPurchase(event)}
+                        className="mt-5 rounded-lg border border-slate-700 bg-slate-950/50 p-4"
+                      >
+                        <fieldset disabled={busy || contextLoading || Boolean(contextError)}>
+                          <h3 className="font-medium">Ausgeführten Kauf dokumentieren</h3>
+                          {selectedEvaluation && (
+                            <p className="mt-2 break-words text-sm font-medium">
+                              Kauf für:{' '}
+                              {references.products[selectedEvaluation.warrant_id]?.display_name ||
+                                'Produktname nicht verfügbar'}
+                            </p>
+                          )}
+                          {existingTradeId && (
+                            <p role="alert">
+                              Offener Trade vorhanden.{' '}
+                              <Link
+                                className="underline"
+                                to={`/trade-management?trade_id=${encodeURIComponent(existingTradeId)}`}
+                              >
+                                Bestehenden Trade öffnen und Nachkauf erfassen
+                              </Link>
+                              . Es wurde nichts zusätzlich gebucht.
+                            </p>
+                          )}
+                          <ExecutionDateInput
+                            label="Kaufdatum"
                             date={purchaseDate}
                             time={purchaseTime}
-                            value={purchaseCurrency}
-                            onChange={setPurchaseCurrency}
-                            disabled={busy}
+                            onDate={setPurchaseDate}
+                            onTime={setPurchaseTime}
                           />
-                        )}
-                        <button
-                          type="submit"
-                          disabled={
-                            busy || purchaseQuantity.trim() === '' || purchasePrice.trim() === ''
-                          }
-                          className="mt-4 rounded-lg border border-sky-700 px-4 py-2 text-sm disabled:opacity-40"
+                          <p className="mt-1 text-xs text-slate-400">
+                            Erst die Kaufbuchung erzeugt den Trade und die offene Position. Die
+                            Produktauswahl allein ist noch keine Ausführung.
+                          </p>
+                          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                            <label className="text-sm">
+                              <span className="text-slate-400">Kaufmenge</span>
+                              <input
+                                aria-label="Kaufmenge"
+                                type="number"
+                                min="1"
+                                step="1"
+                                required
+                                value={purchaseQuantity}
+                                onChange={(event) => setPurchaseQuantity(event.target.value)}
+                                className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 p-2"
+                              />
+                            </label>
+                            <label className="text-sm">
+                              <span className="text-slate-400">
+                                Tatsächlicher Kaufpreis je Einheit
+                              </span>
+                              <input
+                                aria-label="Kaufpreis"
+                                inputMode="decimal"
+                                required
+                                value={purchasePrice}
+                                onChange={(event) => setPurchasePrice(event.target.value)}
+                                placeholder="z. B. 2,35"
+                                className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 p-2"
+                              />
+                            </label>
+                          </div>
+                          {selectedEvaluation && (
+                            <InitialPurchaseCurrencyPreview
+                              productId={selectedEvaluation.warrant_id}
+                              date={purchaseDate}
+                              time={purchaseTime}
+                              value={purchaseCurrency}
+                              onChange={setPurchaseCurrency}
+                              disabled={busy}
+                            />
+                          )}
+                          <button
+                            type="submit"
+                            disabled={
+                              busy || purchaseQuantity.trim() === '' || purchasePrice.trim() === ''
+                            }
+                            className="mt-4 rounded-lg border border-sky-700 px-4 py-2 text-sm disabled:opacity-40"
+                          >
+                            Kauf erfassen und Position eröffnen
+                          </button>
+                        </fieldset>
+                      </form>
+                    ) : (
+                      <div className="mt-5 rounded-lg border border-sky-800 bg-sky-950/30 p-4">
+                        <p className="text-xs uppercase tracking-wide text-sky-400">
+                          Offene Position
+                        </p>
+                        <h3 className="mt-1 text-lg font-semibold">
+                          {tradeReference(purchase.trade.id)}
+                        </h3>
+                        <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+                          <div>
+                            <dt className="text-slate-500">Kaufmenge</dt>
+                            <dd>{purchase.execution.quantity}</dd>
+                          </div>
+                          <div>
+                            <dt className="text-slate-500">Kaufpreis</dt>
+                            <dd>{purchase.execution.price_per_unit}</dd>
+                          </div>
+                          <div>
+                            <dt className="text-slate-500">Ausführungswährung</dt>
+                            <dd>
+                              {executionCurrencyText(
+                                purchase.execution.currency_resolution,
+                                purchase.execution.currency_confirmation,
+                              )}
+                            </dd>
+                          </div>
+                          <div>
+                            <dt className="text-slate-500">Einstandswert</dt>
+                            <dd>{purchase.position.cost_basis}</dd>
+                          </div>
+                          <div>
+                            <dt className="text-slate-500">Offen</dt>
+                            <dd>{purchase.position.open_quantity}</dd>
+                          </div>
+                        </dl>
+                        <p className="mt-4 text-sm text-slate-300">
+                          Die erfasste Position findest du jetzt im Depot. Dort bearbeitest du Stop
+                          und Ziel, erfasst weitere Käufe oder Verkäufe und prüfst Hinweise sowie
+                          den aktuellen Überwachungszustand.
+                        </p>
+                        <Link
+                          to={{
+                            pathname: '/trade-management',
+                            search: new URLSearchParams({ trade_id: purchase.trade.id }).toString(),
+                          }}
+                          className="mt-4 inline-block rounded-lg border border-violet-700 px-4 py-2 text-sm"
                         >
-                          BUY erfassen und Position eröffnen
-                        </button>
-                      </fieldset>
-                    </form>
-                  ) : (
-                    <div className="mt-5 rounded-lg border border-sky-800 bg-sky-950/30 p-4">
-                      <p className="text-xs uppercase tracking-wide text-sky-400">
-                        Offene Position
-                      </p>
-                      <h3 className="mt-1 text-lg font-semibold">
-                        {tradeReference(purchase.trade.id)}
-                      </h3>
-                      <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
-                        <div>
-                          <dt className="text-slate-500">BUY-Menge</dt>
-                          <dd>{purchase.execution.quantity}</dd>
-                        </div>
-                        <div>
-                          <dt className="text-slate-500">Kaufpreis</dt>
-                          <dd>{purchase.execution.price_per_unit}</dd>
-                        </div>
-                        <div>
-                          <dt className="text-slate-500">Ausführungswährung</dt>
-                          <dd>
-                            {executionCurrencyText(
-                              purchase.execution.currency_resolution,
-                              purchase.execution.currency_confirmation,
-                            )}
-                          </dd>
-                        </div>
-                        <div>
-                          <dt className="text-slate-500">Cost Basis</dt>
-                          <dd>{purchase.position.cost_basis}</dd>
-                        </div>
-                        <div>
-                          <dt className="text-slate-500">Offen</dt>
-                          <dd>{purchase.position.open_quantity}</dd>
-                        </div>
-                      </dl>
-                      <p className="mt-4 text-sm text-slate-300">
-                        Die Position ist jetzt die wirtschaftliche Wahrheit. Im Trade Management
-                        werden Position, Stop/Target, Verkäufe und Alerts gemeinsam sichtbar. Die
-                        serverseitige Überwachung läuft gemäß der konfigurierten
-                        Position-Monitoring-Einstellung.
-                      </p>
-                      <Link
-                        to={{
-                          pathname: '/trade-management',
-                          search: new URLSearchParams({ trade_id: purchase.trade.id }).toString(),
-                        }}
-                        className="mt-4 inline-block rounded-lg border border-violet-700 px-4 py-2 text-sm"
-                      >
-                        Position verwalten und Monitoring öffnen
-                      </Link>
-                      <details className="mt-4 text-xs text-slate-500">
-                        <summary className="cursor-pointer">Technische Trade-ID anzeigen</summary>
-                        <p className="mt-2 break-all">{purchase.trade.id}</p>
-                      </details>
-                    </div>
-                  )}
+                          Position und Überwachung öffnen
+                        </Link>
+                        <details className="mt-4 text-xs text-slate-500">
+                          <summary className="cursor-pointer">Technische Trade-ID anzeigen</summary>
+                          <p className="mt-2 break-all">{purchase.trade.id}</p>
+                        </details>
+                      </div>
+                    )}
+                  </div>
                 </section>
               )}
 
               {detail.universe_omissions.length > 0 && (
-                <section className="rounded-xl border border-amber-800/70 p-5">
+                <section
+                  hidden={purchaseView}
+                  className="rounded-xl border border-amber-800/70 p-5"
+                >
                   <h2 className="font-semibold">Nicht in die Bewertung gelangt</h2>
                   <p className="mt-1 text-xs text-slate-500">
                     Diese Produkte wurden nicht still gefiltert; der Universe-Grund bleibt
@@ -1096,7 +1217,10 @@ export function ProductSelectionPage() {
                         </span>
                         <p className="mt-1 text-slate-400">{item.explanation}</p>
                         <Link
-                          to={selectionRepairUrl(detail.run.id, item.warrant_id)}
+                          to={withPlanListContext(
+                            selectionRepairUrl(detail.run.id, item.warrant_id),
+                            searchParams,
+                          )}
                           className="mt-2 inline-block text-sky-300 underline"
                         >
                           {item.reason === 'NO_LISTING'
@@ -1114,12 +1238,12 @@ export function ProductSelectionPage() {
                 </section>
               )}
 
-              <section>
+              <section hidden={purchaseView} id="selection">
                 <div className="mb-3">
                   <h2 className="font-semibold">Produktvergleich</h2>
                   <p className="mt-1 text-xs text-slate-500">
-                    INELIGIBLE bleibt gesperrt. Nicht bewertbare Produkte können mit expliziter
-                    Begründung bewusst ausgewählt werden.
+                    Ausgeschlossene Produkte bleiben gesperrt. Nicht bewertbare Produkte können mit
+                    expliziter Begründung bewusst ausgewählt werden.
                   </p>
                 </div>
                 <div className="grid gap-4 lg:grid-cols-2">
@@ -1153,7 +1277,7 @@ export function ProductSelectionPage() {
                     </p>
                     {detail.universe_omissions.length === 0 && (
                       <Link
-                        to={selectionRepairUrl(detail.run.id)}
+                        to={withPlanListContext(selectionRepairUrl(detail.run.id), searchParams)}
                         className="inline-block text-sky-300 underline"
                       >
                         Optionsscheinstammdaten prüfen
@@ -1165,7 +1289,7 @@ export function ProductSelectionPage() {
             </div>
           ) : (
             <p className="rounded-xl border border-slate-800 p-5 text-sm text-slate-400">
-              Starte einen Selection Run oder lade einen historischen Run. Ergebnisse, fehlende
+              Starte einen Bewertungslauf oder lade einen historischen Run. Ergebnisse, fehlende
               Daten und Ausschlussgründe erscheinen anschließend hier.
             </p>
           )}
@@ -1216,8 +1340,8 @@ export function ProductSelectionPage() {
               </p>
             )}
             <p className="mt-3 text-sm text-slate-400">
-              Die Auswahl wird historisch für genau diesen Selection Run dokumentiert und kann nicht
-              still überschrieben werden.
+              Die Auswahl wird historisch für genau diesen Bewertungslauf dokumentiert und kann
+              nicht still überschrieben werden.
             </p>
             {pendingSelection.eligibility_status === 'NOT_EVALUABLE' && (
               <div className="mt-3 rounded-lg border border-amber-700 bg-amber-950/30 p-3 text-sm text-amber-200">

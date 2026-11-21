@@ -6,10 +6,16 @@ const productId = "10000000-0000-4000-8000-000000000012";
 const now = "2026-09-06T10:00:00Z";
 
 async function json(route: Route, body: unknown, status = 200) {
-  await route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body) });
+  await route.fulfill({
+    status,
+    contentType: "application/json",
+    body: JSON.stringify(body),
+  });
 }
 
-test("refreshes immutable timeline after a captured partial sale", async ({ page }) => {
+test("refreshes immutable timeline after a captured partial sale", async ({
+  page,
+}) => {
   let openQuantity = 100;
   const timeline = [
     {
@@ -33,7 +39,10 @@ test("refreshes immutable timeline after a captured partial sale", async ({ page
     const path = new URL(request.url()).pathname;
     const method = request.method();
 
-    if (method === "GET" && path.endsWith(`/trade-position/trades/${tradeId}`)) {
+    if (
+      method === "GET" &&
+      path.endsWith(`/trade-position/trades/${tradeId}`)
+    ) {
       return json(route, {
         id: tradeId,
         product_id: productId,
@@ -45,7 +54,10 @@ test("refreshes immutable timeline after a captured partial sale", async ({ page
         created_at: now,
       });
     }
-    if (method === "GET" && path.endsWith(`/trade-position/trades/${tradeId}/position`)) {
+    if (
+      method === "GET" &&
+      path.endsWith(`/trade-position/trades/${tradeId}/position`)
+    ) {
       return json(route, {
         id: positionId,
         trade_id: tradeId,
@@ -60,7 +72,10 @@ test("refreshes immutable timeline after a captured partial sale", async ({ page
         is_closed: false,
       });
     }
-    if (method === "GET" && path.endsWith(`/trade-position/trades/${tradeId}/management`)) {
+    if (
+      method === "GET" &&
+      path.endsWith(`/trade-position/trades/${tradeId}/management`)
+    ) {
       return json(route, {
         trade_id: tradeId,
         stop_price: "23900",
@@ -70,11 +85,20 @@ test("refreshes immutable timeline after a captured partial sale", async ({ page
         last_event_at: null,
       });
     }
-    if (method === "GET" && path.endsWith(`/trade-position/trades/${tradeId}/timeline`)) {
+    if (
+      method === "GET" &&
+      path.endsWith(`/trade-position/trades/${tradeId}/timeline`)
+    ) {
       return json(route, timeline);
     }
-    if (method === "POST" && path.endsWith(`/trade-position/trades/${tradeId}/sales`)) {
-      const body = request.postDataJSON() as { quantity: number; price_per_unit: string };
+    if (
+      method === "POST" &&
+      path.endsWith(`/trade-position/trades/${tradeId}/sales`)
+    ) {
+      const body = request.postDataJSON() as {
+        quantity: number;
+        price_per_unit: string;
+      };
       openQuantity -= body.quantity;
       timeline.push({
         id: "20000000-0000-4000-8000-000000000002",
@@ -137,8 +161,12 @@ test("refreshes immutable timeline after a captured partial sale", async ({ page
         updated_at: now,
       });
     }
-    if (method === "GET" && path.endsWith(`/alerts/trades/${tradeId}`)) return json(route, []);
-    if (method === "GET" && path.endsWith(`/position-monitoring/trades/${tradeId}/health`)) {
+    if (method === "GET" && path.endsWith(`/alerts/trades/${tradeId}`))
+      return json(route, []);
+    if (
+      method === "GET" &&
+      path.endsWith(`/position-monitoring/trades/${tradeId}/health`)
+    ) {
       return json(route, {
         trade_id: tradeId,
         position_id: positionId,
@@ -150,19 +178,31 @@ test("refreshes immutable timeline after a captured partial sale", async ({ page
         age_days: 2,
       });
     }
-    return json(route, { code: "E2E_ROUTE_MISSING", message: `${method} ${path}` }, 500);
+    return json(
+      route,
+      { code: "E2E_ROUTE_MISSING", message: `${method} ${path}` },
+      500,
+    );
   });
 
-  await page.goto(`/trade-management?trade_id=${tradeId}`);
+  await page.goto(`/trade-management?trade_id=${tradeId}#execution-dates`);
   await page.getByRole("tab", { name: "Historie", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Trade Timeline" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Trade Timeline" }),
+  ).toBeVisible();
   await expect(page.getByText("Kauf erfasst", { exact: true })).toBeVisible();
 
   await page.getByLabel("Verkaufsmenge").fill("40");
   await page.getByLabel("Verkaufspreis").fill("2.50");
   await page.getByRole("button", { name: "Teilverkauf erfassen" }).click();
 
-  await expect(page.getByText("Verkauf erfasst", { exact: true })).toBeVisible();
-  await expect(page.getByText("40 Stück · 2.50 je Einheit", { exact: true })).toBeVisible();
-  await expect(page.getByText("Offene Menge", { exact: true }).locator("..").locator("dd")).toHaveText("60 Stück");
+  await expect(
+    page.getByText("Verkauf erfasst", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("40 Stück · 2.50 je Einheit", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Offene Menge", { exact: true }).locator("..").locator("dd"),
+  ).toHaveText("60 Stück");
 });

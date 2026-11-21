@@ -163,7 +163,7 @@ function CreateTradePlanForm() {
           replace: true,
           state: {
             confirmedTradePlan: created,
-            confirmationMessage: 'TradePlan wurde als DRAFT erstellt.',
+            confirmationMessage: 'Tradeplan wurde als Entwurf gespeichert.',
           },
         },
       );
@@ -173,10 +173,10 @@ function CreateTradePlanForm() {
       setUncertain(unknownResult);
       setMessage(
         unknownResult
-          ? 'Der Abschluss der Speicherung ist unklar. Die Eingaben bleiben erhalten. Bitte zuerst in der TradePlan-Übersicht prüfen; es erfolgt keine automatische Wiederholung.'
+          ? 'Der Abschluss der Speicherung ist unklar. Die Eingaben bleiben erhalten. Bitte zuerst in der Tradeplanübersicht prüfen; es erfolgt keine automatische Wiederholung.'
           : error instanceof Error
             ? error.message
-            : 'TradePlan konnte nicht erstellt werden. Die Eingaben bleiben erhalten.',
+            : 'Tradeplan konnte nicht gespeichert werden. Die Eingaben bleiben erhalten.',
       );
     } finally {
       mutation.current = false;
@@ -296,7 +296,7 @@ function CreateTradePlanForm() {
                 type="submit"
                 className="rounded-lg border border-sky-700 px-4 py-2 text-sm disabled:opacity-40"
               >
-                {busy ? 'TradePlan wird gespeichert …' : 'TradePlan als DRAFT erstellen'}
+                {busy ? 'Tradeplan wird gespeichert …' : 'Tradeplan als Entwurf speichern'}
               </button>
               {uncertain && (
                 <Link
@@ -305,7 +305,7 @@ function CreateTradePlanForm() {
                   rel="noreferrer"
                   className="rounded-lg border px-3 py-2 text-sm"
                 >
-                  TradePlan-Übersicht prüfen
+                  Tradeplanübersicht prüfen
                 </Link>
               )}
             </div>

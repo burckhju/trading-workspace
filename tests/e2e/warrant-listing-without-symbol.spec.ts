@@ -10,7 +10,7 @@ test.skip(
   'Requires an explicitly disposable test stack; never enable on a user depot',
 );
 
-async function body(response: APIResponse, status = 201) {
+async function body(response: Pick<APIResponse, 'status' | 'text' | 'json'>, status = 201) {
   expect(response.status(), await response.text()).toBe(status);
   return response.json();
 }
@@ -113,14 +113,16 @@ test('existing administration records a symbol-less listing and unblocks the exi
   await expect(dialog.getByRole('button', { name: 'Auswahl dokumentieren' })).toBeDisabled();
   await dialog.getByLabel(/Begründung/).fill('Synthetic executed purchase; quote data remains missing.');
   await dialog.getByRole('button', { name: 'Auswahl dokumentieren' }).click();
-  await expect(page.getByRole('heading', { name: /tatsächlichen Kauf erfassen/ })).toBeVisible();
+  await page.getByRole('link', { name: 'Tatsächlichen Kauf erfassen', exact: true }).click();
+  await expect(page).toHaveURL(`/product-selection?run_id=${after.run.id}#purchase`);
+  await expect(page.getByRole('heading', { name: 'Tatsächlichen Kauf erfassen', exact: true })).toBeVisible();
   await page.getByLabel('Kaufdatum', { exact: true }).fill('2026-08-17');
   await page.getByLabel('Kaufmenge').fill('10');
   await page.getByLabel('Kaufpreis').fill('2,35');
   const capturedResponse = page.waitForResponse(response =>
     response.request().method() === 'POST' && response.url().endsWith('/purchases/from-selection'),
   );
-  await page.getByRole('button', { name: 'BUY erfassen und Position eröffnen' }).click();
+  await page.getByRole('button', { name: 'Kauf erfassen und Position eröffnen' }).click();
   const captured = await body(await capturedResponse);
   expect(captured.trade).toMatchObject({ product_id: warrant.id, trade_plan_id: plan.plan.id, trade_plan_version_id: plan.latest_version.id, product_evaluation_id: after.evaluations[0].id });
   expect(captured.position.open_quantity).toBe(10);
