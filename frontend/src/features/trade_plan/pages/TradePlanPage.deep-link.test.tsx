@@ -88,9 +88,7 @@ describe('TradePlanPage deep link', () => {
     expect(mockedClient.versions).toHaveBeenCalledWith(planId, expect.any(AbortSignal));
     expect(await screen.findByRole('heading', { name: 'TP-11111111' })).toBeInTheDocument();
     expect(screen.queryByLabelText('TradePlan-ID')).not.toBeInTheDocument();
-    expect(screen.queryByLabelText('Trade Thesis')).not.toBeInTheDocument();
-    expect(
-      screen.getByRole('heading', { name: 'Version 1 · READY_FOR_REVIEW' }),
-    ).toBeInTheDocument();
+    expect(screen.queryByLabelText('Handelsidee und Begründung')).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Version 1 · Zur Prüfung' })).toBeInTheDocument();
   });
 });

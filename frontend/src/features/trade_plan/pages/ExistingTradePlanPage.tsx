@@ -1,5 +1,10 @@
 import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import {
+  planOverviewReturnUrl,
+  planStatusLabel,
+  withPlanListContext,
+} from '../services/planNavigation';
 
 import { marketApiClient } from '../../market/services/client';
 import { MarketApiError } from '../../market/services/http';
@@ -495,7 +500,7 @@ export function ExistingTradePlanPage({
         return;
       mutation.current = null;
       setOperation(null);
-      void navigate('/trade-plans/overview', { replace: true });
+      void navigate(planOverviewReturnUrl(searchParams), { replace: true });
     } catch (error: unknown) {
       if (
         mounted.current &&
@@ -515,7 +520,7 @@ export function ExistingTradePlanPage({
   }
 
   return (
-    <main className="w-full min-w-0 space-y-6">
+    <section className="w-full min-w-0 space-y-6">
       <PendingNavigationGuard
         shouldBlock={shouldBlockNavigation}
         busy={operation !== null}
@@ -526,7 +531,7 @@ export function ExistingTradePlanPage({
       />
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
-          <p className="text-xs uppercase tracking-wide text-slate-500">FT-007 · TradePlan</p>
+          <p className="text-xs uppercase tracking-wide text-slate-500">Marktanalyse · Tradeplan</p>
           <h1 className="mt-1 break-words text-2xl font-semibold">
             {detail ? reference : 'TradePlan'}
           </h1>
@@ -582,7 +587,7 @@ export function ExistingTradePlanPage({
             </button>
           )}
           <Link
-            to="/trade-plans/overview"
+            to={planOverviewReturnUrl(searchParams, tradePlanId)}
             className="rounded-lg border border-slate-700 px-4 py-2 text-sm"
           >
             Zur Übersicht
@@ -626,10 +631,11 @@ export function ExistingTradePlanPage({
               <div>
                 <p className="text-xs uppercase tracking-wide text-sky-400">Ausgewählter Stand</p>
                 <h2 className="mt-1 text-xl font-semibold">
-                  Version {current.version} · {current.status}
+                  Version {current.version} · {planStatusLabel(current.status)}
                 </h2>
                 <p className="mt-2 text-sm text-slate-400">
-                  Neueste Version: {detail.latest_version.version} · {detail.latest_version.status}
+                  Neueste Version: {detail.latest_version.version} ·{' '}
+                  {planStatusLabel(detail.latest_version.status)}
                 </p>
               </div>
               <label className="block text-sm">
@@ -644,7 +650,7 @@ export function ExistingTradePlanPage({
                     .sort((a, b) => b.version - a.version)
                     .map((version) => (
                       <option key={version.id} value={version.id}>
-                        Version {version.version} · {version.status}
+                        Version {version.version} · {planStatusLabel(version.status)}
                       </option>
                     ))}
                 </select>
@@ -683,7 +689,7 @@ export function ExistingTradePlanPage({
                         onClick={() => void mutate('return')}
                         className="rounded-lg border border-slate-700 px-4 py-2 text-sm disabled:opacity-50"
                       >
-                        Zurück zu DRAFT
+                        Zurück zum Entwurf
                       </button>
                     </>
                   )}
@@ -694,13 +700,16 @@ export function ExistingTradePlanPage({
                       onClick={() => void mutate('abandon')}
                       className="rounded-lg border border-rose-800 px-4 py-2 text-sm text-rose-200 disabled:opacity-50"
                     >
-                      TradePlan aufgeben
+                      Tradeplan aufgeben
                     </button>
                   )}
                   {current.status === 'APPROVED' && (
                     <>
                       <Link
-                        to={`/product-selection?trade_plan_id=${encodeURIComponent(detail.plan.id)}&trade_plan_version_id=${encodeURIComponent(current.id)}`}
+                        to={withPlanListContext(
+                          `/product-selection?trade_plan_id=${encodeURIComponent(detail.plan.id)}&trade_plan_version_id=${encodeURIComponent(current.id)}`,
+                          searchParams,
+                        )}
                         className="rounded-lg border border-emerald-700 px-4 py-2 text-sm"
                       >
                         Produktauswahl starten
@@ -719,7 +728,7 @@ export function ExistingTradePlanPage({
                 {canAbandon && (
                   <p className="text-xs text-slate-400">
                     Gespeicherte Entwürfe können derzeit nicht inhaltlich revidiert werden. Eine
-                    Statusrückkehr zu DRAFT ändert daran nichts.
+                    Statusrückkehr zum Entwurf ändert daran nichts.
                   </p>
                 )}
                 {current.status === 'READY_FOR_REVIEW' &&
@@ -766,7 +775,7 @@ export function ExistingTradePlanPage({
                     disabled={busy || !activeEditor.changeReason.trim()}
                     className="rounded-lg border border-sky-700 px-4 py-2 text-sm disabled:opacity-50"
                   >
-                    Neue DRAFT-Version speichern
+                    Neue Entwurfsversion speichern
                   </button>
                   <button
                     type="button"
@@ -793,7 +802,7 @@ export function ExistingTradePlanPage({
                       onClick={() => selectVersion(version.id)}
                       className="rounded px-2 py-1 font-medium underline disabled:no-underline"
                     >
-                      Version {version.version} · {version.status}
+                      Version {version.version} · {planStatusLabel(version.status)}
                     </button>
                     <span className="ml-2 text-slate-400">
                       {new Date(version.created_at).toLocaleString('de-DE')}
@@ -808,8 +817,13 @@ export function ExistingTradePlanPage({
             </ol>
           </details>
           <TradePlanProvenance plan={detail.plan} version={current} />
-          <section className="rounded-xl border border-rose-900 bg-rose-950/20 p-5">
-            <h2 className="text-lg font-semibold text-rose-200">TradePlan dauerhaft löschen</h2>
+          <details className="rounded-xl border border-rose-900 bg-rose-950/20 p-5">
+            <summary className="cursor-pointer font-semibold text-rose-200">
+              Weitere Aktionen · Tradeplan dauerhaft löschen
+            </summary>
+            <h2 className="mt-4 text-lg font-semibold text-rose-200">
+              Tradeplan dauerhaft löschen
+            </h2>
             <p className="mt-2 text-sm text-rose-100/80">
               Diese Aktion löscht den TradePlan und seine abhängige Auswahl-, Trade-, Positions-,
               Monitoring-, Post-Trade- und Lernhistorie dauerhaft. Gemeinsame Referenzdaten wie
@@ -833,12 +847,12 @@ export function ExistingTradePlanPage({
                 onClick={() => void hardDelete()}
                 className="rounded-lg border border-rose-700 px-4 py-2 text-sm font-medium text-rose-200 disabled:opacity-40"
               >
-                TradePlan unwiderruflich löschen
+                Tradeplan unwiderruflich löschen
               </button>
             </div>
-          </section>
+          </details>
         </>
       )}
-    </main>
+    </section>
   );
 }

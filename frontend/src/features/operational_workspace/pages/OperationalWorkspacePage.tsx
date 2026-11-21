@@ -1,85 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { loadPositionSignals } from '../services/loadPositionSignals';
 import { operationalWorkspaceApiClient } from '../services/client';
-import type { OperationalAction, OperationalPosition, OperationalPriority } from '../types';
-import { MarketDataRefreshPanel } from './MarketDataRefreshPanel';
+import type { OperationalPosition } from '../types';
 import { OpenPositionsPanel } from './OpenPositionsPanel';
-import { useHebeltraderQualificationSessions } from '../hooks/useHebeltraderQualificationSessions';
-
-const sections: Array<{ priority: OperationalPriority; title: string; description: string }> = [
-  {
-    priority: 'ACTION',
-    title: 'Jetzt handeln',
-    description:
-      'Offene Positionshinweise zuerst, danach Monitoring-Datenprobleme und weitere ausführbare Schritte.',
-  },
-  {
-    priority: 'REVIEW',
-    title: 'Prüfen',
-    description: 'Abgeschlossene Trades mit offenem Nachbereitungsbedarf.',
-  },
-  {
-    priority: 'BLOCKED',
-    title: 'Blockiert',
-    description: 'Nicht ausführbare Schritte mit dem nächsten bekannten Entblocker.',
-  },
-];
-
-const productActionTypes = new Set([
-  'POSITION_ALERT',
-  'POSITION_DATA_HEALTH',
-  'NOTIFICATION_DELIVERY_FAILURE',
-  'INITIAL_PURCHASE',
-  'OPEN_POSITION_MANAGEMENT',
-  'POST_TRADE_OBSERVATION',
-  'EXIT_REVIEW',
-]);
-
-function productText(value: string | null | undefined, missing = '—'): string {
-  return value?.replace(/\s+/g, ' ').trim() || missing;
-}
-
-function ActionCard({ action }: { action: OperationalAction }) {
-  return (
-    <li className="rounded-xl border border-slate-800 bg-slate-900/60 p-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="text-xs uppercase tracking-wide text-slate-500">{action.source_feature}</p>
-          <h3 className="mt-1 text-lg font-semibold text-white">{action.title}</h3>
-        </div>
-        <span className="rounded-full border border-slate-700 px-2.5 py-1 text-xs text-slate-300">
-          {action.state === 'BLOCKED' ? 'Blockiert' : 'Handlungsbereit'}
-        </span>
-      </div>
-      {(action.product_id || productActionTypes.has(action.action_type)) && (
-        <div className="mt-3 min-w-0 break-words text-sm">
-          <p className="font-semibold text-slate-100">
-            Optionsschein: {productText(action.product_name, 'Name nicht verfügbar')}
-          </p>
-          <p className="mt-1 text-slate-400">
-            WKN: {productText(action.product_wkn)} · ISIN: {productText(action.product_isin)}
-          </p>
-        </div>
-      )}
-      <p className="mt-3 text-sm leading-6 text-slate-300">{action.detail}</p>
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-slate-400">Nächster Schritt: {action.next_action}</p>
-        <Link
-          to={action.target}
-          className="rounded-lg bg-slate-100 px-3 py-2 text-sm font-medium text-slate-950 hover:bg-white"
-        >
-          Öffnen
-        </Link>
-      </div>
-    </li>
-  );
-}
 
 export function OperationalWorkspacePage() {
-  const qualificationSessions = useHebeltraderQualificationSessions();
-  const [actions, setActions] = useState<OperationalAction[]>([]);
   const [positions, setPositions] = useState<OperationalPosition[]>([]);
   const [loading, setLoading] = useState(true);
   const [signalsLoading, setSignalsLoading] = useState(false);
@@ -98,12 +25,8 @@ export function OperationalWorkspacePage() {
     setSignalsLoading(false);
     setError(null);
     try {
-      const [actionResponse, positionResponse] = await Promise.all([
-        operationalWorkspaceApiClient.getActions(currentSignal),
-        operationalWorkspaceApiClient.getPositions(currentSignal),
-      ]);
+      const positionResponse = await operationalWorkspaceApiClient.getPositions(currentSignal);
       if (currentSignal.aborted) return;
-      setActions(actionResponse.actions);
       setPositions(positionResponse.positions);
       setGeneratedAt(positionResponse.generated_at);
       setLoading(false);
@@ -120,7 +43,9 @@ export function OperationalWorkspacePage() {
     } catch (caught) {
       if (currentSignal.aborted) return;
       setError(
-        caught instanceof Error ? caught.message : 'Arbeitsbereich konnte nicht geladen werden.',
+        caught instanceof Error
+          ? caught.message
+          : 'Offene Positionen konnten nicht geladen werden.',
       );
     } finally {
       if (!currentSignal.aborted) {
@@ -139,43 +64,39 @@ export function OperationalWorkspacePage() {
     };
   }, [load]);
 
-  const grouped = useMemo(
-    () =>
-      Object.fromEntries(
-        sections.map(({ priority }) => [
-          priority,
-          actions.filter((action) => action.priority === priority),
-        ]),
-      ) as Record<OperationalPriority, OperationalAction[]>,
-    [actions],
-  );
-
   return (
-    <section className="min-w-0 w-full space-y-8">
+    <section className="w-full min-w-0 space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-sm font-medium text-slate-400">Operativer Arbeitsbereich</p>
-          <h1 className="mt-1 text-3xl font-semibold tracking-tight text-white">
-            Was benötigt jetzt deine Aufmerksamkeit?
-          </h1>
+          <h1 className="text-3xl font-semibold tracking-tight text-white">Depot</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
-            Priorisierte nächste Schritte aus bestehenden Fachzuständen. Die Fachlogik bleibt in den
-            jeweiligen zuständigen Bereichen. Die Reihenfolge ist eine operative Sicht und keine
-            Tradingempfehlung.
+            Offene Positionen finden, ihren Datenstand prüfen und im Trade bearbeiten.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => void load()}
-          disabled={loading}
-          className="rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-200 hover:border-slate-500 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {loading ? 'Aktualisiere …' : 'Aktualisieren'}
-        </button>
+        <div className="flex flex-wrap items-center gap-3 text-sm">
+          <Link to="/executions" className="rounded-lg bg-sky-950 px-3 py-2 text-sky-100">
+            Ausführung erfassen
+          </Link>
+          <button
+            type="button"
+            onClick={() => void load()}
+            disabled={loading}
+            className="rounded-lg border border-slate-700 px-3 py-2 text-slate-200 disabled:opacity-50"
+          >
+            {loading ? 'Aktualisiere …' : 'Aktualisieren'}
+          </button>
+        </div>
       </header>
-
+      {loading && (
+        <p role="status" className="text-sm text-slate-400">
+          Offene Positionen werden geladen …
+        </p>
+      )}
       {error && (
-        <div className="rounded-xl border border-rose-800 bg-rose-950/30 p-4 text-sm text-rose-200">
+        <div
+          role="alert"
+          className="rounded-xl border border-rose-800 bg-rose-950/30 p-4 text-sm text-rose-200"
+        >
           <p>{error}</p>
           <button
             type="button"
@@ -186,59 +107,23 @@ export function OperationalWorkspacePage() {
           </button>
         </div>
       )}
-
-      <MarketDataRefreshPanel />
       {!error && !loading && (
-        <OpenPositionsPanel
-          positions={positions}
-          signalsLoading={signalsLoading}
-          qualificationSessions={qualificationSessions}
-        />
+        <OpenPositionsPanel positions={positions} signalsLoading={signalsLoading} />
       )}
-
-      {!error && !loading && actions.length === 0 && (
-        <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-8 text-center">
-          <h2 className="text-lg font-semibold text-white">Aktuell keine offenen Aufgaben.</h2>
-          <p className="mt-2 text-sm text-slate-400">
-            Neue Aktionen erscheinen automatisch, wenn sich die zugrunde liegenden Fachzustände
-            ändern.
-          </p>
-        </div>
-      )}
-
-      {!error && actions.length > 0 && (
-        <div className="space-y-8">
-          {sections.map((section) => {
-            const items = grouped[section.priority];
-            if (items.length === 0) return null;
-            return (
-              <section
-                key={section.priority}
-                aria-labelledby={`workspace-${section.priority.toLowerCase()}`}
-              >
-                <div className="mb-3">
-                  <h2
-                    id={`workspace-${section.priority.toLowerCase()}`}
-                    className="text-xl font-semibold text-white"
-                  >
-                    {section.title} <span className="text-slate-500">· {items.length}</span>
-                  </h2>
-                  <p className="mt-1 text-sm text-slate-400">{section.description}</p>
-                </div>
-                <ul className="space-y-3">
-                  {items.map((action) => (
-                    <ActionCard key={action.id} action={action} />
-                  ))}
-                </ul>
-              </section>
-            );
-          })}
-        </div>
-      )}
-
+      <p className="text-sm text-slate-400">
+        Abgeschlossene Trades findest du im Bericht{' '}
+        <Link to="/performance/closed-trades" className="text-sky-300 underline">
+          Vollabschlüsse im Zeitraum
+        </Link>
+        . Übergreifende Versorgungsprobleme prüfst du unter{' '}
+        <Link to="/data-sources" className="text-sky-300 underline">
+          Datenquellen &amp; Diagnose
+        </Link>
+        .
+      </p>
       {generatedAt && !error && (
         <p className="text-xs text-slate-500">
-          Stand: {new Date(generatedAt).toLocaleString('de-DE')}
+          Stand des Depots: {new Date(generatedAt).toLocaleString('de-DE')}
         </p>
       )}
     </section>

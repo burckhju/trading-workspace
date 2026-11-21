@@ -71,7 +71,7 @@ test("held warrant quote sources are visible from workspace without extra writes
   page.on("request", (req) => {
     if (req.method() !== "GET") writes.push(req.url());
   });
-  await page.goto("/workspace");
+  await page.goto("/data-sources");
   await page.getByText("Automatischer Kursabruf", { exact: true }).click();
   const panel = page.getByRole("region", {
     name: "Kursquellen im Depot",
@@ -147,7 +147,7 @@ test("issuer and exchange refresh evidence stays readable on mobile", async ({
       },
     }),
   );
-  await page.goto("/workspace");
+  await page.goto("/data-sources");
   await page.getByText("Automatischer Kursabruf", { exact: true }).click();
   const panel = page.getByRole("region", {
     name: "Kursquellen im Depot",

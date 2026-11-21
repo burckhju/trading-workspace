@@ -79,19 +79,21 @@ async function mockUnderlying(page: Page) {
 }
 
 async function fillCommonPlan(page: Page) {
-  await page.getByLabel("Trade Thesis").fill("Continuation thesis");
+  await page
+    .getByLabel("Handelsidee und Begründung")
+    .fill("Continuation thesis");
   await expect(page.getByLabel("Währung", { exact: true })).toHaveValue("");
   await page.getByLabel("Währung", { exact: true }).fill("EUR");
   await page.getByLabel("Technischer Stop").fill("95");
   await page
     .getByLabel("Invalidierungsregel", { exact: true })
     .fill("Close below support");
-  await page.getByLabel("Target 1", { exact: true }).fill("110");
-  await page.getByLabel("Target-Begründung 1").fill("Prior high");
-  await page.getByLabel("Plan-Risiko / Annahme").fill("Breakout failure");
+  await page.getByLabel("Kursziel 1", { exact: true }).fill("110");
+  await page.getByLabel("Zielbegründung 1").fill("Prior high");
+  await page.getByLabel("Risikoannahme").fill("Breakout failure");
   await page.getByText("Weitere Risikoangaben", { exact: true }).click();
-  await page.getByLabel("Max-Loss-Annahme (optional)").fill("5%");
-  await page.getByLabel("Risk Notes").fill("No position sizing");
+  await page.getByLabel("Maximaler Verlust (Annahme, optional)").fill("5%");
+  await page.getByLabel("Ergänzende Risikonotizen").fill("No position sizing");
 }
 
 test("manual TradePlan flows from DRAFT through explicit approval with append-only audit", async ({
@@ -204,31 +206,31 @@ test("manual TradePlan flows from DRAFT through explicit approval with append-on
     0,
   );
   await fillCommonPlan(page);
-  await page.getByLabel("Entry-Preis").fill("100");
+  await page.getByLabel("Einstiegspreis").fill("100");
   await page
-    .getByRole("button", { name: "TradePlan als DRAFT erstellen" })
+    .getByRole("button", { name: "Tradeplan als Entwurf speichern" })
     .click();
   await expect(page).toHaveURL(
     new RegExp(`trade_plan_id=${planId}.*trade_plan_version_id=${version1Id}`),
   );
   await expect(
-    page.getByRole("heading", { name: "Version 1 · DRAFT", exact: true }),
+    page.getByRole("heading", { name: "Version 1 · Entwurf", exact: true }),
   ).toBeVisible();
-  await expect(page.getByLabel("Trade Thesis")).toHaveCount(0);
+  await expect(page.getByLabel("Handelsidee und Begründung")).toHaveCount(0);
   await expect(
-    page.getByRole("button", { name: "TradePlan als DRAFT erstellen" }),
+    page.getByRole("button", { name: "Tradeplan als Entwurf speichern" }),
   ).toHaveCount(0);
   expect(createRequests).toBe(1);
   await page.reload();
   await expect(
-    page.getByRole("heading", { name: "Version 1 · DRAFT", exact: true }),
+    page.getByRole("heading", { name: "Version 1 · Entwurf", exact: true }),
   ).toBeVisible();
-  await expect(page.getByLabel("Trade Thesis")).toHaveCount(0);
+  await expect(page.getByLabel("Handelsidee und Begründung")).toHaveCount(0);
 
   await page.getByRole("button", { name: "Zur Prüfung einreichen" }).click();
   await expect(
     page.getByRole("heading", {
-      name: "Version 1 · READY_FOR_REVIEW",
+      name: "Version 1 · Zur Prüfung",
       exact: true,
     }),
   ).toBeVisible();
@@ -237,7 +239,7 @@ test("manual TradePlan flows from DRAFT through explicit approval with append-on
   ).toBeEnabled();
   await page.getByRole("button", { name: "Explizit freigeben" }).click();
   await expect(
-    page.getByRole("heading", { name: "Version 1 · APPROVED", exact: true }),
+    page.getByRole("heading", { name: "Version 1 · Freigegeben", exact: true }),
   ).toBeVisible();
   expect(submitReviewRequests).toBe(1);
   expect(approveRequests).toBe(1);
@@ -246,10 +248,10 @@ test("manual TradePlan flows from DRAFT through explicit approval with append-on
     "APPROVED",
   ]);
   await page
-    .getByText("Herkunft und Lifecycle anzeigen", { exact: true })
+    .getByText("Herkunft und Verlauf anzeigen", { exact: true })
     .click();
   await expect(
-    page.getByRole("heading", { name: "Approval-Nachweis" }),
+    page.getByRole("heading", { name: "Freigabenachweis" }),
   ).toBeVisible();
   await expect(
     page.getByRole("link", { name: "Produktauswahl starten" }),
@@ -374,27 +376,27 @@ test("CandidateEvaluation origin preserves exact evaluation provenance and never
     page.getByLabel("CandidateEvaluation-ID", { exact: true }),
   ).toHaveCount(0);
   await fillCommonPlan(page);
-  await page.getByLabel("Entry-Art").selectOption("TRIGGER");
+  await page.getByLabel("Einstiegsart").selectOption("TRIGGER");
   await page
     .getByRole("textbox", { name: "Trigger", exact: true })
     .fill("Break above 101");
   await page
-    .getByRole("button", { name: "TradePlan als DRAFT erstellen" })
+    .getByRole("button", { name: "Tradeplan als Entwurf speichern" })
     .click();
   await expect(
-    page.getByRole("heading", { name: "Version 1 · DRAFT", exact: true }),
+    page.getByRole("heading", { name: "Version 1 · Entwurf", exact: true }),
   ).toBeVisible();
   expect(creates).toBe(1);
   expect(candidateVersion.candidate_evaluation?.evaluation_version).toBe(7);
   // The saved provenance is displayed on demand without editable identifiers.
   await page
-    .getByText("Herkunft und Lifecycle anzeigen", { exact: true })
+    .getByText("Herkunft und Verlauf anzeigen", { exact: true })
     .click();
   await expect(
     page.getByText("Kandidatenursprung · gespeicherte Evaluation v7."),
   ).toBeVisible();
   await page
-    .getByText("Technische Provenance anzeigen", { exact: true })
+    .getByText("Technische Herkunftsnachweise anzeigen", { exact: true })
     .click();
   await expect(page.getByText(/MARKET_CONTEXT/).first()).toBeVisible();
   await expect(page.getByText(new RegExp(evaluationId)).first()).toBeVisible();
@@ -530,30 +532,32 @@ for (const scenario of [
     await expect(
       page.getByRole("heading", { name: "Neue Planversion aus Version 1" }),
     ).toBeVisible();
-    await expect(page.getByLabel("Entry-Art")).toHaveValue(scenario.type);
+    await expect(page.getByLabel("Einstiegsart")).toHaveValue(scenario.type);
     await expect(page.getByLabel("Währung", { exact: true })).toHaveValue(
       "USD",
     );
     for (const target of approvedV1.targets) {
       await expect(
-        page.getByLabel(`Target ${target.sequence}`, { exact: true }),
+        page.getByLabel(`Kursziel ${target.sequence}`, { exact: true }),
       ).toHaveValue(target.price);
       await expect(
-        page.getByLabel(`Target-Begründung ${target.sequence}`, {
+        page.getByLabel(`Zielbegründung ${target.sequence}`, {
           exact: true,
         }),
       ).toHaveValue(target.rationale!);
     }
-    await page.getByText("Weitere Entry-Angaben", { exact: true }).click();
+    await page.getByText("Weitere Einstiegsangaben", { exact: true }).click();
     await expect(
-      page.getByLabel("Gültig bis (ISO 8601 mit Zeitzone)"),
+      page.getByLabel("Gültig bis (Datum und Uhrzeit mit Zeitzone)"),
     ).toHaveValue(approvedV1.entry.valid_until!);
-    await expect(page.getByLabel("Entry-Begründung")).toHaveValue(
+    await expect(page.getByLabel("Einstiegsbegründung")).toHaveValue(
       approvedV1.entry.rationale!,
     );
     if (scenario.type === "TRIGGER")
       await expect(page.getByLabel("Referenzpreis")).toHaveValue(precise);
-    await page.getByLabel("Trade Thesis").fill("Only the thesis has changed");
+    await page
+      .getByLabel("Handelsidee und Begründung")
+      .fill("Only the thesis has changed");
     await page
       .getByLabel("Änderungsgrund")
       .fill("Explicit thesis clarification");
@@ -570,15 +574,15 @@ for (const scenario of [
       },
     );
     const save = page.getByRole("button", {
-      name: "Neue DRAFT-Version speichern",
+      name: "Neue Entwurfsversion speichern",
     });
     await save.focus();
     await expect(save).toBeFocused();
     await page.keyboard.press("Enter");
     await expect(
-      page.getByRole("heading", { name: "Version 2 · DRAFT", exact: true }),
+      page.getByRole("heading", { name: "Version 2 · Entwurf", exact: true }),
     ).toBeVisible();
-    await expect(page.getByLabel("Trade Thesis")).toHaveCount(0);
+    await expect(page.getByLabel("Handelsidee und Begründung")).toHaveCount(0);
     expect(writes).toEqual([
       `/api/api/v1/trade-plans/${planId}/versions/${version1Id}/amendments`,
     ]);
@@ -588,7 +592,10 @@ for (const scenario of [
       .getByRole("combobox", { name: "Planversion", exact: true })
       .selectOption(version1Id);
     await expect(
-      page.getByRole("heading", { name: "Version 1 · APPROVED", exact: true }),
+      page.getByRole("heading", {
+        name: "Version 1 · Freigegeben",
+        exact: true,
+      }),
     ).toBeVisible();
     await expect(
       page.getByRole("link", { name: "Produktauswahl starten" }),
@@ -598,7 +605,10 @@ for (const scenario of [
     );
     await page.reload();
     await expect(
-      page.getByRole("heading", { name: "Version 1 · APPROVED", exact: true }),
+      page.getByRole("heading", {
+        name: "Version 1 · Freigegeben",
+        exact: true,
+      }),
     ).toBeVisible();
     expect(writes).toHaveLength(1);
   });

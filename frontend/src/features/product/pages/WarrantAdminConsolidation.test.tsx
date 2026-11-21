@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { marketApiClient } from '../../market/services/client';
@@ -7,6 +8,7 @@ import { warrantApiClient } from '../services/client';
 import { currencyEvidenceApi } from '../services/currencyEvidence';
 import type { WarrantResponse, WarrantTermsResponse } from '../types/api';
 import { WarrantAdminPage } from './WarrantAdminPage';
+import { WarrantAdminRoutePage } from './WarrantAdminRoutePage';
 
 vi.mock('../services/currencyEvidence', () => ({
   currencyEvidenceApi: { history: vi.fn(), record: vi.fn() },
@@ -230,6 +232,139 @@ function changeMaturity(value = '2030-11-15') {
 function saveTerms() {
   fireEvent.click(screen.getByRole('button', { name: 'Neue Terms-Version' }));
 }
+
+describe('catalogue route context', () => {
+  it('opens the exact linked product, keeps a dirty form while filtering and restores guarded browser history', async () => {
+    const router = createMemoryRouter(
+      [{ path: '/warrants-admin', element: <WarrantAdminRoutePage /> }],
+      { initialEntries: [`/warrants-admin?product_id=${warrantB.id}&q=Beta`] },
+    );
+    render(<RouterProvider router={router} />);
+    await readyForTerms(warrantB.display_name);
+    expect(screen.getByLabelText('Produkte suchen')).toHaveValue('Beta');
+    expect(warrants.get).not.toHaveBeenCalledWith(warrantA.id, expect.anything());
+    await editLoadedTerms();
+    changeMaturity('2032-01-16');
+    fireEvent.change(screen.getByLabelText('Produkte suchen'), { target: { value: '' } });
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Neue Fälligkeit')).toHaveValue('2032-01-16');
+    expect(new URLSearchParams(router.state.location.search).get('product_id')).toBe(warrantB.id);
+    expect(new URLSearchParams(router.state.location.search).has('q')).toBe(false);
+    vi.mocked(window.confirm).mockReturnValueOnce(false);
+    fireEvent.click(screen.getByRole('button', { name: /Alpha PUT/ }));
+    expect(screen.getByLabelText('Neue Fälligkeit')).toHaveValue('2032-01-16');
+    expect(new URLSearchParams(router.state.location.search).get('product_id')).toBe(warrantB.id);
+    vi.mocked(window.confirm).mockReturnValueOnce(true);
+    fireEvent.click(screen.getByRole('button', { name: /Alpha PUT/ }));
+    await readyForTerms();
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    await editLoadedTerms();
+    changeMaturity('2033-01-14');
+    await act(() => router.navigate(-1));
+    expect(await screen.findByRole('alertdialog')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Auf dieser Seite bleiben' }));
+    expect(screen.getByLabelText('Neue Fälligkeit')).toHaveValue('2033-01-14');
+    await act(() => router.navigate(-1));
+    fireEvent.click(screen.getByRole('button', { name: 'Änderungen verwerfen und verlassen' }));
+    await readyForTerms(warrantB.display_name);
+    expect(new URLSearchParams(router.state.location.search).get('product_id')).toBe(warrantB.id);
+    expect(warrants.addTerms).not.toHaveBeenCalled();
+  });
+
+  it.each(['', 'missing-product', `${warrantA.id}&product_id=${warrantB.id}`])(
+    'shows an unresolved exact product link without selecting a substitute: %s',
+    async (query) => {
+      const router = createMemoryRouter(
+        [{ path: '/warrants-admin', element: <WarrantAdminRoutePage /> }],
+        { initialEntries: [`/warrants-admin?product_id=${query}`] },
+      );
+      render(<RouterProvider router={router} />);
+      expect(await screen.findByRole('alert')).toHaveTextContent('nicht im Katalog vorhanden');
+      expect(
+        screen.queryByRole('heading', { name: warrantA.display_name }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('heading', { name: warrantB.display_name }),
+      ).not.toBeInTheDocument();
+      expect(warrants.get).not.toHaveBeenCalled();
+      expect(warrants.addTerms).not.toHaveBeenCalled();
+      fireEvent.click(screen.getByRole('button', { name: /Alpha PUT/ }));
+      await readyForTerms();
+      expect(new URLSearchParams(router.state.location.search).getAll('product_id')).toEqual([
+        warrantA.id,
+      ]);
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    },
+  );
+
+  it('returns from the exact product to the original monitoring context and keeps historical pins', async () => {
+    const router = createMemoryRouter(
+      [{ path: '/warrants-admin', element: <WarrantAdminRoutePage /> }],
+      {
+        initialEntries: [
+          `/warrants-admin?product_id=${warrantB.id}&trade_id=trade-1&trade_return_view=monitoring&review_version_id=review-2&journal_version_id=journal-3&report_context=closed-trades&report_page=2&return_to=https://example.invalid`,
+        ],
+      },
+    );
+    render(<RouterProvider router={router} />);
+    await readyForTerms(warrantB.display_name);
+    const target = screen.getByRole('link', { name: 'Zurück zur Positionsüberwachung' });
+    expect(target).toHaveAttribute(
+      'href',
+      '/trade-management?trade_id=trade-1&review_version_id=review-2&journal_version_id=journal-3&report_context=closed-trades&report_page=2#trade-risk',
+    );
+    fireEvent.change(screen.getByLabelText('Produkte suchen'), { target: { value: 'Beta' } });
+    expect(target).toHaveAttribute(
+      'href',
+      '/trade-management?trade_id=trade-1&review_version_id=review-2&journal_version_id=journal-3&report_context=closed-trades&report_page=2#trade-risk',
+    );
+    expect(warrants.create).not.toHaveBeenCalled();
+    expect(warrants.addTerms).not.toHaveBeenCalled();
+  });
+
+  it('keeps the confirmed created product when the catalogue read still returns an older list', async () => {
+    const created = {
+      ...warrantA,
+      id: '00000000-0000-4000-8001-000000000403',
+      display_name: 'Gamma CALL',
+    };
+    products.set(created.id, created);
+    histories.set(created.id, [{ ...termsA, warrant_id: created.id, id: 'terms-c-1' }]);
+    warrants.list.mockResolvedValue([warrantA, warrantB]);
+    warrants.create.mockResolvedValue(created);
+    const router = createMemoryRouter(
+      [{ path: '/warrants-admin', element: <WarrantAdminRoutePage /> }],
+      { initialEntries: [`/warrants-admin?product_id=${warrantB.id}`] },
+    );
+    render(<RouterProvider router={router} />);
+    await readyForTerms(warrantB.display_name);
+    fireEvent.click(screen.getByRole('button', { name: 'Neues Produkt' }));
+    fireEvent.change(screen.getByLabelText('Anzeigename *'), {
+      target: { value: created.display_name },
+    });
+    fireEvent.change(screen.getByLabelText('Emittent *'), { target: { value: created.issuer_id } });
+    fireEvent.change(screen.getByLabelText('Basiswert *'), {
+      target: { value: created.underlying_id },
+    });
+    fireEvent.change(screen.getByLabelText('Strike *'), { target: { value: '100' } });
+    fireEvent.change(screen.getByLabelText('Fälligkeit *'), { target: { value: '2027-06-18' } });
+    fireEvent.change(screen.getByLabelText(/^Bezugsverhältnis/), { target: { value: '0.1' } });
+    fireEvent.change(screen.getByLabelText('Handelsplatz des Optionsscheins'), {
+      target: { value: 'venue-1' },
+    });
+    fireEvent.change(screen.getByLabelText('Handelswährung des Optionsscheins'), {
+      target: { value: 'EUR' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Optionsschein anlegen' }));
+    await readyForTerms(created.display_name);
+    await waitFor(() => expect(warrants.list).toHaveBeenCalledTimes(2));
+    expect(new URLSearchParams(router.state.location.search).get('product_id')).toBe(created.id);
+    expect(screen.getByRole('heading', { name: created.display_name })).toBeVisible();
+    expect(screen.queryByText(/angeforderte Produkt ist nicht im Katalog/)).not.toBeInTheDocument();
+    expect(warrants.create).toHaveBeenCalledOnce();
+    expect(screen.queryByRole('button', { name: 'Optionsschein anlegen' })).not.toBeInTheDocument();
+  });
+});
 
 describe('current terms and immutable editor basis', () => {
   it('shows current terms once and opens historical values only after a deliberate selection', async () => {

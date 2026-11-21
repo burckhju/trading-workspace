@@ -105,16 +105,12 @@ test("TradePlans: fixture purchase status, previous versions, filter, refresh an
   });
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto("/trade-plans/overview");
-  const unbought = page
-    .locator("article")
-    .filter({
-      has: page.getByRole("heading", { name: "Plan ohne Kauf", exact: true }),
-    });
-  const started = page
-    .locator("article")
-    .filter({
-      has: page.getByRole("heading", { name: "Plan mit Kauf", exact: true }),
-    });
+  const unbought = page.locator("article").filter({
+    has: page.getByRole("heading", { name: "Plan ohne Kauf", exact: true }),
+  });
+  const started = page.locator("article").filter({
+    has: page.getByRole("heading", { name: "Plan mit Kauf", exact: true }),
+  });
   await expect(
     unbought.getByText("Noch kein Kauf erfasst", { exact: true }),
   ).toBeVisible();
@@ -144,11 +140,14 @@ test("TradePlans: fixture purchase status, previous versions, filter, refresh an
     .getByRole("combobox", { name: "Nach Kaufstatus filtern" })
     .selectOption("NOT_STARTED");
   await expect(page.locator("article")).toHaveCount(1);
-  await expect(page.getByRole("status")).toHaveText("1 von 5 TradePlans");
+  await expect(page).toHaveURL(
+    /trade-plans\/overview\?purchase_status=NOT_STARTED$/,
+  );
+  await expect(page.getByRole("status")).toHaveText("1 von 5 Tradeplänen");
   bought = true;
   await page.getByRole("button", { name: "Übersicht aktualisieren" }).click();
   await expect(
-    page.getByText("Keine TradePlans mit diesem Kaufstatus."),
+    page.getByText("Keine Tradepläne mit diesem Kaufstatus."),
   ).toBeVisible();
   await page.getByRole("combobox").selectOption("OPEN");
   await expect(page.locator("article")).toHaveCount(2);
@@ -160,7 +159,11 @@ test("TradePlans: fixture purchase status, previous versions, filter, refresh an
     .getByRole("link", { name: "Trade verwalten / Nachkauf" })
     .click();
   await expect(page).toHaveURL(/trade-management\?trade_id=original-trade$/);
-  await page.goto("/trade-plans/overview");
+  await page.goBack();
+  await expect(page).toHaveURL(/trade-plans\/overview\?purchase_status=OPEN$/);
+  await expect(
+    page.getByRole("combobox", { name: "Nach Kaufstatus filtern" }),
+  ).toHaveValue("OPEN");
   await expect(
     unbought.getByText("Kauf erfasst · Position offen", { exact: true }),
   ).toBeVisible();

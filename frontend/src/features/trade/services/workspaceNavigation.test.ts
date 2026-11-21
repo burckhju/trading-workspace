@@ -5,9 +5,11 @@ import {
   lessonTradeReturnLink,
   parseClosedContext,
   planTradeReturnLink,
+  productTradeReturnLink,
   tradeLessonLink,
   tradeLookupQuery,
   tradePlanLink,
+  tradeProductLink,
   tradeWorkspaceLink,
   type ClosedReportContext,
   type TradeWorkspaceView,
@@ -160,6 +162,55 @@ describe('trade workspace navigation context', () => {
     expect([...url.searchParams.entries()]).toEqual([['trade_id', tradeId]]);
     expect(url.hash).toBe('');
     expect(parseClosedContext(url.searchParams)).toEqual({ context: null, error: null });
+  });
+});
+
+describe('exact product context and monitoring return', () => {
+  it('opens one product and returns to the same trade, historical pins and report selection', () => {
+    const query = historicalContext();
+    query.set('product_id', 'unrelated-product');
+    query.set('returnTo', 'https://elsewhere.invalid');
+    query.set('amount', '999');
+    const product = localUrl(tradeProductLink('bound-product', tradeId, query));
+    expect(product.pathname).toBe('/warrants-admin');
+    expect(product.searchParams.getAll('product_id')).toEqual(['bound-product']);
+    expect(product.searchParams.get('trade_return_view')).toBe('monitoring');
+    expect(product.searchParams.has('returnTo')).toBe(false);
+    expect(product.searchParams.has('amount')).toBe(false);
+    const returned = localUrl(productTradeReturnLink(product.searchParams)!);
+    expect(returned.pathname).toBe('/trade-management');
+    expect(returned.hash).toBe('#trade-risk');
+    expect(returned.searchParams.get('trade_id')).toBe(tradeId);
+    expect(returned.searchParams.get('review_version_id')).toBe(reviewId);
+    expect(returned.searchParams.get('journal_version_id')).toBe(journalId);
+    expect(parseClosedContext(returned.searchParams).context).toEqual(report);
+    expect(returned.searchParams.has('product_id')).toBe(false);
+    expect(returned.searchParams.has('trade_return_view')).toBe(false);
+  });
+
+  it('preserves invalid pins and ambiguous report state instead of choosing other evidence', () => {
+    const query = historicalContext();
+    query.append('review_version_id', journalId);
+    query.append('report_page', '7');
+    const product = localUrl(tradeProductLink('bound-product', tradeId, query));
+    const returned = localUrl(productTradeReturnLink(product.searchParams)!);
+    expect(returned.searchParams.getAll('review_version_id')).toEqual([reviewId, journalId]);
+    expect(sourceQueryError(returned.searchParams)).not.toBeNull();
+    expect(returned.searchParams.getAll('report_page')).toEqual(['3', '7']);
+    expect(parseClosedContext(returned.searchParams).error).not.toBeNull();
+  });
+
+  it.each([
+    '',
+    `trade_id=${tradeId}&trade_return_view=monitoring`,
+    `product_id=product&trade_return_view=monitoring`,
+    `trade_id=${tradeId}&product_id=product&trade_return_view=sources`,
+    `trade_id=${tradeId}&product_id=&trade_return_view=monitoring`,
+    `trade_id=${tradeId}&product_id=product&product_id=another&trade_return_view=monitoring`,
+    `trade_id=${tradeId}&trade_id=other&product_id=product&trade_return_view=monitoring`,
+    `trade_id=${tradeId}&product_id=product&trade_return_view=monitoring&trade_return_view=sources`,
+  ])('does not invent a monitoring return from absent or ambiguous context: %s', (search) => {
+    expect(productTradeReturnLink(new URLSearchParams(search))).toBeNull();
   });
 });
 

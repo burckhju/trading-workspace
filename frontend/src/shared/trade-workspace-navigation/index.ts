@@ -1,10 +1,14 @@
 export { TradeWorkspaceNavigation } from './TradeWorkspaceNavigation';
+export { tradeManagementArea } from './managementArea';
+export type { TradeManagementArea } from './managementArea';
 export {
   lessonTradeReturnLink,
   planTradeReturnLink,
+  productTradeReturnLink,
   tradeLessonLink,
   tradeLookupQuery,
   tradePlanLink,
+  tradeProductLink,
   tradeWorkspaceLink,
 } from './links';
 export type { TradeWorkspaceView } from './links';

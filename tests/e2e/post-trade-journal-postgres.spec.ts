@@ -1,8 +1,18 @@
 import { execFileSync } from "node:child_process";
 import { resolve } from "node:path";
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { prepareLearningQualification } from "./support/journal-evidence";
 import { localLearningRequest } from "./support/journal-request-guard.mjs";
+
+async function showLearningArea(
+  page: Page,
+  name: "Nachbeobachtung & Exit Review" | "Journal" | "Erkenntnisse",
+) {
+  await page
+    .getByRole("navigation", { name: "Nachbereitung dieses Trades" })
+    .getByRole("link", { name, exact: true })
+    .click();
+}
 
 // Match the canonical origin used by the existing real-write browser cases.
 test.use({ baseURL: "http://localhost:8080", serviceWorkers: "block" });
@@ -164,6 +174,7 @@ test("real PostgreSQL: captured full exit, review, journal, lesson and stale cor
   await page
     .getByRole("button", { name: "Review finalisieren", exact: true })
     .click();
+  await showLearningArea(page, "Journal");
   const journal = page.getByRole("region", {
     name: "Trade-Journal",
     exact: true,
@@ -312,7 +323,9 @@ test("real PostgreSQL: captured full exit, review, journal, lesson and stale cor
   await expect(originalSource).toHaveCount(1);
   await originalSource.click();
   await expect(
-    page.getByText("Review-Quelle jetzt: STALE", { exact: true }),
+    page.getByText("Review-Quelle jetzt: Veraltet – erneute Prüfung nötig", {
+      exact: true,
+    }),
   ).toBeVisible();
   await expect(
     page.getByText(original.what_went_well, { exact: true }),
@@ -321,7 +334,7 @@ test("real PostgreSQL: captured full exit, review, journal, lesson and stale cor
     page.getByRole("link", { name: "Genau diese Journalversion öffnen" }),
   ).toHaveAttribute(
     "href",
-    `/post-trade?trade_id=${tid}&journal_version_id=${original.id}`,
+    `/post-trade?trade_id=${tid}&journal_version_id=${original.id}#trade-journal`,
   );
   const after = await (
     await request.get(api + `/learning/lessons/${lessonId}`)
@@ -351,6 +364,7 @@ test("real PostgreSQL: captured full exit, review, journal, lesson and stale cor
   await page
     .getByRole("button", { name: "Review finalisieren", exact: true })
     .click();
+  await showLearningArea(page, "Journal");
   await journal
     .getByRole("button", { name: "Folgeversion vorbereiten", exact: true })
     .click();
@@ -471,7 +485,7 @@ test("real PostgreSQL: captured full exit, review, journal, lesson and stale cor
     );
   await confirmReview.click();
   await expect(
-    page.getByText(/Heutiger Lesson-Status: REVIEW_RECOMMENDED/),
+    page.getByText(/Heutiger Erkenntnisstatus: Prüfung empfohlen/),
   ).toBeVisible();
   expect(reviewWrites).toHaveLength(1);
   expect(reviewWrites[0].body).toMatchObject({
@@ -549,7 +563,9 @@ test("real PostgreSQL: captured full exit, review, journal, lesson and stale cor
     }),
   ).toBeVisible();
   await expect(
-    page.getByText("Heutiger Lesson-Status: CURRENT", { exact: true }),
+    page.getByText("Heutiger Erkenntnisstatus: Aktuelle Interpretation", {
+      exact: true,
+    }),
   ).toBeVisible();
   const latest = await reviewContext();
   await expect(page.getByLabel("Lesson-Version ansehen")).toHaveValue(
@@ -608,7 +624,9 @@ test("real PostgreSQL: captured full exit, review, journal, lesson and stale cor
     page.getByText(latest.history[0].version.content, { exact: true }),
   ).toHaveCount(0);
   await expect(
-    page.getByText("Heutiger Lesson-Status: CURRENT", { exact: true }),
+    page.getByText("Heutiger Erkenntnisstatus: Aktuelle Interpretation", {
+      exact: true,
+    }),
   ).toBeVisible();
   expect(new URL(page.url()).searchParams.get("lesson_version_id")).toBe(
     oldLessonVersion.version.id,
@@ -626,10 +644,15 @@ test("real PostgreSQL: captured full exit, review, journal, lesson and stale cor
     )
     .click();
   await expect(
-    historical.getByText("Quellversion jetzt: SUPERSEDED", { exact: true }),
+    historical.getByText("Quellversion jetzt: Durch neuere Version ersetzt", {
+      exact: true,
+    }),
   ).toBeVisible();
   await expect(
-    historical.getByText("Review-Quelle jetzt: STALE", { exact: true }),
+    historical.getByText(
+      "Review-Quelle jetzt: Veraltet – erneute Prüfung nötig",
+      { exact: true },
+    ),
   ).toBeVisible();
   expect((await getHistory()).versions[1].version).toEqual(original);
   expect(reviewWrites).toHaveLength(2); // Reload/history/source reads generate nothing.
@@ -643,7 +666,7 @@ test("real PostgreSQL: captured full exit, review, journal, lesson and stale cor
   });
   await expect(exactJournalLink).toHaveAttribute(
     "href",
-    `/post-trade?trade_id=${tid}&journal_version_id=${original.id}`,
+    `/post-trade?trade_id=${tid}&journal_version_id=${original.id}#trade-journal`,
   );
   await exactJournalLink.click();
   await expect(
@@ -733,7 +756,7 @@ test("real PostgreSQL: captured full exit, review, journal, lesson and stale cor
     ).toHaveCount(0);
   }
   await page.goto(
-    `/post-trade?trade_id=${tid}&journal_version_id=${original.id}`,
+    `/post-trade?trade_id=${tid}&journal_version_id=${original.id}#trade-journal`,
   );
   await expect(journal.getByLabel("Journalversion ansehen")).toHaveValue(
     original.id,

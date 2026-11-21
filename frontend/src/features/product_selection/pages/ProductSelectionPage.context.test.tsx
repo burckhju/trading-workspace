@@ -135,7 +135,7 @@ describe('bound product-selection context', () => {
     const user = userEvent.setup();
     renderContext();
     await ready();
-    expect(screen.getByText('Version 3 · APPROVED')).toBeInTheDocument();
+    expect(screen.getByText('Version 3 · Freigegeben')).toBeInTheDocument();
     expect(screen.queryByLabelText('TradePlan-ID')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('TradePlanVersion-ID')).not.toBeInTheDocument();
     expect(productSelectionApiClient.start).not.toHaveBeenCalled();
@@ -151,7 +151,9 @@ describe('bound product-selection context', () => {
     async (status) => {
       vi.mocked(tradePlanApiClient.version).mockResolvedValue({ ...version, status });
       renderContext();
-      expect(await screen.findByText(`Version 3 · ${status}`)).toBeInTheDocument();
+      expect(
+        await screen.findByText(`Version 3 · ${status === 'DRAFT' ? 'Entwurf' : 'Abgelöst'}`),
+      ).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Produkte neu bewerten' })).toBeDisabled();
       expect(productSelectionApiClient.start).not.toHaveBeenCalled();
     },
@@ -188,7 +190,7 @@ describe('bound product-selection context', () => {
     });
     vi.mocked(tradePlanApiClient.version).mockResolvedValue({ ...version, status: 'SUPERSEDED' });
     renderContext(`/product-selection?run_id=${run.run.id}`);
-    expect(await screen.findByText('Version 3 · SUPERSEDED')).toBeInTheDocument();
+    expect(await screen.findByText('Version 3 · Abgelöst')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Ursprüngliche Planversion ansehen' })).toHaveAttribute(
       'href',
       `/trade-plans?trade_plan_id=${plan.plan.id}&trade_plan_version_id=${version.id}`,
@@ -234,7 +236,7 @@ describe('bound product-selection context', () => {
       await pending.promise;
     });
     expect(
-      await screen.findByText(/Selection Run wurde gespeichert.*History offline/),
+      await screen.findByText(/Bewertungslauf wurde gespeichert.*History offline/),
     ).toBeInTheDocument();
     expect(screen.getByText('Produktvergleich')).toBeInTheDocument();
     expect(screen.getByTestId('current-route')).toHaveTextContent(`?run_id=${run.run.id}`);
@@ -320,7 +322,7 @@ describe('bound product-selection context', () => {
       old.resolve({ ...run, run: { ...run.run, id: 'old-run' } });
       await old.promise;
     });
-    expect(screen.getByText('Version 3 · APPROVED')).toBeInTheDocument();
+    expect(screen.getByText('Version 3 · Freigegeben')).toBeInTheDocument();
     expect(screen.queryByText('Produktvergleich')).not.toBeInTheDocument();
     expect(productSelectionApiClient.start).not.toHaveBeenCalled();
   });
@@ -341,7 +343,7 @@ describe('reuse of a single saved selection run', () => {
       ),
     ).toBeInTheDocument();
     expect(screen.getByText('Produktvergleich')).toBeInTheDocument();
-    expect(screen.getByText('Version 3 · APPROVED')).toBeInTheDocument();
+    expect(screen.getByText('Version 3 · Freigegeben')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Ursprüngliche Planversion ansehen' })).toHaveAttribute(
       'href',
       `/trade-plans?trade_plan_id=${plan.plan.id}&trade_plan_version_id=${version.id}`,
@@ -374,14 +376,21 @@ describe('reuse of a single saved selection run', () => {
     renderContext();
     expect(await screen.findByText('Bereits ausdrücklich ausgewählt')).toBeInTheDocument();
     await ready();
+    await user.click(screen.getByRole('link', { name: 'Kauf erfassen' }));
     expect(screen.getByLabelText('Kaufmenge')).toHaveValue(null);
+    expect(screen.getByLabelText('Kaufmenge')).toBeVisible();
     expect(screen.getByLabelText('Kaufpreis')).toHaveValue('');
     await user.type(screen.getByLabelText('Kaufmenge'), '12');
     await user.type(screen.getByLabelText('Kaufpreis'), '2,35');
+    await user.click(screen.getByRole('link', { name: 'Vergleich und Auswahl' }));
+    expect(screen.getByLabelText('Kaufmenge')).not.toBeVisible();
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Aktualisieren' }));
     await waitFor(() =>
       expect(productSelectionApiClient.listForTradePlanVersion).toHaveBeenCalledTimes(2),
     );
+    await user.click(screen.getByRole('link', { name: 'Kauf erfassen' }));
+    expect(screen.getByRole('heading', { name: 'Tatsächlichen Kauf erfassen' })).toHaveFocus();
     expect(screen.getByLabelText('Kaufmenge')).toHaveValue(12);
     expect(screen.getByLabelText('Kaufpreis')).toHaveValue('2,35');
     expect(productSelectionApiClient.get).toHaveBeenCalledOnce();
@@ -548,6 +557,7 @@ it('retains purchase inputs and OPEN_TRADE_EXISTS handoff while preventing concu
   const user = userEvent.setup();
   renderContext(`/product-selection?run_id=${run.run.id}`);
   await ready();
+  await user.click(screen.getByRole('link', { name: 'Kauf erfassen' }));
   expect(screen.getByLabelText('Kaufmenge')).toHaveValue(null);
   expect(screen.getByLabelText('Kaufpreis')).toHaveValue('');
   expect(screen.getByLabelText('Ausführungswährung (Code)')).toHaveValue('');
@@ -555,7 +565,7 @@ it('retains purchase inputs and OPEN_TRADE_EXISTS handoff while preventing concu
   await user.type(screen.getByLabelText('Kaufpreis'), '2,35001');
   await user.type(screen.getByLabelText('Ausführungswährung (Code)'), 'EUR');
   const form = screen
-    .getByRole('button', { name: 'BUY erfassen und Position eröffnen' })
+    .getByRole('button', { name: 'Kauf erfassen und Position eröffnen' })
     .closest('form');
   if (!form) throw new Error('Expected capture form');
   fireEvent.submit(form);
@@ -714,6 +724,7 @@ it('discards the old purchase date explicitly when evaluating a new run and rout
   await user.click(screen.getByRole('button', { name: 'Auswahl dokumentieren' }));
   expect(await screen.findByLabelText('Kaufdatum')).toHaveValue(initialDate);
   expect(screen.getByLabelText('Kaufpreis')).toHaveValue('');
+  await user.click(screen.getByRole('link', { name: 'Kauf erfassen' }));
   expect(screen.getByLabelText('Kaufmenge')).toHaveValue(null);
   expect(productSelectionApiClient.start).toHaveBeenCalledOnce();
   expect(productSelectionApiClient.get).toHaveBeenCalledOnce();

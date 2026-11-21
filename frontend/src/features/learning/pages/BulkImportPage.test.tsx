@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { createMemoryRouter, Link, RouterProvider } from 'react-router-dom';
 
 import { marketApiClient } from '../../market/services/client';
 import { warrantApiClient } from '../../product/services/client';
@@ -123,6 +124,74 @@ describe('BulkImportPage', () => {
     await waitFor(() =>
       expect(importClient.resolve).toHaveBeenCalledWith('job-1', 'row-1', 'u1', 'w1'),
     );
+  });
+
+  it('guards a pending file selection and releases navigation after its upload is stored', async () => {
+    const router = createMemoryRouter(
+      [
+        {
+          path: '/learning-imports',
+          element: (
+            <>
+              <Link to="/away">Andere Seite</Link>
+              <BulkImportPage />
+            </>
+          ),
+        },
+        { path: '/away', element: <h1>Andere Seite geöffnet</h1> },
+      ],
+      { initialEntries: ['/learning-imports'] },
+    );
+    render(<RouterProvider router={router} />);
+    const file = new File(['synthetic pdf'], 'synthetic.pdf', { type: 'application/pdf' });
+    fireEvent.change(screen.getByLabelText('Hebeltrader PDFs'), { target: { files: [file] } });
+    fireEvent.click(screen.getByRole('link', { name: 'Andere Seite' }));
+    expect(await screen.findByRole('alertdialog')).toHaveTextContent('Ungespeicherte Änderungen');
+    fireEvent.click(screen.getByRole('button', { name: 'Hier bleiben' }));
+    expect(importClient.upload).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: '1 PDF importieren' }));
+    await screen.findByRole('heading', { name: 'Importauftrag' });
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: '1 PDF importieren' })).toBeEnabled(),
+    );
+    fireEvent.click(screen.getByRole('link', { name: 'Andere Seite' }));
+    expect(await screen.findByRole('heading', { name: 'Andere Seite geöffnet' })).toBeVisible();
+    expect(importClient.upload).toHaveBeenCalledExactlyOnceWith([file]);
+    expect(importClient.confirm).not.toHaveBeenCalled();
+    router.dispose();
+  });
+
+  it('keeps unsaved assignment choices when navigation is cancelled', async () => {
+    importClient.reviewRows.mockResolvedValue([reviewRow]);
+    const router = createMemoryRouter(
+      [
+        {
+          path: '/learning-imports',
+          element: (
+            <>
+              <Link to="/away">Andere Seite</Link>
+              <BulkImportPage />
+            </>
+          ),
+        },
+        { path: '/away', element: <h1>Andere Seite geöffnet</h1> },
+      ],
+      { initialEntries: ['/learning-imports'] },
+    );
+    render(<RouterProvider router={router} />);
+    fireEvent.change(screen.getByLabelText('Hebeltrader PDFs'), {
+      target: { files: [new File(['pdf'], 'synthetic.pdf', { type: 'application/pdf' })] },
+    });
+    fireEvent.click(screen.getByRole('button', { name: '1 PDF importieren' }));
+    const underlying = await screen.findByRole('combobox', { name: 'Basiswert' });
+    fireEvent.change(underlying, { target: { value: 'u1' } });
+    fireEvent.click(screen.getByRole('link', { name: 'Andere Seite' }));
+    expect(await screen.findByRole('alertdialog')).toHaveTextContent('Ungespeicherte Änderungen');
+    fireEvent.click(screen.getByRole('button', { name: 'Hier bleiben' }));
+    expect(underlying).toHaveValue('u1');
+    expect(importClient.resolve).not.toHaveBeenCalled();
+    expect(importClient.confirm).not.toHaveBeenCalled();
+    router.dispose();
   });
 
   it.each([

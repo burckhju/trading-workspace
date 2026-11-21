@@ -12,6 +12,7 @@ import { Link } from 'react-router-dom';
 import { ErrorNotice } from '../../market/components/ApiFeedback';
 import { MarketApiError } from '../../market/services/http';
 import { JournalEvidenceOrigin } from './JournalEvidenceOrigin';
+import { lessonStateLabel } from '../services/lessonNavigation';
 import {
   evidenceLabel,
   lessonReviewClient,
@@ -112,6 +113,7 @@ export function LessonReviewPanel({
   actionsDisabled = false,
   isActionsDisabled,
   renderVersionActions,
+  visibleArea,
 }: {
   lessonId: string;
   versionId?: string;
@@ -124,6 +126,8 @@ export function LessonReviewPanel({
     snapshot: LessonVersionSnapshot,
     state: LessonVersionActionsState,
   ) => ReactNode;
+  /** Presentation only: both review and model owners remain mounted. */
+  visibleArea?: 'lesson' | 'model';
   onChanged?: () => void;
 }) {
   const fieldPrefix = useId();
@@ -783,7 +787,7 @@ export function LessonReviewPanel({
     <>
       {context && (
         <header className="space-y-2">
-          <p className="text-xs uppercase tracking-wide text-slate-500">FT-012 Lesson</p>
+          <p className="text-xs uppercase tracking-wide text-slate-500">Erkenntnis</p>
           <h1 className="text-2xl font-semibold">{context.lesson.title}</h1>
           {viewed && (
             <p>
@@ -791,7 +795,7 @@ export function LessonReviewPanel({
               {currentView ? 'aktueller Stand' : 'historisch'}
             </p>
           )}
-          <p>Heutiger Lesson-Status: {context.lesson.current_state}</p>
+          <p>Heutiger Erkenntnisstatus: {lessonStateLabel[context.lesson.current_state]}</p>
           {contextUnavailable && (
             <p className="text-sm text-amber-300">
               Zuletzt bestätigter Lesestand; der aktuelle Kontext ist noch ungeklärt.
@@ -799,12 +803,16 @@ export function LessonReviewPanel({
           )}
         </header>
       )}
-      {review}
-      {viewed &&
-        renderVersionActions?.(viewed, {
-          actionsDisabled: contextUnavailable || busy || conflict || actionsDisabled,
-          isActionsDisabled: commandBlocked,
-        })}
+      <div hidden={visibleArea === 'model' && Boolean(context && viewed) && readError === null}>
+        {review}
+      </div>
+      <div id="model-improvement" tabIndex={-1} hidden={visibleArea === 'lesson'}>
+        {viewed &&
+          renderVersionActions?.(viewed, {
+            actionsDisabled: contextUnavailable || busy || conflict || actionsDisabled,
+            isActionsDisabled: commandBlocked,
+          })}
+      </div>
     </>
   );
 }

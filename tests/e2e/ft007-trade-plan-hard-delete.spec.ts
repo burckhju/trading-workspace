@@ -142,8 +142,13 @@ for (const scenario of [
     await page.goto(`/trade-plans?trade_plan_id=${planId}`);
 
     await expect(page.getByRole("heading", { name: reference })).toBeVisible();
+    await page
+      .getByText("Weitere Aktionen · Tradeplan dauerhaft löschen", {
+        exact: true,
+      })
+      .click();
     const deleteButton = page.getByRole("button", {
-      name: "TradePlan unwiderruflich löschen",
+      name: "Tradeplan unwiderruflich löschen",
     });
     await expect(deleteButton).toBeDisabled();
 

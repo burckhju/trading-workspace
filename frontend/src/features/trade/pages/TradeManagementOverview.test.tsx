@@ -17,6 +17,7 @@ import { TradeManagementPage } from './index';
 // Exercise the real route, host, valuation reader, qualification and manual forms.
 // Chart internals, historical sources and booking commands have their own integration suites.
 vi.mock('../../operational_workspace', () => ({
+  PositionMonitoring: () => null,
   PositionPriceHistory: ({ reloadToken }: { reloadToken: number }) => (
     <output aria-label="History revision">{reloadToken}</output>
   ),
@@ -196,11 +197,15 @@ function show(url = '/trade-management?trade_id=trade-a#trade-overview') {
     initialEntries: [url],
   });
   render(<RouterProvider router={router} />);
+  const opener = screen.getByText('Trade über Kennung öffnen oder Stand neu laden');
+  if (!opener.closest('details')!.open) fireEvent.click(opener);
   return router;
 }
 
 async function loaded(id = 'trade-a') {
   await screen.findByRole('heading', { name: new RegExp(`Overview warrant ${id}`) });
+  const opener = screen.getByText('Trade über Kennung öffnen oder Stand neu laden');
+  if (!opener.closest('details')!.open) fireEvent.click(opener);
   await waitFor(() => expect(screen.getByRole('button', { name: 'Laden' })).toBeEnabled());
 }
 
@@ -228,10 +233,12 @@ function reload() {
 }
 
 function confirmWrite() {
+  fireEvent.click(screen.getByRole('link', { name: 'Buchungen' }));
   fireEvent.click(screen.getByRole('button', { name: 'Confirm booking write' }));
 }
 
 function readback() {
+  fireEvent.click(screen.getByRole('link', { name: 'Buchungen' }));
   fireEvent.click(screen.getByRole('button', { name: 'Read confirmed booking' }));
 }
 
@@ -303,7 +310,9 @@ describe('UX2-B host overview and independent valuation readback', () => {
       show();
       await loaded();
       const overview = within(screen.getByRole('region', { name: 'Trade und Position' }));
-      expect(overview.getByRole('heading', { name: status })).toBeInTheDocument();
+      expect(
+        overview.getByRole('heading', { name: status === 'CLOSED' ? 'Geschlossen' : 'Storniert' }),
+      ).toBeInTheDocument();
       expect(api.position).toHaveBeenCalledOnce();
       expect(api.productValuation).not.toHaveBeenCalled();
       expect(screen.queryByText('Marktwert (Bid)')).not.toBeInTheDocument();
@@ -340,7 +349,7 @@ describe('UX2-B host overview and independent valuation readback', () => {
       expect(api.position).toHaveBeenCalledOnce();
       expect(api.productValuation).not.toHaveBeenCalled();
       expect(screen.queryByRole('region', { name: 'Trade und Position' })).not.toBeInTheDocument();
-      expect(screen.queryByRole('heading', { name: 'CLOSED' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: 'Geschlossen' })).not.toBeInTheDocument();
     },
   );
 
@@ -445,7 +454,9 @@ describe('UX2-B host overview and independent valuation readback', () => {
     readback();
     await screen.findByText('Host readback succeeded');
     expect(api.position).toHaveBeenCalledTimes(2);
-    expect(api.productValuation).toHaveBeenCalledTimes(2);
+    // Host success can commit before the valuation reader's separate passive effect.
+    // Await only that request's start; its response deliberately remains unresolved.
+    await waitFor(() => expect(api.productValuation).toHaveBeenCalledTimes(2));
     expect(screen.getByLabelText('History revision')).toHaveTextContent('1');
     expect(screen.queryByText('Marktwert (Bid)')).not.toBeInTheDocument();
     expectDrafts();
@@ -454,6 +465,8 @@ describe('UX2-B host overview and independent valuation readback', () => {
     expect(screen.getByText('Confirmed booking receipt')).toBeInTheDocument();
     expect(screen.getByText('Host readback succeeded')).toBeInTheDocument();
     expect(screen.queryByText(/Host readback failed/)).not.toBeInTheDocument();
+    expect(api.position).toHaveBeenCalledTimes(2);
+    expect(api.productValuation).toHaveBeenCalledTimes(2);
     expectDrafts();
   });
 

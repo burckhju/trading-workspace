@@ -16,8 +16,10 @@ beforeEach(() => vi.resetAllMocks());
 it('currentness, upstream review, exact version and read time remain distinct', async () => {
   vi.mocked(lessonReviewClient.source).mockResolvedValue(source('e1'));
   render(<EvidenceSourceStatus evidenceId="e1" />);
-  await screen.findByText('Quellversion jetzt: SUPERSEDED');
-  expect(screen.getByText('Review-Quelle jetzt: STALE')).toBeInTheDocument();
+  await screen.findByText('Quellversion jetzt: Durch neuere Version ersetzt');
+  expect(
+    screen.getByText('Review-Quelle jetzt: Veraltet – erneute Prüfung nötig'),
+  ).toBeInTheDocument();
   expect(screen.getByText('Konkrete Quellversion: v-e1')).toBeInTheDocument();
   expect(screen.getByText(/successor \(nicht automatisch übernommen\)/)).toBeInTheDocument();
   expect(screen.getByText(/keine Aussage über damaliges Wissen/)).toBeInTheDocument();
@@ -35,7 +37,7 @@ it('read error remains unavailable; manual retry can expose unknown, not manufac
   await screen.findByText(/Quellenprüfung nicht verfügbar/);
   expect(screen.queryByText(/Quellversion jetzt:/)).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Quellenprüfung erneut laden' }));
-  await screen.findByText('Quellversion jetzt: UNKNOWN');
+  await screen.findByText('Quellversion jetzt: Ungeklärt');
   expect(lessonReviewClient.source).toHaveBeenCalledTimes(2);
   expect(screen.queryByText(/Review-Quelle jetzt/)).not.toBeInTheDocument();
 });
@@ -68,8 +70,8 @@ it('leaves shared source identity to the enclosing provenance block without drop
       expectedSource={{ type: 'TRADE_JOURNAL_VERSION', versionId: 'v-e1' }}
     />,
   );
-  await screen.findByText('Quellversion jetzt: SUPERSEDED');
-  expect(screen.getByText('Review-Quelle jetzt: STALE')).toBeVisible();
+  await screen.findByText('Quellversion jetzt: Durch neuere Version ersetzt');
+  expect(screen.getByText('Review-Quelle jetzt: Veraltet – erneute Prüfung nötig')).toBeVisible();
   expect(screen.queryByText(/Quellentyp:/)).not.toBeInTheDocument();
   expect(screen.queryByText(/Konkrete Quellversion:/)).not.toBeInTheDocument();
   view.rerender(
@@ -79,7 +81,7 @@ it('leaves shared source identity to the enclosing provenance block without drop
       expectedSource={{ type: 'TRADE_JOURNAL_VERSION', versionId: 'v-e1' }}
     />,
   );
-  expect(screen.getByText('Review-Quelle jetzt: STALE')).toBeVisible();
+  expect(screen.getByText('Review-Quelle jetzt: Veraltet – erneute Prüfung nötig')).toBeVisible();
   expect(lessonReviewClient.source).toHaveBeenCalledTimes(1);
 });
 

@@ -5,12 +5,18 @@ import { TradeSourcesView } from '../components/TradeSourcesView';
 import {
   TradeWorkspaceNavigation,
   tradeLookupQuery,
+  tradeManagementArea,
+  tradeProductLink,
   tradeWorkspaceLink,
 } from '../../../shared/trade-workspace-navigation';
 
-import { PositionRiskPanel } from '../../alert/components/PositionRiskPanel';
+import { PositionRiskPanel, type PositionRiskPending } from '../../alert';
 import { TradeAlertsPanel } from '../../alert/components/TradeAlertsPanel';
-import { PositionPriceHistory } from '../../operational_workspace';
+import {
+  PositionMonitoring,
+  PositionPriceHistory,
+  type PositionMonitoringPending,
+} from '../../operational_workspace';
 import { postTradeApiClient } from '../../post_trade/services/client';
 import { postTradeErrorMessage } from '../../post_trade/services/errors';
 import { warrantApiClient } from '../../product/services/client';
@@ -89,7 +95,8 @@ export function TradeManagementPage() {
 
 function TradeManagementContext({ tradeId }: { tradeId: string }) {
   const navigate = useNavigate();
-  const { search } = useLocation();
+  const { search, hash } = useLocation();
+  const area = tradeManagementArea(hash);
   const [searchParams, setSearchParams] = useSearchParams();
   const [lookupId, setLookupId] = useState(tradeId);
   const active = useRef(false);
@@ -123,8 +130,48 @@ function TradeManagementContext({ tradeId }: { tradeId: string }) {
   const [message, setMessage] = useState<string | null>(null);
   const [pageBusy, setBusy] = useState(false);
   const [bookingBlocked, setBookingBlocked] = useState(false);
+  const monitoringParticipant = useRef<PositionMonitoringPending | null>(null);
+  const { notify: notifyMonitoring, isBusyExceptSelf: isOtherOwnerBusy } = useTradePendingChanges(
+    'position-monitoring',
+    {
+      isBusy: () => monitoringParticipant.current?.isBusy() ?? false,
+      isDirty: () => monitoringParticipant.current?.isDirty() ?? false,
+      onDiscard: () => monitoringParticipant.current?.discard(),
+    },
+  );
+  const onMonitoringPendingChange = useCallback(
+    (participant: PositionMonitoringPending | null) => {
+      monitoringParticipant.current = participant;
+      notifyMonitoring();
+    },
+    [notifyMonitoring],
+  );
   const bookingBlockedRef = useRef(false);
+  const riskParticipant = useRef<PositionRiskPending | null>(null);
+  const { notify: notifyRisk, isBusyExceptSelf: isOtherRiskOwnerBusy } = useTradePendingChanges(
+    'position-risk',
+    {
+      isBusy: () => riskParticipant.current?.isBusy() ?? false,
+      isDirty: () => riskParticipant.current?.isDirty() ?? false,
+      onDiscard: () => riskParticipant.current?.discard(),
+    },
+  );
+  const onRiskPendingChange = useCallback(
+    (participant: PositionRiskPending | null) => {
+      riskParticipant.current = participant;
+      notifyRisk();
+    },
+    [notifyRisk],
+  );
+  const isRiskWriteBlocked = useCallback(
+    () => bookingBlockedRef.current || isOtherRiskOwnerBusy(),
+    [isOtherRiskOwnerBusy],
+  );
   const isBookingWriteBlocked = useCallback(() => bookingBlockedRef.current, []);
+  const isMonitoringWriteBlocked = useCallback(
+    () => bookingBlockedRef.current || isOtherOwnerBusy(),
+    [isOtherOwnerBusy],
+  );
   const onWriteBlockedChange = useCallback((blocked: boolean) => {
     bookingBlockedRef.current = blocked;
     setBookingBlocked(blocked);
@@ -299,11 +346,16 @@ function TradeManagementContext({ tradeId }: { tradeId: string }) {
     const id = lookupId.trim();
     if (!id) return;
     if (pageBusy || isContextBusy()) return;
-    if (id === tradeId) {
+    if (id === tradeId) reloadTrade();
+    else setSearchParams(tradeLookupQuery(id, searchParams));
+  }
+
+  function reloadTrade() {
+    if (tradeId && !pageBusy && !isContextBusy()) {
       setReloadToken((token) => token + 1);
       setBusy(true);
       setMessage(null);
-      void refresh(id)
+      void refresh(tradeId)
         .catch((error: unknown) => {
           if (active.current && !(error instanceof SupersededTradeReadError))
             setMessage(
@@ -313,7 +365,7 @@ function TradeManagementContext({ tradeId }: { tradeId: string }) {
         .finally(() => {
           if (active.current) setBusy(false);
         });
-    } else setSearchParams(tradeLookupQuery(id, searchParams));
+    }
   }
 
   async function mutate(
@@ -489,12 +541,23 @@ function TradeManagementContext({ tradeId }: { tradeId: string }) {
   }
 
   return (
-    <main className="min-w-0 w-full space-y-6 [overflow-wrap:anywhere]">
+    <section className="min-w-0 w-full space-y-6 [overflow-wrap:anywhere]">
       <header>
         <h1 className="mt-1 text-2xl font-semibold">Trade und Position</h1>
         <p className="mt-2 text-sm text-slate-400">
-          Position, Buchungen und Quellen im gewählten Trade-Kontext öffnen.
+          Überblick, Überwachung und Bearbeitung derselben Position. Die Bereichslinks erhalten
+          deine Eingaben.
         </p>
+        {tradeId && (
+          <button
+            type="button"
+            disabled={pageBusy || isContextBusy()}
+            onClick={reloadTrade}
+            className="mt-3 min-h-11 rounded-lg border border-slate-700 px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-sky-300 disabled:opacity-50"
+          >
+            Stand neu laden
+          </button>
+        )}
         {!tradeId && (
           <Link className="mt-3 inline-block text-sky-400 underline" to="/workspace">
             Trade in der Positionsübersicht auswählen
@@ -510,27 +573,32 @@ function TradeManagementContext({ tradeId }: { tradeId: string }) {
         />
       )}
 
-      <form onSubmit={lookupTrade} className="rounded-xl border border-slate-800 p-5">
-        <label className="block text-sm font-medium" htmlFor="trade-id">
-          Trade-ID
-        </label>
-        <div className="mt-2 flex flex-col gap-2 sm:flex-row">
-          <input
-            id="trade-id"
-            value={lookupId}
-            onChange={(event) => setLookupId(event.target.value)}
-            className="min-w-0 flex-1 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2"
-            placeholder="UUID des Trades"
-          />
-          <button
-            type="submit"
-            disabled={pageBusy || isContextBusy() || lookupId.trim() === ''}
-            className="rounded-lg border border-slate-600 px-4 py-2 disabled:opacity-50"
-          >
-            Laden
-          </button>
-        </div>
-      </form>
+      <details className="rounded-xl border border-slate-800 p-4" open={!tradeId}>
+        <summary className="cursor-pointer rounded text-sm text-slate-300 focus-visible:outline-2 focus-visible:outline-sky-300">
+          Trade über Kennung öffnen oder Stand neu laden
+        </summary>
+        <form onSubmit={lookupTrade} className="mt-3">
+          <label className="block text-sm font-medium" htmlFor="trade-id">
+            Trade-ID
+          </label>
+          <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+            <input
+              id="trade-id"
+              value={lookupId}
+              onChange={(event) => setLookupId(event.target.value)}
+              className="min-w-0 flex-1 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2"
+              placeholder="Vorhandene Trade-Kennung"
+            />
+            <button
+              type="submit"
+              disabled={pageBusy || isContextBusy() || lookupId.trim() === ''}
+              className="rounded-lg border border-slate-600 px-4 py-2 disabled:opacity-50"
+            >
+              Laden
+            </button>
+          </div>
+        </form>
+      </details>
 
       {message && (
         <div role="status" className="rounded-xl border border-slate-700 bg-slate-900 p-4 text-sm">
@@ -557,7 +625,7 @@ function TradeManagementContext({ tradeId }: { tradeId: string }) {
               </p>
             </div>
             <h3 className="rounded-full border border-sky-800 px-3 py-1 text-xs">
-              {trade.cancelled_at ? 'CANCELLED' : position.is_closed ? 'CLOSED' : 'OPEN'}
+              {trade.cancelled_at ? 'Storniert' : position.is_closed ? 'Geschlossen' : 'Offen'}
             </h3>
           </div>
           {positionRead.status !== 'ready' && (
@@ -620,16 +688,16 @@ function TradeManagementContext({ tradeId }: { tradeId: string }) {
                   Verkauf erfassen
                 </Link>
                 <Link className="text-sky-400 underline" to={{ search, hash: '#trade-risk' }}>
-                  Risiko und Monitoring prüfen
+                  Überwachung und Datenlage prüfen
                 </Link>
               </>
             )}
             {!trade.cancelled_at && position.is_closed && (
               <Link
                 className="text-sky-400 underline"
-                to={tradeWorkspaceLink('journal', tradeId, searchParams, '#trade-journal')}
+                to={tradeWorkspaceLink('journal', tradeId, searchParams, '#post-trade-review')}
               >
-                Nachbeobachtung und Journal öffnen
+                Nachbereitung öffnen
               </Link>
             )}
             <Link
@@ -638,23 +706,31 @@ function TradeManagementContext({ tradeId }: { tradeId: string }) {
             >
               Ergebnis und Belege öffnen
             </Link>
+            <Link
+              className="text-sky-400 underline"
+              to={`/market-charts?underlying=${encodeURIComponent(warrant.underlying_id)}`}
+            >
+              Basiswertdiagramm
+            </Link>
           </nav>
-          <p className="mt-4 text-xs text-slate-400">
-            Kostenbasis, durchschnittlicher Einstieg und realisierter Brutto-G/V sind in dieser
-            Ansicht nicht als Geldwerte qualifiziert. Wirtschaftliche Ergebnisse und ihre Belege
-            können Sie in den Quellen prüfen.
-          </p>
-          <div className="-mx-4 mt-5 min-w-0">
-            <ProductValuationPanel
-              tradeId={trade.id}
-              productId={trade.product_id}
-              position={position}
-              cancelled={Boolean(trade.cancelled_at)}
-              positionRead={positionRead}
-            />
+          <div hidden={area !== 'overview'}>
+            <p className="mt-4 text-xs text-slate-400">
+              Kostenbasis, durchschnittlicher Einstieg und realisierter Brutto-G/V sind in dieser
+              Ansicht nicht als Geldwerte qualifiziert. Wirtschaftliche Ergebnisse und ihre Belege
+              können Sie in den Quellen prüfen.
+            </p>
+            <div className="-mx-4 mt-5 min-w-0">
+              <ProductValuationPanel
+                tradeId={trade.id}
+                productId={trade.product_id}
+                position={position}
+                cancelled={Boolean(trade.cancelled_at)}
+                positionRead={positionRead}
+              />
+            </div>
           </div>
           <details className="mt-4 text-xs text-slate-500">
-            <summary className="cursor-pointer">Technische Provenance anzeigen</summary>
+            <summary className="cursor-pointer">Herkunft und technische Kennungen</summary>
             <div className="mt-2 space-y-1 break-all">
               <p>
                 Ursprung:{' '}
@@ -677,7 +753,12 @@ function TradeManagementContext({ tradeId }: { tradeId: string }) {
             </div>
           </details>
           {!trade.cancelled_at && (
-            <div id="position-price-history" tabIndex={-1} className="mt-5 min-w-0">
+            <div
+              id="position-price-history"
+              tabIndex={-1}
+              hidden={area !== 'history'}
+              className="mt-5 min-w-0"
+            >
               <PositionPriceHistory
                 tradeId={trade.id}
                 positionId={position.id}
@@ -689,15 +770,17 @@ function TradeManagementContext({ tradeId }: { tradeId: string }) {
       )}
 
       {position && trade && (
-        <ExecutionDatesPanel
-          key={`dates-${trade.id}`}
-          tradeId={trade.id}
-          productId={trade.product_id}
-          cancelled={Boolean(trade.cancelled_at)}
-          reloadToken={reloadToken}
-          onWriteBlockedChange={onWriteBlockedChange}
-          onChanged={() => refresh(trade.id)}
-        />
+        <div hidden={area !== 'bookings'}>
+          <ExecutionDatesPanel
+            key={`dates-${trade.id}`}
+            tradeId={trade.id}
+            productId={trade.product_id}
+            cancelled={Boolean(trade.cancelled_at)}
+            reloadToken={reloadToken}
+            onWriteBlockedChange={onWriteBlockedChange}
+            onChanged={() => refresh(trade.id)}
+          />
+        </div>
       )}
 
       {position && trade && !trade.cancelled_at && (
@@ -705,20 +788,47 @@ function TradeManagementContext({ tradeId }: { tradeId: string }) {
           <section
             id="trade-risk"
             tabIndex={-1}
-            aria-label="Risiko und Monitoring"
+            aria-label="Überwachung und Datenlage"
+            hidden={area !== 'monitoring'}
             className="space-y-6"
           >
-            <PositionRiskPanel tradeId={tradeId} />
+            <h2 className="text-xl font-semibold">Überwachung und Datenlage</h2>
             <TradeAlertsPanel tradeId={tradeId} />
+            <PositionMonitoring
+              tradeId={trade.id}
+              positionId={position.id}
+              reloadToken={historyReloadToken}
+              productDetailsHref={tradeProductLink(trade.product_id, trade.id, searchParams)}
+              onPendingChange={onMonitoringPendingChange}
+              isContextPending={isMonitoringWriteBlocked}
+            />
+            <details className="rounded-xl border border-slate-700 p-4">
+              <summary className="cursor-pointer rounded font-semibold focus-visible:outline-2 focus-visible:outline-sky-300">
+                Risiko- und Trendsignale sowie Warnregeln
+              </summary>
+              <div className="mt-4">
+                <PositionRiskPanel
+                  tradeId={tradeId}
+                  onPendingChange={onRiskPendingChange}
+                  isContextPending={isRiskWriteBlocked}
+                />
+              </div>
+            </details>
             <Link
               className="text-sky-400 underline"
               to={{ search, hash: '#trade-management-state' }}
             >
-              Zum Management-Zustand
+              Stop, Ziel und These bearbeiten
             </Link>
           </section>
           {!position.is_closed && (
-            <fieldset disabled={bookingBlocked} className="min-w-0">
+            <fieldset
+              id="additional-purchase"
+              tabIndex={-1}
+              hidden={area !== 'bookings'}
+              disabled={bookingBlocked}
+              className="min-w-0"
+            >
               <AdditionalPurchasePanel
                 key={trade.id}
                 tradeId={tradeId}
@@ -733,6 +843,7 @@ function TradeManagementContext({ tradeId }: { tradeId: string }) {
             id="sale-capture"
             tabIndex={-1}
             aria-label="Verkauf erfassen"
+            hidden={area !== 'bookings'}
             onSubmit={(event) => void recordSale(event)}
             className="rounded-xl border border-slate-800 p-5"
           >
@@ -839,12 +950,13 @@ function TradeManagementContext({ tradeId }: { tradeId: string }) {
         <section
           id="trade-management-state"
           tabIndex={-1}
+          hidden={area !== 'management'}
           className="rounded-xl border border-slate-800 p-5"
         >
-          <h2 className="text-lg font-semibold">Aktueller Management-Zustand</h2>
+          <h2 className="text-lg font-semibold">Position bearbeiten</h2>
           <p className="mt-1 text-xs text-slate-500">
-            Abgeleitet aus der effektiven Management-Event-Historie; der ursprüngliche TradePlan
-            wird nicht verändert.
+            Stop, Ziel, These und Notizen gelten für diese Position. Der ursprüngliche Tradeplan
+            bleibt als Quelle erhalten.
           </p>
 
           <div className="mt-5 grid gap-5 lg:grid-cols-2">
@@ -902,7 +1014,7 @@ function TradeManagementContext({ tradeId }: { tradeId: string }) {
                       price: targetPrice,
                       price_binding: targetBinding,
                     }),
-                  'Target wurde aktualisiert.',
+                  'Ziel wurde aktualisiert.',
                   'target',
                 );
               }}
@@ -910,7 +1022,7 @@ function TradeManagementContext({ tradeId }: { tradeId: string }) {
             >
               {warrant && (
                 <PriceBindingInput
-                  label="Target"
+                  label="Ziel"
                   value={targetBinding}
                   warrantId={warrant.id}
                   underlyingId={warrant.underlying_id}
@@ -918,7 +1030,7 @@ function TradeManagementContext({ tradeId }: { tradeId: string }) {
                 />
               )}
               <label className="block text-sm" htmlFor="target-price">
-                Target
+                Ziel
               </label>
               <input
                 id="target-price"
@@ -934,7 +1046,7 @@ function TradeManagementContext({ tradeId }: { tradeId: string }) {
                 disabled={busy || !targetBinding || !/^[A-Z]{3}$/.test(targetBinding.currency)}
                 className="rounded-lg border border-slate-600 px-3 py-2"
               >
-                Target speichern
+                Ziel speichern
               </button>
             </form>
 
@@ -1015,7 +1127,12 @@ function TradeManagementContext({ tradeId }: { tradeId: string }) {
         </section>
       )}
       {trade && warrant && (
-        <div className="min-w-0">
+        <div
+          id="trade-cancellation"
+          tabIndex={-1}
+          hidden={area !== 'management'}
+          className="min-w-0"
+        >
           <TradeCancellationPanel
             key={trade.id}
             trade={trade}
@@ -1025,6 +1142,6 @@ function TradeManagementContext({ tradeId }: { tradeId: string }) {
           />
         </div>
       )}
-    </main>
+    </section>
   );
 }

@@ -179,11 +179,11 @@ function edit(label: string, value: string) {
 }
 
 function fillAssumptions() {
-  edit('Trade Thesis', 'Bewusste These');
-  edit('Entry-Preis', '100');
+  edit('Handelsidee und Begründung', 'Bewusste These');
+  edit('Einstiegspreis', '100');
   edit('Technischer Stop', '95');
-  edit('Target 1', '110');
-  edit('Plan-Risiko / Annahme', 'Fehlausbruch');
+  edit('Kursziel 1', '110');
+  edit('Risikoannahme', 'Fehlausbruch');
 }
 
 let stored: TradePlanDetailResponse;
@@ -231,7 +231,12 @@ describe('new Candidate TradePlan currency suggestion', () => {
       },
       expect.any(AbortSignal),
     );
-    for (const label of ['Trade Thesis', 'Entry-Preis', 'Technischer Stop', 'Target 1'])
+    for (const label of [
+      'Handelsidee und Begründung',
+      'Einstiegspreis',
+      'Technischer Stop',
+      'Kursziel 1',
+    ])
       expect(screen.getByLabelText(label)).toHaveValue('');
     expect(router.state.location.search).toBe(new URL(candidatePath(), 'https://test').search);
     expect(planApi.create).not.toHaveBeenCalled();
@@ -241,8 +246,8 @@ describe('new Candidate TradePlan currency suggestion', () => {
     expect(screen.getByText(/Initialvorschlag aus Analyse analysis-a, Version 3/)).toBeVisible();
     edit('Währung', 'CHF');
     expect(screen.queryByText(/Initialvorschlag/)).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'TradePlan als DRAFT erstellen' }));
-    await screen.findByRole('heading', { name: 'Version 1 · DRAFT' });
+    fireEvent.click(screen.getByRole('button', { name: 'Tradeplan als Entwurf speichern' }));
+    await screen.findByRole('heading', { name: 'Version 1 · Entwurf' });
     expect(planApi.create).toHaveBeenCalledExactlyOnceWith({
       origin_type: 'CANDIDATE_EVALUATION',
       candidate_id: 'candidate-a',
@@ -266,15 +271,15 @@ describe('new Candidate TradePlan currency suggestion', () => {
       if (outcome === 'missing') readSuggestion.mockResolvedValue(null);
       else readSuggestion.mockRejectedValue(new Error('optional snapshot unavailable'));
       mount();
-      await screen.findByLabelText('Trade Thesis');
+      await screen.findByLabelText('Handelsidee und Begründung');
       await waitFor(() => expect(readSuggestion).toHaveBeenCalledTimes(1));
       expect(screen.getByLabelText('Währung')).toHaveValue('');
-      expect(screen.getByRole('button', { name: 'TradePlan als DRAFT erstellen' })).toBeEnabled();
+      expect(screen.getByRole('button', { name: 'Tradeplan als Entwurf speichern' })).toBeEnabled();
       expect(screen.queryByRole('alert')).not.toBeInTheDocument();
       fillAssumptions();
       edit('Währung', 'CHF');
-      fireEvent.click(screen.getByRole('button', { name: 'TradePlan als DRAFT erstellen' }));
-      await screen.findByRole('heading', { name: 'Version 1 · DRAFT' });
+      fireEvent.click(screen.getByRole('button', { name: 'Tradeplan als Entwurf speichern' }));
+      await screen.findByRole('heading', { name: 'Version 1 · Entwurf' });
       expect(planApi.create).toHaveBeenCalledTimes(1);
       expect(planApi.create.mock.calls[0][0].entry.currency).toBe('CHF');
     },
@@ -301,7 +306,9 @@ describe('new Candidate TradePlan currency suggestion', () => {
     async (status) => {
       stored.latest_version.status = status;
       mount('/trade-plans?trade_plan_id=plan-a&trade_plan_version_id=version-a');
-      await screen.findByRole('heading', { name: `Version 1 · ${status}` });
+      await screen.findByRole('heading', {
+        name: `Version 1 · ${status === 'DRAFT' ? 'Entwurf' : 'Freigegeben'}`,
+      });
       expect(
         within(screen.getByRole('region', { name: 'Einstieg' })).getByText('CHF'),
       ).toBeVisible();
@@ -316,21 +323,21 @@ describe('new Candidate TradePlan currency suggestion', () => {
   );
 
   it.each([
-    ['Trade Thesis', 'Meine These'],
-    ['Entry-Preis', '101'],
+    ['Handelsidee und Begründung', 'Meine These'],
+    ['Einstiegspreis', '101'],
     ['Referenzpreis', '99'],
     ['Technischer Stop', '90'],
-    ['Target 1', '120'],
+    ['Kursziel 1', '120'],
     ['Währung', 'CHF'],
-    ['Plan-Risiko / Annahme', 'Mein Risiko'],
-    ['Entry-Art', 'TRIGGER'],
+    ['Risikoannahme', 'Mein Risiko'],
+    ['Einstiegsart', 'TRIGGER'],
   ])('protects an earlier %s edit against a delayed source', async (label, value) => {
     const pending = deferred<Suggestion>();
     readSuggestion.mockReturnValue(pending.promise);
     mount();
     await screen.findByLabelText('Währung');
     await waitFor(() => expect(readSuggestion).toHaveBeenCalledTimes(1));
-    if (label === 'Referenzpreis') fireEvent.click(screen.getByText('Weitere Entry-Angaben'));
+    if (label === 'Referenzpreis') fireEvent.click(screen.getByText('Weitere Einstiegsangaben'));
     edit(label, value);
     await act(async () => {
       pending.resolve(suggestion);
@@ -342,7 +349,7 @@ describe('new Candidate TradePlan currency suggestion', () => {
     expect(planApi.create).not.toHaveBeenCalled();
   });
 
-  it.each(['Währung', 'Entry-Preis', 'Trade Thesis'])(
+  it.each(['Währung', 'Einstiegspreis', 'Handelsidee und Begründung'])(
     'keeps the suggestion locked after editing and clearing %s',
     async (label) => {
       const pending = deferred<Suggestion>();
@@ -361,7 +368,7 @@ describe('new Candidate TradePlan currency suggestion', () => {
     },
   );
 
-  it.each(['Entry-Preis', 'Trade Thesis'])(
+  it.each(['Einstiegspreis', 'Handelsidee und Begründung'])(
     'does not claim a queued suggestion after a %s edit wins before React commits it',
     async (label) => {
       const pending = deferred<Suggestion>();
@@ -404,11 +411,11 @@ describe('new Candidate TradePlan currency suggestion', () => {
     await act(() => router.navigate(candidatePath()));
     await waitFor(() => expect(screen.getByLabelText('Währung')).toHaveValue('USD'));
     expect(readSuggestion).toHaveBeenCalledTimes(2);
-    edit('Trade Thesis', 'Mein Entwurf');
+    edit('Handelsidee und Begründung', 'Mein Entwurf');
     fireEvent.click(screen.getByRole('button', { name: 'Ursprung wechseln' }));
     expect(await screen.findByRole('alertdialog')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Hier bleiben' }));
-    expect(screen.getByLabelText('Trade Thesis')).toHaveValue('Mein Entwurf');
+    expect(screen.getByLabelText('Handelsidee und Begründung')).toHaveValue('Mein Entwurf');
     expect(planApi.create).not.toHaveBeenCalled();
   });
 
@@ -494,7 +501,7 @@ describe('new Candidate TradePlan currency suggestion', () => {
     mount();
     await waitFor(() => expect(screen.getByLabelText('Währung')).toHaveValue('USD'));
     fillAssumptions();
-    const form = screen.getByLabelText('Trade Thesis').closest('form')!;
+    const form = screen.getByLabelText('Handelsidee und Begründung').closest('form')!;
     act(() => {
       fireEvent.submit(form);
       fireEvent.submit(form);
@@ -510,7 +517,7 @@ describe('new Candidate TradePlan currency suggestion', () => {
       /Abschluss der Speicherung ist unklar/,
     );
     expect(screen.getByLabelText('Währung')).toHaveValue('USD');
-    expect(screen.getByRole('button', { name: 'TradePlan als DRAFT erstellen' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Tradeplan als Entwurf speichern' })).toBeDisabled();
     fireEvent.submit(form);
     expect(planApi.create).toHaveBeenCalledTimes(1);
     expect(readSuggestion).toHaveBeenCalledTimes(1);

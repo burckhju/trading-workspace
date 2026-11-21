@@ -290,7 +290,7 @@ describe('read-only trade sources', () => {
       screen.getByText('Synthetic reflection <script>unsafe()</script>', { exact: false }),
     ).toBeVisible();
     expect(document.querySelector('script')).toBeNull();
-    fireEvent.click(screen.getByRole('link', { name: 'Plan und Quellen' }));
+    fireEvent.click(screen.getByRole('link', { name: 'Plan und Belege' }));
     await waitFor(() =>
       expect(screen.getByRole('region', { name: 'Ursprünglicher Plan' })).toHaveFocus(),
     );

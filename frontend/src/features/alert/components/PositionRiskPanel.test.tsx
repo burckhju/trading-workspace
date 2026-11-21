@@ -1,8 +1,15 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { useCallback, useRef } from 'react';
+import { createMemoryRouter, Link, RouterProvider } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { riskApi } from '../services/risk';
 import type { RiskView } from '../types/risk';
 import { PositionRiskPanel } from './PositionRiskPanel';
+import type { PositionRiskPending } from '../types/pending';
+import {
+  TradePendingChangesProvider,
+  useTradePendingChanges,
+} from '../../trade/components/TradePendingChanges';
 
 vi.mock('../services/risk', () => ({
   riskApi: {
@@ -92,7 +99,159 @@ function view(): RiskView {
   };
 }
 beforeEach(() => {
+  sessionStorage.clear();
   vi.mocked(riskApi.read).mockResolvedValue(view());
+});
+
+function HostedRisk() {
+  const ref = useRef<PositionRiskPending | null>(null);
+  const { notify, isBusyExceptSelf } = useTradePendingChanges('risk-test-host', {
+    isBusy: () => ref.current?.isBusy() ?? false,
+    isDirty: () => ref.current?.isDirty() ?? false,
+    onDiscard: () => ref.current?.discard(),
+  });
+  const onPendingChange = useCallback(
+    (value: PositionRiskPending | null) => {
+      ref.current = value;
+      notify();
+    },
+    [notify],
+  );
+  return (
+    <>
+      <Link to="/elsewhere">Positionsübersicht öffnen</Link>
+      <PositionRiskPanel
+        tradeId="trade-1"
+        onPendingChange={onPendingChange}
+        isContextPending={isBusyExceptSelf}
+      />
+    </>
+  );
+}
+function showHostedRisk() {
+  const router = createMemoryRouter(
+    [
+      {
+        path: '/risk',
+        element: (
+          <TradePendingChangesProvider>
+            <HostedRisk />
+          </TradePendingChangesProvider>
+        ),
+      },
+      { path: '/elsewhere', element: <h1>Positionsübersicht</h1> },
+    ],
+    { initialEntries: ['/risk'] },
+  );
+  render(<RouterProvider router={router} />);
+  return router;
+}
+
+describe('shared host protection for risk and IV drafts', () => {
+  it('guards changed risk parameters after a preview and discards only through the single host dialog', async () => {
+    const preview = view();
+    preview.configuration.parameters.confirmation_sessions = 3;
+    vi.mocked(riskApi.preview).mockResolvedValueOnce(preview);
+    showHostedRisk();
+    fireEvent.change(await screen.findByLabelText('Bestätigungstage'), { target: { value: '3' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Parameter unverbindlich prüfen' }));
+    await screen.findByText(/Parametervorschau · gespeicherte Aktivierung unverändert/);
+    fireEvent.click(screen.getByRole('link', { name: 'Positionsübersicht öffnen' }));
+    expect(screen.getAllByRole('alertdialog')).toHaveLength(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Hier bleiben' }));
+    expect(screen.getByLabelText('Bestätigungstage')).toHaveValue(3);
+    const unload = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(unload);
+    expect(unload.defaultPrevented).toBe(true);
+    fireEvent.click(screen.getByRole('link', { name: 'Positionsübersicht öffnen' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Eingaben verwerfen und wechseln' }));
+    expect(await screen.findByRole('heading', { name: 'Positionsübersicht' })).toBeVisible();
+    expect(riskApi.configure).not.toHaveBeenCalled();
+  });
+
+  it('retains the risk write lock until readback, blocks duplicate activation and prevents discard departure', async () => {
+    let finish!: (value: unknown) => void;
+    vi.mocked(riskApi.configure).mockReturnValueOnce(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    showHostedRisk();
+    const activate = await screen.findByRole('button', {
+      name: 'Warnregeln für diese Position aktivieren',
+    });
+    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(activate);
+    fireEvent.click(activate);
+    expect(riskApi.configure).toHaveBeenCalledOnce();
+    fireEvent.click(screen.getByRole('link', { name: 'Positionsübersicht öffnen' }));
+    expect(screen.getAllByRole('alertdialog')).toHaveLength(1);
+    expect(screen.getByRole('heading', { name: 'Speicherung läuft' })).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Eingaben verwerfen und wechseln' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Hier bleiben' }));
+    await act(async () => {
+      finish({});
+      await Promise.resolve();
+    });
+    await waitFor(() => expect(screen.getByRole('checkbox')).not.toBeChecked());
+    fireEvent.click(screen.getByRole('link', { name: 'Positionsübersicht öffnen' }));
+    expect(await screen.findByRole('heading', { name: 'Positionsübersicht' })).toBeVisible();
+  });
+
+  it('honors another host participant lock before preview or activation', async () => {
+    const { rerender } = render(
+      <PositionRiskPanel tradeId="trade-1" isContextPending={() => false} />,
+    );
+    await screen.findByLabelText('Bestätigungstage');
+    fireEvent.click(screen.getByRole('checkbox'));
+    rerender(<PositionRiskPanel tradeId="trade-1" isContextPending={() => true} />);
+    const activate = screen.getByRole('button', {
+      name: 'Warnregeln für diese Position aktivieren',
+    });
+    expect(activate).toBeDisabled();
+    fireEvent.click(activate);
+    fireEvent.click(screen.getByRole('button', { name: 'Parameter unverbindlich prüfen' }));
+    expect(riskApi.configure).not.toHaveBeenCalled();
+    expect(riskApi.preview).not.toHaveBeenCalled();
+  });
+
+  it('lets already preserved IV assumptions survive route departure without a redundant discard prompt', async () => {
+    const router = showHostedRisk();
+    await screen.findByLabelText('Bestätigungstage');
+    fireEvent.click(screen.getByText('Modelllabor: IV-Szenario mit eigenen Annahmen'));
+    fireEvent.change(screen.getByLabelText('IV-Änderung (Prozentpunkte)'), {
+      target: { value: '-7' },
+    });
+    fireEvent.click(screen.getByRole('link', { name: 'Positionsübersicht öffnen' }));
+    expect(await screen.findByRole('heading', { name: 'Positionsübersicht' })).toBeVisible();
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+    await act(() => router.navigate('/risk'));
+    expect(await screen.findByLabelText('IV-Änderung (Prozentpunkte)')).toHaveValue(-7);
+  });
+
+  it('guards IV assumptions if session storage cannot preserve them', async () => {
+    const storage = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('storage unavailable');
+    });
+    try {
+      showHostedRisk();
+      await screen.findByLabelText('Bestätigungstage');
+      fireEvent.click(screen.getByText('Modelllabor: IV-Szenario mit eigenen Annahmen'));
+      fireEvent.change(screen.getByLabelText('IV-Änderung (Prozentpunkte)'), {
+        target: { value: '-7' },
+      });
+      expect(screen.getByText(/nicht zwischengespeichert/)).toBeVisible();
+      fireEvent.click(screen.getByRole('link', { name: 'Positionsübersicht öffnen' }));
+      expect(screen.getAllByRole('alertdialog')).toHaveLength(1);
+      fireEvent.click(screen.getByRole('button', { name: 'Hier bleiben' }));
+      expect(screen.getByLabelText('IV-Änderung (Prozentpunkte)')).toHaveValue(-7);
+      fireEvent.click(screen.getByRole('link', { name: 'Positionsübersicht öffnen' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Eingaben verwerfen und wechseln' }));
+      expect(await screen.findByRole('heading', { name: 'Positionsübersicht' })).toBeVisible();
+    } finally {
+      storage.mockRestore();
+    }
+  });
 });
 describe('qualified risk panel', () => {
   it('separates risk metrics, original time and receipt; read-only performs no writes', async () => {

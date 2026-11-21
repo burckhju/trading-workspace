@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 
 import { candidateApiClient } from '../services/client';
+import { marketApiClient } from '../../market';
 import { analysisDetailUrl } from '../../analysis/services/analysisWorkflowContext';
 import type {
   Candidate,
@@ -13,6 +14,29 @@ import type {
 
 const groups = ['MARKET', 'SECTOR', 'UNDERLYING'] as const;
 const runtimeStepCode = 'CANDIDATE_RUNTIME_MODEL';
+const labels: Record<string, string> = {
+  MARKET: 'Markt',
+  SECTOR: 'Sektor',
+  UNDERLYING: 'Basiswert',
+  UNDER_REVIEW: 'In Prüfung',
+  WATCHING: 'In Beobachtung',
+  IDENTIFIED: 'Identifiziert',
+  READY_FOR_PLANNING: 'Bereit zur Planung',
+  REJECTED: 'Verworfen',
+  QUALIFIED: 'Kriterien erfüllt',
+  NOT_QUALIFIED: 'Kriterien nicht erfüllt',
+  NOT_EVALUABLE: 'Nicht bewertbar',
+  FULFILLED: 'Erfüllt',
+  NOT_FULFILLED: 'Nicht erfüllt',
+  SKIPPED: 'Nicht geprüft',
+  REQUIRED: 'Erforderlich',
+  WARNING: 'Hinweis',
+  INFORMATIONAL: 'Information',
+  GOOD: 'Gut',
+  COMPLETE: 'Erfüllt',
+  BLOCKED: 'Offen',
+};
+const readable = (value: string) => labels[value] ?? value;
 
 function resultClasses(result: string) {
   if (result === 'FULFILLED' || result === 'QUALIFIED')
@@ -26,9 +50,9 @@ function resultClasses(result: string) {
 function workflowActionLabel(action: string | null) {
   switch (action) {
     case 'ACTIVATE_CANDIDATE_MODEL':
-      return 'Candidate-Modell aktivieren';
+      return 'Kandidatenmodell aktivieren';
     case 'ACTIVATE_COMPATIBLE_CANDIDATE_MODEL':
-      return 'Kompatible Candidate-Modellversion aktivieren';
+      return 'Kompatible Kandidatenmodellversion aktivieren';
     default:
       return action;
   }
@@ -37,15 +61,15 @@ function workflowActionLabel(action: string | null) {
 function RuntimeModelStep({ step }: { step: CandidateLiveWorkflowStep }) {
   const blockedSummary =
     step.action === 'ACTIVATE_CANDIDATE_MODEL'
-      ? 'Keine aktive Candidate-Modellversion vorhanden.'
+      ? 'Keine aktive Kandidatenmodellversion vorhanden.'
       : step.action === 'ACTIVATE_COMPATIBLE_CANDIDATE_MODEL'
-        ? 'Eine Candidate-Modellversion ist aktiviert, aber aktuell nicht ausführbar.'
+        ? 'Eine Kandidatenmodellversion ist aktiviert, aber aktuell nicht ausführbar.'
         : null;
 
   return (
     <li className="rounded-lg border border-slate-800 p-3 text-sm">
       <div className="flex flex-wrap justify-between gap-2">
-        <span className="font-medium">Candidate-Laufzeitmodell</span>
+        <span className="font-medium">Aktives Kandidatenmodell</span>
         <span className={step.status === 'COMPLETE' ? 'text-emerald-400' : 'text-amber-400'}>
           {step.status === 'COMPLETE' ? 'Aktiv und verwendbar' : 'Blockiert'}
         </span>
@@ -53,10 +77,18 @@ function RuntimeModelStep({ step }: { step: CandidateLiveWorkflowStep }) {
       {blockedSummary && <p className="mt-2 font-medium text-amber-200">{blockedSummary}</p>}
       <p className="mt-1 text-slate-400">{step.detail}</p>
       {step.status === 'BLOCKED' && step.action && (
-        <p className="mt-3 text-xs text-slate-300">
-          Nächste Aktion: {workflowActionLabel(step.action)}. Die Aktivierung bleibt ein expliziter
-          Governance-Schritt.
-        </p>
+        <div className="mt-3 space-y-2 text-sm text-slate-300">
+          <p>
+            Nächste Aktion: {workflowActionLabel(step.action)}. Änderungen, Freigabe und Aktivierung
+            bleiben getrennte Schritte.
+          </p>
+          <Link
+            to="/model-improvements"
+            className="inline-block rounded text-sky-300 underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-300"
+          >
+            Modellverbesserung und Aktivierung öffnen
+          </Link>
+        </div>
       )}
     </li>
   );
@@ -68,7 +100,7 @@ function Criterion({ item }: { item: CandidateCriterion }) {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="font-medium">{item.criterion_id}</span>
         <span className="text-xs text-slate-300">
-          {item.severity} · {item.evaluation}
+          {readable(item.severity)} · {readable(item.evaluation)}
         </span>
       </div>
       <p className="mt-2 text-sm text-slate-300">{item.explanation}</p>
@@ -92,12 +124,12 @@ function EvaluationDetail({
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-xs uppercase tracking-wide text-slate-400">Systemqualifikation</p>
-            <h2 className="mt-1 text-2xl font-semibold">{evaluation.qualification}</h2>
+            <h2 className="mt-1 text-2xl font-semibold">{readable(evaluation.qualification)}</h2>
           </div>
           <div className="break-all text-sm text-slate-300">
             <div>{evaluation.model_id}</div>
             <div>Version {evaluation.model_version}</div>
-            <div>Qualität {evaluation.quality_status}</div>
+            <div>Qualität {readable(evaluation.quality_status)}</div>
           </div>
         </div>
         <p className="mt-3 break-all text-xs">
@@ -153,7 +185,7 @@ function EvaluationDetail({
               <span className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-800 text-sm">
                 {index + 1}
               </span>
-              <h3 className="text-lg font-semibold">{group}</h3>
+              <h3 className="text-lg font-semibold">{readable(group)}</h3>
             </div>
             {criteria.length === 0 ? (
               <p className="pl-10 text-sm text-slate-500">Keine Kriterien vorhanden.</p>
@@ -176,6 +208,10 @@ export function CandidatePage() {
   const requestedCandidateId = searchParams.get('candidate') ?? '';
   const requestedEvaluationId = searchParams.get('evaluation') ?? '';
   const [candidates, setCandidates] = useState<Candidate[]>([]);
+  const [underlyingNames, setUnderlyingNames] = useState<Record<string, string>>({});
+  const nameCache = useRef<Record<string, string>>({});
+  const [nameRevision, setNameRevision] = useState(0);
+  const [namesIncomplete, setNamesIncomplete] = useState(false);
   const [selectedId, setSelectedId] = useState('');
   const [evaluations, setEvaluations] = useState<CandidateEvaluation[]>([]);
   const [workflow, setWorkflow] = useState<CandidateLiveWorkflow | null>(null);
@@ -223,6 +259,33 @@ export function CandidatePage() {
       });
     return () => controller.abort();
   }, [requestedCandidateId]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const ids = [...new Set(candidates.map((item) => item.underlying_id))];
+    const missing = ids.filter((id) => !nameCache.current[id]);
+    if (missing.length === 0) {
+      setNamesIncomplete(false);
+      return () => controller.abort();
+    }
+    void Promise.all(
+      missing.map(async (id) => {
+        try {
+          const value = await marketApiClient.getUnderlying(id, controller.signal);
+          const name = value.name?.trim();
+          return value.id === id && name ? ([id, name] as const) : null;
+        } catch {
+          return null;
+        }
+      }),
+    ).then((values) => {
+      if (controller.signal.aborted) return;
+      for (const value of values) if (value) nameCache.current[value[0]] = value[1];
+      setUnderlyingNames({ ...nameCache.current });
+      setNamesIncomplete(ids.some((id) => !nameCache.current[id]));
+    });
+    return () => controller.abort();
+  }, [candidates, nameRevision]);
 
   useEffect(() => {
     if (!selectedId) {
@@ -350,13 +413,16 @@ export function CandidatePage() {
   return (
     <div className="grid w-full gap-8 lg:grid-cols-[20rem_1fr]">
       <aside>
-        <p className="text-xs uppercase tracking-wide text-slate-500">FT-005</p>
+        <p className="text-xs uppercase tracking-wide text-slate-500">
+          Marktanalyse · Handelsideen
+        </p>
         <h1 className="mt-1 text-2xl font-semibold">Kandidaten</h1>
         <p className="mt-2 text-sm text-slate-400">
-          Systemqualifikation und Benutzerstatus bleiben bewusst getrennt.
+          Untersuche bestehende Handelsideen und ihre Voraussetzungen. Eine Bewertung verändert
+          deinen dokumentierten Benutzerstatus nicht.
         </p>
         <div className="mt-5 space-y-2">
-          {candidates.map((candidate) => (
+          {candidates.map((candidate, index) => (
             <button
               key={candidate.id}
               type="button"
@@ -373,8 +439,13 @@ export function CandidatePage() {
                   : 'border-slate-800 bg-slate-900 hover:border-slate-700'
               }`}
             >
-              <div className="break-all font-medium">{candidate.underlying_id}</div>
-              <div className="mt-1 text-xs text-slate-400">Benutzerstatus: {candidate.status}</div>
+              <div className="break-words font-medium">
+                {underlyingNames[candidate.underlying_id] ??
+                  `Kandidat ${index + 1} · Name nicht verfügbar`}
+              </div>
+              <div className="mt-1 text-xs text-slate-400">
+                Benutzerstatus: {readable(candidate.status)}
+              </div>
             </button>
           ))}
           {candidates.length === 0 && (
@@ -384,21 +455,40 @@ export function CandidatePage() {
       </aside>
 
       <div className="min-w-0">
+        {namesIncomplete && (
+          <p role="status" className="mb-4 rounded-lg border border-amber-800 p-3 text-sm">
+            Einige Basiswertnamen sind nicht verfügbar. Die gespeicherten Kandidaten und Bewertungen
+            bleiben unverändert.{' '}
+            <button
+              type="button"
+              onClick={() => setNameRevision((value) => value + 1)}
+              className="underline"
+            >
+              Bezeichnungen erneut laden
+            </button>
+          </p>
+        )}
         {message && <p className="mb-4 rounded-lg border border-rose-800 p-3 text-sm">{message}</p>}
         {selected ? (
           <>
             <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
               <div>
-                <p className="break-all text-sm text-slate-400">
-                  Basiswert {selected.underlying_id}
-                </p>
+                <h2 className="break-words text-xl font-semibold">
+                  {underlyingNames[selected.underlying_id] ?? 'Basiswertname nicht verfügbar'}
+                </h2>
+                <details className="mt-2 text-xs text-slate-500">
+                  <summary className="cursor-pointer">Technische Referenzen</summary>
+                  <p className="break-all">
+                    Kandidat {selected.id} · Basiswert {selected.underlying_id}
+                  </p>
+                </details>
                 <Link
                   className="text-sm text-sky-300 underline"
                   to={`/market-charts?underlying=${selected.underlying_id}`}
                 >
                   Kursdiagramm und Vergleich
                 </Link>
-                <h2 className="text-xl font-semibold">Top-down Candidate</h2>
+                <p className="mt-2 text-sm text-slate-400">Markt, Sektor und Basiswert</p>
               </div>
               <div className="flex items-center gap-3">
                 <button
@@ -408,10 +498,10 @@ export function CandidatePage() {
                   aria-describedby="candidate-readiness-status"
                   className="rounded-lg border border-sky-700 px-3 py-2 text-sm disabled:opacity-50"
                 >
-                  {evaluating ? 'Bewertung läuft …' : 'Top-down neu bewerten'}
+                  {evaluating ? 'Bewertung läuft …' : 'Kandidaten neu bewerten'}
                 </button>
                 <span className="rounded-full border border-slate-700 px-3 py-1 text-sm">
-                  {selected.status}
+                  {readable(selected.status)}
                 </span>
               </div>
             </div>
@@ -420,7 +510,7 @@ export function CandidatePage() {
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="text-xs uppercase tracking-wide text-slate-500">
-                    Live-Konfiguration
+                    Aktuelle Voraussetzungen
                   </p>
                   <h3
                     id="candidate-readiness-status"
@@ -442,14 +532,14 @@ export function CandidatePage() {
                   disabled={workflowLoading}
                   className="rounded border border-slate-700 px-3 py-1.5 text-xs disabled:opacity-50"
                 >
-                  Readiness aktualisieren
+                  Voraussetzungen aktualisieren
                 </button>
               </div>
 
               {workflowLoading && (
                 <p className="mt-4 text-sm text-slate-400">
-                  Candidate Evaluation bleibt deaktiviert, bis die aktuellen Voraussetzungen geladen
-                  sind.
+                  Die Kandidatenbewertung bleibt deaktiviert, bis die aktuellen Voraussetzungen
+                  geladen sind.
                 </p>
               )}
 
@@ -476,49 +566,56 @@ export function CandidatePage() {
                       Nächster Schritt: {workflowActionLabel(workflow.next_action)}
                     </p>
                   )}
-                  <ul className="mt-4 space-y-2">
-                    {workflow.steps.map((step) =>
-                      step.code === runtimeStepCode ? (
-                        <RuntimeModelStep key={step.code} step={step} />
-                      ) : (
-                        <li
-                          key={step.code}
-                          className="rounded-lg border border-slate-800 p-3 text-sm"
-                        >
-                          <div className="flex flex-wrap justify-between gap-2">
-                            <span className="font-medium">{step.label}</span>
-                            <span
-                              className={
-                                step.status === 'COMPLETE' ? 'text-emerald-400' : 'text-amber-400'
-                              }
-                            >
-                              {step.status}
-                            </span>
-                          </div>
-                          <p className="mt-1 text-slate-400">{step.detail}</p>
-                          {step.status === 'BLOCKED' && step.action && (
-                            <Link
-                              to={{
-                                pathname: '/top-down-admin',
-                                search: new URLSearchParams({
-                                  action: step.action,
-                                  ...(step.action === 'RUN_MARKET_ANALYSIS'
-                                    ? { step_code: step.code }
-                                    : {}),
-                                  candidate_id: selected.id,
-                                  resource_id: step.resource_id ?? '',
-                                  ...Object.fromEntries(Object.entries(step.action_params ?? {})),
-                                }).toString(),
-                              }}
-                              className="mt-3 inline-block rounded border border-sky-700 px-3 py-1.5 text-xs"
-                            >
-                              Schritt bearbeiten
-                            </Link>
-                          )}
-                        </li>
-                      ),
-                    )}
-                  </ul>
+                  <details className="mt-4" open={!workflow.ready}>
+                    <summary className="cursor-pointer rounded text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-300">
+                      Voraussetzungen im Detail ·{' '}
+                      {workflow.steps.filter((step) => step.status === 'COMPLETE').length} von{' '}
+                      {workflow.steps.length} erfüllt
+                    </summary>
+                    <ul className="mt-3 space-y-2">
+                      {workflow.steps.map((step) =>
+                        step.code === runtimeStepCode ? (
+                          <RuntimeModelStep key={step.code} step={step} />
+                        ) : (
+                          <li
+                            key={step.code}
+                            className="rounded-lg border border-slate-800 p-3 text-sm"
+                          >
+                            <div className="flex flex-wrap justify-between gap-2">
+                              <span className="font-medium">{step.label}</span>
+                              <span
+                                className={
+                                  step.status === 'COMPLETE' ? 'text-emerald-400' : 'text-amber-400'
+                                }
+                              >
+                                {readable(step.status)}
+                              </span>
+                            </div>
+                            <p className="mt-1 text-slate-400">{step.detail}</p>
+                            {step.status === 'BLOCKED' && step.action && (
+                              <Link
+                                to={{
+                                  pathname: '/top-down-admin',
+                                  search: new URLSearchParams({
+                                    action: step.action,
+                                    ...(step.action === 'RUN_MARKET_ANALYSIS'
+                                      ? { step_code: step.code }
+                                      : {}),
+                                    candidate_id: selected.id,
+                                    resource_id: step.resource_id ?? '',
+                                    ...Object.fromEntries(Object.entries(step.action_params ?? {})),
+                                  }).toString(),
+                                }}
+                                className="mt-3 inline-block rounded border border-sky-700 px-3 py-1.5 text-xs"
+                              >
+                                Schritt bearbeiten
+                              </Link>
+                            )}
+                          </li>
+                        ),
+                      )}
+                    </ul>
+                  </details>
                 </>
               )}
             </section>
@@ -536,7 +633,7 @@ export function CandidatePage() {
                     }}
                     className="rounded-lg border border-sky-700 px-3 py-2 text-sm"
                   >
-                    TradePlan aus dieser Evaluation erstellen
+                    Tradeplan aus dieser Bewertung erstellen
                   </Link>
                 </div>
                 <EvaluationDetail evaluation={viewed} candidateId={selected.id} />
@@ -561,8 +658,8 @@ export function CandidatePage() {
                         className="text-sky-300 underline"
                         to={`/candidates?candidate=${selected.id}&evaluation=${evaluation.id}`}
                       >
-                        Bewertungsstand {evaluation.version} · {evaluation.qualification} ·{' '}
-                        {new Date(evaluation.evaluated_at).toLocaleString('de-DE')}
+                        Bewertungsstand {evaluation.version} · {readable(evaluation.qualification)}{' '}
+                        · {new Date(evaluation.evaluated_at).toLocaleString('de-DE')}
                       </Link>
                       <p className="mt-1">
                         Verwendetes Modell {evaluation.model_id} · Version{' '}

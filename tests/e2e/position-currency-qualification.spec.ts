@@ -177,14 +177,17 @@ test("backend currency qualification reaches depot rows, filter, sort, EUR total
   for (const index of [3, 4, 5])
     await expect(rows.nth(index)).toContainText("nicht berechenbar");
   const unknown = page.getByRole("row", { name: /Currency unknown/ });
-  await unknown.getByRole("button", { name: "Details", exact: true }).click();
+  await unknown
+    .getByRole("link", { name: "Trade öffnen", exact: true })
+    .click();
   const details = page.getByRole("region", {
-    name: "Details Currency unknown",
+    name: "Produktbewertung",
+    exact: true,
   });
   await expect(details).toContainText(
     "Kaufwährung ist für mindestens einen wirksamen Kauf der Kostenbasis nicht belegt",
   );
-  await expect(details.getByText("25,00 EUR", { exact: true })).toBeVisible();
+  await expect(details.getByText("25 EUR", { exact: true })).toBeVisible();
   await details
     .getByText("Kostenbasis und Währungsnachweise", { exact: true })
     .click();
@@ -214,12 +217,13 @@ test("the same backend qualification and sources remain visible after opening tr
   await page.goto("/workspace");
   await page
     .getByRole("row", { name: /Currency mismatch/ })
-    .getByRole("button", { name: "Details", exact: true })
+    .getByRole("link", { name: "Trade öffnen", exact: true })
     .click();
   const details = page.getByRole("region", {
-    name: "Details Currency mismatch",
+    name: "Produktbewertung",
+    exact: true,
   });
-  await expect(details.getByText("25,00 EUR", { exact: true })).toBeVisible();
+  await expect(details.getByText("25 EUR", { exact: true })).toBeVisible();
   await expect(details).not.toContainText("+5,00 EUR");
   await expect(details).toContainText(
     "Kaufwährung der Kostenbasis stimmt nicht mit der Kurswährung überein",
@@ -235,10 +239,8 @@ test("the same backend qualification and sources remain visible after opening tr
     for (const id of evidence.confirmation_ids)
       await expect(details).toContainText(id);
   }
-  await page
-    .getByRole("row", { name: /Currency mismatch/ })
-    .getByRole("link", { name: "Trade verwalten", exact: true })
-    .click();
+  await page.getByRole("link", { name: "Buchungen", exact: true }).click();
+  await page.getByRole("link", { name: "Überblick", exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`trade_id=${mismatch.trade_id}`));
   const panel = page.getByRole("region", {
     name: "Produktbewertung",
@@ -249,9 +251,7 @@ test("the same backend qualification and sources remain visible after opening tr
   await expect(panel).toContainText(
     "Kaufwährung der Kostenbasis stimmt nicht mit der Kurswährung überein",
   );
-  await panel
-    .getByText("Kostenbasis und Währungsnachweise", { exact: true })
-    .click();
+
   await expect(panel).toContainText("Kostenbasiswährung: USD");
   await expect(panel).toContainText(mismatch.position_basis!.basis_id);
   for (const evidence of mismatch.position_basis!.buy_currency_evidence) {

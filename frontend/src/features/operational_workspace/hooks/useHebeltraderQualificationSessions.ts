@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import type { TargetRequestStatus } from '../hebeltraderQualification';
 import type { HebeltraderTargetAssessmentRequest } from '../hebeltraderTargets';
 
@@ -35,13 +35,20 @@ export function qualificationSessionKey(tradeId: string, positionId: string): st
 }
 
 /** Explicit host-owned, in-memory drafts; no browser storage or global mutable cache. */
-export function useHebeltraderQualificationSessions(): QualificationSessions {
+export function useHebeltraderQualificationSessions(): QualificationSessions & {
+  getSnapshot: () => Readonly<Record<string, QualificationSession>>;
+} {
   const [values, setValues] = useState<Record<string, QualificationSession>>({});
+  const current = useRef(values);
   const update = useCallback((key: string, change: QualificationUpdate) => {
-    setValues((previous) => ({
-      ...previous,
-      [key]: change(previous[key] ?? emptyQualificationSession),
-    }));
+    const next = {
+      ...current.current,
+      [key]: change(current.current[key] ?? emptyQualificationSession),
+    };
+    // Navigation and other owner commands see a new draft/write lock synchronously.
+    current.current = next;
+    setValues(next);
   }, []);
-  return { values, update };
+  const getSnapshot = useCallback(() => current.current, []);
+  return { values, update, getSnapshot };
 }

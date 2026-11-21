@@ -22,10 +22,12 @@ function NavigationFixture({
   view = 'management',
   cancelled = false,
   showBackLinks = true,
+  showObjectLinks = true,
 }: {
   view?: TradeWorkspaceView;
   cancelled?: boolean;
   showBackLinks?: boolean;
+  showObjectLinks?: boolean;
 }) {
   const location = useLocation();
   const [note, setNote] = useState('');
@@ -37,6 +39,7 @@ function NavigationFixture({
         view={view}
         cancelled={cancelled}
         showBackLinks={showBackLinks}
+        showObjectLinks={showObjectLinks}
       />
       <input
         aria-label="Ungespeicherte Notiz"
@@ -75,7 +78,12 @@ function NavigationFixture({
 
 function mount(
   initialEntry = route(),
-  options: { view?: TradeWorkspaceView; cancelled?: boolean; showBackLinks?: boolean } = {},
+  options: {
+    view?: TradeWorkspaceView;
+    cancelled?: boolean;
+    showBackLinks?: boolean;
+    showObjectLinks?: boolean;
+  } = {},
 ) {
   return render(
     <MemoryRouter initialEntries={[initialEntry]}>
@@ -93,9 +101,11 @@ describe('Trade workspace navigation', () => {
       'Überblick',
       'Kursverlauf',
       'Buchungen',
-      'Risiko und Management',
-      'Plan und Quellen',
-      'Journal und Lessons',
+      'Überwachung',
+      'Bearbeiten',
+      'Plan und Belege',
+      'Nachbereitung',
+      'Journal',
     ]) {
       const link = within(navigation).getByRole('link', { name });
       expect(link.tagName).toBe('A');
@@ -144,7 +154,7 @@ describe('Trade workspace navigation', () => {
     });
     render(<RouterProvider router={router} />);
     await user.type(screen.getByRole('textbox', { name: 'Ungespeicherte Notiz' }), 'Offene Notiz');
-    await user.click(screen.getByRole('link', { name: 'Journal und Lessons' }));
+    await user.click(screen.getByRole('link', { name: 'Journal' }));
     expect(screen.getByRole('alertdialog')).toHaveTextContent('Ungespeicherte Änderungen');
     expect(screen.getByRole('button', { name: 'Hier bleiben' })).toHaveFocus();
     expect(screen.getByLabelText('Aktuelle Route')).toHaveTextContent(route('#execution-dates'));
@@ -163,8 +173,8 @@ describe('Trade workspace navigation', () => {
   it('keeps historical pins and the closed-report selection when moving to another owner', () => {
     mount();
     for (const [name, pathname, hash] of [
-      ['Plan und Quellen', '/trade-management', '#trade-plan-sources'],
-      ['Journal und Lessons', '/post-trade', '#trade-journal'],
+      ['Plan und Belege', '/trade-management', '#trade-plan-sources'],
+      ['Journal', '/post-trade', '#trade-journal'],
     ]) {
       const href = screen.getByRole('link', { name }).getAttribute('href');
       const target = new URL(href!, 'http://workspace.test');
@@ -197,7 +207,7 @@ describe('Trade workspace navigation', () => {
     mount(`/trade-management?${realizedSearch}`);
     const context = parseRealizedContext(new URLSearchParams(realizedSearch)).context;
     expect(context?.page).toBe(100);
-    for (const name of ['Plan und Quellen', 'Journal und Lessons']) {
+    for (const name of ['Plan und Belege', 'Journal']) {
       const target = new URL(
         screen.getByRole('link', { name }).getAttribute('href')!,
         'http://workspace.test',
@@ -221,7 +231,7 @@ describe('Trade workspace navigation', () => {
     mount(`${route()}&report_context=realized-gross`);
     expect(screen.queryByRole('link', { name: /Zur ursprünglichen/ })).toBeNull();
     const target = new URL(
-      screen.getByRole('link', { name: 'Journal und Lessons' }).getAttribute('href')!,
+      screen.getByRole('link', { name: 'Journal' }).getAttribute('href')!,
       'http://workspace.test',
     );
     expect(target.searchParams.getAll('report_context')).toEqual([
@@ -244,7 +254,11 @@ describe('Trade workspace navigation', () => {
   it.each([
     ['#execution-dates', 'Buchungen'],
     ['#sale-capture', 'Buchungen'],
-    ['#trade-management-state', 'Risiko und Management'],
+    ['#additional-purchase', 'Buchungen'],
+    ['#trade-risk', 'Überwachung'],
+    ['#trade-monitoring', 'Überwachung'],
+    ['#trade-management-state', 'Bearbeiten'],
+    ['#trade-cancellation', 'Bearbeiten'],
   ])('recognizes direct and legacy anchor %s as the %s area', (hash, name) => {
     mount(route(hash));
     expect(screen.getByRole('link', { name })).toHaveAttribute('aria-current', 'location');
@@ -259,10 +273,10 @@ describe('Trade workspace navigation', () => {
       '/trade-management',
       'view=sources&',
       '#trade-plan-sources',
-      'Plan und Quellen',
+      'Plan und Belege',
       'Planziel',
     ],
-    ['journal', '/post-trade', '', '#trade-journal', 'Journal und Lessons', 'Journalziel'],
+    ['journal', '/post-trade', '', '#trade-journal', 'Journal', 'Journalziel'],
   ] as const)(
     'restores the %s owner and focuses its section on a direct URL or reload',
     (view, pathname, extraQuery, hash, label, target) => {
@@ -282,7 +296,7 @@ describe('Trade workspace navigation', () => {
     mount(`${route()}&report_page=5`);
     expect(screen.queryByRole('link', { name: 'Zur ursprünglichen Abschlussauswahl' })).toBeNull();
     const target = new URL(
-      screen.getByRole('link', { name: 'Journal und Lessons' }).getAttribute('href')!,
+      screen.getByRole('link', { name: 'Journal' }).getAttribute('href')!,
       'http://workspace.test',
     );
     expect(target.searchParams.getAll('report_page')).toEqual(['3', '5']);
@@ -292,17 +306,33 @@ describe('Trade workspace navigation', () => {
   it('retains historical areas for a cancelled trade without offering active-position areas', () => {
     mount(route(), { cancelled: true });
     expect(screen.queryByRole('link', { name: 'Kursverlauf' })).toBeNull();
-    expect(screen.queryByRole('link', { name: 'Risiko und Management' })).toBeNull();
-    for (const name of ['Überblick', 'Buchungen', 'Plan und Quellen', 'Journal und Lessons']) {
+    expect(screen.queryByRole('link', { name: 'Überwachung' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Bearbeiten' })).toBeNull();
+    expect(screen.getByRole('link', { name: 'Stornierung' })).toHaveAttribute(
+      'href',
+      route('#trade-cancellation'),
+    );
+    for (const name of ['Überblick', 'Buchungen', 'Plan und Belege', 'Journal']) {
       expect(screen.getByRole('link', { name })).toBeVisible();
     }
   });
 
   it('can omit duplicate list-return links while retaining all section navigation', () => {
     mount(route(), { showBackLinks: false });
-    expect(within(screen.getByRole('navigation')).getAllByRole('link')).toHaveLength(6);
+    expect(within(screen.getByRole('navigation')).getAllByRole('link')).toHaveLength(8);
     expect(screen.queryByRole('link', { name: 'Zur Positionsübersicht' })).toBeNull();
     expect(screen.queryByRole('link', { name: 'Zur ursprünglichen Abschlussauswahl' })).toBeNull();
+  });
+
+  it('can leave section navigation to the learning owner while retaining source and list context', () => {
+    mount(`/post-trade?${search}#post-trade-review`, { view: 'journal', showObjectLinks: false });
+    expect(screen.queryByRole('link', { name: 'Überblick' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Nachbereitung' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Journal' })).toBeNull();
+    expect(screen.getByRole('link', { name: 'Plan und Belege' })).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Zur Positionsübersicht' })).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Zur ursprünglichen Abschlussauswahl' })).toBeVisible();
+    expect(within(screen.getByRole('navigation')).getAllByRole('link')).toHaveLength(3);
   });
 
   it('does not focus an arbitrary hash target or fetch data when rendering navigation', () => {

@@ -138,6 +138,10 @@ test("real PostgreSQL: purchase currency once, inherited sales, sources and corr
       "Synthetic actual execution; missing market quotes remain missing.",
   });
   await page.goto(`/product-selection?run_id=${selection.run.id}`);
+  await page
+    .getByRole("link", { name: "Tatsächlichen Kauf erfassen", exact: true })
+    .click();
+  await expect(page).toHaveURL(/#purchase$/);
   await page.getByLabel("Kaufmenge", { exact: true }).fill("100");
   await page.getByLabel("Kaufpreis", { exact: true }).fill("2.00");
   await page.getByLabel("Kaufdatum", { exact: true }).fill("2026-08-05");
@@ -157,7 +161,7 @@ test("real PostgreSQL: purchase currency once, inherited sales, sources and corr
   databaseState();
   await page
     .getByRole("button", {
-      name: "BUY erfassen und Position eröffnen",
+      name: "Kauf erfassen und Position eröffnen",
       exact: true,
     })
     .click();

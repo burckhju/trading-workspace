@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 
 import { candidateApiClient } from '../services/client';
+import { marketApiClient } from '../../market';
 import type { CandidateLiveWorkflow } from '../types/api';
 import { CandidatePage } from './CandidatePage';
 
@@ -15,6 +16,7 @@ vi.mock('../services/client', () => ({
     liveWorkflow: vi.fn(),
   },
 }));
+vi.mock('../../market', () => ({ marketApiClient: { getUnderlying: vi.fn() } }));
 
 const mockedClient = vi.mocked(candidateApiClient);
 
@@ -58,6 +60,10 @@ function renderPage() {
 describe('CandidatePage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(marketApiClient.getUnderlying).mockResolvedValue({
+      id: 'underlying-1',
+      name: 'Apple Inc.',
+    } as never);
     mockedClient.list.mockResolvedValue([
       {
         id: 'candidate-1',
@@ -102,9 +108,11 @@ describe('CandidatePage', () => {
 
     expect(await screen.findByText('Aktiv und verwendbar')).toBeInTheDocument();
     expect(screen.getByText(/TOP_DOWN_CANDIDATE version 1.0/)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Top-down neu bewerten' })).toBeEnabled();
-    expect(screen.getByText('Benutzerstatus: UNDER_REVIEW')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Kandidaten neu bewerten' })).toBeEnabled();
+    expect(screen.getByText('Benutzerstatus: In Prüfung')).toBeInTheDocument();
     expect(screen.getByText('TD-MARKET-001')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Apple Inc.' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'underlying-1' })).not.toBeInTheDocument();
   });
 
   it('shows no-active runtime blocker and does not route it to top-down administration', async () => {
@@ -129,11 +137,31 @@ describe('CandidatePage', () => {
     renderPage();
 
     expect(
-      await screen.findByText('Keine aktive Candidate-Modellversion vorhanden.'),
+      await screen.findByText('Keine aktive Kandidatenmodellversion vorhanden.'),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Nächster Schritt: Candidate-Modell aktivieren/)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Top-down neu bewerten' })).toBeDisabled();
+    expect(screen.getByText(/Nächste Aktion: Kandidatenmodell aktivieren/)).toBeInTheDocument();
+    expect(
+      screen.getByRole('link', { name: 'Modellverbesserung und Aktivierung öffnen' }),
+    ).toHaveAttribute('href', '/model-improvements');
+    expect(screen.getByRole('button', { name: 'Kandidaten neu bewerten' })).toBeDisabled();
     expect(screen.queryByRole('link', { name: 'Schritt bearbeiten' })).not.toBeInTheDocument();
+  });
+
+  it('keeps the saved candidate usable when its display-name read is contradictory and retries only the name', async () => {
+    vi.mocked(marketApiClient.getUnderlying).mockResolvedValueOnce({
+      id: 'other-underlying',
+      name: 'Falscher Basiswert',
+    } as never);
+    renderPage();
+    await screen.findByRole('button', { name: 'Bezeichnungen erneut laden' });
+    expect(screen.getByRole('heading', { name: 'Basiswertname nicht verfügbar' })).toBeVisible();
+    expect(screen.queryByText('Falscher Basiswert')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Kandidaten neu bewerten' })).toBeEnabled();
+    await userEvent.click(screen.getByRole('button', { name: 'Bezeichnungen erneut laden' }));
+    expect(await screen.findByRole('heading', { name: 'Apple Inc.' })).toBeVisible();
+    expect(mockedClient.evaluations).toHaveBeenCalledOnce();
+    expect(mockedClient.liveWorkflow).toHaveBeenCalledOnce();
+    expect(mockedClient.evaluateAuto).not.toHaveBeenCalled();
   });
 
   it('shows an incompatible active runtime as blocked and never presents it as ready', async () => {
@@ -159,13 +187,13 @@ describe('CandidatePage', () => {
 
     expect(
       await screen.findByText(
-        'Eine Candidate-Modellversion ist aktiviert, aber aktuell nicht ausführbar.',
+        'Eine Kandidatenmodellversion ist aktiviert, aber aktuell nicht ausführbar.',
       ),
     ).toBeInTheDocument();
     expect(
-      screen.getByText('Nächster Schritt: Kompatible Candidate-Modellversion aktivieren'),
+      screen.getByText(/Nächste Aktion: Kompatible Kandidatenmodellversion aktivieren/),
     ).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Top-down neu bewerten' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Kandidaten neu bewerten' })).toBeDisabled();
     expect(screen.queryByText('Aktiv und verwendbar')).not.toBeInTheDocument();
   });
 
@@ -192,7 +220,7 @@ describe('CandidatePage', () => {
     renderPage();
 
     expect(await screen.findByText('Aktiv und verwendbar')).toBeInTheDocument();
-    const evaluateButton = screen.getByRole('button', { name: 'Top-down neu bewerten' });
+    const evaluateButton = screen.getByRole('button', { name: 'Kandidaten neu bewerten' });
     expect(evaluateButton).toBeDisabled();
     await userEvent.click(evaluateButton);
     expect(mockedClient.evaluateAuto).not.toHaveBeenCalled();
@@ -209,7 +237,7 @@ describe('CandidatePage', () => {
     renderPage();
 
     expect(await screen.findByText('Voraussetzungen werden geprüft …')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Top-down neu bewerten' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Kandidaten neu bewerten' })).toBeDisabled();
 
     resolveWorkflow(baseWorkflow);
     expect(await screen.findByText('Aktiv und verwendbar')).toBeInTheDocument();
@@ -224,12 +252,12 @@ describe('CandidatePage', () => {
     expect(
       await screen.findByText('Voraussetzungen konnten nicht geprüft werden'),
     ).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Top-down neu bewerten' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Kandidaten neu bewerten' })).toBeDisabled();
 
     await userEvent.click(screen.getByRole('button', { name: 'Erneut prüfen' }));
 
     expect(await screen.findByText('Aktiv und verwendbar')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Top-down neu bewerten' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Kandidaten neu bewerten' })).toBeEnabled();
   });
 
   it('reloads readiness after an evaluate rejection and surfaces the changed runtime state', async () => {
@@ -254,16 +282,16 @@ describe('CandidatePage', () => {
 
     renderPage();
     expect(await screen.findByText('Aktiv und verwendbar')).toBeInTheDocument();
-    const evaluateButton = screen.getByRole('button', { name: 'Top-down neu bewerten' });
+    const evaluateButton = screen.getByRole('button', { name: 'Kandidaten neu bewerten' });
     expect(evaluateButton).toBeEnabled();
 
     await userEvent.click(evaluateButton);
 
     expect(await screen.findByText(/Runtime activation changed/)).toBeInTheDocument();
     expect(
-      await screen.findByText('Keine aktive Candidate-Modellversion vorhanden.'),
+      await screen.findByText('Keine aktive Kandidatenmodellversion vorhanden.'),
     ).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Top-down neu bewerten' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Kandidaten neu bewerten' })).toBeDisabled();
     expect(mockedClient.liveWorkflow).toHaveBeenCalledTimes(2);
   });
 });

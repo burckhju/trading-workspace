@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { planOverviewReturnUrl, withPlanListContext } from '../../trade_plan';
 
 import { marketApiClient } from '../../market/services/client';
 import type { UnderlyingDetailResponse } from '../../market/types/api';
@@ -47,7 +48,7 @@ export function ProductSelectionWorkflowPage() {
           items.map(async (item) => {
             const versions = await tradePlanApiClient.versions(item.id, controller.signal);
             if (versions.some((version) => version.trade_plan_id !== item.id)) {
-              throw new Error('Die Versionshistorie gehört nicht zum angeforderten TradePlan.');
+              throw new Error('Die Versionshistorie gehört nicht zum angeforderten Tradeplan.');
             }
             return versions
               .filter((version) => version.status === 'APPROVED')
@@ -89,7 +90,7 @@ export function ProductSelectionWorkflowPage() {
           setMessage(
             error instanceof Error
               ? error.message
-              : 'Freigegebene TradePlans konnten nicht geladen werden.',
+              : 'Freigegebene Tradepläne konnten nicht geladen werden.',
           );
         }
       } finally {
@@ -109,9 +110,11 @@ export function ProductSelectionWorkflowPage() {
   if (hasContext) return <ProductSelectionPage />;
 
   return (
-    <main className="w-full space-y-6">
+    <section className="w-full space-y-6">
       <header>
-        <p className="text-xs uppercase tracking-wide text-slate-500">FT-008 · Einstieg</p>
+        <p className="text-xs uppercase tracking-wide text-slate-500">
+          Marktanalyse · Handelsvorbereitung
+        </p>
         <h1 className="mt-1 text-2xl font-semibold">Produktauswahl starten</h1>
         <p className="mt-2 max-w-3xl text-sm text-slate-400">
           Wähle eine konkrete freigegebene Planversion. Auch bei einem neueren Entwurf bleibt die
@@ -125,20 +128,21 @@ export function ProductSelectionWorkflowPage() {
         </p>
       )}
       {loading && (
-        <p className="text-sm text-slate-400">Freigegebene TradePlans werden geladen …</p>
+        <p className="text-sm text-slate-400">Freigegebene Tradepläne werden geladen …</p>
       )}
 
       {!loading && sortedPlans.length === 0 && !message && (
         <section className="rounded-xl border border-slate-800 p-5">
-          <h2 className="font-semibold">Kein freigegebener TradePlan verfügbar</h2>
+          <h2 className="font-semibold">Kein freigegebener Tradeplan verfügbar</h2>
           <p className="mt-2 text-sm text-slate-400">
-            Für eine Produktauswahl muss zuerst eine TradePlan-Version den Status APPROVED haben.
+            Für eine Produktauswahl muss zuerst eine Tradeplan-Version ausdrücklich freigegeben
+            sein.
           </p>
           <Link
-            to="/trade-plans/overview"
+            to={planOverviewReturnUrl(searchParams)}
             className="mt-4 inline-block rounded-lg border border-sky-700 px-4 py-2 text-sm"
           >
-            Zu den TradePlans
+            Zu den Tradeplänen
           </Link>
         </section>
       )}
@@ -180,7 +184,7 @@ export function ProductSelectionWorkflowPage() {
                   </p>
                 </div>
                 <span className="rounded-full border border-emerald-800 px-3 py-1 text-xs text-emerald-300">
-                  APPROVED
+                  Freigegeben
                 </span>
               </div>
 
@@ -219,20 +223,23 @@ export function ProductSelectionWorkflowPage() {
               <div className="mt-5 flex flex-wrap gap-3">
                 {selectedProduct && (
                   <Link
-                    to={`/product-selection?run_id=${encodeURIComponent(selectedProduct.run_id)}`}
+                    to={withPlanListContext(
+                      `/product-selection?run_id=${encodeURIComponent(selectedProduct.run_id)}`,
+                      searchParams,
+                    )}
                     className="rounded-lg border border-sky-700 px-4 py-2 text-sm"
                   >
                     Ausgewähltes Produkt öffnen
                   </Link>
                 )}
                 <Link
-                  to={`/product-selection?${target.toString()}`}
+                  to={withPlanListContext(`/product-selection?${target.toString()}`, searchParams)}
                   className="rounded-lg border border-emerald-700 px-4 py-2 text-sm"
                 >
-                  Produktauswahl für diesen TradePlan öffnen
+                  Produktauswahl für diesen Tradeplan öffnen
                 </Link>
                 <Link
-                  to={`/trade-plans?${target.toString()}`}
+                  to={withPlanListContext(`/trade-plans?${target.toString()}`, searchParams)}
                   className="rounded-lg border border-slate-700 px-4 py-2 text-sm"
                 >
                   Planversion ansehen
@@ -242,6 +249,6 @@ export function ProductSelectionWorkflowPage() {
           );
         })}
       </div>
-    </main>
+    </section>
   );
 }

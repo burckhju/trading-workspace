@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import type { OperationalPosition } from '../types';
 import { position } from '../../../test/positionFixture';
 import { OpenPositionsPanel } from './OpenPositionsPanel';
+import { PositionDetails } from '../components/PositionDetails';
 
 function show(positions: OperationalPosition[]) {
   return render(
@@ -24,25 +25,33 @@ it('shows readable identifiers, separate colored P/L and explicit status', () =>
     'href',
     '/trade-management?trade_id=trade-1#sale-capture',
   );
-  expect(screen.getByRole('link', { name: 'Trade verwalten' })).toHaveAttribute(
+  expect(screen.getByRole('link', { name: 'Trade öffnen' })).toHaveAttribute(
     'href',
-    '/trade-management?trade_id=trade-1',
+    '/trade-management?trade_id=trade-1#trade-overview',
   );
 });
-it('keeps stale price and missing P/L distinct from zero and permits explicit capture', async () => {
+it('keeps stale price and missing P/L distinct from zero and permits explicit capture', () => {
   show([position({ valuation_status: 'STALE', market_value: null, unrealized_gross_pnl: null })]);
   expect(screen.getByText('? Daten prüfen')).toBeInTheDocument();
   expect(screen.getByText('Produktkurs: Veraltet')).toBeInTheDocument();
   expect(within(screen.getByRole('table')).getAllByText('—')).toHaveLength(2);
-  await userEvent.click(screen.getByRole('button', { name: 'Details' }));
+  render(
+    <MemoryRouter>
+      <PositionDetails
+        position={position({
+          valuation_status: 'STALE',
+          market_value: null,
+          unrealized_gross_pnl: null,
+        })}
+      />
+    </MemoryRouter>,
+  );
   expect(screen.getByText(/Kursdaten veraltet:/)).toHaveTextContent('Keine Orderfreigabe');
   expect(screen.getByText(/Quelle: TEST_PROVIDER/)).toBeInTheDocument();
   expect(screen.getByText('Monitoring: Aktuell')).toBeInTheDocument();
   expect(
     screen.getByText('Positionssignal: keine besondere Aufmerksamkeit nötig'),
   ).toBeInTheDocument();
-  await userEvent.click(screen.getByRole('button', { name: 'Details schließen' }));
-  expect(screen.queryByRole('region', { name: 'Details Test Warrant' })).not.toBeInTheDocument();
 });
 it('marks confirmed stop alerts in red even with missing signals and data problems', async () => {
   show([
@@ -61,7 +70,7 @@ it('marks confirmed stop alerts in red even with missing signals and data proble
   await userEvent.click(screen.getByRole('button', { name: 'Fachliche Hinweise' }));
   expect(screen.getByRole('table')).toBeInTheDocument();
 });
-it('warns in blue for indicative quotes and retains negative P/L separately', async () => {
+it('warns in blue for indicative quotes and retains negative P/L separately', () => {
   show([
     position({
       valuation_status: 'INDICATIVE',
@@ -72,7 +81,18 @@ it('warns in blue for indicative quotes and retains negative P/L separately', as
   ]);
   expect(screen.getByText('Produktkurs: Indikativer Referenzkurs')).toHaveClass('text-sky-200');
   expect(screen.getByText('−558,00 EUR')).toHaveClass('text-rose-300');
-  await userEvent.click(screen.getByRole('button', { name: 'Details' }));
+  render(
+    <MemoryRouter>
+      <PositionDetails
+        position={position({
+          valuation_status: 'INDICATIVE',
+          unrealized_gross_pnl: '-558',
+          quote_source: 'FRANKFURT_QUOTES',
+          analysis_warning: 'INDICATIVE',
+        })}
+      />
+    </MemoryRouter>,
+  );
   expect(
     screen.getByText(/Bewertungshinweis: Die gemeldete Ursache ist nicht bekannt/),
   ).toHaveTextContent('Keine Orderfreigabe');
@@ -168,17 +188,38 @@ it('handles empty results and no positions', async () => {
   expect(screen.getByRole('button', { name: 'Nächste Seite' })).toBeDisabled();
 });
 
-it('resets expanded details as well as filters and paging without leaving a duplicate-looking row', async () => {
+it('resets the selected position with filters without retaining a competing detail owner', async () => {
   const user = userEvent.setup();
   show([position()]);
   await user.type(screen.getByRole('searchbox'), 'Test');
-  await user.click(screen.getByRole('button', { name: 'Details' }));
-  const table = screen.getByRole('table');
-  expect(table.querySelectorAll('tbody tr[data-position-id]')).toHaveLength(1);
-  expect(screen.getByRole('region', { name: 'Details Test Warrant' })).toBeInTheDocument();
+  await user.click(screen.getByRole('link', { name: 'Überwachung' }));
+  expect(sessionStorage.getItem('workspace-selected-position-v1')).toBe('position-1');
+  expect(screen.queryByRole('region', { name: 'Details Test Warrant' })).not.toBeInTheDocument();
   await user.click(screen.getByRole('button', { name: 'Ansicht zurücksetzen' }));
   expect(screen.getByRole('searchbox')).toHaveValue('');
-  expect(screen.queryByRole('region', { name: 'Details Test Warrant' })).not.toBeInTheDocument();
-  expect(screen.getByRole('button', { name: 'Details' })).toHaveAttribute('aria-expanded', 'false');
-  expect(table.querySelectorAll('tbody tr')).toHaveLength(1);
+  expect(sessionStorage.getItem('workspace-selected-position-v1')).toBeNull();
+  expect(screen.getByRole('table').querySelectorAll('tbody tr[data-position-id]')).toHaveLength(1);
+});
+
+it('restores query, sorting, page and selected position focus on return from the trade', async () => {
+  const user = userEvent.setup();
+  const items = Array.from({ length: 28 }, (_, i) =>
+    position({
+      position_id: `p-${i}`,
+      trade_id: `t-${i}`,
+      product_name: `Return ${String(i).padStart(2, '0')}`,
+      target: `/trade-management?trade_id=t-${i}`,
+    }),
+  );
+  const first = show(items);
+  await user.type(screen.getByRole('searchbox'), 'Return');
+  await user.selectOptions(screen.getByLabelText('Sortierung'), 'product');
+  await user.click(screen.getByRole('button', { name: 'Nächste Seite' }));
+  await user.click(screen.getAllByRole('link', { name: 'Überwachung' })[1]);
+  first.unmount();
+  show(items);
+  expect(screen.getByRole('searchbox')).toHaveValue('Return');
+  expect(screen.getByLabelText('Sortierung')).toHaveValue('product');
+  expect(screen.getByRole('status')).toHaveTextContent('Seite 2 von 2');
+  expect(screen.getAllByRole('link', { name: 'Überwachung' })[1]).toHaveFocus();
 });

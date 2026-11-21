@@ -167,7 +167,7 @@ test("native plan context: full TRIGGER amendment and separate approval preserve
     `/trade-plans?trade_plan_id=${planId}&trade_plan_version_id=${baseId}`,
   );
   await expect(
-    page.getByRole("heading", { name: "Version 1 · APPROVED", exact: true }),
+    page.getByRole("heading", { name: "Version 1 · Freigegeben", exact: true }),
   ).toBeVisible();
   const amend = page.getByRole("button", {
     name: "Neue Planversion erstellen",
@@ -179,7 +179,7 @@ test("native plan context: full TRIGGER amendment and separate approval preserve
   await expect(
     page.getByRole("heading", { name: "Neue Planversion aus Version 1" }),
   ).toBeVisible();
-  await expect(page.getByLabel("Entry-Art")).toHaveValue("TRIGGER");
+  await expect(page.getByLabel("Einstiegsart")).toHaveValue("TRIGGER");
   await expect(page.getByLabel("Währung", { exact: true })).toHaveValue("USD");
   await expect(
     page.getByRole("textbox", { name: "Trigger", exact: true }),
@@ -189,32 +189,32 @@ test("native plan context: full TRIGGER amendment and separate approval preserve
   );
   for (const target of original.targets) {
     await expect(
-      page.getByLabel(`Target ${target.sequence}`, { exact: true }),
+      page.getByLabel(`Kursziel ${target.sequence}`, { exact: true }),
     ).toHaveValue(target.price);
     await expect(
-      page.getByLabel(`Target-Begründung ${target.sequence}`, { exact: true }),
+      page.getByLabel(`Zielbegründung ${target.sequence}`, { exact: true }),
     ).toHaveValue(target.rationale!);
   }
-  await page.getByText("Weitere Entry-Angaben", { exact: true }).click();
+  await page.getByText("Weitere Einstiegsangaben", { exact: true }).click();
   await expect(page.getByLabel("Referenzpreis")).toHaveValue(
     original.entry.reference_price!,
   );
   await expect(
-    page.getByLabel("Gültig bis (ISO 8601 mit Zeitzone)"),
+    page.getByLabel("Gültig bis (Datum und Uhrzeit mit Zeitzone)"),
   ).toHaveValue(original.entry.valid_until!);
-  await expect(page.getByLabel("Entry-Begründung")).toHaveValue(
+  await expect(page.getByLabel("Einstiegsbegründung")).toHaveValue(
     original.entry.rationale!,
   );
   await page.getByText("Weitere Risikoangaben", { exact: true }).click();
-  await expect(page.getByLabel("Max-Loss-Annahme (optional)")).toHaveValue(
-    original.risk_assumptions.max_loss_assumption!,
-  );
-  await expect(page.getByLabel("Risk Notes")).toHaveValue(
+  await expect(
+    page.getByLabel("Maximaler Verlust (Annahme, optional)"),
+  ).toHaveValue(original.risk_assumptions.max_loss_assumption!);
+  await expect(page.getByLabel("Ergänzende Risikonotizen")).toHaveValue(
     original.risk_assumptions.notes!,
   );
   const thesis = "Only the synthetic thesis is clarified";
   const reason = "Explicit thesis-only amendment";
-  await page.getByLabel("Trade Thesis").fill(thesis);
+  await page.getByLabel("Handelsidee und Begründung").fill(thesis);
   await page.getByLabel("Änderungsgrund").fill(reason);
   expect(
     await page.evaluate(
@@ -231,7 +231,7 @@ test("native plan context: full TRIGGER amendment and separate approval preserve
       response.url().endsWith(`${baseUrl}/amendments`),
   );
   const save = page.getByRole("button", {
-    name: "Neue DRAFT-Version speichern",
+    name: "Neue Entwurfsversion speichern",
   });
   await save.focus();
   await expect(save).toBeFocused();
@@ -250,9 +250,9 @@ test("native plan context: full TRIGGER amendment and separate approval preserve
   });
   expect(content(draft)).toEqual({ ...content(original), thesis });
   await expect(
-    page.getByRole("heading", { name: "Version 2 · DRAFT", exact: true }),
+    page.getByRole("heading", { name: "Version 2 · Entwurf", exact: true }),
   ).toBeVisible();
-  await expect(page.getByLabel("Trade Thesis")).toHaveCount(0);
+  await expect(page.getByLabel("Handelsidee und Begründung")).toHaveCount(0);
   expect(await get(baseUrl)).toEqual(original);
   expect(await get(`/product-selection-runs/${run.run.id}`)).toEqual(runBefore);
   expect(
@@ -268,7 +268,7 @@ test("native plan context: full TRIGGER amendment and separate approval preserve
   await oldPlanChoice.focus();
   await page.keyboard.press("Enter");
   await expect(
-    page.getByText("Version 1 · APPROVED", { exact: true }),
+    page.getByText("Version 1 · Freigegeben", { exact: true }),
   ).toBeVisible();
   expect(writes).toHaveLength(1);
 
@@ -279,13 +279,13 @@ test("native plan context: full TRIGGER amendment and separate approval preserve
   await page.getByRole("button", { name: "Zur Prüfung einreichen" }).click();
   await expect(
     page.getByRole("heading", {
-      name: "Version 2 · READY_FOR_REVIEW",
+      name: "Version 2 · Zur Prüfung",
       exact: true,
     }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Explizit freigeben" }).click();
   await expect(
-    page.getByRole("heading", { name: "Version 2 · APPROVED", exact: true }),
+    page.getByRole("heading", { name: "Version 2 · Freigegeben", exact: true }),
   ).toBeVisible();
   const oldVersion: TradePlanVersionResponse = await get(baseUrl);
   expect(oldVersion.status).toBe("SUPERSEDED");
@@ -310,7 +310,7 @@ test("native plan context: full TRIGGER amendment and separate approval preserve
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto(`/product-selection?run_id=${run.run.id}`);
   await expect(
-    page.getByText("Version 1 · SUPERSEDED", { exact: true }),
+    page.getByText("Version 1 · Abgelöst", { exact: true }),
   ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Produkte neu bewerten", exact: true }),

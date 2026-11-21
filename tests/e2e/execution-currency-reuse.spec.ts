@@ -134,6 +134,7 @@ test("historical currency is reused through an explicit initial BUY, additional 
       writes.push(outgoing);
   });
   await page.goto(`/product-selection?run_id=${started.run.id}`);
+  await page.getByRole("link", { name: "Kauf erfassen", exact: true }).click();
   await page.getByLabel("Kaufdatum", { exact: true }).fill("2026-08-17");
   await expect(
     page.getByText(/Vorhandene Währung: EUR · automatisch aus historischen/),
@@ -150,18 +151,29 @@ test("historical currency is reused through an explicit initial BUY, additional 
   ).toBeVisible();
   await page.getByLabel("Kaufmenge").fill("10");
   await page.getByLabel("Kaufpreis").fill("2,35");
+  await page
+    .getByRole("link", { name: "Vergleich und Auswahl", exact: true })
+    .click();
+  await expect(page.getByLabel("Kaufmenge")).toBeHidden();
+  await expect(page.getByRole("alertdialog")).toHaveCount(0);
+  await page.getByRole("link", { name: "Kauf erfassen", exact: true }).click();
+  await expect(page.getByLabel("Kaufmenge")).toHaveValue("10");
+  await expect(page.getByLabel("Kaufpreis")).toHaveValue("2,35");
+  await expect(page.getByLabel("Kaufdatum", { exact: true })).toHaveValue(
+    "2026-08-17",
+  );
   const captureResponse = page.waitForResponse(
     (response) =>
       response.request().method() === "POST" &&
       response.url().endsWith("/purchases/from-selection"),
   );
   await page
-    .getByRole("button", { name: "BUY erfassen und Position eröffnen" })
+    .getByRole("button", { name: "Kauf erfassen und Position eröffnen" })
     .click();
   const capturedResponse = await captureResponse;
   expect(capturedResponse.status()).toBe(201);
   const captured = await capturedResponse.json();
-  await expect(page.getByText(/Kauf wurde als BUY erfasst/)).toBeVisible();
+  await expect(page.getByText(/Kauf wurde erfasst/)).toBeVisible();
   expect(writes).toHaveLength(1);
   expect(captured.trade).toMatchObject({
     product_id: warrant.id,
@@ -177,8 +189,9 @@ test("historical currency is reused through an explicit initial BUY, additional 
     evidence_ids: [evidence.id],
   });
   await page
-    .getByRole("link", { name: "Position verwalten und Monitoring öffnen" })
+    .getByRole("link", { name: "Position und Überwachung öffnen" })
     .click();
+  await page.getByRole("link", { name: "Buchungen", exact: true }).click();
   const additional = page.getByRole("form", { name: "Nachkauf erfassen" });
   await additional
     .getByLabel("Nachkaufdatum", { exact: true })

@@ -84,7 +84,7 @@ export function TradePlanContentForm({
     <fieldset disabled={disabled} className="min-w-0 space-y-5 disabled:opacity-60">
       <legend className="sr-only">Planinhalt</legend>
       <ContentField
-        label="Trade Thesis"
+        label="Handelsidee und Begründung"
         value={value.thesis}
         onChange={(thesis) => onChange({ ...value, thesis })}
         required
@@ -92,7 +92,7 @@ export function TradePlanContentForm({
       />
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="block text-sm">
-          <span className="text-slate-300">Entry-Art</span>
+          <span className="text-slate-300">Einstiegsart</span>
           <select
             className={inputClass}
             value={entry.type}
@@ -117,12 +117,12 @@ export function TradePlanContentForm({
         </p>
       )}
       <p className="text-xs text-slate-400">
-        Die Planwährung bezieht sich auf den Basiswert. Beim Wechsel der Entry-Art werden die
+        Die Planwährung bezieht sich auf den Basiswert. Beim Wechsel der Einstiegsart werden die
         bisherigen Preis- beziehungsweise Triggerfelder ersetzt.
       </p>
       {entry.type === 'PRICE' && (
         <ContentField
-          label="Entry-Preis"
+          label="Einstiegspreis"
           value={entry.price}
           onChange={(price) => updateEntry({ price })}
           required
@@ -157,7 +157,7 @@ export function TradePlanContentForm({
         />
       )}
       <details className="rounded-lg border border-slate-800 p-3">
-        <summary className="cursor-pointer text-sm">Weitere Entry-Angaben</summary>
+        <summary className="cursor-pointer text-sm">Weitere Einstiegsangaben</summary>
         <div className="mt-3 space-y-3">
           <ContentField
             label="Referenzpreis"
@@ -168,13 +168,13 @@ export function TradePlanContentForm({
             decimal
           />
           <ContentField
-            label="Gültig bis (ISO 8601 mit Zeitzone)"
+            label="Gültig bis (Datum und Uhrzeit mit Zeitzone)"
             value={entry.valid_until}
             onChange={(valid_until) => updateEntry({ valid_until: valid_until || null })}
             placeholder="z. B. 2026-12-31T16:00:00Z"
           />
           <ContentField
-            label="Entry-Begründung"
+            label="Einstiegsbegründung"
             value={entry.rationale}
             onChange={(rationale) => updateEntry({ rationale: rationale || null })}
             multiline
@@ -208,7 +208,7 @@ export function TradePlanContentForm({
           <div key={target.sequence} className="space-y-2 rounded-lg border border-slate-800 p-3">
             <div className="grid gap-3 sm:grid-cols-2">
               <ContentField
-                label={`Target ${target.sequence}`}
+                label={`Kursziel ${target.sequence}`}
                 value={target.price}
                 onChange={(price) =>
                   onChange({
@@ -222,7 +222,7 @@ export function TradePlanContentForm({
                 decimal
               />
               <ContentField
-                label={`Target-Begründung ${target.sequence}`}
+                label={`Zielbegründung ${target.sequence}`}
                 value={target.rationale}
                 onChange={(rationale) =>
                   onChange({
@@ -247,7 +247,7 @@ export function TradePlanContentForm({
                   })
                 }
               >
-                Target {target.sequence} entfernen
+                Kursziel {target.sequence} entfernen
               </button>
             )}
           </div>
@@ -262,11 +262,11 @@ export function TradePlanContentForm({
             })
           }
         >
-          Target hinzufügen
+          Ziel hinzufügen
         </button>
       </section>
       <ContentField
-        label="Plan-Risiko / Annahme"
+        label="Risikoannahme"
         value={value.risk_assumptions.thesis_risk}
         onChange={(thesis_risk) => updateRisk({ thesis_risk })}
         required
@@ -276,14 +276,14 @@ export function TradePlanContentForm({
         <summary className="cursor-pointer text-sm">Weitere Risikoangaben</summary>
         <div className="mt-3 space-y-3">
           <ContentField
-            label="Max-Loss-Annahme (optional)"
+            label="Maximaler Verlust (Annahme, optional)"
             value={value.risk_assumptions.max_loss_assumption}
             onChange={(max_loss_assumption) =>
               updateRisk({ max_loss_assumption: max_loss_assumption || null })
             }
           />
           <ContentField
-            label="Risk Notes"
+            label="Ergänzende Risikonotizen"
             value={value.risk_assumptions.notes}
             onChange={(notes) => updateRisk({ notes: notes || null })}
             multiline

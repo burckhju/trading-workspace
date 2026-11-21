@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { createBrowserRouter } from 'react-router-dom';
 
 import { CurrencyAdminPage } from '../features/market/pages/CurrencyAdminPage';
 
@@ -8,6 +8,8 @@ import { AnalysisSetupPage } from '../features/analysis/pages/AnalysisSetupPage'
 import { CandidatePage } from '../features/candidate/pages';
 import { LessonDetailPage } from '../features/learning/pages/LessonDetailPage';
 import { BulkImportPage } from '../features/learning/pages';
+import { LearningEntryPage } from '../features/learning/pages/LearningEntryPage';
+import { LessonListPage } from '../features/learning/pages/LessonListPage';
 import {
   IssuerAdminPage,
   TradingVenueAdminPage,
@@ -16,6 +18,10 @@ import {
   UnderlyingListPage,
 } from '../features/market/pages';
 import { OperationalWorkspacePage } from '../features/operational_workspace/pages/OperationalWorkspacePage';
+import { TodayPage } from '../features/operational_workspace/pages/TodayPage';
+import { ExecutionWorkspacePage } from '../features/operational_workspace/pages/ExecutionWorkspacePage';
+import { DataSourcesPage } from '../features/operational_workspace/pages/DataSourcesPage';
+import { WorkspaceActionLinks } from '../features/operational_workspace/public/WorkspaceActionLinks';
 import { PostTradeLearningPage } from '../features/post_trade/pages/PostTradeLearningPage';
 import { PerformanceWorkspace } from '../features/performance/pages/PerformanceWorkspace';
 import { ProductSelectionWorkflowPage } from '../features/product_selection/pages';
@@ -24,6 +30,8 @@ import { TradeManagementPage } from '../features/trade/pages';
 import { TradePlanOverviewPage, TradePlanPage } from '../features/trade_plan/pages';
 import { ApplicationLayout } from '../layouts/ApplicationLayout';
 import { NotFoundPage } from '../pages/NotFoundPage';
+import { PerformanceRedirect } from '../pages/PerformanceRedirect';
+import { StartPage } from '../pages/StartPage';
 
 export function createApplicationRouter() {
   return createBrowserRouter([
@@ -31,8 +39,11 @@ export function createApplicationRouter() {
       path: '/',
       element: <ApplicationLayout />,
       children: [
-        { index: true, element: <UnderlyingListPage /> },
+        { index: true, element: <StartPage /> },
+        { path: 'aktuelles', element: <TodayPage /> },
         { path: 'workspace', element: <OperationalWorkspacePage /> },
+        { path: 'executions', element: <ExecutionWorkspacePage /> },
+        { path: 'data-sources', element: <DataSourcesPage /> },
         { path: 'underlyings', element: <UnderlyingListPage /> },
         { path: 'market-analyses', element: <MarketAnalysisPage /> },
         { path: 'market-analyses/setup', element: <AnalysisSetupPage /> },
@@ -54,7 +65,7 @@ export function createApplicationRouter() {
         { path: 'trade-plans', element: <TradePlanPage /> },
         { path: 'trade-management', element: <TradeManagementPage /> },
         { path: 'post-trade', element: <PostTradeLearningPage /> },
-        { path: 'performance', element: <Navigate to="/performance/realized-gross" replace /> },
+        { path: 'performance', element: <PerformanceRedirect /> },
         {
           path: 'performance/realized-gross',
           element: <PerformanceWorkspace kind="realized-gross" />,
@@ -65,6 +76,17 @@ export function createApplicationRouter() {
         },
         { path: 'product-selection', element: <ProductSelectionWorkflowPage /> },
         { path: 'learning-imports', element: <BulkImportPage /> },
+        {
+          path: 'learning',
+          element: (
+            <LearningEntryPage view="observation">
+              <WorkspaceActionLinks scope="learning" />
+            </LearningEntryPage>
+          ),
+        },
+        { path: 'journal', element: <LearningEntryPage view="journal" /> },
+        { path: 'lessons', element: <LessonListPage /> },
+        { path: 'model-improvements', element: <LessonListPage purpose="models" /> },
         { path: 'lessons/:lessonId', element: <LessonDetailPage /> },
         { path: 'top-down-admin', element: <TopDownWorkflowActionPage /> },
         { path: 'trading-venues-admin', element: <TradingVenueAdminPage /> },

@@ -75,7 +75,7 @@ describe('ProductSelectionWorkflowPage', () => {
     expect(screen.queryByLabelText('TradePlanVersion-ID')).not.toBeInTheDocument();
 
     const link = screen.getByRole('link', {
-      name: 'Produktauswahl für diesen TradePlan öffnen',
+      name: 'Produktauswahl für diesen Tradeplan öffnen',
     });
     expect(link).toHaveAttribute(
       'href',
@@ -95,9 +95,9 @@ describe('ProductSelectionWorkflowPage', () => {
     );
 
     expect(
-      await screen.findByRole('heading', { name: 'Kein freigegebener TradePlan verfügbar' }),
+      await screen.findByRole('heading', { name: 'Kein freigegebener Tradeplan verfügbar' }),
     ).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Zu den TradePlans' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Zu den Tradeplänen' })).toHaveAttribute(
       'href',
       '/trade-plans/overview',
     );
@@ -183,7 +183,7 @@ it('offers the earlier approved version explicitly while latest is a draft, with
   );
   expect(await screen.findByRole('heading', { name: 'DAX' })).toBeInTheDocument();
   expect(
-    screen.getByRole('link', { name: 'Produktauswahl für diesen TradePlan öffnen' }),
+    screen.getByRole('link', { name: 'Produktauswahl für diesen Tradeplan öffnen' }),
   ).toHaveAttribute(
     'href',
     `/product-selection?trade_plan_id=${approvedPlan.id}&trade_plan_version_id=${approvedPlan.latest_version_id}`,

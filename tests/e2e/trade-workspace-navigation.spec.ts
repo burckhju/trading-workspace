@@ -598,12 +598,10 @@ async function loaded(page: Page, bookingCount = 1) {
       .getByRole("heading", { name: new RegExp(productName) }),
   ).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "Laden", exact: true }),
+    page.getByRole("button", { name: "Stand neu laden", exact: true }),
   ).toBeEnabled();
   await expect(
-    page
-      .getByRole("region", { name: "Kauf- und Verkaufsdaten" })
-      .getByRole("article"),
+    page.locator("#execution-dates article[aria-label]"),
   ).toHaveCount(bookingCount);
   await page.waitForLoadState("networkidle");
 }
@@ -695,7 +693,7 @@ for (const width of [320, 390, 1280]) {
       originalReads.filter((url) => url.endsWith("/product-valuation")),
     ).toHaveLength(1);
     for (const label of [
-      "Technische Provenance anzeigen",
+      "Herkunft und technische Kennungen",
       "Kostenbasis und Währungsnachweise",
       "Kursherkunft und Zeitbezüge anzeigen",
     ]) {
@@ -878,6 +876,9 @@ for (const width of [320, 390, 1280]) {
     await loaded(page);
     await expect(page.locator("#trade-overview")).toBeFocused();
 
+    await navigation(page)
+      .getByRole("link", { name: "Buchungen", exact: true })
+      .click();
     await page.getByLabel("Verkaufsmenge", { exact: true }).fill("3");
     await page.getByLabel("Verkaufspreis", { exact: true }).fill("2.50");
     const sale = page.locator("#sale-capture");
@@ -901,9 +902,7 @@ for (const width of [320, 390, 1280]) {
     await sale
       .getByLabel("Beleg / Erläuterung (optional)")
       .fill("Synthetic manual sale receipt");
-    const bookings = page.getByRole("region", {
-      name: "Kauf- und Verkaufsdaten",
-    });
+    const bookings = page.locator("#execution-dates");
     await bookings
       .getByRole("button", { name: "Kauf korrigieren", exact: true })
       .click();
@@ -918,7 +917,7 @@ for (const width of [320, 390, 1280]) {
     for (const [label, hash] of [
       ["Kursverlauf", "#position-price-history"],
       ["Buchungen", "#execution-dates"],
-      ["Risiko und Management", "#trade-risk"],
+      ["Überwachung", "#trade-risk"],
       ["Überblick", "#trade-overview"],
     ]) {
       const link = navigation(page).getByRole("link", {
@@ -951,11 +950,12 @@ for (const width of [320, 390, 1280]) {
       await expect(
         sale.getByLabel("Beleg / Erläuterung (optional)"),
       ).toHaveValue("Synthetic manual sale receipt");
-      await expect(
-        sale.getByText(
-          "Vorhandene Währung: EUR · aus vorherigen Käufen übernommen",
-        ),
-      ).toBeVisible();
+      const currencyNotice = sale.getByText(
+        "Vorhandene Währung: EUR · aus vorherigen Käufen übernommen",
+      );
+      if (hash === "#execution-dates")
+        await expect(currencyNotice).toBeVisible();
+      else await expect(currencyNotice).toBeHidden();
       expect(observed.reads).toEqual(originalReads);
     }
 
@@ -1132,8 +1132,14 @@ test("UX4-B same-trade hashes preserve source visibility, exact evidence page an
   await expect(selected).toContainText("2,231234567890123456789 EUR");
   await expect(panel.getByText("Seite 2 / 2", { exact: true })).toBeVisible();
 
+  await navigation(page)
+    .getByRole("link", { name: "Buchungen", exact: true })
+    .click();
   await page.getByLabel("Verkaufsmenge", { exact: true }).fill("3");
   await page.getByLabel("Verkaufspreis", { exact: true }).fill("2.50");
+  await navigation(page)
+    .getByRole("link", { name: "Bearbeiten", exact: true })
+    .click();
   await page
     .getByLabel("Neue Management-Notiz", { exact: true })
     .fill("Synthetic unsaved note survives chart navigation");
@@ -1156,13 +1162,17 @@ test("UX4-B same-trade hashes preserve source visibility, exact evidence page an
     await page.keyboard.press("Enter");
     await expect(page.locator(hash)).toBeFocused();
     expect(new URL(page.url()).hash).toBe(hash);
-    await expect(hiddenSource).not.toBeChecked();
-    await expect(panel.locator(".recharts-scatter-symbol")).toHaveCount(55);
-    await expect(panel.getByText("Seite 2 / 2", { exact: true })).toBeVisible();
-    await expect(
-      panel.getByText("Auswahlseite 3 / 3", { exact: true }),
-    ).toBeVisible();
-    await expect(selected).toContainText("2,231234567890123456789 EUR");
+    if (hash === "#position-price-history") {
+      await expect(hiddenSource).not.toBeChecked();
+      await expect(panel.locator(".recharts-scatter-symbol")).toHaveCount(55);
+      await expect(
+        panel.getByText("Seite 2 / 2", { exact: true }),
+      ).toBeVisible();
+      await expect(
+        panel.getByText("Auswahlseite 3 / 3", { exact: true }),
+      ).toBeVisible();
+      await expect(selected).toContainText("2,231234567890123456789 EUR");
+    } else await expect(page.locator("#position-price-history")).toBeHidden();
     await expect(page.getByLabel("Verkaufsmenge", { exact: true })).toHaveValue(
       "3",
     );
@@ -1275,7 +1285,7 @@ for (const lateOutcome of ["success", "error"] as const) {
         sale.getByText(
           "Vorhandene Währung: EUR · aus vorherigen Käufen übernommen",
         ),
-      ).toBeVisible();
+      ).toBeHidden();
       await expect(sale.getByText(/Vorhandene Währung: (USD|GBP)/)).toHaveCount(
         0,
       );
@@ -1307,14 +1317,17 @@ test("leaving for plan sources or journal uses the one existing discard guard", 
   page,
 }) => {
   const observed = await fixture(page);
-  const original = `/trade-management?trade_id=${tradeId}#trade-overview`;
+  const original = `/trade-management?trade_id=${tradeId}#trade-management-state`;
   await page.goto(original);
   await loaded(page);
+  await navigation(page)
+    .getByRole("link", { name: "Bearbeiten", exact: true })
+    .click();
   await page
     .getByLabel("Neue Management-Notiz", { exact: true })
     .fill("Unfinished UX2 note");
 
-  for (const label of ["Plan und Quellen", "Journal und Lessons"]) {
+  for (const label of ["Plan und Belege", "Journal"]) {
     await navigation(page)
       .getByRole("link", { name: label, exact: true })
       .click();
@@ -1344,7 +1357,7 @@ test("leaving for plan sources or journal uses the one existing discard guard", 
   }
 
   await navigation(page)
-    .getByRole("link", { name: "Plan und Quellen", exact: true })
+    .getByRole("link", { name: "Plan und Belege", exact: true })
     .click();
   await page
     .getByRole("button", { name: "Eingaben verwerfen und wechseln" })
@@ -1406,6 +1419,9 @@ test("direct section URLs survive reload, including the existing booking and sal
     "#position-price-history",
     "#execution-dates",
     "#trade-risk",
+    "#trade-management-state",
+    "#trade-cancellation",
+    "#additional-purchase",
     "#sale-capture",
   ]) {
     await page.goto(`/trade-management?trade_id=${tradeId}${hash}`);
@@ -1465,7 +1481,7 @@ test("UX2-B does not read valuation after a failed host position read", async ({
       .filter({ hasText: "Synthetic UX2 position is unavailable." }),
   ).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "Laden", exact: true }),
+    page.getByRole("button", { name: "Stand neu laden", exact: true }),
   ).toBeEnabled();
   await expect(
     page.getByRole("region", { name: "Trade und Position", exact: true }),
@@ -1490,7 +1506,11 @@ for (const status of ["CLOSED", "CANCELLED"] as const) {
     const observed = await fixture(page, { status });
     await page.goto(`/trade-management?trade_id=${tradeId}#execution-dates`);
     await loaded(page);
-    await expect(page.getByText(status, { exact: true })).toHaveCount(1);
+    await expect(
+      page.getByText(status === "CLOSED" ? "Geschlossen" : "Storniert", {
+        exact: true,
+      }),
+    ).toHaveCount(1);
     await expect(
       navigation(page).getByRole("link", { name: "Buchungen", exact: true }),
     ).toHaveAttribute(
@@ -1499,13 +1519,16 @@ for (const status of ["CLOSED", "CANCELLED"] as const) {
     );
     await expect(
       navigation(page).getByRole("link", {
-        name: "Plan und Quellen",
+        name: "Plan und Belege",
         exact: true,
       }),
     ).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Teilverkauf erfassen", exact: true }),
     ).toHaveCount(0);
+    await navigation(page)
+      .getByRole("link", { name: "Überblick", exact: true })
+      .click();
     await expect(
       page.getByRole("region", { name: "Produktbewertung", exact: true }),
     ).toContainText(
@@ -1527,6 +1550,9 @@ for (const status of ["CLOSED", "CANCELLED"] as const) {
         false,
       );
     } else {
+      await navigation(page)
+        .getByRole("link", { name: "Kursverlauf", exact: true })
+        .click();
       await expect(
         page.getByRole("region", { name: "Positionskursverlauf" }),
       ).toBeVisible();
@@ -1584,9 +1610,12 @@ test("the bound approved plan opens in this tab and retains historical trade sou
 
   const assertHistoricalPlan = async () => {
     await expect(
-      page.getByRole("heading", { name: "Version 1 · APPROVED", exact: true }),
+      page.getByRole("heading", {
+        name: "Version 1 · Freigegeben",
+        exact: true,
+      }),
     ).toBeVisible();
-    await expect(page.getByText("Neueste Version: 2 · DRAFT")).toBeVisible();
+    await expect(page.getByText("Neueste Version: 2 · Entwurf")).toBeVisible();
     await expect(
       page.getByRole("combobox", { name: "Planversion", exact: true }),
     ).toHaveValue(planVersionId);
@@ -1712,7 +1741,7 @@ test("a sales report keeps its exact selection through bookings, copied source l
   expectReportContext(page.url(), context);
 
   const sourceLink = navigation(page).getByRole("link", {
-    name: "Plan und Quellen",
+    name: "Plan und Belege",
     exact: true,
   });
   const copiedSourceHref = await sourceLink.getAttribute("href");

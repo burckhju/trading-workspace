@@ -11,7 +11,10 @@ import type { PositionResponse, TradeTimelineEntryResponse } from '../types/api'
 import { TradeManagementPage } from './TradeManagementPage';
 
 // History integration and its readback lifecycle have a dedicated page suite.
-vi.mock('../../operational_workspace', () => ({ PositionPriceHistory: () => null }));
+vi.mock('../../operational_workspace', () => ({
+  PositionPriceHistory: () => null,
+  PositionMonitoring: () => null,
+}));
 // The real valuation/host read contract is exercised by TradeManagementOverview.test.tsx.
 vi.mock('../components/ProductValuationPanel', () => ({ ProductValuationPanel: () => null }));
 
@@ -154,7 +157,7 @@ function openIntegratedPage() {
     {
       initialEntries: [
         '/elsewhere',
-        '/trade-management?trade_id=trade-1',
+        '/trade-management?trade_id=trade-1#execution-dates',
         '/trade-management?trade_id=trade-2',
       ],
       initialIndex: 1,
@@ -203,12 +206,12 @@ describe('TradeManagementPage', () => {
 
   it('loads visible product, TradePlan, position and management context from a trade_id query parameter', async () => {
     render(
-      <MemoryRouter initialEntries={['/trade-management?trade_id=trade-1']}>
+      <MemoryRouter initialEntries={['/trade-management?trade_id=trade-1#execution-dates']}>
         <TradeManagementPage />
       </MemoryRouter>,
     );
 
-    expect(await screen.findByRole('heading', { name: 'OPEN' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Offen' })).toBeInTheDocument();
     expect(
       screen.getByRole('heading', { name: /TR-TRADE-1 · DAX Call 19000/ }),
     ).toBeInTheDocument();
@@ -216,7 +219,7 @@ describe('TradeManagementPage', () => {
     expect(screen.getByText(/Ursprung: Workspace-Produktauswahl/)).toBeInTheDocument();
     expect(screen.getByText(/TradePlan: TP-PLAN-123/)).toBeInTheDocument();
     const overview = within(screen.getByRole('region', { name: 'Trade und Position' }));
-    expect(overview.getAllByText('OPEN')).toHaveLength(1);
+    expect(overview.getAllByText('Offen')).toHaveLength(1);
     expect(overview.getAllByText('Offene Menge')).toHaveLength(1);
     expect(overview.getByText('10 Stück')).toBeInTheDocument();
     // O1: raw projection amounts have no sufficient monetary qualification.
@@ -238,11 +241,11 @@ describe('TradeManagementPage', () => {
 
   it('records a SELL and refreshes the projected position', async () => {
     render(
-      <MemoryRouter initialEntries={['/trade-management?trade_id=trade-1']}>
+      <MemoryRouter initialEntries={['/trade-management?trade_id=trade-1#execution-dates']}>
         <TradeManagementPage />
       </MemoryRouter>,
     );
-    await screen.findByRole('heading', { name: 'OPEN' });
+    await screen.findByRole('heading', { name: 'Offen' });
 
     fireEvent.change(screen.getByLabelText('Verkaufsmenge'), { target: { value: '4' } });
     fireEvent.change(screen.getByLabelText('Verkaufspreis'), { target: { value: '2.50' } });
@@ -273,12 +276,12 @@ describe('TradeManagementPage', () => {
     });
 
     render(
-      <MemoryRouter initialEntries={['/trade-management?trade_id=trade-1']}>
+      <MemoryRouter initialEntries={['/trade-management?trade_id=trade-1#execution-dates']}>
         <TradeManagementPage />
       </MemoryRouter>,
     );
 
-    expect(await screen.findByRole('heading', { name: 'CLOSED' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Geschlossen' })).toBeInTheDocument();
     // CLOSED leaves the existing explicit action available without declaring it mandatory.
     expect(screen.getAllByText('Nachbeobachtung starten')).toHaveLength(1);
     expect(
@@ -293,7 +296,7 @@ describe('TradeManagementPage', () => {
   it('preserves a pending booking-source read when its parallel position readback finishes first', async () => {
     api.timeline.mockResolvedValue([buy]);
     render(
-      <MemoryRouter initialEntries={['/trade-management?trade_id=trade-1']}>
+      <MemoryRouter initialEntries={['/trade-management?trade_id=trade-1#execution-dates']}>
         <TradeManagementPage />
       </MemoryRouter>,
     );
@@ -326,11 +329,11 @@ describe('TradeManagementPage', () => {
 
   it('allows a deliberately opened currency exception for a full SELL without another affirmation', async () => {
     render(
-      <MemoryRouter initialEntries={['/trade-management?trade_id=trade-1']}>
+      <MemoryRouter initialEntries={['/trade-management?trade_id=trade-1#execution-dates']}>
         <TradeManagementPage />
       </MemoryRouter>,
     );
-    await screen.findByRole('heading', { name: 'OPEN' });
+    await screen.findByRole('heading', { name: 'Offen' });
     const form = within(screen.getByRole('form', { name: 'Verkauf erfassen' }));
     expect(form.queryByLabelText('Ausführungswährung (Code)')).not.toBeInTheDocument();
     fireEvent.change(form.getByLabelText('Verkaufspreis'), { target: { value: '2.5000000001' } });
@@ -360,11 +363,11 @@ describe('TradeManagementPage', () => {
     async (origin) => {
       api.trade.mockResolvedValue({ ...trade, origin });
       render(
-        <MemoryRouter initialEntries={['/trade-management?trade_id=trade-1']}>
+        <MemoryRouter initialEntries={['/trade-management?trade_id=trade-1#execution-dates']}>
           <TradeManagementPage />
         </MemoryRouter>,
       );
-      await screen.findByRole('heading', { name: 'OPEN' });
+      await screen.findByRole('heading', { name: 'Offen' });
       const form = within(screen.getByRole('form', { name: 'Verkauf erfassen' }));
       expect(form.queryByLabelText('Ausführungswährung (Code)')).not.toBeInTheDocument();
       expect(form.queryByRole('checkbox')).not.toBeInTheDocument();
@@ -385,12 +388,12 @@ describe('TradeManagementPage', () => {
 
   it('does not show the post-trade start action for an open position', async () => {
     render(
-      <MemoryRouter initialEntries={['/trade-management?trade_id=trade-1']}>
+      <MemoryRouter initialEntries={['/trade-management?trade_id=trade-1#execution-dates']}>
         <TradeManagementPage />
       </MemoryRouter>,
     );
 
-    await screen.findByRole('heading', { name: 'OPEN' });
+    await screen.findByRole('heading', { name: 'Offen' });
 
     expect(
       screen.queryByRole('button', { name: 'Nachbeobachtung starten' }),
@@ -407,7 +410,7 @@ describe('TradeManagementPage', () => {
     });
 
     render(
-      <MemoryRouter initialEntries={['/trade-management?trade_id=trade-1']}>
+      <MemoryRouter initialEntries={['/trade-management?trade_id=trade-1#execution-dates']}>
         <TradeManagementPage />
       </MemoryRouter>,
     );
@@ -434,11 +437,11 @@ describe('TradeManagementPage', () => {
       open_quantity: 0,
     });
     render(
-      <MemoryRouter initialEntries={['/trade-management?trade_id=trade-1']}>
+      <MemoryRouter initialEntries={['/trade-management?trade_id=trade-1#execution-dates']}>
         <TradeManagementPage />
       </MemoryRouter>,
     );
-    await screen.findByRole('heading', { name: 'CLOSED' });
+    await screen.findByRole('heading', { name: 'Geschlossen' });
     const overview = within(screen.getByRole('region', { name: 'Trade und Position' }));
     expect(overview.getByText('2026-08-17 (Uhrzeit unbekannt)')).toBeInTheDocument();
     expect(overview.getByText('2026-08-18 (Uhrzeit unbekannt)')).toBeInTheDocument();
@@ -481,7 +484,7 @@ describe('TradeManagementPage', () => {
         target_price_binding: { basis: 'WARRANT', instrument_id: warrant.id, currency: 'EUR' },
       });
       openIntegratedPage();
-      await screen.findByRole('heading', { name: 'CLOSED' });
+      await screen.findByRole('heading', { name: 'Geschlossen' });
       const booking = within(await screen.findByRole('article', { name: 'Buchung buy-1' }));
       fireEvent.click(booking.getByRole('button', { name: 'Kauf korrigieren' }));
       const form = within(screen.getByRole('form', { name: 'Buchung korrigieren' }));
@@ -493,11 +496,11 @@ describe('TradeManagementPage', () => {
         target: { value: 'UNDERLYING' },
       });
       fireEvent.change(screen.getByLabelText('Währung für Stop'), { target: { value: 'USD' } });
-      fireEvent.change(screen.getByLabelText('Target'), { target: { value: '130.75' } });
-      fireEvent.change(screen.getByLabelText('Instrument für Target'), {
+      fireEvent.change(screen.getByLabelText('Ziel'), { target: { value: '130.75' } });
+      fireEvent.change(screen.getByLabelText('Instrument für Ziel'), {
         target: { value: 'UNDERLYING' },
       });
-      fireEvent.change(screen.getByLabelText('Währung für Target'), { target: { value: 'GBP' } });
+      fireEvent.change(screen.getByLabelText('Währung für Ziel'), { target: { value: 'GBP' } });
       fireEvent.change(screen.getByLabelText('Aktuelle These'), {
         target: { value: 'Ungespeicherte These bleibt erhalten' },
       });
@@ -570,7 +573,7 @@ describe('TradeManagementPage', () => {
       expect(overview.queryByText('Average Entry')).not.toBeInTheDocument();
       expect(overview.queryByText('Realized gross P&L')).not.toBeInTheDocument();
       expect(
-        overview.getByRole('heading', { name: nextPosition.is_closed ? 'CLOSED' : 'OPEN' }),
+        overview.getByRole('heading', { name: nextPosition.is_closed ? 'Geschlossen' : 'Offen' }),
       ).toBeInTheDocument();
       if (!nextPosition.is_closed) {
         expect(
@@ -583,9 +586,9 @@ describe('TradeManagementPage', () => {
       expect(stopInput).toHaveValue(105.25);
       expect(screen.getByLabelText('Instrument für Stop')).toHaveValue('UNDERLYING');
       expect(screen.getByLabelText('Währung für Stop')).toHaveValue('USD');
-      expect(screen.getByLabelText('Target')).toHaveValue(130.75);
-      expect(screen.getByLabelText('Instrument für Target')).toHaveValue('UNDERLYING');
-      expect(screen.getByLabelText('Währung für Target')).toHaveValue('GBP');
+      expect(screen.getByLabelText('Ziel')).toHaveValue(130.75);
+      expect(screen.getByLabelText('Instrument für Ziel')).toHaveValue('UNDERLYING');
+      expect(screen.getByLabelText('Währung für Ziel')).toHaveValue('GBP');
       expect(thesisInput).toHaveValue('Ungespeicherte These bleibt erhalten');
       expect(screen.getByLabelText('Neue Management-Notiz')).toHaveValue(
         'Ungespeicherte Notiz bleibt erhalten',
@@ -628,6 +631,7 @@ describe('TradeManagementPage', () => {
         expect(router.state.location.search).toBe('?trade_id=trade-1');
       }
       fireEvent.change(screen.getByLabelText('Trade-ID'), { target: { value: 'trade-2' } });
+      fireEvent.click(screen.getByText('Trade über Kennung öffnen oder Stand neu laden'));
       fireEvent.click(screen.getByRole('button', { name: 'Laden' }));
       let dialog = await screen.findByRole('alertdialog');
       fireEvent.click(within(dialog).getByRole('button', { name: 'Hier bleiben' }));

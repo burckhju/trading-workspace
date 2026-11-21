@@ -1,6 +1,6 @@
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
+import { createMemoryRouter, MemoryRouter, RouterProvider } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { marketApiClient } from '../../market/services/client';
@@ -69,7 +69,7 @@ describe('TradePlanOverviewPage', () => {
     expect(await screen.findByText('Apple Inc.')).toBeInTheDocument();
     expect(screen.getByText('TP-12345678')).toBeInTheDocument();
     expect(screen.getByText(/AAPL · US0378331005 · 865985/)).toBeInTheDocument();
-    expect(screen.getByText('DRAFT')).toBeInTheDocument();
+    expect(screen.getByText('Entwurf')).toBeInTheDocument();
     expect(screen.getByText('1')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Öffnen' })).toHaveAttribute(
       'href',
@@ -115,7 +115,7 @@ describe('TradePlanOverviewPage', () => {
       screen.getByRole('combobox', { name: 'Nach Kaufstatus filtern' }),
       'NOT_STARTED',
     );
-    expect(screen.getByText('1 von 2 TradePlans')).toBeInTheDocument();
+    expect(screen.getByText('1 von 2 Tradeplänen')).toBeInTheDocument();
     expect(
       screen.queryByText('Kauf erfasst · Position offen', { selector: 'span' }),
     ).not.toBeInTheDocument();
@@ -123,7 +123,7 @@ describe('TradePlanOverviewPage', () => {
       { ...base, execution: { status: 'OPEN', current_version_status: 'OPEN', trades: [] } },
     ]);
     await user.click(screen.getByRole('button', { name: 'Übersicht aktualisieren' }));
-    expect(await screen.findByText('Keine TradePlans mit diesem Kaufstatus.')).toBeInTheDocument();
+    expect(await screen.findByText('Keine Tradepläne mit diesem Kaufstatus.')).toBeInTheDocument();
     await user.selectOptions(screen.getByRole('combobox'), 'OPEN');
     expect(
       screen.getByText('Kauf erfasst · Position offen', { selector: 'span' }),
@@ -134,5 +134,52 @@ describe('TradePlanOverviewPage', () => {
     expect(
       screen.queryByText('Kauf erfasst · Position offen', { selector: 'span' }),
     ).not.toBeInTheDocument();
+  });
+
+  it('restores a bookmarked purchase filter and keeps it in detail and selected-product entries', async () => {
+    const user = userEvent.setup();
+    overviewApi.list.mockResolvedValue([
+      {
+        id: 'plan-1',
+        underlying_id: 'u',
+        underlying_name: 'Apple Inc.',
+        origin_type: 'MANUAL',
+        created_at: '2026-09-05T06:00:00Z',
+        latest_version_id: 'version-1',
+        latest_version: 1,
+        status: 'APPROVED',
+        execution: { status: 'OPEN', current_version_status: 'OPEN', trades: [] },
+        selected_product: {
+          run_id: 'saved-run',
+          product_evaluation_id: 'evaluation-1',
+          warrant_id: 'product-1',
+          display_name: 'Apple CALL',
+          isin: 'DE000TEST001',
+          wkn: 'TEST01',
+        },
+      },
+    ]);
+    const router = createMemoryRouter(
+      [{ path: '/trade-plans/overview', element: <TradePlanOverviewPage /> }],
+      { initialEntries: ['/trade-plans/overview?purchase_status=OPEN'] },
+    );
+    render(<RouterProvider router={router} />);
+    await screen.findByText('Apple Inc.');
+    expect(screen.getByRole('combobox')).toHaveValue('OPEN');
+    expect(screen.getByRole('link', { name: 'Öffnen' })).toHaveAttribute(
+      'href',
+      '/trade-plans?trade_plan_id=plan-1&plan_filter=OPEN',
+    );
+    expect(screen.getByRole('link', { name: 'Ausgewählten Optionsschein prüfen' })).toHaveAttribute(
+      'href',
+      '/product-selection?run_id=saved-run&plan_filter=OPEN',
+    );
+    await user.selectOptions(screen.getByRole('combobox'), 'CLOSED');
+    expect(router.state.location.search).toBe('?purchase_status=CLOSED');
+    expect(screen.getByText('Keine Tradepläne mit diesem Kaufstatus.')).toBeInTheDocument();
+    await act(() => router.navigate(-1));
+    expect(screen.getByRole('combobox')).toHaveValue('OPEN');
+    expect(screen.getByRole('link', { name: 'Öffnen' })).toBeVisible();
+    expect(overviewApi.list).toHaveBeenCalledOnce();
   });
 });

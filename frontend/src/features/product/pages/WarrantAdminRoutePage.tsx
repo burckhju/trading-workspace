@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { productTradeReturnLink } from '../../../shared/trade-workspace-navigation';
 import { LoadingNotice } from '../../market/components/ApiFeedback';
 import { marketApiClient } from '../../market/services/client';
 import { productSelectionApiClient } from '../../product_selection/services/client';
+import { withPlanListContext } from '../../trade_plan';
 import type { SelectionRepairContext } from '../services/selectionRepairContext';
 import { WarrantAdminPageWithDelete } from './WarrantAdminPageWithDelete';
 
@@ -10,7 +12,28 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** Same administration route and forms; only the incoming selection context is resolved here. */
 export function WarrantAdminRoutePage() {
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
+  const tradeReturn = productTradeReturnLink(params);
+  const catalogueNavigation = {
+    query: params.get('q') ?? '',
+    productId:
+      params.has('product_id') &&
+      (params.getAll('product_id').length !== 1 || !params.get('product_id'))
+        ? '__unresolved__'
+        : params.get('product_id'),
+    onQueryChange: (query: string) => {
+      const next = new URLSearchParams(params);
+      if (query) next.set('q', query);
+      else next.delete('q');
+      setParams(next, { replace: true });
+    },
+    onProductChange: (productId: string | null) => {
+      const next = new URLSearchParams(params);
+      if (productId) next.set('product_id', productId);
+      else next.delete('product_id');
+      if (next.toString() !== params.toString()) setParams(next);
+    },
+  };
   const runId = params.get('selection_run_id');
   const warrantId = params.get('warrant_id');
   const key = `${runId ?? ''}:${warrantId ?? ''}`;
@@ -76,10 +99,26 @@ export function WarrantAdminRoutePage() {
     return () => controller.abort();
   }, [key, runId, warrantId]);
 
-  if (runId === null) return <WarrantAdminPageWithDelete />;
-  const returnUrl = UUID.test(runId)
-    ? `/product-selection?${new URLSearchParams({ run_id: runId })}`
-    : '/product-selection';
+  if (runId === null)
+    return (
+      <div className="w-full min-w-0 space-y-4">
+        {tradeReturn && (
+          <Link
+            to={tradeReturn}
+            className="inline-block rounded text-sm text-sky-300 underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-300"
+          >
+            Zurück zur Positionsüberwachung
+          </Link>
+        )}
+        <WarrantAdminPageWithDelete catalogueNavigation={catalogueNavigation} />
+      </div>
+    );
+  const returnUrl = withPlanListContext(
+    UUID.test(runId)
+      ? `/product-selection?${new URLSearchParams({ run_id: runId })}`
+      : '/product-selection',
+    params,
+  );
   return (
     <div className="space-y-6">
       <section className="rounded-xl border border-amber-800 p-4 text-sm">
@@ -101,7 +140,11 @@ export function WarrantAdminRoutePage() {
           {state.error}
         </p>
       ) : (
-        <WarrantAdminPageWithDelete key={key} selectionContext={state.context} />
+        <WarrantAdminPageWithDelete
+          key={key}
+          selectionContext={state.context}
+          catalogueNavigation={catalogueNavigation}
+        />
       )}
     </div>
   );

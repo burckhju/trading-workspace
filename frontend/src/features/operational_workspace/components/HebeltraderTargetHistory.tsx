@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { HebeltraderTarget, HebeltraderTargetsReport } from '../hebeltraderTargets';
 import { readHebeltraderTargets } from '../services/hebeltraderTargets';
 import {
@@ -16,6 +16,8 @@ interface Props {
   positionId: string;
   reloadToken?: string | number;
   qualificationSessions?: QualificationSessions;
+  onBusyChange?: (busy: boolean) => void;
+  isContextPending?: () => boolean;
 }
 
 const targetLabels: Record<HebeltraderTarget['status'], string> = {
@@ -107,6 +109,8 @@ export function HebeltraderTargetHistory(props: Props) {
       sessionKey={sessionKey}
       session={sessions.values[sessionKey] ?? emptyQualificationSession}
       update={sessions.update}
+      onBusyChange={props.onBusyChange}
+      isContextPending={props.isContextPending}
     />
   );
 }
@@ -117,12 +121,16 @@ function History({
   sessionKey,
   session,
   update,
+  onBusyChange,
+  isContextPending,
 }: {
   tradeId: string;
   positionId: string;
   sessionKey: string;
   session: QualificationSession;
   update: QualificationSessions['update'];
+  onBusyChange?: (busy: boolean) => void;
+  isContextPending?: () => boolean;
 }) {
   const [report, setReport] = useState<HebeltraderTargetsReport | null>(null);
   const [readError, setReadError] = useState<string | null>(null);
@@ -148,6 +156,13 @@ function History({
     update,
     onReport: acceptReport,
   });
+  useLayoutEffect(() => {
+    onBusyChange?.(command.busy);
+    return () => onBusyChange?.(false);
+  }, [command.busy, onBusyChange]);
+  const blocked = command.blocked || Boolean(isContextPending?.());
+  const execute = (payload: Parameters<typeof command.execute>[0]) =>
+    isContextPending?.() ? Promise.resolve() : command.execute(payload);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -175,12 +190,13 @@ function History({
   async function assess() {
     if (
       !report ||
-      command.blocked ||
+      blocked ||
+      isContextPending?.() ||
       session.command?.phase === 'REJECTED' ||
       report.position_state !== 'OPEN'
     )
       return;
-    await command.execute({
+    await execute({
       position_id: positionId,
       request_id: crypto.randomUUID(),
       expected_basis_id: report.current_basis_id,
@@ -244,7 +260,9 @@ function History({
               type="button"
               className="rounded border border-slate-600 px-3 py-2 disabled:opacity-40"
               disabled={command.busy}
-              onClick={() => void command.readReceipt()}
+              onClick={() => {
+                if (!isContextPending?.()) void command.readReceipt();
+              }}
             >
               Beleg genau dieser Anfrage lesen
             </button>
@@ -252,7 +270,9 @@ function History({
               type="button"
               className="rounded border border-slate-600 px-3 py-2 disabled:opacity-40"
               disabled={command.busy || !report || report.position_state !== 'OPEN'}
-              onClick={() => void command.retry()}
+              onClick={() => {
+                if (!isContextPending?.()) void command.retry();
+              }}
             >
               Denselben eingefrorenen Prüfauftrag erneut senden
             </button>
@@ -365,9 +385,9 @@ function History({
             sessionKey={sessionKey}
             session={session}
             update={update}
-            blocked={command.blocked}
+            blocked={blocked}
             onReport={acceptReport}
-            onSubmit={command.execute}
+            onSubmit={execute}
           />
           {assessment && (
             <>
@@ -457,7 +477,7 @@ function History({
         disabled={
           !report ||
           report.position_state !== 'OPEN' ||
-          command.blocked ||
+          blocked ||
           session.command?.phase === 'REJECTED'
         }
         onClick={() => void assess()}

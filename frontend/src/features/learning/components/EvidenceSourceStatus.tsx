@@ -7,6 +7,13 @@ type Props = {
   expectedSource?: { type: string; versionId: string };
 };
 
+const currentnessLabel: Record<string, string> = {
+  CURRENT: 'Aktuell',
+  STALE: 'Veraltet – erneute Prüfung nötig',
+  SUPERSEDED: 'Durch neuere Version ersetzt',
+  UNKNOWN: 'Ungeklärt',
+};
+
 export function EvidenceSourceStatus(props: Props) {
   const { evidenceId, expectedSource } = props;
   return (
@@ -67,9 +74,9 @@ function EvidenceSourceStatusContext({
           <p className="break-all">Konkrete Quellversion: {result.source_version_id}</p>
         </>
       )}
-      <p>Quellversion jetzt: {result.source_currentness}</p>
+      <p>Quellversion jetzt: {currentnessLabel[result.source_currentness] ?? 'Ungeklärt'}</p>
       {result.review_currentness !== null && (
-        <p>Review-Quelle jetzt: {result.review_currentness}</p>
+        <p>Review-Quelle jetzt: {currentnessLabel[result.review_currentness] ?? 'Ungeklärt'}</p>
       )}
       {result.superseded_by_version_id && (
         <p className="break-all">
@@ -77,6 +84,15 @@ function EvidenceSourceStatusContext({
         </p>
       )}
       <p>Geprüft: {result.checked_at}. Heutiger Lesestand, keine Aussage über damaliges Wissen.</p>
+      <details className="text-xs">
+        <summary>Technische Statuskennungen</summary>
+        <p>
+          Quellversion: {result.source_currentness}
+          {result.review_currentness !== null
+            ? ` · Reviewquelle: ${result.review_currentness}`
+            : ''}
+        </p>
+      </details>
     </div>
   );
 }
