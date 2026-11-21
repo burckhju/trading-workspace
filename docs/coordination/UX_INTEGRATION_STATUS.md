@@ -27,7 +27,7 @@ Rückkehr mit Filter/Seite/Auswahl, unveränderte historische Pins, Hashwechsel 
 
 Die gezielten Prüfungen verwenden Node **22.16.0** aus der Projektvorgabe. Node 24 verursachte im lokalen jsdom-/Request-Zusammenspiel einen AbortSignal-Typkonflikt; es wurde kein Produkt- oder Testschutz dafür abgeschwächt. Für Tests mit dynamischer Zeitzone werden isolierte Forks verwendet.
 
-| Abschließende lokale Prüfung | Ergebnis |
+| Vollständiger lokaler Prüflauf vor Browserqualifikation | Ergebnis |
 |---|---|
 | TypeScript-Projektprüfung | Bestanden |
 | ESLint, maximal 0 Warnungen | Bestanden |

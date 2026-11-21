@@ -11,6 +11,7 @@
 6. `WorkspaceActionLinks` übernimmt ausschließlich vorhandene Actiontypen. Nachbereitungslinks sind kein Journalindex, Kauflinks keine neue Freigabe. Nur der explizite Nutzerbefehl beim bestehenden Owner bucht, bestätigt, prüft oder aktiviert.
 7. Journal, Exit Review, Evidence, Erkenntnisversion und Modellgovernance behalten ihre getrennten Zuständigkeiten. Listenstatus CURRENT bestätigt keine Quellenaktualität. Erkenntnislisten öffnen exakte Versionen; Quellenprüfung erfolgt ausdrücklich. Persönliches Journal setzt weiterhin den vorhandenen Reviewhandoff voraus.
 8. Lesende Performance bleibt bei getrennten SELL-/Vollabschlusspopulationen und den vorhandenen vier Bruttostatistiken. Historische Pins und begrenzter Berichts-Rückkontext werden über die vorhandenen Shared-Helper transportiert. Produktpflege erlaubt ausschließlich die expliziten internen Trade-Rückziele.
+9. Bei einem Pfadwechsel setzt das gemeinsame Layout den Fokus in den neuen Hauptinhalt, sofern der fortbestehende Fachowner ihn nicht bereits innerhalb dieses Inhalts hält. So behalten interne Berichtsschalter ihren Tastaturfokus; globale Navigation und beim Seitenwechsel entfernte Steuerelemente führen weiterhin zum Hauptinhalt.
 
 Historische Verträge und ihre unveränderten fachlichen Grenzen folgen unten. Die [Hauptortmatrix](UX_MASTER_PLAN.md#gewählte-fachstruktur-a--21112026) und [Prüfnachweise](UX_INTEGRATION_STATUS.md#fachstruktur-a-20261121) konkretisieren diesen Präsentationsschnitt.
 

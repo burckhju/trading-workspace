@@ -1,6 +1,14 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
+import {
+  createMemoryRouter,
+  Link,
+  MemoryRouter,
+  Route,
+  RouterProvider,
+  Routes,
+  useLocation,
+} from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 
 import { ApplicationLayout } from './ApplicationLayout';
@@ -83,6 +91,60 @@ describe('ApplicationLayout', () => {
     );
     expect(button).toHaveAttribute('aria-expanded', 'false');
     expect(screen.getByRole('navigation', { name: 'Depot: Unterbereiche' })).toBeInTheDocument();
+    expect(screen.getByRole('main')).toHaveFocus();
+  });
+
+  it('focuses the main content when a trade or learning context replaces the activated control', async () => {
+    const user = userEvent.setup();
+    const learningUrl = '/post-trade?trade_id=trade-17&journal_version_id=journal-3#trade-journal';
+    const tradeUrl = '/trade-management?trade_id=trade-17#trade-risk';
+    const router = createMemoryRouter(
+      [
+        {
+          element: <ApplicationLayout />,
+          children: [
+            {
+              path: '/trade-management',
+              element: (
+                <section>
+                  <Link to={learningUrl}>Nachbereitung dieses Trades</Link>
+                </section>
+              ),
+            },
+            {
+              path: '/post-trade',
+              element: (
+                <article>
+                  <Link to={tradeUrl}>Trade wieder öffnen</Link>
+                </article>
+              ),
+            },
+          ],
+        },
+      ],
+      { initialEntries: [tradeUrl] },
+    );
+    render(<RouterProvider router={router} />);
+    const learningLink = screen.getByRole('link', { name: 'Nachbereitung dieses Trades' });
+    learningLink.focus();
+    await user.keyboard('{Enter}');
+    expect(learningLink).not.toBeInTheDocument();
+    expect(screen.getByRole('main')).toHaveFocus();
+    expect(router.state.location).toMatchObject({
+      pathname: '/post-trade',
+      search: '?trade_id=trade-17&journal_version_id=journal-3',
+      hash: '#trade-journal',
+    });
+    const tradeLink = screen.getByRole('link', { name: 'Trade wieder öffnen' });
+    tradeLink.focus();
+    await user.keyboard('{Enter}');
+    expect(tradeLink).not.toBeInTheDocument();
+    expect(screen.getByRole('main')).toHaveFocus();
+    expect(router.state.location).toMatchObject({
+      pathname: '/trade-management',
+      search: '?trade_id=trade-17',
+      hash: '#trade-risk',
+    });
   });
 
   it('skips to content without replacing the active purchase hash or location', async () => {

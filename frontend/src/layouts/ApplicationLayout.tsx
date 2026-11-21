@@ -14,8 +14,12 @@ export function ApplicationLayout() {
 
   useEffect(() => setMenuOpen(false), [location.pathname, location.search, location.hash]);
   useEffect(() => {
-    if (previousPath.current !== location.pathname)
-      document.getElementById('page-content')?.focus({ preventScroll: true });
+    if (previousPath.current !== location.pathname) {
+      const content = document.getElementById('page-content');
+      // A continuing page owns its focused controls. Global navigation and removed
+      // controls still need a meaningful destination in the new main content.
+      if (!content?.contains(document.activeElement)) content?.focus({ preventScroll: true });
+    }
     previousPath.current = location.pathname;
   }, [location.pathname]);
   useEffect(() => {
