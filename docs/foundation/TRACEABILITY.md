@@ -1,5 +1,16 @@
 # Traceability – aktueller Nachweiseinstieg
 
+> **Späterer Betriebsnachweis, 22.11.2026:** Der
+> [vollständige PC-Readback](../reviews/DEPOT_DATA_READBACK_2026-11-22.md)
+> belegt v1.5.52/c7db441…, Schema0060, vier gesunde Dienste und einen
+> regulären V2-Zyklus mit vier offenen Positionen. Beide Prüfpfade melden
+> 4/4 Datenprobleme und null technische Positionsfehler; getrennte
+> Produktende-/Zahlungsrollen sind beobachtet. Die unten erhaltenen
+> Aussagen zur noch fehlenden PC-Bestätigung gelten für ihren früheren
+> Prüfzeitpunkt. Die [aktuelle Statusfortschreibung](../planning/PRODUCT_BACKLOG.md#depotdiagnose-20261122)
+> trennt den abgeschlossenen Gesamtreadback von verbleibenden Daten-/
+> Journal-/Originalbelegen; keine Gesamtfachabnahme oder neue Quellenfreigabe.
+
 ## Revision und Verantwortlichkeit
 
 | Feld | Nachweisstand |

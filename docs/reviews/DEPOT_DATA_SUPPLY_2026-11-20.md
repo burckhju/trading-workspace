@@ -1,5 +1,18 @@
 # Datenversorgung für die Depotüberwachung — 20.11.2026
 
+> **Neuer tatsächlicher Betriebsbeleg vom 22.11.2026:** Der
+> [vollständige private PC-Readback](DEPOT_DATA_READBACK_2026-11-22.md) bestätigt
+> v1.5.52/c7db441…, Schema0060, vier offene Positionen und einen regulären
+> V2-Zyklus mit je vier Einstands-/Fristdatenproblemen bei null technischen
+> Positionsfehlern. Käufe/historische Kaufwährungen sind vierfach vorhanden;
+> Produktende und Zahlung werden getrennt geführt. Drei Kursrouten fehlen,
+> die bestätigte JPMorgan-Route liefert keinen verwendbaren Bid. Die
+> folgenden Aussagen zu noch unzugänglichem PC-Readback oder fehlender
+> Installationsbestätigung dokumentieren den Stand vom 20./21.11. und sind
+> insoweit überholt. Quellen-/Kostenrecherche und Regelverträge behalten
+> ihre dort genannten Daten und Grenzen. Der aktuelle Aufgabenstatus steht
+> ausschließlich im [Backlog](../planning/PRODUCT_BACKLOG.md#naechster-schnitt).
+
 ## Ergebnis und Geltungsbereich
 
 **Der belegte Engpass ist die Eignung der Daten am Regelverbraucher.** Der
@@ -448,6 +461,14 @@ Die ursprünglichen Zusagen und offenen fachlichen Definitionen werden damit
 erhalten; Depotüberwachung ist die Priorität dieses Auftrags.
 
 ## 7. Kleinste fehlende Diagnose und Abnahme
+
+**Fortschreibung 22.11.2026:** Der vollständige vorbereitete Export wurde
+ausgeführt, bereitgestellt und ausgewertet. Die unten erhaltene allgemeine
+Zugangslücke ist damit geschlossen. Konkrete verbleibende Ergänzung ist
+der [P02-Journal-/Assessmentinput-Read](DEPOT_DATA_READBACK_2026-11-22.md#engste-noch-fehlende-passive-ergänzung)
+beim vorhandenen Owner; aktuelle KID-/Parser-/Importdetails bleiben als
+gesonderte fachliche Nachweisgrenzen sichtbar. Kein weiterer identischer
+Gesamtcollector ist für die erkannte Gap-Informationslücke geeignet.
 
 **Fortsetzung 21.11.2026:** Der nächste Auftrag wurde gegen Main
 `febeb922c0f337029baa7f9d792c37f9f72ba02b` / `VERSION=1.5.53` begonnen.

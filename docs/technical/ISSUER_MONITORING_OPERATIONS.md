@@ -253,6 +253,18 @@ aufgeführt und dürfen nicht aus grünen Unit-Tests abgeleitet werden.
 <a id="lesende-depot-datenversorgungsdiagnose"></a>
 ## Lesende Diagnose der tatsächlichen Depotversorgung
 
+**Im Betrieb beobachtet, 22.11.2026:** Der Nutzer hat den nachfolgenden
+Collector auf v1.5.52/c7db441… ausgeführt. Installation/Schema, 30 erfolgreiche
+GETs, vollständiges Vierer-Inventar und unveränderte Monitoringzyklusmarker
+sind im [Readbacknachweis](../reviews/DEPOT_DATA_READBACK_2026-11-22.md)
+belegt. V2-Einstand und Produktfrist bleiben jeweils bei 4/4 Datenproblemen.
+Dieser tatsächliche Lauf ergänzt die frühere lokale Helferqualifikation.
+Eine erkannte Grenze bleibt: die sechs Positionsreader geben den konkreten
+P02-Gapgrund aus dem unabhängigen Statusjournal nicht aus. Dafür den
+[gezielten vorhandenen Ownerread](../reviews/DEPOT_DATA_READBACK_2026-11-22.md#engste-noch-fehlende-passive-ergänzung)
+verwenden; ein identischer Gesamtexport oder ein neuer Kursabruf ist kein
+Ersatz für diesen gespeicherten Fakt.
+
 Prüfstand der Fortsetzung: Main `febeb922c0f337029baa7f9d792c37f9f72ba02b` / `VERSION=1.5.53`, 21.11.2026. Die verwendeten Backendreader, Docker- und Launcherdateien sind gegenüber der geprüften Produktbasis `c7db441de36297a98d47cdf28c64b4e5d9994692` unverändert. Die neuen Main-Änderungen umfassen insbesondere die Oberfläche und die Versions-/Dokumentauslieferung; sie sind kein PC-Installationsnachweis. [Fachlicher Datenvertrag und Einzelbelege](../reviews/DEPOT_DATA_SUPPLY_2026-11-20.md); [einziger nächster Arbeitsauftrag](../planning/PRODUCT_BACKLOG.md#naechster-schnitt). Der eigenständige Collector ist für den bestehenden PC vorbereitet; seine lokale Prüfung ist keine Ausführung auf dem Nutzerbestand.
 
 Es existiert bereits ein geeigneter GET-Inventarread: `/api/v1/market-data/positions/quote-coverage`. Er ermittelt alle offenen, nicht stornierten Positionen aus der DB, einschließlich Positionen ohne Quelle; es gibt keine feste Sechserliste und keinen Bezug nur auf letzte Rulechecks. Er liefert Produkt- und Listingidentitäten sowie source selection. Vor/nach Sammlung werden dessen IDs und Mapping-/Auswahlbezüge verglichen. Kein neuer API-Endpoint, Runner oder Produktionscode ist nötig.
