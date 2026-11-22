@@ -106,6 +106,22 @@ Altkurs, unklare Originalzeit, lokale Wartephase und tatsächlichen Providerfehl
 Die Fehlerzähler sind ausdrücklich prozesslokal; gespeicherte Kurse und
 Historienbelege haben einen anderen Lebenszyklus.
 
+Die additive Diagnosefortsetzung vom 22.11.2026 erhält bei
+`QuoteSourceAttempt.status=INSUFFICIENT` den konkreten `refresh_error`,
+die Währung und die gesonderten Felder `retained`, `provider_reason` und
+`quote_time_basis` bis zur API. Bei `quality_status=VALID` ohne Bid **und**
+ohne Referenzpreis lautet der primäre Grund `BID_MISSING`; ein allgemeiner
+Hinweis auf unbekannte Kurszeit ersetzt diesen Preisfehler nicht. Bei
+ungültiger Qualität bleibt der Qualitäts-/Providerfehler maßgeblich.
+Im vorhandenen Legacy-Single-Source-Zweig mit genau einem Listing und
+Versuch führt dies zu `MISSING` für den gültigen, preislosen Fall und
+weiterhin zu `ERROR` für Qualitätsfehler. Der normale Resolververbraucher
+aggregiert `INSUFFICIENT` weiterhin als `MISSING`; der spezifische
+Versuchsgrund bleibt darin erhalten. Beide Wege liefern bei diesen
+preislosen Fällen weder Bewertung noch Monitoring-/Ausführungsfreigabe.
+Auswahlbindung, Referenzpreisverhalten, Frischegrenzen und B58-Anforderungen
+ändern sich nicht. [Code- und Prüfbeleg](../reviews/DEPOT_DATA_READBACK_2026-11-22.md#p02-fortsetzung-20261122).
+
 Diese Diagnose ist keine Umsetzung der Hebeltrader-Positionsregeln. Der
 Historienlesepfad aus #302/#306 und die gettex-Korrekturen aus #305 werden
 ebenfalls weiterverwendet; F207-1 erzeugt dafür keine zweite Implementierung.

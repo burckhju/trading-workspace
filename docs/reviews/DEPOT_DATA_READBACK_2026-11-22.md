@@ -29,7 +29,8 @@ Auftrag** stehen im [Product Backlog](../planning/PRODUCT_BACKLOG.md#naechster-s
 
 | Gegenstand | Beobachtung | Reichweite |
 | --- | --- | --- |
-| Erneut gelesener Main | `febeb922c0f337029baa7f9d792c37f9f72ba02b`, `VERSION=1.5.53` | Repositorystand am 22.11.2026. Die relevanten Backendreader sind gegenüber der installierten Produktbasis unverändert; die Oberflächenänderungen aus #372 sind davon getrennt. |
+| Main bei erster Readbackauswertung | `febeb922c0f337029baa7f9d792c37f9f72ba02b`, `VERSION=1.5.53` | Die relevanten Backendreader sind gegenüber der installierten Produktbasis unverändert; die Oberflächenänderungen aus #372 sind davon getrennt. |
+| Erneut gelesener Main nach #373 | `9a5e59dac3bb219cbc40641e62e75871eb2ed131`, `VERSION=1.5.54`, Merge am 22.11.2026 um 21:35:28 Uhr MEZ | Das gesamte Delta zu febeb922… enthält ausschließlich Versions-/Liefermetadaten und Dokumentation. Der [P02-Fortsetzungsbeleg](#p02-fortsetzung-20261122) und der tatsächliche PC-Stand bleiben getrennt. |
 | Tatsächlich installierter Stand | `c7db441de36297a98d47cdf28c64b4e5d9994692`, `VERSION=1.5.52` | Checkout-, Deployment-, Container- und Appimagebezüge vor/nach identisch. Kein angenommener PC-Stand aus Main oder einem Tag. |
 | Datenbank | Alembic `20261118_0060` | Tatsächlicher READ-ONLY-SELECT über die konfigurierte Backend-Datenbank. |
 | Dienste | Backend, Datenbank, Frontend und Issuer-Renderer jeweils `running`/`healthy`; je null Containerneustarts | Momentaufnahme der bestehenden Containerinstanzen, keine Aussage über sämtliche früheren Neustarts. |
@@ -339,10 +340,144 @@ getrennten Gegenprüfungen betrafen V2/Fristen, strenge Regeln/B06 sowie
 Betrieb/Quellenweg. Es gab keinen PC-Schreibzugriff, aktiven Kursabruf,
 Regellauf, neue Anbieterzustimmung oder Nachrichtenversand.
 
-Dieser Schnitt ändert Fach-/Betriebsnachweise und den maßgeblichen Backlog,
+Der erste Readbackschnitt ändert Fach-/Betriebsnachweise und den maßgeblichen Backlog,
 keinen Anwendungscode oder Regelvertrag. Relative Links/Anker, Markdown-Struktur, Whitespace, unveränderte
 historische Roadmap und private Kennungen im neuen Diff wurden geprüft.
 Der Abgleich des öffentlichen neuen Textes gegen die Kennungen und
 Instrumentbezüge des privaten Archivs ergab keine Treffer. Frühere 19 Collectortests
 bleiben an ihren eigenen Code gebunden; sie sind kein zusätzlicher
 Anwendungstest dieses Dokumentationsschnitts.
+
+<a id="p02-fortsetzung-20261122"></a>
+## 9. Fortsetzung: spezifische Fehlerweitergabe und gezielter Ownerread
+
+Auf den anschließenden Auftrag „nächster Schritt“ wurde derselbe
+P02-Schnitt technisch fortgesetzt. Bezugsstand vor dieser Änderung ist
+PR370-Commit `8accaebef864cf8a7cb61d9dc3aa31b0ab9f6c15`; Main zu Beginn
+war `febeb922c0f337029baa7f9d792c37f9f72ba02b` / v1.5.53.
+Während der Prüfung kam PR373 als
+`9a5e59dac3bb219cbc40641e62e75871eb2ed131` / v1.5.54 hinzu
+(22.11.2026, 21:35:28 Uhr MEZ). Sein gesamtes Delta wurde geprüft:
+Versions-/Liefermetadaten und Dokumentation, kein geänderter Backendpfad.
+Die Lieferänderungen werden im PR erhalten.
+Der in Abschnitt1 belegte PC bleibt unabhängig davon v1.5.52/c7db441… .
+Die folgenden lokalen Implementierungsnachweise verändern keinen der
+historischen PC-Befunde oben. Der maßgebliche Aufgabenstatus steht weiterhin
+ausschließlich im [Backlog](../planning/PRODUCT_BACKLOG.md#naechster-schnitt).
+
+### Erhaltene Diagnose bis zum Verbraucher
+
+Der vorhandene [Resolver](../../backend/app/features/position_monitoring/service/quote_sources.py)
+erhält jetzt bei `INSUFFICIENT` den konkreten Abruffehler, die Währung und
+die getrennten Felder `retained`, `provider_reason`, `quote_time_basis`.
+Bei gültiger Datenqualität ohne Bid und ohne Referenzpreis wird
+`BID_MISSING` primär; die unbekannte Originalzeit bleibt gesondert sichtbar.
+Bei ungültiger Qualität bleibt dagegen der bisherige Qualitätsfehler
+maßgeblich, auch wenn zusätzlich der Bid fehlt. Die
+[DTO](../../backend/app/features/position_monitoring/api/dtos.py),
+[API-Projektion](../../backend/app/features/position_monitoring/api/router.py)
+und der [Frontendtyp](../../frontend/src/features/trade/types/api.ts)
+führen die Felder additiv weiter.
+
+Im bestehenden Legacy-Single-Source-Zweig des Bewertungslesers mit genau
+einem Listing und Versuch bedeutet dies `MISSING` für das gültige, aber
+preislose Ergebnis; Qualitätsfehler bleiben dort `ERROR`. Der normale
+Resolververbraucher aggregiert `INSUFFICIENT` dagegen weiterhin als
+`MISSING`, einschließlich solcher Qualitätsfälle, und erhält deren
+spezifischen Grund im Versuch. Preis und Monitoring-/Ausführungsfreigabe
+bleiben in den beschriebenen preislosen Fällen aus. Ein vorhandener
+spezifischer Abruffehler erreicht außerdem die bisherige Refreshdiagnostik,
+deren Klassifikation ihn bereits vor allgemeinen Hinweisen priorisiert.
+Positive Bids, vorhandene Referenzpreise, Auswahlbindung, Regelaktivierung
+und Altersgrenzen wurden nicht geändert. Der Fix beschafft keinen Preis.
+
+### Gezielt lesender Helfer für den bereits installierten Stand
+
+Der [bestehende Collector](../../scripts/collect-depot-data-supply.py) erhält
+`--source-gap-from ARCHIV --position-label P02`. Der alte Standardaufruf
+bleibt erhalten. Seine bisherigen GET- und Schema-Payloads bleiben
+byteidentisch:
+
+| Payload | SHA256 |
+| --- | --- |
+| Bisherige GET-Sammlung | `b8dee0cd47ccd95a224cf5897eb60233d3195bf9d76700a103acfcfbc5dbafab` |
+| Bisheriger Schemaread | `7aba0ec505ed0c1bebbf190faa8c09c888bb1d78a8c3a22db2b2d4c1602f783d` |
+| Neuer gezielter Ownerread | `56123ebd72cb83621f706bf13ee2d9a46dc05e54559f8ce51b7b9cf3038134dd` |
+
+Der neue Modus verwendet die im Originalarchiv gebundene Position samt
+Produkt, Listing, Auswahl und Bewertung; keinerlei private Kennungen sind
+im Helfer oder in seinen Tests festgeschrieben.
+
+Die Hostprüfung liest das begrenzte Archiv nur im Speicher. Der neue
+Backendread verwendet die vorhandenen Owner `OpenPositionReader`,
+`RiskMarketDataReader`, `MarketStatusReader` und
+`IndicativeEntryAssessmentModel` in einer ausdrücklich geprüften
+`REPEATABLE READ READ ONLY`-Transaktion. Er nimmt den aktuellen Journalstand
+und die tatsächlich gespeicherten damaligen Assessmentinputs getrennt auf.
+`autoflush=False`, Statement-/Lock-/Verbindungslimits, explizites SQL-Rollback
+und begrenzte Fehlercodes gelten auf Erfolgs- und Fehlerpfaden. Die
+Installationsbindung wird vorher/nachher geprüft, Datenbankzugangsdaten
+verbleiben im bestehenden Backend.
+
+Das ist kein zusätzlicher Providerzugang und benötigt kein App-Update.
+Eine geänderte Produkt-/Quellen-/Auswahlbindung wird als Diagnosefehler
+ausgegeben. Ein fehlender Journaldatensatz ist ein ausdrücklicher Befund,
+keine behauptete Wiederherstellung. Der Erfolgsstatus
+`COMPLETE_PASSIVE_SOURCE_GAP_READ_NOT_PRICE_QUALIFICATION` beschreibt
+ausschließlich den vollständigen gebundenen Lesevorgang.
+[Ausführung und private Artefakte](../technical/ISSUER_MONITORING_OPERATIONS.md#gezielter-p02-journalread).
+
+### Prüfungen und Grenzen der Fortsetzung
+
+Die isolierte Qualifikation verwendet Python3.12 und unveränderte
+`backend/requirements-dev.txt`. Zwei neue Resolverregressionen scheiterten
+vor dem Fix am allgemeinen Zeitstempelgrund statt `BID_MISSING`. Die
+anschließenden gezielten Prüfungen erfassen fehlenden Bid mit/ohne
+Retentionfehler, tatsächliche Qualitätsfehler mit/ohne Bid, Referenzpreise,
+positive Retention, Refreshdiagnostik und den ASGI-/DTO-/Bewertungsleser.
+
+| Prüfung | Ergebnis und Grenze |
+| --- | --- |
+| Gezielte Resolver-/API-/Bewertungs- und Collectortests | **77 bestanden**, zusätzlich 43 erfolgreiche Unterfälle; davon 43 Resolver-/API-/Valuationtests sowie 19 bisherige und 15 neue Collectortests. Eine bestehende Starlette-/AnyIO-Deprecationwarnung. |
+| Unabhängiger Code-/Testreview | Keine offenen Blocker; 34 Collectortests erneut ausgeführt, Logging, stdin und umask nach Testende unverändert. Tatsächliche Ownerimports/ORM-Konfiguration und PostgreSQL-SELECT-Kompilierung ohne Netzwerk erfolgreich. |
+| Backend-Typprüfung | `mypy app`: **670 Quelldateien ohne Fehler**. |
+| Backend-Stilprüfung | Ruff und Black gegen die Projektkonfiguration erfolgreich; Black prüft 1.228 App-/Testdateien. Für den eigenständigen Hostcollector gilt zusätzlich das Python3.10-Ziel. |
+| Frontend | Vollständiges `npm run typecheck` und Prettier für den geänderten API-Typ erfolgreich. Unveränderte Lockdatei mit `npm ci` verwendet. |
+| Gesamter lokaler Backendlauf mit Coverage | **5.935 bestanden, 290 übersprungen, 44 fehlgeschlagen, 64 Setupfehler**, zusätzlich 43 bestandene Unterfälle; 12 min 38,78 s. Coverage **86,06 %** bei geforderten 85 %. Wegen der folgenden Umgebungsgrenzen ausdrücklich **kein grünes Gesamtgate**. |
+| Ursachen der lokalen Gatefehler | 64 Setupfehler ohne PostgreSQL-Testdatenbank; zwei HTTPX-Clientkonstruktionen wegen geerbtem SOCKS-Proxy ohne optionales `socksio`; 42 unveränderte Recoverytests am vorhandenen Schutz gegen private Zustände unter Git-Vorfahren. Der lokal verfügbare Tempbereich erfüllt diesen Schutzvertrag nicht. Kein Guard wurde gelockert. |
+| Enge Gegenprobe der HTTPX-Fälle | Beide scheitern auch isoliert ohne neue Collectortests identisch. In einem separaten Prozess ohne Proxyvariablen, bei blockierten Socketverbindungen: zuerst 15 neue Collectortests, danach beide ursprünglichen Fälle, **17 bestanden** und 33 bestandene Unterfälle. Keine aktiven Requests. |
+| Private Kennungen / Dokumente | Neue öffentliche Texte und Tests gegen 719 Kennungen/Instrumentbezüge aus dem privaten Beleg geprüft: keine Treffer. Relative Verweise/Anker, Markdown-Struktur und Whitespace geprüft; historische Roadmap unverändert. |
+
+Die Collectorprüfungen verwenden echte Backendtypen mit abgefangenen
+Verbindungen und Ownerreads. Sie umfassen Archivgrenzen, Links/Traversal,
+Duplikate, vertauschte Identitäten, veränderte Quellenbindung, getrennte
+Assessmentheads, fehlende Quotes/leere Journale, Fehlerredaktion,
+Transaktionseigenschaften, Rollback, Dateirechte und Installationswechsel.
+Sie ersetzen keinen echten PostgreSQL- oder PC-Lauf.
+Die Recovery-/Launcherpfade sind gegenüber dem Ausgangscommit unverändert.
+Die regulären PR-Gates mit PostgreSQL und einem geeigneten privaten
+Tempbereich bleiben vor einer späteren Integration erforderlich; lokale
+Teilprüfungen und frühere grüne Heads ersetzen sie nicht.
+
+Reproduzierbarer enger Testaufruf aus dem Repository mit den gepinnten
+Entwicklungsabhängigkeiten und einem temporären Verzeichnis außerhalb Git:
+
+```bash
+PYTHONPATH=backend:. python -m pytest -c backend/pyproject.toml \
+  tests/unit/backend/test_collect_depot_data_supply.py \
+  tests/unit/backend/test_collect_depot_source_gap.py \
+  tests/unit/backend/features/position_monitoring/test_quote_sources.py \
+  tests/unit/backend/features/position_monitoring/test_source_selection_api.py \
+  tests/unit/backend/features/position_monitoring/test_product_valuation.py -q
+```
+
+Der Hostleser wurde außerdem direkt gegen das **unveränderte Originalarchiv**
+mit SHA256 `ea4ee60cbd4d212ac97cf5b140f168d1f959bd2aac48cf344bb4b26839ce73ab`
+ausgeführt: Archiv- und P02-Referenzprüfung erfolgreich, keine private
+Identität im öffentlichen Ergebnis. Dies prüft die Kompatibilität mit dem
+gelieferten Paket, keinen neuen Zugriff auf die PC-Datenbank.
+
+Es gab weiterhin keinen direkten PC-Zugang, neuen Kursabruf oder
+Regellauf. Der enge PC-Export und sein Originalgrund sind noch nicht
+beobachtet. Eine Quellenreparatur, tatsächliche Verbesserung der
+V2-Preisversorgung oder B58-Freigabe wird deshalb nicht behauptet.

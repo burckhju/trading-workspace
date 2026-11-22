@@ -261,13 +261,13 @@ belegt. V2-Einstand und Produktfrist bleiben jeweils bei 4/4 Datenproblemen.
 Dieser tatsächliche Lauf ergänzt die frühere lokale Helferqualifikation.
 Eine erkannte Grenze bleibt: die sechs Positionsreader geben den konkreten
 P02-Gapgrund aus dem unabhängigen Statusjournal nicht aus. Dafür den
-[gezielten vorhandenen Ownerread](../reviews/DEPOT_DATA_READBACK_2026-11-22.md#engste-noch-fehlende-passive-ergänzung)
-verwenden; ein identischer Gesamtexport oder ein neuer Kursabruf ist kein
+[gezielten Collectormodus](#gezielter-p02-journalread) mit den vorhandenen
+Ownerreadern verwenden; ein identischer Gesamtexport oder ein neuer Kursabruf ist kein
 Ersatz für diesen gespeicherten Fakt.
 
-Prüfstand der Fortsetzung: Main `febeb922c0f337029baa7f9d792c37f9f72ba02b` / `VERSION=1.5.53`, 21.11.2026. Die verwendeten Backendreader, Docker- und Launcherdateien sind gegenüber der geprüften Produktbasis `c7db441de36297a98d47cdf28c64b4e5d9994692` unverändert. Die neuen Main-Änderungen umfassen insbesondere die Oberfläche und die Versions-/Dokumentauslieferung; sie sind kein PC-Installationsnachweis. [Fachlicher Datenvertrag und Einzelbelege](../reviews/DEPOT_DATA_SUPPLY_2026-11-20.md); [einziger nächster Arbeitsauftrag](../planning/PRODUCT_BACKLOG.md#naechster-schnitt). Der eigenständige Collector ist für den bestehenden PC vorbereitet; seine lokale Prüfung ist keine Ausführung auf dem Nutzerbestand.
+Nachgeprüfter Main: `9a5e59dac3bb219cbc40641e62e75871eb2ed131` / `VERSION=1.5.54`, PR373 vom 22.11.2026, 21:35:28 Uhr MEZ. Die verwendeten Backendreader, Docker- und Launcherdateien sind gegenüber der geprüften Produktbasis `c7db441de36297a98d47cdf28c64b4e5d9994692` unverändert. Das zusätzliche Delta zum vorherigen Main febeb922… enthält ausschließlich Versions-/Liefermetadaten und Dokumentation. Weder diese Main-Auslieferung noch der im Arbeitsbranch ergänzte Resolverfix ist ein PC-Installationsnachweis. [Fachlicher Datenvertrag und Einzelbelege](../reviews/DEPOT_DATA_SUPPLY_2026-11-20.md); [einziger nächster Arbeitsauftrag](../planning/PRODUCT_BACKLOG.md#naechster-schnitt). Der eigenständige Collector ist für den bestehenden PC vorbereitet; seine lokale Prüfung ist keine Ausführung auf dem Nutzerbestand.
 
-Es existiert bereits ein geeigneter GET-Inventarread: `/api/v1/market-data/positions/quote-coverage`. Er ermittelt alle offenen, nicht stornierten Positionen aus der DB, einschließlich Positionen ohne Quelle; es gibt keine feste Sechserliste und keinen Bezug nur auf letzte Rulechecks. Er liefert Produkt- und Listingidentitäten sowie source selection. Vor/nach Sammlung werden dessen IDs und Mapping-/Auswahlbezüge verglichen. Kein neuer API-Endpoint, Runner oder Produktionscode ist nötig.
+Es existiert bereits ein geeigneter GET-Inventarread: `/api/v1/market-data/positions/quote-coverage`. Er ermittelt alle offenen, nicht stornierten Positionen aus der DB, einschließlich Positionen ohne Quelle; es gibt keine feste Sechserliste und keinen Bezug nur auf letzte Rulechecks. Er liefert Produkt- und Listingidentitäten sowie source selection. Vor/nach Sammlung werden dessen IDs und Mapping-/Auswahlbezüge verglichen. Für diese Inventur ist kein neuer API-Endpoint, Runner oder installierter Anwendungscode nötig.
 
 Quellbelege: [Inventar-API](../../backend/app/features/market_data/api/quote_coverage.py), Z.51–60; [Projektion](../../backend/app/features/market_data/service/position_quote_coverage.py), Z.131–158; [Positionsinventur](../../backend/app/features/market_data/persistence/position_quote_coverage.py), Z.52–114; [Quellenread](../../backend/app/features/market_data/persistence/quote_coverage.py), Z.25–130. Ausschließlich SELECTs und reine Projektion, keine Provideraufrufe/flush/commit. Die Coverage-Projektion besitzt mehrere kurze Reads, keinen global atomaren Snapshot.
 
@@ -316,7 +316,7 @@ wirklich konfigurierte Datenbank mit `READ ONLY`, begrenzten Wartezeiten und
 abschließendem Rollback. Er lässt damit auch einen abweichenden Datenbank-
 URL-Zugang korrekt beim vorhandenen Backend; Zugangsdaten werden nicht
 in das Paket geschrieben. Die eigentliche Verbrauchersammlung verwendet
-nur die bereits qualifizierten GET-Pfade.
+im Vollmodus nur die bereits qualifizierten GET-Pfade.
 
 **Ausdrücklich nicht Teil dieses Collectors:** Launcher `status`,
 Deploymenthelfer, `docker compose`, Validatorcontainer, Build/Start/Update,
@@ -324,6 +324,65 @@ Refresh, Import, Regelausführung, Anbieterzustimmung oder Nachrichtenversand.
 Die laufenden Dienste werden weder angehalten noch pausiert. Fehler werden
 mit begrenzten Klassen gemeldet; vollständige Containerlogs, Tracebacks,
 Providerkeys und Produktoriginalbytes werden nicht gesammelt.
+
+<a id="gezielter-p02-journalread"></a>
+### Einmaliger gezielter Journalread nach vollständigem Archiv
+
+Der ergänzte Modus desselben Collectors liest genau eine im alten Paket
+gebundene Position. Er ist für den beobachteten v1.5.52-Bestand vorbereitet
+und benötigt keinen installierten Resolverfix. Die heruntergeladene Datei
+im Downloadordner durch die neue Fassung ersetzen; die Archivangabe im
+Beispiel durch den tatsächlich vorhandenen Pfad ersetzen:
+
+```bash
+python3 "$HOME/Downloads/collect-depot-data-supply.py" \
+  --source-gap-from /absoluter/pfad/zum/bisherigen-diagnosepaket.tar.gz \
+  --position-label P02
+```
+
+`P02` bezeichnet ausschließlich das Pseudonym im **angegebenen alten
+Archiv**, keine laufende Nummer der heutigen Positionsliste. Der Helfer
+liest fünf begrenzte reguläre JSON-Archiveinträge im Speicher, ohne sie zu
+entpacken. Er prüft Transport, Payloadbindung, Inventar, gespeicherte
+Quellenroute, Auswahlversion und referenzierte Bewertung. Ungültige,
+unvollständige oder mehrdeutige Archive führen zu einem privaten Fehlerpaket.
+
+Im bestehenden Backend folgen die Installations-/Schemabindung und eine
+einzelne `REPEATABLE READ READ ONLY`-Transaktion. Die tatsächlich gesetzten
+Transaktionseigenschaften werden vor den Ownerreads kontrolliert;
+`autoflush=False`, begrenzte Verbindungs-/Statement-/Lockwartezeiten und
+explizites SQL-`ROLLBACK` gelten auch bei Fehlern. Die konfigurierte
+Datenbankadresse verbleibt im Backend. Gelesen werden:
+
+- aktuelle offene Position, Produkt und bestätigte Quellenauswahl gegen
+  die archivierte Identität;
+- der gespeicherte Quote und der vorhandene `MarketStatusReader` mit
+  `latest_gap`, `latest_capture` und seinen zeitlich gebundenen Beobachtungen;
+- genau die archivierte Bewertung samt damaligen `saved_quote`,
+  `status_observations` und `current_refresh_failed`, daneben der aktuelle
+  Bewertungskopf. Es erfolgt keine erneute Bewertung oder nachträgliche
+  Rekonstruktion historischer Fakten aus dem heutigen Quote.
+
+Bei geänderter Position, Produkt-/Quellenroute oder Auswahlbindung meldet
+der Helfer die Abweichung. Er wechselt nicht zu einer anderen Position.
+Ein gewöhnlicher Softwarewechsel seit dem Referenzpaket wird gesondert
+ausgewiesen; Installation und Container müssen innerhalb des neuen Laufs
+unverändert und prüfbar bleiben.
+
+Das neue private Archiv enthält `installation-before.json`,
+`installation-after.json`, `schema.json`, `source-gap-private.json` und
+`summary.json`. Dieser Modus wiederholt keine der 30 GET-Abfragen und führt
+keinen Providerabruf aus. Die bisherigen Verzeichnis-/Dateirechte und
+Fehlerpakete bleiben erhalten. Auch ein unvollständiges Paket privat
+bereitstellen; vollständige Terminallogs werden nicht benötigt.
+
+`COMPLETE_PASSIVE_SOURCE_GAP_READ_NOT_PRICE_QUALIFICATION` bedeutet, dass
+die gebundenen gespeicherten Fakten gelesen wurden. Ein ausdrücklich
+leeres Journal ist ein eigener möglicher Befund. Der Status beweist
+weder einen neuen Bid noch eine reparierte Quelle oder B58-Konformität.
+Die [Prüfbelege](../reviews/DEPOT_DATA_READBACK_2026-11-22.md#p02-fortsetzung-20261122)
+und der [einzige Arbeitsauftrag](../planning/PRODUCT_BACKLOG.md#naechster-schnitt)
+halten Vorbereitung und tatsächliches PC-Ergebnis getrennt.
 
 ### Korrektur des vorbereiteten Ablaufs vom 20.11.2026
 

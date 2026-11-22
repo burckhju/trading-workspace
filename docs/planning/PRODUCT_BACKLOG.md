@@ -4,11 +4,11 @@
 
 | Feld | Wert |
 |---|---|
-| Revision | Nachweis- und Statuskonsolidierung 2026-11-19; Fortschreibung auf v1.5.52, Lieferverweis v1.5.53 und Datenversorgungsanalyse am 2026-11-20; passive PC-Diagnose am 2026-11-21 und vollständiger Verbraucher-Readback am 2026-11-22; begrenzter UI-Nachtrag Fachstruktur A am 2026-11-21 ausschließlich unter täglichem Workspace |
+| Revision | Nachweis- und Statuskonsolidierung 2026-11-19; Fortschreibung auf v1.5.52, Lieferverweis v1.5.53 und Datenversorgungsanalyse am 2026-11-20; passive PC-Diagnose am 2026-11-21, vollständiger Verbraucher-Readback und gezielter P02-Schnitt am 2026-11-22; UI-Fachstruktur A am 2026-11-21 und Integrations-/Liefernachtrag v1.5.54 am 2026-11-22 unter täglichem Workspace |
 | Erstprüfung | 19.11.2026, 19:31:38 Uhr MEZ (Europe/Berlin), auf `254f0bbd52ab42e0120d381e915dc96c1118796c` / `v1.5.51` |
 | Fortschreibung | 20.11.2026, Beginn 13:46:04 Uhr MEZ; Main-/Release-Delta, tatsächliche CI, PR- und Betriebsnachweise erneut geprüft |
 | Geprüfter Produktstand | Fachlicher Daten-/Readervertrag auf `c7db441de36297a98d47cdf28c64b4e5d9994692` / v1.5.52; Backendreader und bestehende Betriebshelfer bis zum unten genannten Main unverändert. Die neue Oberfläche bleibt an ihre eigenen #372-Nachweise gebunden. |
-| Aktueller Main | `febeb922c0f337029baa7f9d792c37f9f72ba02b`, Mergecommit #372 vom 21.11.2026, 20:53:44 Uhr MEZ, `VERSION=1.5.53`. #371/#372 liefern Version/Dokumente und Oberfläche; Main ist kein Nachweis einer PC-Installation. |
+| Aktueller Main | `9a5e59dac3bb219cbc40641e62e75871eb2ed131`, Mergecommit #373 vom 22.11.2026, 21:35:28 Uhr MEZ, `VERSION=1.5.54`. Das Delta seit #372/febeb922… ändert ausschließlich Versions-/Liefermetadaten und Dokumentation; Backendpfade unverändert. Main ist kein Nachweis einer PC-Installation. |
 | Funktion | Einzige maßgebliche Quelle des aktuellen Aufgabenstatus; bestehende PB-/FT-/M-Kennungen und Owner bleiben erhalten |
 | Prüfgrenze | Vollständiger Checkout, Quellprüfung und privater datierter Nutzer-Readback vom 22.11.2026; kein interaktiver PC-/DB-Zugang, keine neue menschliche Gesamtfachabnahme |
 
@@ -49,6 +49,19 @@ Der bereits gespeicherte Journal-/Assessmentkontext ist genau als
 fehlender Teilbeleg benannt. Der [einzige nächste Ownerauftrag](#naechster-schnitt)
 löst diese eng abgegrenzte P02-Ursache auf und qualifiziert die entsprechende
 Korrektur; ein weiterer unveränderter Gesamtcollector wird nicht verlangt.
+
+**Fortsetzung desselben Auftrags, 22.11.2026:** Die Fehlerweitergabe im
+Resolver ist im Arbeitsbranch korrigiert: Bei gültiger Qualität ohne Bid
+und ohne Referenzpreis bleibt `BID_MISSING` sichtbar; Abruffehler, Retention,
+Providerhinweis und Zeitqualität werden getrennt bis zur API weitergegeben.
+Ungültige Qualität bleibt ein Fehler. Der bestehende Collector besitzt
+einen gezielten Modus `--source-gap-from … --position-label P02`, der die
+Bindung aus dem gelieferten Archiv übernimmt und ausschließlich vorhandene
+Journal-/Assessmentdaten liest. Die [Umsetzungs- und Prüfbelege](../reviews/DEPOT_DATA_READBACK_2026-11-22.md#p02-fortsetzung-20261122)
+trennen Codequalifikation, den noch benötigten PC-Read und eine mögliche
+spätere Preisversorgung. Ein App-Update ist für diesen Export nicht nötig;
+der Fix ist damit noch nicht auf dem PC installiert. Der Gesamtauftrag
+bleibt bis zum gebundenen Originalgrund und seiner Auswertung offen.
 
 <details>
 <summary>Vorbereitung und Quellenanalyse vom 20./21.11.2026 — damaliger Stand</summary>
@@ -217,7 +230,7 @@ Die in Phase 9/10 geforderte **datierte, verantwortete Abnahme** wird weder durc
 
 Die Tabellen trennen Implementierung, Tests, fachliche Abnahme, Auslieferung, Betrieb und Restarbeit. **Abgeschlossener Teilumfang** bedeutet den dort beschriebenen erledigten Arbeitsumfang, keinen pauschalen Meilensteinabschluss. Die **Befundklasse** unterscheidet fehlende, unvollständige, vorhandene aber unzureichend nachgewiesene, daten-/entscheidungsblockierte und belegbar abgeschlossene Teile. Jeder offene Rest folgt der Kette **Lücke → erwartetes Benutzerergebnis → bestehende zuständige Komponente → Voraussetzung → überprüfbares Abschlusskriterium**. Erledigte Implementierung wird nicht erneut eingeplant.
 
-Die Erstprüfung galt dem Produktcommit 254f0bbd… / v1.5.51. Für diese Fortschreibung wurden das gesamte Main-Delta und seine betroffenen Verarbeitungspfade geprüft; unveränderte Teilbäume behalten ihren ursprünglichen Quellbefund und erhalten den neuen Main-Regressionsbezug. Alle aktuellen Quellbezüge gelten für c7db441… / v1.5.52, soweit ein Beleg ausdrücklich einen anderen Commit nennt. Relative Code-/Testlinks beziehen sich auf denselben unveränderten Produktbestand; dieser Dokumentdiff verändert nur Planungstexte. Historische Nachträge stehen hinter ausdrücklich bezeichneten Aufklappbereichen; dortige Wörter wie „aktuell“, „nächster“ oder „noch offen“ gelten ausschließlich zum damaligen Datum. Die einzige aktuelle Handlungsanweisung steht unter [Nächster Auftrag](#naechster-schnitt).
+Die Erstprüfung galt dem Produktcommit 254f0bbd… / v1.5.51. Für diese Fortschreibung wurden das gesamte Main-Delta und seine betroffenen Verarbeitungspfade geprüft; unveränderte Teilbäume behalten ihren ursprünglichen Quellbefund und erhalten den neuen Main-Regressionsbezug. Die fachliche Bestandsprüfung gilt für c7db441… / v1.5.52, soweit ein Beleg ausdrücklich einen anderen Commit nennt. Die anschließende [P02-Fortsetzung](../reviews/DEPOT_DATA_READBACK_2026-11-22.md#p02-fortsetzung-20261122) ergänzt im Arbeitsbranch den engen Resolver-/Diagnosefix samt eigenem Qualifikationsbezug; dies ist kein bereits installierter PC-Stand. Relative Code-/Testlinks zeigen den jeweiligen Branchstand. Historische Nachträge stehen hinter ausdrücklich bezeichneten Aufklappbereichen; dortige Wörter wie „aktuell“, „nächster“ oder „noch offen“ gelten ausschließlich zum damaligen Datum. Die einzige aktuelle Handlungsanweisung steht unter [Nächster Auftrag](#naechster-schnitt).
 
 ## Orientierung und Priorisierung
 
@@ -2487,17 +2500,17 @@ ihre oben genannten Restarbeiten. Arbeitsstatus des Gesamtumfangs unverändert.
 | Nachweisfeld | Einordnung |
 |---|---|
 | Zuordnung | Spätere Querschnittsfähigkeit zu M2–M10. Bereich/Querschnitt: Querschnitt: durchgängiger Arbeitsablauf/Bedienbarkeit. Bestehender Bezug: Operational Workspace; nur lesend. Lieferziel: A. |
-| Arbeitsstatus | Technical Review (neuer UI-Schnitt Fachstruktur A, ausdrücklich ausgewählt am 21.11.2026); Business Review (menschliche Abnahme der täglichen Nutzerreise); lesende Arbeitsbereich-/Währungs-/V2-Consumer technisch abgeschlossen und ausgeliefert; historische begrenzte Freigaben erhalten. |
-| Abgeschlossener Teilumfang | Integrierte Währungsqualifikation und V2-Reader/Anzeige released; historische v1.5.30-Bereitstellung nicht als nächster Auftrag führen. |
+| Arbeitsstatus | Fachstruktur A technisch qualifiziert und mit [PR #372](https://github.com/burckhju/trading-workspace/pull/372) am 21.11.2026 integriert; Business Review (menschliche Abnahme der täglichen Nutzerreise); lesende Arbeitsbereich-/Währungs-/V2-Consumer technisch abgeschlossen und ausgeliefert; historische begrenzte Freigaben erhalten. |
+| Abgeschlossener Teilumfang | Integrierte Währungsqualifikation und V2-Reader/Anzeige released; historische v1.5.30-Bereitstellung nicht als nächster Auftrag führen. Die ausgewählte Fachstruktur A mit fünf Hauptgruppen, konsolidierten Depotdetails und erhaltener Rückkehrnavigation ist auf Main `febeb922c0f337029baa7f9d792c37f9f72ba02b` integriert. |
 | Soll / Nicht-Soll | **Soll:** Nächste Aufgaben, Datenbereitschaft, offene Positionen, Monitoring und Zustellung aus autoritativen Quellen verständlich zusammenführen. **Nicht-Soll:** Keine eigenen Done-/Acknowledge-/Assignment-Zustände und keine konkurrierende fachliche Schreibwahrheit. |
 | Befundklasse / Lückenart | Vorhandene Fähigkeit mit ausdrücklich begrenztem Abschluss und noch fehlender fachlicher/Betriebs-/Umfangsprüfung. **Art der Restarbeit:** Fachliche Nutzerabnahme und reale Datenabdeckung. |
 | Implementierung / Consumer | OperationalWorkspaceReadModel bildet Ownerzustände auf Aktionen ab; PositionSnapshotService verbindet Position/Bewertung; kein eigener Done-Owner. Fachstruktur A trennt Aktuelles, Depot, Marktanalyse, Lessons Learned und Basisdaten; kanonische Trade-/Run-/Lernbereiche erhalten ihre bisherigen Owner. Die vollständige Zuordnung steht im [UX-Masterplan](../coordination/UX_MASTER_PLAN.md#gewählte-fachstruktur-a--21112026). PositionMonitoring lädt IndicativeEntryObservation; TradeAlertsPanel zeigt Produkt-/Einstands-/Datenhinweise und Quellen. Währungsqualifikation bleibt Backend-basiert. ACHTUNG: /operational-workspace/positions ist fachlich lesend, ruft aber valuation_reader/QuoteResolver auf; nicht als garantiert refreshfreie Diagnose verwenden. |
-| Test / Commit | [tests/unit/backend/features/operational_workspace/test_read_model.py](../../tests/unit/backend/features/operational_workspace/test_read_model.py); [tests/unit/backend/features/operational_workspace/test_position_snapshot.py](../../tests/unit/backend/features/operational_workspace/test_position_snapshot.py); [frontend/src/features/trade/pages/TradeManagementMonitoring.test.tsx](../../frontend/src/features/trade/pages/TradeManagementMonitoring.test.tsx); [frontend/src/features/operational_workspace/components/IndicativeEntryObservation.test.tsx](../../frontend/src/features/operational_workspace/components/IndicativeEntryObservation.test.tsx); [tests/e2e/purchase-workspace-handoff.spec.ts](../../tests/e2e/purchase-workspace-handoff.spec.ts) Historische Auslieferung: [Main-CI im Nachweisregister](#nachweisregister). Neue lokale Tests und separate PR-/Browserqualifikation für Fachstruktur A: [aktuelles Integrationsprotokoll](../coordination/UX_INTEGRATION_STATUS.md#fachstruktur-a-20261121); keine Gleichsetzung mit dem veröffentlichten Main. |
+| Test / Commit | [tests/unit/backend/features/operational_workspace/test_read_model.py](../../tests/unit/backend/features/operational_workspace/test_read_model.py); [tests/unit/backend/features/operational_workspace/test_position_snapshot.py](../../tests/unit/backend/features/operational_workspace/test_position_snapshot.py); [frontend/src/features/trade/pages/TradeManagementMonitoring.test.tsx](../../frontend/src/features/trade/pages/TradeManagementMonitoring.test.tsx); [frontend/src/features/operational_workspace/components/IndicativeEntryObservation.test.tsx](../../frontend/src/features/operational_workspace/components/IndicativeEntryObservation.test.tsx); [tests/e2e/purchase-workspace-handoff.spec.ts](../../tests/e2e/purchase-workspace-handoff.spec.ts) Historische Auslieferung: [Main-CI im Nachweisregister](#nachweisregister). Fachstruktur A: vollständige grüne PR-CI in [#372](https://github.com/burckhju/trading-workspace/pull/372), anschließend [2.838 Frontend-Tests auf Main](https://github.com/burckhju/trading-workspace/actions/runs/44943371791) und [213 Browserfälle in Smoke-/Owner-Umgebungen](https://github.com/burckhju/trading-workspace/actions/runs/44943371718); Zuordnung und Grenzen im [Integrationsprotokoll](../coordination/UX_INTEGRATION_STATUS.md#fachstruktur-a-20261121). Die neuen v1.5.54-Releasegates werden separat im Release-PR gebunden. |
 | Fachliche Abnahme | UX-Hinweisvertrag und begrenzte Währungsschnitte historisch freigegeben; kein vollständiger menschlicher UX-/Tagesablaufnachweis. |
-| Software-Auslieferung | Im geprüften Main und veröffentlichten Tag v1.5.52 enthalten; konkrete Softwareauslieferung, keine dadurch erteilte Gesamtfachabnahme. |
+| Software-Auslieferung | Historischer Währungs-/V2-Umfang im veröffentlichten Tag v1.5.52 enthalten. Die in Main integrierte Fachstruktur A wird mit dem beauftragten [PC-Lieferumfang v1.5.54](../releases/V1.5.54-UI-FACHSTRUKTUR-PC-DELIVERY.md) über den vorhandenen Launcher bereitgestellt; Veröffentlichung erst nach grünen PR- und Main-Prüfungen, endgültiger Tag-Commit im Release-PR. Keine dadurch erteilte Gesamtfachabnahme oder nachgewiesene PC-Installation. |
 | Betriebsnachweis | Installation des damaligen v1.5.51-Codes durch PR [#367](https://github.com/burckhju/trading-workspace/pull/367) belegt; Nutzung und fachliche Abnahme genau dieses Teilpfads nicht separat nachgewiesen. Historische Ursache-/Liefernachweise aus [#368](https://github.com/burckhju/trading-workspace/pull/368) bleiben erhalten. Neuer [PC-Readback vom 22.11.2026](../reviews/DEPOT_DATA_READBACK_2026-11-22.md): v1.5.52/c7db441…, Schema0060, vier offene Positionen, regulärer V2-Zyklus mit 4/4 Einstands- und 4/4 Fristdatenproblemen bei jeweils null technischen Positionsfehlern. Getrennte Produktende-/Zahlungsrollen beobachtet; exakter Parserhead/Originalupgrade und konkreter Kalenderimport dadurch nicht vollständig nachgewiesen. Frühere Sechser-/Viererbefunde werden nicht über Kennungen hinweg gleichgesetzt. |
 | Restarbeit / nächste Abhängigkeit | Vollständige Lesbarkeit täglicher Aufgaben mit echten begrenzten Datenzuständen unbelegt → Benutzer erkennt Priorität, Ursache und zulässigen Folgeschritt → bestehender Workspace/Positions-/Alertconsumer → datierte identifizierte Installation und aktuelle Ownerbelege → repräsentative Handlungs-/Leer-/Fehler-/Datenwarnungsfälle mit Quellenrückkehr fachlich abgenommen, ohne neue Zustandswahrheit. |
-| Umfangsentscheidung | Nutzerwahl A am 21.11.2026 autorisiert die dokumentierte UI-Konsolidierung nach Auswahl aus drei Varianten. Bestehender fachlicher Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
+| Umfangsentscheidung | Nutzerwahl A am 21.11.2026 autorisiert die dokumentierte UI-Konsolidierung nach Auswahl aus drei Varianten; anschließende ausdrückliche Freigabe des grünen Merges und Auftrag zur PC-Bereitstellung am 22.11.2026. Bestehender fachlicher Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
 
 <details>
 <summary>Historische Nachträge – damaliger Umfang, keine aktuelle Handlungsanweisung</summary>
@@ -2721,6 +2734,16 @@ belegt die vollständige Kette und die konkrete Informationslücke.
    Eine spätere reguläre Beobachtung am vorhandenen Verbraucher nachlesen;
    keine automatische Provider-/Scope-Aktivierung daraus ableiten.
 
+**Bereitgestellter Fortschritt:** Schritt2 ist als enger Resolver-/API-Fix
+implementiert und durch Fail-before-Regression sowie lokale Prüfungen
+qualifiziert. Für Schritt1 steht derselbe eigenständige
+[Collector](../../scripts/collect-depot-data-supply.py) im
+[gezielten Modus](../technical/ISSUER_MONITORING_OPERATIONS.md#gezielter-p02-journalread)
+bereit. Das alte vollständige Archiv wird als Identitätsreferenz gelesen;
+der neue Export enthält keine erneute Gesamtsammlung. Aktuelle und damals
+verwendete Fakten werden getrennt geliefert. Die Einzelbelege und
+Prüfgrenzen stehen im [Nachtrag](../reviews/DEPOT_DATA_READBACK_2026-11-22.md#p02-fortsetzung-20261122).
+
 **Benötigter Zugang / Entscheidung:** Für Schritt1 genügt der vorhandene
 lokale Backend-/DB-Lesezugang, derselbe Installationsbenutzer und die private
 Bindung aus dem gelieferten Paket. Hier besteht kein interaktiver PC-Zugang;
@@ -2747,9 +2770,14 @@ Fakten ihn erforderlich machen; bestehende Freigaben bleiben erhalten.
 - Öffentlicher Befund bleibt technisch/pseudonymisiert; private Preise,
   Holdings, Identitäten, Originale und Zugangsdaten bleiben geschützt.
 
-**Arbeitsstatus:** Analysis — Gesamtreadback ausgewertet und konkrete
-Resolver-/Journalgrenze identifiziert; der enge Originalgrund-Read und
-zugehörige Korrektur-/Verbraucherqualifikation stehen aus.
+**Arbeitsstatus:** Analysis für die tatsächliche Versorgungsursache —
+Gesamtreadback ausgewertet; Resolverkorrektur und enger Lesehelfer
+implementiert und lokal qualifiziert. **Jetzt genau erforderlich:** den
+gezielten Modus einmal auf dem bestehenden PC gegen das bereits gelieferte
+Archiv ausführen und sein privates Ergebnis auswerten. Der konkrete
+Journalgrund, eine daraus begründete Quellenkorrektur und die tatsächliche
+Verbraucherwirkung sind weiterhin nicht beobachtet. Keine zusätzliche
+Regel- oder Providerfreigabe aus dem Codefortschritt ableiten.
 
 <details>
 <summary>Erledigter Gesamtreadback: damaliger Auftrag und Abnahmekriterien</summary>

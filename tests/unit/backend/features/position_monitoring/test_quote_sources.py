@@ -1,4 +1,5 @@
-from datetime import UTC, datetime
+from dataclasses import asdict, replace
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from uuid import uuid4
 
@@ -15,6 +16,7 @@ from app.features.market_data.service.errors import (
     MarketDataConfigurationError,
     MarketDataInvalidResponseError,
 )
+from app.features.market_data.service.refresh_diagnostics import job_diagnostics
 from app.features.market_data.service.types import MarketDataResult, WarrantQuoteRequest
 from app.features.position_monitoring.service.quote_sources import (
     MultiSourceWarrantQuoteResolver,
@@ -137,6 +139,148 @@ async def test_continues_after_missing_bid() -> None:
     assert resolved.selected_source == "FALLBACK"
     assert resolved.attempts[0].status is QuoteSourceAttemptStatus.INSUFFICIENT
     assert resolved.attempts[0].reason == "BID_MISSING"
+
+
+@pytest.mark.parametrize("refresh_error", [None, "JPMORGAN_SNAPSHOT_TIMEOUT"])
+async def test_missing_bid_keeps_refresh_and_unknown_clock_diagnostics_without_fallback(
+    refresh_error,
+):
+    listing_id = uuid4()
+    original = _result(listing_id, bid=None)
+    quote = replace(
+        original.data,
+        ask=None,
+        provider_exchange_code="ISSUER",
+        observed_at=None,
+        source_mode="OFFICIAL_ISSUER_INDICATION_TIME_ONLY",
+        quote_time_text="18:20:00",
+        quote_time_basis="DATE_AND_TIMEZONE_UNKNOWN",
+        retained=refresh_error is not None,
+        refresh_error=refresh_error,
+    )
+    provider_result = replace(
+        original,
+        data=quote,
+        provider=MarketDataProvider.JPMORGAN,
+        retrieved_at=NOW - timedelta(minutes=10),
+        reason_code="QUOTE_TIMESTAMP_UNKNOWN_INDICATIVE_ANALYSIS_ONLY",
+    )
+    selected = _Provider(result=provider_result)
+    fallback = _Provider(result=_result(listing_id))
+    resolver = MultiSourceWarrantQuoteResolver(
+        (
+            NamedWarrantQuoteSource("JPMORGAN", selected),
+            NamedWarrantQuoteSource("FALLBACK", fallback),
+        )
+    )
+
+    resolved = await resolver.resolve_selected("JPMORGAN", _request(listing_id))
+
+    assert resolved.result is None
+    assert resolved.selected_source is None
+    assert selected.calls == 1
+    assert fallback.calls == 0
+    attempt = resolved.attempts[0]
+    assert attempt.status is QuoteSourceAttemptStatus.INSUFFICIENT
+    assert attempt.reason == "BID_MISSING"
+    assert attempt.bid_available is False
+    assert attempt.ask_available is False
+    assert attempt.currency == "EUR"
+    assert attempt.refresh_error == refresh_error
+    assert attempt.retained is (refresh_error is not None)
+    assert attempt.provider_reason == "QUOTE_TIMESTAMP_UNKNOWN_INDICATIVE_ANALYSIS_ONLY"
+    assert attempt.quote_time_basis == "DATE_AND_TIMEZONE_UNKNOWN"
+    assert attempt.observed_at is None
+    assert provider_result.data is quote
+    assert provider_result.retrieved_at == NOW - timedelta(minutes=10)
+    diagnostics = job_diagnostics(
+        None,
+        "MISSING",
+        {"reason": "NO_USABLE_WARRANT_QUOTE", "source_attempts": [asdict(attempt)]},
+        NOW,
+    )
+    source_check = next(item for item in diagnostics["checks"] if item["kind"] == "SOURCE")
+    assert source_check["reason"] == (refresh_error or "BID_MISSING")
+    assert source_check["qualified_success"] is False
+
+
+@pytest.mark.parametrize("provider_reason", [None, "SOURCE_DATA_INCOMPLETE"])
+@pytest.mark.parametrize("bid", [None, Decimal("2.40")])
+async def test_invalid_quality_keeps_its_failure_with_or_without_bid(provider_reason, bid):
+    listing_id = uuid4()
+    provider_result = replace(
+        _result(listing_id, bid=bid, quality=QualityStatus.INCOMPLETE),
+        reason_code=provider_reason,
+    )
+    resolved = await MultiSourceWarrantQuoteResolver(
+        (NamedWarrantQuoteSource("PRIMARY", _Provider(result=provider_result)),)
+    ).resolve(_request(listing_id))
+
+    assert resolved.result is None
+    attempt = resolved.attempts[0]
+    assert attempt.status is QuoteSourceAttemptStatus.INSUFFICIENT
+    assert attempt.bid_available is (bid is not None)
+    assert attempt.reason == (provider_reason or "QUALITY_INCOMPLETE")
+    assert attempt.provider_reason == provider_reason
+
+
+async def test_reference_price_without_bid_remains_available_only_as_reference():
+    listing_id = uuid4()
+    original = _result(listing_id, bid=None)
+    provider_result = replace(
+        original,
+        data=replace(
+            original.data,
+            ask=None,
+            reference_price=Decimal("2.40"),
+            reference_price_type="PREVIOUS_CLOSE",
+        ),
+    )
+    resolved = await MultiSourceWarrantQuoteResolver(
+        (NamedWarrantQuoteSource("PRIMARY", _Provider(result=provider_result)),)
+    ).resolve(_request(listing_id))
+
+    assert resolved.result is provider_result
+    attempt = resolved.attempts[0]
+    assert attempt.status is QuoteSourceAttemptStatus.AVAILABLE
+    assert attempt.reason == "REFERENCE_PRICE_AVAILABLE_FOR_ANALYSIS"
+    assert attempt.bid_available is False
+    assert attempt.reference_price == Decimal("2.40")
+    assert attempt.reference_price_type == "PREVIOUS_CLOSE"
+
+
+async def test_positive_retained_bid_preserves_refresh_failure_and_source_clock():
+    listing_id = uuid4()
+    original = _result(listing_id)
+    provider_result = replace(
+        original,
+        data=replace(
+            original.data,
+            provider_exchange_code="ISSUER",
+            observed_at=None,
+            source_mode="OFFICIAL_ISSUER_INDICATION_TIME_ONLY",
+            quote_time_text="18:20:00",
+            quote_time_basis="DATE_AND_TIMEZONE_UNKNOWN",
+            retained=True,
+            refresh_error="JPMORGAN_SNAPSHOT_TIMEOUT",
+        ),
+        provider=MarketDataProvider.JPMORGAN,
+        reason_code="QUOTE_TIMESTAMP_UNKNOWN_INDICATIVE_ANALYSIS_ONLY",
+    )
+    resolved = await MultiSourceWarrantQuoteResolver(
+        (NamedWarrantQuoteSource("JPMORGAN", _Provider(result=provider_result)),)
+    ).resolve_selected("JPMORGAN", _request(listing_id))
+
+    assert resolved.result is provider_result
+    attempt = resolved.attempts[0]
+    assert attempt.status is QuoteSourceAttemptStatus.AVAILABLE
+    assert attempt.reason == "LAST_SUCCESSFUL_QUOTE_REFRESH_FAILED"
+    assert attempt.bid_available is True
+    assert attempt.refresh_error == "JPMORGAN_SNAPSHOT_TIMEOUT"
+    assert attempt.retained is True
+    assert attempt.provider_reason == "QUOTE_TIMESTAMP_UNKNOWN_INDICATIVE_ANALYSIS_ONLY"
+    assert attempt.quote_time_basis == "DATE_AND_TIMEZONE_UNKNOWN"
+    assert attempt.observed_at is None
 
 
 @pytest.mark.asyncio

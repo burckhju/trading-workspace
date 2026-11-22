@@ -6,14 +6,20 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock
 from uuid import uuid4
 
+import httpx
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.features.market_data.domain.enums import MarketDataProvider
+from app.features.position_monitoring.backend_valuations import BackendProductValuations
 from app.features.position_monitoring.service.product_valuation import (
     ProductPositionValuation,
     ProductValuationStatus,
+)
+from app.features.position_monitoring.service.quote_sources import (
+    QuoteSourceAttempt,
+    QuoteSourceAttemptStatus,
 )
 
 api = importlib.import_module("app.features.position_monitoring.api.router")
@@ -71,4 +77,58 @@ def test_valuation_json_preserves_selection_metadata(monkeypatch, selection, rea
     assert data["quote_time_basis"] == value.quote_time_basis
     assert data["quote_observed_at"] is None
     assert data["execution_usable"] is False
+    for_trade.assert_awaited_once_with(trade_id)
+
+
+async def test_bidless_refresh_diagnostics_survive_api_and_backend_reader(monkeypatch):
+    trade_id = uuid4()
+    attempt = QuoteSourceAttempt(
+        source="JPMORGAN",
+        status=QuoteSourceAttemptStatus.INSUFFICIENT,
+        reason="BID_MISSING",
+        delayed=False,
+        warrant_listing_id=uuid4(),
+        currency="EUR",
+        refresh_error="JPMORGAN_SNAPSHOT_TIMEOUT",
+        retained=True,
+        provider_reason="QUOTE_TIMESTAMP_UNKNOWN_INDICATIVE_ANALYSIS_ONLY",
+        quote_time_basis="DATE_AND_TIMEZONE_UNKNOWN",
+    )
+    value = ProductPositionValuation(
+        trade_id=trade_id,
+        position_id=uuid4(),
+        status=ProductValuationStatus.MISSING,
+        reason="NO_USABLE_WARRANT_QUOTE",
+        source_attempts=(attempt,),
+    )
+    for_trade = AsyncMock(return_value=value)
+    monkeypatch.setattr(
+        api,
+        "ProductPositionValuationService",
+        lambda **kwargs: SimpleNamespace(for_trade=for_trade),
+    )
+    monkeypatch.setattr(api, "build_warrant_quote_resolver", lambda container: None)
+    application = FastAPI()
+    application.include_router(api.router)
+    application.dependency_overrides[api.get_container] = lambda: SimpleNamespace(database=None)
+    diagnostics = []
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=application), base_url="http://test"
+    ) as client:
+        reader = BackendProductValuations(client, diagnostics=diagnostics)
+        restored = await reader.for_trade(trade_id)
+
+    assert restored is not None
+    assert restored.status is ProductValuationStatus.MISSING
+    assert restored.bid is None
+    assert restored.monitoring_usable is False
+    assert restored.execution_usable is False
+    assert restored.source_attempts == (attempt,)
+    exposed = diagnostics[0]["source_attempts"][0]
+    assert exposed["reason"] == "BID_MISSING"
+    assert exposed["refresh_error"] == "JPMORGAN_SNAPSHOT_TIMEOUT"
+    assert exposed["retained"] is True
+    assert exposed["provider_reason"] == "QUOTE_TIMESTAMP_UNKNOWN_INDICATIVE_ANALYSIS_ONLY"
+    assert exposed["quote_time_basis"] == "DATE_AND_TIMEZONE_UNKNOWN"
+    assert exposed["observed_at"] is None
     for_trade.assert_awaited_once_with(trade_id)
