@@ -63,6 +63,19 @@ spätere Preisversorgung. Ein App-Update ist für diesen Export nicht nötig;
 der Fix ist damit noch nicht auf dem PC installiert. Der Gesamtauftrag
 bleibt bis zum gebundenen Originalgrund und seiner Auswertung offen.
 
+**Auslieferungsabgleich, 23.11.2026:** Der erste enge Nutzeraufruf lief gegen
+eine alte lokale Datei mit ausschließlich `--base` und endete vor jeder
+Datensammlung. Die geprüfte neue Fassung wird bytegleich unter einem
+eindeutigen Downloadnamen bereitgestellt; kein App-Update erforderlich.
+Die CI des veröffentlichten Fixes hat außerdem genau ein veraltetes
+synthetisches Browserfixture nachgewiesen: sechs Attempts benötigen die
+drei additiven Diagnosefelder. Diese 18 erwarteten Werte wurden anhand
+des vollständigen CI-Diffs ergänzt und gegen das gesamte tatsächliche
+CI-Ergebnis geprüft, ohne die Prüfung abzuschwächen.
+[Nachweis und genaue CI-Grenzen](../reviews/DEPOT_DATA_READBACK_2026-11-22.md#p02-auslieferungsabgleich-20261123).
+Der eine aktuelle Auftrag bleibt der gebundene P02-Journalread und seine
+Auswertung; eine tatsächliche neue Bidversorgung ist weiterhin unbelegt.
+
 <details>
 <summary>Vorbereitung und Quellenanalyse vom 20./21.11.2026 — damaliger Stand</summary>
 

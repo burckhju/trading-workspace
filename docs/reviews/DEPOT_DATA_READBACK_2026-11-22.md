@@ -481,3 +481,50 @@ Es gab weiterhin keinen direkten PC-Zugang, neuen Kursabruf oder
 Regellauf. Der enge PC-Export und sein Originalgrund sind noch nicht
 beobachtet. Eine Quellenreparatur, tatsächliche Verbesserung der
 V2-Preisversorgung oder B58-Freigabe wird deshalb nicht behauptet.
+
+<a id="p02-auslieferungsabgleich-20261123"></a>
+## 10. Download- und CI-Abgleich vom 23.11.2026
+
+Der Nutzeraufruf mit `--source-gap-from` und `--position-label` wurde durch
+eine lokale Collector-Fassung abgewiesen, deren Argumentoberfläche nur
+`--base` kennt. Die alte `main()`-Reihenfolge prüft Argumente vor der
+Verzeichniserstellung und Sammlung; dieser Abbruch erzeugt keinen neuen
+PC-/Journalbeleg. Die veröffentlichte Fassung aus
+`451b10daa4b3a838605ad82cdbf6689aed9bb1f2` wurde erneut mit `--help` geprüft
+und unterstützt beide Optionen. Eine bytegleiche Downloadkopie unter
+`collect-depot-source-gap-451b10da.py` beseitigt die Namensverwechslung;
+[Ausführungshinweis und Dateihash](../technical/ISSUER_MONITORING_OPERATIONS.md#gezielter-p02-journalread).
+Der Collectorcode und seine beiden bisherigen Payloads wurden dabei
+nicht geändert. Ein tatsächlicher enger PC-Read bleibt noch erforderlich.
+
+Die inzwischen abgeschlossene CI für genau `451b10da…` ergibt:
+
+- [Frontend](https://github.com/burckhju/trading-workspace/actions/runs/45069248306)
+  und [End-to-End](https://github.com/burckhju/trading-workspace/actions/runs/45069248014)
+  erfolgreich.
+- [Backend](https://github.com/burckhju/trading-workspace/actions/runs/45069248044):
+  Renderer-Sandbox, restriktives Image, statische Prüfungen,
+  PostgreSQL-Migration sowie Recovery-/Originalupgrade-Vorprüfungen
+  erfolgreich. Gesamtsuite **6.332 bestanden, ein fehlgeschlagen**,
+  Coverage **90,05 %**. Dieser Head ist damit kein grünes Gesamtgate.
+- Der einzige Fehler ist der exakte Vergleich in
+  `test_owner_to_depot_preserves_market_value_and_excludes_unqualified_pnl`.
+  Der vollständige CI-Diff zeigt ausschließlich die drei neuen Felder in
+  jeweils sechs `source_attempts`: `provider_reason=null`,
+  `quote_time_basis=null`, `retained=false`. Alle davor ausgeführten
+  Marktwert-/Währungs-/PnL- und Unverändertheitsprüfungen bestehen.
+
+Das vorhandene synthetische
+[Browserfixture](../../tests/fixtures/position_currency_qualification.json)
+ist um genau diese 18 belegten Werte ergänzt. Der vollständige CI-Diff
+wurde als erwarteter und tatsächlicher Dictionary-Datensatz rekonstruiert:
+die alte Fixture entspricht exakt dem alten Erwartungswert, die korrigierte
+Fixture exakt dem gesamten tatsächlichen CI-Ergebnis. Der vorhandene
+Normalizer und sechs vollständige API-DTO-JSON-Roundtrips sind zusätzlich
+mit gesperrten Netzwerkverbindungen geprüft. Produktivcode, Depotwerte,
+Resolverregeln und sonstige Fixturefelder ändern sich nicht. Die
+zugehörige PostgreSQL-Prüfung wird nicht abgeschwächt. Die erneuten
+PR-Gates müssen die korrigierte Fixtureversion qualifizieren; die grüne
+Frontend-/Browserprüfung des Vorgängers wird nicht auf einen neuen Head
+übertragen. Der aktuelle Arbeitsstatus bleibt im
+[einzigen Backlogauftrag](../planning/PRODUCT_BACKLOG.md#naechster-schnitt).

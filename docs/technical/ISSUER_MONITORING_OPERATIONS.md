@@ -347,6 +347,19 @@ entpacken. Er prüft Transport, Payloadbindung, Inventar, gespeicherte
 Quellenroute, Auswahlversion und referenzierte Bewertung. Ungültige,
 unvollständige oder mehrdeutige Archive führen zu einem privaten Fehlerpaket.
 
+**Falls `unrecognized arguments` erscheint:** Zeigt die Hilfe nur `--base`,
+wird noch eine Collector-Fassung ohne den engen Modus ausgeführt. Die
+Argumentprüfung bricht dann vor jeder Sammlung ab. Dies wurde beim
+Nutzeraufruf vom 23.11.2026 beobachtet; daraus folgt kein Backend- oder
+Datenbankfehler. Die bereitgestellte Fassung aus
+[Commit451b10da](https://github.com/burckhju/trading-workspace/blob/451b10daa4b3a838605ad82cdbf6689aed9bb1f2/scripts/collect-depot-data-supply.py)
+besitzt beide Optionen. Zur eindeutigen Zuordnung kann dieselbe Datei als
+`collect-depot-source-gap-451b10da.py` gespeichert werden; im Aufruf dann
+genau diesen Dateinamen verwenden. Die separat bereitgestellte Downloadkopie
+ist bytegleich, SHA256
+`d9b6997b8e2644b658fc921aba37d45f9eac7e5a226347e024d88a6736a045c2`.
+Ein App-Update ist für die Korrektur des lokalen Dateinamens nicht nötig.
+
 Im bestehenden Backend folgen die Installations-/Schemabindung und eine
 einzelne `REPEATABLE READ READ ONLY`-Transaktion. Die tatsächlich gesetzten
 Transaktionseigenschaften werden vor den Ownerreads kontrolliert;

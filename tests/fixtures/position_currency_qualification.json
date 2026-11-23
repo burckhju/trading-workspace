@@ -583,7 +583,10 @@
           "reference_price": null,
           "reference_price_type": null,
           "currency": "EUR",
-          "refresh_error": null
+          "refresh_error": null,
+          "retained": false,
+          "provider_reason": null,
+          "quote_time_basis": null
         }
       ]
     },
@@ -697,7 +700,10 @@
           "reference_price": null,
           "reference_price_type": null,
           "currency": "EUR",
-          "refresh_error": null
+          "refresh_error": null,
+          "retained": false,
+          "provider_reason": null,
+          "quote_time_basis": null
         }
       ]
     },
@@ -811,7 +817,10 @@
           "reference_price": null,
           "reference_price_type": null,
           "currency": "EUR",
-          "refresh_error": null
+          "refresh_error": null,
+          "retained": false,
+          "provider_reason": null,
+          "quote_time_basis": null
         }
       ]
     },
@@ -941,7 +950,10 @@
           "reference_price": null,
           "reference_price_type": null,
           "currency": "EUR",
-          "refresh_error": null
+          "refresh_error": null,
+          "retained": false,
+          "provider_reason": null,
+          "quote_time_basis": null
         }
       ]
     },
@@ -1055,7 +1067,10 @@
           "reference_price": null,
           "reference_price_type": null,
           "currency": "EUR",
-          "refresh_error": null
+          "refresh_error": null,
+          "retained": false,
+          "provider_reason": null,
+          "quote_time_basis": null
         }
       ]
     },
@@ -1165,7 +1180,10 @@
           "reference_price": null,
           "reference_price_type": null,
           "currency": "EUR",
-          "refresh_error": null
+          "refresh_error": null,
+          "retained": false,
+          "provider_reason": null,
+          "quote_time_basis": null
         }
       ]
     }
