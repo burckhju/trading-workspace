@@ -27,6 +27,12 @@ Der vollständige Readback und die [enge passive P02-Ergänzung vom
 Archivierte Bewertungsinputs und heutiger Journalbestand sind getrennt
 ausgewertet. Ein erneuter P02-Export ist für diese Ursachenklärung nicht
 erforderlich; die übrigen Positionen wurden mit dem neuen Paket nicht gelesen.
+Für die zuvor ungebundenen Kandidaten ergänzt derselbe Collector den
+[gezielten Quellenkandidatenread](docs/technical/ISSUER_MONITORING_OPERATIONS.md#gezielter-quellenkandidatenread).
+Er verbindet vorhandene Coverage-GETs mit gespeicherten Auswahl-, Produkt-
+und Bewertungsfakten. Der [Umsetzungsnachweis](docs/reviews/DEPOT_SOURCE_COVERAGE_COLLECTOR_2026-11-24.md)
+trennt technische Qualifikation und den noch erforderlichen tatsächlichen
+PC-Read; neue Datenabdeckung ist daraus noch nicht abgeleitet.
 
 | Orientierung | Maßgebliche Quelle |
 |---|---|

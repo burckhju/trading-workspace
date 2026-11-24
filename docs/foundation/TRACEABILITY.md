@@ -1,5 +1,15 @@
 # Traceability – aktueller Nachweiseinstieg
 
+> **Gezielte Fortsetzung am 24.11.2026:** Der
+> [Quellenkandidaten-Collector](../reviews/DEPOT_SOURCE_COVERAGE_COLLECTOR_2026-11-24.md)
+> ergänzt die im bisherigen Read nicht ausgegebenen Auswahlkandidaten
+> und aktuellen Produkt-/Bewertungsfakten für die archivierten ungebundenen
+> Positionen. Der Originalarchiv-Abgleich ist tatsächlich geprüft; eine
+> neue Ausführung auf deren PC-Bestand liegt noch nicht vor. Die
+> [Betriebsanleitung](../technical/ISSUER_MONITORING_OPERATIONS.md#gezielter-quellenkandidatenread)
+> verwendet denselben eigenständigen Collector. Arbeitsstatus und genau
+> ein aktueller Auftrag bleiben ausschließlich im Backlog.
+
 > **Neuester enger Betriebsnachweis, 24.11.2026:** Der
 > [P02-Readback](../reviews/P02_SOURCE_GAP_READBACK_2026-11-24.md) bestätigt
 > die tatsächliche Installation von **v1.5.54/9a5e59d…**, Schema0060 und

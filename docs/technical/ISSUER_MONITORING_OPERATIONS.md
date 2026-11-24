@@ -304,8 +304,8 @@ seine Zuordnung ungeklärt.
 
 Diese vorhandenen Quellen ergänzen die Diagnose ungebundener Positionen;
 der bestehende `--source-gap-from`-Modus setzt eine bestätigte Route voraus.
-Eine künftige gezielte Sammlung für ungebundene Positionen ist damit nicht
-bereits implementiert. Für passive DB-Reads keine Owner-Methode mit
+Die [gezielte Sammlung](#gezielter-quellenkandidatenread) ergänzt diese
+Fakten im selben eigenständigen Collector. Für passive DB-Reads keine Owner-Methode mit
 `FOR UPDATE` verwenden; insbesondere sperrt
 `PositionQuoteSourceSelectionRepository.active_for_position()` die Auswahlzeile.
 
@@ -442,6 +442,51 @@ weder einen neuen Bid noch eine reparierte Quelle oder B58-Konformität.
 Die [Prüfbelege](../reviews/DEPOT_DATA_READBACK_2026-11-22.md#p02-fortsetzung-20261122)
 und der [einzige Arbeitsauftrag](../planning/PRODUCT_BACKLOG.md#naechster-schnitt)
 halten Vorbereitung und tatsächliches PC-Ergebnis getrennt.
+
+<a id="gezielter-quellenkandidatenread"></a>
+### Einmaliger Quellenkandidatenread nach vollständigem Archiv
+
+Der Modus `--source-coverage-from` liest die heutigen gespeicherten Fakten
+zu den **im ursprünglichen vollständigen Archiv noch nicht ausgewählten**
+Positionen. Im gelieferten Referenzbestand sind dies P01/P03/P04; P02
+gehört nicht dazu. Die Labels werden aus dem alten Archiv gebunden, nicht
+aus der heutigen Reihenfolge. Der jüngste enge P02-Export ist hierfür das
+falsche Referenzarchiv und wird kontrolliert abgelehnt.
+
+Die neue einzelne Datei außerhalb des installierten Checkouts speichern,
+beispielsweise als `collect-depot-source-coverage-20261124.py`. Ihre Hilfe
+muss `--source-coverage-from` aufführen. Auf dem bestehenden PC als
+Installationsbenutzer ausführen; den Archivpfad durch das tatsächlich
+vorhandene vollständige Paket ersetzen:
+
+```bash
+python3 "$HOME/Downloads/collect-depot-source-coverage-20261124.py" \
+  --source-coverage-from /absoluter/pfad/zum/vollstaendigen-diagnosepaket.tar.gz
+```
+
+Ein `--position-label` wird in diesem Modus nicht verwendet; bis zu zwanzig
+damals ungebundene Kandidaten werden gemeinsam gelesen. `--source-gap-from`
+und `--source-coverage-from` sind gegenseitig ausgeschlossen. Die bisherigen
+Standard- und P02-Aufrufe bleiben erhalten. Kein App-Update nötig.
+
+Der Read verbindet die vorhandenen Positions- und Produkt-Coverage-GETs
+vor/nach mit einer ausdrücklich bestätigten lesenden DB-Transaktion.
+Zusätzlich erfasst er die ursprüngliche und aktuelle gespeicherte Auswahl
+samt Kandidaten, den Trade-/Positionzustand, archivierte und aktuelle
+Bewertungsinputs sowie aktuelle Product-/Beschaffungs-/KID-Metadaten.
+Er führt keine neue Auswahl, Dokumentbeschaffung oder V2-Bewertung aus.
+Originaldokumente, Providerzugangsdaten und komplette Logs werden nicht
+gesammelt. Die [Qualifikation und genauen Grenzen](../reviews/DEPOT_SOURCE_COVERAGE_COLLECTOR_2026-11-24.md)
+bleiben von einem späteren tatsächlichen PC-Read getrennt.
+
+`source-coverage-private.json` enthält die Zielbefunde; Installation,
+Schema und Zusammenfassung liegen separat im selben privaten Paket.
+`COMPLETE_PASSIVE_SOURCE_COVERAGE_READ_NOT_RULE_QUALIFICATION` bescheinigt
+den vollständigen gebundenen Transport. Fehlende Kandidaten, geschlossene
+Positionen und fehlende Bewertungen können gültige fachliche Befunde sein.
+Eine unbekannte oder geänderte Bindung wird nicht durch eine andere
+Position ersetzt. Auch ein unvollständiges Paket für die Auswertung privat
+bereitstellen; kein pauschaler erneuter Gesamtexport oder P02-Read nötig.
 
 ### Korrektur des vorbereiteten Ablaufs vom 20.11.2026
 
